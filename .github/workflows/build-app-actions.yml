@@ -1,0 +1,43 @@
+name: build application
+on:
+  workflow_dispatch:
+  pull_request:
+jobs:
+  build-app-for-windows:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/rookro/tauri-template-devcontainer:latest
+      options: --user root
+    steps:
+      - name: setup rustup
+        run: rustup default stable
+      - name: checkout merged branch
+        uses: actions/checkout@v4
+      - name: setup build script
+        run: sudo chmod u+x ./build-windows.sh
+      - name: build application for windows
+        run: ./build-windows.sh
+      - name: upload setup exe
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-setup-exe
+          path: src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*setup.exe
+  build-app-for-linux:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/rookro/tauri-template-devcontainer:latest
+      options: --user root
+    steps:
+      - name: setup rustup
+        run: rustup default stable
+      - name: checkout merged branch
+        uses: actions/checkout@v4
+      - name: setup build script
+        run: sudo chmod u+x ./build-linux.sh
+      - name: build application for linux
+        run: ./build-linux.sh
+      - name: upload appimage
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-appimage
+          path: src-tauri/target/release/bundle/appimage/*.AppImage 

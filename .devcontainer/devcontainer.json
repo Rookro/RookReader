@@ -1,0 +1,17 @@
+{
+    "name": "tauri-devcontainer",
+    "build": {
+        "dockerfile": "Dockerfile"
+    },
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-vscode.vscode-typescript-next",
+                "rust-lang.rust-analyzer",
+                "tauri-apps.tauri-vscode",
+                "EditorConfig.EditorConfig"
+            ]
+        }
+    },
+    "remoteUser": "vscode"
+}

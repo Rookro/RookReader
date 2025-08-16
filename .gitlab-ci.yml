@@ -1,0 +1,51 @@
+stages:
+  - setup-devcontainer
+  - build
+
+build-devcontainer:
+  stage: setup-devcontainer
+  image: docker:latest
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+  services:
+    - docker:dind
+  before_script:
+    - apk add --update nodejs npm python3 make g++
+    - npm install -g @devcontainers/cli
+  script:
+    - docker login -u gitlab-ci-token -p ${CI_JOB_TOKEN} ${CI_REGISTRY}
+    - devcontainer build --workspace-folder . --push true --image-name ${CI_REGISTRY_IMAGE}:latest
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      changes:
+        - .devcontainer/*
+
+build-app-for-windows:
+  stage: build
+  image: ${CI_REGISTRY_IMAGE}:latest
+  before_script:
+    - sudo chmod u+x ./build-windows.sh
+  script:
+    - ./build-windows.sh
+    - mkdir win-installer
+    - cp src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*setup.exe win-installer
+  artifacts:
+    paths:
+      - win-installer/**
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+
+build-app-for-linux:
+  stage: build
+  image: ${CI_REGISTRY_IMAGE}:latest
+  before_script:
+    - sudo chmod u+x ./build-linux.sh
+  script:
+    - ./build-linux.sh
+    - mkdir appimage
+    - cp src-tauri/target/release/bundle/appimage/*.AppImage appimage
+  artifacts:
+    paths:
+      - appimage/**
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
