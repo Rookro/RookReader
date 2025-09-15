@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
-use tauri::path;
 
 #[derive(Serialize, Deserialize)]
 pub struct DirEntry {
