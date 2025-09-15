@@ -1,0 +1,31 @@
+.navigation_bar {
+    height: 30px;
+    margin: 4px;
+    justify-content: center;
+    display: flex;
+    text-align: center;
+}
+
+.navigation_bar input {
+    width: 100%;
+    margin: 1px;
+    border: 0px;
+    padding-left: 0.5em;
+    font-size: 1em;
+    font-family: inherit;
+    color: black;
+    background-color: #ffffff;
+    outline: none;
+}
+
+.navigation_bar input:focus {
+    border: 1px solid cornflowerblue;
+}
+
+@media (prefers-color-scheme: dark) {
+
+    .navigation_bar input {
+        color: #ffffff;
+        background-color: #0f0f0f98;
+    }
+}
