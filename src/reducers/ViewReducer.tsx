@@ -5,7 +5,7 @@ export const viewSlice = createSlice({
     name: "view",
     initialState: {
         isTwoPagedView: true,
-        direction: "left" as Direction,
+        direction: "right" as Direction,
     },
     reducers: {
         setIsTwoPagedView: (state, action: PayloadAction<boolean>) => {
