@@ -60,7 +60,7 @@ function ImageViewer() {
 
     const moveFoward = () => {
         const forwardIndex = isTwoPagedView ? index + 2 : index + 1;
-        if (forwardIndex > entries.length) {
+        if (entries.length <= forwardIndex) {
             return;
         }
         setIndex(forwardIndex);
