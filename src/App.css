@@ -39,6 +39,7 @@ button:hover {
 
 .main_view {
   display: flex;
+  height: calc(100vh - 70px);
 }
 
 @media (prefers-color-scheme: dark) {

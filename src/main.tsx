@@ -1,9 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { Provider, useDispatch } from "react-redux";
-import { listen } from "@tauri-apps/api/event";
-import { AppDispatch, store } from "./Store";
-import { getEntriesInZip, setContainerPath } from "./reducers/FileReducer";
+import { Provider } from "react-redux";
+import { store } from "./Store";
 import App from "./App";
 
 // デフォルト動作では右クリックでメニューが開くため、開かないように抑制する

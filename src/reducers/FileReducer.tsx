@@ -38,6 +38,7 @@ export const fileSlice = createSlice({
     initialState: {
         containerPath: "",
         entries: [] as string[],
+        index: 0,
         explore: {
             basePath: "",
             entries: [] as DirEntry[],
@@ -49,6 +50,9 @@ export const fileSlice = createSlice({
         },
         setExploreBasePath: (state, action: PayloadAction<string>) => {
             state.explore.basePath = action.payload;
+        },
+        setImageIndex: (state, action: PayloadAction<number>) => {
+            state.index = action.payload;
         }
     },
     extraReducers: (builder) => {
@@ -62,5 +66,5 @@ export const fileSlice = createSlice({
     }
 });
 
-export const { setContainerPath, setExploreBasePath } = fileSlice.actions;
+export const { setContainerPath, setExploreBasePath, setImageIndex } = fileSlice.actions;
 export default fileSlice.reducer;

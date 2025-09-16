@@ -1,5 +1,4 @@
 .left_pane {
-    height: calc(100vh - 40px);
     min-width: 270px;
     max-width: 270px;
     margin-left: 4px;

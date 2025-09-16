@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { AppDispatch, useSelector } from '../../Store';
-import "./ImageViewer.css";
 import { useDispatch } from "react-redux";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
-import { getEntriesInZip, setContainerPath } from "../../reducers/FileReducer";
+import { AppDispatch, useSelector } from '../../Store';
+import { getEntriesInZip, setContainerPath, setImageIndex } from "../../reducers/FileReducer";
+import "./ImageViewer.css";
 
 /**
  * 画像ファイルを読み込み、`<img>` 用の URL を作成する
@@ -25,16 +25,15 @@ const createImageURL = async (containerPath: string, entryName: string) => {
  * 画像表示用コンポーネント
  */
 function ImageViewer() {
-    const { containerPath, entries } = useSelector(state => state.file);
+    const { containerPath, entries, index } = useSelector(state => state.file);
     const { isTwoPagedView, direction } = useSelector(state => state.view);
     const dispatch = useDispatch<AppDispatch>();
 
-    const [index, setIndex] = useState(0);
     const [firstSrc, setFirstSrc] = useState("");
     const [secondSrc, setSecondSrc] = useState("");
     const [canTwoPage, setCanTwoPage] = useState(false);
 
-    useEffect(() => { setIndex(0) }, [containerPath]);
+    useEffect(() => { dispatch(setImageIndex(0)) }, [containerPath]);
 
     useEffect(() => {
         const setImage = async (firstImagePath: string, secondImagePath: string | undefined) => {
@@ -76,7 +75,9 @@ function ImageViewer() {
         }
         listenDragDrop();
         return () => {
-            unlisten();
+            if (unlisten) {
+                unlisten();
+            }
         };
     }, [dispatch]);
 
@@ -85,15 +86,17 @@ function ImageViewer() {
         if (entries.length <= forwardIndex) {
             return;
         }
-        setIndex(forwardIndex);
+        dispatch(setImageIndex(forwardIndex));
     }
     const moveBack = () => {
         const backIndex = isTwoPagedView ? index - 2 : index - 1;
         if (backIndex < 0) {
-            setIndex(0);
+            if (index !== 0) {
+                dispatch(setImageIndex(0));
+            }
             return;
         }
-        setIndex(backIndex);
+        dispatch(setImageIndex(backIndex));
     }
 
     const handleClicked = (_e: React.MouseEvent<HTMLDivElement>) => {
