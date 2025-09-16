@@ -1,7 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { useSelector } from '../../Store';
+import { AppDispatch, useSelector } from '../../Store';
 import "./ImageViewer.css";
+import { useDispatch } from "react-redux";
+import { listen, UnlistenFn } from "@tauri-apps/api/event";
+import { getEntriesInZip, setContainerPath } from "../../reducers/FileReducer";
 
 /**
  * 画像ファイルを読み込み、`<img>` 用の URL を作成する
@@ -24,6 +27,7 @@ const createImageURL = async (containerPath: string, entryName: string) => {
 function ImageViewer() {
     const { containerPath, entries } = useSelector(state => state.file);
     const { isTwoPagedView, direction } = useSelector(state => state.view);
+    const dispatch = useDispatch<AppDispatch>();
 
     const [index, setIndex] = useState(0);
     const [firstSrc, setFirstSrc] = useState("");
@@ -57,6 +61,24 @@ function ImageViewer() {
         }
         setImage(entries[index], nextPath);
     }, [containerPath, entries, index, isTwoPagedView]);
+
+    useEffect(() => {
+        let unlisten: UnlistenFn;
+        const listenDragDrop = async () => {
+            // ドラッグアンドドロップでファイルを指定する
+            // 複数指定された場合は、最初の一つのみ
+            unlisten = await listen("tauri://drag-drop", (event) => {
+                const path = (event.payload as { paths: string[] }).paths[0];
+                console.log(path);
+                dispatch(setContainerPath(path));
+                dispatch(getEntriesInZip(path));
+            });
+        }
+        listenDragDrop();
+        return () => {
+            unlisten();
+        };
+    }, [dispatch]);
 
     const moveFoward = () => {
         const forwardIndex = isTwoPagedView ? index + 2 : index + 1;
