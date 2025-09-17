@@ -4,6 +4,8 @@ use zip::ZipArchive;
 
 #[tauri::command()]
 pub fn get_binary(zip_path: String, entry_name: String) -> Result<Vec<u8>, String> {
+    log::debug!("Get the binary of {} in {}", entry_name, zip_path);
+
     let file = File::open(&zip_path).map_err(|e| e.to_string())?;
     let mut archive = ZipArchive::new(file).map_err(|e| e.to_string())?;
 
@@ -16,6 +18,8 @@ pub fn get_binary(zip_path: String, entry_name: String) -> Result<Vec<u8>, Strin
 
 #[tauri::command()]
 pub fn get_entries_in_zip(zip_path: String) -> Result<Vec<String>, String> {
+    log::debug!("Get the directory entries in {}", zip_path);
+
     let file = File::open(&zip_path).map_err(|e| e.to_string())?;
     let archive = ZipArchive::new(file).map_err(|e| e.to_string())?;
 

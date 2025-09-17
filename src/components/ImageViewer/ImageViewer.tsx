@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useDispatch } from "react-redux";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
+import { warn, debug, trace, info, error } from '@tauri-apps/plugin-log';
 import { AppDispatch, useSelector } from '../../Store';
 import { getEntriesInZip, setContainerPath, setImageIndex } from "../../reducers/FileReducer";
 import "./ImageViewer.css";
@@ -68,7 +69,7 @@ function ImageViewer() {
             // 複数指定された場合は、最初の一つのみ
             unlisten = await listen("tauri://drag-drop", (event) => {
                 const path = (event.payload as { paths: string[] }).paths[0];
-                console.log(path);
+                debug(`DragDrop ${path}.`);
                 dispatch(setContainerPath(path));
                 dispatch(getEntriesInZip(path));
             });

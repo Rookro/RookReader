@@ -9,6 +9,7 @@ pub struct DirEntry {
 
 #[tauri::command()]
 pub fn get_entries_in_dir(dir_path: String) -> Result<Vec<DirEntry>, String> {
+    log::debug!("Get the directory entries in {}", dir_path);
     let mut entries: Vec<DirEntry> = Vec::new();
     for entry in fs::read_dir(dir_path).map_err(|e| e.to_string())? {
         let entry = entry.map_err(|e| e.to_string())?;
