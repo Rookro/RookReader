@@ -1,6 +1,6 @@
 import { PayloadAction, createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { invoke } from "@tauri-apps/api/core";
-import { warn, debug, trace, info, error } from '@tauri-apps/plugin-log';
+import { debug, error } from '@tauri-apps/plugin-log';
 import { DirEntry } from "../types/DirEntry";
 
 /**

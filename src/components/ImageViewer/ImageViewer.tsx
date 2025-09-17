@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useDispatch } from "react-redux";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
-import { warn, debug, trace, info, error } from '@tauri-apps/plugin-log';
+import { debug } from '@tauri-apps/plugin-log';
 import { AppDispatch, useSelector } from '../../Store';
 import { getEntriesInZip, setContainerPath, setImageIndex } from "../../reducers/FileReducer";
 import "./ImageViewer.css";
