@@ -1,5 +1,6 @@
 import { PayloadAction, createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { invoke } from "@tauri-apps/api/core";
+import { debug, error } from '@tauri-apps/plugin-log';
 import { DirEntry } from "../types/DirEntry";
 
 /**
@@ -8,10 +9,11 @@ import { DirEntry } from "../types/DirEntry";
 export const getEntriesInZip = createAsyncThunk(
     "file/getEntriesInZip",
     async (zipPath: string) => {
+        debug(`getEntriesInZip(${zipPath}).`);
         try {
             return await invoke<string[]>("get_entries_in_zip", { zipPath });
         } catch (e) {
-            console.error(e);
+            error(`Failed to getEntriesInZip(${zipPath}). Error: ${e}`);
             return [];
         }
     }
@@ -23,11 +25,12 @@ export const getEntriesInZip = createAsyncThunk(
 export const getEntriesInDir = createAsyncThunk(
     "file/getEntriesInDir",
     async (dirPath: string) => {
+        debug(`getEntriesInDir(${dirPath}).`);
         try {
             const entries = await invoke<DirEntry[]>("get_entries_in_dir", { dirPath });
             return { basePath: dirPath, entries };
         } catch (e) {
-            console.error(e);
+            error(`Failed to getEntriesInDir(${dirPath}). Error: ${e}`);
             return { basePath: dirPath, entries: [] };
         }
     }

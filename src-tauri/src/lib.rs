@@ -2,12 +2,32 @@ use tauri::{
     menu::{CheckMenuItemBuilder, Menu, MenuBuilder, SubmenuBuilder},
     App, Wry,
 };
+use tauri_plugin_log::{RotationStrategy, Target, TargetKind};
 
 mod commands;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let result = tauri::Builder::default()
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                .format(|out, message, record| {
+                    out.finish(format_args!(
+                        "[{}] [{}] [{}::L{}] {}",
+                        record.level(),
+                        record.target(),
+                        record.file().unwrap_or("unknown"),
+                        record.line().unwrap_or(0),
+                        message
+                    ))
+                })
+                .targets([
+                    Target::new(TargetKind::LogDir { file_name: None }),
+                    Target::new(TargetKind::Stdout),
+                ])
+                .rotation_strategy(RotationStrategy::KeepAll)
+                .build(),
+        )
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
@@ -21,8 +41,15 @@ pub fn run() {
             commands::zip_commands::get_entries_in_zip,
             commands::file_commands::get_entries_in_dir,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .run(tauri::generate_context!());
+
+    match result {
+        Ok(()) => {}
+        Err(e) => log::error!(
+            "Error has occurred while running tauri application. Error: {}",
+            e.to_string()
+        ),
+    };
 }
 
 fn create_menu(app: &App) -> tauri::Result<Menu<Wry>> {
@@ -82,6 +109,7 @@ fn set_menu_event(app: &App) {
                     .unwrap()
                     .set_checked(true);
 
+                log::debug!("Set the Light theme.");
                 app_handle.set_theme(Some(tauri::Theme::Light));
             }
             "dark_theme" => {
@@ -111,13 +139,15 @@ fn set_menu_event(app: &App) {
                     .unwrap()
                     .set_checked(true);
 
+                log::debug!("Set the Dark theme.");
                 app_handle.set_theme(Some(tauri::Theme::Dark));
             }
             "exit" => {
+                log::debug!("Exit by menu.");
                 app_handle.exit(0);
             }
             _ => {
-                println!("unexpected menu event. menu event: {:?}", event.id());
+                log::error!("unexpected menu event. menu event: {:?}", event.id());
             }
         },
     );

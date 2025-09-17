@@ -16,7 +16,6 @@ function NavigationBar() {
     const dispatch = useDispatch<AppDispatch>();
 
     const handlePathChanged = (e: React.ChangeEvent<HTMLInputElement>) => {
-
         dispatch(setContainerPath(e.target.value));
         dispatch(getEntriesInZip(e.target.value));
     }
