@@ -1,0 +1,31 @@
+.image_viewer {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    background-color: white;
+    overflow: auto;
+}
+
+.image_viewer img {
+    width: 50%;
+    object-fit: contain;
+}
+
+.image_viewer .single {
+    width: 100%;
+    object-position: center center;
+}
+
+.image_viewer .left {
+    object-position: right center;
+}
+
+.image_viewer .right {
+    object-position: left center;
+}
+
+@media (prefers-color-scheme: dark) {
+    .image_viewer {
+        background-color: black;
+    }
+}
