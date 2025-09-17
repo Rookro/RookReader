@@ -33,6 +33,7 @@
         }
       ]
     },
-    "store:default"
+    "store:default",
+    "log:default"
   ]
 }
