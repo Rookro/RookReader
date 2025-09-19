@@ -27,4 +27,6 @@ tauri-plugin-store = "2"
 zip = "5.1.1"
 tauri-plugin-log = "2"
 log = "0.4"
-
+pdfium = "0.9.5"
+image = "0.25"
+tauri-plugin-os = "2"
