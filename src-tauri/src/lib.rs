@@ -34,11 +34,12 @@ pub fn run() {
         .setup(|app| {
             app.set_menu(create_menu(app)?)?;
             set_menu_event(app);
+            setup_pdfium();
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            commands::zip_commands::get_binary,
-            commands::zip_commands::get_entries_in_zip,
+            commands::file_commands::get_entry_binary,
+            commands::file_commands::get_entries_in_container,
             commands::file_commands::get_entries_in_dir,
         ])
         .run(tauri::generate_context!());
@@ -151,4 +152,15 @@ fn set_menu_event(app: &App) {
             }
         },
     );
+}
+
+fn setup_pdfium() {
+    let mut libs_dir = std::env::current_exe()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .to_path_buf();
+    libs_dir.push("libs");
+    log::debug!("{}", libs_dir.to_str().unwrap());
+    pdfium::set_library_location(libs_dir.to_str().unwrap());
 }

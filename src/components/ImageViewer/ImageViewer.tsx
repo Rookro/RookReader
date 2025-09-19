@@ -4,7 +4,7 @@ import { useDispatch } from "react-redux";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import { debug } from '@tauri-apps/plugin-log';
 import { AppDispatch, useSelector } from '../../Store';
-import { getEntriesInZip, setContainerPath, setImageIndex } from "../../reducers/FileReducer";
+import { setContainerFile, setImageIndex } from "../../reducers/FileReducer";
 import "./ImageViewer.css";
 
 /**
@@ -17,7 +17,7 @@ const createImageURL = async (containerPath: string, entryName: string) => {
     if (!containerPath || !entryName || containerPath.length === 0 || entryName.length === 0) {
         return "";
     }
-    const binary = await invoke<number[]>("get_binary", { zipPath: containerPath, entryName });
+    const binary = await invoke<number[]>("get_entry_binary", { path: containerPath, entryName });
     const blob = new Blob([new Uint8Array(binary)]);
     return URL.createObjectURL(blob);
 }
@@ -26,7 +26,7 @@ const createImageURL = async (containerPath: string, entryName: string) => {
  * 画像表示用コンポーネント
  */
 function ImageViewer() {
-    const { containerPath, entries, index } = useSelector(state => state.file);
+    const { path: containerPath, entries, index } = useSelector(state => state.file.containerFile);
     const { isTwoPagedView, direction } = useSelector(state => state.view);
     const dispatch = useDispatch<AppDispatch>();
 
@@ -70,8 +70,7 @@ function ImageViewer() {
             unlisten = await listen("tauri://drag-drop", (event) => {
                 const path = (event.payload as { paths: string[] }).paths[0];
                 debug(`DragDrop ${path}.`);
-                dispatch(setContainerPath(path));
-                dispatch(getEntriesInZip(path));
+                dispatch(setContainerFile(path));
             });
         }
         listenDragDrop();

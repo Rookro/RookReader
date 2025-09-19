@@ -3,7 +3,7 @@ import { useDispatch } from "react-redux";
 import { IconButton } from '@mui/material';
 import { ArrowBack, ArrowForward, ArrowUpward, LooksOne, LooksTwo, SwitchLeft, SwitchRight } from '@mui/icons-material';
 import { AppDispatch, useSelector } from "../../Store";
-import { getEntriesInZip, setContainerPath } from "../../reducers/FileReducer";
+import { setContainerFile } from "../../reducers/FileReducer";
 import { setDirection, setIsTwoPagedView } from "../../reducers/ViewReducer";
 import "./NavigationBar.css";
 
@@ -12,12 +12,11 @@ import "./NavigationBar.css";
  */
 function NavigationBar() {
     const { isTwoPagedView, direction } = useSelector(state => state.view);
-    const { containerPath } = useSelector(state => state.file);
+    const { containerFile } = useSelector(state => state.file);
     const dispatch = useDispatch<AppDispatch>();
 
     const handlePathChanged = (e: React.ChangeEvent<HTMLInputElement>) => {
-        dispatch(setContainerPath(e.target.value));
-        dispatch(getEntriesInZip(e.target.value));
+        dispatch(setContainerFile(e.target.value));
     }
 
     const handleSwitchTwoPagedClicked = (_e: React.MouseEvent<HTMLButtonElement>) => {
@@ -37,7 +36,7 @@ function NavigationBar() {
             <IconButton><ArrowBack /></IconButton>
             <IconButton><ArrowForward /></IconButton>
             <IconButton><ArrowUpward /></IconButton>
-            <input type="text" value={containerPath} onChange={handlePathChanged}></input>
+            <input type="text" value={containerFile.path} onChange={handlePathChanged}></input>
             <IconButton onClick={handleSwitchTwoPagedClicked}>
                 {isTwoPagedView ? <LooksTwo /> : <LooksOne />}
             </IconButton>

@@ -19,7 +19,7 @@ const ltrTheme = createTheme({
  * スライダー
  */
 function ControlSlider() {
-    const { entries, index } = useSelector(state => state.file);
+    const { entries, index } = useSelector(state => state.file.containerFile);
     const { direction } = useSelector(state => state.view);
     const dispatch = useDispatch<AppDispatch>();
 

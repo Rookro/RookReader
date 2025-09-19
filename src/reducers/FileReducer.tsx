@@ -3,18 +3,22 @@ import { invoke } from "@tauri-apps/api/core";
 import { debug, error } from '@tauri-apps/plugin-log';
 import { DirEntry } from "../types/DirEntry";
 
-/**
- * Zip ファイルのファイルエントリーを取得する
- */
-export const getEntriesInZip = createAsyncThunk(
-    "file/getEntriesInZip",
-    async (zipPath: string) => {
-        debug(`getEntriesInZip(${zipPath}).`);
+type ContainerFileState = {
+    path: string;
+    entries: string[];
+    index: number;
+}
+
+export const setContainerFile = createAsyncThunk(
+    "file/setContainerFile",
+    async (path: string): Promise<ContainerFileState> => {
+        debug(`setContainerFile(${path}).`);
         try {
-            return await invoke<string[]>("get_entries_in_zip", { zipPath });
+            const entries = await invoke<string[]>("get_entries_in_container", { path });
+            return { path, entries, index: 0 };
         } catch (e) {
-            error(`Failed to getEntriesInZip(${zipPath}). Error: ${e}`);
-            return [];
+            error(`Failed to setContainerFile(${path}). Error: ${e}`);
+            return { path: path, entries: [], index: 0 };
         }
     }
 );
@@ -39,35 +43,34 @@ export const getEntriesInDir = createAsyncThunk(
 export const fileSlice = createSlice({
     name: "file",
     initialState: {
-        containerPath: "",
-        entries: [] as string[],
-        index: 0,
+        containerFile: {
+            path: "",
+            entries: [],
+            index: 0,
+        } as ContainerFileState,
         explore: {
             basePath: "",
             entries: [] as DirEntry[],
         }
     },
     reducers: {
-        setContainerPath: (state, action: PayloadAction<string>) => {
-            state.containerPath = action.payload;
-        },
         setExploreBasePath: (state, action: PayloadAction<string>) => {
             state.explore.basePath = action.payload;
         },
         setImageIndex: (state, action: PayloadAction<number>) => {
-            state.index = action.payload;
+            state.containerFile.index = action.payload;
         }
     },
     extraReducers: (builder) => {
-        builder.addCase(getEntriesInZip.fulfilled, (state, action: PayloadAction<string[]>,) => {
-            state.entries = action.payload;
-        });
         builder.addCase(getEntriesInDir.fulfilled, (state, action: PayloadAction<{ basePath: string, entries: DirEntry[] }>,) => {
             state.explore.basePath = action.payload.basePath;
             state.explore.entries = action.payload.entries;
         });
+        builder.addCase(setContainerFile.fulfilled, (state, action: PayloadAction<ContainerFileState>,) => {
+            state.containerFile = action.payload;
+        });
     }
 });
 
-export const { setContainerPath, setExploreBasePath, setImageIndex } = fileSlice.actions;
+export const { setExploreBasePath, setImageIndex } = fileSlice.actions;
 export default fileSlice.reducer;
