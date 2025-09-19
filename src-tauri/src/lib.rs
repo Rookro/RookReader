@@ -1,14 +1,16 @@
 use tauri::{
     menu::{CheckMenuItemBuilder, Menu, MenuBuilder, SubmenuBuilder},
-    App, Wry,
+    App, Manager, Wry,
 };
 use tauri_plugin_log::{RotationStrategy, Target, TargetKind};
+use tauri_plugin_os::platform;
 
 mod commands;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let result = tauri::Builder::default()
+        .plugin(tauri_plugin_os::init())
         .plugin(
             tauri_plugin_log::Builder::new()
                 .format(|out, message, record| {
@@ -34,7 +36,7 @@ pub fn run() {
         .setup(|app| {
             app.set_menu(create_menu(app)?)?;
             set_menu_event(app);
-            setup_pdfium();
+            setup_pdfium(&get_libs_dir(app)?);
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -154,13 +156,36 @@ fn set_menu_event(app: &App) {
     );
 }
 
-fn setup_pdfium() {
-    let mut libs_dir = std::env::current_exe()
-        .unwrap()
-        .parent()
-        .unwrap()
-        .to_path_buf();
-    libs_dir.push("libs");
-    log::debug!("{}", libs_dir.to_str().unwrap());
-    pdfium::set_library_location(libs_dir.to_str().unwrap());
+fn get_libs_dir(app: &App) -> Result<String, String> {
+    let platform = platform();
+    match platform {
+        "linux" => {
+            let mut libs_dir = app.path().resource_dir().unwrap();
+            libs_dir.push("libs");
+            return Ok(libs_dir
+                .to_str()
+                .ok_or("Failed to convert PathBuf to string".to_string())?
+                .to_string());
+        }
+        "windows" => {
+            let mut libs_dir = std::env::current_exe()
+                .map_err(|e| e.to_string())?
+                .parent()
+                .ok_or("Failed to get exec dir path.")?
+                .to_path_buf();
+            libs_dir.push("libs");
+            return Ok(libs_dir
+                .to_str()
+                .ok_or("Failed to convert PathBuf to string".to_string())?
+                .to_string());
+        }
+        _ => {
+            log::error!("Unsupported OS: {}", platform);
+            return Err(format!("Unsupported OS: {}", platform).to_string());
+        }
+    }
+}
+
+fn setup_pdfium(lib_dir: &String) {
+    pdfium::set_library_location(lib_dir);
 }
