@@ -39,7 +39,7 @@ function FileListViewer() {
         }
     };
     return (
-        <Box sx={{ width: '100%', display: 'grid', alignContent: 'start' }}>
+        <Box sx={{ minWidth: "270px", display: 'grid', alignContent: 'start' }}>
             <NavBar />
             <List className="file_list" component="nav" dense={true}>
                 {entries.map((entry, index) =>

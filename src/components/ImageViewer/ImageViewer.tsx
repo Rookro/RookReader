@@ -146,8 +146,17 @@ function ImageViewer() {
         moveBack();
     }
 
+    const handleWheeled = (e: React.WheelEvent<HTMLDivElement>) => {
+        if (e.deltaY < 0) {
+            moveBack();
+        }
+        if (e.deltaY > 0) {
+            moveFoward();
+        }
+    }
+
     return (
-        <div className="image_viewer" onClick={handleClicked} onContextMenu={handleContextMenu}>
+        <div className="image_viewer" onClick={handleClicked} onContextMenu={handleContextMenu} onWheel={handleWheeled}>
             {canTwoPage ?
                 <>
                     <img className="left" src={direction === "left" ? firstSrc : secondSrc} />
