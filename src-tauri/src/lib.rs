@@ -40,7 +40,7 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            commands::file_commands::get_entry_binary,
+            commands::file_commands::get_image,
             commands::file_commands::get_entries_in_container,
             commands::file_commands::get_entries_in_dir,
         ])

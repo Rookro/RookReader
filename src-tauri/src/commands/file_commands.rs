@@ -1,9 +1,9 @@
 use image::codecs::png::PngEncoder;
-use image::{ExtendedColorType, ImageEncoder};
+use image::{ExtendedColorType, ImageEncoder, ImageReader};
 use pdfium::{PdfiumDocument, PdfiumRenderConfig};
 use serde::{Deserialize, Serialize};
 use std::fs::{read_dir, File};
-use std::io::Read;
+use std::io::{Cursor, Read};
 use std::path::Path;
 use zip::ZipArchive;
 
@@ -54,8 +54,15 @@ pub fn get_entries_in_container(path: String) -> Result<Vec<String>, String> {
     }
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct Image {
+    pub data: Vec<u8>,
+    pub width: u32,
+    pub height: u32,
+}
+
 #[tauri::command()]
-pub fn get_entry_binary(path: String, entry_name: String) -> Result<Vec<u8>, String> {
+pub fn get_image(path: String, entry_name: String) -> Result<Image, String> {
     log::debug!("Get the binary of {} in {}", entry_name, path);
 
     let ext = Path::new(&path)
@@ -68,8 +75,8 @@ pub fn get_entry_binary(path: String, entry_name: String) -> Result<Vec<u8>, Str
         ))?;
 
     match ext {
-        "zip" => get_binary_in_zip(path, entry_name),
-        "pdf" => get_binary_in_pdf(path, entry_name),
+        "zip" => get_image_in_zip(path, entry_name),
+        "pdf" => get_image_in_pdf(path, entry_name),
         _ => Err(format!("Unsupported file format: {}", path)),
     }
 }
@@ -96,7 +103,7 @@ fn get_entries_in_pdf(path: String) -> Result<Vec<String>, String> {
     Ok(entries)
 }
 
-fn get_binary_in_zip(path: String, entry_name: String) -> Result<Vec<u8>, String> {
+fn get_image_in_zip(path: String, entry_name: String) -> Result<Image, String> {
     let file = File::open(&path).map_err(|e| e.to_string())?;
     let mut archive = ZipArchive::new(file).map_err(|e| e.to_string())?;
 
@@ -104,10 +111,28 @@ fn get_binary_in_zip(path: String, entry_name: String) -> Result<Vec<u8>, String
     let mut buffer = Vec::new();
     file.read_to_end(&mut buffer).map_err(|e| e.to_string())?;
 
-    Ok(buffer)
+    // 画像サイズを取得する
+    let cursor = Cursor::new(&buffer);
+    let image_reader = ImageReader::new(cursor)
+        .with_guessed_format()
+        .map_err(|e| format!("Failed to get image format of '{}': {}", entry_name, e))?;
+    // 画像全体をデコードせず、サイズのみを読み取る
+    match image_reader.into_dimensions() {
+        Ok((width, height)) => {
+            return Ok(Image {
+                data: buffer,
+                width,
+                height,
+            })
+        }
+        Err(e) => {
+            let error_message = format!("Failed to get image size of '{}': {}", entry_name, e);
+            return Err(error_message.to_string());
+        }
+    }
 }
 
-fn get_binary_in_pdf(path: String, entry_name: String) -> Result<Vec<u8>, String> {
+fn get_image_in_pdf(path: String, entry_name: String) -> Result<Image, String> {
     let index: i32 = entry_name
         .parse()
         .map_err(|e: std::num::ParseIntError| e.to_string())?;
@@ -133,5 +158,9 @@ fn get_binary_in_pdf(path: String, entry_name: String) -> Result<Vec<u8>, String
         )
         .map_err(|e| e.to_string())?;
 
-    Ok(buffer)
+    Ok(Image {
+        data: buffer,
+        width: img.width(),
+        height: img.height(),
+    })
 }
