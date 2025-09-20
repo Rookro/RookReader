@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    tauritemplate_lib::run()
+    rookreader_lib::run();
 }

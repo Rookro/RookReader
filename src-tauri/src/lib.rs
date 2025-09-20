@@ -1,26 +1,58 @@
 use tauri::{
     menu::{CheckMenuItemBuilder, Menu, MenuBuilder, SubmenuBuilder},
-    App, Wry,
+    App, Manager, Wry,
 };
+use tauri_plugin_log::{RotationStrategy, Target, TargetKind};
+use tauri_plugin_os::platform;
 
-// Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-#[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
-}
+mod commands;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let result = tauri::Builder::default()
+        .plugin(tauri_plugin_os::init())
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                .format(|out, message, record| {
+                    out.finish(format_args!(
+                        "[{}] [{}] [{}::L{}] {}",
+                        record.level(),
+                        record.target(),
+                        record.file().unwrap_or("unknown"),
+                        record.line().unwrap_or(0),
+                        message
+                    ))
+                })
+                .targets([
+                    Target::new(TargetKind::LogDir { file_name: None }),
+                    Target::new(TargetKind::Stdout),
+                ])
+                .rotation_strategy(RotationStrategy::KeepAll)
+                .build(),
+        )
+        .plugin(tauri_plugin_store::Builder::new().build())
+        .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             app.set_menu(create_menu(app)?)?;
             set_menu_event(app);
+            setup_pdfium(&get_libs_dir(app)?);
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![greet])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .invoke_handler(tauri::generate_handler![
+            commands::file_commands::get_image,
+            commands::file_commands::get_entries_in_container,
+            commands::file_commands::get_entries_in_dir,
+        ])
+        .run(tauri::generate_context!());
+
+    match result {
+        Ok(()) => {}
+        Err(e) => log::error!(
+            "Error has occurred while running tauri application. Error: {}",
+            e.to_string()
+        ),
+    };
 }
 
 fn create_menu(app: &App) -> tauri::Result<Menu<Wry>> {
@@ -80,6 +112,7 @@ fn set_menu_event(app: &App) {
                     .unwrap()
                     .set_checked(true);
 
+                log::debug!("Set the Light theme.");
                 app_handle.set_theme(Some(tauri::Theme::Light));
             }
             "dark_theme" => {
@@ -109,14 +142,50 @@ fn set_menu_event(app: &App) {
                     .unwrap()
                     .set_checked(true);
 
+                log::debug!("Set the Dark theme.");
                 app_handle.set_theme(Some(tauri::Theme::Dark));
             }
             "exit" => {
+                log::debug!("Exit by menu.");
                 app_handle.exit(0);
             }
             _ => {
-                println!("unexpected menu event. menu event: {:?}", event.id());
+                log::error!("unexpected menu event. menu event: {:?}", event.id());
             }
         },
     );
+}
+
+fn get_libs_dir(app: &App) -> Result<String, String> {
+    let platform = platform();
+    match platform {
+        "linux" => {
+            let mut libs_dir = app.path().resource_dir().unwrap();
+            libs_dir.push("libs");
+            return Ok(libs_dir
+                .to_str()
+                .ok_or("Failed to convert PathBuf to string".to_string())?
+                .to_string());
+        }
+        "windows" => {
+            let mut libs_dir = std::env::current_exe()
+                .map_err(|e| e.to_string())?
+                .parent()
+                .ok_or("Failed to get exec dir path.")?
+                .to_path_buf();
+            libs_dir.push("libs");
+            return Ok(libs_dir
+                .to_str()
+                .ok_or("Failed to convert PathBuf to string".to_string())?
+                .to_string());
+        }
+        _ => {
+            log::error!("Unsupported OS: {}", platform);
+            return Err(format!("Unsupported OS: {}", platform).to_string());
+        }
+    }
+}
+
+fn setup_pdfium(lib_dir: &String) {
+    pdfium::set_library_location(lib_dir);
 }
