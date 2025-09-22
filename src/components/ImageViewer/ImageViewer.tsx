@@ -27,6 +27,14 @@ const getImage = async (containerPath: string, entryName: string | undefined) =>
     }
 }
 
+const preload = async (containerPath: string, entries: string[], currentIndex: number) => {
+    if (!containerPath || !entries || containerPath.length === 0 || entries.length === 0) {
+        return;
+    }
+
+    invoke<void>("async_preload", { startIndex: currentIndex + 1, count: 10 }).catch((ex) => { error(JSON.stringify(ex)); });
+}
+
 /**
  * 画像ファイルを読み込み、`<img>` 用の URL を作成する
  * 
@@ -69,6 +77,7 @@ function ImageViewer() {
             const firstImgSrc = await createImageURL(firstImage);
             const secondImage = await getImage(containerPath, secondImagePath);
             const secondImgSrc = await createImageURL(secondImage);
+            preload(containerPath, entries, index);
             if (!isTwoPagedView || !secondImagePath) {
                 // 一ページ表示か二枚目画像がない場合
                 setFirstSrc(firstImgSrc);
