@@ -1,3 +1,5 @@
+use std::sync::Mutex;
+
 use tauri::{
     menu::{CheckMenuItemBuilder, Menu, MenuBuilder, SubmenuBuilder},
     App, Manager, Wry,
@@ -6,10 +8,13 @@ use tauri_plugin_log::{RotationStrategy, Target, TargetKind};
 use tauri_plugin_os::platform;
 
 mod commands;
+mod container;
+mod state;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let result = tauri::Builder::default()
+        .manage(Mutex::new(state::app_state::AppState::default()))
         .plugin(tauri_plugin_os::init())
         .plugin(
             tauri_plugin_log::Builder::new()
@@ -40,9 +45,10 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            commands::file_commands::get_image,
-            commands::file_commands::get_entries_in_container,
-            commands::file_commands::get_entries_in_dir,
+            commands::commands::get_image,
+            commands::commands::get_entries_in_container,
+            commands::commands::get_entries_in_dir,
+            commands::commands::async_preload,
         ])
         .run(tauri::generate_context!());
 
