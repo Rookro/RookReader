@@ -51,7 +51,7 @@ export const fileSlice = createSlice({
         explore: {
             basePath: "",
             entries: [] as DirEntry[],
-            searchText: undefined as string | undefined,
+            searchText: "",
         }
     },
     reducers: {
@@ -62,11 +62,7 @@ export const fileSlice = createSlice({
             state.containerFile.index = action.payload;
         },
         setSearchText: (state, action: PayloadAction<string>) => {
-            if (action.payload.length > 0) {
-                state.explore.searchText = action.payload;
-            } else {
-                state.explore.searchText = undefined;
-            }
+            state.explore.searchText = action.payload;
         }
     },
     extraReducers: (builder) => {

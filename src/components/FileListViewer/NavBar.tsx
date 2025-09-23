@@ -11,11 +11,12 @@ import "./NavBar.css";
  * ファイルリストのナビゲーションバーコンポーネント
  */
 export default function NavBar() {
-    const { basePath } = useSelector(state => state.file.explore);
+    const { basePath, searchText } = useSelector(state => state.file.explore);
     const dispatch = useDispatch<AppDispatch>();
 
     const initDirParh = async () => {
         const homeDirectory = await homeDir();
+        dispatch(setSearchText(""));
         dispatch(getEntriesInDir(homeDirectory));
     }
 
@@ -24,6 +25,7 @@ export default function NavBar() {
     }, [])
 
     const handleCurrentDirChanged = (e: React.ChangeEvent<HTMLInputElement>) => {
+        dispatch(setSearchText(""));
         dispatch(getEntriesInDir(e.target.value));
     }
 
@@ -33,6 +35,7 @@ export default function NavBar() {
 
     const handleParentClicked = async (_e: React.MouseEvent<HTMLButtonElement>) => {
         const parentDir = await dirname(basePath);
+        dispatch(setSearchText(""));
         dispatch(setExploreBasePath(parentDir));
         dispatch(getEntriesInDir(parentDir));
     }
@@ -59,7 +62,7 @@ export default function NavBar() {
             </Box>
             <Box className="file_search_bar">
                 <Search />
-                <input onChange={handleSearchTextChanged}></input>
+                <input type='search' value={searchText} onChange={handleSearchTextChanged}></input>
             </Box>
         </Box >
     );

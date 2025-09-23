@@ -6,7 +6,7 @@ import ListItemButton from '@mui/material/ListItemButton';
 import ListItemText from '@mui/material/ListItemText';
 import { join } from '@tauri-apps/api/path';
 import { useSelector, AppDispatch } from '../../Store';
-import { getEntriesInDir, setContainerFile } from '../../reducers/FileReducer';
+import { getEntriesInDir, setContainerFile, setSearchText } from '../../reducers/FileReducer';
 import { DirEntry } from '../../types/DirEntry';
 import NavBar from './NavBar';
 import "./FileListViewer.css";
@@ -33,6 +33,7 @@ function FileListViewer() {
     ) => {
         const path = await join(basePath, entry.name);
         if (entry.is_directory) {
+            dispatch(setSearchText(""));
             dispatch(getEntriesInDir(path));
         } else {
             dispatch(setContainerFile(path));
