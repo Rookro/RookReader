@@ -4,9 +4,10 @@ import { useDispatch } from "react-redux";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import { debug, error } from '@tauri-apps/plugin-log';
 import { AppDispatch, useSelector } from '../../Store';
-import { setContainerFile, setImageIndex } from "../../reducers/FileReducer";
+import { getEntriesInDir, setContainerFile, setImageIndex } from "../../reducers/FileReducer";
 import { Image } from "../../types/Image";
 import "./ImageViewer.css";
+import { dirname } from "@tauri-apps/api/path";
 
 /**
  * 画像ファイルを読み込む
@@ -111,9 +112,10 @@ function ImageViewer() {
         const listenDragDrop = async () => {
             // ドラッグアンドドロップでファイルを指定する
             // 複数指定された場合は、最初の一つのみ
-            unlisten = await listen("tauri://drag-drop", (event) => {
+            unlisten = await listen("tauri://drag-drop", async (event) => {
                 const path = (event.payload as { paths: string[] }).paths[0];
                 debug(`DragDrop ${path}.`);
+                dispatch(getEntriesInDir(await dirname(path)));
                 dispatch(setContainerFile(path));
             });
         }
