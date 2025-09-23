@@ -4,6 +4,14 @@
 
 .file_nav_buttons {
     margin: 4px;
+
+    .MuiIconButton-root {
+        color: cornflowerblue;
+    }
+
+    .MuiIconButton-root:disabled {
+        color: rgba(100, 149, 237, 0.3);
+    }
 }
 
 .file_search_bar {
