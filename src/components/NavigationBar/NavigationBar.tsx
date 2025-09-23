@@ -1,7 +1,7 @@
 import React from "react";
 import { useDispatch } from "react-redux";
 import { IconButton } from '@mui/material';
-import { ArrowBack, ArrowForward, ArrowUpward, LooksOne, LooksTwo, SwitchLeft, SwitchRight } from '@mui/icons-material';
+import { ArrowBack, ArrowForward, LooksOne, LooksTwo, SwitchLeft, SwitchRight } from '@mui/icons-material';
 import { AppDispatch, useSelector } from "../../Store";
 import { setContainerFile } from "../../reducers/FileReducer";
 import { setDirection, setIsTwoPagedView } from "../../reducers/ViewReducer";
