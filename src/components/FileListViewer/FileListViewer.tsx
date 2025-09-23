@@ -44,7 +44,7 @@ function FileListViewer() {
             <NavBar />
             <List className="file_list" component="nav" dense={true}>
                 {entries
-                    .filter((entry) => searchText ? entry.name.includes(searchText) : true)
+                    .filter((entry) => searchText ? entry.name.toLowerCase().includes(searchText.toLowerCase()) : true)
                     .map((entry, index) =>
                         <ListItemButton
                             selected={selectedIndex === index}
