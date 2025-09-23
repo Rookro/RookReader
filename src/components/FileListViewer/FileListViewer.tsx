@@ -6,7 +6,7 @@ import ListItemButton from '@mui/material/ListItemButton';
 import ListItemText from '@mui/material/ListItemText';
 import { join } from '@tauri-apps/api/path';
 import { useSelector, AppDispatch } from '../../Store';
-import { getEntriesInDir, setContainerFile } from '../../reducers/FileReducer';
+import { getEntriesInDir, setContainerFile, setSearchText } from '../../reducers/FileReducer';
 import { DirEntry } from '../../types/DirEntry';
 import NavBar from './NavBar';
 import "./FileListViewer.css";
@@ -15,7 +15,7 @@ import "./FileListViewer.css";
  * ファイルリスト表示コンポネント 
  */
 function FileListViewer() {
-    const { basePath, entries } = useSelector(state => state.file.explore);
+    const { basePath, entries, searchText } = useSelector(state => state.file.explore);
     const dispatch = useDispatch<AppDispatch>();
 
     const [selectedIndex, setSelectedIndex] = React.useState(0);
@@ -33,6 +33,7 @@ function FileListViewer() {
     ) => {
         const path = await join(basePath, entry.name);
         if (entry.is_directory) {
+            dispatch(setSearchText(""));
             dispatch(getEntriesInDir(path));
         } else {
             dispatch(setContainerFile(path));
@@ -42,15 +43,17 @@ function FileListViewer() {
         <Box sx={{ minWidth: "270px", display: 'grid', alignContent: 'start' }}>
             <NavBar />
             <List className="file_list" component="nav" dense={true}>
-                {entries.map((entry, index) =>
-                    <ListItemButton
-                        selected={selectedIndex === index}
-                        onFocus={(e) => handleListItemFocused(e, index)}
-                        onClick={(e) => handleListItemClicked(e, entry)}
-                        key={index}
-                    >
-                        <ListItemText primary={entry.name} />
-                    </ListItemButton>)
+                {entries
+                    .filter((entry) => searchText ? entry.name.toLowerCase().includes(searchText.toLowerCase()) : true)
+                    .map((entry, index) =>
+                        <ListItemButton
+                            selected={selectedIndex === index}
+                            onFocus={(e) => handleListItemFocused(e, index)}
+                            onClick={(e) => handleListItemClicked(e, entry)}
+                            key={index}
+                        >
+                            <ListItemText primary={entry.name} />
+                        </ListItemButton>)
                 }
             </List>
         </Box>

@@ -4,18 +4,19 @@ import { dirname, homeDir } from '@tauri-apps/api/path';
 import { ArrowBack, ArrowForward, ArrowUpward, Home, Refresh, Search } from '@mui/icons-material';
 import { Box, IconButton } from '@mui/material';
 import { AppDispatch, useSelector } from '../../Store';
-import { getEntriesInDir, setExploreBasePath } from '../../reducers/FileReducer';
+import { getEntriesInDir, setExploreBasePath, setSearchText } from '../../reducers/FileReducer';
 import "./NavBar.css";
 
 /**
  * ファイルリストのナビゲーションバーコンポーネント
  */
 export default function NavBar() {
-    const { basePath } = useSelector(state => state.file.explore);
+    const { basePath, searchText } = useSelector(state => state.file.explore);
     const dispatch = useDispatch<AppDispatch>();
 
     const initDirParh = async () => {
         const homeDirectory = await homeDir();
+        dispatch(setSearchText(""));
         dispatch(getEntriesInDir(homeDirectory));
     }
 
@@ -24,6 +25,7 @@ export default function NavBar() {
     }, [])
 
     const handleCurrentDirChanged = (e: React.ChangeEvent<HTMLInputElement>) => {
+        dispatch(setSearchText(""));
         dispatch(getEntriesInDir(e.target.value));
     }
 
@@ -33,8 +35,17 @@ export default function NavBar() {
 
     const handleParentClicked = async (_e: React.MouseEvent<HTMLButtonElement>) => {
         const parentDir = await dirname(basePath);
+        dispatch(setSearchText(""));
         dispatch(setExploreBasePath(parentDir));
         dispatch(getEntriesInDir(parentDir));
+    }
+
+    const handleRefleshClicked = async (_e: React.MouseEvent<HTMLButtonElement>) => {
+        dispatch(getEntriesInDir(basePath));
+    }
+
+    const handleSearchTextChanged = (e: React.ChangeEvent<HTMLInputElement>) => {
+        dispatch(setSearchText(e.target.value));
     }
 
     return (
@@ -44,14 +55,14 @@ export default function NavBar() {
             </Box>
             <Box className="file_nav_buttons">
                 <IconButton onClick={handleHomeClicked}><Home /></IconButton>
-                <IconButton><ArrowBack /></IconButton>
-                <IconButton><ArrowForward /></IconButton>
+                <IconButton disabled><ArrowBack /></IconButton>
+                <IconButton disabled><ArrowForward /></IconButton>
                 <IconButton onClick={handleParentClicked}><ArrowUpward /></IconButton>
-                <IconButton><Refresh /></IconButton>
+                <IconButton onClick={handleRefleshClicked}><Refresh /></IconButton>
             </Box>
             <Box className="file_search_bar">
                 <Search />
-                <input></input>
+                <input type='search' value={searchText} onChange={handleSearchTextChanged}></input>
             </Box>
         </Box >
     );

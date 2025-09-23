@@ -1,11 +1,12 @@
 import React from "react";
 import { useDispatch } from "react-redux";
 import { IconButton } from '@mui/material';
-import { ArrowBack, ArrowForward, ArrowUpward, LooksOne, LooksTwo, SwitchLeft, SwitchRight } from '@mui/icons-material';
+import { ArrowBack, ArrowForward, LooksOne, LooksTwo, SwitchLeft, SwitchRight } from '@mui/icons-material';
 import { AppDispatch, useSelector } from "../../Store";
-import { setContainerFile } from "../../reducers/FileReducer";
+import { getEntriesInDir, setContainerFile } from "../../reducers/FileReducer";
 import { setDirection, setIsTwoPagedView } from "../../reducers/ViewReducer";
 import "./NavigationBar.css";
+import { dirname } from "@tauri-apps/api/path";
 
 /**
  * ナビゲーションバーコンポーネント
@@ -15,8 +16,9 @@ function NavigationBar() {
     const { containerFile } = useSelector(state => state.file);
     const dispatch = useDispatch<AppDispatch>();
 
-    const handlePathChanged = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handlePathChanged = async (e: React.ChangeEvent<HTMLInputElement>) => {
         dispatch(setContainerFile(e.target.value));
+        dispatch(getEntriesInDir(await dirname(e.target.value)));
     }
 
     const handleSwitchTwoPagedClicked = (_e: React.MouseEvent<HTMLButtonElement>) => {
@@ -33,9 +35,8 @@ function NavigationBar() {
 
     return (
         <div className="navigation_bar">
-            <IconButton><ArrowBack /></IconButton>
-            <IconButton><ArrowForward /></IconButton>
-            <IconButton><ArrowUpward /></IconButton>
+            <IconButton disabled><ArrowBack /></IconButton>
+            <IconButton disabled><ArrowForward /></IconButton>
             <input type="text" value={containerFile.path} onChange={handlePathChanged}></input>
             <IconButton onClick={handleSwitchTwoPagedClicked}>
                 {isTwoPagedView ? <LooksTwo /> : <LooksOne />}
