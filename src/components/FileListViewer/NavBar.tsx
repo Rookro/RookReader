@@ -37,6 +37,10 @@ export default function NavBar() {
         dispatch(getEntriesInDir(parentDir));
     }
 
+    const handleRefleshClicked = async (_e: React.MouseEvent<HTMLButtonElement>) => {
+        dispatch(getEntriesInDir(basePath));
+    }
+
     return (
         <Box className="file_nav_bar">
             <Box className='current_dir'>
@@ -47,7 +51,7 @@ export default function NavBar() {
                 <IconButton><ArrowBack /></IconButton>
                 <IconButton><ArrowForward /></IconButton>
                 <IconButton onClick={handleParentClicked}><ArrowUpward /></IconButton>
-                <IconButton><Refresh /></IconButton>
+                <IconButton onClick={handleRefleshClicked}><Refresh /></IconButton>
             </Box>
             <Box className="file_search_bar">
                 <Search />
