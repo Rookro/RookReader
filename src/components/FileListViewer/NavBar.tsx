@@ -48,8 +48,8 @@ export default function NavBar() {
             </Box>
             <Box className="file_nav_buttons">
                 <IconButton onClick={handleHomeClicked}><Home /></IconButton>
-                <IconButton><ArrowBack /></IconButton>
-                <IconButton><ArrowForward /></IconButton>
+                <IconButton disabled><ArrowBack /></IconButton>
+                <IconButton disabled><ArrowForward /></IconButton>
                 <IconButton onClick={handleParentClicked}><ArrowUpward /></IconButton>
                 <IconButton onClick={handleRefleshClicked}><Refresh /></IconButton>
             </Box>

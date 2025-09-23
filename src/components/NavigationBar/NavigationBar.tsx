@@ -33,9 +33,8 @@ function NavigationBar() {
 
     return (
         <div className="navigation_bar">
-            <IconButton><ArrowBack /></IconButton>
-            <IconButton><ArrowForward /></IconButton>
-            <IconButton><ArrowUpward /></IconButton>
+            <IconButton disabled><ArrowBack /></IconButton>
+            <IconButton disabled><ArrowForward /></IconButton>
             <input type="text" value={containerFile.path} onChange={handlePathChanged}></input>
             <IconButton onClick={handleSwitchTwoPagedClicked}>
                 {isTwoPagedView ? <LooksTwo /> : <LooksOne />}
