@@ -164,8 +164,22 @@ function ImageViewer() {
         }
     }
 
+
+    const handleKeydown = (e: React.KeyboardEvent) => {
+        switch (e.key) {
+            case "ArrowLeft":
+                moveFoward();
+                break;
+            case "ArrowRight":
+                moveBack();
+                break;
+            default:
+                return;
+        }
+    }
+
     return (
-        <div className="image_viewer" onClick={handleClicked} onContextMenu={handleContextMenu} onWheel={handleWheeled}>
+        <div className="image_viewer" tabIndex={0} onClick={handleClicked} onContextMenu={handleContextMenu} onWheel={handleWheeled} onKeyDown={handleKeydown}>
             {canTwoPage ?
                 <>
                     <img className="left" src={direction === "left" ? firstSrc : secondSrc} />
