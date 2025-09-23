@@ -3,22 +3,19 @@ import { invoke } from "@tauri-apps/api/core";
 import { debug, error } from '@tauri-apps/plugin-log';
 import { DirEntry } from "../types/DirEntry";
 
-type ContainerFileState = {
-    path: string;
-    entries: string[];
-    index: number;
-}
-
-export const setContainerFile = createAsyncThunk(
-    "file/setContainerFile",
-    async (path: string): Promise<ContainerFileState> => {
-        debug(`setContainerFile(${path}).`);
+export const openContainerFile = createAsyncThunk(
+    "file/openContainerFile",
+    async (path: string) => {
+        debug(`openContainerFile(${path}).`);
+        if (!path) {
+            return [];
+        }
         try {
             const entries = await invoke<string[]>("get_entries_in_container", { path });
-            return { path, entries, index: 0 };
+            return entries;
         } catch (e) {
-            error(`Failed to setContainerFile(${path}). Error: ${e}`);
-            return { path: path, entries: [], index: 0 };
+            error(`Failed to openContainerFile(${path}). Error: ${e}`);
+            return [];
         }
     }
 );
@@ -30,12 +27,15 @@ export const getEntriesInDir = createAsyncThunk(
     "file/getEntriesInDir",
     async (dirPath: string) => {
         debug(`getEntriesInDir(${dirPath}).`);
+        if (!dirPath) {
+            return [];
+        }
         try {
             const entries = await invoke<DirEntry[]>("get_entries_in_dir", { dirPath });
-            return { basePath: dirPath, entries };
+            return entries;
         } catch (e) {
             error(`Failed to getEntriesInDir(${dirPath}). Error: ${e}`);
-            return { basePath: dirPath, entries: [] };
+            return [];
         }
     }
 );
@@ -44,37 +44,97 @@ export const fileSlice = createSlice({
     name: "file",
     initialState: {
         containerFile: {
-            path: "",
-            entries: [],
+            history: [] as string[],
+            historyIndex: -1,
+            entries: [] as string[],
             index: 0,
-        } as ContainerFileState,
-        explore: {
-            basePath: "",
+        },
+        explorer: {
+            history: [] as string[],
+            historyIndex: -1,
             entries: [] as DirEntry[],
             searchText: "",
         }
     },
     reducers: {
-        setExploreBasePath: (state, action: PayloadAction<string>) => {
-            state.explore.basePath = action.payload;
+        setContainerFilePath: (state, action: PayloadAction<string>) => {
+            debug(`setContainerFilePath(${action.payload}).`);
+            if (state.containerFile.history.length > 0 && state.containerFile.history[state.containerFile.historyIndex] === action.payload) {
+                return;
+            }
+
+            debug(`setContainerFilePath: Update history.`);
+            if (state.containerFile.historyIndex !== state.containerFile.history.length - 1) {
+                state.containerFile.history = state.containerFile.history.slice(0, state.containerFile.historyIndex + 1);
+            }
+            state.containerFile.history.push(action.payload);
+            state.containerFile.historyIndex = state.containerFile.history.length - 1;
         },
         setImageIndex: (state, action: PayloadAction<number>) => {
+            debug(`setImageIndex(${action.payload}).`);
             state.containerFile.index = action.payload;
         },
+        setExploreBasePath: (state, action: PayloadAction<string>) => {
+            debug(`setExploreBasePath(${action.payload}).`);
+            if (state.explorer.history.length > 0 && state.explorer.history[state.explorer.historyIndex] === action.payload) {
+                return;
+            }
+
+            debug(`setExploreBasePath: Update history.`);
+            if (state.explorer.historyIndex !== state.explorer.history.length - 1) {
+                state.explorer.history = state.explorer.history.slice(0, state.explorer.historyIndex + 1);
+            }
+            state.explorer.history.push(action.payload);
+            state.explorer.historyIndex = state.explorer.history.length - 1;
+        },
         setSearchText: (state, action: PayloadAction<string>) => {
-            state.explore.searchText = action.payload;
-        }
+            debug(`setSearchText(${action.payload}).`);
+            state.explorer.searchText = action.payload;
+        },
+        goBackContainerHistory: (state) => {
+            if (state.containerFile.historyIndex > 0) {
+                debug("goBackContainerHistory");
+                state.containerFile.historyIndex -= 1;
+            }
+        },
+        goForwardContainerHistory: (state) => {
+            if (state.containerFile.historyIndex < state.containerFile.history.length - 1) {
+                debug("goForwardContainerHistory");
+                state.containerFile.historyIndex += 1;
+            }
+        },
+        goBackExplorerHistory: (state) => {
+            if (state.explorer.historyIndex > 0) {
+                debug("goBackExplorerHistory");
+                state.explorer.historyIndex -= 1;
+            }
+        },
+        goForwardExplorerHistory: (state) => {
+            if (state.explorer.historyIndex < state.explorer.history.length - 1) {
+                debug("goForwardExplorerHistory");
+                state.explorer.historyIndex += 1;
+            }
+        },
     },
     extraReducers: (builder) => {
-        builder.addCase(getEntriesInDir.fulfilled, (state, action: PayloadAction<{ basePath: string, entries: DirEntry[] }>,) => {
-            state.explore.basePath = action.payload.basePath;
-            state.explore.entries = action.payload.entries;
+        builder.addCase(getEntriesInDir.fulfilled, (state, action: PayloadAction<DirEntry[]>,) => {
+            state.explorer.entries = action.payload;
         });
-        builder.addCase(setContainerFile.fulfilled, (state, action: PayloadAction<ContainerFileState>,) => {
-            state.containerFile = action.payload;
+        builder.addCase(openContainerFile.fulfilled, (state, action: PayloadAction<string[]>,) => {
+            state.containerFile.entries = action.payload;
+            state.containerFile.index = 0;
         });
     }
 });
 
-export const { setExploreBasePath, setImageIndex, setSearchText } = fileSlice.actions;
+export const {
+    setContainerFilePath,
+    setImageIndex,
+    setExploreBasePath,
+    setSearchText,
+    goBackContainerHistory,
+    goForwardContainerHistory,
+    goBackExplorerHistory,
+    goForwardExplorerHistory,
+} = fileSlice.actions;
 export default fileSlice.reducer;
