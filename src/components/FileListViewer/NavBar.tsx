@@ -4,7 +4,7 @@ import { dirname, homeDir } from '@tauri-apps/api/path';
 import { ArrowBack, ArrowForward, ArrowUpward, Home, Refresh, Search } from '@mui/icons-material';
 import { Box, IconButton } from '@mui/material';
 import { AppDispatch, useSelector } from '../../Store';
-import { getEntriesInDir, setExploreBasePath } from '../../reducers/FileReducer';
+import { getEntriesInDir, setExploreBasePath, setSearchText } from '../../reducers/FileReducer';
 import "./NavBar.css";
 
 /**
@@ -41,6 +41,10 @@ export default function NavBar() {
         dispatch(getEntriesInDir(basePath));
     }
 
+    const handleSearchTextChanged = (e: React.ChangeEvent<HTMLInputElement>) => {
+        dispatch(setSearchText(e.target.value));
+    }
+
     return (
         <Box className="file_nav_bar">
             <Box className='current_dir'>
@@ -55,7 +59,7 @@ export default function NavBar() {
             </Box>
             <Box className="file_search_bar">
                 <Search />
-                <input></input>
+                <input onChange={handleSearchTextChanged}></input>
             </Box>
         </Box >
     );

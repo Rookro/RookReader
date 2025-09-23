@@ -15,7 +15,7 @@ import "./FileListViewer.css";
  * ファイルリスト表示コンポネント 
  */
 function FileListViewer() {
-    const { basePath, entries } = useSelector(state => state.file.explore);
+    const { basePath, entries, searchText } = useSelector(state => state.file.explore);
     const dispatch = useDispatch<AppDispatch>();
 
     const [selectedIndex, setSelectedIndex] = React.useState(0);
@@ -42,15 +42,17 @@ function FileListViewer() {
         <Box sx={{ minWidth: "270px", display: 'grid', alignContent: 'start' }}>
             <NavBar />
             <List className="file_list" component="nav" dense={true}>
-                {entries.map((entry, index) =>
-                    <ListItemButton
-                        selected={selectedIndex === index}
-                        onFocus={(e) => handleListItemFocused(e, index)}
-                        onClick={(e) => handleListItemClicked(e, entry)}
-                        key={index}
-                    >
-                        <ListItemText primary={entry.name} />
-                    </ListItemButton>)
+                {entries
+                    .filter((entry) => searchText ? entry.name.includes(searchText) : true)
+                    .map((entry, index) =>
+                        <ListItemButton
+                            selected={selectedIndex === index}
+                            onFocus={(e) => handleListItemFocused(e, index)}
+                            onClick={(e) => handleListItemClicked(e, entry)}
+                            key={index}
+                        >
+                            <ListItemText primary={entry.name} />
+                        </ListItemButton>)
                 }
             </List>
         </Box>
