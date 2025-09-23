@@ -1,4 +1,4 @@
-import * as React from 'react';
+import { useEffect, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import Box from '@mui/material/Box';
 import List from '@mui/material/List';
@@ -6,7 +6,7 @@ import ListItemButton from '@mui/material/ListItemButton';
 import ListItemText from '@mui/material/ListItemText';
 import { join } from '@tauri-apps/api/path';
 import { useSelector, AppDispatch } from '../../Store';
-import { getEntriesInDir, setContainerFile } from '../../reducers/FileReducer';
+import { getEntriesInDir, setContainerFilePath, setExploreBasePath, setSearchText } from '../../reducers/FileReducer';
 import { DirEntry } from '../../types/DirEntry';
 import NavBar from './NavBar';
 import "./FileListViewer.css";
@@ -15,10 +15,14 @@ import "./FileListViewer.css";
  * ファイルリスト表示コンポネント 
  */
 function FileListViewer() {
-    const { basePath, entries } = useSelector(state => state.file.explore);
+    const { history, historyIndex, entries, searchText } = useSelector(state => state.file.explorer);
     const dispatch = useDispatch<AppDispatch>();
 
-    const [selectedIndex, setSelectedIndex] = React.useState(0);
+    const [selectedIndex, setSelectedIndex] = useState(0);
+
+    useEffect(() => {
+        dispatch(getEntriesInDir(history[historyIndex]));
+    }, [history, historyIndex, dispatch]);
 
     const handleListItemFocused = (
         _e: React.FocusEvent,
@@ -31,26 +35,30 @@ function FileListViewer() {
         _e: React.MouseEvent<HTMLDivElement>,
         entry: DirEntry,
     ) => {
-        const path = await join(basePath, entry.name);
+        const path = await join(history[historyIndex], entry.name);
         if (entry.is_directory) {
-            dispatch(getEntriesInDir(path));
+            dispatch(setSearchText(""));
+            dispatch(setExploreBasePath(path));
         } else {
-            dispatch(setContainerFile(path));
+            dispatch(setContainerFilePath(path));
         }
     };
+
     return (
         <Box sx={{ minWidth: "270px", display: 'grid', alignContent: 'start' }}>
             <NavBar />
             <List className="file_list" component="nav" dense={true}>
-                {entries.map((entry, index) =>
-                    <ListItemButton
-                        selected={selectedIndex === index}
-                        onFocus={(e) => handleListItemFocused(e, index)}
-                        onClick={(e) => handleListItemClicked(e, entry)}
-                        key={index}
-                    >
-                        <ListItemText primary={entry.name} />
-                    </ListItemButton>)
+                {entries
+                    .filter((entry) => searchText ? entry.name.toLowerCase().includes(searchText.toLowerCase()) : true)
+                    .map((entry, index) =>
+                        <ListItemButton
+                            selected={selectedIndex === index}
+                            onFocus={(e) => handleListItemFocused(e, index)}
+                            onClick={(e) => handleListItemClicked(e, entry)}
+                            key={index}
+                        >
+                            <ListItemText primary={entry.name} />
+                        </ListItemButton>)
                 }
             </List>
         </Box>

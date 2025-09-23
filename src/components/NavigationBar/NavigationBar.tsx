@@ -1,22 +1,24 @@
 import React from "react";
 import { useDispatch } from "react-redux";
 import { IconButton } from '@mui/material';
-import { ArrowBack, ArrowForward, ArrowUpward, LooksOne, LooksTwo, SwitchLeft, SwitchRight } from '@mui/icons-material';
+import { ArrowBack, ArrowForward, LooksOne, LooksTwo, SwitchLeft, SwitchRight } from '@mui/icons-material';
 import { AppDispatch, useSelector } from "../../Store";
-import { setContainerFile } from "../../reducers/FileReducer";
+import { goBackContainerHistory, goForwardContainerHistory, setContainerFilePath, setExploreBasePath } from "../../reducers/FileReducer";
 import { setDirection, setIsTwoPagedView } from "../../reducers/ViewReducer";
 import "./NavigationBar.css";
+import { dirname } from "@tauri-apps/api/path";
 
 /**
  * ナビゲーションバーコンポーネント
  */
 function NavigationBar() {
     const { isTwoPagedView, direction } = useSelector(state => state.view);
-    const { containerFile } = useSelector(state => state.file);
+    const { history, historyIndex } = useSelector(state => state.file.containerFile);
     const dispatch = useDispatch<AppDispatch>();
 
-    const handlePathChanged = (e: React.ChangeEvent<HTMLInputElement>) => {
-        dispatch(setContainerFile(e.target.value));
+    const handlePathChanged = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        dispatch(setContainerFilePath(e.target.value));
+        dispatch(setExploreBasePath(await dirname(e.target.value)));
     }
 
     const handleSwitchTwoPagedClicked = (_e: React.MouseEvent<HTMLButtonElement>) => {
@@ -31,12 +33,19 @@ function NavigationBar() {
         }
     }
 
+    const handleBackClicked = (_e: React.MouseEvent<HTMLButtonElement>) => {
+        dispatch(goBackContainerHistory());
+    }
+
+    const handleForwardClicked = (_e: React.MouseEvent<HTMLButtonElement>) => {
+        dispatch(goForwardContainerHistory());
+    }
+
     return (
         <div className="navigation_bar">
-            <IconButton><ArrowBack /></IconButton>
-            <IconButton><ArrowForward /></IconButton>
-            <IconButton><ArrowUpward /></IconButton>
-            <input type="text" value={containerFile.path} onChange={handlePathChanged}></input>
+            <IconButton onClick={handleBackClicked} disabled={historyIndex <= 0}><ArrowBack /></IconButton>
+            <IconButton onClick={handleForwardClicked} disabled={history.length - historyIndex <= 1}><ArrowForward /></IconButton>
+            <input type="text" value={history[historyIndex]} onChange={handlePathChanged}></input>
             <IconButton onClick={handleSwitchTwoPagedClicked}>
                 {isTwoPagedView ? <LooksTwo /> : <LooksOne />}
             </IconButton>

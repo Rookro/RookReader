@@ -4,9 +4,10 @@ import { useDispatch } from "react-redux";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import { debug, error } from '@tauri-apps/plugin-log';
 import { AppDispatch, useSelector } from '../../Store';
-import { setContainerFile, setImageIndex } from "../../reducers/FileReducer";
+import { openContainerFile, setContainerFilePath, setExploreBasePath, setImageIndex } from "../../reducers/FileReducer";
 import { Image } from "../../types/Image";
 import "./ImageViewer.css";
+import { dirname } from "@tauri-apps/api/path";
 
 /**
  * 画像ファイルを読み込む
@@ -54,7 +55,7 @@ const createImageURL = async (image: Image | undefined) => {
  * 画像表示用コンポーネント
  */
 function ImageViewer() {
-    const { path: containerPath, entries, index } = useSelector(state => state.file.containerFile);
+    const { history, historyIndex, entries, index } = useSelector(state => state.file.containerFile);
     const { isTwoPagedView, direction } = useSelector(state => state.view);
     const dispatch = useDispatch<AppDispatch>();
 
@@ -63,10 +64,13 @@ function ImageViewer() {
     const [canTwoPage, setCanTwoPage] = useState(isTwoPagedView);
     const [isForward, setIsForward] = useState(true);
 
-    useEffect(() => { dispatch(setImageIndex(0)) }, [containerPath]);
+    useEffect(() => {
+        dispatch(openContainerFile(history[historyIndex]))
+    }, [history, historyIndex]);
 
     useEffect(() => {
         const setImage = async (firstImagePath: string, secondImagePath: string | undefined) => {
+            const containerPath = history[historyIndex];
             if (firstSrc.length > 0) {
                 URL.revokeObjectURL(firstSrc);
             }
@@ -104,17 +108,18 @@ function ImageViewer() {
             nextPath = entries[index + 1];
         }
         setImage(entries[index], nextPath);
-    }, [containerPath, entries, index, isTwoPagedView]);
+    }, [entries, index]);
 
     useEffect(() => {
         let unlisten: UnlistenFn;
         const listenDragDrop = async () => {
             // ドラッグアンドドロップでファイルを指定する
             // 複数指定された場合は、最初の一つのみ
-            unlisten = await listen("tauri://drag-drop", (event) => {
+            unlisten = await listen("tauri://drag-drop", async (event) => {
                 const path = (event.payload as { paths: string[] }).paths[0];
                 debug(`DragDrop ${path}.`);
-                dispatch(setContainerFile(path));
+                dispatch(setContainerFilePath(path));
+                dispatch(setExploreBasePath(await dirname(path)));
             });
         }
         listenDragDrop();
@@ -164,8 +169,22 @@ function ImageViewer() {
         }
     }
 
+
+    const handleKeydown = (e: React.KeyboardEvent) => {
+        switch (e.key) {
+            case "ArrowLeft":
+                moveFoward();
+                break;
+            case "ArrowRight":
+                moveBack();
+                break;
+            default:
+                return;
+        }
+    }
+
     return (
-        <div className="image_viewer" onClick={handleClicked} onContextMenu={handleContextMenu} onWheel={handleWheeled}>
+        <div className="image_viewer" tabIndex={0} onClick={handleClicked} onContextMenu={handleContextMenu} onWheel={handleWheeled} onKeyDown={handleKeydown}>
             {canTwoPage ?
                 <>
                     <img className="left" src={direction === "left" ? firstSrc : secondSrc} />

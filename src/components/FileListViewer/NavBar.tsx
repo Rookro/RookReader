@@ -4,19 +4,21 @@ import { dirname, homeDir } from '@tauri-apps/api/path';
 import { ArrowBack, ArrowForward, ArrowUpward, Home, Refresh, Search } from '@mui/icons-material';
 import { Box, IconButton } from '@mui/material';
 import { AppDispatch, useSelector } from '../../Store';
-import { getEntriesInDir, setExploreBasePath } from '../../reducers/FileReducer';
+import { getEntriesInDir, goBackExplorerHistory, goForwardExplorerHistory, setExploreBasePath, setSearchText } from '../../reducers/FileReducer';
 import "./NavBar.css";
+import { debug } from '@tauri-apps/plugin-log';
 
 /**
  * ファイルリストのナビゲーションバーコンポーネント
  */
 export default function NavBar() {
-    const { basePath } = useSelector(state => state.file.explore);
+    const { history, historyIndex, searchText } = useSelector(state => state.file.explorer);
     const dispatch = useDispatch<AppDispatch>();
 
     const initDirParh = async () => {
         const homeDirectory = await homeDir();
-        dispatch(getEntriesInDir(homeDirectory));
+        dispatch(setSearchText(""));
+        dispatch(setExploreBasePath(homeDirectory));
     }
 
     useEffect(() => {
@@ -24,7 +26,8 @@ export default function NavBar() {
     }, [])
 
     const handleCurrentDirChanged = (e: React.ChangeEvent<HTMLInputElement>) => {
-        dispatch(getEntriesInDir(e.target.value));
+        dispatch(setSearchText(""));
+        dispatch(setExploreBasePath(e.target.value));
     }
 
     const handleHomeClicked = (_e: React.MouseEvent<HTMLButtonElement>) => {
@@ -32,26 +35,42 @@ export default function NavBar() {
     }
 
     const handleParentClicked = async (_e: React.MouseEvent<HTMLButtonElement>) => {
-        const parentDir = await dirname(basePath);
-        dispatch(setExploreBasePath(parentDir));
-        dispatch(getEntriesInDir(parentDir));
+        dispatch(setSearchText(""));
+        dispatch(setExploreBasePath(await dirname(history[historyIndex])));
     }
 
+    const handleRefleshClicked = async (_e: React.MouseEvent<HTMLButtonElement>) => {
+        dispatch(getEntriesInDir(history[historyIndex]));
+    }
+
+    const handleSearchTextChanged = (e: React.ChangeEvent<HTMLInputElement>) => {
+        dispatch(setSearchText(e.target.value));
+    }
+
+    const handleBackClicked = (_e: React.MouseEvent<HTMLButtonElement>) => {
+        dispatch(goBackExplorerHistory());
+    }
+
+    const handleForwardClicked = (_e: React.MouseEvent<HTMLButtonElement>) => {
+        dispatch(goForwardExplorerHistory());
+    }
+
+    debug(`historyIndex: ${historyIndex}, length: ${history.length}`);
     return (
         <Box className="file_nav_bar">
             <Box className='current_dir'>
-                <input value={basePath} onChange={handleCurrentDirChanged}></input>
+                <input value={history[historyIndex]} onChange={handleCurrentDirChanged}></input>
             </Box>
             <Box className="file_nav_buttons">
                 <IconButton onClick={handleHomeClicked}><Home /></IconButton>
-                <IconButton><ArrowBack /></IconButton>
-                <IconButton><ArrowForward /></IconButton>
+                <IconButton onClick={handleBackClicked} disabled={historyIndex <= 0}><ArrowBack /></IconButton>
+                <IconButton onClick={handleForwardClicked} disabled={history.length - historyIndex <= 1}><ArrowForward /></IconButton>
                 <IconButton onClick={handleParentClicked}><ArrowUpward /></IconButton>
-                <IconButton><Refresh /></IconButton>
+                <IconButton onClick={handleRefleshClicked}><Refresh /></IconButton>
             </Box>
             <Box className="file_search_bar">
                 <Search />
-                <input></input>
+                <input type='search' value={searchText} onChange={handleSearchTextChanged}></input>
             </Box>
         </Box >
     );
