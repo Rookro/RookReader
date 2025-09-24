@@ -62,6 +62,7 @@ function ImageViewer() {
     const [firstSrc, setFirstSrc] = useState("");
     const [secondSrc, setSecondSrc] = useState("");
     const [canTwoPage, setCanTwoPage] = useState(isTwoPagedView);
+    const [displayedIndexes, setDisplayedIndexes] = useState({ first: 0, second: undefined as number | undefined });
     const [isForward, setIsForward] = useState(true);
 
     useEffect(() => {
@@ -87,20 +88,25 @@ function ImageViewer() {
                 setFirstSrc(firstImgSrc);
                 setSecondSrc("");
                 setCanTwoPage(false);
-            } else if (!isForward && secondImage && secondImage.width > secondImage.height) {
-                // 後ろに戻っている状態で二枚目の画像が横長の場合
-                setFirstSrc(secondImgSrc);
-                setSecondSrc("");
-                setCanTwoPage(false);
-            } else if (isForward && (firstImage && firstImage.width > firstImage.height) || (secondImage && secondImage.width > secondImage.height)) {
-                // 前に進んでいる状態でどちらかの画像が横長の場合
-                setFirstSrc(firstImgSrc);
-                setSecondSrc("");
-                setCanTwoPage(false);
+                setDisplayedIndexes({ first: index, second: undefined });
+            } else if ((firstImage && firstImage.width > firstImage.height) || (secondImage && secondImage.width > secondImage.height)) {
+                // どちらかの画像が横長の場合
+                if (isForward) {
+                    setFirstSrc(firstImgSrc);
+                    setSecondSrc("");
+                    setCanTwoPage(false);
+                    setDisplayedIndexes({ first: index, second: undefined });
+                } else {
+                    setFirstSrc(secondImgSrc);
+                    setSecondSrc("");
+                    setCanTwoPage(false);
+                    setDisplayedIndexes({ first: index + 1, second: undefined });
+                }
             } else {
                 setFirstSrc(firstImgSrc);
                 setSecondSrc(secondImgSrc);
                 setCanTwoPage(true);
+                setDisplayedIndexes({ first: index, second: index + 1 });
             }
         }
         let nextPath: string | undefined = undefined;
@@ -108,7 +114,7 @@ function ImageViewer() {
             nextPath = entries[index + 1];
         }
         setImage(entries[index], nextPath);
-    }, [entries, index]);
+    }, [entries, index, isTwoPagedView]);
 
     useEffect(() => {
         let unlisten: UnlistenFn;
@@ -131,7 +137,7 @@ function ImageViewer() {
     }, [dispatch]);
 
     const moveFoward = () => {
-        const forwardIndex = canTwoPage ? index + 2 : index + 1;
+        const forwardIndex = displayedIndexes.second ? displayedIndexes.second + 1 : displayedIndexes.first + 1;
         if (entries.length <= forwardIndex) {
             return;
         }
@@ -139,7 +145,7 @@ function ImageViewer() {
         dispatch(setImageIndex(forwardIndex));
     }
     const moveBack = () => {
-        const backIndex = canTwoPage ? index - 2 : index - 1;
+        const backIndex = isTwoPagedView ? displayedIndexes.first - 2 : displayedIndexes.first - 1;;
         if (backIndex < 0) {
             if (index !== 0) {
                 dispatch(setImageIndex(0));
