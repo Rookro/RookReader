@@ -59,7 +59,7 @@ export default function NavBar() {
     return (
         <Box className="file_nav_bar">
             <Box className='current_dir'>
-                <input value={history[historyIndex]} onChange={handleCurrentDirChanged}></input>
+                <input value={history[historyIndex] ?? ""} onChange={handleCurrentDirChanged}></input>
             </Box>
             <Box className="file_nav_buttons">
                 <IconButton onClick={handleHomeClicked}><Home /></IconButton>
