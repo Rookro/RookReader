@@ -96,6 +96,7 @@ impl Container for PdfContainer {
             // すでにキャッシュにあればスキップ
             let entry = &entries[i];
             if cache.contains_key(entry) {
+                log::debug!("Hit cache so skip preload index: {}", i);
                 continue;
             }
 

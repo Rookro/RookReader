@@ -36,7 +36,6 @@ impl ContainerState {
             let ext_str = ext.to_string_lossy().to_lowercase();
             match ext_str.as_str() {
                 "zip" => {
-                    log::debug!("!!!!!!!!{}", ext_str);
                     let zip = ZipContainer::new(path);
                     self.path = path.clone();
                     self.format = ContainerFormat::ZipArchive;
@@ -44,7 +43,6 @@ impl ContainerState {
                     Ok(())
                 }
                 "pdf" => {
-                    log::debug!("!!!!!!!!{}", ext_str);
                     let pdf = PdfContainer::new(path);
                     self.path = path.clone();
                     self.format = ContainerFormat::PdfDocument;
@@ -52,7 +50,6 @@ impl ContainerState {
                     Ok(())
                 }
                 _ => {
-                    log::debug!("!!!!!!!!{}", ext_str);
                     self.path = path.clone();
                     self.format = ContainerFormat::Unsupported;
                     self.entries.clear();
@@ -81,6 +78,7 @@ impl ContainerState {
     pub fn get_image(&mut self, entry: &String) -> Result<Image, ContainerError> {
         // まずキャッシュを確認
         if let Some(cache) = self.cache.get(entry) {
+            log::debug!("Hit cache so get_image() returns cache of {}", entry);
             return Ok(Image {
                 data: cache.data.clone(),
                 width: cache.width,

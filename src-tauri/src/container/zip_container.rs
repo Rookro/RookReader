@@ -103,6 +103,7 @@ impl Container for ZipContainer {
             // すでにキャッシュにあればスキップ
             let entry = &entries[i];
             if cache.contains_key(entry) {
+                log::debug!("Hit cache so skip preload {}", entry);
                 continue;
             }
 
