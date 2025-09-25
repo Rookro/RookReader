@@ -49,6 +49,7 @@ function NavigationBar() {
             const settingsWindow = new WebviewWindow('settings', {
                 url: '/#/settings',
                 title: 'Settings',
+                parent: "main",
                 width: 600,
                 height: 400,
                 resizable: true,
