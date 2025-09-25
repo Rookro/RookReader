@@ -1,20 +1,19 @@
 use std::sync::Mutex;
 
 use chrono::Local;
-use tauri::{
-    menu::{CheckMenuItemBuilder, Menu, MenuBuilder, SubmenuBuilder},
-    App, Manager, Wry,
-};
+use tauri::{App, Manager};
 use tauri_plugin_log::{RotationStrategy, Target, TargetKind};
 use tauri_plugin_os::platform;
 
 mod commands;
 mod container;
+mod setting;
 mod state;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let result = tauri::Builder::default()
+        .plugin(tauri_plugin_window_state::Builder::new().build())
         .manage(Mutex::new(state::app_state::AppState::default()))
         .plugin(tauri_plugin_os::init())
         .plugin(
@@ -41,8 +40,7 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
-            app.set_menu(create_menu(app)?)?;
-            set_menu_event(app);
+            setting::setting::load(app);
             setup_pdfium(&get_libs_dir(app)?);
             Ok(())
         })
@@ -61,107 +59,6 @@ pub fn run() {
             e.to_string()
         ),
     };
-}
-
-fn create_menu(app: &App) -> tauri::Result<Menu<Wry>> {
-    let file_menu = SubmenuBuilder::new(app, "File")
-        .text("exit", "Exit")
-        .build()?;
-
-    let check_sub_item_1 = CheckMenuItemBuilder::new("Light")
-        .id("light_theme")
-        .checked(false)
-        .build(app)?;
-
-    let check_sub_item_2 = CheckMenuItemBuilder::new("Dark")
-        .id("dark_theme")
-        .checked(false)
-        .build(app)?;
-
-    let other_item = SubmenuBuilder::with_id(app, "theme", "Theme")
-        .item(&check_sub_item_1)
-        .item(&check_sub_item_2)
-        .build()?;
-
-    let menu = MenuBuilder::new(app)
-        .items(&[&file_menu, &other_item])
-        .build()?;
-
-    return Ok(menu);
-}
-
-fn set_menu_event(app: &App) {
-    app.on_menu_event(
-        move |app_handle: &tauri::AppHandle, event| match event.id().0.as_str() {
-            "light_theme" => {
-                let _ = app_handle
-                    .menu()
-                    .unwrap()
-                    .get("theme")
-                    .unwrap()
-                    .as_submenu()
-                    .unwrap()
-                    .get("dark_theme")
-                    .unwrap()
-                    .as_check_menuitem()
-                    .unwrap()
-                    .set_checked(false);
-
-                let _ = app_handle
-                    .menu()
-                    .unwrap()
-                    .get("theme")
-                    .unwrap()
-                    .as_submenu()
-                    .unwrap()
-                    .get("light_theme")
-                    .unwrap()
-                    .as_check_menuitem()
-                    .unwrap()
-                    .set_checked(true);
-
-                log::debug!("Set the Light theme.");
-                app_handle.set_theme(Some(tauri::Theme::Light));
-            }
-            "dark_theme" => {
-                let _ = app_handle
-                    .menu()
-                    .unwrap()
-                    .get("theme")
-                    .unwrap()
-                    .as_submenu()
-                    .unwrap()
-                    .get("light_theme")
-                    .unwrap()
-                    .as_check_menuitem()
-                    .unwrap()
-                    .set_checked(false);
-
-                let _ = app_handle
-                    .menu()
-                    .unwrap()
-                    .get("theme")
-                    .unwrap()
-                    .as_submenu()
-                    .unwrap()
-                    .get("dark_theme")
-                    .unwrap()
-                    .as_check_menuitem()
-                    .unwrap()
-                    .set_checked(true);
-
-                log::debug!("Set the Dark theme.");
-                app_handle.set_theme(Some(tauri::Theme::Dark));
-            }
-            "exit" => {
-                log::debug!("Exit by menu.");
-                app_handle.exit(0);
-            }
-            _ => {
-                log::error!("unexpected menu event. menu event: {:?}", event.id());
-            }
-        },
-    );
 }
 
 fn get_libs_dir(app: &App) -> Result<String, String> {
