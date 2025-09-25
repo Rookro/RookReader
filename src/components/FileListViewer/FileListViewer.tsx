@@ -18,7 +18,7 @@ function FileListViewer() {
     const { history, historyIndex, entries, searchText } = useSelector(state => state.file.explorer);
     const dispatch = useDispatch<AppDispatch>();
 
-    const [selectedIndex, setSelectedIndex] = useState(0);
+    const [selectedIndex, setSelectedIndex] = useState(-1);
 
     useEffect(() => {
         dispatch(getEntriesInDir(history[historyIndex]));

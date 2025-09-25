@@ -1,0 +1,17 @@
+.settings-left-pane {
+    min-width: 270px;
+    max-width: 270px;
+    margin-left: 4px;
+    margin-right: 4px;
+    justify-content: left;
+    display: flex;
+    text-align: center;
+    background-color: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+
+    .settings-left-pane {
+        background-color: black;
+    }
+}

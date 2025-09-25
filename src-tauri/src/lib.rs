@@ -1,5 +1,6 @@
 use std::sync::Mutex;
 
+use chrono::Local;
 use tauri::{
     menu::{CheckMenuItemBuilder, Menu, MenuBuilder, SubmenuBuilder},
     App, Manager, Wry,
@@ -20,7 +21,8 @@ pub fn run() {
             tauri_plugin_log::Builder::new()
                 .format(|out, message, record| {
                     out.finish(format_args!(
-                        "[{}] [{}] [{}::L{}] {}",
+                        "{}: [{}] [{}] [{}::L{}] {}",
+                        Local::now(),
                         record.level(),
                         record.target(),
                         record.file().unwrap_or("unknown"),

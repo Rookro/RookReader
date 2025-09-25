@@ -1,12 +1,14 @@
 import React from "react";
 import { useDispatch } from "react-redux";
+import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { IconButton } from '@mui/material';
-import { ArrowBack, ArrowForward, LooksOne, LooksTwo, SwitchLeft, SwitchRight } from '@mui/icons-material';
+import { ArrowBack, ArrowForward, LooksOne, LooksTwo, Settings, SwitchLeft, SwitchRight } from '@mui/icons-material';
 import { AppDispatch, useSelector } from "../../Store";
 import { goBackContainerHistory, goForwardContainerHistory, setContainerFilePath, setExploreBasePath } from "../../reducers/FileReducer";
 import { setDirection, setIsTwoPagedView } from "../../reducers/ViewReducer";
 import "./NavigationBar.css";
 import { dirname } from "@tauri-apps/api/path";
+import { debug, error } from "@tauri-apps/plugin-log";
 
 /**
  * ナビゲーションバーコンポーネント
@@ -41,6 +43,24 @@ function NavigationBar() {
         dispatch(goForwardContainerHistory());
     }
 
+    const handleSettingsClicked = async (_e: React.MouseEvent<HTMLButtonElement>) => {
+        debug("handleSettingsClicked");
+        try {
+            const settingsWindow = new WebviewWindow('settings', {
+                url: '/#/settings',
+                title: 'Settings',
+                width: 600,
+                height: 400,
+                resizable: true,
+                center: true,
+            });
+
+            return settingsWindow;
+        } catch (ex) {
+            error(`Failed to open settings window. ${JSON.stringify(ex)}`);
+        }
+    }
+
     return (
         <div className="navigation_bar">
             <IconButton onClick={handleBackClicked} disabled={historyIndex <= 0}><ArrowBack /></IconButton>
@@ -51,6 +71,9 @@ function NavigationBar() {
             </IconButton>
             <IconButton onClick={handleSwitchDirectionClicked}>
                 {direction === "right" ? <SwitchRight /> : <SwitchLeft />}
+            </IconButton>
+            <IconButton onClick={handleSettingsClicked}>
+                <Settings />
             </IconButton>
         </div>
     );
