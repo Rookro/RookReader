@@ -12,7 +12,7 @@ const router = createHashRouter([
 ]);
 
 // デフォルト動作では右クリックでメニューが開くため、開かないように抑制する
-//document.addEventListener('contextmenu', event => event.preventDefault());
+document.addEventListener('contextmenu', event => event.preventDefault());
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
