@@ -3,7 +3,8 @@
   "identifier": "default",
   "description": "Capability for the main window",
   "windows": [
-    "main"
+    "main",
+    "settings"
   ],
   "permissions": [
     "core:default",
@@ -35,6 +36,8 @@
     },
     "store:default",
     "log:default",
-    "os:default"
+    "os:default",
+    "core:webview:allow-create-webview-window",
+    "core:app:allow-set-app-theme"
   ]
 }

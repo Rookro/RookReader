@@ -33,7 +33,9 @@ const preload = async (containerPath: string, entries: string[], currentIndex: n
         return;
     }
 
-    invoke<void>("async_preload", { startIndex: currentIndex + 1, count: 10 }).catch((ex) => { error(JSON.stringify(ex)); });
+    invoke<void>("async_preload", { startIndex: currentIndex + 1, count: 10 })
+        .then(() => { debug(`Preloaded from ${currentIndex + 1} to ${currentIndex + 10}.`) })
+        .catch((ex) => { error(`Failed to preload from ${currentIndex + 1} to ${currentIndex + 10}. ${JSON.stringify(ex)}`); });
 }
 
 /**

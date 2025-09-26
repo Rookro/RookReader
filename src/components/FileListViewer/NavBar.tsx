@@ -6,7 +6,6 @@ import { Box, IconButton } from '@mui/material';
 import { AppDispatch, useSelector } from '../../Store';
 import { getEntriesInDir, goBackExplorerHistory, goForwardExplorerHistory, setExploreBasePath, setSearchText } from '../../reducers/FileReducer';
 import "./NavBar.css";
-import { debug } from '@tauri-apps/plugin-log';
 
 /**
  * ファイルリストのナビゲーションバーコンポーネント
@@ -55,7 +54,6 @@ export default function NavBar() {
         dispatch(goForwardExplorerHistory());
     }
 
-    debug(`historyIndex: ${historyIndex}, length: ${history.length}`);
     return (
         <Box className="file_nav_bar">
             <Box className='current_dir'>
