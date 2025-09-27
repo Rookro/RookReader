@@ -23,15 +23,15 @@ function ControlSlider() {
     const { direction } = useSelector(state => state.view);
     const dispatch = useDispatch<AppDispatch>();
 
-    const handleValueChanged = (_event: Event, value: number, _activeThumb: number) => {
-        dispatch(setImageIndex(value - 1));
+    const handleSliderValueChanged = (_event: Event, value: number, _activeThumb: number) => {
+        dispatch(setImageIndex(value));
     }
 
     return (
         <div className="control_slider">
             <ThemeProvider theme={direction === "left" ? ltrTheme : rtlTheme}>
-                <Slider value={index + 1} defaultValue={1} step={1} min={1} max={entries.length} onChange={handleValueChanged} disabled={entries.length === 0} />
-                <div className="slider_output"><Typography align='right'>{index + 1}/{entries.length}</Typography></div>
+                <Slider value={index} defaultValue={1} step={1} min={0} max={entries.length - 1} onChange={handleSliderValueChanged} disabled={entries.length === 0} />
+                <div className="slider_output"><Typography align='right'>{entries.length === 0 ? 0 : index + 1}/{entries.length}</Typography></div>
             </ThemeProvider>
         </div>
     );
