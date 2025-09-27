@@ -1,10 +1,5 @@
-use std::{
-    collections::HashMap,
-    fs::File,
-    io::{Cursor, Read},
-};
+use std::{collections::HashMap, fs::File, io::Read};
 
-use image::ImageReader;
 use zip::ZipArchive;
 
 use crate::container::container::{Container, ContainerError, Image};
@@ -46,32 +41,15 @@ impl Container for ZipContainer {
                 entry: Some(entry.clone()),
             })?;
 
-        // 画像サイズを取得する
-        let cursor = Cursor::new(&buffer);
-        let image_reader = ImageReader::new(cursor)
-            .with_guessed_format()
-            .map_err(|e| ContainerError {
-                message: String::from(format!("Failed to read entry in the zip archive. {}", e)),
-                path: Some(self.path.clone()),
-                entry: Some(entry.clone()),
-            })?;
-        // 画像全体をデコードせず、サイズのみを読み取る
-        match image_reader.into_dimensions() {
-            Ok((width, height)) => {
-                let image = Image {
-                    data: buffer,
-                    width: width,
-                    height: height,
-                };
-
+        match Image::new(buffer) {
+            Ok(image) => {
                 self.cache.insert(entry.clone(), image.clone());
                 Ok(image)
             }
             Err(e) => {
-                let error_message = format!("Failed to get image size. {}", e);
-                log::error!("{}", error_message);
+                log::error!("{}", e);
                 Err(ContainerError {
-                    message: error_message,
+                    message: e,
                     path: Some(self.path.clone()),
                     entry: Some(entry.clone()),
                 })
@@ -109,31 +87,14 @@ impl Container for ZipContainer {
                 })?;
             };
 
-            let cursor = Cursor::new(&buffer);
-            let image_reader = ImageReader::new(cursor)
-                .with_guessed_format()
-                .map_err(|e| ContainerError {
-                    message: String::from(format!(
-                        "Failed to read entry in the zip archive. {}",
-                        e
-                    )),
-                    path: Some(self.path.clone()),
-                    entry: Some(entry.clone()),
-                })?;
-            match image_reader.into_dimensions() {
-                Ok((width, height)) => {
-                    let image = Image {
-                        data: buffer,
-                        width,
-                        height,
-                    };
+            match Image::new(buffer) {
+                Ok(image) => {
                     self.cache.insert(entry.clone(), image);
                 }
                 Err(e) => {
-                    let error_message = format!("Failed to get image size. {}", e);
-                    log::error!("{}", error_message);
+                    log::error!("{}", e);
                     return Err(ContainerError {
-                        message: error_message,
+                        message: e,
                         path: Some(self.path.clone()),
                         entry: Some(entry.clone()),
                     });

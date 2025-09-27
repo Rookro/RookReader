@@ -1,5 +1,9 @@
-use std::fmt::{Display, Formatter};
+use std::{
+    fmt::{Display, Formatter},
+    io::Cursor,
+};
 
+use image::ImageReader;
 use serde::{Deserialize, Serialize};
 
 /// 画像データ
@@ -11,6 +15,27 @@ pub struct Image {
     pub width: u32,
     /// 画像の縦幅
     pub height: u32,
+}
+
+impl Image {
+    pub fn new(data: Vec<u8>) -> Result<Self, String> {
+        let cursor = Cursor::new(&data);
+        let image_reader = ImageReader::new(cursor)
+            .with_guessed_format()
+            .map_err(|e| format!("Failed to create Image instance. {}", e))?;
+        match image_reader.into_dimensions() {
+            Ok((width, height)) => Ok(Image {
+                data: data,
+                width,
+                height,
+            }),
+            Err(e) => {
+                let error_message = format!("Failed to get image size. {}", e);
+                log::error!("{}", error_message);
+                return Err(error_message);
+            }
+        }
+    }
 }
 
 /// 書庫コンテナー

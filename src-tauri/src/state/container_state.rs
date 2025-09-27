@@ -6,6 +6,7 @@ use std::{
 use crate::container::{
     container::{Container, ContainerError},
     pdf_container::PdfContainer,
+    rar_container::RarContainer,
     zip_container::ZipContainer,
 };
 
@@ -36,6 +37,10 @@ impl ContainerState {
                 }
                 "pdf" => {
                     self.container = Some(Arc::new(Mutex::new(PdfContainer::new(path)?)));
+                    Ok(())
+                }
+                "rar" => {
+                    self.container = Some(Arc::new(Mutex::new(RarContainer::new(path)?)));
                     Ok(())
                 }
                 _ => {
