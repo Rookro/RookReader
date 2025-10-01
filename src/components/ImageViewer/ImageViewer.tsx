@@ -116,7 +116,7 @@ function ImageViewer() {
             nextPath = entries[index + 1];
         }
         setImage(entries[index], nextPath);
-    }, [entries, index, isTwoPagedView]);
+    }, [entries, index, isTwoPagedView, isForward]);
 
     useEffect(() => {
         let unlisten: UnlistenFn;
