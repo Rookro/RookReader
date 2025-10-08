@@ -4,19 +4,23 @@ on:
   pull_request:
 jobs:
   build-app-for-windows:
-    runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/rookro/tauri-template-devcontainer:latest
-      options: --user root
+    runs-on: windows-latest
     steps:
-      - name: setup rustup
-        run: rustup default stable
+      - name: Setup Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          target: x86_64-pc-windows-msvc
+          override: true
       - name: checkout merged branch
         uses: actions/checkout@v4
-      - name: setup build script
-        run: sudo chmod u+x ./build-windows.sh
       - name: build application for windows
-        run: ./build-windows.sh
+        run: |
+          mkdir src-tauri/libs
+          cp src-tauri/dependencies/windows/* src-tauri/libs
+          yarn
+          yarn tauri build --target x86_64-pc-windows-msvc
       - name: upload setup exe
         uses: actions/upload-artifact@v4
         with:
