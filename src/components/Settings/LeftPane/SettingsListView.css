@@ -1,0 +1,54 @@
+.settings-list {
+    height: auto;
+    overflow: auto;
+}
+
+.settings-search-bar {
+    height: fit-content;
+    margin: 0px 0px;
+    display: flex;
+    border: 1px solid black;
+}
+
+.settings-search-bar:focus-within {
+    border: 1px solid cornflowerblue;
+}
+
+.settings-search-bar svg {
+    color: black;
+    margin: 2px;
+}
+
+.settings-search-bar input {
+    height: 1.5em;
+    width: calc(100% - 15px);
+    border: 0px;
+    padding-left: 0.5em;
+    font-size: 1em;
+    font-family: inherit;
+    color: black;
+    background-color: #ffffff;
+    outline: none;
+}
+
+@media (prefers-color-scheme: dark) {
+
+    .settings-list {
+        .MuiListItemButton-root.Mui-selected {
+            background-color: rgba(136, 136, 136, 0.432);
+        }
+    }
+
+    .settings-search-bar {
+        border: 1px solid darkgray;
+    }
+
+    .settings-search-bar svg {
+        color: darkgray;
+    }
+
+    .settings-search-bar input {
+        color: #ffffff;
+        background-color: #0f0f0f98;
+    }
+}

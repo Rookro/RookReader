@@ -4,7 +4,6 @@ use std::sync::Mutex;
 
 use crate::container::container::Image;
 use crate::state::app_state::AppState;
-use crate::state::container_state::ContainerState;
 
 #[derive(Serialize, Deserialize)]
 pub struct DirEntry {
@@ -44,13 +43,21 @@ pub fn get_entries_in_container(
         format!("Failed to lock AppState. {}", e.to_string())
     })?;
 
-    let mut container = ContainerState::new();
-    container
+    state_lock
+        .container_state
         .open_container(&path)
-        .map_err(|e| format!("Failed to get entries in the container. {}", e.message))?;
-    let entries = container.entries.clone();
-    state_lock.container = Some(container);
-    Ok(entries)
+        .map_err(|e| format!("Failed to get entries in the container. {}", e))?;
+
+    if let Some(container) = &state_lock.container_state.container {
+        Ok(container
+            .lock()
+            .map_err(|e| format!("Failed to lock container of container state. {}", e))?
+            .get_entries()
+            .clone())
+    } else {
+        log::error!("Unexpected error. Container is empty!");
+        Err(String::from("Unexpected error. Container is empty!"))
+    }
 }
 
 #[tauri::command()]
@@ -61,23 +68,21 @@ pub fn get_image(
 ) -> Result<Image, String> {
     log::debug!("Get the binary of {} in {}", entry_name, path);
 
-    let mut state_lock = state.lock().map_err(|e| {
+    let state_lock = state.lock().map_err(|e| {
         log::error!("Failed to lock AppState. {}", e.to_string());
         format!("Failed to lock AppState. {}", e.to_string())
     })?;
 
-    if let Some(container) = state_lock.container.as_mut() {
-        let image = container.get_image(&entry_name).map_err(|e| {
-            format!(
-                "{}. path: {}",
-                e.message,
-                e.path.unwrap_or(String::from("None"))
-            )
-        })?;
+    if let Some(container) = &state_lock.container_state.container {
+        let image = container
+            .lock()
+            .map_err(|e| format!("Failed to lock container of container state. {}", e))?
+            .get_image(&entry_name)
+            .map_err(|e| format!("Failed to get image. {}", e))?;
         Ok(image)
     } else {
-        log::error!("Container is empty.");
-        Err(String::from("Container is empty."))
+        log::error!("Unexpected error. Container is empty!");
+        Err(String::from("Unexpected error. Container is empty!"))
     }
 }
 
@@ -89,17 +94,19 @@ pub async fn async_preload(
 ) -> Result<(), String> {
     log::debug!("async_preload({}, {})", start_index, count);
 
-    let mut state_lock = state.lock().map_err(|e| {
+    let state_lock = state.lock().map_err(|e| {
         log::error!("Failed to lock AppState. {}", e.to_string());
         format!("Failed to lock AppState. {}", e.to_string())
     })?;
 
-    if let Some(container) = state_lock.container.as_mut() {
+    if let Some(container) = &state_lock.container_state.container {
         container
+            .lock()
+            .map_err(|e| format!("Failed to lock container of container state. {}", e))?
             .preload(start_index, count)
-            .map_err(|e| format!("Failed to preload. {}", e.message))
+            .map_err(|e| format!("Failed to preload. {}", e))
     } else {
-        log::error!("Container is empty.");
-        Err(String::from("Container is empty."))
+        log::error!("Unexpected error. Container is empty!");
+        Err(String::from("Unexpected error. Container is empty!"))
     }
 }
