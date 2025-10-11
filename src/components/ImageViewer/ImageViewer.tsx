@@ -181,10 +181,18 @@ function ImageViewer() {
     const handleKeydown = (e: React.KeyboardEvent) => {
         switch (e.key) {
             case "ArrowLeft":
-                moveFoward();
+                if (direction === "right") {
+                    moveFoward();
+                } else {
+                    moveBack();
+                }
                 break;
             case "ArrowRight":
-                moveBack();
+                if (direction === "right") {
+                    moveBack();
+                } else {
+                    moveFoward();
+                }
                 break;
             default:
                 return;

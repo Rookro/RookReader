@@ -40,8 +40,11 @@ jobs:
         run: sudo chmod u+x ./build-linux.sh
       - name: build application for linux
         run: ./build-linux.sh
-      - name: upload appimage
+      - name: upload PKGBUILD and deb
         uses: actions/upload-artifact@v4
         with:
-          name: linux-appimage
-          path: src-tauri/target/release/bundle/appimage/*.AppImage 
+          name: PKGBUILD-for-archilinux
+          path: |
+            PKGBUILD
+            RookReader.install
+            src-tauri/target/release/bundle/deb/*.deb
