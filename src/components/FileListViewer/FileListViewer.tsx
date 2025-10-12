@@ -10,6 +10,7 @@ import { getEntriesInDir, setContainerFilePath, setExploreBasePath, setSearchTex
 import { DirEntry } from '../../types/DirEntry';
 import NavBar from './NavBar';
 import "./FileListViewer.css";
+import { Folder, InsertDriveFile } from '@mui/icons-material';
 
 /** 
  * ファイルリスト表示コンポネント 
@@ -50,6 +51,7 @@ function FileListViewer() {
             <List className="file_list" component="nav" dense={true}>
                 {entries
                     .filter((entry) => searchText ? entry.name.toLowerCase().includes(searchText.toLowerCase()) : true)
+                    .sort((a, b) => a.name.localeCompare(b.name))
                     .map((entry, index) =>
                         <ListItemButton
                             selected={selectedIndex === index}
@@ -57,11 +59,13 @@ function FileListViewer() {
                             onClick={(e) => handleListItemClicked(e, entry)}
                             key={index}
                         >
-                            <ListItemText primary={entry.name} />
-                        </ListItemButton>)
+                            {entry.is_directory ? <Folder /> : <InsertDriveFile />}
+                            <ListItemText primary={entry.name} sx={{ marginLeft: "5px" }} />
+                        </ListItemButton>
+                    )
                 }
             </List>
-        </Box>
+        </Box >
     );
 }
 

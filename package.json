@@ -14,6 +14,7 @@
     "@emotion/styled": "^11.14.1",
     "@mui/icons-material": "^7.3.2",
     "@mui/material": "^7.3.2",
+    "@mui/stylis-plugin-rtl": "^7.3.3",
     "@reduxjs/toolkit": "^2.9.0",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-fs": "~2",
@@ -32,6 +33,7 @@
     "@tauri-apps/cli": "^2",
     "@types/react": "^18.3.1",
     "@types/react-dom": "^18.3.1",
+    "@types/stylis": "^4.2.7",
     "@vitejs/plugin-react": "^4.3.4",
     "typescript": "~5.6.2",
     "vite": "^6.0.3"
