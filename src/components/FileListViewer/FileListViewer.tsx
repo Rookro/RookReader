@@ -10,6 +10,7 @@ import { getEntriesInDir, setContainerFilePath, setExploreBasePath, setSearchTex
 import { DirEntry } from '../../types/DirEntry';
 import NavBar from './NavBar';
 import "./FileListViewer.css";
+import { Folder, InsertDriveFile } from '@mui/icons-material';
 
 /** 
  * ファイルリスト表示コンポネント 
@@ -57,11 +58,13 @@ function FileListViewer() {
                             onClick={(e) => handleListItemClicked(e, entry)}
                             key={index}
                         >
-                            <ListItemText primary={entry.name} />
-                        </ListItemButton>)
+                            {entry.is_directory ? <Folder /> : <InsertDriveFile />}
+                            <ListItemText primary={entry.name} sx={{ marginLeft: "5px" }} />
+                        </ListItemButton>
+                    )
                 }
             </List>
-        </Box>
+        </Box >
     );
 }
 
