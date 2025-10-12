@@ -51,6 +51,7 @@ function FileListViewer() {
             <List className="file_list" component="nav" dense={true}>
                 {entries
                     .filter((entry) => searchText ? entry.name.toLowerCase().includes(searchText.toLowerCase()) : true)
+                    .sort((a, b) => a.name.localeCompare(b.name))
                     .map((entry, index) =>
                         <ListItemButton
                             selected={selectedIndex === index}
