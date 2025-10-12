@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Box, FormControl, MenuItem, Select, SelectChangeEvent, Typography } from "@mui/material";
 import { app } from "@tauri-apps/api"
 import { Theme } from "@tauri-apps/api/window";
@@ -20,6 +20,18 @@ function ThemeSetting() {
         store.set("theme", toTauriTheme.get(e.target.value));
         await app.setTheme(toTauriTheme.get(e.target.value));
     }
+
+    useEffect(() => {
+        const initTheme = async () => {
+            const tauriTheme = await store.get<string>("theme");
+            toTauriTheme.forEach((value, key) => {
+                if (value === tauriTheme && key) {
+                    setTheme(key);
+                }
+            })
+        };
+        initTheme();
+    }, [])
 
     return (
         <Box className="theme-setting" display="flex">

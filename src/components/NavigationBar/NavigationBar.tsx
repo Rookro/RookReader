@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { useDispatch } from "react-redux";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { IconButton } from '@mui/material';
@@ -9,11 +9,14 @@ import { setDirection, setIsTwoPagedView } from "../../reducers/ViewReducer";
 import "./NavigationBar.css";
 import { dirname } from "@tauri-apps/api/path";
 import { debug, error } from "@tauri-apps/plugin-log";
+import { LazyStore } from "@tauri-apps/plugin-store";
+import { Direction } from "../../types/DirectionType";
 
 /**
  * ナビゲーションバーコンポーネント
  */
 function NavigationBar() {
+    const store = new LazyStore("rook-reader_settings.json");
     const { isTwoPagedView, direction } = useSelector(state => state.view);
     const { history, historyIndex } = useSelector(state => state.file.containerFile);
     const dispatch = useDispatch<AppDispatch>();
@@ -24,13 +27,16 @@ function NavigationBar() {
     }
 
     const handleSwitchTwoPagedClicked = (_e: React.MouseEvent<HTMLButtonElement>) => {
+        store.set("two-paged", !isTwoPagedView);
         dispatch(setIsTwoPagedView(!isTwoPagedView));
     }
 
     const handleSwitchDirectionClicked = (_e: React.MouseEvent<HTMLButtonElement>) => {
         if (direction === "right") {
+            store.set("direction", "left");
             dispatch(setDirection("left"));
         } else {
+            store.set("direction", "right");
             dispatch(setDirection("right"));
         }
     }
@@ -61,6 +67,20 @@ function NavigationBar() {
             error(`Failed to open settings window. ${JSON.stringify(ex)}`);
         }
     }
+
+    useEffect(() => {
+        const initViewSettings = async () => {
+            const direction = await store.get<Direction>("direction");
+            const isTwoPaged = await store.get<boolean>("two-paged");
+            if (direction) {
+                dispatch(setDirection(direction));
+            }
+            if (isTwoPaged !== undefined) {
+                dispatch(setIsTwoPagedView(isTwoPaged));
+            }
+        };
+        initViewSettings();
+    }, [dispatch])
 
     return (
         <div className="navigation_bar">
