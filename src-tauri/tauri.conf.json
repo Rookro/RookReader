@@ -33,6 +33,16 @@
     ],
     "resources": [
       "libs/"
-    ]
+    ],
+    "linux": {
+      "deb": {
+        "changelog": "../CHANGELOG.md"
+      }
+    },
+    "windows": {
+      "nsis": {
+        "displayLanguageSelector": true
+      }
+    }
   }
 }
