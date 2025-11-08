@@ -21,9 +21,7 @@ body {
 .container {
   width: 100vw;
   height: 100vh;
-  display: table;
-  justify-content: center;
-  text-align: center;
+  min-width: 550px;
   overflow: hidden;
 }
 
@@ -37,20 +35,14 @@ button:hover {
   border-radius: 0%;
 }
 
-.main_view {
-  height: calc(100vh - 70px);
-}
-
 .left_panel {
-  min-width: 220px;
-  height: calc(100vh - 70px);
+  min-width: 250px;
   overflow: auto;
 }
 
 .main_panel {
   display: flex;
   min-width: 300px;
-  height: calc(100vh - 70px);
 }
 
 @media (prefers-color-scheme: dark) {
