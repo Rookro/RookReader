@@ -1,4 +1,5 @@
 import { createTheme, ThemeProvider, useMediaQuery } from "@mui/material";
+import { Panel, PanelGroup, PanelResizeHandle, } from "react-resizable-panels";
 import ControlSlider from "./components/ControlSlider/ControlSlider";
 import ImageViewer from "./components/ImageViewer/ImageViewer";
 import LeftPane from "./components/LeftPane/LeftPane";
@@ -17,10 +18,15 @@ function App() {
     <ThemeProvider theme={theme}>
       <main className="container">
         <NavigationBar />
-        <div className="main_view">
-          <LeftPane />
-          <ImageViewer />
-        </div>
+        <PanelGroup direction="horizontal">
+          <Panel className="left_panel" defaultSize={20}>
+            <LeftPane />
+          </Panel>
+          <PanelResizeHandle />
+          <Panel className="main_panel">
+            <ImageViewer />
+          </Panel>
+        </PanelGroup>
         <ControlSlider />
       </main>
     </ThemeProvider>
