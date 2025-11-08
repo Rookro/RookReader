@@ -1,6 +1,6 @@
 .left_pane {
-    min-width: 270px;
-    max-width: 270px;
+    min-width: 100px;
+    height: 100%;
     margin-left: 4px;
     margin-right: 4px;
     justify-content: left;

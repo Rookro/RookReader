@@ -31,7 +31,7 @@
 
 .file_nav_bar input {
     height: 1.5em;
-    width: calc(100% - 15px);
+    width: 100%;
     border: 0px;
     padding-left: 0.5em;
     font-size: 1em;
