@@ -38,7 +38,18 @@ button:hover {
 }
 
 .main_view {
+  height: calc(100vh - 70px);
+}
+
+.left_panel {
+  min-width: 220px;
+  height: calc(100vh - 70px);
+  overflow: auto;
+}
+
+.main_panel {
   display: flex;
+  min-width: 300px;
   height: calc(100vh - 70px);
 }
 
