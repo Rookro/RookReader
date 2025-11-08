@@ -7,6 +7,12 @@
 
 ## [Unreleased]
 
+## [1.3.4] - 2025-11-08
+
+### Fixed
+
+*  linux で slider が表示されない不具合を修正 (#35)
+
 ## [1.3.3] - 2025-11-08
 
 ### Changed
@@ -72,6 +78,7 @@
 * ホイールの上下によるページ送り機能を追加 (#5)
 
 [unreleased]: https://github.com/Rookro/RookReader/compare/v1.3.3...HEAD
+[1.3.4]: https://github.com/Rookro/RookReader/compare/v1.3.3...v1.3.4
 [1.3.3]: https://github.com/Rookro/RookReader/compare/v1.3.2...v1.3.3
 [1.3.2]: https://github.com/Rookro/RookReader/compare/v1.3.1...v1.3.2
 [1.3.1]: https://github.com/Rookro/RookReader/compare/v1.3.0...v1.3.1
