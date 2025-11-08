@@ -7,6 +7,17 @@
 
 ## [Unreleased]
 
+## [1.3.3] - 2025-11-08
+
+### Changed
+
+* 左ペインの幅をドラッグで変更可能にする (#31)
+* 依存ライブラリのバージョンを更新 (#32)
+
+### Fixed
+
+* ページ番号/ページ数 の表示場所が下にずれているのを修正 (#31)
+
 ## [1.3.2] - 2025-10-12
 
 ### Changed
@@ -60,7 +71,8 @@
 * 自動見開き表示機能の追加 (#4)
 * ホイールの上下によるページ送り機能を追加 (#5)
 
-[unreleased]: https://github.com/Rookro/RookReader/compare/v1.3.2...HEAD
+[unreleased]: https://github.com/Rookro/RookReader/compare/v1.3.3...HEAD
+[1.3.3]: https://github.com/Rookro/RookReader/compare/v1.3.2...v1.3.3
 [1.3.2]: https://github.com/Rookro/RookReader/compare/v1.3.1...v1.3.2
 [1.3.1]: https://github.com/Rookro/RookReader/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/Rookro/RookReader/compare/v1.2.0...v1.3.0
