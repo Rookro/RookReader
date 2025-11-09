@@ -7,16 +7,30 @@ import ListItemText from '@mui/material/ListItemText';
 import { join } from '@tauri-apps/api/path';
 import { useSelector, AppDispatch } from '../../Store';
 import { getEntriesInDir, setContainerFilePath, setExploreBasePath, setSearchText } from '../../reducers/FileReducer';
+import { SortOrder } from '../../types/SortOrderType';
 import { DirEntry } from '../../types/DirEntry';
 import NavBar from './NavBar';
 import "./FileListViewer.css";
 import { Folder, InsertDriveFile } from '@mui/icons-material';
 
+const sortBy = (a: DirEntry, b: DirEntry, sortOrder: SortOrder) => {
+    switch (sortOrder) {
+        case "NAME_ASC":
+            return a.name.localeCompare(b.name);
+        case "NAME_DESC":
+            return b.name.localeCompare(a.name);
+        case "DATE_ASC":
+            return Date.parse(a.last_modified) - Date.parse(b.last_modified);
+        case 'DATE_DESC':
+            return Date.parse(b.last_modified) - Date.parse(a.last_modified);
+    }
+}
+
 /** 
  * ファイルリスト表示コンポネント 
  */
 function FileListViewer() {
-    const { history, historyIndex, entries, searchText } = useSelector(state => state.file.explorer);
+    const { history, historyIndex, entries, searchText, sortOrder } = useSelector(state => state.file.explorer);
     const dispatch = useDispatch<AppDispatch>();
 
     const [selectedIndex, setSelectedIndex] = useState(-1);
@@ -51,7 +65,7 @@ function FileListViewer() {
             <List className="file_list" component="nav" dense={true}>
                 {entries
                     .filter((entry) => searchText ? entry.name.toLowerCase().includes(searchText.toLowerCase()) : true)
-                    .sort((a, b) => a.name.localeCompare(b.name))
+                    .sort((a, b) => sortBy(a, b, sortOrder))
                     .map((entry, index) =>
                         <ListItemButton
                             selected={selectedIndex === index}
