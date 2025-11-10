@@ -72,10 +72,14 @@ export default function NavBar() {
         dispatch(setSortOrder(event.target.value as SortOrder));
     }
 
+    const handleContextMenu = (e: React.MouseEvent<HTMLElement>) => {
+        e.stopPropagation();
+    }
+
     return (
         <Box className="file_nav_bar">
             <Box className='current_dir'>
-                <input value={history[historyIndex] ?? ""} onChange={handleCurrentDirChanged}></input>
+                <input value={history[historyIndex] ?? ""} onChange={handleCurrentDirChanged} onContextMenu={handleContextMenu}></input>
             </Box>
             <Box className="file_nav_buttons">
                 <IconButton onClick={handleHomeClicked}><Home /></IconButton>
@@ -92,7 +96,7 @@ export default function NavBar() {
             </Box>
             <Box className="file_search_bar">
                 <Search />
-                <input type='search' value={searchText} onChange={handleSearchTextChanged}></input>
+                <input type='search' value={searchText} onChange={handleSearchTextChanged} onContextMenu={handleContextMenu}></input>
             </Box>
         </Box >
     );
