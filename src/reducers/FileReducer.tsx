@@ -2,6 +2,7 @@ import { PayloadAction, createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { invoke } from "@tauri-apps/api/core";
 import { debug, error } from '@tauri-apps/plugin-log';
 import { DirEntry } from "../types/DirEntry";
+import { SortOrder } from "../types/SortOrderType";
 
 export const openContainerFile = createAsyncThunk(
     "file/openContainerFile",
@@ -54,6 +55,7 @@ export const fileSlice = createSlice({
             historyIndex: -1,
             entries: [] as DirEntry[],
             searchText: "",
+            sortOrder: "NAME_ASC" as SortOrder,
         }
     },
     reducers: {
@@ -90,6 +92,10 @@ export const fileSlice = createSlice({
         setSearchText: (state, action: PayloadAction<string>) => {
             debug(`setSearchText(${action.payload}).`);
             state.explorer.searchText = action.payload;
+        },
+        setSortOrder: (state, action: PayloadAction<SortOrder>) => {
+            debug(`setSortOrder(${action.payload}).`);
+            state.explorer.sortOrder = action.payload;
         },
         goBackContainerHistory: (state) => {
             if (state.containerFile.historyIndex > 0) {
@@ -132,6 +138,7 @@ export const {
     setImageIndex,
     setExploreBasePath,
     setSearchText,
+    setSortOrder,
     goBackContainerHistory,
     goForwardContainerHistory,
     goBackExplorerHistory,
