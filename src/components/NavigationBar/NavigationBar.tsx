@@ -68,6 +68,10 @@ function NavigationBar() {
         }
     }
 
+    const handleContextMenu = (e: React.MouseEvent<HTMLElement>) => {
+        e.stopPropagation();
+    }
+
     useEffect(() => {
         const initViewSettings = async () => {
             const direction = await store.get<Direction>("direction");
@@ -86,7 +90,7 @@ function NavigationBar() {
         <div className="navigation_bar">
             <IconButton onClick={handleBackClicked} disabled={historyIndex <= 0}><ArrowBack /></IconButton>
             <IconButton onClick={handleForwardClicked} disabled={history.length - historyIndex <= 1}><ArrowForward /></IconButton>
-            <input type="text" value={history[historyIndex]} onChange={handlePathChanged}></input>
+            <input type="text" value={history[historyIndex]} onChange={handlePathChanged} onContextMenu={handleContextMenu}></input>
             <IconButton onClick={handleSwitchTwoPagedClicked}>
                 {isTwoPagedView ? <LooksTwo /> : <LooksOne />}
             </IconButton>
