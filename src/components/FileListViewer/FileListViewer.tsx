@@ -1,17 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useDispatch } from 'react-redux';
-import Box from '@mui/material/Box';
-import List from '@mui/material/List';
-import ListItemButton from '@mui/material/ListItemButton';
-import ListItemText from '@mui/material/ListItemText';
-import { join } from '@tauri-apps/api/path';
+import { Box, List, ListItemButton, ListItemText } from '@mui/material';
+import { Folder, InsertDriveFile } from '@mui/icons-material';
+import { basename, join } from '@tauri-apps/api/path';
 import { useSelector, AppDispatch } from '../../Store';
 import { getEntriesInDir, setContainerFilePath, setExploreBasePath, setSearchText } from '../../reducers/FileReducer';
 import { SortOrder } from '../../types/SortOrderType';
 import { DirEntry } from '../../types/DirEntry';
 import NavBar from './NavBar';
 import "./FileListViewer.css";
-import { Folder, InsertDriveFile } from '@mui/icons-material';
 
 const sortBy = (a: DirEntry, b: DirEntry, sortOrder: SortOrder) => {
     switch (sortOrder) {
@@ -31,13 +28,29 @@ const sortBy = (a: DirEntry, b: DirEntry, sortOrder: SortOrder) => {
  */
 function FileListViewer() {
     const { history, historyIndex, entries, searchText, sortOrder } = useSelector(state => state.file.explorer);
+    const { history: fileHistory, historyIndex: fileHistoryIndex } = useSelector(state => state.file.containerFile);
     const dispatch = useDispatch<AppDispatch>();
 
     const [selectedIndex, setSelectedIndex] = useState(-1);
+    const [sortedEntries, setSortedEntries] = useState<DirEntry[]>([]);
 
     useEffect(() => {
         dispatch(getEntriesInDir(history[historyIndex]));
     }, [history, historyIndex, dispatch]);
+
+    useEffect(() => {
+        const initEntries = async () => {
+            const sortedEntries = [...entries].sort((a, b) => sortBy(a, b, sortOrder));
+            setSortedEntries(sortedEntries);
+
+            if (fileHistory[fileHistoryIndex]) {
+                const fileName = await basename(fileHistory[fileHistoryIndex]);
+                const index = sortedEntries.findIndex((entry) => entry.name === fileName);
+                setSelectedIndex(index);
+            }
+        }
+        initEntries();
+    }, [entries, sortOrder])
 
     const handleListItemFocused = (
         _e: React.FocusEvent,
@@ -63,9 +76,8 @@ function FileListViewer() {
         <Box sx={{ width: "100%", display: 'grid', alignContent: 'start' }}>
             <NavBar />
             <List className="file_list" component="nav" dense={true}>
-                {entries
+                {sortedEntries
                     .filter((entry) => searchText ? entry.name.toLowerCase().includes(searchText.toLowerCase()) : true)
-                    .sort((a, b) => sortBy(a, b, sortOrder))
                     .map((entry, index) =>
                         <ListItemButton
                             selected={selectedIndex === index}
