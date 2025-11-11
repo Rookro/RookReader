@@ -50,7 +50,7 @@ function FileListViewer() {
             }
         }
         initEntries();
-    }, [entries, sortOrder])
+    }, [entries, fileHistory, fileHistoryIndex, sortOrder])
 
     const handleListItemFocused = (
         _e: React.FocusEvent,
