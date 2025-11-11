@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { Box, List, ListItemButton, ListItemText } from '@mui/material';
 import { Folder, InsertDriveFile } from '@mui/icons-material';
@@ -33,6 +33,19 @@ function FileListViewer() {
 
     const [selectedIndex, setSelectedIndex] = useState(-1);
     const [sortedEntries, setSortedEntries] = useState<DirEntry[]>([]);
+
+    const itemRefs = useRef<Record<number, HTMLDivElement | null>>({});
+
+    // 選択している項目が表示されるようにスクロールする
+    useEffect(() => {
+        const selectedItemRef = itemRefs.current[selectedIndex];
+        if (selectedItemRef) {
+            selectedItemRef.scrollIntoView({
+                behavior: 'instant',
+                block: 'nearest',
+            });
+        }
+    }, [selectedIndex]);
 
     useEffect(() => {
         dispatch(getEntriesInDir(history[historyIndex]));
@@ -84,6 +97,9 @@ function FileListViewer() {
                             onFocus={(e) => handleListItemFocused(e, index)}
                             onClick={(e) => handleListItemClicked(e, entry)}
                             key={index}
+                            ref={(el: HTMLDivElement | null) => {
+                                itemRefs.current[index] = el;
+                            }}
                         >
                             {entry.is_directory ? <Folder /> : <InsertDriveFile />}
                             <ListItemText primary={entry.name} sx={{ marginLeft: "5px" }} />
