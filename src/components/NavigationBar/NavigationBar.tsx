@@ -9,14 +9,13 @@ import { setDirection, setIsTwoPagedView } from "../../reducers/ViewReducer";
 import "./NavigationBar.css";
 import { dirname } from "@tauri-apps/api/path";
 import { debug, error } from "@tauri-apps/plugin-log";
-import { LazyStore } from "@tauri-apps/plugin-store";
 import { Direction } from "../../types/DirectionType";
+import { settingsStore } from "../../settings/SettingsStore";
 
 /**
  * ナビゲーションバーコンポーネント
  */
 function NavigationBar() {
-    const store = new LazyStore("rook-reader_settings.json");
     const { isTwoPagedView, direction } = useSelector(state => state.view);
     const { history, historyIndex } = useSelector(state => state.file.containerFile);
     const dispatch = useDispatch<AppDispatch>();
@@ -27,16 +26,16 @@ function NavigationBar() {
     }
 
     const handleSwitchTwoPagedClicked = (_e: React.MouseEvent<HTMLButtonElement>) => {
-        store.set("two-paged", !isTwoPagedView);
+        settingsStore.set("two-paged", !isTwoPagedView);
         dispatch(setIsTwoPagedView(!isTwoPagedView));
     }
 
     const handleSwitchDirectionClicked = (_e: React.MouseEvent<HTMLButtonElement>) => {
         if (direction === "right") {
-            store.set("direction", "left");
+            settingsStore.set("direction", "left");
             dispatch(setDirection("left"));
         } else {
-            store.set("direction", "right");
+            settingsStore.set("direction", "right");
             dispatch(setDirection("right"));
         }
     }
@@ -74,8 +73,8 @@ function NavigationBar() {
 
     useEffect(() => {
         const initViewSettings = async () => {
-            const direction = await store.get<Direction>("direction");
-            const isTwoPaged = await store.get<boolean>("two-paged");
+            const direction = await settingsStore.get<Direction>("direction");
+            const isTwoPaged = await settingsStore.get<boolean>("two-paged");
             if (direction) {
                 dispatch(setDirection(direction));
             }

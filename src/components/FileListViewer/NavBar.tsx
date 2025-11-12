@@ -1,19 +1,18 @@
 import React, { useEffect } from 'react';
 import { useDispatch } from 'react-redux';
 import { dirname, homeDir } from '@tauri-apps/api/path';
-import { LazyStore } from '@tauri-apps/plugin-store';
 import { ArrowBack, ArrowForward, ArrowUpward, Home, Refresh, Search } from '@mui/icons-material';
 import { Box, IconButton, MenuItem, Select, SelectChangeEvent } from '@mui/material';
 import { AppDispatch, useSelector } from '../../Store';
 import { getEntriesInDir, goBackExplorerHistory, goForwardExplorerHistory, setExploreBasePath, setSearchText, setSortOrder } from '../../reducers/FileReducer';
 import { SortOrder } from '../../types/SortOrderType';
+import { settingsStore } from '../../settings/SettingsStore';
 import "./NavBar.css";
 
 /**
  * ファイルリストのナビゲーションバーコンポーネント
  */
 export default function NavBar() {
-    const store = new LazyStore("rook-reader_settings.json");
     const { history, historyIndex, searchText, sortOrder } = useSelector(state => state.file.explorer);
     const dispatch = useDispatch<AppDispatch>();
 
@@ -29,7 +28,7 @@ export default function NavBar() {
 
     useEffect(() => {
         const initViewSettings = async () => {
-            const sortOrder = await store.get<SortOrder>("sort-order");
+            const sortOrder = await settingsStore.get<SortOrder>("sort-order");
             if (sortOrder) {
                 dispatch(setSortOrder(sortOrder));
             }
@@ -68,7 +67,7 @@ export default function NavBar() {
     }
 
     const handleSortOrderChanged = (event: SelectChangeEvent) => {
-        store.set("sort-order", event.target.value as SortOrder);
+        settingsStore.set("sort-order", event.target.value as SortOrder);
         dispatch(setSortOrder(event.target.value as SortOrder));
     }
 
