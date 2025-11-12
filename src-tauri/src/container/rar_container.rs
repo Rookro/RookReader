@@ -1,6 +1,6 @@
 use unrar::{Archive, CursorBeforeHeader, OpenArchive, Process};
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::container::container::{Container, ContainerError, Image};
 
@@ -84,52 +84,73 @@ impl Container for RarContainer {
         let total_pages = self.entries.len();
         let end = (begin_index + count).min(total_pages);
 
-        for i in begin_index..end {
-            let entry = &self.entries[i];
+        if begin_index >= end {
+            return Ok(());
+        }
 
-            let mut archive = open(&self.path)?;
-            while let Some(header) = archive.read_header().map_err(|e| ContainerError {
-                message: format!("Failed to read header. {}", e),
-                path: Some(self.path.clone()),
-                entry: Some(entry.clone()),
-            })? {
-                archive = if header
-                    .entry()
-                    .filename
-                    .as_os_str()
-                    .to_string_lossy()
-                    .to_string()
-                    == *entry
-                {
-                    let (data, rest) = header.read().map_err(|e| ContainerError {
-                        message: format!("Failed to read data in the rar. {}", e),
-                        path: Some(self.path.clone()),
-                        entry: Some(entry.clone()),
-                    })?;
-                    drop(rest); // close the archive
-                    match Image::new(data) {
-                        Ok(img) => {
-                            self.cache.insert(entry.clone(), img.clone());
-                            break;
-                        }
-                        Err(e) => {
-                            log::error!("{}", e);
-                            return Err(ContainerError {
-                                message: e,
-                                path: Some(self.path.clone()),
-                                entry: Some(entry.clone()),
-                            });
-                        }
-                    }
-                } else {
-                    header.skip().map_err(|e| ContainerError {
+        let target_names: HashSet<String> =
+            self.entries[begin_index..end].iter().cloned().collect();
+        let mut remaining = target_names.len();
+
+        let mut archive = open(&self.path)?;
+        while let Some(header) = archive.read_header().map_err(|e| ContainerError {
+            message: format!("Failed to read header. {}", e),
+            path: Some(self.path.clone()),
+            entry: None,
+        })? {
+            let filename = header
+                .entry()
+                .filename
+                .as_os_str()
+                .to_string_lossy()
+                .to_string();
+            if target_names.contains(&filename) {
+                if self.cache.contains_key(&filename) {
+                    archive = header.skip().map_err(|e| ContainerError {
                         message: format!("Failed to skip data in the rar. {}", e),
                         path: Some(self.path.clone()),
-                        entry: Some(entry.clone()),
-                    })?
+                        entry: Some(filename.clone()),
+                    })?;
+                    remaining = remaining.saturating_sub(1);
+                    if remaining == 0 {
+                        break;
+                    }
+                    continue;
                 }
+
+                let (data, rest) = header.read().map_err(|e| ContainerError {
+                    message: format!("Failed to read data in the rar. {}", e),
+                    path: Some(self.path.clone()),
+                    entry: Some(filename.clone()),
+                })?;
+                archive = rest; // continue from returned archive
+
+                match Image::new(data) {
+                    Ok(img) => {
+                        self.cache.insert(filename.clone(), img.clone());
+                        remaining = remaining.saturating_sub(1);
+                        if remaining == 0 {
+                            break;
+                        }
+                    }
+                    Err(e) => {
+                        log::error!("{}", e);
+                        return Err(ContainerError {
+                            message: e,
+                            path: Some(self.path.clone()),
+                            entry: Some(filename.clone()),
+                        });
+                    }
+                }
+            } else {
+                archive = header.skip().map_err(|e| ContainerError {
+                    message: format!("Failed to skip data in the rar. {}", e),
+                    path: Some(self.path.clone()),
+                    entry: Some(filename.clone()),
+                })?
             }
         }
+
         Ok(())
     }
 

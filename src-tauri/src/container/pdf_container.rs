@@ -83,6 +83,13 @@ impl Container for PdfContainer {
         let total_pages = self.entries.len();
         let end = (begin_index + count).min(total_pages);
 
+        if begin_index >= end {
+            return Ok(());
+        }
+
+        let pdf = open(&self.path)?;
+        let render_config = PdfiumRenderConfig::new().with_height(1200);
+
         for i in begin_index..end {
             // すでにキャッシュにあればスキップ
             let entry = &self.entries[i];
@@ -91,8 +98,6 @@ impl Container for PdfContainer {
                 continue;
             }
 
-            let pdf = open(&self.path)?;
-            let render_config = PdfiumRenderConfig::new().with_height(2000);
             let page = pdf
                 .pages()
                 .get(i.try_into().unwrap())
@@ -137,6 +142,7 @@ impl Container for PdfContainer {
 
             self.cache.insert(entry.clone(), image);
         }
+
         Ok(())
     }
 
