@@ -119,6 +119,17 @@ function ImageViewer() {
     }, [entries, index, isTwoPagedView, isForward]);
 
     useEffect(() => {
+        return () => {
+            if (firstSrc) {
+                URL.revokeObjectURL(firstSrc);
+            }
+            if (secondSrc) {
+                URL.revokeObjectURL(secondSrc);
+            }
+        };
+    }, [firstSrc, secondSrc]);
+
+    useEffect(() => {
         let unlisten: UnlistenFn;
         const listenDragDrop = async () => {
             // ドラッグアンドドロップでファイルを指定する
