@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fs::File, io::Read};
+use std::{collections::HashMap, fs::File, io::Read, sync::Arc};
 
 use zip::ZipArchive;
 
@@ -13,7 +13,7 @@ pub struct ZipContainer {
     /// コンテナー内のエントリー
     entries: Vec<String>,
     /// 画像データのキャッシュ (キー: ページインデックス, 値: 画像バイナリ)
-    cache: HashMap<String, Image>,
+    cache: HashMap<String, Arc<Image>>,
 }
 
 impl Container for ZipContainer {
@@ -21,10 +21,10 @@ impl Container for ZipContainer {
         &self.entries
     }
 
-    fn get_image(&mut self, entry: &String) -> Result<Image, ContainerError> {
+    fn get_image(&mut self, entry: &String) -> Result<Arc<Image>, ContainerError> {
         // まずはキャッシュから取得する
-        if let Some(image) = self.get_image_from_cache(entry)? {
-            return Ok(image.clone());
+        if let Some(image_arc) = self.get_image_from_cache(entry)? {
+            return Ok(Arc::clone(&image_arc));
         }
 
         let mut file_in_zip = self.archive.by_name(entry).map_err(|e| ContainerError {
@@ -43,8 +43,9 @@ impl Container for ZipContainer {
 
         match Image::new(buffer) {
             Ok(image) => {
-                self.cache.insert(entry.clone(), image.clone());
-                Ok(image)
+                let image_arc = Arc::new(image);
+                self.cache.insert(entry.clone(), Arc::clone(&image_arc));
+                Ok(image_arc)
             }
             Err(e) => {
                 log::error!("{}", e);
@@ -89,7 +90,7 @@ impl Container for ZipContainer {
 
             match Image::new(buffer) {
                 Ok(image) => {
-                    self.cache.insert(entry.clone(), image);
+                    self.cache.insert(entry.clone(), Arc::new(image));
                 }
                 Err(e) => {
                     log::error!("{}", e);
@@ -104,14 +105,8 @@ impl Container for ZipContainer {
         Ok(())
     }
 
-    fn get_image_from_cache(&self, entry: &String) -> Result<Option<Image>, ContainerError> {
-        match self.cache.get(entry) {
-            Some(image) => {
-                log::debug!("Hit cache so get_image() returns cache of {}", entry);
-                Ok(Some(image.clone()))
-            }
-            None => Ok(None),
-        }
+    fn get_image_from_cache(&self, entry: &String) -> Result<Option<Arc<Image>>, ContainerError> {
+        Ok(self.cache.get(entry).map(|arc| Arc::clone(arc)))
     }
 }
 

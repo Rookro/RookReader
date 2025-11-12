@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::fs::read_dir;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use crate::container::container::Image;
 use crate::state::app_state::AppState;
@@ -75,7 +75,7 @@ pub fn get_image(
     path: String,
     entry_name: String,
     state: tauri::State<Mutex<AppState>>,
-) -> Result<Image, String> {
+) -> Result<Arc<Image>, String> {
     log::debug!("Get the binary of {} in {}", entry_name, path);
 
     let state_lock = state.lock().map_err(|e| {

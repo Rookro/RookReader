@@ -1,6 +1,6 @@
 use image::{codecs::png::PngEncoder, ExtendedColorType, ImageEncoder};
 use pdfium::{PdfiumDocument, PdfiumRenderConfig};
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use crate::container::container::{Container, ContainerError, Image};
 
@@ -11,7 +11,7 @@ pub struct PdfContainer {
     /// コンテナー内のエントリー
     entries: Vec<String>,
     /// 画像データのキャッシュ (キー: ページインデックス, 値: 画像バイナリ)
-    cache: HashMap<String, Image>,
+    cache: HashMap<String, Arc<Image>>,
 }
 
 impl Container for PdfContainer {
@@ -19,20 +19,18 @@ impl Container for PdfContainer {
         &self.entries
     }
 
-    fn get_image(&mut self, entry: &String) -> Result<Image, ContainerError> {
+    fn get_image(&mut self, entry: &String) -> Result<Arc<Image>, ContainerError> {
         // まずはキャッシュから取得する
-        if let Some(image) = self.get_image_from_cache(entry)? {
-            return Ok(image.clone());
+        if let Some(image_arc) = self.get_image_from_cache(entry)? {
+            return Ok(Arc::clone(&image_arc));
         }
 
         let pdf = open(&self.path)?;
-        let index: i32 = entry
-            .parse()
-            .map_err(|e: std::num::ParseIntError| ContainerError {
-                message: format!("Failed to convet to index({}). {}", entry, e),
-                path: Some(self.path.clone()),
-                entry: Some(entry.clone()),
-            })?;
+        let index: i32 = entry.parse().map_err(|e| ContainerError {
+            message: format!("Failed to convet to index({}). {}", entry, e),
+            path: Some(self.path.clone()),
+            entry: Some(entry.clone()),
+        })?;
 
         let render_config = PdfiumRenderConfig::new().with_height(2000);
         let page = pdf.pages().get(index).map_err(|e| ContainerError {
@@ -75,8 +73,9 @@ impl Container for PdfContainer {
             height: img.height(),
         };
 
-        self.cache.insert(entry.clone(), image.clone());
-        Ok(image)
+        let image_arc = Arc::new(image);
+        self.cache.insert(entry.clone(), Arc::clone(&image_arc));
+        Ok(image_arc)
     }
 
     fn preload(&mut self, begin_index: usize, count: usize) -> Result<(), ContainerError> {
@@ -88,7 +87,7 @@ impl Container for PdfContainer {
         }
 
         let pdf = open(&self.path)?;
-        let render_config = PdfiumRenderConfig::new().with_height(1200);
+        let render_config = PdfiumRenderConfig::new().with_height(2000);
 
         for i in begin_index..end {
             // すでにキャッシュにあればスキップ
@@ -140,20 +139,14 @@ impl Container for PdfContainer {
                 height: img.height(),
             };
 
-            self.cache.insert(entry.clone(), image);
+            self.cache.insert(entry.clone(), Arc::new(image));
         }
 
         Ok(())
     }
 
-    fn get_image_from_cache(&self, entry: &String) -> Result<Option<Image>, ContainerError> {
-        match self.cache.get(entry) {
-            Some(image) => {
-                log::debug!("Hit cache so get_image() returns cache of {}", entry);
-                Ok(Some(image.clone()))
-            }
-            None => Ok(None),
-        }
+    fn get_image_from_cache(&self, entry: &String) -> Result<Option<Arc<Image>>, ContainerError> {
+        Ok(self.cache.get(entry).map(|arc| Arc::clone(arc)))
     }
 }
 
