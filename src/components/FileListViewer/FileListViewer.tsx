@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { Box, List, ListItemButton, ListItemText } from '@mui/material';
 import { Folder, InsertDriveFile } from '@mui/icons-material';
@@ -23,6 +23,35 @@ const sortBy = (a: DirEntry, b: DirEntry, sortOrder: SortOrder) => {
     }
 }
 
+const ItemRow = memo(function ItemRow({
+    entry,
+    index,
+    selected,
+    onFocus,
+    onClick,
+    refCallback,
+}: {
+    entry: DirEntry;
+    index: number;
+    selected: boolean;
+    onFocus: (e: React.FocusEvent, i: number) => void;
+    onClick: (e: React.MouseEvent<HTMLDivElement>, entry: DirEntry) => void;
+    refCallback: (el: HTMLDivElement | null) => void;
+}) {
+    return (
+        <ListItemButton
+            selected={selected}
+            onFocus={(e) => onFocus(e, index)}
+            onClick={(e) => onClick(e, entry)}
+            key={entry.name}
+            ref={refCallback}
+        >
+            {entry.is_directory ? <Folder /> : <InsertDriveFile />}
+            <ListItemText primary={entry.name} sx={{ marginLeft: "5px" }} />
+        </ListItemButton>
+    );
+});
+
 /** 
  * ファイルリスト表示コンポネント 
  */
@@ -32,7 +61,6 @@ function FileListViewer() {
     const dispatch = useDispatch<AppDispatch>();
 
     const [selectedIndex, setSelectedIndex] = useState(-1);
-    const [sortedEntries, setSortedEntries] = useState<DirEntry[]>([]);
 
     const itemRefs = useRef<Record<number, HTMLDivElement | null>>({});
 
@@ -51,61 +79,69 @@ function FileListViewer() {
         dispatch(getEntriesInDir(history[historyIndex]));
     }, [history, historyIndex, dispatch]);
 
+    const filteredSortedEntries = useMemo(() => {
+        const sorted = [...entries].sort((a, b) => sortBy(a, b, sortOrder));
+        if (searchText) {
+            const lower = searchText.toLowerCase();
+            return sorted.filter((entry) => entry.name.toLowerCase().includes(lower));
+        }
+        return sorted;
+    }, [entries, sortOrder, searchText]);
+
     useEffect(() => {
-        const initEntries = async () => {
-            const sortedEntries = [...entries].sort((a, b) => sortBy(a, b, sortOrder));
-            setSortedEntries(sortedEntries);
-
-            if (fileHistory[fileHistoryIndex]) {
-                const fileName = await basename(fileHistory[fileHistoryIndex]);
-                const index = sortedEntries.findIndex((entry) => entry.name === fileName);
-                setSelectedIndex(index);
+        let cancelled = false;
+        const initSelected = async () => {
+            if (!fileHistory[fileHistoryIndex]) {
+                if (!cancelled) {
+                    setSelectedIndex(-1);
+                }
+                return;
             }
-        }
-        initEntries();
-    }, [entries, fileHistory, fileHistoryIndex, sortOrder])
+            const fileName = await basename(fileHistory[fileHistoryIndex]);
+            const idx = filteredSortedEntries.findIndex((entry) => entry.name === fileName);
+            if (!cancelled) {
+                setSelectedIndex(idx);
+            }
+        };
+        initSelected();
+        return () => { cancelled = true; };
+    }, [fileHistory, fileHistoryIndex, filteredSortedEntries]);
 
-    const handleListItemFocused = (
-        _e: React.FocusEvent,
-        index: number,
-    ) => {
-        setSelectedIndex(index);
-    };
+    const handleListItemFocused = useCallback(
+        (_e: React.FocusEvent, index: number) => {
+            setSelectedIndex(index);
+        },
+        []
+    );
 
-    const handleListItemClicked = async (
-        _e: React.MouseEvent<HTMLDivElement>,
-        entry: DirEntry,
-    ) => {
-        const path = await join(history[historyIndex], entry.name);
-        if (entry.is_directory) {
-            dispatch(setSearchText(""));
-            dispatch(setExploreBasePath(path));
-        } else {
-            dispatch(setContainerFilePath(path));
-        }
-    };
+    const handleListItemClicked = useCallback(
+        async (_e: React.MouseEvent<HTMLDivElement>, entry: DirEntry) => {
+            const path = await join(history[historyIndex], entry.name);
+            if (entry.is_directory) {
+                dispatch(setSearchText(""));
+                dispatch(setExploreBasePath(path));
+            } else {
+                dispatch(setContainerFilePath(path));
+            }
+        },
+        [dispatch, history, historyIndex]
+    );
 
     return (
         <Box sx={{ width: "100%", display: 'grid', alignContent: 'start' }}>
             <NavBar />
             <List className="file_list" component="nav" dense={true}>
-                {sortedEntries
-                    .filter((entry) => searchText ? entry.name.toLowerCase().includes(searchText.toLowerCase()) : true)
-                    .map((entry, index) =>
-                        <ListItemButton
-                            selected={selectedIndex === index}
-                            onFocus={(e) => handleListItemFocused(e, index)}
-                            onClick={(e) => handleListItemClicked(e, entry)}
-                            key={index}
-                            ref={(el: HTMLDivElement | null) => {
-                                itemRefs.current[index] = el;
-                            }}
-                        >
-                            {entry.is_directory ? <Folder /> : <InsertDriveFile />}
-                            <ListItemText primary={entry.name} sx={{ marginLeft: "5px" }} />
-                        </ListItemButton>
-                    )
-                }
+                {filteredSortedEntries.map((entry, index) =>
+                    <ItemRow
+                        key={entry.name}
+                        entry={entry}
+                        index={index}
+                        selected={selectedIndex === index}
+                        onFocus={handleListItemFocused}
+                        onClick={handleListItemClicked}
+                        refCallback={(el: HTMLDivElement | null) => { itemRefs.current[index] = el; }}
+                    />
+                )}
             </List>
         </Box >
     );
