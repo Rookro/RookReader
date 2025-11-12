@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useDispatch } from "react-redux";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
@@ -67,24 +67,48 @@ function ImageViewer() {
     const [displayedIndexes, setDisplayedIndexes] = useState({ first: 0, second: undefined as number | undefined });
     const [isForward, setIsForward] = useState(true);
 
+    const requestIdRef = useRef(0);
+    const currentFirstRef = useRef<string>("");
+    const currentSecondRef = useRef<string>("");
+    const unlistenRef = useRef<null | (() => void)>(null as any);
+
     useEffect(() => {
         dispatch(openContainerFile(history[historyIndex]))
     }, [history, historyIndex]);
 
     useEffect(() => {
+        let mounted = true;
+        const thisRequestId = ++requestIdRef.current;
+
         const setImage = async (firstImagePath: string, secondImagePath: string | undefined) => {
             const containerPath = history[historyIndex];
-            if (firstSrc.length > 0) {
-                URL.revokeObjectURL(firstSrc);
-            }
-            if (secondSrc.length > 0) {
-                URL.revokeObjectURL(secondSrc);
-            }
+
             const firstImage = await getImage(containerPath, firstImagePath);
             const firstImgSrc = await createImageURL(firstImage);
             const secondImage = await getImage(containerPath, secondImagePath);
             const secondImgSrc = await createImageURL(secondImage);
+
+            // より新しいリクエストが開始していたら、破棄する
+            if (!mounted || thisRequestId !== requestIdRef.current) {
+                if (firstImgSrc) {
+                    URL.revokeObjectURL(firstImgSrc);
+                }
+                if (secondImgSrc) {
+                    URL.revokeObjectURL(secondImgSrc);
+                }
+                return;
+            }
+
+            // 置き換え前に以前の URL を破棄する
+            if (currentFirstRef.current) {
+                URL.revokeObjectURL(currentFirstRef.current);
+            }
+            if (currentSecondRef.current) {
+                URL.revokeObjectURL(currentSecondRef.current);
+            }
+
             preload(containerPath, entries, index);
+
             if (!isTwoPagedView || !secondImagePath) {
                 // 一ページ表示か二枚目画像がない場合
                 setFirstSrc(firstImgSrc);
@@ -111,23 +135,28 @@ function ImageViewer() {
                 setDisplayedIndexes({ first: index, second: index + 1 });
             }
         }
+
         let nextPath: string | undefined = undefined;
         if (entries.length > index + 1) {
             nextPath = entries[index + 1];
         }
         setImage(entries[index], nextPath);
+
+        return () => {
+            mounted = false;
+        };
     }, [entries, index, isTwoPagedView, isForward]);
 
     useEffect(() => {
         return () => {
-            if (firstSrc) {
-                URL.revokeObjectURL(firstSrc);
+            if (currentFirstRef.current) {
+                try { URL.revokeObjectURL(currentFirstRef.current); } catch { }
             }
-            if (secondSrc) {
-                URL.revokeObjectURL(secondSrc);
+            if (currentSecondRef.current) {
+                try { URL.revokeObjectURL(currentSecondRef.current); } catch { }
             }
         };
-    }, [firstSrc, secondSrc]);
+    }, []);
 
     useEffect(() => {
         let unlisten: UnlistenFn;
@@ -140,11 +169,13 @@ function ImageViewer() {
                 dispatch(setContainerFilePath(path));
                 dispatch(setExploreBasePath(await dirname(path)));
             });
+            unlistenRef.current = unlisten;
         }
         listenDragDrop();
         return () => {
-            if (unlisten) {
-                unlisten();
+            if (unlistenRef.current) {
+                (unlistenRef.current as UnlistenFn)();
+                unlistenRef.current = null;
             }
         };
     }, [dispatch]);
