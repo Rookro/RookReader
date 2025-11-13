@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useDispatch } from "react-redux";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
@@ -67,56 +67,145 @@ function ImageViewer() {
     const [displayedIndexes, setDisplayedIndexes] = useState({ first: 0, second: undefined as number | undefined });
     const [isForward, setIsForward] = useState(true);
 
+    const requestIdRef = useRef(0);
+    const currentFirstRef = useRef<string>("");
+    const currentSecondRef = useRef<string>("");
+    const urlCacheRef = useRef<Map<string, { url: string; width: number; height: number }>>(new Map());
+    const unlistenRef = useRef<null | (() => void)>(null as any);
+
     useEffect(() => {
         dispatch(openContainerFile(history[historyIndex]))
     }, [history, historyIndex]);
 
     useEffect(() => {
+        urlCacheRef.current.forEach((cache) => {
+            URL.revokeObjectURL(cache.url);
+        });
+        urlCacheRef.current.clear();
+        currentFirstRef.current = "";
+        currentSecondRef.current = "";
+        setFirstSrc("");
+        setSecondSrc("");
+    }, [history[historyIndex]]);
+
+    useEffect(() => {
+        let mounted = true;
+        const thisRequestId = ++requestIdRef.current;
+
         const setImage = async (firstImagePath: string, secondImagePath: string | undefined) => {
             const containerPath = history[historyIndex];
-            if (firstSrc.length > 0) {
-                URL.revokeObjectURL(firstSrc);
+            const needed: string[] = [];
+            if (firstImagePath) needed.push(firstImagePath);
+            if (secondImagePath) {
+                if (!needed.includes(secondImagePath)) {
+                    needed.push(secondImagePath);
+                }
             }
-            if (secondSrc.length > 0) {
-                URL.revokeObjectURL(secondSrc);
+
+            const missing = needed.filter(name => !urlCacheRef.current.has(name));
+
+            try {
+                const fetchPromises = missing.map(async (name) => {
+                    const img = await getImage(containerPath, name);
+                    if (!img) return { name, url: "", width: 0, height: 0 };
+                    const url = await createImageURL(img);
+                    // store created URL and dimensions in cache
+                    if (url) {
+                        urlCacheRef.current.set(name, { url, width: img.width, height: img.height });
+                    }
+                    return { name, url, width: img.width, height: img.height };
+                });
+
+                await Promise.all(fetchPromises);
+            } catch (e) {
+                error(`Error fetching images: ${JSON.stringify(e)}`);
             }
-            const firstImage = await getImage(containerPath, firstImagePath);
-            const firstImgSrc = await createImageURL(firstImage);
-            const secondImage = await getImage(containerPath, secondImagePath);
-            const secondImgSrc = await createImageURL(secondImage);
+
+            // より新しいリクエストが開始していたら、何もしない
+            if (!mounted || thisRequestId !== requestIdRef.current) {
+                return;
+            }
+
+            const first = firstImagePath ? (urlCacheRef.current.get(firstImagePath) ?? "") : "";
+            const second = secondImagePath ? (urlCacheRef.current.get(secondImagePath) ?? "") : "";
+
             preload(containerPath, entries, index);
+
+            const firstIsWide = !!first && first.width > first.height;
+            const secondIsWide = !!second && second.width > second.height;
+            const eitherWide = firstIsWide || secondIsWide;
+
+            const firstUrl = first ? first.url : (firstImagePath ? (urlCacheRef.current.get(firstImagePath)?.url ?? "") : "");
+            const secondUrl = second ? second.url : (secondImagePath ? (urlCacheRef.current.get(secondImagePath)?.url ?? "") : "");
+
             if (!isTwoPagedView || !secondImagePath) {
-                // 一ページ表示か二枚目画像がない場合
-                setFirstSrc(firstImgSrc);
+                setFirstSrc(firstUrl);
                 setSecondSrc("");
                 setCanTwoPage(false);
                 setDisplayedIndexes({ first: index, second: undefined });
-            } else if ((firstImage && firstImage.width > firstImage.height) || (secondImage && secondImage.width > secondImage.height)) {
-                // どちらかの画像が横長の場合
+                currentFirstRef.current = firstUrl || "";
+                currentSecondRef.current = "";
+            } else if (eitherWide) {
+                // If either page is wide, show single page.
                 if (isForward) {
-                    setFirstSrc(firstImgSrc);
+                    setFirstSrc(firstUrl);
                     setSecondSrc("");
                     setCanTwoPage(false);
                     setDisplayedIndexes({ first: index, second: undefined });
+                    currentFirstRef.current = firstUrl || "";
+                    currentSecondRef.current = "";
                 } else {
-                    setFirstSrc(secondImgSrc);
+                    setFirstSrc(secondUrl);
                     setSecondSrc("");
                     setCanTwoPage(false);
                     setDisplayedIndexes({ first: index + 1, second: undefined });
+                    currentFirstRef.current = secondUrl || "";
+                    currentSecondRef.current = "";
                 }
             } else {
-                setFirstSrc(firstImgSrc);
-                setSecondSrc(secondImgSrc);
-                setCanTwoPage(true);
-                setDisplayedIndexes({ first: index, second: index + 1 });
+                if (firstUrl && secondUrl) {
+                    setFirstSrc(firstUrl);
+                    setSecondSrc(secondUrl);
+                    setCanTwoPage(true);
+                    setDisplayedIndexes({ first: index, second: index + 1 });
+                    currentFirstRef.current = firstUrl;
+                    currentSecondRef.current = secondUrl;
+                } else {
+                    setFirstSrc(firstUrl);
+                    setSecondSrc("");
+                    setCanTwoPage(false);
+                    setDisplayedIndexes({ first: index, second: undefined });
+                    currentFirstRef.current = firstUrl || "";
+                    currentSecondRef.current = "";
+                }
             }
         }
+
         let nextPath: string | undefined = undefined;
         if (entries.length > index + 1) {
             nextPath = entries[index + 1];
         }
         setImage(entries[index], nextPath);
+
+        return () => {
+            mounted = false;
+        };
     }, [entries, index, isTwoPagedView, isForward]);
+
+    useEffect(() => {
+        return () => {
+            urlCacheRef.current.forEach((cache) => {
+                URL.revokeObjectURL(cache.url);
+            });
+            urlCacheRef.current.clear();
+            if (currentFirstRef.current) {
+                URL.revokeObjectURL(currentFirstRef.current);
+            }
+            if (currentSecondRef.current) {
+                URL.revokeObjectURL(currentSecondRef.current);
+            }
+        };
+    }, []);
 
     useEffect(() => {
         let unlisten: UnlistenFn;
@@ -129,11 +218,13 @@ function ImageViewer() {
                 dispatch(setContainerFilePath(path));
                 dispatch(setExploreBasePath(await dirname(path)));
             });
+            unlistenRef.current = unlisten;
         }
         listenDragDrop();
         return () => {
-            if (unlisten) {
-                unlisten();
+            if (unlistenRef.current) {
+                (unlistenRef.current as UnlistenFn)();
+                unlistenRef.current = null;
             }
         };
     }, [dispatch]);
@@ -149,6 +240,7 @@ function ImageViewer() {
     const moveBack = () => {
         const backIndex = isTwoPagedView ? displayedIndexes.first - 2 : displayedIndexes.first - 1;;
         if (backIndex < 0) {
+            setIsForward(true);
             if (index !== 0) {
                 dispatch(setImageIndex(0));
             }

@@ -1,6 +1,7 @@
 use std::{
     fmt::{Display, Formatter},
     io::Cursor,
+    sync::Arc,
 };
 
 use image::ImageReader;
@@ -45,15 +46,15 @@ pub trait Container: Send + Sync + 'static {
 
     /// 画像をキャッシュから取得する
     ///
-    /// キャッシュに画像がある場合が画像を、ない場合は `None` を返す
+    /// キャッシュに画像がある場合は Arc<Image> を返す
     ///
     /// * `entry` - 取得する画像のエントリー名
-    fn get_image_from_cache(&self, entry: &String) -> Result<Option<Image>, ContainerError>;
+    fn get_image_from_cache(&self, entry: &String) -> Result<Option<Arc<Image>>, ContainerError>;
 
     /// 画像をファイルから取得する
     ///
     /// * `entry` - 取得する画像のエントリー名
-    fn get_image(&mut self, entry: &String) -> Result<Image, ContainerError>;
+    fn get_image(&mut self, entry: &String) -> Result<Arc<Image>, ContainerError>;
 
     /// 指定されたインデックスから指定数分の画像をキャッシュに事前ロードする
     ///
