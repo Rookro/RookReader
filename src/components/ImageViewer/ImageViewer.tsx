@@ -240,6 +240,7 @@ function ImageViewer() {
     const moveBack = () => {
         const backIndex = isTwoPagedView ? displayedIndexes.first - 2 : displayedIndexes.first - 1;;
         if (backIndex < 0) {
+            setIsForward(true);
             if (index !== 0) {
                 dispatch(setImageIndex(0));
             }
