@@ -7,6 +7,23 @@
 
 ## [Unreleased]
 
+## [1.4.0] - 2025-11-13
+
+### Added
+
+* ファイルリストでソート基準と順番を変更できる機能を追加 (#38)
+
+### Changed
+
+* ファイルリストで開いているファイルが表示される位置までスクロールするように変更 (#40)
+* パフォーマンスを改善 (#41)
+
+### Fixed
+
+* テキスト入力ボックスで右クリックメニューが開かない不具合を修正 (#39)
+* ドラックアンドドロップやパス指定でファイルを開いた場合にファイルリストで選択状態にならない不具合を修正 (#40)
+* 先頭ページが横長の場合にページを戻ると先頭ページが表示されない不具合を修正 (#41)
+
 ## [1.3.4] - 2025-11-08
 
 ### Fixed
@@ -77,7 +94,8 @@
 * 自動見開き表示機能の追加 (#4)
 * ホイールの上下によるページ送り機能を追加 (#5)
 
-[unreleased]: https://github.com/Rookro/RookReader/compare/v1.3.3...HEAD
+[unreleased]: https://github.com/Rookro/RookReader/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/Rookro/RookReader/compare/v1.3.4...v1.4.0
 [1.3.4]: https://github.com/Rookro/RookReader/compare/v1.3.3...v1.3.4
 [1.3.3]: https://github.com/Rookro/RookReader/compare/v1.3.2...v1.3.3
 [1.3.2]: https://github.com/Rookro/RookReader/compare/v1.3.1...v1.3.2

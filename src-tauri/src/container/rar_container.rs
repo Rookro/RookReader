@@ -1,6 +1,9 @@
 use unrar::{Archive, CursorBeforeHeader, OpenArchive, Process};
 
-use std::collections::HashMap;
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
 
 use crate::container::container::{Container, ContainerError, Image};
 
@@ -11,7 +14,7 @@ pub struct RarContainer {
     /// コンテナー内のエントリー
     entries: Vec<String>,
     /// 画像データのキャッシュ (キー: ページインデックス, 値: 画像バイナリ)
-    cache: HashMap<String, Image>,
+    cache: HashMap<String, Arc<Image>>,
 }
 
 impl Container for RarContainer {
@@ -19,27 +22,26 @@ impl Container for RarContainer {
         &self.entries
     }
 
-    fn get_image(&mut self, entry: &String) -> Result<Image, ContainerError> {
+    fn get_image(&mut self, entry: &String) -> Result<Arc<Image>, ContainerError> {
         // まずはキャッシュから取得する
-        if let Some(image) = self.get_image_from_cache(entry)? {
-            return Ok(image.clone());
+        if let Some(image_arc) = self.get_image_from_cache(entry)? {
+            return Ok(Arc::clone(&image_arc));
         }
 
-        let mut image: Option<Image> = None;
+        let mut image: Option<Arc<Image>> = None;
         let mut archive = open(&self.path)?;
         while let Some(header) = archive.read_header().map_err(|e| ContainerError {
             message: format!("Failed to read header. {}", e),
             path: Some(self.path.clone()),
             entry: Some(entry.clone()),
         })? {
-            archive = if header
+            let filename = header
                 .entry()
                 .filename
                 .as_os_str()
                 .to_string_lossy()
-                .to_string()
-                == *entry
-            {
+                .to_string();
+            if filename == *entry {
                 let (data, rest) = header.read().map_err(|e| ContainerError {
                     message: format!("Failed to read data in the rar. {}", e),
                     path: Some(self.path.clone()),
@@ -48,7 +50,9 @@ impl Container for RarContainer {
                 drop(rest); // close the archive
                 match Image::new(data) {
                     Ok(img) => {
-                        image = Some(img);
+                        let img_arc = Arc::new(img);
+                        self.cache.insert(entry.clone(), Arc::clone(&img_arc));
+                        image = Some(img_arc);
                         break;
                     }
                     Err(e) => {
@@ -61,19 +65,18 @@ impl Container for RarContainer {
                     }
                 }
             } else {
-                header.skip().map_err(|e| ContainerError {
-                    message: format!("Failed to skip data in the rar. {}", e),
+                archive = header.skip().map_err(|e| ContainerError {
+                    message: e.to_string(),
                     path: Some(self.path.clone()),
-                    entry: Some(entry.clone()),
-                })?
+                    entry: Some(filename.clone()),
+                })?;
             }
         }
-        if let Some(image) = image {
-            self.cache.insert(entry.clone(), image.clone());
-            Ok(image)
+        if let Some(img_arc) = image {
+            Ok(img_arc)
         } else {
             Err(ContainerError {
-                message: String::from("Not found the entry in the rar."),
+                message: format!("Entry not found: {}.", entry),
                 path: Some(self.path.clone()),
                 entry: Some(entry.clone()),
             })
@@ -84,63 +87,78 @@ impl Container for RarContainer {
         let total_pages = self.entries.len();
         let end = (begin_index + count).min(total_pages);
 
-        for i in begin_index..end {
-            let entry = &self.entries[i];
+        if begin_index >= end {
+            return Ok(());
+        }
 
-            let mut archive = open(&self.path)?;
-            while let Some(header) = archive.read_header().map_err(|e| ContainerError {
-                message: format!("Failed to read header. {}", e),
-                path: Some(self.path.clone()),
-                entry: Some(entry.clone()),
-            })? {
-                archive = if header
-                    .entry()
-                    .filename
-                    .as_os_str()
-                    .to_string_lossy()
-                    .to_string()
-                    == *entry
-                {
-                    let (data, rest) = header.read().map_err(|e| ContainerError {
-                        message: format!("Failed to read data in the rar. {}", e),
-                        path: Some(self.path.clone()),
-                        entry: Some(entry.clone()),
-                    })?;
-                    drop(rest); // close the archive
-                    match Image::new(data) {
-                        Ok(img) => {
-                            self.cache.insert(entry.clone(), img.clone());
-                            break;
-                        }
-                        Err(e) => {
-                            log::error!("{}", e);
-                            return Err(ContainerError {
-                                message: e,
-                                path: Some(self.path.clone()),
-                                entry: Some(entry.clone()),
-                            });
-                        }
-                    }
-                } else {
-                    header.skip().map_err(|e| ContainerError {
+        let target_names: HashSet<String> =
+            self.entries[begin_index..end].iter().cloned().collect();
+        let mut remaining = target_names.len();
+
+        let mut archive = open(&self.path)?;
+        while let Some(header) = archive.read_header().map_err(|e| ContainerError {
+            message: format!("Failed to read header. {}", e),
+            path: Some(self.path.clone()),
+            entry: None,
+        })? {
+            let filename = header
+                .entry()
+                .filename
+                .as_os_str()
+                .to_string_lossy()
+                .to_string();
+            if target_names.contains(&filename) {
+                if self.cache.contains_key(&filename) {
+                    archive = header.skip().map_err(|e| ContainerError {
                         message: format!("Failed to skip data in the rar. {}", e),
                         path: Some(self.path.clone()),
-                        entry: Some(entry.clone()),
-                    })?
+                        entry: Some(filename.clone()),
+                    })?;
+                    remaining = remaining.saturating_sub(1);
+                    if remaining == 0 {
+                        break;
+                    }
+                    continue;
                 }
+
+                let (data, rest) = header.read().map_err(|e| ContainerError {
+                    message: format!("Failed to read data in the rar. {}", e),
+                    path: Some(self.path.clone()),
+                    entry: Some(filename.clone()),
+                })?;
+                archive = rest; // continue from returned archive
+
+                match Image::new(data) {
+                    Ok(img) => {
+                        self.cache.insert(filename.clone(), Arc::new(img));
+                        remaining = remaining.saturating_sub(1);
+                        if remaining == 0 {
+                            break;
+                        }
+                    }
+                    Err(e) => {
+                        log::error!("{}", e);
+                        return Err(ContainerError {
+                            message: e,
+                            path: Some(self.path.clone()),
+                            entry: Some(filename.clone()),
+                        });
+                    }
+                }
+            } else {
+                archive = header.skip().map_err(|e| ContainerError {
+                    message: format!("Failed to skip data in the rar. {}", e),
+                    path: Some(self.path.clone()),
+                    entry: Some(filename.clone()),
+                })?
             }
         }
+
         Ok(())
     }
 
-    fn get_image_from_cache(&self, entry: &String) -> Result<Option<Image>, ContainerError> {
-        match self.cache.get(entry) {
-            Some(image) => {
-                log::debug!("Hit cache so get_image() returns cache of {}", entry);
-                Ok(Some(image.clone()))
-            }
-            None => Ok(None),
-        }
+    fn get_image_from_cache(&self, entry: &String) -> Result<Option<Arc<Image>>, ContainerError> {
+        Ok(self.cache.get(entry).map(|arc| Arc::clone(arc)))
     }
 }
 

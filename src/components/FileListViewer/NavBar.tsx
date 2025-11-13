@@ -2,16 +2,18 @@ import React, { useEffect } from 'react';
 import { useDispatch } from 'react-redux';
 import { dirname, homeDir } from '@tauri-apps/api/path';
 import { ArrowBack, ArrowForward, ArrowUpward, Home, Refresh, Search } from '@mui/icons-material';
-import { Box, IconButton } from '@mui/material';
+import { Box, IconButton, MenuItem, Select, SelectChangeEvent } from '@mui/material';
 import { AppDispatch, useSelector } from '../../Store';
-import { getEntriesInDir, goBackExplorerHistory, goForwardExplorerHistory, setExploreBasePath, setSearchText } from '../../reducers/FileReducer';
+import { getEntriesInDir, goBackExplorerHistory, goForwardExplorerHistory, setExploreBasePath, setSearchText, setSortOrder } from '../../reducers/FileReducer';
+import { SortOrder } from '../../types/SortOrderType';
+import { settingsStore } from '../../settings/SettingsStore';
 import "./NavBar.css";
 
 /**
  * ファイルリストのナビゲーションバーコンポーネント
  */
 export default function NavBar() {
-    const { history, historyIndex, searchText } = useSelector(state => state.file.explorer);
+    const { history, historyIndex, searchText, sortOrder } = useSelector(state => state.file.explorer);
     const dispatch = useDispatch<AppDispatch>();
 
     const initDirParh = async () => {
@@ -23,6 +25,16 @@ export default function NavBar() {
     useEffect(() => {
         initDirParh();
     }, [])
+
+    useEffect(() => {
+        const initViewSettings = async () => {
+            const sortOrder = await settingsStore.get<SortOrder>("sort-order");
+            if (sortOrder) {
+                dispatch(setSortOrder(sortOrder));
+            }
+        };
+        initViewSettings();
+    }, [dispatch])
 
     const handleCurrentDirChanged = (e: React.ChangeEvent<HTMLInputElement>) => {
         dispatch(setSearchText(""));
@@ -54,10 +66,19 @@ export default function NavBar() {
         dispatch(goForwardExplorerHistory());
     }
 
+    const handleSortOrderChanged = (event: SelectChangeEvent) => {
+        settingsStore.set("sort-order", event.target.value as SortOrder);
+        dispatch(setSortOrder(event.target.value as SortOrder));
+    }
+
+    const handleContextMenu = (e: React.MouseEvent<HTMLElement>) => {
+        e.stopPropagation();
+    }
+
     return (
         <Box className="file_nav_bar">
             <Box className='current_dir'>
-                <input value={history[historyIndex] ?? ""} onChange={handleCurrentDirChanged}></input>
+                <input value={history[historyIndex] ?? ""} onChange={handleCurrentDirChanged} onContextMenu={handleContextMenu}></input>
             </Box>
             <Box className="file_nav_buttons">
                 <IconButton onClick={handleHomeClicked}><Home /></IconButton>
@@ -65,10 +86,16 @@ export default function NavBar() {
                 <IconButton onClick={handleForwardClicked} disabled={history.length - historyIndex <= 1}><ArrowForward /></IconButton>
                 <IconButton onClick={handleParentClicked}><ArrowUpward /></IconButton>
                 <IconButton onClick={handleRefleshClicked}><Refresh /></IconButton>
+                <Select size="small" value={sortOrder} sx={{ minWidth: "100px" }} onChange={handleSortOrderChanged}>
+                    <MenuItem value={"NAME_ASC"}>Name↑</MenuItem>
+                    <MenuItem value={"NAME_DESC"}>Name↓</MenuItem>
+                    <MenuItem value={"DATE_ASC"}>Date↑</MenuItem>
+                    <MenuItem value={"DATE_DESC"}>Date↓</MenuItem>
+                </Select>
             </Box>
             <Box className="file_search_bar">
                 <Search />
-                <input type='search' value={searchText} onChange={handleSearchTextChanged}></input>
+                <input type='search' value={searchText} onChange={handleSearchTextChanged} onContextMenu={handleContextMenu}></input>
             </Box>
         </Box >
     );

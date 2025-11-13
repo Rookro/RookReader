@@ -17,6 +17,7 @@
 .file_search_bar {
     margin: 0px 0px;
     display: flex;
+    align-items: center;
     border: 1px solid black;
 }
 

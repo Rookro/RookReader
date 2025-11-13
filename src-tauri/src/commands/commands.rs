@@ -1,6 +1,7 @@
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::fs::read_dir;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use crate::container::container::Image;
 use crate::state::app_state::AppState;
@@ -9,6 +10,7 @@ use crate::state::app_state::AppState;
 pub struct DirEntry {
     pub is_directory: bool,
     pub name: String,
+    pub last_modified: String,
 }
 
 #[tauri::command()]
@@ -22,10 +24,18 @@ pub fn get_entries_in_dir(dir_path: String) -> Result<Vec<DirEntry>, String> {
             .into_string()
             .map_err(|_e| "failed to get file name from DirEntry.")?;
         let file_type = entry.file_type().map_err(|e| e.to_string())?;
+        let last_modified = entry
+            .metadata()
+            .map_err(|e| e.to_string())?
+            .modified()
+            .map_err(|e| e.to_string())?;
+
+        let last_modified_time: DateTime<Utc> = last_modified.into();
 
         entries.push(DirEntry {
             is_directory: file_type.is_dir(),
             name: file_name,
+            last_modified: last_modified_time.to_rfc3339(),
         });
     }
 
@@ -65,7 +75,7 @@ pub fn get_image(
     path: String,
     entry_name: String,
     state: tauri::State<Mutex<AppState>>,
-) -> Result<Image, String> {
+) -> Result<Arc<Image>, String> {
     log::debug!("Get the binary of {} in {}", entry_name, path);
 
     let state_lock = state.lock().map_err(|e| {
