@@ -5,12 +5,10 @@
     overflow: auto;
     outline: none;
     color: black;
-    background-color: white;
 }
 
 @media (prefers-color-scheme: dark) {
     .general-settings {
         color: white;
-        background-color: black;
     }
 }
