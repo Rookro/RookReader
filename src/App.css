@@ -36,7 +36,6 @@ button:hover {
 }
 
 .left_panel {
-  min-width: 360px;
   overflow: auto;
 }
 
