@@ -1,13 +1,13 @@
-import { Typography } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 import "./GeneralSettings.css";
-import ThemeSetting from "./SettingItem/ThemeSetting";
+import ThemeSetting from "./Items/ThemeSetting"
 
 function GeneralSettings() {
     return (
-        <div className="general-settings">
+        <Box className="general-settings">
             <Typography variant="h5">General</Typography>
             <ThemeSetting />
-        </div >
+        </Box>
     );
 }
 
