@@ -29,6 +29,7 @@ const ItemRow = memo(function ItemRow({
     selected,
     onFocus,
     onClick,
+    onDoubleClick,
     refCallback,
 }: {
     entry: DirEntry;
@@ -36,6 +37,7 @@ const ItemRow = memo(function ItemRow({
     selected: boolean;
     onFocus: (e: React.FocusEvent, i: number) => void;
     onClick: (e: React.MouseEvent<HTMLDivElement>, entry: DirEntry) => void;
+    onDoubleClick: (e: React.MouseEvent<HTMLDivElement>, entry: DirEntry) => void;
     refCallback: (el: HTMLDivElement | null) => void;
 }) {
     return (
@@ -43,6 +45,7 @@ const ItemRow = memo(function ItemRow({
             selected={selected}
             onFocus={(e) => onFocus(e, index)}
             onClick={(e) => onClick(e, entry)}
+            onDoubleClick={(e) => onDoubleClick(e, entry)}
             key={entry.name}
             ref={refCallback}
         >
@@ -117,11 +120,17 @@ function FileListViewer() {
     const handleListItemClicked = useCallback(
         async (_e: React.MouseEvent<HTMLDivElement>, entry: DirEntry) => {
             const path = await join(history[historyIndex], entry.name);
+            dispatch(setContainerFilePath(path));
+        },
+        [dispatch, history, historyIndex]
+    );
+
+    const handleListItemDoubleClicked = useCallback(
+        async (_e: React.MouseEvent<HTMLDivElement>, entry: DirEntry) => {
             if (entry.is_directory) {
+                const path = await join(history[historyIndex], entry.name);
                 dispatch(setSearchText(""));
                 dispatch(setExploreBasePath(path));
-            } else {
-                dispatch(setContainerFilePath(path));
             }
         },
         [dispatch, history, historyIndex]
@@ -139,6 +148,7 @@ function FileListViewer() {
                         selected={selectedIndex === index}
                         onFocus={handleListItemFocused}
                         onClick={handleListItemClicked}
+                        onDoubleClick={handleListItemDoubleClicked}
                         refCallback={(el: HTMLDivElement | null) => { itemRefs.current[index] = el; }}
                     />
                 )}
