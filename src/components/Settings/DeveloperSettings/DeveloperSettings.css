@@ -1,0 +1,14 @@
+.developer-settings {
+    width: 100%;
+    margin-right: 4px;
+    padding: 20px;
+    overflow: auto;
+    outline: none;
+    color: black;
+}
+
+@media (prefers-color-scheme: dark) {
+    .developer-settings {
+        color: white;
+    }
+}

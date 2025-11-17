@@ -1,12 +1,12 @@
 import { Box, Typography } from "@mui/material";
-import "./GeneralSettings.css";
-import ThemeSetting from "./Items/ThemeSetting"
+import "./DeveloperSettings.css";
+import LogSetting from "./Items/LogSetting"
 
 function DeveloperSettings() {
     return (
         <Box className="developer-settings">
-            <Typography variant="h5">General</Typography>
-            <ThemeSetting />
+            <Typography variant="h5">Developer</Typography>
+            <LogSetting />
         </Box>
     );
 }

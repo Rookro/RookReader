@@ -1,6 +1,7 @@
 import React from 'react';
 import { Tab, Tabs, Typography, Box } from '@mui/material';
 import GeneralSettings from './GeneralSettings/GeneralSettings';
+import DeveloperSettings from './DeveloperSettings/DeveloperSettings';
 
 interface TabPanelProps {
     children?: React.ReactNode;
@@ -48,9 +49,13 @@ export default function SettingsView() {
                 sx={{ borderRight: 2, borderColor: 'divider' }}
             >
                 <Tab label="General" />
+                <Tab label="Developer" />
             </Tabs>
             <TabPanel value={value} index={0}>
                 <GeneralSettings />
+            </TabPanel>
+            <TabPanel value={value} index={1}>
+                <DeveloperSettings />
             </TabPanel>
         </Box>
     );
