@@ -1,5 +1,10 @@
+.log-setting {
+    align-items: center;
+    margin: 12px 12px 3px 3px;
+}
+
 .log-setting input {
-    margin: 1px;
+    margin: 2px;
     border: 0px;
     padding-left: 0.5em;
     font-size: 1em;

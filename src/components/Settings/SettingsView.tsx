@@ -2,6 +2,7 @@ import React from 'react';
 import { Tab, Tabs, Typography, Box } from '@mui/material';
 import GeneralSettings from './GeneralSettings/GeneralSettings';
 import DeveloperSettings from './DeveloperSettings/DeveloperSettings';
+import './SettingsView.css';
 
 interface TabPanelProps {
     children?: React.ReactNode;
@@ -38,7 +39,8 @@ export default function SettingsView() {
 
     return (
         <Box
-            sx={{ flexGrow: 1, bgcolor: 'background.paper', display: 'flex', width: '100vw', height: '100vh' }}
+            className="settings_view"
+            sx={{ flexGrow: 1, bgcolor: 'background.paper' }}
         >
             <Tabs
                 orientation="vertical"
