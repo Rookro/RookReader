@@ -6,13 +6,20 @@ use std::sync::{Arc, Mutex};
 use crate::container::container::Image;
 use crate::state::app_state::AppState;
 
+/// ディレクトリーエントリー
 #[derive(Serialize, Deserialize)]
 pub struct DirEntry {
+    /// ディレクトリーかどうか
     pub is_directory: bool,
+    /// 名前
     pub name: String,
+    /// 最終更新日時 (RFC 3339 形式)
     pub last_modified: String,
 }
 
+/// 指定されたディレクトリー内のエントリーを取得する
+///
+/// * `dir_path` - 取得するディレクトリーのパス
 #[tauri::command()]
 pub fn get_entries_in_dir(dir_path: String) -> Result<Vec<DirEntry>, String> {
     log::debug!("Get the directory entries in {}", dir_path);
@@ -42,6 +49,10 @@ pub fn get_entries_in_dir(dir_path: String) -> Result<Vec<DirEntry>, String> {
     Ok(entries)
 }
 
+/// 指定された書庫コンテナー内のエントリーを取得する
+///
+/// * `path` - 書庫コンテナーのパス
+/// * `state` - アプリケーションのステート
 #[tauri::command()]
 pub fn get_entries_in_container(
     path: String,
@@ -70,6 +81,11 @@ pub fn get_entries_in_container(
     }
 }
 
+/// 指定された書庫コンテナー内の画像を取得する
+///
+/// * `path` - 書庫コンテナーのパス
+/// * `entry_name` - 取得する画像のエントリー名
+/// * `state` - アプリケーションのステート
 #[tauri::command()]
 pub fn get_image(
     path: String,
@@ -96,6 +112,11 @@ pub fn get_image(
     }
 }
 
+/// 指定された書庫コンテナー内の画像を非同期で事前ロードする
+///
+/// * `start_index` - 事前ロードするページの開始インデックス
+/// * `count` - 事前ロードするページ数
+/// * `state` - アプリケーションのステート
 #[tauri::command(async)]
 pub async fn async_preload(
     start_index: usize,

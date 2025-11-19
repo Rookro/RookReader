@@ -7,6 +7,9 @@ import { settingsStore } from "../../../../settings/SettingsStore";
 import { LogSettings } from "../../../../types/LogSettingsType";
 import "./LogSetting.css";
 
+/**
+ * ログ設定コンポーネント
+ */
 function LogSetting() {
     const [logDir, setLogDir] = useState<string>("");
     const [logLevel, setLogLevel] = useState<string>("");

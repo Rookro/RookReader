@@ -4,13 +4,19 @@ import GeneralSettings from './GeneralSettings/GeneralSettings';
 import DeveloperSettings from './DeveloperSettings/DeveloperSettings';
 import './SettingsView.css';
 
+/**
+ * タブパネルコンポーネントのプロパティ
+ */
 interface TabPanelProps {
     children?: React.ReactNode;
     index: number;
     value: number;
 }
 
-function TabPanel(props: TabPanelProps) {
+/**
+ * タブパネルコンポーネント
+ */
+const TabPanel = (props: TabPanelProps) => {
     const { children, value, index, ...other } = props;
 
     return (
@@ -30,6 +36,9 @@ function TabPanel(props: TabPanelProps) {
     );
 }
 
+/**
+ * 設定画面コンポーネント
+ */
 export default function SettingsView() {
     const [value, setValue] = React.useState(0);
 

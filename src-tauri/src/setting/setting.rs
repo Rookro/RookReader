@@ -1,6 +1,9 @@
 use tauri::{App, Theme};
 use tauri_plugin_store::StoreExt;
 
+/// アプリケーションの設定をロードする
+///
+/// * `app` - Tauri アプリケーションのインスタンス
 pub fn load(app: &App) {
     let setting_file_path = "rook-reader_settings.json";
     let store = match app.store(setting_file_path) {
