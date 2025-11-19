@@ -33,7 +33,7 @@ pub fn run() {
                     Target::new(TargetKind::LogDir { file_name: None }),
                     Target::new(TargetKind::Stdout),
                 ])
-                .rotation_strategy(RotationStrategy::KeepAll)
+                .rotation_strategy(RotationStrategy::KeepSome(10))
                 .build(),
         )
         .plugin(tauri_plugin_store::Builder::new().build())
