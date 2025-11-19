@@ -23,4 +23,22 @@ pub fn load(app: &App) {
             _ => app.set_theme(None),
         }
     }
+
+    // ログ設定
+    tauri_plugin_log::log::set_max_level(log::LevelFilter::Info);
+    if let Some(log_settings) = store
+        .get("log")
+        .unwrap_or(serde_json::Value::Null)
+        .as_object()
+    {
+        if let Some(log_level) = log_settings
+            .get("level")
+            .unwrap_or(&serde_json::Value::Null)
+            .as_str()
+        {
+            tauri_plugin_log::log::set_max_level(
+                log_level.parse().unwrap_or(log::LevelFilter::Info),
+            );
+        }
+    }
 }
