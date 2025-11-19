@@ -19,6 +19,9 @@ pub struct Image {
 }
 
 impl Image {
+    /// 画像のバイナリーデータから Image インスタンスを生成する
+    ////
+    /// * `data` - 画像のバイナリーデータ
     pub fn new(data: Vec<u8>) -> Result<Self, String> {
         let cursor = Cursor::new(&data);
         let image_reader = ImageReader::new(cursor)
@@ -63,6 +66,7 @@ pub trait Container: Send + Sync + 'static {
     fn preload(&mut self, begin_index: usize, count: usize) -> Result<(), ContainerError>;
 }
 
+/// 書庫コンテナーのエラー情報
 pub struct ContainerError {
     /// エラーメッセージ
     pub message: String,

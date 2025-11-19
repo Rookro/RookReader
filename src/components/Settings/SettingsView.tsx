@@ -1,14 +1,22 @@
 import React from 'react';
 import { Tab, Tabs, Typography, Box } from '@mui/material';
 import GeneralSettings from './GeneralSettings/GeneralSettings';
+import DeveloperSettings from './DeveloperSettings/DeveloperSettings';
+import './SettingsView.css';
 
+/**
+ * タブパネルコンポーネントのプロパティ
+ */
 interface TabPanelProps {
     children?: React.ReactNode;
     index: number;
     value: number;
 }
 
-function TabPanel(props: TabPanelProps) {
+/**
+ * タブパネルコンポーネント
+ */
+const TabPanel = (props: TabPanelProps) => {
     const { children, value, index, ...other } = props;
 
     return (
@@ -28,6 +36,9 @@ function TabPanel(props: TabPanelProps) {
     );
 }
 
+/**
+ * 設定画面コンポーネント
+ */
 export default function SettingsView() {
     const [value, setValue] = React.useState(0);
 
@@ -37,7 +48,8 @@ export default function SettingsView() {
 
     return (
         <Box
-            sx={{ flexGrow: 1, bgcolor: 'background.paper', display: 'flex', width: '100vw', height: '100vh' }}
+            className="settings_view"
+            sx={{ flexGrow: 1, bgcolor: 'background.paper' }}
         >
             <Tabs
                 orientation="vertical"
@@ -48,9 +60,13 @@ export default function SettingsView() {
                 sx={{ borderRight: 2, borderColor: 'divider' }}
             >
                 <Tab label="General" />
+                <Tab label="Developer" />
             </Tabs>
             <TabPanel value={value} index={0}>
                 <GeneralSettings />
+            </TabPanel>
+            <TabPanel value={value} index={1}>
+                <DeveloperSettings />
             </TabPanel>
         </Box>
     );

@@ -1,5 +1,4 @@
 import "./App.css"
-import "./SettingsApp.css"
 import { createTheme, ThemeProvider, useMediaQuery } from "@mui/material";
 import SettingsView from "./components/Settings/SettingsView";
 

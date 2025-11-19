@@ -169,6 +169,9 @@ impl PdfContainer {
     }
 }
 
+/// 指定されたパスから PDF ドキュメントを開く
+///
+/// * `path` - PDF ファイルのパス
 fn open(path: &String) -> Result<PdfiumDocument, ContainerError> {
     let pdf = PdfiumDocument::new_from_path(path, None).map_err(|e| ContainerError {
         message: String::from(format!("Failed to open the pdf file. {}", e)),

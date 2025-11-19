@@ -34,6 +34,14 @@
         }
       ]
     },
+    {
+      "identifier": "opener:allow-open-path",
+      "allow": [
+        {
+          "path": "$APPLOG"
+        }
+      ]
+    },
     "store:default",
     "log:default",
     "os:default",

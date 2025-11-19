@@ -28,6 +28,13 @@ const getImage = async (containerPath: string, entryName: string | undefined) =>
     }
 }
 
+/**
+ * 事前ロードを行う
+ * 
+ * @param containerPath コンテナパス
+ * @param entries エントリーリスト
+ * @param currentIndex 現在のインデックス
+ */
 const preload = async (containerPath: string, entries: string[], currentIndex: number) => {
     if (!containerPath || !entries || containerPath.length === 0 || entries.length === 0) {
         return;

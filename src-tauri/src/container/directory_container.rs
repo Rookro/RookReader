@@ -56,6 +56,9 @@ impl Container for DirectoryContainer {
 }
 
 impl DirectoryContainer {
+    /// 指定されたパスからディレクトリー書庫コンテナーを生成する
+    ///
+    /// * `path` - 書庫コンテナーのパス
     pub fn new(path: &String) -> Result<Self, ContainerError> {
         let dir_entries = read_dir(path).map_err(|e| ContainerError {
             message: e.to_string(),
@@ -107,6 +110,9 @@ impl DirectoryContainer {
         })
     }
 
+    /// 指定されたエントリー名から画像を読み込む
+    ///
+    /// * `entry` - 取得する画像のエントリー名
     fn load_image(&mut self, entry: &String) -> Result<Arc<Image>, ContainerError> {
         let file_path = path::Path::new(&self.path).join(entry);
         let mut buffer = Vec::new();
