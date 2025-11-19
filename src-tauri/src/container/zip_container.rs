@@ -111,6 +111,9 @@ impl Container for ZipContainer {
 }
 
 impl ZipContainer {
+    /// 指定されたパスから ZIP 書庫コンテナーを生成する
+    ///
+    /// * `path` - 書庫コンテナーのパス
     pub fn new(path: &String) -> Result<Self, ContainerError> {
         let file = File::open(path).map_err(|e| ContainerError {
             message: String::from(format!("Failed to open the file. {}", e)),

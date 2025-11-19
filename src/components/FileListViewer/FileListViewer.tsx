@@ -10,6 +10,14 @@ import { DirEntry } from '../../types/DirEntry';
 import NavBar from './NavBar';
 import "./FileListViewer.css";
 
+/**
+ * エントリーのソートを行う
+ * 
+ * @param a - 比較するエントリー1
+ * @param b - 比較するエントリー2
+ * @param sortOrder - ソート順序
+ * @returns ソート結果
+ */
 const sortBy = (a: DirEntry, b: DirEntry, sortOrder: SortOrder) => {
     switch (sortOrder) {
         case "NAME_ASC":
@@ -23,6 +31,9 @@ const sortBy = (a: DirEntry, b: DirEntry, sortOrder: SortOrder) => {
     }
 }
 
+/**
+ * ファイルリストの行コンポーネント
+ */
 const ItemRow = memo(function ItemRow({
     entry,
     index,

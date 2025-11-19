@@ -195,6 +195,9 @@ impl RarContainer {
     }
 }
 
+/// 指定されたパスから RAR 書庫を開く
+///
+/// * `path` - RAR ファイルのパス
 fn open(path: &String) -> Result<OpenArchive<Process, CursorBeforeHeader>, ContainerError> {
     let archive = Archive::new(path)
         .open_for_processing()
