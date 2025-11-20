@@ -20,14 +20,17 @@ export default function NavBar() {
 
     const navButtonsRef = useRef<HTMLElement>(null);
 
-    const initDirParh = async () => {
-        const homeDirectory = await homeDir();
+    const setDirParh = async (dirPath: string | undefined = undefined) => {
+        if (!dirPath) {
+            dirPath = await homeDir();
+        }
         dispatch(setSearchText(""));
-        dispatch(setExploreBasePath(homeDirectory));
+        dispatch(setExploreBasePath(dirPath));
     }
 
     useEffect(() => {
-        initDirParh();
+        const dirPath = historyIndex === -1 ? undefined : history[historyIndex]
+        setDirParh(dirPath);
 
         const element = navButtonsRef.current
         if (!element) {
@@ -61,7 +64,7 @@ export default function NavBar() {
     }
 
     const handleHomeClicked = (_e: React.MouseEvent<HTMLButtonElement>) => {
-        initDirParh();
+        setDirParh();
     }
 
     const handleParentClicked = async (_e: React.MouseEvent<HTMLButtonElement>) => {
