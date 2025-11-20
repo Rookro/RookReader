@@ -1,40 +1,9 @@
 import React from 'react';
-import { Tab, Tabs, Typography, Box } from '@mui/material';
+import { Tab, Tabs, Box } from '@mui/material';
 import GeneralSettings from './GeneralSettings/GeneralSettings';
 import DeveloperSettings from './DeveloperSettings/DeveloperSettings';
+import TabPanel from '../TabPanel/TabPanel';
 import './SettingsView.css';
-
-/**
- * タブパネルコンポーネントのプロパティ
- */
-interface TabPanelProps {
-    children?: React.ReactNode;
-    index: number;
-    value: number;
-}
-
-/**
- * タブパネルコンポーネント
- */
-const TabPanel = (props: TabPanelProps) => {
-    const { children, value, index, ...other } = props;
-
-    return (
-        <div
-            role="tabpanel"
-            hidden={value !== index}
-            id={`vertical-tabpanel-${index}`}
-            aria-labelledby={`vertical-tab-${index}`}
-            {...other}
-        >
-            {value === index && (
-                <Box sx={{ p: 3 }}>
-                    <Typography>{children}</Typography>
-                </Box>
-            )}
-        </div>
-    );
-}
 
 /**
  * 設定画面コンポーネント
@@ -62,12 +31,14 @@ export default function SettingsView() {
                 <Tab label="General" />
                 <Tab label="Developer" />
             </Tabs>
-            <TabPanel value={value} index={0}>
-                <GeneralSettings />
-            </TabPanel>
-            <TabPanel value={value} index={1}>
-                <DeveloperSettings />
-            </TabPanel>
-        </Box>
+            <Box sx={{ padding: "16px" }}>
+                <TabPanel value={value} index={0}>
+                    <GeneralSettings />
+                </TabPanel>
+                <TabPanel value={value} index={1}>
+                    <DeveloperSettings />
+                </TabPanel>
+            </Box>
+        </Box >
     );
 }
