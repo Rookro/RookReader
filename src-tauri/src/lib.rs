@@ -49,6 +49,7 @@ pub fn run() {
             commands::container_commands::get_image,
             commands::container_commands::get_entries_in_container,
             commands::container_commands::async_preload,
+            commands::container_commands::set_pdf_rendering_height,
         ])
         .run(tauri::generate_context!());
 

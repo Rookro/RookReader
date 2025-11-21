@@ -95,3 +95,23 @@ pub async fn async_preload(
         Err(String::from("Unexpected error. Container is empty!"))
     }
 }
+
+/// PDF レンダリング時の画像幅を設定する
+///
+/// * `height` - 画像幅
+/// * `state` - アプリケーションのステート
+#[tauri::command()]
+pub fn set_pdf_rendering_height(
+    height: i32,
+    state: tauri::State<'_, Mutex<AppState>>,
+) -> Result<(), String> {
+    log::debug!("set_pdf_rendering_height({})", height);
+
+    let mut state_lock = state.lock().map_err(|e| {
+        log::error!("Failed to lock AppState. {}", e.to_string());
+        format!("Failed to lock AppState. {}", e.to_string())
+    })?;
+
+    state_lock.container_state.settings.pdf_rendering_height = height;
+    Ok(())
+}
