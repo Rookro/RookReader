@@ -53,7 +53,7 @@ const preload = async (containerPath: string, entries: string[], currentIndex: n
  */
 const createImageURL = async (image: Image | undefined) => {
     if (!image) {
-        return "";
+        return undefined;
     }
 
     const blob = new Blob([new Uint8Array(image.data)]);
@@ -68,15 +68,15 @@ function ImageViewer() {
     const { isTwoPagedView, direction } = useSelector(state => state.view);
     const dispatch = useDispatch<AppDispatch>();
 
-    const [firstSrc, setFirstSrc] = useState("");
-    const [secondSrc, setSecondSrc] = useState("");
+    const [firstSrc, setFirstSrc] = useState<string | undefined>(undefined);
+    const [secondSrc, setSecondSrc] = useState<string | undefined>(undefined);
     const [canTwoPage, setCanTwoPage] = useState(isTwoPagedView);
     const [displayedIndexes, setDisplayedIndexes] = useState({ first: 0, second: undefined as number | undefined });
     const [isForward, setIsForward] = useState(true);
 
     const requestIdRef = useRef(0);
-    const currentFirstRef = useRef<string>("");
-    const currentSecondRef = useRef<string>("");
+    const currentFirstRef = useRef<string | undefined>(undefined);
+    const currentSecondRef = useRef<string | undefined>(undefined);
     const urlCacheRef = useRef<Map<string, { url: string; width: number; height: number }>>(new Map());
     const unlistenRef = useRef<null | (() => void)>(null as any);
 
@@ -89,10 +89,10 @@ function ImageViewer() {
             URL.revokeObjectURL(cache.url);
         });
         urlCacheRef.current.clear();
-        currentFirstRef.current = "";
-        currentSecondRef.current = "";
-        setFirstSrc("");
-        setSecondSrc("");
+        currentFirstRef.current = undefined;
+        currentSecondRef.current = undefined;
+        setFirstSrc(undefined);
+        setSecondSrc(undefined);
     }, [history[historyIndex]]);
 
     useEffect(() => {
@@ -114,7 +114,9 @@ function ImageViewer() {
             try {
                 const fetchPromises = missing.map(async (name) => {
                     const img = await getImage(containerPath, name);
-                    if (!img) return { name, url: "", width: 0, height: 0 };
+                    if (!img) {
+                        return { name, url: undefined, width: 0, height: 0 };
+                    }
                     const url = await createImageURL(img);
                     // store created URL and dimensions in cache
                     if (url) {
@@ -133,8 +135,8 @@ function ImageViewer() {
                 return;
             }
 
-            const first = firstImagePath ? (urlCacheRef.current.get(firstImagePath) ?? "") : "";
-            const second = secondImagePath ? (urlCacheRef.current.get(secondImagePath) ?? "") : "";
+            const first = firstImagePath ? (urlCacheRef.current.get(firstImagePath)) : undefined;
+            const second = secondImagePath ? (urlCacheRef.current.get(secondImagePath)) : undefined;
 
             preload(containerPath, entries, index);
 
@@ -142,32 +144,32 @@ function ImageViewer() {
             const secondIsWide = !!second && second.width > second.height;
             const eitherWide = firstIsWide || secondIsWide;
 
-            const firstUrl = first ? first.url : (firstImagePath ? (urlCacheRef.current.get(firstImagePath)?.url ?? "") : "");
-            const secondUrl = second ? second.url : (secondImagePath ? (urlCacheRef.current.get(secondImagePath)?.url ?? "") : "");
+            const firstUrl = first ? first.url : (firstImagePath ? (urlCacheRef.current.get(firstImagePath)?.url) : undefined);
+            const secondUrl = second ? second.url : (secondImagePath ? (urlCacheRef.current.get(secondImagePath)?.url) : undefined);
 
             if (!isTwoPagedView || !secondImagePath) {
                 setFirstSrc(firstUrl);
-                setSecondSrc("");
+                setSecondSrc(undefined);
                 setCanTwoPage(false);
                 setDisplayedIndexes({ first: index, second: undefined });
-                currentFirstRef.current = firstUrl || "";
-                currentSecondRef.current = "";
+                currentFirstRef.current = firstUrl;
+                currentSecondRef.current = undefined;
             } else if (eitherWide) {
                 // If either page is wide, show single page.
                 if (isForward) {
                     setFirstSrc(firstUrl);
-                    setSecondSrc("");
+                    setSecondSrc(undefined);
                     setCanTwoPage(false);
                     setDisplayedIndexes({ first: index, second: undefined });
-                    currentFirstRef.current = firstUrl || "";
-                    currentSecondRef.current = "";
+                    currentFirstRef.current = firstUrl || undefined;
+                    currentSecondRef.current = undefined;
                 } else {
                     setFirstSrc(secondUrl);
-                    setSecondSrc("");
+                    setSecondSrc(undefined);
                     setCanTwoPage(false);
                     setDisplayedIndexes({ first: index + 1, second: undefined });
-                    currentFirstRef.current = secondUrl || "";
-                    currentSecondRef.current = "";
+                    currentFirstRef.current = secondUrl;
+                    currentSecondRef.current = undefined;
                 }
             } else {
                 if (firstUrl && secondUrl) {
@@ -179,11 +181,11 @@ function ImageViewer() {
                     currentSecondRef.current = secondUrl;
                 } else {
                     setFirstSrc(firstUrl);
-                    setSecondSrc("");
+                    setSecondSrc(undefined);
                     setCanTwoPage(false);
                     setDisplayedIndexes({ first: index, second: undefined });
-                    currentFirstRef.current = firstUrl || "";
-                    currentSecondRef.current = "";
+                    currentFirstRef.current = firstUrl;
+                    currentSecondRef.current = undefined;
                 }
             }
         }

@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDispatch } from 'react-redux';
-import { Box, List, ListItemButton, ListItemText } from '@mui/material';
+import { List, ListItemButton, ListItemText, Stack } from '@mui/material';
 import { Folder, InsertDriveFile } from '@mui/icons-material';
 import { basename, join } from '@tauri-apps/api/path';
 import { useSelector, AppDispatch } from '../../Store';
@@ -148,9 +148,9 @@ function FileListViewer() {
     );
 
     return (
-        <Box sx={{ width: "100%", display: 'grid', alignContent: 'start' }}>
+        <Stack sx={{ width: "100%", height: "100%", display: 'grid', alignContent: 'start' }}>
             <NavBar />
-            <List className="file_list" component="nav" dense={true}>
+            <List className="file_list" component="nav" dense={true} disablePadding={true}>
                 {filteredSortedEntries.map((entry, index) =>
                     <ItemRow
                         key={entry.name}
@@ -164,7 +164,7 @@ function FileListViewer() {
                     />
                 )}
             </List>
-        </Box >
+        </Stack >
     );
 }
 
