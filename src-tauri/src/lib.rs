@@ -45,10 +45,11 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            commands::commands::get_image,
-            commands::commands::get_entries_in_container,
-            commands::commands::get_entries_in_dir,
-            commands::commands::async_preload,
+            commands::directory_commands::get_entries_in_dir,
+            commands::container_commands::get_image,
+            commands::container_commands::get_entries_in_container,
+            commands::container_commands::async_preload,
+            commands::container_commands::set_pdf_rendering_height,
         ])
         .run(tauri::generate_context!());
 
