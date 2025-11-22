@@ -18,7 +18,7 @@ function App() {
     <ThemeProvider theme={theme}>
       <Stack className="container">
         <NavigationBar />
-        <PanelGroup direction="horizontal">
+        <PanelGroup direction="horizontal" autoSaveId="main_panel_group">
           <Panel className="left_panel" defaultSize={20}>
             <LeftPane />
           </Panel>

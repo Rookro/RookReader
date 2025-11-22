@@ -9,8 +9,6 @@ import { SortOrder } from '../../types/SortOrderType';
 import { DirEntry } from '../../types/DirEntry';
 import NavBar from './NavBar';
 import "./FileListViewer.css";
-import { settingsStore } from '../../settings/SettingsStore';
-import { invoke } from '@tauri-apps/api/core';
 
 /**
  * エントリーのソートを行う
@@ -79,16 +77,6 @@ function FileListViewer() {
     const [selectedIndex, setSelectedIndex] = useState(-1);
 
     const itemRefs = useRef<Record<number, HTMLDivElement | null>>({});
-
-    useEffect(() => {
-        const initSettings = async () => {
-            const pdfRenderingHeight = await settingsStore.get<number>("pdf-rendering-height");
-            if (pdfRenderingHeight) {
-                await invoke("set_pdf_rendering_height", { height: pdfRenderingHeight });
-            }
-        };
-        initSettings();
-    }, [])
 
     // 選択している項目が表示されるようにスクロールする
     useEffect(() => {
