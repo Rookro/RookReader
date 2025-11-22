@@ -4,7 +4,7 @@ on:
   pull_request:
 jobs:
   build-app-for-windows:
-    runs-on: windows-latest
+    runs-on: self-hosted
     steps:
       - name: setup rustup
         run: rustup default stable
@@ -20,7 +20,7 @@ jobs:
           name: windows-setup-exe
           path: src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*setup.exe
   build-app-for-linux:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     container:
       image: ghcr.io/rookro/tauri-template-devcontainer:latest
       options: --user root
