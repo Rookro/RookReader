@@ -30,13 +30,7 @@ body {
   cursor: pointer;
 }
 
-button:hover {
-  outline: 1px solid cornflowerblue;
-  border-radius: 0%;
-}
-
 .left_panel {
-  min-width: 360px;
   overflow: auto;
 }
 

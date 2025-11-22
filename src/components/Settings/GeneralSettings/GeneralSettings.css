@@ -1,16 +1,13 @@
 .general-settings {
     width: 100%;
-    margin-right: 4px;
-    padding: 20px;
+    height: 100%;
     overflow: auto;
     outline: none;
     color: black;
-    background-color: white;
 }
 
 @media (prefers-color-scheme: dark) {
     .general-settings {
         color: white;
-        background-color: black;
     }
 }

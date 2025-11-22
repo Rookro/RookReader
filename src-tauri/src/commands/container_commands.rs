@@ -1,47 +1,12 @@
-use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
-use std::fs::read_dir;
 use std::sync::{Arc, Mutex};
 
 use crate::container::container::Image;
 use crate::state::app_state::AppState;
 
-#[derive(Serialize, Deserialize)]
-pub struct DirEntry {
-    pub is_directory: bool,
-    pub name: String,
-    pub last_modified: String,
-}
-
-#[tauri::command()]
-pub fn get_entries_in_dir(dir_path: String) -> Result<Vec<DirEntry>, String> {
-    log::debug!("Get the directory entries in {}", dir_path);
-    let mut entries: Vec<DirEntry> = Vec::new();
-    for entry in read_dir(dir_path).map_err(|e| e.to_string())? {
-        let entry = entry.map_err(|e| e.to_string())?;
-        let file_name = entry
-            .file_name()
-            .into_string()
-            .map_err(|_e| "failed to get file name from DirEntry.")?;
-        let file_type = entry.file_type().map_err(|e| e.to_string())?;
-        let last_modified = entry
-            .metadata()
-            .map_err(|e| e.to_string())?
-            .modified()
-            .map_err(|e| e.to_string())?;
-
-        let last_modified_time: DateTime<Utc> = last_modified.into();
-
-        entries.push(DirEntry {
-            is_directory: file_type.is_dir(),
-            name: file_name,
-            last_modified: last_modified_time.to_rfc3339(),
-        });
-    }
-
-    Ok(entries)
-}
-
+/// 指定された書庫コンテナー内のエントリーを取得する
+///
+/// * `path` - 書庫コンテナーのパス
+/// * `state` - アプリケーションのステート
 #[tauri::command()]
 pub fn get_entries_in_container(
     path: String,
@@ -70,6 +35,11 @@ pub fn get_entries_in_container(
     }
 }
 
+/// 指定された書庫コンテナー内の画像を取得する
+///
+/// * `path` - 書庫コンテナーのパス
+/// * `entry_name` - 取得する画像のエントリー名
+/// * `state` - アプリケーションのステート
 #[tauri::command()]
 pub fn get_image(
     path: String,
@@ -96,6 +66,11 @@ pub fn get_image(
     }
 }
 
+/// 指定された書庫コンテナー内の画像を非同期で事前ロードする
+///
+/// * `start_index` - 事前ロードするページの開始インデックス
+/// * `count` - 事前ロードするページ数
+/// * `state` - アプリケーションのステート
 #[tauri::command(async)]
 pub async fn async_preload(
     start_index: usize,
@@ -119,4 +94,24 @@ pub async fn async_preload(
         log::error!("Unexpected error. Container is empty!");
         Err(String::from("Unexpected error. Container is empty!"))
     }
+}
+
+/// PDF レンダリング時の画像幅を設定する
+///
+/// * `height` - 画像幅
+/// * `state` - アプリケーションのステート
+#[tauri::command()]
+pub fn set_pdf_rendering_height(
+    height: i32,
+    state: tauri::State<'_, Mutex<AppState>>,
+) -> Result<(), String> {
+    log::debug!("set_pdf_rendering_height({})", height);
+
+    let mut state_lock = state.lock().map_err(|e| {
+        log::error!("Failed to lock AppState. {}", e.to_string());
+        format!("Failed to lock AppState. {}", e.to_string())
+    })?;
+
+    state_lock.container_state.settings.pdf_rendering_height = height;
+    Ok(())
 }

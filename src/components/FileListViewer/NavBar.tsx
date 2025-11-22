@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useDispatch } from 'react-redux';
 import { dirname, homeDir } from '@tauri-apps/api/path';
 import { ArrowBack, ArrowForward, ArrowUpward, Home, Refresh, Search } from '@mui/icons-material';
@@ -16,14 +16,36 @@ export default function NavBar() {
     const { history, historyIndex, searchText, sortOrder } = useSelector(state => state.file.explorer);
     const dispatch = useDispatch<AppDispatch>();
 
-    const initDirParh = async () => {
-        const homeDirectory = await homeDir();
+    const [width, setWidth] = React.useState(0);
+
+    const navButtonsRef = useRef<HTMLElement>(null);
+
+    const setDirParh = async (dirPath: string | undefined = undefined) => {
+        if (!dirPath) {
+            dirPath = await homeDir();
+        }
         dispatch(setSearchText(""));
-        dispatch(setExploreBasePath(homeDirectory));
+        dispatch(setExploreBasePath(dirPath));
     }
 
     useEffect(() => {
-        initDirParh();
+        const dirPath = historyIndex === -1 ? undefined : history[historyIndex]
+        setDirParh(dirPath);
+
+        const element = navButtonsRef.current
+        if (!element) {
+            return;
+        }
+        const observer = new ResizeObserver(() => {
+            setWidth(element?.offsetWidth ?? 0);
+        })
+        observer.observe(element)
+
+        return () => {
+            if (element) {
+                observer.unobserve(element)
+            }
+        }
     }, [])
 
     useEffect(() => {
@@ -42,7 +64,7 @@ export default function NavBar() {
     }
 
     const handleHomeClicked = (_e: React.MouseEvent<HTMLButtonElement>) => {
-        initDirParh();
+        setDirParh();
     }
 
     const handleParentClicked = async (_e: React.MouseEvent<HTMLButtonElement>) => {
@@ -80,18 +102,20 @@ export default function NavBar() {
             <Box className='current_dir'>
                 <input value={history[historyIndex] ?? ""} onChange={handleCurrentDirChanged} onContextMenu={handleContextMenu}></input>
             </Box>
-            <Box className="file_nav_buttons">
+            <Box className="file_nav_buttons" ref={navButtonsRef}>
                 <IconButton onClick={handleHomeClicked}><Home /></IconButton>
                 <IconButton onClick={handleBackClicked} disabled={historyIndex <= 0}><ArrowBack /></IconButton>
                 <IconButton onClick={handleForwardClicked} disabled={history.length - historyIndex <= 1}><ArrowForward /></IconButton>
                 <IconButton onClick={handleParentClicked}><ArrowUpward /></IconButton>
                 <IconButton onClick={handleRefleshClicked}><Refresh /></IconButton>
-                <Select size="small" value={sortOrder} sx={{ minWidth: "100px" }} onChange={handleSortOrderChanged}>
-                    <MenuItem value={"NAME_ASC"}>Name↑</MenuItem>
-                    <MenuItem value={"NAME_DESC"}>Name↓</MenuItem>
-                    <MenuItem value={"DATE_ASC"}>Date↑</MenuItem>
-                    <MenuItem value={"DATE_DESC"}>Date↓</MenuItem>
-                </Select>
+                {width >= 310 ?
+                    <Select size="small" value={sortOrder} sx={{ minWidth: "100px" }} onChange={handleSortOrderChanged}>
+                        <MenuItem value={"NAME_ASC"}>Name↑</MenuItem>
+                        <MenuItem value={"NAME_DESC"}>Name↓</MenuItem>
+                        <MenuItem value={"DATE_ASC"}>Date↑</MenuItem>
+                        <MenuItem value={"DATE_DESC"}>Date↓</MenuItem>
+                    </Select>
+                    : <></>}
             </Box>
             <Box className="file_search_bar">
                 <Search />

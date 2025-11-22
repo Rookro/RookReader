@@ -1,0 +1,12 @@
+.file_list {
+    height: 100%;
+    overflow: auto;
+}
+
+@media (prefers-color-scheme: dark) {
+    .file_list {
+        .MuiListItemButton-root.Mui-selected {
+            background-color: rgba(136, 136, 136, 0.432);
+        }
+    }
+}

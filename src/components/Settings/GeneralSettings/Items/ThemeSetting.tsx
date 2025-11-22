@@ -2,14 +2,20 @@ import { useEffect, useState } from "react";
 import { Box, FormControl, MenuItem, Select, SelectChangeEvent, Typography } from "@mui/material";
 import { app } from "@tauri-apps/api"
 import { Theme } from "@tauri-apps/api/window";
-import { settingsStore } from "../../../settings/SettingsStore";
+import { settingsStore } from "../../../../settings/SettingsStore";
 
+/** 
+ * テーマ名と Tauri のテーマ設定値のマッピング
+ */
 const toTauriTheme = new Map<string, Theme | undefined>([
     ["System", undefined],
     ["Dark", "dark"],
     ["Light", "light"],
 ]);
 
+/**
+ * テーマ設定コンポーネント
+ */
 function ThemeSetting() {
     const [theme, setTheme] = useState("System");
 

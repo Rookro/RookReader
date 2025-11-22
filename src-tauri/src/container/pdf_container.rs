@@ -12,6 +12,8 @@ pub struct PdfContainer {
     entries: Vec<String>,
     /// 画像データのキャッシュ (キー: ページインデックス, 値: 画像バイナリ)
     cache: HashMap<String, Arc<Image>>,
+    /// PDF レンダリング時の画像高さ
+    pub rendering_height: i32,
 }
 
 impl Container for PdfContainer {
@@ -32,7 +34,7 @@ impl Container for PdfContainer {
             entry: Some(entry.clone()),
         })?;
 
-        let render_config = PdfiumRenderConfig::new().with_height(2000);
+        let render_config = PdfiumRenderConfig::new().with_height(self.rendering_height);
         let page = pdf.pages().get(index).map_err(|e| ContainerError {
             message: format!("Failed to get the pdf page({}). {}", entry, e),
             path: Some(self.path.clone()),
@@ -87,7 +89,7 @@ impl Container for PdfContainer {
         }
 
         let pdf = open(&self.path)?;
-        let render_config = PdfiumRenderConfig::new().with_height(2000);
+        let render_config = PdfiumRenderConfig::new().with_height(self.rendering_height);
 
         for i in begin_index..end {
             // すでにキャッシュにあればスキップ
@@ -154,7 +156,8 @@ impl PdfContainer {
     /// インスタンスを生成する
     ///
     /// * `path` - コンテナーファイルのパス
-    pub fn new(path: &String) -> Result<Self, ContainerError> {
+    /// * `rendering_height` - PDF レンダリング時の画像高さ
+    pub fn new(path: &String, rendering_height: i32) -> Result<Self, ContainerError> {
         let pdf = open(path)?;
         let mut entries: Vec<String> = Vec::new();
         for index in 0..pdf.pages().page_count() {
@@ -165,10 +168,14 @@ impl PdfContainer {
             path: path.clone(),
             entries: entries,
             cache: HashMap::new(),
+            rendering_height,
         })
     }
 }
 
+/// 指定されたパスから PDF ドキュメントを開く
+///
+/// * `path` - PDF ファイルのパス
 fn open(path: &String) -> Result<PdfiumDocument, ContainerError> {
     let pdf = PdfiumDocument::new_from_path(path, None).map_err(|e| ContainerError {
         message: String::from(format!("Failed to open the pdf file. {}", e)),

@@ -1,8 +1,6 @@
-import GeneralSettings from "./components/Settings/GeneralSettings";
-import LeftPane from "./components/Settings/LeftPane/LeftPane";
 import "./App.css"
-import "./SettingsApp.css"
 import { createTheme, ThemeProvider, useMediaQuery } from "@mui/material";
+import SettingsView from "./components/Settings/SettingsView";
 
 function SettingsApp() {
     const theme = createTheme({
@@ -13,10 +11,7 @@ function SettingsApp() {
 
     return (
         <ThemeProvider theme={theme}>
-            <div className="settings-view">
-                <LeftPane />
-                <GeneralSettings />
-            </div>
+            <SettingsView />
         </ThemeProvider>
     );
 }

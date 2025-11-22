@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDispatch } from 'react-redux';
-import { Box, List, ListItemButton, ListItemText } from '@mui/material';
+import { List, ListItemButton, ListItemText, Stack } from '@mui/material';
 import { Folder, InsertDriveFile } from '@mui/icons-material';
 import { basename, join } from '@tauri-apps/api/path';
 import { useSelector, AppDispatch } from '../../Store';
@@ -10,6 +10,14 @@ import { DirEntry } from '../../types/DirEntry';
 import NavBar from './NavBar';
 import "./FileListViewer.css";
 
+/**
+ * エントリーのソートを行う
+ * 
+ * @param a - 比較するエントリー1
+ * @param b - 比較するエントリー2
+ * @param sortOrder - ソート順序
+ * @returns ソート結果
+ */
 const sortBy = (a: DirEntry, b: DirEntry, sortOrder: SortOrder) => {
     switch (sortOrder) {
         case "NAME_ASC":
@@ -23,12 +31,16 @@ const sortBy = (a: DirEntry, b: DirEntry, sortOrder: SortOrder) => {
     }
 }
 
+/**
+ * ファイルリストの行コンポーネント
+ */
 const ItemRow = memo(function ItemRow({
     entry,
     index,
     selected,
     onFocus,
     onClick,
+    onDoubleClick,
     refCallback,
 }: {
     entry: DirEntry;
@@ -36,6 +48,7 @@ const ItemRow = memo(function ItemRow({
     selected: boolean;
     onFocus: (e: React.FocusEvent, i: number) => void;
     onClick: (e: React.MouseEvent<HTMLDivElement>, entry: DirEntry) => void;
+    onDoubleClick: (e: React.MouseEvent<HTMLDivElement>, entry: DirEntry) => void;
     refCallback: (el: HTMLDivElement | null) => void;
 }) {
     return (
@@ -43,6 +56,7 @@ const ItemRow = memo(function ItemRow({
             selected={selected}
             onFocus={(e) => onFocus(e, index)}
             onClick={(e) => onClick(e, entry)}
+            onDoubleClick={(e) => onDoubleClick(e, entry)}
             key={entry.name}
             ref={refCallback}
         >
@@ -117,20 +131,26 @@ function FileListViewer() {
     const handleListItemClicked = useCallback(
         async (_e: React.MouseEvent<HTMLDivElement>, entry: DirEntry) => {
             const path = await join(history[historyIndex], entry.name);
+            dispatch(setContainerFilePath(path));
+        },
+        [dispatch, history, historyIndex]
+    );
+
+    const handleListItemDoubleClicked = useCallback(
+        async (_e: React.MouseEvent<HTMLDivElement>, entry: DirEntry) => {
             if (entry.is_directory) {
+                const path = await join(history[historyIndex], entry.name);
                 dispatch(setSearchText(""));
                 dispatch(setExploreBasePath(path));
-            } else {
-                dispatch(setContainerFilePath(path));
             }
         },
         [dispatch, history, historyIndex]
     );
 
     return (
-        <Box sx={{ width: "100%", display: 'grid', alignContent: 'start' }}>
+        <Stack sx={{ width: "100%", height: "100%", display: 'grid', alignContent: 'start' }}>
             <NavBar />
-            <List className="file_list" component="nav" dense={true}>
+            <List className="file_list" component="nav" dense={true} disablePadding={true}>
                 {filteredSortedEntries.map((entry, index) =>
                     <ItemRow
                         key={entry.name}
@@ -139,11 +159,12 @@ function FileListViewer() {
                         selected={selectedIndex === index}
                         onFocus={handleListItemFocused}
                         onClick={handleListItemClicked}
+                        onDoubleClick={handleListItemDoubleClicked}
                         refCallback={(el: HTMLDivElement | null) => { itemRefs.current[index] = el; }}
                     />
                 )}
             </List>
-        </Box >
+        </Stack >
     );
 }
 

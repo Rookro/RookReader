@@ -1,0 +1,24 @@
+.log-path {
+    align-items: center;
+    margin: 12px 12px 3px 3px;
+}
+
+.log-path input {
+    margin: 2px;
+    border: 0px;
+    padding-left: 0.5em;
+    font-size: 1em;
+    font-family: inherit;
+    color: black;
+    background-color: white;
+    border: solid 1px black;
+}
+
+@media (prefers-color-scheme: dark) {
+
+    .log-path input {
+        color: white;
+        background-color: #0f0f0f98;
+        border: solid 1px white;
+    }
+}

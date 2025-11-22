@@ -33,7 +33,7 @@ pub fn run() {
                     Target::new(TargetKind::LogDir { file_name: None }),
                     Target::new(TargetKind::Stdout),
                 ])
-                .rotation_strategy(RotationStrategy::KeepAll)
+                .rotation_strategy(RotationStrategy::KeepSome(10))
                 .build(),
         )
         .plugin(tauri_plugin_store::Builder::new().build())
@@ -45,10 +45,11 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            commands::commands::get_image,
-            commands::commands::get_entries_in_container,
-            commands::commands::get_entries_in_dir,
-            commands::commands::async_preload,
+            commands::directory_commands::get_entries_in_dir,
+            commands::container_commands::get_image,
+            commands::container_commands::get_entries_in_container,
+            commands::container_commands::async_preload,
+            commands::container_commands::set_pdf_rendering_height,
         ])
         .run(tauri::generate_context!());
 
@@ -61,6 +62,9 @@ pub fn run() {
     };
 }
 
+/// ライブラリのディレクトリパスを取得する
+///
+/// * `app` - Tauri アプリケーションのインスタンス
 fn get_libs_dir(app: &App) -> Result<String, String> {
     let platform = platform();
     match platform {
@@ -91,6 +95,9 @@ fn get_libs_dir(app: &App) -> Result<String, String> {
     }
 }
 
+/// PDFium ライブラリのパスを設定する
+///
+/// * `lib_dir` - ライブラリのディレクトリパス
 fn setup_pdfium(lib_dir: &String) {
     pdfium::set_library_location(lib_dir);
 }

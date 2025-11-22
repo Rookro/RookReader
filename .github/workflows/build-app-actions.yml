@@ -4,21 +4,14 @@ on:
   pull_request:
 jobs:
   build-app-for-windows:
-    runs-on: windows-latest
+    runs-on: self-hosted
     steps:
-      - name: Setup Rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          target: x86_64-pc-windows-msvc
-          override: true
+      - name: setup rustup
+        run: rustup default stable
       - name: checkout merged branch
         uses: actions/checkout@v4
       - name: build application for windows
         run: |
-          mkdir src-tauri/libs
-          cp src-tauri/dependencies/windows/* src-tauri/libs
           yarn
           yarn tauri build --target x86_64-pc-windows-msvc
       - name: upload setup exe
@@ -27,7 +20,7 @@ jobs:
           name: windows-setup-exe
           path: src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*setup.exe
   build-app-for-linux:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     container:
       image: ghcr.io/rookro/tauri-template-devcontainer:latest
       options: --user root
