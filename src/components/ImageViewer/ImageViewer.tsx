@@ -8,6 +8,7 @@ import { openContainerFile, setContainerFilePath, setExploreBasePath, setImageIn
 import { Image } from "../../types/Image";
 import "./ImageViewer.css";
 import { dirname } from "@tauri-apps/api/path";
+import { settingsStore } from "../../settings/SettingsStore";
 
 /**
  * 画像ファイルを読み込む
@@ -202,6 +203,14 @@ function ImageViewer() {
     }, [entries, index, isTwoPagedView, isForward]);
 
     useEffect(() => {
+        const initSettings = async () => {
+            const pdfRenderingHeight = await settingsStore.get<number>("pdf-rendering-height");
+            if (pdfRenderingHeight) {
+                await invoke("set_pdf_rendering_height", { height: pdfRenderingHeight });
+            }
+        };
+        initSettings();
+
         return () => {
             urlCacheRef.current.forEach((cache) => {
                 URL.revokeObjectURL(cache.url);
