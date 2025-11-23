@@ -1,7 +1,7 @@
 import { CSSProperties, memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { List, RowComponentProps, useListRef } from 'react-window';
-import { ListItem, ListItemButton, ListItemText, Stack } from '@mui/material';
+import { ListItem, ListItemButton, ListItemText, Stack, Tooltip } from '@mui/material';
 import { Folder, InsertDriveFile } from '@mui/icons-material';
 import { basename, join } from '@tauri-apps/api/path';
 import { useSelector, AppDispatch } from '../../Store';
@@ -51,17 +51,19 @@ const ItemRow = memo(function ItemRow({
     style: CSSProperties | undefined
 }) {
     return (
-        <ListItem style={style} key={index} component="div" disablePadding dense>
-            <ListItemButton
-                selected={selected}
-                onClick={(e) => onClick(e, entry, index)}
-                onDoubleClick={(e) => onDoubleClick(e, entry)}
-                key={entry.name}
-            >
-                {entry.is_directory ? <Folder /> : <InsertDriveFile />}
-                <ListItemText primary={entry.name} slotProps={{ primary: { noWrap: true } }} sx={{ marginLeft: "5px" }} />
-            </ListItemButton>
-        </ListItem>
+        <Tooltip title={entry.name} placement="bottom-start">
+            <ListItem style={style} key={index} component="div" disablePadding dense>
+                <ListItemButton
+                    selected={selected}
+                    onClick={(e) => onClick(e, entry, index)}
+                    onDoubleClick={(e) => onDoubleClick(e, entry)}
+                    key={entry.name}
+                >
+                    {entry.is_directory ? <Folder /> : <InsertDriveFile />}
+                    <ListItemText primary={entry.name} slotProps={{ primary: { noWrap: true } }} sx={{ marginLeft: "5px" }} />
+                </ListItemButton>
+            </ListItem>
+        </Tooltip>
     );
 });
 

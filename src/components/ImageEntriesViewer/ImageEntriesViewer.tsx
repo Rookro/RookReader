@@ -1,7 +1,7 @@
 import { CSSProperties, memo, useCallback, useEffect, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { List, RowComponentProps, useListRef } from 'react-window';
-import { Box, ListItem, ListItemButton, ListItemText } from '@mui/material';
+import { Box, ListItem, ListItemButton, ListItemText, Tooltip } from '@mui/material';
 import { Image } from '@mui/icons-material';
 import { useSelector, AppDispatch } from '../../Store';
 import { setImageIndex } from '../../reducers/FileReducer';
@@ -24,16 +24,18 @@ const ItemRow = memo(function ItemRow({
     style: CSSProperties | undefined
 }) {
     return (
-        <ListItem style={style} key={index} component="div" disablePadding dense>
-            <ListItemButton
-                selected={selected}
-                onClick={(e) => onClick(e, index)}
-                key={entry}
-            >
-                <Image />
-                <ListItemText primary={entry} slotProps={{ primary: { noWrap: true } }} sx={{ marginLeft: "5px" }} />
-            </ListItemButton>
-        </ListItem>
+        <Tooltip title={entry} placement="bottom-start">
+            <ListItem style={style} key={index} component="div" disablePadding dense>
+                <ListItemButton
+                    selected={selected}
+                    onClick={(e) => onClick(e, index)}
+                    key={entry}
+                >
+                    <Image />
+                    <ListItemText primary={entry} slotProps={{ primary: { noWrap: true } }} sx={{ marginLeft: "5px" }} />
+                </ListItemButton>
+            </ListItem>
+        </Tooltip >
     );
 });
 
