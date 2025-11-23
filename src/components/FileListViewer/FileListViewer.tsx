@@ -1,4 +1,4 @@
-import { CSSProperties, memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { CSSProperties, memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { List, RowComponentProps, useListRef } from 'react-window';
 import { ListItemButton, ListItemText, Stack } from '@mui/material';
