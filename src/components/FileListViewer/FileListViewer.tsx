@@ -85,7 +85,7 @@ function FileListViewer() {
 
         const list = listRef.current;
         list?.scrollToRow({
-            align: "auto",
+            align: "smart",
             behavior: "instant",
             index: selectedIndex
         });
