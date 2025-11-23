@@ -28,6 +28,7 @@
     "react-redux": "^9.2.0",
     "react-resizable-panels": "^3.0.6",
     "react-router": "^7.9.5",
+    "react-window": "^2.2.3",
     "redux": "^5.0.1"
   },
   "devDependencies": {

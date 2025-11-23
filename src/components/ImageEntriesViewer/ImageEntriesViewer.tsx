@@ -1,11 +1,11 @@
-import { memo, useCallback, useEffect, useRef, useState } from 'react';
+import { CSSProperties, memo, useCallback, useEffect, useState } from 'react';
 import { useDispatch } from 'react-redux';
-import { Box, List, ListItemButton, ListItemText } from '@mui/material';
+import { List, RowComponentProps, useListRef } from 'react-window';
+import { Box, ListItem, ListItemButton, ListItemText } from '@mui/material';
 import { Image } from '@mui/icons-material';
 import { useSelector, AppDispatch } from '../../Store';
 import { setImageIndex } from '../../reducers/FileReducer';
 import "./ImageEntriesViewer.css";
-
 
 /**
  * 画像エントリーの行コンポーネント
@@ -14,27 +14,26 @@ const ItemRow = memo(function ItemRow({
     entry,
     index,
     selected,
-    onFocus,
-    // onClick,
-    // onDoubleClick,
-    refCallback,
+    onClick,
+    style
 }: {
     entry: string;
     index: number;
     selected: boolean;
-    onFocus: (e: React.FocusEvent, i: number) => void;
-    refCallback: (el: HTMLDivElement | null) => void;
+    onClick: (e: React.MouseEvent<HTMLDivElement>, index: number) => void;
+    style: CSSProperties | undefined
 }) {
     return (
-        <ListItemButton
-            selected={selected}
-            onFocus={(e) => onFocus(e, index)}
-            key={entry}
-            ref={refCallback}
-        >
-            <Image />
-            <ListItemText primary={entry} sx={{ marginLeft: "5px" }} />
-        </ListItemButton>
+        <ListItem style={style} key={index} component="div" disablePadding dense>
+            <ListItemButton
+                selected={selected}
+                onClick={(e) => onClick(e, index)}
+                key={entry}
+            >
+                <Image />
+                <ListItemText primary={entry} slotProps={{ primary: { noWrap: true } }} sx={{ marginLeft: "5px" }} />
+            </ListItemButton>
+        </ListItem>
     );
 });
 
@@ -45,9 +44,9 @@ function ImageEntriesViewer() {
     const { entries, index } = useSelector(state => state.file.containerFile);
     const dispatch = useDispatch<AppDispatch>();
 
-    const [selectedIndex, setSelectedIndex] = useState(index);
+    const [selectedIndex, setSelectedIndex] = useState(-1);
 
-    const itemRefs = useRef<Record<number, HTMLDivElement | null>>({});
+    const listRef = useListRef(null);
 
     useEffect(() => {
         setSelectedIndex(index);
@@ -55,37 +54,56 @@ function ImageEntriesViewer() {
 
     // 選択している項目が表示されるようにスクロールする
     useEffect(() => {
-        const selectedItemRef = itemRefs.current[selectedIndex];
-        if (selectedItemRef) {
-            selectedItemRef.scrollIntoView({
-                behavior: 'instant',
-                block: 'nearest',
-            });
+        if (entries.length < 1 || selectedIndex === -1) {
+            return;
         }
-    }, [selectedIndex, index]);
 
-    const handleListItemFocused = useCallback(
-        (_e: React.FocusEvent, index: number) => {
+        const list = listRef.current;
+        list?.scrollToRow({
+            align: "smart",
+            behavior: "instant",
+            index: selectedIndex
+        });
+    }, [selectedIndex, entries]);
+
+    const handleListItemClicked = useCallback(
+        (_e: React.MouseEvent<HTMLDivElement>, index: number) => {
             setSelectedIndex(index);
             dispatch(setImageIndex(index));
         },
         [dispatch]
     );
 
+    const Row = ({
+        index,
+        entries,
+        style
+    }: RowComponentProps<{
+        entries: string[];
+    }>) => {
+        const entry = entries[index];
+        return (
+            <ItemRow
+                key={entry}
+                entry={entry}
+                index={index}
+                selected={selectedIndex === index}
+                onClick={handleListItemClicked}
+                style={style}
+            />
+        );
+    }
+
     return (
         <Box sx={{ width: "100%", height: "100%", display: 'grid', alignContent: 'start' }}>
-            <List className="file_list" component="nav" dense={true} disablePadding={true}>
-                {entries.map((entry, index) =>
-                    <ItemRow
-                        key={entry}
-                        entry={entry}
-                        index={index}
-                        selected={selectedIndex === index}
-                        onFocus={handleListItemFocused}
-                        refCallback={(el: HTMLDivElement | null) => { itemRefs.current[index] = el; }}
-                    />
-                )}
-            </List>
+            <List
+                className="image_list"
+                rowComponent={Row}
+                rowCount={entries.length}
+                rowHeight={36}
+                rowProps={{ entries }}
+                listRef={listRef}
+            />
         </Box >
     );
 }
