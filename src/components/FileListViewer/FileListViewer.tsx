@@ -93,6 +93,7 @@ function FileListViewer() {
 
     useEffect(() => {
         dispatch(getEntriesInDir(history[historyIndex]));
+        setSelectedIndex(-1);
     }, [history, historyIndex, dispatch]);
 
     const filteredSortedEntries = useMemo(() => {
