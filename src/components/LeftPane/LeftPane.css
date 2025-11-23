@@ -1,7 +1,5 @@
 .left_pane {
-    min-width: 250px;
     height: 100%;
-    margin-left: 4px;
     margin-right: 4px;
     justify-content: left;
     display: flex;
