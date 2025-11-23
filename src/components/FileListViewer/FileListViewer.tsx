@@ -79,16 +79,17 @@ function FileListViewer() {
 
     // 選択している項目が表示されるようにスクロールする
     useEffect(() => {
-        if (entries.length < 1) {
+        if (entries.length < 1 || selectedIndex === -1) {
             return;
         }
+
         const list = listRef.current;
         list?.scrollToRow({
             align: "auto",
             behavior: "instant",
             index: selectedIndex
         });
-    }, [selectedIndex]);
+    }, [selectedIndex, entries]);
 
     useEffect(() => {
         dispatch(getEntriesInDir(history[historyIndex]));
@@ -173,6 +174,7 @@ function FileListViewer() {
                 rowHeight={36}
                 rowProps={{ entries: filteredSortedEntries }}
                 overscanCount={5}
+                listRef={listRef}
             />
         </Stack >
     );

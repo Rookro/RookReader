@@ -44,7 +44,7 @@ function ImageEntriesViewer() {
     const { entries, index } = useSelector(state => state.file.containerFile);
     const dispatch = useDispatch<AppDispatch>();
 
-    const [selectedIndex, setSelectedIndex] = useState(0);
+    const [selectedIndex, setSelectedIndex] = useState(-1);
 
     const listRef = useListRef(null);
 
@@ -54,16 +54,17 @@ function ImageEntriesViewer() {
 
     // 選択している項目が表示されるようにスクロールする
     useEffect(() => {
-        if (entries.length < 1) {
+        if (entries.length < 1 || selectedIndex === -1) {
             return;
         }
+
         const list = listRef.current;
         list?.scrollToRow({
-            align: "auto",
+            align: "smart",
             behavior: "instant",
             index: selectedIndex
         });
-    }, [selectedIndex, index, listRef.current]);
+    }, [selectedIndex, entries]);
 
     const handleListItemClicked = useCallback(
         (_e: React.MouseEvent<HTMLDivElement>, index: number) => {
