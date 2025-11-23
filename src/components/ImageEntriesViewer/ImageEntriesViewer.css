@@ -6,7 +6,11 @@
 @media (prefers-color-scheme: dark) {
     .file_list {
         .MuiListItemButton-root.Mui-selected {
-            background-color: rgba(136, 136, 136, 0.432);
+            background-color: rgba(136, 136, 136, 0.5);
+        }
+
+        .MuiListItemButton-root:hover {
+            background-color: rgba(136, 136, 136, 0.30);
         }
     }
 }
