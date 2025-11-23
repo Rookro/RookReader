@@ -40,6 +40,27 @@ impl Image {
             }
         }
     }
+
+    /// 対応している画像形式の拡張子か
+    ///
+    /// 対応している画像形式は、[mdn での <img> の対応形式](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/img#supported_image_formats)。
+    /// なお、判定は大文字と小文字を区別しない。
+    ///
+    /// * `filename` - ファイル名
+    pub fn is_supported_format(filename: &str) -> bool {
+        let lowercase_name = filename.to_lowercase();
+        lowercase_name.ends_with(".apng")
+            || lowercase_name.ends_with(".avif")
+            || lowercase_name.ends_with(".gif")
+            || lowercase_name.ends_with(".jpg")
+            || lowercase_name.ends_with(".jpeg")
+            || lowercase_name.ends_with(".jpe")
+            || lowercase_name.ends_with(".jif")
+            || lowercase_name.ends_with(".jfif")
+            || lowercase_name.ends_with(".png")
+            || lowercase_name.ends_with(".svg")
+            || lowercase_name.ends_with(".webp")
+    }
 }
 
 /// 書庫コンテナー
@@ -64,6 +85,20 @@ pub trait Container: Send + Sync + 'static {
     /// * `begin_index` - 開始インデックス
     /// * `count` - 読み込み数
     fn preload(&mut self, begin_index: usize, count: usize) -> Result<(), ContainerError>;
+}
+
+impl dyn Container {
+    /// 対応している書庫形式の拡張子か
+    ///
+    /// なお、判定は大文字と小文字を区別しない。
+    ///
+    /// * `filename` - ファイル名
+    pub fn is_supported_format(filename: &str) -> bool {
+        let lowercase_name = filename.to_lowercase();
+        lowercase_name.ends_with(".pdf")
+            || lowercase_name.ends_with(".rar")
+            || lowercase_name.ends_with(".zip")
+    }
 }
 
 /// 書庫コンテナーのエラー情報

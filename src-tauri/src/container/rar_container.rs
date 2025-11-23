@@ -183,7 +183,10 @@ impl RarContainer {
                 entry: None,
             })?;
             if entry.is_file() {
-                entries.push(entry.filename.as_os_str().to_string_lossy().to_string());
+                let filename = entry.filename.as_os_str().to_string_lossy().to_string();
+                if Image::is_supported_format(&filename) {
+                    entries.push(filename);
+                }
             }
         }
 

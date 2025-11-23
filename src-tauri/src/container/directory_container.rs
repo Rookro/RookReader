@@ -91,12 +91,7 @@ impl DirectoryContainer {
                     entry: None,
                 })?;
 
-            if file_name.ends_with(".png")
-                || file_name.ends_with(".jpg")
-                || file_name.ends_with(".jpeg")
-                || file_name.ends_with(".webp")
-                || file_name.ends_with(".avif")
-            {
+            if Image::is_supported_format(&file_name) {
                 entries.push(file_name);
             }
         }
