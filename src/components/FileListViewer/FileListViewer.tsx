@@ -1,7 +1,7 @@
 import { CSSProperties, memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { List, RowComponentProps, useListRef } from 'react-window';
-import { ListItemButton, ListItemText, Stack } from '@mui/material';
+import { ListItem, ListItemButton, ListItemText, Stack } from '@mui/material';
 import { Folder, InsertDriveFile } from '@mui/icons-material';
 import { basename, join } from '@tauri-apps/api/path';
 import { useSelector, AppDispatch } from '../../Store';
@@ -51,16 +51,17 @@ const ItemRow = memo(function ItemRow({
     style: CSSProperties | undefined
 }) {
     return (
-        <ListItemButton
-            selected={selected}
-            onClick={(e) => onClick(e, entry, index)}
-            onDoubleClick={(e) => onDoubleClick(e, entry)}
-            key={entry.name}
-            style={style}
-        >
-            {entry.is_directory ? <Folder /> : <InsertDriveFile />}
-            <ListItemText primary={entry.name} sx={{ marginLeft: "5px" }} />
-        </ListItemButton>
+        <ListItem style={style} key={index} component="div" disablePadding dense>
+            <ListItemButton
+                selected={selected}
+                onClick={(e) => onClick(e, entry, index)}
+                onDoubleClick={(e) => onDoubleClick(e, entry)}
+                key={entry.name}
+            >
+                {entry.is_directory ? <Folder /> : <InsertDriveFile />}
+                <ListItemText primary={entry.name} slotProps={{ primary: { noWrap: true } }} sx={{ marginLeft: "5px" }} />
+            </ListItemButton>
+        </ListItem>
     );
 });
 
@@ -169,8 +170,9 @@ function FileListViewer() {
                 className="file_list"
                 rowComponent={Row}
                 rowCount={filteredSortedEntries.length}
-                rowHeight={48}
+                rowHeight={36}
                 rowProps={{ entries: filteredSortedEntries }}
+                overscanCount={5}
             />
         </Stack >
     );
