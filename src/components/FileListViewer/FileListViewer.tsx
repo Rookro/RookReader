@@ -1,6 +1,7 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { CSSProperties, memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useDispatch } from 'react-redux';
-import { List, ListItemButton, ListItemText, Stack } from '@mui/material';
+import { List, RowComponentProps, useListRef } from 'react-window';
+import { ListItem, ListItemButton, ListItemText, Stack, Tooltip } from '@mui/material';
 import { Folder, InsertDriveFile } from '@mui/icons-material';
 import { basename, join } from '@tauri-apps/api/path';
 import { useSelector, AppDispatch } from '../../Store';
@@ -38,31 +39,31 @@ const ItemRow = memo(function ItemRow({
     entry,
     index,
     selected,
-    onFocus,
     onClick,
     onDoubleClick,
-    refCallback,
+    style
 }: {
     entry: DirEntry;
     index: number;
     selected: boolean;
-    onFocus: (e: React.FocusEvent, i: number) => void;
-    onClick: (e: React.MouseEvent<HTMLDivElement>, entry: DirEntry) => void;
+    onClick: (e: React.MouseEvent<HTMLDivElement>, entry: DirEntry, index: number) => void;
     onDoubleClick: (e: React.MouseEvent<HTMLDivElement>, entry: DirEntry) => void;
-    refCallback: (el: HTMLDivElement | null) => void;
+    style: CSSProperties | undefined
 }) {
     return (
-        <ListItemButton
-            selected={selected}
-            onFocus={(e) => onFocus(e, index)}
-            onClick={(e) => onClick(e, entry)}
-            onDoubleClick={(e) => onDoubleClick(e, entry)}
-            key={entry.name}
-            ref={refCallback}
-        >
-            {entry.is_directory ? <Folder /> : <InsertDriveFile />}
-            <ListItemText primary={entry.name} sx={{ marginLeft: "5px" }} />
-        </ListItemButton>
+        <Tooltip title={entry.name} placement="right-start">
+            <ListItem style={style} key={index} component="div" disablePadding dense>
+                <ListItemButton
+                    selected={selected}
+                    onClick={(e) => onClick(e, entry, index)}
+                    onDoubleClick={(e) => onDoubleClick(e, entry)}
+                    key={entry.name}
+                >
+                    {entry.is_directory ? <Folder /> : <InsertDriveFile />}
+                    <ListItemText primary={entry.name} slotProps={{ primary: { noWrap: true } }} sx={{ marginLeft: "5px" }} />
+                </ListItemButton>
+            </ListItem>
+        </Tooltip>
     );
 });
 
@@ -76,21 +77,25 @@ function FileListViewer() {
 
     const [selectedIndex, setSelectedIndex] = useState(-1);
 
-    const itemRefs = useRef<Record<number, HTMLDivElement | null>>({});
+    const listRef = useListRef(null);
 
     // 選択している項目が表示されるようにスクロールする
     useEffect(() => {
-        const selectedItemRef = itemRefs.current[selectedIndex];
-        if (selectedItemRef) {
-            selectedItemRef.scrollIntoView({
-                behavior: 'instant',
-                block: 'nearest',
-            });
+        if (entries.length < 1 || selectedIndex === -1) {
+            return;
         }
-    }, [selectedIndex]);
+
+        const list = listRef.current;
+        list?.scrollToRow({
+            align: "smart",
+            behavior: "instant",
+            index: selectedIndex
+        });
+    }, [selectedIndex, entries]);
 
     useEffect(() => {
         dispatch(getEntriesInDir(history[historyIndex]));
+        setSelectedIndex(-1);
     }, [history, historyIndex, dispatch]);
 
     const filteredSortedEntries = useMemo(() => {
@@ -121,17 +126,11 @@ function FileListViewer() {
         return () => { cancelled = true; };
     }, [fileHistory, fileHistoryIndex, filteredSortedEntries]);
 
-    const handleListItemFocused = useCallback(
-        (_e: React.FocusEvent, index: number) => {
-            setSelectedIndex(index);
-        },
-        []
-    );
-
     const handleListItemClicked = useCallback(
-        async (_e: React.MouseEvent<HTMLDivElement>, entry: DirEntry) => {
+        async (_e: React.MouseEvent<HTMLDivElement>, entry: DirEntry, index: number) => {
             const path = await join(history[historyIndex], entry.name);
             dispatch(setContainerFilePath(path));
+            setSelectedIndex(index);
         },
         [dispatch, history, historyIndex]
     );
@@ -147,23 +146,39 @@ function FileListViewer() {
         [dispatch, history, historyIndex]
     );
 
+    const Row = ({
+        index,
+        entries,
+        style
+    }: RowComponentProps<{
+        entries: DirEntry[];
+    }>) => {
+        const entry = entries[index];
+        return (
+            <ItemRow
+                key={entry.name}
+                entry={entry}
+                index={index}
+                selected={selectedIndex === index}
+                onClick={handleListItemClicked}
+                onDoubleClick={handleListItemDoubleClicked}
+                style={style}
+            />
+        );
+    }
+
     return (
         <Stack sx={{ width: "100%", height: "100%", display: 'grid', alignContent: 'start' }}>
             <NavBar />
-            <List className="file_list" component="nav" dense={true} disablePadding={true}>
-                {filteredSortedEntries.map((entry, index) =>
-                    <ItemRow
-                        key={entry.name}
-                        entry={entry}
-                        index={index}
-                        selected={selectedIndex === index}
-                        onFocus={handleListItemFocused}
-                        onClick={handleListItemClicked}
-                        onDoubleClick={handleListItemDoubleClicked}
-                        refCallback={(el: HTMLDivElement | null) => { itemRefs.current[index] = el; }}
-                    />
-                )}
-            </List>
+            <List
+                className="file_list"
+                rowComponent={Row}
+                rowCount={filteredSortedEntries.length}
+                rowHeight={36}
+                rowProps={{ entries: filteredSortedEntries }}
+                overscanCount={5}
+                listRef={listRef}
+            />
         </Stack >
     );
 }

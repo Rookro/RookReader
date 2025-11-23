@@ -7,6 +7,17 @@
 
 ## [Unreleased]
 
+## [1.5.1] - 2025-11-23
+
+### Changed
+
+* 左ペインのリスト内のアイテム数が多い場合の描画パフォーマンスを向上 (#53)
+
+## Fixed
+
+* ダークモード時に左ペインのリストでホバー中のアイテムの色が見にくいのを改善 (#53)
+* ディレクトリーや書庫ファイル変更時にエラーが発生する場合がある不具合を修正 (#54)
+
 ## [1.5.0] - 2025-11-22
 
 ### Added
@@ -112,7 +123,8 @@
 * 自動見開き表示機能の追加 (#4)
 * ホイールの上下によるページ送り機能を追加 (#5)
 
-[unreleased]: https://github.com/Rookro/RookReader/compare/v1.5.0...HEAD
+[unreleased]: https://github.com/Rookro/RookReader/compare/v1.5.1...HEAD
+[1.5.1]: https://github.com/Rookro/RookReader/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/Rookro/RookReader/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/Rookro/RookReader/compare/v1.3.4...v1.4.0
 [1.3.4]: https://github.com/Rookro/RookReader/compare/v1.3.3...v1.3.4
