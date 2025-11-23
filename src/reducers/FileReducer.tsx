@@ -71,6 +71,7 @@ export const fileSlice = createSlice({
             }
             state.containerFile.history.push(action.payload);
             state.containerFile.historyIndex = state.containerFile.history.length - 1;
+            state.containerFile.index = 0;
         },
         setImageIndex: (state, action: PayloadAction<number>) => {
             debug(`setImageIndex(${action.payload}).`);
