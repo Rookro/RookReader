@@ -128,13 +128,7 @@ impl ZipContainer {
 
         let entries: Vec<String> = archive
             .file_names()
-            .filter(|name| {
-                name.ends_with(".png")
-                    || name.ends_with(".jpg")
-                    || name.ends_with(".jpeg")
-                    || name.ends_with(".webp")
-                    || name.ends_with(".avif")
-            })
+            .filter(|name| Image::is_supported_format(name))
             .map(|s| s.to_string())
             .collect();
 
