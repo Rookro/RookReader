@@ -190,6 +190,8 @@ impl RarContainer {
             }
         }
 
+        entries.sort_by(|a, b| natord::compare_ignore_case(a, b));
+
         Ok(Self {
             path: path.clone(),
             entries: entries,
