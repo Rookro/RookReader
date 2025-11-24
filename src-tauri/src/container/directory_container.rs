@@ -96,7 +96,7 @@ impl DirectoryContainer {
             }
         }
 
-        entries.sort();
+        entries.sort_by(|a, b| natord::compare_ignore_case(a, b));
 
         Ok(Self {
             path: path.clone(),
