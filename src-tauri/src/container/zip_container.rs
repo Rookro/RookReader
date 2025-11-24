@@ -126,11 +126,13 @@ impl ZipContainer {
             entry: None,
         })?;
 
-        let entries: Vec<String> = archive
+        let mut entries: Vec<String> = archive
             .file_names()
             .filter(|name| Image::is_supported_format(name))
             .map(|s| s.to_string())
             .collect();
+
+        entries.sort_by(|a, b| natord::compare_ignore_case(a, b));
 
         Ok(Self {
             path: path.clone(),
