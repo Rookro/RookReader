@@ -50,7 +50,8 @@ impl Image {
     pub fn is_supported_format(filename: &str) -> bool {
         let lowercase_name = filename.to_lowercase();
         lowercase_name.ends_with(".apng")
-            || lowercase_name.ends_with(".avif")
+            // image が avif の場合に外部ライブラリーに依存するため非対応とする
+            //|| lowercase_name.ends_with(".avif")
             || lowercase_name.ends_with(".gif")
             || lowercase_name.ends_with(".jpg")
             || lowercase_name.ends_with(".jpeg")
