@@ -1,13 +1,13 @@
 import React, { useEffect, useRef, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { useDispatch } from "react-redux";
+import { Box } from "@mui/material";
+import { invoke } from "@tauri-apps/api/core";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
+import { dirname } from "@tauri-apps/api/path";
 import { debug, error } from '@tauri-apps/plugin-log';
 import { AppDispatch, useSelector } from '../../Store';
 import { openContainerFile, setContainerFilePath, setExploreBasePath, setImageIndex } from "../../reducers/FileReducer";
 import { Image } from "../../types/Image";
-import "./ImageViewer.css";
-import { dirname } from "@tauri-apps/api/path";
 import { settingsStore } from "../../settings/SettingsStore";
 
 /**
@@ -64,7 +64,7 @@ const createImageURL = async (image: Image | undefined) => {
 /**
  * 画像表示用コンポーネント
  */
-function ImageViewer() {
+export default function ImageViewer() {
     const { history, historyIndex, entries, index } = useSelector(state => state.file.containerFile);
     const { isTwoPagedView, direction } = useSelector(state => state.view);
     const dispatch = useDispatch<AppDispatch>();
@@ -310,18 +310,36 @@ function ImageViewer() {
     }
 
     return (
-        <div className="image_viewer" tabIndex={0} onClick={handleClicked} onContextMenu={handleContextMenu} onWheel={handleWheeled} onKeyDown={handleKeydown}>
+        <Box
+            tabIndex={0}
+            onClick={handleClicked}
+            onContextMenu={handleContextMenu}
+            onWheel={handleWheeled}
+            onKeyDown={handleKeydown}
+            sx={{
+                width: '100%',
+                display: 'flex',
+            }}
+        >
             {canTwoPage ?
                 <>
-                    <img className="left" src={direction === "left" ? firstSrc : secondSrc} />
-                    <img className="right" src={direction === "left" ? secondSrc : firstSrc} />
+                    <Box
+                        component="img"
+                        src={direction === "left" ? firstSrc : secondSrc}
+                        sx={{ width: '50%', objectPosition: 'right center', objectFit: 'contain' }}
+                    />
+                    <Box
+                        component="img"
+                        src={direction === "left" ? secondSrc : firstSrc}
+                        sx={{ width: '50%', objectPosition: 'left center', objectFit: 'contain' }}
+                    />
                 </> :
-                <>
-                    <img className="single" src={firstSrc} />
-                </>
+                <Box
+                    component="img"
+                    src={firstSrc}
+                    sx={{ width: '100%', objectPosition: 'center center', objectFit: 'contain' }}
+                />
             }
-        </div>
+        </Box>
     );
 }
-
-export default ImageViewer;

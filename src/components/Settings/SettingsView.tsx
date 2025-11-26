@@ -4,7 +4,6 @@ import GeneralSettings from './GeneralSettings/GeneralSettings';
 import DeveloperSettings from './DeveloperSettings/DeveloperSettings';
 import RenderingSettings from './RenderingSettings/RenderingSettings';
 import TabPanel from '../TabPanel/TabPanel';
-import './SettingsView.css';
 
 /**
  * 設定画面コンポーネント
@@ -18,8 +17,11 @@ export default function SettingsView() {
 
     return (
         <Box
-            className="settings_view"
-            sx={{ flexGrow: 1, bgcolor: 'background.paper' }}
+            sx={{
+                display: 'flex',
+                width: '100%',
+                height: '100%',
+            }}
         >
             <Tabs
                 orientation="vertical"
@@ -33,7 +35,7 @@ export default function SettingsView() {
                 <Tab label="Developer" />
                 <Tab label="Rendering" />
             </Tabs>
-            <Box sx={{ padding: "16px" }}>
+            <Box sx={{ padding: "12px", width: '100%', height: '100%', overflow: 'auto' }}>
                 <TabPanel value={value} index={0}>
                     <GeneralSettings />
                 </TabPanel>

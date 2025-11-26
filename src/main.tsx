@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { createHashRouter, RouterProvider } from "react-router";
 import { Provider } from "react-redux";
+import { error } from "@tauri-apps/plugin-log";
 import { store } from "./Store";
 import App from "./App";
 import SettingsApp from "./SettingsApp";
@@ -14,7 +15,13 @@ const router = createHashRouter([
 // デフォルト動作では右クリックでメニューが開くため、開かないように抑制する
 document.addEventListener('contextmenu', event => event.preventDefault());
 
-ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
+const rootElement = document.getElementById("root");
+if (!rootElement) {
+  error("Failed to find the root element");
+  throw new Error("Failed to find the root element");
+}
+
+ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
     <Provider store={store}>
       <RouterProvider router={router} />

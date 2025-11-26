@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
-import { Typography, Box } from "@mui/material";
+import { Typography, Box, OutlinedInput } from "@mui/material";
 import { error } from "@tauri-apps/plugin-log";
 import { invoke } from "@tauri-apps/api/core";
 import { settingsStore } from "../../../../settings/SettingsStore";
-import "./PdfRenderingSetting.css";
 
 /**
  * PDFレンダリング設定コンポーネント
@@ -31,11 +30,13 @@ export default function PdfRenderingSetting() {
     };
 
     return (
-        <Box className="pdf-rendering-setting" display="flex">
-            <Typography sx={{ paddingRight: "12px" }}>PDF Rendering Height(px)</Typography>
-            <input type="number"
+        <Box display="flex">
+            <Typography alignContent="center" sx={{ paddingRight: "12px" }}>PDF Rendering Height(px)</Typography>
+            <OutlinedInput
+                type="number"
                 value={pdfRenderingHeight}
                 onChange={handlePdfRenderingHeightChange}
+                size="small"
             />
         </Box>
     );

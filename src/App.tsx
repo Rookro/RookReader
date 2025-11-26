@@ -1,36 +1,35 @@
-import { createTheme, Stack, ThemeProvider, useMediaQuery } from "@mui/material";
+import { CssBaseline, Stack, ThemeProvider } from "@mui/material";
 import { Panel, PanelGroup, PanelResizeHandle, } from "react-resizable-panels";
 import ControlSlider from "./components/ControlSlider/ControlSlider";
 import ImageViewer from "./components/ImageViewer/ImageViewer";
 import LeftPane from "./components/LeftPane/LeftPane";
 import NavigationBar from "./components/NavigationBar/NavigationBar";
-import "./App.css";
+import { useAppTheme } from "./hooks/useAppTheme";
 
-function App() {
-
-  const theme = createTheme({
-    palette: {
-      mode: useMediaQuery('(prefers-color-scheme: dark)') ? 'dark' : 'light'
-    }
-  })
+export default function App() {
+  const theme = useAppTheme();
 
   return (
     <ThemeProvider theme={theme}>
-      <Stack className="container">
+      <CssBaseline />
+      <Stack sx={{ width: '100vw', height: '100vh', overflow: 'hidden' }}>
         <NavigationBar />
         <PanelGroup direction="horizontal" autoSaveId="main_panel_group">
-          <Panel className="left_panel" defaultSize={20}>
+          <Panel defaultSize={20}>
             <LeftPane />
           </Panel>
-          <PanelResizeHandle />
-          <Panel className="main_panel">
+          <PanelResizeHandle
+            style={{
+              width: '4px',
+              backgroundColor: theme.palette.divider,
+            }}
+          />
+          <Panel style={{ display: 'flex' }} >
             <ImageViewer />
           </Panel>
         </PanelGroup>
         <ControlSlider />
       </Stack>
-    </ThemeProvider>
+    </ThemeProvider >
   );
-}
-
-export default App;
+};

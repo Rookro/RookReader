@@ -1,21 +1,20 @@
 import React, { useEffect } from "react";
 import { useDispatch } from "react-redux";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
-import { IconButton } from '@mui/material';
+import { IconButton, OutlinedInput, Stack } from '@mui/material';
 import { ArrowBack, ArrowForward, LooksOne, LooksTwo, Settings, SwitchLeft, SwitchRight } from '@mui/icons-material';
-import { AppDispatch, useSelector } from "../../Store";
-import { goBackContainerHistory, goForwardContainerHistory, setContainerFilePath, setExploreBasePath } from "../../reducers/FileReducer";
-import { setDirection, setIsTwoPagedView } from "../../reducers/ViewReducer";
-import "./NavigationBar.css";
 import { dirname } from "@tauri-apps/api/path";
 import { debug, error } from "@tauri-apps/plugin-log";
 import { Direction } from "../../types/DirectionType";
 import { settingsStore } from "../../settings/SettingsStore";
+import { AppDispatch, useSelector } from "../../Store";
+import { goBackContainerHistory, goForwardContainerHistory, setContainerFilePath, setExploreBasePath } from "../../reducers/FileReducer";
+import { setDirection, setIsTwoPagedView } from "../../reducers/ViewReducer";
 
 /**
  * ナビゲーションバーコンポーネント
  */
-function NavigationBar() {
+export default function NavigationBar() {
     const { isTwoPagedView, direction } = useSelector(state => state.view);
     const { history, historyIndex } = useSelector(state => state.file.containerFile);
     const dispatch = useDispatch<AppDispatch>();
@@ -86,10 +85,23 @@ function NavigationBar() {
     }, [dispatch])
 
     return (
-        <div className="navigation_bar">
+        <Stack
+            direction="row"
+            sx={{
+                height: '30px',
+                margin: '4px',
+            }}
+        >
             <IconButton onClick={handleBackClicked} disabled={historyIndex <= 0}><ArrowBack /></IconButton>
             <IconButton onClick={handleForwardClicked} disabled={history.length - historyIndex <= 1}><ArrowForward /></IconButton>
-            <input type="text" value={history[historyIndex]} onChange={handlePathChanged} onContextMenu={handleContextMenu}></input>
+            <OutlinedInput
+                value={history[historyIndex] ?? ''} onChange={handlePathChanged} onContextMenu={handleContextMenu}
+                size="small" fullWidth
+                sx={{
+                    '& .MuiOutlinedInput-input': {
+                        padding: '4px 8px',
+                    },
+                }} />
             <IconButton onClick={handleSwitchTwoPagedClicked}>
                 {isTwoPagedView ? <LooksTwo /> : <LooksOne />}
             </IconButton>
@@ -99,8 +111,6 @@ function NavigationBar() {
             <IconButton onClick={handleSettingsClicked}>
                 <Settings />
             </IconButton>
-        </div>
+        </Stack >
     );
 }
-
-export default NavigationBar;

@@ -1,7 +1,7 @@
 import { CSSProperties, memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { List, RowComponentProps, useListRef } from 'react-window';
-import { ListItem, ListItemButton, ListItemText, Stack, Tooltip } from '@mui/material';
+import { Box, ListItem, ListItemButton, ListItemText, Stack, Tooltip } from '@mui/material';
 import { Folder, InsertDriveFile } from '@mui/icons-material';
 import { basename, join } from '@tauri-apps/api/path';
 import { useSelector, AppDispatch } from '../../Store';
@@ -9,7 +9,6 @@ import { getEntriesInDir, setContainerFilePath, setExploreBasePath, setSearchTex
 import { SortOrder } from '../../types/SortOrderType';
 import { DirEntry } from '../../types/DirEntry';
 import NavBar from './NavBar';
-import "./FileListViewer.css";
 
 /**
  * エントリーのソートを行う
@@ -70,7 +69,7 @@ const ItemRow = memo(function ItemRow({
 /** 
  * ファイルリスト表示コンポネント 
  */
-function FileListViewer() {
+export default function FileListViewer() {
     const { history, historyIndex, entries, searchText, sortOrder } = useSelector(state => state.file.explorer);
     const { history: fileHistory, historyIndex: fileHistoryIndex } = useSelector(state => state.file.containerFile);
     const dispatch = useDispatch<AppDispatch>();
@@ -170,17 +169,16 @@ function FileListViewer() {
     return (
         <Stack sx={{ width: "100%", height: "100%", display: 'grid', alignContent: 'start' }}>
             <NavBar />
-            <List
-                className="file_list"
-                rowComponent={Row}
-                rowCount={filteredSortedEntries.length}
-                rowHeight={36}
-                rowProps={{ entries: filteredSortedEntries }}
-                overscanCount={5}
-                listRef={listRef}
-            />
+            <Box sx={{ height: 'auto', overflow: 'auto' }}>
+                <List
+                    rowComponent={Row}
+                    rowProps={{ entries: filteredSortedEntries }}
+                    rowCount={filteredSortedEntries.length}
+                    rowHeight={36}
+                    overscanCount={5}
+                    listRef={listRef}
+                />
+            </Box>
         </Stack >
     );
 }
-
-export default FileListViewer;

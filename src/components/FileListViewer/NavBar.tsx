@@ -1,13 +1,12 @@
 import React, { useEffect, useRef } from 'react';
 import { useDispatch } from 'react-redux';
 import { dirname, homeDir } from '@tauri-apps/api/path';
-import { ArrowBack, ArrowForward, ArrowUpward, Home, Refresh, Search } from '@mui/icons-material';
-import { Box, IconButton, MenuItem, Select, SelectChangeEvent } from '@mui/material';
+import { ArrowBack, ArrowForward, ArrowUpward, Home, Refresh, Search, } from '@mui/icons-material';
+import { Box, IconButton, InputAdornment, MenuItem, OutlinedInput, Select, SelectChangeEvent, Stack } from '@mui/material';
 import { AppDispatch, useSelector } from '../../Store';
 import { getEntriesInDir, goBackExplorerHistory, goForwardExplorerHistory, setExploreBasePath, setSearchText, setSortOrder } from '../../reducers/FileReducer';
 import { SortOrder } from '../../types/SortOrderType';
 import { settingsStore } from '../../settings/SettingsStore';
-import "./NavBar.css";
 
 /**
  * ファイルリストのナビゲーションバーコンポーネント
@@ -98,18 +97,41 @@ export default function NavBar() {
     }
 
     return (
-        <Box className="file_nav_bar">
-            <Box className='current_dir'>
-                <input value={history[historyIndex] ?? ""} onChange={handleCurrentDirChanged} onContextMenu={handleContextMenu}></input>
-            </Box>
-            <Box className="file_nav_buttons" ref={navButtonsRef}>
+        <Stack >
+            <OutlinedInput
+                value={history[historyIndex] ?? ""}
+                onChange={handleCurrentDirChanged}
+                onContextMenu={handleContextMenu}
+                size="small"
+                fullWidth
+                sx={{
+                    '& .MuiOutlinedInput-input': {
+                        padding: '4px 8px',
+                    },
+                }} />
+            <Box
+                ref={navButtonsRef}
+                sx={{
+                    '& .MuiIconButton-root': {
+                        color: (theme) => theme.palette.primary.main,
+                    },
+                    '& .MuiIconButton-root.Mui-disabled': {
+                        color: (theme) => theme.palette.action.disabled,
+                    },
+                }}
+            >
                 <IconButton onClick={handleHomeClicked}><Home /></IconButton>
                 <IconButton onClick={handleBackClicked} disabled={historyIndex <= 0}><ArrowBack /></IconButton>
                 <IconButton onClick={handleForwardClicked} disabled={history.length - historyIndex <= 1}><ArrowForward /></IconButton>
                 <IconButton onClick={handleParentClicked}><ArrowUpward /></IconButton>
                 <IconButton onClick={handleRefleshClicked}><Refresh /></IconButton>
                 {width >= 310 ?
-                    <Select size="small" value={sortOrder} sx={{ minWidth: "100px" }} onChange={handleSortOrderChanged}>
+                    <Select
+                        size="small"
+                        value={sortOrder}
+                        sx={{ minWidth: "100px" }}
+                        onChange={handleSortOrderChanged}
+                    >
                         <MenuItem value={"NAME_ASC"}>Name↑</MenuItem>
                         <MenuItem value={"NAME_DESC"}>Name↓</MenuItem>
                         <MenuItem value={"DATE_ASC"}>Date↑</MenuItem>
@@ -117,10 +139,24 @@ export default function NavBar() {
                     </Select>
                     : <></>}
             </Box>
-            <Box className="file_search_bar">
-                <Search />
-                <input type='search' value={searchText} onChange={handleSearchTextChanged} onContextMenu={handleContextMenu}></input>
-            </Box>
-        </Box >
+            <OutlinedInput
+                type='search'
+                value={searchText}
+                onChange={handleSearchTextChanged}
+                onContextMenu={handleContextMenu}
+                size="small" fullWidth
+                sx={{
+                    paddingLeft: '4px',
+                    '& .MuiOutlinedInput-input': {
+                        padding: '4px 8px 4px 4px',
+                    },
+                }}
+                startAdornment={
+                    <InputAdornment position="start" sx={{ marginRight: '0px' }}>
+                        <Search />
+                    </InputAdornment>
+                }
+            />
+        </Stack >
     );
 }
