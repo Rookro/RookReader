@@ -1,10 +1,9 @@
 import { CSSProperties, memo, useCallback, useEffect, useMemo, useState } from 'react';
-import { useDispatch } from 'react-redux';
 import { List, RowComponentProps, useListRef } from 'react-window';
 import { Box, ListItem, ListItemButton, ListItemText, Stack, Tooltip } from '@mui/material';
 import { Folder, InsertDriveFile } from '@mui/icons-material';
 import { basename, join } from '@tauri-apps/api/path';
-import { useSelector, AppDispatch } from '../../Store';
+import { useSelector, useAppDispatch } from '../../Store';
 import { getEntriesInDir, setContainerFilePath, setExploreBasePath, setSearchText } from '../../reducers/FileReducer';
 import { SortOrder } from '../../types/SortOrderType';
 import { DirEntry } from '../../types/DirEntry';
@@ -72,7 +71,7 @@ const ItemRow = memo(function ItemRow({
 export default function FileListViewer() {
     const { history, historyIndex, entries, searchText, sortOrder } = useSelector(state => state.file.explorer);
     const { history: fileHistory, historyIndex: fileHistoryIndex } = useSelector(state => state.file.containerFile);
-    const dispatch = useDispatch<AppDispatch>();
+    const dispatch = useAppDispatch();
 
     const [selectedIndex, setSelectedIndex] = useState(-1);
 

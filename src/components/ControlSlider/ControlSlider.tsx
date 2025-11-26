@@ -1,5 +1,4 @@
 import { useMemo } from "react";
-import { useDispatch } from 'react-redux';
 import { prefixer } from 'stylis';
 import { Box, Slider, Stack, Typography } from '@mui/material';
 import { createTheme, Theme, ThemeProvider } from '@mui/material/styles';
@@ -7,7 +6,7 @@ import rtlPlugin from '@mui/stylis-plugin-rtl';
 import { CacheProvider } from "@emotion/react";
 import createCache from '@emotion/cache';
 import { useAppTheme } from "../../hooks/useAppTheme";
-import { AppDispatch, useSelector } from '../../Store';
+import { useAppDispatch, useSelector } from '../../Store';
 import { setImageIndex } from '../../reducers/FileReducer';
 
 /**
@@ -16,7 +15,7 @@ import { setImageIndex } from '../../reducers/FileReducer';
 export default function ControlSlider() {
     const { entries, index } = useSelector(state => state.file.containerFile);
     const { direction } = useSelector(state => state.view);
-    const dispatch = useDispatch<AppDispatch>();
+    const dispatch = useAppDispatch();
     const appTheme = useAppTheme();
 
     const cache = useMemo(() => {

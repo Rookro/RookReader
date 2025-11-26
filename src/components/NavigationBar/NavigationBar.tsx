@@ -1,5 +1,4 @@
 import React, { useEffect } from "react";
-import { useDispatch } from "react-redux";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { IconButton, OutlinedInput, Stack } from '@mui/material';
 import { ArrowBack, ArrowForward, LooksOne, LooksTwo, Settings, SwitchLeft, SwitchRight } from '@mui/icons-material';
@@ -7,7 +6,7 @@ import { dirname } from "@tauri-apps/api/path";
 import { debug, error } from "@tauri-apps/plugin-log";
 import { Direction } from "../../types/DirectionType";
 import { settingsStore } from "../../settings/SettingsStore";
-import { AppDispatch, useSelector } from "../../Store";
+import { useAppDispatch, useSelector } from "../../Store";
 import { goBackContainerHistory, goForwardContainerHistory, setContainerFilePath, setExploreBasePath } from "../../reducers/FileReducer";
 import { setDirection, setIsTwoPagedView } from "../../reducers/ViewReducer";
 
@@ -17,7 +16,7 @@ import { setDirection, setIsTwoPagedView } from "../../reducers/ViewReducer";
 export default function NavigationBar() {
     const { isTwoPagedView, direction } = useSelector(state => state.view);
     const { history, historyIndex } = useSelector(state => state.file.containerFile);
-    const dispatch = useDispatch<AppDispatch>();
+    const dispatch = useAppDispatch();
 
     const handlePathChanged = async (e: React.ChangeEvent<HTMLInputElement>) => {
         dispatch(setContainerFilePath(e.target.value));
