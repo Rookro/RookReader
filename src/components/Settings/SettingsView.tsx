@@ -21,6 +21,7 @@ export default function SettingsView() {
                 display: 'flex',
                 width: '100%',
                 height: '100%',
+                padding: '0px 4px 4px 4px'
             }}
         >
             <Tabs
@@ -35,7 +36,7 @@ export default function SettingsView() {
                 <Tab label="Developer" />
                 <Tab label="Rendering" />
             </Tabs>
-            <Box sx={{ padding: "12px", width: '100%', height: '100%', overflow: 'auto' }}>
+            <Box sx={{ padding: "12px", width: '100%', height: '100%', overflow: 'auto', bgcolor: (theme) => theme.palette.background.default }}>
                 <TabPanel value={value} index={0}>
                     <GeneralSettings />
                 </TabPanel>

@@ -10,9 +10,9 @@ function SettingsApp() {
             <CssBaseline />
             <Box
                 sx={{
-                    width: 'calc(100vw - 8px)',
-                    height: 'calc(100vh - 8px)',
-                    margin: '4px',
+                    width: '100vw - 8px',
+                    height: '100vh',
+                    bgcolor: (theme) => theme.palette.background.paper
                 }}
             >
                 <SettingsView />

@@ -167,7 +167,14 @@ export default function FileListViewer() {
     }
 
     return (
-        <Stack sx={{ width: "100%", height: "100%", display: 'grid', alignContent: 'start' }}>
+        <Stack
+            sx={{
+                width: "100%",
+                height: "100%",
+                display: 'grid',
+                alignContent: 'start',
+            }}
+        >
             <NavBar />
             <Box sx={{ height: 'auto', overflow: 'auto' }}>
                 <List
@@ -179,6 +186,6 @@ export default function FileListViewer() {
                     listRef={listRef}
                 />
             </Box>
-        </Stack >
+        </Stack>
     );
 }

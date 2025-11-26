@@ -12,7 +12,7 @@ export default function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Stack sx={{ width: '100vw', height: '100vh', overflow: 'hidden' }}>
+      <Stack sx={{ width: '100vw', height: '100vh', overflow: 'hidden', bgcolor: (theme) => theme.palette.background.paper }}>
         <NavigationBar />
         <PanelGroup direction="horizontal" autoSaveId="main_panel_group">
           <Panel defaultSize={20}>
@@ -20,11 +20,11 @@ export default function App() {
           </Panel>
           <PanelResizeHandle
             style={{
-              width: '4px',
+              width: '2px',
               backgroundColor: theme.palette.divider,
             }}
           />
-          <Panel style={{ display: 'flex' }} >
+          <Panel style={{ display: 'flex', background: theme.palette.background.default }}>
             <ImageViewer />
           </Panel>
         </PanelGroup>

@@ -44,7 +44,7 @@ export default function ControlSlider() {
             sx={{
                 justifyContent: "center",
                 alignItems: "center",
-                margin: "2px 2px 2px 20px"
+                margin: "2px 2px 2px 20px",
             }}>
             <CacheProvider value={cache}>
                 <ThemeProvider theme={theme}>

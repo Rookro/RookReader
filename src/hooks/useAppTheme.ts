@@ -6,7 +6,10 @@ export function useAppTheme() {
 
     const theme = useMemo(() => createTheme({
         palette: {
-            mode: prefersDarkMode ? 'dark' : 'light'
+            mode: prefersDarkMode ? 'dark' : 'light',
+            background: {
+                paper: prefersDarkMode ? '#2f2f2f' : '#f6f6f6',
+            },
         },
         components: {
             MuiCssBaseline: {
@@ -14,6 +17,7 @@ export function useAppTheme() {
                     body: {
                         margin: 0,
                         overflow: 'hidden',
+                        userSelect: 'none',
                         fontFamily: '"Noto Sans CJK JP", "Noto Sans JP"',
                         fontSize: '1em',
                         lineHeight: 1.5,

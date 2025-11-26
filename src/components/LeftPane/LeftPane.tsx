@@ -1,5 +1,5 @@
 import React, { lazy, useState } from "react";
-import { Stack, Tab, Tabs } from "@mui/material";
+import { Box, Stack, Tab, Tabs } from "@mui/material";
 import { PhotoLibrary, ViewList } from "@mui/icons-material";
 import TabPanel from "../TabPanel/TabPanel";
 
@@ -21,7 +21,6 @@ export default function LeftPane() {
             direction="row"
             sx={{
                 height: '100%',
-                backgroundColor: 'background.paper',
             }}
         >
             <Tabs
@@ -30,24 +29,25 @@ export default function LeftPane() {
                 onChange={handleChange}
                 aria-label="sidebar-tabs"
                 sx={{
-                    borderRight: 2,
                     borderColor: 'divider',
                     minWidth: '40px',
                     width: '40px',
                     '& .MuiTab-root': {
                         minWidth: '40px',
-                    }
+                    },
                 }}
             >
                 <Tab icon={<ViewList />} aria-label="library" />
                 <Tab icon={<PhotoLibrary />} aria-label="image" />
             </Tabs>
-            <TabPanel value={value} index={0}>
-                <FileListViewer />
-            </TabPanel>
-            <TabPanel value={value} index={1}>
-                <ImageEntriesViewer />
-            </TabPanel>
+            <Box sx={{ width: '100%', height: '100%', padding: '2px', bgcolor: (theme) => theme.palette.background.default }}>
+                <TabPanel value={value} index={0} sx={{ width: '100%', height: '100%' }}>
+                    <FileListViewer />
+                </TabPanel>
+                <TabPanel value={value} index={1} sx={{ width: '100%', height: '100%' }}>
+                    <ImageEntriesViewer />
+                </TabPanel>
+            </Box>
         </Stack>
     );
 }

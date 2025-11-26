@@ -98,6 +98,7 @@ export default function NavigationBar() {
                 value={history[historyIndex] ?? ''} onChange={handlePathChanged} onContextMenu={handleContextMenu}
                 size="small" fullWidth
                 sx={{
+                    bgcolor: (theme) => theme.palette.background.default,
                     '& .MuiOutlinedInput-input': {
                         padding: '4px 8px',
                     },
