@@ -1,11 +1,12 @@
-import React from "react";
+import React, { lazy } from "react";
 import ReactDOM from "react-dom/client";
 import { createHashRouter, RouterProvider } from "react-router";
 import { Provider } from "react-redux";
 import { error } from "@tauri-apps/plugin-log";
 import { store } from "./Store";
-import App from "./App";
-import SettingsApp from "./SettingsApp";
+
+const App = lazy(() => import("./App"));
+const SettingsApp = lazy(() => import("./SettingsApp"));
 
 const router = createHashRouter([
   { path: "/", element: <App /> },

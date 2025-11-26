@@ -1,9 +1,10 @@
-import React, { useState } from "react";
+import React, { lazy, useState } from "react";
 import { Stack, Tab, Tabs } from "@mui/material";
 import { PhotoLibrary, ViewList } from "@mui/icons-material";
-import FileListViewer from "../FileListViewer/FileListViewer";
 import TabPanel from "../TabPanel/TabPanel";
-import ImageEntriesViewer from "../ImageEntriesViewer/ImageEntriesViewer";
+
+const FileListViewer = lazy(() => import("../FileListViewer/FileListViewer"));
+const ImageEntriesViewer = lazy(() => import("../ImageEntriesViewer/ImageEntriesViewer"));
 
 /**
  * 左ペイン
