@@ -7,7 +7,7 @@ import { useSelector, AppDispatch } from '../../Store';
 import { setImageIndex } from '../../reducers/FileReducer';
 
 /**
- * 画像エントリーの行コンポーネント
+ * Row component for an image entry.
  */
 const ItemRow = memo(function ItemRow({
     entry,
@@ -44,7 +44,7 @@ const ItemRow = memo(function ItemRow({
 });
 
 /** 
- * ファイルリスト表示コンポネント 
+ * Component to display a list of image entries.
  */
 export default function ImageEntriesViewer() {
     const { entries, index } = useSelector(state => state.file.containerFile);
@@ -58,7 +58,7 @@ export default function ImageEntriesViewer() {
         setSelectedIndex(index);
     }, [index]);
 
-    // 選択している項目が表示されるようにスクロールする
+    // Scroll to make the selected item visible.
     useEffect(() => {
         if (entries.length < 1 || selectedIndex === -1) {
             return;

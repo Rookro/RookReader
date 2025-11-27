@@ -7,7 +7,7 @@ const FileListViewer = lazy(() => import("../FileListViewer/FileListViewer"));
 const ImageEntriesViewer = lazy(() => import("../ImageEntriesViewer/ImageEntriesViewer"));
 
 /**
- * 左ペイン
+ * Left pane component.
  */
 export default function LeftPane() {
     const [value, setValue] = useState(0);

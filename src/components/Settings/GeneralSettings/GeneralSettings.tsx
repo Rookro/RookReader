@@ -2,9 +2,9 @@ import { Box, Typography } from "@mui/material";
 import ThemeSetting from "./Items/ThemeSetting"
 
 /**
- * 開発者設定画面コンポーネント
+ * General settings component.
  */
-export default function DeveloperSettings() {
+export default function GeneralSettings() {
     return (
         <Box>
             <Typography variant="h5">General</Typography>

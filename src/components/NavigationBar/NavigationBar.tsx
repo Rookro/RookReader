@@ -11,7 +11,7 @@ import { goBackContainerHistory, goForwardContainerHistory, setContainerFilePath
 import { setDirection, setIsTwoPagedView } from "../../reducers/ViewReducer";
 
 /**
- * ナビゲーションバーコンポーネント
+ * Navigation bar component.
  */
 export default function NavigationBar() {
     const { isTwoPagedView, direction } = useSelector(state => state.view);
@@ -29,12 +29,12 @@ export default function NavigationBar() {
     }
 
     const handleSwitchDirectionClicked = (_e: React.MouseEvent<HTMLButtonElement>) => {
-        if (direction === "right") {
+        if (direction === "rtl") {
             settingsStore.set("direction", "left");
-            dispatch(setDirection("left"));
+            dispatch(setDirection("ltr"));
         } else {
             settingsStore.set("direction", "right");
-            dispatch(setDirection("right"));
+            dispatch(setDirection("rtl"));
         }
     }
 
@@ -106,7 +106,7 @@ export default function NavigationBar() {
                 {isTwoPagedView ? <LooksTwo /> : <LooksOne />}
             </IconButton>
             <IconButton onClick={handleSwitchDirectionClicked}>
-                {direction === "right" ? <SwitchRight /> : <SwitchLeft />}
+                {direction === "rtl" ? <SwitchRight /> : <SwitchLeft />}
             </IconButton>
             <IconButton onClick={handleSettingsClicked}>
                 <Settings />

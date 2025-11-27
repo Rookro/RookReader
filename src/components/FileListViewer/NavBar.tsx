@@ -9,7 +9,7 @@ import { SortOrder } from '../../types/SortOrderType';
 import { settingsStore } from '../../settings/SettingsStore';
 
 /**
- * ファイルリストのナビゲーションバーコンポーネント
+ * Navigation bar component for File list viewer component.
  */
 export default function NavBar() {
     const { history, historyIndex, searchText, sortOrder } = useSelector(state => state.file.explorer);

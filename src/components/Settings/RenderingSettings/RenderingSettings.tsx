@@ -2,7 +2,7 @@ import { Typography, Box } from "@mui/material";
 import PdfRenderingSetting from "./Items/PdfRenderingSetting";
 
 /**
- * レンダリング設定コンポーネント
+ * Rendering settings component.
  */
 export default function RenderingSettings() {
     return (

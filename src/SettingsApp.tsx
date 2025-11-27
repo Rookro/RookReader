@@ -2,7 +2,7 @@ import { Box, CssBaseline, ThemeProvider } from "@mui/material";
 import SettingsView from "./components/Settings/SettingsView";
 import { useAppTheme } from "./hooks/useAppTheme";
 
-function SettingsApp() {
+export default function SettingsApp() {
     const theme = useAppTheme();
 
     return (
@@ -21,5 +21,3 @@ function SettingsApp() {
         </ThemeProvider>
     );
 }
-
-export default SettingsApp;

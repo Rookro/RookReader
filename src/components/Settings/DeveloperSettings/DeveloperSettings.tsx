@@ -2,7 +2,7 @@ import { Box, Typography } from "@mui/material";
 import LogSetting from "./Items/LogSetting";
 
 /**
- * 開発者設定画面コンポーネント
+ * Developer settings component.
  */
 export default function DeveloperSettings() {
     return (

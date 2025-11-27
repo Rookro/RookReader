@@ -13,7 +13,7 @@ const router = createHashRouter([
   { path: "/settings", element: <SettingsApp /> },
 ]);
 
-// デフォルト動作では右クリックでメニューが開くため、開かないように抑制する
+// Prevent the default behavior of opening a context menu on right-click.
 document.addEventListener('contextmenu', event => event.preventDefault());
 
 const rootElement = document.getElementById("root");

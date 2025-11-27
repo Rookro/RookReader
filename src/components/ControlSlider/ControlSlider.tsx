@@ -10,7 +10,7 @@ import { useAppDispatch, useSelector } from '../../Store';
 import { setImageIndex } from '../../reducers/FileReducer';
 
 /**
- * スライダー
+ * Control Slider Component
  */
 export default function ControlSlider() {
     const { entries, index } = useSelector(state => state.file.containerFile);
@@ -19,7 +19,7 @@ export default function ControlSlider() {
     const appTheme = useAppTheme();
 
     const cache = useMemo(() => {
-        const isRtl = direction !== "left";
+        const isRtl = direction === "rtl";
         return createCache({
             key: isRtl ? 'muirtl' : 'muiltr',
             stylisPlugins: isRtl ? [prefixer, rtlPlugin] : [prefixer],
@@ -27,7 +27,7 @@ export default function ControlSlider() {
     }, [direction]);
 
     const theme = useMemo(() => {
-        const isRtl = direction !== "left";
+        const isRtl = direction === "rtl";
         return createTheme(appTheme, {
             direction: isRtl ? 'rtl' : 'ltr',
         } as Theme);

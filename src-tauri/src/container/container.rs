@@ -7,21 +7,21 @@ use std::{
 use image::ImageReader;
 use serde::{Deserialize, Serialize};
 
-/// 画像データ
+/// Image data
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Image {
-    /// 画像のバイナリーデータ
+    /// Binary data of the image
     pub data: Vec<u8>,
-    /// 画像の横幅
+    /// Width of the image
     pub width: u32,
-    /// 画像の縦幅
+    /// Height of the image
     pub height: u32,
 }
 
 impl Image {
-    /// 画像のバイナリーデータから Image インスタンスを生成する
-    ////
-    /// * `data` - 画像のバイナリーデータ
+    /// Creates an Image instance from binary image data.
+    ///
+    /// * `data` - The binary data of the image.
     pub fn new(data: Vec<u8>) -> Result<Self, String> {
         let cursor = Cursor::new(&data);
         let image_reader = ImageReader::new(cursor)
@@ -41,12 +41,12 @@ impl Image {
         }
     }
 
-    /// 対応している画像形式の拡張子か
+    /// Checks if the file extention is the supported image format.
     ///
-    /// 対応している画像形式は、[mdn での <img> の対応形式](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/img#supported_image_formats)。
-    /// なお、判定は大文字と小文字を区別しない。
+    /// Supported image formats are based on [MDN's <img> supported image formats](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/img#supported_image_formats).
+    /// This method is case-insensitive.
     ///
-    /// * `filename` - ファイル名
+    /// * `filename` - The filename.
     pub fn is_supported_format(filename: &str) -> bool {
         let lowercase_name = filename.to_lowercase();
         lowercase_name.ends_with(".apng")
@@ -64,36 +64,36 @@ impl Image {
     }
 }
 
-/// 書庫コンテナー
+/// Archive container
 pub trait Container: Send + Sync + 'static {
-    /// コンテナーに含まれるエントリーのリストを取得する
+    /// Retrieves a list of entries contained within the container.
     fn get_entries(&self) -> &Vec<String>;
 
-    /// 画像をキャッシュから取得する
+    /// Retrieves an image from the cache.
     ///
-    /// キャッシュに画像がある場合は Arc<Image> を返す
+    /// Returns `Arc<Image>` if the image is in the cache.
     ///
-    /// * `entry` - 取得する画像のエントリー名
+    /// * `entry` - The entry name of the image to retrieve.
     fn get_image_from_cache(&self, entry: &String) -> Result<Option<Arc<Image>>, ContainerError>;
 
-    /// 画像をファイルから取得する
+    /// Retrieves an image from the file.
     ///
-    /// * `entry` - 取得する画像のエントリー名
+    /// * `entry` - The entry name of the image to retrieve.
     fn get_image(&mut self, entry: &String) -> Result<Arc<Image>, ContainerError>;
 
-    /// 指定されたインデックスから指定数分の画像をキャッシュに事前ロードする
+    /// Preloads a specified number of images into the cache starting from a given index.
     ///
-    /// * `begin_index` - 開始インデックス
-    /// * `count` - 読み込み数
+    /// * `begin_index` - The starting index.
+    /// * `count` - The number of images to load.
     fn preload(&mut self, begin_index: usize, count: usize) -> Result<(), ContainerError>;
 }
 
 impl dyn Container {
-    /// 対応している書庫形式の拡張子か
+    /// Checks if the file extention is the supported archive format.
     ///
-    /// なお、判定は大文字と小文字を区別しない。
+    /// The check is case-insensitive.
     ///
-    /// * `filename` - ファイル名
+    /// * `filename` - The filename.
     pub fn is_supported_format(filename: &str) -> bool {
         let lowercase_name = filename.to_lowercase();
         lowercase_name.ends_with(".pdf")
@@ -102,13 +102,13 @@ impl dyn Container {
     }
 }
 
-/// 書庫コンテナーのエラー情報
+/// Error information for the archive container.
 pub struct ContainerError {
-    /// エラーメッセージ
+    /// Error message
     pub message: String,
-    /// エラー発生時のパス
+    /// Path where the error occurred
     pub path: Option<String>,
-    /// エラー発生時のエントリー
+    /// Entry where the error occurred
     pub entry: Option<String>,
 }
 

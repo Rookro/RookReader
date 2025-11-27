@@ -5,7 +5,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { settingsStore } from "../../../../settings/SettingsStore";
 
 /**
- * PDFレンダリング設定コンポーネント
+ * PDF rendering setting component.
  */
 export default function PdfRenderingSetting() {
     const [pdfRenderingHeight, setPdfRenderingHeight] = useState<number>(2000);

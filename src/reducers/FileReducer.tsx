@@ -4,6 +4,9 @@ import { debug, error } from '@tauri-apps/plugin-log';
 import { DirEntry } from "../types/DirEntry";
 import { SortOrder } from "../types/SortOrderType";
 
+/**
+ * Opens a container file.
+ */
 export const openContainerFile = createAsyncThunk(
     "file/openContainerFile",
     async (path: string) => {
@@ -22,7 +25,7 @@ export const openContainerFile = createAsyncThunk(
 );
 
 /**
- * ディレクトリーのファイルエントリーを取得する
+ * Gets file entries in a directory.
  */
 export const getEntriesInDir = createAsyncThunk(
     "file/getEntriesInDir",

@@ -7,7 +7,7 @@ import { settingsStore } from "../../../../settings/SettingsStore";
 import { LogSettings } from "../../../../types/LogSettingsType";
 
 /**
- * ログ設定コンポーネント
+ * Log setting component.
  */
 export default function LogSetting() {
     const [logDir, setLogDir] = useState<string>("");

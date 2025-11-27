@@ -8,13 +8,13 @@ use std::{
 
 use crate::container::container::{Container, ContainerError, Image};
 
-/// ディレクトリー書庫コンテナー
+/// A container for directories.
 pub struct DirectoryContainer {
-    /// コンテナーのファイルパス
+    /// The directory path.
     path: String,
-    /// コンテナー内のエントリー
+    /// The entries in the directory.
     entries: Vec<String>,
-    /// 画像データのキャッシュ (キー: ページインデックス, 値: 画像バイナリ)
+    /// The image cache.(key: entry name, value: image)
     cache: HashMap<String, Arc<Image>>,
 }
 
@@ -24,7 +24,7 @@ impl Container for DirectoryContainer {
     }
 
     fn get_image(&mut self, entry: &String) -> Result<Arc<Image>, ContainerError> {
-        // まずはキャッシュから取得する
+        // Try to get from the cache.
         if let Some(image_arc) = self.get_image_from_cache(entry)? {
             return Ok(Arc::clone(&image_arc));
         }
@@ -38,7 +38,7 @@ impl Container for DirectoryContainer {
         let end = (begin_index + count).min(total_pages);
 
         for i in begin_index..end {
-            // すでにキャッシュにあればスキップ
+            // If it's already in the cache, skip it.
             let entry = self.entries[i].clone();
             if self.cache.contains_key(&entry) {
                 log::debug!("Hit cache so skip preload index: {}", i);
@@ -56,9 +56,9 @@ impl Container for DirectoryContainer {
 }
 
 impl DirectoryContainer {
-    /// 指定されたパスからディレクトリー書庫コンテナーを生成する
+    /// Creates a new DirectoryContainer.
     ///
-    /// * `path` - 書庫コンテナーのパス
+    /// * `path` - The directory path.
     pub fn new(path: &String) -> Result<Self, ContainerError> {
         let dir_entries = read_dir(path).map_err(|e| ContainerError {
             message: e.to_string(),
@@ -105,9 +105,9 @@ impl DirectoryContainer {
         })
     }
 
-    /// 指定されたエントリー名から画像を読み込む
+    /// Loads an image from the specified entry name.
     ///
-    /// * `entry` - 取得する画像のエントリー名
+    /// * `entry` - The entry name of the image to get.
     fn load_image(&mut self, entry: &String) -> Result<Arc<Image>, ContainerError> {
         let file_path = path::Path::new(&self.path).join(entry);
         let mut buffer = Vec::new();

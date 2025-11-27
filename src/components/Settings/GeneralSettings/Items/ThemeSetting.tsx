@@ -5,7 +5,7 @@ import { Theme } from "@tauri-apps/api/window";
 import { settingsStore } from "../../../../settings/SettingsStore";
 
 /** 
- * テーマ名と Tauri のテーマ設定値のマッピング
+ * Mapping from theme names to Tauri's theme setting values.
  */
 const toTauriTheme = new Map<string, Theme | undefined>([
     ["system", undefined],
@@ -14,7 +14,7 @@ const toTauriTheme = new Map<string, Theme | undefined>([
 ]);
 
 /**
- * テーマ設定コンポーネント
+ * Theme setting component.
  */
 export default function ThemeSetting() {
     const [theme, setTheme] = useState("system");

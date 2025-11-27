@@ -10,12 +10,12 @@ import { DirEntry } from '../../types/DirEntry';
 import NavBar from './NavBar';
 
 /**
- * エントリーのソートを行う
+ * Sorts directory entries.
  * 
- * @param a - 比較するエントリー1
- * @param b - 比較するエントリー2
- * @param sortOrder - ソート順序
- * @returns ソート結果
+ * @param a - The first entry to compare.
+ * @param b - The second entry to compare.
+ * @param sortOrder - The sort order.
+ * @returns Sorted directory entries.
  */
 const sortBy = (a: DirEntry, b: DirEntry, sortOrder: SortOrder) => {
     switch (sortOrder) {
@@ -31,7 +31,7 @@ const sortBy = (a: DirEntry, b: DirEntry, sortOrder: SortOrder) => {
 }
 
 /**
- * ファイルリストの行コンポーネント
+ * Row component for the file list.
  */
 const ItemRow = memo(function ItemRow({
     entry,
@@ -66,7 +66,7 @@ const ItemRow = memo(function ItemRow({
 });
 
 /** 
- * ファイルリスト表示コンポネント 
+ * File list viewer component.
  */
 export default function FileListViewer() {
     const { history, historyIndex, entries, searchText, sortOrder } = useSelector(state => state.file.explorer);
@@ -77,7 +77,7 @@ export default function FileListViewer() {
 
     const listRef = useListRef(null);
 
-    // 選択している項目が表示されるようにスクロールする
+    // Scroll to make the selected item visible
     useEffect(() => {
         if (entries.length < 1 || selectedIndex === -1) {
             return;

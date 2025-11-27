@@ -1,7 +1,7 @@
 import { Box, SxProps } from "@mui/material";
 
 /**
- * タブパネルコンポーネントのプロパティ
+  * Properties for the TabPanel component.
  */
 interface TabPanelProps {
     children?: React.ReactNode;
@@ -11,7 +11,7 @@ interface TabPanelProps {
 }
 
 /**
- * タブパネルコンポーネント
+ * Tab panel component.
  */
 export default function TabPanel(props: TabPanelProps) {
     const { children, value, index, sx, ...other } = props;
@@ -19,7 +19,7 @@ export default function TabPanel(props: TabPanelProps) {
     return value === index && (
         <Box
             hidden={value !== index}
-            sx={sx}
+            a sx={sx}
             {...other}
         >
             {children}

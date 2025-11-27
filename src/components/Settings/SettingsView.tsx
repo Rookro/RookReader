@@ -6,7 +6,7 @@ import RenderingSettings from './RenderingSettings/RenderingSettings';
 import TabPanel from '../TabPanel/TabPanel';
 
 /**
- * 設定画面コンポーネント
+ * Settings page component.
  */
 export default function SettingsView() {
     const [value, setValue] = React.useState(0);
