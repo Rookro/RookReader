@@ -10,7 +10,7 @@ export default function SettingsApp() {
             <CssBaseline />
             <Box
                 sx={{
-                    width: '100vw - 8px',
+                    width: '100vw',
                     height: '100vh',
                     bgcolor: (theme) => theme.palette.background.paper
                 }}
