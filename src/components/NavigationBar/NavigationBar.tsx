@@ -30,10 +30,10 @@ export default function NavigationBar() {
 
     const handleSwitchDirectionClicked = (_e: React.MouseEvent<HTMLButtonElement>) => {
         if (direction === "rtl") {
-            settingsStore.set("direction", "left");
+            settingsStore.set("direction", "ltr");
             dispatch(setDirection("ltr"));
         } else {
-            settingsStore.set("direction", "right");
+            settingsStore.set("direction", "rtl");
             dispatch(setDirection("rtl"));
         }
     }
