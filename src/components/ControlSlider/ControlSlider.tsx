@@ -52,6 +52,7 @@ export default function ControlSlider() {
                         width: 'auto',
                         minWidth: '5em',
                         marginLeft: '10px',
+                        marginRight: '10px',
                     }}>
                         <Typography align='right'>{entries.length === 0 ? 0 : index + 1}/{entries.length}</Typography>
                     </Box>
