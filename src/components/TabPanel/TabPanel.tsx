@@ -19,7 +19,7 @@ export default function TabPanel(props: TabPanelProps) {
     return value === index && (
         <Box
             hidden={value !== index}
-            a sx={sx}
+            sx={sx}
             {...other}
         >
             {children}
