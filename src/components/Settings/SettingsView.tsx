@@ -33,18 +33,18 @@ export default function SettingsView() {
                 sx={{ borderRight: 2, borderColor: 'divider' }}
             >
                 <Tab label="General" />
-                <Tab label="Developer" />
                 <Tab label="Rendering" />
+                <Tab label="Developer" />
             </Tabs>
             <Box sx={{ padding: "12px", width: '100%', height: '100%', overflow: 'auto', bgcolor: (theme) => theme.palette.background.default }}>
                 <TabPanel value={value} index={0}>
                     <GeneralSettings />
                 </TabPanel>
                 <TabPanel value={value} index={1}>
-                    <DeveloperSettings />
+                    <RenderingSettings />
                 </TabPanel>
                 <TabPanel value={value} index={2}>
-                    <RenderingSettings />
+                    <DeveloperSettings />
                 </TabPanel>
             </Box>
         </Box >
