@@ -5,10 +5,9 @@ import { Box, ListItem, ListItemButton, ListItemText, Tooltip } from '@mui/mater
 import { Image } from '@mui/icons-material';
 import { useSelector, AppDispatch } from '../../Store';
 import { setImageIndex } from '../../reducers/FileReducer';
-import "./ImageEntriesViewer.css";
 
 /**
- * 画像エントリーの行コンポーネント
+ * Row component for an image entry.
  */
 const ItemRow = memo(function ItemRow({
     entry,
@@ -30,6 +29,11 @@ const ItemRow = memo(function ItemRow({
                     selected={selected}
                     onClick={(e) => onClick(e, index)}
                     key={entry}
+                    sx={{
+                        '&.Mui-selected': { backgroundColor: (theme) => theme.palette.action.selected },
+                        '&.Mui-selected:hover': { backgroundColor: (theme) => theme.palette.action.selected },
+                        '&:hover': { backgroundColor: (theme) => theme.palette.action.hover },
+                    }}
                 >
                     <Image />
                     <ListItemText primary={entry} slotProps={{ primary: { noWrap: true } }} sx={{ marginLeft: "5px" }} />
@@ -40,9 +44,9 @@ const ItemRow = memo(function ItemRow({
 });
 
 /** 
- * ファイルリスト表示コンポネント 
+ * Component to display a list of image entries.
  */
-function ImageEntriesViewer() {
+export default function ImageEntriesViewer() {
     const { entries, index } = useSelector(state => state.file.containerFile);
     const dispatch = useDispatch<AppDispatch>();
 
@@ -54,14 +58,13 @@ function ImageEntriesViewer() {
         setSelectedIndex(index);
     }, [index]);
 
-    // 選択している項目が表示されるようにスクロールする
+    // Scroll to make the selected item visible.
     useEffect(() => {
         if (entries.length < 1 || selectedIndex === -1) {
             return;
         }
 
-        const list = listRef.current;
-        list?.scrollToRow({
+        listRef.current?.scrollToRow({
             align: "smart",
             behavior: "instant",
             index: selectedIndex
@@ -99,7 +102,6 @@ function ImageEntriesViewer() {
     return (
         <Box sx={{ width: "100%", height: "100%", display: 'grid', alignContent: 'start' }}>
             <List
-                className="image_list"
                 rowComponent={Row}
                 rowCount={entries.length}
                 rowHeight={36}
@@ -109,5 +111,3 @@ function ImageEntriesViewer() {
         </Box >
     );
 }
-
-export default ImageEntriesViewer;

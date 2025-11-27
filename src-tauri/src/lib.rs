@@ -62,9 +62,9 @@ pub fn run() {
     };
 }
 
-/// ライブラリのディレクトリパスを取得する
+/// Gets the libs directory path.
 ///
-/// * `app` - Tauri アプリケーションのインスタンス
+/// * `app` - App instance of Tauri.
 fn get_libs_dir(app: &App) -> Result<String, String> {
     let platform = platform();
     match platform {
@@ -95,9 +95,9 @@ fn get_libs_dir(app: &App) -> Result<String, String> {
     }
 }
 
-/// PDFium ライブラリのパスを設定する
+/// Sets up the direcotry path of PDFium library.
 ///
-/// * `lib_dir` - ライブラリのディレクトリパス
+/// * `lib_dir` - the directory path of PDFium library.
 fn setup_pdfium(lib_dir: &String) {
     pdfium::set_library_location(lib_dir);
 }

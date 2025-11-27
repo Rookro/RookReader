@@ -7,78 +7,79 @@
 [![Rust](https://img.shields.io/badge/Rust-%23000000.svg?e&logo=rust&logoColor=white)](https://rust-lang.org/)
 [![MIT License](https://img.shields.io/badge/license-MIT-green.svg?style=flat)](LICENSE)
 
-## 概要
+[English](README.md) | [日本語](README.ja.md)
 
-RookReader は、zip、rar、pdf 形式の電子書籍ファイルを閲覧するための、モダンで高速なクロスプラットフォームアプリケーションです。Windows および Linux 環境で利用可能です。
+## Overview
 
-一般的なアーカイブファイルに含まれる画像シーケンス（コミックや雑誌など）や PDFドキュメントをサポートし、日本語の小説やコミックの読書体験に特化しています。
+RookReader is a modern, fast, cross-platform application for viewing e-book files in zip, rar, and pdf formats. It is available for Windows and Linux environments.
 
-## 特徴
+It supports image sequences (such as comics and magazines) contained in common archive files and PDF documents, and is specialized for the reading experience of Japanese novels and comics.
 
-* 日本語の縦書き対応（右開き対応: 縦書きの小説や漫画を読む際に自然な、右から左へのページめくり（右開き）に標準で対応
-* クロスプラットフォーム対応: Windows と Linux で利用可能
-* サポートするファイル形式:
+## Features
+
+* **Support for Japanese vertical writing (right-to-left binding):** Standard support for right-to-left page turning, which is natural when reading vertically written novels and manga.
+* **Cross-platform support:** Available on Windows and Linux.
+* **Supported file formats:**
   * zip
   * rar
   * pdf
-* モダンな UI/UX: React + TypeScript による直感的で使いやすいインターフェース
-* 高性能: Rust のバックエンドと Tauri フレームワークによる、ネイティブに近いパフォーマンスとメモリ効率
+* **Modern UI/UX:** An intuitive and easy-to-use interface built with React + TypeScript.
+* **High performance:** Near-native performance and memory efficiency with a Rust backend and the Tauri framework.
 
-## インストール
+## Installation
 
-アプリケーションのビルド済みバイナリは、GitHub の Release ページで提供されています。  
-以下の手順で、お使いの環境に合ったファイルをダウンロードしてインストールしてください。
+Pre-built binaries of the application are available on the GitHub Releases page.
+Please follow the steps below to download and install the appropriate file for your environment.
 
-1. RookReader GitHub Releases ページ の[最新のリリース](https://github.com/Rookro/RookReader/releases/latest/)にアクセスします。
-1. Windows ユーザーは、RookReader_x.x.x_x64-setup.exe (インストーラー) をダウンロードし、実行してください。  
-  Linux ユーザーは、RookReader_x.x.x_amd64_PKGBUILD.zip をダウンロードし、インストールしてください。  
-  deb ファイルとそれをインストールするための PKGBUILD を用意しています。
+1.  Go to the [latest release](https://github.com/Rookro/RookReader/releases/latest/) on the RookReader GitHub Releases page.
+1.  For Windows users, download and run `RookReader_x.x.x_x64-setup.exe` (installer).
+    For Linux users, download and install `RookReader_x.x.x_amd64_PKGBUILD.zip`.
+    A deb file and a PKGBUILD to install it are provided.
 
-## 開発環境
+## Development Environment
 
-本プロジェクトは、開発者間の環境差異を最小限に抑えるため、DevContainer を利用した開発フローを推奨しています。
+This project recommends a development flow using DevContainer to minimize environmental differences between developers.
 
-### 前提条件
+### Prerequisites
 
-* Docker: コンテナ技術を利用するための必須要件
-* VS Code (Visual Studio Code)
-* VS Code Remote - Containers 拡張機能: VS Code でDevContainer を利用するための拡張機能。
+*   Docker: Required for using container technology.
+*   VS Code (Visual Studio Code)
+*   VS Code Remote - Containers extension: An extension for using DevContainer in VS Code.
 
-### セットアップ手順
+### Setup
 
-1. 本リポジトリをクローンします。
+1.  Clone this repository.
 
     ```bash
     git clone https://github.com/Rookro/RookReader.git
     ```
 
-1. VS Codeでクローンしたフォルダを開きます。
-1. VS Codeの右下に表示されるポップアップ「Reopen in Container」をクリックするか、  
-  コマンドパレット ( Ctrl+Shift+P または Cmd+Shift+P ) を開き、Remote-Containers: Open Folder in Container... を選択します。
-1. DevContainer のビルドと起動が完了すると、必要な依存関係（Rust、Node.js など）がすべて揃った開発環境が利用可能になります。
+1.  Open the cloned folder in VS Code.
+1.  Click the "Reopen in Container" pop-up that appears in the bottom right of VS Code, or open the Command Palette (Ctrl+Shift+P or Cmd+Shift+P) and select `Remote-Containers: Open Folder in Container...`.
+1.  Once the DevContainer has finished building and starting, a development environment with all the necessary dependencies (Rust, Node.js, etc.) will be available.
 
-### ビルド手順
+### Build
 
-DevContainer 内で、以下のコマンドを利用してビルドできます。
+You can build within the DevContainer using the following commands.
 
 ```bash
-mkdir src-tauri/libs
-# PDFium のビルド済み依存ライブラリを配置する
-cp src-tauri/dependencies/linux/* src-tauri/libs
 yarn
 yarn tauri build
 ```
 
-もしくは単に以下を実行してビルドできます。
+Alternatively, you can simply run the following to build:
 
 ```bash
 ./build-linux.sh
 ```
 
-## 貢献
+## Contributing
 
-このプロジェクトへの貢献を歓迎します。バグ報告や機能提案は、GitHub の Issues にお願いします。コードの貢献は、Pull Request を送ってください。
+Contributions to this project are welcome.
 
-## ライセンス
+For bug reports and feature suggestions, please use GitHub Issues.
+For code contributions, please send a Pull Request.
 
-このプロジェクトは、[MIT License](LICENSE) の下で公開されています。
+## LICENSE
+
+This project is licensed under the [MIT License](LICENSE).

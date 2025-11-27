@@ -4,20 +4,20 @@ use std::fs::read_dir;
 
 use crate::container::container::Container;
 
-/// ディレクトリーエントリー
+/// A directory entry.
 #[derive(Serialize, Deserialize)]
 pub struct DirEntry {
-    /// ディレクトリーかどうか
+    /// Whether it is a directory.
     pub is_directory: bool,
-    /// 名前
+    /// The name.
     pub name: String,
-    /// 最終更新日時 (RFC 3339 形式)
+    /// The last modified date in RFC 3339 format.
     pub last_modified: String,
 }
 
-/// 指定されたディレクトリー内のエントリーを取得する
+/// Gets entries in the specified directory.
 ///
-/// * `dir_path` - 取得するディレクトリーのパス
+/// * `dir_path` - The path of the directory to get.
 #[tauri::command()]
 pub fn get_entries_in_dir(dir_path: String) -> Result<Vec<DirEntry>, String> {
     log::debug!("Get the directory entries in {}", dir_path);

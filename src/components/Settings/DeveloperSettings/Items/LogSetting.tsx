@@ -1,16 +1,15 @@
 import { useEffect, useState } from "react";
-import { Box, IconButton, MenuItem, Select, SelectChangeEvent, Stack, Typography } from "@mui/material";
+import { Box, IconButton, MenuItem, OutlinedInput, Select, SelectChangeEvent, Stack, Typography } from "@mui/material";
 import { Folder } from "@mui/icons-material";
 import { openPath } from '@tauri-apps/plugin-opener';
 import { appLogDir } from "@tauri-apps/api/path";
 import { settingsStore } from "../../../../settings/SettingsStore";
 import { LogSettings } from "../../../../types/LogSettingsType";
-import "./LogSetting.css";
 
 /**
- * ログ設定コンポーネント
+ * Log setting component.
  */
-function LogSetting() {
+export default function LogSetting() {
     const [logDir, setLogDir] = useState<string>("");
     const [logLevel, setLogLevel] = useState<string>("");
 
@@ -39,9 +38,19 @@ function LogSetting() {
 
     return (
         <Stack spacing={1} >
-            <Box className="log-path" display="flex">
-                <Typography alignContent="center">Log File Path</Typography>
-                <input type="text" readOnly value={logDir} style={{ marginLeft: '16px', marginRight: '5px', flexGrow: 1 }} />
+            <Box display="flex">
+                <Typography alignContent="center">Log Directory</Typography>
+                <OutlinedInput
+                    type="text"
+                    value={logDir}
+                    size="small"
+                    readOnly
+                    sx={{
+                        width: '80%',
+                        marginLeft: '16px',
+                        marginRight: '5px',
+                    }}
+                />
                 <IconButton size="small" onClick={handleFolderClicked} >
                     <Folder />
                 </IconButton>
@@ -52,8 +61,6 @@ function LogSetting() {
                     size="small"
                     value={logLevel}
                     onChange={handleLogLevelChanged}
-                    displayEmpty
-                    inputProps={{ 'aria-label': 'Without label' }}
                     sx={{ marginLeft: '16px', marginRight: '16px' }}
                 >
                     <MenuItem value="Trace">Trace</MenuItem>
@@ -67,5 +74,3 @@ function LogSetting() {
         </Stack>
     );
 }
-
-export default LogSetting;

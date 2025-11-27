@@ -1,15 +1,15 @@
-import React, { useState } from "react";
-import { Stack, Tab, Tabs } from "@mui/material";
+import React, { lazy, useState } from "react";
+import { Box, Stack, Tab, Tabs } from "@mui/material";
 import { PhotoLibrary, ViewList } from "@mui/icons-material";
-import FileListViewer from "../FileListViewer/FileListViewer";
-import "./LeftPane.css";
 import TabPanel from "../TabPanel/TabPanel";
-import ImageEntriesViewer from "../ImageEntriesViewer/ImageEntriesViewer";
+
+const FileListViewer = lazy(() => import("../FileListViewer/FileListViewer"));
+const ImageEntriesViewer = lazy(() => import("../ImageEntriesViewer/ImageEntriesViewer"));
 
 /**
- * 左ペイン
+ * Left pane component.
  */
-function LeftPane() {
+export default function LeftPane() {
     const [value, setValue] = useState(0);
 
     const handleChange = (_event: React.SyntheticEvent, newValue: number) => {
@@ -17,26 +17,37 @@ function LeftPane() {
     };
 
     return (
-        <Stack className="left_pane" direction="row">
-            <Tabs className="sidebar" orientation="vertical" value={value} onChange={handleChange} aria-label="sidebar-tabs"
+        <Stack
+            direction="row"
+            sx={{
+                height: '100%',
+            }}
+        >
+            <Tabs
+                orientation="vertical"
+                value={value}
+                onChange={handleChange}
+                aria-label="sidebar-tabs"
                 sx={{
-                    borderRight: 1,
                     borderColor: 'divider',
                     minWidth: '40px',
                     width: '40px',
+                    '& .MuiTab-root': {
+                        minWidth: '40px',
+                    },
                 }}
             >
-                <Tab sx={{ minWidth: '40px' }} icon={<ViewList />} aria-label="library" />
-                <Tab sx={{ minWidth: '40px' }} icon={<PhotoLibrary />} aria-label="image" />
+                <Tab icon={<ViewList />} aria-label="library" />
+                <Tab icon={<PhotoLibrary />} aria-label="image" />
             </Tabs>
-            <TabPanel value={value} index={0}>
-                <FileListViewer />
-            </TabPanel>
-            <TabPanel value={value} index={1}>
-                <ImageEntriesViewer />
-            </TabPanel>
+            <Box sx={{ width: '100%', height: '100%', padding: '2px', bgcolor: (theme) => theme.palette.background.default }}>
+                <TabPanel value={value} index={0} sx={{ width: '100%', height: '100%' }}>
+                    <FileListViewer />
+                </TabPanel>
+                <TabPanel value={value} index={1} sx={{ width: '100%', height: '100%' }}>
+                    <ImageEntriesViewer />
+                </TabPanel>
+            </Box>
         </Stack>
     );
 }
-
-export default LeftPane;

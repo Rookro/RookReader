@@ -1,35 +1,28 @@
-import { Box } from "@mui/material";
+import { Box, SxProps } from "@mui/material";
 
 /**
- * タブパネルコンポーネントのプロパティ
+  * Properties for the TabPanel component.
  */
 interface TabPanelProps {
     children?: React.ReactNode;
     index: number;
     value: number;
+    sx?: SxProps;
 }
 
 /**
- * タブパネルコンポーネント
+ * Tab panel component.
  */
-const TabPanel = (props: TabPanelProps) => {
-    const { children, value, index, ...other } = props;
+export default function TabPanel(props: TabPanelProps) {
+    const { children, value, index, sx, ...other } = props;
 
-    return (
-        <div
-            role="tabpanel"
+    return value === index && (
+        <Box
             hidden={value !== index}
-            id={`vertical-tabpanel-${index}`}
-            aria-labelledby={`vertical-tab-${index}`}
+            sx={sx}
             {...other}
         >
-            {value === index && (
-                <Box sx={{ width: '100%', height: '100%' }}>
-                    {children}
-                </Box>
-            )}
-        </div>
+            {children}
+        </Box>
     );
-}
-
-export default TabPanel;
+};

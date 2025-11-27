@@ -4,15 +4,15 @@ use std::{collections::HashMap, sync::Arc};
 
 use crate::container::container::{Container, ContainerError, Image};
 
-/// PDF 書庫コンテナー
+/// A container for PDF archives.
 pub struct PdfContainer {
-    /// コンテナーのファイルパス
+    /// The file path of the container.
     path: String,
-    /// コンテナー内のエントリー
+    /// The entries in the container.
     entries: Vec<String>,
-    /// 画像データのキャッシュ (キー: ページインデックス, 値: 画像バイナリ)
+    /// Image data cache (key: entry name, value: image).
     cache: HashMap<String, Arc<Image>>,
-    /// PDF レンダリング時の画像高さ
+    /// The image height when rendering a PDF.
     pub rendering_height: i32,
 }
 
@@ -22,7 +22,7 @@ impl Container for PdfContainer {
     }
 
     fn get_image(&mut self, entry: &String) -> Result<Arc<Image>, ContainerError> {
-        // まずはキャッシュから取得する
+        // Try to get from the cache.
         if let Some(image_arc) = self.get_image_from_cache(entry)? {
             return Ok(Arc::clone(&image_arc));
         }
@@ -92,7 +92,7 @@ impl Container for PdfContainer {
         let render_config = PdfiumRenderConfig::new().with_height(self.rendering_height);
 
         for i in begin_index..end {
-            // すでにキャッシュにあればスキップ
+            // If it's already in the cache, skip it.
             let entry = &self.entries[i];
             if self.cache.contains_key(entry) {
                 log::debug!("Hit cache so skip preload index: {}", i);
@@ -153,10 +153,10 @@ impl Container for PdfContainer {
 }
 
 impl PdfContainer {
-    /// インスタンスを生成する
+    /// Creates a new instance.
     ///
-    /// * `path` - コンテナーファイルのパス
-    /// * `rendering_height` - PDF レンダリング時の画像高さ
+    /// * `path` - The path to the container file.
+    /// * `rendering_height` - The image height when rendering a PDF.
     pub fn new(path: &String, rendering_height: i32) -> Result<Self, ContainerError> {
         let pdf = open(path)?;
         let mut entries: Vec<String> = Vec::new();
@@ -173,9 +173,9 @@ impl PdfContainer {
     }
 }
 
-/// 指定されたパスから PDF ドキュメントを開く
+/// Opens a PDF document from the specified path.
 ///
-/// * `path` - PDF ファイルのパス
+/// * `path` - The path to the PDF file.
 fn open(path: &String) -> Result<PdfiumDocument, ContainerError> {
     let pdf = PdfiumDocument::new_from_path(path, None).map_err(|e| ContainerError {
         message: String::from(format!("Failed to open the pdf file. {}", e)),

@@ -1,6 +1,6 @@
-/// 書庫コンテナーの設定
+/// Archive container settings.
 pub struct ContainerSettings {
-    /// PDF レンダリング時の画像高さ(px)
+    /// PDF rendering height(px).
     pub pdf_rendering_height: i32,
 }
 
