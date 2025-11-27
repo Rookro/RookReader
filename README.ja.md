@@ -7,6 +7,8 @@
 [![Rust](https://img.shields.io/badge/Rust-%23000000.svg?e&logo=rust&logoColor=white)](https://rust-lang.org/)
 [![MIT License](https://img.shields.io/badge/license-MIT-green.svg?style=flat)](LICENSE)
 
+[English](README.md) | [日本語](README.ja.md)
+
 ## 概要
 
 RookReader は、zip、rar、pdf 形式の電子書籍ファイルを閲覧するための、モダンで高速なクロスプラットフォームアプリケーションです。Windows および Linux 環境で利用可能です。
@@ -62,9 +64,6 @@ RookReader は、zip、rar、pdf 形式の電子書籍ファイルを閲覧す�
 DevContainer 内で、以下のコマンドを利用してビルドできます。
 
 ```bash
-mkdir src-tauri/libs
-# PDFium のビルド済み依存ライブラリを配置する
-cp src-tauri/dependencies/linux/* src-tauri/libs
 yarn
 yarn tauri build
 ```
