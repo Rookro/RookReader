@@ -1,6 +1,6 @@
 # Maintainer: Rookro
 pkgname=RookReader
-pkgver=1.5.1
+pkgver=1.5.2
 pkgrel=1
 pkgdesc="The book reader for a archive or pdf file."
 arch=('x86_64')

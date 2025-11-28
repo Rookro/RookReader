@@ -1,21 +1,21 @@
 import React, { useEffect, useRef, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { useDispatch } from "react-redux";
+import { Box } from "@mui/material";
+import { invoke } from "@tauri-apps/api/core";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
+import { dirname } from "@tauri-apps/api/path";
 import { debug, error } from '@tauri-apps/plugin-log';
 import { AppDispatch, useSelector } from '../../Store';
 import { openContainerFile, setContainerFilePath, setExploreBasePath, setImageIndex } from "../../reducers/FileReducer";
 import { Image } from "../../types/Image";
-import "./ImageViewer.css";
-import { dirname } from "@tauri-apps/api/path";
 import { settingsStore } from "../../settings/SettingsStore";
 
 /**
- * 画像ファイルを読み込む
+ * Gets an image.
  * 
- * @param containerPath 画像コンテナのパス
- * @param entryName 画像のエントリー名
- * @returns 読み込んだ画像
+ * @param containerPath Path to the image container.
+ * @param entryName Entry name of the image.
+ * @returns The loaded image.
  */
 const getImage = async (containerPath: string, entryName: string | undefined) => {
     if (!containerPath || !entryName || containerPath.length === 0 || entryName.length === 0) {
@@ -30,11 +30,11 @@ const getImage = async (containerPath: string, entryName: string | undefined) =>
 }
 
 /**
- * 事前ロードを行う
+ * Performs preloading.
  * 
- * @param containerPath コンテナパス
- * @param entries エントリーリスト
- * @param currentIndex 現在のインデックス
+ * @param containerPath Container path.
+ * @param entries List of entries.
+ * @param currentIndex Current index.
  */
 const preload = async (containerPath: string, entries: string[], currentIndex: number) => {
     if (!containerPath || !entries || containerPath.length === 0 || entries.length === 0) {
@@ -47,10 +47,10 @@ const preload = async (containerPath: string, entries: string[], currentIndex: n
 }
 
 /**
- * 画像ファイルを読み込み、`<img>` 用の URL を作成する
+ * creates a URL for `<img>`.
  * 
- * @param path 画像パス
- * @returns 画像BlobのURL
+ * @param image The image to create a URL for.
+ * @returns URL of the image blob.
  */
 const createImageURL = async (image: Image | undefined) => {
     if (!image) {
@@ -62,9 +62,9 @@ const createImageURL = async (image: Image | undefined) => {
 }
 
 /**
- * 画像表示用コンポーネント
+ * Displaying images component.
  */
-function ImageViewer() {
+export default function ImageViewer() {
     const { history, historyIndex, entries, index } = useSelector(state => state.file.containerFile);
     const { isTwoPagedView, direction } = useSelector(state => state.view);
     const dispatch = useDispatch<AppDispatch>();
@@ -131,7 +131,7 @@ function ImageViewer() {
                 error(`Error fetching images: ${JSON.stringify(e)}`);
             }
 
-            // より新しいリクエストが開始していたら、何もしない
+            // If a newer request has started, do nothing.
             if (!mounted || thisRequestId !== requestIdRef.current) {
                 return;
             }
@@ -228,8 +228,8 @@ function ImageViewer() {
     useEffect(() => {
         let unlisten: UnlistenFn;
         const listenDragDrop = async () => {
-            // ドラッグアンドドロップでファイルを指定する
-            // 複数指定された場合は、最初の一つのみ
+            // Sets a file by drag and drop.
+            // Only the first one is used, if multiple files are dragged.
             unlisten = await listen("tauri://drag-drop", async (event) => {
                 const path = (event.payload as { paths: string[] }).paths[0];
                 debug(`DragDrop ${path}.`);
@@ -268,13 +268,13 @@ function ImageViewer() {
         dispatch(setImageIndex(backIndex));
     }
 
+    // Left click
     const handleClicked = (_e: React.MouseEvent<HTMLDivElement>) => {
-        // 左クリック
         moveFoward();
     }
 
+    // Right click
     const handleContextMenu = (_e: React.MouseEvent<HTMLDivElement>) => {
-        // 右クリック
         moveBack();
     }
 
@@ -287,18 +287,17 @@ function ImageViewer() {
         }
     }
 
-
     const handleKeydown = (e: React.KeyboardEvent) => {
         switch (e.key) {
             case "ArrowLeft":
-                if (direction === "right") {
+                if (direction === "rtl") {
                     moveFoward();
                 } else {
                     moveBack();
                 }
                 break;
             case "ArrowRight":
-                if (direction === "right") {
+                if (direction === "rtl") {
                     moveBack();
                 } else {
                     moveFoward();
@@ -310,18 +309,36 @@ function ImageViewer() {
     }
 
     return (
-        <div className="image_viewer" tabIndex={0} onClick={handleClicked} onContextMenu={handleContextMenu} onWheel={handleWheeled} onKeyDown={handleKeydown}>
+        <Box
+            tabIndex={0}
+            onClick={handleClicked}
+            onContextMenu={handleContextMenu}
+            onWheel={handleWheeled}
+            onKeyDown={handleKeydown}
+            sx={{
+                width: '100%',
+                display: 'flex',
+            }}
+        >
             {canTwoPage ?
                 <>
-                    <img className="left" src={direction === "left" ? firstSrc : secondSrc} />
-                    <img className="right" src={direction === "left" ? secondSrc : firstSrc} />
+                    <Box
+                        component="img"
+                        src={direction === "ltr" ? firstSrc : secondSrc}
+                        sx={{ width: '50%', objectPosition: 'right center', objectFit: 'contain' }}
+                    />
+                    <Box
+                        component="img"
+                        src={direction === "ltr" ? secondSrc : firstSrc}
+                        sx={{ width: '50%', objectPosition: 'left center', objectFit: 'contain' }}
+                    />
                 </> :
-                <>
-                    <img className="single" src={firstSrc} />
-                </>
+                <Box
+                    component="img"
+                    src={firstSrc}
+                    sx={{ width: '100%', objectPosition: 'center center', objectFit: 'contain' }}
+                />
             }
-        </div>
+        </Box>
     );
 }
-
-export default ImageViewer;

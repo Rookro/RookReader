@@ -1,11 +1,11 @@
 /**
- * ログ設定
+ * Log settings.
  */
 export interface LogSettings {
-    /** ログレベル */
+    /** Log level. */
     level: LogLevel;
 }
 /** 
- * ログレベル
+ * Log level.
  */
 export type LogLevel = "Trace" | "Debug" | "Info" | "Warn" | "Error";

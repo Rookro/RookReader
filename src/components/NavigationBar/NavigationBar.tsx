@@ -1,24 +1,22 @@
 import React, { useEffect } from "react";
-import { useDispatch } from "react-redux";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
-import { IconButton } from '@mui/material';
+import { IconButton, OutlinedInput, Stack } from '@mui/material';
 import { ArrowBack, ArrowForward, LooksOne, LooksTwo, Settings, SwitchLeft, SwitchRight } from '@mui/icons-material';
-import { AppDispatch, useSelector } from "../../Store";
-import { goBackContainerHistory, goForwardContainerHistory, setContainerFilePath, setExploreBasePath } from "../../reducers/FileReducer";
-import { setDirection, setIsTwoPagedView } from "../../reducers/ViewReducer";
-import "./NavigationBar.css";
 import { dirname } from "@tauri-apps/api/path";
 import { debug, error } from "@tauri-apps/plugin-log";
 import { Direction } from "../../types/DirectionType";
 import { settingsStore } from "../../settings/SettingsStore";
+import { useAppDispatch, useSelector } from "../../Store";
+import { goBackContainerHistory, goForwardContainerHistory, setContainerFilePath, setExploreBasePath } from "../../reducers/FileReducer";
+import { setDirection, setIsTwoPagedView } from "../../reducers/ViewReducer";
 
 /**
- * ナビゲーションバーコンポーネント
+ * Navigation bar component.
  */
-function NavigationBar() {
+export default function NavigationBar() {
     const { isTwoPagedView, direction } = useSelector(state => state.view);
     const { history, historyIndex } = useSelector(state => state.file.containerFile);
-    const dispatch = useDispatch<AppDispatch>();
+    const dispatch = useAppDispatch();
 
     const handlePathChanged = async (e: React.ChangeEvent<HTMLInputElement>) => {
         dispatch(setContainerFilePath(e.target.value));
@@ -31,12 +29,12 @@ function NavigationBar() {
     }
 
     const handleSwitchDirectionClicked = (_e: React.MouseEvent<HTMLButtonElement>) => {
-        if (direction === "right") {
-            settingsStore.set("direction", "left");
-            dispatch(setDirection("left"));
+        if (direction === "rtl") {
+            settingsStore.set("direction", "ltr");
+            dispatch(setDirection("ltr"));
         } else {
-            settingsStore.set("direction", "right");
-            dispatch(setDirection("right"));
+            settingsStore.set("direction", "rtl");
+            dispatch(setDirection("rtl"));
         }
     }
 
@@ -86,21 +84,33 @@ function NavigationBar() {
     }, [dispatch])
 
     return (
-        <div className="navigation_bar">
+        <Stack
+            direction="row"
+            sx={{
+                height: '30px',
+                margin: '4px',
+            }}
+        >
             <IconButton onClick={handleBackClicked} disabled={historyIndex <= 0}><ArrowBack /></IconButton>
             <IconButton onClick={handleForwardClicked} disabled={history.length - historyIndex <= 1}><ArrowForward /></IconButton>
-            <input type="text" value={history[historyIndex]} onChange={handlePathChanged} onContextMenu={handleContextMenu}></input>
+            <OutlinedInput
+                value={history[historyIndex] ?? ''} onChange={handlePathChanged} onContextMenu={handleContextMenu}
+                size="small" fullWidth
+                sx={{
+                    bgcolor: (theme) => theme.palette.background.default,
+                    '& .MuiOutlinedInput-input': {
+                        padding: '4px 8px',
+                    },
+                }} />
             <IconButton onClick={handleSwitchTwoPagedClicked}>
                 {isTwoPagedView ? <LooksTwo /> : <LooksOne />}
             </IconButton>
             <IconButton onClick={handleSwitchDirectionClicked}>
-                {direction === "right" ? <SwitchRight /> : <SwitchLeft />}
+                {direction === "rtl" ? <SwitchRight /> : <SwitchLeft />}
             </IconButton>
             <IconButton onClick={handleSettingsClicked}>
                 <Settings />
             </IconButton>
-        </div>
+        </Stack >
     );
 }
-
-export default NavigationBar;

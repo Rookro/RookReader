@@ -1,11 +1,13 @@
 {
   "name": "rook-reader",
   "private": true,
-  "version": "1.5.1",
+  "version": "1.5.2",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
+    "mk-licenses-dir": "node -e \"require('fs').mkdirSync('src-tauri/target/dependencies/licenses', { recursive: true })\"",
+    "gen-licenses": "yarn mk-licenses-dir && cargo about generate --manifest-path src-tauri/Cargo.toml src-tauri/about.hbs --output-file src-tauri/target/dependencies/licenses/backend-licenses.html && yarn licenses generate-disclaimer > src-tauri/target/dependencies/licenses/frontend-licenses.txt",
+    "dev": "yarn gen-licenses && vite",
+    "build": "yarn gen-licenses && tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri"
   },

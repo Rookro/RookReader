@@ -1,11 +1,11 @@
 /**
- * ディレクトリエントリー
+ * Directory entry.
  */
 export type DirEntry = {
-    /** ディレクトリかどうか */
+    /** Whether it is a directory. */
     is_directory: Boolean,
-    /** エントリー名 */
+    /** Entry name. */
     name: string,
-    /** 最終更新日時 */
+    /** Last modified date. */
     last_modified: string,
 }

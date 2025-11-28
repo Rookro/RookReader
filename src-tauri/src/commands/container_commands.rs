@@ -3,10 +3,10 @@ use std::sync::{Arc, Mutex};
 use crate::container::container::Image;
 use crate::state::app_state::AppState;
 
-/// 指定された書庫コンテナー内のエントリーを取得する
+/// Gets entries in the specified archive container.
 ///
-/// * `path` - 書庫コンテナーのパス
-/// * `state` - アプリケーションのステート
+/// * `path` - The path of the archive container.
+/// * `state` - The application state.
 #[tauri::command()]
 pub fn get_entries_in_container(
     path: String,
@@ -35,11 +35,11 @@ pub fn get_entries_in_container(
     }
 }
 
-/// 指定された書庫コンテナー内の画像を取得する
+/// Gets an image in the specified archive container.
 ///
-/// * `path` - 書庫コンテナーのパス
-/// * `entry_name` - 取得する画像のエントリー名
-/// * `state` - アプリケーションのステート
+/// * `path` - The path of the archive container.
+/// * `entry_name` - The entry name of the image to get.
+/// * `state` - The application state.
 #[tauri::command()]
 pub fn get_image(
     path: String,
@@ -66,11 +66,11 @@ pub fn get_image(
     }
 }
 
-/// 指定された書庫コンテナー内の画像を非同期で事前ロードする
+/// Preloads images in the specified archive container asynchronously.
 ///
-/// * `start_index` - 事前ロードするページの開始インデックス
-/// * `count` - 事前ロードするページ数
-/// * `state` - アプリケーションのステート
+/// * `start_index` - The starting index of the pages to preload.
+/// * `count` - The number of pages to preload.
+/// * `state` - The application state.
 #[tauri::command(async)]
 pub async fn async_preload(
     start_index: usize,
@@ -96,10 +96,10 @@ pub async fn async_preload(
     }
 }
 
-/// PDF レンダリング時の画像幅を設定する
+/// Sets the image height for PDF rendering.
 ///
-/// * `height` - 画像幅
-/// * `state` - アプリケーションのステート
+/// * `height` - The image height.
+/// * `state` - The application state.
 #[tauri::command()]
 pub fn set_pdf_rendering_height(
     height: i32,

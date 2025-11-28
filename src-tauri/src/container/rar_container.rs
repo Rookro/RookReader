@@ -7,13 +7,13 @@ use std::{
 
 use crate::container::container::{Container, ContainerError, Image};
 
-/// RAR 書庫コンテナー
+/// A container for RAR archives.
 pub struct RarContainer {
-    /// コンテナーのファイルパス
+    /// The file path of the container.
     path: String,
-    /// コンテナー内のエントリー
+    /// The entries in the container.
     entries: Vec<String>,
-    /// 画像データのキャッシュ (キー: ページインデックス, 値: 画像バイナリ)
+    /// Image data cache (key: entry name, value: image).
     cache: HashMap<String, Arc<Image>>,
 }
 
@@ -23,7 +23,7 @@ impl Container for RarContainer {
     }
 
     fn get_image(&mut self, entry: &String) -> Result<Arc<Image>, ContainerError> {
-        // まずはキャッシュから取得する
+        // Try to get from the cache.
         if let Some(image_arc) = self.get_image_from_cache(entry)? {
             return Ok(Arc::clone(&image_arc));
         }
@@ -163,9 +163,9 @@ impl Container for RarContainer {
 }
 
 impl RarContainer {
-    /// インスタンスを生成する
+    /// Creates a new instance.
     ///
-    /// * `path` - コンテナーファイルのパス
+    /// * `path` - The path to the container file.
     pub fn new(path: &String) -> Result<Self, ContainerError> {
         let archive = Archive::new(path)
             .open_for_listing()
@@ -183,9 +183,14 @@ impl RarContainer {
                 entry: None,
             })?;
             if entry.is_file() {
-                entries.push(entry.filename.as_os_str().to_string_lossy().to_string());
+                let filename = entry.filename.as_os_str().to_string_lossy().to_string();
+                if Image::is_supported_format(&filename) {
+                    entries.push(filename);
+                }
             }
         }
+
+        entries.sort_by(|a, b| natord::compare_ignore_case(a, b));
 
         Ok(Self {
             path: path.clone(),
@@ -195,9 +200,9 @@ impl RarContainer {
     }
 }
 
-/// 指定されたパスから RAR 書庫を開く
+/// Opens a RAR archive from the specified path.
 ///
-/// * `path` - RAR ファイルのパス
+/// * `path` - The path to the RAR file.
 fn open(path: &String) -> Result<OpenArchive<Process, CursorBeforeHeader>, ContainerError> {
     let archive = Archive::new(path)
         .open_for_processing()

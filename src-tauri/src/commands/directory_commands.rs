@@ -2,20 +2,22 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::fs::read_dir;
 
-/// ディレクトリーエントリー
+use crate::container::container::Container;
+
+/// A directory entry.
 #[derive(Serialize, Deserialize)]
 pub struct DirEntry {
-    /// ディレクトリーかどうか
+    /// Whether it is a directory.
     pub is_directory: bool,
-    /// 名前
+    /// The name.
     pub name: String,
-    /// 最終更新日時 (RFC 3339 形式)
+    /// The last modified date in RFC 3339 format.
     pub last_modified: String,
 }
 
-/// 指定されたディレクトリー内のエントリーを取得する
+/// Gets entries in the specified directory.
 ///
-/// * `dir_path` - 取得するディレクトリーのパス
+/// * `dir_path` - The path of the directory to get.
 #[tauri::command()]
 pub fn get_entries_in_dir(dir_path: String) -> Result<Vec<DirEntry>, String> {
     log::debug!("Get the directory entries in {}", dir_path);
@@ -35,11 +37,15 @@ pub fn get_entries_in_dir(dir_path: String) -> Result<Vec<DirEntry>, String> {
 
         let last_modified_time: DateTime<Utc> = last_modified.into();
 
-        entries.push(DirEntry {
-            is_directory: file_type.is_dir(),
-            name: file_name,
-            last_modified: last_modified_time.to_rfc3339(),
-        });
+        if (file_type.is_file() && <dyn Container>::is_supported_format(&file_name))
+            || file_type.is_dir()
+        {
+            entries.push(DirEntry {
+                is_directory: file_type.is_dir(),
+                name: file_name,
+                last_modified: last_modified_time.to_rfc3339(),
+            });
+        }
     }
 
     Ok(entries)

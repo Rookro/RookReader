@@ -14,11 +14,11 @@ use crate::{
     setting::container_settings::ContainerSettings,
 };
 
-/// 書庫コンテナーの状態
+/// The container state.
 pub struct ContainerState {
-    /// 書庫コンテナー
+    /// Archive container
     pub container: Option<Arc<Mutex<dyn Container>>>,
-    /// 書庫コンテナーの設定
+    /// Settings for the archive container
     pub settings: ContainerSettings,
 }
 
@@ -32,9 +32,9 @@ impl Default for ContainerState {
 }
 
 impl ContainerState {
-    /// コンテナーファイルを開く
+    /// Opens a container file.
     ///
-    /// * `path` - コンテナーファイルのパス
+    /// * `path` - The path to the container file.
     pub fn open_container(&mut self, path: &String) -> Result<(), ContainerError> {
         self.container = None;
         let file_path = Path::new(path);

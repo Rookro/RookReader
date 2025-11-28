@@ -1,9 +1,9 @@
 use tauri::{App, Theme};
 use tauri_plugin_store::StoreExt;
 
-/// アプリケーションの設定をロードする
+/// Loads the application settings.
 ///
-/// * `app` - Tauri アプリケーションのインスタンス
+/// * `app` - The app instance of Tauri.
 pub fn load(app: &App) {
     let setting_file_path = "rook-reader_settings.json";
     let store = match app.store(setting_file_path) {
@@ -14,7 +14,7 @@ pub fn load(app: &App) {
         }
     };
 
-    // テーマ設定
+    // Theme settings
     if let Some(theme) = store
         .get("theme")
         .unwrap_or(serde_json::Value::Null)
@@ -27,7 +27,7 @@ pub fn load(app: &App) {
         }
     }
 
-    // ログ設定
+    // Log settings
     tauri_plugin_log::log::set_max_level(log::LevelFilter::Info);
     if let Some(log_settings) = store
         .get("log")

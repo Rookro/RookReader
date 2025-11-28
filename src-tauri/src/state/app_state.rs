@@ -1,8 +1,8 @@
 use crate::state::container_state::ContainerState;
 
-/// アプリケーション全体で共有する状態
+/// The application state.
 pub struct AppState {
-    /// 書庫コンテナーの状態
+    /// The container state.
     pub container_state: ContainerState,
 }
 

@@ -1,11 +1,11 @@
 /**
- * 画像データ
+ * Image data.
  */
 export type Image = {
-    /** 画像のピクセルデータ */
+    /** Pixel data of the image. */
     data: number[],
-    /** 画像の幅 */
+    /** Width of the image. */
     width: number,
-    /** 画像の高さ */
+    /** Height of the image. */
     height: number,
 }

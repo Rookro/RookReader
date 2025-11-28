@@ -1,27 +1,27 @@
 import { useEffect, useState } from "react";
-import { Box, FormControl, MenuItem, Select, SelectChangeEvent, Typography } from "@mui/material";
+import { Box, MenuItem, Select, SelectChangeEvent, Typography } from "@mui/material";
 import { app } from "@tauri-apps/api"
 import { Theme } from "@tauri-apps/api/window";
 import { settingsStore } from "../../../../settings/SettingsStore";
 
 /** 
- * テーマ名と Tauri のテーマ設定値のマッピング
+ * Mapping from theme names to Tauri's theme setting values.
  */
 const toTauriTheme = new Map<string, Theme | undefined>([
-    ["System", undefined],
-    ["Dark", "dark"],
-    ["Light", "light"],
+    ["system", undefined],
+    ["dark", "dark"],
+    ["light", "light"],
 ]);
 
 /**
- * テーマ設定コンポーネント
+ * Theme setting component.
  */
-function ThemeSetting() {
-    const [theme, setTheme] = useState("System");
+export default function ThemeSetting() {
+    const [theme, setTheme] = useState("system");
 
     const handleThemeChanged = async (e: SelectChangeEvent) => {
         setTheme(e.target.value);
-        settingsStore.set("theme", toTauriTheme.get(e.target.value));
+        settingsStore.set("theme", e.target.value);
         await app.setTheme(toTauriTheme.get(e.target.value));
     }
 
@@ -38,22 +38,18 @@ function ThemeSetting() {
     }, [])
 
     return (
-        <Box className="theme-setting" display="flex">
+        <Box display="flex">
             <Typography alignContent="center">Theme</Typography>
-            <FormControl sx={{ m: 1, minWidth: 200 }} size="small">
-                <Select
-                    value={theme}
-                    onChange={handleThemeChanged}
-                    displayEmpty
-                    inputProps={{ 'aria-label': 'Without label' }}
-                >
-                    <MenuItem value="System">System Theme</MenuItem>
-                    <MenuItem value="Light">Light</MenuItem>
-                    <MenuItem value="Dark">Dark</MenuItem>
-                </Select>
-            </FormControl>
+            <Select
+                value={theme}
+                onChange={handleThemeChanged}
+                sx={{ margin: 1, minWidth: 160 }}
+                size="small"
+            >
+                <MenuItem value="system">System Theme</MenuItem>
+                <MenuItem value="light">Light</MenuItem>
+                <MenuItem value="dark">Dark</MenuItem>
+            </Select>
         </Box>
     );
 }
-
-export default ThemeSetting;

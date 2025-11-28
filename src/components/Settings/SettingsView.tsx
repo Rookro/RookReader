@@ -4,10 +4,10 @@ import GeneralSettings from './GeneralSettings/GeneralSettings';
 import DeveloperSettings from './DeveloperSettings/DeveloperSettings';
 import RenderingSettings from './RenderingSettings/RenderingSettings';
 import TabPanel from '../TabPanel/TabPanel';
-import './SettingsView.css';
+import AboutPage from './AboutPage/AboutPage';
 
 /**
- * 設定画面コンポーネント
+ * Settings page component.
  */
 export default function SettingsView() {
     const [value, setValue] = React.useState(0);
@@ -18,8 +18,12 @@ export default function SettingsView() {
 
     return (
         <Box
-            className="settings_view"
-            sx={{ flexGrow: 1, bgcolor: 'background.paper' }}
+            sx={{
+                display: 'flex',
+                width: '100%',
+                height: '100%',
+                padding: '0px 4px 4px 4px'
+            }}
         >
             <Tabs
                 orientation="vertical"
@@ -30,18 +34,22 @@ export default function SettingsView() {
                 sx={{ borderRight: 2, borderColor: 'divider' }}
             >
                 <Tab label="General" />
-                <Tab label="Developer" />
                 <Tab label="Rendering" />
+                <Tab label="Developer" />
+                <Tab label="About" />
             </Tabs>
-            <Box sx={{ padding: "16px" }}>
+            <Box sx={{ padding: "12px", width: '100%', height: '100%', overflow: 'auto', bgcolor: (theme) => theme.palette.background.default }}>
                 <TabPanel value={value} index={0}>
                     <GeneralSettings />
                 </TabPanel>
                 <TabPanel value={value} index={1}>
-                    <DeveloperSettings />
+                    <RenderingSettings />
                 </TabPanel>
                 <TabPanel value={value} index={2}>
-                    <RenderingSettings />
+                    <DeveloperSettings />
+                </TabPanel>
+                <TabPanel value={value} index={3}>
+                    <AboutPage />
                 </TabPanel>
             </Box>
         </Box >

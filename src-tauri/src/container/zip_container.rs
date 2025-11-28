@@ -4,15 +4,15 @@ use zip::ZipArchive;
 
 use crate::container::container::{Container, ContainerError, Image};
 
-/// ZIP 書庫コンテナー
+/// A container for Zip archives.
 pub struct ZipContainer {
-    /// コンテナーのファイルパス
+    /// The file path of the container.
     path: String,
-    /// Zip アーカイブ
+    /// The Zip archive.
     archive: ZipArchive<File>,
-    /// コンテナー内のエントリー
+    /// The entries in the container.
     entries: Vec<String>,
-    /// 画像データのキャッシュ (キー: ページインデックス, 値: 画像バイナリ)
+    /// Image data cache (key: entry name, value: image).
     cache: HashMap<String, Arc<Image>>,
 }
 
@@ -22,7 +22,7 @@ impl Container for ZipContainer {
     }
 
     fn get_image(&mut self, entry: &String) -> Result<Arc<Image>, ContainerError> {
-        // まずはキャッシュから取得する
+        // Try to get from the cache.
         if let Some(image_arc) = self.get_image_from_cache(entry)? {
             return Ok(Arc::clone(&image_arc));
         }
@@ -63,7 +63,7 @@ impl Container for ZipContainer {
         let end = (begin_index + count).min(total_pages);
 
         for i in begin_index..end {
-            // すでにキャッシュにあればスキップ
+            // If it's already in the cache, skip it.
             let entry = &self.entries[i];
             if self.cache.contains_key(entry) {
                 log::debug!("Hit cache so skip preload index: {}", i);
@@ -111,9 +111,9 @@ impl Container for ZipContainer {
 }
 
 impl ZipContainer {
-    /// 指定されたパスから ZIP 書庫コンテナーを生成する
+    /// Creates a ZIP archive container from the specified path.
     ///
-    /// * `path` - 書庫コンテナーのパス
+    /// * `path` - The path to the archive container.
     pub fn new(path: &String) -> Result<Self, ContainerError> {
         let file = File::open(path).map_err(|e| ContainerError {
             message: String::from(format!("Failed to open the file. {}", e)),
@@ -126,17 +126,13 @@ impl ZipContainer {
             entry: None,
         })?;
 
-        let entries: Vec<String> = archive
+        let mut entries: Vec<String> = archive
             .file_names()
-            .filter(|name| {
-                name.ends_with(".png")
-                    || name.ends_with(".jpg")
-                    || name.ends_with(".jpeg")
-                    || name.ends_with(".webp")
-                    || name.ends_with(".avif")
-            })
+            .filter(|name| Image::is_supported_format(name))
             .map(|s| s.to_string())
             .collect();
+
+        entries.sort_by(|a, b| natord::compare_ignore_case(a, b));
 
         Ok(Self {
             path: path.clone(),
