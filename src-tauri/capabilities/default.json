@@ -39,6 +39,9 @@
       "allow": [
         {
           "path": "$APPLOG"
+        },
+        {
+          "path": "$RESOURCE/**/*"
         }
       ]
     },

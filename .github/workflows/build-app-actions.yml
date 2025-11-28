@@ -7,18 +7,20 @@ jobs:
     runs-on: [self-hosted, Windows, X64]
     steps:
       - name: setup rustup
-        run: rustup default stable
+        run: |
+          rustup default stable
+          cargo install cargo-about
       - name: checkout merged branch
         uses: actions/checkout@v4
       - name: build application for windows
         run: |
           yarn
-          yarn tauri build --target x86_64-pc-windows-msvc
+          yarn tauri build
       - name: upload setup exe
         uses: actions/upload-artifact@v4
         with:
           name: windows-setup-exe
-          path: src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*setup.exe
+          path: src-tauri/target/release/bundle/nsis/*setup.exe
   build-app-for-linux:
     runs-on: [self-hosted, Linux, X64]
     container:
@@ -26,7 +28,9 @@ jobs:
       options: --user root
     steps:
       - name: setup rustup
-        run: rustup default stable
+        run: |
+          rustup default stable
+          cargo install cargo-about
       - name: checkout merged branch
         uses: actions/checkout@v4
       - name: setup build script

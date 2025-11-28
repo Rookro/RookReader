@@ -31,7 +31,7 @@ WORKDIR /home/vscode
 USER vscode
 
 RUN sudo npm install -g yarn
-RUN rustup default stable
+RUN rustup default stable && cargo install cargo-about
 
 # install paru
 RUN git clone https://aur.archlinux.org/paru.git && \
