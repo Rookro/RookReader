@@ -13,7 +13,7 @@ export function useAppTheme() {
         },
         components: {
             MuiCssBaseline: {
-                styleOverrides: {
+                styleOverrides: (theme) => ({
                     body: {
                         margin: 0,
                         overflow: 'hidden',
@@ -27,9 +27,25 @@ export function useAppTheme() {
                         WebkitFontSmoothing: 'antialiased',
                         MozOsxFontSmoothing: 'grayscale',
                         WebkitTextSizeAdjust: '100%',
+                        // Webkit scrollbar styles
+                        '*::-webkit-scrollbar': {
+                            width: '10px'
+                        },
+                        '*::-webkit-scrollbar-track': {
+                            background: theme.palette.background.paper,
+                            borderRadius: '6px',
+                        },
+                        '*::-webkit-scrollbar-thumb': {
+                            backgroundColor: theme.palette.mode === 'dark' ? '#555' : '#ccc',
+                            borderRadius: '6px',
+                            border: `1px solid ${theme.palette.background.paper}`,
+                        },
+                        '*::-webkit-scrollbar-thumb:hover': {
+                            backgroundColor: theme.palette.mode === 'dark' ? '#777' : '#aaa',
+                        },
                     },
-                }
-            }
+                }),
+            },
         },
     }), [prefersDarkMode]);
 
