@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Box, Stack, Typography } from "@mui/material";
 import { getName, getVersion } from '@tauri-apps/api/app';
+import appIcon from '../../../../assets/app-icon.png';
 
 /**
  * About component.
@@ -21,7 +22,7 @@ export default function About() {
 
     return (
         <Stack direction="row" spacing={2} alignItems="center">
-            <Box component="img" src="app-icon.png" sx={{ width: '100px' }} />
+            <Box component="img" src={appIcon} sx={{ width: '100px' }} />
             <Stack direction="column">
                 <Typography variant="h3">{appName}</Typography>
                 <Typography variant="h5">version {appVersion}</Typography>
