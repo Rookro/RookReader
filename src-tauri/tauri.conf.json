@@ -34,7 +34,9 @@
     "resources": {
       "target/dependencies/pdfium/lib/*": "libs/",
       "target/dependencies/pdfium/LICENSE": "licenses/pdfium/LICENSE",
-      "target/dependencies/pdfium/licenses/**/*": "licenses/pdfium/"
+      "target/dependencies/pdfium/licenses/**/*": "licenses/pdfium/",
+      "target/dependencies/licenses/frontend-licenses.txt": "licenses/frontend-licenses.txt",
+      "target/dependencies/licenses/backend-licenses.html": "licenses/backend-licenses.html"
     },
     "licenseFile": "../LICENSE"
   }

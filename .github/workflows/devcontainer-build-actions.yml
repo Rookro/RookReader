@@ -8,7 +8,7 @@ env:
   REGISTRY: ghcr.io
 jobs:
   build-devcontainer:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64]
     container:
       image: docker:latest
     permissions:

@@ -4,6 +4,7 @@ import GeneralSettings from './GeneralSettings/GeneralSettings';
 import DeveloperSettings from './DeveloperSettings/DeveloperSettings';
 import RenderingSettings from './RenderingSettings/RenderingSettings';
 import TabPanel from '../TabPanel/TabPanel';
+import AboutPage from './AboutPage/AboutPage';
 
 /**
  * Settings page component.
@@ -35,6 +36,7 @@ export default function SettingsView() {
                 <Tab label="General" />
                 <Tab label="Rendering" />
                 <Tab label="Developer" />
+                <Tab label="About" />
             </Tabs>
             <Box sx={{ padding: "12px", width: '100%', height: '100%', overflow: 'auto', bgcolor: (theme) => theme.palette.background.default }}>
                 <TabPanel value={value} index={0}>
@@ -45,6 +47,9 @@ export default function SettingsView() {
                 </TabPanel>
                 <TabPanel value={value} index={2}>
                     <DeveloperSettings />
+                </TabPanel>
+                <TabPanel value={value} index={3}>
+                    <AboutPage />
                 </TabPanel>
             </Box>
         </Box >
