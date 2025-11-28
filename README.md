@@ -7,7 +7,7 @@
 [![Rust](https://img.shields.io/badge/Rust-%23000000.svg?e&logo=rust&logoColor=white)](https://rust-lang.org/)
 [![MIT License](https://img.shields.io/badge/license-MIT-green.svg?style=flat)](LICENSE)
 
-[English](README.md) | [日本語](README.ja.md)
+[English](README.md) | [日本語](docs/ja_JP/README.md)
 
 ## Overview
 
@@ -35,6 +35,18 @@ Please follow the steps below to download and install the appropriate file for y
 1.  For Windows users, download and run `RookReader_x.x.x_x64-setup.exe` (installer).
     For Linux users, download and install `RookReader_x.x.x_amd64_PKGBUILD.zip`.
     A deb file and a PKGBUILD to install it are provided.
+
+## Usage
+
+![screenshot](docs/images/screenshot.png)
+
+* **Open a file:**
+  * Click an archive file or directory in the left pane (File Navigator).
+  * Drag and drop an archive file or directory onto the application window.
+
+* **Navigate through pages:**
+  * Click the image display area to turn to the next page, and right-click to turn to the previous page.
+  * You can also navigate through pages using the mouse wheel or the arrow keys.
 
 ## Development Environment
 

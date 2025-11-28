@@ -7,7 +7,7 @@
 [![Rust](https://img.shields.io/badge/Rust-%23000000.svg?e&logo=rust&logoColor=white)](https://rust-lang.org/)
 [![MIT License](https://img.shields.io/badge/license-MIT-green.svg?style=flat)](LICENSE)
 
-[English](README.md) | [日本語](README.ja.md)
+[English](../../README.md) | [日本語](README.md)
 
 ## 概要
 
@@ -35,6 +35,18 @@ RookReader は、zip、rar、pdf 形式の電子書籍ファイルを閲覧す�
 1. Windows ユーザーは、RookReader_x.x.x_x64-setup.exe (インストーラー) をダウンロードし、実行してください。  
   Linux ユーザーは、RookReader_x.x.x_amd64_PKGBUILD.zip をダウンロードし、インストールしてください。  
   deb ファイルとそれをインストールするための PKGBUILD を用意しています。
+
+## 使用方法
+
+![alt text](../images/screenshot.png)
+
+* **ファイルを開く**
+  * 左ペイン（ファイルナビゲーター）で、アーカイブファイルまたはディレクトリをクリックして開きます。
+  * アーカイブファイルまたはディレクトリをアプリケーションウィンドウにドラッグアンドドロップします。
+
+* **ページのナビゲート（移動）**
+  * 画像表示エリアをクリックすると次のページへ、右クリックすると前のページへ移動することができます。
+  * マウスホイールまたは矢印キーを使用しても、ページをめくることができます。
 
 ## 開発環境
 
