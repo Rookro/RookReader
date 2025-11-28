@@ -1,7 +1,7 @@
 {
   "name": "rook-reader",
   "private": true,
-  "version": "1.5.1",
+  "version": "1.5.2",
   "type": "module",
   "scripts": {
     "mk-licenses-dir": "node -e \"require('fs').mkdirSync('src-tauri/target/dependencies/licenses', { recursive: true })\"",
