@@ -45,6 +45,7 @@
         }
       ]
     },
+    "opener:allow-default-urls",
     "store:default",
     "log:default",
     "os:default",
