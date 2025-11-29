@@ -37,7 +37,7 @@ jobs:
         run: yarn install
 
       - name: Build and upload artifacts.
-      - uses: tauri-apps/tauri-action@dev # use dev to upload artifacts.
+        uses: tauri-apps/tauri-action@dev # use dev to upload artifacts.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:

@@ -41,7 +41,7 @@ jobs:
         run: yarn install
 
       - name: Build and create a draft Release
-      - uses: tauri-apps/tauri-action@v0
+        uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
