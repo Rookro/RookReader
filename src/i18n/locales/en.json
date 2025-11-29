@@ -1,0 +1,65 @@
+{
+    "app": {
+        "file-list-viewer": {
+            "sort-order": {
+                "name-asc": "Name↑",
+                "name-desc": "Name↓",
+                "date-asc": "Date↑",
+                "date-desc": "Date↓"
+            }
+        }
+    },
+    "settings": {
+        "general": {
+            "tab-name": "General",
+            "title": "General",
+            "language": {
+                "title": "Language",
+                "english": "English",
+                "japanese": "日本語"
+            },
+            "theme": {
+                "title": "Theme",
+                "system": "System Theme",
+                "light": "Light",
+                "dark": "Dark"
+            }
+        },
+        "rendering": {
+            "tab-name": "Rendering",
+            "title": "Rendering",
+            "pdf": {
+                "title": "PDF Rendering Height(px)"
+            }
+        },
+        "developer": {
+            "tab-name": "Developer",
+            "title": "Developer",
+            "log": {
+                "log-directory": "Log Directory",
+                "log-level": {
+                    "title": "Log Level",
+                    "description": "A restart of the application is required to apply the log level settings.",
+                    "trace": "Trace",
+                    "debug": "Debug",
+                    "info": "Info",
+                    "warn": "Warn",
+                    "error": "Error"
+                }
+            }
+        },
+        "about": {
+            "tab-name": "About",
+            "title": "About",
+            "project-page": "Project Page",
+            "third-party-licenses": {
+                "title": "Third-Party Licenses",
+                "body": "This application is built with open source software.",
+                "frontend": "Frontend Licenses (yarn)",
+                "backend": "Backend Licenses (cargo)",
+                "bundled": "Boundled Library Licenses",
+                "pdfium": "PDFium License"
+            }
+        }
+    }
+}
