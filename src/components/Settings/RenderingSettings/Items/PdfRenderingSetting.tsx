@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Typography, Box, OutlinedInput } from "@mui/material";
 import { error } from "@tauri-apps/plugin-log";
 import { invoke } from "@tauri-apps/api/core";
@@ -8,6 +9,7 @@ import { settingsStore } from "../../../../settings/SettingsStore";
  * PDF rendering setting component.
  */
 export default function PdfRenderingSetting() {
+    const { t } = useTranslation();
     const [pdfRenderingHeight, setPdfRenderingHeight] = useState<number>(2000);
 
     useEffect(() => {
@@ -31,7 +33,7 @@ export default function PdfRenderingSetting() {
 
     return (
         <Box display="flex">
-            <Typography alignContent="center" sx={{ paddingRight: "12px" }}>PDF Rendering Height(px)</Typography>
+            <Typography alignContent="center" sx={{ paddingRight: "12px" }}>{t('settings.rendering.pdf.title')}</Typography>
             <OutlinedInput
                 type="number"
                 value={pdfRenderingHeight}

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Box, IconButton, MenuItem, OutlinedInput, Select, SelectChangeEvent, Stack, Typography } from "@mui/material";
 import { Folder } from "@mui/icons-material";
 import { openPath } from '@tauri-apps/plugin-opener';
@@ -10,6 +11,7 @@ import { LogSettings } from "../../../../types/LogSettingsType";
  * Log setting component.
  */
 export default function LogSetting() {
+    const { t } = useTranslation();
     const [logDir, setLogDir] = useState<string>("");
     const [logLevel, setLogLevel] = useState<string>("");
 
@@ -39,7 +41,7 @@ export default function LogSetting() {
     return (
         <Stack spacing={1} >
             <Box display="flex">
-                <Typography alignContent="center">Log Directory</Typography>
+                <Typography alignContent="center">{t('settings.developer.log.log-directory')}</Typography>
                 <OutlinedInput
                     type="text"
                     value={logDir}
@@ -56,20 +58,20 @@ export default function LogSetting() {
                 </IconButton>
             </Box>
             <Box className="log-level" display="flex">
-                <Typography alignContent="center">Log Level</Typography>
+                <Typography alignContent="center">{t('settings.developer.log.log-level.title')}</Typography>
                 <Select
                     size="small"
                     value={logLevel}
                     onChange={handleLogLevelChanged}
                     sx={{ marginLeft: '16px', marginRight: '16px' }}
                 >
-                    <MenuItem value="Trace">Trace</MenuItem>
-                    <MenuItem value="Debug">Debug</MenuItem>
-                    <MenuItem value="Info">Info</MenuItem>
-                    <MenuItem value="Warn">Warn</MenuItem>
-                    <MenuItem value="Error">Error</MenuItem>
+                    <MenuItem value="Trace">{t('settings.developer.log.log-level.trace')}</MenuItem>
+                    <MenuItem value="Debug">{t('settings.developer.log.log-level.debug')}</MenuItem>
+                    <MenuItem value="Info">{t('settings.developer.log.log-level.info')}</MenuItem>
+                    <MenuItem value="Warn">{t('settings.developer.log.log-level.warn')}</MenuItem>
+                    <MenuItem value="Error">{t('settings.developer.log.log-level.error')}</MenuItem>
                 </Select>
-                <Typography variant="body2" alignContent="center">A restart of the application is required to apply the log level settings.</Typography>
+                <Typography variant="body2" alignContent="center">{t('settings.developer.log.log-level.description')}</Typography>
             </Box>
         </Stack>
     );

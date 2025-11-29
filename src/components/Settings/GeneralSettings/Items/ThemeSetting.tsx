@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Box, MenuItem, Select, SelectChangeEvent, Typography } from "@mui/material";
 import { app } from "@tauri-apps/api"
 import { Theme } from "@tauri-apps/api/window";
@@ -17,6 +18,7 @@ const toTauriTheme = new Map<string, Theme | undefined>([
  * Theme setting component.
  */
 export default function ThemeSetting() {
+    const { t } = useTranslation();
     const [theme, setTheme] = useState("system");
 
     const handleThemeChanged = async (e: SelectChangeEvent) => {
@@ -39,16 +41,16 @@ export default function ThemeSetting() {
 
     return (
         <Box display="flex">
-            <Typography alignContent="center">Theme</Typography>
+            <Typography alignContent="center">{t('settings.general.theme.title')}</Typography>
             <Select
                 value={theme}
                 onChange={handleThemeChanged}
                 sx={{ margin: 1, minWidth: 160 }}
                 size="small"
             >
-                <MenuItem value="system">System Theme</MenuItem>
-                <MenuItem value="light">Light</MenuItem>
-                <MenuItem value="dark">Dark</MenuItem>
+                <MenuItem value="system">{t('settings.general.theme.system')}</MenuItem>
+                <MenuItem value="light">{t('settings.general.theme.light')}</MenuItem>
+                <MenuItem value="dark">{t('settings.general.theme.dark')}</MenuItem>
             </Select>
         </Box>
     );
