@@ -1,11 +1,15 @@
-name: Build application
+name: Release
 
 on:
-  workflow_dispatch:
-  pull_request:
+  push:
+    branches:
+      - main
 
 jobs:
-  build-application:
+  publish-release:
+    permissions:
+      contents: write
+
     strategy:
       fail-fast: false
       matrix:
@@ -36,9 +40,13 @@ jobs:
       - name: Install frontend dependencies
         run: yarn install
 
-      - name: Build and upload artifacts.
-        uses: tauri-apps/tauri-action@dev # use dev to upload artifacts.
+      - name: Build and create a draft Release
+        uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          uploadWorkflowArtifacts: true
+          tagName: v__VERSION__
+          releaseName: v__VERSION__
+          releaseBody: See the assets to download this version and install.
+          releaseDraft: true
+          prerelease: false
