@@ -13,7 +13,7 @@
 
 RookReader is a modern, fast, cross-platform application for viewing e-book files in zip, rar, and pdf formats. It is available for Windows and Linux environments.
 
-It supports image sequences (such as comics and magazines) contained in common archive files and PDF documents, and is specialized for the reading experience of Japanese novels and comics.
+It supports image sequences (such as comics and magazines) contained in a directory, common archive files and PDF documents, and is specialized for the reading experience of Japanese novels and comics.
 
 ## Features
 
@@ -31,10 +31,45 @@ It supports image sequences (such as comics and magazines) contained in common a
 Pre-built binaries of the application are available on the GitHub Releases page.
 Please follow the steps below to download and install the appropriate file for your environment.
 
-1.  Go to the [latest release](https://github.com/Rookro/RookReader/releases/latest/) on the RookReader GitHub Releases page.
-1.  For Windows users, download and run `RookReader_x.x.x_x64-setup.exe` (installer).
-    For Linux users, download and install `RookReader_x.x.x_amd64_PKGBUILD.zip`.
-    A deb file and a PKGBUILD to install it are provided.
+1. Go to the [latest release](https://github.com/Rookro/RookReader/releases/latest/) on the RookReader GitHub Releases page.
+1. Download the appropriate file for your operating system and follow the corresponding installation method.
+
+### Windows
+
+| File Name | Installation Guide |
+| -- | -- |
+| RookReader_x.x.x_x64-setup.exe | Download and run the executable installer. |
+| RookReader_x.x.x_x64_xx-XX.msi | Download and run the MSI installer. |
+
+###  Linux
+
+| Distribution | Recommended File | Installation Guide |
+| -- | -- | -- |
+| Debian/Ubuntu/Mint | RookReader_x.x.x_amd64.deb | Double-click the file, or use `sudo dpkg -i <filename>` in the terminal. |
+| Arch Linux/Manjaro | RookReader_x.x.x_amd64.deb | See [Arch Linux Instructions](#arch-linux-instructions) below. |
+| Fedora/RHEL/openSUSE | RookReader_x.x.x-x.x86_64.rpm | Use `sudo dnf install <filename>` (or `sudo yum install <filename>`) in the terminal. |
+| Other Distributions (Universal) | RookReader_x.x.x_amd64.AppImage | Grant execution permission (`chmod +x <filename>`), then run the file. No installation required. |
+
+#### Arch Linux Instructions
+
+For users running Arch Linux or Manjaro, you can build and install the package using the provided PKGBUILD.
+
+1. Download the following files:
+
+   | File Name | Location |
+   | -- | -- |
+   | RookReader_x.x.x_amd64.deb |  Github Releases |
+   | PKGBUILD | Repository Root |
+   | RookReader.install | Repository Root |
+
+1. Place all downloaded files in the same directory.
+1. Open the terminal, navigate to that directory, and run the following command to build and install the package:
+
+   ``` bash
+   makepkg -si
+   ```
+
+   This command will build the package based on the PKGBUILD and install it, handling dependencies.
 
 ## Usage
 
