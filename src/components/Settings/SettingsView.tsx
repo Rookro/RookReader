@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from "react-i18next";
 import { Tab, Tabs, Box } from '@mui/material';
 import GeneralSettings from './GeneralSettings/GeneralSettings';
 import DeveloperSettings from './DeveloperSettings/DeveloperSettings';
@@ -10,6 +11,7 @@ import AboutPage from './AboutPage/AboutPage';
  * Settings page component.
  */
 export default function SettingsView() {
+    const { t } = useTranslation();
     const [value, setValue] = React.useState(0);
 
     const handleChange = (_event: React.SyntheticEvent, newValue: number) => {
@@ -33,10 +35,10 @@ export default function SettingsView() {
                 aria-label="setttings tabs"
                 sx={{ borderRight: 2, borderColor: 'divider' }}
             >
-                <Tab label="General" />
-                <Tab label="Rendering" />
-                <Tab label="Developer" />
-                <Tab label="About" />
+                <Tab label={t('settings.general.tab-name')} />
+                <Tab label={t('settings.rendering.tab-name')} />
+                <Tab label={t('settings.developer.tab-name')} />
+                <Tab label={t('settings.about.tab-name')} />
             </Tabs>
             <Box sx={{ padding: "12px", width: '100%', height: '100%', overflow: 'auto', bgcolor: (theme) => theme.palette.background.default }}>
                 <TabPanel value={value} index={0}>

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { useDispatch } from 'react-redux';
+import { useTranslation } from 'react-i18next';
 import { dirname, homeDir } from '@tauri-apps/api/path';
 import { ArrowBack, ArrowForward, ArrowUpward, Home, Refresh, Search, } from '@mui/icons-material';
 import { Box, IconButton, InputAdornment, MenuItem, OutlinedInput, Select, SelectChangeEvent, Stack } from '@mui/material';
@@ -12,6 +13,7 @@ import { settingsStore } from '../../settings/SettingsStore';
  * Navigation bar component for File list viewer component.
  */
 export default function NavBar() {
+    const { t } = useTranslation();
     const { history, historyIndex, searchText, sortOrder } = useSelector(state => state.file.explorer);
     const dispatch = useDispatch<AppDispatch>();
 
@@ -132,10 +134,10 @@ export default function NavBar() {
                         sx={{ minWidth: "100px" }}
                         onChange={handleSortOrderChanged}
                     >
-                        <MenuItem value={"NAME_ASC"}>Name↑</MenuItem>
-                        <MenuItem value={"NAME_DESC"}>Name↓</MenuItem>
-                        <MenuItem value={"DATE_ASC"}>Date↑</MenuItem>
-                        <MenuItem value={"DATE_DESC"}>Date↓</MenuItem>
+                        <MenuItem value={"NAME_ASC"}>{t('app.file-list-viewer.sort-order.name-asc')}</MenuItem>
+                        <MenuItem value={"NAME_DESC"}>{t('app.file-list-viewer.sort-order.name-desc')}</MenuItem>
+                        <MenuItem value={"DATE_ASC"}>{t('app.file-list-viewer.sort-order.date-asc')}</MenuItem>
+                        <MenuItem value={"DATE_DESC"}>{t('app.file-list-viewer.sort-order.name-desc')}</MenuItem>
                     </Select>
                     : <></>}
             </Box>
