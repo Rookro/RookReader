@@ -13,7 +13,7 @@
 
 RookReader は、zip、rar、pdf 形式の電子書籍ファイルを閲覧するための、モダンで高速なクロスプラットフォームアプリケーションです。Windows および Linux 環境で利用可能です。
 
-一般的なアーカイブファイルに含まれる画像シーケンス（コミックや雑誌など）や PDFドキュメントをサポートし、日本語の小説やコミックの読書体験に特化しています。
+ディレクトリーや一般的なアーカイブファイルに含まれる画像シーケンス（コミックや雑誌など）、PDFドキュメントをサポートし、日本語の小説やコミックの読書体験に特化しています。
 
 ## 特徴
 
@@ -31,10 +31,44 @@ RookReader は、zip、rar、pdf 形式の電子書籍ファイルを閲覧す�
 アプリケーションのビルド済みバイナリは、GitHub の Release ページで提供されています。  
 以下の手順で、お使いの環境に合ったファイルをダウンロードしてインストールしてください。
 
-1. RookReader GitHub Releases ページ の[最新のリリース](https://github.com/Rookro/RookReader/releases/latest/)にアクセスします。
-1. Windows ユーザーは、RookReader_x.x.x_x64-setup.exe (インストーラー) をダウンロードし、実行してください。  
-  Linux ユーザーは、RookReader_x.x.x_amd64_PKGBUILD.zip をダウンロードし、インストールしてください。  
-  deb ファイルとそれをインストールするための PKGBUILD を用意しています。
+1. RookReader の GitHub Releases ページ の[最新のリリース](https://github.com/Rookro/RookReader/releases/latest/)にアクセスします。
+1. ご使用のOSに適したファイルをダウンロードし、以下のインストール方法に従ってください。
+
+### Windows
+
+| ファイル名 | インストール手順 |
+| -- | -- |
+| RookReader_x.x.x_x64-setup.exe | ダウンロードし、実行形式のインストーラーを実行します。 |
+| RookReader_x.x.x_x64_xx-XX.msi | ダウンロードし、MSIインストーラーを実行します。 |
+
+###  Linux
+
+| ディストリビューション | 推奨ファイル | インストール手順 |
+| -- | -- | -- |
+| Debian/Ubuntu/Mint | RookReader_x.x.x_amd64.deb | Dファイルをダブルクリックするか、ターミナルで `sudo dpkg -i <ファイル名>` を実行します。 |
+| Arch Linux/Manjaro | RookReader_x.x.x_amd64.deb | [Arch Linux 向け手順](#arch-linux-向け手順)を参照してください。
+| Fedora/RHEL/openSUSE | RookReader_x.x.x-x.x86_64.rpm | ターミナルで `sudo dnf install <ファイル名>` (または `sudo yum install <ファイル名>`) を実行します。 |
+| Other Distributions (Universal) | RookReader_x.x.x_amd64.AppImage | 実行権限を付与し (`chmod +x <ファイル名>`)、ファイルを実行します。インストールは不要です。 |
+
+#### Arch Linux 向け手順
+
+Arch Linux または Manjaro などのディストリビューションを使用している場合は、提供されている PKGBUILD を使用してパッケージをビルドし、インストールできます。
+
+1. 以下のファイルをダウンロードします。
+
+   | ファイル名 | ダウンロード場所 |
+   | -- | -- |
+   | RookReader_x.x.x_amd64.deb | Github Releases |
+   | PKGBUILD | リポジトリのルート |
+   | RookReader.install | リポジトリのルート |
+
+1. ダウンロードしたファイルをすべて同じディレクトリに配置します。
+1. ターミナルを開き、そのディレクトリに移動します。
+1. 以下のコマンドを実行してパッケージをビルドし、インストールします。
+
+   ``` bash
+   makepkg -si
+   ```
 
 ## 使用方法
 
@@ -78,12 +112,6 @@ DevContainer 内で、以下のコマンドを利用してビルドできます�
 ```bash
 yarn
 yarn tauri build
-```
-
-もしくは単に以下を実行してビルドできます。
-
-```bash
-./build-linux.sh
 ```
 
 ## 貢献
