@@ -1,19 +1,19 @@
 import i18n from "i18next";
 import LanguageDetector from "i18next-browser-languagedetector";
 import { initReactI18next } from "react-i18next";
-import translationEn from "./locales/en.json";
-import translationJa from "./locales/ja.json";
+import translationEnUs from "./locales/en-US.json";
+import translationJaJp from "./locales/ja-JP.json";
 i18n
     .use(LanguageDetector)
     .use(initReactI18next)
     .init({
-        fallbackLng: "en",
+        fallbackLng: "en-US",
         resources: {
-            en: {
-                translation: translationEn,
+            'en-US': {
+                translation: translationEnUs,
             },
-            ja: {
-                translation: translationJa,
+            'ja-JP': {
+                translation: translationJaJp,
             },
         },
         interpolation: {

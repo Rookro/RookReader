@@ -8,7 +8,7 @@ import { settingsStore } from "../../../../settings/SettingsStore";
  */
 export default function LanguageSetting() {
     const [t, i18n] = useTranslation();
-    const [language, setLanguage] = useState<string>(i18n.language);
+    const [language, setLanguage] = useState<string>(i18n.languages[0]);
 
     const handleLanguageChanged = async (e: SelectChangeEvent) => {
         setLanguage(e.target.value);
@@ -25,8 +25,8 @@ export default function LanguageSetting() {
                 sx={{ margin: 1, minWidth: 160 }}
                 size="small"
             >
-                <MenuItem value="en">{t('settings.general.language.english')}</MenuItem>
-                <MenuItem value="ja">{t('settings.general.language.japanese')}</MenuItem>
+                <MenuItem value="en-US">{t('settings.general.language.english')}</MenuItem>
+                <MenuItem value="ja-JP">{t('settings.general.language.japanese')}</MenuItem>
             </Select>
         </Box>
     );
