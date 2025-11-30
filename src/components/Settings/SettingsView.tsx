@@ -6,6 +6,7 @@ import DeveloperSettings from './DeveloperSettings/DeveloperSettings';
 import RenderingSettings from './RenderingSettings/RenderingSettings';
 import TabPanel from '../TabPanel/TabPanel';
 import AboutPage from './AboutPage/AboutPage';
+import FileNavigatorSettings from './FileNavigatorSettings/FileNavigatorSettings';
 
 /**
  * Settings page component.
@@ -38,6 +39,7 @@ export default function SettingsView() {
                 <Tab label={t('settings.general.tab-name')} />
                 <Tab label={t('settings.rendering.tab-name')} />
                 <Tab label={t('settings.developer.tab-name')} />
+                <Tab label={t('settings.file-navigator.tab-name')} />
                 <Tab label={t('settings.about.tab-name')} />
             </Tabs>
             <Box sx={{ padding: "12px", width: '100%', height: '100%', overflow: 'auto', bgcolor: (theme) => theme.palette.background.default }}>
@@ -51,6 +53,9 @@ export default function SettingsView() {
                     <DeveloperSettings />
                 </TabPanel>
                 <TabPanel value={value} index={3}>
+                    <FileNavigatorSettings />
+                </TabPanel>
+                <TabPanel value={value} index={4}>
                     <AboutPage />
                 </TabPanel>
             </Box>

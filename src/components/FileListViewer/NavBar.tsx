@@ -23,7 +23,7 @@ export default function NavBar() {
 
     const setDirParh = async (dirPath: string | undefined = undefined) => {
         if (!dirPath) {
-            dirPath = await homeDir();
+            dirPath = await settingsStore.get("home-directory") ?? await homeDir();
         }
         dispatch(setSearchText(""));
         dispatch(setExploreBasePath(dirPath));

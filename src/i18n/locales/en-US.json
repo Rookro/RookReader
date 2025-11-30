@@ -25,6 +25,11 @@
                 "dark": "Dark"
             }
         },
+        "file-navigator": {
+            "tab-name": "File Navigator",
+            "title": "File Navigator",
+            "home-directory-title": "Home Directory"
+        },
         "rendering": {
             "tab-name": "Rendering",
             "title": "Rendering",
