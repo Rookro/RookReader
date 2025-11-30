@@ -66,7 +66,7 @@ const ItemRow = memo(function ItemRow({
 });
 
 /** 
- * File list viewer component.
+ * File navigator component.
  */
 export default function FileListViewer() {
     const { history, historyIndex, entries, searchText, sortOrder } = useSelector(state => state.file.explorer);
