@@ -25,6 +25,11 @@
                 "dark": "ダークテーマ"
             }
         },
+        "file-navigator": {
+            "tab-name": "ファイルナビゲーター",
+            "title": "ファイルナビゲーター",
+            "home-directory-title": "ホームディレクトリー"
+        },
         "rendering": {
             "tab-name": "描画設定",
             "title": "描画設定",
