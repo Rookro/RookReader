@@ -46,8 +46,8 @@ Please follow the steps below to download and install the appropriate file for y
 | Distribution | Recommended File | Installation Guide |
 | -- | -- | -- |
 | Debian/Ubuntu/Mint | RookReader_x.x.x_amd64.deb | Double-click the file, or use `sudo dpkg -i <filename>` in the terminal. |
-| Arch Linux/Manjaro | RookReader_x.x.x_amd64.deb | See [Arch Linux Instructions](#arch-linux-instructions) below. |
 | Fedora/RHEL/openSUSE | RookReader_x.x.x-x.x86_64.rpm | Use `sudo dnf install <filename>` (or `sudo yum install <filename>`) in the terminal. |
+| Arch Linux/Manjaro | - | See [Arch Linux Instructions](#arch-linux-instructions) below. |
 | Other Distributions (Universal) | RookReader_x.x.x_amd64.AppImage | Grant execution permission (`chmod +x <filename>`), then run the file. No installation required. |
 
 #### Arch Linux Instructions
@@ -58,9 +58,8 @@ For users running Arch Linux or Manjaro, you can build and install the package u
 
    | File Name | Location |
    | -- | -- |
-   | RookReader_x.x.x_amd64.deb |  Github Releases |
-   | PKGBUILD | Repository Root |
-   | RookReader.install | Repository Root |
+   | PKGBUILD | PKGBUILD/ in the repository |
+   | RookReader.install | PKGBUILD/ in the repository |
 
 1. Place all downloaded files in the same directory.
 1. Open the terminal, navigate to that directory, and run the following command to build and install the package:
@@ -69,7 +68,7 @@ For users running Arch Linux or Manjaro, you can build and install the package u
    makepkg -si
    ```
 
-   This command will build the package based on the PKGBUILD and install it, handling dependencies.
+   This command builds, installs, and manages dependencies for the package.
 
 ## Usage
 
