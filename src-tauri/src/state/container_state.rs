@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{path::Path, sync::Arc};
 
 use crate::{
     container::{
@@ -14,7 +14,7 @@ use crate::{
 /// The container state.
 pub struct ContainerState {
     /// Archive container
-    pub container: Option<Box<dyn Container>>,
+    pub container: Option<Arc<dyn Container>>,
     /// Settings for the archive container
     pub settings: ContainerSettings,
 }
@@ -37,7 +37,7 @@ impl ContainerState {
         let file_path = Path::new(path);
 
         if file_path.is_dir() {
-            self.container = Some(Box::new(DirectoryContainer::new(path)?));
+            self.container = Some(Arc::new(DirectoryContainer::new(path)?));
             return Ok(());
         }
 
@@ -45,18 +45,18 @@ impl ContainerState {
             let ext_str = ext.to_string_lossy().to_lowercase();
             match ext_str.as_str() {
                 "zip" => {
-                    self.container = Some(Box::new(ZipContainer::new(path)?));
+                    self.container = Some(Arc::new(ZipContainer::new(path)?));
                     Ok(())
                 }
                 "pdf" => {
-                    self.container = Some(Box::new(PdfContainer::new(
+                    self.container = Some(Arc::new(PdfContainer::new(
                         path,
                         self.settings.pdf_rendering_height,
                     )?));
                     Ok(())
                 }
                 "rar" => {
-                    self.container = Some(Box::new(RarContainer::new(path)?));
+                    self.container = Some(Arc::new(RarContainer::new(path)?));
                     Ok(())
                 }
                 _ => {

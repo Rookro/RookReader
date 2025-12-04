@@ -3,6 +3,7 @@ use unrar::{Archive, CursorBeforeHeader, OpenArchive, Process};
 use std::{
     collections::{HashMap, HashSet},
     sync::Arc,
+    sync::Mutex,
 };
 
 use crate::container::container::{Container, ContainerError, Image};
@@ -14,7 +15,7 @@ pub struct RarContainer {
     /// The entries in the container.
     entries: Vec<String>,
     /// Image data cache (key: entry name, value: image).
-    cache: HashMap<String, Arc<Image>>,
+    cache: Arc<Mutex<HashMap<String, Arc<Image>>>>,
 }
 
 impl Container for RarContainer {
@@ -22,7 +23,7 @@ impl Container for RarContainer {
         &self.entries
     }
 
-    fn get_image(&mut self, entry: &String) -> Result<Arc<Image>, ContainerError> {
+    fn get_image(&self, entry: &String) -> Result<Arc<Image>, ContainerError> {
         // Try to get from the cache.
         if let Some(image_arc) = self.get_image_from_cache(entry)? {
             return Ok(Arc::clone(&image_arc));
@@ -51,7 +52,14 @@ impl Container for RarContainer {
                 match Image::new(data) {
                     Ok(img) => {
                         let img_arc = Arc::new(img);
-                        self.cache.insert(entry.clone(), Arc::clone(&img_arc));
+                        self.cache
+                            .lock()
+                            .map_err(|e| ContainerError {
+                                message: e.to_string(),
+                                path: Some(self.path.clone()),
+                                entry: None,
+                            })?
+                            .insert(entry.clone(), Arc::clone(&img_arc));
                         image = Some(img_arc);
                         break;
                     }
@@ -83,7 +91,7 @@ impl Container for RarContainer {
         }
     }
 
-    fn preload(&mut self, begin_index: usize, count: usize) -> Result<(), ContainerError> {
+    fn preload(&self, begin_index: usize, count: usize) -> Result<(), ContainerError> {
         let total_pages = self.entries.len();
         let end = (begin_index + count).min(total_pages);
 
@@ -108,7 +116,16 @@ impl Container for RarContainer {
                 .to_string_lossy()
                 .to_string();
             if target_names.contains(&filename) {
-                if self.cache.contains_key(&filename) {
+                if self
+                    .cache
+                    .lock()
+                    .map_err(|e| ContainerError {
+                        message: e.to_string(),
+                        path: Some(self.path.clone()),
+                        entry: None,
+                    })?
+                    .contains_key(&filename)
+                {
                     archive = header.skip().map_err(|e| ContainerError {
                         message: format!("Failed to skip data in the rar. {}", e),
                         path: Some(self.path.clone()),
@@ -130,7 +147,14 @@ impl Container for RarContainer {
 
                 match Image::new(data) {
                     Ok(img) => {
-                        self.cache.insert(filename.clone(), Arc::new(img));
+                        self.cache
+                            .lock()
+                            .map_err(|e| ContainerError {
+                                message: e.to_string(),
+                                path: Some(self.path.clone()),
+                                entry: None,
+                            })?
+                            .insert(filename.clone(), Arc::new(img));
                         remaining = remaining.saturating_sub(1);
                         if remaining == 0 {
                             break;
@@ -158,7 +182,16 @@ impl Container for RarContainer {
     }
 
     fn get_image_from_cache(&self, entry: &String) -> Result<Option<Arc<Image>>, ContainerError> {
-        Ok(self.cache.get(entry).map(|arc| Arc::clone(arc)))
+        Ok(self
+            .cache
+            .lock()
+            .map_err(|e| ContainerError {
+                message: e.to_string(),
+                path: Some(self.path.clone()),
+                entry: None,
+            })?
+            .get(entry)
+            .map(|arc| Arc::clone(arc)))
     }
 }
 
@@ -195,7 +228,7 @@ impl RarContainer {
         Ok(Self {
             path: path.clone(),
             entries: entries,
-            cache: HashMap::new(),
+            cache: Arc::new(Mutex::new(HashMap::new())),
         })
     }
 }

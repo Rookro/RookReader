@@ -1,4 +1,9 @@
-use std::{collections::HashMap, fs::File, io::Read, sync::Arc};
+use std::{
+    collections::HashMap,
+    fs::File,
+    io::Read,
+    sync::{Arc, Mutex},
+};
 
 use zip::ZipArchive;
 
@@ -8,12 +13,12 @@ use crate::container::container::{Container, ContainerError, Image};
 pub struct ZipContainer {
     /// The file path of the container.
     path: String,
-    /// The Zip archive.
-    archive: ZipArchive<File>,
+    /// The Zip archive. It is wrapped in a Mutex to allow for mutable access in an async context.
+    archive: Arc<Mutex<ZipArchive<File>>>,
     /// The entries in the container.
     entries: Vec<String>,
     /// Image data cache (key: entry name, value: image).
-    cache: HashMap<String, Arc<Image>>,
+    cache: Arc<Mutex<HashMap<String, Arc<Image>>>>,
 }
 
 impl Container for ZipContainer {
@@ -21,22 +26,30 @@ impl Container for ZipContainer {
         &self.entries
     }
 
-    fn get_image(&mut self, entry: &String) -> Result<Arc<Image>, ContainerError> {
+    fn get_image(&self, entry: &String) -> Result<Arc<Image>, ContainerError> {
         // Try to get from the cache.
-        if let Some(image_arc) = self.get_image_from_cache(entry)? {
-            return Ok(Arc::clone(&image_arc));
+        {
+            if let Some(image_arc) = self.get_image_from_cache(entry)? {
+                return Ok(Arc::clone(&image_arc));
+            }
         }
 
-        let mut file_in_zip = self.archive.by_name(entry).map_err(|e| ContainerError {
-            message: String::from(format!("Failed to get entry. {}", e)),
+        let mut archive = self.archive.lock().map_err(|e| ContainerError {
+            message: e.to_string(),
+            path: Some(self.path.clone()),
+            entry: None,
+        })?;
+        let mut file_in_zip = archive.by_name(entry).map_err(|e| ContainerError {
+            message: format!("Failed to get entry. {}", e),
             path: Some(self.path.clone()),
             entry: Some(entry.clone()),
         })?;
+
         let mut buffer = Vec::new();
         file_in_zip
             .read_to_end(&mut buffer)
             .map_err(|e| ContainerError {
-                message: String::from(format!("Failed to read entry in the zip archive. {}", e)),
+                message: format!("Failed to read entry in the zip archive. {}", e),
                 path: Some(self.path.clone()),
                 entry: Some(entry.clone()),
             })?;
@@ -44,7 +57,14 @@ impl Container for ZipContainer {
         match Image::new(buffer) {
             Ok(image) => {
                 let image_arc = Arc::new(image);
-                self.cache.insert(entry.clone(), Arc::clone(&image_arc));
+                self.cache
+                    .lock()
+                    .map_err(|e| ContainerError {
+                        message: e.to_string(),
+                        path: Some(self.path.clone()),
+                        entry: None,
+                    })?
+                    .insert(entry.clone(), Arc::clone(&image_arc));
                 Ok(image_arc)
             }
             Err(e) => {
@@ -58,31 +78,49 @@ impl Container for ZipContainer {
         }
     }
 
-    fn preload(&mut self, begin_index: usize, count: usize) -> Result<(), ContainerError> {
+    fn preload(&self, begin_index: usize, count: usize) -> Result<(), ContainerError> {
         let total_pages = self.entries.len();
         let end = (begin_index + count).min(total_pages);
 
         for i in begin_index..end {
             // If it's already in the cache, skip it.
             let entry = &self.entries[i];
-            if self.cache.contains_key(entry) {
-                log::debug!("Hit cache so skip preload index: {}", i);
-                continue;
+            {
+                if self
+                    .cache
+                    .lock()
+                    .map_err(|e| ContainerError {
+                        message: e.to_string(),
+                        path: Some(self.path.clone()),
+                        entry: None,
+                    })?
+                    .contains_key(entry)
+                {
+                    log::debug!("Hit cache so skip preload index: {}", i);
+                    continue;
+                }
             }
 
             let mut buffer = Vec::new();
             {
-                let mut file = self.archive.by_name(entry).map_err(|e| ContainerError {
-                    message: format!("Failed to get the file. {}", e),
+                let mut archive = self.archive.lock().map_err(|e| ContainerError {
+                    message: e.to_string(),
                     path: Some(self.path.clone()),
-                    entry: Some(entry.clone()),
+                    entry: None,
                 })?;
+                let mut file = match archive.by_name(entry) {
+                    Ok(file) => file,
+                    Err(e) => {
+                        return Err(ContainerError {
+                            message: format!("Failed to get the file. {}", e),
+                            path: Some(self.path.clone()),
+                            entry: Some(entry.clone()),
+                        });
+                    }
+                };
 
                 file.read_to_end(&mut buffer).map_err(|e| ContainerError {
-                    message: String::from(format!(
-                        "Failed to read entry in the zip archive. {}",
-                        e
-                    )),
+                    message: format!("Failed to read entry in the zip archive. {}", e),
                     path: Some(self.path.clone()),
                     entry: Some(entry.clone()),
                 })?;
@@ -90,7 +128,14 @@ impl Container for ZipContainer {
 
             match Image::new(buffer) {
                 Ok(image) => {
-                    self.cache.insert(entry.clone(), Arc::new(image));
+                    self.cache
+                        .lock()
+                        .map_err(|e| ContainerError {
+                            message: e.to_string(),
+                            path: Some(self.path.clone()),
+                            entry: None,
+                        })?
+                        .insert(entry.clone(), Arc::new(image));
                 }
                 Err(e) => {
                     log::error!("{}", e);
@@ -106,7 +151,16 @@ impl Container for ZipContainer {
     }
 
     fn get_image_from_cache(&self, entry: &String) -> Result<Option<Arc<Image>>, ContainerError> {
-        Ok(self.cache.get(entry).map(|arc| Arc::clone(arc)))
+        Ok(self
+            .cache
+            .lock()
+            .map_err(|e| ContainerError {
+                message: e.to_string(),
+                path: Some(self.path.clone()),
+                entry: None,
+            })?
+            .get(entry)
+            .map(|arc| Arc::clone(arc)))
     }
 }
 
@@ -116,11 +170,12 @@ impl ZipContainer {
     /// * `path` - The path to the archive container.
     pub fn new(path: &String) -> Result<Self, ContainerError> {
         let file = File::open(path).map_err(|e| ContainerError {
-            message: String::from(format!("Failed to open the file. {}", e)),
+            message: format!("Failed to open the file. {}", e),
             path: Some(path.clone()),
             entry: None,
         })?;
         let archive = ZipArchive::new(file).map_err(|e| ContainerError {
+            // This moves file
             message: String::from(format!("Failed to open the zip archive. {}", e)),
             path: Some(path.clone()),
             entry: None,
@@ -136,9 +191,9 @@ impl ZipContainer {
 
         Ok(Self {
             path: path.clone(),
-            archive: archive,
+            archive: Arc::new(Mutex::new(archive)),
             entries: entries,
-            cache: HashMap::new(),
+            cache: Arc::new(Mutex::new(HashMap::new())),
         })
     }
 }

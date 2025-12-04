@@ -1,6 +1,10 @@
 use image::{codecs::png::PngEncoder, ExtendedColorType, ImageEncoder};
 use pdfium::{PdfiumDocument, PdfiumRenderConfig};
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::HashMap,
+    num::TryFromIntError,
+    sync::{Arc, Mutex},
+};
 
 use crate::container::container::{Container, ContainerError, Image};
 
@@ -11,7 +15,7 @@ pub struct PdfContainer {
     /// The entries in the container.
     entries: Vec<String>,
     /// Image data cache (key: entry name, value: image).
-    cache: HashMap<String, Arc<Image>>,
+    cache: Arc<Mutex<HashMap<String, Arc<Image>>>>,
     /// The image height when rendering a PDF.
     pub rendering_height: i32,
 }
@@ -21,7 +25,7 @@ impl Container for PdfContainer {
         &self.entries
     }
 
-    fn get_image(&mut self, entry: &String) -> Result<Arc<Image>, ContainerError> {
+    fn get_image(&self, entry: &String) -> Result<Arc<Image>, ContainerError> {
         // Try to get from the cache.
         if let Some(image_arc) = self.get_image_from_cache(entry)? {
             return Ok(Arc::clone(&image_arc));
@@ -76,16 +80,23 @@ impl Container for PdfContainer {
         };
 
         let image_arc = Arc::new(image);
-        self.cache.insert(entry.clone(), Arc::clone(&image_arc));
+        self.cache
+            .lock()
+            .map_err(|e| ContainerError {
+                message: e.to_string(),
+                path: Some(self.path.clone()),
+                entry: None,
+            })?
+            .insert(entry.clone(), Arc::clone(&image_arc));
         Ok(image_arc)
     }
 
-    fn preload(&mut self, begin_index: usize, count: usize) -> Result<(), ContainerError> {
+    fn preload(&self, begin_index: usize, count: usize) -> Result<(), ContainerError> {
         let total_pages = self.entries.len();
         let end = (begin_index + count).min(total_pages);
 
         if begin_index >= end {
-            return Ok(());
+            return Ok(()); // No pages to preload
         }
 
         let pdf = open(&self.path)?;
@@ -94,14 +105,27 @@ impl Container for PdfContainer {
         for i in begin_index..end {
             // If it's already in the cache, skip it.
             let entry = &self.entries[i];
-            if self.cache.contains_key(entry) {
+            if self
+                .cache
+                .lock()
+                .map_err(|e| ContainerError {
+                    message: e.to_string(),
+                    path: Some(self.path.clone()),
+                    entry: None,
+                })?
+                .contains_key(entry)
+            {
                 log::debug!("Hit cache so skip preload index: {}", i);
                 continue;
             }
 
             let page = pdf
                 .pages()
-                .get(i.try_into().unwrap())
+                .get(i.try_into().map_err(|e: TryFromIntError| ContainerError {
+                    message: e.to_string(),
+                    path: Some(self.path.clone()),
+                    entry: None,
+                })?)
                 .map_err(|e| ContainerError {
                     message: format!("Failed to get the pdf page({}). {}", entry, e),
                     path: Some(self.path.clone()),
@@ -141,14 +165,30 @@ impl Container for PdfContainer {
                 height: img.height(),
             };
 
-            self.cache.insert(entry.clone(), Arc::new(image));
+            self.cache
+                .lock()
+                .map_err(|e| ContainerError {
+                    message: e.to_string(),
+                    path: Some(self.path.clone()),
+                    entry: None,
+                })?
+                .insert(entry.clone(), Arc::new(image));
         }
 
         Ok(())
     }
 
     fn get_image_from_cache(&self, entry: &String) -> Result<Option<Arc<Image>>, ContainerError> {
-        Ok(self.cache.get(entry).map(|arc| Arc::clone(arc)))
+        Ok(self
+            .cache
+            .lock()
+            .map_err(|e| ContainerError {
+                message: e.to_string(),
+                path: Some(self.path.clone()),
+                entry: None,
+            })?
+            .get(entry)
+            .map(|arc| Arc::clone(arc)))
     }
 }
 
@@ -167,7 +207,7 @@ impl PdfContainer {
         Ok(Self {
             path: path.clone(),
             entries: entries,
-            cache: HashMap::new(),
+            cache: Arc::new(Mutex::new(HashMap::new())),
             rendering_height,
         })
     }

@@ -3,7 +3,7 @@ use std::{
     fs::{read_dir, File},
     io::Read,
     path,
-    sync::Arc,
+    sync::{Arc, Mutex},
 };
 
 use crate::container::container::{Container, ContainerError, Image};
@@ -15,7 +15,7 @@ pub struct DirectoryContainer {
     /// The entries in the directory.
     entries: Vec<String>,
     /// The image cache.(key: entry name, value: image)
-    cache: HashMap<String, Arc<Image>>,
+    cache: Arc<Mutex<HashMap<String, Arc<Image>>>>,
 }
 
 impl Container for DirectoryContainer {
@@ -23,7 +23,7 @@ impl Container for DirectoryContainer {
         &self.entries
     }
 
-    fn get_image(&mut self, entry: &String) -> Result<Arc<Image>, ContainerError> {
+    fn get_image(&self, entry: &String) -> Result<Arc<Image>, ContainerError> {
         // Try to get from the cache.
         if let Some(image_arc) = self.get_image_from_cache(entry)? {
             return Ok(Arc::clone(&image_arc));
@@ -33,14 +33,23 @@ impl Container for DirectoryContainer {
         Ok(image_arc)
     }
 
-    fn preload(&mut self, begin_index: usize, count: usize) -> Result<(), ContainerError> {
+    fn preload(&self, begin_index: usize, count: usize) -> Result<(), ContainerError> {
         let total_pages = self.entries.len();
         let end = (begin_index + count).min(total_pages);
 
         for i in begin_index..end {
             // If it's already in the cache, skip it.
-            let entry = self.entries[i].clone();
-            if self.cache.contains_key(&entry) {
+            let entry = &self.entries[i];
+            if self
+                .cache
+                .lock()
+                .map_err(|e| ContainerError {
+                    message: e.to_string(),
+                    path: Some(self.path.clone()),
+                    entry: None,
+                })?
+                .contains_key(entry)
+            {
                 log::debug!("Hit cache so skip preload index: {}", i);
                 continue;
             }
@@ -51,7 +60,16 @@ impl Container for DirectoryContainer {
     }
 
     fn get_image_from_cache(&self, entry: &String) -> Result<Option<Arc<Image>>, ContainerError> {
-        Ok(self.cache.get(entry).map(|arc| Arc::clone(arc)))
+        Ok(self
+            .cache
+            .lock()
+            .map_err(|e| ContainerError {
+                message: e.to_string(),
+                path: Some(self.path.clone()),
+                entry: None,
+            })?
+            .get(entry)
+            .map(|arc| Arc::clone(arc)))
     }
 }
 
@@ -101,14 +119,14 @@ impl DirectoryContainer {
         Ok(Self {
             path: path.clone(),
             entries: entries,
-            cache: HashMap::new(),
+            cache: Arc::new(Mutex::new(HashMap::new())),
         })
     }
 
     /// Loads an image from the specified entry name.
     ///
     /// * `entry` - The entry name of the image to get.
-    fn load_image(&mut self, entry: &String) -> Result<Arc<Image>, ContainerError> {
+    fn load_image(&self, entry: &String) -> Result<Arc<Image>, ContainerError> {
         let file_path = path::Path::new(&self.path).join(entry);
         let mut buffer = Vec::new();
         File::open(file_path)
@@ -127,7 +145,14 @@ impl DirectoryContainer {
         match Image::new(buffer) {
             Ok(image) => {
                 let image_arc = Arc::new(image);
-                self.cache.insert(entry.clone(), Arc::clone(&image_arc));
+                self.cache
+                    .lock()
+                    .map_err(|e| ContainerError {
+                        message: e.to_string(),
+                        path: Some(self.path.clone()),
+                        entry: None,
+                    })?
+                    .insert(entry.clone(), Arc::clone(&image_arc));
                 Ok(image_arc)
             }
             Err(e) => {

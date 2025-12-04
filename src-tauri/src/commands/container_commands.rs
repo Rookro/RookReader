@@ -73,12 +73,15 @@ pub async fn async_preload(
 ) -> Result<(), String> {
     log::debug!("async_preload({}, {})", start_index, count);
 
-    let mut state_lock = state.lock().map_err(|e| {
-        log::error!("Failed to lock AppState. {}", e.to_string());
-        format!("Failed to lock AppState. {}", e.to_string())
-    })?;
+    let container = {
+        let state_lock = state.lock().map_err(|e| {
+            log::error!("Failed to lock AppState. {}", e.to_string());
+            format!("Failed to lock AppState. {}", e.to_string())
+        })?;
+        state_lock.container_state.container.clone()
+    };
 
-    if let Some(container) = &mut state_lock.container_state.container {
+    if let Some(container) = container {
         container
             .preload(start_index, count)
             .map_err(|e| format!("Failed to preload. {}", e))

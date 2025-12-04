@@ -79,13 +79,13 @@ pub trait Container: Send + Sync + 'static {
     /// Retrieves an image from the file.
     ///
     /// * `entry` - The entry name of the image to retrieve.
-    fn get_image(&mut self, entry: &String) -> Result<Arc<Image>, ContainerError>;
+    fn get_image(&self, entry: &String) -> Result<Arc<Image>, ContainerError>;
 
     /// Preloads a specified number of images into the cache starting from a given index.
     ///
     /// * `begin_index` - The starting index.
     /// * `count` - The number of images to load.
-    fn preload(&mut self, begin_index: usize, count: usize) -> Result<(), ContainerError>;
+    fn preload(&self, begin_index: usize, count: usize) -> Result<(), ContainerError>;
 }
 
 impl dyn Container {
