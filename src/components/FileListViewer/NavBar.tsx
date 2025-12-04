@@ -137,7 +137,7 @@ export default function NavBar() {
                         <MenuItem value={"NAME_ASC"}>{t('app.file-list-viewer.sort-order.name-asc')}</MenuItem>
                         <MenuItem value={"NAME_DESC"}>{t('app.file-list-viewer.sort-order.name-desc')}</MenuItem>
                         <MenuItem value={"DATE_ASC"}>{t('app.file-list-viewer.sort-order.date-asc')}</MenuItem>
-                        <MenuItem value={"DATE_DESC"}>{t('app.file-list-viewer.sort-order.name-desc')}</MenuItem>
+                        <MenuItem value={"DATE_DESC"}>{t('app.file-list-viewer.sort-order.date-desc')}</MenuItem>
                     </Select>
                     : <></>}
             </Box>
