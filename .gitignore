@@ -23,5 +23,8 @@ dist-ssr
 *.sln
 *.sw?
 
-# makepkg
-pkg/
+# PKGBUILD
+PKGBUILD/pkg/
+PKGBUILD/src/
+PKGBUILD/*.deb
+PKGBUILD/*.pkg.tar.zst
