@@ -50,3 +50,129 @@ pub fn get_entries_in_dir(dir_path: String) -> Result<Vec<DirEntry>, String> {
 
     Ok(entries)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use tempfile::TempDir;
+
+    #[test]
+    fn test_get_entries_in_dir_empty_directory() {
+        let temp_dir = TempDir::new().unwrap();
+        let result = get_entries_in_dir(temp_dir.path().to_string_lossy().to_string());
+
+        assert!(result.is_ok());
+        let entries = result.unwrap();
+        assert_eq!(entries.len(), 0);
+    }
+
+    #[test]
+    fn test_get_entries_in_dir_with_subdirectory() {
+        let temp_dir = TempDir::new().unwrap();
+        let sub_dir_path = temp_dir.path().join("subdir");
+        fs::create_dir(&sub_dir_path).unwrap();
+
+        let result = get_entries_in_dir(temp_dir.path().to_string_lossy().to_string());
+
+        assert!(result.is_ok());
+        let entries = result.unwrap();
+        assert_eq!(entries.len(), 1);
+        assert!(entries[0].is_directory);
+        assert_eq!(entries[0].name, "subdir");
+    }
+
+    #[test]
+    fn test_get_entries_in_dir_with_supported_file() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("test.zip");
+        fs::File::create(&file_path).unwrap();
+
+        let result = get_entries_in_dir(temp_dir.path().to_string_lossy().to_string());
+
+        assert!(result.is_ok());
+        let entries = result.unwrap();
+        assert!(entries
+            .iter()
+            .any(|e| e.name == "test.zip" && !e.is_directory));
+    }
+
+    #[test]
+    fn test_get_entries_in_dir_with_unsupported_file() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("test.txt");
+        fs::File::create(&file_path).unwrap();
+
+        let result = get_entries_in_dir(temp_dir.path().to_string_lossy().to_string());
+
+        assert!(result.is_ok());
+        let entries = result.unwrap();
+        // Unsupported files should be filtered out
+        assert!(!entries.iter().any(|e| e.name == "test.txt"));
+    }
+
+    #[test]
+    fn test_get_entries_in_dir_nonexistent_directory() {
+        let result = get_entries_in_dir("/nonexistent/path/that/does/not/exist".to_string());
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_dir_entry_serialization() {
+        let entry = DirEntry {
+            is_directory: true,
+            name: "test_dir".to_string(),
+            last_modified: "2024-01-01T00:00:00+00:00".to_string(),
+        };
+
+        let json = serde_json::to_string(&entry).unwrap();
+        assert!(json.contains("test_dir"));
+        assert!(json.contains("true"));
+    }
+
+    #[test]
+    fn test_get_entries_in_dir_mixed_content() {
+        let temp_dir = TempDir::new().unwrap();
+
+        // Create subdirectory
+        fs::create_dir(temp_dir.path().join("dir1")).unwrap();
+
+        // Create supported file
+        fs::File::create(temp_dir.path().join("archive.zip")).unwrap();
+
+        // Create unsupported file
+        fs::File::create(temp_dir.path().join("document.txt")).unwrap();
+
+        let result = get_entries_in_dir(temp_dir.path().to_string_lossy().to_string());
+
+        assert!(result.is_ok());
+        let entries = result.unwrap();
+
+        // Should contain directory and zip file, but not txt file
+        assert_eq!(entries.len(), 2);
+        assert!(entries.iter().any(|e| e.is_directory && e.name == "dir1"));
+        assert!(entries
+            .iter()
+            .any(|e| !e.is_directory && e.name == "archive.zip"));
+    }
+
+    #[test]
+    fn test_dir_entry_last_modified_format() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("test.zip");
+        fs::File::create(&file_path).unwrap();
+
+        let result = get_entries_in_dir(temp_dir.path().to_string_lossy().to_string());
+
+        assert!(result.is_ok());
+        let entries = result.unwrap();
+        assert!(!entries.is_empty());
+
+        // Check RFC 3339 format
+        for entry in entries {
+            let parsed = DateTime::parse_from_rfc3339(&entry.last_modified);
+            assert!(parsed.is_ok(), "last_modified should be in RFC 3339 format");
+        }
+    }
+}

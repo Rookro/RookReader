@@ -5,7 +5,11 @@ use std::{
 
 use crate::container::image::Image;
 
+#[cfg(test)]
+use mockall::{automock, predicate::*};
+
 /// Archive container
+#[cfg_attr(test, automock)]
 pub trait Container: Send + Sync + 'static {
     /// Retrieves a list of entries contained within the container.
     fn get_entries(&self) -> &Vec<String>;

@@ -106,6 +106,13 @@ pub fn set_pdf_rendering_height(
 ) -> Result<(), String> {
     log::debug!("set_pdf_rendering_height({})", height);
 
+    if height < 1 {
+        return Err(
+            "pdf rendering height must be greater than 0. set_pdf_rendering_height() is Failed."
+                .to_string(),
+        );
+    }
+
     let mut state_lock = state.lock().map_err(|e| {
         log::error!("Failed to lock AppState. {}", e.to_string());
         format!("Failed to lock AppState. {}", e.to_string())
@@ -113,4 +120,167 @@ pub fn set_pdf_rendering_height(
 
     state_lock.container_state.settings.pdf_rendering_height = height;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use mockall::predicate::eq;
+    use rstest::rstest;
+
+    use super::*;
+    use std::{path, sync::Mutex};
+    use tauri::Manager;
+
+    use crate::{
+        container::container::MockContainer, setting::container_settings::ContainerSettings,
+        state::container_state::ContainerState,
+    };
+
+    impl MockContainer {
+        /// Create a dummy image. MockContainer allways return this image.
+        fn create_dummy_image() -> Arc<Image> {
+            Arc::new(Image {
+                data: vec![0u8; 100],
+                width: 800,
+                height: 600,
+            })
+        }
+    }
+
+    // Since programmatically generating a RAR file is complicated,
+    // a dummy RAR file was created manually beforehand.
+    //
+    // This function copies that pre-existing RAR file to the path specified in the arguments.
+    fn create_dummy_rar(dir: &path::Path, filename: &str) -> path::PathBuf {
+        let dummy_rar_path = path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests")
+            .join("resources")
+            .join("test.rar");
+        if !dummy_rar_path.exists() {
+            panic!(
+                "Dummy RAR file not found at {}. Please create it manually as per instructions.",
+                dummy_rar_path.display()
+            );
+        }
+
+        let rar_filepath = dir.join(filename);
+        std::fs::copy(dummy_rar_path, &rar_filepath).unwrap();
+        rar_filepath
+    }
+
+    #[rstest]
+    #[case(1200)]
+    #[case(100000)]
+    fn test_set_pdf_rendering_height_valid_height(#[case] pdf_rendering_height: i32) {
+        let app = tauri::test::mock_app();
+        app.manage(Mutex::new(AppState::default()));
+
+        let result = set_pdf_rendering_height(pdf_rendering_height, app.state());
+
+        assert!(result.is_ok());
+        assert_eq!(
+            pdf_rendering_height,
+            app.state::<Mutex<AppState>>()
+                .lock()
+                .unwrap()
+                .container_state
+                .settings
+                .pdf_rendering_height
+        );
+    }
+
+    #[rstest]
+    #[case(0)]
+    #[case(-1)]
+    #[case(-1200)]
+    fn test_set_pdf_rendering_height_negative(#[case] invalid_pdf_rendering_height: i32) {
+        let app = tauri::test::mock_app();
+        app.manage(Mutex::new(AppState::default()));
+
+        let result = set_pdf_rendering_height(invalid_pdf_rendering_height, app.state());
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_get_entries_in_container() {
+        let dir = tempfile::tempdir().unwrap();
+        let rar_path = create_dummy_rar(dir.path(), "dummy.rar");
+        let expected_entries = vec![
+            "image1.png".to_string(),
+            "image2.png".to_string(),
+            "image3.png".to_string(),
+        ];
+
+        let app = tauri::test::mock_app();
+        app.manage(Mutex::new(AppState::default()));
+
+        let result = get_entries_in_container(rar_path.to_str().unwrap().to_string(), app.state());
+
+        assert!(result.is_ok());
+
+        let actual_entries = result.unwrap();
+        assert_eq!(expected_entries.len(), actual_entries.len());
+        assert_eq!(expected_entries[0], actual_entries[0]);
+        assert_eq!(expected_entries[1], actual_entries[1]);
+        assert_eq!(expected_entries[2], actual_entries[2]);
+    }
+
+    #[test]
+    fn test_get_entries_in_container_empty_container() {
+        let app = tauri::test::mock_app();
+        app.manage(Mutex::new(AppState::default()));
+
+        let result = get_entries_in_container("non_existent_path".to_string(), app.state());
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_get_image_in_container() {
+        let app = tauri::test::mock_app();
+        let mut mock_container = MockContainer::new();
+        mock_container
+            .expect_get_image()
+            .with(eq("test1.png".to_string()))
+            .times(1)
+            .returning(|_entry| Ok(MockContainer::create_dummy_image()));
+
+        let mock_container_state = ContainerState {
+            container: Some(Arc::new(Mutex::new(mock_container))),
+            settings: ContainerSettings::default(),
+        };
+        let state = AppState {
+            container_state: mock_container_state,
+        };
+        app.manage(Mutex::new(state));
+
+        let result = get_image(
+            "mock_container".to_string(),
+            "test1.png".to_string(),
+            app.state(),
+        );
+
+        assert!(result.is_ok());
+
+        let expected_image = MockContainer::create_dummy_image();
+        let actual_image = result.unwrap();
+        assert_eq!(expected_image.data, actual_image.data);
+        assert_eq!(expected_image.width, actual_image.width);
+        assert_eq!(expected_image.height, actual_image.height);
+    }
+
+    #[test]
+    fn test_get_image_empty_container() {
+        let app = tauri::test::mock_app();
+        app.manage(Mutex::new(AppState::default()));
+
+        let result = get_image(
+            "non_existent_path".to_string(),
+            "image.png".to_string(),
+            app.state(),
+        );
+
+        assert!(result.is_err());
+    }
 }
