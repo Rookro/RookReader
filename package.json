@@ -9,7 +9,8 @@
     "dev": "yarn gen-licenses && vite",
     "build": "yarn gen-licenses && tsc && vite build",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "test": "yarn gen-licenses && cargo test --lib --manifest-path src-tauri/Cargo.toml"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

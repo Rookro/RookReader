@@ -2,7 +2,10 @@ use image::{codecs::png::PngEncoder, ExtendedColorType, ImageEncoder};
 use pdfium::{PdfiumDocument, PdfiumRenderConfig};
 use std::{collections::HashMap, sync::Arc};
 
-use crate::container::container::{Container, ContainerError, Image};
+use crate::container::{
+    container::{Container, ContainerError},
+    image::Image,
+};
 
 /// A container for PDF archives.
 pub struct PdfContainer {
@@ -184,4 +187,153 @@ fn open(path: &String) -> Result<PdfiumDocument, ContainerError> {
     })?;
 
     Ok(pdf)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{env, fs::File, io::Write, path, sync::Once};
+    use tempfile::tempdir;
+
+    use super::*;
+
+    static INIT: Once = Once::new();
+
+    pub fn setup() {
+        INIT.call_once(|| {
+            let pdfium_path = path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("target")
+                .join("dependencies")
+                .join("pdfium");
+
+            let lib_path = if pdfium_path.clone().join("bin").exists() {
+                pdfium_path.clone().join("bin")
+            } else {
+                pdfium_path.clone().join("lib")
+            };
+            print!("pdfium::set_library_location: {:?}", lib_path);
+            pdfium::set_library_location(lib_path.to_str().unwrap());
+        });
+    }
+
+    // A minimal 1-page PDF file content
+    const SINGLE_PAGE_PDF_DATA: &[u8] = b"%PDF-1.4\n1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n2 0 obj << /Type /Pages /Count 1 /Kids [ 3 0 R ] >> endobj\n3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] >> endobj\nxref\n0 4\n0000000000 65535 f\n0000000009 00000 n\n0000000057 00000 n\n0000000107 00000 n\ntrailer << /Size 4 /Root 1 0 R >> startxref\n157\n%%EOF\n";
+
+    // Create a dummy PDF file for testing.
+    fn create_dummy_pdf(dir: &path::Path, filename: &str) -> path::PathBuf {
+        let filepath = dir.join(filename);
+        let mut file = File::create(&filepath).unwrap();
+        file.write_all(SINGLE_PAGE_PDF_DATA).unwrap();
+        filepath
+    }
+
+    #[test]
+    fn test_new_valid_pdf() {
+        setup();
+        let dir = tempdir().unwrap();
+        let pdf_path = create_dummy_pdf(dir.path(), "test.pdf");
+        let rendering_height = 100;
+
+        let container =
+            PdfContainer::new(&pdf_path.to_str().unwrap().to_string(), rendering_height).unwrap();
+
+        assert_eq!(container.path, pdf_path.to_str().unwrap());
+        assert_eq!(container.entries.len(), 1);
+        assert_eq!(container.entries[0], "0000");
+        assert_eq!(container.rendering_height, rendering_height);
+    }
+
+    #[test]
+    fn test_new_non_existent_pdf() {
+        setup();
+        let non_existent_path = String::from("/non/existent/file.pdf");
+        let container = PdfContainer::new(&non_existent_path, 100);
+        assert!(container.is_err());
+    }
+
+    #[test]
+    fn test_get_entries() {
+        setup();
+        let dir = tempdir().unwrap();
+        let pdf_path = create_dummy_pdf(dir.path(), "test.pdf");
+        let container = PdfContainer::new(&pdf_path.to_str().unwrap().to_string(), 100).unwrap();
+        let entries = container.get_entries();
+
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0], "0000");
+    }
+
+    #[test]
+    fn test_get_image_existing() {
+        setup();
+        let dir = tempdir().unwrap();
+        let pdf_path = create_dummy_pdf(dir.path(), "test.pdf");
+        let rendering_height = 100;
+        let mut container =
+            PdfContainer::new(&pdf_path.to_str().unwrap().to_string(), rendering_height).unwrap();
+
+        let image = container.get_image(&String::from("0000")).unwrap();
+        // The exact width/height depends on the PDF content and rendering, but we can check if they are non-zero
+        assert!(image.width > 0);
+        assert!(image.height > 0);
+        assert!(!image.data.is_empty());
+
+        // Ensure caching works
+        let image_from_cache = container
+            .get_image_from_cache(&String::from("0000"))
+            .unwrap()
+            .unwrap();
+        assert_eq!(image.data, image_from_cache.data);
+    }
+
+    #[test]
+    fn test_get_image_non_existing() {
+        setup();
+        let dir = tempdir().unwrap();
+        let pdf_path = create_dummy_pdf(dir.path(), "test.pdf");
+        let mut container =
+            PdfContainer::new(&pdf_path.to_str().unwrap().to_string(), 100).unwrap();
+        let result = container.get_image(&String::from("0001")); // Page 1 does not exist
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_preload() {
+        setup();
+        let dir = tempdir().unwrap();
+        let pdf_path = create_dummy_pdf(dir.path(), "test.pdf");
+        let rendering_height = 100;
+        let mut container =
+            PdfContainer::new(&pdf_path.to_str().unwrap().to_string(), rendering_height).unwrap();
+
+        // Preload the only page
+        container.preload(0, 1).unwrap();
+
+        assert!(container.cache.contains_key(&String::from("0000")));
+
+        // Ensure getting a preloaded image works
+        let image = container.get_image(&String::from("0000")).unwrap();
+        assert!(image.width > 0);
+
+        // Preload again, should not cause issues
+        container.preload(0, 1).unwrap();
+        assert!(container.cache.contains_key(&String::from("0000")));
+    }
+
+    #[test]
+    fn test_preload_out_of_bounds() {
+        setup();
+        let dir = tempdir().unwrap();
+        let pdf_path = create_dummy_pdf(dir.path(), "test.pdf");
+        let rendering_height = 100;
+        let mut container =
+            PdfContainer::new(&pdf_path.to_str().unwrap().to_string(), rendering_height).unwrap();
+
+        // Attempt to preload beyond the number of entries
+        container.preload(0, 5).unwrap();
+        assert!(container.cache.contains_key(&String::from("0000")));
+        assert_eq!(container.cache.len(), 1);
+
+        container.preload(1, 1).unwrap(); // Should not add anything new
+        assert_eq!(container.cache.len(), 1);
+    }
 }

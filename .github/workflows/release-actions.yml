@@ -40,6 +40,9 @@ jobs:
       - name: Install frontend dependencies
         run: yarn install
 
+      - name: Run tests
+        run: yarn test
+
       - name: Build and create a draft Release
         uses: tauri-apps/tauri-action@v0
         env:
