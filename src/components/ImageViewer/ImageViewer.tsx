@@ -7,6 +7,7 @@ import { dirname } from "@tauri-apps/api/path";
 import { debug, error } from '@tauri-apps/plugin-log';
 import { AppDispatch, useSelector } from '../../Store';
 import { openContainerFile, setContainerFilePath, setExploreBasePath, setImageIndex } from "../../reducers/FileReducer";
+import { setIsFirstPageSingleView } from "../../reducers/ViewReducer";
 import { Image } from "../../types/Image";
 import { settingsStore } from "../../settings/SettingsStore";
 
@@ -66,7 +67,7 @@ const createImageURL = async (image: Image | undefined) => {
  */
 export default function ImageViewer() {
     const { history, historyIndex, entries, index } = useSelector(state => state.file.containerFile);
-    const { isTwoPagedView, direction } = useSelector(state => state.view);
+    const { isTwoPagedView, direction, isFirstPageSingleView } = useSelector(state => state.view);
     const dispatch = useDispatch<AppDispatch>();
 
     const [firstSrc, setFirstSrc] = useState<string | undefined>(undefined);
@@ -172,7 +173,15 @@ export default function ImageViewer() {
                     currentFirstRef.current = secondUrl;
                     currentSecondRef.current = undefined;
                 }
-            } else {
+            } else if (index === 0 && isFirstPageSingleView) {
+                setFirstSrc(firstUrl);
+                setSecondSrc(undefined);
+                setCanTwoPage(false);
+                setDisplayedIndexes({ first: index, second: undefined });
+                currentFirstRef.current = firstUrl;
+                currentSecondRef.current = undefined;
+            }
+            else {
                 if (firstUrl && secondUrl) {
                     setFirstSrc(firstUrl);
                     setSecondSrc(secondUrl);
@@ -200,10 +209,13 @@ export default function ImageViewer() {
         return () => {
             mounted = false;
         };
-    }, [entries, index, isTwoPagedView, isForward]);
+    }, [entries, index, isTwoPagedView, isForward, isFirstPageSingleView]);
 
     useEffect(() => {
         const initSettings = async () => {
+            const isFirstPageSingleView = await settingsStore.get<boolean>("first-page-single-view") ?? true;
+            dispatch(setIsFirstPageSingleView(isFirstPageSingleView));
+
             const pdfRenderingHeight = await settingsStore.get<number>("pdf-rendering-height");
             if (pdfRenderingHeight) {
                 await invoke("set_pdf_rendering_height", { height: pdfRenderingHeight });

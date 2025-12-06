@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { JSX } from 'react';
 import { useTranslation } from "react-i18next";
 import { Tab, Tabs, Box } from '@mui/material';
 import GeneralSettings from './GeneralSettings/GeneralSettings';
@@ -7,6 +7,7 @@ import RenderingSettings from './RenderingSettings/RenderingSettings';
 import TabPanel from '../TabPanel/TabPanel';
 import AboutPage from './AboutPage/AboutPage';
 import FileNavigatorSettings from './FileNavigatorSettings/FileNavigatorSettings';
+import PageSettings from './PageSettings/PageSettings';
 
 /**
  * Settings page component.
@@ -18,6 +19,15 @@ export default function SettingsView() {
     const handleChange = (_event: React.SyntheticEvent, newValue: number) => {
         setValue(newValue);
     };
+
+    const tabs: { label: string, panel: JSX.Element }[] = [
+        { label: t('settings.general.tab-name'), panel: <GeneralSettings /> },
+        { label: t('settings.page.tab-name'), panel: <PageSettings /> },
+        { label: t('settings.rendering.tab-name'), panel: <RenderingSettings /> },
+        { label: t('settings.developer.tab-name'), panel: <DeveloperSettings /> },
+        { label: t('settings.file-navigator.tab-name'), panel: <FileNavigatorSettings /> },
+        { label: t('settings.about.tab-name'), panel: <AboutPage /> }
+    ];
 
     return (
         <Box
@@ -36,28 +46,16 @@ export default function SettingsView() {
                 aria-label="setttings tabs"
                 sx={{ borderRight: 2, borderColor: 'divider' }}
             >
-                <Tab label={t('settings.general.tab-name')} />
-                <Tab label={t('settings.rendering.tab-name')} />
-                <Tab label={t('settings.developer.tab-name')} />
-                <Tab label={t('settings.file-navigator.tab-name')} />
-                <Tab label={t('settings.about.tab-name')} />
+                {tabs.map((tab, index) => (
+                    <Tab key={index} label={tab.label} />
+                ))}
             </Tabs>
             <Box sx={{ padding: "12px", width: '100%', height: '100%', overflow: 'auto', bgcolor: (theme) => theme.palette.background.default }}>
-                <TabPanel value={value} index={0}>
-                    <GeneralSettings />
-                </TabPanel>
-                <TabPanel value={value} index={1}>
-                    <RenderingSettings />
-                </TabPanel>
-                <TabPanel value={value} index={2}>
-                    <DeveloperSettings />
-                </TabPanel>
-                <TabPanel value={value} index={3}>
-                    <FileNavigatorSettings />
-                </TabPanel>
-                <TabPanel value={value} index={4}>
-                    <AboutPage />
-                </TabPanel>
+                {tabs.map((tab, index) => (
+                    <TabPanel value={value} index={index} key={index}>
+                        {tab.panel}
+                    </TabPanel>
+                ))}
             </Box>
         </Box >
     );
