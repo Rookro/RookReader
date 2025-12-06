@@ -8,11 +8,15 @@ import ImageViewer from "./components/ImageViewer/ImageViewer";
 import LeftPane from "./components/LeftPane/LeftPane";
 import NavigationBar from "./components/NavigationBar/NavigationBar";
 import { useAppTheme } from "./hooks/useAppTheme";
+import { useAppDispatch } from "./Store";
+import { setIsFirstPageSingleView } from "./reducers/ViewReducer";
 import i18n from "./i18n/config";
 
 export default function App() {
   const theme = useAppTheme();
   const unlistenRef = useRef<UnlistenFn>(null);
+  const viewSettingsUnlistenRef = useRef<UnlistenFn>(null);
+  const dispatch = useAppDispatch();
 
   useEffect(() => {
     const listenLanguageChangedEvent = async () => {
@@ -29,6 +33,29 @@ export default function App() {
       unlistenRef.current?.();
     }
   }, [])
+
+
+  // The Store state is isolated within each WebView context.
+  // Changes dispatched in the settings window (via dispatch()) will not be reflected in the main window.
+  //
+  // Listen for the 'view settings changed' event notified by the settings window (SettingsApp) to apply the changes.
+  useEffect(() => {
+    const listenViewSettingsChanged = async () => {
+      const unlisten = await listen<{ key: string, value: any }>('view-settings-changed', (event) => {
+        debug(`Received view settings changed event: ${event.payload.key} = ${event.payload.value}`);
+        if (event.payload.key === 'isFirstPageSingleView') {
+          dispatch(setIsFirstPageSingleView(event.payload.value));
+        }
+      })
+      viewSettingsUnlistenRef.current?.();
+      viewSettingsUnlistenRef.current = unlisten;
+    };
+    listenViewSettingsChanged();
+
+    return () => {
+      viewSettingsUnlistenRef.current?.();
+    }
+  }, [dispatch])
 
   return (
     <ThemeProvider theme={theme}>

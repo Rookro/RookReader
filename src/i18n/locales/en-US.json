@@ -25,6 +25,13 @@
                 "dark": "Dark"
             }
         },
+        "page": {
+            "tab-name": "Page",
+            "title": "Page",
+            "first-page": {
+                "title": "Show the initial page in single-page view: "
+            }
+        },
         "file-navigator": {
             "tab-name": "File Navigator",
             "title": "File Navigator",

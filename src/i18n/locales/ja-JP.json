@@ -25,6 +25,13 @@
                 "dark": "ダークテーマ"
             }
         },
+        "page": {
+            "tab-name": "ページ",
+            "title": "ページ",
+            "first-page": {
+                "title": "最初のページを 1 ページ表示する: "
+            }
+        },
         "file-navigator": {
             "tab-name": "ファイルナビゲーター",
             "title": "ファイルナビゲーター",
