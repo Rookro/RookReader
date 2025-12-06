@@ -36,6 +36,9 @@ jobs:
       - name: Install frontend dependencies
         run: yarn install
 
+      - name: Run tests
+        run: yarn test
+
       - name: Build and upload artifacts.
         uses: tauri-apps/tauri-action@dev # use dev to upload artifacts.
         env:
