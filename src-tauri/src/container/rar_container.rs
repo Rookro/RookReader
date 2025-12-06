@@ -5,7 +5,10 @@ use std::{
     sync::Arc,
 };
 
-use crate::container::container::{Container, ContainerError, Image};
+use crate::container::{
+    container::{Container, ContainerError},
+    image::Image,
+};
 
 /// A container for RAR archives.
 pub struct RarContainer {
@@ -213,4 +216,148 @@ fn open(path: &String) -> Result<OpenArchive<Process, CursorBeforeHeader>, Conta
         })?;
 
     Ok(archive)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path;
+    use tempfile::tempdir;
+
+    use super::*;
+
+    const DUMMY_PNG_DATA: &[u8] = &[
+        0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44,
+        0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x06, 0x00, 0x00, 0x00, 0x1F,
+        0x15, 0xC4, 0x89, 0x00, 0x00, 0x00, 0x0C, 0x49, 0x44, 0x41, 0x54, 0x08, 0xD7, 0x63, 0xF8,
+        0xFF, 0xFF, 0xFF, 0x3F, 0x00, 0x05, 0xFE, 0x02, 0xFE, 0xDC, 0xCC, 0x53, 0x24, 0x00, 0x00,
+        0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82,
+    ];
+
+    // Since programmatically generating a RAR file is complicated,
+    // a dummy RAR file was created manually beforehand.
+    //
+    // This function copies that pre-existing RAR file to the path specified in the arguments.
+    fn create_dummy_rar(dir: &path::Path, filename: &str) -> path::PathBuf {
+        let dummy_rar_path = path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests")
+            .join("resources")
+            .join("test.rar");
+        if !dummy_rar_path.exists() {
+            panic!(
+                "Dummy RAR file not found at {}. Please create it manually as per instructions.",
+                dummy_rar_path.display()
+            );
+        }
+
+        let rar_filepath = dir.join(filename);
+        std::fs::copy(dummy_rar_path, &rar_filepath).unwrap();
+        rar_filepath
+    }
+
+    #[test]
+    fn test_new_valid_rar() {
+        let dir = tempdir().unwrap();
+        let rar_path = create_dummy_rar(dir.path(), "dummy.rar");
+
+        let container = RarContainer::new(&rar_path.to_str().unwrap().to_string()).unwrap();
+
+        assert_eq!(container.path, rar_path.to_str().unwrap());
+        // Expecting 2 entries based on the dummy.rar creation instructions
+        assert_eq!(container.entries.len(), 3);
+        assert!(container.entries.contains(&String::from("image1.png")));
+        assert!(container.entries.contains(&String::from("image2.png")));
+        assert!(container.entries.contains(&String::from("image3.png")));
+    }
+
+    #[test]
+    fn test_new_non_existent_rar() {
+        let non_existent_path = String::from("/non/existent/file.rar");
+        let container = RarContainer::new(&non_existent_path);
+        assert!(container.is_err());
+    }
+
+    #[test]
+    fn test_get_entries() {
+        let dir = tempdir().unwrap();
+        let rar_path = create_dummy_rar(dir.path(), "dummy.rar");
+        let container = RarContainer::new(&rar_path.to_str().unwrap().to_string()).unwrap();
+        let entries = container.get_entries();
+
+        assert_eq!(entries.len(), 3);
+        assert!(entries.contains(&String::from("image1.png")));
+        assert!(entries.contains(&String::from("image2.png")));
+        assert!(entries.contains(&String::from("image3.png")));
+    }
+
+    #[test]
+    fn test_get_image_existing() {
+        let dir = tempdir().unwrap();
+        let rar_path = create_dummy_rar(dir.path(), "dummy.rar");
+        let mut container = RarContainer::new(&rar_path.to_str().unwrap().to_string()).unwrap();
+
+        // Assuming 'image1.png' exists in dummy.rar and is a valid image
+        let image = container.get_image(&String::from("image1.png")).unwrap();
+        assert!(image.width > 0);
+        assert!(image.height > 0);
+        assert!(!image.data.is_empty());
+        assert_eq!(image.data, DUMMY_PNG_DATA);
+
+        // Ensure caching works
+        let image_from_cache = container
+            .get_image_from_cache(&String::from("image1.png"))
+            .unwrap()
+            .unwrap();
+        assert_eq!(image.data, image_from_cache.data);
+    }
+
+    #[test]
+    fn test_get_image_non_existing() {
+        let dir = tempdir().unwrap();
+        let rar_path = create_dummy_rar(dir.path(), "dummy.rar");
+        let mut container = RarContainer::new(&rar_path.to_str().unwrap().to_string()).unwrap();
+        let result = container.get_image(&String::from("non_existent_image.png"));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_preload() {
+        let dir = tempdir().unwrap();
+        let rar_path = create_dummy_rar(dir.path(), "dummy.rar");
+        let mut container = RarContainer::new(&rar_path.to_str().unwrap().to_string()).unwrap();
+
+        // Preload one image
+        container.preload(0, 1).unwrap();
+
+        // Check if one of the expected files is in cache (order might vary)
+        let expected_file_1 = String::from("image1.png");
+        let expected_file_2 = String::from("image2.png");
+        let expected_file_3 = String::from("image3.png");
+        assert!(
+            container.cache.contains_key(&expected_file_1)
+                || container.cache.contains_key(&expected_file_2)
+        );
+        assert_eq!(container.cache.len(), 1);
+
+        // Preload the remaining image
+        container.preload(0, 3).unwrap();
+        assert!(container.cache.contains_key(&expected_file_1));
+        assert!(container.cache.contains_key(&expected_file_2));
+        assert!(container.cache.contains_key(&expected_file_3));
+        assert_eq!(container.cache.len(), 3);
+    }
+
+    #[test]
+    fn test_preload_out_of_bounds() {
+        let dir = tempdir().unwrap();
+        let rar_path = create_dummy_rar(dir.path(), "dummy.rar");
+        let mut container = RarContainer::new(&rar_path.to_str().unwrap().to_string()).unwrap();
+
+        // Attempt to preload beyond the number of entries
+        container.preload(0, 5).unwrap();
+        assert_eq!(container.cache.len(), 3);
+
+        // Should not add anything new
+        container.preload(4, 5).unwrap();
+        assert_eq!(container.cache.len(), 3);
+    }
 }

@@ -1,7 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use crate::container::container::Image;
-use crate::state::app_state::AppState;
+use crate::{container::image::Image, state::app_state::AppState};
 
 /// Gets entries in the specified archive container.
 ///
