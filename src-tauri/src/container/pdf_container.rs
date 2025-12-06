@@ -200,12 +200,17 @@ mod tests {
 
     pub fn setup() {
         INIT.call_once(|| {
-            let lib_path = path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            let pdfium_path = path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
                 .join("target")
                 .join("dependencies")
-                .join("pdfium")
-                .join("lib");
-            print!("lib_path: {:?}", lib_path);
+                .join("pdfium");
+
+            let lib_path = if pdfium_path.clone().join("bin").exists() {
+                pdfium_path.clone().join("bin")
+            } else {
+                pdfium_path.clone().join("lib")
+            };
+            print!("pdfium::set_library_location: {:?}", lib_path);
             pdfium::set_library_location(lib_path.to_str().unwrap());
         });
     }
