@@ -7,6 +7,22 @@
 
 ## [Unreleased]
 
+## [1.6.0] - 2025-12-07
+
+### Added
+
+* 多言語対応(英語, 日本語) (#71)
+* ファイルナビゲーターのホームのパスを変更する機能を追加 (#73)
+* 最初のページを 1 ページ表示する機能を追加 (#77)
+
+### Changed
+
+* PKGBUILD を改善し、deb ファイルを Github の Releases からダウンロードするように変更 (#75)
+* バックエンド(Rust)のユニットテストを追加 (#76)
+* PDF のレンダリングに利用するクレートを [pdfium-render](https://crates.io/crates/pdfium-render) に変更 (#78)
+* Rust の依存ライブラリ―のバージョンを更新 (#79)
+* ページの事前読み込みを別スレッドで実施するように変更 (#80)
+
 ## [1.5.2] - 2025-11-28
 
 ### Added
@@ -143,7 +159,8 @@
 * 自動見開き表示機能の追加 (#4)
 * ホイールの上下によるページ送り機能を追加 (#5)
 
-[unreleased]: https://github.com/Rookro/RookReader/compare/v1.5.2...HEAD
+[unreleased]: https://github.com/Rookro/RookReader/compare/v1.6.0...HEAD
+[1.6.0]: https://github.com/Rookro/RookReader/compare/v1.5.2...v1.6.0
 [1.5.2]: https://github.com/Rookro/RookReader/compare/v1.5.1...v1.5.2
 [1.5.1]: https://github.com/Rookro/RookReader/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/Rookro/RookReader/compare/v1.4.0...v1.5.0
