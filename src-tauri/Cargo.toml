@@ -21,7 +21,7 @@ flate2 = "1.1.5"
 reqwest = { version = "0.12.24", features = ["blocking"] }
 tar = "0.4.44"
 tauri-build = { version = "2", features = [] }
-zip = "5.1.1"
+zip = "6.0.0"
 
 [dependencies]
 tauri = { version = "2", features = ["test"] }
@@ -30,7 +30,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tauri-plugin-fs = "2"
 tauri-plugin-store = "2"
-zip = "5.1.1"
+zip = "6.0.0"
 tauri-plugin-log = "2"
 log = "0.4"
 image = "0.25"
