@@ -1,9 +1,18 @@
 use image::{codecs::png::PngEncoder, ExtendedColorType, ImageEncoder};
 use pdfium_render::prelude::{PdfDocument, PdfRenderConfig, Pdfium};
-use std::{collections::HashMap, fs::File, io::Read, sync::Arc};
+use std::{
+    collections::HashMap,
+    fs::File,
+    io::Read,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc, Mutex,
+    },
+};
+use threadpool::ThreadPool;
 
 use crate::container::{
-    container::{Container, ContainerError},
+    container::{self, Container, ContainerError},
     image::Image,
 };
 
@@ -11,14 +20,18 @@ use crate::container::{
 pub struct PdfContainer {
     /// The file path of the container.
     path: String,
+    /// Pdf binary data.
+    pdf_binary: Vec<u8>,
     /// The entries in the container.
     entries: Vec<String>,
     /// Image data cache (key: entry name, value: image).
-    cache: HashMap<String, Arc<Image>>,
-    /// Pdf binary data.
-    pdf_binary: Vec<u8>,
+    cache: Arc<Mutex<HashMap<String, Arc<Image>>>>,
+    /// Thread pool for preloading.
+    thread_pool: ThreadPool,
+    /// Whether is preloading cancel requested.
+    is_preloading_cancel_requested: Arc<AtomicBool>,
     /// Pdf rendering config.
-    render_config: PdfRenderConfig,
+    render_config: Arc<PdfRenderConfig>,
     /// The path to the pdfium library.
     library_path: Option<String>,
 }
@@ -31,6 +44,7 @@ impl Container for PdfContainer {
     fn get_image(&mut self, entry: &String) -> Result<Arc<Image>, ContainerError> {
         // Try to get from the cache.
         if let Some(image_arc) = self.get_image_from_cache(entry)? {
+            log::debug!("Hit cache: {}", entry);
             return Ok(Arc::clone(&image_arc));
         }
 
@@ -43,13 +57,20 @@ impl Container for PdfContainer {
                 entry: None,
             })?;
 
-        let image_arc = self.load_image(entry, &pdf)?;
+        let image_arc = load_image(&self.path, entry, &pdf, &self.render_config)?;
 
-        self.cache.insert(entry.clone(), Arc::clone(&image_arc));
+        self.cache
+            .lock()
+            .map_err(|e| ContainerError {
+                message: String::from(format!("Failed to lock the cache. {}", e)),
+                path: Some(self.path.clone()),
+                entry: Some(entry.clone()),
+            })?
+            .insert(entry.clone(), Arc::clone(&image_arc));
         Ok(image_arc)
     }
 
-    fn preload(&mut self, begin_index: usize, count: usize) -> Result<(), ContainerError> {
+    fn request_preload(&mut self, begin_index: usize, count: usize) -> Result<(), ContainerError> {
         let total_pages = self.entries.len();
         let end = (begin_index + count).min(total_pages);
 
@@ -57,33 +78,60 @@ impl Container for PdfContainer {
             return Ok(());
         }
 
-        let pdfium = get_pdfium(&self.library_path)?;
-        let pdf = pdfium
-            .load_pdf_from_byte_slice(&self.pdf_binary, None)
-            .map_err(|e| ContainerError {
-                message: String::from(format!("Failed to load the Pdf binary data. {}", e)),
-                path: Some(self.path.clone()),
-                entry: None,
-            })?;
+        let path = self.path.clone();
+        let entries = self.entries.clone();
+        let cache_mutex = self.cache.clone();
+        let is_cancel_requested = self.is_preloading_cancel_requested.clone();
+        let render_config = self.render_config.clone();
+        let pdf_binary = self.pdf_binary.clone();
+        let library_path = self.library_path.clone();
 
-        for i in begin_index..end {
-            // If it's already in the cache, skip it.
-            let entry = &self.entries[i];
-            if self.cache.contains_key(entry) {
-                log::debug!("Hit cache so skip preload index: {}", i);
-                continue;
+        self.thread_pool.execute(move || {
+            match preload(
+                begin_index,
+                end,
+                path,
+                entries,
+                pdf_binary,
+                &render_config,
+                &library_path,
+                cache_mutex,
+                is_cancel_requested,
+            ) {
+                Ok(_) => {
+                    log::debug!("Finished preloading from {} to {}", begin_index, end);
+                }
+                Err(e) => {
+                    log::error!("Error in preloading: {}", e);
+                }
             }
-
-            let image_arc = self.load_image(entry, &pdf)?;
-
-            self.cache.insert(entry.clone(), image_arc);
-        }
+        });
 
         Ok(())
     }
 
     fn get_image_from_cache(&self, entry: &String) -> Result<Option<Arc<Image>>, ContainerError> {
-        Ok(self.cache.get(entry).map(|arc| Arc::clone(arc)))
+        Ok(self
+            .cache
+            .lock()
+            .map_err(|e| ContainerError {
+                message: String::from(format!("Failed to lock the cache. {}", e)),
+                path: Some(self.path.clone()),
+                entry: Some(entry.clone()),
+            })?
+            .get(entry)
+            .map(|arc| Arc::clone(arc)))
+    }
+}
+
+impl Drop for PdfContainer {
+    fn drop(&mut self) {
+        // Requests preloading cancel and waits for all threads to finish.
+        if !self.is_preloading_cancel_requested.load(Ordering::Relaxed) {
+            self.is_preloading_cancel_requested
+                .store(true, Ordering::Relaxed);
+        }
+        self.thread_pool.join();
     }
 }
 
@@ -92,6 +140,7 @@ impl PdfContainer {
     ///
     /// * `path` - The path to the container file.
     /// * `render_config` - The pdf rendering config.
+    /// * `library_path` - The path to the pdfium library. Uses default path if None.
     pub fn new(
         path: &String,
         render_config: PdfRenderConfig,
@@ -131,62 +180,128 @@ impl PdfContainer {
 
         Ok(Self {
             path: path.clone(),
-            entries: entries,
-            cache: HashMap::new(),
             pdf_binary: buffer,
-            render_config,
+            entries: entries,
+            cache: Arc::new(Mutex::new(HashMap::new())),
+            thread_pool: ThreadPool::new(container::NUM_OF_THREADS),
+            is_preloading_cancel_requested: Arc::new(AtomicBool::new(false)),
+            render_config: Arc::new(render_config),
             library_path: library_path.clone(),
         })
     }
+}
 
-    /// Loads an image from the specified entry name.
-    ///
-    /// * `entry` - The entry name of the image to get.
-    /// * `pdf` - The pdf document.
-    fn load_image(&self, entry: &String, pdf: &PdfDocument) -> Result<Arc<Image>, ContainerError> {
-        let index: u16 = entry.parse().map_err(|e| ContainerError {
-            message: format!("Failed to convet to index({}). {}", entry, e),
-            path: Some(self.path.clone()),
+/// Loads an image from the specified entry name.
+///
+/// * `path` - The path of the pdf file.
+/// * `entry` - The entry name of the image to get.
+/// * `pdf` - The pdf document.
+/// * `render_config` - The pdf rendering config.
+fn load_image(
+    path: &String,
+    entry: &String,
+    pdf: &PdfDocument,
+    render_config: &PdfRenderConfig,
+) -> Result<Arc<Image>, ContainerError> {
+    let index: u16 = entry.parse().map_err(|e| ContainerError {
+        message: format!("Failed to convet to index({}). {}", entry, e),
+        path: Some(path.clone()),
+        entry: Some(entry.clone()),
+    })?;
+
+    let page = pdf.pages().get(index).map_err(|e| ContainerError {
+        message: format!("Failed to get the pdf page({}). {}", entry, e),
+        path: Some(path.clone()),
+        entry: Some(entry.clone()),
+    })?;
+    let img = page
+        .render_with_config(render_config)
+        .map_err(|e| ContainerError {
+            message: format!("Failed to render the pdf page({}). {}", entry, e),
+            path: Some(path.clone()),
+            entry: Some(entry.clone()),
+        })?
+        .as_image();
+
+    let mut buffer = Vec::new();
+    let encoder = PngEncoder::new(&mut buffer);
+    encoder
+        .write_image(
+            &img.as_bytes(),
+            img.width(),
+            img.height(),
+            ExtendedColorType::from(img.color()),
+        )
+        .map_err(|e| ContainerError {
+            message: format!("Failed to convert the pdf page({}) to rgb8. {}", entry, e),
+            path: Some(path.clone()),
             entry: Some(entry.clone()),
         })?;
 
-        let page = pdf.pages().get(index).map_err(|e| ContainerError {
-            message: format!("Failed to get the pdf page({}). {}", entry, e),
-            path: Some(self.path.clone()),
-            entry: Some(entry.clone()),
-        })?;
-        let img = page
-            .render_with_config(&self.render_config)
+    let image = Image {
+        data: buffer,
+        width: img.width(),
+        height: img.height(),
+    };
+
+    Ok(Arc::new(image))
+}
+
+fn preload(
+    begin_index: usize,
+    end: usize,
+    path: String,
+    entries: Vec<String>,
+    pdf_binary: Vec<u8>,
+    render_config: &PdfRenderConfig,
+    library_path: &Option<String>,
+    cache_mutex: Arc<Mutex<HashMap<String, Arc<Image>>>>,
+    is_cancel_requested: Arc<AtomicBool>,
+) -> Result<(), ContainerError> {
+    for i in begin_index..end {
+        if is_cancel_requested.load(Ordering::Relaxed) {
+            return Ok(());
+        }
+
+        // If it's already in the cache, skip it.
+        let entry = &entries[i];
+        if cache_mutex
+            .lock()
             .map_err(|e| ContainerError {
-                message: format!("Failed to render the pdf page({}). {}", entry, e),
-                path: Some(self.path.clone()),
+                message: String::from(format!("Failed to lock the cache. {}", e)),
+                path: Some(path.clone()),
                 entry: Some(entry.clone()),
             })?
-            .as_image();
+            .contains_key(entry)
+        {
+            log::debug!("Hit cache so skip preload index: {}", i);
+            continue;
+        }
 
-        let mut buffer = Vec::new();
-        let encoder = PngEncoder::new(&mut buffer);
-        encoder
-            .write_image(
-                &img.as_bytes(),
-                img.width(),
-                img.height(),
-                ExtendedColorType::from(img.color()),
-            )
+        // Pdfium is designed to operate in a single-threaded manner,
+        // which means that as long as an instance exists, it blocks or prevents other executions.
+        // Therefore, the Pdfium instance is instantiated and destroyed every time a load operation is performed.
+        let pdfium = get_pdfium(&library_path)?;
+        let pdf = pdfium
+            .load_pdf_from_byte_slice(&pdf_binary, None)
             .map_err(|e| ContainerError {
-                message: format!("Failed to convert the pdf page({}) to rgb8. {}", entry, e),
-                path: Some(self.path.clone()),
-                entry: Some(entry.clone()),
+                message: String::from(format!("Failed to load the Pdf binary data. {}", e)),
+                path: Some(path.clone()),
+                entry: None,
             })?;
+        let image_arc = load_image(&path, entry, &pdf, &render_config)?;
 
-        let image = Image {
-            data: buffer,
-            width: img.width(),
-            height: img.height(),
-        };
-
-        Ok(Arc::new(image))
+        cache_mutex
+            .lock()
+            .map_err(|e| ContainerError {
+                message: String::from(format!("Failed to lock the cache. {}", e)),
+                path: Some(path.clone()),
+                entry: Some(entry.clone()),
+            })?
+            .insert(entry.clone(), image_arc);
     }
+
+    Ok(())
 }
 
 /// Gets a pdfium instance.
@@ -209,7 +324,7 @@ fn get_pdfium(library_path: &Option<String>) -> Result<Pdfium, ContainerError> {
 
 #[cfg(test)]
 mod tests {
-    use std::{env, fs::File, io::Write, path};
+    use std::{env, fs::File, io::Write, path, thread::sleep, time::Duration};
     use tempfile::tempdir;
 
     use super::*;
@@ -349,9 +464,16 @@ mod tests {
         .unwrap();
 
         // Preload the only page
-        container.preload(0, 1).unwrap();
+        container.request_preload(0, 1).unwrap();
 
-        assert!(container.cache.contains_key(&String::from("0000")));
+        // Wait for the threads to finish preloading.
+        sleep(Duration::from_millis(1000));
+
+        assert!(container
+            .cache
+            .lock()
+            .unwrap()
+            .contains_key(&String::from("0000")));
 
         // Ensure getting a preloaded image works
         let image = container.get_image(&String::from("0000")).unwrap();
@@ -360,8 +482,16 @@ mod tests {
         assert!(!image.data.is_empty());
 
         // Preload again, should not cause issues
-        container.preload(0, 1).unwrap();
-        assert!(container.cache.contains_key(&String::from("0000")));
+        container.request_preload(0, 1).unwrap();
+
+        // Wait for the threads to finish preloading.
+        sleep(Duration::from_millis(1000));
+
+        assert!(container
+            .cache
+            .lock()
+            .unwrap()
+            .contains_key(&String::from("0000")));
     }
 
     #[test]
@@ -379,11 +509,23 @@ mod tests {
         .unwrap();
 
         // Attempt to preload beyond the number of entries
-        container.preload(0, 5).unwrap();
-        assert!(container.cache.contains_key(&String::from("0000")));
-        assert_eq!(container.cache.len(), 1);
+        container.request_preload(0, 5).unwrap();
 
-        container.preload(1, 1).unwrap(); // Should not add anything new
-        assert_eq!(container.cache.len(), 1);
+        // Wait for the threads to finish preloading.
+        sleep(Duration::from_millis(1000));
+
+        assert!(container
+            .cache
+            .lock()
+            .unwrap()
+            .contains_key(&String::from("0000")));
+        assert_eq!(container.cache.lock().unwrap().len(), 1);
+
+        container.request_preload(1, 1).unwrap(); // Should not add anything new
+
+        // Wait for the threads to finish preloading.
+        sleep(Duration::from_millis(1000));
+
+        assert_eq!(container.cache.lock().unwrap().len(), 1);
     }
 }

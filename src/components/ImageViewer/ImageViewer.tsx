@@ -31,23 +31,6 @@ const getImage = async (containerPath: string, entryName: string | undefined) =>
 }
 
 /**
- * Performs preloading.
- * 
- * @param containerPath Container path.
- * @param entries List of entries.
- * @param currentIndex Current index.
- */
-const preload = async (containerPath: string, entries: string[], currentIndex: number) => {
-    if (!containerPath || !entries || containerPath.length === 0 || entries.length === 0) {
-        return;
-    }
-
-    invoke<void>("async_preload", { startIndex: currentIndex + 1, count: 10 })
-        .then(() => { debug(`Preloaded from ${currentIndex + 1} to ${currentIndex + 10}.`) })
-        .catch((ex) => { error(`Failed to preload from ${currentIndex + 1} to ${currentIndex + 10}. ${JSON.stringify(ex)}`); });
-}
-
-/**
  * creates a URL for `<img>`.
  * 
  * @param image The image to create a URL for.
@@ -139,8 +122,6 @@ export default function ImageViewer() {
 
             const first = firstImagePath ? (urlCacheRef.current.get(firstImagePath)) : undefined;
             const second = secondImagePath ? (urlCacheRef.current.get(secondImagePath)) : undefined;
-
-            preload(containerPath, entries, index);
 
             const firstIsWide = !!first && first.width > first.height;
             const secondIsWide = !!second && second.width > second.height;

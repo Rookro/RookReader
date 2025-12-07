@@ -1,12 +1,16 @@
+use threadpool::ThreadPool;
 use unrar::{Archive, CursorBeforeHeader, OpenArchive, Process};
 
 use std::{
     collections::{HashMap, HashSet},
-    sync::Arc,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc, Mutex,
+    },
 };
 
 use crate::container::{
-    container::{Container, ContainerError},
+    container::{self, Container, ContainerError},
     image::Image,
 };
 
@@ -17,7 +21,11 @@ pub struct RarContainer {
     /// The entries in the container.
     entries: Vec<String>,
     /// Image data cache (key: entry name, value: image).
-    cache: HashMap<String, Arc<Image>>,
+    cache: Arc<Mutex<HashMap<String, Arc<Image>>>>,
+    /// Thread pool for preloading.
+    thread_pool: ThreadPool,
+    /// Whether is preloading cancel requested.
+    is_preloading_cancel_requested: Arc<AtomicBool>,
 }
 
 impl Container for RarContainer {
@@ -28,6 +36,7 @@ impl Container for RarContainer {
     fn get_image(&mut self, entry: &String) -> Result<Arc<Image>, ContainerError> {
         // Try to get from the cache.
         if let Some(image_arc) = self.get_image_from_cache(entry)? {
+            log::debug!("Hit cache: {}", entry);
             return Ok(Arc::clone(&image_arc));
         }
 
@@ -54,7 +63,14 @@ impl Container for RarContainer {
                 match Image::new(data) {
                     Ok(img) => {
                         let img_arc = Arc::new(img);
-                        self.cache.insert(entry.clone(), Arc::clone(&img_arc));
+                        self.cache
+                            .lock()
+                            .map_err(|e| ContainerError {
+                                message: String::from(format!("Failed to lock the cache. {}", e)),
+                                path: Some(self.path.clone()),
+                                entry: Some(entry.clone()),
+                            })?
+                            .insert(entry.clone(), Arc::clone(&img_arc));
                         image = Some(img_arc);
                         break;
                     }
@@ -86,7 +102,7 @@ impl Container for RarContainer {
         }
     }
 
-    fn preload(&mut self, begin_index: usize, count: usize) -> Result<(), ContainerError> {
+    fn request_preload(&mut self, begin_index: usize, count: usize) -> Result<(), ContainerError> {
         let total_pages = self.entries.len();
         let end = (begin_index + count).min(total_pages);
 
@@ -94,74 +110,54 @@ impl Container for RarContainer {
             return Ok(());
         }
 
-        let target_names: HashSet<String> =
-            self.entries[begin_index..end].iter().cloned().collect();
-        let mut remaining = target_names.len();
+        let path = self.path.clone();
+        let entries = self.entries.clone();
+        let cache_mutex = self.cache.clone();
+        let is_cancel_requested = self.is_preloading_cancel_requested.clone();
 
-        let mut archive = open(&self.path)?;
-        while let Some(header) = archive.read_header().map_err(|e| ContainerError {
-            message: format!("Failed to read header. {}", e),
-            path: Some(self.path.clone()),
-            entry: None,
-        })? {
-            let filename = header
-                .entry()
-                .filename
-                .as_os_str()
-                .to_string_lossy()
-                .to_string();
-            if target_names.contains(&filename) {
-                if self.cache.contains_key(&filename) {
-                    archive = header.skip().map_err(|e| ContainerError {
-                        message: format!("Failed to skip data in the rar. {}", e),
-                        path: Some(self.path.clone()),
-                        entry: Some(filename.clone()),
-                    })?;
-                    remaining = remaining.saturating_sub(1);
-                    if remaining == 0 {
-                        break;
-                    }
-                    continue;
+        self.thread_pool.execute(move || {
+            match preload(
+                begin_index,
+                end,
+                path,
+                entries,
+                cache_mutex,
+                is_cancel_requested,
+            ) {
+                Ok(_) => {
+                    log::debug!("Finished preloading from {} to {}", begin_index, end);
                 }
-
-                let (data, rest) = header.read().map_err(|e| ContainerError {
-                    message: format!("Failed to read data in the rar. {}", e),
-                    path: Some(self.path.clone()),
-                    entry: Some(filename.clone()),
-                })?;
-                archive = rest; // continue from returned archive
-
-                match Image::new(data) {
-                    Ok(img) => {
-                        self.cache.insert(filename.clone(), Arc::new(img));
-                        remaining = remaining.saturating_sub(1);
-                        if remaining == 0 {
-                            break;
-                        }
-                    }
-                    Err(e) => {
-                        log::error!("{}", e);
-                        return Err(ContainerError {
-                            message: e,
-                            path: Some(self.path.clone()),
-                            entry: Some(filename.clone()),
-                        });
-                    }
+                Err(e) => {
+                    log::error!("Error in preloading: {}", e);
                 }
-            } else {
-                archive = header.skip().map_err(|e| ContainerError {
-                    message: format!("Failed to skip data in the rar. {}", e),
-                    path: Some(self.path.clone()),
-                    entry: Some(filename.clone()),
-                })?
             }
-        }
+        });
 
         Ok(())
     }
 
     fn get_image_from_cache(&self, entry: &String) -> Result<Option<Arc<Image>>, ContainerError> {
-        Ok(self.cache.get(entry).map(|arc| Arc::clone(arc)))
+        Ok(self
+            .cache
+            .lock()
+            .map_err(|e| ContainerError {
+                message: String::from(format!("Failed to lock the cache. {}", e)),
+                path: Some(self.path.clone()),
+                entry: Some(entry.clone()),
+            })?
+            .get(entry)
+            .map(|arc| Arc::clone(arc)))
+    }
+}
+
+impl Drop for RarContainer {
+    fn drop(&mut self) {
+        // Requests preloading cancel and waits for all threads to finish.
+        if !self.is_preloading_cancel_requested.load(Ordering::Relaxed) {
+            self.is_preloading_cancel_requested
+                .store(true, Ordering::Relaxed);
+        }
+        self.thread_pool.join();
     }
 }
 
@@ -198,7 +194,9 @@ impl RarContainer {
         Ok(Self {
             path: path.clone(),
             entries: entries,
-            cache: HashMap::new(),
+            cache: Arc::new(Mutex::new(HashMap::new())),
+            thread_pool: ThreadPool::new(container::NUM_OF_THREADS),
+            is_preloading_cancel_requested: Arc::new(AtomicBool::new(false)),
         })
     }
 }
@@ -218,9 +216,101 @@ fn open(path: &String) -> Result<OpenArchive<Process, CursorBeforeHeader>, Conta
     Ok(archive)
 }
 
+fn preload(
+    begin_index: usize,
+    end: usize,
+    path: String,
+    entries: Vec<String>,
+    cache_mutex: Arc<Mutex<HashMap<String, Arc<Image>>>>,
+    is_cancel_requested: Arc<AtomicBool>,
+) -> Result<(), ContainerError> {
+    let target_names: HashSet<String> = entries[begin_index..end].iter().cloned().collect();
+    let mut remaining = target_names.len();
+
+    let mut archive = open(&path)?;
+    while let Some(header) = archive.read_header().map_err(|e| ContainerError {
+        message: format!("Failed to read header. {}", e),
+        path: Some(path.clone()),
+        entry: None,
+    })? {
+        if is_cancel_requested.load(Ordering::Relaxed) {
+            return Ok(());
+        }
+
+        let filename = header
+            .entry()
+            .filename
+            .as_os_str()
+            .to_string_lossy()
+            .to_string();
+        if target_names.contains(&filename) {
+            if cache_mutex
+                .lock()
+                .map_err(|e| ContainerError {
+                    message: String::from(format!("Failed to lock the cache. {}", e)),
+                    path: Some(path.clone()),
+                    entry: Some(filename.clone()),
+                })?
+                .contains_key(&filename)
+            {
+                archive = header.skip().map_err(|e| ContainerError {
+                    message: format!("Failed to skip data in the rar. {}", e),
+                    path: Some(path.clone()),
+                    entry: Some(filename.clone()),
+                })?;
+                remaining = remaining.saturating_sub(1);
+                if remaining == 0 {
+                    break;
+                }
+                continue;
+            }
+
+            let (data, rest) = header.read().map_err(|e| ContainerError {
+                message: format!("Failed to read data in the rar. {}", e),
+                path: Some(path.clone()),
+                entry: Some(filename.clone()),
+            })?;
+            archive = rest; // continue from returned archive
+
+            match Image::new(data) {
+                Ok(img) => {
+                    cache_mutex
+                        .lock()
+                        .map_err(|e| ContainerError {
+                            message: String::from(format!("Failed to lock the cache. {}", e)),
+                            path: Some(path.clone()),
+                            entry: Some(filename.clone()),
+                        })?
+                        .insert(filename.clone(), Arc::new(img));
+                    remaining = remaining.saturating_sub(1);
+                    if remaining == 0 {
+                        break;
+                    }
+                }
+                Err(e) => {
+                    log::error!("{}", e);
+                    return Err(ContainerError {
+                        message: e,
+                        path: Some(path.clone()),
+                        entry: Some(filename.clone()),
+                    });
+                }
+            }
+        } else {
+            archive = header.skip().map_err(|e| ContainerError {
+                message: format!("Failed to skip data in the rar. {}", e),
+                path: Some(path.clone()),
+                entry: Some(filename.clone()),
+            })?
+        }
+    }
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
-    use std::path;
+    use std::{path, thread::sleep, time::Duration};
     use tempfile::tempdir;
 
     use super::*;
@@ -326,24 +416,51 @@ mod tests {
         let mut container = RarContainer::new(&rar_path.to_str().unwrap().to_string()).unwrap();
 
         // Preload one image
-        container.preload(0, 1).unwrap();
+        container.request_preload(0, 1).unwrap();
+
+        // Wait for the threads to finish preloading.
+        sleep(Duration::from_millis(1000));
 
         // Check if one of the expected files is in cache (order might vary)
         let expected_file_1 = String::from("image1.png");
         let expected_file_2 = String::from("image2.png");
         let expected_file_3 = String::from("image3.png");
         assert!(
-            container.cache.contains_key(&expected_file_1)
-                || container.cache.contains_key(&expected_file_2)
+            container
+                .cache
+                .lock()
+                .unwrap()
+                .contains_key(&expected_file_1)
+                || container
+                    .cache
+                    .lock()
+                    .unwrap()
+                    .contains_key(&expected_file_2)
         );
-        assert_eq!(container.cache.len(), 1);
+        assert_eq!(container.cache.lock().unwrap().len(), 1);
 
         // Preload the remaining image
-        container.preload(0, 3).unwrap();
-        assert!(container.cache.contains_key(&expected_file_1));
-        assert!(container.cache.contains_key(&expected_file_2));
-        assert!(container.cache.contains_key(&expected_file_3));
-        assert_eq!(container.cache.len(), 3);
+        container.request_preload(0, 3).unwrap();
+
+        // Wait for the threads to finish preloading.
+        sleep(Duration::from_millis(1000));
+
+        assert!(container
+            .cache
+            .lock()
+            .unwrap()
+            .contains_key(&expected_file_1));
+        assert!(container
+            .cache
+            .lock()
+            .unwrap()
+            .contains_key(&expected_file_2));
+        assert!(container
+            .cache
+            .lock()
+            .unwrap()
+            .contains_key(&expected_file_3));
+        assert_eq!(container.cache.lock().unwrap().len(), 3);
     }
 
     #[test]
@@ -353,11 +470,19 @@ mod tests {
         let mut container = RarContainer::new(&rar_path.to_str().unwrap().to_string()).unwrap();
 
         // Attempt to preload beyond the number of entries
-        container.preload(0, 5).unwrap();
-        assert_eq!(container.cache.len(), 3);
+        container.request_preload(0, 5).unwrap();
+
+        // Wait for the threads to finish preloading.
+        sleep(Duration::from_millis(1000));
+
+        assert_eq!(container.cache.lock().unwrap().len(), 3);
 
         // Should not add anything new
-        container.preload(4, 5).unwrap();
-        assert_eq!(container.cache.len(), 3);
+        container.request_preload(4, 5).unwrap();
+
+        // Wait for the threads to finish preloading.
+        sleep(Duration::from_millis(1000));
+
+        assert_eq!(container.cache.lock().unwrap().len(), 3);
     }
 }
