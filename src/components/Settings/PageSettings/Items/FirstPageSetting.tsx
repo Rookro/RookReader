@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Typography, Box, Switch } from "@mui/material";
 import { emit } from "@tauri-apps/api/event";
@@ -15,6 +15,14 @@ export default function FirstPageSetting() {
     const { t } = useTranslation();
     const { isFirstPageSingleView } = useSelector(state => state.view);
     const dispatch = useAppDispatch();
+
+    useEffect(() => {
+        const initSettings = async () => {
+            const isFirstPageSingleView = await settingsStore.get<boolean>("first-page-single-view") ?? true;
+            dispatch(setIsFirstPageSingleView(isFirstPageSingleView));
+        }
+        initSettings();
+    }, [dispatch])
 
     const handleFirstPageSingleViewSwitchChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
         debug(`First page single view switch changed to ${e.target.checked}`);
