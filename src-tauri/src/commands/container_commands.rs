@@ -23,11 +23,7 @@ pub fn get_entries_in_container(
         .map_err(|e| format!("Failed to get entries in the container. {}", e))?;
 
     if let Some(container) = &state_lock.container_state.container {
-        Ok(container
-            .lock()
-            .map_err(|e| format!("Failed to lock container of container state. {}", e))?
-            .get_entries()
-            .clone())
+        Ok(container.get_entries().clone())
     } else {
         log::error!("Unexpected error. Container is empty!");
         Err(String::from("Unexpected error. Container is empty!"))
@@ -47,15 +43,13 @@ pub fn get_image(
 ) -> Result<Arc<Image>, String> {
     log::debug!("Get the binary of {} in {}", entry_name, path);
 
-    let state_lock = state.lock().map_err(|e| {
+    let mut state_lock = state.lock().map_err(|e| {
         log::error!("Failed to lock AppState. {}", e.to_string());
         format!("Failed to lock AppState. {}", e.to_string())
     })?;
 
-    if let Some(container) = &state_lock.container_state.container {
+    if let Some(container) = &mut state_lock.container_state.container {
         let image = container
-            .lock()
-            .map_err(|e| format!("Failed to lock container of container state. {}", e))?
             .get_image(&entry_name)
             .map_err(|e| format!("Failed to get image. {}", e))?;
         Ok(image)
@@ -78,15 +72,13 @@ pub async fn async_preload(
 ) -> Result<(), String> {
     log::debug!("async_preload({}, {})", start_index, count);
 
-    let state_lock = state.lock().map_err(|e| {
+    let mut state_lock = state.lock().map_err(|e| {
         log::error!("Failed to lock AppState. {}", e.to_string());
         format!("Failed to lock AppState. {}", e.to_string())
     })?;
 
-    if let Some(container) = &state_lock.container_state.container {
+    if let Some(container) = &mut state_lock.container_state.container {
         container
-            .lock()
-            .map_err(|e| format!("Failed to lock container of container state. {}", e))?
             .preload(start_index, count)
             .map_err(|e| format!("Failed to preload. {}", e))
     } else {
@@ -247,7 +239,7 @@ mod tests {
             .returning(|_entry| Ok(MockContainer::create_dummy_image()));
 
         let mock_container_state = ContainerState {
-            container: Some(Arc::new(Mutex::new(mock_container))),
+            container: Some(Box::new(mock_container)),
             settings: ContainerSettings::default(),
         };
         let state = AppState {
