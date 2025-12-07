@@ -1,7 +1,4 @@
-use std::{
-    path::Path,
-    sync::{Arc, Mutex},
-};
+use std::path::Path;
 
 use pdfium_render::prelude::PdfRenderConfig;
 
@@ -19,7 +16,7 @@ use crate::{
 /// The container state.
 pub struct ContainerState {
     /// Archive container
-    pub container: Option<Arc<Mutex<dyn Container>>>,
+    pub container: Option<Box<dyn Container>>,
     /// Settings for the archive container
     pub settings: ContainerSettings,
 }
@@ -42,7 +39,7 @@ impl ContainerState {
         let file_path = Path::new(path);
 
         if file_path.is_dir() {
-            self.container = Some(Arc::new(Mutex::new(DirectoryContainer::new(path)?)));
+            self.container = Some(Box::new(DirectoryContainer::new(path)?));
             return Ok(());
         }
 
@@ -50,20 +47,20 @@ impl ContainerState {
             let ext_str = ext.to_string_lossy().to_lowercase();
             match ext_str.as_str() {
                 "zip" => {
-                    self.container = Some(Arc::new(Mutex::new(ZipContainer::new(path)?)));
+                    self.container = Some(Box::new(ZipContainer::new(path)?));
                     Ok(())
                 }
                 "pdf" => {
-                    self.container = Some(Arc::new(Mutex::new(PdfContainer::new(
+                    self.container = Some(Box::new(PdfContainer::new(
                         path,
                         PdfRenderConfig::default()
                             .set_target_height(self.settings.pdf_rendering_height),
                         self.settings.pdfium_library_path.clone(),
-                    )?)));
+                    )?));
                     Ok(())
                 }
                 "rar" => {
-                    self.container = Some(Arc::new(Mutex::new(RarContainer::new(path)?)));
+                    self.container = Some(Box::new(RarContainer::new(path)?));
                     Ok(())
                 }
                 _ => {

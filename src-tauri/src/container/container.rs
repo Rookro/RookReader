@@ -8,6 +8,12 @@ use crate::container::image::Image;
 #[cfg(test)]
 use mockall::{automock, predicate::*};
 
+/// Number of threads for preloading.
+///
+/// It's a fixed value (for the time being).
+/// TODO(Rookro): Allow the user to change this value via the settings window.
+pub const NUM_OF_THREADS: usize = 4;
+
 /// Archive container
 #[cfg_attr(test, automock)]
 pub trait Container: Send + Sync + 'static {
@@ -30,7 +36,7 @@ pub trait Container: Send + Sync + 'static {
     ///
     /// * `begin_index` - The starting index.
     /// * `count` - The number of images to load.
-    fn preload(&mut self, begin_index: usize, count: usize) -> Result<(), ContainerError>;
+    fn request_preload(&mut self, begin_index: usize, count: usize) -> Result<(), ContainerError>;
 }
 
 impl dyn Container {
