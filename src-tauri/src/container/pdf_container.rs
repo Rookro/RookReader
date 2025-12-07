@@ -1,6 +1,6 @@
 use image::{codecs::png::PngEncoder, ExtendedColorType, ImageEncoder};
-use pdfium::{PdfiumDocument, PdfiumRenderConfig};
-use std::{collections::HashMap, sync::Arc};
+use pdfium_render::prelude::{PdfRenderConfig, Pdfium};
+use std::{collections::HashMap, fs::File, io::Read, sync::Arc};
 
 use crate::container::{
     container::{Container, ContainerError},
@@ -15,8 +15,12 @@ pub struct PdfContainer {
     entries: Vec<String>,
     /// Image data cache (key: entry name, value: image).
     cache: HashMap<String, Arc<Image>>,
-    /// The image height when rendering a PDF.
-    pub rendering_height: i32,
+    /// Pdf binary data.
+    pdf_binary: Vec<u8>,
+    /// Pdf rendering config.
+    render_config: PdfRenderConfig,
+    /// The path to the pdfium library.
+    library_path: Option<String>,
 }
 
 impl Container for PdfContainer {
@@ -30,32 +34,34 @@ impl Container for PdfContainer {
             return Ok(Arc::clone(&image_arc));
         }
 
-        let pdf = open(&self.path)?;
-        let index: i32 = entry.parse().map_err(|e| ContainerError {
+        let pdfium = get_pdfium(&self.library_path)?;
+        let pdf = pdfium
+            .load_pdf_from_byte_slice(&self.pdf_binary, None)
+            .map_err(|e| ContainerError {
+                message: String::from(format!("Failed to load the Pdf binary data. {}", e)),
+                path: Some(self.path.clone()),
+                entry: None,
+            })?;
+
+        let index: u16 = entry.parse().map_err(|e| ContainerError {
             message: format!("Failed to convet to index({}). {}", entry, e),
             path: Some(self.path.clone()),
             entry: Some(entry.clone()),
         })?;
 
-        let render_config = PdfiumRenderConfig::new().with_height(self.rendering_height);
         let page = pdf.pages().get(index).map_err(|e| ContainerError {
             message: format!("Failed to get the pdf page({}). {}", entry, e),
             path: Some(self.path.clone()),
             entry: Some(entry.clone()),
         })?;
         let img = page
-            .render(&render_config)
+            .render_with_config(&self.render_config)
             .map_err(|e| ContainerError {
                 message: format!("Failed to render the pdf page({}). {}", entry, e),
                 path: Some(self.path.clone()),
                 entry: Some(entry.clone()),
             })?
-            .as_rgb8_image()
-            .map_err(|e| ContainerError {
-                message: format!("Failed to convert the pdf page({}) to rgb8. {}", entry, e),
-                path: Some(self.path.clone()),
-                entry: Some(entry.clone()),
-            })?;
+            .as_image();
 
         let mut buffer = Vec::new();
         let encoder = PngEncoder::new(&mut buffer);
@@ -91,8 +97,14 @@ impl Container for PdfContainer {
             return Ok(());
         }
 
-        let pdf = open(&self.path)?;
-        let render_config = PdfiumRenderConfig::new().with_height(self.rendering_height);
+        let pdfium = get_pdfium(&self.library_path)?;
+        let pdf = pdfium
+            .load_pdf_from_byte_slice(&self.pdf_binary, None)
+            .map_err(|e| ContainerError {
+                message: String::from(format!("Failed to load the Pdf binary data. {}", e)),
+                path: Some(self.path.clone()),
+                entry: None,
+            })?;
 
         for i in begin_index..end {
             // If it's already in the cache, skip it.
@@ -111,18 +123,13 @@ impl Container for PdfContainer {
                     entry: Some(entry.clone()),
                 })?;
             let img = page
-                .render(&render_config)
+                .render_with_config(&self.render_config)
                 .map_err(|e| ContainerError {
                     message: format!("Failed to render the pdf page({}). {}", entry, e),
                     path: Some(self.path.clone()),
                     entry: Some(entry.clone()),
                 })?
-                .as_rgb8_image()
-                .map_err(|e| ContainerError {
-                    message: format!("Failed to convert the pdf page({}) to rgb8. {}", entry, e),
-                    path: Some(self.path.clone()),
-                    entry: Some(entry.clone()),
-                })?;
+                .as_image();
 
             let mut buffer = Vec::new();
             let encoder = PngEncoder::new(&mut buffer);
@@ -159,60 +166,93 @@ impl PdfContainer {
     /// Creates a new instance.
     ///
     /// * `path` - The path to the container file.
-    /// * `rendering_height` - The image height when rendering a PDF.
-    pub fn new(path: &String, rendering_height: i32) -> Result<Self, ContainerError> {
-        let pdf = open(path)?;
+    /// * `render_config` - The pdf rendering config.
+    pub fn new(
+        path: &String,
+        render_config: PdfRenderConfig,
+        library_path: Option<String>,
+    ) -> Result<Self, ContainerError> {
+        let mut buffer = Vec::new();
+        {
+            File::open(path)
+                .map_err(|e| ContainerError {
+                    message: String::from(format!("Failed to open the pdf file. {}", e)),
+                    path: Some(path.clone()),
+                    entry: None,
+                })?
+                .read_to_end(&mut buffer)
+                .map_err(|e| ContainerError {
+                    message: String::from(format!("Failed to read the pdf file. {}", e)),
+                    path: Some(path.clone()),
+                    entry: None,
+                })?;
+        }
+
         let mut entries: Vec<String> = Vec::new();
-        for index in 0..pdf.pages().page_count() {
-            entries.push(format!("{:0>4}", index));
+        {
+            let pdfium = get_pdfium(&library_path)?;
+            let pdf = pdfium
+                .load_pdf_from_byte_slice(&buffer, None)
+                .map_err(|e| ContainerError {
+                    message: String::from(format!("Failed to load the Pdf binary data. {}", e)),
+                    path: Some(path.clone()),
+                    entry: None,
+                })?;
+
+            for index in 0..pdf.pages().len() {
+                entries.push(format!("{:0>4}", index));
+            }
         }
 
         Ok(Self {
             path: path.clone(),
             entries: entries,
             cache: HashMap::new(),
-            rendering_height,
+            pdf_binary: buffer,
+            render_config,
+            library_path: library_path.clone(),
         })
     }
 }
 
-/// Opens a PDF document from the specified path.
+/// Gets a pdfium instance.
 ///
-/// * `path` - The path to the PDF file.
-fn open(path: &String) -> Result<PdfiumDocument, ContainerError> {
-    let pdf = PdfiumDocument::new_from_path(path, None).map_err(|e| ContainerError {
-        message: String::from(format!("Failed to open the pdf file. {}", e)),
-        path: Some(path.clone()),
-        entry: None,
-    })?;
-
-    Ok(pdf)
+/// * `library_path` - The path to the pdfium library. Uses default path if None.
+fn get_pdfium(library_path: &Option<String>) -> Result<Pdfium, ContainerError> {
+    if let Some(lib_path) = library_path {
+        Ok(Pdfium::new(
+            Pdfium::bind_to_library(Pdfium::pdfium_platform_library_name_at_path(lib_path))
+                .map_err(|e| ContainerError {
+                    message: String::from(format!("Failed to load the pdfium library. {}", e)),
+                    path: Some(lib_path.clone()),
+                    entry: None,
+                })?,
+        ))
+    } else {
+        Ok(Pdfium::default())
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::{env, fs::File, io::Write, path, sync::Once};
+    use std::{env, fs::File, io::Write, path};
     use tempfile::tempdir;
 
     use super::*;
 
-    static INIT: Once = Once::new();
+    pub fn get_pdfium_lib_path() -> String {
+        let pdfium_path = path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("target")
+            .join("dependencies")
+            .join("pdfium");
 
-    pub fn setup() {
-        INIT.call_once(|| {
-            let pdfium_path = path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                .join("target")
-                .join("dependencies")
-                .join("pdfium");
+        let lib_path = if pdfium_path.clone().join("bin").exists() {
+            pdfium_path.clone().join("bin")
+        } else {
+            pdfium_path.clone().join("lib")
+        };
 
-            let lib_path = if pdfium_path.clone().join("bin").exists() {
-                pdfium_path.clone().join("bin")
-            } else {
-                pdfium_path.clone().join("lib")
-            };
-            print!("pdfium::set_library_location: {:?}", lib_path);
-            pdfium::set_library_location(lib_path.to_str().unwrap());
-        });
+        lib_path.to_str().unwrap().to_string()
     }
 
     // A minimal 1-page PDF file content
@@ -228,34 +268,46 @@ mod tests {
 
     #[test]
     fn test_new_valid_pdf() {
-        setup();
         let dir = tempdir().unwrap();
         let pdf_path = create_dummy_pdf(dir.path(), "test.pdf");
-        let rendering_height = 100;
 
-        let container =
-            PdfContainer::new(&pdf_path.to_str().unwrap().to_string(), rendering_height).unwrap();
+        let render_config = PdfRenderConfig::default();
+        let container = PdfContainer::new(
+            &pdf_path.to_str().unwrap().to_string(),
+            render_config,
+            Some(get_pdfium_lib_path()),
+        )
+        .unwrap();
 
         assert_eq!(container.path, pdf_path.to_str().unwrap());
         assert_eq!(container.entries.len(), 1);
         assert_eq!(container.entries[0], "0000");
-        assert_eq!(container.rendering_height, rendering_height);
     }
 
     #[test]
     fn test_new_non_existent_pdf() {
-        setup();
         let non_existent_path = String::from("/non/existent/file.pdf");
-        let container = PdfContainer::new(&non_existent_path, 100);
+        let render_config = PdfRenderConfig::default();
+        let container = PdfContainer::new(
+            &non_existent_path,
+            render_config,
+            Some(get_pdfium_lib_path()),
+        );
+
         assert!(container.is_err());
     }
 
     #[test]
     fn test_get_entries() {
-        setup();
         let dir = tempdir().unwrap();
         let pdf_path = create_dummy_pdf(dir.path(), "test.pdf");
-        let container = PdfContainer::new(&pdf_path.to_str().unwrap().to_string(), 100).unwrap();
+        let render_config = PdfRenderConfig::default();
+        let container = PdfContainer::new(
+            &pdf_path.to_str().unwrap().to_string(),
+            render_config,
+            Some(get_pdfium_lib_path()),
+        )
+        .unwrap();
         let entries = container.get_entries();
 
         assert_eq!(entries.len(), 1);
@@ -264,17 +316,22 @@ mod tests {
 
     #[test]
     fn test_get_image_existing() {
-        setup();
         let dir = tempdir().unwrap();
         let pdf_path = create_dummy_pdf(dir.path(), "test.pdf");
-        let rendering_height = 100;
-        let mut container =
-            PdfContainer::new(&pdf_path.to_str().unwrap().to_string(), rendering_height).unwrap();
+
+        let rendering_height: u32 = 100;
+        let render_config = PdfRenderConfig::default().set_target_height(rendering_height as i32);
+        let mut container = PdfContainer::new(
+            &pdf_path.to_str().unwrap().to_string(),
+            render_config,
+            Some(get_pdfium_lib_path()),
+        )
+        .unwrap();
 
         let image = container.get_image(&String::from("0000")).unwrap();
-        // The exact width/height depends on the PDF content and rendering, but we can check if they are non-zero
+
         assert!(image.width > 0);
-        assert!(image.height > 0);
+        assert_eq!(rendering_height, image.height);
         assert!(!image.data.is_empty());
 
         // Ensure caching works
@@ -287,23 +344,35 @@ mod tests {
 
     #[test]
     fn test_get_image_non_existing() {
-        setup();
         let dir = tempdir().unwrap();
         let pdf_path = create_dummy_pdf(dir.path(), "test.pdf");
-        let mut container =
-            PdfContainer::new(&pdf_path.to_str().unwrap().to_string(), 100).unwrap();
+
+        let rendering_height = 100;
+        let render_config = PdfRenderConfig::default().set_target_height(rendering_height);
+        let mut container = PdfContainer::new(
+            &pdf_path.to_str().unwrap().to_string(),
+            render_config,
+            Some(get_pdfium_lib_path()),
+        )
+        .unwrap();
+
         let result = container.get_image(&String::from("0001")); // Page 1 does not exist
         assert!(result.is_err());
     }
 
     #[test]
     fn test_preload() {
-        setup();
         let dir = tempdir().unwrap();
         let pdf_path = create_dummy_pdf(dir.path(), "test.pdf");
-        let rendering_height = 100;
-        let mut container =
-            PdfContainer::new(&pdf_path.to_str().unwrap().to_string(), rendering_height).unwrap();
+
+        let rendering_height: u32 = 100;
+        let render_config = PdfRenderConfig::default().set_target_height(rendering_height as i32);
+        let mut container = PdfContainer::new(
+            &pdf_path.to_str().unwrap().to_string(),
+            render_config,
+            Some(get_pdfium_lib_path()),
+        )
+        .unwrap();
 
         // Preload the only page
         container.preload(0, 1).unwrap();
@@ -313,6 +382,8 @@ mod tests {
         // Ensure getting a preloaded image works
         let image = container.get_image(&String::from("0000")).unwrap();
         assert!(image.width > 0);
+        assert_eq!(rendering_height, image.height);
+        assert!(!image.data.is_empty());
 
         // Preload again, should not cause issues
         container.preload(0, 1).unwrap();
@@ -321,12 +392,17 @@ mod tests {
 
     #[test]
     fn test_preload_out_of_bounds() {
-        setup();
         let dir = tempdir().unwrap();
         let pdf_path = create_dummy_pdf(dir.path(), "test.pdf");
+
         let rendering_height = 100;
-        let mut container =
-            PdfContainer::new(&pdf_path.to_str().unwrap().to_string(), rendering_height).unwrap();
+        let render_config = PdfRenderConfig::default().set_target_height(rendering_height);
+        let mut container = PdfContainer::new(
+            &pdf_path.to_str().unwrap().to_string(),
+            render_config,
+            Some(get_pdfium_lib_path()),
+        )
+        .unwrap();
 
         // Attempt to preload beyond the number of entries
         container.preload(0, 5).unwrap();

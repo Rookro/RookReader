@@ -3,6 +3,8 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+use pdfium_render::prelude::PdfRenderConfig;
+
 use crate::{
     container::{
         container::{Container, ContainerError},
@@ -54,7 +56,9 @@ impl ContainerState {
                 "pdf" => {
                     self.container = Some(Arc::new(Mutex::new(PdfContainer::new(
                         path,
-                        self.settings.pdf_rendering_height,
+                        PdfRenderConfig::default()
+                            .set_target_height(self.settings.pdf_rendering_height),
+                        self.settings.pdfium_library_path.clone(),
                     )?)));
                     Ok(())
                 }
