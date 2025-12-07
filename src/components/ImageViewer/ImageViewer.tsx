@@ -7,6 +7,7 @@ import { dirname } from "@tauri-apps/api/path";
 import { debug, error } from '@tauri-apps/plugin-log';
 import { AppDispatch, useSelector } from '../../Store';
 import { openContainerFile, setContainerFilePath, setExploreBasePath, setImageIndex } from "../../reducers/FileReducer";
+import { setIsFirstPageSingleView } from "../../reducers/ViewReducer";
 import { Image } from "../../types/Image";
 import { settingsStore } from "../../settings/SettingsStore";
 
@@ -30,23 +31,6 @@ const getImage = async (containerPath: string, entryName: string | undefined) =>
 }
 
 /**
- * Performs preloading.
- * 
- * @param containerPath Container path.
- * @param entries List of entries.
- * @param currentIndex Current index.
- */
-const preload = async (containerPath: string, entries: string[], currentIndex: number) => {
-    if (!containerPath || !entries || containerPath.length === 0 || entries.length === 0) {
-        return;
-    }
-
-    invoke<void>("async_preload", { startIndex: currentIndex + 1, count: 10 })
-        .then(() => { debug(`Preloaded from ${currentIndex + 1} to ${currentIndex + 10}.`) })
-        .catch((ex) => { error(`Failed to preload from ${currentIndex + 1} to ${currentIndex + 10}. ${JSON.stringify(ex)}`); });
-}
-
-/**
  * creates a URL for `<img>`.
  * 
  * @param image The image to create a URL for.
@@ -66,7 +50,7 @@ const createImageURL = async (image: Image | undefined) => {
  */
 export default function ImageViewer() {
     const { history, historyIndex, entries, index } = useSelector(state => state.file.containerFile);
-    const { isTwoPagedView, direction } = useSelector(state => state.view);
+    const { isTwoPagedView, direction, isFirstPageSingleView } = useSelector(state => state.view);
     const dispatch = useDispatch<AppDispatch>();
 
     const [firstSrc, setFirstSrc] = useState<string | undefined>(undefined);
@@ -139,8 +123,6 @@ export default function ImageViewer() {
             const first = firstImagePath ? (urlCacheRef.current.get(firstImagePath)) : undefined;
             const second = secondImagePath ? (urlCacheRef.current.get(secondImagePath)) : undefined;
 
-            preload(containerPath, entries, index);
-
             const firstIsWide = !!first && first.width > first.height;
             const secondIsWide = !!second && second.width > second.height;
             const eitherWide = firstIsWide || secondIsWide;
@@ -172,7 +154,15 @@ export default function ImageViewer() {
                     currentFirstRef.current = secondUrl;
                     currentSecondRef.current = undefined;
                 }
-            } else {
+            } else if (index === 0 && isFirstPageSingleView) {
+                setFirstSrc(firstUrl);
+                setSecondSrc(undefined);
+                setCanTwoPage(false);
+                setDisplayedIndexes({ first: index, second: undefined });
+                currentFirstRef.current = firstUrl;
+                currentSecondRef.current = undefined;
+            }
+            else {
                 if (firstUrl && secondUrl) {
                     setFirstSrc(firstUrl);
                     setSecondSrc(secondUrl);
@@ -200,10 +190,13 @@ export default function ImageViewer() {
         return () => {
             mounted = false;
         };
-    }, [entries, index, isTwoPagedView, isForward]);
+    }, [entries, index, isTwoPagedView, isForward, isFirstPageSingleView]);
 
     useEffect(() => {
         const initSettings = async () => {
+            const isFirstPageSingleView = await settingsStore.get<boolean>("first-page-single-view") ?? true;
+            dispatch(setIsFirstPageSingleView(isFirstPageSingleView));
+
             const pdfRenderingHeight = await settingsStore.get<number>("pdf-rendering-height");
             if (pdfRenderingHeight) {
                 await invoke("set_pdf_rendering_height", { height: pdfRenderingHeight });

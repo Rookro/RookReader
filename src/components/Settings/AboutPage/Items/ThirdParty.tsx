@@ -1,4 +1,5 @@
 import { useCallback, } from "react";
+import { useTranslation } from "react-i18next";
 import { Box, Button, Typography } from "@mui/material";
 import { openPath } from '@tauri-apps/plugin-opener';
 import { resolveResource } from "@tauri-apps/api/path";
@@ -8,6 +9,8 @@ import { error } from "@tauri-apps/plugin-log";
  * Third party component.
  */
 export default function ThirdParty() {
+    const { t } = useTranslation();
+
     const openLicense = useCallback(
         async (licenseFile: string) => {
             try {
@@ -21,25 +24,25 @@ export default function ThirdParty() {
     return (
         <Box sx={{ padding: '10px', borderRadius: '8px', bgcolor: 'background.paper' }}>
             <Typography variant="h5">
-                Third-Party Licenses
+                {t('settings.about.third-party-licenses.title')}
             </Typography>
             <Typography variant="body1" sx={{ marginTop: 1, marginBottom: 1 }}>
-                This application is built with open source software.
+                {t('settings.about.third-party-licenses.body')}
             </Typography>
             <Box sx={{ display: 'flex', gap: '10px', marginTop: 2 }}>
                 <Button variant="outlined" onClick={() => openLicense('frontend-licenses.txt')}>
-                    Frontend Licenses (yarn)
+                    {t('settings.about.third-party-licenses.frontend')}
                 </Button>
                 <Button variant="outlined" onClick={() => openLicense('backend-licenses.html')}>
-                    Backend Licenses (cargo)
+                    {t('settings.about.third-party-licenses.backend')}
                 </Button>
             </Box>
             <Box sx={{ marginTop: 3 }}>
                 <Typography variant="body1" sx={{ marginTop: 1, marginBottom: 1, color: 'text.secondary' }}>
-                    Boundled Library Licenses
+                    {t('settings.about.third-party-licenses.bundled')}
                 </Typography>
                 <Button variant="outlined" onClick={() => openLicense('pdfium/')}>
-                    PDFium License
+                    {t('settings.about.third-party-licenses.pdfium')}
                 </Button>
             </Box>
         </Box>

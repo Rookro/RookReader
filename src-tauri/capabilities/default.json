@@ -50,6 +50,7 @@
     "log:default",
     "os:default",
     "core:webview:allow-create-webview-window",
-    "core:app:allow-set-app-theme"
+    "core:app:allow-set-app-theme",
+    "dialog:default"
   ]
 }

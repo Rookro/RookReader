@@ -1,47 +1,47 @@
-name: build application
+name: Build application
+
 on:
   workflow_dispatch:
   pull_request:
+
 jobs:
-  build-app-for-windows:
-    runs-on: windows-latest
+  build-application:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: 'ubuntu-latest'
+          - platform: 'windows-latest'
+
+    runs-on: ${{ matrix.platform }}
     steps:
-      - name: setup rustup
-        run: |
-          rustup default stable
-          cargo install cargo-about
-      - name: checkout merged branch
+      - name: Checkout merged branch
         uses: actions/checkout@v4
-      - name: build application for windows
-        run: |
-          yarn
-          yarn tauri build
-      - name: upload setup exe
-        uses: actions/upload-artifact@v4
+
+      - name: Setup node
+        uses: actions/setup-node@v4
         with:
-          name: windows-setup-exe
-          path: src-tauri/target/release/bundle/nsis/*setup.exe
-  build-app-for-linux:
-    runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/rookro/tauri-template-devcontainer:latest
-      options: --user root
-    steps:
-      - name: setup rustup
+          node-version: lts/*
+
+      - name: Setup rustup
         run: |
-          rustup default stable
           cargo install cargo-about
-      - name: checkout merged branch
-        uses: actions/checkout@v4
-      - name: setup build script
-        run: sudo chmod u+x ./build-linux.sh
-      - name: build application for linux
-        run: ./build-linux.sh
-      - name: upload PKGBUILD and deb
-        uses: actions/upload-artifact@v4
+
+      - name: Install dependencies (ubuntu only)
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: Install frontend dependencies
+        run: yarn install
+
+      - name: Run tests
+        run: yarn test
+
+      - name: Build and upload artifacts.
+        uses: tauri-apps/tauri-action@dev # use dev to upload artifacts.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          name: PKGBUILD-for-archilinux
-          path: |
-            PKGBUILD
-            RookReader.install
-            src-tauri/target/release/bundle/deb/*.deb
+          uploadWorkflowArtifacts: true

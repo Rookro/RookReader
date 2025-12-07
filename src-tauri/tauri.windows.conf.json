@@ -5,6 +5,9 @@
             "nsis": {
                 "displayLanguageSelector": true
             }
+        },
+        "resources": {
+            "target/dependencies/pdfium/bin/*": "libs/"
         }
     }
 }

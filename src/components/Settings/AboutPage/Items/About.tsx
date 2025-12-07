@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Box, Link, Stack, Typography } from "@mui/material";
 import { GitHub } from '@mui/icons-material';
 import { getName, getVersion } from '@tauri-apps/api/app';
@@ -10,6 +11,8 @@ import appIcon from '../../../../assets/app-icon.png';
  * About component.
  */
 export default function About() {
+    const { t } = useTranslation();
+
     const [appName, setAppName] = useState("");
     const [appVersion, setAppVersion] = useState("");
     const projectUrl = 'https://github.com/Rookro/RookReader';
@@ -46,7 +49,7 @@ export default function About() {
                 >
                     <Stack direction="row" spacing={0.5} alignItems="center">
                         <GitHub fontSize="small" />
-                        <Typography variant="body1">Project Page</Typography>
+                        <Typography variant="body1">{t('settings.about.project-page')}</Typography>
                     </Stack>
                 </Link>
             </Stack>

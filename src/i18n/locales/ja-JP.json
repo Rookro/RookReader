@@ -1,0 +1,77 @@
+{
+    "app": {
+        "file-list-viewer": {
+            "sort-order": {
+                "name-asc": "名前↑",
+                "name-desc": "名前↓",
+                "date-asc": "日付↑",
+                "date-desc": "日付↓"
+            }
+        }
+    },
+    "settings": {
+        "general": {
+            "tab-name": "一般設定",
+            "title": "一般設定",
+            "language": {
+                "title": "言語",
+                "english": "English",
+                "japanese": "日本語"
+            },
+            "theme": {
+                "title": "テーマ",
+                "system": "システムテーマ",
+                "light": "ライトテーマ",
+                "dark": "ダークテーマ"
+            }
+        },
+        "page": {
+            "tab-name": "ページ",
+            "title": "ページ",
+            "first-page": {
+                "title": "最初のページを 1 ページ表示する: "
+            }
+        },
+        "file-navigator": {
+            "tab-name": "ファイルナビゲーター",
+            "title": "ファイルナビゲーター",
+            "home-directory-title": "ホームディレクトリー"
+        },
+        "rendering": {
+            "tab-name": "描画設定",
+            "title": "描画設定",
+            "pdf": {
+                "title": "PDF 描画時の高さ(px)"
+            }
+        },
+        "developer": {
+            "tab-name": "開発者向け設定",
+            "title": "開発者向け設定",
+            "log": {
+                "log-directory": "ログディレクトリー",
+                "log-level": {
+                    "title": "ログレベル",
+                    "description": "ログ設定を反映するには再起動が必要です。",
+                    "trace": "Trace",
+                    "debug": "Debug",
+                    "info": "Info",
+                    "warn": "Warn",
+                    "error": "Error"
+                }
+            }
+        },
+        "about": {
+            "tab-name": "About",
+            "title": "About",
+            "project-page": "プロジェクトページ",
+            "third-party-licenses": {
+                "title": "サードパーティー ライセンス",
+                "body": "このアプリケーションはオープンソースのソフトウェアで構築されています。",
+                "frontend": "フロントエンド ライセンス(yarn)",
+                "backend": "バックエンド ライセンス(cargo)",
+                "bundled": "バンドルしているライブラリーのライセンス",
+                "pdfium": "PDFium ライセンス"
+            }
+        }
+    }
+}

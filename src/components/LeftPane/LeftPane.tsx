@@ -3,7 +3,7 @@ import { Box, Stack, Tab, Tabs } from "@mui/material";
 import { PhotoLibrary, ViewList } from "@mui/icons-material";
 import TabPanel from "../TabPanel/TabPanel";
 
-const FileListViewer = lazy(() => import("../FileListViewer/FileListViewer"));
+const FileListViewer = lazy(() => import("../FileNavigator/FileNavigator"));
 const ImageEntriesViewer = lazy(() => import("../ImageEntriesViewer/ImageEntriesViewer"));
 
 /**

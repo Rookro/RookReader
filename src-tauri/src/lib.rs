@@ -13,6 +13,7 @@ mod state;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let result = tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_window_state::Builder::new().build())
         .manage(Mutex::new(state::app_state::AppState::default()))
         .plugin(tauri_plugin_os::init())
@@ -41,14 +42,13 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             setting::setting::load(app);
-            setup_pdfium(&get_libs_dir(app)?);
+            setup_container_settings(app)?;
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             commands::directory_commands::get_entries_in_dir,
             commands::container_commands::get_image,
             commands::container_commands::get_entries_in_container,
-            commands::container_commands::async_preload,
             commands::container_commands::set_pdf_rendering_height,
         ])
         .run(tauri::generate_context!());
@@ -97,7 +97,13 @@ fn get_libs_dir(app: &App) -> Result<String, String> {
 
 /// Sets up the direcotry path of PDFium library.
 ///
-/// * `lib_dir` - the directory path of PDFium library.
-fn setup_pdfium(lib_dir: &String) {
-    pdfium::set_library_location(lib_dir);
+/// * `app` - App instance of Tauri.
+fn setup_container_settings(app: &App) -> Result<(), String> {
+    let state: tauri::State<'_, Mutex<state::app_state::AppState>> = app.state();
+    let mut locked_state = state
+        .lock()
+        .map_err(|e| format!("Failed to get app state. Error: {}", e))?;
+
+    locked_state.container_state.settings.pdfium_library_path = Some(get_libs_dir(app)?);
+    Ok(())
 }

@@ -6,6 +6,7 @@ export const viewSlice = createSlice({
     initialState: {
         isTwoPagedView: true,
         direction: "rtl" as Direction,
+        isFirstPageSingleView: true,
     },
     reducers: {
         setIsTwoPagedView: (state, action: PayloadAction<boolean>) => {
@@ -13,9 +14,12 @@ export const viewSlice = createSlice({
         },
         setDirection: (state, action: PayloadAction<Direction>) => {
             state.direction = action.payload;
-        }
+        },
+        setIsFirstPageSingleView: (state, action: PayloadAction<boolean>) => {
+            state.isFirstPageSingleView = action.payload;
+        },
     }
 });
 
-export const { setIsTwoPagedView, setDirection } = viewSlice.actions;
+export const { setIsTwoPagedView, setDirection, setIsFirstPageSingleView } = viewSlice.actions;
 export default viewSlice.reducer;
