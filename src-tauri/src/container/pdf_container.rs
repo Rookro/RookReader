@@ -1,5 +1,5 @@
 use image::{codecs::png::PngEncoder, ExtendedColorType, ImageEncoder};
-use pdfium_render::prelude::{PdfRenderConfig, Pdfium};
+use pdfium_render::prelude::{PdfDocument, PdfRenderConfig, Pdfium};
 use std::{collections::HashMap, fs::File, io::Read, sync::Arc};
 
 use crate::container::{
@@ -43,48 +43,8 @@ impl Container for PdfContainer {
                 entry: None,
             })?;
 
-        let index: u16 = entry.parse().map_err(|e| ContainerError {
-            message: format!("Failed to convet to index({}). {}", entry, e),
-            path: Some(self.path.clone()),
-            entry: Some(entry.clone()),
-        })?;
+        let image_arc = self.load_image(entry, &pdf)?;
 
-        let page = pdf.pages().get(index).map_err(|e| ContainerError {
-            message: format!("Failed to get the pdf page({}). {}", entry, e),
-            path: Some(self.path.clone()),
-            entry: Some(entry.clone()),
-        })?;
-        let img = page
-            .render_with_config(&self.render_config)
-            .map_err(|e| ContainerError {
-                message: format!("Failed to render the pdf page({}). {}", entry, e),
-                path: Some(self.path.clone()),
-                entry: Some(entry.clone()),
-            })?
-            .as_image();
-
-        let mut buffer = Vec::new();
-        let encoder = PngEncoder::new(&mut buffer);
-        encoder
-            .write_image(
-                &img.as_bytes(),
-                img.width(),
-                img.height(),
-                ExtendedColorType::from(img.color()),
-            )
-            .map_err(|e| ContainerError {
-                message: format!("Failed to convert the pdf page({}) to rgb8. {}", entry, e),
-                path: Some(self.path.clone()),
-                entry: Some(entry.clone()),
-            })?;
-
-        let image = Image {
-            data: buffer,
-            width: img.width(),
-            height: img.height(),
-        };
-
-        let image_arc = Arc::new(image);
         self.cache.insert(entry.clone(), Arc::clone(&image_arc));
         Ok(image_arc)
     }
@@ -114,44 +74,9 @@ impl Container for PdfContainer {
                 continue;
             }
 
-            let page = pdf
-                .pages()
-                .get(i.try_into().unwrap())
-                .map_err(|e| ContainerError {
-                    message: format!("Failed to get the pdf page({}). {}", entry, e),
-                    path: Some(self.path.clone()),
-                    entry: Some(entry.clone()),
-                })?;
-            let img = page
-                .render_with_config(&self.render_config)
-                .map_err(|e| ContainerError {
-                    message: format!("Failed to render the pdf page({}). {}", entry, e),
-                    path: Some(self.path.clone()),
-                    entry: Some(entry.clone()),
-                })?
-                .as_image();
+            let image_arc = self.load_image(entry, &pdf)?;
 
-            let mut buffer = Vec::new();
-            let encoder = PngEncoder::new(&mut buffer);
-            encoder
-                .write_image(
-                    &img.as_bytes(),
-                    img.width(),
-                    img.height(),
-                    ExtendedColorType::from(img.color()),
-                )
-                .map_err(|e| ContainerError {
-                    message: format!("Failed to convert the pdf page({}) to rgb8. {}", entry, e),
-                    path: Some(self.path.clone()),
-                    entry: Some(entry.clone()),
-                })?;
-            let image = Image {
-                data: buffer,
-                width: img.width(),
-                height: img.height(),
-            };
-
-            self.cache.insert(entry.clone(), Arc::new(image));
+            self.cache.insert(entry.clone(), image_arc);
         }
 
         Ok(())
@@ -212,6 +137,55 @@ impl PdfContainer {
             render_config,
             library_path: library_path.clone(),
         })
+    }
+
+    /// Loads an image from the specified entry name.
+    ///
+    /// * `entry` - The entry name of the image to get.
+    /// * `pdf` - The pdf document.
+    fn load_image(&self, entry: &String, pdf: &PdfDocument) -> Result<Arc<Image>, ContainerError> {
+        let index: u16 = entry.parse().map_err(|e| ContainerError {
+            message: format!("Failed to convet to index({}). {}", entry, e),
+            path: Some(self.path.clone()),
+            entry: Some(entry.clone()),
+        })?;
+
+        let page = pdf.pages().get(index).map_err(|e| ContainerError {
+            message: format!("Failed to get the pdf page({}). {}", entry, e),
+            path: Some(self.path.clone()),
+            entry: Some(entry.clone()),
+        })?;
+        let img = page
+            .render_with_config(&self.render_config)
+            .map_err(|e| ContainerError {
+                message: format!("Failed to render the pdf page({}). {}", entry, e),
+                path: Some(self.path.clone()),
+                entry: Some(entry.clone()),
+            })?
+            .as_image();
+
+        let mut buffer = Vec::new();
+        let encoder = PngEncoder::new(&mut buffer);
+        encoder
+            .write_image(
+                &img.as_bytes(),
+                img.width(),
+                img.height(),
+                ExtendedColorType::from(img.color()),
+            )
+            .map_err(|e| ContainerError {
+                message: format!("Failed to convert the pdf page({}) to rgb8. {}", entry, e),
+                path: Some(self.path.clone()),
+                entry: Some(entry.clone()),
+            })?;
+
+        let image = Image {
+            data: buffer,
+            width: img.width(),
+            height: img.height(),
+        };
+
+        Ok(Arc::new(image))
     }
 }
 

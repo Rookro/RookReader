@@ -30,35 +30,9 @@ impl Container for ZipContainer {
             return Ok(Arc::clone(&image_arc));
         }
 
-        let mut file_in_zip = self.archive.by_name(entry).map_err(|e| ContainerError {
-            message: String::from(format!("Failed to get entry. {}", e)),
-            path: Some(self.path.clone()),
-            entry: Some(entry.clone()),
-        })?;
-        let mut buffer = Vec::new();
-        file_in_zip
-            .read_to_end(&mut buffer)
-            .map_err(|e| ContainerError {
-                message: String::from(format!("Failed to read entry in the zip archive. {}", e)),
-                path: Some(self.path.clone()),
-                entry: Some(entry.clone()),
-            })?;
-
-        match Image::new(buffer) {
-            Ok(image) => {
-                let image_arc = Arc::new(image);
-                self.cache.insert(entry.clone(), Arc::clone(&image_arc));
-                Ok(image_arc)
-            }
-            Err(e) => {
-                log::error!("{}", e);
-                Err(ContainerError {
-                    message: e,
-                    path: Some(self.path.clone()),
-                    entry: Some(entry.clone()),
-                })
-            }
-        }
+        let image_arc = self.load_images(entry)?;
+        self.cache.insert(entry.clone(), image_arc.clone());
+        Ok(image_arc)
     }
 
     fn preload(&mut self, begin_index: usize, count: usize) -> Result<(), ContainerError> {
@@ -67,43 +41,14 @@ impl Container for ZipContainer {
 
         for i in begin_index..end {
             // If it's already in the cache, skip it.
-            let entry = &self.entries[i];
-            if self.cache.contains_key(entry) {
+            let entry = self.entries[i].clone();
+            if self.cache.contains_key(&entry) {
                 log::debug!("Hit cache so skip preload index: {}", i);
                 continue;
             }
 
-            let mut buffer = Vec::new();
-            {
-                let mut file = self.archive.by_name(entry).map_err(|e| ContainerError {
-                    message: format!("Failed to get the file. {}", e),
-                    path: Some(self.path.clone()),
-                    entry: Some(entry.clone()),
-                })?;
-
-                file.read_to_end(&mut buffer).map_err(|e| ContainerError {
-                    message: String::from(format!(
-                        "Failed to read entry in the zip archive. {}",
-                        e
-                    )),
-                    path: Some(self.path.clone()),
-                    entry: Some(entry.clone()),
-                })?;
-            };
-
-            match Image::new(buffer) {
-                Ok(image) => {
-                    self.cache.insert(entry.clone(), Arc::new(image));
-                }
-                Err(e) => {
-                    log::error!("{}", e);
-                    return Err(ContainerError {
-                        message: e,
-                        path: Some(self.path.clone()),
-                        entry: Some(entry.clone()),
-                    });
-                }
-            }
+            let image_arc = self.load_images(&entry)?;
+            self.cache.insert(entry.clone(), image_arc.clone());
         }
         Ok(())
     }
@@ -143,6 +88,37 @@ impl ZipContainer {
             entries: entries,
             cache: HashMap::new(),
         })
+    }
+
+    fn load_images(&mut self, entry: &String) -> Result<Arc<Image>, ContainerError> {
+        let mut file_in_zip = self.archive.by_name(entry).map_err(|e| ContainerError {
+            message: String::from(format!("Failed to get entry. {}", e)),
+            path: Some(self.path.clone()),
+            entry: Some(entry.clone()),
+        })?;
+        let mut buffer = Vec::new();
+        file_in_zip
+            .read_to_end(&mut buffer)
+            .map_err(|e| ContainerError {
+                message: String::from(format!("Failed to read entry in the zip archive. {}", e)),
+                path: Some(self.path.clone()),
+                entry: Some(entry.clone()),
+            })?;
+
+        match Image::new(buffer) {
+            Ok(image) => {
+                let image_arc = Arc::new(image);
+                Ok(image_arc)
+            }
+            Err(e) => {
+                log::error!("{}", e);
+                Err(ContainerError {
+                    message: e,
+                    path: Some(self.path.clone()),
+                    entry: Some(entry.clone()),
+                })
+            }
+        }
     }
 }
 
