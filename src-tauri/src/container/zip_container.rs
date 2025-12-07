@@ -1,4 +1,9 @@
-use std::{collections::HashMap, fs::File, io::Read, sync::Arc};
+use std::{
+    collections::HashMap,
+    fs::File,
+    io::{Cursor, Read},
+    sync::Arc,
+};
 
 use zip::ZipArchive;
 
@@ -11,8 +16,8 @@ use crate::container::{
 pub struct ZipContainer {
     /// The file path of the container.
     path: String,
-    /// The Zip archive.
-    archive: ZipArchive<File>,
+    /// The Zip archive file data.
+    archive_binary: Arc<Vec<u8>>,
     /// The entries in the container.
     entries: Vec<String>,
     /// Image data cache (key: entry name, value: image).
@@ -63,12 +68,23 @@ impl ZipContainer {
     ///
     /// * `path` - The path to the archive container.
     pub fn new(path: &String) -> Result<Self, ContainerError> {
-        let file = File::open(path).map_err(|e| ContainerError {
-            message: String::from(format!("Failed to open the file. {}", e)),
-            path: Some(path.clone()),
-            entry: None,
-        })?;
-        let archive = ZipArchive::new(file).map_err(|e| ContainerError {
+        let mut buffer = Vec::new();
+        File::open(path)
+            .map_err(|e| ContainerError {
+                message: String::from(format!("Failed to open the zip archive file. {}", e)),
+                path: Some(path.clone()),
+                entry: None,
+            })?
+            .read_to_end(&mut buffer)
+            .map_err(|e| ContainerError {
+                message: String::from(format!("Failed to read the zip archive file. {}", e)),
+                path: Some(path.clone()),
+                entry: None,
+            })?;
+
+        let archive_binary = Arc::new(buffer);
+        let cursor = Cursor::new(&*archive_binary);
+        let archive = ZipArchive::new(cursor).map_err(|e| ContainerError {
             message: String::from(format!("Failed to open the zip archive. {}", e)),
             path: Some(path.clone()),
             entry: None,
@@ -84,20 +100,28 @@ impl ZipContainer {
 
         Ok(Self {
             path: path.clone(),
-            archive: archive,
+            archive_binary: archive_binary,
             entries: entries,
             cache: HashMap::new(),
         })
     }
 
-    fn load_images(&mut self, entry: &String) -> Result<Arc<Image>, ContainerError> {
-        let mut file_in_zip = self.archive.by_name(entry).map_err(|e| ContainerError {
-            message: String::from(format!("Failed to get entry. {}", e)),
+    fn load_images(&self, entry: &String) -> Result<Arc<Image>, ContainerError> {
+        let mut buffer = Vec::new();
+
+        let cursor = Cursor::new(&*self.archive_binary);
+        let mut archive = ZipArchive::new(cursor).map_err(|e| ContainerError {
+            message: String::from(format!("Failed to open the zip archive. {}", e)),
             path: Some(self.path.clone()),
             entry: Some(entry.clone()),
         })?;
-        let mut buffer = Vec::new();
-        file_in_zip
+        archive
+            .by_name(entry)
+            .map_err(|e| ContainerError {
+                message: String::from(format!("Failed to get entry. {}", e)),
+                path: Some(self.path.clone()),
+                entry: Some(entry.clone()),
+            })?
             .read_to_end(&mut buffer)
             .map_err(|e| ContainerError {
                 message: String::from(format!("Failed to read entry in the zip archive. {}", e)),
