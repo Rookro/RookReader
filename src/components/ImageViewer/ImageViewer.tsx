@@ -23,11 +23,15 @@ const getImage = async (containerPath: string, entryName: string | undefined) =>
         return undefined;
     }
 
+    var response: ArrayBuffer;
     try {
-        return await invoke<Image>("get_image", { path: containerPath, entryName });
+        response = await invoke<ArrayBuffer>("get_image", { path: containerPath, entryName });
     } catch (ex) {
         error(JSON.stringify(ex));
+        return;
     }
+
+    return new Image(response);
 }
 
 /**
