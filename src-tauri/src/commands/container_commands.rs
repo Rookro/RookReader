@@ -6,6 +6,8 @@ use crate::{container::image::Image, state::app_state::AppState};
 
 /// Gets entries in the specified archive container.
 ///
+/// Returns a list of entry names in the directory.
+///
 /// * `path` - The path of the archive container.
 /// * `state` - The application state.
 #[tauri::command()]
@@ -40,6 +42,10 @@ pub fn get_entries_in_container(
 
 /// Gets an image in the specified archive container.
 ///
+/// Returns the image data with a custom binary format.
+/// The binary format is Big-Endian and structured as follows:
+/// \[Width (4 bytes)\]\[Height (4 bytes)\]\[Image Data...\]
+///
 /// * `path` - The path of the archive container.
 /// * `entry_name` - The entry name of the image to get.
 /// * `state` - The application state.
@@ -66,8 +72,6 @@ pub fn get_image(
     };
 
     // Uses tauri::ipc::Response with a custom binary format to accelerate image data transfer.
-    // The binary format is Big-Endian and structured as follows:
-    // [Width (4 bytes)][Height (4 bytes)][Image Data...]
     let mut response_data = Vec::with_capacity(8 + image.data.len());
     response_data.extend_from_slice(&image.width.to_be_bytes());
     response_data.extend_from_slice(&image.height.to_be_bytes());
