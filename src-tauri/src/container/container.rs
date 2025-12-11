@@ -29,6 +29,8 @@ pub trait Container: Send + Sync + 'static {
 
     /// Retrieves an image from the file.
     ///
+    /// Returns `Arc<Image>` if the image is in the cache.
+    ///
     /// * `entry` - The entry name of the image to retrieve.
     fn get_image(&mut self, entry: &String) -> Result<Arc<Image>, ContainerError>;
 
@@ -43,6 +45,8 @@ impl dyn Container {
     /// Checks if the file extention is the supported archive format.
     ///
     /// The check is case-insensitive.
+    ///
+    /// Returns whether the file is supported.
     ///
     /// * `filename` - The filename.
     pub fn is_supported_format(filename: &str) -> bool {

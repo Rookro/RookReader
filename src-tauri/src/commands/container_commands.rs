@@ -1,15 +1,19 @@
 use std::sync::{Arc, Mutex};
 
+use tauri::ipc::Response;
+
 use crate::{container::image::Image, state::app_state::AppState};
 
 /// Gets entries in the specified archive container.
 ///
+/// Returns a list of entry names in the directory.
+///
 /// * `path` - The path of the archive container.
 /// * `state` - The application state.
 #[tauri::command()]
-pub fn get_entries_in_container(
+pub async fn get_entries_in_container(
     path: String,
-    state: tauri::State<Mutex<AppState>>,
+    state: tauri::State<'_, Mutex<AppState>>,
 ) -> Result<Vec<String>, String> {
     log::debug!("Get the entries in {}", path);
     let mut state_lock = state.lock().map_err(|e| {
@@ -38,15 +42,19 @@ pub fn get_entries_in_container(
 
 /// Gets an image in the specified archive container.
 ///
+/// Returns the image data with a custom binary format.
+/// The binary format is Big-Endian and structured as follows:
+/// \[Width (4 bytes)\]\[Height (4 bytes)\]\[Image Data...\]
+///
 /// * `path` - The path of the archive container.
 /// * `entry_name` - The entry name of the image to get.
 /// * `state` - The application state.
-#[tauri::command()]
+#[tauri::command]
 pub fn get_image(
     path: String,
     entry_name: String,
     state: tauri::State<Mutex<AppState>>,
-) -> Result<Arc<Image>, String> {
+) -> Result<Response, String> {
     log::debug!("Get the binary of {} in {}", entry_name, path);
 
     let mut state_lock = state.lock().map_err(|e| {
@@ -54,15 +62,22 @@ pub fn get_image(
         format!("Failed to lock AppState. {}", e.to_string())
     })?;
 
-    if let Some(container) = &mut state_lock.container_state.container {
-        let image = container
+    let image: Arc<Image> = if let Some(container) = &mut state_lock.container_state.container {
+        container
             .get_image(&entry_name)
-            .map_err(|e| format!("Failed to get image. {}", e))?;
-        Ok(image)
+            .map_err(|e| format!("Failed to get image. {}", e))?
     } else {
         log::error!("Unexpected error. Container is empty!");
-        Err(String::from("Unexpected error. Container is empty!"))
-    }
+        return Err(String::from("Unexpected error. Container is empty!"));
+    };
+
+    // Uses tauri::ipc::Response with a custom binary format to accelerate image data transfer.
+    let mut response_data = Vec::with_capacity(8 + image.data.len());
+    response_data.extend_from_slice(&image.width.to_be_bytes());
+    response_data.extend_from_slice(&image.height.to_be_bytes());
+    response_data.extend_from_slice(&image.data);
+
+    Ok(Response::new(response_data))
 }
 
 /// Sets the image height for PDF rendering.
@@ -99,7 +114,7 @@ mod tests {
 
     use super::*;
     use std::{path, sync::Mutex};
-    use tauri::Manager;
+    use tauri::{ipc::InvokeResponseBody::Raw, ipc::IpcResponse, Manager};
 
     use crate::{
         container::container::MockContainer, setting::container_settings::ContainerSettings,
@@ -172,8 +187,8 @@ mod tests {
         assert!(result.is_err());
     }
 
-    #[test]
-    fn test_get_entries_in_container() {
+    #[tokio::test]
+    async fn test_get_entries_in_container() {
         let dir = tempfile::tempdir().unwrap();
         let rar_path = create_dummy_rar(dir.path(), "dummy.rar");
         let expected_entries = vec![
@@ -185,7 +200,8 @@ mod tests {
         let app = tauri::test::mock_app();
         app.manage(Mutex::new(AppState::default()));
 
-        let result = get_entries_in_container(rar_path.to_str().unwrap().to_string(), app.state());
+        let result =
+            get_entries_in_container(rar_path.to_str().unwrap().to_string(), app.state()).await;
 
         assert!(result.is_ok());
 
@@ -196,12 +212,12 @@ mod tests {
         assert_eq!(expected_entries[2], actual_entries[2]);
     }
 
-    #[test]
-    fn test_get_entries_in_container_empty_container() {
+    #[tokio::test]
+    async fn test_get_entries_in_container_empty_container() {
         let app = tauri::test::mock_app();
         app.manage(Mutex::new(AppState::default()));
 
-        let result = get_entries_in_container("non_existent_path".to_string(), app.state());
+        let result = get_entries_in_container("non_existent_path".to_string(), app.state()).await;
 
         assert!(result.is_err());
     }
@@ -234,10 +250,24 @@ mod tests {
         assert!(result.is_ok());
 
         let expected_image = MockContainer::create_dummy_image();
-        let actual_image = result.unwrap();
-        assert_eq!(expected_image.data, actual_image.data);
-        assert_eq!(expected_image.width, actual_image.width);
-        assert_eq!(expected_image.height, actual_image.height);
+        let response = result.unwrap();
+
+        // Deserialize the response binary data.
+        // Format: [Width (4 bytes)][Height (4 bytes)][Image Data...]
+        let body = match response.body().unwrap() {
+            Raw(bytes) => bytes,
+            _ => {
+                panic!("Unexpected response body type");
+            }
+        };
+
+        let actual_width = u32::from_be_bytes([body[0], body[1], body[2], body[3]]);
+        let actual_height = u32::from_be_bytes([body[4], body[5], body[6], body[7]]);
+        let actual_data = &body[8..];
+
+        assert_eq!(expected_image.width, actual_width);
+        assert_eq!(expected_image.height, actual_height);
+        assert_eq!(expected_image.data.as_slice(), actual_data);
     }
 
     #[test]
