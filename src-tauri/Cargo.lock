@@ -4401,6 +4401,7 @@ dependencies = [
  "tauri-plugin-window-state",
  "tempfile",
  "threadpool",
+ "tokio",
  "unrar",
  "zip",
 ]

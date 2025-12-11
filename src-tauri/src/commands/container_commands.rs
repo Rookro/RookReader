@@ -11,9 +11,9 @@ use crate::{container::image::Image, state::app_state::AppState};
 /// * `path` - The path of the archive container.
 /// * `state` - The application state.
 #[tauri::command()]
-pub fn get_entries_in_container(
+pub async fn get_entries_in_container(
     path: String,
-    state: tauri::State<Mutex<AppState>>,
+    state: tauri::State<'_, Mutex<AppState>>,
 ) -> Result<Vec<String>, String> {
     log::debug!("Get the entries in {}", path);
     let mut state_lock = state.lock().map_err(|e| {
@@ -187,8 +187,8 @@ mod tests {
         assert!(result.is_err());
     }
 
-    #[test]
-    fn test_get_entries_in_container() {
+    #[tokio::test]
+    async fn test_get_entries_in_container() {
         let dir = tempfile::tempdir().unwrap();
         let rar_path = create_dummy_rar(dir.path(), "dummy.rar");
         let expected_entries = vec![
@@ -200,7 +200,8 @@ mod tests {
         let app = tauri::test::mock_app();
         app.manage(Mutex::new(AppState::default()));
 
-        let result = get_entries_in_container(rar_path.to_str().unwrap().to_string(), app.state());
+        let result =
+            get_entries_in_container(rar_path.to_str().unwrap().to_string(), app.state()).await;
 
         assert!(result.is_ok());
 
@@ -211,12 +212,12 @@ mod tests {
         assert_eq!(expected_entries[2], actual_entries[2]);
     }
 
-    #[test]
-    fn test_get_entries_in_container_empty_container() {
+    #[tokio::test]
+    async fn test_get_entries_in_container_empty_container() {
         let app = tauri::test::mock_app();
         app.manage(Mutex::new(AppState::default()));
 
-        let result = get_entries_in_container("non_existent_path".to_string(), app.state());
+        let result = get_entries_in_container("non_existent_path".to_string(), app.state()).await;
 
         assert!(result.is_err());
     }
