@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useDispatch } from "react-redux";
-import { Box } from "@mui/material";
+import { Box, CircularProgress } from "@mui/material";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import { dirname } from "@tauri-apps/api/path";
@@ -62,6 +62,7 @@ export default function ImageViewer() {
     const [canTwoPage, setCanTwoPage] = useState(isTwoPagedView);
     const [displayedIndexes, setDisplayedIndexes] = useState({ first: 0, second: undefined as number | undefined });
     const [isForward, setIsForward] = useState(true);
+    const [isLoading, setIsLoading] = useState(false);
 
     const requestIdRef = useRef(0);
     const currentFirstRef = useRef<string | undefined>(undefined);
@@ -70,8 +71,13 @@ export default function ImageViewer() {
     const unlistenRef = useRef<null | (() => void)>(null as any);
 
     useEffect(() => {
+        setIsLoading(true);
         dispatch(openContainerFile(history[historyIndex]))
     }, [history, historyIndex]);
+
+    useEffect(() => {
+        setIsLoading(false);
+    }, [entries]);
 
     useEffect(() => {
         urlCacheRef.current.forEach((cache) => {
@@ -303,6 +309,21 @@ export default function ImageViewer() {
             default:
                 return;
         }
+    }
+
+    if (isLoading) {
+        return (
+            <Box
+                sx={{
+                    width: '100%',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                }}
+            >
+                < CircularProgress />
+            </Box>
+        );
     }
 
     return (
