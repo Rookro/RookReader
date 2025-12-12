@@ -46,9 +46,9 @@ RookReader は、zip、rar、pdf 形式の電子書籍ファイルを閲覧す�
 | ディストリビューション | 推奨ファイル | インストール手順 |
 | -- | -- | -- |
 | Debian/Ubuntu/Mint | RookReader_x.x.x_amd64.deb | Dファイルをダブルクリックするか、ターミナルで `sudo dpkg -i <ファイル名>` を実行します。 |
-| Arch Linux/Manjaro | RookReader_x.x.x_amd64.deb | [Arch Linux 向け手順](#arch-linux-向け手順)を参照してください。
 | Fedora/RHEL/openSUSE | RookReader_x.x.x-x.x86_64.rpm | ターミナルで `sudo dnf install <ファイル名>` (または `sudo yum install <ファイル名>`) を実行します。 |
-| Other Distributions (Universal) | RookReader_x.x.x_amd64.AppImage | 実行権限を付与し (`chmod +x <ファイル名>`)、ファイルを実行します。インストールは不要です。 |
+| Arch Linux/Manjaro | - | [Arch Linux 向け手順](#arch-linux-向け手順)を参照してください。|
+| その他のディストリビューション | RookReader_x.x.x_amd64.AppImage | 実行権限を付与し (`chmod +x <ファイル名>`)、ファイルを実行します。インストールは不要です。 |
 
 #### Arch Linux 向け手順
 
@@ -58,13 +58,11 @@ Arch Linux または Manjaro などのディストリビューションを使用
 
    | ファイル名 | ダウンロード場所 |
    | -- | -- |
-   | RookReader_x.x.x_amd64.deb | Github Releases |
-   | PKGBUILD | リポジトリのルート |
-   | RookReader.install | リポジトリのルート |
+   | PKGBUILD | リポジトリ内の PKGBUILD/ |
+   | RookReader.install | リポジトリ内の PKGBUILD/ |
 
 1. ダウンロードしたファイルをすべて同じディレクトリに配置します。
-1. ターミナルを開き、そのディレクトリに移動します。
-1. 以下のコマンドを実行してパッケージをビルドし、インストールします。
+1. ターミナルを開き、そのディレクトリに移動して、以下のコマンドを実行し、パッケージをビルドおよびインストールします。
 
    ``` bash
    makepkg -si
@@ -72,7 +70,7 @@ Arch Linux または Manjaro などのディストリビューションを使用
 
 ## 使用方法
 
-![alt text](../images/screenshot.png)
+![screenshot](../images/screenshot.png)
 
 * **ファイルを開く**
   * 左ペイン（ファイルナビゲーター）で、アーカイブファイルまたはディレクトリをクリックして開きます。
