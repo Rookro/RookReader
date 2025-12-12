@@ -1,8 +1,10 @@
-import { CSSProperties, memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { CSSProperties, memo, useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { List, RowComponentProps, useListRef } from 'react-window';
 import { Box, ListItem, ListItemButton, ListItemText, Stack, Tooltip } from '@mui/material';
 import { Folder, InsertDriveFile } from '@mui/icons-material';
 import { basename, join } from '@tauri-apps/api/path';
+import { watch } from '@tauri-apps/plugin-fs';
+import { error } from '@tauri-apps/plugin-log';
 import { useSelector, useAppDispatch } from '../../Store';
 import { getEntriesInDir, setContainerFilePath, setExploreBasePath, setSearchText } from '../../reducers/FileReducer';
 import { SortOrder } from '../../types/SortOrderType';
@@ -122,6 +124,7 @@ export default function FileListViewer() {
     const [selectedIndex, setSelectedIndex] = useState(-1);
 
     const listRef = useListRef(null);
+    const watcherRef = useRef<null | (() => void)>(null);
 
     // Scroll to make the selected item visible
     useEffect(() => {
@@ -137,9 +140,33 @@ export default function FileListViewer() {
         });
     }, [selectedIndex, entries]);
 
+    // Updates the entries in the directory.
     useEffect(() => {
-        dispatch(getEntriesInDir(history[historyIndex]));
-        setSelectedIndex(-1);
+        const updateEntries = async () => {
+            const dirPath = history[historyIndex];
+
+            dispatch(getEntriesInDir(dirPath));
+            setSelectedIndex(-1);
+
+            let unwatch = null;
+            try {
+                unwatch = await watch(dirPath, (event) => {
+                    if (typeof event.type === 'object' && ('create' in event.type || 'modify' in event.type || 'remove' in event.type)) {
+                        dispatch(getEntriesInDir(dirPath));
+                    }
+                }, { delayMs: 500 });
+            } catch (e) {
+                error(`Failed to watch ${dirPath}. Error: ${e}`);
+            }
+
+            watcherRef.current?.();
+            watcherRef.current = unwatch;
+        };
+        updateEntries();
+
+        return () => {
+            watcherRef.current?.();
+        };
     }, [history, historyIndex, dispatch]);
 
     const filteredSortedEntries = useMemo(() => {
