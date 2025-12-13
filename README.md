@@ -68,8 +68,6 @@ For users running Arch Linux or Manjaro, you can build and install the package u
    makepkg -si
    ```
 
-   This command builds, installs, and manages dependencies for the package.
-
 ## Usage
 
 ![screenshot](docs/images/screenshot.png)
@@ -111,12 +109,6 @@ You can build within the DevContainer using the following commands.
 ```bash
 yarn
 yarn tauri build
-```
-
-Alternatively, you can simply run the following to build:
-
-```bash
-./build-linux.sh
 ```
 
 ## Contributing

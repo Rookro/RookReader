@@ -7,6 +7,19 @@
 
 ## [Unreleased]
 
+## [1.7.0] - 2025-12-13
+
+### Changed
+
+* ファイルナビゲーターの検索で、スペース区切りの文字で AND 検索するように変更 (#85)
+* ファイル更新時に自動的にファイルナビゲーターの表示を更新する (#87)
+
+### Fixed
+
+* サイズの大きいファイルを読み込んだ際に読み込み完了までフリーズする問題を修正 (#83)
+* 画像の転送が遅く表示に時間がかかる問題を修正 (#83)
+* Github Actions の build-app-actions の権限を適切に設定 (#84)
+
 ## [1.6.0] - 2025-12-07
 
 ### Added
@@ -159,7 +172,8 @@
 * 自動見開き表示機能の追加 (#4)
 * ホイールの上下によるページ送り機能を追加 (#5)
 
-[unreleased]: https://github.com/Rookro/RookReader/compare/v1.6.0...HEAD
+[unreleased]: https://github.com/Rookro/RookReader/compare/v1.7.0...HEAD
+[1.7.0]: https://github.com/Rookro/RookReader/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/Rookro/RookReader/compare/v1.5.2...v1.6.0
 [1.5.2]: https://github.com/Rookro/RookReader/compare/v1.5.1...v1.5.2
 [1.5.1]: https://github.com/Rookro/RookReader/compare/v1.5.0...v1.5.1

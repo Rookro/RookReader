@@ -1,8 +1,10 @@
-import { CSSProperties, memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { CSSProperties, memo, useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { List, RowComponentProps, useListRef } from 'react-window';
 import { Box, ListItem, ListItemButton, ListItemText, Stack, Tooltip } from '@mui/material';
 import { Folder, InsertDriveFile } from '@mui/icons-material';
 import { basename, join } from '@tauri-apps/api/path';
+import { watch } from '@tauri-apps/plugin-fs';
+import { error } from '@tauri-apps/plugin-log';
 import { useSelector, useAppDispatch } from '../../Store';
 import { getEntriesInDir, setContainerFilePath, setExploreBasePath, setSearchText } from '../../reducers/FileReducer';
 import { SortOrder } from '../../types/SortOrderType';
@@ -10,12 +12,58 @@ import { DirEntry } from '../../types/DirEntry';
 import NavBar from './NavBar';
 
 /**
- * Sorts directory entries.
- * 
- * @param a - The first entry to compare.
- * @param b - The second entry to compare.
- * @param sortOrder - The sort order.
- * @returns Sorted directory entries.
+ * Filters an array of DirEntry objects to find entries whose 'name' property contains ALL specified keywords (AND search).
+ * Keywords are derived from the user's input string, separated by whitespace (including full-width spaces).
+ *
+ * The search is case-insensitive.
+ *
+ * @param entries - The array of DirEntry objects to be searched.
+ * @param query - The user's input string containing one or more space-separated keywords.
+ * @returns A new array containing only the DirEntry objects whose 'name' property matches all provided keywords. 
+ * Returns the original array if the query is empty or contains only whitespace.
+ *
+ * @example
+ * const entries = [{ name: "test_dir", ... }, { name: "test_file", ... }];
+ * andSearch(entries, "test file"); // Returns [{ name: "test_file", ... }]
+ * andSearch(entries, "example"); // Returns []
+ */
+const addSearch = (entries: DirEntry[], query: string) => {
+    const keywords = query
+        .trim()
+        .toLowerCase()
+        .split(/\s+/)
+        .filter(keyword => keyword.length > 0);
+
+    if (keywords.length === 0) {
+        return entries;
+    }
+
+    const filtered = entries.filter(item => {
+        const lowerCaseName = item.name.toLowerCase();
+        return keywords.every(keyword => {
+            return lowerCaseName.includes(keyword);
+        });
+    });
+
+    return filtered;
+}
+
+/**
+ * Comparison function for sorting an array of DirEntry objects based on a specified criterion and order.
+ *
+ * This function is designed to be passed directly to the native JavaScript Array.prototype.sort() method.
+ *
+ * @param a - The first DirEntry object for comparison.
+ * @param b - The second DirEntry object for comparison.
+ * @param sortOrder - The specified criterion (e.g., 'NAME_ASC', 'DATE_DESC') for sorting.
+ * @returns A number indicating the sort order:
+ * - A negative number if 'a' should come before 'b'.
+ * - Zero if 'a' and 'b' are considered equal for sorting.
+ * - A positive number if 'a' should come after 'b'.
+ *
+ * @example
+ * const entries: DirEntry[] = [{ name: "b", ... }, { name: "c", ... }, { name: "a", ... }];
+ * entries.sort((a, b) => sortBy(a, b, 'NAME_ASC'));  // Returns [{ name: "a", ... }, { name: "b", ... }, { name: "c", ... }]
  */
 const sortBy = (a: DirEntry, b: DirEntry, sortOrder: SortOrder) => {
     switch (sortOrder) {
@@ -76,6 +124,7 @@ export default function FileListViewer() {
     const [selectedIndex, setSelectedIndex] = useState(-1);
 
     const listRef = useListRef(null);
+    const watcherRef = useRef<null | (() => void)>(null);
 
     // Scroll to make the selected item visible
     useEffect(() => {
@@ -91,18 +140,37 @@ export default function FileListViewer() {
         });
     }, [selectedIndex, entries]);
 
+    // Updates the entries in the directory.
     useEffect(() => {
-        dispatch(getEntriesInDir(history[historyIndex]));
-        setSelectedIndex(-1);
+        const updateEntries = async () => {
+            const dirPath = history[historyIndex];
+
+            dispatch(getEntriesInDir(dirPath));
+            setSelectedIndex(-1);
+
+            let unwatch = null;
+            try {
+                unwatch = await watch(dirPath, (event) => {
+                    if (typeof event.type === 'object' && ('create' in event.type || 'modify' in event.type || 'remove' in event.type)) {
+                        dispatch(getEntriesInDir(dirPath));
+                    }
+                }, { delayMs: 500 });
+            } catch (e) {
+                error(`Failed to watch ${dirPath}. Error: ${e}`);
+            }
+
+            watcherRef.current?.();
+            watcherRef.current = unwatch;
+        };
+        updateEntries();
+
+        return () => {
+            watcherRef.current?.();
+        };
     }, [history, historyIndex, dispatch]);
 
     const filteredSortedEntries = useMemo(() => {
-        const sorted = [...entries].sort((a, b) => sortBy(a, b, sortOrder));
-        if (searchText) {
-            const lower = searchText.toLowerCase();
-            return sorted.filter((entry) => entry.name.toLowerCase().includes(lower));
-        }
-        return sorted;
+        return addSearch(entries, searchText).slice().sort((a, b) => sortBy(a, b, sortOrder));
     }, [entries, sortOrder, searchText]);
 
     useEffect(() => {
