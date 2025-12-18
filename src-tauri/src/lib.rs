@@ -69,7 +69,10 @@ fn get_libs_dir(app: &App) -> Result<String, String> {
     let platform = platform();
     match platform {
         "linux" => {
-            let mut libs_dir = app.path().resource_dir().unwrap();
+            let mut libs_dir = app
+                .path()
+                .resource_dir()
+                .map_err(|e| format!("Failed to get resource directory. {}", e.to_string()))?;
             libs_dir.push("libs");
             return Ok(libs_dir
                 .to_str()
