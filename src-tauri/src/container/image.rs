@@ -121,7 +121,7 @@ mod tests {
         let result = Image::new(png_data.clone());
         assert!(result.is_ok());
 
-        let image = result.unwrap();
+        let image = result.expect("Image::new should succeed for a valid PNG");
         assert_eq!(image.width, 1);
         assert_eq!(image.height, 1);
         assert_eq!(image.data, png_data);

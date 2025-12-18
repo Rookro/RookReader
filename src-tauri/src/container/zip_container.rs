@@ -271,17 +271,19 @@ mod tests {
         entries: &[(&str, &[u8])],
     ) -> path::PathBuf {
         let zip_filepath = dir.join(filename);
-        let file = File::create(&zip_filepath).unwrap();
+        let file = File::create(&zip_filepath).expect("failed to create zip file");
         let mut zip = ZipWriter::new(file);
         let options = FileOptions::<()>::default()
             .compression_method(zip::CompressionMethod::DEFLATE)
             .unix_permissions(0o755);
 
         for (entry_name, content) in entries {
-            zip.start_file(entry_name, options).unwrap();
-            zip.write_all(content).unwrap();
+            zip.start_file(entry_name, options)
+                .expect("failed to start zip entry");
+            zip.write_all(content)
+                .expect("failed to write zip entry content");
         }
-        zip.finish().unwrap();
+        zip.finish().expect("failed to finish zip file");
         zip_filepath
     }
 
@@ -295,7 +297,7 @@ mod tests {
 
     #[test]
     fn test_new_valid_zip() {
-        let dir = tempdir().unwrap();
+        let dir = tempdir().expect("failed to create tempdir");
         let zip_path = create_dummy_zip(
             dir.path(),
             "test.zip",
@@ -306,9 +308,10 @@ mod tests {
             ],
         );
 
-        let container = ZipContainer::new(&zip_path.to_str().unwrap().to_string()).unwrap();
+        let container = ZipContainer::new(&zip_path.to_string_lossy().to_string())
+            .expect("failed to create ZipContainer");
 
-        assert_eq!(container.path, zip_path.to_str().unwrap());
+        assert_eq!(container.path, zip_path.to_string_lossy().to_string());
         assert_eq!(container.entries.len(), 2);
         assert_eq!(container.entries[0], "image1.png");
         assert_eq!(container.entries[1], "image2.png");
@@ -316,10 +319,11 @@ mod tests {
 
     #[test]
     fn test_new_empty_zip() {
-        let dir = tempdir().unwrap();
+        let dir = tempdir().expect("failed to create tempdir");
         let zip_path = create_dummy_zip(dir.path(), "empty.zip", &[]);
 
-        let container = ZipContainer::new(&zip_path.to_str().unwrap().to_string()).unwrap();
+        let container = ZipContainer::new(&zip_path.to_string_lossy().to_string())
+            .expect("failed to create ZipContainer");
         assert!(container.entries.is_empty());
     }
 
@@ -332,7 +336,7 @@ mod tests {
 
     #[test]
     fn test_get_entries() {
-        let dir = tempdir().unwrap();
+        let dir = tempdir().expect("failed to create tempdir");
         let zip_path = create_dummy_zip(
             dir.path(),
             "test.zip",
@@ -343,7 +347,7 @@ mod tests {
             ],
         );
 
-        let container = ZipContainer::new(&zip_path.to_str().unwrap().to_string()).unwrap();
+        let container = ZipContainer::new(&zip_path.to_string_lossy().to_string()).unwrap();
         let entries = container.get_entries();
 
         assert_eq!(entries.len(), 3);
@@ -356,9 +360,12 @@ mod tests {
     fn test_get_image_existing() {
         let dir = tempdir().unwrap();
         let zip_path = create_dummy_zip(dir.path(), "test.zip", &[("image1.png", &DUMMY_PNG_DATA)]);
-        let mut container = ZipContainer::new(&zip_path.to_str().unwrap().to_string()).unwrap();
+        let mut container = ZipContainer::new(&zip_path.to_string_lossy().to_string())
+            .expect("failed to create ZipContainer");
 
-        let image = container.get_image(&String::from("image1.png")).unwrap();
+        let image = container
+            .get_image(&String::from("image1.png"))
+            .expect("get_image should succeed for existing image");
         assert_eq!(image.width, 1);
         assert_eq!(image.height, 1);
         assert_eq!(image.data, DUMMY_PNG_DATA);
@@ -366,8 +373,8 @@ mod tests {
         // Ensure caching works
         let image_from_cache = container
             .get_image_from_cache(&String::from("image1.png"))
-            .unwrap()
-            .unwrap();
+            .expect("get_image_from_cache returned Err")
+            .expect("image should be present in cache");
         assert_eq!(image.data, image_from_cache.data);
     }
 
@@ -375,7 +382,7 @@ mod tests {
     fn test_get_image_non_existing() {
         let dir = tempdir().unwrap();
         let zip_path = create_dummy_zip(dir.path(), "test.zip", &[("image1.png", &DUMMY_PNG_DATA)]);
-        let mut container = ZipContainer::new(&zip_path.to_str().unwrap().to_string()).unwrap();
+        let mut container = ZipContainer::new(&zip_path.to_string_lossy().to_string()).unwrap();
         let result = container.get_image(&String::from("non_existent_image.png"));
         assert!(result.is_err());
     }
@@ -392,7 +399,7 @@ mod tests {
                 ("image3.png", &DUMMY_PNG_DATA),
             ],
         );
-        let mut container = ZipContainer::new(&zip_path.to_str().unwrap().to_string()).unwrap();
+        let mut container = ZipContainer::new(&zip_path.to_string_lossy().to_string()).unwrap();
 
         // Preload first two images
         container.request_preload(0, 2).unwrap();
@@ -435,9 +442,10 @@ mod tests {
 
     #[test]
     fn test_request_preload_out_of_bounds() {
-        let dir = tempdir().unwrap();
+        let dir = tempdir().expect("failed to create tempdir");
         let zip_path = create_dummy_zip(dir.path(), "test.zip", &[("image1.png", &DUMMY_PNG_DATA)]);
-        let mut container = ZipContainer::new(&zip_path.to_str().unwrap().to_string()).unwrap();
+        let mut container = ZipContainer::new(&zip_path.to_string_lossy().to_string())
+            .expect("failed to create ZipContainer");
 
         // Attempt to preload beyond the number of entries
         container.request_preload(0, 5).unwrap();
@@ -448,15 +456,23 @@ mod tests {
         assert!(container
             .cache
             .lock()
-            .unwrap()
+            .expect("failed to lock cache")
             .contains_key(&String::from("image1.png")));
-        assert_eq!(container.cache.lock().unwrap().len(), 1);
+        assert_eq!(
+            container.cache.lock().expect("failed to lock cache").len(),
+            1
+        );
 
-        container.request_preload(1, 1).unwrap(); // Should not add anything new
+        container
+            .request_preload(1, 1)
+            .expect("request_preload failed"); // Should not add anything new
 
         // Wait for the threads to finish preloading.
         sleep(Duration::from_millis(1000));
 
-        assert_eq!(container.cache.lock().unwrap().len(), 1);
+        assert_eq!(
+            container.cache.lock().expect("failed to lock cache").len(),
+            1
+        );
     }
 }

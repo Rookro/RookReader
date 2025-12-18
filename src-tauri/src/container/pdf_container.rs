@@ -341,7 +341,7 @@ mod tests {
             pdfium_path.clone().join("lib")
         };
 
-        lib_path.to_str().unwrap().to_string()
+        lib_path.to_string_lossy().to_string()
     }
 
     // A minimal 1-page PDF file content
@@ -362,13 +362,13 @@ mod tests {
 
         let render_config = PdfRenderConfig::default();
         let container = PdfContainer::new(
-            &pdf_path.to_str().unwrap().to_string(),
+            &pdf_path.to_string_lossy().to_string(),
             render_config,
             Some(get_pdfium_lib_path()),
         )
         .unwrap();
 
-        assert_eq!(container.path, pdf_path.to_str().unwrap());
+        assert_eq!(container.path, pdf_path.to_string_lossy().to_string());
         assert_eq!(container.entries.len(), 1);
         assert_eq!(container.entries[0], "0000");
     }
@@ -392,7 +392,7 @@ mod tests {
         let pdf_path = create_dummy_pdf(dir.path(), "test.pdf");
         let render_config = PdfRenderConfig::default();
         let container = PdfContainer::new(
-            &pdf_path.to_str().unwrap().to_string(),
+            &pdf_path.to_string_lossy().to_string(),
             render_config,
             Some(get_pdfium_lib_path()),
         )
@@ -411,7 +411,7 @@ mod tests {
         let rendering_height: u32 = 100;
         let render_config = PdfRenderConfig::default().set_target_height(rendering_height as i32);
         let mut container = PdfContainer::new(
-            &pdf_path.to_str().unwrap().to_string(),
+            &pdf_path.to_string_lossy().to_string(),
             render_config,
             Some(get_pdfium_lib_path()),
         )
@@ -439,7 +439,7 @@ mod tests {
         let rendering_height = 100;
         let render_config = PdfRenderConfig::default().set_target_height(rendering_height);
         let mut container = PdfContainer::new(
-            &pdf_path.to_str().unwrap().to_string(),
+            &pdf_path.to_string_lossy().to_string(),
             render_config,
             Some(get_pdfium_lib_path()),
         )
@@ -457,7 +457,7 @@ mod tests {
         let rendering_height: u32 = 100;
         let render_config = PdfRenderConfig::default().set_target_height(rendering_height as i32);
         let mut container = PdfContainer::new(
-            &pdf_path.to_str().unwrap().to_string(),
+            &pdf_path.to_string_lossy().to_string(),
             render_config,
             Some(get_pdfium_lib_path()),
         )
@@ -502,7 +502,7 @@ mod tests {
         let rendering_height = 100;
         let render_config = PdfRenderConfig::default().set_target_height(rendering_height);
         let mut container = PdfContainer::new(
-            &pdf_path.to_str().unwrap().to_string(),
+            &pdf_path.to_string_lossy().to_string(),
             render_config,
             Some(get_pdfium_lib_path()),
         )

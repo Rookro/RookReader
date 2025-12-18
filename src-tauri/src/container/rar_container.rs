@@ -340,18 +340,19 @@ mod tests {
         }
 
         let rar_filepath = dir.join(filename);
-        std::fs::copy(dummy_rar_path, &rar_filepath).unwrap();
+        std::fs::copy(dummy_rar_path, &rar_filepath).expect("failed to copy dummy rar file");
         rar_filepath
     }
 
     #[test]
     fn test_new_valid_rar() {
-        let dir = tempdir().unwrap();
+        let dir = tempdir().expect("failed to create tempdir");
         let rar_path = create_dummy_rar(dir.path(), "dummy.rar");
 
-        let container = RarContainer::new(&rar_path.to_str().unwrap().to_string()).unwrap();
+        let container = RarContainer::new(&rar_path.to_string_lossy().to_string())
+            .expect("failed to create RarContainer");
 
-        assert_eq!(container.path, rar_path.to_str().unwrap());
+        assert_eq!(container.path, rar_path.to_string_lossy().to_string());
         // Expecting 2 entries based on the dummy.rar creation instructions
         assert_eq!(container.entries.len(), 3);
         assert!(container.entries.contains(&String::from("image1.png")));
@@ -368,9 +369,10 @@ mod tests {
 
     #[test]
     fn test_get_entries() {
-        let dir = tempdir().unwrap();
+        let dir = tempdir().expect("failed to create tempdir");
         let rar_path = create_dummy_rar(dir.path(), "dummy.rar");
-        let container = RarContainer::new(&rar_path.to_str().unwrap().to_string()).unwrap();
+        let container = RarContainer::new(&rar_path.to_string_lossy().to_string())
+            .expect("failed to create RarContainer");
         let entries = container.get_entries();
 
         assert_eq!(entries.len(), 3);
@@ -381,12 +383,15 @@ mod tests {
 
     #[test]
     fn test_get_image_existing() {
-        let dir = tempdir().unwrap();
+        let dir = tempdir().expect("failed to create tempdir");
         let rar_path = create_dummy_rar(dir.path(), "dummy.rar");
-        let mut container = RarContainer::new(&rar_path.to_str().unwrap().to_string()).unwrap();
+        let mut container = RarContainer::new(&rar_path.to_string_lossy().to_string())
+            .expect("failed to create RarContainer");
 
         // Assuming 'image1.png' exists in dummy.rar and is a valid image
-        let image = container.get_image(&String::from("image1.png")).unwrap();
+        let image = container
+            .get_image(&String::from("image1.png"))
+            .expect("get_image should succeed for existing image");
         assert!(image.width > 0);
         assert!(image.height > 0);
         assert!(!image.data.is_empty());
@@ -395,16 +400,17 @@ mod tests {
         // Ensure caching works
         let image_from_cache = container
             .get_image_from_cache(&String::from("image1.png"))
-            .unwrap()
-            .unwrap();
+            .expect("get_image_from_cache returned Err")
+            .expect("image should be present in cache");
         assert_eq!(image.data, image_from_cache.data);
     }
 
     #[test]
     fn test_get_image_non_existing() {
-        let dir = tempdir().unwrap();
+        let dir = tempdir().expect("failed to create tempdir");
         let rar_path = create_dummy_rar(dir.path(), "dummy.rar");
-        let mut container = RarContainer::new(&rar_path.to_str().unwrap().to_string()).unwrap();
+        let mut container = RarContainer::new(&rar_path.to_string_lossy().to_string())
+            .expect("failed to create RarContainer");
         let result = container.get_image(&String::from("non_existent_image.png"));
         assert!(result.is_err());
     }
@@ -413,10 +419,12 @@ mod tests {
     fn test_preload() {
         let dir = tempdir().unwrap();
         let rar_path = create_dummy_rar(dir.path(), "dummy.rar");
-        let mut container = RarContainer::new(&rar_path.to_str().unwrap().to_string()).unwrap();
+        let mut container = RarContainer::new(&rar_path.to_string_lossy().to_string()).unwrap();
 
         // Preload one image
-        container.request_preload(0, 1).unwrap();
+        container
+            .request_preload(0, 1)
+            .expect("request_preload failed");
 
         // Wait for the threads to finish preloading.
         sleep(Duration::from_millis(1000));
@@ -429,18 +437,23 @@ mod tests {
             container
                 .cache
                 .lock()
-                .unwrap()
+                .expect("failed to lock cache")
                 .contains_key(&expected_file_1)
                 || container
                     .cache
                     .lock()
-                    .unwrap()
+                    .expect("failed to lock cache")
                     .contains_key(&expected_file_2)
         );
-        assert_eq!(container.cache.lock().unwrap().len(), 1);
+        assert_eq!(
+            container.cache.lock().expect("failed to lock cache").len(),
+            1
+        );
 
         // Preload the remaining image
-        container.request_preload(0, 3).unwrap();
+        container
+            .request_preload(0, 3)
+            .expect("request_preload failed");
 
         // Wait for the threads to finish preloading.
         sleep(Duration::from_millis(1000));
@@ -448,41 +461,55 @@ mod tests {
         assert!(container
             .cache
             .lock()
-            .unwrap()
+            .expect("failed to lock cache")
             .contains_key(&expected_file_1));
         assert!(container
             .cache
             .lock()
-            .unwrap()
+            .expect("failed to lock cache")
             .contains_key(&expected_file_2));
         assert!(container
             .cache
             .lock()
-            .unwrap()
+            .expect("failed to lock cache")
             .contains_key(&expected_file_3));
-        assert_eq!(container.cache.lock().unwrap().len(), 3);
+        assert_eq!(
+            container.cache.lock().expect("failed to lock cache").len(),
+            3
+        );
     }
 
     #[test]
     fn test_preload_out_of_bounds() {
-        let dir = tempdir().unwrap();
+        let dir = tempdir().expect("failed to create tempdir");
         let rar_path = create_dummy_rar(dir.path(), "dummy.rar");
-        let mut container = RarContainer::new(&rar_path.to_str().unwrap().to_string()).unwrap();
+        let mut container = RarContainer::new(&rar_path.to_string_lossy().to_string())
+            .expect("failed to create RarContainer");
 
         // Attempt to preload beyond the number of entries
-        container.request_preload(0, 5).unwrap();
+        container
+            .request_preload(0, 5)
+            .expect("request_preload failed");
 
         // Wait for the threads to finish preloading.
         sleep(Duration::from_millis(1000));
 
-        assert_eq!(container.cache.lock().unwrap().len(), 3);
+        assert_eq!(
+            container.cache.lock().expect("failed to lock cache").len(),
+            3
+        );
 
         // Should not add anything new
-        container.request_preload(4, 5).unwrap();
+        container
+            .request_preload(4, 5)
+            .expect("request_preload failed");
 
         // Wait for the threads to finish preloading.
         sleep(Duration::from_millis(1000));
 
-        assert_eq!(container.cache.lock().unwrap().len(), 3);
+        assert_eq!(
+            container.cache.lock().expect("failed to lock cache").len(),
+            3
+        );
     }
 }

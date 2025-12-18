@@ -201,7 +201,7 @@ mod tests {
         app.manage(Mutex::new(AppState::default()));
 
         let result =
-            get_entries_in_container(rar_path.to_str().unwrap().to_string(), app.state()).await;
+            get_entries_in_container(rar_path.to_string_lossy().to_string(), app.state()).await;
 
         assert!(result.is_ok());
 
