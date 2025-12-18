@@ -14,8 +14,8 @@ import i18n from "./i18n/config";
 
 export default function App() {
   const theme = useAppTheme();
-  const unlistenRef = useRef<UnlistenFn>(null);
-  const viewSettingsUnlistenRef = useRef<UnlistenFn>(null);
+  const unlistenRef = useRef<UnlistenFn | null>(null);
+  const viewSettingsUnlistenRef = useRef<UnlistenFn | null>(null);
   const dispatch = useAppDispatch();
 
   useEffect(() => {
@@ -41,10 +41,11 @@ export default function App() {
   // Listen for the 'view settings changed' event notified by the settings window (SettingsApp) to apply the changes.
   useEffect(() => {
     const listenViewSettingsChanged = async () => {
-      const unlisten = await listen<{ key: string, value: any }>('view-settings-changed', (event) => {
-        debug(`Received view settings changed event: ${event.payload.key} = ${event.payload.value}`);
-        if (event.payload.key === 'isFirstPageSingleView') {
-          dispatch(setIsFirstPageSingleView(event.payload.value));
+      const unlisten = await listen<{ key: string, value: unknown }>('view-settings-changed', (event) => {
+        const payload = event.payload as { key: string; value: unknown };
+        debug(`Received view settings changed event: ${JSON.stringify(payload)}`);
+        if (payload.key === 'isFirstPageSingleView' && typeof payload.value === 'boolean') {
+          dispatch(setIsFirstPageSingleView(payload.value));
         }
       })
       viewSettingsUnlistenRef.current?.();
@@ -54,6 +55,7 @@ export default function App() {
 
     return () => {
       viewSettingsUnlistenRef.current?.();
+      viewSettingsUnlistenRef.current = null;
     }
   }, [dispatch])
 
