@@ -6,7 +6,7 @@ import { dirname } from "@tauri-apps/api/path";
 import { debug, error } from "@tauri-apps/plugin-log";
 import { Direction } from "../../types/DirectionType";
 import { settingsStore } from "../../settings/SettingsStore";
-import { useAppDispatch, useSelector } from "../../Store";
+import { useAppDispatch, useAppSelector } from "../../Store";
 import { goBackContainerHistory, goForwardContainerHistory, setContainerFilePath, setExploreBasePath } from "../../reducers/FileReducer";
 import { setDirection, setIsTwoPagedView } from "../../reducers/ViewReducer";
 
@@ -14,8 +14,8 @@ import { setDirection, setIsTwoPagedView } from "../../reducers/ViewReducer";
  * Navigation bar component.
  */
 export default function NavigationBar() {
-    const { isTwoPagedView, direction } = useSelector(state => state.view);
-    const { history, historyIndex } = useSelector(state => state.file.containerFile);
+    const { isTwoPagedView, direction } = useAppSelector(state => state.view);
+    const { history, historyIndex } = useAppSelector(state => state.file.containerFile);
     const dispatch = useAppDispatch();
 
     const handlePathChanged = async (e: React.ChangeEvent<HTMLInputElement>) => {

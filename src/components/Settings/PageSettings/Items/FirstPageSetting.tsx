@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Typography, Box, Switch } from "@mui/material";
 import { emit } from "@tauri-apps/api/event";
 import { settingsStore } from "../../../../settings/SettingsStore";
-import { useAppDispatch, useSelector } from "../../../../Store";
+import { useAppDispatch, useAppSelector } from "../../../../Store";
 import { setIsFirstPageSingleView } from "../../../../reducers/ViewReducer";
 import { debug } from "@tauri-apps/plugin-log";
 
@@ -13,7 +13,7 @@ import { debug } from "@tauri-apps/plugin-log";
  */
 export default function FirstPageSetting() {
     const { t } = useTranslation();
-    const { isFirstPageSingleView } = useSelector(state => state.view);
+    const { isFirstPageSingleView } = useAppSelector(state => state.view);
     const dispatch = useAppDispatch();
 
     useEffect(() => {

@@ -52,6 +52,7 @@ export const fileSlice = createSlice({
             historyIndex: -1,
             entries: [] as string[],
             index: 0,
+            isLoading: false
         },
         explorer: {
             history: [] as string[],
@@ -127,13 +128,26 @@ export const fileSlice = createSlice({
         },
     },
     extraReducers: (builder) => {
-        builder.addCase(getEntriesInDir.fulfilled, (state, action: PayloadAction<DirEntry[]>,) => {
-            state.explorer.entries = action.payload;
-        });
-        builder.addCase(openContainerFile.fulfilled, (state, action: PayloadAction<string[]>,) => {
-            state.containerFile.entries = action.payload;
-            state.containerFile.index = 0;
-        });
+        builder
+            .addCase(getEntriesInDir.fulfilled, (state, action: PayloadAction<DirEntry[]>,) => {
+                state.explorer.entries = action.payload;
+            })
+            .addCase(openContainerFile.pending, (state) => {
+                state.containerFile.entries = [];
+                state.containerFile.isLoading = true;
+                state.containerFile.index = 0;
+            })
+            .addCase(openContainerFile.fulfilled, (state, action: PayloadAction<string[]>,) => {
+                state.containerFile.entries = action.payload;
+                state.containerFile.isLoading = false;
+                state.containerFile.index = 0;
+            })
+            .addCase(openContainerFile.rejected, (state) => {
+                state.containerFile.entries = [];
+                state.containerFile.isLoading = false;
+                state.containerFile.index = 0;
+            });
+
     }
 });
 

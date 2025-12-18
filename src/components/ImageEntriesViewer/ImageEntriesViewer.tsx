@@ -3,7 +3,7 @@ import { useDispatch } from 'react-redux';
 import { List, RowComponentProps, useListRef } from 'react-window';
 import { Box, ListItem, ListItemButton, ListItemText, Tooltip } from '@mui/material';
 import { Image } from '@mui/icons-material';
-import { useSelector, AppDispatch } from '../../Store';
+import { useAppSelector, AppDispatch } from '../../Store';
 import { setImageIndex } from '../../reducers/FileReducer';
 
 /**
@@ -47,7 +47,7 @@ const ItemRow = memo(function ItemRow({
  * Component to display a list of image entries.
  */
 export default function ImageEntriesViewer() {
-    const { entries, index } = useSelector(state => state.file.containerFile);
+    const { entries, index } = useAppSelector(state => state.file.containerFile);
     const dispatch = useDispatch<AppDispatch>();
 
     const [selectedIndex, setSelectedIndex] = useState(-1);

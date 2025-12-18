@@ -5,7 +5,7 @@ import { Folder, InsertDriveFile } from '@mui/icons-material';
 import { basename, join } from '@tauri-apps/api/path';
 import { watch } from '@tauri-apps/plugin-fs';
 import { error } from '@tauri-apps/plugin-log';
-import { useSelector, useAppDispatch } from '../../Store';
+import { useAppSelector, useAppDispatch } from '../../Store';
 import { getEntriesInDir, setContainerFilePath, setExploreBasePath, setSearchText } from '../../reducers/FileReducer';
 import { SortOrder } from '../../types/SortOrderType';
 import { DirEntry } from '../../types/DirEntry';
@@ -117,8 +117,8 @@ const ItemRow = memo(function ItemRow({
  * File navigator component.
  */
 export default function FileListViewer() {
-    const { history, historyIndex, entries, searchText, sortOrder } = useSelector(state => state.file.explorer);
-    const { history: fileHistory, historyIndex: fileHistoryIndex } = useSelector(state => state.file.containerFile);
+    const { history, historyIndex, entries, searchText, sortOrder } = useAppSelector(state => state.file.explorer);
+    const { history: fileHistory, historyIndex: fileHistoryIndex } = useAppSelector(state => state.file.containerFile);
     const dispatch = useAppDispatch();
 
     const [selectedIndex, setSelectedIndex] = useState(-1);

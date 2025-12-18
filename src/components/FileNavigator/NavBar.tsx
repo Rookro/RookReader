@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { dirname, homeDir } from '@tauri-apps/api/path';
 import { ArrowBack, ArrowForward, ArrowUpward, Home, Refresh, Search, } from '@mui/icons-material';
 import { Box, IconButton, InputAdornment, MenuItem, OutlinedInput, Select, SelectChangeEvent, Stack } from '@mui/material';
-import { AppDispatch, useSelector } from '../../Store';
+import { AppDispatch, useAppSelector } from '../../Store';
 import { getEntriesInDir, goBackExplorerHistory, goForwardExplorerHistory, setExploreBasePath, setSearchText, setSortOrder } from '../../reducers/FileReducer';
 import { SortOrder } from '../../types/SortOrderType';
 import { settingsStore } from '../../settings/SettingsStore';
@@ -14,7 +14,7 @@ import { settingsStore } from '../../settings/SettingsStore';
  */
 export default function NavBar() {
     const { t } = useTranslation();
-    const { history, historyIndex, searchText, sortOrder } = useSelector(state => state.file.explorer);
+    const { history, historyIndex, searchText, sortOrder } = useAppSelector(state => state.file.explorer);
     const dispatch = useDispatch<AppDispatch>();
 
     const [width, setWidth] = React.useState(0);
