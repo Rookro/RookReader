@@ -31,6 +31,7 @@ export default function App() {
 
     return () => {
       unlistenRef.current?.();
+      unlistenRef.current = null;
     }
   }, [])
 

@@ -166,6 +166,7 @@ export default function FileListViewer() {
 
         return () => {
             watcherRef.current?.();
+            watcherRef.current = null;
         };
     }, [history, historyIndex, dispatch]);
 
