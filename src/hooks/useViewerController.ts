@@ -40,10 +40,11 @@ export const useViewerController = (
 
     const abortControllerRef = useRef<AbortController | null>(null);
 
-    // Clear cache when containerPath changes.
+    // Clear cache and layout when containerPath changes.
     useEffect(() => {
         cache.forEach((item) => URL.revokeObjectURL(item.url));
         setCache(new Map());
+        setDisplayedLayout(null);
     }, [containerPath]);
 
     // Loads images for the current index (and next index if two-page view).
