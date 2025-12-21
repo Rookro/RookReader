@@ -93,6 +93,8 @@ export const fileSlice = createSlice({
             }
             state.explorer.history.push(action.payload);
             state.explorer.historyIndex = state.explorer.history.length - 1;
+
+            state.explorer.searchText = "";
         },
         setSearchText: (state, action: PayloadAction<string>) => {
             debug(`setSearchText(${action.payload}).`);
