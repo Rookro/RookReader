@@ -7,6 +7,7 @@ mod commands;
 mod container;
 mod error;
 mod setting;
+mod setup;
 mod state;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -41,7 +42,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             setting::setting::load(app);
-            setup_container_settings(app)?;
+            setup::setup_container_settings(app)?;
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -59,53 +60,4 @@ pub fn run() {
             e.to_string()
         ),
     };
-}
-
-/// Gets the libs directory path.
-///
-/// * `app` - App instance of Tauri.
-fn get_libs_dir(app: &App) -> Result<String, String> {
-    let platform = platform();
-    match platform {
-        "linux" => {
-            let mut libs_dir = app
-                .path()
-                .resource_dir()
-                .map_err(|e| format!("Failed to get resource directory. {}", e.to_string()))?;
-            libs_dir.push("libs");
-            return Ok(libs_dir
-                .to_str()
-                .ok_or("Failed to convert PathBuf to string".to_string())?
-                .to_string());
-        }
-        "windows" => {
-            let mut libs_dir = std::env::current_exe()
-                .map_err(|e| e.to_string())?
-                .parent()
-                .ok_or("Failed to get exec dir path.")?
-                .to_path_buf();
-            libs_dir.push("libs");
-            return Ok(libs_dir
-                .to_str()
-                .ok_or("Failed to convert PathBuf to string".to_string())?
-                .to_string());
-        }
-        _ => {
-            log::error!("Unsupported OS: {}", platform);
-            return Err(format!("Unsupported OS: {}", platform).to_string());
-        }
-    }
-}
-
-/// Sets up the direcotry path of PDFium library.
-///
-/// * `app` - App instance of Tauri.
-fn setup_container_settings(app: &App) -> Result<(), String> {
-    let state: tauri::State<'_, Mutex<state::app_state::AppState>> = app.state();
-    let mut locked_state = state
-        .lock()
-        .map_err(|e| format!("Failed to get app state. Error: {}", e))?;
-
-    locked_state.container_state.settings.pdfium_library_path = Some(get_libs_dir(app)?);
-    Ok(())
 }
