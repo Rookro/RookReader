@@ -95,13 +95,10 @@ fn download_and_extract_pdfium() -> Result<(), Box<dyn std::error::Error>> {
     let response = reqwest::blocking::get(&download_url)?.error_for_status()?;
     let content = Cursor::new(response.bytes()?);
 
-    let out_dir = Path::new(&env::var("OUT_DIR")?)
-        .ancestors()
-        .nth(4)
-        .ok_or("Failed to get build directory from OUT_DIR")?
+    let out_dir = Path::new(&env::var("CARGO_MANIFEST_DIR")?)
+        .join("target")
         .join("dependencies")
-        .join("pdfium")
-        .to_path_buf();
+        .join("pdfium");
 
     let tar = flate2::read::GzDecoder::new(content);
     let mut archive = tar::Archive::new(tar);
