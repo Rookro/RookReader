@@ -1,12 +1,11 @@
 use std::sync::Mutex;
 
 use chrono::Local;
-use tauri::{App, Manager};
 use tauri_plugin_log::{RotationStrategy, Target, TargetKind};
-use tauri_plugin_os::platform;
 
 mod commands;
 mod container;
+mod error;
 mod setting;
 mod state;
 

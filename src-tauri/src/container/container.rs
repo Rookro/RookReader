@@ -1,7 +1,6 @@
-use std::{
-    fmt::{Display, Formatter},
-    sync::Arc,
-};
+use pdfium_render::prelude::PdfiumError;
+use std::{num::ParseIntError, sync::Arc};
+use thiserror::Error;
 
 use crate::container::image::Image;
 
@@ -25,20 +24,20 @@ pub trait Container: Send + Sync + 'static {
     /// Returns `Arc<Image>` if the image is in the cache.
     ///
     /// * `entry` - The entry name of the image to retrieve.
-    fn get_image_from_cache(&self, entry: &String) -> Result<Option<Arc<Image>>, ContainerError>;
+    fn get_image_from_cache(&self, entry: &String) -> ContainerResult<Option<Arc<Image>>>;
 
     /// Retrieves an image from the file.
     ///
     /// Returns `Arc<Image>` if the image is in the cache.
     ///
     /// * `entry` - The entry name of the image to retrieve.
-    fn get_image(&mut self, entry: &String) -> Result<Arc<Image>, ContainerError>;
+    fn get_image(&mut self, entry: &String) -> ContainerResult<Arc<Image>>;
 
     /// Preloads a specified number of images into the cache starting from a given index.
     ///
     /// * `begin_index` - The starting index.
     /// * `count` - The number of images to load.
-    fn request_preload(&mut self, begin_index: usize, count: usize) -> Result<(), ContainerError>;
+    fn request_preload(&mut self, begin_index: usize, count: usize) -> ContainerResult<()>;
 }
 
 impl dyn Container {
@@ -58,28 +57,39 @@ impl dyn Container {
 }
 
 /// Error information for the archive container.
-#[derive(Debug)]
-pub struct ContainerError {
-    /// Error message
-    pub message: String,
-    /// Path where the error occurred
-    pub path: Option<String>,
-    /// Entry where the error occurred
-    pub entry: Option<String>,
+#[derive(Debug, Error)]
+pub enum ContainerError {
+    /// IO related errors.
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
+    /// PDFium related errors.
+    #[error("PDFium error: {0}")]
+    Pdfium(#[from] PdfiumError),
+    /// Image related errors.
+    #[error("Image error: {0}")]
+    Image(#[from] image::ImageError),
+    /// Unrar related errors.
+    #[error("Unrar error: {0}")]
+    Unrar(#[from] unrar::error::UnrarError),
+    /// Zip related errors.
+    #[error("Zip error: {0}")]
+    Zip(#[from] zip::result::ZipError),
+    /// Parse int related errors.
+    #[error("Parse int error: {0}")]
+    ParseInt(#[from] ParseIntError),
+    /// Other errors.
+    #[error("Container error: {0}")]
+    Other(String),
 }
 
-impl Display for ContainerError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{} (path: {}, entry: {})",
-            self.message,
-            self.path.clone().unwrap_or(String::from("None")),
-            self.entry.clone().unwrap_or(String::from("None"))
-        )?;
-        Ok(())
+impl From<String> for ContainerError {
+    fn from(message: String) -> Self {
+        ContainerError::Other(message)
     }
 }
+
+/// A specialized Result type for the container.
+pub type ContainerResult<T> = std::result::Result<T, ContainerError>;
 
 #[cfg(test)]
 mod tests {
@@ -88,57 +98,15 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_container_error_display_with_all_fields() {
-        let error = ContainerError {
-            message: "Test error".to_string(),
-            path: Some("/path/to/file".to_string()),
-            entry: Some("entry.png".to_string()),
-        };
+    fn test_container_error_display() {
+        let io_error = ContainerError::Io(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            "file not found",
+        ));
+        assert!(io_error.to_string().contains("file not found"));
 
-        let display_string = error.to_string();
-        assert_eq!(
-            "Test error (path: /path/to/file, entry: entry.png)",
-            display_string
-        );
-    }
-
-    #[test]
-    fn test_container_error_display_without_path() {
-        let error = ContainerError {
-            message: "Test error".to_string(),
-            path: None,
-            entry: Some("entry.png".to_string()),
-        };
-
-        let display_string = error.to_string();
-        assert_eq!("Test error (path: None, entry: entry.png)", display_string);
-    }
-
-    #[test]
-    fn test_container_error_display_without_entry() {
-        let error = ContainerError {
-            message: "Test error".to_string(),
-            path: Some("/path/to/file".to_string()),
-            entry: None,
-        };
-
-        let display_string = error.to_string();
-        assert_eq!(
-            "Test error (path: /path/to/file, entry: None)",
-            display_string
-        );
-    }
-
-    #[test]
-    fn test_container_error_display_without_path_and_entry() {
-        let error = ContainerError {
-            message: "Test error".to_string(),
-            path: None,
-            entry: None,
-        };
-
-        let display_string = error.to_string();
-        assert_eq!("Test error (path: None, entry: None)", display_string);
+        let other_error = ContainerError::Other("Something went wrong".to_string());
+        assert!(other_error.to_string().contains("Something went wrong"));
     }
 
     #[rstest]

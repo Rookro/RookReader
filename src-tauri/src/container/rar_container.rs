@@ -10,7 +10,7 @@ use std::{
 };
 
 use crate::container::{
-    container::{self, Container, ContainerError},
+    container::{self, Container, ContainerError, ContainerResult},
     image::Image,
 };
 
@@ -33,76 +33,35 @@ impl Container for RarContainer {
         &self.entries
     }
 
-    fn get_image(&mut self, entry: &String) -> Result<Arc<Image>, ContainerError> {
+    fn get_image(&mut self, entry: &String) -> ContainerResult<Arc<Image>> {
         // Try to get from the cache.
         if let Some(image_arc) = self.get_image_from_cache(entry)? {
             log::debug!("Hit cache: {}", entry);
             return Ok(Arc::clone(&image_arc));
         }
 
-        let mut image: Option<Arc<Image>> = None;
         let mut archive = open(&self.path)?;
-        while let Some(header) = archive.read_header().map_err(|e| ContainerError {
-            message: format!("Failed to read header. {}", e),
-            path: Some(self.path.clone()),
-            entry: Some(entry.clone()),
-        })? {
-            let filename = header
-                .entry()
-                .filename
-                .as_os_str()
-                .to_string_lossy()
-                .to_string();
+        while let Some(header) = archive.read_header()? {
+            let filename = header.entry().filename.to_string_lossy().to_string();
             if filename == *entry {
-                let (data, rest) = header.read().map_err(|e| ContainerError {
-                    message: format!("Failed to read data in the rar. {}", e),
-                    path: Some(self.path.clone()),
-                    entry: Some(entry.clone()),
-                })?;
+                let (data, rest) = header.read()?;
                 drop(rest); // close the archive
-                match Image::new(data) {
-                    Ok(img) => {
-                        let img_arc = Arc::new(img);
-                        self.cache
-                            .lock()
-                            .map_err(|e| ContainerError {
-                                message: String::from(format!("Failed to lock the cache. {}", e)),
-                                path: Some(self.path.clone()),
-                                entry: Some(entry.clone()),
-                            })?
-                            .insert(entry.clone(), Arc::clone(&img_arc));
-                        image = Some(img_arc);
-                        break;
-                    }
-                    Err(e) => {
-                        log::error!("{}", e);
-                        return Err(ContainerError {
-                            message: e,
-                            path: Some(self.path.clone()),
-                            entry: Some(entry.clone()),
-                        });
-                    }
-                }
+                let img = Image::new(data).map_err(|e| ContainerError::Other(e))?;
+                let img_arc = Arc::new(img);
+                self.cache
+                    .lock()
+                    .map_err(|e| ContainerError::Other(e.to_string()))?
+                    .insert(entry.clone(), Arc::clone(&img_arc));
+                return Ok(img_arc);
             } else {
-                archive = header.skip().map_err(|e| ContainerError {
-                    message: e.to_string(),
-                    path: Some(self.path.clone()),
-                    entry: Some(filename.clone()),
-                })?;
+                archive = header.skip()?;
             }
         }
-        if let Some(img_arc) = image {
-            Ok(img_arc)
-        } else {
-            Err(ContainerError {
-                message: format!("Entry not found: {}.", entry),
-                path: Some(self.path.clone()),
-                entry: Some(entry.clone()),
-            })
-        }
+
+        Err(ContainerError::Other(format!("Entry not found: {}", entry)))
     }
 
-    fn request_preload(&mut self, begin_index: usize, count: usize) -> Result<(), ContainerError> {
+    fn request_preload(&mut self, begin_index: usize, count: usize) -> ContainerResult<()> {
         let total_pages = self.entries.len();
         let end = (begin_index + count).min(total_pages);
 
@@ -116,7 +75,7 @@ impl Container for RarContainer {
         let is_cancel_requested = self.is_preloading_cancel_requested.clone();
 
         self.thread_pool.execute(move || {
-            match preload(
+            if let Err(e) = preload(
                 begin_index,
                 end,
                 path,
@@ -124,29 +83,19 @@ impl Container for RarContainer {
                 cache_mutex,
                 is_cancel_requested,
             ) {
-                Ok(_) => {
-                    log::debug!("Finished preloading from {} to {}", begin_index, end);
-                }
-                Err(e) => {
-                    log::error!("Error in preloading: {}", e);
-                }
+                log::error!("Error in preloading: {}", e);
             }
         });
 
         Ok(())
     }
 
-    fn get_image_from_cache(&self, entry: &String) -> Result<Option<Arc<Image>>, ContainerError> {
-        Ok(self
+    fn get_image_from_cache(&self, entry: &String) -> ContainerResult<Option<Arc<Image>>> {
+        let cache = self
             .cache
             .lock()
-            .map_err(|e| ContainerError {
-                message: String::from(format!("Failed to lock the cache. {}", e)),
-                path: Some(self.path.clone()),
-                entry: Some(entry.clone()),
-            })?
-            .get(entry)
-            .map(|arc| Arc::clone(arc)))
+            .map_err(|e| ContainerError::Other(e.to_string()))?;
+        Ok(cache.get(entry).map(Arc::clone))
     }
 }
 
@@ -165,24 +114,14 @@ impl RarContainer {
     /// Creates a new instance.
     ///
     /// * `path` - The path to the container file.
-    pub fn new(path: &String) -> Result<Self, ContainerError> {
-        let archive = Archive::new(path)
-            .open_for_listing()
-            .map_err(|e| ContainerError {
-                message: String::from(format!("Failed to open the rar file. {}", e)),
-                path: Some(path.clone()),
-                entry: None,
-            })?;
+    pub fn new(path: &String) -> ContainerResult<Self> {
+        let archive = Archive::new(path).open_for_listing()?;
 
         let mut entries: Vec<String> = Vec::new();
         for entry_result in archive {
-            let entry = entry_result.map_err(|e| ContainerError {
-                message: String::from(format!("Failed to get entries of the rar file. {}", e)),
-                path: Some(path.clone()),
-                entry: None,
-            })?;
+            let entry = entry_result?;
             if entry.is_file() {
-                let filename = entry.filename.as_os_str().to_string_lossy().to_string();
+                let filename = entry.filename.to_string_lossy().to_string();
                 if Image::is_supported_format(&filename) {
                     entries.push(filename);
                 }
@@ -193,7 +132,7 @@ impl RarContainer {
 
         Ok(Self {
             path: path.clone(),
-            entries: entries,
+            entries,
             cache: Arc::new(Mutex::new(HashMap::new())),
             thread_pool: ThreadPool::new(container::NUM_OF_THREADS),
             is_preloading_cancel_requested: Arc::new(AtomicBool::new(false)),
@@ -204,16 +143,8 @@ impl RarContainer {
 /// Opens a RAR archive from the specified path.
 ///
 /// * `path` - The path to the RAR file.
-fn open(path: &String) -> Result<OpenArchive<Process, CursorBeforeHeader>, ContainerError> {
-    let archive = Archive::new(path)
-        .open_for_processing()
-        .map_err(|e| ContainerError {
-            message: String::from(format!("Failed to open the rar file. {}", e)),
-            path: Some(path.clone()),
-            entry: None,
-        })?;
-
-    Ok(archive)
+fn open(path: &String) -> ContainerResult<OpenArchive<Process, CursorBeforeHeader>> {
+    Ok(Archive::new(path).open_for_processing()?)
 }
 
 fn preload(
@@ -228,36 +159,19 @@ fn preload(
     let mut remaining = target_names.len();
 
     let mut archive = open(&path)?;
-    while let Some(header) = archive.read_header().map_err(|e| ContainerError {
-        message: format!("Failed to read header. {}", e),
-        path: Some(path.clone()),
-        entry: None,
-    })? {
+    while let Some(header) = archive.read_header()? {
         if is_cancel_requested.load(Ordering::Relaxed) {
             return Ok(());
         }
 
-        let filename = header
-            .entry()
-            .filename
-            .as_os_str()
-            .to_string_lossy()
-            .to_string();
+        let filename = header.entry().filename.to_string_lossy().to_string();
         if target_names.contains(&filename) {
             if cache_mutex
                 .lock()
-                .map_err(|e| ContainerError {
-                    message: String::from(format!("Failed to lock the cache. {}", e)),
-                    path: Some(path.clone()),
-                    entry: Some(filename.clone()),
-                })?
+                .map_err(|e| ContainerError::Other(e.to_string()))?
                 .contains_key(&filename)
             {
-                archive = header.skip().map_err(|e| ContainerError {
-                    message: format!("Failed to skip data in the rar. {}", e),
-                    path: Some(path.clone()),
-                    entry: Some(filename.clone()),
-                })?;
+                archive = header.skip()?;
                 remaining = remaining.saturating_sub(1);
                 if remaining == 0 {
                     break;
@@ -265,43 +179,20 @@ fn preload(
                 continue;
             }
 
-            let (data, rest) = header.read().map_err(|e| ContainerError {
-                message: format!("Failed to read data in the rar. {}", e),
-                path: Some(path.clone()),
-                entry: Some(filename.clone()),
-            })?;
+            let (data, rest) = header.read()?;
             archive = rest; // continue from returned archive
 
-            match Image::new(data) {
-                Ok(img) => {
-                    cache_mutex
-                        .lock()
-                        .map_err(|e| ContainerError {
-                            message: String::from(format!("Failed to lock the cache. {}", e)),
-                            path: Some(path.clone()),
-                            entry: Some(filename.clone()),
-                        })?
-                        .insert(filename.clone(), Arc::new(img));
-                    remaining = remaining.saturating_sub(1);
-                    if remaining == 0 {
-                        break;
-                    }
-                }
-                Err(e) => {
-                    log::error!("{}", e);
-                    return Err(ContainerError {
-                        message: e,
-                        path: Some(path.clone()),
-                        entry: Some(filename.clone()),
-                    });
-                }
+            let img = Image::new(data).map_err(|e| ContainerError::Other(e))?;
+            cache_mutex
+                .lock()
+                .map_err(|e| ContainerError::Other(e.to_string()))?
+                .insert(filename.clone(), Arc::new(img));
+            remaining = remaining.saturating_sub(1);
+            if remaining == 0 {
+                break;
             }
         } else {
-            archive = header.skip().map_err(|e| ContainerError {
-                message: format!("Failed to skip data in the rar. {}", e),
-                path: Some(path.clone()),
-                entry: Some(filename.clone()),
-            })?
+            archive = header.skip()?;
         }
     }
 

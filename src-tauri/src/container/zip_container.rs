@@ -12,14 +12,12 @@ use threadpool::ThreadPool;
 use zip::ZipArchive;
 
 use crate::container::{
-    container::{self, Container, ContainerError},
+    container::{self, Container, ContainerError, ContainerResult},
     image::Image,
 };
 
 /// A container for Zip archives.
 pub struct ZipContainer {
-    /// The file path of the container.
-    path: String,
     /// The Zip archive file data.
     archive_binary: Arc<Vec<u8>>,
     /// The entries in the container.
@@ -37,26 +35,22 @@ impl Container for ZipContainer {
         &self.entries
     }
 
-    fn get_image(&mut self, entry: &String) -> Result<Arc<Image>, ContainerError> {
+    fn get_image(&mut self, entry: &String) -> ContainerResult<Arc<Image>> {
         // Try to get from the cache.
         if let Some(image_arc) = self.get_image_from_cache(entry)? {
             log::debug!("Hit cache: {}", entry);
             return Ok(Arc::clone(&image_arc));
         }
 
-        let image_arc = load_image(&self.path, entry, self.archive_binary.clone())?;
+        let image_arc = load_image(entry, self.archive_binary.clone())?;
         self.cache
             .lock()
-            .map_err(|e| ContainerError {
-                message: String::from(format!("Failed to lock the cache. {}", e)),
-                path: Some(self.path.clone()),
-                entry: Some(entry.clone()),
-            })?
+            .map_err(|e| ContainerError::Other(e.to_string()))?
             .insert(entry.clone(), image_arc.clone());
         Ok(image_arc)
     }
 
-    fn request_preload(&mut self, begin_index: usize, count: usize) -> Result<(), ContainerError> {
+    fn request_preload(&mut self, begin_index: usize, count: usize) -> ContainerResult<()> {
         let total_pages = self.entries.len();
         let end = (begin_index + count).min(total_pages);
 
@@ -64,45 +58,33 @@ impl Container for ZipContainer {
             return Ok(());
         }
 
-        let path = self.path.clone();
         let entries = self.entries.clone();
         let archive_binary = self.archive_binary.clone();
         let cache_mutex = self.cache.clone();
         let is_cancel_requested = self.is_preloading_cancel_requested.clone();
 
         self.thread_pool.execute(move || {
-            match preload(
+            if let Err(e) = preload(
                 begin_index,
                 end,
-                path,
                 entries,
                 archive_binary,
                 cache_mutex,
                 is_cancel_requested,
             ) {
-                Ok(_) => {
-                    log::debug!("Finished preloading from {} to {}", begin_index, end);
-                }
-                Err(e) => {
-                    log::error!("Error in preloading: {}", e);
-                }
+                log::error!("Error in preloading: {}", e);
             }
         });
 
         Ok(())
     }
 
-    fn get_image_from_cache(&self, entry: &String) -> Result<Option<Arc<Image>>, ContainerError> {
-        Ok(self
+    fn get_image_from_cache(&self, entry: &String) -> ContainerResult<Option<Arc<Image>>> {
+        let cache = self
             .cache
             .lock()
-            .map_err(|e| ContainerError {
-                message: String::from(format!("Failed to lock the cache. {}", e)),
-                path: Some(self.path.clone()),
-                entry: Some(entry.clone()),
-            })?
-            .get(entry)
-            .map(|arc| Arc::clone(arc)))
+            .map_err(|e| ContainerError::Other(e.to_string()))?;
+        Ok(cache.get(entry).map(Arc::clone))
     }
 }
 
@@ -110,28 +92,13 @@ impl ZipContainer {
     /// Creates a ZIP archive container from the specified path.
     ///
     /// * `path` - The path to the archive container.
-    pub fn new(path: &String) -> Result<Self, ContainerError> {
+    pub fn new(path: &String) -> ContainerResult<Self> {
         let mut buffer = Vec::new();
-        File::open(path)
-            .map_err(|e| ContainerError {
-                message: String::from(format!("Failed to open the zip archive file. {}", e)),
-                path: Some(path.clone()),
-                entry: None,
-            })?
-            .read_to_end(&mut buffer)
-            .map_err(|e| ContainerError {
-                message: String::from(format!("Failed to read the zip archive file. {}", e)),
-                path: Some(path.clone()),
-                entry: None,
-            })?;
+        File::open(path)?.read_to_end(&mut buffer)?;
 
         let archive_binary = Arc::new(buffer);
         let cursor = Cursor::new(&*archive_binary);
-        let archive = ZipArchive::new(cursor).map_err(|e| ContainerError {
-            message: String::from(format!("Failed to open the zip archive. {}", e)),
-            path: Some(path.clone()),
-            entry: None,
-        })?;
+        let archive = ZipArchive::new(cursor)?;
 
         let mut entries: Vec<String> = archive
             .file_names()
@@ -142,9 +109,8 @@ impl ZipContainer {
         entries.sort_by(|a, b| natord::compare_ignore_case(a, b));
 
         Ok(Self {
-            path: path.clone(),
-            archive_binary: archive_binary,
-            entries: entries,
+            archive_binary,
+            entries,
             cache: Arc::new(Mutex::new(HashMap::new())),
             thread_pool: ThreadPool::new(container::NUM_OF_THREADS),
             is_preloading_cancel_requested: Arc::new(AtomicBool::new(false)),
@@ -163,88 +129,47 @@ impl Drop for ZipContainer {
     }
 }
 
-fn load_image(
-    path: &String,
-    entry: &String,
-    archive_binary: Arc<Vec<u8>>,
-) -> Result<Arc<Image>, ContainerError> {
+fn load_image(entry: &String, archive_binary: Arc<Vec<u8>>) -> ContainerResult<Arc<Image>> {
     let mut buffer = Vec::new();
-
     let cursor = Cursor::new(&*archive_binary);
-    let mut archive = ZipArchive::new(cursor).map_err(|e| ContainerError {
-        message: String::from(format!("Failed to open the zip archive. {}", e)),
-        path: Some(path.clone()),
-        entry: Some(entry.clone()),
-    })?;
-    archive
-        .by_name(entry)
-        .map_err(|e| ContainerError {
-            message: String::from(format!("Failed to get entry. {}", e)),
-            path: Some(path.clone()),
-            entry: Some(entry.clone()),
-        })?
-        .read_to_end(&mut buffer)
-        .map_err(|e| ContainerError {
-            message: String::from(format!("Failed to read entry in the zip archive. {}", e)),
-            path: Some(path.clone()),
-            entry: Some(entry.clone()),
-        })?;
+    let mut archive = ZipArchive::new(cursor)?;
+    let mut file = archive.by_name(entry)?;
+    file.read_to_end(&mut buffer)?;
 
-    match Image::new(buffer) {
-        Ok(image) => {
-            let image_arc = Arc::new(image);
-            Ok(image_arc)
-        }
-        Err(e) => {
-            log::error!("{}", e);
-            Err(ContainerError {
-                message: e,
-                path: Some(path.clone()),
-                entry: Some(entry.clone()),
-            })
-        }
-    }
+    let image = Image::new(buffer).map_err(ContainerError::Other)?;
+    Ok(Arc::new(image))
 }
 
 fn preload(
     begin_index: usize,
     end: usize,
-    path: String,
     entries: Vec<String>,
     archive_binary: Arc<Vec<u8>>,
     cache_mutex: Arc<Mutex<HashMap<String, Arc<Image>>>>,
     is_cancel_requested: Arc<AtomicBool>,
-) -> Result<(), ContainerError> {
+) -> ContainerResult<()> {
     for i in begin_index..end {
         if is_cancel_requested.load(Ordering::Relaxed) {
             return Ok(());
         }
 
-        let entry = entries[i].clone();
+        let entry = &entries[i];
 
         // If it's already in the cache, skip it.
         if cache_mutex
             .lock()
-            .map_err(|e| ContainerError {
-                message: String::from(format!("Failed to lock the cache. {}", e)),
-                path: Some(path.clone()),
-                entry: Some(entry.clone()),
-            })?
-            .contains_key(&entry)
+            .map_err(|e| ContainerError::Other(e.to_string()))?
+            .contains_key(entry)
         {
             log::debug!("Hit cache so skip preload index: {}", i);
             continue;
         }
 
-        let image_arc = load_image(&path, &entry, archive_binary.clone())?;
+        let image_arc = load_image(entry, archive_binary.clone())?;
         cache_mutex
             .lock()
-            .map_err(|e| ContainerError {
-                message: String::from(format!("Failed to lock the cache. {}", e)),
-                path: Some(path.clone()),
-                entry: Some(entry.clone()),
-            })?
-            .insert(entry.clone(), image_arc.clone());
+            .map_err(|e| ContainerError::Other(e.to_string()))?
+            .insert(entry.clone(), image_arc);
     }
 
     Ok(())
@@ -311,7 +236,6 @@ mod tests {
         let container = ZipContainer::new(&zip_path.to_string_lossy().to_string())
             .expect("failed to create ZipContainer");
 
-        assert_eq!(container.path, zip_path.to_string_lossy().to_string());
         assert_eq!(container.entries.len(), 2);
         assert_eq!(container.entries[0], "image1.png");
         assert_eq!(container.entries[1], "image2.png");
