@@ -136,7 +136,7 @@ fn load_image(entry: &String, archive_binary: Arc<Vec<u8>>) -> ContainerResult<A
     let mut file = archive.by_name(entry)?;
     file.read_to_end(&mut buffer)?;
 
-    let image = Image::new(buffer).map_err(ContainerError::Other)?;
+    let image = Image::new(buffer)?;
     Ok(Arc::new(image))
 }
 

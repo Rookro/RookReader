@@ -46,7 +46,7 @@ impl Container for RarContainer {
             if filename == *entry {
                 let (data, rest) = header.read()?;
                 drop(rest); // close the archive
-                let img = Image::new(data).map_err(|e| ContainerError::Other(e))?;
+                let img = Image::new(data)?;
                 let img_arc = Arc::new(img);
                 self.cache
                     .lock()
@@ -182,7 +182,7 @@ fn preload(
             let (data, rest) = header.read()?;
             archive = rest; // continue from returned archive
 
-            let img = Image::new(data).map_err(|e| ContainerError::Other(e))?;
+            let img = Image::new(data)?;
             cache_mutex
                 .lock()
                 .map_err(|e| ContainerError::Other(e.to_string()))?
