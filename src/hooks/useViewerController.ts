@@ -23,6 +23,7 @@ export interface ViewerController {
  * @param containerPath The path of the container file.
  * @param entries Entries in the container.
  * @param index Index of the current image.
+ * @param isContainerLoading Is the container file loading.
  * @param settings Viewer settings.
  * @param dispatch Dispatch function from Redux.
  * @returns ViewerController.
@@ -31,6 +32,7 @@ export const useViewerController = (
     containerPath: string,
     entries: string[],
     index: number,
+    isContainerLoading: boolean,
     settings: ViewerSettings,
     dispatch: AppDispatch
 ): ViewerController => {
@@ -55,7 +57,7 @@ export const useViewerController = (
         }
 
         const loadImages = async () => {
-            if (abortControllerRef.current) abortControllerRef.current.abort();
+            abortControllerRef.current?.abort();
             const controller = new AbortController();
             abortControllerRef.current = controller;
 
@@ -105,10 +107,16 @@ export const useViewerController = (
 
     // Update displayed layout when next layout is calculated.
     useEffect(() => {
+        // Skip calculating layout while container is loading.
+        if (isContainerLoading) {
+            setDisplayedLayout(null);
+            return;
+        }
+
         if (nextLayout) {
             setDisplayedLayout(nextLayout);
         }
-    }, [nextLayout]);
+    }, [nextLayout, isContainerLoading]);
 
     const moveForward = useCallback(() => {
         if (entries.length === 0) {

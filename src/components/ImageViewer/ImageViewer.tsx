@@ -31,6 +31,7 @@ export default function ImageViewer() {
         containerPath,
         entries,
         index,
+        isFileLoading,
         settings,
         dispatch
     );
