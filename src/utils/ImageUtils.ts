@@ -1,5 +1,5 @@
-import { invoke } from "@tauri-apps/api/core";
 import { error } from '@tauri-apps/plugin-log';
+import { getImage } from '../bindings/ContainerCommands';
 import { Image } from "../types/Image";
 
 /**
@@ -49,7 +49,7 @@ export const fetchImageBlob = async (containerPath: string, entryName: string): 
         return undefined;
     }
     try {
-        const response = await invoke<ArrayBuffer>("get_image", { path: containerPath, entryName });
+        const response = await getImage(containerPath, entryName);
         return new Image(response);
     } catch (ex) {
         error(`Failed to load an image of ${entryName}: ${JSON.stringify(ex)}`);

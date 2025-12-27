@@ -2,29 +2,29 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Typography, Box, OutlinedInput } from "@mui/material";
 import { error } from "@tauri-apps/plugin-log";
-import { invoke } from "@tauri-apps/api/core";
 import { settingsStore } from "../../../../settings/SettingsStore";
+import { setPdfRenderingHeight } from "../../../../bindings/ContainerCommands";
 
 /**
  * PDF rendering setting component.
  */
 export default function PdfRenderingSetting() {
     const { t } = useTranslation();
-    const [pdfRenderingHeight, setPdfRenderingHeight] = useState<number>(2000);
+    const [pdfRenderingHeight, setPdfRenderingHeightState] = useState<number>(2000);
 
     useEffect(() => {
         const fetchSettings = async () => {
             const height = await settingsStore.get<number>("pdf-rendering-height") ?? 2000;
-            setPdfRenderingHeight(height);
+            setPdfRenderingHeightState(height);
         };
         fetchSettings();
     }, []);
 
     const handlePdfRenderingHeightChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const height = parseInt(e.target.value, 10);
-        setPdfRenderingHeight(height);
+        setPdfRenderingHeightState(height);
         try {
-            await invoke("set_pdf_rendering_height", { height: height });
+            await setPdfRenderingHeight(height);
         } catch (e) {
             error(`Failed to set PDF rendering height: ${e}`);
         }

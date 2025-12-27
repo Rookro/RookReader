@@ -1,7 +1,6 @@
 import { useEffect, useMemo, } from "react";
 import { useDispatch } from "react-redux";
 import { Box, CircularProgress } from "@mui/material";
-import { invoke } from "@tauri-apps/api/core";
 import { dirname } from "@tauri-apps/api/path";
 import { AppDispatch, useAppSelector } from '../../Store';
 import { openContainerFile, setContainerFilePath, setExploreBasePath } from "../../reducers/FileReducer";
@@ -11,6 +10,7 @@ import { usePageNavigation } from "../../hooks/usePageNavigation";
 import { ViewerSettings, } from "../../utils/ImageUtils";
 import { useFileDrop } from "../../hooks/useFileDrop";
 import { useViewerController } from "../../hooks/useViewerController";
+import { setPdfRenderingHeight } from "../../bindings/ContainerCommands";
 
 /**
  * Component for displaying images.
@@ -48,7 +48,9 @@ export default function ImageViewer() {
             dispatch(setIsFirstPageSingleView(isFirstSingle));
 
             const height = await settingsStore.get<number>("pdf-rendering-height");
-            if (height) await invoke("set_pdf_rendering_height", { height });
+            if (height) {
+                await setPdfRenderingHeight(height);
+            }
         };
         initSettings();
     }, [dispatch]);
