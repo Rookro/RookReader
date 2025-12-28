@@ -4483,6 +4483,7 @@ dependencies = [
  "log",
  "mockall",
  "natord",
+ "num_cpus",
  "pdfium-render",
  "reqwest",
  "rstest",

@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{path::Path, sync::Arc};
 
 use pdfium_render::prelude::PdfRenderConfig;
 
@@ -6,6 +6,7 @@ use crate::{
     container::{
         container::{Container, ContainerError},
         directory_container::DirectoryContainer,
+        image_loader::ImageLoader,
         pdf_container::PdfContainer,
         rar_container::RarContainer,
         zip_container::ZipContainer,
@@ -17,9 +18,11 @@ use crate::{
 /// The container state.
 pub struct ContainerState {
     /// Archive container
-    pub container: Option<Box<dyn Container>>,
+    pub container: Option<Arc<dyn Container>>,
     /// Settings for the archive container
     pub settings: ContainerSettings,
+    /// Image loader.
+    pub image_loader: Option<ImageLoader>,
 }
 
 impl Default for ContainerState {
@@ -27,6 +30,7 @@ impl Default for ContainerState {
         Self {
             container: None,
             settings: ContainerSettings::default(),
+            image_loader: None,
         }
     }
 }
@@ -40,7 +44,9 @@ impl ContainerState {
         let file_path = Path::new(path);
 
         if file_path.is_dir() {
-            self.container = Some(Box::new(DirectoryContainer::new(path)?));
+            let container = Arc::new(DirectoryContainer::new(path)?);
+            self.container = Some(container.clone());
+            self.image_loader = Some(ImageLoader::new(container));
             return Ok(());
         }
 
@@ -48,30 +54,35 @@ impl ContainerState {
             let ext_str = ext.to_string_lossy().to_lowercase();
             match ext_str.as_str() {
                 "zip" => {
-                    self.container = Some(Box::new(ZipContainer::new(path)?));
-                    Ok(())
+                    let container = Arc::new(ZipContainer::new(path)?);
+                    self.container = Some(container.clone());
+                    self.image_loader = Some(ImageLoader::new(container));
                 }
                 "pdf" => {
-                    self.container = Some(Box::new(PdfContainer::new(
+                    let container = Arc::new(PdfContainer::new(
                         path,
                         PdfRenderConfig::default()
                             .set_target_height(self.settings.pdf_rendering_height),
                         self.settings.pdfium_library_path.clone(),
-                    )?));
-                    Ok(())
+                    )?);
+                    self.container = Some(container.clone());
+                    self.image_loader = Some(ImageLoader::new(container));
                 }
                 "rar" => {
-                    self.container = Some(Box::new(RarContainer::new(path)?));
-                    Ok(())
+                    let container = Arc::new(RarContainer::new(path)?);
+                    self.container = Some(container.clone());
+                    self.image_loader = Some(ImageLoader::new(container));
                 }
                 _ => {
                     log::error!("Unsupported Container Type: {}", ext_str);
-                    Err(
-                        ContainerError::Other(format!("Unsupported Container Type: {}", ext_str))
-                            .into(),
-                    )
+                    return Err(ContainerError::Other(format!(
+                        "Unsupported Container Type: {}",
+                        ext_str
+                    ))
+                    .into());
                 }
-            }
+            };
+            Ok(())
         } else {
             log::error!("Failed to get extension. {}", path);
             Err(ContainerError::Other(format!("Failed to get extension. {}", path)).into())
