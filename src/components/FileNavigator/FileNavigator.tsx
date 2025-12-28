@@ -10,6 +10,7 @@ import { ItemRow } from './ItemRow';
 import { DirEntry } from '../../types/DirEntry';
 import { useDirectoryWatcher } from '../../hooks/useDirectoryWatcher';
 import { useFileSelection } from '../../hooks/useFileSelection';
+import { error } from '@tauri-apps/plugin-log';
 
 /**
  * File navigator component.
@@ -47,12 +48,11 @@ export default function FileListViewer() {
             return;
         }
 
-        const list = listRef.current;
-        list?.scrollToRow({
-            align: "smart",
-            behavior: "instant",
-            index: selectedIndex
-        });
+        try {
+            listRef.current?.scrollToRow({ align: "smart", behavior: "instant", index: selectedIndex });
+        } catch (e) {
+            error(`Failed to scroll to row ${selectedIndex} (List length: ${filteredSortedEntries.length}): ${e}`);
+        }
     }, [selectedIndex, listRef]);
 
     const handleListItemClicked = useCallback(

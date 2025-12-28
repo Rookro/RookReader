@@ -60,16 +60,16 @@ export default function ImageEntriesViewer() {
 
     // Scroll to make the selected item visible.
     useEffect(() => {
-        if (entries.length < 1 || selectedIndex === -1) {
+        if (selectedIndex === -1) {
             return;
         }
 
-        listRef.current?.scrollToRow({
-            align: "smart",
-            behavior: "instant",
-            index: selectedIndex
-        });
-    }, [selectedIndex, entries]);
+        try {
+            listRef.current?.scrollToRow({ align: "smart", behavior: "instant", index: selectedIndex });
+        } catch (e) {
+            console.error(`Failed to scroll to row ${selectedIndex} (List length: ${entries.length}): ${e}`);
+        }
+    }, [selectedIndex]);
 
     const handleListItemClicked = useCallback(
         (_e: React.MouseEvent<HTMLDivElement>, index: number) => {
