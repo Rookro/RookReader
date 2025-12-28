@@ -145,6 +145,12 @@ export default function FileListViewer() {
         const updateEntries = async () => {
             const dirPath = history[historyIndex];
 
+            if (!dirPath) {
+                watcherRef.current?.();
+                watcherRef.current = null;
+                return;
+            }
+
             dispatch(getEntriesInDir(dirPath));
             setSelectedIndex(-1);
 
