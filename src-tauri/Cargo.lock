@@ -4499,6 +4499,7 @@ dependencies = [
  "tauri-plugin-store",
  "tauri-plugin-window-state",
  "tempfile",
+ "thiserror 2.0.17",
  "threadpool",
  "tokio",
  "unrar",

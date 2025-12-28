@@ -6,20 +6,23 @@ use tauri_build::WindowsAttributes;
 
 fn main() {
     if let Err(e) = download_and_extract_pdfium() {
-        panic!("Failed to download and extract PDFium: {}", e);
+        eprintln!("Failed to download and extract PDFium: {}", e);
+        std::process::exit(1);
     }
 
-    tauri_build::try_build(
+    if let Err(e) = tauri_build::try_build(
         tauri_build::Attributes::new()
             .windows_attributes(WindowsAttributes::new_without_app_manifest()),
-    )
-    .expect("failed to run tauri-build");
+    ) {
+        eprintln!("Failed to run tauri-build: {}", e);
+        std::process::exit(1);
+    }
 
     #[cfg(windows)]
     {
         // workaround needed to prevent `STATUS_ENTRYPOINT_NOT_FOUND` error in tests
         // see https://github.com/tauri-apps/tauri/pull/4383#issuecomment-1212221864
-        let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap();
+        let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
         let target_env = std::env::var("CARGO_CFG_TARGET_ENV");
         let is_tauri_workspace =
             std::env::var("__TAURI_WORKSPACE__").map_or(false, |v| v == "true");
@@ -33,14 +36,23 @@ fn main() {
 fn embed_manifest_for_tests() {
     static WINDOWS_MANIFEST_FILE: &str = "windows-app-manifest.xml";
 
-    let manifest = std::env::current_dir().unwrap().join(WINDOWS_MANIFEST_FILE);
+    let manifest = match std::env::current_dir() {
+        Ok(dir) => dir.join(WINDOWS_MANIFEST_FILE),
+        Err(e) => {
+            println!(
+                "cargo:warning=Failed to determine current dir for manifest: {}",
+                e
+            );
+            return;
+        }
+    };
 
     println!("cargo:rerun-if-changed={}", manifest.display());
     // Embed the Windows application manifest file.
     println!("cargo:rustc-link-arg=/MANIFEST:EMBED");
     println!(
         "cargo:rustc-link-arg=/MANIFESTINPUT:{}",
-        manifest.to_str().unwrap()
+        manifest.to_string_lossy()
     );
     // Turn linker warnings into errors.
     println!("cargo:rustc-link-arg=/WX");
@@ -83,13 +95,10 @@ fn download_and_extract_pdfium() -> Result<(), Box<dyn std::error::Error>> {
     let response = reqwest::blocking::get(&download_url)?.error_for_status()?;
     let content = Cursor::new(response.bytes()?);
 
-    let out_dir = Path::new(&env::var("OUT_DIR")?)
-        .ancestors()
-        .nth(4)
-        .ok_or("Failed to get build directory from OUT_DIR")?
+    let out_dir = Path::new(&env::var("CARGO_MANIFEST_DIR")?)
+        .join("target")
         .join("dependencies")
-        .join("pdfium")
-        .to_path_buf();
+        .join("pdfium");
 
     let tar = flate2::read::GzDecoder::new(content);
     let mut archive = tar::Archive::new(tar);

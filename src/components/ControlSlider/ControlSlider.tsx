@@ -6,15 +6,15 @@ import rtlPlugin from '@mui/stylis-plugin-rtl';
 import { CacheProvider } from "@emotion/react";
 import createCache from '@emotion/cache';
 import { useAppTheme } from "../../hooks/useAppTheme";
-import { useAppDispatch, useSelector } from '../../Store';
+import { useAppDispatch, useAppSelector } from '../../Store';
 import { setImageIndex } from '../../reducers/FileReducer';
 
 /**
  * Control Slider Component
  */
 export default function ControlSlider() {
-    const { entries, index } = useSelector(state => state.file.containerFile);
-    const { direction } = useSelector(state => state.view);
+    const { entries, index } = useAppSelector(state => state.file.containerFile);
+    const { direction } = useAppSelector(state => state.view);
     const dispatch = useAppDispatch();
     const appTheme = useAppTheme();
 

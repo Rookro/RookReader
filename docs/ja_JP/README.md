@@ -5,7 +5,7 @@
 [![React](https://img.shields.io/badge/React-%2320232a.svg?logo=react&logoColor=%2361DAFB)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=fff)](https://www.typescriptlang.org/)
 [![Rust](https://img.shields.io/badge/Rust-%23000000.svg?e&logo=rust&logoColor=white)](https://rust-lang.org/)
-[![MIT License](https://img.shields.io/badge/license-MIT-green.svg?style=flat)](LICENSE)
+[![MIT License](https://img.shields.io/badge/license-MIT-green.svg?style=flat)](../../LICENSE)
 
 [English](../../README.md) | [日本語](README.md)
 
@@ -17,7 +17,7 @@ RookReader は、zip、rar、pdf 形式の電子書籍ファイルを閲覧す�
 
 ## 特徴
 
-* 日本語の縦書き対応（右開き対応: 縦書きの小説や漫画を読む際に自然な、右から左へのページめくり（右開き）に標準で対応
+* 日本語の縦書き対応（右開き対応）: 縦書きの小説や漫画を読む際に自然な、右から左へのページめくり（右開き）に標準で対応
 * クロスプラットフォーム対応: Windows と Linux で利用可能
 * サポートするファイル形式:
   * zip
@@ -100,7 +100,7 @@ Arch Linux または Manjaro などのディストリビューションを使用
 
 1. VS Codeでクローンしたフォルダを開きます。
 1. VS Codeの右下に表示されるポップアップ「Reopen in Container」をクリックするか、  
-  コマンドパレット ( Ctrl+Shift+P または Cmd+Shift+P ) を開き、Remote-Containers: Open Folder in Container... を選択します。
+  コマンドパレット ( Ctrl+Shift+P または Cmd+Shift+P ) を開き、「Remote-Containers: Open Folder in Container...」を選択します。
 1. DevContainer のビルドと起動が完了すると、必要な依存関係（Rust、Node.js など）がすべて揃った開発環境が利用可能になります。
 
 ### ビルド手順

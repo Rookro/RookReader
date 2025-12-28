@@ -10,6 +10,7 @@ use crate::{
         rar_container::RarContainer,
         zip_container::ZipContainer,
     },
+    error::Result,
     setting::container_settings::ContainerSettings,
 };
 
@@ -34,7 +35,7 @@ impl ContainerState {
     /// Opens a container file.
     ///
     /// * `path` - The path to the container file.
-    pub fn open_container(&mut self, path: &String) -> Result<(), ContainerError> {
+    pub fn open_container(&mut self, path: &String) -> Result<()> {
         self.container = None;
         let file_path = Path::new(path);
 
@@ -65,24 +66,15 @@ impl ContainerState {
                 }
                 _ => {
                     log::error!("Unsupported Container Type: {}", ext_str);
-                    Err({
-                        ContainerError {
-                            message: format!("Unsupported Container Type: {}", ext_str),
-                            path: Some(path.clone()),
-                            entry: None,
-                        }
-                    })
+                    Err(
+                        ContainerError::Other(format!("Unsupported Container Type: {}", ext_str))
+                            .into(),
+                    )
                 }
             }
         } else {
             log::error!("Failed to get extension. {}", path);
-            Err({
-                ContainerError {
-                    message: format!("Failed to get extension. {}", path),
-                    path: Some(path.clone()),
-                    entry: None,
-                }
-            })
+            Err(ContainerError::Other(format!("Failed to get extension. {}", path)).into())
         }
     }
 }
@@ -109,8 +101,9 @@ mod tests {
 
         assert!(result.is_err());
         let err = result.unwrap_err();
-        assert_eq!("Unsupported Container Type: unsupported", err.message);
-        assert_eq!(Some("/path/to/file.unsupported".to_string()), err.path);
+        assert!(err
+            .to_string()
+            .contains("Unsupported Container Type: unsupported"));
         assert!(state.container.is_none());
     }
 
@@ -121,8 +114,7 @@ mod tests {
 
         assert!(result.is_err());
         let err = result.unwrap_err();
-        assert!(err.message.contains("Failed to get extension"));
-        assert_eq!(Some("/path/to/noextension".to_string()), err.path);
+        assert!(err.to_string().contains("Failed to get extension"));
     }
 
     #[test]
@@ -171,7 +163,7 @@ mod tests {
             let result = state.open_container(&file_path.to_string());
             assert!(result.is_err(), "File {} should be unsupported", file_path);
             let err = result.unwrap_err();
-            assert!(err.message.contains("Unsupported Container Type"));
+            assert!(err.to_string().contains("Unsupported Container Type"));
         }
     }
 
@@ -193,8 +185,9 @@ mod tests {
                 let err = result.unwrap_err();
                 // Should not be "Unsupported Container Type" error
                 assert!(
-                    !err.message.contains("Unsupported Container Type"),
-                    "Extension {} should be supported",
+                    !err.to_string().contains("Unsupported Container Type"),
+                    "File {} with extension {} should be supported",
+                    file_path,
                     ext
                 );
             }
@@ -210,14 +203,14 @@ mod tests {
         if result.is_err() {
             let err = result.unwrap_err();
             // Should not be "Unsupported" error, meaning it recognized ZIP
-            assert!(!err.message.contains("Unsupported Container Type"));
+            assert!(!err.to_string().contains("Unsupported Container Type"));
         }
 
         // Test mixed case
         let result = state.open_container(&"/path/to/file.Pdf".to_string());
         if result.is_err() {
             let err = result.unwrap_err();
-            assert!(!err.message.contains("Unsupported Container Type"));
+            assert!(!err.to_string().contains("Unsupported Container Type"));
         }
     }
 
@@ -229,8 +222,6 @@ mod tests {
 
         assert!(result.is_err());
         let err = result.unwrap_err();
-        assert!(!err.message.is_empty());
-        assert_eq!(Some(test_path.clone()), err.path);
-        assert!(err.entry.is_none());
+        assert!(!err.to_string().is_empty());
     }
 }
