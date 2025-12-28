@@ -1,6 +1,8 @@
 use std::sync::Mutex;
 
 use chrono::Local;
+use tauri::WindowEvent;
+use tauri::{App, Manager};
 use tauri_plugin_log::{RotationStrategy, Target, TargetKind};
 
 mod commands;
@@ -14,7 +16,7 @@ mod state;
 pub fn run() {
     let result = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_window_state::Builder::new().build())
+        .plugin(tauri_plugin_window_state::Builder::default().build())
         .manage(Mutex::new(state::app_state::AppState::default()))
         .plugin(tauri_plugin_os::init())
         .plugin(
@@ -43,6 +45,20 @@ pub fn run() {
         .setup(|app| {
             setting::setting::load(app);
             setup::setup_container_settings(app)?;
+
+            // For debugging window-state plugin.
+            let main_window = app.get_webview_window("main").unwrap();
+            let _ = main_window.on_window_event(move |event| match event {
+                WindowEvent::Resized(size) => {
+                    log::debug!("\"main\" Window resized to {:?}", size);
+                }
+                WindowEvent::Moved(position) => {
+                    log::debug!("\"main\" Window moved to {:?}", position);
+                }
+                _ => {
+                    log::debug!("Other event: {:?}", event);
+                }
+            });
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
