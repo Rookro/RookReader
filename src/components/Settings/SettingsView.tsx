@@ -23,9 +23,9 @@ export default function SettingsView() {
     const tabs: { label: string, panel: JSX.Element }[] = [
         { label: t('settings.general.tab-name'), panel: <GeneralSettings /> },
         { label: t('settings.page.tab-name'), panel: <PageSettings /> },
+        { label: t('settings.file-navigator.tab-name'), panel: <FileNavigatorSettings /> },
         { label: t('settings.rendering.tab-name'), panel: <RenderingSettings /> },
         { label: t('settings.developer.tab-name'), panel: <DeveloperSettings /> },
-        { label: t('settings.file-navigator.tab-name'), panel: <FileNavigatorSettings /> },
         { label: t('settings.about.tab-name'), panel: <AboutPage /> }
     ];
 
