@@ -1,6 +1,9 @@
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc,
+use std::{
+    cmp::min,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
 };
 
 use dashmap::DashMap;
@@ -33,7 +36,8 @@ impl ImageLoader {
     pub fn new(container: Arc<dyn Container>) -> Self {
         Self {
             cache: Arc::new(DashMap::with_capacity(container.get_entries().len())),
-            thread_pool: ThreadPool::new(num_cpus::get()),
+            // Use half of the available CPU cores for preloading.
+            thread_pool: ThreadPool::new(min(1, num_cpus::get() / 2)),
             is_preloading_cancel_requested: Arc::new(AtomicBool::new(false)),
             container,
         }
