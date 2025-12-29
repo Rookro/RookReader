@@ -239,6 +239,9 @@ mod tests {
             .with(eq("test1.png".to_string()))
             .times(1)
             .returning(|_entry| Ok(MockContainer::create_dummy_image()));
+        mock_container
+            .expect_get_entries()
+            .return_const(vec!["test1.png".to_string(), "test2.png".to_string()]);
 
         let arc_mock_container = Arc::new(mock_container);
         let mock_container_state = ContainerState {
