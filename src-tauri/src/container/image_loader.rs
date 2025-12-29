@@ -1,20 +1,18 @@
-use std::{
-    collections::HashMap,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc, Mutex,
-    },
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
 };
 
+use dashmap::DashMap;
 use threadpool::ThreadPool;
 
 use crate::container::{
-    container::{Container, ContainerError, ContainerResult},
+    container::{Container, ContainerResult},
     image::Image,
 };
 
 /// Cache.(key: entry name, value: image)
-type Cache = Arc<Mutex<HashMap<String, Arc<Image>>>>;
+type Cache = Arc<DashMap<String, Arc<Image>>>;
 
 /// Image loader for a container.
 pub struct ImageLoader {
@@ -34,7 +32,7 @@ impl ImageLoader {
     /// * `container` - The container.
     pub fn new(container: Arc<dyn Container>) -> Self {
         Self {
-            cache: Arc::new(Mutex::new(HashMap::new())),
+            cache: Arc::new(DashMap::with_capacity(container.get_entries().len())),
             thread_pool: ThreadPool::new(num_cpus::get()),
             is_preloading_cancel_requested: Arc::new(AtomicBool::new(false)),
             container,
@@ -47,12 +45,11 @@ impl ImageLoader {
     ///
     /// * `entry` - The entry name.
     pub fn get_image_from_cache(&self, entry: &String) -> ContainerResult<Option<Arc<Image>>> {
-        Ok(self
-            .cache
-            .lock()
-            .map_err(|e| ContainerError::Other(e.to_string()))?
-            .get(entry)
-            .map(|arc| Arc::clone(arc)))
+        if let Some(imag) = self.cache.get(entry) {
+            Ok(Some(imag.clone()))
+        } else {
+            Ok(None)
+        }
     }
 
     /// Gets an image from the cache or loads it if not present.
@@ -67,10 +64,7 @@ impl ImageLoader {
         }
 
         let image_arc = self.load_image(entry)?;
-        self.cache
-            .lock()
-            .map_err(|e| ContainerError::Other(e.to_string()))?
-            .insert(entry.clone(), image_arc.clone());
+        self.cache.insert(entry.clone(), image_arc.clone());
 
         Ok(image_arc)
     }
@@ -96,11 +90,7 @@ impl ImageLoader {
         let entries_to_preload = entries[begin_index..end].to_vec();
 
         for entry in entries_to_preload {
-            let is_cached = self
-                .cache
-                .lock()
-                .map_err(|e| ContainerError::Other(e.to_string()))?
-                .contains_key(&entry);
+            let is_cached = self.cache.contains_key(&entry);
             if is_cached {
                 continue;
             }
@@ -117,14 +107,7 @@ impl ImageLoader {
                 match container.get_image(&entry) {
                     Ok(image) => {
                         log::debug!("Preloaded: {}", entry);
-                        match cache_clone.lock() {
-                            Ok(mut cache) => {
-                                cache.insert(entry, image);
-                            }
-                            Err(e) => {
-                                log::error!("Failed to lock cache: {}", e);
-                            }
-                        }
+                        cache_clone.insert(entry, image);
                     }
                     Err(e) => {
                         log::error!("Failed to preload image: {}", e);
