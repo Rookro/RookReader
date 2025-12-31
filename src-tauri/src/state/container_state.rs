@@ -92,7 +92,24 @@ impl ContainerState {
 
 #[cfg(test)]
 mod tests {
+    use std::path;
+
     use super::*;
+
+    pub fn get_pdfium_lib_path() -> String {
+        let pdfium_path = path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("target")
+            .join("dependencies")
+            .join("pdfium");
+
+        let lib_path = if pdfium_path.clone().join("bin").exists() {
+            pdfium_path.clone().join("bin")
+        } else {
+            pdfium_path.clone().join("lib")
+        };
+
+        lib_path.to_string_lossy().to_string()
+    }
 
     #[test]
     fn test_default_container_state() {
@@ -147,6 +164,7 @@ mod tests {
     #[test]
     fn test_pdf_rendering_height_passed_to_pdf_container() {
         let mut state = ContainerState::default();
+        state.settings.pdfium_library_path = Some(get_pdfium_lib_path());
         state.settings.pdf_rendering_height = 1200;
 
         // This would fail because the file doesn't exist, but it tests that
@@ -181,6 +199,7 @@ mod tests {
     #[test]
     fn test_supported_file_extensions() {
         let mut state = ContainerState::default();
+        state.settings.pdfium_library_path = Some(get_pdfium_lib_path());
         let supported_files = vec![
             ("/path/to/file.zip", "zip"),
             ("/path/to/file.pdf", "pdf"),
@@ -208,6 +227,7 @@ mod tests {
     #[test]
     fn test_case_insensitive_extension() {
         let mut state = ContainerState::default();
+        state.settings.pdfium_library_path = Some(get_pdfium_lib_path());
 
         // Test uppercase extension
         let result = state.open_container(&"/path/to/file.ZIP".to_string());
