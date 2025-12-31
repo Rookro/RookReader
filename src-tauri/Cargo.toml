@@ -1,6 +1,6 @@
 [package]
 name = "rook-reader"
-version = "1.7.0"
+version = "1.7.1"
 description = "Comic Reader"
 authors = ["Rookro"]
 edition = "2021"
