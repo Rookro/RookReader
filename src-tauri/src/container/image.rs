@@ -18,23 +18,15 @@ impl Image {
     /// Creates an Image instance from binary image data.
     ///
     /// * `data` - The binary data of the image.
-    pub fn new(data: Vec<u8>) -> Result<Self, String> {
+    pub fn new(data: Vec<u8>) -> Result<Self, image::ImageError> {
         let cursor = Cursor::new(&data);
-        let image_reader = ImageReader::new(cursor)
-            .with_guessed_format()
-            .map_err(|e| format!("Failed to create Image instance. {}", e))?;
-        match image_reader.into_dimensions() {
-            Ok((width, height)) => Ok(Image {
-                data: data,
-                width,
-                height,
-            }),
-            Err(e) => {
-                let error_message = format!("Failed to get image size. {}", e);
-                log::error!("{}", error_message);
-                return Err(error_message);
-            }
-        }
+        let image_reader = ImageReader::new(cursor).with_guessed_format()?;
+        let (width, height) = image_reader.into_dimensions()?;
+        Ok(Image {
+            data,
+            width,
+            height,
+        })
     }
 
     /// Checks if the file extention is the supported image format.
@@ -121,7 +113,7 @@ mod tests {
         let result = Image::new(png_data.clone());
         assert!(result.is_ok());
 
-        let image = result.unwrap();
+        let image = result.expect("Image::new should succeed for a valid PNG");
         assert_eq!(image.width, 1);
         assert_eq!(image.height, 1);
         assert_eq!(image.data, png_data);
@@ -134,13 +126,6 @@ mod tests {
 
         let result = Image::new(invalid_data);
         assert!(result.is_err());
-        let error_msg = result.unwrap_err();
-        assert!(
-            error_msg.contains("Failed to create Image instance")
-                || error_msg.contains("Failed to get image size"),
-            "Error message was: {}",
-            error_msg
-        );
     }
 
     #[test]
@@ -149,13 +134,5 @@ mod tests {
 
         let result = Image::new(empty_data);
         assert!(result.is_err());
-
-        let error_msg = result.unwrap_err();
-        assert!(
-            error_msg.contains("Failed to create Image instance")
-                || error_msg.contains("Failed to get image size"),
-            "Error message was: {}",
-            error_msg
-        );
     }
 }

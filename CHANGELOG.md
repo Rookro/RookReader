@@ -7,6 +7,14 @@
 
 ## [Unreleased]
 
+## [1.7.1] - 2025-12-31
+
+### Fixed
+
+* コードリファクタリング (#90)
+* 設定画面のタブの順番を修正 (#91)
+* 画像の事前読み込みのパフォーマンスを改善 (#92)
+
 ## [1.7.0] - 2025-12-13
 
 ### Changed
@@ -172,7 +180,8 @@
 * 自動見開き表示機能の追加 (#4)
 * ホイールの上下によるページ送り機能を追加 (#5)
 
-[unreleased]: https://github.com/Rookro/RookReader/compare/v1.7.0...HEAD
+[unreleased]: https://github.com/Rookro/RookReader/compare/v1.7.1...HEAD
+[1.7.1]: https://github.com/Rookro/RookReader/compare/v1.7.0...v1.7.1
 [1.7.0]: https://github.com/Rookro/RookReader/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/Rookro/RookReader/compare/v1.5.2...v1.6.0
 [1.5.2]: https://github.com/Rookro/RookReader/compare/v1.5.1...v1.5.2

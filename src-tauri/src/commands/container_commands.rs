@@ -1,8 +1,11 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 
 use tauri::ipc::Response;
 
-use crate::{container::image::Image, state::app_state::AppState};
+use crate::{
+    error::{Error, Result},
+    state::app_state::AppState,
+};
 
 /// Gets entries in the specified archive container.
 ///
@@ -14,30 +17,34 @@ use crate::{container::image::Image, state::app_state::AppState};
 pub async fn get_entries_in_container(
     path: String,
     state: tauri::State<'_, Mutex<AppState>>,
-) -> Result<Vec<String>, String> {
+) -> Result<Vec<String>> {
     log::debug!("Get the entries in {}", path);
-    let mut state_lock = state.lock().map_err(|e| {
-        log::error!("Failed to lock AppState. {}", e.to_string());
-        format!("Failed to lock AppState. {}", e.to_string())
-    })?;
+    let mut state_lock = state
+        .lock()
+        .map_err(|e| Error::Mutex(format!("Failed to lock AppState. {}", e)))?;
 
-    state_lock
-        .container_state
-        .open_container(&path)
-        .map_err(|e| format!("Failed to get entries in the container. {}", e))?;
+    state_lock.container_state.open_container(&path)?;
 
-    if let Some(container) = state_lock.container_state.container.as_mut() {
-        container
-            .request_preload(0, container.get_entries().len())
-            .map_err(|e| {
-                log::error!("Failed to start preloading. {}", e);
-                format!("Failed to start preloading. {}", e)
-            })?;
-        Ok(container.get_entries().clone())
-    } else {
-        log::error!("Unexpected error. Container is empty!");
-        Err(String::from("Unexpected error. Container is empty!"))
+    let entries;
+    {
+        let container = state_lock
+            .container_state
+            .container
+            .as_ref()
+            .ok_or_else(|| Error::Other("Unexpected error. Container is empty!".to_string()))?;
+        entries = container.get_entries().clone();
     }
+
+    {
+        let image_loader = state_lock
+            .container_state
+            .image_loader
+            .as_mut()
+            .ok_or_else(|| Error::Other("Unexpected error. ImageLoader is empty!".to_string()))?;
+        image_loader.request_preload(0, entries.len())?;
+    }
+
+    Ok(entries.clone())
 }
 
 /// Gets an image in the specified archive container.
@@ -50,26 +57,24 @@ pub async fn get_entries_in_container(
 /// * `entry_name` - The entry name of the image to get.
 /// * `state` - The application state.
 #[tauri::command]
-pub fn get_image(
+pub async fn get_image(
     path: String,
     entry_name: String,
-    state: tauri::State<Mutex<AppState>>,
-) -> Result<Response, String> {
+    state: tauri::State<'_, Mutex<AppState>>,
+) -> Result<Response> {
     log::debug!("Get the binary of {} in {}", entry_name, path);
 
-    let mut state_lock = state.lock().map_err(|e| {
-        log::error!("Failed to lock AppState. {}", e.to_string());
-        format!("Failed to lock AppState. {}", e.to_string())
-    })?;
+    let mut state_lock = state
+        .lock()
+        .map_err(|e| Error::Mutex(format!("Failed to lock AppState. {}", e)))?;
 
-    let image: Arc<Image> = if let Some(container) = &mut state_lock.container_state.container {
-        container
-            .get_image(&entry_name)
-            .map_err(|e| format!("Failed to get image. {}", e))?
-    } else {
-        log::error!("Unexpected error. Container is empty!");
-        return Err(String::from("Unexpected error. Container is empty!"));
-    };
+    let image_loader = state_lock
+        .container_state
+        .image_loader
+        .as_mut()
+        .ok_or_else(|| Error::Other("Unexpected error. Container is empty!".to_string()))?;
+
+    let image = image_loader.get_image(&entry_name)?;
 
     // Uses tauri::ipc::Response with a custom binary format to accelerate image data transfer.
     let mut response_data = Vec::with_capacity(8 + image.data.len());
@@ -88,20 +93,19 @@ pub fn get_image(
 pub fn set_pdf_rendering_height(
     height: i32,
     state: tauri::State<'_, Mutex<AppState>>,
-) -> Result<(), String> {
+) -> Result<()> {
     log::debug!("set_pdf_rendering_height({})", height);
 
     if height < 1 {
-        return Err(
+        return Err(Error::Other(
             "pdf rendering height must be greater than 0. set_pdf_rendering_height() is Failed."
                 .to_string(),
-        );
+        ));
     }
 
-    let mut state_lock = state.lock().map_err(|e| {
-        log::error!("Failed to lock AppState. {}", e.to_string());
-        format!("Failed to lock AppState. {}", e.to_string())
-    })?;
+    let mut state_lock = state
+        .lock()
+        .map_err(|e| Error::Mutex(format!("Failed to lock AppState. {}", e)))?;
 
     state_lock.container_state.settings.pdf_rendering_height = height;
     Ok(())
@@ -113,11 +117,15 @@ mod tests {
     use rstest::rstest;
 
     use super::*;
-    use std::{path, sync::Mutex};
+    use std::{
+        path,
+        sync::{Arc, Mutex},
+    };
     use tauri::{ipc::InvokeResponseBody::Raw, ipc::IpcResponse, Manager};
 
     use crate::{
-        container::container::MockContainer, setting::container_settings::ContainerSettings,
+        container::{container::MockContainer, image::Image, image_loader::ImageLoader},
+        setting::container_settings::ContainerSettings,
         state::container_state::ContainerState,
     };
 
@@ -201,7 +209,7 @@ mod tests {
         app.manage(Mutex::new(AppState::default()));
 
         let result =
-            get_entries_in_container(rar_path.to_str().unwrap().to_string(), app.state()).await;
+            get_entries_in_container(rar_path.to_string_lossy().to_string(), app.state()).await;
 
         assert!(result.is_ok());
 
@@ -222,8 +230,8 @@ mod tests {
         assert!(result.is_err());
     }
 
-    #[test]
-    fn test_get_image_in_container() {
+    #[tokio::test]
+    async fn test_get_image_in_container() {
         let app = tauri::test::mock_app();
         let mut mock_container = MockContainer::new();
         mock_container
@@ -231,10 +239,15 @@ mod tests {
             .with(eq("test1.png".to_string()))
             .times(1)
             .returning(|_entry| Ok(MockContainer::create_dummy_image()));
+        mock_container
+            .expect_get_entries()
+            .return_const(vec!["test1.png".to_string(), "test2.png".to_string()]);
 
+        let arc_mock_container = Arc::new(mock_container);
         let mock_container_state = ContainerState {
-            container: Some(Box::new(mock_container)),
+            container: Some(arc_mock_container.clone()),
             settings: ContainerSettings::default(),
+            image_loader: Some(ImageLoader::new(arc_mock_container.clone())),
         };
         let state = AppState {
             container_state: mock_container_state,
@@ -245,7 +258,8 @@ mod tests {
             "mock_container".to_string(),
             "test1.png".to_string(),
             app.state(),
-        );
+        )
+        .await;
 
         assert!(result.is_ok());
 
@@ -270,8 +284,8 @@ mod tests {
         assert_eq!(expected_image.data.as_slice(), actual_data);
     }
 
-    #[test]
-    fn test_get_image_empty_container() {
+    #[tokio::test]
+    async fn test_get_image_empty_container() {
         let app = tauri::test::mock_app();
         app.manage(Mutex::new(AppState::default()));
 
@@ -279,7 +293,8 @@ mod tests {
             "non_existent_path".to_string(),
             "image.png".to_string(),
             app.state(),
-        );
+        )
+        .await;
 
         assert!(result.is_err());
     }

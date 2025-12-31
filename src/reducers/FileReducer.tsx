@@ -1,6 +1,7 @@
 import { PayloadAction, createAsyncThunk, createSlice } from "@reduxjs/toolkit";
-import { invoke } from "@tauri-apps/api/core";
 import { debug, error } from '@tauri-apps/plugin-log';
+import { getEntriesInContainer } from "../bindings/ContainerCommands";
+import { getEntriesInDir as getEntriesInDirFromBackend } from "../bindings/DirectoryCommands";
 import { DirEntry } from "../types/DirEntry";
 import { SortOrder } from "../types/SortOrderType";
 
@@ -9,17 +10,20 @@ import { SortOrder } from "../types/SortOrderType";
  */
 export const openContainerFile = createAsyncThunk(
     "file/openContainerFile",
-    async (path: string) => {
+    async (path: string, { rejectWithValue }) => {
         debug(`openContainerFile(${path}).`);
-        if (!path) {
-            return [];
+        if (!path || path.length === 0) {
+            const errorMessage = "Failed to getEntriesInDir. Error: Container path is empty.";
+            error(errorMessage);
+            return rejectWithValue(errorMessage);
         }
         try {
-            const entries = await invoke<string[]>("get_entries_in_container", { path });
+            const entries = await getEntriesInContainer(path);
             return entries;
         } catch (e) {
-            error(`Failed to openContainerFile(${path}). Error: ${e}`);
-            return [];
+            const errorMessage = `Failed to openContainerFile(${path}). Error: ${e}`;
+            error(errorMessage);
+            return rejectWithValue(errorMessage);
         }
     }
 );
@@ -29,17 +33,20 @@ export const openContainerFile = createAsyncThunk(
  */
 export const getEntriesInDir = createAsyncThunk(
     "file/getEntriesInDir",
-    async (dirPath: string) => {
+    async (dirPath: string, { rejectWithValue }) => {
         debug(`getEntriesInDir(${dirPath}).`);
-        if (!dirPath) {
-            return [];
+        if (!dirPath || dirPath.length === 0) {
+            const errorMessage = "Failed to getEntriesInDir. Error: Directory path is empty.";
+            error(errorMessage);
+            return rejectWithValue(errorMessage);
         }
         try {
-            const entries = await invoke<DirEntry[]>("get_entries_in_dir", { dirPath });
+            const entries = await getEntriesInDirFromBackend(dirPath);
             return entries;
         } catch (e) {
-            error(`Failed to getEntriesInDir(${dirPath}). Error: ${e}`);
-            return [];
+            const errorMessage = `Failed to getEntriesInDir(${dirPath}). Error: ${e}`;
+            error(errorMessage);
+            return rejectWithValue(errorMessage);
         }
     }
 );
@@ -52,6 +59,8 @@ export const fileSlice = createSlice({
             historyIndex: -1,
             entries: [] as string[],
             index: 0,
+            isLoading: false,
+            error: null as string | null,
         },
         explorer: {
             history: [] as string[],
@@ -59,6 +68,7 @@ export const fileSlice = createSlice({
             entries: [] as DirEntry[],
             searchText: "",
             sortOrder: "NAME_ASC" as SortOrder,
+            error: null as string | null,
         }
     },
     reducers: {
@@ -92,6 +102,8 @@ export const fileSlice = createSlice({
             }
             state.explorer.history.push(action.payload);
             state.explorer.historyIndex = state.explorer.history.length - 1;
+
+            state.explorer.searchText = "";
         },
         setSearchText: (state, action: PayloadAction<string>) => {
             debug(`setSearchText(${action.payload}).`);
@@ -127,13 +139,38 @@ export const fileSlice = createSlice({
         },
     },
     extraReducers: (builder) => {
-        builder.addCase(getEntriesInDir.fulfilled, (state, action: PayloadAction<DirEntry[]>,) => {
-            state.explorer.entries = action.payload;
-        });
-        builder.addCase(openContainerFile.fulfilled, (state, action: PayloadAction<string[]>,) => {
-            state.containerFile.entries = action.payload;
-            state.containerFile.index = 0;
-        });
+        builder
+            .addCase(getEntriesInDir.pending, (state) => {
+                state.explorer.entries = [];
+                state.explorer.error = null;
+            })
+            .addCase(getEntriesInDir.fulfilled, (state, action: PayloadAction<DirEntry[]>,) => {
+                state.explorer.entries = action.payload;
+                state.explorer.error = null;
+            })
+            .addCase(getEntriesInDir.rejected, (state, action) => {
+                state.explorer.entries = [];
+                state.explorer.error = action.payload as string;
+            })
+            .addCase(openContainerFile.pending, (state) => {
+                state.containerFile.entries = [];
+                state.containerFile.isLoading = true;
+                state.containerFile.index = 0;
+                state.containerFile.error = null;
+            })
+            .addCase(openContainerFile.fulfilled, (state, action: PayloadAction<string[]>,) => {
+                state.containerFile.entries = action.payload;
+                state.containerFile.isLoading = false;
+                state.containerFile.index = 0;
+                state.containerFile.error = null;
+            })
+            .addCase(openContainerFile.rejected, (state, action) => {
+                state.containerFile.entries = [];
+                state.containerFile.isLoading = false;
+                state.containerFile.index = 0;
+                state.containerFile.error = action.payload as string;
+            });
+
     }
 });
 

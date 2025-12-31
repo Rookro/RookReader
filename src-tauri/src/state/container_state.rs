@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{path::Path, sync::Arc};
 
 use pdfium_render::prelude::PdfRenderConfig;
 
@@ -6,19 +6,23 @@ use crate::{
     container::{
         container::{Container, ContainerError},
         directory_container::DirectoryContainer,
+        image_loader::ImageLoader,
         pdf_container::PdfContainer,
         rar_container::RarContainer,
         zip_container::ZipContainer,
     },
+    error::Result,
     setting::container_settings::ContainerSettings,
 };
 
 /// The container state.
 pub struct ContainerState {
     /// Archive container
-    pub container: Option<Box<dyn Container>>,
+    pub container: Option<Arc<dyn Container>>,
     /// Settings for the archive container
     pub settings: ContainerSettings,
+    /// Image loader.
+    pub image_loader: Option<ImageLoader>,
 }
 
 impl Default for ContainerState {
@@ -26,6 +30,7 @@ impl Default for ContainerState {
         Self {
             container: None,
             settings: ContainerSettings::default(),
+            image_loader: None,
         }
     }
 }
@@ -34,12 +39,14 @@ impl ContainerState {
     /// Opens a container file.
     ///
     /// * `path` - The path to the container file.
-    pub fn open_container(&mut self, path: &String) -> Result<(), ContainerError> {
+    pub fn open_container(&mut self, path: &String) -> Result<()> {
         self.container = None;
         let file_path = Path::new(path);
 
         if file_path.is_dir() {
-            self.container = Some(Box::new(DirectoryContainer::new(path)?));
+            let container = Arc::new(DirectoryContainer::new(path)?);
+            self.container = Some(container.clone());
+            self.image_loader = Some(ImageLoader::new(container));
             return Ok(());
         }
 
@@ -47,49 +54,62 @@ impl ContainerState {
             let ext_str = ext.to_string_lossy().to_lowercase();
             match ext_str.as_str() {
                 "zip" => {
-                    self.container = Some(Box::new(ZipContainer::new(path)?));
-                    Ok(())
+                    let container = Arc::new(ZipContainer::new(path)?);
+                    self.container = Some(container.clone());
+                    self.image_loader = Some(ImageLoader::new(container));
                 }
                 "pdf" => {
-                    self.container = Some(Box::new(PdfContainer::new(
+                    let container = Arc::new(PdfContainer::new(
                         path,
                         PdfRenderConfig::default()
                             .set_target_height(self.settings.pdf_rendering_height),
                         self.settings.pdfium_library_path.clone(),
-                    )?));
-                    Ok(())
+                    )?);
+                    self.container = Some(container.clone());
+                    self.image_loader = Some(ImageLoader::new(container));
                 }
                 "rar" => {
-                    self.container = Some(Box::new(RarContainer::new(path)?));
-                    Ok(())
+                    let container = Arc::new(RarContainer::new(path)?);
+                    self.container = Some(container.clone());
+                    self.image_loader = Some(ImageLoader::new(container));
                 }
                 _ => {
                     log::error!("Unsupported Container Type: {}", ext_str);
-                    Err({
-                        ContainerError {
-                            message: format!("Unsupported Container Type: {}", ext_str),
-                            path: Some(path.clone()),
-                            entry: None,
-                        }
-                    })
+                    return Err(ContainerError::Other(format!(
+                        "Unsupported Container Type: {}",
+                        ext_str
+                    ))
+                    .into());
                 }
-            }
+            };
+            Ok(())
         } else {
             log::error!("Failed to get extension. {}", path);
-            Err({
-                ContainerError {
-                    message: format!("Failed to get extension. {}", path),
-                    path: Some(path.clone()),
-                    entry: None,
-                }
-            })
+            Err(ContainerError::Other(format!("Failed to get extension. {}", path)).into())
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::path;
+
     use super::*;
+
+    pub fn get_pdfium_lib_path() -> String {
+        let pdfium_path = path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("target")
+            .join("dependencies")
+            .join("pdfium");
+
+        let lib_path = if pdfium_path.clone().join("bin").exists() {
+            pdfium_path.clone().join("bin")
+        } else {
+            pdfium_path.clone().join("lib")
+        };
+
+        lib_path.to_string_lossy().to_string()
+    }
 
     #[test]
     fn test_default_container_state() {
@@ -109,8 +129,9 @@ mod tests {
 
         assert!(result.is_err());
         let err = result.unwrap_err();
-        assert_eq!("Unsupported Container Type: unsupported", err.message);
-        assert_eq!(Some("/path/to/file.unsupported".to_string()), err.path);
+        assert!(err
+            .to_string()
+            .contains("Unsupported Container Type: unsupported"));
         assert!(state.container.is_none());
     }
 
@@ -121,8 +142,7 @@ mod tests {
 
         assert!(result.is_err());
         let err = result.unwrap_err();
-        assert!(err.message.contains("Failed to get extension"));
-        assert_eq!(Some("/path/to/noextension".to_string()), err.path);
+        assert!(err.to_string().contains("Failed to get extension"));
     }
 
     #[test]
@@ -144,6 +164,7 @@ mod tests {
     #[test]
     fn test_pdf_rendering_height_passed_to_pdf_container() {
         let mut state = ContainerState::default();
+        state.settings.pdfium_library_path = Some(get_pdfium_lib_path());
         state.settings.pdf_rendering_height = 1200;
 
         // This would fail because the file doesn't exist, but it tests that
@@ -171,13 +192,14 @@ mod tests {
             let result = state.open_container(&file_path.to_string());
             assert!(result.is_err(), "File {} should be unsupported", file_path);
             let err = result.unwrap_err();
-            assert!(err.message.contains("Unsupported Container Type"));
+            assert!(err.to_string().contains("Unsupported Container Type"));
         }
     }
 
     #[test]
     fn test_supported_file_extensions() {
         let mut state = ContainerState::default();
+        state.settings.pdfium_library_path = Some(get_pdfium_lib_path());
         let supported_files = vec![
             ("/path/to/file.zip", "zip"),
             ("/path/to/file.pdf", "pdf"),
@@ -193,8 +215,9 @@ mod tests {
                 let err = result.unwrap_err();
                 // Should not be "Unsupported Container Type" error
                 assert!(
-                    !err.message.contains("Unsupported Container Type"),
-                    "Extension {} should be supported",
+                    !err.to_string().contains("Unsupported Container Type"),
+                    "File {} with extension {} should be supported",
+                    file_path,
                     ext
                 );
             }
@@ -204,20 +227,21 @@ mod tests {
     #[test]
     fn test_case_insensitive_extension() {
         let mut state = ContainerState::default();
+        state.settings.pdfium_library_path = Some(get_pdfium_lib_path());
 
         // Test uppercase extension
         let result = state.open_container(&"/path/to/file.ZIP".to_string());
         if result.is_err() {
             let err = result.unwrap_err();
             // Should not be "Unsupported" error, meaning it recognized ZIP
-            assert!(!err.message.contains("Unsupported Container Type"));
+            assert!(!err.to_string().contains("Unsupported Container Type"));
         }
 
         // Test mixed case
         let result = state.open_container(&"/path/to/file.Pdf".to_string());
         if result.is_err() {
             let err = result.unwrap_err();
-            assert!(!err.message.contains("Unsupported Container Type"));
+            assert!(!err.to_string().contains("Unsupported Container Type"));
         }
     }
 
@@ -229,8 +253,6 @@ mod tests {
 
         assert!(result.is_err());
         let err = result.unwrap_err();
-        assert!(!err.message.is_empty());
-        assert_eq!(Some(test_path.clone()), err.path);
-        assert!(err.entry.is_none());
+        assert!(!err.to_string().is_empty());
     }
 }

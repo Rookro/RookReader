@@ -1,6 +1,6 @@
 [package]
 name = "rook-reader"
-version = "1.7.0"
+version = "1.7.1"
 description = "Comic Reader"
 authors = ["Rookro"]
 edition = "2021"
@@ -41,6 +41,9 @@ natord = "1.0.9"
 tauri-plugin-dialog = "2"
 pdfium-render = "0.8.37"
 threadpool = "1.8.1"
+thiserror = "2.0.17"
+num_cpus = "1.17.0"
+dashmap = "6.1.0"
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-window-state = "2"
