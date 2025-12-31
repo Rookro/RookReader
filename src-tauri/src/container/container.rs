@@ -7,37 +7,18 @@ use crate::container::image::Image;
 #[cfg(test)]
 use mockall::{automock, predicate::*};
 
-/// Number of threads for preloading.
-///
-/// It's a fixed value (for the time being).
-/// TODO(Rookro): Allow the user to change this value via the settings window.
-pub const NUM_OF_THREADS: usize = 4;
-
 /// Archive container
 #[cfg_attr(test, automock)]
 pub trait Container: Send + Sync + 'static {
     /// Retrieves a list of entries contained within the container.
     fn get_entries(&self) -> &Vec<String>;
 
-    /// Retrieves an image from the cache.
-    ///
-    /// Returns `Arc<Image>` if the image is in the cache.
-    ///
-    /// * `entry` - The entry name of the image to retrieve.
-    fn get_image_from_cache(&self, entry: &String) -> ContainerResult<Option<Arc<Image>>>;
-
     /// Retrieves an image from the file.
     ///
     /// Returns `Arc<Image>` if the image is in the cache.
     ///
     /// * `entry` - The entry name of the image to retrieve.
-    fn get_image(&mut self, entry: &String) -> ContainerResult<Arc<Image>>;
-
-    /// Preloads a specified number of images into the cache starting from a given index.
-    ///
-    /// * `begin_index` - The starting index.
-    /// * `count` - The number of images to load.
-    fn request_preload(&mut self, begin_index: usize, count: usize) -> ContainerResult<()>;
+    fn get_image(&self, entry: &String) -> ContainerResult<Arc<Image>>;
 }
 
 impl dyn Container {

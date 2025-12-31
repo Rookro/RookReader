@@ -1,33 +1,18 @@
-use std::{
-    collections::HashMap,
-    fs::File,
-    io::{Cursor, Read},
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc, Mutex,
-    },
-};
+use std::{fs::File, io::Read, sync::Arc};
 
-use threadpool::ThreadPool;
 use zip::ZipArchive;
 
 use crate::container::{
-    container::{self, Container, ContainerError, ContainerResult},
+    container::{Container, ContainerResult},
     image::Image,
 };
 
 /// A container for Zip archives.
 pub struct ZipContainer {
-    /// The Zip archive file data.
-    archive_binary: Arc<Vec<u8>>,
+    /// The file path of the container.
+    path: String,
     /// The entries in the container.
     entries: Vec<String>,
-    /// Image data cache (key: entry name, value: image).
-    cache: Arc<Mutex<HashMap<String, Arc<Image>>>>,
-    /// Thread pool for preloading.
-    thread_pool: ThreadPool,
-    /// Whether is preloading cancel requested.
-    is_preloading_cancel_requested: Arc<AtomicBool>,
 }
 
 impl Container for ZipContainer {
@@ -35,56 +20,15 @@ impl Container for ZipContainer {
         &self.entries
     }
 
-    fn get_image(&mut self, entry: &String) -> ContainerResult<Arc<Image>> {
-        // Try to get from the cache.
-        if let Some(image_arc) = self.get_image_from_cache(entry)? {
-            log::debug!("Hit cache: {}", entry);
-            return Ok(Arc::clone(&image_arc));
-        }
+    fn get_image(&self, entry: &String) -> ContainerResult<Arc<Image>> {
+        let mut buffer = Vec::new();
+        let file = File::open(&self.path)?;
+        let mut archive = ZipArchive::new(file)?;
+        let mut file = archive.by_name(entry)?;
+        file.read_to_end(&mut buffer)?;
 
-        let image_arc = load_image(entry, self.archive_binary.clone())?;
-        self.cache
-            .lock()
-            .map_err(|e| ContainerError::Other(e.to_string()))?
-            .insert(entry.clone(), image_arc.clone());
-        Ok(image_arc)
-    }
-
-    fn request_preload(&mut self, begin_index: usize, count: usize) -> ContainerResult<()> {
-        let total_pages = self.entries.len();
-        let end = (begin_index + count).min(total_pages);
-
-        if begin_index >= end {
-            return Ok(());
-        }
-
-        let entries = self.entries.clone();
-        let archive_binary = self.archive_binary.clone();
-        let cache_mutex = self.cache.clone();
-        let is_cancel_requested = self.is_preloading_cancel_requested.clone();
-
-        self.thread_pool.execute(move || {
-            if let Err(e) = preload(
-                begin_index,
-                end,
-                entries,
-                archive_binary,
-                cache_mutex,
-                is_cancel_requested,
-            ) {
-                log::error!("Error in preloading: {}", e);
-            }
-        });
-
-        Ok(())
-    }
-
-    fn get_image_from_cache(&self, entry: &String) -> ContainerResult<Option<Arc<Image>>> {
-        let cache = self
-            .cache
-            .lock()
-            .map_err(|e| ContainerError::Other(e.to_string()))?;
-        Ok(cache.get(entry).map(Arc::clone))
+        let image = Image::new(buffer)?;
+        Ok(Arc::new(image))
     }
 }
 
@@ -93,12 +37,8 @@ impl ZipContainer {
     ///
     /// * `path` - The path to the archive container.
     pub fn new(path: &String) -> ContainerResult<Self> {
-        let mut buffer = Vec::new();
-        File::open(path)?.read_to_end(&mut buffer)?;
-
-        let archive_binary = Arc::new(buffer);
-        let cursor = Cursor::new(&*archive_binary);
-        let archive = ZipArchive::new(cursor)?;
+        let file = File::open(&path)?;
+        let archive = ZipArchive::new(file)?;
 
         let mut entries: Vec<String> = archive
             .file_names()
@@ -109,81 +49,15 @@ impl ZipContainer {
         entries.sort_by(|a, b| natord::compare_ignore_case(a, b));
 
         Ok(Self {
-            archive_binary,
+            path: path.clone(),
             entries,
-            cache: Arc::new(Mutex::new(HashMap::new())),
-            thread_pool: ThreadPool::new(container::NUM_OF_THREADS),
-            is_preloading_cancel_requested: Arc::new(AtomicBool::new(false)),
         })
     }
 }
 
-impl Drop for ZipContainer {
-    fn drop(&mut self) {
-        // Requests preloading cancel and waits for all threads to finish.
-        if !self.is_preloading_cancel_requested.load(Ordering::Relaxed) {
-            self.is_preloading_cancel_requested
-                .store(true, Ordering::Relaxed);
-        }
-        self.thread_pool.join();
-    }
-}
-
-fn load_image(entry: &String, archive_binary: Arc<Vec<u8>>) -> ContainerResult<Arc<Image>> {
-    let mut buffer = Vec::new();
-    let cursor = Cursor::new(&*archive_binary);
-    let mut archive = ZipArchive::new(cursor)?;
-    let mut file = archive.by_name(entry)?;
-    file.read_to_end(&mut buffer)?;
-
-    let image = Image::new(buffer)?;
-    Ok(Arc::new(image))
-}
-
-fn preload(
-    begin_index: usize,
-    end: usize,
-    entries: Vec<String>,
-    archive_binary: Arc<Vec<u8>>,
-    cache_mutex: Arc<Mutex<HashMap<String, Arc<Image>>>>,
-    is_cancel_requested: Arc<AtomicBool>,
-) -> ContainerResult<()> {
-    for i in begin_index..end {
-        if is_cancel_requested.load(Ordering::Relaxed) {
-            return Ok(());
-        }
-
-        let entry = &entries[i];
-
-        // If it's already in the cache, skip it.
-        if cache_mutex
-            .lock()
-            .map_err(|e| ContainerError::Other(e.to_string()))?
-            .contains_key(entry)
-        {
-            log::debug!("Hit cache so skip preload index: {}", i);
-            continue;
-        }
-
-        let image_arc = load_image(entry, archive_binary.clone())?;
-        cache_mutex
-            .lock()
-            .map_err(|e| ContainerError::Other(e.to_string()))?
-            .insert(entry.clone(), image_arc);
-    }
-
-    Ok(())
-}
-
 #[cfg(test)]
 mod tests {
-    use std::{
-        fs::File,
-        io::Write,
-        path::{self, Path},
-        thread::sleep,
-        time::Duration,
-    };
+    use std::{fs::File, io::Write, path};
     use tempfile::tempdir;
     use zip::write::{FileOptions, ZipWriter};
 
@@ -284,7 +158,7 @@ mod tests {
     fn test_get_image_existing() {
         let dir = tempdir().unwrap();
         let zip_path = create_dummy_zip(dir.path(), "test.zip", &[("image1.png", &DUMMY_PNG_DATA)]);
-        let mut container = ZipContainer::new(&zip_path.to_string_lossy().to_string())
+        let container = ZipContainer::new(&zip_path.to_string_lossy().to_string())
             .expect("failed to create ZipContainer");
 
         let image = container
@@ -293,110 +167,14 @@ mod tests {
         assert_eq!(image.width, 1);
         assert_eq!(image.height, 1);
         assert_eq!(image.data, DUMMY_PNG_DATA);
-
-        // Ensure caching works
-        let image_from_cache = container
-            .get_image_from_cache(&String::from("image1.png"))
-            .expect("get_image_from_cache returned Err")
-            .expect("image should be present in cache");
-        assert_eq!(image.data, image_from_cache.data);
     }
 
     #[test]
     fn test_get_image_non_existing() {
         let dir = tempdir().unwrap();
         let zip_path = create_dummy_zip(dir.path(), "test.zip", &[("image1.png", &DUMMY_PNG_DATA)]);
-        let mut container = ZipContainer::new(&zip_path.to_string_lossy().to_string()).unwrap();
+        let container = ZipContainer::new(&zip_path.to_string_lossy().to_string()).unwrap();
         let result = container.get_image(&String::from("non_existent_image.png"));
         assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_request_preload() {
-        let dir = tempdir().unwrap();
-        let zip_path = create_dummy_zip(
-            Path::new(dir.path()),
-            "test.zip",
-            &[
-                ("image1.png", &DUMMY_PNG_DATA),
-                ("image2.png", &DUMMY_PNG_DATA),
-                ("image3.png", &DUMMY_PNG_DATA),
-            ],
-        );
-        let mut container = ZipContainer::new(&zip_path.to_string_lossy().to_string()).unwrap();
-
-        // Preload first two images
-        container.request_preload(0, 2).unwrap();
-
-        // Wait for the threads to finish preloading.
-        sleep(Duration::from_millis(1000));
-
-        assert!(container
-            .cache
-            .lock()
-            .unwrap()
-            .contains_key(&String::from("image1.png")));
-        assert!(container
-            .cache
-            .lock()
-            .unwrap()
-            .contains_key(&String::from("image2.png")));
-        assert!(!container
-            .cache
-            .lock()
-            .unwrap()
-            .contains_key(&String::from("image3.png")));
-
-        // Ensure getting a preloaded image works
-        let image_1 = container.get_image(&String::from("image1.png")).unwrap();
-        assert_eq!(image_1.width, 1);
-
-        // Preload the remaining image
-        container.request_preload(2, 1).unwrap();
-
-        // Wait for the threads to finish preloading.
-        sleep(Duration::from_millis(1000));
-
-        assert!(container
-            .cache
-            .lock()
-            .unwrap()
-            .contains_key(&String::from("image3.png")));
-    }
-
-    #[test]
-    fn test_request_preload_out_of_bounds() {
-        let dir = tempdir().expect("failed to create tempdir");
-        let zip_path = create_dummy_zip(dir.path(), "test.zip", &[("image1.png", &DUMMY_PNG_DATA)]);
-        let mut container = ZipContainer::new(&zip_path.to_string_lossy().to_string())
-            .expect("failed to create ZipContainer");
-
-        // Attempt to preload beyond the number of entries
-        container.request_preload(0, 5).unwrap();
-
-        // Wait for the threads to finish preloading.
-        sleep(Duration::from_millis(1000));
-
-        assert!(container
-            .cache
-            .lock()
-            .expect("failed to lock cache")
-            .contains_key(&String::from("image1.png")));
-        assert_eq!(
-            container.cache.lock().expect("failed to lock cache").len(),
-            1
-        );
-
-        container
-            .request_preload(1, 1)
-            .expect("request_preload failed"); // Should not add anything new
-
-        // Wait for the threads to finish preloading.
-        sleep(Duration::from_millis(1000));
-
-        assert_eq!(
-            container.cache.lock().expect("failed to lock cache").len(),
-            1
-        );
     }
 }

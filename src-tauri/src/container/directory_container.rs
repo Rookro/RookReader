@@ -1,18 +1,12 @@
 use std::{
-    collections::HashMap,
     fs::{read_dir, File},
     io::Read,
     path,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc, Mutex,
-    },
+    sync::Arc,
 };
 
-use threadpool::ThreadPool;
-
 use crate::container::{
-    container::{self, Container, ContainerError, ContainerResult},
+    container::{Container, ContainerError, ContainerResult},
     image::Image,
 };
 
@@ -22,12 +16,6 @@ pub struct DirectoryContainer {
     path: String,
     /// The entries in the directory.
     entries: Vec<String>,
-    /// The image cache.(key: entry name, value: image)
-    cache: Arc<Mutex<HashMap<String, Arc<Image>>>>,
-    /// Thread pool for preloading.
-    thread_pool: ThreadPool,
-    /// Whether is preloading cancel requested.
-    is_preloading_cancel_requested: Arc<AtomicBool>,
 }
 
 impl Container for DirectoryContainer {
@@ -35,74 +23,9 @@ impl Container for DirectoryContainer {
         &self.entries
     }
 
-    fn get_image(&mut self, entry: &String) -> ContainerResult<Arc<Image>> {
-        // Try to get from the cache.
-        if let Some(image_arc) = self.get_image_from_cache(entry)? {
-            log::debug!("Hit cache: {}", entry);
-            return Ok(Arc::clone(&image_arc));
-        }
-
+    fn get_image(&self, entry: &String) -> ContainerResult<Arc<Image>> {
         let image_arc = load_image(&self.path, entry)?;
-        self.cache
-            .lock()
-            .map_err(|e| ContainerError::Other(e.to_string()))?
-            .insert(entry.clone(), image_arc.clone());
-
         Ok(image_arc)
-    }
-
-    fn request_preload(&mut self, begin_index: usize, count: usize) -> ContainerResult<()> {
-        let total_pages = self.entries.len();
-        let end = (begin_index + count).min(total_pages);
-
-        if begin_index >= end {
-            return Ok(());
-        }
-
-        let path = self.path.clone();
-        let entries = self.entries.clone();
-        let cache_mutex = self.cache.clone();
-        let is_cancel_requested = self.is_preloading_cancel_requested.clone();
-
-        self.thread_pool.execute(move || {
-            match preload(
-                begin_index,
-                end,
-                path,
-                entries,
-                cache_mutex,
-                is_cancel_requested,
-            ) {
-                Ok(_) => {
-                    log::debug!("Finished preloading from {} to {}", begin_index, end);
-                }
-                Err(e) => {
-                    log::error!("Error in preloading: {}", e);
-                }
-            }
-        });
-
-        Ok(())
-    }
-
-    fn get_image_from_cache(&self, entry: &String) -> ContainerResult<Option<Arc<Image>>> {
-        Ok(self
-            .cache
-            .lock()
-            .map_err(|e| ContainerError::Other(e.to_string()))?
-            .get(entry)
-            .map(|arc| Arc::clone(arc)))
-    }
-}
-
-impl Drop for DirectoryContainer {
-    fn drop(&mut self) {
-        // Requests preloading cancel and waits for all threads to finish.
-        if !self.is_preloading_cancel_requested.load(Ordering::Relaxed) {
-            self.is_preloading_cancel_requested
-                .store(true, Ordering::Relaxed);
-        }
-        self.thread_pool.join();
     }
 }
 
@@ -137,9 +60,6 @@ impl DirectoryContainer {
         Ok(Self {
             path: path.clone(),
             entries: entries,
-            cache: Arc::new(Mutex::new(HashMap::new())),
-            thread_pool: ThreadPool::new(container::NUM_OF_THREADS),
-            is_preloading_cancel_requested: Arc::new(AtomicBool::new(false)),
         })
     }
 }
@@ -156,48 +76,11 @@ fn load_image(path: &String, entry: &String) -> ContainerResult<Arc<Image>> {
     Ok(Arc::new(Image::new(buffer)?))
 }
 
-fn preload(
-    begin_index: usize,
-    end: usize,
-    path: String,
-    entries: Vec<String>,
-    cache_mutex: Arc<Mutex<HashMap<String, Arc<Image>>>>,
-    is_cancel_requested: Arc<AtomicBool>,
-) -> ContainerResult<()> {
-    for i in begin_index..end {
-        if is_cancel_requested.load(Ordering::Relaxed) {
-            return Ok(());
-        }
-
-        let entry = entries[i].clone();
-
-        // If it's already in the cache, skip it.
-        if cache_mutex
-            .lock()
-            .map_err(|e| ContainerError::Other(e.to_string()))?
-            .contains_key(&entry)
-        {
-            log::debug!("Hit cache so skip preload index: {}", i);
-            continue;
-        }
-
-        let image_arc = load_image(&path, &entry)?;
-        cache_mutex
-            .lock()
-            .map_err(|e| ContainerError::Other(e.to_string()))?
-            .insert(entry.clone(), image_arc.clone());
-    }
-
-    Ok(())
-}
-
 #[cfg(test)]
 mod tests {
     use std::{
         fs::{self, File},
         io::Write,
-        thread::sleep,
-        time::Duration,
     };
 
     use rstest::rstest;
@@ -294,7 +177,7 @@ mod tests {
     fn test_get_image_existing() {
         let dir = tempdir().expect("failed to create tempdir");
         create_dummy_image(dir.path(), "test.png");
-        let mut container = DirectoryContainer::new(&dir.path().to_string_lossy().to_string())
+        let container = DirectoryContainer::new(&dir.path().to_string_lossy().to_string())
             .expect("failed to create DirectoryContainer");
 
         let image = container
@@ -302,104 +185,14 @@ mod tests {
             .expect("get_image should succeed for existing image");
         assert_eq!(image.width, 1);
         assert_eq!(image.height, 1);
-
-        // Ensure caching works
-        let image_from_cache = container
-            .get_image_from_cache(&String::from("test.png"))
-            .expect("get_image_from_cache returned Err")
-            .expect("image should be present in cache");
-        assert_eq!(image.data, image_from_cache.data);
     }
 
     #[test]
     fn test_get_image_non_existing() {
         let dir = tempdir().expect("failed to create tempdir");
-        let mut container = DirectoryContainer::new(&dir.path().to_string_lossy().to_string())
+        let container = DirectoryContainer::new(&dir.path().to_string_lossy().to_string())
             .expect("failed to create DirectoryContainer");
         let result = container.get_image(&String::from("non_existent.png"));
         assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_preload() {
-        let dir = tempdir().expect("failed to create tempdir");
-        create_dummy_image(dir.path(), "1.png");
-        create_dummy_image(dir.path(), "2.png");
-        create_dummy_image(dir.path(), "3.png");
-
-        let mut container = DirectoryContainer::new(&dir.path().to_string_lossy().to_string())
-            .expect("failed to create DirectoryContainer");
-
-        // Preload first two images
-        container.request_preload(0, 2).unwrap();
-
-        // Wait for the threads to finish preloading.
-        sleep(Duration::from_millis(1000));
-
-        assert!(container
-            .cache
-            .lock()
-            .unwrap()
-            .contains_key(&String::from("1.png")));
-        assert!(container
-            .cache
-            .lock()
-            .unwrap()
-            .contains_key(&String::from("2.png")));
-        assert!(!container
-            .cache
-            .lock()
-            .unwrap()
-            .contains_key(&String::from("3.png")));
-
-        // Ensure getting a preloaded image works
-        let image_1 = container.get_image(&String::from("1.png")).unwrap();
-        assert_eq!(image_1.width, 1);
-
-        // Preload the remaining image
-        container.request_preload(2, 1).unwrap();
-
-        // Wait for the threads to finish preloading.
-        sleep(Duration::from_millis(1000));
-
-        assert!(container
-            .cache
-            .lock()
-            .unwrap()
-            .contains_key(&String::from("3.png")));
-    }
-
-    #[test]
-    fn test_preload_out_of_bounds() {
-        let dir = tempdir().expect("failed to create tempdir");
-        create_dummy_image(dir.path(), "1.png");
-        let mut container = DirectoryContainer::new(&dir.path().to_string_lossy().to_string())
-            .expect("failed to create DirectoryContainer");
-
-        // Attempt to preload beyond the number of entries
-        container.request_preload(0, 5).unwrap();
-
-        // Wait for the threads to finish preloading.
-        sleep(Duration::from_millis(1000));
-
-        assert!(container
-            .cache
-            .lock()
-            .expect("failed to lock cache")
-            .contains_key(&String::from("1.png")));
-        assert_eq!(
-            container.cache.lock().expect("failed to lock cache").len(),
-            1
-        );
-
-        container.request_preload(1, 1).unwrap(); // Should not add anything new
-
-        // Wait for the threads to finish preloading.
-        sleep(Duration::from_millis(1000));
-
-        assert_eq!(
-            container.cache.lock().expect("failed to lock cache").len(),
-            1
-        );
     }
 }

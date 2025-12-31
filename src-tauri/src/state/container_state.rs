@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{path::Path, sync::Arc};
 
 use pdfium_render::prelude::PdfRenderConfig;
 
@@ -6,6 +6,7 @@ use crate::{
     container::{
         container::{Container, ContainerError},
         directory_container::DirectoryContainer,
+        image_loader::ImageLoader,
         pdf_container::PdfContainer,
         rar_container::RarContainer,
         zip_container::ZipContainer,
@@ -17,9 +18,11 @@ use crate::{
 /// The container state.
 pub struct ContainerState {
     /// Archive container
-    pub container: Option<Box<dyn Container>>,
+    pub container: Option<Arc<dyn Container>>,
     /// Settings for the archive container
     pub settings: ContainerSettings,
+    /// Image loader.
+    pub image_loader: Option<ImageLoader>,
 }
 
 impl Default for ContainerState {
@@ -27,6 +30,7 @@ impl Default for ContainerState {
         Self {
             container: None,
             settings: ContainerSettings::default(),
+            image_loader: None,
         }
     }
 }
@@ -40,7 +44,9 @@ impl ContainerState {
         let file_path = Path::new(path);
 
         if file_path.is_dir() {
-            self.container = Some(Box::new(DirectoryContainer::new(path)?));
+            let container = Arc::new(DirectoryContainer::new(path)?);
+            self.container = Some(container.clone());
+            self.image_loader = Some(ImageLoader::new(container));
             return Ok(());
         }
 
@@ -48,30 +54,35 @@ impl ContainerState {
             let ext_str = ext.to_string_lossy().to_lowercase();
             match ext_str.as_str() {
                 "zip" => {
-                    self.container = Some(Box::new(ZipContainer::new(path)?));
-                    Ok(())
+                    let container = Arc::new(ZipContainer::new(path)?);
+                    self.container = Some(container.clone());
+                    self.image_loader = Some(ImageLoader::new(container));
                 }
                 "pdf" => {
-                    self.container = Some(Box::new(PdfContainer::new(
+                    let container = Arc::new(PdfContainer::new(
                         path,
                         PdfRenderConfig::default()
                             .set_target_height(self.settings.pdf_rendering_height),
                         self.settings.pdfium_library_path.clone(),
-                    )?));
-                    Ok(())
+                    )?);
+                    self.container = Some(container.clone());
+                    self.image_loader = Some(ImageLoader::new(container));
                 }
                 "rar" => {
-                    self.container = Some(Box::new(RarContainer::new(path)?));
-                    Ok(())
+                    let container = Arc::new(RarContainer::new(path)?);
+                    self.container = Some(container.clone());
+                    self.image_loader = Some(ImageLoader::new(container));
                 }
                 _ => {
                     log::error!("Unsupported Container Type: {}", ext_str);
-                    Err(
-                        ContainerError::Other(format!("Unsupported Container Type: {}", ext_str))
-                            .into(),
-                    )
+                    return Err(ContainerError::Other(format!(
+                        "Unsupported Container Type: {}",
+                        ext_str
+                    ))
+                    .into());
                 }
-            }
+            };
+            Ok(())
         } else {
             log::error!("Failed to get extension. {}", path);
             Err(ContainerError::Other(format!("Failed to get extension. {}", path)).into())
@@ -81,7 +92,24 @@ impl ContainerState {
 
 #[cfg(test)]
 mod tests {
+    use std::path;
+
     use super::*;
+
+    pub fn get_pdfium_lib_path() -> String {
+        let pdfium_path = path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("target")
+            .join("dependencies")
+            .join("pdfium");
+
+        let lib_path = if pdfium_path.clone().join("bin").exists() {
+            pdfium_path.clone().join("bin")
+        } else {
+            pdfium_path.clone().join("lib")
+        };
+
+        lib_path.to_string_lossy().to_string()
+    }
 
     #[test]
     fn test_default_container_state() {
@@ -136,6 +164,7 @@ mod tests {
     #[test]
     fn test_pdf_rendering_height_passed_to_pdf_container() {
         let mut state = ContainerState::default();
+        state.settings.pdfium_library_path = Some(get_pdfium_lib_path());
         state.settings.pdf_rendering_height = 1200;
 
         // This would fail because the file doesn't exist, but it tests that
@@ -170,6 +199,7 @@ mod tests {
     #[test]
     fn test_supported_file_extensions() {
         let mut state = ContainerState::default();
+        state.settings.pdfium_library_path = Some(get_pdfium_lib_path());
         let supported_files = vec![
             ("/path/to/file.zip", "zip"),
             ("/path/to/file.pdf", "pdf"),
@@ -197,6 +227,7 @@ mod tests {
     #[test]
     fn test_case_insensitive_extension() {
         let mut state = ContainerState::default();
+        state.settings.pdfium_library_path = Some(get_pdfium_lib_path());
 
         // Test uppercase extension
         let result = state.open_container(&"/path/to/file.ZIP".to_string());
