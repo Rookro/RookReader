@@ -1,6 +1,6 @@
 use image::{codecs::png::PngEncoder, ExtendedColorType, ImageEncoder};
 use pdfium_render::prelude::{PdfDocument, PdfRenderConfig, Pdfium};
-use std::{fs::File, io::Read, sync::Arc};
+use std::sync::Arc;
 
 use crate::container::{
     container::{Container, ContainerError, ContainerResult},
