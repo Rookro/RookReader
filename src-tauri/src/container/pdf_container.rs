@@ -9,8 +9,8 @@ use crate::container::{
 
 /// A container for PDF archives.
 pub struct PdfContainer {
-    /// Pdf binary data.
-    pdf_binary: Vec<u8>,
+    /// The file path of the container.
+    path: String,
     /// The entries in the container.
     entries: Vec<String>,
     /// Pdf rendering config.
@@ -26,7 +26,7 @@ impl Container for PdfContainer {
 
     fn get_image(&self, entry: &String) -> ContainerResult<Arc<Image>> {
         let pdfium = get_pdfium(&self.library_path)?;
-        let pdf = pdfium.load_pdf_from_byte_slice(&self.pdf_binary, None)?;
+        let pdf = pdfium.load_pdf_from_file(&self.path, None)?;
 
         let image_arc = load_image(&pdf, &self.render_config, entry)?;
         Ok(image_arc)
@@ -44,13 +44,10 @@ impl PdfContainer {
         render_config: PdfRenderConfig,
         library_path: Option<String>,
     ) -> ContainerResult<Self> {
-        let mut buffer = Vec::new();
-        File::open(path)?.read_to_end(&mut buffer)?;
-
         let mut entries: Vec<String> = Vec::new();
         {
             let pdfium = get_pdfium(&library_path)?;
-            let pdf = pdfium.load_pdf_from_byte_slice(&buffer, None)?;
+            let pdf = pdfium.load_pdf_from_file(path, None)?;
 
             for index in 0..pdf.pages().len() {
                 entries.push(format!("{:0>4}", index));
@@ -58,7 +55,7 @@ impl PdfContainer {
         }
 
         Ok(Self {
-            pdf_binary: buffer,
+            path: path.clone(),
             entries,
             render_config: Arc::new(render_config),
             library_path,

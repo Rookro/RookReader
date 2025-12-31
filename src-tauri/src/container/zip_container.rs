@@ -1,8 +1,4 @@
-use std::{
-    fs::File,
-    io::{Cursor, Read},
-    sync::Arc,
-};
+use std::{fs::File, io::Read, sync::Arc};
 
 use zip::ZipArchive;
 
@@ -13,8 +9,8 @@ use crate::container::{
 
 /// A container for Zip archives.
 pub struct ZipContainer {
-    /// The Zip archive file data.
-    archive_binary: Arc<Vec<u8>>,
+    /// The file path of the container.
+    path: String,
     /// The entries in the container.
     entries: Vec<String>,
 }
@@ -25,8 +21,14 @@ impl Container for ZipContainer {
     }
 
     fn get_image(&self, entry: &String) -> ContainerResult<Arc<Image>> {
-        let image_arc = load_image(entry, self.archive_binary.clone())?;
-        Ok(image_arc)
+        let mut buffer = Vec::new();
+        let file = File::open(&self.path)?;
+        let mut archive = ZipArchive::new(file)?;
+        let mut file = archive.by_name(entry)?;
+        file.read_to_end(&mut buffer)?;
+
+        let image = Image::new(buffer)?;
+        Ok(Arc::new(image))
     }
 }
 
@@ -35,12 +37,8 @@ impl ZipContainer {
     ///
     /// * `path` - The path to the archive container.
     pub fn new(path: &String) -> ContainerResult<Self> {
-        let mut buffer = Vec::new();
-        File::open(path)?.read_to_end(&mut buffer)?;
-
-        let archive_binary = Arc::new(buffer);
-        let cursor = Cursor::new(&*archive_binary);
-        let archive = ZipArchive::new(cursor)?;
+        let file = File::open(&path)?;
+        let archive = ZipArchive::new(file)?;
 
         let mut entries: Vec<String> = archive
             .file_names()
@@ -51,21 +49,10 @@ impl ZipContainer {
         entries.sort_by(|a, b| natord::compare_ignore_case(a, b));
 
         Ok(Self {
-            archive_binary,
+            path: path.clone(),
             entries,
         })
     }
-}
-
-fn load_image(entry: &String, archive_binary: Arc<Vec<u8>>) -> ContainerResult<Arc<Image>> {
-    let mut buffer = Vec::new();
-    let cursor = Cursor::new(&*archive_binary);
-    let mut archive = ZipArchive::new(cursor)?;
-    let mut file = archive.by_name(entry)?;
-    file.read_to_end(&mut buffer)?;
-
-    let image = Image::new(buffer)?;
-    Ok(Arc::new(image))
 }
 
 #[cfg(test)]
