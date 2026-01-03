@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { List, RowComponentProps, useListRef } from 'react-window';
-import { Box, Stack } from '@mui/material';
+import { Box, CircularProgress, Stack } from '@mui/material';
 import { join } from '@tauri-apps/api/path';
 import { useAppSelector, useAppDispatch } from '../../Store';
 import { getEntriesInDir, setContainerFilePath, setExploreBasePath, setSearchText } from '../../reducers/FileReducer';
@@ -16,7 +16,7 @@ import { error } from '@tauri-apps/plugin-log';
  * File navigator component.
  */
 export default function FileListViewer() {
-    const { history, historyIndex, entries, searchText, sortOrder } = useAppSelector(state => state.file.explorer);
+    const { history, historyIndex, entries, searchText, sortOrder, isLoading } = useAppSelector(state => state.file.explorer);
     const { history: fileHistory, historyIndex: fileHistoryIndex } = useAppSelector(state => state.file.containerFile);
     const dispatch = useAppDispatch();
 
@@ -106,16 +106,22 @@ export default function FileListViewer() {
             }}
         >
             <NavBar />
-            <Box sx={{ height: 'auto', overflow: 'auto' }}>
-                <List
-                    rowComponent={Row}
-                    rowProps={{ entries: filteredSortedEntries }}
-                    rowCount={filteredSortedEntries.length}
-                    rowHeight={36}
-                    overscanCount={5}
-                    listRef={listRef}
-                />
-            </Box>
+            {isLoading ?
+                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                    <CircularProgress />
+                </Box>
+                :
+                <Box sx={{ height: 'auto', overflow: 'auto' }}>
+                    <List
+                        rowComponent={Row}
+                        rowProps={{ entries: filteredSortedEntries }}
+                        rowCount={filteredSortedEntries.length}
+                        rowHeight={36}
+                        overscanCount={5}
+                        listRef={listRef}
+                    />
+                </Box>
+            }
         </Stack>
     );
 }
