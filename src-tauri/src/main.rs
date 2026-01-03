@@ -2,5 +2,11 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
+    // Use X11 backend on Linux as a workaround for window sizing/positioning issues on Wayland.
+    #[cfg(target_os = "linux")]
+    {
+        std::env::set_var("GDK_BACKEND", "x11");
+    }
+
     rookreader_lib::run();
 }
