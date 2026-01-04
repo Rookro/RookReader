@@ -11,7 +11,7 @@ import { settingsStore } from '../../settings/SettingsStore';
 import { warn } from '@tauri-apps/plugin-log';
 
 /**
- * Navigation bar component for File list viewer component.
+ * Navigation bar component for File navigator component.
  */
 export default function NavBar() {
     const { t } = useTranslation();
