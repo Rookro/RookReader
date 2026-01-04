@@ -19,7 +19,7 @@ export const ItemRow = memo(function ItemRow({
     style: CSSProperties | undefined
 }) {
     return (
-        <Tooltip title={entry} placement="right-start">
+        <Tooltip title={entry} followCursor placement="right-start">
             <ListItem style={style} key={index} component="div" disablePadding dense>
                 <ListItemButton
                     selected={selected}
