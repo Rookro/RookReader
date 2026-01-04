@@ -1,6 +1,6 @@
 {
     "app": {
-        "file-list-viewer": {
+        "file-navigator": {
             "sort-order": {
                 "name-asc": "Name↑",
                 "name-desc": "Name↓",

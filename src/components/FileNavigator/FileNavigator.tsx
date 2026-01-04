@@ -113,7 +113,7 @@ export default function FileListViewer() {
             ) : filteredSortedEntries.length === 0 ? (
                 <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                     <Typography sx={{ overflowWrap: "anywhere" }}>
-                        {searchText.length > 0 ? t('app.file-list-viewer.no-search-results', { searchText }) : t('app.file-list-viewer.no-files')}
+                        {searchText.length > 0 ? t('app.file-navigator.no-search-results', { searchText }) : t('app.file-navigator.no-files')}
                     </Typography>
                 </Box>
             ) : (
