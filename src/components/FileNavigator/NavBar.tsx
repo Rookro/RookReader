@@ -11,7 +11,7 @@ import { settingsStore } from '../../settings/SettingsStore';
 import { warn } from '@tauri-apps/plugin-log';
 
 /**
- * Navigation bar component for File list viewer component.
+ * Navigation bar component for File navigator component.
  */
 export default function NavBar() {
     const { t } = useTranslation();
@@ -139,10 +139,10 @@ export default function NavBar() {
                         sx={{ minWidth: "100px" }}
                         onChange={handleSortOrderChanged}
                     >
-                        <MenuItem value={"NAME_ASC"}>{t('app.file-list-viewer.sort-order.name-asc')}</MenuItem>
-                        <MenuItem value={"NAME_DESC"}>{t('app.file-list-viewer.sort-order.name-desc')}</MenuItem>
-                        <MenuItem value={"DATE_ASC"}>{t('app.file-list-viewer.sort-order.date-asc')}</MenuItem>
-                        <MenuItem value={"DATE_DESC"}>{t('app.file-list-viewer.sort-order.date-desc')}</MenuItem>
+                        <MenuItem value={"NAME_ASC"}>{t('app.file-navigator.sort-order.name-asc')}</MenuItem>
+                        <MenuItem value={"NAME_DESC"}>{t('app.file-navigator.sort-order.name-desc')}</MenuItem>
+                        <MenuItem value={"DATE_ASC"}>{t('app.file-navigator.sort-order.date-asc')}</MenuItem>
+                        <MenuItem value={"DATE_DESC"}>{t('app.file-navigator.sort-order.date-desc')}</MenuItem>
                     </Select>
                     : <></>}
             </Box>

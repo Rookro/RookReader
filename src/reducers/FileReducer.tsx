@@ -68,6 +68,7 @@ export const fileSlice = createSlice({
             entries: [] as DirEntry[],
             searchText: "",
             sortOrder: "NAME_ASC" as SortOrder,
+            isLoading: false,
             error: null as string | null,
         }
     },
@@ -142,14 +143,17 @@ export const fileSlice = createSlice({
         builder
             .addCase(getEntriesInDir.pending, (state) => {
                 state.explorer.entries = [];
+                state.explorer.isLoading = true;
                 state.explorer.error = null;
             })
             .addCase(getEntriesInDir.fulfilled, (state, action: PayloadAction<DirEntry[]>,) => {
                 state.explorer.entries = action.payload;
+                state.explorer.isLoading = false;
                 state.explorer.error = null;
             })
             .addCase(getEntriesInDir.rejected, (state, action) => {
                 state.explorer.entries = [];
+                state.explorer.isLoading = false;
                 state.explorer.error = action.payload as string;
             })
             .addCase(openContainerFile.pending, (state) => {

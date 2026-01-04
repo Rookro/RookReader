@@ -20,14 +20,15 @@ pub struct DirEntry {
 ///
 /// * `dir_path` - The path of the directory to get.
 #[tauri::command()]
-pub fn get_entries_in_dir(dir_path: String) -> Result<Vec<DirEntry>> {
+pub async fn get_entries_in_dir(dir_path: String) -> Result<Vec<DirEntry>> {
     log::debug!("Get the directory entries in {}", dir_path);
     let mut entries: Vec<DirEntry> = Vec::new();
     for entry in read_dir(dir_path)? {
         let entry = entry?;
-        let file_name = entry.file_name().into_string().map_err(|_e| {
-            Error::Path("failed to get file name from DirEntry.".to_string())
-        })?;
+        let file_name = entry
+            .file_name()
+            .into_string()
+            .map_err(|_e| Error::Path("failed to get file name from DirEntry.".to_string()))?;
         let file_type = entry.file_type()?;
         let last_modified = entry.metadata()?.modified()?;
 
@@ -53,23 +54,23 @@ mod tests {
     use std::fs;
     use tempfile::TempDir;
 
-    #[test]
-    fn test_get_entries_in_dir_empty_directory() {
+    #[tokio::test]
+    async fn test_get_entries_in_dir_empty_directory() {
         let temp_dir = TempDir::new().unwrap();
-        let result = get_entries_in_dir(temp_dir.path().to_string_lossy().to_string());
+        let result = get_entries_in_dir(temp_dir.path().to_string_lossy().to_string()).await;
 
         assert!(result.is_ok());
         let entries = result.unwrap();
         assert_eq!(entries.len(), 0);
     }
 
-    #[test]
-    fn test_get_entries_in_dir_with_subdirectory() {
+    #[tokio::test]
+    async fn test_get_entries_in_dir_with_subdirectory() {
         let temp_dir = TempDir::new().unwrap();
         let sub_dir_path = temp_dir.path().join("subdir");
         fs::create_dir(&sub_dir_path).unwrap();
 
-        let result = get_entries_in_dir(temp_dir.path().to_string_lossy().to_string());
+        let result = get_entries_in_dir(temp_dir.path().to_string_lossy().to_string()).await;
 
         assert!(result.is_ok());
         let entries = result.unwrap();
@@ -78,13 +79,13 @@ mod tests {
         assert_eq!(entries[0].name, "subdir");
     }
 
-    #[test]
-    fn test_get_entries_in_dir_with_supported_file() {
+    #[tokio::test]
+    async fn test_get_entries_in_dir_with_supported_file() {
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("test.zip");
         fs::File::create(&file_path).unwrap();
 
-        let result = get_entries_in_dir(temp_dir.path().to_string_lossy().to_string());
+        let result = get_entries_in_dir(temp_dir.path().to_string_lossy().to_string()).await;
 
         assert!(result.is_ok());
         let entries = result.unwrap();
@@ -93,13 +94,13 @@ mod tests {
             .any(|e| e.name == "test.zip" && !e.is_directory));
     }
 
-    #[test]
-    fn test_get_entries_in_dir_with_unsupported_file() {
+    #[tokio::test]
+    async fn test_get_entries_in_dir_with_unsupported_file() {
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("test.txt");
         fs::File::create(&file_path).unwrap();
 
-        let result = get_entries_in_dir(temp_dir.path().to_string_lossy().to_string());
+        let result = get_entries_in_dir(temp_dir.path().to_string_lossy().to_string()).await;
 
         assert!(result.is_ok());
         let entries = result.unwrap();
@@ -107,15 +108,15 @@ mod tests {
         assert!(!entries.iter().any(|e| e.name == "test.txt"));
     }
 
-    #[test]
-    fn test_get_entries_in_dir_nonexistent_directory() {
-        let result = get_entries_in_dir("/nonexistent/path/that/does/not/exist".to_string());
+    #[tokio::test]
+    async fn test_get_entries_in_dir_nonexistent_directory() {
+        let result = get_entries_in_dir("/nonexistent/path/that/does/not/exist".to_string()).await;
 
         assert!(result.is_err());
     }
 
-    #[test]
-    fn test_dir_entry_serialization() {
+    #[tokio::test]
+    async fn test_dir_entry_serialization() {
         let entry = DirEntry {
             is_directory: true,
             name: "test_dir".to_string(),
@@ -127,8 +128,8 @@ mod tests {
         assert!(json.contains("true"));
     }
 
-    #[test]
-    fn test_get_entries_in_dir_mixed_content() {
+    #[tokio::test]
+    async fn test_get_entries_in_dir_mixed_content() {
         let temp_dir = TempDir::new().unwrap();
 
         // Create subdirectory
@@ -140,7 +141,7 @@ mod tests {
         // Create unsupported file
         fs::File::create(temp_dir.path().join("document.txt")).unwrap();
 
-        let result = get_entries_in_dir(temp_dir.path().to_string_lossy().to_string());
+        let result = get_entries_in_dir(temp_dir.path().to_string_lossy().to_string()).await;
 
         assert!(result.is_ok());
         let entries = result.unwrap();
@@ -153,13 +154,13 @@ mod tests {
             .any(|e| !e.is_directory && e.name == "archive.zip"));
     }
 
-    #[test]
-    fn test_dir_entry_last_modified_format() {
+    #[tokio::test]
+    async fn test_dir_entry_last_modified_format() {
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("test.zip");
         fs::File::create(&file_path).unwrap();
 
-        let result = get_entries_in_dir(temp_dir.path().to_string_lossy().to_string());
+        let result = get_entries_in_dir(temp_dir.path().to_string_lossy().to_string()).await;
 
         assert!(result.is_ok());
         let entries = result.unwrap();

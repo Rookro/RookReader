@@ -1,12 +1,14 @@
 {
     "app": {
-        "file-list-viewer": {
+        "file-navigator": {
             "sort-order": {
                 "name-asc": "名前↑",
                 "name-desc": "名前↓",
                 "date-asc": "日付↑",
                 "date-desc": "日付↓"
-            }
+            },
+            "no-files": "表示可能なファイルがありません。",
+            "no-search-results": "\"{{searchText}}\" に一致するファイルはありません。"
         }
     },
     "settings": {

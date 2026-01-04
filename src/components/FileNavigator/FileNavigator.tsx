@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { List, RowComponentProps, useListRef } from 'react-window';
-import { Box, Stack } from '@mui/material';
+import { Box, CircularProgress, Stack, Typography } from '@mui/material';
 import { join } from '@tauri-apps/api/path';
 import { useAppSelector, useAppDispatch } from '../../Store';
 import { getEntriesInDir, setContainerFilePath, setExploreBasePath, setSearchText } from '../../reducers/FileReducer';
@@ -11,12 +11,14 @@ import { DirEntry } from '../../types/DirEntry';
 import { useDirectoryWatcher } from '../../hooks/useDirectoryWatcher';
 import { useFileSelection } from '../../hooks/useFileSelection';
 import { error } from '@tauri-apps/plugin-log';
+import { useTranslation } from 'react-i18next';
 
 /**
  * File navigator component.
  */
 export default function FileListViewer() {
-    const { history, historyIndex, entries, searchText, sortOrder } = useAppSelector(state => state.file.explorer);
+    const { t } = useTranslation();
+    const { history, historyIndex, entries, searchText, sortOrder, isLoading } = useAppSelector(state => state.file.explorer);
     const { history: fileHistory, historyIndex: fileHistoryIndex } = useAppSelector(state => state.file.containerFile);
     const dispatch = useAppDispatch();
 
@@ -100,22 +102,32 @@ export default function FileListViewer() {
         <Stack
             sx={{
                 width: "100%",
-                height: "100%",
-                display: 'grid',
-                alignContent: 'start',
+                height: "100%"
             }}
         >
             <NavBar />
-            <Box sx={{ height: 'auto', overflow: 'auto' }}>
-                <List
-                    rowComponent={Row}
-                    rowProps={{ entries: filteredSortedEntries }}
-                    rowCount={filteredSortedEntries.length}
-                    rowHeight={36}
-                    overscanCount={5}
-                    listRef={listRef}
-                />
-            </Box>
+            {isLoading ? (
+                <Box sx={{ flexGrow: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                    <CircularProgress />
+                </Box>
+            ) : filteredSortedEntries.length === 0 ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                    <Typography sx={{ overflowWrap: "anywhere" }}>
+                        {searchText.length > 0 ? t('app.file-navigator.no-search-results', { searchText }) : t('app.file-navigator.no-files')}
+                    </Typography>
+                </Box>
+            ) : (
+                <Box sx={{ flexGrow: 1, overflow: 'auto' }}>
+                    <List
+                        rowComponent={Row}
+                        rowProps={{ entries: filteredSortedEntries }}
+                        rowCount={filteredSortedEntries.length}
+                        rowHeight={36}
+                        overscanCount={5}
+                        listRef={listRef}
+                    />
+                </Box>
+            )}
         </Stack>
     );
 }

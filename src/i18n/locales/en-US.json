@@ -1,12 +1,14 @@
 {
     "app": {
-        "file-list-viewer": {
+        "file-navigator": {
             "sort-order": {
                 "name-asc": "Name↑",
                 "name-desc": "Name↓",
                 "date-asc": "Date↑",
                 "date-desc": "Date↓"
-            }
+            },
+            "no-files": "No supported files.",
+            "no-search-results": "No results for \"{{searchText}}\"."
         }
     },
     "settings": {
