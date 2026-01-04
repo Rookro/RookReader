@@ -6,7 +6,9 @@
                 "name-desc": "Name↓",
                 "date-asc": "Date↑",
                 "date-desc": "Date↓"
-            }
+            },
+            "no-files": "No supported files.",
+            "no-search-results": "No results for \"{{searchText}}\"."
         }
     },
     "settings": {
