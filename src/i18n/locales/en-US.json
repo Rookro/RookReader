@@ -39,6 +39,13 @@
             "title": "File Navigator",
             "home-directory-title": "Home Directory"
         },
+        "history": {
+            "tab-name": "History",
+            "title": "History Settings",
+            "feature-toggle": {
+                "title": "Reading History"
+            }
+        },
         "rendering": {
             "tab-name": "Rendering",
             "title": "Rendering",

@@ -8,6 +8,7 @@ import TabPanel from '../TabPanel/TabPanel';
 import AboutPage from './AboutPage/AboutPage';
 import FileNavigatorSettings from './FileNavigatorSettings/FileNavigatorSettings';
 import PageSettings from './PageSettings/PageSettings';
+import HistorySettings from './HistorySettings/HistorySettings';
 
 /**
  * Settings page component.
@@ -24,6 +25,7 @@ export default function SettingsView() {
         { label: t('settings.general.tab-name'), panel: <GeneralSettings /> },
         { label: t('settings.page.tab-name'), panel: <PageSettings /> },
         { label: t('settings.file-navigator.tab-name'), panel: <FileNavigatorSettings /> },
+        { label: t('settings.history.tab-name'), panel: <HistorySettings /> },
         { label: t('settings.rendering.tab-name'), panel: <RenderingSettings /> },
         { label: t('settings.developer.tab-name'), panel: <DeveloperSettings /> },
         { label: t('settings.about.tab-name'), panel: <AboutPage /> }

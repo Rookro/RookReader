@@ -39,6 +39,13 @@
             "title": "ファイルナビゲーター",
             "home-directory-title": "ホームディレクトリー"
         },
+        "history": {
+            "tab-name": "履歴",
+            "title": "履歴設定",
+            "feature-toggle": {
+                "title": "読書履歴"
+            }
+        },
         "rendering": {
             "tab-name": "描画設定",
             "title": "描画設定",

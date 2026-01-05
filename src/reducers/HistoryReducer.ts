@@ -5,9 +5,14 @@ import { HistoryEntry } from "../types/HistoryEntry";
 export const historySlice = createSlice({
     name: "history",
     initialState: {
+        isHistoryEnabled: true,
         entries: [] as HistoryEntry[],
     },
     reducers: {
+        setIsHistoryEnabled: (state, action: PayloadAction<boolean>) => {
+            debug(`setIsHistoryEnabled(${action.payload}).`);
+            state.isHistoryEnabled = action.payload;
+        },
         setHistoryEntries: (state, action: PayloadAction<HistoryEntry[]>) => {
             debug(`setHistoryEntries.`);
             state.entries = action.payload;
@@ -16,6 +21,7 @@ export const historySlice = createSlice({
 });
 
 export const {
+    setIsHistoryEnabled,
     setHistoryEntries,
 } = historySlice.actions;
 export default historySlice.reducer;

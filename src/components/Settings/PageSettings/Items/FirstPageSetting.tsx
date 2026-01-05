@@ -37,7 +37,6 @@ export default function FirstPageSetting() {
         });
     }, [dispatch]);
 
-    debug(`First page single view: ${isFirstPageSingleView}`)
     return (
         <Box display="flex">
             <Typography alignContent="center" sx={{ paddingRight: "12px" }}>
