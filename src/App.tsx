@@ -8,6 +8,7 @@ import LeftPane from "./components/LeftPane/LeftPane";
 import NavigationBar from "./components/NavigationBar/NavigationBar";
 import { useAppTheme } from "./hooks/useAppTheme";
 import { useTauriEvent } from "./hooks/useTauriEvent";
+import { useHistoryUpdater } from "./hooks/useHistoryUpdater";
 import { useAppDispatch } from "./Store";
 import { setIsFirstPageSingleView } from "./reducers/ViewReducer";
 import i18n from "./i18n/config";
@@ -15,6 +16,8 @@ import i18n from "./i18n/config";
 export default function App() {
   const theme = useAppTheme();
   const dispatch = useAppDispatch();
+
+  useHistoryUpdater();
 
   const handleLanguageChanged = useCallback((event: { payload: { language: string } }) => {
     debug(`Received language changed event: ${event.payload.language}`);

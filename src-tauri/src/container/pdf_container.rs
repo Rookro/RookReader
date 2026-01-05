@@ -31,6 +31,10 @@ impl Container for PdfContainer {
         let image_arc = load_image(&pdf, &self.render_config, entry)?;
         Ok(image_arc)
     }
+
+    fn is_directory(&self) -> bool {
+        false
+    }
 }
 
 impl PdfContainer {

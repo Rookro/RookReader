@@ -19,6 +19,11 @@ pub trait Container: Send + Sync + 'static {
     ///
     /// * `entry` - The entry name of the image to retrieve.
     fn get_image(&self, entry: &String) -> ContainerResult<Arc<Image>>;
+
+    /// Checks if the container is a directory.
+    ///
+    /// Returns true if it is a directory, false if it is a file.
+    fn is_directory(&self) -> bool;
 }
 
 impl dyn Container {

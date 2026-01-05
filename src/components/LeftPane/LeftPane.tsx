@@ -1,9 +1,10 @@
-import React, { lazy, useState } from "react";
+import React, { JSX, lazy, useState } from "react";
 import { Box, Stack, Tab, Tabs } from "@mui/material";
-import { PhotoLibrary, ViewList } from "@mui/icons-material";
+import { History, PhotoLibrary, ViewList } from "@mui/icons-material";
 import TabPanel from "../TabPanel/TabPanel";
+import HistoryViewer from "../HistoryViewer/HistoryViewer";
 
-const FileListViewer = lazy(() => import("../FileNavigator/FileNavigator"));
+const FileNavigator = lazy(() => import("../FileNavigator/FileNavigator"));
 const ImageEntriesViewer = lazy(() => import("../ImageEntriesViewer/ImageEntriesViewer"));
 
 /**
@@ -15,6 +16,12 @@ export default function LeftPane() {
     const handleChange = (_event: React.SyntheticEvent, newValue: number) => {
         setValue(newValue);
     };
+
+    const tabs: { label: string, icon: JSX.Element, panel: JSX.Element }[] = [
+        { label: "file-navigator", icon: <ViewList />, panel: <FileNavigator /> },
+        { label: "image-entries", icon: <PhotoLibrary />, panel: <ImageEntriesViewer /> },
+        { label: "history", icon: <History />, panel: <HistoryViewer /> },
+    ];
 
     return (
         <Stack
@@ -37,16 +44,16 @@ export default function LeftPane() {
                     },
                 }}
             >
-                <Tab icon={<ViewList />} aria-label="library" />
-                <Tab icon={<PhotoLibrary />} aria-label="image" />
+                {tabs.map((tab, index) => (
+                    <Tab key={index} icon={tab.icon} aria-label={tab.label} />
+                ))}
             </Tabs>
             <Box sx={{ width: '100%', height: '100%', padding: '2px', bgcolor: (theme) => theme.palette.background.default }}>
-                <TabPanel value={value} index={0} sx={{ width: '100%', height: '100%' }}>
-                    <FileListViewer />
-                </TabPanel>
-                <TabPanel value={value} index={1} sx={{ width: '100%', height: '100%' }}>
-                    <ImageEntriesViewer />
-                </TabPanel>
+                {tabs.map((tab, index) => (
+                    <TabPanel value={value} index={index} key={index} sx={{ width: '100%', height: '100%' }}>
+                        {tab.panel}
+                    </TabPanel>
+                ))}
             </Box>
         </Stack>
     );

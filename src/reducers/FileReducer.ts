@@ -18,8 +18,9 @@ export const openContainerFile = createAsyncThunk(
             return rejectWithValue(errorMessage);
         }
         try {
-            const entries = await getEntriesInContainer(path);
-            return entries;
+            const entriesResult = await getEntriesInContainer(path);
+            debug(`openContainerFile: Retrieved ${entriesResult.entries.length} entries. (Container is directory: ${entriesResult.is_directory})`);
+            return entriesResult;
         } catch (e) {
             const errorMessage = `Failed to openContainerFile(${path}). Error: ${e}`;
             error(errorMessage);
@@ -57,6 +58,7 @@ export const fileSlice = createSlice({
         containerFile: {
             history: [] as string[],
             historyIndex: -1,
+            isDirectory: false,
             entries: [] as string[],
             index: 0,
             isLoading: false,
@@ -162,8 +164,9 @@ export const fileSlice = createSlice({
                 state.containerFile.index = 0;
                 state.containerFile.error = null;
             })
-            .addCase(openContainerFile.fulfilled, (state, action: PayloadAction<string[]>,) => {
-                state.containerFile.entries = action.payload;
+            .addCase(openContainerFile.fulfilled, (state, action: PayloadAction<{ entries: string[], is_directory: boolean }>) => {
+                state.containerFile.entries = action.payload.entries;
+                state.containerFile.isDirectory = action.payload.is_directory;
                 state.containerFile.isLoading = false;
                 state.containerFile.index = 0;
                 state.containerFile.error = null;

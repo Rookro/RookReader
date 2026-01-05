@@ -4,9 +4,9 @@ import { invoke } from "@tauri-apps/api/core";
  * Opens a container file and fetches its entries from the backend.
  *
  * @param path The path of the container file.
- * @returns A promise that resolves to an array of entry names.
+ * @returns A promise that resolves to an array of entry names and whether the container is file or directory.
  */
-export const getEntriesInContainer = async (path: string): Promise<string[]> => {
+export const getEntriesInContainer = async (path: string): Promise<{ entries: string[], is_directory: boolean }> => {
     return invoke("get_entries_in_container", { path });
 };
 

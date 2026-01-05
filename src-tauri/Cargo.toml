@@ -44,6 +44,7 @@ threadpool = "1.8.1"
 thiserror = "2.0.17"
 num_cpus = "1.17.0"
 dashmap = "6.1.0"
+tauri-plugin-sql = { version = "2", features = ["sqlite"] }
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-window-state = "2"
