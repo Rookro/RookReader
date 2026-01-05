@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { List, RowComponentProps, useListRef } from "react-window";
 import { Box, InputAdornment, OutlinedInput, Stack } from "@mui/material";
 import { error } from "@tauri-apps/plugin-log";
@@ -8,6 +8,7 @@ import { HistoryEntry } from "../../types/HistoryEntry";
 import { setContainerFilePath } from "../../reducers/FileReducer";
 import { useAppDispatch, useAppSelector } from "../../Store";
 import { useHistorySelection } from "../../hooks/useHistorySelection";
+import { andSearch } from "../../utils/HistoryViewerUtils";
 
 /**
  * History viewer component.
@@ -16,10 +17,15 @@ export default function HistoryViewer() {
     const { history, historyIndex } = useAppSelector((state) => state.file.containerFile);
     const { entries } = useAppSelector((state) => state.history);
     const [selectedIndex, setSelectedIndex] = useState(-1);
+    const [searchText, setSearchText] = useState("");
     const listRef = useListRef(null);
     const dispatch = useAppDispatch();
 
-    useHistorySelection(history[historyIndex], entries, setSelectedIndex);
+    const filteredEntries = useMemo(() => {
+        return andSearch(entries, searchText);
+    }, [entries, searchText]);
+
+    useHistorySelection(history[historyIndex], filteredEntries, setSelectedIndex);
 
     // Scroll to make the selected item visible
     useEffect(() => {
@@ -30,9 +36,9 @@ export default function HistoryViewer() {
         try {
             listRef.current?.scrollToRow({ align: "smart", behavior: "instant", index: selectedIndex });
         } catch (e) {
-            error(`Failed to scroll to row ${selectedIndex} (List length: ${entries.length}): ${e}`);
+            error(`Failed to scroll to row ${selectedIndex} (List length: ${filteredEntries.length}): ${e}`);
         }
-    }, [selectedIndex, listRef, entries]);
+    }, [selectedIndex, listRef, filteredEntries]);
 
     const handleListItemClicked = useCallback(
         async (_e: React.MouseEvent<HTMLDivElement>, entry: HistoryEntry, index: number) => {
@@ -41,6 +47,14 @@ export default function HistoryViewer() {
         },
         [dispatch]
     );
+
+    const handleSearchTextChanged = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setSearchText(e.target.value);
+    };
+
+    const handleContextMenu = (e: React.MouseEvent<HTMLElement>) => {
+        e.stopPropagation();
+    }
 
     const Row = ({
         index,
@@ -71,9 +85,9 @@ export default function HistoryViewer() {
         >
             <OutlinedInput
                 type='search'
-                // value={searchText}
-                // onChange={handleSearchTextChanged}
-                // onContextMenu={handleContextMenu}
+                value={searchText}
+                onChange={handleSearchTextChanged}
+                onContextMenu={handleContextMenu}
                 size="small" fullWidth
                 sx={{
                     paddingLeft: '4px',
@@ -90,8 +104,8 @@ export default function HistoryViewer() {
             <Box sx={{ flexGrow: 1, overflow: 'auto' }}>
                 <List
                     rowComponent={Row}
-                    rowProps={{ entries }}
-                    rowCount={entries.length}
+                    rowProps={{ entries: filteredEntries }}
+                    rowCount={filteredEntries.length}
                     rowHeight={36}
                     overscanCount={5}
                     listRef={listRef}
