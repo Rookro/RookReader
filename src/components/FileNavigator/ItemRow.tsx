@@ -17,8 +17,8 @@ export const ItemRow = memo(function ItemRow({
     entry: DirEntry;
     index: number;
     selected: boolean;
-    onClick: (e: React.MouseEvent<HTMLDivElement>, entry: DirEntry, index: number) => void;
-    onDoubleClick: (e: React.MouseEvent<HTMLDivElement>, entry: DirEntry) => void;
+    onClick?: (e: React.MouseEvent<HTMLDivElement>, entry: DirEntry, index: number) => void;
+    onDoubleClick?: (e: React.MouseEvent<HTMLDivElement>, entry: DirEntry) => void;
     style: CSSProperties | undefined
 }) {
     return (
@@ -26,8 +26,8 @@ export const ItemRow = memo(function ItemRow({
             <ListItem style={style} key={index} component="div" disablePadding dense>
                 <ListItemButton
                     selected={selected}
-                    onClick={(e) => onClick(e, entry, index)}
-                    onDoubleClick={(e) => onDoubleClick(e, entry)}
+                    onClick={(e) => onClick?.(e, entry, index)}
+                    onDoubleClick={(e) => onDoubleClick?.(e, entry)}
                     key={entry.name}
                 >
                     {entry.is_directory ? <Folder /> : <InsertDriveFile />}

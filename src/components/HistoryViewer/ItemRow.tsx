@@ -16,7 +16,7 @@ export const ItemRow = memo(function ItemRow({
     entry: HistoryEntry;
     index: number;
     selected: boolean;
-    onClick: (e: React.MouseEvent<HTMLDivElement>, entry: HistoryEntry, index: number) => void;
+    onClick?: (e: React.MouseEvent<HTMLDivElement>, entry: HistoryEntry, index: number) => void;
     style: CSSProperties | undefined
 }) {
     return (
@@ -37,7 +37,7 @@ export const ItemRow = memo(function ItemRow({
             <ListItem style={style} key={index} component="div" disablePadding dense>
                 <ListItemButton
                     selected={selected}
-                    onClick={(e) => onClick(e, entry, index)}
+                    onClick={(e) => onClick?.(e, entry, index)}
                     key={index}
                     sx={{ padding: '4px 8px' }}
                 >
