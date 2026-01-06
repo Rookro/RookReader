@@ -3,13 +3,16 @@ import { useSelector as rawUseSelector, TypedUseSelectorHook, useDispatch } from
 import FileReducer from "./reducers/FileReducer";
 import ViewReducer from "./reducers/ViewReducer";
 import HistoryReducer from "./reducers/HistoryReducer";
+import { historyMiddleware } from "./middleware/historyMiddleware";
 
 export const store = configureStore({
     reducer: {
         file: FileReducer,
         view: ViewReducer,
         history: HistoryReducer,
-    }
+    },
+    middleware: (getDefaultMiddleware) =>
+        getDefaultMiddleware().concat(historyMiddleware),
 });
 
 export type AppDispatch = typeof store.dispatch;

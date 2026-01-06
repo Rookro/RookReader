@@ -30,6 +30,7 @@ export class HistoryTable {
             path TEXT NOT NULL UNIQUE, \
             type TEXT CHECK(type IN ('FILE', 'DIRECTORY')) NOT NULL, \
             display_name TEXT NOT NULL, \
+            page_index INTEGER NOT NULL DEFAULT 0, \
             last_opened_at DATETIME DEFAULT CURRENT_TIMESTAMP \
             );\
             CREATE INDEX IF NOT EXISTS idx_last_opened_at ON history(last_opened_at DESC);\
@@ -43,22 +44,23 @@ export class HistoryTable {
      * 
      * @param path Full path to the file or directory
      * @param type Whether it's a file or a directory
-     * @param format File extension (e.g., 'zip', 'pdf'), or null for directories
+     * @param index The current page index.
      */
-    async upsert(path: string, type: 'FILE' | 'DIRECTORY') {
+    async upsert(path: string, type: 'FILE' | 'DIRECTORY', index: number | undefined = undefined) {
         if (!this.db) {
             this.db = await Database.load(this.dbName);
         }
         const displayName = await basename(path);
 
         await this.db.execute(
-            "\
-            INSERT INTO history (path, type, display_name, last_opened_at) \
-            VALUES ($1, $2, $3, CURRENT_TIMESTAMP) \
+            `\
+            INSERT INTO history (path, type, display_name, page_index, last_opened_at) \
+            VALUES ($1, $2, $3, ${index ? "$4" : "0"}, CURRENT_TIMESTAMP) \
             ON CONFLICT(path) DO UPDATE SET \
-            last_opened_at = CURRENT_TIMESTAMP \
-            ",
-            [path, type, displayName]
+            ${index ? "page_index = $4, " : ""}\
+            last_opened_at = CURRENT_TIMESTAMP;\
+            `,
+            [path, type, displayName, index]
         );
     }
 
@@ -84,6 +86,19 @@ export class HistoryTable {
         });
         return entries;
     }
+
+    async selectPageIndex(conttainerPath: string) {
+        if (!this.db) {
+            this.db = await Database.load(this.dbName);
+        }
+        const entries = await this.db.select<HistoryEntry[]>(
+            "SELECT page_index FROM history WHERE path = $1",
+            [conttainerPath]
+        );
+
+        return entries[0].page_index;
+    }
+
 
     /**
      * Deletes a specific history entry by its ID.

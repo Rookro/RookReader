@@ -4,6 +4,7 @@ import { useAppDispatch, useAppSelector } from '../Store';
 import { HistoryTable } from '../database/historyTable';
 import { setHistoryEntries, setIsHistoryEnabled } from '../reducers/HistoryReducer';
 import { settingsStore } from '../settings/SettingsStore';
+import { setImageIndex } from '../reducers/FileReducer';
 
 /**
  * Custom hook to update history entries in the database and Redux store.
@@ -59,6 +60,8 @@ export const useHistoryUpdater = () => {
                     await historyTableRef.current.upsert(currentPath, isDirectory ? 'DIRECTORY' : 'FILE');
                     const entries = await historyTableRef.current.selectOrderByLastOpenedAtDesc();
                     dispatch(setHistoryEntries(entries));
+                    const lastPageIndex = await historyTableRef.current.selectPageIndex(currentPath);
+                    dispatch(setImageIndex(lastPageIndex));
                 }
             }
         };
