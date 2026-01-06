@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { List, RowComponentProps, useListRef } from "react-window";
 import { Box, InputAdornment, OutlinedInput, Stack } from "@mui/material";
-import { error } from "@tauri-apps/plugin-log";
 import { Search } from "@mui/icons-material";
+import { dirname } from "@tauri-apps/api/path";
+import { error } from "@tauri-apps/plugin-log";
 import { ItemRow } from "./ItemRow";
 import { HistoryEntry } from "../../types/HistoryEntry";
-import { setContainerFilePath } from "../../reducers/FileReducer";
+import { setContainerFilePath, setExploreBasePath } from "../../reducers/FileReducer";
 import { useAppDispatch, useAppSelector } from "../../Store";
 import { useHistorySelection } from "../../hooks/useHistorySelection";
 import { andSearch } from "../../utils/HistoryViewerUtils";
@@ -43,7 +44,9 @@ export default function HistoryViewer() {
     const handleListItemClicked = useCallback(
         async (_e: React.MouseEvent<HTMLDivElement>, entry: HistoryEntry, index: number) => {
             setSelectedIndex(index);
+            const directoryPath = await dirname(entry.path);
             dispatch(setContainerFilePath(entry.path));
+            dispatch(setExploreBasePath(directoryPath));
         },
         [dispatch]
     );
