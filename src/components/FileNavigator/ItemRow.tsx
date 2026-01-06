@@ -29,6 +29,7 @@ export const ItemRow = memo(function ItemRow({
                     onClick={(e) => onClick?.(e, entry, index)}
                     onDoubleClick={(e) => onDoubleClick?.(e, entry)}
                     key={entry.name}
+                    sx={{ padding: '4px 8px' }}
                 >
                     {entry.is_directory ? <Folder /> : <InsertDriveFile />}
                     <ListItemText primary={entry.name} slotProps={{ primary: { noWrap: true } }} sx={{ marginLeft: "5px" }} />

@@ -26,6 +26,7 @@ export const ItemRow = memo(function ItemRow({
                     onClick={(e) => onClick?.(e, index)}
                     key={entry}
                     sx={{
+                        padding: '4px 8px',
                         '&.Mui-selected': { backgroundColor: (theme) => theme.palette.action.selected },
                         '&.Mui-selected:hover': { backgroundColor: (theme) => theme.palette.action.selected },
                         '&:hover': { backgroundColor: (theme) => theme.palette.action.hover },
