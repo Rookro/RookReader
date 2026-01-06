@@ -1,8 +1,9 @@
-import React, { JSX, lazy, useState } from "react";
+import React, { JSX, lazy, useCallback, useEffect, useMemo, useState } from "react";
 import { Box, Stack, Tab, Tabs } from "@mui/material";
 import { History, PhotoLibrary, ViewList } from "@mui/icons-material";
 import TabPanel from "../TabPanel/TabPanel";
 import HistoryViewer from "../HistoryViewer/HistoryViewer";
+import { useAppSelector } from "../../Store";
 
 const FileNavigator = lazy(() => import("../FileNavigator/FileNavigator"));
 const ImageEntriesViewer = lazy(() => import("../ImageEntriesViewer/ImageEntriesViewer"));
@@ -11,17 +12,30 @@ const ImageEntriesViewer = lazy(() => import("../ImageEntriesViewer/ImageEntries
  * Left pane component.
  */
 export default function LeftPane() {
-    const [value, setValue] = useState(0);
+    const [tabIndex, setTabIndex] = useState(0);
+    const { isHistoryEnabled } = useAppSelector(state => state.history);
 
-    const handleChange = (_event: React.SyntheticEvent, newValue: number) => {
-        setValue(newValue);
-    };
+    const handleChange = useCallback((_event: React.SyntheticEvent, newValue: number) => {
+        setTabIndex(newValue);
+    }, []);
 
-    const tabs: { label: string, icon: JSX.Element, panel: JSX.Element }[] = [
-        { label: "file-navigator", icon: <ViewList />, panel: <FileNavigator /> },
-        { label: "image-entries", icon: <PhotoLibrary />, panel: <ImageEntriesViewer /> },
-        { label: "history", icon: <History />, panel: <HistoryViewer /> },
-    ];
+    const tabs: { label: string, icon: JSX.Element, panel: JSX.Element }[] = useMemo(() => {
+        const tabs = [
+            { label: "file-navigator", icon: <ViewList />, panel: <FileNavigator /> },
+            { label: "image-entries", icon: <PhotoLibrary />, panel: <ImageEntriesViewer /> },
+        ]
+
+        if (isHistoryEnabled) {
+            tabs.push({ label: "history", icon: <History />, panel: <HistoryViewer /> });
+        }
+        return tabs;
+    }, [isHistoryEnabled]);
+
+    useEffect(() => {
+        if (tabs.length - 1 < tabIndex) {
+            setTabIndex(0);
+        }
+    }, [tabs]);
 
     return (
         <Stack
@@ -32,7 +46,7 @@ export default function LeftPane() {
         >
             <Tabs
                 orientation="vertical"
-                value={value}
+                value={tabIndex}
                 onChange={handleChange}
                 aria-label="sidebar-tabs"
                 sx={{
@@ -44,13 +58,13 @@ export default function LeftPane() {
                     },
                 }}
             >
-                {tabs.map((tab, index) => (
-                    <Tab key={index} icon={tab.icon} aria-label={tab.label} />
+                {tabs.map((tab) => (
+                    <Tab key={tab.label} icon={tab.icon} aria-label={tab.label} />
                 ))}
             </Tabs>
             <Box sx={{ width: '100%', height: '100%', padding: '2px', bgcolor: (theme) => theme.palette.background.default }}>
                 {tabs.map((tab, index) => (
-                    <TabPanel value={value} index={index} key={index} sx={{ width: '100%', height: '100%' }}>
+                    <TabPanel value={tabIndex} index={index} key={tab.label} sx={{ width: '100%', height: '100%' }}>
                         {tab.panel}
                     </TabPanel>
                 ))}
