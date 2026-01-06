@@ -55,9 +55,9 @@ export class HistoryTable {
         await this.db.execute(
             `\
             INSERT INTO history (path, type, display_name, page_index, last_opened_at) \
-            VALUES ($1, $2, $3, ${index ? "$4" : "0"}, CURRENT_TIMESTAMP) \
+            VALUES ($1, $2, $3, ${index !== undefined ? "$4" : "0"}, CURRENT_TIMESTAMP) \
             ON CONFLICT(path) DO UPDATE SET \
-            ${index ? "page_index = $4, " : ""}\
+            ${index !== undefined ? "page_index = $4, " : ""}\
             last_opened_at = CURRENT_TIMESTAMP;\
             `,
             [path, type, displayName, index]
