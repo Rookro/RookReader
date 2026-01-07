@@ -2,11 +2,11 @@ import React, { JSX, lazy, useCallback, useEffect, useMemo, useState } from "rea
 import { Box, Stack, Tab, Tabs } from "@mui/material";
 import { History, PhotoLibrary, ViewList } from "@mui/icons-material";
 import TabPanel from "../TabPanel/TabPanel";
-import HistoryViewer from "../HistoryViewer/HistoryViewer";
 import { useAppSelector } from "../../Store";
 
 const FileNavigator = lazy(() => import("../FileNavigator/FileNavigator"));
 const ImageEntriesViewer = lazy(() => import("../ImageEntriesViewer/ImageEntriesViewer"));
+const HistoryViewer = lazy(() => import("../HistoryViewer/HistoryViewer"));
 
 /**
  * Left pane component.
