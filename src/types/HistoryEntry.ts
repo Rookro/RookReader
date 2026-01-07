@@ -3,7 +3,7 @@
  */
 export type HistoryEntry = {
     /** Unique identifier for the history entry */
-    id?: number;
+    id: number;
     /** Full path to the file or directory */
     path: string;
     /** Whether it's a file or a directory */

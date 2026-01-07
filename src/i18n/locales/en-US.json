@@ -9,6 +9,12 @@
             },
             "no-files": "No supported files.",
             "no-search-results": "No results for \"{{searchText}}\"."
+        },
+        "history-viewer": {
+            "menu": {
+                "open": "Open",
+                "remove": "Remove history"
+            }
         }
     },
     "settings": {

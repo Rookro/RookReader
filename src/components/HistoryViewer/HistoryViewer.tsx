@@ -42,7 +42,7 @@ export default function HistoryViewer() {
     }, [selectedIndex, listRef, filteredEntries]);
 
     const handleListItemClicked = useCallback(
-        async (_e: React.MouseEvent<HTMLDivElement>, entry: HistoryEntry, index: number) => {
+        async (_e: React.MouseEvent<HTMLElement>, entry: HistoryEntry, index: number) => {
             setSelectedIndex(index);
             const directoryPath = await dirname(entry.path);
             dispatch(setContainerFilePath(entry.path));

@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { debug } from '@tauri-apps/plugin-log';
 import { useAppDispatch, useAppSelector } from '../Store';
 import { HistoryTable } from '../database/historyTable';
-import { setHistoryEntries, setIsHistoryEnabled } from '../reducers/HistoryReducer';
+import { clearHistory, setHistoryEntries, setIsHistoryEnabled, updateHistoryEntries, upsertHistory } from '../reducers/HistoryReducer';
 import { settingsStore } from '../settings/SettingsStore';
 import { setImageIndex } from '../reducers/FileReducer';
 
@@ -24,9 +24,7 @@ export const useHistoryUpdater = () => {
                 return;
             }
 
-            await historyTableRef.current.init();
-            const entries = await historyTableRef.current.selectOrderByLastOpenedAtDesc();
-            dispatch(setHistoryEntries(entries));
+            dispatch(updateHistoryEntries());
         };
         initHistory();
     }, []);
@@ -36,10 +34,7 @@ export const useHistoryUpdater = () => {
             return;
         }
 
-        const clearHistory = async () => {
-            await historyTableRef.current.deleteAll();
-        };
-        clearHistory();
+        dispatch(clearHistory());
     }, [isHistoryEnabled]);
 
     useEffect(() => {
@@ -57,9 +52,7 @@ export const useHistoryUpdater = () => {
                 const currentPath = history[historyIndex];
                 if (currentPath) {
                     debug(`Update container history: ${currentPath}, ${isDirectory ? 'DIRECTORY' : 'FILE'}`);
-                    await historyTableRef.current.upsert(currentPath, isDirectory ? 'DIRECTORY' : 'FILE');
-                    const entries = await historyTableRef.current.selectOrderByLastOpenedAtDesc();
-                    dispatch(setHistoryEntries(entries));
+                    dispatch(upsertHistory({ path: currentPath, type: isDirectory ? 'DIRECTORY' : 'FILE' }));
                     const lastPageIndex = await historyTableRef.current.selectPageIndex(currentPath);
                     dispatch(setImageIndex(lastPageIndex));
                 }

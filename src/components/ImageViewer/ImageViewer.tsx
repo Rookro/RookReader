@@ -61,8 +61,9 @@ export default function ImageViewer() {
 
             const restoreLastContainer = await settingsStore.get<boolean>("restore-last-container-on-startup") ?? true;
             if (restoreLastContainer) {
-                await new HistoryTable().init();
-                const latestEntry = await new HistoryTable().selectLatestLastOpenedAt();
+                const historyTable = new HistoryTable();
+                await historyTable.init();
+                const latestEntry = await historyTable.selectLatestLastOpenedAt();
                 if (latestEntry) {
                     dispatch(setContainerFilePath(latestEntry.path));
                     dispatch(setExploreBasePath(await dirname(latestEntry.path)));

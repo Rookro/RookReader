@@ -9,6 +9,12 @@
             },
             "no-files": "表示可能なファイルがありません。",
             "no-search-results": "\"{{searchText}}\" に一致するファイルはありません。"
+        },
+        "history-viewer": {
+            "menu": {
+                "open": "開く",
+                "remove": "履歴から削除"
+            }
         }
     },
     "settings": {
