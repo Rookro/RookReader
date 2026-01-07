@@ -43,7 +43,10 @@
             "tab-name": "履歴",
             "title": "履歴設定",
             "feature-toggle": {
-                "title": "読書履歴"
+                "title": "読書履歴: "
+            },
+            "restore-toggle": {
+                "title": "前回の最後に開いていた書籍を起動時に復元する: "
             }
         },
         "rendering": {

@@ -31,7 +31,7 @@ export class HistoryTable {
             type TEXT CHECK(type IN ('FILE', 'DIRECTORY')) NOT NULL, \
             display_name TEXT NOT NULL, \
             page_index INTEGER NOT NULL DEFAULT 0, \
-            last_opened_at DATETIME DEFAULT CURRENT_TIMESTAMP \
+            last_opened_at DATETIME DEFAULT(datetime('subsec')) \
             );\
             CREATE INDEX IF NOT EXISTS idx_last_opened_at ON history(last_opened_at DESC);\
             "
@@ -54,11 +54,11 @@ export class HistoryTable {
 
         await this.db.execute(
             `\
-            INSERT INTO history (path, type, display_name, page_index, last_opened_at) \
-            VALUES ($1, $2, $3, ${index !== undefined ? "$4" : "0"}, CURRENT_TIMESTAMP) \
+            INSERT INTO history (path, type, display_name, page_index) \
+            VALUES ($1, $2, $3, ${index !== undefined ? "$4" : "0"}) \
             ON CONFLICT(path) DO UPDATE SET \
             ${index !== undefined ? "page_index = $4, " : ""}\
-            last_opened_at = CURRENT_TIMESTAMP;\
+            last_opened_at = datetime('subsec');\
             `,
             [path, type, displayName, index]
         );
@@ -85,6 +85,22 @@ export class HistoryTable {
             entry.last_opened_at = new Date(utcDateStr).toLocaleString();
         });
         return entries;
+    }
+
+    /**
+     * Retrieves the latest history entry.
+     * 
+     * @returns The latest history entry.
+     */
+    async selectLatestLastOpenedAt() {
+        if (!this.db) {
+            this.db = await Database.load(this.dbName);
+        }
+        const entries = await this.db.select<HistoryEntry[]>(
+            "SELECT * FROM history ORDER BY last_opened_at DESC LIMIT 1;"
+        );
+
+        return entries[0];
     }
 
     async selectPageIndex(conttainerPath: string) {

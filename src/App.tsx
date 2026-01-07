@@ -13,6 +13,7 @@ import { useAppDispatch } from "./Store";
 import { setIsFirstPageSingleView } from "./reducers/ViewReducer";
 import { setIsHistoryEnabled } from "./reducers/HistoryReducer";
 import i18n from "./i18n/config";
+import { HistorySettingsChangedEvent } from "./types/HistorySettingsChangedEvent";
 
 export default function App() {
   const theme = useAppTheme();
@@ -39,14 +40,14 @@ export default function App() {
   }, [dispatch]);
   useTauriEvent<{ key: string, value: unknown }>('view-settings-changed', handleViewSettingsChanged);
 
-  const handleHistorySettingsChanged = useCallback((event: { payload: { key: string, value: unknown } }) => {
+  const handleHistorySettingsChanged = useCallback((event: { payload: HistorySettingsChangedEvent }) => {
     const payload = event.payload;
     debug(`Received history settings changed event: ${JSON.stringify(payload)}`);
-    if (payload.key === 'isHistoryEnabled' && typeof payload.value === 'boolean') {
-      dispatch(setIsHistoryEnabled(payload.value));
+    if (payload.historyEnabled !== undefined) {
+      dispatch(setIsHistoryEnabled(payload.historyEnabled));
     }
   }, [dispatch]);
-  useTauriEvent<{ key: string, value: unknown }>('history-settings-changed', handleHistorySettingsChanged);
+  useTauriEvent<HistorySettingsChangedEvent>('history-settings-changed', handleHistorySettingsChanged);
 
   return (
     <ThemeProvider theme={theme}>

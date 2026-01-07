@@ -43,7 +43,10 @@
             "tab-name": "History",
             "title": "History Settings",
             "feature-toggle": {
-                "title": "Reading History"
+                "title": "Reading History: "
+            },
+            "restore-toggle": {
+                "title": "Restore last opened book on startup: "
             }
         },
         "rendering": {
