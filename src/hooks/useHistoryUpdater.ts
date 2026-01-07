@@ -17,7 +17,7 @@ export const useHistoryUpdater = () => {
 
     useEffect(() => {
         const initHistory = async () => {
-            const isHistoryEnabled = await settingsStore.get<boolean>("history-enabled") ?? true;
+            const isHistoryEnabled = await settingsStore.get<boolean>("enable-history") ?? true;
             dispatch(setIsHistoryEnabled(isHistoryEnabled));
 
             if (!isHistoryEnabled) {
