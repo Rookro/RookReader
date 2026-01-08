@@ -28,14 +28,14 @@ export const getEntriesInDir = async (dirPath: string): Promise<DirEntry[]> => {
         // name
         const nameLen = view.getUint32(offset);
         offset += 4;
-        const name = decoder.decode(buffer.slice(offset, offset + nameLen));
+        const name = decoder.decode(buffer.subarray(offset, offset + nameLen));
         offset += nameLen;
 
         // last_modified
-        const dateLen = view.getUint32(offset);
-        offset += 4;
-        const last_modified = decoder.decode(buffer.slice(offset, offset + dateLen));
-        offset += dateLen;
+        const timestamp = view.getBigInt64(offset); // BigEndianならRust側も合わせる
+        // Dateオブジェクトが必要ならここで変換、不要ならnumberのまま保持が最速
+        const last_modified = new Date(Number(timestamp)).toISOString();
+        offset += 8;
 
         entries.push({ is_directory, name, last_modified });
     }

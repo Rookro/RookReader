@@ -34,7 +34,10 @@ pub async fn get_entries_in_dir(dir_path: String) -> Result<Response> {
             .map_err(|_e| Error::Path("failed to get file name from DirEntry.".to_string()))?;
         let file_type = entry.file_type()?;
         let last_modified = entry.metadata()?.modified()?;
-        let last_modified_time = DateTime::<Utc>::from(last_modified).to_rfc3339();
+        let since_epoch = last_modified
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default();
+        let timestamp_millis = since_epoch.as_millis() as i64;
 
         if (file_type.is_file() && <dyn Container>::is_supported_format(&file_name))
             || file_type.is_dir()
@@ -47,10 +50,8 @@ pub async fn get_entries_in_dir(dir_path: String) -> Result<Response> {
             buffer.extend_from_slice(&(name_bytes.len() as u32).to_be_bytes());
             buffer.extend_from_slice(name_bytes);
 
-            // last_modified (len: 4 bytes + content)
-            let date_bytes = last_modified_time.as_bytes();
-            buffer.extend_from_slice(&(date_bytes.len() as u32).to_be_bytes());
-            buffer.extend_from_slice(date_bytes);
+            // last_modified (8 bytes)
+            buffer.extend_from_slice(&timestamp_millis.to_be_bytes());
         }
     }
 
