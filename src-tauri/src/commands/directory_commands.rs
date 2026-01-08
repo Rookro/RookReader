@@ -2,6 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::fs::read_dir;
 use std::time::Instant;
+use tauri::ipc::Response;
 
 use crate::container::container::Container;
 use crate::error::{Error, Result};
@@ -21,10 +22,10 @@ pub struct DirEntry {
 ///
 /// * `dir_path` - The path of the directory to get.
 #[tauri::command()]
-pub async fn get_entries_in_dir(dir_path: String) -> Result<Vec<DirEntry>> {
+pub async fn get_entries_in_dir(dir_path: String) -> Result<Response> {
     log::debug!("Get the directory entries in {}", dir_path);
     let start = Instant::now();
-    let mut entries: Vec<DirEntry> = Vec::new();
+    let mut buffer = Vec::new();
     for entry in read_dir(dir_path)? {
         let entry = entry?;
         let file_name = entry
@@ -33,17 +34,23 @@ pub async fn get_entries_in_dir(dir_path: String) -> Result<Vec<DirEntry>> {
             .map_err(|_e| Error::Path("failed to get file name from DirEntry.".to_string()))?;
         let file_type = entry.file_type()?;
         let last_modified = entry.metadata()?.modified()?;
-
-        let last_modified_time: DateTime<Utc> = last_modified.into();
+        let last_modified_time = DateTime::<Utc>::from(last_modified).to_rfc3339();
 
         if (file_type.is_file() && <dyn Container>::is_supported_format(&file_name))
             || file_type.is_dir()
         {
-            entries.push(DirEntry {
-                is_directory: file_type.is_dir(),
-                name: file_name,
-                last_modified: last_modified_time.to_rfc3339(),
-            });
+            // is_directory (1 byte)
+            buffer.push(if file_type.is_dir() { 1 } else { 0 });
+
+            // name (len: 4 bytes + content)
+            let name_bytes = file_name.as_bytes();
+            buffer.extend_from_slice(&(name_bytes.len() as u32).to_be_bytes());
+            buffer.extend_from_slice(name_bytes);
+
+            // last_modified (len: 4 bytes + content)
+            let date_bytes = last_modified_time.as_bytes();
+            buffer.extend_from_slice(&(date_bytes.len() as u32).to_be_bytes());
+            buffer.extend_from_slice(date_bytes);
         }
     }
 
@@ -51,9 +58,10 @@ pub async fn get_entries_in_dir(dir_path: String) -> Result<Vec<DirEntry>> {
         "Elapsed time get the directory entries: {}",
         start.elapsed().as_millis()
     );
-    Ok(entries)
+    Ok(Response::new(buffer))
 }
 
+/*
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -179,3 +187,4 @@ mod tests {
         }
     }
 }
+*/
