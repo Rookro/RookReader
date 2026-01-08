@@ -63,7 +63,7 @@ pub async fn get_entries_in_dir(dir_path: String) -> Result<Response> {
 }
 
 // チャンクサイズ（1回に送るエントリー数。環境に合わせて調整してください）
-const CHUNK_SIZE: usize = 2000;
+const CHUNK_SIZE: usize = 200;
 
 #[tauri::command]
 pub async fn get_entries_stream(dir_path: String, on_event: Channel<Vec<u8>>) -> Result<()> {
