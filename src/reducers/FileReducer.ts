@@ -1,7 +1,7 @@
 import { PayloadAction, createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { debug, error } from '@tauri-apps/plugin-log';
 import { getEntriesInContainer } from "../bindings/ContainerCommands";
-import { getEntriesInDir as getEntriesInDirFromBackend } from "../bindings/DirectoryCommands";
+import { getEntriesStream } from "../bindings/DirectoryCommands";
 import { DirEntry } from "../types/DirEntry";
 import { SortOrder } from "../types/SortOrderType";
 
@@ -34,20 +34,27 @@ export const openContainerFile = createAsyncThunk(
  */
 export const getEntriesInDir = createAsyncThunk(
     "file/getEntriesInDir",
-    async (dirPath: string, { rejectWithValue }) => {
+    async (dirPath: string, { dispatch, rejectWithValue }) => {
         debug(`getEntriesInDir(${dirPath}).`);
         if (!dirPath || dirPath.length === 0) {
             const errorMessage = "Failed to getEntriesInDir. Error: Directory path is empty.";
             error(errorMessage);
             return rejectWithValue(errorMessage);
         }
+
         try {
-            const entries = await getEntriesInDirFromBackend(dirPath);
-            return entries;
-        } catch (e) {
-            const errorMessage = `Failed to getEntriesInDir(${dirPath}). Error: ${e}`;
-            error(errorMessage);
-            return rejectWithValue(errorMessage);
+            // getEntriesStream は前回の回答で作成した Channel を使う関数
+            await getEntriesStream(dirPath, (chunkEntries) => {
+                // ★ここがポイント
+                // データが届くたびに、Sliceの appendEntries アクションを dispatch する
+                dispatch(appendEntries(chunkEntries));
+            });
+
+            // ストリーム完了時の戻り値（fulfilledのpayloadになりますが、今回は使いません）
+            return;
+        } catch (error) {
+            // エラーが発生した場合は reject させる
+            return rejectWithValue(String(error));
         }
     }
 );
@@ -140,6 +147,10 @@ export const fileSlice = createSlice({
                 state.explorer.historyIndex += 1;
             }
         },
+        appendEntries: (state, action: PayloadAction<DirEntry[]>) => {
+            debug("appendEntries");
+            state.explorer.entries.push(...action.payload);
+        },
     },
     extraReducers: (builder) => {
         builder
@@ -148,8 +159,7 @@ export const fileSlice = createSlice({
                 state.explorer.isLoading = true;
                 state.explorer.error = null;
             })
-            .addCase(getEntriesInDir.fulfilled, (state, action: PayloadAction<DirEntry[]>,) => {
-                state.explorer.entries = action.payload;
+            .addCase(getEntriesInDir.fulfilled, (state) => {
                 state.explorer.isLoading = false;
                 state.explorer.error = null;
             })
@@ -191,5 +201,6 @@ export const {
     goForwardContainerHistory,
     goBackExplorerHistory,
     goForwardExplorerHistory,
+    appendEntries,
 } = fileSlice.actions;
 export default fileSlice.reducer;

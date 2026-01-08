@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { Channel, invoke } from "@tauri-apps/api/core";
 import { DirEntry } from "../types/DirEntry";
 import { debug } from "@tauri-apps/plugin-log";
 
@@ -42,4 +42,55 @@ export const getEntriesInDir = async (dirPath: string): Promise<DirEntry[]> => {
     const elapsed2 = performance.now() - start2;
     debug(`elapsed time: ${elapsed1}ms, ${elapsed2}ms`);
     return entries;
+};
+
+
+export const getEntriesStream = async (dirPath: string, onProgress: (entries: DirEntry[]) => void) => {
+    const decoder = new TextDecoder();
+
+    // Tauri v2 の Channel を作成
+    const channel = new Channel<Uint8Array>();
+
+    channel.onmessage = (message) => {
+        // message は Rust から送られた Vec<u8> (JS では number[] か Uint8Array)
+        // データ型が number[] で来る場合があるので Uint8Array に変換
+        const rawData = message instanceof Uint8Array ? message : new Uint8Array(message);
+
+        const view = new DataView(rawData.buffer, rawData.byteOffset, rawData.byteLength);
+        const chunkEntries: DirEntry[] = [];
+        let offset = 0;
+
+        while (offset < rawData.length) {
+            // 1. is_directory
+            const is_directory = view.getUint8(offset) === 1;
+            offset += 1;
+
+            // 2. name
+            const nameLen = view.getUint32(offset); // BigEndian (Rustのto_be_bytesに合わせる)
+            offset += 4;
+
+            // ★高速化ポイント: slice ではなく subarray を使う
+            const name = decoder.decode(rawData.subarray(offset, offset + nameLen));
+            offset += nameLen;
+
+            // 3. timestamp (i64 -> BigInt)
+            const timestamp = view.getBigInt64(offset);
+            offset += 8;
+
+            // Dateオブジェクト作成 (表示用フォーマットはUI描画時にやるのが定石)
+            const last_modified = new Date(Number(timestamp)).toISOString();
+
+            chunkEntries.push({ is_directory, name, last_modified });
+        }
+
+        // コールバックで部分データを渡す
+        onProgress(chunkEntries);
+    };
+
+    // Rustコマンドの呼び出し
+    // 引数名はRust側の引数名(snake_case)ではなくキャメルケースに自動変換される場合があるため注意
+    // Tauri v2では通常 `onEvent` のようにキャメルケース指定でRustの `on_event` にマッピングされます
+    await invoke('get_entries_stream', { dirPath, onEvent: channel });
+
+    console.log("All chunks received");
 };

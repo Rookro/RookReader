@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::fs::read_dir;
 use std::time::Instant;
-use tauri::ipc::Response;
+use tauri::ipc::{Channel, Response};
 
 use crate::container::container::Container;
 use crate::error::{Error, Result};
@@ -60,6 +60,66 @@ pub async fn get_entries_in_dir(dir_path: String) -> Result<Response> {
         start.elapsed().as_millis()
     );
     Ok(Response::new(buffer))
+}
+
+// チャンクサイズ（1回に送るエントリー数。環境に合わせて調整してください）
+const CHUNK_SIZE: usize = 2000;
+
+#[tauri::command]
+pub async fn get_entries_stream(dir_path: String, on_event: Channel<Vec<u8>>) -> Result<()> {
+    log::debug!("Start streaming directory entries in {}", dir_path);
+
+    let mut buffer = Vec::new();
+    let mut count = 0;
+
+    let entries = read_dir(&dir_path).map_err(|e| e.to_string())?;
+
+    for entry in entries {
+        let entry = entry?;
+        let file_name = entry
+            .file_name()
+            .into_string()
+            .map_err(|_e| Error::Path("failed to get file name from DirEntry.".to_string()))?;
+        let file_type = entry.file_type()?;
+        let last_modified = entry.metadata()?.modified()?;
+        let since_epoch = last_modified
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default();
+        let timestamp_millis = since_epoch.as_millis() as i64;
+
+        // 条件フィルタ（適宜調整）
+        let is_dir = file_type.is_dir();
+        // ここでは単純化のためすべてのファイル/ディレクトリを送る前提にします
+
+        // 1. is_directory (1 byte)
+        buffer.push(if is_dir { 1 } else { 0 });
+
+        // 2. name length (4 bytes) + name content
+        let name_bytes = file_name.as_bytes();
+        buffer.extend_from_slice(&(name_bytes.len() as u32).to_be_bytes());
+        buffer.extend_from_slice(name_bytes);
+
+        // 3. timestamp (8 bytes)
+        buffer.extend_from_slice(&timestamp_millis.to_be_bytes());
+
+        count += 1;
+
+        // 指定件数溜まったら送信してバッファをクリア
+        if count >= CHUNK_SIZE {
+            // Channelを通じて送信
+            on_event.send(buffer.clone())?;
+            buffer.clear();
+            count = 0;
+        }
+    }
+
+    // ループ終了後、残りのバッファがあれば送信
+    if !buffer.is_empty() {
+        let _ = on_event.send(buffer);
+    }
+
+    log::debug!("Finished streaming");
+    Ok(())
 }
 
 /*
