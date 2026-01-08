@@ -123,11 +123,7 @@ export default function FileListViewer() {
             }}
         >
             <NavBar />
-            {isLoading ? (
-                <Box sx={{ flexGrow: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                    <CircularProgress />
-                </Box>
-            ) : filteredSortedEntries.length === 0 ? (
+            {filteredSortedEntries.length === 0 && !isLoading ? (
                 <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                     <Typography sx={{ overflowWrap: "anywhere" }}>
                         {searchText.length > 0 ? t('app.file-navigator.no-search-results', { searchText }) : t('app.file-navigator.no-files')}
@@ -145,6 +141,11 @@ export default function FileListViewer() {
                     />
                 </Box>
             )}
+            {isLoading ? (
+                <Box sx={{ flexGrow: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                    <CircularProgress />
+                </Box>
+            ) : <></>}
         </Stack>
     );
 }
