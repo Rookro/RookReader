@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::fs::read_dir;
+use std::time::Instant;
 
 use crate::container::container::Container;
 use crate::error::{Error, Result};
@@ -22,6 +23,7 @@ pub struct DirEntry {
 #[tauri::command()]
 pub async fn get_entries_in_dir(dir_path: String) -> Result<Vec<DirEntry>> {
     log::debug!("Get the directory entries in {}", dir_path);
+    let start = Instant::now();
     let mut entries: Vec<DirEntry> = Vec::new();
     for entry in read_dir(dir_path)? {
         let entry = entry?;
@@ -45,6 +47,10 @@ pub async fn get_entries_in_dir(dir_path: String) -> Result<Vec<DirEntry>> {
         }
     }
 
+    log::debug!(
+        "Elapsed time get the directory entries: {}",
+        start.elapsed().as_millis()
+    );
     Ok(entries)
 }
 
