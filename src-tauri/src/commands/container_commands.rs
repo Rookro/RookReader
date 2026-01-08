@@ -1,5 +1,6 @@
 use std::sync::Mutex;
 
+use serde::{Deserialize, Serialize};
 use tauri::ipc::Response;
 
 use crate::{
@@ -7,9 +8,18 @@ use crate::{
     state::app_state::AppState,
 };
 
+/// The result of getting entries in a container.
+#[derive(Serialize, Deserialize)]
+pub struct EntriesResult {
+    /// The entry names in the container.
+    entries: Vec<String>,
+    /// Whether the container is a directory.
+    is_directory: bool,
+}
+
 /// Gets entries in the specified archive container.
 ///
-/// Returns a list of entry names in the directory.
+/// Returns a list of entry names in the container and whether it's a directory or a file.
 ///
 /// * `path` - The path of the archive container.
 /// * `state` - The application state.
@@ -17,7 +27,7 @@ use crate::{
 pub async fn get_entries_in_container(
     path: String,
     state: tauri::State<'_, Mutex<AppState>>,
-) -> Result<Vec<String>> {
+) -> Result<EntriesResult> {
     log::debug!("Get the entries in {}", path);
     let mut state_lock = state
         .lock()
@@ -26,6 +36,7 @@ pub async fn get_entries_in_container(
     state_lock.container_state.open_container(&path)?;
 
     let entries;
+    let is_directory;
     {
         let container = state_lock
             .container_state
@@ -33,6 +44,7 @@ pub async fn get_entries_in_container(
             .as_ref()
             .ok_or_else(|| Error::Other("Unexpected error. Container is empty!".to_string()))?;
         entries = container.get_entries().clone();
+        is_directory = container.is_directory();
     }
 
     {
@@ -44,7 +56,10 @@ pub async fn get_entries_in_container(
         image_loader.request_preload(0, entries.len())?;
     }
 
-    Ok(entries.clone())
+    Ok(EntriesResult {
+        entries,
+        is_directory,
+    })
 }
 
 /// Gets an image in the specified archive container.
@@ -213,11 +228,12 @@ mod tests {
 
         assert!(result.is_ok());
 
-        let actual_entries = result.unwrap();
-        assert_eq!(expected_entries.len(), actual_entries.len());
-        assert_eq!(expected_entries[0], actual_entries[0]);
-        assert_eq!(expected_entries[1], actual_entries[1]);
-        assert_eq!(expected_entries[2], actual_entries[2]);
+        let actual_entries_result = result.unwrap();
+        assert_eq!(expected_entries.len(), actual_entries_result.entries.len());
+        assert_eq!(expected_entries[0], actual_entries_result.entries[0]);
+        assert_eq!(expected_entries[1], actual_entries_result.entries[1]);
+        assert_eq!(expected_entries[2], actual_entries_result.entries[2]);
+        assert!(!actual_entries_result.is_directory);
     }
 
     #[tokio::test]

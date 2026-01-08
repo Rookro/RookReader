@@ -36,6 +36,10 @@ impl Container for RarContainer {
 
         Err(ContainerError::Other(format!("Entry not found: {}", entry)))
     }
+
+    fn is_directory(&self) -> bool {
+        false
+    }
 }
 
 impl RarContainer {

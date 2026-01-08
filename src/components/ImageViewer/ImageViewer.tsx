@@ -1,4 +1,4 @@
-import { useEffect, useMemo, } from "react";
+import { useEffect, useMemo, useRef, } from "react";
 import { useDispatch } from "react-redux";
 import { Box, CircularProgress } from "@mui/material";
 import { dirname } from "@tauri-apps/api/path";
@@ -11,11 +11,14 @@ import { ViewerSettings, } from "../../utils/ImageUtils";
 import { useFileDrop } from "../../hooks/useFileDrop";
 import { useViewerController } from "../../hooks/useViewerController";
 import { setPdfRenderingHeight } from "../../bindings/ContainerCommands";
+import { HistoryTable } from "../../database/historyTable";
 
 /**
  * Component for displaying images.
  */
 export default function ImageViewer() {
+    const initialized = useRef(false);
+
     const dispatch = useDispatch<AppDispatch>();
     const { history, historyIndex, entries, index, isLoading: isFileLoading } = useAppSelector(state => state.file.containerFile);
     const { isTwoPagedView, direction, isFirstPageSingleView } = useAppSelector(state => state.view);
@@ -43,7 +46,11 @@ export default function ImageViewer() {
     );
 
     useEffect(() => {
-        const initSettings = async () => {
+        if (initialized.current) {
+            return;
+        }
+
+        const init = async () => {
             const isFirstSingle = await settingsStore.get<boolean>("first-page-single-view") ?? true;
             dispatch(setIsFirstPageSingleView(isFirstSingle));
 
@@ -51,9 +58,22 @@ export default function ImageViewer() {
             if (height) {
                 await setPdfRenderingHeight(height);
             }
+
+            const restoreLastContainer = await settingsStore.get<boolean>("restore-last-container-on-startup") ?? true;
+            if (restoreLastContainer) {
+                const historyTable = new HistoryTable();
+                await historyTable.init();
+                const latestEntry = await historyTable.selectLatestLastOpenedAt();
+                if (latestEntry) {
+                    dispatch(setContainerFilePath(latestEntry.path));
+                    dispatch(setExploreBasePath(await dirname(latestEntry.path)));
+                }
+            }
+
+            initialized.current = true;
         };
-        initSettings();
-    }, [dispatch]);
+        init();
+    }, []);
 
     useEffect(() => {
         if (containerPath) {

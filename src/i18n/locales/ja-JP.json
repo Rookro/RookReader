@@ -9,6 +9,12 @@
             },
             "no-files": "表示可能なファイルがありません。",
             "no-search-results": "\"{{searchText}}\" に一致するファイルはありません。"
+        },
+        "history-viewer": {
+            "menu": {
+                "open": "開く",
+                "remove": "履歴から削除"
+            }
         }
     },
     "settings": {
@@ -38,6 +44,16 @@
             "tab-name": "ファイルナビゲーター",
             "title": "ファイルナビゲーター",
             "home-directory-title": "ホームディレクトリー"
+        },
+        "history": {
+            "tab-name": "履歴",
+            "title": "履歴設定",
+            "feature-toggle": {
+                "title": "読書履歴: "
+            },
+            "restore-toggle": {
+                "title": "前回の最後に開いていた書籍を起動時に復元する: "
+            }
         },
         "rendering": {
             "tab-name": "描画設定",

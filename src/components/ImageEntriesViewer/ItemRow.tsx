@@ -15,7 +15,7 @@ export const ItemRow = memo(function ItemRow({
     entry: string;
     index: number;
     selected: boolean;
-    onClick: (e: React.MouseEvent<HTMLDivElement>, index: number) => void;
+    onClick?: (e: React.MouseEvent<HTMLDivElement>, index: number) => void;
     style: CSSProperties | undefined
 }) {
     return (
@@ -23,9 +23,10 @@ export const ItemRow = memo(function ItemRow({
             <ListItem style={style} key={index} component="div" disablePadding dense>
                 <ListItemButton
                     selected={selected}
-                    onClick={(e) => onClick(e, index)}
+                    onClick={(e) => onClick?.(e, index)}
                     key={entry}
                     sx={{
+                        padding: '4px 8px',
                         '&.Mui-selected': { backgroundColor: (theme) => theme.palette.action.selected },
                         '&.Mui-selected:hover': { backgroundColor: (theme) => theme.palette.action.selected },
                         '&:hover': { backgroundColor: (theme) => theme.palette.action.hover },

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { List, RowComponentProps, useListRef } from 'react-window';
 import { Box, CircularProgress, Stack, Typography } from '@mui/material';
 import { join } from '@tauri-apps/api/path';
@@ -24,6 +24,8 @@ export default function FileListViewer() {
 
     const [selectedIndex, setSelectedIndex] = useState(-1);
     const listRef = useListRef(null);
+    const clickTimer = useRef<number | null>(null);
+    const doubleClickIntervalMs = 200;
 
     const filteredSortedEntries = useMemo(() => {
         return andSearch(entries, searchText).slice().sort((a, b) => sortBy(a, b, sortOrder));
@@ -77,6 +79,22 @@ export default function FileListViewer() {
         [dispatch, history, historyIndex]
     );
 
+    const handleListItemClickedWrapper = useCallback(
+        (e: React.MouseEvent<HTMLDivElement>, entry: DirEntry, index: number) => {
+            if (clickTimer.current) {
+                clearTimeout(clickTimer.current);
+                clickTimer.current = null;
+                handleListItemDoubleClicked(e, entry);
+            } else {
+                clickTimer.current = window.setTimeout(() => {
+                    clickTimer.current = null;
+                    handleListItemClicked(e, entry, index);
+                }, doubleClickIntervalMs);
+            }
+        },
+        [handleListItemClicked, handleListItemDoubleClicked]
+    );
+
     const Row = ({
         index,
         entries,
@@ -91,8 +109,7 @@ export default function FileListViewer() {
                 entry={entry}
                 index={index}
                 selected={selectedIndex === index}
-                onClick={handleListItemClicked}
-                onDoubleClick={handleListItemDoubleClicked}
+                onClick={handleListItemClickedWrapper}
                 style={style}
             />
         );

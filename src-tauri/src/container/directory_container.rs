@@ -27,6 +27,10 @@ impl Container for DirectoryContainer {
         let image_arc = load_image(&self.path, entry)?;
         Ok(image_arc)
     }
+
+    fn is_directory(&self) -> bool {
+        true
+    }
 }
 
 impl DirectoryContainer {

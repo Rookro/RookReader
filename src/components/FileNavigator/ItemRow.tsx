@@ -1,6 +1,6 @@
 import { CSSProperties, memo } from 'react';
 import { ListItem, ListItemButton, ListItemText, Tooltip } from '@mui/material';
-import { Folder, InsertDriveFile } from '@mui/icons-material';
+import { FolderOutlined } from '@mui/icons-material';
 import { DirEntry } from '../../types/DirEntry';
 
 /**
@@ -17,8 +17,8 @@ export const ItemRow = memo(function ItemRow({
     entry: DirEntry;
     index: number;
     selected: boolean;
-    onClick: (e: React.MouseEvent<HTMLDivElement>, entry: DirEntry, index: number) => void;
-    onDoubleClick: (e: React.MouseEvent<HTMLDivElement>, entry: DirEntry) => void;
+    onClick?: (e: React.MouseEvent<HTMLDivElement>, entry: DirEntry, index: number) => void;
+    onDoubleClick?: (e: React.MouseEvent<HTMLDivElement>, entry: DirEntry) => void;
     style: CSSProperties | undefined
 }) {
     return (
@@ -26,12 +26,13 @@ export const ItemRow = memo(function ItemRow({
             <ListItem style={style} key={index} component="div" disablePadding dense>
                 <ListItemButton
                     selected={selected}
-                    onClick={(e) => onClick(e, entry, index)}
-                    onDoubleClick={(e) => onDoubleClick(e, entry)}
+                    onClick={(e) => onClick?.(e, entry, index)}
+                    onDoubleClick={(e) => onDoubleClick?.(e, entry)}
                     key={entry.name}
+                    sx={{ padding: '4px 8px' }}
                 >
-                    {entry.is_directory ? <Folder /> : <InsertDriveFile />}
-                    <ListItemText primary={entry.name} slotProps={{ primary: { noWrap: true } }} sx={{ marginLeft: "5px" }} />
+                    <ListItemText primary={entry.name} slotProps={{ primary: { noWrap: true } }} />
+                    {entry.is_directory ? <FolderOutlined fontSize='small' /> : <></>}
                 </ListItemButton>
             </ListItem>
         </Tooltip>
