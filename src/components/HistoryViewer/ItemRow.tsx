@@ -1,6 +1,6 @@
 import { CSSProperties, memo, useCallback, useState } from 'react';
 import { Box, ListItem, ListItemButton, ListItemText, Menu, MenuItem, Tooltip, Typography } from '@mui/material';
-import { Folder } from '@mui/icons-material';
+import { FolderOutlined } from '@mui/icons-material';
 import { useTranslation } from 'react-i18next';
 import { HistoryEntry } from '../../types/HistoryEntry';
 import { useAppDispatch } from '../../Store';
@@ -77,7 +77,7 @@ export const ItemRow = memo(function ItemRow({
                         sx={{ padding: '4px 8px' }}
                     >
                         <ListItemText primary={entry.display_name} slotProps={{ primary: { noWrap: true } }} />
-                        {entry.type === 'DIRECTORY' ? <Folder fontSize="small" /> : <></>}
+                        {entry.type === 'DIRECTORY' ? <FolderOutlined fontSize='small' /> : <></>}
                     </ListItemButton>
                 </ListItem>
             </Tooltip>

@@ -1,6 +1,6 @@
 import { CSSProperties, memo } from 'react';
 import { ListItem, ListItemButton, ListItemText, Tooltip } from '@mui/material';
-import { Folder, InsertDriveFile } from '@mui/icons-material';
+import { FolderOutlined } from '@mui/icons-material';
 import { DirEntry } from '../../types/DirEntry';
 
 /**
@@ -31,8 +31,8 @@ export const ItemRow = memo(function ItemRow({
                     key={entry.name}
                     sx={{ padding: '4px 8px' }}
                 >
-                    {entry.is_directory ? <Folder /> : <InsertDriveFile />}
-                    <ListItemText primary={entry.name} slotProps={{ primary: { noWrap: true } }} sx={{ marginLeft: "5px" }} />
+                    <ListItemText primary={entry.name} slotProps={{ primary: { noWrap: true } }} />
+                    {entry.is_directory ? <FolderOutlined fontSize='small' /> : <></>}
                 </ListItemButton>
             </ListItem>
         </Tooltip>
