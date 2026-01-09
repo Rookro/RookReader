@@ -1,4 +1,5 @@
 import { PayloadAction, createAsyncThunk, createSlice } from "@reduxjs/toolkit";
+import { dirname } from "@tauri-apps/api/path";
 import { debug, error } from '@tauri-apps/plugin-log';
 import { getEntriesInContainer } from "../bindings/ContainerCommands";
 import { getEntriesStream } from "../bindings/DirectoryCommands";
@@ -10,8 +11,10 @@ import { SortOrder } from "../types/SortOrderType";
  */
 export const openContainerFile = createAsyncThunk(
     "file/openContainerFile",
-    async (path: string, { rejectWithValue }) => {
+    async (path: string, { dispatch, rejectWithValue }) => {
         debug(`openContainerFile(${path}).`);
+        await dispatch(getEntriesInDir(await dirname(path)));
+
         if (!path || path.length === 0) {
             const errorMessage = "Failed to getEntriesInDir. Error: Container path is empty.";
             error(errorMessage);

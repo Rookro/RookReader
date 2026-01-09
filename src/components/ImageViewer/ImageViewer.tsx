@@ -66,7 +66,6 @@ export default function ImageViewer() {
                 const latestEntry = await historyTable.selectLatestLastOpenedAt();
                 if (latestEntry) {
                     dispatch(setContainerFilePath(latestEntry.path));
-                    dispatch(setExploreBasePath(await dirname(latestEntry.path)));
                 }
             }
 
@@ -85,7 +84,6 @@ export default function ImageViewer() {
         const handleFileDroped = async () => {
             if (droppedFile && droppedFile.length > 0) {
                 dispatch(setContainerFilePath(droppedFile));
-                dispatch(setExploreBasePath(await dirname(droppedFile)));
             }
         }
         handleFileDroped();
