@@ -1,4 +1,5 @@
 import { PayloadAction, createAsyncThunk, createSlice } from "@reduxjs/toolkit";
+import { dirname } from "@tauri-apps/api/path";
 import { debug, error } from '@tauri-apps/plugin-log';
 import { getEntriesInContainer } from "../bindings/ContainerCommands";
 import { getEntriesInDir as getEntriesInDirFromBackend } from "../bindings/DirectoryCommands";
@@ -10,10 +11,12 @@ import { SortOrder } from "../types/SortOrderType";
  */
 export const openContainerFile = createAsyncThunk(
     "file/openContainerFile",
-    async (path: string, { rejectWithValue }) => {
+    async (path: string, { dispatch, rejectWithValue }) => {
         debug(`openContainerFile(${path}).`);
+        await dispatch(setExploreBasePath(await dirname(path)));
+
         if (!path || path.length === 0) {
-            const errorMessage = "Failed to getEntriesInDir. Error: Container path is empty.";
+            const errorMessage = "Failed to openContainerFile. Error: Container path is empty.";
             error(errorMessage);
             return rejectWithValue(errorMessage);
         }
@@ -29,13 +32,10 @@ export const openContainerFile = createAsyncThunk(
     }
 );
 
-/**
- * Gets file entries in a directory.
- */
-export const getEntriesInDir = createAsyncThunk(
-    "file/getEntriesInDir",
+export const setExploreBasePath = createAsyncThunk(
+    "file/setExploreBasePath",
     async (dirPath: string, { rejectWithValue }) => {
-        debug(`getEntriesInDir(${dirPath}).`);
+        debug(`setExploreBasePath(${dirPath}).`);
         if (!dirPath || dirPath.length === 0) {
             const errorMessage = "Failed to getEntriesInDir. Error: Directory path is empty.";
             error(errorMessage);
@@ -43,7 +43,7 @@ export const getEntriesInDir = createAsyncThunk(
         }
         try {
             const entries = await getEntriesInDirFromBackend(dirPath);
-            return entries;
+            return { path: dirPath, entries: entries };
         } catch (e) {
             const errorMessage = `Failed to getEntriesInDir(${dirPath}). Error: ${e}`;
             error(errorMessage);
@@ -93,21 +93,6 @@ export const fileSlice = createSlice({
             debug(`setImageIndex(${action.payload}).`);
             state.containerFile.index = action.payload;
         },
-        setExploreBasePath: (state, action: PayloadAction<string>) => {
-            debug(`setExploreBasePath(${action.payload}).`);
-            if (state.explorer.history.length > 0 && state.explorer.history[state.explorer.historyIndex] === action.payload) {
-                return;
-            }
-
-            debug(`setExploreBasePath: Update history.`);
-            if (state.explorer.historyIndex !== state.explorer.history.length - 1) {
-                state.explorer.history = state.explorer.history.slice(0, state.explorer.historyIndex + 1);
-            }
-            state.explorer.history.push(action.payload);
-            state.explorer.historyIndex = state.explorer.history.length - 1;
-
-            state.explorer.searchText = "";
-        },
         setSearchText: (state, action: PayloadAction<string>) => {
             debug(`setSearchText(${action.payload}).`);
             state.explorer.searchText = action.payload;
@@ -143,17 +128,29 @@ export const fileSlice = createSlice({
     },
     extraReducers: (builder) => {
         builder
-            .addCase(getEntriesInDir.pending, (state) => {
+            .addCase(setExploreBasePath.pending, (state) => {
                 state.explorer.entries = [];
                 state.explorer.isLoading = true;
                 state.explorer.error = null;
             })
-            .addCase(getEntriesInDir.fulfilled, (state, action: PayloadAction<DirEntry[]>,) => {
-                state.explorer.entries = action.payload;
+            .addCase(setExploreBasePath.fulfilled, (state, action: PayloadAction<{ path: string, entries: DirEntry[] }>,) => {
+                state.explorer.entries = action.payload.entries;
                 state.explorer.isLoading = false;
                 state.explorer.error = null;
+
+                if (state.explorer.history.length > 0 && state.explorer.history[state.explorer.historyIndex] === action.payload.path) {
+                    return;
+                }
+
+                debug(`setExploreBasePath: Update history.`);
+                if (state.explorer.historyIndex !== state.explorer.history.length - 1) {
+                    state.explorer.history = state.explorer.history.slice(0, state.explorer.historyIndex + 1);
+                }
+                state.explorer.history.push(action.payload.path);
+                state.explorer.historyIndex = state.explorer.history.length - 1;
+                state.explorer.searchText = "";
             })
-            .addCase(getEntriesInDir.rejected, (state, action) => {
+            .addCase(setExploreBasePath.rejected, (state, action) => {
                 state.explorer.entries = [];
                 state.explorer.isLoading = false;
                 state.explorer.error = action.payload as string;
@@ -177,14 +174,12 @@ export const fileSlice = createSlice({
                 state.containerFile.index = 0;
                 state.containerFile.error = action.payload as string;
             });
-
     }
 });
 
 export const {
     setContainerFilePath,
     setImageIndex,
-    setExploreBasePath,
     setSearchText,
     setSortOrder,
     goBackContainerHistory,
