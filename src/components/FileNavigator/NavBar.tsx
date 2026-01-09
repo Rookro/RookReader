@@ -5,7 +5,7 @@ import { dirname, homeDir } from '@tauri-apps/api/path';
 import { ArrowBack, ArrowForward, ArrowUpward, Home, Refresh, Search, } from '@mui/icons-material';
 import { Box, IconButton, InputAdornment, MenuItem, OutlinedInput, Select, SelectChangeEvent, Stack } from '@mui/material';
 import { AppDispatch, useAppSelector } from '../../Store';
-import { getEntriesInDir, goBackExplorerHistory, goForwardExplorerHistory, setExploreBasePath, setSearchText, setSortOrder } from '../../reducers/FileReducer';
+import { goBackExplorerHistory, goForwardExplorerHistory, setExploreBasePath, setSearchText, setSortOrder } from '../../reducers/FileReducer';
 import { SortOrder } from '../../types/SortOrderType';
 import { settingsStore } from '../../settings/SettingsStore';
 import { warn } from '@tauri-apps/plugin-log';
@@ -15,7 +15,7 @@ import { warn } from '@tauri-apps/plugin-log';
  */
 export default function NavBar() {
     const { t } = useTranslation();
-    const { history, historyIndex, searchText, sortOrder } = useAppSelector(state => state.file.explorer);
+    const { history, historyIndex, searchText, sortOrder, entries } = useAppSelector(state => state.file.explorer);
     const dispatch = useDispatch<AppDispatch>();
 
     const [width, setWidth] = React.useState(0);
@@ -31,8 +31,10 @@ export default function NavBar() {
     }
 
     useEffect(() => {
-        const dirPath = historyIndex === -1 ? undefined : history[historyIndex]
-        setDirParh(dirPath);
+        if (entries.length === 0) {
+            const dirPath = historyIndex === -1 ? undefined : history[historyIndex]
+            setDirParh(dirPath);
+        }
 
         const element = navButtonsRef.current
         if (!element) {
@@ -79,7 +81,7 @@ export default function NavBar() {
     }
 
     const handleRefleshClicked = async (_e: React.MouseEvent<HTMLButtonElement>) => {
-        dispatch(getEntriesInDir(history[historyIndex]));
+        dispatch(setExploreBasePath(history[historyIndex]));
     }
 
     const handleSearchTextChanged = (e: React.ChangeEvent<HTMLInputElement>) => {
