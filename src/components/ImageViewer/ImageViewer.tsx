@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useRef, } from "react";
 import { useDispatch } from "react-redux";
 import { Box, CircularProgress } from "@mui/material";
-import { dirname } from "@tauri-apps/api/path";
 import { AppDispatch, useAppSelector } from '../../Store';
-import { openContainerFile, setContainerFilePath, setExploreBasePath } from "../../reducers/FileReducer";
+import { openContainerFile, setContainerFilePath } from "../../reducers/FileReducer";
 import { setIsFirstPageSingleView } from "../../reducers/ViewReducer";
 import { settingsStore } from "../../settings/SettingsStore";
 import { usePageNavigation } from "../../hooks/usePageNavigation";
