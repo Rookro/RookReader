@@ -51,7 +51,7 @@ export default function NavigationBar() {
                 url: '/#/settings',
                 title: 'Settings',
                 parent: "main",
-                width: 600,
+                width: 800,
                 height: 400,
                 resizable: true,
                 center: true,
