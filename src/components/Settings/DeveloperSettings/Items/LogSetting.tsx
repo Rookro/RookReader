@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Box, IconButton, MenuItem, OutlinedInput, Select, SelectChangeEvent, Stack, Typography } from "@mui/material";
-import { Folder } from "@mui/icons-material";
+import { IconButton, ListItem, ListItemIcon, ListItemText, MenuItem, Select, SelectChangeEvent, TextField } from "@mui/material";
+import { FilterListOutlined, FolderOpen, SourceOutlined } from "@mui/icons-material";
 import { openPath } from '@tauri-apps/plugin-opener';
 import { appLogDir } from "@tauri-apps/api/path";
 import { settingsStore } from "../../../../settings/SettingsStore";
@@ -39,31 +39,38 @@ export default function LogSetting() {
     }
 
     return (
-        <Stack spacing={1} >
-            <Box display="flex">
-                <Typography alignContent="center">{t('settings.developer.log.log-directory')}</Typography>
-                <OutlinedInput
-                    type="text"
+        <>
+            <ListItem>
+                <ListItemIcon><SourceOutlined /></ListItemIcon>
+                <ListItemText primary={t('settings.developer.log.log-directory')} />
+                <TextField
+                    variant="standard"
                     value={logDir}
                     size="small"
-                    readOnly
+                    slotProps={{ input: { readOnly: true } }}
                     sx={{
                         width: '80%',
-                        marginLeft: '16px',
-                        marginRight: '5px',
+                        marginLeft: '4px',
+                        marginRight: '4px',
                     }}
                 />
                 <IconButton size="small" onClick={handleFolderClicked} >
-                    <Folder />
+                    <FolderOpen />
                 </IconButton>
-            </Box>
-            <Box className="log-level" display="flex">
-                <Typography alignContent="center">{t('settings.developer.log.log-level.title')}</Typography>
+            </ListItem>
+            <ListItem>
+                <ListItemIcon><FilterListOutlined /></ListItemIcon>
+                <ListItemText
+                    primary={t('settings.developer.log.log-level.title')}
+                    secondary={t('settings.developer.log.log-level.description')}
+                />
                 <Select
-                    size="small"
+                    label={t('settings.developer.log.log-level.title')}
+                    variant="standard"
                     value={logLevel}
                     onChange={handleLogLevelChanged}
-                    sx={{ marginLeft: '16px', marginRight: '16px' }}
+                    sx={{ minWidth: 80 }}
+                    size="small"
                 >
                     <MenuItem value="Trace">{t('settings.developer.log.log-level.trace')}</MenuItem>
                     <MenuItem value="Debug">{t('settings.developer.log.log-level.debug')}</MenuItem>
@@ -71,8 +78,7 @@ export default function LogSetting() {
                     <MenuItem value="Warn">{t('settings.developer.log.log-level.warn')}</MenuItem>
                     <MenuItem value="Error">{t('settings.developer.log.log-level.error')}</MenuItem>
                 </Select>
-                <Typography variant="body2" alignContent="center">{t('settings.developer.log.log-level.description')}</Typography>
-            </Box>
-        </Stack>
+            </ListItem>
+        </>
     );
 }
