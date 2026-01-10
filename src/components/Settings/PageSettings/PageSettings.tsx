@@ -15,6 +15,5 @@ export default function PageSettings() {
                 <FirstPageSetting />
             </List>
         </SettingsPanel>
-
     );
 }

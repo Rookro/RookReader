@@ -54,8 +54,8 @@ export default function HomeDirSetting() {
                 size="small"
                 sx={{
                     width: '80%',
-                    marginLeft: '16px',
-                    marginRight: '5px',
+                    marginLeft: '4px',
+                    marginRight: '4px',
                 }}
             />
             <IconButton size="small" onClick={handleFolderClicked} >
