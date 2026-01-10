@@ -102,16 +102,23 @@ export default function FileListViewer() {
         entries: DirEntry[];
     }>) => {
         const entry = entries[index];
-        return (
-            <ItemRow
-                key={entry.name}
-                entry={entry}
-                index={index}
-                selected={selectedIndex === index}
-                onClick={handleListItemClickedWrapper}
-                style={style}
-            />
-        );
+
+        if (entry) {
+            return (
+                <ItemRow
+                    key={entry.name}
+                    entry={entry}
+                    index={index}
+                    selected={selectedIndex === index}
+                    onClick={handleListItemClickedWrapper}
+                    style={style}
+                />
+            );
+        } else {
+            return (
+                <CircularProgress />
+            );
+        }
     }
 
     return (
@@ -122,11 +129,7 @@ export default function FileListViewer() {
             }}
         >
             <NavBar />
-            {isLoading ? (
-                <Box sx={{ flexGrow: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                    <CircularProgress />
-                </Box>
-            ) : filteredSortedEntries.length === 0 ? (
+            {filteredSortedEntries.length === 0 ? (
                 <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                     <Typography sx={{ overflowWrap: "anywhere" }}>
                         {searchText.length > 0 ? t('app.file-navigator.no-search-results', { searchText }) : t('app.file-navigator.no-files')}
@@ -137,7 +140,7 @@ export default function FileListViewer() {
                     <List
                         rowComponent={Row}
                         rowProps={{ entries: filteredSortedEntries }}
-                        rowCount={filteredSortedEntries.length}
+                        rowCount={isLoading ? filteredSortedEntries.length + 1 : filteredSortedEntries.length}
                         rowHeight={36}
                         overscanCount={5}
                         listRef={listRef}
