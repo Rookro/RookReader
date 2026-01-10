@@ -1,12 +1,12 @@
 import { useTranslation } from "react-i18next";
-import { Box, Typography } from "@mui/material";
+import { Box, Divider, Typography } from "@mui/material";
 import HomeDirSetting from "./Items/HomeDirSetting"
 import DirWatchSetting from "./Items/DirWatchSetting";
 
 /**
- * General settings component.
+ * File navigator settings component.
  */
-export default function GeneralSettings() {
+export default function FileNavigatorSettings() {
     const { t } = useTranslation();
 
     return (
