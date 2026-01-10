@@ -43,7 +43,11 @@
         "file-navigator": {
             "tab-name": "ファイルナビゲーター",
             "title": "ファイルナビゲーター",
-            "home-directory-title": "ホームディレクトリー"
+            "home-directory-title": "ホームディレクトリー",
+            "dir-watch": {
+                "title": "ディレクトリー/ファイルの変更監視を有効にする: ",
+                "warn-message": "注意：この機能を有効にすると、大量のファイルを含むディレクトリにアクセスした際、システム負荷が高くなるおそれがあります。"
+            }
         },
         "history": {
             "tab-name": "履歴",

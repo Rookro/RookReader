@@ -43,7 +43,11 @@
         "file-navigator": {
             "tab-name": "File Navigator",
             "title": "File Navigator",
-            "home-directory-title": "Home Directory"
+            "home-directory-title": "Home Directory",
+            "dir-watch": {
+                "title": "Watch a directory or file for changes: ",
+                "warn-message": "Caution: Enabling this feature may cause high system load when accessing directories with a large volume of files."
+            }
         },
         "history": {
             "tab-name": "History",
