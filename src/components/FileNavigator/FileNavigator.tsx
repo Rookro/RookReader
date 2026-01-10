@@ -32,18 +32,15 @@ export default function FileListViewer() {
     }, [entries, sortOrder, searchText]);
 
     const updateEntriesCallback = useCallback(() => {
-        const dirPath = history[historyIndex];
-        if (dirPath) {
-            dispatch(updateExploreBasePath({ dirPath, forceUpdate: true }));
-        }
+        dispatch(updateExploreBasePath({ dirPath: history[historyIndex], forceUpdate: true }));
     }, [history, historyIndex, dispatch]);
-
-    useEffect(() => {
-        updateEntriesCallback();
-    }, [updateEntriesCallback]);
 
     useDirectoryWatcher(history[historyIndex], updateEntriesCallback);
     useFileSelection(fileHistory, fileHistoryIndex, filteredSortedEntries, setSelectedIndex);
+
+    useEffect(() => {
+        dispatch(updateExploreBasePath({ dirPath: history[historyIndex] }));
+    }, [history, historyIndex, dispatch]);
 
     // Scroll to make the selected item visible
     useEffect(() => {
