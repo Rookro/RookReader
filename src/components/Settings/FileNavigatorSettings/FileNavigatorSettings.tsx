@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { Box, Divider, Typography } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 import HomeDirSetting from "./Items/HomeDirSetting"
 import DirWatchSetting from "./Items/DirWatchSetting";
 
