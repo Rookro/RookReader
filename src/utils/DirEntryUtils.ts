@@ -13,7 +13,7 @@ import { DirEntry } from "../types/DirEntry";
  * @returns A promise that resolves to an array of DirEntry objects.
  */
 export const convertEntriesInDir = (entriesData: ArrayBuffer) => {
-    const buffer = new Uint8Array(entriesData);
+    const buffer = entriesData instanceof Uint8Array ? entriesData : new Uint8Array(entriesData);
     const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
     const decoder = new TextDecoder();
 

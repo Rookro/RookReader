@@ -3,7 +3,7 @@ import { List, RowComponentProps, useListRef } from 'react-window';
 import { Box, CircularProgress, Stack, Typography } from '@mui/material';
 import { join } from '@tauri-apps/api/path';
 import { useAppSelector, useAppDispatch } from '../../Store';
-import { setContainerFilePath, setExploreBasePath, setSearchText } from '../../reducers/FileReducer';
+import { setContainerFilePath, setSearchText, updateExploreBasePath } from '../../reducers/FileReducer';
 import { andSearch, sortBy } from '../../utils/FileNavigatorUtils';
 import NavBar from './NavBar';
 import { ItemRow } from './ItemRow';
@@ -32,11 +32,12 @@ export default function FileListViewer() {
     }, [entries, sortOrder, searchText]);
 
     const updateEntriesCallback = useCallback(() => {
-        const dirPath = history[historyIndex];
-        if (dirPath) {
-            dispatch(setExploreBasePath(dirPath));
-        }
+        dispatch(updateExploreBasePath({ dirPath: history[historyIndex], forceUpdate: true }));
     }, [history, historyIndex, dispatch]);
+
+    useEffect(() => {
+        updateEntriesCallback();
+    }, [updateEntriesCallback]);
 
     useDirectoryWatcher(history[historyIndex], updateEntriesCallback);
     useFileSelection(fileHistory, fileHistoryIndex, filteredSortedEntries, setSelectedIndex);
@@ -68,7 +69,7 @@ export default function FileListViewer() {
             if (entry.is_directory) {
                 const path = await join(history[historyIndex], entry.name);
                 dispatch(setSearchText(""));
-                dispatch(setExploreBasePath(path));
+                dispatch(updateExploreBasePath({ dirPath: path }));
             }
         },
         [dispatch, history, historyIndex]
