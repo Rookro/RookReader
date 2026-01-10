@@ -1,25 +1,37 @@
 import { PayloadAction, createAsyncThunk, createSlice } from "@reduxjs/toolkit";
+import { dirname } from "@tauri-apps/api/path";
 import { debug, error } from '@tauri-apps/plugin-log';
 import { getEntriesInContainer } from "../bindings/ContainerCommands";
 import { getEntriesInDir as getEntriesInDirFromBackend } from "../bindings/DirectoryCommands";
 import { DirEntry } from "../types/DirEntry";
 import { SortOrder } from "../types/SortOrderType";
+import { convertEntriesInDir } from "../utils/DirEntryUtils";
+import { AppDispatch, RootState } from "../Store";
+
+export const createAppAsyncThunk = createAsyncThunk.withTypes<{
+    state: RootState;
+    dispatch: AppDispatch;
+    rejectValue: string;
+}>();
 
 /**
  * Opens a container file.
  */
-export const openContainerFile = createAsyncThunk(
+export const openContainerFile = createAppAsyncThunk(
     "file/openContainerFile",
-    async (path: string, { rejectWithValue }) => {
+    async (path: string, { dispatch, rejectWithValue }) => {
         debug(`openContainerFile(${path}).`);
         if (!path || path.length === 0) {
-            const errorMessage = "Failed to getEntriesInDir. Error: Container path is empty.";
+            const errorMessage = "Failed to openContainerFile. Error: Container path is empty.";
             error(errorMessage);
             return rejectWithValue(errorMessage);
         }
         try {
             const entriesResult = await getEntriesInContainer(path);
             debug(`openContainerFile: Retrieved ${entriesResult.entries.length} entries. (Container is directory: ${entriesResult.is_directory})`);
+            const dirPath = await dirname(path);
+            dispatch(updateExploreBasePath({ dirPath }));
+
             return entriesResult;
         } catch (e) {
             const errorMessage = `Failed to openContainerFile(${path}). Error: ${e}`;
@@ -30,20 +42,30 @@ export const openContainerFile = createAsyncThunk(
 );
 
 /**
- * Gets file entries in a directory.
+ * Updates the explore base path and entries.
  */
-export const getEntriesInDir = createAsyncThunk(
-    "file/getEntriesInDir",
-    async (dirPath: string, { rejectWithValue }) => {
-        debug(`getEntriesInDir(${dirPath}).`);
+export const updateExploreBasePath = createAppAsyncThunk(
+    "file/updateExploreBasePath",
+    async (args: { dirPath: string, forceUpdate?: boolean }, { dispatch, getState, rejectWithValue }) => {
+        const { dirPath, forceUpdate } = args;
+        debug(`updateExploreBasePath(${dirPath}).`);
         if (!dirPath || dirPath.length === 0) {
-            const errorMessage = "Failed to getEntriesInDir. Error: Directory path is empty.";
+            const errorMessage = "Failed to updateExploreBasePath. Error: Directory path is empty.";
             error(errorMessage);
             return rejectWithValue(errorMessage);
         }
+
+        const state = getState();
+        if (!forceUpdate && state.file.explorer.history[state.file.explorer.historyIndex] === dirPath) {
+            return undefined;
+        }
+
+        dispatch(setIsDirEntriesLoading(true));
+        dispatch(setExploreBasePath(dirPath));
         try {
-            const entries = await getEntriesInDirFromBackend(dirPath);
-            return entries;
+            const buffer = await getEntriesInDirFromBackend(dirPath);
+            const entries = convertEntriesInDir(buffer);
+            return { path: dirPath, entries: entries };
         } catch (e) {
             const errorMessage = `Failed to getEntriesInDir(${dirPath}). Error: ${e}`;
             error(errorMessage);
@@ -72,6 +94,7 @@ export const fileSlice = createSlice({
             sortOrder: "NAME_ASC" as SortOrder,
             isLoading: false,
             error: null as string | null,
+            isWatchEnabled: false,
         }
     },
     reducers: {
@@ -107,6 +130,7 @@ export const fileSlice = createSlice({
             state.explorer.historyIndex = state.explorer.history.length - 1;
 
             state.explorer.searchText = "";
+            state.explorer.isLoading = true;
         },
         setSearchText: (state, action: PayloadAction<string>) => {
             debug(`setSearchText(${action.payload}).`);
@@ -115,6 +139,10 @@ export const fileSlice = createSlice({
         setSortOrder: (state, action: PayloadAction<SortOrder>) => {
             debug(`setSortOrder(${action.payload}).`);
             state.explorer.sortOrder = action.payload;
+        },
+        setIsWatchEnabled: (state, action: PayloadAction<boolean>) => {
+            debug(`setIsWatchEnabled(${action.payload}).`);
+            state.explorer.isWatchEnabled = action.payload;
         },
         goBackContainerHistory: (state) => {
             if (state.containerFile.historyIndex > 0) {
@@ -140,20 +168,26 @@ export const fileSlice = createSlice({
                 state.explorer.historyIndex += 1;
             }
         },
+        setIsDirEntriesLoading: (state, action: PayloadAction<boolean>) => {
+            debug(`setIsDirEntriesLoading(${action.payload}).`);
+            state.explorer.isLoading = action.payload;
+        }
     },
     extraReducers: (builder) => {
         builder
-            .addCase(getEntriesInDir.pending, (state) => {
-                state.explorer.entries = [];
-                state.explorer.isLoading = true;
+            .addCase(updateExploreBasePath.pending, (state) => {
                 state.explorer.error = null;
             })
-            .addCase(getEntriesInDir.fulfilled, (state, action: PayloadAction<DirEntry[]>,) => {
-                state.explorer.entries = action.payload;
+            .addCase(updateExploreBasePath.fulfilled, (state, action: PayloadAction<{ path: string, entries: DirEntry[] } | undefined>,) => {
+                // Update the state only if the current path matches the payload,
+                // as the user might have navigated away before the previous load finished (race condition).
+                if (action.payload && state.explorer.history[state.explorer.historyIndex] === action.payload.path) {
+                    state.explorer.entries = action.payload.entries;
+                }
                 state.explorer.isLoading = false;
                 state.explorer.error = null;
             })
-            .addCase(getEntriesInDir.rejected, (state, action) => {
+            .addCase(updateExploreBasePath.rejected, (state, action) => {
                 state.explorer.entries = [];
                 state.explorer.isLoading = false;
                 state.explorer.error = action.payload as string;
@@ -177,7 +211,6 @@ export const fileSlice = createSlice({
                 state.containerFile.index = 0;
                 state.containerFile.error = action.payload as string;
             });
-
     }
 });
 
@@ -187,9 +220,11 @@ export const {
     setExploreBasePath,
     setSearchText,
     setSortOrder,
+    setIsWatchEnabled,
     goBackContainerHistory,
     goForwardContainerHistory,
     goBackExplorerHistory,
     goForwardExplorerHistory,
+    setIsDirEntriesLoading,
 } = fileSlice.actions;
 export default fileSlice.reducer;

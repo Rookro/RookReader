@@ -4,8 +4,8 @@ import { Box, IconButton, OutlinedInput, Stack, Typography } from "@mui/material
 import { Folder } from "@mui/icons-material";
 import { open } from '@tauri-apps/plugin-dialog';
 import { homeDir } from "@tauri-apps/api/path";
-import { settingsStore } from "../../../../settings/SettingsStore";
 import { error } from "@tauri-apps/plugin-log";
+import { settingsStore } from "../../../../settings/SettingsStore";
 
 /**
  * Home directory setting component.

@@ -2,12 +2,11 @@ import React, { useEffect } from "react";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { IconButton, OutlinedInput, Stack } from '@mui/material';
 import { ArrowBack, ArrowForward, LooksOne, LooksTwo, Settings, SwitchLeft, SwitchRight } from '@mui/icons-material';
-import { dirname } from "@tauri-apps/api/path";
 import { debug, error } from "@tauri-apps/plugin-log";
 import { Direction } from "../../types/DirectionType";
 import { settingsStore } from "../../settings/SettingsStore";
 import { useAppDispatch, useAppSelector } from "../../Store";
-import { goBackContainerHistory, goForwardContainerHistory, setContainerFilePath, setExploreBasePath } from "../../reducers/FileReducer";
+import { goBackContainerHistory, goForwardContainerHistory, setContainerFilePath } from "../../reducers/FileReducer";
 import { setDirection, setIsTwoPagedView } from "../../reducers/ViewReducer";
 
 /**
@@ -20,7 +19,6 @@ export default function NavigationBar() {
 
     const handlePathChanged = async (e: React.ChangeEvent<HTMLInputElement>) => {
         dispatch(setContainerFilePath(e.target.value));
-        dispatch(setExploreBasePath(await dirname(e.target.value)));
     }
 
     const handleSwitchTwoPagedClicked = (_e: React.MouseEvent<HTMLButtonElement>) => {

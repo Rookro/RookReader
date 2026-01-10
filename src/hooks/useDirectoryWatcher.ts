@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { watch } from '@tauri-apps/plugin-fs';
 import { error } from '@tauri-apps/plugin-log';
+import { useAppSelector } from '../Store';
 
 /**
  * Custom hook to watch a directory for changes and trigger a callback.
@@ -10,8 +11,15 @@ import { error } from '@tauri-apps/plugin-log';
  */
 export function useDirectoryWatcher(dirPath: string | null, callback: () => void) {
     const watcherRef = useRef<null | (() => void)>(null);
+    const { isWatchEnabled } = useAppSelector((state) => state.file.explorer);
 
     useEffect(() => {
+        if (!isWatchEnabled) {
+            watcherRef.current?.();
+            watcherRef.current = null;
+            return;
+        }
+
         const setupWatcher = async () => {
             watcherRef.current?.();
             watcherRef.current = null;
@@ -39,5 +47,5 @@ export function useDirectoryWatcher(dirPath: string | null, callback: () => void
             watcherRef.current?.();
             watcherRef.current = null;
         };
-    }, [dirPath, callback]);
+    }, [dirPath, isWatchEnabled, callback]);
 }

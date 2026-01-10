@@ -2,11 +2,11 @@ import { useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Typography, Box, Switch } from "@mui/material";
 import { emit } from "@tauri-apps/api/event";
+import { debug } from "@tauri-apps/plugin-log";
 import { settingsStore } from "../../../../settings/SettingsStore";
 import { useAppDispatch, useAppSelector } from "../../../../Store";
 import { setIsFirstPageSingleView } from "../../../../reducers/ViewReducer";
-import { debug } from "@tauri-apps/plugin-log";
-
+import { SettingsChangedEvent } from "../../../../types/SettingsChangedEvent";
 
 /**
  * First page setting component.
@@ -29,11 +29,8 @@ export default function FirstPageSetting() {
         dispatch(setIsFirstPageSingleView(e.target.checked));
         await settingsStore.set("first-page-single-view", e.target.checked);
 
-        // The Store state is isolated within each WebView context and is not reflected in the main window's Store.
-        // Notify the main window to apply the changes.
-        await emit("view-settings-changed", {
-            key: "isFirstPageSingleView",
-            value: e.target.checked
+        await emit<SettingsChangedEvent>("settings-changed", {
+            view: { isFirstPageSingleView: e.target.checked }
         });
     }, [dispatch]);
 
