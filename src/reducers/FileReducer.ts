@@ -5,6 +5,7 @@ import { getEntriesInContainer } from "../bindings/ContainerCommands";
 import { getEntriesInDir as getEntriesInDirFromBackend } from "../bindings/DirectoryCommands";
 import { DirEntry } from "../types/DirEntry";
 import { SortOrder } from "../types/SortOrderType";
+import { convertEntriesInDir } from "../utils/DirEntryUtils";
 
 /**
  * Opens a container file.
@@ -42,7 +43,8 @@ export const setExploreBasePath = createAsyncThunk(
             return rejectWithValue(errorMessage);
         }
         try {
-            const entries = await getEntriesInDirFromBackend(dirPath);
+            const buffer = await getEntriesInDirFromBackend(dirPath);
+            const entries = convertEntriesInDir(buffer);
             return { path: dirPath, entries: entries };
         } catch (e) {
             const errorMessage = `Failed to getEntriesInDir(${dirPath}). Error: ${e}`;
