@@ -20,9 +20,6 @@ export const openContainerFile = createAppAsyncThunk(
     "file/openContainerFile",
     async (path: string, { dispatch, rejectWithValue }) => {
         debug(`openContainerFile(${path}).`);
-        const dirPath = await dirname(path);
-        await dispatch(updateExploreBasePath({ dirPath }));
-
         if (!path || path.length === 0) {
             const errorMessage = "Failed to openContainerFile. Error: Container path is empty.";
             error(errorMessage);
@@ -31,6 +28,8 @@ export const openContainerFile = createAppAsyncThunk(
         try {
             const entriesResult = await getEntriesInContainer(path);
             debug(`openContainerFile: Retrieved ${entriesResult.entries.length} entries. (Container is directory: ${entriesResult.is_directory})`);
+            const dirPath = await dirname(path);
+            dispatch(updateExploreBasePath({ dirPath }));
             return entriesResult;
         } catch (e) {
             const errorMessage = `Failed to openContainerFile(${path}). Error: ${e}`;
