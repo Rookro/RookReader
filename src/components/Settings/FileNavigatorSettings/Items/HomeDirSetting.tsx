@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Box, IconButton, OutlinedInput, Stack, Typography } from "@mui/material";
-import { Folder } from "@mui/icons-material";
+import { IconButton, ListItem, ListItemIcon, ListItemText, TextField } from "@mui/material";
+import { Folder, HomeOutlined } from "@mui/icons-material";
 import { open } from '@tauri-apps/plugin-dialog';
 import { homeDir } from "@tauri-apps/api/path";
 import { error } from "@tauri-apps/plugin-log";
@@ -40,28 +40,27 @@ export default function HomeDirSetting() {
 
     const handleHomeDirPathChanged = async (e: React.ChangeEvent<HTMLInputElement>) => {
         setHomeDirPath(e.target.value);
-        await settingsStore.set("home-directory", { level: e.target.value });
+        await settingsStore.set("home-directory", e.target.value);
     }
 
     return (
-        <Stack spacing={1} >
-            <Box display="flex">
-                <Typography alignContent="center">{t('settings.file-navigator.home-directory-title')}</Typography>
-                <OutlinedInput
-                    type="text"
-                    value={homeDirPath}
-                    onChange={handleHomeDirPathChanged}
-                    size="small"
-                    sx={{
-                        width: '80%',
-                        marginLeft: '16px',
-                        marginRight: '5px',
-                    }}
-                />
-                <IconButton size="small" onClick={handleFolderClicked} >
-                    <Folder />
-                </IconButton>
-            </Box>
-        </Stack>
+        <ListItem>
+            <ListItemIcon><HomeOutlined /></ListItemIcon>
+            <ListItemText primary={t('settings.file-navigator.home-directory-title')} />
+            <TextField
+                variant="standard"
+                value={homeDirPath}
+                onChange={handleHomeDirPathChanged}
+                size="small"
+                sx={{
+                    width: '80%',
+                    marginLeft: '16px',
+                    marginRight: '5px',
+                }}
+            />
+            <IconButton size="small" onClick={handleFolderClicked} >
+                <Folder />
+            </IconButton>
+        </ListItem>
     );
 }
