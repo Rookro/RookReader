@@ -47,7 +47,7 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            commands::directory_commands::get_entries_in_dir,
+            commands::directory_commands::stream_entries_in_dir,
             commands::container_commands::get_image,
             commands::container_commands::get_entries_in_container,
             commands::container_commands::set_pdf_rendering_height,

@@ -1,11 +1,12 @@
-import { invoke } from "@tauri-apps/api/core";
+import { Channel, invoke } from "@tauri-apps/api/core";
 
 /**
- * Fetches directory entries from the backend.
+ * Establishes a stream for directory entries from the backend.
+ * The backend will send directory entry data through the provided channel.
  *
- * @param dirPath The path of the directory.
- * @returns A promise that resolves to the data of directory entries.
+ * @param dirPath The path of the directory to stream.
+ * @param channel The channel to send the directory entry data to.
  */
-export const getEntriesInDir = async (dirPath: string): Promise<ArrayBuffer> => {
-    return invoke<ArrayBuffer>("get_entries_in_dir", { dirPath });
+export const streamEntriesInDir = async (dirPath: string, channel: Channel<ArrayBuffer>) => {
+    await invoke<void>('stream_entries_in_dir', { dirPath, channel });
 };
