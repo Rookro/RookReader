@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Box, MenuItem, Select, SelectChangeEvent, Typography } from "@mui/material";
+import { ListItem, ListItemIcon, ListItemText, ToggleButton, ToggleButtonGroup } from "@mui/material";
+import { DarkModeOutlined, LightModeOutlined, Palette, SettingsBrightnessOutlined } from "@mui/icons-material";
 import { app } from "@tauri-apps/api"
 import { Theme } from "@tauri-apps/api/window";
 import { settingsStore } from "../../../../settings/SettingsStore";
@@ -21,10 +22,10 @@ export default function ThemeSetting() {
     const { t } = useTranslation();
     const [theme, setTheme] = useState("system");
 
-    const handleThemeChanged = async (e: SelectChangeEvent) => {
-        setTheme(e.target.value);
-        settingsStore.set("theme", e.target.value);
-        await app.setTheme(toTauriTheme.get(e.target.value));
+    const handleThemeChanged = async (_e: React.MouseEvent<HTMLElement>, theme: Theme) => {
+        setTheme(theme);
+        settingsStore.set("theme", theme);
+        await app.setTheme(toTauriTheme.get(theme));
     }
 
     useEffect(() => {
@@ -40,18 +41,28 @@ export default function ThemeSetting() {
     }, [])
 
     return (
-        <Box display="flex">
-            <Typography alignContent="center">{t('settings.general.theme.title')}</Typography>
-            <Select
+        <ListItem>
+            <ListItemIcon><Palette /></ListItemIcon>
+            <ListItemText primary={t('settings.general.theme.title')} />
+            <ToggleButtonGroup
                 value={theme}
+                exclusive
                 onChange={handleThemeChanged}
-                sx={{ margin: 1, minWidth: 160 }}
                 size="small"
             >
-                <MenuItem value="system">{t('settings.general.theme.system')}</MenuItem>
-                <MenuItem value="light">{t('settings.general.theme.light')}</MenuItem>
-                <MenuItem value="dark">{t('settings.general.theme.dark')}</MenuItem>
-            </Select>
-        </Box>
+                <ToggleButton value="light" sx={{ textTransform: 'none' }}>
+                    <LightModeOutlined sx={{ marginRight: '4px' }} />
+                    {t('settings.general.theme.light')}
+                </ToggleButton>
+                <ToggleButton value="system" sx={{ textTransform: 'none' }}>
+                    <SettingsBrightnessOutlined sx={{ marginRight: '4px' }} />
+                    {t('settings.general.theme.system')}
+                </ToggleButton>
+                <ToggleButton value="dark" sx={{ textTransform: 'none' }}>
+                    <DarkModeOutlined sx={{ marginRight: '4px' }} />
+                    {t('settings.general.theme.dark')}
+                </ToggleButton>
+            </ToggleButtonGroup>
+        </ListItem>
     );
 }
