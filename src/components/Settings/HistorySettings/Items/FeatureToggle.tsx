@@ -5,20 +5,7 @@ import { emit } from "@tauri-apps/api/event";
 import { settingsStore } from "../../../../settings/SettingsStore";
 import { setIsHistoryEnabled } from "../../../../reducers/HistoryReducer";
 import { useAppDispatch, useAppSelector } from "../../../../Store";
-import { HistorySettingsChangedEvent } from "../../../../types/HistorySettingsChangedEvent";
-
-/**
- * Emits an event to notify other parts of the application that history settings have changed.
- * The Store state is isolated within each WebView context and is not reflected in the main window's Store.
- * This function notifies the main window to apply the changes.
- *
- * @param event - The event to emit.
- */
-async function emitHistorySettingsChanged(event: HistorySettingsChangedEvent) {
-    // The Store state is isolated within each WebView context and is not reflected in the main window's Store.
-    // Notify the main window to apply the changes.
-    await emit<HistorySettingsChangedEvent>("history-settings-changed", event);
-}
+import { SettingsChangedEvent } from "../../../../types/SettingsChangedEvent";
 
 /**
  * History feature toggle component.
@@ -44,7 +31,7 @@ export default function FeatureToggle() {
     const handleHistoryFeatureToggleChanged = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
         dispatch(setIsHistoryEnabled(e.target.checked));
         await settingsStore.set("enable-history", e.target.checked);
-        await emitHistorySettingsChanged({ historyEnabled: e.target.checked });
+        await emit<SettingsChangedEvent>("settings-changed", { history: { isEnabled: e.target.checked } });
     }, [dispatch]);
 
     const handleRestoreFeatureToggleChanged = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {

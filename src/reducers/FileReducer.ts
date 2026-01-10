@@ -72,6 +72,7 @@ export const fileSlice = createSlice({
             sortOrder: "NAME_ASC" as SortOrder,
             isLoading: false,
             error: null as string | null,
+            isWatchEnabled: false,
         }
     },
     reducers: {
@@ -115,6 +116,10 @@ export const fileSlice = createSlice({
         setSortOrder: (state, action: PayloadAction<SortOrder>) => {
             debug(`setSortOrder(${action.payload}).`);
             state.explorer.sortOrder = action.payload;
+        },
+        setIsWatchEnabled: (state, action: PayloadAction<boolean>) => {
+            debug(`setIsWatchEnabled(${action.payload}).`);
+            state.explorer.isWatchEnabled = action.payload;
         },
         goBackContainerHistory: (state) => {
             if (state.containerFile.historyIndex > 0) {
@@ -187,6 +192,7 @@ export const {
     setExploreBasePath,
     setSearchText,
     setSortOrder,
+    setIsWatchEnabled,
     goBackContainerHistory,
     goForwardContainerHistory,
     goBackExplorerHistory,
