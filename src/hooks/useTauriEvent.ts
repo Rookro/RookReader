@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react';
-import { listen, Event, UnlistenFn } from '@tauri-apps/api/event';
+import { useEffect, useRef } from "react";
+import { listen, Event, UnlistenFn } from "@tauri-apps/api/event";
 
 /**
  * A custom hook for handling Tauri events.
@@ -11,10 +11,7 @@ import { listen, Event, UnlistenFn } from '@tauri-apps/api/event';
  * @param eventName The name of the Tauri event to listen to.
  * @param handler A callback function to be executed when the event is received.
  */
-export const useTauriEvent = <T>(
-  eventName: string,
-  handler: (event: Event<T>) => void
-) => {
+export const useTauriEvent = <T>(eventName: string, handler: (event: Event<T>) => void) => {
   const handlerRef = useRef(handler);
   const unlistenRef = useRef<UnlistenFn | null>(null);
 

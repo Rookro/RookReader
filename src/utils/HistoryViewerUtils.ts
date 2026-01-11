@@ -17,22 +17,22 @@ import { HistoryEntry } from "../types/HistoryEntry";
  * andSearch(entries, "example"); // Returns []
  */
 export const andSearch = (entries: HistoryEntry[], query: string) => {
-    const keywords = query
-        .trim()
-        .toLowerCase()
-        .split(/\s+/)
-        .filter(keyword => keyword.length > 0);
+  const keywords = query
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((keyword) => keyword.length > 0);
 
-    if (keywords.length === 0) {
-        return entries;
-    }
+  if (keywords.length === 0) {
+    return entries;
+  }
 
-    const filtered = entries.filter(entry => {
-        const lowerCaseName = entry.display_name.toLowerCase();
-        return keywords.every(keyword => {
-            return lowerCaseName.includes(keyword);
-        });
+  const filtered = entries.filter((entry) => {
+    const lowerCaseName = entry.display_name.toLowerCase();
+    return keywords.every((keyword) => {
+      return lowerCaseName.includes(keyword);
     });
+  });
 
-    return filtered;
-}
+  return filtered;
+};

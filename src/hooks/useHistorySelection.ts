@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
-import { HistoryEntry } from '../types/HistoryEntry';
+import { useEffect } from "react";
+import { HistoryEntry } from "../types/HistoryEntry";
 
 /**
  * Custom hook to determine the selected index in a history list.
@@ -9,30 +9,30 @@ import { HistoryEntry } from '../types/HistoryEntry';
  * @param setSelectedIndex The function to set the selected index.
  */
 export function useHistorySelection(
-    path: string,
-    entries: HistoryEntry[],
-    setSelectedIndex: (index: number) => void
+  path: string,
+  entries: HistoryEntry[],
+  setSelectedIndex: (index: number) => void,
 ) {
-    useEffect(() => {
-        let cancelled = false;
-        const initSelected = async () => {
-            if (!path || path.length === 0) {
-                if (!cancelled) {
-                    setSelectedIndex(-1);
-                }
-                return;
-            }
+  useEffect(() => {
+    let cancelled = false;
+    const initSelected = async () => {
+      if (!path || path.length === 0) {
+        if (!cancelled) {
+          setSelectedIndex(-1);
+        }
+        return;
+      }
 
-            const idx = entries.findIndex((entry) => entry.path === path);
-            if (!cancelled) {
-                setSelectedIndex(idx);
-            }
-        };
+      const idx = entries.findIndex((entry) => entry.path === path);
+      if (!cancelled) {
+        setSelectedIndex(idx);
+      }
+    };
 
-        initSelected();
+    initSelected();
 
-        return () => {
-            cancelled = true;
-        };
-    }, [entries, setSelectedIndex]);
+    return () => {
+      cancelled = true;
+    };
+  }, [entries, setSelectedIndex, path]);
 }

@@ -15,7 +15,7 @@ const router = createHashRouter([
 ]);
 
 // Prevent the default behavior of opening a context menu on right-click.
-document.addEventListener('contextmenu', event => event.preventDefault());
+document.addEventListener("contextmenu", (event) => event.preventDefault());
 
 const rootElement = document.getElementById("root");
 if (!rootElement) {

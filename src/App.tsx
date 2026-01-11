@@ -1,5 +1,5 @@
 import { CssBaseline, Stack, ThemeProvider } from "@mui/material";
-import { Panel, PanelGroup, PanelResizeHandle, } from "react-resizable-panels";
+import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import ControlSlider from "./components/ControlSlider/ControlSlider";
 import ImageViewer from "./components/ImageViewer/ImageViewer";
 import LeftPane from "./components/LeftPane/LeftPane";
@@ -17,7 +17,14 @@ export default function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Stack sx={{ width: '100vw', height: '100vh', overflow: 'hidden', bgcolor: (theme) => theme.palette.background.paper }}>
+      <Stack
+        sx={{
+          width: "100vw",
+          height: "100vh",
+          overflow: "hidden",
+          bgcolor: (theme) => theme.palette.background.paper,
+        }}
+      >
         <NavigationBar />
         <PanelGroup direction="horizontal" autoSaveId="main_panel_group">
           <Panel defaultSize={20}>
@@ -25,16 +32,16 @@ export default function App() {
           </Panel>
           <PanelResizeHandle
             style={{
-              width: '2px',
+              width: "2px",
               backgroundColor: theme.palette.divider,
             }}
           />
-          <Panel style={{ display: 'flex', background: theme.palette.background.default }}>
+          <Panel style={{ display: "flex", background: theme.palette.background.default }}>
             <ImageViewer />
           </Panel>
         </PanelGroup>
         <ControlSlider />
       </Stack>
-    </ThemeProvider >
+    </ThemeProvider>
   );
-};
+}

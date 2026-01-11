@@ -7,13 +7,13 @@ import SettingsPanel from "../SettingsPanel";
  * Developer settings component.
  */
 export default function DeveloperSettings() {
-    const { t } = useTranslation();
+  const { t } = useTranslation();
 
-    return (
-        <SettingsPanel title={t('settings.developer.title')}>
-            <List>
-                <LogSetting />
-            </List>
-        </SettingsPanel>
-    );
+  return (
+    <SettingsPanel title={t("settings.developer.title")}>
+      <List>
+        <LogSetting />
+      </List>
+    </SettingsPanel>
+  );
 }

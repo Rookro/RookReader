@@ -10,7 +10,10 @@
     "build": "yarn gen-licenses && tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
-    "test": "yarn gen-licenses && cargo test --lib --manifest-path src-tauri/Cargo.toml"
+    "test": "yarn gen-licenses && cargo test --lib --manifest-path src-tauri/Cargo.toml",
+    "lint": "eslint \"src/**/*.{ts,tsx}\"",
+    "lint:fix": "eslint \"src/**/*.{ts,tsx}\" --fix",
+    "format": "prettier --write \"src/**/*.{ts,tsx}\""
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -40,12 +43,25 @@
     "redux": "^5.0.1"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.2",
     "@tauri-apps/cli": "^2.9.3",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
     "@types/stylis": "^4.2.7",
+    "@typescript-eslint/eslint-plugin": "^8.52.0",
+    "@typescript-eslint/parser": "^8.52.0",
     "@vitejs/plugin-react": "^5.1.0",
+    "eslint": "^9.39.2",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "globals": "^17.0.0",
+    "jiti": "^2.6.1",
+    "prettier": "^3.7.4",
     "typescript": "~5.9.3",
+    "typescript-eslint": "^8.52.0",
     "vite": "^7.2.2"
   }
 }

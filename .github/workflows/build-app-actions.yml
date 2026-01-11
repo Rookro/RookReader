@@ -12,8 +12,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: 'ubuntu-latest'
-          - platform: 'windows-latest'
+          - platform: "ubuntu-latest"
+          - platform: "windows-latest"
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -37,6 +37,9 @@ jobs:
 
       - name: Install frontend dependencies
         run: yarn install
+
+      - name: Run linter
+        run: yarn lint
 
       - name: Run tests
         run: yarn test

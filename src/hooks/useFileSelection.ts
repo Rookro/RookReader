@@ -1,6 +1,6 @@
-import { useEffect } from 'react';
-import { basename } from '@tauri-apps/api/path';
-import { DirEntry } from '../types/DirEntry';
+import { useEffect } from "react";
+import { basename } from "@tauri-apps/api/path";
+import { DirEntry } from "../types/DirEntry";
 
 /**
  * Custom hook to determine the selected index in a file list based on file history.
@@ -11,34 +11,34 @@ import { DirEntry } from '../types/DirEntry';
  * @param setSelectedIndex The function to set the selected index.
  */
 export function useFileSelection(
-    fileHistory: string[],
-    fileHistoryIndex: number,
-    entries: DirEntry[],
-    setSelectedIndex: (index: number) => void
+  fileHistory: string[],
+  fileHistoryIndex: number,
+  entries: DirEntry[],
+  setSelectedIndex: (index: number) => void,
 ) {
-    useEffect(() => {
-        let cancelled = false;
-        const initSelected = async () => {
-            const currentFile = fileHistory[fileHistoryIndex];
-            if (!currentFile) {
-                if (!cancelled) {
-                    setSelectedIndex(-1);
-                }
-                return;
-            }
+  useEffect(() => {
+    let cancelled = false;
+    const initSelected = async () => {
+      const currentFile = fileHistory[fileHistoryIndex];
+      if (!currentFile) {
+        if (!cancelled) {
+          setSelectedIndex(-1);
+        }
+        return;
+      }
 
-            const fileName = await basename(currentFile);
-            const idx = entries.findIndex((entry) => entry.name === fileName);
+      const fileName = await basename(currentFile);
+      const idx = entries.findIndex((entry) => entry.name === fileName);
 
-            if (!cancelled) {
-                setSelectedIndex(idx);
-            }
-        };
+      if (!cancelled) {
+        setSelectedIndex(idx);
+      }
+    };
 
-        initSelected();
+    initSelected();
 
-        return () => {
-            cancelled = true;
-        };
-    }, [fileHistory, fileHistoryIndex, entries, setSelectedIndex]);
+    return () => {
+      cancelled = true;
+    };
+  }, [fileHistory, fileHistoryIndex, entries, setSelectedIndex]);
 }
