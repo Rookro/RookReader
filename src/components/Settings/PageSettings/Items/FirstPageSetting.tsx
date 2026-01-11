@@ -1,12 +1,13 @@
 import { useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { Typography, Box, Switch } from "@mui/material";
+import { Switch, ListItem, ListItemIcon, ListItemText } from "@mui/material";
 import { emit } from "@tauri-apps/api/event";
 import { debug } from "@tauri-apps/plugin-log";
 import { settingsStore } from "../../../../settings/SettingsStore";
 import { useAppDispatch, useAppSelector } from "../../../../Store";
 import { setIsFirstPageSingleView } from "../../../../reducers/ViewReducer";
 import { SettingsChangedEvent } from "../../../../types/SettingsChangedEvent";
+import { AutoStoriesOutlined } from "@mui/icons-material";
 
 /**
  * First page setting component.
@@ -35,14 +36,19 @@ export default function FirstPageSetting() {
     }, [dispatch]);
 
     return (
-        <Box display="flex">
-            <Typography alignContent="center" sx={{ paddingRight: "12px" }}>
-                {t('settings.page.first-page.title')}
-            </Typography>
-            <Switch
-                checked={isFirstPageSingleView}
-                onChange={handleFirstPageSingleViewSwitchChange}
+        <ListItem
+            secondaryAction={
+                <Switch
+                    edge="end"
+                    checked={isFirstPageSingleView}
+                    onChange={handleFirstPageSingleViewSwitchChange}
+                />
+            } >
+            <ListItemIcon><AutoStoriesOutlined /></ListItemIcon>
+            <ListItemText
+                primary={t('settings.page.first-page.title')}
+                sx={{ marginRight: 3 }}
             />
-        </Box>
+        </ListItem >
     );
 }

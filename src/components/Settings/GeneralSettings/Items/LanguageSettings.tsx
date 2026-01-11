@@ -2,8 +2,9 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { emit } from "@tauri-apps/api/event";
 import { debug } from "@tauri-apps/plugin-log";
-import { Box, MenuItem, Select, SelectChangeEvent, Typography } from "@mui/material";
+import { ListItem, ListItemIcon, ListItemText, MenuItem, Select, SelectChangeEvent } from "@mui/material";
 import { SettingsChangedEvent } from "../../../../types/SettingsChangedEvent";
+import { Language } from "@mui/icons-material";
 
 /**
  * Language setting component.
@@ -21,17 +22,20 @@ export default function LanguageSetting() {
     }
 
     return (
-        <Box display="flex">
-            <Typography alignContent="center">{t('settings.general.language.title')}</Typography>
+        <ListItem>
+            <ListItemIcon><Language /></ListItemIcon>
+            <ListItemText primary={t('settings.general.language.title')} />
             <Select
+                label={t('settings.general.language.title')}
+                variant="standard"
                 value={language}
                 onChange={handleLanguageChanged}
-                sx={{ margin: 1, minWidth: 160 }}
+                sx={{ minWidth: 100 }}
                 size="small"
             >
                 <MenuItem value="en-US">{t('settings.general.language.english')}</MenuItem>
                 <MenuItem value="ja-JP">{t('settings.general.language.japanese')}</MenuItem>
             </Select>
-        </Box>
+        </ListItem>
     );
 }

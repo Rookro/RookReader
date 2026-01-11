@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Typography, Box, OutlinedInput } from "@mui/material";
+import { ListItem, ListItemIcon, ListItemText, TextField } from "@mui/material";
 import { error } from "@tauri-apps/plugin-log";
 import { settingsStore } from "../../../../settings/SettingsStore";
 import { setPdfRenderingHeight } from "../../../../bindings/ContainerCommands";
+import { AspectRatioOutlined } from "@mui/icons-material";
 
 /**
  * PDF rendering setting component.
@@ -32,14 +33,16 @@ export default function PdfRenderingSetting() {
     };
 
     return (
-        <Box display="flex">
-            <Typography alignContent="center" sx={{ paddingRight: "12px" }}>{t('settings.rendering.pdf.title')}</Typography>
-            <OutlinedInput
+        <ListItem>
+            <ListItemIcon><AspectRatioOutlined /></ListItemIcon>
+            <ListItemText primary={t('settings.rendering.pdf.title')} />
+            <TextField
                 type="number"
+                variant="standard"
                 value={pdfRenderingHeight}
                 onChange={handlePdfRenderingHeightChange}
                 size="small"
             />
-        </Box>
+        </ListItem>
     );
 }

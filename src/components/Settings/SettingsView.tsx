@@ -45,7 +45,7 @@ export default function SettingsView() {
                 value={value}
                 onChange={handleChange}
                 aria-label="setttings tabs"
-                sx={{ borderRight: 2, borderColor: 'divider' }}
+                sx={{ borderRight: 2, borderColor: 'divider', width: '150px' }}
             >
                 {tabs.map((tab, index) => (
                     <Tab key={index} label={tab.label} />
@@ -53,7 +53,7 @@ export default function SettingsView() {
             </Tabs>
             <Box sx={{ padding: "12px", width: '100%', height: '100%', overflow: 'auto', bgcolor: (theme) => theme.palette.background.default }}>
                 {tabs.map((tab, index) => (
-                    <TabPanel value={value} index={index} key={index}>
+                    <TabPanel value={value} index={index} key={index} sx={{ minWidth: '650px' }}>
                         {tab.panel}
                     </TabPanel>
                 ))}

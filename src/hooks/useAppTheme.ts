@@ -29,6 +29,7 @@ export function useAppTheme() {
                         WebkitTextSizeAdjust: '100%',
                         // Webkit scrollbar styles
                         '*::-webkit-scrollbar': {
+                            height: '10px',
                             width: '10px'
                         },
                         '*::-webkit-scrollbar-track': {
