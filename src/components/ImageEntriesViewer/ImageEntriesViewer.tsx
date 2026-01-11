@@ -34,7 +34,7 @@ export default function ImageEntriesViewer() {
         `Failed to scroll to row ${selectedIndex} (List length: ${entries.length}): ${e}`,
       );
     }
-  }, [selectedIndex]);
+  }, [selectedIndex, entries.length, listRef]);
 
   const handleListItemClicked = useCallback(
     (_e: React.MouseEvent<HTMLDivElement>, index: number) => {

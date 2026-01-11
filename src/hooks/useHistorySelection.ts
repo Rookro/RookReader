@@ -34,5 +34,5 @@ export function useHistorySelection(
     return () => {
       cancelled = true;
     };
-  }, [entries, setSelectedIndex]);
+  }, [entries, setSelectedIndex, path]);
 }

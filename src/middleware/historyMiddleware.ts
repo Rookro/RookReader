@@ -5,10 +5,15 @@ import { error } from "@tauri-apps/plugin-log";
 let debounceTimerId: number | null = null;
 let historyTable: HistoryTable | null = null;
 
-export const historyMiddleware: Middleware = (store) => (next) => async (action: any) => {
+export const historyMiddleware: Middleware = (store) => (next) => async (action: unknown) => {
   const result = next(action);
 
-  if (action.type === "file/setImageIndex") {
+  if (
+    typeof action === "object" &&
+    action !== null &&
+    "type" in action &&
+    action.type === "file/setImageIndex"
+  ) {
     const state = store.getState();
     if (state.history.isHistoryEnabled) {
       const { history, historyIndex, index, isDirectory } = state.file.containerFile;

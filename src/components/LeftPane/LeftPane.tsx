@@ -1,4 +1,4 @@
-import React, { JSX, lazy, useCallback, useEffect, useMemo, useState } from "react";
+import React, { JSX, lazy, useCallback, useMemo, useState } from "react";
 import { Box, Stack, Tab, Tabs } from "@mui/material";
 import { History, PhotoLibrary, ViewList } from "@mui/icons-material";
 import TabPanel from "../TabPanel/TabPanel";
@@ -31,11 +31,9 @@ export default function LeftPane() {
     return tabs;
   }, [isHistoryEnabled]);
 
-  useEffect(() => {
-    if (tabs.length - 1 < tabIndex) {
-      setTabIndex(0);
-    }
-  }, [tabs]);
+  if (tabs.length - 1 < tabIndex) {
+    setTabIndex(0);
+  }
 
   return (
     <Stack

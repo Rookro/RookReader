@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 import { useDispatch } from "react-redux";
 import { useTranslation } from "react-i18next";
 import { dirname, homeDir } from "@tauri-apps/api/path";
@@ -39,13 +39,16 @@ export default function NavBar() {
 
   const navButtonsRef = useRef<HTMLElement>(null);
 
-  const setDirParh = async (dirPath: string | undefined = undefined) => {
-    if (!dirPath) {
-      dirPath = (await settingsStore.get("home-directory")) ?? (await homeDir());
-    }
-    dispatch(setSearchText(""));
-    dispatch(updateExploreBasePath({ dirPath }));
-  };
+  const setDirParh = useCallback(
+    async (dirPath: string | undefined = undefined) => {
+      if (!dirPath) {
+        dirPath = (await settingsStore.get("home-directory")) ?? (await homeDir());
+      }
+      dispatch(setSearchText(""));
+      dispatch(updateExploreBasePath({ dirPath }));
+    },
+    [dispatch],
+  );
 
   useEffect(() => {
     if (entries.length === 0) {
@@ -67,7 +70,7 @@ export default function NavBar() {
         observer.unobserve(element);
       }
     };
-  }, []);
+  }, [entries.length, historyIndex, history, setDirParh]);
 
   useEffect(() => {
     const initViewSettings = async () => {

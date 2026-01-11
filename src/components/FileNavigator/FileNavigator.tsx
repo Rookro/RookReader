@@ -61,9 +61,7 @@ export default function FileListViewer() {
     try {
       listRef.current?.scrollToRow({ align: "smart", behavior: "instant", index: selectedIndex });
     } catch (e) {
-      error(
-        `Failed to scroll to row ${selectedIndex} (List length: ${filteredSortedEntries.length}): ${e}`,
-      );
+      error(`Failed to scroll to row ${selectedIndex}: ${e}`);
     }
   }, [selectedIndex, listRef]);
 

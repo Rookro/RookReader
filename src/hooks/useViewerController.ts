@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, useRef } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import {
   ImageCacheItem,
   ViewLayout,
@@ -30,7 +30,6 @@ export interface ViewerController {
  * @param containerPath The path of the container file.
  * @param entries Entries in the container.
  * @param index Index of the current image.
- * @param isContainerLoading Is the container file loading.
  * @param settings Viewer settings.
  * @param dispatch Dispatch function from Redux.
  * @returns ViewerController.
@@ -39,31 +38,28 @@ export const useViewerController = (
   containerPath: string,
   entries: string[],
   index: number,
-  isContainerLoading: boolean,
   settings: ViewerSettings,
   dispatch: AppDispatch,
 ): ViewerController => {
   const [cache, setCache] = useState<Map<string, ImageCacheItem>>(new Map());
-  const [displayedLayout, setDisplayedLayout] = useState<ViewLayout | null>(null);
   const [isImageLoading, setIsImageLoading] = useState(false);
-
+  const [prevContainerPath, setPrevContainerPath] = useState<string | null>(null);
+  const [displayedLayout, setDisplayedLayout] = useState<ViewLayout | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Clear cache and layout when containerPath changes.
-  useEffect(() => {
+  if (prevContainerPath !== containerPath) {
+    // Resets the layout.
     cache.forEach((item) => URL.revokeObjectURL(item.url));
-    setCache(new Map());
-    setDisplayedLayout(null);
-  }, [containerPath]);
+    const newCache = new Map<string, ImageCacheItem>();
+    setPrevContainerPath(containerPath);
+    setCache(newCache);
+    setIsImageLoading(false);
+  }
 
-  // Loads images for the current index (and next index if two-page view).
+  // Loads the missing images and updates the layout.
   useEffect(() => {
-    if (!containerPath || entries.length === 0) {
-      setIsImageLoading(false);
-      return;
-    }
-
-    const loadImages = async () => {
+    const updateLayout = async () => {
+      // Cancels previous request.
       abortControllerRef.current?.abort();
       const controller = new AbortController();
       abortControllerRef.current = controller;
@@ -74,8 +70,8 @@ export const useViewerController = (
       }
 
       const missingPaths = pathsToLoad.filter((p) => !cache.has(p));
-
       if (missingPaths.length === 0) {
+        setDisplayedLayout(calculateLayout(index, entries, cache, settings));
         setIsImageLoading(false);
         return;
       }
@@ -85,6 +81,10 @@ export const useViewerController = (
 
       await Promise.all(
         missingPaths.map(async (path) => {
+          if (controller.signal.aborted) {
+            return;
+          }
+
           const img = await fetchImageBlob(containerPath, path);
           if (img && !controller.signal.aborted) {
             const url = createBlobUrl(img);
@@ -94,58 +94,40 @@ export const useViewerController = (
       );
 
       if (!controller.signal.aborted) {
-        setCache((prev) => {
-          const next = new Map(prev);
+        // Do not update if the container path has changed.
+        if (prevContainerPath === containerPath) {
+          const next = new Map(cache);
           newItems.forEach((val, key) => next.set(key, val));
-          return next;
-        });
+          setCache(next);
+          setDisplayedLayout(calculateLayout(index, entries, next, settings));
+        }
         setIsImageLoading(false);
       }
     };
 
-    loadImages();
+    updateLayout();
+
     return () => {
       abortControllerRef.current?.abort();
       abortControllerRef.current = null;
     };
-  }, [containerPath, index, entries, settings.isTwoPagedView]);
-
-  const nextLayout = useMemo(() => {
-    return calculateLayout(index, entries, cache, settings);
-  }, [index, entries, cache, settings]);
-
-  // Update displayed layout when next layout is calculated.
-  useEffect(() => {
-    // Skip calculating layout while container is loading.
-    if (isContainerLoading) {
-      setDisplayedLayout(null);
-      return;
-    }
-
-    if (nextLayout) {
-      setDisplayedLayout(nextLayout);
-    }
-  }, [nextLayout, isContainerLoading]);
+  }, [containerPath, index, entries, settings.isTwoPagedView, cache, prevContainerPath, settings]);
 
   const moveForward = useCallback(() => {
     if (entries.length === 0) {
       return;
     }
 
-    const increment = nextLayout?.nextIndexIncrement ?? (settings.isTwoPagedView ? 2 : 1);
+    const increment = displayedLayout?.nextIndexIncrement ?? (settings.isTwoPagedView ? 2 : 1);
     const nextIndex = index + increment;
 
     if (nextIndex < entries.length) {
       dispatch(setImageIndex(nextIndex));
     }
-  }, [index, entries.length, dispatch, nextLayout, settings]);
+  }, [index, entries.length, dispatch, displayedLayout, settings]);
 
   const moveBack = useCallback(() => {
-    if (entries.length === 0) {
-      return;
-    }
-
-    if (index === 0) {
+    if (entries.length === 0 || index === 0) {
       return;
     }
 

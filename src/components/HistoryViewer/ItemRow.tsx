@@ -57,7 +57,7 @@ export const ItemRow = memo(function ItemRow({
       setContextMenu(null);
       onClick?.(e, entry, index);
     },
-    [],
+    [onClick],
   );
 
   const handleRemoveClicked = useCallback(
@@ -65,7 +65,7 @@ export const ItemRow = memo(function ItemRow({
       setContextMenu(null);
       dispatch(deleteHistory(entry.id));
     },
-    [entry.id],
+    [dispatch],
   );
 
   return (

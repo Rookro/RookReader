@@ -35,7 +35,7 @@ export const useHistoryUpdater = () => {
       dispatch(updateHistoryEntries());
     };
     initHistory();
-  }, []);
+  }, [dispatch]);
 
   useEffect(() => {
     if (isHistoryEnabled) {
@@ -43,7 +43,7 @@ export const useHistoryUpdater = () => {
     }
 
     dispatch(clearHistory());
-  }, [isHistoryEnabled]);
+  }, [dispatch, isHistoryEnabled]);
 
   useEffect(() => {
     if (!isHistoryEnabled) {
@@ -67,5 +67,6 @@ export const useHistoryUpdater = () => {
       }
     };
     updateHistory();
-  }, [isHistoryEnabled, isLoading, error, dispatch]); // Only run when isLoading changes to false and error is not set.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dispatch, isLoading, error]); // Only run when isLoading changes to false and error is not set.
 };

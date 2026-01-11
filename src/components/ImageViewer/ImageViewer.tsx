@@ -46,7 +46,6 @@ export default function ImageViewer() {
     containerPath,
     entries,
     index,
-    isFileLoading,
     settings,
     dispatch,
   );
@@ -85,7 +84,7 @@ export default function ImageViewer() {
       initialized.current = true;
     };
     init();
-  }, []);
+  }, [dispatch]);
 
   useEffect(() => {
     if (containerPath) {

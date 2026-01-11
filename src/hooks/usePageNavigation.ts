@@ -43,10 +43,18 @@ export const usePageNavigation = (
     (e: React.KeyboardEvent) => {
       switch (e.key) {
         case "ArrowLeft":
-          direction === "rtl" ? onMoveForward() : onMoveBack();
+          if (direction === "rtl") {
+            onMoveForward();
+          } else {
+            onMoveBack();
+          }
           break;
         case "ArrowRight":
-          direction === "rtl" ? onMoveBack() : onMoveForward();
+          if (direction === "rtl") {
+            onMoveBack();
+          } else {
+            onMoveForward();
+          }
           break;
         default:
           return;
