@@ -7,13 +7,13 @@ import SettingsPanel from "../SettingsPanel";
  * Page settings component.
  */
 export default function PageSettings() {
-    const { t } = useTranslation();
+  const { t } = useTranslation();
 
-    return (
-        <SettingsPanel title={t('settings.page.title')}>
-            <List>
-                <FirstPageSetting />
-            </List>
-        </SettingsPanel>
-    );
+  return (
+    <SettingsPanel title={t("settings.page.title")}>
+      <List>
+        <FirstPageSetting />
+      </List>
+    </SettingsPanel>
+  );
 }

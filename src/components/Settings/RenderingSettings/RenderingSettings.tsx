@@ -7,13 +7,13 @@ import SettingsPanel from "../SettingsPanel";
  * Rendering settings component.
  */
 export default function RenderingSettings() {
-    const { t } = useTranslation();
+  const { t } = useTranslation();
 
-    return (
-        <SettingsPanel title={t('settings.rendering.title')}>
-            <List>
-                <PdfRenderingSetting />
-            </List>
-        </SettingsPanel>
-    );
+  return (
+    <SettingsPanel title={t("settings.rendering.title")}>
+      <List>
+        <PdfRenderingSetting />
+      </List>
+    </SettingsPanel>
+  );
 }

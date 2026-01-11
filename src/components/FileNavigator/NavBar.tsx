@@ -1,171 +1,202 @@
-import React, { useEffect, useRef } from 'react';
-import { useDispatch } from 'react-redux';
-import { useTranslation } from 'react-i18next';
-import { dirname, homeDir } from '@tauri-apps/api/path';
-import { ArrowBack, ArrowForward, ArrowUpward, Home, Refresh, Search, } from '@mui/icons-material';
-import { Box, IconButton, InputAdornment, MenuItem, OutlinedInput, Select, SelectChangeEvent, Stack } from '@mui/material';
-import { AppDispatch, useAppSelector } from '../../Store';
-import { goBackExplorerHistory, goForwardExplorerHistory, updateExploreBasePath, setSearchText, setSortOrder } from '../../reducers/FileReducer';
-import { SortOrder } from '../../types/SortOrderType';
-import { settingsStore } from '../../settings/SettingsStore';
-import { warn } from '@tauri-apps/plugin-log';
+import React, { useEffect, useRef } from "react";
+import { useDispatch } from "react-redux";
+import { useTranslation } from "react-i18next";
+import { dirname, homeDir } from "@tauri-apps/api/path";
+import { ArrowBack, ArrowForward, ArrowUpward, Home, Refresh, Search } from "@mui/icons-material";
+import {
+  Box,
+  IconButton,
+  InputAdornment,
+  MenuItem,
+  OutlinedInput,
+  Select,
+  SelectChangeEvent,
+  Stack,
+} from "@mui/material";
+import { AppDispatch, useAppSelector } from "../../Store";
+import {
+  goBackExplorerHistory,
+  goForwardExplorerHistory,
+  updateExploreBasePath,
+  setSearchText,
+  setSortOrder,
+} from "../../reducers/FileReducer";
+import { SortOrder } from "../../types/SortOrderType";
+import { settingsStore } from "../../settings/SettingsStore";
+import { warn } from "@tauri-apps/plugin-log";
 
 /**
  * Navigation bar component for File navigator component.
  */
 export default function NavBar() {
-    const { t } = useTranslation();
-    const { history, historyIndex, searchText, sortOrder, entries } = useAppSelector(state => state.file.explorer);
-    const dispatch = useDispatch<AppDispatch>();
+  const { t } = useTranslation();
+  const { history, historyIndex, searchText, sortOrder, entries } = useAppSelector(
+    (state) => state.file.explorer,
+  );
+  const dispatch = useDispatch<AppDispatch>();
 
-    const [width, setWidth] = React.useState(0);
+  const [width, setWidth] = React.useState(0);
 
-    const navButtonsRef = useRef<HTMLElement>(null);
+  const navButtonsRef = useRef<HTMLElement>(null);
 
-    const setDirParh = async (dirPath: string | undefined = undefined) => {
-        if (!dirPath) {
-            dirPath = await settingsStore.get("home-directory") ?? await homeDir();
+  const setDirParh = async (dirPath: string | undefined = undefined) => {
+    if (!dirPath) {
+      dirPath = (await settingsStore.get("home-directory")) ?? (await homeDir());
+    }
+    dispatch(setSearchText(""));
+    dispatch(updateExploreBasePath({ dirPath }));
+  };
+
+  useEffect(() => {
+    if (entries.length === 0) {
+      const dirPath = historyIndex === -1 ? undefined : history[historyIndex];
+      setDirParh(dirPath);
+    }
+
+    const element = navButtonsRef.current;
+    if (!element) {
+      return;
+    }
+    const observer = new ResizeObserver(() => {
+      setWidth(element?.offsetWidth ?? 0);
+    });
+    observer.observe(element);
+
+    return () => {
+      if (element) {
+        observer.unobserve(element);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const initViewSettings = async () => {
+      const sortOrder = await settingsStore.get<SortOrder>("sort-order");
+      if (sortOrder) {
+        dispatch(setSortOrder(sortOrder));
+      }
+    };
+    initViewSettings();
+  }, [dispatch]);
+
+  const handleCurrentDirChanged = (e: React.ChangeEvent<HTMLInputElement>) => {
+    dispatch(setSearchText(""));
+    dispatch(updateExploreBasePath({ dirPath: e.target.value }));
+  };
+
+  const handleHomeClicked = (_e: React.MouseEvent<HTMLButtonElement>) => {
+    setDirParh();
+  };
+
+  const handleParentClicked = async (_e: React.MouseEvent<HTMLButtonElement>) => {
+    try {
+      const parentDir = await dirname(history[historyIndex]);
+      dispatch(updateExploreBasePath({ dirPath: parentDir }));
+    } catch (e) {
+      warn(`Failed to get parent directory of ${history[historyIndex]}. Error: ${e}.`);
+    }
+  };
+
+  const handleRefleshClicked = async (_e: React.MouseEvent<HTMLButtonElement>) => {
+    dispatch(updateExploreBasePath({ dirPath: history[historyIndex], forceUpdate: true }));
+  };
+
+  const handleSearchTextChanged = (e: React.ChangeEvent<HTMLInputElement>) => {
+    dispatch(setSearchText(e.target.value));
+  };
+
+  const handleBackClicked = (_e: React.MouseEvent<HTMLButtonElement>) => {
+    dispatch(goBackExplorerHistory());
+  };
+
+  const handleForwardClicked = (_e: React.MouseEvent<HTMLButtonElement>) => {
+    dispatch(goForwardExplorerHistory());
+  };
+
+  const handleSortOrderChanged = (event: SelectChangeEvent) => {
+    settingsStore.set("sort-order", event.target.value as SortOrder);
+    dispatch(setSortOrder(event.target.value as SortOrder));
+  };
+
+  const handleContextMenu = (e: React.MouseEvent<HTMLElement>) => {
+    e.stopPropagation();
+  };
+
+  return (
+    <Stack>
+      <OutlinedInput
+        value={history[historyIndex] ?? ""}
+        onChange={handleCurrentDirChanged}
+        onContextMenu={handleContextMenu}
+        size="small"
+        fullWidth
+        sx={{
+          "& .MuiOutlinedInput-input": {
+            padding: "4px 8px",
+          },
+        }}
+      />
+      <Box
+        ref={navButtonsRef}
+        sx={{
+          "& .MuiIconButton-root": {
+            color: (theme) => theme.palette.primary.main,
+          },
+          "& .MuiIconButton-root.Mui-disabled": {
+            color: (theme) => theme.palette.action.disabled,
+          },
+        }}
+      >
+        <IconButton onClick={handleHomeClicked}>
+          <Home />
+        </IconButton>
+        <IconButton onClick={handleBackClicked} disabled={historyIndex <= 0}>
+          <ArrowBack />
+        </IconButton>
+        <IconButton onClick={handleForwardClicked} disabled={history.length - historyIndex <= 1}>
+          <ArrowForward />
+        </IconButton>
+        <IconButton onClick={handleParentClicked}>
+          <ArrowUpward />
+        </IconButton>
+        <IconButton onClick={handleRefleshClicked}>
+          <Refresh />
+        </IconButton>
+        {width >= 310 ? (
+          <Select
+            size="small"
+            value={sortOrder}
+            sx={{ minWidth: "100px" }}
+            onChange={handleSortOrderChanged}
+          >
+            <MenuItem value={"NAME_ASC"}>{t("app.file-navigator.sort-order.name-asc")}</MenuItem>
+            <MenuItem value={"NAME_DESC"}>{t("app.file-navigator.sort-order.name-desc")}</MenuItem>
+            <MenuItem value={"DATE_ASC"}>{t("app.file-navigator.sort-order.date-asc")}</MenuItem>
+            <MenuItem value={"DATE_DESC"}>{t("app.file-navigator.sort-order.date-desc")}</MenuItem>
+          </Select>
+        ) : (
+          <></>
+        )}
+      </Box>
+      <OutlinedInput
+        type="search"
+        value={searchText}
+        onChange={handleSearchTextChanged}
+        onContextMenu={handleContextMenu}
+        size="small"
+        fullWidth
+        sx={{
+          paddingLeft: "4px",
+          "& .MuiOutlinedInput-input": {
+            padding: "4px 8px 4px 4px",
+          },
+        }}
+        startAdornment={
+          <InputAdornment position="start" sx={{ marginRight: "0px" }}>
+            <Search />
+          </InputAdornment>
         }
-        dispatch(setSearchText(""));
-        dispatch(updateExploreBasePath({ dirPath }));
-    }
-
-    useEffect(() => {
-        if (entries.length === 0) {
-            const dirPath = historyIndex === -1 ? undefined : history[historyIndex]
-            setDirParh(dirPath);
-        }
-
-        const element = navButtonsRef.current
-        if (!element) {
-            return;
-        }
-        const observer = new ResizeObserver(() => {
-            setWidth(element?.offsetWidth ?? 0);
-        })
-        observer.observe(element)
-
-        return () => {
-            if (element) {
-                observer.unobserve(element)
-            }
-        }
-    }, [])
-
-    useEffect(() => {
-        const initViewSettings = async () => {
-            const sortOrder = await settingsStore.get<SortOrder>("sort-order");
-            if (sortOrder) {
-                dispatch(setSortOrder(sortOrder));
-            }
-        };
-        initViewSettings();
-    }, [dispatch])
-
-    const handleCurrentDirChanged = (e: React.ChangeEvent<HTMLInputElement>) => {
-        dispatch(setSearchText(""));
-        dispatch(updateExploreBasePath({ dirPath: e.target.value }));
-    }
-
-    const handleHomeClicked = (_e: React.MouseEvent<HTMLButtonElement>) => {
-        setDirParh();
-    }
-
-    const handleParentClicked = async (_e: React.MouseEvent<HTMLButtonElement>) => {
-        try {
-            const parentDir = await dirname(history[historyIndex]);
-            dispatch(updateExploreBasePath({ dirPath: parentDir }));
-        } catch (e) {
-            warn(`Failed to get parent directory of ${history[historyIndex]}. Error: ${e}.`);
-        }
-    }
-
-    const handleRefleshClicked = async (_e: React.MouseEvent<HTMLButtonElement>) => {
-        dispatch(updateExploreBasePath({ dirPath: history[historyIndex], forceUpdate: true }));
-    }
-
-    const handleSearchTextChanged = (e: React.ChangeEvent<HTMLInputElement>) => {
-        dispatch(setSearchText(e.target.value));
-    }
-
-    const handleBackClicked = (_e: React.MouseEvent<HTMLButtonElement>) => {
-        dispatch(goBackExplorerHistory());
-    }
-
-    const handleForwardClicked = (_e: React.MouseEvent<HTMLButtonElement>) => {
-        dispatch(goForwardExplorerHistory());
-    }
-
-    const handleSortOrderChanged = (event: SelectChangeEvent) => {
-        settingsStore.set("sort-order", event.target.value as SortOrder);
-        dispatch(setSortOrder(event.target.value as SortOrder));
-    }
-
-    const handleContextMenu = (e: React.MouseEvent<HTMLElement>) => {
-        e.stopPropagation();
-    }
-
-    return (
-        <Stack >
-            <OutlinedInput
-                value={history[historyIndex] ?? ""}
-                onChange={handleCurrentDirChanged}
-                onContextMenu={handleContextMenu}
-                size="small"
-                fullWidth
-                sx={{
-                    '& .MuiOutlinedInput-input': {
-                        padding: '4px 8px',
-                    },
-                }} />
-            <Box
-                ref={navButtonsRef}
-                sx={{
-                    '& .MuiIconButton-root': {
-                        color: (theme) => theme.palette.primary.main,
-                    },
-                    '& .MuiIconButton-root.Mui-disabled': {
-                        color: (theme) => theme.palette.action.disabled,
-                    },
-                }}
-            >
-                <IconButton onClick={handleHomeClicked}><Home /></IconButton>
-                <IconButton onClick={handleBackClicked} disabled={historyIndex <= 0}><ArrowBack /></IconButton>
-                <IconButton onClick={handleForwardClicked} disabled={history.length - historyIndex <= 1}><ArrowForward /></IconButton>
-                <IconButton onClick={handleParentClicked}><ArrowUpward /></IconButton>
-                <IconButton onClick={handleRefleshClicked}><Refresh /></IconButton>
-                {width >= 310 ?
-                    <Select
-                        size="small"
-                        value={sortOrder}
-                        sx={{ minWidth: "100px" }}
-                        onChange={handleSortOrderChanged}
-                    >
-                        <MenuItem value={"NAME_ASC"}>{t('app.file-navigator.sort-order.name-asc')}</MenuItem>
-                        <MenuItem value={"NAME_DESC"}>{t('app.file-navigator.sort-order.name-desc')}</MenuItem>
-                        <MenuItem value={"DATE_ASC"}>{t('app.file-navigator.sort-order.date-asc')}</MenuItem>
-                        <MenuItem value={"DATE_DESC"}>{t('app.file-navigator.sort-order.date-desc')}</MenuItem>
-                    </Select>
-                    : <></>}
-            </Box>
-            <OutlinedInput
-                type='search'
-                value={searchText}
-                onChange={handleSearchTextChanged}
-                onContextMenu={handleContextMenu}
-                size="small" fullWidth
-                sx={{
-                    paddingLeft: '4px',
-                    '& .MuiOutlinedInput-input': {
-                        padding: '4px 8px 4px 4px',
-                    },
-                }}
-                startAdornment={
-                    <InputAdornment position="start" sx={{ marginRight: '0px' }}>
-                        <Search />
-                    </InputAdornment>
-                }
-            />
-        </Stack >
-    );
+      />
+    </Stack>
+  );
 }
