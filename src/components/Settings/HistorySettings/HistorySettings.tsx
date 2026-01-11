@@ -8,15 +8,15 @@ import RestoreOnStartupSetting from "./Items/RestoreOnStartupSetting";
  * History settings component.
  */
 export default function HistorySettings() {
-    const { t } = useTranslation();
+  const { t } = useTranslation();
 
-    return (
-        <SettingsPanel title={t('settings.history.title')}>
-            <List>
-                <FeatureToggle />
-                <Divider />
-                <RestoreOnStartupSetting />
-            </List>
-        </SettingsPanel>
-    );
+  return (
+    <SettingsPanel title={t("settings.history.title")}>
+      <List>
+        <FeatureToggle />
+        <Divider />
+        <RestoreOnStartupSetting />
+      </List>
+    </SettingsPanel>
+  );
 }

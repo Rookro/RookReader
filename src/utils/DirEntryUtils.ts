@@ -13,30 +13,30 @@ import { DirEntry } from "../types/DirEntry";
  * @returns A promise that resolves to an array of DirEntry objects.
  */
 export const convertEntriesInDir = (entriesData: ArrayBuffer) => {
-    const buffer = entriesData instanceof Uint8Array ? entriesData : new Uint8Array(entriesData);
-    const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
-    const decoder = new TextDecoder();
+  const buffer = entriesData instanceof Uint8Array ? entriesData : new Uint8Array(entriesData);
+  const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+  const decoder = new TextDecoder();
 
-    const entries: DirEntry[] = [];
-    let offset = 0;
+  const entries: DirEntry[] = [];
+  let offset = 0;
 
-    while (offset < buffer.length) {
-        // is_directory
-        const is_directory = view.getUint8(offset) === 1;
-        offset += 1;
+  while (offset < buffer.length) {
+    // is_directory
+    const is_directory = view.getUint8(offset) === 1;
+    offset += 1;
 
-        // name
-        const nameLen = view.getUint32(offset);
-        offset += 4;
-        const name = decoder.decode(buffer.subarray(offset, offset + nameLen));
-        offset += nameLen;
+    // name
+    const nameLen = view.getUint32(offset);
+    offset += 4;
+    const name = decoder.decode(buffer.subarray(offset, offset + nameLen));
+    offset += nameLen;
 
-        // last_modified
-        const timestamp = view.getBigUint64(offset);
-        const last_modified = new Date(Number(timestamp)).toLocaleString();
-        offset += 8;
+    // last_modified
+    const timestamp = view.getBigUint64(offset);
+    const last_modified = new Date(Number(timestamp)).toLocaleString();
+    offset += 8;
 
-        entries.push({ is_directory, name, last_modified });
-    }
-    return entries;
+    entries.push({ is_directory, name, last_modified });
+  }
+  return entries;
 };
