@@ -1,4 +1,4 @@
-import { Stack } from "@mui/material";
+import { Container } from "@mui/material";
 import About from "./Items/About";
 import ThirdParty from "./Items/ThirdParty";
 
@@ -7,9 +7,9 @@ import ThirdParty from "./Items/ThirdParty";
  */
 export default function AboutPage() {
     return (
-        <Stack spacing={3}>
+        <Container sx={{ minWidth: '650px' }}>
             <About />
             <ThirdParty />
-        </Stack>
+        </Container>
     );
 }

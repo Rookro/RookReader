@@ -1,6 +1,6 @@
 import { useCallback, } from "react";
 import { useTranslation } from "react-i18next";
-import { Box, Button, Typography } from "@mui/material";
+import { Box, Button, Paper, Typography } from "@mui/material";
 import { openPath } from '@tauri-apps/plugin-opener';
 import { resolveResource } from "@tauri-apps/api/path";
 import { error } from "@tauri-apps/plugin-log";
@@ -22,7 +22,7 @@ export default function ThirdParty() {
         }, []);
 
     return (
-        <Box sx={{ padding: '10px', borderRadius: '8px', bgcolor: 'background.paper' }}>
+        <Paper elevation={3} sx={{ padding: 2 }}>
             <Typography variant="h5">
                 {t('settings.about.third-party-licenses.title')}
             </Typography>
@@ -45,6 +45,6 @@ export default function ThirdParty() {
                     {t('settings.about.third-party-licenses.pdfium')}
                 </Button>
             </Box>
-        </Box>
+        </Paper>
     )
 }
