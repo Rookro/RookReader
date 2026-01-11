@@ -53,7 +53,7 @@
             "tab-name": "履歴設定",
             "title": "履歴設定",
             "feature-toggle": {
-                "title": "読書履歴: ",
+                "title": "読書履歴機能",
                 "warn-message": "この設定が無効の場合、これ以降の設定オプションは無視されます。"
             },
             "restore-toggle": {
