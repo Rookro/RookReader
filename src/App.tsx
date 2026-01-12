@@ -1,5 +1,5 @@
 import { CssBaseline, Stack, ThemeProvider } from "@mui/material";
-import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
+import { Group, Panel, Separator, useDefaultLayout } from "react-resizable-panels";
 import ControlSlider from "./components/ControlSlider/ControlSlider";
 import ImageViewer from "./components/ImageViewer/ImageViewer";
 import LeftPane from "./components/LeftPane/LeftPane";
@@ -10,6 +10,10 @@ import { useSettingsChange } from "./hooks/useSettingsChange";
 
 export default function App() {
   const theme = useAppTheme();
+  const { defaultLayout, onLayoutChange } = useDefaultLayout({
+    groupId: "main_panel_group",
+    storage: localStorage,
+  });
 
   useHistoryUpdater();
   useSettingsChange();
@@ -26,20 +30,25 @@ export default function App() {
         }}
       >
         <NavigationBar />
-        <PanelGroup direction="horizontal" autoSaveId="main_panel_group">
-          <Panel defaultSize={20}>
+        <Group
+          orientation="horizontal"
+          defaultLayout={defaultLayout}
+          onLayoutChange={onLayoutChange}
+        >
+          <Panel defaultSize={250} minSize={250}>
             <LeftPane />
           </Panel>
-          <PanelResizeHandle
+          <Separator
             style={{
               width: "2px",
               backgroundColor: theme.palette.divider,
+              outline: "none",
             }}
           />
           <Panel style={{ display: "flex", background: theme.palette.background.default }}>
             <ImageViewer />
           </Panel>
-        </PanelGroup>
+        </Group>
         <ControlSlider />
       </Stack>
     </ThemeProvider>
