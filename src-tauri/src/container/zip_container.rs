@@ -30,6 +30,10 @@ impl Container for ZipContainer {
         let image = Image::new(buffer)?;
         Ok(Arc::new(image))
     }
+
+    fn is_directory(&self) -> bool {
+        false
+    }
 }
 
 impl ZipContainer {

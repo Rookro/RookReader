@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "RookReader",
-  "version": "1.7.1",
+  "version": "1.8.0",
   "identifier": "com.rookro.rookreader.app",
   "build": {
     "beforeDevCommand": "yarn dev",
@@ -13,7 +13,7 @@
     "windows": [
       {
         "title": "Rook Reader",
-        "width": 800,
+        "width": 1000,
         "height": 600
       }
     ],

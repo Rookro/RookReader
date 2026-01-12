@@ -1,17 +1,22 @@
 import { useTranslation } from "react-i18next";
-import { Box, Typography } from "@mui/material";
-import HomeDirSetting from "./Items/HomeDirSetting"
+import { Divider, List } from "@mui/material";
+import HomeDirSetting from "./Items/HomeDirSetting";
+import DirWatchSetting from "./Items/DirWatchSetting";
+import SettingsPanel from "../SettingsPanel";
 
 /**
- * General settings component.
+ * File navigator settings component.
  */
-export default function GeneralSettings() {
-    const { t } = useTranslation();
+export default function FileNavigatorSettings() {
+  const { t } = useTranslation();
 
-    return (
-        <Box>
-            <Typography variant="h5">{t('settings.file-navigator.title')}</Typography>
-            <HomeDirSetting />
-        </Box>
-    );
+  return (
+    <SettingsPanel title={t("settings.file-navigator.title")}>
+      <List>
+        <HomeDirSetting />
+        <Divider />
+        <DirWatchSetting />
+      </List>
+    </SettingsPanel>
+  );
 }

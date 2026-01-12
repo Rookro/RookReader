@@ -39,6 +39,12 @@
       "allow": [
         {
           "path": "**"
+        },
+        {
+          "path": "**/.*"
+        },
+        {
+          "path": "**/.*/**"
         }
       ]
     },
@@ -59,6 +65,8 @@
     "os:default",
     "core:webview:allow-create-webview-window",
     "core:app:allow-set-app-theme",
-    "dialog:default"
+    "dialog:default",
+    "sql:default",
+    "sql:allow-execute"
   ]
 }

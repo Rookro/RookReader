@@ -1,17 +1,19 @@
 import { useTranslation } from "react-i18next";
-import { Typography, Box } from "@mui/material";
+import { List } from "@mui/material";
 import FirstPageSetting from "./Items/FirstPageSetting";
+import SettingsPanel from "../SettingsPanel";
 
 /**
  * Page settings component.
  */
 export default function PageSettings() {
-    const { t } = useTranslation();
+  const { t } = useTranslation();
 
-    return (
-        <Box>
-            <Typography variant="h5">{t('settings.page.title')}</Typography>
-            <FirstPageSetting />
-        </Box>
-    );
+  return (
+    <SettingsPanel title={t("settings.page.title")}>
+      <List>
+        <FirstPageSetting />
+      </List>
+    </SettingsPanel>
+  );
 }

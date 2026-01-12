@@ -1,17 +1,19 @@
 import { useTranslation } from "react-i18next";
-import { Typography, Box } from "@mui/material";
+import { List } from "@mui/material";
 import PdfRenderingSetting from "./Items/PdfRenderingSetting";
+import SettingsPanel from "../SettingsPanel";
 
 /**
  * Rendering settings component.
  */
 export default function RenderingSettings() {
-    const { t } = useTranslation();
+  const { t } = useTranslation();
 
-    return (
-        <Box>
-            <Typography variant="h5">{t('settings.rendering.title')}</Typography>
-            <PdfRenderingSetting />
-        </Box>
-    );
+  return (
+    <SettingsPanel title={t("settings.rendering.title")}>
+      <List>
+        <PdfRenderingSetting />
+      </List>
+    </SettingsPanel>
+  );
 }

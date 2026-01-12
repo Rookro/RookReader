@@ -1,7 +1,7 @@
 {
   "name": "rook-reader",
   "private": true,
-  "version": "1.7.1",
+  "version": "1.8.0",
   "type": "module",
   "scripts": {
     "mk-licenses-dir": "node -e \"require('fs').mkdirSync('src-tauri/target/dependencies/licenses', { recursive: true })\"",
@@ -10,7 +10,10 @@
     "build": "yarn gen-licenses && tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
-    "test": "yarn gen-licenses && cargo test --lib --manifest-path src-tauri/Cargo.toml"
+    "test": "yarn gen-licenses && cargo test --lib --manifest-path src-tauri/Cargo.toml",
+    "lint": "eslint \"src/**/*.{ts,tsx}\"",
+    "lint:fix": "eslint \"src/**/*.{ts,tsx}\" --fix",
+    "format": "prettier --write \"src/**/*.{ts,tsx}\""
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -22,9 +25,10 @@
     "@tauri-apps/api": "^2.9.0",
     "@tauri-apps/plugin-dialog": "~2",
     "@tauri-apps/plugin-fs": "~2.4.4",
-    "@tauri-apps/plugin-log": "~2.7.1",
+    "@tauri-apps/plugin-log": "~2.8.0",
     "@tauri-apps/plugin-opener": "~2",
     "@tauri-apps/plugin-os": "~2.3.2",
+    "@tauri-apps/plugin-sql": "~2",
     "@tauri-apps/plugin-store": "~2.4.1",
     "@tauri-apps/plugin-window-state": "~2.4.1",
     "i18next": "^25.6.3",
@@ -33,18 +37,31 @@
     "react-dom": "^19.2.0",
     "react-i18next": "^16.3.5",
     "react-redux": "^9.2.0",
-    "react-resizable-panels": "^3.0.6",
+    "react-resizable-panels": "^4.3.3",
     "react-router": "^7.9.5",
     "react-window": "^2.2.3",
     "redux": "^5.0.1"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.2",
     "@tauri-apps/cli": "^2.9.3",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
     "@types/stylis": "^4.2.7",
+    "@typescript-eslint/eslint-plugin": "^8.52.0",
+    "@typescript-eslint/parser": "^8.52.0",
     "@vitejs/plugin-react": "^5.1.0",
+    "eslint": "^9.39.2",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "globals": "^17.0.0",
+    "jiti": "^2.6.1",
+    "prettier": "^3.7.4",
     "typescript": "~5.9.3",
+    "typescript-eslint": "^8.52.0",
     "vite": "^7.2.2"
   }
 }

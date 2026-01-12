@@ -1,11 +1,19 @@
 {
     "app": {
-        "file-list-viewer": {
+        "file-navigator": {
             "sort-order": {
                 "name-asc": "名前↑",
                 "name-desc": "名前↓",
                 "date-asc": "日付↑",
                 "date-desc": "日付↓"
+            },
+            "no-files": "表示可能なファイルがありません。",
+            "no-search-results": "\"{{searchText}}\" に一致するファイルはありません。"
+        },
+        "history-viewer": {
+            "menu": {
+                "open": "開く",
+                "remove": "履歴から削除"
             }
         }
     },
@@ -14,28 +22,43 @@
             "tab-name": "一般設定",
             "title": "一般設定",
             "language": {
-                "title": "言語",
+                "title": "言語設定",
                 "english": "English",
                 "japanese": "日本語"
             },
             "theme": {
-                "title": "テーマ",
-                "system": "システムテーマ",
-                "light": "ライトテーマ",
-                "dark": "ダークテーマ"
+                "title": "テーマ設定",
+                "system": "システム",
+                "light": "ライト",
+                "dark": "ダーク"
             }
         },
         "page": {
             "tab-name": "ページ",
-            "title": "ページ",
+            "title": "ページ設定",
             "first-page": {
-                "title": "最初のページを 1 ページ表示する: "
+                "title": "最初のページを 1 ページ表示する"
             }
         },
         "file-navigator": {
             "tab-name": "ファイルナビゲーター",
-            "title": "ファイルナビゲーター",
-            "home-directory-title": "ホームディレクトリー"
+            "title": "ファイルナビゲーター設定",
+            "home-directory-title": "ホームディレクトリー",
+            "dir-watch": {
+                "title": "ディレクトリー/ファイルの変更監視を有効にする",
+                "warn-message": "この機能を有効にすると、大量のファイル/ディレクトリーを含むディレクトリーにアクセスした際、システム負荷が高くなる恐れがあります。"
+            }
+        },
+        "history": {
+            "tab-name": "履歴設定",
+            "title": "履歴設定",
+            "feature-toggle": {
+                "title": "読書履歴機能",
+                "warn-message": "この設定が無効の場合、これ以降の設定オプションは無視されます。"
+            },
+            "restore-toggle": {
+                "title": "前回の最後に開いていた書籍を起動時に復元する"
+            }
         },
         "rendering": {
             "tab-name": "描画設定",

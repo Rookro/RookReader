@@ -1,0 +1,6 @@
+# Ignore artifacts:
+dist
+node_modules
+src-tauri
+yarn.lock
+package-lock.json

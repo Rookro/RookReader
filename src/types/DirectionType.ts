@@ -1,6 +1,6 @@
-/** 
+/**
  * Page turning direction.
- * 
+ *
  * - rtl: right to left.
  * - ltr: left to right.
  */

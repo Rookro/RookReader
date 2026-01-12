@@ -1,5 +1,5 @@
-import { DirEntry } from '../types/DirEntry';
-import { SortOrder } from '../types/SortOrderType';
+import { DirEntry } from "../types/DirEntry";
+import { SortOrder } from "../types/SortOrderType";
 
 /**
  * Filters an array of DirEntry objects to find entries whose 'name' property contains ALL specified keywords (AND search).
@@ -18,25 +18,25 @@ import { SortOrder } from '../types/SortOrderType';
  * andSearch(entries, "example"); // Returns []
  */
 export const andSearch = (entries: DirEntry[], query: string) => {
-    const keywords = query
-        .trim()
-        .toLowerCase()
-        .split(/\s+/)
-        .filter(keyword => keyword.length > 0);
+  const keywords = query
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((keyword) => keyword.length > 0);
 
-    if (keywords.length === 0) {
-        return entries;
-    }
+  if (keywords.length === 0) {
+    return entries;
+  }
 
-    const filtered = entries.filter(item => {
-        const lowerCaseName = item.name.toLowerCase();
-        return keywords.every(keyword => {
-            return lowerCaseName.includes(keyword);
-        });
+  const filtered = entries.filter((item) => {
+    const lowerCaseName = item.name.toLowerCase();
+    return keywords.every((keyword) => {
+      return lowerCaseName.includes(keyword);
     });
+  });
 
-    return filtered;
-}
+  return filtered;
+};
 
 /**
  * Comparison function for sorting an array of DirEntry objects based on a specified criterion and order.
@@ -56,14 +56,14 @@ export const andSearch = (entries: DirEntry[], query: string) => {
  * entries.sort((a, b) => sortBy(a, b, 'NAME_ASC'));  // Returns [{ name: "a", ... }, { name: "b", ... }, { name: "c", ... }]
  */
 export const sortBy = (a: DirEntry, b: DirEntry, sortOrder: SortOrder) => {
-    switch (sortOrder) {
-        case "NAME_ASC":
-            return a.name.localeCompare(b.name);
-        case "NAME_DESC":
-            return b.name.localeCompare(a.name);
-        case "DATE_ASC":
-            return Date.parse(a.last_modified) - Date.parse(b.last_modified);
-        case 'DATE_DESC':
-            return Date.parse(b.last_modified) - Date.parse(a.last_modified);
-    }
-}
+  switch (sortOrder) {
+    case "NAME_ASC":
+      return a.name.localeCompare(b.name);
+    case "NAME_DESC":
+      return b.name.localeCompare(a.name);
+    case "DATE_ASC":
+      return Date.parse(a.last_modified) - Date.parse(b.last_modified);
+    case "DATE_DESC":
+      return Date.parse(b.last_modified) - Date.parse(a.last_modified);
+  }
+};
