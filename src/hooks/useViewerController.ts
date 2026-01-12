@@ -41,20 +41,15 @@ export const useViewerController = (
   settings: ViewerSettings,
   dispatch: AppDispatch,
 ): ViewerController => {
-  const [cache, setCache] = useState<Map<string, ImageCacheItem>>(new Map());
+  const cacheRef = useRef<Map<string, ImageCacheItem>>(new Map());
   const [isImageLoading, setIsImageLoading] = useState(false);
-  const [prevContainerPath, setPrevContainerPath] = useState<string | null>(null);
   const [displayedLayout, setDisplayedLayout] = useState<ViewLayout | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  if (prevContainerPath !== containerPath) {
-    // Resets the layout.
-    cache.forEach((item) => URL.revokeObjectURL(item.url));
-    const newCache = new Map<string, ImageCacheItem>();
-    setPrevContainerPath(containerPath);
-    setCache(newCache);
-    setIsImageLoading(false);
-  }
+  useEffect(() => {
+    cacheRef.current.forEach((item) => URL.revokeObjectURL(item.url));
+    cacheRef.current.clear();
+  }, [containerPath]);
 
   // Loads the missing images and updates the layout.
   useEffect(() => {
@@ -69,16 +64,16 @@ export const useViewerController = (
         pathsToLoad.push(entries[index + 1]);
       }
 
-      const missingPaths = pathsToLoad.filter((p) => !cache.has(p));
+      const missingPaths = pathsToLoad.filter((p) => !cacheRef.current.has(p));
       if (missingPaths.length === 0) {
-        setDisplayedLayout(calculateLayout(index, entries, cache, settings));
+        setDisplayedLayout(calculateLayout(index, entries, cacheRef.current, settings));
         setIsImageLoading(false);
         return;
       }
 
       setIsImageLoading(true);
-      const newItems = new Map<string, ImageCacheItem>();
 
+      const newItems = new Map<string, ImageCacheItem>();
       await Promise.all(
         missingPaths.map(async (path) => {
           if (controller.signal.aborted) {
@@ -94,13 +89,10 @@ export const useViewerController = (
       );
 
       if (!controller.signal.aborted) {
-        // Do not update if the container path has changed.
-        if (prevContainerPath === containerPath) {
-          const next = new Map(cache);
-          newItems.forEach((val, key) => next.set(key, val));
-          setCache(next);
-          setDisplayedLayout(calculateLayout(index, entries, next, settings));
-        }
+        newItems.forEach((val, key) => {
+          cacheRef.current.set(key, val);
+        });
+        setDisplayedLayout(calculateLayout(index, entries, cacheRef.current, settings));
         setIsImageLoading(false);
       }
     };
@@ -111,7 +103,7 @@ export const useViewerController = (
       abortControllerRef.current?.abort();
       abortControllerRef.current = null;
     };
-  }, [containerPath, index, entries, settings.isTwoPagedView, cache, prevContainerPath, settings]);
+  }, [containerPath, index, entries, settings]);
 
   const moveForward = useCallback(() => {
     if (entries.length === 0) {
@@ -140,7 +132,7 @@ export const useViewerController = (
     const simulatedLayoutFor1PagesBack = calculateLayout(
       indexFor1PagesBack,
       entries,
-      cache,
+      cacheRef.current,
       settings,
     );
 
@@ -159,7 +151,7 @@ export const useViewerController = (
     const simulatedLayoutFor2PagesBack = calculateLayout(
       indexFor2PagesBack,
       entries,
-      cache,
+      cacheRef.current,
       settings,
     );
 
@@ -180,7 +172,7 @@ export const useViewerController = (
     }
 
     dispatch(setImageIndex(indexFor2PagesBack));
-  }, [index, entries, cache, settings, dispatch]);
+  }, [index, entries, settings, dispatch]);
 
   return {
     displayedLayout,
