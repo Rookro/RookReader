@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { debug } from "@tauri-apps/plugin-log";
+import { debug, warn } from "@tauri-apps/plugin-log";
 import { useAppDispatch, useAppSelector } from "../Store";
 import { HistoryTable } from "../database/historyTable";
 import {
@@ -61,8 +61,12 @@ export const useHistoryUpdater = () => {
         if (currentPath) {
           debug(`Update container history: ${currentPath}, ${isDirectory ? "DIRECTORY" : "FILE"}`);
           dispatch(upsertHistory({ path: currentPath, type: isDirectory ? "DIRECTORY" : "FILE" }));
-          const lastPageIndex = await historyTableRef.current.selectPageIndex(currentPath);
-          dispatch(setImageIndex(lastPageIndex));
+          try {
+            const lastPageIndex = await historyTableRef.current.selectPageIndex(currentPath);
+            dispatch(setImageIndex(lastPageIndex));
+          } catch (e) {
+            warn(`Error selecting page index: ${e}`);
+          }
         }
       }
     };
