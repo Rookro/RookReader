@@ -18,7 +18,7 @@ import { Language } from "@mui/icons-material";
  */
 export default function LanguageSetting() {
   const [t, i18n] = useTranslation();
-  const [language, setLanguage] = useState<string>(i18n.languages[0]);
+  const [language, setLanguage] = useState<string>(i18n.resolvedLanguage ?? "en-US");
 
   const handleLanguageChanged = async (e: SelectChangeEvent) => {
     setLanguage(e.target.value);
