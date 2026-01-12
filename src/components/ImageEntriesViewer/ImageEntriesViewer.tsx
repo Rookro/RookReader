@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useDispatch } from "react-redux";
 import { List, RowComponentProps, useListRef } from "react-window";
 import { Box } from "@mui/material";
+import { error } from "@tauri-apps/plugin-log";
 import { useAppSelector, AppDispatch } from "../../Store";
 import { setImageIndex } from "../../reducers/FileReducer";
 import { ItemRow } from "./ItemRow";
@@ -30,9 +31,7 @@ export default function ImageEntriesViewer() {
     try {
       listRef.current?.scrollToRow({ align: "smart", behavior: "instant", index: selectedIndex });
     } catch (e) {
-      console.error(
-        `Failed to scroll to row ${selectedIndex} (List length: ${entries.length}): ${e}`,
-      );
+      error(`Failed to scroll to row ${selectedIndex} (List length: ${entries.length}): ${e}`);
     }
   }, [selectedIndex, entries.length, listRef]);
 
