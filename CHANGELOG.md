@@ -7,9 +7,24 @@
 
 ## [Unreleased]
 
+## [v1.8.0] - 2026-01-12
+
 ### Added
 
 * 履歴機能を追加 (#98)
+* ファイル更新監視機能の有効/無効切り替え機能を追加 (#100)
+
+### Changed
+
+* 設定画面のデザイン変更 (#101)
+* フロントエンド側にリンタ―とフォーマッターを導入 (#102)
+* 依存関係の更新 (#103)
+
+### Fixed
+
+* 不要な再描画が発生しないように修正 (#104)
+* windowsで発生するfaviconのエラーを解消 (#105)
+* 言語設定で国コードがない場合にも対応 (#106)
 
 ## [1.7.1] - 2025-12-31
 
@@ -184,7 +199,8 @@
 * 自動見開き表示機能の追加 (#4)
 * ホイールの上下によるページ送り機能を追加 (#5)
 
-[unreleased]: https://github.com/Rookro/RookReader/compare/v1.7.1...HEAD
+[unreleased]: https://github.com/Rookro/RookReader/compare/v1.8.0...HEAD
+[1.8.0]: https://github.com/Rookro/RookReader/compare/v1.7.1...v1.8.0
 [1.7.1]: https://github.com/Rookro/RookReader/compare/v1.7.0...v1.7.1
 [1.7.0]: https://github.com/Rookro/RookReader/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/Rookro/RookReader/compare/v1.5.2...v1.6.0
