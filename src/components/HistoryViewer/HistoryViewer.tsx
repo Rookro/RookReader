@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { List, RowComponentProps, useListRef } from "react-window";
 import { Box, InputAdornment, OutlinedInput, Stack } from "@mui/material";
 import { Search } from "@mui/icons-material";
@@ -10,10 +11,13 @@ import { useAppDispatch, useAppSelector } from "../../Store";
 import { useHistorySelection } from "../../hooks/useHistorySelection";
 import { andSearch } from "../../utils/HistoryViewerUtils";
 
+import SidePanelHeader from "../SidePane/SidePanelHeader";
+
 /**
  * History viewer component.
  */
 export default function HistoryViewer() {
+  const { t } = useTranslation();
   const { history, historyIndex } = useAppSelector((state) => state.file.containerFile);
   const { entries } = useAppSelector((state) => state.history);
   const [selectedIndex, setSelectedIndex] = useState(-1);
@@ -85,6 +89,7 @@ export default function HistoryViewer() {
         height: "100%",
       }}
     >
+      <SidePanelHeader title={t("app.history-viewer.title")} />
       <OutlinedInput
         type="search"
         value={searchText}

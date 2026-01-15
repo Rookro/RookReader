@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { List, RowComponentProps, useListRef } from "react-window";
 import { Box, CircularProgress, Stack, Typography } from "@mui/material";
 import { join } from "@tauri-apps/api/path";
+import { error } from "@tauri-apps/plugin-log";
 import { useAppSelector, useAppDispatch } from "../../Store";
 import {
   setContainerFilePath,
@@ -14,8 +16,7 @@ import { ItemRow } from "./ItemRow";
 import { DirEntry } from "../../types/DirEntry";
 import { useDirectoryWatcher } from "../../hooks/useDirectoryWatcher";
 import { useFileSelection } from "../../hooks/useFileSelection";
-import { error } from "@tauri-apps/plugin-log";
-import { useTranslation } from "react-i18next";
+import SidePanelHeader from "../SidePane/SidePanelHeader";
 
 /**
  * File navigator component.
@@ -128,6 +129,7 @@ export default function FileListViewer() {
         height: "100%",
       }}
     >
+      <SidePanelHeader title={t("app.file-navigator.title")} />
       <NavBar />
       {isLoading ? (
         <Box sx={{ flexGrow: 1, display: "flex", justifyContent: "center", alignItems: "center" }}>

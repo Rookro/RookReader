@@ -1,100 +1,105 @@
 {
-    "app": {
-        "file-navigator": {
-            "sort-order": {
-                "name-asc": "名前↑",
-                "name-desc": "名前↓",
-                "date-asc": "日付↑",
-                "date-desc": "日付↓"
-            },
-            "no-files": "表示可能なファイルがありません。",
-            "no-search-results": "\"{{searchText}}\" に一致するファイルはありません。"
-        },
-        "history-viewer": {
-            "menu": {
-                "open": "開く",
-                "remove": "履歴から削除"
-            }
-        }
+  "app": {
+    "file-navigator": {
+      "title": "ファイルナビゲーター",
+      "sort-order": {
+        "name-asc": "名前↑",
+        "name-desc": "名前↓",
+        "date-asc": "日付↑",
+        "date-desc": "日付↓"
+      },
+      "no-files": "表示可能なファイルがありません。",
+      "no-search-results": "\"{{searchText}}\" に一致するファイルはありません。"
     },
-    "settings": {
-        "general": {
-            "tab-name": "一般設定",
-            "title": "一般設定",
-            "language": {
-                "title": "言語設定",
-                "english": "English",
-                "japanese": "日本語"
-            },
-            "theme": {
-                "title": "テーマ設定",
-                "system": "システム",
-                "light": "ライト",
-                "dark": "ダーク"
-            }
-        },
-        "page": {
-            "tab-name": "ページ",
-            "title": "ページ設定",
-            "first-page": {
-                "title": "最初のページを 1 ページ表示する"
-            }
-        },
-        "file-navigator": {
-            "tab-name": "ファイルナビゲーター",
-            "title": "ファイルナビゲーター設定",
-            "home-directory-title": "ホームディレクトリー",
-            "dir-watch": {
-                "title": "ディレクトリー/ファイルの変更監視を有効にする",
-                "warn-message": "この機能を有効にすると、大量のファイル/ディレクトリーを含むディレクトリーにアクセスした際、システム負荷が高くなる恐れがあります。"
-            }
-        },
-        "history": {
-            "tab-name": "履歴設定",
-            "title": "履歴設定",
-            "feature-toggle": {
-                "title": "読書履歴機能",
-                "warn-message": "この設定が無効の場合、これ以降の設定オプションは無視されます。"
-            },
-            "restore-toggle": {
-                "title": "前回の最後に開いていた書籍を起動時に復元する"
-            }
-        },
-        "rendering": {
-            "tab-name": "描画設定",
-            "title": "描画設定",
-            "pdf": {
-                "title": "PDF 描画時の高さ(px)"
-            }
-        },
-        "developer": {
-            "tab-name": "開発者向け設定",
-            "title": "開発者向け設定",
-            "log": {
-                "log-directory": "ログディレクトリー",
-                "log-level": {
-                    "title": "ログレベル",
-                    "description": "ログ設定を反映するには再起動が必要です。",
-                    "trace": "Trace",
-                    "debug": "Debug",
-                    "info": "Info",
-                    "warn": "Warn",
-                    "error": "Error"
-                }
-            }
-        },
-        "about": {
-            "tab-name": "About",
-            "title": "About",
-            "project-page": "プロジェクトページ",
-            "third-party-licenses": {
-                "title": "サードパーティー ライセンス",
-                "body": "このアプリケーションはオープンソースのソフトウェアで構築されています。",
-                "frontend": "フロントエンド ライセンス(yarn)",
-                "backend": "バックエンド ライセンス(cargo)",
-                "bundled": "バンドルしているライブラリーのライセンス",
-                "pdfium": "PDFium ライセンス"
-            }
-        }
+    "history-viewer": {
+      "title": "履歴",
+      "menu": {
+        "open": "開く",
+        "remove": "履歴から削除"
+      }
+    },
+    "pages-viewer": {
+      "title": "ページ"
     }
+  },
+  "settings": {
+    "general": {
+      "tab-name": "一般設定",
+      "title": "一般設定",
+      "language": {
+        "title": "言語設定",
+        "english": "English",
+        "japanese": "日本語"
+      },
+      "theme": {
+        "title": "テーマ設定",
+        "system": "システム",
+        "light": "ライト",
+        "dark": "ダーク"
+      }
+    },
+    "page": {
+      "tab-name": "ページ",
+      "title": "ページ設定",
+      "first-page": {
+        "title": "最初のページを 1 ページ表示する"
+      }
+    },
+    "file-navigator": {
+      "tab-name": "ファイルナビゲーター",
+      "title": "ファイルナビゲーター設定",
+      "home-directory-title": "ホームディレクトリー",
+      "dir-watch": {
+        "title": "ディレクトリー/ファイルの変更監視を有効にする",
+        "warn-message": "この機能を有効にすると、大量のファイル/ディレクトリーを含むディレクトリーにアクセスした際、システム負荷が高くなる恐れがあります。"
+      }
+    },
+    "history": {
+      "tab-name": "履歴設定",
+      "title": "履歴設定",
+      "feature-toggle": {
+        "title": "読書履歴機能",
+        "warn-message": "この設定が無効の場合、これ以降の設定オプションは無視されます。"
+      },
+      "restore-toggle": {
+        "title": "前回の最後に開いていた書籍を起動時に復元する"
+      }
+    },
+    "rendering": {
+      "tab-name": "描画設定",
+      "title": "描画設定",
+      "pdf": {
+        "title": "PDF 描画時の高さ(px)"
+      }
+    },
+    "developer": {
+      "tab-name": "開発者向け設定",
+      "title": "開発者向け設定",
+      "log": {
+        "log-directory": "ログディレクトリー",
+        "log-level": {
+          "title": "ログレベル",
+          "description": "ログ設定を反映するには再起動が必要です。",
+          "trace": "Trace",
+          "debug": "Debug",
+          "info": "Info",
+          "warn": "Warn",
+          "error": "Error"
+        }
+      }
+    },
+    "about": {
+      "tab-name": "About",
+      "title": "About",
+      "project-page": "プロジェクトページ",
+      "third-party-licenses": {
+        "title": "サードパーティー ライセンス",
+        "body": "このアプリケーションはオープンソースのソフトウェアで構築されています。",
+        "frontend": "フロントエンド ライセンス(yarn)",
+        "backend": "バックエンド ライセンス(cargo)",
+        "bundled": "バンドルしているライブラリーのライセンス",
+        "pdfium": "PDFium ライセンス"
+      }
+    }
+  }
 }

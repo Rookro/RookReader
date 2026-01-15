@@ -6,16 +6,17 @@ import { error } from "@tauri-apps/plugin-log";
 import { useAppSelector, AppDispatch } from "../../Store";
 import { setImageIndex } from "../../reducers/FileReducer";
 import { ItemRow } from "./ItemRow";
+import SidePanelHeader from "../SidePane/SidePanelHeader";
+import { useTranslation } from "react-i18next";
 
 /**
  * Component to display a list of image entries.
  */
 export default function ImageEntriesViewer() {
+  const { t } = useTranslation();
   const { entries, index } = useAppSelector((state) => state.file.containerFile);
   const dispatch = useDispatch<AppDispatch>();
-
   const [selectedIndex, setSelectedIndex] = useState(-1);
-
   const listRef = useListRef(null);
 
   useEffect(() => {
@@ -65,6 +66,7 @@ export default function ImageEntriesViewer() {
 
   return (
     <Box sx={{ width: "100%", height: "100%", display: "grid", alignContent: "start" }}>
+      <SidePanelHeader title={t("app.pages-viewer.title")} />
       <List
         rowComponent={Row}
         rowCount={entries.length}
