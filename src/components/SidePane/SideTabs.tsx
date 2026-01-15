@@ -1,7 +1,7 @@
 import React, { JSX, useCallback } from "react";
 import { Tab, Tabs } from "@mui/material";
 import { useAppDispatch, useAppSelector } from "../../Store";
-import { setLeftSideTabIndex } from "../../reducers/SidePaneReducer";
+import { setLeftSideTabIndex, setIsLeftSidePanelsHidden } from "../../reducers/SidePaneReducer";
 
 /**
  * Side tabs component.
@@ -9,11 +9,21 @@ import { setLeftSideTabIndex } from "../../reducers/SidePaneReducer";
 export default function SideTabs(props: {
   tabs: { label: string; icon: JSX.Element; panel: JSX.Element }[];
 }) {
-  const { tabIndex } = useAppSelector((state) => state.sidePane.left);
+  const { isHidden, tabIndex } = useAppSelector((state) => state.sidePane.left);
   const dispatch = useAppDispatch();
+
+  const handleTabClick = useCallback(
+    (_event: React.MouseEvent, index: number) => {
+      if (tabIndex === index) {
+        dispatch(setIsLeftSidePanelsHidden(!isHidden));
+      }
+    },
+    [dispatch, tabIndex, isHidden],
+  );
 
   const handleChange = useCallback(
     (_event: React.SyntheticEvent, newValue: number) => {
+      dispatch(setIsLeftSidePanelsHidden(false));
       dispatch(setLeftSideTabIndex(newValue));
     },
     [dispatch],
@@ -38,8 +48,13 @@ export default function SideTabs(props: {
         },
       }}
     >
-      {props.tabs.map((tab, _index) => (
-        <Tab key={tab.label} icon={tab.icon} aria-label={tab.label} />
+      {props.tabs.map((tab, index) => (
+        <Tab
+          key={tab.label}
+          icon={tab.icon}
+          aria-label={tab.label}
+          onClick={(e) => handleTabClick(e, index)}
+        />
       ))}
     </Tabs>
   );
