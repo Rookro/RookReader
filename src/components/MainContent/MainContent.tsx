@@ -25,7 +25,7 @@ export default function MainContent(props?: { sx?: SxProps }) {
   useSettingsChange();
 
   const { isHistoryEnabled } = useAppSelector((state) => state.history);
-  const { isHidden } = useAppSelector((state) => state.sidePane.left);
+  const { isHidden, tabIndex } = useAppSelector((state) => state.sidePane.left);
 
   const tabs: { label: string; icon: JSX.Element; panel: JSX.Element }[] = useMemo(() => {
     const tabs = [
@@ -41,12 +41,12 @@ export default function MainContent(props?: { sx?: SxProps }) {
 
   return (
     <Stack direction="row" sx={props?.sx}>
-      <SideTabs tabs={tabs} />
+      <SideTabs tabs={tabs} tabIndex={tabIndex} isHidden={isHidden} />
       <Group orientation="horizontal" defaultLayout={defaultLayout} onLayoutChange={onLayoutChange}>
         {isHidden || (
           <>
             <Panel id="left-panel" defaultSize={210} minSize={210}>
-              <SidePanels tabs={tabs} />
+              <SidePanels tabs={tabs} tabIndex={tabIndex} />
             </Panel>
             <Separator
               style={{

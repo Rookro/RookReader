@@ -1,6 +1,6 @@
 import React, { JSX, useCallback } from "react";
 import { Tab, Tabs } from "@mui/material";
-import { useAppDispatch, useAppSelector } from "../../Store";
+import { useAppDispatch } from "../../Store";
 import { setLeftSideTabIndex, setIsLeftSidePanelsHidden } from "../../reducers/SidePaneReducer";
 
 /**
@@ -8,17 +8,18 @@ import { setLeftSideTabIndex, setIsLeftSidePanelsHidden } from "../../reducers/S
  */
 export default function SideTabs(props: {
   tabs: { label: string; icon: JSX.Element; panel: JSX.Element }[];
+  tabIndex: number;
+  isHidden: boolean;
 }) {
-  const { isHidden, tabIndex } = useAppSelector((state) => state.sidePane.left);
   const dispatch = useAppDispatch();
 
   const handleTabClick = useCallback(
     (_event: React.MouseEvent, index: number) => {
-      if (tabIndex === index) {
-        dispatch(setIsLeftSidePanelsHidden(!isHidden));
+      if (props.tabIndex === index) {
+        dispatch(setIsLeftSidePanelsHidden(!props.isHidden));
       }
     },
-    [dispatch, tabIndex, isHidden],
+    [dispatch, props.tabIndex, props.isHidden],
   );
 
   const handleChange = useCallback(
@@ -29,14 +30,14 @@ export default function SideTabs(props: {
     [dispatch],
   );
 
-  if (props.tabs.length - 1 < tabIndex) {
+  if (props.tabs.length - 1 < props.tabIndex) {
     dispatch(setLeftSideTabIndex(0));
   }
 
   return (
     <Tabs
       orientation="vertical"
-      value={tabIndex}
+      value={props.tabIndex}
       onChange={handleChange}
       aria-label="sidebar-tabs"
       sx={{
