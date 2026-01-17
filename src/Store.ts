@@ -4,12 +4,14 @@ import FileReducer from "./reducers/FileReducer";
 import ViewReducer from "./reducers/ViewReducer";
 import HistoryReducer from "./reducers/HistoryReducer";
 import { historyMiddleware } from "./middleware/historyMiddleware";
+import SidePaneReducer from "./reducers/SidePaneReducer";
 
 export const store = configureStore({
   reducer: {
     file: FileReducer,
     view: ViewReducer,
     history: HistoryReducer,
+    sidePane: SidePaneReducer,
   },
   middleware: (getDefaultMiddleware) => getDefaultMiddleware().concat(historyMiddleware),
 });
