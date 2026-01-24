@@ -58,8 +58,11 @@ impl EpubContainer {
             })
             .collect();
 
-        let order_map = create_image_order_map(&mut epub);
-        entries.sort_by_key(|id| *order_map.get(id).unwrap_or(&usize::MAX));
+        if let Some(order_map) = create_image_order_map(&mut epub) {
+            entries.sort_by_key(|id| *order_map.get(id).unwrap_or(&usize::MAX));
+        } else {
+            entries.sort_by(|a, b| natord::compare_ignore_case(a, b));
+        }
 
         Ok(Self {
             path: path.clone(),
@@ -90,10 +93,11 @@ fn load_image(epub: &mut Epub, entry: &String) -> ContainerResult<Arc<Image>> {
 
 /// Create a map of image IDs to their order in the EPUB.
 ///
-/// Returns a HashMap where the key is the image ID and the value is the order in the EPUB.
+/// Returns a HashMap where the key is the image ID and the value is the order in the EPUB if the map is created successfully,
+/// otherwise None.
 ///
 /// * epub - The EPUB instance to create the map for.
-fn create_image_order_map(epub: &mut Epub) -> HashMap<String, usize> {
+fn create_image_order_map(epub: &mut Epub) -> Option<HashMap<String, usize>> {
     let mut map = HashMap::new();
     let mut current_order = 0;
 
@@ -130,7 +134,11 @@ fn create_image_order_map(epub: &mut Epub) -> HashMap<String, usize> {
             }
         }
     }
-    map
+    if map.is_empty() {
+        None
+    } else {
+        Some(map)
+    }
 }
 
 /// Find the resource ID by its path within the EPUB.
