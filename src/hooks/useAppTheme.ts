@@ -46,6 +46,9 @@ export function useAppTheme() {
                 "*::-webkit-scrollbar-thumb:hover": {
                   backgroundColor: theme.palette.mode === "dark" ? "#777" : "#aaa",
                 },
+                // Allotment styles
+                "--separator-border": theme.palette.divider,
+                "--focus-border": theme.palette.action.focus,
               },
             }),
           },
