@@ -111,6 +111,7 @@ export default function ImageViewer() {
           display: "flex",
           justifyContent: "center",
           alignItems: "center",
+          background: (theme) => theme.palette.background.default,
         }}
       >
         <CircularProgress />
@@ -119,7 +120,15 @@ export default function ImageViewer() {
   }
 
   if (!displayedLayout) {
-    return <Box sx={{ width: "100%", height: "100%" }} />;
+    return (
+      <Box
+        sx={{
+          width: "100%",
+          height: "100%",
+          background: (theme) => theme.palette.background.default,
+        }}
+      />
+    );
   }
 
   const srcLeft =
@@ -143,6 +152,7 @@ export default function ImageViewer() {
         width: "100%",
         height: "100%",
         display: "flex",
+        background: (theme) => theme.palette.background.default,
       }}
     >
       {displayedLayout.isSpread ? (
