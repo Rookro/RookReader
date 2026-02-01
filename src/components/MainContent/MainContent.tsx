@@ -1,17 +1,17 @@
 import { JSX, useMemo } from "react";
 import { Box, debounce, Stack, SxProps } from "@mui/material";
 import { History, PhotoLibrary, ViewList } from "@mui/icons-material";
+import { error } from "@tauri-apps/plugin-log";
 import { Allotment } from "allotment";
-import ImageViewer from "../ImageViewer/ImageViewer";
-import SidePanels from "../SidePane/SidePanels";
 import { useHistoryUpdater } from "../../hooks/useHistoryUpdater";
 import { useSettingsChange } from "../../hooks/useSettingsChange";
+import BookReader from "../BookReader/BookReader";
 import SideTabs from "../SidePane/SideTabs";
+import SidePanels from "../SidePane/SidePanels";
 import FileNavigator from "../FileNavigator/FileNavigator";
 import ImageEntriesViewer from "../ImageEntriesViewer/ImageEntriesViewer";
 import HistoryViewer from "../../components/HistoryViewer/HistoryViewer";
 import { useAppSelector } from "../../Store";
-import { error } from "@tauri-apps/plugin-log";
 
 /**
  * Main content component
@@ -71,7 +71,7 @@ export default function MainContent(props?: { sx?: SxProps }) {
             <SidePanels tabs={tabs} tabIndex={tabIndex} />
           </Allotment.Pane>
           <Allotment.Pane>
-            <ImageViewer />
+            <BookReader />
           </Allotment.Pane>
         </Allotment>
       </Box>

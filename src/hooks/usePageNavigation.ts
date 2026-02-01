@@ -15,24 +15,25 @@ export const usePageNavigation = (
   direction: ViewerSettings["direction"],
 ) => {
   const handleClicked = useCallback(
-    (_e: React.MouseEvent) => {
+    (_e: React.MouseEvent | MouseEvent) => {
       onMoveForward();
     },
     [onMoveForward],
   );
 
   const handleContextMenu = useCallback(
-    (_e: React.MouseEvent) => {
+    (e: React.MouseEvent | MouseEvent) => {
+      e.preventDefault();
       onMoveBack();
     },
     [onMoveBack],
   );
 
   const handleWheeled = useCallback(
-    (e: React.WheelEvent<HTMLDivElement>) => {
-      if (e.deltaY < 0) {
+    (e: React.WheelEvent<HTMLDivElement> | WheelEvent) => {
+      if ("deltaY" in e && e.deltaY < 0) {
         onMoveBack();
-      } else if (e.deltaY > 0) {
+      } else if ("deltaY" in e && e.deltaY > 0) {
         onMoveForward();
       }
     },
@@ -40,7 +41,7 @@ export const usePageNavigation = (
   );
 
   const handleKeydown = useCallback(
-    (e: React.KeyboardEvent) => {
+    (e: React.KeyboardEvent | KeyboardEvent) => {
       switch (e.key) {
         case "ArrowLeft":
           if (direction === "rtl") {

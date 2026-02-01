@@ -1,7 +1,7 @@
 use std::{collections::HashMap, path::Path, sync::Arc};
 
 use rbook::{
-    prelude::{Manifest, ManifestEntry},
+    prelude::{Manifest, ManifestEntry, MetaEntry, Metadata},
     reader::{Reader, ReaderContent},
     Ebook, Epub,
 };
@@ -68,6 +68,28 @@ impl EpubContainer {
             path: path.clone(),
             entries,
         })
+    }
+
+    /// Checks if the EPUB is a novel.
+    ///
+    /// Note: This function is currently in beta and may be subject to breaking changes
+    /// in future releases.
+    ///
+    /// Returns `true` if the "rendition:layout" is not "pre-paginated", `false` otherwise.
+    pub fn is_novel(&self) -> bool {
+        let Ok(epub) = Epub::options().strict(false).open(&self.path) else {
+            return false;
+        };
+        let Some(layout) = epub.metadata().entries().find_map(|meta| {
+            if meta.property().as_str() == "rendition:layout" {
+                Some(meta.value().to_string())
+            } else {
+                None
+            }
+        }) else {
+            return true;
+        };
+        return layout != "pre-paginated";
     }
 }
 

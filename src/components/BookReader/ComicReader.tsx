@@ -1,23 +1,15 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useMemo } from "react";
 import { useDispatch } from "react-redux";
 import { Box, CircularProgress } from "@mui/material";
 import { AppDispatch, useAppSelector } from "../../Store";
-import { openContainerFile, setContainerFilePath } from "../../reducers/FileReducer";
-import { setIsFirstPageSingleView } from "../../reducers/ViewReducer";
-import { settingsStore } from "../../settings/SettingsStore";
 import { usePageNavigation } from "../../hooks/usePageNavigation";
 import { ViewerSettings } from "../../utils/ImageUtils";
-import { useFileDrop } from "../../hooks/useFileDrop";
 import { useViewerController } from "../../hooks/useViewerController";
-import { setPdfRenderingHeight } from "../../bindings/ContainerCommands";
-import { HistoryTable } from "../../database/historyTable";
 
 /**
- * Component for displaying images.
+ * Component for displaying images of comics.
  */
-export default function ImageViewer() {
-  const initialized = useRef(false);
-
+export default function ComicReader() {
   const dispatch = useDispatch<AppDispatch>();
   const {
     history,
@@ -29,7 +21,6 @@ export default function ImageViewer() {
   const { isTwoPagedView, direction, isFirstPageSingleView } = useAppSelector(
     (state) => state.view,
   );
-  const { droppedFile } = useFileDrop();
 
   const containerPath = history[historyIndex];
 
@@ -56,51 +47,6 @@ export default function ImageViewer() {
     settings.direction,
   );
 
-  useEffect(() => {
-    if (initialized.current) {
-      return;
-    }
-
-    const init = async () => {
-      const isFirstSingle = (await settingsStore.get<boolean>("first-page-single-view")) ?? true;
-      dispatch(setIsFirstPageSingleView(isFirstSingle));
-
-      const height = await settingsStore.get<number>("pdf-rendering-height");
-      if (height) {
-        await setPdfRenderingHeight(height);
-      }
-
-      const restoreLastContainer =
-        (await settingsStore.get<boolean>("restore-last-container-on-startup")) ?? true;
-      if (restoreLastContainer) {
-        const historyTable = new HistoryTable();
-        await historyTable.init();
-        const latestEntry = await historyTable.selectLatestLastOpenedAt();
-        if (latestEntry) {
-          dispatch(setContainerFilePath(latestEntry.path));
-        }
-      }
-
-      initialized.current = true;
-    };
-    init();
-  }, [dispatch]);
-
-  useEffect(() => {
-    if (containerPath) {
-      dispatch(openContainerFile(containerPath));
-    }
-  }, [containerPath, dispatch]);
-
-  useEffect(() => {
-    const handleFileDroped = async () => {
-      if (droppedFile && droppedFile.length > 0) {
-        dispatch(setContainerFilePath(droppedFile));
-      }
-    };
-    handleFileDroped();
-  }, [droppedFile, dispatch]);
-
   // Loading display.
   if (isFileLoading) {
     return (
@@ -111,7 +57,6 @@ export default function ImageViewer() {
           display: "flex",
           justifyContent: "center",
           alignItems: "center",
-          background: (theme) => theme.palette.background.default,
         }}
       >
         <CircularProgress />
@@ -125,7 +70,6 @@ export default function ImageViewer() {
         sx={{
           width: "100%",
           height: "100%",
-          background: (theme) => theme.palette.background.default,
         }}
       />
     );
@@ -152,7 +96,6 @@ export default function ImageViewer() {
         width: "100%",
         height: "100%",
         display: "flex",
-        background: (theme) => theme.palette.background.default,
       }}
     >
       {displayedLayout.isSpread ? (
