@@ -9,7 +9,7 @@ use tauri::ipc::Response;
 use crate::{
     container::epub_container::EpubContainer,
     error::{Error, Result},
-    state::{app_state::AppState, container_state::ContainerState},
+    state::app_state::AppState,
 };
 
 /// The result of getting entries in a container.
@@ -148,7 +148,8 @@ pub async fn determine_epub_novel(
         .lock()
         .map_err(|e| Error::Mutex(format!("Failed to lock AppState. {}", e)))?;
 
-    state_lock.container_state = ContainerState::default();
+    state_lock.container_state.container = None;
+    state_lock.container_state.image_loader = None;
 
     let is_epub = Path::new(&path)
         .extension()
