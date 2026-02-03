@@ -1,12 +1,13 @@
 import { useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import { HistoryOutlined } from "@mui/icons-material";
 import { ListItem, ListItemIcon, ListItemText, Switch } from "@mui/material";
 import { emit } from "@tauri-apps/api/event";
-import { settingsStore } from "../../../../settings/SettingsStore";
 import { setIsHistoryEnabled } from "../../../../reducers/HistoryReducer";
+import { settingsStore } from "../../../../settings/SettingsStore";
 import { useAppDispatch, useAppSelector } from "../../../../Store";
+import { HistorySettings } from "../../../../types/Settings";
 import { SettingsChangedEvent } from "../../../../types/SettingsChangedEvent";
-import { HistoryOutlined } from "@mui/icons-material";
 
 /**
  * History feature toggle component.
@@ -19,7 +20,8 @@ export default function FeatureToggle() {
   // Initializes the history settings from the settings store when the component mounts.
   useEffect(() => {
     const init = async () => {
-      const isHistoryEnabled = (await settingsStore.get<boolean>("enable-history")) ?? true;
+      const historySettings = await settingsStore.get<HistorySettings>("history");
+      const isHistoryEnabled = historySettings?.enable ?? true;
       dispatch(setIsHistoryEnabled(isHistoryEnabled));
     };
     init();
@@ -28,7 +30,11 @@ export default function FeatureToggle() {
   const handleHistoryFeatureToggleChanged = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       dispatch(setIsHistoryEnabled(e.target.checked));
-      await settingsStore.set("enable-history", e.target.checked);
+      const historySettings = (await settingsStore.get<HistorySettings>("history")) ?? {
+        enable: true,
+      };
+      historySettings.enable = e.target.checked;
+      await settingsStore.set("history", historySettings);
       await emit<SettingsChangedEvent>("settings-changed", {
         history: { isEnabled: e.target.checked },
       });

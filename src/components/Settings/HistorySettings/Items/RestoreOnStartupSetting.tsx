@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { RestorePageOutlined } from "@mui/icons-material";
 import { ListItem, ListItemIcon, ListItemText, Switch } from "@mui/material";
 import { settingsStore } from "../../../../settings/SettingsStore";
-import { RestorePageOutlined } from "@mui/icons-material";
+import { HistorySettings } from "../../../../types/Settings";
 
 /**
  * Restore on startup setting component.
@@ -14,8 +15,8 @@ export default function RestoreOnStartupSetting() {
   // Initializes the setting from the settings store when the component mounts.
   useEffect(() => {
     const init = async () => {
-      const restoreLastContainer =
-        (await settingsStore.get<boolean>("restore-last-container-on-startup")) ?? true;
+      const historySettings = await settingsStore.get<HistorySettings>("history");
+      const restoreLastContainer = historySettings?.["restore-last-container-on-startup"] ?? true;
       setRestoreLastContainer(restoreLastContainer);
     };
     init();
@@ -24,7 +25,11 @@ export default function RestoreOnStartupSetting() {
   const handleRestoreFeatureToggleChanged = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       setRestoreLastContainer(e.target.checked);
-      await settingsStore.set("restore-last-container-on-startup", e.target.checked);
+      const historySettings = (await settingsStore.get<HistorySettings>("history")) ?? {
+        "restore-last-container-on-startup": true,
+      };
+      historySettings["restore-last-container-on-startup"] = e.target.checked;
+      await settingsStore.set("history", historySettings);
     },
     [],
   );

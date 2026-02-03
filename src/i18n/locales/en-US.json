@@ -86,6 +86,14 @@
           "warn": "Warn",
           "error": "Error"
         }
+      },
+      "experimental-features": {
+        "title": "Experimental Features",
+        "description": "These features are currently under development. They may be changed or removed without notice, and functionality may be unstable.",
+        "epub-novel-reader": {
+          "title": "Enable EPUB Novel Reader",
+          "description": "Enables the reader feature for displaying EPUB novels."
+        }
       }
     },
     "about": {

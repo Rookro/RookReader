@@ -7,6 +7,8 @@ import { AppDispatch, RootState } from "../Store";
 import { DirEntry } from "../types/DirEntry";
 import { SortOrder } from "../types/SortOrderType";
 import { convertEntriesInDir } from "../utils/DirEntryUtils";
+import { settingsStore } from "../settings/SettingsStore";
+import { ExperimentalFeaturesSettings } from "../types/Settings";
 
 export const createAppAsyncThunk = createAsyncThunk.withTypes<{
   state: RootState;
@@ -27,7 +29,10 @@ export const openContainerFile = createAppAsyncThunk(
       return rejectWithValue(errorMessage);
     }
     try {
-      const isEpubNovel = await determineEpubNovel(path);
+      const isEpubNovel =
+        (await settingsStore.get<ExperimentalFeaturesSettings>("experimental-features"))?.[
+          "enable-epub-novel-reader"
+        ] && (await determineEpubNovel(path));
 
       let entriesResult;
       if (!isEpubNovel) {

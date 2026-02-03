@@ -8,6 +8,7 @@ import { openContainerFile, setContainerFilePath } from "../../reducers/FileRedu
 import { setIsFirstPageSingleView } from "../../reducers/ViewReducer";
 import { settingsStore } from "../../settings/SettingsStore";
 import { AppDispatch, useAppSelector } from "../../Store";
+import { HistorySettings } from "../../types/Settings";
 import ComicReader from "./ComicReader";
 import NovelReader from "./NovelReader";
 
@@ -34,9 +35,10 @@ export default function BookReader() {
         await setPdfRenderingHeight(height);
       }
 
-      const restoreLastContainer =
-        (await settingsStore.get<boolean>("restore-last-container-on-startup")) ?? true;
-      if (restoreLastContainer) {
+      const historySettings = await settingsStore.get<HistorySettings>("history");
+      const historyEnabled = historySettings?.enable ?? true;
+      const restoreLastContainer = historySettings?.["restore-last-container-on-startup"] ?? true;
+      if (historyEnabled && restoreLastContainer) {
         const historyTable = new HistoryTable();
         await historyTable.init();
         const latestEntry = await historyTable.selectLatestLastOpenedAt();
