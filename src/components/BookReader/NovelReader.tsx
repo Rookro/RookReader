@@ -171,6 +171,29 @@ export default function NovelReader({ filePath }: NovelReaderProps) {
   }, [filePath, handleClicked, handleContextMenu, handleWheeled, handleKeydown, dispatch]);
 
   useEffect(() => {
+    const element = viewerRef.current;
+    if (!element) {
+      return;
+    }
+    const observer = new ResizeObserver((entries) => {
+      if (entries.length <= 0) {
+        return;
+      }
+
+      const width = entries[0].contentBoxSize[0].inlineSize;
+      const height = entries[0].contentBoxSize[0].blockSize;
+      renditionRef.current?.resize(width, height);
+    });
+    observer.observe(element);
+
+    return () => {
+      if (element) {
+        observer.unobserve(element);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     if (renditionRef.current) {
       applyThemeToRendition(renditionRef.current);
     }
