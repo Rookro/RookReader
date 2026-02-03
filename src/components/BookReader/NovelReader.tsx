@@ -29,7 +29,7 @@ export default function NovelReader({ filePath }: NovelReaderProps) {
   const viewerRef = useRef<HTMLDivElement>(null);
   const bookRef = useRef<Book | null>(null);
   const renditionRef = useRef<Rendition | null>(null);
-  const { index } = useAppSelector((state) => state.file.containerFile);
+  const { index, cfi } = useAppSelector((state) => state.file.containerFile);
   const { direction } = useAppSelector((state) => state.view);
   const dispatch = useDispatch<AppDispatch>();
 
@@ -177,10 +177,12 @@ export default function NovelReader({ filePath }: NovelReaderProps) {
   }, [applyThemeToRendition]);
 
   useEffect(() => {
-    if (index) {
+    if (cfi && cfi !== renditionRef.current?.location?.start.cfi) {
+      renditionRef.current?.display(cfi);
+    } else if (index && index !== renditionRef.current?.location?.start.index) {
       renditionRef.current?.display(index);
     }
-  }, [index]);
+  }, [cfi, index]);
 
   return (
     <Badge
