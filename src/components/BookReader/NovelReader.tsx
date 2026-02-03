@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
 import { useDispatch } from "react-redux";
-import ePub, { Book, Contents, Rendition, Location } from "epubjs";
+import ePub, { Book, Contents, Rendition, Location, NavItem } from "epubjs";
 import { Badge, Box } from "@mui/material";
 import { readFile } from "@tauri-apps/plugin-fs";
 import { error } from "@tauri-apps/plugin-log";
@@ -99,8 +99,8 @@ export default function NovelReader({ filePath }: NovelReaderProps) {
         // Access each item via the 'items' property.
         if ("items" in spine && Array.isArray(spine.items)) {
           const entries = spine.items.map((item) => {
-            const label = nav.toc.find((entry) => entry.href === item.href)?.label;
-            return label ?? item.idref;
+            const navItem = !item.href ? undefined : findNavItemByHref(nav.toc, item.href);
+            return navItem ? navItem.label : (item.idref ?? item.index.toString());
           });
           dispatch(setEntries(entries));
         }
@@ -202,4 +202,28 @@ export default function NovelReader({ filePath }: NovelReaderProps) {
       <Box component="div" ref={viewerRef} sx={{ width: "100%", height: "100%" }} />
     </Badge>
   );
+}
+
+/**
+ * Recursively searches for an item with the specified href in the NavItem array.
+ *
+ * @param items - The array of NavItems to search.
+ * @param targetHref - The href value to look for.
+ * @returns The found NavItem, or undefined if not found.
+ */
+function findNavItemByHref(items: NavItem[], targetHref: string): NavItem | undefined {
+  for (const item of items) {
+    if (item.href === targetHref) {
+      return item;
+    }
+
+    if (item.subitems && item.subitems.length > 0) {
+      const found = findNavItemByHref(item.subitems, targetHref);
+      if (found) {
+        return found;
+      }
+    }
+  }
+
+  return undefined;
 }
