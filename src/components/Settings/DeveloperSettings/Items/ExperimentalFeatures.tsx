@@ -12,7 +12,6 @@ export default function ExperimentalFeatures() {
   const { t } = useTranslation();
   const [isEpubNovelReaderEnabled, setIsEpubNovelReaderEnabled] = useState(false);
 
-  // Initializes the history settings from the settings store when the component mounts.
   useEffect(() => {
     const init = async () => {
       const experimentalFeatures = (await settingsStore.get<ExperimentalFeaturesSettings>(
