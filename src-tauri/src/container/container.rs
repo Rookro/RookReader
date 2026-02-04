@@ -39,6 +39,7 @@ impl dyn Container {
         lowercase_name.ends_with(".pdf")
             || lowercase_name.ends_with(".rar")
             || lowercase_name.ends_with(".zip")
+            || lowercase_name.ends_with(".epub")
     }
 }
 
@@ -60,6 +61,9 @@ pub enum ContainerError {
     /// Zip related errors.
     #[error("Zip error: {0}")]
     Zip(#[from] zip::result::ZipError),
+    /// EPUB related errors.
+    #[error("EPUB error: {0}")]
+    Epub(#[from] rbook::ebook::errors::EbookError),
     /// Parse int related errors.
     #[error("Parse int error: {0}")]
     ParseInt(#[from] ParseIntError),

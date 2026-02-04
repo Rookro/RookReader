@@ -16,11 +16,12 @@ import {
 import { app } from "@tauri-apps/api";
 import { Theme } from "@tauri-apps/api/window";
 import { settingsStore } from "../../../../settings/SettingsStore";
+import { AppTheme } from "../../../../types/ThemeType";
 
 /**
  * Mapping from theme names to Tauri's theme setting values.
  */
-const toTauriTheme = new Map<string, Theme | undefined>([
+const toTauriTheme = new Map<AppTheme, Theme | undefined>([
   ["system", undefined],
   ["dark", "dark"],
   ["light", "light"],
@@ -31,9 +32,9 @@ const toTauriTheme = new Map<string, Theme | undefined>([
  */
 export default function ThemeSetting() {
   const { t } = useTranslation();
-  const [theme, setTheme] = useState("system");
+  const [theme, setTheme] = useState<AppTheme>("system");
 
-  const handleThemeChanged = async (_e: React.MouseEvent<HTMLElement>, theme: Theme) => {
+  const handleThemeChanged = async (_e: React.MouseEvent<HTMLElement>, theme: AppTheme) => {
     setTheme(theme);
     settingsStore.set("theme", theme);
     await app.setTheme(toTauriTheme.get(theme));

@@ -1,12 +1,14 @@
 import { PayloadAction, createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { dirname } from "@tauri-apps/api/path";
 import { debug, error } from "@tauri-apps/plugin-log";
-import { getEntriesInContainer } from "../bindings/ContainerCommands";
+import { determineEpubNovel, getEntriesInContainer } from "../bindings/ContainerCommands";
 import { getEntriesInDir as getEntriesInDirFromBackend } from "../bindings/DirectoryCommands";
+import { AppDispatch, RootState } from "../Store";
 import { DirEntry } from "../types/DirEntry";
 import { SortOrder } from "../types/SortOrderType";
 import { convertEntriesInDir } from "../utils/DirEntryUtils";
-import { AppDispatch, RootState } from "../Store";
+import { settingsStore } from "../settings/SettingsStore";
+import { ExperimentalFeaturesSettings } from "../types/Settings";
 
 export const createAppAsyncThunk = createAsyncThunk.withTypes<{
   state: RootState;
@@ -27,14 +29,29 @@ export const openContainerFile = createAppAsyncThunk(
       return rejectWithValue(errorMessage);
     }
     try {
-      const entriesResult = await getEntriesInContainer(path);
-      debug(
-        `openContainerFile: Retrieved ${entriesResult.entries.length} entries. (Container is directory: ${entriesResult.is_directory})`,
-      );
+      const isEpubNovel =
+        (await settingsStore.get<ExperimentalFeaturesSettings>("experimental-features"))?.[
+          "enable-epub-novel-reader"
+        ] && (await determineEpubNovel(path));
+
+      let entriesResult;
+      if (!isEpubNovel) {
+        entriesResult = await getEntriesInContainer(path);
+        debug(
+          `openContainerFile: Retrieved ${entriesResult.entries.length} entries. (Container is directory: ${entriesResult.is_directory})`,
+        );
+      } else {
+        debug(`openContainerFile: Epub Novel is opened.`);
+      }
+
       const dirPath = await dirname(path);
       dispatch(updateExploreBasePath({ dirPath }));
 
-      return entriesResult;
+      return {
+        entries: entriesResult?.entries,
+        is_directory: entriesResult?.is_directory ?? false,
+        is_novel: isEpubNovel,
+      };
     } catch (e) {
       const errorMessage = `Failed to openContainerFile(${path}). Error: ${e}`;
       error(errorMessage);
@@ -88,6 +105,8 @@ export const fileSlice = createSlice({
       isDirectory: false,
       entries: [] as string[],
       index: 0,
+      cfi: null as string | null,
+      isNovel: false,
       isLoading: false,
       error: null as string | null,
     },
@@ -126,6 +145,7 @@ export const fileSlice = createSlice({
     setImageIndex: (state, action: PayloadAction<number>) => {
       debug(`setImageIndex(${action.payload}).`);
       state.containerFile.index = action.payload;
+      state.containerFile.cfi = null;
     },
     setExploreBasePath: (state, action: PayloadAction<string>) => {
       debug(`setExploreBasePath(${action.payload}).`);
@@ -186,6 +206,15 @@ export const fileSlice = createSlice({
       debug(`setIsDirEntriesLoading(${action.payload}).`);
       state.explorer.isLoading = action.payload;
     },
+    setEntries: (state, action: PayloadAction<string[]>) => {
+      debug(`setEntries(${action.payload}).`);
+      state.containerFile.entries = action.payload;
+    },
+    setNovelLocation: (state, action: PayloadAction<{ index: number; cfi: string }>) => {
+      debug(`setNovelLocation(${JSON.stringify(action.payload)}).`);
+      state.containerFile.index = action.payload.index;
+      state.containerFile.cfi = action.payload.cfi;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -216,22 +245,33 @@ export const fileSlice = createSlice({
         state.containerFile.entries = [];
         state.containerFile.isLoading = true;
         state.containerFile.index = 0;
+        state.containerFile.cfi = null;
         state.containerFile.error = null;
       })
       .addCase(
         openContainerFile.fulfilled,
-        (state, action: PayloadAction<{ entries: string[]; is_directory: boolean }>) => {
-          state.containerFile.entries = action.payload.entries;
+        (
+          state,
+          action: PayloadAction<{ entries?: string[]; is_directory: boolean; is_novel?: boolean }>,
+        ) => {
+          if (action.payload.entries) {
+            state.containerFile.entries = action.payload.entries;
+          }
           state.containerFile.isDirectory = action.payload.is_directory;
           state.containerFile.isLoading = false;
           state.containerFile.index = 0;
+          state.containerFile.cfi = null;
           state.containerFile.error = null;
+          if (action.payload.is_novel !== undefined) {
+            state.containerFile.isNovel = action.payload.is_novel;
+          }
         },
       )
       .addCase(openContainerFile.rejected, (state, action) => {
         state.containerFile.entries = [];
         state.containerFile.isLoading = false;
         state.containerFile.index = 0;
+        state.containerFile.cfi = null;
         state.containerFile.error = action.payload as string;
       });
   },
@@ -249,5 +289,7 @@ export const {
   goBackExplorerHistory,
   goForwardExplorerHistory,
   setIsDirEntriesLoading,
+  setEntries,
+  setNovelLocation,
 } = fileSlice.actions;
 export default fileSlice.reducer;
