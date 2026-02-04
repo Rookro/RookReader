@@ -8,6 +8,7 @@ import { useAppTheme } from "../../hooks/useAppTheme";
 import { usePageNavigation } from "../../hooks/usePageNavigation";
 import { AppDispatch, useAppSelector } from "../../Store";
 import { setEntries, setNovelLocation } from "../../reducers/FileReducer";
+import BundledNotoSerifJP from "../../assets/fonts/NotoSerifJP-VariableFont_wght.woff2";
 
 /** Props for the NovelReader component */
 interface NovelReaderProps {
@@ -45,10 +46,16 @@ export default function NovelReader({ filePath }: NovelReaderProps) {
     (rendition: Rendition) => {
       const themeName = "noto-serif";
       rendition.themes.register(themeName, {
+        // TODO(Rookro): Allow font customization.
+        "@font-face": {
+          "font-family": "BundledNotoSerifJP",
+          src: `url(${BundledNotoSerifJP}) format('woff2')`,
+          "font-weight": "normal",
+          "font-style": "normal",
+        },
         body: {
-          "font-family": "'Noto Serif JP' !important",
-          "font-size": "1.1em",
-          "font-weight": "500",
+          "font-family": "'BundledNotoSerifJP' !important",
+          "font-size": "1.2em",
           color: theme.palette.text.primary,
           background: theme.palette.background.default,
           "user-select": "none",
@@ -118,9 +125,6 @@ export default function NovelReader({ filePath }: NovelReaderProps) {
 
       rendition.hooks.content.register((contents: Contents) => {
         const doc = contents.document;
-        const link = doc.createElement("link");
-        link.setAttribute("href", "https://fonts.googleapis.com/css2?family=Noto+Serif+JP");
-        doc.head.appendChild(link);
 
         doc.addEventListener("click", (e: MouseEvent) => {
           // Ignore click events on links.
