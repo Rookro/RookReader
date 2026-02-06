@@ -1,10 +1,11 @@
 import { debug } from "@tauri-apps/plugin-log";
 import { useCallback } from "react";
-import i18n from "../i18n/config";
-import { useTauriEvent } from "./useTauriEvent";
 import { useAppDispatch } from "../Store";
-import { setIsFirstPageSingleView } from "../reducers/ViewReducer";
+import i18n from "../i18n/config";
+import { setIsWatchEnabled as setIsDirWatchEnabled } from "../reducers/FileReducer";
 import { setIsHistoryEnabled } from "../reducers/HistoryReducer";
+import { setIsFirstPageSingleView, setNovelFont, setNovelFontSize } from "../reducers/ViewReducer";
+import { NovelReaderSettings } from "../types/Settings";
 import {
   FileNavigatorSettings,
   HistorySettings,
@@ -12,7 +13,7 @@ import {
   SettingsChangedEvent,
   ViewSettings,
 } from "../types/SettingsChangedEvent";
-import { setIsWatchEnabled as setIsDirWatchEnabled } from "../reducers/FileReducer";
+import { useTauriEvent } from "./useTauriEvent";
 
 /**
  * A custom hook that listens for settings change events from the settings window.
@@ -79,6 +80,24 @@ export const useSettingsChange = () => {
   );
 
   /**
+   * Applies the novel reader settings.
+   * @param settings The novel reader settings payload from the event.
+   */
+  const applyNovelReaderSettings = useCallback(
+    (settings: NovelReaderSettings) => {
+      if (settings.font !== undefined) {
+        debug(`Received font changed event: ${settings.font}`);
+        dispatch(setNovelFont(settings.font));
+      }
+      if (settings.fontSize !== undefined) {
+        debug(`Received fontSize changed event: ${settings.fontSize}`);
+        dispatch(setNovelFontSize(settings.fontSize));
+      }
+    },
+    [dispatch],
+  );
+
+  /**
    * Handles the incoming 'settings-changed' event from Tauri.
    * It parses the payload and calls the appropriate function to apply the settings.
    * @param event The Tauri event object containing the settings payload.
@@ -99,8 +118,17 @@ export const useSettingsChange = () => {
       if (event.payload.fileNavigator !== undefined) {
         applyFileNavigatorSettings(event.payload.fileNavigator);
       }
+      if (event.payload.novelReader !== undefined) {
+        applyNovelReaderSettings(event.payload.novelReader);
+      }
     },
-    [applyLocaleSettings, applyViewSettings, applyHistorySettings, applyFileNavigatorSettings],
+    [
+      applyLocaleSettings,
+      applyViewSettings,
+      applyHistorySettings,
+      applyFileNavigatorSettings,
+      applyNovelReaderSettings,
+    ],
   );
 
   useTauriEvent<SettingsChangedEvent>("settings-changed", handleSettingsChanged);

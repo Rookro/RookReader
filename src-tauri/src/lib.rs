@@ -52,6 +52,7 @@ pub fn run() {
             commands::container_commands::get_entries_in_container,
             commands::container_commands::set_pdf_rendering_height,
             commands::container_commands::determine_epub_novel,
+            commands::font_commands::get_fonts,
         ])
         .run(tauri::generate_context!());
 

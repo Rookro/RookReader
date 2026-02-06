@@ -1,3 +1,5 @@
+import { NovelReaderSettings } from "./Settings";
+
 /**
  * Represents the settings related to localization and language.
  */
@@ -65,4 +67,9 @@ export type SettingsChangedEvent = {
    * The history settings.
    */
   history?: HistorySettings;
+
+  /**
+   * The novel reader settings.
+   */
+  novelReader?: NovelReaderSettings;
 };

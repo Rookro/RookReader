@@ -9,6 +9,7 @@ import AboutPage from "./AboutPage/AboutPage";
 import FileNavigatorSettings from "./FileNavigatorSettings/FileNavigatorSettings";
 import PageSettings from "./PageSettings/PageSettings";
 import HistorySettings from "./HistorySettings/HistorySettings";
+import NovelReaderSettings from "./NovelReaderSettings/NovelReaderSettings";
 
 /**
  * Settings page component.
@@ -27,6 +28,7 @@ export default function SettingsView() {
     { label: t("settings.file-navigator.tab-name"), panel: <FileNavigatorSettings /> },
     { label: t("settings.history.tab-name"), panel: <HistorySettings /> },
     { label: t("settings.rendering.tab-name"), panel: <RenderingSettings /> },
+    { label: t("settings.novel-reader.tab-name"), panel: <NovelReaderSettings /> },
     { label: t("settings.developer.tab-name"), panel: <DeveloperSettings /> },
     { label: t("settings.about.tab-name"), panel: <AboutPage /> },
   ];

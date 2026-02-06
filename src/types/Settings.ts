@@ -23,6 +23,8 @@ export interface Settings {
   log: LogSettings;
   /** PDF rendering height. */
   "pdf-rendering-height": number;
+  /** Novel reader settings. */
+  "novel-reader": NovelReaderSettings;
   /** Sort order of file navigator. */
   "sort-order": SortOrder;
   /** Theme settings. */
@@ -47,6 +49,16 @@ export interface HistorySettings {
 export interface LogSettings {
   /** Log level. */
   level: LogLevel;
+}
+
+/**
+ * Novel reader settings.
+ */
+export interface NovelReaderSettings {
+  /** font. */
+  font?: string;
+  /** font size. */
+  fontSize?: number;
 }
 
 /**
