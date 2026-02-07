@@ -72,6 +72,17 @@
         "title": "PDF Rendering Height(px)"
       }
     },
+    "novel-reader": {
+      "tab-name": "Novel Reader",
+      "title": "Novel Reader Settings",
+      "font": {
+        "title": "Font Family",
+        "default-font-name": "Default"
+      },
+      "font-size": {
+        "title": "Font Size"
+      }
+    },
     "developer": {
       "tab-name": "Developer",
       "title": "Developer Settings",

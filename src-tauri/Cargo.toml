@@ -47,6 +47,7 @@ dashmap = "6.1.0"
 tauri-plugin-sql = { version = "2", features = ["sqlite"] }
 rbook = "0.6.10"
 scraper = "0.25.0"
+font-kit = "0.14.3"
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-window-state = "2"

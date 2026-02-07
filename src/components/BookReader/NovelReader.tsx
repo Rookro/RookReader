@@ -9,6 +9,9 @@ import { usePageNavigation } from "../../hooks/usePageNavigation";
 import { AppDispatch, useAppSelector } from "../../Store";
 import { setEntries, setNovelLocation } from "../../reducers/FileReducer";
 import BundledNotoSerifJP from "../../assets/fonts/NotoSerifJP-VariableFont_wght.woff2";
+import { settingsStore } from "../../settings/SettingsStore";
+import { NovelReaderSettings } from "../../types/Settings";
+import { setNovelFont, setNovelFontSize } from "../../reducers/ViewReducer";
 
 /** Props for the NovelReader component */
 interface NovelReaderProps {
@@ -31,8 +34,10 @@ export default function NovelReader({ filePath }: NovelReaderProps) {
   const bookRef = useRef<Book | null>(null);
   const renditionRef = useRef<Rendition | null>(null);
   const { index, cfi } = useAppSelector((state) => state.file.containerFile);
-  const { direction } = useAppSelector((state) => state.view);
+  const { direction, novel } = useAppSelector((state) => state.view);
   const dispatch = useDispatch<AppDispatch>();
+
+  const initialized = useRef(false);
 
   const onMoveForward = useCallback(() => {
     renditionRef.current?.next();
@@ -44,18 +49,19 @@ export default function NovelReader({ filePath }: NovelReaderProps) {
 
   const applyThemeToRendition = useCallback(
     (rendition: Rendition) => {
-      const themeName = "noto-serif";
-      rendition.themes.register(themeName, {
-        // TODO(Rookro): Allow font customization.
+      rendition.themes.default({
         "@font-face": {
           "font-family": "BundledNotoSerifJP",
           src: `url(${BundledNotoSerifJP}) format('woff2')`,
           "font-weight": "normal",
           "font-style": "normal",
         },
+        "*": {
+          "font-family": `"${novel.font === "default-font" ? "BundledNotoSerifJP" : novel.font}" !important`,
+        },
         body: {
-          "font-family": "'BundledNotoSerifJP' !important",
-          "font-size": "1.2em",
+          "font-family": `"${novel.font === "default-font" ? "BundledNotoSerifJP" : novel.font}" !important`,
+          "font-size": `${novel.fontSize}px`,
           color: theme.palette.text.primary,
           background: theme.palette.background.default,
           "user-select": "none",
@@ -63,10 +69,8 @@ export default function NovelReader({ filePath }: NovelReaderProps) {
         ".introduction": { color: `${theme.palette.text.secondary} !important` },
         ".postscript": { color: `${theme.palette.text.secondary} !important` },
       });
-
-      rendition.themes.select(themeName);
     },
-    [theme],
+    [theme, novel],
   );
 
   const { handleClicked, handleContextMenu, handleWheeled, handleKeydown } = usePageNavigation(
@@ -155,6 +159,18 @@ export default function NovelReader({ filePath }: NovelReaderProps) {
 
       if (isMounted) {
         rendition.display();
+      }
+
+      // Initialize settings after epubjs is initialized.
+      if (!initialized.current) {
+        const settings = await settingsStore.get<NovelReaderSettings>("novel-reader");
+        if (settings?.font) {
+          dispatch(setNovelFont(settings.font));
+        }
+        if (settings?.fontSize) {
+          dispatch(setNovelFontSize(settings.fontSize));
+        }
+        initialized.current = true;
       }
     };
 

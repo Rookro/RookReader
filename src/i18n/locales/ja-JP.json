@@ -72,6 +72,17 @@
         "title": "PDF 描画時の高さ(px)"
       }
     },
+    "novel-reader": {
+      "tab-name": "小説リーダー設定",
+      "title": "小説リーダー設定",
+      "font": {
+        "title": "書体",
+        "default-font-name": "デフォルト"
+      },
+      "font-size": {
+        "title": "文字サイズ"
+      }
+    },
     "developer": {
       "tab-name": "開発者向け設定",
       "title": "開発者向け設定",
