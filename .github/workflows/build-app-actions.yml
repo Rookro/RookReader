@@ -26,9 +26,13 @@ jobs:
           node-version: lts/*
           cache: "yarn"
 
-      - name: Setup rustup
-        run: |
-          cargo install cargo-about
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-about
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-about
 
       - name: Install dependencies (ubuntu only)
         if: matrix.platform == 'ubuntu-latest'
@@ -42,7 +46,7 @@ jobs:
           workspaces: "src-tauri -> target"
 
       - name: Install frontend dependencies
-        run: yarn install
+        run: yarn install --frozen-lockfile
 
       - name: Run linter
         run: yarn lint
