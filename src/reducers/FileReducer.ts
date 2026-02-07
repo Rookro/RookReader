@@ -1,6 +1,6 @@
 import { PayloadAction, createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { dirname } from "@tauri-apps/api/path";
-import { debug, error } from "@tauri-apps/plugin-log";
+import { debug, error, info } from "@tauri-apps/plugin-log";
 import { determineEpubNovel, getEntriesInContainer } from "../bindings/ContainerCommands";
 import { getEntriesInDir as getEntriesInDirFromBackend } from "../bindings/DirectoryCommands";
 import { AppDispatch, RootState } from "../Store";
@@ -9,6 +9,11 @@ import { SortOrder } from "../types/SortOrderType";
 import { convertEntriesInDir } from "../utils/DirEntryUtils";
 import { settingsStore } from "../settings/SettingsStore";
 import { ExperimentalFeaturesSettings } from "../types/Settings";
+import { HistoryTable } from "../database/historyTable";
+import { upsertHistory } from "./HistoryReducer";
+
+const historyTable = new HistoryTable();
+await historyTable.init();
 
 export const createAppAsyncThunk = createAsyncThunk.withTypes<{
   state: RootState;
@@ -27,6 +32,7 @@ export const openContainerFile = createAppAsyncThunk(
       error(errorMessage);
       return rejectWithValue(errorMessage);
     }
+    info(`Open container file: ${path}`);
     try {
       const isEpubNovel =
         (await settingsStore.get<ExperimentalFeaturesSettings>("experimental-features"))?.[
@@ -46,10 +52,28 @@ export const openContainerFile = createAppAsyncThunk(
       const dirPath = await dirname(path);
       dispatch(updateExploreBasePath({ dirPath }));
 
+      debug(
+        `Update container history: ${path}, ${entriesResult?.is_directory ? "DIRECTORY" : "FILE"}`,
+      );
+      dispatch(
+        upsertHistory({ path: path, type: entriesResult?.is_directory ? "DIRECTORY" : "FILE" }),
+      );
+
+      let lastPageIndex = 0;
+      try {
+        lastPageIndex = await historyTable.selectPageIndex(path);
+      } catch (ex) {
+        // This exception is expected when opening the path for the first time.
+        debug(
+          `Failed to select page index for ${path}. Error: ${ex} (This is expected when opening the path for the first time.)`,
+        );
+      }
+
       return {
         entries: entriesResult?.entries,
-        is_directory: entriesResult?.is_directory ?? false,
-        is_novel: isEpubNovel,
+        isDirectory: entriesResult?.is_directory ?? false,
+        isNovel: isEpubNovel,
+        latestPageIndex: lastPageIndex,
       };
     } catch (e) {
       const errorMessage = `Failed to openContainerFile(${path}). Error: ${e}`;
@@ -235,18 +259,23 @@ export const fileSlice = createSlice({
         openContainerFile.fulfilled,
         (
           state,
-          action: PayloadAction<{ entries?: string[]; is_directory: boolean; is_novel?: boolean }>,
+          action: PayloadAction<{
+            entries?: string[];
+            isDirectory: boolean;
+            isNovel?: boolean;
+            latestPageIndex: number;
+          }>,
         ) => {
           if (action.payload.entries) {
             state.containerFile.entries = action.payload.entries;
           }
-          state.containerFile.isDirectory = action.payload.is_directory;
+          state.containerFile.isDirectory = action.payload.isDirectory;
           state.containerFile.isLoading = false;
-          state.containerFile.index = 0;
+          state.containerFile.index = action.payload.latestPageIndex;
           state.containerFile.cfi = null;
           state.containerFile.error = null;
-          if (action.payload.is_novel !== undefined) {
-            state.containerFile.isNovel = action.payload.is_novel;
+          if (action.payload.isNovel !== undefined) {
+            state.containerFile.isNovel = action.payload.isNovel;
           }
         },
       )

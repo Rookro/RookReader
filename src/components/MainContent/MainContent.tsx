@@ -3,7 +3,6 @@ import { Box, debounce, Stack, SxProps } from "@mui/material";
 import { History, PhotoLibrary, ViewList } from "@mui/icons-material";
 import { error } from "@tauri-apps/plugin-log";
 import { Allotment } from "allotment";
-import { useHistoryUpdater } from "../../hooks/useHistoryUpdater";
 import { useSettingsChange } from "../../hooks/useSettingsChange";
 import BookReader from "../BookReader/BookReader";
 import SideTabs from "../SidePane/SideTabs";
@@ -17,7 +16,6 @@ import { useAppSelector } from "../../Store";
  * Main content component
  */
 export default function MainContent(props?: { sx?: SxProps }) {
-  useHistoryUpdater();
   useSettingsChange();
 
   const { isHistoryEnabled } = useAppSelector((state) => state.history);
