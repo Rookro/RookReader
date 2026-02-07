@@ -43,7 +43,9 @@ export default function FileListViewer() {
   }, [entries, sortOrder, searchText]);
 
   const updateEntriesCallback = useCallback(() => {
-    dispatch(updateExploreBasePath({ dirPath: history[historyIndex], forceUpdate: true }));
+    if (history[historyIndex]) {
+      dispatch(updateExploreBasePath({ dirPath: history[historyIndex], forceUpdate: true }));
+    }
   }, [history, historyIndex, dispatch]);
 
   useEffect(() => {

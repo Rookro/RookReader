@@ -12,6 +12,7 @@ import { useHistorySelection } from "../../hooks/useHistorySelection";
 import { andSearch } from "../../utils/HistoryViewerUtils";
 
 import SidePanelHeader from "../SidePane/SidePanelHeader";
+import { useHistoryEntriesUpdater } from "../../hooks/useHistoryEntriesUpdater";
 
 /**
  * History viewer component.
@@ -29,6 +30,7 @@ export default function HistoryViewer() {
     return andSearch(entries, searchText);
   }, [entries, searchText]);
 
+  useHistoryEntriesUpdater();
   useHistorySelection(history[historyIndex], filteredEntries, setSelectedIndex);
 
   // Scroll to make the selected item visible

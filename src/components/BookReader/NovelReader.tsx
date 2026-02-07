@@ -158,7 +158,7 @@ export default function NovelReader({ filePath }: NovelReaderProps) {
       });
 
       if (isMounted) {
-        rendition.display();
+        rendition.display(index);
       }
 
       // Initialize settings after epubjs is initialized.
