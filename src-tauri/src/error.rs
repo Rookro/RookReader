@@ -15,9 +15,18 @@ pub enum Error {
     /// Tauri related errors.
     #[error("Tauri Error: {0}")]
     Tauri(#[from] tauri::Error),
+    /// Tauri store plugin related errors.
+    #[error("Tauri Store Plugin Error: {0}")]
+    TauriStorePlugin(#[from] tauri_plugin_store::Error),
     /// Serde related errors.
     #[error("Serde Error: {0}")]
     Serde(#[from] serde_json::Error),
+    /// Strum related errors.
+    #[error("Strum Error: {0}")]
+    Strum(#[from] strum::ParseError),
+    /// Settings related errors.
+    #[error("Settings Error: {0}")]
+    Settings(String),
     /// Mutex related errors.
     #[error("Mutex Error: {0}")]
     Mutex(String),
