@@ -21,19 +21,32 @@ const debouncedHistoryUpdate = debounce(
 export const historyMiddleware: Middleware = (store) => (next) => async (action: unknown) => {
   const result = next(action);
 
-  if (
-    typeof action === "object" &&
-    action !== null &&
-    "type" in action &&
-    action.type === "file/setImageIndex"
-  ) {
-    const state = store.getState();
-    if (state.history.isHistoryEnabled) {
-      const { history, historyIndex, index, isDirectory } = state.file.containerFile;
+  if (typeof action !== "object" || action === null || !("type" in action)) {
+    return result;
+  }
+  switch (action.type) {
+    case "file/setImageIndex": {
+      const state = store.getState();
+      if (state.history.isHistoryEnabled) {
+        const { history, historyIndex, index, isDirectory } = state.file.containerFile;
 
-      if (history[historyIndex] && index > -1) {
-        debouncedHistoryUpdate(history[historyIndex], isDirectory ? "DIRECTORY" : "FILE", index);
+        if (history[historyIndex] && index > -1) {
+          debouncedHistoryUpdate(history[historyIndex], isDirectory ? "DIRECTORY" : "FILE", index);
+        }
       }
+      break;
+    }
+    case "file/setNovelLocation": {
+      const state = store.getState();
+      if (state.history.isHistoryEnabled) {
+        const { history, historyIndex, index, isDirectory } = state.file.containerFile;
+
+        if (history[historyIndex] && index > -1) {
+          // TODO(Rookro): Persist the current CFI to the database for EPUB novels.
+          debouncedHistoryUpdate(history[historyIndex], isDirectory ? "DIRECTORY" : "FILE", index);
+        }
+      }
+      break;
     }
   }
 
