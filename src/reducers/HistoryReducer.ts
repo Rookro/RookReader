@@ -1,5 +1,5 @@
 import { PayloadAction, createAsyncThunk, createSlice } from "@reduxjs/toolkit";
-import { debug, error } from "@tauri-apps/plugin-log";
+import { error } from "@tauri-apps/plugin-log";
 import { HistoryEntry } from "../types/HistoryEntry";
 import { HistoryTable } from "../database/historyTable";
 
@@ -19,7 +19,6 @@ interface UpsertArgs {
 export const upsertHistory = createAsyncThunk(
   "history/upsertHistory",
   async (upsertArgs: UpsertArgs, { rejectWithValue }) => {
-    debug(`upsertHistory(${JSON.stringify(upsertArgs)}).`);
     try {
       await historyTable.upsert(upsertArgs.path, upsertArgs.type, upsertArgs.index);
       const entries = await historyTable.selectOrderByLastOpenedAtDesc();
@@ -35,7 +34,6 @@ export const upsertHistory = createAsyncThunk(
 export const updateHistoryEntries = createAsyncThunk(
   "history/updateHistoryEntries",
   async (_, { rejectWithValue }) => {
-    debug(`updateHistoryEntries().`);
     try {
       const entries = await historyTable.selectOrderByLastOpenedAtDesc();
       return entries;
@@ -50,7 +48,6 @@ export const updateHistoryEntries = createAsyncThunk(
 export const deleteHistory = createAsyncThunk(
   "history/deleteHistory",
   async (id: number, { rejectWithValue }) => {
-    debug(`deleteHistory(${id}).`);
     try {
       await historyTable.delete(id);
       const entries = await historyTable.selectOrderByLastOpenedAtDesc();
@@ -66,7 +63,6 @@ export const deleteHistory = createAsyncThunk(
 export const clearHistory = createAsyncThunk(
   "history/clearHistory",
   async (_, { rejectWithValue }) => {
-    debug(`clearHistory().`);
     try {
       await historyTable.deleteAll();
     } catch (e) {
@@ -86,11 +82,9 @@ export const historySlice = createSlice({
   },
   reducers: {
     setIsHistoryEnabled: (state, action: PayloadAction<boolean>) => {
-      debug(`setIsHistoryEnabled(${action.payload}).`);
       state.isHistoryEnabled = action.payload;
     },
     setHistoryEntries: (state, action: PayloadAction<HistoryEntry[]>) => {
-      debug(`setHistoryEntries.`);
       state.entries = action.payload;
     },
   },

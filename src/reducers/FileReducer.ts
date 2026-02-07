@@ -22,7 +22,6 @@ export const createAppAsyncThunk = createAsyncThunk.withTypes<{
 export const openContainerFile = createAppAsyncThunk(
   "file/openContainerFile",
   async (path: string, { dispatch, rejectWithValue }) => {
-    debug(`openContainerFile(${path}).`);
     if (!path || path.length === 0) {
       const errorMessage = "Failed to openContainerFile. Error: Container path is empty.";
       error(errorMessage);
@@ -70,7 +69,6 @@ export const updateExploreBasePath = createAppAsyncThunk(
     { dispatch, getState, rejectWithValue },
   ) => {
     const { dirPath, forceUpdate } = args;
-    debug(`updateExploreBasePath(${dirPath}).`);
     if (!dirPath || dirPath.length === 0) {
       const errorMessage = "Failed to updateExploreBasePath. Error: Directory path is empty.";
       error(errorMessage);
@@ -123,7 +121,6 @@ export const fileSlice = createSlice({
   },
   reducers: {
     setContainerFilePath: (state, action: PayloadAction<string>) => {
-      debug(`setContainerFilePath(${action.payload}).`);
       if (
         state.containerFile.history.length > 0 &&
         state.containerFile.history[state.containerFile.historyIndex] === action.payload
@@ -131,7 +128,6 @@ export const fileSlice = createSlice({
         return;
       }
 
-      debug(`setContainerFilePath: Update history.`);
       if (state.containerFile.historyIndex !== state.containerFile.history.length - 1) {
         state.containerFile.history = state.containerFile.history.slice(
           0,
@@ -143,12 +139,10 @@ export const fileSlice = createSlice({
       state.containerFile.index = 0;
     },
     setImageIndex: (state, action: PayloadAction<number>) => {
-      debug(`setImageIndex(${action.payload}).`);
       state.containerFile.index = action.payload;
       state.containerFile.cfi = null;
     },
     setExploreBasePath: (state, action: PayloadAction<string>) => {
-      debug(`setExploreBasePath(${action.payload}).`);
       if (
         state.explorer.history.length > 0 &&
         state.explorer.history[state.explorer.historyIndex] === action.payload
@@ -156,7 +150,6 @@ export const fileSlice = createSlice({
         return;
       }
 
-      debug(`setExploreBasePath: Update history.`);
       if (state.explorer.historyIndex !== state.explorer.history.length - 1) {
         state.explorer.history = state.explorer.history.slice(0, state.explorer.historyIndex + 1);
       }
@@ -167,51 +160,41 @@ export const fileSlice = createSlice({
       state.explorer.isLoading = true;
     },
     setSearchText: (state, action: PayloadAction<string>) => {
-      debug(`setSearchText(${action.payload}).`);
       state.explorer.searchText = action.payload;
     },
     setSortOrder: (state, action: PayloadAction<SortOrder>) => {
-      debug(`setSortOrder(${action.payload}).`);
       state.explorer.sortOrder = action.payload;
     },
     setIsWatchEnabled: (state, action: PayloadAction<boolean>) => {
-      debug(`setIsWatchEnabled(${action.payload}).`);
       state.explorer.isWatchEnabled = action.payload;
     },
     goBackContainerHistory: (state) => {
       if (state.containerFile.historyIndex > 0) {
-        debug("goBackContainerHistory");
         state.containerFile.historyIndex -= 1;
       }
     },
     goForwardContainerHistory: (state) => {
       if (state.containerFile.historyIndex < state.containerFile.history.length - 1) {
-        debug("goForwardContainerHistory");
         state.containerFile.historyIndex += 1;
       }
     },
     goBackExplorerHistory: (state) => {
       if (state.explorer.historyIndex > 0) {
-        debug("goBackExplorerHistory");
         state.explorer.historyIndex -= 1;
       }
     },
     goForwardExplorerHistory: (state) => {
       if (state.explorer.historyIndex < state.explorer.history.length - 1) {
-        debug("goForwardExplorerHistory");
         state.explorer.historyIndex += 1;
       }
     },
     setIsDirEntriesLoading: (state, action: PayloadAction<boolean>) => {
-      debug(`setIsDirEntriesLoading(${action.payload}).`);
       state.explorer.isLoading = action.payload;
     },
     setEntries: (state, action: PayloadAction<string[]>) => {
-      debug(`setEntries(${action.payload}).`);
       state.containerFile.entries = action.payload;
     },
     setNovelLocation: (state, action: PayloadAction<{ index: number; cfi: string }>) => {
-      debug(`setNovelLocation(${JSON.stringify(action.payload)}).`);
       state.containerFile.index = action.payload.index;
       state.containerFile.cfi = action.payload.cfi;
     },

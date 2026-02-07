@@ -1,6 +1,5 @@
 import { PayloadAction, createSlice } from "@reduxjs/toolkit";
 import { Direction } from "../types/DirectionType";
-import { debug } from "@tauri-apps/plugin-log";
 
 export const viewSlice = createSlice({
   name: "view",
@@ -24,11 +23,9 @@ export const viewSlice = createSlice({
       state.isFirstPageSingleView = action.payload;
     },
     setNovelFont: (state, action: PayloadAction<string>) => {
-      debug(`Setting novel font to ${action.payload}`);
       state.novel.font = action.payload;
     },
     setNovelFontSize: (state, action: PayloadAction<number>) => {
-      debug(`Setting novel font size to ${action.payload}`);
       state.novel.fontSize = action.payload;
     },
   },
