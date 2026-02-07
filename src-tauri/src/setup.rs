@@ -38,9 +38,19 @@ pub fn setup_container_settings(app: &App) -> error::Result<()> {
 /// * `app` - App instance of Tauri.
 /// * `settings` - The log settings to use.
 pub fn setup_logger(app: &App, settings: &LogSettings) -> error::Result<()> {
+    // Set log level to INFO for specific libraries to reduce noise.
+    let override_log_level =
+        if settings.level == log::LevelFilter::Debug || settings.level == log::LevelFilter::Trace {
+            log::LevelFilter::Info
+        } else {
+            settings.level
+        };
+
     app.handle().plugin(
         tauri_plugin_log::Builder::new()
             .level(settings.level)
+            .level_for("html5ever", override_log_level)
+            .level_for("selectors", override_log_level)
             .format(|out, message, record| {
                 out.finish(format_args!(
                     "{}: [{}] [{}] [{}::L{}] {}",
