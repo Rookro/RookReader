@@ -13,7 +13,7 @@
 
 RookReader は、zip、rar、pdf 形式の電子書籍ファイルを閲覧するための、モダンで高速なクロスプラットフォームアプリケーションです。Windows および Linux 環境で利用可能です。
 
-ディレクトリーや一般的なアーカイブファイルに含まれる画像シーケンス（コミックや雑誌など）、PDFドキュメントをサポートし、日本語の小説やコミックの読書体験に特化しています。
+ディレクトリーや一般的なアーカイブファイルに含まれる画像シーケンス（コミックや雑誌など）、PDF ドキュメント、EPUB 形式の書庫をサポートし、日本語の小説やコミックの読書体験に特化しています。
 
 ## 特徴
 
@@ -23,6 +23,7 @@ RookReader は、zip、rar、pdf 形式の電子書籍ファイルを閲覧す�
   * zip
   * rar
   * pdf
+  * epub (注意: 小説閲覧機能は実験的な機能です。)
 * モダンな UI/UX: React + TypeScript による直感的で使いやすいインターフェース
 * 高性能: Rust のバックエンドと Tauri フレームワークによる、ネイティブに近いパフォーマンスとメモリ効率
 
@@ -45,7 +46,7 @@ RookReader は、zip、rar、pdf 形式の電子書籍ファイルを閲覧す�
 
 | ディストリビューション | 推奨ファイル | インストール手順 |
 | -- | -- | -- |
-| Debian/Ubuntu/Mint | RookReader_x.x.x_amd64.deb | Dファイルをダブルクリックするか、ターミナルで `sudo dpkg -i <ファイル名>` を実行します。 |
+| Debian/Ubuntu/Mint | RookReader_x.x.x_amd64.deb | ファイルをダブルクリックするか、ターミナルで `sudo dpkg -i <ファイル名>` を実行します。 |
 | Fedora/RHEL/openSUSE | RookReader_x.x.x-x.x86_64.rpm | ターミナルで `sudo dnf install <ファイル名>` (または `sudo yum install <ファイル名>`) を実行します。 |
 | Arch Linux/Manjaro | - | [Arch Linux 向け手順](#arch-linux-向け手順)を参照してください。|
 | その他のディストリビューション | RookReader_x.x.x_amd64.AppImage | 実行権限を付与し (`chmod +x <ファイル名>`)、ファイルを実行します。インストールは不要です。 |
