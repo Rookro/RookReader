@@ -7,6 +7,8 @@ import { AppTheme } from "./ThemeType";
  * Settings.
  */
 export interface Settings {
+  /** font-family. */
+  "font-family": string;
   /** Reading direction. */
   direction: Direction;
   /** Enable directory watch feature. */

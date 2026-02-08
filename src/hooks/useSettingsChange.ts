@@ -4,7 +4,12 @@ import { useAppDispatch } from "../Store";
 import i18n from "../i18n/config";
 import { setIsWatchEnabled as setIsDirWatchEnabled } from "../reducers/FileReducer";
 import { setIsHistoryEnabled } from "../reducers/HistoryReducer";
-import { setIsFirstPageSingleView, setNovelFont, setNovelFontSize } from "../reducers/ViewReducer";
+import {
+  setFontFamily,
+  setIsFirstPageSingleView,
+  setNovelFont,
+  setNovelFontSize,
+} from "../reducers/ViewReducer";
 import { NovelReaderSettings } from "../types/Settings";
 import {
   FileNavigatorSettings,
@@ -25,6 +30,20 @@ import { useTauriEvent } from "./useTauriEvent";
  */
 export const useSettingsChange = () => {
   const dispatch = useAppDispatch();
+
+  /**
+   * Applies the font family setting.
+   * @param fontFamily The font family to apply.
+   */
+  const applyFontFamilySetting = useCallback(
+    (fontFamily: string) => {
+      if (fontFamily.length) {
+        debug(`Received fontFamily changed event: ${fontFamily}`);
+        dispatch(setFontFamily(fontFamily));
+      }
+    },
+    [dispatch],
+  );
 
   /**
    * Applies the locale settings by changing the i18n language.
@@ -106,6 +125,9 @@ export const useSettingsChange = () => {
     (event: { payload: SettingsChangedEvent }) => {
       debug(`Received settings changed event: ${JSON.stringify(event.payload)}`);
 
+      if (event.payload.fontFamily !== undefined) {
+        applyFontFamilySetting(event.payload.fontFamily);
+      }
       if (event.payload.locale !== undefined) {
         applyLocaleSettings(event.payload.locale);
       }
@@ -123,6 +145,7 @@ export const useSettingsChange = () => {
       }
     },
     [
+      applyFontFamilySetting,
       applyLocaleSettings,
       applyViewSettings,
       applyHistorySettings,

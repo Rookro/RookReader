@@ -52,6 +52,10 @@ export type HistorySettings = {
  */
 export type SettingsChangedEvent = {
   /**
+   * The font family setting.
+   */
+  fontFamily?: string;
+  /**
    * The locale settings.
    */
   locale?: LocaleSettings;
