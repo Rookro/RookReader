@@ -11,7 +11,7 @@
 
 ## Overview
 
-RookReader is a modern, fast, cross-platform application for viewing e-book files in zip, rar, and pdf formats. It is available for Windows and Linux environments.
+RookReader is a modern, fast, cross-platform application for viewing e-book files in zip, rar, pdf, and epub formats. It is available for Windows and Linux environments.
 
 It supports image sequences (such as comics and magazines) contained in a directory, common archive files and PDF documents, and is specialized for the reading experience of Japanese novels and comics.
 
@@ -23,6 +23,7 @@ It supports image sequences (such as comics and magazines) contained in a direct
   * zip
   * rar
   * pdf
+  * epub (Note: The novel reading function is an experimental feature.)
 * **Modern UI/UX:** An intuitive and easy-to-use interface built with React + TypeScript.
 * **High performance:** Near-native performance and memory efficiency with a Rust backend and the Tauri framework.
 

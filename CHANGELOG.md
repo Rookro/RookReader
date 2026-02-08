@@ -7,7 +7,26 @@
 
 ## [Unreleased]
 
-## [v1.8.0] - 2026-01-12
+## [1.9.0] - 2026-02-08
+
+### Added
+
+* 左パネルを閉じる機能を追加 (#109)
+* EPUB 形式の書庫に対応 (#110, #113, #117, #118)
+* アプリの書体を変更できるようにする (#120)
+
+### Changed
+
+* ウィンドウリサイズで左パネルのサイズが変化しないようにする (#111)
+* Redux のログ出力と履歴取得の処理をリファクタリング (#115)
+* Github Actions にキャッシュを導入し、ビルド時間を短縮する (#116, #119, #122)
+
+### Fixed
+
+* ログ設定が一部反映できていなかった不具合を修正 (#114)
+* リストのスクロールが適切にされない場合がある不具合を修正 (#121)
+
+## [1.8.0] - 2026-01-12
 
 ### Added
 
@@ -199,7 +218,8 @@
 * 自動見開き表示機能の追加 (#4)
 * ホイールの上下によるページ送り機能を追加 (#5)
 
-[unreleased]: https://github.com/Rookro/RookReader/compare/v1.8.0...HEAD
+[unreleased]: https://github.com/Rookro/RookReader/compare/v1.9.0...HEAD
+[1.9.0]: https://github.com/Rookro/RookReader/compare/v1.8.0...v1.9.0
 [1.8.0]: https://github.com/Rookro/RookReader/compare/v1.7.1...v1.8.0
 [1.7.1]: https://github.com/Rookro/RookReader/compare/v1.7.0...v1.7.1
 [1.7.0]: https://github.com/Rookro/RookReader/compare/v1.6.0...v1.7.0

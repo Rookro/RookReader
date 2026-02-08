@@ -6,6 +6,7 @@ use crate::{
     container::{
         container::{Container, ContainerError},
         directory_container::DirectoryContainer,
+        epub_container::EpubContainer,
         image_loader::ImageLoader,
         pdf_container::PdfContainer,
         rar_container::RarContainer,
@@ -70,6 +71,11 @@ impl ContainerState {
                 }
                 "rar" => {
                     let container = Arc::new(RarContainer::new(path)?);
+                    self.container = Some(container.clone());
+                    self.image_loader = Some(ImageLoader::new(container));
+                }
+                "epub" => {
+                    let container = Arc::new(EpubContainer::new(path)?);
                     self.container = Some(container.clone());
                     self.image_loader = Some(ImageLoader::new(container));
                 }

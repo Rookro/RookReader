@@ -1,6 +1,6 @@
 [package]
 name = "rook-reader"
-version = "1.8.0"
+version = "1.9.0"
 description = "Comic Reader"
 authors = ["Rookro"]
 edition = "2021"
@@ -45,6 +45,11 @@ thiserror = "2.0.17"
 num_cpus = "1.17.0"
 dashmap = "6.1.0"
 tauri-plugin-sql = { version = "2", features = ["sqlite"] }
+rbook = "0.6.10"
+scraper = "0.25.0"
+font-kit = "0.14.3"
+strum = "0.27.2"
+strum_macros = "0.27.2"
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-window-state = "2"

@@ -32,3 +32,15 @@ export const getImage = async (path: string, entryName: string): Promise<ArrayBu
 export const setPdfRenderingHeight = async (height: number): Promise<void> => {
   return invoke("set_pdf_rendering_height", { height });
 };
+
+/**
+ * Determines if a container is an EPUB novel.
+ *
+ * @beta
+ *
+ * @param path The path of the container file.
+ * @returns A promise that resolves to true if the container is an EPUB novel, false otherwise.
+ */
+export const determineEpubNovel = async (path: string): Promise<boolean> => {
+  return invoke("determine_epub_novel", { path });
+};

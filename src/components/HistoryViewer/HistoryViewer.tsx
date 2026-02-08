@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { List, RowComponentProps, useListRef } from "react-window";
+import { useTranslation } from "react-i18next";
+import { List, RowComponentProps, useListCallbackRef } from "react-window";
 import { Box, InputAdornment, OutlinedInput, Stack } from "@mui/material";
 import { Search } from "@mui/icons-material";
-import { error } from "@tauri-apps/plugin-log";
+import { debug, error } from "@tauri-apps/plugin-log";
 import { ItemRow } from "./ItemRow";
 import { HistoryEntry } from "../../types/HistoryEntry";
 import { setContainerFilePath } from "../../reducers/FileReducer";
@@ -10,37 +11,52 @@ import { useAppDispatch, useAppSelector } from "../../Store";
 import { useHistorySelection } from "../../hooks/useHistorySelection";
 import { andSearch } from "../../utils/HistoryViewerUtils";
 
+import SidePanelHeader from "../SidePane/SidePanelHeader";
+import { useHistoryEntriesUpdater } from "../../hooks/useHistoryEntriesUpdater";
+
 /**
  * History viewer component.
  */
 export default function HistoryViewer() {
+  const { t } = useTranslation();
   const { history, historyIndex } = useAppSelector((state) => state.file.containerFile);
   const { entries } = useAppSelector((state) => state.history);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [searchText, setSearchText] = useState("");
-  const listRef = useListRef(null);
+  const [list, setList] = useListCallbackRef(null);
   const dispatch = useAppDispatch();
 
   const filteredEntries = useMemo(() => {
     return andSearch(entries, searchText);
   }, [entries, searchText]);
 
+  useHistoryEntriesUpdater();
   useHistorySelection(history[historyIndex], filteredEntries, setSelectedIndex);
 
   // Scroll to make the selected item visible
   useEffect(() => {
-    if (selectedIndex === -1) {
+    if (selectedIndex === -1 || !list) {
       return;
     }
 
-    try {
-      listRef.current?.scrollToRow({ align: "smart", behavior: "instant", index: selectedIndex });
-    } catch (e) {
-      error(
-        `Failed to scroll to row ${selectedIndex} (List length: ${filteredEntries.length}): ${e}`,
-      );
-    }
-  }, [selectedIndex, listRef, filteredEntries]);
+    // Use setTimeout to push the scroll command to the end of the event loop.
+    // This ensures that the virtualized list (react-window) has finished
+    // rendering and measuring item positions before attempting to scroll.
+    const timerId = setTimeout(() => {
+      try {
+        debug(`Scrolling to row ${selectedIndex}.`);
+        list.scrollToRow({ align: "smart", behavior: "instant", index: selectedIndex });
+      } catch (e) {
+        error(
+          `Failed to scroll to row ${selectedIndex} (List length: ${filteredEntries.length}): ${e}`,
+        );
+      }
+    }, 0);
+
+    return () => {
+      clearTimeout(timerId);
+    };
+  }, [selectedIndex, filteredEntries, list]);
 
   const handleListItemClicked = useCallback(
     async (_e: React.MouseEvent<HTMLElement>, entry: HistoryEntry, index: number) => {
@@ -85,6 +101,7 @@ export default function HistoryViewer() {
         height: "100%",
       }}
     >
+      <SidePanelHeader title={t("app.history-viewer.title")} />
       <OutlinedInput
         type="search"
         value={searchText}
@@ -111,7 +128,7 @@ export default function HistoryViewer() {
           rowCount={filteredEntries.length}
           rowHeight={36}
           overscanCount={5}
-          listRef={listRef}
+          listRef={setList}
         />
       </Box>
     </Stack>

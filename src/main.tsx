@@ -5,6 +5,7 @@ import { Provider } from "react-redux";
 import { error } from "@tauri-apps/plugin-log";
 import { store } from "./Store";
 import "./i18n/config";
+import "allotment/dist/style.css";
 
 const App = lazy(() => import("./App"));
 const SettingsApp = lazy(() => import("./SettingsApp"));

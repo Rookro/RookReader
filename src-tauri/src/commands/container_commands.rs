@@ -1,9 +1,13 @@
-use std::sync::Mutex;
+use std::{
+    path::Path,
+    sync::{Arc, Mutex},
+};
 
 use serde::{Deserialize, Serialize};
 use tauri::ipc::Response;
 
 use crate::{
+    container::epub_container::EpubContainer,
     error::{Error, Result},
     state::app_state::AppState,
 };
@@ -124,6 +128,42 @@ pub fn set_pdf_rendering_height(
 
     state_lock.container_state.settings.pdf_rendering_height = height;
     Ok(())
+}
+
+/// Determines if the given path is an EPUB novel.
+///
+/// Note: This function is currently in beta and may be subject to breaking changes
+/// in future releases.
+///
+/// Returns `true` if the file is an EPUB novel, `false` otherwise.
+///
+/// * `path` - The path to the file.
+/// * `state` - The application state.
+#[tauri::command()]
+pub async fn determine_epub_novel(
+    path: String,
+    state: tauri::State<'_, Mutex<AppState>>,
+) -> Result<bool> {
+    let mut state_lock = state
+        .lock()
+        .map_err(|e| Error::Mutex(format!("Failed to lock AppState. {}", e)))?;
+
+    state_lock.container_state.container = None;
+    state_lock.container_state.image_loader = None;
+
+    let is_epub = Path::new(&path)
+        .extension()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .to_lowercase()
+        == "epub";
+
+    if !is_epub {
+        return Ok(false);
+    }
+
+    let container = Arc::new(EpubContainer::new(&path)?);
+    Ok(container.is_novel())
 }
 
 #[cfg(test)]

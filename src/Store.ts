@@ -3,15 +3,19 @@ import { useSelector as rawUseSelector, TypedUseSelectorHook, useDispatch } from
 import FileReducer from "./reducers/FileReducer";
 import ViewReducer from "./reducers/ViewReducer";
 import HistoryReducer from "./reducers/HistoryReducer";
+import SidePaneReducer from "./reducers/SidePaneReducer";
 import { historyMiddleware } from "./middleware/historyMiddleware";
+import { loggerMiddleware } from "./middleware/loggerMiddleware";
 
 export const store = configureStore({
   reducer: {
     file: FileReducer,
     view: ViewReducer,
     history: HistoryReducer,
+    sidePane: SidePaneReducer,
   },
-  middleware: (getDefaultMiddleware) => getDefaultMiddleware().concat(historyMiddleware),
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware().concat(historyMiddleware).concat(loggerMiddleware),
 });
 
 export type AppDispatch = typeof store.dispatch;

@@ -1,12 +1,17 @@
 import { useMemo } from "react";
 import { createTheme, useMediaQuery } from "@mui/material";
+import { useAppSelector } from "../Store";
 
 export function useAppTheme() {
   const prefersDarkMode = useMediaQuery("(prefers-color-scheme: dark)");
+  const fontFamily = useAppSelector((state) => state.view.fontFamily);
 
   const theme = useMemo(
     () =>
       createTheme({
+        typography: {
+          fontFamily: `${fontFamily}`,
+        },
         palette: {
           mode: prefersDarkMode ? "dark" : "light",
           background: {
@@ -20,7 +25,6 @@ export function useAppTheme() {
                 margin: 0,
                 overflow: "hidden",
                 userSelect: "none",
-                fontFamily: '"Noto Sans CJK JP", "Noto Sans JP"',
                 fontSize: "1em",
                 lineHeight: 1.5,
                 fontWeight: 400,
@@ -46,12 +50,15 @@ export function useAppTheme() {
                 "*::-webkit-scrollbar-thumb:hover": {
                   backgroundColor: theme.palette.mode === "dark" ? "#777" : "#aaa",
                 },
+                // Allotment styles
+                "--separator-border": theme.palette.divider,
+                "--focus-border": theme.palette.action.focus,
               },
             }),
           },
         },
       }),
-    [prefersDarkMode],
+    [prefersDarkMode, fontFamily],
   );
 
   return theme;

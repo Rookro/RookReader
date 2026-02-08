@@ -1,100 +1,128 @@
 {
-    "app": {
-        "file-navigator": {
-            "sort-order": {
-                "name-asc": "Name↑",
-                "name-desc": "Name↓",
-                "date-asc": "Date↑",
-                "date-desc": "Date↓"
-            },
-            "no-files": "No supported files.",
-            "no-search-results": "No results for \"{{searchText}}\"."
-        },
-        "history-viewer": {
-            "menu": {
-                "open": "Open",
-                "remove": "Remove history"
-            }
-        }
+  "app": {
+    "file-navigator": {
+      "title": "File Navigator",
+      "sort-order": {
+        "name-asc": "Name↑",
+        "name-desc": "Name↓",
+        "date-asc": "Date↑",
+        "date-desc": "Date↓"
+      },
+      "no-files": "No supported files.",
+      "no-search-results": "No results for \"{{searchText}}\"."
     },
-    "settings": {
-        "general": {
-            "tab-name": "General",
-            "title": "General Settings",
-            "language": {
-                "title": "Language",
-                "english": "English",
-                "japanese": "日本語"
-            },
-            "theme": {
-                "title": "Theme",
-                "system": "System",
-                "light": "Light",
-                "dark": "Dark"
-            }
-        },
-        "page": {
-            "tab-name": "Page",
-            "title": "Page Settings",
-            "first-page": {
-                "title": "Show the initial page in single-page view"
-            }
-        },
-        "file-navigator": {
-            "tab-name": "File Navigator",
-            "title": "File Navigator Settings",
-            "home-directory-title": "Home Directory",
-            "dir-watch": {
-                "title": "Watch a directory or file for changes",
-                "warn-message": "Enabling this feature may cause high system load when accessing directories with a large volume of files."
-            }
-        },
-        "history": {
-            "tab-name": "History",
-            "title": "History Settings",
-            "feature-toggle": {
-                "title": "Reading History",
-                "warn-message": "If this setting is disabled, all following configuration options will be ignored."
-            },
-            "restore-toggle": {
-                "title": "Restore last opened book on startup"
-            }
-        },
-        "rendering": {
-            "tab-name": "Rendering",
-            "title": "Rendering Settings",
-            "pdf": {
-                "title": "PDF Rendering Height(px)"
-            }
-        },
-        "developer": {
-            "tab-name": "Developer",
-            "title": "Developer Settings",
-            "log": {
-                "log-directory": "Log Directory",
-                "log-level": {
-                    "title": "Log Level",
-                    "description": "A restart of the application is required to apply the log level settings.",
-                    "trace": "Trace",
-                    "debug": "Debug",
-                    "info": "Info",
-                    "warn": "Warn",
-                    "error": "Error"
-                }
-            }
-        },
-        "about": {
-            "tab-name": "About",
-            "title": "About",
-            "project-page": "Project Page",
-            "third-party-licenses": {
-                "title": "Third-Party Licenses",
-                "body": "This application is built with open source software.",
-                "frontend": "Frontend Licenses (yarn)",
-                "backend": "Backend Licenses (cargo)",
-                "bundled": "Boundled Library Licenses",
-                "pdfium": "PDFium License"
-            }
-        }
+    "history-viewer": {
+      "title": "History",
+      "menu": {
+        "open": "Open",
+        "remove": "Remove history"
+      }
+    },
+    "pages-viewer": {
+      "title": "Pages"
     }
+  },
+  "settings": {
+    "general": {
+      "tab-name": "General",
+      "title": "General Settings",
+      "language": {
+        "title": "Language",
+        "english": "English",
+        "japanese": "日本語"
+      },
+      "font-family": {
+        "title": "Font Family",
+        "default-font-name": "Default"
+      },
+      "theme": {
+        "title": "Theme",
+        "system": "System",
+        "light": "Light",
+        "dark": "Dark"
+      }
+    },
+    "page": {
+      "tab-name": "Page",
+      "title": "Page Settings",
+      "first-page": {
+        "title": "Show the initial page in single-page view"
+      }
+    },
+    "file-navigator": {
+      "tab-name": "File Navigator",
+      "title": "File Navigator Settings",
+      "home-directory-title": "Home Directory",
+      "dir-watch": {
+        "title": "Watch a directory or file for changes",
+        "warn-message": "Enabling this feature may cause high system load when accessing directories with a large volume of files."
+      }
+    },
+    "history": {
+      "tab-name": "History",
+      "title": "History Settings",
+      "feature-toggle": {
+        "title": "Reading History",
+        "warn-message": "If this setting is disabled, all following configuration options will be ignored."
+      },
+      "restore-toggle": {
+        "title": "Restore last opened book on startup"
+      }
+    },
+    "rendering": {
+      "tab-name": "Rendering",
+      "title": "Rendering Settings",
+      "pdf": {
+        "title": "PDF Rendering Height(px)"
+      }
+    },
+    "novel-reader": {
+      "tab-name": "Novel Reader",
+      "title": "Novel Reader Settings",
+      "font": {
+        "title": "Font Family",
+        "default-font-name": "Default"
+      },
+      "font-size": {
+        "title": "Font Size"
+      }
+    },
+    "developer": {
+      "tab-name": "Developer",
+      "title": "Developer Settings",
+      "log": {
+        "log-directory": "Log Directory",
+        "log-level": {
+          "title": "Log Level",
+          "description": "A restart of the application is required to apply the log level settings.",
+          "trace": "Trace",
+          "debug": "Debug",
+          "info": "Info",
+          "warn": "Warn",
+          "error": "Error"
+        }
+      },
+      "experimental-features": {
+        "title": "Experimental Features",
+        "description": "These features are currently under development. They may be changed or removed without notice, and functionality may be unstable.",
+        "epub-novel-reader": {
+          "title": "Enable EPUB Novel Reader",
+          "description": "Enables the reader feature for displaying EPUB novels."
+        }
+      }
+    },
+    "about": {
+      "tab-name": "About",
+      "title": "About",
+      "project-page": "Project Page",
+      "third-party-licenses": {
+        "title": "Third-Party Licenses",
+        "body": "This application is built with open source software.",
+        "frontend": "Frontend Licenses (yarn)",
+        "backend": "Backend Licenses (cargo)",
+        "bundled": "Boundled Library Licenses",
+        "pdfium": "PDFium License"
+      }
+    }
+  }
 }

@@ -14,7 +14,8 @@ import { FilterListOutlined, FolderOpen, SourceOutlined } from "@mui/icons-mater
 import { openPath } from "@tauri-apps/plugin-opener";
 import { appLogDir } from "@tauri-apps/api/path";
 import { settingsStore } from "../../../../settings/SettingsStore";
-import { LogSettings } from "../../../../types/LogSettingsType";
+import { LogSettings } from "../../../../types/Settings";
+import { LogLevel } from "../../../../types/LogLevelType";
 
 /**
  * Log setting component.
@@ -44,7 +45,11 @@ export default function LogSetting() {
 
   const handleLogLevelChanged = async (e: SelectChangeEvent) => {
     setLogLevel(e.target.value);
-    await settingsStore.set("log", { level: e.target.value });
+    const logSettings = ((await settingsStore.get("log")) as LogSettings | undefined) ?? {
+      level: "Info",
+    };
+    logSettings.level = e.target.value as LogLevel;
+    await settingsStore.set("log", logSettings);
   };
 
   return (
