@@ -66,6 +66,7 @@ pub fn setup_logger(app: &App, settings: &LogSettings) -> error::Result<()> {
                 Target::new(TargetKind::LogDir { file_name: None }),
                 Target::new(TargetKind::Stdout),
             ])
+            .max_file_size(5 * 1024 * 1024)
             .rotation_strategy(RotationStrategy::KeepSome(10))
             .build(),
     )?;
