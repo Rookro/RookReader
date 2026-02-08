@@ -18,7 +18,7 @@ function isLikelyTooLargeStrinct(data: unknown): boolean {
       return true;
     }
 
-    for (const key in keys) {
+    for (const key of keys) {
       if (!(key in data)) {
         continue;
       }
