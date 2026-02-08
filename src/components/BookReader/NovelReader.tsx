@@ -65,6 +65,8 @@ export default function NovelReader({ filePath }: NovelReaderProps) {
           color: theme.palette.text.primary,
           background: theme.palette.background.default,
           "user-select": "none",
+          "padding-left": "80px !important",
+          "padding-right": "80px !important",
         },
         ".introduction": { color: `${theme.palette.text.secondary} !important` },
         ".postscript": { color: `${theme.palette.text.secondary} !important` },
