@@ -31,6 +31,10 @@
         "english": "English",
         "japanese": "日本語"
       },
+      "font-family": {
+        "title": "Font Family",
+        "default-font-name": "Default"
+      },
       "theme": {
         "title": "Theme",
         "system": "System",

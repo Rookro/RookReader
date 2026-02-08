@@ -1,9 +1,13 @@
 import { PayloadAction, createSlice } from "@reduxjs/toolkit";
 import { Direction } from "../types/DirectionType";
+import { settingsStore } from "../settings/SettingsStore";
 
 export const viewSlice = createSlice({
   name: "view",
   initialState: {
+    fontFamily:
+      (await settingsStore.get<string>("font-family")) ??
+      "Inter, Avenir, Helvetica, Arial, sans-serif",
     isTwoPagedView: true,
     direction: "rtl" as Direction,
     isFirstPageSingleView: true,
@@ -13,6 +17,9 @@ export const viewSlice = createSlice({
     },
   },
   reducers: {
+    setFontFamily: (state, action: PayloadAction<string>) => {
+      state.fontFamily = action.payload;
+    },
     setIsTwoPagedView: (state, action: PayloadAction<boolean>) => {
       state.isTwoPagedView = action.payload;
     },
@@ -32,6 +39,7 @@ export const viewSlice = createSlice({
 });
 
 export const {
+  setFontFamily,
   setIsTwoPagedView,
   setDirection,
   setIsFirstPageSingleView,

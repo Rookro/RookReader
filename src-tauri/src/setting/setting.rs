@@ -15,6 +15,8 @@ use crate::{
 /// Represents the application settings.
 #[allow(dead_code)]
 pub struct Settings {
+    /// font-family.
+    pub font_family: String,
     /// The direction of reading.
     pub direction: Direction,
     /// Whether to enable directory watch.
@@ -62,6 +64,7 @@ impl Settings {
     /// # Returns
     /// * The new settings instance.
     pub fn new(
+        font_family: String,
         direction: Direction,
         enable_directory_watch: bool,
         experimental_features: ExperimentalFeaturesSettings,
@@ -76,6 +79,7 @@ impl Settings {
         two_paged: bool,
     ) -> Self {
         Self {
+            font_family,
             direction,
             enable_directory_watch,
             experimental_features,
@@ -103,6 +107,14 @@ impl Settings {
         let store = app.store(filename)?;
 
         return Ok(Self {
+            font_family: store
+                .get("font-family")
+                .unwrap_or(Value::String(
+                    "Inter, Avenir, Helvetica, Arial, sans-serif".to_string(),
+                ))
+                .as_str()
+                .unwrap_or("Inter, Avenir, Helvetica, Arial, sans-serif")
+                .to_string(),
             direction: store
                 .get("direction")
                 .unwrap_or(Value::String("ltr".to_string()))
@@ -173,6 +185,7 @@ impl Settings {
 impl Default for Settings {
     fn default() -> Self {
         Self {
+            font_family: "Inter, Avenir, Helvetica, Arial, sans-serif".to_string(),
             direction: Direction::LTR,
             enable_directory_watch: false,
             experimental_features: ExperimentalFeaturesSettings::default(),
