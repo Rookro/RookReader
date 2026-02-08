@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useDispatch } from "react-redux";
-import { List, RowComponentProps, useListRef } from "react-window";
+import { List, RowComponentProps, useListCallbackRef } from "react-window";
 import { Box } from "@mui/material";
-import { error } from "@tauri-apps/plugin-log";
+import { debug, error } from "@tauri-apps/plugin-log";
 import { useAppSelector, AppDispatch } from "../../Store";
 import { setImageIndex } from "../../reducers/FileReducer";
 import { ItemRow } from "./ItemRow";
@@ -17,7 +17,7 @@ export default function ImageEntriesViewer() {
   const { entries, index } = useAppSelector((state) => state.file.containerFile);
   const dispatch = useDispatch<AppDispatch>();
   const [selectedIndex, setSelectedIndex] = useState(-1);
-  const listRef = useListRef(null);
+  const [list, setList] = useListCallbackRef(null);
 
   useEffect(() => {
     setSelectedIndex(index);
@@ -25,16 +25,26 @@ export default function ImageEntriesViewer() {
 
   // Scroll to make the selected item visible.
   useEffect(() => {
-    if (selectedIndex === -1) {
+    if (selectedIndex === -1 || !list) {
       return;
     }
 
-    try {
-      listRef.current?.scrollToRow({ align: "smart", behavior: "instant", index: selectedIndex });
-    } catch (e) {
-      error(`Failed to scroll to row ${selectedIndex} (List length: ${entries.length}): ${e}`);
-    }
-  }, [selectedIndex, entries.length, listRef]);
+    // Use setTimeout to push the scroll command to the end of the event loop.
+    // This ensures that the virtualized list (react-window) has finished
+    // rendering and measuring item positions before attempting to scroll.
+    const timerId = setTimeout(() => {
+      try {
+        debug(`Scrolling to row ${selectedIndex}.`);
+        list.scrollToRow({ align: "start", behavior: "instant", index: selectedIndex });
+      } catch (e) {
+        error(`Failed to scroll to row ${selectedIndex} (List length: ${entries.length}): ${e}`);
+      }
+    }, 0);
+
+    return () => {
+      clearTimeout(timerId);
+    };
+  }, [selectedIndex, entries.length, list]);
 
   const handleListItemClicked = useCallback(
     (_e: React.MouseEvent<HTMLDivElement>, index: number) => {
@@ -72,7 +82,7 @@ export default function ImageEntriesViewer() {
         rowCount={entries.length}
         rowHeight={36}
         rowProps={{ entries }}
-        listRef={listRef}
+        listRef={setList}
       />
     </Box>
   );
