@@ -35,7 +35,7 @@ export default function ImageEntriesViewer() {
     const timerId = setTimeout(() => {
       try {
         debug(`Scrolling to row ${selectedIndex}.`);
-        list.scrollToRow({ align: "start", behavior: "instant", index: selectedIndex });
+        list.scrollToRow({ align: "smart", behavior: "instant", index: selectedIndex });
       } catch (e) {
         error(`Failed to scroll to row ${selectedIndex} (List length: ${entries.length}): ${e}`);
       }
