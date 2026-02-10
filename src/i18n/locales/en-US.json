@@ -16,10 +16,13 @@
       "menu": {
         "open": "Open",
         "remove": "Remove history"
-      }
+      },
+      "no-history": "No history.",
+      "no-search-results": "No results for \"{{searchText}}\"."
     },
     "pages-viewer": {
-      "title": "Pages"
+      "title": "Pages",
+      "no-pages": "No pages."
     }
   },
   "settings": {

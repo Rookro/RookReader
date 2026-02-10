@@ -16,10 +16,13 @@
       "menu": {
         "open": "開く",
         "remove": "履歴から削除"
-      }
+      },
+      "no-history": "履歴がありません。",
+      "no-search-results": "\"{{searchText}}\" に一致する履歴はありません。"
     },
     "pages-viewer": {
-      "title": "ページ"
+      "title": "ページ",
+      "no-pages": "表示可能なページがありません。"
     }
   },
   "settings": {

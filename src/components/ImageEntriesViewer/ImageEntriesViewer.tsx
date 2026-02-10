@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useDispatch } from "react-redux";
 import { List, RowComponentProps, useListCallbackRef } from "react-window";
-import { Box } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 import { debug, error } from "@tauri-apps/plugin-log";
 import { useAppSelector, AppDispatch } from "../../Store";
 import { setImageIndex } from "../../reducers/FileReducer";
@@ -25,7 +25,7 @@ export default function ImageEntriesViewer() {
 
   // Scroll to make the selected item visible.
   useEffect(() => {
-    if (selectedIndex === -1 || !list) {
+    if (selectedIndex === -1 || entries.length === 0 || !list) {
       return;
     }
 
@@ -77,13 +77,21 @@ export default function ImageEntriesViewer() {
   return (
     <Box sx={{ width: "100%", height: "100%", display: "grid", alignContent: "start" }}>
       <SidePanelHeader title={t("app.pages-viewer.title")} />
-      <List
-        rowComponent={Row}
-        rowCount={entries.length}
-        rowHeight={36}
-        rowProps={{ entries }}
-        listRef={setList}
-      />
+      {entries.length === 0 ? (
+        <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
+          <Typography sx={{ overflowWrap: "anywhere" }}>
+            {t("app.pages-viewer.no-pages")}
+          </Typography>
+        </Box>
+      ) : (
+        <List
+          rowComponent={Row}
+          rowCount={entries.length}
+          rowHeight={36}
+          rowProps={{ entries }}
+          listRef={setList}
+        />
+      )}
     </Box>
   );
 }
