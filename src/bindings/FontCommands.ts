@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { createCommandError } from "../types/Error";
 
 /**
  * Gets fonts.
@@ -6,5 +7,9 @@ import { invoke } from "@tauri-apps/api/core";
  * @returns A promise that resolves to an array of font names.
  */
 export const getFonts = async (): Promise<string[]> => {
-  return invoke<string[]>("get_fonts");
+  try {
+    return await invoke<string[]>("get_fonts");
+  } catch (error) {
+    throw createCommandError(error);
+  }
 };

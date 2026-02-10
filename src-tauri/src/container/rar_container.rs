@@ -2,9 +2,9 @@ use unrar::{Archive, CursorBeforeHeader, OpenArchive, Process};
 
 use std::sync::Arc;
 
-use crate::container::{
-    container::{Container, ContainerError, ContainerResult},
-    image::Image,
+use crate::{
+    container::{container::Container, image::Image},
+    error::{Error, Result},
 };
 
 /// A container for RAR archives.
@@ -20,7 +20,7 @@ impl Container for RarContainer {
         &self.entries
     }
 
-    fn get_image(&self, entry: &String) -> ContainerResult<Arc<Image>> {
+    fn get_image(&self, entry: &String) -> Result<Arc<Image>> {
         let mut archive = open(&self.path)?;
         while let Some(header) = archive.read_header()? {
             let filename = header.entry().filename.to_string_lossy().to_string();
@@ -34,7 +34,7 @@ impl Container for RarContainer {
             }
         }
 
-        Err(ContainerError::Other(format!("Entry not found: {}", entry)))
+        Err(Error::EntryNotFound(format!("Entry not found: {}", entry)))
     }
 
     fn is_directory(&self) -> bool {
@@ -46,7 +46,7 @@ impl RarContainer {
     /// Creates a new instance.
     ///
     /// * `path` - The path to the container file.
-    pub fn new(path: &String) -> ContainerResult<Self> {
+    pub fn new(path: &String) -> Result<Self> {
         let archive = Archive::new(path).open_for_listing()?;
 
         let mut entries: Vec<String> = Vec::new();
@@ -72,7 +72,7 @@ impl RarContainer {
 /// Opens a RAR archive from the specified path.
 ///
 /// * `path` - The path to the RAR file.
-fn open(path: &String) -> ContainerResult<OpenArchive<Process, CursorBeforeHeader>> {
+fn open(path: &String) -> Result<OpenArchive<Process, CursorBeforeHeader>> {
     Ok(Archive::new(path).open_for_processing()?)
 }
 

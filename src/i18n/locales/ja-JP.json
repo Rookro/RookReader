@@ -16,10 +16,13 @@
       "menu": {
         "open": "開く",
         "remove": "履歴から削除"
-      }
+      },
+      "no-history": "履歴がありません。",
+      "no-search-results": "\"{{searchText}}\" に一致する履歴はありません。"
     },
     "pages-viewer": {
-      "title": "ページ"
+      "title": "ページ",
+      "no-pages": "表示可能なページがありません。"
     }
   },
   "settings": {
@@ -123,6 +126,17 @@
         "bundled": "バンドルしているライブラリーのライセンス",
         "pdfium": "PDFium ライセンス"
       }
+    }
+  },
+  "error-message": {
+    "common": {
+      "failed-to-open-container-file": "本が開けませんでした。",
+      "failed-to-get-dir-entries": "フォルダーの中身が読み込めませんでした。",
+      "failed-to-fetch-history": "履歴が読み込めませんでした。"
+    },
+    "container": {
+      "unsupported-format": "非対応形式です。",
+      "entry-not-found": "ページが見つかりません。"
     }
   }
 }

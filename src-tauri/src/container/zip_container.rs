@@ -2,9 +2,9 @@ use std::{fs::File, io::Read, sync::Arc};
 
 use zip::ZipArchive;
 
-use crate::container::{
-    container::{Container, ContainerResult},
-    image::Image,
+use crate::{
+    container::{container::Container, image::Image},
+    error::Result,
 };
 
 /// A container for Zip archives.
@@ -20,7 +20,7 @@ impl Container for ZipContainer {
         &self.entries
     }
 
-    fn get_image(&self, entry: &String) -> ContainerResult<Arc<Image>> {
+    fn get_image(&self, entry: &String) -> Result<Arc<Image>> {
         let mut buffer = Vec::new();
         let file = File::open(&self.path)?;
         let mut archive = ZipArchive::new(file)?;
@@ -40,7 +40,7 @@ impl ZipContainer {
     /// Creates a ZIP archive container from the specified path.
     ///
     /// * `path` - The path to the archive container.
-    pub fn new(path: &String) -> ContainerResult<Self> {
+    pub fn new(path: &String) -> Result<Self> {
         let file = File::open(&path)?;
         let archive = ZipArchive::new(file)?;
 

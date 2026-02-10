@@ -5,9 +5,9 @@ use std::{
     sync::Arc,
 };
 
-use crate::container::{
-    container::{Container, ContainerError, ContainerResult},
-    image::Image,
+use crate::{
+    container::{container::Container, image::Image},
+    error::{Error, Result},
 };
 
 /// A container for directories.
@@ -23,7 +23,7 @@ impl Container for DirectoryContainer {
         &self.entries
     }
 
-    fn get_image(&self, entry: &String) -> ContainerResult<Arc<Image>> {
+    fn get_image(&self, entry: &String) -> Result<Arc<Image>> {
         let image_arc = load_image(&self.path, entry)?;
         Ok(image_arc)
     }
@@ -37,7 +37,7 @@ impl DirectoryContainer {
     /// Creates a new DirectoryContainer.
     ///
     /// * `path` - The directory path.
-    pub fn new(path: &String) -> ContainerResult<Self> {
+    pub fn new(path: &String) -> Result<Self> {
         let dir_entries = read_dir(path)?;
 
         let mut entries: Vec<String> = Vec::new();
@@ -48,7 +48,7 @@ impl DirectoryContainer {
                 continue;
             }
             let file_name = entry.file_name().into_string().map_err(|e| {
-                ContainerError::Other(format!(
+                Error::Path(format!(
                     "failed to get file name from DirEntry. {}",
                     e.display()
                 ))
@@ -72,7 +72,7 @@ impl DirectoryContainer {
 ///
 /// * `path` - The path of the container directory.
 /// * `entry` - The entry name of the image to get.
-fn load_image(path: &String, entry: &String) -> ContainerResult<Arc<Image>> {
+fn load_image(path: &String, entry: &String) -> Result<Arc<Image>> {
     let file_path = path::Path::new(&path).join(entry);
     let mut buffer = Vec::new();
     File::open(file_path)?.read_to_end(&mut buffer)?;
