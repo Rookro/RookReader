@@ -7,9 +7,9 @@ use rbook::{
 };
 use scraper::{Html, Selector};
 
-use crate::container::{
-    container::{Container, ContainerError, ContainerResult},
-    image::Image,
+use crate::{
+    container::{container::Container, image::Image},
+    error::{Error, Result},
 };
 
 /// A container for EPUB.
@@ -25,7 +25,7 @@ impl Container for EpubContainer {
         &self.entries
     }
 
-    fn get_image(&self, entry: &String) -> ContainerResult<Arc<Image>> {
+    fn get_image(&self, entry: &String) -> Result<Arc<Image>> {
         let mut epub = Epub::options().strict(false).open(&self.path)?;
         let image = load_image(&mut epub, entry)?;
         Ok(image)
@@ -40,7 +40,7 @@ impl EpubContainer {
     /// Creates a EPUB container from the specified path.
     ///
     /// * `path` - The path to the archive container.
-    pub fn new(path: &String) -> ContainerResult<Self> {
+    pub fn new(path: &String) -> Result<Self> {
         let mut epub = Epub::options().strict(false).open(&path)?;
         let mut entries: Vec<String> = epub
             .manifest()
@@ -97,13 +97,13 @@ impl EpubContainer {
 ///
 /// * `epub` - The EPUB instance.
 /// * `entry` - The entry name of the image to get.
-fn load_image(epub: &mut Epub, entry: &String) -> ContainerResult<Arc<Image>> {
+fn load_image(epub: &mut Epub, entry: &String) -> Result<Arc<Image>> {
     let Some(resource) = epub
         .manifest()
         .images()
         .find(|image| image.key().unwrap_or_default() == entry)
     else {
-        return Err(ContainerError::Other(format!(
+        return Err(Error::EntryNotFound(format!(
             "[EPUB] Resource not found: {}",
             entry
         )));

@@ -2,9 +2,9 @@ use image::{codecs::png::PngEncoder, ExtendedColorType, ImageEncoder};
 use pdfium_render::prelude::{PdfDocument, PdfRenderConfig, Pdfium};
 use std::sync::Arc;
 
-use crate::container::{
-    container::{Container, ContainerError, ContainerResult},
-    image::Image,
+use crate::{
+    container::{container::Container, image::Image},
+    error::{Error, Result},
 };
 
 /// A container for PDF archives.
@@ -24,7 +24,7 @@ impl Container for PdfContainer {
         &self.entries
     }
 
-    fn get_image(&self, entry: &String) -> ContainerResult<Arc<Image>> {
+    fn get_image(&self, entry: &String) -> Result<Arc<Image>> {
         let pdfium = get_pdfium(&self.library_path)?;
         let pdf = pdfium.load_pdf_from_file(&self.path, None)?;
 
@@ -47,7 +47,7 @@ impl PdfContainer {
         path: &String,
         render_config: PdfRenderConfig,
         library_path: Option<String>,
-    ) -> ContainerResult<Self> {
+    ) -> Result<Self> {
         let mut entries: Vec<String> = Vec::new();
         {
             let pdfium = get_pdfium(&library_path)?;
@@ -76,13 +76,10 @@ fn load_image(
     pdf: &PdfDocument,
     render_config: &PdfRenderConfig,
     entry: &String,
-) -> ContainerResult<Arc<Image>> {
+) -> Result<Arc<Image>> {
     let index: u16 = entry.parse()?;
 
-    let page = pdf
-        .pages()
-        .get(index)
-        .map_err(|e| ContainerError::Pdfium(e))?;
+    let page = pdf.pages().get(index).map_err(Error::from)?;
     let img = page.render_with_config(render_config)?.as_image();
 
     let mut buffer = Vec::new();
@@ -106,7 +103,7 @@ fn load_image(
 /// Gets a pdfium instance.
 ///
 /// * `library_path` - The path to the pdfium library. Uses default path if None.
-fn get_pdfium(library_path: &Option<String>) -> ContainerResult<Pdfium> {
+fn get_pdfium(library_path: &Option<String>) -> Result<Pdfium> {
     if let Some(lib_path) = library_path {
         let lib_name = Pdfium::pdfium_platform_library_name_at_path(lib_path);
         let bindings = Pdfium::bind_to_library(lib_name)?;

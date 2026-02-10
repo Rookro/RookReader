@@ -9,9 +9,9 @@ use std::{
 use dashmap::DashMap;
 use threadpool::ThreadPool;
 
-use crate::container::{
-    container::{Container, ContainerResult},
-    image::Image,
+use crate::{
+    container::{container::Container, image::Image},
+    error::Result,
 };
 
 /// Cache.(key: entry name, value: image)
@@ -48,7 +48,7 @@ impl ImageLoader {
     /// Returns the image if the image is in the cache, otherwise returns None.
     ///
     /// * `entry` - The entry name.
-    pub fn get_image_from_cache(&self, entry: &String) -> ContainerResult<Option<Arc<Image>>> {
+    pub fn get_image_from_cache(&self, entry: &String) -> Result<Option<Arc<Image>>> {
         if let Some(imag) = self.cache.get(entry) {
             Ok(Some(imag.clone()))
         } else {
@@ -61,7 +61,7 @@ impl ImageLoader {
     /// Returns the image.
     ///
     /// * `entry` - The entry name.
-    pub fn get_image(&self, entry: &String) -> ContainerResult<Arc<Image>> {
+    pub fn get_image(&self, entry: &String) -> Result<Arc<Image>> {
         if let Some(image_arc) = self.get_image_from_cache(entry)? {
             log::debug!("Hit cache: {}", entry);
             return Ok(image_arc);
@@ -78,7 +78,7 @@ impl ImageLoader {
     ///
     /// * `begin_index` - The begin index of entries to preload.
     /// * `count` - The number of entries to preload.
-    pub fn request_preload(&mut self, begin_index: usize, count: usize) -> ContainerResult<()> {
+    pub fn request_preload(&mut self, begin_index: usize, count: usize) -> Result<()> {
         let entries = self.container.get_entries();
         let total_pages = entries.len();
         let end = (begin_index + count).min(total_pages);
@@ -134,7 +134,7 @@ impl ImageLoader {
     /// Returns the image.
     ///
     /// * `entry` - The entry name.
-    fn load_image(&self, entry: &String) -> ContainerResult<Arc<Image>> {
+    fn load_image(&self, entry: &String) -> Result<Arc<Image>> {
         let image = self.container.get_image(entry)?;
         Ok(image)
     }

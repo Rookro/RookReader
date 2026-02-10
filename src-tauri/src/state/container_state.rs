@@ -4,15 +4,11 @@ use pdfium_render::prelude::PdfRenderConfig;
 
 use crate::{
     container::{
-        container::{Container, ContainerError},
-        directory_container::DirectoryContainer,
-        epub_container::EpubContainer,
-        image_loader::ImageLoader,
-        pdf_container::PdfContainer,
-        rar_container::RarContainer,
-        zip_container::ZipContainer,
+        container::Container, directory_container::DirectoryContainer,
+        epub_container::EpubContainer, image_loader::ImageLoader, pdf_container::PdfContainer,
+        rar_container::RarContainer, zip_container::ZipContainer,
     },
-    error::Result,
+    error::{Error, Result},
     setting::container_settings::ContainerSettings,
 };
 
@@ -81,17 +77,16 @@ impl ContainerState {
                 }
                 _ => {
                     log::error!("Unsupported Container Type: {}", ext_str);
-                    return Err(ContainerError::Other(format!(
+                    return Err(Error::UnsupportedContainer(format!(
                         "Unsupported Container Type: {}",
                         ext_str
-                    ))
-                    .into());
+                    )));
                 }
             };
             Ok(())
         } else {
             log::error!("Failed to get extension. {}", path);
-            Err(ContainerError::Other(format!("Failed to get extension. {}", path)).into())
+            Err(Error::Path(format!("Failed to get extension. {}", path)))
         }
     }
 }

@@ -124,5 +124,16 @@
         "pdfium": "PDFium License"
       }
     }
+  },
+  "error-message": {
+    "common": {
+      "failed-to-open-container-file": "Failed to open book.",
+      "failed-to-get-dir-entries": "Failed to load folder contents.",
+      "failed-to-fetch-history": "Failed to load history."
+    },
+    "container": {
+      "unsupported-format": "Unsupported format.",
+      "entry-not-found": "Page not found."
+    }
   }
 }

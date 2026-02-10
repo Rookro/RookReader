@@ -124,5 +124,16 @@
         "pdfium": "PDFium ライセンス"
       }
     }
+  },
+  "error-message": {
+    "common": {
+      "failed-to-open-container-file": "本が開けませんでした。",
+      "failed-to-get-dir-entries": "フォルダーの中身が読み込めませんでした。",
+      "failed-to-fetch-history": "履歴が読み込めませんでした。"
+    },
+    "container": {
+      "unsupported-format": "非対応形式です。",
+      "entry-not-found": "ページが見つかりません。"
+    }
   }
 }

@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { createCommandError } from "../types/Error";
 
 /**
  * Opens a container file and fetches its entries from the backend.
@@ -9,7 +10,11 @@ import { invoke } from "@tauri-apps/api/core";
 export const getEntriesInContainer = async (
   path: string,
 ): Promise<{ entries: string[]; is_directory: boolean }> => {
-  return invoke("get_entries_in_container", { path });
+  try {
+    return await invoke("get_entries_in_container", { path });
+  } catch (error) {
+    throw createCommandError(error);
+  }
 };
 
 /**
@@ -20,7 +25,11 @@ export const getEntriesInContainer = async (
  * @returns A promise that resolves to the image data as an ArrayBuffer.
  */
 export const getImage = async (path: string, entryName: string): Promise<ArrayBuffer> => {
-  return invoke("get_image", { path, entryName });
+  try {
+    return await invoke("get_image", { path, entryName });
+  } catch (error) {
+    throw createCommandError(error);
+  }
 };
 
 /**
@@ -30,7 +39,11 @@ export const getImage = async (path: string, entryName: string): Promise<ArrayBu
  * @returns A promise that resolves when the operation is complete.
  */
 export const setPdfRenderingHeight = async (height: number): Promise<void> => {
-  return invoke("set_pdf_rendering_height", { height });
+  try {
+    return await invoke("set_pdf_rendering_height", { height });
+  } catch (error) {
+    throw createCommandError(error);
+  }
 };
 
 /**
@@ -42,5 +55,9 @@ export const setPdfRenderingHeight = async (height: number): Promise<void> => {
  * @returns A promise that resolves to true if the container is an EPUB novel, false otherwise.
  */
 export const determineEpubNovel = async (path: string): Promise<boolean> => {
-  return invoke("determine_epub_novel", { path });
+  try {
+    return await invoke("determine_epub_novel", { path });
+  } catch (error) {
+    throw createCommandError(error);
+  }
 };
