@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
-import { IconButton, OutlinedInput, Stack } from "@mui/material";
+import { IconButton, OutlinedInput, Toolbar } from "@mui/material";
 import {
   ArrowBack,
   ArrowForward,
@@ -94,13 +94,7 @@ export default function NavigationBar() {
   }, [dispatch]);
 
   return (
-    <Stack
-      direction="row"
-      sx={{
-        height: "30px",
-        margin: "4px",
-      }}
-    >
+    <Toolbar variant="dense" disableGutters sx={{ minHeight: "40px" }}>
       <IconButton onClick={handleBackClicked} disabled={historyIndex <= 0}>
         <ArrowBack />
       </IconButton>
@@ -129,6 +123,6 @@ export default function NavigationBar() {
       <IconButton onClick={handleSettingsClicked}>
         <Settings />
       </IconButton>
-    </Stack>
+    </Toolbar>
   );
 }
