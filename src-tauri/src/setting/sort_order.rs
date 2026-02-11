@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{fmt::Display, str::FromStr};
 
 use serde_json::Value;
 use strum_macros::EnumString;
@@ -26,6 +26,17 @@ impl TryFrom<Value> for SortOrder {
         match value.as_str() {
             Some(value_str) => SortOrder::from_str(value_str).map_err(|e| e.into()),
             None => Err(error::Error::Settings("Invalid sort order.".to_string())),
+        }
+    }
+}
+
+impl Display for SortOrder {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SortOrder::NameAsc => write!(f, "NameAsc"),
+            SortOrder::NameDesc => write!(f, "NameDesc"),
+            SortOrder::DateAsc => write!(f, "DateAsc"),
+            SortOrder::DateDesc => write!(f, "DateDesc"),
         }
     }
 }

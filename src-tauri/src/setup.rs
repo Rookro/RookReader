@@ -19,6 +19,8 @@ pub fn setup(app: &App, settings: &Settings) -> error::Result<()> {
     set_theme(app, &settings.theme);
 
     setup_container_settings(app, &settings)?;
+
+    debug!("Application setup completed. Settings: {}", settings);
     Ok(())
 }
 

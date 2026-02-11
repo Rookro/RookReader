@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{fmt::Display, str::FromStr};
 
 use serde_json::Value;
 use strum_macros::EnumString;
@@ -24,6 +24,16 @@ impl TryFrom<Value> for AppTheme {
         match value.as_str() {
             Some(value_str) => AppTheme::from_str(value_str).map_err(|e| e.into()),
             None => Err(error::Error::Settings("Invalid app theme.".to_string())),
+        }
+    }
+}
+
+impl Display for AppTheme {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AppTheme::System => write!(f, "System"),
+            AppTheme::Light => write!(f, "Light"),
+            AppTheme::Dark => write!(f, "Dark"),
         }
     }
 }

@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use serde_json::Value;
 use tauri::App;
 use tauri_plugin_store::StoreExt;
@@ -222,5 +224,29 @@ impl Default for Settings {
             theme: AppTheme::System,
             two_paged: true,
         }
+    }
+}
+
+impl Display for Settings {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Settings {{ font_family: {}, direction: {}, enable_directory_watch: {}, experimental_features: {}, first_page_single_view: {}, history: {}, home_directory: {}, image_resize_method: {}, log: {}, pdf_rendering_height: {}, novel_reader: {}, max_image_height: {}, sort_order: {}, theme: {}, two_paged: {} }}",
+            self.font_family,
+            self.direction,
+            self.enable_directory_watch,
+            self.experimental_features,
+            self.first_page_single_view,
+            self.history,
+            self.home_directory,
+            self.image_resize_method,
+            self.log,
+            self.pdf_rendering_height,
+            self.novel_reader,
+            self.max_image_height,
+            self.sort_order,
+            self.theme,
+            self.two_paged
+        )
     }
 }

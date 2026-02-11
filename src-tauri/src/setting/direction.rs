@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{fmt::Display, str::FromStr};
 
 use serde_json::Value;
 use strum_macros::EnumString;
@@ -22,6 +22,15 @@ impl TryFrom<Value> for Direction {
         match value.as_str() {
             Some(value_str) => Direction::from_str(value_str).map_err(|e| e.into()),
             None => Err(error::Error::Settings("Invalid direction.".to_string())),
+        }
+    }
+}
+
+impl Display for Direction {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Direction::RTL => write!(f, "RTL"),
+            Direction::LTR => write!(f, "LTR"),
         }
     }
 }
