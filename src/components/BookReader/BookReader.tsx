@@ -1,5 +1,5 @@
 import { Box } from "@mui/material";
-import { useEffect, useRef } from "react";
+import { lazy, useEffect, useRef } from "react";
 import { useDispatch } from "react-redux";
 import { setPdfRenderingHeight } from "../../bindings/ContainerCommands";
 import { HistoryTable } from "../../database/historyTable";
@@ -9,8 +9,9 @@ import { setIsFirstPageSingleView } from "../../reducers/ViewReducer";
 import { settingsStore } from "../../settings/SettingsStore";
 import { AppDispatch, useAppSelector } from "../../Store";
 import { HistorySettings } from "../../types/Settings";
-import ComicReader from "./ComicReader";
-import NovelReader from "./NovelReader";
+
+const ComicReader = lazy(() => import("./ComicReader"));
+const NovelReader = lazy(() => import("./NovelReader"));
 
 /**
  * Component for rendering a book reader.
