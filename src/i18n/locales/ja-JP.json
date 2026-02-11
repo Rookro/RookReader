@@ -93,7 +93,10 @@
         }
       },
       "pdf": {
-        "title": "PDF 描画時の高さ(px)"
+        "title": "PDF 描画時の高さ(px)",
+        "description": "PDF 描画時の高さを設定します。",
+        "range-error-message": "1 以上の整数を入力してください。",
+        "error-message": "設定できませんでした。入力内容を確認してください。"
       }
     },
     "novel-reader": {

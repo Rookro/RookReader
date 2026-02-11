@@ -93,7 +93,10 @@
         }
       },
       "pdf": {
-        "title": "PDF Rendering Height(px)"
+        "title": "PDF Rendering Height(px)",
+        "description": "Height of the PDF rendering area in pixels.",
+        "range-error-message": "Please enter a positive integer.",
+        "error-message": "Failed to set PDF rendering height. Please check your input."
       }
     },
     "novel-reader": {
