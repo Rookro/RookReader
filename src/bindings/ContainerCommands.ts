@@ -47,6 +47,34 @@ export const setPdfRenderingHeight = async (height: number): Promise<void> => {
 };
 
 /**
+ * Sets the max image height in the backend.
+ *
+ * @param height The max image height.
+ * @returns A promise that resolves when the operation is complete.
+ */
+export const setMaxImageHeight = async (height: number): Promise<void> => {
+  try {
+    return await invoke("set_max_image_height", { height });
+  } catch (error) {
+    throw createCommandError(error);
+  }
+};
+
+/**
+ * Sets the image resize method in the backend.
+ *
+ * @param method The image resize method.
+ * @returns A promise that resolves when the operation is complete.
+ */
+export const setImageResizeMethod = async (method: string): Promise<void> => {
+  try {
+    return await invoke("set_image_resize_method", { method });
+  } catch (error) {
+    throw createCommandError(error);
+  }
+};
+
+/**
  * Determines if a container is an EPUB novel.
  *
  * @beta

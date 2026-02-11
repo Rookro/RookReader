@@ -1,5 +1,6 @@
 use std::{
     cmp::min,
+    io::Cursor,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
@@ -7,6 +8,8 @@ use std::{
 };
 
 use dashmap::DashMap;
+use image::{codecs::jpeg::JpegEncoder, imageops::FilterType, ImageReader};
+use log::debug;
 use threadpool::ThreadPool;
 
 use crate::{
@@ -27,19 +30,31 @@ pub struct ImageLoader {
     is_preloading_cancel_requested: Arc<AtomicBool>,
     /// The container.
     container: Arc<dyn Container>,
+    /// The max image height.
+    max_image_height: u32,
+    /// The resize method.
+    resize_method: FilterType,
 }
 
 impl ImageLoader {
     /// Creates a new ImageLoader.
     ///
     /// * `container` - The container.
-    pub fn new(container: Arc<dyn Container>) -> Self {
+    /// * `max_image_height` - The max image height.
+    /// * `resize_method` - The resize method.
+    pub fn new(
+        container: Arc<dyn Container>,
+        max_image_height: u32,
+        resize_method: FilterType,
+    ) -> Self {
         Self {
             cache: Arc::new(DashMap::with_capacity(container.get_entries().len())),
             // Use half of the available CPU cores for preloading.
             thread_pool: ThreadPool::new(min(1, num_cpus::get() / 2)),
             is_preloading_cancel_requested: Arc::new(AtomicBool::new(false)),
             container,
+            max_image_height,
+            resize_method,
         }
     }
 
@@ -67,7 +82,12 @@ impl ImageLoader {
             return Ok(image_arc);
         }
 
-        let image_arc = self.load_image(entry)?;
+        let image_arc = load_image(
+            entry,
+            self.container.clone(),
+            self.max_image_height,
+            self.resize_method,
+        )?;
         self.cache.insert(entry.clone(), image_arc.clone());
 
         Ok(image_arc)
@@ -102,13 +122,15 @@ impl ImageLoader {
             let container = self.container.clone();
             let cache_clone = self.cache.clone();
             let is_cancel_requested = is_cancel_requested.clone();
+            let max_image_height = self.max_image_height.clone();
+            let resize_method = self.resize_method.clone();
 
             self.thread_pool.execute(move || {
                 if is_cancel_requested.load(Ordering::Relaxed) {
                     return;
                 }
 
-                match container.get_image(&entry) {
+                match load_image(&entry, container, max_image_height, resize_method) {
                     Ok(image) => {
                         log::debug!("Preloaded: {}", entry);
                         cache_clone.insert(entry, image);
@@ -128,16 +150,59 @@ impl ImageLoader {
         self.is_preloading_cancel_requested
             .store(true, Ordering::Relaxed);
     }
+}
 
-    /// Loads an image from the specified entry name.
-    ///
-    /// Returns the image.
-    ///
-    /// * `entry` - The entry name.
-    fn load_image(&self, entry: &String) -> Result<Arc<Image>> {
-        let image = self.container.get_image(entry)?;
+/// Loads an image from the specified entry name.
+///
+/// Returns the image.
+///
+/// * `entry` - The entry name.
+/// * `container` - The container to load the image from.
+/// * `max_image_height` - The maximum height of the image.
+/// * `resize_method` - The resize method to use.
+fn load_image(
+    entry: &String,
+    container: Arc<dyn Container>,
+    max_image_height: u32,
+    resize_method: FilterType,
+) -> Result<Arc<Image>> {
+    let image = container.get_image(entry)?;
+
+    if max_image_height > 0 && image.height > max_image_height {
+        debug!(
+            "Resizing image: {}. (image height: {} -> {}, resize method: {:?})",
+            entry, image.height, max_image_height, resize_method
+        );
+        let scaled_image = resize_image(image, max_image_height, resize_method)?;
+        Ok(scaled_image)
+    } else {
         Ok(image)
     }
+}
+
+/// Resizes an image to fit within the maximum height.
+///
+/// Returns the resized image.
+///
+/// * `image` - The image to resize.
+/// * `height` - The height of the resized image.
+/// * `resize_method` - The resize method to use.
+fn resize_image(image: Arc<Image>, height: u32, resize_method: FilterType) -> Result<Arc<Image>> {
+    let cursor = Cursor::new(&image.data);
+    let image_reader = ImageReader::new(cursor).with_guessed_format()?;
+    let image = image_reader.decode()?;
+
+    let scaled_image = image.resize(u32::MAX, height, resize_method);
+
+    let mut buffer = Vec::new();
+    let mut encoder = JpegEncoder::new_with_quality(&mut buffer, 80);
+    encoder.encode_image(&scaled_image)?;
+
+    Ok(Arc::new(Image {
+        data: buffer,
+        width: scaled_image.width(),
+        height: scaled_image.height(),
+    }))
 }
 
 impl Drop for ImageLoader {

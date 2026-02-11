@@ -75,6 +75,23 @@
     "rendering": {
       "tab-name": "Rendering",
       "title": "Rendering Settings",
+      "resize": {
+        "max-image-height": {
+          "title": "Maximum image Height(px)",
+          "description": "Images taller than this will be resized proportionally.\nSets zero to disable resizing.",
+          "range-error-message": "Please enter an integer of 0 or greater.",
+          "error-message": "Failed to set max image height. Please check your input."
+        },
+        "resize-method": {
+          "title": "Resizing Method",
+          "description": "Select the algorithm used for resizing. Choose the best balance between image quality and processing speed for your needs.",
+          "nearest": "Nearest Neighbor (Fastest / Low Quality)",
+          "triangle": "Triangle (Fast / Standard Quality)",
+          "catmullRom": "Catmull-Rom (Medium / High Quality)",
+          "gaussian": "Gaussian (Medium / Soft Look)",
+          "lanczos3": "Lanczos 3 (Slow / Best Quality)"
+        }
+      },
       "pdf": {
         "title": "PDF Rendering Height(px)"
       }

@@ -3,6 +3,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+use image::imageops::FilterType;
 use serde::{Deserialize, Serialize};
 use tauri::ipc::Response;
 
@@ -127,6 +128,59 @@ pub fn set_pdf_rendering_height(
         .map_err(|e| Error::Mutex(format!("Failed to lock AppState. {}", e)))?;
 
     state_lock.container_state.settings.pdf_rendering_height = height;
+    Ok(())
+}
+
+/// Sets the max image height.
+///
+/// * `height` - The max image height.
+/// * `state` - The application state.
+#[tauri::command()]
+pub fn set_max_image_height(height: i32, state: tauri::State<'_, Mutex<AppState>>) -> Result<()> {
+    log::debug!("set_max_image_height({})", height);
+
+    if height < 0 {
+        return Err(Error::Other(
+            "Max image height must be greater than or equal to 0. set_max_image_height() is Failed."
+                .to_string(),
+        ));
+    }
+
+    let mut state_lock = state
+        .lock()
+        .map_err(|e| Error::Mutex(format!("Failed to lock AppState. {}", e)))?;
+
+    state_lock.container_state.settings.max_image_height = height;
+    Ok(())
+}
+
+#[tauri::command()]
+pub fn set_image_resize_method(
+    method: String,
+    state: tauri::State<'_, Mutex<AppState>>,
+) -> Result<()> {
+    log::debug!("set_image_resize_method({})", method);
+
+    if method.is_empty() {
+        return Err(Error::Other(
+            "Method must be provided. set_image_resize_method() is Failed.".to_string(),
+        ));
+    }
+
+    let mut state_lock = state
+        .lock()
+        .map_err(|e| Error::Mutex(format!("Failed to lock AppState. {}", e)))?;
+
+    let method = match method.as_str() {
+        "nearest" => FilterType::Nearest,
+        "triangle" => FilterType::Triangle,
+        "catmullRom" => FilterType::CatmullRom,
+        "gaussian" => FilterType::Gaussian,
+        "lanczos3" => FilterType::Lanczos3,
+        _ => return Err(Error::Other("Invalid Resize Method type".to_string())),
+    };
+
+    state_lock.container_state.settings.image_resize_method = method;
     Ok(())
 }
 
@@ -303,7 +357,11 @@ mod tests {
         let mock_container_state = ContainerState {
             container: Some(arc_mock_container.clone()),
             settings: ContainerSettings::default(),
-            image_loader: Some(ImageLoader::new(arc_mock_container.clone())),
+            image_loader: Some(ImageLoader::new(
+                arc_mock_container.clone(),
+                2000,
+                FilterType::Triangle,
+            )),
         };
         let state = AppState {
             container_state: mock_container_state,

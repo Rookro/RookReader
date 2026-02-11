@@ -75,6 +75,23 @@
     "rendering": {
       "tab-name": "描画設定",
       "title": "描画設定",
+      "resize": {
+        "max-image-height": {
+          "title": "画像の最大の高さ(px)",
+          "description": "指定した高さを超える画像は、縦横比を保って縮小されます。\n0を設定するとリサイズを無効にします。",
+          "range-error-message": "0 以上の整数を入力してください。",
+          "error-message": "設定できませんでした。入力内容を確認してください。"
+        },
+        "resize-method": {
+          "title": "リサイズ方式",
+          "description": "縮小処理に使用するアルゴリズムを選択します。画質と処理速度のバランスを用途に合わせて設定してください。",
+          "nearest": "ニアレスト (最速 / 粗い)",
+          "triangle": "トライアングル (高速 / 標準画質)",
+          "catmullRom": "Catmull-Rom (中速 / 高画質・滑らか)",
+          "gaussian": "ガウシアン (中速 / ソフト・ぼかし)",
+          "lanczos3": "ランチョス3 (低速 / 最高画質)"
+        }
+      },
       "pdf": {
         "title": "PDF 描画時の高さ(px)"
       }
