@@ -1,4 +1,4 @@
-use image::{codecs::png::PngEncoder, ExtendedColorType, ImageEncoder};
+use image::codecs::jpeg::JpegEncoder;
 use pdfium_render::prelude::{PdfDocument, PdfRenderConfig, Pdfium};
 use std::sync::Arc;
 
@@ -83,13 +83,8 @@ fn load_image(
     let img = page.render_with_config(render_config)?.as_image();
 
     let mut buffer = Vec::new();
-    let encoder = PngEncoder::new(&mut buffer);
-    encoder.write_image(
-        img.as_bytes(),
-        img.width(),
-        img.height(),
-        ExtendedColorType::from(img.color()),
-    )?;
+    let mut encoder = JpegEncoder::new_with_quality(&mut buffer, 80);
+    encoder.encode_image(&img)?;
 
     let image = Image {
         data: buffer,
