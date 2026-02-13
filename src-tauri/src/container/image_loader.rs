@@ -93,6 +93,15 @@ impl ImageLoader {
         Ok(image_arc)
     }
 
+    /// Gets a preview image.
+    /// This does not use or store to the cache.
+    ///
+    /// * `entry` - The entry name.
+    pub fn get_preview_image(&self, entry: &String) -> Result<Arc<Image>> {
+        let thumbnail = self.container.get_thumbnail(entry)?;
+        Ok(thumbnail)
+    }
+
     /// Requests preloading of images.
     /// This function returns as soon as the request is made.
     ///

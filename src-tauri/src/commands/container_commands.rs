@@ -105,6 +105,44 @@ pub async fn get_image(
     Ok(Response::new(response_data))
 }
 
+/// Gets an image preview in the specified archive container.
+///
+/// Returns the image data with a custom binary format.
+/// The binary format is Big-Endian and structured as follows:
+/// \[Width (4 bytes)\]\[Height (4 bytes)\]\[Image Data...\]
+///
+/// * `path` - The path of the archive container.
+/// * `entry_name` - The entry name of the image to get.
+/// * `state` - The application state.
+#[tauri::command]
+pub async fn get_image_preview(
+    path: String,
+    entry_name: String,
+    state: tauri::State<'_, Mutex<AppState>>,
+) -> Result<Response> {
+    log::debug!("Get the preview binary of {} in {}", entry_name, path);
+
+    let state_lock = state
+        .lock()
+        .map_err(|e| Error::Mutex(format!("Failed to lock AppState. {}", e)))?;
+
+    let image_loader = state_lock
+        .container_state
+        .image_loader
+        .as_ref()
+        .ok_or_else(|| Error::Other("Unexpected error. Container is empty!".to_string()))?;
+
+    let image = image_loader.get_preview_image(&entry_name)?;
+
+    // Uses tauri::ipc::Response with a custom binary format to accelerate image data transfer.
+    let mut response_data = Vec::with_capacity(8 + image.data.len());
+    response_data.extend_from_slice(&image.width.to_be_bytes());
+    response_data.extend_from_slice(&image.height.to_be_bytes());
+    response_data.extend_from_slice(&image.data);
+
+    Ok(Response::new(response_data))
+}
+
 /// Sets the image height for PDF rendering.
 ///
 /// * `height` - The image height.

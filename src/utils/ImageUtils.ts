@@ -1,14 +1,28 @@
 import { error } from "@tauri-apps/plugin-log";
-import { getImage } from "../bindings/ContainerCommands";
+import { getImage, getImagePreview } from "../bindings/ContainerCommands";
 import { Image } from "../types/Image";
 
 /**
  * Cache for an image.
  */
-export interface ImageCacheItem {
-  url: string;
-  width: number;
-  height: number;
+export class ImageCacheItem {
+  constructor(
+    /** Width of the image. */
+    public width: number,
+    /** Height of the image. */
+    public height: number,
+    /** URL of the preview image. */
+    public previewUrl?: string,
+    /** URL of the image. */
+    public fullUrl?: string,
+  ) {}
+
+  /**
+   * Returns the full URL if available, otherwise the preview URL.
+   */
+  get url(): string | undefined {
+    return this.fullUrl || this.previewUrl;
+  }
 }
 
 /**
@@ -61,6 +75,29 @@ export const fetchImageBlob = async (
 };
 
 /**
+ * Fetches an image preview blob from the backend.
+ *
+ * @param containerPath The path of the container file.
+ * @param entryName The name of the entry to fetch.
+ * @returns The fetched image or undefined if the fetch failed.
+ */
+export const fetchImagePreviewBlob = async (
+  containerPath: string,
+  entryName: string,
+): Promise<Image | undefined> => {
+  if (!containerPath || !entryName || containerPath.length === 0 || entryName.length === 0) {
+    return undefined;
+  }
+  try {
+    const response = await getImagePreview(containerPath, entryName);
+    return new Image(response);
+  } catch (ex) {
+    error(`Failed to load an image preview of ${entryName}: ${JSON.stringify(ex)}`);
+    return undefined;
+  }
+};
+
+/**
  * Creates a blob URL from an image.
  *
  * @param image The image to create a blob URL for.
@@ -69,6 +106,23 @@ export const fetchImageBlob = async (
 export const createBlobUrl = (image: Image): string => {
   const blob = new Blob([new Uint8Array(image.data)]);
   return URL.createObjectURL(blob);
+};
+
+/**
+ * Creates an ImageCacheItem from an image.
+ *
+ * @param image The image to create an ImageCacheItem from.
+ * @param isPreview Whether the image is a preview.
+ * @returns The created ImageCacheItem.
+ */
+export const createImageCacheItem = (image: Image, isPreview: boolean): ImageCacheItem => {
+  const url = createBlobUrl(image);
+  return new ImageCacheItem(
+    image.width,
+    image.height,
+    isPreview ? url : undefined,
+    !isPreview ? url : undefined,
+  );
 };
 
 /**

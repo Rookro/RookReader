@@ -1,5 +1,5 @@
 use image::codecs::jpeg::JpegEncoder;
-use pdfium_render::prelude::{PdfDocument, PdfRenderConfig, Pdfium};
+use pdfium_render::prelude::{PdfDocument, PdfPageRenderRotation, PdfRenderConfig, Pdfium};
 use std::sync::Arc;
 
 use crate::{
@@ -17,6 +17,8 @@ pub struct PdfContainer {
     render_config: Arc<PdfRenderConfig>,
     /// The path to the pdfium library.
     library_path: Option<String>,
+    /// Thumbnail rendering config.
+    thumbnail_render_config: Arc<PdfRenderConfig>,
 }
 
 impl Container for PdfContainer {
@@ -30,6 +32,12 @@ impl Container for PdfContainer {
 
         let image_arc = load_image(&pdf, &self.render_config, entry)?;
         Ok(image_arc)
+    }
+
+    fn get_thumbnail(&self, entry: &String) -> Result<Arc<Image>> {
+        let pdfium = get_pdfium(&self.library_path)?;
+        let pdf = pdfium.load_pdf_from_file(&self.path, None)?;
+        create_thumbnail(&pdf, &self.thumbnail_render_config, entry)
     }
 
     fn is_directory(&self) -> bool {
@@ -63,6 +71,15 @@ impl PdfContainer {
             entries,
             render_config: Arc::new(render_config),
             library_path,
+            thumbnail_render_config: Arc::new(
+                PdfRenderConfig::default()
+                    .set_target_height(<dyn Container>::THUMBNAIL_SIZE as i32)
+                    .rotate(PdfPageRenderRotation::None, false)
+                    .use_print_quality(false)
+                    .set_image_smoothing(false)
+                    .render_annotations(false)
+                    .render_form_data(false),
+            ),
         })
     }
 }
@@ -84,6 +101,34 @@ fn load_image(
 
     let mut buffer = Vec::new();
     let mut encoder = JpegEncoder::new_with_quality(&mut buffer, 80);
+    encoder.encode_image(&img)?;
+
+    let image = Image {
+        data: buffer,
+        width: img.width(),
+        height: img.height(),
+    };
+
+    Ok(Arc::new(image))
+}
+
+fn create_thumbnail(
+    pdf: &PdfDocument,
+    render_config: &PdfRenderConfig,
+    entry: &String,
+) -> Result<Arc<Image>> {
+    let index: u16 = entry.parse()?;
+
+    let page = pdf.pages().get(index).map_err(Error::from)?;
+    // let img = match page.embedded_thumbnail() {
+    //     Ok(thumbnail) => thumbnail.as_image(),
+    //     Err(_) => page.render_with_config(render_config)?.as_image(),
+    // };
+    let img = page.render_with_config(render_config)?.as_image();
+
+    let mut buffer = Vec::new();
+    // Use a lower quality for thumbnails to make them smaller and faster to encode.
+    let mut encoder = JpegEncoder::new_with_quality(&mut buffer, 10);
     encoder.encode_image(&img)?;
 
     let image = Image {

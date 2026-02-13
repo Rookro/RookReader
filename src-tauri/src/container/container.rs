@@ -18,6 +18,17 @@ pub trait Container: Send + Sync + 'static {
     /// * `entry` - The entry name of the image to retrieve.
     fn get_image(&self, entry: &String) -> Result<Arc<Image>>;
 
+    /// Retrieves a thumbnail from the file.
+    ///
+    /// # Arguments
+    ///
+    /// * `entry` - The entry name of the thumbnail to retrieve.
+    ///
+    /// # Returns
+    ///
+    /// `Arc<Image>` if the thumbnail retrieved successfully.
+    fn get_thumbnail(&self, entry: &String) -> Result<Arc<Image>>;
+
     /// Checks if the container is a directory.
     ///
     /// Returns true if it is a directory, false if it is a file.
@@ -39,6 +50,9 @@ impl dyn Container {
             || lowercase_name.ends_with(".zip")
             || lowercase_name.ends_with(".epub")
     }
+
+    /// The size of the thumbnail in pixels.
+    pub const THUMBNAIL_SIZE: u32 = 300;
 }
 
 #[cfg(test)]

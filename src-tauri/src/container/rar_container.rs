@@ -1,6 +1,7 @@
+use image::{codecs::jpeg::JpegEncoder, ImageReader};
 use unrar::{Archive, CursorBeforeHeader, OpenArchive, Process};
 
-use std::sync::Arc;
+use std::{io::Cursor, sync::Arc};
 
 use crate::{
     container::{container::Container, image::Image},
@@ -21,20 +22,11 @@ impl Container for RarContainer {
     }
 
     fn get_image(&self, entry: &String) -> Result<Arc<Image>> {
-        let mut archive = open(&self.path)?;
-        while let Some(header) = archive.read_header()? {
-            let filename = header.entry().filename.to_string_lossy().to_string();
-            if filename == *entry {
-                let (data, rest) = header.read()?;
-                drop(rest); // close the archive
-                let img = Image::new(data)?;
-                return Ok(Arc::new(img));
-            } else {
-                archive = header.skip()?;
-            }
-        }
+        load_image(&self.path, entry)
+    }
 
-        Err(Error::EntryNotFound(format!("Entry not found: {}", entry)))
+    fn get_thumbnail(&self, entry: &String) -> Result<Arc<Image>> {
+        create_thumbnail(&self.path, entry)
     }
 
     fn is_directory(&self) -> bool {
@@ -74,6 +66,46 @@ impl RarContainer {
 /// * `path` - The path to the RAR file.
 fn open(path: &String) -> Result<OpenArchive<Process, CursorBeforeHeader>> {
     Ok(Archive::new(path).open_for_processing()?)
+}
+
+fn load_image(path: &String, entry: &String) -> Result<Arc<Image>> {
+    let mut archive = open(path)?;
+    while let Some(header) = archive.read_header()? {
+        let filename = header.entry().filename.to_string_lossy().to_string();
+        if filename == *entry {
+            let (data, rest) = header.read()?;
+            drop(rest); // close the archive
+            let img = Image::new(data)?;
+            return Ok(Arc::new(img));
+        } else {
+            archive = header.skip()?;
+        }
+    }
+
+    Err(Error::EntryNotFound(format!("Entry not found: {}", entry)))
+}
+
+fn create_thumbnail(path: &String, entry: &String) -> Result<Arc<Image>> {
+    let img = load_image(path, entry)?;
+    let cursor = Cursor::new(&img.data);
+    let image_reader = ImageReader::new(cursor).with_guessed_format()?;
+    let image = image_reader.decode()?;
+
+    let thumbnail = image.thumbnail(
+        <dyn Container>::THUMBNAIL_SIZE,
+        <dyn Container>::THUMBNAIL_SIZE,
+    );
+
+    let mut buffer = Vec::new();
+    // Use a lower quality for thumbnails to make them smaller and faster to encode.
+    let mut encoder = JpegEncoder::new_with_quality(&mut buffer, 10);
+    encoder.encode_image(&thumbnail)?;
+
+    Ok(Arc::new(Image {
+        data: buffer,
+        width: thumbnail.width(),
+        height: thumbnail.height(),
+    }))
 }
 
 #[cfg(test)]

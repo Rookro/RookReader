@@ -1,9 +1,11 @@
 use std::{
     fs::{read_dir, File},
-    io::Read,
+    io::{Cursor, Read},
     path,
     sync::Arc,
 };
+
+use image::{codecs::jpeg::JpegEncoder, ImageReader};
 
 use crate::{
     container::{container::Container, image::Image},
@@ -26,6 +28,10 @@ impl Container for DirectoryContainer {
     fn get_image(&self, entry: &String) -> Result<Arc<Image>> {
         let image_arc = load_image(&self.path, entry)?;
         Ok(image_arc)
+    }
+
+    fn get_thumbnail(&self, entry: &String) -> Result<Arc<Image>> {
+        create_thumbnail(&self.path, entry)
     }
 
     fn is_directory(&self) -> bool {
@@ -78,6 +84,32 @@ fn load_image(path: &String, entry: &String) -> Result<Arc<Image>> {
     File::open(file_path)?.read_to_end(&mut buffer)?;
 
     Ok(Arc::new(Image::new(buffer)?))
+}
+
+fn create_thumbnail(path: &String, entry: &String) -> Result<Arc<Image>> {
+    let file_path = path::Path::new(&path).join(entry);
+    let mut buffer = Vec::new();
+    File::open(file_path)?.read_to_end(&mut buffer)?;
+
+    let cursor = Cursor::new(&buffer);
+    let image_reader = ImageReader::new(cursor).with_guessed_format()?;
+    let image = image_reader.decode()?;
+
+    let thumbnail = image.thumbnail(
+        <dyn Container>::THUMBNAIL_SIZE,
+        <dyn Container>::THUMBNAIL_SIZE,
+    );
+
+    let mut buffer = Vec::new();
+    // Use a lower quality for thumbnails to make them smaller and faster to encode.
+    let mut encoder = JpegEncoder::new_with_quality(&mut buffer, 1);
+    encoder.encode_image(&thumbnail)?;
+
+    Ok(Arc::new(Image {
+        data: buffer,
+        width: thumbnail.width(),
+        height: thumbnail.height(),
+    }))
 }
 
 #[cfg(test)]

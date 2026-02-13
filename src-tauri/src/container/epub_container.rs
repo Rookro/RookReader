@@ -1,5 +1,6 @@
-use std::{collections::HashMap, path::Path, sync::Arc};
+use std::{collections::HashMap, io::Cursor, path::Path, sync::Arc};
 
+use image::{codecs::jpeg::JpegEncoder, ImageReader};
 use rbook::{
     prelude::{Manifest, ManifestEntry, MetaEntry, Metadata},
     reader::{Reader, ReaderContent},
@@ -29,6 +30,11 @@ impl Container for EpubContainer {
         let mut epub = Epub::options().strict(false).open(&self.path)?;
         let image = load_image(&mut epub, entry)?;
         Ok(image)
+    }
+
+    fn get_thumbnail(&self, entry: &String) -> Result<Arc<Image>> {
+        let mut epub = Epub::options().strict(false).open(&self.path)?;
+        create_thumbnail(&mut epub, entry)
     }
 
     fn is_directory(&self) -> bool {
@@ -111,6 +117,40 @@ fn load_image(epub: &mut Epub, entry: &String) -> Result<Arc<Image>> {
 
     let image = Image::new(resource.read_bytes()?)?;
     Ok(Arc::new(image))
+}
+
+fn create_thumbnail(epub: &mut Epub, entry: &String) -> Result<Arc<Image>> {
+    let Some(resource) = epub
+        .manifest()
+        .images()
+        .find(|image| image.key().unwrap_or_default() == entry)
+    else {
+        return Err(Error::EntryNotFound(format!(
+            "[EPUB] Resource not found: {}",
+            entry
+        )));
+    };
+
+    let buffer = resource.read_bytes()?;
+    let cursor = Cursor::new(&buffer);
+    let image_reader = ImageReader::new(cursor).with_guessed_format()?;
+    let image = image_reader.decode()?;
+
+    let thumbnail = image.thumbnail(
+        <dyn Container>::THUMBNAIL_SIZE,
+        <dyn Container>::THUMBNAIL_SIZE,
+    );
+
+    let mut buffer = Vec::new();
+    // Use a lower quality for thumbnails to make them smaller and faster to encode.
+    let mut encoder = JpegEncoder::new_with_quality(&mut buffer, 10);
+    encoder.encode_image(&thumbnail)?;
+
+    Ok(Arc::new(Image {
+        data: buffer,
+        width: thumbnail.width(),
+        height: thumbnail.height(),
+    }))
 }
 
 /// Create a map of image IDs to their order in the EPUB.
