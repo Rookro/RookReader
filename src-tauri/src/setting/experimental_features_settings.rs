@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use serde_json::Value;
 
 use crate::error;
@@ -52,5 +54,15 @@ impl TryFrom<Value> for ExperimentalFeaturesSettings {
         Ok(Self {
             enable_epub_novel_reader,
         })
+    }
+}
+
+impl Display for ExperimentalFeaturesSettings {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "ExperimentalFeaturesSettings {{ enable_epub_novel_reader: {} }}",
+            self.enable_epub_novel_reader
+        )
     }
 }

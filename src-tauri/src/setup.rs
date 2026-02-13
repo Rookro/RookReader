@@ -1,4 +1,6 @@
 use chrono::Local;
+use image::imageops::FilterType;
+use log::debug;
 use std::sync::Mutex;
 use tauri::{App, Manager, Theme};
 use tauri_plugin_log::{RotationStrategy, Target, TargetKind};
@@ -16,20 +18,33 @@ pub fn setup(app: &App, settings: &Settings) -> error::Result<()> {
     setup_logger(app, &settings.log)?;
     set_theme(app, &settings.theme);
 
-    setup_container_settings(app)?;
+    setup_container_settings(app, &settings)?;
+
+    debug!("Application setup completed. Settings: {}", settings);
     Ok(())
 }
 
 /// Sets up the direcotry path of PDFium library.
 ///
 /// * `app` - App instance of Tauri.
-pub fn setup_container_settings(app: &App) -> error::Result<()> {
+/// * `settings` - The settings to use.
+pub fn setup_container_settings(app: &App, settings: &Settings) -> error::Result<()> {
     let state: tauri::State<'_, Mutex<crate::state::app_state::AppState>> = app.state();
     let mut locked_state = state
         .lock()
         .map_err(|e| error::Error::Mutex(format!("Failed to get app state. Error: {}", e)))?;
 
     locked_state.container_state.settings.pdfium_library_path = Some(get_libs_dir(app)?);
+    locked_state.container_state.settings.max_image_height = settings.max_image_height;
+    locked_state.container_state.settings.image_resize_method =
+        match settings.image_resize_method.as_str() {
+            "nearest" => FilterType::Nearest,
+            "triangle" => FilterType::Triangle,
+            "catmullRom" => FilterType::CatmullRom,
+            "gaussian" => FilterType::Gaussian,
+            "lanczos3" => FilterType::Lanczos3,
+            _ => FilterType::Triangle,
+        };
     Ok(())
 }
 

@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{fmt::Display, str::FromStr};
 
 use log::LevelFilter;
 use serde_json::Value;
@@ -51,5 +51,11 @@ impl TryFrom<Value> for LogSettings {
         };
 
         Ok(Self { level })
+    }
+}
+
+impl Display for LogSettings {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "LogSettings {{ level: {} }}", self.level)
     }
 }

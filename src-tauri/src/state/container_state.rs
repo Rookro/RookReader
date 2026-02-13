@@ -43,7 +43,11 @@ impl ContainerState {
         if file_path.is_dir() {
             let container = Arc::new(DirectoryContainer::new(path)?);
             self.container = Some(container.clone());
-            self.image_loader = Some(ImageLoader::new(container));
+            self.image_loader = Some(ImageLoader::new(
+                container,
+                self.settings.max_image_height as u32,
+                self.settings.image_resize_method,
+            ));
             return Ok(());
         }
 
@@ -53,7 +57,11 @@ impl ContainerState {
                 "zip" => {
                     let container = Arc::new(ZipContainer::new(path)?);
                     self.container = Some(container.clone());
-                    self.image_loader = Some(ImageLoader::new(container));
+                    self.image_loader = Some(ImageLoader::new(
+                        container,
+                        self.settings.max_image_height as u32,
+                        self.settings.image_resize_method,
+                    ));
                 }
                 "pdf" => {
                     let container = Arc::new(PdfContainer::new(
@@ -63,17 +71,29 @@ impl ContainerState {
                         self.settings.pdfium_library_path.clone(),
                     )?);
                     self.container = Some(container.clone());
-                    self.image_loader = Some(ImageLoader::new(container));
+                    self.image_loader = Some(ImageLoader::new(
+                        container,
+                        self.settings.max_image_height as u32,
+                        self.settings.image_resize_method,
+                    ));
                 }
                 "rar" => {
                     let container = Arc::new(RarContainer::new(path)?);
                     self.container = Some(container.clone());
-                    self.image_loader = Some(ImageLoader::new(container));
+                    self.image_loader = Some(ImageLoader::new(
+                        container,
+                        self.settings.max_image_height as u32,
+                        self.settings.image_resize_method,
+                    ));
                 }
                 "epub" => {
                     let container = Arc::new(EpubContainer::new(path)?);
                     self.container = Some(container.clone());
-                    self.image_loader = Some(ImageLoader::new(container));
+                    self.image_loader = Some(ImageLoader::new(
+                        container,
+                        self.settings.max_image_height as u32,
+                        self.settings.image_resize_method,
+                    ));
                 }
                 _ => {
                     log::error!("Unsupported Container Type: {}", ext_str);

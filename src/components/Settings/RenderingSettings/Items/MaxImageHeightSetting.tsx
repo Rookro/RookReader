@@ -1,32 +1,32 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ListItem, ListItemIcon, ListItemText, TextField } from "@mui/material";
+import { AspectRatioOutlined } from "@mui/icons-material";
 import { error } from "@tauri-apps/plugin-log";
 import { settingsStore } from "../../../../settings/SettingsStore";
-import { setPdfRenderingHeight } from "../../../../bindings/ContainerCommands";
-import { AspectRatioOutlined } from "@mui/icons-material";
+import { setMaxImageHeight } from "../../../../bindings/ContainerCommands";
 
 /**
- * PDF rendering setting component.
+ * Max image height setting component.
  */
-export default function PdfRenderingSetting() {
+export default function MaxImageHeightSetting() {
   const { t } = useTranslation();
-  const [pdfRenderingHeight, setPdfRenderingHeightState] = useState<number>(2000);
+  const [maxHeight, setMaxHeight] = useState<number>(0);
   const [isError, setIsError] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
   useEffect(() => {
     const fetchSettings = async () => {
-      const height = (await settingsStore.get<number>("pdf-rendering-height")) ?? 2000;
-      setPdfRenderingHeightState(height);
+      const height = (await settingsStore.get<number>("max-image-height")) ?? 0;
+      setMaxHeight(height);
     };
     fetchSettings();
   }, []);
 
-  const handlePdfRenderingHeightChange = useCallback(
+  const handleMaxHeightChange = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       const height = parseInt(e.target.value, 10);
-      setPdfRenderingHeightState(height);
+      setMaxHeight(height);
 
       if (isNaN(height)) {
         setIsError(true);
@@ -34,25 +34,25 @@ export default function PdfRenderingSetting() {
         return;
       }
 
-      if (height < 1) {
+      if (height < 0) {
         setIsError(true);
-        setErrorMsg(t("settings.rendering.pdf.range-error-message"));
+        setErrorMsg(t("settings.rendering.resize.max-image-height.range-error-message"));
         return;
       }
 
       try {
-        await setPdfRenderingHeight(height);
+        await setMaxImageHeight(height);
       } catch (e) {
-        error(`Failed to set PDF rendering height: ${e}`);
+        error(`Failed to set max image height: ${e}`);
         setIsError(true);
-        setErrorMsg(t("settings.rendering.pdf.error-message"));
+        setErrorMsg(t("settings.rendering.resize.max-image-height.error-message"));
         return;
       }
 
       setIsError(false);
       setErrorMsg("");
 
-      await settingsStore.set("pdf-rendering-height", height);
+      await settingsStore.set("max-image-height", height);
     },
     [t],
   );
@@ -63,18 +63,20 @@ export default function PdfRenderingSetting() {
         <AspectRatioOutlined />
       </ListItemIcon>
       <ListItemText
-        primary={t("settings.rendering.pdf.title")}
-        secondary={t("settings.rendering.pdf.description")}
+        primary={t("settings.rendering.resize.max-image-height.title")}
+        secondary={t("settings.rendering.resize.max-image-height.description")}
+        sx={{ marginRight: "10px" }}
+        slotProps={{ secondary: { sx: { whiteSpace: "pre-wrap" } } }}
       />
       <TextField
         type="number"
         variant="standard"
-        value={pdfRenderingHeight}
-        onChange={handlePdfRenderingHeightChange}
+        value={maxHeight}
+        onChange={handleMaxHeightChange}
         size="small"
         error={isError}
         helperText={errorMsg}
-        slotProps={{ input: { inputProps: { min: 1, step: 100 } } }}
+        slotProps={{ input: { inputProps: { min: 0, step: 100 } } }}
         sx={{ width: "80px" }}
       />
     </ListItem>

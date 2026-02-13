@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use serde_json::Value;
 
 use crate::error;
@@ -67,5 +69,15 @@ impl TryFrom<Value> for NovelReaderSettings {
             font: font.to_string(),
             font_size,
         })
+    }
+}
+
+impl Display for NovelReaderSettings {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "NovelReaderSettings {{ font: {}, font_size: {} }}",
+            self.font, self.font_size
+        )
     }
 }

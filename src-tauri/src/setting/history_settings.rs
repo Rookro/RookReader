@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use serde_json::Value;
 
 use crate::error;
@@ -73,5 +75,15 @@ impl TryFrom<Value> for HistorySettings {
             enable,
             restore_last_container_on_startup,
         })
+    }
+}
+
+impl Display for HistorySettings {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "HistorySettings {{ enable: {}, restore_last_container_on_startup: {} }}",
+            self.enable, self.restore_last_container_on_startup
+        )
     }
 }
