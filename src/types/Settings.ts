@@ -1,5 +1,6 @@
 import { Direction } from "./DirectionType";
 import { LogLevel } from "./LogLevelType";
+import { ResizeMethod } from "./ResizeMethod";
 import { SortOrder } from "./SortOrderType";
 import { AppTheme } from "./ThemeType";
 
@@ -23,10 +24,10 @@ export interface Settings {
   "home-directory": string;
   /** Log settings. */
   log: LogSettings;
-  /** PDF rendering height. */
-  "pdf-rendering-height": number;
   /** Novel reader settings. */
   "novel-reader": NovelReaderSettings;
+  /** Rendering settings. */
+  rendering: RenderingSettings;
   /** Sort order of file navigator. */
   "sort-order": SortOrder;
   /** Theme settings. */
@@ -60,7 +61,21 @@ export interface NovelReaderSettings {
   /** font. */
   font?: string;
   /** font size. */
-  fontSize?: number;
+  "font-size"?: number;
+}
+
+/**
+ * Rendering settings.
+ */
+export interface RenderingSettings {
+  /** Enable preview feature. */
+  "enable-preview": boolean;
+  /** Maximum image height. */
+  "max-image-height": number;
+  /** Image resize method. */
+  "image-resize-method": ResizeMethod;
+  /** PDF rendering height. */
+  "pdf-rendering-height": number;
 }
 
 /**

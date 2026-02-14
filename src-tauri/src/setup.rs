@@ -35,9 +35,10 @@ pub fn setup_container_settings(app: &App, settings: &Settings) -> error::Result
         .map_err(|e| error::Error::Mutex(format!("Failed to get app state. Error: {}", e)))?;
 
     locked_state.container_state.settings.pdfium_library_path = Some(get_libs_dir(app)?);
-    locked_state.container_state.settings.max_image_height = settings.max_image_height;
+    locked_state.container_state.settings.enable_preview = settings.rendering.enable_preview;
+    locked_state.container_state.settings.max_image_height = settings.rendering.max_image_height;
     locked_state.container_state.settings.image_resize_method =
-        match settings.image_resize_method.as_str() {
+        match settings.rendering.image_resize_method.as_str() {
             "nearest" => FilterType::Nearest,
             "triangle" => FilterType::Triangle,
             "catmullRom" => FilterType::CatmullRom,

@@ -13,6 +13,7 @@ use zip::result::ZipError;
 #[strum_discriminants(name(ErrorCode))]
 #[strum_discriminants(derive(Serialize))]
 #[strum_discriminants(serde(rename_all = "camelCase"))]
+#[allow(dead_code)]
 pub enum Error {
     // 1xxxx: Container Processing
     #[error("Unsupported Container Error: {0}")]

@@ -42,16 +42,16 @@ export default function FontSettings() {
     value = value ?? defaultFontSize;
     debug(`Font size changed: ${value}`);
     setCurrentFontSize(value);
-    emit<SettingsChangedEvent>("settings-changed", { novelReader: { fontSize: value } });
+    emit<SettingsChangedEvent>("settings-changed", { novelReader: { "font-size": value } });
     const settings = await settingsStore.get<NovelReaderSettings>("novel-reader");
-    settingsStore.set("novel-reader", { ...settings, fontSize: value });
+    settingsStore.set("novel-reader", { ...settings, "font-size": value });
   };
 
   useEffect(() => {
     const initFonts = async () => {
       const novelReaderSettings = await settingsStore.get<NovelReaderSettings>("novel-reader");
       setCurrentFont(novelReaderSettings?.font ?? defaultFont);
-      setCurrentFontSize(novelReaderSettings?.fontSize ?? defaultFontSize);
+      setCurrentFontSize(novelReaderSettings?.["font-size"] ?? defaultFontSize);
 
       const fonts = await getFonts();
       setFonts(fonts);

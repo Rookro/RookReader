@@ -5,6 +5,7 @@ import { AspectRatioOutlined } from "@mui/icons-material";
 import { error } from "@tauri-apps/plugin-log";
 import { settingsStore } from "../../../../settings/SettingsStore";
 import { setMaxImageHeight } from "../../../../bindings/ContainerCommands";
+import { RenderingSettings } from "../../../../types/Settings";
 
 /**
  * Max image height setting component.
@@ -17,7 +18,8 @@ export default function MaxImageHeightSetting() {
 
   useEffect(() => {
     const fetchSettings = async () => {
-      const height = (await settingsStore.get<number>("max-image-height")) ?? 0;
+      const height =
+        (await settingsStore.get<RenderingSettings>("rendering"))?.["max-image-height"] ?? 0;
       setMaxHeight(height);
     };
     fetchSettings();
@@ -52,7 +54,8 @@ export default function MaxImageHeightSetting() {
       setIsError(false);
       setErrorMsg("");
 
-      await settingsStore.set("max-image-height", height);
+      const settings = await settingsStore.get<RenderingSettings>("rendering");
+      settingsStore.set("rendering", { ...settings, "max-image-height": height });
     },
     [t],
   );

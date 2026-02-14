@@ -108,9 +108,9 @@ export const useSettingsChange = () => {
         debug(`Received font changed event: ${settings.font}`);
         dispatch(setNovelFont(settings.font));
       }
-      if (settings.fontSize !== undefined) {
-        debug(`Received fontSize changed event: ${settings.fontSize}`);
-        dispatch(setNovelFontSize(settings.fontSize));
+      if (settings["font-size"] !== undefined) {
+        debug(`Received fontSize changed event: ${settings["font-size"]}`);
+        dispatch(setNovelFontSize(settings["font-size"]));
       }
     },
     [dispatch],

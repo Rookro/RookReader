@@ -2,8 +2,6 @@ use std::fmt::Display;
 
 use serde_json::Value;
 
-use crate::error;
-
 /// Represents the settings for the novel reader.
 #[allow(dead_code)]
 pub struct NovelReaderSettings {
@@ -39,36 +37,22 @@ impl Default for NovelReaderSettings {
     }
 }
 
-impl TryFrom<Value> for NovelReaderSettings {
-    type Error = error::Error;
+impl From<Value> for NovelReaderSettings {
+    fn from(value: Value) -> Self {
+        let font = value
+            .get("font")
+            .and_then(|value| value.as_str())
+            .unwrap_or("default-font");
 
-    fn try_from(value: Value) -> Result<Self, Self::Error> {
-        let Some(font) = value.get("font") else {
-            return Err(error::Error::Settings(
-                "Invalid novel-reader.font.".to_string(),
-            ));
-        };
-        let Some(font) = font.as_str() else {
-            return Err(error::Error::Settings(
-                "Invalid novel-reader.font.".to_string(),
-            ));
-        };
+        let font_size = value
+            .get("font-size")
+            .and_then(|value| value.as_f64())
+            .unwrap_or(16.0);
 
-        let Some(font_size) = value.get("font_size") else {
-            return Err(error::Error::Settings(
-                "Invalid novel-reader.font_size.".to_string(),
-            ));
-        };
-        let Some(font_size) = font_size.as_f64() else {
-            return Err(error::Error::Settings(
-                "Invalid novel-reader.font_size.".to_string(),
-            ));
-        };
-
-        Ok(Self {
+        Self {
             font: font.to_string(),
             font_size,
-        })
+        }
     }
 }
 
@@ -76,7 +60,7 @@ impl Display for NovelReaderSettings {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "NovelReaderSettings {{ font: {}, font_size: {} }}",
+            "NovelReaderSettings {{ font: {}, font-size: {} }}",
             self.font, self.font_size
         )
     }

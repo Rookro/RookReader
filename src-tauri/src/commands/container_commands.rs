@@ -272,8 +272,7 @@ mod tests {
 
     use crate::{
         container::{container::MockContainer, image::Image, image_loader::ImageLoader},
-        setting::container_settings::ContainerSettings,
-        state::container_state::ContainerState,
+        state::{container_settings::ContainerSettings, container_state::ContainerState},
     };
 
     impl MockContainer {

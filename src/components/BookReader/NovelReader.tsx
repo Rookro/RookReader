@@ -169,8 +169,8 @@ export default function NovelReader({ filePath }: NovelReaderProps) {
         if (settings?.font) {
           dispatch(setNovelFont(settings.font));
         }
-        if (settings?.fontSize) {
-          dispatch(setNovelFontSize(settings.fontSize));
+        if (settings?.["font-size"]) {
+          dispatch(setNovelFontSize(settings["font-size"]));
         }
         initialized.current = true;
       }

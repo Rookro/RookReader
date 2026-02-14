@@ -16,7 +16,7 @@ impl Default for AppState {
 
 #[cfg(test)]
 mod tests {
-    use crate::setting::container_settings::ContainerSettings;
+    use crate::state::container_settings::ContainerSettings;
 
     use super::*;
 

@@ -9,7 +9,7 @@ use crate::{
         rar_container::RarContainer, zip_container::ZipContainer,
     },
     error::{Error, Result},
-    setting::container_settings::ContainerSettings,
+    state::container_settings::ContainerSettings,
 };
 
 /// The container state.

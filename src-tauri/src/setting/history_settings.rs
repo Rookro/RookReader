@@ -2,8 +2,6 @@ use std::fmt::Display;
 
 use serde_json::Value;
 
-use crate::error;
-
 /// Represents the settings for history.
 #[allow(dead_code)]
 pub struct HistorySettings {
@@ -42,39 +40,22 @@ impl Default for HistorySettings {
     }
 }
 
-impl TryFrom<Value> for HistorySettings {
-    type Error = error::Error;
+impl From<Value> for HistorySettings {
+    fn from(value: Value) -> Self {
+        let enable = value
+            .get("enable")
+            .and_then(|value| value.as_bool())
+            .unwrap_or(true);
 
-    fn try_from(value: Value) -> Result<Self, Self::Error> {
-        let Some(enable) = value.get("enable") else {
-            return Err(error::Error::Settings(
-                "Invalid hostory.enable.".to_string(),
-            ));
-        };
-        let Some(enable) = enable.as_bool() else {
-            return Err(error::Error::Settings(
-                "Invalid hostory.enable.".to_string(),
-            ));
-        };
+        let restore_last_container_on_startup = value
+            .get("restore-last-container-on-startup")
+            .and_then(|value| value.as_bool())
+            .unwrap_or(true);
 
-        let Some(restore_last_container_on_startup) =
-            value.get("restore_last_container_on_startup")
-        else {
-            return Err(error::Error::Settings(
-                "Invalid hostory.restore_last_container_on_startup.".to_string(),
-            ));
-        };
-        let Some(restore_last_container_on_startup) = restore_last_container_on_startup.as_bool()
-        else {
-            return Err(error::Error::Settings(
-                "Invalid hostory.restore_last_container_on_startup.".to_string(),
-            ));
-        };
-
-        Ok(Self {
+        Self {
             enable,
             restore_last_container_on_startup,
-        })
+        }
     }
 }
 

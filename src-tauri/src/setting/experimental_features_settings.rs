@@ -2,8 +2,6 @@ use std::fmt::Display;
 
 use serde_json::Value;
 
-use crate::error;
-
 /// Represents the settings for experimental features.
 #[allow(dead_code)]
 pub struct ExperimentalFeaturesSettings {
@@ -37,23 +35,16 @@ impl Default for ExperimentalFeaturesSettings {
     }
 }
 
-impl TryFrom<Value> for ExperimentalFeaturesSettings {
-    type Error = error::Error;
+impl From<Value> for ExperimentalFeaturesSettings {
+    fn from(value: Value) -> Self {
+        let enable_epub_novel_reader = value
+            .get("enable-epub-novel-reader")
+            .and_then(|value| value.as_bool())
+            .unwrap_or(false);
 
-    fn try_from(value: Value) -> Result<Self, Self::Error> {
-        let Some(enable_epub_novel_reader) = value.get("enable-epub-novel-reader") else {
-            return Err(error::Error::Settings(
-                "Invalid enable-epub-novel-reader".to_string(),
-            ));
-        };
-        let Some(enable_epub_novel_reader) = enable_epub_novel_reader.as_bool() else {
-            return Err(error::Error::Settings(
-                "Invalid enable-epub-novel-reader".to_string(),
-            ));
-        };
-        Ok(Self {
+        Self {
             enable_epub_novel_reader,
-        })
+        }
     }
 }
 
@@ -61,7 +52,7 @@ impl Display for ExperimentalFeaturesSettings {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "ExperimentalFeaturesSettings {{ enable_epub_novel_reader: {} }}",
+            "ExperimentalFeaturesSettings {{ enable-epub-novel-reader: {} }}",
             self.enable_epub_novel_reader
         )
     }

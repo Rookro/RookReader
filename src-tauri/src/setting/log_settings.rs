@@ -3,8 +3,6 @@ use std::{fmt::Display, str::FromStr};
 use log::LevelFilter;
 use serde_json::Value;
 
-use crate::error;
-
 /// Represents the settings for logging.
 #[allow(dead_code)]
 pub struct LogSettings {
@@ -36,21 +34,15 @@ impl Default for LogSettings {
     }
 }
 
-impl TryFrom<Value> for LogSettings {
-    type Error = error::Error;
+impl From<Value> for LogSettings {
+    fn from(value: Value) -> Self {
+        let level = value
+            .get("level")
+            .and_then(|value| value.as_str())
+            .unwrap_or("Info");
+        let level = LevelFilter::from_str(level).unwrap_or(LevelFilter::Info);
 
-    fn try_from(value: Value) -> Result<Self, Self::Error> {
-        let Some(level) = value.get("level") else {
-            return Err(error::Error::Settings("Invalid log.level.".to_string()));
-        };
-        let Some(level) = level.as_str() else {
-            return Err(error::Error::Settings("Invalid log.level.".to_string()));
-        };
-        let Ok(level) = LevelFilter::from_str(level) else {
-            return Err(error::Error::Settings("Invalid log.level.".to_string()));
-        };
-
-        Ok(Self { level })
+        Self { level }
     }
 }
 

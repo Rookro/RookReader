@@ -1,7 +1,6 @@
 use std::fmt::Display;
 
-use serde_json::Value;
-use tauri::App;
+use tauri::{App, Manager};
 use tauri_plugin_store::StoreExt;
 
 use crate::{
@@ -10,7 +9,8 @@ use crate::{
         app_theme::AppTheme, direction::Direction,
         experimental_features_settings::ExperimentalFeaturesSettings,
         history_settings::HistorySettings, log_settings::LogSettings,
-        novel_reader_settings::NovelReaderSettings, sort_order::SortOrder,
+        novel_reader_settings::NovelReaderSettings, rendering_settings::RenderingSettings,
+        sort_order::SortOrder,
     },
 };
 
@@ -31,16 +31,12 @@ pub struct Settings {
     pub history: HistorySettings,
     /// Home directory settings.
     pub home_directory: String,
-    /// Image resize method settings.
-    pub image_resize_method: String,
     /// Log settings.
     pub log: LogSettings,
-    /// PDF rendering height.
-    pub pdf_rendering_height: i32,
     /// Novel reader settings.
     pub novel_reader: NovelReaderSettings,
-    /// Maximum image height.
-    pub max_image_height: i32,
+    /// Rendering settings.
+    pub rendering: RenderingSettings,
     /// Sort order settings.
     pub sort_order: SortOrder,
     /// Theme settings.
@@ -61,8 +57,8 @@ impl Settings {
     /// * `history` - The history settings.
     /// * `home_directory` - The home directory settings.
     /// * `log` - The log settings.
-    /// * `pdf_rendering_height` - The PDF rendering height.
     /// * `novel_reader` - The novel reader settings.
+    /// * `rendering` - The rendering settings.
     /// * `sort_order` - The sort order settings.
     /// * `theme` - The theme settings.
     /// * `two_paged` - Whether to enable two-paged mode.
@@ -77,11 +73,9 @@ impl Settings {
         first_page_single_view: bool,
         history: HistorySettings,
         home_directory: String,
-        image_resize_method: String,
         log: LogSettings,
-        pdf_rendering_height: i32,
         novel_reader: NovelReaderSettings,
-        max_image_height: i32,
+        rendering: RenderingSettings,
         sort_order: SortOrder,
         theme: AppTheme,
         two_paged: bool,
@@ -94,11 +88,9 @@ impl Settings {
             first_page_single_view,
             history,
             home_directory,
-            image_resize_method,
             log,
-            pdf_rendering_height,
             novel_reader,
-            max_image_height,
+            rendering,
             sort_order,
             theme,
             two_paged,
@@ -119,87 +111,67 @@ impl Settings {
         return Ok(Self {
             font_family: store
                 .get("font-family")
-                .unwrap_or(Value::String(
-                    "Inter, Avenir, Helvetica, Arial, sans-serif".to_string(),
-                ))
-                .as_str()
-                .unwrap_or("Inter, Avenir, Helvetica, Arial, sans-serif")
-                .to_string(),
+                .and_then(|value| match value.as_str() {
+                    Some(value) => Some(value.to_string()),
+                    None => None,
+                })
+                .unwrap_or("Inter, Avenir, Helvetica, Arial, sans-serif".to_string()),
             direction: store
                 .get("direction")
-                .unwrap_or(Value::String("ltr".to_string()))
-                .try_into()
+                .and_then(|value| Some(value.into()))
                 .unwrap_or(Direction::LTR),
             enable_directory_watch: store
                 .get("enable-directory-watch")
-                .unwrap_or(Value::Bool(false))
-                .as_bool()
+                .and_then(|value| value.as_bool())
                 .unwrap_or(false),
             experimental_features: store
                 .get("experimental-features")
-                .unwrap_or(Value::Null)
-                .try_into()
+                .and_then(|value| Some(value.into()))
                 .unwrap_or_default(),
             first_page_single_view: store
                 .get("first-page-single-view")
-                .unwrap_or(Value::Bool(true))
-                .as_bool()
+                .and_then(|value| value.as_bool())
                 .unwrap_or(true),
             history: store
                 .get("history")
-                .unwrap_or(Value::Null)
-                .try_into()
+                .and_then(|value| Some(value.into()))
                 .unwrap_or_default(),
             home_directory: store
                 .get("home-directory")
-                .unwrap_or(Value::String("".to_string()))
-                .as_str()
-                .unwrap_or_default()
-                .to_string(),
-            image_resize_method: store
-                .get("image-resize-method")
-                .unwrap_or(Value::String("triangle".to_string()))
-                .as_str()
-                .unwrap_or_default()
-                .to_string(),
+                .and_then(|value| match value.as_str() {
+                    Some(value) => Some(value.to_string()),
+                    None => None,
+                })
+                .unwrap_or(
+                    app.path()
+                        .home_dir()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                        .to_string(),
+                ),
             log: store
                 .get("log")
-                .unwrap_or(Value::Null)
-                .try_into()
+                .and_then(|value| Some(value.into()))
                 .unwrap_or_default(),
-            pdf_rendering_height: store
-                .get("pdf-rendering-height")
-                .unwrap_or(Value::Number(2000.into()))
-                .as_i64()
-                .unwrap_or(2000)
-                .try_into()
-                .unwrap_or(2000),
             novel_reader: store
                 .get("novel-reader")
-                .unwrap_or(Value::Null)
-                .try_into()
+                .and_then(|value| Some(value.into()))
                 .unwrap_or_default(),
-            max_image_height: store
-                .get("max-image-height")
-                .unwrap_or(Value::Number(0.into()))
-                .as_i64()
-                .unwrap_or(0)
-                .try_into()
-                .unwrap_or(0),
+            rendering: store
+                .get("rendering")
+                .and_then(|value| Some(value.into()))
+                .unwrap_or_default(),
             sort_order: store
                 .get("sort-order")
-                .unwrap_or(Value::String("name-asc".to_string()))
-                .try_into()
+                .and_then(|value| Some(value.into()))
                 .unwrap_or(SortOrder::NameAsc),
             theme: store
                 .get("theme")
-                .unwrap_or(Value::String("system".to_string()))
-                .try_into()
+                .and_then(|value| Some(value.into()))
                 .unwrap_or(AppTheme::System),
             two_paged: store
                 .get("two-paged")
-                .unwrap_or(Value::Bool(true))
-                .as_bool()
+                .and_then(|value| value.as_bool())
                 .unwrap_or(true),
         });
     }
@@ -215,11 +187,9 @@ impl Default for Settings {
             first_page_single_view: true,
             history: HistorySettings::default(),
             home_directory: "".to_string(),
-            image_resize_method: "triangle".to_string(),
             log: LogSettings::default(),
-            pdf_rendering_height: 2000,
             novel_reader: NovelReaderSettings::default(),
-            max_image_height: 0,
+            rendering: RenderingSettings::default(),
             sort_order: SortOrder::NameAsc,
             theme: AppTheme::System,
             two_paged: true,
@@ -231,7 +201,7 @@ impl Display for Settings {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "Settings {{ font_family: {}, direction: {}, enable_directory_watch: {}, experimental_features: {}, first_page_single_view: {}, history: {}, home_directory: {}, image_resize_method: {}, log: {}, pdf_rendering_height: {}, novel_reader: {}, max_image_height: {}, sort_order: {}, theme: {}, two_paged: {} }}",
+            "Settings {{ font_family: {}, direction: {}, enable_directory_watch: {}, experimental_features: {}, first_page_single_view: {}, history: {}, home_directory: {}, log: {}, novel_reader: {}, rendering: {}, sort_order: {}, theme: {}, two_paged: {} }}",
             self.font_family,
             self.direction,
             self.enable_directory_watch,
@@ -239,11 +209,9 @@ impl Display for Settings {
             self.first_page_single_view,
             self.history,
             self.home_directory,
-            self.image_resize_method,
             self.log,
-            self.pdf_rendering_height,
             self.novel_reader,
-            self.max_image_height,
+            self.rendering,
             self.sort_order,
             self.theme,
             self.two_paged

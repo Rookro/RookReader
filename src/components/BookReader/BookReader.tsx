@@ -8,7 +8,7 @@ import { openContainerFile, setContainerFilePath } from "../../reducers/FileRedu
 import { setIsFirstPageSingleView } from "../../reducers/ViewReducer";
 import { settingsStore } from "../../settings/SettingsStore";
 import { AppDispatch, useAppSelector } from "../../Store";
-import { HistorySettings } from "../../types/Settings";
+import { HistorySettings, RenderingSettings } from "../../types/Settings";
 
 const ComicReader = lazy(() => import("./ComicReader"));
 const NovelReader = lazy(() => import("./NovelReader"));
@@ -31,7 +31,9 @@ export default function BookReader() {
       const isFirstSingle = (await settingsStore.get<boolean>("first-page-single-view")) ?? true;
       dispatch(setIsFirstPageSingleView(isFirstSingle));
 
-      const height = await settingsStore.get<number>("pdf-rendering-height");
+      const height = (await settingsStore.get<RenderingSettings>("rendering"))?.[
+        "pdf-rendering-height"
+      ];
       if (height) {
         await setPdfRenderingHeight(height);
       }
