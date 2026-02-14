@@ -5,6 +5,7 @@ import i18n from "../i18n/config";
 import { setIsWatchEnabled as setIsDirWatchEnabled } from "../reducers/FileReducer";
 import { setIsHistoryEnabled } from "../reducers/HistoryReducer";
 import {
+  setEnablePreview,
   setFontFamily,
   setIsFirstPageSingleView,
   setNovelFont,
@@ -66,6 +67,11 @@ export const useSettingsChange = () => {
         debug(`Received isFirstPageSingleView changed event: ${settings.isFirstPageSingleView}`);
         dispatch(setIsFirstPageSingleView(settings.isFirstPageSingleView));
       }
+
+      if (settings.enablePreview !== undefined) {
+        debug(`Received enablePreview changed event: ${settings.enablePreview}`);
+        dispatch(setEnablePreview(settings.enablePreview));
+      }
     },
     [dispatch],
   );
@@ -108,9 +114,9 @@ export const useSettingsChange = () => {
         debug(`Received font changed event: ${settings.font}`);
         dispatch(setNovelFont(settings.font));
       }
-      if (settings.fontSize !== undefined) {
-        debug(`Received fontSize changed event: ${settings.fontSize}`);
-        dispatch(setNovelFontSize(settings.fontSize));
+      if (settings["font-size"] !== undefined) {
+        debug(`Received fontSize changed event: ${settings["font-size"]}`);
+        dispatch(setNovelFontSize(settings["font-size"]));
       }
     },
     [dispatch],

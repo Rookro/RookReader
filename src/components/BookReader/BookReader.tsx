@@ -5,10 +5,10 @@ import { setPdfRenderingHeight } from "../../bindings/ContainerCommands";
 import { HistoryTable } from "../../database/historyTable";
 import { useFileDrop } from "../../hooks/useFileDrop";
 import { openContainerFile, setContainerFilePath } from "../../reducers/FileReducer";
-import { setIsFirstPageSingleView } from "../../reducers/ViewReducer";
+import { setEnablePreview, setIsFirstPageSingleView } from "../../reducers/ViewReducer";
 import { settingsStore } from "../../settings/SettingsStore";
 import { AppDispatch, useAppSelector } from "../../Store";
-import { HistorySettings } from "../../types/Settings";
+import { HistorySettings, RenderingSettings } from "../../types/Settings";
 
 const ComicReader = lazy(() => import("./ComicReader"));
 const NovelReader = lazy(() => import("./NovelReader"));
@@ -31,7 +31,10 @@ export default function BookReader() {
       const isFirstSingle = (await settingsStore.get<boolean>("first-page-single-view")) ?? true;
       dispatch(setIsFirstPageSingleView(isFirstSingle));
 
-      const height = await settingsStore.get<number>("pdf-rendering-height");
+      const renderingSettings = await settingsStore.get<RenderingSettings>("rendering");
+      dispatch(setEnablePreview(renderingSettings?.["enable-preview"] ?? true));
+
+      const height = renderingSettings?.["pdf-rendering-height"];
       if (height) {
         await setPdfRenderingHeight(height);
       }

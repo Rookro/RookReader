@@ -22,12 +22,28 @@ pub struct EntriesResult {
     is_directory: bool,
 }
 
-/// Gets entries in the specified archive container.
+/// Opens a container file (e.g., ZIP, RAR) and retrieves a list of its contents.
 ///
-/// Returns a list of entry names in the container and whether it's a directory or a file.
+/// This function opens the container specified by the `path`, reads the list of file entries
+/// within it, and triggers a preload of the image data for faster access.
 ///
-/// * `path` - The path of the archive container.
-/// * `state` - The application state.
+/// # Arguments
+///
+/// * `path` - The file path to the container to open.
+/// * `state` - A `tauri::State` holding the application's global `AppState`.
+///
+/// # Returns
+///
+/// A `Result` which is `Ok` with an `EntriesResult` struct containing the list of entry
+/// names and a boolean indicating if the path is a directory.
+///
+/// # Errors
+///
+/// This function will return an `Err` if:
+/// * The `AppState` mutex cannot be locked.
+/// * The container file cannot be opened (e.g., it does not exist or is corrupt).
+/// * The `container` or `image_loader` within the application state is unexpectedly missing.
+/// * Preloading the image data fails.
 #[tauri::command()]
 pub async fn get_entries_in_container(
     path: String,
@@ -67,15 +83,28 @@ pub async fn get_entries_in_container(
     })
 }
 
-/// Gets an image in the specified archive container.
+/// Retrieves an image from the currently open container.
 ///
-/// Returns the image data with a custom binary format.
-/// The binary format is Big-Endian and structured as follows:
-/// \[Width (4 bytes)\]\[Height (4 bytes)\]\[Image Data...\]
+/// This function fetches the binary data for a specified image entry from the container
+/// that is currently loaded in the application state.
 ///
-/// * `path` - The path of the archive container.
-/// * `entry_name` - The entry name of the image to get.
-/// * `state` - The application state.
+/// # Arguments
+///
+/// * `path` - The path of the container, used primarily for logging purposes.
+/// * `entry_name` - The name of the image entry to retrieve (e.g., "image1.png").
+/// * `state` - A `tauri::State` holding the application's global `AppState`.
+///
+/// # Returns
+///
+/// A `Result` which is `Ok` with a `tauri::ipc::Response`. The response body contains the
+/// image data in a custom binary format: `[Width (4 bytes)][Height (4 bytes)][Image Data...]`.
+///
+/// # Errors
+///
+/// This function will return an `Err` if:
+/// * The `AppState` mutex cannot be locked.
+/// * The `image_loader` within the application state is unexpectedly missing.
+/// * The requested image entry cannot be found or decoded.
 #[tauri::command]
 pub async fn get_image(
     path: String,
@@ -105,10 +134,79 @@ pub async fn get_image(
     Ok(Response::new(response_data))
 }
 
-/// Sets the image height for PDF rendering.
+/// Retrieves a preview version of an image from the container.
 ///
-/// * `height` - The image height.
-/// * `state` - The application state.
+/// This function fetches a smaller, preview version of an image entry. If a preview is
+/// successfully generated, it is returned in the same binary format as `get_image`.
+/// If the preview is skipped (e.g., it's already cached), an empty response is returned.
+///
+/// # Arguments
+///
+/// * `path` - The path of the container, used primarily for logging purposes.
+/// * `entry_name` - The name of the image entry for which to generate a preview.
+/// * `state` - A `tauri::State` holding the application's global `AppState`.
+///
+/// # Returns
+///
+/// A `Result` which is `Ok` with a `tauri::ipc::Response`. The response body may contain
+/// image data or be empty if the preview generation was skipped.
+///
+/// # Errors
+///
+/// This function will return an `Err` if:
+/// * The `AppState` mutex cannot be locked.
+/// * The `image_loader` within the application state is unexpectedly missing.
+/// * The preview image cannot be retrieved or generated.
+#[tauri::command]
+pub async fn get_image_preview(
+    path: String,
+    entry_name: String,
+    state: tauri::State<'_, Mutex<AppState>>,
+) -> Result<Response> {
+    log::debug!("Get the preview binary of {} in {}", entry_name, path);
+
+    let state_lock = state
+        .lock()
+        .map_err(|e| Error::Mutex(format!("Failed to lock AppState. {}", e)))?;
+
+    let image_loader = state_lock
+        .container_state
+        .image_loader
+        .as_ref()
+        .ok_or_else(|| Error::Other("Unexpected error. Container is empty!".to_string()))?;
+
+    let Some(image) = image_loader.get_preview_image(&entry_name)? else {
+        // Return an empty response if preview skipped.
+        return Ok(Response::new(Vec::new()));
+    };
+
+    // Uses tauri::ipc::Response with a custom binary format to accelerate image data transfer.
+    let mut response_data = Vec::with_capacity(8 + image.data.len());
+    response_data.extend_from_slice(&image.width.to_be_bytes());
+    response_data.extend_from_slice(&image.height.to_be_bytes());
+    response_data.extend_from_slice(&image.data);
+
+    Ok(Response::new(response_data))
+}
+
+/// Sets the rendering height for pages in PDF files.
+///
+/// This height is used when converting a PDF page into an image.
+///
+/// # Arguments
+///
+/// * `height` - The target height in pixels for the rendered PDF page image. Must be greater than 0.
+/// * `state` - A `tauri::State` holding the application's global `AppState`.
+///
+/// # Returns
+///
+/// A `Result` which is `Ok` on successful update.
+///
+/// # Errors
+///
+/// This function will return an `Err` if:
+/// * The `height` is less than 1.
+/// * The `AppState` mutex cannot be locked.
 #[tauri::command()]
 pub fn set_pdf_rendering_height(
     height: i32,
@@ -131,10 +229,24 @@ pub fn set_pdf_rendering_height(
     Ok(())
 }
 
-/// Sets the max image height.
+/// Sets the maximum height for loaded images.
 ///
-/// * `height` - The max image height.
-/// * `state` - The application state.
+/// Images exceeding this height will be resized down to fit.
+///
+/// # Arguments
+///
+/// * `height` - The maximum image height in pixels. A value of 0 implies no limit.
+/// * `state` - A `tauri::State` holding the application's global `AppState`.
+///
+/// # Returns
+///
+/// A `Result` which is `Ok` on successful update.
+///
+/// # Errors
+///
+/// This function will return an `Err` if:
+/// * The `height` is a negative value.
+/// * The `AppState` mutex cannot be locked.
 #[tauri::command()]
 pub fn set_max_image_height(height: i32, state: tauri::State<'_, Mutex<AppState>>) -> Result<()> {
     log::debug!("set_max_image_height({})", height);
@@ -154,6 +266,24 @@ pub fn set_max_image_height(height: i32, state: tauri::State<'_, Mutex<AppState>
     Ok(())
 }
 
+/// Sets the algorithm used for resizing images.
+///
+/// # Arguments
+///
+/// * `method` - A string representing the desired resizing filter.
+///   Valid options are: "nearest", "triangle", "catmullRom", "gaussian", "lanczos3".
+/// * `state` - A `tauri::State` holding the application's global `AppState`.
+///
+/// # Returns
+///
+/// A `Result` which is `Ok` on successful update.
+///
+/// # Errors
+///
+/// This function will return an `Err` if:
+/// * The `method` string is empty.
+/// * The `method` does not match one of the valid filter types.
+/// * The `AppState` mutex cannot be locked.
 #[tauri::command()]
 pub fn set_image_resize_method(
     method: String,
@@ -184,15 +314,25 @@ pub fn set_image_resize_method(
     Ok(())
 }
 
-/// Determines if the given path is an EPUB novel.
+/// Determines if the file at the given path is an EPUB file containing a novel.
 ///
-/// Note: This function is currently in beta and may be subject to breaking changes
-/// in future releases.
+/// This function checks the file extension and then inspects the EPUB's contents to
+/// distinguish text-based novels from image-based comics.
 ///
-/// Returns `true` if the file is an EPUB novel, `false` otherwise.
+/// # Arguments
 ///
-/// * `path` - The path to the file.
-/// * `state` - The application state.
+/// * `path` - The file path to the EPUB file to be checked.
+/// * `state` - A `tauri::State` holding the application's global `AppState`.
+///
+/// # Returns
+///
+/// A `Result` which is `Ok` with a boolean: `true` if the file is a novel EPUB, `false` otherwise.
+///
+/// # Errors
+///
+/// This function will return an `Err` if:
+/// * The `AppState` mutex cannot be locked.
+/// * The file at `path` cannot be opened or is not a valid EPUB file.
 #[tauri::command()]
 pub async fn determine_epub_novel(
     path: String,
@@ -234,8 +374,7 @@ mod tests {
 
     use crate::{
         container::{container::MockContainer, image::Image, image_loader::ImageLoader},
-        setting::container_settings::ContainerSettings,
-        state::container_state::ContainerState,
+        state::{container_settings::ContainerSettings, container_state::ContainerState},
     };
 
     impl MockContainer {

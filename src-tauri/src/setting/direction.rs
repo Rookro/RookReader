@@ -3,25 +3,27 @@ use std::{fmt::Display, str::FromStr};
 use serde_json::Value;
 use strum_macros::EnumString;
 
-use crate::error;
-
-/// Represents the direction of reading.
+/// Represents the reading direction of the content, e.g., for books or comics.
 #[derive(Debug, PartialEq, EnumString)]
 #[strum(serialize_all = "snake_case")]
 pub enum Direction {
-    /// Right-to-left reading direction.
+    /// Right-to-Left reading direction, common for manga and some scripts.
     RTL,
-    /// Left-to-right reading direction.
+    /// Left-to-Right reading direction, standard for most Western languages.
     LTR,
 }
 
-impl TryFrom<Value> for Direction {
-    type Error = error::Error;
+impl Default for Direction {
+    fn default() -> Self {
+        Self::RTL
+    }
+}
 
-    fn try_from(value: Value) -> Result<Self, Self::Error> {
+impl From<Value> for Direction {
+    fn from(value: Value) -> Self {
         match value.as_str() {
-            Some(value_str) => Direction::from_str(value_str).map_err(|e| e.into()),
-            None => Err(error::Error::Settings("Invalid direction.".to_string())),
+            Some(value_str) => Self::from_str(value_str).unwrap_or_default(),
+            None => Self::default(),
         }
     }
 }
@@ -29,8 +31,8 @@ impl TryFrom<Value> for Direction {
 impl Display for Direction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Direction::RTL => write!(f, "RTL"),
-            Direction::LTR => write!(f, "LTR"),
+            Self::RTL => write!(f, "RTL"),
+            Self::LTR => write!(f, "LTR"),
         }
     }
 }

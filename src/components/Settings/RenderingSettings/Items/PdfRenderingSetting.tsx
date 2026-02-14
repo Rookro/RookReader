@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ListItem, ListItemIcon, ListItemText, TextField } from "@mui/material";
+import { AspectRatioOutlined } from "@mui/icons-material";
 import { error } from "@tauri-apps/plugin-log";
 import { settingsStore } from "../../../../settings/SettingsStore";
 import { setPdfRenderingHeight } from "../../../../bindings/ContainerCommands";
-import { AspectRatioOutlined } from "@mui/icons-material";
+import { RenderingSettings } from "../../../../types/Settings";
 
 /**
  * PDF rendering setting component.
@@ -17,7 +18,8 @@ export default function PdfRenderingSetting() {
 
   useEffect(() => {
     const fetchSettings = async () => {
-      const height = (await settingsStore.get<number>("pdf-rendering-height")) ?? 2000;
+      const height =
+        (await settingsStore.get<RenderingSettings>("rendering"))?.["pdf-rendering-height"] ?? 2000;
       setPdfRenderingHeightState(height);
     };
     fetchSettings();
@@ -52,7 +54,8 @@ export default function PdfRenderingSetting() {
       setIsError(false);
       setErrorMsg("");
 
-      await settingsStore.set("pdf-rendering-height", height);
+      const settings = await settingsStore.get<RenderingSettings>("rendering");
+      settingsStore.set("rendering", { ...settings, "pdf-rendering-height": height });
     },
     [t],
   );

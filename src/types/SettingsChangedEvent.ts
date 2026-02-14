@@ -21,6 +21,12 @@ export type ViewSettings = {
    * When true, the first page is shown alone. When false, it may be paired with the next page.
    */
   isFirstPageSingleView?: boolean;
+
+  /**
+   * Whether to enable preview feature.
+   * When true, the preview feature is enabled.
+   */
+  enablePreview?: boolean;
 };
 
 /**

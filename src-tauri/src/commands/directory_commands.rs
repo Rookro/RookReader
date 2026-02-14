@@ -4,9 +4,32 @@ use tauri::ipc::Response;
 use crate::container::container::Container;
 use crate::error::{Error, Result};
 
-/// Gets entries in the specified directory.
+/// Reads the contents of a directory and returns a list of its entries.
 ///
-/// * `dir_path` - The path of the directory to get.
+/// This function scans a directory specified by `dir_path` and filters its contents,
+/// returning only subdirectories and files with supported container formats (e.g., .zip, .cbz).
+///
+/// # Arguments
+///
+/// * `dir_path` - The path to the directory to be read.
+///
+/// # Returns
+///
+/// A `Result` which is `Ok` with a `tauri::ipc::Response`. The response body uses a custom
+/// binary format to encode a list of directory entries. Each entry is structured as follows:
+///
+/// * `is_directory` (1 byte): `1` if the entry is a directory, `0` if it is a file.
+/// * `name_length` (4 bytes): The length of the entry's name as a Big-Endian `u32`.
+/// * `name` (variable): The UTF-8 encoded name of the entry.
+/// * `last_modified` (8 bytes): The last modified timestamp as a Big-Endian `u64`
+///   (milliseconds since the UNIX epoch).
+///
+/// # Errors
+///
+/// This function will return an `Err` if:
+/// * The specified `dir_path` does not exist or cannot be read.
+/// * An entry's file name contains invalid UTF-8.
+/// * Filesystem metadata for an entry cannot be accessed.
 #[tauri::command()]
 pub async fn get_entries_in_dir(dir_path: String) -> Result<Response> {
     log::debug!("Get the directory entries in {}", dir_path);

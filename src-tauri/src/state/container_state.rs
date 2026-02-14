@@ -9,16 +9,18 @@ use crate::{
         rar_container::RarContainer, zip_container::ZipContainer,
     },
     error::{Error, Result},
-    setting::container_settings::ContainerSettings,
+    state::container_settings::ContainerSettings,
 };
 
-/// The container state.
+/// Holds the state related to the currently open container (e.g., a file or directory).
 pub struct ContainerState {
-    /// Archive container
+    /// The active container, wrapped in an `Arc` for shared ownership.
+    /// This can be a directory, a ZIP file, a PDF, etc. `None` if no container is open.
     pub container: Option<Arc<dyn Container>>,
-    /// Settings for the archive container
+    /// A nested struct containing settings specific to container handling, like rendering quality.
     pub settings: ContainerSettings,
-    /// Image loader.
+    /// The image loader responsible for loading and caching images from the current container.
+    /// `None` if no container is open.
     pub image_loader: Option<ImageLoader>,
 }
 
@@ -33,9 +35,26 @@ impl Default for ContainerState {
 }
 
 impl ContainerState {
-    /// Opens a container file.
+    /// Opens a container from the given path and initializes the state.
     ///
-    /// * `path` - The path to the container file.
+    /// This function determines the type of container based on the path (directory or file extension),
+    /// then creates the appropriate container handler (e.g., `ZipContainer`, `PdfContainer`).
+    /// It also initializes the `ImageLoader` for the newly opened container.
+    /// Any previously open container is closed.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - The file system path to the container to open.
+    ///
+    /// # Returns
+    ///
+    /// An `Ok(())` on success.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an `Err` if:
+    /// * The file extension is missing or unsupported.
+    /// * The underlying constructor for the container type fails (e.g., file not found, permission denied, corrupt file).
     pub fn open_container(&mut self, path: &String) -> Result<()> {
         self.container = None;
         let file_path = Path::new(path);

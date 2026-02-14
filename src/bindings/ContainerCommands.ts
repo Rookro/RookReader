@@ -33,6 +33,21 @@ export const getImage = async (path: string, entryName: string): Promise<ArrayBu
 };
 
 /**
+ * Fetches an image preview from a container in the backend.
+ *
+ * @param path The path of the container file.
+ * @param entryName The name of the image entry.
+ * @returns A promise that resolves to the image data as an ArrayBuffer.
+ */
+export const getImagePreview = async (path: string, entryName: string): Promise<ArrayBuffer> => {
+  try {
+    return await invoke("get_image_preview", { path, entryName });
+  } catch (error) {
+    throw createCommandError(error);
+  }
+};
+
+/**
  * Sets the rendering height for PDF files in the backend.
  *
  * @param height The rendering height.

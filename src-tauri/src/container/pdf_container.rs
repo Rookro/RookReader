@@ -1,5 +1,5 @@
 use image::codecs::jpeg::JpegEncoder;
-use pdfium_render::prelude::{PdfDocument, PdfRenderConfig, Pdfium};
+use pdfium_render::prelude::{PdfDocument, PdfPageRenderRotation, PdfRenderConfig, Pdfium};
 use std::sync::Arc;
 
 use crate::{
@@ -7,16 +7,21 @@ use crate::{
     error::{Error, Result},
 };
 
-/// A container for PDF archives.
+/// An implementation of the `Container` trait for reading content from PDF files.
+///
+/// This container treats each page of a PDF document as an entry, which can be
+/// rendered into an image.
 pub struct PdfContainer {
-    /// The file path of the container.
+    /// The file path of the PDF container.
     path: String,
-    /// The entries in the container.
+    /// A list of page numbers (as zero-padded strings) representing the entries.
     entries: Vec<String>,
-    /// Pdf rendering config.
+    /// The configuration used for rendering full-sized page images.
     render_config: Arc<PdfRenderConfig>,
-    /// The path to the pdfium library.
+    /// The path to the directory containing the `pdfium` dynamic library.
     library_path: Option<String>,
+    /// The configuration used for rendering smaller thumbnail images.
+    thumbnail_render_config: Arc<PdfRenderConfig>,
 }
 
 impl Container for PdfContainer {
@@ -32,17 +37,36 @@ impl Container for PdfContainer {
         Ok(image_arc)
     }
 
+    fn get_thumbnail(&self, entry: &String) -> Result<Arc<Image>> {
+        let pdfium = get_pdfium(&self.library_path)?;
+        let pdf = pdfium.load_pdf_from_file(&self.path, None)?;
+        create_thumbnail(&pdf, &self.thumbnail_render_config, entry)
+    }
+
     fn is_directory(&self) -> bool {
         false
     }
 }
 
 impl PdfContainer {
-    /// Creates a new instance.
+    /// Creates a new `PdfContainer` from the PDF file at the specified path.
     ///
-    /// * `path` - The path to the container file.
-    /// * `render_config` - The pdf rendering config.
-    /// * `library_path` - The path to the pdfium library. Uses default path if None.
+    /// This constructor initializes the `pdfium` library to open the PDF and
+    /// determine the number of pages, which become the entries for this container.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - The path to the PDF file.
+    /// * `render_config` - The base configuration for rendering pages.
+    /// * `library_path` - An optional path to the directory containing the `pdfium` library.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing a new `PdfContainer` instance on success.
+    ///
+    /// # Errors
+    ///
+    /// Returns an `Err` if `pdfium` cannot be initialized or the PDF file cannot be opened.
     pub fn new(
         path: &String,
         render_config: PdfRenderConfig,
@@ -63,15 +87,20 @@ impl PdfContainer {
             entries,
             render_config: Arc::new(render_config),
             library_path,
+            thumbnail_render_config: Arc::new(
+                PdfRenderConfig::default()
+                    .set_target_height(<dyn Container>::THUMBNAIL_SIZE as i32)
+                    .rotate(PdfPageRenderRotation::None, false)
+                    .use_print_quality(false)
+                    .set_image_smoothing(false)
+                    .render_annotations(false)
+                    .render_form_data(false),
+            ),
         })
     }
 }
 
-/// Loads an image from the specified entry name.
-///
-/// * `pdf` - The pdf document.
-/// * `render_config` - The pdf rendering config.
-/// * `entry` - The entry name of the image to get.
+/// Helper function to render a PDF page to an image using a specific config.
 fn load_image(
     pdf: &PdfDocument,
     render_config: &PdfRenderConfig,
@@ -95,9 +124,36 @@ fn load_image(
     Ok(Arc::new(image))
 }
 
-/// Gets a pdfium instance.
-///
-/// * `library_path` - The path to the pdfium library. Uses default path if None.
+/// Helper function to render a PDF page to a thumbnail image.
+fn create_thumbnail(
+    pdf: &PdfDocument,
+    render_config: &PdfRenderConfig,
+    entry: &String,
+) -> Result<Arc<Image>> {
+    let index: u16 = entry.parse()?;
+
+    let page = pdf.pages().get(index).map_err(Error::from)?;
+    // let img = match page.embedded_thumbnail() {
+    //     Ok(thumbnail) => thumbnail.as_image(),
+    //     Err(_) => page.render_with_config(render_config)?.as_image(),
+    // };
+    let img = page.render_with_config(render_config)?.as_image();
+
+    let mut buffer = Vec::new();
+    // Use a lower quality for thumbnails to make them smaller and faster to encode.
+    let mut encoder = JpegEncoder::new_with_quality(&mut buffer, 10);
+    encoder.encode_image(&img)?;
+
+    let image = Image {
+        data: buffer,
+        width: img.width(),
+        height: img.height(),
+    };
+
+    Ok(Arc::new(image))
+}
+
+/// Initializes the `Pdfium` instance, binding to the library at the given path.
 fn get_pdfium(library_path: &Option<String>) -> Result<Pdfium> {
     if let Some(lib_path) = library_path {
         let lib_name = Pdfium::pdfium_platform_library_name_at_path(lib_path);

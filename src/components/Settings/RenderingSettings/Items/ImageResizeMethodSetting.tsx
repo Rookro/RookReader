@@ -13,6 +13,7 @@ import { useTranslation } from "react-i18next";
 import { setImageResizeMethod } from "../../../../bindings/ContainerCommands";
 import { settingsStore } from "../../../../settings/SettingsStore";
 import { ResizeMethod, resizeMethods } from "../../../../types/ResizeMethod";
+import { RenderingSettings } from "../../../../types/Settings";
 
 /**
  * Image resize setting component.
@@ -51,13 +52,15 @@ export default function ImageResizeMethodSetting() {
       error(`Failed to set image resize method: ${e}`);
       return;
     }
-    settingsStore.set("image-resize-method", e.target.value);
+    const settings = await settingsStore.get<RenderingSettings>("rendering");
+    settingsStore.set("rendering", { ...settings, "image-resize-method": e.target.value });
   }, []);
 
   useEffect(() => {
     const initSettings = async () => {
       const resizeMethod =
-        (await settingsStore.get<ResizeMethod>("image-resize-method")) ?? "triangle";
+        (await settingsStore.get<RenderingSettings>("rendering"))?.["image-resize-method"] ??
+        "triangle";
       setCurrentMethod(resizeMethod);
     };
 
