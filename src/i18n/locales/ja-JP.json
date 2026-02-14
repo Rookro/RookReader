@@ -75,6 +75,10 @@
     "rendering": {
       "tab-name": "描画設定",
       "title": "描画設定",
+      "preview": {
+        "title": "読み込み中のプレビュー表示",
+        "description": "画像の読み込みが完了するまで、低解像度のサムネイルを一時的に表示します。"
+      },
       "resize": {
         "max-image-height": {
           "title": "画像の最大の高さ(px)",

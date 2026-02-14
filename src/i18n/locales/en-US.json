@@ -75,6 +75,10 @@
     "rendering": {
       "tab-name": "Rendering",
       "title": "Rendering Settings",
+      "preview": {
+        "title": "Show preview while loading",
+        "description": "Displays a low-resolution thumbnail until the full image is loaded."
+      },
       "resize": {
         "max-image-height": {
           "title": "Maximum image Height(px)",

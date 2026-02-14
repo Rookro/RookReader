@@ -107,9 +107,10 @@ pub async fn get_image(
 
 /// Gets an image preview in the specified archive container.
 ///
-/// Returns the image data with a custom binary format.
+/// Returns the image data with a custom binary format if the image is not cached.
 /// The binary format is Big-Endian and structured as follows:
 /// \[Width (4 bytes)\]\[Height (4 bytes)\]\[Image Data...\]
+/// Returns an empty response if the image is already cached.
 ///
 /// * `path` - The path of the archive container.
 /// * `entry_name` - The entry name of the image to get.
@@ -132,7 +133,10 @@ pub async fn get_image_preview(
         .as_ref()
         .ok_or_else(|| Error::Other("Unexpected error. Container is empty!".to_string()))?;
 
-    let image = image_loader.get_preview_image(&entry_name)?;
+    let Some(image) = image_loader.get_preview_image(&entry_name)? else {
+        // Return an empty response if preview skipped.
+        return Ok(Response::new(Vec::new()));
+    };
 
     // Uses tauri::ipc::Response with a custom binary format to accelerate image data transfer.
     let mut response_data = Vec::with_capacity(8 + image.data.len());

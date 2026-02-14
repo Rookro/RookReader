@@ -1,4 +1,4 @@
-import { error } from "@tauri-apps/plugin-log";
+import { debug, error } from "@tauri-apps/plugin-log";
 import { getImage, getImagePreview } from "../bindings/ContainerCommands";
 import { Image } from "../types/Image";
 
@@ -49,6 +49,8 @@ export interface ViewerSettings {
   isFirstPageSingleView: boolean;
   /** Direction of the viewer. */
   direction: "ltr" | "rtl";
+  /** Enable preview. */
+  enablePreview: boolean;
 }
 
 /**
@@ -90,6 +92,10 @@ export const fetchImagePreviewBlob = async (
   }
   try {
     const response = await getImagePreview(containerPath, entryName);
+    if (response.byteLength === 0) {
+      debug(`Skip preview image for ${entryName}`);
+      return undefined;
+    }
     return new Image(response);
   } catch (ex) {
     error(`Failed to load an image preview of ${entryName}: ${JSON.stringify(ex)}`);

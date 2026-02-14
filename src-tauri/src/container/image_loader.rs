@@ -94,12 +94,17 @@ impl ImageLoader {
     }
 
     /// Gets a preview image.
-    /// This does not use or store to the cache.
+    /// If the full image is already in the cache, a preview image will not be created.
     ///
     /// * `entry` - The entry name.
-    pub fn get_preview_image(&self, entry: &String) -> Result<Arc<Image>> {
+    pub fn get_preview_image(&self, entry: &String) -> Result<Option<Arc<Image>>> {
+        if self.get_image_from_cache(entry)?.is_some() {
+            log::debug!("Skip create the thumbnail. Hit cache: {}", entry);
+            return Ok(None);
+        }
+
         let thumbnail = self.container.get_thumbnail(entry)?;
-        Ok(thumbnail)
+        Ok(Some(thumbnail))
     }
 
     /// Requests preloading of images.

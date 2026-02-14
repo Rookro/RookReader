@@ -44,7 +44,7 @@ export const useViewerController = (
 ): ViewerController => {
   const cacheRef = useRef<Map<string, ImageCacheItem>>(new Map());
   const [isImageLoading, setIsImageLoading] = useState(false);
-  const [displayedLayout, setDisplayedLayout] = useState<ViewLayout | null>(null);
+  const [layoutState, setLayoutState] = useState<{ layout: ViewLayout; path: string } | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -57,6 +57,7 @@ export const useViewerController = (
       }
     });
     cacheRef.current.clear();
+    abortControllerRef.current?.abort();
   }, [containerPath]);
 
   // Loads the missing images and updates the layout.
@@ -95,21 +96,24 @@ export const useViewerController = (
           }
           const layout = calculateLayout(index, entries, cache, settings);
           if (layout) {
-            setDisplayedLayout(layout);
+            setLayoutState({ layout, path: containerPath });
           }
         }
       };
 
-      const missingPreviewPaths = pathsToLoad.filter((p) => !cache.get(p)?.previewUrl);
       const missingFullPaths = pathsToLoad.filter((p) => !cache.get(p)?.fullUrl);
-
-      if (missingPreviewPaths.length === 0 && missingFullPaths.length === 0) {
+      if (missingFullPaths.length === 0) {
         setIsImageLoading(false);
-        setDisplayedLayout(calculateLayout(index, entries, cache, settings));
+        const layout = calculateLayout(index, entries, cache, settings);
+        setLayoutState(layout ? { layout, path: containerPath } : null);
         return;
       }
 
       setIsImageLoading(true);
+
+      const missingPreviewPaths = settings.enablePreview
+        ? pathsToLoad.filter((p) => !cache.get(p)?.previewUrl)
+        : [];
 
       const previewPromises = missingPreviewPaths.map((path) =>
         loadAndUpdate(path, fetchImagePreviewBlob, true),
@@ -132,6 +136,8 @@ export const useViewerController = (
       abortControllerRef.current = null;
     };
   }, [containerPath, index, entries, settings]);
+
+  const displayedLayout = layoutState?.path === containerPath ? layoutState?.layout : null;
 
   const moveForward = useCallback(() => {
     if (entries.length === 0) {
