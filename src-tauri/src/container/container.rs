@@ -5,44 +5,70 @@ use crate::{container::image::Image, error::Result};
 #[cfg(test)]
 use mockall::{automock, predicate::*};
 
-/// Archive container
+/// A trait representing a container for readable content, such as an archive file or a directory.
+///
+/// This trait defines a common interface for different types of containers to allow
+/// abstracting over their specific implementations.
 #[cfg_attr(test, automock)]
 pub trait Container: Send + Sync + 'static {
-    /// Retrieves a list of entries contained within the container.
+    /// Returns a reference to a vector of entry names within the container.
+    ///
+    /// The entries are typically file names or paths inside an archive or directory.
     fn get_entries(&self) -> &Vec<String>;
 
-    /// Retrieves an image from the file.
-    ///
-    /// Returns `Arc<Image>` if the image is in the cache.
-    ///
-    /// * `entry` - The entry name of the image to retrieve.
-    fn get_image(&self, entry: &String) -> Result<Arc<Image>>;
-
-    /// Retrieves a thumbnail from the file.
+    /// Retrieves a full-sized image for a given entry name.
     ///
     /// # Arguments
     ///
-    /// * `entry` - The entry name of the thumbnail to retrieve.
+    /// * `entry` - The name of the entry corresponding to the image to be retrieved.
     ///
     /// # Returns
     ///
-    /// `Arc<Image>` if the thumbnail retrieved successfully.
+    /// A `Result` containing a shared pointer (`Arc`) to the `Image` data on success.
+    ///
+    /// # Errors
+    ///
+    /// Returns an `Err` if the entry cannot be found, read, or decoded into an image.
+    fn get_image(&self, entry: &String) -> Result<Arc<Image>>;
+
+    /// Retrieves a thumbnail-sized image for a given entry name.
+    ///
+    /// The default thumbnail size is defined by `Container::THUMBNAIL_SIZE`.
+    ///
+    /// # Arguments
+    ///
+    /// * `entry` - The name of the entry for which to retrieve a thumbnail.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing a shared pointer (`Arc`) to the thumbnail `Image` data on success.
+    ///
+    /// # Errors
+    ///
+    /// Returns an `Err` if the entry cannot be found, or if the thumbnail cannot be
+    /// generated or decoded.
     fn get_thumbnail(&self, entry: &String) -> Result<Arc<Image>>;
 
-    /// Checks if the container is a directory.
+    /// Checks whether the container corresponds to a directory on the filesystem.
     ///
-    /// Returns true if it is a directory, false if it is a file.
+    /// # Returns
+    ///
+    /// Returns `true` if the container is a directory, `false` otherwise (e.g., it's a file).
     fn is_directory(&self) -> bool;
 }
 
 impl dyn Container {
-    /// Checks if the file extention is the supported archive format.
+    /// Checks if a given filename has a supported container file extension.
     ///
-    /// The check is case-insensitive.
+    /// The check is case-insensitive. Supported formats include "pdf", "rar", "zip", and "epub".
     ///
-    /// Returns whether the file is supported.
+    /// # Arguments
     ///
-    /// * `filename` - The filename.
+    /// * `filename` - The filename to check.
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` if the filename ends with a supported extension, `false` otherwise.
     pub fn is_supported_format(filename: &str) -> bool {
         let lowercase_name = filename.to_lowercase();
         lowercase_name.ends_with(".pdf")
@@ -51,7 +77,7 @@ impl dyn Container {
             || lowercase_name.ends_with(".epub")
     }
 
-    /// The size of the thumbnail in pixels.
+    /// The target width and height in pixels for generated thumbnails.
     pub const THUMBNAIL_SIZE: u32 = 300;
 }
 

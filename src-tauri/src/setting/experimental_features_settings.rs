@@ -2,20 +2,18 @@ use std::fmt::Display;
 
 use serde_json::Value;
 
-/// Represents the settings for experimental features.
-#[allow(dead_code)]
+/// Represents settings for experimental, potentially unstable features.
 pub struct ExperimentalFeaturesSettings {
-    /// Whether to enable the epub novel reader.
+    /// If `true`, enables the experimental reader for EPUB-based novels.
     pub enable_epub_novel_reader: bool,
 }
 
-#[allow(dead_code)]
 impl ExperimentalFeaturesSettings {
     /// Create a new instance of `ExperimentalFeaturesSettings`.
     ///
     /// # Arguments
     ///
-    /// * `enable_epub_novel_reader` - Whether to enable the epub novel reader.
+    /// * `enable_epub_novel_reader` - Set to `true` to enable the EPUB novel reader.
     ///
     /// # Returns
     ///

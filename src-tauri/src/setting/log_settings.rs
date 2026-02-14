@@ -3,24 +3,22 @@ use std::{fmt::Display, str::FromStr};
 use log::LevelFilter;
 use serde_json::Value;
 
-/// Represents the settings for logging.
-#[allow(dead_code)]
+/// Represents the settings for application logging.
 pub struct LogSettings {
-    /// The log level.
+    /// The minimum level of log messages to record (e.g., Info, Debug, Error).
     pub level: LevelFilter,
 }
 
-#[allow(dead_code)]
 impl LogSettings {
-    /// Creates a new instance of LogSettings.
+    /// Creates a new instance of `LogSettings`.
     ///
     /// # Arguments
     ///
-    /// * `level` - The log level.
+    /// * `level` - The desired log level filter.
     ///
     /// # Returns
     ///
-    /// A new instance of LogSettings.
+    /// A new instance of `LogSettings`.
     pub fn new(level: LevelFilter) -> Self {
         Self { level }
     }

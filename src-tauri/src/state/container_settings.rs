@@ -1,16 +1,21 @@
 use image::imageops::FilterType;
 
-/// Archive container settings.
+/// Represents settings for handling content within containers.
+///
+/// These settings control aspects like image rendering quality, resizing behavior,
+/// and dependencies for specific file types like PDF.
 pub struct ContainerSettings {
-    /// Enable preview.
+    /// If `true`, enables the generation of low-resolution image previews for faster loading.
     pub enable_preview: bool,
-    /// Maximum image height(px).
+    /// The maximum height in pixels for displayed images. Images exceeding this will be resized.
+    /// A value of 0 implies no height limit.
     pub max_image_height: i32,
-    /// Image resize method.
+    /// The algorithm to use when resizing images (e.g., `FilterType::Triangle`).
     pub image_resize_method: FilterType,
-    /// PDF rendering height(px).
+    /// The target height in pixels when rendering a page from a PDF document as an image.
     pub pdf_rendering_height: i32,
-    /// The path to the pdfium library.
+    /// An optional path to the PDFium library, required for rendering PDF files.
+    /// If `None`, the application may not be able to open PDF files.
     pub pdfium_library_path: Option<String>,
 }
 

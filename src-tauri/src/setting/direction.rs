@@ -3,13 +3,13 @@ use std::{fmt::Display, str::FromStr};
 use serde_json::Value;
 use strum_macros::EnumString;
 
-/// Represents the direction of reading.
+/// Represents the reading direction of the content, e.g., for books or comics.
 #[derive(Debug, PartialEq, EnumString)]
 #[strum(serialize_all = "snake_case")]
 pub enum Direction {
-    /// Right-to-left reading direction.
+    /// Right-to-Left reading direction, common for manga and some scripts.
     RTL,
-    /// Left-to-right reading direction.
+    /// Left-to-Right reading direction, standard for most Western languages.
     LTR,
 }
 

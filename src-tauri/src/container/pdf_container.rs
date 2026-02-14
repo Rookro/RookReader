@@ -7,17 +7,20 @@ use crate::{
     error::{Error, Result},
 };
 
-/// A container for PDF archives.
+/// An implementation of the `Container` trait for reading content from PDF files.
+///
+/// This container treats each page of a PDF document as an entry, which can be
+/// rendered into an image.
 pub struct PdfContainer {
-    /// The file path of the container.
+    /// The file path of the PDF container.
     path: String,
-    /// The entries in the container.
+    /// A list of page numbers (as zero-padded strings) representing the entries.
     entries: Vec<String>,
-    /// Pdf rendering config.
+    /// The configuration used for rendering full-sized page images.
     render_config: Arc<PdfRenderConfig>,
-    /// The path to the pdfium library.
+    /// The path to the directory containing the `pdfium` dynamic library.
     library_path: Option<String>,
-    /// Thumbnail rendering config.
+    /// The configuration used for rendering smaller thumbnail images.
     thumbnail_render_config: Arc<PdfRenderConfig>,
 }
 
@@ -46,11 +49,24 @@ impl Container for PdfContainer {
 }
 
 impl PdfContainer {
-    /// Creates a new instance.
+    /// Creates a new `PdfContainer` from the PDF file at the specified path.
     ///
-    /// * `path` - The path to the container file.
-    /// * `render_config` - The pdf rendering config.
-    /// * `library_path` - The path to the pdfium library. Uses default path if None.
+    /// This constructor initializes the `pdfium` library to open the PDF and
+    /// determine the number of pages, which become the entries for this container.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - The path to the PDF file.
+    /// * `render_config` - The base configuration for rendering pages.
+    /// * `library_path` - An optional path to the directory containing the `pdfium` library.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing a new `PdfContainer` instance on success.
+    ///
+    /// # Errors
+    ///
+    /// Returns an `Err` if `pdfium` cannot be initialized or the PDF file cannot be opened.
     pub fn new(
         path: &String,
         render_config: PdfRenderConfig,
@@ -84,11 +100,7 @@ impl PdfContainer {
     }
 }
 
-/// Loads an image from the specified entry name.
-///
-/// * `pdf` - The pdf document.
-/// * `render_config` - The pdf rendering config.
-/// * `entry` - The entry name of the image to get.
+/// Helper function to render a PDF page to an image using a specific config.
 fn load_image(
     pdf: &PdfDocument,
     render_config: &PdfRenderConfig,
@@ -112,6 +124,7 @@ fn load_image(
     Ok(Arc::new(image))
 }
 
+/// Helper function to render a PDF page to a thumbnail image.
 fn create_thumbnail(
     pdf: &PdfDocument,
     render_config: &PdfRenderConfig,
@@ -140,9 +153,7 @@ fn create_thumbnail(
     Ok(Arc::new(image))
 }
 
-/// Gets a pdfium instance.
-///
-/// * `library_path` - The path to the pdfium library. Uses default path if None.
+/// Initializes the `Pdfium` instance, binding to the library at the given path.
 fn get_pdfium(library_path: &Option<String>) -> Result<Pdfium> {
     if let Some(lib_path) = library_path {
         let lib_name = Pdfium::pdfium_platform_library_name_at_path(lib_path);

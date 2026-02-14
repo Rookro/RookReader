@@ -2,27 +2,25 @@ use std::fmt::Display;
 
 use serde_json::Value;
 
-/// Represents the settings for history.
-#[allow(dead_code)]
+/// Represents settings related to user browsing history.
 pub struct HistorySettings {
-    /// Whether history is enabled.
+    /// If `true`, the application will record and store browsing history.
     pub enable: bool,
-    /// Whether to restore the last container on startup.
+    /// If `true`, the application will automatically reopen the last viewed container on startup.
     pub restore_last_container_on_startup: bool,
 }
 
-#[allow(dead_code)]
 impl HistorySettings {
-    /// Creates a new instance of HistorySettings.
+    /// Creates a new instance of `HistorySettings`.
     ///
     /// # Arguments
     ///
-    /// * `enable` - Whether history is enabled.
-    /// * `restore_last_container_on_startup` - Whether to restore the last container on startup.
+    /// * `enable` - Whether to enable history tracking.
+    /// * `restore_last_container_on_startup` - Whether to reopen the last container on startup.
     ///
     /// # Returns
     ///
-    /// A new instance of HistorySettings.
+    /// A new instance of `HistorySettings`.
     pub fn new(enable: bool, restore_last_container_on_startup: bool) -> Self {
         Self {
             enable,

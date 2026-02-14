@@ -1,8 +1,12 @@
 use crate::state::container_state::ContainerState;
 
-/// The application state.
+/// Represents the top-level state for the entire application.
+///
+/// This struct acts as a container for more specific state modules,
+/// which are managed and accessed throughout the application's lifecycle.
 pub struct AppState {
-    /// The container state.
+    /// Holds the state related to file/archive containers, including the currently
+    /// open container and its settings.
     pub container_state: ContainerState,
 }
 

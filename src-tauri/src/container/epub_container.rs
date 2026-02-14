@@ -13,11 +13,12 @@ use crate::{
     error::{Error, Result},
 };
 
-/// A container for EPUB.
+/// An implementation of the `Container` trait for reading content from EPUB files.
 pub struct EpubContainer {
-    /// The file path of the container.
+    /// The file path of the EPUB container.
     path: String,
-    /// The entries in the container.
+    /// A list of image resource IDs (keys) found in the EPUB's manifest,
+    /// sorted according to their appearance in the spine.
     entries: Vec<String>,
 }
 
@@ -43,9 +44,24 @@ impl Container for EpubContainer {
 }
 
 impl EpubContainer {
-    /// Creates a EPUB container from the specified path.
+    /// Creates a new `EpubContainer` from the EPUB file at the specified path.
     ///
-    /// * `path` - The path to the archive container.
+    /// This constructor reads the EPUB's manifest and spine to discover all image
+    /// resources and attempts to sort them in the order they appear in the content.
+    /// If the reading order cannot be determined, it falls back to a natural sort
+    /// of the image resource IDs.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - The path to the EPUB file.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing a new `EpubContainer` instance on success.
+    ///
+    /// # Errors
+    ///
+    /// Returns an `Err` if the EPUB file cannot be opened or its contents cannot be parsed.
     pub fn new(path: &String) -> Result<Self> {
         let mut epub = Epub::options().strict(false).open(&path)?;
         let mut entries: Vec<String> = epub
@@ -76,12 +92,16 @@ impl EpubContainer {
         })
     }
 
-    /// Checks if the EPUB is a novel.
+    /// Checks if the EPUB is likely a text-based novel rather than an image-based comic.
     ///
-    /// Note: This function is currently in beta and may be subject to breaking changes
-    /// in future releases.
+    /// This is a heuristic that checks the `rendition:layout` metadata property.
+    /// A value of "pre-paginated" typically indicates a fixed-layout format used for comics,
+    /// while its absence or other values suggest a reflowable, text-based novel.
     ///
-    /// Returns `true` if the "rendition:layout" is not "pre-paginated", `false` otherwise.
+    /// # Returns
+    ///
+    /// Returns `false` if the layout is "pre-paginated" or the file cannot be read.
+    /// Returns `true` otherwise.
     pub fn is_novel(&self) -> bool {
         let Ok(epub) = Epub::options().strict(false).open(&self.path) else {
             return false;
@@ -99,10 +119,7 @@ impl EpubContainer {
     }
 }
 
-/// Loads an image from the specified entry name.
-///
-/// * `epub` - The EPUB instance.
-/// * `entry` - The entry name of the image to get.
+/// Helper function to find and load an image resource from the EPUB.
 fn load_image(epub: &mut Epub, entry: &String) -> Result<Arc<Image>> {
     let Some(resource) = epub
         .manifest()
@@ -119,6 +136,7 @@ fn load_image(epub: &mut Epub, entry: &String) -> Result<Arc<Image>> {
     Ok(Arc::new(image))
 }
 
+/// Helper function to find, load, and create a thumbnail for an image resource.
 fn create_thumbnail(epub: &mut Epub, entry: &String) -> Result<Arc<Image>> {
     let Some(resource) = epub
         .manifest()
@@ -153,12 +171,9 @@ fn create_thumbnail(epub: &mut Epub, entry: &String) -> Result<Arc<Image>> {
     }))
 }
 
-/// Create a map of image IDs to their order in the EPUB.
+/// Parses the EPUB's spine to determine the order of images as they appear in the content.
 ///
-/// Returns a HashMap where the key is the image ID and the value is the order in the EPUB if the map is created successfully,
-/// otherwise None.
-///
-/// * epub - The EPUB instance to create the map for.
+/// Returns a `HashMap` mapping image resource IDs to their sequential order.
 fn create_image_order_map(epub: &mut Epub) -> Option<HashMap<String, usize>> {
     let mut map = HashMap::new();
     let mut current_order = 0;
@@ -203,12 +218,7 @@ fn create_image_order_map(epub: &mut Epub) -> Option<HashMap<String, usize>> {
     }
 }
 
-/// Find the resource ID by its path within the EPUB.
-///
-/// Returns the resource ID if found, otherwise None.
-///
-/// * `epub`: The EPUB instance to search within.
-/// * `target_path`: The path of the resource to find.
+/// Finds a resource's manifest ID by its file path within the EPUB.
 fn find_resource_id_by_path(epub: &Epub, target_path: &Path) -> Option<String> {
     epub.manifest().images().find_map(|image| {
         let Some(image_key) = image.key() else {

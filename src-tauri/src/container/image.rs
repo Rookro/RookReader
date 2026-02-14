@@ -3,21 +3,35 @@ use std::io::Cursor;
 use image::ImageReader;
 use serde::{Deserialize, Serialize};
 
-/// Image data
+/// Represents image data and its dimensions.
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Image {
-    /// Binary data of the image
+    /// The raw binary data of the image file.
     pub data: Vec<u8>,
-    /// Width of the image
+    /// The width of the image in pixels.
     pub width: u32,
-    /// Height of the image
+    /// The height of the image in pixels.
     pub height: u32,
 }
 
 impl Image {
-    /// Creates an Image instance from binary image data.
+    /// Creates a new `Image` instance from raw binary data.
     ///
-    /// * `data` - The binary data of the image.
+    /// This function decodes the provided data to determine the image's width and
+    /// height. The original binary data is stored alongside the dimensions.
+    ///
+    /// # Arguments
+    ///
+    /// * `data` - A vector of bytes representing the binary data of an image.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing a new `Image` instance on success.
+    ///
+    /// # Errors
+    ///
+    /// Returns an `image::ImageError` if the provided data cannot be decoded as a
+    /// supported image format.
     pub fn new(data: Vec<u8>) -> Result<Self, image::ImageError> {
         let cursor = Cursor::new(&data);
         let image_reader = ImageReader::new(cursor).with_guessed_format()?;
@@ -29,12 +43,18 @@ impl Image {
         })
     }
 
-    /// Checks if the file extention is the supported image format.
+    /// Checks if a filename has a supported image file extension.
     ///
-    /// Supported image formats are based on [MDN's <img> supported image formats](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/img#supported_image_formats).
-    /// This method is case-insensitive.
+    /// Supported formats are based on common web formats like PNG, JPEG, GIF, and WebP.
+    /// The check is case-insensitive.
     ///
-    /// * `filename` - The filename.
+    /// # Arguments
+    ///
+    /// * `filename` - The filename to check.
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` if the filename ends with a supported extension, `false` otherwise.
     pub fn is_supported_format(filename: &str) -> bool {
         let lowercase_name = filename.to_lowercase();
         lowercase_name.ends_with(".apng")

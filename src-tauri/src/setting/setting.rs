@@ -14,57 +14,63 @@ use crate::{
     },
 };
 
-/// Represents the application settings.
+/// Represents the application's configurable settings.
+///
+/// This struct aggregates all user-configurable options for the application,
+/// ranging from UI preferences to backend behavior.
 #[allow(dead_code)]
 pub struct Settings {
-    /// font-family.
+    /// The default font family to be used for rendering text.
     pub font_family: String,
-    /// The direction of reading.
+    /// The reading direction for content (e.g., Left-to-Right or Right-to-Left).
     pub direction: Direction,
-    /// Whether to enable directory watch.
+    /// If `true`, the application will automatically watch directories for changes.
     pub enable_directory_watch: bool,
-    /// Experimental features settings.
+    /// A nested struct containing settings for experimental features.
     pub experimental_features: ExperimentalFeaturesSettings,
-    /// Whether to show the first page in single view.
+    /// If `true`, the first page of a book is shown as a single page in two-page view.
     pub first_page_single_view: bool,
-    /// History settings.
+    /// A nested struct for settings related to browsing history.
     pub history: HistorySettings,
-    /// Home directory settings.
+    /// The default directory to open when the application starts.
     pub home_directory: String,
-    /// Log settings.
+    /// A nested struct for configuring logging behavior.
     pub log: LogSettings,
-    /// Novel reader settings.
+    /// A nested struct for settings specific to the novel reader view.
     pub novel_reader: NovelReaderSettings,
-    /// Rendering settings.
+    /// A nested struct for settings related to image and content rendering.
     pub rendering: RenderingSettings,
-    /// Sort order settings.
+    /// The default sort order for file and directory listings.
     pub sort_order: SortOrder,
-    /// Theme settings.
+    /// The application's color theme (e.g., Light, Dark, or System default).
     pub theme: AppTheme,
-    /// Whether to enable two-paged mode.
+    /// If `true`, content is displayed in a two-page (book-style) layout.
     pub two_paged: bool,
 }
 
 #[allow(dead_code)]
 impl Settings {
-    /// Creates a new settings instance.
+    /// Creates a new `Settings` instance with the specified values.
     ///
     /// # Arguments
-    /// * `direction` - The direction of the application.
-    /// * `enable_directory_watch` - Whether to enable directory watch.
-    /// * `experimental_features` - The experimental features settings.
-    /// * `first_page_single_view` - Whether to show the first page in single view.
-    /// * `history` - The history settings.
-    /// * `home_directory` - The home directory settings.
-    /// * `log` - The log settings.
-    /// * `novel_reader` - The novel reader settings.
-    /// * `rendering` - The rendering settings.
-    /// * `sort_order` - The sort order settings.
-    /// * `theme` - The theme settings.
-    /// * `two_paged` - Whether to enable two-paged mode.
+    ///
+    /// * `font_family` - The font family to use.
+    /// * `direction` - The reading direction.
+    /// * `enable_directory_watch` - Whether to enable directory watching.
+    /// * `experimental_features` - Settings for experimental features.
+    /// * `first_page_single_view` - Whether to show the first page alone.
+    /// * `history` - Settings for history.
+    /// * `home_directory` - The application's home directory.
+    /// * `log` - Settings for logging.
+    /// * `novel_reader` - Settings for the novel reader.
+    /// * `rendering` - Settings for rendering.
+    /// * `sort_order` - The sort order for files.
+    /// * `theme` - The application theme.
+    /// * `two_paged` - Whether to use a two-page layout.
     ///
     /// # Returns
-    /// * The new settings instance.
+    ///
+    /// A new instance of `Settings`.
     pub fn new(
         font_family: String,
         direction: Direction,
@@ -97,14 +103,23 @@ impl Settings {
         }
     }
 
-    /// Loads the settings from the given filename.
+    /// Loads the application settings from a persistent storage file.
+    ///
+    /// This function reads settings from the `tauri-plugin-store`. If a setting is
+    /// not present in the store, a default value is used instead.
     ///
     /// # Arguments
-    /// * `app` - The application instance.
-    /// * `filename` - The filename to load the settings from.
+    ///
+    /// * `app` - A reference to the Tauri `App` instance to access the store.
+    /// * `filename` - The name of the store file to load settings from.
     ///
     /// # Returns
-    /// * The loaded settings.
+    ///
+    /// A `Result` containing the loaded `Settings` instance on success.
+    ///
+    /// # Errors
+    ///
+    /// Returns an `Err` if the application store cannot be accessed.
     pub fn load(app: &App, filename: &str) -> Result<Self> {
         let store = app.store(filename)?;
 

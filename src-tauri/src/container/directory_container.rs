@@ -12,11 +12,11 @@ use crate::{
     error::{Error, Result},
 };
 
-/// A container for directories.
+/// An implementation of the `Container` trait for browsing images in a filesystem directory.
 pub struct DirectoryContainer {
-    /// The directory path.
+    /// The absolute path to the directory.
     path: String,
-    /// The entries in the directory.
+    /// A naturally sorted list of image file names within the directory.
     entries: Vec<String>,
 }
 
@@ -40,9 +40,22 @@ impl Container for DirectoryContainer {
 }
 
 impl DirectoryContainer {
-    /// Creates a new DirectoryContainer.
+    /// Creates a new `DirectoryContainer` by scanning a directory for supported image files.
     ///
-    /// * `path` - The directory path.
+    /// The found image files are sorted in natural order (e.g., "2.jpg" comes before "10.jpg").
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - The path to the directory to open.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing a new `DirectoryContainer` instance on success.
+    ///
+    /// # Errors
+    ///
+    /// Returns an `Err` if the directory cannot be read or if a file entry
+    /// has a name that cannot be converted to a string.
     pub fn new(path: &String) -> Result<Self> {
         let dir_entries = read_dir(path)?;
 
@@ -74,10 +87,7 @@ impl DirectoryContainer {
     }
 }
 
-/// Loads an image from the specified entry name.
-///
-/// * `path` - The path of the container directory.
-/// * `entry` - The entry name of the image to get.
+/// Helper function to load an image file from disk.
 fn load_image(path: &String, entry: &String) -> Result<Arc<Image>> {
     let file_path = path::Path::new(&path).join(entry);
     let mut buffer = Vec::new();
@@ -86,6 +96,7 @@ fn load_image(path: &String, entry: &String) -> Result<Arc<Image>> {
     Ok(Arc::new(Image::new(buffer)?))
 }
 
+/// Helper function to create a JPEG thumbnail for an image file.
 fn create_thumbnail(path: &String, entry: &String) -> Result<Arc<Image>> {
     let file_path = path::Path::new(&path).join(entry);
     let mut buffer = Vec::new();

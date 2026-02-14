@@ -8,11 +8,11 @@ use crate::{
     error::{Error, Result},
 };
 
-/// A container for RAR archives.
+/// An implementation of the `Container` trait for reading content from RAR archive files.
 pub struct RarContainer {
-    /// The file path of the container.
+    /// The file path of the RAR container.
     path: String,
-    /// The entries in the container.
+    /// A naturally sorted list of image file names found within the archive.
     entries: Vec<String>,
 }
 
@@ -35,9 +35,23 @@ impl Container for RarContainer {
 }
 
 impl RarContainer {
-    /// Creates a new instance.
+    /// Creates a new `RarContainer` from the RAR file at the specified path.
     ///
-    /// * `path` - The path to the container file.
+    /// This constructor opens the RAR archive, filters for supported image formats,
+    /// and sorts the resulting file list in natural order.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - The path to the RAR file.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing a new `RarContainer` instance on success.
+    ///
+    /// # Errors
+    ///
+    /// Returns an `Err` if the RAR file cannot be opened or an error occurs
+    /// while reading its entries.
     pub fn new(path: &String) -> Result<Self> {
         let archive = Archive::new(path).open_for_listing()?;
 
@@ -61,13 +75,12 @@ impl RarContainer {
     }
 }
 
-/// Opens a RAR archive from the specified path.
-///
-/// * `path` - The path to the RAR file.
+/// Helper function to open a RAR archive for processing its file data.
 fn open(path: &String) -> Result<OpenArchive<Process, CursorBeforeHeader>> {
     Ok(Archive::new(path).open_for_processing()?)
 }
 
+/// Helper function to find and extract a specific file from a RAR archive.
 fn load_image(path: &String, entry: &String) -> Result<Arc<Image>> {
     let mut archive = open(path)?;
     while let Some(header) = archive.read_header()? {
@@ -85,6 +98,7 @@ fn load_image(path: &String, entry: &String) -> Result<Arc<Image>> {
     Err(Error::EntryNotFound(format!("Entry not found: {}", entry)))
 }
 
+/// Helper function to load an image and generate a JPEG thumbnail for it.
 fn create_thumbnail(path: &String, entry: &String) -> Result<Arc<Image>> {
     let img = load_image(path, entry)?;
     let cursor = Cursor::new(&img.data);

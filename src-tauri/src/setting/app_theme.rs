@@ -3,15 +3,15 @@ use std::{fmt::Display, str::FromStr};
 use serde_json::Value;
 use strum_macros::EnumString;
 
-/// AppTheme represents the themes available for the application.
+/// Represents the available UI themes for the application.
 #[derive(Debug, PartialEq, EnumString)]
 #[strum(serialize_all = "snake_case")]
 pub enum AppTheme {
-    /// System theme.
+    /// The application theme will follow the system's theme (light or dark).
     System,
-    /// Light theme.
+    /// The application will use a light theme.
     Light,
-    /// Dark theme.
+    /// The application will use a dark theme.
     Dark,
 }
 

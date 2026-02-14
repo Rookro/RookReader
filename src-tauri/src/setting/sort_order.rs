@@ -3,17 +3,17 @@ use std::{fmt::Display, str::FromStr};
 use serde_json::Value;
 use strum_macros::EnumString;
 
-/// Represents the sort order.
+/// Represents the available sort orders for file and directory listings.
 #[derive(Debug, PartialEq, EnumString)]
 #[strum(serialize_all = "snake_case")]
 pub enum SortOrder {
-    /// Sort by name in ascending order.
+    /// Sort by name in ascending alphabetical order (A-Z).
     NameAsc,
-    /// Sort by name in descending order.
+    /// Sort by name in descending alphabetical order (Z-A).
     NameDesc,
-    /// Sort by date in ascending order.
+    /// Sort by modification date in ascending order (oldest first).
     DateAsc,
-    /// Sort by date in descending order.
+    /// Sort by modification date in descending order (newest first).
     DateDesc,
 }
 

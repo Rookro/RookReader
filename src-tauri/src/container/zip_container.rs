@@ -12,11 +12,11 @@ use crate::{
     error::Result,
 };
 
-/// A container for Zip archives.
+/// An implementation of the `Container` trait for reading content from ZIP archive files.
 pub struct ZipContainer {
-    /// The file path of the container.
+    /// The file path of the ZIP container.
     path: String,
-    /// The entries in the container.
+    /// A naturally sorted list of image file names found within the archive.
     entries: Vec<String>,
 }
 
@@ -70,9 +70,22 @@ impl Container for ZipContainer {
 }
 
 impl ZipContainer {
-    /// Creates a ZIP archive container from the specified path.
+    /// Creates a new `ZipContainer` from the ZIP file at the specified path.
     ///
-    /// * `path` - The path to the archive container.
+    /// This constructor opens the ZIP archive, filters for supported image formats,
+    /// and sorts the resulting file list in natural order.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - The path to the ZIP file.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing a new `ZipContainer` instance on success.
+    ///
+    /// # Errors
+    ///
+    /// Returns an `Err` if the ZIP file cannot be opened or read.
     pub fn new(path: &String) -> Result<Self> {
         let file = File::open(&path)?;
         let archive = ZipArchive::new(file)?;

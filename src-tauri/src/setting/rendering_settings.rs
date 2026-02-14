@@ -2,19 +2,32 @@ use std::fmt::Display;
 
 use serde_json::Value;
 
-/// Rendering settings.
+/// Represents settings related to content rendering, primarily for images.
 pub struct RenderingSettings {
-    /// Enable preview.
+    /// If `true`, enables the generation of low-resolution image previews for faster loading.
     pub enable_preview: bool,
-    /// Maximum image height.
+    /// The maximum height in pixels for displayed images. Images exceeding this will be resized.
+    /// A value of 0 implies no height limit.
     pub max_image_height: i32,
-    /// Image resize method.
+    /// The algorithm to use when resizing images (e.g., "triangle", "lanczos3").
     pub image_resize_method: String,
-    /// PDF rendering height.
+    /// The target height in pixels when rendering a page from a PDF document as an image.
     pub pdf_rendering_height: i32,
 }
 
 impl RenderingSettings {
+    /// Creates a new instance of `RenderingSettings`.
+    ///
+    /// # Arguments
+    ///
+    /// * `enable_preview` - Whether to enable image previews.
+    /// * `max_image_height` - The maximum height for images.
+    /// * `image_resize_method` - The resizing algorithm to use.
+    /// * `pdf_rendering_height` - The rendering height for PDF pages.
+    ///
+    /// # Returns
+    ///
+    /// A new instance of `RenderingSettings`.
     pub fn new(
         enable_preview: bool,
         max_image_height: i32,
