@@ -23,7 +23,7 @@
     "@mui/material": "^7.3.5",
     "@mui/stylis-plugin-rtl": "^7.3.5",
     "@reduxjs/toolkit": "^2.10.1",
-    "@tauri-apps/api": "^2.9.0",
+    "@tauri-apps/api": "^2.10.0",
     "@tauri-apps/plugin-dialog": "~2",
     "@tauri-apps/plugin-fs": "~2.4.4",
     "@tauri-apps/plugin-log": "~2.8.0",
