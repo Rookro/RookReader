@@ -27,9 +27,7 @@ impl ExperimentalFeaturesSettings {
 
 impl Default for ExperimentalFeaturesSettings {
     fn default() -> Self {
-        Self {
-            enable_epub_novel_reader: false,
-        }
+        Self::new(false)
     }
 }
 

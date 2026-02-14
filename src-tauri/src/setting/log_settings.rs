@@ -26,9 +26,7 @@ impl LogSettings {
 
 impl Default for LogSettings {
     fn default() -> Self {
-        Self {
-            level: LevelFilter::Info,
-        }
+        Self::new(LevelFilter::Info)
     }
 }
 

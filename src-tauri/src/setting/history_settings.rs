@@ -31,10 +31,7 @@ impl HistorySettings {
 
 impl Default for HistorySettings {
     fn default() -> Self {
-        Self {
-            enable: true,
-            restore_last_container_on_startup: true,
-        }
+        Self::new(true, true)
     }
 }
 

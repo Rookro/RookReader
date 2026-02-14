@@ -28,10 +28,7 @@ impl NovelReaderSettings {
 
 impl Default for NovelReaderSettings {
     fn default() -> Self {
-        Self {
-            font: "default-font".to_string(),
-            font_size: 16.0,
-        }
+        Self::new("default-font".to_string(), 16.0)
     }
 }
 
