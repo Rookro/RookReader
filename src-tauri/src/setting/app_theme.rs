@@ -1,29 +1,41 @@
-use std::str::FromStr;
+use std::{fmt::Display, str::FromStr};
 
 use serde_json::Value;
 use strum_macros::EnumString;
 
-use crate::error;
-
-/// AppTheme represents the themes available for the application.
+/// Represents the available UI themes for the application.
 #[derive(Debug, PartialEq, EnumString)]
 #[strum(serialize_all = "snake_case")]
 pub enum AppTheme {
-    /// System theme.
+    /// The application theme will follow the system's theme (light or dark).
     System,
-    /// Light theme.
+    /// The application will use a light theme.
     Light,
-    /// Dark theme.
+    /// The application will use a dark theme.
     Dark,
 }
 
-impl TryFrom<Value> for AppTheme {
-    type Error = error::Error;
+impl Default for AppTheme {
+    fn default() -> Self {
+        Self::System
+    }
+}
 
-    fn try_from(value: Value) -> Result<Self, Self::Error> {
+impl From<Value> for AppTheme {
+    fn from(value: Value) -> Self {
         match value.as_str() {
-            Some(value_str) => AppTheme::from_str(value_str).map_err(|e| e.into()),
-            None => Err(error::Error::Settings("Invalid app theme.".to_string())),
+            Some(value_str) => Self::from_str(value_str).unwrap_or_default(),
+            None => Self::default(),
+        }
+    }
+}
+
+impl Display for AppTheme {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::System => write!(f, "System"),
+            Self::Light => write!(f, "Light"),
+            Self::Dark => write!(f, "Dark"),
         }
     }
 }

@@ -11,6 +11,7 @@ import { settingsStore } from "../settings/SettingsStore";
 import { ExperimentalFeaturesSettings } from "../types/Settings";
 import { HistoryTable } from "../database/historyTable";
 import { upsertHistory } from "./HistoryReducer";
+import { CommandError, ErrorCode } from "../types/Error";
 
 const historyTable = new HistoryTable();
 await historyTable.init();
@@ -18,7 +19,7 @@ await historyTable.init();
 export const createAppAsyncThunk = createAsyncThunk.withTypes<{
   state: RootState;
   dispatch: AppDispatch;
-  rejectValue: string;
+  rejectValue: { code: ErrorCode; message?: string };
 }>();
 
 /**
@@ -30,7 +31,7 @@ export const openContainerFile = createAppAsyncThunk(
     if (!path || path.length === 0) {
       const errorMessage = "Failed to openContainerFile. Error: Container path is empty.";
       error(errorMessage);
-      return rejectWithValue(errorMessage);
+      return rejectWithValue({ code: ErrorCode.PATH_ERROR, message: errorMessage });
     }
     info(`Open container file: ${path}`);
     try {
@@ -62,10 +63,10 @@ export const openContainerFile = createAppAsyncThunk(
       let lastPageIndex = 0;
       try {
         lastPageIndex = await historyTable.selectPageIndex(path);
-      } catch (ex) {
+      } catch (e) {
         // This exception is expected when opening the path for the first time.
         debug(
-          `Failed to select page index for ${path}. Error: ${ex} (This is expected when opening the path for the first time.)`,
+          `Failed to select page index for ${path}. Error: ${e} (This is expected when opening the path for the first time.)`,
         );
       }
 
@@ -76,9 +77,13 @@ export const openContainerFile = createAppAsyncThunk(
         latestPageIndex: lastPageIndex,
       };
     } catch (e) {
-      const errorMessage = `Failed to openContainerFile(${path}). Error: ${e}`;
+      const errorMessage = `Failed to openContainerFile(${path}). Error: ${JSON.stringify(e)}`;
       error(errorMessage);
-      return rejectWithValue(errorMessage);
+      return rejectWithValue(
+        e instanceof CommandError
+          ? { code: e.code, message: errorMessage }
+          : { code: ErrorCode.OTHER_ERROR, message: errorMessage },
+      );
     }
   },
 );
@@ -96,7 +101,7 @@ export const updateExploreBasePath = createAppAsyncThunk(
     if (!dirPath || dirPath.length === 0) {
       const errorMessage = "Failed to updateExploreBasePath. Error: Directory path is empty.";
       error(errorMessage);
-      return rejectWithValue(errorMessage);
+      return rejectWithValue({ code: ErrorCode.PATH_ERROR, message: errorMessage });
     }
 
     const state = getState();
@@ -111,9 +116,13 @@ export const updateExploreBasePath = createAppAsyncThunk(
       const entries = convertEntriesInDir(buffer);
       return { path: dirPath, entries: entries };
     } catch (e) {
-      const errorMessage = `Failed to getEntriesInDir(${dirPath}). Error: ${e}`;
+      const errorMessage = `Failed to getEntriesInDir(${dirPath}). Error: ${JSON.stringify(e)}`;
       error(errorMessage);
-      return rejectWithValue(errorMessage);
+      return rejectWithValue(
+        e instanceof CommandError
+          ? { code: e.code, message: errorMessage }
+          : { code: ErrorCode.OTHER_ERROR, message: errorMessage },
+      );
     }
   },
 );
@@ -130,7 +139,7 @@ export const fileSlice = createSlice({
       cfi: null as string | null,
       isNovel: false,
       isLoading: false,
-      error: null as string | null,
+      error: null as { code: ErrorCode; message?: string } | null,
     },
     explorer: {
       history: [] as string[],
@@ -139,7 +148,7 @@ export const fileSlice = createSlice({
       searchText: "",
       sortOrder: "NAME_ASC" as SortOrder,
       isLoading: false,
-      error: null as string | null,
+      error: null as { code: ErrorCode; message?: string } | null,
       isWatchEnabled: false,
     },
   },
@@ -222,6 +231,12 @@ export const fileSlice = createSlice({
       state.containerFile.index = action.payload.index;
       state.containerFile.cfi = action.payload.cfi;
     },
+    clearContainerFileError: (state) => {
+      state.containerFile.error = null;
+    },
+    clearExplorerError: (state) => {
+      state.explorer.error = null;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -246,7 +261,10 @@ export const fileSlice = createSlice({
       .addCase(updateExploreBasePath.rejected, (state, action) => {
         state.explorer.entries = [];
         state.explorer.isLoading = false;
-        state.explorer.error = action.payload as string;
+        state.explorer.error = {
+          code: action.payload?.code ?? ErrorCode.UNKNOWN_ERROR,
+          message: action.payload?.message,
+        };
       })
       .addCase(openContainerFile.pending, (state) => {
         state.containerFile.entries = [];
@@ -284,7 +302,10 @@ export const fileSlice = createSlice({
         state.containerFile.isLoading = false;
         state.containerFile.index = 0;
         state.containerFile.cfi = null;
-        state.containerFile.error = action.payload as string;
+        state.containerFile.error = {
+          code: action.payload?.code ?? ErrorCode.UNKNOWN_ERROR,
+          message: action.payload?.message,
+        };
       });
   },
 });
@@ -303,5 +324,7 @@ export const {
   setIsDirEntriesLoading,
   setEntries,
   setNovelLocation,
+  clearContainerFileError,
+  clearExplorerError,
 } = fileSlice.actions;
 export default fileSlice.reducer;

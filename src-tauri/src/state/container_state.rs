@@ -4,25 +4,23 @@ use pdfium_render::prelude::PdfRenderConfig;
 
 use crate::{
     container::{
-        container::{Container, ContainerError},
-        directory_container::DirectoryContainer,
-        epub_container::EpubContainer,
-        image_loader::ImageLoader,
-        pdf_container::PdfContainer,
-        rar_container::RarContainer,
-        zip_container::ZipContainer,
+        container::Container, directory_container::DirectoryContainer,
+        epub_container::EpubContainer, image_loader::ImageLoader, pdf_container::PdfContainer,
+        rar_container::RarContainer, zip_container::ZipContainer,
     },
-    error::Result,
-    setting::container_settings::ContainerSettings,
+    error::{Error, Result},
+    state::container_settings::ContainerSettings,
 };
 
-/// The container state.
+/// Holds the state related to the currently open container (e.g., a file or directory).
 pub struct ContainerState {
-    /// Archive container
+    /// The active container, wrapped in an `Arc` for shared ownership.
+    /// This can be a directory, a ZIP file, a PDF, etc. `None` if no container is open.
     pub container: Option<Arc<dyn Container>>,
-    /// Settings for the archive container
+    /// A nested struct containing settings specific to container handling, like rendering quality.
     pub settings: ContainerSettings,
-    /// Image loader.
+    /// The image loader responsible for loading and caching images from the current container.
+    /// `None` if no container is open.
     pub image_loader: Option<ImageLoader>,
 }
 
@@ -37,9 +35,26 @@ impl Default for ContainerState {
 }
 
 impl ContainerState {
-    /// Opens a container file.
+    /// Opens a container from the given path and initializes the state.
     ///
-    /// * `path` - The path to the container file.
+    /// This function determines the type of container based on the path (directory or file extension),
+    /// then creates the appropriate container handler (e.g., `ZipContainer`, `PdfContainer`).
+    /// It also initializes the `ImageLoader` for the newly opened container.
+    /// Any previously open container is closed.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - The file system path to the container to open.
+    ///
+    /// # Returns
+    ///
+    /// An `Ok(())` on success.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an `Err` if:
+    /// * The file extension is missing or unsupported.
+    /// * The underlying constructor for the container type fails (e.g., file not found, permission denied, corrupt file).
     pub fn open_container(&mut self, path: &String) -> Result<()> {
         self.container = None;
         let file_path = Path::new(path);
@@ -47,7 +62,11 @@ impl ContainerState {
         if file_path.is_dir() {
             let container = Arc::new(DirectoryContainer::new(path)?);
             self.container = Some(container.clone());
-            self.image_loader = Some(ImageLoader::new(container));
+            self.image_loader = Some(ImageLoader::new(
+                container,
+                self.settings.max_image_height as u32,
+                self.settings.image_resize_method,
+            ));
             return Ok(());
         }
 
@@ -57,7 +76,11 @@ impl ContainerState {
                 "zip" => {
                     let container = Arc::new(ZipContainer::new(path)?);
                     self.container = Some(container.clone());
-                    self.image_loader = Some(ImageLoader::new(container));
+                    self.image_loader = Some(ImageLoader::new(
+                        container,
+                        self.settings.max_image_height as u32,
+                        self.settings.image_resize_method,
+                    ));
                 }
                 "pdf" => {
                     let container = Arc::new(PdfContainer::new(
@@ -67,31 +90,42 @@ impl ContainerState {
                         self.settings.pdfium_library_path.clone(),
                     )?);
                     self.container = Some(container.clone());
-                    self.image_loader = Some(ImageLoader::new(container));
+                    self.image_loader = Some(ImageLoader::new(
+                        container,
+                        self.settings.max_image_height as u32,
+                        self.settings.image_resize_method,
+                    ));
                 }
                 "rar" => {
                     let container = Arc::new(RarContainer::new(path)?);
                     self.container = Some(container.clone());
-                    self.image_loader = Some(ImageLoader::new(container));
+                    self.image_loader = Some(ImageLoader::new(
+                        container,
+                        self.settings.max_image_height as u32,
+                        self.settings.image_resize_method,
+                    ));
                 }
                 "epub" => {
                     let container = Arc::new(EpubContainer::new(path)?);
                     self.container = Some(container.clone());
-                    self.image_loader = Some(ImageLoader::new(container));
+                    self.image_loader = Some(ImageLoader::new(
+                        container,
+                        self.settings.max_image_height as u32,
+                        self.settings.image_resize_method,
+                    ));
                 }
                 _ => {
                     log::error!("Unsupported Container Type: {}", ext_str);
-                    return Err(ContainerError::Other(format!(
+                    return Err(Error::UnsupportedContainer(format!(
                         "Unsupported Container Type: {}",
                         ext_str
-                    ))
-                    .into());
+                    )));
                 }
             };
             Ok(())
         } else {
             log::error!("Failed to get extension. {}", path);
-            Err(ContainerError::Other(format!("Failed to get extension. {}", path)).into())
+            Err(Error::Path(format!("Failed to get extension. {}", path)))
         }
     }
 }

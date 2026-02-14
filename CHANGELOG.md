@@ -7,6 +7,20 @@
 
 ## [Unreleased]
 
+## [1.9.1] - 2026-02-15
+
+### Changed
+
+* エラー発生時に通知を表示する (#125)
+* 大きな画像はリサイズしてパフォーマンスを向上する (#128)
+* 画像読み込み中にプレビュー(サムネイル画像)を表示する (#129)
+* 依存関係を更新 (#130)
+
+### Fixed
+
+* ページパネルのスクロール動作を start から smart に修正 (#126)
+* ナビゲーションバーのボタンサイズが正方形になるようにスタイルを調整 (#127)
+
 ## [1.9.0] - 2026-02-08
 
 ### Added
@@ -218,7 +232,8 @@
 * 自動見開き表示機能の追加 (#4)
 * ホイールの上下によるページ送り機能を追加 (#5)
 
-[unreleased]: https://github.com/Rookro/RookReader/compare/v1.9.0...HEAD
+[unreleased]: https://github.com/Rookro/RookReader/compare/v1.9.1...HEAD
+[1.9.1]: https://github.com/Rookro/RookReader/compare/v1.9.0...v1.9.1
 [1.9.0]: https://github.com/Rookro/RookReader/compare/v1.8.0...v1.9.0
 [1.8.0]: https://github.com/Rookro/RookReader/compare/v1.7.1...v1.8.0
 [1.7.1]: https://github.com/Rookro/RookReader/compare/v1.7.0...v1.7.1

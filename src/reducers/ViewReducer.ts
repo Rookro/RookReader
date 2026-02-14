@@ -11,6 +11,7 @@ export const viewSlice = createSlice({
     isTwoPagedView: true,
     direction: "rtl" as Direction,
     isFirstPageSingleView: true,
+    enablePreview: true,
     novel: {
       font: "default-font",
       fontSize: 16,
@@ -35,6 +36,9 @@ export const viewSlice = createSlice({
     setNovelFontSize: (state, action: PayloadAction<number>) => {
       state.novel.fontSize = action.payload;
     },
+    setEnablePreview: (state, action: PayloadAction<boolean>) => {
+      state.enablePreview = action.payload;
+    },
   },
 });
 
@@ -45,5 +49,6 @@ export const {
   setIsFirstPageSingleView,
   setNovelFont,
   setNovelFontSize,
+  setEnablePreview,
 } = viewSlice.actions;
 export default viewSlice.reducer;

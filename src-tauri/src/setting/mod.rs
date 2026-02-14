@@ -1,9 +1,9 @@
 pub mod app_theme;
-pub mod container_settings;
 pub mod direction;
 pub mod experimental_features_settings;
 pub mod history_settings;
 pub mod log_settings;
 pub mod novel_reader_settings;
+pub mod rendering_settings;
 pub mod setting;
 pub mod sort_order;

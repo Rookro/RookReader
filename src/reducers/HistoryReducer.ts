@@ -87,6 +87,9 @@ export const historySlice = createSlice({
     setHistoryEntries: (state, action: PayloadAction<HistoryEntry[]>) => {
       state.entries = action.payload;
     },
+    clearHistoryError: (state) => {
+      state.error = null;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -137,5 +140,5 @@ export const historySlice = createSlice({
   },
 });
 
-export const { setIsHistoryEnabled, setHistoryEntries } = historySlice.actions;
+export const { setIsHistoryEnabled, setHistoryEntries, clearHistoryError } = historySlice.actions;
 export default historySlice.reducer;

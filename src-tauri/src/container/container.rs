@@ -1,39 +1,74 @@
-use pdfium_render::prelude::PdfiumError;
-use std::{num::ParseIntError, sync::Arc};
-use thiserror::Error;
+use std::sync::Arc;
 
-use crate::container::image::Image;
+use crate::{container::image::Image, error::Result};
 
 #[cfg(test)]
 use mockall::{automock, predicate::*};
 
-/// Archive container
+/// A trait representing a container for readable content, such as an archive file or a directory.
+///
+/// This trait defines a common interface for different types of containers to allow
+/// abstracting over their specific implementations.
 #[cfg_attr(test, automock)]
 pub trait Container: Send + Sync + 'static {
-    /// Retrieves a list of entries contained within the container.
+    /// Returns a reference to a vector of entry names within the container.
+    ///
+    /// The entries are typically file names or paths inside an archive or directory.
     fn get_entries(&self) -> &Vec<String>;
 
-    /// Retrieves an image from the file.
+    /// Retrieves a full-sized image for a given entry name.
     ///
-    /// Returns `Arc<Image>` if the image is in the cache.
+    /// # Arguments
     ///
-    /// * `entry` - The entry name of the image to retrieve.
-    fn get_image(&self, entry: &String) -> ContainerResult<Arc<Image>>;
+    /// * `entry` - The name of the entry corresponding to the image to be retrieved.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing a shared pointer (`Arc`) to the `Image` data on success.
+    ///
+    /// # Errors
+    ///
+    /// Returns an `Err` if the entry cannot be found, read, or decoded into an image.
+    fn get_image(&self, entry: &String) -> Result<Arc<Image>>;
 
-    /// Checks if the container is a directory.
+    /// Retrieves a thumbnail-sized image for a given entry name.
     ///
-    /// Returns true if it is a directory, false if it is a file.
+    /// The default thumbnail size is defined by `Container::THUMBNAIL_SIZE`.
+    ///
+    /// # Arguments
+    ///
+    /// * `entry` - The name of the entry for which to retrieve a thumbnail.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing a shared pointer (`Arc`) to the thumbnail `Image` data on success.
+    ///
+    /// # Errors
+    ///
+    /// Returns an `Err` if the entry cannot be found, or if the thumbnail cannot be
+    /// generated or decoded.
+    fn get_thumbnail(&self, entry: &String) -> Result<Arc<Image>>;
+
+    /// Checks whether the container corresponds to a directory on the filesystem.
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` if the container is a directory, `false` otherwise (e.g., it's a file).
     fn is_directory(&self) -> bool;
 }
 
 impl dyn Container {
-    /// Checks if the file extention is the supported archive format.
+    /// Checks if a given filename has a supported container file extension.
     ///
-    /// The check is case-insensitive.
+    /// The check is case-insensitive. Supported formats include "pdf", "rar", "zip", and "epub".
     ///
-    /// Returns whether the file is supported.
+    /// # Arguments
     ///
-    /// * `filename` - The filename.
+    /// * `filename` - The filename to check.
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` if the filename ends with a supported extension, `false` otherwise.
     pub fn is_supported_format(filename: &str) -> bool {
         let lowercase_name = filename.to_lowercase();
         lowercase_name.ends_with(".pdf")
@@ -41,63 +76,16 @@ impl dyn Container {
             || lowercase_name.ends_with(".zip")
             || lowercase_name.ends_with(".epub")
     }
-}
 
-/// Error information for the archive container.
-#[derive(Debug, Error)]
-pub enum ContainerError {
-    /// IO related errors.
-    #[error("IO error: {0}")]
-    Io(#[from] std::io::Error),
-    /// PDFium related errors.
-    #[error("PDFium error: {0}")]
-    Pdfium(#[from] PdfiumError),
-    /// Image related errors.
-    #[error("Image error: {0}")]
-    Image(#[from] image::ImageError),
-    /// Unrar related errors.
-    #[error("Unrar error: {0}")]
-    Unrar(#[from] unrar::error::UnrarError),
-    /// Zip related errors.
-    #[error("Zip error: {0}")]
-    Zip(#[from] zip::result::ZipError),
-    /// EPUB related errors.
-    #[error("EPUB error: {0}")]
-    Epub(#[from] rbook::ebook::errors::EbookError),
-    /// Parse int related errors.
-    #[error("Parse int error: {0}")]
-    ParseInt(#[from] ParseIntError),
-    /// Other errors.
-    #[error("Container error: {0}")]
-    Other(String),
+    /// The target width and height in pixels for generated thumbnails.
+    pub const THUMBNAIL_SIZE: u32 = 300;
 }
-
-impl From<String> for ContainerError {
-    fn from(message: String) -> Self {
-        ContainerError::Other(message)
-    }
-}
-
-/// A specialized Result type for the container.
-pub type ContainerResult<T> = std::result::Result<T, ContainerError>;
 
 #[cfg(test)]
 mod tests {
     use rstest::*;
 
     use super::*;
-
-    #[test]
-    fn test_container_error_display() {
-        let io_error = ContainerError::Io(std::io::Error::new(
-            std::io::ErrorKind::NotFound,
-            "file not found",
-        ));
-        assert!(io_error.to_string().contains("file not found"));
-
-        let other_error = ContainerError::Other("Something went wrong".to_string());
-        assert!(other_error.to_string().contains("Something went wrong"));
-    }
 
     #[rstest]
     #[case("document.pdf", true)]

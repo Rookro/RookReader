@@ -1,17 +1,22 @@
-use std::{fs::File, io::Read, sync::Arc};
-
-use zip::ZipArchive;
-
-use crate::container::{
-    container::{Container, ContainerResult},
-    image::Image,
+use std::{
+    fs::File,
+    io::{Cursor, Read},
+    sync::Arc,
 };
 
-/// A container for Zip archives.
+use image::{codecs::jpeg::JpegEncoder, ImageReader};
+use zip::ZipArchive;
+
+use crate::{
+    container::{container::Container, image::Image},
+    error::Result,
+};
+
+/// An implementation of the `Container` trait for reading content from ZIP archive files.
 pub struct ZipContainer {
-    /// The file path of the container.
+    /// The file path of the ZIP container.
     path: String,
-    /// The entries in the container.
+    /// A naturally sorted list of image file names found within the archive.
     entries: Vec<String>,
 }
 
@@ -20,7 +25,7 @@ impl Container for ZipContainer {
         &self.entries
     }
 
-    fn get_image(&self, entry: &String) -> ContainerResult<Arc<Image>> {
+    fn get_image(&self, entry: &String) -> Result<Arc<Image>> {
         let mut buffer = Vec::new();
         let file = File::open(&self.path)?;
         let mut archive = ZipArchive::new(file)?;
@@ -31,16 +36,57 @@ impl Container for ZipContainer {
         Ok(Arc::new(image))
     }
 
+    fn get_thumbnail(&self, entry: &String) -> Result<Arc<Image>> {
+        let mut buffer = Vec::new();
+        let file = File::open(&self.path)?;
+        let mut archive = ZipArchive::new(file)?;
+        let mut file = archive.by_name(entry)?;
+        file.read_to_end(&mut buffer)?;
+
+        let cursor = Cursor::new(&buffer);
+        let image_reader = ImageReader::new(cursor).with_guessed_format()?;
+        let image = image_reader.decode()?;
+
+        let thumbnail = image.thumbnail(
+            <dyn Container>::THUMBNAIL_SIZE,
+            <dyn Container>::THUMBNAIL_SIZE,
+        );
+
+        let mut buffer = Vec::new();
+        // Use a lower quality for thumbnails to make them smaller and faster to encode.
+        let mut encoder = JpegEncoder::new_with_quality(&mut buffer, 10);
+        encoder.encode_image(&thumbnail)?;
+
+        Ok(Arc::new(Image {
+            data: buffer,
+            width: thumbnail.width(),
+            height: thumbnail.height(),
+        }))
+    }
+
     fn is_directory(&self) -> bool {
         false
     }
 }
 
 impl ZipContainer {
-    /// Creates a ZIP archive container from the specified path.
+    /// Creates a new `ZipContainer` from the ZIP file at the specified path.
     ///
-    /// * `path` - The path to the archive container.
-    pub fn new(path: &String) -> ContainerResult<Self> {
+    /// This constructor opens the ZIP archive, filters for supported image formats,
+    /// and sorts the resulting file list in natural order.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - The path to the ZIP file.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing a new `ZipContainer` instance on success.
+    ///
+    /// # Errors
+    ///
+    /// Returns an `Err` if the ZIP file cannot be opened or read.
+    pub fn new(path: &String) -> Result<Self> {
         let file = File::open(&path)?;
         let archive = ZipArchive::new(file)?;
 

@@ -1,6 +1,6 @@
 [package]
 name = "rook-reader"
-version = "1.9.0"
+version = "1.9.1"
 description = "Comic Reader"
 authors = ["Rookro"]
 edition = "2021"
@@ -17,11 +17,11 @@ name = "rookreader_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-flate2 = "1.1.5"
+flate2 = "1.1.9"
 reqwest = { version = "0.12.28", features = ["blocking"] }
 tar = "0.4.44"
 tauri-build = { version = "2", features = [] }
-zip = "7.0.0"
+zip = "7.4.0"
 
 [dependencies]
 tauri = { version = "2", features = ["test"] }
@@ -30,22 +30,22 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tauri-plugin-fs = { version = "2", features = ["watch"] }
 tauri-plugin-store = "2"
-zip = "7.0.0"
+zip = "7.4.0"
 tauri-plugin-log = "2"
 log = "0.4"
 image = "0.25"
 tauri-plugin-os = "2"
-chrono = "0.4.42"
+chrono = "0.4.43"
 unrar = "0.5.8"
 natord = "1.0.9"
 tauri-plugin-dialog = "2"
 pdfium-render = "0.8.37"
 threadpool = "1.8.1"
-thiserror = "2.0.17"
+thiserror = "2.0.18"
 num_cpus = "1.17.0"
 dashmap = "6.1.0"
 tauri-plugin-sql = { version = "2", features = ["sqlite"] }
-rbook = "0.6.10"
+rbook = "0.6.12"
 scraper = "0.25.0"
 font-kit = "0.14.3"
 strum = "0.27.2"
@@ -57,5 +57,5 @@ tauri-plugin-window-state = "2"
 [dev-dependencies]
 mockall = "0.14.0"
 rstest = "0.26.1"
-tempfile = "3.24.0"
+tempfile = "3.25.0"
 tokio = "1.49.0"

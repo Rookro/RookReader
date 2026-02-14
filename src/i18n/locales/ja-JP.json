@@ -16,10 +16,13 @@
       "menu": {
         "open": "開く",
         "remove": "履歴から削除"
-      }
+      },
+      "no-history": "履歴がありません。",
+      "no-search-results": "\"{{searchText}}\" に一致する履歴はありません。"
     },
     "pages-viewer": {
-      "title": "ページ"
+      "title": "ページ",
+      "no-pages": "表示可能なページがありません。"
     }
   },
   "settings": {
@@ -72,8 +75,32 @@
     "rendering": {
       "tab-name": "描画設定",
       "title": "描画設定",
+      "preview": {
+        "title": "読み込み中のプレビュー表示",
+        "description": "画像の読み込みが完了するまで、低解像度のサムネイルを一時的に表示します。"
+      },
+      "resize": {
+        "max-image-height": {
+          "title": "画像の最大の高さ(px)",
+          "description": "指定した高さを超える画像は、縦横比を保って縮小されます。\n0を設定するとリサイズを無効にします。",
+          "range-error-message": "0 以上の整数を入力してください。",
+          "error-message": "設定できませんでした。入力内容を確認してください。"
+        },
+        "resize-method": {
+          "title": "リサイズ方式",
+          "description": "縮小処理に使用するアルゴリズムを選択します。画質と処理速度のバランスを用途に合わせて設定してください。",
+          "nearest": "ニアレスト (最速 / 粗い)",
+          "triangle": "トライアングル (高速 / 標準画質)",
+          "catmullRom": "Catmull-Rom (中速 / 高画質・滑らか)",
+          "gaussian": "ガウシアン (中速 / ソフト・ぼかし)",
+          "lanczos3": "ランチョス3 (低速 / 最高画質)"
+        }
+      },
       "pdf": {
-        "title": "PDF 描画時の高さ(px)"
+        "title": "PDF 描画時の高さ(px)",
+        "description": "PDF 描画時の高さを設定します。",
+        "range-error-message": "1 以上の整数を入力してください。",
+        "error-message": "設定できませんでした。入力内容を確認してください。"
       }
     },
     "novel-reader": {
@@ -123,6 +150,17 @@
         "bundled": "バンドルしているライブラリーのライセンス",
         "pdfium": "PDFium ライセンス"
       }
+    }
+  },
+  "error-message": {
+    "common": {
+      "failed-to-open-container-file": "本が開けませんでした。",
+      "failed-to-get-dir-entries": "フォルダーの中身が読み込めませんでした。",
+      "failed-to-fetch-history": "履歴が読み込めませんでした。"
+    },
+    "container": {
+      "unsupported-format": "非対応形式です。",
+      "entry-not-found": "ページが見つかりません。"
     }
   }
 }

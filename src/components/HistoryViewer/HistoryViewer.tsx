@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { List, RowComponentProps, useListCallbackRef } from "react-window";
-import { Box, InputAdornment, OutlinedInput, Stack } from "@mui/material";
+import { Box, InputAdornment, OutlinedInput, Stack, Typography } from "@mui/material";
 import { Search } from "@mui/icons-material";
 import { debug, error } from "@tauri-apps/plugin-log";
 import { ItemRow } from "./ItemRow";
@@ -35,7 +35,7 @@ export default function HistoryViewer() {
 
   // Scroll to make the selected item visible
   useEffect(() => {
-    if (selectedIndex === -1 || !list) {
+    if (selectedIndex === -1 || filteredEntries.length === 0 || !list) {
       return;
     }
 
@@ -56,7 +56,7 @@ export default function HistoryViewer() {
     return () => {
       clearTimeout(timerId);
     };
-  }, [selectedIndex, filteredEntries, list]);
+  }, [selectedIndex, filteredEntries.length, list]);
 
   const handleListItemClicked = useCallback(
     async (_e: React.MouseEvent<HTMLElement>, entry: HistoryEntry, index: number) => {
@@ -121,16 +121,26 @@ export default function HistoryViewer() {
           </InputAdornment>
         }
       />
-      <Box sx={{ flexGrow: 1, overflow: "auto" }}>
-        <List
-          rowComponent={Row}
-          rowProps={{ entries: filteredEntries }}
-          rowCount={filteredEntries.length}
-          rowHeight={36}
-          overscanCount={5}
-          listRef={setList}
-        />
-      </Box>
+      {filteredEntries.length === 0 ? (
+        <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
+          <Typography sx={{ overflowWrap: "anywhere" }}>
+            {searchText.length > 0
+              ? t("app.history-viewer.no-search-results", { searchText })
+              : t("app.history-viewer.no-history")}
+          </Typography>
+        </Box>
+      ) : (
+        <Box sx={{ flexGrow: 1, overflow: "auto" }}>
+          <List
+            rowComponent={Row}
+            rowProps={{ entries: filteredEntries }}
+            rowCount={filteredEntries.length}
+            rowHeight={36}
+            overscanCount={5}
+            listRef={setList}
+          />
+        </Box>
+      )}
     </Stack>
   );
 }

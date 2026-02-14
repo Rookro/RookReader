@@ -16,10 +16,13 @@
       "menu": {
         "open": "Open",
         "remove": "Remove history"
-      }
+      },
+      "no-history": "No history.",
+      "no-search-results": "No results for \"{{searchText}}\"."
     },
     "pages-viewer": {
-      "title": "Pages"
+      "title": "Pages",
+      "no-pages": "No pages."
     }
   },
   "settings": {
@@ -72,8 +75,32 @@
     "rendering": {
       "tab-name": "Rendering",
       "title": "Rendering Settings",
+      "preview": {
+        "title": "Show preview while loading",
+        "description": "Displays a low-resolution thumbnail until the full image is loaded."
+      },
+      "resize": {
+        "max-image-height": {
+          "title": "Maximum image Height(px)",
+          "description": "Images taller than this will be resized proportionally.\nSets zero to disable resizing.",
+          "range-error-message": "Please enter an integer of 0 or greater.",
+          "error-message": "Failed to set max image height. Please check your input."
+        },
+        "resize-method": {
+          "title": "Resizing Method",
+          "description": "Select the algorithm used for resizing. Choose the best balance between image quality and processing speed for your needs.",
+          "nearest": "Nearest Neighbor (Fastest / Low Quality)",
+          "triangle": "Triangle (Fast / Standard Quality)",
+          "catmullRom": "Catmull-Rom (Medium / High Quality)",
+          "gaussian": "Gaussian (Medium / Soft Look)",
+          "lanczos3": "Lanczos 3 (Slow / Best Quality)"
+        }
+      },
       "pdf": {
-        "title": "PDF Rendering Height(px)"
+        "title": "PDF Rendering Height(px)",
+        "description": "Height of the PDF rendering area in pixels.",
+        "range-error-message": "Please enter a positive integer.",
+        "error-message": "Failed to set PDF rendering height. Please check your input."
       }
     },
     "novel-reader": {
@@ -123,6 +150,17 @@
         "bundled": "Boundled Library Licenses",
         "pdfium": "PDFium License"
       }
+    }
+  },
+  "error-message": {
+    "common": {
+      "failed-to-open-container-file": "Failed to open book.",
+      "failed-to-get-dir-entries": "Failed to load folder contents.",
+      "failed-to-fetch-history": "Failed to load history."
+    },
+    "container": {
+      "unsupported-format": "Unsupported format.",
+      "entry-not-found": "Page not found."
     }
   }
 }

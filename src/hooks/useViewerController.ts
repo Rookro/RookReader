@@ -5,7 +5,8 @@ import {
   ViewerSettings,
   calculateLayout,
   fetchImageBlob,
-  createBlobUrl,
+  createImageCacheItem,
+  fetchImagePreviewBlob,
 } from "../utils/ImageUtils";
 import { setImageIndex } from "../reducers/FileReducer";
 import { AppDispatch } from "../Store";
@@ -43,12 +44,20 @@ export const useViewerController = (
 ): ViewerController => {
   const cacheRef = useRef<Map<string, ImageCacheItem>>(new Map());
   const [isImageLoading, setIsImageLoading] = useState(false);
-  const [displayedLayout, setDisplayedLayout] = useState<ViewLayout | null>(null);
+  const [layoutState, setLayoutState] = useState<{ layout: ViewLayout; path: string } | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    cacheRef.current.forEach((item) => URL.revokeObjectURL(item.url));
+    cacheRef.current.forEach((item) => {
+      if (item.previewUrl) {
+        URL.revokeObjectURL(item.previewUrl);
+      }
+      if (item.fullUrl) {
+        URL.revokeObjectURL(item.fullUrl);
+      }
+    });
     cacheRef.current.clear();
+    abortControllerRef.current?.abort();
   }, [containerPath]);
 
   // Loads the missing images and updates the layout.
@@ -64,35 +73,58 @@ export const useViewerController = (
         pathsToLoad.push(entries[index + 1]);
       }
 
-      const missingPaths = pathsToLoad.filter((p) => !cacheRef.current.has(p));
-      if (missingPaths.length === 0) {
-        setDisplayedLayout(calculateLayout(index, entries, cacheRef.current, settings));
+      const cache = cacheRef.current;
+
+      const loadAndUpdate = async (
+        path: string,
+        fetcher: (containerPath: string, entryName: string) => Promise<unknown>,
+        isPreview: boolean,
+      ) => {
+        if (controller.signal.aborted) return;
+        const img = await fetcher(containerPath, path);
+        if (img && !controller.signal.aborted) {
+          const newItem = createImageCacheItem(img as never, isPreview);
+          const existingItem = cache.get(path);
+          if (existingItem) {
+            if (isPreview) {
+              existingItem.previewUrl = newItem.previewUrl;
+            } else {
+              existingItem.fullUrl = newItem.fullUrl;
+            }
+          } else {
+            cache.set(path, newItem);
+          }
+          const layout = calculateLayout(index, entries, cache, settings);
+          if (layout) {
+            setLayoutState({ layout, path: containerPath });
+          }
+        }
+      };
+
+      const missingFullPaths = pathsToLoad.filter((p) => !cache.get(p)?.fullUrl);
+      if (missingFullPaths.length === 0) {
         setIsImageLoading(false);
+        const layout = calculateLayout(index, entries, cache, settings);
+        setLayoutState(layout ? { layout, path: containerPath } : null);
         return;
       }
 
       setIsImageLoading(true);
 
-      const newItems = new Map<string, ImageCacheItem>();
-      await Promise.all(
-        missingPaths.map(async (path) => {
-          if (controller.signal.aborted) {
-            return;
-          }
+      const missingPreviewPaths = settings.enablePreview
+        ? pathsToLoad.filter((p) => !cache.get(p)?.previewUrl)
+        : [];
 
-          const img = await fetchImageBlob(containerPath, path);
-          if (img && !controller.signal.aborted) {
-            const url = createBlobUrl(img);
-            newItems.set(path, { url, width: img.width, height: img.height });
-          }
-        }),
+      const previewPromises = missingPreviewPaths.map((path) =>
+        loadAndUpdate(path, fetchImagePreviewBlob, true),
+      );
+      const fullPromises = missingFullPaths.map((path) =>
+        loadAndUpdate(path, fetchImageBlob, false),
       );
 
+      await Promise.all([...previewPromises, ...fullPromises]);
+
       if (!controller.signal.aborted) {
-        newItems.forEach((val, key) => {
-          cacheRef.current.set(key, val);
-        });
-        setDisplayedLayout(calculateLayout(index, entries, cacheRef.current, settings));
         setIsImageLoading(false);
       }
     };
@@ -104,6 +136,8 @@ export const useViewerController = (
       abortControllerRef.current = null;
     };
   }, [containerPath, index, entries, settings]);
+
+  const displayedLayout = layoutState?.path === containerPath ? layoutState?.layout : null;
 
   const moveForward = useCallback(() => {
     if (entries.length === 0) {

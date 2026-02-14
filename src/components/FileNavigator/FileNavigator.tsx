@@ -57,7 +57,7 @@ export default function FileListViewer() {
 
   // Scroll to make the selected item visible
   useEffect(() => {
-    if (selectedIndex === -1 || !list) {
+    if (selectedIndex === -1 || filteredSortedEntries.length === 0 || !list) {
       return;
     }
 
@@ -76,7 +76,7 @@ export default function FileListViewer() {
     return () => {
       clearTimeout(timerId);
     };
-  }, [selectedIndex, list]);
+  }, [selectedIndex, filteredSortedEntries.length, list]);
 
   const handleListItemClicked = useCallback(
     async (_e: React.MouseEvent<HTMLDivElement>, entry: DirEntry, index: number) => {

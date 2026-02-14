@@ -1,28 +1,24 @@
-use std::str::FromStr;
+use std::{fmt::Display, str::FromStr};
 
 use log::LevelFilter;
 use serde_json::Value;
 
-use crate::error;
-
-/// Represents the settings for logging.
-#[allow(dead_code)]
+/// Represents the settings for application logging.
 pub struct LogSettings {
-    /// The log level.
+    /// The minimum level of log messages to record (e.g., Info, Debug, Error).
     pub level: LevelFilter,
 }
 
-#[allow(dead_code)]
 impl LogSettings {
-    /// Creates a new instance of LogSettings.
+    /// Creates a new instance of `LogSettings`.
     ///
     /// # Arguments
     ///
-    /// * `level` - The log level.
+    /// * `level` - The desired log level filter.
     ///
     /// # Returns
     ///
-    /// A new instance of LogSettings.
+    /// A new instance of `LogSettings`.
     pub fn new(level: LevelFilter) -> Self {
         Self { level }
     }
@@ -30,26 +26,24 @@ impl LogSettings {
 
 impl Default for LogSettings {
     fn default() -> Self {
-        Self {
-            level: LevelFilter::Info,
-        }
+        Self::new(LevelFilter::Info)
     }
 }
 
-impl TryFrom<Value> for LogSettings {
-    type Error = error::Error;
+impl From<Value> for LogSettings {
+    fn from(value: Value) -> Self {
+        let level = value
+            .get("level")
+            .and_then(|value| value.as_str())
+            .unwrap_or("Info");
+        let level = LevelFilter::from_str(level).unwrap_or(LevelFilter::Info);
 
-    fn try_from(value: Value) -> Result<Self, Self::Error> {
-        let Some(level) = value.get("level") else {
-            return Err(error::Error::Settings("Invalid log.level.".to_string()));
-        };
-        let Some(level) = level.as_str() else {
-            return Err(error::Error::Settings("Invalid log.level.".to_string()));
-        };
-        let Ok(level) = LevelFilter::from_str(level) else {
-            return Err(error::Error::Settings("Invalid log.level.".to_string()));
-        };
+        Self { level }
+    }
+}
 
-        Ok(Self { level })
+impl Display for LogSettings {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "LogSettings {{ level: {} }}", self.level)
     }
 }
