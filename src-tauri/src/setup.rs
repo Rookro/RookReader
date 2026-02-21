@@ -7,7 +7,7 @@ use tauri_plugin_log::{RotationStrategy, Target, TargetKind};
 
 use crate::{
     error,
-    setting::{app_theme::AppTheme, log_settings::LogSettings, setting::Settings},
+    setting::{app_theme::AppTheme, core::Settings, log_settings::LogSettings},
 };
 
 /// Orchestrates the initial setup of the application.
@@ -27,7 +27,7 @@ pub fn setup(app: &App, settings: &Settings) -> error::Result<()> {
     setup_logger(app, &settings.log)?;
     set_theme(app, &settings.theme);
 
-    setup_container_settings(app, &settings)?;
+    setup_container_settings(app, settings)?;
 
     debug!("Application setup completed. Settings: {}", settings);
     Ok(())

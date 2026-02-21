@@ -46,7 +46,7 @@ pub struct EntriesResult {
 /// * Preloading the image data fails.
 #[tauri::command()]
 pub async fn get_entries_in_container(
-    path: String,
+    path: &str,
     state: tauri::State<'_, Mutex<AppState>>,
 ) -> Result<EntriesResult> {
     log::debug!("Get the entries in {}", path);
@@ -54,7 +54,7 @@ pub async fn get_entries_in_container(
         .lock()
         .map_err(|e| Error::Mutex(format!("Failed to lock AppState. {}", e)))?;
 
-    state_lock.container_state.open_container(&path)?;
+    state_lock.container_state.open_container(path)?;
 
     let entries;
     let is_directory;
@@ -107,8 +107,8 @@ pub async fn get_entries_in_container(
 /// * The requested image entry cannot be found or decoded.
 #[tauri::command]
 pub async fn get_image(
-    path: String,
-    entry_name: String,
+    path: &str,
+    entry_name: &str,
     state: tauri::State<'_, Mutex<AppState>>,
 ) -> Result<Response> {
     log::debug!("Get the binary of {} in {}", entry_name, path);
@@ -123,7 +123,7 @@ pub async fn get_image(
         .as_mut()
         .ok_or_else(|| Error::Other("Unexpected error. Container is empty!".to_string()))?;
 
-    let image = image_loader.get_image(&entry_name)?;
+    let image = image_loader.get_image(entry_name)?;
 
     // Uses tauri::ipc::Response with a custom binary format to accelerate image data transfer.
     let mut response_data = Vec::with_capacity(8 + image.data.len());
@@ -159,8 +159,8 @@ pub async fn get_image(
 /// * The preview image cannot be retrieved or generated.
 #[tauri::command]
 pub async fn get_image_preview(
-    path: String,
-    entry_name: String,
+    path: &str,
+    entry_name: &str,
     state: tauri::State<'_, Mutex<AppState>>,
 ) -> Result<Response> {
     log::debug!("Get the preview binary of {} in {}", entry_name, path);
@@ -175,7 +175,7 @@ pub async fn get_image_preview(
         .as_ref()
         .ok_or_else(|| Error::Other("Unexpected error. Container is empty!".to_string()))?;
 
-    let Some(image) = image_loader.get_preview_image(&entry_name)? else {
+    let Some(image) = image_loader.get_preview_image(entry_name)? else {
         // Return an empty response if preview skipped.
         return Ok(Response::new(Vec::new()));
     };
@@ -286,7 +286,7 @@ pub fn set_max_image_height(height: i32, state: tauri::State<'_, Mutex<AppState>
 /// * The `AppState` mutex cannot be locked.
 #[tauri::command()]
 pub fn set_image_resize_method(
-    method: String,
+    method: &str,
     state: tauri::State<'_, Mutex<AppState>>,
 ) -> Result<()> {
     log::debug!("set_image_resize_method({})", method);
@@ -301,7 +301,7 @@ pub fn set_image_resize_method(
         .lock()
         .map_err(|e| Error::Mutex(format!("Failed to lock AppState. {}", e)))?;
 
-    let method = match method.as_str() {
+    let method = match method {
         "nearest" => FilterType::Nearest,
         "triangle" => FilterType::Triangle,
         "catmullRom" => FilterType::CatmullRom,
@@ -335,7 +335,7 @@ pub fn set_image_resize_method(
 /// * The file at `path` cannot be opened or is not a valid EPUB file.
 #[tauri::command()]
 pub async fn determine_epub_novel(
-    path: String,
+    path: &str,
     state: tauri::State<'_, Mutex<AppState>>,
 ) -> Result<bool> {
     let mut state_lock = state
@@ -356,7 +356,7 @@ pub async fn determine_epub_novel(
         return Ok(false);
     }
 
-    let container = Arc::new(EpubContainer::new(&path)?);
+    let container = Arc::new(EpubContainer::new(path)?);
     Ok(container.is_novel())
 }
 
@@ -373,7 +373,7 @@ mod tests {
     use tauri::{ipc::InvokeResponseBody::Raw, ipc::IpcResponse, Manager};
 
     use crate::{
-        container::{container::MockContainer, image::Image, image_loader::ImageLoader},
+        container::{image::Image, image_loader::ImageLoader, traits::MockContainer},
         state::{container_settings::ContainerSettings, container_state::ContainerState},
     };
 
@@ -447,7 +447,7 @@ mod tests {
     async fn test_get_entries_in_container() {
         let dir = tempfile::tempdir().unwrap();
         let rar_path = create_dummy_rar(dir.path(), "dummy.rar");
-        let expected_entries = vec![
+        let expected_entries = [
             "image1.png".to_string(),
             "image2.png".to_string(),
             "image3.png".to_string(),
@@ -457,7 +457,7 @@ mod tests {
         app.manage(Mutex::new(AppState::default()));
 
         let result =
-            get_entries_in_container(rar_path.to_string_lossy().to_string(), app.state()).await;
+            get_entries_in_container(rar_path.to_string_lossy().as_ref(), app.state()).await;
 
         assert!(result.is_ok());
 
@@ -474,7 +474,7 @@ mod tests {
         let app = tauri::test::mock_app();
         app.manage(Mutex::new(AppState::default()));
 
-        let result = get_entries_in_container("non_existent_path".to_string(), app.state()).await;
+        let result = get_entries_in_container("non_existent_path", app.state()).await;
 
         assert!(result.is_err());
     }
@@ -507,12 +507,7 @@ mod tests {
         };
         app.manage(Mutex::new(state));
 
-        let result = get_image(
-            "mock_container".to_string(),
-            "test1.png".to_string(),
-            app.state(),
-        )
-        .await;
+        let result = get_image("mock_container", "test1.png", app.state()).await;
 
         assert!(result.is_ok());
 
@@ -542,12 +537,7 @@ mod tests {
         let app = tauri::test::mock_app();
         app.manage(Mutex::new(AppState::default()));
 
-        let result = get_image(
-            "non_existent_path".to_string(),
-            "image.png".to_string(),
-            app.state(),
-        )
-        .await;
+        let result = get_image("non_existent_path", "image.png", app.state()).await;
 
         assert!(result.is_err());
     }

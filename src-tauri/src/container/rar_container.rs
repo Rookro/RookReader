@@ -4,7 +4,7 @@ use unrar::{Archive, CursorBeforeHeader, OpenArchive, Process};
 use std::{io::Cursor, sync::Arc};
 
 use crate::{
-    container::{container::Container, image::Image},
+    container::{image::Image, traits::Container},
     error::{Error, Result},
 };
 
@@ -21,11 +21,11 @@ impl Container for RarContainer {
         &self.entries
     }
 
-    fn get_image(&self, entry: &String) -> Result<Arc<Image>> {
+    fn get_image(&self, entry: &str) -> Result<Arc<Image>> {
         load_image(&self.path, entry)
     }
 
-    fn get_thumbnail(&self, entry: &String) -> Result<Arc<Image>> {
+    fn get_thumbnail(&self, entry: &str) -> Result<Arc<Image>> {
         create_thumbnail(&self.path, entry)
     }
 
@@ -52,7 +52,7 @@ impl RarContainer {
     ///
     /// Returns an `Err` if the RAR file cannot be opened or an error occurs
     /// while reading its entries.
-    pub fn new(path: &String) -> Result<Self> {
+    pub fn new(path: &str) -> Result<Self> {
         let archive = Archive::new(path).open_for_listing()?;
 
         let mut entries: Vec<String> = Vec::new();
@@ -69,19 +69,19 @@ impl RarContainer {
         entries.sort_by(|a, b| natord::compare_ignore_case(a, b));
 
         Ok(Self {
-            path: path.clone(),
+            path: path.to_string(),
             entries,
         })
     }
 }
 
 /// Helper function to open a RAR archive for processing its file data.
-fn open(path: &String) -> Result<OpenArchive<Process, CursorBeforeHeader>> {
+fn open(path: &str) -> Result<OpenArchive<Process, CursorBeforeHeader>> {
     Ok(Archive::new(path).open_for_processing()?)
 }
 
 /// Helper function to find and extract a specific file from a RAR archive.
-fn load_image(path: &String, entry: &String) -> Result<Arc<Image>> {
+fn load_image(path: &str, entry: &str) -> Result<Arc<Image>> {
     let mut archive = open(path)?;
     while let Some(header) = archive.read_header()? {
         let filename = header.entry().filename.to_string_lossy().to_string();
@@ -99,7 +99,7 @@ fn load_image(path: &String, entry: &String) -> Result<Arc<Image>> {
 }
 
 /// Helper function to load an image and generate a JPEG thumbnail for it.
-fn create_thumbnail(path: &String, entry: &String) -> Result<Arc<Image>> {
+fn create_thumbnail(path: &str, entry: &str) -> Result<Arc<Image>> {
     let img = load_image(path, entry)?;
     let cursor = Cursor::new(&img.data);
     let image_reader = ImageReader::new(cursor).with_guessed_format()?;
@@ -176,15 +176,15 @@ mod tests {
         let dir = tempdir().expect("failed to create tempdir");
         let rar_path = create_dummy_rar(dir.path(), "dummy.rar");
 
-        let container = RarContainer::new(&rar_path.to_string_lossy().to_string())
+        let container = RarContainer::new(rar_path.to_string_lossy().as_ref())
             .expect("failed to create RarContainer");
 
         assert_eq!(container.path, rar_path.to_string_lossy().to_string());
         // Expecting 2 entries based on the dummy.rar creation instructions
         assert_eq!(container.entries.len(), 3);
-        assert!(container.entries.contains(&String::from("image1.png")));
-        assert!(container.entries.contains(&String::from("image2.png")));
-        assert!(container.entries.contains(&String::from("image3.png")));
+        assert_eq!(container.entries[0], "image1.png");
+        assert_eq!(container.entries[1], "image2.png");
+        assert_eq!(container.entries[2], "image3.png");
     }
 
     #[test]
@@ -198,26 +198,26 @@ mod tests {
     fn test_get_entries() {
         let dir = tempdir().expect("failed to create tempdir");
         let rar_path = create_dummy_rar(dir.path(), "dummy.rar");
-        let container = RarContainer::new(&rar_path.to_string_lossy().to_string())
+        let container = RarContainer::new(rar_path.to_string_lossy().as_ref())
             .expect("failed to create RarContainer");
         let entries = container.get_entries();
 
         assert_eq!(entries.len(), 3);
-        assert!(entries.contains(&String::from("image1.png")));
-        assert!(entries.contains(&String::from("image2.png")));
-        assert!(entries.contains(&String::from("image3.png")));
+        assert_eq!(container.entries[0], "image1.png");
+        assert_eq!(container.entries[1], "image2.png");
+        assert_eq!(container.entries[2], "image3.png");
     }
 
     #[test]
     fn test_get_image_existing() {
         let dir = tempdir().expect("failed to create tempdir");
         let rar_path = create_dummy_rar(dir.path(), "dummy.rar");
-        let container = RarContainer::new(&rar_path.to_string_lossy().to_string())
+        let container = RarContainer::new(rar_path.to_string_lossy().as_ref())
             .expect("failed to create RarContainer");
 
         // Assuming 'image1.png' exists in dummy.rar and is a valid image
         let image = container
-            .get_image(&String::from("image1.png"))
+            .get_image("image1.png")
             .expect("get_image should succeed for existing image");
         assert!(image.width > 0);
         assert!(image.height > 0);
@@ -229,9 +229,9 @@ mod tests {
     fn test_get_image_non_existing() {
         let dir = tempdir().expect("failed to create tempdir");
         let rar_path = create_dummy_rar(dir.path(), "dummy.rar");
-        let container = RarContainer::new(&rar_path.to_string_lossy().to_string())
+        let container = RarContainer::new(rar_path.to_string_lossy().as_ref())
             .expect("failed to create RarContainer");
-        let result = container.get_image(&String::from("non_existent_image.png"));
+        let result = container.get_image("non_existent_image.png");
         assert!(result.is_err());
     }
 }

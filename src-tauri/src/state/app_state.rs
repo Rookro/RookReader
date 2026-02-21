@@ -4,18 +4,11 @@ use crate::state::container_state::ContainerState;
 ///
 /// This struct acts as a container for more specific state modules,
 /// which are managed and accessed throughout the application's lifecycle.
+#[derive(Default)]
 pub struct AppState {
     /// Holds the state related to file/archive containers, including the currently
     /// open container and its settings.
     pub container_state: ContainerState,
-}
-
-impl Default for AppState {
-    fn default() -> Self {
-        Self {
-            container_state: ContainerState::default(),
-        }
-    }
 }
 
 #[cfg(test)]

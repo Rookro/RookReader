@@ -13,7 +13,7 @@ use log::debug;
 use threadpool::ThreadPool;
 
 use crate::{
-    container::{container::Container, image::Image},
+    container::{image::Image, traits::Container},
     error::Result,
 };
 
@@ -78,7 +78,7 @@ impl ImageLoader {
     /// # Returns
     ///
     /// An `Ok(Some(Arc<Image>))` if the image is found in the cache, `Ok(None)` otherwise.
-    pub fn get_image_from_cache(&self, entry: &String) -> Result<Option<Arc<Image>>> {
+    pub fn get_image_from_cache(&self, entry: &str) -> Result<Option<Arc<Image>>> {
         if let Some(imag) = self.cache.get(entry) {
             Ok(Some(imag.clone()))
         } else {
@@ -102,7 +102,7 @@ impl ImageLoader {
     /// # Errors
     ///
     /// Returns an `Err` if the image cannot be loaded or resized.
-    pub fn get_image(&self, entry: &String) -> Result<Arc<Image>> {
+    pub fn get_image(&self, entry: &str) -> Result<Arc<Image>> {
         if let Some(image_arc) = self.get_image_from_cache(entry)? {
             log::debug!("Hit cache: {}", entry);
             return Ok(image_arc);
@@ -114,7 +114,7 @@ impl ImageLoader {
             self.max_image_height,
             self.resize_method,
         )?;
-        self.cache.insert(entry.clone(), image_arc.clone());
+        self.cache.insert(entry.to_string(), image_arc.clone());
 
         Ok(image_arc)
     }
@@ -136,7 +136,7 @@ impl ImageLoader {
     /// # Errors
     ///
     /// Returns an `Err` if the thumbnail cannot be generated.
-    pub fn get_preview_image(&self, entry: &String) -> Result<Option<Arc<Image>>> {
+    pub fn get_preview_image(&self, entry: &str) -> Result<Option<Arc<Image>>> {
         if self.get_image_from_cache(entry)?.is_some() {
             log::debug!("Skip create the thumbnail. Hit cache: {}", entry);
             return Ok(None);
@@ -180,8 +180,8 @@ impl ImageLoader {
             let container = self.container.clone();
             let cache_clone = self.cache.clone();
             let is_cancel_requested = is_cancel_requested.clone();
-            let max_image_height = self.max_image_height.clone();
-            let resize_method = self.resize_method.clone();
+            let max_image_height = self.max_image_height;
+            let resize_method = self.resize_method;
 
             self.thread_pool.execute(move || {
                 if is_cancel_requested.load(Ordering::Relaxed) {
@@ -215,7 +215,7 @@ impl ImageLoader {
 
 /// Helper function to load an image from a container and resize it if necessary.
 fn load_image(
-    entry: &String,
+    entry: &str,
     container: Arc<dyn Container>,
     max_image_height: u32,
     resize_method: FilterType,

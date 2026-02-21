@@ -3,7 +3,7 @@ use pdfium_render::prelude::{PdfDocument, PdfPageRenderRotation, PdfRenderConfig
 use std::sync::Arc;
 
 use crate::{
-    container::{container::Container, image::Image},
+    container::{image::Image, traits::Container},
     error::{Error, Result},
 };
 
@@ -29,7 +29,7 @@ impl Container for PdfContainer {
         &self.entries
     }
 
-    fn get_image(&self, entry: &String) -> Result<Arc<Image>> {
+    fn get_image(&self, entry: &str) -> Result<Arc<Image>> {
         let pdfium = get_pdfium(&self.library_path)?;
         let pdf = pdfium.load_pdf_from_file(&self.path, None)?;
 
@@ -37,7 +37,7 @@ impl Container for PdfContainer {
         Ok(image_arc)
     }
 
-    fn get_thumbnail(&self, entry: &String) -> Result<Arc<Image>> {
+    fn get_thumbnail(&self, entry: &str) -> Result<Arc<Image>> {
         let pdfium = get_pdfium(&self.library_path)?;
         let pdf = pdfium.load_pdf_from_file(&self.path, None)?;
         create_thumbnail(&pdf, &self.thumbnail_render_config, entry)
@@ -68,7 +68,7 @@ impl PdfContainer {
     ///
     /// Returns an `Err` if `pdfium` cannot be initialized or the PDF file cannot be opened.
     pub fn new(
-        path: &String,
+        path: &str,
         render_config: PdfRenderConfig,
         library_path: Option<String>,
     ) -> Result<Self> {
@@ -83,7 +83,7 @@ impl PdfContainer {
         }
 
         Ok(Self {
-            path: path.clone(),
+            path: path.to_string(),
             entries,
             render_config: Arc::new(render_config),
             library_path,
@@ -104,7 +104,7 @@ impl PdfContainer {
 fn load_image(
     pdf: &PdfDocument,
     render_config: &PdfRenderConfig,
-    entry: &String,
+    entry: &str,
 ) -> Result<Arc<Image>> {
     let index: u16 = entry.parse()?;
 
@@ -128,7 +128,7 @@ fn load_image(
 fn create_thumbnail(
     pdf: &PdfDocument,
     render_config: &PdfRenderConfig,
-    entry: &String,
+    entry: &str,
 ) -> Result<Arc<Image>> {
     let index: u16 = entry.parse()?;
 
@@ -204,7 +204,7 @@ mod tests {
 
         let render_config = PdfRenderConfig::default();
         let container = PdfContainer::new(
-            &pdf_path.to_string_lossy().to_string(),
+            pdf_path.to_string_lossy().as_ref(),
             render_config,
             Some(get_pdfium_lib_path()),
         )
@@ -233,7 +233,7 @@ mod tests {
         let pdf_path = create_dummy_pdf(dir.path(), "test.pdf");
         let render_config = PdfRenderConfig::default();
         let container = PdfContainer::new(
-            &pdf_path.to_string_lossy().to_string(),
+            pdf_path.to_string_lossy().as_ref(),
             render_config,
             Some(get_pdfium_lib_path()),
         )
@@ -252,13 +252,13 @@ mod tests {
         let rendering_height: u32 = 100;
         let render_config = PdfRenderConfig::default().set_target_height(rendering_height as i32);
         let container = PdfContainer::new(
-            &pdf_path.to_string_lossy().to_string(),
+            pdf_path.to_string_lossy().as_ref(),
             render_config,
             Some(get_pdfium_lib_path()),
         )
         .unwrap();
 
-        let image = container.get_image(&String::from("0000")).unwrap();
+        let image = container.get_image("0000").unwrap();
 
         assert!(image.width > 0);
         assert_eq!(rendering_height, image.height);
@@ -273,13 +273,13 @@ mod tests {
         let rendering_height = 100;
         let render_config = PdfRenderConfig::default().set_target_height(rendering_height);
         let container = PdfContainer::new(
-            &pdf_path.to_string_lossy().to_string(),
+            pdf_path.to_string_lossy().as_ref(),
             render_config,
             Some(get_pdfium_lib_path()),
         )
         .unwrap();
 
-        let result = container.get_image(&String::from("0001")); // Page 1 does not exist
+        let result = container.get_image("0001"); // Page 1 does not exist
         assert!(result.is_err());
     }
 }
