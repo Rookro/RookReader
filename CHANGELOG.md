@@ -7,6 +7,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+* Clippy の警告に対応する (#133)
+
 ## [1.9.1] - 2026-02-15
 
 ### Changed
