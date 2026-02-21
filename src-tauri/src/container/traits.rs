@@ -29,7 +29,7 @@ pub trait Container: Send + Sync + 'static {
     /// # Errors
     ///
     /// Returns an `Err` if the entry cannot be found, read, or decoded into an image.
-    fn get_image(&self, entry: &String) -> Result<Arc<Image>>;
+    fn get_image(&self, entry: &str) -> Result<Arc<Image>>;
 
     /// Retrieves a thumbnail-sized image for a given entry name.
     ///
@@ -47,7 +47,7 @@ pub trait Container: Send + Sync + 'static {
     ///
     /// Returns an `Err` if the entry cannot be found, or if the thumbnail cannot be
     /// generated or decoded.
-    fn get_thumbnail(&self, entry: &String) -> Result<Arc<Image>>;
+    fn get_thumbnail(&self, entry: &str) -> Result<Arc<Image>>;
 
     /// Checks whether the container corresponds to a directory on the filesystem.
     ///

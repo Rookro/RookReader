@@ -4,15 +4,16 @@ use pdfium_render::prelude::PdfRenderConfig;
 
 use crate::{
     container::{
-        container::Container, directory_container::DirectoryContainer,
-        epub_container::EpubContainer, image_loader::ImageLoader, pdf_container::PdfContainer,
-        rar_container::RarContainer, zip_container::ZipContainer,
+        directory_container::DirectoryContainer, epub_container::EpubContainer,
+        image_loader::ImageLoader, pdf_container::PdfContainer, rar_container::RarContainer,
+        traits::Container, zip_container::ZipContainer,
     },
     error::{Error, Result},
     state::container_settings::ContainerSettings,
 };
 
 /// Holds the state related to the currently open container (e.g., a file or directory).
+#[derive(Default)]
 pub struct ContainerState {
     /// The active container, wrapped in an `Arc` for shared ownership.
     /// This can be a directory, a ZIP file, a PDF, etc. `None` if no container is open.
@@ -22,16 +23,6 @@ pub struct ContainerState {
     /// The image loader responsible for loading and caching images from the current container.
     /// `None` if no container is open.
     pub image_loader: Option<ImageLoader>,
-}
-
-impl Default for ContainerState {
-    fn default() -> Self {
-        Self {
-            container: None,
-            settings: ContainerSettings::default(),
-            image_loader: None,
-        }
-    }
 }
 
 impl ContainerState {
@@ -55,7 +46,7 @@ impl ContainerState {
     /// This function will return an `Err` if:
     /// * The file extension is missing or unsupported.
     /// * The underlying constructor for the container type fails (e.g., file not found, permission denied, corrupt file).
-    pub fn open_container(&mut self, path: &String) -> Result<()> {
+    pub fn open_container(&mut self, path: &str) -> Result<()> {
         self.container = None;
         let file_path = Path::new(path);
 
@@ -165,7 +156,7 @@ mod tests {
     #[test]
     fn test_open_container_with_unsupported_extension() {
         let mut state = ContainerState::default();
-        let result = state.open_container(&"/path/to/file.unsupported".to_string());
+        let result = state.open_container("/path/to/file.unsupported");
 
         assert!(result.is_err());
         let err = result.unwrap_err();
@@ -178,7 +169,7 @@ mod tests {
     #[test]
     fn test_open_container_without_extension() {
         let mut state = ContainerState::default();
-        let result = state.open_container(&"/path/to/noextension".to_string());
+        let result = state.open_container("/path/to/noextension");
 
         assert!(result.is_err());
         let err = result.unwrap_err();
@@ -190,11 +181,11 @@ mod tests {
         let mut state = ContainerState::default();
 
         // First attempt to open
-        let result1 = state.open_container(&"/path/to/file.unsupported".to_string());
+        let result1 = state.open_container("/path/to/file.unsupported");
         assert!(result1.is_err());
 
         // Second attempt
-        let result2 = state.open_container(&"/path/to/another.unsupported".to_string());
+        let result2 = state.open_container("/path/to/another.unsupported");
         assert!(result2.is_err());
 
         // Container should still be None
@@ -209,7 +200,7 @@ mod tests {
 
         // This would fail because the file doesn't exist, but it tests that
         // the height is being used in the PdfContainer::new call
-        let result = state.open_container(&"/path/to/file.pdf".to_string());
+        let result = state.open_container("/path/to/file.pdf");
 
         // The error is expected because the file doesn't exist
         assert!(result.is_err());
@@ -229,7 +220,7 @@ mod tests {
         ];
 
         for file_path in unsupported_files {
-            let result = state.open_container(&file_path.to_string());
+            let result = state.open_container(file_path);
             assert!(result.is_err(), "File {} should be unsupported", file_path);
             let err = result.unwrap_err();
             assert!(err.to_string().contains("Unsupported Container Type"));
@@ -247,12 +238,11 @@ mod tests {
         ];
 
         for (file_path, ext) in supported_files {
-            let result = state.open_container(&file_path.to_string());
+            let result = state.open_container(file_path);
 
             // These will fail because files don't exist, but we verify the
             // extension is recognized (different error message)
-            if result.is_err() {
-                let err = result.unwrap_err();
+            if let Err(err) = result {
                 // Should not be "Unsupported Container Type" error
                 assert!(
                     !err.to_string().contains("Unsupported Container Type"),
@@ -270,17 +260,15 @@ mod tests {
         state.settings.pdfium_library_path = Some(get_pdfium_lib_path());
 
         // Test uppercase extension
-        let result = state.open_container(&"/path/to/file.ZIP".to_string());
-        if result.is_err() {
-            let err = result.unwrap_err();
+        let result = state.open_container("/path/to/file.ZIP");
+        if let Err(err) = result {
             // Should not be "Unsupported" error, meaning it recognized ZIP
             assert!(!err.to_string().contains("Unsupported Container Type"));
         }
 
         // Test mixed case
-        let result = state.open_container(&"/path/to/file.Pdf".to_string());
-        if result.is_err() {
-            let err = result.unwrap_err();
+        let result = state.open_container("/path/to/file.Pdf");
+        if let Err(err) = result {
             assert!(!err.to_string().contains("Unsupported Container Type"));
         }
     }

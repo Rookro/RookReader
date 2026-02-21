@@ -8,7 +8,7 @@ use image::{codecs::jpeg::JpegEncoder, ImageReader};
 use zip::ZipArchive;
 
 use crate::{
-    container::{container::Container, image::Image},
+    container::{image::Image, traits::Container},
     error::Result,
 };
 
@@ -25,7 +25,7 @@ impl Container for ZipContainer {
         &self.entries
     }
 
-    fn get_image(&self, entry: &String) -> Result<Arc<Image>> {
+    fn get_image(&self, entry: &str) -> Result<Arc<Image>> {
         let mut buffer = Vec::new();
         let file = File::open(&self.path)?;
         let mut archive = ZipArchive::new(file)?;
@@ -36,7 +36,7 @@ impl Container for ZipContainer {
         Ok(Arc::new(image))
     }
 
-    fn get_thumbnail(&self, entry: &String) -> Result<Arc<Image>> {
+    fn get_thumbnail(&self, entry: &str) -> Result<Arc<Image>> {
         let mut buffer = Vec::new();
         let file = File::open(&self.path)?;
         let mut archive = ZipArchive::new(file)?;
@@ -86,8 +86,8 @@ impl ZipContainer {
     /// # Errors
     ///
     /// Returns an `Err` if the ZIP file cannot be opened or read.
-    pub fn new(path: &String) -> Result<Self> {
-        let file = File::open(&path)?;
+    pub fn new(path: &str) -> Result<Self> {
+        let file = File::open(path)?;
         let archive = ZipArchive::new(file)?;
 
         let mut entries: Vec<String> = archive
@@ -99,7 +99,7 @@ impl ZipContainer {
         entries.sort_by(|a, b| natord::compare_ignore_case(a, b));
 
         Ok(Self {
-            path: path.clone(),
+            path: path.to_string(),
             entries,
         })
     }
@@ -164,13 +164,13 @@ mod tests {
             dir.path(),
             "test.zip",
             &[
-                ("image1.png", &DUMMY_PNG_DATA),
-                ("image2.png", &DUMMY_PNG_DATA),
+                ("image1.png", DUMMY_PNG_DATA),
+                ("image2.png", DUMMY_PNG_DATA),
                 ("text.txt", b"hello"),
             ],
         );
 
-        let container = ZipContainer::new(&zip_path.to_string_lossy().to_string())
+        let container = ZipContainer::new(zip_path.to_string_lossy().to_string().as_str())
             .expect("failed to create ZipContainer");
 
         assert_eq!(container.entries.len(), 2);
@@ -183,7 +183,7 @@ mod tests {
         let dir = tempdir().expect("failed to create tempdir");
         let zip_path = create_dummy_zip(dir.path(), "empty.zip", &[]);
 
-        let container = ZipContainer::new(&zip_path.to_string_lossy().to_string())
+        let container = ZipContainer::new(zip_path.to_string_lossy().to_string().as_str())
             .expect("failed to create ZipContainer");
         assert!(container.entries.is_empty());
     }
@@ -202,13 +202,13 @@ mod tests {
             dir.path(),
             "test.zip",
             &[
-                ("image_c.png", &DUMMY_PNG_DATA),
-                ("image_a.png", &DUMMY_PNG_DATA),
-                ("image_b.png", &DUMMY_PNG_DATA),
+                ("image_c.png", DUMMY_PNG_DATA),
+                ("image_a.png", DUMMY_PNG_DATA),
+                ("image_b.png", DUMMY_PNG_DATA),
             ],
         );
 
-        let container = ZipContainer::new(&zip_path.to_string_lossy().to_string()).unwrap();
+        let container = ZipContainer::new(zip_path.to_string_lossy().to_string().as_str()).unwrap();
         let entries = container.get_entries();
 
         assert_eq!(entries.len(), 3);
@@ -220,12 +220,12 @@ mod tests {
     #[test]
     fn test_get_image_existing() {
         let dir = tempdir().unwrap();
-        let zip_path = create_dummy_zip(dir.path(), "test.zip", &[("image1.png", &DUMMY_PNG_DATA)]);
-        let container = ZipContainer::new(&zip_path.to_string_lossy().to_string())
+        let zip_path = create_dummy_zip(dir.path(), "test.zip", &[("image1.png", DUMMY_PNG_DATA)]);
+        let container = ZipContainer::new(zip_path.to_string_lossy().to_string().as_str())
             .expect("failed to create ZipContainer");
 
         let image = container
-            .get_image(&String::from("image1.png"))
+            .get_image("image1.png")
             .expect("get_image should succeed for existing image");
         assert_eq!(image.width, 1);
         assert_eq!(image.height, 1);
@@ -235,9 +235,9 @@ mod tests {
     #[test]
     fn test_get_image_non_existing() {
         let dir = tempdir().unwrap();
-        let zip_path = create_dummy_zip(dir.path(), "test.zip", &[("image1.png", &DUMMY_PNG_DATA)]);
-        let container = ZipContainer::new(&zip_path.to_string_lossy().to_string()).unwrap();
-        let result = container.get_image(&String::from("non_existent_image.png"));
+        let zip_path = create_dummy_zip(dir.path(), "test.zip", &[("image1.png", DUMMY_PNG_DATA)]);
+        let container = ZipContainer::new(zip_path.to_string_lossy().to_string().as_str()).unwrap();
+        let result = container.get_image("non_existent_image.png");
         assert!(result.is_err());
     }
 }
