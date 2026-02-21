@@ -137,7 +137,7 @@ impl Default for Settings {
     fn default() -> Self {
         Self {
             font_family: "Inter, Avenir, Helvetica, Arial, sans-serif".to_string(),
-            direction: Direction::Ltr,
+            direction: Direction::default(),
             enable_directory_watch: false,
             experimental_features: ExperimentalFeaturesSettings::default(),
             first_page_single_view: true,
@@ -146,8 +146,8 @@ impl Default for Settings {
             log: LogSettings::default(),
             novel_reader: NovelReaderSettings::default(),
             rendering: RenderingSettings::default(),
-            sort_order: SortOrder::NameAsc,
-            theme: AppTheme::System,
+            sort_order: SortOrder::default(),
+            theme: AppTheme::default(),
             two_paged: true,
         }
     }

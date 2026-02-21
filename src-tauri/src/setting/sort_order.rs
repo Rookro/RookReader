@@ -6,8 +6,10 @@ use strum_macros::EnumString;
 /// Represents the available sort orders for file and directory listings.
 #[derive(Debug, PartialEq, EnumString)]
 #[strum(serialize_all = "snake_case")]
+#[derive(Default)]
 pub enum SortOrder {
     /// Sort by name in ascending alphabetical order (A-Z).
+    #[default]
     NameAsc,
     /// Sort by name in descending alphabetical order (Z-A).
     NameDesc,
