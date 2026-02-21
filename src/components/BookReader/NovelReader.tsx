@@ -3,7 +3,7 @@ import { useDispatch } from "react-redux";
 import ePub, { Book, Contents, Rendition, Location, NavItem } from "epubjs";
 import { Badge, Box } from "@mui/material";
 import { readFile } from "@tauri-apps/plugin-fs";
-import { error } from "@tauri-apps/plugin-log";
+import { debug, error } from "@tauri-apps/plugin-log";
 import { useAppTheme } from "../../hooks/useAppTheme";
 import { usePageNavigation } from "../../hooks/usePageNavigation";
 import { AppDispatch, useAppSelector } from "../../Store";
@@ -70,6 +70,7 @@ export default function NovelReader({ filePath }: NovelReaderProps) {
         },
         ".introduction": { color: `${theme.palette.text.secondary} !important` },
         ".postscript": { color: `${theme.palette.text.secondary} !important` },
+        ".vrtl": { "font-feature-settings": '"vert"' },
       });
     },
     [theme, novel],
@@ -150,6 +151,29 @@ export default function NovelReader({ filePath }: NovelReaderProps) {
         doc.addEventListener("keydown", (e: KeyboardEvent) => {
           handleKeydown(e);
         });
+
+        // WORKAROUND: Fix incorrect glyph orientation for punctuation marks.
+        // In WebkitGTK (Linux), punctuation marks such as brackets (「」) and
+        // prolonged sound marks (ー) often remain horizontal even in vertical mode.
+        // We explicitly force the OpenType 'vert' (Vertical Alternates) feature
+        // to ensure the correct glyphs are used.
+        const isLinux = navigator.userAgent.indexOf("Linux") !== -1;
+        if (isLinux) {
+          const isVertical =
+            contents.window.getComputedStyle(doc.body).writingMode.indexOf("vertical") !== -1;
+          if (isVertical) {
+            contents.addStylesheetRules(
+              {
+                body: {
+                  "font-feature-settings": '"vert"',
+                },
+              },
+              "vertical-writing-fix",
+            );
+
+            debug("Applied 'vert' font feature settings.");
+          }
+        }
       });
 
       rendition.on("relocated", (location: Location) => {
