@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.9.2] - 2026-02-22
+
 ### Changed
 
 * Always enable the EPUB novel reader feature, removing it from experimental features (#135)
@@ -244,7 +246,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Add an automatic two-page spread display feature (#4)
 * Add a page navigation feature using the mouse wheel up/down (#5)
 
-[unreleased]: https://github.com/Rookro/RookReader/compare/v1.9.1...HEAD
+[unreleased]: https://github.com/Rookro/RookReader/compare/v1.9.2...HEAD
+[1.9.2]: https://github.com/Rookro/RookReader/compare/v1.9.1...v1.9.2
 [1.9.1]: https://github.com/Rookro/RookReader/compare/v1.9.0...v1.9.1
 [1.9.0]: https://github.com/Rookro/RookReader/compare/v1.8.0...v1.9.0
 [1.8.0]: https://github.com/Rookro/RookReader/compare/v1.7.1...v1.8.0
@@ -263,4 +266,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [1.2.0]: https://github.com/Rookro/RookReader/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/Rookro/RookReader/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/Rookro/RookReader/releases/tag/v1.0.0
-

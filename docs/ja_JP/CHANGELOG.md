@@ -9,6 +9,8 @@
 
 ## [Unreleased]
 
+## [1.9.2] - 2026-02-22
+
 ### Changed
 
 * EPUB 小説リーダー機能を実験的機能から外して常に有効にする (#135)
@@ -244,7 +246,8 @@
 * 自動見開き表示機能の追加 (#4)
 * ホイールの上下によるページ送り機能を追加 (#5)
 
-[unreleased]: https://github.com/Rookro/RookReader/compare/v1.9.1...HEAD
+[unreleased]: https://github.com/Rookro/RookReader/compare/v1.9.2...HEAD
+[1.9.2]: https://github.com/Rookro/RookReader/compare/v1.9.1...v1.9.2
 [1.9.1]: https://github.com/Rookro/RookReader/compare/v1.9.0...v1.9.1
 [1.9.0]: https://github.com/Rookro/RookReader/compare/v1.8.0...v1.9.0
 [1.8.0]: https://github.com/Rookro/RookReader/compare/v1.7.1...v1.8.0
