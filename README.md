@@ -40,7 +40,6 @@ Please follow the steps below to download and install the appropriate file for y
 | File Name | Installation Guide |
 | -- | -- |
 | RookReader_x.x.x_x64-setup.exe | Download and run the executable installer. |
-| RookReader_x.x.x_x64_xx-XX.msi | Download and run the MSI installer. |
 
 ###  Linux
 
