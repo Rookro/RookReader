@@ -6,19 +6,15 @@ use strum_macros::EnumString;
 /// Represents the available UI themes for the application.
 #[derive(Debug, PartialEq, EnumString)]
 #[strum(serialize_all = "snake_case")]
+#[derive(Default)]
 pub enum AppTheme {
     /// The application theme will follow the system's theme (light or dark).
+    #[default]
     System,
     /// The application will use a light theme.
     Light,
     /// The application will use a dark theme.
     Dark,
-}
-
-impl Default for AppTheme {
-    fn default() -> Self {
-        Self::System
-    }
 }
 
 impl From<Value> for AppTheme {

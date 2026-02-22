@@ -7,8 +7,6 @@ import { AppDispatch, RootState } from "../Store";
 import { DirEntry } from "../types/DirEntry";
 import { SortOrder } from "../types/SortOrderType";
 import { convertEntriesInDir } from "../utils/DirEntryUtils";
-import { settingsStore } from "../settings/SettingsStore";
-import { ExperimentalFeaturesSettings } from "../types/Settings";
 import { HistoryTable } from "../database/historyTable";
 import { upsertHistory } from "./HistoryReducer";
 import { CommandError, ErrorCode } from "../types/Error";
@@ -35,10 +33,7 @@ export const openContainerFile = createAppAsyncThunk(
     }
     info(`Open container file: ${path}`);
     try {
-      const isEpubNovel =
-        (await settingsStore.get<ExperimentalFeaturesSettings>("experimental-features"))?.[
-          "enable-epub-novel-reader"
-        ] && (await determineEpubNovel(path));
+      const isEpubNovel = await determineEpubNovel(path);
 
       let entriesResult;
       if (!isEpubNovel) {

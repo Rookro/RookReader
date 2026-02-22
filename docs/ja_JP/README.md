@@ -40,7 +40,6 @@ RookReader は、zip、rar、pdf 形式の電子書籍ファイルを閲覧す�
 | ファイル名 | インストール手順 |
 | -- | -- |
 | RookReader_x.x.x_x64-setup.exe | ダウンロードし、実行形式のインストーラーを実行します。 |
-| RookReader_x.x.x_x64_xx-XX.msi | ダウンロードし、MSIインストーラーを実行します。 |
 
 ###  Linux
 

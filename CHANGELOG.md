@@ -1,238 +1,253 @@
 # Changelog
 
-このプロジェクトにおけるすべての重要な変更は、このファイルに記録されます。
+[English](CHANGELOG.md) | [日本語](docs/ja_JP/CHANGELOG.md)
 
-フォーマットは [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) に基づいています。  
-また、このプロジェクトは [Semantic Versioning](https://semver.org/spec/v2.0.0.html) に準拠しています。
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [1.9.2] - 2026-02-22
+
+### Changed
+
+* Always enable the EPUB novel reader feature, removing it from experimental features (#135)
+
+### Fixed
+
+* Address Clippy warnings (#133)
+* Fix an issue where some characters in the EPUB reader do not display in vertical writing when run on Linux (#134)
+* Fix an issue where an error may be displayed due to a lack of runtime in a Windows environment (#136)
 
 ## [1.9.1] - 2026-02-15
 
 ### Changed
 
-* エラー発生時に通知を表示する (#125)
-* 大きな画像はリサイズしてパフォーマンスを向上する (#128)
-* 画像読み込み中にプレビュー(サムネイル画像)を表示する (#129)
-* 依存関係を更新 (#130)
+* Display a notification when an error occurs (#125)
+* Resize large images to improve performance (#128)
+* Display a preview (thumbnail image) while loading images (#129)
+* Update dependencies (#130)
 
 ### Fixed
 
-* ページパネルのスクロール動作を start から smart に修正 (#126)
-* ナビゲーションバーのボタンサイズが正方形になるようにスタイルを調整 (#127)
+* Fix the page panel scroll behavior from `start` to `smart` (#126)
+* Adjust the style of the navigation bar buttons to be square (#127)
 
 ## [1.9.0] - 2026-02-08
 
 ### Added
 
-* 左パネルを閉じる機能を追加 (#109)
-* EPUB 形式の書庫に対応 (#110, #113, #117, #118)
-* アプリの書体を変更できるようにする (#120)
+* Add a feature to close the left panel (#109)
+* Support EPUB format archives (#110, #113, #117, #118)
+* Allow changing the app's font (#120)
 
 ### Changed
 
-* ウィンドウリサイズで左パネルのサイズが変化しないようにする (#111)
-* Redux のログ出力と履歴取得の処理をリファクタリング (#115)
-* Github Actions にキャッシュを導入し、ビルド時間を短縮する (#116, #119, #122)
+* Prevent the left panel size from changing upon window resize (#111)
+* Refactor Redux log output and history retrieval processes (#115)
+* Introduce caching to GitHub Actions to reduce build time (#116, #119, #122)
 
 ### Fixed
 
-* ログ設定が一部反映できていなかった不具合を修正 (#114)
-* リストのスクロールが適切にされない場合がある不具合を修正 (#121)
+* Fix a bug where some log settings were not reflected (#114)
+* Fix a bug where the list may not scroll properly (#121)
 
 ## [1.8.0] - 2026-01-12
 
 ### Added
 
-* 履歴機能を追加 (#98)
-* ファイル更新監視機能の有効/無効切り替え機能を追加 (#100)
+* Add a history feature (#98)
+* Add a feature to toggle file update monitoring on/off (#100)
 
 ### Changed
 
-* 設定画面のデザイン変更 (#101)
-* フロントエンド側にリンタ―とフォーマッターを導入 (#102)
-* 依存関係の更新 (#103)
+* Change the design of the settings screen (#101)
+* Introduce a linter and formatter to the frontend (#102)
+* Update dependencies (#103)
 
 ### Fixed
 
-* 不要な再描画が発生しないように修正 (#104)
-* windowsで発生するfaviconのエラーを解消 (#105)
-* 言語設定で国コードがない場合にも対応 (#106)
+* Fix to prevent unnecessary re-rendering (#104)
+* Resolve the favicon error that occurs on Windows (#105)
+* Handle cases where there is no country code in the language settings (#106)
 
 ## [1.7.1] - 2025-12-31
 
 ### Fixed
 
-* コードリファクタリング (#90)
-* 設定画面のタブの順番を修正 (#91)
-* 画像の事前読み込みのパフォーマンスを改善 (#92)
+* Code refactoring (#90)
+* Fix the tab order on the settings screen (#91)
+* Improve the performance of image preloading (#92)
 
 ## [1.7.0] - 2025-12-13
 
 ### Changed
 
-* ファイルナビゲーターの検索で、スペース区切りの文字で AND 検索するように変更 (#85)
-* ファイル更新時に自動的にファイルナビゲーターの表示を更新する (#87)
+* Change the file navigator search to perform an AND search with space-separated characters (#85)
+* Automatically update the file navigator display when a file is updated (#87)
 
 ### Fixed
 
-* サイズの大きいファイルを読み込んだ際に読み込み完了までフリーズする問題を修正 (#83)
-* 画像の転送が遅く表示に時間がかかる問題を修正 (#83)
-* Github Actions の build-app-actions の権限を適切に設定 (#84)
+* Fix an issue of freezing until loading is complete when a large file is loaded (#83)
+* Fix an issue where image transfer is slow and takes time to display (#83)
+* Appropriately set permissions for `build-app-actions` in GitHub Actions (#84)
 
 ## [1.6.0] - 2025-12-07
 
 ### Added
 
-* 多言語対応(英語, 日本語) (#71)
-* ファイルナビゲーターのホームのパスを変更する機能を追加 (#73)
-* 最初のページを 1 ページ表示する機能を追加 (#77)
+* Multi-language support (English, Japanese) (#71)
+* Add a feature to change the home path in the file navigator (#73)
+* Add a feature to display the first page as a single page (#77)
 
 ### Changed
 
-* PKGBUILD を改善し、deb ファイルを Github の Releases からダウンロードするように変更 (#75)
-* バックエンド(Rust)のユニットテストを追加 (#76)
-* PDF のレンダリングに利用するクレートを [pdfium-render](https://crates.io/crates/pdfium-render) に変更 (#78)
-* Rust の依存ライブラリ―のバージョンを更新 (#79)
-* ページの事前読み込みを別スレッドで実施するように変更 (#80)
+* Improve PKGBUILD and change to download the deb file from GitHub Releases (#75)
+* Add backend (Rust) unit tests (#76)
+* Change the crate used for PDF rendering to [pdfium-render](https://crates.io/crates/pdfium-render) (#78)
+* Update versions of Rust dependency libraries (#79)
+* Change to perform page preloading on a separate thread (#80)
 
 ## [1.5.2] - 2025-11-28
 
 ### Added
 
-* ファイルナビゲーターのホームディレクトリーを変更可能にする (#73)
+* Allow changing the home directory in the file navigator (#73)
 
 ### Changed
 
-* 左ペインのリストで非対応の拡張子のファイルを表示しないように変更 (#58)
-* 自然な並びで書庫内のファイルを表示するように変更 (#60)
-* デザインの調整とコードリファクタリング (#62)
-  * MUI コンポネントを基本的に利用し、CSS ではなく sx でスタイルを指定する
-  * コメントと README を英語に変更
-* サードパーティーライブラリーの扱いを改善 (#63)
-  * 同梱するライブラリーをビルド時にダウンロードするように変更
-  * ライセンスファイルを同梱し、About ページから見れるように変更
-* スクロールバーをテーマに応じたデザインにする (#64)
-* About ページにプロジェクトページのリンクを追加 (#65) 
-* README に簡単な使用方法を追記 (#66)
+* Change to hide unsupported extension files in the left pane list (#58)
+* Change to display files in the archive in a natural order (#60)
+* Design adjustments and code refactoring (#62)
+  * Primarily use MUI components and specify styles with `sx` instead of CSS
+  * Change comments and README to English
+* Improve handling of third-party libraries (#63)
+  * Change to download bundled libraries at build time
+  * Bundle the license file and make it viewable from the About page
+* Design scrollbars according to the theme (#64)
+* Add a link to the project page on the About page (#65)
+* Add simple usage instructions to the README (#66)
 
 ## [1.5.1] - 2025-11-23
 
 ### Changed
 
-* 左ペインのリスト内のアイテム数が多い場合の描画パフォーマンスを向上 (#53)
+* Improve rendering performance when there are many items in the left pane list (#53)
 
 ### Fixed
 
-* ダークモード時に左ペインのリストでホバー中のアイテムの色が見にくいのを改善 (#53)
-* ディレクトリーや書庫ファイル変更時にエラーが発生する場合がある不具合を修正 (#54)
+* Improve the visibility of the hovered item's color in the left pane list during dark mode (#53)
+* Fix a bug where an error may occur when changing a directory or archive file (#54)
 
 ## [1.5.0] - 2025-11-22
 
 ### Added
 
-* ディレクトリーを書庫として開く機能を追加 (#44)
-* 開発者用に、ログディレクトリーのパスの表示とログディレクトリーを開く機能を追加 (#46)
-* サイドバーを追加し、書庫内の画像一覧表示を追加 (#48)
-* 設定画面から PDF レンダリングの画像の高さを設定できる機能を追加 (#49)
+* Add a feature to open a directory as an archive (#44)
+* Add a feature for developers to display the log directory path and open the log directory (#46)
+* Add a sidebar to display a list of images in the archive (#48)
+* Add a feature to set the height of PDF rendering images from the settings screen (#49)
 
 ### Changed
 
-* ボタンホバー時にアウトラインを表示しないように変更 (#48)
-* パネルサイズを永続化するように変更 (#50)
+* Change to not display an outline when hovering over a button (#48)
+* Change to persist the panel size (#50)
 
 ### Fixed
 
-* img タグの src に空文字を指定してエラーが発生する不具合を修正 (#48)
+* Fix a bug where an error occurs when specifying an empty string in the `src` of an `img` tag (#48)
 
 ## [1.4.0] - 2025-11-13
 
 ### Added
 
-* ファイルリストでソート基準と順番を変更できる機能を追加 (#38)
+* Add a feature to change the sort criteria and order in the file list (#38)
 
 ### Changed
 
-* ファイルリストで開いているファイルが表示される位置までスクロールするように変更 (#40)
-* パフォーマンスを改善 (#41)
+* Change the file list to scroll to the position where the opened file is displayed (#40)
+* Improve performance (#41)
 
 ### Fixed
 
-* テキスト入力ボックスで右クリックメニューが開かない不具合を修正 (#39)
-* ドラッグアンドドロップやパス指定でファイルを開いた場合にファイルリストで選択状態にならない不具合を修正 (#40)
-* 先頭ページが横長の場合にページを戻ると先頭ページが表示されない不具合を修正 (#41)
+* Fix a bug where the right-click menu does not open in the text input box (#39)
+* Fix a bug where files are not selected in the file list when opened via drag-and-drop or path specification (#40)
+* Fix a bug where returning to the previous page does not display the first page if the first page is landscape (#41)
 
 ## [1.3.4] - 2025-11-08
 
 ### Fixed
 
-*  linux で slider が表示されない不具合を修正 (#35)
+* Fix a bug where the slider is not displayed on Linux (#35)
 
 ## [1.3.3] - 2025-11-08
 
 ### Changed
 
-* 左ペインの幅をドラッグで変更可能にする (#31)
-* 依存ライブラリのバージョンを更新 (#32)
+* Make the width of the left pane resizable by dragging (#31)
+* Update dependency library versions (#32)
 
 ### Fixed
 
-* ページ番号/ページ数 の表示場所が下にずれているのを修正 (#31)
+* Fix the display position of "page number / total pages" shifting downwards (#31)
 
 ## [1.3.2] - 2025-10-12
 
 ### Changed
 
-* ファイルリストでファイルとディレクトリーが区別できるようにアイコンを表示する (#25)
-* ファイルリストを常に名前の昇順で表示する (#26)
+* Display icons in the file list to distinguish between files and directories (#25)
+* Always display the file list in ascending alphabetical order (#26)
 
 ### Fixed
 
-* RTL 表示でスライダーのマークとトラックがずれる問題の修正 (#25)
+* Fix the issue where slider marks and tracks are misaligned in RTL display (#25)
 
 ## [1.3.1] - 2025-10-11
 
 ### Changed
 
-* PKGBUILD でインストール可能にする (#22)
+* Make it installable via PKGBUILD (#22)
 
 ## [1.3.0] - 2025-10-08
 
 ### Added
 
-* 設定画面と設定ファイル機能の追加 (#17)
-* RAR 形式の書庫に対応 (#19)
+* Add settings screen and settings file feature (#17)
+* Support RAR format archives (#19)
 
 ### Fixed
 
-* 自動見開き表示された後のページ移動で意図しないページになる不具合の修正 (#16)
-* コンテキストメニューの表示を抑制する (#18)
+* Fix a bug where page navigation after automatic two-page spread display goes to an unintended page (#16)
+* Suppress the display of the context menu (#18)
 
 ## [1.2.0] - 2025-09-23
 
 ### Added
 
-* 矢印キーでページ送りする機能を追加 (#11)
-* サーチ機能の追加 (#12)
-* 戻る/進む(履歴)機能を追加 (#13)
+* Add a feature to navigate pages with arrow keys (#11)
+* Add a search feature (#12)
+* Add back/forward (history) features (#13)
 
 ## [1.1.0] - 2025-09-22
 
 ### Added
 
-* 画像のプリロード機能を追加 (#8)
+* Add an image preload feature (#8)
 
 ## [1.0.0] - 2025-09-20
 
 ### Added
 
-* 画像ビューアー機能を追加 (#1)
-* ロギング機能の追加 (#2)
-* PDF ビューア―機能を実装 (#3)
-* 自動見開き表示機能の追加 (#4)
-* ホイールの上下によるページ送り機能を追加 (#5)
+* Add an image viewer feature (#1)
+* Add a logging feature (#2)
+* Implement a PDF viewer feature (#3)
+* Add an automatic two-page spread display feature (#4)
+* Add a page navigation feature using the mouse wheel up/down (#5)
 
-[unreleased]: https://github.com/Rookro/RookReader/compare/v1.9.1...HEAD
+[unreleased]: https://github.com/Rookro/RookReader/compare/v1.9.2...HEAD
+[1.9.2]: https://github.com/Rookro/RookReader/compare/v1.9.1...v1.9.2
 [1.9.1]: https://github.com/Rookro/RookReader/compare/v1.9.0...v1.9.1
 [1.9.0]: https://github.com/Rookro/RookReader/compare/v1.8.0...v1.9.0
 [1.8.0]: https://github.com/Rookro/RookReader/compare/v1.7.1...v1.8.0

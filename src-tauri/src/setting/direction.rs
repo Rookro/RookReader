@@ -6,17 +6,13 @@ use strum_macros::EnumString;
 /// Represents the reading direction of the content, e.g., for books or comics.
 #[derive(Debug, PartialEq, EnumString)]
 #[strum(serialize_all = "snake_case")]
+#[derive(Default)]
 pub enum Direction {
     /// Right-to-Left reading direction, common for manga and some scripts.
-    RTL,
+    #[default]
+    Rtl,
     /// Left-to-Right reading direction, standard for most Western languages.
-    LTR,
-}
-
-impl Default for Direction {
-    fn default() -> Self {
-        Self::RTL
-    }
+    Ltr,
 }
 
 impl From<Value> for Direction {
@@ -31,8 +27,8 @@ impl From<Value> for Direction {
 impl Display for Direction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::RTL => write!(f, "RTL"),
-            Self::LTR => write!(f, "LTR"),
+            Self::Rtl => write!(f, "RTL"),
+            Self::Ltr => write!(f, "LTR"),
         }
     }
 }

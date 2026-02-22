@@ -9,7 +9,7 @@ use rbook::{
 use scraper::{Html, Selector};
 
 use crate::{
-    container::{container::Container, image::Image},
+    container::{image::Image, traits::Container},
     error::{Error, Result},
 };
 
@@ -27,13 +27,13 @@ impl Container for EpubContainer {
         &self.entries
     }
 
-    fn get_image(&self, entry: &String) -> Result<Arc<Image>> {
+    fn get_image(&self, entry: &str) -> Result<Arc<Image>> {
         let mut epub = Epub::options().strict(false).open(&self.path)?;
         let image = load_image(&mut epub, entry)?;
         Ok(image)
     }
 
-    fn get_thumbnail(&self, entry: &String) -> Result<Arc<Image>> {
+    fn get_thumbnail(&self, entry: &str) -> Result<Arc<Image>> {
         let mut epub = Epub::options().strict(false).open(&self.path)?;
         create_thumbnail(&mut epub, entry)
     }
@@ -62,18 +62,14 @@ impl EpubContainer {
     /// # Errors
     ///
     /// Returns an `Err` if the EPUB file cannot be opened or its contents cannot be parsed.
-    pub fn new(path: &String) -> Result<Self> {
-        let mut epub = Epub::options().strict(false).open(&path)?;
+    pub fn new(path: &str) -> Result<Self> {
+        let mut epub = Epub::options().strict(false).open(path)?;
         let mut entries: Vec<String> = epub
             .manifest()
             .images()
             .filter_map(|manifest| {
                 if manifest.resource_kind().is_image() {
-                    if let Some(key) = manifest.key() {
-                        Some(key.to_string())
-                    } else {
-                        None
-                    }
+                    manifest.key().map(|key| key.to_string())
                 } else {
                     None
                 }
@@ -87,7 +83,7 @@ impl EpubContainer {
         }
 
         Ok(Self {
-            path: path.clone(),
+            path: path.to_string(),
             entries,
         })
     }
@@ -115,12 +111,12 @@ impl EpubContainer {
         }) else {
             return true;
         };
-        return layout != "pre-paginated";
+        layout != "pre-paginated"
     }
 }
 
 /// Helper function to find and load an image resource from the EPUB.
-fn load_image(epub: &mut Epub, entry: &String) -> Result<Arc<Image>> {
+fn load_image(epub: &mut Epub, entry: &str) -> Result<Arc<Image>> {
     let Some(resource) = epub
         .manifest()
         .images()
@@ -137,7 +133,7 @@ fn load_image(epub: &mut Epub, entry: &String) -> Result<Arc<Image>> {
 }
 
 /// Helper function to find, load, and create a thumbnail for an image resource.
-fn create_thumbnail(epub: &mut Epub, entry: &String) -> Result<Arc<Image>> {
+fn create_thumbnail(epub: &mut Epub, entry: &str) -> Result<Arc<Image>> {
     let Some(resource) = epub
         .manifest()
         .images()
@@ -221,9 +217,7 @@ fn create_image_order_map(epub: &mut Epub) -> Option<HashMap<String, usize>> {
 /// Finds a resource's manifest ID by its file path within the EPUB.
 fn find_resource_id_by_path(epub: &Epub, target_path: &Path) -> Option<String> {
     epub.manifest().images().find_map(|image| {
-        let Some(image_key) = image.key() else {
-            return None;
-        };
+        let image_key = image.key()?;
 
         let image_path = Path::new(image_key);
         if target_path == image_path || target_path.file_name() == image_path.file_name() {
@@ -361,7 +355,7 @@ mod tests {
             ],
         );
 
-        let container = EpubContainer::new(&epub_path.to_string_lossy().to_string())
+        let container = EpubContainer::new(epub_path.to_string_lossy().as_ref())
             .expect("failed to create EpubContainer");
 
         assert_eq!(container.entries.len(), 2);
@@ -389,7 +383,7 @@ mod tests {
             ],
         );
 
-        let container = EpubContainer::new(&epub_path.to_string_lossy().to_string())
+        let container = EpubContainer::new(epub_path.to_string_lossy().as_ref())
             .expect("failed to create EpubContainer");
 
         assert_eq!(container.entries.len(), 2);
@@ -415,7 +409,7 @@ mod tests {
             ],
         );
 
-        let container = EpubContainer::new(&epub_path.to_string_lossy().to_string())
+        let container = EpubContainer::new(epub_path.to_string_lossy().as_ref())
             .expect("failed to create EpubContainer");
         assert!(container.entries.is_empty());
     }
@@ -446,7 +440,7 @@ mod tests {
             ],
         );
 
-        let container = EpubContainer::new(&epub_path.to_string_lossy().to_string()).unwrap();
+        let container = EpubContainer::new(epub_path.to_string_lossy().as_ref()).unwrap();
         let entries = container.get_entries();
 
         assert_eq!(entries.len(), 2);
@@ -472,11 +466,11 @@ mod tests {
                 ("OEBPS/images/cover.png", DUMMY_PNG_DATA),
             ],
         );
-        let container = EpubContainer::new(&epub_path.to_string_lossy().to_string())
+        let container = EpubContainer::new(epub_path.to_string_lossy().as_ref())
             .expect("failed to create EpubContainer");
 
         let image = container
-            .get_image(&String::from("image1"))
+            .get_image("image1")
             .expect("get_image should succeed for existing image");
         assert_eq!(image.width, 1);
         assert_eq!(image.height, 1);
@@ -499,8 +493,8 @@ mod tests {
                 ("OEBPS/images/image1.png", DUMMY_PNG_DATA),
             ],
         );
-        let container = EpubContainer::new(&epub_path.to_string_lossy().to_string()).unwrap();
-        let result = container.get_image(&String::from("non_existent_image"));
+        let container = EpubContainer::new(epub_path.to_string_lossy().as_ref()).unwrap();
+        let result = container.get_image("non_existent_image");
         assert!(result.is_err());
     }
 }

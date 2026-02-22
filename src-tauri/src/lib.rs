@@ -1,6 +1,6 @@
 use std::sync::Mutex;
 
-use crate::setting::setting::Settings;
+use crate::setting::core::Settings;
 
 mod commands;
 mod container;
@@ -42,7 +42,7 @@ pub fn run() {
         Ok(()) => {}
         Err(e) => log::error!(
             "Error has occurred while running tauri application. Error: {}",
-            e.to_string()
+            e
         ),
     };
 }

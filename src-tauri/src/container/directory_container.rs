@@ -8,7 +8,7 @@ use std::{
 use image::{codecs::jpeg::JpegEncoder, ImageReader};
 
 use crate::{
-    container::{container::Container, image::Image},
+    container::{image::Image, traits::Container},
     error::{Error, Result},
 };
 
@@ -25,12 +25,12 @@ impl Container for DirectoryContainer {
         &self.entries
     }
 
-    fn get_image(&self, entry: &String) -> Result<Arc<Image>> {
+    fn get_image(&self, entry: &str) -> Result<Arc<Image>> {
         let image_arc = load_image(&self.path, entry)?;
         Ok(image_arc)
     }
 
-    fn get_thumbnail(&self, entry: &String) -> Result<Arc<Image>> {
+    fn get_thumbnail(&self, entry: &str) -> Result<Arc<Image>> {
         create_thumbnail(&self.path, entry)
     }
 
@@ -56,7 +56,7 @@ impl DirectoryContainer {
     ///
     /// Returns an `Err` if the directory cannot be read or if a file entry
     /// has a name that cannot be converted to a string.
-    pub fn new(path: &String) -> Result<Self> {
+    pub fn new(path: &str) -> Result<Self> {
         let dir_entries = read_dir(path)?;
 
         let mut entries: Vec<String> = Vec::new();
@@ -81,14 +81,14 @@ impl DirectoryContainer {
         entries.sort_by(|a, b| natord::compare_ignore_case(a, b));
 
         Ok(Self {
-            path: path.clone(),
-            entries: entries,
+            path: path.to_string(),
+            entries,
         })
     }
 }
 
 /// Helper function to load an image file from disk.
-fn load_image(path: &String, entry: &String) -> Result<Arc<Image>> {
+fn load_image(path: &str, entry: &str) -> Result<Arc<Image>> {
     let file_path = path::Path::new(&path).join(entry);
     let mut buffer = Vec::new();
     File::open(file_path)?.read_to_end(&mut buffer)?;
@@ -97,7 +97,7 @@ fn load_image(path: &String, entry: &String) -> Result<Arc<Image>> {
 }
 
 /// Helper function to create a JPEG thumbnail for an image file.
-fn create_thumbnail(path: &String, entry: &String) -> Result<Arc<Image>> {
+fn create_thumbnail(path: &str, entry: &str) -> Result<Arc<Image>> {
     let file_path = path::Path::new(&path).join(entry);
     let mut buffer = Vec::new();
     File::open(file_path)?.read_to_end(&mut buffer)?;
@@ -158,7 +158,7 @@ mod tests {
         create_dummy_image(dir.path(), "test2.jpg");
         fs::File::create(dir.path().join("test.txt")).expect("failed to create test.txt"); // Not supported
 
-        let container = DirectoryContainer::new(&dir.path().to_string_lossy().to_string())
+        let container = DirectoryContainer::new(dir.path().to_string_lossy().as_ref())
             .expect("failed to create DirectoryContainer");
 
         assert_eq!(container.entries.len(), 2);
@@ -169,7 +169,7 @@ mod tests {
     #[test]
     fn test_new_empty_directory() {
         let dir = tempdir().expect("failed to create tempdir");
-        let container = DirectoryContainer::new(&dir.path().to_string_lossy().to_string())
+        let container = DirectoryContainer::new(dir.path().to_string_lossy().as_ref())
             .expect("failed to create DirectoryContainer");
         assert!(container.entries.is_empty());
     }
@@ -187,7 +187,7 @@ mod tests {
         create_dummy_image(dir.path(), "a.png");
         create_dummy_image(dir.path(), "b.jpg");
 
-        let container = DirectoryContainer::new(&dir.path().to_string_lossy().to_string())
+        let container = DirectoryContainer::new(dir.path().to_string_lossy().as_ref())
             .expect("failed to create DirectoryContainer");
         let entries = container.get_entries();
 
@@ -208,7 +208,7 @@ mod tests {
             create_dummy_image(dir.path(), file);
         }
 
-        let container = DirectoryContainer::new(&dir.path().to_string_lossy().to_string())
+        let container = DirectoryContainer::new(dir.path().to_string_lossy().as_ref())
             .expect("failed to create DirectoryContainer");
         let entries = container.get_entries();
 
@@ -224,11 +224,11 @@ mod tests {
     fn test_get_image_existing() {
         let dir = tempdir().expect("failed to create tempdir");
         create_dummy_image(dir.path(), "test.png");
-        let container = DirectoryContainer::new(&dir.path().to_string_lossy().to_string())
+        let container = DirectoryContainer::new(dir.path().to_string_lossy().as_ref())
             .expect("failed to create DirectoryContainer");
 
         let image = container
-            .get_image(&String::from("test.png"))
+            .get_image("test.png")
             .expect("get_image should succeed for existing image");
         assert_eq!(image.width, 1);
         assert_eq!(image.height, 1);
@@ -237,9 +237,9 @@ mod tests {
     #[test]
     fn test_get_image_non_existing() {
         let dir = tempdir().expect("failed to create tempdir");
-        let container = DirectoryContainer::new(&dir.path().to_string_lossy().to_string())
+        let container = DirectoryContainer::new(dir.path().to_string_lossy().as_ref())
             .expect("failed to create DirectoryContainer");
-        let result = container.get_image(&String::from("non_existent.png"));
+        let result = container.get_image("non_existent.png");
         assert!(result.is_err());
     }
 }

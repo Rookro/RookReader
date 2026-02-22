@@ -82,6 +82,6 @@ export interface RenderingSettings {
  * Experimental features settings.
  */
 export interface ExperimentalFeaturesSettings {
-  /** Enable epub novel reader feature. */
-  "enable-epub-novel-reader": boolean;
+  /** To avoid empty interface .*/
+  dummy?: never;
 }

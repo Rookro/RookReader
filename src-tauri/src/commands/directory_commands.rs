@@ -1,7 +1,7 @@
 use std::fs::read_dir;
 use tauri::ipc::Response;
 
-use crate::container::container::Container;
+use crate::container::traits::Container;
 use crate::error::{Error, Result};
 
 /// Reads the contents of a directory and returns a list of its entries.
@@ -31,7 +31,7 @@ use crate::error::{Error, Result};
 /// * An entry's file name contains invalid UTF-8.
 /// * Filesystem metadata for an entry cannot be accessed.
 #[tauri::command()]
-pub async fn get_entries_in_dir(dir_path: String) -> Result<Response> {
+pub async fn get_entries_in_dir(dir_path: &str) -> Result<Response> {
     log::debug!("Get the directory entries in {}", dir_path);
     let mut buffer = Vec::new();
     for entry in read_dir(dir_path)? {
@@ -115,13 +115,13 @@ mod tests {
 
     // Helper to get bytes from tauri::ipc::Response
     fn get_bytes_from_response(response: tauri::ipc::Response) -> Vec<u8> {
-        return response.body().unwrap().deserialize::<Vec<u8>>().unwrap();
+        response.body().unwrap().deserialize::<Vec<u8>>().unwrap()
     }
 
     #[tokio::test]
     async fn test_get_entries_in_dir_empty_directory() {
         let temp_dir = TempDir::new().unwrap();
-        let result = get_entries_in_dir(temp_dir.path().to_string_lossy().to_string())
+        let result = get_entries_in_dir(temp_dir.path().to_string_lossy().as_ref())
             .await
             .unwrap();
         let bytes = get_bytes_from_response(result);
@@ -134,7 +134,7 @@ mod tests {
         let sub_dir_path = temp_dir.path().join("subdir");
         fs::create_dir(&sub_dir_path).unwrap();
 
-        let result = get_entries_in_dir(temp_dir.path().to_string_lossy().to_string())
+        let result = get_entries_in_dir(temp_dir.path().to_string_lossy().as_ref())
             .await
             .unwrap();
         let bytes = get_bytes_from_response(result);
@@ -150,7 +150,7 @@ mod tests {
         let file_path = temp_dir.path().join("test.zip");
         fs::File::create(&file_path).unwrap();
 
-        let result = get_entries_in_dir(temp_dir.path().to_string_lossy().to_string())
+        let result = get_entries_in_dir(temp_dir.path().to_string_lossy().as_ref())
             .await
             .unwrap();
         let bytes = get_bytes_from_response(result);
@@ -166,7 +166,7 @@ mod tests {
         let file_path = temp_dir.path().join("test.txt");
         fs::File::create(&file_path).unwrap();
 
-        let result = get_entries_in_dir(temp_dir.path().to_string_lossy().to_string())
+        let result = get_entries_in_dir(temp_dir.path().to_string_lossy().as_ref())
             .await
             .unwrap();
         let bytes = get_bytes_from_response(result);
@@ -177,7 +177,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_entries_in_dir_nonexistent_directory() {
-        let result = get_entries_in_dir("/nonexistent/path/that/does/not/exist".to_string()).await;
+        let result = get_entries_in_dir("/nonexistent/path/that/does/not/exist").await;
 
         assert!(result.is_err());
     }
@@ -195,7 +195,7 @@ mod tests {
         // Create unsupported file
         fs::File::create(temp_dir.path().join("document.txt")).unwrap();
 
-        let result = get_entries_in_dir(temp_dir.path().to_string_lossy().to_string())
+        let result = get_entries_in_dir(temp_dir.path().to_string_lossy().as_ref())
             .await
             .unwrap();
         let bytes = get_bytes_from_response(result);
@@ -215,7 +215,7 @@ mod tests {
         let file_path = temp_dir.path().join("test.zip");
         fs::File::create(&file_path).unwrap();
 
-        let result = get_entries_in_dir(temp_dir.path().to_string_lossy().to_string())
+        let result = get_entries_in_dir(temp_dir.path().to_string_lossy().as_ref())
             .await
             .unwrap();
         let bytes = get_bytes_from_response(result);

@@ -50,59 +50,6 @@ pub struct Settings {
 
 #[allow(dead_code)]
 impl Settings {
-    /// Creates a new `Settings` instance with the specified values.
-    ///
-    /// # Arguments
-    ///
-    /// * `font_family` - The font family to use.
-    /// * `direction` - The reading direction.
-    /// * `enable_directory_watch` - Whether to enable directory watching.
-    /// * `experimental_features` - Settings for experimental features.
-    /// * `first_page_single_view` - Whether to show the first page alone.
-    /// * `history` - Settings for history.
-    /// * `home_directory` - The application's home directory.
-    /// * `log` - Settings for logging.
-    /// * `novel_reader` - Settings for the novel reader.
-    /// * `rendering` - Settings for rendering.
-    /// * `sort_order` - The sort order for files.
-    /// * `theme` - The application theme.
-    /// * `two_paged` - Whether to use a two-page layout.
-    ///
-    /// # Returns
-    ///
-    /// A new instance of `Settings`.
-    pub fn new(
-        font_family: String,
-        direction: Direction,
-        enable_directory_watch: bool,
-        experimental_features: ExperimentalFeaturesSettings,
-        first_page_single_view: bool,
-        history: HistorySettings,
-        home_directory: String,
-        log: LogSettings,
-        novel_reader: NovelReaderSettings,
-        rendering: RenderingSettings,
-        sort_order: SortOrder,
-        theme: AppTheme,
-        two_paged: bool,
-    ) -> Self {
-        Self {
-            font_family,
-            direction,
-            enable_directory_watch,
-            experimental_features,
-            first_page_single_view,
-            history,
-            home_directory,
-            log,
-            novel_reader,
-            rendering,
-            sort_order,
-            theme,
-            two_paged,
-        }
-    }
-
     /// Loads the application settings from a persistent storage file.
     ///
     /// This function reads settings from the `tauri-plugin-store`. If a setting is
@@ -123,25 +70,22 @@ impl Settings {
     pub fn load(app: &App, filename: &str) -> Result<Self> {
         let store = app.store(filename)?;
 
-        return Ok(Self {
+        Ok(Self {
             font_family: store
                 .get("font-family")
-                .and_then(|value| match value.as_str() {
-                    Some(value) => Some(value.to_string()),
-                    None => None,
-                })
+                .and_then(|value| value.as_str().map(|value| value.to_string()))
                 .unwrap_or("Inter, Avenir, Helvetica, Arial, sans-serif".to_string()),
             direction: store
                 .get("direction")
-                .and_then(|value| Some(value.into()))
-                .unwrap_or(Direction::LTR),
+                .map(|value| value.into())
+                .unwrap_or(Direction::Ltr),
             enable_directory_watch: store
                 .get("enable-directory-watch")
                 .and_then(|value| value.as_bool())
                 .unwrap_or(false),
             experimental_features: store
                 .get("experimental-features")
-                .and_then(|value| Some(value.into()))
+                .map(|value| value.into())
                 .unwrap_or_default(),
             first_page_single_view: store
                 .get("first-page-single-view")
@@ -149,14 +93,11 @@ impl Settings {
                 .unwrap_or(true),
             history: store
                 .get("history")
-                .and_then(|value| Some(value.into()))
+                .map(|value| value.into())
                 .unwrap_or_default(),
             home_directory: store
                 .get("home-directory")
-                .and_then(|value| match value.as_str() {
-                    Some(value) => Some(value.to_string()),
-                    None => None,
-                })
+                .and_then(|value| value.as_str().map(|value| value.to_string()))
                 .unwrap_or(
                     app.path()
                         .home_dir()
@@ -166,29 +107,29 @@ impl Settings {
                 ),
             log: store
                 .get("log")
-                .and_then(|value| Some(value.into()))
+                .map(|value| value.into())
                 .unwrap_or_default(),
             novel_reader: store
                 .get("novel-reader")
-                .and_then(|value| Some(value.into()))
+                .map(|value| value.into())
                 .unwrap_or_default(),
             rendering: store
                 .get("rendering")
-                .and_then(|value| Some(value.into()))
+                .map(|value| value.into())
                 .unwrap_or_default(),
             sort_order: store
                 .get("sort-order")
-                .and_then(|value| Some(value.into()))
+                .map(|value| value.into())
                 .unwrap_or(SortOrder::NameAsc),
             theme: store
                 .get("theme")
-                .and_then(|value| Some(value.into()))
+                .map(|value| value.into())
                 .unwrap_or(AppTheme::System),
             two_paged: store
                 .get("two-paged")
                 .and_then(|value| value.as_bool())
                 .unwrap_or(true),
-        });
+        })
     }
 }
 
@@ -196,7 +137,7 @@ impl Default for Settings {
     fn default() -> Self {
         Self {
             font_family: "Inter, Avenir, Helvetica, Arial, sans-serif".to_string(),
-            direction: Direction::LTR,
+            direction: Direction::default(),
             enable_directory_watch: false,
             experimental_features: ExperimentalFeaturesSettings::default(),
             first_page_single_view: true,
@@ -205,8 +146,8 @@ impl Default for Settings {
             log: LogSettings::default(),
             novel_reader: NovelReaderSettings::default(),
             rendering: RenderingSettings::default(),
-            sort_order: SortOrder::NameAsc,
-            theme: AppTheme::System,
+            sort_order: SortOrder::default(),
+            theme: AppTheme::default(),
             two_paged: true,
         }
     }
