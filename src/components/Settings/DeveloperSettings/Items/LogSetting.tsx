@@ -87,8 +87,8 @@ export default function LogSetting() {
           variant="standard"
           value={logLevel}
           onChange={handleLogLevelChanged}
-          sx={{ minWidth: 80 }}
           size="small"
+          autoWidth
         >
           <MenuItem value="Trace">{t("settings.developer.log.log-level.trace")}</MenuItem>
           <MenuItem value="Debug">{t("settings.developer.log.log-level.debug")}</MenuItem>

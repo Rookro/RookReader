@@ -60,7 +60,7 @@ export default function FontFamilySetting() {
         value={currentFont}
         onChange={handleFontFamilyChanged}
         size="small"
-        sx={{ minWidth: 200 }}
+        autoWidth
       >
         <MenuItem value={defaultFont}>
           {t("settings.general.font-family.default-font-name")}

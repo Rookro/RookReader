@@ -83,7 +83,7 @@ export default function ImageResizeMethodSetting() {
         value={currentMethod}
         onChange={handleMethodChanged}
         size="small"
-        sx={{ minWidth: 330 }}
+        autoWidth
       >
         {resizeMethods.map((method) => (
           <MenuItem key={method} value={method}>

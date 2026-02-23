@@ -39,8 +39,8 @@ export default function LanguageSetting() {
         variant="standard"
         value={language}
         onChange={handleLanguageChanged}
-        sx={{ minWidth: 100 }}
         size="small"
+        autoWidth
       >
         <MenuItem value="en-US">{t("settings.general.language.english")}</MenuItem>
         <MenuItem value="ja-JP">{t("settings.general.language.japanese")}</MenuItem>
