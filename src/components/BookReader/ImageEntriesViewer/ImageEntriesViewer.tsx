@@ -3,10 +3,10 @@ import { useDispatch } from "react-redux";
 import { List, RowComponentProps, useListCallbackRef } from "react-window";
 import { Box, Typography } from "@mui/material";
 import { debug, error } from "@tauri-apps/plugin-log";
-import { useAppSelector, AppDispatch } from "../../Store";
-import { setImageIndex } from "../../reducers/FileReducer";
+import { useAppSelector, AppDispatch } from "../../../Store";
+import { setImageIndex } from "../../../reducers/FileReducer";
 import { ItemRow } from "./ItemRow";
-import SidePanelHeader from "../SidePane/SidePanelHeader";
+import SidePanelHeader from "../../SidePane/SidePanelHeader";
 import { useTranslation } from "react-i18next";
 
 /**

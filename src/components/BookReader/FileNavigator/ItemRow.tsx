@@ -1,7 +1,7 @@
 import { CSSProperties, memo } from "react";
 import { ListItem, ListItemButton, ListItemText, Tooltip } from "@mui/material";
 import { FolderOutlined } from "@mui/icons-material";
-import { DirEntry } from "../../types/DirEntry";
+import { DirEntry } from "../../../types/DirEntry";
 
 /**
  * Row component for the file navigator.

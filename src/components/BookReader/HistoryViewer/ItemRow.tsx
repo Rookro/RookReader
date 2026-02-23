@@ -11,9 +11,9 @@ import {
 } from "@mui/material";
 import { FolderOutlined } from "@mui/icons-material";
 import { useTranslation } from "react-i18next";
-import { HistoryEntry } from "../../types/HistoryEntry";
-import { useAppDispatch } from "../../Store";
-import { deleteHistory } from "../../reducers/HistoryReducer";
+import { HistoryEntry } from "../../../types/HistoryEntry";
+import { useAppDispatch } from "../../../Store";
+import { deleteHistory } from "../../../reducers/HistoryReducer";
 
 /**
  * Row component for the history viewer.

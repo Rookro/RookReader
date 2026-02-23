@@ -1,5 +1,4 @@
-import React, { useEffect } from "react";
-import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
+import React, { useCallback, useEffect } from "react";
 import { IconButton, OutlinedInput, Toolbar } from "@mui/material";
 import {
   ArrowBack,
@@ -10,7 +9,7 @@ import {
   SwitchLeft,
   SwitchRight,
 } from "@mui/icons-material";
-import { debug, error } from "@tauri-apps/plugin-log";
+import { debug } from "@tauri-apps/plugin-log";
 import { Direction } from "../../types/DirectionType";
 import { settingsStore } from "../../settings/SettingsStore";
 import { useAppDispatch, useAppSelector } from "../../Store";
@@ -20,6 +19,7 @@ import {
   setContainerFilePath,
 } from "../../reducers/FileReducer";
 import { setDirection, setIsTwoPagedView } from "../../reducers/ViewReducer";
+import { openSettingsWindow } from "../../utils/WindowOpener";
 
 /**
  * Navigation bar component.
@@ -48,36 +48,28 @@ export default function NavigationBar() {
     }
   };
 
-  const handleBackClicked = (_e: React.MouseEvent<HTMLButtonElement>) => {
-    dispatch(goBackContainerHistory());
-  };
+  const handleBackClicked = useCallback(
+    (_e: React.MouseEvent<HTMLButtonElement>) => {
+      dispatch(goBackContainerHistory());
+    },
+    [dispatch],
+  );
 
-  const handleForwardClicked = (_e: React.MouseEvent<HTMLButtonElement>) => {
-    dispatch(goForwardContainerHistory());
-  };
+  const handleForwardClicked = useCallback(
+    (_e: React.MouseEvent<HTMLButtonElement>) => {
+      dispatch(goForwardContainerHistory());
+    },
+    [dispatch],
+  );
 
-  const handleSettingsClicked = async (_e: React.MouseEvent<HTMLButtonElement>) => {
+  const handleSettingsClicked = useCallback(async (_e: React.MouseEvent<HTMLButtonElement>) => {
     debug("handleSettingsClicked");
-    try {
-      const settingsWindow = new WebviewWindow("settings", {
-        url: "/#/settings",
-        title: "Settings",
-        parent: "main",
-        width: 800,
-        height: 400,
-        resizable: true,
-        center: true,
-      });
+    openSettingsWindow();
+  }, []);
 
-      return settingsWindow;
-    } catch (ex) {
-      error(`Failed to open settings window. ${JSON.stringify(ex)}`);
-    }
-  };
-
-  const handleContextMenu = (e: React.MouseEvent<HTMLElement>) => {
+  const handleContextMenu = useCallback((e: React.MouseEvent<HTMLElement>) => {
     e.stopPropagation();
-  };
+  }, []);
 
   useEffect(() => {
     const initViewSettings = async () => {

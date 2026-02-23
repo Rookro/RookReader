@@ -5,14 +5,14 @@ import { Box, InputAdornment, OutlinedInput, Stack, Typography } from "@mui/mate
 import { Search } from "@mui/icons-material";
 import { debug, error } from "@tauri-apps/plugin-log";
 import { ItemRow } from "./ItemRow";
-import { HistoryEntry } from "../../types/HistoryEntry";
-import { setContainerFilePath } from "../../reducers/FileReducer";
-import { useAppDispatch, useAppSelector } from "../../Store";
-import { useHistorySelection } from "../../hooks/useHistorySelection";
-import { andSearch } from "../../utils/HistoryViewerUtils";
+import { HistoryEntry } from "../../../types/HistoryEntry";
+import { setContainerFilePath } from "../../../reducers/FileReducer";
+import { useAppDispatch, useAppSelector } from "../../../Store";
+import { useHistorySelection } from "../../../hooks/useHistorySelection";
+import { andSearch } from "../../../utils/HistoryViewerUtils";
 
-import SidePanelHeader from "../SidePane/SidePanelHeader";
-import { useHistoryEntriesUpdater } from "../../hooks/useHistoryEntriesUpdater";
+import SidePanelHeader from "../../SidePane/SidePanelHeader";
+import { useHistoryEntriesUpdater } from "../../../hooks/useHistoryEntriesUpdater";
 
 /**
  * History viewer component.

@@ -13,16 +13,16 @@ import {
   SelectChangeEvent,
   Stack,
 } from "@mui/material";
-import { AppDispatch, useAppSelector } from "../../Store";
+import { AppDispatch, useAppSelector } from "../../../Store";
 import {
   goBackExplorerHistory,
   goForwardExplorerHistory,
   updateExploreBasePath,
   setSearchText,
   setSortOrder,
-} from "../../reducers/FileReducer";
-import { SortOrder } from "../../types/SortOrderType";
-import { settingsStore } from "../../settings/SettingsStore";
+} from "../../../reducers/FileReducer";
+import { SortOrder } from "../../../types/SortOrderType";
+import { settingsStore } from "../../../settings/SettingsStore";
 import { warn } from "@tauri-apps/plugin-log";
 
 /**
