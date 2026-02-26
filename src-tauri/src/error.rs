@@ -17,7 +17,6 @@ use zip::result::ZipError;
 #[strum_discriminants(name(ErrorCode))]
 #[strum_discriminants(derive(Serialize))]
 #[strum_discriminants(serde(rename_all = "camelCase"))]
-#[allow(dead_code)]
 pub enum Error {
     // 1xxxx: Container Processing
     /// An error for unsupported container formats (e.g., trying to open a .txt file).
@@ -72,12 +71,18 @@ pub enum Error {
     // 5xxxx: Application Settings
     /// An error related to application settings.
     #[error("Settings Error: {0}")]
+    #[allow(dead_code)]
     Settings(String),
 
     // 6xxxx: Application Logic & State
     /// An error indicating a failure to lock a Mutex.
     #[error("Mutex Error: {0}")]
     Mutex(String),
+
+    // 7xxxx: Database & Storage
+    /// An error related to database operations.
+    #[error("Database Error: {0}")]
+    Database(#[from] sqlx::Error),
 
     // 9xxxx: Unexpected Errors
     /// A general-purpose error for miscellaneous or unexpected issues.
@@ -126,6 +131,9 @@ impl ErrorCode {
 
             // 6xxxx: Application Logic & State
             ErrorCode::Mutex => 60001,
+
+            // 7xxxx: Database & Storage
+            ErrorCode::Database => 70001,
 
             // 9xxxx: Unexpected Errors
             ErrorCode::Other => 90001,

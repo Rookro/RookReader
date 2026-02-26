@@ -1,16 +1,12 @@
 import { Middleware } from "@reduxjs/toolkit";
-import { HistoryTable } from "../database/historyTable";
 import { error } from "@tauri-apps/plugin-log";
 import { debounce } from "@mui/material";
+import { upsertHistory } from "../bindings/HistoryCommands";
 
-let historyTable: HistoryTable | null = null;
 const debouncedHistoryUpdate = debounce(
   async (filePath: string, type: "DIRECTORY" | "FILE", index: number) => {
-    if (!historyTable) {
-      historyTable = new HistoryTable();
-    }
     try {
-      await historyTable.upsert(filePath, type, index);
+      await upsertHistory(filePath, type, index);
     } catch (e) {
       error(`History update failed (${filePath}:${index}): ${e}`);
     }

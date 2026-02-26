@@ -9,9 +9,9 @@ export type HistoryEntry = {
   /** Whether it's a file or a directory */
   type: "FILE" | "DIRECTORY";
   /** Display name of the history entry */
-  display_name: string;
+  displayName: string;
   /** The index of page */
-  page_index: number;
+  pageIndex: number;
   /** Timestamp of the last time the entry was opened */
-  last_opened_at: string;
+  lastOpenedAt: string;
 };

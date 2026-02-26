@@ -1,11 +1,14 @@
 use chrono::Local;
 use image::imageops::FilterType;
 use log::debug;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use tauri::{App, Manager, Theme};
 use tauri_plugin_log::{RotationStrategy, Target, TargetKind};
 
 use crate::{
+    database::history::{
+        history_repository::HistoryRepository, sqlite_history_repository::SqliteHistoryRepository,
+    },
     error,
     setting::{app_theme::AppTheme, core::Settings, log_settings::LogSettings},
 };
@@ -26,6 +29,7 @@ use crate::{
 pub fn setup(app: &App, settings: &Settings) -> error::Result<()> {
     setup_logger(app, &settings.log)?;
     set_theme(app, &settings.theme);
+    setup_database(app)?;
 
     setup_container_settings(app, settings)?;
 
@@ -128,6 +132,20 @@ fn set_theme(app: &App, app_theme: &AppTheme) {
     };
 
     app.set_theme(theme);
+}
+
+/// Helper function to initialize the database for the application.
+fn setup_database(app: &App) -> error::Result<()> {
+    let app_data_dir = app.path().app_data_dir()?;
+    let db_path = app_data_dir.join("history.db");
+    let history_repo = tauri::async_runtime::block_on(async {
+        SqliteHistoryRepository::init(db_path)
+            .await
+            .map(|repo| Arc::new(repo) as Arc<dyn HistoryRepository>)
+    })?;
+
+    app.manage(history_repo);
+    Ok(())
 }
 
 /// Helper function to locate the directory containing bundled dynamic libraries.

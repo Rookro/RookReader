@@ -74,7 +74,7 @@ export const ItemRow = memo(function ItemRow({
         title={
           <>
             <Typography variant="inherit">{entry.path}</Typography>
-            <Typography variant="inherit">{entry.last_opened_at}</Typography>
+            <Typography variant="inherit">{entry.lastOpenedAt}</Typography>
           </>
         }
         followCursor
@@ -87,7 +87,7 @@ export const ItemRow = memo(function ItemRow({
             key={index}
             sx={{ padding: "4px 8px" }}
           >
-            <ListItemText primary={entry.display_name} slotProps={{ primary: { noWrap: true } }} />
+            <ListItemText primary={entry.displayName} slotProps={{ primary: { noWrap: true } }} />
             {entry.type === "DIRECTORY" ? <FolderOutlined fontSize="small" /> : <></>}
           </ListItemButton>
         </ListItem>

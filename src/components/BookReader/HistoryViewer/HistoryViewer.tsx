@@ -84,7 +84,7 @@ export default function HistoryViewer() {
     const entry = entries[index];
     return (
       <ItemRow
-        key={entry.display_name}
+        key={entry.displayName}
         entry={entry}
         index={index}
         selected={selectedIndex === index}

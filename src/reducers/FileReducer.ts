@@ -7,12 +7,9 @@ import { AppDispatch, RootState } from "../Store";
 import { DirEntry } from "../types/DirEntry";
 import { SortOrder } from "../types/SortOrderType";
 import { convertEntriesInDir } from "../utils/DirEntryUtils";
-import { HistoryTable } from "../database/historyTable";
 import { upsertHistory } from "./HistoryReducer";
 import { CommandError, ErrorCode } from "../types/Error";
-
-const historyTable = new HistoryTable();
-await historyTable.init();
+import { getHistory } from "../bindings/HistoryCommands";
 
 export const createAppAsyncThunk = createAsyncThunk.withTypes<{
   state: RootState;
@@ -55,21 +52,13 @@ export const openContainerFile = createAppAsyncThunk(
         upsertHistory({ path: path, type: entriesResult?.is_directory ? "DIRECTORY" : "FILE" }),
       );
 
-      let lastPageIndex = 0;
-      try {
-        lastPageIndex = await historyTable.selectPageIndex(path);
-      } catch (e) {
-        // This exception is expected when opening the path for the first time.
-        debug(
-          `Failed to select page index for ${path}. Error: ${e} (This is expected when opening the path for the first time.)`,
-        );
-      }
+      const history = await getHistory(path);
 
       return {
         entries: entriesResult?.entries,
         isDirectory: entriesResult?.is_directory ?? false,
         isNovel: isEpubNovel,
-        latestPageIndex: lastPageIndex,
+        latestPageIndex: history?.pageIndex ?? 0,
       };
     } catch (e) {
       const errorMessage = `Failed to openContainerFile(${path}). Error: ${JSON.stringify(e)}`;

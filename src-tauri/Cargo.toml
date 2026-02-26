@@ -35,7 +35,7 @@ tauri-plugin-log = "2"
 log = "0.4"
 image = "0.25"
 tauri-plugin-os = "2"
-chrono = "0.4.43"
+chrono = { version = "0.4.43", features = ["serde"] }
 unrar = "0.5.8"
 natord = "1.0.9"
 tauri-plugin-dialog = "2"
@@ -44,12 +44,13 @@ threadpool = "1.8.1"
 thiserror = "2.0.18"
 num_cpus = "1.17.0"
 dashmap = "6.1.0"
-tauri-plugin-sql = { version = "2", features = ["sqlite"] }
 rbook = "0.6.12"
 scraper = "0.25.0"
 font-kit = "0.14.3"
 strum = "0.27.2"
 strum_macros = "0.27.2"
+sqlx = { version = "0.8.6", features = ["sqlite", "runtime-tokio-native-tls", "chrono"] }
+async-trait = "0.1.89"
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-window-state = "2"

@@ -28,3 +28,6 @@ PKGBUILD/pkg/
 PKGBUILD/src/
 PKGBUILD/*.deb
 PKGBUILD/*.pkg.tar.zst
+
+# sqlite database file
+*.db

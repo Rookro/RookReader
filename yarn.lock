@@ -830,7 +830,7 @@
   resolved "https://registry.yarnpkg.com/@standard-schema/utils/-/utils-0.3.0.tgz#3d5e608f16c2390c10528e98e59aef6bf73cae7b"
   integrity sha512-e7Mew686owMaPJVNNLs55PUvgz371nKgwsc4vxE49zsODpJEnxgxRo2y/OKrqueavXgZNMDVj3DdHFlaSAeU8g==
 
-"@tauri-apps/api@^2.10.0", "@tauri-apps/api@^2.10.1", "@tauri-apps/api@^2.8.0":
+"@tauri-apps/api@^2.10.0", "@tauri-apps/api@^2.8.0":
   version "2.10.1"
   resolved "https://registry.yarnpkg.com/@tauri-apps/api/-/api-2.10.1.tgz#57c1bae6114ec33d977eb2b50dfefc25fa84fc93"
   integrity sha512-hKL/jWf293UDSUN09rR69hrToyIXBb8CjGaWC7gfinvnQrBVvnLr08FeFi38gxtugAVyVcTa5/FD/Xnkb1siBw==
@@ -941,13 +941,6 @@
   integrity sha512-n+nXWeuSeF9wcEsSPmRnBEGrRgOy6jjkSU+UVCOV8YUGKb2erhDOxis7IqRXiRVHhY8XMKks00BJ0OAdkpf6+A==
   dependencies:
     "@tauri-apps/api" "^2.8.0"
-
-"@tauri-apps/plugin-sql@~2":
-  version "2.3.2"
-  resolved "https://registry.yarnpkg.com/@tauri-apps/plugin-sql/-/plugin-sql-2.3.2.tgz#7b351d396818549e0fc71275206471a0e779a4dc"
-  integrity sha512-4VDXhcKXVpyh5KKpnTGAn6q2DikPHH+TXGh9ZDQzULmG/JEz1RDvzQStgBJKddiukRbYEZ8CGIA2kskx+T+PpA==
-  dependencies:
-    "@tauri-apps/api" "^2.10.1"
 
 "@tauri-apps/plugin-store@~2.4.1":
   version "2.4.2"

@@ -1,17 +1,17 @@
-import { Explore, History, PhotoLibrary } from "@mui/icons-material";
 import { Box, debounce, Stack, SxProps, Theme } from "@mui/material";
-import { error } from "@tauri-apps/plugin-log";
-import { Allotment } from "allotment";
+import { Explore, History, PhotoLibrary } from "@mui/icons-material";
 import { JSX, lazy, useEffect, useMemo, useRef } from "react";
 import { useDispatch } from "react-redux";
+import { error } from "@tauri-apps/plugin-log";
+import { Allotment } from "allotment";
 import { setPdfRenderingHeight } from "../../bindings/ContainerCommands";
-import { HistoryTable } from "../../database/historyTable";
 import { useFileDrop } from "../../hooks/useFileDrop";
 import { openContainerFile, setContainerFilePath } from "../../reducers/FileReducer";
 import { setEnablePreview, setIsFirstPageSingleView } from "../../reducers/ViewReducer";
 import { settingsStore } from "../../settings/SettingsStore";
 import { AppDispatch, useAppSelector } from "../../Store";
 import { HistorySettings, RenderingSettings } from "../../types/Settings";
+import { getLatestHistory } from "../../bindings/HistoryCommands";
 
 const SideTabs = lazy(() => import("../SidePane/SideTabs"));
 const SidePanels = lazy(() => import("../SidePane/SidePanels"));
@@ -98,9 +98,7 @@ export default function BookReader({ sx }: BookReaderProps) {
       const historyEnabled = historySettings?.enable ?? true;
       const restoreLastContainer = historySettings?.["restore-last-container-on-startup"] ?? true;
       if (historyEnabled && restoreLastContainer) {
-        const historyTable = new HistoryTable();
-        await historyTable.init();
-        const latestEntry = await historyTable.selectLatestLastOpenedAt();
+        const latestEntry = await getLatestHistory();
         if (latestEntry) {
           dispatch(setContainerFilePath(latestEntry.path));
         }
