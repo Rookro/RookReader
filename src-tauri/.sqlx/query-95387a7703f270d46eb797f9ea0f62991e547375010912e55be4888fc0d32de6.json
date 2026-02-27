@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                    INSERT INTO history (path, type, display_name, page_index, last_opened_at)\n                    VALUES ($1, $2, $3, 0, CURRENT_TIMESTAMP)\n                    ON CONFLICT(path) DO UPDATE SET last_opened_at = CURRENT_TIMESTAMP;\n                    ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "95387a7703f270d46eb797f9ea0f62991e547375010912e55be4888fc0d32de6"
+}

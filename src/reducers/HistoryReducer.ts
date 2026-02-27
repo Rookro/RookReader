@@ -1,10 +1,12 @@
 import { PayloadAction, createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { error } from "@tauri-apps/plugin-log";
 import { HistoryEntry } from "../types/HistoryEntry";
-import { HistoryTable } from "../database/historyTable";
-
-const historyTable = new HistoryTable();
-await historyTable.init();
+import {
+  getAllHistory,
+  upsertHistory as upsertHistoryCommand,
+  deleteHistory as deleteHistoryCommand,
+  deleteAllHistory,
+} from "../bindings/HistoryCommands";
 
 /** Arguments for upsertHistory function. */
 interface UpsertArgs {
@@ -20,8 +22,8 @@ export const upsertHistory = createAsyncThunk(
   "history/upsertHistory",
   async (upsertArgs: UpsertArgs, { rejectWithValue }) => {
     try {
-      await historyTable.upsert(upsertArgs.path, upsertArgs.type, upsertArgs.index);
-      const entries = await historyTable.selectOrderByLastOpenedAtDesc();
+      await upsertHistoryCommand(upsertArgs.path, upsertArgs.type, upsertArgs.index);
+      const entries = await getAllHistory();
       return entries;
     } catch (e) {
       const errorMessage = `Failed to upsertHistory(${JSON.stringify(upsertArgs)}). Error: ${e}`;
@@ -35,7 +37,7 @@ export const updateHistoryEntries = createAsyncThunk(
   "history/updateHistoryEntries",
   async (_, { rejectWithValue }) => {
     try {
-      const entries = await historyTable.selectOrderByLastOpenedAtDesc();
+      const entries = await getAllHistory();
       return entries;
     } catch (e) {
       const errorMessage = `Failed to updateHistoryEntries(). Error: ${e}`;
@@ -49,8 +51,8 @@ export const deleteHistory = createAsyncThunk(
   "history/deleteHistory",
   async (id: number, { rejectWithValue }) => {
     try {
-      await historyTable.delete(id);
-      const entries = await historyTable.selectOrderByLastOpenedAtDesc();
+      await deleteHistoryCommand(id);
+      const entries = await getAllHistory();
       return entries;
     } catch (e) {
       const errorMessage = `Failed to deleteHistory(${id}). Error: ${e}`;
@@ -64,7 +66,7 @@ export const clearHistory = createAsyncThunk(
   "history/clearHistory",
   async (_, { rejectWithValue }) => {
     try {
-      await historyTable.deleteAll();
+      await deleteAllHistory();
     } catch (e) {
       const errorMessage = `Failed to clearHistory(). Error: ${e}`;
       error(errorMessage);

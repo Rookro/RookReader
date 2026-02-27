@@ -4926,6 +4926,7 @@ dependencies = [
 name = "rook-reader"
 version = "1.9.2"
 dependencies = [
+ "async-trait",
  "chrono",
  "dashmap",
  "flate2",
@@ -4942,6 +4943,7 @@ dependencies = [
  "scraper",
  "serde",
  "serde_json",
+ "sqlx",
  "strum",
  "strum_macros",
  "tar",
@@ -4952,7 +4954,6 @@ dependencies = [
  "tauri-plugin-log",
  "tauri-plugin-opener",
  "tauri-plugin-os",
- "tauri-plugin-sql",
  "tauri-plugin-store",
  "tauri-plugin-window-state",
  "tempfile",
@@ -5640,6 +5641,7 @@ checksum = "ee6798b1838b6a0f69c007c133b8df5866302197e404e8b6ee8ed3e3a5e68dc6"
 dependencies = [
  "base64 0.22.1",
  "bytes",
+ "chrono",
  "crc",
  "crossbeam-queue",
  "either",
@@ -5653,6 +5655,7 @@ dependencies = [
  "indexmap 2.13.0",
  "log",
  "memchr",
+ "native-tls",
  "once_cell",
  "percent-encoding",
  "serde",
@@ -5660,12 +5663,10 @@ dependencies = [
  "sha2",
  "smallvec",
  "thiserror 2.0.18",
- "time",
  "tokio",
  "tokio-stream",
  "tracing",
  "url",
- "uuid",
 ]
 
 [[package]]
@@ -5717,6 +5718,7 @@ dependencies = [
  "bitflags 2.11.0",
  "byteorder",
  "bytes",
+ "chrono",
  "crc",
  "digest",
  "dotenvy",
@@ -5744,9 +5746,7 @@ dependencies = [
  "sqlx-core",
  "stringprep",
  "thiserror 2.0.18",
- "time",
  "tracing",
- "uuid",
  "whoami",
 ]
 
@@ -5760,6 +5760,7 @@ dependencies = [
  "base64 0.22.1",
  "bitflags 2.11.0",
  "byteorder",
+ "chrono",
  "crc",
  "dotenvy",
  "etcetera",
@@ -5783,9 +5784,7 @@ dependencies = [
  "sqlx-core",
  "stringprep",
  "thiserror 2.0.18",
- "time",
  "tracing",
- "uuid",
  "whoami",
 ]
 
@@ -5796,6 +5795,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2d12fe70b2c1b4401038055f90f151b78208de1f9f89a7dbfd41587a10c3eea"
 dependencies = [
  "atoi",
+ "chrono",
  "flume",
  "futures-channel",
  "futures-core",
@@ -5809,10 +5809,8 @@ dependencies = [
  "serde_urlencoded",
  "sqlx-core",
  "thiserror 2.0.18",
- "time",
  "tracing",
  "url",
- "uuid",
 ]
 
 [[package]]
@@ -6314,26 +6312,6 @@ dependencies = [
  "tauri",
  "tauri-plugin",
  "thiserror 2.0.18",
-]
-
-[[package]]
-name = "tauri-plugin-sql"
-version = "2.3.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "27454a5476feb6ea78d74d0f07085fc8a5e97565d7ae825373011fd27ec30303"
-dependencies = [
- "futures-core",
- "indexmap 2.13.0",
- "log",
- "serde",
- "serde_json",
- "sqlx",
- "tauri",
- "tauri-plugin",
- "thiserror 2.0.18",
- "time",
- "tokio",
- "uuid",
 ]
 
 [[package]]

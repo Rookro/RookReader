@@ -11,9 +11,9 @@ import {
 } from "@mui/material";
 import { FolderOutlined } from "@mui/icons-material";
 import { useTranslation } from "react-i18next";
-import { HistoryEntry } from "../../types/HistoryEntry";
-import { useAppDispatch } from "../../Store";
-import { deleteHistory } from "../../reducers/HistoryReducer";
+import { HistoryEntry } from "../../../types/HistoryEntry";
+import { useAppDispatch } from "../../../Store";
+import { deleteHistory } from "../../../reducers/HistoryReducer";
 
 /**
  * Row component for the history viewer.
@@ -74,7 +74,7 @@ export const ItemRow = memo(function ItemRow({
         title={
           <>
             <Typography variant="inherit">{entry.path}</Typography>
-            <Typography variant="inherit">{entry.last_opened_at}</Typography>
+            <Typography variant="inherit">{entry.lastOpenedAt}</Typography>
           </>
         }
         followCursor
@@ -87,7 +87,7 @@ export const ItemRow = memo(function ItemRow({
             key={index}
             sx={{ padding: "4px 8px" }}
           >
-            <ListItemText primary={entry.display_name} slotProps={{ primary: { noWrap: true } }} />
+            <ListItemText primary={entry.displayName} slotProps={{ primary: { noWrap: true } }} />
             {entry.type === "DIRECTORY" ? <FolderOutlined fontSize="small" /> : <></>}
           </ListItemButton>
         </ListItem>

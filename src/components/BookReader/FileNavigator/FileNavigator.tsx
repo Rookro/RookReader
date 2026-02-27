@@ -4,19 +4,19 @@ import { List, RowComponentProps, useListCallbackRef } from "react-window";
 import { Box, CircularProgress, Stack, Typography } from "@mui/material";
 import { join } from "@tauri-apps/api/path";
 import { debug, error } from "@tauri-apps/plugin-log";
-import { useAppSelector, useAppDispatch } from "../../Store";
+import { useAppSelector, useAppDispatch } from "../../../Store";
 import {
   setContainerFilePath,
   setSearchText,
   updateExploreBasePath,
-} from "../../reducers/FileReducer";
-import { andSearch, sortBy } from "../../utils/FileNavigatorUtils";
+} from "../../../reducers/FileReducer";
+import { andSearch, sortBy } from "../../../utils/FileNavigatorUtils";
 import NavBar from "./NavBar";
 import { ItemRow } from "./ItemRow";
-import { DirEntry } from "../../types/DirEntry";
-import { useDirectoryWatcher } from "../../hooks/useDirectoryWatcher";
-import { useFileSelection } from "../../hooks/useFileSelection";
-import SidePanelHeader from "../SidePane/SidePanelHeader";
+import { DirEntry } from "../../../types/DirEntry";
+import { useDirectoryWatcher } from "../../../hooks/useDirectoryWatcher";
+import { useFileSelection } from "../../../hooks/useFileSelection";
+import SidePanelHeader from "../../SidePane/SidePanelHeader";
 
 /**
  * File navigator component.

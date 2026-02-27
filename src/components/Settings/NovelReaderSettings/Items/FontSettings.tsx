@@ -73,7 +73,7 @@ export default function FontSettings() {
           value={currentFont}
           onChange={handleFontChanged}
           size="small"
-          sx={{ minWidth: 200 }}
+          autoWidth
         >
           <MenuItem value={defaultFont}>
             {t("settings.novel-reader.font.default-font-name")}

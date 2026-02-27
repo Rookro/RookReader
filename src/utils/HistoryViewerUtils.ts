@@ -28,7 +28,7 @@ export const andSearch = (entries: HistoryEntry[], query: string) => {
   }
 
   const filtered = entries.filter((entry) => {
-    const lowerCaseName = entry.display_name.toLowerCase();
+    const lowerCaseName = entry.displayName.toLowerCase();
     return keywords.every((keyword) => {
       return lowerCaseName.includes(keyword);
     });
