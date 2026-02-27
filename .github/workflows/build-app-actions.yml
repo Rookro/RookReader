@@ -16,6 +16,8 @@ jobs:
           - platform: "windows-latest"
 
     runs-on: ${{ matrix.platform }}
+    env:
+      SQLX_OFFLINE: true
     steps:
       - name: Checkout merged branch
         uses: actions/checkout@v4

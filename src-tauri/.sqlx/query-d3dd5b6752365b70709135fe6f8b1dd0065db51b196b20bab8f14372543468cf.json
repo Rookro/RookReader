@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            CREATE TABLE IF NOT EXISTS history (\n                id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,\n                path TEXT NOT NULL UNIQUE,\n                type TEXT CHECK(type IN ('FILE', 'DIRECTORY')) NOT NULL,\n                display_name TEXT NOT NULL,\n                page_index INTEGER NOT NULL DEFAULT 0,\n                last_opened_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP\n            );\n            CREATE INDEX IF NOT EXISTS idx_last_opened_at ON history(last_opened_at DESC);\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": []
+  },
+  "hash": "d3dd5b6752365b70709135fe6f8b1dd0065db51b196b20bab8f14372543468cf"
+}
