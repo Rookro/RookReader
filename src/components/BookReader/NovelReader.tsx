@@ -70,7 +70,10 @@ export default function NovelReader({ filePath }: NovelReaderProps) {
         },
         ".introduction": { color: `${theme.palette.text.secondary} !important` },
         ".postscript": { color: `${theme.palette.text.secondary} !important` },
-        ".vrtl": { "font-feature-settings": '"vert"' },
+        // WORKAROUND: Fix incorrect glyph orientation.
+        ...(navigator.userAgent.indexOf("Linux") !== -1
+          ? { ".vrtl": { "font-feature-settings": '"vert"' } }
+          : {}),
       });
     },
     [theme, novel],
