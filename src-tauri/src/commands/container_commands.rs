@@ -30,6 +30,7 @@ pub struct EntriesResult {
 /// # Arguments
 ///
 /// * `path` - The file path to the container to open.
+/// * `enable_preload` - Whether to enable preload of image data.
 /// * `state` - A `tauri::State` holding the application's global `AppState`.
 ///
 /// # Returns
@@ -47,6 +48,7 @@ pub struct EntriesResult {
 #[tauri::command()]
 pub async fn get_entries_in_container(
     path: &str,
+    enable_preload: Option<bool>,
     state: tauri::State<'_, Mutex<AppState>>,
 ) -> Result<EntriesResult> {
     log::debug!("Get the entries in {}", path);
@@ -74,7 +76,11 @@ pub async fn get_entries_in_container(
             .image_loader
             .as_mut()
             .ok_or_else(|| Error::Other("Unexpected error. ImageLoader is empty!".to_string()))?;
-        image_loader.request_preload(0, entries.len())?;
+        if let Some(enable_preload) = enable_preload {
+            if enable_preload {
+                image_loader.request_preload(0, entries.len())?;
+            }
+        }
     }
 
     Ok(EntriesResult {
@@ -457,7 +463,7 @@ mod tests {
         app.manage(Mutex::new(AppState::default()));
 
         let result =
-            get_entries_in_container(rar_path.to_string_lossy().as_ref(), app.state()).await;
+            get_entries_in_container(rar_path.to_string_lossy().as_ref(), None, app.state()).await;
 
         assert!(result.is_ok());
 
@@ -474,7 +480,7 @@ mod tests {
         let app = tauri::test::mock_app();
         app.manage(Mutex::new(AppState::default()));
 
-        let result = get_entries_in_container("non_existent_path", app.state()).await;
+        let result = get_entries_in_container("non_existent_path", None, app.state()).await;
 
         assert!(result.is_err());
     }

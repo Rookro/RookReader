@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            INSERT INTO reading_state (book_id, last_read_page_index, last_opened_at)\n            VALUES (?, 0, ?)\n            ON CONFLICT(book_id) DO UPDATE SET\n                last_opened_at = excluded.last_opened_at\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "21ce8e18c3d632540b6a7a0c61f0e83dec96806da359f72173c72d61b73a0be3"
+}

@@ -79,10 +79,13 @@ pub enum Error {
     #[error("Mutex Error: {0}")]
     Mutex(String),
 
-    // 7xxxx: Database & Storage
+    // 7xxxx: Database
     /// An error related to database operations.
     #[error("Database Error: {0}")]
     Database(#[from] sqlx::Error),
+    /// An error related to database migrations.
+    #[error("Migration Error: {0}")]
+    Migration(#[from] sqlx::migrate::MigrateError),
 
     // 9xxxx: Unexpected Errors
     /// A general-purpose error for miscellaneous or unexpected issues.
@@ -132,8 +135,9 @@ impl ErrorCode {
             // 6xxxx: Application Logic & State
             ErrorCode::Mutex => 60001,
 
-            // 7xxxx: Database & Storage
+            // 7xxxx: Database
             ErrorCode::Database => 70001,
+            ErrorCode::Migration => 70101,
 
             // 9xxxx: Unexpected Errors
             ErrorCode::Other => 90001,

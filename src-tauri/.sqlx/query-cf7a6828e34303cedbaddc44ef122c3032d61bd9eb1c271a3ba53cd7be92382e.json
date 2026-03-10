@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            INSERT INTO books (file_path, item_type, display_name, total_pages, thumbnail_path)\n            VALUES (?, ?, ?, ?, ?)\n            ON CONFLICT(file_path) DO UPDATE SET\n                -- Use ON CONFLICT DO UPDATE SET id = id to always return the ID.\n                file_path = excluded.file_path,\n                thumbnail_path = excluded.thumbnail_path\n            RETURNING id\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "cf7a6828e34303cedbaddc44ef122c3032d61bd9eb1c271a3ba53cd7be92382e"
+}

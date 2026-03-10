@@ -1,15 +1,27 @@
 use chrono::Local;
 use image::imageops::FilterType;
 use log::debug;
-use std::sync::{Arc, Mutex};
+use sqlx::{
+    migrate,
+    sqlite::{SqliteConnectOptions, SqlitePoolOptions},
+    SqlitePool,
+};
+use std::{
+    fs,
+    str::FromStr,
+    sync::{Arc, Mutex},
+};
 use tauri::{App, Manager, Theme};
 use tauri_plugin_log::{RotationStrategy, Target, TargetKind};
 
 use crate::{
-    database::history::{
-        history_repository::HistoryRepository, sqlite_history_repository::SqliteHistoryRepository,
+    database::{
+        book::{BookRepository, SqliteBookRepository},
+        bookshelf::{BookshelfRepository, SqliteBookshelfRepository},
+        series::{SeriesRepository, SqliteSeriesRepository},
+        tag::{SqliteTagRepository, TagRepository},
     },
-    error,
+    error::{self, Error},
     setting::{app_theme::AppTheme, core::Settings, log_settings::LogSettings},
 };
 
@@ -136,15 +148,31 @@ fn set_theme(app: &App, app_theme: &AppTheme) {
 
 /// Helper function to initialize the database for the application.
 fn setup_database(app: &App) -> error::Result<()> {
-    let app_data_dir = app.path().app_data_dir()?;
-    let db_path = app_data_dir.join("history.db");
-    let history_repo = tauri::async_runtime::block_on(async {
-        SqliteHistoryRepository::init(db_path)
-            .await
-            .map(|repo| Arc::new(repo) as Arc<dyn HistoryRepository>)
+    let app_data_dir_path = app.path().app_data_dir()?;
+    fs::create_dir_all(&app_data_dir_path)?;
+    let db_path = app_data_dir_path.join("rook-reader.db");
+    let db_url = format!("sqlite:{}", db_path.display());
+    let options = SqliteConnectOptions::from_str(&db_url)?.create_if_missing(true);
+    log::debug!("Database file path: {:?}", options.get_filename());
+    let pool = tauri::async_runtime::block_on(async {
+        let pool = SqlitePoolOptions::new().connect_with(options).await?;
+        migrate!("./migrations").run(&pool).await?;
+        Ok::<SqlitePool, Error>(pool)
     })?;
 
-    app.manage(history_repo);
+    let book_repository: Arc<dyn BookRepository> =
+        Arc::new(SqliteBookRepository::new(pool.clone()));
+    let bookshelf_repository: Arc<dyn BookshelfRepository> =
+        Arc::new(SqliteBookshelfRepository::new(pool.clone()));
+    let tag_repository: Arc<dyn TagRepository> = Arc::new(SqliteTagRepository::new(pool.clone()));
+    let series_repository: Arc<dyn SeriesRepository> =
+        Arc::new(SqliteSeriesRepository::new(pool.clone()));
+
+    app.manage(book_repository);
+    app.manage(bookshelf_repository);
+    app.manage(tag_repository);
+    app.manage(series_repository);
+
     Ok(())
 }
 

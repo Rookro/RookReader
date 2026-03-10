@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT * FROM history WHERE path = $1",
+  "query": "\n            SELECT id, name, icon_id, created_at\n            FROM bookshelves\n            ORDER BY id ASC\n            ",
   "describe": {
     "columns": [
       {
@@ -9,42 +9,30 @@
         "type_info": "Integer"
       },
       {
-        "name": "path",
+        "name": "name",
         "ordinal": 1,
         "type_info": "Text"
       },
       {
-        "name": "type",
+        "name": "icon_id",
         "ordinal": 2,
         "type_info": "Text"
       },
       {
-        "name": "display_name",
+        "name": "created_at",
         "ordinal": 3,
-        "type_info": "Text"
-      },
-      {
-        "name": "page_index",
-        "ordinal": 4,
-        "type_info": "Integer"
-      },
-      {
-        "name": "last_opened_at",
-        "ordinal": 5,
         "type_info": "Datetime"
       }
     ],
     "parameters": {
-      "Right": 1
+      "Right": 0
     },
     "nullable": [
-      false,
-      false,
       false,
       false,
       false,
       false
     ]
   },
-  "hash": "154db72d91f7ef1b437d31a1930cde3b385bed55290829e711085343a8fcbcb3"
+  "hash": "6faba16a71c77b2ebd1e05a30ca4785f1071e5877fba70740a077b12a98a3dca"
 }
