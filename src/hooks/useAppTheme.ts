@@ -2,6 +2,15 @@ import { useMemo } from "react";
 import { createTheme, useMediaQuery } from "@mui/material";
 import { useAppSelector } from "../Store";
 
+/**
+ * A custom hook that generates and returns a Material UI Theme object.
+ *
+ * The theme is dynamically created based on the user's system preference for dark/light mode
+ * and the application's global font family setting stored in Redux. It also applies global
+ * CSS baseline overrides, including custom scrollbar styling.
+ *
+ * @returns {import("@mui/material").Theme} The customized Material UI theme instance.
+ */
 export function useAppTheme() {
   const prefersDarkMode = useMediaQuery("(prefers-color-scheme: dark)");
   const fontFamily = useAppSelector((state) => state.view.fontFamily);

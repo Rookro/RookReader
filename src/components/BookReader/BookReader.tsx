@@ -1,17 +1,17 @@
 import { Box, debounce, Stack, SxProps, Theme } from "@mui/material";
 import { Explore, History, PhotoLibrary } from "@mui/icons-material";
-import { JSX, lazy, useEffect, useMemo, useRef } from "react";
+import { JSX, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch } from "react-redux";
 import { error } from "@tauri-apps/plugin-log";
 import { Allotment } from "allotment";
 import { setPdfRenderingHeight } from "../../bindings/ContainerCommands";
-import { useFileDrop } from "../../hooks/useFileDrop";
-import { openContainerFile, setContainerFilePath } from "../../reducers/FileReducer";
+import { openContainerFile, setContainerFilePath } from "../../reducers/ReadReducer";
 import { setEnablePreview, setIsFirstPageSingleView } from "../../reducers/ViewReducer";
 import { settingsStore } from "../../settings/SettingsStore";
 import { AppDispatch, useAppSelector } from "../../Store";
 import { HistorySettings, RenderingSettings } from "../../types/Settings";
-import { getLatestHistory } from "../../bindings/HistoryCommands";
+import { getRecentlyReadBooks } from "../../bindings/BookCommands";
+import { useDragDropEvent } from "../../hooks/useDragDropEvent";
 
 const SideTabs = lazy(() => import("../SidePane/SideTabs"));
 const SidePanels = lazy(() => import("../SidePane/SidePanels"));
@@ -36,11 +36,12 @@ export interface BookReaderProps {
  */
 export default function BookReader({ sx }: BookReaderProps) {
   const initialized = useRef(false);
-  const { isHistoryEnabled } = useAppSelector((state) => state.history);
+  const { enableHistory, activeView } = useAppSelector((state) => state.view);
   const { isHidden, tabIndex } = useAppSelector((state) => state.sidePane.left);
-  const { history, historyIndex, isNovel } = useAppSelector((state) => state.file.containerFile);
+  const { history, historyIndex, isNovel } = useAppSelector((state) => state.read.containerFile);
   const dispatch = useDispatch<AppDispatch>();
-  const { droppedFile } = useFileDrop();
+
+  const [droppedFile, setDroppedFile] = useState<string | undefined>(undefined);
 
   const paneSizes = useMemo<number[] | undefined>(() => {
     const storedSizes = localStorage.getItem("book-reader-left-pane-sizes");
@@ -65,17 +66,29 @@ export default function BookReader({ sx }: BookReaderProps) {
     [],
   );
 
+  const handleDropped = useCallback(
+    (paths: string[]) => {
+      if (activeView === "reader") {
+        if (paths && paths.length > 0) {
+          setDroppedFile(paths[0]);
+        }
+      }
+    },
+    [activeView],
+  );
+  useDragDropEvent({ onDrop: handleDropped });
+
   const tabs: { label: string; icon: JSX.Element; panel: JSX.Element }[] = useMemo(() => {
     const tabs = [
       { label: "file-navigator", icon: <Explore />, panel: <FileNavigator /> },
       { label: "image-entries", icon: <PhotoLibrary />, panel: <ImageEntriesViewer /> },
     ];
 
-    if (isHistoryEnabled) {
+    if (enableHistory) {
       tabs.push({ label: "history", icon: <History />, panel: <HistoryViewer /> });
     }
     return tabs;
-  }, [isHistoryEnabled]);
+  }, [enableHistory]);
 
   useEffect(() => {
     if (initialized.current) {
@@ -98,9 +111,10 @@ export default function BookReader({ sx }: BookReaderProps) {
       const historyEnabled = historySettings?.enable ?? true;
       const restoreLastContainer = historySettings?.["restore-last-container-on-startup"] ?? true;
       if (historyEnabled && restoreLastContainer) {
-        const latestEntry = await getLatestHistory();
+        const latestEntry =
+          (await getRecentlyReadBooks()).length > 0 ? (await getRecentlyReadBooks())[0] : null;
         if (latestEntry) {
-          dispatch(setContainerFilePath(latestEntry.path));
+          dispatch(setContainerFilePath(latestEntry.file_path));
         }
       }
 
@@ -118,12 +132,9 @@ export default function BookReader({ sx }: BookReaderProps) {
   }, [containerPath, dispatch]);
 
   useEffect(() => {
-    const handleFileDroped = async () => {
-      if (droppedFile && droppedFile.length > 0) {
-        dispatch(setContainerFilePath(droppedFile));
-      }
-    };
-    handleFileDroped();
+    if (droppedFile && droppedFile.length > 0) {
+      dispatch(setContainerFilePath(droppedFile));
+    }
   }, [droppedFile, dispatch]);
 
   return (

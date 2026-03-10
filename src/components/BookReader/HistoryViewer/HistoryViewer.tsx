@@ -5,30 +5,29 @@ import { Box, InputAdornment, OutlinedInput, Stack, Typography } from "@mui/mate
 import { Search } from "@mui/icons-material";
 import { debug, error } from "@tauri-apps/plugin-log";
 import { ItemRow } from "./ItemRow";
-import { HistoryEntry } from "../../../types/HistoryEntry";
-import { setContainerFilePath } from "../../../reducers/FileReducer";
+import { setContainerFilePath } from "../../../reducers/ReadReducer";
 import { useAppDispatch, useAppSelector } from "../../../Store";
 import { useHistorySelection } from "../../../hooks/useHistorySelection";
 import { andSearch } from "../../../utils/HistoryViewerUtils";
-
 import SidePanelHeader from "../../SidePane/SidePanelHeader";
 import { useHistoryEntriesUpdater } from "../../../hooks/useHistoryEntriesUpdater";
+import { ReadBook } from "../../../types/DatabaseModels";
 
 /**
  * History viewer component.
  */
 export default function HistoryViewer() {
   const { t } = useTranslation();
-  const { history, historyIndex } = useAppSelector((state) => state.file.containerFile);
-  const { entries } = useAppSelector((state) => state.history);
+  const { history, historyIndex } = useAppSelector((state) => state.read.containerFile);
+  const { recentlyReadBooks } = useAppSelector((state) => state.history);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [searchText, setSearchText] = useState("");
   const [list, setList] = useListCallbackRef(null);
   const dispatch = useAppDispatch();
 
   const filteredEntries = useMemo(() => {
-    return andSearch(entries, searchText);
-  }, [entries, searchText]);
+    return andSearch(recentlyReadBooks, searchText);
+  }, [recentlyReadBooks, searchText]);
 
   useHistoryEntriesUpdater();
   useHistorySelection(history[historyIndex], filteredEntries, setSelectedIndex);
@@ -59,9 +58,9 @@ export default function HistoryViewer() {
   }, [selectedIndex, filteredEntries.length, list]);
 
   const handleListItemClicked = useCallback(
-    async (_e: React.MouseEvent<HTMLElement>, entry: HistoryEntry, index: number) => {
+    async (_e: React.MouseEvent<HTMLElement>, entry: ReadBook, index: number) => {
       setSelectedIndex(index);
-      dispatch(setContainerFilePath(entry.path));
+      dispatch(setContainerFilePath(entry.file_path));
     },
     [dispatch],
   );
@@ -79,12 +78,12 @@ export default function HistoryViewer() {
     entries,
     style,
   }: RowComponentProps<{
-    entries: HistoryEntry[];
+    entries: ReadBook[];
   }>) => {
     const entry = entries[index];
     return (
       <ItemRow
-        key={entry.displayName}
+        key={entry.display_name}
         entry={entry}
         index={index}
         selected={selectedIndex === index}
@@ -101,7 +100,7 @@ export default function HistoryViewer() {
         height: "100%",
       }}
     >
-      <SidePanelHeader title={t("app.history-viewer.title")} />
+      <SidePanelHeader title={t("book-reader.history-viewer.title")} />
       <OutlinedInput
         type="search"
         value={searchText}
@@ -125,8 +124,8 @@ export default function HistoryViewer() {
         <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
           <Typography sx={{ overflowWrap: "anywhere" }}>
             {searchText.length > 0
-              ? t("app.history-viewer.no-search-results", { searchText })
-              : t("app.history-viewer.no-history")}
+              ? t("book-reader.history-viewer.no-search-results", { searchText })
+              : t("book-reader.history-viewer.no-history")}
           </Typography>
         </Box>
       ) : (

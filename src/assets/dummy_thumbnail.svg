@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 400" width="100%" height="100%">
+  <rect width="300" height="400" fill="#F7F5F0"/>
+
+  <rect x="0" y="0" width="20" height="400" fill="#EAE6DF"/>
+  <line x1="20" y1="0" x2="20" y2="400" stroke="#DCD7CD" stroke-width="1"/>
+  <line x1="24" y1="0" x2="24" y2="400" stroke="#EAE6DF" stroke-width="1"/>
+
+  <text x="150" y="220" font-family="'Times New Roman', serif" font-size="52" fill="#1F3A4D" text-anchor="middle">No Cover</text>
+</svg>

@@ -4,6 +4,12 @@ import { Image } from "@mui/icons-material";
 
 /**
  * Row component for an image entry.
+ *
+ * @param entry - The image entry to display.
+ * @param index - The index of the entry in the list.
+ * @param selected - Whether the entry is selected.
+ * @param onClick - Optional callback for when the entry is clicked.
+ * @param style - Optional CSS style for the row.
  */
 export const ItemRow = memo(function ItemRow({
   entry,
@@ -16,7 +22,7 @@ export const ItemRow = memo(function ItemRow({
   index: number;
   selected: boolean;
   onClick?: (e: React.MouseEvent<HTMLDivElement>, index: number) => void;
-  style: CSSProperties | undefined;
+  style?: CSSProperties;
 }) {
   return (
     <Tooltip title={entry} followCursor placement="right-start">

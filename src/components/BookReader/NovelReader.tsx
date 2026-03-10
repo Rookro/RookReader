@@ -7,7 +7,7 @@ import { debug, error } from "@tauri-apps/plugin-log";
 import { useAppTheme } from "../../hooks/useAppTheme";
 import { usePageNavigation } from "../../hooks/usePageNavigation";
 import { AppDispatch, useAppSelector } from "../../Store";
-import { setEntries, setNovelLocation } from "../../reducers/FileReducer";
+import { setEntries, setNovelLocation } from "../../reducers/ReadReducer";
 import BundledNotoSerifJP from "../../assets/fonts/NotoSerifJP-VariableFont_wght.woff2";
 import { settingsStore } from "../../settings/SettingsStore";
 import { NovelReaderSettings } from "../../types/Settings";
@@ -33,7 +33,7 @@ export default function NovelReader({ filePath }: NovelReaderProps) {
   const viewerRef = useRef<HTMLDivElement>(null);
   const bookRef = useRef<Book | null>(null);
   const renditionRef = useRef<Rendition | null>(null);
-  const { index, cfi } = useAppSelector((state) => state.file.containerFile);
+  const { index, cfi } = useAppSelector((state) => state.read.containerFile);
   const { direction, novel } = useAppSelector((state) => state.view);
   const dispatch = useDispatch<AppDispatch>();
 

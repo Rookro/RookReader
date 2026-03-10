@@ -1,10 +1,11 @@
 import { useEffect } from "react";
 import { useNotification } from "./Notification/NotificationContext";
 import { useAppSelector, useAppDispatch } from "../Store";
-import { clearContainerFileError, clearExplorerError } from "../reducers/FileReducer";
-import { clearHistoryError } from "../reducers/HistoryReducer";
+import { clearContainerFileError, clearExplorerError } from "../reducers/ReadReducer";
 import { useTranslation } from "react-i18next";
 import { ErrorCode } from "../types/Error";
+import { clearHistoryError } from "../reducers/HistoryReducer";
+import { clearBookshelfError, clearTagError } from "../reducers/BookCollectionReducer";
 
 /**
  * A headless component that listens to Redux error states and triggers UI notifications.
@@ -31,9 +32,11 @@ export default function GlobalErrorListener() {
   const { showNotification } = useNotification();
   const dispatch = useAppDispatch();
 
-  const { error: containerFileError } = useAppSelector((state) => state.file.containerFile);
-  const { error: explorerError } = useAppSelector((state) => state.file.explorer);
+  const { error: containerFileError } = useAppSelector((state) => state.read.containerFile);
+  const { error: explorerError } = useAppSelector((state) => state.read.explorer);
   const { error: historyError } = useAppSelector((state) => state.history);
+  const { error: bookshelfError } = useAppSelector((state) => state.bookCollection.bookshelf);
+  const { error: tagsError } = useAppSelector((state) => state.bookCollection.tag);
 
   useEffect(() => {
     if (containerFileError) {
@@ -58,7 +61,28 @@ export default function GlobalErrorListener() {
       showNotification(t("error-message.common.failed-to-fetch-history"), "error");
       dispatch(clearHistoryError());
     }
-  }, [t, dispatch, containerFileError, explorerError, historyError, showNotification]);
+
+    if (bookshelfError) {
+      // TODO(Rookro): Show appropriate error message according to the error code
+      showNotification(t("error-message.common.bookshelf-error"), "error");
+      dispatch(clearBookshelfError());
+    }
+
+    if (tagsError) {
+      // TODO(Rookro): Show appropriate error message according to the error code
+      showNotification(t("error-message.common.tag-error"), "error");
+      dispatch(clearTagError());
+    }
+  }, [
+    t,
+    dispatch,
+    showNotification,
+    containerFileError,
+    explorerError,
+    historyError,
+    bookshelfError,
+    tagsError,
+  ]);
 
   return null;
 }

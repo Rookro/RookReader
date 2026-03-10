@@ -17,7 +17,7 @@ export default function ComicReader() {
     entries,
     index,
     isLoading: isFileLoading,
-  } = useAppSelector((state) => state.file.containerFile);
+  } = useAppSelector((state) => state.read.containerFile);
   const { isTwoPagedView, direction, isFirstPageSingleView, enablePreview } = useAppSelector(
     (state) => state.view,
   );
