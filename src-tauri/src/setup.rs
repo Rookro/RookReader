@@ -151,10 +151,17 @@ fn set_theme(app: &App, app_theme: &AppTheme) {
 fn setup_database(app: &App) -> error::Result<()> {
     let app_data_dir_path = app.path().app_data_dir()?;
     fs::create_dir_all(&app_data_dir_path)?;
-    let db_path = app_data_dir_path.join("rook-reader.db");
+
+    let db_filename = if cfg!(debug_assertions) {
+        "rook-reader-dev.db"
+    } else {
+        "rook-reader.db"
+    };
+    let db_path = app_data_dir_path.join(db_filename);
     let db_url = format!("sqlite:{}", db_path.display());
     let options = SqliteConnectOptions::from_str(&db_url)?.create_if_missing(true);
     log::debug!("Database file path: {:?}", options.get_filename());
+
     let pool = tauri::async_runtime::block_on(async {
         let pool = SqlitePoolOptions::new().connect_with(options).await?;
         migrate!("./migrations").run(&pool).await?;
