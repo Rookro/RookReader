@@ -38,7 +38,12 @@ use crate::{
 ///
 /// Returns an `Err` if loading the settings or any of the setup sub-routines (e.g., logger setup) fail.
 pub fn setup(app: &App) -> error::Result<()> {
-    let settings = Settings::load(app, "rook-reader_settings.json")?;
+    let settings_filename = if cfg!(debug_assertions) {
+        "rook-reader_settings_dev.json"
+    } else {
+        "rook-reader_settings.json"
+    };
+    let settings = Settings::load(app, settings_filename)?;
 
     setup_logger(app, &settings.log)?;
     set_theme(app, &settings.theme);
