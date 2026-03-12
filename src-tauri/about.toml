@@ -10,5 +10,7 @@ accepted = [
     "Zlib",
     "CC0-1.0",
     "bzip2-1.0.6",
-    "Apache-2.0 WITH LLVM-exception"
+    "Apache-2.0 WITH LLVM-exception",
+    "OpenSSL",
+    "CDLA-Permissive-2.0"
 ]
