@@ -33,17 +33,18 @@ use crate::{
 /// # Arguments
 ///
 /// * `app` - A reference to the Tauri `App` instance.
-/// * `settings` - The application's loaded settings.
 ///
 /// # Errors
 ///
-/// Returns an `Err` if any of the setup sub-routines (e.g., logger setup) fail.
-pub fn setup(app: &App, settings: &Settings) -> error::Result<()> {
+/// Returns an `Err` if loading the settings or any of the setup sub-routines (e.g., logger setup) fail.
+pub fn setup(app: &App) -> error::Result<()> {
+    let settings = Settings::load(app, "rook-reader_settings.json")?;
+
     setup_logger(app, &settings.log)?;
     set_theme(app, &settings.theme);
     setup_database(app)?;
 
-    setup_container_settings(app, settings)?;
+    setup_container_settings(app, &settings)?;
 
     debug!("Application setup completed. Settings: {}", settings);
     Ok(())

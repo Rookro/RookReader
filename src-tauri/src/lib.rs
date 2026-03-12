@@ -1,6 +1,6 @@
 use std::sync::Mutex;
 
-use crate::setting::core::Settings;
+use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
 
 mod commands;
 mod container;
@@ -21,8 +21,14 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .manage(Mutex::new(state::app_state::AppState::default()))
         .setup(|app| {
-            let settings = Settings::load(app, "rook-reader_settings.json")?;
-            setup::setup(app, &settings)?;
+            if let Err(e) = setup::setup(app) {
+                app.dialog()
+                    .message(format!("Initialization failed.\nDetails: {}", e))
+                    .kind(MessageDialogKind::Error)
+                    .title("Rook Reader - Startup Error")
+                    .blocking_show();
+                return Err(e.into());
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
