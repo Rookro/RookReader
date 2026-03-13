@@ -47,7 +47,11 @@ export default function RestoreOnStartupSetting() {
       <ListItemIcon>
         <RestorePageOutlined />
       </ListItemIcon>
-      <ListItemText primary={t("settings.history.restore-toggle.title")} sx={{ marginRight: 3 }} />
+      <ListItemText
+        primary={t("settings.startup.restore-last-read.title")}
+        secondary={t("settings.startup.restore-last-read.description")}
+        sx={{ marginRight: 3 }}
+      />
     </ListItem>
   );
 }

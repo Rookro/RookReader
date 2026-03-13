@@ -113,6 +113,19 @@
         "dark": "ダーク"
       }
     },
+    "startup": {
+      "tab-name": "起動設定",
+      "title": "起動設定",
+      "initial-view": {
+        "title": "起動時の初期ビュー",
+        "reader": "読書画面",
+        "bookshelf": "本棚画面"
+      },
+      "restore-last-read": {
+        "title": "最後に開いていた書籍を起動時に復元する",
+        "description": "履歴機能が無効の場合は、復元されません。"
+      }
+    },
     "page": {
       "tab-name": "ページ",
       "title": "ページ設定",
@@ -134,10 +147,7 @@
       "title": "履歴設定",
       "feature-toggle": {
         "title": "読書履歴機能",
-        "warn-message": "この設定が無効の場合、これ以降の設定オプションは無視されます。"
-      },
-      "restore-toggle": {
-        "title": "前回の最後に開いていた書籍を起動時に復元する"
+        "description": "読書履歴機能を有効にすると、読んだ本の履歴を保存できます。"
       }
     },
     "rendering": {

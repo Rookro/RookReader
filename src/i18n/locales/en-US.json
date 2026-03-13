@@ -113,6 +113,19 @@
         "dark": "Dark"
       }
     },
+    "startup": {
+      "tab-name": "Startup",
+      "title": "Startup Settings",
+      "initial-view": {
+        "title": "Initial View on Startup",
+        "reader": "Reader",
+        "bookshelf": "Bookshelf"
+      },
+      "restore-last-read": {
+        "title": "Restore Last Read Book on Startup",
+        "description": "If history is disabled, this setting will be ignored."
+      }
+    },
     "page": {
       "tab-name": "Page",
       "title": "Page Settings",
@@ -134,10 +147,7 @@
       "title": "History Settings",
       "feature-toggle": {
         "title": "Reading History",
-        "warn-message": "If this setting is disabled, all following configuration options will be ignored."
-      },
-      "restore-toggle": {
-        "title": "Restore last opened book on startup"
+        "description": "When enabled, reading history will be saved for each book you read."
       }
     },
     "rendering": {

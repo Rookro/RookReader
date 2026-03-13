@@ -53,7 +53,7 @@ export default function FeatureToggle() {
       </ListItemIcon>
       <ListItemText
         primary={t("settings.history.feature-toggle.title")}
-        secondary={t("settings.history.feature-toggle.warn-message")}
+        secondary={t("settings.history.feature-toggle.description")}
         sx={{ marginRight: 3 }}
       />
     </ListItem>
