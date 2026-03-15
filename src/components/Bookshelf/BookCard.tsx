@@ -8,7 +8,6 @@ import {
   Stack,
   Chip,
   Tooltip,
-  alpha,
 } from "@mui/material";
 import { BookWithState, Tag } from "../../types/DatabaseModels";
 import { CellComponentProps } from "react-window";
@@ -73,7 +72,6 @@ export default function BookCard({
             width: "100%",
             height: "100%",
             bgcolor: "primary.paper",
-            "&:hover": { boxShadow: 6 },
           }}
         >
           <CardActionArea
@@ -98,7 +96,7 @@ export default function BookCard({
                   component="img"
                   image={imageSrc}
                   alt={book.display_name}
-                  sx={(theme) => ({
+                  sx={{
                     position: "absolute",
                     top: 0,
                     left: 0,
@@ -106,8 +104,7 @@ export default function BookCard({
                     height: "100%",
                     objectPosition: "center center",
                     objectFit: "contain",
-                    filter: `drop-shadow(0px 4px 6px ${alpha(theme.palette.common.black, 0.4)})`,
-                  })}
+                  }}
                 />
                 {bookTags.length > 0 && (
                   <Stack
@@ -130,7 +127,6 @@ export default function BookCard({
                           backgroundColor: tag.color_code,
                           fontSize: "0.65rem",
                           height: "20px",
-                          opacity: 0.9,
                         }}
                       />
                     ))}

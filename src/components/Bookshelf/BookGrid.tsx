@@ -9,6 +9,7 @@ import {
   Paper,
   ListItemIcon,
   ListItemText,
+  debounce,
 } from "@mui/material";
 import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { Grid } from "react-window";
@@ -64,6 +65,14 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
   const [isDeleteBookDialogOpen, setIsDeleteBookDialogOpen] = useState(false);
   const [selectedBookForDelete, setSelectedBookForDelete] = useState<BookWithState | null>(null);
 
+  const debouncedUpdateContainerWidth = useMemo(
+    () =>
+      debounce((currentWidth: number) => {
+        setContainerWidth(currentWidth);
+      }, 100),
+    [],
+  );
+
   const currentGridSize = useMemo(() => GRID_SIZES[gridSize], [gridSize]);
 
   const filteredSortedBooks = useMemo(() => {
@@ -99,13 +108,16 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
 
     const observer = new ResizeObserver((entries) => {
       if (entries.length > 0 && entries[0]) {
-        setContainerWidth(entries[0].contentRect.width);
+        debouncedUpdateContainerWidth(entries[0].contentRect.width);
       }
     });
 
     observer.observe(element);
-    return () => observer.disconnect();
-  }, []);
+    return () => {
+      observer.disconnect();
+      debouncedUpdateContainerWidth.clear();
+    };
+  }, [debouncedUpdateContainerWidth]);
 
   const columnCount =
     containerWidth > 0 ? Math.max(1, Math.floor(containerWidth / currentGridSize.width)) : 1;
