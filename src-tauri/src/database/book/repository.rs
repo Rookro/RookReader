@@ -5,6 +5,7 @@ use crate::database::book::{BookWithState, ReadBook};
 use super::model::{Book, ReadingState};
 
 /// Defines the data access operations for the `Book` aggregate.
+#[cfg_attr(test, mockall::automock)]
 #[async_trait]
 pub trait BookRepository: Send + Sync {
     /// Retrieves a book by its unique ID.

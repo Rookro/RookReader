@@ -123,3 +123,171 @@ pub async fn delete_bookshelf(
     log::debug!("Delete bookshelf. (id:{})", id);
     Ok(repo.delete(id).await?)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::database::bookshelf::MockBookshelfRepository;
+    use crate::error::ErrorCode;
+    use tauri::Manager;
+
+    #[tokio::test]
+    async fn test_create_bookshelf() {
+        let mut mock_repo = MockBookshelfRepository::new();
+        mock_repo
+            .expect_create()
+            .with(
+                mockall::predicate::eq("shelf1"),
+                mockall::predicate::eq("icon1"),
+            )
+            .times(1)
+            .returning(|name, icon_id| {
+                Ok(Bookshelf {
+                    id: 1,
+                    name: name.to_string(),
+                    icon_id: icon_id.to_string(),
+                    created_at: None,
+                })
+            });
+
+        let app = tauri::test::mock_app();
+        app.manage(Arc::new(mock_repo) as Arc<dyn BookshelfRepository>);
+        let state = app.state::<Arc<dyn BookshelfRepository>>();
+
+        let result = create_bookshelf("shelf1".to_string(), "icon1".to_string(), state).await;
+        assert!(result.is_ok());
+        let shelf = result.unwrap();
+        assert_eq!(shelf.id, 1);
+        assert_eq!(shelf.name, "shelf1");
+        assert_eq!(shelf.icon_id, "icon1");
+    }
+
+    #[tokio::test]
+    async fn test_get_all_bookshelves() {
+        let mut mock_repo = MockBookshelfRepository::new();
+        mock_repo.expect_get_all().times(1).returning(|| {
+            Ok(vec![
+                Bookshelf {
+                    id: 1,
+                    name: "shelf1".to_string(),
+                    icon_id: "icon1".to_string(),
+                    created_at: None,
+                },
+                Bookshelf {
+                    id: 2,
+                    name: "shelf2".to_string(),
+                    icon_id: "icon2".to_string(),
+                    created_at: None,
+                },
+            ])
+        });
+
+        let app = tauri::test::mock_app();
+        app.manage(Arc::new(mock_repo) as Arc<dyn BookshelfRepository>);
+        let state = app.state::<Arc<dyn BookshelfRepository>>();
+
+        let result = get_all_bookshelves(state).await;
+        assert!(result.is_ok());
+        let shelves = result.unwrap();
+        assert_eq!(shelves.len(), 2);
+        assert_eq!(shelves[0].id, 1);
+        assert_eq!(shelves[0].name, "shelf1");
+        assert_eq!(shelves[0].icon_id, "icon1");
+        assert_eq!(shelves[1].id, 2);
+        assert_eq!(shelves[1].name, "shelf2");
+        assert_eq!(shelves[1].icon_id, "icon2");
+    }
+
+    #[tokio::test]
+    async fn test_add_book_to_bookshelf() {
+        let mut mock_repo = MockBookshelfRepository::new();
+        mock_repo
+            .expect_add_book_to_bookshelf()
+            .with(mockall::predicate::eq(1), mockall::predicate::eq(2))
+            .times(1)
+            .returning(|_, _| Ok(()));
+
+        let app = tauri::test::mock_app();
+        app.manage(Arc::new(mock_repo) as Arc<dyn BookshelfRepository>);
+        let state = app.state::<Arc<dyn BookshelfRepository>>();
+
+        let result = add_book_to_bookshelf(1, 2, state).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_remove_book_from_bookshelf() {
+        let mut mock_repo = MockBookshelfRepository::new();
+        mock_repo
+            .expect_remove_book_from_bookshelf()
+            .with(mockall::predicate::eq(1), mockall::predicate::eq(2))
+            .times(1)
+            .returning(|_, _| Ok(()));
+
+        let app = tauri::test::mock_app();
+        app.manage(Arc::new(mock_repo) as Arc<dyn BookshelfRepository>);
+        let state = app.state::<Arc<dyn BookshelfRepository>>();
+
+        let result = remove_book_from_bookshelf(1, 2, state).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_delete_bookshelf() {
+        let mut mock_repo = MockBookshelfRepository::new();
+        mock_repo
+            .expect_delete()
+            .with(mockall::predicate::eq(1))
+            .times(1)
+            .returning(|_| Ok(()));
+
+        let app = tauri::test::mock_app();
+        app.manage(Arc::new(mock_repo) as Arc<dyn BookshelfRepository>);
+        let state = app.state::<Arc<dyn BookshelfRepository>>();
+
+        let result = delete_bookshelf(1, state).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_create_bookshelf_error() {
+        let mut mock_repo = MockBookshelfRepository::new();
+        mock_repo
+            .expect_create()
+            .with(
+                mockall::predicate::eq("shelf1"),
+                mockall::predicate::eq("icon1"),
+            )
+            .times(1)
+            .returning(|_, _| Err(sqlx::Error::RowNotFound));
+
+        let app = tauri::test::mock_app();
+        app.manage(Arc::new(mock_repo) as Arc<dyn BookshelfRepository>);
+        let state = app.state::<Arc<dyn BookshelfRepository>>();
+
+        let result = create_bookshelf("shelf1".to_string(), "icon1".to_string(), state).await;
+        assert!(result.is_err());
+        let e = result.unwrap_err();
+        let error_code: ErrorCode = (&e).into();
+        assert_eq!(error_code.code(), 70001);
+    }
+
+    #[tokio::test]
+    async fn test_get_all_bookshelves_error() {
+        let mut mock_repo = MockBookshelfRepository::new();
+        mock_repo
+            .expect_get_all()
+            .times(1)
+            .returning(|| Err(sqlx::Error::PoolTimedOut));
+
+        let app = tauri::test::mock_app();
+        app.manage(Arc::new(mock_repo) as Arc<dyn BookshelfRepository>);
+        let state = app.state::<Arc<dyn BookshelfRepository>>();
+
+        let result = get_all_bookshelves(state).await;
+        assert!(result.is_err());
+        let e = result.unwrap_err();
+        let error_code: ErrorCode = (&e).into();
+        assert_eq!(error_code.code(), 70001);
+    }
+}

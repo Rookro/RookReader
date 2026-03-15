@@ -516,3 +516,203 @@ fn generate_and_save_thumbnail(
         Ok(None)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::database::book::MockBookRepository;
+    use crate::error::ErrorCode;
+    use tauri::Manager;
+
+    #[tokio::test]
+    async fn test_get_book() {
+        let mut mock_repo = MockBookRepository::new();
+        mock_repo
+            .expect_get_by_id()
+            .with(mockall::predicate::eq(1))
+            .times(1)
+            .returning(|id| {
+                Ok(Some(Book {
+                    id,
+                    file_path: "path".to_string(),
+                    item_type: "file".to_string(),
+                    display_name: "name".to_string(),
+                    total_pages: 10,
+                    series_id: None,
+                    series_order: None,
+                    thumbnail_path: None,
+                }))
+            });
+
+        let app = tauri::test::mock_app();
+        app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
+        let state = app.state::<Arc<dyn BookRepository>>();
+
+        let result = get_book(1, state).await;
+        assert!(result.is_ok());
+        let book = result.unwrap();
+        assert!(book.is_some());
+        {
+            let book = book.unwrap();
+            assert_eq!(book.id, 1);
+            assert_eq!(book.file_path, "path");
+            assert_eq!(book.item_type, "file");
+            assert_eq!(book.display_name, "name");
+            assert_eq!(book.total_pages, 10);
+            assert!(book.series_id.is_none());
+            assert!(book.series_order.is_none());
+            assert!(book.thumbnail_path.is_none());
+        }
+    }
+
+    #[tokio::test]
+    async fn test_get_book_by_path() {
+        let mut mock_repo = MockBookRepository::new();
+        mock_repo
+            .expect_get_by_path()
+            .with(mockall::predicate::eq("fake_path"))
+            .times(1)
+            .returning(|path| {
+                Ok(Some(Book {
+                    id: 1,
+                    file_path: path.to_string(),
+                    item_type: "file".to_string(),
+                    display_name: "name".to_string(),
+                    total_pages: 10,
+                    series_id: None,
+                    series_order: None,
+                    thumbnail_path: None,
+                }))
+            });
+
+        let app = tauri::test::mock_app();
+        app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
+        let state = app.state::<Arc<dyn BookRepository>>();
+
+        let result = get_book_by_path("fake_path".to_string(), state).await;
+        assert!(result.is_ok());
+        let book = result.unwrap();
+        assert!(book.is_some());
+        {
+            let book = book.unwrap();
+            assert_eq!(book.id, 1);
+            assert_eq!(book.file_path, "fake_path");
+            assert_eq!(book.item_type, "file");
+            assert_eq!(book.display_name, "name");
+            assert_eq!(book.total_pages, 10);
+            assert!(book.series_id.is_none());
+            assert!(book.series_order.is_none());
+            assert!(book.thumbnail_path.is_none());
+        }
+    }
+
+    #[tokio::test]
+    async fn test_delete_book() {
+        let mut mock_repo = MockBookRepository::new();
+        mock_repo
+            .expect_delete_book()
+            .with(mockall::predicate::eq(1))
+            .times(1)
+            .returning(|_| Ok(()));
+
+        let app = tauri::test::mock_app();
+        app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
+        let state = app.state::<Arc<dyn BookRepository>>();
+
+        let result = delete_book(1, state).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_clear_reading_history() {
+        let mut mock_repo = MockBookRepository::new();
+        mock_repo
+            .expect_clear_reading_history()
+            .with(mockall::predicate::eq(1))
+            .times(1)
+            .returning(|_| Ok(()));
+
+        let app = tauri::test::mock_app();
+        app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
+        let state = app.state::<Arc<dyn BookRepository>>();
+
+        let result = clear_reading_history(1, state).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_clear_all_reading_history() {
+        let mut mock_repo = MockBookRepository::new();
+        mock_repo
+            .expect_clear_all_reading_history()
+            .times(1)
+            .returning(|| Ok(()));
+
+        let app = tauri::test::mock_app();
+        app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
+        let state = app.state::<Arc<dyn BookRepository>>();
+
+        let result = clear_all_reading_history(state).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_get_book_tags() {
+        let mut mock_repo = MockBookRepository::new();
+        mock_repo
+            .expect_get_book_tags()
+            .with(mockall::predicate::eq(1))
+            .times(1)
+            .returning(|_| Ok(vec![1, 2, 3]));
+
+        let app = tauri::test::mock_app();
+        app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
+        let state = app.state::<Arc<dyn BookRepository>>();
+
+        let result = get_book_tags(1, state).await;
+        assert!(result.is_ok());
+        let tags = result.unwrap();
+        assert_eq!(tags.len(), 3);
+        assert_eq!(tags, vec![1, 2, 3]);
+    }
+
+    #[tokio::test]
+    async fn test_get_book_error() {
+        let mut mock_repo = MockBookRepository::new();
+        mock_repo
+            .expect_get_by_id()
+            .with(mockall::predicate::eq(1))
+            .times(1)
+            .returning(|_| Err(sqlx::Error::RowNotFound));
+
+        let app = tauri::test::mock_app();
+        app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
+        let state = app.state::<Arc<dyn BookRepository>>();
+
+        let result = get_book(1, state).await;
+        assert!(result.is_err());
+        let e = result.unwrap_err();
+        let error_code: ErrorCode = (&e).into();
+        assert_eq!(error_code.code(), 70001);
+    }
+
+    #[tokio::test]
+    async fn test_delete_book_error() {
+        let mut mock_repo = MockBookRepository::new();
+        mock_repo
+            .expect_delete_book()
+            .with(mockall::predicate::eq(1))
+            .times(1)
+            .returning(|_| Err(sqlx::Error::PoolTimedOut));
+
+        let app = tauri::test::mock_app();
+        app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
+        let state = app.state::<Arc<dyn BookRepository>>();
+
+        let result = delete_book(1, state).await;
+        assert!(result.is_err());
+        let e = result.unwrap_err();
+        let error_code: ErrorCode = (&e).into();
+        assert_eq!(error_code.code(), 70001);
+    }
+}

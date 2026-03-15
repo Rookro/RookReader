@@ -3,6 +3,7 @@ use async_trait::async_trait;
 use super::model::Tag;
 
 /// Defines the data access operations for the `Tag` aggregate.
+#[cfg_attr(test, mockall::automock)]
 #[async_trait]
 pub trait TagRepository: Send + Sync {
     /// Creates a new tag and returns its complete entity.

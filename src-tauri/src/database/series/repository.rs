@@ -3,6 +3,7 @@ use async_trait::async_trait;
 use super::model::Series;
 
 /// Defines the data access operations for the `Series` aggregate.
+#[cfg_attr(test, mockall::automock)]
 #[async_trait]
 pub trait SeriesRepository: Send + Sync {
     /// Creates a new series.

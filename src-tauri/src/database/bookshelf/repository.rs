@@ -3,6 +3,7 @@ use async_trait::async_trait;
 use super::model::Bookshelf;
 
 /// Defines the data access operations for the `Bookshelf` aggregate.
+#[cfg_attr(test, mockall::automock)]
 #[async_trait]
 pub trait BookshelfRepository: Send + Sync {
     /// Creates a new bookshelf and returns its complete entity.
