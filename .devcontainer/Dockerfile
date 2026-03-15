@@ -42,4 +42,4 @@ RUN echo "export LANG=ja_JP.UTF-8" >> ~/.bashrc &&\
 RUN curl --proto '=https' --tlsv1.2 https://sh.rustup.rs -sSf | sh -s -- -y &&\
     . "$HOME/.cargo/env" && \
     rustup default stable && \
-    cargo install cargo-about
+    cargo install cargo-about sqlx-cli
