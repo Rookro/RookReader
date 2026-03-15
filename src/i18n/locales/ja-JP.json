@@ -1,5 +1,6 @@
 {
-  "app": {
+  "book-reader": {
+    "move-to-bookshelf": "本棚画面に移動する",
     "file-navigator": {
       "title": "ファイルナビゲーター",
       "sort-order": {
@@ -25,6 +26,73 @@
       "no-pages": "表示可能なページがありません。"
     }
   },
+  "bookshelf": {
+    "title": "本棚",
+    "delete": "削除",
+    "remove-book": "本を削除",
+    "collection": {
+      "title": "コレクション",
+      "all-books": "すべての本",
+      "creation": {
+        "title": "コレクションを作成",
+        "name-placeholder": "コレクションの名前を入力してください",
+        "icon-selection-title": "アイコンを選択",
+        "creation-button": "作成",
+        "cancel-button": "キャンセル"
+      }
+    },
+    "tag": {
+      "title": "タグ",
+      "set-tags": "タグを設定",
+      "creation": {
+        "title": "タグを作成",
+        "name-placeholder": "タグ名を入力してください",
+        "color-title": "色を選択",
+        "preview-title": "プレビュー",
+        "preview-name": "プレビュー",
+        "creation-button": "作成",
+        "cancel-button": "キャンセル"
+      },
+      "set": {
+        "title": "タグを設定",
+        "no-tags-available": "利用可能なタグがありません。",
+        "ok-button": "決定",
+        "cancel-button": "キャンセル"
+      }
+    },
+    "search-placeholder": "タイトルで検索...",
+    "no-search-results": "\"{{searchText}}\" に一致する本はありません。",
+    "return-to-reader": "読書に戻る",
+    "grid-size-change": "グリッドサイズを変更",
+    "grid-size": {
+      "small": "小",
+      "medium": "中",
+      "large": "大"
+    },
+    "add-books": "本を追加",
+    "book-addition": {
+      "title": "追加したいファイルを選択してください",
+      "ok-button": "決定",
+      "cancel-button": "キャンセル",
+      "drag-drop": "ファイルをここにドラッグ＆ドロップ",
+      "or": "または",
+      "select-file": "ファイルを選択する",
+      "selected-files": "選択されたファイル ({{count}}):"
+    },
+    "book-deletion": {
+      "title": "本当に削除しますか？",
+      "description": "<bold>「{{bookName}}」</bold>を<bold>「{{bookshelfName}}」</bold>から削除しようとしています。この操作は取り消すことができません。",
+      "cancel-button": "キャンセル",
+      "delete-button": "削除する"
+    },
+    "sort": {
+      "title": "並び替え",
+      "name-asc": "名前 (昇順: A->Z)",
+      "name-desc": "名前 (降順: Z->A)",
+      "date-asc": "日付 (古い順)",
+      "date-desc": "日付 (新しい順)"
+    }
+  },
   "settings": {
     "general": {
       "tab-name": "一般設定",
@@ -43,6 +111,19 @@
         "system": "システム",
         "light": "ライト",
         "dark": "ダーク"
+      }
+    },
+    "startup": {
+      "tab-name": "起動設定",
+      "title": "起動設定",
+      "initial-view": {
+        "title": "起動時の初期ビュー",
+        "reader": "読書画面",
+        "bookshelf": "本棚画面"
+      },
+      "restore-last-read": {
+        "title": "最後に開いていた書籍を起動時に復元する",
+        "description": "履歴機能が無効の場合は、復元されません。"
       }
     },
     "page": {
@@ -66,10 +147,7 @@
       "title": "履歴設定",
       "feature-toggle": {
         "title": "読書履歴機能",
-        "warn-message": "この設定が無効の場合、これ以降の設定オプションは無視されます。"
-      },
-      "restore-toggle": {
-        "title": "前回の最後に開いていた書籍を起動時に復元する"
+        "description": "読書履歴機能を有効にすると、読んだ本の履歴を保存できます。"
       }
     },
     "rendering": {
@@ -152,7 +230,9 @@
     "common": {
       "failed-to-open-container-file": "本が開けませんでした。",
       "failed-to-get-dir-entries": "フォルダーの中身が読み込めませんでした。",
-      "failed-to-fetch-history": "履歴が読み込めませんでした。"
+      "failed-to-fetch-history": "履歴が読み込めませんでした。",
+      "bookshelf-error": "本棚の操作でエラーが発生しました。",
+      "tag-error": "タグの操作でエラーが発生しました。"
     },
     "container": {
       "unsupported-format": "非対応形式です。",

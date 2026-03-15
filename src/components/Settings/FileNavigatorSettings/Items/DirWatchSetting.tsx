@@ -5,7 +5,7 @@ import { emit } from "@tauri-apps/api/event";
 import { debug } from "@tauri-apps/plugin-log";
 import { settingsStore } from "../../../../settings/SettingsStore";
 import { useAppDispatch, useAppSelector } from "../../../../Store";
-import { setIsWatchEnabled } from "../../../../reducers/FileReducer";
+import { setIsWatchEnabled } from "../../../../reducers/ReadReducer";
 import { SettingsChangedEvent } from "../../../../types/SettingsChangedEvent";
 import { PublishedWithChangesOutlined } from "@mui/icons-material";
 
@@ -14,7 +14,7 @@ import { PublishedWithChangesOutlined } from "@mui/icons-material";
  */
 export default function DirWatchSetting() {
   const { t } = useTranslation();
-  const { isWatchEnabled } = useAppSelector((state) => state.file.explorer);
+  const { isWatchEnabled } = useAppSelector((state) => state.read.explorer);
   const dispatch = useAppDispatch();
 
   useEffect(() => {

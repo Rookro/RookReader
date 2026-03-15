@@ -5,6 +5,13 @@ import { DirEntry } from "../../../types/DirEntry";
 
 /**
  * Row component for the file navigator.
+ *
+ * @param entry - The directory entry to display.
+ * @param index - The index of the entry in the list.
+ * @param selected - Whether the entry is selected.
+ * @param onClick - Optional callback for when the entry is clicked.
+ * @param onDoubleClick - Optional callback for when the entry is double-clicked.
+ * @param style - Optional CSS style for the row.
  */
 export const ItemRow = memo(function ItemRow({
   entry,
@@ -19,7 +26,7 @@ export const ItemRow = memo(function ItemRow({
   selected: boolean;
   onClick?: (e: React.MouseEvent<HTMLDivElement>, entry: DirEntry, index: number) => void;
   onDoubleClick?: (e: React.MouseEvent<HTMLDivElement>, entry: DirEntry) => void;
-  style: CSSProperties | undefined;
+  style?: CSSProperties;
 }) {
   return (
     <Tooltip title={entry.name} followCursor placement="right-start">

@@ -4,7 +4,7 @@ import { List, RowComponentProps, useListCallbackRef } from "react-window";
 import { Box, Typography } from "@mui/material";
 import { debug, error } from "@tauri-apps/plugin-log";
 import { useAppSelector, AppDispatch } from "../../../Store";
-import { setImageIndex } from "../../../reducers/FileReducer";
+import { setImageIndex } from "../../../reducers/ReadReducer";
 import { ItemRow } from "./ItemRow";
 import SidePanelHeader from "../../SidePane/SidePanelHeader";
 import { useTranslation } from "react-i18next";
@@ -14,7 +14,7 @@ import { useTranslation } from "react-i18next";
  */
 export default function ImageEntriesViewer() {
   const { t } = useTranslation();
-  const { entries, index } = useAppSelector((state) => state.file.containerFile);
+  const { entries, index } = useAppSelector((state) => state.read.containerFile);
   const dispatch = useDispatch<AppDispatch>();
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [list, setList] = useListCallbackRef(null);
@@ -76,11 +76,11 @@ export default function ImageEntriesViewer() {
 
   return (
     <Box sx={{ width: "100%", height: "100%", display: "grid", alignContent: "start" }}>
-      <SidePanelHeader title={t("app.pages-viewer.title")} />
+      <SidePanelHeader title={t("book-reader.pages-viewer.title")} />
       {entries.length === 0 ? (
         <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
           <Typography sx={{ overflowWrap: "anywhere" }}>
-            {t("app.pages-viewer.no-pages")}
+            {t("book-reader.pages-viewer.no-pages")}
           </Typography>
         </Box>
       ) : (

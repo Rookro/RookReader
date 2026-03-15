@@ -9,7 +9,7 @@ import {
   setContainerFilePath,
   setSearchText,
   updateExploreBasePath,
-} from "../../../reducers/FileReducer";
+} from "../../../reducers/ReadReducer";
 import { andSearch, sortBy } from "../../../utils/FileNavigatorUtils";
 import NavBar from "./NavBar";
 import { ItemRow } from "./ItemRow";
@@ -24,10 +24,10 @@ import SidePanelHeader from "../../SidePane/SidePanelHeader";
 export default function FileListViewer() {
   const { t } = useTranslation();
   const { history, historyIndex, entries, searchText, sortOrder, isLoading } = useAppSelector(
-    (state) => state.file.explorer,
+    (state) => state.read.explorer,
   );
   const { history: fileHistory, historyIndex: fileHistoryIndex } = useAppSelector(
-    (state) => state.file.containerFile,
+    (state) => state.read.containerFile,
   );
   const dispatch = useAppDispatch();
 
@@ -141,7 +141,7 @@ export default function FileListViewer() {
         height: "100%",
       }}
     >
-      <SidePanelHeader title={t("app.file-navigator.title")} />
+      <SidePanelHeader title={t("book-reader.file-navigator.title")} />
       <NavBar />
       {isLoading ? (
         <Box sx={{ flexGrow: 1, display: "flex", justifyContent: "center", alignItems: "center" }}>
@@ -151,8 +151,8 @@ export default function FileListViewer() {
         <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
           <Typography sx={{ overflowWrap: "anywhere" }}>
             {searchText.length > 0
-              ? t("app.file-navigator.no-search-results", { searchText })
-              : t("app.file-navigator.no-files")}
+              ? t("book-reader.file-navigator.no-search-results", { searchText })
+              : t("book-reader.file-navigator.no-files")}
           </Typography>
         </Box>
       ) : (

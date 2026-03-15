@@ -1,0 +1,62 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            SELECT id, file_path, item_type, display_name, total_pages, series_id, series_order, thumbnail_path\n            FROM books\n            WHERE id = ?\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "file_path",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "item_type",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "display_name",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "total_pages",
+        "ordinal": 4,
+        "type_info": "Integer"
+      },
+      {
+        "name": "series_id",
+        "ordinal": 5,
+        "type_info": "Integer"
+      },
+      {
+        "name": "series_order",
+        "ordinal": 6,
+        "type_info": "Integer"
+      },
+      {
+        "name": "thumbnail_path",
+        "ordinal": 7,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "5943ad72032bf4513a3042f4b4143ed4a6ad9d5b2d0a8b67f8f08f33449edcf3"
+}

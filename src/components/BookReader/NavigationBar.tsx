@@ -1,32 +1,35 @@
-import React, { useCallback, useEffect } from "react";
-import { IconButton, OutlinedInput, Toolbar } from "@mui/material";
 import {
   ArrowBack,
   ArrowForward,
+  LocalLibrary,
   LooksOne,
   LooksTwo,
   Settings,
   SwitchLeft,
   SwitchRight,
 } from "@mui/icons-material";
+import { IconButton, OutlinedInput, Toolbar, Tooltip } from "@mui/material";
 import { debug } from "@tauri-apps/plugin-log";
-import { Direction } from "../../types/DirectionType";
-import { settingsStore } from "../../settings/SettingsStore";
-import { useAppDispatch, useAppSelector } from "../../Store";
+import React, { useCallback, useEffect } from "react";
 import {
   goBackContainerHistory,
   goForwardContainerHistory,
   setContainerFilePath,
-} from "../../reducers/FileReducer";
-import { setDirection, setIsTwoPagedView } from "../../reducers/ViewReducer";
+} from "../../reducers/ReadReducer";
+import { setActiveView, setDirection, setIsTwoPagedView } from "../../reducers/ViewReducer";
+import { settingsStore } from "../../settings/SettingsStore";
+import { useAppDispatch, useAppSelector } from "../../Store";
+import { Direction } from "../../types/DirectionType";
 import { openSettingsWindow } from "../../utils/WindowOpener";
+import { useTranslation } from "react-i18next";
 
 /**
  * Navigation bar component.
  */
 export default function NavigationBar() {
+  const { t } = useTranslation();
   const { isTwoPagedView, direction } = useAppSelector((state) => state.view);
-  const { history, historyIndex } = useAppSelector((state) => state.file.containerFile);
+  const { history, historyIndex } = useAppSelector((state) => state.read.containerFile);
   const dispatch = useAppDispatch();
 
   const handlePathChanged = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -47,6 +50,13 @@ export default function NavigationBar() {
       dispatch(setDirection("rtl"));
     }
   };
+
+  const handleLibraryClicked = useCallback(
+    (_e: React.MouseEvent<HTMLButtonElement>) => {
+      dispatch(setActiveView("bookshelf"));
+    },
+    [dispatch],
+  );
 
   const handleBackClicked = useCallback(
     (_e: React.MouseEvent<HTMLButtonElement>) => {
@@ -87,6 +97,11 @@ export default function NavigationBar() {
 
   return (
     <Toolbar variant="dense" disableGutters sx={{ minHeight: "40px" }}>
+      <Tooltip title={t("book-reader.move-to-bookshelf")}>
+        <IconButton onClick={handleLibraryClicked}>
+          <LocalLibrary />
+        </IconButton>
+      </Tooltip>
       <IconButton onClick={handleBackClicked} disabled={historyIndex <= 0}>
         <ArrowBack />
       </IconButton>

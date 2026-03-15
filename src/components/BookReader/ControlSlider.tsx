@@ -7,13 +7,13 @@ import { CacheProvider } from "@emotion/react";
 import createCache from "@emotion/cache";
 import { useAppTheme } from "../../hooks/useAppTheme";
 import { useAppDispatch, useAppSelector } from "../../Store";
-import { setImageIndex } from "../../reducers/FileReducer";
+import { setImageIndex } from "../../reducers/ReadReducer";
 
 /**
  * Control Slider Component
  */
 export default function ControlSlider() {
-  const { entries, index } = useAppSelector((state) => state.file.containerFile);
+  const { entries, index } = useAppSelector((state) => state.read.containerFile);
   const { direction } = useAppSelector((state) => state.view);
   const dispatch = useAppDispatch();
   const appTheme = useAppTheme();

@@ -20,7 +20,7 @@ import {
   updateExploreBasePath,
   setSearchText,
   setSortOrder,
-} from "../../../reducers/FileReducer";
+} from "../../../reducers/ReadReducer";
 import { SortOrder } from "../../../types/SortOrderType";
 import { settingsStore } from "../../../settings/SettingsStore";
 import { warn } from "@tauri-apps/plugin-log";
@@ -31,7 +31,7 @@ import { warn } from "@tauri-apps/plugin-log";
 export default function NavBar() {
   const { t } = useTranslation();
   const { history, historyIndex, searchText, sortOrder, entries } = useAppSelector(
-    (state) => state.file.explorer,
+    (state) => state.read.explorer,
   );
   const dispatch = useDispatch<AppDispatch>();
 
@@ -172,10 +172,18 @@ export default function NavBar() {
             sx={{ minWidth: "100px" }}
             onChange={handleSortOrderChanged}
           >
-            <MenuItem value={"NAME_ASC"}>{t("app.file-navigator.sort-order.name-asc")}</MenuItem>
-            <MenuItem value={"NAME_DESC"}>{t("app.file-navigator.sort-order.name-desc")}</MenuItem>
-            <MenuItem value={"DATE_ASC"}>{t("app.file-navigator.sort-order.date-asc")}</MenuItem>
-            <MenuItem value={"DATE_DESC"}>{t("app.file-navigator.sort-order.date-desc")}</MenuItem>
+            <MenuItem value={"NAME_ASC"}>
+              {t("book-reader.file-navigator.sort-order.name-asc")}
+            </MenuItem>
+            <MenuItem value={"NAME_DESC"}>
+              {t("book-reader.file-navigator.sort-order.name-desc")}
+            </MenuItem>
+            <MenuItem value={"DATE_ASC"}>
+              {t("book-reader.file-navigator.sort-order.date-asc")}
+            </MenuItem>
+            <MenuItem value={"DATE_DESC"}>
+              {t("book-reader.file-navigator.sort-order.date-desc")}
+            </MenuItem>
           </Select>
         ) : (
           <></>

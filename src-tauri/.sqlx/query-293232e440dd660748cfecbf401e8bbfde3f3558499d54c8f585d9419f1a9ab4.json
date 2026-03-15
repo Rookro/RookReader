@@ -1,0 +1,74 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                    SELECT\n                        b.id, b.file_path, b.item_type, b.display_name, b.total_pages,\n                        b.series_id, b.series_order, b.thumbnail_path, r.last_read_page_index,\n                        r.last_opened_at as \"last_opened_at!\"\n                    FROM books b\n                    INNER JOIN reading_state r ON b.id = r.book_id\n                    WHERE r.last_opened_at IS NOT NULL\n                    ORDER BY r.last_opened_at DESC\n                    LIMIT ?\n                    ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "file_path",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "item_type",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "display_name",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "total_pages",
+        "ordinal": 4,
+        "type_info": "Integer"
+      },
+      {
+        "name": "series_id",
+        "ordinal": 5,
+        "type_info": "Integer"
+      },
+      {
+        "name": "series_order",
+        "ordinal": 6,
+        "type_info": "Integer"
+      },
+      {
+        "name": "thumbnail_path",
+        "ordinal": 7,
+        "type_info": "Text"
+      },
+      {
+        "name": "last_read_page_index",
+        "ordinal": 8,
+        "type_info": "Integer"
+      },
+      {
+        "name": "last_opened_at!",
+        "ordinal": 9,
+        "type_info": "Datetime"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      false,
+      true
+    ]
+  },
+  "hash": "293232e440dd660748cfecbf401e8bbfde3f3558499d54c8f585d9419f1a9ab4"
+}

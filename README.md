@@ -24,6 +24,8 @@ It supports image sequences (such as comics and magazines) contained in a direct
   * rar
   * pdf
   * epub (Note: The novel reading function is an experimental feature.)
+* **Bookshelf Management:** Organize your library with multiple bookshelves and custom icons.
+* **Tagging System:** Categorize books using custom tags for easier navigation.
 * **Modern UI/UX:** An intuitive and easy-to-use interface built with React + TypeScript.
 * **High performance:** Near-native performance and memory efficiency with a Rust backend and the Tauri framework.
 
@@ -70,7 +72,9 @@ For users running Arch Linux or Manjaro, you can build and install the package u
 
 ## Usage
 
-![screenshot](docs/images/screenshot.png)
+### Reader
+
+![reader screenshot](docs/images/reader_screenshot.png)
 
 * **Open a file:**
   * Click an archive file or directory in the left pane (File Navigator).
@@ -79,6 +83,19 @@ For users running Arch Linux or Manjaro, you can build and install the package u
 * **Navigate through pages:**
   * Click the image display area to turn to the next page, and right-click to turn to the previous page.
   * You can also navigate through pages using the mouse wheel or the arrow keys.
+
+### Bookshelf
+
+![bookshelf screenshot](docs/images/bookshelf_screenshot.png)
+
+* **Bookshelves:**
+  * Create and manage custom bookshelves to organize your books.
+  * Add books from your local files to a bookshelf.
+  * Search by book name and sort by name or date.
+
+* **Tags:**
+  * Use tags to further categorize and filter your collection.
+
 
 ## Development Environment
 
@@ -108,7 +125,7 @@ You can build within the DevContainer using the following commands.
 
 ```bash
 yarn
-yarn tauri build
+SQLX_OFFLINE=true yarn tauri build
 ```
 
 ## Contributing

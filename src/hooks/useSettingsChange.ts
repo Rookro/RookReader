@@ -2,9 +2,9 @@ import { debug } from "@tauri-apps/plugin-log";
 import { useCallback } from "react";
 import { useAppDispatch } from "../Store";
 import i18n from "../i18n/config";
-import { setIsWatchEnabled as setIsDirWatchEnabled } from "../reducers/FileReducer";
-import { setIsHistoryEnabled } from "../reducers/HistoryReducer";
+import { setIsWatchEnabled as setIsDirWatchEnabled } from "../reducers/ReadReducer";
 import {
+  setEnableHistory,
   setEnablePreview,
   setFontFamily,
   setIsFirstPageSingleView,
@@ -84,7 +84,7 @@ export const useSettingsChange = () => {
     (settings: HistorySettings) => {
       if (settings.isEnabled !== undefined) {
         debug(`Received isHistoryEnabled changed event: ${settings.isEnabled}`);
-        dispatch(setIsHistoryEnabled(settings.isEnabled));
+        dispatch(setEnableHistory(settings.isEnabled));
       }
     },
     [dispatch],

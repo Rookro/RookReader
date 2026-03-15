@@ -9,9 +9,10 @@ import { createCommandError } from "../types/Error";
  */
 export const getEntriesInContainer = async (
   path: string,
+  enablePreload: boolean | undefined = undefined,
 ): Promise<{ entries: string[]; is_directory: boolean }> => {
   try {
-    return await invoke("get_entries_in_container", { path });
+    return await invoke("get_entries_in_container", { path, enablePreload });
   } catch (error) {
     throw createCommandError(error);
   }

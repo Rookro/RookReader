@@ -11,12 +11,18 @@ import {
 } from "@mui/material";
 import { FolderOutlined } from "@mui/icons-material";
 import { useTranslation } from "react-i18next";
-import { HistoryEntry } from "../../../types/HistoryEntry";
 import { useAppDispatch } from "../../../Store";
-import { deleteHistory } from "../../../reducers/HistoryReducer";
+import { ReadBook } from "../../../types/DatabaseModels";
+import { clearHistory } from "../../../reducers/HistoryReducer";
 
 /**
  * Row component for the history viewer.
+ *
+ * @param entry - The history entry to display.
+ * @param index - The index of the entry in the list.
+ * @param selected - Whether the entry is selected.
+ * @param onClick - Optional callback for when the entry is clicked.
+ * @param style - Optional CSS style for the row.
  */
 export const ItemRow = memo(function ItemRow({
   entry,
@@ -25,11 +31,11 @@ export const ItemRow = memo(function ItemRow({
   onClick,
   style,
 }: {
-  entry: HistoryEntry;
+  entry: ReadBook;
   index: number;
   selected: boolean;
-  onClick?: (e: React.MouseEvent<HTMLElement>, entry: HistoryEntry, index: number) => void;
-  style: CSSProperties | undefined;
+  onClick?: (e: React.MouseEvent<HTMLElement>, entry: ReadBook, index: number) => void;
+  style?: CSSProperties;
 }) {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
@@ -53,7 +59,7 @@ export const ItemRow = memo(function ItemRow({
   }, []);
 
   const handleOpenClicked = useCallback(
-    (e: React.MouseEvent<HTMLElement>, entry: HistoryEntry, index: number) => {
+    (e: React.MouseEvent<HTMLElement>, entry: ReadBook, index: number) => {
       setContextMenu(null);
       onClick?.(e, entry, index);
     },
@@ -61,9 +67,9 @@ export const ItemRow = memo(function ItemRow({
   );
 
   const handleRemoveClicked = useCallback(
-    async (_e: React.MouseEvent<HTMLElement>, entry: HistoryEntry, _index: number) => {
+    async (_e: React.MouseEvent<HTMLElement>, entry: ReadBook, _index: number) => {
       setContextMenu(null);
-      dispatch(deleteHistory(entry.id));
+      dispatch(clearHistory(entry.id));
     },
     [dispatch],
   );
@@ -73,8 +79,8 @@ export const ItemRow = memo(function ItemRow({
       <Tooltip
         title={
           <>
-            <Typography variant="inherit">{entry.path}</Typography>
-            <Typography variant="inherit">{entry.lastOpenedAt}</Typography>
+            <Typography variant="inherit">{entry.file_path}</Typography>
+            <Typography variant="inherit">{entry.last_opened_at}</Typography>
           </>
         }
         followCursor
@@ -87,8 +93,8 @@ export const ItemRow = memo(function ItemRow({
             key={index}
             sx={{ padding: "4px 8px" }}
           >
-            <ListItemText primary={entry.displayName} slotProps={{ primary: { noWrap: true } }} />
-            {entry.type === "DIRECTORY" ? <FolderOutlined fontSize="small" /> : <></>}
+            <ListItemText primary={entry.display_name} slotProps={{ primary: { noWrap: true } }} />
+            {entry.item_type === "directory" ? <FolderOutlined fontSize="small" /> : <></>}
           </ListItemButton>
         </ListItem>
       </Tooltip>
@@ -102,10 +108,10 @@ export const ItemRow = memo(function ItemRow({
         slotProps={{ list: { dense: true } }}
       >
         <MenuItem onClick={(e) => handleOpenClicked(e, entry, index)}>
-          {t("app.history-viewer.menu.open")}
+          {t("book-reader.history-viewer.menu.open")}
         </MenuItem>
         <MenuItem onClick={(e) => handleRemoveClicked(e, entry, index)}>
-          {t("app.history-viewer.menu.remove")}
+          {t("book-reader.history-viewer.menu.remove")}
         </MenuItem>
       </Menu>
     </Box>

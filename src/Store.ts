@@ -1,21 +1,23 @@
 import { configureStore } from "@reduxjs/toolkit";
 import { useSelector as rawUseSelector, TypedUseSelectorHook, useDispatch } from "react-redux";
-import FileReducer from "./reducers/FileReducer";
-import ViewReducer from "./reducers/ViewReducer";
-import HistoryReducer from "./reducers/HistoryReducer";
-import SidePaneReducer from "./reducers/SidePaneReducer";
-import { historyMiddleware } from "./middleware/historyMiddleware";
 import { loggerMiddleware } from "./middleware/loggerMiddleware";
+import { readingStateMiddleware } from "./middleware/readingStateMiddleware";
+import HistoryReducer from "./reducers/HistoryReducer";
+import ReadReducer from "./reducers/ReadReducer";
+import SidePaneReducer from "./reducers/SidePaneReducer";
+import ViewReducer from "./reducers/ViewReducer";
+import BookCollectionReducer from "./reducers/BookCollectionReducer";
 
 export const store = configureStore({
   reducer: {
-    file: FileReducer,
+    read: ReadReducer,
     view: ViewReducer,
-    history: HistoryReducer,
     sidePane: SidePaneReducer,
+    history: HistoryReducer,
+    bookCollection: BookCollectionReducer,
   },
   middleware: (getDefaultMiddleware) =>
-    getDefaultMiddleware().concat(historyMiddleware).concat(loggerMiddleware),
+    getDefaultMiddleware().concat(readingStateMiddleware).concat(loggerMiddleware),
 });
 
 export type AppDispatch = typeof store.dispatch;

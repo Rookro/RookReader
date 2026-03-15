@@ -8,7 +8,7 @@ import {
   createImageCacheItem,
   fetchImagePreviewBlob,
 } from "../utils/ImageUtils";
-import { setImageIndex } from "../reducers/FileReducer";
+import { setImageIndex } from "../reducers/ReadReducer";
 import { AppDispatch } from "../Store";
 
 /**

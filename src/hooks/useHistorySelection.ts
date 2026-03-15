@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { HistoryEntry } from "../types/HistoryEntry";
+import { Book } from "../types/DatabaseModels";
 
 /**
  * Custom hook to determine the selected index in a history list.
@@ -10,7 +10,7 @@ import { HistoryEntry } from "../types/HistoryEntry";
  */
 export function useHistorySelection(
   path: string,
-  entries: HistoryEntry[],
+  entries: Book[],
   setSelectedIndex: (index: number) => void,
 ) {
   useEffect(() => {
@@ -23,7 +23,7 @@ export function useHistorySelection(
         return;
       }
 
-      const idx = entries.findIndex((entry) => entry.path === path);
+      const idx = entries.findIndex((entry) => entry.file_path === path);
       if (!cancelled) {
         setSelectedIndex(idx);
       }
