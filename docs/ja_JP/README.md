@@ -124,8 +124,8 @@ Arch Linux または Manjaro などのディストリビューションを使用
 DevContainer 内で、以下のコマンドを利用してビルドできます。
 
 ```bash
-yarn
-SQLX_OFFLINE=true yarn tauri build
+npm install
+SQLX_OFFLINE=true npm run tauri build
 ```
 
 ## 貢献

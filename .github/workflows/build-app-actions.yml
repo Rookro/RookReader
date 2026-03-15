@@ -26,7 +26,7 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: lts/*
-          cache: "yarn"
+          cache: "npm"
 
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -51,13 +51,13 @@ jobs:
           shared-key: "cache-for-build-app-actions"
 
       - name: Install frontend dependencies
-        run: yarn install --frozen-lockfile
+        run: npm ci
 
       - name: Run linter
-        run: yarn lint
+        run: npm run lint
 
       - name: Generate third-party licenses
-        run: yarn gen-licenses
+        run: npm run licenses
 
       - name: Run cargo fmt
         working-directory: src-tauri

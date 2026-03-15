@@ -219,7 +219,7 @@
       "third-party-licenses": {
         "title": "Third-Party Licenses",
         "body": "This application is built with open source software.",
-        "frontend": "Frontend Licenses (yarn)",
+        "frontend": "Frontend Licenses (npm)",
         "backend": "Backend Licenses (cargo)",
         "bundled": "Boundled Library Licenses",
         "pdfium": "PDFium License"

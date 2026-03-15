@@ -124,8 +124,8 @@ This project recommends a development flow using DevContainer to minimize enviro
 You can build within the DevContainer using the following commands.
 
 ```bash
-yarn
-SQLX_OFFLINE=true yarn tauri build
+npm install
+SQLX_OFFLINE=true npm run tauri build
 ```
 
 ## Contributing

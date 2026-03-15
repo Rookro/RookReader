@@ -37,16 +37,16 @@ RookReader is built with **Tauri**, using **React**, **TypeScript**, and **Rust*
 
 1. Clone the repository:
    ```bash
-   git clone [https://github.com/your-username/RookReader.git](https://github.com/your-username/RookReader.git)
+   git clone https://github.com/Rookro/RookReader.git
    cd RookReader
    ```
 1. Install dependencies:
    ```bash
-   yarn
+   npm install
    ```
 1. Run the development server:
    ```bash
-   yarn tauri dev
+   npm run tauri dev
    ```
 
 ### Coding Guidelines
