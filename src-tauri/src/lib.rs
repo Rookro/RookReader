@@ -4,7 +4,7 @@ use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
 
 mod commands;
 mod container;
-mod database;
+pub mod database;
 mod error;
 mod setting;
 mod setup;
