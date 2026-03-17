@@ -1,0 +1,58 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { renderHook, waitFor } from "@testing-library/react";
+import { useHistoryEntriesUpdater } from "./useHistoryEntriesUpdater";
+import { useAppDispatch, useAppSelector } from "../Store";
+import { settingsStore } from "../settings/SettingsStore";
+import { setEnableHistory } from "../reducers/ViewReducer";
+import { clearAllHistory, fetchRecentlyReadBooks } from "../reducers/HistoryReducer";
+
+vi.mock("../Store", () => ({
+  useAppDispatch: vi.fn(),
+  useAppSelector: vi.fn(),
+}));
+
+vi.mock("../settings/SettingsStore", () => ({
+  settingsStore: {
+    get: vi.fn(),
+  },
+}));
+
+vi.mock("../reducers/ViewReducer", () => ({
+  setEnableHistory: vi.fn((val) => ({ type: "setEnableHistory", payload: val })),
+}));
+
+vi.mock("../reducers/HistoryReducer", () => ({
+  fetchRecentlyReadBooks: vi.fn(() => ({ type: "fetchRecentlyReadBooks" })),
+  clearAllHistory: vi.fn(() => ({ type: "clearAllHistory" })),
+}));
+
+describe("useHistoryEntriesUpdater", () => {
+  const mockDispatch = vi.fn();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(useAppDispatch).mockReturnValue(mockDispatch);
+    vi.mocked(useAppSelector).mockReturnValue({ enableHistory: true });
+  });
+
+  // Verify that history settings are updated and recently read books are fetched on initialization if history is enabled
+  it("should initialize history and fetch books if enabled", async () => {
+    vi.mocked(settingsStore.get).mockResolvedValue(true);
+
+    renderHook(() => useHistoryEntriesUpdater());
+
+    await waitFor(() => {
+      expect(mockDispatch).toHaveBeenCalledWith(setEnableHistory(true));
+      expect(mockDispatch).toHaveBeenCalledWith(fetchRecentlyReadBooks());
+    });
+  });
+
+  // Verify that history information is cleared when history function is disabled
+  it("should clear history when enableHistory becomes false", () => {
+    vi.mocked(useAppSelector).mockReturnValue({ enableHistory: false });
+
+    renderHook(() => useHistoryEntriesUpdater());
+
+    expect(mockDispatch).toHaveBeenCalledWith(clearAllHistory());
+  });
+});

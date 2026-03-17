@@ -20,18 +20,26 @@ export const convertEntriesInDir = (entriesData: ArrayBuffer) => {
   const entries: DirEntry[] = [];
   let offset = 0;
 
-  while (offset < buffer.length) {
-    // is_directory
+  while (offset + 5 <= buffer.length) {
+    // is_directory (1 byte)
     const is_directory = view.getUint8(offset) === 1;
     offset += 1;
 
-    // name
+    // name (nameLen: 4 bytes + name data)
     const nameLen = view.getUint32(offset);
     offset += 4;
+
+    if (offset + nameLen > buffer.length) {
+      break;
+    }
+
     const name = decoder.decode(buffer.subarray(offset, offset + nameLen));
     offset += nameLen;
 
-    // last_modified
+    // last_modified (8 bytes)
+    if (offset + 8 > buffer.length) {
+      break;
+    }
     const timestamp = view.getBigUint64(offset);
     const last_modified = new Date(Number(timestamp)).toLocaleString();
     offset += 8;

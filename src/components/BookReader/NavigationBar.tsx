@@ -102,10 +102,14 @@ export default function NavigationBar() {
           <LocalLibrary />
         </IconButton>
       </Tooltip>
-      <IconButton onClick={handleBackClicked} disabled={historyIndex <= 0}>
+      <IconButton onClick={handleBackClicked} disabled={historyIndex <= 0} aria-label="back">
         <ArrowBack />
       </IconButton>
-      <IconButton onClick={handleForwardClicked} disabled={history.length - historyIndex <= 1}>
+      <IconButton
+        onClick={handleForwardClicked}
+        disabled={history.length - historyIndex <= 1}
+        aria-label="forward"
+      >
         <ArrowForward />
       </IconButton>
       <OutlinedInput
@@ -121,13 +125,13 @@ export default function NavigationBar() {
           },
         }}
       />
-      <IconButton onClick={handleSwitchTwoPagedClicked}>
+      <IconButton onClick={handleSwitchTwoPagedClicked} aria-label="toggle-two-paged">
         {isTwoPagedView ? <LooksTwo /> : <LooksOne />}
       </IconButton>
-      <IconButton onClick={handleSwitchDirectionClicked}>
+      <IconButton onClick={handleSwitchDirectionClicked} aria-label="toggle-direction">
         {direction === "rtl" ? <SwitchRight /> : <SwitchLeft />}
       </IconButton>
-      <IconButton onClick={handleSettingsClicked}>
+      <IconButton onClick={handleSettingsClicked} aria-label="settings">
         <Settings />
       </IconButton>
     </Toolbar>

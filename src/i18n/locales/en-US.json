@@ -62,6 +62,7 @@
     },
     "search-placeholder": "Search by title...",
     "no-search-results": "No books for \"{{searchText}}\".",
+    "no-books": "No books in this collection.",
     "return-to-reader": "Return to reader",
     "grid-size-change": "Change grid size",
     "grid-size": {

@@ -53,6 +53,7 @@ export default function AutoScrollTypography({
     >
       <Typography
         component="div"
+        data-animating={shouldAnimate}
         sx={{
           whiteSpace: "nowrap",
           ...(shouldAnimate

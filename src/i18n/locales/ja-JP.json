@@ -62,6 +62,7 @@
     },
     "search-placeholder": "タイトルで検索...",
     "no-search-results": "\"{{searchText}}\" に一致する本はありません。",
+    "no-books": "このコレクションに本はありません。",
     "return-to-reader": "読書に戻る",
     "grid-size-change": "グリッドサイズを変更",
     "grid-size": {
