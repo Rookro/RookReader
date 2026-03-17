@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Implement the Bookshelf system (UI, state management, and database schema overhaul) (#147)
 
+### Changed
+
+* Migrate from `yarn` to `npm` (#148)
+
 ### Fixed
 
 * Implement a workaround for incorrect glyph orientation occurring in the novel reader only on Linux (#143)
