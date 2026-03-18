@@ -4,16 +4,18 @@
   "version": "1.9.2",
   "type": "module",
   "scripts": {
-    "mk-licenses-dir": "node -e \"require('fs').mkdirSync('src-tauri/target/dependencies/licenses', { recursive: true })\"",
-    "gen-licenses": "yarn mk-licenses-dir && cargo about generate --manifest-path src-tauri/Cargo.toml src-tauri/about.hbs --output-file src-tauri/target/dependencies/licenses/backend-licenses.html && yarn licenses generate-disclaimer > src-tauri/target/dependencies/licenses/frontend-licenses.txt",
-    "dev": "yarn gen-licenses && vite",
-    "build": "yarn gen-licenses && tsc && vite build",
+    "dev": "npm run licenses && vite",
+    "build": "npm run licenses && tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
-    "test": "yarn gen-licenses && cargo test --lib --manifest-path src-tauri/Cargo.toml",
+    "test": "npm run licenses && cargo test --manifest-path src-tauri/Cargo.toml",
     "lint": "eslint \"src/**/*.{ts,tsx}\"",
     "lint:fix": "eslint \"src/**/*.{ts,tsx}\" --fix",
-    "format": "prettier --write \"src/**/*.{ts,tsx}\""
+    "format": "prettier --write \"src/**/*.{ts,tsx}\"",
+    "licenses": "npm run mk-licenses-dir && npm run licenses:frontend && npm run licenses:backend",
+    "mk-licenses-dir": "node -e \"require('fs').mkdirSync('src-tauri/target/dependencies/licenses', { recursive: true })\"",
+    "licenses:backend": "cargo about generate --manifest-path src-tauri/Cargo.toml src-tauri/about.hbs --output-file src-tauri/target/dependencies/licenses/backend-licenses.html",
+    "licenses:frontend": "npx generate-license-file --input package.json --output src-tauri/target/dependencies/licenses/frontend-licenses.txt --overwrite"
   },
   "dependencies": {
     "@base-ui/react": "^1.1.0",
@@ -46,7 +48,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
-    "@tauri-apps/cli": "^2.9.3",
+    "@tauri-apps/cli": "^2.10.1",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
     "@types/stylis": "^4.2.7",

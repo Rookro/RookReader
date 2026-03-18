@@ -219,7 +219,7 @@
       "third-party-licenses": {
         "title": "サードパーティー ライセンス",
         "body": "このアプリケーションはオープンソースのソフトウェアで構築されています。",
-        "frontend": "フロントエンド ライセンス(yarn)",
+        "frontend": "フロントエンド ライセンス(npm)",
         "backend": "バックエンド ライセンス(cargo)",
         "bundled": "バンドルしているライブラリーのライセンス",
         "pdfium": "PDFium ライセンス"
