@@ -42,6 +42,7 @@ export default function SettingsView() {
         width: "100%",
         height: "100%",
       }}
+      data-testid="settings-container"
     >
       <Tabs
         orientation="vertical"

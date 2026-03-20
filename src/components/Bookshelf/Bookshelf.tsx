@@ -97,7 +97,7 @@ export default function Bookshelf({ sx }: BookshelfProps) {
   }, [dispatch]);
 
   return (
-    <Box sx={{ width: "100%", height: "100%", ...sx }}>
+    <Box sx={{ width: "100%", height: "100%", ...sx }} data-testid="bookshelf">
       <Allotment
         defaultSizes={paneSizes}
         proportionalLayout={false}

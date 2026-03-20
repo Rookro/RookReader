@@ -98,7 +98,7 @@ export default function NavigationBar() {
   return (
     <Toolbar variant="dense" disableGutters sx={{ minHeight: "40px" }}>
       <Tooltip title={t("book-reader.move-to-bookshelf")}>
-        <IconButton onClick={handleLibraryClicked}>
+        <IconButton onClick={handleLibraryClicked} aria-label="library">
           <LocalLibrary />
         </IconButton>
       </Tooltip>
@@ -118,6 +118,7 @@ export default function NavigationBar() {
         onContextMenu={handleContextMenu}
         size="small"
         fullWidth
+        inputProps={{ "aria-label": "container-path-input" }}
         sx={{
           bgcolor: (theme) => theme.palette.background.default,
           "& .MuiOutlinedInput-input": {

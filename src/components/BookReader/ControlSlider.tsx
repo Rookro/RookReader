@@ -56,6 +56,7 @@ export default function ControlSlider() {
             max={entries.length - 1}
             onChange={handleSliderValueChanged}
             disabled={entries.length === 0}
+            data-testid="control-slider"
           />
           <Box
             sx={{
@@ -65,7 +66,7 @@ export default function ControlSlider() {
               marginRight: "10px",
             }}
           >
-            <Typography align="right">
+            <Typography align="right" aria-label="page-indicator">
               {entries.length === 0 ? 0 : index + 1}/{entries.length}
             </Typography>
           </Box>

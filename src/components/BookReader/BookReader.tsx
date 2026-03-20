@@ -138,7 +138,11 @@ export default function BookReader({ sx }: BookReaderProps) {
   }, [droppedFile, dispatch]);
 
   return (
-    <Stack direction="column" sx={{ width: "100%", height: "100%", ...sx }}>
+    <Stack
+      direction="column"
+      sx={{ width: "100%", height: "100%", ...sx }}
+      data-testid="book-reader"
+    >
       <NavigationBar />
       <Stack direction="row" sx={{ width: "100%", height: "100%" }}>
         <SideTabs tabs={tabs} tabIndex={tabIndex} isHidden={isHidden} />
