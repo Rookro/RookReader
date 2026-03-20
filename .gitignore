@@ -34,3 +34,6 @@ PKGBUILD/*.pkg.tar.zst
 
 # coverage
 coverage/
+
+# msedgedriver
+msedgedriver.exe
