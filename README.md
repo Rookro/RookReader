@@ -2,6 +2,7 @@
 
 ![build status](https://github.com/Rookro/RookReader/actions/workflows/build-app-actions.yml/badge.svg)
 [![Tauri](https://img.shields.io/badge/Tauri-24C8D8?logo=tauri&logoColor=fff)](https://v2.tauri.app/ja/)
+[![MUI](https://img.shields.io/badge/Material%20UI-007FFF?logo=mui&logoColor=fff)](https://mui.com/material-ui/)
 [![React](https://img.shields.io/badge/React-%2320232a.svg?logo=react&logoColor=%2361DAFB)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=fff)](https://www.typescriptlang.org/)
 [![Rust](https://img.shields.io/badge/Rust-%23000000.svg?e&logo=rust&logoColor=white)](https://rust-lang.org/)
