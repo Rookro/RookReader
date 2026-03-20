@@ -5,7 +5,7 @@
 [![MUI](https://img.shields.io/badge/Material%20UI-007FFF?logo=mui&logoColor=fff)](https://mui.com/material-ui/)
 [![React](https://img.shields.io/badge/React-%2320232a.svg?logo=react&logoColor=%2361DAFB)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=fff)](https://www.typescriptlang.org/)
-[![Rust](https://img.shields.io/badge/Rust-%23000000.svg?e&logo=rust&logoColor=white)](https://rust-lang.org/)
+[![Rust](https://img.shields.io/badge/Rust-%23000000.svg?&logo=rust&logoColor=white)](https://rust-lang.org/)
 [![MIT License](https://img.shields.io/badge/license-MIT-green.svg?style=flat)](../../LICENSE)
 
 [English](../../README.md) | [日本語](README.md)
