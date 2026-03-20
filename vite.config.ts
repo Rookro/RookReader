@@ -8,6 +8,24 @@ const host = process.env.TAURI_DEV_HOST;
 export default defineConfig(async () => ({
   plugins: [react()],
 
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          "react-vendor": ["react", "react-dom", "react-router"],
+          "mui-vendor": [
+            "@mui/material",
+            "@mui/icons-material",
+            "@emotion/react",
+            "@emotion/styled",
+          ],
+          "redux-vendor": ["@reduxjs/toolkit", "react-redux", "redux"],
+          "epubjs-vendor": ["epubjs"],
+        },
+      },
+    },
+  },
+
   test: {
     globals: true,
     environment: "jsdom",
