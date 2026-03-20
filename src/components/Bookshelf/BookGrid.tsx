@@ -10,6 +10,7 @@ import {
   ListItemIcon,
   ListItemText,
   debounce,
+  Typography,
 } from "@mui/material";
 import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { Grid } from "react-window";
@@ -133,8 +134,11 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
       }}
     >
       <NavigationBar />
+
       <Box
         ref={containerRef}
+        data-testid="book-grid-container"
+        aria-label="book-grid-container"
         sx={{
           width: "100%",
           height: "100%",
@@ -157,6 +161,25 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
             }}
           >
             <CircularProgress />
+          </Box>
+        ) : filteredSortedBooks.length === 0 ? (
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              paddingX: 2,
+            }}
+          >
+            {searchText ? (
+              <Typography variant="h6" sx={{ overflowWrap: "anywhere" }}>
+                {t("bookshelf.no-search-results", { searchText })}
+              </Typography>
+            ) : (
+              <Typography variant="h6" sx={{ overflowWrap: "anywhere" }}>
+                {t("bookshelf.no-books")}
+              </Typography>
+            )}
           </Box>
         ) : (
           <Box

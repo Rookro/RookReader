@@ -110,7 +110,7 @@ export default function MenuList({ onClickAddBookshelf, onClickAddBookTag }: Men
         }}
       >
         <Tooltip title={t("bookshelf.return-to-reader")} color="primary">
-          <IconButton onClick={handleReturnToReaderClicked}>
+          <IconButton onClick={handleReturnToReaderClicked} aria-label="book-reader">
             <AutoStories />
           </IconButton>
         </Tooltip>

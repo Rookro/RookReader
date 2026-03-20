@@ -14,12 +14,11 @@ import {
   ListItemText,
   IconButton,
 } from "@mui/material";
-import InsertDriveFileOutlinedIcon from "@mui/icons-material/InsertDriveFileOutlined";
-import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import { open } from "@tauri-apps/plugin-dialog";
 import { error } from "@tauri-apps/plugin-log";
 import { useDragDropEvent } from "../../../hooks/useDragDropEvent";
 import { useTranslation } from "react-i18next";
+import { DeleteOutline, InsertDriveFileOutlined } from "@mui/icons-material";
 
 /** Props for the BookAdditionToBookshelfDialog component */
 export interface BookAdditionToBookshelfProps {
@@ -147,13 +146,18 @@ export default function BookAdditionToBookshelfDialog({
                     key={path}
                     divider
                     secondaryAction={
-                      <IconButton edge="end" size="small" onClick={() => handleRemoveFile(path)}>
-                        <DeleteOutlineIcon fontSize="small" />
+                      <IconButton
+                        edge="end"
+                        size="small"
+                        onClick={() => handleRemoveFile(path)}
+                        aria-label="delete"
+                      >
+                        <DeleteOutline fontSize="small" />
                       </IconButton>
                     }
                   >
                     <ListItemIcon sx={{ minWidth: 36 }}>
-                      <InsertDriveFileOutlinedIcon fontSize="small" />
+                      <InsertDriveFileOutlined fontSize="small" />
                     </ListItemIcon>
                     <ListItemText
                       primary={path.split(/[/\\]/).pop()}

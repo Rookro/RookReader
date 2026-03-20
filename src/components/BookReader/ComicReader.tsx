@@ -93,6 +93,7 @@ export default function ComicReader() {
       onContextMenu={handleContextMenu}
       onWheel={handleWheeled}
       onKeyDown={handleKeydown}
+      data-testid="comic-reader-area"
       sx={{
         width: "100%",
         height: "100%",

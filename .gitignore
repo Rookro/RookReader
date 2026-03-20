@@ -31,3 +31,9 @@ PKGBUILD/*.pkg.tar.zst
 
 # sqlite database file
 *.db
+
+# coverage
+coverage/
+
+# msedgedriver
+msedgedriver.exe

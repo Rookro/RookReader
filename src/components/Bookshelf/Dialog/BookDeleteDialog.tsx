@@ -6,7 +6,6 @@ import {
   DialogContent,
   DialogContentText,
   DialogTitle,
-  Typography,
 } from "@mui/material";
 import { BookWithState } from "../../../types/DatabaseModels";
 import { Trans, useTranslation } from "react-i18next";
@@ -42,7 +41,7 @@ export default function BookDeleteDialog({ openDialog, book, onClose }: BookDele
 
       <DialogContent>
         <DialogContentText>
-          <Typography sx={{ whiteSpace: "pre-wrap" }}>
+          <Box component="span" sx={{ whiteSpace: "pre-wrap" }}>
             <Trans
               i18nKey="bookshelf.book-deletion.description"
               values={{
@@ -55,7 +54,7 @@ export default function BookDeleteDialog({ openDialog, book, onClose }: BookDele
                 bold: <Box component="span" fontWeight="bold" color="text.primary" />,
               }}
             />
-          </Typography>
+          </Box>
         </DialogContentText>
       </DialogContent>
 

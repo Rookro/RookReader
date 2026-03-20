@@ -35,7 +35,7 @@ export default function MainContent({ sx }: MainContentProps) {
   }, [dispatch]);
 
   return (
-    <Box sx={sx}>
+    <Box sx={sx} data-testid="main-content">
       <BookReader sx={{ display: activeView === "reader" ? undefined : "none" }} />
       <Bookshelf sx={{ display: activeView === "bookshelf" ? undefined : "none" }} />
     </Box>

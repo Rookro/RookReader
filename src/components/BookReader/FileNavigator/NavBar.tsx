@@ -150,19 +150,23 @@ export default function NavBar() {
           },
         }}
       >
-        <IconButton onClick={handleHomeClicked}>
+        <IconButton onClick={handleHomeClicked} aria-label="home">
           <Home />
         </IconButton>
-        <IconButton onClick={handleBackClicked} disabled={historyIndex <= 0}>
+        <IconButton onClick={handleBackClicked} disabled={historyIndex <= 0} aria-label="back">
           <ArrowBack />
         </IconButton>
-        <IconButton onClick={handleForwardClicked} disabled={history.length - historyIndex <= 1}>
+        <IconButton
+          onClick={handleForwardClicked}
+          disabled={history.length - historyIndex <= 1}
+          aria-label="forward"
+        >
           <ArrowForward />
         </IconButton>
-        <IconButton onClick={handleParentClicked}>
+        <IconButton onClick={handleParentClicked} aria-label="up">
           <ArrowUpward />
         </IconButton>
-        <IconButton onClick={handleRefleshClicked}>
+        <IconButton onClick={handleRefleshClicked} aria-label="refresh">
           <Refresh />
         </IconButton>
         {width >= 310 ? (

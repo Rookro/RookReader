@@ -102,7 +102,7 @@ export default function NavigationBar() {
           }
           onChange={handleSearchTextChanged}
         />
-        <IconButton onClick={handleSettingsClicked}>
+        <IconButton onClick={handleSettingsClicked} aria-label="settings">
           <Settings />
         </IconButton>
       </Toolbar>

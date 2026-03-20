@@ -1,12 +1,53 @@
+/// <reference types="vitest" />
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
-// @ts-expect-error process is a nodejs global
 const host = process.env.TAURI_DEV_HOST;
 
 // https://vite.dev/config/
 export default defineConfig(async () => ({
   plugins: [react()],
+
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          "react-vendor": ["react", "react-dom", "react-router"],
+          "mui-vendor": [
+            "@mui/material",
+            "@mui/icons-material",
+            "@emotion/react",
+            "@emotion/styled",
+          ],
+          "redux-vendor": ["@reduxjs/toolkit", "react-redux", "redux"],
+          "epubjs-vendor": ["epubjs"],
+        },
+      },
+    },
+  },
+
+  test: {
+    globals: true,
+    environment: "jsdom",
+    setupFiles: "./src/test/setup.ts",
+    exclude: [
+      "**/node_modules/**",
+      "**/dist/**",
+      "**/e2e/**",
+    ],
+    coverage: {
+      provider: "v8",
+      exclude: [
+        "src/assets/**",
+        "src/i18n/locales/**",
+        "src/test/**",
+        "src/**/*.test.ts",
+        "src/**/*.test.tsx",
+        "dist/**",
+        "src-tauri/**",
+      ],
+    },
+  },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //

@@ -14,10 +14,37 @@ use crate::{
     },
 };
 
+/// Trait for settings storage to enable testing.
+pub trait SettingsStoreProvider {
+    fn get_value(&self, key: &str) -> Option<serde_json::Value>;
+    fn home_dir(&self) -> String;
+}
+
+/// Real implementation using tauri-plugin-store.
+struct TauriStoreProvider<'a> {
+    app: &'a App,
+    filename: String,
+}
+
+impl<'a> SettingsStoreProvider for TauriStoreProvider<'a> {
+    fn get_value(&self, key: &str) -> Option<serde_json::Value> {
+        self.app
+            .store(&self.filename)
+            .ok()
+            .and_then(|store| store.get(key))
+    }
+
+    fn home_dir(&self) -> String {
+        self.app
+            .path()
+            .home_dir()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string()
+    }
+}
+
 /// Represents the application's configurable settings.
-///
-/// This struct aggregates all user-configurable options for the application,
-/// ranging from UI preferences to backend behavior.
 #[allow(dead_code)]
 pub struct Settings {
     /// The default font family to be used for rendering text.
@@ -68,65 +95,66 @@ impl Settings {
     ///
     /// Returns an `Err` if the application store cannot be accessed.
     pub fn load(app: &App, filename: &str) -> Result<Self> {
-        let store = app.store(filename)?;
+        let provider = TauriStoreProvider {
+            app,
+            filename: filename.to_string(),
+        };
+        Self::load_from_provider(&provider)
+    }
 
+    /// Internal load logic that uses a provider for testability.
+    pub fn load_from_provider<P: SettingsStoreProvider>(provider: &P) -> Result<Self> {
         Ok(Self {
-            font_family: store
-                .get("font-family")
-                .and_then(|value| value.as_str().map(|value| value.to_string()))
-                .unwrap_or("Inter, Avenir, Helvetica, Arial, sans-serif".to_string()),
-            direction: store
-                .get("direction")
+            font_family: provider
+                .get_value("font-family")
+                .and_then(|value| value.as_str().map(|v| v.to_string()))
+                .unwrap_or_else(|| "Inter, Avenir, Helvetica, Arial, sans-serif".to_string()),
+            direction: provider
+                .get_value("direction")
                 .map(|value| value.into())
                 .unwrap_or(Direction::Ltr),
-            enable_directory_watch: store
-                .get("enable-directory-watch")
+            enable_directory_watch: provider
+                .get_value("enable-directory-watch")
                 .and_then(|value| value.as_bool())
                 .unwrap_or(false),
-            experimental_features: store
-                .get("experimental-features")
+            experimental_features: provider
+                .get_value("experimental-features")
                 .map(|value| value.into())
                 .unwrap_or_default(),
-            first_page_single_view: store
-                .get("first-page-single-view")
+            first_page_single_view: provider
+                .get_value("first-page-single-view")
                 .and_then(|value| value.as_bool())
                 .unwrap_or(true),
-            history: store
-                .get("history")
+            history: provider
+                .get_value("history")
                 .map(|value| value.into())
                 .unwrap_or_default(),
-            home_directory: store
-                .get("home-directory")
-                .and_then(|value| value.as_str().map(|value| value.to_string()))
-                .unwrap_or(
-                    app.path()
-                        .home_dir()
-                        .unwrap_or_default()
-                        .to_string_lossy()
-                        .to_string(),
-                ),
-            log: store
-                .get("log")
+            home_directory: provider
+                .get_value("home-directory")
+                .and_then(|value| value.as_str().map(|v| v.to_string()))
+                .unwrap_or_else(|| provider.home_dir()),
+            log: provider
+                .get_value("log")
                 .map(|value| value.into())
                 .unwrap_or_default(),
-            novel_reader: store
-                .get("novel-reader")
+            novel_reader: provider
+                .get_value("novel-reader")
                 .map(|value| value.into())
                 .unwrap_or_default(),
-            rendering: store
-                .get("rendering")
+            rendering: provider
+                .get_value("rendering")
                 .map(|value| value.into())
                 .unwrap_or_default(),
-            sort_order: store
-                .get("sort-order")
+            sort_order: provider
+                .get_value("sort-order")
                 .map(|value| value.into())
                 .unwrap_or(SortOrder::NameAsc),
-            theme: store
-                .get("theme")
+            theme: provider
+                .get_value("theme")
                 .map(|value| value.into())
                 .unwrap_or(AppTheme::System),
-            two_paged: store
-                .get("two-paged")
+            two_paged: provider
+                .get_value("two-paged")
                 .and_then(|value| value.as_bool())
                 .unwrap_or(true),
         })
@@ -172,5 +200,56 @@ impl Display for Settings {
             self.theme,
             self.two_paged
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+    use std::collections::HashMap;
+
+    struct MockProvider {
+        values: HashMap<String, serde_json::Value>,
+    }
+
+    impl SettingsStoreProvider for MockProvider {
+        fn get_value(&self, key: &str) -> Option<serde_json::Value> {
+            self.values.get(key).cloned()
+        }
+        fn home_dir(&self) -> String {
+            "/mock/home".to_string()
+        }
+    }
+
+    #[test]
+    fn test_load_default_settings() {
+        let provider = MockProvider {
+            values: HashMap::new(),
+        };
+        let settings = Settings::load_from_provider(&provider).unwrap();
+
+        assert_eq!(
+            settings.font_family,
+            "Inter, Avenir, Helvetica, Arial, sans-serif"
+        );
+        assert_eq!(settings.direction, Direction::Ltr);
+        assert_eq!(settings.home_directory, "/mock/home");
+        assert!(settings.two_paged);
+    }
+
+    #[test]
+    fn test_load_custom_settings() {
+        let mut values = HashMap::new();
+        values.insert("font-family".to_string(), json!("Custom Font"));
+        values.insert("two-paged".to_string(), json!(false));
+        values.insert("home-directory".to_string(), json!("/custom/home"));
+
+        let provider = MockProvider { values };
+        let settings = Settings::load_from_provider(&provider).unwrap();
+
+        assert_eq!(settings.font_family, "Custom Font");
+        assert!(!settings.two_paged);
+        assert_eq!(settings.home_directory, "/custom/home");
     }
 }
