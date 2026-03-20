@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ListItem, ListItemIcon, ListItemText, TextField } from "@mui/material";
+import { ListItem, ListItemIcon, ListItemText, Typography } from "@mui/material";
 import { AspectRatioOutlined } from "@mui/icons-material";
 import { error } from "@tauri-apps/plugin-log";
 import { settingsStore } from "../../../../settings/SettingsStore";
 import { setMaxImageHeight } from "../../../../bindings/ContainerCommands";
 import { RenderingSettings } from "../../../../types/Settings";
+import NumberSpinner from "../../../NumberSpinner";
 
 /**
  * Max image height setting component.
@@ -25,22 +26,10 @@ export default function MaxImageHeightSetting() {
     fetchSettings();
   }, []);
 
-  const handleMaxHeightChange = useCallback(
-    async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const height = parseInt(e.target.value, 10);
+  const handleMaxHeightValueChange = useCallback(
+    async (value: number | null) => {
+      const height = value ?? 0;
       setMaxHeight(height);
-
-      if (isNaN(height)) {
-        setIsError(true);
-        setErrorMsg("");
-        return;
-      }
-
-      if (height < 0) {
-        setIsError(true);
-        setErrorMsg(t("settings.rendering.resize.max-image-height.range-error-message"));
-        return;
-      }
 
       try {
         await setMaxImageHeight(height);
@@ -71,17 +60,19 @@ export default function MaxImageHeightSetting() {
         sx={{ marginRight: "10px" }}
         slotProps={{ secondary: { sx: { whiteSpace: "pre-wrap" } } }}
       />
-      <TextField
-        type="number"
-        variant="standard"
+      <NumberSpinner
         value={maxHeight}
-        onChange={handleMaxHeightChange}
+        min={0}
+        step={100}
         size="small"
         error={isError}
         helperText={errorMsg}
-        slotProps={{ input: { inputProps: { min: 0, step: 100 } } }}
-        sx={{ width: "80px" }}
+        onValueCommitted={handleMaxHeightValueChange}
+        sx={{ minWidth: "200px" }}
       />
+      <Typography variant="body2" sx={{ marginLeft: 1 }}>
+        px
+      </Typography>
     </ListItem>
   );
 }

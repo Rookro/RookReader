@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { screen, fireEvent, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { renderWithProviders } from "../../../../test/utils";
 import MaxImageHeightSetting from "./MaxImageHeightSetting";
 import { mockStore } from "../../../../test/mocks/tauri";
@@ -7,6 +8,8 @@ import * as containerCmds from "../../../../bindings/ContainerCommands";
 
 // Mock ContainerCommands
 describe("MaxImageHeightSetting", () => {
+  const user = userEvent.setup();
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -26,28 +29,34 @@ describe("MaxImageHeightSetting", () => {
 
     renderWithProviders(<MaxImageHeightSetting />);
 
-    const input = await screen.findByDisplayValue("0");
-    // Use fireEvent.change for atomic update
-    fireEvent.change(input, { target: { value: "2000" } });
-
-    expect(containerCmds.setMaxImageHeight).toHaveBeenCalledWith(2000);
+    // Base UI renders a hidden input for form submission and a visible textbox for interaction.
+    // Use the textbox to allow userEvent.clear and userEvent.type to work.
+    const input = screen.getByRole("textbox");
+    await user.clear(input);
+    await user.type(input, "2000");
+    await user.tab(); // Blur trigger
 
     await waitFor(() => {
+      expect(containerCmds.setMaxImageHeight).toHaveBeenCalledWith(2000);
       expect(mockStore.set).toHaveBeenCalled();
     });
   });
 
-  it("should show error message for negative values", async () => {
+  it("should display error message when backend call fails", async () => {
     mockStore.get.mockResolvedValue({ "max-image-height": 0 });
+    vi.mocked(containerCmds.setMaxImageHeight).mockRejectedValueOnce(new Error("Backend error"));
 
     renderWithProviders(<MaxImageHeightSetting />);
 
-    const input = await screen.findByDisplayValue("0");
-    // Use fireEvent.change
-    fireEvent.change(input, { target: { value: "-100" } });
+    const input = screen.getByRole("textbox");
+    await user.clear(input);
+    await user.type(input, "2000");
+    await user.tab(); // Blur trigger
 
-    // Use translated string: "Please enter an integer of 0 or greater."
-    expect(screen.getByText(/Please enter an integer of 0 or greater/i)).toBeInTheDocument();
-    expect(containerCmds.setMaxImageHeight).not.toHaveBeenCalledWith(-100);
+    await waitFor(() => {
+      expect(containerCmds.setMaxImageHeight).toHaveBeenCalledWith(2000);
+      expect(screen.getByText(/Failed to set max image height/i)).toBeInTheDocument();
+      expect(mockStore.set).not.toHaveBeenCalled();
+    });
   });
 });
