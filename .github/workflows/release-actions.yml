@@ -1,6 +1,7 @@
 name: Release
 
 on:
+  workflow_dispatch: # for debugging
   push:
     branches:
       - main
@@ -41,7 +42,7 @@ jobs:
         if: matrix.platform == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf webkit2gtk-driver
 
       - name: Install frontend dependencies
         run: npm ci
@@ -51,6 +52,14 @@ jobs:
 
       - name: Run tests
         run: npm run test
+
+      - name: Run e2e tests on ubuntu
+        if: matrix.platform == 'ubuntu-latest'
+        run: npm run test:e2e
+
+      - name: Run e2e tests on windows
+        if: matrix.platform == 'windows-latest'
+        run: npm run test:e2e:win
 
       - name: Build and create a draft Release
         uses: tauri-apps/tauri-action@v0
