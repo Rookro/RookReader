@@ -31,6 +31,7 @@ describe("HomeDirSetting", () => {
     const input = await screen.findByDisplayValue("/saved/path");
     await user.clear(input);
     await user.type(input, "/manual/path");
+    await user.tab(); // Blur trigger
 
     expect(mockStore.set).toHaveBeenCalledWith("home-directory", "/manual/path");
   });

@@ -39,6 +39,8 @@ export default function NavBar() {
 
   const navButtonsRef = useRef<HTMLElement>(null);
 
+  const currentPath = history[historyIndex] ?? "";
+
   const setDirParh = useCallback(
     async (dirPath: string | undefined = undefined) => {
       if (!dirPath) {
@@ -82,10 +84,21 @@ export default function NavBar() {
     initViewSettings();
   }, [dispatch]);
 
-  const handleCurrentDirChanged = (e: React.ChangeEvent<HTMLInputElement>) => {
-    dispatch(setSearchText(""));
-    dispatch(updateExploreBasePath({ dirPath: e.target.value }));
-  };
+  const formAction = useCallback(
+    (formData: FormData) => {
+      const inputPath = formData.get("path")?.toString();
+
+      if (inputPath && inputPath !== currentPath) {
+        dispatch(setSearchText(""));
+        dispatch(updateExploreBasePath({ dirPath: inputPath }));
+      }
+    },
+    [dispatch, currentPath],
+  );
+
+  const handleBlur = useCallback((e: React.FocusEvent<HTMLInputElement>) => {
+    e.currentTarget.form?.requestSubmit();
+  }, []);
 
   const handleHomeClicked = (_e: React.MouseEvent<HTMLButtonElement>) => {
     setDirParh();
@@ -127,18 +140,23 @@ export default function NavBar() {
 
   return (
     <Stack>
-      <OutlinedInput
-        value={history[historyIndex] ?? ""}
-        onChange={handleCurrentDirChanged}
-        onContextMenu={handleContextMenu}
-        size="small"
-        fullWidth
-        sx={{
-          "& .MuiOutlinedInput-input": {
-            padding: "4px 8px",
-          },
-        }}
-      />
+      <Box component="form" action={formAction} sx={{ flexGrow: 1 }}>
+        <OutlinedInput
+          // Force DOM recreation to update the initial value on external state changes.
+          key={currentPath}
+          name="path"
+          defaultValue={currentPath}
+          onContextMenu={handleContextMenu}
+          onBlur={handleBlur}
+          size="small"
+          fullWidth
+          sx={{
+            "& .MuiOutlinedInput-input": {
+              padding: "4px 8px",
+            },
+          }}
+        />
+      </Box>
       <Box
         ref={navButtonsRef}
         sx={{

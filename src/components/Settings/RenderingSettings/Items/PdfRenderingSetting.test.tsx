@@ -29,9 +29,12 @@ describe("PdfRenderingSetting", () => {
 
     renderWithProviders(<PdfRenderingSetting />);
 
-    const input = await screen.findByDisplayValue("2000");
+    // Base UI renders a hidden input for form submission and a visible textbox for interaction.
+    // Use the textbox to allow userEvent.clear and userEvent.type to work.
+    const input = screen.getByRole("textbox");
     await user.clear(input);
     await user.type(input, "2500");
+    await user.tab(); // Blur trigger
 
     await waitFor(() => {
       expect(containerCmds.setPdfRenderingHeight).toHaveBeenCalledWith(2500);
@@ -47,12 +50,33 @@ describe("PdfRenderingSetting", () => {
 
     renderWithProviders(<PdfRenderingSetting />);
 
-    const input = await screen.findByDisplayValue("2000");
+    // Likewise, target the textbox instead of the hidden input
+    const input = screen.getByRole("textbox");
     await user.clear(input);
     await user.type(input, "0");
+    await user.tab(); // Blur trigger
 
-    // English: "Please enter a positive integer."
     expect(screen.getByText(/Please enter a positive integer/i)).toBeInTheDocument();
     expect(containerCmds.setPdfRenderingHeight).not.toHaveBeenCalledWith(0);
+  });
+
+  it("should display error message when backend call fails", async () => {
+    mockStore.get.mockResolvedValue({ "pdf-rendering-height": 2000 });
+    vi.mocked(containerCmds.setPdfRenderingHeight).mockRejectedValueOnce(
+      new Error("Backend error"),
+    );
+
+    renderWithProviders(<PdfRenderingSetting />);
+
+    const input = screen.getByRole("textbox");
+    await user.clear(input);
+    await user.type(input, "2500");
+    await user.tab(); // Blur trigger
+
+    await waitFor(() => {
+      expect(containerCmds.setPdfRenderingHeight).toHaveBeenCalledWith(2500);
+      expect(screen.getByText(/Failed to set PDF rendering height/i)).toBeInTheDocument();
+      expect(mockStore.set).not.toHaveBeenCalled();
+    });
   });
 });

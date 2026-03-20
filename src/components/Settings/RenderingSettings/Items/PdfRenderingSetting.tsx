@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ListItem, ListItemIcon, ListItemText, TextField } from "@mui/material";
+import { ListItem, ListItemIcon, ListItemText, Typography } from "@mui/material";
 import { AspectRatioOutlined } from "@mui/icons-material";
 import { error } from "@tauri-apps/plugin-log";
 import { settingsStore } from "../../../../settings/SettingsStore";
 import { setPdfRenderingHeight } from "../../../../bindings/ContainerCommands";
 import { RenderingSettings } from "../../../../types/Settings";
+import NumberSpinner from "../../../NumberSpinner";
 
 /**
  * PDF rendering setting component.
@@ -26,17 +27,12 @@ export default function PdfRenderingSetting() {
   }, []);
 
   const handlePdfRenderingHeightChange = useCallback(
-    async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const height = parseInt(e.target.value, 10);
+    async (value: number | null) => {
+      const height = value ?? 0;
       setPdfRenderingHeightState(height);
 
-      if (isNaN(height)) {
-        setIsError(true);
-        setErrorMsg("");
-        return;
-      }
-
       if (height < 1) {
+        error(`Failed to set PDF rendering height (must be at least 1): ${height}`);
         setIsError(true);
         setErrorMsg(t("settings.rendering.pdf.range-error-message"));
         return;
@@ -69,17 +65,19 @@ export default function PdfRenderingSetting() {
         primary={t("settings.rendering.pdf.title")}
         secondary={t("settings.rendering.pdf.description")}
       />
-      <TextField
-        type="number"
-        variant="standard"
+      <NumberSpinner
         value={pdfRenderingHeight}
-        onChange={handlePdfRenderingHeightChange}
+        min={1}
+        step={100}
         size="small"
         error={isError}
         helperText={errorMsg}
-        slotProps={{ input: { inputProps: { min: 1, step: 100 } } }}
-        sx={{ width: "80px" }}
+        onValueCommitted={handlePdfRenderingHeightChange}
+        sx={{ minWidth: "200px" }}
       />
+      <Typography variant="body2" sx={{ marginLeft: 1 }}>
+        px
+      </Typography>
     </ListItem>
   );
 }

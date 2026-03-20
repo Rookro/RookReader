@@ -32,15 +32,18 @@ export default function NavigationBar() {
   const { history, historyIndex } = useAppSelector((state) => state.read.containerFile);
   const dispatch = useAppDispatch();
 
-  const currentHistoryPath = history[historyIndex] ?? "";
+  const currentPath = history[historyIndex] ?? "";
 
-  const formAction = (formData: FormData) => {
-    const inputPath = formData.get("path")?.toString();
+  const formAction = useCallback(
+    (formData: FormData) => {
+      const inputPath = formData.get("path")?.toString();
 
-    if (inputPath && inputPath !== currentHistoryPath) {
-      dispatch(setContainerFilePath(inputPath));
-    }
-  };
+      if (inputPath && inputPath !== currentPath) {
+        dispatch(setContainerFilePath(inputPath));
+      }
+    },
+    [dispatch, currentPath],
+  );
 
   const handleBlur = useCallback((e: React.FocusEvent<HTMLInputElement>) => {
     e.currentTarget.form?.requestSubmit();
@@ -131,9 +134,9 @@ export default function NavigationBar() {
       <Box component="form" action={formAction} sx={{ flexGrow: 1 }}>
         <OutlinedInput
           // Force DOM recreation to update the initial value on external state changes.
-          key={currentHistoryPath}
+          key={currentPath}
           name="path"
-          defaultValue={currentHistoryPath}
+          defaultValue={currentPath}
           onContextMenu={handleContextMenu}
           onBlur={handleBlur}
           size="small"

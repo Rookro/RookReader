@@ -69,8 +69,9 @@ describe("FileNavigator/NavBar", () => {
     renderWithProviders(<NavBar />, { preloadedState: defaultPreloadedState });
 
     const pathInput = screen.getByDisplayValue("/home/user/books");
-    // Use fireEvent.change for atomic update to avoid multiple dispatches
-    fireEvent.change(pathInput, { target: { value: "/new/path" } });
+    await user.clear(pathInput);
+    await user.type(pathInput, "/new/path");
+    await user.tab(); // Blur trigger
 
     expect(ReadReducer.updateExploreBasePath).toHaveBeenCalledWith({ dirPath: "/new/path" });
   });
