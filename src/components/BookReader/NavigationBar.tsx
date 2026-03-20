@@ -8,7 +8,7 @@ import {
   SwitchLeft,
   SwitchRight,
 } from "@mui/icons-material";
-import { IconButton, OutlinedInput, Toolbar, Tooltip } from "@mui/material";
+import { Box, IconButton, OutlinedInput, Toolbar, Tooltip } from "@mui/material";
 import { debug } from "@tauri-apps/plugin-log";
 import React, { useCallback, useEffect } from "react";
 import {
@@ -32,24 +32,40 @@ export default function NavigationBar() {
   const { history, historyIndex } = useAppSelector((state) => state.read.containerFile);
   const dispatch = useAppDispatch();
 
-  const handlePathChanged = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    dispatch(setContainerFilePath(e.target.value));
-  };
+  const currentHistoryPath = history[historyIndex] ?? "";
 
-  const handleSwitchTwoPagedClicked = (_e: React.MouseEvent<HTMLButtonElement>) => {
-    settingsStore.set("two-paged", !isTwoPagedView);
-    dispatch(setIsTwoPagedView(!isTwoPagedView));
-  };
+  const formAction = (formData: FormData) => {
+    const inputPath = formData.get("path")?.toString();
 
-  const handleSwitchDirectionClicked = (_e: React.MouseEvent<HTMLButtonElement>) => {
-    if (direction === "rtl") {
-      settingsStore.set("direction", "ltr");
-      dispatch(setDirection("ltr"));
-    } else {
-      settingsStore.set("direction", "rtl");
-      dispatch(setDirection("rtl"));
+    if (inputPath && inputPath !== currentHistoryPath) {
+      dispatch(setContainerFilePath(inputPath));
     }
   };
+
+  const handleBlur = useCallback((e: React.FocusEvent<HTMLInputElement>) => {
+    e.currentTarget.form?.requestSubmit();
+  }, []);
+
+  const handleSwitchTwoPagedClicked = useCallback(
+    (_e: React.MouseEvent<HTMLButtonElement>) => {
+      settingsStore.set("two-paged", !isTwoPagedView);
+      dispatch(setIsTwoPagedView(!isTwoPagedView));
+    },
+    [dispatch, isTwoPagedView],
+  );
+
+  const handleSwitchDirectionClicked = useCallback(
+    (_e: React.MouseEvent<HTMLButtonElement>) => {
+      if (direction === "rtl") {
+        settingsStore.set("direction", "ltr");
+        dispatch(setDirection("ltr"));
+      } else {
+        settingsStore.set("direction", "rtl");
+        dispatch(setDirection("rtl"));
+      }
+    },
+    [dispatch, direction],
+  );
 
   const handleLibraryClicked = useCallback(
     (_e: React.MouseEvent<HTMLButtonElement>) => {
@@ -112,20 +128,25 @@ export default function NavigationBar() {
       >
         <ArrowForward />
       </IconButton>
-      <OutlinedInput
-        value={history[historyIndex] ?? ""}
-        onChange={handlePathChanged}
-        onContextMenu={handleContextMenu}
-        size="small"
-        fullWidth
-        inputProps={{ "aria-label": "container-path-input" }}
-        sx={{
-          bgcolor: (theme) => theme.palette.background.default,
-          "& .MuiOutlinedInput-input": {
-            padding: "4px 8px",
-          },
-        }}
-      />
+      <Box component="form" action={formAction} sx={{ flexGrow: 1 }}>
+        <OutlinedInput
+          // Force DOM recreation to update the initial value on external state changes.
+          key={currentHistoryPath}
+          name="path"
+          defaultValue={currentHistoryPath}
+          onContextMenu={handleContextMenu}
+          onBlur={handleBlur}
+          size="small"
+          fullWidth
+          inputProps={{ "aria-label": "container-path-input" }}
+          sx={{
+            bgcolor: (theme) => theme.palette.background.default,
+            "& .MuiOutlinedInput-input": {
+              padding: "4px 8px",
+            },
+          }}
+        />
+      </Box>
       <IconButton onClick={handleSwitchTwoPagedClicked} aria-label="toggle-two-paged">
         {isTwoPagedView ? <LooksTwo /> : <LooksOne />}
       </IconButton>
