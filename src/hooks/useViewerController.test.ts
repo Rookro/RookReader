@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { renderHook, waitFor } from "@testing-library/react";
+import { renderHook, waitFor, act } from "@testing-library/react";
 import { useViewerController } from "./useViewerController";
 import * as ImageUtils from "../utils/ImageUtils";
 import { setImageIndex } from "../reducers/ReadReducer";
@@ -480,8 +480,10 @@ describe("useViewerController", () => {
       resolvePreview!({} as Image);
 
       await waitFor(() => expect(ImageUtils.fetchImagePreviewBlob).toHaveBeenCalled());
-      // Wait for state updates
-      await new Promise((resolve) => setTimeout(resolve, 20));
+      // Wait for state updates to settle
+      await act(async () => {
+        await new Promise(process.nextTick);
+      });
     });
 
     // Verify that race conditions between preview and full image acquisition (full image arrives later) are handled correctly
@@ -489,9 +491,11 @@ describe("useViewerController", () => {
       const settingsWithPreview = { ...mockSettings, enablePreview: true };
 
       // Delay full image fetch
-      mockedFetchImageBlob.mockImplementation(
-        () => new Promise((resolve) => setTimeout(() => resolve({} as Image), 10)),
-      );
+      let resolveFull: (val: Image) => void;
+      const fullPromise = new Promise<Image>((resolve) => {
+        resolveFull = resolve;
+      });
+      mockedFetchImageBlob.mockReturnValue(fullPromise);
       vi.mocked(ImageUtils.fetchImagePreviewBlob).mockResolvedValue({} as Image);
 
       // First call (preview) returns item with previewUrl
@@ -513,8 +517,13 @@ describe("useViewerController", () => {
       await waitFor(() => expect(mockedFetchImageBlob).toHaveBeenCalled());
       await waitFor(() => expect(ImageUtils.fetchImagePreviewBlob).toHaveBeenCalled());
 
+      // Now resolve full image
+      resolveFull!({} as Image);
+
       // Wait a bit more to ensure all promises in updateLayout finished
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      await act(async () => {
+        await new Promise(process.nextTick);
+      });
     });
   });
 });

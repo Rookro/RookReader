@@ -87,7 +87,7 @@ describe("MenuList", () => {
   // Verify that setActiveView action is called correctly when return to reader is clicked
   it("should call setActiveView when return to reader is clicked", async () => {
     renderWithProviders(<MenuList {...defaultProps} />, { preloadedState });
-    const backButton = screen.getByLabelText("Return to reader");
+    const backButton = screen.getByRole("button", { name: "book-reader" });
     await user.click(backButton);
     expect(setActiveView).toHaveBeenCalledWith("reader");
   });

@@ -31,8 +31,7 @@ describe("NavigationBar", () => {
   it("should dispatch setActiveView('bookshelf') when library button is clicked", async () => {
     const { store } = renderWithProviders(<NavigationBar />);
 
-    // MUI Tooltip with translation "Move to Bookshelf"
-    const libraryButton = screen.getByLabelText("Move to Bookshelf");
+    const libraryButton = screen.getByRole("button", { name: "library" });
     await user.click(libraryButton);
 
     expect(store.getState().view.activeView).toBe("bookshelf");
