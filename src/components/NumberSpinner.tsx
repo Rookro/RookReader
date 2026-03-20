@@ -1,24 +1,30 @@
-import * as React from "react";
 import { NumberField as BaseNumberField } from "@base-ui/react/number-field";
+import AddIcon from "@mui/icons-material/Add";
+import OpenInFullIcon from "@mui/icons-material/OpenInFull";
+import RemoveIcon from "@mui/icons-material/Remove";
+import { FormHelperText, SxProps, Theme } from "@mui/material";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import FormControl from "@mui/material/FormControl";
 import FormLabel from "@mui/material/FormLabel";
-import AddIcon from "@mui/icons-material/Add";
-import RemoveIcon from "@mui/icons-material/Remove";
 import OutlinedInput from "@mui/material/OutlinedInput";
-import OpenInFullIcon from "@mui/icons-material/OpenInFull";
+import * as React from "react";
 
 export default function NumberSpinner({
   id: idProp,
   label,
   error,
+  helperText,
   size = "medium",
+  sx,
+  style,
   ...other
 }: BaseNumberField.Root.Props & {
   label?: React.ReactNode;
   size?: "small" | "medium";
   error?: boolean;
+  helperText?: string;
+  sx?: SxProps<Theme>;
 }) {
   let id = React.useId();
   if (idProp) {
@@ -26,6 +32,7 @@ export default function NumberSpinner({
   }
   return (
     <BaseNumberField.Root
+      style={style}
       {...other}
       render={(props, state) => (
         <FormControl
@@ -35,16 +42,19 @@ export default function NumberSpinner({
           required={state.required}
           error={error}
           variant="outlined"
-          sx={{
-            "& .MuiButton-root": {
-              borderColor: "divider",
-              minWidth: 0,
-              bgcolor: "action.hover",
-              "&:not(.Mui-disabled)": {
-                color: "text.primary",
+          sx={[
+            {
+              "& .MuiButton-root": {
+                borderColor: "divider",
+                minWidth: 0,
+                bgcolor: "action.hover",
+                "&:not(.Mui-disabled)": {
+                  color: "text.primary",
+                },
               },
             },
-          }}
+            ...(sx ? (Array.isArray(sx) ? sx : [sx]) : []),
+          ]}
         >
           {props.children}
         </FormControl>
@@ -144,6 +154,7 @@ export default function NumberSpinner({
           <AddIcon fontSize={size} />
         </BaseNumberField.Increment>
       </Box>
+      <FormHelperText sx={{ ml: 0, "&:empty": { mt: 0 } }}>{helperText}</FormHelperText>
     </BaseNumberField.Root>
   );
 }
