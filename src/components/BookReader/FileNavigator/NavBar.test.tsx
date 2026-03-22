@@ -1,17 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, fireEvent, waitFor, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { renderWithProviders, RootState } from "../../../test/utils";
+import { createBasePreloadedState, renderWithProviders } from "../../../test/utils";
 import NavBar from "./NavBar";
 import { mockStore } from "../../../test/mocks/tauri";
 import * as ReadReducer from "../../../reducers/ReadReducer";
 
 // Mock actions to track calls
 vi.mock("../../../reducers/ReadReducer", async () => {
-  const actual = (await vi.importActual("../../../reducers/ReadReducer")) as Record<
-    string,
-    unknown
-  >;
+  const actual = await vi.importActual("../../../reducers/ReadReducer");
   return {
     ...actual,
     updateExploreBasePath: vi.fn((payload) => ({
@@ -35,24 +32,15 @@ class MockResizeObserver {
   unobserve() {}
   disconnect() {}
 }
-global.ResizeObserver = MockResizeObserver as unknown as typeof ResizeObserver;
+
+global.ResizeObserver = MockResizeObserver as typeof ResizeObserver;
 
 describe("FileNavigator/NavBar", () => {
   const user = userEvent.setup();
 
-  const defaultPreloadedState = {
-    read: {
-      explorer: {
-        history: ["/home/user/books"],
-        historyIndex: 0,
-        searchText: "",
-        sortOrder: "NAME_ASC",
-        entries: ["dummy"], // prevent auto-navigation in useEffect
-        isLoading: false,
-        isWatchEnabled: false,
-      },
-    },
-  } as unknown as RootState;
+  const defaultPreloadedState = createBasePreloadedState();
+  defaultPreloadedState.read.explorer.history = ["/home/user/books"];
+  defaultPreloadedState.read.explorer.historyIndex = 0;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -77,9 +65,15 @@ describe("FileNavigator/NavBar", () => {
   });
 
   it("should dispatch updateExploreBasePath with home dir when home button is clicked", async () => {
-    mockStore.get.mockResolvedValue("/home/user");
+    const preloadedState = {
+      ...defaultPreloadedState,
+      settings: {
+        ...defaultPreloadedState.settings,
+        "home-directory": "/home/user",
+      },
+    };
 
-    renderWithProviders(<NavBar />, { preloadedState: defaultPreloadedState });
+    renderWithProviders(<NavBar />, { preloadedState });
 
     const homeButton = screen.getByLabelText("home");
     await user.click(homeButton);
@@ -91,14 +85,16 @@ describe("FileNavigator/NavBar", () => {
 
   it("should dispatch goBackExplorerHistory when back button is clicked", async () => {
     const preloadedState = {
+      ...defaultPreloadedState,
       read: {
+        ...defaultPreloadedState.read,
         explorer: {
           ...defaultPreloadedState.read.explorer,
           history: ["/", "/home"],
           historyIndex: 1,
         },
       },
-    } as unknown as RootState;
+    };
 
     renderWithProviders(<NavBar />, { preloadedState });
 
@@ -174,14 +170,16 @@ describe("FileNavigator/NavBar", () => {
 
   it("should dispatch goForwardExplorerHistory when forward button is clicked", async () => {
     const preloadedState = {
+      ...defaultPreloadedState,
       read: {
+        ...defaultPreloadedState.read,
         explorer: {
           ...defaultPreloadedState.read.explorer,
           history: ["/", "/home"],
           historyIndex: 0,
         },
       },
-    } as unknown as RootState;
+    };
 
     renderWithProviders(<NavBar />, { preloadedState });
 
@@ -192,11 +190,18 @@ describe("FileNavigator/NavBar", () => {
   });
 
   it("should use homeDir if settingsStore home-directory is missing", async () => {
-    mockStore.get.mockResolvedValue(null);
     const { homeDir } = await import("@tauri-apps/api/path");
     vi.mocked(homeDir).mockResolvedValue("/system/home");
 
-    renderWithProviders(<NavBar />, { preloadedState: defaultPreloadedState });
+    const preloadedState = {
+      ...defaultPreloadedState,
+      settings: {
+        ...defaultPreloadedState.settings,
+        "home-directory": "",
+      },
+    };
+
+    renderWithProviders(<NavBar />, { preloadedState });
 
     const homeButton = screen.getByLabelText("home");
     await user.click(homeButton);

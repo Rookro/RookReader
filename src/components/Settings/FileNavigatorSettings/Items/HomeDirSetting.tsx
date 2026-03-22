@@ -1,18 +1,20 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Box, IconButton, ListItem, ListItemIcon, ListItemText, TextField } from "@mui/material";
 import { Folder, HomeOutlined } from "@mui/icons-material";
 import { open } from "@tauri-apps/plugin-dialog";
-import { homeDir } from "@tauri-apps/api/path";
 import { error } from "@tauri-apps/plugin-log";
-import { settingsStore } from "../../../../settings/SettingsStore";
+import { useAppDispatch, useAppSelector } from "../../../../Store";
+import { updateSettings } from "../../../../reducers/SettingsReducer";
 
 /**
  * Home directory setting component.
  */
 export default function HomeDirSetting() {
   const { t } = useTranslation();
-  const [homeDirPath, setHomeDirPath] = useState<string>("");
+  const { "home-directory": homeDirPathStore } = useAppSelector((store) => store.settings);
+  const dispatch = useAppDispatch();
+  const [homeDirPath, setHomeDirPath] = useState<string>(homeDirPathStore);
 
   const handleFolderClicked = async (_e: React.MouseEvent<HTMLButtonElement>) => {
     try {
@@ -24,19 +26,11 @@ export default function HomeDirSetting() {
         return;
       }
       setHomeDirPath(directory);
-      await settingsStore.set("home-directory", directory);
+      dispatch(updateSettings({ key: "home-directory", value: directory }));
     } catch (e) {
       error(`${e}`);
     }
   };
-
-  useEffect(() => {
-    const initView = async () => {
-      const homeDirPathSetting = (await settingsStore.get("home-directory")) as string | undefined;
-      setHomeDirPath(homeDirPathSetting ?? (await homeDir()));
-    };
-    initView();
-  }, []);
 
   const formAction = useCallback(
     async (formData: FormData) => {
@@ -44,10 +38,10 @@ export default function HomeDirSetting() {
 
       if (inputPath && inputPath !== homeDirPath) {
         setHomeDirPath(inputPath);
-        await settingsStore.set("home-directory", inputPath);
+        dispatch(updateSettings({ key: "home-directory", value: inputPath }));
       }
     },
-    [homeDirPath],
+    [dispatch, homeDirPath],
   );
 
   const handleBlur = useCallback((e: React.FocusEvent<HTMLInputElement>) => {

@@ -16,6 +16,7 @@ import { settingsStore } from "../../../../settings/SettingsStore";
 import { SettingsChangedEvent } from "../../../../types/SettingsChangedEvent";
 import { useAppDispatch } from "../../../../Store";
 import { setFontFamily } from "../../../../reducers/ViewReducer";
+import { updateSettings } from "../../../../reducers/SettingsReducer";
 
 const defaultFont = "Inter, Avenir, Helvetica, Arial, sans-serif";
 
@@ -32,7 +33,7 @@ export default function FontFamilySetting() {
     debug(`Font changed: ${e.target.value}`);
     setCurrentFont(e.target.value);
     emit<SettingsChangedEvent>("settings-changed", { fontFamily: e.target.value });
-    settingsStore.set("font-family", e.target.value);
+    dispatch(updateSettings({ key: "font-family", value: e.target.value }));
     dispatch(setFontFamily(e.target.value));
   };
 

@@ -7,7 +7,7 @@ describe("loggerMiddleware", () => {
   const mockStore = {
     getState: vi.fn(() => ({ state: "mock" })),
     dispatch: vi.fn(),
-  } as unknown as MiddlewareAPI;
+  } as MiddlewareAPI;
 
   const mockNext = vi.fn((action: unknown) => action);
 

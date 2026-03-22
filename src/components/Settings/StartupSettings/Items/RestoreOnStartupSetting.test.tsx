@@ -1,32 +1,51 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { renderWithProviders } from "../../../../test/utils";
+import { createBasePreloadedState, renderWithProviders } from "../../../../test/utils";
 import RestoreOnStartupSetting from "./RestoreOnStartupSetting";
 import { mockStore } from "../../../../test/mocks/tauri";
 
 describe("RestoreOnStartupSetting", () => {
   const user = userEvent.setup();
 
+  const basePreloadedState = createBasePreloadedState();
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it("should load initial state from settingsStore", async () => {
-    mockStore.get.mockResolvedValue({ "restore-last-container-on-startup": true });
+    const preloadedState = {
+      ...basePreloadedState,
+      settings: {
+        ...basePreloadedState.settings,
+        history: {
+          ...basePreloadedState.settings.history,
+          "restore-last-container-on-startup": true,
+        },
+      },
+    };
 
-    renderWithProviders(<RestoreOnStartupSetting />);
+    renderWithProviders(<RestoreOnStartupSetting />, { preloadedState });
 
     await waitFor(() => {
-      expect(mockStore.get).toHaveBeenCalledWith("history");
       expect(screen.getByRole("switch")).toBeChecked();
     });
   });
 
   it("should update store when toggled", async () => {
-    mockStore.get.mockResolvedValue({ "restore-last-container-on-startup": false });
+    const preloadedState = {
+      ...basePreloadedState,
+      settings: {
+        ...basePreloadedState.settings,
+        history: {
+          ...basePreloadedState.settings.history,
+          "restore-last-container-on-startup": false,
+        },
+      },
+    };
 
-    renderWithProviders(<RestoreOnStartupSetting />);
+    renderWithProviders(<RestoreOnStartupSetting />, { preloadedState });
 
     await waitFor(() => expect(screen.getByRole("switch")).toBeInTheDocument());
 

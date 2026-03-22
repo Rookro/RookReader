@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import BookDeleteDialog from "./BookDeleteDialog";
-import { renderWithProviders, RootState } from "../../../test/utils";
+import { createBasePreloadedState, renderWithProviders } from "../../../test/utils";
 import i18n from "../../../i18n/config";
 import * as BookCollectionReducer from "../../../reducers/BookCollectionReducer";
 import { createMockBookWithState, createMockBookshelf } from "../../../test/factories";
@@ -70,8 +70,11 @@ describe("BookDeleteDialog", () => {
 
   // Verify that the bookshelf name is correctly displayed when a bookshelf is selected
   it("should handle bookshelfName fallback when bookshelf is selected", () => {
+    const basePreloadedState = createBasePreloadedState();
     const preloadedState = {
+      ...basePreloadedState,
       bookCollection: {
+        ...basePreloadedState.bookCollection,
         bookshelf: {
           bookshelves: [createMockBookshelf({ id: 1, name: "Shelf 1" })],
           selectedId: 1,
@@ -79,13 +82,8 @@ describe("BookDeleteDialog", () => {
           status: "idle" as const,
           error: null,
         },
-        tag: { tags: [], selectedId: null, status: "idle" as const, error: null },
-        series: { series: [], selectedId: null, books: [], status: "idle" as const, error: null },
-        searchText: "",
-        sortOrder: "NAME_ASC" as const,
-        gridSize: 1,
       },
-    } as unknown as RootState;
+    };
     renderWithProviders(<BookDeleteDialog {...defaultProps} />, { preloadedState });
     expect(screen.getByText(/Shelf 1/)).toBeInTheDocument();
   });

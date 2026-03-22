@@ -1,9 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { renderWithProviders, RootState } from "../../test/utils";
+import { createBasePreloadedState, renderWithProviders } from "../../test/utils";
 import Bookshelf from "./Bookshelf";
-import { mockStore } from "../../test/mocks/tauri";
 import { JSX } from "react";
 import * as BookCollectionReducer from "../../reducers/BookCollectionReducer";
 import * as ReadReducer from "../../reducers/ReadReducer";
@@ -95,10 +94,7 @@ vi.mock("../../hooks/useBookTags", () => ({ useBookTags: vi.fn() }));
 
 // Mock actions
 vi.mock("../../reducers/BookCollectionReducer", async () => {
-  const actual = (await vi.importActual("../../reducers/BookCollectionReducer")) as Record<
-    string,
-    unknown
-  >;
+  const actual = await vi.importActual("../../reducers/BookCollectionReducer");
   return {
     ...actual,
     addBookshelf: vi.fn((payload: { name: string; icon_id: string }) => ({
@@ -110,14 +106,14 @@ vi.mock("../../reducers/BookCollectionReducer", async () => {
       payload,
     })),
     setGridSize: vi.fn((payload: number) => ({ type: "bookCollection/setGridSize", payload })),
+    setSortOrder: vi.fn((payload: string) => ({ type: "bookCollection/setSortOrder", payload })),
   };
 });
 
 vi.mock("../../reducers/ReadReducer", async () => {
-  const actual = (await vi.importActual("../../reducers/ReadReducer")) as Record<string, unknown>;
+  const actual = await vi.importActual("../../reducers/ReadReducer");
   return {
     ...actual,
-    setSortOrder: vi.fn((payload: string) => ({ type: "read/setSortOrder", payload })),
     setContainerFilePath: vi.fn((payload: string) => ({
       type: "read/setContainerFilePath",
       payload,
@@ -126,7 +122,7 @@ vi.mock("../../reducers/ReadReducer", async () => {
 });
 
 vi.mock("../../reducers/ViewReducer", async () => {
-  const actual = (await vi.importActual("../../reducers/ViewReducer")) as Record<string, unknown>;
+  const actual = await vi.importActual("../../reducers/ViewReducer");
   return {
     ...actual,
     setActiveView: vi.fn((payload: string) => ({ type: "view/setActiveView", payload })),
@@ -136,36 +132,13 @@ vi.mock("../../reducers/ViewReducer", async () => {
 describe("Bookshelf", () => {
   const user = userEvent.setup();
 
-  const defaultPreloadedState = {
-    bookCollection: {
-      bookshelf: {
-        bookshelves: [],
-        selectedId: null,
-        books: [],
-        status: "idle",
-        error: null,
-      },
-      tag: {
-        tags: [],
-        selectedId: null,
-        status: "idle",
-        error: null,
-      },
-      series: {
-        series: [],
-        selectedId: null,
-        books: [],
-        status: "idle",
-        error: null,
-      },
-      searchText: "",
-      sortOrder: "NAME_ASC",
-      gridSize: 1,
-    },
-    view: {
-      activeView: "bookshelf",
-    },
-  } as unknown as RootState;
+  const defaultPreloadedState = createBasePreloadedState();
+  defaultPreloadedState.view.activeView = "bookshelf";
+  defaultPreloadedState.settings = {
+    ...defaultPreloadedState.settings,
+    "bookshelf-sort-order": "DATE_DESC",
+    "bookshelf-grid-size": 2,
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -206,16 +179,10 @@ describe("Bookshelf", () => {
   });
 
   it("should initialize settings from settingsStore on mount", async () => {
-    mockStore.get.mockImplementation((key) => {
-      if (key === "bookshelf-sort-order") return Promise.resolve("DATE_DESC");
-      if (key === "bookshelf-grid-size") return Promise.resolve(2);
-      return Promise.resolve(null);
-    });
-
     renderWithProviders(<Bookshelf />, { preloadedState: defaultPreloadedState });
 
     await waitFor(() => {
-      expect(ReadReducer.setSortOrder).toHaveBeenCalledWith("DATE_DESC");
+      expect(BookCollectionReducer.setSortOrder).toHaveBeenCalledWith("DATE_DESC");
       expect(BookCollectionReducer.setGridSize).toHaveBeenCalledWith(2);
     });
   });

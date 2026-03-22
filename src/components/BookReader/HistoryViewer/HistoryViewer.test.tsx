@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, waitFor, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { renderWithProviders, RootState } from "../../../test/utils";
+import { createBasePreloadedState, renderWithProviders } from "../../../test/utils";
 import HistoryViewer from "./HistoryViewer";
 import * as ReadReducer from "../../../reducers/ReadReducer";
 import { createMockReadBook } from "../../../test/factories";
@@ -22,10 +22,7 @@ vi.mock("../../SidePane/SidePanelHeader", () => ({
 
 // Mock actions
 vi.mock("../../../reducers/ReadReducer", async () => {
-  const actual = (await vi.importActual("../../../reducers/ReadReducer")) as Record<
-    string,
-    unknown
-  >;
+  const actual = await vi.importActual("../../../reducers/ReadReducer");
   return {
     ...actual,
     setContainerFilePath: vi.fn((payload: string) => ({
@@ -38,27 +35,7 @@ vi.mock("../../../reducers/ReadReducer", async () => {
 describe("HistoryViewer", () => {
   const user = userEvent.setup();
 
-  const defaultPreloadedState = {
-    history: {
-      recentlyReadBooks: [],
-      status: "idle",
-      error: null,
-    },
-    read: {
-      containerFile: {
-        history: [],
-        historyIndex: -1,
-        isDirectory: false,
-        entries: [],
-        book: null,
-        index: 0,
-        cfi: null,
-        isNovel: false,
-        isLoading: false,
-        error: null,
-      },
-    },
-  } as unknown as RootState;
+  const defaultPreloadedState = createBasePreloadedState();
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -79,12 +56,13 @@ describe("HistoryViewer", () => {
     const preloadedState = {
       ...defaultPreloadedState,
       history: {
+        ...defaultPreloadedState.history,
         recentlyReadBooks: [
           createMockReadBook({ id: 1, file_path: "/path/1", display_name: "Book 1" }),
           createMockReadBook({ id: 2, file_path: "/path/2", display_name: "Book 2" }),
         ],
       },
-    } as unknown as RootState;
+    };
 
     renderWithProviders(<HistoryViewer />, { preloadedState });
     expect(screen.getByText("Book 1")).toBeInTheDocument();
@@ -95,11 +73,12 @@ describe("HistoryViewer", () => {
     const preloadedState = {
       ...defaultPreloadedState,
       history: {
+        ...defaultPreloadedState.history,
         recentlyReadBooks: [
           createMockReadBook({ id: 1, file_path: "/path/1", display_name: "Book 1" }),
         ],
       },
-    } as unknown as RootState;
+    };
 
     renderWithProviders(<HistoryViewer />, { preloadedState });
 
@@ -113,12 +92,13 @@ describe("HistoryViewer", () => {
     const preloadedState = {
       ...defaultPreloadedState,
       history: {
+        ...defaultPreloadedState.history,
         recentlyReadBooks: [
           createMockReadBook({ id: 1, file_path: "/path/1", display_name: "Apple" }),
           createMockReadBook({ id: 2, file_path: "/path/2", display_name: "Banana" }),
         ],
       },
-    } as unknown as RootState;
+    };
 
     renderWithProviders(<HistoryViewer />, { preloadedState });
 
@@ -133,9 +113,10 @@ describe("HistoryViewer", () => {
     const preloadedState = {
       ...defaultPreloadedState,
       history: {
+        ...defaultPreloadedState.history,
         recentlyReadBooks: [createMockReadBook({ display_name: "Apple" })],
       },
-    } as unknown as RootState;
+    };
 
     renderWithProviders(<HistoryViewer />, { preloadedState });
 
@@ -153,18 +134,21 @@ describe("HistoryViewer", () => {
     const preloadedState = {
       ...defaultPreloadedState,
       history: {
+        ...defaultPreloadedState.history,
         recentlyReadBooks: [
           createMockReadBook({ file_path: "/path/1", display_name: "B1" }),
           createMockReadBook({ file_path: "/path/2", display_name: "B2" }),
         ],
       },
       read: {
+        ...defaultPreloadedState.read,
         containerFile: {
+          ...defaultPreloadedState.read.containerFile,
           history: ["/path/2"],
           historyIndex: 0,
         },
       },
-    } as unknown as RootState;
+    };
 
     renderWithProviders(<HistoryViewer />, { preloadedState });
 
@@ -185,15 +169,18 @@ describe("HistoryViewer", () => {
     const preloadedState = {
       ...defaultPreloadedState,
       history: {
+        ...defaultPreloadedState.history,
         recentlyReadBooks: [createMockReadBook({ file_path: "/path/2" })],
       },
       read: {
+        ...defaultPreloadedState.read,
         containerFile: {
+          ...defaultPreloadedState.read.containerFile,
           history: ["/path/2"],
           historyIndex: 0,
         },
       },
-    } as unknown as RootState;
+    };
 
     mockScrollToRow.mockImplementationOnce(() => {
       throw new Error("Scroll error");

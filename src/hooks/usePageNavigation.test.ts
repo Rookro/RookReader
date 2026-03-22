@@ -29,7 +29,7 @@ describe("usePageNavigation", () => {
   // Verify that onMoveForward is called when mouse wheel is scrolled down
   it("should call onMoveForward when wheel scrolled down", () => {
     const { result } = renderHook(() => usePageNavigation(onMoveForward, onMoveBack, "ltr"));
-    const mockEvent = { deltaY: 10 } as unknown as WheelEvent;
+    const mockEvent = { deltaY: 10 } as WheelEvent;
     result.current.handleWheeled(mockEvent);
     expect(onMoveForward).toHaveBeenCalled();
   });
@@ -37,7 +37,7 @@ describe("usePageNavigation", () => {
   // Verify that onMoveBack is called when mouse wheel is scrolled up
   it("should call onMoveBack when wheel scrolled up", () => {
     const { result } = renderHook(() => usePageNavigation(onMoveForward, onMoveBack, "ltr"));
-    const mockEvent = { deltaY: -10 } as unknown as WheelEvent;
+    const mockEvent = { deltaY: -10 } as WheelEvent;
     result.current.handleWheeled(mockEvent);
     expect(onMoveBack).toHaveBeenCalled();
   });
@@ -46,7 +46,7 @@ describe("usePageNavigation", () => {
     // Verify that onMoveBack is called in LTR mode when the left arrow key is pressed
     it("should call onMoveBack when ArrowLeft is pressed", () => {
       const { result } = renderHook(() => usePageNavigation(onMoveForward, onMoveBack, "ltr"));
-      const mockEvent = { key: "ArrowLeft" } as unknown as KeyboardEvent;
+      const mockEvent = { key: "ArrowLeft" } as KeyboardEvent;
       result.current.handleKeydown(mockEvent);
       expect(onMoveBack).toHaveBeenCalled();
     });
@@ -54,7 +54,7 @@ describe("usePageNavigation", () => {
     // Verify that onMoveForward is called in LTR mode when the right arrow key is pressed
     it("should call onMoveForward when ArrowRight is pressed", () => {
       const { result } = renderHook(() => usePageNavigation(onMoveForward, onMoveBack, "ltr"));
-      const mockEvent = { key: "ArrowRight" } as unknown as KeyboardEvent;
+      const mockEvent = { key: "ArrowRight" } as KeyboardEvent;
       result.current.handleKeydown(mockEvent);
       expect(onMoveForward).toHaveBeenCalled();
     });
@@ -64,7 +64,7 @@ describe("usePageNavigation", () => {
     // Verify that onMoveForward is called in RTL mode when the left arrow key is pressed
     it("should call onMoveForward when ArrowLeft is pressed", () => {
       const { result } = renderHook(() => usePageNavigation(onMoveForward, onMoveBack, "rtl"));
-      const mockEvent = { key: "ArrowLeft" } as unknown as KeyboardEvent;
+      const mockEvent = { key: "ArrowLeft" } as KeyboardEvent;
       result.current.handleKeydown(mockEvent);
       expect(onMoveForward).toHaveBeenCalled();
     });
@@ -72,7 +72,7 @@ describe("usePageNavigation", () => {
     // Verify that onMoveBack is called in RTL mode when the right arrow key is pressed
     it("should call onMoveBack when ArrowRight is pressed", () => {
       const { result } = renderHook(() => usePageNavigation(onMoveForward, onMoveBack, "rtl"));
-      const mockEvent = { key: "ArrowRight" } as unknown as KeyboardEvent;
+      const mockEvent = { key: "ArrowRight" } as KeyboardEvent;
       result.current.handleKeydown(mockEvent);
       expect(onMoveBack).toHaveBeenCalled();
     });
@@ -80,7 +80,7 @@ describe("usePageNavigation", () => {
     // Verify that nothing is called when other keys are pressed
     it("should do nothing for other keys", () => {
       const { result } = renderHook(() => usePageNavigation(onMoveForward, onMoveBack, "ltr"));
-      const mockEvent = { key: "Enter" } as unknown as KeyboardEvent;
+      const mockEvent = { key: "Enter" } as KeyboardEvent;
       result.current.handleKeydown(mockEvent);
       expect(onMoveForward).not.toHaveBeenCalled();
       expect(onMoveBack).not.toHaveBeenCalled();

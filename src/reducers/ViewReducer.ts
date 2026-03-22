@@ -1,13 +1,10 @@
 import { PayloadAction, createSlice } from "@reduxjs/toolkit";
 import { Direction } from "../types/DirectionType";
-import { settingsStore } from "../settings/SettingsStore";
 
 export const viewSlice = createSlice({
   name: "view",
   initialState: {
-    fontFamily:
-      (await settingsStore.get<string>("font-family")) ??
-      "Inter, Avenir, Helvetica, Arial, sans-serif",
+    fontFamily: "Inter, Avenir, Helvetica, Arial, sans-serif",
     activeView: "reader" as "reader" | "bookshelf",
     isTwoPagedView: true,
     direction: "rtl" as Direction,

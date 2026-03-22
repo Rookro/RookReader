@@ -7,9 +7,7 @@ import { Allotment } from "allotment";
 import { setPdfRenderingHeight } from "../../bindings/ContainerCommands";
 import { openContainerFile, setContainerFilePath } from "../../reducers/ReadReducer";
 import { setEnablePreview, setIsFirstPageSingleView } from "../../reducers/ViewReducer";
-import { settingsStore } from "../../settings/SettingsStore";
 import { AppDispatch, useAppSelector } from "../../Store";
-import { HistorySettings, RenderingSettings } from "../../types/Settings";
 import { getRecentlyReadBooks } from "../../bindings/BookCommands";
 import { useDragDropEvent } from "../../hooks/useDragDropEvent";
 
@@ -39,6 +37,7 @@ export default function BookReader({ sx }: BookReaderProps) {
   const { enableHistory, activeView } = useAppSelector((state) => state.view);
   const { isHidden, tabIndex } = useAppSelector((state) => state.sidePane.left);
   const { history, historyIndex, isNovel } = useAppSelector((state) => state.read.containerFile);
+  const settings = useAppSelector((state) => state.settings);
   const dispatch = useDispatch<AppDispatch>();
 
   const [droppedFile, setDroppedFile] = useState<string | undefined>(undefined);
@@ -96,20 +95,20 @@ export default function BookReader({ sx }: BookReaderProps) {
     }
 
     const init = async () => {
-      const isFirstSingle = (await settingsStore.get<boolean>("first-page-single-view")) ?? true;
+      const isFirstSingle = settings["first-page-single-view"];
       dispatch(setIsFirstPageSingleView(isFirstSingle));
 
-      const renderingSettings = await settingsStore.get<RenderingSettings>("rendering");
-      dispatch(setEnablePreview(renderingSettings?.["enable-preview"] ?? true));
+      const renderingSettings = settings.rendering;
+      dispatch(setEnablePreview(renderingSettings["enable-preview"]));
 
-      const height = renderingSettings?.["pdf-rendering-height"];
+      const height = renderingSettings["pdf-rendering-height"];
       if (height) {
         await setPdfRenderingHeight(height);
       }
 
-      const historySettings = await settingsStore.get<HistorySettings>("history");
-      const historyEnabled = historySettings?.enable ?? true;
-      const restoreLastContainer = historySettings?.["restore-last-container-on-startup"] ?? true;
+      const historySettings = settings.history;
+      const historyEnabled = historySettings.enable;
+      const restoreLastContainer = historySettings["restore-last-container-on-startup"];
       if (historyEnabled && restoreLastContainer) {
         const latestEntry =
           (await getRecentlyReadBooks()).length > 0 ? (await getRecentlyReadBooks())[0] : null;
@@ -121,7 +120,7 @@ export default function BookReader({ sx }: BookReaderProps) {
       initialized.current = true;
     };
     init();
-  }, [dispatch]);
+  }, [dispatch, settings]);
 
   const containerPath = history[historyIndex];
 

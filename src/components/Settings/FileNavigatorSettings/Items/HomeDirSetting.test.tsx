@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { renderWithProviders } from "../../../../test/utils";
+import { createBasePreloadedState, renderWithProviders } from "../../../../test/utils";
 import HomeDirSetting from "./HomeDirSetting";
 import { mockStore } from "../../../../test/mocks/tauri";
 import * as dialog from "@tauri-apps/plugin-dialog";
@@ -9,14 +9,22 @@ import * as dialog from "@tauri-apps/plugin-dialog";
 describe("HomeDirSetting", () => {
   const user = userEvent.setup();
 
+  const basePreloadedState = createBasePreloadedState();
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it("should load initial home directory from store", async () => {
-    mockStore.get.mockResolvedValue("/saved/path");
+    const preloadedState = {
+      ...basePreloadedState,
+      settings: {
+        ...basePreloadedState.settings,
+        "home-directory": "/saved/path",
+      },
+    };
 
-    renderWithProviders(<HomeDirSetting />);
+    renderWithProviders(<HomeDirSetting />, { preloadedState });
 
     await waitFor(() => {
       expect(screen.getByDisplayValue("/saved/path")).toBeInTheDocument();
@@ -24,9 +32,15 @@ describe("HomeDirSetting", () => {
   });
 
   it("should update store when text input changes", async () => {
-    mockStore.get.mockResolvedValue("/saved/path");
+    const preloadedState = {
+      ...basePreloadedState,
+      settings: {
+        ...basePreloadedState.settings,
+        "home-directory": "/saved/path",
+      },
+    };
 
-    renderWithProviders(<HomeDirSetting />);
+    renderWithProviders(<HomeDirSetting />, { preloadedState });
 
     const input = await screen.findByDisplayValue("/saved/path");
     await user.clear(input);
@@ -37,10 +51,16 @@ describe("HomeDirSetting", () => {
   });
 
   it("should open dialog and update store when folder button is clicked", async () => {
-    mockStore.get.mockResolvedValue("/mock/home");
     vi.mocked(dialog.open).mockResolvedValue("/picked/path");
+    const preloadedState = {
+      ...basePreloadedState,
+      settings: {
+        ...basePreloadedState.settings,
+        "home-directory": "/saved/path",
+      },
+    };
 
-    renderWithProviders(<HomeDirSetting />);
+    renderWithProviders(<HomeDirSetting />, { preloadedState });
 
     const folderButton = screen.getByRole("button");
     await user.click(folderButton);

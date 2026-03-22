@@ -22,8 +22,8 @@ import {
   setSortOrder,
 } from "../../../reducers/ReadReducer";
 import { SortOrder } from "../../../types/SortOrderType";
-import { settingsStore } from "../../../settings/SettingsStore";
 import { warn } from "@tauri-apps/plugin-log";
+import { updateSettings } from "../../../reducers/SettingsReducer";
 
 /**
  * Navigation bar component for File navigator component.
@@ -33,23 +33,25 @@ export default function NavBar() {
   const { history, historyIndex, searchText, sortOrder, entries } = useAppSelector(
     (state) => state.read.explorer,
   );
+  const settings = useAppSelector((state) => state.settings);
   const dispatch = useDispatch<AppDispatch>();
 
   const [width, setWidth] = React.useState(0);
 
   const navButtonsRef = useRef<HTMLElement>(null);
+  const initialized = useRef(false);
 
   const currentPath = history[historyIndex] ?? "";
 
   const setDirParh = useCallback(
     async (dirPath: string | undefined = undefined) => {
       if (!dirPath) {
-        dirPath = (await settingsStore.get("home-directory")) ?? (await homeDir());
+        dirPath = settings["home-directory"] || (await homeDir());
       }
       dispatch(setSearchText(""));
       dispatch(updateExploreBasePath({ dirPath }));
     },
-    [dispatch],
+    [dispatch, settings],
   );
 
   useEffect(() => {
@@ -75,14 +77,13 @@ export default function NavBar() {
   }, [entries.length, historyIndex, history, setDirParh]);
 
   useEffect(() => {
-    const initViewSettings = async () => {
-      const sortOrder = await settingsStore.get<SortOrder>("sort-order");
-      if (sortOrder) {
-        dispatch(setSortOrder(sortOrder));
+    if (!initialized.current) {
+      if (settings["sort-order"]) {
+        dispatch(setSortOrder(settings["sort-order"]));
       }
-    };
-    initViewSettings();
-  }, [dispatch]);
+      initialized.current = true;
+    }
+  }, [dispatch, settings]);
 
   const formAction = useCallback(
     (formData: FormData) => {
@@ -130,7 +131,7 @@ export default function NavBar() {
   };
 
   const handleSortOrderChanged = (event: SelectChangeEvent) => {
-    settingsStore.set("sort-order", event.target.value as SortOrder);
+    dispatch(updateSettings({ key: "sort-order", value: event.target.value as SortOrder }));
     dispatch(setSortOrder(event.target.value as SortOrder));
   };
 

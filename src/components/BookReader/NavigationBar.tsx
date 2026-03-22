@@ -10,18 +10,17 @@ import {
 } from "@mui/icons-material";
 import { Box, IconButton, OutlinedInput, Toolbar, Tooltip } from "@mui/material";
 import { debug } from "@tauri-apps/plugin-log";
-import React, { useCallback, useEffect } from "react";
+import React, { useCallback } from "react";
 import {
   goBackContainerHistory,
   goForwardContainerHistory,
   setContainerFilePath,
 } from "../../reducers/ReadReducer";
 import { setActiveView, setDirection, setIsTwoPagedView } from "../../reducers/ViewReducer";
-import { settingsStore } from "../../settings/SettingsStore";
 import { useAppDispatch, useAppSelector } from "../../Store";
-import { Direction } from "../../types/DirectionType";
 import { openSettingsWindow } from "../../utils/WindowOpener";
 import { useTranslation } from "react-i18next";
+import { updateSettings } from "../../reducers/SettingsReducer";
 
 /**
  * Navigation bar component.
@@ -51,7 +50,7 @@ export default function NavigationBar() {
 
   const handleSwitchTwoPagedClicked = useCallback(
     (_e: React.MouseEvent<HTMLButtonElement>) => {
-      settingsStore.set("two-paged", !isTwoPagedView);
+      dispatch(updateSettings({ key: "two-paged", value: !isTwoPagedView }));
       dispatch(setIsTwoPagedView(!isTwoPagedView));
     },
     [dispatch, isTwoPagedView],
@@ -60,10 +59,10 @@ export default function NavigationBar() {
   const handleSwitchDirectionClicked = useCallback(
     (_e: React.MouseEvent<HTMLButtonElement>) => {
       if (direction === "rtl") {
-        settingsStore.set("direction", "ltr");
+        dispatch(updateSettings({ key: "direction", value: "ltr" }));
         dispatch(setDirection("ltr"));
       } else {
-        settingsStore.set("direction", "rtl");
+        dispatch(updateSettings({ key: "direction", value: "rtl" }));
         dispatch(setDirection("rtl"));
       }
     },
@@ -99,20 +98,6 @@ export default function NavigationBar() {
   const handleContextMenu = useCallback((e: React.MouseEvent<HTMLElement>) => {
     e.stopPropagation();
   }, []);
-
-  useEffect(() => {
-    const initViewSettings = async () => {
-      const direction = await settingsStore.get<Direction>("direction");
-      const isTwoPaged = await settingsStore.get<boolean>("two-paged");
-      if (direction) {
-        dispatch(setDirection(direction));
-      }
-      if (isTwoPaged !== undefined) {
-        dispatch(setIsTwoPagedView(isTwoPaged));
-      }
-    };
-    initViewSettings();
-  }, [dispatch]);
 
   return (
     <Toolbar variant="dense" disableGutters sx={{ minHeight: "40px" }}>

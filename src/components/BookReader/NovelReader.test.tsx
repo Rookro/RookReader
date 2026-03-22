@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { Mock } from "vitest";
 import { screen, waitFor, act } from "@testing-library/react";
-import { renderWithProviders, RootState } from "../../test/utils";
+import { createBasePreloadedState, renderWithProviders } from "../../test/utils";
 import NovelReader from "./NovelReader";
 import * as fs from "@tauri-apps/plugin-fs";
 import ePub from "epubjs";
@@ -73,7 +73,7 @@ vi.mock("../../hooks/usePageNavigation", () => ({
 }));
 
 vi.mock("../../reducers/ReadReducer", async () => {
-  const actual = (await vi.importActual("../../reducers/ReadReducer")) as Record<string, unknown>;
+  const actual = await vi.importActual("../../reducers/ReadReducer");
   return {
     ...actual,
     setEntries: vi.fn((payload: string[]) => ({ type: "read/setEntries", payload })),
@@ -94,25 +94,19 @@ class MockResizeObserver {
   unobserve = vi.fn();
   disconnect = vi.fn();
 }
-global.ResizeObserver = MockResizeObserver as unknown as typeof ResizeObserver;
+global.ResizeObserver = MockResizeObserver as typeof ResizeObserver;
 
 describe("BookReader/NovelReader", () => {
   const mockFilePath = "/path/to/novel.epub";
-  const defaultPreloadedState = {
-    read: {
-      containerFile: {
-        history: [mockFilePath],
-        historyIndex: 0,
-        index: 0,
-        cfi: null,
-        isNovel: true,
-      },
-    },
-    view: {
-      direction: "ltr",
-      novel: { font: "default-font", fontSize: 18 },
-    },
-  } as unknown as RootState;
+  const defaultPreloadedState = createBasePreloadedState();
+  defaultPreloadedState.read.containerFile = {
+    ...defaultPreloadedState.read.containerFile,
+    history: [mockFilePath],
+    historyIndex: 0,
+    index: 0,
+    cfi: null,
+    isNovel: true,
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -197,8 +191,12 @@ describe("BookReader/NovelReader", () => {
         resizeCallback(
           [
             {
-              contentBoxSize: [{ inlineSize: 800, blockSize: 600 } as ResizeObserverSize],
-            } as unknown as ResizeObserverEntry,
+              contentBoxSize: [{ inlineSize: 800, blockSize: 600 }],
+              borderBoxSize: [{ inlineSize: 800, blockSize: 600 }],
+              contentRect: new DOMRectReadOnly(0, 0, 800, 600),
+              devicePixelContentBoxSize: [{ inlineSize: 800, blockSize: 600 }],
+              target: {} as Element,
+            },
           ],
           {} as ResizeObserver,
         );
@@ -215,7 +213,7 @@ describe("BookReader/NovelReader", () => {
         ...defaultPreloadedState.read,
         containerFile: { ...defaultPreloadedState.read.containerFile, cfi: "epubcfi(target)" },
       },
-    } as unknown as RootState;
+    };
 
     renderWithProviders(<NovelReader filePath={mockFilePath} />, { preloadedState: cfiState });
     await waitFor(() => expect(ePub).toHaveBeenCalled());
@@ -280,7 +278,7 @@ describe("BookReader/NovelReader", () => {
       );
       const wheelHandler = wheelCall?.[1];
       if (typeof wheelHandler === "function") {
-        const mockEvent = { deltaY: 100 } as unknown as WheelEvent;
+        const mockEvent = { deltaY: 100 } as WheelEvent;
         wheelHandler(mockEvent);
         expect(mockPageNavHandlers.handleWheeled).toHaveBeenCalledWith(mockEvent);
       }
@@ -291,7 +289,7 @@ describe("BookReader/NovelReader", () => {
       );
       const keydownHandler = keydownCall?.[1];
       if (typeof keydownHandler === "function") {
-        const mockEvent = { key: "ArrowRight" } as unknown as KeyboardEvent;
+        const mockEvent = { key: "ArrowRight" } as KeyboardEvent;
         keydownHandler(mockEvent);
         expect(mockPageNavHandlers.handleKeydown).toHaveBeenCalledWith(mockEvent);
       }

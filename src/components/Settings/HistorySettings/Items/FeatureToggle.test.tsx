@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { renderWithProviders, RootState } from "../../../../test/utils";
+import { createBasePreloadedState, renderWithProviders } from "../../../../test/utils";
 import FeatureToggle from "./FeatureToggle";
 import { mockStore } from "../../../../test/mocks/tauri";
 import { emit } from "@tauri-apps/api/event";
@@ -9,33 +9,30 @@ import { emit } from "@tauri-apps/api/event";
 describe("FeatureToggle", () => {
   const user = userEvent.setup();
 
-  const defaultPreloadedState = {
-    view: {
-      enableHistory: true,
-      fontFamily: "",
-      activeView: "bookshelf",
-      isTwoPagedView: true,
-      direction: "ltr",
-      isFirstPageSingleView: true,
-      enablePreview: true,
-      novel: { font: "default-font", fontSize: 18 },
-    },
-  } as unknown as RootState;
+  const defaultPreloadedState = createBasePreloadedState();
 
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it("should load initial state from settingsStore", async () => {
-    mockStore.get.mockResolvedValue({ enable: false });
+    const preloadedState = {
+      ...defaultPreloadedState,
+      settings: {
+        ...defaultPreloadedState.settings,
+        history: {
+          enable: false,
+          "restore-last-container-on-startup": true,
+        },
+      },
+    };
 
     const { store } = renderWithProviders(<FeatureToggle />, {
-      preloadedState: defaultPreloadedState,
+      preloadedState,
     });
 
     await waitFor(() => {
-      expect(mockStore.get).toHaveBeenCalledWith("history");
-      expect(store.getState().view.enableHistory).toBe(false);
+      expect(store.getState().settings.history.enable).toBe(false);
     });
 
     const switchElement = screen.getByRole("switch");
@@ -43,24 +40,35 @@ describe("FeatureToggle", () => {
   });
 
   it("should update store and emit event when toggled", async () => {
-    mockStore.get.mockResolvedValue({ enable: true });
+    const preloadedState = {
+      ...defaultPreloadedState,
+      settings: {
+        ...defaultPreloadedState.settings,
+        history: {
+          enable: true,
+          "restore-last-container-on-startup": true,
+        },
+      },
+    };
 
     const { store } = renderWithProviders(<FeatureToggle />, {
-      preloadedState: defaultPreloadedState,
+      preloadedState,
     });
 
-    await waitFor(() => expect(mockStore.get).toHaveBeenCalled());
+    await waitFor(() => expect(screen.getByRole("switch")).toBeInTheDocument());
 
     const switchElement = screen.getByRole("switch");
-    // Initially checked because preloadedState.view.enableHistory is true
+    // Initially checked because preloadedState.settings.history.enable is true
     expect(switchElement).toBeChecked();
 
     await user.click(switchElement);
 
-    expect(store.getState().view.enableHistory).toBe(false);
-
     await waitFor(() => {
-      expect(mockStore.set).toHaveBeenCalledWith("history", { enable: false });
+      expect(store.getState().settings.history.enable).toBe(false);
+      expect(mockStore.set).toHaveBeenCalledWith(
+        "history",
+        expect.objectContaining({ enable: false }),
+      );
       expect(emit).toHaveBeenCalledWith("settings-changed", {
         history: { isEnabled: false },
       });

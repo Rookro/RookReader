@@ -13,6 +13,7 @@ import historyReducer from "../reducers/HistoryReducer";
 import readReducer from "../reducers/ReadReducer";
 import sidePaneReducer from "../reducers/SidePaneReducer";
 import viewReducer from "../reducers/ViewReducer";
+import settingsReducer from "../reducers/SettingsReducer";
 
 // Create a lightweight i18n instance for testing with actual resources
 export const testI18n = i18n.createInstance();
@@ -34,6 +35,7 @@ const rootReducer = combineReducers({
   read: readReducer,
   sidePane: sidePaneReducer,
   view: viewReducer,
+  settings: settingsReducer,
 });
 
 export type RootState = ReturnType<typeof rootReducer>;
@@ -44,12 +46,86 @@ interface ExtendedRenderOptions extends Omit<RenderOptions, "queries"> {
   store?: AppStore;
 }
 
-export const createTestStore = (preloadedState?: Partial<RootState>) => {
+export function createBasePreloadedState(): RootState {
+  return {
+    settings: {
+      "font-family": "Inter",
+      direction: "ltr",
+      "enable-directory-watch": false,
+      "experimental-features": {},
+      "first-page-single-view": true,
+      history: { enable: true, "restore-last-container-on-startup": false },
+      "home-directory": "",
+      log: { level: "Info" },
+      "novel-reader": { font: "default-font", "font-size": 16 },
+      rendering: {
+        "enable-preview": true,
+        "max-image-height": 0,
+        "image-resize-method": "lanczos3",
+        "pdf-rendering-height": 2000,
+      },
+      "sort-order": "NAME_ASC",
+      theme: "system",
+      "two-paged": true,
+      "bookshelf-sort-order": "NAME_ASC",
+      "bookshelf-grid-size": 1,
+      "initial-view": "reader",
+    },
+    view: {
+      fontFamily: "Inter",
+      activeView: "reader",
+      isTwoPagedView: true,
+      direction: "ltr",
+      isFirstPageSingleView: true,
+      enablePreview: true,
+      enableHistory: true,
+      novel: { font: "default", fontSize: 16 },
+    },
+    read: {
+      containerFile: {
+        history: [],
+        historyIndex: -1,
+        entries: [],
+        index: 0,
+        isNovel: false,
+        isLoading: false,
+        isDirectory: false,
+        book: null,
+        cfi: null,
+        error: null,
+      },
+      explorer: {
+        history: [],
+        historyIndex: -1,
+        entries: [],
+        searchText: "",
+        sortOrder: "NAME_ASC",
+        isLoading: false,
+        isWatchEnabled: false,
+        error: null,
+      },
+    },
+    sidePane: {
+      left: { isHidden: false, tabIndex: 0 },
+    },
+    bookCollection: {
+      bookshelf: { bookshelves: [], selectedId: null, books: [], status: "idle", error: null },
+      tag: { tags: [], selectedId: null, status: "idle", error: null },
+      series: { series: [], selectedId: null, books: [], status: "idle", error: null },
+      searchText: "",
+      sortOrder: "NAME_ASC",
+      gridSize: 1,
+    },
+    history: { recentlyReadBooks: [], status: "idle", error: null },
+  };
+}
+
+export function createTestStore(preloadedState?: Partial<RootState>) {
   return configureStore({
     reducer: rootReducer,
     preloadedState,
   });
-};
+}
 
 const theme = createTheme();
 

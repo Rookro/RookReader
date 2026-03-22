@@ -9,9 +9,6 @@ import { usePageNavigation } from "../../hooks/usePageNavigation";
 import { AppDispatch, useAppSelector } from "../../Store";
 import { setEntries, setNovelLocation } from "../../reducers/ReadReducer";
 import BundledNotoSerifJP from "../../assets/fonts/NotoSerifJP-VariableFont_wght.woff2";
-import { settingsStore } from "../../settings/SettingsStore";
-import { NovelReaderSettings } from "../../types/Settings";
-import { setNovelFont, setNovelFontSize } from "../../reducers/ViewReducer";
 
 /** Props for the NovelReader component */
 interface NovelReaderProps {
@@ -36,8 +33,6 @@ export default function NovelReader({ filePath }: NovelReaderProps) {
   const { index, cfi } = useAppSelector((state) => state.read.containerFile);
   const { direction, novel } = useAppSelector((state) => state.view);
   const dispatch = useDispatch<AppDispatch>();
-
-  const initialized = useRef(false);
 
   const onMoveForward = useCallback(() => {
     renditionRef.current?.next();
@@ -192,18 +187,6 @@ export default function NovelReader({ filePath }: NovelReaderProps) {
         } else {
           rendition.display(index);
         }
-      }
-
-      // Initialize settings after epubjs is initialized.
-      if (!initialized.current) {
-        const settings = await settingsStore.get<NovelReaderSettings>("novel-reader");
-        if (settings?.font) {
-          dispatch(setNovelFont(settings.font));
-        }
-        if (settings?.["font-size"]) {
-          dispatch(setNovelFontSize(settings["font-size"]));
-        }
-        initialized.current = true;
       }
     };
 

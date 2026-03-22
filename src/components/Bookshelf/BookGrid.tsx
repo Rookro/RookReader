@@ -23,8 +23,8 @@ import SetBookTagsDialog from "./Dialog/SetBookTagsDialog";
 import { fetchBooksInSelectedBookshelf, setGridSize } from "../../reducers/BookCollectionReducer";
 import { useTranslation } from "react-i18next";
 import { andSearch, sortBy } from "../../utils/BookshelfUtils";
-import { settingsStore } from "../../settings/SettingsStore";
 import BookDeleteDialog from "./Dialog/BookDeleteDialog";
+import { updateSettings } from "../../reducers/SettingsReducer";
 
 const GRID_SIZES = [
   { width: 140, height: 220 },
@@ -91,7 +91,7 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
 
   const handleGridSizeChange = useCallback(
     (_e: Event, newValue: number, _activeThumb: number) => {
-      settingsStore.set("bookshelf-grid-size", newValue);
+      dispatch(updateSettings({ key: "bookshelf-grid-size", value: newValue }));
       dispatch(setGridSize(newValue));
     },
     [dispatch],

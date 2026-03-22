@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { waitFor } from "@testing-library/react";
-import { renderWithProviders, RootState } from "../test/utils";
+import { createBasePreloadedState, renderWithProviders } from "../test/utils";
 import GlobalErrorListener from "./GlobalErrorListener";
 import { ErrorCode } from "../types/Error";
 import * as notificationContext from "./Notification/NotificationContext";
@@ -13,62 +13,7 @@ vi.mock("./Notification/NotificationContext", () => ({
 describe("GlobalErrorListener", () => {
   const showNotificationMock = vi.fn();
 
-  const basePreloadedState: Partial<RootState> = {
-    read: {
-      containerFile: {
-        history: [],
-        historyIndex: -1,
-        isDirectory: false,
-        entries: [],
-        book: null,
-        index: 0,
-        cfi: null,
-        isNovel: false,
-        isLoading: false,
-        error: null,
-      },
-      explorer: {
-        history: [],
-        historyIndex: -1,
-        entries: [],
-        searchText: "",
-        sortOrder: "NAME_ASC",
-        isLoading: false,
-        isWatchEnabled: false,
-        error: null,
-      },
-    },
-    history: {
-      recentlyReadBooks: [],
-      status: "idle",
-      error: null,
-    },
-    bookCollection: {
-      bookshelf: {
-        bookshelves: [],
-        selectedId: null,
-        books: [],
-        status: "idle",
-        error: null,
-      },
-      tag: {
-        tags: [],
-        selectedId: null,
-        status: "idle",
-        error: null,
-      },
-      series: {
-        series: [],
-        selectedId: null,
-        books: [],
-        status: "idle",
-        error: null,
-      },
-      searchText: "",
-      sortOrder: "NAME_ASC",
-      gridSize: 1,
-    },
-  };
+  const basePreloadedState = createBasePreloadedState();
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -83,11 +28,11 @@ describe("GlobalErrorListener", () => {
       read: {
         ...basePreloadedState.read,
         containerFile: {
-          ...basePreloadedState.read!.containerFile,
+          ...basePreloadedState.read.containerFile,
           error: { code: ErrorCode.CONTAINER_UNSUPPORTED_CONTAINER_ERROR },
         },
       },
-    } as unknown as RootState;
+    };
 
     const { store } = renderWithProviders(<GlobalErrorListener />, { preloadedState });
 
@@ -115,11 +60,11 @@ describe("GlobalErrorListener", () => {
       read: {
         ...basePreloadedState.read,
         explorer: {
-          ...basePreloadedState.read!.explorer,
+          ...basePreloadedState.read.explorer,
           error: { code: ErrorCode.IO_ERROR },
         },
       },
-    } as unknown as RootState;
+    };
 
     const { store } = renderWithProviders(<GlobalErrorListener />, { preloadedState });
 
@@ -140,7 +85,7 @@ describe("GlobalErrorListener", () => {
         ...basePreloadedState.history,
         error: { code: ErrorCode.OTHER_ERROR },
       },
-    } as unknown as RootState;
+    };
 
     const { store } = renderWithProviders(<GlobalErrorListener />, { preloadedState });
 
@@ -164,7 +109,7 @@ describe("GlobalErrorListener", () => {
           error: { code: ErrorCode.OTHER_ERROR },
         },
       },
-    } as unknown as RootState;
+    };
 
     const { store } = renderWithProviders(<GlobalErrorListener />, { preloadedState });
 
@@ -188,7 +133,7 @@ describe("GlobalErrorListener", () => {
           error: { code: ErrorCode.OTHER_ERROR },
         },
       },
-    } as unknown as RootState;
+    };
 
     const { store } = renderWithProviders(<GlobalErrorListener />, { preloadedState });
 

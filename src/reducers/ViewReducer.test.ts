@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import viewReducer, {
   setActiveView,
   setFontFamily,
@@ -10,14 +10,6 @@ import viewReducer, {
   setEnablePreview,
   setEnableHistory,
 } from "./ViewReducer";
-
-// Mock SettingsStore since it's used in initialState (top-level await)
-vi.mock("../settings/SettingsStore", () => ({
-  settingsStore: {
-    get: vi.fn(() => Promise.resolve(null)),
-    set: vi.fn(),
-  },
-}));
 
 describe("ViewReducer", () => {
   const initialState = {

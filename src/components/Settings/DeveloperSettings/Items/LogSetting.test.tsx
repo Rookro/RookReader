@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { renderWithProviders } from "../../../../test/utils";
+import { createBasePreloadedState, renderWithProviders } from "../../../../test/utils";
 import LogSetting from "./LogSetting";
 import { mockStore } from "../../../../test/mocks/tauri";
 import { appLogDir } from "@tauri-apps/api/path";
@@ -10,15 +10,25 @@ import { openPath } from "@tauri-apps/plugin-opener";
 describe("LogSetting", () => {
   const user = userEvent.setup();
 
+  const basePreloadedState = createBasePreloadedState();
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it("should load initial log directory and level from store", async () => {
     vi.mocked(appLogDir).mockResolvedValue("/mock/log/dir");
-    mockStore.get.mockResolvedValue({ level: "Debug" });
+    const preloadedState = {
+      ...basePreloadedState,
+      settings: {
+        ...basePreloadedState.settings,
+        log: {
+          level: "Debug" as const,
+        },
+      },
+    };
 
-    renderWithProviders(<LogSetting />);
+    renderWithProviders(<LogSetting />, { preloadedState });
 
     await waitFor(() => {
       expect(screen.getByDisplayValue("/mock/log/dir")).toBeInTheDocument();

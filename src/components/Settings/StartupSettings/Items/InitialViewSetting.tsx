@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ListItem,
@@ -9,32 +9,25 @@ import {
   SelectChangeEvent,
 } from "@mui/material";
 import { Language } from "@mui/icons-material";
-import { settingsStore } from "../../../../settings/SettingsStore";
+import { useAppDispatch, useAppSelector } from "../../../../Store";
+import { updateSettings } from "../../../../reducers/SettingsReducer";
 
 /**
  * Initial view setting component.
  */
 export default function InitialViewSetting() {
   const { t } = useTranslation();
-  const [initialView, setInitialView] = useState<"reader" | "bookshelf">("reader");
+  const initialView = useAppSelector((state) => state.settings["initial-view"]);
+  const dispatch = useAppDispatch();
 
-  // Initializes the setting from the settings store when the component mounts.
-  useEffect(() => {
-    const init = async () => {
-      const initialView = await settingsStore.get<string>("initial-view");
-      if (initialView === "reader" || initialView === "bookshelf") {
-        setInitialView(initialView);
+  const handleInitialViewChanged = useCallback(
+    async (e: SelectChangeEvent) => {
+      if (e.target.value === "reader" || e.target.value === "bookshelf") {
+        dispatch(updateSettings({ key: "initial-view", value: e.target.value }));
       }
-    };
-    init();
-  }, []);
-
-  const handleInitialViewChanged = async (e: SelectChangeEvent) => {
-    if (e.target.value === "reader" || e.target.value === "bookshelf") {
-      setInitialView(e.target.value);
-      await settingsStore.set("initial-view", e.target.value);
-    }
-  };
+    },
+    [dispatch],
+  );
 
   return (
     <ListItem>
@@ -45,7 +38,7 @@ export default function InitialViewSetting() {
       <Select
         label={t("settings.startup.initial-view.title")}
         variant="standard"
-        value={initialView}
+        defaultValue={initialView}
         onChange={handleInitialViewChanged}
         size="small"
         autoWidth

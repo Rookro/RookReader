@@ -1,37 +1,27 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { RestorePageOutlined } from "@mui/icons-material";
 import { ListItem, ListItemIcon, ListItemText, Switch } from "@mui/material";
-import { settingsStore } from "../../../../settings/SettingsStore";
-import { HistorySettings } from "../../../../types/Settings";
+import { useAppDispatch, useAppSelector } from "../../../../Store";
+import { updateSettings } from "../../../../reducers/SettingsReducer";
 
 /**
  * Restore on startup setting component.
  */
 export default function RestoreOnStartupSetting() {
   const { t } = useTranslation();
-  const [restoreLastContainer, setRestoreLastContainer] = useState(false);
-
-  // Initializes the setting from the settings store when the component mounts.
-  useEffect(() => {
-    const init = async () => {
-      const historySettings = await settingsStore.get<HistorySettings>("history");
-      const restoreLastContainer = historySettings?.["restore-last-container-on-startup"] ?? true;
-      setRestoreLastContainer(restoreLastContainer);
-    };
-    init();
-  }, []);
+  const { history: historySettings } = useAppSelector((state) => state.settings);
+  const dispatch = useAppDispatch();
 
   const handleRestoreFeatureToggleChanged = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
-      setRestoreLastContainer(e.target.checked);
-      const historySettings = (await settingsStore.get<HistorySettings>("history")) ?? {
-        "restore-last-container-on-startup": true,
+      const newHistorySettings = {
+        ...historySettings,
+        "restore-last-container-on-startup": e.target.checked,
       };
-      historySettings["restore-last-container-on-startup"] = e.target.checked;
-      await settingsStore.set("history", historySettings);
+      dispatch(updateSettings({ key: "history", value: newHistorySettings }));
     },
-    [],
+    [dispatch, historySettings],
   );
 
   return (
@@ -39,7 +29,7 @@ export default function RestoreOnStartupSetting() {
       secondaryAction={
         <Switch
           edge="end"
-          checked={restoreLastContainer}
+          defaultChecked={historySettings["restore-last-container-on-startup"]}
           onChange={handleRestoreFeatureToggleChanged}
         />
       }

@@ -13,7 +13,7 @@ import {
   Typography,
 } from "@mui/material";
 import { debug } from "@tauri-apps/plugin-log";
-import { ChangeEvent, useCallback, useEffect, useState } from "react";
+import { ChangeEvent, useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { openSettingsWindow } from "../../utils/WindowOpener";
 import { SortOrder } from "../../types/SortOrderType";
@@ -23,8 +23,8 @@ import {
   setSortOrder,
 } from "../../reducers/BookCollectionReducer";
 import { useAppDispatch, useAppSelector } from "../../Store";
-import { settingsStore } from "../../settings/SettingsStore";
 import BookAdditionToBookshelfDialog from "./Dialog/BookAdditionToBookshelfDialog";
+import { updateSettings } from "../../reducers/SettingsReducer";
 
 /** Navigation bar for the bookshelf component */
 export default function NavigationBar() {
@@ -49,7 +49,7 @@ export default function NavigationBar() {
 
   const handleSortOrderChanged = useCallback(
     (e: SelectChangeEvent) => {
-      settingsStore.set("bookshelf-sort-order", e.target.value as SortOrder);
+      dispatch(updateSettings({ key: "bookshelf-sort-order", value: e.target.value as SortOrder }));
       dispatch(setSortOrder(e.target.value as SortOrder));
     },
     [dispatch],
@@ -67,16 +67,6 @@ export default function NavigationBar() {
     },
     [dispatch, bookshelfId],
   );
-
-  useEffect(() => {
-    const initView = async () => {
-      const sortOrder = await settingsStore.get<SortOrder>("bookshelf-sort-order");
-      if (sortOrder) {
-        dispatch(setSortOrder(sortOrder));
-      }
-    };
-    initView();
-  }, [dispatch]);
 
   return (
     <Stack>

@@ -31,15 +31,15 @@ describe("readingStateMiddleware", () => {
       })),
       dispatch: vi.fn(),
     };
-    next = vi.fn((action: UnknownAction) => action) as unknown as Dispatch<UnknownAction>;
+    next = vi.fn((action: UnknownAction) => action) as Dispatch<UnknownAction>;
   });
 
   // Verify that reading state (page index, etc.) is saved to the DB when read/setImageIndex action is dispatched
   it("should call upsertReadingState when read/setImageIndex is dispatched", async () => {
     const action = { type: "read/setImageIndex", payload: 10 };
-    await readingStateMiddleware(store as unknown as MiddlewareAPI)(
-      next as (action: unknown) => unknown,
-    )(action);
+    await readingStateMiddleware(store as MiddlewareAPI)(next as (action: unknown) => unknown)(
+      action,
+    );
 
     expect(bookCommands.upsertReadingState).toHaveBeenCalledWith({
       book_id: 1,
@@ -56,9 +56,9 @@ describe("readingStateMiddleware", () => {
     });
 
     const action = { type: "read/setImageIndex", payload: 10 };
-    await readingStateMiddleware(store as unknown as MiddlewareAPI)(
-      next as (action: unknown) => unknown,
-    )(action);
+    await readingStateMiddleware(store as MiddlewareAPI)(next as (action: unknown) => unknown)(
+      action,
+    );
 
     expect(bookCommands.upsertReadingState).not.toHaveBeenCalled();
   });
@@ -66,9 +66,9 @@ describe("readingStateMiddleware", () => {
   // Verify that reading state is saved to the DB when read/setNovelLocation action (for novels) is dispatched
   it("should call upsertReadingState when read/setNovelLocation is dispatched", async () => {
     const action = { type: "read/setNovelLocation", payload: { index: 5, cfi: "cfi" } };
-    await readingStateMiddleware(store as unknown as MiddlewareAPI)(
-      next as (action: unknown) => unknown,
-    )(action);
+    await readingStateMiddleware(store as MiddlewareAPI)(next as (action: unknown) => unknown)(
+      action,
+    );
 
     expect(bookCommands.upsertReadingState).toHaveBeenCalledWith({
       book_id: 1,
@@ -81,9 +81,9 @@ describe("readingStateMiddleware", () => {
   it("should handle upsertReadingState error", async () => {
     vi.mocked(bookCommands.upsertReadingState).mockRejectedValue(new Error("Database error"));
     const action = { type: "read/setImageIndex", payload: 10 };
-    await readingStateMiddleware(store as unknown as MiddlewareAPI)(
-      next as (action: unknown) => unknown,
-    )(action);
+    await readingStateMiddleware(store as MiddlewareAPI)(next as (action: unknown) => unknown)(
+      action,
+    );
 
     expect(error).toHaveBeenCalledWith(expect.stringContaining("ReadingState update failed"));
   });
@@ -91,7 +91,7 @@ describe("readingStateMiddleware", () => {
   // Verify that the middleware ignores non-object actions (e.g., strings) and passes them to the next handler
   it("should ignore non-object actions", async () => {
     const action = "STRING_ACTION";
-    const result = await readingStateMiddleware(store as unknown as MiddlewareAPI)(
+    const result = await readingStateMiddleware(store as MiddlewareAPI)(
       next as (action: unknown) => unknown,
     )(action);
 
@@ -103,7 +103,7 @@ describe("readingStateMiddleware", () => {
   // Verify that the middleware ignores actions without a type property and passes them to the next handler
   it("should ignore actions without type", async () => {
     const action = { noType: "here" };
-    const result = await readingStateMiddleware(store as unknown as MiddlewareAPI)(
+    const result = await readingStateMiddleware(store as MiddlewareAPI)(
       next as (action: unknown) => unknown,
     )(action);
 

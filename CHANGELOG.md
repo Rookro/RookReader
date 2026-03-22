@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Change the application identifier to the official GitHub organization domain (`io.github.rookro.rookreader`) (#150)
 * Improve input components and performance (#151)
   * Replace the file path input controlled component with a form-based implementation
-  * Replace the number input with number spiners
+  * Replace the number input with number spiner
 
 ### Fixed
 

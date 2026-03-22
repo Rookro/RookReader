@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { renderWithProviders } from "../../../../test/utils";
+import { createBasePreloadedState, renderWithProviders } from "../../../../test/utils";
 import ImageResizeMethodSetting from "./ImageResizeMethodSetting";
 import { mockStore } from "../../../../test/mocks/tauri";
 import * as containerCmds from "../../../../bindings/ContainerCommands";
@@ -10,14 +10,25 @@ import * as containerCmds from "../../../../bindings/ContainerCommands";
 describe("ImageResizeMethodSetting", () => {
   const user = userEvent.setup();
 
+  const basePreloadedState = createBasePreloadedState();
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it("should load initial resize method from store", async () => {
-    mockStore.get.mockResolvedValue({ "image-resize-method": "lanczos3" });
+    const preloadedState = {
+      ...basePreloadedState,
+      settings: {
+        ...basePreloadedState.settings,
+        rendering: {
+          ...basePreloadedState.settings.rendering,
+          "image-resize-method": "lanczos3" as const,
+        },
+      },
+    };
 
-    renderWithProviders(<ImageResizeMethodSetting />);
+    renderWithProviders(<ImageResizeMethodSetting />, { preloadedState });
 
     await waitFor(() => {
       // English: "Lanczos 3 (Slow / Best Quality)"
@@ -26,9 +37,18 @@ describe("ImageResizeMethodSetting", () => {
   });
 
   it("should update store and call backend when resize method changes", async () => {
-    mockStore.get.mockResolvedValue({ "image-resize-method": "triangle" });
+    const preloadedState = {
+      ...basePreloadedState,
+      settings: {
+        ...basePreloadedState.settings,
+        rendering: {
+          ...basePreloadedState.settings.rendering,
+          "image-resize-method": "triangle" as const,
+        },
+      },
+    };
 
-    renderWithProviders(<ImageResizeMethodSetting />);
+    renderWithProviders(<ImageResizeMethodSetting />, { preloadedState });
 
     await waitFor(() => expect(screen.getByRole("combobox")).toBeInTheDocument());
 

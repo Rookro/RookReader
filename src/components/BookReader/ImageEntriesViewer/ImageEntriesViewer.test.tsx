@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { renderWithProviders, RootState } from "../../../test/utils";
+import { createBasePreloadedState, renderWithProviders } from "../../../test/utils";
 import ImageEntriesViewer from "./ImageEntriesViewer";
 import * as ReadReducer from "../../../reducers/ReadReducer";
 import { error } from "@tauri-apps/plugin-log";
@@ -14,10 +14,7 @@ vi.mock("../../SidePane/SidePanelHeader", () => ({
 
 // Mock actions
 vi.mock("../../../reducers/ReadReducer", async () => {
-  const actual = (await vi.importActual("../../../reducers/ReadReducer")) as Record<
-    string,
-    unknown
-  >;
+  const actual = await vi.importActual("../../../reducers/ReadReducer");
   return {
     ...actual,
     setImageIndex: vi.fn((payload: number) => ({ type: "read/setImageIndex", payload })),
@@ -27,31 +24,7 @@ vi.mock("../../../reducers/ReadReducer", async () => {
 describe("ImageEntriesViewer", () => {
   const user = userEvent.setup();
 
-  const defaultPreloadedState = {
-    read: {
-      containerFile: {
-        entries: [],
-        index: 0,
-        history: [],
-        historyIndex: -1,
-        isDirectory: false,
-        book: null,
-        cfi: null,
-        isNovel: false,
-        isLoading: false,
-        error: null,
-      },
-      explorer: {
-        history: [],
-        historyIndex: -1,
-        entries: [],
-        searchText: "",
-        sortOrder: "name-asc",
-        isLoading: false,
-        isWatchEnabled: false,
-      },
-    },
-  } as unknown as RootState;
+  const defaultPreloadedState = createBasePreloadedState();
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -76,7 +49,7 @@ describe("ImageEntriesViewer", () => {
           entries: ["p1.jpg", "p2.jpg"],
         },
       },
-    } as unknown as RootState;
+    };
 
     renderWithProviders(<ImageEntriesViewer />, { preloadedState });
     expect(screen.getByText("p1.jpg")).toBeInTheDocument();
@@ -92,7 +65,7 @@ describe("ImageEntriesViewer", () => {
           entries: ["p1.jpg", "p2.jpg"],
         },
       },
-    } as unknown as RootState;
+    };
 
     renderWithProviders(<ImageEntriesViewer />, { preloadedState });
 
@@ -113,7 +86,7 @@ describe("ImageEntriesViewer", () => {
           index: 2,
         },
       },
-    } as unknown as RootState;
+    };
 
     renderWithProviders(<ImageEntriesViewer />, { preloadedState });
 
@@ -136,7 +109,7 @@ describe("ImageEntriesViewer", () => {
           index: 0,
         },
       },
-    } as unknown as RootState;
+    };
 
     mockScrollToRow.mockImplementationOnce(() => {
       throw new Error("Scroll failed");

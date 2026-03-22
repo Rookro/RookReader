@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { renderWithProviders, RootState } from "../../../test/utils";
+import { createBasePreloadedState, renderWithProviders } from "../../../test/utils";
 import FileNavigator from "./FileNavigator";
 import * as ReadReducer from "../../../reducers/ReadReducer";
 import { DirEntry } from "../../../types/DirEntry";
@@ -29,10 +29,7 @@ vi.mock("./NavBar", () => {
 
 // Mock actions
 vi.mock("../../../reducers/ReadReducer", async () => {
-  const actual = (await vi.importActual("../../../reducers/ReadReducer")) as Record<
-    string,
-    unknown
-  >;
+  const actual = await vi.importActual("../../../reducers/ReadReducer");
   return {
     ...actual,
     updateExploreBasePath: vi.fn(() => ({ type: "explorer/updateExploreBasePath" })),
@@ -47,31 +44,7 @@ vi.mock("../../../reducers/ReadReducer", async () => {
 describe("FileNavigator", () => {
   const user = userEvent.setup();
 
-  const defaultPreloadedState = {
-    read: {
-      explorer: {
-        isLoading: false,
-        entries: [],
-        history: ["/"],
-        historyIndex: 0,
-        searchText: "",
-        sortOrder: "name-asc" as const,
-        isWatchEnabled: false,
-      },
-      containerFile: {
-        history: [],
-        historyIndex: -1,
-        entries: [],
-        index: 0,
-        isNovel: false,
-        isLoading: false,
-        isDirectory: false,
-        book: null,
-        cfi: null,
-        error: null,
-      },
-    },
-  } as unknown as RootState;
+  const defaultPreloadedState = createBasePreloadedState();
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -84,14 +57,14 @@ describe("FileNavigator", () => {
   });
 
   it("should show CircularProgress when loading", () => {
-    const loadingState = {
+    const preloadedState = {
       read: {
         ...defaultPreloadedState.read,
         explorer: { ...defaultPreloadedState.read.explorer, isLoading: true },
       },
-    } as unknown as RootState;
+    };
 
-    renderWithProviders(<FileNavigator />, { preloadedState: loadingState });
+    renderWithProviders(<FileNavigator />, { preloadedState });
     expect(screen.getByRole("progressbar")).toBeInTheDocument();
   });
 
@@ -110,7 +83,7 @@ describe("FileNavigator", () => {
           entries: [{ name: "Apple", is_directory: false, last_modified: "" }],
         },
       },
-    } as unknown as RootState;
+    };
 
     renderWithProviders(<FileNavigator />, { preloadedState });
     expect(screen.getByText(/No results for "Banana"/i)).toBeInTheDocument();
@@ -126,7 +99,7 @@ describe("FileNavigator", () => {
           entries,
         },
       },
-    } as unknown as RootState;
+    };
 
     renderWithProviders(<FileNavigator />, { preloadedState });
 
@@ -151,7 +124,7 @@ describe("FileNavigator", () => {
           entries,
         },
       },
-    } as unknown as RootState;
+    };
 
     renderWithProviders(<FileNavigator />, { preloadedState });
 
@@ -182,11 +155,12 @@ describe("FileNavigator", () => {
           entries,
         },
         containerFile: {
+          ...defaultPreloadedState.read.containerFile,
           history: ["/book.zip"],
           historyIndex: 0,
         },
       },
-    } as unknown as RootState;
+    };
 
     renderWithProviders(<FileNavigator />, { preloadedState });
 
@@ -215,11 +189,12 @@ describe("FileNavigator", () => {
           entries,
         },
         containerFile: {
+          ...defaultPreloadedState.read.containerFile,
           history: ["/book.zip"],
           historyIndex: 0,
         },
       },
-    } as unknown as RootState;
+    };
 
     mockScrollToRow.mockImplementation(() => {
       throw new Error("Scroll failed");

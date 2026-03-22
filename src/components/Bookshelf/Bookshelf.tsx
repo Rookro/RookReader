@@ -1,20 +1,23 @@
 import { Box, debounce, SxProps, Theme } from "@mui/material";
 import { error } from "@tauri-apps/plugin-log";
 import { Allotment } from "allotment";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useBookshelves } from "../../hooks/useBookshelves";
 import { useBookTags } from "../../hooks/useBookTags";
-import { addBookshelf, addTag, setGridSize } from "../../reducers/BookCollectionReducer";
-import { useAppDispatch } from "../../Store";
+import {
+  addBookshelf,
+  addTag,
+  setGridSize,
+  setSortOrder,
+} from "../../reducers/BookCollectionReducer";
+import { useAppDispatch, useAppSelector } from "../../Store";
 import BookGrid from "./BookGrid";
 import { CreateBookshelfDialog } from "./Dialog/CreateBookshelfDialog";
 import CreateBookTagDialog from "./Dialog/CreateBookTagDialog";
 import MenuList from "./MenuList";
 import { setActiveView } from "../../reducers/ViewReducer";
 import { Book } from "../../types/DatabaseModels";
-import { setContainerFilePath, setSortOrder } from "../../reducers/ReadReducer";
-import { settingsStore } from "../../settings/SettingsStore";
-import { SortOrder } from "../../types/SortOrderType";
+import { setContainerFilePath } from "../../reducers/ReadReducer";
 
 /**
  * Props for the Bookshelf component
@@ -29,8 +32,10 @@ export default function Bookshelf({ sx }: BookshelfProps) {
   useBookshelves();
   useBookTags();
   const dispatch = useAppDispatch();
+  const settings = useAppSelector((state) => state.settings);
   const [isBookshelfDialogOpen, setIsBookshelfDialogOpen] = useState(false);
   const [isBookTagDialogOpen, setIsBookTagDialogOpen] = useState(false);
+  const initialized = useRef(false);
 
   const handleOpenCreateBookshelfDialog = useCallback(() => setIsBookshelfDialogOpen(true), []);
   const handleCloseCreateBookshelfDialog = useCallback(() => setIsBookshelfDialogOpen(false), []);
@@ -84,17 +89,16 @@ export default function Bookshelf({ sx }: BookshelfProps) {
   );
 
   useEffect(() => {
-    const initBookshelfSettings = async () => {
-      const storedSortOrder =
-        (await settingsStore.get<SortOrder>("bookshelf-sort-order")) ?? "NAME_ASC";
+    if (!initialized.current) {
+      const storedSortOrder = settings["bookshelf-sort-order"];
       dispatch(setSortOrder(storedSortOrder));
 
-      const gridSize = (await settingsStore.get<number>("bookshelf-grid-size")) ?? 1;
+      const gridSize = settings["bookshelf-grid-size"];
       dispatch(setGridSize(gridSize));
-    };
 
-    initBookshelfSettings();
-  }, [dispatch]);
+      initialized.current = true;
+    }
+  }, [dispatch, settings]);
 
   return (
     <Box sx={{ width: "100%", height: "100%", ...sx }} data-testid="bookshelf">

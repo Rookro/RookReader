@@ -1,7 +1,5 @@
 import { useEffect } from "react";
 import { useAppDispatch, useAppSelector } from "../Store";
-import { settingsStore } from "../settings/SettingsStore";
-import { setEnableHistory } from "../reducers/ViewReducer";
 import { clearAllHistory, fetchRecentlyReadBooks } from "../reducers/HistoryReducer";
 
 /**
@@ -12,18 +10,11 @@ export const useHistoryEntriesUpdater = () => {
   const dispatch = useAppDispatch();
 
   useEffect(() => {
-    const initHistory = async () => {
-      const isHistoryEnabled = (await settingsStore.get<boolean>("enable-history")) ?? true;
-      dispatch(setEnableHistory(isHistoryEnabled));
-
-      if (!isHistoryEnabled) {
-        return;
-      }
-
-      dispatch(fetchRecentlyReadBooks());
-    };
-    initHistory();
-  }, [dispatch]);
+    if (!enableHistory) {
+      return;
+    }
+    dispatch(fetchRecentlyReadBooks());
+  }, [dispatch, enableHistory]);
 
   useEffect(() => {
     if (enableHistory) {

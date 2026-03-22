@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { renderWithProviders, RootState } from "../../test/utils";
+import { createBasePreloadedState, renderWithProviders } from "../../test/utils";
 import ComicReader from "./ComicReader";
 import * as viewerController from "../../hooks/useViewerController";
 import * as pageNavigation from "../../hooks/usePageNavigation";
@@ -34,63 +34,16 @@ describe("ComicReader", () => {
   });
 
   it("should show CircularProgress when loading", () => {
-    const preloadedState = {
-      read: {
-        containerFile: {
-          isLoading: true,
-          history: [],
-          historyIndex: -1,
-          entries: [],
-          index: 0,
-          isDirectory: false,
-          book: null,
-          cfi: null,
-          isNovel: false,
-          error: null,
-        },
-        explorer: {
-          history: [],
-          historyIndex: -1,
-          entries: [],
-          searchText: "",
-          sortOrder: "name-asc",
-          isLoading: false,
-          isWatchEnabled: false,
-        },
-      },
-    } as unknown as RootState;
+    const preloadedState = createBasePreloadedState();
+    preloadedState.read.containerFile.isLoading = true;
 
     renderWithProviders(<ComicReader />, { preloadedState });
     expect(screen.getByRole("progressbar")).toBeInTheDocument();
   });
 
   it("should render a single page layout correctly", () => {
-    const preloadedState = {
-      read: {
-        containerFile: {
-          isLoading: false,
-          history: ["test.zip"],
-          historyIndex: 0,
-          entries: ["p1.jpg"],
-          index: 0,
-          isDirectory: false,
-          book: null,
-          cfi: null,
-          isNovel: false,
-          error: null,
-        },
-        explorer: {
-          history: [],
-          historyIndex: -1,
-          entries: [],
-          searchText: "",
-          sortOrder: "name-asc",
-          isLoading: false,
-          isWatchEnabled: false,
-        },
-      },
-      view: { direction: "ltr" as const },
-    } as unknown as RootState;
+    const preloadedState = createBasePreloadedState();
+    preloadedState.view.isTwoPagedView = false;
 
     vi.mocked(viewerController.useViewerController).mockReturnValue({
       displayedLayout: {
@@ -110,32 +63,9 @@ describe("ComicReader", () => {
   });
 
   it("should render a spread layout in LTR correctly", () => {
-    const preloadedState = {
-      read: {
-        containerFile: {
-          isLoading: false,
-          history: ["test.zip"],
-          historyIndex: 0,
-          entries: ["p1.jpg", "p2.jpg"],
-          index: 0,
-          isDirectory: false,
-          book: null,
-          cfi: null,
-          isNovel: false,
-          error: null,
-        },
-        explorer: {
-          history: [],
-          historyIndex: -1,
-          entries: [],
-          searchText: "",
-          sortOrder: "name-asc",
-          isLoading: false,
-          isWatchEnabled: false,
-        },
-      },
-      view: { direction: "ltr" as const },
-    } as unknown as RootState;
+    const preloadedState = createBasePreloadedState();
+    preloadedState.view.direction = "ltr";
+    preloadedState.view.isTwoPagedView = true;
 
     vi.mocked(viewerController.useViewerController).mockReturnValue({
       displayedLayout: {
@@ -159,32 +89,9 @@ describe("ComicReader", () => {
   });
 
   it("should render a spread layout in RTL correctly", () => {
-    const preloadedState = {
-      read: {
-        containerFile: {
-          isLoading: false,
-          history: ["test.zip"],
-          historyIndex: 0,
-          entries: ["p1.jpg", "p2.jpg"],
-          index: 0,
-          isDirectory: false,
-          book: null,
-          cfi: null,
-          isNovel: false,
-          error: null,
-        },
-        explorer: {
-          history: [],
-          historyIndex: -1,
-          entries: [],
-          searchText: "",
-          sortOrder: "name-asc",
-          isLoading: false,
-          isWatchEnabled: false,
-        },
-      },
-      view: { direction: "rtl" as const },
-    } as unknown as RootState;
+    const preloadedState = createBasePreloadedState();
+    preloadedState.view.direction = "rtl";
+    preloadedState.view.isTwoPagedView = true;
 
     vi.mocked(viewerController.useViewerController).mockReturnValue({
       displayedLayout: {

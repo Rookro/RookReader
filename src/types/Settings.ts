@@ -34,6 +34,12 @@ export interface Settings {
   theme: AppTheme;
   /** Enable two-paged view. */
   "two-paged": boolean;
+  /** Bookshelf sort order. */
+  "bookshelf-sort-order": SortOrder;
+  /** Bookshelf grid size. */
+  "bookshelf-grid-size": number;
+  /** Initial view. */
+  "initial-view": string;
 }
 
 /**

@@ -1,32 +1,45 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { renderWithProviders } from "../../../../test/utils";
+import { createBasePreloadedState, renderWithProviders } from "../../../../test/utils";
 import InitialViewSetting from "./InitialViewSetting";
 import { mockStore } from "../../../../test/mocks/tauri";
 
 describe("InitialViewSetting", () => {
   const user = userEvent.setup();
 
+  const basePreloadedState = createBasePreloadedState();
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it("should load initial view from store", async () => {
-    mockStore.get.mockResolvedValue("bookshelf");
+    const preloadedState = {
+      ...basePreloadedState,
+      settings: {
+        ...basePreloadedState.settings,
+        "initial-view": "bookshelf" as const,
+      },
+    };
 
-    renderWithProviders(<InitialViewSetting />);
+    renderWithProviders(<InitialViewSetting />, { preloadedState });
 
     await waitFor(() => {
-      expect(mockStore.get).toHaveBeenCalledWith("initial-view");
       expect(screen.getByRole("combobox")).toHaveTextContent(/Bookshelf/i);
     });
   });
 
   it("should update store when selection changes", async () => {
-    mockStore.get.mockResolvedValue("reader");
+    const preloadedState = {
+      ...basePreloadedState,
+      view: {
+        ...basePreloadedState.view,
+        activeView: "reader" as const,
+      },
+    };
 
-    renderWithProviders(<InitialViewSetting />);
+    renderWithProviders(<InitialViewSetting />, { preloadedState });
 
     await waitFor(() => expect(screen.getByRole("combobox")).toBeInTheDocument());
 

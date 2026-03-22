@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ListItem,
@@ -15,8 +14,9 @@ import {
 } from "@mui/icons-material";
 import { app } from "@tauri-apps/api";
 import { Theme } from "@tauri-apps/api/window";
-import { settingsStore } from "../../../../settings/SettingsStore";
 import { AppTheme } from "../../../../types/ThemeType";
+import { useAppDispatch, useAppSelector } from "../../../../Store";
+import { updateSettings } from "../../../../reducers/SettingsReducer";
 
 /**
  * Mapping from theme names to Tauri's theme setting values.
@@ -32,25 +32,15 @@ const toTauriTheme = new Map<AppTheme, Theme | undefined>([
  */
 export default function ThemeSetting() {
   const { t } = useTranslation();
-  const [theme, setTheme] = useState<AppTheme>("system");
+  const theme = useAppSelector((state) => state.settings.theme);
+  const dispatch = useAppDispatch();
 
-  const handleThemeChanged = async (_e: React.MouseEvent<HTMLElement>, theme: AppTheme) => {
-    setTheme(theme);
-    settingsStore.set("theme", theme);
-    await app.setTheme(toTauriTheme.get(theme));
+  const handleThemeChanged = async (_e: React.MouseEvent<HTMLElement>, newTheme: AppTheme) => {
+    if (newTheme !== null) {
+      dispatch(updateSettings({ key: "theme", value: newTheme }));
+      await app.setTheme(toTauriTheme.get(newTheme));
+    }
   };
-
-  useEffect(() => {
-    const initTheme = async () => {
-      const tauriTheme = await settingsStore.get<string>("theme");
-      toTauriTheme.forEach((value, key) => {
-        if (value === tauriTheme && key) {
-          setTheme(key);
-        }
-      });
-    };
-    initTheme();
-  }, []);
 
   return (
     <ListItem>

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { renderWithProviders } from "../../../../test/utils";
+import { createBasePreloadedState, renderWithProviders } from "../../../../test/utils";
 import PdfRenderingSetting from "./PdfRenderingSetting";
 import { mockStore } from "../../../../test/mocks/tauri";
 import * as containerCmds from "../../../../bindings/ContainerCommands";
@@ -10,24 +10,44 @@ import * as containerCmds from "../../../../bindings/ContainerCommands";
 describe("PdfRenderingSetting", () => {
   const user = userEvent.setup();
 
+  const basePreloadedState = createBasePreloadedState();
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it("should load initial pdf rendering height from store", async () => {
-    mockStore.get.mockResolvedValue({ "pdf-rendering-height": 3000 });
+    const preloadedState = {
+      ...basePreloadedState,
+      settings: {
+        ...basePreloadedState.settings,
+        rendering: {
+          ...basePreloadedState.settings.rendering,
+          "pdf-rendering-height": 3000,
+        },
+      },
+    };
 
-    renderWithProviders(<PdfRenderingSetting />);
+    renderWithProviders(<PdfRenderingSetting />, { preloadedState });
 
     await waitFor(() => {
-      expect(screen.getByDisplayValue("3000")).toBeInTheDocument();
+      expect(screen.getByDisplayValue("3,000")).toBeInTheDocument();
     });
   });
 
   it("should update store and call backend when height changes", async () => {
-    mockStore.get.mockResolvedValue({ "pdf-rendering-height": 2000 });
+    const preloadedState = {
+      ...basePreloadedState,
+      settings: {
+        ...basePreloadedState.settings,
+        rendering: {
+          ...basePreloadedState.settings.rendering,
+          "pdf-rendering-height": 2000,
+        },
+      },
+    };
 
-    renderWithProviders(<PdfRenderingSetting />);
+    renderWithProviders(<PdfRenderingSetting />, { preloadedState });
 
     // Base UI renders a hidden input for form submission and a visible textbox for interaction.
     // Use the textbox to allow userEvent.clear and userEvent.type to work.
@@ -46,9 +66,18 @@ describe("PdfRenderingSetting", () => {
   });
 
   it("should show error message for height < 1", async () => {
-    mockStore.get.mockResolvedValue({ "pdf-rendering-height": 2000 });
+    const preloadedState = {
+      ...basePreloadedState,
+      settings: {
+        ...basePreloadedState.settings,
+        rendering: {
+          ...basePreloadedState.settings.rendering,
+          "pdf-rendering-height": 2000,
+        },
+      },
+    };
 
-    renderWithProviders(<PdfRenderingSetting />);
+    renderWithProviders(<PdfRenderingSetting />, { preloadedState });
 
     // Likewise, target the textbox instead of the hidden input
     const input = screen.getByRole("textbox");
@@ -61,12 +90,21 @@ describe("PdfRenderingSetting", () => {
   });
 
   it("should display error message when backend call fails", async () => {
-    mockStore.get.mockResolvedValue({ "pdf-rendering-height": 2000 });
+    const preloadedState = {
+      ...basePreloadedState,
+      settings: {
+        ...basePreloadedState.settings,
+        rendering: {
+          ...basePreloadedState.settings.rendering,
+          "pdf-rendering-height": 2000,
+        },
+      },
+    };
     vi.mocked(containerCmds.setPdfRenderingHeight).mockRejectedValueOnce(
       new Error("Backend error"),
     );
 
-    renderWithProviders(<PdfRenderingSetting />);
+    renderWithProviders(<PdfRenderingSetting />, { preloadedState });
 
     const input = screen.getByRole("textbox");
     await user.clear(input);
