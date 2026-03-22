@@ -14,7 +14,7 @@ import { setImageIndex } from "../../reducers/ReadReducer";
  */
 export default function ControlSlider() {
   const { entries, index } = useAppSelector((state) => state.read.containerFile);
-  const { direction } = useAppSelector((state) => state.view);
+  const { direction } = useAppSelector((state) => state.settings);
   const dispatch = useAppDispatch();
   const appTheme = useAppTheme();
 

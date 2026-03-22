@@ -3,7 +3,6 @@ import { screen, waitFor, act } from "@testing-library/react";
 import { renderWithProviders, createBasePreloadedState } from "../../test/utils";
 import BookReader from "./BookReader";
 import * as bookCmds from "../../bindings/BookCommands";
-import * as containerCmds from "../../bindings/ContainerCommands";
 import * as dragDrop from "../../hooks/useDragDropEvent";
 import * as readRed from "../../reducers/ReadReducer";
 import { error } from "@tauri-apps/plugin-log";
@@ -50,9 +49,6 @@ describe("BookReader", () => {
     renderWithProviders(<BookReader />, { preloadedState: createBasePreloadedState() });
     await waitFor(() => expect(screen.getByTestId("navigation-bar")).toBeInTheDocument());
     expect(screen.getByTestId("control-slider")).toBeInTheDocument();
-    await waitFor(() => {
-      expect(containerCmds.setPdfRenderingHeight).toHaveBeenCalledWith(2000);
-    });
   });
 
   it("should restore last container on startup if enabled", async () => {

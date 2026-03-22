@@ -16,9 +16,9 @@ describe("useDirectoryWatcher", () => {
     vi.clearAllMocks();
   });
 
-  // Verify that watcher is not setup if isWatchEnabled is false
-  it("should not setup watcher if isWatchEnabled is false", () => {
-    vi.mocked(useAppSelector).mockReturnValue({ isWatchEnabled: false });
+  // Verify that watcher is not setup if directory watch is disabled
+  it("should not setup watcher if directory watch is disabled", () => {
+    vi.mocked(useAppSelector).mockReturnValue(false);
 
     renderHook(() => useDirectoryWatcher("/test/path", mockCallback));
     expect(watch).not.toHaveBeenCalled();
@@ -26,7 +26,7 @@ describe("useDirectoryWatcher", () => {
 
   // Verify that watcher is not setup if dirPath is null
   it("should not setup watcher if dirPath is null", () => {
-    vi.mocked(useAppSelector).mockReturnValue({ isWatchEnabled: true });
+    vi.mocked(useAppSelector).mockReturnValue(true);
 
     renderHook(() => useDirectoryWatcher(null, mockCallback));
     expect(watch).not.toHaveBeenCalled();
@@ -34,7 +34,7 @@ describe("useDirectoryWatcher", () => {
 
   // Verify that watcher is setup and callback is called on file creation, modification, or removal events
   it("should setup watcher and call callback on create event", async () => {
-    vi.mocked(useAppSelector).mockReturnValue({ isWatchEnabled: true });
+    vi.mocked(useAppSelector).mockReturnValue(true);
     let eventHandler: Parameters<typeof watch>[1] | undefined;
     vi.mocked(watch).mockImplementation((_path, handler) => {
       eventHandler = handler;
@@ -67,7 +67,7 @@ describe("useDirectoryWatcher", () => {
 
   // Verify that an error log is output if watcher setup fails
   it("should log error if watch fails", async () => {
-    vi.mocked(useAppSelector).mockReturnValue({ isWatchEnabled: true });
+    vi.mocked(useAppSelector).mockReturnValue(true);
     vi.mocked(watch).mockRejectedValue(new Error("Watch failed"));
 
     renderHook(() => useDirectoryWatcher("/test/path", mockCallback));

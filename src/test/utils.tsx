@@ -72,14 +72,7 @@ export function createBasePreloadedState(): RootState {
       "initial-view": "reader",
     },
     view: {
-      fontFamily: "Inter",
       activeView: "reader",
-      isTwoPagedView: true,
-      direction: "ltr",
-      isFirstPageSingleView: true,
-      enablePreview: true,
-      enableHistory: true,
-      novel: { font: "default", fontSize: 16 },
     },
     read: {
       containerFile: {
@@ -99,9 +92,7 @@ export function createBasePreloadedState(): RootState {
         historyIndex: -1,
         entries: [],
         searchText: "",
-        sortOrder: "NAME_ASC",
         isLoading: false,
-        isWatchEnabled: false,
         error: null,
       },
     },
@@ -113,8 +104,6 @@ export function createBasePreloadedState(): RootState {
       tag: { tags: [], selectedId: null, status: "idle", error: null },
       series: { series: [], selectedId: null, books: [], status: "idle", error: null },
       searchText: "",
-      sortOrder: "NAME_ASC",
-      gridSize: 1,
     },
     history: { recentlyReadBooks: [], status: "idle", error: null },
   };

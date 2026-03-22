@@ -1,18 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
-import { renderWithProviders } from "../../../../test/utils";
+import { createBasePreloadedState, renderWithProviders } from "../../../../test/utils";
 import FontFamilySetting from "./FontFamilySetting";
-import { mockStore } from "../../../../test/mocks/tauri";
 
 describe("FontFamilySetting", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("should render and load initial font from store", async () => {
-    mockStore.get.mockResolvedValue("Arial");
+  it("should render and load initial font from state", async () => {
+    const preloadedState = createBasePreloadedState();
+    preloadedState.settings["font-family"] = "Arial";
 
-    renderWithProviders(<FontFamilySetting />);
+    renderWithProviders(<FontFamilySetting />, { preloadedState });
 
     await waitFor(() => {
       // The Select component shows the value.

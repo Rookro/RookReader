@@ -31,7 +31,10 @@ export default function NovelReader({ filePath }: NovelReaderProps) {
   const bookRef = useRef<Book | null>(null);
   const renditionRef = useRef<Rendition | null>(null);
   const { index, cfi } = useAppSelector((state) => state.read.containerFile);
-  const { direction, novel } = useAppSelector((state) => state.view);
+  const {
+    direction,
+    "novel-reader": { font, "font-size": fontSize },
+  } = useAppSelector((state) => state.settings);
   const dispatch = useDispatch<AppDispatch>();
 
   const onMoveForward = useCallback(() => {
@@ -52,11 +55,11 @@ export default function NovelReader({ filePath }: NovelReaderProps) {
           "font-style": "normal",
         },
         "*": {
-          "font-family": `"${novel.font === "default-font" ? "BundledNotoSerifJP" : novel.font}" !important`,
+          "font-family": `"${font === "default-font" ? "BundledNotoSerifJP" : font}" !important`,
         },
         body: {
-          "font-family": `"${novel.font === "default-font" ? "BundledNotoSerifJP" : novel.font}" !important`,
-          "font-size": `${novel.fontSize}px`,
+          "font-family": `"${font === "default-font" ? "BundledNotoSerifJP" : font}" !important`,
+          "font-size": `${fontSize}px`,
           color: theme.palette.text.primary,
           background: theme.palette.background.default,
           "user-select": "none",
@@ -71,7 +74,7 @@ export default function NovelReader({ filePath }: NovelReaderProps) {
           : {}),
       });
     },
-    [theme, novel],
+    [theme, font, fontSize],
   );
 
   const { handleClicked, handleContextMenu, handleWheeled, handleKeydown } = usePageNavigation(

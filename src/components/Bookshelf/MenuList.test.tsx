@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import MenuList from "./MenuList";
-import { renderWithProviders, RootState } from "../../test/utils";
+import { createBasePreloadedState, renderWithProviders } from "../../test/utils";
 import {
   changeBookshelf,
   setSelectedTag,
@@ -36,22 +36,9 @@ describe("MenuList", () => {
   const mockBookshelves = [{ id: 1, name: "Bookshelf 1", icon_id: "folder", created_at: "" }];
   const mockTags = [{ id: 10, name: "Tag 1", color_code: "#ff0000" }];
 
-  const preloadedState: Partial<RootState> = {
-    bookCollection: {
-      bookshelf: {
-        bookshelves: mockBookshelves,
-        selectedId: null,
-        books: [],
-        status: "idle",
-        error: null,
-      },
-      tag: { tags: mockTags, selectedId: null, status: "idle", error: null },
-      series: { series: [], selectedId: null, books: [], status: "idle", error: null },
-      searchText: "",
-      sortOrder: "NAME_ASC",
-      gridSize: 1,
-    },
-  };
+  const preloadedState = createBasePreloadedState();
+  preloadedState.bookCollection.bookshelf.bookshelves = mockBookshelves;
+  preloadedState.bookCollection.tag.tags = mockTags;
 
   const defaultProps = {
     onClickAddBookshelf: vi.fn(),

@@ -3,8 +3,7 @@ import { screen, fireEvent, waitFor, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createBasePreloadedState, renderWithProviders } from "../../test/utils";
 import BookGrid from "./BookGrid";
-import { mockStore } from "../../test/mocks/tauri";
-import * as BookCollectionReducer from "../../reducers/BookCollectionReducer";
+import * as SettingsReducer from "../../reducers/SettingsReducer";
 import { createMockBookWithState, createMockBookshelf, createMockTag } from "../../test/factories";
 
 // Mock actions to prevent real thunks from running
@@ -13,7 +12,17 @@ vi.mock("../../reducers/BookCollectionReducer", async () => {
   return {
     ...actual,
     fetchBooksInSelectedBookshelf: vi.fn(() => ({ type: "bookCollection/fetchBooks/dummy" })),
-    setGridSize: vi.fn((payload: number) => ({ type: "bookCollection/setGridSize", payload })),
+  };
+});
+
+vi.mock("../../reducers/SettingsReducer", async () => {
+  const actual = await vi.importActual("../../reducers/SettingsReducer");
+  return {
+    ...actual,
+    updateSettings: vi.fn((payload: { key: string; value: unknown }) => ({
+      type: "settings/updateSettings",
+      payload,
+    })),
   };
 });
 
@@ -41,8 +50,6 @@ describe("BookGrid", () => {
     },
     series: { series: [], selectedId: null, books: [], status: "idle", error: null },
     searchText: "",
-    sortOrder: "NAME_ASC",
-    gridSize: 1,
   };
   defaultPreloadedState.view.activeView = "bookshelf";
 
@@ -246,8 +253,10 @@ describe("BookGrid", () => {
     const slider = await screen.findByRole("slider");
     fireEvent.change(slider, { target: { value: 2 } });
 
-    expect(BookCollectionReducer.setGridSize).toHaveBeenCalledWith(2);
-    expect(mockStore.set).toHaveBeenCalledWith("bookshelf-grid-size", 2);
+    expect(SettingsReducer.updateSettings).toHaveBeenCalledWith({
+      key: "bookshelf-grid-size",
+      value: 2,
+    });
   });
 
   it("should disconnect ResizeObserver on unmount", () => {

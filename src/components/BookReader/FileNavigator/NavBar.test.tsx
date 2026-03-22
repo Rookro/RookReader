@@ -3,8 +3,8 @@ import { screen, fireEvent, waitFor, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createBasePreloadedState, renderWithProviders } from "../../../test/utils";
 import NavBar from "./NavBar";
-import { mockStore } from "../../../test/mocks/tauri";
 import * as ReadReducer from "../../../reducers/ReadReducer";
+import * as SettingsReducer from "../../../reducers/SettingsReducer";
 
 // Mock actions to track calls
 vi.mock("../../../reducers/ReadReducer", async () => {
@@ -19,6 +19,17 @@ vi.mock("../../../reducers/ReadReducer", async () => {
     setSortOrder: vi.fn((payload) => ({ type: "explorer/setSortOrder", payload })),
     goBackExplorerHistory: vi.fn(() => ({ type: "explorer/goBack" })),
     goForwardExplorerHistory: vi.fn(() => ({ type: "explorer/goForward" })),
+  };
+});
+
+vi.mock("../../../reducers/SettingsReducer", async () => {
+  const actual = await vi.importActual("../../../reducers/SettingsReducer");
+  return {
+    ...actual,
+    updateSettings: vi.fn((payload: { key: string; value: string }) => ({
+      type: "settings/updateSettings",
+      payload,
+    })),
   };
 });
 
@@ -164,8 +175,10 @@ describe("FileNavigator/NavBar", () => {
       throw new Error("Target option NAME_DESC not found");
     }
 
-    expect(ReadReducer.setSortOrder).toHaveBeenCalledWith("NAME_DESC");
-    expect(mockStore.set).toHaveBeenCalledWith("sort-order", "NAME_DESC");
+    expect(SettingsReducer.updateSettings).toHaveBeenCalledWith({
+      key: "sort-order",
+      value: "NAME_DESC",
+    });
   });
 
   it("should dispatch goForwardExplorerHistory when forward button is clicked", async () => {

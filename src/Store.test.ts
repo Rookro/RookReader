@@ -29,24 +29,14 @@ describe("Store", () => {
     // since we provide the full slice if we specify it.
     const preloadedState: Partial<RootState> = {
       view: {
-        fontFamily: "Custom Font",
-        activeView: "reader",
-        isTwoPagedView: true,
-        direction: "rtl",
-        isFirstPageSingleView: true,
-        enablePreview: true,
-        enableHistory: true,
-        novel: {
-          font: "default-font",
-          fontSize: 16,
-        },
+        activeView: "bookshelf",
       },
     };
 
     const store = createStore(preloadedState);
-    expect(store.getState().view.fontFamily).toBe("Custom Font");
+    expect(store.getState().view.activeView).toBe("bookshelf");
     // Verify that other properties maintain their default values
-    expect(store.getState().view.isTwoPagedView).toBe(true);
+    expect(store.getState().settings.log.level).toBe("Info");
   });
 
   it("should have thunk middleware applied", async () => {

@@ -129,6 +129,17 @@ vi.mock("../../reducers/ViewReducer", async () => {
   };
 });
 
+vi.mock("../../reducers/SettingsReducer", async () => {
+  const actual = await vi.importActual("../../reducers/SettingsReducer");
+  return {
+    ...actual,
+    updateSettings: vi.fn((payload: { key: string; value: unknown }) => ({
+      type: "settings/updateSettings",
+      payload,
+    })),
+  };
+});
+
 describe("Bookshelf", () => {
   const user = userEvent.setup();
 
@@ -175,15 +186,6 @@ describe("Bookshelf", () => {
     expect(BookCollectionReducer.addTag).toHaveBeenCalledWith({
       name: "New Tag",
       color_code: "#ff0000",
-    });
-  });
-
-  it("should initialize settings from settingsStore on mount", async () => {
-    renderWithProviders(<Bookshelf />, { preloadedState: defaultPreloadedState });
-
-    await waitFor(() => {
-      expect(BookCollectionReducer.setSortOrder).toHaveBeenCalledWith("DATE_DESC");
-      expect(BookCollectionReducer.setGridSize).toHaveBeenCalledWith(2);
     });
   });
 

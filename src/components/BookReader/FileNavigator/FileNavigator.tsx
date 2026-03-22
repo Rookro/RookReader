@@ -23,7 +23,8 @@ import SidePanelHeader from "../../SidePane/SidePanelHeader";
  */
 export default function FileListViewer() {
   const { t } = useTranslation();
-  const { history, historyIndex, entries, searchText, sortOrder, isLoading } = useAppSelector(
+  const { "sort-order": sortOrder } = useAppSelector((state) => state.settings);
+  const { history, historyIndex, entries, searchText, isLoading } = useAppSelector(
     (state) => state.read.explorer,
   );
   const { history: fileHistory, historyIndex: fileHistoryIndex } = useAppSelector(

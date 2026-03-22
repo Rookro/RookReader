@@ -1,16 +1,11 @@
 import { Box, debounce, SxProps, Theme } from "@mui/material";
 import { error } from "@tauri-apps/plugin-log";
 import { Allotment } from "allotment";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useBookshelves } from "../../hooks/useBookshelves";
 import { useBookTags } from "../../hooks/useBookTags";
-import {
-  addBookshelf,
-  addTag,
-  setGridSize,
-  setSortOrder,
-} from "../../reducers/BookCollectionReducer";
-import { useAppDispatch, useAppSelector } from "../../Store";
+import { addBookshelf, addTag } from "../../reducers/BookCollectionReducer";
+import { useAppDispatch } from "../../Store";
 import BookGrid from "./BookGrid";
 import { CreateBookshelfDialog } from "./Dialog/CreateBookshelfDialog";
 import CreateBookTagDialog from "./Dialog/CreateBookTagDialog";
@@ -32,10 +27,8 @@ export default function Bookshelf({ sx }: BookshelfProps) {
   useBookshelves();
   useBookTags();
   const dispatch = useAppDispatch();
-  const settings = useAppSelector((state) => state.settings);
   const [isBookshelfDialogOpen, setIsBookshelfDialogOpen] = useState(false);
   const [isBookTagDialogOpen, setIsBookTagDialogOpen] = useState(false);
-  const initialized = useRef(false);
 
   const handleOpenCreateBookshelfDialog = useCallback(() => setIsBookshelfDialogOpen(true), []);
   const handleCloseCreateBookshelfDialog = useCallback(() => setIsBookshelfDialogOpen(false), []);
@@ -87,18 +80,6 @@ export default function Bookshelf({ sx }: BookshelfProps) {
     },
     [dispatch],
   );
-
-  useEffect(() => {
-    if (!initialized.current) {
-      const storedSortOrder = settings["bookshelf-sort-order"];
-      dispatch(setSortOrder(storedSortOrder));
-
-      const gridSize = settings["bookshelf-grid-size"];
-      dispatch(setGridSize(gridSize));
-
-      initialized.current = true;
-    }
-  }, [dispatch, settings]);
 
   return (
     <Box sx={{ width: "100%", height: "100%", ...sx }} data-testid="bookshelf">

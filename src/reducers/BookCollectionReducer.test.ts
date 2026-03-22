@@ -12,8 +12,6 @@ import bookCollectionReducer, {
   removeBookshelf,
   changeBookshelf,
   setSelectedTag,
-  setGridSize,
-  setSortOrder,
   bookshelfAdded,
   setBookshelfSearchText,
   clearBookshelfError,
@@ -34,8 +32,6 @@ describe("BookCollectionReducer", () => {
 
   const initialState = {
     searchText: "",
-    sortOrder: "NAME_ASC" as const,
-    gridSize: 1,
     bookshelf: {
       bookshelves: [] as Bookshelf[],
       selectedId: null as number | null,
@@ -78,18 +74,6 @@ describe("BookCollectionReducer", () => {
   it("should handle setSelectedTag", () => {
     const nextState = bookCollectionReducer(initialState, setSelectedTag(1));
     expect(nextState.tag.selectedId).toBe(1);
-  });
-
-  // Verify that grid size is set correctly
-  it("should handle setGridSize", () => {
-    const nextState = bookCollectionReducer(initialState, setGridSize(2));
-    expect(nextState.gridSize).toBe(2);
-  });
-
-  // Verify that sort order is set correctly
-  it("should handle setSortOrder", () => {
-    const nextState = bookCollectionReducer(initialState, setSortOrder("DATE_DESC"));
-    expect(nextState.sortOrder).toBe("DATE_DESC");
   });
 
   // Verify that state is updated when a bookshelf is added

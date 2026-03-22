@@ -4,9 +4,7 @@ import { JSX, lazy, useCallback, useEffect, useMemo, useRef, useState } from "re
 import { useDispatch } from "react-redux";
 import { error } from "@tauri-apps/plugin-log";
 import { Allotment } from "allotment";
-import { setPdfRenderingHeight } from "../../bindings/ContainerCommands";
 import { openContainerFile, setContainerFilePath } from "../../reducers/ReadReducer";
-import { setEnablePreview, setIsFirstPageSingleView } from "../../reducers/ViewReducer";
 import { AppDispatch, useAppSelector } from "../../Store";
 import { getRecentlyReadBooks } from "../../bindings/BookCommands";
 import { useDragDropEvent } from "../../hooks/useDragDropEvent";
@@ -34,10 +32,10 @@ export interface BookReaderProps {
  */
 export default function BookReader({ sx }: BookReaderProps) {
   const initialized = useRef(false);
-  const { enableHistory, activeView } = useAppSelector((state) => state.view);
+  const { activeView } = useAppSelector((state) => state.view);
   const { isHidden, tabIndex } = useAppSelector((state) => state.sidePane.left);
   const { history, historyIndex, isNovel } = useAppSelector((state) => state.read.containerFile);
-  const settings = useAppSelector((state) => state.settings);
+  const { history: historySettings } = useAppSelector((state) => state.settings);
   const dispatch = useDispatch<AppDispatch>();
 
   const [droppedFile, setDroppedFile] = useState<string | undefined>(undefined);
@@ -83,11 +81,11 @@ export default function BookReader({ sx }: BookReaderProps) {
       { label: "image-entries", icon: <PhotoLibrary />, panel: <ImageEntriesViewer /> },
     ];
 
-    if (enableHistory) {
+    if (historySettings.enable) {
       tabs.push({ label: "history", icon: <History />, panel: <HistoryViewer /> });
     }
     return tabs;
-  }, [enableHistory]);
+  }, [historySettings.enable]);
 
   useEffect(() => {
     if (initialized.current) {
@@ -95,18 +93,6 @@ export default function BookReader({ sx }: BookReaderProps) {
     }
 
     const init = async () => {
-      const isFirstSingle = settings["first-page-single-view"];
-      dispatch(setIsFirstPageSingleView(isFirstSingle));
-
-      const renderingSettings = settings.rendering;
-      dispatch(setEnablePreview(renderingSettings["enable-preview"]));
-
-      const height = renderingSettings["pdf-rendering-height"];
-      if (height) {
-        await setPdfRenderingHeight(height);
-      }
-
-      const historySettings = settings.history;
       const historyEnabled = historySettings.enable;
       const restoreLastContainer = historySettings["restore-last-container-on-startup"];
       if (historyEnabled && restoreLastContainer) {
@@ -120,7 +106,7 @@ export default function BookReader({ sx }: BookReaderProps) {
       initialized.current = true;
     };
     init();
-  }, [dispatch, settings]);
+  }, [dispatch, historySettings]);
 
   const containerPath = history[historyIndex];
 

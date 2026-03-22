@@ -5,7 +5,6 @@ import { ListItem, ListItemIcon, ListItemText, Switch } from "@mui/material";
 import { emit } from "@tauri-apps/api/event";
 import { useAppDispatch, useAppSelector } from "../../../../Store";
 import { SettingsChangedEvent } from "../../../../types/SettingsChangedEvent";
-import { setEnableHistory } from "../../../../reducers/ViewReducer";
 import { updateSettings } from "../../../../reducers/SettingsReducer";
 
 /**
@@ -18,7 +17,6 @@ export default function FeatureToggle() {
 
   const handleHistoryFeatureToggleChanged = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
-      dispatch(setEnableHistory(e.target.checked));
       const newHistorySettings = { ...historySettings };
       newHistorySettings.enable = e.target.checked;
       dispatch(updateSettings({ key: "history", value: newHistorySettings }));

@@ -6,6 +6,13 @@ import { error } from "@tauri-apps/plugin-log";
 import { ErrorCode } from "../types/Error";
 
 /**
+ * Payload type for updating a setting value in the settings store.
+ */
+type UpdateSettingsPayload = {
+  [K in keyof Settings]: { key: K; value: Partial<Settings[K]> };
+}[keyof Settings];
+
+/**
  * Updates a setting value in the settings store.
  *
  * @param args - The arguments for updating the setting.
@@ -15,10 +22,7 @@ import { ErrorCode } from "../types/Error";
  */
 export const updateSettings = createAppAsyncThunk(
   "settings/updateSettings",
-  async (
-    { key, value }: { key: keyof Settings; value: Partial<Settings[keyof Settings]> },
-    { getState, rejectWithValue },
-  ) => {
+  async ({ key, value }: UpdateSettingsPayload, { getState, rejectWithValue }) => {
     if (key === undefined) {
       const errorMessage = "Failed to updateSettings. Error: Key is undefined.";
       error(errorMessage);
@@ -27,8 +31,8 @@ export const updateSettings = createAppAsyncThunk(
 
     const target = getState().settings[key];
 
-    if (typeof target === "object" && typeof value === "object") {
-      const newValue: Settings[keyof Settings] = { ...target, ...value };
+    if (isPlainObject(target) && isPlainObject(value)) {
+      const newValue = { ...target, ...value } as Settings[keyof Settings];
       await settingsStore.set(key, newValue);
       return { key, value: newValue };
     } else {
@@ -45,22 +49,19 @@ export const settingsSlice = createSlice({
     /**
      * Replaces the entire settings state with the provided settings object.
      *
-     * @param state - The current Redux state slice.
+     * @param _state - The current Redux state slice.
      * @param action - Payload containing the complete Settings object.
      */
-    setSettings: (state, action: PayloadAction<Settings>) => {
-      return { ...state, ...action.payload };
+    setSettings: (_state, action: PayloadAction<Settings>) => {
+      return action.payload;
     },
   },
   extraReducers: (builder) => {
-    builder.addCase(
-      updateSettings.fulfilled,
-      (state, action: PayloadAction<{ key: keyof Settings; value: Settings[keyof Settings] }>) => {
-        const { key, value } = action.payload;
-        // Call the helper to bypass the union type assignment error.
-        applySettingUpdate(state, key, value);
-      },
-    );
+    builder.addCase(updateSettings.fulfilled, (state, action) => {
+      const { key, value } = action.payload;
+      // Call the helper to bypass the union type assignment error.
+      applySettingUpdate(state, key, value);
+    });
   },
 });
 
@@ -71,13 +72,16 @@ export const settingsSlice = createSlice({
  * the key and its value type, bypassing 'never' type errors that occur
  * when indexing with broad union types like `keyof Settings`.
  */
-const applySettingUpdate = <K extends keyof Settings>(
-  state: Settings,
-  key: K,
-  value: Settings[K],
-) => {
+function applySettingUpdate<K extends keyof Settings>(state: Settings, key: K, value: Settings[K]) {
   state[key] = value;
-};
+}
+
+/**
+ * Type guard to check if a value is a plain object (not an array or null).
+ */
+function isPlainObject(obj: unknown): obj is Record<string, unknown> {
+  return typeof obj === "object" && obj !== null && !Array.isArray(obj);
+}
 
 export const { setSettings } = settingsSlice.actions;
 export default settingsSlice.reducer;

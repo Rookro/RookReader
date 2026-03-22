@@ -6,21 +6,14 @@ import { clearAllHistory, fetchRecentlyReadBooks } from "../reducers/HistoryRedu
  * Custom hook to update history entries in the database and Redux store.
  */
 export const useHistoryEntriesUpdater = () => {
-  const { enableHistory } = useAppSelector((state) => state.view);
+  const enableHistory = useAppSelector((state) => state.settings.history.enable);
   const dispatch = useAppDispatch();
 
   useEffect(() => {
-    if (!enableHistory) {
-      return;
-    }
-    dispatch(fetchRecentlyReadBooks());
-  }, [dispatch, enableHistory]);
-
-  useEffect(() => {
     if (enableHistory) {
-      return;
+      dispatch(fetchRecentlyReadBooks());
+    } else {
+      dispatch(clearAllHistory());
     }
-
-    dispatch(clearAllHistory());
   }, [dispatch, enableHistory]);
 };

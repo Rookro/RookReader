@@ -16,7 +16,7 @@ import {
   goForwardContainerHistory,
   setContainerFilePath,
 } from "../../reducers/ReadReducer";
-import { setActiveView, setDirection, setIsTwoPagedView } from "../../reducers/ViewReducer";
+import { setActiveView } from "../../reducers/ViewReducer";
 import { useAppDispatch, useAppSelector } from "../../Store";
 import { openSettingsWindow } from "../../utils/WindowOpener";
 import { useTranslation } from "react-i18next";
@@ -27,7 +27,7 @@ import { updateSettings } from "../../reducers/SettingsReducer";
  */
 export default function NavigationBar() {
   const { t } = useTranslation();
-  const { isTwoPagedView, direction } = useAppSelector((state) => state.view);
+  const { "two-paged": isTwoPagedView, direction } = useAppSelector((state) => state.settings);
   const { history, historyIndex } = useAppSelector((state) => state.read.containerFile);
   const dispatch = useAppDispatch();
 
@@ -51,7 +51,6 @@ export default function NavigationBar() {
   const handleSwitchTwoPagedClicked = useCallback(
     (_e: React.MouseEvent<HTMLButtonElement>) => {
       dispatch(updateSettings({ key: "two-paged", value: !isTwoPagedView }));
-      dispatch(setIsTwoPagedView(!isTwoPagedView));
     },
     [dispatch, isTwoPagedView],
   );
@@ -60,10 +59,8 @@ export default function NavigationBar() {
     (_e: React.MouseEvent<HTMLButtonElement>) => {
       if (direction === "rtl") {
         dispatch(updateSettings({ key: "direction", value: "ltr" }));
-        dispatch(setDirection("ltr"));
       } else {
         dispatch(updateSettings({ key: "direction", value: "rtl" }));
-        dispatch(setDirection("rtl"));
       }
     },
     [dispatch, direction],

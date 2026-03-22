@@ -19,7 +19,6 @@ import {
   goForwardExplorerHistory,
   updateExploreBasePath,
   setSearchText,
-  setSortOrder,
 } from "../../../reducers/ReadReducer";
 import { SortOrder } from "../../../types/SortOrderType";
 import { warn } from "@tauri-apps/plugin-log";
@@ -30,28 +29,29 @@ import { updateSettings } from "../../../reducers/SettingsReducer";
  */
 export default function NavBar() {
   const { t } = useTranslation();
-  const { history, historyIndex, searchText, sortOrder, entries } = useAppSelector(
+  const { history, historyIndex, searchText, entries } = useAppSelector(
     (state) => state.read.explorer,
   );
-  const settings = useAppSelector((state) => state.settings);
+  const { "sort-order": sortOrder, "home-directory": homeDirPath } = useAppSelector(
+    (state) => state.settings,
+  );
   const dispatch = useDispatch<AppDispatch>();
 
   const [width, setWidth] = React.useState(0);
 
   const navButtonsRef = useRef<HTMLElement>(null);
-  const initialized = useRef(false);
 
   const currentPath = history[historyIndex] ?? "";
 
   const setDirParh = useCallback(
     async (dirPath: string | undefined = undefined) => {
       if (!dirPath) {
-        dirPath = settings["home-directory"] || (await homeDir());
+        dirPath = homeDirPath || (await homeDir());
       }
       dispatch(setSearchText(""));
       dispatch(updateExploreBasePath({ dirPath }));
     },
-    [dispatch, settings],
+    [dispatch, homeDirPath],
   );
 
   useEffect(() => {
@@ -75,15 +75,6 @@ export default function NavBar() {
       }
     };
   }, [entries.length, historyIndex, history, setDirParh]);
-
-  useEffect(() => {
-    if (!initialized.current) {
-      if (settings["sort-order"]) {
-        dispatch(setSortOrder(settings["sort-order"]));
-      }
-      initialized.current = true;
-    }
-  }, [dispatch, settings]);
 
   const formAction = useCallback(
     (formData: FormData) => {
@@ -132,7 +123,6 @@ export default function NavBar() {
 
   const handleSortOrderChanged = (event: SelectChangeEvent) => {
     dispatch(updateSettings({ key: "sort-order", value: event.target.value as SortOrder }));
-    dispatch(setSortOrder(event.target.value as SortOrder));
   };
 
   const handleContextMenu = (e: React.MouseEvent<HTMLElement>) => {
@@ -191,7 +181,7 @@ export default function NavBar() {
         {width >= 310 ? (
           <Select
             size="small"
-            value={sortOrder}
+            defaultValue={sortOrder}
             sx={{ minWidth: "100px" }}
             onChange={handleSortOrderChanged}
           >

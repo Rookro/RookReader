@@ -18,9 +18,12 @@ export default function ComicReader() {
     index,
     isLoading: isFileLoading,
   } = useAppSelector((state) => state.read.containerFile);
-  const { isTwoPagedView, direction, isFirstPageSingleView, enablePreview } = useAppSelector(
-    (state) => state.view,
-  );
+  const {
+    "two-paged": isTwoPagedView,
+    direction,
+    "first-page-single-view": isFirstPageSingleView,
+    rendering: { "enable-preview": enablePreview },
+  } = useAppSelector((state) => state.settings);
 
   const containerPath = history[historyIndex];
 

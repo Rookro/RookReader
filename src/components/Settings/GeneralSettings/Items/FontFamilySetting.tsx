@@ -12,10 +12,8 @@ import { debug } from "@tauri-apps/plugin-log";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getFonts } from "../../../../bindings/FontCommands";
-import { settingsStore } from "../../../../settings/SettingsStore";
 import { SettingsChangedEvent } from "../../../../types/SettingsChangedEvent";
-import { useAppDispatch } from "../../../../Store";
-import { setFontFamily } from "../../../../reducers/ViewReducer";
+import { useAppDispatch, useAppSelector } from "../../../../Store";
 import { updateSettings } from "../../../../reducers/SettingsReducer";
 
 const defaultFont = "Inter, Avenir, Helvetica, Arial, sans-serif";
@@ -25,23 +23,18 @@ const defaultFont = "Inter, Avenir, Helvetica, Arial, sans-serif";
  */
 export default function FontFamilySetting() {
   const { t } = useTranslation();
-  const [currentFont, setCurrentFont] = useState(defaultFont);
+  const { "font-family": fontFamily } = useAppSelector((state) => state.settings);
   const [fonts, setFonts] = useState<string[]>([]);
   const dispatch = useAppDispatch();
 
   const handleFontFamilyChanged = async (e: SelectChangeEvent) => {
     debug(`Font changed: ${e.target.value}`);
-    setCurrentFont(e.target.value);
     emit<SettingsChangedEvent>("settings-changed", { fontFamily: e.target.value });
     dispatch(updateSettings({ key: "font-family", value: e.target.value }));
-    dispatch(setFontFamily(e.target.value));
   };
 
   useEffect(() => {
     const initFonts = async () => {
-      const fontFamily = await settingsStore.get<string>("font-family");
-      setCurrentFont(fontFamily ?? defaultFont);
-
       const fonts = await getFonts();
       setFonts(fonts);
     };
@@ -58,7 +51,7 @@ export default function FontFamilySetting() {
       <Select
         label={t("settings.general.font-family.title")}
         variant="standard"
-        value={currentFont}
+        defaultValue={fontFamily}
         onChange={handleFontFamilyChanged}
         size="small"
         autoWidth

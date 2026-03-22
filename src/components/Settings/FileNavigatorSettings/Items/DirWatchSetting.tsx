@@ -4,7 +4,6 @@ import { Switch, ListItem, ListItemIcon, ListItemText } from "@mui/material";
 import { emit } from "@tauri-apps/api/event";
 import { debug } from "@tauri-apps/plugin-log";
 import { useAppDispatch, useAppSelector } from "../../../../Store";
-import { setIsWatchEnabled } from "../../../../reducers/ReadReducer";
 import { SettingsChangedEvent } from "../../../../types/SettingsChangedEvent";
 import { PublishedWithChangesOutlined } from "@mui/icons-material";
 import { updateSettings } from "../../../../reducers/SettingsReducer";
@@ -20,7 +19,6 @@ export default function DirWatchSetting() {
   const handleIsWatchEnabledChange = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       debug(`Enable directory watch to ${e.target.checked}`);
-      dispatch(setIsWatchEnabled(e.target.checked));
       dispatch(updateSettings({ key: "enable-directory-watch", value: e.target.checked }));
       await emit<SettingsChangedEvent>("settings-changed", {
         fileNavigator: { isDirWatchEnabled: e.target.checked },

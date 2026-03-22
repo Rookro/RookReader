@@ -3,16 +3,16 @@ import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createBasePreloadedState, renderWithProviders } from "../../test/utils";
 import NavigationBar from "./NavigationBar";
-import { mockStore } from "../../test/mocks/tauri";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
+import * as SettingsReducer from "../../reducers/SettingsReducer";
 
 describe("NavigationBar", () => {
   const user = userEvent.setup();
-
   const basePreloadedState = createBasePreloadedState();
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.spyOn(SettingsReducer, "updateSettings");
   });
 
   it("should dispatch setActiveView('bookshelf') when library button is clicked", async () => {
@@ -68,11 +68,14 @@ describe("NavigationBar", () => {
 
   it("should toggle isTwoPagedView when button is clicked", async () => {
     const preloadedState = {
+      ...basePreloadedState,
       view: {
         ...basePreloadedState.view,
-        isTwoPagedView: true,
-        direction: "ltr" as const,
         activeView: "reader" as const,
+      },
+      settings: {
+        ...basePreloadedState.settings,
+        "two-paged": true,
       },
     };
 
@@ -81,17 +84,24 @@ describe("NavigationBar", () => {
     const toggleButton = screen.getByLabelText("toggle-two-paged");
     await user.click(toggleButton);
 
-    expect(store.getState().view.isTwoPagedView).toBe(false);
-    expect(mockStore.set).toHaveBeenCalledWith("two-paged", false);
+    expect(store.getState().settings["two-paged"]).toBe(false);
+    expect(SettingsReducer.updateSettings).toHaveBeenCalledWith({
+      key: "two-paged",
+      value: false,
+    });
   });
 
   it("should toggle direction when button is clicked", async () => {
     const preloadedState = {
+      ...basePreloadedState,
       view: {
         ...basePreloadedState.view,
-        isTwoPagedView: true,
-        direction: "ltr" as const,
         activeView: "reader" as const,
+      },
+      settings: {
+        ...basePreloadedState.settings,
+        "two-paged": true,
+        direction: "ltr" as const,
       },
     };
 
@@ -100,8 +110,132 @@ describe("NavigationBar", () => {
     const directionButton = screen.getByLabelText("toggle-direction");
     await user.click(directionButton);
 
-    expect(store.getState().view.direction).toBe("rtl");
-    expect(mockStore.set).toHaveBeenCalledWith("direction", "rtl");
+    expect(store.getState().settings.direction).toBe("rtl");
+    expect(SettingsReducer.updateSettings).toHaveBeenCalledWith({
+      key: "direction",
+      value: "rtl",
+    });
+  });
+
+  it("should dispatch goForwardContainerHistory when forward button is clicked", async () => {
+    const preloadedState = {
+      read: {
+        ...basePreloadedState.read,
+        containerFile: {
+          ...basePreloadedState.read.containerFile,
+          history: ["/path/1", "/path/2"],
+          historyIndex: 0,
+          entries: [],
+          index: 0,
+        },
+      },
+    };
+
+    const { store } = renderWithProviders(<NavigationBar />, { preloadedState });
+
+    const forwardButton = screen.getByLabelText("forward");
+    await user.click(forwardButton);
+
+    expect(store.getState().read.containerFile.historyIndex).toBe(1);
+  });
+
+  it("should disable forward button if historyIndex is at the end", () => {
+    const preloadedState = {
+      read: {
+        ...basePreloadedState.read,
+        containerFile: {
+          ...basePreloadedState.read.containerFile,
+          history: ["/path/1"],
+          historyIndex: 0,
+          entries: [],
+          index: 0,
+        },
+      },
+    };
+
+    renderWithProviders(<NavigationBar />, { preloadedState });
+
+    const forwardButton = screen.getByLabelText("forward");
+    expect(forwardButton).toBeDisabled();
+  });
+
+  it("should toggle direction from rtl to ltr when button is clicked", async () => {
+    const preloadedState = {
+      ...basePreloadedState,
+      view: {
+        ...basePreloadedState.view,
+        activeView: "reader" as const,
+      },
+      settings: {
+        ...basePreloadedState.settings,
+        direction: "rtl" as const,
+      },
+    };
+
+    const { store } = renderWithProviders(<NavigationBar />, { preloadedState });
+
+    const directionButton = screen.getByLabelText("toggle-direction");
+    await user.click(directionButton);
+
+    expect(store.getState().settings.direction).toBe("ltr");
+    expect(SettingsReducer.updateSettings).toHaveBeenCalledWith({
+      key: "direction",
+      value: "ltr",
+    });
+  });
+
+  it("should dispatch setContainerFilePath when path input is submitted", async () => {
+    const preloadedState = {
+      read: {
+        ...basePreloadedState.read,
+        containerFile: {
+          ...basePreloadedState.read.containerFile,
+          history: ["/path/old"],
+          historyIndex: 0,
+        },
+      },
+    };
+
+    const { store } = renderWithProviders(<NavigationBar />, { preloadedState });
+
+    const input = screen.getByLabelText("container-path-input");
+    await user.clear(input);
+    await user.type(input, "/path/new{enter}");
+
+    expect(store.getState().read.containerFile.history).toContain("/path/new");
+  });
+
+  it("should trigger form submission on blur", async () => {
+    const preloadedState = {
+      read: {
+        ...basePreloadedState.read,
+        containerFile: {
+          ...basePreloadedState.read.containerFile,
+          history: ["/path/old"],
+          historyIndex: 0,
+        },
+      },
+    };
+
+    const { store } = renderWithProviders(<NavigationBar />, { preloadedState });
+
+    const input = screen.getByLabelText("container-path-input");
+    await user.clear(input);
+    await user.type(input, "/path/blur");
+    await user.tab(); // Trigger blur
+
+    expect(store.getState().read.containerFile.history).toContain("/path/blur");
+  });
+
+  it("should prevent context menu propagation on input", () => {
+    renderWithProviders(<NavigationBar />);
+
+    const event = new MouseEvent("contextmenu", { bubbles: true, cancelable: true });
+    const stopPropagationSpy = vi.spyOn(event, "stopPropagation");
+
+    screen.getByLabelText("container-path-input").dispatchEvent(event);
+
+    expect(stopPropagationSpy).toHaveBeenCalled();
   });
 
   it("should open settings window when button is clicked", async () => {

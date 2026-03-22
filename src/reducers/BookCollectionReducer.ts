@@ -16,7 +16,6 @@ import {
 } from "../bindings/BookCommands";
 import { createTag, getAllTags, deleteTag } from "../bindings/TagCommands";
 import { determineEpubNovel, getEntriesInContainer } from "../bindings/ContainerCommands";
-import { SortOrder } from "../types/SortOrderType";
 import { createAppAsyncThunk } from "../types/CustomAsyncThunk";
 import { error } from "@tauri-apps/plugin-log";
 import { CommandError, ErrorCode } from "../types/Error";
@@ -314,8 +313,6 @@ const bookCollectionSlice = createSlice({
   name: "bookCollection",
   initialState: {
     searchText: "",
-    sortOrder: "NAME_ASC" as SortOrder,
-    gridSize: 1, // 0: small, 1: medium, 2: large
     bookshelf: {
       bookshelves: [] as Bookshelf[],
       selectedId: null as number | null,
@@ -366,15 +363,6 @@ const bookCollectionSlice = createSlice({
       state.searchText = action.payload;
     },
     /**
-     * Sets the grid size for the book collection view.
-     *
-     * @param state - The current Redux state slice.
-     * @param action - Payload containing the grid size (0: small, 1: medium, 2: large).
-     */
-    setGridSize(state, action: PayloadAction<number>) {
-      state.gridSize = action.payload;
-    },
-    /**
      * Sets the global search text for the book collection.
      *
      * @param state - The current Redux state slice.
@@ -382,15 +370,6 @@ const bookCollectionSlice = createSlice({
      */
     setSearchText(state, action: PayloadAction<string>) {
       state.searchText = action.payload;
-    },
-    /**
-     * Sets the sorting order for the book collection.
-     *
-     * @param state - The current Redux state slice.
-     * @param action - Payload containing the desired SortOrder.
-     */
-    setSortOrder(state, action: PayloadAction<SortOrder>) {
-      state.sortOrder = action.payload;
     },
     /**
      * Clears any error associated with the bookshelf state.
@@ -562,9 +541,7 @@ export const {
   bookshelfAdded,
   setSelectedTag,
   setBookshelfSearchText,
-  setGridSize,
   setSearchText,
-  setSortOrder,
   clearBookshelfError,
   clearTagError,
   clearSeriesError,

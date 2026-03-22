@@ -4,7 +4,6 @@ import { debug, error, info } from "@tauri-apps/plugin-log";
 import { determineEpubNovel, getEntriesInContainer } from "../bindings/ContainerCommands";
 import { getEntriesInDir as getEntriesInDirFromBackend } from "../bindings/DirectoryCommands";
 import { DirEntry } from "../types/DirEntry";
-import { SortOrder } from "../types/SortOrderType";
 import { convertEntriesInDir } from "../utils/DirEntryUtils";
 import { CommandError, ErrorCode } from "../types/Error";
 import { getBookWithStateById, upsertReadBook } from "../bindings/BookCommands";
@@ -136,10 +135,8 @@ export const readSlice = createSlice({
       historyIndex: -1,
       entries: [] as DirEntry[],
       searchText: "",
-      sortOrder: "NAME_ASC" as SortOrder,
       isLoading: false,
       error: null as { code: ErrorCode; message?: string } | null,
-      isWatchEnabled: false,
     },
   },
   reducers: {
@@ -208,24 +205,6 @@ export const readSlice = createSlice({
      */
     setSearchText: (state, action: PayloadAction<string>) => {
       state.explorer.searchText = action.payload;
-    },
-    /**
-     * Sets the sorting order within the file explorer.
-     *
-     * @param state - The current Redux state slice.
-     * @param action - Payload containing the desired SortOrder.
-     */
-    setSortOrder: (state, action: PayloadAction<SortOrder>) => {
-      state.explorer.sortOrder = action.payload;
-    },
-    /**
-     * Enables or disables directory watching in the file explorer.
-     *
-     * @param state - The current Redux state slice.
-     * @param action - Payload containing the boolean state.
-     */
-    setIsWatchEnabled: (state, action: PayloadAction<boolean>) => {
-      state.explorer.isWatchEnabled = action.payload;
     },
     /**
      * Navigates backwards in the container file history.
@@ -384,8 +363,6 @@ export const {
   setImageIndex,
   setExploreBasePath,
   setSearchText,
-  setSortOrder,
-  setIsWatchEnabled,
   goBackContainerHistory,
   goForwardContainerHistory,
   goBackExplorerHistory,

@@ -17,11 +17,7 @@ import { ChangeEvent, useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { openSettingsWindow } from "../../utils/WindowOpener";
 import { SortOrder } from "../../types/SortOrderType";
-import {
-  addBookToBookshelf,
-  setSearchText,
-  setSortOrder,
-} from "../../reducers/BookCollectionReducer";
+import { addBookToBookshelf, setSearchText } from "../../reducers/BookCollectionReducer";
 import { useAppDispatch, useAppSelector } from "../../Store";
 import BookAdditionToBookshelfDialog from "./Dialog/BookAdditionToBookshelfDialog";
 import { updateSettings } from "../../reducers/SettingsReducer";
@@ -30,7 +26,7 @@ import { updateSettings } from "../../reducers/SettingsReducer";
 export default function NavigationBar() {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
-  const { sortOrder } = useAppSelector((state) => state.bookCollection);
+  const { "bookshelf-sort-order": sortOrder } = useAppSelector((state) => state.settings);
   const { selectedId: bookshelfId } = useAppSelector((state) => state.bookCollection.bookshelf);
 
   const [isAddBookDialogOpen, setIsAddBookDialogOpen] = useState(false);
@@ -50,7 +46,6 @@ export default function NavigationBar() {
   const handleSortOrderChanged = useCallback(
     (e: SelectChangeEvent) => {
       dispatch(updateSettings({ key: "bookshelf-sort-order", value: e.target.value as SortOrder }));
-      dispatch(setSortOrder(e.target.value as SortOrder));
     },
     [dispatch],
   );
@@ -104,7 +99,7 @@ export default function NavigationBar() {
           size="small"
           autoWidth
           sx={{ marginX: 1 }}
-          value={sortOrder}
+          defaultValue={sortOrder}
           onChange={handleSortOrderChanged}
         >
           <MenuItem value="NAME_ASC">

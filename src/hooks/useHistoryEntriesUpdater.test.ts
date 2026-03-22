@@ -20,7 +20,7 @@ describe("useHistoryEntriesUpdater", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(useAppDispatch).mockReturnValue(mockDispatch);
-    vi.mocked(useAppSelector).mockReturnValue({ enableHistory: true });
+    vi.mocked(useAppSelector).mockReturnValue(true);
   });
 
   // Verify that recently read books are fetched on initialization if history is enabled
@@ -34,7 +34,7 @@ describe("useHistoryEntriesUpdater", () => {
 
   // Verify that history information is cleared when history function is disabled
   it("should clear history when enableHistory becomes false", () => {
-    vi.mocked(useAppSelector).mockReturnValue({ enableHistory: false });
+    vi.mocked(useAppSelector).mockReturnValue(false);
 
     renderHook(() => useHistoryEntriesUpdater());
 

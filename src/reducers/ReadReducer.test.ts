@@ -6,8 +6,6 @@ import readReducer, {
   setContainerFilePath,
   setExploreBasePath,
   setSearchText,
-  setSortOrder,
-  setIsWatchEnabled,
   goBackContainerHistory,
   goForwardContainerHistory,
   goBackExplorerHistory,
@@ -138,25 +136,17 @@ describe("ReadReducer", () => {
       expect(state.explorer.historyIndex).toBe(2);
     });
 
-    // Verify that explorer state (search text, sort order, watch setting, loading flag) is updated correctly
-    it("should handle explorer state (searchText, sortOrder, watch, loading)", () => {
+    // Verify that explorer state (search text, loading flag) is updated correctly
+    it("should handle explorer state (searchText, loading)", () => {
       const initialState = {
         explorer: {
           searchText: "",
-          sortOrder: "NAME_ASC",
-          isWatchEnabled: false,
           isLoading: false,
         },
       } as RootState["read"];
 
       let state = readReducer(initialState, setSearchText("query"));
       expect(state.explorer.searchText).toBe("query");
-
-      state = readReducer(state, setSortOrder("DATE_DESC"));
-      expect(state.explorer.sortOrder).toBe("DATE_DESC");
-
-      state = readReducer(state, setIsWatchEnabled(true));
-      expect(state.explorer.isWatchEnabled).toBe(true);
 
       state = readReducer(state, setIsDirEntriesLoading(true));
       expect(state.explorer.isLoading).toBe(true);

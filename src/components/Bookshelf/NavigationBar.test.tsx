@@ -35,8 +35,8 @@ describe("NavigationBar", () => {
   it("should handle sort order change", async () => {
     const { store } = renderWithProviders(<NavigationBar />);
 
-    // Initially should be NAME_ASC (default from bookCollectionSlice)
-    expect(store.getState().bookCollection.sortOrder).toBe("NAME_ASC");
+    // Initially should be NAME_ASC (default)
+    expect(store.getState().settings["bookshelf-sort-order"]).toBe("NAME_ASC");
 
     const select = screen.getByRole("combobox");
     await user.click(select);
@@ -45,7 +45,7 @@ describe("NavigationBar", () => {
     const option = screen.getByRole("option", { name: i18n.t("bookshelf.sort.name-desc") });
     await user.click(option);
 
-    expect(store.getState().bookCollection.sortOrder).toBe("NAME_DESC");
+    expect(store.getState().settings["bookshelf-sort-order"]).toBe("NAME_DESC");
   });
 
   // Verify that the settings window is opened when the settings button is clicked

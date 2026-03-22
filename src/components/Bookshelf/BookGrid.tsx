@@ -20,7 +20,7 @@ import NavigationBar from "./NavigationBar";
 import { useAppDispatch, useAppSelector } from "../../Store";
 import { Delete, LocalOffer, ZoomIn, ZoomOut } from "@mui/icons-material";
 import SetBookTagsDialog from "./Dialog/SetBookTagsDialog";
-import { fetchBooksInSelectedBookshelf, setGridSize } from "../../reducers/BookCollectionReducer";
+import { fetchBooksInSelectedBookshelf } from "../../reducers/BookCollectionReducer";
 import { useTranslation } from "react-i18next";
 import { andSearch, sortBy } from "../../utils/BookshelfUtils";
 import BookDeleteDialog from "./Dialog/BookDeleteDialog";
@@ -42,15 +42,14 @@ export interface BookGridProps {
 export default function BookGrid({ onBookSelect }: BookGridProps) {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
-  const { searchText, sortOrder, gridSize } = useAppSelector((state) => state.bookCollection);
-  const {
-    books: booksInSelectedBookshelf,
-    selectedId: bookshelfId,
-    status,
-  } = useAppSelector((state) => state.bookCollection.bookshelf);
-  const { selectedId: tagId, tags: availableTags } = useAppSelector(
-    (state) => state.bookCollection.tag,
+  const { "bookshelf-grid-size": gridSize, "bookshelf-sort-order": sortOrder } = useAppSelector(
+    (state) => state.settings,
   );
+  const {
+    searchText,
+    bookshelf: { books: booksInSelectedBookshelf, selectedId: bookshelfId, status },
+    tag: { selectedId: tagId, tags: availableTags },
+  } = useAppSelector((state) => state.bookCollection);
   const { activeView } = useAppSelector((state) => state.view);
 
   const containerRef = useRef(null);
@@ -92,7 +91,6 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
   const handleGridSizeChange = useCallback(
     (_e: Event, newValue: number, _activeThumb: number) => {
       dispatch(updateSettings({ key: "bookshelf-grid-size", value: newValue }));
-      dispatch(setGridSize(newValue));
     },
     [dispatch],
   );
@@ -229,7 +227,7 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
         <Stack direction="row" spacing={2} alignItems="center" sx={{ width: "100%" }}>
           <ZoomOut />
           <Slider
-            value={gridSize}
+            defaultValue={gridSize}
             onChange={handleGridSizeChange}
             min={0}
             max={2}
