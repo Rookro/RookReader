@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { ListItem, ListItemIcon, ListItemText, Typography } from "@mui/material";
 import { AspectRatioOutlined } from "@mui/icons-material";
 import { error } from "@tauri-apps/plugin-log";
-import { setPdfRenderingHeight } from "../../../../bindings/ContainerCommands";
+import { setPdfRenderResolutionHeight } from "../../../../bindings/ContainerCommands";
 import NumberSpinner from "../../../NumberSpinner";
 import { useAppDispatch, useAppSelector } from "../../../../Store";
 import { updateSettings } from "../../../../reducers/SettingsReducer";
@@ -11,14 +11,14 @@ import { updateSettings } from "../../../../reducers/SettingsReducer";
 /**
  * PDF rendering setting component.
  */
-export default function PdfRenderingSetting() {
+export default function PdfRenderResolutionHeightSetting() {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
-  const { rendering: renderingSettings } = useAppSelector((state) => state.settings);
+  const { reader: readerSettings } = useAppSelector((state) => state.settings);
   const [isError, setIsError] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
-  const handlePdfRenderingHeightChange = useCallback(
+  const handlePdfRenderResolutionHeightChange = useCallback(
     async (value: number | null) => {
       const height = value ?? 0;
 
@@ -30,7 +30,7 @@ export default function PdfRenderingSetting() {
       }
 
       try {
-        await setPdfRenderingHeight(height);
+        await setPdfRenderResolutionHeight(height);
       } catch (e) {
         error(`Failed to set PDF rendering height: ${e}`);
         setIsError(true);
@@ -41,10 +41,13 @@ export default function PdfRenderingSetting() {
       setIsError(false);
       setErrorMsg("");
 
-      const newSettings = { ...renderingSettings, "pdf-rendering-height": height };
-      dispatch(updateSettings({ key: "rendering", value: newSettings }));
+      const newSettings = {
+        ...readerSettings,
+        rendering: { ...readerSettings.rendering, pdfRenderResolutionHeight: height },
+      };
+      dispatch(updateSettings({ key: "reader", value: newSettings }));
     },
-    [t, dispatch, renderingSettings],
+    [t, dispatch, readerSettings],
   );
 
   return (
@@ -57,13 +60,13 @@ export default function PdfRenderingSetting() {
         secondary={t("settings.rendering.pdf.description")}
       />
       <NumberSpinner
-        defaultValue={renderingSettings["pdf-rendering-height"]}
+        defaultValue={readerSettings.rendering.pdfRenderResolutionHeight}
         min={1}
         step={100}
         size="small"
         error={isError}
         helperText={errorMsg}
-        onValueCommitted={handlePdfRenderingHeightChange}
+        onValueCommitted={handlePdfRenderResolutionHeightChange}
         sx={{ minWidth: "200px" }}
       />
       <Typography variant="body2" sx={{ marginLeft: 1 }}>

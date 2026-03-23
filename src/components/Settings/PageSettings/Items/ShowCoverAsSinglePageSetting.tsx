@@ -13,19 +13,26 @@ import { updateSettings } from "../../../../reducers/SettingsReducer";
  */
 export default function FirstPageSetting() {
   const { t } = useTranslation();
-  const isFirstPageSingleView = useAppSelector((state) => state.settings["first-page-single-view"]);
+  const readerSettings = useAppSelector((state) => state.settings.reader);
   const dispatch = useAppDispatch();
 
   const handleFirstPageSingleViewSwitchChange = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
-      debug(`First page single view switch changed to ${e.target.checked}`);
-      dispatch(updateSettings({ key: "first-page-single-view", value: e.target.checked }));
+      debug(`"show cover as single page" switch changed to ${e.target.checked}`);
+      const newSettings = {
+        ...readerSettings,
+        comic: {
+          ...readerSettings.comic,
+          showCoverAsSinglePage: e.target.checked,
+        },
+      };
+      dispatch(updateSettings({ key: "reader", value: newSettings }));
 
       await emit<SettingsChangedEvent>("settings-changed", {
-        view: { isFirstPageSingleView: e.target.checked },
+        appSettings: { reader: newSettings },
       });
     },
-    [dispatch],
+    [dispatch, readerSettings],
   );
 
   return (
@@ -33,7 +40,7 @@ export default function FirstPageSetting() {
       secondaryAction={
         <Switch
           edge="end"
-          defaultChecked={isFirstPageSingleView}
+          defaultChecked={readerSettings.comic.showCoverAsSinglePage}
           onChange={handleFirstPageSingleViewSwitchChange}
         />
       }

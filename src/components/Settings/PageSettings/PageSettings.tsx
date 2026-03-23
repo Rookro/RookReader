@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { List } from "@mui/material";
-import FirstPageSetting from "./Items/FirstPageSetting";
+import ShowCoverAsSinglePageSetting from "./Items/ShowCoverAsSinglePageSetting";
 import SettingsPanel from "../SettingsPanel";
 
 /**
@@ -12,7 +12,7 @@ export default function PageSettings() {
   return (
     <SettingsPanel title={t("settings.page.title")}>
       <List>
-        <FirstPageSetting />
+        <ShowCoverAsSinglePageSetting />
       </List>
     </SettingsPanel>
   );

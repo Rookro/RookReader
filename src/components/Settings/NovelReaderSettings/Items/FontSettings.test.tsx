@@ -40,10 +40,19 @@ describe("FontSettings", () => {
 
     await waitFor(() => {
       expect(mockStore.set).toHaveBeenCalledWith(
-        "novel-reader",
-        expect.objectContaining({ font: "Arial" }),
+        "reader",
+        expect.objectContaining({ novel: expect.objectContaining({ fontFamily: "Arial" }) }),
       );
-      expect(emit).toHaveBeenCalledWith("settings-changed", { novelReader: { font: "Arial" } });
+      expect(emit).toHaveBeenCalledWith(
+        "settings-changed",
+        expect.objectContaining({
+          appSettings: expect.objectContaining({
+            reader: expect.objectContaining({
+              novel: expect.objectContaining({ fontFamily: "Arial" }),
+            }),
+          }),
+        }),
+      );
     });
   });
 
@@ -59,10 +68,19 @@ describe("FontSettings", () => {
 
     await waitFor(() => {
       expect(mockStore.set).toHaveBeenCalledWith(
-        "novel-reader",
-        expect.objectContaining({ "font-size": 24 }),
+        "reader",
+        expect.objectContaining({ novel: expect.objectContaining({ fontSize: 24 }) }),
       );
-      expect(emit).toHaveBeenCalledWith("settings-changed", { novelReader: { "font-size": 24 } });
+      expect(emit).toHaveBeenCalledWith(
+        "settings-changed",
+        expect.objectContaining({
+          appSettings: expect.objectContaining({
+            reader: expect.objectContaining({
+              novel: expect.objectContaining({ fontSize: 24 }),
+            }),
+          }),
+        }),
+      );
     });
   });
 });

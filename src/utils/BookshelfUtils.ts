@@ -1,5 +1,5 @@
+import { SortOrder } from "../types/AppSettings";
 import { BookWithState } from "../types/DatabaseModels";
-import { SortOrder } from "../types/SortOrderType";
 
 /**
  * Filters an array of BookWithState objects to find entries whose 'display_name' property contains ALL specified keywords (AND search).
@@ -45,7 +45,7 @@ export const andSearch = (entries: BookWithState[], query: string) => {
  *
  * @param a - The first BookWithState object for comparison.
  * @param b - The second BookWithState object for comparison.
- * @param sortOrder - The specified criterion (e.g., 'NAME_ASC', 'DATE_DESC') for sorting.
+ * @param sortOrder - The specified criterion (e.g., 'name_asc', 'date_desc') for sorting.
  * @returns A number indicating the sort order:
  * - A negative number if 'a' should come before 'b'.
  * - Zero if 'a' and 'b' are considered equal for sorting.
@@ -53,17 +53,17 @@ export const andSearch = (entries: BookWithState[], query: string) => {
  *
  * @example
  * const books: BookWithState[] = [{ name: "b", ... }, { name: "c", ... }, { name: "a", ... }];
- * books.sort((a, b) => sortBy(a, b, 'NAME_ASC'));  // Returns [{ name: "a", ... }, { name: "b", ... }, { name: "c", ... }]
+ * books.sort((a, b) => sortBy(a, b, 'name_asc'));  // Returns [{ name: "a", ... }, { name: "b", ... }, { name: "c", ... }]
  */
 export const sortBy = (a: BookWithState, b: BookWithState, sortOrder: SortOrder) => {
   switch (sortOrder) {
-    case "NAME_ASC":
+    case "name_asc":
       return a.display_name.localeCompare(b.display_name);
-    case "NAME_DESC":
+    case "name_desc":
       return b.display_name.localeCompare(a.display_name);
-    case "DATE_ASC":
+    case "date_asc":
       return a.id - b.id;
-    case "DATE_DESC":
+    case "date_desc":
       return b.id - a.id;
   }
 };

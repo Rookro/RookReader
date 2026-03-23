@@ -14,24 +14,24 @@ import { setImageIndex } from "../../reducers/ReadReducer";
  */
 export default function ControlSlider() {
   const { entries, index } = useAppSelector((state) => state.read.containerFile);
-  const { direction } = useAppSelector((state) => state.settings);
+  const readerSettings = useAppSelector((state) => state.settings.reader);
   const dispatch = useAppDispatch();
   const appTheme = useAppTheme();
 
   const cache = useMemo(() => {
-    const isRtl = direction === "rtl";
+    const isRtl = readerSettings.comic.readingDirection === "rtl";
     return createCache({
       key: isRtl ? "muirtl" : "muiltr",
       stylisPlugins: isRtl ? [prefixer, rtlPlugin] : [prefixer],
     });
-  }, [direction]);
+  }, [readerSettings.comic.readingDirection]);
 
   const theme = useMemo(() => {
-    const isRtl = direction === "rtl";
+    const isRtl = readerSettings.comic.readingDirection === "rtl";
     return createTheme(appTheme, {
       direction: isRtl ? "rtl" : "ltr",
     } as Theme);
-  }, [appTheme, direction]);
+  }, [appTheme, readerSettings.comic.readingDirection]);
 
   const handleSliderValueChanged = (_event: Event, value: number, _activeThumb: number) => {
     dispatch(setImageIndex(value));

@@ -14,7 +14,7 @@ import { updateSettings } from "../../../../reducers/SettingsReducer";
 export default function MaxImageHeightSetting() {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
-  const { rendering: renderingSettings } = useAppSelector((state) => state.settings);
+  const { reader: readerSettings } = useAppSelector((state) => state.settings);
   const [isError, setIsError] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -34,10 +34,13 @@ export default function MaxImageHeightSetting() {
       setIsError(false);
       setErrorMsg("");
 
-      const newSettings = { ...renderingSettings, "max-image-height": height };
-      dispatch(updateSettings({ key: "rendering", value: newSettings }));
+      const newSettings = {
+        ...readerSettings,
+        rendering: { ...readerSettings.rendering, maxImageHeight: height },
+      };
+      dispatch(updateSettings({ key: "reader", value: newSettings }));
     },
-    [t, dispatch, renderingSettings],
+    [t, dispatch, readerSettings],
   );
 
   return (
@@ -52,7 +55,7 @@ export default function MaxImageHeightSetting() {
         slotProps={{ secondary: { sx: { whiteSpace: "pre-wrap" } } }}
       />
       <NumberSpinner
-        defaultValue={renderingSettings["max-image-height"]}
+        defaultValue={readerSettings.rendering.maxImageHeight}
         min={0}
         step={100}
         size="small"

@@ -8,20 +8,13 @@ import { mockStore } from "../../../../test/mocks/tauri";
 describe("InitialViewSetting", () => {
   const user = userEvent.setup();
 
-  const basePreloadedState = createBasePreloadedState();
-
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it("should load initial view from store", async () => {
-    const preloadedState = {
-      ...basePreloadedState,
-      settings: {
-        ...basePreloadedState.settings,
-        "initial-view": "bookshelf" as const,
-      },
-    };
+    const preloadedState = createBasePreloadedState();
+    preloadedState.settings.startup.initialView = "bookshelf";
 
     renderWithProviders(<InitialViewSetting />, { preloadedState });
 
@@ -31,13 +24,8 @@ describe("InitialViewSetting", () => {
   });
 
   it("should update store when selection changes", async () => {
-    const preloadedState = {
-      ...basePreloadedState,
-      view: {
-        ...basePreloadedState.view,
-        activeView: "reader" as const,
-      },
-    };
+    const preloadedState = createBasePreloadedState();
+    preloadedState.settings.startup.initialView = "reader";
 
     renderWithProviders(<InitialViewSetting />, { preloadedState });
 
@@ -51,7 +39,10 @@ describe("InitialViewSetting", () => {
     await user.click(option);
 
     await waitFor(() => {
-      expect(mockStore.set).toHaveBeenCalledWith("initial-view", "bookshelf");
+      expect(mockStore.set).toHaveBeenCalledWith(
+        "startup",
+        expect.objectContaining({ initialView: "bookshelf" }),
+      );
     });
   });
 });

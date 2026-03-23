@@ -6,7 +6,7 @@ mod commands;
 mod container;
 pub mod database;
 mod error;
-mod setting;
+mod settings;
 mod setup;
 mod state;
 
@@ -36,9 +36,9 @@ pub fn run() {
             commands::container_commands::get_image,
             commands::container_commands::get_image_preview,
             commands::container_commands::get_entries_in_container,
-            commands::container_commands::set_pdf_rendering_height,
+            commands::container_commands::set_pdf_render_resolution_height,
             commands::container_commands::set_max_image_height,
-            commands::container_commands::set_image_resize_method,
+            commands::container_commands::set_image_resampling_method,
             commands::container_commands::determine_epub_novel,
             commands::font_commands::get_fonts,
             commands::book_commands::get_book_tags,

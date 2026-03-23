@@ -53,7 +53,7 @@ describe("BookReader", () => {
 
   it("should restore last container on startup if enabled", async () => {
     const state = createBasePreloadedState();
-    state.settings.history["restore-last-container-on-startup"] = true;
+    state.settings.startup.restoreLastBook = true;
 
     vi.mocked(bookCmds.getRecentlyReadBooks).mockResolvedValue([
       {
@@ -78,7 +78,7 @@ describe("BookReader", () => {
 
   it("should handle empty history during startup restoration", async () => {
     const state = createBasePreloadedState();
-    state.settings.history["restore-last-container-on-startup"] = true;
+    state.settings.startup.restoreLastBook = true;
 
     vi.mocked(bookCmds.getRecentlyReadBooks).mockResolvedValue([]);
 

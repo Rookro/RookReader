@@ -145,11 +145,8 @@ describe("Bookshelf", () => {
 
   const defaultPreloadedState = createBasePreloadedState();
   defaultPreloadedState.view.activeView = "bookshelf";
-  defaultPreloadedState.settings = {
-    ...defaultPreloadedState.settings,
-    "bookshelf-sort-order": "DATE_DESC",
-    "bookshelf-grid-size": 2,
-  };
+  defaultPreloadedState.settings.bookshelf.sortOrder = "date_desc";
+  defaultPreloadedState.settings.bookshelf.gridSize = 2;
 
   beforeEach(() => {
     vi.clearAllMocks();

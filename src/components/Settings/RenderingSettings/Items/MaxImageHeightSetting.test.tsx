@@ -10,23 +10,13 @@ import * as containerCmds from "../../../../bindings/ContainerCommands";
 describe("MaxImageHeightSetting", () => {
   const user = userEvent.setup();
 
-  const basePreloadedState = createBasePreloadedState();
-
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it("should load initial height from store", async () => {
-    const preloadedState = {
-      ...basePreloadedState,
-      settings: {
-        ...basePreloadedState.settings,
-        rendering: {
-          ...basePreloadedState.settings.rendering,
-          "max-image-height": 1500,
-        },
-      },
-    };
+    const preloadedState = createBasePreloadedState();
+    preloadedState.settings.reader.rendering.maxImageHeight = 1500;
 
     renderWithProviders(<MaxImageHeightSetting />, { preloadedState });
 
@@ -36,16 +26,8 @@ describe("MaxImageHeightSetting", () => {
   });
 
   it("should update store and call backend when input changes", async () => {
-    const preloadedState = {
-      ...basePreloadedState,
-      settings: {
-        ...basePreloadedState.settings,
-        rendering: {
-          ...basePreloadedState.settings.rendering,
-          "max-image-height": 0,
-        },
-      },
-    };
+    const preloadedState = createBasePreloadedState();
+    preloadedState.settings.reader.rendering.maxImageHeight = 0;
 
     renderWithProviders(<MaxImageHeightSetting />, { preloadedState });
 
@@ -59,23 +41,15 @@ describe("MaxImageHeightSetting", () => {
     await waitFor(() => {
       expect(containerCmds.setMaxImageHeight).toHaveBeenCalledWith(2000);
       expect(mockStore.set).toHaveBeenCalledWith(
-        "rendering",
-        expect.objectContaining({ "max-image-height": 2000 }),
+        "reader",
+        expect.objectContaining({ rendering: expect.objectContaining({ maxImageHeight: 2000 }) }),
       );
     });
   });
 
   it("should display error message when backend call fails", async () => {
-    const preloadedState = {
-      ...basePreloadedState,
-      settings: {
-        ...basePreloadedState.settings,
-        rendering: {
-          ...basePreloadedState.settings.rendering,
-          "max-image-height": 0,
-        },
-      },
-    };
+    const preloadedState = createBasePreloadedState();
+    preloadedState.settings.reader.rendering.maxImageHeight = 0;
     vi.mocked(containerCmds.setMaxImageHeight).mockRejectedValueOnce(new Error("Backend error"));
 
     renderWithProviders(<MaxImageHeightSetting />, { preloadedState });

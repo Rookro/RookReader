@@ -13,7 +13,7 @@ import { useAppSelector } from "../Store";
  */
 export function useAppTheme() {
   const prefersDarkMode = useMediaQuery("(prefers-color-scheme: dark)");
-  const fontFamily = useAppSelector((state) => state.settings["font-family"]);
+  const fontFamily = useAppSelector((state) => state.settings.general.appFontFamily);
 
   const theme = useMemo(
     () =>

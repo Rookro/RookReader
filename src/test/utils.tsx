@@ -1,19 +1,19 @@
-import React, { ReactElement } from "react";
+import { createTheme, ThemeProvider } from "@mui/material";
+import { combineReducers, configureStore } from "@reduxjs/toolkit";
 import { render, RenderOptions } from "@testing-library/react";
-import { configureStore, combineReducers } from "@reduxjs/toolkit";
-import { Provider } from "react-redux";
-import { ThemeProvider, createTheme } from "@mui/material";
-import { I18nextProvider } from "react-i18next";
 import i18n from "i18next";
-import { initReactI18next } from "react-i18next";
+import React, { ReactElement } from "react";
+import { I18nextProvider, initReactI18next } from "react-i18next";
+import { Provider } from "react-redux";
 import translationEnUs from "../i18n/locales/en-US.json";
 import translationJaJp from "../i18n/locales/ja-JP.json";
 import bookCollectionReducer from "../reducers/BookCollectionReducer";
 import historyReducer from "../reducers/HistoryReducer";
 import readReducer from "../reducers/ReadReducer";
+import settingsReducer from "../reducers/SettingsReducer";
 import sidePaneReducer from "../reducers/SidePaneReducer";
 import viewReducer from "../reducers/ViewReducer";
-import settingsReducer from "../reducers/SettingsReducer";
+import { defaultSettings } from "../settings/SettingsStore";
 
 // Create a lightweight i18n instance for testing with actual resources
 export const testI18n = i18n.createInstance();
@@ -48,29 +48,7 @@ interface ExtendedRenderOptions extends Omit<RenderOptions, "queries"> {
 
 export function createBasePreloadedState(): RootState {
   return {
-    settings: {
-      "font-family": "Inter",
-      direction: "ltr",
-      "enable-directory-watch": false,
-      "experimental-features": {},
-      "first-page-single-view": true,
-      history: { enable: true, "restore-last-container-on-startup": false },
-      "home-directory": "",
-      log: { level: "Info" },
-      "novel-reader": { font: "default-font", "font-size": 16 },
-      rendering: {
-        "enable-preview": true,
-        "max-image-height": 0,
-        "image-resize-method": "lanczos3",
-        "pdf-rendering-height": 2000,
-      },
-      "sort-order": "NAME_ASC",
-      theme: "system",
-      "two-paged": true,
-      "bookshelf-sort-order": "NAME_ASC",
-      "bookshelf-grid-size": 1,
-      "initial-view": "reader",
-    },
+    settings: structuredClone(defaultSettings),
     view: {
       activeView: "reader",
     },

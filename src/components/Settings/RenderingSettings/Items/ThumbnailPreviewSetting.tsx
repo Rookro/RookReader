@@ -11,22 +11,25 @@ import { updateSettings } from "../../../../reducers/SettingsReducer";
 /**
  * Preview setting component.
  */
-export default function PreviewSetting() {
+export default function ThumbnailPreviewSetting() {
   const { t } = useTranslation();
-  const { rendering: renderingSettings } = useAppSelector((state) => state.settings);
+  const { reader: readerSettings } = useAppSelector((state) => state.settings);
   const dispatch = useAppDispatch();
 
   const handleEnablePreviewSwitchChange = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       debug(`Enable preview switch changed to ${e.target.checked}`);
-      const newSettings = { ...renderingSettings, "enable-preview": e.target.checked };
-      dispatch(updateSettings({ key: "rendering", value: newSettings }));
+      const newSettings = {
+        ...readerSettings,
+        rendering: { ...readerSettings.rendering, enableThumbnailPreview: e.target.checked },
+      };
+      dispatch(updateSettings({ key: "reader", value: newSettings }));
 
       await emit<SettingsChangedEvent>("settings-changed", {
-        view: { enablePreview: e.target.checked },
+        appSettings: { reader: newSettings },
       });
     },
-    [dispatch, renderingSettings],
+    [dispatch, readerSettings],
   );
 
   return (
@@ -34,7 +37,7 @@ export default function PreviewSetting() {
       secondaryAction={
         <Switch
           edge="end"
-          defaultChecked={renderingSettings["enable-preview"]}
+          defaultChecked={readerSettings.rendering.enableThumbnailPreview}
           onChange={handleEnablePreviewSwitchChange}
         />
       }

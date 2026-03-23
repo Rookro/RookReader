@@ -1,5 +1,5 @@
 import { LazyStore } from "@tauri-apps/plugin-store";
-import { Settings } from "../types/Settings";
+import { AppSettings } from "../types/AppSettings";
 
 const settingsFileName = import.meta.env.DEV
   ? "rook-reader_settings_dev.json"
@@ -7,42 +7,54 @@ const settingsFileName = import.meta.env.DEV
 
 export const settingsStore = new LazyStore(settingsFileName);
 
-export const defaultSettings: Settings = {
-  "font-family": "Inter, Avenir, Helvetica, Arial, sans-serif",
-  direction: "rtl",
-  "enable-directory-watch": false,
-  "experimental-features": {},
-  "first-page-single-view": true,
+export const defaultSettings: AppSettings = {
+  general: {
+    theme: "system",
+    appFontFamily: "Inter, Avenir, Helvetica, Arial, sans-serif",
+    log: {
+      level: "info",
+    },
+    experimentalFeatures: {},
+  },
+  startup: {
+    initialView: "reader",
+    restoreLastBook: true,
+  },
+  bookshelf: {
+    sortOrder: "name_asc",
+    gridSize: 1,
+  },
+  fileNavigator: {
+    homeDirectory: "",
+    sortOrder: "name_asc",
+    watchDirectoryChanges: false,
+  },
+  reader: {
+    comic: {
+      readingDirection: "rtl",
+      enableSpread: true,
+      showCoverAsSinglePage: true,
+    },
+    novel: {
+      fontFamily: "default-font",
+      fontSize: 16,
+    },
+    rendering: {
+      enableThumbnailPreview: true,
+      maxImageHeight: 0,
+      imageResamplingMethod: "triangle",
+      pdfRenderResolutionHeight: 2000,
+    },
+  },
   history: {
-    enable: true,
-    "restore-last-container-on-startup": true,
+    recordReadingHistory: true,
   },
-  "home-directory": "",
-  log: {
-    level: "Info",
-  },
-  "novel-reader": {
-    font: "default-font",
-    "font-size": 16,
-  },
-  rendering: {
-    "enable-preview": true,
-    "max-image-height": 0,
-    "image-resize-method": "triangle",
-    "pdf-rendering-height": 2000,
-  },
-  "sort-order": "NAME_ASC",
-  theme: "system",
-  "two-paged": true,
-  "bookshelf-sort-order": "NAME_ASC",
-  "bookshelf-grid-size": 1,
-  "initial-view": "reader",
 };
 
-export const loadAllSettings = async (): Promise<Settings> => {
+export const loadAllSettings = async (): Promise<AppSettings> => {
   const loadedSettings = { ...defaultSettings };
 
-  const keys = Object.keys(defaultSettings) as Array<keyof Settings>;
+  const keys = Object.keys(defaultSettings) as Array<keyof AppSettings>;
   for (const key of keys) {
     const value = await settingsStore.get(key);
     if (value != null && typeof value === typeof defaultSettings[key]) {

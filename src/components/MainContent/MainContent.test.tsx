@@ -28,17 +28,13 @@ vi.mock("../Bookshelf/Bookshelf", () => {
 });
 
 describe("MainContent", () => {
-  const basePreloadedState = createBasePreloadedState();
-
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it("should show Bookshelf and hide BookReader when activeView is 'bookshelf'", async () => {
-    const preloadedState = {
-      ...basePreloadedState,
-      view: { ...basePreloadedState.view, activeView: "bookshelf" as const },
-    };
+    const preloadedState = structuredClone(createBasePreloadedState());
+    preloadedState.view.activeView = "bookshelf" as const;
 
     renderWithProviders(<MainContent />, { preloadedState });
 
@@ -50,10 +46,8 @@ describe("MainContent", () => {
   });
 
   it("should show BookReader and hide Bookshelf when activeView is 'reader'", async () => {
-    const preloadedState = {
-      ...basePreloadedState,
-      view: { ...basePreloadedState.view, activeView: "reader" as const },
-    };
+    const preloadedState = structuredClone(createBasePreloadedState());
+    preloadedState.view.activeView = "reader" as const;
 
     renderWithProviders(<MainContent />, { preloadedState });
 

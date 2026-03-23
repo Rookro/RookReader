@@ -18,23 +18,23 @@ export default function ComicReader() {
     index,
     isLoading: isFileLoading,
   } = useAppSelector((state) => state.read.containerFile);
-  const {
-    "two-paged": isTwoPagedView,
-    direction,
-    "first-page-single-view": isFirstPageSingleView,
-    rendering: { "enable-preview": enablePreview },
-  } = useAppSelector((state) => state.settings);
+  const readerSettings = useAppSelector((state) => state.settings.reader);
 
   const containerPath = history[historyIndex];
 
   const settings: ViewerSettings = useMemo(
     () => ({
-      isTwoPagedView,
-      isFirstPageSingleView,
-      direction,
-      enablePreview,
+      isTwoPagedView: readerSettings.comic.enableSpread,
+      isFirstPageSingleView: readerSettings.comic.showCoverAsSinglePage,
+      direction: readerSettings.comic.readingDirection,
+      enablePreview: readerSettings.rendering.enableThumbnailPreview,
     }),
-    [isTwoPagedView, isFirstPageSingleView, direction, enablePreview],
+    [
+      readerSettings.comic.enableSpread,
+      readerSettings.comic.showCoverAsSinglePage,
+      readerSettings.comic.readingDirection,
+      readerSettings.rendering.enableThumbnailPreview,
+    ],
   );
 
   const { displayedLayout, moveForward, moveBack } = useViewerController(

@@ -21,13 +21,14 @@ import { useAppDispatch, useAppSelector } from "../../Store";
 import { openSettingsWindow } from "../../utils/WindowOpener";
 import { useTranslation } from "react-i18next";
 import { updateSettings } from "../../reducers/SettingsReducer";
+import { Direction } from "../../types/AppSettings";
 
 /**
  * Navigation bar component.
  */
 export default function NavigationBar() {
   const { t } = useTranslation();
-  const { "two-paged": isTwoPagedView, direction } = useAppSelector((state) => state.settings);
+  const readerSettings = useAppSelector((state) => state.settings.reader);
   const { history, historyIndex } = useAppSelector((state) => state.read.containerFile);
   const dispatch = useAppDispatch();
 
@@ -50,20 +51,26 @@ export default function NavigationBar() {
 
   const handleSwitchTwoPagedClicked = useCallback(
     (_e: React.MouseEvent<HTMLButtonElement>) => {
-      dispatch(updateSettings({ key: "two-paged", value: !isTwoPagedView }));
+      const newReaderSettings = {
+        ...readerSettings,
+        comic: { ...readerSettings.comic, enableSpread: !readerSettings.comic.enableSpread },
+      };
+      dispatch(updateSettings({ key: "reader", value: newReaderSettings }));
     },
-    [dispatch, isTwoPagedView],
+    [dispatch, readerSettings],
   );
 
   const handleSwitchDirectionClicked = useCallback(
     (_e: React.MouseEvent<HTMLButtonElement>) => {
-      if (direction === "rtl") {
-        dispatch(updateSettings({ key: "direction", value: "ltr" }));
-      } else {
-        dispatch(updateSettings({ key: "direction", value: "rtl" }));
-      }
+      const newDirection: Direction =
+        readerSettings.comic.readingDirection === "rtl" ? "ltr" : "rtl";
+      const newReaderSettings = {
+        ...readerSettings,
+        comic: { ...readerSettings.comic, readingDirection: newDirection },
+      };
+      dispatch(updateSettings({ key: "reader", value: newReaderSettings }));
     },
-    [dispatch, direction],
+    [dispatch, readerSettings],
   );
 
   const handleLibraryClicked = useCallback(
@@ -133,10 +140,10 @@ export default function NavigationBar() {
         />
       </Box>
       <IconButton onClick={handleSwitchTwoPagedClicked} aria-label="toggle-two-paged">
-        {isTwoPagedView ? <LooksTwo /> : <LooksOne />}
+        {readerSettings.comic.enableSpread ? <LooksTwo /> : <LooksOne />}
       </IconButton>
       <IconButton onClick={handleSwitchDirectionClicked} aria-label="toggle-direction">
-        {direction === "rtl" ? <SwitchRight /> : <SwitchLeft />}
+        {readerSettings.comic.readingDirection === "rtl" ? <SwitchRight /> : <SwitchLeft />}
       </IconButton>
       <IconButton onClick={handleSettingsClicked} aria-label="settings">
         <Settings />

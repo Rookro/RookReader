@@ -24,32 +24,23 @@ vi.mock("../../../reducers/ReadReducer", async () => {
 describe("ImageEntriesViewer", () => {
   const user = userEvent.setup();
 
-  const defaultPreloadedState = createBasePreloadedState();
-
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it("should render SidePanelHeader", () => {
-    renderWithProviders(<ImageEntriesViewer />, { preloadedState: defaultPreloadedState });
+    renderWithProviders(<ImageEntriesViewer />, { preloadedState: createBasePreloadedState() });
     expect(screen.getByTestId("side-panel-header")).toBeInTheDocument();
   });
 
   it("should show 'no pages' message when entries is empty", () => {
-    renderWithProviders(<ImageEntriesViewer />, { preloadedState: defaultPreloadedState });
+    renderWithProviders(<ImageEntriesViewer />, { preloadedState: createBasePreloadedState() });
     expect(screen.getByText("No pages.")).toBeInTheDocument();
   });
 
   it("should render list items when entries are present", () => {
-    const preloadedState = {
-      read: {
-        ...defaultPreloadedState.read,
-        containerFile: {
-          ...defaultPreloadedState.read.containerFile,
-          entries: ["p1.jpg", "p2.jpg"],
-        },
-      },
-    };
+    const preloadedState = createBasePreloadedState();
+    preloadedState.read.containerFile.entries = ["p1.jpg", "p2.jpg"];
 
     renderWithProviders(<ImageEntriesViewer />, { preloadedState });
     expect(screen.getByText("p1.jpg")).toBeInTheDocument();
@@ -57,15 +48,8 @@ describe("ImageEntriesViewer", () => {
   });
 
   it("should dispatch setImageIndex when an item is clicked", async () => {
-    const preloadedState = {
-      read: {
-        ...defaultPreloadedState.read,
-        containerFile: {
-          ...defaultPreloadedState.read.containerFile,
-          entries: ["p1.jpg", "p2.jpg"],
-        },
-      },
-    };
+    const preloadedState = createBasePreloadedState();
+    preloadedState.read.containerFile.entries = ["p1.jpg", "p2.jpg"];
 
     renderWithProviders(<ImageEntriesViewer />, { preloadedState });
 
@@ -77,16 +61,9 @@ describe("ImageEntriesViewer", () => {
   });
 
   it("should scroll to row when index changes", async () => {
-    const preloadedState = {
-      read: {
-        ...defaultPreloadedState.read,
-        containerFile: {
-          ...defaultPreloadedState.read.containerFile,
-          entries: ["p1.jpg", "p2.jpg", "p3.jpg"],
-          index: 2,
-        },
-      },
-    };
+    const preloadedState = createBasePreloadedState();
+    preloadedState.read.containerFile.entries = ["p1.jpg", "p2.jpg", "p3.jpg"];
+    preloadedState.read.containerFile.index = 2;
 
     renderWithProviders(<ImageEntriesViewer />, { preloadedState });
 
@@ -100,16 +77,9 @@ describe("ImageEntriesViewer", () => {
   });
 
   it("should log error if scrollToRow fails", async () => {
-    const preloadedState = {
-      read: {
-        ...defaultPreloadedState.read,
-        containerFile: {
-          ...defaultPreloadedState.read.containerFile,
-          entries: ["p1.jpg"],
-          index: 0,
-        },
-      },
-    };
+    const preloadedState = createBasePreloadedState();
+    preloadedState.read.containerFile.entries = ["p1.jpg"];
+    preloadedState.read.containerFile.index = 0;
 
     mockScrollToRow.mockImplementationOnce(() => {
       throw new Error("Scroll failed");

@@ -23,7 +23,7 @@ import SidePanelHeader from "../../SidePane/SidePanelHeader";
  */
 export default function FileListViewer() {
   const { t } = useTranslation();
-  const { "sort-order": sortOrder } = useAppSelector((state) => state.settings);
+  const fileNavigatorSettings = useAppSelector((state) => state.settings.fileNavigator);
   const { history, historyIndex, entries, searchText, isLoading } = useAppSelector(
     (state) => state.read.explorer,
   );
@@ -40,8 +40,8 @@ export default function FileListViewer() {
   const filteredSortedEntries = useMemo(() => {
     return andSearch(entries, searchText)
       .slice()
-      .sort((a, b) => sortBy(a, b, sortOrder));
-  }, [entries, sortOrder, searchText]);
+      .sort((a, b) => sortBy(a, b, fileNavigatorSettings.sortOrder));
+  }, [entries, fileNavigatorSettings.sortOrder, searchText]);
 
   const updateEntriesCallback = useCallback(() => {
     if (history[historyIndex]) {

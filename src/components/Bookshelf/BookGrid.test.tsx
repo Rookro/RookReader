@@ -139,42 +139,24 @@ describe("BookGrid", () => {
   });
 
   it("should show CircularProgress when loading", () => {
-    const loadingState = {
-      ...defaultPreloadedState,
-      bookCollection: {
-        ...defaultPreloadedState.bookCollection,
-        bookshelf: {
-          ...defaultPreloadedState.bookCollection.bookshelf,
-          status: "loading" as const,
-        },
-      },
-    };
+    const loadingState = structuredClone(defaultPreloadedState);
+    loadingState.bookCollection.bookshelf.status = "loading" as const;
 
     renderWithProviders(<BookGrid />, { preloadedState: loadingState });
     expect(screen.getByRole("progressbar")).toBeInTheDocument();
   });
 
   it("should show 'no books' message when collection is empty", async () => {
-    const emptyState = {
-      ...defaultPreloadedState,
-      bookCollection: {
-        ...defaultPreloadedState.bookCollection,
-        bookshelf: { ...defaultPreloadedState.bookCollection.bookshelf, books: [] },
-      },
-    };
+    const emptyState = structuredClone(defaultPreloadedState);
+    emptyState.bookCollection.bookshelf.books = [];
 
     renderWithProviders(<BookGrid />, { preloadedState: emptyState });
     expect(await screen.findByText(/No books in this collection/i)).toBeInTheDocument();
   });
 
   it("should filter books by tag", async () => {
-    const taggedState = {
-      ...defaultPreloadedState,
-      bookCollection: {
-        ...defaultPreloadedState.bookCollection,
-        tag: { ...defaultPreloadedState.bookCollection.tag, selectedId: 10 },
-      },
-    };
+    const taggedState = structuredClone(defaultPreloadedState);
+    taggedState.bookCollection.tag.selectedId = 10;
 
     renderWithProviders(<BookGrid />, { preloadedState: taggedState });
     forceResize(1000);
@@ -254,8 +236,8 @@ describe("BookGrid", () => {
     fireEvent.change(slider, { target: { value: 2 } });
 
     expect(SettingsReducer.updateSettings).toHaveBeenCalledWith({
-      key: "bookshelf-grid-size",
-      value: 2,
+      key: "bookshelf",
+      value: expect.objectContaining({ gridSize: 2 }),
     });
   });
 

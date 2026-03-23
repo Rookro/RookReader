@@ -1,10 +1,10 @@
 import { useTranslation } from "react-i18next";
 import { Divider, List } from "@mui/material";
 import SettingsPanel from "../SettingsPanel";
-import PdfRenderingSetting from "./Items/PdfRenderingSetting";
+import PdfRenderResolutionHeightSetting from "./Items/PdfRenderResolutionHeightSetting";
 import MaxImageHeightSetting from "./Items/MaxImageHeightSetting";
-import ImageResizeMethodSetting from "./Items/ImageResizeMethodSetting";
-import PreviewSetting from "./Items/PreviewSetting";
+import ImageResamplingMethodSetting from "./Items/ImageResamplingMethodSetting";
+import ThumbnailPreviewSetting from "./Items/ThumbnailPreviewSetting";
 
 /**
  * Rendering settings component.
@@ -15,12 +15,12 @@ export default function RenderingSettings() {
   return (
     <SettingsPanel title={t("settings.rendering.title")}>
       <List>
-        <PreviewSetting />
+        <ThumbnailPreviewSetting />
         <Divider />
         <MaxImageHeightSetting />
-        <ImageResizeMethodSetting />
+        <ImageResamplingMethodSetting />
         <Divider />
-        <PdfRenderingSetting />
+        <PdfRenderResolutionHeightSetting />
       </List>
     </SettingsPanel>
   );

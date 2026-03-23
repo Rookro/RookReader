@@ -2,37 +2,27 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createBasePreloadedState, renderWithProviders } from "../../../../test/utils";
-import FeatureToggle from "./FeatureToggle";
-import { mockStore } from "../../../../test/mocks/tauri";
+import RecordReadingHistorySetting from "./RecordReadingHistorySetting";
 import { emit } from "@tauri-apps/api/event";
+import { mockStore } from "../../../../test/mocks/tauri";
 
-describe("FeatureToggle", () => {
+describe("RecordReadingHistorySetting", () => {
   const user = userEvent.setup();
-
-  const defaultPreloadedState = createBasePreloadedState();
 
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it("should load initial state from settingsStore", async () => {
-    const preloadedState = {
-      ...defaultPreloadedState,
-      settings: {
-        ...defaultPreloadedState.settings,
-        history: {
-          enable: false,
-          "restore-last-container-on-startup": true,
-        },
-      },
-    };
+    const preloadedState = structuredClone(createBasePreloadedState());
+    preloadedState.settings.history.recordReadingHistory = false;
 
-    const { store } = renderWithProviders(<FeatureToggle />, {
+    const { store } = renderWithProviders(<RecordReadingHistorySetting />, {
       preloadedState,
     });
 
     await waitFor(() => {
-      expect(store.getState().settings.history.enable).toBe(false);
+      expect(store.getState().settings.history.recordReadingHistory).toBe(false);
     });
 
     const switchElement = screen.getByRole("switch");
@@ -40,18 +30,10 @@ describe("FeatureToggle", () => {
   });
 
   it("should update store and emit event when toggled", async () => {
-    const preloadedState = {
-      ...defaultPreloadedState,
-      settings: {
-        ...defaultPreloadedState.settings,
-        history: {
-          enable: true,
-          "restore-last-container-on-startup": true,
-        },
-      },
-    };
+    const preloadedState = structuredClone(createBasePreloadedState());
+    preloadedState.settings.history.recordReadingHistory = true;
 
-    const { store } = renderWithProviders(<FeatureToggle />, {
+    const { store } = renderWithProviders(<RecordReadingHistorySetting />, {
       preloadedState,
     });
 
@@ -64,14 +46,19 @@ describe("FeatureToggle", () => {
     await user.click(switchElement);
 
     await waitFor(() => {
-      expect(store.getState().settings.history.enable).toBe(false);
+      expect(store.getState().settings.history.recordReadingHistory).toBe(false);
       expect(mockStore.set).toHaveBeenCalledWith(
         "history",
-        expect.objectContaining({ enable: false }),
+        expect.objectContaining({ recordReadingHistory: false }),
       );
-      expect(emit).toHaveBeenCalledWith("settings-changed", {
-        history: { isEnabled: false },
-      });
+      expect(emit).toHaveBeenCalledWith(
+        "settings-changed",
+        expect.objectContaining({
+          appSettings: expect.objectContaining({
+            history: expect.objectContaining({ recordReadingHistory: false }),
+          }),
+        }),
+      );
     });
   });
 });

@@ -11,22 +11,24 @@ import {
 import { Language } from "@mui/icons-material";
 import { useAppDispatch, useAppSelector } from "../../../../Store";
 import { updateSettings } from "../../../../reducers/SettingsReducer";
+import { InitialView } from "../../../../types/AppSettings";
 
 /**
  * Initial view setting component.
  */
 export default function InitialViewSetting() {
   const { t } = useTranslation();
-  const initialView = useAppSelector((state) => state.settings["initial-view"]);
+  const startupSettings = useAppSelector((state) => state.settings.startup);
   const dispatch = useAppDispatch();
 
   const handleInitialViewChanged = useCallback(
     async (e: SelectChangeEvent) => {
       if (e.target.value === "reader" || e.target.value === "bookshelf") {
-        dispatch(updateSettings({ key: "initial-view", value: e.target.value }));
+        const newSettings = { ...startupSettings, initialView: e.target.value as InitialView };
+        dispatch(updateSettings({ key: "startup", value: newSettings }));
       }
     },
-    [dispatch],
+    [dispatch, startupSettings],
   );
 
   return (
@@ -38,7 +40,7 @@ export default function InitialViewSetting() {
       <Select
         label={t("settings.startup.initial-view.title")}
         variant="standard"
-        defaultValue={initialView}
+        defaultValue={startupSettings.initialView}
         onChange={handleInitialViewChanged}
         size="small"
         autoWidth

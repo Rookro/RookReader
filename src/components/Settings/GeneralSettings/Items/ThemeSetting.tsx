@@ -14,9 +14,9 @@ import {
 } from "@mui/icons-material";
 import { app } from "@tauri-apps/api";
 import { Theme } from "@tauri-apps/api/window";
-import { AppTheme } from "../../../../types/ThemeType";
 import { useAppDispatch, useAppSelector } from "../../../../Store";
 import { updateSettings } from "../../../../reducers/SettingsReducer";
+import { AppTheme } from "../../../../types/AppSettings";
 
 /**
  * Mapping from theme names to Tauri's theme setting values.
@@ -32,12 +32,13 @@ const toTauriTheme = new Map<AppTheme, Theme | undefined>([
  */
 export default function ThemeSetting() {
   const { t } = useTranslation();
-  const theme = useAppSelector((state) => state.settings.theme);
+  const generalSettings = useAppSelector((state) => state.settings.general);
   const dispatch = useAppDispatch();
 
   const handleThemeChanged = async (_e: React.MouseEvent<HTMLElement>, newTheme: AppTheme) => {
     if (newTheme !== null) {
-      dispatch(updateSettings({ key: "theme", value: newTheme }));
+      const newGeneralSettings = { ...generalSettings, theme: newTheme };
+      dispatch(updateSettings({ key: "general", value: newGeneralSettings }));
       await app.setTheme(toTauriTheme.get(newTheme));
     }
   };
@@ -48,7 +49,12 @@ export default function ThemeSetting() {
         <Palette />
       </ListItemIcon>
       <ListItemText primary={t("settings.general.theme.title")} />
-      <ToggleButtonGroup value={theme} exclusive onChange={handleThemeChanged} size="small">
+      <ToggleButtonGroup
+        value={generalSettings.theme}
+        exclusive
+        onChange={handleThemeChanged}
+        size="small"
+      >
         <ToggleButton value="light" sx={{ textTransform: "none" }}>
           <LightModeOutlined sx={{ marginRight: "4px" }} />
           {t("settings.general.theme.light")}

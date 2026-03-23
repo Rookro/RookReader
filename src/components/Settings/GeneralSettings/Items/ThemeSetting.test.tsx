@@ -9,20 +9,13 @@ import { app } from "@tauri-apps/api";
 describe("ThemeSetting", () => {
   const user = userEvent.setup();
 
-  const basePreloadedState = createBasePreloadedState();
-
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it("should load initial theme from store", async () => {
-    const preloadedState = {
-      ...basePreloadedState,
-      settings: {
-        ...basePreloadedState.settings,
-        theme: "dark" as const,
-      },
-    };
+    const preloadedState = createBasePreloadedState();
+    preloadedState.settings.general.theme = "dark";
 
     renderWithProviders(<ThemeSetting />, { preloadedState });
 
@@ -34,13 +27,8 @@ describe("ThemeSetting", () => {
   });
 
   it("should update theme and store when a button is clicked", async () => {
-    const preloadedState = {
-      ...basePreloadedState,
-      settings: {
-        ...basePreloadedState.settings,
-        theme: "system" as const,
-      },
-    };
+    const preloadedState = createBasePreloadedState();
+    preloadedState.settings.general.theme = "system";
 
     renderWithProviders(<ThemeSetting />, { preloadedState });
 
@@ -48,7 +36,10 @@ describe("ThemeSetting", () => {
     await user.click(lightButton);
 
     await waitFor(() => {
-      expect(mockStore.set).toHaveBeenCalledWith("theme", "light");
+      expect(mockStore.set).toHaveBeenCalledWith(
+        "general",
+        expect.objectContaining({ theme: "light" }),
+      );
       expect(app.setTheme).toHaveBeenCalledWith("light");
       expect(lightButton).toHaveAttribute("aria-pressed", "true");
     });

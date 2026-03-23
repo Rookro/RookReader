@@ -10,17 +10,17 @@ import {
 import { debug, error } from "@tauri-apps/plugin-log";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { setImageResizeMethod } from "../../../../bindings/ContainerCommands";
-import { ResizeMethod, resizeMethods } from "../../../../types/ResizeMethod";
+import { setImageResamplingMethod } from "../../../../bindings/ContainerCommands";
 import { useAppDispatch, useAppSelector } from "../../../../Store";
 import { updateSettings } from "../../../../reducers/SettingsReducer";
+import { ImageResamplingMethod, imageResamplingMethods } from "../../../../types/AppSettings";
 
 /**
  * Image resize setting component.
  */
-export default function ImageResizeMethodSetting() {
+export default function ImageResamplingMethodSetting() {
   const { t } = useTranslation();
-  const { rendering: renderingSettings } = useAppSelector((state) => state.settings);
+  const { reader: readerSettings } = useAppSelector((state) => state.settings);
   const dispatch = useAppDispatch();
 
   const getResizeMethodLabel = useCallback(
@@ -45,20 +45,23 @@ export default function ImageResizeMethodSetting() {
 
   const handleMethodChanged = useCallback(
     async (e: SelectChangeEvent) => {
-      debug(`Image Resize Method changed: ${e.target.value}`);
+      debug(`Image Resampling Method changed: ${e.target.value}`);
       try {
-        setImageResizeMethod(e.target.value);
+        setImageResamplingMethod(e.target.value);
       } catch (e) {
-        error(`Failed to set image resize method: ${e}`);
+        error(`Failed to set image resampling method: ${e}`);
         return;
       }
       const newSettings = {
-        ...renderingSettings,
-        "image-resize-method": e.target.value as ResizeMethod,
+        ...readerSettings,
+        rendering: {
+          ...readerSettings.rendering,
+          imageResamplingMethod: e.target.value as ImageResamplingMethod,
+        },
       };
-      dispatch(updateSettings({ key: "rendering", value: newSettings }));
+      dispatch(updateSettings({ key: "reader", value: newSettings }));
     },
-    [dispatch, renderingSettings],
+    [dispatch, readerSettings],
   );
 
   return (
@@ -74,12 +77,12 @@ export default function ImageResizeMethodSetting() {
       <Select
         label={t("settings.rendering.resize.resize-method.title")}
         variant="standard"
-        value={renderingSettings["image-resize-method"]}
+        value={readerSettings.rendering.imageResamplingMethod}
         onChange={handleMethodChanged}
         size="small"
         autoWidth
       >
-        {resizeMethods.map((method) => (
+        {imageResamplingMethods.map((method) => (
           <MenuItem key={method} value={method}>
             {getResizeMethodLabel(method)}
           </MenuItem>

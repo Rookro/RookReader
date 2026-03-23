@@ -16,17 +16,17 @@ import { debug } from "@tauri-apps/plugin-log";
 import { ChangeEvent, useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { openSettingsWindow } from "../../utils/WindowOpener";
-import { SortOrder } from "../../types/SortOrderType";
 import { addBookToBookshelf, setSearchText } from "../../reducers/BookCollectionReducer";
 import { useAppDispatch, useAppSelector } from "../../Store";
 import BookAdditionToBookshelfDialog from "./Dialog/BookAdditionToBookshelfDialog";
 import { updateSettings } from "../../reducers/SettingsReducer";
+import { SortOrder } from "../../types/AppSettings";
 
 /** Navigation bar for the bookshelf component */
 export default function NavigationBar() {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
-  const { "bookshelf-sort-order": sortOrder } = useAppSelector((state) => state.settings);
+  const bookshelfSettings = useAppSelector((state) => state.settings.bookshelf);
   const { selectedId: bookshelfId } = useAppSelector((state) => state.bookCollection.bookshelf);
 
   const [isAddBookDialogOpen, setIsAddBookDialogOpen] = useState(false);
@@ -45,9 +45,10 @@ export default function NavigationBar() {
 
   const handleSortOrderChanged = useCallback(
     (e: SelectChangeEvent) => {
-      dispatch(updateSettings({ key: "bookshelf-sort-order", value: e.target.value as SortOrder }));
+      const newBookshelfSettings = { ...bookshelfSettings, sortOrder: e.target.value as SortOrder };
+      dispatch(updateSettings({ key: "bookshelf", value: newBookshelfSettings }));
     },
-    [dispatch],
+    [dispatch, bookshelfSettings],
   );
 
   const handleAddClicked = useCallback((_e: React.MouseEvent) => {
@@ -99,28 +100,28 @@ export default function NavigationBar() {
           size="small"
           autoWidth
           sx={{ marginX: 1 }}
-          defaultValue={sortOrder}
+          defaultValue={bookshelfSettings.sortOrder}
           onChange={handleSortOrderChanged}
         >
-          <MenuItem value="NAME_ASC">
+          <MenuItem value="name_asc">
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               <ArrowUpward fontSize="small" />
               <Typography variant="body2">{t("bookshelf.sort.name-asc")}</Typography>
             </Box>
           </MenuItem>
-          <MenuItem value="NAME_DESC">
+          <MenuItem value="name_desc">
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               <ArrowDownward fontSize="small" />
               <Typography variant="body2">{t("bookshelf.sort.name-desc")}</Typography>
             </Box>
           </MenuItem>
-          <MenuItem value="DATE_ASC">
+          <MenuItem value="date_asc">
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               <ArrowUpward fontSize="small" color="action" />
               <Typography variant="body2">{t("bookshelf.sort.date-asc")}</Typography>
             </Box>
           </MenuItem>
-          <MenuItem value="DATE_DESC">
+          <MenuItem value="date_desc">
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               <ArrowDownward fontSize="small" color="action" />
               <Typography variant="body2">{t("bookshelf.sort.date-desc")}</Typography>

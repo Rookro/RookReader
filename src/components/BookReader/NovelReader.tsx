@@ -32,9 +32,9 @@ export default function NovelReader({ filePath }: NovelReaderProps) {
   const renditionRef = useRef<Rendition | null>(null);
   const { index, cfi } = useAppSelector((state) => state.read.containerFile);
   const {
-    direction,
-    "novel-reader": { font, "font-size": fontSize },
-  } = useAppSelector((state) => state.settings);
+    comic: { readingDirection },
+    novel: { fontFamily, fontSize },
+  } = useAppSelector((state) => state.settings.reader);
   const dispatch = useDispatch<AppDispatch>();
 
   const onMoveForward = useCallback(() => {
@@ -55,10 +55,10 @@ export default function NovelReader({ filePath }: NovelReaderProps) {
           "font-style": "normal",
         },
         "*": {
-          "font-family": `"${font === "default-font" ? "BundledNotoSerifJP" : font}" !important`,
+          "font-family": `"${fontFamily === "default-font" ? "BundledNotoSerifJP" : fontFamily}" !important`,
         },
         body: {
-          "font-family": `"${font === "default-font" ? "BundledNotoSerifJP" : font}" !important`,
+          "font-family": `"${fontFamily === "default-font" ? "BundledNotoSerifJP" : fontFamily}" !important`,
           "font-size": `${fontSize}px`,
           color: theme.palette.text.primary,
           background: theme.palette.background.default,
@@ -74,13 +74,13 @@ export default function NovelReader({ filePath }: NovelReaderProps) {
           : {}),
       });
     },
-    [theme, font, fontSize],
+    [theme, fontFamily, fontSize],
   );
 
   const { handleClicked, handleContextMenu, handleWheeled, handleKeydown } = usePageNavigation(
     onMoveForward,
     onMoveBack,
-    direction,
+    readingDirection,
   );
 
   useEffect(() => {

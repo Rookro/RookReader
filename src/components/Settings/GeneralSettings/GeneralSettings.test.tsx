@@ -11,10 +11,10 @@ vi.mock("./Items/LanguageSettings", () => {
   return { default: LanguageSettings };
 });
 
-vi.mock("./Items/FontFamilySetting", () => {
-  const FontFamilySetting = (): JSX.Element => <div data-testid="font-family-setting" />;
-  FontFamilySetting.displayName = "FontFamilySetting";
-  return { default: FontFamilySetting };
+vi.mock("./Items/AppFontFamilySetting", () => {
+  const AppFontFamilySetting = (): JSX.Element => <div data-testid="app-font-family-setting" />;
+  AppFontFamilySetting.displayName = "AppFontFamilySetting";
+  return { default: AppFontFamilySetting };
 });
 
 vi.mock("./Items/ThemeSetting", () => {
@@ -50,7 +50,7 @@ describe("GeneralSettings", () => {
     expect(screen.getByTestId("panel-title")).toHaveTextContent(/General Settings/i);
 
     expect(screen.getByTestId("language-setting")).toBeInTheDocument();
-    expect(screen.getByTestId("font-family-setting")).toBeInTheDocument();
+    expect(screen.getByTestId("app-font-family-setting")).toBeInTheDocument();
     expect(screen.getByTestId("theme-setting")).toBeInTheDocument();
   });
 });

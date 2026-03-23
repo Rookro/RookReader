@@ -47,21 +47,21 @@ describe("FileNavigatorUtils", () => {
   describe("sortBy", () => {
     // Verify correct sorting by name (ascending)
     it("should sort by name ascending", () => {
-      const sorted = [...mockEntries].sort((a, b) => sortBy(a, b, "NAME_ASC"));
+      const sorted = [...mockEntries].sort((a, b) => sortBy(a, b, "name_asc"));
       expect(sorted[0].name).toBe("data.txt");
       expect(sorted[2].name).toBe("image.png");
     });
 
     // Verify correct sorting by name (descending)
     it("should sort by name descending", () => {
-      const sorted = [...mockEntries].sort((a, b) => sortBy(a, b, "NAME_DESC"));
+      const sorted = [...mockEntries].sort((a, b) => sortBy(a, b, "name_desc"));
       expect(sorted[0].name).toBe("image.png");
       expect(sorted[2].name).toBe("data.txt");
     });
 
     // Verify correct sorting by date (ascending)
     it("should sort by date ascending", () => {
-      const sorted = [...mockEntries].sort((a, b) => sortBy(a, b, "DATE_ASC"));
+      const sorted = [...mockEntries].sort((a, b) => sortBy(a, b, "date_asc"));
       expect(sorted[0].name).toBe("Documents"); // 2023-01-01
       expect(sorted[1].name).toBe("data.txt"); // 2023-01-01
       expect(sorted[2].name).toBe("image.png"); // 2023-01-02
@@ -69,7 +69,7 @@ describe("FileNavigatorUtils", () => {
 
     // Verify correct sorting by date (descending)
     it("should sort by date descending", () => {
-      const sorted = [...mockEntries].sort((a, b) => sortBy(a, b, "DATE_DESC"));
+      const sorted = [...mockEntries].sort((a, b) => sortBy(a, b, "date_desc"));
       expect(sorted[0].name).toBe("image.png");
     });
   });

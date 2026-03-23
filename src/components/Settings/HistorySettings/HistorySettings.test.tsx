@@ -5,10 +5,12 @@ import HistorySettings from "./HistorySettings";
 import { JSX } from "react";
 
 // Mock sub-components
-vi.mock("./Items/FeatureToggle", () => {
-  const FeatureToggle = (): JSX.Element => <div data-testid="feature-toggle" />;
-  FeatureToggle.displayName = "FeatureToggle";
-  return { default: FeatureToggle };
+vi.mock("./Items/RecordReadingHistorySetting", () => {
+  const RecordReadingHistorySetting = (): JSX.Element => (
+    <div data-testid="record-reading-history-setting" />
+  );
+  RecordReadingHistorySetting.displayName = "RecordReadingHistorySetting";
+  return { default: RecordReadingHistorySetting };
 });
 
 // Mock SettingsPanel
@@ -35,6 +37,6 @@ describe("HistorySettings", () => {
 
     expect(screen.getByTestId("settings-panel")).toBeInTheDocument();
     expect(screen.getByTestId("panel-title")).toHaveTextContent(/History Settings/i);
-    expect(screen.getByTestId("feature-toggle")).toBeInTheDocument();
+    expect(screen.getByTestId("record-reading-history-setting")).toBeInTheDocument();
   });
 });

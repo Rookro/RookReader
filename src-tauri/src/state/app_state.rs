@@ -23,8 +23,11 @@ mod tests {
 
         assert!(app_state.container_state.container.is_none());
         assert_eq!(
-            ContainerSettings::default().pdf_rendering_height,
-            app_state.container_state.settings.pdf_rendering_height
+            ContainerSettings::default().pdf_render_resolution_height,
+            app_state
+                .container_state
+                .settings
+                .pdf_render_resolution_height
         );
     }
 
@@ -32,11 +35,17 @@ mod tests {
     fn test_app_state_container_state_is_mutable() {
         let mut app_state = AppState::default();
 
-        app_state.container_state.settings.pdf_rendering_height = 1500;
+        app_state
+            .container_state
+            .settings
+            .pdf_render_resolution_height = 1500;
 
         assert_eq!(
             1500,
-            app_state.container_state.settings.pdf_rendering_height,
+            app_state
+                .container_state
+                .settings
+                .pdf_render_resolution_height,
         );
     }
 }

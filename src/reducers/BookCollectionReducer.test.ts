@@ -91,10 +91,8 @@ describe("BookCollectionReducer", () => {
 
   // Verify that bookshelf error state is cleared correctly
   it("should handle clearBookshelfError", () => {
-    const stateWithError = {
-      ...initialState,
-      bookshelf: { ...initialState.bookshelf, error: { code: ErrorCode.OTHER_ERROR } },
-    };
+    const stateWithError = structuredClone(initialState);
+    stateWithError.bookshelf.error = { code: ErrorCode.OTHER_ERROR };
     const nextState = bookCollectionReducer(stateWithError, clearBookshelfError());
     expect(nextState.bookshelf.error).toBeNull();
   });
@@ -111,10 +109,8 @@ describe("BookCollectionReducer", () => {
 
   // Verify that series error state is cleared correctly
   it("should handle clearSeriesError", () => {
-    const stateWithError = {
-      ...initialState,
-      series: { ...initialState.series, error: { code: ErrorCode.OTHER_ERROR } },
-    };
+    const stateWithError = structuredClone(initialState);
+    stateWithError.series.error = { code: ErrorCode.OTHER_ERROR };
     const nextState = bookCollectionReducer(stateWithError, clearSeriesError());
     expect(nextState.series.error).toBeNull();
   });
@@ -204,12 +200,9 @@ describe("BookCollectionReducer", () => {
 
       // Verify that selectedId is reset if the selected bookshelf is deleted
       it("removeBookshelf should update selectedId if deleted", async () => {
-        const preloadedState = {
-          bookCollection: {
-            ...initialState,
-            bookshelf: { ...initialState.bookshelf, selectedId: 1 },
-          },
-        };
+        const preloadedState = { bookCollection: structuredClone(initialState) };
+        preloadedState.bookCollection.bookshelf.selectedId = 1;
+
         store = createTestStore(preloadedState);
         vi.mocked(BookshelfCommand.deleteBookshelf).mockResolvedValue(undefined);
         vi.mocked(BookshelfCommand.getAllBookshelves).mockResolvedValue([]);
@@ -222,12 +215,9 @@ describe("BookCollectionReducer", () => {
 
       // Verify that selectedId is maintained if a different bookshelf is deleted
       it("removeBookshelf should not change selectedId if different ID deleted", async () => {
-        const preloadedState = {
-          bookCollection: {
-            ...initialState,
-            bookshelf: { ...initialState.bookshelf, selectedId: 2 },
-          },
-        };
+        const preloadedState = { bookCollection: structuredClone(initialState) };
+        preloadedState.bookCollection.bookshelf.selectedId = 2;
+
         store = createTestStore(preloadedState);
         vi.mocked(BookshelfCommand.deleteBookshelf).mockResolvedValue(undefined);
 
@@ -330,11 +320,10 @@ describe("BookCollectionReducer", () => {
       // Verify that selectedId is reset if the selected tag is deleted
       it("removeTag should update selectedId if deleted", async () => {
         const preloadedState = {
-          bookCollection: {
-            ...initialState,
-            tag: { ...initialState.tag, selectedId: 1 },
-          },
+          bookCollection: structuredClone(initialState),
         };
+        preloadedState.bookCollection.tag.selectedId = 1;
+
         store = createTestStore(preloadedState);
         vi.mocked(TagCommands.deleteTag).mockResolvedValue(undefined);
         vi.mocked(TagCommands.getAllTags).mockResolvedValue([]);
@@ -347,12 +336,9 @@ describe("BookCollectionReducer", () => {
 
       // Verify that selectedId is maintained if a different tag is deleted
       it("removeTag should not change selectedId if different ID deleted", async () => {
-        const preloadedState = {
-          bookCollection: {
-            ...initialState,
-            tag: { ...initialState.tag, selectedId: 2 },
-          },
-        };
+        const preloadedState = { bookCollection: structuredClone(initialState) };
+        preloadedState.bookCollection.tag.selectedId = 2;
+
         store = createTestStore(preloadedState);
         vi.mocked(TagCommands.deleteTag).mockResolvedValue(undefined);
 

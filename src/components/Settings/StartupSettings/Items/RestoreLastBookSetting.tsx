@@ -8,20 +8,20 @@ import { updateSettings } from "../../../../reducers/SettingsReducer";
 /**
  * Restore on startup setting component.
  */
-export default function RestoreOnStartupSetting() {
+export default function RestoreLastBookSetting() {
   const { t } = useTranslation();
-  const { history: historySettings } = useAppSelector((state) => state.settings);
+  const startupSettings = useAppSelector((state) => state.settings.startup);
   const dispatch = useAppDispatch();
 
-  const handleRestoreFeatureToggleChanged = useCallback(
+  const handleRestoreLastBookChanged = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const newHistorySettings = {
-        ...historySettings,
-        "restore-last-container-on-startup": e.target.checked,
+      const newStartupSettings = {
+        ...startupSettings,
+        restoreLastBook: e.target.checked,
       };
-      dispatch(updateSettings({ key: "history", value: newHistorySettings }));
+      dispatch(updateSettings({ key: "startup", value: newStartupSettings }));
     },
-    [dispatch, historySettings],
+    [dispatch, startupSettings],
   );
 
   return (
@@ -29,8 +29,8 @@ export default function RestoreOnStartupSetting() {
       secondaryAction={
         <Switch
           edge="end"
-          defaultChecked={historySettings["restore-last-container-on-startup"]}
-          onChange={handleRestoreFeatureToggleChanged}
+          defaultChecked={startupSettings.restoreLastBook}
+          onChange={handleRestoreLastBookChanged}
         />
       }
     >

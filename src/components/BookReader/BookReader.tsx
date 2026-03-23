@@ -35,7 +35,9 @@ export default function BookReader({ sx }: BookReaderProps) {
   const { activeView } = useAppSelector((state) => state.view);
   const { isHidden, tabIndex } = useAppSelector((state) => state.sidePane.left);
   const { history, historyIndex, isNovel } = useAppSelector((state) => state.read.containerFile);
-  const { history: historySettings } = useAppSelector((state) => state.settings);
+  const { history: historySettings, startup: startupSettings } = useAppSelector(
+    (state) => state.settings,
+  );
   const dispatch = useDispatch<AppDispatch>();
 
   const [droppedFile, setDroppedFile] = useState<string | undefined>(undefined);
@@ -81,11 +83,11 @@ export default function BookReader({ sx }: BookReaderProps) {
       { label: "image-entries", icon: <PhotoLibrary />, panel: <ImageEntriesViewer /> },
     ];
 
-    if (historySettings.enable) {
+    if (historySettings.recordReadingHistory) {
       tabs.push({ label: "history", icon: <History />, panel: <HistoryViewer /> });
     }
     return tabs;
-  }, [historySettings.enable]);
+  }, [historySettings.recordReadingHistory]);
 
   useEffect(() => {
     if (initialized.current) {
@@ -93,8 +95,8 @@ export default function BookReader({ sx }: BookReaderProps) {
     }
 
     const init = async () => {
-      const historyEnabled = historySettings.enable;
-      const restoreLastContainer = historySettings["restore-last-container-on-startup"];
+      const historyEnabled = historySettings.recordReadingHistory;
+      const restoreLastContainer = startupSettings.restoreLastBook;
       if (historyEnabled && restoreLastContainer) {
         const latestEntry =
           (await getRecentlyReadBooks()).length > 0 ? (await getRecentlyReadBooks())[0] : null;
@@ -106,7 +108,7 @@ export default function BookReader({ sx }: BookReaderProps) {
       initialized.current = true;
     };
     init();
-  }, [dispatch, historySettings]);
+  }, [dispatch, historySettings.recordReadingHistory, startupSettings.restoreLastBook]);
 
   const containerPath = history[historyIndex];
 

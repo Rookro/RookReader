@@ -35,34 +35,27 @@ vi.mock("../../../reducers/ReadReducer", async () => {
 describe("HistoryViewer", () => {
   const user = userEvent.setup();
 
-  const defaultPreloadedState = createBasePreloadedState();
-
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it("should render SidePanelHeader and Search input", () => {
-    renderWithProviders(<HistoryViewer />, { preloadedState: defaultPreloadedState });
+    renderWithProviders(<HistoryViewer />, { preloadedState: createBasePreloadedState() });
     expect(screen.getByTestId("side-panel-header")).toBeInTheDocument();
     expect(screen.getByRole("searchbox")).toBeInTheDocument();
   });
 
   it("should show 'no history' message when recentlyReadBooks is empty", () => {
-    renderWithProviders(<HistoryViewer />, { preloadedState: defaultPreloadedState });
+    renderWithProviders(<HistoryViewer />, { preloadedState: createBasePreloadedState() });
     expect(screen.getByText("No history.")).toBeInTheDocument();
   });
 
   it("should render list items when history entries are present", () => {
-    const preloadedState = {
-      ...defaultPreloadedState,
-      history: {
-        ...defaultPreloadedState.history,
-        recentlyReadBooks: [
-          createMockReadBook({ id: 1, file_path: "/path/1", display_name: "Book 1" }),
-          createMockReadBook({ id: 2, file_path: "/path/2", display_name: "Book 2" }),
-        ],
-      },
-    };
+    const preloadedState = createBasePreloadedState();
+    preloadedState.history.recentlyReadBooks = [
+      createMockReadBook({ id: 1, file_path: "/path/1", display_name: "Book 1" }),
+      createMockReadBook({ id: 2, file_path: "/path/2", display_name: "Book 2" }),
+    ];
 
     renderWithProviders(<HistoryViewer />, { preloadedState });
     expect(screen.getByText("Book 1")).toBeInTheDocument();
@@ -70,15 +63,10 @@ describe("HistoryViewer", () => {
   });
 
   it("should dispatch setContainerFilePath when an item is clicked", async () => {
-    const preloadedState = {
-      ...defaultPreloadedState,
-      history: {
-        ...defaultPreloadedState.history,
-        recentlyReadBooks: [
-          createMockReadBook({ id: 1, file_path: "/path/1", display_name: "Book 1" }),
-        ],
-      },
-    };
+    const preloadedState = createBasePreloadedState();
+    preloadedState.history.recentlyReadBooks = [
+      createMockReadBook({ id: 1, file_path: "/path/1", display_name: "Book 1" }),
+    ];
 
     renderWithProviders(<HistoryViewer />, { preloadedState });
 
@@ -89,16 +77,11 @@ describe("HistoryViewer", () => {
   });
 
   it("should filter results based on search input", async () => {
-    const preloadedState = {
-      ...defaultPreloadedState,
-      history: {
-        ...defaultPreloadedState.history,
-        recentlyReadBooks: [
-          createMockReadBook({ id: 1, file_path: "/path/1", display_name: "Apple" }),
-          createMockReadBook({ id: 2, file_path: "/path/2", display_name: "Banana" }),
-        ],
-      },
-    };
+    const preloadedState = createBasePreloadedState();
+    preloadedState.history.recentlyReadBooks = [
+      createMockReadBook({ id: 1, file_path: "/path/1", display_name: "Apple" }),
+      createMockReadBook({ id: 2, file_path: "/path/2", display_name: "Banana" }),
+    ];
 
     renderWithProviders(<HistoryViewer />, { preloadedState });
 
@@ -110,13 +93,10 @@ describe("HistoryViewer", () => {
   });
 
   it("should show 'no search results' when search does not match any entry", async () => {
-    const preloadedState = {
-      ...defaultPreloadedState,
-      history: {
-        ...defaultPreloadedState.history,
-        recentlyReadBooks: [createMockReadBook({ display_name: "Apple" })],
-      },
-    };
+    const preloadedState = createBasePreloadedState();
+    preloadedState.history.recentlyReadBooks = [
+      createMockReadBook({ id: 1, file_path: "/path/1", display_name: "Apple" }),
+    ];
 
     renderWithProviders(<HistoryViewer />, { preloadedState });
 
@@ -131,24 +111,13 @@ describe("HistoryViewer", () => {
       callback(1);
     });
 
-    const preloadedState = {
-      ...defaultPreloadedState,
-      history: {
-        ...defaultPreloadedState.history,
-        recentlyReadBooks: [
-          createMockReadBook({ file_path: "/path/1", display_name: "B1" }),
-          createMockReadBook({ file_path: "/path/2", display_name: "B2" }),
-        ],
-      },
-      read: {
-        ...defaultPreloadedState.read,
-        containerFile: {
-          ...defaultPreloadedState.read.containerFile,
-          history: ["/path/2"],
-          historyIndex: 0,
-        },
-      },
-    };
+    const preloadedState = createBasePreloadedState();
+    preloadedState.history.recentlyReadBooks = [
+      createMockReadBook({ file_path: "/path/1", display_name: "B1" }),
+      createMockReadBook({ file_path: "/path/2", display_name: "B2" }),
+    ];
+    preloadedState.read.containerFile.history = ["/path/2"];
+    preloadedState.read.containerFile.historyIndex = 0;
 
     renderWithProviders(<HistoryViewer />, { preloadedState });
 
@@ -166,21 +135,10 @@ describe("HistoryViewer", () => {
       callback(0);
     });
 
-    const preloadedState = {
-      ...defaultPreloadedState,
-      history: {
-        ...defaultPreloadedState.history,
-        recentlyReadBooks: [createMockReadBook({ file_path: "/path/2" })],
-      },
-      read: {
-        ...defaultPreloadedState.read,
-        containerFile: {
-          ...defaultPreloadedState.read.containerFile,
-          history: ["/path/2"],
-          historyIndex: 0,
-        },
-      },
-    };
+    const preloadedState = createBasePreloadedState();
+    preloadedState.history.recentlyReadBooks = [createMockReadBook({ file_path: "/path/2" })];
+    preloadedState.read.containerFile.history = ["/path/2"];
+    preloadedState.read.containerFile.historyIndex = 0;
 
     mockScrollToRow.mockImplementationOnce(() => {
       throw new Error("Scroll error");
@@ -194,7 +152,7 @@ describe("HistoryViewer", () => {
   });
 
   it("should prevent context menu propagation", async () => {
-    renderWithProviders(<HistoryViewer />, { preloadedState: defaultPreloadedState });
+    renderWithProviders(<HistoryViewer />, { preloadedState: createBasePreloadedState() });
     const searchInput = screen.getByRole("searchbox");
 
     const event = fireEvent.contextMenu(searchInput);

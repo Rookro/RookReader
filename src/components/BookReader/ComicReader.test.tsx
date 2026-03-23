@@ -43,10 +43,7 @@ describe("ComicReader", () => {
 
   it("should render a single page layout correctly", () => {
     const preloadedState = createBasePreloadedState();
-    preloadedState.settings = {
-      ...preloadedState.settings,
-      "two-paged": false,
-    };
+    preloadedState.settings.reader.comic.enableSpread = false;
 
     vi.mocked(viewerController.useViewerController).mockReturnValue({
       displayedLayout: {
@@ -67,11 +64,8 @@ describe("ComicReader", () => {
 
   it("should render a spread layout in LTR correctly", () => {
     const preloadedState = createBasePreloadedState();
-    preloadedState.settings = {
-      ...preloadedState.settings,
-      direction: "ltr",
-      "two-paged": true,
-    };
+    preloadedState.settings.reader.comic.readingDirection = "ltr";
+    preloadedState.settings.reader.comic.enableSpread = true;
 
     vi.mocked(viewerController.useViewerController).mockReturnValue({
       displayedLayout: {
@@ -96,11 +90,8 @@ describe("ComicReader", () => {
 
   it("should render a spread layout in RTL correctly", () => {
     const preloadedState = createBasePreloadedState();
-    preloadedState.settings = {
-      ...preloadedState.settings,
-      direction: "rtl",
-      "two-paged": true,
-    };
+    preloadedState.settings.reader.comic.readingDirection = "rtl";
+    preloadedState.settings.reader.comic.enableSpread = true;
 
     vi.mocked(viewerController.useViewerController).mockReturnValue({
       displayedLayout: {

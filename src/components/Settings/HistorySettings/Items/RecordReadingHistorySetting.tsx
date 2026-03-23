@@ -10,18 +10,17 @@ import { updateSettings } from "../../../../reducers/SettingsReducer";
 /**
  * History feature toggle component.
  */
-export default function FeatureToggle() {
+export default function RecordReadingHistorySetting() {
   const { t } = useTranslation();
-  const { history: historySettings } = useAppSelector((state) => state.settings);
+  const historySettings = useAppSelector((state) => state.settings.history);
   const dispatch = useAppDispatch();
 
-  const handleHistoryFeatureToggleChanged = useCallback(
+  const handleRecordReadingHistoryChanged = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const newHistorySettings = { ...historySettings };
-      newHistorySettings.enable = e.target.checked;
+      const newHistorySettings = { ...historySettings, recordReadingHistory: e.target.checked };
       dispatch(updateSettings({ key: "history", value: newHistorySettings }));
       await emit<SettingsChangedEvent>("settings-changed", {
-        history: { isEnabled: e.target.checked },
+        appSettings: { history: newHistorySettings },
       });
     },
     [dispatch, historySettings],
@@ -32,8 +31,8 @@ export default function FeatureToggle() {
       secondaryAction={
         <Switch
           edge="end"
-          defaultChecked={historySettings.enable}
-          onChange={handleHistoryFeatureToggleChanged}
+          defaultChecked={historySettings.recordReadingHistory}
+          onChange={handleRecordReadingHistoryChanged}
         />
       }
     >

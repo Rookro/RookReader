@@ -22,7 +22,7 @@ use crate::{
         tag::{SqliteTagRepository, TagRepository},
     },
     error::{self, Error},
-    setting::{app_theme::AppTheme, core::Settings, log_settings::LogSettings},
+    settings::{AppSettings, AppTheme, ImageResamplingMethod, LogLevel, LogSettings},
 };
 
 /// Orchestrates the initial setup of the application.
@@ -43,10 +43,10 @@ pub fn setup(app: &App) -> error::Result<()> {
     } else {
         "rook-reader_settings.json"
     };
-    let settings = Settings::load(app, settings_filename)?;
+    let settings = AppSettings::load(app, settings_filename)?;
 
-    setup_logger(app, &settings.log)?;
-    set_theme(app, &settings.theme);
+    setup_logger(app, &settings.general.log)?;
+    set_theme(app, &settings.general.theme);
     setup_database(app)?;
 
     setup_container_settings(app, &settings)?;
@@ -69,24 +69,27 @@ pub fn setup(app: &App) -> error::Result<()> {
 /// # Errors
 ///
 /// Returns a `Mutex` error if the application state cannot be locked.
-pub fn setup_container_settings(app: &App, settings: &Settings) -> error::Result<()> {
+pub fn setup_container_settings(app: &App, settings: &AppSettings) -> error::Result<()> {
     let state: tauri::State<'_, Mutex<crate::state::app_state::AppState>> = app.state();
     let mut locked_state = state
         .lock()
         .map_err(|e| error::Error::Mutex(format!("Failed to get app state. Error: {}", e)))?;
 
     locked_state.container_state.settings.pdfium_library_path = Some(get_libs_dir(app)?);
-    locked_state.container_state.settings.enable_preview = settings.rendering.enable_preview;
-    locked_state.container_state.settings.max_image_height = settings.rendering.max_image_height;
-    locked_state.container_state.settings.image_resize_method =
-        match settings.rendering.image_resize_method.as_str() {
-            "nearest" => FilterType::Nearest,
-            "triangle" => FilterType::Triangle,
-            "catmullRom" => FilterType::CatmullRom,
-            "gaussian" => FilterType::Gaussian,
-            "lanczos3" => FilterType::Lanczos3,
-            _ => FilterType::Triangle,
-        };
+    locked_state.container_state.settings.enable_preview =
+        settings.reader.rendering.enable_thumbnail_preview;
+    locked_state.container_state.settings.max_image_height =
+        settings.reader.rendering.max_image_height;
+    locked_state
+        .container_state
+        .settings
+        .image_resampling_method = match settings.reader.rendering.image_resampling_method {
+        ImageResamplingMethod::Nearest => FilterType::Nearest,
+        ImageResamplingMethod::Triangle => FilterType::Triangle,
+        ImageResamplingMethod::CatmullRom => FilterType::CatmullRom,
+        ImageResamplingMethod::Gaussian => FilterType::Gaussian,
+        ImageResamplingMethod::Lanczos3 => FilterType::Lanczos3,
+    };
     Ok(())
 }
 
@@ -105,17 +108,25 @@ pub fn setup_container_settings(app: &App, settings: &Settings) -> error::Result
 ///
 /// Returns an `Err` if the logger plugin fails to build or attach to the app.
 pub fn setup_logger(app: &App, settings: &LogSettings) -> error::Result<()> {
+    let level = match settings.level {
+        LogLevel::Trace => log::LevelFilter::Trace,
+        LogLevel::Debug => log::LevelFilter::Debug,
+        LogLevel::Info => log::LevelFilter::Info,
+        LogLevel::Warn => log::LevelFilter::Warn,
+        LogLevel::Error => log::LevelFilter::Error,
+    };
+
     // Set log level to INFO for specific libraries to reduce noise.
-    let override_log_level =
-        if settings.level == log::LevelFilter::Debug || settings.level == log::LevelFilter::Trace {
-            log::LevelFilter::Info
-        } else {
-            settings.level
-        };
+    let override_log_level = if level == log::LevelFilter::Debug || level == log::LevelFilter::Trace
+    {
+        log::LevelFilter::Info
+    } else {
+        level
+    };
 
     app.handle().plugin(
         tauri_plugin_log::Builder::new()
-            .level(settings.level)
+            .level(level)
             .level_for("html5ever", override_log_level)
             .level_for("selectors", override_log_level)
             .format(|out, message, record| {

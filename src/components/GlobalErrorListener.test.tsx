@@ -13,8 +13,6 @@ vi.mock("./Notification/NotificationContext", () => ({
 describe("GlobalErrorListener", () => {
   const showNotificationMock = vi.fn();
 
-  const basePreloadedState = createBasePreloadedState();
-
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(notificationContext.useNotification).mockReturnValue({
@@ -23,15 +21,9 @@ describe("GlobalErrorListener", () => {
   });
 
   it("should trigger notification and clear error when containerFile has error", async () => {
-    const preloadedState = {
-      ...basePreloadedState,
-      read: {
-        ...basePreloadedState.read,
-        containerFile: {
-          ...basePreloadedState.read.containerFile,
-          error: { code: ErrorCode.CONTAINER_UNSUPPORTED_CONTAINER_ERROR },
-        },
-      },
+    const preloadedState = structuredClone(createBasePreloadedState());
+    preloadedState.read.containerFile.error = {
+      code: ErrorCode.CONTAINER_UNSUPPORTED_CONTAINER_ERROR,
     };
 
     const { store } = renderWithProviders(<GlobalErrorListener />, { preloadedState });
@@ -55,16 +47,8 @@ describe("GlobalErrorListener", () => {
   });
 
   it("should trigger notification and clear error when explorer has error", async () => {
-    const preloadedState = {
-      ...basePreloadedState,
-      read: {
-        ...basePreloadedState.read,
-        explorer: {
-          ...basePreloadedState.read.explorer,
-          error: { code: ErrorCode.IO_ERROR },
-        },
-      },
-    };
+    const preloadedState = createBasePreloadedState();
+    preloadedState.read.explorer.error = { code: ErrorCode.IO_ERROR };
 
     const { store } = renderWithProviders(<GlobalErrorListener />, { preloadedState });
 
@@ -79,13 +63,8 @@ describe("GlobalErrorListener", () => {
   });
 
   it("should trigger notification and clear error when history has error", async () => {
-    const preloadedState = {
-      ...basePreloadedState,
-      history: {
-        ...basePreloadedState.history,
-        error: { code: ErrorCode.OTHER_ERROR },
-      },
-    };
+    const preloadedState = createBasePreloadedState();
+    preloadedState.history.error = { code: ErrorCode.OTHER_ERROR };
 
     const { store } = renderWithProviders(<GlobalErrorListener />, { preloadedState });
 
@@ -100,16 +79,8 @@ describe("GlobalErrorListener", () => {
   });
 
   it("should trigger notification and clear error when bookshelf has error", async () => {
-    const preloadedState = {
-      ...basePreloadedState,
-      bookCollection: {
-        ...basePreloadedState.bookCollection,
-        bookshelf: {
-          ...basePreloadedState.bookCollection!.bookshelf,
-          error: { code: ErrorCode.OTHER_ERROR },
-        },
-      },
-    };
+    const preloadedState = createBasePreloadedState();
+    preloadedState.bookCollection.bookshelf.error = { code: ErrorCode.OTHER_ERROR };
 
     const { store } = renderWithProviders(<GlobalErrorListener />, { preloadedState });
 
@@ -124,16 +95,8 @@ describe("GlobalErrorListener", () => {
   });
 
   it("should trigger notification and clear error when tags has error", async () => {
-    const preloadedState = {
-      ...basePreloadedState,
-      bookCollection: {
-        ...basePreloadedState.bookCollection,
-        tag: {
-          ...basePreloadedState.bookCollection!.tag,
-          error: { code: ErrorCode.OTHER_ERROR },
-        },
-      },
-    };
+    const preloadedState = createBasePreloadedState();
+    preloadedState.bookCollection.tag.error = { code: ErrorCode.OTHER_ERROR };
 
     const { store } = renderWithProviders(<GlobalErrorListener />, { preloadedState });
 

@@ -11,10 +11,12 @@ vi.mock("./Items/HomeDirSetting", () => {
   return { default: HomeDirSetting };
 });
 
-vi.mock("./Items/DirWatchSetting", () => {
-  const DirWatchSetting = (): JSX.Element => <div data-testid="dir-watch-setting" />;
-  DirWatchSetting.displayName = "DirWatchSetting";
-  return { default: DirWatchSetting };
+vi.mock("./Items/WatchDirectoryChangesSetting", () => {
+  const WatchDirectoryChangesSetting = (): JSX.Element => (
+    <div data-testid="watch-directory-changes-setting" />
+  );
+  WatchDirectoryChangesSetting.displayName = "WatchDirectoryChangesSetting";
+  return { default: WatchDirectoryChangesSetting };
 });
 
 // Mock SettingsPanel
@@ -43,6 +45,6 @@ describe("FileNavigatorSettings", () => {
     // Use regex to be flexible with translation key or resolved text
     expect(screen.getByTestId("panel-title")).toHaveTextContent(/File Navigator Settings/i);
     expect(screen.getByTestId("home-dir-setting")).toBeInTheDocument();
-    expect(screen.getByTestId("dir-watch-setting")).toBeInTheDocument();
+    expect(screen.getByTestId("watch-directory-changes-setting")).toBeInTheDocument();
   });
 });

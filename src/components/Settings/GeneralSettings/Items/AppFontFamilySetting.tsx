@@ -21,16 +21,19 @@ const defaultFont = "Inter, Avenir, Helvetica, Arial, sans-serif";
 /**
  * Font family setting component.
  */
-export default function FontFamilySetting() {
+export default function AppFontFamilySetting() {
   const { t } = useTranslation();
-  const { "font-family": fontFamily } = useAppSelector((state) => state.settings);
+  const generalSettings = useAppSelector((state) => state.settings.general);
   const [fonts, setFonts] = useState<string[]>([]);
   const dispatch = useAppDispatch();
 
   const handleFontFamilyChanged = async (e: SelectChangeEvent) => {
-    debug(`Font changed: ${e.target.value}`);
-    emit<SettingsChangedEvent>("settings-changed", { fontFamily: e.target.value });
-    dispatch(updateSettings({ key: "font-family", value: e.target.value }));
+    debug(`Application UI font family changed: ${e.target.value}`);
+    const newGeneralSettings = { ...generalSettings, appFontFamily: e.target.value };
+    dispatch(updateSettings({ key: "general", value: newGeneralSettings }));
+    emit<SettingsChangedEvent>("settings-changed", {
+      appSettings: { general: newGeneralSettings },
+    });
   };
 
   useEffect(() => {
@@ -51,7 +54,7 @@ export default function FontFamilySetting() {
       <Select
         label={t("settings.general.font-family.title")}
         variant="standard"
-        defaultValue={fontFamily}
+        defaultValue={generalSettings.appFontFamily}
         onChange={handleFontFamilyChanged}
         size="small"
         autoWidth

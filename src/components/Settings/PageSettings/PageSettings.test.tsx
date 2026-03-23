@@ -5,10 +5,12 @@ import PageSettings from "./PageSettings";
 import { JSX } from "react";
 
 // Mock sub-components
-vi.mock("./Items/FirstPageSetting", () => {
-  const FirstPageSetting = (): JSX.Element => <div data-testid="first-page-setting" />;
-  FirstPageSetting.displayName = "FirstPageSetting";
-  return { default: FirstPageSetting };
+vi.mock("./Items/ShowCoverAsSinglePageSetting", () => {
+  const ShowCoverAsSinglePageSetting = (): JSX.Element => (
+    <div data-testid="show-cover-as-single-page-setting" />
+  );
+  ShowCoverAsSinglePageSetting.displayName = "ShowCoverAsSinglePageSetting";
+  return { default: ShowCoverAsSinglePageSetting };
 });
 
 // Mock SettingsPanel
@@ -35,6 +37,6 @@ describe("PageSettings", () => {
 
     expect(screen.getByTestId("settings-panel")).toBeInTheDocument();
     expect(screen.getByTestId("panel-title")).toHaveTextContent(/Page Settings/i);
-    expect(screen.getByTestId("first-page-setting")).toBeInTheDocument();
+    expect(screen.getByTestId("show-cover-as-single-page-setting")).toBeInTheDocument();
   });
 });

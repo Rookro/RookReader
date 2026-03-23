@@ -31,19 +31,6 @@ const initializeAndRender = async () => {
 
     const preloadedState = {
       settings,
-      view: {
-        fontFamily: settings["font-family"],
-        activeView: settings["initial-view"] as "reader" | "bookshelf",
-        isTwoPagedView: settings["two-paged"],
-        direction: settings.direction,
-        isFirstPageSingleView: settings["first-page-single-view"],
-        enablePreview: settings.rendering["enable-preview"],
-        enableHistory: settings.history.enable,
-        novel: {
-          font: settings["novel-reader"].font || "default-font",
-          fontSize: settings["novel-reader"]["font-size"] || 16,
-        },
-      },
     };
 
     const store = createStore(preloadedState);

@@ -2,15 +2,13 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createBasePreloadedState, renderWithProviders } from "../../../../test/utils";
-import LogSetting from "./LogSetting";
+import LogLevelSetting from "./LogLevelSetting";
 import { mockStore } from "../../../../test/mocks/tauri";
 import { appLogDir } from "@tauri-apps/api/path";
 import { openPath } from "@tauri-apps/plugin-opener";
 
-describe("LogSetting", () => {
+describe("LogLevelSetting", () => {
   const user = userEvent.setup();
-
-  const basePreloadedState = createBasePreloadedState();
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -18,17 +16,10 @@ describe("LogSetting", () => {
 
   it("should load initial log directory and level from store", async () => {
     vi.mocked(appLogDir).mockResolvedValue("/mock/log/dir");
-    const preloadedState = {
-      ...basePreloadedState,
-      settings: {
-        ...basePreloadedState.settings,
-        log: {
-          level: "Debug" as const,
-        },
-      },
-    };
+    const preloadedState = createBasePreloadedState();
+    preloadedState.settings.general.log.level = "debug";
 
-    renderWithProviders(<LogSetting />, { preloadedState });
+    renderWithProviders(<LogLevelSetting />, { preloadedState });
 
     await waitFor(() => {
       expect(screen.getByDisplayValue("/mock/log/dir")).toBeInTheDocument();
@@ -38,7 +29,7 @@ describe("LogSetting", () => {
 
   it("should open log directory when folder button is clicked", async () => {
     vi.mocked(appLogDir).mockResolvedValue("/mock/log/dir");
-    renderWithProviders(<LogSetting />);
+    renderWithProviders(<LogLevelSetting />);
 
     await waitFor(() => expect(screen.getByRole("button")).toBeInTheDocument());
     const folderButton = screen.getByRole("button");
@@ -52,7 +43,7 @@ describe("LogSetting", () => {
   it("should update store when log level is changed", async () => {
     mockStore.get.mockResolvedValue({ level: "Info" });
 
-    renderWithProviders(<LogSetting />);
+    renderWithProviders(<LogLevelSetting />);
 
     await waitFor(() => expect(screen.getByRole("combobox")).toBeInTheDocument());
 
@@ -64,7 +55,10 @@ describe("LogSetting", () => {
     await user.click(errorOption);
 
     await waitFor(() => {
-      expect(mockStore.set).toHaveBeenCalledWith("log", { level: "Error" });
+      expect(mockStore.set).toHaveBeenCalledWith(
+        "general",
+        expect.objectContaining({ log: { level: "error" } }),
+      );
     });
   });
 });

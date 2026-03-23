@@ -5,17 +5,16 @@ import { configureStore } from "@reduxjs/toolkit";
 import { ErrorCode } from "../types/Error";
 import { AppDispatch } from "../Store";
 
-vi.mock("../settings/SettingsStore", () => ({
-  defaultSettings: {
-    "font-family": "Inter",
-    theme: "light",
-    rendering: { "enable-preview": true },
-  },
-  settingsStore: {
-    set: vi.fn(() => Promise.resolve()),
-    get: vi.fn(),
-  },
-}));
+vi.mock("../settings/SettingsStore", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../settings/SettingsStore")>();
+  return {
+    ...actual,
+    settingsStore: {
+      set: vi.fn(() => Promise.resolve()),
+      get: vi.fn(),
+    },
+  };
+});
 
 describe("SettingsReducer", () => {
   beforeEach(() => {
@@ -27,9 +26,12 @@ describe("SettingsReducer", () => {
   });
 
   it("should handle setSettings", () => {
-    const newSettings = { ...defaultSettings, theme: "dark" as const };
+    const newSettings = {
+      ...defaultSettings,
+      general: { ...defaultSettings.general, theme: "dark" as const },
+    };
     const nextState = settingsReducer(defaultSettings, setSettings(newSettings));
-    expect(nextState.theme).toBe("dark");
+    expect(nextState.general.theme).toBe("dark");
   });
 
   describe("updateSettings thunk", () => {
@@ -38,10 +40,15 @@ describe("SettingsReducer", () => {
         reducer: { settings: settingsReducer },
       });
 
-      await (store.dispatch as AppDispatch)(updateSettings({ key: "theme", value: "dark" }));
+      await (store.dispatch as AppDispatch)(
+        updateSettings({ key: "general", value: { ...defaultSettings.general, theme: "dark" } }),
+      );
 
-      expect(settingsStore.set).toHaveBeenCalledWith("theme", "dark");
-      expect(store.getState().settings.theme).toBe("dark");
+      expect(settingsStore.set).toHaveBeenCalledWith("general", {
+        ...defaultSettings.general,
+        theme: "dark",
+      });
+      expect(store.getState().settings.general.theme).toBe("dark");
     });
 
     it("should update a nested object setting partially", async () => {
@@ -50,14 +57,23 @@ describe("SettingsReducer", () => {
       });
 
       await (store.dispatch as AppDispatch)(
-        updateSettings({ key: "rendering", value: { "enable-preview": false } }),
+        updateSettings({
+          key: "reader",
+          value: {
+            ...defaultSettings.reader,
+            rendering: { ...defaultSettings.reader.rendering, enableThumbnailPreview: false },
+          },
+        }),
       );
 
       expect(settingsStore.set).toHaveBeenCalledWith(
-        "rendering",
-        expect.objectContaining({ "enable-preview": false }),
+        "reader",
+        expect.objectContaining({
+          ...defaultSettings.reader,
+          rendering: { ...defaultSettings.reader.rendering, enableThumbnailPreview: false },
+        }),
       );
-      expect(store.getState().settings.rendering["enable-preview"]).toBe(false);
+      expect(store.getState().settings.reader.rendering.enableThumbnailPreview).toBe(false);
     });
 
     it("should reject if key is undefined", async () => {
@@ -67,7 +83,7 @@ describe("SettingsReducer", () => {
 
       const result = await (store.dispatch as AppDispatch)(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any -- for testing invalid input
-        updateSettings({ key: undefined as any, value: "test" }),
+        updateSettings({ key: undefined as any, value: "test" as any }),
       );
 
       expect(result.meta.requestStatus).toBe("rejected");

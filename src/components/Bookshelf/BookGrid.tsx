@@ -42,9 +42,7 @@ export interface BookGridProps {
 export default function BookGrid({ onBookSelect }: BookGridProps) {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
-  const { "bookshelf-grid-size": gridSize, "bookshelf-sort-order": sortOrder } = useAppSelector(
-    (state) => state.settings,
-  );
+  const bookshelfSettings = useAppSelector((state) => state.settings.bookshelf);
   const {
     searchText,
     bookshelf: { books: booksInSelectedBookshelf, selectedId: bookshelfId, status },
@@ -73,7 +71,10 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
     [],
   );
 
-  const currentGridSize = useMemo(() => GRID_SIZES[gridSize], [gridSize]);
+  const currentGridSize = useMemo(
+    () => GRID_SIZES[bookshelfSettings.gridSize],
+    [bookshelfSettings.gridSize],
+  );
 
   const filteredSortedBooks = useMemo(() => {
     const books =
@@ -85,14 +86,15 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
 
     return andSearch(books, searchText)
       .slice()
-      .sort((a, b) => sortBy(a, b, sortOrder));
-  }, [booksInSelectedBookshelf, tagId, searchText, sortOrder]);
+      .sort((a, b) => sortBy(a, b, bookshelfSettings.sortOrder));
+  }, [booksInSelectedBookshelf, tagId, searchText, bookshelfSettings.sortOrder]);
 
   const handleGridSizeChange = useCallback(
     (_e: Event, newValue: number, _activeThumb: number) => {
-      dispatch(updateSettings({ key: "bookshelf-grid-size", value: newValue }));
+      const newBookshelfSettings = { ...bookshelfSettings, gridSize: newValue };
+      dispatch(updateSettings({ key: "bookshelf", value: newBookshelfSettings }));
     },
-    [dispatch],
+    [dispatch, bookshelfSettings],
   );
 
   useEffect(() => {
@@ -197,7 +199,7 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
               cellProps={{
                 books: filteredSortedBooks,
                 tags: availableTags,
-                size: gridSize === 0 ? "small" : "medium",
+                size: bookshelfSettings.gridSize === 0 ? "small" : "medium",
                 columnCount,
                 onBookSelect,
                 onBookContextMenu: (book: BookWithState, e: React.MouseEvent) => {
@@ -227,7 +229,7 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
         <Stack direction="row" spacing={2} alignItems="center" sx={{ width: "100%" }}>
           <ZoomOut />
           <Slider
-            defaultValue={gridSize}
+            defaultValue={bookshelfSettings.gridSize}
             onChange={handleGridSizeChange}
             min={0}
             max={2}

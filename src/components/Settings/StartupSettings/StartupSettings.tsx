@@ -2,7 +2,7 @@ import { useTranslation } from "react-i18next";
 import { Divider, List } from "@mui/material";
 import SettingsPanel from "../SettingsPanel";
 import InitialViewSetting from "./Items/InitialViewSetting";
-import RestoreOnStartupSetting from "./Items/RestoreOnStartupSetting";
+import RestoreLastBookSetting from "./Items/RestoreLastBookSetting";
 
 /**
  * Startup settings component.
@@ -15,7 +15,7 @@ export default function StartupSettings() {
       <List>
         <InitialViewSetting />
         <Divider />
-        <RestoreOnStartupSetting />
+        <RestoreLastBookSetting />
       </List>
     </SettingsPanel>
   );

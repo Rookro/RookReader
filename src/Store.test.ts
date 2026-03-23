@@ -36,7 +36,7 @@ describe("Store", () => {
     const store = createStore(preloadedState);
     expect(store.getState().view.activeView).toBe("bookshelf");
     // Verify that other properties maintain their default values
-    expect(store.getState().settings.log.level).toBe("Info");
+    expect(store.getState().settings.general.log.level).toBe("info");
   });
 
   it("should have thunk middleware applied", async () => {

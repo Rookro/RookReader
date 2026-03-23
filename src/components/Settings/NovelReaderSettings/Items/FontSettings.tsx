@@ -19,7 +19,6 @@ import { updateSettings } from "../../../../reducers/SettingsReducer";
 import { useAppDispatch, useAppSelector } from "../../../../Store";
 
 const defaultFont = "default-font";
-const defaultFontSize = 16;
 
 /**
  * Font settings component.
@@ -27,28 +26,34 @@ const defaultFontSize = 16;
 export default function FontSettings() {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
-  const { "novel-reader": novelReaderSettings } = useAppSelector((state) => state.settings);
+  const readerSettings = useAppSelector((state) => state.settings.reader);
   const [fonts, setFonts] = useState<string[]>([]);
 
   const handleFontChanged = useCallback(
     async (e: SelectChangeEvent) => {
-      debug(`Font changed: ${e.target.value}`);
-      emit<SettingsChangedEvent>("settings-changed", { novelReader: { font: e.target.value } });
-      const newSettings = { ...novelReaderSettings, font: e.target.value };
-      dispatch(updateSettings({ key: "novel-reader", value: newSettings }));
+      debug(`Font family of novel reader changed: ${e.target.value}`);
+      const newSettings = {
+        ...readerSettings,
+        novel: { ...readerSettings.novel, fontFamily: e.target.value },
+      };
+      dispatch(updateSettings({ key: "reader", value: newSettings }));
+      emit<SettingsChangedEvent>("settings-changed", { appSettings: { reader: newSettings } });
     },
-    [dispatch, novelReaderSettings],
+    [dispatch, readerSettings],
   );
 
   const handleFontSizeChanged = useCallback(
     async (value: number | null) => {
-      value = value ?? defaultFontSize;
-      debug(`Font size changed: ${value}`);
-      emit<SettingsChangedEvent>("settings-changed", { novelReader: { "font-size": value } });
-      const newSettings = { ...novelReaderSettings, "font-size": value };
-      dispatch(updateSettings({ key: "novel-reader", value: newSettings }));
+      value = value ?? 0;
+      debug(`Font size of novel reader changed: ${value}`);
+      const newSettings = {
+        ...readerSettings,
+        novel: { ...readerSettings.novel, fontSize: value },
+      };
+      dispatch(updateSettings({ key: "reader", value: newSettings }));
+      emit<SettingsChangedEvent>("settings-changed", { appSettings: { reader: newSettings } });
     },
-    [dispatch, novelReaderSettings],
+    [dispatch, readerSettings],
   );
 
   useEffect(() => {
@@ -69,7 +74,7 @@ export default function FontSettings() {
         <Select
           label={t("settings.novel-reader.font.title")}
           variant="standard"
-          defaultValue={novelReaderSettings.font ?? defaultFont}
+          defaultValue={readerSettings.novel.fontFamily}
           onChange={handleFontChanged}
           size="small"
           autoWidth
@@ -90,7 +95,7 @@ export default function FontSettings() {
         </ListItemIcon>
         <ListItemText primary={t("settings.novel-reader.font-size.title")} />
         <NumberSpinner
-          defaultValue={novelReaderSettings["font-size"] ?? defaultFontSize}
+          defaultValue={readerSettings.novel.fontSize}
           min={0.5}
           max={100}
           size="small"

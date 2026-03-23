@@ -1,16 +1,16 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { Settings } from "../types/Settings";
 import { defaultSettings, settingsStore } from "../settings/SettingsStore";
 import { createAppAsyncThunk } from "../types/CustomAsyncThunk";
 import { error } from "@tauri-apps/plugin-log";
 import { ErrorCode } from "../types/Error";
+import { AppSettings } from "../types/AppSettings";
 
 /**
  * Payload type for updating a setting value in the settings store.
  */
 type UpdateSettingsPayload = {
-  [K in keyof Settings]: { key: K; value: Partial<Settings[K]> };
-}[keyof Settings];
+  [K in keyof AppSettings]: { key: K; value: Partial<AppSettings[K]> };
+}[keyof AppSettings];
 
 /**
  * Updates a setting value in the settings store.
@@ -32,12 +32,12 @@ export const updateSettings = createAppAsyncThunk(
     const target = getState().settings[key];
 
     if (isPlainObject(target) && isPlainObject(value)) {
-      const newValue = { ...target, ...value } as Settings[keyof Settings];
+      const newValue = { ...target, ...value } as AppSettings[keyof AppSettings];
       await settingsStore.set(key, newValue);
       return { key, value: newValue };
     } else {
       await settingsStore.set(key, value);
-      return { key, value: value as Settings[keyof Settings] };
+      return { key, value: value as AppSettings[keyof AppSettings] };
     }
   },
 );
@@ -52,7 +52,7 @@ export const settingsSlice = createSlice({
      * @param _state - The current Redux state slice.
      * @param action - Payload containing the complete Settings object.
      */
-    setSettings: (_state, action: PayloadAction<Settings>) => {
+    setSettings: (_state, action: PayloadAction<AppSettings>) => {
       return action.payload;
     },
   },
@@ -72,7 +72,11 @@ export const settingsSlice = createSlice({
  * the key and its value type, bypassing 'never' type errors that occur
  * when indexing with broad union types like `keyof Settings`.
  */
-function applySettingUpdate<K extends keyof Settings>(state: Settings, key: K, value: Settings[K]) {
+function applySettingUpdate<K extends keyof AppSettings>(
+  state: AppSettings,
+  key: K,
+  value: AppSettings[K],
+) {
   state[key] = value;
 }
 

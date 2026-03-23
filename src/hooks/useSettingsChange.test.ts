@@ -5,8 +5,7 @@ import { useAppDispatch } from "../Store";
 import { useTauriEvent } from "./useTauriEvent";
 import i18n from "../i18n/config";
 import { setSettings } from "../reducers/SettingsReducer";
-import { loadAllSettings } from "../settings/SettingsStore";
-import { Settings } from "../types/Settings";
+import { defaultSettings, loadAllSettings } from "../settings/SettingsStore";
 
 vi.mock("../Store", () => ({
   useAppDispatch: vi.fn(),
@@ -26,9 +25,13 @@ vi.mock("../reducers/SettingsReducer", () => ({
   setSettings: vi.fn((v) => ({ type: "setSettings", payload: v })),
 }));
 
-vi.mock("../settings/SettingsStore", () => ({
-  loadAllSettings: vi.fn(),
-}));
+vi.mock("../settings/SettingsStore", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../settings/SettingsStore")>();
+  return {
+    ...actual,
+    loadAllSettings: vi.fn(),
+  };
+});
 
 describe("useSettingsChange", () => {
   const mockDispatch = vi.fn();
@@ -46,7 +49,7 @@ describe("useSettingsChange", () => {
 
   // Verify that i18n language is switched when locale settings change
   it("should change i18n language when locale changes", async () => {
-    const mockSettings = { "font-family": "Arial" } as Settings;
+    const mockSettings = { ...defaultSettings };
     vi.mocked(loadAllSettings).mockResolvedValue(mockSettings);
 
     renderHook(() => useSettingsChange());
@@ -58,7 +61,7 @@ describe("useSettingsChange", () => {
 
   // Verify that it loads all settings and dispatches setSettings
   it("should load all settings and dispatch setSettings", async () => {
-    const mockSettings = { "font-family": "Arial" } as Settings;
+    const mockSettings = { ...defaultSettings };
     vi.mocked(loadAllSettings).mockResolvedValue(mockSettings);
 
     renderHook(() => useSettingsChange());

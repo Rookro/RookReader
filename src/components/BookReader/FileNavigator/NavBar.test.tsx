@@ -76,13 +76,8 @@ describe("FileNavigator/NavBar", () => {
   });
 
   it("should dispatch updateExploreBasePath with home dir when home button is clicked", async () => {
-    const preloadedState = {
-      ...defaultPreloadedState,
-      settings: {
-        ...defaultPreloadedState.settings,
-        "home-directory": "/home/user",
-      },
-    };
+    const preloadedState = createBasePreloadedState();
+    preloadedState.settings.fileNavigator.homeDirectory = "/home/user";
 
     renderWithProviders(<NavBar />, { preloadedState });
 
@@ -95,17 +90,9 @@ describe("FileNavigator/NavBar", () => {
   });
 
   it("should dispatch goBackExplorerHistory when back button is clicked", async () => {
-    const preloadedState = {
-      ...defaultPreloadedState,
-      read: {
-        ...defaultPreloadedState.read,
-        explorer: {
-          ...defaultPreloadedState.read.explorer,
-          history: ["/", "/home"],
-          historyIndex: 1,
-        },
-      },
-    };
+    const preloadedState = structuredClone(defaultPreloadedState);
+    preloadedState.read.explorer.history = ["/", "/home"];
+    preloadedState.read.explorer.historyIndex = 1;
 
     renderWithProviders(<NavBar />, { preloadedState });
 
@@ -167,32 +154,24 @@ describe("FileNavigator/NavBar", () => {
 
     // MUI Select options have role="option"
     const options = await screen.findAllByRole("option");
-    const targetOption = options.find((opt) => opt.getAttribute("data-value") === "NAME_DESC");
+    const targetOption = options.find((opt) => opt.getAttribute("data-value") === "name_desc");
 
     if (targetOption) {
       await user.click(targetOption);
     } else {
-      throw new Error("Target option NAME_DESC not found");
+      throw new Error("Target option name_desc not found");
     }
 
     expect(SettingsReducer.updateSettings).toHaveBeenCalledWith({
-      key: "sort-order",
-      value: "NAME_DESC",
+      key: "fileNavigator",
+      value: expect.objectContaining({ sortOrder: "name_desc" }),
     });
   });
 
   it("should dispatch goForwardExplorerHistory when forward button is clicked", async () => {
-    const preloadedState = {
-      ...defaultPreloadedState,
-      read: {
-        ...defaultPreloadedState.read,
-        explorer: {
-          ...defaultPreloadedState.read.explorer,
-          history: ["/", "/home"],
-          historyIndex: 0,
-        },
-      },
-    };
+    const preloadedState = structuredClone(defaultPreloadedState);
+    preloadedState.read.explorer.history = ["/", "/home"];
+    preloadedState.read.explorer.historyIndex = 0;
 
     renderWithProviders(<NavBar />, { preloadedState });
 
@@ -206,13 +185,8 @@ describe("FileNavigator/NavBar", () => {
     const { homeDir } = await import("@tauri-apps/api/path");
     vi.mocked(homeDir).mockResolvedValue("/system/home");
 
-    const preloadedState = {
-      ...defaultPreloadedState,
-      settings: {
-        ...defaultPreloadedState.settings,
-        "home-directory": "",
-      },
-    };
+    const preloadedState = structuredClone(defaultPreloadedState);
+    preloadedState.settings.fileNavigator.homeDirectory = "";
 
     renderWithProviders(<NavBar />, { preloadedState });
 

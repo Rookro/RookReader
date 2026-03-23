@@ -11,26 +11,34 @@ import { updateSettings } from "../../../../reducers/SettingsReducer";
 /**
  * Directory watch setting component.
  */
-export default function DirWatchSetting() {
+export default function WatchDirectoryChangesSetting() {
   const { t } = useTranslation();
-  const { "enable-directory-watch": isWatchEnabled } = useAppSelector((state) => state.settings);
+  const fileNavigatorSettings = useAppSelector((state) => state.settings.fileNavigator);
   const dispatch = useAppDispatch();
 
   const handleIsWatchEnabledChange = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
-      debug(`Enable directory watch to ${e.target.checked}`);
-      dispatch(updateSettings({ key: "enable-directory-watch", value: e.target.checked }));
+      debug(`Watch directory changes to ${e.target.checked}`);
+      const newFileNavigatorSettings = {
+        ...fileNavigatorSettings,
+        watchDirectoryChanges: e.target.checked,
+      };
+      dispatch(updateSettings({ key: "fileNavigator", value: newFileNavigatorSettings }));
       await emit<SettingsChangedEvent>("settings-changed", {
-        fileNavigator: { isDirWatchEnabled: e.target.checked },
+        appSettings: { fileNavigator: newFileNavigatorSettings },
       });
     },
-    [dispatch],
+    [dispatch, fileNavigatorSettings],
   );
 
   return (
     <ListItem
       secondaryAction={
-        <Switch edge="end" defaultChecked={isWatchEnabled} onChange={handleIsWatchEnabledChange} />
+        <Switch
+          edge="end"
+          defaultChecked={fileNavigatorSettings.watchDirectoryChanges}
+          onChange={handleIsWatchEnabledChange}
+        />
       }
     >
       <ListItemIcon>

@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Box, IconButton, ListItem, ListItemIcon, ListItemText, TextField } from "@mui/material";
 import { Folder, HomeOutlined } from "@mui/icons-material";
@@ -6,31 +6,46 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { error } from "@tauri-apps/plugin-log";
 import { useAppDispatch, useAppSelector } from "../../../../Store";
 import { updateSettings } from "../../../../reducers/SettingsReducer";
+import { homeDir } from "@tauri-apps/api/path";
 
 /**
  * Home directory setting component.
  */
 export default function HomeDirSetting() {
   const { t } = useTranslation();
-  const { "home-directory": homeDirPathStore } = useAppSelector((store) => store.settings);
+  const fileNavigatorSettings = useAppSelector((store) => store.settings.fileNavigator);
   const dispatch = useAppDispatch();
-  const [homeDirPath, setHomeDirPath] = useState<string>(homeDirPathStore);
+  const [homeDirPath, setHomeDirPath] = useState<string>(fileNavigatorSettings.homeDirectory);
 
-  const handleFolderClicked = async (_e: React.MouseEvent<HTMLButtonElement>) => {
-    try {
-      const directory = await open({
-        multiple: false,
-        directory: true,
-      });
-      if (!directory) {
-        return;
-      }
-      setHomeDirPath(directory);
-      dispatch(updateSettings({ key: "home-directory", value: directory }));
-    } catch (e) {
-      error(`${e}`);
+  useEffect(() => {
+    if (homeDirPath.length < 1) {
+      (async () => {
+        const dir = await homeDir();
+        setHomeDirPath(dir);
+      })();
     }
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mounted once
+  }, []);
+
+  const handleFolderClicked = useCallback(
+    async (_e: React.MouseEvent<HTMLButtonElement>) => {
+      try {
+        const directory = await open({
+          multiple: false,
+          directory: true,
+        });
+        if (!directory) {
+          return;
+        }
+        setHomeDirPath(directory);
+        const newFileNavigatorSettings = { ...fileNavigatorSettings, homeDirectory: directory };
+        dispatch(updateSettings({ key: "fileNavigator", value: newFileNavigatorSettings }));
+      } catch (e) {
+        error(`${e}`);
+      }
+    },
+    [dispatch, fileNavigatorSettings],
+  );
 
   const formAction = useCallback(
     async (formData: FormData) => {
@@ -38,10 +53,11 @@ export default function HomeDirSetting() {
 
       if (inputPath && inputPath !== homeDirPath) {
         setHomeDirPath(inputPath);
-        dispatch(updateSettings({ key: "home-directory", value: inputPath }));
+        const newFileNavigatorSettings = { ...fileNavigatorSettings, homeDirectory: inputPath };
+        dispatch(updateSettings({ key: "fileNavigator", value: newFileNavigatorSettings }));
       }
     },
-    [dispatch, homeDirPath],
+    [dispatch, fileNavigatorSettings, homeDirPath],
   );
 
   const handleBlur = useCallback((e: React.FocusEvent<HTMLInputElement>) => {

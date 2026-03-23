@@ -9,20 +9,13 @@ import * as dialog from "@tauri-apps/plugin-dialog";
 describe("HomeDirSetting", () => {
   const user = userEvent.setup();
 
-  const basePreloadedState = createBasePreloadedState();
-
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it("should load initial home directory from store", async () => {
-    const preloadedState = {
-      ...basePreloadedState,
-      settings: {
-        ...basePreloadedState.settings,
-        "home-directory": "/saved/path",
-      },
-    };
+    const preloadedState = createBasePreloadedState();
+    preloadedState.settings.fileNavigator.homeDirectory = "/saved/path";
 
     renderWithProviders(<HomeDirSetting />, { preloadedState });
 
@@ -32,13 +25,8 @@ describe("HomeDirSetting", () => {
   });
 
   it("should update store when text input changes", async () => {
-    const preloadedState = {
-      ...basePreloadedState,
-      settings: {
-        ...basePreloadedState.settings,
-        "home-directory": "/saved/path",
-      },
-    };
+    const preloadedState = createBasePreloadedState();
+    preloadedState.settings.fileNavigator.homeDirectory = "/saved/path";
 
     renderWithProviders(<HomeDirSetting />, { preloadedState });
 
@@ -47,18 +35,16 @@ describe("HomeDirSetting", () => {
     await user.type(input, "/manual/path");
     await user.tab(); // Blur trigger
 
-    expect(mockStore.set).toHaveBeenCalledWith("home-directory", "/manual/path");
+    expect(mockStore.set).toHaveBeenCalledWith(
+      "fileNavigator",
+      expect.objectContaining({ homeDirectory: "/manual/path" }),
+    );
   });
 
   it("should open dialog and update store when folder button is clicked", async () => {
     vi.mocked(dialog.open).mockResolvedValue("/picked/path");
-    const preloadedState = {
-      ...basePreloadedState,
-      settings: {
-        ...basePreloadedState.settings,
-        "home-directory": "/saved/path",
-      },
-    };
+    const preloadedState = createBasePreloadedState();
+    preloadedState.settings.fileNavigator.homeDirectory = "/saved/path";
 
     renderWithProviders(<HomeDirSetting />, { preloadedState });
 
@@ -68,7 +54,10 @@ describe("HomeDirSetting", () => {
     expect(dialog.open).toHaveBeenCalledWith({ multiple: false, directory: true });
 
     await waitFor(() => {
-      expect(mockStore.set).toHaveBeenCalledWith("home-directory", "/picked/path");
+      expect(mockStore.set).toHaveBeenCalledWith(
+        "fileNavigator",
+        expect.objectContaining({ homeDirectory: "/picked/path" }),
+      );
       expect(screen.getByDisplayValue("/picked/path")).toBeInTheDocument();
     });
   });
