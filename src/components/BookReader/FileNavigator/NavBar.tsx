@@ -19,20 +19,20 @@ import {
   goForwardExplorerHistory,
   updateExploreBasePath,
   setSearchText,
-  setSortOrder,
 } from "../../../reducers/ReadReducer";
-import { SortOrder } from "../../../types/SortOrderType";
-import { settingsStore } from "../../../settings/SettingsStore";
 import { warn } from "@tauri-apps/plugin-log";
+import { updateSettings } from "../../../reducers/SettingsReducer";
+import { SortOrder } from "../../../types/AppSettings";
 
 /**
  * Navigation bar component for File navigator component.
  */
 export default function NavBar() {
   const { t } = useTranslation();
-  const { history, historyIndex, searchText, sortOrder, entries } = useAppSelector(
+  const { history, historyIndex, searchText, entries } = useAppSelector(
     (state) => state.read.explorer,
   );
+  const fileNavigatorSettings = useAppSelector((state) => state.settings.fileNavigator);
   const dispatch = useDispatch<AppDispatch>();
 
   const [width, setWidth] = React.useState(0);
@@ -44,12 +44,12 @@ export default function NavBar() {
   const setDirParh = useCallback(
     async (dirPath: string | undefined = undefined) => {
       if (!dirPath) {
-        dirPath = (await settingsStore.get("home-directory")) ?? (await homeDir());
+        dirPath = fileNavigatorSettings.homeDirectory || (await homeDir());
       }
       dispatch(setSearchText(""));
       dispatch(updateExploreBasePath({ dirPath }));
     },
-    [dispatch],
+    [dispatch, fileNavigatorSettings.homeDirectory],
   );
 
   useEffect(() => {
@@ -74,16 +74,6 @@ export default function NavBar() {
     };
   }, [entries.length, historyIndex, history, setDirParh]);
 
-  useEffect(() => {
-    const initViewSettings = async () => {
-      const sortOrder = await settingsStore.get<SortOrder>("sort-order");
-      if (sortOrder) {
-        dispatch(setSortOrder(sortOrder));
-      }
-    };
-    initViewSettings();
-  }, [dispatch]);
-
   const formAction = useCallback(
     (formData: FormData) => {
       const inputPath = formData.get("path")?.toString();
@@ -100,43 +90,67 @@ export default function NavBar() {
     e.currentTarget.form?.requestSubmit();
   }, []);
 
-  const handleHomeClicked = (_e: React.MouseEvent<HTMLButtonElement>) => {
-    setDirParh();
-  };
+  const handleHomeClicked = useCallback(
+    (_e: React.MouseEvent<HTMLButtonElement>) => {
+      setDirParh();
+    },
+    [setDirParh],
+  );
 
-  const handleParentClicked = async (_e: React.MouseEvent<HTMLButtonElement>) => {
-    try {
-      const parentDir = await dirname(history[historyIndex]);
-      dispatch(updateExploreBasePath({ dirPath: parentDir }));
-    } catch (e) {
-      warn(`Failed to get parent directory of ${history[historyIndex]}. Error: ${e}.`);
-    }
-  };
+  const handleParentClicked = useCallback(
+    async (_e: React.MouseEvent<HTMLButtonElement>) => {
+      try {
+        const parentDir = await dirname(history[historyIndex]);
+        dispatch(updateExploreBasePath({ dirPath: parentDir }));
+      } catch (e) {
+        warn(`Failed to get parent directory of ${history[historyIndex]}. Error: ${e}.`);
+      }
+    },
+    [dispatch, history, historyIndex],
+  );
 
-  const handleRefleshClicked = async (_e: React.MouseEvent<HTMLButtonElement>) => {
-    dispatch(updateExploreBasePath({ dirPath: history[historyIndex], forceUpdate: true }));
-  };
+  const handleRefleshClicked = useCallback(
+    async (_e: React.MouseEvent<HTMLButtonElement>) => {
+      dispatch(updateExploreBasePath({ dirPath: history[historyIndex], forceUpdate: true }));
+    },
+    [dispatch, history, historyIndex],
+  );
 
-  const handleSearchTextChanged = (e: React.ChangeEvent<HTMLInputElement>) => {
-    dispatch(setSearchText(e.target.value));
-  };
+  const handleSearchTextChanged = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      dispatch(setSearchText(e.target.value));
+    },
+    [dispatch],
+  );
 
-  const handleBackClicked = (_e: React.MouseEvent<HTMLButtonElement>) => {
-    dispatch(goBackExplorerHistory());
-  };
+  const handleBackClicked = useCallback(
+    (_e: React.MouseEvent<HTMLButtonElement>) => {
+      dispatch(goBackExplorerHistory());
+    },
+    [dispatch],
+  );
 
-  const handleForwardClicked = (_e: React.MouseEvent<HTMLButtonElement>) => {
-    dispatch(goForwardExplorerHistory());
-  };
+  const handleForwardClicked = useCallback(
+    (_e: React.MouseEvent<HTMLButtonElement>) => {
+      dispatch(goForwardExplorerHistory());
+    },
+    [dispatch],
+  );
 
-  const handleSortOrderChanged = (event: SelectChangeEvent) => {
-    settingsStore.set("sort-order", event.target.value as SortOrder);
-    dispatch(setSortOrder(event.target.value as SortOrder));
-  };
+  const handleSortOrderChanged = useCallback(
+    (event: SelectChangeEvent) => {
+      const newFileNavigatorSettings = {
+        ...fileNavigatorSettings,
+        sortOrder: event.target.value as SortOrder,
+      };
+      dispatch(updateSettings({ key: "fileNavigator", value: newFileNavigatorSettings }));
+    },
+    [dispatch, fileNavigatorSettings],
+  );
 
-  const handleContextMenu = (e: React.MouseEvent<HTMLElement>) => {
+  const handleContextMenu = useCallback((e: React.MouseEvent<HTMLElement>) => {
     e.stopPropagation();
-  };
+  }, []);
 
   return (
     <Stack>
@@ -190,20 +204,20 @@ export default function NavBar() {
         {width >= 310 ? (
           <Select
             size="small"
-            value={sortOrder}
+            defaultValue={fileNavigatorSettings.sortOrder}
             sx={{ minWidth: "100px" }}
             onChange={handleSortOrderChanged}
           >
-            <MenuItem value={"NAME_ASC"}>
+            <MenuItem value={"name_asc"}>
               {t("book-reader.file-navigator.sort-order.name-asc")}
             </MenuItem>
-            <MenuItem value={"NAME_DESC"}>
+            <MenuItem value={"name_desc"}>
               {t("book-reader.file-navigator.sort-order.name-desc")}
             </MenuItem>
-            <MenuItem value={"DATE_ASC"}>
+            <MenuItem value={"date_asc"}>
               {t("book-reader.file-navigator.sort-order.date-asc")}
             </MenuItem>
-            <MenuItem value={"DATE_DESC"}>
+            <MenuItem value={"date_desc"}>
               {t("book-reader.file-navigator.sort-order.date-desc")}
             </MenuItem>
           </Select>

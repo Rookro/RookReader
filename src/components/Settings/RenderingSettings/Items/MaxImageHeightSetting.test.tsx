@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { renderWithProviders } from "../../../../test/utils";
+import { createBasePreloadedState, renderWithProviders } from "../../../../test/utils";
 import MaxImageHeightSetting from "./MaxImageHeightSetting";
 import { mockStore } from "../../../../test/mocks/tauri";
 import * as containerCmds from "../../../../bindings/ContainerCommands";
@@ -15,19 +15,21 @@ describe("MaxImageHeightSetting", () => {
   });
 
   it("should load initial height from store", async () => {
-    mockStore.get.mockResolvedValue({ "max-image-height": 1500 });
+    const preloadedState = createBasePreloadedState();
+    preloadedState.settings.reader.rendering.maxImageHeight = 1500;
 
-    renderWithProviders(<MaxImageHeightSetting />);
+    renderWithProviders(<MaxImageHeightSetting />, { preloadedState });
 
     await waitFor(() => {
-      expect(screen.getByDisplayValue("1500")).toBeInTheDocument();
+      expect(screen.getByDisplayValue("1,500")).toBeInTheDocument();
     });
   });
 
   it("should update store and call backend when input changes", async () => {
-    mockStore.get.mockResolvedValue({ "max-image-height": 0 });
+    const preloadedState = createBasePreloadedState();
+    preloadedState.settings.reader.rendering.maxImageHeight = 0;
 
-    renderWithProviders(<MaxImageHeightSetting />);
+    renderWithProviders(<MaxImageHeightSetting />, { preloadedState });
 
     // Base UI renders a hidden input for form submission and a visible textbox for interaction.
     // Use the textbox to allow userEvent.clear and userEvent.type to work.
@@ -38,15 +40,19 @@ describe("MaxImageHeightSetting", () => {
 
     await waitFor(() => {
       expect(containerCmds.setMaxImageHeight).toHaveBeenCalledWith(2000);
-      expect(mockStore.set).toHaveBeenCalled();
+      expect(mockStore.set).toHaveBeenCalledWith(
+        "reader",
+        expect.objectContaining({ rendering: expect.objectContaining({ maxImageHeight: 2000 }) }),
+      );
     });
   });
 
   it("should display error message when backend call fails", async () => {
-    mockStore.get.mockResolvedValue({ "max-image-height": 0 });
+    const preloadedState = createBasePreloadedState();
+    preloadedState.settings.reader.rendering.maxImageHeight = 0;
     vi.mocked(containerCmds.setMaxImageHeight).mockRejectedValueOnce(new Error("Backend error"));
 
-    renderWithProviders(<MaxImageHeightSetting />);
+    renderWithProviders(<MaxImageHeightSetting />, { preloadedState });
 
     const input = screen.getByRole("textbox");
     await user.clear(input);

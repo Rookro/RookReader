@@ -10,25 +10,25 @@ import {
 } from "@mui/icons-material";
 import { Box, IconButton, OutlinedInput, Toolbar, Tooltip } from "@mui/material";
 import { debug } from "@tauri-apps/plugin-log";
-import React, { useCallback, useEffect } from "react";
+import React, { useCallback } from "react";
 import {
   goBackContainerHistory,
   goForwardContainerHistory,
   setContainerFilePath,
 } from "../../reducers/ReadReducer";
-import { setActiveView, setDirection, setIsTwoPagedView } from "../../reducers/ViewReducer";
-import { settingsStore } from "../../settings/SettingsStore";
+import { setActiveView } from "../../reducers/ViewReducer";
 import { useAppDispatch, useAppSelector } from "../../Store";
-import { Direction } from "../../types/DirectionType";
 import { openSettingsWindow } from "../../utils/WindowOpener";
 import { useTranslation } from "react-i18next";
+import { updateSettings } from "../../reducers/SettingsReducer";
+import { Direction } from "../../types/AppSettings";
 
 /**
  * Navigation bar component.
  */
 export default function NavigationBar() {
   const { t } = useTranslation();
-  const { isTwoPagedView, direction } = useAppSelector((state) => state.view);
+  const readerSettings = useAppSelector((state) => state.settings.reader);
   const { history, historyIndex } = useAppSelector((state) => state.read.containerFile);
   const dispatch = useAppDispatch();
 
@@ -51,23 +51,26 @@ export default function NavigationBar() {
 
   const handleSwitchTwoPagedClicked = useCallback(
     (_e: React.MouseEvent<HTMLButtonElement>) => {
-      settingsStore.set("two-paged", !isTwoPagedView);
-      dispatch(setIsTwoPagedView(!isTwoPagedView));
+      const newReaderSettings = {
+        ...readerSettings,
+        comic: { ...readerSettings.comic, enableSpread: !readerSettings.comic.enableSpread },
+      };
+      dispatch(updateSettings({ key: "reader", value: newReaderSettings }));
     },
-    [dispatch, isTwoPagedView],
+    [dispatch, readerSettings],
   );
 
   const handleSwitchDirectionClicked = useCallback(
     (_e: React.MouseEvent<HTMLButtonElement>) => {
-      if (direction === "rtl") {
-        settingsStore.set("direction", "ltr");
-        dispatch(setDirection("ltr"));
-      } else {
-        settingsStore.set("direction", "rtl");
-        dispatch(setDirection("rtl"));
-      }
+      const newDirection: Direction =
+        readerSettings.comic.readingDirection === "rtl" ? "ltr" : "rtl";
+      const newReaderSettings = {
+        ...readerSettings,
+        comic: { ...readerSettings.comic, readingDirection: newDirection },
+      };
+      dispatch(updateSettings({ key: "reader", value: newReaderSettings }));
     },
-    [dispatch, direction],
+    [dispatch, readerSettings],
   );
 
   const handleLibraryClicked = useCallback(
@@ -99,20 +102,6 @@ export default function NavigationBar() {
   const handleContextMenu = useCallback((e: React.MouseEvent<HTMLElement>) => {
     e.stopPropagation();
   }, []);
-
-  useEffect(() => {
-    const initViewSettings = async () => {
-      const direction = await settingsStore.get<Direction>("direction");
-      const isTwoPaged = await settingsStore.get<boolean>("two-paged");
-      if (direction) {
-        dispatch(setDirection(direction));
-      }
-      if (isTwoPaged !== undefined) {
-        dispatch(setIsTwoPagedView(isTwoPaged));
-      }
-    };
-    initViewSettings();
-  }, [dispatch]);
 
   return (
     <Toolbar variant="dense" disableGutters sx={{ minHeight: "40px" }}>
@@ -151,10 +140,10 @@ export default function NavigationBar() {
         />
       </Box>
       <IconButton onClick={handleSwitchTwoPagedClicked} aria-label="toggle-two-paged">
-        {isTwoPagedView ? <LooksTwo /> : <LooksOne />}
+        {readerSettings.comic.enableSpread ? <LooksTwo /> : <LooksOne />}
       </IconButton>
       <IconButton onClick={handleSwitchDirectionClicked} aria-label="toggle-direction">
-        {direction === "rtl" ? <SwitchRight /> : <SwitchLeft />}
+        {readerSettings.comic.readingDirection === "rtl" ? <SwitchRight /> : <SwitchLeft />}
       </IconButton>
       <IconButton onClick={handleSettingsClicked} aria-label="settings">
         <Settings />

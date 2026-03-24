@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ListItem,
@@ -15,8 +14,9 @@ import {
 } from "@mui/icons-material";
 import { app } from "@tauri-apps/api";
 import { Theme } from "@tauri-apps/api/window";
-import { settingsStore } from "../../../../settings/SettingsStore";
-import { AppTheme } from "../../../../types/ThemeType";
+import { useAppDispatch, useAppSelector } from "../../../../Store";
+import { updateSettings } from "../../../../reducers/SettingsReducer";
+import { AppTheme } from "../../../../types/AppSettings";
 
 /**
  * Mapping from theme names to Tauri's theme setting values.
@@ -32,25 +32,16 @@ const toTauriTheme = new Map<AppTheme, Theme | undefined>([
  */
 export default function ThemeSetting() {
   const { t } = useTranslation();
-  const [theme, setTheme] = useState<AppTheme>("system");
+  const generalSettings = useAppSelector((state) => state.settings.general);
+  const dispatch = useAppDispatch();
 
-  const handleThemeChanged = async (_e: React.MouseEvent<HTMLElement>, theme: AppTheme) => {
-    setTheme(theme);
-    settingsStore.set("theme", theme);
-    await app.setTheme(toTauriTheme.get(theme));
+  const handleThemeChanged = async (_e: React.MouseEvent<HTMLElement>, newTheme: AppTheme) => {
+    if (newTheme !== null) {
+      const newGeneralSettings = { ...generalSettings, theme: newTheme };
+      dispatch(updateSettings({ key: "general", value: newGeneralSettings }));
+      await app.setTheme(toTauriTheme.get(newTheme));
+    }
   };
-
-  useEffect(() => {
-    const initTheme = async () => {
-      const tauriTheme = await settingsStore.get<string>("theme");
-      toTauriTheme.forEach((value, key) => {
-        if (value === tauriTheme && key) {
-          setTheme(key);
-        }
-      });
-    };
-    initTheme();
-  }, []);
 
   return (
     <ListItem>
@@ -58,7 +49,12 @@ export default function ThemeSetting() {
         <Palette />
       </ListItemIcon>
       <ListItemText primary={t("settings.general.theme.title")} />
-      <ToggleButtonGroup value={theme} exclusive onChange={handleThemeChanged} size="small">
+      <ToggleButtonGroup
+        value={generalSettings.theme}
+        exclusive
+        onChange={handleThemeChanged}
+        size="small"
+      >
         <ToggleButton value="light" sx={{ textTransform: "none" }}>
           <LightModeOutlined sx={{ marginRight: "4px" }} />
           {t("settings.general.theme.light")}

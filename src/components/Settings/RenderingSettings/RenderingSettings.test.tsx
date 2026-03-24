@@ -5,10 +5,12 @@ import RenderingSettings from "./RenderingSettings";
 import { JSX } from "react";
 
 // Mock sub-components
-vi.mock("./Items/PreviewSetting", () => {
-  const PreviewSetting = (): JSX.Element => <div data-testid="preview-setting" />;
-  PreviewSetting.displayName = "PreviewSetting";
-  return { default: PreviewSetting };
+vi.mock("./Items/ThumbnailPreviewSetting", () => {
+  const ThumbnailPreviewSetting = (): JSX.Element => (
+    <div data-testid="thumbnail-preview-setting" />
+  );
+  ThumbnailPreviewSetting.displayName = "ThumbnailPreviewSetting";
+  return { default: ThumbnailPreviewSetting };
 });
 
 vi.mock("./Items/MaxImageHeightSetting", () => {
@@ -17,18 +19,20 @@ vi.mock("./Items/MaxImageHeightSetting", () => {
   return { default: MaxImageHeightSetting };
 });
 
-vi.mock("./Items/ImageResizeMethodSetting", () => {
-  const ImageResizeMethodSetting = (): JSX.Element => (
-    <div data-testid="image-resize-method-setting" />
+vi.mock("./Items/ImageResamplingMethodSetting", () => {
+  const ImageResamplingMethodSetting = (): JSX.Element => (
+    <div data-testid="image-resampling-method-setting" />
   );
-  ImageResizeMethodSetting.displayName = "ImageResizeMethodSetting";
-  return { default: ImageResizeMethodSetting };
+  ImageResamplingMethodSetting.displayName = "ImageResamplingMethodSetting";
+  return { default: ImageResamplingMethodSetting };
 });
 
-vi.mock("./Items/PdfRenderingSetting", () => {
-  const PdfRenderingSetting = (): JSX.Element => <div data-testid="pdf-rendering-setting" />;
-  PdfRenderingSetting.displayName = "PdfRenderingSetting";
-  return { default: PdfRenderingSetting };
+vi.mock("./Items/PdfRenderResolutionHeightSetting", () => {
+  const PdfRenderResolutionHeightSetting = (): JSX.Element => (
+    <div data-testid="pdf-render-resolution-height-setting" />
+  );
+  PdfRenderResolutionHeightSetting.displayName = "PdfRenderResolutionHeightSetting";
+  return { default: PdfRenderResolutionHeightSetting };
 });
 
 // Mock SettingsPanel
@@ -55,9 +59,9 @@ describe("RenderingSettings", () => {
 
     expect(screen.getByTestId("settings-panel")).toBeInTheDocument();
     expect(screen.getByTestId("panel-title")).toHaveTextContent(/Rendering Settings/i);
-    expect(screen.getByTestId("preview-setting")).toBeInTheDocument();
+    expect(screen.getByTestId("thumbnail-preview-setting")).toBeInTheDocument();
     expect(screen.getByTestId("max-image-height-setting")).toBeInTheDocument();
-    expect(screen.getByTestId("image-resize-method-setting")).toBeInTheDocument();
-    expect(screen.getByTestId("pdf-rendering-setting")).toBeInTheDocument();
+    expect(screen.getByTestId("image-resampling-method-setting")).toBeInTheDocument();
+    expect(screen.getByTestId("pdf-render-resolution-height-setting")).toBeInTheDocument();
   });
 });

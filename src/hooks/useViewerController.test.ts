@@ -252,7 +252,7 @@ describe("useViewerController", () => {
   describe("error handling", () => {
     // Verify that loading flag becomes false on image acquisition failure
     it("should set isImageLoading to false when fetch fails", async () => {
-      mockedFetchImageBlob.mockResolvedValue(undefined as unknown as Image);
+      mockedFetchImageBlob.mockResolvedValue(undefined);
 
       const { result } = renderHook(() =>
         useViewerController("path", mockEntries, 0, mockSettings, mockDispatch),

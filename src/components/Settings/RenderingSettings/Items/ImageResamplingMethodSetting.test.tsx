@@ -1,13 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { renderWithProviders } from "../../../../test/utils";
-import ImageResizeMethodSetting from "./ImageResizeMethodSetting";
+import { createBasePreloadedState, renderWithProviders } from "../../../../test/utils";
+import ImageResamplingMethodSetting from "./ImageResamplingMethodSetting";
 import { mockStore } from "../../../../test/mocks/tauri";
 import * as containerCmds from "../../../../bindings/ContainerCommands";
 
 // Mock ContainerCommands
-describe("ImageResizeMethodSetting", () => {
+describe("ImageResamplingMethodSetting", () => {
   const user = userEvent.setup();
 
   beforeEach(() => {
@@ -15,9 +15,10 @@ describe("ImageResizeMethodSetting", () => {
   });
 
   it("should load initial resize method from store", async () => {
-    mockStore.get.mockResolvedValue({ "image-resize-method": "lanczos3" });
+    const preloadedState = createBasePreloadedState();
+    preloadedState.settings.reader.rendering.imageResamplingMethod = "lanczos3" as const;
 
-    renderWithProviders(<ImageResizeMethodSetting />);
+    renderWithProviders(<ImageResamplingMethodSetting />, { preloadedState });
 
     await waitFor(() => {
       // English: "Lanczos 3 (Slow / Best Quality)"
@@ -26,9 +27,10 @@ describe("ImageResizeMethodSetting", () => {
   });
 
   it("should update store and call backend when resize method changes", async () => {
-    mockStore.get.mockResolvedValue({ "image-resize-method": "triangle" });
+    const preloadedState = createBasePreloadedState();
+    preloadedState.settings.reader.rendering.imageResamplingMethod = "triangle" as const;
 
-    renderWithProviders(<ImageResizeMethodSetting />);
+    renderWithProviders(<ImageResamplingMethodSetting />, { preloadedState });
 
     await waitFor(() => expect(screen.getByRole("combobox")).toBeInTheDocument());
 
@@ -41,10 +43,12 @@ describe("ImageResizeMethodSetting", () => {
     await user.click(option);
 
     await waitFor(() => {
-      expect(containerCmds.setImageResizeMethod).toHaveBeenCalledWith("nearest");
+      expect(containerCmds.setImageResamplingMethod).toHaveBeenCalledWith("nearest");
       expect(mockStore.set).toHaveBeenCalledWith(
-        "rendering",
-        expect.objectContaining({ "image-resize-method": "nearest" }),
+        "reader",
+        expect.objectContaining({
+          rendering: expect.objectContaining({ imageResamplingMethod: "nearest" }),
+        }),
       );
     });
   });

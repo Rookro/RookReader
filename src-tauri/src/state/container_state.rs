@@ -56,7 +56,7 @@ impl ContainerState {
             self.image_loader = Some(ImageLoader::new(
                 container,
                 self.settings.max_image_height as u32,
-                self.settings.image_resize_method,
+                self.settings.image_resampling_method,
             ));
             return Ok(());
         }
@@ -70,21 +70,21 @@ impl ContainerState {
                     self.image_loader = Some(ImageLoader::new(
                         container,
                         self.settings.max_image_height as u32,
-                        self.settings.image_resize_method,
+                        self.settings.image_resampling_method,
                     ));
                 }
                 "pdf" => {
                     let container = Arc::new(PdfContainer::new(
                         path,
                         PdfRenderConfig::default()
-                            .set_target_height(self.settings.pdf_rendering_height),
+                            .set_target_height(self.settings.pdf_render_resolution_height),
                         self.settings.pdfium_library_path.clone(),
                     )?);
                     self.container = Some(container.clone());
                     self.image_loader = Some(ImageLoader::new(
                         container,
                         self.settings.max_image_height as u32,
-                        self.settings.image_resize_method,
+                        self.settings.image_resampling_method,
                     ));
                 }
                 "rar" => {
@@ -93,7 +93,7 @@ impl ContainerState {
                     self.image_loader = Some(ImageLoader::new(
                         container,
                         self.settings.max_image_height as u32,
-                        self.settings.image_resize_method,
+                        self.settings.image_resampling_method,
                     ));
                 }
                 "epub" => {
@@ -102,7 +102,7 @@ impl ContainerState {
                     self.image_loader = Some(ImageLoader::new(
                         container,
                         self.settings.max_image_height as u32,
-                        self.settings.image_resize_method,
+                        self.settings.image_resampling_method,
                     ));
                 }
                 _ => {
@@ -148,8 +148,8 @@ mod tests {
 
         assert!(state.container.is_none());
         assert_eq!(
-            ContainerSettings::default().pdf_rendering_height,
-            state.settings.pdf_rendering_height
+            ContainerSettings::default().pdf_render_resolution_height,
+            state.settings.pdf_render_resolution_height
         );
     }
 
@@ -196,7 +196,7 @@ mod tests {
     fn test_pdf_rendering_height_passed_to_pdf_container() {
         let mut state = ContainerState::default();
         state.settings.pdfium_library_path = Some(get_pdfium_lib_path());
-        state.settings.pdf_rendering_height = 1200;
+        state.settings.pdf_render_resolution_height = 1200;
 
         // This would fail because the file doesn't exist, but it tests that
         // the height is being used in the PdfContainer::new call
@@ -205,7 +205,7 @@ mod tests {
         // The error is expected because the file doesn't exist
         assert!(result.is_err());
         // But we can verify the height was set
-        assert_eq!(1200, state.settings.pdf_rendering_height);
+        assert_eq!(1200, state.settings.pdf_render_resolution_height);
     }
 
     #[test]

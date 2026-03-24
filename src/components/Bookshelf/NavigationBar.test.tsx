@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import NavigationBar from "./NavigationBar";
 import { renderWithProviders } from "../../test/utils";
@@ -9,14 +9,6 @@ import { openSettingsWindow } from "../../utils/WindowOpener";
 // Mock WindowOpener
 vi.mock("../../utils/WindowOpener", () => ({
   openSettingsWindow: vi.fn(),
-}));
-
-// Mock SettingsStore
-vi.mock("../../settings/SettingsStore", () => ({
-  settingsStore: {
-    get: vi.fn(() => Promise.resolve("NAME_ASC")),
-    set: vi.fn(),
-  },
 }));
 
 describe("NavigationBar", () => {
@@ -43,10 +35,8 @@ describe("NavigationBar", () => {
   it("should handle sort order change", async () => {
     const { store } = renderWithProviders(<NavigationBar />);
 
-    // Initially should be NAME_ASC (from mock)
-    await waitFor(() => {
-      expect(store.getState().bookCollection.sortOrder).toBe("NAME_ASC");
-    });
+    // Initially should be name_asc (default)
+    expect(store.getState().settings.bookshelf.sortOrder).toBe("name_asc");
 
     const select = screen.getByRole("combobox");
     await user.click(select);
@@ -55,7 +45,7 @@ describe("NavigationBar", () => {
     const option = screen.getByRole("option", { name: i18n.t("bookshelf.sort.name-desc") });
     await user.click(option);
 
-    expect(store.getState().bookCollection.sortOrder).toBe("NAME_DESC");
+    expect(store.getState().settings.bookshelf.sortOrder).toBe("name_desc");
   });
 
   // Verify that the settings window is opened when the settings button is clicked

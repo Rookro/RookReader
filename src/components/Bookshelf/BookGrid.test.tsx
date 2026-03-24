@@ -1,22 +1,28 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, fireEvent, waitFor, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { renderWithProviders, RootState } from "../../test/utils";
+import { createBasePreloadedState, renderWithProviders } from "../../test/utils";
 import BookGrid from "./BookGrid";
-import { mockStore } from "../../test/mocks/tauri";
-import * as BookCollectionReducer from "../../reducers/BookCollectionReducer";
+import * as SettingsReducer from "../../reducers/SettingsReducer";
 import { createMockBookWithState, createMockBookshelf, createMockTag } from "../../test/factories";
 
 // Mock actions to prevent real thunks from running
 vi.mock("../../reducers/BookCollectionReducer", async () => {
-  const actual = (await vi.importActual("../../reducers/BookCollectionReducer")) as Record<
-    string,
-    unknown
-  >;
+  const actual = await vi.importActual("../../reducers/BookCollectionReducer");
   return {
     ...actual,
     fetchBooksInSelectedBookshelf: vi.fn(() => ({ type: "bookCollection/fetchBooks/dummy" })),
-    setGridSize: vi.fn((payload: number) => ({ type: "bookCollection/setGridSize", payload })),
+  };
+});
+
+vi.mock("../../reducers/SettingsReducer", async () => {
+  const actual = await vi.importActual("../../reducers/SettingsReducer");
+  return {
+    ...actual,
+    updateSettings: vi.fn((payload: { key: string; value: unknown }) => ({
+      type: "settings/updateSettings",
+      payload,
+    })),
   };
 });
 
@@ -27,28 +33,25 @@ describe("BookGrid", () => {
     createMockBookWithState({ id: 2, display_name: "Book 2", file_path: "p2", tag_ids_str: "20" }),
   ];
 
-  const defaultPreloadedState = {
-    bookCollection: {
-      bookshelf: {
-        bookshelves: [createMockBookshelf({ id: 1, name: "Shelf 1" })],
-        books: mockBooks,
-        selectedId: 1,
-        status: "succeeded",
-        error: null,
-      },
-      tag: {
-        tags: [createMockTag({ id: 10, name: "T1" })],
-        selectedId: null,
-        status: "idle",
-        error: null,
-      },
-      series: { series: [], selectedId: null, books: [], status: "idle", error: null },
-      searchText: "",
-      sortOrder: "NAME_ASC",
-      gridSize: 1,
+  const defaultPreloadedState = createBasePreloadedState();
+  defaultPreloadedState.bookCollection = {
+    bookshelf: {
+      bookshelves: [createMockBookshelf({ id: 1, name: "Shelf 1" })],
+      books: mockBooks,
+      selectedId: 1,
+      status: "succeeded",
+      error: null,
     },
-    view: { activeView: "bookshelf" },
-  } as unknown as RootState;
+    tag: {
+      tags: [createMockTag({ id: 10, name: "T1" })],
+      selectedId: null,
+      status: "idle",
+      error: null,
+    },
+    series: { series: [], selectedId: null, books: [], status: "idle", error: null },
+    searchText: "",
+  };
+  defaultPreloadedState.view.activeView = "bookshelf";
 
   let storedCallback: ResizeObserverCallback | null = null;
   let storedElement: HTMLElement | null = null;
@@ -136,39 +139,24 @@ describe("BookGrid", () => {
   });
 
   it("should show CircularProgress when loading", () => {
-    const loadingState = {
-      ...defaultPreloadedState,
-      bookCollection: {
-        ...defaultPreloadedState.bookCollection,
-        bookshelf: { ...defaultPreloadedState.bookCollection.bookshelf, status: "loading" },
-      },
-    } as unknown as RootState;
+    const loadingState = structuredClone(defaultPreloadedState);
+    loadingState.bookCollection.bookshelf.status = "loading" as const;
 
     renderWithProviders(<BookGrid />, { preloadedState: loadingState });
     expect(screen.getByRole("progressbar")).toBeInTheDocument();
   });
 
   it("should show 'no books' message when collection is empty", async () => {
-    const emptyState = {
-      ...defaultPreloadedState,
-      bookCollection: {
-        ...defaultPreloadedState.bookCollection,
-        bookshelf: { ...defaultPreloadedState.bookCollection.bookshelf, books: [] },
-      },
-    } as unknown as RootState;
+    const emptyState = structuredClone(defaultPreloadedState);
+    emptyState.bookCollection.bookshelf.books = [];
 
     renderWithProviders(<BookGrid />, { preloadedState: emptyState });
     expect(await screen.findByText(/No books in this collection/i)).toBeInTheDocument();
   });
 
   it("should filter books by tag", async () => {
-    const taggedState = {
-      ...defaultPreloadedState,
-      bookCollection: {
-        ...defaultPreloadedState.bookCollection,
-        tag: { ...defaultPreloadedState.bookCollection.tag, selectedId: 10 },
-      },
-    } as unknown as RootState;
+    const taggedState = structuredClone(defaultPreloadedState);
+    taggedState.bookCollection.tag.selectedId = 10;
 
     renderWithProviders(<BookGrid />, { preloadedState: taggedState });
     forceResize(1000);
@@ -247,8 +235,10 @@ describe("BookGrid", () => {
     const slider = await screen.findByRole("slider");
     fireEvent.change(slider, { target: { value: 2 } });
 
-    expect(BookCollectionReducer.setGridSize).toHaveBeenCalledWith(2);
-    expect(mockStore.set).toHaveBeenCalledWith("bookshelf-grid-size", 2);
+    expect(SettingsReducer.updateSettings).toHaveBeenCalledWith({
+      key: "bookshelf",
+      value: expect.objectContaining({ gridSize: 2 }),
+    });
   });
 
   it("should disconnect ResizeObserver on unmount", () => {

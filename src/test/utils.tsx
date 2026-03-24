@@ -1,18 +1,19 @@
-import React, { ReactElement } from "react";
+import { createTheme, ThemeProvider } from "@mui/material";
+import { combineReducers, configureStore } from "@reduxjs/toolkit";
 import { render, RenderOptions } from "@testing-library/react";
-import { configureStore, combineReducers } from "@reduxjs/toolkit";
-import { Provider } from "react-redux";
-import { ThemeProvider, createTheme } from "@mui/material";
-import { I18nextProvider } from "react-i18next";
 import i18n from "i18next";
-import { initReactI18next } from "react-i18next";
+import React, { ReactElement } from "react";
+import { I18nextProvider, initReactI18next } from "react-i18next";
+import { Provider } from "react-redux";
 import translationEnUs from "../i18n/locales/en-US.json";
 import translationJaJp from "../i18n/locales/ja-JP.json";
 import bookCollectionReducer from "../reducers/BookCollectionReducer";
 import historyReducer from "../reducers/HistoryReducer";
 import readReducer from "../reducers/ReadReducer";
+import settingsReducer from "../reducers/SettingsReducer";
 import sidePaneReducer from "../reducers/SidePaneReducer";
 import viewReducer from "../reducers/ViewReducer";
+import { defaultSettings } from "../settings/SettingsStore";
 
 // Create a lightweight i18n instance for testing with actual resources
 export const testI18n = i18n.createInstance();
@@ -34,6 +35,7 @@ const rootReducer = combineReducers({
   read: readReducer,
   sidePane: sidePaneReducer,
   view: viewReducer,
+  settings: settingsReducer,
 });
 
 export type RootState = ReturnType<typeof rootReducer>;
@@ -44,12 +46,53 @@ interface ExtendedRenderOptions extends Omit<RenderOptions, "queries"> {
   store?: AppStore;
 }
 
-export const createTestStore = (preloadedState?: Partial<RootState>) => {
+export function createBasePreloadedState(): RootState {
+  return {
+    settings: structuredClone(defaultSettings),
+    view: {
+      activeView: "reader",
+    },
+    read: {
+      containerFile: {
+        history: [],
+        historyIndex: -1,
+        entries: [],
+        index: 0,
+        isNovel: false,
+        isLoading: false,
+        isDirectory: false,
+        book: null,
+        cfi: null,
+        error: null,
+      },
+      explorer: {
+        history: [],
+        historyIndex: -1,
+        entries: [],
+        searchText: "",
+        isLoading: false,
+        error: null,
+      },
+    },
+    sidePane: {
+      left: { isHidden: false, tabIndex: 0 },
+    },
+    bookCollection: {
+      bookshelf: { bookshelves: [], selectedId: null, books: [], status: "idle", error: null },
+      tag: { tags: [], selectedId: null, status: "idle", error: null },
+      series: { series: [], selectedId: null, books: [], status: "idle", error: null },
+      searchText: "",
+    },
+    history: { recentlyReadBooks: [], status: "idle", error: null },
+  };
+}
+
+export function createTestStore(preloadedState?: Partial<RootState>) {
   return configureStore({
     reducer: rootReducer,
     preloadedState,
   });
-};
+}
 
 const theme = createTheme();
 

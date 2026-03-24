@@ -73,11 +73,8 @@ describe("NotificationContext", () => {
 
     // For MUI Snackbar, we can check if the element has been removed or is no longer visible
     // Depending on transition setup, it might take a moment.
-    await vi.waitFor(
-      () => {
-        expect(screen.queryByText("Close Me")).not.toBeInTheDocument();
-      },
-      { timeout: 1000 },
-    );
+    await vi.waitFor(() => {
+      expect(screen.queryByText("Close Me")).not.toBeInTheDocument();
+    });
   });
 });

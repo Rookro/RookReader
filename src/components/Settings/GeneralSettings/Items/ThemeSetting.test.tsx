@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { renderWithProviders } from "../../../../test/utils";
+import { createBasePreloadedState, renderWithProviders } from "../../../../test/utils";
 import ThemeSetting from "./ThemeSetting";
 import { mockStore } from "../../../../test/mocks/tauri";
 import { app } from "@tauri-apps/api";
@@ -14,31 +14,34 @@ describe("ThemeSetting", () => {
   });
 
   it("should load initial theme from store", async () => {
-    mockStore.get.mockResolvedValue("dark");
+    const preloadedState = createBasePreloadedState();
+    preloadedState.settings.general.theme = "dark";
 
-    renderWithProviders(<ThemeSetting />);
+    renderWithProviders(<ThemeSetting />, { preloadedState });
 
     await waitFor(() => {
-      expect(mockStore.get).toHaveBeenCalledWith("theme");
+      // Check if Dark button is selected (aria-pressed is common for ToggleButton)
+      const darkButton = screen.getByRole("button", { name: /dark/i });
+      expect(darkButton).toHaveAttribute("aria-pressed", "true");
     });
-
-    // Check if Dark button is selected (aria-pressed is common for ToggleButton)
-    const darkButton = screen.getByRole("button", { name: /dark/i });
-    expect(darkButton).toHaveAttribute("aria-pressed", "true");
   });
 
   it("should update theme and store when a button is clicked", async () => {
-    mockStore.get.mockResolvedValue("system");
+    const preloadedState = createBasePreloadedState();
+    preloadedState.settings.general.theme = "system";
 
-    renderWithProviders(<ThemeSetting />);
-
-    await waitFor(() => expect(mockStore.get).toHaveBeenCalled());
+    renderWithProviders(<ThemeSetting />, { preloadedState });
 
     const lightButton = screen.getByRole("button", { name: /light/i });
     await user.click(lightButton);
 
-    expect(mockStore.set).toHaveBeenCalledWith("theme", "light");
-    expect(app.setTheme).toHaveBeenCalledWith("light");
-    expect(lightButton).toHaveAttribute("aria-pressed", "true");
+    await waitFor(() => {
+      expect(mockStore.set).toHaveBeenCalledWith(
+        "general",
+        expect.objectContaining({ theme: "light" }),
+      );
+      expect(app.setTheme).toHaveBeenCalledWith("light");
+      expect(lightButton).toHaveAttribute("aria-pressed", "true");
+    });
   });
 });

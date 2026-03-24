@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { renderWithProviders } from "../../../../test/utils";
-import RestoreOnStartupSetting from "./RestoreOnStartupSetting";
+import { createBasePreloadedState, renderWithProviders } from "../../../../test/utils";
+import RestoreLastBookSetting from "./RestoreLastBookSetting";
 import { mockStore } from "../../../../test/mocks/tauri";
 
-describe("RestoreOnStartupSetting", () => {
+describe("RestoreLastBookSetting", () => {
   const user = userEvent.setup();
 
   beforeEach(() => {
@@ -13,20 +13,21 @@ describe("RestoreOnStartupSetting", () => {
   });
 
   it("should load initial state from settingsStore", async () => {
-    mockStore.get.mockResolvedValue({ "restore-last-container-on-startup": true });
+    const preloadedState = createBasePreloadedState();
+    preloadedState.settings.startup.restoreLastBook = true;
 
-    renderWithProviders(<RestoreOnStartupSetting />);
+    renderWithProviders(<RestoreLastBookSetting />, { preloadedState });
 
     await waitFor(() => {
-      expect(mockStore.get).toHaveBeenCalledWith("history");
       expect(screen.getByRole("switch")).toBeChecked();
     });
   });
 
   it("should update store when toggled", async () => {
-    mockStore.get.mockResolvedValue({ "restore-last-container-on-startup": false });
+    const preloadedState = createBasePreloadedState();
+    preloadedState.settings.startup.restoreLastBook = false;
 
-    renderWithProviders(<RestoreOnStartupSetting />);
+    renderWithProviders(<RestoreLastBookSetting />, { preloadedState });
 
     await waitFor(() => expect(screen.getByRole("switch")).toBeInTheDocument());
 
@@ -37,9 +38,9 @@ describe("RestoreOnStartupSetting", () => {
 
     await waitFor(() => {
       expect(mockStore.set).toHaveBeenCalledWith(
-        "history",
+        "startup",
         expect.objectContaining({
-          "restore-last-container-on-startup": true,
+          restoreLastBook: true,
         }),
       );
     });

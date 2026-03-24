@@ -11,12 +11,12 @@ vi.mock("./Items/InitialViewSetting", () => {
   return { default: InitialViewSetting };
 });
 
-vi.mock("./Items/RestoreOnStartupSetting", () => {
-  const RestoreOnStartupSetting = (): JSX.Element => (
-    <div data-testid="restore-on-startup-setting" />
+vi.mock("./Items/RestoreLastBookSetting", () => {
+  const RestoreLastBooksSetting = (): JSX.Element => (
+    <div data-testid="restore-last-book-setting" />
   );
-  RestoreOnStartupSetting.displayName = "RestoreOnStartupSetting";
-  return { default: RestoreOnStartupSetting };
+  RestoreLastBooksSetting.displayName = "RestoreLastBooksSetting";
+  return { default: RestoreLastBooksSetting };
 });
 
 // Mock SettingsPanel
@@ -44,6 +44,6 @@ describe("StartupSettings", () => {
     expect(screen.getByTestId("settings-panel")).toBeInTheDocument();
     expect(screen.getByTestId("panel-title")).toHaveTextContent(/Startup Settings/i);
     expect(screen.getByTestId("initial-view-setting")).toBeInTheDocument();
-    expect(screen.getByTestId("restore-on-startup-setting")).toBeInTheDocument();
+    expect(screen.getByTestId("restore-last-book-setting")).toBeInTheDocument();
   });
 });

@@ -4,12 +4,8 @@ import { JSX, lazy, useCallback, useEffect, useMemo, useRef, useState } from "re
 import { useDispatch } from "react-redux";
 import { error } from "@tauri-apps/plugin-log";
 import { Allotment } from "allotment";
-import { setPdfRenderingHeight } from "../../bindings/ContainerCommands";
 import { openContainerFile, setContainerFilePath } from "../../reducers/ReadReducer";
-import { setEnablePreview, setIsFirstPageSingleView } from "../../reducers/ViewReducer";
-import { settingsStore } from "../../settings/SettingsStore";
 import { AppDispatch, useAppSelector } from "../../Store";
-import { HistorySettings, RenderingSettings } from "../../types/Settings";
 import { getRecentlyReadBooks } from "../../bindings/BookCommands";
 import { useDragDropEvent } from "../../hooks/useDragDropEvent";
 
@@ -36,9 +32,12 @@ export interface BookReaderProps {
  */
 export default function BookReader({ sx }: BookReaderProps) {
   const initialized = useRef(false);
-  const { enableHistory, activeView } = useAppSelector((state) => state.view);
+  const { activeView } = useAppSelector((state) => state.view);
   const { isHidden, tabIndex } = useAppSelector((state) => state.sidePane.left);
   const { history, historyIndex, isNovel } = useAppSelector((state) => state.read.containerFile);
+  const { history: historySettings, startup: startupSettings } = useAppSelector(
+    (state) => state.settings,
+  );
   const dispatch = useDispatch<AppDispatch>();
 
   const [droppedFile, setDroppedFile] = useState<string | undefined>(undefined);
@@ -84,11 +83,11 @@ export default function BookReader({ sx }: BookReaderProps) {
       { label: "image-entries", icon: <PhotoLibrary />, panel: <ImageEntriesViewer /> },
     ];
 
-    if (enableHistory) {
+    if (historySettings.recordReadingHistory) {
       tabs.push({ label: "history", icon: <History />, panel: <HistoryViewer /> });
     }
     return tabs;
-  }, [enableHistory]);
+  }, [historySettings.recordReadingHistory]);
 
   useEffect(() => {
     if (initialized.current) {
@@ -96,20 +95,8 @@ export default function BookReader({ sx }: BookReaderProps) {
     }
 
     const init = async () => {
-      const isFirstSingle = (await settingsStore.get<boolean>("first-page-single-view")) ?? true;
-      dispatch(setIsFirstPageSingleView(isFirstSingle));
-
-      const renderingSettings = await settingsStore.get<RenderingSettings>("rendering");
-      dispatch(setEnablePreview(renderingSettings?.["enable-preview"] ?? true));
-
-      const height = renderingSettings?.["pdf-rendering-height"];
-      if (height) {
-        await setPdfRenderingHeight(height);
-      }
-
-      const historySettings = await settingsStore.get<HistorySettings>("history");
-      const historyEnabled = historySettings?.enable ?? true;
-      const restoreLastContainer = historySettings?.["restore-last-container-on-startup"] ?? true;
+      const historyEnabled = historySettings.recordReadingHistory;
+      const restoreLastContainer = startupSettings.restoreLastBook;
       if (historyEnabled && restoreLastContainer) {
         const latestEntry =
           (await getRecentlyReadBooks()).length > 0 ? (await getRecentlyReadBooks())[0] : null;
@@ -121,7 +108,7 @@ export default function BookReader({ sx }: BookReaderProps) {
       initialized.current = true;
     };
     init();
-  }, [dispatch]);
+  }, [dispatch, historySettings.recordReadingHistory, startupSettings.restoreLastBook]);
 
   const containerPath = history[historyIndex];
 

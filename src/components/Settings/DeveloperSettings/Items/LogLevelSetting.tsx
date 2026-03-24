@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   IconButton,
@@ -13,44 +13,41 @@ import {
 import { FilterListOutlined, FolderOpen, SourceOutlined } from "@mui/icons-material";
 import { openPath } from "@tauri-apps/plugin-opener";
 import { appLogDir } from "@tauri-apps/api/path";
-import { settingsStore } from "../../../../settings/SettingsStore";
-import { LogSettings } from "../../../../types/Settings";
-import { LogLevel } from "../../../../types/LogLevelType";
+import { useAppDispatch, useAppSelector } from "../../../../Store";
+import { updateSettings } from "../../../../reducers/SettingsReducer";
+import { LogLevel } from "../../../../types/AppSettings";
 
 /**
  * Log setting component.
  */
-export default function LogSetting() {
+export default function LogLevelSetting() {
   const { t } = useTranslation();
+  const dispatch = useAppDispatch();
+  const generalSettings = useAppSelector((state) => state.settings.general);
   const [logDir, setLogDir] = useState<string>("");
-  const [logLevel, setLogLevel] = useState<string>("");
 
   const handleFolderClicked = async (_e: React.MouseEvent<HTMLButtonElement>) => {
     await openPath(await appLogDir());
   };
 
   useEffect(() => {
-    const initLogSettingsView = async () => {
+    const initLogLevelSettingsView = async () => {
       const logDirPath = await appLogDir();
       setLogDir(logDirPath);
-      const logSettings = (await settingsStore.get("log")) as LogSettings | undefined;
-      if (logSettings) {
-        setLogLevel(logSettings.level);
-      } else {
-        setLogLevel("Info");
-      }
     };
-    initLogSettingsView();
+    initLogLevelSettingsView();
   }, []);
 
-  const handleLogLevelChanged = async (e: SelectChangeEvent) => {
-    setLogLevel(e.target.value);
-    const logSettings = ((await settingsStore.get("log")) as LogSettings | undefined) ?? {
-      level: "Info",
-    };
-    logSettings.level = e.target.value as LogLevel;
-    await settingsStore.set("log", logSettings);
-  };
+  const handleLogLevelChanged = useCallback(
+    async (e: SelectChangeEvent) => {
+      const newGeneralSettings = {
+        ...generalSettings,
+        log: { ...generalSettings.log, level: e.target.value as LogLevel },
+      };
+      await dispatch(updateSettings({ key: "general", value: newGeneralSettings }));
+    },
+    [dispatch, generalSettings],
+  );
 
   return (
     <>
@@ -85,16 +82,16 @@ export default function LogSetting() {
         <Select
           label={t("settings.developer.log.log-level.title")}
           variant="standard"
-          value={logLevel}
+          defaultValue={generalSettings.log.level}
           onChange={handleLogLevelChanged}
           size="small"
           autoWidth
         >
-          <MenuItem value="Trace">{t("settings.developer.log.log-level.trace")}</MenuItem>
-          <MenuItem value="Debug">{t("settings.developer.log.log-level.debug")}</MenuItem>
-          <MenuItem value="Info">{t("settings.developer.log.log-level.info")}</MenuItem>
-          <MenuItem value="Warn">{t("settings.developer.log.log-level.warn")}</MenuItem>
-          <MenuItem value="Error">{t("settings.developer.log.log-level.error")}</MenuItem>
+          <MenuItem value="trace">{t("settings.developer.log.log-level.trace")}</MenuItem>
+          <MenuItem value="debug">{t("settings.developer.log.log-level.debug")}</MenuItem>
+          <MenuItem value="info">{t("settings.developer.log.log-level.info")}</MenuItem>
+          <MenuItem value="warn">{t("settings.developer.log.log-level.warn")}</MenuItem>
+          <MenuItem value="error">{t("settings.developer.log.log-level.error")}</MenuItem>
         </Select>
       </ListItem>
     </>

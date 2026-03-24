@@ -17,21 +17,16 @@ describe("FontSettings", () => {
   });
 
   it("should load initial font settings from store", async () => {
-    mockStore.get.mockResolvedValue({ font: "Arial", "font-size": 20 });
-
     renderWithProviders(<FontSettings />);
 
     await waitFor(() => {
-      expect(mockStore.get).toHaveBeenCalledWith("novel-reader");
-      expect(screen.getByRole("combobox")).toHaveTextContent("Arial");
+      expect(screen.getByRole("combobox")).toHaveTextContent("Default");
       // NumberSpinner has two inputs with same value, we pick the visible one
-      expect(screen.getAllByDisplayValue("20")[0]).toBeInTheDocument();
+      expect(screen.getAllByDisplayValue("16")[0]).toBeInTheDocument();
     });
   });
 
   it("should update store and emit event when font is changed", async () => {
-    mockStore.get.mockResolvedValue({ font: "default-font", "font-size": 16 });
-
     renderWithProviders(<FontSettings />);
 
     await waitFor(() => expect(screen.getByRole("combobox")).toBeInTheDocument());
@@ -45,16 +40,23 @@ describe("FontSettings", () => {
 
     await waitFor(() => {
       expect(mockStore.set).toHaveBeenCalledWith(
-        "novel-reader",
-        expect.objectContaining({ font: "Arial" }),
+        "reader",
+        expect.objectContaining({ novel: expect.objectContaining({ fontFamily: "Arial" }) }),
       );
-      expect(emit).toHaveBeenCalledWith("settings-changed", { novelReader: { font: "Arial" } });
+      expect(emit).toHaveBeenCalledWith(
+        "settings-changed",
+        expect.objectContaining({
+          appSettings: expect.objectContaining({
+            reader: expect.objectContaining({
+              novel: expect.objectContaining({ fontFamily: "Arial" }),
+            }),
+          }),
+        }),
+      );
     });
   });
 
   it("should update store and emit event when font size is changed", async () => {
-    mockStore.get.mockResolvedValue({ font: "default-font", "font-size": 16 });
-
     renderWithProviders(<FontSettings />);
 
     // Base UI renders a hidden input for form submission and a visible textbox for interaction.
@@ -66,10 +68,19 @@ describe("FontSettings", () => {
 
     await waitFor(() => {
       expect(mockStore.set).toHaveBeenCalledWith(
-        "novel-reader",
-        expect.objectContaining({ "font-size": 24 }),
+        "reader",
+        expect.objectContaining({ novel: expect.objectContaining({ fontSize: 24 }) }),
       );
-      expect(emit).toHaveBeenCalledWith("settings-changed", { novelReader: { "font-size": 24 } });
+      expect(emit).toHaveBeenCalledWith(
+        "settings-changed",
+        expect.objectContaining({
+          appSettings: expect.objectContaining({
+            reader: expect.objectContaining({
+              novel: expect.objectContaining({ fontSize: 24 }),
+            }),
+          }),
+        }),
+      );
     });
   });
 });

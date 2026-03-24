@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { renderWithProviders, RootState } from "../../../test/utils";
+import { createBasePreloadedState, renderWithProviders } from "../../../test/utils";
 import { ItemRow } from "./ItemRow";
 import * as BookCommands from "../../../bindings/BookCommands";
 import { createMockReadBook } from "../../../test/factories";
@@ -23,36 +23,13 @@ describe("HistoryViewer/ItemRow", () => {
     item_type: "directory",
   });
 
-  const preloadedState = {
-    history: {
-      recentlyReadBooks: [mockBook, mockDir],
-      status: "idle",
-      error: null,
-    },
-    read: {
-      containerFile: {
-        history: [],
-        historyIndex: -1,
-        isDirectory: false,
-        entries: [],
-        book: null,
-        index: 0,
-        cfi: null,
-        isNovel: false,
-        isLoading: false,
-        error: null,
-      },
-      explorer: {
-        history: [],
-        historyIndex: -1,
-        entries: [],
-        searchText: "",
-        sortOrder: "name-asc",
-        isLoading: false,
-        isWatchEnabled: false,
-      },
-    },
-  } as unknown as RootState;
+  const preloadedState = createBasePreloadedState();
+  preloadedState.history = {
+    ...preloadedState.history,
+    recentlyReadBooks: [mockBook, mockDir],
+    status: "idle",
+    error: null,
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();

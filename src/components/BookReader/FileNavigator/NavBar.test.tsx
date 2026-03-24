@@ -1,17 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, fireEvent, waitFor, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { renderWithProviders, RootState } from "../../../test/utils";
+import { createBasePreloadedState, renderWithProviders } from "../../../test/utils";
 import NavBar from "./NavBar";
-import { mockStore } from "../../../test/mocks/tauri";
 import * as ReadReducer from "../../../reducers/ReadReducer";
+import * as SettingsReducer from "../../../reducers/SettingsReducer";
 
 // Mock actions to track calls
 vi.mock("../../../reducers/ReadReducer", async () => {
-  const actual = (await vi.importActual("../../../reducers/ReadReducer")) as Record<
-    string,
-    unknown
-  >;
+  const actual = await vi.importActual("../../../reducers/ReadReducer");
   return {
     ...actual,
     updateExploreBasePath: vi.fn((payload) => ({
@@ -25,6 +22,17 @@ vi.mock("../../../reducers/ReadReducer", async () => {
   };
 });
 
+vi.mock("../../../reducers/SettingsReducer", async () => {
+  const actual = await vi.importActual("../../../reducers/SettingsReducer");
+  return {
+    ...actual,
+    updateSettings: vi.fn((payload: { key: string; value: string }) => ({
+      type: "settings/updateSettings",
+      payload,
+    })),
+  };
+});
+
 // Custom ResizeObserver mock to trigger callbacks
 let resizeCallback: ResizeObserverCallback | undefined;
 class MockResizeObserver {
@@ -35,24 +43,15 @@ class MockResizeObserver {
   unobserve() {}
   disconnect() {}
 }
-global.ResizeObserver = MockResizeObserver as unknown as typeof ResizeObserver;
+
+global.ResizeObserver = MockResizeObserver as typeof ResizeObserver;
 
 describe("FileNavigator/NavBar", () => {
   const user = userEvent.setup();
 
-  const defaultPreloadedState = {
-    read: {
-      explorer: {
-        history: ["/home/user/books"],
-        historyIndex: 0,
-        searchText: "",
-        sortOrder: "NAME_ASC",
-        entries: ["dummy"], // prevent auto-navigation in useEffect
-        isLoading: false,
-        isWatchEnabled: false,
-      },
-    },
-  } as unknown as RootState;
+  const defaultPreloadedState = createBasePreloadedState();
+  defaultPreloadedState.read.explorer.history = ["/home/user/books"];
+  defaultPreloadedState.read.explorer.historyIndex = 0;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -77,9 +76,10 @@ describe("FileNavigator/NavBar", () => {
   });
 
   it("should dispatch updateExploreBasePath with home dir when home button is clicked", async () => {
-    mockStore.get.mockResolvedValue("/home/user");
+    const preloadedState = createBasePreloadedState();
+    preloadedState.settings.fileNavigator.homeDirectory = "/home/user";
 
-    renderWithProviders(<NavBar />, { preloadedState: defaultPreloadedState });
+    renderWithProviders(<NavBar />, { preloadedState });
 
     const homeButton = screen.getByLabelText("home");
     await user.click(homeButton);
@@ -90,15 +90,9 @@ describe("FileNavigator/NavBar", () => {
   });
 
   it("should dispatch goBackExplorerHistory when back button is clicked", async () => {
-    const preloadedState = {
-      read: {
-        explorer: {
-          ...defaultPreloadedState.read.explorer,
-          history: ["/", "/home"],
-          historyIndex: 1,
-        },
-      },
-    } as unknown as RootState;
+    const preloadedState = structuredClone(defaultPreloadedState);
+    preloadedState.read.explorer.history = ["/", "/home"];
+    preloadedState.read.explorer.historyIndex = 1;
 
     renderWithProviders(<NavBar />, { preloadedState });
 
@@ -160,28 +154,24 @@ describe("FileNavigator/NavBar", () => {
 
     // MUI Select options have role="option"
     const options = await screen.findAllByRole("option");
-    const targetOption = options.find((opt) => opt.getAttribute("data-value") === "NAME_DESC");
+    const targetOption = options.find((opt) => opt.getAttribute("data-value") === "name_desc");
 
     if (targetOption) {
       await user.click(targetOption);
     } else {
-      throw new Error("Target option NAME_DESC not found");
+      throw new Error("Target option name_desc not found");
     }
 
-    expect(ReadReducer.setSortOrder).toHaveBeenCalledWith("NAME_DESC");
-    expect(mockStore.set).toHaveBeenCalledWith("sort-order", "NAME_DESC");
+    expect(SettingsReducer.updateSettings).toHaveBeenCalledWith({
+      key: "fileNavigator",
+      value: expect.objectContaining({ sortOrder: "name_desc" }),
+    });
   });
 
   it("should dispatch goForwardExplorerHistory when forward button is clicked", async () => {
-    const preloadedState = {
-      read: {
-        explorer: {
-          ...defaultPreloadedState.read.explorer,
-          history: ["/", "/home"],
-          historyIndex: 0,
-        },
-      },
-    } as unknown as RootState;
+    const preloadedState = structuredClone(defaultPreloadedState);
+    preloadedState.read.explorer.history = ["/", "/home"];
+    preloadedState.read.explorer.historyIndex = 0;
 
     renderWithProviders(<NavBar />, { preloadedState });
 
@@ -192,11 +182,13 @@ describe("FileNavigator/NavBar", () => {
   });
 
   it("should use homeDir if settingsStore home-directory is missing", async () => {
-    mockStore.get.mockResolvedValue(null);
     const { homeDir } = await import("@tauri-apps/api/path");
     vi.mocked(homeDir).mockResolvedValue("/system/home");
 
-    renderWithProviders(<NavBar />, { preloadedState: defaultPreloadedState });
+    const preloadedState = structuredClone(defaultPreloadedState);
+    preloadedState.settings.fileNavigator.homeDirectory = "";
+
+    renderWithProviders(<NavBar />, { preloadedState });
 
     const homeButton = screen.getByLabelText("home");
     await user.click(homeButton);

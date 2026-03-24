@@ -41,24 +41,24 @@ describe("BookshelfUtils", () => {
     const b = createMockBookWithState({ id: 2, display_name: "B" });
 
     // Verify correct sorting by name (ascending)
-    it("should sort by NAME_ASC", () => {
-      expect(sortBy(a, b, "NAME_ASC")).toBeLessThan(0);
-      expect(sortBy(b, a, "NAME_ASC")).toBeGreaterThan(0);
+    it("should sort by name_asc", () => {
+      expect(sortBy(a, b, "name_asc")).toBeLessThan(0);
+      expect(sortBy(b, a, "name_asc")).toBeGreaterThan(0);
     });
 
     // Verify correct sorting by name (descending)
-    it("should sort by NAME_DESC", () => {
-      expect(sortBy(a, b, "NAME_DESC")).toBeGreaterThan(0);
+    it("should sort by name_desc", () => {
+      expect(sortBy(a, b, "name_desc")).toBeGreaterThan(0);
     });
 
     // Verify correct sorting by date (ascending)
-    it("should sort by DATE_ASC", () => {
-      expect(sortBy(a, b, "DATE_ASC")).toBeLessThan(0);
+    it("should sort by date_asc", () => {
+      expect(sortBy(a, b, "date_asc")).toBeLessThan(0);
     });
 
     // Verify correct sorting by date (descending)
-    it("should sort by DATE_DESC", () => {
-      expect(sortBy(a, b, "DATE_DESC")).toBeGreaterThan(0);
+    it("should sort by date_desc", () => {
+      expect(sortBy(a, b, "date_desc")).toBeGreaterThan(0);
     });
   });
 });

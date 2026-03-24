@@ -9,9 +9,6 @@ import { usePageNavigation } from "../../hooks/usePageNavigation";
 import { AppDispatch, useAppSelector } from "../../Store";
 import { setEntries, setNovelLocation } from "../../reducers/ReadReducer";
 import BundledNotoSerifJP from "../../assets/fonts/NotoSerifJP-VariableFont_wght.woff2";
-import { settingsStore } from "../../settings/SettingsStore";
-import { NovelReaderSettings } from "../../types/Settings";
-import { setNovelFont, setNovelFontSize } from "../../reducers/ViewReducer";
 
 /** Props for the NovelReader component */
 interface NovelReaderProps {
@@ -34,10 +31,11 @@ export default function NovelReader({ filePath }: NovelReaderProps) {
   const bookRef = useRef<Book | null>(null);
   const renditionRef = useRef<Rendition | null>(null);
   const { index, cfi } = useAppSelector((state) => state.read.containerFile);
-  const { direction, novel } = useAppSelector((state) => state.view);
+  const {
+    comic: { readingDirection },
+    novel: { fontFamily, fontSize },
+  } = useAppSelector((state) => state.settings.reader);
   const dispatch = useDispatch<AppDispatch>();
-
-  const initialized = useRef(false);
 
   const onMoveForward = useCallback(() => {
     renditionRef.current?.next();
@@ -57,11 +55,11 @@ export default function NovelReader({ filePath }: NovelReaderProps) {
           "font-style": "normal",
         },
         "*": {
-          "font-family": `"${novel.font === "default-font" ? "BundledNotoSerifJP" : novel.font}" !important`,
+          "font-family": `"${fontFamily === "default-font" ? "BundledNotoSerifJP" : fontFamily}" !important`,
         },
         body: {
-          "font-family": `"${novel.font === "default-font" ? "BundledNotoSerifJP" : novel.font}" !important`,
-          "font-size": `${novel.fontSize}px`,
+          "font-family": `"${fontFamily === "default-font" ? "BundledNotoSerifJP" : fontFamily}" !important`,
+          "font-size": `${fontSize}px`,
           color: theme.palette.text.primary,
           background: theme.palette.background.default,
           "user-select": "none",
@@ -76,13 +74,13 @@ export default function NovelReader({ filePath }: NovelReaderProps) {
           : {}),
       });
     },
-    [theme, novel],
+    [theme, fontFamily, fontSize],
   );
 
   const { handleClicked, handleContextMenu, handleWheeled, handleKeydown } = usePageNavigation(
     onMoveForward,
     onMoveBack,
-    direction,
+    readingDirection,
   );
 
   useEffect(() => {
@@ -192,18 +190,6 @@ export default function NovelReader({ filePath }: NovelReaderProps) {
         } else {
           rendition.display(index);
         }
-      }
-
-      // Initialize settings after epubjs is initialized.
-      if (!initialized.current) {
-        const settings = await settingsStore.get<NovelReaderSettings>("novel-reader");
-        if (settings?.font) {
-          dispatch(setNovelFont(settings.font));
-        }
-        if (settings?.["font-size"]) {
-          dispatch(setNovelFontSize(settings["font-size"]));
-        }
-        initialized.current = true;
       }
     };
 

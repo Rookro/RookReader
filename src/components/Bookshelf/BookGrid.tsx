@@ -20,11 +20,11 @@ import NavigationBar from "./NavigationBar";
 import { useAppDispatch, useAppSelector } from "../../Store";
 import { Delete, LocalOffer, ZoomIn, ZoomOut } from "@mui/icons-material";
 import SetBookTagsDialog from "./Dialog/SetBookTagsDialog";
-import { fetchBooksInSelectedBookshelf, setGridSize } from "../../reducers/BookCollectionReducer";
+import { fetchBooksInSelectedBookshelf } from "../../reducers/BookCollectionReducer";
 import { useTranslation } from "react-i18next";
 import { andSearch, sortBy } from "../../utils/BookshelfUtils";
-import { settingsStore } from "../../settings/SettingsStore";
 import BookDeleteDialog from "./Dialog/BookDeleteDialog";
+import { updateSettings } from "../../reducers/SettingsReducer";
 
 const GRID_SIZES = [
   { width: 140, height: 220 },
@@ -42,15 +42,12 @@ export interface BookGridProps {
 export default function BookGrid({ onBookSelect }: BookGridProps) {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
-  const { searchText, sortOrder, gridSize } = useAppSelector((state) => state.bookCollection);
+  const bookshelfSettings = useAppSelector((state) => state.settings.bookshelf);
   const {
-    books: booksInSelectedBookshelf,
-    selectedId: bookshelfId,
-    status,
-  } = useAppSelector((state) => state.bookCollection.bookshelf);
-  const { selectedId: tagId, tags: availableTags } = useAppSelector(
-    (state) => state.bookCollection.tag,
-  );
+    searchText,
+    bookshelf: { books: booksInSelectedBookshelf, selectedId: bookshelfId, status },
+    tag: { selectedId: tagId, tags: availableTags },
+  } = useAppSelector((state) => state.bookCollection);
   const { activeView } = useAppSelector((state) => state.view);
 
   const containerRef = useRef(null);
@@ -74,7 +71,10 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
     [],
   );
 
-  const currentGridSize = useMemo(() => GRID_SIZES[gridSize], [gridSize]);
+  const currentGridSize = useMemo(
+    () => GRID_SIZES[bookshelfSettings.gridSize],
+    [bookshelfSettings.gridSize],
+  );
 
   const filteredSortedBooks = useMemo(() => {
     const books =
@@ -86,15 +86,15 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
 
     return andSearch(books, searchText)
       .slice()
-      .sort((a, b) => sortBy(a, b, sortOrder));
-  }, [booksInSelectedBookshelf, tagId, searchText, sortOrder]);
+      .sort((a, b) => sortBy(a, b, bookshelfSettings.sortOrder));
+  }, [booksInSelectedBookshelf, tagId, searchText, bookshelfSettings.sortOrder]);
 
   const handleGridSizeChange = useCallback(
     (_e: Event, newValue: number, _activeThumb: number) => {
-      settingsStore.set("bookshelf-grid-size", newValue);
-      dispatch(setGridSize(newValue));
+      const newBookshelfSettings = { ...bookshelfSettings, gridSize: newValue };
+      dispatch(updateSettings({ key: "bookshelf", value: newBookshelfSettings }));
     },
-    [dispatch],
+    [dispatch, bookshelfSettings],
   );
 
   useEffect(() => {
@@ -199,7 +199,7 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
               cellProps={{
                 books: filteredSortedBooks,
                 tags: availableTags,
-                size: gridSize === 0 ? "small" : "medium",
+                size: bookshelfSettings.gridSize === 0 ? "small" : "medium",
                 columnCount,
                 onBookSelect,
                 onBookContextMenu: (book: BookWithState, e: React.MouseEvent) => {
@@ -229,7 +229,7 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
         <Stack direction="row" spacing={2} alignItems="center" sx={{ width: "100%" }}>
           <ZoomOut />
           <Slider
-            value={gridSize}
+            defaultValue={bookshelfSettings.gridSize}
             onChange={handleGridSizeChange}
             min={0}
             max={2}

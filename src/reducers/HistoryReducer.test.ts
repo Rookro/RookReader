@@ -16,7 +16,7 @@ describe("HistoryReducer", () => {
   const initialState = {
     recentlyReadBooks: [],
     status: "idle" as const,
-    error: null,
+    error: null as { code: ErrorCode; message?: string } | null,
   };
 
   beforeEach(() => {
@@ -31,10 +31,8 @@ describe("HistoryReducer", () => {
 
   // Verify that history related error state is cleared correctly
   it("should handle clearHistoryError", () => {
-    const stateWithError = {
-      ...initialState,
-      error: { code: ErrorCode.OTHER_ERROR, message: "test error" },
-    };
+    const stateWithError = structuredClone(initialState);
+    stateWithError.error = { code: ErrorCode.OTHER_ERROR, message: "test error" };
     const nextState = historyReducer(stateWithError, clearHistoryError());
     expect(nextState.error).toBeNull();
   });

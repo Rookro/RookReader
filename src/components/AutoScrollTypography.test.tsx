@@ -12,7 +12,7 @@ vi.mock("../hooks/useAutoScrollAnimation", () => ({
 
 // Mock useMediaQuery
 vi.mock("@mui/material", async () => {
-  const actual = (await vi.importActual("@mui/material")) as Record<string, unknown>;
+  const actual = await vi.importActual("@mui/material");
   return {
     ...actual,
     useMediaQuery: vi.fn(),

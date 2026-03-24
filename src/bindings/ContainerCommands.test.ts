@@ -31,9 +31,9 @@ describe("ContainerCommands", () => {
     expect(invoke).toHaveBeenCalledWith("get_image_preview", { path: "path", entryName: "entry" });
   });
 
-  it("setPdfRenderingHeight should call invoke", async () => {
-    await ContainerCommands.setPdfRenderingHeight(1000);
-    expect(invoke).toHaveBeenCalledWith("set_pdf_rendering_height", { height: 1000 });
+  it("setPdfRenderResolutionHeight should call invoke", async () => {
+    await ContainerCommands.setPdfRenderResolutionHeight(1000);
+    expect(invoke).toHaveBeenCalledWith("set_pdf_render_resolution_height", { height: 1000 });
   });
 
   it("setMaxImageHeight should call invoke", async () => {
@@ -41,9 +41,9 @@ describe("ContainerCommands", () => {
     expect(invoke).toHaveBeenCalledWith("set_max_image_height", { height: 2000 });
   });
 
-  it("setImageResizeMethod should call invoke", async () => {
-    await ContainerCommands.setImageResizeMethod("lanczos3");
-    expect(invoke).toHaveBeenCalledWith("set_image_resize_method", { method: "lanczos3" });
+  it("setImageResamplingMethod should call invoke", async () => {
+    await ContainerCommands.setImageResamplingMethod("lanczos3");
+    expect(invoke).toHaveBeenCalledWith("set_image_resampling_method", { method: "lanczos3" });
   });
 
   it("determineEpubNovel should call invoke", async () => {
@@ -68,9 +68,9 @@ describe("ContainerCommands", () => {
     await expect(ContainerCommands.getImagePreview("path", "e")).rejects.toThrow(CommandError);
   });
 
-  it("setPdfRenderingHeight should throw CommandError on failure", async () => {
+  it("setPdfRenderResolutionHeight should throw CommandError on failure", async () => {
     vi.mocked(invoke).mockRejectedValue(new Error("fail"));
-    await expect(ContainerCommands.setPdfRenderingHeight(100)).rejects.toThrow(CommandError);
+    await expect(ContainerCommands.setPdfRenderResolutionHeight(100)).rejects.toThrow(CommandError);
   });
 
   it("setMaxImageHeight should throw CommandError on failure", async () => {
@@ -78,9 +78,9 @@ describe("ContainerCommands", () => {
     await expect(ContainerCommands.setMaxImageHeight(100)).rejects.toThrow(CommandError);
   });
 
-  it("setImageResizeMethod should throw CommandError on failure", async () => {
+  it("setImageResamplingMethod should throw CommandError on failure", async () => {
     vi.mocked(invoke).mockRejectedValue(new Error("fail"));
-    await expect(ContainerCommands.setImageResizeMethod("m")).rejects.toThrow(CommandError);
+    await expect(ContainerCommands.setImageResamplingMethod("m")).rejects.toThrow(CommandError);
   });
 
   it("determineEpubNovel should throw CommandError on failure", async () => {

@@ -1,10 +1,10 @@
 import { Box, debounce, SxProps, Theme } from "@mui/material";
 import { error } from "@tauri-apps/plugin-log";
 import { Allotment } from "allotment";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useBookshelves } from "../../hooks/useBookshelves";
 import { useBookTags } from "../../hooks/useBookTags";
-import { addBookshelf, addTag, setGridSize } from "../../reducers/BookCollectionReducer";
+import { addBookshelf, addTag } from "../../reducers/BookCollectionReducer";
 import { useAppDispatch } from "../../Store";
 import BookGrid from "./BookGrid";
 import { CreateBookshelfDialog } from "./Dialog/CreateBookshelfDialog";
@@ -12,9 +12,7 @@ import CreateBookTagDialog from "./Dialog/CreateBookTagDialog";
 import MenuList from "./MenuList";
 import { setActiveView } from "../../reducers/ViewReducer";
 import { Book } from "../../types/DatabaseModels";
-import { setContainerFilePath, setSortOrder } from "../../reducers/ReadReducer";
-import { settingsStore } from "../../settings/SettingsStore";
-import { SortOrder } from "../../types/SortOrderType";
+import { setContainerFilePath } from "../../reducers/ReadReducer";
 
 /**
  * Props for the Bookshelf component
@@ -82,19 +80,6 @@ export default function Bookshelf({ sx }: BookshelfProps) {
     },
     [dispatch],
   );
-
-  useEffect(() => {
-    const initBookshelfSettings = async () => {
-      const storedSortOrder =
-        (await settingsStore.get<SortOrder>("bookshelf-sort-order")) ?? "NAME_ASC";
-      dispatch(setSortOrder(storedSortOrder));
-
-      const gridSize = (await settingsStore.get<number>("bookshelf-grid-size")) ?? 1;
-      dispatch(setGridSize(gridSize));
-    };
-
-    initBookshelfSettings();
-  }, [dispatch]);
 
   return (
     <Box sx={{ width: "100%", height: "100%", ...sx }} data-testid="bookshelf">

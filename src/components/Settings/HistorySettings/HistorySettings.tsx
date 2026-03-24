@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { List } from "@mui/material";
-import FeatureToggle from "./Items/FeatureToggle";
+import RecordReadingHistorySetting from "./Items/RecordReadingHistorySetting";
 import SettingsPanel from "../SettingsPanel";
 
 /**
@@ -12,7 +12,7 @@ export default function HistorySettings() {
   return (
     <SettingsPanel title={t("settings.history.title")}>
       <List>
-        <FeatureToggle />
+        <RecordReadingHistorySetting />
       </List>
     </SettingsPanel>
   );

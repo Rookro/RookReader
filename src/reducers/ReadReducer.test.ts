@@ -6,8 +6,6 @@ import readReducer, {
   setContainerFilePath,
   setExploreBasePath,
   setSearchText,
-  setSortOrder,
-  setIsWatchEnabled,
   goBackContainerHistory,
   goForwardContainerHistory,
   goBackExplorerHistory,
@@ -25,6 +23,7 @@ import * as DirectoryCommands from "../bindings/DirectoryCommands";
 import { CommandError, ErrorCode } from "../types/Error";
 import { RootState } from "../test/utils";
 import { createMockBookWithState } from "../test/factories";
+import { DirEntry } from "../types/DirEntry";
 
 describe("ReadReducer", () => {
   let store: AppStore;
@@ -44,7 +43,7 @@ describe("ReadReducer", () => {
     it("should handle setImageIndex", () => {
       const initialState = {
         containerFile: { index: 0, cfi: "old-cfi" },
-      } as unknown as RootState["read"];
+      } as RootState["read"];
       const state = readReducer(initialState, setImageIndex(10));
       expect(state.containerFile.index).toBe(10);
       expect(state.containerFile.cfi).toBeNull();
@@ -54,7 +53,7 @@ describe("ReadReducer", () => {
     it("should handle setContainerFilePath and update history", () => {
       const initialState = {
         containerFile: { history: ["old"], historyIndex: 0, index: 5 },
-      } as unknown as RootState["read"];
+      } as RootState["read"];
       const state = readReducer(initialState, setContainerFilePath("new"));
       expect(state.containerFile.history).toEqual(["old", "new"]);
       expect(state.containerFile.historyIndex).toBe(1);
@@ -65,7 +64,7 @@ describe("ReadReducer", () => {
     it("should not update history if setContainerFilePath is called with current path", () => {
       const initialState = {
         containerFile: { history: ["current"], historyIndex: 0 },
-      } as unknown as RootState["read"];
+      } as RootState["read"];
       const state = readReducer(initialState, setContainerFilePath("current"));
       expect(state.containerFile.history).toHaveLength(1);
     });
@@ -74,7 +73,7 @@ describe("ReadReducer", () => {
     it("should slice history in setContainerFilePath when index is not at the end", () => {
       const initialState = {
         containerFile: { history: ["p1", "p2", "p3"], historyIndex: 1 },
-      } as unknown as RootState["read"];
+      } as RootState["read"];
       const state = readReducer(initialState, setContainerFilePath("new"));
       expect(state.containerFile.history).toEqual(["p1", "p2", "new"]);
       expect(state.containerFile.historyIndex).toBe(2);
@@ -84,7 +83,7 @@ describe("ReadReducer", () => {
     it("should handle setExploreBasePath and update history", () => {
       const initialState = {
         explorer: { history: ["/old"], historyIndex: 0 },
-      } as unknown as RootState["read"];
+      } as RootState["read"];
       const state = readReducer(initialState, setExploreBasePath("/new"));
       expect(state.explorer.history).toEqual(["/old", "/new"]);
       expect(state.explorer.historyIndex).toBe(1);
@@ -94,7 +93,7 @@ describe("ReadReducer", () => {
     it("should not update history if setExploreBasePath is called with current path", () => {
       const initialState = {
         explorer: { history: ["/current"], historyIndex: 0 },
-      } as unknown as RootState["read"];
+      } as RootState["read"];
       const state = readReducer(initialState, setExploreBasePath("/current"));
       expect(state.explorer.history).toHaveLength(1);
     });
@@ -103,7 +102,7 @@ describe("ReadReducer", () => {
     it("should slice history in setExploreBasePath when index is not at the end", () => {
       const initialState = {
         explorer: { history: ["/d1", "/d2", "/d3"], historyIndex: 1 },
-      } as unknown as RootState["read"];
+      } as RootState["read"];
       const state = readReducer(initialState, setExploreBasePath("/new"));
       expect(state.explorer.history).toEqual(["/d1", "/d2", "/new"]);
       expect(state.explorer.historyIndex).toBe(2);
@@ -114,7 +113,7 @@ describe("ReadReducer", () => {
       const initialState = {
         containerFile: { history: ["p1", "p2", "p3"], historyIndex: 1 },
         explorer: { history: ["d1", "d2", "d3"], historyIndex: 1 },
-      } as unknown as RootState["read"];
+      } as RootState["read"];
 
       let state = readReducer(initialState, goBackContainerHistory());
       expect(state.containerFile.historyIndex).toBe(0);
@@ -137,25 +136,17 @@ describe("ReadReducer", () => {
       expect(state.explorer.historyIndex).toBe(2);
     });
 
-    // Verify that explorer state (search text, sort order, watch setting, loading flag) is updated correctly
-    it("should handle explorer state (searchText, sortOrder, watch, loading)", () => {
+    // Verify that explorer state (search text, loading flag) is updated correctly
+    it("should handle explorer state (searchText, loading)", () => {
       const initialState = {
         explorer: {
           searchText: "",
-          sortOrder: "NAME_ASC",
-          isWatchEnabled: false,
           isLoading: false,
         },
-      } as unknown as RootState["read"];
+      } as RootState["read"];
 
       let state = readReducer(initialState, setSearchText("query"));
       expect(state.explorer.searchText).toBe("query");
-
-      state = readReducer(state, setSortOrder("DATE_DESC"));
-      expect(state.explorer.sortOrder).toBe("DATE_DESC");
-
-      state = readReducer(state, setIsWatchEnabled(true));
-      expect(state.explorer.isWatchEnabled).toBe(true);
 
       state = readReducer(state, setIsDirEntriesLoading(true));
       expect(state.explorer.isLoading).toBe(true);
@@ -164,8 +155,8 @@ describe("ReadReducer", () => {
     // Verify that entry list is set correctly
     it("should handle setEntries", () => {
       const initialState = {
-        containerFile: { entries: [] },
-      } as unknown as RootState["read"];
+        containerFile: { entries: [] as string[] },
+      } as RootState["read"];
       const state = readReducer(initialState, setEntries(["e1", "e2"]));
       expect(state.containerFile.entries).toEqual(["e1", "e2"]);
     });
@@ -174,7 +165,7 @@ describe("ReadReducer", () => {
     it("should handle setNovelLocation", () => {
       const initialState = {
         containerFile: { index: 0, cfi: null },
-      } as unknown as RootState["read"];
+      } as RootState["read"];
       const state = readReducer(initialState, setNovelLocation({ index: 5, cfi: "epub-cfi" }));
       expect(state.containerFile.index).toBe(5);
       expect(state.containerFile.cfi).toBe("epub-cfi");
@@ -185,7 +176,7 @@ describe("ReadReducer", () => {
       const initialState = {
         containerFile: { error: { code: ErrorCode.OTHER_ERROR } },
         explorer: { error: { code: ErrorCode.OTHER_ERROR } },
-      } as unknown as RootState["read"];
+      } as RootState["read"];
 
       let state = readReducer(initialState, clearContainerFileError());
       expect(state.containerFile.error).toBeNull();
@@ -201,7 +192,7 @@ describe("ReadReducer", () => {
       const mockState = {
         containerFile: { error: null },
         explorer: { error: null },
-      } as unknown as RootState["read"];
+      } as RootState["read"];
 
       let state = readReducer(
         mockState,
@@ -300,9 +291,9 @@ describe("ReadReducer", () => {
       it("should handle return undefined if already at the path", async () => {
         const preloadedState = {
           read: {
-            explorer: { history: ["/current"], historyIndex: 0, entries: [] },
+            explorer: { history: ["/current"], historyIndex: 0, entries: [] as DirEntry[] },
           },
-        } as unknown as RootState;
+        } as RootState;
         store = createTestStore(preloadedState);
 
         const result = await store.dispatch(updateExploreBasePath({ dirPath: "/current" }));

@@ -31,9 +31,9 @@ vi.mock("../../bindings/ContainerCommands", () => ({
   getEntriesInContainer: vi.fn(() => Promise.resolve([])),
   getImage: vi.fn(() => Promise.resolve([])),
   getImagePreview: vi.fn(() => Promise.resolve([])),
-  setPdfRenderingHeight: vi.fn(() => Promise.resolve([])),
+  setPdfRenderResolutionHeight: vi.fn(() => Promise.resolve([])),
   setMaxImageHeight: vi.fn(() => Promise.resolve([])),
-  setImageResizeMethod: vi.fn(() => Promise.resolve([])),
+  setImageResamplingMethod: vi.fn(() => Promise.resolve([])),
   determineEpubNovel: vi.fn(() => Promise.resolve([])),
 }));
 

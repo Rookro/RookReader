@@ -1,35 +1,26 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ListItem, ListItemIcon, ListItemText, Typography } from "@mui/material";
 import { AspectRatioOutlined } from "@mui/icons-material";
 import { error } from "@tauri-apps/plugin-log";
-import { settingsStore } from "../../../../settings/SettingsStore";
 import { setMaxImageHeight } from "../../../../bindings/ContainerCommands";
-import { RenderingSettings } from "../../../../types/Settings";
 import NumberSpinner from "../../../NumberSpinner";
+import { useAppDispatch, useAppSelector } from "../../../../Store";
+import { updateSettings } from "../../../../reducers/SettingsReducer";
 
 /**
  * Max image height setting component.
  */
 export default function MaxImageHeightSetting() {
   const { t } = useTranslation();
-  const [maxHeight, setMaxHeight] = useState<number>(0);
+  const dispatch = useAppDispatch();
+  const { reader: readerSettings } = useAppSelector((state) => state.settings);
   const [isError, setIsError] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
-
-  useEffect(() => {
-    const fetchSettings = async () => {
-      const height =
-        (await settingsStore.get<RenderingSettings>("rendering"))?.["max-image-height"] ?? 0;
-      setMaxHeight(height);
-    };
-    fetchSettings();
-  }, []);
 
   const handleMaxHeightValueChange = useCallback(
     async (value: number | null) => {
       const height = value ?? 0;
-      setMaxHeight(height);
 
       try {
         await setMaxImageHeight(height);
@@ -43,10 +34,13 @@ export default function MaxImageHeightSetting() {
       setIsError(false);
       setErrorMsg("");
 
-      const settings = await settingsStore.get<RenderingSettings>("rendering");
-      settingsStore.set("rendering", { ...settings, "max-image-height": height });
+      const newSettings = {
+        ...readerSettings,
+        rendering: { ...readerSettings.rendering, maxImageHeight: height },
+      };
+      dispatch(updateSettings({ key: "reader", value: newSettings }));
     },
-    [t],
+    [t, dispatch, readerSettings],
   );
 
   return (
@@ -61,7 +55,7 @@ export default function MaxImageHeightSetting() {
         slotProps={{ secondary: { sx: { whiteSpace: "pre-wrap" } } }}
       />
       <NumberSpinner
-        value={maxHeight}
+        defaultValue={readerSettings.rendering.maxImageHeight}
         min={0}
         step={100}
         size="small"

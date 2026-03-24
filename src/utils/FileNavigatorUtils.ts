@@ -1,5 +1,5 @@
+import { SortOrder } from "../types/AppSettings";
 import { DirEntry } from "../types/DirEntry";
-import { SortOrder } from "../types/SortOrderType";
 
 /**
  * Filters an array of DirEntry objects to find entries whose 'name' property contains ALL specified keywords (AND search).
@@ -45,7 +45,7 @@ export const andSearch = (entries: DirEntry[], query: string) => {
  *
  * @param a - The first DirEntry object for comparison.
  * @param b - The second DirEntry object for comparison.
- * @param sortOrder - The specified criterion (e.g., 'NAME_ASC', 'DATE_DESC') for sorting.
+ * @param sortOrder - The specified criterion (e.g., 'name_asc', 'date_desc') for sorting.
  * @returns A number indicating the sort order:
  * - A negative number if 'a' should come before 'b'.
  * - Zero if 'a' and 'b' are considered equal for sorting.
@@ -53,17 +53,17 @@ export const andSearch = (entries: DirEntry[], query: string) => {
  *
  * @example
  * const entries: DirEntry[] = [{ name: "b", ... }, { name: "c", ... }, { name: "a", ... }];
- * entries.sort((a, b) => sortBy(a, b, 'NAME_ASC'));  // Returns [{ name: "a", ... }, { name: "b", ... }, { name: "c", ... }]
+ * entries.sort((a, b) => sortBy(a, b, 'name_asc'));  // Returns [{ name: "a", ... }, { name: "b", ... }, { name: "c", ... }]
  */
 export const sortBy = (a: DirEntry, b: DirEntry, sortOrder: SortOrder) => {
   switch (sortOrder) {
-    case "NAME_ASC":
+    case "name_asc":
       return a.name.localeCompare(b.name);
-    case "NAME_DESC":
+    case "name_desc":
       return b.name.localeCompare(a.name);
-    case "DATE_ASC":
+    case "date_asc":
       return Date.parse(a.last_modified) - Date.parse(b.last_modified);
-    case "DATE_DESC":
+    case "date_desc":
       return Date.parse(b.last_modified) - Date.parse(a.last_modified);
   }
 };
