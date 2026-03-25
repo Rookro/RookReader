@@ -3,6 +3,7 @@ import { Divider, List } from "@mui/material";
 import SettingsPanel from "../SettingsPanel";
 import InitialViewSetting from "./Items/InitialViewSetting";
 import RestoreLastBookSetting from "./Items/RestoreLastBookSetting";
+import CheckUpdateOnStartupSetting from "./Items/CheckUpdateOnStartupSetting";
 
 /**
  * Startup settings component.
@@ -16,6 +17,8 @@ export default function StartupSettings() {
         <InitialViewSetting />
         <Divider />
         <RestoreLastBookSetting />
+        <Divider />
+        <CheckUpdateOnStartupSetting />
       </List>
     </SettingsPanel>
   );

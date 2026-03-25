@@ -106,3 +106,9 @@ vi.mock("@tauri-apps/plugin-store", () => ({
   load: vi.fn(() => Promise.resolve(mockStore)),
   LazyStore: MockLazyStore,
 }));
+vi.mock("@tauri-apps/plugin-updater", () => ({
+  check: vi.fn(() => Promise.resolve(null)),
+}));
+vi.mock("@tauri-apps/plugin-process", () => ({
+  relaunch: vi.fn(() => Promise.resolve()),
+}));

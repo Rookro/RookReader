@@ -28,9 +28,9 @@ describe("About", () => {
   it("should open project page when link is clicked", async () => {
     renderWithProviders(<About />);
 
-    await waitFor(() => expect(screen.getByRole("button")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Project Page")).toBeInTheDocument());
 
-    const projectLink = screen.getByRole("button");
+    const projectLink = screen.getByText("Project Page").closest("button")!;
     await user.click(projectLink);
 
     expect(openUrl).toHaveBeenCalledWith("https://github.com/Rookro/RookReader");

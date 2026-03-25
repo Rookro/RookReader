@@ -38,6 +38,8 @@ export interface StartupSettings {
   initialView: "reader" | "bookshelf";
   /** Whether to automatically restore the last opened book/container on startup. */
   restoreLastBook: boolean;
+  /** Whether to automatically check for updates on startup. */
+  checkUpdateOnStartup: boolean;
 }
 
 /** Settings specific to the bookshelf view. */
