@@ -9,9 +9,10 @@ import { createCommandError } from "../types/Error";
  */
 export const getEntriesInContainer = async (
   path: string,
+  enablePreload: boolean | undefined = undefined,
 ): Promise<{ entries: string[]; is_directory: boolean }> => {
   try {
-    return await invoke("get_entries_in_container", { path });
+    return await invoke("get_entries_in_container", { path, enablePreload });
   } catch (error) {
     throw createCommandError(error);
   }
@@ -48,14 +49,14 @@ export const getImagePreview = async (path: string, entryName: string): Promise<
 };
 
 /**
- * Sets the rendering height for PDF files in the backend.
+ * Sets the render resolution height for PDF files in the backend.
  *
- * @param height The rendering height.
+ * @param height The render resolution height.
  * @returns A promise that resolves when the operation is complete.
  */
-export const setPdfRenderingHeight = async (height: number): Promise<void> => {
+export const setPdfRenderResolutionHeight = async (height: number): Promise<void> => {
   try {
-    return await invoke("set_pdf_rendering_height", { height });
+    return await invoke("set_pdf_render_resolution_height", { height });
   } catch (error) {
     throw createCommandError(error);
   }
@@ -76,14 +77,14 @@ export const setMaxImageHeight = async (height: number): Promise<void> => {
 };
 
 /**
- * Sets the image resize method in the backend.
+ * Sets the image resampling method in the backend.
  *
- * @param method The image resize method.
+ * @param method The image resampling method.
  * @returns A promise that resolves when the operation is complete.
  */
-export const setImageResizeMethod = async (method: string): Promise<void> => {
+export const setImageResamplingMethod = async (method: string): Promise<void> => {
   try {
-    return await invoke("set_image_resize_method", { method });
+    return await invoke("set_image_resampling_method", { method });
   } catch (error) {
     throw createCommandError(error);
   }

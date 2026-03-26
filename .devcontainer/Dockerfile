@@ -28,10 +28,9 @@ RUN apt-get update && apt-get install -y \
 # Generate Japanse locale.
 RUN locale-gen ja_JP.UTF-8
 
-# Install Node.js and yarn
+# Install Node.js
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
-    apt-get install -y nodejs &&\
-    corepack enable yarn
+    apt-get install -y nodejs
 
 USER vscode
 
@@ -43,4 +42,4 @@ RUN echo "export LANG=ja_JP.UTF-8" >> ~/.bashrc &&\
 RUN curl --proto '=https' --tlsv1.2 https://sh.rustup.rs -sSf | sh -s -- -y &&\
     . "$HOME/.cargo/env" && \
     rustup default stable && \
-    cargo install cargo-about
+    cargo install cargo-about sqlx-cli

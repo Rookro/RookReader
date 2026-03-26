@@ -1,5 +1,6 @@
 {
-  "app": {
+  "book-reader": {
+    "move-to-bookshelf": "Move to Bookshelf",
     "file-navigator": {
       "title": "File Navigator",
       "sort-order": {
@@ -25,6 +26,74 @@
       "no-pages": "No pages."
     }
   },
+  "bookshelf": {
+    "title": "Bookshelves",
+    "delete": "Delete",
+    "remove-book": "Remove book",
+    "collection": {
+      "title": "Collections",
+      "all-books": "All Books",
+      "creation": {
+        "title": "Create a Collection",
+        "name-placeholder": "Collection name",
+        "icon-selection-title": "Select an icon",
+        "creation-button": "create",
+        "cancel-button": "cancel"
+      }
+    },
+    "tag": {
+      "title": "Tags",
+      "set-tags": "Set tags",
+      "creation": {
+        "title": "Create a Tag",
+        "name-placeholder": "Tag name",
+        "color-title": "Select a color",
+        "preview-title": "Preview",
+        "preview-name": "Tag Preview",
+        "creation-button": "create",
+        "cancel-button": "cancel"
+      },
+      "set": {
+        "title": "Set Tags",
+        "no-tags-available": "No tags available.",
+        "ok-button": "ok",
+        "cancel-button": "cancel"
+      }
+    },
+    "search-placeholder": "Search by title...",
+    "no-search-results": "No books for \"{{searchText}}\".",
+    "no-books": "No books in this collection.",
+    "return-to-reader": "Return to reader",
+    "grid-size-change": "Change grid size",
+    "grid-size": {
+      "small": "Small",
+      "medium": "Medium",
+      "large": "Large"
+    },
+    "add-books": "Add books",
+    "book-addition": {
+      "title": "Select files to add",
+      "ok-button": "ok",
+      "cancel-button": "cancel",
+      "drag-drop": "Drop files here to add",
+      "or": "or",
+      "select-file": "Select files",
+      "selected-files": "Selected files ({{count}}):"
+    },
+    "book-deletion": {
+      "title": "Are you sure you want to delete this book?",
+      "description": "You are about to delete <bold>\"{{bookName}}\"</bold> from <bold>\"{{bookshelfName}}\"</bold>. This action cannot be undone.",
+      "cancel-button": "cancel",
+      "delete-button": "delete"
+    },
+    "sort": {
+      "title": "Sort by",
+      "name-asc": "Name (A->Z)",
+      "name-desc": "Name (Z->A)",
+      "date-asc": "Date (Oldest first)",
+      "date-desc": "Date (Newest first)"
+    }
+  },
   "settings": {
     "general": {
       "tab-name": "General",
@@ -43,6 +112,23 @@
         "system": "System",
         "light": "Light",
         "dark": "Dark"
+      }
+    },
+    "startup": {
+      "tab-name": "Startup",
+      "title": "Startup Settings",
+      "initial-view": {
+        "title": "Initial View on Startup",
+        "reader": "Reader",
+        "bookshelf": "Bookshelf"
+      },
+      "restore-last-read": {
+        "title": "Restore Last Read Book on Startup",
+        "description": "If history is disabled, this setting will be ignored."
+      },
+      "check-update-on-startup": {
+        "title": "Check for Updates on Startup",
+        "description": "Automatically check for a new version when the application starts."
       }
     },
     "page": {
@@ -66,10 +152,7 @@
       "title": "History Settings",
       "feature-toggle": {
         "title": "Reading History",
-        "warn-message": "If this setting is disabled, all following configuration options will be ignored."
-      },
-      "restore-toggle": {
-        "title": "Restore last opened book on startup"
+        "description": "When enabled, reading history will be saved for each book you read."
       }
     },
     "rendering": {
@@ -138,10 +221,14 @@
       "tab-name": "About",
       "title": "About",
       "project-page": "Project Page",
+      "updater": {
+        "check": "Check for Updates",
+        "checking": "Checking..."
+      },
       "third-party-licenses": {
         "title": "Third-Party Licenses",
         "body": "This application is built with open source software.",
-        "frontend": "Frontend Licenses (yarn)",
+        "frontend": "Frontend Licenses (npm)",
         "backend": "Backend Licenses (cargo)",
         "bundled": "Boundled Library Licenses",
         "pdfium": "PDFium License"
@@ -152,11 +239,32 @@
     "common": {
       "failed-to-open-container-file": "Failed to open book.",
       "failed-to-get-dir-entries": "Failed to load folder contents.",
-      "failed-to-fetch-history": "Failed to load history."
+      "failed-to-fetch-history": "Failed to load history.",
+      "bookshelf-error": "Bookshelf operation failed.",
+      "tag-error": "Tag operation failed."
     },
     "container": {
       "unsupported-format": "Unsupported format.",
       "entry-not-found": "Page not found."
     }
+  },
+  "updater": {
+    "available": "Update Available: {{version}}",
+    "not-available": "Your application is up to date.",
+    "downloading": "Downloading: {{progress}}%",
+    "installing": "Installing...",
+    "restart": "The application will automatically restart to apply the update.",
+    "checking-error": "An error occurred while checking for updates.\n{{error}}",
+    "unsupported-platform": "Auto-updater is not supported on this platform.\nPlease update using your package manager.",
+    "installing-error": "An error occurred while installing the update.\n{{error}}",
+    "dialog-error-copy": "Copy error details",
+    "dialog-error-copied": "Copied to clipboard",
+    "dialog-error-title": "Failed to update",
+    "dialog-title": "Application Update",
+    "dialog-content": "A new version of RookReader ({{version}}) is available.\nWould you like to download and install it now?",
+    "dialog-release-notes": "Release Notes:",
+    "dialog-close-label": "Close",
+    "dialog-update-label": "Update Now",
+    "dialog-update-cancel-label": "Later"
   }
 }

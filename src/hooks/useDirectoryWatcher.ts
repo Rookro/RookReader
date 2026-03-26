@@ -11,7 +11,9 @@ import { useAppSelector } from "../Store";
  */
 export function useDirectoryWatcher(dirPath: string | null, callback: () => void) {
   const watcherRef = useRef<null | (() => void)>(null);
-  const { isWatchEnabled } = useAppSelector((state) => state.file.explorer);
+  const isWatchEnabled = useAppSelector(
+    (state) => state.settings.fileNavigator.watchDirectoryChanges,
+  );
 
   useEffect(() => {
     if (!isWatchEnabled) {

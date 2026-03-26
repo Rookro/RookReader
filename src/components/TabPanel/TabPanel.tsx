@@ -1,4 +1,4 @@
-import { Box, SxProps } from "@mui/material";
+import { Box, SxProps, Theme } from "@mui/material";
 
 /**
  * Properties for the TabPanel component.
@@ -7,7 +7,7 @@ interface TabPanelProps {
   children?: React.ReactNode;
   index: number;
   value: number;
-  sx?: SxProps;
+  sx?: SxProps<Theme>;
 }
 
 /**

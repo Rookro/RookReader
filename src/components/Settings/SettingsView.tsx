@@ -10,6 +10,7 @@ import FileNavigatorSettings from "./FileNavigatorSettings/FileNavigatorSettings
 import PageSettings from "./PageSettings/PageSettings";
 import HistorySettings from "./HistorySettings/HistorySettings";
 import NovelReaderSettings from "./NovelReaderSettings/NovelReaderSettings";
+import StartupSettings from "./StartupSettings/StartupSettings";
 
 /**
  * Settings page component.
@@ -24,6 +25,7 @@ export default function SettingsView() {
 
   const tabs: { label: string; panel: JSX.Element }[] = [
     { label: t("settings.general.tab-name"), panel: <GeneralSettings /> },
+    { label: t("settings.startup.tab-name"), panel: <StartupSettings /> },
     { label: t("settings.page.tab-name"), panel: <PageSettings /> },
     { label: t("settings.file-navigator.tab-name"), panel: <FileNavigatorSettings /> },
     { label: t("settings.history.tab-name"), panel: <HistorySettings /> },
@@ -40,6 +42,7 @@ export default function SettingsView() {
         width: "100%",
         height: "100%",
       }}
+      data-testid="settings-container"
     >
       <Tabs
         orientation="vertical"

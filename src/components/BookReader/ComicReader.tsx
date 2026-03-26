@@ -17,21 +17,24 @@ export default function ComicReader() {
     entries,
     index,
     isLoading: isFileLoading,
-  } = useAppSelector((state) => state.file.containerFile);
-  const { isTwoPagedView, direction, isFirstPageSingleView, enablePreview } = useAppSelector(
-    (state) => state.view,
-  );
+  } = useAppSelector((state) => state.read.containerFile);
+  const readerSettings = useAppSelector((state) => state.settings.reader);
 
   const containerPath = history[historyIndex];
 
   const settings: ViewerSettings = useMemo(
     () => ({
-      isTwoPagedView,
-      isFirstPageSingleView,
-      direction,
-      enablePreview,
+      isTwoPagedView: readerSettings.comic.enableSpread,
+      isFirstPageSingleView: readerSettings.comic.showCoverAsSinglePage,
+      direction: readerSettings.comic.readingDirection,
+      enablePreview: readerSettings.rendering.enableThumbnailPreview,
     }),
-    [isTwoPagedView, isFirstPageSingleView, direction, enablePreview],
+    [
+      readerSettings.comic.enableSpread,
+      readerSettings.comic.showCoverAsSinglePage,
+      readerSettings.comic.readingDirection,
+      readerSettings.rendering.enableThumbnailPreview,
+    ],
   );
 
   const { displayedLayout, moveForward, moveBack } = useViewerController(
@@ -93,6 +96,7 @@ export default function ComicReader() {
       onContextMenu={handleContextMenu}
       onWheel={handleWheeled}
       onKeyDown={handleKeydown}
+      data-testid="comic-reader-area"
       sx={{
         width: "100%",
         height: "100%",

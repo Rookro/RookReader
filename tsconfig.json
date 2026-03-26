@@ -18,8 +18,18 @@
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+
+    "types": [
+      "node",
+      "vitest/globals",
+      "@testing-library/jest-dom",
+      "@wdio/globals/types",
+      "@wdio/mocha-framework",
+      "@wdio/tauri-service",
+    ],
   },
   "include": ["src"],
-  "references": [{ "path": "./tsconfig.node.json" }]
+  "exclude": ["node_modules"],
+  "references": [{ "path": "./tsconfig.node.json" }],
 }

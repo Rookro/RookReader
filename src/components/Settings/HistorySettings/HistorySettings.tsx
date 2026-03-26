@@ -1,8 +1,7 @@
 import { useTranslation } from "react-i18next";
-import { Divider, List } from "@mui/material";
-import FeatureToggle from "./Items/FeatureToggle";
+import { List } from "@mui/material";
+import RecordReadingHistorySetting from "./Items/RecordReadingHistorySetting";
 import SettingsPanel from "../SettingsPanel";
-import RestoreOnStartupSetting from "./Items/RestoreOnStartupSetting";
 
 /**
  * History settings component.
@@ -13,9 +12,7 @@ export default function HistorySettings() {
   return (
     <SettingsPanel title={t("settings.history.title")}>
       <List>
-        <FeatureToggle />
-        <Divider />
-        <RestoreOnStartupSetting />
+        <RecordReadingHistorySetting />
       </List>
     </SettingsPanel>
   );

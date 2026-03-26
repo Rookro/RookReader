@@ -1,6 +1,7 @@
 name: Release
 
 on:
+  workflow_dispatch: # for debugging
   push:
     branches:
       - main
@@ -18,12 +19,14 @@ jobs:
           - platform: "windows-latest"
 
     runs-on: ${{ matrix.platform }}
+    env:
+      SQLX_OFFLINE: true
     steps:
       - name: Checkout merged branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: lts/*
 
@@ -39,21 +42,31 @@ jobs:
         if: matrix.platform == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf webkit2gtk-driver
 
       - name: Install frontend dependencies
-        run: yarn install --frozen-lockfile
+        run: npm ci
 
       - name: Run linter
-        run: yarn lint
+        run: npm run lint
 
       - name: Run tests
-        run: yarn test
+        run: npm run test
+
+      - name: Run e2e tests on ubuntu
+        if: matrix.platform == 'ubuntu-latest'
+        run: npm run test:e2e
+
+      - name: Run e2e tests on windows
+        if: matrix.platform == 'windows-latest'
+        run: npm run test:e2e:win
 
       - name: Build and create a draft Release
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
         with:
           tagName: v__VERSION__
           releaseName: v__VERSION__

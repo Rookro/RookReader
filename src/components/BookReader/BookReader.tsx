@@ -1,26 +1,93 @@
-import { Box } from "@mui/material";
-import { lazy, useEffect, useRef } from "react";
+import { Box, debounce, Stack, SxProps, Theme } from "@mui/material";
+import { Explore, History, PhotoLibrary } from "@mui/icons-material";
+import { JSX, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch } from "react-redux";
-import { setPdfRenderingHeight } from "../../bindings/ContainerCommands";
-import { HistoryTable } from "../../database/historyTable";
-import { useFileDrop } from "../../hooks/useFileDrop";
-import { openContainerFile, setContainerFilePath } from "../../reducers/FileReducer";
-import { setEnablePreview, setIsFirstPageSingleView } from "../../reducers/ViewReducer";
-import { settingsStore } from "../../settings/SettingsStore";
+import { error } from "@tauri-apps/plugin-log";
+import { Allotment } from "allotment";
+import { openContainerFile, setContainerFilePath } from "../../reducers/ReadReducer";
 import { AppDispatch, useAppSelector } from "../../Store";
-import { HistorySettings, RenderingSettings } from "../../types/Settings";
+import { getRecentlyReadBooks } from "../../bindings/BookCommands";
+import { useDragDropEvent } from "../../hooks/useDragDropEvent";
 
+const SideTabs = lazy(() => import("../SidePane/SideTabs"));
+const SidePanels = lazy(() => import("../SidePane/SidePanels"));
+const ControlSlider = lazy(() => import("./ControlSlider"));
+const NavigationBar = lazy(() => import("./NavigationBar"));
+const FileNavigator = lazy(() => import("./FileNavigator/FileNavigator"));
+const ImageEntriesViewer = lazy(() => import("./ImageEntriesViewer/ImageEntriesViewer"));
+const HistoryViewer = lazy(() => import("./HistoryViewer/HistoryViewer"));
 const ComicReader = lazy(() => import("./ComicReader"));
 const NovelReader = lazy(() => import("./NovelReader"));
 
 /**
+ * Props for the BookReader component
+ */
+export interface BookReaderProps {
+  /** Styles for the BookReader component */
+  sx?: SxProps<Theme>;
+}
+
+/**
  * Component for rendering a book reader.
  */
-export default function BookReader() {
+export default function BookReader({ sx }: BookReaderProps) {
   const initialized = useRef(false);
-  const { history, historyIndex, isNovel } = useAppSelector((state) => state.file.containerFile);
+  const { activeView } = useAppSelector((state) => state.view);
+  const { isHidden, tabIndex } = useAppSelector((state) => state.sidePane.left);
+  const { history, historyIndex, isNovel } = useAppSelector((state) => state.read.containerFile);
+  const { history: historySettings, startup: startupSettings } = useAppSelector(
+    (state) => state.settings,
+  );
   const dispatch = useDispatch<AppDispatch>();
-  const { droppedFile } = useFileDrop();
+
+  const [droppedFile, setDroppedFile] = useState<string | undefined>(undefined);
+
+  const paneSizes = useMemo<number[] | undefined>(() => {
+    const storedSizes = localStorage.getItem("book-reader-left-pane-sizes");
+    if (storedSizes) {
+      try {
+        const sizes = JSON.parse(storedSizes);
+        if (Array.isArray(sizes) && sizes.every((size) => typeof size === "number")) {
+          return sizes;
+        }
+      } catch (ex) {
+        error(`Failed to parse book-reader-left-pane-sizes: ${ex}`);
+      }
+    }
+    return undefined;
+  }, []);
+
+  const handlePaneSizeChanged = useMemo(
+    () =>
+      debounce((sizes: number[]) => {
+        localStorage.setItem("book-reader-left-pane-sizes", JSON.stringify(sizes));
+      }, 500),
+    [],
+  );
+
+  const handleDropped = useCallback(
+    (paths: string[]) => {
+      if (activeView === "reader") {
+        if (paths && paths.length > 0) {
+          setDroppedFile(paths[0]);
+        }
+      }
+    },
+    [activeView],
+  );
+  useDragDropEvent({ onDrop: handleDropped });
+
+  const tabs: { label: string; icon: JSX.Element; panel: JSX.Element }[] = useMemo(() => {
+    const tabs = [
+      { label: "file-navigator", icon: <Explore />, panel: <FileNavigator /> },
+      { label: "image-entries", icon: <PhotoLibrary />, panel: <ImageEntriesViewer /> },
+    ];
+
+    if (historySettings.recordReadingHistory) {
+      tabs.push({ label: "history", icon: <History />, panel: <HistoryViewer /> });
+    }
+    return tabs;
+  }, [historySettings.recordReadingHistory]);
 
   useEffect(() => {
     if (initialized.current) {
@@ -28,33 +95,20 @@ export default function BookReader() {
     }
 
     const init = async () => {
-      const isFirstSingle = (await settingsStore.get<boolean>("first-page-single-view")) ?? true;
-      dispatch(setIsFirstPageSingleView(isFirstSingle));
-
-      const renderingSettings = await settingsStore.get<RenderingSettings>("rendering");
-      dispatch(setEnablePreview(renderingSettings?.["enable-preview"] ?? true));
-
-      const height = renderingSettings?.["pdf-rendering-height"];
-      if (height) {
-        await setPdfRenderingHeight(height);
-      }
-
-      const historySettings = await settingsStore.get<HistorySettings>("history");
-      const historyEnabled = historySettings?.enable ?? true;
-      const restoreLastContainer = historySettings?.["restore-last-container-on-startup"] ?? true;
+      const historyEnabled = historySettings.recordReadingHistory;
+      const restoreLastContainer = startupSettings.restoreLastBook;
       if (historyEnabled && restoreLastContainer) {
-        const historyTable = new HistoryTable();
-        await historyTable.init();
-        const latestEntry = await historyTable.selectLatestLastOpenedAt();
+        const latestEntry =
+          (await getRecentlyReadBooks()).length > 0 ? (await getRecentlyReadBooks())[0] : null;
         if (latestEntry) {
-          dispatch(setContainerFilePath(latestEntry.path));
+          dispatch(setContainerFilePath(latestEntry.file_path));
         }
       }
 
       initialized.current = true;
     };
     init();
-  }, [dispatch]);
+  }, [dispatch, historySettings.recordReadingHistory, startupSettings.restoreLastBook]);
 
   const containerPath = history[historyIndex];
 
@@ -65,23 +119,44 @@ export default function BookReader() {
   }, [containerPath, dispatch]);
 
   useEffect(() => {
-    const handleFileDroped = async () => {
-      if (droppedFile && droppedFile.length > 0) {
-        dispatch(setContainerFilePath(droppedFile));
-      }
-    };
-    handleFileDroped();
+    if (droppedFile && droppedFile.length > 0) {
+      dispatch(setContainerFilePath(droppedFile));
+    }
   }, [droppedFile, dispatch]);
 
   return (
-    <Box
-      sx={{
-        width: "100%",
-        height: "100%",
-        backgroundColor: (theme) => theme.palette.background.default,
-      }}
+    <Stack
+      direction="column"
+      sx={{ width: "100%", height: "100%", ...sx }}
+      data-testid="book-reader"
     >
-      {isNovel ? <NovelReader filePath={containerPath} /> : <ComicReader />}
-    </Box>
+      <NavigationBar />
+      <Stack direction="row" sx={{ width: "100%", height: "100%" }}>
+        <SideTabs tabs={tabs} tabIndex={tabIndex} isHidden={isHidden} />
+        <Box sx={{ flex: 1 }}>
+          <Allotment
+            defaultSizes={paneSizes}
+            proportionalLayout={false}
+            onChange={handlePaneSizeChanged}
+          >
+            <Allotment.Pane preferredSize={320} minSize={210} visible={!isHidden}>
+              <SidePanels tabs={tabs} tabIndex={tabIndex} />
+            </Allotment.Pane>
+            <Allotment.Pane>
+              <Box
+                sx={{
+                  width: "100%",
+                  height: "100%",
+                  backgroundColor: (theme) => theme.palette.background.default,
+                }}
+              >
+                {isNovel ? <NovelReader filePath={containerPath} /> : <ComicReader />}
+              </Box>
+            </Allotment.Pane>
+          </Allotment>
+        </Box>
+      </Stack>
+      <ControlSlider />
+    </Stack>
   );
 }

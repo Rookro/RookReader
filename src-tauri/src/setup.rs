@@ -1,13 +1,28 @@
 use chrono::Local;
 use image::imageops::FilterType;
 use log::debug;
-use std::sync::Mutex;
+use sqlx::{
+    migrate,
+    sqlite::{SqliteConnectOptions, SqlitePoolOptions},
+    SqlitePool,
+};
+use std::{
+    fs,
+    str::FromStr,
+    sync::{Arc, Mutex},
+};
 use tauri::{App, Manager, Theme};
 use tauri_plugin_log::{RotationStrategy, Target, TargetKind};
 
 use crate::{
-    error,
-    setting::{app_theme::AppTheme, core::Settings, log_settings::LogSettings},
+    database::{
+        book::{BookRepository, SqliteBookRepository},
+        bookshelf::{BookshelfRepository, SqliteBookshelfRepository},
+        series::{SeriesRepository, SqliteSeriesRepository},
+        tag::{SqliteTagRepository, TagRepository},
+    },
+    error::{self, Error},
+    settings::{AppSettings, AppTheme, ImageResamplingMethod, LogLevel, LogSettings},
 };
 
 /// Orchestrates the initial setup of the application.
@@ -18,16 +33,23 @@ use crate::{
 /// # Arguments
 ///
 /// * `app` - A reference to the Tauri `App` instance.
-/// * `settings` - The application's loaded settings.
 ///
 /// # Errors
 ///
-/// Returns an `Err` if any of the setup sub-routines (e.g., logger setup) fail.
-pub fn setup(app: &App, settings: &Settings) -> error::Result<()> {
-    setup_logger(app, &settings.log)?;
-    set_theme(app, &settings.theme);
+/// Returns an `Err` if loading the settings or any of the setup sub-routines (e.g., logger setup) fail.
+pub fn setup(app: &App) -> error::Result<()> {
+    let settings_filename = if cfg!(debug_assertions) {
+        "rook-reader_settings_dev.json"
+    } else {
+        "rook-reader_settings.json"
+    };
+    let settings = AppSettings::load(app, settings_filename)?;
 
-    setup_container_settings(app, settings)?;
+    setup_logger(app, &settings.general.log)?;
+    set_theme(app, &settings.general.theme);
+    setup_database(app)?;
+
+    setup_container_settings(app, &settings)?;
 
     debug!("Application setup completed. Settings: {}", settings);
     Ok(())
@@ -47,24 +69,27 @@ pub fn setup(app: &App, settings: &Settings) -> error::Result<()> {
 /// # Errors
 ///
 /// Returns a `Mutex` error if the application state cannot be locked.
-pub fn setup_container_settings(app: &App, settings: &Settings) -> error::Result<()> {
+pub fn setup_container_settings(app: &App, settings: &AppSettings) -> error::Result<()> {
     let state: tauri::State<'_, Mutex<crate::state::app_state::AppState>> = app.state();
     let mut locked_state = state
         .lock()
         .map_err(|e| error::Error::Mutex(format!("Failed to get app state. Error: {}", e)))?;
 
     locked_state.container_state.settings.pdfium_library_path = Some(get_libs_dir(app)?);
-    locked_state.container_state.settings.enable_preview = settings.rendering.enable_preview;
-    locked_state.container_state.settings.max_image_height = settings.rendering.max_image_height;
-    locked_state.container_state.settings.image_resize_method =
-        match settings.rendering.image_resize_method.as_str() {
-            "nearest" => FilterType::Nearest,
-            "triangle" => FilterType::Triangle,
-            "catmullRom" => FilterType::CatmullRom,
-            "gaussian" => FilterType::Gaussian,
-            "lanczos3" => FilterType::Lanczos3,
-            _ => FilterType::Triangle,
-        };
+    locked_state.container_state.settings.enable_preview =
+        settings.reader.rendering.enable_thumbnail_preview;
+    locked_state.container_state.settings.max_image_height =
+        settings.reader.rendering.max_image_height;
+    locked_state
+        .container_state
+        .settings
+        .image_resampling_method = match settings.reader.rendering.image_resampling_method {
+        ImageResamplingMethod::Nearest => FilterType::Nearest,
+        ImageResamplingMethod::Triangle => FilterType::Triangle,
+        ImageResamplingMethod::CatmullRom => FilterType::CatmullRom,
+        ImageResamplingMethod::Gaussian => FilterType::Gaussian,
+        ImageResamplingMethod::Lanczos3 => FilterType::Lanczos3,
+    };
     Ok(())
 }
 
@@ -83,17 +108,25 @@ pub fn setup_container_settings(app: &App, settings: &Settings) -> error::Result
 ///
 /// Returns an `Err` if the logger plugin fails to build or attach to the app.
 pub fn setup_logger(app: &App, settings: &LogSettings) -> error::Result<()> {
+    let level = match settings.level {
+        LogLevel::Trace => log::LevelFilter::Trace,
+        LogLevel::Debug => log::LevelFilter::Debug,
+        LogLevel::Info => log::LevelFilter::Info,
+        LogLevel::Warn => log::LevelFilter::Warn,
+        LogLevel::Error => log::LevelFilter::Error,
+    };
+
     // Set log level to INFO for specific libraries to reduce noise.
-    let override_log_level =
-        if settings.level == log::LevelFilter::Debug || settings.level == log::LevelFilter::Trace {
-            log::LevelFilter::Info
-        } else {
-            settings.level
-        };
+    let override_log_level = if level == log::LevelFilter::Debug || level == log::LevelFilter::Trace
+    {
+        log::LevelFilter::Info
+    } else {
+        level
+    };
 
     app.handle().plugin(
         tauri_plugin_log::Builder::new()
-            .level(settings.level)
+            .level(level)
             .level_for("html5ever", override_log_level)
             .level_for("selectors", override_log_level)
             .format(|out, message, record| {
@@ -128,6 +161,43 @@ fn set_theme(app: &App, app_theme: &AppTheme) {
     };
 
     app.set_theme(theme);
+}
+
+/// Helper function to initialize the database for the application.
+fn setup_database(app: &App) -> error::Result<()> {
+    let app_data_dir_path = app.path().app_data_dir()?;
+    fs::create_dir_all(&app_data_dir_path)?;
+
+    let db_filename = if cfg!(debug_assertions) {
+        "rook-reader-dev.db"
+    } else {
+        "rook-reader.db"
+    };
+    let db_path = app_data_dir_path.join(db_filename);
+    let db_url = format!("sqlite:{}", db_path.display());
+    let options = SqliteConnectOptions::from_str(&db_url)?.create_if_missing(true);
+    log::debug!("Database file path: {:?}", options.get_filename());
+
+    let pool = tauri::async_runtime::block_on(async {
+        let pool = SqlitePoolOptions::new().connect_with(options).await?;
+        migrate!("./migrations").run(&pool).await?;
+        Ok::<SqlitePool, Error>(pool)
+    })?;
+
+    let book_repository: Arc<dyn BookRepository> =
+        Arc::new(SqliteBookRepository::new(pool.clone()));
+    let bookshelf_repository: Arc<dyn BookshelfRepository> =
+        Arc::new(SqliteBookshelfRepository::new(pool.clone()));
+    let tag_repository: Arc<dyn TagRepository> = Arc::new(SqliteTagRepository::new(pool.clone()));
+    let series_repository: Arc<dyn SeriesRepository> =
+        Arc::new(SqliteSeriesRepository::new(pool.clone()));
+
+    app.manage(book_repository);
+    app.manage(bookshelf_repository);
+    app.manage(tag_repository);
+    app.manage(series_repository);
+
+    Ok(())
 }
 
 /// Helper function to locate the directory containing bundled dynamic libraries.

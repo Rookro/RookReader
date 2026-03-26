@@ -1,12 +1,12 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "RookReader",
-  "version": "1.9.2",
-  "identifier": "com.rookro.rookreader.app",
+  "version": "2.0.0-beta1",
+  "identifier": "io.github.rookro.rookreader",
   "build": {
-    "beforeDevCommand": "yarn dev",
+    "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "yarn build",
+    "beforeBuildCommand": "npm run build",
     "frontendDist": "../dist"
   },
   "app": {
@@ -18,7 +18,11 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": null,
+      "assetProtocol": {
+          "enable": true,
+          "scope": ["$APPDATA/thumbnails/**"]
+      }
     }
   },
   "bundle": {
@@ -37,6 +41,15 @@
       "target/dependencies/licenses/frontend-licenses.txt": "licenses/frontend-licenses.txt",
       "target/dependencies/licenses/backend-licenses.html": "licenses/backend-licenses.html"
     },
-    "licenseFile": "../LICENSE"
+    "licenseFile": "../LICENSE",
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDYxOTAwNTE4OEY5RDhGMEYKUldRUGo1MlBHQVdRWVFTM1o5OG1QSEMvQ0czMEt1MUdGbVhXNFJTQzIzbXdOV1BnQmlFMTJ2bSsK",
+      "endpoints": [
+        "https://github.com/Rookro/RookReader/releases/latest/download/latest.json"
+      ]
+    }
   }
 }

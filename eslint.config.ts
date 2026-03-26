@@ -8,7 +8,7 @@ import { defineConfig } from "eslint/config";
 
 export default defineConfig([
   {
-    ignores: ["dist/", "node_modules/", "src-tauri/", "vite.config.ts", "eslint.config.js"],
+    ignores: ["dist/", "node_modules/", "src-tauri/", "eslint.config.js"],
   },
   {
     files: ["**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"],

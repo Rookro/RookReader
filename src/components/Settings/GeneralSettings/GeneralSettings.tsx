@@ -3,7 +3,7 @@ import { Divider, List } from "@mui/material";
 import SettingsPanel from "../SettingsPanel";
 import ThemeSetting from "./Items/ThemeSetting";
 import LanguageSetting from "./Items/LanguageSettings";
-import FontFamilySetting from "./Items/FontFamilySetting";
+import AppFontFamilySetting from "./Items/AppFontFamilySetting";
 
 /**
  * General settings component.
@@ -16,7 +16,7 @@ export default function GeneralSettings() {
       <List>
         <LanguageSetting />
         <Divider />
-        <FontFamilySetting />
+        <AppFontFamilySetting />
         <Divider />
         <ThemeSetting />
       </List>

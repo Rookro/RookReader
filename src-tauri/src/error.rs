@@ -1,6 +1,6 @@
 use image::ImageError;
 use pdfium_render::prelude::PdfiumError;
-use rbook::ebook::errors::EbookError;
+use rbook::ebook::errors::{ArchiveError, EbookError};
 use serde::{ser::SerializeStruct, Serialize, Serializer};
 use std::num::ParseIntError;
 use strum_macros::EnumDiscriminants;
@@ -17,7 +17,6 @@ use zip::result::ZipError;
 #[strum_discriminants(name(ErrorCode))]
 #[strum_discriminants(derive(Serialize))]
 #[strum_discriminants(serde(rename_all = "camelCase"))]
-#[allow(dead_code)]
 pub enum Error {
     // 1xxxx: Container Processing
     /// An error for unsupported container formats (e.g., trying to open a .txt file).
@@ -41,6 +40,9 @@ pub enum Error {
     /// An error originating from the `rbook` (EPUB) library.
     #[error("Epub Error: {0}")]
     Epub(#[from] EbookError),
+    #[error("Epub Archive Error: {0}")]
+    /// An error originating from the `rbook` (EPUB archive) library.
+    EpubArchive(#[from] ArchiveError),
 
     // 2xxxx: File System & I/O
     /// An error originating from standard library I/O operations.
@@ -72,12 +74,21 @@ pub enum Error {
     // 5xxxx: Application Settings
     /// An error related to application settings.
     #[error("Settings Error: {0}")]
+    #[allow(dead_code)]
     Settings(String),
 
     // 6xxxx: Application Logic & State
     /// An error indicating a failure to lock a Mutex.
     #[error("Mutex Error: {0}")]
     Mutex(String),
+
+    // 7xxxx: Database
+    /// An error related to database operations.
+    #[error("Database Error: {0}")]
+    Database(#[from] sqlx::Error),
+    /// An error related to database migrations.
+    #[error("Migration Error: {0}")]
+    Migration(#[from] sqlx::migrate::MigrateError),
 
     // 9xxxx: Unexpected Errors
     /// A general-purpose error for miscellaneous or unexpected issues.
@@ -107,6 +118,7 @@ impl ErrorCode {
             ErrorCode::Unrar => 10301,
             ErrorCode::Zip => 10401,
             ErrorCode::Epub => 10501,
+            ErrorCode::EpubArchive => 10502,
 
             // 2xxxx: File System & I/O
             ErrorCode::Io => 20001,
@@ -126,6 +138,10 @@ impl ErrorCode {
 
             // 6xxxx: Application Logic & State
             ErrorCode::Mutex => 60001,
+
+            // 7xxxx: Database
+            ErrorCode::Database => 70001,
+            ErrorCode::Migration => 70101,
 
             // 9xxxx: Unexpected Errors
             ErrorCode::Other => 90001,

@@ -2,9 +2,10 @@
 
 ![build status](https://github.com/Rookro/RookReader/actions/workflows/build-app-actions.yml/badge.svg)
 [![Tauri](https://img.shields.io/badge/Tauri-24C8D8?logo=tauri&logoColor=fff)](https://v2.tauri.app/ja/)
+[![MUI](https://img.shields.io/badge/Material%20UI-007FFF?logo=mui&logoColor=fff)](https://mui.com/material-ui/)
 [![React](https://img.shields.io/badge/React-%2320232a.svg?logo=react&logoColor=%2361DAFB)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=fff)](https://www.typescriptlang.org/)
-[![Rust](https://img.shields.io/badge/Rust-%23000000.svg?e&logo=rust&logoColor=white)](https://rust-lang.org/)
+[![Rust](https://img.shields.io/badge/Rust-%23000000.svg?&logo=rust&logoColor=white)](https://rust-lang.org/)
 [![MIT License](https://img.shields.io/badge/license-MIT-green.svg?style=flat)](LICENSE)
 
 [English](README.md) | [日本語](docs/ja_JP/README.md)
@@ -24,6 +25,8 @@ It supports image sequences (such as comics and magazines) contained in a direct
   * rar
   * pdf
   * epub (Note: The novel reading function is an experimental feature.)
+* **Bookshelf Management:** Organize your library with multiple bookshelves and custom icons.
+* **Tagging System:** Categorize books using custom tags for easier navigation.
 * **Modern UI/UX:** An intuitive and easy-to-use interface built with React + TypeScript.
 * **High performance:** Near-native performance and memory efficiency with a Rust backend and the Tauri framework.
 
@@ -70,7 +73,9 @@ For users running Arch Linux or Manjaro, you can build and install the package u
 
 ## Usage
 
-![screenshot](docs/images/screenshot.png)
+### Reader
+
+![reader screenshot](docs/images/reader_screenshot.png)
 
 * **Open a file:**
   * Click an archive file or directory in the left pane (File Navigator).
@@ -79,6 +84,19 @@ For users running Arch Linux or Manjaro, you can build and install the package u
 * **Navigate through pages:**
   * Click the image display area to turn to the next page, and right-click to turn to the previous page.
   * You can also navigate through pages using the mouse wheel or the arrow keys.
+
+### Bookshelf
+
+![bookshelf screenshot](docs/images/bookshelf_screenshot.png)
+
+* **Bookshelves:**
+  * Create and manage custom bookshelves to organize your books.
+  * Add books from your local files to a bookshelf.
+  * Search by book name and sort by name or date.
+
+* **Tags:**
+  * Use tags to further categorize and filter your collection.
+
 
 ## Development Environment
 
@@ -107,8 +125,8 @@ This project recommends a development flow using DevContainer to minimize enviro
 You can build within the DevContainer using the following commands.
 
 ```bash
-yarn
-yarn tauri build
+npm install
+SQLX_OFFLINE=true npm run tauri build
 ```
 
 ## Contributing

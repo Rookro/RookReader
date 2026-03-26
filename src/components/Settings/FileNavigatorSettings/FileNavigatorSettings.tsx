@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { Divider, List } from "@mui/material";
 import HomeDirSetting from "./Items/HomeDirSetting";
-import DirWatchSetting from "./Items/DirWatchSetting";
+import WatchDirectoryChangesSetting from "./Items/WatchDirectoryChangesSetting";
 import SettingsPanel from "../SettingsPanel";
 
 /**
@@ -15,7 +15,7 @@ export default function FileNavigatorSettings() {
       <List>
         <HomeDirSetting />
         <Divider />
-        <DirWatchSetting />
+        <WatchDirectoryChangesSetting />
       </List>
     </SettingsPanel>
   );

@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+* Implement the Bookshelf system (UI, state management, and database schema overhaul) (#147)
+* Add in-app update feature via Tauri updater (#153)
+
+### Changed
+
+* Migrate from `yarn` to `npm` (#148)
+* Change the application identifier to the official GitHub organization domain (`io.github.rookro.rookreader`) (#150)
+* Improve input components and performance (#151)
+  * Replace the file path input controlled component with a form-based implementation
+  * Replace the number input with number spiner
+* Improve configuration file structure and centralize settings management (#152)
+* Update dependencies (#154)
+  * Update rbook from 0.6.x to 0.7.x and adapt to breaking changes
+
+### Fixed
+
+* Implement a workaround for incorrect glyph orientation occurring in the novel reader only on Linux (#143)
+* Show an error dialog when a startup error occurs (#147)
+
 ## [1.9.2] - 2026-02-22
 
 ### Changed

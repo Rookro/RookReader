@@ -30,6 +30,7 @@ pub struct EntriesResult {
 /// # Arguments
 ///
 /// * `path` - The file path to the container to open.
+/// * `enable_preload` - Whether to enable preload of image data.
 /// * `state` - A `tauri::State` holding the application's global `AppState`.
 ///
 /// # Returns
@@ -47,6 +48,7 @@ pub struct EntriesResult {
 #[tauri::command()]
 pub async fn get_entries_in_container(
     path: &str,
+    enable_preload: Option<bool>,
     state: tauri::State<'_, Mutex<AppState>>,
 ) -> Result<EntriesResult> {
     log::debug!("Get the entries in {}", path);
@@ -74,7 +76,11 @@ pub async fn get_entries_in_container(
             .image_loader
             .as_mut()
             .ok_or_else(|| Error::Other("Unexpected error. ImageLoader is empty!".to_string()))?;
-        image_loader.request_preload(0, entries.len())?;
+        if let Some(enable_preload) = enable_preload {
+            if enable_preload {
+                image_loader.request_preload(0, entries.len())?;
+            }
+        }
     }
 
     Ok(EntriesResult {
@@ -189,7 +195,7 @@ pub async fn get_image_preview(
     Ok(Response::new(response_data))
 }
 
-/// Sets the rendering height for pages in PDF files.
+/// Sets the render resolution height for pages in PDF files.
 ///
 /// This height is used when converting a PDF page into an image.
 ///
@@ -208,15 +214,15 @@ pub async fn get_image_preview(
 /// * The `height` is less than 1.
 /// * The `AppState` mutex cannot be locked.
 #[tauri::command()]
-pub fn set_pdf_rendering_height(
+pub fn set_pdf_render_resolution_height(
     height: i32,
     state: tauri::State<'_, Mutex<AppState>>,
 ) -> Result<()> {
-    log::debug!("set_pdf_rendering_height({})", height);
+    log::debug!("set_pdf_render_resolution_height({})", height);
 
     if height < 1 {
         return Err(Error::Other(
-            "pdf rendering height must be greater than 0. set_pdf_rendering_height() is Failed."
+            "pdf render resolution height must be greater than 0. set_pdf_render_resolution_height() is Failed."
                 .to_string(),
         ));
     }
@@ -225,7 +231,10 @@ pub fn set_pdf_rendering_height(
         .lock()
         .map_err(|e| Error::Mutex(format!("Failed to lock AppState. {}", e)))?;
 
-    state_lock.container_state.settings.pdf_rendering_height = height;
+    state_lock
+        .container_state
+        .settings
+        .pdf_render_resolution_height = height;
     Ok(())
 }
 
@@ -266,11 +275,11 @@ pub fn set_max_image_height(height: i32, state: tauri::State<'_, Mutex<AppState>
     Ok(())
 }
 
-/// Sets the algorithm used for resizing images.
+/// Sets the algorithm used for resampling images.
 ///
 /// # Arguments
 ///
-/// * `method` - A string representing the desired resizing filter.
+/// * `method` - A string representing the desired resampling filter.
 ///   Valid options are: "nearest", "triangle", "catmullRom", "gaussian", "lanczos3".
 /// * `state` - A `tauri::State` holding the application's global `AppState`.
 ///
@@ -285,15 +294,15 @@ pub fn set_max_image_height(height: i32, state: tauri::State<'_, Mutex<AppState>
 /// * The `method` does not match one of the valid filter types.
 /// * The `AppState` mutex cannot be locked.
 #[tauri::command()]
-pub fn set_image_resize_method(
+pub fn set_image_resampling_method(
     method: &str,
     state: tauri::State<'_, Mutex<AppState>>,
 ) -> Result<()> {
-    log::debug!("set_image_resize_method({})", method);
+    log::debug!("set_image_resampling_method({})", method);
 
     if method.is_empty() {
         return Err(Error::Other(
-            "Method must be provided. set_image_resize_method() is Failed.".to_string(),
+            "Method must be provided. set_image_resampling_method() is Failed.".to_string(),
         ));
     }
 
@@ -307,10 +316,10 @@ pub fn set_image_resize_method(
         "catmullRom" => FilterType::CatmullRom,
         "gaussian" => FilterType::Gaussian,
         "lanczos3" => FilterType::Lanczos3,
-        _ => return Err(Error::Other("Invalid Resize Method type".to_string())),
+        _ => return Err(Error::Other("Invalid Resampling Method type".to_string())),
     };
 
-    state_lock.container_state.settings.image_resize_method = method;
+    state_lock.container_state.settings.image_resampling_method = method;
     Ok(())
 }
 
@@ -412,21 +421,23 @@ mod tests {
     #[rstest]
     #[case(1200)]
     #[case(100000)]
-    fn test_set_pdf_rendering_height_valid_height(#[case] pdf_rendering_height: i32) {
+    fn test_set_pdf_render_resolution_height_valid_height(
+        #[case] pdf_render_resolution_height: i32,
+    ) {
         let app = tauri::test::mock_app();
         app.manage(Mutex::new(AppState::default()));
 
-        let result = set_pdf_rendering_height(pdf_rendering_height, app.state());
+        let result = set_pdf_render_resolution_height(pdf_render_resolution_height, app.state());
 
         assert!(result.is_ok());
         assert_eq!(
-            pdf_rendering_height,
+            pdf_render_resolution_height,
             app.state::<Mutex<AppState>>()
                 .lock()
                 .unwrap()
                 .container_state
                 .settings
-                .pdf_rendering_height
+                .pdf_render_resolution_height
         );
     }
 
@@ -434,11 +445,14 @@ mod tests {
     #[case(0)]
     #[case(-1)]
     #[case(-1200)]
-    fn test_set_pdf_rendering_height_negative(#[case] invalid_pdf_rendering_height: i32) {
+    fn test_set_pdf_render_resolution_height_negative(
+        #[case] invalid_pdf_render_resolution_height: i32,
+    ) {
         let app = tauri::test::mock_app();
         app.manage(Mutex::new(AppState::default()));
 
-        let result = set_pdf_rendering_height(invalid_pdf_rendering_height, app.state());
+        let result =
+            set_pdf_render_resolution_height(invalid_pdf_render_resolution_height, app.state());
 
         assert!(result.is_err());
     }
@@ -457,7 +471,7 @@ mod tests {
         app.manage(Mutex::new(AppState::default()));
 
         let result =
-            get_entries_in_container(rar_path.to_string_lossy().as_ref(), app.state()).await;
+            get_entries_in_container(rar_path.to_string_lossy().as_ref(), None, app.state()).await;
 
         assert!(result.is_ok());
 
@@ -474,7 +488,7 @@ mod tests {
         let app = tauri::test::mock_app();
         app.manage(Mutex::new(AppState::default()));
 
-        let result = get_entries_in_container("non_existent_path", app.state()).await;
+        let result = get_entries_in_container("non_existent_path", None, app.state()).await;
 
         assert!(result.is_err());
     }

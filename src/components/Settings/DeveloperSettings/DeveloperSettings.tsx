@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { Divider, List } from "@mui/material";
-import LogSetting from "./Items/LogSetting";
+import LogLevelSetting from "./Items/LogLevelSetting";
 import ExperimentalFeatures from "./Items/ExperimentalFeatures";
 import SettingsPanel from "../SettingsPanel";
 
@@ -13,7 +13,7 @@ export default function DeveloperSettings() {
   return (
     <SettingsPanel title={t("settings.developer.title")}>
       <List>
-        <LogSetting />
+        <LogLevelSetting />
         <Divider />
         <ExperimentalFeatures />
       </List>

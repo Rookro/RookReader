@@ -59,7 +59,7 @@ fn embed_manifest_for_tests() {
 
 // The PDFium version.
 // https://github.com/bblanchon/pdfium-binaries/releases
-const PDFIUM_VERSION: &str = "chromium/7616";
+const PDFIUM_VERSION: &str = "chromium/7725";
 
 /// Gets the PDFium filename to download based on the build target OS and architecture.
 fn get_pdfium_filename() -> Result<String, Box<dyn std::error::Error>> {

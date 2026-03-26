@@ -1,4 +1,4 @@
-import { Container, Paper, SxProps, Typography } from "@mui/material";
+import { Container, Paper, SxProps, Theme, Typography } from "@mui/material";
 
 /**
  * Properties for the TabPanel component.
@@ -6,7 +6,7 @@ import { Container, Paper, SxProps, Typography } from "@mui/material";
 interface SettingsPanelProps {
   title: string;
   children?: React.ReactNode;
-  sx?: SxProps;
+  sx?: SxProps<Theme>;
 }
 
 /**
