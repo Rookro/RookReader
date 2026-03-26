@@ -1,6 +1,6 @@
 use image::ImageError;
 use pdfium_render::prelude::PdfiumError;
-use rbook::ebook::errors::EbookError;
+use rbook::ebook::errors::{ArchiveError, EbookError};
 use serde::{ser::SerializeStruct, Serialize, Serializer};
 use std::num::ParseIntError;
 use strum_macros::EnumDiscriminants;
@@ -40,6 +40,9 @@ pub enum Error {
     /// An error originating from the `rbook` (EPUB) library.
     #[error("Epub Error: {0}")]
     Epub(#[from] EbookError),
+    #[error("Epub Archive Error: {0}")]
+    /// An error originating from the `rbook` (EPUB archive) library.
+    EpubArchive(#[from] ArchiveError),
 
     // 2xxxx: File System & I/O
     /// An error originating from standard library I/O operations.
@@ -115,6 +118,7 @@ impl ErrorCode {
             ErrorCode::Unrar => 10301,
             ErrorCode::Zip => 10401,
             ErrorCode::Epub => 10501,
+            ErrorCode::EpubArchive => 10502,
 
             // 2xxxx: File System & I/O
             ErrorCode::Io => 20001,
