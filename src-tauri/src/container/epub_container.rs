@@ -1,11 +1,7 @@
 use std::{collections::HashMap, io::Cursor, path::Path, sync::Arc};
 
 use image::{codecs::jpeg::JpegEncoder, ImageReader};
-use rbook::{
-    prelude::{Manifest, ManifestEntry, MetaEntry, Metadata},
-    reader::{Reader, ReaderContent},
-    Ebook, Epub,
-};
+use rbook::Epub;
 use scraper::{Html, Selector};
 
 use crate::{
@@ -67,13 +63,7 @@ impl EpubContainer {
         let mut entries: Vec<String> = epub
             .manifest()
             .images()
-            .filter_map(|manifest| {
-                if manifest.resource_kind().is_image() {
-                    manifest.key().map(|key| key.to_string())
-                } else {
-                    None
-                }
-            })
+            .map(|manifest| manifest.id().to_string())
             .collect();
 
         if let Some(order_map) = create_image_order_map(&mut epub) {
@@ -102,7 +92,7 @@ impl EpubContainer {
         let Ok(epub) = Epub::options().strict(false).open(&self.path) else {
             return false;
         };
-        let Some(layout) = epub.metadata().entries().find_map(|meta| {
+        let Some(layout) = epub.metadata().iter().find_map(|meta| {
             if meta.property().as_str() == "rendition:layout" {
                 Some(meta.value().to_string())
             } else {
@@ -117,11 +107,7 @@ impl EpubContainer {
 
 /// Helper function to find and load an image resource from the EPUB.
 fn load_image(epub: &mut Epub, entry: &str) -> Result<Arc<Image>> {
-    let Some(resource) = epub
-        .manifest()
-        .images()
-        .find(|image| image.key().unwrap_or_default() == entry)
-    else {
+    let Some(resource) = epub.manifest().images().find(|image| image.id() == entry) else {
         return Err(Error::EntryNotFound(format!(
             "[EPUB] Resource not found: {}",
             entry
@@ -134,11 +120,7 @@ fn load_image(epub: &mut Epub, entry: &str) -> Result<Arc<Image>> {
 
 /// Helper function to find, load, and create a thumbnail for an image resource.
 fn create_thumbnail(epub: &mut Epub, entry: &str) -> Result<Arc<Image>> {
-    let Some(resource) = epub
-        .manifest()
-        .images()
-        .find(|image| image.key().unwrap_or_default() == entry)
-    else {
+    let Some(resource) = epub.manifest().images().find(|image| image.id() == entry) else {
         return Err(Error::EntryNotFound(format!(
             "[EPUB] Resource not found: {}",
             entry
@@ -176,12 +158,9 @@ fn create_image_order_map(epub: &mut Epub) -> Option<HashMap<String, usize>> {
 
     let mut reader = epub.reader();
     while let Some(Ok(page)) = reader.read_next() {
-        let chapter_dir = match page.manifest_entry().key() {
-            Some(resource_path_in_epub) => Path::new(resource_path_in_epub)
-                .parent()
-                .unwrap_or(Path::new("")),
-            None => Path::new(""),
-        };
+        let chapter_dir = Path::new(page.manifest_entry().id())
+            .parent()
+            .unwrap_or(Path::new(""));
 
         let Ok(content) = page.manifest_entry().read_str() else {
             continue;
@@ -217,11 +196,11 @@ fn create_image_order_map(epub: &mut Epub) -> Option<HashMap<String, usize>> {
 /// Finds a resource's manifest ID by its file path within the EPUB.
 fn find_resource_id_by_path(epub: &Epub, target_path: &Path) -> Option<String> {
     epub.manifest().images().find_map(|image| {
-        let image_key = image.key()?;
+        let image_id = image.id();
 
-        let image_path = Path::new(image_key);
+        let image_path = Path::new(image_id);
         if target_path == image_path || target_path.file_name() == image_path.file_name() {
-            Some(image_key.to_string())
+            Some(image_id.to_string())
         } else {
             None
         }
