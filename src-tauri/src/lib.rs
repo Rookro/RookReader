@@ -19,6 +19,8 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(Mutex::new(state::app_state::AppState::default()))
         .setup(|app| {
             if let Err(e) = setup::setup(app) {
@@ -67,6 +69,7 @@ pub fn run() {
             commands::tag_commands::create_tag,
             commands::tag_commands::get_all_tags,
             commands::tag_commands::delete_tag,
+            commands::updater_commands::is_updater_supported,
         ])
         .run(tauri::generate_context!());
 

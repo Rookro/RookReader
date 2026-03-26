@@ -41,6 +41,15 @@
       "target/dependencies/licenses/frontend-licenses.txt": "licenses/frontend-licenses.txt",
       "target/dependencies/licenses/backend-licenses.html": "licenses/backend-licenses.html"
     },
-    "licenseFile": "../LICENSE"
+    "licenseFile": "../LICENSE",
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDYxOTAwNTE4OEY5RDhGMEYKUldRUGo1MlBHQVdRWVFTM1o5OG1QSEMvQ0czMEt1MUdGbVhXNFJTQzIzbXdOV1BnQmlFMTJ2bSsK",
+      "endpoints": [
+        "https://github.com/Rookro/RookReader/releases/latest/download/latest.json"
+      ]
+    }
   }
 }

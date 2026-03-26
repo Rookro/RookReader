@@ -19,6 +19,7 @@ export const defaultSettings: AppSettings = {
   startup: {
     initialView: "reader",
     restoreLastBook: true,
+    checkUpdateOnStartup: true,
   },
   bookshelf: {
     sortOrder: "name_asc",

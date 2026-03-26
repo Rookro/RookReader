@@ -125,6 +125,10 @@
       "restore-last-read": {
         "title": "Restore Last Read Book on Startup",
         "description": "If history is disabled, this setting will be ignored."
+      },
+      "check-update-on-startup": {
+        "title": "Check for Updates on Startup",
+        "description": "Automatically check for a new version when the application starts."
       }
     },
     "page": {
@@ -217,6 +221,10 @@
       "tab-name": "About",
       "title": "About",
       "project-page": "Project Page",
+      "updater": {
+        "check": "Check for Updates",
+        "checking": "Checking..."
+      },
       "third-party-licenses": {
         "title": "Third-Party Licenses",
         "body": "This application is built with open source software.",
@@ -239,5 +247,24 @@
       "unsupported-format": "Unsupported format.",
       "entry-not-found": "Page not found."
     }
+  },
+  "updater": {
+    "available": "Update Available: {{version}}",
+    "not-available": "Your application is up to date.",
+    "downloading": "Downloading: {{progress}}%",
+    "installing": "Installing...",
+    "restart": "The application will automatically restart to apply the update.",
+    "checking-error": "An error occurred while checking for updates.\n{{error}}",
+    "unsupported-platform": "Auto-updater is not supported on this platform.\nPlease update using your package manager.",
+    "installing-error": "An error occurred while installing the update.\n{{error}}",
+    "dialog-error-copy": "Copy error details",
+    "dialog-error-copied": "Copied to clipboard",
+    "dialog-error-title": "Failed to update",
+    "dialog-title": "Application Update",
+    "dialog-content": "A new version of RookReader ({{version}}) is available.\nWould you like to download and install it now?",
+    "dialog-release-notes": "Release Notes:",
+    "dialog-close-label": "Close",
+    "dialog-update-label": "Update Now",
+    "dialog-update-cancel-label": "Later"
   }
 }

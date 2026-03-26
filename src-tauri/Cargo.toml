@@ -51,8 +51,10 @@ strum = "0.28.0"
 strum_macros = "0.28.0"
 sqlx = { version = "0.8.6", features = ["sqlite", "runtime-tokio-native-tls", "chrono"] }
 async-trait = "0.1.89"
+tauri-plugin-process = "2"
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-updater = "2"
 tauri-plugin-window-state = "2"
 
 [dev-dependencies]
