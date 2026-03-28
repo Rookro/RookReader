@@ -1,16 +1,17 @@
+import { SystemUpdateAlt as UpdateIcon } from "@mui/icons-material";
 import {
+  Box,
+  Button,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
-  Button,
-  Typography,
-  Box,
   Divider,
+  Typography,
 } from "@mui/material";
-import { SystemUpdateAlt as UpdateIcon } from "@mui/icons-material";
-import { useTranslation } from "react-i18next";
 import { Update } from "@tauri-apps/plugin-updater";
+import { useTranslation } from "react-i18next";
+import ReactMarkdown from "react-markdown";
 
 export interface UpdaterConfirmDialogProps {
   open: boolean;
@@ -39,12 +40,12 @@ export default function UpdaterConfirmDialog({
           sx: {
             minWidth: { xs: "300px", sm: "480px" },
             maxWidth: "600px",
+            maxHeight: "80%",
             backgroundColor: "background.default",
           },
         },
       }}
     >
-      {/* 1. タイトルとアイコン */}
       <DialogTitle
         id="updater-confirm-dialog-title"
         sx={{
@@ -59,29 +60,37 @@ export default function UpdaterConfirmDialog({
         </Typography>
       </DialogTitle>
 
-      <DialogContent>
+      <DialogContent sx={{ display: "flex", flexDirection: "column" }}>
         <Typography variant="body1" sx={{ color: "text.primary", whiteSpace: "pre-wrap" }}>
           {t("updater.dialog-content", { version: update.version })}
         </Typography>
 
         {update.body && (
-          <Box>
+          <Box sx={{ display: "flex", flexDirection: "column", flexGrow: 1, minHeight: 0 }}>
             <Divider sx={{ marginY: 2 }} />
             <Typography variant="subtitle2" sx={{ color: "text.secondary", marginBottom: 1 }}>
               {t("updater.dialog-release-notes")}
             </Typography>
-            <Typography
-              variant="body2"
+            <Box
               sx={{
-                whiteSpace: "pre-wrap",
-                color: "text.secondary",
-                maxHeight: "100px",
                 overflowY: "auto",
                 paddingRight: 1,
+                flexGrow: 1,
+                color: "text.secondary",
+                "& p": { margin: "0px", fontSize: "0.9rem" },
+                "& ul, & ol": { margin: "0px", paddingLeft: "20px", fontSize: "0.9rem" },
+                "& h1, & h2, & h3": { marginY: "8px" },
+                "& a": { color: "primary.main" },
+                "& code": {
+                  backgroundColor: "action.hover",
+                  padding: "2px 4px",
+                  borderRadius: "4px",
+                  fontFamily: "monospace",
+                },
               }}
             >
-              {update.body}
-            </Typography>
+              <ReactMarkdown>{update.body}</ReactMarkdown>
+            </Box>
           </Box>
         )}
       </DialogContent>
