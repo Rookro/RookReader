@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Improve configuration file structure and centralize settings management (#152)
 * Update dependencies (#154)
   * Update rbook from 0.6.x to 0.7.x and adapt to breaking changes
+* Display release notes in Markdown format (#157)
 
 ### Fixed
 
