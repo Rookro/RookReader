@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Update dependencies (#154)
   * Update rbook from 0.6.x to 0.7.x and adapt to breaking changes
 * Display release notes in Markdown format (#157)
+* Memoize functions and extract Row component to improve performance (#158)
 
 ### Fixed
 
