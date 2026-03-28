@@ -115,25 +115,28 @@ export default function FileListViewer() {
     [handleListItemClicked, handleListItemDoubleClicked],
   );
 
-  const Row = ({
-    index,
-    entries,
-    style,
-  }: RowComponentProps<{
-    entries: DirEntry[];
-  }>) => {
-    const entry = entries[index];
-    return (
-      <ItemRow
-        key={entry.name}
-        entry={entry}
-        index={index}
-        selected={selectedIndex === index}
-        onClick={handleListItemClickedWrapper}
-        style={style}
-      />
-    );
-  };
+  const Row = useCallback(
+    ({
+      index,
+      entries,
+      style,
+    }: RowComponentProps<{
+      entries: DirEntry[];
+    }>) => {
+      const entry = entries[index];
+      return (
+        <ItemRow
+          key={entry.name}
+          entry={entry}
+          index={index}
+          selected={selectedIndex === index}
+          onClick={handleListItemClickedWrapper}
+          style={style}
+        />
+      );
+    },
+    [selectedIndex, handleListItemClickedWrapper],
+  );
 
   return (
     <Stack

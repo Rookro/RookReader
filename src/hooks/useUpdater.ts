@@ -38,53 +38,56 @@ export function useUpdater() {
     setMessageDialogOpen(false);
   }, []);
 
-  const checkForUpdates = async (manualCheck: boolean = false) => {
-    if (isCheckingGlobal) {
-      debug("Skipping update check because another check is already in progress.");
-      return;
-    }
-    isCheckingGlobal = true;
-
-    try {
-      const supported = await isUpdaterSupported();
-      if (!supported) {
-        if (manualCheck) {
-          showMessage(t("updater.dialog-title"), t("updater.unsupported-platform"), false);
-        }
-        isCheckingGlobal = false;
+  const checkForUpdates = useCallback(
+    async (manualCheck: boolean = false) => {
+      if (isCheckingGlobal) {
+        debug("Skipping update check because another check is already in progress.");
         return;
       }
+      isCheckingGlobal = true;
 
-      debug("Checking for updates...");
-      const update = await check();
-      debug(
-        `Update check completed. ${update ? `Update available: ${update.version}` : "No update available"}`,
-      );
-
-      if (!update) {
-        if (manualCheck) {
-          showMessage(t("updater.dialog-title"), t("updater.not-available"));
+      try {
+        const supported = await isUpdaterSupported();
+        if (!supported) {
+          if (manualCheck) {
+            showMessage(t("updater.dialog-title"), t("updater.unsupported-platform"), false);
+          }
+          isCheckingGlobal = false;
+          return;
         }
-        isCheckingGlobal = false;
-        return;
-      }
 
-      setCurrentUpdate(update);
-      setConfirmDialogOpen(true);
-    } catch (e) {
-      error(`Failed to check for updates: ${e}`);
-      if (manualCheck) {
-        showMessage(
-          t("updater.dialog-error-title"),
-          t("updater.checking-error", { error: String(e) }),
-          true,
+        debug("Checking for updates...");
+        const update = await check();
+        debug(
+          `Update check completed. ${update ? `Update available: ${update.version}` : "No update available"}`,
         );
-      }
-      isCheckingGlobal = false;
-    }
-  };
 
-  const handleConfirmUpdate = async () => {
+        if (!update) {
+          if (manualCheck) {
+            showMessage(t("updater.dialog-title"), t("updater.not-available"));
+          }
+          isCheckingGlobal = false;
+          return;
+        }
+
+        setCurrentUpdate(update);
+        setConfirmDialogOpen(true);
+      } catch (e) {
+        error(`Failed to check for updates: ${e}`);
+        if (manualCheck) {
+          showMessage(
+            t("updater.dialog-error-title"),
+            t("updater.checking-error", { error: String(e) }),
+            true,
+          );
+        }
+        isCheckingGlobal = false;
+      }
+    },
+    [showMessage, t],
+  );
+
+  const handleConfirmUpdate = useCallback(async () => {
     setConfirmDialogOpen(false);
     if (!currentUpdate) {
       isCheckingGlobal = false;
@@ -135,7 +138,7 @@ export function useUpdater() {
       setUpdateStatus("");
       isCheckingGlobal = false;
     }
-  };
+  }, [t, showMessage, currentUpdate]);
 
   const handleCancelUpdate = useCallback(() => {
     debug("User cancelled update");

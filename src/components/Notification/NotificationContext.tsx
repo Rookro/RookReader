@@ -52,12 +52,12 @@ export default function NotificationProvider({ children }: NotificationProviderP
     setOpen(true);
   }, []);
 
-  const handleClose = (_e: SyntheticEvent | Event, reason?: SnackbarCloseReason) => {
+  const handleClose = useCallback((_e: SyntheticEvent | Event, reason?: SnackbarCloseReason) => {
     if (reason === "clickaway") {
       return;
     }
     setOpen(false);
-  };
+  }, []);
 
   return (
     <NotificationContext.Provider value={{ showNotification }}>

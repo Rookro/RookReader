@@ -54,25 +54,28 @@ export default function ImageEntriesViewer() {
     [dispatch],
   );
 
-  const Row = ({
-    index,
-    entries,
-    style,
-  }: RowComponentProps<{
-    entries: string[];
-  }>) => {
-    const entry = entries[index];
-    return (
-      <ItemRow
-        key={entry}
-        entry={entry}
-        index={index}
-        selected={selectedIndex === index}
-        onClick={handleListItemClicked}
-        style={style}
-      />
-    );
-  };
+  const Row = useCallback(
+    ({
+      index,
+      entries,
+      style,
+    }: RowComponentProps<{
+      entries: string[];
+    }>) => {
+      const entry = entries[index];
+      return (
+        <ItemRow
+          key={entry}
+          entry={entry}
+          index={index}
+          selected={selectedIndex === index}
+          onClick={handleListItemClicked}
+          style={style}
+        />
+      );
+    },
+    [selectedIndex, handleListItemClicked],
+  );
 
   return (
     <Box sx={{ width: "100%", height: "100%", display: "grid", alignContent: "start" }}>

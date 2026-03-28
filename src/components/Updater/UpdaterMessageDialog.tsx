@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Dialog,
   DialogActions,
@@ -32,7 +32,7 @@ export default function UpdaterMessageDialog({
 
   const copiedTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
 
-  const handleCopy = () => {
+  const handleCopy = useCallback(() => {
     navigator.clipboard.writeText(message);
     setCopied(true);
 
@@ -43,7 +43,7 @@ export default function UpdaterMessageDialog({
     copiedTimerRef.current = setTimeout(() => {
       setCopied(false);
     }, 5000);
-  };
+  }, [message]);
 
   useEffect(() => {
     if (copiedTimerRef.current) {

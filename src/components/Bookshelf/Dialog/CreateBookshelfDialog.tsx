@@ -35,12 +35,12 @@ export function CreateBookshelfDialog({
   const [name, setName] = useState("");
   const [selectedIconIndex, setSelectedIconIndex] = useState(0);
 
-  const handleCreate = () => {
+  const handleCreate = useCallback(() => {
     onCreate(name, BookShelfIcons[selectedIconIndex].key);
     setName("");
     setSelectedIconIndex(0);
     onClose();
-  };
+  }, [name, onCreate, onClose, selectedIconIndex]);
 
   const handleCancelClicked = useCallback(() => {
     setName("");

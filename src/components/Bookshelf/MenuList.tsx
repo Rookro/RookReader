@@ -72,19 +72,22 @@ export default function MenuList({ onClickAddBookshelf, onClickAddBookTag }: Men
     [dispatch, selectedTagId],
   );
 
-  const handleContextMenu = (event: React.MouseEvent, type: "bookshelf" | "tag", id: number) => {
-    event.preventDefault();
-    setContextMenu(
-      contextMenu === null
-        ? {
-            mouseX: event.clientX,
-            mouseY: event.clientY,
-            type,
-            id,
-          }
-        : null,
-    );
-  };
+  const handleContextMenu = useCallback(
+    (event: React.MouseEvent, type: "bookshelf" | "tag", id: number) => {
+      event.preventDefault();
+      setContextMenu((contextMenu) =>
+        contextMenu === null
+          ? {
+              mouseX: event.clientX,
+              mouseY: event.clientY,
+              type,
+              id,
+            }
+          : null,
+      );
+    },
+    [],
+  );
 
   const handleClose = () => {
     setContextMenu(null);

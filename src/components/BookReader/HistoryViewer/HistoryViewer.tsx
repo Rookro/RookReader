@@ -65,33 +65,36 @@ export default function HistoryViewer() {
     [dispatch],
   );
 
-  const handleSearchTextChanged = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSearchTextChanged = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchText(e.target.value);
-  };
+  }, []);
 
-  const handleContextMenu = (e: React.MouseEvent<HTMLElement>) => {
+  const handleContextMenu = useCallback((e: React.MouseEvent<HTMLElement>) => {
     e.stopPropagation();
-  };
+  }, []);
 
-  const Row = ({
-    index,
-    entries,
-    style,
-  }: RowComponentProps<{
-    entries: ReadBook[];
-  }>) => {
-    const entry = entries[index];
-    return (
-      <ItemRow
-        key={entry.display_name}
-        entry={entry}
-        index={index}
-        selected={selectedIndex === index}
-        onClick={handleListItemClicked}
-        style={style}
-      />
-    );
-  };
+  const Row = useCallback(
+    ({
+      index,
+      entries,
+      style,
+    }: RowComponentProps<{
+      entries: ReadBook[];
+    }>) => {
+      const entry = entries[index];
+      return (
+        <ItemRow
+          key={entry.display_name}
+          entry={entry}
+          index={index}
+          selected={selectedIndex === index}
+          onClick={handleListItemClicked}
+          style={style}
+        />
+      );
+    },
+    [selectedIndex, handleListItemClicked],
+  );
 
   return (
     <Stack

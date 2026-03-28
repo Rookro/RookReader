@@ -40,7 +40,7 @@ export default function BookAdditionToBookshelfDialog({
   const [filePaths, setFilePaths] = useState<string[]>([]);
   const [isDragActive, setIsDragActive] = useState(false);
 
-  const handleOpenDialog = async () => {
+  const handleOpenDialog = useCallback(async () => {
     try {
       const selected = await open({
         multiple: true,
@@ -55,7 +55,7 @@ export default function BookAdditionToBookshelfDialog({
     } catch (e) {
       error(`Failed to open the file selection dialog: ${e}`);
     }
-  };
+  }, []);
 
   const handleDragged = useCallback(() => {
     if (openDialog) {

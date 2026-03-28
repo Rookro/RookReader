@@ -64,9 +64,9 @@ export default function HomeDirSetting() {
     e.currentTarget.form?.requestSubmit();
   }, []);
 
-  const handleContextMenu = (e: React.MouseEvent<HTMLElement>) => {
+  const handleContextMenu = useCallback((e: React.MouseEvent<HTMLElement>) => {
     e.stopPropagation();
-  };
+  }, []);
 
   return (
     <ListItem>
