@@ -102,7 +102,7 @@ export default function FileListViewer() {
       } catch (e) {
         error(`Failed to scroll to row ${selectedIndex}: ${e}`);
       }
-    }, 0);
+    }, 20);
 
     return () => {
       clearTimeout(timerId);

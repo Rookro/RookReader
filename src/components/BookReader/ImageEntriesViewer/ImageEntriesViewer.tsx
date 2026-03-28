@@ -69,7 +69,7 @@ export default function ImageEntriesViewer() {
       } catch (e) {
         error(`Failed to scroll to row ${selectedIndex} (List length: ${entries.length}): ${e}`);
       }
-    }, 0);
+    }, 20);
 
     return () => {
       clearTimeout(timerId);

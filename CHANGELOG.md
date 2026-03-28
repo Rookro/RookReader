@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Implement a workaround for incorrect glyph orientation occurring in the novel reader only on Linux (#143)
 * Show an error dialog when a startup error occurs (#147)
+* Increase scroll delay to ensure rendering completes before scrolling (#159)
 
 ## [1.9.2] - 2026-02-22
 

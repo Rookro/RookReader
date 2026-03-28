@@ -80,7 +80,7 @@ export default function HistoryViewer() {
           `Failed to scroll to row ${selectedIndex} (List length: ${filteredEntries.length}): ${e}`,
         );
       }
-    }, 0);
+    }, 20);
 
     return () => {
       clearTimeout(timerId);
