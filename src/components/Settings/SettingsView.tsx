@@ -1,4 +1,4 @@
-import React, { JSX } from "react";
+import React, { JSX, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Tab, Tabs, Box } from "@mui/material";
 import GeneralSettings from "./GeneralSettings/GeneralSettings";
@@ -19,9 +19,9 @@ export default function SettingsView() {
   const { t } = useTranslation();
   const [value, setValue] = React.useState(0);
 
-  const handleChange = (_event: React.SyntheticEvent, newValue: number) => {
+  const handleChange = useCallback((_event: React.SyntheticEvent, newValue: number) => {
     setValue(newValue);
-  };
+  }, []);
 
   const tabs: { label: string; panel: JSX.Element }[] = [
     { label: t("settings.general.tab-name"), panel: <GeneralSettings /> },

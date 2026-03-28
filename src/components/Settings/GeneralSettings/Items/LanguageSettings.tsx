@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { emit } from "@tauri-apps/api/event";
 import { debug } from "@tauri-apps/plugin-log";
@@ -20,13 +20,16 @@ export default function LanguageSetting() {
   const [t, i18n] = useTranslation();
   const [language, setLanguage] = useState<string>(i18n.resolvedLanguage ?? "en-US");
 
-  const handleLanguageChanged = async (e: SelectChangeEvent) => {
-    setLanguage(e.target.value);
-    i18n.changeLanguage(e.target.value).then(() => {
-      emit<SettingsChangedEvent>("settings-changed", { locale: { language: e.target.value } });
-      debug(`Language changed: ${e.target.value}`);
-    });
-  };
+  const handleLanguageChanged = useCallback(
+    async (e: SelectChangeEvent) => {
+      setLanguage(e.target.value);
+      i18n.changeLanguage(e.target.value).then(() => {
+        emit<SettingsChangedEvent>("settings-changed", { locale: { language: e.target.value } });
+        debug(`Language changed: ${e.target.value}`);
+      });
+    },
+    [i18n],
+  );
 
   return (
     <ListItem>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Box, Button, Link, Stack, Typography } from "@mui/material";
 import { GitHub, SystemUpdateAlt } from "@mui/icons-material";
@@ -47,19 +47,19 @@ export default function About() {
     fetchAppInfo();
   }, []);
 
-  const handleLinkClick = async (_e: React.MouseEvent) => {
+  const handleLinkClick = useCallback(async (_e: React.MouseEvent) => {
     try {
       await openUrl(projectUrl);
     } catch (e) {
       error(`Failed to open the project page: ${e}`);
     }
-  };
+  }, []);
 
-  const handleCheckUpdate = async () => {
+  const handleCheckUpdate = useCallback(async () => {
     setIsChecking(true);
     await checkForUpdates(true);
     setIsChecking(false);
-  };
+  }, [checkForUpdates]);
 
   return (
     <Stack direction="row" spacing={2} alignItems="center">

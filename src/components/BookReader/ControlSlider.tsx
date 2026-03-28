@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { prefixer } from "stylis";
 import { Box, Slider, Stack, Typography } from "@mui/material";
 import { createTheme, Theme, ThemeProvider } from "@mui/material/styles";
@@ -33,9 +33,12 @@ export default function ControlSlider() {
     } as Theme);
   }, [appTheme, readerSettings.comic.readingDirection]);
 
-  const handleSliderValueChanged = (_event: Event, value: number, _activeThumb: number) => {
-    dispatch(setImageIndex(value));
-  };
+  const handleSliderValueChanged = useCallback(
+    (_event: Event, value: number, _activeThumb: number) => {
+      dispatch(setImageIndex(value));
+    },
+    [dispatch],
+  );
 
   return (
     <Stack

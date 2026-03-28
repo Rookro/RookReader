@@ -9,7 +9,7 @@ import {
 } from "@mui/material";
 import { emit } from "@tauri-apps/api/event";
 import { debug } from "@tauri-apps/plugin-log";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getFonts } from "../../../../bindings/FontCommands";
 import { SettingsChangedEvent } from "../../../../types/SettingsChangedEvent";
@@ -27,14 +27,17 @@ export default function AppFontFamilySetting() {
   const [fonts, setFonts] = useState<string[]>([]);
   const dispatch = useAppDispatch();
 
-  const handleFontFamilyChanged = async (e: SelectChangeEvent) => {
-    debug(`Application UI font family changed: ${e.target.value}`);
-    const newGeneralSettings = { ...generalSettings, appFontFamily: e.target.value };
-    dispatch(updateSettings({ key: "general", value: newGeneralSettings }));
-    emit<SettingsChangedEvent>("settings-changed", {
-      appSettings: { general: newGeneralSettings },
-    });
-  };
+  const handleFontFamilyChanged = useCallback(
+    async (e: SelectChangeEvent) => {
+      debug(`Application UI font family changed: ${e.target.value}`);
+      const newGeneralSettings = { ...generalSettings, appFontFamily: e.target.value };
+      dispatch(updateSettings({ key: "general", value: newGeneralSettings }));
+      emit<SettingsChangedEvent>("settings-changed", {
+        appSettings: { general: newGeneralSettings },
+      });
+    },
+    [generalSettings, dispatch],
+  );
 
   useEffect(() => {
     const initFonts = async () => {

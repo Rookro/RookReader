@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useDispatch } from "react-redux";
 import { List, RowComponentProps, useListCallbackRef } from "react-window";
 import { Box, Typography } from "@mui/material";
@@ -8,6 +8,36 @@ import { setImageIndex } from "../../../reducers/ReadReducer";
 import { ItemRow } from "./ItemRow";
 import SidePanelHeader from "../../SidePane/SidePanelHeader";
 import { useTranslation } from "react-i18next";
+
+/** Props for the row component. */
+interface RowProps {
+  entries: string[];
+  selectedIndex: number;
+  onClick: (e: React.MouseEvent<HTMLDivElement>, index: number) => void;
+}
+
+/** Component to display a single row in the image entries list. */
+function Row({
+  index,
+  entries,
+  style,
+  selectedIndex,
+  onClick,
+  ...others
+}: RowComponentProps<RowProps>) {
+  const entry = entries[index];
+  return (
+    <ItemRow
+      {...others}
+      key={entry}
+      entry={entry}
+      index={index}
+      selected={selectedIndex === index}
+      onClick={onClick}
+      style={style}
+    />
+  );
+}
 
 /**
  * Component to display a list of image entries.
@@ -54,25 +84,14 @@ export default function ImageEntriesViewer() {
     [dispatch],
   );
 
-  const Row = ({
-    index,
-    entries,
-    style,
-  }: RowComponentProps<{
-    entries: string[];
-  }>) => {
-    const entry = entries[index];
-    return (
-      <ItemRow
-        key={entry}
-        entry={entry}
-        index={index}
-        selected={selectedIndex === index}
-        onClick={handleListItemClicked}
-        style={style}
-      />
-    );
-  };
+  const rowData: RowProps = useMemo(
+    () => ({
+      entries,
+      selectedIndex,
+      onClick: handleListItemClicked,
+    }),
+    [entries, selectedIndex, handleListItemClicked],
+  );
 
   return (
     <Box sx={{ width: "100%", height: "100%", display: "grid", alignContent: "start" }}>
@@ -86,9 +105,9 @@ export default function ImageEntriesViewer() {
       ) : (
         <List
           rowComponent={Row}
+          rowProps={rowData}
           rowCount={entries.length}
           rowHeight={36}
-          rowProps={{ entries }}
           listRef={setList}
         />
       )}
