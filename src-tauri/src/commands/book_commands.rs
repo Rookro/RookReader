@@ -127,7 +127,9 @@ pub async fn upsert_book(
     );
 
     let pdfium_path = {
-        let state_lock = state.lock().map_err(|e| e.to_string())?;
+        let state_lock = state
+            .lock()
+            .map_err(|e| Error::Mutex(format!("Failed to lock AppState. {}", e)))?;
         state_lock
             .container_state
             .settings
@@ -191,7 +193,9 @@ pub async fn upsert_read_book(
     );
 
     let pdfium_path = {
-        let state_lock = state.lock().map_err(|e| e.to_string())?;
+        let state_lock = state
+            .lock()
+            .map_err(|e| Error::Mutex(format!("Failed to lock AppState. {}", e)))?;
         state_lock
             .container_state
             .settings
