@@ -72,6 +72,15 @@ describe("RookReader E2E Tests - Page Navigation", () => {
     );
 
     // Test keyboard navigation
+    // Explicitly focus the element to ensure it receives keyboard events,
+    // as right-clicking may cause it to lose focus on Linux/WebKitGTK.
+    await browser.execute(
+      (el) => {
+        (el as HTMLElement).focus();
+      },
+      await comicReaderArea,
+    );
+
     currentText = await pageIndicator.getText();
     await browser.keys(["ArrowLeft"]);
 

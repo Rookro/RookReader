@@ -127,7 +127,9 @@ pub async fn upsert_book(
     );
 
     let pdfium_path = {
-        let state_lock = state.lock().map_err(|e| e.to_string())?;
+        let state_lock = state
+            .lock()
+            .map_err(|e| Error::Mutex(format!("Failed to lock AppState. {}", e)))?;
         state_lock
             .container_state
             .settings
@@ -135,8 +137,9 @@ pub async fn upsert_book(
             .clone()
     };
 
-    let thumbnail_path =
-        generate_and_save_thumbnail(&app, &file_path, pdfium_path).unwrap_or_else(|e| {
+    let thumbnail_path = generate_and_save_thumbnail(app, file_path.clone(), pdfium_path)
+        .await
+        .unwrap_or_else(|e| {
             log::warn!("Thumbnail of {} generation failed: {}", file_path, e);
             None
         });
@@ -191,7 +194,9 @@ pub async fn upsert_read_book(
     );
 
     let pdfium_path = {
-        let state_lock = state.lock().map_err(|e| e.to_string())?;
+        let state_lock = state
+            .lock()
+            .map_err(|e| Error::Mutex(format!("Failed to lock AppState. {}", e)))?;
         state_lock
             .container_state
             .settings
@@ -199,8 +204,9 @@ pub async fn upsert_read_book(
             .clone()
     };
 
-    let thumbnail_path =
-        generate_and_save_thumbnail(&app, &file_path, pdfium_path).unwrap_or_else(|e| {
+    let thumbnail_path = generate_and_save_thumbnail(app, file_path.clone(), pdfium_path)
+        .await
+        .unwrap_or_else(|e| {
             log::warn!("Thumbnail of {} generation failed: {}", file_path, e);
             None
         });
@@ -459,62 +465,66 @@ pub async fn delete_book(id: i64, repo: State<'_, Arc<dyn BookRepository>>) -> R
 }
 
 /// Helper function to generate and save a thumbnail for a given file path.
-fn generate_and_save_thumbnail(
-    app: &tauri::AppHandle,
-    file_path: &str,
+async fn generate_and_save_thumbnail(
+    app: tauri::AppHandle,
+    file_path: String,
     pdfium_path: Option<String>,
 ) -> Result<Option<String>> {
-    let path = std::path::Path::new(file_path);
-    let container: Arc<dyn Container> = if path.is_dir() {
-        Arc::new(DirectoryContainer::new(file_path)?)
-    } else if let Some(ext) = path.extension() {
-        let ext_str = ext.to_string_lossy().to_lowercase();
-        match ext_str.as_str() {
-            "zip" => Arc::new(ZipContainer::new(file_path)?),
-            "pdf" => Arc::new(PdfContainer::new(
-                file_path,
-                PdfRenderConfig::default(),
-                pdfium_path,
-            )?),
-            "rar" => Arc::new(RarContainer::new(file_path)?),
-            "epub" => Arc::new(EpubContainer::new(file_path)?),
-            _ => {
-                return Err(Error::UnsupportedContainer(format!(
-                    "Unsupported Format: {}",
-                    file_path
-                )))
+    tauri::async_runtime::spawn_blocking(move || {
+        let path = std::path::Path::new(&file_path);
+        let container: Arc<dyn Container> = if path.is_dir() {
+            Arc::new(DirectoryContainer::new(&file_path)?)
+        } else if let Some(ext) = path.extension() {
+            let ext_str = ext.to_string_lossy().to_lowercase();
+            match ext_str.as_str() {
+                "zip" => Arc::new(ZipContainer::new(&file_path)?),
+                "pdf" => Arc::new(PdfContainer::new(
+                    &file_path,
+                    PdfRenderConfig::default(),
+                    pdfium_path,
+                )?),
+                "rar" => Arc::new(RarContainer::new(&file_path)?),
+                "epub" => Arc::new(EpubContainer::new(&file_path)?),
+                _ => {
+                    return Err(Error::UnsupportedContainer(format!(
+                        "Unsupported Format: {}",
+                        file_path
+                    )))
+                }
             }
+        } else {
+            return Err(Error::UnsupportedContainer(format!(
+                "No extension: {}",
+                file_path
+            )));
+        };
+
+        let first_image_entry = container.get_entries().first();
+        if let Some(entry) = first_image_entry {
+            let image = container.get_thumbnail(entry)?;
+            let mut hasher = DefaultHasher::new();
+            file_path.hash(&mut hasher);
+            let hash = hasher.finish();
+
+            let thumbnails_dir = app.path().app_data_dir()?.join("thumbnails");
+            if !thumbnails_dir.exists() {
+                fs::create_dir_all(&thumbnails_dir)?;
+            }
+
+            let thumbnail_filename = format!("thumbnail_{}.jpg", hash);
+            let thumbnail_path = thumbnails_dir.join(&thumbnail_filename);
+
+            fs::write(&thumbnail_path, &image.data)?;
+
+            Ok(Some(thumbnail_path.to_string_lossy().to_string()))
+        } else {
+            // EPUB Novel doesn't have any image.
+            log::warn!("Failed to get thumbnail for {}. No image found.", file_path);
+            Ok(None)
         }
-    } else {
-        return Err(Error::UnsupportedContainer(format!(
-            "No extension: {}",
-            file_path
-        )));
-    };
-
-    let first_image_entry = container.get_entries().first();
-    if let Some(entry) = first_image_entry {
-        let image = container.get_thumbnail(entry)?;
-        let mut hasher = DefaultHasher::new();
-        file_path.hash(&mut hasher);
-        let hash = hasher.finish();
-
-        let thumbnails_dir = app.path().app_data_dir()?.join("thumbnails");
-        if !thumbnails_dir.exists() {
-            fs::create_dir_all(&thumbnails_dir)?;
-        }
-
-        let thumbnail_filename = format!("thumbnail_{}.jpg", hash);
-        let thumbnail_path = thumbnails_dir.join(&thumbnail_filename);
-
-        fs::write(&thumbnail_path, &image.data)?;
-
-        Ok(Some(thumbnail_path.to_string_lossy().to_string()))
-    } else {
-        // EPUB Novel doesn't have any image.
-        log::warn!("Failed to get thumbnail for {}. No image found.", file_path);
-        Ok(None)
-    }
+    })
+    .await
+    .map_err(|e| Error::Other(format!("Spawn blocking failed: {}", e)))?
 }
 
 #[cfg(test)]
