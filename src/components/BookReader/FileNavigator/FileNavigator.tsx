@@ -18,6 +18,36 @@ import { useDirectoryWatcher } from "../../../hooks/useDirectoryWatcher";
 import { useFileSelection } from "../../../hooks/useFileSelection";
 import SidePanelHeader from "../../SidePane/SidePanelHeader";
 
+/** Props for the row component. */
+interface RowProps {
+  entries: DirEntry[];
+  selectedIndex: number;
+  onClick: (e: React.MouseEvent<HTMLDivElement>, entry: DirEntry, index: number) => void;
+}
+
+/** Component to display a single row in the file navigator list. */
+function Row({
+  index,
+  entries,
+  style,
+  selectedIndex,
+  onClick,
+  ...others
+}: RowComponentProps<RowProps>) {
+  const entry = entries[index];
+  return (
+    <ItemRow
+      {...others}
+      key={entry.name}
+      entry={entry}
+      index={index}
+      selected={selectedIndex === index}
+      onClick={onClick}
+      style={style}
+    />
+  );
+}
+
 /**
  * File navigator component.
  */
@@ -72,7 +102,7 @@ export default function FileListViewer() {
       } catch (e) {
         error(`Failed to scroll to row ${selectedIndex}: ${e}`);
       }
-    }, 0);
+    }, 20);
 
     return () => {
       clearTimeout(timerId);
@@ -115,25 +145,14 @@ export default function FileListViewer() {
     [handleListItemClicked, handleListItemDoubleClicked],
   );
 
-  const Row = ({
-    index,
-    entries,
-    style,
-  }: RowComponentProps<{
-    entries: DirEntry[];
-  }>) => {
-    const entry = entries[index];
-    return (
-      <ItemRow
-        key={entry.name}
-        entry={entry}
-        index={index}
-        selected={selectedIndex === index}
-        onClick={handleListItemClickedWrapper}
-        style={style}
-      />
-    );
-  };
+  const rowData: RowProps = useMemo(
+    () => ({
+      entries: filteredSortedEntries,
+      selectedIndex,
+      onClick: handleListItemClickedWrapper,
+    }),
+    [filteredSortedEntries, selectedIndex, handleListItemClickedWrapper],
+  );
 
   return (
     <Stack
@@ -160,7 +179,7 @@ export default function FileListViewer() {
         <Box sx={{ flexGrow: 1, overflow: "auto" }}>
           <List
             rowComponent={Row}
-            rowProps={{ entries: filteredSortedEntries }}
+            rowProps={rowData}
             rowCount={filteredSortedEntries.length}
             rowHeight={36}
             overscanCount={5}

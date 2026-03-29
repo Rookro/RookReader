@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -55,17 +55,20 @@ export default function SetBookTagsDialog({
     }
   }, [openDialog, bookId]);
 
-  const handleToggle = (tagId: number) => {
-    const newSelected = new Set(selectedTagIds);
-    if (newSelected.has(tagId)) {
-      newSelected.delete(tagId);
-    } else {
-      newSelected.add(tagId);
-    }
-    setSelectedTagIds(newSelected);
-  };
+  const handleToggle = useCallback(
+    (tagId: number) => {
+      const newSelected = new Set(selectedTagIds);
+      if (newSelected.has(tagId)) {
+        newSelected.delete(tagId);
+      } else {
+        newSelected.add(tagId);
+      }
+      setSelectedTagIds(newSelected);
+    },
+    [selectedTagIds],
+  );
 
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     if (bookId === null) return;
     try {
       await updateBookTags(bookId, Array.from(selectedTagIds));
@@ -74,7 +77,7 @@ export default function SetBookTagsDialog({
     } catch (e) {
       logError(`Failed to update book tags: ${e}`);
     }
-  };
+  }, [bookId, selectedTagIds, onUpdateTags, onClose]);
 
   return (
     <Dialog open={openDialog} onClose={onClose} fullWidth>

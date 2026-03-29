@@ -11,6 +11,7 @@ import { BookWithState } from "../../../types/DatabaseModels";
 import { Trans, useTranslation } from "react-i18next";
 import { useAppDispatch, useAppSelector } from "../../../Store";
 import { deleteBookFromCollection } from "../../../reducers/BookCollectionReducer";
+import { useCallback } from "react";
 
 /** Props for the BookDeleteDialog component. */
 export interface BookDeleteDialogProps {
@@ -28,12 +29,12 @@ export default function BookDeleteDialog({ openDialog, book, onClose }: BookDele
   const dispatch = useAppDispatch();
   const { bookshelves, selectedId } = useAppSelector((state) => state.bookCollection.bookshelf);
 
-  const handleDelete = async () => {
+  const handleDelete = useCallback(async () => {
     if (book) {
       await dispatch(deleteBookFromCollection({ bookId: book.id, bookshelfId: selectedId }));
     }
     onClose();
-  };
+  }, [book, dispatch, onClose, selectedId]);
 
   return (
     <Dialog open={openDialog} onClose={onClose}>

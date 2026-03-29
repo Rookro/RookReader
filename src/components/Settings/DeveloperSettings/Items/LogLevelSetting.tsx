@@ -26,9 +26,9 @@ export default function LogLevelSetting() {
   const generalSettings = useAppSelector((state) => state.settings.general);
   const [logDir, setLogDir] = useState<string>("");
 
-  const handleFolderClicked = async (_e: React.MouseEvent<HTMLButtonElement>) => {
+  const handleFolderClicked = useCallback(async (_e: React.MouseEvent<HTMLButtonElement>) => {
     await openPath(await appLogDir());
-  };
+  }, []);
 
   useEffect(() => {
     const initLogLevelSettingsView = async () => {

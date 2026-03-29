@@ -9,6 +9,8 @@
 
 ## [Unreleased]
 
+## [2.0.0]
+
 ### Added
 
 * 本棚機能（UI、状態管理、データベーススキーマ）を追加 (#147)
@@ -24,11 +26,15 @@
 * 設定ファイルの構造を改善し、設定情報を一元管理化 (#152)
 * 依存関係の更新 (#154)
   * rbook を 0.6.x から 0.7.x へアップデートし、破壊的変更に合わせて実装を修正
+* リリースノートをマークダウン形式で表示する (#157)
+* 関数をメモ化してRowコンポーネントを抽出し、パフォーマンスを改善 (#158)
+* `AppState` の `Mutex` エラーハンドリングを改善し、サムネイル生成を別スレッドにオフロード (#162)
 
 ### Fixed
 
 * 小説リーダーで、Linux 環境でのみ文字の向きが正しく表示されない問題に対するワークアラウンドを実装 (#143)
 * アプリ起動時にエラーが発生した場合、エラーダイアログを表示するように改善 (#147)
+* スクロールする前に描画が完了するよう、スクロールの遅延を増加 (#159)
 
 ## [1.9.2] - 2026-02-22
 
@@ -267,7 +273,8 @@
 * 自動見開き表示機能の追加 (#4)
 * ホイールの上下によるページ送り機能を追加 (#5)
 
-[unreleased]: https://github.com/Rookro/RookReader/compare/v1.9.2...HEAD
+[unreleased]: https://github.com/Rookro/RookReader/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/Rookro/RookReader/compare/v1.9.2...v2.0.0
 [1.9.2]: https://github.com/Rookro/RookReader/compare/v1.9.1...v1.9.2
 [1.9.1]: https://github.com/Rookro/RookReader/compare/v1.9.0...v1.9.1
 [1.9.0]: https://github.com/Rookro/RookReader/compare/v1.8.0...v1.9.0

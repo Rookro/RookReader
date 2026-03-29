@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0]
+
 ### Added
 
 * Implement the Bookshelf system (UI, state management, and database schema overhaul) (#147)
@@ -24,11 +26,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Improve configuration file structure and centralize settings management (#152)
 * Update dependencies (#154)
   * Update rbook from 0.6.x to 0.7.x and adapt to breaking changes
+* Display release notes in Markdown format (#157)
+* Memoize functions and extract Row component to improve performance (#158)
+* Improve `AppState` `Mutex` error handling and offload thumbnail generation to thread (#162)
 
 ### Fixed
 
 * Implement a workaround for incorrect glyph orientation occurring in the novel reader only on Linux (#143)
 * Show an error dialog when a startup error occurs (#147)
+* Increase scroll delay to ensure rendering completes before scrolling (#159)
 
 ## [1.9.2] - 2026-02-22
 
@@ -267,7 +273,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Add an automatic two-page spread display feature (#4)
 * Add a page navigation feature using the mouse wheel up/down (#5)
 
-[unreleased]: https://github.com/Rookro/RookReader/compare/v1.9.2...HEAD
+[unreleased]: https://github.com/Rookro/RookReader/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/Rookro/RookReader/compare/v1.9.2...v2.0.0
 [1.9.2]: https://github.com/Rookro/RookReader/compare/v1.9.1...v1.9.2
 [1.9.1]: https://github.com/Rookro/RookReader/compare/v1.9.0...v1.9.1
 [1.9.0]: https://github.com/Rookro/RookReader/compare/v1.8.0...v1.9.0

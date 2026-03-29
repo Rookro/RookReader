@@ -13,6 +13,36 @@ import SidePanelHeader from "../../SidePane/SidePanelHeader";
 import { useHistoryEntriesUpdater } from "../../../hooks/useHistoryEntriesUpdater";
 import { ReadBook } from "../../../types/DatabaseModels";
 
+/** Props for the row component. */
+interface RowProps {
+  entries: ReadBook[];
+  selectedIndex: number;
+  onClick: (e: React.MouseEvent<HTMLElement>, entry: ReadBook, index: number) => void;
+}
+
+/** Row component for the history viewer. */
+function Row({
+  index,
+  entries,
+  style,
+  selectedIndex,
+  onClick,
+  ...others
+}: RowComponentProps<RowProps>) {
+  const entry = entries[index];
+  return (
+    <ItemRow
+      {...others}
+      key={entry.display_name}
+      entry={entry}
+      index={index}
+      selected={selectedIndex === index}
+      onClick={onClick}
+      style={style}
+    />
+  );
+}
+
 /**
  * History viewer component.
  */
@@ -50,7 +80,7 @@ export default function HistoryViewer() {
           `Failed to scroll to row ${selectedIndex} (List length: ${filteredEntries.length}): ${e}`,
         );
       }
-    }, 0);
+    }, 20);
 
     return () => {
       clearTimeout(timerId);
@@ -65,33 +95,22 @@ export default function HistoryViewer() {
     [dispatch],
   );
 
-  const handleSearchTextChanged = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSearchTextChanged = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchText(e.target.value);
-  };
+  }, []);
 
-  const handleContextMenu = (e: React.MouseEvent<HTMLElement>) => {
+  const handleContextMenu = useCallback((e: React.MouseEvent<HTMLElement>) => {
     e.stopPropagation();
-  };
+  }, []);
 
-  const Row = ({
-    index,
-    entries,
-    style,
-  }: RowComponentProps<{
-    entries: ReadBook[];
-  }>) => {
-    const entry = entries[index];
-    return (
-      <ItemRow
-        key={entry.display_name}
-        entry={entry}
-        index={index}
-        selected={selectedIndex === index}
-        onClick={handleListItemClicked}
-        style={style}
-      />
-    );
-  };
+  const rowProps: RowProps = useMemo(
+    () => ({
+      entries: filteredEntries,
+      selectedIndex,
+      onClick: handleListItemClicked,
+    }),
+    [filteredEntries, selectedIndex, handleListItemClicked],
+  );
 
   return (
     <Stack
@@ -132,7 +151,7 @@ export default function HistoryViewer() {
         <Box sx={{ flexGrow: 1, overflow: "auto" }}>
           <List
             rowComponent={Row}
-            rowProps={{ entries: filteredEntries }}
+            rowProps={rowProps}
             rowCount={filteredEntries.length}
             rowHeight={36}
             overscanCount={5}

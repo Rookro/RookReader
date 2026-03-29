@@ -17,6 +17,7 @@ import { Theme } from "@tauri-apps/api/window";
 import { useAppDispatch, useAppSelector } from "../../../../Store";
 import { updateSettings } from "../../../../reducers/SettingsReducer";
 import { AppTheme } from "../../../../types/AppSettings";
+import { useCallback } from "react";
 
 /**
  * Mapping from theme names to Tauri's theme setting values.
@@ -35,13 +36,16 @@ export default function ThemeSetting() {
   const generalSettings = useAppSelector((state) => state.settings.general);
   const dispatch = useAppDispatch();
 
-  const handleThemeChanged = async (_e: React.MouseEvent<HTMLElement>, newTheme: AppTheme) => {
-    if (newTheme !== null) {
-      const newGeneralSettings = { ...generalSettings, theme: newTheme };
-      dispatch(updateSettings({ key: "general", value: newGeneralSettings }));
-      await app.setTheme(toTauriTheme.get(newTheme));
-    }
-  };
+  const handleThemeChanged = useCallback(
+    async (_e: React.MouseEvent<HTMLElement>, newTheme: AppTheme) => {
+      if (newTheme !== null) {
+        const newGeneralSettings = { ...generalSettings, theme: newTheme };
+        dispatch(updateSettings({ key: "general", value: newGeneralSettings }));
+        await app.setTheme(toTauriTheme.get(newTheme));
+      }
+    },
+    [generalSettings, dispatch],
+  );
 
   return (
     <ListItem>

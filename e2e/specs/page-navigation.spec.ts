@@ -73,7 +73,7 @@ describe("RookReader E2E Tests - Page Navigation", () => {
 
     // Test keyboard navigation
     currentText = await pageIndicator.getText();
-    await browser.keys(["ArrowLeft"]);
+    await comicReaderArea.addValue(Key.ArrowLeft);
 
     await browser.waitUntil(
       async () => {
@@ -84,7 +84,7 @@ describe("RookReader E2E Tests - Page Navigation", () => {
     );
 
     currentText = await pageIndicator.getText();
-    await browser.keys(["ArrowRight"]);
+    await comicReaderArea.addValue(Key.ArrowRight);
 
     await browser.waitUntil(
       async () => {
