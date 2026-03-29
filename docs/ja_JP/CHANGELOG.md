@@ -9,6 +9,8 @@
 
 ## [Unreleased]
 
+## [2.0.0]
+
 ### Added
 
 * 本棚機能（UI、状態管理、データベーススキーマ）を追加 (#147)
@@ -271,7 +273,8 @@
 * 自動見開き表示機能の追加 (#4)
 * ホイールの上下によるページ送り機能を追加 (#5)
 
-[unreleased]: https://github.com/Rookro/RookReader/compare/v1.9.2...HEAD
+[unreleased]: https://github.com/Rookro/RookReader/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/Rookro/RookReader/compare/v1.9.2...v2.0.0
 [1.9.2]: https://github.com/Rookro/RookReader/compare/v1.9.1...v1.9.2
 [1.9.1]: https://github.com/Rookro/RookReader/compare/v1.9.0...v1.9.1
 [1.9.0]: https://github.com/Rookro/RookReader/compare/v1.8.0...v1.9.0
