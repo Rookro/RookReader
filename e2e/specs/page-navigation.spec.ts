@@ -61,7 +61,15 @@ describe("RookReader E2E Tests - Page Navigation", () => {
 
     // Test right click navigation
     currentText = await pageIndicator.getText();
-    await comicReaderArea.click({ button: "right" });
+    // Workaround for Linux where standard `click({ button: "right" })` is flaky.
+    // Using the W3C Action API with a slight pause ensures the `contextmenu` event fires reliably.
+    await browser
+      .action("pointer")
+      .move({ origin: await comicReaderArea })
+      .down({ button: 2 })
+      .pause(20)
+      .up({ button: 2 })
+      .perform();
 
     await browser.waitUntil(
       async () => {
