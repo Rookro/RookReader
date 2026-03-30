@@ -3,6 +3,7 @@ import { error } from "@tauri-apps/plugin-log";
 import { debounce } from "@mui/material";
 import { upsertReadingState } from "../bindings/BookCommands";
 import { ReadingState } from "../types/DatabaseModels";
+import { RootState } from "../Store";
 
 const debouncedReadingStateUpdate = debounce(async (state: ReadingState) => {
   try {
@@ -12,45 +13,46 @@ const debouncedReadingStateUpdate = debounce(async (state: ReadingState) => {
   }
 }, 500);
 
-export const readingStateMiddleware: Middleware = (store) => (next) => async (action: unknown) => {
-  const result = next(action);
+export const readingStateMiddleware: Middleware<object, RootState> =
+  (store) => (next) => (action: unknown) => {
+    const result = next(action);
 
-  if (typeof action !== "object" || action === null || !("type" in action)) {
+    if (typeof action !== "object" || action === null || !("type" in action)) {
+      return result;
+    }
+    switch (action.type) {
+      case "read/setImageIndex": {
+        const state = store.getState();
+        if (state.settings.history.recordReadingHistory) {
+          const { history, historyIndex, index, book } = state.read.containerFile;
+
+          if (history[historyIndex] && index > -1 && book && book.last_opened_at) {
+            debouncedReadingStateUpdate({
+              book_id: book.id,
+              last_read_page_index: index,
+              last_opened_at: book.last_opened_at,
+            });
+          }
+        }
+        break;
+      }
+      case "read/setNovelLocation": {
+        const state = store.getState();
+        if (state.settings.history.recordReadingHistory) {
+          const { history, historyIndex, index, book } = state.read.containerFile;
+
+          if (history[historyIndex] && index > -1 && book && book.last_opened_at) {
+            // TODO(Rookro): Persist the current CFI to the database for EPUB novels.
+            debouncedReadingStateUpdate({
+              book_id: book.id,
+              last_read_page_index: index,
+              last_opened_at: book.last_opened_at,
+            });
+          }
+        }
+        break;
+      }
+    }
+
     return result;
-  }
-  switch (action.type) {
-    case "read/setImageIndex": {
-      const state = store.getState();
-      if (state.view.enableHistory) {
-        const { history, historyIndex, index, book } = state.read.containerFile;
-
-        if (history[historyIndex] && index > -1) {
-          debouncedReadingStateUpdate({
-            book_id: book.id,
-            last_read_page_index: index,
-            last_opened_at: book.last_opened_at,
-          });
-        }
-      }
-      break;
-    }
-    case "read/setNovelLocation": {
-      const state = store.getState();
-      if (state.view.enableHistory) {
-        const { history, historyIndex, index, book } = state.read.containerFile;
-
-        if (history[historyIndex] && index > -1) {
-          // TODO(Rookro): Persist the current CFI to the database for EPUB novels.
-          debouncedReadingStateUpdate({
-            book_id: book.id,
-            last_read_page_index: index,
-            last_opened_at: book.last_opened_at,
-          });
-        }
-      }
-      break;
-    }
-  }
-
-  return result;
-};
+  };
