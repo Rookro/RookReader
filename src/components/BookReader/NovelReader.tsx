@@ -246,6 +246,13 @@ export default function NovelReader({ filePath }: NovelReaderProps) {
     }
   }, [cfi, index]);
 
+  useEffect(() => {
+    window.addEventListener("keydown", handleKeydown);
+    return () => {
+      window.removeEventListener("keydown", handleKeydown);
+    };
+  }, [handleKeydown]);
+
   return (
     <Badge
       badgeContent="Beta"
