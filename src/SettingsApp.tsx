@@ -1,5 +1,5 @@
 import { Box, CssBaseline, ThemeProvider } from "@mui/material";
-import SettingsView from "./components/Settings/SettingsView";
+import SettingsView from "./features/Settings/components/SettingsView";
 import { useAppTheme } from "./hooks/useAppTheme";
 
 export default function SettingsApp() {
