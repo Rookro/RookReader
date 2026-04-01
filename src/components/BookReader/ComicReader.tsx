@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useDispatch } from "react-redux";
 import { Box, CircularProgress } from "@mui/material";
 import { AppDispatch, useAppSelector } from "../../Store";
@@ -51,6 +51,13 @@ export default function ComicReader() {
     settings.direction,
   );
 
+  useEffect(() => {
+    window.addEventListener("keydown", handleKeydown);
+    return () => {
+      window.removeEventListener("keydown", handleKeydown);
+    };
+  }, [handleKeydown]);
+
   // Loading display.
   if (isFileLoading) {
     return (
@@ -95,7 +102,6 @@ export default function ComicReader() {
       onClick={handleClicked}
       onContextMenu={handleContextMenu}
       onWheel={handleWheeled}
-      onKeyDown={handleKeydown}
       data-testid="comic-reader-area"
       sx={{
         width: "100%",

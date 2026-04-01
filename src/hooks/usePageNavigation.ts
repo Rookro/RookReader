@@ -42,6 +42,15 @@ export const usePageNavigation = (
 
   const handleKeydown = useCallback(
     (e: React.KeyboardEvent | KeyboardEvent) => {
+      // Ignore the event if the user is currently interacting with an input field.
+      // This preserves default browser behaviors like moving the cursor with arrow keys.
+      const target = e.target as HTMLElement | null;
+      const isInput =
+        target?.tagName === "INPUT" || target?.tagName === "TEXTAREA" || target?.isContentEditable;
+      if (isInput) {
+        return;
+      }
+
       switch (e.key) {
         case "ArrowLeft":
           if (direction === "rtl") {

@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+* Enable window-level keyboard navigation for readers (#164)
+
 ## [2.0.1]
 
 ### Fixed
