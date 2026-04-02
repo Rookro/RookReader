@@ -56,7 +56,7 @@ To maintain consistency across the codebase, please follow these rules:
 * Comments: Please write all code comments in English.
 * Frontend (React/TypeScript):
   * Follow the existing project structure (e.g., separating Redux slices, MUI components, etc.).
-  * Run Prettier/ESLint before committing.
+  * Run Biome check before committing.
 * Backend (Rust):
   * Format your code using cargo fmt.
   * Ensure cargo clippy produces no warnings.
