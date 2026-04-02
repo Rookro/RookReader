@@ -53,8 +53,8 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Run linter
-        run: npm run lint
+      - name: Run biome check
+        run: npm run check
 
       - name: Generate third-party licenses
         run: npm run licenses
