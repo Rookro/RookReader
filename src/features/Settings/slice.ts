@@ -1,9 +1,9 @@
-import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { defaultSettings, settingsStore } from "./settingsStore";
-import { createAppAsyncThunk } from "../../types/CustomAsyncThunk";
+import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import { error } from "@tauri-apps/plugin-log";
+import type { AppSettings } from "../../types/AppSettings";
+import { createAppAsyncThunk } from "../../types/CustomAsyncThunk";
 import { ErrorCode } from "../../types/Error";
-import { AppSettings } from "../../types/AppSettings";
+import { defaultSettings, settingsStore } from "./settingsStore";
 
 /**
  * Payload type for updating a setting value in the settings store.

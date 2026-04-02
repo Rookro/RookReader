@@ -1,5 +1,5 @@
-import { JSX } from "react";
 import { Box } from "@mui/material";
+import type { JSX } from "react";
 import TabPanel from "../../../components/ui/TabPanel/TabPanel";
 
 /**
@@ -7,7 +7,7 @@ import TabPanel from "../../../components/ui/TabPanel/TabPanel";
  */
 export default function SidePanels(props: {
   tabs: { label: string; icon: JSX.Element; panel: JSX.Element }[];
-  tabIndex: number;
+  index: number;
 }) {
   return (
     <Box
@@ -20,7 +20,7 @@ export default function SidePanels(props: {
     >
       {props.tabs.map((tab, index) => (
         <TabPanel
-          value={props.tabIndex}
+          value={props.index}
           index={index}
           key={tab.label}
           sx={{ width: "100%", height: "100%" }}

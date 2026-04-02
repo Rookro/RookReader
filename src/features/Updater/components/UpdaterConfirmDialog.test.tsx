@@ -1,9 +1,9 @@
-import { describe, it, expect, vi } from "vitest";
+import type { Update } from "@tauri-apps/plugin-updater";
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import UpdaterConfirmDialog from "./UpdaterConfirmDialog";
+import { describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../../../test/utils";
-import { Update } from "@tauri-apps/plugin-updater";
+import UpdaterConfirmDialog from "./UpdaterConfirmDialog";
 
 describe("UpdaterConfirmDialog", () => {
   const mockUpdate = {

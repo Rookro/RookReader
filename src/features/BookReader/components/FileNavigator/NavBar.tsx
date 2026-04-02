@@ -1,7 +1,3 @@
-import React, { useCallback, useEffect, useRef } from "react";
-import { useDispatch } from "react-redux";
-import { useTranslation } from "react-i18next";
-import { dirname, homeDir } from "@tauri-apps/api/path";
 import { ArrowBack, ArrowForward, ArrowUpward, Home, Refresh, Search } from "@mui/icons-material";
 import {
   Box,
@@ -10,19 +6,23 @@ import {
   MenuItem,
   OutlinedInput,
   Select,
-  SelectChangeEvent,
+  type SelectChangeEvent,
   Stack,
 } from "@mui/material";
-import { AppDispatch, useAppSelector } from "../../../../store/store";
+import { dirname, homeDir } from "@tauri-apps/api/path";
+import { warn } from "@tauri-apps/plugin-log";
+import React, { useCallback, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
+import { useDispatch } from "react-redux";
+import { type AppDispatch, useAppSelector } from "../../../../store/store";
+import type { SortOrder } from "../../../../types/AppSettings";
+import { updateSettings } from "../../../Settings/slice";
 import {
   goBackExplorerHistory,
   goForwardExplorerHistory,
-  updateExploreBasePath,
   setSearchText,
+  updateExploreBasePath,
 } from "../../slice";
-import { warn } from "@tauri-apps/plugin-log";
-import { updateSettings } from "../../../Settings/slice";
-import { SortOrder } from "../../../../types/AppSettings";
 
 /**
  * Navigation bar component for File navigator component.
@@ -201,7 +201,7 @@ export default function NavBar() {
         <IconButton onClick={handleRefleshClicked} aria-label="refresh">
           <Refresh />
         </IconButton>
-        {width >= 310 ? (
+        {width >= 310 && (
           <Select
             size="small"
             defaultValue={fileNavigatorSettings.sortOrder}
@@ -221,8 +221,6 @@ export default function NavBar() {
               {t("book-reader.file-navigator.sort-order.date-desc")}
             </MenuItem>
           </Select>
-        ) : (
-          <></>
         )}
       </Box>
       <OutlinedInput

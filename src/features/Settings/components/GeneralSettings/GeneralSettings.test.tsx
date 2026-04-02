@@ -1,8 +1,8 @@
-import { describe, it, expect, vi } from "vitest";
 import { screen } from "@testing-library/react";
+import type { JSX } from "react";
+import { describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../../../../test/utils";
 import GeneralSettings from "./GeneralSettings";
-import { JSX } from "react";
 
 // Mock sub-components
 vi.mock("./Items/LanguageSettings", () => {

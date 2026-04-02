@@ -1,5 +1,6 @@
-import React, { useCallback } from "react";
-import { ViewerSettings } from "../utils/ImageUtils";
+import type React from "react";
+import { useCallback } from "react";
+import type { ViewerSettings } from "../utils/ImageUtils";
 
 /**
  * Hooks for page navigation (forward/backward) based on user interactions.

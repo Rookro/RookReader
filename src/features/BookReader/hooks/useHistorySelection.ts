@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Book } from "../../../types/DatabaseModels";
+import type { Book } from "../../../types/DatabaseModels";
 
 /**
  * Custom hook to determine the selected index in a history list.

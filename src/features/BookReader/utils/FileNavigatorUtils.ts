@@ -1,5 +1,5 @@
-import { SortOrder } from "../../../types/AppSettings";
-import { DirEntry } from "../../../types/DirEntry";
+import type { SortOrder } from "../../../types/AppSettings";
+import type { DirEntry } from "../../../types/DirEntry";
 
 /**
  * Filters an array of DirEntry objects to find entries whose 'name' property contains ALL specified keywords (AND search).

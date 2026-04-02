@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
-import { useTranslation } from "react-i18next";
+import { FilterListOutlined, FolderOpen, SourceOutlined } from "@mui/icons-material";
 import {
   IconButton,
   ListItem,
@@ -7,15 +6,16 @@ import {
   ListItemText,
   MenuItem,
   Select,
-  SelectChangeEvent,
+  type SelectChangeEvent,
   TextField,
 } from "@mui/material";
-import { FilterListOutlined, FolderOpen, SourceOutlined } from "@mui/icons-material";
-import { openPath } from "@tauri-apps/plugin-opener";
 import { appLogDir } from "@tauri-apps/api/path";
+import { openPath } from "@tauri-apps/plugin-opener";
+import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useAppDispatch, useAppSelector } from "../../../../../store/store";
+import type { LogLevel } from "../../../../../types/AppSettings";
 import { updateSettings } from "../../../slice";
-import { LogLevel } from "../../../../../types/AppSettings";
 
 /**
  * Log setting component.

@@ -1,9 +1,9 @@
-import { useTranslation } from "react-i18next";
 import { Divider, List } from "@mui/material";
+import { useTranslation } from "react-i18next";
 import SettingsPanel from "../SettingsPanel";
-import PdfRenderResolutionHeightSetting from "./Items/PdfRenderResolutionHeightSetting";
-import MaxImageHeightSetting from "./Items/MaxImageHeightSetting";
 import ImageResamplingMethodSetting from "./Items/ImageResamplingMethodSetting";
+import MaxImageHeightSetting from "./Items/MaxImageHeightSetting";
+import PdfRenderResolutionHeightSetting from "./Items/PdfRenderResolutionHeightSetting";
 import ThumbnailPreviewSetting from "./Items/ThumbnailPreviewSetting";
 
 /**

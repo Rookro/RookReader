@@ -1,9 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { mockStore } from "../../../../../test/mocks/tauri";
 import { createBasePreloadedState, renderWithProviders } from "../../../../../test/utils";
 import InitialViewSetting from "./InitialViewSetting";
-import { mockStore } from "../../../../../test/mocks/tauri";
 
 describe("InitialViewSetting", () => {
   const user = userEvent.setup();

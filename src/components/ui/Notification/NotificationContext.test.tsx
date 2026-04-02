@@ -1,14 +1,18 @@
-import { describe, it, expect, vi } from "vitest";
-import { screen, renderHook } from "@testing-library/react";
+import type { AlertColor } from "@mui/material";
+import { renderHook, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import NotificationProvider, { useNotification } from "./NotificationContext";
+import { describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../../../test/utils";
-import { AlertColor } from "@mui/material";
+import NotificationProvider, { useNotification } from "./NotificationContext";
 
 // Helper component to test useNotification
 const TestComponent = ({ message, severity }: { message: string; severity?: AlertColor }) => {
   const { showNotification } = useNotification();
-  return <button onClick={() => showNotification(message, severity)}>Show Notification</button>;
+  return (
+    <button type="button" onClick={() => showNotification(message, severity)}>
+      Show Notification
+    </button>
+  );
 };
 
 describe("NotificationContext", () => {

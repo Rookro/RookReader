@@ -1,9 +1,9 @@
-import { Middleware } from "@reduxjs/toolkit";
-import { error } from "@tauri-apps/plugin-log";
 import { debounce } from "@mui/material";
+import type { Middleware } from "@reduxjs/toolkit";
+import { error } from "@tauri-apps/plugin-log";
 import { upsertReadingState } from "../../bindings/BookCommands";
-import { ReadingState } from "../../types/DatabaseModels";
-import { RootState } from "../store";
+import type { ReadingState } from "../../types/DatabaseModels";
+import type { RootState } from "../store";
 
 const debouncedReadingStateUpdate = debounce(async (state: ReadingState) => {
   try {
@@ -26,7 +26,7 @@ export const readingStateMiddleware: Middleware<object, RootState> =
         if (state.settings.history.recordReadingHistory) {
           const { history, historyIndex, index, book } = state.read.containerFile;
 
-          if (history[historyIndex] && index > -1 && book && book.last_opened_at) {
+          if (history[historyIndex] && index > -1 && book?.last_opened_at) {
             debouncedReadingStateUpdate({
               book_id: book.id,
               last_read_page_index: index,
@@ -41,7 +41,7 @@ export const readingStateMiddleware: Middleware<object, RootState> =
         if (state.settings.history.recordReadingHistory) {
           const { history, historyIndex, index, book } = state.read.containerFile;
 
-          if (history[historyIndex] && index > -1 && book && book.last_opened_at) {
+          if (history[historyIndex] && index > -1 && book?.last_opened_at) {
             // TODO(Rookro): Persist the current CFI to the database for EPUB novels.
             debouncedReadingStateUpdate({
               book_id: book.id,

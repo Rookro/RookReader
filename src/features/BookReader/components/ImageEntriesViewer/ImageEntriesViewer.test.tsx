@@ -1,11 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { error } from "@tauri-apps/plugin-log";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { createBasePreloadedState, renderWithProviders } from "../../../../test/utils";
-import ImageEntriesViewer from "./ImageEntriesViewer";
-import * as ReadReducer from "../../slice";
-import { error } from "@tauri-apps/plugin-log";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { mockScrollToRow } from "../../../../test/mocks/components";
+import { createBasePreloadedState, renderWithProviders } from "../../../../test/utils";
+import * as ReadReducer from "../../slice";
+import ImageEntriesViewer from "./ImageEntriesViewer";
 
 // Mock SidePanelHeader
 vi.mock("../../../SidePane/components/SidePanelHeader", () => ({

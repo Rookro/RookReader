@@ -1,8 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook } from "@testing-library/react";
-import { useBookTags } from "./useBookTags";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useAppDispatch, useAppSelector } from "../../../store/store";
 import { fetchTags } from "../slice";
+import { useBookTags } from "./useBookTags";
 
 vi.mock("../../../store/store", () => ({
   useAppDispatch: vi.fn(),

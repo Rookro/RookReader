@@ -1,10 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createBasePreloadedState, renderWithProviders } from "../../../test/utils";
-import ComicReader from "./ComicReader";
-import * as viewerController from "../hooks/useViewerController";
 import * as pageNavigation from "../hooks/usePageNavigation";
+import * as viewerController from "../hooks/useViewerController";
+import ComicReader from "./ComicReader";
 
 // Mock the hooks
 vi.mock("../hooks/useViewerController");
@@ -140,8 +140,10 @@ describe("ComicReader", () => {
     renderWithProviders(<ComicReader />);
 
     // Click on the container Box
-    const container = screen.getByAltText("Single Page").parentElement!;
-    await user.click(container);
+    const container = screen.getByAltText("Single Page").parentElement;
+    if (container) {
+      await user.click(container);
+    }
 
     expect(handleClicked).toHaveBeenCalled();
   });

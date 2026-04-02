@@ -1,14 +1,14 @@
-import { PayloadAction, createSlice } from "@reduxjs/toolkit";
+import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import { basename, dirname } from "@tauri-apps/api/path";
 import { debug, error, info } from "@tauri-apps/plugin-log";
+import { getBookWithStateById, upsertReadBook } from "../../bindings/BookCommands";
 import { determineEpubNovel, getEntriesInContainer } from "../../bindings/ContainerCommands";
 import { getEntriesInDir as getEntriesInDirFromBackend } from "../../bindings/DirectoryCommands";
-import { DirEntry } from "../../types/DirEntry";
-import { convertEntriesInDir } from "../../utils/DirEntryUtils";
-import { CommandError, ErrorCode } from "../../types/Error";
-import { getBookWithStateById, upsertReadBook } from "../../bindings/BookCommands";
-import { BookWithState } from "../../types/DatabaseModels";
 import { createAppAsyncThunk } from "../../types/CustomAsyncThunk";
+import type { BookWithState } from "../../types/DatabaseModels";
+import type { DirEntry } from "../../types/DirEntry";
+import { CommandError, ErrorCode } from "../../types/Error";
+import { convertEntriesInDir } from "../../utils/DirEntryUtils";
 
 /**
  * Opens a container file or directory, retrieves its contents, and updates the reading history.
@@ -28,7 +28,7 @@ export const openContainerFile = createAppAsyncThunk(
     try {
       const isEpubNovel = await determineEpubNovel(path);
 
-      let entriesResult;
+      let entriesResult: { entries: string[]; is_directory: boolean } | undefined;
       if (!isEpubNovel) {
         entriesResult = await getEntriesInContainer(path, true);
         debug(

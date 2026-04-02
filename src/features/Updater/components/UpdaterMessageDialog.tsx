@@ -1,15 +1,15 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Check, ContentCopy, ErrorOutline, InfoOutlined } from "@mui/icons-material";
 import {
+  Box,
+  Button,
   Dialog,
   DialogActions,
   DialogContent,
   DialogContentText,
   DialogTitle,
-  Button,
   Typography,
-  Box,
 } from "@mui/material";
-import { ErrorOutline, InfoOutlined, ContentCopy, Check } from "@mui/icons-material";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 export interface UpdaterMessageDialogProps {

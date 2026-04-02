@@ -50,7 +50,6 @@ export const mockApp = {
 };
 
 class MockLazyStore {
-  constructor() {}
   get = mockStore.get;
   set = mockStore.set;
   save = mockStore.save;

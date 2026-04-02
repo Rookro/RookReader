@@ -1,29 +1,28 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import readReducer, {
-  openContainerFile,
-  updateExploreBasePath,
-  setImageIndex,
-  setContainerFilePath,
-  setExploreBasePath,
-  setSearchText,
-  goBackContainerHistory,
-  goForwardContainerHistory,
-  goBackExplorerHistory,
-  goForwardExplorerHistory,
-  setNovelLocation,
-  clearContainerFileError,
-  clearExplorerError,
-  setIsDirEntriesLoading,
-  setEntries,
-} from "./slice";
-import { createTestStore, AppStore } from "../../test/utils";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as BookCommands from "../../bindings/BookCommands";
 import * as ContainerCommands from "../../bindings/ContainerCommands";
 import * as DirectoryCommands from "../../bindings/DirectoryCommands";
-import { CommandError, ErrorCode } from "../../types/Error";
-import { RootState } from "../../test/utils";
 import { createMockBookWithState } from "../../test/factories";
-import { DirEntry } from "../../types/DirEntry";
+import { type AppStore, createTestStore, type RootState } from "../../test/utils";
+import type { DirEntry } from "../../types/DirEntry";
+import { CommandError, ErrorCode } from "../../types/Error";
+import readReducer, {
+  clearContainerFileError,
+  clearExplorerError,
+  goBackContainerHistory,
+  goBackExplorerHistory,
+  goForwardContainerHistory,
+  goForwardExplorerHistory,
+  openContainerFile,
+  setContainerFilePath,
+  setEntries,
+  setExploreBasePath,
+  setImageIndex,
+  setIsDirEntriesLoading,
+  setNovelLocation,
+  setSearchText,
+  updateExploreBasePath,
+} from "./slice";
 
 describe("ReadReducer", () => {
   let store: AppStore;

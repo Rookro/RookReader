@@ -1,9 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import settingsReducer, { updateSettings, setSettings } from "./slice";
-import { defaultSettings, settingsStore } from "./settingsStore";
 import { configureStore } from "@reduxjs/toolkit";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { AppDispatch } from "../../store/store";
 import { ErrorCode } from "../../types/Error";
-import { AppDispatch } from "../../store/store";
+import { defaultSettings, settingsStore } from "./settingsStore";
+import settingsReducer, { setSettings, updateSettings } from "./slice";
 
 vi.mock("../settings/SettingsStore", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./settingsStore")>();
@@ -82,7 +82,7 @@ describe("SettingsReducer", () => {
       });
 
       const result = await (store.dispatch as AppDispatch)(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- for testing invalid input
+        // biome-ignore lint/suspicious/noExplicitAny: for testing invalid input
         updateSettings({ key: undefined as any, value: "test" as any }),
       );
 

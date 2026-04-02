@@ -1,30 +1,30 @@
+import { Delete, LocalOffer, ZoomIn, ZoomOut } from "@mui/icons-material";
 import {
   Box,
   CircularProgress,
-  Stack,
-  Menu,
-  MenuItem,
-  Slider,
   Divider,
-  Paper,
+  debounce,
   ListItemIcon,
   ListItemText,
-  debounce,
+  Menu,
+  MenuItem,
+  Paper,
+  Slider,
+  Stack,
   Typography,
 } from "@mui/material";
-import { useCallback, useEffect, useRef, useState, useMemo } from "react";
-import { Grid } from "react-window";
-import { Book, BookWithState } from "../../../types/DatabaseModels";
-import BookCard from "./BookCard";
-import NavigationBar from "./NavigationBar";
-import { useAppDispatch, useAppSelector } from "../../../store/store";
-import { Delete, LocalOffer, ZoomIn, ZoomOut } from "@mui/icons-material";
-import SetBookTagsDialog from "./Dialog/SetBookTagsDialog";
-import { fetchBooksInSelectedBookshelf } from "../slice";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { andSearch, sortBy } from "../utils/BookshelfUtils";
-import BookDeleteDialog from "./Dialog/BookDeleteDialog";
+import { Grid } from "react-window";
+import { useAppDispatch, useAppSelector } from "../../../store/store";
+import type { Book, BookWithState } from "../../../types/DatabaseModels";
 import { updateSettings } from "../../Settings/slice";
+import { fetchBooksInSelectedBookshelf } from "../slice";
+import { andSearch, sortBy } from "../utils/BookshelfUtils";
+import BookCard from "./BookCard";
+import BookDeleteDialog from "./Dialog/BookDeleteDialog";
+import SetBookTagsDialog from "./Dialog/SetBookTagsDialog";
+import NavigationBar from "./NavigationBar";
 
 const GRID_SIZES = [
   { width: 140, height: 220 },

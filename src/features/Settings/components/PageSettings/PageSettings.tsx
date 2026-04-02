@@ -1,7 +1,7 @@
-import { useTranslation } from "react-i18next";
 import { List } from "@mui/material";
-import ShowCoverAsSinglePageSetting from "./Items/ShowCoverAsSinglePageSetting";
+import { useTranslation } from "react-i18next";
 import SettingsPanel from "../SettingsPanel";
+import ShowCoverAsSinglePageSetting from "./Items/ShowCoverAsSinglePageSetting";
 
 /**
  * Page settings component.

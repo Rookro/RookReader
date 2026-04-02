@@ -1,11 +1,11 @@
 import { useEffect } from "react";
-import { useNotification } from "./Notification/NotificationContext";
-import { useAppSelector, useAppDispatch } from "../../store/store";
-import { clearContainerFileError, clearExplorerError } from "../../features/BookReader/slice";
 import { useTranslation } from "react-i18next";
-import { ErrorCode } from "../../types/Error";
-import { clearHistoryError } from "../../features/History/slice";
+import { clearContainerFileError, clearExplorerError } from "../../features/BookReader/slice";
 import { clearBookshelfError, clearTagError } from "../../features/Bookshelf/slice";
+import { clearHistoryError } from "../../features/History/slice";
+import { useAppDispatch, useAppSelector } from "../../store/store";
+import { ErrorCode } from "../../types/Error";
+import { useNotification } from "./Notification/NotificationContext";
 
 /**
  * A headless component that listens to Redux error states and triggers UI notifications.

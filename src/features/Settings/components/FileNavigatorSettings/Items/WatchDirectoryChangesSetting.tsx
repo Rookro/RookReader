@@ -1,11 +1,11 @@
-import { useCallback } from "react";
-import { useTranslation } from "react-i18next";
-import { Switch, ListItem, ListItemIcon, ListItemText } from "@mui/material";
+import { PublishedWithChangesOutlined } from "@mui/icons-material";
+import { ListItem, ListItemIcon, ListItemText, Switch } from "@mui/material";
 import { emit } from "@tauri-apps/api/event";
 import { debug } from "@tauri-apps/plugin-log";
+import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { useAppDispatch, useAppSelector } from "../../../../../store/store";
-import { SettingsChangedEvent } from "../../../../../types/SettingsChangedEvent";
-import { PublishedWithChangesOutlined } from "@mui/icons-material";
+import type { SettingsChangedEvent } from "../../../../../types/SettingsChangedEvent";
 import { updateSettings } from "../../../slice";
 
 /**

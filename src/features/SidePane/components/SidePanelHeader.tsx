@@ -1,5 +1,5 @@
-import { Divider, IconButton, Stack, Typography } from "@mui/material";
 import { Close } from "@mui/icons-material";
+import { Divider, IconButton, Stack, Typography } from "@mui/material";
 import { useCallback } from "react";
 import { useAppDispatch } from "../../../store/store";
 import { setIsLeftSidePanelsHidden } from "../slice";

@@ -1,13 +1,13 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import type { Mock } from "vitest";
-import { screen, waitFor, act } from "@testing-library/react";
-import { createBasePreloadedState, renderWithProviders } from "../../../test/utils";
-import NovelReader from "./NovelReader";
 import * as fs from "@tauri-apps/plugin-fs";
+import { act, screen, waitFor } from "@testing-library/react";
 import ePub from "epubjs";
-import { mockStore, mockLog } from "../../../test/mocks/tauri";
-import * as ReadReducer from "../slice";
+import type { Mock } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { mockLog, mockStore } from "../../../test/mocks/tauri";
+import { createBasePreloadedState, renderWithProviders } from "../../../test/utils";
 import * as pageNav from "../hooks/usePageNavigation";
+import * as ReadReducer from "../slice";
+import NovelReader from "./NovelReader";
 
 // Mock epubjs types for easier testing
 interface MockRendition {

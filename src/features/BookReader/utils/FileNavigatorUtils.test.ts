@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
+import type { DirEntry } from "../../../types/DirEntry";
 import { andSearch, sortBy } from "./FileNavigatorUtils";
-import { DirEntry } from "../../../types/DirEntry";
 
 describe("FileNavigatorUtils", () => {
   const mockEntries: DirEntry[] = [

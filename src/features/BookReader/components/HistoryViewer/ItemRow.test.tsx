@@ -1,10 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { createBasePreloadedState, renderWithProviders } from "../../../../test/utils";
-import { ItemRow } from "./ItemRow";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as BookCommands from "../../../../bindings/BookCommands";
 import { createMockReadBook } from "../../../../test/factories";
+import { createBasePreloadedState, renderWithProviders } from "../../../../test/utils";
+import { ItemRow } from "./ItemRow";
 
 // Mock BookCommands
 describe("HistoryViewer/ItemRow", () => {

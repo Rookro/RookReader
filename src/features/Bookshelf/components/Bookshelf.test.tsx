@@ -1,21 +1,22 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { error } from "@tauri-apps/plugin-log";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { JSX } from "react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createMockBookWithState } from "../../../test/factories";
 import { createBasePreloadedState, renderWithProviders } from "../../../test/utils";
-import Bookshelf from "./Bookshelf";
-import { JSX } from "react";
-import * as BookCollectionReducer from "../slice";
+import type { BookWithState } from "../../../types/DatabaseModels";
 import * as ReadReducer from "../../BookReader/slice";
 import * as ViewReducer from "../../MainView/slice";
-import { error } from "@tauri-apps/plugin-log";
-import { createMockBookWithState } from "../../../test/factories";
-import { BookWithState } from "../../../types/DatabaseModels";
+import * as BookCollectionReducer from "../slice";
+import Bookshelf from "./Bookshelf";
 
 // Mock sub-components
 vi.mock("./BookGrid", () => {
   const BookGrid = ({ onBookSelect }: { onBookSelect: (book: BookWithState) => void }) => (
     <div data-testid="book-grid">
       <button
+        type="button"
         data-testid="select-book-btn"
         onClick={() =>
           onBookSelect(createMockBookWithState({ id: 123, file_path: "/test/book.zip" }))
@@ -38,10 +39,10 @@ vi.mock("./MenuList", () => {
     onClickAddBookTag: () => void;
   }): JSX.Element => (
     <div data-testid="menu-list">
-      <button data-testid="add-shelf-btn" onClick={onClickAddBookshelf}>
+      <button type="button" data-testid="add-shelf-btn" onClick={onClickAddBookshelf}>
         Add Shelf
       </button>
-      <button data-testid="add-tag-btn" onClick={onClickAddBookTag}>
+      <button type="button" data-testid="add-tag-btn" onClick={onClickAddBookTag}>
         Add Tag
       </button>
     </div>
@@ -60,7 +61,11 @@ vi.mock("./Dialog/CreateBookshelfDialog", () => {
   }): JSX.Element | null =>
     openDialog ? (
       <div data-testid="create-bookshelf-dialog">
-        <button data-testid="confirm-create-shelf" onClick={() => onCreate("New Shelf", "icon-1")}>
+        <button
+          type="button"
+          data-testid="confirm-create-shelf"
+          onClick={() => onCreate("New Shelf", "icon-1")}
+        >
           Confirm
         </button>
       </div>
@@ -79,7 +84,11 @@ vi.mock("./Dialog/CreateBookTagDialog", () => {
   }): JSX.Element | null =>
     openDialog ? (
       <div data-testid="create-book-tag-dialog">
-        <button data-testid="confirm-create-tag" onClick={() => onCreate("New Tag", "#ff0000")}>
+        <button
+          type="button"
+          data-testid="confirm-create-tag"
+          onClick={() => onCreate("New Tag", "#ff0000")}
+        >
           Confirm
         </button>
       </div>

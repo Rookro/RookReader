@@ -1,11 +1,11 @@
-import { Box, SxProps, Theme } from "@mui/material";
+import { Box, type SxProps, type Theme } from "@mui/material";
 import { lazy, useEffect } from "react";
-import { useSettingsChange } from "../../Settings/hooks/useSettingsChange";
 import { useAppSelector } from "../../../store/store";
-import { useUpdater } from "../../Updater/hooks/useUpdater";
-import UpdaterProgressDialog from "../../Updater/components/UpdaterProgressDialog";
+import { useSettingsChange } from "../../Settings/hooks/useSettingsChange";
 import UpdaterConfirmDialog from "../../Updater/components/UpdaterConfirmDialog";
 import UpdaterMessageDialog from "../../Updater/components/UpdaterMessageDialog";
+import UpdaterProgressDialog from "../../Updater/components/UpdaterProgressDialog";
+import { useUpdater } from "../../Updater/hooks/useUpdater";
 
 const BookReader = lazy(() => import("../../BookReader/components/BookReader"));
 const Bookshelf = lazy(() => import("../../Bookshelf/components/Bookshelf"));
@@ -43,11 +43,11 @@ export default function MainContent({ sx }: MainContentProps) {
     closeMessageDialog,
   } = useUpdater();
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Call once on startup.
   useEffect(() => {
     if (checkUpdateOnStartup ?? true) {
       checkForUpdates(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

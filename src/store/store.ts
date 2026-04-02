@@ -1,5 +1,5 @@
 import { configureStore } from "@reduxjs/toolkit";
-import { useSelector as rawUseSelector, TypedUseSelectorHook, useDispatch } from "react-redux";
+import { useSelector as rawUseSelector, type TypedUseSelectorHook, useDispatch } from "react-redux";
 import { loggerMiddleware } from "./middleware/loggerMiddleware";
 import { readingStateMiddleware } from "./middleware/readingStateMiddleware";
 import { rootReducer } from "./rootReducer";

@@ -1,24 +1,24 @@
-import { useState, useCallback } from "react";
+import { DeleteOutline, InsertDriveFileOutlined } from "@mui/icons-material";
 import {
   Box,
   Button,
-  Typography,
-  Paper,
   Dialog,
-  DialogTitle,
-  DialogContent,
   DialogActions,
+  DialogContent,
+  DialogTitle,
+  IconButton,
   List,
   ListItem,
   ListItemIcon,
   ListItemText,
-  IconButton,
+  Paper,
+  Typography,
 } from "@mui/material";
 import { open } from "@tauri-apps/plugin-dialog";
 import { error } from "@tauri-apps/plugin-log";
-import { useDragDropEvent } from "../../../../hooks/useDragDropEvent";
+import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { DeleteOutline, InsertDriveFileOutlined } from "@mui/icons-material";
+import { useDragDropEvent } from "../../../../hooks/useDragDropEvent";
 
 /** Props for the BookAdditionToBookshelfDialog component */
 export interface BookAdditionToBookshelfProps {

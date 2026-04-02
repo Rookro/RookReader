@@ -1,10 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import * as dialog from "@tauri-apps/plugin-dialog";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { mockStore } from "../../../../../test/mocks/tauri";
 import { createBasePreloadedState, renderWithProviders } from "../../../../../test/utils";
 import HomeDirSetting from "./HomeDirSetting";
-import { mockStore } from "../../../../../test/mocks/tauri";
-import * as dialog from "@tauri-apps/plugin-dialog";
 
 describe("HomeDirSetting", () => {
   const user = userEvent.setup();

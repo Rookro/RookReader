@@ -1,17 +1,12 @@
-import { useRef, useState, useLayoutEffect } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 
 /**
  * Custom hook to calculate animation parameters based on content and container width for auto-scrolling text.
- * @param text The text content to scroll.
  * @param pixelsPerSecond The number of pixels to scroll per second.
  * @param delaySeconds The number of seconds to delay before starting the scroll.
  * @returns An object with the container and content refs, overflow state, and animation style.
  */
-export function useAutoScrollAnimation(
-  text: string,
-  pixelsPerSecond: number,
-  delaySeconds: number,
-) {
+export function useAutoScrollAnimation(pixelsPerSecond: number, delaySeconds: number) {
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLElement>(null);
   const [isOverflowing, setIsOverflowing] = useState(false);
@@ -63,7 +58,7 @@ export function useAutoScrollAnimation(
     return () => {
       resizeObserver.disconnect();
     };
-  }, [text, pixelsPerSecond, delaySeconds]);
+  }, [pixelsPerSecond, delaySeconds]);
 
   return { containerRef, contentRef, isOverflowing, animationStyle };
 }

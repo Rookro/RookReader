@@ -1,25 +1,26 @@
-import React, { JSX, useCallback } from "react";
 import { Tab, Tabs } from "@mui/material";
+import type React from "react";
+import { type JSX, useCallback } from "react";
 import { useAppDispatch } from "../../../store/store";
-import { setLeftSideTabIndex, setIsLeftSidePanelsHidden } from "../slice";
+import { setIsLeftSidePanelsHidden, setLeftSideTabIndex } from "../slice";
 
 /**
  * Side tabs component.
  */
 export default function SideTabs(props: {
   tabs: { label: string; icon: JSX.Element; panel: JSX.Element }[];
-  tabIndex: number;
+  index: number;
   isHidden: boolean;
 }) {
   const dispatch = useAppDispatch();
 
   const handleTabClick = useCallback(
     (_event: React.MouseEvent, index: number) => {
-      if (props.tabIndex === index) {
+      if (props.index === index) {
         dispatch(setIsLeftSidePanelsHidden(!props.isHidden));
       }
     },
-    [dispatch, props.tabIndex, props.isHidden],
+    [dispatch, props.index, props.isHidden],
   );
 
   const handleChange = useCallback(
@@ -30,14 +31,14 @@ export default function SideTabs(props: {
     [dispatch],
   );
 
-  if (props.tabs.length - 1 < props.tabIndex) {
+  if (props.tabs.length - 1 < props.index) {
     dispatch(setLeftSideTabIndex(0));
   }
 
   return (
     <Tabs
       orientation="vertical"
-      value={props.tabIndex}
+      value={props.index}
       onChange={handleChange}
       aria-label="sidebar-tabs"
       sx={{

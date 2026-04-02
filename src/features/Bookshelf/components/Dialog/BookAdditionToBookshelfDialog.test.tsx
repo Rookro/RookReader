@@ -1,12 +1,12 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { open } from "@tauri-apps/plugin-dialog";
+import { error } from "@tauri-apps/plugin-log";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import BookAdditionToBookshelfDialog from "./BookAdditionToBookshelfDialog";
-import { renderWithProviders } from "../../../../test/utils";
-import i18n from "../../../../i18n/config";
-import { open } from "@tauri-apps/plugin-dialog";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useDragDropEvent } from "../../../../hooks/useDragDropEvent";
-import { error } from "@tauri-apps/plugin-log";
+import i18n from "../../../../i18n/config";
+import { renderWithProviders } from "../../../../test/utils";
+import BookAdditionToBookshelfDialog from "./BookAdditionToBookshelfDialog";
 
 vi.mock("../../../../hooks/useDragDropEvent", () => ({
   useDragDropEvent: vi.fn(),

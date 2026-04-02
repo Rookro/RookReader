@@ -1,22 +1,22 @@
-import { useState, useEffect, useCallback } from "react";
+import { LocalOffer } from "@mui/icons-material";
 import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
+  Box,
   Button,
+  Checkbox,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   List,
   ListItem,
-  ListItemText,
-  Checkbox,
-  Box,
   ListItemIcon,
+  ListItemText,
 } from "@mui/material";
-import { Tag } from "../../../../types/DatabaseModels";
-import { getBookTags, updateBookTags } from "../../../../bindings/BookCommands";
 import { error as logError } from "@tauri-apps/plugin-log";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { LocalOffer } from "@mui/icons-material";
+import { getBookTags, updateBookTags } from "../../../../bindings/BookCommands";
+import type { Tag } from "../../../../types/DatabaseModels";
 
 /** Props for the SetBookTagsDialog component */
 export interface SetBookTagsDialogProps {

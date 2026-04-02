@@ -1,11 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { screen, waitFor, act } from "@testing-library/react";
-import { renderWithProviders, createBasePreloadedState } from "../../../test/utils";
-import BookReader from "./BookReader";
+import { error } from "@tauri-apps/plugin-log";
+import { act, screen, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as bookCmds from "../../../bindings/BookCommands";
 import * as dragDrop from "../../../hooks/useDragDropEvent";
+import { createBasePreloadedState, renderWithProviders } from "../../../test/utils";
 import * as readRed from "../slice";
-import { error } from "@tauri-apps/plugin-log";
+import BookReader from "./BookReader";
 
 // Module-level mocks to bypass lazy loading
 vi.mock("../../SidePane/components/SideTabs", () => ({

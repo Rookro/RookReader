@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { screen, fireEvent } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 import { createBasePreloadedState, renderWithProviders } from "../../../test/utils";
 import ControlSlider from "./ControlSlider";
 

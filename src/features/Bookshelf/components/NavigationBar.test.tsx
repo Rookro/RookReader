@@ -1,10 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import NavigationBar from "./NavigationBar";
-import { renderWithProviders } from "../../../test/utils";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import i18n from "../../../i18n/config";
+import { renderWithProviders } from "../../../test/utils";
 import { openSettingsWindow } from "../../../utils/WindowOpener";
+import NavigationBar from "./NavigationBar";
 
 // Mock WindowOpener
 vi.mock("../../../utils/WindowOpener", () => ({

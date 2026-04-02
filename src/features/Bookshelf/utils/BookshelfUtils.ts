@@ -1,5 +1,5 @@
-import { SortOrder } from "../../../types/AppSettings";
-import { BookWithState } from "../../../types/DatabaseModels";
+import type { SortOrder } from "../../../types/AppSettings";
+import type { BookWithState } from "../../../types/DatabaseModels";
 
 /**
  * Filters an array of BookWithState objects to find entries whose 'display_name' property contains ALL specified keywords (AND search).

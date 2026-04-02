@@ -2,7 +2,7 @@ import { NumberField as BaseNumberField } from "@base-ui/react/number-field";
 import AddIcon from "@mui/icons-material/Add";
 import OpenInFullIcon from "@mui/icons-material/OpenInFull";
 import RemoveIcon from "@mui/icons-material/Remove";
-import { FormHelperText, SxProps, Theme } from "@mui/material";
+import { FormHelperText, type SxProps, type Theme } from "@mui/material";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import FormControl from "@mui/material/FormControl";

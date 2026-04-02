@@ -1,8 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
 import { waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createBasePreloadedState, renderWithProviders } from "../../test/utils";
-import GlobalErrorListener from "./GlobalErrorListener";
 import { ErrorCode } from "../../types/Error";
+import GlobalErrorListener from "./GlobalErrorListener";
 import * as notificationContext from "./Notification/NotificationContext";
 
 // Mock useNotification

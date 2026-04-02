@@ -1,8 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { readingStateMiddleware } from "./readingStateMiddleware";
-import * as bookCommands from "../../bindings/BookCommands";
+import type { Dispatch, MiddlewareAPI, UnknownAction } from "@reduxjs/toolkit";
 import { error } from "@tauri-apps/plugin-log";
-import { UnknownAction, Dispatch, MiddlewareAPI } from "@reduxjs/toolkit";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import * as bookCommands from "../../bindings/BookCommands";
+import { readingStateMiddleware } from "./readingStateMiddleware";
 
 vi.mock("@mui/material", () => ({
   debounce: <T extends (...args: unknown[]) => unknown>(fn: T) => fn, // No debounce for testing

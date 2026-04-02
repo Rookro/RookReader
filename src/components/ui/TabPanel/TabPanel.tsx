@@ -1,4 +1,4 @@
-import { Box, SxProps, Theme } from "@mui/material";
+import { Box, type SxProps, type Theme } from "@mui/material";
 
 /**
  * Properties for the TabPanel component.

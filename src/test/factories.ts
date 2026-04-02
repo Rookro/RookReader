@@ -1,11 +1,5 @@
-import {
-  BookWithState,
-  ReadBook,
-  Bookshelf,
-  Tag,
-  Series,
-} from "../types/DatabaseModels";
-import { DirEntry } from "../types/DirEntry";
+import type { Bookshelf, BookWithState, ReadBook, Series, Tag } from "../types/DatabaseModels";
+import type { DirEntry } from "../types/DirEntry";
 
 /**
  * Creates a mock BookWithState object for testing.

@@ -1,4 +1,4 @@
-import { Typography, Box, TypographyProps, useMediaQuery } from "@mui/material";
+import { Box, Typography, type TypographyProps, useMediaQuery } from "@mui/material";
 import { useAutoScrollAnimation } from "./useAutoScrollAnimation";
 
 /** Props for the AutoScrollTypography component.*/
@@ -33,7 +33,6 @@ export default function AutoScrollTypography({
 }: AutoScrollTypographyProps) {
   const prefersReducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
   const { containerRef, contentRef, isOverflowing, animationStyle } = useAutoScrollAnimation(
-    text,
     pixelsPerSecond,
     delaySeconds,
   );

@@ -1,10 +1,13 @@
 import { createSlice } from "@reduxjs/toolkit";
-import type { ReadBook } from "../../types/DatabaseModels";
-import { clearAllReadingHistory, getRecentlyReadBooks } from "../../bindings/BookCommands";
-import { clearReadingHistory } from "../../bindings/BookCommands";
 import { error } from "@tauri-apps/plugin-log";
-import { CommandError, ErrorCode } from "../../types/Error";
+import {
+  clearAllReadingHistory,
+  clearReadingHistory,
+  getRecentlyReadBooks,
+} from "../../bindings/BookCommands";
 import { createAppAsyncThunk } from "../../types/CustomAsyncThunk";
+import type { ReadBook } from "../../types/DatabaseModels";
+import { CommandError, ErrorCode } from "../../types/Error";
 
 /**
  * Fetches the list of recently read books from the database.

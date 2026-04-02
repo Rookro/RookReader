@@ -1,15 +1,15 @@
-import { useCallback, useEffect, useState, useRef } from "react";
-import {
-  ImageCacheItem,
-  ViewLayout,
-  ViewerSettings,
-  calculateLayout,
-  fetchImageBlob,
-  createImageCacheItem,
-  fetchImagePreviewBlob,
-} from "../utils/ImageUtils";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { AppDispatch } from "../../../store/store";
 import { setImageIndex } from "../slice";
-import { AppDispatch } from "../../../store/store";
+import {
+  calculateLayout,
+  createImageCacheItem,
+  fetchImageBlob,
+  fetchImagePreviewBlob,
+  type ImageCacheItem,
+  type ViewerSettings,
+  type ViewLayout,
+} from "../utils/ImageUtils";
 
 /**
  * ViewerController hook return type.
@@ -47,6 +47,7 @@ export const useViewerController = (
   const [layoutState, setLayoutState] = useState<{ layout: ViewLayout; path: string } | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: update the cache whenever containerPath changes.
   useEffect(() => {
     cacheRef.current.forEach((item) => {
       if (item.previewUrl) {

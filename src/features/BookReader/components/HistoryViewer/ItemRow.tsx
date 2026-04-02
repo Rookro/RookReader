@@ -1,4 +1,4 @@
-import { CSSProperties, memo, useCallback, useState } from "react";
+import { FolderOutlined } from "@mui/icons-material";
 import {
   Box,
   ListItem,
@@ -9,10 +9,10 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import { FolderOutlined } from "@mui/icons-material";
+import { type CSSProperties, memo, useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppDispatch } from "../../../../store/store";
-import { ReadBook } from "../../../../types/DatabaseModels";
+import type { ReadBook } from "../../../../types/DatabaseModels";
 import { clearHistory } from "../../../History/slice";
 
 /**
@@ -94,7 +94,7 @@ export const ItemRow = memo(function ItemRow({
             sx={{ padding: "4px 8px" }}
           >
             <ListItemText primary={entry.display_name} slotProps={{ primary: { noWrap: true } }} />
-            {entry.item_type === "directory" ? <FolderOutlined fontSize="small" /> : <></>}
+            {entry.item_type === "directory" && <FolderOutlined fontSize="small" />}
           </ListItemButton>
         </ListItem>
       </Tooltip>

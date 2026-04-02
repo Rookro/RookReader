@@ -1,10 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import * as containerCmds from "../../../../../bindings/ContainerCommands";
+import { mockStore } from "../../../../../test/mocks/tauri";
 import { createBasePreloadedState, renderWithProviders } from "../../../../../test/utils";
 import MaxImageHeightSetting from "./MaxImageHeightSetting";
-import { mockStore } from "../../../../../test/mocks/tauri";
-import * as containerCmds from "../../../../../bindings/ContainerCommands";
 
 // Mock ContainerCommands
 describe("MaxImageHeightSetting", () => {

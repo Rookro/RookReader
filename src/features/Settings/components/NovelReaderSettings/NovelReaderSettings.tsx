@@ -1,7 +1,7 @@
-import { useTranslation } from "react-i18next";
 import { List } from "@mui/material";
-import FontSettings from "./Items/FontSettings";
+import { useTranslation } from "react-i18next";
 import SettingsPanel from "../SettingsPanel";
+import FontSettings from "./Items/FontSettings";
 
 /**
  * Novel reader settings component.

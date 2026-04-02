@@ -5,15 +5,18 @@ import {
   ListItemText,
   MenuItem,
   Select,
-  SelectChangeEvent,
+  type SelectChangeEvent,
 } from "@mui/material";
 import { debug, error } from "@tauri-apps/plugin-log";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { setImageResamplingMethod } from "../../../../../bindings/ContainerCommands";
 import { useAppDispatch, useAppSelector } from "../../../../../store/store";
+import {
+  type ImageResamplingMethod,
+  imageResamplingMethods,
+} from "../../../../../types/AppSettings";
 import { updateSettings } from "../../../slice";
-import { ImageResamplingMethod, imageResamplingMethods } from "../../../../../types/AppSettings";
 
 /**
  * Image resize setting component.

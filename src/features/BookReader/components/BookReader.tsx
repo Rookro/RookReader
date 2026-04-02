@@ -1,13 +1,13 @@
-import { Box, debounce, Stack, SxProps, Theme } from "@mui/material";
 import { Explore, History, PhotoLibrary } from "@mui/icons-material";
-import { JSX, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useDispatch } from "react-redux";
+import { Box, debounce, Stack, type SxProps, type Theme } from "@mui/material";
 import { error } from "@tauri-apps/plugin-log";
 import { Allotment } from "allotment";
-import { openContainerFile, setContainerFilePath } from "../slice";
-import { AppDispatch, useAppSelector } from "../../../store/store";
+import { type JSX, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useDispatch } from "react-redux";
 import { getRecentlyReadBooks } from "../../../bindings/BookCommands";
 import { useDragDropEvent } from "../../../hooks/useDragDropEvent";
+import { type AppDispatch, useAppSelector } from "../../../store/store";
+import { openContainerFile, setContainerFilePath } from "../slice";
 
 const SideTabs = lazy(() => import("../../SidePane/components/SideTabs"));
 const SidePanels = lazy(() => import("../../SidePane/components/SidePanels"));
@@ -132,7 +132,7 @@ export default function BookReader({ sx }: BookReaderProps) {
     >
       <NavigationBar />
       <Stack direction="row" sx={{ width: "100%", height: "100%" }}>
-        <SideTabs tabs={tabs} tabIndex={tabIndex} isHidden={isHidden} />
+        <SideTabs tabs={tabs} index={tabIndex} isHidden={isHidden} />
         <Box sx={{ flex: 1 }}>
           <Allotment
             defaultSizes={paneSizes}
@@ -140,7 +140,7 @@ export default function BookReader({ sx }: BookReaderProps) {
             onChange={handlePaneSizeChanged}
           >
             <Allotment.Pane preferredSize={320} minSize={210} visible={!isHidden}>
-              <SidePanels tabs={tabs} tabIndex={tabIndex} />
+              <SidePanels tabs={tabs} index={tabIndex} />
             </Allotment.Pane>
             <Allotment.Pane>
               <Box

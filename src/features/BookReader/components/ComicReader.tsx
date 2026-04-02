@@ -1,10 +1,10 @@
+import { Box, CircularProgress } from "@mui/material";
 import { useEffect, useMemo } from "react";
 import { useDispatch } from "react-redux";
-import { Box, CircularProgress } from "@mui/material";
-import { AppDispatch, useAppSelector } from "../../../store/store";
+import { type AppDispatch, useAppSelector } from "../../../store/store";
 import { usePageNavigation } from "../hooks/usePageNavigation";
-import { ViewerSettings } from "../utils/ImageUtils";
 import { useViewerController } from "../hooks/useViewerController";
+import type { ViewerSettings } from "../utils/ImageUtils";
 
 /**
  * Component for displaying images of comics.

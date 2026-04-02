@@ -1,8 +1,8 @@
-import { describe, it, expect, vi } from "vitest";
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import NumberSpinner from "./NumberSpinner";
+import { describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../../test/utils";
+import NumberSpinner from "./NumberSpinner";
 
 describe("NumberSpinner", () => {
   const user = userEvent.setup();

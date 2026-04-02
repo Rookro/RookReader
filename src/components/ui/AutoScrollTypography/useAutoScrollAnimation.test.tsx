@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, act } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAutoScrollAnimation } from "./useAutoScrollAnimation";
 
 function TestComponent({
@@ -12,7 +12,6 @@ function TestComponent({
   delaySeconds?: number;
 }) {
   const { containerRef, contentRef, isOverflowing, animationStyle } = useAutoScrollAnimation(
-    text,
     pixelsPerSecond,
     delaySeconds,
   );

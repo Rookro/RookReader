@@ -1,8 +1,8 @@
-import { describe, it, expect, vi } from "vitest";
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import UpdaterMessageDialog from "./UpdaterMessageDialog";
+import { describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../../../test/utils";
+import UpdaterMessageDialog from "./UpdaterMessageDialog";
 
 describe("UpdaterMessageDialog", () => {
   it("should not render when open is false", () => {

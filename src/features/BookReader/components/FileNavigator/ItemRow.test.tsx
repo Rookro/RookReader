@@ -1,9 +1,9 @@
-import { describe, it, expect, vi } from "vitest";
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vitest";
+import { createMockDirEntry } from "../../../../test/factories";
 import { renderWithProviders } from "../../../../test/utils";
 import { ItemRow } from "./ItemRow";
-import { createMockDirEntry } from "../../../../test/factories";
 
 describe("FileNavigator/ItemRow", () => {
   const user = userEvent.setup();

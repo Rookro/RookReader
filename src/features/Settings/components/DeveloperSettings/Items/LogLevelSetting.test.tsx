@@ -1,11 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { screen, waitFor, within } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import { createBasePreloadedState, renderWithProviders } from "../../../../../test/utils";
-import LogLevelSetting from "./LogLevelSetting";
-import { mockStore } from "../../../../../test/mocks/tauri";
 import { appLogDir } from "@tauri-apps/api/path";
 import { openPath } from "@tauri-apps/plugin-opener";
+import { screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { mockStore } from "../../../../../test/mocks/tauri";
+import { createBasePreloadedState, renderWithProviders } from "../../../../../test/utils";
+import LogLevelSetting from "./LogLevelSetting";
 
 describe("LogLevelSetting", () => {
   const user = userEvent.setup();

@@ -1,9 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { renderHook, act } from "@testing-library/react";
-import { useUpdater } from "./useUpdater";
-import { check, Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
+import { check, type Update } from "@tauri-apps/plugin-updater";
+import { act, renderHook } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { isUpdaterSupported } from "../../../bindings/UpdaterCommands";
+import { useUpdater } from "./useUpdater";
 
 vi.mock("@tauri-apps/plugin-updater", () => ({
   check: vi.fn(),

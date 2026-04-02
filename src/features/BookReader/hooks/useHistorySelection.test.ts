@@ -1,7 +1,7 @@
-import { describe, it, expect, vi } from "vitest";
 import { renderHook } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import type { Book } from "../../../types/DatabaseModels";
 import { useHistorySelection } from "./useHistorySelection";
-import { Book } from "../../../types/DatabaseModels";
 
 describe("useHistorySelection", () => {
   const mockEntries: Book[] = [

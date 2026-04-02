@@ -1,9 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { useMediaQuery } from "@mui/material";
 import { screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../../../test/utils";
 import AutoScrollTypography from "./AutoScrollTypography";
 import * as autoScrollHook from "./useAutoScrollAnimation";
-import { useMediaQuery } from "@mui/material";
 
 // Mock the hook
 vi.mock("./useAutoScrollAnimation", () => ({

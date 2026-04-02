@@ -1,10 +1,10 @@
+import createCache from "@emotion/cache";
+import { CacheProvider } from "@emotion/react";
+import { Box, Slider, Stack, Typography } from "@mui/material";
+import { createTheme, type Theme, ThemeProvider } from "@mui/material/styles";
+import rtlPlugin from "@mui/stylis-plugin-rtl";
 import { useCallback, useMemo } from "react";
 import { prefixer } from "stylis";
-import { Box, Slider, Stack, Typography } from "@mui/material";
-import { createTheme, Theme, ThemeProvider } from "@mui/material/styles";
-import rtlPlugin from "@mui/stylis-plugin-rtl";
-import { CacheProvider } from "@emotion/react";
-import createCache from "@emotion/cache";
 import { useAppTheme } from "../../../hooks/useAppTheme";
 import { useAppDispatch, useAppSelector } from "../../../store/store";
 import { setImageIndex } from "../slice";

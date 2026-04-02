@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest";
-import { andSearch, sortBy } from "./BookshelfUtils";
+import { describe, expect, it } from "vitest";
 import { createMockBookWithState } from "../../../test/factories";
+import { andSearch, sortBy } from "./BookshelfUtils";
 
 describe("BookshelfUtils", () => {
   const mockBooks = [

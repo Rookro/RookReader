@@ -1,10 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import { renderWithProviders } from "../../../../../test/utils";
-import About from "./About";
 import { getName, getVersion } from "@tauri-apps/api/app";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { renderWithProviders } from "../../../../../test/utils";
+import About from "./About";
 
 describe("About", () => {
   const user = userEvent.setup();
@@ -30,8 +30,10 @@ describe("About", () => {
 
     await waitFor(() => expect(screen.getByText("Project Page")).toBeInTheDocument());
 
-    const projectLink = screen.getByText("Project Page").closest("button")!;
-    await user.click(projectLink);
+    const projectLink = screen.getByText("Project Page").closest("button");
+    if (projectLink) {
+      await user.click(projectLink);
+    }
 
     expect(openUrl).toHaveBeenCalledWith("https://github.com/Rookro/RookReader");
   });

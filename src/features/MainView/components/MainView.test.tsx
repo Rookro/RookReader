@@ -1,10 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { SxProps } from "@mui/material";
+import type { Theme } from "@mui/material/styles";
 import { screen } from "@testing-library/react";
+import type { JSX } from "react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createBasePreloadedState, renderWithProviders } from "../../../test/utils";
 import MainContent from "./MainView";
-import { JSX } from "react";
-import { Theme } from "@mui/material/styles";
-import { SxProps } from "@mui/material";
 
 // Mock lazy-loaded components to avoid issues in tests
 vi.mock("../../BookReader/components/BookReader", () => {

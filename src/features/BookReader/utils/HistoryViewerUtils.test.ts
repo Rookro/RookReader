@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
+import type { ReadBook } from "../../../types/DatabaseModels";
 import { andSearch } from "./HistoryViewerUtils";
-import { ReadBook } from "../../../types/DatabaseModels";
 
 describe("HistoryViewerUtils", () => {
   const mockEntries: ReadBook[] = [

@@ -1,5 +1,5 @@
 import { LazyStore } from "@tauri-apps/plugin-store";
-import { AppSettings } from "../../types/AppSettings";
+import type { AppSettings } from "../../types/AppSettings";
 
 const settingsFileName = import.meta.env.DEV
   ? "rook-reader_settings_dev.json"
