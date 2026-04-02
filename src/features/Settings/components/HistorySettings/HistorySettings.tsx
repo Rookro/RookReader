@@ -1,7 +1,7 @@
-import { useTranslation } from "react-i18next";
 import { List } from "@mui/material";
-import RecordReadingHistorySetting from "./Items/RecordReadingHistorySetting";
+import { useTranslation } from "react-i18next";
 import SettingsPanel from "../SettingsPanel";
+import RecordReadingHistorySetting from "./Items/RecordReadingHistorySetting";
 
 /**
  * History settings component.

@@ -5,7 +5,7 @@ import {
   ListItemText,
   MenuItem,
   Select,
-  SelectChangeEvent,
+  type SelectChangeEvent,
   Typography,
 } from "@mui/material";
 import { emit } from "@tauri-apps/api/event";
@@ -14,9 +14,9 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getFonts } from "../../../../../bindings/FontCommands";
 import NumberSpinner from "../../../../../components/ui/NumberSpinner";
-import { SettingsChangedEvent } from "../../../../../types/SettingsChangedEvent";
-import { updateSettings } from "../../../slice";
 import { useAppDispatch, useAppSelector } from "../../../../../store/store";
+import type { SettingsChangedEvent } from "../../../../../types/SettingsChangedEvent";
+import { updateSettings } from "../../../slice";
 
 const defaultFont = "default-font";
 

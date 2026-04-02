@@ -1,11 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { emit } from "@tauri-apps/api/event";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { getFonts } from "../../../../../bindings/FontCommands";
+import { mockStore } from "../../../../../test/mocks/tauri";
 import { renderWithProviders } from "../../../../../test/utils";
 import FontSettings from "./FontSettings";
-import { mockStore } from "../../../../../test/mocks/tauri";
-import { emit } from "@tauri-apps/api/event";
-import { getFonts } from "../../../../../bindings/FontCommands";
 
 // Mock FontCommands
 describe("FontSettings", () => {

@@ -1,14 +1,20 @@
-import { useCallback, useEffect, useRef } from "react";
-import { useDispatch } from "react-redux";
-import ePub, { Book, Contents, Rendition, Location, NavItem } from "epubjs";
 import { Badge, Box } from "@mui/material";
 import { readFile } from "@tauri-apps/plugin-fs";
 import { debug, error } from "@tauri-apps/plugin-log";
-import { useAppTheme } from "../../../hooks/useAppTheme";
-import { usePageNavigation } from "../hooks/usePageNavigation";
-import { AppDispatch, useAppSelector } from "../../../store/store";
-import { setEntries, setNovelLocation } from "../slice";
+import ePub, {
+  type Book,
+  type Contents,
+  type Location,
+  type NavItem,
+  type Rendition,
+} from "epubjs";
+import { useCallback, useEffect, useRef } from "react";
+import { useDispatch } from "react-redux";
 import BundledNotoSerifJP from "../../../assets/fonts/NotoSerifJP-VariableFont_wght.woff2";
+import { useAppTheme } from "../../../hooks/useAppTheme";
+import { type AppDispatch, useAppSelector } from "../../../store/store";
+import { usePageNavigation } from "../hooks/usePageNavigation";
+import { setEntries, setNovelLocation } from "../slice";
 
 /** Props for the NovelReader component */
 interface NovelReaderProps {
@@ -83,6 +89,7 @@ export default function NovelReader({ filePath }: NovelReaderProps) {
     readingDirection,
   );
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Do not re-render the rendition component if the theme is changed.
   useEffect(() => {
     let isMounted = true;
 
@@ -204,9 +211,6 @@ export default function NovelReader({ filePath }: NovelReaderProps) {
       bookRef.current?.destroy();
       bookRef.current = null;
     };
-
-    // Do not re-render the rendition component if the theme is changed.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filePath, handleClicked, handleContextMenu, handleWheeled, handleKeydown, dispatch]);
 
   useEffect(() => {

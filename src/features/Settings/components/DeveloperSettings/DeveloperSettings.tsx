@@ -1,8 +1,8 @@
-import { useTranslation } from "react-i18next";
 import { Divider, List } from "@mui/material";
-import LogLevelSetting from "./Items/LogLevelSetting";
-import ExperimentalFeatures from "./Items/ExperimentalFeatures";
+import { useTranslation } from "react-i18next";
 import SettingsPanel from "../SettingsPanel";
+import ExperimentalFeatures from "./Items/ExperimentalFeatures";
+import LogLevelSetting from "./Items/LogLevelSetting";
 
 /**
  * Developer settings component.

@@ -1,4 +1,9 @@
-import { useTranslation } from "react-i18next";
+import {
+  DarkModeOutlined,
+  LightModeOutlined,
+  Palette,
+  SettingsBrightnessOutlined,
+} from "@mui/icons-material";
 import {
   ListItem,
   ListItemIcon,
@@ -6,18 +11,13 @@ import {
   ToggleButton,
   ToggleButtonGroup,
 } from "@mui/material";
-import {
-  DarkModeOutlined,
-  LightModeOutlined,
-  Palette,
-  SettingsBrightnessOutlined,
-} from "@mui/icons-material";
 import { app } from "@tauri-apps/api";
-import { Theme } from "@tauri-apps/api/window";
-import { useAppDispatch, useAppSelector } from "../../../../../store/store";
-import { updateSettings } from "../../../slice";
-import { AppTheme } from "../../../../../types/AppSettings";
+import type { Theme } from "@tauri-apps/api/window";
 import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
+import { useAppDispatch, useAppSelector } from "../../../../../store/store";
+import type { AppTheme } from "../../../../../types/AppSettings";
+import { updateSettings } from "../../../slice";
 
 /**
  * Mapping from theme names to Tauri's theme setting values.

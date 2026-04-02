@@ -1,11 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import BookDeleteDialog from "./BookDeleteDialog";
-import { createBasePreloadedState, renderWithProviders } from "../../../../test/utils";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import i18n from "../../../../i18n/config";
+import { createMockBookshelf, createMockBookWithState } from "../../../../test/factories";
+import { createBasePreloadedState, renderWithProviders } from "../../../../test/utils";
 import * as BookCollectionReducer from "../../slice";
-import { createMockBookWithState, createMockBookshelf } from "../../../../test/factories";
+import BookDeleteDialog from "./BookDeleteDialog";
 
 vi.mock("../../slice", async (importOriginal) => {
   const actual = await importOriginal<typeof BookCollectionReducer>();

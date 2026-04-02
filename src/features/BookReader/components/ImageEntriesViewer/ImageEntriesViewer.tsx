@@ -1,13 +1,13 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useDispatch } from "react-redux";
-import { List, RowComponentProps, useListCallbackRef } from "react-window";
 import { Box, Typography } from "@mui/material";
 import { debug, error } from "@tauri-apps/plugin-log";
-import { useAppSelector, AppDispatch } from "../../../../store/store";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { useDispatch } from "react-redux";
+import { List, type RowComponentProps, useListCallbackRef } from "react-window";
+import { type AppDispatch, useAppSelector } from "../../../../store/store";
+import SidePanelHeader from "../../../SidePane/components/SidePanelHeader";
 import { setImageIndex } from "../../slice";
 import { ItemRow } from "./ItemRow";
-import SidePanelHeader from "../../../SidePane/components/SidePanelHeader";
-import { useTranslation } from "react-i18next";
 
 /** Props for the row component. */
 interface RowProps {

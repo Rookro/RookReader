@@ -1,10 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { screen, fireEvent, waitFor, act } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createBasePreloadedState, renderWithProviders } from "../../../../test/utils";
-import NavBar from "./NavBar";
-import * as ReadReducer from "../../slice";
 import * as SettingsReducer from "../../../Settings/slice";
+import * as ReadReducer from "../../slice";
+import NavBar from "./NavBar";
 
 // Mock actions to track calls
 vi.mock("../../slice", async () => {

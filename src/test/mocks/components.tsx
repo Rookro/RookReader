@@ -1,5 +1,6 @@
+import React, { type ComponentType, type JSX, type ReactNode } from "react";
 import { vi } from "vitest";
-import React, { ReactNode, JSX, ComponentType } from "react";
+import type { Book } from "../../types/DatabaseModels";
 
 /** Mock for scrollToRow function */
 export const mockScrollToRow = vi.fn();
@@ -16,8 +17,8 @@ vi.mock("react-window", () => ({
     rowCount: number;
   }) => (
     <div data-testid="virtualized-list">
-      {Array.from({ length: rowCount }).map((_, index) => (
-        <div key={index} data-testid={`row-wrapper-${index}`}>
+      {Array.from({ length: rowCount }, (_, index) => index).map((value, index) => (
+        <div key={value} data-testid={`row-wrapper-${index}`}>
           <Row index={index} style={{}} {...rowProps} isScrolling={false} />
         </div>
       ))}
@@ -28,25 +29,24 @@ vi.mock("react-window", () => ({
     cellProps,
   }: {
     cellComponent: ComponentType<Record<string, unknown>>;
-    cellProps: { books: unknown[]; [key: string]: unknown };
+    cellProps: { books: Book[]; [key: string]: unknown };
   }) => (
     <div data-testid="virtualized-grid">
-      {(cellProps?.books ?? []).map((_book: unknown, index: number) => {
+      {(cellProps?.books ?? []).map((book: Book, index: number) => {
         return (
-          <div
-            key={index}
+          <button
+            type="button"
+            key={book.id}
             data-testid={`book-cell-${index}`}
             onContextMenu={(e: React.MouseEvent) =>
-              (
-                cellProps.onBookContextMenu as (
-                  book: unknown,
-                  e: React.MouseEvent,
-                ) => void | undefined
-              )?.(cellProps.books[index], e)
+              (cellProps.onBookContextMenu as (book: unknown, e: React.MouseEvent) => void)?.(
+                cellProps.books[index],
+                e,
+              )
             }
           >
             <Cell columnIndex={index} rowIndex={0} style={{}} {...cellProps} index={index} />
-          </div>
+          </button>
         );
       })}
     </div>

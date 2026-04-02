@@ -1,7 +1,7 @@
-import { describe, it, expect } from "vitest";
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { renderWithProviders, testI18n as i18n } from "../../../../../test/utils";
+import { describe, expect, it } from "vitest";
+import { testI18n as i18n, renderWithProviders } from "../../../../../test/utils";
 import LanguageSettings from "./LanguageSettings";
 
 describe("LanguageSettings", () => {

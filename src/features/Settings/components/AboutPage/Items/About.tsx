@@ -1,15 +1,15 @@
+import { GitHub, SystemUpdateAlt } from "@mui/icons-material";
+import { Box, Button, Link, Stack, Typography } from "@mui/material";
+import { getName, getVersion } from "@tauri-apps/api/app";
+import { error } from "@tauri-apps/plugin-log";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Box, Button, Link, Stack, Typography } from "@mui/material";
-import { GitHub, SystemUpdateAlt } from "@mui/icons-material";
-import { getName, getVersion } from "@tauri-apps/api/app";
-import { openUrl } from "@tauri-apps/plugin-opener";
-import { error } from "@tauri-apps/plugin-log";
 import appIcon from "../../../../../assets/app-icon.png";
-import { useUpdater } from "../../../../Updater/hooks/useUpdater";
-import UpdaterProgressDialog from "../../../../../features/Updater/components/UpdaterProgressDialog";
 import UpdaterConfirmDialog from "../../../../../features/Updater/components/UpdaterConfirmDialog";
 import UpdaterMessageDialog from "../../../../../features/Updater/components/UpdaterMessageDialog";
+import UpdaterProgressDialog from "../../../../../features/Updater/components/UpdaterProgressDialog";
+import { useUpdater } from "../../../../Updater/hooks/useUpdater";
 
 /**
  * About component.

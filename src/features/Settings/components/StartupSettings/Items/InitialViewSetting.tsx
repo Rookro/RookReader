@@ -1,17 +1,17 @@
-import { useCallback } from "react";
-import { useTranslation } from "react-i18next";
+import { Language } from "@mui/icons-material";
 import {
   ListItem,
   ListItemIcon,
   ListItemText,
   MenuItem,
   Select,
-  SelectChangeEvent,
+  type SelectChangeEvent,
 } from "@mui/material";
-import { Language } from "@mui/icons-material";
+import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { useAppDispatch, useAppSelector } from "../../../../../store/store";
+import type { InitialView } from "../../../../../types/AppSettings";
 import { updateSettings } from "../../../slice";
-import { InitialView } from "../../../../../types/AppSettings";
 
 /**
  * Initial view setting component.

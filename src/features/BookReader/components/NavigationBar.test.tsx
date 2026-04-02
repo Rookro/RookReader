@@ -1,10 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createBasePreloadedState, renderWithProviders } from "../../../test/utils";
-import NavigationBar from "./NavigationBar";
-import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import * as SettingsReducer from "../../Settings/slice";
+import NavigationBar from "./NavigationBar";
 
 describe("NavigationBar", () => {
   const user = userEvent.setup();

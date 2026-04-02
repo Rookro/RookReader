@@ -5,15 +5,15 @@ import {
   ListItemText,
   MenuItem,
   Select,
-  SelectChangeEvent,
+  type SelectChangeEvent,
 } from "@mui/material";
 import { emit } from "@tauri-apps/api/event";
 import { debug } from "@tauri-apps/plugin-log";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getFonts } from "../../../../../bindings/FontCommands";
-import { SettingsChangedEvent } from "../../../../../types/SettingsChangedEvent";
 import { useAppDispatch, useAppSelector } from "../../../../../store/store";
+import type { SettingsChangedEvent } from "../../../../../types/SettingsChangedEvent";
 import { updateSettings } from "../../../slice";
 
 const defaultFont = "Inter, Avenir, Helvetica, Arial, sans-serif";

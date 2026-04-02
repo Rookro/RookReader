@@ -1,16 +1,16 @@
 import { Check, Close } from "@mui/icons-material";
 import {
+  Box,
+  Button,
+  Chip,
   Dialog,
-  DialogTitle,
-  IconButton,
+  DialogActions,
   DialogContent,
+  DialogTitle,
+  Grid,
+  IconButton,
   TextField,
   Typography,
-  DialogActions,
-  Button,
-  Grid,
-  Chip,
-  Box,
 } from "@mui/material";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -83,7 +83,7 @@ export default function CreateTagDialog({ openDialog, onCreate, onClose }: Creat
         >
           <Grid container spacing={1}>
             {tagColors.map((color, index) => (
-              <Grid key={index}>
+              <Grid key={color}>
                 <ColorButton
                   color={color}
                   selected={selectedColorIndex === index}

@@ -1,10 +1,10 @@
 import { combineReducers } from "@reduxjs/toolkit";
-import HistoryReducer from "../features/History/slice";
 import ReadReducer from "../features/BookReader/slice";
-import SidePaneReducer from "../features/SidePane/slice";
-import ViewReducer from "../features/MainView/slice";
 import BookCollectionReducer from "../features/Bookshelf/slice";
+import HistoryReducer from "../features/History/slice";
+import ViewReducer from "../features/MainView/slice";
 import SettingsReducer from "../features/Settings/slice";
+import SidePaneReducer from "../features/SidePane/slice";
 
 export const rootReducer = combineReducers({
   read: ReadReducer,

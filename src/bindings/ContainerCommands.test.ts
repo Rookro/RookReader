@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import * as ContainerCommands from "./ContainerCommands";
 import { invoke } from "@tauri-apps/api/core";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CommandError } from "../types/Error";
+import * as ContainerCommands from "./ContainerCommands";
 
 vi.unmock("./ContainerCommands");
 

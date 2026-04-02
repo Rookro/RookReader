@@ -1,6 +1,6 @@
-import { CSSProperties, memo } from "react";
-import { ListItem, ListItemButton, ListItemText, Tooltip } from "@mui/material";
 import { Image } from "@mui/icons-material";
+import { ListItem, ListItemButton, ListItemText, Tooltip } from "@mui/material";
+import { type CSSProperties, memo } from "react";
 
 /**
  * Row component for an image entry.

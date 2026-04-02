@@ -1,7 +1,14 @@
-import { createContext, useContext, useState, useCallback, ReactNode, SyntheticEvent } from "react";
-import Snackbar, { SnackbarCloseReason } from "@mui/material/Snackbar";
-import Alert, { AlertColor } from "@mui/material/Alert";
+import Alert, { type AlertColor } from "@mui/material/Alert";
+import Snackbar, { type SnackbarCloseReason } from "@mui/material/Snackbar";
 import { error } from "@tauri-apps/plugin-log";
+import {
+  createContext,
+  type ReactNode,
+  type SyntheticEvent,
+  useCallback,
+  useContext,
+  useState,
+} from "react";
 
 /**
  * Interface defining the type of the notification context.

@@ -1,8 +1,8 @@
+import { AspectRatioOutlined } from "@mui/icons-material";
+import { ListItem, ListItemIcon, ListItemText, Typography } from "@mui/material";
+import { error } from "@tauri-apps/plugin-log";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ListItem, ListItemIcon, ListItemText, Typography } from "@mui/material";
-import { AspectRatioOutlined } from "@mui/icons-material";
-import { error } from "@tauri-apps/plugin-log";
 import { setMaxImageHeight } from "../../../../../bindings/ContainerCommands";
 import NumberSpinner from "../../../../../components/ui/NumberSpinner";
 import { useAppDispatch, useAppSelector } from "../../../../../store/store";

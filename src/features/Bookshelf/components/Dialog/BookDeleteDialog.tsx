@@ -7,11 +7,11 @@ import {
   DialogContentText,
   DialogTitle,
 } from "@mui/material";
-import { BookWithState } from "../../../../types/DatabaseModels";
+import { useCallback } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import { useAppDispatch, useAppSelector } from "../../../../store/store";
+import type { BookWithState } from "../../../../types/DatabaseModels";
 import { deleteBookFromCollection } from "../../slice";
-import { useCallback } from "react";
 
 /** Props for the BookDeleteDialog component. */
 export interface BookDeleteDialogProps {

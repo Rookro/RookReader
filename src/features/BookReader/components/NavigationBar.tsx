@@ -10,14 +10,15 @@ import {
 } from "@mui/icons-material";
 import { Box, IconButton, OutlinedInput, Toolbar, Tooltip } from "@mui/material";
 import { debug } from "@tauri-apps/plugin-log";
-import React, { useCallback } from "react";
-import { goBackContainerHistory, goForwardContainerHistory, setContainerFilePath } from "../slice";
-import { setActiveView } from "../../MainView/slice";
-import { useAppDispatch, useAppSelector } from "../../../store/store";
-import { openSettingsWindow } from "../../../utils/WindowOpener";
+import type React from "react";
+import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
+import { useAppDispatch, useAppSelector } from "../../../store/store";
+import type { Direction } from "../../../types/AppSettings";
+import { openSettingsWindow } from "../../../utils/WindowOpener";
+import { setActiveView } from "../../MainView/slice";
 import { updateSettings } from "../../Settings/slice";
-import { Direction } from "../../../types/AppSettings";
+import { goBackContainerHistory, goForwardContainerHistory, setContainerFilePath } from "../slice";
 
 /**
  * Navigation bar component.

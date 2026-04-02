@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { renderHook, waitFor } from "@testing-library/react";
-import { useFileSelection } from "./useFileSelection";
 import { basename } from "@tauri-apps/api/path";
+import { renderHook, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { useFileSelection } from "./useFileSelection";
 
 describe("useFileSelection", () => {
   const setSelectedIndex = vi.fn();

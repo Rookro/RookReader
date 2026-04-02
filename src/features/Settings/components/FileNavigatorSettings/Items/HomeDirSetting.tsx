@@ -1,12 +1,12 @@
-import { useCallback, useEffect, useState } from "react";
-import { useTranslation } from "react-i18next";
-import { Box, IconButton, ListItem, ListItemIcon, ListItemText, TextField } from "@mui/material";
 import { Folder, HomeOutlined } from "@mui/icons-material";
+import { Box, IconButton, ListItem, ListItemIcon, ListItemText, TextField } from "@mui/material";
+import { homeDir } from "@tauri-apps/api/path";
 import { open } from "@tauri-apps/plugin-dialog";
 import { error } from "@tauri-apps/plugin-log";
+import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useAppDispatch, useAppSelector } from "../../../../../store/store";
 import { updateSettings } from "../../../slice";
-import { homeDir } from "@tauri-apps/api/path";
 
 /**
  * Home directory setting component.
@@ -17,6 +17,7 @@ export default function HomeDirSetting() {
   const dispatch = useAppDispatch();
   const [homeDirPath, setHomeDirPath] = useState<string>(fileNavigatorSettings.homeDirectory);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: mounted once
   useEffect(() => {
     if (homeDirPath.length < 1) {
       (async () => {
@@ -24,7 +25,6 @@ export default function HomeDirSetting() {
         setHomeDirPath(dir);
       })();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mounted once
   }, []);
 
   const handleFolderClicked = useCallback(

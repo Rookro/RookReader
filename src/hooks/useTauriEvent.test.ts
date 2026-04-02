@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { renderHook, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useTauriEvent } from "./useTauriEvent";
-import { listen, UnlistenFn } from "@tauri-apps/api/event";
 
 describe("useTauriEvent", () => {
   beforeEach(() => {

@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
 import { screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 import { renderWithProviders } from "../../../test/utils";
 import SidePanels from "./SidePanels";
 
@@ -11,12 +11,12 @@ describe("SidePanels", () => {
 
   it("should render active panel correctly", () => {
     // Show first panel
-    renderWithProviders(<SidePanels tabs={mockTabs} tabIndex={0} />);
+    renderWithProviders(<SidePanels tabs={mockTabs} index={0} />);
     expect(screen.getByTestId("panel-1")).toBeInTheDocument();
     expect(screen.queryByTestId("panel-2")).not.toBeInTheDocument();
 
     // Show second panel
-    renderWithProviders(<SidePanels tabs={mockTabs} tabIndex={1} />);
+    renderWithProviders(<SidePanels tabs={mockTabs} index={1} />);
     expect(screen.getByTestId("panel-2")).toBeInTheDocument();
   });
 });

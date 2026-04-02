@@ -1,6 +1,6 @@
-import { describe, it, expect, vi } from "vitest";
-import { createStore, RootState } from "./store";
-import { Middleware, UnknownAction } from "@reduxjs/toolkit";
+import type { Middleware, UnknownAction } from "@reduxjs/toolkit";
+import { describe, expect, it, vi } from "vitest";
+import { createStore, type RootState } from "./store";
 
 // Mock: prevent middlewares from causing side effects
 vi.mock("./middleware/loggerMiddleware", () => ({

@@ -1,11 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
-import { useSettingsChange } from "./useSettingsChange";
-import { useAppDispatch } from "../../../store/store";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useTauriEvent } from "../../../hooks/useTauriEvent";
 import i18n from "../../../i18n/config";
-import { setSettings } from "../slice";
+import { useAppDispatch } from "../../../store/store";
 import { defaultSettings, loadAllSettings } from "../settingsStore";
+import { setSettings } from "../slice";
+import { useSettingsChange } from "./useSettingsChange";
 
 vi.mock("../../../store/store", () => ({
   useAppDispatch: vi.fn(),

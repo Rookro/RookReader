@@ -1,18 +1,18 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useTranslation } from "react-i18next";
-import { List, RowComponentProps, useListCallbackRef } from "react-window";
 import { Box, CircularProgress, Stack, Typography } from "@mui/material";
 import { join } from "@tauri-apps/api/path";
 import { debug, error } from "@tauri-apps/plugin-log";
-import { useAppSelector, useAppDispatch } from "../../../../store/store";
-import { setContainerFilePath, setSearchText, updateExploreBasePath } from "../../slice";
-import { andSearch, sortBy } from "../../utils/FileNavigatorUtils";
-import NavBar from "./NavBar";
-import { ItemRow } from "./ItemRow";
-import { DirEntry } from "../../../../types/DirEntry";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { List, type RowComponentProps, useListCallbackRef } from "react-window";
+import { useAppDispatch, useAppSelector } from "../../../../store/store";
+import type { DirEntry } from "../../../../types/DirEntry";
+import SidePanelHeader from "../../../SidePane/components/SidePanelHeader";
 import { useDirectoryWatcher } from "../../hooks/useDirectoryWatcher";
 import { useFileSelection } from "../../hooks/useFileSelection";
-import SidePanelHeader from "../../../SidePane/components/SidePanelHeader";
+import { setContainerFilePath, setSearchText, updateExploreBasePath } from "../../slice";
+import { andSearch, sortBy } from "../../utils/FileNavigatorUtils";
+import { ItemRow } from "./ItemRow";
+import NavBar from "./NavBar";
 
 /** Props for the row component. */
 interface RowProps {

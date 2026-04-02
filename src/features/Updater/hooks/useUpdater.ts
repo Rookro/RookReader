@@ -1,8 +1,8 @@
-import { useState, useCallback } from "react";
-import { useTranslation } from "react-i18next";
-import { check, Update } from "@tauri-apps/plugin-updater";
-import { relaunch } from "@tauri-apps/plugin-process";
 import { debug, error } from "@tauri-apps/plugin-log";
+import { relaunch } from "@tauri-apps/plugin-process";
+import { check, type Update } from "@tauri-apps/plugin-updater";
+import { useCallback, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { isUpdaterSupported } from "../../../bindings/UpdaterCommands";
 
 /**

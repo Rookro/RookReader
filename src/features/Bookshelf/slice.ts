@@ -1,23 +1,23 @@
-import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import type { Bookshelf, BookWithState, Series, Tag } from "../../types/DatabaseModels";
+import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import { basename } from "@tauri-apps/api/path";
+import { error } from "@tauri-apps/plugin-log";
 import {
-  createBookshelf,
-  getAllBookshelves,
-  addBookToBookshelf as addBookToBookshelfCommand,
-  removeBookFromBookshelf,
-  deleteBookshelf,
-} from "../../bindings/BookshelfCommand";
-import {
+  deleteBook,
   getAllBooksWithState,
   getBooksWithStateByBookshelfId,
   upsertBook,
-  deleteBook,
 } from "../../bindings/BookCommands";
-import { createTag, getAllTags, deleteTag } from "../../bindings/TagCommands";
+import {
+  addBookToBookshelf as addBookToBookshelfCommand,
+  createBookshelf,
+  deleteBookshelf,
+  getAllBookshelves,
+  removeBookFromBookshelf,
+} from "../../bindings/BookshelfCommand";
 import { determineEpubNovel, getEntriesInContainer } from "../../bindings/ContainerCommands";
+import { createTag, deleteTag, getAllTags } from "../../bindings/TagCommands";
 import { createAppAsyncThunk } from "../../types/CustomAsyncThunk";
-import { error } from "@tauri-apps/plugin-log";
+import type { Bookshelf, BookWithState, Series, Tag } from "../../types/DatabaseModels";
 import { CommandError, ErrorCode } from "../../types/Error";
 
 /**
@@ -147,7 +147,7 @@ export const addBookToBookshelf = createAppAsyncThunk(
   ) => {
     try {
       const isEpubNovel = await determineEpubNovel(bookPath);
-      let entriesResult;
+      let entriesResult: { entries: string[]; is_directory: boolean } | undefined;
       if (!isEpubNovel) {
         entriesResult = await getEntriesInContainer(bookPath);
       }

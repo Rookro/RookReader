@@ -1,9 +1,9 @@
-import { describe, it, expect, vi } from "vitest";
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { CreateBookshelfDialog } from "./CreateBookshelfDialog";
-import { renderWithProviders } from "../../../../test/utils";
+import { describe, expect, it, vi } from "vitest";
 import i18n from "../../../../i18n/config";
+import { renderWithProviders } from "../../../../test/utils";
+import { CreateBookshelfDialog } from "./CreateBookshelfDialog";
 
 describe("CreateBookshelfDialog", () => {
   const user = userEvent.setup();

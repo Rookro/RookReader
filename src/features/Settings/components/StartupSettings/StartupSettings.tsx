@@ -1,9 +1,9 @@
-import { useTranslation } from "react-i18next";
 import { Divider, List } from "@mui/material";
+import { useTranslation } from "react-i18next";
 import SettingsPanel from "../SettingsPanel";
+import CheckUpdateOnStartupSetting from "./Items/CheckUpdateOnStartupSetting";
 import InitialViewSetting from "./Items/InitialViewSetting";
 import RestoreLastBookSetting from "./Items/RestoreLastBookSetting";
-import CheckUpdateOnStartupSetting from "./Items/CheckUpdateOnStartupSetting";
 
 /**
  * Startup settings component.

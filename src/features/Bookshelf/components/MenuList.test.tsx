@@ -1,10 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import MenuList from "./MenuList";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createBasePreloadedState, renderWithProviders } from "../../../test/utils";
-import { changeBookshelf, setSelectedTag, removeBookshelf, removeTag } from "../slice";
 import { setActiveView } from "../../MainView/slice";
+import { changeBookshelf, removeBookshelf, removeTag, setSelectedTag } from "../slice";
+import MenuList from "./MenuList";
 
 vi.mock("../slice", async () => {
   const actual = await vi.importActual("../slice");

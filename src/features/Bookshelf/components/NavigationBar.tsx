@@ -7,20 +7,20 @@ import {
   MenuItem,
   OutlinedInput,
   Select,
-  SelectChangeEvent,
+  type SelectChangeEvent,
   Stack,
   Toolbar,
   Typography,
 } from "@mui/material";
 import { debug } from "@tauri-apps/plugin-log";
-import { ChangeEvent, useCallback, useState } from "react";
+import { type ChangeEvent, useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { openSettingsWindow } from "../../../utils/WindowOpener";
-import { addBookToBookshelf, setSearchText } from "../slice";
 import { useAppDispatch, useAppSelector } from "../../../store/store";
-import BookAdditionToBookshelfDialog from "./Dialog/BookAdditionToBookshelfDialog";
+import type { SortOrder } from "../../../types/AppSettings";
+import { openSettingsWindow } from "../../../utils/WindowOpener";
 import { updateSettings } from "../../Settings/slice";
-import { SortOrder } from "../../../types/AppSettings";
+import { addBookToBookshelf, setSearchText } from "../slice";
+import BookAdditionToBookshelfDialog from "./Dialog/BookAdditionToBookshelfDialog";
 
 /** Navigation bar for the bookshelf component */
 export default function NavigationBar() {

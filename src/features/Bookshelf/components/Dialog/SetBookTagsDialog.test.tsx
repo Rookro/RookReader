@@ -1,11 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { error as logError } from "@tauri-apps/plugin-log";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { renderWithProviders } from "../../../../test/utils";
-import SetBookTagsDialog from "./SetBookTagsDialog";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as BookCommands from "../../../../bindings/BookCommands";
-import { Tag } from "../../../../types/DatabaseModels";
-import { error as logError } from "@tauri-apps/plugin-log";
+import { renderWithProviders } from "../../../../test/utils";
+import type { Tag } from "../../../../types/DatabaseModels";
+import SetBookTagsDialog from "./SetBookTagsDialog";
 
 // Mock BookCommands
 describe("SetBookTagsDialog", () => {

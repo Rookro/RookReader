@@ -1,8 +1,8 @@
-import { useTranslation } from "react-i18next";
 import { Divider, List } from "@mui/material";
+import { useTranslation } from "react-i18next";
+import SettingsPanel from "../SettingsPanel";
 import HomeDirSetting from "./Items/HomeDirSetting";
 import WatchDirectoryChangesSetting from "./Items/WatchDirectoryChangesSetting";
-import SettingsPanel from "../SettingsPanel";
 
 /**
  * File navigator settings component.

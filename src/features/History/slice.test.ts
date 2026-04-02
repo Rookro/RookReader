@@ -1,14 +1,14 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import historyReducer, {
-  fetchRecentlyReadBooks,
-  clearHistory,
-  clearAllHistory,
-  clearHistoryError,
-} from "./slice";
-import { ErrorCode } from "../../types/Error";
-import { createTestStore, AppStore } from "../../test/utils";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as BookCommands from "../../bindings/BookCommands";
 import { createMockReadBook } from "../../test/factories";
+import { type AppStore, createTestStore } from "../../test/utils";
+import { ErrorCode } from "../../types/Error";
+import historyReducer, {
+  clearAllHistory,
+  clearHistory,
+  clearHistoryError,
+  fetchRecentlyReadBooks,
+} from "./slice";
 
 describe("HistoryReducer", () => {
   let store: AppStore;

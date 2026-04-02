@@ -1,17 +1,17 @@
+import { Search } from "@mui/icons-material";
+import { Box, InputAdornment, OutlinedInput, Stack, Typography } from "@mui/material";
+import { debug, error } from "@tauri-apps/plugin-log";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { List, RowComponentProps, useListCallbackRef } from "react-window";
-import { Box, InputAdornment, OutlinedInput, Stack, Typography } from "@mui/material";
-import { Search } from "@mui/icons-material";
-import { debug, error } from "@tauri-apps/plugin-log";
-import { ItemRow } from "./ItemRow";
-import { setContainerFilePath } from "../../slice";
+import { List, type RowComponentProps, useListCallbackRef } from "react-window";
 import { useAppDispatch, useAppSelector } from "../../../../store/store";
-import { useHistorySelection } from "../../hooks/useHistorySelection";
-import { andSearch } from "../../utils/HistoryViewerUtils";
-import SidePanelHeader from "../../../SidePane/components/SidePanelHeader";
+import type { ReadBook } from "../../../../types/DatabaseModels";
 import { useHistoryEntriesUpdater } from "../../../History/hooks/useHistoryEntriesUpdater";
-import { ReadBook } from "../../../../types/DatabaseModels";
+import SidePanelHeader from "../../../SidePane/components/SidePanelHeader";
+import { useHistorySelection } from "../../hooks/useHistorySelection";
+import { setContainerFilePath } from "../../slice";
+import { andSearch } from "../../utils/HistoryViewerUtils";
+import { ItemRow } from "./ItemRow";
 
 /** Props for the row component. */
 interface RowProps {

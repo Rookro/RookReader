@@ -1,9 +1,9 @@
-import { useCallback } from "react";
-import { useTranslation } from "react-i18next";
 import { Box, Button, Paper, Typography } from "@mui/material";
-import { openPath } from "@tauri-apps/plugin-opener";
 import { resolveResource } from "@tauri-apps/api/path";
 import { error } from "@tauri-apps/plugin-log";
+import { openPath } from "@tauri-apps/plugin-opener";
+import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
 
 /**
  * Third party component.

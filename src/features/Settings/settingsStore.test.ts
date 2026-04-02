@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { loadAllSettings, defaultSettings, settingsStore } from "./settingsStore";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { mockStore } from "../../test/mocks/tauri";
+import { defaultSettings, loadAllSettings, settingsStore } from "./settingsStore";
 
 describe("SettingsStore", () => {
   beforeEach(() => {

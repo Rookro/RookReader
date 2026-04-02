@@ -1,6 +1,6 @@
-import { describe, it, expect, vi } from "vitest";
-import { isUpdaterSupported } from "./UpdaterCommands";
 import { invoke } from "@tauri-apps/api/core";
+import { describe, expect, it, vi } from "vitest";
+import { isUpdaterSupported } from "./UpdaterCommands";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),

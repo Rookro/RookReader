@@ -1,10 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { resolveResource } from "@tauri-apps/api/path";
+import { openPath } from "@tauri-apps/plugin-opener";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../../../../../test/utils";
 import ThirdParty from "./ThirdParty";
-import { openPath } from "@tauri-apps/plugin-opener";
-import { resolveResource } from "@tauri-apps/api/path";
 
 describe("ThirdParty", () => {
   const user = userEvent.setup();

@@ -1,5 +1,5 @@
+import { type Event, listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { useEffect, useRef } from "react";
-import { listen, Event, UnlistenFn } from "@tauri-apps/api/event";
 
 /**
  * A custom hook for handling Tauri events.

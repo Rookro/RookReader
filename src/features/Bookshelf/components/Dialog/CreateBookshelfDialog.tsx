@@ -12,8 +12,8 @@ import {
   Typography,
 } from "@mui/material";
 import { useCallback, useState } from "react";
-import { BookShelfIcons } from "../BookshelfIcons";
 import { useTranslation } from "react-i18next";
+import { BookShelfIcons } from "../BookshelfIcons";
 
 /** Props for the CreateBookshelfDialog component */
 export interface CreateBookshelfDialogProps {

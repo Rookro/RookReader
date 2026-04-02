@@ -1,4 +1,4 @@
-import { AppSettings } from "./AppSettings";
+import type { AppSettings } from "./AppSettings";
 
 /**
  * Represents the settings related to localization and language.

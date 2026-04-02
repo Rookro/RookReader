@@ -1,7 +1,7 @@
-import { useCallback } from "react";
-import { useTranslation } from "react-i18next";
 import { RestorePageOutlined } from "@mui/icons-material";
 import { ListItem, ListItemIcon, ListItemText, Switch } from "@mui/material";
+import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { useAppDispatch, useAppSelector } from "../../../../../store/store";
 import { updateSettings } from "../../../slice";
 

@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { loggerMiddleware } from "./loggerMiddleware";
+import type { MiddlewareAPI } from "@reduxjs/toolkit";
 import { debug, trace } from "@tauri-apps/plugin-log";
-import { MiddlewareAPI } from "@reduxjs/toolkit";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { loggerMiddleware } from "./loggerMiddleware";
 
 describe("loggerMiddleware", () => {
   const mockStore = {

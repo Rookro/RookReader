@@ -1,13 +1,13 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { screen, waitFor, fireEvent } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import { createBasePreloadedState, renderWithProviders } from "../../../../test/utils";
-import HistoryViewer from "./HistoryViewer";
-import * as ReadReducer from "../../slice";
-import { createMockReadBook } from "../../../../test/factories";
 import { error } from "@tauri-apps/plugin-log";
-import { useHistorySelection } from "../../hooks/useHistorySelection";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createMockReadBook } from "../../../../test/factories";
 import { mockScrollToRow } from "../../../../test/mocks/components";
+import { createBasePreloadedState, renderWithProviders } from "../../../../test/utils";
+import { useHistorySelection } from "../../hooks/useHistorySelection";
+import * as ReadReducer from "../../slice";
+import HistoryViewer from "./HistoryViewer";
 
 // Mock hooks
 vi.mock("../../../History/hooks/useHistoryEntriesUpdater", () => ({

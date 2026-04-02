@@ -1,14 +1,14 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import {
-  calculateLayout,
-  ImageCacheItem,
-  ViewerSettings,
-  fetchImageBlob,
-  fetchImagePreviewBlob,
-  createImageCacheItem,
-} from "./ImageUtils";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as ContainerCommands from "../../../bindings/ContainerCommands";
 import { Image } from "../../../types/Image";
+import {
+  calculateLayout,
+  createImageCacheItem,
+  fetchImageBlob,
+  fetchImagePreviewBlob,
+  ImageCacheItem,
+  type ViewerSettings,
+} from "./ImageUtils";
 
 describe("ImageUtils", () => {
   beforeEach(() => {

@@ -1,13 +1,13 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { error } from "@tauri-apps/plugin-log";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { createBasePreloadedState, renderWithProviders } from "../../../../test/utils";
-import FileNavigator from "./FileNavigator";
-import * as ReadReducer from "../../slice";
-import { DirEntry } from "../../../../types/DirEntry";
-import { error } from "@tauri-apps/plugin-log";
-import { useFileSelection } from "../../hooks/useFileSelection";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { mockScrollToRow } from "../../../../test/mocks/components";
+import { createBasePreloadedState, renderWithProviders } from "../../../../test/utils";
+import type { DirEntry } from "../../../../types/DirEntry";
+import { useFileSelection } from "../../hooks/useFileSelection";
+import * as ReadReducer from "../../slice";
+import FileNavigator from "./FileNavigator";
 
 // Mock hooks
 vi.mock("../../hooks/useDirectoryWatcher", () => ({ useDirectoryWatcher: vi.fn() }));

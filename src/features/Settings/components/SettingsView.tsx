@@ -1,15 +1,15 @@
-import React, { JSX, useCallback } from "react";
+import { Box, Tab, Tabs } from "@mui/material";
+import React, { type JSX, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { Tab, Tabs, Box } from "@mui/material";
-import GeneralSettings from "./GeneralSettings/GeneralSettings";
-import DeveloperSettings from "./DeveloperSettings/DeveloperSettings";
-import RenderingSettings from "./RenderingSettings/RenderingSettings";
 import TabPanel from "../../../components/ui/TabPanel/TabPanel";
 import AboutPage from "./AboutPage/AboutPage";
+import DeveloperSettings from "./DeveloperSettings/DeveloperSettings";
 import FileNavigatorSettings from "./FileNavigatorSettings/FileNavigatorSettings";
-import PageSettings from "./PageSettings/PageSettings";
+import GeneralSettings from "./GeneralSettings/GeneralSettings";
 import HistorySettings from "./HistorySettings/HistorySettings";
 import NovelReaderSettings from "./NovelReaderSettings/NovelReaderSettings";
+import PageSettings from "./PageSettings/PageSettings";
+import RenderingSettings from "./RenderingSettings/RenderingSettings";
 import StartupSettings from "./StartupSettings/StartupSettings";
 
 /**
@@ -52,8 +52,8 @@ export default function SettingsView() {
         aria-label="setttings tabs"
         sx={{ borderRight: 2, borderColor: "divider", width: "150px" }}
       >
-        {tabs.map((tab, index) => (
-          <Tab key={index} label={tab.label} />
+        {tabs.map((tab) => (
+          <Tab key={tab.label} label={tab.label} />
         ))}
       </Tabs>
       <Box
@@ -66,7 +66,7 @@ export default function SettingsView() {
         }}
       >
         {tabs.map((tab, index) => (
-          <TabPanel value={value} index={index} key={index} sx={{ minWidth: "650px" }}>
+          <TabPanel value={value} index={index} key={tab.label} sx={{ minWidth: "650px" }}>
             {tab.panel}
           </TabPanel>
         ))}

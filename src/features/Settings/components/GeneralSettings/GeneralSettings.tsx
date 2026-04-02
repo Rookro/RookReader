@@ -1,9 +1,9 @@
-import { useTranslation } from "react-i18next";
 import { Divider, List } from "@mui/material";
+import { useTranslation } from "react-i18next";
 import SettingsPanel from "../SettingsPanel";
-import ThemeSetting from "./Items/ThemeSetting";
-import LanguageSetting from "./Items/LanguageSettings";
 import AppFontFamilySetting from "./Items/AppFontFamilySetting";
+import LanguageSetting from "./Items/LanguageSettings";
+import ThemeSetting from "./Items/ThemeSetting";
 
 /**
  * General settings component.

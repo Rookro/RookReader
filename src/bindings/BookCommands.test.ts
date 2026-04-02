@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import * as BookCommands from "./BookCommands";
 import { invoke } from "@tauri-apps/api/core";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CommandError } from "../types/Error";
+import * as BookCommands from "./BookCommands";
 
 vi.unmock("./BookCommands");
 

@@ -1,4 +1,4 @@
-import { Add, AutoStories, LocalOffer, QuestionMark, MenuBook, Delete } from "@mui/icons-material";
+import { Add, AutoStories, Delete, LocalOffer, MenuBook, QuestionMark } from "@mui/icons-material";
 import {
   Box,
   Divider,
@@ -9,18 +9,18 @@ import {
   ListItemIcon,
   ListItemText,
   ListSubheader,
+  Menu,
+  MenuItem,
   Stack,
   Tooltip,
   Typography,
-  Menu,
-  MenuItem,
 } from "@mui/material";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { setActiveView } from "../../MainView/slice";
 import { useAppDispatch, useAppSelector } from "../../../store/store";
+import { setActiveView } from "../../MainView/slice";
+import { changeBookshelf, removeBookshelf, removeTag, setSelectedTag } from "../slice";
 import { BookShelfIcons } from "./BookshelfIcons";
-import { changeBookshelf, setSelectedTag, removeBookshelf, removeTag } from "../slice";
 
 /** Props for the MenuList of bookshelf component */
 export interface MenuListProps {

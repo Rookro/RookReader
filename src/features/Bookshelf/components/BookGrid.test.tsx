@@ -1,14 +1,14 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { screen, fireEvent, waitFor, act } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { createBasePreloadedState, renderWithProviders } from "../../../test/utils";
-import BookGrid from "./BookGrid";
-import * as SettingsReducer from "../../Settings/slice";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  createMockBookWithState,
   createMockBookshelf,
+  createMockBookWithState,
   createMockTag,
 } from "../../../test/factories";
+import { createBasePreloadedState, renderWithProviders } from "../../../test/utils";
+import * as SettingsReducer from "../../Settings/slice";
+import BookGrid from "./BookGrid";
 
 // Mock actions to prevent real thunks from running
 vi.mock("../slice", async () => {
@@ -107,9 +107,11 @@ describe("BookGrid", () => {
 
   const forceResize = (width: number) => {
     if (storedCallback && storedElement) {
+      const callback = storedCallback;
+      const element = storedElement;
       act(() => {
         const entry: Partial<ResizeObserverEntry> = {
-          target: storedElement!,
+          target: element,
           contentRect: {
             width,
             height: 800,
@@ -127,7 +129,7 @@ describe("BookGrid", () => {
           unobserve: vi.fn(),
           disconnect: vi.fn(),
         } as ResizeObserver;
-        storedCallback!([entry as ResizeObserverEntry], mockObserver);
+        callback([entry as ResizeObserverEntry], mockObserver);
       });
     }
   };

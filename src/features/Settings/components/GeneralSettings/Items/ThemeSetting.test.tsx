@@ -1,10 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { app } from "@tauri-apps/api";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { mockStore } from "../../../../../test/mocks/tauri";
 import { createBasePreloadedState, renderWithProviders } from "../../../../../test/utils";
 import ThemeSetting from "./ThemeSetting";
-import { mockStore } from "../../../../../test/mocks/tauri";
-import { app } from "@tauri-apps/api";
 
 describe("ThemeSetting", () => {
   const user = userEvent.setup();

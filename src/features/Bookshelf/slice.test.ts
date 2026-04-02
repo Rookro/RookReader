@@ -1,31 +1,31 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import bookCollectionReducer, {
-  fetchBookshelves,
-  setSearchText,
-  addBookToBookshelf,
-  deleteBookFromCollection,
-  fetchBooksInSelectedBookshelf,
-  addTag,
-  fetchTags,
-  removeTag,
-  addBookshelf,
-  removeBookshelf,
-  changeBookshelf,
-  setSelectedTag,
-  bookshelfAdded,
-  setBookshelfSearchText,
-  clearBookshelfError,
-  clearTagError,
-  clearSeriesError,
-} from "./slice";
-import { createTestStore, AppStore } from "../../test/utils";
-import * as BookshelfCommand from "../../bindings/BookshelfCommand";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as BookCommands from "../../bindings/BookCommands";
+import * as BookshelfCommand from "../../bindings/BookshelfCommand";
 import * as ContainerCommands from "../../bindings/ContainerCommands";
 import * as TagCommands from "../../bindings/TagCommands";
-import { BookWithState, Tag, Bookshelf, Series } from "../../types/DatabaseModels";
+import { createMockBookshelf, createMockBookWithState, createMockTag } from "../../test/factories";
+import { type AppStore, createTestStore } from "../../test/utils";
+import type { Bookshelf, BookWithState, Series, Tag } from "../../types/DatabaseModels";
 import { CommandError, ErrorCode } from "../../types/Error";
-import { createMockBookWithState, createMockBookshelf, createMockTag } from "../../test/factories";
+import bookCollectionReducer, {
+  addBookshelf,
+  addBookToBookshelf,
+  addTag,
+  bookshelfAdded,
+  changeBookshelf,
+  clearBookshelfError,
+  clearSeriesError,
+  clearTagError,
+  deleteBookFromCollection,
+  fetchBookshelves,
+  fetchBooksInSelectedBookshelf,
+  fetchTags,
+  removeBookshelf,
+  removeTag,
+  setBookshelfSearchText,
+  setSearchText,
+  setSelectedTag,
+} from "./slice";
 
 describe("BookCollectionReducer", () => {
   let store: AppStore;

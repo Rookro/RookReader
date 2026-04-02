@@ -1,9 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { renderHook, waitFor, act } from "@testing-library/react";
-import { useViewerController } from "./useViewerController";
-import * as ImageUtils from "../utils/ImageUtils";
+import { act, renderHook, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { Image } from "../../../types/Image";
 import { setImageIndex } from "../slice";
-import { Image } from "../../../types/Image";
+import * as ImageUtils from "../utils/ImageUtils";
+import { useViewerController } from "./useViewerController";
 
 vi.mock("../utils/ImageUtils", () => ({
   calculateLayout: vi.fn(),
@@ -449,7 +449,7 @@ describe("useViewerController", () => {
       const settingsWithPreview = { ...mockSettings, enablePreview: true };
 
       // Delay preview image fetch
-      let resolvePreview: (val: Image) => void;
+      let resolvePreview: ((val: Image) => void) | undefined;
       const previewPromise = new Promise<Image>((resolve) => {
         resolvePreview = resolve;
       });
@@ -477,7 +477,7 @@ describe("useViewerController", () => {
       await waitFor(() => expect(mockedFetchImageBlob).toHaveBeenCalled());
 
       // Now resolve preview
-      resolvePreview!({} as Image);
+      resolvePreview?.({} as Image);
 
       await waitFor(() => expect(ImageUtils.fetchImagePreviewBlob).toHaveBeenCalled());
       // Wait for state updates to settle
@@ -491,7 +491,7 @@ describe("useViewerController", () => {
       const settingsWithPreview = { ...mockSettings, enablePreview: true };
 
       // Delay full image fetch
-      let resolveFull: (val: Image) => void;
+      let resolveFull: ((val: Image) => void) | undefined;
       const fullPromise = new Promise<Image>((resolve) => {
         resolveFull = resolve;
       });
@@ -518,7 +518,7 @@ describe("useViewerController", () => {
       await waitFor(() => expect(ImageUtils.fetchImagePreviewBlob).toHaveBeenCalled());
 
       // Now resolve full image
-      resolveFull!({} as Image);
+      resolveFull?.({} as Image);
 
       // Wait a bit more to ensure all promises in updateLayout finished
       await act(async () => {

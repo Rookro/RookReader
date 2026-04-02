@@ -1,18 +1,18 @@
-import { Box, debounce, SxProps, Theme } from "@mui/material";
+import { Box, debounce, type SxProps, type Theme } from "@mui/material";
 import { error } from "@tauri-apps/plugin-log";
 import { Allotment } from "allotment";
 import { useCallback, useMemo, useState } from "react";
+import { useAppDispatch } from "../../../store/store";
+import type { Book } from "../../../types/DatabaseModels";
+import { setContainerFilePath } from "../../BookReader/slice";
+import { setActiveView } from "../../MainView/slice";
 import { useBookshelves } from "../hooks/useBookshelves";
 import { useBookTags } from "../hooks/useBookTags";
 import { addBookshelf, addTag } from "../slice";
-import { useAppDispatch } from "../../../store/store";
 import BookGrid from "./BookGrid";
 import { CreateBookshelfDialog } from "./Dialog/CreateBookshelfDialog";
 import CreateBookTagDialog from "./Dialog/CreateBookTagDialog";
 import MenuList from "./MenuList";
-import { setActiveView } from "../../MainView/slice";
-import { Book } from "../../../types/DatabaseModels";
-import { setContainerFilePath } from "../../BookReader/slice";
 
 /**
  * Props for the Bookshelf component

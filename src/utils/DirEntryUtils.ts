@@ -1,4 +1,4 @@
-import { DirEntry } from "../types/DirEntry";
+import type { DirEntry } from "../types/DirEntry";
 
 /**
  * Converts directory entry data from an ArrayBuffer into an array of DirEntry objects.

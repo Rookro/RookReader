@@ -1,7 +1,7 @@
-import { describe, it, expect } from "vitest";
 import { screen } from "@testing-library/react";
-import UpdaterProgressDialog from "./UpdaterProgressDialog";
+import { describe, expect, it } from "vitest";
 import { renderWithProviders } from "../../../test/utils";
+import UpdaterProgressDialog from "./UpdaterProgressDialog";
 
 describe("UpdaterProgressDialog", () => {
   it("should render correctly when isUpdating is true", () => {

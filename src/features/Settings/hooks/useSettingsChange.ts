@@ -1,11 +1,11 @@
 import { debug } from "@tauri-apps/plugin-log";
 import { useCallback } from "react";
-import { useAppDispatch } from "../../../store/store";
-import i18n from "../../../i18n/config";
-import { setSettings } from "../slice";
-import { loadAllSettings } from "../settingsStore";
-import { SettingsChangedEvent } from "../../../types/SettingsChangedEvent";
 import { useTauriEvent } from "../../../hooks/useTauriEvent";
+import i18n from "../../../i18n/config";
+import { useAppDispatch } from "../../../store/store";
+import type { SettingsChangedEvent } from "../../../types/SettingsChangedEvent";
+import { loadAllSettings } from "../settingsStore";
+import { setSettings } from "../slice";
 
 /**
  * A custom hook that listens for settings change events from the settings window.

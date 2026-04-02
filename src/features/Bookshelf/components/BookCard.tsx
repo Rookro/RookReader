@@ -4,17 +4,17 @@ import {
   CardActionArea,
   CardContent,
   CardMedia,
+  Chip,
   LinearProgress,
   Stack,
-  Chip,
   Tooltip,
 } from "@mui/material";
-import { BookWithState, Tag } from "../../../types/DatabaseModels";
-import { CellComponentProps } from "react-window";
-import AutoScrollTypography from "../../../components/ui/AutoScrollTypography/AutoScrollTypography";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { useMemo } from "react";
+import type { CellComponentProps } from "react-window";
 import dummy_thumbnail from "../../../assets/dummy_thumbnail.svg";
+import AutoScrollTypography from "../../../components/ui/AutoScrollTypography/AutoScrollTypography";
+import type { BookWithState, Tag } from "../../../types/DatabaseModels";
 
 /** A component to display a single book card. */
 export default function BookCard({
@@ -49,7 +49,9 @@ export default function BookCard({
   }, [book]);
 
   const bookTags = useMemo(() => {
-    if (!book || !book.tag_ids_str || !tags) return [];
+    if (!book?.tag_ids_str || !tags) {
+      return [];
+    }
     const ids = book.tag_ids_str.split(",").map(Number);
     return tags.filter((tag) => ids.includes(tag.id));
   }, [book, tags]);

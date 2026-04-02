@@ -1,8 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
-import { useHistoryEntriesUpdater } from "./useHistoryEntriesUpdater";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useAppDispatch, useAppSelector } from "../../../store/store";
 import { clearAllHistory, fetchRecentlyReadBooks } from "../slice";
+import { useHistoryEntriesUpdater } from "./useHistoryEntriesUpdater";
 
 vi.mock("../../../store/store", () => ({
   useAppDispatch: vi.fn(),

@@ -1,9 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { renderHook, waitFor } from "@testing-library/react";
-import { useDirectoryWatcher } from "./useDirectoryWatcher";
-import { useAppSelector } from "../../../store/store";
 import { watch } from "@tauri-apps/plugin-fs";
 import { error } from "@tauri-apps/plugin-log";
+import { renderHook, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { useAppSelector } from "../../../store/store";
+import { useDirectoryWatcher } from "./useDirectoryWatcher";
 
 vi.mock("../../../store/store", () => ({
   useAppSelector: vi.fn(),

@@ -1,8 +1,8 @@
 import { CssBaseline, ThemeProvider } from "@mui/material";
-import { useAppTheme } from "./hooks/useAppTheme";
-import MainView from "./features/MainView/components/MainView";
-import NotificationProvider from "./components/ui/Notification/NotificationContext";
 import GlobalErrorListener from "./components/ui/GlobalErrorListener";
+import NotificationProvider from "./components/ui/Notification/NotificationContext";
+import MainView from "./features/MainView/components/MainView";
+import { useAppTheme } from "./hooks/useAppTheme";
 
 export default function App() {
   const theme = useAppTheme();

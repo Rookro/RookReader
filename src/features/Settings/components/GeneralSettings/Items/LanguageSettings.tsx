@@ -1,17 +1,17 @@
-import { useCallback, useState } from "react";
-import { useTranslation } from "react-i18next";
-import { emit } from "@tauri-apps/api/event";
-import { debug } from "@tauri-apps/plugin-log";
+import { Language } from "@mui/icons-material";
 import {
   ListItem,
   ListItemIcon,
   ListItemText,
   MenuItem,
   Select,
-  SelectChangeEvent,
+  type SelectChangeEvent,
 } from "@mui/material";
-import { SettingsChangedEvent } from "../../../../../types/SettingsChangedEvent";
-import { Language } from "@mui/icons-material";
+import { emit } from "@tauri-apps/api/event";
+import { debug } from "@tauri-apps/plugin-log";
+import { useCallback, useState } from "react";
+import { useTranslation } from "react-i18next";
+import type { SettingsChangedEvent } from "../../../../../types/SettingsChangedEvent";
 
 /**
  * Language setting component.
