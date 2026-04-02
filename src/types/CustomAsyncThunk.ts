@@ -1,5 +1,5 @@
 import { createAsyncThunk } from "@reduxjs/toolkit";
-import { AppDispatch, RootState } from "../Store";
+import { AppDispatch, RootState } from "../store/store";
 import { ErrorCode } from "./Error";
 
 /** Creates a typed async thunk with app-specific types. */

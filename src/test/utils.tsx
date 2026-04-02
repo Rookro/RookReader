@@ -7,13 +7,13 @@ import { I18nextProvider, initReactI18next } from "react-i18next";
 import { Provider } from "react-redux";
 import translationEnUs from "../i18n/locales/en-US.json";
 import translationJaJp from "../i18n/locales/ja-JP.json";
-import bookCollectionReducer from "../reducers/BookCollectionReducer";
-import historyReducer from "../reducers/HistoryReducer";
-import readReducer from "../reducers/ReadReducer";
-import settingsReducer from "../reducers/SettingsReducer";
-import sidePaneReducer from "../reducers/SidePaneReducer";
-import viewReducer from "../reducers/ViewReducer";
-import { defaultSettings } from "../settings/SettingsStore";
+import bookCollectionReducer from "../features/Bookshelf/slice";
+import historyReducer from "../features/History/slice";
+import readReducer from "../features/BookReader/slice";
+import settingsReducer from "../features/Settings/slice";
+import sidePaneReducer from "../features/SidePane/slice";
+import viewReducer from "../features/MainView/slice";
+import { defaultSettings } from "../features/Settings/settingsStore";
 
 // Create a lightweight i18n instance for testing with actual resources
 export const testI18n = i18n.createInstance();

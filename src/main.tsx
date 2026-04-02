@@ -3,8 +3,8 @@ import ReactDOM from "react-dom/client";
 import { createHashRouter, RouterProvider } from "react-router";
 import { Provider } from "react-redux";
 import { error } from "@tauri-apps/plugin-log";
-import { createStore } from "./Store";
-import { loadAllSettings } from "./settings/SettingsStore";
+import { createStore } from "./store/store";
+import { loadAllSettings } from "./features/Settings/settingsStore";
 import "./i18n/config";
 import "allotment/dist/style.css";
 

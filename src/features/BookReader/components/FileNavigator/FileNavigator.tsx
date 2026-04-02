@@ -1,0 +1,188 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { List, RowComponentProps, useListCallbackRef } from "react-window";
+import { Box, CircularProgress, Stack, Typography } from "@mui/material";
+import { join } from "@tauri-apps/api/path";
+import { debug, error } from "@tauri-apps/plugin-log";
+import { useAppSelector, useAppDispatch } from "../../../../store/store";
+import { setContainerFilePath, setSearchText, updateExploreBasePath } from "../../slice";
+import { andSearch, sortBy } from "../../utils/FileNavigatorUtils";
+import NavBar from "./NavBar";
+import { ItemRow } from "./ItemRow";
+import { DirEntry } from "../../../../types/DirEntry";
+import { useDirectoryWatcher } from "../../hooks/useDirectoryWatcher";
+import { useFileSelection } from "../../hooks/useFileSelection";
+import SidePanelHeader from "../../../SidePane/components/SidePanelHeader";
+
+/** Props for the row component. */
+interface RowProps {
+  entries: DirEntry[];
+  selectedIndex: number;
+  onClick: (e: React.MouseEvent<HTMLDivElement>, entry: DirEntry, index: number) => void;
+}
+
+/** Component to display a single row in the file navigator list. */
+function Row({
+  index,
+  entries,
+  style,
+  selectedIndex,
+  onClick,
+  ...others
+}: RowComponentProps<RowProps>) {
+  const entry = entries[index];
+  return (
+    <ItemRow
+      {...others}
+      key={entry.name}
+      entry={entry}
+      index={index}
+      selected={selectedIndex === index}
+      onClick={onClick}
+      style={style}
+    />
+  );
+}
+
+/**
+ * File navigator component.
+ */
+export default function FileListViewer() {
+  const { t } = useTranslation();
+  const fileNavigatorSettings = useAppSelector((state) => state.settings.fileNavigator);
+  const { history, historyIndex, entries, searchText, isLoading } = useAppSelector(
+    (state) => state.read.explorer,
+  );
+  const { history: fileHistory, historyIndex: fileHistoryIndex } = useAppSelector(
+    (state) => state.read.containerFile,
+  );
+  const dispatch = useAppDispatch();
+
+  const [selectedIndex, setSelectedIndex] = useState(-1);
+  const [list, setList] = useListCallbackRef(null);
+  const clickTimer = useRef<number | null>(null);
+  const doubleClickIntervalMs = 200;
+
+  const filteredSortedEntries = useMemo(() => {
+    return andSearch(entries, searchText)
+      .slice()
+      .sort((a, b) => sortBy(a, b, fileNavigatorSettings.sortOrder));
+  }, [entries, fileNavigatorSettings.sortOrder, searchText]);
+
+  const updateEntriesCallback = useCallback(() => {
+    if (history[historyIndex]) {
+      dispatch(updateExploreBasePath({ dirPath: history[historyIndex], forceUpdate: true }));
+    }
+  }, [history, historyIndex, dispatch]);
+
+  useEffect(() => {
+    updateEntriesCallback();
+  }, [updateEntriesCallback]);
+
+  useDirectoryWatcher(history[historyIndex], updateEntriesCallback);
+  useFileSelection(fileHistory, fileHistoryIndex, filteredSortedEntries, setSelectedIndex);
+
+  // Scroll to make the selected item visible
+  useEffect(() => {
+    if (selectedIndex === -1 || filteredSortedEntries.length === 0 || !list) {
+      return;
+    }
+
+    // Use setTimeout to push the scroll command to the end of the event loop.
+    // This ensures that the virtualized list (react-window) has finished
+    // rendering and measuring item positions before attempting to scroll.
+    const timerId = setTimeout(() => {
+      try {
+        debug(`Scrolling to row ${selectedIndex}.`);
+        list.scrollToRow({ align: "smart", behavior: "instant", index: selectedIndex });
+      } catch (e) {
+        error(`Failed to scroll to row ${selectedIndex}: ${e}`);
+      }
+    }, 20);
+
+    return () => {
+      clearTimeout(timerId);
+    };
+  }, [selectedIndex, filteredSortedEntries.length, list]);
+
+  const handleListItemClicked = useCallback(
+    async (_e: React.MouseEvent<HTMLDivElement>, entry: DirEntry, index: number) => {
+      const path = await join(history[historyIndex], entry.name);
+      dispatch(setContainerFilePath(path));
+      setSelectedIndex(index);
+    },
+    [dispatch, history, historyIndex],
+  );
+
+  const handleListItemDoubleClicked = useCallback(
+    async (_e: React.MouseEvent<HTMLDivElement>, entry: DirEntry) => {
+      if (entry.is_directory) {
+        const path = await join(history[historyIndex], entry.name);
+        dispatch(setSearchText(""));
+        dispatch(updateExploreBasePath({ dirPath: path }));
+      }
+    },
+    [dispatch, history, historyIndex],
+  );
+
+  const handleListItemClickedWrapper = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>, entry: DirEntry, index: number) => {
+      if (clickTimer.current) {
+        clearTimeout(clickTimer.current);
+        clickTimer.current = null;
+        handleListItemDoubleClicked(e, entry);
+      } else {
+        clickTimer.current = window.setTimeout(() => {
+          clickTimer.current = null;
+          handleListItemClicked(e, entry, index);
+        }, doubleClickIntervalMs);
+      }
+    },
+    [handleListItemClicked, handleListItemDoubleClicked],
+  );
+
+  const rowData: RowProps = useMemo(
+    () => ({
+      entries: filteredSortedEntries,
+      selectedIndex,
+      onClick: handleListItemClickedWrapper,
+    }),
+    [filteredSortedEntries, selectedIndex, handleListItemClickedWrapper],
+  );
+
+  return (
+    <Stack
+      sx={{
+        width: "100%",
+        height: "100%",
+      }}
+    >
+      <SidePanelHeader title={t("book-reader.file-navigator.title")} />
+      <NavBar />
+      {isLoading ? (
+        <Box sx={{ flexGrow: 1, display: "flex", justifyContent: "center", alignItems: "center" }}>
+          <CircularProgress />
+        </Box>
+      ) : filteredSortedEntries.length === 0 ? (
+        <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
+          <Typography sx={{ overflowWrap: "anywhere" }}>
+            {searchText.length > 0
+              ? t("book-reader.file-navigator.no-search-results", { searchText })
+              : t("book-reader.file-navigator.no-files")}
+          </Typography>
+        </Box>
+      ) : (
+        <Box sx={{ flexGrow: 1, overflow: "auto" }}>
+          <List
+            rowComponent={Row}
+            rowProps={rowData}
+            rowCount={filteredSortedEntries.length}
+            rowHeight={36}
+            overscanCount={5}
+            listRef={setList}
+          />
+        </Box>
+      )}
+    </Stack>
+  );
+}
