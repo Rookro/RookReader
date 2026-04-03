@@ -1,40 +1,18 @@
 /// <reference types="vitest" />
-import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { defineConfig } from "vitest/config";
 
 const host = process.env.TAURI_DEV_HOST;
 
 // https://vite.dev/config/
-export default defineConfig(async () => ({
+export default defineConfig({
   plugins: [react()],
-
-  build: {
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          "react-vendor": ["react", "react-dom", "react-router"],
-          "mui-vendor": [
-            "@mui/material",
-            "@mui/icons-material",
-            "@emotion/react",
-            "@emotion/styled",
-          ],
-          "redux-vendor": ["@reduxjs/toolkit", "react-redux", "redux"],
-          "epubjs-vendor": ["epubjs"],
-        },
-      },
-    },
-  },
 
   test: {
     globals: true,
     environment: "jsdom",
     setupFiles: "./src/test/setup.ts",
-    exclude: [
-      "**/node_modules/**",
-      "**/dist/**",
-      "**/e2e/**",
-    ],
+    exclude: ["**/node_modules/**", "**/dist/**", "**/e2e/**"],
     coverage: {
       provider: "v8",
       exclude: [
@@ -70,4 +48,4 @@ export default defineConfig(async () => ({
       ignored: ["**/src-tauri/**"],
     },
   },
-}));
+});
