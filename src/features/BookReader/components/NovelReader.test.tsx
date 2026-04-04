@@ -22,6 +22,9 @@ class MockView extends HTMLElement {
   open = vi.fn().mockResolvedValue(undefined);
   goTo = vi.fn().mockResolvedValue(undefined);
   lastLocation = { index: -1, cfi: "initial" };
+
+  next = vi.fn(() => this.renderer.next());
+  prev = vi.fn(() => this.renderer.prev());
 }
 
 if (!customElements.get("foliate-view")) {
@@ -212,11 +215,11 @@ describe("BookReader/NovelReader", () => {
     act(() => {
       forward();
     });
-    expect(view.renderer.next).toHaveBeenCalled();
+    expect(view.next).toHaveBeenCalled();
 
     act(() => {
       back();
     });
-    expect(view.renderer.prev).toHaveBeenCalled();
+    expect(view.prev).toHaveBeenCalled();
   });
 });

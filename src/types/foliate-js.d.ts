@@ -112,6 +112,8 @@ declare module "foliate-js/view.js" {
    * The main view element for rendering books.
    */
   export class View extends HTMLElement {
+    /** The book object. */
+    book?: Book;
     /** Whether the view uses a fixed layout renderer. */
     isFixedLayout: boolean;
     /** The last recorded location. */
@@ -119,10 +121,10 @@ declare module "foliate-js/view.js" {
     /** The history of navigation. */
     history: unknown;
     /** The underlying renderer element. */
-    renderer: HTMLElement & {
+    renderer?: HTMLElement & {
       goTo(target: string | { index: number; anchor?: unknown }): Promise<void>;
-      prev(): Promise<void>;
-      next(): Promise<void>;
+      prev(distance?: number): Promise<void>;
+      next(distance?: number): Promise<void>;
     };
 
     /**
@@ -136,6 +138,11 @@ declare module "foliate-js/view.js" {
      * @param target The target location.
      */
     goTo(target: string | number | { index: number; anchor?: unknown }): Promise<void>;
+
+    /** Goes to the previous page. */
+    prev(distance?: number): Promise<void>;
+    /** Goes to the next page. */
+    next(distance?: number): Promise<void>;
 
     addEventListener<K extends keyof ViewEventMap>(
       type: K,
@@ -202,9 +209,9 @@ declare module "foliate-js/paginator.js" {
     /** Navigates to a destination. */
     goTo(target: { index: number; anchor?: unknown }): Promise<void>;
     /** Goes to the previous page. */
-    prev(): Promise<void>;
+    prev(distance?: number): Promise<void>;
     /** Goes to the next page. */
-    next(): Promise<void>;
+    next(distance?: number): Promise<void>;
   }
 }
 
@@ -220,9 +227,9 @@ declare module "foliate-js/fixed-layout.js" {
     /** Navigates to a destination. */
     goTo(target: { index: number; anchor?: unknown }): Promise<void>;
     /** Goes to the previous page. */
-    prev(): Promise<void>;
+    prev(distance?: number): Promise<void>;
     /** Goes to the next page. */
-    next(): Promise<void>;
+    next(distance?: number): Promise<void>;
   }
 }
 
@@ -286,5 +293,11 @@ declare module "foliate-js/overlayer.js" {
     constructor(doc: Document);
     /** The SVG element representing the overlay. */
     get element(): SVGElement;
+  }
+}
+
+declare global {
+  interface HTMLElementTagNameMap {
+    "foliate-view": import("foliate-js/view.js").View;
   }
 }
