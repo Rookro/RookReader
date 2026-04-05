@@ -36,7 +36,7 @@ export default function FontSettings() {
         ...readerSettings,
         novel: { ...readerSettings.novel, fontFamily: e.target.value },
       };
-      dispatch(updateSettings({ key: "reader", value: newSettings }));
+      await dispatch(updateSettings({ key: "reader", value: newSettings }));
       emit<SettingsChangedEvent>("settings-changed", { appSettings: { reader: newSettings } });
     },
     [dispatch, readerSettings],
@@ -50,7 +50,7 @@ export default function FontSettings() {
         ...readerSettings,
         novel: { ...readerSettings.novel, fontSize: value },
       };
-      dispatch(updateSettings({ key: "reader", value: newSettings }));
+      await dispatch(updateSettings({ key: "reader", value: newSettings }));
       emit<SettingsChangedEvent>("settings-changed", { appSettings: { reader: newSettings } });
     },
     [dispatch, readerSettings],
