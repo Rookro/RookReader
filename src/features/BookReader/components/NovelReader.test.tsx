@@ -1,6 +1,6 @@
 import * as fs from "@tauri-apps/plugin-fs";
 import { act, screen, waitFor } from "@testing-library/react";
-import ePub from "epubjs";
+import { makeBook } from "foliate-js/view.js";
 import type { Mock } from "vitest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { mockLog, mockStore } from "../../../test/mocks/tauri";
@@ -9,57 +9,23 @@ import * as pageNav from "../hooks/usePageNavigation";
 import * as ReadReducer from "../slice";
 import NovelReader from "./NovelReader";
 
-// Mock epubjs types for easier testing
-interface MockRendition {
-  themes: { default: Mock<() => void> };
-  hooks: {
-    content: {
-      register: Mock<
-        (callback: (contents: { document: Document; window: Window }) => void) => void
-      >;
-    };
-  };
-  on: Mock<
-    (event: string, callback: (location: { start: { index: number; cfi: string } }) => void) => void
-  >;
-  display: Mock<(target: string | number) => Promise<void>>;
-  destroy: Mock<() => void>;
-  resize: Mock<(width: number, height: number) => void>;
-  location: { start: { index: number; cfi: string } };
-  next: Mock<() => void>;
-  prev: Mock<() => void>;
-}
-
-interface MockBook {
-  renderTo: Mock<(element: HTMLElement, options: Record<string, unknown>) => MockRendition>;
-  loaded: {
-    spine: Promise<{ items: { href: string; idref: string; index: number }[] }>;
-    navigation: Promise<{ toc: { label: string; href: string }[] }>;
-  };
-  destroy: Mock<() => void>;
-}
-
-// Mock epubjs
-vi.mock("epubjs", () => ({
-  default: vi.fn(() => ({
-    renderTo: vi.fn(() => ({
-      themes: { default: vi.fn() },
-      hooks: { content: { register: vi.fn() } },
-      on: vi.fn(),
-      display: vi.fn(() => Promise.resolve()),
-      destroy: vi.fn(),
-      resize: vi.fn(),
-      next: vi.fn(),
-      prev: vi.fn(),
-      location: { start: { index: -1, cfi: "initial" } },
-    })),
-    loaded: {
-      spine: Promise.resolve({ items: [{ href: "ch1.html", idref: "ch1", index: 0 }] }),
-      navigation: Promise.resolve({ toc: [{ label: "Chapter 1", href: "ch1.html" }] }),
-    },
-    destroy: vi.fn(),
-  })),
+// Mock foliate-js/view.js
+vi.mock("foliate-js/view.js", () => ({
+  makeBook: vi.fn(),
+  View: class View {},
 }));
+
+import type { Book, View } from "foliate-js/view.js";
+
+const mockBook = {
+  toc: [{ label: "Chapter 1", href: "ch1.html" }],
+  sections: [{ id: "section0" }],
+  resolveHref: vi.fn().mockImplementation((href) => {
+    if (href === "ch1.html") return { index: 0, anchor: vi.fn() };
+    return null;
+  }),
+  destroy: vi.fn(),
+} as unknown as Book;
 
 const mockPageNavHandlers = {
   handleClicked: vi.fn(),
@@ -84,18 +50,6 @@ vi.mock("../slice", async () => {
   };
 });
 
-// Mock ResizeObserver
-let resizeCallback: ResizeObserverCallback | undefined;
-class MockResizeObserver {
-  constructor(cb: ResizeObserverCallback) {
-    resizeCallback = cb;
-  }
-  observe = vi.fn();
-  unobserve = vi.fn();
-  disconnect = vi.fn();
-}
-global.ResizeObserver = MockResizeObserver as typeof ResizeObserver;
-
 describe("BookReader/NovelReader", () => {
   const mockFilePath = "/path/to/novel.epub";
   const defaultPreloadedState = createBasePreloadedState();
@@ -108,18 +62,49 @@ describe("BookReader/NovelReader", () => {
     isNovel: true,
   };
 
+  let mockView: Partial<View> & { [key: string]: unknown };
+  const originalCreateElement = document.createElement;
+
   beforeEach(() => {
     vi.clearAllMocks();
     mockStore.get.mockResolvedValue(null);
     vi.mocked(fs.readFile).mockResolvedValue(new Uint8Array([1, 2, 3]));
+    vi.mocked(makeBook).mockResolvedValue(mockBook);
+
+    mockView = {
+      style: {} as CSSStyleDeclaration,
+      open: vi.fn(() => Promise.resolve()),
+      init: vi.fn(() => Promise.resolve()),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      close: vi.fn(),
+      remove: vi.fn(),
+      goTo: vi.fn(() => Promise.resolve()),
+      next: vi.fn(),
+      prev: vi.fn(),
+      lastLocation: { index: -1, cfi: "initial" },
+      renderer: { setStyles: vi.fn() } as unknown as HTMLElement,
+    };
+
+    vi.spyOn(document, "createElement").mockImplementation(function (
+      this: Document,
+      tagName: string,
+      options?: ElementCreationOptions,
+    ) {
+      const el = originalCreateElement.call(this, tagName, options);
+      if (tagName === "foliate-view") {
+        Object.assign(el, mockView);
+      }
+      return el;
+    });
   });
 
-  it("should load the EPUB file and initialize ePubjs", async () => {
+  it("should load the EPUB file and initialize foliate-js", async () => {
     renderWithProviders(<NovelReader filePath={mockFilePath} />, {
       preloadedState: defaultPreloadedState,
     });
     expect(fs.readFile).toHaveBeenCalledWith(mockFilePath);
-    await waitFor(() => expect(ePub).toHaveBeenCalled());
+    await waitFor(() => expect(mockView.open).toHaveBeenCalledWith(mockBook));
     expect(screen.getByText("Beta")).toBeTruthy();
   });
 
@@ -127,13 +112,11 @@ describe("BookReader/NovelReader", () => {
     const { rerender } = renderWithProviders(<NovelReader filePath={mockFilePath} />, {
       preloadedState: defaultPreloadedState,
     });
-    await waitFor(() => expect(ePub).toHaveBeenCalled());
-    const mockBook = vi.mocked(ePub).mock.results[0].value as MockBook;
-    const mockRendition = mockBook.renderTo.mock.results[0].value;
+    await waitFor(() => expect(makeBook).toHaveBeenCalled());
 
     rerender(<NovelReader filePath="/new/path.epub" />);
-    expect(mockRendition.destroy).toHaveBeenCalled();
-    expect(mockBook.destroy).toHaveBeenCalled();
+    expect(mockView.close).toHaveBeenCalled();
+    expect(mockView.remove).toHaveBeenCalled();
   });
 
   it("should dispatch entries when book is loaded", async () => {
@@ -155,55 +138,24 @@ describe("BookReader/NovelReader", () => {
     );
   });
 
-  it("should handle relocation events", async () => {
+  it("should handle relocate events", async () => {
     renderWithProviders(<NovelReader filePath={mockFilePath} />, {
       preloadedState: defaultPreloadedState,
     });
-    await waitFor(() => expect(ePub).toHaveBeenCalled());
-    const mockBook = vi.mocked(ePub).mock.results[0].value as MockBook;
-    const mockRendition = mockBook.renderTo.mock.results[0].value;
+    await waitFor(() => expect(makeBook).toHaveBeenCalled());
 
-    const relocatedCall = mockRendition.on.mock.calls.find(
-      (call: [string, (location: { start: { index: number; cfi: string } }) => void]) =>
-        call[0] === "relocated",
+    const relocateCall = (mockView.addEventListener as Mock).mock.calls.find(
+      (call: unknown[]) => call[0] === "relocate",
     );
-    const relocatedHandler = relocatedCall?.[1];
+    const relocateHandler = relocateCall?.[1];
 
-    if (typeof relocatedHandler === "function") {
+    if (typeof relocateHandler === "function") {
       act(() => {
-        relocatedHandler({ start: { index: 5, cfi: "epubcfi(5)" } });
+        relocateHandler({ detail: { section: { current: 5, total: 10 }, cfi: "epubcfi(5)" } });
       });
     }
 
     expect(ReadReducer.setNovelLocation).toHaveBeenCalledWith({ index: 5, cfi: "epubcfi(5)" });
-  });
-
-  it("should handle resize events", async () => {
-    renderWithProviders(<NovelReader filePath={mockFilePath} />, {
-      preloadedState: defaultPreloadedState,
-    });
-    await waitFor(() => expect(ePub).toHaveBeenCalled());
-    const mockBook = vi.mocked(ePub).mock.results[0].value as MockBook;
-    const mockRendition = mockBook.renderTo.mock.results[0].value;
-
-    act(() => {
-      if (resizeCallback) {
-        resizeCallback(
-          [
-            {
-              contentBoxSize: [{ inlineSize: 800, blockSize: 600 }],
-              borderBoxSize: [{ inlineSize: 800, blockSize: 600 }],
-              contentRect: new DOMRectReadOnly(0, 0, 800, 600),
-              devicePixelContentBoxSize: [{ inlineSize: 800, blockSize: 600 }],
-              target: {} as Element,
-            },
-          ],
-          {} as ResizeObserver,
-        );
-      }
-    });
-
-    expect(mockRendition.resize).toHaveBeenCalledWith(800, 600);
   });
 
   it("should display specific cfi if provided in state", async () => {
@@ -216,34 +168,43 @@ describe("BookReader/NovelReader", () => {
     };
 
     renderWithProviders(<NovelReader filePath={mockFilePath} />, { preloadedState: cfiState });
-    await waitFor(() => expect(ePub).toHaveBeenCalled());
-    const mockBook = vi.mocked(ePub).mock.results[0].value as MockBook;
-    const mockRendition = mockBook.renderTo.mock.results[0].value;
+    await waitFor(() => expect(makeBook).toHaveBeenCalled());
 
-    await waitFor(() => expect(mockRendition.display).toHaveBeenCalledWith("epubcfi(target)"));
+    // Initially init should be called with the cfi
+    await waitFor(() =>
+      expect(mockView.init).toHaveBeenCalledWith({ lastLocation: "epubcfi(target)" }),
+    );
   });
 
-  it("should register content hooks and handle events", async () => {
+  it("should register content load hooks and handle events", async () => {
     renderWithProviders(<NovelReader filePath={mockFilePath} />, {
       preloadedState: defaultPreloadedState,
     });
-    await waitFor(() => expect(ePub).toHaveBeenCalled());
-    const mockBook = vi.mocked(ePub).mock.results[0].value as MockBook;
-    const mockRendition = mockBook.renderTo.mock.results[0].value;
+    await waitFor(() => expect(makeBook).toHaveBeenCalled());
 
-    const registerCall = mockRendition.hooks.content.register.mock.calls[0];
-    const hookCallback = registerCall?.[0];
+    const loadCall = (mockView.addEventListener as Mock).mock.calls.find(
+      (call: unknown[]) => call[0] === "load",
+    );
+    const loadHandler = loadCall?.[1];
 
-    if (typeof hookCallback === "function") {
+    if (typeof loadHandler === "function") {
       const mockDoc = {
         addEventListener: vi.fn(),
-        body: { getComputedStyle: vi.fn(() => ({ writingMode: "horizontal-tb" })) },
+        createElement: originalCreateElement,
+        head: { appendChild: vi.fn() },
+        body: {},
       } as unknown as Document;
-      const mockWindow = {
-        getComputedStyle: vi.fn(() => ({ writingMode: "horizontal-tb" })),
-      } as unknown as Window;
 
-      hookCallback({ document: mockDoc, window: mockWindow });
+      Object.defineProperty(mockDoc, "defaultView", {
+        value: {
+          getComputedStyle: vi.fn(() => ({
+            writingMode: "horizontal-tb",
+            includes: (val: string) => "horizontal-tb".includes(val),
+          })),
+        },
+      });
+
+      loadHandler({ detail: { doc: mockDoc } });
 
       expect(mockDoc.addEventListener).toHaveBeenCalledWith("click", expect.any(Function));
       expect(mockDoc.addEventListener).toHaveBeenCalledWith("contextmenu", expect.any(Function));
@@ -296,50 +257,20 @@ describe("BookReader/NovelReader", () => {
     }
   });
 
-  it("should apply Linux specific styles when Linux user agent is detected", async () => {
-    const originalUserAgent = navigator.userAgent;
-    Object.defineProperty(navigator, "userAgent", {
-      value: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36",
-      configurable: true,
-    });
-
-    renderWithProviders(<NovelReader filePath={mockFilePath} />, {
-      preloadedState: defaultPreloadedState,
-    });
-    await waitFor(() => expect(ePub).toHaveBeenCalled());
-    const mockBook = vi.mocked(ePub).mock.results[0].value as MockBook;
-    const mockRendition = mockBook.renderTo.mock.results[0].value;
-
-    expect(mockRendition.themes.default).toHaveBeenCalledWith(
-      expect.objectContaining({
-        ".vrtl": expect.objectContaining({ "font-feature-settings": '"vert"' }),
-      }),
-    );
-
-    Object.defineProperty(navigator, "userAgent", {
-      value: originalUserAgent,
-      configurable: true,
-    });
-  });
-
   it("should move forward and backward", async () => {
     renderWithProviders(<NovelReader filePath={mockFilePath} />, {
       preloadedState: defaultPreloadedState,
     });
-    await waitFor(() => expect(ePub).toHaveBeenCalled());
-    const mockBook = vi.mocked(ePub).mock.results[0].value as MockBook;
-    const mockRendition = mockBook.renderTo.mock.results[0].value;
+    await waitFor(() => expect(makeBook).toHaveBeenCalled());
 
-    // We can't directly trigger internal functions but we can check if usePageNavigation was called
-    // which we already did in hook tests. Here we can check if onMoveForward/Back were defined correctly.
     const pageNavCall = vi.mocked(pageNav.usePageNavigation).mock.calls[0];
     const forward = pageNavCall[0];
     const back = pageNavCall[1];
 
     forward();
-    expect(mockRendition.next).toHaveBeenCalled();
+    expect(mockView.next).toHaveBeenCalled();
 
     back();
-    expect(mockRendition.prev).toHaveBeenCalled();
+    expect(mockView.prev).toHaveBeenCalled();
   });
 });

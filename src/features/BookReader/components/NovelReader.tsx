@@ -1,13 +1,9 @@
 import { Badge, Box } from "@mui/material";
 import { readFile } from "@tauri-apps/plugin-fs";
-import { debug, error } from "@tauri-apps/plugin-log";
-import ePub, {
-  type Book,
-  type Contents,
-  type Location,
-  type NavItem,
-  type Rendition,
-} from "epubjs";
+import { error } from "@tauri-apps/plugin-log";
+import type { TOCItem } from "foliate-js/epub.js";
+import { Paginator } from "foliate-js/paginator.js";
+import { type Book, makeBook, type View } from "foliate-js/view.js";
 import { useCallback, useEffect, useRef } from "react";
 import { useDispatch } from "react-redux";
 import BundledNotoSerifJP from "../../../assets/fonts/NotoSerifJP-VariableFont_wght.woff2";
@@ -23,6 +19,33 @@ interface NovelReaderProps {
 }
 
 /**
+ * Builds a mapping of section indices to their corresponding Table of Contents (TOC) labels.
+ * If multiple TOC items point to the same section, the first encountered label is kept.
+ *
+ * @param book - The parsed Book instance from foliate-js.
+ * @returns A Map where the key is the section index and the value is the TOC label.
+ */
+const buildTocMap = (book: Book): Map<number, string> => {
+  const map = new Map<number, string>();
+  if (!book.toc || !book.resolveHref) return map;
+
+  const traverse = (items: TOCItem[]) => {
+    for (const item of items) {
+      const resolved = book.resolveHref?.(item.href);
+      if (resolved && resolved.index !== undefined && !map.has(resolved.index)) {
+        map.set(resolved.index, item.label);
+      }
+      if (item.subitems && item.subitems.length > 0) {
+        traverse(item.subitems);
+      }
+    }
+  };
+
+  traverse(book.toc);
+  return map;
+};
+
+/**
  * Component for rendering Novel EPUB files.
  *
  * @beta
@@ -34,8 +57,7 @@ interface NovelReaderProps {
 export default function NovelReader({ filePath }: NovelReaderProps) {
   const theme = useAppTheme();
   const viewerRef = useRef<HTMLDivElement>(null);
-  const bookRef = useRef<Book | null>(null);
-  const renditionRef = useRef<Rendition | null>(null);
+  const viewRef = useRef<View | null>(null);
   const { index, cfi } = useAppSelector((state) => state.read.containerFile);
   const {
     comic: { readingDirection },
@@ -44,41 +66,45 @@ export default function NovelReader({ filePath }: NovelReaderProps) {
   const dispatch = useDispatch<AppDispatch>();
 
   const onMoveForward = useCallback(() => {
-    renditionRef.current?.next();
+    viewRef.current?.next();
   }, []);
 
   const onMoveBack = useCallback(() => {
-    renditionRef.current?.prev();
+    viewRef.current?.prev();
   }, []);
 
-  const applyThemeToRendition = useCallback(
-    (rendition: Rendition) => {
-      rendition.themes.default({
-        "@font-face": {
-          "font-family": "BundledNotoSerifJP",
-          src: `url(${BundledNotoSerifJP}) format('woff2')`,
-          "font-weight": "normal",
-          "font-style": "normal",
-        },
-        "*": {
-          "font-family": `"${fontFamily === "default-font" ? "BundledNotoSerifJP" : fontFamily}" !important`,
-        },
-        body: {
-          "font-family": `"${fontFamily === "default-font" ? "BundledNotoSerifJP" : fontFamily}" !important`,
-          "font-size": `${fontSize}px`,
-          color: theme.palette.text.primary,
-          background: theme.palette.background.default,
-          "user-select": "none",
-          "padding-left": "80px !important",
-          "padding-right": "80px !important",
-        },
-        ".introduction": { color: `${theme.palette.text.secondary} !important` },
-        ".postscript": { color: `${theme.palette.text.secondary} !important` },
-        // WORKAROUND: Fix incorrect glyph orientation.
-        ...(navigator.userAgent.indexOf("Linux") !== -1
-          ? { ".vrtl": { "font-feature-settings": '"vert"' } }
-          : {}),
-      });
+  const applyThemeToView = useCallback(
+    (view: View) => {
+      const css = `
+        @font-face {
+          font-family: "BundledNotoSerifJP";
+          src: url(${BundledNotoSerifJP}) format('woff2');
+          font-weight: normal;
+          font-style: normal;
+        }
+        * {
+          font-family: "${fontFamily === "default-font" ? "BundledNotoSerifJP" : fontFamily}" !important;
+        }
+        body {
+          font-family: "${fontFamily === "default-font" ? "BundledNotoSerifJP" : fontFamily}" !important;
+          font-size: ${fontSize}px !important;
+          color: ${theme.palette.text.primary} !important;
+          user-select: none;
+        }
+        a { color: ${theme.palette.primary.main} !important; }
+        .introduction { color: ${theme.palette.text.secondary} !important; }
+        .postscript { color: ${theme.palette.text.secondary} !important; }
+        ${
+          navigator.userAgent.indexOf("Linux") !== -1
+            ? `
+          .vrtl { font-feature-settings: "vert"; }
+          `
+            : ""
+        }
+      `;
+      if (view.renderer && view.renderer instanceof Paginator) {
+        view.renderer.setStyles(css);
+      }
     },
     [theme, fontFamily, fontSize],
   );
@@ -89,7 +115,7 @@ export default function NovelReader({ filePath }: NovelReaderProps) {
     readingDirection,
   );
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: Do not re-render the rendition component if the theme is changed.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Do not re-render the view component if the theme is changed.
   useEffect(() => {
     let isMounted = true;
 
@@ -99,10 +125,9 @@ export default function NovelReader({ filePath }: NovelReaderProps) {
       }
 
       // Cleanup previous book instance if it exists.
-      renditionRef.current?.destroy();
-      renditionRef.current = null;
-      bookRef.current?.destroy();
-      bookRef.current = null;
+      viewRef.current?.close();
+      viewRef.current?.remove();
+      viewRef.current = null;
 
       const binaryData = await readFile(filePath);
 
@@ -110,93 +135,83 @@ export default function NovelReader({ filePath }: NovelReaderProps) {
         return;
       }
 
-      const book = ePub(binaryData.buffer);
-      bookRef.current = book;
+      const file = new File([binaryData], filePath, { type: "application/epub+zip" });
+      const book = await makeBook(file);
 
-      Promise.all([book.loaded.spine, book.loaded.navigation]).then(([spine, nav]) => {
-        if (!isMounted) {
-          return;
-        }
-        // 'spine' is actually a Spine object, not SpineItem[].
-        // Access each item via the 'items' property.
-        if ("items" in spine && Array.isArray(spine.items)) {
-          const entries = spine.items.map((item) => {
-            const navItem = !item.href ? undefined : findNavItemByHref(nav.toc, item.href);
-            return navItem ? navItem.label : (item.idref ?? item.index.toString());
-          });
-          dispatch(setEntries(entries));
-        }
+      if (!isMounted) {
+        book.destroy?.();
+        return;
+      }
+
+      if (book.sections) {
+        const tocMap = buildTocMap(book);
+        dispatch(
+          setEntries(
+            book.sections.map((section, index) => {
+              return tocMap.get(index) || section?.id || index.toString();
+            }),
+          ),
+        );
+      }
+
+      const view = document.createElement("foliate-view") as View;
+      viewerRef.current.appendChild(view);
+      viewRef.current = view;
+
+      await view.open(book);
+
+      if (!isMounted) {
+        return;
+      }
+
+      applyThemeToView(view);
+
+      view.addEventListener("relocate", (e) => {
+        if (!isMounted) return;
+        // foliate-js view's relocate event returns index in detail.section.current, or occasionally detail.index.
+        const newIndex = e.detail.section?.current ?? e.detail.index ?? 0;
+        const newCfi = e.detail.cfi ?? "";
+        dispatch(setNovelLocation({ index: newIndex, cfi: newCfi }));
       });
 
-      const rendition = book.renderTo(viewerRef.current, {
-        width: "100%",
-        height: "100%",
-        spread: "auto",
-        allowScriptedContent: true,
-      });
-      renditionRef.current = rendition;
+      view.addEventListener("load", (e) => {
+        const { doc } = e.detail;
 
-      applyThemeToRendition(rendition);
+        const isVertical = doc.defaultView
+          ? doc.defaultView.getComputedStyle(doc.body).writingMode.includes("vertical")
+          : false;
 
-      rendition.hooks.content.register((contents: Contents) => {
-        const doc = contents.document;
+        if (view.renderer && view.renderer instanceof Paginator) {
+          if (isVertical) {
+            // Force the content to occupy the maximum available height of the container in vertical mode.
+            view.renderer.setAttribute("max-inline-size", "10000px");
+          } else {
+            view.renderer.removeAttribute("max-inline-size");
+          }
+        }
 
-        doc.addEventListener("click", (e: MouseEvent) => {
+        doc.addEventListener("click", (ev: MouseEvent) => {
           // Ignore click events on links.
-          const target = e.target as HTMLElement;
+          const target = ev.target as HTMLElement;
           if (target.closest("a")) {
             return;
           }
-          handleClicked(e);
+          handleClicked(ev);
         });
-        doc.addEventListener("contextmenu", (e: MouseEvent) => {
-          e.preventDefault();
-          handleContextMenu(e);
+        doc.addEventListener("contextmenu", (ev: MouseEvent) => {
+          ev.preventDefault();
+          handleContextMenu(ev);
         });
-        doc.addEventListener("wheel", (e: WheelEvent) => {
-          handleWheeled(e);
+        doc.addEventListener("wheel", (ev: WheelEvent) => {
+          handleWheeled(ev);
         });
-        doc.addEventListener("keydown", (e: KeyboardEvent) => {
-          handleKeydown(e);
+        doc.addEventListener("keydown", (ev: KeyboardEvent) => {
+          handleKeydown(ev);
         });
-
-        // WORKAROUND: Fix incorrect glyph orientation for punctuation marks.
-        // In WebkitGTK (Linux), punctuation marks such as brackets (「」) and
-        // prolonged sound marks (ー) often remain horizontal even in vertical mode.
-        // We explicitly force the OpenType 'vert' (Vertical Alternates) feature
-        // to ensure the correct glyphs are used.
-        const isLinux = navigator.userAgent.indexOf("Linux") !== -1;
-        if (isLinux) {
-          const isVertical =
-            contents.window.getComputedStyle(doc.body).writingMode.indexOf("vertical") !== -1;
-          if (isVertical) {
-            contents.addStylesheetRules(
-              {
-                body: {
-                  "font-feature-settings": '"vert"',
-                },
-              },
-              "vertical-writing-fix",
-            );
-
-            debug("Applied 'vert' font feature settings.");
-          }
-        }
-      });
-
-      rendition.on("relocated", (location: Location) => {
-        if (!isMounted) {
-          return;
-        }
-        dispatch(setNovelLocation({ index: location.start.index, cfi: location.start.cfi }));
       });
 
       if (isMounted) {
-        if (cfi) {
-          rendition.display(cfi);
-        } else {
-          rendition.display(index);
-        }
+        await view.init({ lastLocation: cfi ?? index });
       }
     };
 
@@ -206,47 +221,34 @@ export default function NovelReader({ filePath }: NovelReaderProps) {
 
     return () => {
       isMounted = false;
-      renditionRef.current?.destroy();
-      renditionRef.current = null;
-      bookRef.current?.destroy();
-      bookRef.current = null;
+      viewRef.current?.close();
+      viewRef.current?.remove();
+      viewRef.current = null;
     };
   }, [filePath, handleClicked, handleContextMenu, handleWheeled, handleKeydown, dispatch]);
 
   useEffect(() => {
-    const element = viewerRef.current;
-    if (!element) {
+    if (viewRef.current) {
+      applyThemeToView(viewRef.current);
+    }
+  }, [applyThemeToView]);
+
+  useEffect(() => {
+    if (!viewRef.current) {
       return;
     }
-    const observer = new ResizeObserver((entries) => {
-      if (entries.length <= 0) {
-        return;
-      }
 
-      const width = entries[0].contentBoxSize[0].inlineSize;
-      const height = entries[0].contentBoxSize[0].blockSize;
-      renditionRef.current?.resize(width, height);
-    });
-    observer.observe(element);
+    const currentCfi = viewRef.current.lastLocation?.cfi;
+    const currentIndex = viewRef.current.lastLocation?.index;
 
-    return () => {
-      if (element) {
-        observer.unobserve(element);
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    if (renditionRef.current) {
-      applyThemeToRendition(renditionRef.current);
-    }
-  }, [applyThemeToRendition]);
-
-  useEffect(() => {
-    if (cfi && cfi !== renditionRef.current?.location?.start.cfi) {
-      renditionRef.current?.display(cfi);
-    } else if (index && index !== renditionRef.current?.location?.start.index) {
-      renditionRef.current?.display(index);
+    if (cfi && cfi !== currentCfi) {
+      viewRef.current.goTo(cfi).catch((e) => {
+        error(`Failed to navigate to CFI(${cfi}): ${e}`);
+      });
+    } else if (index !== undefined && index !== currentIndex) {
+      viewRef.current.goTo(index).catch((e) => {
+        error(`Failed to navigate to index(${index}): ${e}`);
+      });
     }
   }, [cfi, index]);
 
@@ -277,28 +279,4 @@ export default function NovelReader({ filePath }: NovelReaderProps) {
       <Box component="div" ref={viewerRef} sx={{ width: "100%", height: "100%" }} />
     </Badge>
   );
-}
-
-/**
- * Recursively searches for an item with the specified href in the NavItem array.
- *
- * @param items - The array of NavItems to search.
- * @param targetHref - The href value to look for.
- * @returns The found NavItem, or undefined if not found.
- */
-function findNavItemByHref(items: NavItem[], targetHref: string): NavItem | undefined {
-  for (const item of items) {
-    if (item.href === targetHref) {
-      return item;
-    }
-
-    if (item.subitems && item.subitems.length > 0) {
-      const found = findNavItemByHref(item.subitems, targetHref);
-      if (found) {
-        return found;
-      }
-    }
-  }
-
-  return undefined;
 }
