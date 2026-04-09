@@ -18,7 +18,7 @@ export default function RecordReadingHistorySetting() {
   const handleRecordReadingHistoryChanged = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       const newHistorySettings = { ...historySettings, recordReadingHistory: e.target.checked };
-      dispatch(updateSettings({ key: "history", value: newHistorySettings }));
+      await dispatch(updateSettings({ key: "history", value: newHistorySettings }));
       await emit<SettingsChangedEvent>("settings-changed", {
         appSettings: { history: newHistorySettings },
       });

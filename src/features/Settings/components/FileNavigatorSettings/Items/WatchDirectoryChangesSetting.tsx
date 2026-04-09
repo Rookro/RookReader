@@ -23,7 +23,7 @@ export default function WatchDirectoryChangesSetting() {
         ...fileNavigatorSettings,
         watchDirectoryChanges: e.target.checked,
       };
-      dispatch(updateSettings({ key: "fileNavigator", value: newFileNavigatorSettings }));
+      await dispatch(updateSettings({ key: "fileNavigator", value: newFileNavigatorSettings }));
       await emit<SettingsChangedEvent>("settings-changed", {
         appSettings: { fileNavigator: newFileNavigatorSettings },
       });

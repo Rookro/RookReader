@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Enable window-level keyboard navigation for readers (#165)
 * Refactored the project architecture to a Feature-Sliced Design, reorganizing components, hooks, and store logic by domain (`src/features/`) for better maintainability (#166)
 * Migrate to Biome for faster linting and formatting (#167)
+* Update Vite v7 to v8 (#168)
+* Migrate from `epubjs` to `foliate-js` as the core novel rendering engine. (#169)
 
 ## [2.0.1]
 

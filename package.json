@@ -35,7 +35,7 @@
     "@reduxjs/toolkit": "^2.11.2",
     "@tauri-apps/api": "^2.10.1",
     "@tauri-apps/plugin-dialog": "~2",
-    "@tauri-apps/plugin-fs": "~2.4.5",
+    "@tauri-apps/plugin-fs": "~2.5.0",
     "@tauri-apps/plugin-log": "~2.8.0",
     "@tauri-apps/plugin-opener": "~2",
     "@tauri-apps/plugin-os": "~2.3.2",
@@ -44,7 +44,7 @@
     "@tauri-apps/plugin-updater": "^2.10.0",
     "@tauri-apps/plugin-window-state": "~2.4.1",
     "allotment": "^1.20.5",
-    "epubjs": "^0.3.93",
+    "foliate-js": "^1.0.1",
     "i18next": "^26.0.3",
     "i18next-browser-languagedetector": "^8.2.1",
     "react": "^19.2.4",
@@ -86,7 +86,6 @@
     "vitest": "^4.1.2"
   },
   "overrides": {
-    "serialize-javascript": "^7.0.3",
-    "@xmldom/xmldom": "^0.8.12"
+    "serialize-javascript": "^7.0.3"
   }
 }

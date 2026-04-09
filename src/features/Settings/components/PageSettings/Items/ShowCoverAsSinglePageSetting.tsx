@@ -26,7 +26,7 @@ export default function FirstPageSetting() {
           showCoverAsSinglePage: e.target.checked,
         },
       };
-      dispatch(updateSettings({ key: "reader", value: newSettings }));
+      await dispatch(updateSettings({ key: "reader", value: newSettings }));
 
       await emit<SettingsChangedEvent>("settings-changed", {
         appSettings: { reader: newSettings },
