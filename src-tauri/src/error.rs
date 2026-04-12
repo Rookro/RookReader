@@ -78,9 +78,6 @@ pub enum Error {
     Settings(String),
 
     // 6xxxx: Application Logic & State
-    /// An error indicating a failure to lock a Mutex.
-    #[error("Mutex Error: {0}")]
-    Mutex(String),
 
     // 7xxxx: Database
     /// An error related to database operations.
@@ -137,7 +134,6 @@ impl ErrorCode {
             ErrorCode::Settings => 50001,
 
             // 6xxxx: Application Logic & State
-            ErrorCode::Mutex => 60001,
 
             // 7xxxx: Database
             ErrorCode::Database => 70001,

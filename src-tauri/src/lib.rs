@@ -1,4 +1,4 @@
-use std::sync::Mutex;
+use tokio::sync::RwLock;
 
 use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
 
@@ -21,7 +21,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .manage(Mutex::new(state::app_state::AppState::default()))
+        .manage(RwLock::new(state::app_state::AppState::default()))
         .setup(|app| {
             if let Err(e) = setup::setup(app) {
                 app.dialog()

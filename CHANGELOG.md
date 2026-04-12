@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Migrate to Biome for faster linting and formatting (#167)
 * Update Vite v7 to v8 (#168)
 * Migrate from `epubjs` to `foliate-js` as the core novel rendering engine. (#169)
+* Improve image loading performance by processing requests in parallel instead of blocking the application state. (#170)
 
 ## [2.0.1]
 

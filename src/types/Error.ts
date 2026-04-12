@@ -68,7 +68,10 @@ export enum ErrorCode {
   SETTINGS_ERROR = 50001,
 
   // 6xxxx: Application Logic & State
-  MUTEX_ERROR = 60001,
+
+  // 7xxxx: Database
+  DATABASE_ERROR = 70001,
+  MIGRATION_ERROR = 70101,
 
   // 9xxxx: Unexpected Errors
   OTHER_ERROR = 90001,

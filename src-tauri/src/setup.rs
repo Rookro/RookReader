@@ -6,13 +6,10 @@ use sqlx::{
     sqlite::{SqliteConnectOptions, SqlitePoolOptions},
     SqlitePool,
 };
-use std::{
-    fs,
-    str::FromStr,
-    sync::{Arc, Mutex},
-};
+use std::{fs, str::FromStr, sync::Arc};
 use tauri::{App, Manager, Theme};
 use tauri_plugin_log::{RotationStrategy, Target, TargetKind};
+use tokio::sync::RwLock;
 
 use crate::{
     database::{
@@ -68,12 +65,10 @@ pub fn setup(app: &App) -> error::Result<()> {
 ///
 /// # Errors
 ///
-/// Returns a `Mutex` error if the application state cannot be locked.
+/// Returns an `Err` if locating the bundled libraries directory fails.
 pub fn setup_container_settings(app: &App, settings: &AppSettings) -> error::Result<()> {
-    let state: tauri::State<'_, Mutex<crate::state::app_state::AppState>> = app.state();
-    let mut locked_state = state
-        .lock()
-        .map_err(|e| error::Error::Mutex(format!("Failed to get app state. Error: {}", e)))?;
+    let state: tauri::State<'_, RwLock<crate::state::app_state::AppState>> = app.state();
+    let mut locked_state = state.blocking_write();
 
     locked_state.container_state.settings.pdfium_library_path = Some(get_libs_dir(app)?);
     locked_state.container_state.settings.enable_preview =
