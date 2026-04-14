@@ -79,11 +79,11 @@ export default function FontSettings() {
           size="small"
           autoWidth
         >
-          <MenuItem value={defaultFont}>
+          <MenuItem value={defaultFont} sx={{ fontFamily: defaultFont }}>
             {t("settings.novel-reader.font.default-font-name")}
           </MenuItem>
           {fonts.map((font) => (
-            <MenuItem key={font} value={font}>
+            <MenuItem key={font} value={font} sx={{ fontFamily: font }}>
               {font}
             </MenuItem>
           ))}

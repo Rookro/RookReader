@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Migrate from `epubjs` to `foliate-js` as the core novel rendering engine. (#169)
 * Improve image loading performance by processing requests in parallel instead of blocking the application state. (#170)
 * Improve rendering performance by preventing unnecessary re-renders (#171)
+* Visually represent font families in the font selection dropdown in settings (#172)
 
 ## [2.0.1]
 
