@@ -44,7 +44,8 @@ function Row({
  */
 export default function ImageEntriesViewer() {
   const { t } = useTranslation();
-  const { entries, index } = useAppSelector((state) => state.read.containerFile);
+  const entries = useAppSelector((state) => state.read.containerFile.entries);
+  const index = useAppSelector((state) => state.read.containerFile.index);
   const dispatch = useDispatch<AppDispatch>();
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [list, setList] = useListCallbackRef(null);

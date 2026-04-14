@@ -32,12 +32,14 @@ export interface BookReaderProps {
  */
 export default function BookReader({ sx }: BookReaderProps) {
   const initialized = useRef(false);
-  const { activeView } = useAppSelector((state) => state.view);
-  const { isHidden, tabIndex } = useAppSelector((state) => state.sidePane.left);
-  const { history, historyIndex, isNovel } = useAppSelector((state) => state.read.containerFile);
-  const { history: historySettings, startup: startupSettings } = useAppSelector(
-    (state) => state.settings,
-  );
+  const activeView = useAppSelector((state) => state.view.activeView);
+  const isHidden = useAppSelector((state) => state.sidePane.left.isHidden);
+  const tabIndex = useAppSelector((state) => state.sidePane.left.tabIndex);
+  const history = useAppSelector((state) => state.read.containerFile.history);
+  const historyIndex = useAppSelector((state) => state.read.containerFile.historyIndex);
+  const isNovel = useAppSelector((state) => state.read.containerFile.isNovel);
+  const historySettings = useAppSelector((state) => state.settings.history);
+  const startupSettings = useAppSelector((state) => state.settings.startup);
   const dispatch = useDispatch<AppDispatch>();
 
   const [droppedFile, setDroppedFile] = useState<string | undefined>(undefined);

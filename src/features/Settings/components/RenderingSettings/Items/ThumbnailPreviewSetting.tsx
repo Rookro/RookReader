@@ -13,7 +13,7 @@ import { updateSettings } from "../../../slice";
  */
 export default function ThumbnailPreviewSetting() {
   const { t } = useTranslation();
-  const { reader: readerSettings } = useAppSelector((state) => state.settings);
+  const readerSettings = useAppSelector((state) => state.settings.reader);
   const dispatch = useAppDispatch();
 
   const handleEnablePreviewSwitchChange = useCallback(

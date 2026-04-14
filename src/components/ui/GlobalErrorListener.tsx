@@ -32,11 +32,11 @@ export default function GlobalErrorListener() {
   const { showNotification } = useNotification();
   const dispatch = useAppDispatch();
 
-  const { error: containerFileError } = useAppSelector((state) => state.read.containerFile);
-  const { error: explorerError } = useAppSelector((state) => state.read.explorer);
-  const { error: historyError } = useAppSelector((state) => state.history);
-  const { error: bookshelfError } = useAppSelector((state) => state.bookCollection.bookshelf);
-  const { error: tagsError } = useAppSelector((state) => state.bookCollection.tag);
+  const containerFileError = useAppSelector((state) => state.read.containerFile.error);
+  const explorerError = useAppSelector((state) => state.read.explorer.error);
+  const historyError = useAppSelector((state) => state.history.error);
+  const bookshelfError = useAppSelector((state) => state.bookCollection.bookshelf.error);
+  const tagsError = useAppSelector((state) => state.bookCollection.tag.error);
 
   useEffect(() => {
     if (containerFileError) {

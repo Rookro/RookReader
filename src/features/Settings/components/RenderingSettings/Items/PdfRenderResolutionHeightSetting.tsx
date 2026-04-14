@@ -14,7 +14,7 @@ import { updateSettings } from "../../../slice";
 export default function PdfRenderResolutionHeightSetting() {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
-  const { reader: readerSettings } = useAppSelector((state) => state.settings);
+  const readerSettings = useAppSelector((state) => state.settings.reader);
   const [isError, setIsError] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 

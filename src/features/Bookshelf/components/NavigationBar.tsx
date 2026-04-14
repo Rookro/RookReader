@@ -27,7 +27,7 @@ export default function NavigationBar() {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const bookshelfSettings = useAppSelector((state) => state.settings.bookshelf);
-  const { selectedId: bookshelfId } = useAppSelector((state) => state.bookCollection.bookshelf);
+  const bookshelfId = useAppSelector((state) => state.bookCollection.bookshelf.selectedId);
 
   const [isAddBookDialogOpen, setIsAddBookDialogOpen] = useState(false);
 

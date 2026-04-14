@@ -50,12 +50,13 @@ function Row({
 export default function FileListViewer() {
   const { t } = useTranslation();
   const fileNavigatorSettings = useAppSelector((state) => state.settings.fileNavigator);
-  const { history, historyIndex, entries, searchText, isLoading } = useAppSelector(
-    (state) => state.read.explorer,
-  );
-  const { history: fileHistory, historyIndex: fileHistoryIndex } = useAppSelector(
-    (state) => state.read.containerFile,
-  );
+  const history = useAppSelector((state) => state.read.explorer.history);
+  const historyIndex = useAppSelector((state) => state.read.explorer.historyIndex);
+  const entries = useAppSelector((state) => state.read.explorer.entries);
+  const searchText = useAppSelector((state) => state.read.explorer.searchText);
+  const isLoading = useAppSelector((state) => state.read.explorer.isLoading);
+  const fileHistory = useAppSelector((state) => state.read.containerFile.history);
+  const fileHistoryIndex = useAppSelector((state) => state.read.containerFile.historyIndex);
   const dispatch = useAppDispatch();
 
   const [selectedIndex, setSelectedIndex] = useState(-1);

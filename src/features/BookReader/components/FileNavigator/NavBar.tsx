@@ -29,9 +29,10 @@ import {
  */
 export default function NavBar() {
   const { t } = useTranslation();
-  const { history, historyIndex, searchText, entries } = useAppSelector(
-    (state) => state.read.explorer,
-  );
+  const history = useAppSelector((state) => state.read.explorer.history);
+  const historyIndex = useAppSelector((state) => state.read.explorer.historyIndex);
+  const searchText = useAppSelector((state) => state.read.explorer.searchText);
+  const entries = useAppSelector((state) => state.read.explorer.entries);
   const fileNavigatorSettings = useAppSelector((state) => state.settings.fileNavigator);
   const dispatch = useDispatch<AppDispatch>();
 

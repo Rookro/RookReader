@@ -43,12 +43,13 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const bookshelfSettings = useAppSelector((state) => state.settings.bookshelf);
-  const {
-    searchText,
-    bookshelf: { books: booksInSelectedBookshelf, selectedId: bookshelfId, status },
-    tag: { selectedId: tagId, tags: availableTags },
-  } = useAppSelector((state) => state.bookCollection);
-  const { activeView } = useAppSelector((state) => state.view);
+  const searchText = useAppSelector((state) => state.bookCollection.searchText);
+  const booksInSelectedBookshelf = useAppSelector((state) => state.bookCollection.bookshelf.books);
+  const bookshelfId = useAppSelector((state) => state.bookCollection.bookshelf.selectedId);
+  const status = useAppSelector((state) => state.bookCollection.bookshelf.status);
+  const tagId = useAppSelector((state) => state.bookCollection.tag.selectedId);
+  const availableTags = useAppSelector((state) => state.bookCollection.tag.tags);
+  const activeView = useAppSelector((state) => state.view.activeView);
 
   const containerRef = useRef(null);
   const [containerWidth, setContainerWidth] = useState(0);

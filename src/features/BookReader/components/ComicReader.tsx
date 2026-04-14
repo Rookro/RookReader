@@ -11,13 +11,11 @@ import type { ViewerSettings } from "../utils/ImageUtils";
  */
 export default function ComicReader() {
   const dispatch = useDispatch<AppDispatch>();
-  const {
-    history,
-    historyIndex,
-    entries,
-    index,
-    isLoading: isFileLoading,
-  } = useAppSelector((state) => state.read.containerFile);
+  const history = useAppSelector((state) => state.read.containerFile.history);
+  const historyIndex = useAppSelector((state) => state.read.containerFile.historyIndex);
+  const entries = useAppSelector((state) => state.read.containerFile.entries);
+  const index = useAppSelector((state) => state.read.containerFile.index);
+  const isFileLoading = useAppSelector((state) => state.read.containerFile.isLoading);
   const readerSettings = useAppSelector((state) => state.settings.reader);
 
   const containerPath = history[historyIndex];
