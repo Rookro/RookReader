@@ -62,11 +62,11 @@ export default function AppFontFamilySetting() {
         size="small"
         autoWidth
       >
-        <MenuItem value={defaultFont}>
+        <MenuItem value={defaultFont} sx={{ fontFamily: defaultFont }}>
           {t("settings.general.font-family.default-font-name")}
         </MenuItem>
         {fonts.map((font) => (
-          <MenuItem key={font} value={font}>
+          <MenuItem key={font} value={font} sx={{ fontFamily: font }}>
             {font}
           </MenuItem>
         ))}
