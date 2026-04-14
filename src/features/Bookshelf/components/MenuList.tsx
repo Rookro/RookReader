@@ -34,10 +34,10 @@ export interface MenuListProps {
 export default function MenuList({ onClickAddBookshelf, onClickAddBookTag }: MenuListProps) {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
-  const { bookshelves, selectedId: selectedBookshelfId } = useAppSelector(
-    (state) => state.bookCollection.bookshelf,
-  );
-  const { tags, selectedId: selectedTagId } = useAppSelector((state) => state.bookCollection.tag);
+  const bookshelves = useAppSelector((state) => state.bookCollection.bookshelf.bookshelves);
+  const selectedBookshelfId = useAppSelector((state) => state.bookCollection.bookshelf.selectedId);
+  const tags = useAppSelector((state) => state.bookCollection.tag.tags);
+  const selectedTagId = useAppSelector((state) => state.bookCollection.tag.selectedId);
 
   const [contextMenu, setContextMenu] = useState<{
     mouseX: number;

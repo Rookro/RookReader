@@ -16,7 +16,9 @@ import { fetchTags } from "../slice";
  */
 export function useBookTags() {
   const dispatch = useAppDispatch();
-  const { status, tags, error } = useAppSelector((state) => state.bookCollection.tag);
+  const status = useAppSelector((state) => state.bookCollection.tag.status);
+  const tags = useAppSelector((state) => state.bookCollection.tag.tags);
+  const error = useAppSelector((state) => state.bookCollection.tag.error);
 
   useEffect(() => {
     const initialize = async () => {

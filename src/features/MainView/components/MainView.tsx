@@ -23,7 +23,7 @@ export interface MainContentProps {
  */
 export default function MainContent({ sx }: MainContentProps) {
   useSettingsChange();
-  const { activeView } = useAppSelector((state) => state.view);
+  const activeView = useAppSelector((state) => state.view.activeView);
   const checkUpdateOnStartup = useAppSelector(
     (state) => state.settings.startup.checkUpdateOnStartup,
   );

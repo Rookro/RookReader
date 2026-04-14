@@ -1,6 +1,6 @@
 import { renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { useAppDispatch, useAppSelector } from "../../../store/store";
+import { type RootState, useAppDispatch, useAppSelector } from "../../../store/store";
 import { fetchTags } from "../slice";
 import { useBookTags } from "./useBookTags";
 
@@ -23,11 +23,11 @@ describe("useBookTags", () => {
 
   // Verify that fetchTags action is dispatched on mount
   it("should dispatch fetchTags on mount", () => {
-    vi.mocked(useAppSelector).mockReturnValue({
-      status: "idle",
-      tags: [],
-      error: null,
-    });
+    vi.mocked(useAppSelector).mockImplementation((selector: (state: RootState) => unknown) =>
+      selector({
+        bookCollection: { tag: { status: "idle", tags: [], error: null } },
+      } as unknown as RootState),
+    );
 
     renderHook(() => useBookTags());
 
@@ -41,7 +41,9 @@ describe("useBookTags", () => {
       tags: [{ id: 1, name: "Tag 1", color_code: "#ff0000" }],
       error: null,
     };
-    vi.mocked(useAppSelector).mockReturnValue(mockState);
+    vi.mocked(useAppSelector).mockImplementation((selector: (state: RootState) => unknown) =>
+      selector({ bookCollection: { tag: mockState } } as unknown as RootState),
+    );
 
     const { result } = renderHook(() => useBookTags());
 
@@ -55,7 +57,9 @@ describe("useBookTags", () => {
       tags: [],
       error: "Failed to fetch",
     };
-    vi.mocked(useAppSelector).mockReturnValue(mockErrorState);
+    vi.mocked(useAppSelector).mockImplementation((selector: (state: RootState) => unknown) =>
+      selector({ bookCollection: { tag: mockErrorState } } as unknown as RootState),
+    );
 
     const { result } = renderHook(() => useBookTags());
 

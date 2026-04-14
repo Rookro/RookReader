@@ -26,7 +26,8 @@ import { goBackContainerHistory, goForwardContainerHistory, setContainerFilePath
 export default function NavigationBar() {
   const { t } = useTranslation();
   const readerSettings = useAppSelector((state) => state.settings.reader);
-  const { history, historyIndex } = useAppSelector((state) => state.read.containerFile);
+  const history = useAppSelector((state) => state.read.containerFile.history);
+  const historyIndex = useAppSelector((state) => state.read.containerFile.historyIndex);
   const dispatch = useAppDispatch();
 
   const currentPath = history[historyIndex] ?? "";

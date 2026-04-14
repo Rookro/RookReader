@@ -23,7 +23,7 @@ import { updateSettings } from "../../../slice";
  */
 export default function ImageResamplingMethodSetting() {
   const { t } = useTranslation();
-  const { reader: readerSettings } = useAppSelector((state) => state.settings);
+  const readerSettings = useAppSelector((state) => state.settings.reader);
   const dispatch = useAppDispatch();
 
   const getResizeMethodLabel = useCallback(

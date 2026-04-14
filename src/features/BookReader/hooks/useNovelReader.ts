@@ -55,11 +55,11 @@ export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
   const theme = useAppTheme();
   const viewerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<View | null>(null);
-  const { index, cfi } = useAppSelector((state) => state.read.containerFile);
-  const {
-    comic: { readingDirection },
-    novel: { fontFamily, fontSize },
-  } = useAppSelector((state) => state.settings.reader);
+  const index = useAppSelector((state) => state.read.containerFile.index);
+  const cfi = useAppSelector((state) => state.read.containerFile.cfi);
+  const readingDirection = useAppSelector((state) => state.settings.reader.comic.readingDirection);
+  const fontFamily = useAppSelector((state) => state.settings.reader.novel.fontFamily);
+  const fontSize = useAppSelector((state) => state.settings.reader.novel.fontSize);
   const dispatch = useDispatch<AppDispatch>();
 
   const onMoveForward = useCallback(() => {

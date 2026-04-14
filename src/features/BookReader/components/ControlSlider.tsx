@@ -13,7 +13,8 @@ import { setImageIndex } from "../slice";
  * Control Slider Component
  */
 export default function ControlSlider() {
-  const { entries, index } = useAppSelector((state) => state.read.containerFile);
+  const entries = useAppSelector((state) => state.read.containerFile.entries);
+  const index = useAppSelector((state) => state.read.containerFile.index);
   const readerSettings = useAppSelector((state) => state.settings.reader);
   const dispatch = useAppDispatch();
   const appTheme = useAppTheme();
