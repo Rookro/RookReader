@@ -9,6 +9,8 @@
 
 ## [Unreleased]
 
+## [2.0.2]
+
 ### Changed
 
 * 読書中のウィンドウレベルでのキーボードショートカットに対応 (#165)
@@ -291,7 +293,8 @@
 * 自動見開き表示機能の追加 (#4)
 * ホイールの上下によるページ送り機能を追加 (#5)
 
-[unreleased]: https://github.com/Rookro/RookReader/compare/v2.0.1...HEAD
+[unreleased]: https://github.com/Rookro/RookReader/compare/v2.0.2...HEAD
+[2.0.2]: https://github.com/Rookro/RookReader/compare/v2.0.1...v2.0.2
 [2.0.1]: https://github.com/Rookro/RookReader/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/Rookro/RookReader/compare/v1.9.2...v2.0.0
 [1.9.2]: https://github.com/Rookro/RookReader/compare/v1.9.1...v1.9.2
