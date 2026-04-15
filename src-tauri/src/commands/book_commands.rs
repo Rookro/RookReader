@@ -1,6 +1,7 @@
 use std::fs;
 use std::hash::{DefaultHasher, Hash, Hasher};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use tokio::sync::RwLock;
 
 use pdfium_render::prelude::PdfRenderConfig;
 use tauri::Manager;
@@ -116,7 +117,7 @@ pub async fn upsert_book(
     total_pages: i64,
     repo: State<'_, Arc<dyn BookRepository>>,
     app: tauri::AppHandle,
-    state: State<'_, Mutex<AppState>>,
+    state: State<'_, RwLock<AppState>>,
 ) -> Result<i64> {
     log::debug!(
         "Upsert the book: (file_path: {}, item_type: {}, display_name: {}, total_pages: {})",
@@ -127,9 +128,7 @@ pub async fn upsert_book(
     );
 
     let pdfium_path = {
-        let state_lock = state
-            .lock()
-            .map_err(|e| Error::Mutex(format!("Failed to lock AppState. {}", e)))?;
+        let state_lock = state.read().await;
         state_lock
             .container_state
             .settings
@@ -183,7 +182,7 @@ pub async fn upsert_read_book(
     total_pages: i64,
     repo: State<'_, Arc<dyn BookRepository>>,
     app: tauri::AppHandle,
-    state: State<'_, Mutex<AppState>>,
+    state: State<'_, RwLock<AppState>>,
 ) -> Result<i64> {
     log::debug!(
         "Upsert the read book: (file_path: {}, item_type: {}, display_name: {}, total_pages: {})",
@@ -194,9 +193,7 @@ pub async fn upsert_read_book(
     );
 
     let pdfium_path = {
-        let state_lock = state
-            .lock()
-            .map_err(|e| Error::Mutex(format!("Failed to lock AppState. {}", e)))?;
+        let state_lock = state.read().await;
         state_lock
             .container_state
             .settings

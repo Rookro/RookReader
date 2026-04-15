@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import * as FontCommands from "./FontCommands";
 import { invoke } from "@tauri-apps/api/core";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CommandError } from "../types/Error";
+import * as FontCommands from "./FontCommands";
 
 // Explicitly unmock the module being tested to avoid conflict with global mocks in setup.ts
 vi.unmock("./FontCommands");

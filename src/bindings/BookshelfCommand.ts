@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
+import type { Bookshelf } from "../types/DatabaseModels";
 import { createCommandError } from "../types/Error";
-import { Bookshelf } from "../types/DatabaseModels";
 
 /**
  * Creates a new bookshelf.

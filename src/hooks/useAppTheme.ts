@@ -1,6 +1,6 @@
-import { useMemo } from "react";
 import { createTheme, useMediaQuery } from "@mui/material";
-import { useAppSelector } from "../Store";
+import { useMemo } from "react";
+import { useAppSelector } from "../store/store";
 
 /**
  * A custom hook that generates and returns a Material UI Theme object.

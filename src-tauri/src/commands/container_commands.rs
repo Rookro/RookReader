@@ -1,7 +1,5 @@
-use std::{
-    path::Path,
-    sync::{Arc, Mutex},
-};
+use std::{path::Path, sync::Arc};
+use tokio::sync::RwLock;
 
 use image::imageops::FilterType;
 use serde::{Deserialize, Serialize};
@@ -41,7 +39,6 @@ pub struct EntriesResult {
 /// # Errors
 ///
 /// This function will return an `Err` if:
-/// * The `AppState` mutex cannot be locked.
 /// * The container file cannot be opened (e.g., it does not exist or is corrupt).
 /// * The `container` or `image_loader` within the application state is unexpectedly missing.
 /// * Preloading the image data fails.
@@ -49,12 +46,10 @@ pub struct EntriesResult {
 pub async fn get_entries_in_container(
     path: &str,
     enable_preload: Option<bool>,
-    state: tauri::State<'_, Mutex<AppState>>,
+    state: tauri::State<'_, RwLock<AppState>>,
 ) -> Result<EntriesResult> {
     log::debug!("Get the entries in {}", path);
-    let mut state_lock = state
-        .lock()
-        .map_err(|e| Error::Mutex(format!("Failed to lock AppState. {}", e)))?;
+    let mut state_lock = state.write().await;
 
     state_lock.container_state.open_container(path)?;
 
@@ -108,25 +103,22 @@ pub async fn get_entries_in_container(
 /// # Errors
 ///
 /// This function will return an `Err` if:
-/// * The `AppState` mutex cannot be locked.
 /// * The `image_loader` within the application state is unexpectedly missing.
 /// * The requested image entry cannot be found or decoded.
 #[tauri::command]
 pub async fn get_image(
     path: &str,
     entry_name: &str,
-    state: tauri::State<'_, Mutex<AppState>>,
+    state: tauri::State<'_, RwLock<AppState>>,
 ) -> Result<Response> {
     log::debug!("Get the binary of {} in {}", entry_name, path);
 
-    let mut state_lock = state
-        .lock()
-        .map_err(|e| Error::Mutex(format!("Failed to lock AppState. {}", e)))?;
+    let state_lock = state.read().await;
 
     let image_loader = state_lock
         .container_state
         .image_loader
-        .as_mut()
+        .as_ref()
         .ok_or_else(|| Error::Other("Unexpected error. Container is empty!".to_string()))?;
 
     let image = image_loader.get_image(entry_name)?;
@@ -160,20 +152,17 @@ pub async fn get_image(
 /// # Errors
 ///
 /// This function will return an `Err` if:
-/// * The `AppState` mutex cannot be locked.
 /// * The `image_loader` within the application state is unexpectedly missing.
 /// * The preview image cannot be retrieved or generated.
 #[tauri::command]
 pub async fn get_image_preview(
     path: &str,
     entry_name: &str,
-    state: tauri::State<'_, Mutex<AppState>>,
+    state: tauri::State<'_, RwLock<AppState>>,
 ) -> Result<Response> {
     log::debug!("Get the preview binary of {} in {}", entry_name, path);
 
-    let state_lock = state
-        .lock()
-        .map_err(|e| Error::Mutex(format!("Failed to lock AppState. {}", e)))?;
+    let state_lock = state.read().await;
 
     let image_loader = state_lock
         .container_state
@@ -212,11 +201,10 @@ pub async fn get_image_preview(
 ///
 /// This function will return an `Err` if:
 /// * The `height` is less than 1.
-/// * The `AppState` mutex cannot be locked.
 #[tauri::command()]
-pub fn set_pdf_render_resolution_height(
+pub async fn set_pdf_render_resolution_height(
     height: i32,
-    state: tauri::State<'_, Mutex<AppState>>,
+    state: tauri::State<'_, RwLock<AppState>>,
 ) -> Result<()> {
     log::debug!("set_pdf_render_resolution_height({})", height);
 
@@ -227,9 +215,7 @@ pub fn set_pdf_render_resolution_height(
         ));
     }
 
-    let mut state_lock = state
-        .lock()
-        .map_err(|e| Error::Mutex(format!("Failed to lock AppState. {}", e)))?;
+    let mut state_lock = state.write().await;
 
     state_lock
         .container_state
@@ -255,9 +241,11 @@ pub fn set_pdf_render_resolution_height(
 ///
 /// This function will return an `Err` if:
 /// * The `height` is a negative value.
-/// * The `AppState` mutex cannot be locked.
 #[tauri::command()]
-pub fn set_max_image_height(height: i32, state: tauri::State<'_, Mutex<AppState>>) -> Result<()> {
+pub async fn set_max_image_height(
+    height: i32,
+    state: tauri::State<'_, RwLock<AppState>>,
+) -> Result<()> {
     log::debug!("set_max_image_height({})", height);
 
     if height < 0 {
@@ -267,9 +255,7 @@ pub fn set_max_image_height(height: i32, state: tauri::State<'_, Mutex<AppState>
         ));
     }
 
-    let mut state_lock = state
-        .lock()
-        .map_err(|e| Error::Mutex(format!("Failed to lock AppState. {}", e)))?;
+    let mut state_lock = state.write().await;
 
     state_lock.container_state.settings.max_image_height = height;
     Ok(())
@@ -292,11 +278,10 @@ pub fn set_max_image_height(height: i32, state: tauri::State<'_, Mutex<AppState>
 /// This function will return an `Err` if:
 /// * The `method` string is empty.
 /// * The `method` does not match one of the valid filter types.
-/// * The `AppState` mutex cannot be locked.
 #[tauri::command()]
-pub fn set_image_resampling_method(
+pub async fn set_image_resampling_method(
     method: &str,
-    state: tauri::State<'_, Mutex<AppState>>,
+    state: tauri::State<'_, RwLock<AppState>>,
 ) -> Result<()> {
     log::debug!("set_image_resampling_method({})", method);
 
@@ -306,9 +291,7 @@ pub fn set_image_resampling_method(
         ));
     }
 
-    let mut state_lock = state
-        .lock()
-        .map_err(|e| Error::Mutex(format!("Failed to lock AppState. {}", e)))?;
+    let mut state_lock = state.write().await;
 
     let method = match method {
         "nearest" => FilterType::Nearest,
@@ -340,16 +323,13 @@ pub fn set_image_resampling_method(
 /// # Errors
 ///
 /// This function will return an `Err` if:
-/// * The `AppState` mutex cannot be locked.
 /// * The file at `path` cannot be opened or is not a valid EPUB file.
 #[tauri::command()]
 pub async fn determine_epub_novel(
     path: &str,
-    state: tauri::State<'_, Mutex<AppState>>,
+    state: tauri::State<'_, RwLock<AppState>>,
 ) -> Result<bool> {
-    let mut state_lock = state
-        .lock()
-        .map_err(|e| Error::Mutex(format!("Failed to lock AppState. {}", e)))?;
+    let mut state_lock = state.write().await;
 
     state_lock.container_state.container = None;
     state_lock.container_state.image_loader = None;
@@ -375,11 +355,9 @@ mod tests {
     use rstest::rstest;
 
     use super::*;
-    use std::{
-        path,
-        sync::{Arc, Mutex},
-    };
+    use std::{path, sync::Arc};
     use tauri::{ipc::InvokeResponseBody::Raw, ipc::IpcResponse, Manager};
+    use tokio::sync::RwLock;
 
     use crate::{
         container::{image::Image, image_loader::ImageLoader, traits::MockContainer},
@@ -419,22 +397,25 @@ mod tests {
     }
 
     #[rstest]
+    #[tokio::test]
+    #[case(1)]
     #[case(1200)]
     #[case(100000)]
-    fn test_set_pdf_render_resolution_height_valid_height(
+    async fn test_set_pdf_render_resolution_height_valid_height(
         #[case] pdf_render_resolution_height: i32,
     ) {
         let app = tauri::test::mock_app();
-        app.manage(Mutex::new(AppState::default()));
+        app.manage(RwLock::new(AppState::default()));
 
-        let result = set_pdf_render_resolution_height(pdf_render_resolution_height, app.state());
+        let result =
+            set_pdf_render_resolution_height(pdf_render_resolution_height, app.state()).await;
 
         assert!(result.is_ok());
         assert_eq!(
             pdf_render_resolution_height,
-            app.state::<Mutex<AppState>>()
-                .lock()
-                .unwrap()
+            app.state::<RwLock<AppState>>()
+                .read()
+                .await
                 .container_state
                 .settings
                 .pdf_render_resolution_height
@@ -442,17 +423,19 @@ mod tests {
     }
 
     #[rstest]
+    #[tokio::test]
     #[case(0)]
     #[case(-1)]
     #[case(-1200)]
-    fn test_set_pdf_render_resolution_height_negative(
+    async fn test_set_pdf_render_resolution_height_negative(
         #[case] invalid_pdf_render_resolution_height: i32,
     ) {
         let app = tauri::test::mock_app();
-        app.manage(Mutex::new(AppState::default()));
+        app.manage(RwLock::new(AppState::default()));
 
         let result =
-            set_pdf_render_resolution_height(invalid_pdf_render_resolution_height, app.state());
+            set_pdf_render_resolution_height(invalid_pdf_render_resolution_height, app.state())
+                .await;
 
         assert!(result.is_err());
     }
@@ -468,7 +451,7 @@ mod tests {
         ];
 
         let app = tauri::test::mock_app();
-        app.manage(Mutex::new(AppState::default()));
+        app.manage(RwLock::new(AppState::default()));
 
         let result =
             get_entries_in_container(rar_path.to_string_lossy().as_ref(), None, app.state()).await;
@@ -486,7 +469,7 @@ mod tests {
     #[tokio::test]
     async fn test_get_entries_in_container_empty_container() {
         let app = tauri::test::mock_app();
-        app.manage(Mutex::new(AppState::default()));
+        app.manage(RwLock::new(AppState::default()));
 
         let result = get_entries_in_container("non_existent_path", None, app.state()).await;
 
@@ -519,7 +502,7 @@ mod tests {
         let state = AppState {
             container_state: mock_container_state,
         };
-        app.manage(Mutex::new(state));
+        app.manage(RwLock::new(state));
 
         let result = get_image("mock_container", "test1.png", app.state()).await;
 
@@ -549,7 +532,7 @@ mod tests {
     #[tokio::test]
     async fn test_get_image_empty_container() {
         let app = tauri::test::mock_app();
-        app.manage(Mutex::new(AppState::default()));
+        app.manage(RwLock::new(AppState::default()));
 
         let result = get_image("non_existent_path", "image.png", app.state()).await;
 

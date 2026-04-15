@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.2]
+
+### Changed
+
+* Enable window-level keyboard navigation for readers (#165)
+* Refactored the project architecture to a Feature-Sliced Design, reorganizing components, hooks, and store logic by domain (`src/features/`) for better maintainability (#166)
+* Migrate to Biome for faster linting and formatting (#167)
+* Update Vite v7 to v8 (#168)
+* Migrate from `epubjs` to `foliate-js` as the core novel rendering engine. (#169)
+* Improve image loading performance by processing requests in parallel instead of blocking the application state. (#170)
+* Improve rendering performance by preventing unnecessary re-renders (#171)
+* Visually represent font families in the font selection dropdown in settings (#172)
+* Update dependencies (#173)
+
 ## [2.0.1]
 
 ### Fixed
@@ -279,7 +293,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Add an automatic two-page spread display feature (#4)
 * Add a page navigation feature using the mouse wheel up/down (#5)
 
-[unreleased]: https://github.com/Rookro/RookReader/compare/v2.0.1...HEAD
+[unreleased]: https://github.com/Rookro/RookReader/compare/v2.0.2...HEAD
+[2.0.2]: https://github.com/Rookro/RookReader/compare/v2.0.1...v2.0.2
 [2.0.1]: https://github.com/Rookro/RookReader/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/Rookro/RookReader/compare/v1.9.2...v2.0.0
 [1.9.2]: https://github.com/Rookro/RookReader/compare/v1.9.1...v1.9.2

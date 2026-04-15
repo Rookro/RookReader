@@ -1,0 +1,26 @@
+import { Box, type SxProps, type Theme } from "@mui/material";
+
+/**
+ * Properties for the TabPanel component.
+ */
+interface TabPanelProps {
+  children?: React.ReactNode;
+  index: number;
+  value: number;
+  sx?: SxProps<Theme>;
+}
+
+/**
+ * Tab panel component.
+ */
+export default function TabPanel(props: TabPanelProps) {
+  const { children, value, index, sx, ...other } = props;
+
+  return (
+    value === index && (
+      <Box hidden={value !== index} sx={sx} {...other}>
+        {children}
+      </Box>
+    )
+  );
+}

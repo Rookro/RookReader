@@ -9,6 +9,20 @@
 
 ## [Unreleased]
 
+## [2.0.2]
+
+### Changed
+
+* 読書中のウィンドウレベルでのキーボードショートカットに対応 (#165)
+* プロジェクトのアーキテクチャを機能別分割の設計に移行し、コンポーネント・フック・ストアのロジックをドメインごと（`src/features/`）に再配置して保守性を向上させる (#166)
+* 高速化のために ESLint/Prettier から Biome へ移行 (#167)
+* Vite を v7 から v8 に更新 (#168)
+* 小説表示のコアエンジンを `epubjs` から `foliate-js` に移行 (#169)
+* 画像の読み込み処理を並列化し、複数ページの同時読み込み時のパフォーマンスを向上 (#170)
+* 不要な再レンダリングを抑制し、パフォーマンスを改善 (#171)
+* 設定画面のフォント選択ドロップダウンにて、各フォントの書体を視覚的に表現する (#172)
+* 依存関係を更新 (#173)
+
 ## [2.0.1]
 
 ### Fixed
@@ -213,7 +227,7 @@
 
 ### Fixed
 
-*  linux で slider が表示されない不具合を修正 (#35)
+* linux で slider が表示されない不具合を修正 (#35)
 
 ## [1.3.3] - 2025-11-08
 
@@ -279,7 +293,8 @@
 * 自動見開き表示機能の追加 (#4)
 * ホイールの上下によるページ送り機能を追加 (#5)
 
-[unreleased]: https://github.com/Rookro/RookReader/compare/v2.0.1...HEAD
+[unreleased]: https://github.com/Rookro/RookReader/compare/v2.0.2...HEAD
+[2.0.2]: https://github.com/Rookro/RookReader/compare/v2.0.1...v2.0.2
 [2.0.1]: https://github.com/Rookro/RookReader/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/Rookro/RookReader/compare/v1.9.2...v2.0.0
 [1.9.2]: https://github.com/Rookro/RookReader/compare/v1.9.1...v1.9.2

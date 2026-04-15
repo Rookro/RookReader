@@ -1,10 +1,10 @@
+import { error } from "@tauri-apps/plugin-log";
 import React, { lazy } from "react";
 import ReactDOM from "react-dom/client";
-import { createHashRouter, RouterProvider } from "react-router";
 import { Provider } from "react-redux";
-import { error } from "@tauri-apps/plugin-log";
-import { createStore } from "./Store";
-import { loadAllSettings } from "./settings/SettingsStore";
+import { createHashRouter, RouterProvider } from "react-router";
+import { loadAllSettings } from "./features/Settings/settingsStore";
+import { createStore } from "./store/store";
 import "./i18n/config";
 import "allotment/dist/style.css";
 

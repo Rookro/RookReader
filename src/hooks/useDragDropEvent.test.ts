@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { renderHook } from "@testing-library/react";
-import { useDragDropEvent } from "./useDragDropEvent";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { renderHook } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { useDragDropEvent } from "./useDragDropEvent";
 
 describe("useDragDropEvent", () => {
   const onDrag = vi.fn();

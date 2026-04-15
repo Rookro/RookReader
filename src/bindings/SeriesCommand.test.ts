@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import * as SeriesCommand from "./SeriesCommand";
 import { invoke } from "@tauri-apps/api/core";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CommandError } from "../types/Error";
+import * as SeriesCommand from "./SeriesCommand";
 
 vi.unmock("./SeriesCommand");
 

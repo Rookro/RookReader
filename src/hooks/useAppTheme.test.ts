@@ -1,10 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { renderHook } from "@testing-library/react";
-import { useAppTheme } from "./useAppTheme";
-import { useAppSelector } from "../Store";
 import { useMediaQuery } from "@mui/material";
+import { renderHook } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { useAppSelector } from "../store/store";
+import { useAppTheme } from "./useAppTheme";
 
-vi.mock("../Store", () => ({
+vi.mock("../store/store", () => ({
   useAppSelector: vi.fn(),
 }));
 
