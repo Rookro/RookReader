@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+* Optimize Bookshelf view rendering performance (#178)
+
 ### Fixed
 
 * Correct thread pool size calculation in ImageLoader (#177)
