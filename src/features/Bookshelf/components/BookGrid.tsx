@@ -121,10 +121,40 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
     };
   }, [debouncedUpdateContainerWidth]);
 
+  const handleBookContextMenu = useCallback((book: BookWithState, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenu((prev) =>
+      prev === null ? { mouseX: e.clientX, mouseY: e.clientY, book } : null,
+    );
+  }, []);
+
+  const columnWidth = currentGridSize.width;
+  const rowHeight = currentGridSize.height;
+
   const columnCount =
-    containerWidth > 0 ? Math.max(1, Math.floor(containerWidth / currentGridSize.width)) : 1;
+    containerWidth > 0 ? Math.max(1, Math.floor(containerWidth / columnWidth)) : 1;
   const rowCount =
     filteredSortedBooks.length === 0 ? 0 : Math.ceil(filteredSortedBooks.length / columnCount);
+
+  const cellProps = useMemo(
+    () => ({
+      books: filteredSortedBooks,
+      tags: availableTags,
+      size: (bookshelfSettings.gridSize === 0 ? "small" : "medium") as "small" | "medium",
+      columnCount,
+      onBookSelect,
+      onBookContextMenu: handleBookContextMenu,
+    }),
+    [
+      filteredSortedBooks,
+      availableTags,
+      bookshelfSettings.gridSize,
+      columnCount,
+      onBookSelect,
+      handleBookContextMenu,
+    ],
+  );
 
   return (
     <Stack
@@ -185,7 +215,7 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
         ) : (
           <Box
             sx={{
-              width: columnCount * currentGridSize.width,
+              width: columnCount * columnWidth,
               margin: "0 auto",
               // Prevent overlap with bottom floating buttons
               paddingBottom: "60px",
@@ -194,23 +224,10 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
             <Grid
               cellComponent={BookCard}
               columnCount={columnCount}
-              columnWidth={currentGridSize.width}
+              columnWidth={columnWidth}
               rowCount={rowCount}
-              rowHeight={currentGridSize.height}
-              cellProps={{
-                books: filteredSortedBooks,
-                tags: availableTags,
-                size: bookshelfSettings.gridSize === 0 ? "small" : "medium",
-                columnCount,
-                onBookSelect,
-                onBookContextMenu: (book: BookWithState, e: React.MouseEvent) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setContextMenu(
-                    contextMenu === null ? { mouseX: e.clientX, mouseY: e.clientY, book } : null,
-                  );
-                },
-              }}
+              rowHeight={rowHeight}
+              cellProps={cellProps}
             />
           </Box>
         )}
