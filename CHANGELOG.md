@@ -9,7 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2.0.2]
+### Fixed
+
+* Correct thread pool size calculation in ImageLoader (#177)
+
+## [2.0.2] - 2026-04-15
 
 ### Changed
 
@@ -23,13 +27,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Visually represent font families in the font selection dropdown in settings (#172)
 * Update dependencies (#173)
 
-## [2.0.1]
+## [2.0.1] - 2026-03-30
 
 ### Fixed
 
 * Fix reading history not saving correctly (#163)
 
-## [2.0.0]
+## [2.0.0] - 2026-03-29
 
 ### Added
 

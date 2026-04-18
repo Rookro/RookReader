@@ -1,5 +1,5 @@
 use std::{
-    cmp::min,
+    cmp::max,
     io::Cursor,
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -61,7 +61,7 @@ impl ImageLoader {
         Self {
             cache: Arc::new(DashMap::with_capacity(container.get_entries().len())),
             // Use half of the available CPU cores for preloading.
-            thread_pool: ThreadPool::new(min(1, num_cpus::get() / 2)),
+            thread_pool: ThreadPool::new(max(1, num_cpus::get() / 2)),
             is_preloading_cancel_requested: Arc::new(AtomicBool::new(false)),
             container,
             max_image_height,
