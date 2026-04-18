@@ -1,4 +1,5 @@
 import { Box, Typography, type TypographyProps, useMediaQuery } from "@mui/material";
+import { memo } from "react";
 import { useAutoScrollAnimation } from "./useAutoScrollAnimation";
 
 /** Props for the AutoScrollTypography component.*/
@@ -24,7 +25,7 @@ interface AutoScrollTypographyProps extends TypographyProps {
  * Uses CSS animations calculated based on the text width and container width.
  * Respects 'prefers-reduced-motion' by disabling animation.
  */
-export default function AutoScrollTypography({
+const AutoScrollTypography = memo(function AutoScrollTypography({
   text,
   pixelsPerSecond = 20,
   delaySeconds = 3,
@@ -58,6 +59,11 @@ export default function AutoScrollTypography({
           ...(shouldAnimate
             ? {
                 display: "inline-block",
+                animation: "auto-scroll-text var(--scroll-duration) linear infinite",
+                "@keyframes auto-scroll-text": {
+                  "0%, var(--scroll-delay-percent)": { transform: "translateX(0)" },
+                  "100%": { transform: "translateX(var(--scroll-offset))" },
+                },
                 ...animationStyle,
               }
             : {
@@ -75,4 +81,6 @@ export default function AutoScrollTypography({
       </Typography>
     </Box>
   );
-}
+});
+
+export default AutoScrollTypography;

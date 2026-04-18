@@ -26,17 +26,16 @@ export function useAutoScrollAnimation(pixelsPerSecond: number, delaySeconds: nu
       if (contentWidth > containerWidth) {
         setIsOverflowing(true);
 
-        const scrollSeconds = contentWidth / pixelsPerSecond;
+        const scrollDistance = contentWidth - containerWidth;
+        const scrollSeconds = scrollDistance / pixelsPerSecond;
         const totalSeconds = scrollSeconds + delaySeconds;
         const delayPercent = (delaySeconds / totalSeconds) * 100;
 
         setAnimationStyle({
-          animation: `auto-scroll-text ${totalSeconds}s linear infinite`,
-          "@keyframes auto-scroll-text": {
-            [`0%, ${delayPercent}%`]: { transform: "translateX(0)" },
-            "100%": { transform: "translateX(-100%)" },
-          },
-        });
+          "--scroll-duration": `${totalSeconds}s`,
+          "--scroll-delay-percent": `${delayPercent}%`,
+          "--scroll-offset": `-${scrollDistance}px`,
+        } as React.CSSProperties);
       } else {
         setIsOverflowing(false);
         setAnimationStyle({});
