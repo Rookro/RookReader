@@ -33,13 +33,12 @@ const AutoScrollTypography = memo(function AutoScrollTypography({
   ...props
 }: AutoScrollTypographyProps) {
   const prefersReducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
-  const { containerRef, contentRef, isOverflowing, animationStyle } = useAutoScrollAnimation(
-    pixelsPerSecond,
-    delaySeconds,
-  );
+  const { containerRef, contentRef, isOverflowing, animationStyle, delayPercent } =
+    useAutoScrollAnimation(pixelsPerSecond, delaySeconds);
 
   // If user prefers reduced motion, force non-scrolling behavior
   const shouldAnimate = isOverflowing && !prefersReducedMotion;
+  const keyframeName = `auto-scroll-text-${delayPercent.toFixed(2).replace(".", "-")}`;
 
   return (
     <Box
@@ -59,9 +58,9 @@ const AutoScrollTypography = memo(function AutoScrollTypography({
           ...(shouldAnimate
             ? {
                 display: "inline-block",
-                animation: "auto-scroll-text var(--scroll-duration) linear infinite",
-                "@keyframes auto-scroll-text": {
-                  "0%, var(--scroll-delay-percent)": { transform: "translateX(0)" },
+                animation: `${keyframeName} var(--scroll-duration) linear infinite`,
+                [`@keyframes ${keyframeName}`]: {
+                  [`0%, ${delayPercent}%`]: { transform: "translateX(0)" },
                   "100%": { transform: "translateX(var(--scroll-offset))" },
                 },
                 ...animationStyle,

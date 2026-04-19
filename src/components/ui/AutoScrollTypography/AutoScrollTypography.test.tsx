@@ -34,6 +34,7 @@ describe("AutoScrollTypography", () => {
       contentRef: { current: null },
       isOverflowing: false,
       animationStyle: {},
+      delayPercent: 0,
     });
 
     renderWithProviders(<AutoScrollTypography text={mockText} />);
@@ -46,6 +47,7 @@ describe("AutoScrollTypography", () => {
       contentRef: { current: null },
       isOverflowing: false,
       animationStyle: {},
+      delayPercent: 0,
     });
 
     renderWithProviders(<AutoScrollTypography text={mockText} />);
@@ -61,6 +63,7 @@ describe("AutoScrollTypography", () => {
       contentRef: { current: null },
       isOverflowing: true,
       animationStyle: mockAnimationStyle,
+      delayPercent: 20,
     });
 
     renderWithProviders(<AutoScrollTypography text={mockText} />);
@@ -76,6 +79,7 @@ describe("AutoScrollTypography", () => {
       contentRef: { current: null },
       isOverflowing: true,
       animationStyle: { animation: "scroll 10s" },
+      delayPercent: 0,
     });
 
     renderWithProviders(<AutoScrollTypography text={mockText} />);
