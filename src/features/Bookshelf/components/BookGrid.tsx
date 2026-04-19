@@ -174,6 +174,7 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
           width: "100%",
           height: "100%",
           overflow: "auto",
+          scrollbarGutter: "stable",
         }}
         onContextMenu={() => {
           if (contextMenu) {
