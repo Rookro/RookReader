@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Correct thread pool size calculation in ImageLoader (#177)
 * Prevented layout shift in the bookshelf grid when the vertical scrollbar appears or disappears (#178)
+* Fixed an issue where text in the `AutoScrollTypography` component would start scrolling immediately instead of respecting the configured delay (#179)
 
 ## [2.0.2] - 2026-04-15
 
