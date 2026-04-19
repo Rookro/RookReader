@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 * Correct thread pool size calculation in ImageLoader (#177)
+* Prevented layout shift in the bookshelf grid when the vertical scrollbar appears or disappears (#178)
 
 ## [2.0.2] - 2026-04-15
 
