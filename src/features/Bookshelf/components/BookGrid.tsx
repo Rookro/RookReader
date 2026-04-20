@@ -108,9 +108,36 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
     const element = containerRef.current;
     if (!element) return;
 
+    let previousWidth = 0;
+    let visibleTime = 0;
+
     const observer = new ResizeObserver((entries) => {
       if (entries.length > 0 && entries[0]) {
-        debouncedUpdateContainerWidth(entries[0].contentRect.width);
+        const newWidth = entries[0].contentRect.width;
+
+        if (newWidth <= 0 || newWidth === previousWidth) {
+          return;
+        }
+
+        const now = performance.now();
+
+        if (previousWidth === 0) {
+          // First time becoming visible: record timestamp and apply instantly.
+          visibleTime = now;
+          debouncedUpdateContainerWidth.clear();
+          setContainerWidth(newWidth);
+        } else if (now - visibleTime < 200) {
+          // Layout settling phase: bypass debounce.
+          // Prevents visual flickering caused by rapid,
+          // automatic parent container resizing (e.g., split-pane initial calculations) just after mount.
+          debouncedUpdateContainerWidth.clear();
+          setContainerWidth(newWidth);
+        } else {
+          // Normal usage (e.g., window resize, pane drag): apply debounce.
+          debouncedUpdateContainerWidth(newWidth);
+        }
+
+        previousWidth = newWidth;
       }
     });
 
