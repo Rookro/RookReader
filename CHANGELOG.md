@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 * Optimize Bookshelf view rendering performance (#178)
+* Improved rendering performance by memoizing Redux selectors (`useAppSelector`) with `createSelector`, preventing unnecessary component updates (#186)
+
 
 ### Fixed
 

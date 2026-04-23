@@ -1,22 +1,31 @@
 import { Box, CircularProgress } from "@mui/material";
+import { createSelector } from "@reduxjs/toolkit";
 import { useEffect, useMemo } from "react";
 import { useDispatch } from "react-redux";
-import { type AppDispatch, useAppSelector } from "../../../store/store";
+import { type AppDispatch, type RootState, useAppSelector } from "../../../store/store";
 import { usePageNavigation } from "../hooks/usePageNavigation";
 import { useViewerController } from "../hooks/useViewerController";
 import type { ViewerSettings } from "../utils/ImageUtils";
+
+const selectComicReaderState = createSelector(
+  [(state: RootState) => state.read.containerFile, (state: RootState) => state.settings.reader],
+  (containerFile, readerSettings) => ({
+    history: containerFile.history,
+    historyIndex: containerFile.historyIndex,
+    entries: containerFile.entries,
+    index: containerFile.index,
+    isFileLoading: containerFile.isLoading,
+    readerSettings,
+  }),
+);
 
 /**
  * Component for displaying images of comics.
  */
 export default function ComicReader() {
   const dispatch = useDispatch<AppDispatch>();
-  const history = useAppSelector((state) => state.read.containerFile.history);
-  const historyIndex = useAppSelector((state) => state.read.containerFile.historyIndex);
-  const entries = useAppSelector((state) => state.read.containerFile.entries);
-  const index = useAppSelector((state) => state.read.containerFile.index);
-  const isFileLoading = useAppSelector((state) => state.read.containerFile.isLoading);
-  const readerSettings = useAppSelector((state) => state.settings.reader);
+  const { history, historyIndex, entries, index, isFileLoading, readerSettings } =
+    useAppSelector(selectComicReaderState);
 
   const containerPath = history[historyIndex];
 

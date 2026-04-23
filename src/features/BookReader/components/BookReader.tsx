@@ -1,12 +1,13 @@
 import { Explore, History, PhotoLibrary } from "@mui/icons-material";
 import { Box, debounce, Stack, type SxProps, type Theme } from "@mui/material";
+import { createSelector } from "@reduxjs/toolkit";
 import { error } from "@tauri-apps/plugin-log";
 import { Allotment } from "allotment";
 import { type JSX, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch } from "react-redux";
 import { getRecentlyReadBooks } from "../../../bindings/BookCommands";
 import { useDragDropEvent } from "../../../hooks/useDragDropEvent";
-import { type AppDispatch, useAppSelector } from "../../../store/store";
+import { type AppDispatch, type RootState, useAppSelector } from "../../../store/store";
 import SidePanels from "../../SidePane/components/SidePanels";
 import SideTabs from "../../SidePane/components/SideTabs";
 import { openContainerFile, setContainerFilePath } from "../slice";
@@ -17,6 +18,26 @@ import HistoryViewer from "./HistoryViewer/HistoryViewer";
 import ImageEntriesViewer from "./ImageEntriesViewer/ImageEntriesViewer";
 import NavigationBar from "./NavigationBar";
 import NovelReader from "./NovelReader";
+
+const selectBookReaderState = createSelector(
+  [
+    (state: RootState) => state.view.activeView,
+    (state: RootState) => state.sidePane.left,
+    (state: RootState) => state.read.containerFile,
+    (state: RootState) => state.settings.history,
+    (state: RootState) => state.settings.startup,
+  ],
+  (activeView, leftPane, containerFile, historySettings, startupSettings) => ({
+    activeView,
+    isHidden: leftPane.isHidden,
+    tabIndex: leftPane.tabIndex,
+    history: containerFile.history,
+    historyIndex: containerFile.historyIndex,
+    isNovel: containerFile.isNovel,
+    historySettings,
+    startupSettings,
+  }),
+);
 
 /**
  * Props for the BookReader component
@@ -31,14 +52,16 @@ export interface BookReaderProps {
  */
 export default function BookReader({ sx }: BookReaderProps) {
   const initialized = useRef(false);
-  const activeView = useAppSelector((state) => state.view.activeView);
-  const isHidden = useAppSelector((state) => state.sidePane.left.isHidden);
-  const tabIndex = useAppSelector((state) => state.sidePane.left.tabIndex);
-  const history = useAppSelector((state) => state.read.containerFile.history);
-  const historyIndex = useAppSelector((state) => state.read.containerFile.historyIndex);
-  const isNovel = useAppSelector((state) => state.read.containerFile.isNovel);
-  const historySettings = useAppSelector((state) => state.settings.history);
-  const startupSettings = useAppSelector((state) => state.settings.startup);
+  const {
+    activeView,
+    isHidden,
+    tabIndex,
+    history,
+    historyIndex,
+    isNovel,
+    historySettings,
+    startupSettings,
+  } = useAppSelector(selectBookReaderState);
   const dispatch = useDispatch<AppDispatch>();
 
   const [droppedFile, setDroppedFile] = useState<string | undefined>(undefined);
