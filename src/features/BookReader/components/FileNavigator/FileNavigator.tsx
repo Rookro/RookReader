@@ -1,10 +1,11 @@
 import { Box, CircularProgress, Stack, Typography } from "@mui/material";
+import { createSelector } from "@reduxjs/toolkit";
 import { join } from "@tauri-apps/api/path";
 import { debug, error } from "@tauri-apps/plugin-log";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { List, type RowComponentProps, useListCallbackRef } from "react-window";
-import { useAppDispatch, useAppSelector } from "../../../../store/store";
+import { type RootState, useAppDispatch, useAppSelector } from "../../../../store/store";
 import type { DirEntry } from "../../../../types/DirEntry";
 import SidePanelHeader from "../../../SidePane/components/SidePanelHeader";
 import { useDirectoryWatcher } from "../../hooks/useDirectoryWatcher";
@@ -13,6 +14,24 @@ import { setContainerFilePath, setSearchText, updateExploreBasePath } from "../.
 import { andSearch, sortBy } from "../../utils/FileNavigatorUtils";
 import { ItemRow } from "./ItemRow";
 import NavBar from "./NavBar";
+
+const selectFileNavigatorState = createSelector(
+  [
+    (state: RootState) => state.settings.fileNavigator,
+    (state: RootState) => state.read.explorer,
+    (state: RootState) => state.read.containerFile,
+  ],
+  (fileNavigatorSettings, explorer, containerFile) => ({
+    fileNavigatorSettings,
+    history: explorer.history,
+    historyIndex: explorer.historyIndex,
+    entries: explorer.entries,
+    searchText: explorer.searchText,
+    isLoading: explorer.isLoading,
+    fileHistory: containerFile.history,
+    fileHistoryIndex: containerFile.historyIndex,
+  }),
+);
 
 /** Props for the row component. */
 interface RowProps {
@@ -49,14 +68,16 @@ function Row({
  */
 export default function FileListViewer() {
   const { t } = useTranslation();
-  const fileNavigatorSettings = useAppSelector((state) => state.settings.fileNavigator);
-  const history = useAppSelector((state) => state.read.explorer.history);
-  const historyIndex = useAppSelector((state) => state.read.explorer.historyIndex);
-  const entries = useAppSelector((state) => state.read.explorer.entries);
-  const searchText = useAppSelector((state) => state.read.explorer.searchText);
-  const isLoading = useAppSelector((state) => state.read.explorer.isLoading);
-  const fileHistory = useAppSelector((state) => state.read.containerFile.history);
-  const fileHistoryIndex = useAppSelector((state) => state.read.containerFile.historyIndex);
+  const {
+    fileNavigatorSettings,
+    history,
+    historyIndex,
+    entries,
+    searchText,
+    isLoading,
+    fileHistory,
+    fileHistoryIndex,
+  } = useAppSelector(selectFileNavigatorState);
   const dispatch = useAppDispatch();
 
   const [selectedIndex, setSelectedIndex] = useState(-1);
