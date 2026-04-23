@@ -2,9 +2,8 @@ import { Box, Typography } from "@mui/material";
 import { debug, error } from "@tauri-apps/plugin-log";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useDispatch } from "react-redux";
 import { List, type RowComponentProps, useListCallbackRef } from "react-window";
-import { type AppDispatch, useAppSelector } from "../../../../store/store";
+import { useAppDispatch, useAppSelector } from "../../../../store/store";
 import SidePanelHeader from "../../../SidePane/components/SidePanelHeader";
 import { setImageIndex } from "../../slice";
 import { ItemRow } from "./ItemRow";
@@ -46,7 +45,7 @@ export default function ImageEntriesViewer() {
   const { t } = useTranslation();
   const entries = useAppSelector((state) => state.read.containerFile.entries);
   const index = useAppSelector((state) => state.read.containerFile.index);
-  const dispatch = useDispatch<AppDispatch>();
+  const dispatch = useAppDispatch();
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [list, setList] = useListCallbackRef(null);
 

@@ -3,11 +3,10 @@ import { Box, CircularProgress, Stack, type SxProps, type Theme } from "@mui/mat
 import { createSelector } from "@reduxjs/toolkit";
 import { Allotment } from "allotment";
 import { type JSX, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useDispatch } from "react-redux";
 import { getRecentlyReadBooks } from "../../../bindings/BookCommands";
 import { useDragDropEvent } from "../../../hooks/useDragDropEvent";
 import { usePaneSizes } from "../../../hooks/usePaneSizes";
-import { type AppDispatch, type RootState, useAppSelector } from "../../../store/store";
+import { type RootState, useAppDispatch, useAppSelector } from "../../../store/store";
 import SidePanels from "../../SidePane/components/SidePanels";
 import SideTabs from "../../SidePane/components/SideTabs";
 import { openContainerFile, setContainerFilePath } from "../slice";
@@ -64,7 +63,7 @@ export default function BookReader({ sx }: BookReaderProps) {
     historySettings,
     startupSettings,
   } = useAppSelector(selectBookReaderState);
-  const dispatch = useDispatch<AppDispatch>();
+  const dispatch = useAppDispatch();
 
   const [droppedFile, setDroppedFile] = useState<string | undefined>(undefined);
 
