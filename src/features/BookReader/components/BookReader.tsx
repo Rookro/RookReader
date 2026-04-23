@@ -2,22 +2,21 @@ import { Explore, History, PhotoLibrary } from "@mui/icons-material";
 import { Box, debounce, Stack, type SxProps, type Theme } from "@mui/material";
 import { error } from "@tauri-apps/plugin-log";
 import { Allotment } from "allotment";
-import { type JSX, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type JSX, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch } from "react-redux";
 import { getRecentlyReadBooks } from "../../../bindings/BookCommands";
 import { useDragDropEvent } from "../../../hooks/useDragDropEvent";
 import { type AppDispatch, useAppSelector } from "../../../store/store";
+import SidePanels from "../../SidePane/components/SidePanels";
+import SideTabs from "../../SidePane/components/SideTabs";
 import { openContainerFile, setContainerFilePath } from "../slice";
-
-const SideTabs = lazy(() => import("../../SidePane/components/SideTabs"));
-const SidePanels = lazy(() => import("../../SidePane/components/SidePanels"));
-const ControlSlider = lazy(() => import("./ControlSlider"));
-const NavigationBar = lazy(() => import("./NavigationBar"));
-const FileNavigator = lazy(() => import("./FileNavigator/FileNavigator"));
-const ImageEntriesViewer = lazy(() => import("./ImageEntriesViewer/ImageEntriesViewer"));
-const HistoryViewer = lazy(() => import("./HistoryViewer/HistoryViewer"));
-const ComicReader = lazy(() => import("./ComicReader"));
-const NovelReader = lazy(() => import("./NovelReader"));
+import ComicReader from "./ComicReader";
+import ControlSlider from "./ControlSlider";
+import FileNavigator from "./FileNavigator/FileNavigator";
+import HistoryViewer from "./HistoryViewer/HistoryViewer";
+import ImageEntriesViewer from "./ImageEntriesViewer/ImageEntriesViewer";
+import NavigationBar from "./NavigationBar";
+import NovelReader from "./NovelReader";
 
 /**
  * Props for the BookReader component

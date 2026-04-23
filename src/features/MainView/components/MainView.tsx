@@ -1,14 +1,13 @@
 import { Box, type SxProps, type Theme } from "@mui/material";
-import { lazy, useEffect } from "react";
+import { useEffect } from "react";
 import { useAppSelector } from "../../../store/store";
+import BookReader from "../../BookReader/components/BookReader";
+import Bookshelf from "../../Bookshelf/components/Bookshelf";
 import { useSettingsChange } from "../../Settings/hooks/useSettingsChange";
 import UpdaterConfirmDialog from "../../Updater/components/UpdaterConfirmDialog";
 import UpdaterMessageDialog from "../../Updater/components/UpdaterMessageDialog";
 import UpdaterProgressDialog from "../../Updater/components/UpdaterProgressDialog";
 import { useUpdater } from "../../Updater/hooks/useUpdater";
-
-const BookReader = lazy(() => import("../../BookReader/components/BookReader"));
-const Bookshelf = lazy(() => import("../../Bookshelf/components/Bookshelf"));
 
 /**
  * Props for the main content component
