@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Fixed an issue where text in the `AutoScrollTypography` component would start scrolling immediately instead of respecting the configured delay (#180)
 * Fixed an issue in the Bookshelf where the reading progress bar would not reach 100% even when reading the last page of a book (#182)
 * Fixed a visual flicker in the Bookshelf where the book grid would momentarily display with an incorrect width upon initial load or when switching views (#183)
+* Corrected an incorrect icon displayed in the Startup Settings for "Initial View" (replaced the Language icon with the RocketLaunch icon) (#184)
+* Prevented a potential application crash caused by missing `<Suspense>` boundaries when lazily loading components, and optimized initial load UX by switching to static imports (#185)
 
 ## [2.0.2] - 2026-04-15
 

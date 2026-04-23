@@ -1,15 +1,14 @@
 import { error } from "@tauri-apps/plugin-log";
-import React, { lazy } from "react";
+import React from "react";
 import ReactDOM from "react-dom/client";
 import { Provider } from "react-redux";
 import { createHashRouter, RouterProvider } from "react-router";
+import App from "./App";
 import { loadAllSettings } from "./features/Settings/settingsStore";
+import SettingsApp from "./SettingsApp";
 import { createStore } from "./store/store";
 import "./i18n/config";
 import "allotment/dist/style.css";
-
-const App = lazy(() => import("./App"));
-const SettingsApp = lazy(() => import("./SettingsApp"));
 
 const router = createHashRouter([
   { path: "/", element: <App /> },
