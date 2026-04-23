@@ -122,8 +122,8 @@ export default function BookReader({ sx }: BookReaderProps) {
       const historyEnabled = historySettings.recordReadingHistory;
       const restoreLastContainer = startupSettings.restoreLastBook;
       if (historyEnabled && restoreLastContainer) {
-        const latestEntry =
-          (await getRecentlyReadBooks()).length > 0 ? (await getRecentlyReadBooks())[0] : null;
+        const recentBooks = await getRecentlyReadBooks();
+        const latestEntry = recentBooks.length > 0 ? recentBooks[0] : null;
         if (latestEntry) {
           dispatch(setContainerFilePath(latestEntry.file_path));
         }
