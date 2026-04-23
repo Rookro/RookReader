@@ -1,5 +1,5 @@
 import { Explore, History, PhotoLibrary } from "@mui/icons-material";
-import { Box, debounce, Stack, type SxProps, type Theme } from "@mui/material";
+import { Box, CircularProgress, debounce, Stack, type SxProps, type Theme } from "@mui/material";
 import { createSelector } from "@reduxjs/toolkit";
 import { error } from "@tauri-apps/plugin-log";
 import { Allotment } from "allotment";
@@ -34,6 +34,7 @@ const selectBookReaderState = createSelector(
     history: containerFile.history,
     historyIndex: containerFile.historyIndex,
     isNovel: containerFile.isNovel,
+    isLoading: containerFile.isLoading,
     historySettings,
     startupSettings,
   }),
@@ -59,6 +60,7 @@ export default function BookReader({ sx }: BookReaderProps) {
     history,
     historyIndex,
     isNovel,
+    isLoading,
     historySettings,
     startupSettings,
   } = useAppSelector(selectBookReaderState);
@@ -174,7 +176,23 @@ export default function BookReader({ sx }: BookReaderProps) {
                   backgroundColor: (theme) => theme.palette.background.default,
                 }}
               >
-                {isNovel ? <NovelReader filePath={containerPath} /> : <ComicReader />}
+                {isLoading ? (
+                  <Box
+                    sx={{
+                      width: "100%",
+                      height: "100%",
+                      display: "flex",
+                      justifyContent: "center",
+                      alignItems: "center",
+                    }}
+                  >
+                    <CircularProgress />
+                  </Box>
+                ) : isNovel ? (
+                  <NovelReader filePath={containerPath} />
+                ) : (
+                  <ComicReader />
+                )}
               </Box>
             </Allotment.Pane>
           </Allotment>

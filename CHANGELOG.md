@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Corrected an incorrect icon displayed in the Startup Settings for "Initial View" (replaced the Language icon with the RocketLaunch icon) (#184)
 * Prevented a potential application crash caused by missing `<Suspense>` boundaries when lazily loading components, and optimized initial load UX by switching to static imports (#185)
 * Fixed an issue where the `getRecentlyReadBooks` API was called redundantly during initialization when restoring the last read book (#187)
+* Fixed a critical crash and excessive memory usage that occurred when opening a large comic file immediately after reading an EPUB novel (#188)
 
 ## [2.0.2] - 2026-04-15
 
