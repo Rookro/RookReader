@@ -55,6 +55,14 @@ describe("BookReader", () => {
     expect(screen.getByTestId("control-slider")).toBeInTheDocument();
   });
 
+  it("should show CircularProgress when loading", async () => {
+    const preloadedState = createBasePreloadedState();
+    preloadedState.read.containerFile.isLoading = true;
+
+    renderWithProviders(<BookReader />, { preloadedState });
+    expect(screen.getByRole("progressbar")).toBeInTheDocument();
+  });
+
   it("should restore last container on startup if enabled", async () => {
     const state = createBasePreloadedState();
     state.settings.startup.restoreLastBook = true;

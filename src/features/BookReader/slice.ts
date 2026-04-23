@@ -163,6 +163,7 @@ export const readSlice = createSlice({
       state.containerFile.history.push(action.payload);
       state.containerFile.historyIndex = state.containerFile.history.length - 1;
       state.containerFile.index = 0;
+      state.containerFile.isLoading = true;
     },
     /**
      * Sets the current image index within a container file.
@@ -214,6 +215,7 @@ export const readSlice = createSlice({
     goBackContainerHistory: (state) => {
       if (state.containerFile.historyIndex > 0) {
         state.containerFile.historyIndex -= 1;
+        state.containerFile.isLoading = true;
       }
     },
     /**
@@ -224,6 +226,7 @@ export const readSlice = createSlice({
     goForwardContainerHistory: (state) => {
       if (state.containerFile.historyIndex < state.containerFile.history.length - 1) {
         state.containerFile.historyIndex += 1;
+        state.containerFile.isLoading = true;
       }
     },
     /**

@@ -1,4 +1,4 @@
-import { Box, CircularProgress } from "@mui/material";
+import { Box } from "@mui/material";
 import { createSelector } from "@reduxjs/toolkit";
 import { useEffect, useMemo } from "react";
 import { useDispatch } from "react-redux";
@@ -14,7 +14,6 @@ const selectComicReaderState = createSelector(
     historyIndex: containerFile.historyIndex,
     entries: containerFile.entries,
     index: containerFile.index,
-    isFileLoading: containerFile.isLoading,
     readerSettings,
   }),
 );
@@ -24,7 +23,7 @@ const selectComicReaderState = createSelector(
  */
 export default function ComicReader() {
   const dispatch = useDispatch<AppDispatch>();
-  const { history, historyIndex, entries, index, isFileLoading, readerSettings } =
+  const { history, historyIndex, entries, index, readerSettings } =
     useAppSelector(selectComicReaderState);
 
   const containerPath = history[historyIndex];
@@ -64,23 +63,6 @@ export default function ComicReader() {
       window.removeEventListener("keydown", handleKeydown);
     };
   }, [handleKeydown]);
-
-  // Loading display.
-  if (isFileLoading) {
-    return (
-      <Box
-        sx={{
-          width: "100%",
-          height: "100%",
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-        }}
-      >
-        <CircularProgress />
-      </Box>
-    );
-  }
 
   if (!displayedLayout) {
     return (
