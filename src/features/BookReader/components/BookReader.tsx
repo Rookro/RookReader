@@ -1,12 +1,12 @@
 import { Explore, History, PhotoLibrary } from "@mui/icons-material";
-import { Box, CircularProgress, debounce, Stack, type SxProps, type Theme } from "@mui/material";
+import { Box, CircularProgress, Stack, type SxProps, type Theme } from "@mui/material";
 import { createSelector } from "@reduxjs/toolkit";
-import { error } from "@tauri-apps/plugin-log";
 import { Allotment } from "allotment";
 import { type JSX, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch } from "react-redux";
 import { getRecentlyReadBooks } from "../../../bindings/BookCommands";
 import { useDragDropEvent } from "../../../hooks/useDragDropEvent";
+import { usePaneSizes } from "../../../hooks/usePaneSizes";
 import { type AppDispatch, type RootState, useAppSelector } from "../../../store/store";
 import SidePanels from "../../SidePane/components/SidePanels";
 import SideTabs from "../../SidePane/components/SideTabs";
@@ -68,28 +68,7 @@ export default function BookReader({ sx }: BookReaderProps) {
 
   const [droppedFile, setDroppedFile] = useState<string | undefined>(undefined);
 
-  const paneSizes = useMemo<number[] | undefined>(() => {
-    const storedSizes = localStorage.getItem("book-reader-left-pane-sizes");
-    if (storedSizes) {
-      try {
-        const sizes = JSON.parse(storedSizes);
-        if (Array.isArray(sizes) && sizes.every((size) => typeof size === "number")) {
-          return sizes;
-        }
-      } catch (ex) {
-        error(`Failed to parse book-reader-left-pane-sizes: ${ex}`);
-      }
-    }
-    return undefined;
-  }, []);
-
-  const handlePaneSizeChanged = useMemo(
-    () =>
-      debounce((sizes: number[]) => {
-        localStorage.setItem("book-reader-left-pane-sizes", JSON.stringify(sizes));
-      }, 500),
-    [],
-  );
+  const { paneSizes, handlePaneSizeChanged } = usePaneSizes("book-reader-left-pane-sizes");
 
   const handleDropped = useCallback(
     (paths: string[]) => {
