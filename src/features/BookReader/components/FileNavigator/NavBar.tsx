@@ -13,8 +13,7 @@ import { dirname, homeDir } from "@tauri-apps/api/path";
 import { warn } from "@tauri-apps/plugin-log";
 import React, { useCallback, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { useDispatch } from "react-redux";
-import { type AppDispatch, useAppSelector } from "../../../../store/store";
+import { useAppDispatch, useAppSelector } from "../../../../store/store";
 import type { SortOrder } from "../../../../types/AppSettings";
 import { updateSettings } from "../../../Settings/slice";
 import {
@@ -34,7 +33,7 @@ export default function NavBar() {
   const searchText = useAppSelector((state) => state.read.explorer.searchText);
   const entries = useAppSelector((state) => state.read.explorer.entries);
   const fileNavigatorSettings = useAppSelector((state) => state.settings.fileNavigator);
-  const dispatch = useDispatch<AppDispatch>();
+  const dispatch = useAppDispatch();
 
   const [width, setWidth] = React.useState(0);
 

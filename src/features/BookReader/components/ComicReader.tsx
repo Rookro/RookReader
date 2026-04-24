@@ -1,8 +1,7 @@
 import { Box } from "@mui/material";
 import { createSelector } from "@reduxjs/toolkit";
 import { useEffect, useMemo } from "react";
-import { useDispatch } from "react-redux";
-import { type AppDispatch, type RootState, useAppSelector } from "../../../store/store";
+import { type RootState, useAppDispatch, useAppSelector } from "../../../store/store";
 import { usePageNavigation } from "../hooks/usePageNavigation";
 import { useViewerController } from "../hooks/useViewerController";
 import type { ViewerSettings } from "../utils/ImageUtils";
@@ -22,7 +21,7 @@ const selectComicReaderState = createSelector(
  * Component for displaying images of comics.
  */
 export default function ComicReader() {
-  const dispatch = useDispatch<AppDispatch>();
+  const dispatch = useAppDispatch();
   const { history, historyIndex, entries, index, readerSettings } =
     useAppSelector(selectComicReaderState);
 

@@ -1,7 +1,7 @@
-import { Box, debounce, type SxProps, type Theme } from "@mui/material";
-import { error } from "@tauri-apps/plugin-log";
+import { Box, type SxProps, type Theme } from "@mui/material";
 import { Allotment } from "allotment";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
+import { usePaneSizes } from "../../../hooks/usePaneSizes";
 import { useAppDispatch } from "../../../store/store";
 import type { Book } from "../../../types/DatabaseModels";
 import { setContainerFilePath } from "../../BookReader/slice";
@@ -36,28 +36,7 @@ export default function Bookshelf({ sx }: BookshelfProps) {
   const handleOpenCreateBookTagDialog = useCallback(() => setIsBookTagDialogOpen(true), []);
   const handleCloseCreateBookTagDialog = useCallback(() => setIsBookTagDialogOpen(false), []);
 
-  const paneSizes = useMemo<number[] | undefined>(() => {
-    const storedSizes = localStorage.getItem("bookshelf-left-pane-sizes");
-    if (storedSizes) {
-      try {
-        const sizes = JSON.parse(storedSizes);
-        if (Array.isArray(sizes) && sizes.every((size) => typeof size === "number")) {
-          return sizes;
-        }
-      } catch (ex) {
-        error(`Failed to parse bookshelf-left-pane-sizes: ${ex}`);
-      }
-    }
-    return undefined;
-  }, []);
-
-  const handlePaneSizeChanged = useMemo(
-    () =>
-      debounce((sizes: number[]) => {
-        localStorage.setItem("bookshelf-left-pane-sizes", JSON.stringify(sizes));
-      }, 500),
-    [],
-  );
+  const { paneSizes, handlePaneSizeChanged } = usePaneSizes("bookshelf-left-pane-sizes");
 
   const handleBookSelected = useCallback(
     (book: Book) => {

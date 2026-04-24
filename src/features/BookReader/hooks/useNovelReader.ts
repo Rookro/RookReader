@@ -4,10 +4,9 @@ import type { TOCItem } from "foliate-js/epub.js";
 import { Paginator } from "foliate-js/paginator.js";
 import { type Book, makeBook, type View } from "foliate-js/view.js";
 import { useCallback, useEffect, useRef } from "react";
-import { useDispatch } from "react-redux";
 import BundledNotoSerifJP from "../../../assets/fonts/NotoSerifJP-VariableFont_wght.woff2";
 import { useAppTheme } from "../../../hooks/useAppTheme";
-import { type AppDispatch, useAppSelector } from "../../../store/store";
+import { useAppDispatch, useAppSelector } from "../../../store/store";
 import { setEntries, setNovelLocation } from "../slice";
 import { usePageNavigation } from "./usePageNavigation";
 
@@ -61,7 +60,7 @@ export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
   const readingDirection = useAppSelector((state) => state.settings.reader.comic.readingDirection);
   const fontFamily = useAppSelector((state) => state.settings.reader.novel.fontFamily);
   const fontSize = useAppSelector((state) => state.settings.reader.novel.fontSize);
-  const dispatch = useDispatch<AppDispatch>();
+  const dispatch = useAppDispatch();
 
   const onMoveForward = useCallback(() => {
     viewRef.current?.next();
