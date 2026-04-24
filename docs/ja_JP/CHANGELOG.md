@@ -9,10 +9,13 @@
 
 ## [Unreleased]
 
+## [2.0.3] - 2024-04-24
+
 ### Changed
 
 * 本棚表示のレンダリングパフォーマンスを最適化 (#178)
 * Reduxのセレクタ（`useAppSelector`）を `createSelector` を用いてメモ化し、不要なコンポーネントの再レンダリングを防止して描画パフォーマンスを向上 (#186)
+* 画面左側のペイン（サイドバー）のサイズを保存・復元するロジックを、共通のカスタムフック `usePaneSizes` として切り出し (#189)
 * 依存関係を更新 (#190)
 
 ### Fixed
@@ -26,7 +29,6 @@
 * コンポーネントの遅延読み込み（`React.lazy`）に伴う `<Suspense>` の欠落が原因でアプリがクラッシュする可能性を修正し、静的インポートへの切り替えによって初期表示時のUXを改善 (#185)
 * 前回開いた本を復元する初期化処理の際、`getRecentlyReadBooks` API が意図せず重複して呼び出されていた不具合を修正 (#187)
 * EPUB小説を読んだ直後に大容量の漫画ファイルを開くと、メモリ使用量が急増してアプリが強制終了する問題を修正 (#188)
-* 画面左側のペイン（サイドバー）のサイズを保存・復元するロジックを、共通のカスタムフック `usePaneSizes` として切り出し (#189)
 
 ## [2.0.2] - 2026-04-15
 
@@ -312,7 +314,8 @@
 * 自動見開き表示機能の追加 (#4)
 * ホイールの上下によるページ送り機能を追加 (#5)
 
-[unreleased]: https://github.com/Rookro/RookReader/compare/v2.0.2...HEAD
+[unreleased]: https://github.com/Rookro/RookReader/compare/v2.0.3...HEAD
+[2.0.3]: https://github.com/Rookro/RookReader/compare/v2.0.2...v2.0.3
 [2.0.2]: https://github.com/Rookro/RookReader/compare/v2.0.1...v2.0.2
 [2.0.1]: https://github.com/Rookro/RookReader/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/Rookro/RookReader/compare/v1.9.2...v2.0.0
