@@ -8,6 +8,10 @@ const host = process.env.TAURI_DEV_HOST;
 export default defineConfig({
   plugins: [react()],
 
+  build: {
+    chunkSizeWarningLimit: 2000,
+  },
+
   test: {
     globals: true,
     environment: "jsdom",

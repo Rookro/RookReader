@@ -1,23 +1,43 @@
 import { Explore, History, PhotoLibrary } from "@mui/icons-material";
-import { Box, debounce, Stack, type SxProps, type Theme } from "@mui/material";
-import { error } from "@tauri-apps/plugin-log";
+import { Box, CircularProgress, Stack, type SxProps, type Theme } from "@mui/material";
+import { createSelector } from "@reduxjs/toolkit";
 import { Allotment } from "allotment";
-import { type JSX, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useDispatch } from "react-redux";
+import { type JSX, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getRecentlyReadBooks } from "../../../bindings/BookCommands";
 import { useDragDropEvent } from "../../../hooks/useDragDropEvent";
-import { type AppDispatch, useAppSelector } from "../../../store/store";
+import { usePaneSizes } from "../../../hooks/usePaneSizes";
+import { type RootState, useAppDispatch, useAppSelector } from "../../../store/store";
+import SidePanels from "../../SidePane/components/SidePanels";
+import SideTabs from "../../SidePane/components/SideTabs";
 import { openContainerFile, setContainerFilePath } from "../slice";
+import ComicReader from "./ComicReader";
+import ControlSlider from "./ControlSlider";
+import FileNavigator from "./FileNavigator/FileNavigator";
+import HistoryViewer from "./HistoryViewer/HistoryViewer";
+import ImageEntriesViewer from "./ImageEntriesViewer/ImageEntriesViewer";
+import NavigationBar from "./NavigationBar";
+import NovelReader from "./NovelReader";
 
-const SideTabs = lazy(() => import("../../SidePane/components/SideTabs"));
-const SidePanels = lazy(() => import("../../SidePane/components/SidePanels"));
-const ControlSlider = lazy(() => import("./ControlSlider"));
-const NavigationBar = lazy(() => import("./NavigationBar"));
-const FileNavigator = lazy(() => import("./FileNavigator/FileNavigator"));
-const ImageEntriesViewer = lazy(() => import("./ImageEntriesViewer/ImageEntriesViewer"));
-const HistoryViewer = lazy(() => import("./HistoryViewer/HistoryViewer"));
-const ComicReader = lazy(() => import("./ComicReader"));
-const NovelReader = lazy(() => import("./NovelReader"));
+const selectBookReaderState = createSelector(
+  [
+    (state: RootState) => state.view.activeView,
+    (state: RootState) => state.sidePane.left,
+    (state: RootState) => state.read.containerFile,
+    (state: RootState) => state.settings.history,
+    (state: RootState) => state.settings.startup,
+  ],
+  (activeView, leftPane, containerFile, historySettings, startupSettings) => ({
+    activeView,
+    isHidden: leftPane.isHidden,
+    tabIndex: leftPane.tabIndex,
+    history: containerFile.history,
+    historyIndex: containerFile.historyIndex,
+    isNovel: containerFile.isNovel,
+    isLoading: containerFile.isLoading,
+    historySettings,
+    startupSettings,
+  }),
+);
 
 /**
  * Props for the BookReader component
@@ -32,40 +52,22 @@ export interface BookReaderProps {
  */
 export default function BookReader({ sx }: BookReaderProps) {
   const initialized = useRef(false);
-  const activeView = useAppSelector((state) => state.view.activeView);
-  const isHidden = useAppSelector((state) => state.sidePane.left.isHidden);
-  const tabIndex = useAppSelector((state) => state.sidePane.left.tabIndex);
-  const history = useAppSelector((state) => state.read.containerFile.history);
-  const historyIndex = useAppSelector((state) => state.read.containerFile.historyIndex);
-  const isNovel = useAppSelector((state) => state.read.containerFile.isNovel);
-  const historySettings = useAppSelector((state) => state.settings.history);
-  const startupSettings = useAppSelector((state) => state.settings.startup);
-  const dispatch = useDispatch<AppDispatch>();
+  const {
+    activeView,
+    isHidden,
+    tabIndex,
+    history,
+    historyIndex,
+    isNovel,
+    isLoading,
+    historySettings,
+    startupSettings,
+  } = useAppSelector(selectBookReaderState);
+  const dispatch = useAppDispatch();
 
   const [droppedFile, setDroppedFile] = useState<string | undefined>(undefined);
 
-  const paneSizes = useMemo<number[] | undefined>(() => {
-    const storedSizes = localStorage.getItem("book-reader-left-pane-sizes");
-    if (storedSizes) {
-      try {
-        const sizes = JSON.parse(storedSizes);
-        if (Array.isArray(sizes) && sizes.every((size) => typeof size === "number")) {
-          return sizes;
-        }
-      } catch (ex) {
-        error(`Failed to parse book-reader-left-pane-sizes: ${ex}`);
-      }
-    }
-    return undefined;
-  }, []);
-
-  const handlePaneSizeChanged = useMemo(
-    () =>
-      debounce((sizes: number[]) => {
-        localStorage.setItem("book-reader-left-pane-sizes", JSON.stringify(sizes));
-      }, 500),
-    [],
-  );
+  const { paneSizes, handlePaneSizeChanged } = usePaneSizes("book-reader-left-pane-sizes");
 
   const handleDropped = useCallback(
     (paths: string[]) => {
@@ -100,8 +102,8 @@ export default function BookReader({ sx }: BookReaderProps) {
       const historyEnabled = historySettings.recordReadingHistory;
       const restoreLastContainer = startupSettings.restoreLastBook;
       if (historyEnabled && restoreLastContainer) {
-        const latestEntry =
-          (await getRecentlyReadBooks()).length > 0 ? (await getRecentlyReadBooks())[0] : null;
+        const recentBooks = await getRecentlyReadBooks();
+        const latestEntry = recentBooks.length > 0 ? recentBooks[0] : null;
         if (latestEntry) {
           dispatch(setContainerFilePath(latestEntry.file_path));
         }
@@ -152,7 +154,23 @@ export default function BookReader({ sx }: BookReaderProps) {
                   backgroundColor: (theme) => theme.palette.background.default,
                 }}
               >
-                {isNovel ? <NovelReader filePath={containerPath} /> : <ComicReader />}
+                {isLoading ? (
+                  <Box
+                    sx={{
+                      width: "100%",
+                      height: "100%",
+                      display: "flex",
+                      justifyContent: "center",
+                      alignItems: "center",
+                    }}
+                  >
+                    <CircularProgress />
+                  </Box>
+                ) : isNovel ? (
+                  <NovelReader filePath={containerPath} />
+                ) : (
+                  <ComicReader />
+                )}
               </Box>
             </Allotment.Pane>
           </Allotment>

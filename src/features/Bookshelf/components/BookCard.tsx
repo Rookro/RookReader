@@ -46,7 +46,7 @@ export default function BookCard({
 
   const imageSrc = useMemo(() => {
     return book?.thumbnail_path ? convertFileSrc(book.thumbnail_path) : dummy_thumbnail;
-  }, [book]);
+  }, [book?.thumbnail_path]);
 
   const bookTags = useMemo(() => {
     if (!book?.tag_ids_str || !tags) {
@@ -54,7 +54,7 @@ export default function BookCard({
     }
     const ids = book.tag_ids_str.split(",").map(Number);
     return tags.filter((tag) => ids.includes(tag.id));
-  }, [book, tags]);
+  }, [book?.tag_ids_str, tags]);
 
   if (!book) {
     return null;
@@ -140,12 +140,14 @@ export default function BookCard({
                 variant="body1"
                 text={book.display_name}
                 sx={{ paddingTop: 1, paddingBottom: 1 }}
-              ></AutoScrollTypography>
+              />
               <LinearProgress
                 variant="determinate"
                 value={
                   book.total_pages !== 0
-                    ? ((book.last_read_page_index ?? 0) / book.total_pages) * 100
+                    ? ((book.last_read_page_index ? book.last_read_page_index + 1 : 1) /
+                        book.total_pages) *
+                      100
                     : 0
                 }
                 sx={{

@@ -1,4 +1,4 @@
-import { Language } from "@mui/icons-material";
+import { RocketLaunch } from "@mui/icons-material";
 import {
   ListItem,
   ListItemIcon,
@@ -34,7 +34,7 @@ export default function InitialViewSetting() {
   return (
     <ListItem>
       <ListItemIcon>
-        <Language />
+        <RocketLaunch />
       </ListItemIcon>
       <ListItemText primary={t("settings.startup.initial-view.title")} />
       <Select

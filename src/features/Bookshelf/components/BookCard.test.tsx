@@ -12,7 +12,7 @@ describe("BookCard", () => {
     id: 1,
     display_name: "Test Book",
     total_pages: 100,
-    last_read_page_index: 50,
+    last_read_page_index: 49, // Page 50
     thumbnail_path: "thumbnail.jpg",
     tag_ids_str: "1,2",
   });

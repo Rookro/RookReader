@@ -33,14 +33,6 @@ describe("ComicReader", () => {
     });
   });
 
-  it("should show CircularProgress when loading", () => {
-    const preloadedState = createBasePreloadedState();
-    preloadedState.read.containerFile.isLoading = true;
-
-    renderWithProviders(<ComicReader />, { preloadedState });
-    expect(screen.getByRole("progressbar")).toBeInTheDocument();
-  });
-
   it("should render a single page layout correctly", () => {
     const preloadedState = createBasePreloadedState();
     preloadedState.settings.reader.comic.enableSpread = false;

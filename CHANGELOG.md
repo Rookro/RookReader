@@ -9,7 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2.0.2]
+## [2.0.3] - 2026-04-24
+
+### Changed
+
+* Optimize Bookshelf view rendering performance (#178)
+* Improved rendering performance by memoizing Redux selectors (`useAppSelector`) with `createSelector`, preventing unnecessary component updates (#186)
+* Extracted the logic for managing left pane sizes into a reusable `usePaneSizes` hook (#189)
+* Update dependencies (#190)
+
+### Fixed
+
+* Correct thread pool size calculation in ImageLoader (#177)
+* Prevented layout shift in the bookshelf grid when the vertical scrollbar appears or disappears (#179)
+* Fixed an issue where text in the `AutoScrollTypography` component would start scrolling immediately instead of respecting the configured delay (#180)
+* Fixed an issue in the Bookshelf where the reading progress bar would not reach 100% even when reading the last page of a book (#182)
+* Fixed a visual flicker in the Bookshelf where the book grid would momentarily display with an incorrect width upon initial load or when switching views (#183)
+* Corrected an incorrect icon displayed in the Startup Settings for "Initial View" (replaced the Language icon with the RocketLaunch icon) (#184)
+* Prevented a potential application crash caused by missing `<Suspense>` boundaries when lazily loading components, and optimized initial load UX by switching to static imports (#185)
+* Fixed an issue where the `getRecentlyReadBooks` API was called redundantly during initialization when restoring the last read book (#187)
+* Fixed a critical crash and excessive memory usage that occurred when opening a large comic file immediately after reading an EPUB novel (#188)
+
+## [2.0.2] - 2026-04-15
 
 ### Changed
 
@@ -23,13 +44,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Visually represent font families in the font selection dropdown in settings (#172)
 * Update dependencies (#173)
 
-## [2.0.1]
+## [2.0.1] - 2026-03-30
 
 ### Fixed
 
 * Fix reading history not saving correctly (#163)
 
-## [2.0.0]
+## [2.0.0] - 2026-03-29
 
 ### Added
 
@@ -293,7 +314,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Add an automatic two-page spread display feature (#4)
 * Add a page navigation feature using the mouse wheel up/down (#5)
 
-[unreleased]: https://github.com/Rookro/RookReader/compare/v2.0.2...HEAD
+[unreleased]: https://github.com/Rookro/RookReader/compare/v2.0.3...HEAD
+[2.0.3]: https://github.com/Rookro/RookReader/compare/v2.0.2...v2.0.3
 [2.0.2]: https://github.com/Rookro/RookReader/compare/v2.0.1...v2.0.2
 [2.0.1]: https://github.com/Rookro/RookReader/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/Rookro/RookReader/compare/v1.9.2...v2.0.0

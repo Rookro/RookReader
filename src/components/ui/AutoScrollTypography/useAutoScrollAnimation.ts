@@ -11,6 +11,7 @@ export function useAutoScrollAnimation(pixelsPerSecond: number, delaySeconds: nu
   const contentRef = useRef<HTMLElement>(null);
   const [isOverflowing, setIsOverflowing] = useState(false);
   const [animationStyle, setAnimationStyle] = useState<object>({});
+  const [delayPercent, setDelayPercent] = useState<number>(0);
 
   // Use ResizeObserver to detect size changes of the container
   useLayoutEffect(() => {
@@ -28,18 +29,17 @@ export function useAutoScrollAnimation(pixelsPerSecond: number, delaySeconds: nu
 
         const scrollSeconds = contentWidth / pixelsPerSecond;
         const totalSeconds = scrollSeconds + delaySeconds;
-        const delayPercent = (delaySeconds / totalSeconds) * 100;
+        const calcDelayPercent = (delaySeconds / totalSeconds) * 100;
 
+        setDelayPercent(calcDelayPercent);
         setAnimationStyle({
-          animation: `auto-scroll-text ${totalSeconds}s linear infinite`,
-          "@keyframes auto-scroll-text": {
-            [`0%, ${delayPercent}%`]: { transform: "translateX(0)" },
-            "100%": { transform: "translateX(-100%)" },
-          },
-        });
+          "--scroll-duration": `${totalSeconds}s`,
+          "--scroll-offset": `-${contentWidth}px`,
+        } as React.CSSProperties);
       } else {
         setIsOverflowing(false);
         setAnimationStyle({});
+        setDelayPercent(0);
       }
     };
 
@@ -60,5 +60,5 @@ export function useAutoScrollAnimation(pixelsPerSecond: number, delaySeconds: nu
     };
   }, [pixelsPerSecond, delaySeconds]);
 
-  return { containerRef, contentRef, isOverflowing, animationStyle };
+  return { containerRef, contentRef, isOverflowing, animationStyle, delayPercent };
 }

@@ -1,4 +1,5 @@
 import { Box, Typography, type TypographyProps, useMediaQuery } from "@mui/material";
+import { memo } from "react";
 import { useAutoScrollAnimation } from "./useAutoScrollAnimation";
 
 /** Props for the AutoScrollTypography component.*/
@@ -24,7 +25,7 @@ interface AutoScrollTypographyProps extends TypographyProps {
  * Uses CSS animations calculated based on the text width and container width.
  * Respects 'prefers-reduced-motion' by disabling animation.
  */
-export default function AutoScrollTypography({
+const AutoScrollTypography = memo(function AutoScrollTypography({
   text,
   pixelsPerSecond = 20,
   delaySeconds = 3,
@@ -32,13 +33,12 @@ export default function AutoScrollTypography({
   ...props
 }: AutoScrollTypographyProps) {
   const prefersReducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
-  const { containerRef, contentRef, isOverflowing, animationStyle } = useAutoScrollAnimation(
-    pixelsPerSecond,
-    delaySeconds,
-  );
+  const { containerRef, contentRef, isOverflowing, animationStyle, delayPercent } =
+    useAutoScrollAnimation(pixelsPerSecond, delaySeconds);
 
   // If user prefers reduced motion, force non-scrolling behavior
   const shouldAnimate = isOverflowing && !prefersReducedMotion;
+  const keyframeName = `auto-scroll-text-${delayPercent.toFixed(2).replace(".", "-")}`;
 
   return (
     <Box
@@ -58,6 +58,11 @@ export default function AutoScrollTypography({
           ...(shouldAnimate
             ? {
                 display: "inline-block",
+                animation: `${keyframeName} var(--scroll-duration) linear infinite`,
+                [`@keyframes ${keyframeName}`]: {
+                  [`0%, ${delayPercent}%`]: { transform: "translateX(0)" },
+                  "100%": { transform: "translateX(var(--scroll-offset))" },
+                },
                 ...animationStyle,
               }
             : {
@@ -75,4 +80,6 @@ export default function AutoScrollTypography({
       </Typography>
     </Box>
   );
-}
+});
+
+export default AutoScrollTypography;

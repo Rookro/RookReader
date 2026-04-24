@@ -1,22 +1,29 @@
-import { Box, CircularProgress } from "@mui/material";
+import { Box } from "@mui/material";
+import { createSelector } from "@reduxjs/toolkit";
 import { useEffect, useMemo } from "react";
-import { useDispatch } from "react-redux";
-import { type AppDispatch, useAppSelector } from "../../../store/store";
+import { type RootState, useAppDispatch, useAppSelector } from "../../../store/store";
 import { usePageNavigation } from "../hooks/usePageNavigation";
 import { useViewerController } from "../hooks/useViewerController";
 import type { ViewerSettings } from "../utils/ImageUtils";
+
+const selectComicReaderState = createSelector(
+  [(state: RootState) => state.read.containerFile, (state: RootState) => state.settings.reader],
+  (containerFile, readerSettings) => ({
+    history: containerFile.history,
+    historyIndex: containerFile.historyIndex,
+    entries: containerFile.entries,
+    index: containerFile.index,
+    readerSettings,
+  }),
+);
 
 /**
  * Component for displaying images of comics.
  */
 export default function ComicReader() {
-  const dispatch = useDispatch<AppDispatch>();
-  const history = useAppSelector((state) => state.read.containerFile.history);
-  const historyIndex = useAppSelector((state) => state.read.containerFile.historyIndex);
-  const entries = useAppSelector((state) => state.read.containerFile.entries);
-  const index = useAppSelector((state) => state.read.containerFile.index);
-  const isFileLoading = useAppSelector((state) => state.read.containerFile.isLoading);
-  const readerSettings = useAppSelector((state) => state.settings.reader);
+  const dispatch = useAppDispatch();
+  const { history, historyIndex, entries, index, readerSettings } =
+    useAppSelector(selectComicReaderState);
 
   const containerPath = history[historyIndex];
 
@@ -55,23 +62,6 @@ export default function ComicReader() {
       window.removeEventListener("keydown", handleKeydown);
     };
   }, [handleKeydown]);
-
-  // Loading display.
-  if (isFileLoading) {
-    return (
-      <Box
-        sx={{
-          width: "100%",
-          height: "100%",
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-        }}
-      >
-        <CircularProgress />
-      </Box>
-    );
-  }
 
   if (!displayedLayout) {
     return (

@@ -4,10 +4,9 @@ import type { TOCItem } from "foliate-js/epub.js";
 import { Paginator } from "foliate-js/paginator.js";
 import { type Book, makeBook, type View } from "foliate-js/view.js";
 import { useCallback, useEffect, useRef } from "react";
-import { useDispatch } from "react-redux";
 import BundledNotoSerifJP from "../../../assets/fonts/NotoSerifJP-VariableFont_wght.woff2";
 import { useAppTheme } from "../../../hooks/useAppTheme";
-import { type AppDispatch, useAppSelector } from "../../../store/store";
+import { useAppDispatch, useAppSelector } from "../../../store/store";
 import { setEntries, setNovelLocation } from "../slice";
 import { usePageNavigation } from "./usePageNavigation";
 
@@ -55,12 +54,13 @@ export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
   const theme = useAppTheme();
   const viewerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<View | null>(null);
+  const bookRef = useRef<Book | null>(null);
   const index = useAppSelector((state) => state.read.containerFile.index);
   const cfi = useAppSelector((state) => state.read.containerFile.cfi);
   const readingDirection = useAppSelector((state) => state.settings.reader.comic.readingDirection);
   const fontFamily = useAppSelector((state) => state.settings.reader.novel.fontFamily);
   const fontSize = useAppSelector((state) => state.settings.reader.novel.fontSize);
-  const dispatch = useDispatch<AppDispatch>();
+  const dispatch = useAppDispatch();
 
   const onMoveForward = useCallback(() => {
     viewRef.current?.next();
@@ -150,6 +150,14 @@ export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
       viewRef.current?.close();
       viewRef.current?.remove();
       viewRef.current = null;
+      bookRef.current?.destroy?.();
+      bookRef.current = null;
+
+      // Defensive check: only read if the file is an EPUB.
+      if (!filePath.toLowerCase().endsWith(".epub")) {
+        error(`Attempted to load non-EPUB file in NovelReader: ${filePath}`);
+        return;
+      }
 
       const binaryData = await readFile(filePath);
 
@@ -159,6 +167,7 @@ export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
 
       const file = new File([binaryData], filePath, { type: "application/epub+zip" });
       const book = await makeBook(file);
+      bookRef.current = book;
 
       if (!isMounted) {
         book.destroy?.();
@@ -246,6 +255,8 @@ export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
       viewRef.current?.close();
       viewRef.current?.remove();
       viewRef.current = null;
+      bookRef.current?.destroy?.();
+      bookRef.current = null;
     };
   }, [filePath]);
 
