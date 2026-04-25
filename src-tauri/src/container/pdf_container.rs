@@ -11,6 +11,10 @@ use crate::{
 ///
 /// This container treats each page of a PDF document as an entry, which can be
 /// rendered into an image.
+///
+/// NOTE: The underlying `pdfium-render` library's `PdfDocument` type does not implement `Send`,
+/// which prevents us from sharing a single opened document instance across threads using a Mutex.
+/// As a result, this implementation currently opens the PDF for each image request.
 pub struct PdfContainer {
     /// The file path of the PDF container.
     path: String,
