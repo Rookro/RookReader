@@ -2,6 +2,7 @@ use std::{
     fs::File,
     io::{Cursor, Read},
     sync::Arc,
+    sync::Mutex,
 };
 
 use image::{codecs::jpeg::JpegEncoder, ImageReader};
@@ -14,10 +15,10 @@ use crate::{
 
 /// An implementation of the `Container` trait for reading content from ZIP archive files.
 pub struct ZipContainer {
-    /// The file path of the ZIP container.
-    path: String,
     /// A naturally sorted list of image file names found within the archive.
     entries: Vec<String>,
+    /// The ZIP archive, protected by a Mutex for thread-safe access to the underlying file.
+    archive: Mutex<ZipArchive<File>>,
 }
 
 impl Container for ZipContainer {
@@ -26,22 +27,30 @@ impl Container for ZipContainer {
     }
 
     fn get_image(&self, entry: &str) -> Result<Arc<Image>> {
-        let mut buffer = Vec::new();
-        let file = File::open(&self.path)?;
-        let mut archive = ZipArchive::new(file)?;
-        let mut file = archive.by_name(entry)?;
-        file.read_to_end(&mut buffer)?;
+        let buffer = {
+            let mut archive = self.archive.lock().map_err(|e| {
+                crate::error::Error::Other(format!("Failed to lock zip archive: {}", e))
+            })?;
+            let mut file = archive.by_name(entry)?;
+            let mut buf = Vec::with_capacity(file.size() as usize);
+            file.read_to_end(&mut buf)?;
+            buf
+        };
 
         let image = Image::new(buffer)?;
         Ok(Arc::new(image))
     }
 
     fn get_thumbnail(&self, entry: &str) -> Result<Arc<Image>> {
-        let mut buffer = Vec::new();
-        let file = File::open(&self.path)?;
-        let mut archive = ZipArchive::new(file)?;
-        let mut file = archive.by_name(entry)?;
-        file.read_to_end(&mut buffer)?;
+        let buffer = {
+            let mut archive = self.archive.lock().map_err(|e| {
+                crate::error::Error::Other(format!("Failed to lock zip archive: {}", e))
+            })?;
+            let mut file = archive.by_name(entry)?;
+            let mut buf = Vec::with_capacity(file.size() as usize);
+            file.read_to_end(&mut buf)?;
+            buf
+        };
 
         let cursor = Cursor::new(&buffer);
         let image_reader = ImageReader::new(cursor).with_guessed_format()?;
@@ -99,8 +108,8 @@ impl ZipContainer {
         entries.sort_by(|a, b| natord::compare_ignore_case(a, b));
 
         Ok(Self {
-            path: path.to_string(),
             entries,
+            archive: Mutex::new(archive),
         })
     }
 }
