@@ -9,8 +9,8 @@ use std::{
 
 use dashmap::DashMap;
 use image::{codecs::jpeg::JpegEncoder, imageops::FilterType, ImageReader};
-use log::debug;
-use threadpool::ThreadPool;
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use rayon::ThreadPool;
 
 use crate::{
     container::{image::Image, traits::Container},
@@ -23,11 +23,11 @@ type Cache = Arc<DashMap<String, Arc<Image>>>;
 /// Manages loading, caching, and preloading of images from a `Container`.
 ///
 /// This struct handles concurrent image loading in the background, provides a thread-safe
-/// cache, and manages the lifecycle of the preloading thread pool.
+/// cache, and manages the lifecycle of the preloading Rayon thread pool.
 pub struct ImageLoader {
     /// A shared, thread-safe cache for storing loaded images.
     cache: Cache,
-    /// A thread pool dedicated to preloading images in the background.
+    /// A Rayon thread pool dedicated to preloading images in the background.
     thread_pool: ThreadPool,
     /// An atomic flag used to signal cancellation to active preloading threads.
     is_preloading_cancel_requested: Arc<AtomicBool>,
@@ -42,7 +42,7 @@ pub struct ImageLoader {
 impl ImageLoader {
     /// Creates a new `ImageLoader` for a given container.
     ///
-    /// It initializes a thread pool for preloading, using half of the available CPU cores.
+    /// It initializes a Rayon thread pool for preloading, using half of the available CPU cores.
     ///
     /// # Arguments
     ///
@@ -58,10 +58,16 @@ impl ImageLoader {
         max_image_height: u32,
         resize_method: FilterType,
     ) -> Self {
+        let num_threads = max(1, num_cpus::get() / 2);
+        let thread_pool = rayon::ThreadPoolBuilder::new()
+            .num_threads(num_threads)
+            .thread_name(|i| format!("image-loader-{}", i))
+            .build()
+            .unwrap();
+
         Self {
             cache: Arc::new(DashMap::with_capacity(container.get_entries().len())),
-            // Use half of the available CPU cores for preloading.
-            thread_pool: ThreadPool::new(max(1, num_cpus::get() / 2)),
+            thread_pool,
             is_preloading_cancel_requested: Arc::new(AtomicBool::new(false)),
             container,
             max_image_height,
@@ -146,11 +152,11 @@ impl ImageLoader {
         Ok(Some(thumbnail))
     }
 
-    /// Submits a request to preload a range of images in the background.
+    /// Submits a request to preload a range of images in the background using Rayon.
     ///
     /// This function cancels any ongoing preloading tasks and starts a new one for the
     /// specified range. It returns immediately, and the preloading occurs on a
-    /// background thread pool.
+    /// background Rayon thread pool.
     ///
     /// # Arguments
     ///
@@ -169,26 +175,30 @@ impl ImageLoader {
         self.is_preloading_cancel_requested = Arc::new(AtomicBool::new(false));
         let is_cancel_requested = self.is_preloading_cancel_requested.clone();
 
-        let entries_to_preload = entries[begin_index..end].to_vec();
+        let entries_to_preload: Vec<String> = entries[begin_index..end]
+            .iter()
+            .filter(|&entry| !self.cache.contains_key(entry))
+            .cloned()
+            .collect();
 
-        for entry in entries_to_preload {
-            let is_cached = self.cache.contains_key(&entry);
-            if is_cached {
-                continue;
-            }
+        if entries_to_preload.is_empty() {
+            return Ok(());
+        }
 
-            let container = self.container.clone();
-            let cache_clone = self.cache.clone();
-            let is_cancel_requested = is_cancel_requested.clone();
-            let max_image_height = self.max_image_height;
-            let resize_method = self.resize_method;
+        let container = self.container.clone();
+        let cache_clone = self.cache.clone();
+        let max_image_height = self.max_image_height;
+        let resize_method = self.resize_method;
 
-            self.thread_pool.execute(move || {
+        // Execute preloading in the Rayon thread pool.
+        // Tasks are distributed across threads using Rayon's work-stealing scheduler.
+        self.thread_pool.spawn(move || {
+            entries_to_preload.into_par_iter().for_each(|entry| {
                 if is_cancel_requested.load(Ordering::Relaxed) {
                     return;
                 }
 
-                match load_image(&entry, container, max_image_height, resize_method) {
+                match load_image(&entry, container.clone(), max_image_height, resize_method) {
                     Ok(image) => {
                         log::debug!("Preloaded: {}", entry);
                         cache_clone.insert(entry, image);
@@ -198,7 +208,7 @@ impl ImageLoader {
                     }
                 }
             });
-        }
+        });
 
         Ok(())
     }
@@ -213,6 +223,12 @@ impl ImageLoader {
     }
 }
 
+impl Drop for ImageLoader {
+    fn drop(&mut self) {
+        self.cancel_preload();
+    }
+}
+
 /// Helper function to load an image from a container and resize it if necessary.
 fn load_image(
     entry: &str,
@@ -223,10 +239,6 @@ fn load_image(
     let image = container.get_image(entry)?;
 
     if max_image_height > 0 && image.height > max_image_height {
-        debug!(
-            "Resizing image: {}. (image height: {} -> {}, resize method: {:?})",
-            entry, image.height, max_image_height, resize_method
-        );
         let scaled_image = resize_image(image, max_image_height, resize_method)?;
         Ok(scaled_image)
     } else {
@@ -235,6 +247,12 @@ fn load_image(
 }
 
 /// Helper function to resize an image and re-encode it as a JPEG.
+///
+/// # Arguments
+///
+/// * `image` - A shared pointer to the original `Image`.
+/// * `height` - The target height for the resized image.
+/// * `resize_method` - The algorithm to use for resizing.
 fn resize_image(image: Arc<Image>, height: u32, resize_method: FilterType) -> Result<Arc<Image>> {
     let cursor = Cursor::new(&image.data);
     let image_reader = ImageReader::new(cursor).with_guessed_format()?;
@@ -251,12 +269,4 @@ fn resize_image(image: Arc<Image>, height: u32, resize_method: FilterType) -> Re
         width: scaled_image.width(),
         height: scaled_image.height(),
     }))
-}
-
-impl Drop for ImageLoader {
-    fn drop(&mut self) {
-        // Requests preloading cancel and waits for all threads to finish.
-        self.cancel_preload();
-        self.thread_pool.join();
-    }
 }
