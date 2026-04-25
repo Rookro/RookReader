@@ -58,7 +58,9 @@ impl ImageLoader {
         max_image_height: u32,
         resize_method: FilterType,
     ) -> Self {
-        let num_threads = max(1, num_cpus::get() / 2);
+        let default_parallelism =
+            std::thread::available_parallelism().map_or(1, std::num::NonZeroUsize::get);
+        let num_threads = max(1, default_parallelism / 2);
         let thread_pool = rayon::ThreadPoolBuilder::new()
             .num_threads(num_threads)
             .thread_name(|i| format!("image-loader-{}", i))
