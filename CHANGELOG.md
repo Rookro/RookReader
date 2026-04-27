@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+* Faster file loading and smoother page-turning for an improved reading experience (#193)
+
 ## [2.0.3] - 2026-04-24
 
 ### Changed
