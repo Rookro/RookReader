@@ -29,6 +29,7 @@ vi.mock("../../bindings/BookshelfCommand", () => ({
 
 vi.mock("../../bindings/ContainerCommands", () => ({
   getEntriesInContainer: vi.fn(() => Promise.resolve([])),
+  requestPreloadAround: vi.fn(() => Promise.resolve()),
   getImage: vi.fn(() => Promise.resolve([])),
   getImagePreview: vi.fn(() => Promise.resolve([])),
   setPdfRenderResolutionHeight: vi.fn(() => Promise.resolve([])),

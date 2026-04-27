@@ -2,7 +2,11 @@ import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import { basename, dirname } from "@tauri-apps/api/path";
 import { debug, error, info } from "@tauri-apps/plugin-log";
 import { getBookWithStateById, upsertReadBook } from "../../bindings/BookCommands";
-import { determineEpubNovel, getEntriesInContainer } from "../../bindings/ContainerCommands";
+import {
+  determineEpubNovel,
+  getEntriesInContainer,
+  requestPreloadAround,
+} from "../../bindings/ContainerCommands";
 import { getEntriesInDir as getEntriesInDirFromBackend } from "../../bindings/DirectoryCommands";
 import { createAppAsyncThunk } from "../../types/CustomAsyncThunk";
 import type { BookWithState } from "../../types/DatabaseModels";
@@ -28,9 +32,22 @@ export const openContainerFile = createAppAsyncThunk(
     try {
       const isEpubNovel = await determineEpubNovel(path);
 
+      const bookByPath = await getBookWithStateById(
+        await upsertReadBook({
+          filePath: path,
+          itemType: "file", // Temporary, will be updated below
+          totalPages: 0,
+          displayName: await basename(path),
+        }),
+      );
+      const startIndex = bookByPath?.last_read_page_index ?? 0;
+
       let entriesResult: { entries: string[]; is_directory: boolean } | undefined;
       if (!isEpubNovel) {
-        entriesResult = await getEntriesInContainer(path, true);
+        entriesResult = await getEntriesInContainer(path);
+        requestPreloadAround(startIndex, entriesResult.entries.length).catch((e) => {
+          console.error("Failed to request preload:", e);
+        });
         debug(
           `openContainerFile: Retrieved ${entriesResult.entries.length} entries. (Container is directory: ${entriesResult.is_directory})`,
         );

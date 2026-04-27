@@ -12,10 +12,9 @@ describe("ContainerCommands", () => {
 
   it("getEntriesInContainer should call invoke", async () => {
     vi.mocked(invoke).mockResolvedValue({ entries: ["1.jpg"], is_directory: false });
-    await ContainerCommands.getEntriesInContainer("path", true);
+    await ContainerCommands.getEntriesInContainer("path");
     expect(invoke).toHaveBeenCalledWith("get_entries_in_container", {
       path: "path",
-      enablePreload: true,
     });
   });
 

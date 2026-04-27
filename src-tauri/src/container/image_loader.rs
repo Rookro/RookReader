@@ -154,38 +154,59 @@ impl ImageLoader {
         Ok(Some(thumbnail))
     }
 
-    /// Submits a request to preload a range of images in the background using Rayon.
+    /// Submits a request to preload images around a specific index.
     ///
-    /// This function cancels any ongoing preloading tasks and starts a new one for the
-    /// specified range. It returns immediately, and the preloading occurs on a
-    /// background Rayon thread pool.
+    /// It prioritizes pages closer to the `center_index` and those in the likely
+    /// reading direction (forward).
     ///
     /// # Arguments
     ///
-    /// * `begin_index` - The starting index in the container's entry list to preload from.
-    /// * `count` - The number of images to preload from the `begin_index`.
-    pub fn request_preload(&mut self, begin_index: usize, count: usize) -> Result<()> {
+    /// * `center_index` - The current page index around which to preload.
+    /// * `buffer_size` - How many pages to preload in each direction.
+    pub fn request_preload_around(
+        &mut self,
+        center_index: usize,
+        buffer_size: usize,
+    ) -> Result<()> {
         let entries = self.container.get_entries();
         let total_pages = entries.len();
-        let end = (begin_index + count).min(total_pages);
 
-        if begin_index >= end {
+        if total_pages == 0 {
             return Ok(());
         }
+
+        let start = center_index.saturating_sub(buffer_size);
+        let end = (center_index + buffer_size + 1).min(total_pages);
 
         self.cancel_preload();
         self.is_preloading_cancel_requested = Arc::new(AtomicBool::new(false));
         let is_cancel_requested = self.is_preloading_cancel_requested.clone();
 
-        let entries_to_preload: Vec<String> = entries[begin_index..end]
-            .iter()
-            .filter(|&entry| !self.cache.contains_key(entry))
-            .cloned()
+        // Generate target indices and sort them by priority:
+        // 1. Distance from center (closer = higher priority)
+        // 2. Future pages get slight preference over past pages
+        let mut target_indices: Vec<usize> = (start..end)
+            .filter(|&i| !self.cache.contains_key(&entries[i]))
             .collect();
 
-        if entries_to_preload.is_empty() {
+        target_indices.sort_by_key(|&i| {
+            let dist = (i as isize - center_index as isize).abs();
+            // Give slight preference to future pages by making their "sort distance" smaller
+            if i >= center_index {
+                dist * 2
+            } else {
+                dist * 2 + 1
+            }
+        });
+
+        if target_indices.is_empty() {
             return Ok(());
         }
+
+        let entries_to_preload: Vec<String> = target_indices
+            .into_iter()
+            .map(|i| entries[i].clone())
+            .collect();
 
         let container = self.container.clone();
         let cache_clone = self.cache.clone();
@@ -193,7 +214,6 @@ impl ImageLoader {
         let resize_method = self.resize_method;
 
         // Execute preloading in the Rayon thread pool.
-        // Tasks are distributed across threads using Rayon's work-stealing scheduler.
         self.thread_pool.spawn(move || {
             entries_to_preload.into_par_iter().for_each(|entry| {
                 if is_cancel_requested.load(Ordering::Relaxed) {
@@ -227,11 +247,21 @@ impl ImageLoader {
 
 impl Drop for ImageLoader {
     fn drop(&mut self) {
+        // Requests preloading cancel when the ImageLoader is dropped.
+        // Rayon's ThreadPool will naturally wait for its threads to finish upon being dropped,
+        // but signaling cancellation helps them stop sooner.
         self.cancel_preload();
     }
 }
 
 /// Helper function to load an image from a container and resize it if necessary.
+///
+/// # Arguments
+///
+/// * `entry` - The name of the image entry to load.
+/// * `container` - A shared reference to the container.
+/// * `max_image_height` - The maximum height for the image.
+/// * `resize_method` - The algorithm to use for resizing.
 fn load_image(
     entry: &str,
     container: Arc<dyn Container>,
