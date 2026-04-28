@@ -11,25 +11,13 @@ import {
   Tooltip,
 } from "@mui/material";
 import { convertFileSrc } from "@tauri-apps/api/core";
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 import type { CellComponentProps } from "react-window";
 import dummy_thumbnail from "../../../assets/dummy_thumbnail.svg";
 import AutoScrollTypography from "../../../components/ui/AutoScrollTypography/AutoScrollTypography";
 import type { BookWithState, Tag } from "../../../types/DatabaseModels";
 
-/** A component to display a single book card. */
-export default function BookCard({
-  books,
-  tags,
-  columnCount,
-  selectedBookIds,
-  onBookClick,
-  onBookContextMenu,
-  columnIndex,
-  rowIndex,
-  size,
-  style,
-}: CellComponentProps<{
+export interface BookCardProps {
   /** The list of books to display */
   books: BookWithState[];
   /** The list of tags to display */
@@ -44,7 +32,21 @@ export default function BookCard({
   onBookClick?: (book: BookWithState, event: React.MouseEvent) => void;
   /** Callback for when a book is context menu */
   onBookContextMenu?: (book: BookWithState, event: React.MouseEvent) => void;
-}>) {
+}
+
+/** A component to display a single book card. */
+function BookCardInner({
+  books,
+  tags,
+  columnCount,
+  selectedBookIds,
+  onBookClick,
+  onBookContextMenu,
+  columnIndex,
+  rowIndex,
+  size,
+  style,
+}: CellComponentProps<BookCardProps>) {
   const index = rowIndex * columnCount + columnIndex;
   const book = books[index];
 
@@ -184,4 +186,58 @@ export default function BookCard({
       </Tooltip>
     </Box>
   );
+}
+
+function areEqual(
+  prevProps: Readonly<CellComponentProps<BookCardProps>>,
+  nextProps: Readonly<CellComponentProps<BookCardProps>>,
+) {
+  // Basic structural checks
+  if (
+    prevProps.columnIndex !== nextProps.columnIndex ||
+    prevProps.rowIndex !== nextProps.rowIndex ||
+    prevProps.columnCount !== nextProps.columnCount ||
+    prevProps.size !== nextProps.size ||
+    prevProps.tags !== nextProps.tags
+  ) {
+    return false;
+  }
+
+  // Book specific checks
+  const index = prevProps.rowIndex * prevProps.columnCount + prevProps.columnIndex;
+  const prevBook = prevProps.books[index];
+  const nextBook = nextProps.books[index];
+
+  if (prevBook !== nextBook) {
+    return false;
+  }
+
+  // Selection state check for THIS specific book
+  const bookId = prevBook?.id ?? -1;
+  const prevIsSelected = prevProps.selectedBookIds.has(bookId);
+  const nextIsSelected = nextProps.selectedBookIds.has(bookId);
+
+  if (prevIsSelected !== nextIsSelected) {
+    return false;
+  }
+
+  // Style prop check for react-window
+  if (prevProps.style !== nextProps.style) {
+    if (
+      prevProps.style.top !== nextProps.style.top ||
+      prevProps.style.left !== nextProps.style.left ||
+      prevProps.style.width !== nextProps.style.width ||
+      prevProps.style.height !== nextProps.style.height
+    ) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+const MemoizedBookCard = memo(BookCardInner, areEqual);
+
+export default function BookCard(props: CellComponentProps<BookCardProps>) {
+  return <MemoizedBookCard {...props} />;
 }
