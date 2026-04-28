@@ -33,6 +33,10 @@
     "collection": {
       "title": "Collections",
       "all-books": "All Books",
+      "add-books-title": "Add to Collection(s)",
+      "no-collections-available": "No collections available.",
+      "ok-button": "ok",
+      "cancel-button": "cancel",
       "creation": {
         "title": "Create a Collection",
         "name-placeholder": "Collection name",
@@ -83,8 +87,13 @@
     "book-deletion": {
       "title": "Are you sure you want to delete this book?",
       "description": "You are about to delete <bold>\"{{bookName}}\"</bold> from <bold>\"{{bookshelfName}}\"</bold>. This action cannot be undone.",
+      "description-multiple": "You are about to delete <bold>{{count}} books</bold> from <bold>\"{{bookshelfName}}\"</bold>. This action cannot be undone.",
       "cancel-button": "cancel",
       "delete-button": "delete"
+    },
+    "selection": {
+      "count": "{{count}} selected",
+      "clear": "Clear selection"
     },
     "sort": {
       "title": "Sort by",

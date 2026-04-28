@@ -1,3 +1,4 @@
+import { CheckCircle } from "@mui/icons-material";
 import {
   Box,
   Card,
@@ -21,7 +22,8 @@ export default function BookCard({
   books,
   tags,
   columnCount,
-  onBookSelect,
+  selectedBookIds,
+  onBookClick,
   onBookContextMenu,
   columnIndex,
   rowIndex,
@@ -36,8 +38,10 @@ export default function BookCard({
   size: "small" | "medium";
   /** The number of columns in the bookshelf */
   columnCount: number;
-  /** Callback for when a book is selected */
-  onBookSelect?: (book: BookWithState) => void;
+  /** Set of selected book IDs */
+  selectedBookIds: Set<number>;
+  /** Callback for when a book is selected/clicked */
+  onBookClick?: (book: BookWithState, event: React.MouseEvent) => void;
   /** Callback for when a book is context menu */
   onBookContextMenu?: (book: BookWithState, event: React.MouseEvent) => void;
 }>) {
@@ -60,6 +64,8 @@ export default function BookCard({
     return null;
   }
 
+  const isSelected = selectedBookIds.has(book.id);
+
   return (
     <Box
       key={`${book.id}-${book.tag_ids_str}`}
@@ -74,10 +80,26 @@ export default function BookCard({
             width: "100%",
             height: "100%",
             bgcolor: "primary.paper",
+            outline: isSelected ? "3px solid" : "none",
+            outlineColor: "primary.main",
+            position: "relative",
           }}
         >
+          {isSelected && (
+            <CheckCircle
+              color="primary"
+              sx={{
+                position: "absolute",
+                top: 8,
+                right: 8,
+                zIndex: 1,
+                backgroundColor: "background.paper",
+                borderRadius: "50%",
+              }}
+            />
+          )}
           <CardActionArea
-            onClick={() => onBookSelect?.(book)}
+            onClick={(e) => onBookClick?.(book, e)}
             onContextMenu={(e) => {
               e.preventDefault();
               onBookContextMenu?.(book, e);
@@ -106,6 +128,7 @@ export default function BookCard({
                     height: "100%",
                     objectPosition: "center center",
                     objectFit: "contain",
+                    opacity: isSelected ? 0.8 : 1,
                   }}
                 />
                 {bookTags.length > 0 && (

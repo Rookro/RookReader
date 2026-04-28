@@ -66,7 +66,7 @@ impl BookshelfRepository for SqliteBookshelfRepository {
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(
             r#"
-            INSERT INTO bookshelf_items (bookshelf_id, book_id)
+            INSERT OR IGNORE INTO bookshelf_items (bookshelf_id, book_id)
             VALUES (?, ?)
             "#,
             bookshelf_id,

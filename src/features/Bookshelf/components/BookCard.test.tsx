@@ -28,16 +28,11 @@ describe("BookCard", () => {
     columnCount: 1,
     columnIndex: 0,
     rowIndex: 0,
+    selectedBookIds: new Set<number>(),
+    onBookClick: vi.fn(),
+    onBookContextMenu: vi.fn(),
     size: "medium" as const,
     style: {},
-    data: {
-      books: [mockBook],
-      tags: mockTags,
-      size: "medium" as const,
-      columnCount: 1,
-      onBookSelect: vi.fn(),
-      onBookContextMenu: vi.fn(),
-    },
     index: 0,
     isScrolling: false,
     ariaAttributes: {
@@ -64,15 +59,15 @@ describe("BookCard", () => {
     expect(screen.getByText("Tag2")).toBeInTheDocument();
   });
 
-  // Verify that onBookSelect callback is called correctly when the card is clicked
-  it("should call onBookSelect when clicked", async () => {
-    const onBookSelect = vi.fn();
-    renderWithProviders(<BookCard {...defaultProps} onBookSelect={onBookSelect} />);
+  // Verify that onBookClick callback is called correctly when the card is clicked
+  it("should call onBookClick when clicked", async () => {
+    const onBookClick = vi.fn();
+    renderWithProviders(<BookCard {...defaultProps} onBookClick={onBookClick} />);
 
     const actionArea = screen.getByRole("button");
     await user.click(actionArea);
 
-    expect(onBookSelect).toHaveBeenCalledWith(mockBook);
+    expect(onBookClick).toHaveBeenCalledWith(mockBook, expect.anything());
   });
 
   // Verify that the callback for displaying the context menu is called correctly when the card is right-clicked
@@ -115,5 +110,21 @@ describe("BookCard", () => {
     renderWithProviders(<BookCard {...defaultProps} books={[bookWithoutTags]} tags={[]} />);
 
     expect(screen.queryByRole("chip")).not.toBeInTheDocument();
+  });
+
+  // New Test: Check if selected visual indicator is displayed
+  it("should display a checkmark and outline when selected", () => {
+    const selectedBookIds = new Set([mockBook.id]);
+    renderWithProviders(<BookCard {...defaultProps} selectedBookIds={selectedBookIds} />);
+
+    // Check if CheckCircle icon is rendered (it has data-testid="CheckCircleIcon" by MUI)
+    expect(screen.getByTestId("CheckCircleIcon")).toBeInTheDocument();
+  });
+
+  // New Test: Check if visual indicator is NOT displayed when not selected
+  it("should not display a checkmark when not selected", () => {
+    renderWithProviders(<BookCard {...defaultProps} />);
+
+    expect(screen.queryByTestId("CheckCircleIcon")).not.toBeInTheDocument();
   });
 });

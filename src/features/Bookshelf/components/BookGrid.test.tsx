@@ -193,6 +193,29 @@ describe("BookGrid", () => {
     });
   });
 
+  it("should open Add to Collection dialog from context menu", async () => {
+    renderWithProviders(<BookGrid />, { preloadedState: defaultPreloadedState });
+    forceResize(1000);
+
+    const bookCell = await screen.findByTestId("book-cell-0");
+    await user.pointer({ keys: "[MouseRight]", target: bookCell });
+
+    const addToCollectionItem = await screen.findByText(/Add to Collection|コレクションに追加/i);
+    await user.click(addToCollectionItem);
+
+    // The title of the dialog is "Add to Collection(s)" or "コレクションに追加"
+    const dialogTitle = await screen.findAllByText(/Add to Collection|コレクションに追加/i);
+    expect(dialogTitle.length).toBeGreaterThan(0);
+
+    // Close dialog
+    const cancelButton = screen.getByRole("button", { name: /cancel|キャンセル/i });
+    await user.click(cancelButton);
+    await waitFor(() => {
+      // Find dialog specifically to make sure it's gone. Using queryByRole dialog is safer.
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+  });
+
   it("should open Delete Book dialog from context menu", async () => {
     renderWithProviders(<BookGrid />, { preloadedState: defaultPreloadedState });
     forceResize(1000);
@@ -253,5 +276,124 @@ describe("BookGrid", () => {
     });
     unmount();
     expect(mockDisconnect).toHaveBeenCalled();
+  });
+
+  describe("Multiple Selection", () => {
+    it("should toggle selection when Ctrl-clicking a book", async () => {
+      renderWithProviders(<BookGrid />, { preloadedState: defaultPreloadedState });
+      forceResize(1000);
+
+      await waitFor(() => {
+        expect(screen.getByText("Book 1")).toBeInTheDocument();
+      });
+
+      // Initially action bar should not be visible
+      expect(screen.queryByText(/1 selected/i)).not.toBeInTheDocument();
+
+      const book1Cell = await screen.findByText("Book 1");
+      const book1Button = book1Cell.closest("button");
+      assert(book1Button, "book1Button should be found");
+
+      // Ctrl+click
+      await user.keyboard("[ControlLeft>]");
+      await user.click(book1Button);
+      await user.keyboard("[/ControlLeft]");
+
+      // Action bar should appear with count 1
+      expect(await screen.findByText(/1 selected/i)).toBeInTheDocument();
+
+      const book2Cell = await screen.findByText("Book 2");
+      const book2Button = book2Cell.closest("button");
+      assert(book2Button, "book2Button should be found");
+
+      // Ctrl+click second book
+      await user.keyboard("[ControlLeft>]");
+      await user.click(book2Button);
+      await user.keyboard("[/ControlLeft]");
+
+      // Count should be 2
+      expect(await screen.findByText(/2 selected/i)).toBeInTheDocument();
+
+      // Ctrl+click first book again to deselect
+      await user.keyboard("[ControlLeft>]");
+      await user.click(book1Button);
+      await user.keyboard("[/ControlLeft]");
+
+      // Count should be 1
+      expect(await screen.findByText(/1 selected/i)).toBeInTheDocument();
+    });
+
+    it("should select range when Shift-clicking books", async () => {
+      renderWithProviders(<BookGrid />, { preloadedState: defaultPreloadedState });
+      forceResize(1000);
+
+      await waitFor(() => {
+        expect(screen.getByText("Book 1")).toBeInTheDocument();
+      });
+
+      const book1Button = (await screen.findByText("Book 1")).closest("button");
+      const book2Button = (await screen.findByText("Book 2")).closest("button");
+      assert(book1Button, "book1Button should be found");
+      assert(book2Button, "book2Button should be found");
+
+      // Ctrl+click first book
+      await user.keyboard("[ControlLeft>]");
+      await user.click(book1Button);
+      await user.keyboard("[/ControlLeft]");
+
+      // Shift+click second book
+      await user.keyboard("[ShiftLeft>]");
+      await user.click(book2Button);
+      await user.keyboard("[/ShiftLeft]");
+
+      // Action bar should show 2 selected
+      expect(await screen.findByText(/2 selected/i)).toBeInTheDocument();
+    });
+
+    it("should open Delete Book dialog for multiple selections", async () => {
+      renderWithProviders(<BookGrid />, { preloadedState: defaultPreloadedState });
+      forceResize(1000);
+
+      const book1Button = (await screen.findByText("Book 1")).closest("button");
+      const book2Button = (await screen.findByText("Book 2")).closest("button");
+      assert(book1Button, "book1Button should be found");
+      assert(book2Button, "book2Button should be found");
+
+      // Ctrl+click both books
+      await user.keyboard("[ControlLeft>]");
+      await user.click(book1Button);
+      await user.click(book2Button);
+      await user.keyboard("[/ControlLeft]");
+
+      // Click remove button in action bar
+      const removeButton = await screen.findByRole("button", { name: /Remove book/i });
+      await user.click(removeButton);
+
+      // Dialog should show up saying "2 books"
+      expect(await screen.findByText(/2 books/i)).toBeInTheDocument();
+    });
+
+    it("should clear selection when Clear button is clicked", async () => {
+      renderWithProviders(<BookGrid />, { preloadedState: defaultPreloadedState });
+      forceResize(1000);
+
+      const book1Button = (await screen.findByText("Book 1")).closest("button");
+      assert(book1Button, "book1Button should be found");
+
+      // Ctrl+click to select
+      await user.keyboard("[ControlLeft>]");
+      await user.click(book1Button);
+      await user.keyboard("[/ControlLeft]");
+      expect(await screen.findByText(/1 selected/i)).toBeInTheDocument();
+
+      // Click clear selection button
+      const clearButton = await screen.findByTitle(/Clear selection/i);
+      await user.click(clearButton);
+
+      // Action bar should disappear
+      await waitFor(() => {
+        expect(screen.queryByText(/1 selected/i)).not.toBeInTheDocument();
+      });
+    });
   });
 });
