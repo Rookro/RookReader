@@ -200,6 +200,8 @@ pub struct ComicSettings {
     /// Whether to force the first page (cover) to display as a single page in spread mode.
     #[serde(default = "default_true")]
     pub show_cover_as_single_page: bool,
+    /// Configuration for the Loupe (Magnifier) feature.
+    pub loupe: LoupeSettings,
 }
 
 impl Default for ComicSettings {
@@ -208,8 +210,46 @@ impl Default for ComicSettings {
             reading_direction: Direction::default(),
             enable_spread: default_true(),
             show_cover_as_single_page: default_true(),
+            loupe: LoupeSettings::default(),
         }
     }
+}
+
+/// Configuration for the Loupe (Magnifier) feature.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct LoupeSettings {
+    /// The magnification zoom level of the loupe.
+    #[serde(default = "default_loupe_zoom")]
+    pub zoom: f32,
+    /// The radius (size) of the loupe.
+    #[serde(default = "default_loupe_radius")]
+    pub radius: f32,
+    /// The keyboard shortcut key to toggle the loupe.
+    #[serde(default = "default_loupe_toggle_key")]
+    pub toggle_key: String,
+}
+
+impl Default for LoupeSettings {
+    fn default() -> Self {
+        Self {
+            zoom: default_loupe_zoom(),
+            radius: default_loupe_radius(),
+            toggle_key: default_loupe_toggle_key(),
+        }
+    }
+}
+
+fn default_loupe_zoom() -> f32 {
+    2.0
+}
+
+fn default_loupe_radius() -> f32 {
+    200.0
+}
+
+fn default_loupe_toggle_key() -> String {
+    "MouseMiddle".to_string()
 }
 
 /// Configuration specific to reading novels (text-based content).
@@ -386,6 +426,9 @@ mod tests {
         // Check static defaults
         assert!(matches!(settings.general.theme, AppTheme::System));
         assert!(settings.reader.comic.enable_spread);
+        assert_eq!(settings.reader.comic.loupe.zoom, 2.0);
+        assert_eq!(settings.reader.comic.loupe.radius, 200.0);
+        assert_eq!(settings.reader.comic.loupe.toggle_key, "MouseMiddle");
     }
 
     #[test]
@@ -393,7 +436,7 @@ mod tests {
         let provider = MockProvider {
             mock_json: json!({
                 "general": { "theme": "dark" },
-                "reader": { "comic": { "enableSpread": false } }
+                "reader": { "comic": { "enableSpread": false, "loupe": { "zoom": 3.0, "toggleKey": "Alt+l" } } }
             }),
         };
         let settings = AppSettings::load_from_provider(&provider).unwrap();
@@ -401,8 +444,11 @@ mod tests {
         // Provided values should be parsed correctly
         assert!(matches!(settings.general.theme, AppTheme::Dark));
         assert!(!settings.reader.comic.enable_spread);
+        assert_eq!(settings.reader.comic.loupe.zoom, 3.0);
+        assert_eq!(settings.reader.comic.loupe.toggle_key, "Alt+l");
 
         // Omitted values should fall back to defaults safely
         assert!(matches!(settings.startup.initial_view, InitialView::Reader));
+        assert_eq!(settings.reader.comic.loupe.radius, 200.0);
     }
 }

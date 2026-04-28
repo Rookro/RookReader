@@ -2,9 +2,11 @@ import { Box } from "@mui/material";
 import { createSelector } from "@reduxjs/toolkit";
 import { useEffect, useMemo } from "react";
 import { type RootState, useAppDispatch, useAppSelector } from "../../../store/store";
+import { useLoupe } from "../hooks/useLoupe";
 import { usePageNavigation } from "../hooks/usePageNavigation";
 import { useViewerController } from "../hooks/useViewerController";
 import type { ViewerSettings } from "../utils/ImageUtils";
+import Loupe from "./Loupe";
 
 const selectComicReaderState = createSelector(
   [(state: RootState) => state.read.containerFile, (state: RootState) => state.settings.reader],
@@ -50,10 +52,16 @@ export default function ComicReader() {
     dispatch,
   );
 
+  const loupeSettings = readerSettings.comic.loupe;
+
   const { handleClicked, handleContextMenu, handleWheeled, handleKeydown } = usePageNavigation(
     moveForward,
     moveBack,
     settings.direction,
+  );
+
+  const { isLoupeEnabled, loupePos, containerRef, handleMouseMove, handleMouseDown } = useLoupe(
+    loupeSettings?.toggleKey,
   );
 
   useEffect(() => {
@@ -90,51 +98,63 @@ export default function ComicReader() {
       onClick={handleClicked}
       onContextMenu={handleContextMenu}
       onWheel={handleWheeled}
+      onMouseMove={handleMouseMove}
+      onMouseDown={handleMouseDown}
+      ref={containerRef}
       data-testid="comic-reader-area"
       sx={{
         width: "100%",
         height: "100%",
-        display: "flex",
       }}
     >
-      {displayedLayout.isSpread ? (
-        <>
-          <Box
-            component="img"
-            src={srcLeft}
-            alt="Left Page"
-            sx={{
-              width: "50%",
-              height: "100%",
-              objectPosition: "right center",
-              objectFit: "contain",
-            }}
-          />
-          <Box
-            component="img"
-            src={srcRight}
-            alt="Right Page"
-            sx={{
-              width: "50%",
-              height: "100%",
-              objectPosition: "left center",
-              objectFit: "contain",
-            }}
-          />
-        </>
-      ) : (
-        <Box
-          component="img"
-          src={srcSingle}
-          alt="Single Page"
-          sx={{
-            width: "100%",
-            height: "100%",
-            objectPosition: "center center",
-            objectFit: "contain",
-          }}
-        />
-      )}
+      <Loupe
+        isLoupeEnabled={isLoupeEnabled}
+        loupePos={loupePos}
+        containerRef={containerRef}
+        zoom={loupeSettings?.zoom}
+        radius={loupeSettings?.radius}
+      >
+        <Box sx={{ display: "flex", width: "100%", height: "100%" }}>
+          {displayedLayout.isSpread ? (
+            <>
+              <Box
+                component="img"
+                src={srcLeft}
+                alt="Left Page"
+                sx={{
+                  width: "50%",
+                  height: "100%",
+                  objectPosition: "right center",
+                  objectFit: "contain",
+                }}
+              />
+              <Box
+                component="img"
+                src={srcRight}
+                alt="Right Page"
+                sx={{
+                  width: "50%",
+                  height: "100%",
+                  objectPosition: "left center",
+                  objectFit: "contain",
+                }}
+              />
+            </>
+          ) : (
+            <Box
+              component="img"
+              src={srcSingle}
+              alt="Single Page"
+              sx={{
+                width: "100%",
+                height: "100%",
+                objectPosition: "center center",
+                objectFit: "contain",
+              }}
+            />
+          )}
+        </Box>
+      </Loupe>
     </Box>
   );
 }

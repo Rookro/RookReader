@@ -35,6 +35,11 @@ export const defaultSettings: AppSettings = {
       readingDirection: "rtl",
       enableSpread: true,
       showCoverAsSinglePage: true,
+      loupe: {
+        zoom: 2,
+        radius: 200,
+        toggleKey: "MouseMiddle",
+      },
     },
     novel: {
       fontFamily: "default-font",

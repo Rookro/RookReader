@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+// import { requestPreloadAround } from "../../../bindings/ContainerCommands";
 import type { AppDispatch } from "../../../store/store";
 import { setImageIndex } from "../slice";
 import {
@@ -60,6 +61,15 @@ export const useViewerController = (
     cacheRef.current.clear();
     abortControllerRef.current?.abort();
   }, [containerPath]);
+
+  // Request background preloading around the current index
+  // useEffect(() => {
+  //   if (entries.length > 0) {
+  //     requestPreloadAround(index).catch((e) => {
+  //       console.error("Failed to request preload:", e);
+  //     });
+  //   }
+  // }, [index, entries.length]);
 
   // Loads the missing images and updates the layout.
   useEffect(() => {

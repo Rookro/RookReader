@@ -136,6 +136,19 @@
       "title": "Page Settings",
       "first-page": {
         "title": "Show the initial page in single-page view"
+      },
+      "loupe": {
+        "title": "Loupe Settings",
+        "description": "Settings for the magnifier tool. Toggle it using the configured key or mouse button.",
+        "toggle-key": "Toggle Key",
+        "toggle-key-description": "The keyboard key or mouse button used to toggle the loupe.",
+        "zoom": "Zoom Level",
+        "zoom-description": "The magnification level of the loupe.",
+        "radius": "Radius",
+        "radius-description": "The size of the loupe in pixels.",
+        "mouse-middle": "Mouse Middle Button",
+        "mouse-back": "Mouse Back Button",
+        "mouse-forward": "Mouse Forward Button"
       }
     },
     "file-navigator": {
