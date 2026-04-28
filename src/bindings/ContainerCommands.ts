@@ -9,10 +9,27 @@ import { createCommandError } from "../types/Error";
  */
 export const getEntriesInContainer = async (
   path: string,
-  enablePreload: boolean | undefined = undefined,
 ): Promise<{ entries: string[]; is_directory: boolean }> => {
   try {
-    return await invoke("get_entries_in_container", { path, enablePreload });
+    return await invoke("get_entries_in_container", { path });
+  } catch (error) {
+    throw createCommandError(error);
+  }
+};
+
+/**
+ * Requests preloading of images around a specific index in the backend.
+ *
+ * @param index The current page index around which to preload.
+ * @param bufferSize How many pages to preload in each direction.
+ * @returns A promise that resolves when the request is submitted.
+ */
+export const requestPreloadAround = async (
+  index: number,
+  bufferSize: number | undefined = undefined,
+): Promise<void> => {
+  try {
+    return await invoke("request_preload_around", { index, bufferSize });
   } catch (error) {
     throw createCommandError(error);
   }

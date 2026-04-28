@@ -37,6 +37,7 @@ pub fn run() {
             commands::directory_commands::get_entries_in_dir,
             commands::container_commands::get_image,
             commands::container_commands::get_image_preview,
+            commands::container_commands::request_preload_around,
             commands::container_commands::get_entries_in_container,
             commands::container_commands::set_pdf_render_resolution_height,
             commands::container_commands::set_max_image_height,

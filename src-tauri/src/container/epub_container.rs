@@ -1,4 +1,9 @@
-use std::{collections::HashMap, io::Cursor, path::Path, sync::Arc};
+use std::{
+    collections::HashMap,
+    io::Cursor,
+    path::Path,
+    sync::{Arc, Mutex},
+};
 
 use image::{codecs::jpeg::JpegEncoder, ImageReader};
 use rbook::Epub;
@@ -11,11 +16,11 @@ use crate::{
 
 /// An implementation of the `Container` trait for reading content from EPUB files.
 pub struct EpubContainer {
-    /// The file path of the EPUB container.
-    path: String,
     /// A list of image resource IDs (keys) found in the EPUB's manifest,
     /// sorted according to their appearance in the spine.
     entries: Vec<String>,
+    /// The opened EPUB archive, protected by a Mutex for thread-safe access.
+    epub: Mutex<Epub>,
 }
 
 impl Container for EpubContainer {
@@ -24,13 +29,19 @@ impl Container for EpubContainer {
     }
 
     fn get_image(&self, entry: &str) -> Result<Arc<Image>> {
-        let mut epub = Epub::options().strict(false).open(&self.path)?;
+        let mut epub = self
+            .epub
+            .lock()
+            .map_err(|e| Error::Other(format!("Failed to lock epub archive: {}", e)))?;
         let image = load_image(&mut epub, entry)?;
         Ok(image)
     }
 
     fn get_thumbnail(&self, entry: &str) -> Result<Arc<Image>> {
-        let mut epub = Epub::options().strict(false).open(&self.path)?;
+        let mut epub = self
+            .epub
+            .lock()
+            .map_err(|e| Error::Other(format!("Failed to lock epub archive: {}", e)))?;
         create_thumbnail(&mut epub, entry)
     }
 
@@ -73,8 +84,8 @@ impl EpubContainer {
         }
 
         Ok(Self {
-            path: path.to_string(),
             entries,
+            epub: Mutex::new(epub),
         })
     }
 
@@ -89,7 +100,7 @@ impl EpubContainer {
     /// Returns `false` if the layout is "pre-paginated" or the file cannot be read.
     /// Returns `true` otherwise.
     pub fn is_novel(&self) -> bool {
-        let Ok(epub) = Epub::options().strict(false).open(&self.path) else {
+        let Ok(epub) = self.epub.lock() else {
             return false;
         };
         let Some(layout) = epub.metadata().iter().find_map(|meta| {

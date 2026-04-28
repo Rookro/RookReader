@@ -9,6 +9,10 @@ use crate::{
 };
 
 /// An implementation of the `Container` trait for reading content from RAR archive files.
+///
+/// NOTE: The underlying `unrar` library's `OpenArchive` type does not implement `Send`,
+/// which prevents us from sharing a single opened archive instance across threads using a Mutex.
+/// As a result, this implementation currently opens the archive for each image request.
 pub struct RarContainer {
     /// The file path of the RAR container.
     path: String,

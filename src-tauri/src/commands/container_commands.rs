@@ -22,13 +22,12 @@ pub struct EntriesResult {
 
 /// Opens a container file (e.g., ZIP, RAR) and retrieves a list of its contents.
 ///
-/// This function opens the container specified by the `path`, reads the list of file entries
-/// within it, and triggers a preload of the image data for faster access.
+/// This function opens the container specified by the `path` and reads the list of file entries
+/// within it.
 ///
 /// # Arguments
 ///
 /// * `path` - The file path to the container to open.
-/// * `enable_preload` - Whether to enable preload of image data.
 /// * `state` - A `tauri::State` holding the application's global `AppState`.
 ///
 /// # Returns
@@ -40,12 +39,10 @@ pub struct EntriesResult {
 ///
 /// This function will return an `Err` if:
 /// * The container file cannot be opened (e.g., it does not exist or is corrupt).
-/// * The `container` or `image_loader` within the application state is unexpectedly missing.
-/// * Preloading the image data fails.
+/// * The `container` within the application state is unexpectedly missing.
 #[tauri::command()]
 pub async fn get_entries_in_container(
     path: &str,
-    enable_preload: Option<bool>,
     state: tauri::State<'_, RwLock<AppState>>,
 ) -> Result<EntriesResult> {
     log::debug!("Get the entries in {}", path);
@@ -65,23 +62,39 @@ pub async fn get_entries_in_container(
         is_directory = container.is_directory();
     }
 
-    {
-        let image_loader = state_lock
-            .container_state
-            .image_loader
-            .as_mut()
-            .ok_or_else(|| Error::Other("Unexpected error. ImageLoader is empty!".to_string()))?;
-        if let Some(enable_preload) = enable_preload {
-            if enable_preload {
-                image_loader.request_preload(0, entries.len())?;
-            }
-        }
-    }
-
     Ok(EntriesResult {
         entries,
         is_directory,
     })
+}
+
+/// Requests preloading of images around a specific index.
+///
+/// This command can be called as the user navigates through a book to update
+/// which images are prioritized for background loading.
+///
+/// # Arguments
+///
+/// * `index` - The current page index around which to preload.
+/// * `buffer_size` - Optional. How many pages to preload in each direction. Defaults to 5.
+/// * `state` - A `tauri::State` holding the application's global `AppState`.
+#[tauri::command()]
+pub async fn request_preload_around(
+    index: usize,
+    buffer_size: Option<usize>,
+    state: tauri::State<'_, RwLock<AppState>>,
+) -> Result<()> {
+    log::debug!("Request preload around index {}", index);
+    let mut state_lock = state.write().await;
+
+    let image_loader = state_lock
+        .container_state
+        .image_loader
+        .as_mut()
+        .ok_or_else(|| Error::Other("Unexpected error. ImageLoader is empty!".to_string()))?;
+
+    image_loader.request_preload_around(index, buffer_size.unwrap_or(5))?;
+    Ok(())
 }
 
 /// Retrieves an image from the currently open container.
@@ -454,7 +467,7 @@ mod tests {
         app.manage(RwLock::new(AppState::default()));
 
         let result =
-            get_entries_in_container(rar_path.to_string_lossy().as_ref(), None, app.state()).await;
+            get_entries_in_container(rar_path.to_string_lossy().as_ref(), app.state()).await;
 
         assert!(result.is_ok());
 
@@ -471,7 +484,7 @@ mod tests {
         let app = tauri::test::mock_app();
         app.manage(RwLock::new(AppState::default()));
 
-        let result = get_entries_in_container("non_existent_path", None, app.state()).await;
+        let result = get_entries_in_container("non_existent_path", app.state()).await;
 
         assert!(result.is_err());
     }
