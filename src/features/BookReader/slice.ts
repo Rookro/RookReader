@@ -46,7 +46,7 @@ export const openContainerFile = createAppAsyncThunk(
       if (!isEpubNovel) {
         entriesResult = await getEntriesInContainer(path);
         requestPreloadAround(startIndex, entriesResult.entries.length).catch((e) => {
-          console.error("Failed to request preload:", e);
+          error(`Failed to request preload: ${String(e)}`);
         });
         debug(
           `openContainerFile: Retrieved ${entriesResult.entries.length} entries. (Container is directory: ${entriesResult.is_directory})`,

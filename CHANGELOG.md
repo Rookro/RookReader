@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+* Added a customizable Loupe (magnifier) feature to the comic reader, which can be toggled via keyboard or mouse shortcuts (#194)
+
 ### Changed
 
 * Faster file loading and smoother page-turning for an improved reading experience (#193)

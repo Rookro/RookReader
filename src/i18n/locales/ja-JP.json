@@ -136,6 +136,19 @@
       "title": "ページ設定",
       "first-page": {
         "title": "最初のページを 1 ページ表示する"
+      },
+      "loupe": {
+        "title": "ルーペ設定",
+        "description": "画像の一部を一時的に拡大表示する機能の設定です。設定したキーまたはマウスボタンで表示を切り替えられます。",
+        "toggle-key": "トグルキー",
+        "toggle-key-description": "ルーペの表示を切り替えるキーボードのキーやマウスのボタンを設定します。",
+        "zoom": "倍率",
+        "zoom-description": "ルーペで拡大する倍率を設定します。",
+        "radius": "大きさ (半径)",
+        "radius-description": "ルーペの大きさをピクセル単位で設定します。",
+        "mouse-middle": "マウス中ボタン",
+        "mouse-back": "マウス戻るボタン",
+        "mouse-forward": "マウス進むボタン"
       }
     },
     "file-navigator": {

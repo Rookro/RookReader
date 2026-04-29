@@ -1,5 +1,6 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import { error } from "@tauri-apps/plugin-log";
+import { deepmerge } from "deepmerge-ts";
 import type { AppSettings } from "../../types/AppSettings";
 import { createAppAsyncThunk } from "../../types/CustomAsyncThunk";
 import { ErrorCode } from "../../types/Error";
@@ -32,7 +33,7 @@ export const updateSettings = createAppAsyncThunk(
     const target = getState().settings[key];
 
     if (isPlainObject(target) && isPlainObject(value)) {
-      const newValue = { ...target, ...value } as AppSettings[keyof AppSettings];
+      const newValue = deepmerge(target, value) as AppSettings[keyof AppSettings];
       await settingsStore.set(key, newValue);
       return { key, value: newValue };
     } else {
