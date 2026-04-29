@@ -1,5 +1,8 @@
+import { error } from "@tauri-apps/plugin-log";
 import { LazyStore } from "@tauri-apps/plugin-store";
+import { deepmerge } from "deepmerge-ts";
 import type { AppSettings } from "../../types/AppSettings";
+import { AppSettingsSchema } from "./AppSettingsSchema";
 
 const settingsFileName = import.meta.env.DEV
   ? "rook-reader_settings_dev.json"
@@ -57,16 +60,30 @@ export const defaultSettings: AppSettings = {
   },
 };
 
+/**
+ * Loads all settings from the store, merging with defaults and validating with Zod.
+ */
 export const loadAllSettings = async (): Promise<AppSettings> => {
-  const loadedSettings = { ...defaultSettings };
+  const savedSettings: Record<string, unknown> = {};
 
   const keys = Object.keys(defaultSettings) as Array<keyof AppSettings>;
   for (const key of keys) {
     const value = await settingsStore.get(key);
-    if (value != null && typeof value === typeof defaultSettings[key]) {
-      Object.assign(loadedSettings, { [key]: value });
+    if (value != null) {
+      savedSettings[key] = value;
     }
   }
 
-  return loadedSettings;
+  // Deep merge defaults with saved settings
+  const merged = deepmerge(defaultSettings, savedSettings);
+
+  // Validate and strip unknown properties using Zod
+  const result = AppSettingsSchema.safeParse(merged);
+
+  if (!result.success) {
+    error(`Failed to validate settings, falling back to defaults: ${result.error.message}`);
+    return defaultSettings;
+  }
+
+  return result.data as AppSettings;
 };
