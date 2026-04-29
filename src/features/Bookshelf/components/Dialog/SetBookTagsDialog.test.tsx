@@ -26,7 +26,7 @@ describe("SetBookTagsDialog", () => {
     renderWithProviders(
       <SetBookTagsDialog
         openDialog={true}
-        bookId={123}
+        bookIds={[123]}
         availableTags={mockTags}
         onClose={vi.fn()}
         onUpdateTags={vi.fn()}
@@ -51,7 +51,7 @@ describe("SetBookTagsDialog", () => {
     renderWithProviders(
       <SetBookTagsDialog
         openDialog={true}
-        bookId={123}
+        bookIds={[123]}
         availableTags={mockTags}
         onClose={onClose}
         onUpdateTags={onUpdateTags}
@@ -77,7 +77,7 @@ describe("SetBookTagsDialog", () => {
     renderWithProviders(
       <SetBookTagsDialog
         openDialog={true}
-        bookId={123}
+        bookIds={[123]}
         availableTags={[]}
         onClose={vi.fn()}
         onUpdateTags={vi.fn()}
@@ -92,7 +92,7 @@ describe("SetBookTagsDialog", () => {
     renderWithProviders(
       <SetBookTagsDialog
         openDialog={true}
-        bookId={123}
+        bookIds={[123]}
         availableTags={mockTags}
         onClose={vi.fn()}
         onUpdateTags={vi.fn()}
@@ -111,7 +111,7 @@ describe("SetBookTagsDialog", () => {
     renderWithProviders(
       <SetBookTagsDialog
         openDialog={true}
-        bookId={123}
+        bookIds={[123]}
         availableTags={mockTags}
         onClose={vi.fn()}
         onUpdateTags={vi.fn()}
@@ -126,14 +126,14 @@ describe("SetBookTagsDialog", () => {
     });
   });
 
-  it("should do nothing if handleSave is called while bookId is null", async () => {
+  it("should do nothing if handleSave is called while bookIds is empty", async () => {
     vi.mocked(BookCommands.updateBookTags).mockResolvedValue();
     const onUpdateTags = vi.fn();
 
     renderWithProviders(
       <SetBookTagsDialog
         openDialog={true}
-        bookId={null}
+        bookIds={[]}
         availableTags={mockTags}
         onClose={vi.fn()}
         onUpdateTags={onUpdateTags}
@@ -153,7 +153,7 @@ describe("SetBookTagsDialog", () => {
     renderWithProviders(
       <SetBookTagsDialog
         openDialog={true}
-        bookId={123}
+        bookIds={[123]}
         availableTags={mockTags}
         onClose={vi.fn()}
         onUpdateTags={vi.fn()}

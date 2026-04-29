@@ -17,25 +17,33 @@ import { deleteBookFromCollection } from "../../slice";
 export interface BookDeleteDialogProps {
   /** Whether the dialog is open or closed. */
   openDialog: boolean;
-  /** The book to delete. */
-  book: BookWithState | null;
+  /** The books to delete. */
+  books: BookWithState[];
   /** Callback to close the dialog. */
   onClose: () => void;
 }
 
-/** Dialog for deleting a book from a bookshelf. */
-export default function BookDeleteDialog({ openDialog, book, onClose }: BookDeleteDialogProps) {
+/** Dialog for deleting books from a bookshelf. */
+export default function BookDeleteDialog({ openDialog, books, onClose }: BookDeleteDialogProps) {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const bookshelves = useAppSelector((state) => state.bookCollection.bookshelf.bookshelves);
   const selectedId = useAppSelector((state) => state.bookCollection.bookshelf.selectedId);
 
   const handleDelete = useCallback(async () => {
-    if (book) {
-      await dispatch(deleteBookFromCollection({ bookId: book.id, bookshelfId: selectedId }));
+    if (books.length > 0) {
+      await Promise.all(
+        books.map((b) =>
+          dispatch(deleteBookFromCollection({ bookId: b.id, bookshelfId: selectedId })),
+        ),
+      );
     }
     onClose();
-  }, [book, dispatch, onClose, selectedId]);
+  }, [books, dispatch, onClose, selectedId]);
+
+  const bookshelfName =
+    bookshelves.find((shelf) => shelf.id === selectedId)?.name ??
+    t("bookshelf.collection.all-books");
 
   return (
     <Dialog open={openDialog} onClose={onClose}>
@@ -44,18 +52,29 @@ export default function BookDeleteDialog({ openDialog, book, onClose }: BookDele
       <DialogContent>
         <DialogContentText>
           <Box component="span" sx={{ whiteSpace: "pre-wrap" }}>
-            <Trans
-              i18nKey="bookshelf.book-deletion.description"
-              values={{
-                bookName: book?.display_name,
-                bookshelfName:
-                  bookshelves.find((shelf) => shelf.id === selectedId)?.name ??
-                  t("bookshelf.collection.all-books"),
-              }}
-              components={{
-                bold: <Box component="span" fontWeight="bold" color="text.primary" />,
-              }}
-            />
+            {books.length === 1 ? (
+              <Trans
+                i18nKey="bookshelf.book-deletion.description"
+                values={{
+                  bookName: books[0].display_name,
+                  bookshelfName,
+                }}
+                components={{
+                  bold: <Box component="span" fontWeight="bold" color="text.primary" />,
+                }}
+              />
+            ) : (
+              <Trans
+                i18nKey="bookshelf.book-deletion.description-multiple"
+                values={{
+                  count: books.length,
+                  bookshelfName,
+                }}
+                components={{
+                  bold: <Box component="span" fontWeight="bold" color="text.primary" />,
+                }}
+              />
+            )}
           </Box>
         </DialogContentText>
       </DialogContent>

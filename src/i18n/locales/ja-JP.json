@@ -33,6 +33,10 @@
     "collection": {
       "title": "コレクション",
       "all-books": "すべての本",
+      "add-books-title": "コレクションに追加",
+      "no-collections-available": "利用可能なコレクションがありません。",
+      "ok-button": "決定",
+      "cancel-button": "キャンセル",
       "creation": {
         "title": "コレクションを作成",
         "name-placeholder": "コレクションの名前を入力してください",
@@ -83,8 +87,13 @@
     "book-deletion": {
       "title": "本当に削除しますか？",
       "description": "<bold>「{{bookName}}」</bold>を<bold>「{{bookshelfName}}」</bold>から削除しようとしています。この操作は取り消すことができません。",
+      "description-multiple": "<bold>{{count}} 冊の本</bold>を<bold>「{{bookshelfName}}」</bold>から削除しようとしています。この操作は取り消すことができません。",
       "cancel-button": "キャンセル",
       "delete-button": "削除する"
+    },
+    "selection": {
+      "count": "{{count}} 冊選択中",
+      "clear": "選択を解除"
     },
     "sort": {
       "title": "並び替え",

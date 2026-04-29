@@ -1,9 +1,11 @@
-import { Delete, LocalOffer, ZoomIn, ZoomOut } from "@mui/icons-material";
+import { Close, Delete, LibraryBooks, LocalOffer, ZoomIn, ZoomOut } from "@mui/icons-material";
 import {
   Box,
+  Button,
   CircularProgress,
   Divider,
   debounce,
+  IconButton,
   ListItemIcon,
   ListItemText,
   Menu,
@@ -13,7 +15,15 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 import { Grid } from "react-window";
 import { useAppDispatch, useAppSelector } from "../../../store/store";
@@ -22,6 +32,7 @@ import { updateSettings } from "../../Settings/slice";
 import { fetchBooksInSelectedBookshelf } from "../slice";
 import { andSearch, sortBy } from "../utils/BookshelfUtils";
 import BookCard from "./BookCard";
+import AddBooksToBookshelvesDialog from "./Dialog/AddBooksToBookshelvesDialog";
 import BookDeleteDialog from "./Dialog/BookDeleteDialog";
 import SetBookTagsDialog from "./Dialog/SetBookTagsDialog";
 import NavigationBar from "./NavigationBar";
@@ -31,6 +42,27 @@ const GRID_SIZES = [
   { width: 190, height: 300 },
   { width: 240, height: 380 },
 ];
+
+/** Context for managing selection state */
+interface SelectionContextType {
+  selectedBookIds: Set<number>;
+  toggleSelection: (bookId: number) => void;
+  setSelection: (bookIds: Set<number>) => void;
+  clearSelection: () => void;
+  lastClickedBookId: number | null;
+  setLastClickedBookId: (id: number | null) => void;
+}
+
+export const SelectionContext = createContext<SelectionContextType | null>(null);
+
+/** Hook to use the selection context */
+export const useSelection = () => {
+  const context = useContext(SelectionContext);
+  if (!context) {
+    throw new Error("useSelection must be used within a SelectionProvider");
+  }
+  return context;
+};
 
 /** Props for the Book grid component */
 export interface BookGridProps {
@@ -45,6 +77,9 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
   const bookshelfSettings = useAppSelector((state) => state.settings.bookshelf);
   const searchText = useAppSelector((state) => state.bookCollection.searchText);
   const booksInSelectedBookshelf = useAppSelector((state) => state.bookCollection.bookshelf.books);
+  const availableBookshelves = useAppSelector(
+    (state) => state.bookCollection.bookshelf.bookshelves,
+  );
   const bookshelfId = useAppSelector((state) => state.bookCollection.bookshelf.selectedId);
   const status = useAppSelector((state) => state.bookCollection.bookshelf.status);
   const tagId = useAppSelector((state) => state.bookCollection.tag.selectedId);
@@ -59,10 +94,51 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
     mouseY: number;
     book: BookWithState;
   } | null>(null);
+
+  const [selectedBookIds, setSelectedBookIds] = useState<Set<number>>(new Set());
+  const [lastClickedBookId, _setLastClickedBookId] = useState<number | null>(null);
+  const lastClickedBookIdRef = useRef<number | null>(null);
+
+  const setLastClickedBookId = useCallback((id: number | null) => {
+    _setLastClickedBookId(id);
+    lastClickedBookIdRef.current = id;
+  }, []);
+
+  const toggleSelection = useCallback((bookId: number) => {
+    setSelectedBookIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(bookId)) {
+        next.delete(bookId);
+      } else {
+        next.add(bookId);
+      }
+      return next;
+    });
+  }, []);
+
+  const clearSelection = useCallback(() => {
+    setSelectedBookIds(new Set());
+    setLastClickedBookId(null);
+  }, [setLastClickedBookId]);
+
+  const selectionValue = useMemo(
+    () => ({
+      selectedBookIds,
+      toggleSelection,
+      setSelection: setSelectedBookIds,
+      clearSelection,
+      lastClickedBookId,
+      setLastClickedBookId,
+    }),
+    [selectedBookIds, toggleSelection, clearSelection, lastClickedBookId, setLastClickedBookId],
+  );
+
+  const [isAddBookshelvesDialogOpen, setIsAddBookshelvesDialogOpen] = useState(false);
+  const [selectedBooksForBookshelves, setSelectedBooksForBookshelves] = useState<number[]>([]);
   const [isSetTagsDialogOpen, setIsSetTagsDialogOpen] = useState(false);
-  const [selectedBookForTags, setSelectedBookForTags] = useState<BookWithState | null>(null);
+  const [selectedBooksForTags, setSelectedBooksForTags] = useState<number[]>([]);
   const [isDeleteBookDialogOpen, setIsDeleteBookDialogOpen] = useState(false);
-  const [selectedBookForDelete, setSelectedBookForDelete] = useState<BookWithState | null>(null);
+  const [selectedBooksForDelete, setSelectedBooksForDelete] = useState<BookWithState[]>([]);
 
   const debouncedUpdateContainerWidth = useMemo(
     () =>
@@ -90,6 +166,14 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
       .sort((a, b) => sortBy(a, b, bookshelfSettings.sortOrder));
   }, [booksInSelectedBookshelf, tagId, searchText, bookshelfSettings.sortOrder]);
 
+  const bookIdToIndexMap = useMemo(() => {
+    const map = new Map<number, number>();
+    filteredSortedBooks.forEach((book, index) => {
+      map.set(book.id, index);
+    });
+    return map;
+  }, [filteredSortedBooks]);
+
   const handleGridSizeChange = useCallback(
     (_e: Event, newValue: number, _activeThumb: number) => {
       const newBookshelfSettings = { ...bookshelfSettings, gridSize: newValue };
@@ -101,8 +185,9 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
   useEffect(() => {
     if (activeView === "bookshelf") {
       dispatch(fetchBooksInSelectedBookshelf(bookshelfId));
+      clearSelection();
     }
-  }, [dispatch, bookshelfId, activeView]);
+  }, [dispatch, bookshelfId, activeView, clearSelection]);
 
   useEffect(() => {
     const element = containerRef.current;
@@ -122,18 +207,13 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
         const now = performance.now();
 
         if (previousWidth === 0) {
-          // First time becoming visible: record timestamp and apply instantly.
           visibleTime = now;
           debouncedUpdateContainerWidth.clear();
           setContainerWidth(newWidth);
         } else if (now - visibleTime < 200) {
-          // Layout settling phase: bypass debounce.
-          // Prevents visual flickering caused by rapid,
-          // automatic parent container resizing (e.g., split-pane initial calculations) just after mount.
           debouncedUpdateContainerWidth.clear();
           setContainerWidth(newWidth);
         } else {
-          // Normal usage (e.g., window resize, pane drag): apply debounce.
           debouncedUpdateContainerWidth(newWidth);
         }
 
@@ -148,6 +228,53 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
     };
   }, [debouncedUpdateContainerWidth]);
 
+  const handleBookClick = useCallback(
+    (book: BookWithState, e: React.MouseEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        // Toggle selection
+        toggleSelection(book.id);
+        setLastClickedBookId(book.id);
+      } else if (e.shiftKey && lastClickedBookIdRef.current !== null) {
+        // Range selection
+        const currentIndex = bookIdToIndexMap.get(book.id);
+        const lastIndex = bookIdToIndexMap.get(lastClickedBookIdRef.current);
+
+        if (currentIndex !== undefined && lastIndex !== undefined) {
+          const start = Math.min(currentIndex, lastIndex);
+          const end = Math.max(currentIndex, lastIndex);
+
+          setSelectedBookIds((prev) => {
+            const next = new Set(prev);
+            for (let i = start; i <= end; i++) {
+              const currentBook = filteredSortedBooks[i];
+              if (currentBook) {
+                next.add(currentBook.id);
+              }
+            }
+            return next;
+          });
+        }
+      } else {
+        let shouldOpen = false;
+        setSelectedBookIds((prev) => {
+          if (prev.size > 0) {
+            // If we have selections, clicking without modifiers clears selection and selects the new one
+            setLastClickedBookId(book.id);
+            return new Set([book.id]);
+          } else {
+            shouldOpen = true;
+            return prev;
+          }
+        });
+
+        if (shouldOpen) {
+          onBookSelect?.(book);
+        }
+      }
+    },
+    [filteredSortedBooks, onBookSelect, toggleSelection, bookIdToIndexMap, setLastClickedBookId],
+  );
+
   const handleBookContextMenu = useCallback((book: BookWithState, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -155,6 +282,22 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
       prev === null ? { mouseX: e.clientX, mouseY: e.clientY, book } : null,
     );
   }, []);
+
+  const openAddBookshelvesDialogForSelection = useCallback(() => {
+    setSelectedBooksForBookshelves(Array.from(selectedBookIds));
+    setIsAddBookshelvesDialogOpen(true);
+  }, [selectedBookIds]);
+
+  const openTagsDialogForSelection = useCallback(() => {
+    setSelectedBooksForTags(Array.from(selectedBookIds));
+    setIsSetTagsDialogOpen(true);
+  }, [selectedBookIds]);
+
+  const openDeleteDialogForSelection = useCallback(() => {
+    const booksToDelete = filteredSortedBooks.filter((b) => selectedBookIds.has(b.id));
+    setSelectedBooksForDelete(booksToDelete);
+    setIsDeleteBookDialogOpen(true);
+  }, [filteredSortedBooks, selectedBookIds]);
 
   const columnWidth = currentGridSize.width;
   const rowHeight = currentGridSize.height;
@@ -170,7 +313,7 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
       tags: availableTags,
       size: (bookshelfSettings.gridSize === 0 ? "small" : "medium") as "small" | "medium",
       columnCount,
-      onBookSelect,
+      onBookClick: handleBookClick,
       onBookContextMenu: handleBookContextMenu,
     }),
     [
@@ -178,181 +321,298 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
       availableTags,
       bookshelfSettings.gridSize,
       columnCount,
-      onBookSelect,
+      handleBookClick,
       handleBookContextMenu,
     ],
   );
 
   return (
-    <Stack
-      sx={{
-        width: "100%",
-        height: "100%",
-        position: "relative",
-      }}
-    >
-      <NavigationBar />
-
-      <Box
-        ref={containerRef}
-        data-testid="book-grid-container"
-        aria-label="book-grid-container"
+    <SelectionContext.Provider value={selectionValue}>
+      <Stack
         sx={{
           width: "100%",
           height: "100%",
-          overflow: "auto",
-          scrollbarGutter: "stable",
-        }}
-        onContextMenu={() => {
-          if (contextMenu) {
-            setContextMenu(null);
-          }
+          position: "relative",
         }}
       >
-        {status === "loading" ? (
+        <NavigationBar />
+
+        <Box
+          ref={containerRef}
+          data-testid="book-grid-container"
+          aria-label="book-grid-container"
+          sx={{
+            width: "100%",
+            height: "100%",
+            overflow: "auto",
+            scrollbarGutter: "stable",
+          }}
+          onContextMenu={() => {
+            if (contextMenu) {
+              setContextMenu(null);
+            }
+          }}
+        >
+          {status === "loading" ? (
+            <Box
+              sx={{
+                width: "100%",
+                height: "100%",
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
+              <CircularProgress />
+            </Box>
+          ) : filteredSortedBooks.length === 0 ? (
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                paddingX: 2,
+              }}
+            >
+              {searchText ? (
+                <Typography variant="h6" sx={{ overflowWrap: "anywhere" }}>
+                  {t("bookshelf.no-search-results", { searchText })}
+                </Typography>
+              ) : (
+                <Typography variant="h6" sx={{ overflowWrap: "anywhere" }}>
+                  {t("bookshelf.no-books")}
+                </Typography>
+              )}
+            </Box>
+          ) : (
+            <Box
+              sx={{
+                width: columnCount * columnWidth,
+                margin: "0 auto",
+                // Prevent overlap with bottom floating buttons and action bar
+                paddingBottom: "60px",
+              }}
+            >
+              <Grid
+                cellComponent={BookCard}
+                columnCount={columnCount}
+                columnWidth={columnWidth}
+                rowCount={rowCount}
+                rowHeight={rowHeight}
+                cellProps={cellProps}
+              />
+            </Box>
+          )}
+        </Box>
+
+        {/* Grid Size Control */}
+        <Paper
+          elevation={2}
+          sx={{
+            position: "absolute",
+            bottom: 16,
+            right: 16,
+            padding: 1,
+            borderRadius: 3,
+            width: 200,
+          }}
+        >
+          <Stack direction="row" spacing={2} alignItems="center" sx={{ width: "100%" }}>
+            <ZoomOut />
+            <Slider
+              defaultValue={bookshelfSettings.gridSize}
+              onChange={handleGridSizeChange}
+              min={0}
+              max={2}
+              step={1}
+              marks
+              valueLabelDisplay="auto"
+              valueLabelFormat={(value) => {
+                const labels = [
+                  t("bookshelf.grid-size.small"),
+                  t("bookshelf.grid-size.medium"),
+                  t("bookshelf.grid-size.large"),
+                ];
+                return labels[value];
+              }}
+            />
+            <ZoomIn />
+          </Stack>
+        </Paper>
+
+        {/* Floating Action Bar for Selection */}
+        {selectedBookIds.size > 0 && (
           <Box
             sx={{
-              width: "100%",
-              height: "100%",
+              position: "absolute",
+              bottom: 16,
+              left: 0,
+              right: 0,
               display: "flex",
               justifyContent: "center",
-              alignItems: "center",
-            }}
-          >
-            <CircularProgress />
-          </Box>
-        ) : filteredSortedBooks.length === 0 ? (
-          <Box
-            sx={{
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
               paddingX: 2,
             }}
           >
-            {searchText ? (
-              <Typography variant="h6" sx={{ overflowWrap: "anywhere" }}>
-                {t("bookshelf.no-search-results", { searchText })}
+            <Paper
+              elevation={4}
+              sx={{
+                paddingX: 2,
+                paddingY: 1,
+                borderRadius: 3,
+                display: "flex",
+                alignItems: "center",
+                gap: 2,
+                bgcolor: "primary.main",
+                color: "primary.contrastText",
+              }}
+            >
+              <Typography variant="body2" fontWeight="bold">
+                {t("bookshelf.selection.count", { count: selectedBookIds.size })}
               </Typography>
-            ) : (
-              <Typography variant="h6" sx={{ overflowWrap: "anywhere" }}>
-                {t("bookshelf.no-books")}
-              </Typography>
-            )}
-          </Box>
-        ) : (
-          <Box
-            sx={{
-              width: columnCount * columnWidth,
-              margin: "0 auto",
-              // Prevent overlap with bottom floating buttons
-              paddingBottom: "60px",
-            }}
-          >
-            <Grid
-              cellComponent={BookCard}
-              columnCount={columnCount}
-              columnWidth={columnWidth}
-              rowCount={rowCount}
-              rowHeight={rowHeight}
-              cellProps={cellProps}
-            />
+              <Divider
+                orientation="vertical"
+                flexItem
+                sx={{ borderColor: "primary.contrastText" }}
+              />
+              <Button
+                size="small"
+                color="inherit"
+                startIcon={<LibraryBooks />}
+                onClick={openAddBookshelvesDialogForSelection}
+              >
+                {t("bookshelf.collection.add-books-title")}
+              </Button>
+              <Button
+                size="small"
+                color="inherit"
+                startIcon={<LocalOffer />}
+                onClick={openTagsDialogForSelection}
+              >
+                {t("bookshelf.tag.set-tags")}
+              </Button>
+              <Button
+                size="small"
+                color="inherit"
+                startIcon={<Delete />}
+                onClick={openDeleteDialogForSelection}
+              >
+                {t("bookshelf.remove-book")}
+              </Button>
+              <IconButton
+                size="small"
+                color="inherit"
+                onClick={clearSelection}
+                title={t("bookshelf.selection.clear")}
+              >
+                <Close fontSize="small" />
+              </IconButton>
+            </Paper>
           </Box>
         )}
-      </Box>
 
-      <Paper
-        elevation={2}
-        sx={{
-          position: "absolute",
-          bottom: 16,
-          right: 16,
-          padding: 1,
-          borderRadius: 3,
-          width: 200,
-        }}
-      >
-        <Stack direction="row" spacing={2} alignItems="center" sx={{ width: "100%" }}>
-          <ZoomOut />
-          <Slider
-            defaultValue={bookshelfSettings.gridSize}
-            onChange={handleGridSizeChange}
-            min={0}
-            max={2}
-            step={1}
-            marks
-            valueLabelDisplay="auto"
-            valueLabelFormat={(value) => {
-              const labels = [
-                t("bookshelf.grid-size.small"),
-                t("bookshelf.grid-size.medium"),
-                t("bookshelf.grid-size.large"),
-              ];
-              return labels[value];
+        <Menu
+          open={contextMenu !== null}
+          onClose={() => setContextMenu(null)}
+          anchorReference="anchorPosition"
+          anchorPosition={
+            contextMenu !== null ? { top: contextMenu.mouseY, left: contextMenu.mouseX } : undefined
+          }
+        >
+          <MenuItem
+            dense
+            onClick={() => {
+              if (contextMenu) {
+                const idsToAdd = selectedBookIds.has(contextMenu.book.id)
+                  ? Array.from(selectedBookIds)
+                  : [contextMenu.book.id];
+                setSelectedBooksForBookshelves(idsToAdd);
+                setIsAddBookshelvesDialogOpen(true);
+              }
+              setContextMenu(null);
             }}
-          />
-          <ZoomIn />
-        </Stack>
-      </Paper>
+          >
+            <ListItemIcon>
+              <LibraryBooks sx={{ color: "text.secondary" }} />
+            </ListItemIcon>
+            <ListItemText>{t("bookshelf.collection.add-books-title")}</ListItemText>
+          </MenuItem>
+          <MenuItem
+            dense
+            onClick={() => {
+              if (contextMenu) {
+                const idsToTag = selectedBookIds.has(contextMenu.book.id)
+                  ? Array.from(selectedBookIds)
+                  : [contextMenu.book.id];
+                setSelectedBooksForTags(idsToTag);
+                setIsSetTagsDialogOpen(true);
+              }
+              setContextMenu(null);
+            }}
+          >
+            <ListItemIcon>
+              <LocalOffer sx={{ color: "text.secondary" }} />
+            </ListItemIcon>
+            <ListItemText>{t("bookshelf.tag.set-tags")}</ListItemText>
+          </MenuItem>
+          <Divider />
+          <MenuItem
+            dense
+            onClick={() => {
+              if (contextMenu) {
+                const booksToDelete = selectedBookIds.has(contextMenu.book.id)
+                  ? filteredSortedBooks.filter((b) => selectedBookIds.has(b.id))
+                  : [contextMenu.book];
+                setSelectedBooksForDelete(booksToDelete);
+                setIsDeleteBookDialogOpen(true);
+              }
+              setContextMenu(null);
+            }}
+          >
+            <ListItemIcon>
+              <Delete color="error" />
+            </ListItemIcon>
+            <ListItemText>{t("bookshelf.remove-book")}</ListItemText>
+          </MenuItem>
+        </Menu>
 
-      <Menu
-        open={contextMenu !== null}
-        onClose={() => setContextMenu(null)}
-        anchorReference="anchorPosition"
-        anchorPosition={
-          contextMenu !== null ? { top: contextMenu.mouseY, left: contextMenu.mouseX } : undefined
-        }
-      >
-        <MenuItem
-          dense
-          onClick={() => {
-            if (contextMenu) {
-              setSelectedBookForTags(contextMenu.book);
-              setIsSetTagsDialogOpen(true);
-            }
-            setContextMenu(null);
+        <AddBooksToBookshelvesDialog
+          openDialog={isAddBookshelvesDialogOpen}
+          bookIds={selectedBooksForBookshelves}
+          availableBookshelves={availableBookshelves}
+          onClose={() => {
+            setIsAddBookshelvesDialogOpen(false);
+            setSelectedBooksForBookshelves([]);
+            clearSelection();
           }}
-        >
-          <ListItemIcon>
-            <LocalOffer sx={{ color: "text.secondary" }} />
-          </ListItemIcon>
-          <ListItemText>{t("bookshelf.tag.set-tags")}</ListItemText>
-        </MenuItem>
-        <Divider />
-        <MenuItem
-          dense
-          onClick={() => {
-            if (contextMenu) {
-              setSelectedBookForDelete(contextMenu.book);
-              setIsDeleteBookDialogOpen(true);
-            }
-            setContextMenu(null);
+          onAddBooks={() => {
+            // You might not want to refresh the entire current list if the user isn't in a view that changed.
+            // But refreshing is safe.
+            dispatch(fetchBooksInSelectedBookshelf(bookshelfId));
           }}
-        >
-          <ListItemIcon>
-            <Delete color="error" />
-          </ListItemIcon>
-          <ListItemText>{t("bookshelf.remove-book")}</ListItemText>
-        </MenuItem>
-      </Menu>
-
-      <SetBookTagsDialog
-        openDialog={isSetTagsDialogOpen}
-        bookId={selectedBookForTags?.id ?? null}
-        availableTags={availableTags}
-        onClose={() => {
-          setIsSetTagsDialogOpen(false);
-          setSelectedBookForTags(null);
-        }}
-        onUpdateTags={() => {
-          dispatch(fetchBooksInSelectedBookshelf(bookshelfId));
-        }}
-      />
-      <BookDeleteDialog
-        openDialog={isDeleteBookDialogOpen}
-        book={selectedBookForDelete ?? null}
-        onClose={() => setIsDeleteBookDialogOpen(false)}
-      />
-    </Stack>
+        />
+        <SetBookTagsDialog
+          openDialog={isSetTagsDialogOpen}
+          bookIds={selectedBooksForTags}
+          availableTags={availableTags}
+          onClose={() => {
+            setIsSetTagsDialogOpen(false);
+            setSelectedBooksForTags([]);
+            clearSelection();
+          }}
+          onUpdateTags={() => {
+            dispatch(fetchBooksInSelectedBookshelf(bookshelfId));
+          }}
+        />
+        <BookDeleteDialog
+          openDialog={isDeleteBookDialogOpen}
+          books={selectedBooksForDelete}
+          onClose={() => {
+            setIsDeleteBookDialogOpen(false);
+            setSelectedBooksForDelete([]);
+            clearSelection();
+          }}
+        />
+      </Stack>
+    </SelectionContext.Provider>
   );
 }

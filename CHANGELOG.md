@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 * Added a customizable Loupe (magnifier) feature to the comic reader, which can be toggled via keyboard or mouse shortcuts (#194)
+* Added multi-select functionality (Ctrl/Cmd+click, Shift+click) to the bookshelf grid, allowing users to apply bulk actions (set tags, add to collections, remove from bookshelf) to multiple books at once (#195)
 
 ### Changed
 
