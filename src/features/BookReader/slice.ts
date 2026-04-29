@@ -32,22 +32,9 @@ export const openContainerFile = createAppAsyncThunk(
     try {
       const isEpubNovel = await determineEpubNovel(path);
 
-      const bookByPath = await getBookWithStateById(
-        await upsertReadBook({
-          filePath: path,
-          itemType: "file", // Temporary, will be updated below
-          totalPages: 0,
-          displayName: await basename(path),
-        }),
-      );
-      const startIndex = bookByPath?.last_read_page_index ?? 0;
-
       let entriesResult: { entries: string[]; is_directory: boolean } | undefined;
       if (!isEpubNovel) {
         entriesResult = await getEntriesInContainer(path);
-        requestPreloadAround(startIndex, entriesResult.entries.length).catch((e) => {
-          error(`Failed to request preload: ${String(e)}`);
-        });
         debug(
           `openContainerFile: Retrieved ${entriesResult.entries.length} entries. (Container is directory: ${entriesResult.is_directory})`,
         );
@@ -69,6 +56,13 @@ export const openContainerFile = createAppAsyncThunk(
       });
 
       const book = await getBookWithStateById(bookId);
+
+      if (!isEpubNovel) {
+        const startIndex = book?.last_read_page_index ?? 0;
+        requestPreloadAround(startIndex, entriesResult?.entries.length).catch((e) => {
+          error(`Failed to request preload: ${String(e)}`);
+        });
+      }
 
       return {
         entries: entriesResult?.entries,
