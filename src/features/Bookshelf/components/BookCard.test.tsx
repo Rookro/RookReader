@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createMockBookWithState, createMockTag } from "../../../test/factories";
 import { renderWithProviders } from "../../../test/utils";
 import BookCard from "./BookCard";
+import { SelectionContext } from "./BookGrid";
 
 describe("BookCard", () => {
   const user = userEvent.setup();
@@ -22,13 +23,21 @@ describe("BookCard", () => {
     createMockTag({ id: 2, name: "Tag2", color_code: "#00ff00" }),
   ];
 
+  const defaultSelectionContext = {
+    selectedBookIds: new Set<number>(),
+    toggleSelection: vi.fn(),
+    setSelection: vi.fn(),
+    clearSelection: vi.fn(),
+    lastClickedBookId: null,
+    setLastClickedBookId: vi.fn(),
+  };
+
   const defaultProps = {
     books: [mockBook],
     tags: mockTags,
     columnCount: 1,
     columnIndex: 0,
     rowIndex: 0,
-    selectedBookIds: new Set<number>(),
     onBookClick: vi.fn(),
     onBookContextMenu: vi.fn(),
     size: "medium" as const,
@@ -41,9 +50,17 @@ describe("BookCard", () => {
     },
   };
 
+  const renderBookCard = (props = defaultProps, selectionContext = defaultSelectionContext) => {
+    return renderWithProviders(
+      <SelectionContext.Provider value={selectionContext}>
+        <BookCard {...props} />
+      </SelectionContext.Provider>,
+    );
+  };
+
   // Verify that the book title and reading progress bar are displayed correctly
   it("should render book title and progress bar", () => {
-    renderWithProviders(<BookCard {...defaultProps} />);
+    renderBookCard();
 
     expect(screen.getByText("Test Book")).toBeInTheDocument();
 
@@ -53,7 +70,7 @@ describe("BookCard", () => {
 
   // Verify that the tags associated with the book are displayed correctly
   it("should render tags", () => {
-    renderWithProviders(<BookCard {...defaultProps} />);
+    renderBookCard();
 
     expect(screen.getByText("Tag1")).toBeInTheDocument();
     expect(screen.getByText("Tag2")).toBeInTheDocument();
@@ -62,7 +79,7 @@ describe("BookCard", () => {
   // Verify that onBookClick callback is called correctly when the card is clicked
   it("should call onBookClick when clicked", async () => {
     const onBookClick = vi.fn();
-    renderWithProviders(<BookCard {...defaultProps} onBookClick={onBookClick} />);
+    renderBookCard({ ...defaultProps, onBookClick });
 
     const actionArea = screen.getByRole("button");
     await user.click(actionArea);
@@ -73,7 +90,7 @@ describe("BookCard", () => {
   // Verify that the callback for displaying the context menu is called correctly when the card is right-clicked
   it("should call onBookContextMenu when right clicked", async () => {
     const onBookContextMenu = vi.fn();
-    renderWithProviders(<BookCard {...defaultProps} onBookContextMenu={onBookContextMenu} />);
+    renderBookCard({ ...defaultProps, onBookContextMenu });
 
     const actionArea = screen.getByRole("button");
     await user.pointer({ keys: "[MouseRight]", target: actionArea });
@@ -85,7 +102,7 @@ describe("BookCard", () => {
   it("should use dummy thumbnail when thumbnail_path is missing", () => {
     const bookWithoutThumbnail = createMockBookWithState({ ...mockBook, thumbnail_path: null });
 
-    renderWithProviders(<BookCard {...defaultProps} books={[bookWithoutThumbnail]} />);
+    renderBookCard({ ...defaultProps, books: [bookWithoutThumbnail] });
 
     const img = screen.getByAltText("Test Book");
     // In Vitest/jsdom, imported SVGs might be converted to base64 Data URLs
@@ -93,13 +110,13 @@ describe("BookCard", () => {
   });
 
   it("should return null if book is not found at index", () => {
-    const { container } = renderWithProviders(<BookCard {...defaultProps} books={[]} />);
+    const { container } = renderBookCard({ ...defaultProps, books: [] });
     expect(container.firstChild).toBeNull();
   });
 
   it("should handle zero total_pages correctly in progress bar", () => {
     const bookWithZeroPages = createMockBookWithState({ ...mockBook, total_pages: 0 });
-    renderWithProviders(<BookCard {...defaultProps} books={[bookWithZeroPages]} />);
+    renderBookCard({ ...defaultProps, books: [bookWithZeroPages] });
 
     const progressBar = screen.getByRole("progressbar");
     expect(progressBar).toHaveAttribute("aria-valuenow", "0");
@@ -107,15 +124,18 @@ describe("BookCard", () => {
 
   it("should handle missing tags correctly", () => {
     const bookWithoutTags = createMockBookWithState({ ...mockBook, tag_ids_str: null });
-    renderWithProviders(<BookCard {...defaultProps} books={[bookWithoutTags]} tags={[]} />);
+    renderBookCard({ ...defaultProps, books: [bookWithoutTags], tags: [] });
 
     expect(screen.queryByRole("chip")).not.toBeInTheDocument();
   });
 
   // New Test: Check if selected visual indicator is displayed
   it("should display a checkmark and outline when selected", () => {
-    const selectedBookIds = new Set([mockBook.id]);
-    renderWithProviders(<BookCard {...defaultProps} selectedBookIds={selectedBookIds} />);
+    const selectionContext = {
+      ...defaultSelectionContext,
+      selectedBookIds: new Set([mockBook.id]),
+    };
+    renderBookCard(defaultProps, selectionContext);
 
     // Check if CheckCircle icon is rendered (it has data-testid="CheckCircleIcon" by MUI)
     expect(screen.getByTestId("CheckCircleIcon")).toBeInTheDocument();
@@ -123,7 +143,7 @@ describe("BookCard", () => {
 
   // New Test: Check if visual indicator is NOT displayed when not selected
   it("should not display a checkmark when not selected", () => {
-    renderWithProviders(<BookCard {...defaultProps} />);
+    renderBookCard();
 
     expect(screen.queryByTestId("CheckCircleIcon")).not.toBeInTheDocument();
   });

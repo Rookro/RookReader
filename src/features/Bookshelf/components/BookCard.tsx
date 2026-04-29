@@ -16,6 +16,7 @@ import type { CellComponentProps } from "react-window";
 import dummy_thumbnail from "../../../assets/dummy_thumbnail.svg";
 import AutoScrollTypography from "../../../components/ui/AutoScrollTypography/AutoScrollTypography";
 import type { BookWithState, Tag } from "../../../types/DatabaseModels";
+import { useSelection } from "./BookGrid";
 
 export interface BookCardProps {
   /** The list of books to display */
@@ -26,8 +27,6 @@ export interface BookCardProps {
   size: "small" | "medium";
   /** The number of columns in the bookshelf */
   columnCount: number;
-  /** Set of selected book IDs */
-  selectedBookIds: Set<number>;
   /** Callback for when a book is selected/clicked */
   onBookClick?: (book: BookWithState, event: React.MouseEvent) => void;
   /** Callback for when a book is context menu */
@@ -39,7 +38,6 @@ function BookCardInner({
   books,
   tags,
   columnCount,
-  selectedBookIds,
   onBookClick,
   onBookContextMenu,
   columnIndex,
@@ -49,6 +47,7 @@ function BookCardInner({
 }: CellComponentProps<BookCardProps>) {
   const index = rowIndex * columnCount + columnIndex;
   const book = books[index];
+  const { selectedBookIds } = useSelection();
 
   const imageSrc = useMemo(() => {
     return book?.thumbnail_path ? convertFileSrc(book.thumbnail_path) : dummy_thumbnail;
@@ -209,15 +208,6 @@ function areEqual(
   const nextBook = nextProps.books[index];
 
   if (prevBook !== nextBook) {
-    return false;
-  }
-
-  // Selection state check for THIS specific book
-  const bookId = prevBook?.id ?? -1;
-  const prevIsSelected = prevProps.selectedBookIds.has(bookId);
-  const nextIsSelected = nextProps.selectedBookIds.has(bookId);
-
-  if (prevIsSelected !== nextIsSelected) {
     return false;
   }
 
