@@ -26,6 +26,7 @@ export const StartupSettingsSchema = z.object({
 export const BookshelfSettingsSchema = z.object({
   sortOrder: SortOrderSchema,
   gridSize: z.number(),
+  enableAutoScroll: z.boolean(),
 });
 
 export const FileNavigatorSettingsSchema = z.object({

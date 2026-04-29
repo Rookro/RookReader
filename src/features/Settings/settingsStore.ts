@@ -27,6 +27,7 @@ export const defaultSettings: AppSettings = {
   bookshelf: {
     sortOrder: "name_asc",
     gridSize: 1,
+    enableAutoScroll: true,
   },
   fileNavigator: {
     homeDirectory: "",

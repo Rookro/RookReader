@@ -155,13 +155,26 @@ impl Default for StartupSettings {
 }
 
 /// Settings specific to the bookshelf view.
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct BookshelfSettings {
     /// The criteria used to sort items in the bookshelf.
     pub sort_order: SortOrder,
     /// The number of size to display in the bookshelf grid.
     pub grid_size: u8,
+    /// Whether to enable automatic horizontal scrolling for overflowing text.
+    #[serde(default = "default_true")]
+    pub enable_auto_scroll: bool,
+}
+
+impl Default for BookshelfSettings {
+    fn default() -> Self {
+        Self {
+            sort_order: SortOrder::default(),
+            grid_size: 1,
+            enable_auto_scroll: default_true(),
+        }
+    }
 }
 
 /// Settings for the file navigator.

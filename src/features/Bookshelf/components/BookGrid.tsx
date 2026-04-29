@@ -315,6 +315,7 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
       columnCount,
       onBookClick: handleBookClick,
       onBookContextMenu: handleBookContextMenu,
+      enableAutoScroll: bookshelfSettings.enableAutoScroll,
     }),
     [
       filteredSortedBooks,
@@ -323,6 +324,7 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
       columnCount,
       handleBookClick,
       handleBookContextMenu,
+      bookshelfSettings.enableAutoScroll,
     ],
   );
 
