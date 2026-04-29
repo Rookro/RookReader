@@ -35,6 +35,7 @@ describe("BookCard", () => {
   const defaultProps = {
     books: [mockBook],
     tags: mockTags,
+    enableAutoScroll: true,
     columnCount: 1,
     columnIndex: 0,
     rowIndex: 0,

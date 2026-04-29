@@ -140,6 +140,14 @@
         "description": "Automatically check for a new version when the application starts."
       }
     },
+    "bookshelf": {
+      "tab-name": "Bookshelf",
+      "title": "Bookshelf Settings",
+      "auto-scroll": {
+        "title": "Auto Scroll Text",
+        "description": "Automatically scrolls long titles in the bookshelf view. Turning this off can improve performance if the bookshelf feels slow."
+      }
+    },
     "page": {
       "tab-name": "Page",
       "title": "Page Settings",

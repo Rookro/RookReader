@@ -3,6 +3,7 @@ import React, { type JSX, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import TabPanel from "../../../components/ui/TabPanel/TabPanel";
 import AboutPage from "./AboutPage/AboutPage";
+import BookshelfSettings from "./BookshelfSettings/BookshelfSettings";
 import DeveloperSettings from "./DeveloperSettings/DeveloperSettings";
 import FileNavigatorSettings from "./FileNavigatorSettings/FileNavigatorSettings";
 import GeneralSettings from "./GeneralSettings/GeneralSettings";
@@ -26,6 +27,7 @@ export default function SettingsView() {
   const tabs: { label: string; panel: JSX.Element }[] = [
     { label: t("settings.general.tab-name"), panel: <GeneralSettings /> },
     { label: t("settings.startup.tab-name"), panel: <StartupSettings /> },
+    { label: t("settings.bookshelf.tab-name"), panel: <BookshelfSettings /> },
     { label: t("settings.page.tab-name"), panel: <PageSettings /> },
     { label: t("settings.file-navigator.tab-name"), panel: <FileNavigatorSettings /> },
     { label: t("settings.history.tab-name"), panel: <HistorySettings /> },

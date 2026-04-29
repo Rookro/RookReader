@@ -48,6 +48,8 @@ export interface BookshelfSettings {
   sortOrder: SortOrder;
   /** The number of size to display in the bookshelf grid. */
   gridSize: number;
+  /** Whether to enable automatic horizontal scrolling for overflowing text. */
+  enableAutoScroll: boolean;
 }
 
 /** Settings for the file navigator. */

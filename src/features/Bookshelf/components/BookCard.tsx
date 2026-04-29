@@ -27,6 +27,8 @@ export interface BookCardProps {
   size: "small" | "medium";
   /** The number of columns in the bookshelf */
   columnCount: number;
+  /** Whether to enable automatic horizontal scrolling for overflowing text. */
+  enableAutoScroll: boolean;
   /** Callback for when a book is selected/clicked */
   onBookClick?: (book: BookWithState, event: React.MouseEvent) => void;
   /** Callback for when a book is context menu */
@@ -38,6 +40,7 @@ function BookCardInner({
   books,
   tags,
   columnCount,
+  enableAutoScroll,
   onBookClick,
   onBookContextMenu,
   columnIndex,
@@ -163,6 +166,7 @@ function BookCardInner({
               <AutoScrollTypography
                 variant="body1"
                 text={book.display_name}
+                enabled={enableAutoScroll}
                 sx={{ paddingTop: 1, paddingBottom: 1 }}
               />
               <LinearProgress
@@ -197,7 +201,8 @@ function areEqual(
     prevProps.rowIndex !== nextProps.rowIndex ||
     prevProps.columnCount !== nextProps.columnCount ||
     prevProps.size !== nextProps.size ||
-    prevProps.tags !== nextProps.tags
+    prevProps.tags !== nextProps.tags ||
+    prevProps.enableAutoScroll !== nextProps.enableAutoScroll
   ) {
     return false;
   }
