@@ -7,6 +7,7 @@ import { useAppDispatch, useAppSelector } from "../../../store/store";
 import type { Book, BookWithState } from "../../../types/DatabaseModels";
 import { updateSettings } from "../../Settings/slice";
 import { useBookSelection } from "../hooks/useBookSelection";
+import { useBookshelfDialogs } from "../hooks/useBookshelfDialogs";
 import { fetchBooksInSelectedBookshelf } from "../slice";
 import { andSearch, sortBy } from "../utils/BookshelfUtils";
 import BookCard from "./BookCard";
@@ -57,12 +58,13 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
     book: BookWithState;
   } | null>(null);
 
-  const [isAddBookshelvesDialogOpen, setIsAddBookshelvesDialogOpen] = useState(false);
-  const [selectedBooksForBookshelves, setSelectedBooksForBookshelves] = useState<number[]>([]);
-  const [isSetTagsDialogOpen, setIsSetTagsDialogOpen] = useState(false);
-  const [selectedBooksForTags, setSelectedBooksForTags] = useState<number[]>([]);
-  const [isDeleteBookDialogOpen, setIsDeleteBookDialogOpen] = useState(false);
-  const [selectedBooksForDelete, setSelectedBooksForDelete] = useState<BookWithState[]>([]);
+  const {
+    dialogType,
+    selectedBookIds: dialogBookIds,
+    selectedBooks: dialogBooks,
+    openDialog,
+    closeDialog,
+  } = useBookshelfDialogs();
 
   const currentGridSize = useMemo(
     () => GRID_SIZES[bookshelfSettings.gridSize],
@@ -120,28 +122,26 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
 
   const openAddBookshelvesDialog = useCallback(
     (book?: BookWithState) => {
-      const ids = book
+      const books = book
         ? selectedBookIds.has(book.id)
-          ? Array.from(selectedBookIds)
-          : [book.id]
-        : Array.from(selectedBookIds);
-      setSelectedBooksForBookshelves(ids);
-      setIsAddBookshelvesDialogOpen(true);
+          ? filteredSortedBooks.filter((b) => selectedBookIds.has(b.id))
+          : [book]
+        : filteredSortedBooks.filter((b) => selectedBookIds.has(b.id));
+      openDialog("add-to-bookshelf", books);
     },
-    [selectedBookIds],
+    [selectedBookIds, filteredSortedBooks, openDialog],
   );
 
   const openTagsDialog = useCallback(
     (book?: BookWithState) => {
-      const ids = book
+      const books = book
         ? selectedBookIds.has(book.id)
-          ? Array.from(selectedBookIds)
-          : [book.id]
-        : Array.from(selectedBookIds);
-      setSelectedBooksForTags(ids);
-      setIsSetTagsDialogOpen(true);
+          ? filteredSortedBooks.filter((b) => selectedBookIds.has(b.id))
+          : [book]
+        : filteredSortedBooks.filter((b) => selectedBookIds.has(b.id));
+      openDialog("set-tags", books);
     },
-    [selectedBookIds],
+    [selectedBookIds, filteredSortedBooks, openDialog],
   );
 
   const openDeleteDialog = useCallback(
@@ -151,10 +151,9 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
           ? filteredSortedBooks.filter((b) => selectedBookIds.has(b.id))
           : [book]
         : filteredSortedBooks.filter((b) => selectedBookIds.has(b.id));
-      setSelectedBooksForDelete(books);
-      setIsDeleteBookDialogOpen(true);
+      openDialog("delete-books", books);
     },
-    [filteredSortedBooks, selectedBookIds],
+    [filteredSortedBooks, selectedBookIds, openDialog],
   );
 
   const columnWidth = currentGridSize.width;
@@ -285,27 +284,23 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
       />
 
       <AddBooksToBookshelvesDialog
-        openDialog={isAddBookshelvesDialogOpen}
-        bookIds={selectedBooksForBookshelves}
+        openDialog={dialogType === "add-to-bookshelf"}
+        bookIds={dialogBookIds}
         availableBookshelves={availableBookshelves}
         onClose={() => {
-          setIsAddBookshelvesDialogOpen(false);
-          setSelectedBooksForBookshelves([]);
+          closeDialog();
           clearSelection();
         }}
         onAddBooks={() => {
-          // You might not want to refresh the entire current list if the user isn't in a view that changed.
-          // But refreshing is safe.
           dispatch(fetchBooksInSelectedBookshelf(bookshelfId));
         }}
       />
       <SetBookTagsDialog
-        openDialog={isSetTagsDialogOpen}
-        bookIds={selectedBooksForTags}
+        openDialog={dialogType === "set-tags"}
+        bookIds={dialogBookIds}
         availableTags={availableTags}
         onClose={() => {
-          setIsSetTagsDialogOpen(false);
-          setSelectedBooksForTags([]);
+          closeDialog();
           clearSelection();
         }}
         onUpdateTags={() => {
@@ -313,11 +308,10 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
         }}
       />
       <BookDeleteDialog
-        openDialog={isDeleteBookDialogOpen}
-        books={selectedBooksForDelete}
+        openDialog={dialogType === "delete-books"}
+        books={dialogBooks}
         onClose={() => {
-          setIsDeleteBookDialogOpen(false);
-          setSelectedBooksForDelete([]);
+          closeDialog();
           clearSelection();
         }}
       />
