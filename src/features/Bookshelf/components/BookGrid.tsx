@@ -1,9 +1,10 @@
 import { Box, CircularProgress, Stack, Typography } from "@mui/material";
+import { createSelector } from "@reduxjs/toolkit";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Grid } from "react-window";
 import { useResizeObserver } from "../../../hooks/useResizeObserver";
-import { useAppDispatch, useAppSelector } from "../../../store/store";
+import { type RootState, useAppDispatch, useAppSelector } from "../../../store/store";
 import type { Book, BookWithState } from "../../../types/DatabaseModels";
 import { updateSettings } from "../../Settings/slice";
 import { useBookSelection } from "../hooks/useBookSelection";
@@ -25,6 +26,41 @@ const GRID_SIZES = [
   { width: 240, height: 380 },
 ];
 
+const selectBookGridState = createSelector(
+  [
+    (state: RootState) => state.settings.bookshelf,
+    (state: RootState) => state.bookCollection.searchText,
+    (state: RootState) => state.bookCollection.bookshelf.books,
+    (state: RootState) => state.bookCollection.bookshelf.bookshelves,
+    (state: RootState) => state.bookCollection.bookshelf.selectedId,
+    (state: RootState) => state.bookCollection.bookshelf.status,
+    (state: RootState) => state.bookCollection.tag.selectedId,
+    (state: RootState) => state.bookCollection.tag.tags,
+    (state: RootState) => state.view.activeView,
+  ],
+  (
+    bookshelfSettings,
+    searchText,
+    booksInSelectedBookshelf,
+    availableBookshelves,
+    bookshelfId,
+    status,
+    tagId,
+    availableTags,
+    activeView,
+  ) => ({
+    bookshelfSettings,
+    searchText,
+    booksInSelectedBookshelf,
+    availableBookshelves,
+    bookshelfId,
+    status,
+    tagId,
+    availableTags,
+    activeView,
+  }),
+);
+
 /** Props for the Book grid component */
 export interface BookGridProps {
   /** Callback for when a book is selected */
@@ -37,17 +73,17 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
   const dispatch = useAppDispatch();
   const { selectedBookIds, clearSelection, handleSelectionClick } = useBookSelection();
 
-  const bookshelfSettings = useAppSelector((state) => state.settings.bookshelf);
-  const searchText = useAppSelector((state) => state.bookCollection.searchText);
-  const booksInSelectedBookshelf = useAppSelector((state) => state.bookCollection.bookshelf.books);
-  const availableBookshelves = useAppSelector(
-    (state) => state.bookCollection.bookshelf.bookshelves,
-  );
-  const bookshelfId = useAppSelector((state) => state.bookCollection.bookshelf.selectedId);
-  const status = useAppSelector((state) => state.bookCollection.bookshelf.status);
-  const tagId = useAppSelector((state) => state.bookCollection.tag.selectedId);
-  const availableTags = useAppSelector((state) => state.bookCollection.tag.tags);
-  const activeView = useAppSelector((state) => state.view.activeView);
+  const {
+    bookshelfSettings,
+    searchText,
+    booksInSelectedBookshelf,
+    availableBookshelves,
+    bookshelfId,
+    status,
+    tagId,
+    availableTags,
+    activeView,
+  } = useAppSelector(selectBookGridState);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const containerWidth = useResizeObserver(containerRef);
