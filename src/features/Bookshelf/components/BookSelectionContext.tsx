@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
+import { createContext, useCallback, useMemo, useRef, useState } from "react";
 import type { BookWithState } from "../../../types/DatabaseModels";
 
 /** Context for managing book selection state */
@@ -22,15 +22,6 @@ interface BookSelectionContextType {
 }
 
 export const BookSelectionContext = createContext<BookSelectionContextType | null>(null);
-
-/** Hook to use the book selection context */
-export const useBookSelection = () => {
-  const context = useContext(BookSelectionContext);
-  if (!context) {
-    throw new Error("useBookSelection must be used within a BookSelectionProvider");
-  }
-  return context;
-};
 
 /** Props for the BookSelectionProvider component */
 export interface BookSelectionProviderProps {

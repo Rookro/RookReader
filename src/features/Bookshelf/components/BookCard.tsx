@@ -16,7 +16,7 @@ import type { CellComponentProps } from "react-window";
 import dummy_thumbnail from "../../../assets/dummy_thumbnail.svg";
 import AutoScrollTypography from "../../../components/ui/AutoScrollTypography/AutoScrollTypography";
 import type { BookWithState, Tag } from "../../../types/DatabaseModels";
-import { useBookSelection } from "./BookSelectionContext";
+import { useBookSelection } from "../hooks/useBookSelection";
 
 export interface BookCardProps {
   /** The list of books to display */
