@@ -6,9 +6,10 @@ import {
   createMockBookWithState,
   createMockTag,
 } from "../../../test/factories";
-import { createBasePreloadedState, renderWithProviders } from "../../../test/utils";
+import { createBasePreloadedState, type RootState, renderWithProviders } from "../../../test/utils";
 import * as SettingsReducer from "../../Settings/slice";
 import BookGrid from "./BookGrid";
+import { BookSelectionProvider } from "./BookSelectionContext";
 
 // Mock actions to prevent real thunks from running
 vi.mock("../slice", async () => {
@@ -134,8 +135,17 @@ describe("BookGrid", () => {
     }
   };
 
+  const renderBookGrid = (options?: { preloadedState?: RootState }) => {
+    return renderWithProviders(
+      <BookSelectionProvider>
+        <BookGrid />
+      </BookSelectionProvider>,
+      options,
+    );
+  };
+
   it("should render NavigationBar and Grid with books", async () => {
-    renderWithProviders(<BookGrid />, { preloadedState: defaultPreloadedState });
+    renderBookGrid({ preloadedState: defaultPreloadedState });
     forceResize(1000);
 
     await waitFor(() => {
@@ -148,7 +158,7 @@ describe("BookGrid", () => {
     const loadingState = structuredClone(defaultPreloadedState);
     loadingState.bookCollection.bookshelf.status = "loading" as const;
 
-    renderWithProviders(<BookGrid />, { preloadedState: loadingState });
+    renderBookGrid({ preloadedState: loadingState });
     expect(screen.getByRole("progressbar")).toBeInTheDocument();
   });
 
@@ -156,7 +166,7 @@ describe("BookGrid", () => {
     const emptyState = structuredClone(defaultPreloadedState);
     emptyState.bookCollection.bookshelf.books = [];
 
-    renderWithProviders(<BookGrid />, { preloadedState: emptyState });
+    renderBookGrid({ preloadedState: emptyState });
     expect(await screen.findByText(/No books in this collection/i)).toBeInTheDocument();
   });
 
@@ -164,7 +174,7 @@ describe("BookGrid", () => {
     const taggedState = structuredClone(defaultPreloadedState);
     taggedState.bookCollection.tag.selectedId = 10;
 
-    renderWithProviders(<BookGrid />, { preloadedState: taggedState });
+    renderBookGrid({ preloadedState: taggedState });
     forceResize(1000);
 
     await waitFor(() => {
@@ -174,7 +184,7 @@ describe("BookGrid", () => {
   });
 
   it("should open Set Tags dialog from context menu", async () => {
-    renderWithProviders(<BookGrid />, { preloadedState: defaultPreloadedState });
+    renderBookGrid({ preloadedState: defaultPreloadedState });
     forceResize(1000);
 
     const bookCell = await screen.findByTestId("book-cell-0");
@@ -194,7 +204,7 @@ describe("BookGrid", () => {
   });
 
   it("should open Add to Collection dialog from context menu", async () => {
-    renderWithProviders(<BookGrid />, { preloadedState: defaultPreloadedState });
+    renderBookGrid({ preloadedState: defaultPreloadedState });
     forceResize(1000);
 
     const bookCell = await screen.findByTestId("book-cell-0");
@@ -217,7 +227,7 @@ describe("BookGrid", () => {
   });
 
   it("should open Delete Book dialog from context menu", async () => {
-    renderWithProviders(<BookGrid />, { preloadedState: defaultPreloadedState });
+    renderBookGrid({ preloadedState: defaultPreloadedState });
     forceResize(1000);
 
     const bookCell = await screen.findByTestId("book-cell-0");
@@ -241,7 +251,7 @@ describe("BookGrid", () => {
   });
 
   it("should close context menu on backdrop click", async () => {
-    renderWithProviders(<BookGrid />, { preloadedState: defaultPreloadedState });
+    renderBookGrid({ preloadedState: defaultPreloadedState });
     forceResize(1000);
 
     const bookCell = await screen.findByTestId("book-cell-0");
@@ -258,7 +268,7 @@ describe("BookGrid", () => {
   });
 
   it("should update gridSize and store when slider changes", async () => {
-    renderWithProviders(<BookGrid />, { preloadedState: defaultPreloadedState });
+    renderBookGrid({ preloadedState: defaultPreloadedState });
     forceResize(1000);
 
     const slider = await screen.findByRole("slider");
@@ -271,7 +281,7 @@ describe("BookGrid", () => {
   });
 
   it("should disconnect ResizeObserver on unmount", () => {
-    const { unmount } = renderWithProviders(<BookGrid />, {
+    const { unmount } = renderBookGrid({
       preloadedState: defaultPreloadedState,
     });
     unmount();
@@ -280,7 +290,7 @@ describe("BookGrid", () => {
 
   describe("Multiple Selection", () => {
     it("should toggle selection when Ctrl-clicking a book", async () => {
-      renderWithProviders(<BookGrid />, { preloadedState: defaultPreloadedState });
+      renderBookGrid({ preloadedState: defaultPreloadedState });
       forceResize(1000);
 
       await waitFor(() => {
@@ -324,7 +334,7 @@ describe("BookGrid", () => {
     });
 
     it("should select range when Shift-clicking books", async () => {
-      renderWithProviders(<BookGrid />, { preloadedState: defaultPreloadedState });
+      renderBookGrid({ preloadedState: defaultPreloadedState });
       forceResize(1000);
 
       await waitFor(() => {
@@ -351,7 +361,7 @@ describe("BookGrid", () => {
     });
 
     it("should open Delete Book dialog for multiple selections", async () => {
-      renderWithProviders(<BookGrid />, { preloadedState: defaultPreloadedState });
+      renderBookGrid({ preloadedState: defaultPreloadedState });
       forceResize(1000);
 
       const book1Button = (await screen.findByText("Book 1")).closest("button");
@@ -374,7 +384,7 @@ describe("BookGrid", () => {
     });
 
     it("should clear selection when Clear button is clicked", async () => {
-      renderWithProviders(<BookGrid />, { preloadedState: defaultPreloadedState });
+      renderBookGrid({ preloadedState: defaultPreloadedState });
       forceResize(1000);
 
       const book1Button = (await screen.findByText("Book 1")).closest("button");
