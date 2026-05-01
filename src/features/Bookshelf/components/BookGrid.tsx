@@ -188,6 +188,15 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
     [openDialog, getTargetBooks],
   );
 
+  const handleCloseDialog = useCallback(() => {
+    closeDialog();
+    clearSelection();
+  }, [closeDialog, clearSelection]);
+
+  const refreshBookshelf = useCallback(() => {
+    dispatch(fetchBooksInSelectedBookshelf(bookshelfId));
+  }, [dispatch, bookshelfId]);
+
   const columnWidth = currentGridSize.width;
   const rowHeight = currentGridSize.height;
 
@@ -319,33 +328,20 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
         openDialog={dialogType === "add-to-bookshelf"}
         bookIds={dialogBookIds}
         availableBookshelves={availableBookshelves}
-        onClose={() => {
-          closeDialog();
-          clearSelection();
-        }}
-        onAddBooks={() => {
-          dispatch(fetchBooksInSelectedBookshelf(bookshelfId));
-        }}
+        onClose={handleCloseDialog}
+        onAddBooks={refreshBookshelf}
       />
       <SetBookTagsDialog
         openDialog={dialogType === "set-tags"}
         bookIds={dialogBookIds}
         availableTags={availableTags}
-        onClose={() => {
-          closeDialog();
-          clearSelection();
-        }}
-        onUpdateTags={() => {
-          dispatch(fetchBooksInSelectedBookshelf(bookshelfId));
-        }}
+        onClose={handleCloseDialog}
+        onUpdateTags={refreshBookshelf}
       />
       <BookDeleteDialog
         openDialog={dialogType === "delete-books"}
         books={dialogBooks}
-        onClose={() => {
-          closeDialog();
-          clearSelection();
-        }}
+        onClose={handleCloseDialog}
       />
     </Stack>
   );
