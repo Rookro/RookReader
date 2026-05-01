@@ -280,12 +280,38 @@ describe("BookGrid", () => {
     });
   });
 
-  it("should disconnect ResizeObserver on unmount", () => {
-    const { unmount } = renderBookGrid({
-      preloadedState: defaultPreloadedState,
+  describe("Unified Dialog Management", () => {
+    it("should open Set Tags dialog via context menu with the specific book", async () => {
+      renderBookGrid({ preloadedState: defaultPreloadedState });
+      forceResize(1000);
+
+      const bookCell = await screen.findByTestId("book-cell-0");
+      await user.pointer({ keys: "[MouseRight]", target: bookCell });
+
+      const setTagsItem = await screen.findByText(/Set tags/i);
+      await user.click(setTagsItem);
+
+      // Verify SetTagsDialog is open (title check)
+      expect(await screen.findByText("Set Tags")).toBeInTheDocument();
+      // The dialog should have the tag of Book 1 (at least one instance)
+      expect(screen.getAllByText("T1").length).toBeGreaterThan(0);
     });
-    unmount();
-    expect(mockDisconnect).toHaveBeenCalled();
+
+    it("should close dialog and clear data when onClose is called", async () => {
+      renderBookGrid({ preloadedState: defaultPreloadedState });
+      forceResize(1000);
+
+      const bookCell = await screen.findByTestId("book-cell-0");
+      await user.pointer({ keys: "[MouseRight]", target: bookCell });
+      await user.click(await screen.findByText(/Set tags/i));
+
+      const cancelButton = screen.getByRole("button", { name: /cancel/i });
+      await user.click(cancelButton);
+
+      await waitFor(() => {
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      });
+    });
   });
 
   describe("Multiple Selection", () => {
@@ -405,5 +431,13 @@ describe("BookGrid", () => {
         expect(screen.queryByText(/1 selected/i)).not.toBeInTheDocument();
       });
     });
+  });
+
+  it("should disconnect ResizeObserver on unmount", () => {
+    const { unmount } = renderBookGrid({
+      preloadedState: defaultPreloadedState,
+    });
+    unmount();
+    expect(mockDisconnect).toHaveBeenCalled();
   });
 });
