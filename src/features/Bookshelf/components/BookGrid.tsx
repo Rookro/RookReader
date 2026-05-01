@@ -156,40 +156,36 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
     setContextMenu({ mouseX: e.clientX, mouseY: e.clientY, book });
   }, []);
 
-  const openAddBookshelvesDialog = useCallback(
+  const getTargetBooks = useCallback(
     (book?: BookWithState) => {
-      const books = book
+      return book
         ? selectedBookIds.has(book.id)
           ? filteredSortedBooks.filter((b) => selectedBookIds.has(b.id))
           : [book]
         : filteredSortedBooks.filter((b) => selectedBookIds.has(b.id));
-      openDialog("add-to-bookshelf", books);
     },
-    [selectedBookIds, filteredSortedBooks, openDialog],
+    [selectedBookIds, filteredSortedBooks],
+  );
+
+  const openAddBookshelvesDialog = useCallback(
+    (book?: BookWithState) => {
+      openDialog("add-to-bookshelf", getTargetBooks(book));
+    },
+    [openDialog, getTargetBooks],
   );
 
   const openTagsDialog = useCallback(
     (book?: BookWithState) => {
-      const books = book
-        ? selectedBookIds.has(book.id)
-          ? filteredSortedBooks.filter((b) => selectedBookIds.has(b.id))
-          : [book]
-        : filteredSortedBooks.filter((b) => selectedBookIds.has(b.id));
-      openDialog("set-tags", books);
+      openDialog("set-tags", getTargetBooks(book));
     },
-    [selectedBookIds, filteredSortedBooks, openDialog],
+    [openDialog, getTargetBooks],
   );
 
   const openDeleteDialog = useCallback(
     (book?: BookWithState) => {
-      const books = book
-        ? selectedBookIds.has(book.id)
-          ? filteredSortedBooks.filter((b) => selectedBookIds.has(b.id))
-          : [book]
-        : filteredSortedBooks.filter((b) => selectedBookIds.has(b.id));
-      openDialog("delete-books", books);
+      openDialog("delete-books", getTargetBooks(book));
     },
-    [filteredSortedBooks, selectedBookIds, openDialog],
+    [openDialog, getTargetBooks],
   );
 
   const columnWidth = currentGridSize.width;
