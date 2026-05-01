@@ -4,7 +4,6 @@ import {
   Button,
   CircularProgress,
   Divider,
-  debounce,
   IconButton,
   ListItemIcon,
   ListItemText,
@@ -18,6 +17,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Grid } from "react-window";
+import { useResizeObserver } from "../../../hooks/useResizeObserver";
 import { useAppDispatch, useAppSelector } from "../../../store/store";
 import type { Book, BookWithState } from "../../../types/DatabaseModels";
 import { updateSettings } from "../../Settings/slice";
@@ -60,8 +60,8 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
   const availableTags = useAppSelector((state) => state.bookCollection.tag.tags);
   const activeView = useAppSelector((state) => state.view.activeView);
 
-  const containerRef = useRef(null);
-  const [containerWidth, setContainerWidth] = useState(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const containerWidth = useResizeObserver(containerRef);
 
   const [contextMenu, setContextMenu] = useState<{
     mouseX: number;
@@ -75,14 +75,6 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
   const [selectedBooksForTags, setSelectedBooksForTags] = useState<number[]>([]);
   const [isDeleteBookDialogOpen, setIsDeleteBookDialogOpen] = useState(false);
   const [selectedBooksForDelete, setSelectedBooksForDelete] = useState<BookWithState[]>([]);
-
-  const debouncedUpdateContainerWidth = useMemo(
-    () =>
-      debounce((currentWidth: number) => {
-        setContainerWidth(currentWidth);
-      }, 100),
-    [],
-  );
 
   const currentGridSize = useMemo(
     () => GRID_SIZES[bookshelfSettings.gridSize],
@@ -124,45 +116,6 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
       clearSelection();
     }
   }, [dispatch, bookshelfId, activeView, clearSelection]);
-
-  useEffect(() => {
-    const element = containerRef.current;
-    if (!element) return;
-
-    let previousWidth = 0;
-    let visibleTime = 0;
-
-    const observer = new ResizeObserver((entries) => {
-      if (entries.length > 0 && entries[0]) {
-        const newWidth = entries[0].contentRect.width;
-
-        if (newWidth <= 0 || newWidth === previousWidth) {
-          return;
-        }
-
-        const now = performance.now();
-
-        if (previousWidth === 0) {
-          visibleTime = now;
-          debouncedUpdateContainerWidth.clear();
-          setContainerWidth(newWidth);
-        } else if (now - visibleTime < 200) {
-          debouncedUpdateContainerWidth.clear();
-          setContainerWidth(newWidth);
-        } else {
-          debouncedUpdateContainerWidth(newWidth);
-        }
-
-        previousWidth = newWidth;
-      }
-    });
-
-    observer.observe(element);
-    return () => {
-      observer.disconnect();
-      debouncedUpdateContainerWidth.clear();
-    };
-  }, [debouncedUpdateContainerWidth]);
 
   const handleBookClick = useCallback(
     (book: BookWithState, e: React.MouseEvent) => {
