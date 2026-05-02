@@ -10,6 +10,7 @@ import { useBookshelves } from "../hooks/useBookshelves";
 import { useBookTags } from "../hooks/useBookTags";
 import { addBookshelf, addTag } from "../slice";
 import BookGrid from "./BookGrid";
+import { BookSelectionProvider } from "./BookSelectionContext";
 import { CreateBookshelfDialog } from "./Dialog/CreateBookshelfDialog";
 import CreateBookTagDialog from "./Dialog/CreateBookTagDialog";
 import MenuList from "./MenuList";
@@ -81,7 +82,9 @@ export default function Bookshelf({ sx }: BookshelfProps) {
               backgroundColor: (theme) => theme.palette.background.default,
             }}
           >
-            <BookGrid onBookSelect={handleBookSelected} />
+            <BookSelectionProvider>
+              <BookGrid onBookSelect={handleBookSelected} />
+            </BookSelectionProvider>
           </Box>
         </Allotment.Pane>
       </Allotment>

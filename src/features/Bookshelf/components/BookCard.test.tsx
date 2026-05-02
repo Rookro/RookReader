@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createMockBookWithState, createMockTag } from "../../../test/factories";
 import { renderWithProviders } from "../../../test/utils";
 import BookCard from "./BookCard";
-import { SelectionContext } from "./BookGrid";
+import { BookSelectionContext } from "./BookSelectionContext";
 
 describe("BookCard", () => {
   const user = userEvent.setup();
@@ -28,8 +28,7 @@ describe("BookCard", () => {
     toggleSelection: vi.fn(),
     setSelection: vi.fn(),
     clearSelection: vi.fn(),
-    lastClickedBookId: null,
-    setLastClickedBookId: vi.fn(),
+    handleSelectionClick: vi.fn(),
   };
 
   const defaultProps = {
@@ -53,9 +52,9 @@ describe("BookCard", () => {
 
   const renderBookCard = (props = defaultProps, selectionContext = defaultSelectionContext) => {
     return renderWithProviders(
-      <SelectionContext.Provider value={selectionContext}>
+      <BookSelectionContext.Provider value={selectionContext}>
         <BookCard {...props} />
-      </SelectionContext.Provider>,
+      </BookSelectionContext.Provider>,
     );
   };
 

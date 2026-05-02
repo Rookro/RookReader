@@ -16,7 +16,7 @@ import type { CellComponentProps } from "react-window";
 import dummy_thumbnail from "../../../assets/dummy_thumbnail.svg";
 import AutoScrollTypography from "../../../components/ui/AutoScrollTypography/AutoScrollTypography";
 import type { BookWithState, Tag } from "../../../types/DatabaseModels";
-import { useSelection } from "./BookGrid";
+import { useBookSelection } from "../hooks/useBookSelection";
 
 export interface BookCardProps {
   /** The list of books to display */
@@ -50,7 +50,7 @@ function BookCardInner({
 }: CellComponentProps<BookCardProps>) {
   const index = rowIndex * columnCount + columnIndex;
   const book = books[index];
-  const { selectedBookIds } = useSelection();
+  const { selectedBookIds } = useBookSelection();
 
   const imageSrc = useMemo(() => {
     return book?.thumbnail_path ? convertFileSrc(book.thumbnail_path) : dummy_thumbnail;
