@@ -2,7 +2,7 @@ import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import i18n from "../../../i18n/config";
-import { renderWithProviders } from "../../../test/utils";
+import { createBasePreloadedState, renderWithProviders } from "../../../test/utils";
 import { openSettingsWindow } from "../../../utils/WindowOpener";
 import NavigationBar from "./NavigationBar";
 
@@ -69,5 +69,39 @@ describe("NavigationBar", () => {
 
     // Check if dialog title is present
     expect(screen.getByText(i18n.t("bookshelf.book-addition.title"))).toBeInTheDocument();
+  });
+
+  it("should render breadcrumbs when a series is selected", () => {
+    const preloadedState = createBasePreloadedState();
+    preloadedState.bookCollection.series = {
+      series: [{ id: 1, name: "Selected Series" }],
+      selectedId: 1,
+      books: [],
+      status: "idle",
+      error: null,
+    };
+
+    renderWithProviders(<NavigationBar />, { preloadedState });
+
+    expect(screen.getByText(i18n.t("bookshelf.title"))).toBeInTheDocument();
+    expect(screen.getByText("Selected Series")).toBeInTheDocument();
+  });
+
+  it("should clear selected series when 'Bookshelf' link is clicked", async () => {
+    const preloadedState = createBasePreloadedState();
+    preloadedState.bookCollection.series = {
+      series: [{ id: 1, name: "Selected Series" }],
+      selectedId: 1,
+      books: [],
+      status: "idle",
+      error: null,
+    };
+
+    const { store } = renderWithProviders(<NavigationBar />, { preloadedState });
+
+    const bookshelfLink = screen.getByText(i18n.t("bookshelf.title"));
+    await user.click(bookshelfLink);
+
+    expect(store.getState().bookCollection.series.selectedId).toBeNull();
   });
 });

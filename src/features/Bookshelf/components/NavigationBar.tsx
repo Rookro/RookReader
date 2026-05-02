@@ -1,9 +1,11 @@
-import { Add, ArrowDownward, ArrowUpward, Search, Settings } from "@mui/icons-material";
+import { Add, ArrowDownward, ArrowUpward, Home, Search, Settings } from "@mui/icons-material";
 import {
   Box,
+  Breadcrumbs,
   Button,
   IconButton,
   InputAdornment,
+  Link,
   MenuItem,
   OutlinedInput,
   Select,
@@ -13,13 +15,13 @@ import {
   Typography,
 } from "@mui/material";
 import { debug } from "@tauri-apps/plugin-log";
-import { type ChangeEvent, useCallback, useState } from "react";
+import { type ChangeEvent, useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppDispatch, useAppSelector } from "../../../store/store";
 import type { SortOrder } from "../../../types/AppSettings";
 import { openSettingsWindow } from "../../../utils/WindowOpener";
 import { updateSettings } from "../../Settings/slice";
-import { addBookToBookshelf, setSearchText } from "../slice";
+import { addBookToBookshelf, setSearchText, setSelectedSeriesId } from "../slice";
 import BookAdditionToBookshelfDialog from "./Dialog/BookAdditionToBookshelfDialog";
 
 /** Navigation bar for the bookshelf component */
@@ -28,6 +30,13 @@ export default function NavigationBar() {
   const dispatch = useAppDispatch();
   const bookshelfSettings = useAppSelector((state) => state.settings.bookshelf);
   const bookshelfId = useAppSelector((state) => state.bookCollection.bookshelf.selectedId);
+  const { selectedId: selectedSeriesId, series } = useAppSelector(
+    (state) => state.bookCollection.series,
+  );
+
+  const selectedSeries = useMemo(() => {
+    return series.find((s) => s.id === selectedSeriesId);
+  }, [series, selectedSeriesId]);
 
   const [isAddBookDialogOpen, setIsAddBookDialogOpen] = useState(false);
 
@@ -35,6 +44,14 @@ export default function NavigationBar() {
     debug("Settings button clicked in bookshelf.");
     openSettingsWindow();
   }, []);
+
+  const handleBackToBookshelf = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      dispatch(setSelectedSeriesId(null));
+    },
+    [dispatch],
+  );
 
   const handleSearchTextChanged = useCallback(
     (e: ChangeEvent<HTMLInputElement>) => {
@@ -67,6 +84,39 @@ export default function NavigationBar() {
   return (
     <Stack>
       <Toolbar variant="dense" disableGutters sx={{ minHeight: "40px" }}>
+        {selectedSeriesId !== null && (
+          <Breadcrumbs
+            aria-label="breadcrumb"
+            sx={{
+              marginLeft: "16px",
+              "& .MuiBreadcrumbs-ol": {
+                flexWrap: "nowrap",
+              },
+            }}
+          >
+            <Link
+              underline="hover"
+              sx={{ display: "flex", alignItems: "center", cursor: "pointer", color: "inherit" }}
+              onClick={handleBackToBookshelf}
+            >
+              <Home sx={{ mr: 0.5 }} fontSize="inherit" />
+              {t("bookshelf.title")}
+            </Link>
+            <Typography
+              color="text.primary"
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                maxWidth: "200px",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {selectedSeries?.name ?? "..."}
+            </Typography>
+          </Breadcrumbs>
+        )}
         <OutlinedInput
           type="search"
           size="small"
