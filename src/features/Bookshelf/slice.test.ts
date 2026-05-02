@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as BookCommands from "../../bindings/BookCommands";
 import * as BookshelfCommand from "../../bindings/BookshelfCommand";
 import * as ContainerCommands from "../../bindings/ContainerCommands";
+import * as SeriesCommand from "../../bindings/SeriesCommand";
 import * as TagCommands from "../../bindings/TagCommands";
 import { createMockBookshelf, createMockBookWithState, createMockTag } from "../../test/factories";
 import { type AppStore, createTestStore } from "../../test/utils";
@@ -19,11 +20,13 @@ import bookCollectionReducer, {
   deleteBookFromCollection,
   fetchBookshelves,
   fetchBooksInSelectedBookshelf,
+  fetchSeries,
   fetchTags,
   removeBookshelf,
   removeTag,
   setBookshelfSearchText,
   setSearchText,
+  setSelectedSeriesId,
   setSelectedTag,
 } from "./slice";
 
@@ -74,6 +77,12 @@ describe("BookCollectionReducer", () => {
   it("should handle setSelectedTag", () => {
     const nextState = bookCollectionReducer(initialState, setSelectedTag(1));
     expect(nextState.tag.selectedId).toBe(1);
+  });
+
+  // Verify that selected series ID is set correctly
+  it("should handle setSelectedSeriesId", () => {
+    const nextState = bookCollectionReducer(initialState, setSelectedSeriesId(1));
+    expect(nextState.series.selectedId).toBe(1);
   });
 
   // Verify that state is updated when a bookshelf is added
@@ -356,6 +365,30 @@ describe("BookCollectionReducer", () => {
 
         const state = store.getState().bookCollection;
         expect(state.tag.status).toBe("failed");
+      });
+    });
+
+    describe("Series Thunks", () => {
+      // Verify state update on successful series fetching
+      it("fetchSeries should update state with fetched series on success", async () => {
+        const mockSeries: Series[] = [{ id: 1, name: "Series 1" }];
+        vi.mocked(SeriesCommand.getAllSeries).mockResolvedValue(mockSeries);
+
+        await store.dispatch(fetchSeries());
+
+        const state = store.getState().bookCollection;
+        expect(state.series.status).toBe("succeeded");
+        expect(state.series.series).toEqual(mockSeries);
+      });
+
+      // Verify error handling when series fetching fails
+      it("fetchSeries should handle failure", async () => {
+        vi.mocked(SeriesCommand.getAllSeries).mockRejectedValue(new Error());
+
+        await store.dispatch(fetchSeries());
+
+        const state = store.getState().bookCollection;
+        expect(state.series.status).toBe("failed");
       });
     });
 

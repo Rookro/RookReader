@@ -15,6 +15,7 @@ import {
   removeBookFromBookshelf,
 } from "../../bindings/BookshelfCommand";
 import { determineEpubNovel, getEntriesInContainer } from "../../bindings/ContainerCommands";
+import { getAllSeries } from "../../bindings/SeriesCommand";
 import { createTag, deleteTag, getAllTags } from "../../bindings/TagCommands";
 import { createAppAsyncThunk } from "../../types/CustomAsyncThunk";
 import type { Bookshelf, BookWithState, Series, Tag } from "../../types/DatabaseModels";
@@ -275,6 +276,28 @@ export const removeTag = createAppAsyncThunk(
 );
 
 /**
+ * Fetches all available series from the database.
+ *
+ * @returns A thunk that resolves to an array of all Series objects.
+ */
+export const fetchSeries = createAppAsyncThunk(
+  "bookCollection/fetchSeries",
+  async (_, { rejectWithValue }) => {
+    try {
+      return await getAllSeries();
+    } catch (e) {
+      const errorMessage = `Failed to fetch all available series. Error: ${JSON.stringify(e)}`;
+      error(errorMessage);
+      return rejectWithValue(
+        e instanceof CommandError
+          ? { code: e.code, message: errorMessage }
+          : { code: ErrorCode.OTHER_ERROR, message: errorMessage },
+      );
+    }
+  },
+);
+
+/**
  * Changes the currently selected bookshelf and fetches its corresponding books.
  * If the provided ID is null, fetches all books.
  *
@@ -352,6 +375,15 @@ const bookCollectionSlice = createSlice({
      */
     setSelectedTag(state, action: PayloadAction<number | null>) {
       state.tag.selectedId = action.payload;
+    },
+    /**
+     * Sets the ID of the currently selected series.
+     *
+     * @param state - The current Redux state slice.
+     * @param action - Payload containing the selected series ID, or null to clear.
+     */
+    setSelectedSeriesId(state, action: PayloadAction<number | null>) {
+      state.series.selectedId = action.payload;
     },
     /**
      * Sets the search text specifically for the bookshelf view.
@@ -533,6 +565,20 @@ const bookCollectionSlice = createSlice({
         state.tag.status = "failed";
         state.tag.tags = [];
         state.tag.error = action.payload ?? null;
+      })
+      .addCase(fetchSeries.pending, (state) => {
+        state.series.status = "loading";
+        state.series.error = null;
+      })
+      .addCase(fetchSeries.fulfilled, (state, action) => {
+        state.series.status = "succeeded";
+        state.series.series = action.payload;
+        state.series.error = null;
+      })
+      .addCase(fetchSeries.rejected, (state, action) => {
+        state.series.status = "failed";
+        state.series.series = [];
+        state.series.error = action.payload ?? null;
       });
   },
 });
@@ -540,6 +586,7 @@ const bookCollectionSlice = createSlice({
 export const {
   bookshelfAdded,
   setSelectedTag,
+  setSelectedSeriesId,
   setBookshelfSearchText,
   setSearchText,
   clearBookshelfError,
