@@ -6,6 +6,7 @@ mod commands;
 mod container;
 pub mod database;
 mod error;
+pub mod image;
 mod settings;
 mod setup;
 mod state;

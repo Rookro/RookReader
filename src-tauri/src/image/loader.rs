@@ -13,8 +13,9 @@ use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use rayon::ThreadPool;
 
 use crate::{
-    container::{image::Image, traits::Container},
+    container::traits::Container,
     error::Result,
+    image::{resizer::fast_thumbnail, types::Image},
 };
 
 /// A thread-safe cache mapping entry names to `Image` data.
@@ -288,9 +289,11 @@ fn load_image(
 fn resize_image(image: Arc<Image>, height: u32, resize_method: FilterType) -> Result<Arc<Image>> {
     let cursor = Cursor::new(&image.data);
     let image_reader = ImageReader::new(cursor).with_guessed_format()?;
-    let image = image_reader.decode()?;
+    let dyn_image = image_reader.decode()?;
 
-    let scaled_image = image.resize(u32::MAX, height, resize_method);
+    // Use SIMD accelerated resizing
+    // max_width is u32::MAX to scale based entirely on height
+    let scaled_image = fast_thumbnail(&dyn_image, u32::MAX, height, resize_method)?;
 
     let mut buffer = Vec::new();
     let mut encoder = JpegEncoder::new_with_quality(&mut buffer, 80);

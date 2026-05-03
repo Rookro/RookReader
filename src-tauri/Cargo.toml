@@ -34,6 +34,7 @@ zip = "8.5.1"
 tauri-plugin-log = "2"
 log = "0.4"
 image = "0.25"
+fast_image_resize = { version = "6", features = ["image", "rayon"] }
 tauri-plugin-os = "2"
 chrono = { version = "0.4.44", features = ["serde"] }
 unrar = "0.5.8"

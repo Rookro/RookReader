@@ -373,7 +373,8 @@ mod tests {
     use tokio::sync::RwLock;
 
     use crate::{
-        container::{image::Image, image_loader::ImageLoader, traits::MockContainer},
+        container::traits::MockContainer,
+        image::{loader::ImageLoader, types::Image},
         state::{container_settings::ContainerSettings, container_state::ContainerState},
     };
 

@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 * Faster file loading and smoother page-turning for an improved reading experience (#193)
+* Significantly improved image resizing and thumbnail generation speeds by leveraging CPU SIMD instructions and multi-threading (#199)
 
 ## [2.0.3] - 2026-04-24
 
