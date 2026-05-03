@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{container::image::Image, error::Result};
+use crate::{error::Result, image::types::Image};
 
 #[cfg(test)]
 use mockall::{automock, predicate::*};

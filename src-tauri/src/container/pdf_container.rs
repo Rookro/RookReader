@@ -3,8 +3,9 @@ use pdfium_render::prelude::{PdfDocument, PdfPageRenderRotation, PdfRenderConfig
 use std::sync::Arc;
 
 use crate::{
-    container::{image::Image, traits::Container},
+    container::traits::Container,
     error::{Error, Result},
+    image::types::Image,
 };
 
 /// An implementation of the `Container` trait for reading content from PDF files.

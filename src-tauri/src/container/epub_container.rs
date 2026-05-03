@@ -10,8 +10,9 @@ use rbook::Epub;
 use scraper::{Html, Selector};
 
 use crate::{
-    container::{image::Image, image_resizer::fast_thumbnail, traits::Container},
+    container::traits::Container,
     error::{Error, Result},
+    image::{resizer::fast_thumbnail, types::Image},
 };
 
 /// An implementation of the `Container` trait for reading content from EPUB files.

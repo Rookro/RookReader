@@ -13,8 +13,9 @@ use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use rayon::ThreadPool;
 
 use crate::{
-    container::{image::Image, image_resizer::fast_thumbnail, traits::Container},
+    container::traits::Container,
     error::Result,
+    image::{resizer::fast_thumbnail, types::Image},
 };
 
 /// A thread-safe cache mapping entry names to `Image` data.

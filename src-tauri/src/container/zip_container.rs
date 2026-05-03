@@ -8,10 +8,7 @@ use std::{
 use image::{codecs::jpeg::JpegEncoder, ImageReader};
 use zip::ZipArchive;
 
-use crate::{
-    container::{image::Image, traits::Container},
-    error::Result,
-};
+use crate::{container::traits::Container, error::Result, image::types::Image};
 
 /// An implementation of the `Container` trait for reading content from ZIP archive files.
 pub struct ZipContainer {

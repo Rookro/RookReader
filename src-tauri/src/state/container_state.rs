@@ -5,10 +5,11 @@ use pdfium_render::prelude::PdfRenderConfig;
 use crate::{
     container::{
         directory_container::DirectoryContainer, epub_container::EpubContainer,
-        image_loader::ImageLoader, pdf_container::PdfContainer, rar_container::RarContainer,
-        traits::Container, zip_container::ZipContainer,
+        pdf_container::PdfContainer, rar_container::RarContainer, traits::Container,
+        zip_container::ZipContainer,
     },
     error::{Error, Result},
+    image::loader::ImageLoader,
     state::container_settings::ContainerSettings,
 };
 

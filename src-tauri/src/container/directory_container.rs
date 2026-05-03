@@ -8,8 +8,9 @@ use std::{
 use image::{codecs::jpeg::JpegEncoder, imageops::FilterType, ImageReader};
 
 use crate::{
-    container::{image::Image, image_resizer::fast_thumbnail, traits::Container},
+    container::traits::Container,
     error::{Error, Result},
+    image::{resizer::fast_thumbnail, types::Image},
 };
 
 /// An implementation of the `Container` trait for browsing images in a filesystem directory.
