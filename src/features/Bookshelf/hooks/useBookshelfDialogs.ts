@@ -2,7 +2,12 @@ import { useCallback, useState } from "react";
 import type { BookWithState } from "../../../types/DatabaseModels";
 
 /** Types of dialogs available in the bookshelf */
-export type BookshelfDialogType = "add-to-bookshelf" | "set-tags" | "delete-books" | null;
+export type BookshelfDialogType =
+  | "add-to-bookshelf"
+  | "set-tags"
+  | "set-series"
+  | "delete-books"
+  | null;
 
 /** State for managing bookshelf dialogs */
 interface BookshelfDialogState {

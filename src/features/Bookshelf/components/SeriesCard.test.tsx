@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { createMockBookWithState } from "../../../test/factories";
 import { renderWithProviders } from "../../../test/utils";
+import { BookshelfActionsContext } from "./BookshelfActionsContext";
 import SeriesCard from "./SeriesCard";
 
 describe("SeriesCard", () => {
@@ -18,6 +19,12 @@ describe("SeriesCard", () => {
     createMockBookWithState({ id: 102, display_name: "Book 2", series_id: 1, series_order: 2 }),
   ];
 
+  const mockActions = {
+    openDialog: vi.fn(),
+    refreshBookshelf: vi.fn(),
+    refreshSeries: vi.fn(),
+  };
+
   const defaultProps = {
     series: mockSeries,
     books: mockBooks,
@@ -25,7 +32,11 @@ describe("SeriesCard", () => {
   };
 
   const renderSeriesCard = (props = defaultProps) => {
-    return renderWithProviders(<SeriesCard {...props} />);
+    return renderWithProviders(
+      <BookshelfActionsContext.Provider value={mockActions}>
+        <SeriesCard {...props} />
+      </BookshelfActionsContext.Provider>,
+    );
   };
 
   it("should render series name and volume count badge", () => {

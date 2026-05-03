@@ -96,10 +96,16 @@ export default function NavigationBar() {
           >
             <Link
               underline="hover"
-              sx={{ display: "flex", alignItems: "center", cursor: "pointer", color: "inherit" }}
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                cursor: "pointer",
+                color: "inherit",
+                whiteSpace: "nowrap",
+              }}
               onClick={handleBackToBookshelf}
             >
-              <Home sx={{ mr: 0.5 }} fontSize="inherit" />
+              <Home sx={{ marginRight: "4px" }} fontSize="small" />
               {t("bookshelf.title")}
             </Link>
             <Typography

@@ -64,6 +64,27 @@
         "cancel-button": "キャンセル"
       }
     },
+    "series": {
+      "title": "シリーズ",
+      "set-series": "シリーズを設定",
+      "ungroup-series": "シリーズを解除",
+      "creation": {
+        "title": "シリーズを作成",
+        "name-placeholder": "シリーズ名を入力してください",
+        "create-new": "新しいシリーズを作成",
+        "creation-button": "作成",
+        "cancel-button": "キャンセル"
+      },
+      "set": {
+        "title": "シリーズを設定",
+        "none": "シリーズなし",
+        "no-series-available": "利用可能なシリーズがありません。",
+        "search-placeholder": "シリーズ名で検索...",
+        "no-search-results": "\"{{searchText}}\" に一致するシリーズはありません。",
+        "ok-button": "決定",
+        "cancel-button": "キャンセル"
+      }
+    },
     "search-placeholder": "タイトルで検索...",
     "no-search-results": "\"{{searchText}}\" に一致する本はありません。",
     "no-books": "このコレクションに本はありません。",

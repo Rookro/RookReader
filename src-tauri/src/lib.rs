@@ -61,6 +61,7 @@ pub fn run() {
             commands::book_commands::get_books_with_state_by_bookshelf_id,
             commands::book_commands::get_books_with_state_by_tag_id,
             commands::book_commands::get_books_with_state_by_series_id,
+            commands::book_commands::update_book_series,
             commands::bookshelf_commands::create_bookshelf,
             commands::bookshelf_commands::get_all_bookshelves,
             commands::bookshelf_commands::add_book_to_bookshelf,
