@@ -5,12 +5,12 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use image::{codecs::jpeg::JpegEncoder, ImageReader};
+use image::{codecs::jpeg::JpegEncoder, imageops::FilterType, ImageReader};
 use rbook::Epub;
 use scraper::{Html, Selector};
 
 use crate::{
-    container::{image::Image, traits::Container},
+    container::{image::Image, image_resizer::fast_thumbnail, traits::Container},
     error::{Error, Result},
 };
 
@@ -141,12 +141,14 @@ fn create_thumbnail(epub: &mut Epub, entry: &str) -> Result<Arc<Image>> {
     let buffer = resource.read_bytes()?;
     let cursor = Cursor::new(&buffer);
     let image_reader = ImageReader::new(cursor).with_guessed_format()?;
-    let image = image_reader.decode()?;
+    let dyn_image = image_reader.decode()?;
 
-    let thumbnail = image.thumbnail(
+    let thumbnail = fast_thumbnail(
+        &dyn_image,
         <dyn Container>::THUMBNAIL_SIZE,
         <dyn Container>::THUMBNAIL_SIZE,
-    );
+        FilterType::Lanczos3,
+    )?;
 
     let mut buffer = Vec::new();
     // Use a lower quality for thumbnails to make them smaller and faster to encode.
