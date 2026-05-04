@@ -367,6 +367,7 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
           onClear={clearSelection}
           onAddToBookshelf={() => openDialog("add-to-bookshelf", getTargetBooks())}
           onSetTags={() => openDialog("set-tags", getTargetBooks())}
+          onSetSeries={() => openDialog("set-series", getTargetBooks())}
           onDelete={() => openDialog("delete-books", getTargetBooks())}
         />
 

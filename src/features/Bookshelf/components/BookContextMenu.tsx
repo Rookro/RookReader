@@ -1,4 +1,4 @@
-import { Delete, LibraryBooks, LocalOffer } from "@mui/icons-material";
+import { CollectionsBookmark, Delete, LibraryBooks, LocalOffer } from "@mui/icons-material";
 import { Divider, ListItemIcon, ListItemText, Menu, MenuItem } from "@mui/material";
 import { useTranslation } from "react-i18next";
 import type { BookWithState } from "../../../types/DatabaseModels";
@@ -72,7 +72,7 @@ export default function BookContextMenu({ book, anchor, onClose }: BookContextMe
         }}
       >
         <ListItemIcon>
-          <LibraryBooks sx={{ color: "text.secondary" }} />
+          <CollectionsBookmark sx={{ color: "text.secondary" }} />
         </ListItemIcon>
         <ListItemText>{t("bookshelf.series.set-series")}</ListItemText>
       </MenuItem>
