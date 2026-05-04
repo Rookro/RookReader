@@ -86,29 +86,67 @@ pub fn resize_exact(
     let options = ResizeOptions::new().resize_alg(alg);
     let options_alpha = ResizeOptions::new().resize_alg(alg).use_alpha(true);
 
+    macro_rules! resize_to {
+        ($src:expr, $image_type:path, $variant:ident, $options:expr) => {{
+            let mut dst_image = $image_type(dst_width.get(), dst_height.get());
+            resizer.resize($src, &mut dst_image, $options)?;
+            Ok(DynamicImage::$variant(dst_image))
+        }};
+    }
+
     match img {
         DynamicImage::ImageLuma8(src_image) => {
-            let mut dst_image = image::GrayImage::new(dst_width.get(), dst_height.get());
-            resizer.resize(src_image, &mut dst_image, &options)?;
-            Ok(DynamicImage::ImageLuma8(dst_image))
+            resize_to!(src_image, image::GrayImage::new, ImageLuma8, &options)
         }
         DynamicImage::ImageLumaA8(src_image) => {
-            let mut dst_image = image::GrayAlphaImage::new(dst_width.get(), dst_height.get());
-            resizer.resize(src_image, &mut dst_image, &options_alpha)?;
-            Ok(DynamicImage::ImageLumaA8(dst_image))
+            resize_to!(
+                src_image,
+                image::GrayAlphaImage::new,
+                ImageLumaA8,
+                &options_alpha
+            )
         }
         DynamicImage::ImageRgb8(src_image) => {
-            let mut dst_image = image::RgbImage::new(dst_width.get(), dst_height.get());
-            resizer.resize(src_image, &mut dst_image, &options)?;
-            Ok(DynamicImage::ImageRgb8(dst_image))
+            resize_to!(src_image, image::RgbImage::new, ImageRgb8, &options)
         }
         DynamicImage::ImageRgba8(src_image) => {
-            let mut dst_image = image::RgbaImage::new(dst_width.get(), dst_height.get());
-            resizer.resize(src_image, &mut dst_image, &options_alpha)?;
-            Ok(DynamicImage::ImageRgba8(dst_image))
+            resize_to!(src_image, image::RgbaImage::new, ImageRgba8, &options_alpha)
+        }
+        DynamicImage::ImageLuma16(src_image) => {
+            resize_to!(src_image, image::ImageBuffer::new, ImageLuma16, &options)
+        }
+        DynamicImage::ImageLumaA16(src_image) => {
+            resize_to!(
+                src_image,
+                image::ImageBuffer::new,
+                ImageLumaA16,
+                &options_alpha
+            )
+        }
+        DynamicImage::ImageRgb16(src_image) => {
+            resize_to!(src_image, image::ImageBuffer::new, ImageRgb16, &options)
+        }
+        DynamicImage::ImageRgba16(src_image) => {
+            resize_to!(
+                src_image,
+                image::ImageBuffer::new,
+                ImageRgba16,
+                &options_alpha
+            )
+        }
+        DynamicImage::ImageRgb32F(src_image) => {
+            resize_to!(src_image, image::ImageBuffer::new, ImageRgb32F, &options)
+        }
+        DynamicImage::ImageRgba32F(src_image) => {
+            resize_to!(
+                src_image,
+                image::ImageBuffer::new,
+                ImageRgba32F,
+                &options_alpha
+            )
         }
         _ => {
-            // Fallback for 16-bit or other formats: convert to Rgba8
+            // Fallback for other formats: convert to Rgba8
             let src_rgba = img.to_rgba8();
             let mut dst_image = image::RgbaImage::new(dst_width.get(), dst_height.get());
             resizer.resize(&src_rgba, &mut dst_image, &options_alpha)?;
