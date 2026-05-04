@@ -195,24 +195,15 @@ pub fn shrink_to_fit(
     let width_ratio = max_width as f64 / src_width as f64;
     let height_ratio = max_height as f64 / src_height as f64;
 
-    let ratio = if max_width == u32::MAX {
-        height_ratio
-    } else if max_height == u32::MAX {
-        width_ratio
-    } else {
-        f64::min(width_ratio, height_ratio)
-    };
+    let ratio = f64::min(width_ratio, height_ratio);
 
     if ratio >= 1.0 {
         // Image is already smaller than or equal to max dimensions
         return Ok(img.clone());
     }
 
-    let target_width = (src_width as f64 * ratio).round() as u32;
-    let target_height = (src_height as f64 * ratio).round() as u32;
-
-    let target_width = target_width.max(1);
-    let target_height = target_height.max(1);
+    let target_width = ((src_width as f64 * ratio).round() as u32).max(1);
+    let target_height = ((src_height as f64 * ratio).round() as u32).max(1);
 
     resize_exact(img, target_width, target_height, filter)
 }
