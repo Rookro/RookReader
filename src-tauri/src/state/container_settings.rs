@@ -1,4 +1,4 @@
-use image::imageops::FilterType;
+use crate::image::resizer::ResizeFilter;
 
 /// Represents settings for handling content within containers.
 ///
@@ -10,8 +10,8 @@ pub struct ContainerSettings {
     /// The maximum height in pixels for displayed images. Images exceeding this will be resized.
     /// A value of 0 implies no height limit.
     pub max_image_height: i32,
-    /// The algorithm to use when resampling images (e.g., `FilterType::Triangle`).
-    pub image_resampling_method: FilterType,
+    /// The algorithm to use when resampling images (e.g., `ResizeFilter::Bilinear`).
+    pub image_resampling_method: ResizeFilter,
     /// The target height in pixels when rendering a page from a PDF document as an image.
     pub pdf_render_resolution_height: i32,
     /// An optional path to the PDFium library, required for rendering PDF files.
@@ -24,7 +24,7 @@ impl Default for ContainerSettings {
         ContainerSettings {
             enable_preview: true,
             max_image_height: 0,
-            image_resampling_method: FilterType::Triangle,
+            image_resampling_method: ResizeFilter::Bilinear,
             pdf_render_resolution_height: 2000,
             pdfium_library_path: None,
         }

@@ -11,6 +11,8 @@ use crate::error::Result;
 pub trait SettingsStoreProvider {
     /// Retrieves all settings from the store as a single JSON `Value`.
     fn get_all_settings(&self) -> Value;
+    /// Saves all settings to the store.
+    fn save_all_settings(&self, settings: Value) -> Result<()>;
     /// Retrieves the default home directory dynamically based on the OS.
     fn default_home_dir(&self) -> String;
 }
@@ -31,6 +33,20 @@ impl<'a> SettingsStoreProvider for TauriStoreProvider<'a> {
             return Value::Object(map);
         }
         serde_json::json!({})
+    }
+
+    fn save_all_settings(&self, settings: Value) -> Result<()> {
+        if let Ok(store) = self.app.store(&self.filename) {
+            if let Value::Object(map) = settings {
+                for (key, value) in map {
+                    store.set(key, value);
+                }
+                store.save().map_err(|e| {
+                    crate::error::Error::Other(format!("Failed to save settings: {}", e))
+                })?;
+            }
+        }
+        Ok(())
     }
 
     fn default_home_dir(&self) -> String {
@@ -76,7 +92,12 @@ impl AppSettings {
             app,
             filename: filename.to_string(),
         };
-        Self::load_from_provider(&provider)
+        let config = Self::load_from_provider(&provider)?;
+
+        // Save back to ensure migration and default values are persisted to the store.
+        config.save(&provider)?;
+
+        Ok(config)
     }
 
     /// Internal load logic that uses a provider for testability.
@@ -100,6 +121,12 @@ impl AppSettings {
         }
 
         Ok(config)
+    }
+
+    /// Saves the application settings to a persistent storage file.
+    pub fn save<P: SettingsStoreProvider>(&self, provider: &P) -> Result<()> {
+        let value = serde_json::to_value(self)?;
+        provider.save_all_settings(value)
     }
 }
 
@@ -386,13 +413,19 @@ pub enum Direction {
 pub enum ImageResamplingMethod {
     /// Nearest Neighbor
     Nearest,
-    /// Linear Filter
+    /// Box Filter (formerly Gaussian)
+    #[serde(alias = "gaussian")]
+    Box,
+    /// Bilinear Filter (formerly Triangle)
     #[default]
-    Triangle,
+    #[serde(alias = "triangle")]
+    Bilinear,
+    /// Hamming Filter
+    Hamming,
     /// Cubic Filter
     CatmullRom,
-    /// Gaussian Filter
-    Gaussian,
+    /// Mitchell-Netravali Filter
+    MitchellNetravali,
     /// Lanczos with window 3
     Lanczos3,
 }
@@ -418,6 +451,9 @@ mod tests {
     impl SettingsStoreProvider for MockProvider {
         fn get_all_settings(&self) -> Value {
             self.mock_json.clone()
+        }
+        fn save_all_settings(&self, _settings: Value) -> Result<()> {
+            Ok(())
         }
         fn default_home_dir(&self) -> String {
             "/mock/home".to_string()

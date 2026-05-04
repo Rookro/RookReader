@@ -1,6 +1,7 @@
+import { error } from "@tauri-apps/plugin-log";
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as SeriesCommand from "../../../bindings/SeriesCommand";
 import { renderWithProviders } from "../../../test/utils";
 import type { Series } from "../../../types/DatabaseModels";
@@ -22,6 +23,10 @@ describe("SeriesContextMenu", () => {
     anchor: { mouseX: 100, mouseY: 100 },
     onClose: vi.fn(),
   };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   const renderSeriesContextMenu = (props = defaultProps) => {
     return renderWithProviders(
@@ -54,7 +59,6 @@ describe("SeriesContextMenu", () => {
   });
 
   it("should handle deleteSeries error", async () => {
-    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     vi.mocked(SeriesCommand.deleteSeries).mockRejectedValue(new Error("Delete failed"));
 
     renderSeriesContextMenu();
@@ -62,8 +66,6 @@ describe("SeriesContextMenu", () => {
     await user.click(screen.getByText(/Ungroup Series/i));
 
     expect(SeriesCommand.deleteSeries).toHaveBeenCalledWith(mockSeries.id);
-    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("Failed to remove series"));
-
-    consoleSpy.mockRestore();
+    expect(error).toHaveBeenCalledWith(expect.stringContaining("Failed to remove series"));
   });
 });

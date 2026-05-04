@@ -8,14 +8,17 @@ use std::{
 };
 
 use dashmap::DashMap;
-use image::{codecs::jpeg::JpegEncoder, imageops::FilterType, ImageReader};
+use image::{codecs::jpeg::JpegEncoder, ImageReader};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use rayon::ThreadPool;
 
 use crate::{
     container::traits::Container,
     error::Result,
-    image::{resizer::fast_thumbnail, types::Image},
+    image::{
+        resizer::{shrink_to_fit, ResizeFilter},
+        types::Image,
+    },
 };
 
 /// A thread-safe cache mapping entry names to `Image` data.
@@ -37,7 +40,7 @@ pub struct ImageLoader {
     /// The maximum height to which images should be resized upon loading. 0 means no limit.
     max_image_height: u32,
     /// The filter type to use when resizing images.
-    resize_method: FilterType,
+    resize_method: ResizeFilter,
 }
 
 impl ImageLoader {
@@ -57,25 +60,24 @@ impl ImageLoader {
     pub fn new(
         container: Arc<dyn Container>,
         max_image_height: u32,
-        resize_method: FilterType,
-    ) -> Self {
+        resize_method: ResizeFilter,
+    ) -> Result<Self> {
         let default_parallelism =
             std::thread::available_parallelism().map_or(1, std::num::NonZeroUsize::get);
         let num_threads = max(1, default_parallelism / 2);
         let thread_pool = rayon::ThreadPoolBuilder::new()
             .num_threads(num_threads)
             .thread_name(|i| format!("image-loader-{}", i))
-            .build()
-            .unwrap();
+            .build()?;
 
-        Self {
+        Ok(Self {
             cache: Arc::new(DashMap::with_capacity(container.get_entries().len())),
             thread_pool,
             is_preloading_cancel_requested: Arc::new(AtomicBool::new(false)),
             container,
             max_image_height,
             resize_method,
-        }
+        })
     }
 
     /// Retrieves an image directly from the cache.
@@ -267,7 +269,7 @@ fn load_image(
     entry: &str,
     container: Arc<dyn Container>,
     max_image_height: u32,
-    resize_method: FilterType,
+    resize_method: ResizeFilter,
 ) -> Result<Arc<Image>> {
     let image = container.get_image(entry)?;
 
@@ -286,14 +288,14 @@ fn load_image(
 /// * `image` - A shared pointer to the original `Image`.
 /// * `height` - The target height for the resized image.
 /// * `resize_method` - The algorithm to use for resizing.
-fn resize_image(image: Arc<Image>, height: u32, resize_method: FilterType) -> Result<Arc<Image>> {
+fn resize_image(image: Arc<Image>, height: u32, resize_method: ResizeFilter) -> Result<Arc<Image>> {
     let cursor = Cursor::new(&image.data);
     let image_reader = ImageReader::new(cursor).with_guessed_format()?;
     let dyn_image = image_reader.decode()?;
 
     // Use SIMD accelerated resizing
     // max_width is u32::MAX to scale based entirely on height
-    let scaled_image = fast_thumbnail(&dyn_image, u32::MAX, height, resize_method)?;
+    let scaled_image = shrink_to_fit(&dyn_image, u32::MAX, height, resize_method)?;
 
     let mut buffer = Vec::new();
     let mut encoder = JpegEncoder::new_with_quality(&mut buffer, 80);

@@ -138,9 +138,11 @@ export type Direction = "rtl" | "ltr";
 /** The algorithms used for resampling (resizing) images. */
 export const imageResamplingMethods = [
   "nearest",
-  "triangle",
+  "box",
+  "bilinear",
+  "hamming",
   "catmullRom",
-  "gaussian",
+  "mitchellNetravali",
   "lanczos3",
 ] as const;
 

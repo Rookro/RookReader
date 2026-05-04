@@ -52,7 +52,7 @@ export const defaultSettings: AppSettings = {
     rendering: {
       enableThumbnailPreview: true,
       maxImageHeight: 0,
-      imageResamplingMethod: "triangle",
+      imageResamplingMethod: "bilinear",
       pdfRenderResolutionHeight: 2000,
     },
   },

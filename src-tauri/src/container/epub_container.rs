@@ -5,14 +5,17 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use image::{codecs::jpeg::JpegEncoder, imageops::FilterType, ImageReader};
+use image::{codecs::jpeg::JpegEncoder, ImageReader};
 use rbook::Epub;
 use scraper::{Html, Selector};
 
 use crate::{
     container::traits::Container,
     error::{Error, Result},
-    image::{resizer::fast_thumbnail, types::Image},
+    image::{
+        resizer::{shrink_to_fit, ResizeFilter},
+        types::Image,
+    },
 };
 
 /// An implementation of the `Container` trait for reading content from EPUB files.
@@ -144,11 +147,11 @@ fn create_thumbnail(epub: &mut Epub, entry: &str) -> Result<Arc<Image>> {
     let image_reader = ImageReader::new(cursor).with_guessed_format()?;
     let dyn_image = image_reader.decode()?;
 
-    let thumbnail = fast_thumbnail(
+    let thumbnail = shrink_to_fit(
         &dyn_image,
         <dyn Container>::THUMBNAIL_SIZE,
         <dyn Container>::THUMBNAIL_SIZE,
-        FilterType::Lanczos3,
+        ResizeFilter::Bilinear,
     )?;
 
     let mut buffer = Vec::new();

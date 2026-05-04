@@ -58,7 +58,7 @@ impl ContainerState {
                 container,
                 self.settings.max_image_height as u32,
                 self.settings.image_resampling_method,
-            ));
+            )?);
             return Ok(());
         }
 
@@ -72,7 +72,7 @@ impl ContainerState {
                         container,
                         self.settings.max_image_height as u32,
                         self.settings.image_resampling_method,
-                    ));
+                    )?);
                 }
                 "pdf" => {
                     let container = Arc::new(PdfContainer::new(
@@ -86,7 +86,7 @@ impl ContainerState {
                         container,
                         self.settings.max_image_height as u32,
                         self.settings.image_resampling_method,
-                    ));
+                    )?);
                 }
                 "rar" => {
                     let container = Arc::new(RarContainer::new(path)?);
@@ -95,7 +95,7 @@ impl ContainerState {
                         container,
                         self.settings.max_image_height as u32,
                         self.settings.image_resampling_method,
-                    ));
+                    )?);
                 }
                 "epub" => {
                     let container = Arc::new(EpubContainer::new(path)?);
@@ -104,7 +104,7 @@ impl ContainerState {
                         container,
                         self.settings.max_image_height as u32,
                         self.settings.image_resampling_method,
-                    ));
+                    )?);
                 }
                 _ => {
                     log::error!("Unsupported Container Type: {}", ext_str);
