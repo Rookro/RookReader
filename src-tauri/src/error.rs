@@ -118,8 +118,6 @@ impl ErrorCode {
             ErrorCode::UnsupportedContainer => 10001,
             ErrorCode::EntryNotFound => 10002,
             ErrorCode::Pdfium => 10101,
-            ErrorCode::Image => 10201,
-            ErrorCode::ImageResize => 10202,
             ErrorCode::Unrar => 10301,
             ErrorCode::Zip => 10401,
             ErrorCode::Epub => 10501,
@@ -147,6 +145,10 @@ impl ErrorCode {
             // 7xxxx: Database
             ErrorCode::Database => 70001,
             ErrorCode::Migration => 70101,
+
+            // 8xxxx: Image Processing
+            ErrorCode::Image => 80001,
+            ErrorCode::ImageResize => 80101,
 
             // 9xxxx: Unexpected Errors
             ErrorCode::Other => 90001,
