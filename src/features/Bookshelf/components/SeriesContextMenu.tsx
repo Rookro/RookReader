@@ -1,5 +1,6 @@
 import { Delete } from "@mui/icons-material";
 import { ListItemIcon, ListItemText, Menu, MenuItem } from "@mui/material";
+import { error } from "@tauri-apps/plugin-log";
 import { useTranslation } from "react-i18next";
 import { deleteSeries } from "../../../bindings/SeriesCommand";
 import type { Series } from "../../../types/DatabaseModels";
@@ -28,7 +29,7 @@ export default function SeriesContextMenu({ series, anchor, onClose }: SeriesCon
       refreshSeries();
       onClose();
     } catch (e) {
-      console.error(`Failed to remove series: ${e}`);
+      error(`Failed to remove series: ${e}`);
     }
   };
 
