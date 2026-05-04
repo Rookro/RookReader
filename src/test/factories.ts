@@ -63,6 +63,7 @@ export const createMockTag = (overrides?: Partial<Tag>): Tag => ({
 export const createMockSeries = (overrides?: Partial<Series>): Series => ({
   id: 1,
   name: "Mock Series",
+  created_at: "2026-03-01T15:30:00",
   ...overrides,
 });
 

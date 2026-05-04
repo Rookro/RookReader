@@ -74,7 +74,7 @@ describe("NavigationBar", () => {
   it("should render breadcrumbs when a series is selected", () => {
     const preloadedState = createBasePreloadedState();
     preloadedState.bookCollection.series = {
-      series: [{ id: 1, name: "Selected Series" }],
+      series: [{ id: 1, name: "Selected Series", created_at: "2026-03-01T15:30:00" }],
       selectedId: 1,
       books: [],
       status: "idle",
@@ -90,7 +90,7 @@ describe("NavigationBar", () => {
   it("should clear selected series when 'Bookshelf' link is clicked", async () => {
     const preloadedState = createBasePreloadedState();
     preloadedState.bookCollection.series = {
-      series: [{ id: 1, name: "Selected Series" }],
+      series: [{ id: 1, name: "Selected Series", created_at: "2026-03-01T15:30:00" }],
       selectedId: 1,
       books: [],
       status: "idle",

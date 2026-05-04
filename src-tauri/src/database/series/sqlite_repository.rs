@@ -47,7 +47,7 @@ impl SeriesRepository for SqliteSeriesRepository {
         let series_list = sqlx::query_as!(
             Series,
             r#"
-            SELECT id, name
+            SELECT id, name, created_at
             FROM series
             ORDER BY id ASC
             "#

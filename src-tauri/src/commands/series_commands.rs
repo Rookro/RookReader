@@ -76,15 +76,18 @@ mod tests {
     #[tokio::test]
     async fn test_get_all_series() {
         let mut mock_repo = MockSeriesRepository::new();
-        mock_repo.expect_get_all().times(1).returning(|| {
+        let now = chrono::Utc::now().naive_utc();
+        mock_repo.expect_get_all().times(1).returning(move || {
             Ok(vec![
                 Series {
                     id: 1,
                     name: "Series 1".to_string(),
+                    created_at: now,
                 },
                 Series {
                     id: 2,
                     name: "Series 2".to_string(),
+                    created_at: now,
                 },
             ])
         });
@@ -99,6 +102,10 @@ mod tests {
         assert_eq!(series.len(), 2);
         assert_eq!(series[0].id, 1);
         assert_eq!(series[0].name, "Series 1");
+        assert_eq!(series[0].created_at, now);
+        assert_eq!(series[1].id, 2);
+        assert_eq!(series[1].name, "Series 2");
+        assert_eq!(series[1].created_at, now);
     }
 
     #[tokio::test]

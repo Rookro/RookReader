@@ -371,7 +371,9 @@ describe("BookCollectionReducer", () => {
     describe("Series Thunks", () => {
       // Verify state update on successful series fetching
       it("fetchSeries should update state with fetched series on success", async () => {
-        const mockSeries: Series[] = [{ id: 1, name: "Series 1" }];
+        const mockSeries: Series[] = [
+          { id: 1, name: "Series 1", created_at: "2026-03-01T15:30:00" },
+        ];
         vi.mocked(SeriesCommand.getAllSeries).mockResolvedValue(mockSeries);
 
         await store.dispatch(fetchSeries());

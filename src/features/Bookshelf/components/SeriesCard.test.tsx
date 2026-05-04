@@ -12,6 +12,7 @@ describe("SeriesCard", () => {
   const mockSeries = {
     id: 1,
     name: "Test Series",
+    created_at: "2026-03-01T15:30:00",
   };
 
   const mockBooks = [

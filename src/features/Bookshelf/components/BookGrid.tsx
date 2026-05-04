@@ -10,7 +10,7 @@ import { updateSettings } from "../../Settings/slice";
 import { useBookSelection } from "../hooks/useBookSelection";
 import { type BookshelfDialogType, useBookshelfDialogs } from "../hooks/useBookshelfDialogs";
 import { fetchBooksInSelectedBookshelf, fetchSeries, setSelectedSeriesId } from "../slice";
-import { andSearch, sortBy } from "../utils/BookshelfUtils";
+import { andSearch, sortBy, sortByGridItem } from "../utils/BookshelfUtils";
 import BookGridCell, { type BookGridCellProps, type GridItem } from "./BookGridCell";
 import { BookshelfActionsContext } from "./BookshelfActionsContext";
 import AddBooksToBookshelvesDialog from "./Dialog/AddBooksToBookshelvesDialog";
@@ -165,11 +165,7 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
     });
 
     // 5. Sort the final list of items (series and standalone books mixed)
-    return groupedItems.sort((a, b) => {
-      const bookA = a.type === "series" ? a.books[0] : a.data;
-      const bookB = b.type === "series" ? b.books[0] : b.data;
-      return sortBy(bookA, bookB, bookshelfSettings.sortOrder);
-    });
+    return groupedItems.sort((a, b) => sortByGridItem(a, b, bookshelfSettings.sortOrder));
   }, [
     booksInSelectedBookshelf,
     tagId,
