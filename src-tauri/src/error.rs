@@ -1,3 +1,4 @@
+use fast_image_resize::ResizeError;
 use image::ImageError;
 use pdfium_render::prelude::PdfiumError;
 use rbook::ebook::errors::{ArchiveError, EbookError};
@@ -31,6 +32,9 @@ pub enum Error {
     /// An error originating from the `image` crate.
     #[error("Image Error: {0}")]
     Image(#[from] ImageError),
+    /// An error originating from the `fast_image_resize` crate.
+    #[error("Image Resize Error: {0}")]
+    ImageResize(#[from] ResizeError),
     /// An error originating from the `unrar` library.
     #[error("Unrar Error: {0}")]
     Unrar(#[from] UnrarError),
@@ -59,6 +63,9 @@ pub enum Error {
     /// An error from the `tauri-plugin-store` plugin.
     #[error("Tauri Store Plugin Error: {0}")]
     TauriStorePlugin(#[from] tauri_plugin_store::Error),
+    /// An error initializing the Rayon thread pool.
+    #[error("Rayon Thread Pool Error: {0}")]
+    RayonThreadPool(#[from] rayon::ThreadPoolBuildError),
 
     // 4xxxx: Data Serialization & Validation
     /// An error from the `serde_json` library during serialization or deserialization.
@@ -112,6 +119,7 @@ impl ErrorCode {
             ErrorCode::EntryNotFound => 10002,
             ErrorCode::Pdfium => 10101,
             ErrorCode::Image => 10201,
+            ErrorCode::ImageResize => 10202,
             ErrorCode::Unrar => 10301,
             ErrorCode::Zip => 10401,
             ErrorCode::Epub => 10501,
@@ -124,6 +132,7 @@ impl ErrorCode {
             // 3xxxx: Application Framework
             ErrorCode::Tauri => 30001,
             ErrorCode::TauriStorePlugin => 30101,
+            ErrorCode::RayonThreadPool => 30201,
 
             // 4xxxx: Data Serialization & Validation
             ErrorCode::SerdeJson => 40001,

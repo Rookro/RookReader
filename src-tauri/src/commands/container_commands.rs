@@ -1,13 +1,13 @@
 use std::{path::Path, sync::Arc};
 use tokio::sync::RwLock;
 
-use image::imageops::FilterType;
 use serde::{Deserialize, Serialize};
 use tauri::ipc::Response;
 
 use crate::{
     container::epub_container::EpubContainer,
     error::{Error, Result},
+    image::resizer::ResizeFilter,
     state::app_state::AppState,
 };
 
@@ -307,11 +307,13 @@ pub async fn set_image_resampling_method(
     let mut state_lock = state.write().await;
 
     let method = match method {
-        "nearest" => FilterType::Nearest,
-        "triangle" => FilterType::Triangle,
-        "catmullRom" => FilterType::CatmullRom,
-        "gaussian" => FilterType::Gaussian,
-        "lanczos3" => FilterType::Lanczos3,
+        "nearest" => ResizeFilter::Nearest,
+        "box" => ResizeFilter::Box,
+        "bilinear" => ResizeFilter::Bilinear,
+        "hamming" => ResizeFilter::Hamming,
+        "catmullRom" => ResizeFilter::CatmullRom,
+        "mitchellNetravali" => ResizeFilter::MitchellNetravali,
+        "lanczos3" => ResizeFilter::Lanczos3,
         _ => return Err(Error::Other("Invalid Resampling Method type".to_string())),
     };
 
@@ -507,11 +509,9 @@ mod tests {
         let mock_container_state = ContainerState {
             container: Some(arc_mock_container.clone()),
             settings: ContainerSettings::default(),
-            image_loader: Some(ImageLoader::new(
-                arc_mock_container.clone(),
-                2000,
-                FilterType::Triangle,
-            )),
+            image_loader: Some(
+                ImageLoader::new(arc_mock_container.clone(), 2000, ResizeFilter::Bilinear).unwrap(),
+            ),
         };
         let state = AppState {
             container_state: mock_container_state,

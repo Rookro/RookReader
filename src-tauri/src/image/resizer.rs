@@ -1,66 +1,149 @@
 use crate::error::{Error, Result};
 use fast_image_resize::{ResizeAlg, ResizeOptions, Resizer};
-use image::{imageops::FilterType, DynamicImage, RgbaImage};
+use image::DynamicImage;
+use serde::{Deserialize, Serialize};
 use std::num::NonZeroU32;
 
-/// A helper function to map `image::imageops::FilterType` to `fast_image_resize::ResizeAlg`
-pub fn filter_to_resize_alg(filter: FilterType) -> ResizeAlg {
-    match filter {
-        FilterType::Nearest => ResizeAlg::Nearest,
-        FilterType::Triangle => ResizeAlg::Convolution(fast_image_resize::FilterType::Bilinear),
-        FilterType::CatmullRom => ResizeAlg::Convolution(fast_image_resize::FilterType::CatmullRom),
-        FilterType::Gaussian => ResizeAlg::Convolution(fast_image_resize::FilterType::Box), // Approximation
-        FilterType::Lanczos3 => ResizeAlg::Convolution(fast_image_resize::FilterType::Lanczos3),
+/// The algorithms to use when resampling images.
+///
+/// This enum wraps the algorithms supported by `fast_image_resize`.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum ResizeFilter {
+    /// Nearest neighbor interpolation. Fastest, but lowest quality.
+    Nearest,
+    /// Box filter.
+    Box,
+    /// Bilinear interpolation (Triangle filter).
+    Bilinear,
+    /// Hamming filter.
+    Hamming,
+    /// Catmull-Rom interpolation.
+    CatmullRom,
+    /// Mitchell-Netravali interpolation.
+    MitchellNetravali,
+    /// Lanczos3 interpolation. Highest quality, but slowest.
+    Lanczos3,
+}
+
+impl From<ResizeFilter> for ResizeAlg {
+    fn from(filter: ResizeFilter) -> Self {
+        match filter {
+            ResizeFilter::Nearest => ResizeAlg::Nearest,
+            ResizeFilter::Box => ResizeAlg::Convolution(fast_image_resize::FilterType::Box),
+            ResizeFilter::Bilinear => {
+                ResizeAlg::Convolution(fast_image_resize::FilterType::Bilinear)
+            }
+            ResizeFilter::Hamming => ResizeAlg::Convolution(fast_image_resize::FilterType::Hamming),
+            ResizeFilter::CatmullRom => {
+                ResizeAlg::Convolution(fast_image_resize::FilterType::CatmullRom)
+            }
+            ResizeFilter::MitchellNetravali => {
+                ResizeAlg::Convolution(fast_image_resize::FilterType::Mitchell)
+            }
+            ResizeFilter::Lanczos3 => {
+                ResizeAlg::Convolution(fast_image_resize::FilterType::Lanczos3)
+            }
+        }
     }
 }
 
 /// Resizes a `DynamicImage` to the exact specified width and height using SIMD.
-pub fn fast_resize_exact(
+///
+/// This function utilizes `fast_image_resize` to perform the operation efficiently.
+/// It matches the input `DynamicImage` variant to use the optimal buffer format
+/// (e.g., Luma8, Rgb8) and avoids unnecessary conversions. Unhandled formats
+/// are converted to Rgba8 before resizing.
+///
+/// # Arguments
+///
+/// * `img` - A reference to the source `DynamicImage` to be resized.
+/// * `target_width` - The exact width in pixels for the output image. Must be greater than 0.
+/// * `target_height` - The exact height in pixels for the output image. Must be greater than 0.
+/// * `filter` - The interpolation algorithm (`ResizeFilter`) to use for resampling.
+///
+/// # Returns
+///
+/// Returns a `Result` containing the resized `DynamicImage` on success.
+///
+/// # Errors
+///
+/// Returns an `Error` if the target width or height is 0, or if the underlying
+/// resizing operation fails.
+pub fn resize_exact(
     img: &DynamicImage,
     target_width: u32,
     target_height: u32,
-    filter: FilterType,
+    filter: ResizeFilter,
 ) -> Result<DynamicImage> {
-    if target_width == 0 || target_height == 0 {
-        return Err(Error::Other(
-            "Target dimensions must be greater than 0".into(),
-        ));
-    }
-
-    let dst_width = NonZeroU32::new(target_width).unwrap();
-    let dst_height = NonZeroU32::new(target_height).unwrap();
-
-    // Using Rgba8 as a universal buffer for simplicity, or we can create an empty image of the same type.
-    // To handle all types gracefully, let's create a destination buffer of the same type if possible.
-    // fast_image_resize supports image::ImageBuffer.
-    // For simplicity, we convert to Rgba8 if needed, but fast_image_resize "image" feature can use DynamicImage but we need a mutable destination.
-    // Let's create an empty RgbaImage as the destination.
-    let mut dst_image = RgbaImage::new(dst_width.get(), dst_height.get());
+    let dst_width = NonZeroU32::new(target_width)
+        .ok_or_else(|| Error::Other("Target width must be greater than 0".into()))?;
+    let dst_height = NonZeroU32::new(target_height)
+        .ok_or_else(|| Error::Other("Target height must be greater than 0".into()))?;
 
     let mut resizer = Resizer::new();
-    let alg = filter_to_resize_alg(filter);
-
-    // We use img.into_rgba8() to ensure a consistent pixel format if img is not RGBA.
-    // However, it's more memory efficient to keep it in its original format.
-    // Let's just use DynamicImage::ImageRgba8 as the output.
-    let src_rgba = img.to_rgba8();
-
+    let alg = ResizeAlg::from(filter);
     let options = ResizeOptions::new().resize_alg(alg);
 
-    resizer
-        .resize(&src_rgba, &mut dst_image, &options)
-        .map_err(|e| Error::Other(format!("Image resize failed: {}", e)))?;
-
-    Ok(DynamicImage::ImageRgba8(dst_image))
+    match img {
+        DynamicImage::ImageLuma8(src_image) => {
+            let mut dst_image = image::GrayImage::new(dst_width.get(), dst_height.get());
+            resizer.resize(src_image, &mut dst_image, &options)?;
+            Ok(DynamicImage::ImageLuma8(dst_image))
+        }
+        DynamicImage::ImageLumaA8(src_image) => {
+            let mut dst_image = image::GrayAlphaImage::new(dst_width.get(), dst_height.get());
+            resizer.resize(src_image, &mut dst_image, &options)?;
+            Ok(DynamicImage::ImageLumaA8(dst_image))
+        }
+        DynamicImage::ImageRgb8(src_image) => {
+            let mut dst_image = image::RgbImage::new(dst_width.get(), dst_height.get());
+            resizer.resize(src_image, &mut dst_image, &options)?;
+            Ok(DynamicImage::ImageRgb8(dst_image))
+        }
+        DynamicImage::ImageRgba8(src_image) => {
+            let mut dst_image = image::RgbaImage::new(dst_width.get(), dst_height.get());
+            resizer.resize(src_image, &mut dst_image, &options)?;
+            Ok(DynamicImage::ImageRgba8(dst_image))
+        }
+        _ => {
+            // Fallback for 16-bit or other formats: convert to Rgba8
+            let src_rgba = img.to_rgba8();
+            let mut dst_image = image::RgbaImage::new(dst_width.get(), dst_height.get());
+            resizer.resize(&src_rgba, &mut dst_image, &options)?;
+            Ok(DynamicImage::ImageRgba8(dst_image))
+        }
+    }
 }
 
-/// Resizes a `DynamicImage` so it fits within the specified `max_width` and `max_height`
+/// Resizes a `DynamicImage` so it fits within the specified maximum dimensions
 /// while preserving the original aspect ratio.
-pub fn fast_thumbnail(
+///
+/// If the original image is already smaller than or equal to the maximum dimensions,
+/// it is returned unmodified (cloned). The function scales down the image using
+/// the provided filter but will never scale it up. You can pass `u32::MAX` for
+/// either `max_width` or `max_height` to constrain the scaling by only one dimension.
+///
+/// # Arguments
+///
+/// * `img` - A reference to the source `DynamicImage`.
+/// * `max_width` - The maximum allowable width in pixels. Must be greater than 0.
+/// * `max_height` - The maximum allowable height in pixels. Must be greater than 0.
+/// * `filter` - The interpolation algorithm (`ResizeFilter`) to use for resampling.
+///
+/// # Returns
+///
+/// Returns a `Result` containing the resized `DynamicImage` on success.
+///
+/// # Errors
+///
+/// Returns an `Error` if any of the source or maximum dimensions are 0, or if the
+/// underlying resizing operation fails.
+pub fn shrink_to_fit(
     img: &DynamicImage,
     max_width: u32,
     max_height: u32,
-    filter: FilterType,
+    filter: ResizeFilter,
 ) -> Result<DynamicImage> {
     let src_width = img.width();
     let src_height = img.height();
@@ -92,7 +175,7 @@ pub fn fast_thumbnail(
     let target_width = target_width.max(1);
     let target_height = target_height.max(1);
 
-    fast_resize_exact(img, target_width, target_height, filter)
+    resize_exact(img, target_width, target_height, filter)
 }
 
 #[cfg(test)]
@@ -101,26 +184,26 @@ mod tests {
     use image::{ImageBuffer, Rgba};
 
     #[test]
-    fn test_fast_resize_exact() {
+    fn test_resize_exact() {
         let img =
             DynamicImage::ImageRgba8(ImageBuffer::from_pixel(100, 100, Rgba([255, 0, 0, 255])));
-        let resized = fast_resize_exact(&img, 50, 50, FilterType::Lanczos3).unwrap();
+        let resized = resize_exact(&img, 50, 50, ResizeFilter::Lanczos3).unwrap();
         assert_eq!(resized.width(), 50);
         assert_eq!(resized.height(), 50);
     }
 
     #[test]
-    fn test_fast_thumbnail_aspect_ratio() {
+    fn test_shrink_to_fit_aspect_ratio() {
         let img =
             DynamicImage::ImageRgba8(ImageBuffer::from_pixel(200, 100, Rgba([255, 0, 0, 255])));
 
         // Scale down to max 50x50. Original is 2:1, so target should be 50x25
-        let thumb = fast_thumbnail(&img, 50, 50, FilterType::Lanczos3).unwrap();
+        let thumb = shrink_to_fit(&img, 50, 50, ResizeFilter::Lanczos3).unwrap();
         assert_eq!(thumb.width(), 50);
         assert_eq!(thumb.height(), 25);
 
         // Scale down width only (max_height is MAX)
-        let thumb2 = fast_thumbnail(&img, 100, u32::MAX, FilterType::Lanczos3).unwrap();
+        let thumb2 = shrink_to_fit(&img, 100, u32::MAX, ResizeFilter::Lanczos3).unwrap();
         assert_eq!(thumb2.width(), 100);
         assert_eq!(thumb2.height(), 50);
     }

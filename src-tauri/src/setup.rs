@@ -1,5 +1,4 @@
 use chrono::Local;
-use image::imageops::FilterType;
 use log::debug;
 use sqlx::{
     migrate,
@@ -19,6 +18,7 @@ use crate::{
         tag::{SqliteTagRepository, TagRepository},
     },
     error::{self, Error},
+    image::resizer::ResizeFilter,
     settings::{AppSettings, AppTheme, ImageResamplingMethod, LogLevel, LogSettings},
 };
 
@@ -79,11 +79,13 @@ pub fn setup_container_settings(app: &App, settings: &AppSettings) -> error::Res
         .container_state
         .settings
         .image_resampling_method = match settings.reader.rendering.image_resampling_method {
-        ImageResamplingMethod::Nearest => FilterType::Nearest,
-        ImageResamplingMethod::Triangle => FilterType::Triangle,
-        ImageResamplingMethod::CatmullRom => FilterType::CatmullRom,
-        ImageResamplingMethod::Gaussian => FilterType::Gaussian,
-        ImageResamplingMethod::Lanczos3 => FilterType::Lanczos3,
+        ImageResamplingMethod::Nearest => ResizeFilter::Nearest,
+        ImageResamplingMethod::Box => ResizeFilter::Box,
+        ImageResamplingMethod::Bilinear => ResizeFilter::Bilinear,
+        ImageResamplingMethod::Hamming => ResizeFilter::Hamming,
+        ImageResamplingMethod::CatmullRom => ResizeFilter::CatmullRom,
+        ImageResamplingMethod::MitchellNetravali => ResizeFilter::MitchellNetravali,
+        ImageResamplingMethod::Lanczos3 => ResizeFilter::Lanczos3,
     };
     Ok(())
 }

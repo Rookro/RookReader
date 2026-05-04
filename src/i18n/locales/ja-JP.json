@@ -224,8 +224,12 @@
           "title": "リサイズ方式",
           "description": "縮小処理に使用するアルゴリズムを選択します。画質と処理速度のバランスを用途に合わせて設定してください。",
           "nearest": "ニアレスト (最速 / 粗い)",
+          "box": "ボックス (高速 / 粗い)",
           "triangle": "トライアングル (高速 / 標準画質)",
+          "bilinear": "バイリニア (高速 / 標準画質)",
+          "hamming": "ハミング (標準的)",
           "catmullRom": "Catmull-Rom (中速 / 高画質・滑らか)",
+          "mitchellNetravali": "Mitchell-Netravali (中速 / 高画質)",
           "gaussian": "ガウシアン (中速 / ソフト・ぼかし)",
           "lanczos3": "ランチョス3 (低速 / 最高画質)"
         }

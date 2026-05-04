@@ -224,8 +224,12 @@
           "title": "Resizing Method",
           "description": "Select the algorithm used for resizing. Choose the best balance between image quality and processing speed for your needs.",
           "nearest": "Nearest Neighbor (Fastest / Low Quality)",
+          "box": "Box (Fast / Low Quality)",
           "triangle": "Triangle (Fast / Standard Quality)",
+          "bilinear": "Bilinear (Fast / Standard Quality)",
+          "hamming": "Hamming (Medium Quality)",
           "catmullRom": "Catmull-Rom (Medium / High Quality)",
+          "mitchellNetravali": "Mitchell-Netravali (Medium / High Quality)",
           "gaussian": "Gaussian (Medium / Soft Look)",
           "lanczos3": "Lanczos 3 (Slow / Best Quality)"
         }

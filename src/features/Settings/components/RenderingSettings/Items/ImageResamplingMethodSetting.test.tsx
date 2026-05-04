@@ -28,7 +28,7 @@ describe("ImageResamplingMethodSetting", () => {
 
   it("should update store and call backend when resize method changes", async () => {
     const preloadedState = createBasePreloadedState();
-    preloadedState.settings.reader.rendering.imageResamplingMethod = "triangle" as const;
+    preloadedState.settings.reader.rendering.imageResamplingMethod = "bilinear" as const;
 
     renderWithProviders(<ImageResamplingMethodSetting />, { preloadedState });
 
