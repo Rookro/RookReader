@@ -69,6 +69,7 @@ pub fn run() {
             commands::bookshelf_commands::delete_bookshelf,
             commands::series_commands::create_series,
             commands::series_commands::get_all_series,
+            commands::series_commands::delete_series,
             commands::tag_commands::create_tag,
             commands::tag_commands::get_all_tags,
             commands::tag_commands::delete_tag,

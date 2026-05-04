@@ -31,4 +31,16 @@ pub trait SeriesRepository: Send + Sync {
     ///
     /// Returns an `Err` if the database query fails.
     async fn get_all(&self) -> Result<Vec<Series>, sqlx::Error>;
+
+    /// Deletes a series by its ID.
+    /// Books associated with this series will have their series_id set to NULL due to FK constraints.
+    ///
+    /// # Arguments
+    ///
+    /// * `id` - The ID of the series to delete.
+    ///
+    /// # Errors
+    ///
+    /// Returns an `Err` if the database deletion fails.
+    async fn delete(&self, id: i64) -> Result<(), sqlx::Error>;
 }

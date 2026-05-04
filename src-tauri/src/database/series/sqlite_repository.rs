@@ -57,4 +57,18 @@ impl SeriesRepository for SqliteSeriesRepository {
 
         Ok(series_list)
     }
+
+    async fn delete(&self, id: i64) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            r#"
+            DELETE FROM series
+            WHERE id = ?
+            "#,
+            id
+        )
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
 }

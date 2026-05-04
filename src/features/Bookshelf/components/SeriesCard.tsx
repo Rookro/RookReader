@@ -144,12 +144,7 @@ export default function SeriesCard({
           </CardActionArea>
         </Card>
       </Tooltip>
-      <SeriesContextMenu
-        series={series}
-        books={books}
-        anchor={menuAnchor}
-        onClose={() => setMenuAnchor(null)}
-      />
+      <SeriesContextMenu series={series} anchor={menuAnchor} onClose={() => setMenuAnchor(null)} />
     </Box>
   );
 }
