@@ -91,7 +91,18 @@ pub fn resize_exact(
     let options_alpha = ResizeOptions::new().resize_alg(alg).use_alpha(true);
 
     RESIZER.with(|resizer_cell| -> Result<DynamicImage> {
-        let mut resizer = resizer_cell.borrow_mut();
+        // Fallback to a new Resizer if the thread-local one is already borrowed.
+        // This can happen in Rayon worker threads due to work-stealing when
+        // fast_image_resize itself uses Rayon internally.
+        let mut borrow = resizer_cell.try_borrow_mut();
+        let mut fallback_resizer;
+        let resizer = match borrow.as_mut() {
+            Ok(b) => &mut **b,
+            Err(_) => {
+                fallback_resizer = Resizer::new();
+                &mut fallback_resizer
+            }
+        };
 
         macro_rules! resize_to {
             ($src:expr, $image_type:path, $variant:ident, $options:expr) => {{
