@@ -84,6 +84,7 @@ pub fn resize_exact(
     let mut resizer = Resizer::new();
     let alg = ResizeAlg::from(filter);
     let options = ResizeOptions::new().resize_alg(alg);
+    let options_alpha = ResizeOptions::new().resize_alg(alg).use_alpha(true);
 
     match img {
         DynamicImage::ImageLuma8(src_image) => {
@@ -93,7 +94,7 @@ pub fn resize_exact(
         }
         DynamicImage::ImageLumaA8(src_image) => {
             let mut dst_image = image::GrayAlphaImage::new(dst_width.get(), dst_height.get());
-            resizer.resize(src_image, &mut dst_image, &options)?;
+            resizer.resize(src_image, &mut dst_image, &options_alpha)?;
             Ok(DynamicImage::ImageLumaA8(dst_image))
         }
         DynamicImage::ImageRgb8(src_image) => {
@@ -103,14 +104,14 @@ pub fn resize_exact(
         }
         DynamicImage::ImageRgba8(src_image) => {
             let mut dst_image = image::RgbaImage::new(dst_width.get(), dst_height.get());
-            resizer.resize(src_image, &mut dst_image, &options)?;
+            resizer.resize(src_image, &mut dst_image, &options_alpha)?;
             Ok(DynamicImage::ImageRgba8(dst_image))
         }
         _ => {
             // Fallback for 16-bit or other formats: convert to Rgba8
             let src_rgba = img.to_rgba8();
             let mut dst_image = image::RgbaImage::new(dst_width.get(), dst_height.get());
-            resizer.resize(&src_rgba, &mut dst_image, &options)?;
+            resizer.resize(&src_rgba, &mut dst_image, &options_alpha)?;
             Ok(DynamicImage::ImageRgba8(dst_image))
         }
     }
