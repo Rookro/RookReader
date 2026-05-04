@@ -166,6 +166,22 @@ export async function updateBookTags(bookId: number, tagIds: number[]) {
 }
 
 /**
+ * Updates the series associated with a specific book.
+ *
+ * @param bookId - The unique identifier of the book.
+ * @param seriesId - The unique identifier of the series to associate with the book, or null to remove.
+ * @returns A promise that resolves when the update is successful.
+ * @throws {CommandError} If the Tauri command fails.
+ */
+export async function updateBookSeries(bookId: number, seriesId: number | null) {
+  try {
+    return await invoke<void>("update_book_series", { bookId, seriesId });
+  } catch (error) {
+    throw createCommandError(error);
+  }
+}
+
+/**
  * Inserts or updates the reading state of a book.
  *
  * @param stateData - The reading state data to upsert.

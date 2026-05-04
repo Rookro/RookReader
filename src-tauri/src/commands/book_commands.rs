@@ -461,6 +461,31 @@ pub async fn delete_book(id: i64, repo: State<'_, Arc<dyn BookRepository>>) -> R
     Ok(repo.delete_book(id).await?)
 }
 
+/// Updates the series associated with a specific book.
+///
+/// # Arguments
+///
+/// * `book_id` - The unique identifier of the book.
+/// * `series_id` - The unique identifier of the series to associate with the book, or `None` to remove.
+/// * `repo` - The managed book repository state.
+///
+/// # Errors
+///
+/// This function will return an `Err` if the underlying repository operation fails.
+#[tauri::command]
+pub async fn update_book_series(
+    book_id: i64,
+    series_id: Option<i64>,
+    repo: State<'_, Arc<dyn BookRepository>>,
+) -> Result<()> {
+    log::debug!(
+        "Update book series. (book id:{:?}, series id:{:?})",
+        book_id,
+        series_id
+    );
+    Ok(repo.update_book_series(book_id, series_id).await?)
+}
+
 /// Helper function to generate and save a thumbnail for a given file path.
 async fn generate_and_save_thumbnail(
     app: tauri::AppHandle,
@@ -627,6 +652,23 @@ mod tests {
         let state = app.state::<Arc<dyn BookRepository>>();
 
         let result = delete_book(1, state).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_update_book_series() {
+        let mut mock_repo = MockBookRepository::new();
+        mock_repo
+            .expect_update_book_series()
+            .with(mockall::predicate::eq(1), mockall::predicate::eq(Some(10)))
+            .times(1)
+            .returning(|_, _| Ok(()));
+
+        let app = tauri::test::mock_app();
+        app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
+        let state = app.state::<Arc<dyn BookRepository>>();
+
+        let result = update_book_series(1, Some(10), state).await;
         assert!(result.is_ok());
     }
 

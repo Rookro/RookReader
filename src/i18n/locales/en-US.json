@@ -64,6 +64,27 @@
         "cancel-button": "cancel"
       }
     },
+    "series": {
+      "title": "Series",
+      "set-series": "Set series",
+      "ungroup-series": "Ungroup series",
+      "creation": {
+        "title": "Create a Series",
+        "name-placeholder": "Series name",
+        "create-new": "Create new series",
+        "creation-button": "create",
+        "cancel-button": "cancel"
+      },
+      "set": {
+        "title": "Set Series",
+        "none": "No Series",
+        "no-series-available": "No series available.",
+        "search-placeholder": "Search series...",
+        "no-search-results": "No search results for \"{{searchText}}\".",
+        "ok-button": "ok",
+        "cancel-button": "cancel"
+      }
+    },
     "search-placeholder": "Search by title...",
     "no-search-results": "No books for \"{{searchText}}\".",
     "no-books": "No books in this collection.",

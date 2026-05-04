@@ -29,28 +29,32 @@ vi.mock("react-window", () => ({
     cellProps,
   }: {
     cellComponent: ComponentType<Record<string, unknown>>;
-    cellProps: { books: Book[]; [key: string]: unknown };
-  }) => (
-    <div data-testid="virtualized-grid">
-      {(cellProps?.books ?? []).map((book: Book, index: number) => {
-        return (
-          <button
-            type="button"
-            key={book.id}
-            data-testid={`book-cell-${index}`}
-            onContextMenu={(e: React.MouseEvent) =>
-              (cellProps.onBookContextMenu as (book: unknown, e: React.MouseEvent) => void)?.(
-                cellProps.books[index],
-                e,
-              )
-            }
-          >
-            <Cell columnIndex={index} rowIndex={0} style={{}} {...cellProps} index={index} />
-          </button>
-        );
-      })}
-    </div>
-  ),
+    cellProps: { books?: Book[]; items?: unknown[]; [key: string]: unknown };
+  }) => {
+    const list = cellProps.items ?? cellProps.books ?? [];
+    return (
+      <div data-testid="virtualized-grid">
+        {list.map((item: any, index: number) => {
+          const id = item.type === "series" ? item.data.id : (item.data?.id ?? item.id);
+          return (
+            <button
+              type="button"
+              key={id}
+              data-testid={`book-cell-${index}`}
+              onContextMenu={(e: React.MouseEvent) =>
+                (cellProps.onBookContextMenu as (item: unknown, e: React.MouseEvent) => void)?.(
+                  item.type === "book" ? item.data : item,
+                  e,
+                )
+              }
+            >
+              <Cell columnIndex={index} rowIndex={0} style={{}} {...cellProps} index={index} />
+            </button>
+          );
+        })}
+      </div>
+    );
+  },
   useListCallbackRef: vi.fn(() => [{ scrollToRow: mockScrollToRow }, vi.fn()]),
 }));
 

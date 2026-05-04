@@ -10,6 +10,7 @@ describe("FloatingActionBar", () => {
     selectionCount: 2,
     onClear: vi.fn(),
     onAddToBookshelf: vi.fn(),
+    onSetSeries: vi.fn(),
     onSetTags: vi.fn(),
     onDelete: vi.fn(),
   };
@@ -19,6 +20,7 @@ describe("FloatingActionBar", () => {
 
     expect(screen.getByText(/2 selected/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Add to Collection/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Set series/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Set tags/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Remove book/i })).toBeInTheDocument();
   });
@@ -28,6 +30,9 @@ describe("FloatingActionBar", () => {
 
     await user.click(screen.getByRole("button", { name: /Add to Collection/i }));
     expect(defaultProps.onAddToBookshelf).toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: /Set series/i }));
+    expect(defaultProps.onSetSeries).toHaveBeenCalled();
 
     await user.click(screen.getByRole("button", { name: /Set tags/i }));
     expect(defaultProps.onSetTags).toHaveBeenCalled();

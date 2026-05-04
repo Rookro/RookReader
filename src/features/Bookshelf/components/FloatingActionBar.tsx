@@ -1,4 +1,4 @@
-import { Close, Delete, LibraryBooks, LocalOffer } from "@mui/icons-material";
+import { Close, CollectionsBookmark, Delete, LibraryBooks, LocalOffer } from "@mui/icons-material";
 import { Box, Button, Divider, IconButton, Paper, Typography } from "@mui/material";
 import { useTranslation } from "react-i18next";
 
@@ -9,6 +9,8 @@ interface FloatingActionBarProps {
   onClear: () => void;
   /** Callback to open add to bookshelf dialog */
   onAddToBookshelf: () => void;
+  /** Callback to open series dialog */
+  onSetSeries: () => void;
   /** Callback to open tags dialog */
   onSetTags: () => void;
   /** Callback to open delete dialog */
@@ -23,6 +25,7 @@ export default function FloatingActionBar({
   onClear,
   onAddToBookshelf,
   onSetTags,
+  onSetSeries,
   onDelete,
 }: FloatingActionBarProps) {
   const { t } = useTranslation();
@@ -66,6 +69,14 @@ export default function FloatingActionBar({
           onClick={onAddToBookshelf}
         >
           {t("bookshelf.collection.add-books-title")}
+        </Button>
+        <Button
+          size="small"
+          color="inherit"
+          startIcon={<CollectionsBookmark />}
+          onClick={onSetSeries}
+        >
+          {t("bookshelf.series.set-series")}
         </Button>
         <Button size="small" color="inherit" startIcon={<LocalOffer />} onClick={onSetTags}>
           {t("bookshelf.tag.set-tags")}

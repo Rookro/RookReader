@@ -30,3 +30,18 @@ export async function getAllSeries() {
     throw createCommandError(error);
   }
 }
+
+/**
+ * Deletes a series by its ID.
+ *
+ * @param id - The ID of the series to delete.
+ * @returns A promise that resolves when the series is deleted.
+ * @throws {CommandError} If the Tauri command fails.
+ */
+export async function deleteSeries(id: number) {
+  try {
+    return await invoke<void>("delete_series", { id });
+  } catch (error) {
+    throw createCommandError(error);
+  }
+}
