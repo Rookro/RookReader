@@ -84,7 +84,7 @@ impl ContainerState {
                     self.container = Some(container.clone());
                     self.image_loader = Some(ImageLoader::new(
                         container,
-                        self.settings.max_image_height as u32,
+                        0, // disable image resizing
                         self.settings.image_resampling_method,
                     )?);
                 }
