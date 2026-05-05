@@ -51,6 +51,10 @@ impl Container for PdfContainer {
     fn is_directory(&self) -> bool {
         false
     }
+
+    fn is_single_threaded(&self) -> bool {
+        true
+    }
 }
 
 impl PdfContainer {

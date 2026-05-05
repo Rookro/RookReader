@@ -55,6 +55,14 @@ pub trait Container: Send + Sync + 'static {
     ///
     /// Returns `true` if the container is a directory, `false` otherwise (e.g., it's a file).
     fn is_directory(&self) -> bool;
+
+    /// Returns whether this container prefers single-threaded preloading.
+    ///
+    /// This is useful for containers that are not thread-safe or where parallel
+    /// access is inefficient (e.g., PDF).
+    fn is_single_threaded(&self) -> bool {
+        false
+    }
 }
 
 impl dyn Container {
