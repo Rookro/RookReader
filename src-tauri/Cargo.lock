@@ -5123,6 +5123,7 @@ dependencies = [
  "tauri-plugin-window-state",
  "tempfile",
  "thiserror 2.0.18",
+ "thread-priority",
  "tokio",
  "unrar",
  "zip 8.5.1",
@@ -6775,6 +6776,20 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.117",
+]
+
+[[package]]
+name = "thread-priority"
+version = "3.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2210811179577da3d54eb69ab0b50490ee40491a25d95b8c6011ba40771cb721"
+dependencies = [
+ "bitflags 2.11.1",
+ "cfg-if",
+ "libc",
+ "log",
+ "rustversion",
+ "windows",
 ]
 
 [[package]]

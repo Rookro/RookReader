@@ -11,6 +11,7 @@ use dashmap::DashMap;
 use image::{codecs::jpeg::JpegEncoder, ImageReader};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use rayon::ThreadPool;
+use thread_priority::*;
 
 use crate::{
     container::traits::Container,
@@ -73,6 +74,12 @@ impl ImageLoader {
         let thread_pool = rayon::ThreadPoolBuilder::new()
             .num_threads(num_threads)
             .thread_name(|i| format!("image-loader-{}", i))
+            .start_handler(|_| {
+                // Set background threads to the lowest priority upon starting.
+                // This ensures preloading tasks do not interfere with UI responsiveness
+                // or foreground image loading.
+                let _ = set_current_thread_priority(ThreadPriority::Min);
+            })
             .build()?;
 
         Ok(Self {
