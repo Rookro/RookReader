@@ -51,6 +51,10 @@ impl Container for PdfContainer {
     fn is_directory(&self) -> bool {
         false
     }
+
+    fn is_single_threaded(&self) -> bool {
+        true
+    }
 }
 
 impl PdfContainer {
@@ -138,11 +142,10 @@ fn create_thumbnail(
     let index: u16 = entry.parse()?;
 
     let page = pdf.pages().get(index).map_err(Error::from)?;
-    // let img = match page.embedded_thumbnail() {
-    //     Ok(thumbnail) => thumbnail.as_image(),
-    //     Err(_) => page.render_with_config(render_config)?.as_image(),
-    // };
-    let img = page.render_with_config(render_config)?.as_image();
+    let img = match page.embedded_thumbnail() {
+        Ok(thumbnail) => thumbnail.as_image(),
+        Err(_) => page.render_with_config(render_config)?.as_image(),
+    };
 
     let mut buffer = Vec::new();
     // Use a lower quality for thumbnails to make them smaller and faster to encode.

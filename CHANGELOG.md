@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 * Improved image resizing performance and fixed dark halos on transparent images (#201)
+* Limit image loading to a single thread for PDF containers to prevent efficiency issues (#203)
 
 ## [2.0.3] - 2026-04-24
 

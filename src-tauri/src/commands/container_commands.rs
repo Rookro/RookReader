@@ -504,6 +504,9 @@ mod tests {
         mock_container
             .expect_get_entries()
             .return_const(vec!["test1.png".to_string(), "test2.png".to_string()]);
+        mock_container
+            .expect_is_single_threaded()
+            .return_const(false);
 
         let arc_mock_container = Arc::new(mock_container);
         let mock_container_state = ContainerState {
