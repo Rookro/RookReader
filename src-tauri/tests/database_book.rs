@@ -1,5 +1,6 @@
 use rookreader_lib::database::book::{BookRepository, ReadingState, SqliteBookRepository};
 use rookreader_lib::database::bookshelf::{BookshelfRepository, SqliteBookshelfRepository};
+use rookreader_lib::database::series::{SeriesRepository, SqliteSeriesRepository};
 use rookreader_lib::database::tag::{SqliteTagRepository, TagRepository};
 
 mod common;
@@ -84,6 +85,200 @@ async fn test_reading_state() {
         .unwrap()
         .unwrap();
     assert!(book_with_state.last_read_page_index.is_none());
+}
+
+#[tokio::test]
+async fn test_upsert_read_book() {
+    let pool = setup_db().await;
+    let repository = SqliteBookRepository::new(pool.clone());
+
+    // 1. New book
+    let book_id = repository
+        .upsert_read_book("/path/to/read.epub", "file", "Read Book", 100, None)
+        .await
+        .unwrap();
+
+    let book_with_state = repository
+        .get_book_with_state_by_id(book_id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(book_with_state.last_read_page_index, Some(0));
+    assert!(book_with_state.last_opened_at.is_some());
+
+    let first_opened_at = book_with_state.last_opened_at.unwrap();
+
+    // 2. Existing book (should update last_opened_at)
+    // Wait a bit to ensure timestamp changes (though in tests it might be too fast)
+    tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+
+    let book_id_2 = repository
+        .upsert_read_book("/path/to/read.epub", "file", "Read Book", 100, None)
+        .await
+        .unwrap();
+
+    assert_eq!(book_id, book_id_2);
+
+    let book_with_state = repository
+        .get_book_with_state_by_id(book_id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(book_with_state.last_opened_at.unwrap() > first_opened_at);
+}
+
+#[tokio::test]
+async fn test_recently_read_books() {
+    let pool = setup_db().await;
+    let repository = SqliteBookRepository::new(pool.clone());
+
+    let b1 = repository
+        .upsert_book("/path/1", "file", "B1", 100, None)
+        .await
+        .unwrap();
+    let b2 = repository
+        .upsert_book("/path/2", "file", "B2", 100, None)
+        .await
+        .unwrap();
+    let _b3 = repository
+        .upsert_book("/path/3", "file", "B3", 100, None)
+        .await
+        .unwrap();
+
+    let now = chrono::Utc::now().naive_utc();
+
+    repository
+        .upsert_reading_state(&ReadingState {
+            book_id: b1,
+            last_read_page_index: 10,
+            last_opened_at: Some(now - chrono::Duration::minutes(10)),
+        })
+        .await
+        .unwrap();
+
+    repository
+        .upsert_reading_state(&ReadingState {
+            book_id: b2,
+            last_read_page_index: 20,
+            last_opened_at: Some(now),
+        })
+        .await
+        .unwrap();
+
+    // B3 has no reading state (unread)
+
+    let recent = repository.get_recently_read_books(None).await.unwrap();
+    assert_eq!(recent.len(), 2);
+    assert_eq!(recent[0].id, b2); // Most recent
+    assert_eq!(recent[1].id, b1);
+
+    let recent_limited = repository.get_recently_read_books(Some(1)).await.unwrap();
+    assert_eq!(recent_limited.len(), 1);
+    assert_eq!(recent_limited[0].id, b2);
+}
+
+#[tokio::test]
+async fn test_all_books_with_state() {
+    let pool = setup_db().await;
+    let repository = SqliteBookRepository::new(pool.clone());
+
+    repository
+        .upsert_book("/path/1", "file", "B1", 100, None)
+        .await
+        .unwrap();
+    repository
+        .upsert_book("/path/2", "file", "B2", 100, None)
+        .await
+        .unwrap();
+
+    let books = repository.get_all_books_with_state().await.unwrap();
+    assert_eq!(books.len(), 2);
+}
+
+#[tokio::test]
+async fn test_filtering_by_bookshelf_tag_series() {
+    let pool = setup_db().await;
+    let repository = SqliteBookRepository::new(pool.clone());
+    let bookshelf_repo = SqliteBookshelfRepository::new(pool.clone());
+    let tag_repo = SqliteTagRepository::new(pool.clone());
+    let series_repo = SqliteSeriesRepository::new(pool.clone());
+
+    let b1 = repository
+        .upsert_book("/path/1", "file", "B1", 100, None)
+        .await
+        .unwrap();
+    let b2 = repository
+        .upsert_book("/path/2", "file", "B2", 100, None)
+        .await
+        .unwrap();
+
+    // Bookshelf
+    let shelf = bookshelf_repo.create("Shelf", "icon").await.unwrap();
+    bookshelf_repo
+        .add_book_to_bookshelf(shelf.id, b1)
+        .await
+        .unwrap();
+
+    let shelf_books = repository
+        .get_books_with_state_by_bookshelf_id(shelf.id)
+        .await
+        .unwrap();
+    assert_eq!(shelf_books.len(), 1);
+    assert_eq!(shelf_books[0].id, b1);
+
+    // Tag
+    let tag = tag_repo.create("Tag", "#000").await.unwrap();
+    repository.update_book_tags(b2, &[tag.id]).await.unwrap();
+
+    let tag_books = repository
+        .get_books_with_state_by_tag_id(tag.id)
+        .await
+        .unwrap();
+    assert_eq!(tag_books.len(), 1);
+    assert_eq!(tag_books[0].id, b2);
+
+    // Series
+    let series_id = series_repo.create("Series").await.unwrap();
+    repository
+        .update_book_series(b1, Some(series_id))
+        .await
+        .unwrap();
+
+    let series_books = repository
+        .get_books_with_state_by_series_id(series_id)
+        .await
+        .unwrap();
+    assert_eq!(series_books.len(), 1);
+    assert_eq!(series_books[0].id, b1);
+}
+
+#[tokio::test]
+async fn test_clear_all_reading_history() {
+    let pool = setup_db().await;
+    let repository = SqliteBookRepository::new(pool.clone());
+
+    let b1 = repository
+        .upsert_book("/path/1", "file", "B1", 100, None)
+        .await
+        .unwrap();
+    let now = chrono::Utc::now().naive_utc();
+
+    repository
+        .upsert_reading_state(&ReadingState {
+            book_id: b1,
+            last_read_page_index: 10,
+            last_opened_at: Some(now),
+        })
+        .await
+        .unwrap();
+
+    let recent = repository.get_recently_read_books(None).await.unwrap();
+    assert_eq!(recent.len(), 1);
+
+    repository.clear_all_reading_history().await.unwrap();
+
+    let recent = repository.get_recently_read_books(None).await.unwrap();
+    assert!(recent.is_empty());
 }
 
 #[tokio::test]

@@ -18,3 +18,17 @@ pub async fn get_fonts() -> Vec<String> {
     families.sort();
     families
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_get_fonts() {
+        let fonts = get_fonts().await;
+        // We can't easily know which fonts are on the system,
+        // but we can check if it returns a vector (likely non-empty on most systems).
+        // On CI it might be empty depending on the environment.
+        assert!(!fonts.is_empty());
+    }
+}

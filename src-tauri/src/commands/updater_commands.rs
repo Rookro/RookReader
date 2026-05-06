@@ -27,3 +27,26 @@ pub fn is_updater_supported() -> bool {
         false
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_is_updater_supported() {
+        let supported = is_updater_supported();
+
+        #[cfg(any(target_os = "windows", target_os = "macos"))]
+        assert!(supported);
+
+        #[cfg(target_os = "linux")]
+        {
+            // Depends on APPIMAGE env var
+            let expected = std::env::var("APPIMAGE").is_ok();
+            assert_eq!(supported, expected);
+        }
+
+        #[cfg(not(any(target_os = "linux", target_os = "windows", target_os = "macos")))]
+        assert!(!supported);
+    }
+}

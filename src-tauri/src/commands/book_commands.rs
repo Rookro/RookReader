@@ -110,13 +110,13 @@ pub async fn get_book_with_state_by_id(
 /// This function will return an `Err` if the underlying repository operation fails
 /// (e.g., due to a database error, connection issue, or query execution failure).
 #[tauri::command]
-pub async fn upsert_book(
+pub async fn upsert_book<R: tauri::Runtime>(
     file_path: String,
     item_type: String,
     display_name: String,
     total_pages: i64,
     repo: State<'_, Arc<dyn BookRepository>>,
-    app: tauri::AppHandle,
+    app: tauri::AppHandle<R>,
     state: State<'_, RwLock<AppState>>,
 ) -> Result<i64> {
     log::debug!(
@@ -175,13 +175,13 @@ pub async fn upsert_book(
 /// This function will return an `Err` if the underlying repository operation fails
 /// (e.g., due to a database error, connection issue, or query execution failure).
 #[tauri::command]
-pub async fn upsert_read_book(
+pub async fn upsert_read_book<R: tauri::Runtime>(
     file_path: String,
     item_type: String,
     display_name: String,
     total_pages: i64,
     repo: State<'_, Arc<dyn BookRepository>>,
-    app: tauri::AppHandle,
+    app: tauri::AppHandle<R>,
     state: State<'_, RwLock<AppState>>,
 ) -> Result<i64> {
     log::debug!(
@@ -487,8 +487,8 @@ pub async fn update_book_series(
 }
 
 /// Helper function to generate and save a thumbnail for a given file path.
-async fn generate_and_save_thumbnail(
-    app: tauri::AppHandle,
+async fn generate_and_save_thumbnail<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
     file_path: String,
     pdfium_path: Option<String>,
 ) -> Result<Option<String>> {
@@ -723,6 +723,194 @@ mod tests {
         let tags = result.unwrap();
         assert_eq!(tags.len(), 3);
         assert_eq!(tags, vec![1, 2, 3]);
+    }
+
+    #[tokio::test]
+    async fn test_get_book_with_state_by_id() {
+        let mut mock_repo = MockBookRepository::new();
+        mock_repo
+            .expect_get_book_with_state_by_id()
+            .with(mockall::predicate::eq(1))
+            .times(1)
+            .returning(|id| {
+                Ok(Some(BookWithState {
+                    id,
+                    file_path: "path".to_string(),
+                    item_type: "file".to_string(),
+                    display_name: "name".to_string(),
+                    total_pages: 10,
+                    series_id: None,
+                    series_order: None,
+                    thumbnail_path: None,
+                    last_read_page_index: Some(5),
+                    last_opened_at: None,
+                    tag_ids_str: None,
+                }))
+            });
+
+        let app = tauri::test::mock_app();
+        app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
+        let state = app.state::<Arc<dyn BookRepository>>();
+
+        let result = get_book_with_state_by_id(1, state).await;
+        assert!(result.is_ok());
+        let book = result.unwrap();
+        assert!(book.is_some());
+        assert_eq!(book.unwrap().last_read_page_index, Some(5));
+    }
+
+    #[tokio::test]
+    async fn test_get_recently_read_books() {
+        let mut mock_repo = MockBookRepository::new();
+        mock_repo
+            .expect_get_recently_read_books()
+            .with(mockall::predicate::eq(Some(5)))
+            .times(1)
+            .returning(|_| Ok(vec![]));
+
+        let app = tauri::test::mock_app();
+        app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
+        let state = app.state::<Arc<dyn BookRepository>>();
+
+        let result = get_recently_read_books(Some(5), state).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_get_all_books_with_state() {
+        let mut mock_repo = MockBookRepository::new();
+        mock_repo
+            .expect_get_all_books_with_state()
+            .times(1)
+            .returning(|| Ok(vec![]));
+
+        let app = tauri::test::mock_app();
+        app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
+        let state = app.state::<Arc<dyn BookRepository>>();
+
+        let result = get_all_books_with_state(state).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_get_books_with_state_by_bookshelf_id() {
+        let mut mock_repo = MockBookRepository::new();
+        mock_repo
+            .expect_get_books_with_state_by_bookshelf_id()
+            .with(mockall::predicate::eq(1))
+            .times(1)
+            .returning(|_| Ok(vec![]));
+
+        let app = tauri::test::mock_app();
+        app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
+        let state = app.state::<Arc<dyn BookRepository>>();
+
+        let result = get_books_with_state_by_bookshelf_id(1, state).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_get_books_with_state_by_tag_id() {
+        let mut mock_repo = MockBookRepository::new();
+        mock_repo
+            .expect_get_books_with_state_by_tag_id()
+            .with(mockall::predicate::eq(1))
+            .times(1)
+            .returning(|_| Ok(vec![]));
+
+        let app = tauri::test::mock_app();
+        app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
+        let state = app.state::<Arc<dyn BookRepository>>();
+
+        let result = get_books_with_state_by_tag_id(1, state).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_get_books_with_state_by_series_id() {
+        let mut mock_repo = MockBookRepository::new();
+        mock_repo
+            .expect_get_books_with_state_by_series_id()
+            .with(mockall::predicate::eq(1))
+            .times(1)
+            .returning(|_| Ok(vec![]));
+
+        let app = tauri::test::mock_app();
+        app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
+        let state = app.state::<Arc<dyn BookRepository>>();
+
+        let result = get_books_with_state_by_series_id(1, state).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_upsert_book() {
+        let mut mock_repo = MockBookRepository::new();
+        mock_repo
+            .expect_upsert_book()
+            .with(
+                mockall::predicate::eq("path"),
+                mockall::predicate::eq("file"),
+                mockall::predicate::eq("name"),
+                mockall::predicate::eq(10),
+                mockall::predicate::always(),
+            )
+            .times(1)
+            .returning(|_, _, _, _, _| Ok(1));
+
+        let app = tauri::test::mock_app();
+        app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
+        app.manage(RwLock::new(AppState::default()));
+        let repo = app.state::<Arc<dyn BookRepository>>();
+        let state = app.state::<RwLock<AppState>>();
+
+        let result = upsert_book(
+            "path".to_string(),
+            "file".to_string(),
+            "name".to_string(),
+            10,
+            repo,
+            app.handle().clone(),
+            state,
+        )
+        .await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_upsert_read_book() {
+        let mut mock_repo = MockBookRepository::new();
+        mock_repo
+            .expect_upsert_read_book()
+            .with(
+                mockall::predicate::eq("path"),
+                mockall::predicate::eq("file"),
+                mockall::predicate::eq("name"),
+                mockall::predicate::eq(10),
+                mockall::predicate::always(),
+            )
+            .times(1)
+            .returning(|_, _, _, _, _| Ok(1));
+
+        let app = tauri::test::mock_app();
+        app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
+        app.manage(RwLock::new(AppState::default()));
+        let repo = app.state::<Arc<dyn BookRepository>>();
+        let state = app.state::<RwLock<AppState>>();
+
+        let result = upsert_read_book(
+            "path".to_string(),
+            "file".to_string(),
+            "name".to_string(),
+            10,
+            repo,
+            app.handle().clone(),
+            state,
+        )
+        .await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), 1);
     }
 
     #[tokio::test]
