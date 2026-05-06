@@ -46,9 +46,11 @@ export default function UpdaterMessageDialog({
   }, [message]);
 
   useEffect(() => {
-    if (copiedTimerRef.current) {
-      clearTimeout(copiedTimerRef.current);
-    }
+    return () => {
+      if (copiedTimerRef.current) {
+        clearTimeout(copiedTimerRef.current);
+      }
+    };
   }, []);
 
   return (

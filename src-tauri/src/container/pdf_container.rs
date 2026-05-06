@@ -290,4 +290,22 @@ mod tests {
         let result = container.get_image("0001"); // Page 1 does not exist
         assert!(result.is_err());
     }
+
+    #[test]
+    fn test_get_thumbnail() {
+        let dir = tempdir().unwrap();
+        let pdf_path = create_dummy_pdf(dir.path(), "test.pdf");
+        let render_config = PdfRenderConfig::default();
+        let container = PdfContainer::new(
+            pdf_path.to_string_lossy().as_ref(),
+            render_config,
+            Some(get_pdfium_lib_path()),
+        )
+        .unwrap();
+
+        let thumbnail = container.get_thumbnail("0000").unwrap();
+        assert!(thumbnail.width <= <dyn Container>::THUMBNAIL_SIZE);
+        assert!(thumbnail.height <= <dyn Container>::THUMBNAIL_SIZE);
+        assert!(!thumbnail.data.is_empty());
+    }
 }

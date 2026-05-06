@@ -17,6 +17,8 @@ export interface SeriesCardProps {
   onClick: (seriesId: number) => void;
   /** Styling for the container */
   style?: React.CSSProperties;
+  /** Whether the card is currently focused via keyboard navigation */
+  isFocused?: boolean;
 }
 
 /**
@@ -29,8 +31,10 @@ export default function SeriesCard({
   enableAutoScroll = true,
   onClick,
   style,
+  isFocused,
 }: SeriesCardProps) {
   const [menuAnchor, setMenuAnchor] = useState<{ mouseX: number; mouseY: number } | null>(null);
+  const [imageErrors, setImageErrors] = useState<Record<number, boolean>>({});
 
   // Sort books by series_order to ensure the first volume is on top if possible
   const sortedBooks = useMemo(() => {
@@ -50,6 +54,10 @@ export default function SeriesCard({
     setMenuAnchor({ mouseX: e.clientX, mouseY: e.clientY });
   };
 
+  const handleImageError = (bookId: number) => {
+    setImageErrors((prev) => ({ ...prev, [bookId]: true }));
+  };
+
   return (
     <Box
       key={series.id}
@@ -60,7 +68,15 @@ export default function SeriesCard({
       onContextMenu={handleContextMenu}
     >
       <Tooltip title={series.name} followCursor placement="right-start">
-        <Card sx={{ width: "100%", height: "100%" }}>
+        <Card
+          sx={{
+            width: "100%",
+            height: "100%",
+            outline: isFocused ? "3px solid" : "none",
+            outlineColor: "action.focus",
+            boxShadow: isFocused ? 8 : 1,
+          }}
+        >
           <CardActionArea
             onClick={handleCardClick}
             sx={{ height: "100%", display: "flex", flexDirection: "column" }}
@@ -89,9 +105,10 @@ export default function SeriesCard({
 
                 {/* Stack effect (max 3 books) */}
                 {stackBooks.map((book, index) => {
-                  const imageSrc = book.thumbnail_path
-                    ? convertFileSrc(book.thumbnail_path)
-                    : dummy_thumbnail;
+                  const imageSrc =
+                    !imageErrors[book.id] && book.thumbnail_path
+                      ? convertFileSrc(book.thumbnail_path)
+                      : dummy_thumbnail;
 
                   // index 0: Top cover, index 2: Bottom-most
                   const offset = index * 5;
@@ -122,6 +139,7 @@ export default function SeriesCard({
                         component="img"
                         image={imageSrc}
                         alt={book.display_name}
+                        onError={() => handleImageError(book.id)}
                         sx={{
                           width: "100%",
                           height: "100%",

@@ -555,4 +555,126 @@ mod tests {
 
         assert!(result.is_err());
     }
+
+    #[tokio::test]
+    async fn test_request_preload_around() {
+        let app = tauri::test::mock_app();
+        let mut mock_container = MockContainer::new();
+        mock_container
+            .expect_get_entries()
+            .return_const(vec!["test1.png".to_string()]);
+        mock_container
+            .expect_get_image()
+            .returning(|_| Ok(MockContainer::create_dummy_image()));
+        mock_container
+            .expect_is_single_threaded()
+            .return_const(false);
+
+        let arc_mock_container = Arc::new(mock_container);
+        let mock_container_state = ContainerState {
+            container: Some(arc_mock_container.clone()),
+            settings: ContainerSettings::default(),
+            image_loader: Some(
+                ImageLoader::new(arc_mock_container.clone(), 2000, ResizeFilter::Bilinear).unwrap(),
+            ),
+        };
+        let state = AppState {
+            container_state: mock_container_state,
+        };
+        app.manage(RwLock::new(state));
+
+        let result = request_preload_around(0, Some(5), app.state()).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_get_image_preview() {
+        let app = tauri::test::mock_app();
+        let mut mock_container = MockContainer::new();
+        mock_container
+            .expect_get_thumbnail()
+            .with(eq("test1.png".to_string()))
+            .times(1)
+            .returning(|_entry| Ok(MockContainer::create_dummy_image()));
+        mock_container
+            .expect_get_entries()
+            .return_const(vec!["test1.png".to_string()]);
+        mock_container
+            .expect_is_single_threaded()
+            .return_const(false);
+
+        let arc_mock_container = Arc::new(mock_container);
+        let mock_container_state = ContainerState {
+            container: Some(arc_mock_container.clone()),
+            settings: ContainerSettings::default(),
+            image_loader: Some(
+                ImageLoader::new(arc_mock_container.clone(), 2000, ResizeFilter::Bilinear).unwrap(),
+            ),
+        };
+        let state = AppState {
+            container_state: mock_container_state,
+        };
+        app.manage(RwLock::new(state));
+
+        let result = get_image_preview("mock_container", "test1.png", app.state()).await;
+        assert!(result.is_ok());
+        let response = result.unwrap();
+        let body = match response.body().unwrap() {
+            Raw(bytes) => bytes,
+            _ => panic!("Unexpected response body type"),
+        };
+        assert!(!body.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_set_max_image_height() {
+        let app = tauri::test::mock_app();
+        app.manage(RwLock::new(AppState::default()));
+
+        let result = set_max_image_height(1000, app.state()).await;
+        assert!(result.is_ok());
+        assert_eq!(
+            1000,
+            app.state::<RwLock<AppState>>()
+                .read()
+                .await
+                .container_state
+                .settings
+                .max_image_height
+        );
+
+        let result_err = set_max_image_height(-1, app.state()).await;
+        assert!(result_err.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_set_image_resampling_method() {
+        let app = tauri::test::mock_app();
+        app.manage(RwLock::new(AppState::default()));
+
+        let result = set_image_resampling_method("nearest", app.state()).await;
+        assert!(result.is_ok());
+        assert_eq!(
+            ResizeFilter::Nearest,
+            app.state::<RwLock<AppState>>()
+                .read()
+                .await
+                .container_state
+                .settings
+                .image_resampling_method
+        );
+
+        let result_invalid = set_image_resampling_method("invalid", app.state()).await;
+        assert!(result_invalid.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_determine_epub_novel_non_epub() {
+        let app = tauri::test::mock_app();
+        app.manage(RwLock::new(AppState::default()));
+
+        let result = determine_epub_novel("test.zip", app.state()).await;
+        assert!(result.is_ok());
+        assert!(!result.unwrap());
+    }
 }

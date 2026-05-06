@@ -7,6 +7,8 @@ import { useBookshelfActions } from "./BookshelfActionsContext";
 export interface BookContextMenuProps {
   /** The book associated with this menu */
   book: BookWithState;
+  /** Currently selected books (optional, for multi-select actions) */
+  selectedBooks?: BookWithState[];
   /** Context menu anchor position */
   anchor: { mouseX: number; mouseY: number } | null;
   /** Callback to close the menu */
@@ -16,28 +18,20 @@ export interface BookContextMenuProps {
 /**
  * Context menu for a single book card.
  */
-export default function BookContextMenu({ book, anchor, onClose }: BookContextMenuProps) {
+export default function BookContextMenu({
+  book,
+  selectedBooks = [],
+  anchor,
+  onClose,
+}: BookContextMenuProps) {
   const { t } = useTranslation();
   const { openDialog } = useBookshelfActions();
 
   const getTargetBooks = () => {
     // If the book is part of the current selection, apply action to all selected books.
     // Otherwise, apply only to this book.
-    // Note: This implementation assumes we can't easily get all Book objects here without passing them,
-    // so we just pass the IDs/objects we have.
-    // Actually, AddBooksToBookshelvesDialog and SetSeriesDialog take bookIds,
-    // but SetBookTagsDialog and BookDeleteDialog currently take BookWithState[].
-
-    // For now, if it's selected, we can only pass the current book object
-    // unless we refactor more.
-    // Wait, the original BookGrid.tsx filtered filteredSortedItems.
-
-    // To stay simple and "internal", we act on the single book for now,
-    // or we might need to pass the "all books" list if we want full multi-select support in the menu.
-
-    // However, the prompt says "BookCard/SeriesCard 内部で決定し".
-    // Let's assume for now the menu acts on the book it was opened on.
-    return [book];
+    const isSelected = selectedBooks.some((b) => b.id === book.id);
+    return isSelected ? selectedBooks : [book];
   };
 
   return (

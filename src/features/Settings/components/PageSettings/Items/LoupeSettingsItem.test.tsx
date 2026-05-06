@@ -155,4 +155,208 @@ describe("LoupeSettingsItem", () => {
       expect(store.getState().settings.reader.comic.loupe.toggleKey).toBe("l"); // remains "l"
     });
   });
+
+  it("should update store when mouse middle button is clicked", async () => {
+    const preloadedState = createBasePreloadedState();
+    preloadedState.settings.reader.comic.loupe = { zoom: 2.0, radius: 150, toggleKey: "l" };
+
+    const { store } = renderWithProviders(<LoupeSettingsItem />, { preloadedState });
+
+    const toggleKeyInput = (await screen.findAllByRole("textbox")).find(
+      (el) => el.getAttribute("name") === "toggleKey",
+    );
+    if (toggleKeyInput) {
+      await user.click(toggleKeyInput);
+      await act(async () => {
+        fireEvent.mouseDown(toggleKeyInput, { button: 1 }); // Middle click
+      });
+    }
+
+    await waitFor(() => {
+      expect(store.getState().settings.reader.comic.loupe.toggleKey).toBe("MouseMiddle");
+    });
+  });
+
+  it("should update store when Ctrl+Middle Click is pressed", async () => {
+    const preloadedState = createBasePreloadedState();
+    preloadedState.settings.reader.comic.loupe = { zoom: 2.0, radius: 150, toggleKey: "l" };
+
+    const { store } = renderWithProviders(<LoupeSettingsItem />, { preloadedState });
+
+    const toggleKeyInput = (await screen.findAllByRole("textbox")).find(
+      (el) => el.getAttribute("name") === "toggleKey",
+    );
+    if (toggleKeyInput) {
+      await user.click(toggleKeyInput);
+      await act(async () => {
+        fireEvent.mouseDown(toggleKeyInput, { button: 1, ctrlKey: true });
+      });
+    }
+
+    await waitFor(() => {
+      expect(store.getState().settings.reader.comic.loupe.toggleKey).toBe("Ctrl+MouseMiddle");
+    });
+  });
+
+  it("should update store when Meta+Middle Click is pressed", async () => {
+    const preloadedState = createBasePreloadedState();
+    preloadedState.settings.reader.comic.loupe = { zoom: 2.0, radius: 150, toggleKey: "l" };
+
+    const { store } = renderWithProviders(<LoupeSettingsItem />, { preloadedState });
+
+    const toggleKeyInput = (await screen.findAllByRole("textbox")).find(
+      (el) => el.getAttribute("name") === "toggleKey",
+    );
+    if (toggleKeyInput) {
+      await user.click(toggleKeyInput);
+      await act(async () => {
+        fireEvent.mouseDown(toggleKeyInput, { button: 1, metaKey: true });
+      });
+    }
+
+    await waitFor(() => {
+      expect(store.getState().settings.reader.comic.loupe.toggleKey).toBe("Meta+MouseMiddle");
+    });
+  });
+
+  it("should NOT update store when mouse button is clicked but NOT focused", async () => {
+    const preloadedState = createBasePreloadedState();
+    preloadedState.settings.reader.comic.loupe = { zoom: 2.0, radius: 150, toggleKey: "l" };
+
+    const { store } = renderWithProviders(<LoupeSettingsItem />, { preloadedState });
+
+    const toggleKeyInput = (await screen.findAllByRole("textbox")).find(
+      (el) => el.getAttribute("name") === "toggleKey",
+    );
+    if (toggleKeyInput) {
+      // Not calling user.click(toggleKeyInput) here to keep it unfocused
+      await act(async () => {
+        fireEvent.mouseDown(toggleKeyInput, { button: 1 }); // Middle click
+      });
+    }
+
+    await waitFor(() => {
+      expect(store.getState().settings.reader.comic.loupe.toggleKey).toBe("l");
+    });
+  });
+
+  it("should update store when mouse back button is clicked", async () => {
+    const preloadedState = createBasePreloadedState();
+    preloadedState.settings.reader.comic.loupe = { zoom: 2.0, radius: 150, toggleKey: "l" };
+
+    const { store } = renderWithProviders(<LoupeSettingsItem />, { preloadedState });
+
+    const toggleKeyInput = (await screen.findAllByRole("textbox")).find(
+      (el) => el.getAttribute("name") === "toggleKey",
+    );
+    if (toggleKeyInput) {
+      await user.click(toggleKeyInput);
+      await act(async () => {
+        fireEvent.mouseDown(toggleKeyInput, { button: 3 }); // Back click
+      });
+    }
+
+    await waitFor(() => {
+      expect(store.getState().settings.reader.comic.loupe.toggleKey).toBe("MouseBack");
+    });
+  });
+
+  it("should update store when mouse forward button is clicked", async () => {
+    const preloadedState = createBasePreloadedState();
+    preloadedState.settings.reader.comic.loupe = { zoom: 2.0, radius: 150, toggleKey: "l" };
+
+    const { store } = renderWithProviders(<LoupeSettingsItem />, { preloadedState });
+
+    const toggleKeyInput = (await screen.findAllByRole("textbox")).find(
+      (el) => el.getAttribute("name") === "toggleKey",
+    );
+    if (toggleKeyInput) {
+      await user.click(toggleKeyInput);
+      await act(async () => {
+        fireEvent.mouseDown(toggleKeyInput, { button: 4 }); // Forward click
+      });
+    }
+
+    await waitFor(() => {
+      expect(store.getState().settings.reader.comic.loupe.toggleKey).toBe("MouseForward");
+    });
+  });
+
+  it("should handle Space key as 'Space'", async () => {
+    const preloadedState = createBasePreloadedState();
+    preloadedState.settings.reader.comic.loupe = { zoom: 2.0, radius: 150, toggleKey: "l" };
+
+    const { store } = renderWithProviders(<LoupeSettingsItem />, { preloadedState });
+
+    const toggleKeyInput = (await screen.findAllByRole("textbox")).find(
+      (el) => el.getAttribute("name") === "toggleKey",
+    );
+    if (toggleKeyInput) {
+      await user.click(toggleKeyInput);
+      await act(async () => {
+        await user.keyboard(" ");
+      });
+    }
+
+    await waitFor(() => {
+      expect(store.getState().settings.reader.comic.loupe.toggleKey).toBe("Space");
+    });
+  });
+
+  it("should ignore Backspace and Delete keys", async () => {
+    const preloadedState = createBasePreloadedState();
+    preloadedState.settings.reader.comic.loupe = { zoom: 2.0, radius: 150, toggleKey: "l" };
+
+    const { store } = renderWithProviders(<LoupeSettingsItem />, { preloadedState });
+
+    const toggleKeyInput = (await screen.findAllByRole("textbox")).find(
+      (el) => el.getAttribute("name") === "toggleKey",
+    );
+    if (toggleKeyInput) {
+      await user.click(toggleKeyInput);
+      await act(async () => {
+        await user.keyboard("{Backspace}");
+        await user.keyboard("{Delete}");
+      });
+    }
+
+    await waitFor(() => {
+      expect(store.getState().settings.reader.comic.loupe.toggleKey).toBe("l");
+    });
+  });
+
+  it("should stop propagation on context menu", async () => {
+    const preloadedState = createBasePreloadedState();
+    renderWithProviders(<LoupeSettingsItem />, { preloadedState });
+
+    const toggleKeyInput = (await screen.findAllByRole("textbox")).find(
+      (el) => el.getAttribute("name") === "toggleKey",
+    );
+    if (toggleKeyInput) {
+      const event = new MouseEvent("contextmenu", { bubbles: true, cancelable: true });
+      const stopPropagationSpy = vi.spyOn(event, "stopPropagation");
+      await act(async () => {
+        fireEvent(toggleKeyInput, event);
+      });
+      expect(stopPropagationSpy).toHaveBeenCalled();
+    }
+  });
+
+  it("should format mouse button names with localization", async () => {
+    const preloadedState = createBasePreloadedState();
+    preloadedState.settings.reader.comic.loupe = {
+      zoom: 2.0,
+      radius: 150,
+      toggleKey: "MouseMiddle+MouseBack+MouseForward",
+    };
+
+    renderWithProviders(<LoupeSettingsItem />, { preloadedState });
+
+    const toggleKeyInput = (await screen.findAllByRole("textbox")).find(
+      (el) => el.getAttribute("name") === "toggleKey",
+    );
+    expect(toggleKeyInput).toHaveValue(
+      "Mouse Middle Button+Mouse Back Button+Mouse Forward Button",
+    );
+  });
 });

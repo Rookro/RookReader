@@ -1,6 +1,6 @@
 import { Box, CircularProgress, Stack, Typography } from "@mui/material";
 import { createSelector } from "@reduxjs/toolkit";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Grid } from "react-window";
 import { useResizeObserver } from "../../../hooks/useResizeObserver";
@@ -96,6 +96,7 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
 
   const containerRef = useRef<HTMLDivElement>(null);
   const containerWidth = useResizeObserver(containerRef);
+  const [focusedIndex, setFocusedIndex] = useState<number>(-1);
 
   const {
     dialogType,
@@ -206,7 +207,7 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
   }, [dispatch, bookshelfId, activeView, clearSelection]);
 
   const handleBookClick = useCallback(
-    (book: BookWithState, e: React.MouseEvent) => {
+    (book: BookWithState, e: React.MouseEvent | React.KeyboardEvent) => {
       // For selection logic, we only care about books in the current filtered list
       const booksOnly = filteredSortedItems
         .filter((item): item is { type: "book"; data: BookWithState } => item.type === "book")
@@ -217,7 +218,7 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
         bookToIdx.set(b.id, i);
       });
 
-      handleSelectionClick(book, e, booksOnly, bookToIdx, onBookSelect);
+      handleSelectionClick(book, e as React.MouseEvent, booksOnly, bookToIdx, onBookSelect);
     },
     [filteredSortedItems, onBookSelect, handleSelectionClick],
   );
@@ -229,20 +230,63 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
     [dispatch],
   );
 
-  const getTargetBooks = useCallback(
-    (book?: BookWithState) => {
-      const booksOnly = filteredSortedItems
-        .filter((item): item is { type: "book"; data: BookWithState } => item.type === "book")
-        .map((item) => item.data);
+  const columnWidth = currentGridSize.width;
+  const rowHeight = currentGridSize.height;
 
-      return book
-        ? selectedBookIds.has(book.id)
-          ? booksOnly.filter((b) => selectedBookIds.has(b.id))
-          : [book]
-        : booksOnly.filter((b) => selectedBookIds.has(b.id));
+  const columnCount =
+    containerWidth > 0 ? Math.max(1, Math.floor(containerWidth / columnWidth)) : 1;
+  const rowCount =
+    filteredSortedItems.length === 0 ? 0 : Math.ceil(filteredSortedItems.length / columnCount);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (filteredSortedItems.length === 0) return;
+
+      let nextIndex = focusedIndex;
+      if (e.key === "ArrowRight") {
+        nextIndex =
+          focusedIndex === -1 ? 0 : Math.min(filteredSortedItems.length - 1, focusedIndex + 1);
+      } else if (e.key === "ArrowLeft") {
+        nextIndex = focusedIndex === -1 ? 0 : Math.max(0, focusedIndex - 1);
+      } else if (e.key === "ArrowDown") {
+        nextIndex =
+          focusedIndex === -1
+            ? 0
+            : Math.min(filteredSortedItems.length - 1, focusedIndex + columnCount);
+      } else if (e.key === "ArrowUp") {
+        nextIndex = focusedIndex === -1 ? 0 : Math.max(0, focusedIndex - columnCount);
+      } else if (e.key === "Home") {
+        nextIndex = 0;
+      } else if (e.key === "End") {
+        nextIndex = filteredSortedItems.length - 1;
+      } else if (e.key === "Enter" || e.key === " ") {
+        if (focusedIndex >= 0) {
+          e.preventDefault();
+          const item = filteredSortedItems[focusedIndex];
+          if (item.type === "book") {
+            handleBookClick(item.data, e);
+          } else {
+            handleSeriesClick(item.data.id);
+          }
+        }
+        return;
+      } else {
+        return;
+      }
+
+      e.preventDefault();
+      setFocusedIndex(nextIndex);
     },
-    [selectedBookIds, filteredSortedItems],
+    [focusedIndex, filteredSortedItems, columnCount, handleBookClick, handleSeriesClick],
   );
+
+  const getTargetBooks = useCallback(() => {
+    const booksOnly = filteredSortedItems
+      .filter((item): item is { type: "book"; data: BookWithState } => item.type === "book")
+      .map((item) => item.data);
+
+    return booksOnly.filter((b) => selectedBookIds.has(b.id));
+  }, [selectedBookIds, filteredSortedItems]);
 
   const bookshelfActions = useMemo(
     () => ({
@@ -255,14 +299,6 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
     [openDialog, refreshBookshelf, refreshSeries],
   );
 
-  const columnWidth = currentGridSize.width;
-  const rowHeight = currentGridSize.height;
-
-  const columnCount =
-    containerWidth > 0 ? Math.max(1, Math.floor(containerWidth / columnWidth)) : 1;
-  const rowCount =
-    filteredSortedItems.length === 0 ? 0 : Math.ceil(filteredSortedItems.length / columnCount);
-
   const cellProps: BookGridCellProps = useMemo(
     () => ({
       items: filteredSortedItems,
@@ -272,6 +308,7 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
       onBookClick: handleBookClick,
       onSeriesClick: handleSeriesClick,
       enableAutoScroll: bookshelfSettings.enableAutoScroll,
+      focusedIndex,
     }),
     [
       filteredSortedItems,
@@ -281,6 +318,7 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
       handleBookClick,
       handleSeriesClick,
       bookshelfSettings.enableAutoScroll,
+      focusedIndex,
     ],
   );
 
@@ -299,11 +337,16 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
           ref={containerRef}
           data-testid="book-grid-container"
           aria-label="book-grid-container"
+          tabIndex={0}
+          onKeyDown={handleKeyDown}
           sx={{
             width: "100%",
             height: "100%",
             overflow: "auto",
             scrollbarGutter: "stable",
+            "&:focus": {
+              outline: "none",
+            },
           }}
         >
           {status === "loading" ? (
