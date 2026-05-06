@@ -9,6 +9,8 @@
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-05-07
+
 ### Added
 
 * コミックリーダーに、ショートカットキーやマウスボタンで表示を切り替えられるカスタマイズ可能なルーペ（拡大鏡）機能を追加 (#194)
@@ -333,7 +335,8 @@
 * 自動見開き表示機能の追加 (#4)
 * ホイールの上下によるページ送り機能を追加 (#5)
 
-[unreleased]: https://github.com/Rookro/RookReader/compare/v2.0.3...HEAD
+[unreleased]: https://github.com/Rookro/RookReader/compare/v2.1.0...HEAD
+[2.1.0]: https://github.com/Rookro/RookReader/compare/v2.0.3...v2.1.0
 [2.0.3]: https://github.com/Rookro/RookReader/compare/v2.0.2...v2.0.3
 [2.0.2]: https://github.com/Rookro/RookReader/compare/v2.0.1...v2.0.2
 [2.0.1]: https://github.com/Rookro/RookReader/compare/v2.0.0...v2.0.1
