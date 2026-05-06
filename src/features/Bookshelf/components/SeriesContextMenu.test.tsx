@@ -1,5 +1,5 @@
 import { error } from "@tauri-apps/plugin-log";
-import { screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as SeriesCommand from "../../../bindings/SeriesCommand";
@@ -67,5 +67,24 @@ describe("SeriesContextMenu", () => {
 
     expect(SeriesCommand.deleteSeries).toHaveBeenCalledWith(mockSeries.id);
     expect(error).toHaveBeenCalledWith(expect.stringContaining("Failed to remove series"));
+  });
+
+  it("should prevent default and stop propagation on context menu event", async () => {
+    renderSeriesContextMenu();
+
+    const menu = screen.getByRole("menu");
+    // Create event manually to spy on it
+    const event = new MouseEvent("contextmenu", {
+      bubbles: true,
+      cancelable: true,
+    });
+    vi.spyOn(event, "preventDefault");
+    vi.spyOn(event, "stopPropagation");
+
+    fireEvent(menu, event);
+
+    expect(event.preventDefault).toHaveBeenCalled();
+    expect(event.stopPropagation).toHaveBeenCalled();
+    expect(defaultProps.onClose).toHaveBeenCalled();
   });
 });
