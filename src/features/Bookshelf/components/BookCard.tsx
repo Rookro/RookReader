@@ -21,6 +21,8 @@ import BookContextMenu from "./BookContextMenu";
 export interface BookCardProps {
   /** The book to display */
   book: BookWithState;
+  /** Currently filtered and sorted books (to get objects for multi-selection) */
+  allBooks?: BookWithState[];
   /** The list of tags to display */
   tags: Tag[];
   /** The size of the card */
@@ -28,9 +30,11 @@ export interface BookCardProps {
   /** Whether to enable automatic horizontal scrolling for overflowing text. */
   enableAutoScroll: boolean;
   /** Callback for when a book is selected/clicked */
-  onBookClick?: (book: BookWithState, event: React.MouseEvent) => void;
+  onBookClick?: (book: BookWithState, event: React.MouseEvent | React.KeyboardEvent) => void;
   /** Styling for the container */
   style?: React.CSSProperties;
+  /** Whether the card is currently focused via keyboard navigation */
+  isFocused?: boolean;
 }
 
 /**
@@ -39,18 +43,28 @@ export interface BookCardProps {
  */
 export default function BookCard({
   book,
+  allBooks = [],
   tags,
   size,
   enableAutoScroll,
   onBookClick,
   style,
+  isFocused,
 }: BookCardProps) {
   const { selectedBookIds } = useBookSelection();
   const [menuAnchor, setMenuAnchor] = useState<{ mouseX: number; mouseY: number } | null>(null);
+  const [imageError, setImageError] = useState(false);
+
+  const selectedBooks = useMemo(() => {
+    if (selectedBookIds.size === 0) return [];
+    return allBooks.filter((b) => selectedBookIds.has(b.id));
+  }, [selectedBookIds, allBooks]);
 
   const imageSrc = useMemo(() => {
-    return book?.thumbnail_path ? convertFileSrc(book.thumbnail_path) : dummy_thumbnail;
-  }, [book?.thumbnail_path]);
+    return !imageError && book?.thumbnail_path
+      ? convertFileSrc(book.thumbnail_path)
+      : dummy_thumbnail;
+  }, [book?.thumbnail_path, imageError]);
 
   const bookTags = useMemo(() => {
     if (!book?.tag_ids_str || !tags) {
@@ -83,9 +97,10 @@ export default function BookCard({
             width: "100%",
             height: "100%",
             bgcolor: "primary.paper",
-            outline: isSelected ? "3px solid" : "none",
-            outlineColor: "primary.main",
+            outline: isSelected || isFocused ? "3px solid" : "none",
+            outlineColor: isSelected ? "primary.main" : "action.focus",
             position: "relative",
+            boxShadow: isFocused ? 8 : 1,
           }}
         >
           {isSelected && (
@@ -119,6 +134,7 @@ export default function BookCard({
                   component="img"
                   image={imageSrc}
                   alt={book.display_name}
+                  onError={() => setImageError(true)}
                   sx={{
                     position: "absolute",
                     top: 0,
@@ -182,7 +198,12 @@ export default function BookCard({
           </CardActionArea>
         </Card>
       </Tooltip>
-      <BookContextMenu book={book} anchor={menuAnchor} onClose={() => setMenuAnchor(null)} />
+      <BookContextMenu
+        book={book}
+        selectedBooks={selectedBooks}
+        anchor={menuAnchor}
+        onClose={() => setMenuAnchor(null)}
+      />
     </Box>
   );
 }

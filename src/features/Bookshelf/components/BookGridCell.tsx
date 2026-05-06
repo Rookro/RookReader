@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useMemo } from "react";
 import type { CellComponentProps } from "react-window";
 import type { BookWithState, Series, Tag } from "../../../types/DatabaseModels";
 import BookCard from "./BookCard";
@@ -22,9 +22,11 @@ export interface BookGridCellProps {
   /** Whether to enable automatic horizontal scrolling for overflowing text. */
   enableAutoScroll: boolean;
   /** Callback for when a book is selected/clicked. */
-  onBookClick?: (book: BookWithState, event: React.MouseEvent) => void;
+  onBookClick?: (book: BookWithState, event: React.MouseEvent | React.KeyboardEvent) => void;
   /** Callback for when a series is clicked. */
   onSeriesClick: (seriesId: number) => void;
+  /** The currently focused item index. */
+  focusedIndex?: number;
 }
 
 /**
@@ -42,13 +44,22 @@ function BookGridCellInner({
   rowIndex,
   size,
   style,
+  focusedIndex,
 }: CellComponentProps<BookGridCellProps>) {
   const index = rowIndex * columnCount + columnIndex;
   const item = items[index];
 
+  const allBooks = useMemo(() => {
+    return items
+      .filter((i): i is { type: "book"; data: BookWithState } => i.type === "book")
+      .map((i) => i.data);
+  }, [items]);
+
   if (!item) {
     return null;
   }
+
+  const isFocused = index === focusedIndex;
 
   if (item.type === "series") {
     return (
@@ -58,6 +69,7 @@ function BookGridCellInner({
         enableAutoScroll={enableAutoScroll}
         onClick={onSeriesClick}
         style={style}
+        isFocused={isFocused}
       />
     );
   }
@@ -65,17 +77,19 @@ function BookGridCellInner({
   return (
     <BookCard
       book={item.data}
+      allBooks={allBooks}
       tags={tags}
       size={size}
       enableAutoScroll={enableAutoScroll}
       onBookClick={onBookClick}
       style={style}
+      isFocused={isFocused}
     />
   );
 }
 
 /** Comparison function for memoization of BookGridCell. */
-function areEqual(
+export function areEqual(
   prevProps: Readonly<CellComponentProps<BookGridCellProps>>,
   nextProps: Readonly<CellComponentProps<BookGridCellProps>>,
 ) {
@@ -85,7 +99,8 @@ function areEqual(
     prevProps.columnCount !== nextProps.columnCount ||
     prevProps.size !== nextProps.size ||
     prevProps.tags !== nextProps.tags ||
-    prevProps.enableAutoScroll !== nextProps.enableAutoScroll
+    prevProps.enableAutoScroll !== nextProps.enableAutoScroll ||
+    prevProps.focusedIndex !== nextProps.focusedIndex
   ) {
     return false;
   }
