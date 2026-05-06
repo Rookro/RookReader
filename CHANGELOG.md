@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Faster file loading and smoother page-turning for an improved reading experience (#193)
 * Significantly improved image resizing and thumbnail generation speeds by leveraging CPU SIMD instructions and multi-threading (#199)
 * Improve UI responsiveness by lowering the priority of background image loading threads (#204)
+* Improved comic reader UX by displaying a clear loading indicator when pages take longer to load (#206)
 
 ### Fixed
 

@@ -62,15 +62,6 @@ export const useViewerController = (
     abortControllerRef.current?.abort();
   }, [containerPath]);
 
-  // Request background preloading around the current index
-  // useEffect(() => {
-  //   if (entries.length > 0) {
-  //     requestPreloadAround(index).catch((e) => {
-  //       console.error("Failed to request preload:", e);
-  //     });
-  //   }
-  // }, [index, entries.length]);
-
   // Loads the missing images and updates the layout.
   useEffect(() => {
     const updateLayout = async () => {
@@ -133,9 +124,19 @@ export const useViewerController = (
         loadAndUpdate(path, fetchImageBlob, false),
       );
 
-      await Promise.all([...previewPromises, ...fullPromises]);
+      // Wait for previews first (if any are needed) to display something quickly
+      if (previewPromises.length > 0) {
+        await Promise.all(previewPromises);
 
-      if (!controller.signal.aborted) {
+        if (!controller.signal.aborted) {
+          setIsImageLoading(false);
+        }
+      }
+
+      // Continue fetching full-res images in the background
+      await Promise.all(fullPromises);
+
+      if (previewPromises.length === 0 && !controller.signal.aborted) {
         setIsImageLoading(false);
       }
     };
