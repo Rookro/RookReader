@@ -1,6 +1,6 @@
-import { Box } from "@mui/material";
+import { Box, CircularProgress } from "@mui/material";
 import { createSelector } from "@reduxjs/toolkit";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { type RootState, useAppDispatch, useAppSelector } from "../../../store/store";
 import { useLoupe } from "../hooks/useLoupe";
 import { usePageNavigation } from "../hooks/usePageNavigation";
@@ -44,7 +44,7 @@ export default function ComicReader() {
     ],
   );
 
-  const { displayedLayout, moveForward, moveBack } = useViewerController(
+  const { displayedLayout, moveForward, moveBack, isImageLoading } = useViewerController(
     containerPath,
     entries,
     index,
@@ -53,6 +53,20 @@ export default function ComicReader() {
   );
 
   const loupeSettings = readerSettings.comic.loupe;
+
+  const [showSpinner, setShowSpinner] = useState(false);
+
+  useEffect(() => {
+    if (!isImageLoading) {
+      setShowSpinner(false);
+      return;
+    }
+    const timer = setTimeout(() => setShowSpinner(true), 300);
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [isImageLoading]);
 
   const { handleClicked, handleContextMenu, handleWheeled, handleKeydown } = usePageNavigation(
     moveForward,
@@ -71,6 +85,27 @@ export default function ComicReader() {
     };
   }, [handleKeydown]);
 
+  const spinnerOverlay = showSpinner ? (
+    <Box
+      sx={(theme) => ({
+        position: "absolute",
+        top: 0,
+        left: 0,
+        width: "100%",
+        height: "100%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 1,
+        pointerEvents: "none",
+        backgroundColor:
+          theme.palette.mode === "dark" ? "rgba(0, 0, 0, 0.5)" : "rgba(255, 255, 255, 0.5)",
+      })}
+    >
+      <CircularProgress />
+    </Box>
+  ) : null;
+
   if (!displayedLayout) {
     return (
       <Box
@@ -78,7 +113,9 @@ export default function ComicReader() {
           width: "100%",
           height: "100%",
         }}
-      />
+      >
+        {spinnerOverlay}
+      </Box>
     );
   }
 
@@ -115,6 +152,7 @@ export default function ComicReader() {
         radius={loupeSettings?.radius}
       >
         <Box sx={{ display: "flex", width: "100%", height: "100%" }}>
+          {spinnerOverlay}
           {displayedLayout.isSpread ? (
             <>
               <Box
