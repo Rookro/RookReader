@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+* Fixed an issue where files with Shift-JIS encoded names in ZIP archives could not be read. (#211)
+
 ## [2.1.0] - 2026-05-07
 
 ### Added
