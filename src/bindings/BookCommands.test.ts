@@ -219,4 +219,29 @@ describe("BookCommands", () => {
     vi.mocked(invoke).mockRejectedValue(mockError);
     await expect(BookCommands.getBooksWithStateBySeriesId(1)).rejects.toThrow(CommandError);
   });
+
+  it("updateBookSeries should call invoke", async () => {
+    vi.mocked(invoke).mockResolvedValue(undefined);
+    await BookCommands.updateBookSeries(1, 10);
+    expect(invoke).toHaveBeenCalledWith("update_book_series", { bookId: 1, seriesId: 10 });
+  });
+
+  it("updateBookSeries should throw CommandError on failure", async () => {
+    vi.mocked(invoke).mockRejectedValue(mockError);
+    await expect(BookCommands.updateBookSeries(1, 10)).rejects.toThrow(CommandError);
+  });
+
+  it("should handle non-standard error objects using createCommandError", async () => {
+    const strangeError = "Something went wrong";
+    vi.mocked(invoke).mockRejectedValue(strangeError);
+
+    try {
+      await BookCommands.getBook(1);
+    } catch (error) {
+      expect(error).toBeInstanceOf(CommandError);
+      const cmdError = error as CommandError;
+      expect(cmdError.message).toContain("Unknown error");
+      expect(cmdError.message).toContain("Something went wrong");
+    }
+  });
 });

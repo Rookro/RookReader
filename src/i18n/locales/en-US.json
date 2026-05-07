@@ -33,6 +33,10 @@
     "collection": {
       "title": "Collections",
       "all-books": "All Books",
+      "add-books-title": "Add to Collection(s)",
+      "no-collections-available": "No collections available.",
+      "ok-button": "ok",
+      "cancel-button": "cancel",
       "creation": {
         "title": "Create a Collection",
         "name-placeholder": "Collection name",
@@ -60,6 +64,27 @@
         "cancel-button": "cancel"
       }
     },
+    "series": {
+      "title": "Series",
+      "set-series": "Set series",
+      "ungroup-series": "Ungroup series",
+      "creation": {
+        "title": "Create a Series",
+        "name-placeholder": "Series name",
+        "create-new": "Create new series",
+        "creation-button": "create",
+        "cancel-button": "cancel"
+      },
+      "set": {
+        "title": "Set Series",
+        "none": "No Series",
+        "no-series-available": "No series available.",
+        "search-placeholder": "Search series...",
+        "no-search-results": "No search results for \"{{searchText}}\".",
+        "ok-button": "ok",
+        "cancel-button": "cancel"
+      }
+    },
     "search-placeholder": "Search by title...",
     "no-search-results": "No books for \"{{searchText}}\".",
     "no-books": "No books in this collection.",
@@ -83,8 +108,13 @@
     "book-deletion": {
       "title": "Are you sure you want to delete this book?",
       "description": "You are about to delete <bold>\"{{bookName}}\"</bold> from <bold>\"{{bookshelfName}}\"</bold>. This action cannot be undone.",
+      "description-multiple": "You are about to delete <bold>{{count}} books</bold> from <bold>\"{{bookshelfName}}\"</bold>. This action cannot be undone.",
       "cancel-button": "cancel",
       "delete-button": "delete"
+    },
+    "selection": {
+      "count": "{{count}} selected",
+      "clear": "Clear selection"
     },
     "sort": {
       "title": "Sort by",
@@ -131,11 +161,32 @@
         "description": "Automatically check for a new version when the application starts."
       }
     },
+    "bookshelf": {
+      "tab-name": "Bookshelf",
+      "title": "Bookshelf Settings",
+      "auto-scroll": {
+        "title": "Auto Scroll Text",
+        "description": "Automatically scrolls long titles in the bookshelf view. Turning this off can improve performance if the bookshelf feels slow."
+      }
+    },
     "page": {
       "tab-name": "Page",
       "title": "Page Settings",
       "first-page": {
         "title": "Show the initial page in single-page view"
+      },
+      "loupe": {
+        "title": "Loupe Settings",
+        "description": "Settings for the magnifier tool. Toggle it using the configured key or mouse button.",
+        "toggle-key": "Toggle Key",
+        "toggle-key-description": "The keyboard key or mouse button used to toggle the loupe.",
+        "zoom": "Zoom Level",
+        "zoom-description": "The magnification level of the loupe.",
+        "radius": "Radius",
+        "radius-description": "The size of the loupe in pixels.",
+        "mouse-middle": "Mouse Middle Button",
+        "mouse-back": "Mouse Back Button",
+        "mouse-forward": "Mouse Forward Button"
       }
     },
     "file-navigator": {
@@ -173,8 +224,12 @@
           "title": "Resizing Method",
           "description": "Select the algorithm used for resizing. Choose the best balance between image quality and processing speed for your needs.",
           "nearest": "Nearest Neighbor (Fastest / Low Quality)",
+          "box": "Box (Fast / Low Quality)",
           "triangle": "Triangle (Fast / Standard Quality)",
+          "bilinear": "Bilinear (Fast / Standard Quality)",
+          "hamming": "Hamming (Medium Quality)",
           "catmullRom": "Catmull-Rom (Medium / High Quality)",
+          "mitchellNetravali": "Mitchell-Netravali (Medium / High Quality)",
           "gaussian": "Gaussian (Medium / Soft Look)",
           "lanczos3": "Lanczos 3 (Slow / Best Quality)"
         }

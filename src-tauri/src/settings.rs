@@ -11,6 +11,8 @@ use crate::error::Result;
 pub trait SettingsStoreProvider {
     /// Retrieves all settings from the store as a single JSON `Value`.
     fn get_all_settings(&self) -> Value;
+    /// Saves all settings to the store.
+    fn save_all_settings(&self, settings: Value) -> Result<()>;
     /// Retrieves the default home directory dynamically based on the OS.
     fn default_home_dir(&self) -> String;
 }
@@ -31,6 +33,20 @@ impl<'a> SettingsStoreProvider for TauriStoreProvider<'a> {
             return Value::Object(map);
         }
         serde_json::json!({})
+    }
+
+    fn save_all_settings(&self, settings: Value) -> Result<()> {
+        if let Ok(store) = self.app.store(&self.filename) {
+            if let Value::Object(map) = settings {
+                for (key, value) in map {
+                    store.set(key, value);
+                }
+                store.save().map_err(|e| {
+                    crate::error::Error::Other(format!("Failed to save settings: {}", e))
+                })?;
+            }
+        }
+        Ok(())
     }
 
     fn default_home_dir(&self) -> String {
@@ -76,7 +92,12 @@ impl AppSettings {
             app,
             filename: filename.to_string(),
         };
-        Self::load_from_provider(&provider)
+        let config = Self::load_from_provider(&provider)?;
+
+        // Save back to ensure migration and default values are persisted to the store.
+        config.save(&provider)?;
+
+        Ok(config)
     }
 
     /// Internal load logic that uses a provider for testability.
@@ -100,6 +121,12 @@ impl AppSettings {
         }
 
         Ok(config)
+    }
+
+    /// Saves the application settings to a persistent storage file.
+    pub fn save<P: SettingsStoreProvider>(&self, provider: &P) -> Result<()> {
+        let value = serde_json::to_value(self)?;
+        provider.save_all_settings(value)
     }
 }
 
@@ -155,13 +182,26 @@ impl Default for StartupSettings {
 }
 
 /// Settings specific to the bookshelf view.
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct BookshelfSettings {
     /// The criteria used to sort items in the bookshelf.
     pub sort_order: SortOrder,
     /// The number of size to display in the bookshelf grid.
     pub grid_size: u8,
+    /// Whether to enable automatic horizontal scrolling for overflowing text.
+    #[serde(default = "default_true")]
+    pub enable_auto_scroll: bool,
+}
+
+impl Default for BookshelfSettings {
+    fn default() -> Self {
+        Self {
+            sort_order: SortOrder::default(),
+            grid_size: 1,
+            enable_auto_scroll: default_true(),
+        }
+    }
 }
 
 /// Settings for the file navigator.
@@ -200,6 +240,8 @@ pub struct ComicSettings {
     /// Whether to force the first page (cover) to display as a single page in spread mode.
     #[serde(default = "default_true")]
     pub show_cover_as_single_page: bool,
+    /// Configuration for the Loupe (Magnifier) feature.
+    pub loupe: LoupeSettings,
 }
 
 impl Default for ComicSettings {
@@ -208,8 +250,46 @@ impl Default for ComicSettings {
             reading_direction: Direction::default(),
             enable_spread: default_true(),
             show_cover_as_single_page: default_true(),
+            loupe: LoupeSettings::default(),
         }
     }
+}
+
+/// Configuration for the Loupe (Magnifier) feature.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct LoupeSettings {
+    /// The magnification zoom level of the loupe.
+    #[serde(default = "default_loupe_zoom")]
+    pub zoom: f32,
+    /// The radius (size) of the loupe.
+    #[serde(default = "default_loupe_radius")]
+    pub radius: f32,
+    /// The keyboard shortcut key to toggle the loupe.
+    #[serde(default = "default_loupe_toggle_key")]
+    pub toggle_key: String,
+}
+
+impl Default for LoupeSettings {
+    fn default() -> Self {
+        Self {
+            zoom: default_loupe_zoom(),
+            radius: default_loupe_radius(),
+            toggle_key: default_loupe_toggle_key(),
+        }
+    }
+}
+
+fn default_loupe_zoom() -> f32 {
+    2.0
+}
+
+fn default_loupe_radius() -> f32 {
+    200.0
+}
+
+fn default_loupe_toggle_key() -> String {
+    "MouseMiddle".to_string()
 }
 
 /// Configuration specific to reading novels (text-based content).
@@ -333,13 +413,19 @@ pub enum Direction {
 pub enum ImageResamplingMethod {
     /// Nearest Neighbor
     Nearest,
-    /// Linear Filter
+    /// Box Filter (formerly Gaussian)
+    #[serde(alias = "gaussian")]
+    Box,
+    /// Bilinear Filter (formerly Triangle)
     #[default]
-    Triangle,
+    #[serde(alias = "triangle")]
+    Bilinear,
+    /// Hamming Filter
+    Hamming,
     /// Cubic Filter
     CatmullRom,
-    /// Gaussian Filter
-    Gaussian,
+    /// Mitchell-Netravali Filter
+    MitchellNetravali,
     /// Lanczos with window 3
     Lanczos3,
 }
@@ -366,6 +452,9 @@ mod tests {
         fn get_all_settings(&self) -> Value {
             self.mock_json.clone()
         }
+        fn save_all_settings(&self, _settings: Value) -> Result<()> {
+            Ok(())
+        }
         fn default_home_dir(&self) -> String {
             "/mock/home".to_string()
         }
@@ -386,6 +475,9 @@ mod tests {
         // Check static defaults
         assert!(matches!(settings.general.theme, AppTheme::System));
         assert!(settings.reader.comic.enable_spread);
+        assert_eq!(settings.reader.comic.loupe.zoom, 2.0);
+        assert_eq!(settings.reader.comic.loupe.radius, 200.0);
+        assert_eq!(settings.reader.comic.loupe.toggle_key, "MouseMiddle");
     }
 
     #[test]
@@ -393,7 +485,7 @@ mod tests {
         let provider = MockProvider {
             mock_json: json!({
                 "general": { "theme": "dark" },
-                "reader": { "comic": { "enableSpread": false } }
+                "reader": { "comic": { "enableSpread": false, "loupe": { "zoom": 3.0, "toggleKey": "Alt+l" } } }
             }),
         };
         let settings = AppSettings::load_from_provider(&provider).unwrap();
@@ -401,8 +493,11 @@ mod tests {
         // Provided values should be parsed correctly
         assert!(matches!(settings.general.theme, AppTheme::Dark));
         assert!(!settings.reader.comic.enable_spread);
+        assert_eq!(settings.reader.comic.loupe.zoom, 3.0);
+        assert_eq!(settings.reader.comic.loupe.toggle_key, "Alt+l");
 
         // Omitted values should fall back to defaults safely
         assert!(matches!(settings.startup.initial_view, InitialView::Reader));
+        assert_eq!(settings.reader.comic.loupe.radius, 200.0);
     }
 }

@@ -48,6 +48,8 @@ export interface BookshelfSettings {
   sortOrder: SortOrder;
   /** The number of size to display in the bookshelf grid. */
   gridSize: number;
+  /** Whether to enable automatic horizontal scrolling for overflowing text. */
+  enableAutoScroll: boolean;
 }
 
 /** Settings for the file navigator. */
@@ -78,6 +80,18 @@ export interface ComicSettings {
   enableSpread: boolean;
   /** Whether to force the first page (cover) to display as a single page in spread mode. */
   showCoverAsSinglePage: boolean;
+  /** Configuration for the Loupe (Magnifier) feature. */
+  loupe: LoupeSettings;
+}
+
+/** Configuration for the Loupe (Magnifier) feature. */
+export interface LoupeSettings {
+  /** The magnification zoom level of the loupe. */
+  zoom: number;
+  /** The radius (size) of the loupe. */
+  radius: number;
+  /** The keyboard shortcut key to toggle the loupe. */
+  toggleKey: string;
 }
 
 /** Configuration specific to reading novels (text-based content).*/
@@ -124,9 +138,11 @@ export type Direction = "rtl" | "ltr";
 /** The algorithms used for resampling (resizing) images. */
 export const imageResamplingMethods = [
   "nearest",
-  "triangle",
+  "box",
+  "bilinear",
+  "hamming",
   "catmullRom",
-  "gaussian",
+  "mitchellNetravali",
   "lanczos3",
 ] as const;
 

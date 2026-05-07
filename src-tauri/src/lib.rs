@@ -6,6 +6,7 @@ mod commands;
 mod container;
 pub mod database;
 mod error;
+pub mod image;
 mod settings;
 mod setup;
 mod state;
@@ -37,6 +38,7 @@ pub fn run() {
             commands::directory_commands::get_entries_in_dir,
             commands::container_commands::get_image,
             commands::container_commands::get_image_preview,
+            commands::container_commands::request_preload_around,
             commands::container_commands::get_entries_in_container,
             commands::container_commands::set_pdf_render_resolution_height,
             commands::container_commands::set_max_image_height,
@@ -59,6 +61,7 @@ pub fn run() {
             commands::book_commands::get_books_with_state_by_bookshelf_id,
             commands::book_commands::get_books_with_state_by_tag_id,
             commands::book_commands::get_books_with_state_by_series_id,
+            commands::book_commands::update_book_series,
             commands::bookshelf_commands::create_bookshelf,
             commands::bookshelf_commands::get_all_bookshelves,
             commands::bookshelf_commands::add_book_to_bookshelf,
@@ -66,6 +69,7 @@ pub fn run() {
             commands::bookshelf_commands::delete_bookshelf,
             commands::series_commands::create_series,
             commands::series_commands::get_all_series,
+            commands::series_commands::delete_series,
             commands::tag_commands::create_tag,
             commands::tag_commands::get_all_tags,
             commands::tag_commands::delete_tag,

@@ -22,8 +22,8 @@ import type { Tag } from "../../../../types/DatabaseModels";
 export interface SetBookTagsDialogProps {
   /** Whether the dialog is open or closed. */
   openDialog: boolean;
-  /** The ID of the book for which tags are being set. */
-  bookId: number | null;
+  /** The IDs of the books for which tags are being set. */
+  bookIds: number[];
   /** The available tags to choose from. */
   availableTags: Tag[];
   /** Callback to update the tags for the book. */
@@ -35,7 +35,7 @@ export interface SetBookTagsDialogProps {
 /** Dialog for setting book tags */
 export default function SetBookTagsDialog({
   openDialog,
-  bookId,
+  bookIds,
   availableTags,
   onUpdateTags,
   onClose,
@@ -44,16 +44,19 @@ export default function SetBookTagsDialog({
   const [selectedTagIds, setSelectedTagIds] = useState<Set<number>>(new Set());
 
   useEffect(() => {
-    if (openDialog && bookId !== null) {
-      getBookTags(bookId)
+    if (openDialog && bookIds.length === 1) {
+      getBookTags(bookIds[0])
         .then((tagIds) => {
           setSelectedTagIds(new Set(tagIds));
         })
         .catch((e) => {
           logError(`Failed to fetch book tags: ${e}`);
         });
+    } else if (openDialog && bookIds.length > 1) {
+      // Start with no tags selected when modifying multiple books.
+      setSelectedTagIds(new Set());
     }
-  }, [openDialog, bookId]);
+  }, [openDialog, bookIds]);
 
   const handleToggle = useCallback(
     (tagId: number) => {
@@ -69,15 +72,16 @@ export default function SetBookTagsDialog({
   );
 
   const handleSave = useCallback(async () => {
-    if (bookId === null) return;
+    if (bookIds.length === 0) return;
     try {
-      await updateBookTags(bookId, Array.from(selectedTagIds));
+      const tagArray = Array.from(selectedTagIds);
+      await Promise.all(bookIds.map((id) => updateBookTags(id, tagArray)));
       onUpdateTags();
       onClose();
     } catch (e) {
       logError(`Failed to update book tags: ${e}`);
     }
-  }, [bookId, selectedTagIds, onUpdateTags, onClose]);
+  }, [bookIds, selectedTagIds, onUpdateTags, onClose]);
 
   return (
     <Dialog open={openDialog} onClose={onClose} fullWidth>

@@ -12,10 +12,25 @@ describe("ContainerCommands", () => {
 
   it("getEntriesInContainer should call invoke", async () => {
     vi.mocked(invoke).mockResolvedValue({ entries: ["1.jpg"], is_directory: false });
-    await ContainerCommands.getEntriesInContainer("path", true);
+    await ContainerCommands.getEntriesInContainer("path");
     expect(invoke).toHaveBeenCalledWith("get_entries_in_container", {
       path: "path",
-      enablePreload: true,
+    });
+  });
+
+  it("requestPreloadAround should call invoke", async () => {
+    await ContainerCommands.requestPreloadAround(5, 10);
+    expect(invoke).toHaveBeenCalledWith("request_preload_around", {
+      index: 5,
+      bufferSize: 10,
+    });
+  });
+
+  it("requestPreloadAround should call invoke with default bufferSize", async () => {
+    await ContainerCommands.requestPreloadAround(5);
+    expect(invoke).toHaveBeenCalledWith("request_preload_around", {
+      index: 5,
+      bufferSize: undefined,
     });
   });
 
@@ -58,6 +73,11 @@ describe("ContainerCommands", () => {
     await expect(ContainerCommands.getEntriesInContainer("path")).rejects.toThrow(CommandError);
   });
 
+  it("requestPreloadAround should throw CommandError on failure", async () => {
+    vi.mocked(invoke).mockRejectedValue(new Error("fail"));
+    await expect(ContainerCommands.requestPreloadAround(0)).rejects.toThrow(CommandError);
+  });
+
   it("getImage should throw CommandError on failure", async () => {
     vi.mocked(invoke).mockRejectedValue(new Error("fail"));
     await expect(ContainerCommands.getImage("path", "e")).rejects.toThrow(CommandError);
@@ -86,5 +106,32 @@ describe("ContainerCommands", () => {
   it("determineEpubNovel should throw CommandError on failure", async () => {
     vi.mocked(invoke).mockRejectedValue(new Error("fail"));
     await expect(ContainerCommands.determineEpubNovel("p")).rejects.toThrow(CommandError);
+  });
+
+  it("should map structured error to CommandError", async () => {
+    const structuredError = { code: 10001, message: "Unsupported container" };
+    vi.mocked(invoke).mockRejectedValue(structuredError);
+
+    try {
+      await ContainerCommands.getEntriesInContainer("path");
+    } catch (error) {
+      expect(error).toBeInstanceOf(CommandError);
+      const commandError = error as CommandError;
+      expect(commandError.code).toBe(10001);
+      expect(commandError.message).toBe("Unsupported container");
+    }
+  });
+
+  it("should handle unknown error objects", async () => {
+    vi.mocked(invoke).mockRejectedValue("string error");
+
+    try {
+      await ContainerCommands.getEntriesInContainer("path");
+    } catch (error) {
+      expect(error).toBeInstanceOf(CommandError);
+      const commandError = error as CommandError;
+      expect(commandError.code).toBe(90000); // UNKNOWN_ERROR
+      expect(commandError.message).toContain("string error");
+    }
   });
 });

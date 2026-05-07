@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-05-07
+
+### Added
+
+* Added a customizable Loupe (magnifier) feature to the comic reader, which can be toggled via keyboard or mouse shortcuts (#194)
+* Added multi-select functionality (Ctrl/Cmd+click, Shift+click) to the bookshelf grid, allowing users to apply bulk actions (set tags, add to collections, remove from bookshelf) to multiple books at once (#195)
+* Added a setting to toggle automatic scrolling for bookshelf titles to help improve performance (#196)
+* Added series grouping and drill-down navigation in the bookshelf view (#200)
+
+### Changed
+
+* Faster file loading and smoother page-turning for an improved reading experience (#193)
+* Significantly improved image resizing and thumbnail generation speeds by leveraging CPU SIMD instructions and multi-threading (#199)
+* Improve UI responsiveness by lowering the priority of background image loading threads (#204)
+* Improved comic reader UX by displaying a clear loading indicator when pages take longer to load (#206)
+
+### Fixed
+
+* Improved image resizing performance and fixed dark halos on transparent images (#201)
+* Limit image loading to a single thread for PDF containers to prevent efficiency issues (#203)
+
 ## [2.0.3] - 2026-04-24
 
 ### Changed
@@ -314,7 +335,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Add an automatic two-page spread display feature (#4)
 * Add a page navigation feature using the mouse wheel up/down (#5)
 
-[unreleased]: https://github.com/Rookro/RookReader/compare/v2.0.3...HEAD
+[unreleased]: https://github.com/Rookro/RookReader/compare/v2.1.0...HEAD
+[2.1.0]: https://github.com/Rookro/RookReader/compare/v2.0.3...v2.1.0
 [2.0.3]: https://github.com/Rookro/RookReader/compare/v2.0.2...v2.0.3
 [2.0.2]: https://github.com/Rookro/RookReader/compare/v2.0.1...v2.0.2
 [2.0.1]: https://github.com/Rookro/RookReader/compare/v2.0.0...v2.0.1

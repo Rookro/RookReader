@@ -47,7 +47,7 @@ impl SeriesRepository for SqliteSeriesRepository {
         let series_list = sqlx::query_as!(
             Series,
             r#"
-            SELECT id, name
+            SELECT id, name, created_at
             FROM series
             ORDER BY id ASC
             "#
@@ -56,5 +56,19 @@ impl SeriesRepository for SqliteSeriesRepository {
         .await?;
 
         Ok(series_list)
+    }
+
+    async fn delete(&self, id: i64) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            r#"
+            DELETE FROM series
+            WHERE id = ?
+            "#,
+            id
+        )
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
     }
 }

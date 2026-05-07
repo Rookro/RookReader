@@ -41,8 +41,13 @@ export default function AppFontFamilySetting() {
 
   useEffect(() => {
     const initFonts = async () => {
-      const fonts = await getFonts();
-      setFonts(fonts);
+      try {
+        const fonts = await getFonts();
+        setFonts(fonts);
+      } catch (error) {
+        // Fallback is implicitly handled by the empty 'fonts' state
+        debug(`Failed to fetch fonts for settings: ${error}`);
+      }
     };
 
     initFonts();

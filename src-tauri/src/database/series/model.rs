@@ -1,3 +1,4 @@
+use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 
@@ -8,4 +9,6 @@ pub struct Series {
     pub id: i64,
     /// The unique name of the series.
     pub name: String,
+    /// The timestamp when the series was created.
+    pub created_at: NaiveDateTime,
 }

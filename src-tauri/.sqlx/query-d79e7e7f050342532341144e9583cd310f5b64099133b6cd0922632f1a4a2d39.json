@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            INSERT OR IGNORE INTO bookshelf_items (bookshelf_id, book_id)\n            VALUES (?, ?)\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "d79e7e7f050342532341144e9583cd310f5b64099133b6cd0922632f1a4a2d39"
+}

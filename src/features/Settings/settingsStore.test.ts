@@ -71,6 +71,82 @@ describe("SettingsStore", () => {
       expect(settings.general).toEqual(defaultSettings.general);
       expect(settings.startup).toEqual(defaultSettings.startup);
     });
+
+    it("should preserve nested default values when store has partial nested object", async () => {
+      mockStore.get.mockImplementation((key) => {
+        if (key === "reader") {
+          return Promise.resolve({
+            comic: {
+              readingDirection: "ltr",
+            },
+          });
+        }
+        return Promise.resolve(null);
+      });
+
+      const settings = await loadAllSettings();
+
+      expect(settings.reader.comic.readingDirection).toBe("ltr");
+      expect(settings.reader.comic.enableSpread).toBe(defaultSettings.reader.comic.enableSpread);
+      expect(settings.reader.comic.loupe.zoom).toBe(defaultSettings.reader.comic.loupe.zoom);
+      expect(settings.reader.novel.fontSize).toBe(defaultSettings.reader.novel.fontSize);
+    });
+
+    describe("Zod validation", () => {
+      it("should fallback to defaults when store returns invalid enum value", async () => {
+        mockStore.get.mockImplementation((key) => {
+          if (key === "general") {
+            return Promise.resolve({
+              ...defaultSettings.general,
+              theme: "invalid-theme",
+            });
+          }
+          return Promise.resolve(null);
+        });
+
+        const settings = await loadAllSettings();
+
+        // Should fallback to defaultSettings because of Zod validation failure
+        expect(settings).toEqual(defaultSettings);
+      });
+
+      it("should strip unknown properties from store", async () => {
+        mockStore.get.mockImplementation((key) => {
+          if (key === "general") {
+            return Promise.resolve({
+              ...defaultSettings.general,
+              unknownProperty: "should-be-removed",
+            });
+          }
+          return Promise.resolve(null);
+        });
+
+        const settings = await loadAllSettings();
+
+        expect(settings.general).not.toHaveProperty("unknownProperty");
+        expect(settings.general.theme).toBe(defaultSettings.general.theme);
+      });
+
+      it("should handle deeply nested validation failures", async () => {
+        mockStore.get.mockImplementation((key) => {
+          if (key === "reader") {
+            return Promise.resolve({
+              ...defaultSettings.reader,
+              comic: {
+                ...defaultSettings.reader.comic,
+                readingDirection: "invalid-direction",
+              },
+            });
+          }
+          return Promise.resolve(null);
+        });
+
+        const settings = await loadAllSettings();
+
+        // Validation failure in reader.comic.readingDirection should trigger fallback
+        expect(settings).toEqual(defaultSettings);
+      });
+    });
   });
 
   describe("settingsStore instance", () => {

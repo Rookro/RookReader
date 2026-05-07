@@ -1,5 +1,6 @@
 import type { SortOrder } from "../../../types/AppSettings";
 import type { BookWithState } from "../../../types/DatabaseModels";
+import type { GridItem } from "../components/BookGridCell";
 
 /**
  * Filters an array of BookWithState objects to find entries whose 'display_name' property contains ALL specified keywords (AND search).
@@ -65,5 +66,46 @@ export const sortBy = (a: BookWithState, b: BookWithState, sortOrder: SortOrder)
       return a.id - b.id;
     case "date_desc":
       return b.id - a.id;
+  }
+};
+
+/**
+ * Comparison function for sorting an array of GridItem objects based on a specified criterion and order.
+ *
+ * @param a - The first GridItem for comparison.
+ * @param b - The second GridItem for comparison.
+ * @param sortOrder - The specified criterion for sorting.
+ * @returns A number indicating the sort order.
+ */
+export const sortByGridItem = (a: GridItem, b: GridItem, sortOrder: SortOrder) => {
+  const getComparisonValues = (item: GridItem) => {
+    if (item.type === "series") {
+      return {
+        name: item.data.name,
+        date: item.data.created_at,
+        id: item.data.id,
+      };
+    }
+    return {
+      name: item.data.display_name,
+      // For standalone books, we use its ID as a proxy for date since it doesn't have a direct created_at.
+      // We convert it to a string to match the series created_at type for comparison if needed.
+      date: item.data.id.toString().padStart(10, "0"),
+      id: item.data.id,
+    };
+  };
+
+  const valA = getComparisonValues(a);
+  const valB = getComparisonValues(b);
+
+  switch (sortOrder) {
+    case "name_asc":
+      return valA.name.localeCompare(valB.name);
+    case "name_desc":
+      return valB.name.localeCompare(valA.name);
+    case "date_asc":
+      return valA.date.localeCompare(valB.date) || valA.id - valB.id;
+    case "date_desc":
+      return valB.date.localeCompare(valA.date) || valB.id - valA.id;
   }
 };

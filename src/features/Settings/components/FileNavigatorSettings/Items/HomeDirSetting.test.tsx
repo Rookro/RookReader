@@ -1,5 +1,7 @@
+import { homeDir } from "@tauri-apps/api/path";
 import * as dialog from "@tauri-apps/plugin-dialog";
-import { screen, waitFor } from "@testing-library/react";
+import { error } from "@tauri-apps/plugin-log";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { mockStore } from "../../../../../test/mocks/tauri";
@@ -11,6 +13,7 @@ describe("HomeDirSetting", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(homeDir).mockResolvedValue("/default/home");
   });
 
   it("should load initial home directory from store", async () => {
@@ -21,6 +24,18 @@ describe("HomeDirSetting", () => {
 
     await waitFor(() => {
       expect(screen.getByDisplayValue("/saved/path")).toBeInTheDocument();
+    });
+  });
+
+  it("should fallback to system home dir if store path is empty", async () => {
+    const preloadedState = createBasePreloadedState();
+    preloadedState.settings.fileNavigator.homeDirectory = "";
+
+    renderWithProviders(<HomeDirSetting />, { preloadedState });
+
+    await waitFor(() => {
+      expect(homeDir).toHaveBeenCalled();
+      expect(screen.getByDisplayValue("/default/home")).toBeInTheDocument();
     });
   });
 
@@ -39,6 +54,19 @@ describe("HomeDirSetting", () => {
       "fileNavigator",
       expect.objectContaining({ homeDirectory: "/manual/path" }),
     );
+  });
+
+  it("should not update store if text input has not changed", async () => {
+    const preloadedState = createBasePreloadedState();
+    preloadedState.settings.fileNavigator.homeDirectory = "/saved/path";
+
+    renderWithProviders(<HomeDirSetting />, { preloadedState });
+
+    const input = await screen.findByDisplayValue("/saved/path");
+    await user.click(input);
+    await user.tab(); // Blur trigger
+
+    expect(mockStore.set).not.toHaveBeenCalled();
   });
 
   it("should open dialog and update store when folder button is clicked", async () => {
@@ -60,5 +88,47 @@ describe("HomeDirSetting", () => {
       );
       expect(screen.getByDisplayValue("/picked/path")).toBeInTheDocument();
     });
+  });
+
+  it("should do nothing when folder picker is cancelled", async () => {
+    vi.mocked(dialog.open).mockResolvedValue(null);
+    const preloadedState = createBasePreloadedState();
+    preloadedState.settings.fileNavigator.homeDirectory = "/saved/path";
+
+    renderWithProviders(<HomeDirSetting />, { preloadedState });
+
+    const folderButton = screen.getByRole("button");
+    await user.click(folderButton);
+
+    expect(dialog.open).toHaveBeenCalled();
+    expect(mockStore.set).not.toHaveBeenCalled();
+    expect(screen.getByDisplayValue("/saved/path")).toBeInTheDocument();
+  });
+
+  it("should log error when folder picker fails", async () => {
+    vi.mocked(dialog.open).mockRejectedValue(new Error("Picker failed"));
+    const preloadedState = createBasePreloadedState();
+
+    renderWithProviders(<HomeDirSetting />, { preloadedState });
+
+    const folderButton = screen.getByRole("button");
+    await user.click(folderButton);
+
+    await waitFor(() => {
+      expect(error).toHaveBeenCalledWith(expect.stringContaining("Picker failed"));
+    });
+  });
+
+  it("should stop propagation on context menu", async () => {
+    const preloadedState = createBasePreloadedState();
+    renderWithProviders(<HomeDirSetting />, { preloadedState });
+
+    const input = screen.getByRole("textbox");
+    const event = new MouseEvent("contextmenu", { bubbles: true, cancelable: true });
+    vi.spyOn(event, "stopPropagation");
+
+    fireEvent(input, event);
+
+    expect(event.stopPropagation).toHaveBeenCalled();
   });
 });

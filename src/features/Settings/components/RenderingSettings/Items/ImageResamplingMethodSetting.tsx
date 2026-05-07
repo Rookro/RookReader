@@ -31,12 +31,16 @@ export default function ImageResamplingMethodSetting() {
       switch (method) {
         case "nearest":
           return t("settings.rendering.resize.resize-method.nearest");
-        case "triangle":
-          return t("settings.rendering.resize.resize-method.triangle");
+        case "box":
+          return t("settings.rendering.resize.resize-method.box");
+        case "bilinear":
+          return t("settings.rendering.resize.resize-method.bilinear");
+        case "hamming":
+          return t("settings.rendering.resize.resize-method.hamming");
         case "catmullRom":
           return t("settings.rendering.resize.resize-method.catmullRom");
-        case "gaussian":
-          return t("settings.rendering.resize.resize-method.gaussian");
+        case "mitchellNetravali":
+          return t("settings.rendering.resize.resize-method.mitchellNetravali");
         case "lanczos3":
           return t("settings.rendering.resize.resize-method.lanczos3");
         default:

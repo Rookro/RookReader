@@ -8,8 +8,12 @@ use std::{
 use image::{codecs::jpeg::JpegEncoder, ImageReader};
 
 use crate::{
-    container::{image::Image, traits::Container},
+    container::traits::Container,
     error::{Error, Result},
+    image::{
+        resizer::{shrink_to_fit, ResizeFilter},
+        types::Image,
+    },
 };
 
 /// An implementation of the `Container` trait for browsing images in a filesystem directory.
@@ -104,12 +108,14 @@ fn create_thumbnail(path: &str, entry: &str) -> Result<Arc<Image>> {
 
     let cursor = Cursor::new(&buffer);
     let image_reader = ImageReader::new(cursor).with_guessed_format()?;
-    let image = image_reader.decode()?;
+    let dyn_image = image_reader.decode()?;
 
-    let thumbnail = image.thumbnail(
+    let thumbnail = shrink_to_fit(
+        &dyn_image,
         <dyn Container>::THUMBNAIL_SIZE,
         <dyn Container>::THUMBNAIL_SIZE,
-    );
+        ResizeFilter::Bilinear,
+    )?;
 
     let mut buffer = Vec::new();
     // Use a lower quality for thumbnails to make them smaller and faster to encode.
@@ -143,9 +149,9 @@ mod tests {
         let png_data = vec![
             0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x48,
             0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x06, 0x00, 0x00,
-            0x00, 0x1F, 0x15, 0xC4, 0x89, 0x00, 0x00, 0x00, 0x0C, 0x49, 0x44, 0x41, 0x54, 0x08,
-            0xD7, 0x63, 0xF8, 0xFF, 0xFF, 0xFF, 0x3F, 0x00, 0x05, 0xFE, 0x02, 0xFE, 0xDC, 0xCC,
-            0x53, 0x24, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82,
+            0x00, 0x1F, 0x15, 0xC4, 0x89, 0x00, 0x00, 0x00, 0x0A, 0x49, 0x44, 0x41, 0x54, 0x78,
+            0x9C, 0x63, 0x00, 0x01, 0x00, 0x00, 0x05, 0x00, 0x01, 0x0D, 0x0A, 0x2D, 0xB4, 0x00,
+            0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82,
         ];
         file.write_all(&png_data).expect("failed to write png data");
         filepath
@@ -241,5 +247,18 @@ mod tests {
             .expect("failed to create DirectoryContainer");
         let result = container.get_image("non_existent.png");
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_get_thumbnail() {
+        let dir = tempdir().expect("failed to create tempdir");
+        create_dummy_image(dir.path(), "test.png");
+        let container = DirectoryContainer::new(dir.path().to_string_lossy().as_ref())
+            .expect("failed to create DirectoryContainer");
+
+        let thumbnail = container.get_thumbnail("test.png").unwrap();
+        assert!(thumbnail.width <= <dyn Container>::THUMBNAIL_SIZE);
+        assert!(thumbnail.height <= <dyn Container>::THUMBNAIL_SIZE);
+        assert!(!thumbnail.data.is_empty());
     }
 }

@@ -3,14 +3,19 @@ use pdfium_render::prelude::{PdfDocument, PdfPageRenderRotation, PdfRenderConfig
 use std::sync::Arc;
 
 use crate::{
-    container::{image::Image, traits::Container},
+    container::traits::Container,
     error::{Error, Result},
+    image::types::Image,
 };
 
 /// An implementation of the `Container` trait for reading content from PDF files.
 ///
 /// This container treats each page of a PDF document as an entry, which can be
 /// rendered into an image.
+///
+/// NOTE: The underlying `pdfium-render` library's `PdfDocument` type does not implement `Send`,
+/// which prevents us from sharing a single opened document instance across threads using a Mutex.
+/// As a result, this implementation currently opens the PDF for each image request.
 pub struct PdfContainer {
     /// The file path of the PDF container.
     path: String,
@@ -45,6 +50,10 @@ impl Container for PdfContainer {
 
     fn is_directory(&self) -> bool {
         false
+    }
+
+    fn is_single_threaded(&self) -> bool {
+        true
     }
 }
 
@@ -133,11 +142,10 @@ fn create_thumbnail(
     let index: u16 = entry.parse()?;
 
     let page = pdf.pages().get(index).map_err(Error::from)?;
-    // let img = match page.embedded_thumbnail() {
-    //     Ok(thumbnail) => thumbnail.as_image(),
-    //     Err(_) => page.render_with_config(render_config)?.as_image(),
-    // };
-    let img = page.render_with_config(render_config)?.as_image();
+    let img = match page.embedded_thumbnail() {
+        Ok(thumbnail) => thumbnail.as_image(),
+        Err(_) => page.render_with_config(render_config)?.as_image(),
+    };
 
     let mut buffer = Vec::new();
     // Use a lower quality for thumbnails to make them smaller and faster to encode.
@@ -281,5 +289,23 @@ mod tests {
 
         let result = container.get_image("0001"); // Page 1 does not exist
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_get_thumbnail() {
+        let dir = tempdir().unwrap();
+        let pdf_path = create_dummy_pdf(dir.path(), "test.pdf");
+        let render_config = PdfRenderConfig::default();
+        let container = PdfContainer::new(
+            pdf_path.to_string_lossy().as_ref(),
+            render_config,
+            Some(get_pdfium_lib_path()),
+        )
+        .unwrap();
+
+        let thumbnail = container.get_thumbnail("0000").unwrap();
+        assert!(thumbnail.width <= <dyn Container>::THUMBNAIL_SIZE);
+        assert!(thumbnail.height <= <dyn Container>::THUMBNAIL_SIZE);
+        assert!(!thumbnail.data.is_empty());
     }
 }

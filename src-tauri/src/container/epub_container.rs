@@ -1,21 +1,30 @@
-use std::{collections::HashMap, io::Cursor, path::Path, sync::Arc};
+use std::{
+    collections::HashMap,
+    io::Cursor,
+    path::Path,
+    sync::{Arc, Mutex},
+};
 
 use image::{codecs::jpeg::JpegEncoder, ImageReader};
 use rbook::Epub;
 use scraper::{Html, Selector};
 
 use crate::{
-    container::{image::Image, traits::Container},
+    container::traits::Container,
     error::{Error, Result},
+    image::{
+        resizer::{shrink_to_fit, ResizeFilter},
+        types::Image,
+    },
 };
 
 /// An implementation of the `Container` trait for reading content from EPUB files.
 pub struct EpubContainer {
-    /// The file path of the EPUB container.
-    path: String,
     /// A list of image resource IDs (keys) found in the EPUB's manifest,
     /// sorted according to their appearance in the spine.
     entries: Vec<String>,
+    /// The opened EPUB archive, protected by a Mutex for thread-safe access.
+    epub: Mutex<Epub>,
 }
 
 impl Container for EpubContainer {
@@ -24,13 +33,19 @@ impl Container for EpubContainer {
     }
 
     fn get_image(&self, entry: &str) -> Result<Arc<Image>> {
-        let mut epub = Epub::options().strict(false).open(&self.path)?;
+        let mut epub = self
+            .epub
+            .lock()
+            .map_err(|e| Error::Other(format!("Failed to lock epub archive: {}", e)))?;
         let image = load_image(&mut epub, entry)?;
         Ok(image)
     }
 
     fn get_thumbnail(&self, entry: &str) -> Result<Arc<Image>> {
-        let mut epub = Epub::options().strict(false).open(&self.path)?;
+        let mut epub = self
+            .epub
+            .lock()
+            .map_err(|e| Error::Other(format!("Failed to lock epub archive: {}", e)))?;
         create_thumbnail(&mut epub, entry)
     }
 
@@ -73,8 +88,8 @@ impl EpubContainer {
         }
 
         Ok(Self {
-            path: path.to_string(),
             entries,
+            epub: Mutex::new(epub),
         })
     }
 
@@ -89,7 +104,7 @@ impl EpubContainer {
     /// Returns `false` if the layout is "pre-paginated" or the file cannot be read.
     /// Returns `true` otherwise.
     pub fn is_novel(&self) -> bool {
-        let Ok(epub) = Epub::options().strict(false).open(&self.path) else {
+        let Ok(epub) = self.epub.lock() else {
             return false;
         };
         let Some(layout) = epub.metadata().iter().find_map(|meta| {
@@ -130,12 +145,14 @@ fn create_thumbnail(epub: &mut Epub, entry: &str) -> Result<Arc<Image>> {
     let buffer = resource.read_bytes()?;
     let cursor = Cursor::new(&buffer);
     let image_reader = ImageReader::new(cursor).with_guessed_format()?;
-    let image = image_reader.decode()?;
+    let dyn_image = image_reader.decode()?;
 
-    let thumbnail = image.thumbnail(
+    let thumbnail = shrink_to_fit(
+        &dyn_image,
         <dyn Container>::THUMBNAIL_SIZE,
         <dyn Container>::THUMBNAIL_SIZE,
-    );
+        ResizeFilter::Bilinear,
+    )?;
 
     let mut buffer = Vec::new();
     // Use a lower quality for thumbnails to make them smaller and faster to encode.
@@ -244,13 +261,19 @@ mod tests {
                                 </rootfiles>
                                 </container>"#;
 
-    fn content_opf(with_images: bool) -> String {
+    fn content_opf(with_images: bool, is_comic: bool) -> String {
         let manifest_items = if with_images {
             r#"<item id="image1" href="images/image1.png" media-type="image/png"/>
             <item id="cover" href="images/cover.png" media-type="image/png"/>
             <item id="non-image" href="data.txt" media-type="text/plain"/>"#
         } else {
             r#"<item id="non-image" href="data.txt" media-type="text/plain"/>"#
+        };
+
+        let metadata_extra = if is_comic {
+            r#"<meta property="rendition:layout">pre-paginated</meta>"#
+        } else {
+            ""
         };
 
         format!(
@@ -260,6 +283,7 @@ mod tests {
                 <dc:title>Test Book</dc:title>
                 <dc:identifier id="bookid">urn:uuid:12345</dc:identifier>
                 <dc:language>en</dc:language>
+                {}
             </metadata>
             <manifest>
                 <item id="chapter1" href="text/chapter1.xhtml" media-type="application/xhtml+xml"/>
@@ -269,7 +293,7 @@ mod tests {
                 <itemref idref="chapter1"/>
             </spine>
             </package>"#,
-            manifest_items
+            metadata_extra, manifest_items
         )
     }
 
@@ -317,7 +341,7 @@ mod tests {
     #[test]
     fn test_new_valid_epub() {
         let dir = tempdir().expect("failed to create tempdir");
-        let content_opf_str = content_opf(true);
+        let content_opf_str = content_opf(true, false);
         let chapter1_xhtml_str = chapter1_xhtml(true);
 
         let epub_path = create_dummy_epub(
@@ -345,7 +369,7 @@ mod tests {
     #[test]
     fn test_new_epub_no_images_in_spine() {
         let dir = tempdir().expect("failed to create tempdir");
-        let content_opf_str = content_opf(true);
+        let content_opf_str = content_opf(true, false);
         let chapter1_xhtml_str = chapter1_xhtml(false); // No images in chapter
 
         let epub_path = create_dummy_epub(
@@ -373,7 +397,7 @@ mod tests {
     #[test]
     fn test_new_empty_epub() {
         let dir = tempdir().expect("failed to create tempdir");
-        let content_opf_str = content_opf(false); // No images in manifest
+        let content_opf_str = content_opf(false, false); // No images in manifest
         let chapter1_xhtml_str = chapter1_xhtml(false);
 
         let epub_path = create_dummy_epub(
@@ -403,7 +427,7 @@ mod tests {
     #[test]
     fn test_get_entries() {
         let dir = tempdir().expect("failed to create tempdir");
-        let content_opf_str = content_opf(true);
+        let content_opf_str = content_opf(true, false);
         let chapter1_xhtml_str = chapter1_xhtml(true);
 
         let epub_path = create_dummy_epub(
@@ -430,7 +454,7 @@ mod tests {
     #[test]
     fn test_get_image_existing() {
         let dir = tempdir().unwrap();
-        let content_opf_str = content_opf(true);
+        let content_opf_str = content_opf(true, false);
         let chapter1_xhtml_str = chapter1_xhtml(true);
 
         let epub_path = create_dummy_epub(
@@ -459,7 +483,7 @@ mod tests {
     #[test]
     fn test_get_image_non_existing() {
         let dir = tempdir().unwrap();
-        let content_opf_str = content_opf(true);
+        let content_opf_str = content_opf(true, false);
         let chapter1_xhtml_str = chapter1_xhtml(true);
         let epub_path = create_dummy_epub(
             dir.path(),
@@ -475,5 +499,71 @@ mod tests {
         let container = EpubContainer::new(epub_path.to_string_lossy().as_ref()).unwrap();
         let result = container.get_image("non_existent_image");
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_get_thumbnail() {
+        let dir = tempdir().unwrap();
+        let content_opf_str = content_opf(true, false);
+        let chapter1_xhtml_str = chapter1_xhtml(true);
+        let epub_path = create_dummy_epub(
+            dir.path(),
+            "test.epub",
+            &[
+                ("mimetype", b"application/epub+zip"),
+                ("META-INF/container.xml", CONTAINER_XML.as_bytes()),
+                ("OEBPS/content.opf", content_opf_str.as_bytes()),
+                ("OEBPS/text/chapter1.xhtml", chapter1_xhtml_str.as_bytes()),
+                ("OEBPS/images/image1.png", DUMMY_PNG_DATA),
+                ("OEBPS/images/cover.png", DUMMY_PNG_DATA),
+            ],
+        );
+        let container = EpubContainer::new(epub_path.to_string_lossy().as_ref()).unwrap();
+
+        let thumbnail = container.get_thumbnail("image1").unwrap();
+        assert!(thumbnail.width <= <dyn Container>::THUMBNAIL_SIZE);
+        assert!(thumbnail.height <= <dyn Container>::THUMBNAIL_SIZE);
+        assert!(!thumbnail.data.is_empty());
+    }
+
+    #[test]
+    fn test_is_novel() {
+        let dir = tempdir().unwrap();
+
+        // 1. Comic EPUB (has images in manifest and rendition:layout metadata)
+        let content_opf_comic = content_opf(true, true);
+        let epub_path_comic = create_dummy_epub(
+            dir.path(),
+            "comic.epub",
+            &[
+                ("mimetype", b"application/epub+zip"),
+                ("META-INF/container.xml", CONTAINER_XML.as_bytes()),
+                ("OEBPS/content.opf", content_opf_comic.as_bytes()),
+                ("OEBPS/text/chapter1.xhtml", chapter1_xhtml(true).as_bytes()),
+                ("OEBPS/images/image1.png", DUMMY_PNG_DATA),
+            ],
+        );
+        let container_comic =
+            EpubContainer::new(epub_path_comic.to_string_lossy().as_ref()).unwrap();
+        assert!(!container_comic.is_novel());
+
+        // 2. Novel EPUB (no images in manifest)
+        let content_opf_novel = content_opf(false, false);
+        let epub_path_novel = create_dummy_epub(
+            dir.path(),
+            "novel.epub",
+            &[
+                ("mimetype", b"application/epub+zip"),
+                ("META-INF/container.xml", CONTAINER_XML.as_bytes()),
+                ("OEBPS/content.opf", content_opf_novel.as_bytes()),
+                (
+                    "OEBPS/text/chapter1.xhtml",
+                    chapter1_xhtml(false).as_bytes(),
+                ),
+            ],
+        );
+        let container_novel =
+            EpubContainer::new(epub_path_novel.to_string_lossy().as_ref()).unwrap();
+        assert!(container_novel.is_novel());
     }
 }

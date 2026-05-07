@@ -227,6 +227,11 @@ export default function MenuList({ onClickAddBookshelf, onClickAddBookTag }: Men
       <Menu
         open={contextMenu !== null}
         onClose={handleClose}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          handleClose();
+        }}
         anchorReference="anchorPosition"
         anchorPosition={
           contextMenu !== null ? { top: contextMenu.mouseY, left: contextMenu.mouseX } : undefined

@@ -5,10 +5,11 @@ use pdfium_render::prelude::PdfRenderConfig;
 use crate::{
     container::{
         directory_container::DirectoryContainer, epub_container::EpubContainer,
-        image_loader::ImageLoader, pdf_container::PdfContainer, rar_container::RarContainer,
-        traits::Container, zip_container::ZipContainer,
+        pdf_container::PdfContainer, rar_container::RarContainer, traits::Container,
+        zip_container::ZipContainer,
     },
     error::{Error, Result},
+    image::loader::ImageLoader,
     state::container_settings::ContainerSettings,
 };
 
@@ -57,7 +58,7 @@ impl ContainerState {
                 container,
                 self.settings.max_image_height as u32,
                 self.settings.image_resampling_method,
-            ));
+            )?);
             return Ok(());
         }
 
@@ -71,7 +72,7 @@ impl ContainerState {
                         container,
                         self.settings.max_image_height as u32,
                         self.settings.image_resampling_method,
-                    ));
+                    )?);
                 }
                 "pdf" => {
                     let container = Arc::new(PdfContainer::new(
@@ -83,9 +84,9 @@ impl ContainerState {
                     self.container = Some(container.clone());
                     self.image_loader = Some(ImageLoader::new(
                         container,
-                        self.settings.max_image_height as u32,
+                        0, // disable image resizing
                         self.settings.image_resampling_method,
-                    ));
+                    )?);
                 }
                 "rar" => {
                     let container = Arc::new(RarContainer::new(path)?);
@@ -94,7 +95,7 @@ impl ContainerState {
                         container,
                         self.settings.max_image_height as u32,
                         self.settings.image_resampling_method,
-                    ));
+                    )?);
                 }
                 "epub" => {
                     let container = Arc::new(EpubContainer::new(path)?);
@@ -103,7 +104,7 @@ impl ContainerState {
                         container,
                         self.settings.max_image_height as u32,
                         self.settings.image_resampling_method,
-                    ));
+                    )?);
                 }
                 _ => {
                     log::error!("Unsupported Container Type: {}", ext_str);

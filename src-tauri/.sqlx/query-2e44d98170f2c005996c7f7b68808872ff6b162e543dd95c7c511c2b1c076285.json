@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n            SELECT id, name\n            FROM series\n            ORDER BY id ASC\n            ",
+  "query": "\n            SELECT id, name, created_at\n            FROM series\n            ORDER BY id ASC\n            ",
   "describe": {
     "columns": [
       {
@@ -12,6 +12,11 @@
         "name": "name",
         "ordinal": 1,
         "type_info": "Text"
+      },
+      {
+        "name": "created_at",
+        "ordinal": 2,
+        "type_info": "Datetime"
       }
     ],
     "parameters": {
@@ -19,8 +24,9 @@
     },
     "nullable": [
       false,
+      false,
       false
     ]
   },
-  "hash": "afb44d1d38a5ddee919fbe140ed057c37113e89658581499c38448df84bdbcd1"
+  "hash": "2e44d98170f2c005996c7f7b68808872ff6b162e543dd95c7c511c2b1c076285"
 }

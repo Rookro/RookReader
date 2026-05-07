@@ -7,6 +7,11 @@ interface AutoScrollTypographyProps extends TypographyProps {
   /** The text content to display.*/
   text: string;
   /**
+   * Whether the scrolling animation is enabled.
+   * @default true
+   */
+  enabled?: boolean;
+  /**
    * The speed of the scrolling animation in pixels per second.
    * @default 20
    */
@@ -27,6 +32,7 @@ interface AutoScrollTypographyProps extends TypographyProps {
  */
 const AutoScrollTypography = memo(function AutoScrollTypography({
   text,
+  enabled = true,
   pixelsPerSecond = 20,
   delaySeconds = 3,
   sx,
@@ -37,7 +43,7 @@ const AutoScrollTypography = memo(function AutoScrollTypography({
     useAutoScrollAnimation(pixelsPerSecond, delaySeconds);
 
   // If user prefers reduced motion, force non-scrolling behavior
-  const shouldAnimate = isOverflowing && !prefersReducedMotion;
+  const shouldAnimate = enabled && isOverflowing && !prefersReducedMotion;
   const keyframeName = `auto-scroll-text-${delayPercent.toFixed(2).replace(".", "-")}`;
 
   return (

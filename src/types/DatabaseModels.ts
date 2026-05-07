@@ -132,4 +132,9 @@ export interface Series {
   id: number;
   /** The unique name of the series. */
   name: string;
+  /**
+   * The timestamp when the series was created.
+   * Represented as an ISO 8601 string (e.g., "2026-03-01T15:30:00").
+   */
+  created_at: string;
 }

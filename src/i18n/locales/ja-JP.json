@@ -33,6 +33,10 @@
     "collection": {
       "title": "コレクション",
       "all-books": "すべての本",
+      "add-books-title": "コレクションに追加",
+      "no-collections-available": "利用可能なコレクションがありません。",
+      "ok-button": "決定",
+      "cancel-button": "キャンセル",
       "creation": {
         "title": "コレクションを作成",
         "name-placeholder": "コレクションの名前を入力してください",
@@ -60,6 +64,27 @@
         "cancel-button": "キャンセル"
       }
     },
+    "series": {
+      "title": "シリーズ",
+      "set-series": "シリーズを設定",
+      "ungroup-series": "シリーズを解除",
+      "creation": {
+        "title": "シリーズを作成",
+        "name-placeholder": "シリーズ名を入力してください",
+        "create-new": "新しいシリーズを作成",
+        "creation-button": "作成",
+        "cancel-button": "キャンセル"
+      },
+      "set": {
+        "title": "シリーズを設定",
+        "none": "シリーズなし",
+        "no-series-available": "利用可能なシリーズがありません。",
+        "search-placeholder": "シリーズ名で検索...",
+        "no-search-results": "\"{{searchText}}\" に一致するシリーズはありません。",
+        "ok-button": "決定",
+        "cancel-button": "キャンセル"
+      }
+    },
     "search-placeholder": "タイトルで検索...",
     "no-search-results": "\"{{searchText}}\" に一致する本はありません。",
     "no-books": "このコレクションに本はありません。",
@@ -83,8 +108,13 @@
     "book-deletion": {
       "title": "本当に削除しますか？",
       "description": "<bold>「{{bookName}}」</bold>を<bold>「{{bookshelfName}}」</bold>から削除しようとしています。この操作は取り消すことができません。",
+      "description-multiple": "<bold>{{count}} 冊の本</bold>を<bold>「{{bookshelfName}}」</bold>から削除しようとしています。この操作は取り消すことができません。",
       "cancel-button": "キャンセル",
       "delete-button": "削除する"
+    },
+    "selection": {
+      "count": "{{count}} 冊選択中",
+      "clear": "選択を解除"
     },
     "sort": {
       "title": "並び替え",
@@ -131,11 +161,32 @@
         "description": "アプリ起動時に新しいバージョンが利用可能か自動的に確認します。"
       }
     },
+    "bookshelf": {
+      "tab-name": "本棚設定",
+      "title": "本棚設定",
+      "auto-scroll": {
+        "title": "テキストの自動スクロール",
+        "description": "本棚ビューで長いタイトルを自動的にスクロール表示します。動作が重いと感じる場合は、オフにすることで動作が改善される場合があります。"
+      }
+    },
     "page": {
       "tab-name": "ページ",
       "title": "ページ設定",
       "first-page": {
         "title": "最初のページを 1 ページ表示する"
+      },
+      "loupe": {
+        "title": "ルーペ設定",
+        "description": "画像の一部を一時的に拡大表示する機能の設定です。設定したキーまたはマウスボタンで表示を切り替えられます。",
+        "toggle-key": "トグルキー",
+        "toggle-key-description": "ルーペの表示を切り替えるキーボードのキーやマウスのボタンを設定します。",
+        "zoom": "倍率",
+        "zoom-description": "ルーペで拡大する倍率を設定します。",
+        "radius": "大きさ (半径)",
+        "radius-description": "ルーペの大きさをピクセル単位で設定します。",
+        "mouse-middle": "マウス中ボタン",
+        "mouse-back": "マウス戻るボタン",
+        "mouse-forward": "マウス進むボタン"
       }
     },
     "file-navigator": {
@@ -173,8 +224,12 @@
           "title": "リサイズ方式",
           "description": "縮小処理に使用するアルゴリズムを選択します。画質と処理速度のバランスを用途に合わせて設定してください。",
           "nearest": "ニアレスト (最速 / 粗い)",
+          "box": "ボックス (高速 / 粗い)",
           "triangle": "トライアングル (高速 / 標準画質)",
+          "bilinear": "バイリニア (高速 / 標準画質)",
+          "hamming": "ハミング (標準的)",
           "catmullRom": "Catmull-Rom (中速 / 高画質・滑らか)",
+          "mitchellNetravali": "Mitchell-Netravali (中速 / 高画質)",
           "gaussian": "ガウシアン (中速 / ソフト・ぼかし)",
           "lanczos3": "ランチョス3 (低速 / 最高画質)"
         }

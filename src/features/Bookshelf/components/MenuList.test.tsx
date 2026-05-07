@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createBasePreloadedState, renderWithProviders } from "../../../test/utils";
@@ -59,11 +59,31 @@ describe("MenuList", () => {
     expect(changeBookshelf).toHaveBeenCalledWith(1);
   });
 
+  it("should show fallback icon for unknown icon_id", () => {
+    const stateWithUnknownIcon = createBasePreloadedState();
+    stateWithUnknownIcon.bookCollection.bookshelf.bookshelves = [
+      { id: 2, name: "Unknown Icon", icon_id: "non-existent", created_at: "" },
+    ];
+    renderWithProviders(<MenuList {...defaultProps} />, { preloadedState: stateWithUnknownIcon });
+    expect(screen.getByTestId("QuestionMarkIcon")).toBeInTheDocument();
+  });
+
   // Verify that setSelectedTag action is called correctly when a tag is clicked
   it("should call setSelectedTag when a tag is clicked", async () => {
     renderWithProviders(<MenuList {...defaultProps} />, { preloadedState });
     await user.click(screen.getByText("Tag 1"));
     expect(setSelectedTag).toHaveBeenCalledWith(10);
+  });
+
+  it("should deselect tag when the same tag is clicked", async () => {
+    const stateWithTagSelected = createBasePreloadedState();
+    stateWithTagSelected.bookCollection.bookshelf.bookshelves = mockBookshelves;
+    stateWithTagSelected.bookCollection.tag.tags = mockTags;
+    stateWithTagSelected.bookCollection.tag.selectedId = 10;
+
+    renderWithProviders(<MenuList {...defaultProps} />, { preloadedState: stateWithTagSelected });
+    await user.click(screen.getByText("Tag 1"));
+    expect(setSelectedTag).toHaveBeenCalledWith(null);
   });
 
   // Verify that setActiveView action is called correctly when return to reader is clicked
@@ -99,5 +119,61 @@ describe("MenuList", () => {
     const deleteButton = screen.getByText("Delete");
     await user.click(deleteButton);
     expect(removeTag).toHaveBeenCalledWith(10);
+  });
+
+  it("should close context menu on backdrop click", async () => {
+    renderWithProviders(<MenuList {...defaultProps} />, { preloadedState });
+    const bookshelfItem = screen.getByText("Bookshelf 1");
+
+    await user.pointer({ keys: "[MouseRight]", target: bookshelfItem });
+    expect(screen.getByText("Delete")).toBeInTheDocument();
+
+    await user.keyboard("{Escape}");
+
+    await waitFor(() => {
+      expect(screen.queryByText("Delete")).not.toBeInTheDocument();
+    });
+  });
+
+  it("should handle context menu on the context menu itself", async () => {
+    renderWithProviders(<MenuList {...defaultProps} />, { preloadedState });
+    const bookshelfItem = screen.getByText("Bookshelf 1");
+
+    await user.pointer({ keys: "[MouseRight]", target: bookshelfItem });
+    const menu = screen.getByRole("menu");
+
+    // Right click on the menu should close it
+    await user.pointer({ keys: "[MouseRight]", target: menu });
+
+    await waitFor(() => {
+      expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    });
+  });
+
+  it("should call onClickAddBookshelf when add button is clicked", async () => {
+    renderWithProviders(<MenuList {...defaultProps} />, { preloadedState });
+    const addButtons = screen.getAllByTestId("AddIcon");
+    await user.click(addButtons[0]);
+    expect(defaultProps.onClickAddBookshelf).toHaveBeenCalled();
+  });
+
+  it("should call onClickAddBookTag when add button is clicked", async () => {
+    renderWithProviders(<MenuList {...defaultProps} />, { preloadedState });
+    const addButtons = screen.getAllByTestId("AddIcon");
+    await user.click(addButtons[1]);
+    expect(defaultProps.onClickAddBookTag).toHaveBeenCalled();
+  });
+
+  it("should toggle context menu if right clicked again on item", async () => {
+    renderWithProviders(<MenuList {...defaultProps} />, { preloadedState });
+    const bookshelfItem = screen.getByText("Bookshelf 1");
+
+    await user.pointer({ keys: "[MouseRight]", target: bookshelfItem });
+    expect(screen.getByRole("menu")).toBeInTheDocument();
+
+    await user.pointer({ keys: "[MouseRight]", target: bookshelfItem });
+    await waitFor(() => {
+      expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    });
   });
 });

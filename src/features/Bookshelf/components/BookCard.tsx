@@ -1,3 +1,4 @@
+import { CheckCircle } from "@mui/icons-material";
 import {
   Box,
   Card,
@@ -10,43 +11,60 @@ import {
   Tooltip,
 } from "@mui/material";
 import { convertFileSrc } from "@tauri-apps/api/core";
-import { useMemo } from "react";
-import type { CellComponentProps } from "react-window";
+import { useMemo, useState } from "react";
 import dummy_thumbnail from "../../../assets/dummy_thumbnail.svg";
 import AutoScrollTypography from "../../../components/ui/AutoScrollTypography/AutoScrollTypography";
 import type { BookWithState, Tag } from "../../../types/DatabaseModels";
+import { useBookSelection } from "../hooks/useBookSelection";
+import BookContextMenu from "./BookContextMenu";
 
-/** A component to display a single book card. */
-export default function BookCard({
-  books,
-  tags,
-  columnCount,
-  onBookSelect,
-  onBookContextMenu,
-  columnIndex,
-  rowIndex,
-  size,
-  style,
-}: CellComponentProps<{
-  /** The list of books to display */
-  books: BookWithState[];
+export interface BookCardProps {
+  /** The book to display */
+  book: BookWithState;
+  /** Currently filtered and sorted books (to get objects for multi-selection) */
+  allBooks?: BookWithState[];
   /** The list of tags to display */
   tags: Tag[];
   /** The size of the card */
   size: "small" | "medium";
-  /** The number of columns in the bookshelf */
-  columnCount: number;
-  /** Callback for when a book is selected */
-  onBookSelect?: (book: BookWithState) => void;
-  /** Callback for when a book is context menu */
-  onBookContextMenu?: (book: BookWithState, event: React.MouseEvent) => void;
-}>) {
-  const index = rowIndex * columnCount + columnIndex;
-  const book = books[index];
+  /** Whether to enable automatic horizontal scrolling for overflowing text. */
+  enableAutoScroll: boolean;
+  /** Callback for when a book is selected/clicked */
+  onBookClick?: (book: BookWithState, event: React.MouseEvent | React.KeyboardEvent) => void;
+  /** Styling for the container */
+  style?: React.CSSProperties;
+  /** Whether the card is currently focused via keyboard navigation */
+  isFocused?: boolean;
+}
+
+/**
+ * A component to display a single book card.
+ * Handles its own context menu internally.
+ */
+export default function BookCard({
+  book,
+  allBooks = [],
+  tags,
+  size,
+  enableAutoScroll,
+  onBookClick,
+  style,
+  isFocused,
+}: BookCardProps) {
+  const { selectedBookIds } = useBookSelection();
+  const [menuAnchor, setMenuAnchor] = useState<{ mouseX: number; mouseY: number } | null>(null);
+  const [imageError, setImageError] = useState(false);
+
+  const selectedBooks = useMemo(() => {
+    if (selectedBookIds.size === 0) return [];
+    return allBooks.filter((b) => selectedBookIds.has(b.id));
+  }, [selectedBookIds, allBooks]);
 
   const imageSrc = useMemo(() => {
-    return book?.thumbnail_path ? convertFileSrc(book.thumbnail_path) : dummy_thumbnail;
-  }, [book?.thumbnail_path]);
+    return !imageError && book?.thumbnail_path
+      ? convertFileSrc(book.thumbnail_path)
+      : dummy_thumbnail;
+  }, [book?.thumbnail_path, imageError]);
 
   const bookTags = useMemo(() => {
     if (!book?.tag_ids_str || !tags) {
@@ -56,17 +74,22 @@ export default function BookCard({
     return tags.filter((tag) => ids.includes(tag.id));
   }, [book?.tag_ids_str, tags]);
 
-  if (!book) {
-    return null;
-  }
+  const isSelected = selectedBookIds.has(book.id);
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setMenuAnchor({ mouseX: e.clientX, mouseY: e.clientY });
+  };
 
   return (
     <Box
-      key={`${book.id}-${book.tag_ids_str}`}
+      key={book.id}
       sx={{
         padding: "8px",
         ...style,
       }}
+      onContextMenu={handleContextMenu}
     >
       <Tooltip title={book.display_name} followCursor placement="right-start">
         <Card
@@ -74,14 +97,27 @@ export default function BookCard({
             width: "100%",
             height: "100%",
             bgcolor: "primary.paper",
+            outline: isSelected || isFocused ? "3px solid" : "none",
+            outlineColor: isSelected ? "primary.main" : "action.focus",
+            position: "relative",
+            boxShadow: isFocused ? 8 : 1,
           }}
         >
+          {isSelected && (
+            <CheckCircle
+              color="primary"
+              sx={{
+                position: "absolute",
+                top: 8,
+                right: 8,
+                zIndex: 1,
+                backgroundColor: "background.paper",
+                borderRadius: "50%",
+              }}
+            />
+          )}
           <CardActionArea
-            onClick={() => onBookSelect?.(book)}
-            onContextMenu={(e) => {
-              e.preventDefault();
-              onBookContextMenu?.(book, e);
-            }}
+            onClick={(e) => onBookClick?.(book, e)}
             sx={{ width: "100%", height: "100%", display: "flex", flexDirection: "column" }}
           >
             <CardContent
@@ -98,6 +134,7 @@ export default function BookCard({
                   component="img"
                   image={imageSrc}
                   alt={book.display_name}
+                  onError={() => setImageError(true)}
                   sx={{
                     position: "absolute",
                     top: 0,
@@ -106,6 +143,7 @@ export default function BookCard({
                     height: "100%",
                     objectPosition: "center center",
                     objectFit: "contain",
+                    opacity: isSelected ? 0.8 : 1,
                   }}
                 />
                 {bookTags.length > 0 && (
@@ -139,13 +177,14 @@ export default function BookCard({
               <AutoScrollTypography
                 variant="body1"
                 text={book.display_name}
+                enabled={enableAutoScroll}
                 sx={{ paddingTop: 1, paddingBottom: 1 }}
               />
               <LinearProgress
                 variant="determinate"
                 value={
                   book.total_pages !== 0
-                    ? ((book.last_read_page_index ? book.last_read_page_index + 1 : 1) /
+                    ? ((book.last_read_page_index ? book.last_read_page_index + 1 : 0) /
                         book.total_pages) *
                       100
                     : 0
@@ -159,6 +198,12 @@ export default function BookCard({
           </CardActionArea>
         </Card>
       </Tooltip>
+      <BookContextMenu
+        book={book}
+        selectedBooks={selectedBooks}
+        anchor={menuAnchor}
+        onClose={() => setMenuAnchor(null)}
+      />
     </Box>
   );
 }

@@ -4,11 +4,16 @@ use unrar::{Archive, CursorBeforeHeader, OpenArchive, Process};
 use std::{io::Cursor, sync::Arc};
 
 use crate::{
-    container::{image::Image, traits::Container},
+    container::traits::Container,
     error::{Error, Result},
+    image::types::Image,
 };
 
 /// An implementation of the `Container` trait for reading content from RAR archive files.
+///
+/// NOTE: The underlying `unrar` library's `OpenArchive` type does not implement `Send`,
+/// which prevents us from sharing a single opened archive instance across threads using a Mutex.
+/// As a result, this implementation currently opens the archive for each image request.
 pub struct RarContainer {
     /// The file path of the RAR container.
     path: String,
@@ -233,5 +238,18 @@ mod tests {
             .expect("failed to create RarContainer");
         let result = container.get_image("non_existent_image.png");
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_get_thumbnail() {
+        let dir = tempdir().expect("failed to create tempdir");
+        let rar_path = create_dummy_rar(dir.path(), "dummy.rar");
+        let container = RarContainer::new(rar_path.to_string_lossy().as_ref())
+            .expect("failed to create RarContainer");
+
+        let thumbnail = container.get_thumbnail("image1.png").unwrap();
+        assert!(thumbnail.width <= <dyn Container>::THUMBNAIL_SIZE);
+        assert!(thumbnail.height <= <dyn Container>::THUMBNAIL_SIZE);
+        assert!(!thumbnail.data.is_empty());
     }
 }

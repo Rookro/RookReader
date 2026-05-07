@@ -10,6 +10,7 @@ vi.mock("../../bindings/BookCommands", () => ({
   upsertReadBook: vi.fn(() => Promise.resolve([])),
   getBookTags: vi.fn(() => Promise.resolve([])),
   updateBookTags: vi.fn(() => Promise.resolve([])),
+  updateBookSeries: vi.fn(() => Promise.resolve([])),
   upsertReadingState: vi.fn(() => Promise.resolve([])),
   clearReadingHistory: vi.fn(() => Promise.resolve([])),
   clearAllReadingHistory: vi.fn(() => Promise.resolve([])),
@@ -29,6 +30,7 @@ vi.mock("../../bindings/BookshelfCommand", () => ({
 
 vi.mock("../../bindings/ContainerCommands", () => ({
   getEntriesInContainer: vi.fn(() => Promise.resolve([])),
+  requestPreloadAround: vi.fn(() => Promise.resolve()),
   getImage: vi.fn(() => Promise.resolve([])),
   getImagePreview: vi.fn(() => Promise.resolve([])),
   setPdfRenderResolutionHeight: vi.fn(() => Promise.resolve([])),
@@ -48,6 +50,7 @@ vi.mock("../../bindings/FontCommands", () => ({
 vi.mock("../../bindings/SeriesCommand", () => ({
   createSeries: vi.fn(() => Promise.resolve([])),
   getAllSeries: vi.fn(() => Promise.resolve([])),
+  deleteSeries: vi.fn(() => Promise.resolve([])),
 }));
 
 vi.mock("../../bindings/TagCommands", () => ({

@@ -25,7 +25,7 @@ describe("BookDeleteDialog", () => {
 
   const defaultProps = {
     openDialog: true,
-    book: mockBook,
+    books: [mockBook],
     onClose: vi.fn(),
   };
 
@@ -84,9 +84,9 @@ describe("BookDeleteDialog", () => {
   });
 
   // Verify that the deletion process is not executed and the dialog closes if book info is null
-  it("should not call delete if book is null (edge case)", async () => {
+  it("should not call delete if books is empty (edge case)", async () => {
     const onClose = vi.fn();
-    renderWithProviders(<BookDeleteDialog {...defaultProps} book={null} onClose={onClose} />);
+    renderWithProviders(<BookDeleteDialog {...defaultProps} books={[]} onClose={onClose} />);
 
     const deleteButton = screen.getByText(i18n.t("bookshelf.book-deletion.delete-button"));
     await user.click(deleteButton);

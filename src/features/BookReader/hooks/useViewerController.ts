@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+// import { requestPreloadAround } from "../../../bindings/ContainerCommands";
 import type { AppDispatch } from "../../../store/store";
 import { setImageIndex } from "../slice";
 import {
@@ -123,9 +124,19 @@ export const useViewerController = (
         loadAndUpdate(path, fetchImageBlob, false),
       );
 
-      await Promise.all([...previewPromises, ...fullPromises]);
+      // Wait for previews first (if any are needed) to display something quickly
+      if (previewPromises.length > 0) {
+        await Promise.all(previewPromises);
 
-      if (!controller.signal.aborted) {
+        if (!controller.signal.aborted) {
+          setIsImageLoading(false);
+        }
+      }
+
+      // Continue fetching full-res images in the background
+      await Promise.all(fullPromises);
+
+      if (previewPromises.length === 0 && !controller.signal.aborted) {
         setIsImageLoading(false);
       }
     };

@@ -1,13 +1,13 @@
 use std::{path::Path, sync::Arc};
 use tokio::sync::RwLock;
 
-use image::imageops::FilterType;
 use serde::{Deserialize, Serialize};
 use tauri::ipc::Response;
 
 use crate::{
     container::epub_container::EpubContainer,
     error::{Error, Result},
+    image::resizer::ResizeFilter,
     state::app_state::AppState,
 };
 
@@ -22,13 +22,12 @@ pub struct EntriesResult {
 
 /// Opens a container file (e.g., ZIP, RAR) and retrieves a list of its contents.
 ///
-/// This function opens the container specified by the `path`, reads the list of file entries
-/// within it, and triggers a preload of the image data for faster access.
+/// This function opens the container specified by the `path` and reads the list of file entries
+/// within it.
 ///
 /// # Arguments
 ///
 /// * `path` - The file path to the container to open.
-/// * `enable_preload` - Whether to enable preload of image data.
 /// * `state` - A `tauri::State` holding the application's global `AppState`.
 ///
 /// # Returns
@@ -40,12 +39,10 @@ pub struct EntriesResult {
 ///
 /// This function will return an `Err` if:
 /// * The container file cannot be opened (e.g., it does not exist or is corrupt).
-/// * The `container` or `image_loader` within the application state is unexpectedly missing.
-/// * Preloading the image data fails.
+/// * The `container` within the application state is unexpectedly missing.
 #[tauri::command()]
 pub async fn get_entries_in_container(
     path: &str,
-    enable_preload: Option<bool>,
     state: tauri::State<'_, RwLock<AppState>>,
 ) -> Result<EntriesResult> {
     log::debug!("Get the entries in {}", path);
@@ -65,23 +62,39 @@ pub async fn get_entries_in_container(
         is_directory = container.is_directory();
     }
 
-    {
-        let image_loader = state_lock
-            .container_state
-            .image_loader
-            .as_mut()
-            .ok_or_else(|| Error::Other("Unexpected error. ImageLoader is empty!".to_string()))?;
-        if let Some(enable_preload) = enable_preload {
-            if enable_preload {
-                image_loader.request_preload(0, entries.len())?;
-            }
-        }
-    }
-
     Ok(EntriesResult {
         entries,
         is_directory,
     })
+}
+
+/// Requests preloading of images around a specific index.
+///
+/// This command can be called as the user navigates through a book to update
+/// which images are prioritized for background loading.
+///
+/// # Arguments
+///
+/// * `index` - The current page index around which to preload.
+/// * `buffer_size` - Optional. How many pages to preload in each direction. Defaults to 5.
+/// * `state` - A `tauri::State` holding the application's global `AppState`.
+#[tauri::command()]
+pub async fn request_preload_around(
+    index: usize,
+    buffer_size: Option<usize>,
+    state: tauri::State<'_, RwLock<AppState>>,
+) -> Result<()> {
+    log::debug!("Request preload around index {}", index);
+    let mut state_lock = state.write().await;
+
+    let image_loader = state_lock
+        .container_state
+        .image_loader
+        .as_mut()
+        .ok_or_else(|| Error::Other("Unexpected error. ImageLoader is empty!".to_string()))?;
+
+    image_loader.request_preload_around(index, buffer_size.unwrap_or(5))?;
+    Ok(())
 }
 
 /// Retrieves an image from the currently open container.
@@ -294,11 +307,13 @@ pub async fn set_image_resampling_method(
     let mut state_lock = state.write().await;
 
     let method = match method {
-        "nearest" => FilterType::Nearest,
-        "triangle" => FilterType::Triangle,
-        "catmullRom" => FilterType::CatmullRom,
-        "gaussian" => FilterType::Gaussian,
-        "lanczos3" => FilterType::Lanczos3,
+        "nearest" => ResizeFilter::Nearest,
+        "box" => ResizeFilter::Box,
+        "bilinear" => ResizeFilter::Bilinear,
+        "hamming" => ResizeFilter::Hamming,
+        "catmullRom" => ResizeFilter::CatmullRom,
+        "mitchellNetravali" => ResizeFilter::MitchellNetravali,
+        "lanczos3" => ResizeFilter::Lanczos3,
         _ => return Err(Error::Other("Invalid Resampling Method type".to_string())),
     };
 
@@ -360,7 +375,8 @@ mod tests {
     use tokio::sync::RwLock;
 
     use crate::{
-        container::{image::Image, image_loader::ImageLoader, traits::MockContainer},
+        container::traits::MockContainer,
+        image::{loader::ImageLoader, types::Image},
         state::{container_settings::ContainerSettings, container_state::ContainerState},
     };
 
@@ -454,7 +470,7 @@ mod tests {
         app.manage(RwLock::new(AppState::default()));
 
         let result =
-            get_entries_in_container(rar_path.to_string_lossy().as_ref(), None, app.state()).await;
+            get_entries_in_container(rar_path.to_string_lossy().as_ref(), app.state()).await;
 
         assert!(result.is_ok());
 
@@ -471,7 +487,7 @@ mod tests {
         let app = tauri::test::mock_app();
         app.manage(RwLock::new(AppState::default()));
 
-        let result = get_entries_in_container("non_existent_path", None, app.state()).await;
+        let result = get_entries_in_container("non_existent_path", app.state()).await;
 
         assert!(result.is_err());
     }
@@ -488,16 +504,17 @@ mod tests {
         mock_container
             .expect_get_entries()
             .return_const(vec!["test1.png".to_string(), "test2.png".to_string()]);
+        mock_container
+            .expect_is_single_threaded()
+            .return_const(false);
 
         let arc_mock_container = Arc::new(mock_container);
         let mock_container_state = ContainerState {
             container: Some(arc_mock_container.clone()),
             settings: ContainerSettings::default(),
-            image_loader: Some(ImageLoader::new(
-                arc_mock_container.clone(),
-                2000,
-                FilterType::Triangle,
-            )),
+            image_loader: Some(
+                ImageLoader::new(arc_mock_container.clone(), 2000, ResizeFilter::Bilinear).unwrap(),
+            ),
         };
         let state = AppState {
             container_state: mock_container_state,
@@ -537,5 +554,127 @@ mod tests {
         let result = get_image("non_existent_path", "image.png", app.state()).await;
 
         assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_request_preload_around() {
+        let app = tauri::test::mock_app();
+        let mut mock_container = MockContainer::new();
+        mock_container
+            .expect_get_entries()
+            .return_const(vec!["test1.png".to_string()]);
+        mock_container
+            .expect_get_image()
+            .returning(|_| Ok(MockContainer::create_dummy_image()));
+        mock_container
+            .expect_is_single_threaded()
+            .return_const(false);
+
+        let arc_mock_container = Arc::new(mock_container);
+        let mock_container_state = ContainerState {
+            container: Some(arc_mock_container.clone()),
+            settings: ContainerSettings::default(),
+            image_loader: Some(
+                ImageLoader::new(arc_mock_container.clone(), 2000, ResizeFilter::Bilinear).unwrap(),
+            ),
+        };
+        let state = AppState {
+            container_state: mock_container_state,
+        };
+        app.manage(RwLock::new(state));
+
+        let result = request_preload_around(0, Some(5), app.state()).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_get_image_preview() {
+        let app = tauri::test::mock_app();
+        let mut mock_container = MockContainer::new();
+        mock_container
+            .expect_get_thumbnail()
+            .with(eq("test1.png".to_string()))
+            .times(1)
+            .returning(|_entry| Ok(MockContainer::create_dummy_image()));
+        mock_container
+            .expect_get_entries()
+            .return_const(vec!["test1.png".to_string()]);
+        mock_container
+            .expect_is_single_threaded()
+            .return_const(false);
+
+        let arc_mock_container = Arc::new(mock_container);
+        let mock_container_state = ContainerState {
+            container: Some(arc_mock_container.clone()),
+            settings: ContainerSettings::default(),
+            image_loader: Some(
+                ImageLoader::new(arc_mock_container.clone(), 2000, ResizeFilter::Bilinear).unwrap(),
+            ),
+        };
+        let state = AppState {
+            container_state: mock_container_state,
+        };
+        app.manage(RwLock::new(state));
+
+        let result = get_image_preview("mock_container", "test1.png", app.state()).await;
+        assert!(result.is_ok());
+        let response = result.unwrap();
+        let body = match response.body().unwrap() {
+            Raw(bytes) => bytes,
+            _ => panic!("Unexpected response body type"),
+        };
+        assert!(!body.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_set_max_image_height() {
+        let app = tauri::test::mock_app();
+        app.manage(RwLock::new(AppState::default()));
+
+        let result = set_max_image_height(1000, app.state()).await;
+        assert!(result.is_ok());
+        assert_eq!(
+            1000,
+            app.state::<RwLock<AppState>>()
+                .read()
+                .await
+                .container_state
+                .settings
+                .max_image_height
+        );
+
+        let result_err = set_max_image_height(-1, app.state()).await;
+        assert!(result_err.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_set_image_resampling_method() {
+        let app = tauri::test::mock_app();
+        app.manage(RwLock::new(AppState::default()));
+
+        let result = set_image_resampling_method("nearest", app.state()).await;
+        assert!(result.is_ok());
+        assert_eq!(
+            ResizeFilter::Nearest,
+            app.state::<RwLock<AppState>>()
+                .read()
+                .await
+                .container_state
+                .settings
+                .image_resampling_method
+        );
+
+        let result_invalid = set_image_resampling_method("invalid", app.state()).await;
+        assert!(result_invalid.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_determine_epub_novel_non_epub() {
+        let app = tauri::test::mock_app();
+        app.manage(RwLock::new(AppState::default()));
+
+        let result = determine_epub_novel("test.zip", app.state()).await;
+        assert!(result.is_ok());
+        assert!(!result.unwrap());
     }
 }

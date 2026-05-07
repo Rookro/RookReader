@@ -48,6 +48,22 @@ pub async fn get_all_series(repo: State<'_, Arc<dyn SeriesRepository>>) -> Resul
     Ok(repo.get_all().await?)
 }
 
+/// Deletes a series by its ID.
+///
+/// # Arguments
+///
+/// * `id` - The ID of the series to delete.
+/// * `repo` - The managed series repository state.
+///
+/// # Errors
+///
+/// This function will return an `Err` if the underlying repository operation fails.
+#[tauri::command]
+pub async fn delete_series(id: i64, repo: State<'_, Arc<dyn SeriesRepository>>) -> Result<()> {
+    log::debug!("Delete series. (id:{})", id);
+    Ok(repo.delete(id).await?)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -76,15 +92,18 @@ mod tests {
     #[tokio::test]
     async fn test_get_all_series() {
         let mut mock_repo = MockSeriesRepository::new();
-        mock_repo.expect_get_all().times(1).returning(|| {
+        let now = chrono::Utc::now().naive_utc();
+        mock_repo.expect_get_all().times(1).returning(move || {
             Ok(vec![
                 Series {
                     id: 1,
                     name: "Series 1".to_string(),
+                    created_at: now,
                 },
                 Series {
                     id: 2,
                     name: "Series 2".to_string(),
+                    created_at: now,
                 },
             ])
         });
@@ -99,6 +118,27 @@ mod tests {
         assert_eq!(series.len(), 2);
         assert_eq!(series[0].id, 1);
         assert_eq!(series[0].name, "Series 1");
+        assert_eq!(series[0].created_at, now);
+        assert_eq!(series[1].id, 2);
+        assert_eq!(series[1].name, "Series 2");
+        assert_eq!(series[1].created_at, now);
+    }
+
+    #[tokio::test]
+    async fn test_delete_series() {
+        let mut mock_repo = MockSeriesRepository::new();
+        mock_repo
+            .expect_delete()
+            .with(mockall::predicate::eq(1))
+            .times(1)
+            .returning(|_| Ok(()));
+
+        let app = tauri::test::mock_app();
+        app.manage(Arc::new(mock_repo) as Arc<dyn SeriesRepository>);
+        let state = app.state::<Arc<dyn SeriesRepository>>();
+
+        let result = delete_series(1, state).await;
+        assert!(result.is_ok());
     }
 
     #[tokio::test]

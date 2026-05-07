@@ -8,13 +8,18 @@ use std::{
 };
 
 use dashmap::DashMap;
-use image::{codecs::jpeg::JpegEncoder, imageops::FilterType, ImageReader};
-use log::debug;
-use threadpool::ThreadPool;
+use image::{codecs::jpeg::JpegEncoder, ImageReader};
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use rayon::ThreadPool;
+use thread_priority::*;
 
 use crate::{
-    container::{image::Image, traits::Container},
+    container::traits::Container,
     error::Result,
+    image::{
+        resizer::{shrink_to_fit, ResizeFilter},
+        types::Image,
+    },
 };
 
 /// A thread-safe cache mapping entry names to `Image` data.
@@ -23,11 +28,11 @@ type Cache = Arc<DashMap<String, Arc<Image>>>;
 /// Manages loading, caching, and preloading of images from a `Container`.
 ///
 /// This struct handles concurrent image loading in the background, provides a thread-safe
-/// cache, and manages the lifecycle of the preloading thread pool.
+/// cache, and manages the lifecycle of the preloading Rayon thread pool.
 pub struct ImageLoader {
     /// A shared, thread-safe cache for storing loaded images.
     cache: Cache,
-    /// A thread pool dedicated to preloading images in the background.
+    /// A Rayon thread pool dedicated to preloading images in the background.
     thread_pool: ThreadPool,
     /// An atomic flag used to signal cancellation to active preloading threads.
     is_preloading_cancel_requested: Arc<AtomicBool>,
@@ -36,13 +41,13 @@ pub struct ImageLoader {
     /// The maximum height to which images should be resized upon loading. 0 means no limit.
     max_image_height: u32,
     /// The filter type to use when resizing images.
-    resize_method: FilterType,
+    resize_method: ResizeFilter,
 }
 
 impl ImageLoader {
     /// Creates a new `ImageLoader` for a given container.
     ///
-    /// It initializes a thread pool for preloading, using half of the available CPU cores.
+    /// It initializes a Rayon thread pool for preloading, using half of the available CPU cores.
     ///
     /// # Arguments
     ///
@@ -56,17 +61,35 @@ impl ImageLoader {
     pub fn new(
         container: Arc<dyn Container>,
         max_image_height: u32,
-        resize_method: FilterType,
-    ) -> Self {
-        Self {
+        resize_method: ResizeFilter,
+    ) -> Result<Self> {
+        let num_threads = if container.is_single_threaded() {
+            1
+        } else {
+            let default_parallelism =
+                std::thread::available_parallelism().map_or(1, std::num::NonZeroUsize::get);
+            max(1, default_parallelism / 2)
+        };
+
+        let thread_pool = rayon::ThreadPoolBuilder::new()
+            .num_threads(num_threads)
+            .thread_name(|i| format!("image-loader-{}", i))
+            .start_handler(|_| {
+                // Set background threads to the lowest priority upon starting.
+                // This ensures preloading tasks do not interfere with UI responsiveness
+                // or foreground image loading.
+                let _ = set_current_thread_priority(ThreadPriority::Min);
+            })
+            .build()?;
+
+        Ok(Self {
             cache: Arc::new(DashMap::with_capacity(container.get_entries().len())),
-            // Use half of the available CPU cores for preloading.
-            thread_pool: ThreadPool::new(max(1, num_cpus::get() / 2)),
+            thread_pool,
             is_preloading_cancel_requested: Arc::new(AtomicBool::new(false)),
             container,
             max_image_height,
             resize_method,
-        }
+        })
     }
 
     /// Retrieves an image directly from the cache.
@@ -146,49 +169,73 @@ impl ImageLoader {
         Ok(Some(thumbnail))
     }
 
-    /// Submits a request to preload a range of images in the background.
+    /// Submits a request to preload images around a specific index.
     ///
-    /// This function cancels any ongoing preloading tasks and starts a new one for the
-    /// specified range. It returns immediately, and the preloading occurs on a
-    /// background thread pool.
+    /// It prioritizes pages closer to the `center_index` and those in the likely
+    /// reading direction (forward).
     ///
     /// # Arguments
     ///
-    /// * `begin_index` - The starting index in the container's entry list to preload from.
-    /// * `count` - The number of images to preload from the `begin_index`.
-    pub fn request_preload(&mut self, begin_index: usize, count: usize) -> Result<()> {
+    /// * `center_index` - The current page index around which to preload.
+    /// * `buffer_size` - How many pages to preload in each direction.
+    pub fn request_preload_around(
+        &mut self,
+        center_index: usize,
+        buffer_size: usize,
+    ) -> Result<()> {
         let entries = self.container.get_entries();
         let total_pages = entries.len();
-        let end = (begin_index + count).min(total_pages);
 
-        if begin_index >= end {
+        if total_pages == 0 {
             return Ok(());
         }
+
+        let start = center_index.saturating_sub(buffer_size);
+        let end = (center_index + buffer_size + 1).min(total_pages);
 
         self.cancel_preload();
         self.is_preloading_cancel_requested = Arc::new(AtomicBool::new(false));
         let is_cancel_requested = self.is_preloading_cancel_requested.clone();
 
-        let entries_to_preload = entries[begin_index..end].to_vec();
+        // Generate target indices and sort them by priority:
+        // 1. Distance from center (closer = higher priority)
+        // 2. Future pages get slight preference over past pages
+        let mut target_indices: Vec<usize> = (start..end)
+            .filter(|&i| !self.cache.contains_key(&entries[i]))
+            .collect();
 
-        for entry in entries_to_preload {
-            let is_cached = self.cache.contains_key(&entry);
-            if is_cached {
-                continue;
+        target_indices.sort_by_key(|&i| {
+            let dist = (i as isize - center_index as isize).abs();
+            // Give slight preference to future pages by making their "sort distance" smaller
+            if i >= center_index {
+                dist * 2
+            } else {
+                dist * 2 + 1
             }
+        });
 
-            let container = self.container.clone();
-            let cache_clone = self.cache.clone();
-            let is_cancel_requested = is_cancel_requested.clone();
-            let max_image_height = self.max_image_height;
-            let resize_method = self.resize_method;
+        if target_indices.is_empty() {
+            return Ok(());
+        }
 
-            self.thread_pool.execute(move || {
+        let entries_to_preload: Vec<String> = target_indices
+            .into_iter()
+            .map(|i| entries[i].clone())
+            .collect();
+
+        let container = self.container.clone();
+        let cache_clone = self.cache.clone();
+        let max_image_height = self.max_image_height;
+        let resize_method = self.resize_method;
+
+        // Execute preloading in the Rayon thread pool.
+        self.thread_pool.spawn(move || {
+            entries_to_preload.into_par_iter().for_each(|entry| {
                 if is_cancel_requested.load(Ordering::Relaxed) {
                     return;
                 }
 
-                match load_image(&entry, container, max_image_height, resize_method) {
+                match load_image(&entry, container.clone(), max_image_height, resize_method) {
                     Ok(image) => {
                         log::debug!("Preloaded: {}", entry);
                         cache_clone.insert(entry, image);
@@ -198,7 +245,7 @@ impl ImageLoader {
                     }
                 }
             });
-        }
+        });
 
         Ok(())
     }
@@ -213,20 +260,32 @@ impl ImageLoader {
     }
 }
 
+impl Drop for ImageLoader {
+    fn drop(&mut self) {
+        // Requests preloading cancel when the ImageLoader is dropped.
+        // Rayon's ThreadPool will naturally wait for its threads to finish upon being dropped,
+        // but signaling cancellation helps them stop sooner.
+        self.cancel_preload();
+    }
+}
+
 /// Helper function to load an image from a container and resize it if necessary.
+///
+/// # Arguments
+///
+/// * `entry` - The name of the image entry to load.
+/// * `container` - A shared reference to the container.
+/// * `max_image_height` - The maximum height for the image.
+/// * `resize_method` - The algorithm to use for resizing.
 fn load_image(
     entry: &str,
     container: Arc<dyn Container>,
     max_image_height: u32,
-    resize_method: FilterType,
+    resize_method: ResizeFilter,
 ) -> Result<Arc<Image>> {
     let image = container.get_image(entry)?;
 
     if max_image_height > 0 && image.height > max_image_height {
-        debug!(
-            "Resizing image: {}. (image height: {} -> {}, resize method: {:?})",
-            entry, image.height, max_image_height, resize_method
-        );
         let scaled_image = resize_image(image, max_image_height, resize_method)?;
         Ok(scaled_image)
     } else {
@@ -235,12 +294,20 @@ fn load_image(
 }
 
 /// Helper function to resize an image and re-encode it as a JPEG.
-fn resize_image(image: Arc<Image>, height: u32, resize_method: FilterType) -> Result<Arc<Image>> {
+///
+/// # Arguments
+///
+/// * `image` - A shared pointer to the original `Image`.
+/// * `height` - The target height for the resized image.
+/// * `resize_method` - The algorithm to use for resizing.
+fn resize_image(image: Arc<Image>, height: u32, resize_method: ResizeFilter) -> Result<Arc<Image>> {
     let cursor = Cursor::new(&image.data);
     let image_reader = ImageReader::new(cursor).with_guessed_format()?;
-    let image = image_reader.decode()?;
+    let dyn_image = image_reader.decode()?;
 
-    let scaled_image = image.resize(u32::MAX, height, resize_method);
+    // Use SIMD accelerated resizing
+    // max_width is u32::MAX to scale based entirely on height
+    let scaled_image = shrink_to_fit(&dyn_image, u32::MAX, height, resize_method)?;
 
     let mut buffer = Vec::new();
     let mut encoder = JpegEncoder::new_with_quality(&mut buffer, 80);
@@ -251,12 +318,4 @@ fn resize_image(image: Arc<Image>, height: u32, resize_method: FilterType) -> Re
         width: scaled_image.width(),
         height: scaled_image.height(),
     }))
-}
-
-impl Drop for ImageLoader {
-    fn drop(&mut self) {
-        // Requests preloading cancel and waits for all threads to finish.
-        self.cancel_preload();
-        self.thread_pool.join();
-    }
 }

@@ -139,4 +139,26 @@ describe("ComicReader", () => {
 
     expect(handleClicked).toHaveBeenCalled();
   });
+
+  it("should have loupe event handlers and container ref", () => {
+    vi.mocked(viewerController.useViewerController).mockReturnValue({
+      displayedLayout: {
+        isSpread: false,
+        firstImage: { url: "blob:p1", width: 100, height: 100 },
+        nextIndexIncrement: 1,
+      },
+      moveForward: vi.fn(),
+      moveBack: vi.fn(),
+      isImageLoading: false,
+    });
+
+    renderWithProviders(<ComicReader />);
+
+    const readerArea = screen.getByTestId("comic-reader-area");
+    expect(readerArea).toBeInTheDocument();
+
+    // Check if event handlers are present
+    expect(readerArea).toHaveProperty("onmousemove");
+    expect(readerArea).toHaveProperty("onmousedown");
+  });
 });

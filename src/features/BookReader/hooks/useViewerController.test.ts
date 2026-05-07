@@ -37,10 +37,18 @@ describe("useViewerController", () => {
 
   // Verify that loading flag is true and displayedLayout is null on initialization
   it("should initialize with loading true and displayedLayout null", () => {
-    mockedFetchImageBlob.mockReturnValue(new Promise(() => {})); // Never resolves for this test
+    // Both fetches must not resolve so that loading stays true
+    mockedFetchImageBlob.mockReturnValue(new Promise(() => {}));
+    vi.mocked(ImageUtils.fetchImagePreviewBlob).mockReturnValue(new Promise(() => {}));
 
     const { result } = renderHook(() =>
-      useViewerController("path", mockEntries, 0, mockSettings, mockDispatch),
+      useViewerController(
+        "path",
+        mockEntries,
+        0,
+        { ...mockSettings, enablePreview: true },
+        mockDispatch,
+      ),
     );
 
     expect(result.current.isImageLoading).toBe(true);
@@ -82,6 +90,7 @@ describe("useViewerController", () => {
       } as ImageUtils.ImageCacheItem,
     };
     mockedFetchImageBlob.mockResolvedValue({} as Image);
+    vi.mocked(ImageUtils.fetchImagePreviewBlob).mockResolvedValue({} as Image);
     mockedCreateImageCacheItem.mockReturnValue({
       fullUrl: "url1",
       previewUrl: undefined,
@@ -97,6 +106,7 @@ describe("useViewerController", () => {
 
     await waitFor(() => {
       expect(result.current.isImageLoading).toBe(false);
+      expect(result.current.displayedLayout).not.toBeNull();
     });
 
     expect(result.current.displayedLayout).toEqual(mockLayout);
