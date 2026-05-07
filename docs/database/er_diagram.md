@@ -13,6 +13,7 @@ erDiagram
         TEXT item_type "'file' or 'directory'"
         TEXT display_name
         INTEGER total_pages
+        TEXT thumbnail_path
         INTEGER series_id FK
         INTEGER series_order
     }
@@ -20,6 +21,7 @@ erDiagram
     series {
         INTEGER id PK
         TEXT name UK
+        DATETIME created_at
     }
     
     reading_state {
@@ -30,7 +32,7 @@ erDiagram
 
     bookshelves {
         INTEGER id PK
-        TEXT name
+        TEXT name UK
         TEXT icon_id
         DATETIME created_at
     }
