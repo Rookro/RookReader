@@ -4884,6 +4884,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "dashmap",
+ "encoding_rs",
  "fast_image_resize",
  "flate2",
  "font-kit",

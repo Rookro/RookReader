@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     fs::File,
     io::{Cursor, Read},
     sync::Arc,
@@ -14,6 +15,8 @@ use crate::{container::traits::Container, error::Result, image::types::Image};
 pub struct ZipContainer {
     /// A naturally sorted list of image file names found within the archive.
     entries: Vec<String>,
+    /// A mapping from (possibly garbled) entry names to their indices in the ZIP archive.
+    name_to_index: HashMap<String, usize>,
     /// The ZIP archive, protected by a Mutex for thread-safe access to the underlying file.
     archive: Mutex<ZipArchive<File>>,
 }
@@ -28,7 +31,10 @@ impl Container for ZipContainer {
             let mut archive = self.archive.lock().map_err(|e| {
                 crate::error::Error::Other(format!("Failed to lock zip archive: {}", e))
             })?;
-            let mut file = archive.by_name(entry)?;
+            let index = self.name_to_index.get(entry).ok_or_else(|| {
+                crate::error::Error::Other(format!("Entry not found in ZIP: {}", entry))
+            })?;
+            let mut file = archive.by_index(*index)?;
             let mut buf = Vec::with_capacity(file.size() as usize);
             file.read_to_end(&mut buf)?;
             buf
@@ -43,7 +49,10 @@ impl Container for ZipContainer {
             let mut archive = self.archive.lock().map_err(|e| {
                 crate::error::Error::Other(format!("Failed to lock zip archive: {}", e))
             })?;
-            let mut file = archive.by_name(entry)?;
+            let index = self.name_to_index.get(entry).ok_or_else(|| {
+                crate::error::Error::Other(format!("Entry not found in ZIP: {}", entry))
+            })?;
+            let mut file = archive.by_index(*index)?;
             let mut buf = Vec::with_capacity(file.size() as usize);
             file.read_to_end(&mut buf)?;
             buf
@@ -94,18 +103,36 @@ impl ZipContainer {
     /// Returns an `Err` if the ZIP file cannot be opened or read.
     pub fn new(path: &str) -> Result<Self> {
         let file = File::open(path)?;
-        let archive = ZipArchive::new(file)?;
+        let mut archive = ZipArchive::new(file)?;
 
-        let mut entries: Vec<String> = archive
-            .file_names()
-            .filter(|name| Image::is_supported_format(name))
-            .map(|s| s.to_string())
-            .collect();
+        let len = archive.len();
+        let mut entries = Vec::with_capacity(len);
+        let mut name_to_index = HashMap::with_capacity(len);
+
+        for i in 0..len {
+            let file = archive.by_index(i)?;
+            let raw_name = file.name_raw();
+
+            // Decode filename: try UTF-8 first, fallback to Shift-JIS if invalid.
+            let name = match std::str::from_utf8(raw_name) {
+                Ok(v) => v.to_string(),
+                Err(_) => {
+                    let (decoded, _, _) = encoding_rs::SHIFT_JIS.decode(raw_name);
+                    decoded.into_owned()
+                }
+            };
+
+            if Image::is_supported_format(&name) {
+                entries.push(name.clone());
+                name_to_index.insert(name, i);
+            }
+        }
 
         entries.sort_by(|a, b| natord::compare_ignore_case(a, b));
 
         Ok(Self {
             entries,
+            name_to_index,
             archive: Mutex::new(archive),
         })
     }
