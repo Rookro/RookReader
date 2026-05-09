@@ -513,8 +513,16 @@ mod tests {
             container: Some(arc_mock_container.clone()),
             settings: ContainerSettings::default(),
             image_loader: Some(
-                ImageLoader::new(arc_mock_container.clone(), 2000, ResizeFilter::Bilinear).unwrap(),
+                ImageLoader::new(
+                    "dummy_book_id".to_string(),
+                    arc_mock_container.clone(),
+                    2000,
+                    ResizeFilter::Bilinear,
+                    mini_moka::sync::Cache::new(100),
+                )
+                .unwrap(),
             ),
+            image_cache: mini_moka::sync::Cache::new(100),
         };
         let state = AppState {
             container_state: mock_container_state,
@@ -575,8 +583,16 @@ mod tests {
             container: Some(arc_mock_container.clone()),
             settings: ContainerSettings::default(),
             image_loader: Some(
-                ImageLoader::new(arc_mock_container.clone(), 2000, ResizeFilter::Bilinear).unwrap(),
+                ImageLoader::new(
+                    "dummy_book_id".to_string(),
+                    arc_mock_container.clone(),
+                    2000,
+                    ResizeFilter::Bilinear,
+                    mini_moka::sync::Cache::new(100),
+                )
+                .unwrap(),
             ),
+            image_cache: mini_moka::sync::Cache::new(100),
         };
         let state = AppState {
             container_state: mock_container_state,
@@ -608,8 +624,16 @@ mod tests {
             container: Some(arc_mock_container.clone()),
             settings: ContainerSettings::default(),
             image_loader: Some(
-                ImageLoader::new(arc_mock_container.clone(), 2000, ResizeFilter::Bilinear).unwrap(),
+                ImageLoader::new(
+                    "dummy_book_id".to_string(),
+                    arc_mock_container.clone(),
+                    2000,
+                    ResizeFilter::Bilinear,
+                    mini_moka::sync::Cache::new(100),
+                )
+                .unwrap(),
             ),
+            image_cache: mini_moka::sync::Cache::new(100),
         };
         let state = AppState {
             container_state: mock_container_state,

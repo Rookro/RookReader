@@ -9,12 +9,11 @@ use crate::{
         zip_container::ZipContainer,
     },
     error::{Error, Result},
-    image::loader::ImageLoader,
+    image::loader::{CacheKey, ImageLoader},
     state::container_settings::ContainerSettings,
 };
 
 /// Holds the state related to the currently open container (e.g., a file or directory).
-#[derive(Default)]
 pub struct ContainerState {
     /// The active container, wrapped in an `Arc` for shared ownership.
     /// This can be a directory, a ZIP file, a PDF, etc. `None` if no container is open.
@@ -24,6 +23,27 @@ pub struct ContainerState {
     /// The image loader responsible for loading and caching images from the current container.
     /// `None` if no container is open.
     pub image_loader: Option<ImageLoader>,
+    /// Global image cache shared across all containers.
+    pub image_cache: mini_moka::sync::Cache<CacheKey, Arc<crate::image::types::Image>>,
+}
+
+impl Default for ContainerState {
+    fn default() -> Self {
+        let image_cache = mini_moka::sync::Cache::builder()
+            // 1GB (1024 * 1024 * 1024 bytes) = 1,073,741,824
+            .max_capacity(1_073_741_824)
+            .weigher(|_key, value: &Arc<crate::image::types::Image>| -> u32 {
+                value.data.len().try_into().unwrap_or(u32::MAX)
+            })
+            .build();
+
+        Self {
+            container: None,
+            settings: ContainerSettings::default(),
+            image_loader: None,
+            image_cache,
+        }
+    }
 }
 
 impl ContainerState {
@@ -55,9 +75,11 @@ impl ContainerState {
             let container = Arc::new(DirectoryContainer::new(path)?);
             self.container = Some(container.clone());
             self.image_loader = Some(ImageLoader::new(
+                path.to_string(),
                 container,
                 self.settings.max_image_height as u32,
                 self.settings.image_resampling_method,
+                self.image_cache.clone(),
             )?);
             return Ok(());
         }
@@ -69,9 +91,11 @@ impl ContainerState {
                     let container = Arc::new(ZipContainer::new(path)?);
                     self.container = Some(container.clone());
                     self.image_loader = Some(ImageLoader::new(
+                        path.to_string(),
                         container,
                         self.settings.max_image_height as u32,
                         self.settings.image_resampling_method,
+                        self.image_cache.clone(),
                     )?);
                 }
                 "pdf" => {
@@ -83,27 +107,33 @@ impl ContainerState {
                     )?);
                     self.container = Some(container.clone());
                     self.image_loader = Some(ImageLoader::new(
+                        path.to_string(),
                         container,
                         0, // disable image resizing
                         self.settings.image_resampling_method,
+                        self.image_cache.clone(),
                     )?);
                 }
                 "rar" => {
                     let container = Arc::new(RarContainer::new(path)?);
                     self.container = Some(container.clone());
                     self.image_loader = Some(ImageLoader::new(
+                        path.to_string(),
                         container,
                         self.settings.max_image_height as u32,
                         self.settings.image_resampling_method,
+                        self.image_cache.clone(),
                     )?);
                 }
                 "epub" => {
                     let container = Arc::new(EpubContainer::new(path)?);
                     self.container = Some(container.clone());
                     self.image_loader = Some(ImageLoader::new(
+                        path.to_string(),
                         container,
                         self.settings.max_image_height as u32,
                         self.settings.image_resampling_method,
+                        self.image_cache.clone(),
                     )?);
                 }
                 _ => {
