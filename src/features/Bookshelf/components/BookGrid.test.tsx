@@ -153,6 +153,9 @@ describe("BookGrid", () => {
         sortOrder: "name_asc",
         enableAutoScroll: false,
       },
+      general: {
+        appFontFamily: "sans-serif",
+      },
     },
     bookCollection: {
       searchText: "",
