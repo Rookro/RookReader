@@ -76,7 +76,8 @@ pub async fn get_entries_in_container(
 /// # Arguments
 ///
 /// * `index` - The current page index around which to preload.
-/// * `buffer_size` - Optional. How many pages to preload in each direction. Defaults to 5.
+/// * `buffer_size` - Optional. How many pages to preload in each direction.
+///   Defaults to 10 if `None` is provided.
 /// * `state` - A `tauri::State` holding the application's global `AppState`.
 #[tauri::command()]
 pub async fn request_preload_around(
@@ -87,13 +88,15 @@ pub async fn request_preload_around(
     log::debug!("Request preload around index {}", index);
     let mut state_lock = state.write().await;
 
+    let buffer_size = buffer_size.unwrap_or(10);
+
     let image_loader = state_lock
         .container_state
         .image_loader
         .as_mut()
         .ok_or_else(|| Error::Other("Unexpected error. ImageLoader is empty!".to_string()))?;
 
-    image_loader.request_preload_around(index, buffer_size.unwrap_or(5))?;
+    image_loader.request_preload_around(index, buffer_size)?;
     Ok(())
 }
 

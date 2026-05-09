@@ -22,7 +22,7 @@ import { convertEntriesInDir } from "../../utils/DirEntryUtils";
  */
 export const openContainerFile = createAppAsyncThunk(
   "read/openContainerFile",
-  async (path: string, { dispatch, rejectWithValue }) => {
+  async (path: string, { dispatch, rejectWithValue, getState }) => {
     if (!path || path.length === 0) {
       const errorMessage = "Failed to openContainerFile. Error: Container path is empty.";
       error(errorMessage);
@@ -58,8 +58,10 @@ export const openContainerFile = createAppAsyncThunk(
       const book = await getBookWithStateById(bookId);
 
       if (!isEpubNovel) {
+        const state = getState();
+        const preloadPageCount = state.settings.reader.comic.cache.preloadPageCount;
         const startIndex = book?.last_read_page_index ?? 0;
-        requestPreloadAround(startIndex, entriesResult?.entries.length).catch((e) => {
+        requestPreloadAround(startIndex, preloadPageCount).catch((e) => {
           error(`Failed to request preload: ${String(e)}`);
         });
       }

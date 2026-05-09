@@ -41,11 +41,16 @@ export const LoupeSettingsSchema = z.object({
   toggleKey: z.string(),
 });
 
+export const ComicCacheSettingsSchema = z.object({
+  preloadPageCount: z.number(),
+});
+
 export const ComicSettingsSchema = z.object({
   readingDirection: DirectionSchema,
   enableSpread: z.boolean(),
   showCoverAsSinglePage: z.boolean(),
   loupe: LoupeSettingsSchema,
+  cache: ComicCacheSettingsSchema,
 });
 
 export const NovelSettingsSchema = z.object({

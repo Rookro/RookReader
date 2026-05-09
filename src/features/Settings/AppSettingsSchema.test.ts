@@ -36,6 +36,9 @@ describe("AppSettingsSchema", () => {
           radius: 100,
           toggleKey: "z",
         },
+        cache: {
+          preloadPageCount: 10,
+        },
       },
       novel: {
         fontFamily: "default-font",

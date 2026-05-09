@@ -50,6 +50,7 @@ describe("ImageUtils", () => {
         isFirstPageSingleView: false,
         direction: "ltr",
         enablePreview: false,
+        preloadPageCount: 10,
       };
       expect(calculateLayout(0, mockEntries, cache, settings)).toBeNull();
     });
@@ -62,6 +63,7 @@ describe("ImageUtils", () => {
         isFirstPageSingleView: false,
         direction: "ltr",
         enablePreview: false,
+        preloadPageCount: 10,
       };
       const layout = calculateLayout(0, mockEntries, cache, settings);
       expect(layout).toEqual({
@@ -80,6 +82,7 @@ describe("ImageUtils", () => {
         isFirstPageSingleView: false,
         direction: "ltr",
         enablePreview: false,
+        preloadPageCount: 10,
       };
       const layout = calculateLayout(0, mockEntries, cache, settings);
       expect(layout?.isSpread).toBe(false);
@@ -96,6 +99,7 @@ describe("ImageUtils", () => {
         isFirstPageSingleView: false,
         direction: "ltr",
         enablePreview: false,
+        preloadPageCount: 10,
       };
       const layout = calculateLayout(0, mockEntries, cache, settings);
       expect(layout?.isSpread).toBe(true);
@@ -113,6 +117,7 @@ describe("ImageUtils", () => {
         isFirstPageSingleView: true,
         direction: "ltr",
         enablePreview: false,
+        preloadPageCount: 10,
       };
       const layout = calculateLayout(0, mockEntries, cache, settings);
       expect(layout?.isSpread).toBe(false);
@@ -128,6 +133,7 @@ describe("ImageUtils", () => {
         isFirstPageSingleView: false,
         direction: "ltr",
         enablePreview: false,
+        preloadPageCount: 10,
       };
       const layout = calculateLayout(0, mockEntries, cache, settings);
       expect(layout?.isSpread).toBe(false);
@@ -142,6 +148,7 @@ describe("ImageUtils", () => {
         isFirstPageSingleView: false,
         direction: "ltr",
         enablePreview: false,
+        preloadPageCount: 10,
       };
       expect(calculateLayout(0, mockEntries, cache, settings)).toBeNull();
     });

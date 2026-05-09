@@ -82,6 +82,14 @@ export interface ComicSettings {
   showCoverAsSinglePage: boolean;
   /** Configuration for the Loupe (Magnifier) feature. */
   loupe: LoupeSettings;
+  /** Configuration for image caching and preloading. */
+  cache: ComicCacheSettings;
+}
+
+/** Configuration for image caching and preloading. */
+export interface ComicCacheSettings {
+  /** The number of pages to preload in each direction (forward and backward). */
+  preloadPageCount: number;
 }
 
 /** Configuration for the Loupe (Magnifier) feature. */

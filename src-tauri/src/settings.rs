@@ -242,6 +242,8 @@ pub struct ComicSettings {
     pub show_cover_as_single_page: bool,
     /// Configuration for the Loupe (Magnifier) feature.
     pub loupe: LoupeSettings,
+    /// Configuration for image caching and preloading.
+    pub cache: ComicCacheSettings,
 }
 
 impl Default for ComicSettings {
@@ -251,8 +253,30 @@ impl Default for ComicSettings {
             enable_spread: default_true(),
             show_cover_as_single_page: default_true(),
             loupe: LoupeSettings::default(),
+            cache: ComicCacheSettings::default(),
         }
     }
+}
+
+/// Configuration for image caching and preloading.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct ComicCacheSettings {
+    /// The number of pages to preload in each direction (forward and backward).
+    #[serde(default = "default_preload_page_count")]
+    pub preload_page_count: i32,
+}
+
+impl Default for ComicCacheSettings {
+    fn default() -> Self {
+        Self {
+            preload_page_count: default_preload_page_count(),
+        }
+    }
+}
+
+fn default_preload_page_count() -> i32 {
+    10
 }
 
 /// Configuration for the Loupe (Magnifier) feature.

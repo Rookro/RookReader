@@ -44,6 +44,9 @@ export const defaultSettings: AppSettings = {
         radius: 200,
         toggleKey: "MouseMiddle",
       },
+      cache: {
+        preloadPageCount: 10,
+      },
     },
     novel: {
       fontFamily: "default-font",
