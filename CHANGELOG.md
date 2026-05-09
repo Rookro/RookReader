@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+* Optimized thumbnail generation by skipping container parsing and image extraction if the thumbnail already exists, significantly improving performance. (#214)
+
 ## [2.1.1] - 2026-05-07
 
 ### Fixed
