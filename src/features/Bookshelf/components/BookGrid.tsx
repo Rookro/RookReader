@@ -3,6 +3,7 @@ import { createSelector } from "@reduxjs/toolkit";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Grid } from "react-window";
+import { useAppTheme } from "../../../hooks/useAppTheme";
 import { useResizeObserver } from "../../../hooks/useResizeObserver";
 import { type RootState, useAppDispatch, useAppSelector } from "../../../store/store";
 import type { Book, BookWithState } from "../../../types/DatabaseModels";
@@ -233,8 +234,11 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
   const columnWidth = currentGridSize.width;
   const rowHeight = currentGridSize.height;
 
-  const columnCount =
-    containerWidth > 0 ? Math.max(1, Math.floor(containerWidth / columnWidth)) : 1;
+  const theme = useAppTheme();
+
+  const gridWidth = Math.max(containerWidth - theme.customScrollbar.width, 0);
+
+  const columnCount = gridWidth > 0 ? Math.max(1, Math.floor(gridWidth / columnWidth)) : 1;
   const rowCount =
     filteredSortedItems.length === 0 ? 0 : Math.ceil(filteredSortedItems.length / columnCount);
 
@@ -343,7 +347,6 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
             width: "100%",
             height: "100%",
             overflow: "auto",
-            scrollbarGutter: "stable",
             "&:focus": {
               outline: "none",
             },
@@ -383,10 +386,8 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
           ) : (
             <Box
               sx={{
-                width: columnCount * columnWidth,
-                margin: "0 auto",
-                // Prevent overlap with bottom floating buttons and action bar
-                paddingBottom: "60px",
+                width: "100%",
+                height: "100%",
               }}
             >
               <Grid
@@ -396,6 +397,13 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
                 rowCount={rowCount}
                 rowHeight={rowHeight}
                 cellProps={cellProps}
+                overscanCount={2}
+                style={{
+                  // Center the grid horizontally
+                  marginLeft: (gridWidth - columnWidth * columnCount) / 2,
+                  // Prevent overlap with bottom floating buttons and action bar
+                  paddingBottom: "60px",
+                }}
               />
             </Box>
           )}

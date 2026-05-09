@@ -1,4 +1,4 @@
-import { createTheme, useMediaQuery } from "@mui/material";
+import { createTheme, type Theme, useMediaQuery } from "@mui/material";
 import { useMemo } from "react";
 import { useAppSelector } from "../store/store";
 
@@ -9,15 +9,19 @@ import { useAppSelector } from "../store/store";
  * and the application's global font family setting stored in Redux. It also applies global
  * CSS baseline overrides, including custom scrollbar styling.
  *
- * @returns {import("@mui/material").Theme} The customized Material UI theme instance.
+ * @returns The customized Material UI theme instance.
  */
-export function useAppTheme() {
+export function useAppTheme(): Theme {
   const prefersDarkMode = useMediaQuery("(prefers-color-scheme: dark)");
   const fontFamily = useAppSelector((state) => state.settings.general.appFontFamily);
 
   const theme = useMemo(
     () =>
       createTheme({
+        customScrollbar: {
+          width: 10,
+          height: 10,
+        },
         typography: {
           fontFamily: `${fontFamily}`,
         },
@@ -44,8 +48,8 @@ export function useAppTheme() {
                 WebkitTextSizeAdjust: "100%",
                 // Webkit scrollbar styles
                 "*::-webkit-scrollbar": {
-                  height: "10px",
-                  width: "10px",
+                  height: `${theme.customScrollbar.height}px`,
+                  width: `${theme.customScrollbar.width}px`,
                 },
                 "*::-webkit-scrollbar-track": {
                   background: theme.palette.background.paper,
