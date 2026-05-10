@@ -194,6 +194,11 @@
           "title": "Preload Page Count",
           "description": "The number of pages to preload in each direction (forward and backward).",
           "error-message": "Failed to set preload page count. Please check your input."
+        },
+        "image-cache-size": {
+          "title": "Image Cache Size (MiB)",
+          "description": "The maximum size of the image memory cache in MiB.\nChanging this will clear the current cache.",
+          "error-message": "Failed to set image cache size. Please check your input."
         }
       }
     },

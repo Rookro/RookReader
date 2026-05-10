@@ -108,6 +108,20 @@ export const setImageResamplingMethod = async (method: string): Promise<void> =>
 };
 
 /**
+ * Sets the image cache size in MiB in the backend.
+ *
+ * @param sizeMib The cache size in MiB.
+ * @returns A promise that resolves when the operation is complete.
+ */
+export const setImageCacheSizeMib = async (sizeMib: number): Promise<void> => {
+  try {
+    return await invoke("set_image_cache_size_mib", { sizeMib });
+  } catch (error) {
+    throw createCommandError(error);
+  }
+};
+
+/**
  * Determines if a container is an EPUB novel.
  *
  * @beta

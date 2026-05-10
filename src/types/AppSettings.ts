@@ -90,6 +90,8 @@ export interface ComicSettings {
 export interface ComicCacheSettings {
   /** The number of pages to preload in each direction (forward and backward). */
   preloadPageCount: number;
+  /** The maximum size of the image memory cache in MiB. */
+  imageCacheSizeMib: number;
 }
 
 /** Configuration for the Loupe (Magnifier) feature. */

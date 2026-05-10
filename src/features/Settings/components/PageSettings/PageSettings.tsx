@@ -1,6 +1,7 @@
 import { Divider, List } from "@mui/material";
 import { useTranslation } from "react-i18next";
 import SettingsPanel from "../SettingsPanel";
+import ImageCacheSizeSetting from "./Items/ImageCacheSizeSetting";
 import LoupeSettingsItem from "./Items/LoupeSettingsItem";
 import PreloadPageCountSetting from "./Items/PreloadPageCountSetting";
 import ShowCoverAsSinglePageSetting from "./Items/ShowCoverAsSinglePageSetting";
@@ -19,6 +20,8 @@ export default function PageSettings() {
         <LoupeSettingsItem />
         <Divider />
         <PreloadPageCountSetting />
+        <Divider />
+        <ImageCacheSizeSetting />
       </List>
     </SettingsPanel>
   );

@@ -43,6 +43,7 @@ export const LoupeSettingsSchema = z.object({
 
 export const ComicCacheSettingsSchema = z.object({
   preloadPageCount: z.number(),
+  imageCacheSizeMib: z.number(),
 });
 
 export const ComicSettingsSchema = z.object({

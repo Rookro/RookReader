@@ -38,6 +38,7 @@ describe("AppSettingsSchema", () => {
         },
         cache: {
           preloadPageCount: 10,
+          imageCacheSizeMib: 1024,
         },
       },
       novel: {

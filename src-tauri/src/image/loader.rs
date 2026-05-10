@@ -107,6 +107,11 @@ impl ImageLoader {
         })
     }
 
+    /// Sets a new cache instance for the image loader.
+    pub fn set_cache(&mut self, cache: Cache) {
+        self.cache = cache;
+    }
+
     /// Retrieves an image directly from the cache.
     ///
     /// # Arguments

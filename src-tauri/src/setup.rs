@@ -75,6 +75,8 @@ pub fn setup_container_settings(app: &App, settings: &AppSettings) -> error::Res
         settings.reader.rendering.enable_thumbnail_preview;
     locked_state.container_state.settings.max_image_height =
         settings.reader.rendering.max_image_height;
+    locked_state.container_state.settings.image_cache_size_mib =
+        settings.reader.comic.cache.image_cache_size_mib;
     locked_state
         .container_state
         .settings
@@ -87,6 +89,11 @@ pub fn setup_container_settings(app: &App, settings: &AppSettings) -> error::Res
         ImageResamplingMethod::MitchellNetravali => ResizeFilter::MitchellNetravali,
         ImageResamplingMethod::Lanczos3 => ResizeFilter::Lanczos3,
     };
+
+    locked_state
+        .container_state
+        .update_image_cache_size(settings.reader.comic.cache.image_cache_size_mib);
+
     Ok(())
 }
 

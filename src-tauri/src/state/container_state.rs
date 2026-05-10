@@ -29,9 +29,9 @@ pub struct ContainerState {
 
 impl Default for ContainerState {
     fn default() -> Self {
+        let settings = ContainerSettings::default();
         let image_cache = mini_moka::sync::Cache::builder()
-            // 1GB (1024 * 1024 * 1024 bytes) = 1,073,741,824
-            .max_capacity(1_073_741_824)
+            .max_capacity(settings.image_cache_size_mib * 1024 * 1024)
             .weigher(|_key, value: &Arc<crate::image::types::Image>| -> u32 {
                 value.data.len().try_into().unwrap_or(u32::MAX)
             })
@@ -39,7 +39,7 @@ impl Default for ContainerState {
 
         Self {
             container: None,
-            settings: ContainerSettings::default(),
+            settings,
             image_loader: None,
             image_cache,
         }
@@ -47,6 +47,24 @@ impl Default for ContainerState {
 }
 
 impl ContainerState {
+    /// Re-initializes the image cache with a new maximum capacity.
+    ///
+    /// This will clear the existing cache and recreate the image loader if a container is open.
+    pub fn update_image_cache_size(&mut self, size_mib: u64) {
+        log::debug!("Updating image cache size to {} MiB", size_mib);
+        self.image_cache = mini_moka::sync::Cache::builder()
+            .max_capacity(size_mib * 1024 * 1024)
+            .weigher(|_key, value: &Arc<crate::image::types::Image>| -> u32 {
+                value.data.len().try_into().unwrap_or(u32::MAX)
+            })
+            .build();
+
+        // If a container is open, update the image loader with the new cache.
+        if let Some(image_loader) = self.image_loader.as_mut() {
+            image_loader.set_cache(self.image_cache.clone());
+        }
+    }
+
     /// Opens a container from the given path and initializes the state.
     ///
     /// This function determines the type of container based on the path (directory or file extension),

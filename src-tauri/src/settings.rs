@@ -265,18 +265,26 @@ pub struct ComicCacheSettings {
     /// The number of pages to preload in each direction (forward and backward).
     #[serde(default = "default_preload_page_count")]
     pub preload_page_count: i32,
+    /// The maximum size of the image memory cache in MiB.
+    #[serde(default = "default_image_cache_size_mib")]
+    pub image_cache_size_mib: u64,
 }
 
 impl Default for ComicCacheSettings {
     fn default() -> Self {
         Self {
             preload_page_count: default_preload_page_count(),
+            image_cache_size_mib: default_image_cache_size_mib(),
         }
     }
 }
 
 fn default_preload_page_count() -> i32 {
     10
+}
+
+fn default_image_cache_size_mib() -> u64 {
+    1024
 }
 
 /// Configuration for the Loupe (Magnifier) feature.

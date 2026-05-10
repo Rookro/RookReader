@@ -85,7 +85,11 @@ pub async fn request_preload_around(
     buffer_size: Option<usize>,
     state: tauri::State<'_, RwLock<AppState>>,
 ) -> Result<()> {
-    log::debug!("Request preload around index {}", index);
+    log::debug!(
+        "Request preload around index {}, buffer_size: {:?}",
+        index,
+        buffer_size
+    );
     let mut state_lock = state.write().await;
 
     let buffer_size = buffer_size.unwrap_or(10);
@@ -321,6 +325,33 @@ pub async fn set_image_resampling_method(
     };
 
     state_lock.container_state.settings.image_resampling_method = method;
+    Ok(())
+}
+
+/// Sets the maximum size of the image memory cache in MiB.
+///
+/// This will re-initialize the cache and clear all currently cached images.
+///
+/// # Arguments
+///
+/// * `size_mib` - The new cache size in MiB.
+/// * `state` - A `tauri::State` holding the application's global `AppState`.
+///
+/// # Returns
+///
+/// A `Result` which is `Ok` on successful update.
+#[tauri::command()]
+pub async fn set_image_cache_size_mib(
+    size_mib: u64,
+    state: tauri::State<'_, RwLock<AppState>>,
+) -> Result<()> {
+    log::debug!("set_image_cache_size_mib({})", size_mib);
+
+    let mut state_lock = state.write().await;
+
+    state_lock.container_state.settings.image_cache_size_mib = size_mib;
+    state_lock.container_state.update_image_cache_size(size_mib);
+
     Ok(())
 }
 
