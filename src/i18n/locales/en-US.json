@@ -125,6 +125,11 @@
     }
   },
   "settings": {
+    "ui": {
+      "autocomplete": {
+        "no-options": "No options"
+      }
+    },
     "general": {
       "tab-name": "General",
       "title": "General Settings",

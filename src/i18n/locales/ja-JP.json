@@ -125,6 +125,11 @@
     }
   },
   "settings": {
+    "ui": {
+      "autocomplete": {
+        "no-options": "候補が見つかりません"
+      }
+    },
     "general": {
       "tab-name": "一般設定",
       "title": "一般設定",

@@ -21,7 +21,7 @@ describe("AppFontFamilySetting", () => {
     renderWithProviders(<AppFontFamilySetting />, { preloadedState });
 
     await waitFor(() => {
-      expect(screen.getByRole("combobox")).toHaveTextContent("Arial");
+      expect(screen.getByRole("combobox")).toHaveValue("Arial");
     });
   });
 
@@ -53,30 +53,24 @@ describe("AppFontFamilySetting", () => {
   });
 
   it("should handle font list retrieval failure by falling back to default", async () => {
-    // Note: The component itself doesn't have explicit error handling logic in the catch block
-    // of getFonts(), but we want to verify it doesn't crash and still shows the default option.
     vi.mocked(getFonts).mockRejectedValue(new Error("Failed to fetch fonts"));
 
     const preloadedState = createBasePreloadedState();
-    // Default value in slice is usually "Inter, Avenir, Helvetica, Arial, sans-serif"
     const defaultFont = "Inter, Avenir, Helvetica, Arial, sans-serif";
     preloadedState.settings.general.appFontFamily = defaultFont;
 
     renderWithProviders(<AppFontFamilySetting />, { preloadedState });
 
     await waitFor(() => {
-      // The default option should be present and selected
       expect(screen.getByRole("combobox")).toBeInTheDocument();
-      // "Default" is the translated text for the defaultFont value
-      expect(screen.getByRole("combobox")).toHaveTextContent(/Default/i);
+      // The input value should be the translated label "Default"
+      expect(screen.getByRole("combobox")).toHaveValue("Default");
     });
 
-    // Open menu to verify no other fonts are listed
     await user.click(screen.getByRole("combobox"));
     const listbox = await screen.findByRole("listbox");
     const options = within(listbox).getAllByRole("option");
 
-    // Should only contain the "Default" option
     expect(options).toHaveLength(1);
     expect(options[0]).toHaveTextContent(/Default/i);
   });
