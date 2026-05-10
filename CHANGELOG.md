@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 * Fixed an issue where the bookshelf's virtual scroll rendered all items at once. (#215)
+* Fixed an issue where the startup screen setting was not applied correctly on launch. (#220)
 
 ## [2.1.1] - 2026-05-07
 
