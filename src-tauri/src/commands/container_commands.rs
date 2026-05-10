@@ -76,7 +76,8 @@ pub async fn get_entries_in_container(
 /// # Arguments
 ///
 /// * `index` - The current page index around which to preload.
-/// * `buffer_size` - Optional. How many pages to preload in each direction. Defaults to 5.
+/// * `buffer_size` - Optional. How many pages to preload in each direction.
+///   Defaults to 10 if `None` is provided.
 /// * `state` - A `tauri::State` holding the application's global `AppState`.
 #[tauri::command()]
 pub async fn request_preload_around(
@@ -84,8 +85,14 @@ pub async fn request_preload_around(
     buffer_size: Option<usize>,
     state: tauri::State<'_, RwLock<AppState>>,
 ) -> Result<()> {
-    log::debug!("Request preload around index {}", index);
+    log::debug!(
+        "Request preload around index {}, buffer_size: {:?}",
+        index,
+        buffer_size
+    );
     let mut state_lock = state.write().await;
+
+    let buffer_size = buffer_size.unwrap_or(10);
 
     let image_loader = state_lock
         .container_state
@@ -93,7 +100,7 @@ pub async fn request_preload_around(
         .as_mut()
         .ok_or_else(|| Error::Other("Unexpected error. ImageLoader is empty!".to_string()))?;
 
-    image_loader.request_preload_around(index, buffer_size.unwrap_or(5))?;
+    image_loader.request_preload_around(index, buffer_size)?;
     Ok(())
 }
 
@@ -321,6 +328,33 @@ pub async fn set_image_resampling_method(
     Ok(())
 }
 
+/// Sets the maximum size of the image memory cache in MiB.
+///
+/// This will re-initialize the cache and clear all currently cached images.
+///
+/// # Arguments
+///
+/// * `size_mib` - The new cache size in MiB.
+/// * `state` - A `tauri::State` holding the application's global `AppState`.
+///
+/// # Returns
+///
+/// A `Result` which is `Ok` on successful update.
+#[tauri::command()]
+pub async fn set_image_cache_size_mib(
+    size_mib: u64,
+    state: tauri::State<'_, RwLock<AppState>>,
+) -> Result<()> {
+    log::debug!("set_image_cache_size_mib({})", size_mib);
+
+    let mut state_lock = state.write().await;
+
+    state_lock.container_state.settings.image_cache_size_mib = size_mib;
+    state_lock.container_state.update_image_cache_size(size_mib);
+
+    Ok(())
+}
+
 /// Determines if the file at the given path is an EPUB file containing a novel.
 ///
 /// This function checks the file extension and then inspects the EPUB's contents to
@@ -513,8 +547,16 @@ mod tests {
             container: Some(arc_mock_container.clone()),
             settings: ContainerSettings::default(),
             image_loader: Some(
-                ImageLoader::new(arc_mock_container.clone(), 2000, ResizeFilter::Bilinear).unwrap(),
+                ImageLoader::new(
+                    "dummy_book_id".to_string(),
+                    arc_mock_container.clone(),
+                    2000,
+                    ResizeFilter::Bilinear,
+                    mini_moka::sync::Cache::new(100),
+                )
+                .unwrap(),
             ),
+            image_cache: mini_moka::sync::Cache::new(100),
         };
         let state = AppState {
             container_state: mock_container_state,
@@ -575,8 +617,16 @@ mod tests {
             container: Some(arc_mock_container.clone()),
             settings: ContainerSettings::default(),
             image_loader: Some(
-                ImageLoader::new(arc_mock_container.clone(), 2000, ResizeFilter::Bilinear).unwrap(),
+                ImageLoader::new(
+                    "dummy_book_id".to_string(),
+                    arc_mock_container.clone(),
+                    2000,
+                    ResizeFilter::Bilinear,
+                    mini_moka::sync::Cache::new(100),
+                )
+                .unwrap(),
             ),
+            image_cache: mini_moka::sync::Cache::new(100),
         };
         let state = AppState {
             container_state: mock_container_state,
@@ -608,8 +658,16 @@ mod tests {
             container: Some(arc_mock_container.clone()),
             settings: ContainerSettings::default(),
             image_loader: Some(
-                ImageLoader::new(arc_mock_container.clone(), 2000, ResizeFilter::Bilinear).unwrap(),
+                ImageLoader::new(
+                    "dummy_book_id".to_string(),
+                    arc_mock_container.clone(),
+                    2000,
+                    ResizeFilter::Bilinear,
+                    mini_moka::sync::Cache::new(100),
+                )
+                .unwrap(),
             ),
+            image_cache: mini_moka::sync::Cache::new(100),
         };
         let state = AppState {
             container_state: mock_container_state,

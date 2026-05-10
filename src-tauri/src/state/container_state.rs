@@ -9,12 +9,11 @@ use crate::{
         zip_container::ZipContainer,
     },
     error::{Error, Result},
-    image::loader::ImageLoader,
+    image::loader::{CacheKey, ImageLoader},
     state::container_settings::ContainerSettings,
 };
 
 /// Holds the state related to the currently open container (e.g., a file or directory).
-#[derive(Default)]
 pub struct ContainerState {
     /// The active container, wrapped in an `Arc` for shared ownership.
     /// This can be a directory, a ZIP file, a PDF, etc. `None` if no container is open.
@@ -24,9 +23,48 @@ pub struct ContainerState {
     /// The image loader responsible for loading and caching images from the current container.
     /// `None` if no container is open.
     pub image_loader: Option<ImageLoader>,
+    /// Global image cache shared across all containers.
+    pub image_cache: mini_moka::sync::Cache<CacheKey, Arc<crate::image::types::Image>>,
+}
+
+impl Default for ContainerState {
+    fn default() -> Self {
+        let settings = ContainerSettings::default();
+        let image_cache = mini_moka::sync::Cache::builder()
+            .max_capacity(settings.image_cache_size_mib * 1024 * 1024)
+            .weigher(|_key, value: &Arc<crate::image::types::Image>| -> u32 {
+                value.data.len().try_into().unwrap_or(u32::MAX)
+            })
+            .build();
+
+        Self {
+            container: None,
+            settings,
+            image_loader: None,
+            image_cache,
+        }
+    }
 }
 
 impl ContainerState {
+    /// Re-initializes the image cache with a new maximum capacity.
+    ///
+    /// This will clear the existing cache and recreate the image loader if a container is open.
+    pub fn update_image_cache_size(&mut self, size_mib: u64) {
+        log::debug!("Updating image cache size to {} MiB", size_mib);
+        self.image_cache = mini_moka::sync::Cache::builder()
+            .max_capacity(size_mib * 1024 * 1024)
+            .weigher(|_key, value: &Arc<crate::image::types::Image>| -> u32 {
+                value.data.len().try_into().unwrap_or(u32::MAX)
+            })
+            .build();
+
+        // If a container is open, update the image loader with the new cache.
+        if let Some(image_loader) = self.image_loader.as_mut() {
+            image_loader.set_cache(self.image_cache.clone());
+        }
+    }
+
     /// Opens a container from the given path and initializes the state.
     ///
     /// This function determines the type of container based on the path (directory or file extension),
@@ -55,9 +93,11 @@ impl ContainerState {
             let container = Arc::new(DirectoryContainer::new(path)?);
             self.container = Some(container.clone());
             self.image_loader = Some(ImageLoader::new(
+                path.to_string(),
                 container,
                 self.settings.max_image_height as u32,
                 self.settings.image_resampling_method,
+                self.image_cache.clone(),
             )?);
             return Ok(());
         }
@@ -69,9 +109,11 @@ impl ContainerState {
                     let container = Arc::new(ZipContainer::new(path)?);
                     self.container = Some(container.clone());
                     self.image_loader = Some(ImageLoader::new(
+                        path.to_string(),
                         container,
                         self.settings.max_image_height as u32,
                         self.settings.image_resampling_method,
+                        self.image_cache.clone(),
                     )?);
                 }
                 "pdf" => {
@@ -83,27 +125,33 @@ impl ContainerState {
                     )?);
                     self.container = Some(container.clone());
                     self.image_loader = Some(ImageLoader::new(
+                        path.to_string(),
                         container,
                         0, // disable image resizing
                         self.settings.image_resampling_method,
+                        self.image_cache.clone(),
                     )?);
                 }
                 "rar" => {
                     let container = Arc::new(RarContainer::new(path)?);
                     self.container = Some(container.clone());
                     self.image_loader = Some(ImageLoader::new(
+                        path.to_string(),
                         container,
                         self.settings.max_image_height as u32,
                         self.settings.image_resampling_method,
+                        self.image_cache.clone(),
                     )?);
                 }
                 "epub" => {
                     let container = Arc::new(EpubContainer::new(path)?);
                     self.container = Some(container.clone());
                     self.image_loader = Some(ImageLoader::new(
+                        path.to_string(),
                         container,
                         self.settings.max_image_height as u32,
                         self.settings.image_resampling_method,
+                        self.image_cache.clone(),
                     )?);
                 }
                 _ => {

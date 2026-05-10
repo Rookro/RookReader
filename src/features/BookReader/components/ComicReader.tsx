@@ -35,12 +35,14 @@ export default function ComicReader() {
       isFirstPageSingleView: readerSettings.comic.showCoverAsSinglePage,
       direction: readerSettings.comic.readingDirection,
       enablePreview: readerSettings.rendering.enableThumbnailPreview,
+      preloadPageCount: readerSettings.comic.cache.preloadPageCount,
     }),
     [
       readerSettings.comic.enableSpread,
       readerSettings.comic.showCoverAsSinglePage,
       readerSettings.comic.readingDirection,
       readerSettings.rendering.enableThumbnailPreview,
+      readerSettings.comic.cache.preloadPageCount,
     ],
   );
 

@@ -7,7 +7,6 @@ use std::{
     },
 };
 
-use dashmap::DashMap;
 use image::{codecs::jpeg::JpegEncoder, ImageReader};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use rayon::ThreadPool;
@@ -22,14 +21,25 @@ use crate::{
     },
 };
 
+/// The composite key for the global image cache.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct CacheKey {
+    /// The unique identifier of the book.
+    pub book_id: String,
+    /// The name of the image entry within the book.
+    pub entry: String,
+}
+
 /// A thread-safe cache mapping entry names to `Image` data.
-type Cache = Arc<DashMap<String, Arc<Image>>>;
+pub type Cache = mini_moka::sync::Cache<CacheKey, Arc<Image>>;
 
 /// Manages loading, caching, and preloading of images from a `Container`.
 ///
 /// This struct handles concurrent image loading in the background, provides a thread-safe
 /// cache, and manages the lifecycle of the preloading Rayon thread pool.
 pub struct ImageLoader {
+    /// Identifier for the current book (usually the file path).
+    book_id: String,
     /// A shared, thread-safe cache for storing loaded images.
     cache: Cache,
     /// A Rayon thread pool dedicated to preloading images in the background.
@@ -51,17 +61,21 @@ impl ImageLoader {
     ///
     /// # Arguments
     ///
+    /// * `book_id` - Unique identifier for the book (e.g. its path).
     /// * `container` - A shared reference to a `Container` implementation.
     /// * `max_image_height` - The maximum height for loaded images.
     /// * `resize_method` - The algorithm to use for image resizing.
+    /// * `cache` - The global moka cache instance.
     ///
     /// # Returns
     ///
     /// A new instance of `ImageLoader`.
     pub fn new(
+        book_id: String,
         container: Arc<dyn Container>,
         max_image_height: u32,
         resize_method: ResizeFilter,
+        cache: Cache,
     ) -> Result<Self> {
         let num_threads = if container.is_single_threaded() {
             1
@@ -83,13 +97,19 @@ impl ImageLoader {
             .build()?;
 
         Ok(Self {
-            cache: Arc::new(DashMap::with_capacity(container.get_entries().len())),
+            book_id,
+            cache,
             thread_pool,
             is_preloading_cancel_requested: Arc::new(AtomicBool::new(false)),
             container,
             max_image_height,
             resize_method,
         })
+    }
+
+    /// Sets a new cache instance for the image loader.
+    pub fn set_cache(&mut self, cache: Cache) {
+        self.cache = cache;
     }
 
     /// Retrieves an image directly from the cache.
@@ -102,8 +122,12 @@ impl ImageLoader {
     ///
     /// An `Ok(Some(Arc<Image>))` if the image is found in the cache, `Ok(None)` otherwise.
     pub fn get_image_from_cache(&self, entry: &str) -> Result<Option<Arc<Image>>> {
-        if let Some(imag) = self.cache.get(entry) {
-            Ok(Some(imag.clone()))
+        let key = CacheKey {
+            book_id: self.book_id.clone(),
+            entry: entry.to_string(),
+        };
+        if let Some(imag) = self.cache.get(&key) {
+            Ok(Some(imag))
         } else {
             Ok(None)
         }
@@ -137,7 +161,12 @@ impl ImageLoader {
             self.max_image_height,
             self.resize_method,
         )?;
-        self.cache.insert(entry.to_string(), image_arc.clone());
+
+        let key = CacheKey {
+            book_id: self.book_id.clone(),
+            entry: entry.to_string(),
+        };
+        self.cache.insert(key, image_arc.clone());
 
         Ok(image_arc)
     }
@@ -201,7 +230,13 @@ impl ImageLoader {
         // 1. Distance from center (closer = higher priority)
         // 2. Future pages get slight preference over past pages
         let mut target_indices: Vec<usize> = (start..end)
-            .filter(|&i| !self.cache.contains_key(&entries[i]))
+            .filter(|&i| {
+                let key = CacheKey {
+                    book_id: self.book_id.clone(),
+                    entry: entries[i].clone(),
+                };
+                !self.cache.contains_key(&key)
+            })
             .collect();
 
         target_indices.sort_by_key(|&i| {
@@ -227,6 +262,7 @@ impl ImageLoader {
         let cache_clone = self.cache.clone();
         let max_image_height = self.max_image_height;
         let resize_method = self.resize_method;
+        let book_id = self.book_id.clone();
 
         // Execute preloading in the Rayon thread pool.
         self.thread_pool.spawn(move || {
@@ -238,7 +274,11 @@ impl ImageLoader {
                 match load_image(&entry, container.clone(), max_image_height, resize_method) {
                     Ok(image) => {
                         log::debug!("Preloaded: {}", entry);
-                        cache_clone.insert(entry, image);
+                        let key = CacheKey {
+                            book_id: book_id.clone(),
+                            entry,
+                        };
+                        cache_clone.insert(key, image);
                     }
                     Err(e) => {
                         log::error!("Failed to preload image: {}", e);

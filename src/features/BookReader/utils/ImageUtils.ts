@@ -51,6 +51,8 @@ export interface ViewerSettings {
   direction: "ltr" | "rtl";
   /** Enable preview. */
   enablePreview: boolean;
+  /** The number of pages to preload in each direction. */
+  preloadPageCount: number;
 }
 
 /**

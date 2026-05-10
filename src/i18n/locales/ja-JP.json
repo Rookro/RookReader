@@ -187,6 +187,19 @@
         "mouse-middle": "マウス中ボタン",
         "mouse-back": "マウス戻るボタン",
         "mouse-forward": "マウス進むボタン"
+      },
+      "cache": {
+        "title": "キャッシュ設定",
+        "preload-page-count": {
+          "title": "先読みページ数",
+          "description": "前後方向に先読みするページ数を指定します。",
+          "error-message": "先読みページ数の設定に失敗しました。入力内容を確認してください。"
+        },
+        "image-cache-size": {
+          "title": "画像キャッシュサイズ (MiB)",
+          "description": "メモリ上に保持する画像キャッシュの最大サイズ (MiB) です。\nこの設定を変更すると現在のキャッシュはクリアされます。",
+          "error-message": "画像キャッシュサイズの設定に失敗しました。入力内容を確認してください。"
+        }
       }
     },
     "file-navigator": {

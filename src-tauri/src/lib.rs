@@ -43,6 +43,7 @@ pub fn run() {
             commands::container_commands::set_pdf_render_resolution_height,
             commands::container_commands::set_max_image_height,
             commands::container_commands::set_image_resampling_method,
+            commands::container_commands::set_image_cache_size_mib,
             commands::container_commands::determine_epub_novel,
             commands::font_commands::get_fonts,
             commands::book_commands::get_book_tags,
