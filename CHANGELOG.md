@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 * Added image cache and page preloading settings to optimize reading performance. (#216)
+* Added search and filtering capabilities to font settings for quicker selection. (#219)
 
 ### Changed
 
