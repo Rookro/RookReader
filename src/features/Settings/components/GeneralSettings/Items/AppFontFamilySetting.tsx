@@ -26,7 +26,7 @@ export default function AppFontFamilySetting() {
       debug(`Application UI font family changed: ${e.target.value}`);
       const newGeneralSettings = { ...generalSettings, appFontFamily: e.target.value as string };
       await dispatch(updateSettings({ key: "general", value: newGeneralSettings }));
-      emit<SettingsChangedEvent>("settings-changed", {
+      await emit<SettingsChangedEvent>("settings-changed", {
         appSettings: { general: newGeneralSettings },
       });
     },

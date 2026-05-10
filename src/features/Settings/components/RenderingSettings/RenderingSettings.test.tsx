@@ -35,6 +35,20 @@ vi.mock("./Items/PdfRenderResolutionHeightSetting", () => {
   return { default: PdfRenderResolutionHeightSetting };
 });
 
+vi.mock("./Items/PreloadPageCountSetting", () => {
+  const PreloadPageCountSetting = (): JSX.Element => (
+    <div data-testid="preload-page-count-setting" />
+  );
+  PreloadPageCountSetting.displayName = "PreloadPageCountSetting";
+  return { default: PreloadPageCountSetting };
+});
+
+vi.mock("./Items/ImageCacheSizeSetting", () => {
+  const ImageCacheSizeSetting = (): JSX.Element => <div data-testid="image-cache-size-setting" />;
+  ImageCacheSizeSetting.displayName = "ImageCacheSizeSetting";
+  return { default: ImageCacheSizeSetting };
+});
+
 // Mock SettingsPanel
 vi.mock("../SettingsPanel", () => {
   const SettingsPanel = ({
@@ -58,10 +72,12 @@ describe("RenderingSettings", () => {
     renderWithProviders(<RenderingSettings />);
 
     expect(screen.getByTestId("settings-panel")).toBeInTheDocument();
-    expect(screen.getByTestId("panel-title")).toHaveTextContent(/Rendering Settings/i);
+    expect(screen.getByTestId("panel-title")).toHaveTextContent(/Rendering & Performance/i);
     expect(screen.getByTestId("thumbnail-preview-setting")).toBeInTheDocument();
     expect(screen.getByTestId("max-image-height-setting")).toBeInTheDocument();
     expect(screen.getByTestId("image-resampling-method-setting")).toBeInTheDocument();
     expect(screen.getByTestId("pdf-render-resolution-height-setting")).toBeInTheDocument();
+    expect(screen.getByTestId("preload-page-count-setting")).toBeInTheDocument();
+    expect(screen.getByTestId("image-cache-size-setting")).toBeInTheDocument();
   });
 });

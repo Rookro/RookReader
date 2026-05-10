@@ -27,7 +27,6 @@ export default function ShowCoverAsSinglePageSetting() {
         },
       };
       await dispatch(updateSettings({ key: "reader", value: newSettings }));
-
       await emit<SettingsChangedEvent>("settings-changed", {
         appSettings: { reader: newSettings },
       });
@@ -38,7 +37,7 @@ export default function ShowCoverAsSinglePageSetting() {
   return (
     <SwitchSettingItem
       icon={<AutoStoriesOutlined />}
-      primaryText={t("settings.page.first-page.title")}
+      primaryText={t("settings.reader.first-page.title")}
       defaultChecked={readerSettings.comic.showCoverAsSinglePage}
       onChange={handleFirstPageSingleViewSwitchChange}
     />

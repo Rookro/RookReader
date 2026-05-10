@@ -1,5 +1,6 @@
 import { FontDownloadOutlined } from "@mui/icons-material";
 import { MenuItem, type SelectChangeEvent } from "@mui/material";
+import { emit } from "@tauri-apps/api/event";
 import { debug, error } from "@tauri-apps/plugin-log";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
@@ -9,6 +10,7 @@ import {
   type ImageResamplingMethod,
   imageResamplingMethods,
 } from "../../../../../types/AppSettings";
+import type { SettingsChangedEvent } from "../../../../../types/SettingsChangedEvent";
 import { updateSettings } from "../../../slice";
 import SelectSettingItem from "../../ui/SelectSettingItem";
 
@@ -60,7 +62,10 @@ export default function ImageResamplingMethodSetting() {
           imageResamplingMethod: e.target.value as ImageResamplingMethod,
         },
       };
-      dispatch(updateSettings({ key: "reader", value: newSettings }));
+      await dispatch(updateSettings({ key: "reader", value: newSettings }));
+      await emit<SettingsChangedEvent>("settings-changed", {
+        appSettings: { reader: newSettings },
+      });
     },
     [dispatch, readerSettings],
   );
@@ -70,6 +75,7 @@ export default function ImageResamplingMethodSetting() {
       icon={<FontDownloadOutlined />}
       primaryText={t("settings.rendering.resize.resize-method.title")}
       secondaryText={t("settings.rendering.resize.resize-method.description")}
+      secondaryTextSx={{ whiteSpace: "pre-wrap" }}
       value={readerSettings.rendering.imageResamplingMethod}
       onChange={handleMethodChanged}
     >

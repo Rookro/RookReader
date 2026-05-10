@@ -1,9 +1,11 @@
 import { AspectRatioOutlined } from "@mui/icons-material";
+import { emit } from "@tauri-apps/api/event";
 import { error } from "@tauri-apps/plugin-log";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { setPdfRenderResolutionHeight } from "../../../../../bindings/ContainerCommands";
 import { useAppDispatch, useAppSelector } from "../../../../../store/store";
+import type { SettingsChangedEvent } from "../../../../../types/SettingsChangedEvent";
 import { updateSettings } from "../../../slice";
 import NumberSpinnerSettingItem from "../../ui/NumberSpinnerSettingItem";
 
@@ -44,7 +46,10 @@ export default function PdfRenderResolutionHeightSetting() {
         ...readerSettings,
         rendering: { ...readerSettings.rendering, pdfRenderResolutionHeight: height },
       };
-      dispatch(updateSettings({ key: "reader", value: newSettings }));
+      await dispatch(updateSettings({ key: "reader", value: newSettings }));
+      await emit<SettingsChangedEvent>("settings-changed", {
+        appSettings: { reader: newSettings },
+      });
     },
     [t, dispatch, readerSettings],
   );

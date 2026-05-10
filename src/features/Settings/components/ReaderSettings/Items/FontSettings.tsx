@@ -44,7 +44,9 @@ export default function FontSettings() {
         novel: { ...readerSettings.novel, fontSize: value },
       };
       await dispatch(updateSettings({ key: "reader", value: newSettings }));
-      emit<SettingsChangedEvent>("settings-changed", { appSettings: { reader: newSettings } });
+      await emit<SettingsChangedEvent>("settings-changed", {
+        appSettings: { reader: newSettings },
+      });
     },
     [dispatch, readerSettings],
   );
@@ -61,12 +63,12 @@ export default function FontSettings() {
     <>
       <SelectSettingItem
         icon={<FontDownloadOutlined />}
-        primaryText={t("settings.novel-reader.font.title")}
+        primaryText={t("settings.reader.font.title")}
         defaultValue={readerSettings.novel.fontFamily}
         onChange={handleFontChanged}
       >
         <MenuItem value={defaultFont} sx={{ fontFamily: defaultFont }}>
-          {t("settings.novel-reader.font.default-font-name")}
+          {t("settings.reader.font.default-font-name")}
         </MenuItem>
         {fonts.map((font) => (
           <MenuItem key={font} value={font} sx={{ fontFamily: font }}>
@@ -76,7 +78,7 @@ export default function FontSettings() {
       </SelectSettingItem>
       <NumberSpinnerSettingItem
         icon={<FormatSize />}
-        primaryText={t("settings.novel-reader.font-size.title")}
+        primaryText={t("settings.reader.font-size.title")}
         defaultValue={readerSettings.novel.fontSize}
         min={0.5}
         max={100}

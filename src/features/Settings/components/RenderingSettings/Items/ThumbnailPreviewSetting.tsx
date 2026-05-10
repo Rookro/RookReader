@@ -24,7 +24,6 @@ export default function ThumbnailPreviewSetting() {
         rendering: { ...readerSettings.rendering, enableThumbnailPreview: e.target.checked },
       };
       await dispatch(updateSettings({ key: "reader", value: newSettings }));
-
       await emit<SettingsChangedEvent>("settings-changed", {
         appSettings: { reader: newSettings },
       });

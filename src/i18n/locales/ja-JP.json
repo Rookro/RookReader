@@ -128,6 +128,10 @@
     "general": {
       "tab-name": "一般設定",
       "title": "一般設定",
+      "headers": {
+        "display-and-language": "表示・言語",
+        "startup-behavior": "起動時の動作"
+      },
       "language": {
         "title": "言語設定",
         "english": "English",
@@ -142,11 +146,7 @@
         "system": "システム",
         "light": "ライト",
         "dark": "ダーク"
-      }
-    },
-    "startup": {
-      "tab-name": "起動設定",
-      "title": "起動設定",
+      },
       "initial-view": {
         "title": "起動時の初期ビュー",
         "reader": "読書画面",
@@ -169,9 +169,23 @@
         "description": "本棚ビューで長いタイトルを自動的にスクロール表示します。動作が重いと感じる場合は、オフにすることで動作が改善される場合があります。"
       }
     },
-    "page": {
-      "tab-name": "ページ",
-      "title": "ページ設定",
+    "file-navigator": {
+      "tab-name": "ファイルナビゲーター設定",
+      "title": "ファイルナビゲーター設定",
+      "home-directory-title": "ホームディレクトリー",
+      "dir-watch": {
+        "title": "ディレクトリー/ファイルの変更監視を有効にする",
+        "warn-message": "この機能を有効にすると、大量のファイル/ディレクトリーを含むディレクトリーにアクセスした際、システム負荷が高くなる恐れがあります。"
+      }
+    },
+    "reader": {
+      "tab-name": "リーダー設定",
+      "title": "リーダー設定",
+      "headers": {
+        "comic": "コミック",
+        "novel": "小説",
+        "history": "履歴"
+      },
       "first-page": {
         "title": "最初のページを 1 ページ表示する"
       },
@@ -188,40 +202,25 @@
         "mouse-back": "マウス戻るボタン",
         "mouse-forward": "マウス進むボタン"
       },
-      "cache": {
-        "title": "キャッシュ設定",
-        "preload-page-count": {
-          "title": "先読みページ数",
-          "description": "前後方向に先読みするページ数を指定します。",
-          "error-message": "先読みページ数の設定に失敗しました。入力内容を確認してください。"
-        },
-        "image-cache-size": {
-          "title": "画像キャッシュサイズ (MiB)",
-          "description": "メモリ上に保持する画像キャッシュの最大サイズ (MiB) です。\nこの設定を変更すると現在のキャッシュはクリアされます。",
-          "error-message": "画像キャッシュサイズの設定に失敗しました。入力内容を確認してください。"
-        }
-      }
-    },
-    "file-navigator": {
-      "tab-name": "ファイルナビゲーター",
-      "title": "ファイルナビゲーター設定",
-      "home-directory-title": "ホームディレクトリー",
-      "dir-watch": {
-        "title": "ディレクトリー/ファイルの変更監視を有効にする",
-        "warn-message": "この機能を有効にすると、大量のファイル/ディレクトリーを含むディレクトリーにアクセスした際、システム負荷が高くなる恐れがあります。"
-      }
-    },
-    "history": {
-      "tab-name": "履歴設定",
-      "title": "履歴設定",
-      "feature-toggle": {
+      "font": {
+        "title": "書体",
+        "default-font-name": "デフォルト"
+      },
+      "font-size": {
+        "title": "文字サイズ"
+      },
+      "history-feature": {
         "title": "読書履歴機能",
         "description": "読書履歴機能を有効にすると、読んだ本の履歴を保存できます。"
       }
     },
     "rendering": {
-      "tab-name": "描画設定",
-      "title": "描画設定",
+      "tab-name": "表示・パフォーマンス設定",
+      "title": "表示・パフォーマンス設定",
+      "headers": {
+        "rendering": "レンダリング",
+        "cache-and-preload": "キャッシュ・先読み"
+      },
       "preview": {
         "title": "読み込み中のプレビュー表示",
         "description": "画像の読み込みが完了するまで、低解像度のサムネイルを一時的に表示します。"
@@ -235,7 +234,7 @@
         },
         "resize-method": {
           "title": "リサイズ方式",
-          "description": "縮小処理に使用するアルゴリズムを選択します。画質と処理速度のバランスを用途に合わせて設定してください。",
+          "description": "縮小処理に使用するアルゴリズムを選択します。\n画質と処理速度のバランスを用途に合わせて設定してください。",
           "nearest": "ニアレスト (最速 / 粗い)",
           "box": "ボックス (高速 / 粗い)",
           "triangle": "トライアングル (高速 / 標準画質)",
@@ -252,17 +251,19 @@
         "description": "PDF 描画時の高さを設定します。",
         "range-error-message": "1 以上の整数を入力してください。",
         "error-message": "設定できませんでした。入力内容を確認してください。"
-      }
-    },
-    "novel-reader": {
-      "tab-name": "小説リーダー設定",
-      "title": "小説リーダー設定",
-      "font": {
-        "title": "書体",
-        "default-font-name": "デフォルト"
       },
-      "font-size": {
-        "title": "文字サイズ"
+      "cache": {
+        "title": "キャッシュ設定",
+        "preload-page-count": {
+          "title": "先読みページ数",
+          "description": "前後方向に先読みするページ数を指定します。",
+          "error-message": "先読みページ数の設定に失敗しました。入力内容を確認してください。"
+        },
+        "image-cache-size": {
+          "title": "画像キャッシュサイズ (MiB)",
+          "description": "メモリ上に保持する画像キャッシュの最大サイズ (MiB) です。\nこの設定を変更すると現在のキャッシュはクリアされます。",
+          "error-message": "画像キャッシュサイズの設定に失敗しました。入力内容を確認してください。"
+        }
       }
     },
     "developer": {

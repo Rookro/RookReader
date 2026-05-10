@@ -28,12 +28,12 @@ export default function InitialViewSetting() {
   return (
     <SelectSettingItem
       icon={<RocketLaunch />}
-      primaryText={t("settings.startup.initial-view.title")}
+      primaryText={t("settings.general.initial-view.title")}
       defaultValue={startupSettings.initialView}
       onChange={handleInitialViewChanged}
     >
-      <MenuItem value="reader">{t("settings.startup.initial-view.reader")}</MenuItem>
-      <MenuItem value="bookshelf">{t("settings.startup.initial-view.bookshelf")}</MenuItem>
+      <MenuItem value="reader">{t("settings.general.initial-view.reader")}</MenuItem>
+      <MenuItem value="bookshelf">{t("settings.general.initial-view.bookshelf")}</MenuItem>
     </SelectSettingItem>
   );
 }

@@ -1,4 +1,4 @@
-import { RestorePageOutlined } from "@mui/icons-material";
+import { SystemUpdateAlt } from "@mui/icons-material";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppDispatch, useAppSelector } from "../../../../../store/store";
@@ -6,18 +6,18 @@ import { updateSettings } from "../../../slice";
 import SwitchSettingItem from "../../ui/SwitchSettingItem";
 
 /**
- * Restore on startup setting component.
+ * Check for updates on startup setting component.
  */
-export default function RestoreLastBookSetting() {
+export default function CheckUpdateOnStartupSetting() {
   const { t } = useTranslation();
   const startupSettings = useAppSelector((state) => state.settings.startup);
   const dispatch = useAppDispatch();
 
-  const handleRestoreLastBookChanged = useCallback(
+  const handleCheckUpdateChanged = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       const newStartupSettings = {
         ...startupSettings,
-        restoreLastBook: e.target.checked,
+        checkUpdateOnStartup: e.target.checked,
       };
       dispatch(updateSettings({ key: "startup", value: newStartupSettings }));
     },
@@ -26,11 +26,11 @@ export default function RestoreLastBookSetting() {
 
   return (
     <SwitchSettingItem
-      icon={<RestorePageOutlined />}
-      primaryText={t("settings.startup.restore-last-read.title")}
-      secondaryText={t("settings.startup.restore-last-read.description")}
-      defaultChecked={startupSettings.restoreLastBook}
-      onChange={handleRestoreLastBookChanged}
+      icon={<SystemUpdateAlt />}
+      primaryText={t("settings.general.check-update-on-startup.title")}
+      secondaryText={t("settings.general.check-update-on-startup.description")}
+      defaultChecked={startupSettings.checkUpdateOnStartup ?? true}
+      onChange={handleCheckUpdateChanged}
     />
   );
 }

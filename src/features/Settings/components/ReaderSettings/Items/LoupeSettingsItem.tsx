@@ -31,7 +31,6 @@ export default function LoupeSettingsItem() {
         },
       };
       await dispatch(updateSettings({ key: "reader", value: newSettings }));
-
       await emit<SettingsChangedEvent>("settings-changed", {
         appSettings: { reader: newSettings },
       });
@@ -168,13 +167,13 @@ export default function LoupeSettingsItem() {
         .split("+")
         .map((part) => {
           if (part === "MouseMiddle") {
-            return t("settings.page.loupe.mouse-middle");
+            return t("settings.reader.loupe.mouse-middle");
           }
           if (part === "MouseBack") {
-            return t("settings.page.loupe.mouse-back");
+            return t("settings.reader.loupe.mouse-back");
           }
           if (part === "MouseForward") {
-            return t("settings.page.loupe.mouse-forward");
+            return t("settings.reader.loupe.mouse-forward");
           }
           return part;
         })
@@ -190,16 +189,16 @@ export default function LoupeSettingsItem() {
           <Search />
         </ListItemIcon>
         <ListItemText
-          primary={t("settings.page.loupe.title")}
-          secondary={t("settings.page.loupe.description")}
+          primary={t("settings.reader.loupe.title")}
+          secondary={t("settings.reader.loupe.description")}
           slotProps={{ secondary: { sx: { whiteSpace: "pre-wrap" } } }}
         />
       </ListItem>
 
       <ListItem sx={{ paddingLeft: 9 }}>
         <ListItemText
-          primary={t("settings.page.loupe.toggle-key")}
-          secondary={t("settings.page.loupe.toggle-key-description")}
+          primary={t("settings.reader.loupe.toggle-key")}
+          secondary={t("settings.reader.loupe.toggle-key-description")}
           sx={{ marginRight: "10px" }}
           slotProps={{ secondary: { sx: { whiteSpace: "pre-wrap" } } }}
         />
@@ -229,8 +228,8 @@ export default function LoupeSettingsItem() {
 
       <NumberSpinnerSettingItem
         sx={{ paddingLeft: 9 }}
-        primaryText={t("settings.page.loupe.zoom")}
-        secondaryText={t("settings.page.loupe.zoom-description")}
+        primaryText={t("settings.reader.loupe.zoom")}
+        secondaryText={t("settings.reader.loupe.zoom-description")}
         secondaryTextSx={{ whiteSpace: "pre-wrap" }}
         defaultValue={readerSettings.comic.loupe?.zoom ?? 2}
         min={1}
@@ -241,8 +240,8 @@ export default function LoupeSettingsItem() {
 
       <NumberSpinnerSettingItem
         sx={{ paddingLeft: 9 }}
-        primaryText={t("settings.page.loupe.radius")}
-        secondaryText={t("settings.page.loupe.radius-description")}
+        primaryText={t("settings.reader.loupe.radius")}
+        secondaryText={t("settings.reader.loupe.radius-description")}
         secondaryTextSx={{ whiteSpace: "pre-wrap" }}
         defaultValue={readerSettings.comic.loupe?.radius ?? 150}
         min={50}

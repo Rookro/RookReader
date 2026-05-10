@@ -29,8 +29,8 @@ export default function RecordReadingHistorySetting() {
   return (
     <SwitchSettingItem
       icon={<HistoryOutlined />}
-      primaryText={t("settings.history.feature-toggle.title")}
-      secondaryText={t("settings.history.feature-toggle.description")}
+      primaryText={t("settings.reader.history-feature.title")}
+      secondaryText={t("settings.reader.history-feature.description")}
       defaultChecked={historySettings.recordReadingHistory}
       onChange={handleRecordReadingHistoryChanged}
     />
