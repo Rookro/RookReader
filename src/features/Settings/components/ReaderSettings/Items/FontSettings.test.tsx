@@ -7,7 +7,6 @@ import { mockStore } from "../../../../../test/mocks/tauri";
 import { renderWithProviders } from "../../../../../test/utils";
 import FontSettings from "./FontSettings";
 
-// Mock FontCommands
 describe("FontSettings", () => {
   const user = userEvent.setup();
 
@@ -20,7 +19,7 @@ describe("FontSettings", () => {
     renderWithProviders(<FontSettings />);
 
     await waitFor(() => {
-      expect(screen.getByRole("combobox")).toHaveTextContent("Default");
+      expect(screen.getByRole("combobox")).toHaveValue("Default");
       // NumberSpinner has two inputs with same value, we pick the visible one
       expect(screen.getAllByDisplayValue("16")[0]).toBeInTheDocument();
     });
@@ -59,12 +58,10 @@ describe("FontSettings", () => {
   it("should update store and emit event when font size is changed", async () => {
     renderWithProviders(<FontSettings />);
 
-    // Base UI renders a hidden input for form submission and a visible textbox for interaction.
-    // Use the textbox to allow userEvent.clear and userEvent.type to work.
     const input = screen.getByRole("textbox");
     await user.clear(input);
     await user.type(input, "24");
-    await user.tab(); // Blur trigger
+    await user.tab();
 
     await waitFor(() => {
       expect(mockStore.set).toHaveBeenCalledWith(
