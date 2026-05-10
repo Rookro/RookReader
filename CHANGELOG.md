@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+* Added image cache and page preloading settings to optimize reading performance. (#216)
+
 ### Changed
 
 * Optimized thumbnail generation by skipping container parsing and image extraction if the thumbnail already exists, significantly improving performance. (#214)
