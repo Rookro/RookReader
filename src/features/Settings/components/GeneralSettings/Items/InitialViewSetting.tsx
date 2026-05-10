@@ -1,17 +1,11 @@
 import { RocketLaunch } from "@mui/icons-material";
-import {
-  ListItem,
-  ListItemIcon,
-  ListItemText,
-  MenuItem,
-  Select,
-  type SelectChangeEvent,
-} from "@mui/material";
+import { MenuItem, type SelectChangeEvent } from "@mui/material";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppDispatch, useAppSelector } from "../../../../../store/store";
 import type { InitialView } from "../../../../../types/AppSettings";
 import { updateSettings } from "../../../slice";
+import SelectSettingItem from "../../ui/SelectSettingItem";
 
 /**
  * Initial view setting component.
@@ -32,22 +26,14 @@ export default function InitialViewSetting() {
   );
 
   return (
-    <ListItem>
-      <ListItemIcon>
-        <RocketLaunch />
-      </ListItemIcon>
-      <ListItemText primary={t("settings.startup.initial-view.title")} />
-      <Select
-        label={t("settings.startup.initial-view.title")}
-        variant="standard"
-        defaultValue={startupSettings.initialView}
-        onChange={handleInitialViewChanged}
-        size="small"
-        autoWidth
-      >
-        <MenuItem value="reader">{t("settings.startup.initial-view.reader")}</MenuItem>
-        <MenuItem value="bookshelf">{t("settings.startup.initial-view.bookshelf")}</MenuItem>
-      </Select>
-    </ListItem>
+    <SelectSettingItem
+      icon={<RocketLaunch />}
+      primaryText={t("settings.general.initial-view.title")}
+      defaultValue={startupSettings.initialView}
+      onChange={handleInitialViewChanged}
+    >
+      <MenuItem value="reader">{t("settings.general.initial-view.reader")}</MenuItem>
+      <MenuItem value="bookshelf">{t("settings.general.initial-view.bookshelf")}</MenuItem>
+    </SelectSettingItem>
   );
 }

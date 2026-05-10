@@ -11,12 +11,10 @@ describe("SettingsView", () => {
     renderWithProviders(<SettingsView />);
 
     expect(screen.getByRole("tab", { name: /General/i })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: /Startup/i })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: /Page/i })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /Bookshelf/i })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: /File Navigator/i })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: /History/i })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /Reader/i })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: /Rendering/i })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: /Novel Reader/i })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: /Developer/i })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: /About/i })).toBeInTheDocument();
   });
@@ -27,11 +25,11 @@ describe("SettingsView", () => {
     // Initially showing General settings
     expect(screen.getByText(/General Settings/i)).toBeInTheDocument();
 
-    // Click on Startup tab
-    const startupTab = screen.getByRole("tab", { name: /Startup/i });
-    await user.click(startupTab);
+    // Click on Developer tab
+    const devTab = screen.getByRole("tab", { name: /Developer/i });
+    await user.click(devTab);
 
-    // Should now show Startup settings title
-    expect(screen.getByText(/Startup Settings/i)).toBeInTheDocument();
+    // Should now show Developer settings title
+    expect(screen.getByText(/Developer Settings/i)).toBeInTheDocument();
   });
 });

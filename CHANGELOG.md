@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 * Optimized thumbnail generation by skipping container parsing and image extraction if the thumbnail already exists, significantly improving performance. (#214)
+* Improved the settings screen layout by consolidating options into a more intuitive tab structure. (#217)
 
 ### Fixed
 

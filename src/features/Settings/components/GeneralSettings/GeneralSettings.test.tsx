@@ -23,6 +23,26 @@ vi.mock("./Items/ThemeSetting", () => {
   return { default: ThemeSetting };
 });
 
+vi.mock("./Items/InitialViewSetting", () => {
+  const InitialViewSetting = (): JSX.Element => <div data-testid="initial-view-setting" />;
+  InitialViewSetting.displayName = "InitialViewSetting";
+  return { default: InitialViewSetting };
+});
+
+vi.mock("./Items/RestoreLastBookSetting", () => {
+  const RestoreLastBookSetting = (): JSX.Element => <div data-testid="restore-last-book-setting" />;
+  RestoreLastBookSetting.displayName = "RestoreLastBookSetting";
+  return { default: RestoreLastBookSetting };
+});
+
+vi.mock("./Items/CheckUpdateOnStartupSetting", () => {
+  const CheckUpdateOnStartupSetting = (): JSX.Element => (
+    <div data-testid="check-update-on-startup-setting" />
+  );
+  CheckUpdateOnStartupSetting.displayName = "CheckUpdateOnStartupSetting";
+  return { default: CheckUpdateOnStartupSetting };
+});
+
 // Mock SettingsPanel
 vi.mock("../SettingsPanel", () => {
   const SettingsPanel = ({
@@ -52,5 +72,8 @@ describe("GeneralSettings", () => {
     expect(screen.getByTestId("language-setting")).toBeInTheDocument();
     expect(screen.getByTestId("app-font-family-setting")).toBeInTheDocument();
     expect(screen.getByTestId("theme-setting")).toBeInTheDocument();
+    expect(screen.getByTestId("initial-view-setting")).toBeInTheDocument();
+    expect(screen.getByTestId("restore-last-book-setting")).toBeInTheDocument();
+    expect(screen.getByTestId("check-update-on-startup-setting")).toBeInTheDocument();
   });
 });

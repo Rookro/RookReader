@@ -1,4 +1,4 @@
-import { expect, browser, $ } from "@wdio/globals";
+import { $, browser, expect } from "@wdio/globals";
 
 describe("RookReader Application E2E Tests", () => {
   it("should start successfully and render the React root element", async () => {
@@ -22,6 +22,7 @@ describe("RookReader Application E2E Tests", () => {
   it("should open settings when settings button is clicked", async () => {
     const settingsButton = $('[aria-label="settings"]');
     await settingsButton.waitForExist();
+    await settingsButton.waitForClickable();
     await settingsButton.click();
 
     await browser.waitUntil(

@@ -1,22 +1,15 @@
 import { FontDownloadOutlined, FormatSize } from "@mui/icons-material";
-import {
-  ListItem,
-  ListItemIcon,
-  ListItemText,
-  MenuItem,
-  Select,
-  type SelectChangeEvent,
-  Typography,
-} from "@mui/material";
+import { MenuItem, type SelectChangeEvent } from "@mui/material";
 import { emit } from "@tauri-apps/api/event";
 import { debug } from "@tauri-apps/plugin-log";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getFonts } from "../../../../../bindings/FontCommands";
-import NumberSpinner from "../../../../../components/ui/NumberSpinner";
 import { useAppDispatch, useAppSelector } from "../../../../../store/store";
 import type { SettingsChangedEvent } from "../../../../../types/SettingsChangedEvent";
 import { updateSettings } from "../../../slice";
+import NumberSpinnerSettingItem from "../../ui/NumberSpinnerSettingItem";
+import SelectSettingItem from "../../ui/SelectSettingItem";
 
 const defaultFont = "default-font";
 
@@ -34,7 +27,7 @@ export default function FontSettings() {
       debug(`Font family of novel reader changed: ${e.target.value}`);
       const newSettings = {
         ...readerSettings,
-        novel: { ...readerSettings.novel, fontFamily: e.target.value },
+        novel: { ...readerSettings.novel, fontFamily: e.target.value as string },
       };
       await dispatch(updateSettings({ key: "reader", value: newSettings }));
       emit<SettingsChangedEvent>("settings-changed", { appSettings: { reader: newSettings } });
@@ -51,7 +44,9 @@ export default function FontSettings() {
         novel: { ...readerSettings.novel, fontSize: value },
       };
       await dispatch(updateSettings({ key: "reader", value: newSettings }));
-      emit<SettingsChangedEvent>("settings-changed", { appSettings: { reader: newSettings } });
+      await emit<SettingsChangedEvent>("settings-changed", {
+        appSettings: { reader: newSettings },
+      });
     },
     [dispatch, readerSettings],
   );
@@ -66,45 +61,30 @@ export default function FontSettings() {
 
   return (
     <>
-      <ListItem>
-        <ListItemIcon>
-          <FontDownloadOutlined />
-        </ListItemIcon>
-        <ListItemText primary={t("settings.novel-reader.font.title")} />
-        <Select
-          label={t("settings.novel-reader.font.title")}
-          variant="standard"
-          defaultValue={readerSettings.novel.fontFamily}
-          onChange={handleFontChanged}
-          size="small"
-          autoWidth
-        >
-          <MenuItem value={defaultFont} sx={{ fontFamily: defaultFont }}>
-            {t("settings.novel-reader.font.default-font-name")}
+      <SelectSettingItem
+        icon={<FontDownloadOutlined />}
+        primaryText={t("settings.reader.font.title")}
+        defaultValue={readerSettings.novel.fontFamily}
+        onChange={handleFontChanged}
+      >
+        <MenuItem value={defaultFont} sx={{ fontFamily: defaultFont }}>
+          {t("settings.reader.font.default-font-name")}
+        </MenuItem>
+        {fonts.map((font) => (
+          <MenuItem key={font} value={font} sx={{ fontFamily: font }}>
+            {font}
           </MenuItem>
-          {fonts.map((font) => (
-            <MenuItem key={font} value={font} sx={{ fontFamily: font }}>
-              {font}
-            </MenuItem>
-          ))}
-        </Select>
-      </ListItem>
-      <ListItem>
-        <ListItemIcon>
-          <FormatSize />
-        </ListItemIcon>
-        <ListItemText primary={t("settings.novel-reader.font-size.title")} />
-        <NumberSpinner
-          defaultValue={readerSettings.novel.fontSize}
-          min={0.5}
-          max={100}
-          size="small"
-          onValueCommitted={handleFontSizeChanged}
-        />
-        <Typography variant="body2" sx={{ marginLeft: 1 }}>
-          px
-        </Typography>
-      </ListItem>
+        ))}
+      </SelectSettingItem>
+      <NumberSpinnerSettingItem
+        icon={<FormatSize />}
+        primaryText={t("settings.reader.font-size.title")}
+        defaultValue={readerSettings.novel.fontSize}
+        min={0.5}
+        max={100}
+        onValueCommitted={handleFontSizeChanged}
+        unit="px"
+      />
     </>
   );
 }

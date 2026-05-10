@@ -1,4 +1,4 @@
-import { expect, $ } from "@wdio/globals";
+import { $, expect } from "@wdio/globals";
 
 describe("RookReader E2E Tests - Reading Feature", () => {
   it("should navigate to the reader view from the bookshelf", async () => {
@@ -6,6 +6,7 @@ describe("RookReader E2E Tests - Reading Feature", () => {
     if (!(await bookshelf.isDisplayed())) {
       const libraryButton = $('button[aria-label="library"]');
       await libraryButton.waitForDisplayed();
+      await libraryButton.waitForClickable();
       await libraryButton.click();
     }
 
@@ -15,6 +16,7 @@ describe("RookReader E2E Tests - Reading Feature", () => {
     const returnToReaderButton = $('button[aria-label="book-reader"]');
     await returnToReaderButton.waitForDisplayed();
     await expect(returnToReaderButton).toBeDisplayed();
+    await returnToReaderButton.waitForClickable();
 
     await returnToReaderButton.click();
 
@@ -47,6 +49,7 @@ describe("RookReader E2E Tests - Reading Feature", () => {
   it("should return to the bookshelf when library button is clicked", async () => {
     const libraryBotton = $('button[aria-label="library"]');
     await libraryBotton.waitForDisplayed();
+    await libraryBotton.waitForClickable();
     await libraryBotton.click();
 
     // Verify the bookshelf view is displayed again

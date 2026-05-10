@@ -7,11 +7,8 @@ import BookshelfSettings from "./BookshelfSettings/BookshelfSettings";
 import DeveloperSettings from "./DeveloperSettings/DeveloperSettings";
 import FileNavigatorSettings from "./FileNavigatorSettings/FileNavigatorSettings";
 import GeneralSettings from "./GeneralSettings/GeneralSettings";
-import HistorySettings from "./HistorySettings/HistorySettings";
-import NovelReaderSettings from "./NovelReaderSettings/NovelReaderSettings";
-import PageSettings from "./PageSettings/PageSettings";
+import ReaderSettings from "./ReaderSettings/ReaderSettings";
 import RenderingSettings from "./RenderingSettings/RenderingSettings";
-import StartupSettings from "./StartupSettings/StartupSettings";
 
 /**
  * Settings page component.
@@ -26,13 +23,10 @@ export default function SettingsView() {
 
   const tabs: { label: string; panel: JSX.Element }[] = [
     { label: t("settings.general.tab-name"), panel: <GeneralSettings /> },
-    { label: t("settings.startup.tab-name"), panel: <StartupSettings /> },
     { label: t("settings.bookshelf.tab-name"), panel: <BookshelfSettings /> },
-    { label: t("settings.page.tab-name"), panel: <PageSettings /> },
     { label: t("settings.file-navigator.tab-name"), panel: <FileNavigatorSettings /> },
-    { label: t("settings.history.tab-name"), panel: <HistorySettings /> },
+    { label: t("settings.reader.tab-name"), panel: <ReaderSettings /> },
     { label: t("settings.rendering.tab-name"), panel: <RenderingSettings /> },
-    { label: t("settings.novel-reader.tab-name"), panel: <NovelReaderSettings /> },
     { label: t("settings.developer.tab-name"), panel: <DeveloperSettings /> },
     { label: t("settings.about.tab-name"), panel: <AboutPage /> },
   ];
@@ -52,7 +46,7 @@ export default function SettingsView() {
         value={value}
         onChange={handleChange}
         aria-label="setttings tabs"
-        sx={{ borderRight: 2, borderColor: "divider", width: "150px" }}
+        sx={{ borderRight: 2, borderColor: "divider" }}
       >
         {tabs.map((tab) => (
           <Tab key={tab.label} label={tab.label} />

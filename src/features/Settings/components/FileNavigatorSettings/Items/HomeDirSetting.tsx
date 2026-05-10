@@ -1,11 +1,13 @@
 import { Folder, HomeOutlined } from "@mui/icons-material";
 import { Box, IconButton, ListItem, ListItemIcon, ListItemText, TextField } from "@mui/material";
+import { emit } from "@tauri-apps/api/event";
 import { homeDir } from "@tauri-apps/api/path";
 import { open } from "@tauri-apps/plugin-dialog";
 import { error } from "@tauri-apps/plugin-log";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppDispatch, useAppSelector } from "../../../../../store/store";
+import type { SettingsChangedEvent } from "../../../../../types/SettingsChangedEvent";
 import { updateSettings } from "../../../slice";
 
 /**
@@ -39,7 +41,10 @@ export default function HomeDirSetting() {
         }
         setHomeDirPath(directory);
         const newFileNavigatorSettings = { ...fileNavigatorSettings, homeDirectory: directory };
-        dispatch(updateSettings({ key: "fileNavigator", value: newFileNavigatorSettings }));
+        await dispatch(updateSettings({ key: "fileNavigator", value: newFileNavigatorSettings }));
+        await emit<SettingsChangedEvent>("settings-changed", {
+          appSettings: { fileNavigator: newFileNavigatorSettings },
+        });
       } catch (e) {
         error(`${e}`);
       }
