@@ -1,12 +1,5 @@
 import { FontDownloadOutlined } from "@mui/icons-material";
-import {
-  ListItem,
-  ListItemIcon,
-  ListItemText,
-  MenuItem,
-  Select,
-  type SelectChangeEvent,
-} from "@mui/material";
+import { MenuItem, type SelectChangeEvent } from "@mui/material";
 import { debug, error } from "@tauri-apps/plugin-log";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
@@ -17,6 +10,7 @@ import {
   imageResamplingMethods,
 } from "../../../../../types/AppSettings";
 import { updateSettings } from "../../../slice";
+import SelectSettingItem from "../../ui/SelectSettingItem";
 
 /**
  * Image resize setting component.
@@ -54,7 +48,7 @@ export default function ImageResamplingMethodSetting() {
     async (e: SelectChangeEvent) => {
       debug(`Image Resampling Method changed: ${e.target.value}`);
       try {
-        setImageResamplingMethod(e.target.value);
+        await setImageResamplingMethod(e.target.value as string);
       } catch (e) {
         error(`Failed to set image resampling method: ${e}`);
         return;
@@ -72,29 +66,18 @@ export default function ImageResamplingMethodSetting() {
   );
 
   return (
-    <ListItem>
-      <ListItemIcon>
-        <FontDownloadOutlined />
-      </ListItemIcon>
-      <ListItemText
-        primary={t("settings.rendering.resize.resize-method.title")}
-        secondary={t("settings.rendering.resize.resize-method.description")}
-        sx={{ marginRight: "10px" }}
-      />
-      <Select
-        label={t("settings.rendering.resize.resize-method.title")}
-        variant="standard"
-        value={readerSettings.rendering.imageResamplingMethod}
-        onChange={handleMethodChanged}
-        size="small"
-        autoWidth
-      >
-        {imageResamplingMethods.map((method) => (
-          <MenuItem key={method} value={method}>
-            {getResizeMethodLabel(method)}
-          </MenuItem>
-        ))}
-      </Select>
-    </ListItem>
+    <SelectSettingItem
+      icon={<FontDownloadOutlined />}
+      primaryText={t("settings.rendering.resize.resize-method.title")}
+      secondaryText={t("settings.rendering.resize.resize-method.description")}
+      value={readerSettings.rendering.imageResamplingMethod}
+      onChange={handleMethodChanged}
+    >
+      {imageResamplingMethods.map((method) => (
+        <MenuItem key={method} value={method}>
+          {getResizeMethodLabel(method)}
+        </MenuItem>
+      ))}
+    </SelectSettingItem>
   );
 }

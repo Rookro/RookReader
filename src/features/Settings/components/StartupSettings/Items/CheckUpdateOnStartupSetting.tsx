@@ -1,9 +1,9 @@
 import { SystemUpdateAlt } from "@mui/icons-material";
-import { ListItem, ListItemIcon, ListItemText, Switch } from "@mui/material";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppDispatch, useAppSelector } from "../../../../../store/store";
 import { updateSettings } from "../../../slice";
+import SwitchSettingItem from "../../ui/SwitchSettingItem";
 
 /**
  * Check for updates on startup setting component.
@@ -25,23 +25,12 @@ export default function CheckUpdateOnStartupSetting() {
   );
 
   return (
-    <ListItem
-      secondaryAction={
-        <Switch
-          edge="end"
-          defaultChecked={startupSettings.checkUpdateOnStartup ?? true}
-          onChange={handleCheckUpdateChanged}
-        />
-      }
-    >
-      <ListItemIcon>
-        <SystemUpdateAlt />
-      </ListItemIcon>
-      <ListItemText
-        primary={t("settings.startup.check-update-on-startup.title")}
-        secondary={t("settings.startup.check-update-on-startup.description")}
-        sx={{ marginRight: 3 }}
-      />
-    </ListItem>
+    <SwitchSettingItem
+      icon={<SystemUpdateAlt />}
+      primaryText={t("settings.startup.check-update-on-startup.title")}
+      secondaryText={t("settings.startup.check-update-on-startup.description")}
+      defaultChecked={startupSettings.checkUpdateOnStartup ?? true}
+      onChange={handleCheckUpdateChanged}
+    />
   );
 }

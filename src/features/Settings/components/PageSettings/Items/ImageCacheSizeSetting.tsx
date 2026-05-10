@@ -1,14 +1,13 @@
 import { StorageOutlined } from "@mui/icons-material";
-import { ListItem, ListItemIcon, ListItemText } from "@mui/material";
 import { emit } from "@tauri-apps/api/event";
 import { error } from "@tauri-apps/plugin-log";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { setImageCacheSizeMib } from "../../../../../bindings/ContainerCommands";
-import NumberSpinner from "../../../../../components/ui/NumberSpinner";
 import { useAppDispatch, useAppSelector } from "../../../../../store/store";
 import type { SettingsChangedEvent } from "../../../../../types/SettingsChangedEvent";
 import { updateSettings } from "../../../slice";
+import NumberSpinnerSettingItem from "../../ui/NumberSpinnerSettingItem";
 
 /**
  * Image cache size setting component.
@@ -57,25 +56,17 @@ export default function ImageCacheSizeSetting() {
   );
 
   return (
-    <ListItem>
-      <ListItemIcon>
-        <StorageOutlined />
-      </ListItemIcon>
-      <ListItemText
-        primary={t("settings.page.cache.image-cache-size.title")}
-        secondary={t("settings.page.cache.image-cache-size.description")}
-        sx={{ marginRight: "10px" }}
-        slotProps={{ secondary: { sx: { whiteSpace: "pre-wrap" } } }}
-      />
-      <NumberSpinner
-        defaultValue={comicSettings.cache.imageCacheSizeMib}
-        min={128}
-        size="small"
-        error={isError}
-        helperText={errorMsg}
-        onValueCommitted={handleCommitted}
-        sx={{ minWidth: "200px" }}
-      />
-    </ListItem>
+    <NumberSpinnerSettingItem
+      icon={<StorageOutlined />}
+      primaryText={t("settings.page.cache.image-cache-size.title")}
+      secondaryText={t("settings.page.cache.image-cache-size.description")}
+      secondaryTextSx={{ whiteSpace: "pre-wrap" }}
+      defaultValue={comicSettings.cache.imageCacheSizeMib}
+      min={128}
+      error={isError}
+      helperText={errorMsg}
+      onValueCommitted={handleCommitted}
+      inputSx={{ minWidth: "200px" }}
+    />
   );
 }

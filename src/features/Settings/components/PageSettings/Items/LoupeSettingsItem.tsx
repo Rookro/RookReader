@@ -3,10 +3,10 @@ import { Box, ListItem, ListItemIcon, ListItemText, TextField } from "@mui/mater
 import { emit } from "@tauri-apps/api/event";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
-import NumberSpinner from "../../../../../components/ui/NumberSpinner";
 import { useAppDispatch, useAppSelector } from "../../../../../store/store";
 import type { SettingsChangedEvent } from "../../../../../types/SettingsChangedEvent";
 import { updateSettings } from "../../../slice";
+import NumberSpinnerSettingItem from "../../ui/NumberSpinnerSettingItem";
 
 /**
  * Loupe setting component.
@@ -227,39 +227,29 @@ export default function LoupeSettingsItem() {
         </Box>
       </ListItem>
 
-      <ListItem sx={{ paddingLeft: 9 }}>
-        <ListItemText
-          primary={t("settings.page.loupe.zoom")}
-          secondary={t("settings.page.loupe.zoom-description")}
-          sx={{ marginRight: "10px" }}
-          slotProps={{ secondary: { sx: { whiteSpace: "pre-wrap" } } }}
-        />
-        <NumberSpinner
-          defaultValue={readerSettings.comic.loupe?.zoom ?? 2}
-          min={1}
-          step={0.1}
-          size="small"
-          onValueCommitted={handleZoomChange}
-          sx={{ minWidth: "200px" }}
-        />
-      </ListItem>
+      <NumberSpinnerSettingItem
+        sx={{ paddingLeft: 9 }}
+        primaryText={t("settings.page.loupe.zoom")}
+        secondaryText={t("settings.page.loupe.zoom-description")}
+        secondaryTextSx={{ whiteSpace: "pre-wrap" }}
+        defaultValue={readerSettings.comic.loupe?.zoom ?? 2}
+        min={1}
+        step={0.1}
+        onValueCommitted={handleZoomChange}
+        inputSx={{ minWidth: "200px" }}
+      />
 
-      <ListItem sx={{ paddingLeft: 9 }}>
-        <ListItemText
-          primary={t("settings.page.loupe.radius")}
-          secondary={t("settings.page.loupe.radius-description")}
-          sx={{ marginRight: "10px" }}
-          slotProps={{ secondary: { sx: { whiteSpace: "pre-wrap" } } }}
-        />
-        <NumberSpinner
-          defaultValue={readerSettings.comic.loupe?.radius ?? 150}
-          min={50}
-          step={10}
-          size="small"
-          onValueCommitted={handleRadiusChange}
-          sx={{ minWidth: "200px" }}
-        />
-      </ListItem>
+      <NumberSpinnerSettingItem
+        sx={{ paddingLeft: 9 }}
+        primaryText={t("settings.page.loupe.radius")}
+        secondaryText={t("settings.page.loupe.radius-description")}
+        secondaryTextSx={{ whiteSpace: "pre-wrap" }}
+        defaultValue={readerSettings.comic.loupe?.radius ?? 150}
+        min={50}
+        step={10}
+        onValueCommitted={handleRadiusChange}
+        inputSx={{ minWidth: "200px" }}
+      />
     </>
   );
 }
