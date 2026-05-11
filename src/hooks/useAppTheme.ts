@@ -13,7 +13,18 @@ import { useAppSelector } from "../store/store";
  */
 export function useAppTheme(): Theme {
   const prefersDarkMode = useMediaQuery("(prefers-color-scheme: dark)");
+  const themeSetting = useAppSelector((state) => state.settings.general.theme);
   const fontFamily = useAppSelector((state) => state.settings.general.appFontFamily);
+
+  const isDarkMode = useMemo(() => {
+    if (themeSetting === "dark") {
+      return true;
+    } else if (themeSetting === "light") {
+      return false;
+    } else {
+      return prefersDarkMode;
+    }
+  }, [themeSetting, prefersDarkMode]);
 
   const theme = useMemo(
     () =>
@@ -26,9 +37,9 @@ export function useAppTheme(): Theme {
           fontFamily: `${fontFamily}`,
         },
         palette: {
-          mode: prefersDarkMode ? "dark" : "light",
+          mode: isDarkMode ? "dark" : "light",
           background: {
-            paper: prefersDarkMode ? "#2f2f2f" : "#f6f6f6",
+            paper: isDarkMode ? "#2f2f2f" : "#f6f6f6",
           },
         },
         components: {
@@ -71,7 +82,7 @@ export function useAppTheme(): Theme {
           },
         },
       }),
-    [prefersDarkMode, fontFamily],
+    [isDarkMode, fontFamily],
   );
 
   return theme;

@@ -21,10 +21,10 @@ describe("useAppTheme", () => {
     vi.clearAllMocks();
   });
 
-  // Verify that light theme is correctly returned when dark mode is disabled
-  it("should return a light theme when prefersDarkMode is false", () => {
-    vi.mocked(useMediaQuery).mockReturnValue(false);
-    vi.mocked(useAppSelector).mockReturnValue("Roboto");
+  // Verify that light theme is correctly returned when app setting is 'light' regardless of OS preference
+  it("should return a light theme when theme setting is 'light'", () => {
+    vi.mocked(useMediaQuery).mockReturnValue(true); // OS is dark
+    vi.mocked(useAppSelector).mockReturnValueOnce("light").mockReturnValueOnce("Roboto");
 
     const { result } = renderHook(() => useAppTheme());
 
@@ -32,10 +32,10 @@ describe("useAppTheme", () => {
     expect(result.current.typography.fontFamily).toBe("Roboto");
   });
 
-  // Verify that dark theme is correctly returned when dark mode is enabled
-  it("should return a dark theme when prefersDarkMode is true", () => {
-    vi.mocked(useMediaQuery).mockReturnValue(true);
-    vi.mocked(useAppSelector).mockReturnValue("Arial");
+  // Verify that dark theme is correctly returned when app setting is 'dark' regardless of OS preference
+  it("should return a dark theme when theme setting is 'dark'", () => {
+    vi.mocked(useMediaQuery).mockReturnValue(false); // OS is light
+    vi.mocked(useAppSelector).mockReturnValueOnce("dark").mockReturnValueOnce("Arial");
 
     const { result } = renderHook(() => useAppTheme());
 
@@ -44,10 +44,26 @@ describe("useAppTheme", () => {
     expect(result.current.typography.fontFamily).toBe("Arial");
   });
 
+  // Verify that system theme correctly follows OS preference when app setting is 'system'
+  it("should follow OS preference when theme setting is 'system'", () => {
+    // Case 1: System is dark
+    vi.mocked(useMediaQuery).mockReturnValue(true);
+    vi.mocked(useAppSelector).mockReturnValueOnce("system").mockReturnValueOnce("Roboto");
+
+    const { result: darkResult } = renderHook(() => useAppTheme());
+    expect(darkResult.current.palette.mode).toBe("dark");
+
+    // Case 2: System is light
+    vi.mocked(useMediaQuery).mockReturnValue(false);
+    vi.mocked(useAppSelector).mockReturnValueOnce("system").mockReturnValueOnce("Roboto");
+    const { result: lightResult } = renderHook(() => useAppTheme());
+    expect(lightResult.current.palette.mode).toBe("light");
+  });
+
   // Verify that theme style overrides (e.g., CSS Baseline) are correctly defined and executable
   it("should have styleOverrides that can be executed", () => {
     vi.mocked(useMediaQuery).mockReturnValue(true);
-    vi.mocked(useAppSelector).mockReturnValue("Roboto");
+    vi.mocked(useAppSelector).mockReturnValueOnce("dark").mockReturnValueOnce("Roboto");
 
     const { result } = renderHook(() => useAppTheme());
     const theme = result.current;

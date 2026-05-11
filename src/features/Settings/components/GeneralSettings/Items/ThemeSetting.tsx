@@ -12,11 +12,13 @@ import {
   ToggleButtonGroup,
 } from "@mui/material";
 import { app } from "@tauri-apps/api";
+import { emit } from "@tauri-apps/api/event";
 import type { Theme } from "@tauri-apps/api/window";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppDispatch, useAppSelector } from "../../../../../store/store";
 import type { AppTheme } from "../../../../../types/AppSettings";
+import type { SettingsChangedEvent } from "../../../../../types/SettingsChangedEvent";
 import { updateSettings } from "../../../slice";
 
 /**
@@ -40,8 +42,11 @@ export default function ThemeSetting() {
     async (_e: React.MouseEvent<HTMLElement>, newTheme: AppTheme) => {
       if (newTheme !== null) {
         const newGeneralSettings = { ...generalSettings, theme: newTheme };
-        dispatch(updateSettings({ key: "general", value: newGeneralSettings }));
+        await dispatch(updateSettings({ key: "general", value: newGeneralSettings }));
         await app.setTheme(toTauriTheme.get(newTheme));
+        await emit<SettingsChangedEvent>("settings-changed", {
+          appSettings: { general: newGeneralSettings },
+        });
       }
     },
     [generalSettings, dispatch],
