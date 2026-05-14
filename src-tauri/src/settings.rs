@@ -140,17 +140,33 @@ impl fmt::Display for AppSettings {
 }
 
 /// General application settings.
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct GeneralSettings {
     /// The application's color theme.
     pub theme: AppTheme,
     /// The font family used for the application's UI.
+    #[serde(default = "default_app_font_family")]
     pub app_font_family: String,
     /// Configuration for application logging.
     pub log: LogSettings,
     /// A flexible map for toggling or configuring experimental features.
     pub experimental_features: HashMap<String, serde_json::Value>,
+}
+
+impl Default for GeneralSettings {
+    fn default() -> Self {
+        Self {
+            theme: AppTheme::default(),
+            app_font_family: default_app_font_family(),
+            log: LogSettings::default(),
+            experimental_features: HashMap::new(),
+        }
+    }
+}
+
+fn default_app_font_family() -> String {
+    "Inter, Avenir, Helvetica, Arial, sans-serif".to_string()
 }
 
 /// Configuration for application logging.
@@ -325,13 +341,32 @@ fn default_loupe_toggle_key() -> String {
 }
 
 /// Configuration specific to reading novels (text-based content).
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct NovelSettings {
     /// The font family used for rendering the text.
+    #[serde(default = "default_novel_font_family")]
     pub font_family: String,
     /// The size of the font used for rendering the text.
+    #[serde(default = "default_novel_font_size")]
     pub font_size: i32,
+}
+
+impl Default for NovelSettings {
+    fn default() -> Self {
+        Self {
+            font_family: default_novel_font_family(),
+            font_size: default_novel_font_size(),
+        }
+    }
+}
+
+fn default_novel_font_family() -> String {
+    "default-font".to_string()
+}
+
+fn default_novel_font_size() -> i32 {
+    16
 }
 
 /// Configuration for image and document rendering.
@@ -506,10 +541,16 @@ mod tests {
         );
         // Check static defaults
         assert!(matches!(settings.general.theme, AppTheme::System));
+        assert_eq!(
+            settings.general.app_font_family,
+            "Inter, Avenir, Helvetica, Arial, sans-serif"
+        );
         assert!(settings.reader.comic.enable_spread);
         assert_eq!(settings.reader.comic.loupe.zoom, 2.0);
         assert_eq!(settings.reader.comic.loupe.radius, 200.0);
         assert_eq!(settings.reader.comic.loupe.toggle_key, "MouseMiddle");
+        assert_eq!(settings.reader.novel.font_family, "default-font");
+        assert_eq!(settings.reader.novel.font_size, 16);
     }
 
     #[test]
