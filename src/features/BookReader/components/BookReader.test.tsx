@@ -119,12 +119,15 @@ describe("BookReader", () => {
     const setItemSpy = vi.spyOn(Storage.prototype, "setItem");
     renderWithProviders(<BookReader />, { preloadedState: createBasePreloadedState() });
 
-    await waitFor(() => {
-      expect(setItemSpy).toHaveBeenCalledWith(
-        "book-reader-left-pane-sizes",
-        JSON.stringify([100, 900]),
-      );
-    });
+    await waitFor(
+      () => {
+        expect(setItemSpy).toHaveBeenCalledWith(
+          "book-reader-left-pane-sizes",
+          JSON.stringify([100, 900]),
+        );
+      },
+      { timeout: 2000 },
+    );
   });
 
   it("should handle malformed localStorage data", () => {

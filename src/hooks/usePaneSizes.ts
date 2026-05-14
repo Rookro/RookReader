@@ -1,6 +1,6 @@
 import { debounce } from "@mui/material";
 import { error } from "@tauri-apps/plugin-log";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 
 /**
  * A custom hook to manage pane sizes in localStorage.
@@ -31,6 +31,12 @@ export function usePaneSizes(storageKey: string) {
       }, 500),
     [storageKey],
   );
+
+  useEffect(() => {
+    return () => {
+      handlePaneSizeChanged.clear();
+    };
+  }, [handlePaneSizeChanged]);
 
   return { paneSizes, handlePaneSizeChanged };
 }
