@@ -18,30 +18,30 @@ describe("SideTabs", () => {
     expect(screen.getByLabelText("Tab 2")).toBeInTheDocument();
   });
 
-  it("should dispatch setLeftSideTabIndex and setIsLeftSidePanelsHidden(false) when a different tab is clicked", async () => {
+  it("should update layout settings when a different tab is clicked", async () => {
     const { store } = renderWithProviders(<SideTabs tabs={mockTabs} index={0} isHidden={true} />);
 
     const tab2 = screen.getByLabelText("Tab 2");
     await user.click(tab2);
 
-    expect(store.getState().sidePane.left.tabIndex).toBe(1);
-    expect(store.getState().sidePane.left.isHidden).toBe(false);
+    expect(store.getState().settings.layout.sidePane.tabIndex).toBe(1);
+    expect(store.getState().settings.layout.sidePane.isHidden).toBe(false);
   });
 
   it("should toggle visibility when the same tab is clicked (visible -> hidden)", async () => {
     const { store } = renderWithProviders(<SideTabs tabs={mockTabs} index={0} isHidden={false} />);
     await user.click(screen.getByLabelText("Tab 1"));
-    expect(store.getState().sidePane.left.isHidden).toBe(true);
+    expect(store.getState().settings.layout.sidePane.isHidden).toBe(true);
   });
 
   it("should toggle visibility when the same tab is clicked (hidden -> visible)", async () => {
     const { store } = renderWithProviders(<SideTabs tabs={mockTabs} index={0} isHidden={true} />);
     await user.click(screen.getByLabelText("Tab 1"));
-    expect(store.getState().sidePane.left.isHidden).toBe(false);
+    expect(store.getState().settings.layout.sidePane.isHidden).toBe(false);
   });
 
   it("should reset tabIndex if current index is out of bounds", () => {
     const { store } = renderWithProviders(<SideTabs tabs={mockTabs} index={5} isHidden={false} />);
-    expect(store.getState().sidePane.left.tabIndex).toBe(0);
+    expect(store.getState().settings.layout.sidePane.tabIndex).toBe(0);
   });
 });

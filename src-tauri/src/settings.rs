@@ -75,6 +75,8 @@ pub struct AppSettings {
     pub reader: ReaderSettings,
     /// Settings related to user history and tracking.
     pub history: HistorySettings,
+    /// Settings related to the application's layout.
+    pub layout: LayoutSettings,
 }
 
 impl AppSettings {
@@ -412,6 +414,24 @@ impl Default for HistorySettings {
     }
 }
 
+/// Settings related to the application's layout.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase", default)]
+pub struct LayoutSettings {
+    /// Settings for the side pane (tabs and visibility).
+    pub side_pane: SidePaneSettings,
+}
+
+/// Settings for the side pane.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase", default)]
+pub struct SidePaneSettings {
+    /// Whether the side pane is hidden.
+    pub is_hidden: bool,
+    /// The index of the active tab in the side pane.
+    pub tab_index: i32,
+}
+
 /// Represents the application's visual theme.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
@@ -558,7 +578,8 @@ mod tests {
         let provider = MockProvider {
             mock_json: json!({
                 "general": { "theme": "dark" },
-                "reader": { "comic": { "enableSpread": false, "loupe": { "zoom": 3.0, "toggleKey": "Alt+l" } } }
+                "reader": { "comic": { "enableSpread": false, "loupe": { "zoom": 3.0, "toggleKey": "Alt+l" } } },
+                "layout": { "sidePane": { "isHidden": true, "tabIndex": 2 } }
             }),
         };
         let settings = AppSettings::load_from_provider(&provider).unwrap();
@@ -568,6 +589,8 @@ mod tests {
         assert!(!settings.reader.comic.enable_spread);
         assert_eq!(settings.reader.comic.loupe.zoom, 3.0);
         assert_eq!(settings.reader.comic.loupe.toggle_key, "Alt+l");
+        assert!(settings.layout.side_pane.is_hidden);
+        assert_eq!(settings.layout.side_pane.tab_index, 2);
 
         // Omitted values should fall back to defaults safely
         assert!(matches!(settings.startup.initial_view, InitialView::Reader));

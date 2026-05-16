@@ -1,16 +1,23 @@
 import { Close } from "@mui/icons-material";
 import { Divider, IconButton, Stack, Typography } from "@mui/material";
 import { useCallback } from "react";
-import { useAppDispatch } from "../../../store/store";
-import { setIsLeftSidePanelsHidden } from "../slice";
+import { useAppDispatch, useAppSelector } from "../../../store/store";
+import { updateSettings } from "../../Settings/slice";
 
 export default function SidePanelHeader(props: { title: string }) {
   const dispatch = useAppDispatch();
+  const tabIndex = useAppSelector((state) => state.settings.layout.sidePane.tabIndex);
+
   const handleCloseClicked = useCallback(
     (_e: React.MouseEvent<HTMLButtonElement>) => {
-      dispatch(setIsLeftSidePanelsHidden(true));
+      dispatch(
+        updateSettings({
+          key: "layout",
+          value: { sidePane: { isHidden: true, tabIndex } },
+        }),
+      );
     },
-    [dispatch],
+    [dispatch, tabIndex],
   );
 
   return (
