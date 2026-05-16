@@ -74,7 +74,6 @@ export default function BookReader({ sx }: BookReaderProps) {
       // Only update if the side pane is visible and has a non-zero size.
       // This prevents saving 0 sizes when the pane is hidden or in the process of being hidden.
       if (!isHidden && sizes.length > 0 && sizes[0] > 0) {
-        console.log(`not hidden sizes: ${sizes}`);
         setPaneSizes(sizes);
       }
     },
