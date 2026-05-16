@@ -11,6 +11,7 @@ vi.mock("../../bindings/BookCommands", () => ({
   getBookTags: vi.fn(() => Promise.resolve([])),
   updateBookTags: vi.fn(() => Promise.resolve([])),
   updateBookSeries: vi.fn(() => Promise.resolve([])),
+  updateSeriesOrders: vi.fn(() => Promise.resolve([])),
   upsertReadingState: vi.fn(() => Promise.resolve([])),
   clearReadingHistory: vi.fn(() => Promise.resolve([])),
   clearAllReadingHistory: vi.fn(() => Promise.resolve([])),

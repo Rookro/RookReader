@@ -5,6 +5,7 @@ import {
   deleteBook,
   getAllBooksWithState,
   getBooksWithStateByBookshelfId,
+  updateSeriesOrders,
   upsertBook,
 } from "../../bindings/BookCommands";
 import {
@@ -36,6 +37,31 @@ export const addBookshelf = createAppAsyncThunk(
       return await createBookshelf(name, icon_id);
     } catch (e) {
       const errorMessage = `Failed to add bookshelf(name: ${name}, icon_id: ${icon_id}). Error: ${JSON.stringify(e)}`;
+      error(errorMessage);
+      return rejectWithValue(
+        e instanceof CommandError
+          ? { code: e.code, message: errorMessage }
+          : { code: ErrorCode.OTHER_ERROR, message: errorMessage },
+      );
+    }
+  },
+);
+
+/**
+ * Updates the order of books within a series and refetches the bookshelf to reflect the changes.
+ *
+ * @param bookIds - The array of book IDs in the desired new order.
+ * @returns A thunk that resolves when the update is successful.
+ */
+export const updateSeriesOrdersThunk = createAppAsyncThunk(
+  "bookCollection/updateSeriesOrdersThunk",
+  async (bookIds: number[], { rejectWithValue, dispatch, getState }) => {
+    try {
+      await updateSeriesOrders(bookIds);
+      const state = getState().bookCollection;
+      dispatch(fetchBooksInSelectedBookshelf(state.bookshelf.selectedId));
+    } catch (e) {
+      const errorMessage = `Failed to update series orders. Error: ${JSON.stringify(e)}`;
       error(errorMessage);
       return rejectWithValue(
         e instanceof CommandError
@@ -336,6 +362,8 @@ const bookCollectionSlice = createSlice({
   name: "bookCollection",
   initialState: {
     searchText: "",
+    isEditSeriesOrderDialogOpen: false,
+    editSeriesOrderTargetId: null as number | null,
     bookshelf: {
       bookshelves: [] as Bookshelf[],
       selectedId: null as number | null,
@@ -358,6 +386,19 @@ const bookCollectionSlice = createSlice({
     },
   },
   reducers: {
+    /**
+     * Opens or closes the Edit Series Order dialog for a specific series.
+     *
+     * @param state - The current Redux state slice.
+     * @param action - Payload containing isOpen flag and the series ID (if opening).
+     */
+    setEditSeriesOrderDialogState(
+      state,
+      action: PayloadAction<{ isOpen: boolean; seriesId: number | null }>,
+    ) {
+      state.isEditSeriesOrderDialogOpen = action.payload.isOpen;
+      state.editSeriesOrderTargetId = action.payload.seriesId;
+    },
     /**
      * Optimistically adds a newly created bookshelf to the state.
      *
@@ -592,5 +633,6 @@ export const {
   clearBookshelfError,
   clearTagError,
   clearSeriesError,
+  setEditSeriesOrderDialogState,
 } = bookCollectionSlice.actions;
 export default bookCollectionSlice.reducer;
