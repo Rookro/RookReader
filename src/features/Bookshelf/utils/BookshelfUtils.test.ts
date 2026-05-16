@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createMockBookWithState, createMockSeries } from "../../../test/factories";
 import type { GridItem } from "../components/BookGridCell";
-import { andSearch, sortBy, sortByGridItem } from "./BookshelfUtils";
+import { andSearch, sortBy, sortByGridItem, sortBySeriesOrder } from "./BookshelfUtils";
 
 describe("BookshelfUtils", () => {
   const mockBooks = [
@@ -62,6 +62,36 @@ describe("BookshelfUtils", () => {
 
     it("should sort by date_desc", () => {
       expect(sortBy(a, b, "date_desc")).toBeGreaterThan(0);
+    });
+  });
+
+  describe("sortBySeriesOrder", () => {
+    it("should sort by series_order ascending", () => {
+      const a = createMockBookWithState({ id: 1, series_order: 1, display_name: "A" });
+      const b = createMockBookWithState({ id: 2, series_order: 2, display_name: "B" });
+      expect(sortBySeriesOrder(a, b)).toBeLessThan(0);
+      expect(sortBySeriesOrder(b, a)).toBeGreaterThan(0);
+    });
+
+    it("should place null series_order at the end", () => {
+      const a = createMockBookWithState({ id: 1, series_order: 1, display_name: "A" });
+      const nullBook = createMockBookWithState({ id: 2, series_order: null, display_name: "B" });
+      expect(sortBySeriesOrder(a, nullBook)).toBeLessThan(0);
+      expect(sortBySeriesOrder(nullBook, a)).toBeGreaterThan(0);
+    });
+
+    it("should fallback to display_name ascending if both series_order are null", () => {
+      const a = createMockBookWithState({ id: 1, series_order: null, display_name: "Apple" });
+      const b = createMockBookWithState({ id: 2, series_order: null, display_name: "Banana" });
+      expect(sortBySeriesOrder(a, b)).toBeLessThan(0);
+      expect(sortBySeriesOrder(b, a)).toBeGreaterThan(0);
+    });
+
+    it("should fallback to display_name ascending if series_orders are equal", () => {
+      const a = createMockBookWithState({ id: 1, series_order: 1, display_name: "Apple" });
+      const b = createMockBookWithState({ id: 2, series_order: 1, display_name: "Banana" });
+      expect(sortBySeriesOrder(a, b)).toBeLessThan(0);
+      expect(sortBySeriesOrder(b, a)).toBeGreaterThan(0);
     });
   });
 

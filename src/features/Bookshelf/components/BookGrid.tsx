@@ -11,7 +11,7 @@ import { updateSettings } from "../../Settings/slice";
 import { useBookSelection } from "../hooks/useBookSelection";
 import { type BookshelfDialogType, useBookshelfDialogs } from "../hooks/useBookshelfDialogs";
 import { fetchBooksInSelectedBookshelf, fetchSeries, setSelectedSeriesId } from "../slice";
-import { andSearch, sortBy, sortByGridItem } from "../utils/BookshelfUtils";
+import { andSearch, sortBy, sortByGridItem, sortBySeriesOrder } from "../utils/BookshelfUtils";
 import BookGridCell, { type BookGridCellProps, type GridItem } from "./BookGridCell";
 import { BookshelfActionsContext } from "./BookshelfActionsContext";
 import AddBooksToBookshelvesDialog from "./Dialog/AddBooksToBookshelvesDialog";
@@ -128,7 +128,7 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
     if (selectedSeriesId !== null) {
       return searchedBooks
         .filter((book) => book.series_id === selectedSeriesId)
-        .sort((a, b) => sortBy(a, b, bookshelfSettings.sortOrder))
+        .sort(sortBySeriesOrder)
         .map((book) => ({ type: "book" as const, data: book }));
     }
 

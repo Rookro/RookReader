@@ -104,4 +104,20 @@ describe("NavigationBar", () => {
 
     expect(store.getState().bookCollection.series.selectedId).toBeNull();
   });
+
+  it("should hide sort controls when a series is selected", () => {
+    const preloadedState = createBasePreloadedState();
+    preloadedState.bookCollection.series = {
+      series: [{ id: 1, name: "Selected Series", created_at: "2026-03-01T15:30:00" }],
+      selectedId: 1,
+      books: [],
+      status: "idle",
+      error: null,
+    };
+
+    renderWithProviders(<NavigationBar />, { preloadedState });
+
+    expect(screen.queryByText(i18n.t("bookshelf.sort.title"))).not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+  });
 });

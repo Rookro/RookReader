@@ -70,6 +70,30 @@ export const sortBy = (a: BookWithState, b: BookWithState, sortOrder: SortOrder)
 };
 
 /**
+ * Comparison function for sorting an array of BookWithState objects by their series_order.
+ * Books with null series_order are placed at the end.
+ * Fallback to display_name (locale-aware) if both have null or the same series_order.
+ *
+ * @param a - The first BookWithState object for comparison.
+ * @param b - The second BookWithState object for comparison.
+ * @returns A number indicating the sort order.
+ */
+export const sortBySeriesOrder = (a: BookWithState, b: BookWithState) => {
+  if (a.series_order !== null && b.series_order !== null) {
+    if (a.series_order !== b.series_order) {
+      return a.series_order - b.series_order;
+    }
+  } else if (a.series_order !== null && b.series_order === null) {
+    return -1; // a comes first
+  } else if (a.series_order === null && b.series_order !== null) {
+    return 1; // b comes first
+  }
+
+  // Fallback: name_asc
+  return a.display_name.localeCompare(b.display_name);
+};
+
+/**
  * Comparison function for sorting an array of GridItem objects based on a specified criterion and order.
  *
  * @param a - The first GridItem for comparison.

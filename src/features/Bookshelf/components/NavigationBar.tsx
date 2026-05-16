@@ -149,45 +149,49 @@ export default function NavigationBar() {
         </IconButton>
       </Toolbar>
       <Toolbar variant="dense" disableGutters sx={{ paddingBottom: 1, justifyContent: "flex-end" }}>
-        <Typography variant="body2" sx={{ alignContent: "center" }}>
-          {t("bookshelf.sort.title")}
-        </Typography>
-        <Select
-          size="small"
-          autoWidth
-          sx={{ marginX: 1 }}
-          defaultValue={bookshelfSettings.sortOrder}
-          onChange={handleSortOrderChanged}
-        >
-          <MenuItem value="name_asc">
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              <ArrowUpward fontSize="small" />
-              <Typography variant="body2">{t("bookshelf.sort.name-asc")}</Typography>
-            </Box>
-          </MenuItem>
-          <MenuItem value="name_desc">
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              <ArrowDownward fontSize="small" />
-              <Typography variant="body2">{t("bookshelf.sort.name-desc")}</Typography>
-            </Box>
-          </MenuItem>
-          <MenuItem value="date_asc">
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              <ArrowUpward fontSize="small" color="action" />
-              <Typography variant="body2">{t("bookshelf.sort.date-asc")}</Typography>
-            </Box>
-          </MenuItem>
-          <MenuItem value="date_desc">
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              <ArrowDownward fontSize="small" color="action" />
-              <Typography variant="body2">{t("bookshelf.sort.date-desc")}</Typography>
-            </Box>
-          </MenuItem>
-        </Select>
+        {selectedSeriesId === null && (
+          <>
+            <Typography variant="body2" sx={{ alignContent: "center" }}>
+              {t("bookshelf.sort.title")}
+            </Typography>
+            <Select
+              size="small"
+              autoWidth
+              sx={{ marginX: 1 }}
+              defaultValue={bookshelfSettings.sortOrder}
+              onChange={handleSortOrderChanged}
+            >
+              <MenuItem value="name_asc">
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <ArrowUpward fontSize="small" />
+                  <Typography variant="body2">{t("bookshelf.sort.name-asc")}</Typography>
+                </Box>
+              </MenuItem>
+              <MenuItem value="name_desc">
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <ArrowDownward fontSize="small" />
+                  <Typography variant="body2">{t("bookshelf.sort.name-desc")}</Typography>
+                </Box>
+              </MenuItem>
+              <MenuItem value="date_asc">
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <ArrowUpward fontSize="small" color="action" />
+                  <Typography variant="body2">{t("bookshelf.sort.date-asc")}</Typography>
+                </Box>
+              </MenuItem>
+              <MenuItem value="date_desc">
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <ArrowDownward fontSize="small" color="action" />
+                  <Typography variant="body2">{t("bookshelf.sort.date-desc")}</Typography>
+                </Box>
+              </MenuItem>
+            </Select>
+          </>
+        )}
         <Button
           variant="contained"
           startIcon={<Add />}
-          sx={{ borderRadius: 50 }}
+          sx={{ borderRadius: 50, marginLeft: 1 }}
           onClick={handleAddClicked}
         >
           {t("bookshelf.add-books")}
