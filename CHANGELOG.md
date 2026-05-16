@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Fixed an issue where the bookshelf's virtual scroll rendered all items at once. (#215)
 * Fixed an issue where the startup screen setting was not applied correctly on launch. (#220)
+* Fixed an issue where the side pane width was reset on the next launch if the app was closed while the pane was hidden. (#224)
 
 ## [2.1.1] - 2026-05-07
 

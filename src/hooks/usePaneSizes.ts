@@ -24,7 +24,7 @@ export function usePaneSizes(storageKey: string) {
     return undefined;
   }, [storageKey]);
 
-  const handlePaneSizeChanged = useMemo(
+  const setPaneSizes = useMemo(
     () =>
       debounce((sizes: number[]) => {
         localStorage.setItem(storageKey, JSON.stringify(sizes));
@@ -34,9 +34,9 @@ export function usePaneSizes(storageKey: string) {
 
   useEffect(() => {
     return () => {
-      handlePaneSizeChanged.clear();
+      setPaneSizes.clear();
     };
-  }, [handlePaneSizeChanged]);
+  }, [setPaneSizes]);
 
-  return { paneSizes, handlePaneSizeChanged };
+  return { paneSizes, setPaneSizes };
 }

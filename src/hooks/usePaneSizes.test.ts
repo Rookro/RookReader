@@ -51,7 +51,7 @@ describe("usePaneSizes", () => {
   it("should debounce updating localStorage", () => {
     const { result } = renderHook(() => usePaneSizes(TEST_KEY));
 
-    result.current.handlePaneSizeChanged([300, 700]);
+    result.current.setPaneSizes([300, 700]);
 
     // Should not be updated immediately due to debounce
     expect(localStorage.getItem(TEST_KEY)).toBeNull();
