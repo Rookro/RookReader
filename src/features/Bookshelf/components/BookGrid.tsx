@@ -11,7 +11,7 @@ import { updateSettings } from "../../Settings/slice";
 import { useBookSelection } from "../hooks/useBookSelection";
 import { type BookshelfDialogType, useBookshelfDialogs } from "../hooks/useBookshelfDialogs";
 import { fetchBooksInSelectedBookshelf, fetchSeries, setSelectedSeriesId } from "../slice";
-import { andSearch, sortBy, sortByGridItem, sortBySeriesOrder } from "../utils/BookshelfUtils";
+import { andSearch, sortByGridItem, sortBySeriesOrder } from "../utils/BookshelfUtils";
 import BookGridCell, { type BookGridCellProps, type GridItem } from "./BookGridCell";
 import { BookshelfActionsContext } from "./BookshelfActionsContext";
 import AddBooksToBookshelvesDialog from "./Dialog/AddBooksToBookshelvesDialog";

@@ -83,6 +83,9 @@
         "no-search-results": "No search results for \"{{searchText}}\".",
         "ok-button": "ok",
         "cancel-button": "cancel"
+      },
+      "edit-order": {
+        "title": "Edit Series Order"
       }
     },
     "search-placeholder": "Search by title...",
