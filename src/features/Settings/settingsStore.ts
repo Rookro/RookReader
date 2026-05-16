@@ -63,6 +63,12 @@ export const defaultSettings: AppSettings = {
   history: {
     recordReadingHistory: true,
   },
+  layout: {
+    sidePane: {
+      isHidden: false,
+      tabIndex: 0,
+    },
+  },
 };
 
 /**

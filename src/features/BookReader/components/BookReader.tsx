@@ -21,15 +21,15 @@ import NovelReader from "./NovelReader";
 const selectBookReaderState = createSelector(
   [
     (state: RootState) => state.view.activeView,
-    (state: RootState) => state.sidePane.left,
+    (state: RootState) => state.settings.layout.sidePane,
     (state: RootState) => state.read.containerFile,
     (state: RootState) => state.settings.history,
     (state: RootState) => state.settings.startup,
   ],
-  (activeView, leftPane, containerFile, historySettings, startupSettings) => ({
+  (activeView, sidePane, containerFile, historySettings, startupSettings) => ({
     activeView,
-    isHidden: leftPane.isHidden,
-    tabIndex: leftPane.tabIndex,
+    isHidden: sidePane.isHidden,
+    tabIndex: sidePane.tabIndex,
     history: containerFile.history,
     historyIndex: containerFile.historyIndex,
     isNovel: containerFile.isNovel,

@@ -55,6 +55,12 @@ describe("AppSettingsSchema", () => {
     history: {
       recordReadingHistory: true,
     },
+    layout: {
+      sidePane: {
+        isHidden: false,
+        tabIndex: 0,
+      },
+    },
   };
 
   it("should validate a correct settings object", () => {

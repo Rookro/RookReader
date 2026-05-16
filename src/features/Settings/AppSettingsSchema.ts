@@ -76,6 +76,13 @@ export const HistorySettingsSchema = z.object({
   recordReadingHistory: z.boolean(),
 });
 
+export const LayoutSettingsSchema = z.object({
+  sidePane: z.object({
+    isHidden: z.boolean(),
+    tabIndex: z.number(),
+  }),
+});
+
 export const AppSettingsSchema = z.object({
   general: GeneralSettingsSchema,
   startup: StartupSettingsSchema,
@@ -83,4 +90,5 @@ export const AppSettingsSchema = z.object({
   fileNavigator: FileNavigatorSettingsSchema,
   reader: ReaderSettingsSchema,
   history: HistorySettingsSchema,
+  layout: LayoutSettingsSchema,
 });
