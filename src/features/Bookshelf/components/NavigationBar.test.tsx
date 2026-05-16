@@ -120,4 +120,23 @@ describe("NavigationBar", () => {
     expect(screen.queryByText(i18n.t("bookshelf.sort.title"))).not.toBeInTheDocument();
     expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
   });
+
+  it("should open edit series order dialog when 'Edit Order' button is clicked", async () => {
+    const preloadedState = createBasePreloadedState();
+    preloadedState.bookCollection.series = {
+      series: [{ id: 1, name: "Selected Series", created_at: "2026-03-01T15:30:00" }],
+      selectedId: 1,
+      books: [],
+      status: "idle",
+      error: null,
+    };
+
+    const { store } = renderWithProviders(<NavigationBar />, { preloadedState });
+
+    const editOrderButton = screen.getByText(i18n.t("bookshelf.series.edit-order.title"));
+    await user.click(editOrderButton);
+
+    expect(store.getState().bookCollection.isEditSeriesOrderDialogOpen).toBe(true);
+    expect(store.getState().bookCollection.editSeriesOrderTargetId).toBe(1);
+  });
 });

@@ -1,4 +1,4 @@
-import { Add, ArrowDownward, ArrowUpward, Home, Search, Settings } from "@mui/icons-material";
+import { Add, ArrowDownward, ArrowUpward, Home, Search, Settings, Sort } from "@mui/icons-material";
 import {
   Box,
   Breadcrumbs,
@@ -21,7 +21,12 @@ import { useAppDispatch, useAppSelector } from "../../../store/store";
 import type { SortOrder } from "../../../types/AppSettings";
 import { openSettingsWindow } from "../../../utils/WindowOpener";
 import { updateSettings } from "../../Settings/slice";
-import { addBookToBookshelf, setSearchText, setSelectedSeriesId } from "../slice";
+import {
+  addBookToBookshelf,
+  setEditSeriesOrderDialogState,
+  setSearchText,
+  setSelectedSeriesId,
+} from "../slice";
 import BookAdditionToBookshelfDialog from "./Dialog/BookAdditionToBookshelfDialog";
 
 /** Navigation bar for the bookshelf component */
@@ -71,6 +76,12 @@ export default function NavigationBar() {
   const handleAddClicked = useCallback((_e: React.MouseEvent) => {
     setIsAddBookDialogOpen(true);
   }, []);
+
+  const handleEditOrderClicked = useCallback(() => {
+    if (selectedSeriesId !== null) {
+      dispatch(setEditSeriesOrderDialogState({ isOpen: true, seriesId: selectedSeriesId }));
+    }
+  }, [dispatch, selectedSeriesId]);
 
   const handleAddBooks = useCallback(
     (paths: string[]) => {
@@ -187,6 +198,17 @@ export default function NavigationBar() {
               </MenuItem>
             </Select>
           </>
+        )}
+        {selectedSeriesId !== null && (
+          <Button
+            variant="outlined"
+            startIcon={<Sort />}
+            size="small"
+            sx={{ borderRadius: 50, marginRight: 1 }}
+            onClick={handleEditOrderClicked}
+          >
+            {t("bookshelf.series.edit-order.title")}
+          </Button>
         )}
         <Button
           variant="contained"
