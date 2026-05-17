@@ -32,7 +32,7 @@ export default function SortableBookItem({ book, index }: SortableBookItemProps)
         border: "1px solid",
         borderColor: "divider",
         borderRadius: 1,
-        mb: 1,
+        marginBottom: 1,
       }}
       secondaryAction={
         <Box {...attributes} {...listeners} sx={{ display: "flex", alignItems: "center" }}>
@@ -46,7 +46,14 @@ export default function SortableBookItem({ book, index }: SortableBookItemProps)
         <Avatar
           variant="rounded"
           src={book?.thumbnail_path ? convertFileSrc(book.thumbnail_path) : dummy_thumbnail}
-          sx={{ width: 40, height: 56 }}
+          sx={{
+            width: 60,
+            height: 80,
+            bgcolor: "background.paper",
+            "& img": {
+              objectFit: "contain",
+            },
+          }}
         >
           {!book.thumbnail_path && book.display_name.charAt(0)}
         </Avatar>
@@ -54,10 +61,14 @@ export default function SortableBookItem({ book, index }: SortableBookItemProps)
       <ListItemText
         primary={book.display_name}
         secondary={`# ${index + 1}`}
-        primaryTypographyProps={{
-          noWrap: true,
-          title: book.display_name,
+        slotProps={{
+          primary: {
+            sx: {
+              wordBreak: "break-all",
+            },
+          },
         }}
+        sx={{ marginLeft: 2 }}
       />
     </ListItem>
   );
