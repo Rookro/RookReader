@@ -14,9 +14,15 @@ import {
   fetchBooksInSelectedBookshelf,
   fetchSeries,
   setEditSeriesOrderDialogState,
+  setSearchText,
   setSelectedSeriesId,
 } from "../slice";
-import { andSearch, sortByGridItem, sortBySeriesOrder } from "../utils/BookshelfUtils";
+import {
+  andSearch,
+  andSearchGridItems,
+  sortByGridItem,
+  sortBySeriesOrder,
+} from "../utils/BookshelfUtils";
 import BookGridCell, { type BookGridCellProps, type GridItem } from "./BookGridCell";
 import { BookshelfActionsContext } from "./BookshelfActionsContext";
 import AddBooksToBookshelvesDialog from "./Dialog/AddBooksToBookshelvesDialog";
@@ -138,31 +144,27 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
   );
 
   const filteredSortedItems = useMemo(() => {
-    // 1. Filter books based on selected tag
-    const books =
+    // Filter books based on selected tag
+    const taggedBooks =
       tagId === null
         ? booksInSelectedBookshelf
         : booksInSelectedBookshelf.filter((book) =>
             book.tag_ids_str?.split(",").includes(tagId.toString()),
           );
 
-    // 2. Perform search
-    const searchedBooks = andSearch(books, searchText);
-
-    // 3. Drill-down: if a series is selected, show only books in that series
+    // Drill-down mode logic: if a series is selected, show only books in that series
     if (selectedSeriesId !== null) {
-      return searchedBooks
+      return andSearch(taggedBooks, searchText)
         .filter((book) => book.series_id === selectedSeriesId)
         .sort(sortBySeriesOrder)
         .map((book) => ({ type: "book" as const, data: book }));
     }
 
-    // 4. Grouping: Group books by series_id if not in drill-down mode
-    const groupedItems: GridItem[] = [];
+    // Main Bookshelf logic: Group books by series_id BEFORE searching
     const seriesMap = new Map<number, BookWithState[]>();
     const standaloneBooks: BookWithState[] = [];
 
-    searchedBooks.forEach((book) => {
+    taggedBooks.forEach((book) => {
       if (book.series_id !== null) {
         if (!seriesMap.has(book.series_id)) {
           seriesMap.set(book.series_id, []);
@@ -173,11 +175,13 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
       }
     });
 
+    const groupedItems: GridItem[] = [];
+
     // Add series items
     seriesMap.forEach((booksInSeries, id) => {
-      const series = allSeries.find((s) => s.id === id);
-      if (series) {
-        groupedItems.push({ type: "series", data: series, books: booksInSeries });
+      const seriesObj = allSeries.find((s) => s.id === id);
+      if (seriesObj) {
+        groupedItems.push({ type: "series", data: seriesObj, books: booksInSeries });
       } else {
         // Fallback for missing series data
         booksInSeries.forEach((book) => {
@@ -191,8 +195,11 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
       groupedItems.push({ type: "book", data: book });
     });
 
-    // 5. Sort the final list of items (series and standalone books mixed)
-    return groupedItems.sort((a, b) => sortByGridItem(a, b, bookshelfSettings.sortOrder));
+    // Perform search on the grouped items (Search by Series name or Standalone Book name)
+    const searchedItems = andSearchGridItems(groupedItems, searchText);
+
+    // Sort the final list
+    return searchedItems.sort((a, b) => sortByGridItem(a, b, bookshelfSettings.sortOrder));
   }, [
     booksInSelectedBookshelf,
     tagId,
@@ -252,6 +259,7 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
   const handleSeriesClick = useCallback(
     (seriesId: number) => {
       dispatch(setSelectedSeriesId(seriesId));
+      dispatch(setSearchText(""));
     },
     [dispatch],
   );

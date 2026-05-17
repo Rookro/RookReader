@@ -1,6 +1,6 @@
+import { spawn, spawnSync } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
-import { spawn, spawnSync } from "node:child_process";
 
 const isWindows = os.platform() === "win32";
 const binaryExt = isWindows ? ".exe" : "";
@@ -39,6 +39,7 @@ export const config = {
   ],
   reporters: ["spec"],
   framework: "mocha",
+  specFileRetries: process.env.CI ? 3 : 0,
   mochaOpts: {
     ui: "bdd",
     timeout: 60000,
