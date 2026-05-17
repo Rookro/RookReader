@@ -66,6 +66,13 @@ pub async fn get_entries_in_container(
         is_novel = container.is_novel();
     }
 
+    if !is_novel {
+        if let Some(loader) = state_lock.container_state.image_loader.as_mut() {
+            log::debug!("Triggering proactive preloading for {}", path);
+            loader.request_preload_around(0, 5)?;
+        }
+    }
+
     Ok(EntriesResult {
         entries,
         is_directory,
