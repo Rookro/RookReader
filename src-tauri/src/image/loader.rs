@@ -298,6 +298,11 @@ impl ImageLoader {
         self.is_preloading_cancel_requested
             .store(true, Ordering::Relaxed);
     }
+
+    /// Returns the book identifier (usually the file path) for this loader.
+    pub fn book_id(&self) -> &str {
+        &self.book_id
+    }
 }
 
 impl Drop for ImageLoader {

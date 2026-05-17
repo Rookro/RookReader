@@ -5,11 +5,11 @@ import { createCommandError } from "../types/Error";
  * Opens a container file and fetches its entries from the backend.
  *
  * @param path The path of the container file.
- * @returns A promise that resolves to an array of entry names and whether the container is file or directory.
+ * @returns A promise that resolves to an object containing entries, directory status, and novel status.
  */
 export const getEntriesInContainer = async (
   path: string,
-): Promise<{ entries: string[]; is_directory: boolean }> => {
+): Promise<{ entries: string[]; is_directory: boolean; is_novel: boolean }> => {
   try {
     return await invoke("get_entries_in_container", { path });
   } catch (error) {
@@ -116,22 +116,6 @@ export const setImageResamplingMethod = async (method: string): Promise<void> =>
 export const setImageCacheSizeMib = async (sizeMib: number): Promise<void> => {
   try {
     return await invoke("set_image_cache_size_mib", { sizeMib });
-  } catch (error) {
-    throw createCommandError(error);
-  }
-};
-
-/**
- * Determines if a container is an EPUB novel.
- *
- * @beta
- *
- * @param path The path of the container file.
- * @returns A promise that resolves to true if the container is an EPUB novel, false otherwise.
- */
-export const determineEpubNovel = async (path: string): Promise<boolean> => {
-  try {
-    return await invoke("determine_epub_novel", { path });
   } catch (error) {
     throw createCommandError(error);
   }

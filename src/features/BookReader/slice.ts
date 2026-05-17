@@ -2,11 +2,7 @@ import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import { basename, dirname } from "@tauri-apps/api/path";
 import { debug, error, info } from "@tauri-apps/plugin-log";
 import { getBookWithStateById, upsertReadBook } from "../../bindings/BookCommands";
-import {
-  determineEpubNovel,
-  getEntriesInContainer,
-  requestPreloadAround,
-} from "../../bindings/ContainerCommands";
+import { getEntriesInContainer, requestPreloadAround } from "../../bindings/ContainerCommands";
 import { getEntriesInDir as getEntriesInDirFromBackend } from "../../bindings/DirectoryCommands";
 import { createAppAsyncThunk } from "../../types/CustomAsyncThunk";
 import type { BookWithState } from "../../types/DatabaseModels";
@@ -30,11 +26,15 @@ export const openContainerFile = createAppAsyncThunk(
     }
     info(`Open container file: ${path}`);
     try {
-      const isEpubNovel = await determineEpubNovel(path);
+      const [entriesResult, dirPath, fileName] = await Promise.all([
+        getEntriesInContainer(path),
+        dirname(path),
+        basename(path),
+      ]);
 
-      let entriesResult: { entries: string[]; is_directory: boolean } | undefined;
+      const isEpubNovel = entriesResult.is_novel;
+
       if (!isEpubNovel) {
-        entriesResult = await getEntriesInContainer(path);
         debug(
           `openContainerFile: Retrieved ${entriesResult.entries.length} entries. (Container is directory: ${entriesResult.is_directory})`,
         );
@@ -42,17 +42,16 @@ export const openContainerFile = createAppAsyncThunk(
         debug(`openContainerFile: Epub Novel is opened.`);
       }
 
-      const dirPath = await dirname(path);
       dispatch(updateExploreBasePath({ dirPath }));
 
       debug(
-        `Update container history: ${path}, ${entriesResult?.is_directory ? "directory" : "file"}`,
+        `Update container history: ${path}, ${entriesResult.is_directory ? "directory" : "file"}`,
       );
       const bookId = await upsertReadBook({
         filePath: path,
-        itemType: entriesResult?.is_directory ? "directory" : "file",
-        totalPages: entriesResult?.entries.length ?? 0,
-        displayName: await basename(path),
+        itemType: entriesResult.is_directory ? "directory" : "file",
+        totalPages: entriesResult.entries.length,
+        displayName: fileName,
       });
 
       const book = await getBookWithStateById(bookId);
@@ -67,8 +66,8 @@ export const openContainerFile = createAppAsyncThunk(
       }
 
       return {
-        entries: entriesResult?.entries,
-        isDirectory: entriesResult?.is_directory ?? false,
+        entries: entriesResult.entries,
+        isDirectory: entriesResult.is_directory,
         isNovel: isEpubNovel,
         book: book,
       };

@@ -570,10 +570,10 @@ describe("BookCollectionReducer", () => {
       it("addBookToBookshelf should add a book and update state", async () => {
         const mockBooks = [createMockBookWithState({ id: 10, display_name: "book.zip" })];
 
-        vi.mocked(ContainerCommands.determineEpubNovel).mockResolvedValue(false);
         vi.mocked(ContainerCommands.getEntriesInContainer).mockResolvedValue({
           is_directory: false,
           entries: ["1.jpg"],
+          is_novel: false,
         });
         vi.mocked(BookCommands.upsertBook).mockResolvedValue(10);
         vi.mocked(BookCommands.getBooksWithStateByBookshelfId).mockResolvedValue(mockBooks);
@@ -589,10 +589,10 @@ describe("BookCollectionReducer", () => {
       // Verify that all books are fetched when adding a book with no bookshelf ID (null)
       it("addBookToBookshelf with bookshelfId: null should fetch all books", async () => {
         const mockBooks = [createMockBookWithState({ id: 10 })];
-        vi.mocked(ContainerCommands.determineEpubNovel).mockResolvedValue(false);
         vi.mocked(ContainerCommands.getEntriesInContainer).mockResolvedValue({
           is_directory: false,
           entries: ["1.jpg"],
+          is_novel: false,
         });
         vi.mocked(BookCommands.upsertBook).mockResolvedValue(10);
         vi.mocked(BookCommands.getAllBooksWithState).mockResolvedValue(mockBooks);
@@ -605,13 +605,17 @@ describe("BookCollectionReducer", () => {
 
       // Verify handling of EPUB novel format when adding a book
       it("addBookToBookshelf for EPUB novel", async () => {
-        vi.mocked(ContainerCommands.determineEpubNovel).mockResolvedValue(true);
+        vi.mocked(ContainerCommands.getEntriesInContainer).mockResolvedValue({
+          is_directory: false,
+          entries: [],
+          is_novel: true,
+        });
         vi.mocked(BookCommands.upsertBook).mockResolvedValue(10);
         vi.mocked(BookCommands.getAllBooksWithState).mockResolvedValue([]);
 
         await store.dispatch(addBookToBookshelf({ bookshelfId: null, bookPath: "path.epub" }));
 
-        expect(ContainerCommands.getEntriesInContainer).not.toHaveBeenCalled();
+        expect(ContainerCommands.getEntriesInContainer).toHaveBeenCalled();
         expect(BookCommands.upsertBook).toHaveBeenCalledWith(
           expect.objectContaining({ totalPages: 0 }),
         );
@@ -619,10 +623,10 @@ describe("BookCollectionReducer", () => {
 
       // Verify handling of directory format when adding a book
       it("addBookToBookshelf for directory", async () => {
-        vi.mocked(ContainerCommands.determineEpubNovel).mockResolvedValue(false);
         vi.mocked(ContainerCommands.getEntriesInContainer).mockResolvedValue({
           is_directory: true,
           entries: ["1.jpg"],
+          is_novel: false,
         });
         vi.mocked(BookCommands.upsertBook).mockResolvedValue(10);
         vi.mocked(BookCommands.getAllBooksWithState).mockResolvedValue([]);
@@ -636,7 +640,7 @@ describe("BookCollectionReducer", () => {
 
       // Verify error handling when book addition fails
       it("addBookToBookshelf should handle generic failure", async () => {
-        vi.mocked(ContainerCommands.determineEpubNovel).mockRejectedValue(new Error());
+        vi.mocked(ContainerCommands.getEntriesInContainer).mockRejectedValue(new Error());
 
         await store.dispatch(addBookToBookshelf({ bookshelfId: 1, bookPath: "path" }));
 
@@ -648,7 +652,7 @@ describe("BookCollectionReducer", () => {
       // Verify CommandError handling when book addition fails
       it("addBookToBookshelf should handle CommandError", async () => {
         const mockError = new CommandError(ErrorCode.IO_ERROR, "io fail");
-        vi.mocked(ContainerCommands.determineEpubNovel).mockRejectedValue(mockError);
+        vi.mocked(ContainerCommands.getEntriesInContainer).mockRejectedValue(mockError);
 
         await store.dispatch(addBookToBookshelf({ bookshelfId: 1, bookPath: "path" }));
 

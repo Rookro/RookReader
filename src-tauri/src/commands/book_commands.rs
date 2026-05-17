@@ -127,21 +127,40 @@ pub async fn upsert_book<R: tauri::Runtime>(
         total_pages
     );
 
-    let pdfium_path = {
+    let (pdfium_path, container) = {
         let state_lock = state.read().await;
-        state_lock
+        let pdfium_path = state_lock
             .container_state
             .settings
             .pdfium_library_path
-            .clone()
+            .clone();
+
+        let container = if let Some(ref c) = state_lock.container_state.container {
+            let matches = state_lock
+                .container_state
+                .image_loader
+                .as_ref()
+                .is_some_and(|loader| loader.book_id() == file_path);
+
+            if matches {
+                Some(c.clone())
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        (pdfium_path, container)
     };
 
-    let thumbnail_path = generate_and_save_thumbnail(app, file_path.clone(), pdfium_path)
-        .await
-        .unwrap_or_else(|e| {
-            log::warn!("Thumbnail of {} generation failed: {}", file_path, e);
-            None
-        });
+    let thumbnail_path =
+        generate_and_save_thumbnail(app, file_path.clone(), pdfium_path, container)
+            .await
+            .unwrap_or_else(|e| {
+                log::warn!("Thumbnail of {} generation failed: {}", file_path, e);
+                None
+            });
 
     Ok(repo
         .upsert_book(
@@ -192,21 +211,40 @@ pub async fn upsert_read_book<R: tauri::Runtime>(
         total_pages
     );
 
-    let pdfium_path = {
+    let (pdfium_path, container) = {
         let state_lock = state.read().await;
-        state_lock
+        let pdfium_path = state_lock
             .container_state
             .settings
             .pdfium_library_path
-            .clone()
+            .clone();
+
+        let container = if let Some(ref c) = state_lock.container_state.container {
+            let matches = state_lock
+                .container_state
+                .image_loader
+                .as_ref()
+                .is_some_and(|loader| loader.book_id() == file_path);
+
+            if matches {
+                Some(c.clone())
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        (pdfium_path, container)
     };
 
-    let thumbnail_path = generate_and_save_thumbnail(app, file_path.clone(), pdfium_path)
-        .await
-        .unwrap_or_else(|e| {
-            log::warn!("Thumbnail of {} generation failed: {}", file_path, e);
-            None
-        });
+    let thumbnail_path =
+        generate_and_save_thumbnail(app, file_path.clone(), pdfium_path, container)
+            .await
+            .unwrap_or_else(|e| {
+                log::warn!("Thumbnail of {} generation failed: {}", file_path, e);
+                None
+            });
 
     Ok(repo
         .upsert_read_book(
@@ -525,6 +563,7 @@ async fn generate_and_save_thumbnail<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
     file_path: String,
     pdfium_path: Option<String>,
+    container: Option<Arc<dyn Container>>,
 ) -> Result<Option<String>> {
     tauri::async_runtime::spawn_blocking(move || {
         let mut hasher = DefaultHasher::new();
@@ -543,32 +582,36 @@ async fn generate_and_save_thumbnail<R: tauri::Runtime>(
             return Ok(Some(thumbnail_path.to_string_lossy().to_string()));
         }
 
-        let path = std::path::Path::new(&file_path);
-        let container: Arc<dyn Container> = if path.is_dir() {
-            Arc::new(DirectoryContainer::new(&file_path)?)
-        } else if let Some(ext) = path.extension() {
-            let ext_str = ext.to_string_lossy().to_lowercase();
-            match ext_str.as_str() {
-                "zip" => Arc::new(ZipContainer::new(&file_path)?),
-                "pdf" => Arc::new(PdfContainer::new(
-                    &file_path,
-                    PdfRenderConfig::default(),
-                    pdfium_path,
-                )?),
-                "rar" => Arc::new(RarContainer::new(&file_path)?),
-                "epub" => Arc::new(EpubContainer::new(&file_path)?),
-                _ => {
-                    return Err(Error::UnsupportedContainer(format!(
-                        "Unsupported Format: {}",
-                        file_path
-                    )))
-                }
-            }
+        let container: Arc<dyn Container> = if let Some(c) = container {
+            c
         } else {
-            return Err(Error::UnsupportedContainer(format!(
-                "No extension: {}",
-                file_path
-            )));
+            let path = std::path::Path::new(&file_path);
+            if path.is_dir() {
+                Arc::new(DirectoryContainer::new(&file_path)?)
+            } else if let Some(ext) = path.extension() {
+                let ext_str = ext.to_string_lossy().to_lowercase();
+                match ext_str.as_str() {
+                    "zip" => Arc::new(ZipContainer::new(&file_path)?),
+                    "pdf" => Arc::new(PdfContainer::new(
+                        &file_path,
+                        PdfRenderConfig::default(),
+                        pdfium_path,
+                    )?),
+                    "rar" => Arc::new(RarContainer::new(&file_path)?),
+                    "epub" => Arc::new(EpubContainer::new(&file_path)?),
+                    _ => {
+                        return Err(Error::UnsupportedContainer(format!(
+                            "Unsupported Format: {}",
+                            file_path
+                        )))
+                    }
+                }
+            } else {
+                return Err(Error::UnsupportedContainer(format!(
+                    "No extension: {}",
+                    file_path
+                )));
+            }
         };
 
         let first_image_entry = container.get_entries().first();
@@ -1028,7 +1071,8 @@ mod tests {
 
         // Calling it with a fake file path. If it didn't skip, it would return an error
         // because the fake zip file does not exist.
-        let result = generate_and_save_thumbnail(app.app_handle().clone(), file_path, None).await;
+        let result =
+            generate_and_save_thumbnail(app.app_handle().clone(), file_path, None, None).await;
 
         assert!(result.is_ok());
         let path_opt = result.unwrap();

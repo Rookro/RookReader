@@ -52,6 +52,22 @@ impl Container for EpubContainer {
     fn is_directory(&self) -> bool {
         false
     }
+
+    fn is_novel(&self) -> bool {
+        let Ok(epub) = self.epub.lock() else {
+            return false;
+        };
+        let Some(layout) = epub.metadata().iter().find_map(|meta| {
+            if meta.property().as_str() == "rendition:layout" {
+                Some(meta.value().to_string())
+            } else {
+                None
+            }
+        }) else {
+            return true;
+        };
+        layout != "pre-paginated"
+    }
 }
 
 impl EpubContainer {
@@ -91,32 +107,6 @@ impl EpubContainer {
             entries,
             epub: Mutex::new(epub),
         })
-    }
-
-    /// Checks if the EPUB is likely a text-based novel rather than an image-based comic.
-    ///
-    /// This is a heuristic that checks the `rendition:layout` metadata property.
-    /// A value of "pre-paginated" typically indicates a fixed-layout format used for comics,
-    /// while its absence or other values suggest a reflowable, text-based novel.
-    ///
-    /// # Returns
-    ///
-    /// Returns `false` if the layout is "pre-paginated" or the file cannot be read.
-    /// Returns `true` otherwise.
-    pub fn is_novel(&self) -> bool {
-        let Ok(epub) = self.epub.lock() else {
-            return false;
-        };
-        let Some(layout) = epub.metadata().iter().find_map(|meta| {
-            if meta.property().as_str() == "rendition:layout" {
-                Some(meta.value().to_string())
-            } else {
-                None
-            }
-        }) else {
-            return true;
-        };
-        layout != "pre-paginated"
     }
 }
 
