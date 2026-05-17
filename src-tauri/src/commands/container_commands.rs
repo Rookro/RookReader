@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use tauri::ipc::Response;
 
 use crate::{
-    container::epub_container::EpubContainer,
+    container::{epub_container::EpubContainer, traits::Container},
     error::{Error, Result},
     image::resizer::ResizeFilter,
     state::app_state::AppState,
@@ -18,6 +18,8 @@ pub struct EntriesResult {
     entries: Vec<String>,
     /// Whether the container is a directory.
     is_directory: bool,
+    /// Whether the container is an EPUB novel.
+    is_novel: bool,
 }
 
 /// Opens a container file (e.g., ZIP, RAR) and retrieves a list of its contents.
@@ -33,7 +35,7 @@ pub struct EntriesResult {
 /// # Returns
 ///
 /// A `Result` which is `Ok` with an `EntriesResult` struct containing the list of entry
-/// names and a boolean indicating if the path is a directory.
+/// names, a boolean indicating if the path is a directory, and a boolean indicating if it's a novel.
 ///
 /// # Errors
 ///
@@ -52,6 +54,7 @@ pub async fn get_entries_in_container(
 
     let entries;
     let is_directory;
+    let is_novel;
     {
         let container = state_lock
             .container_state
@@ -60,11 +63,13 @@ pub async fn get_entries_in_container(
             .ok_or_else(|| Error::Other("Unexpected error. Container is empty!".to_string()))?;
         entries = container.get_entries().clone();
         is_directory = container.is_directory();
+        is_novel = container.is_novel();
     }
 
     Ok(EntriesResult {
         entries,
         is_directory,
+        is_novel,
     })
 }
 

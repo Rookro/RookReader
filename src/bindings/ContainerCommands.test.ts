@@ -11,7 +11,11 @@ describe("ContainerCommands", () => {
   });
 
   it("getEntriesInContainer should call invoke", async () => {
-    vi.mocked(invoke).mockResolvedValue({ entries: ["1.jpg"], is_directory: false });
+    vi.mocked(invoke).mockResolvedValue({
+      entries: ["1.jpg"],
+      is_directory: false,
+      is_novel: false,
+    });
     await ContainerCommands.getEntriesInContainer("path");
     expect(invoke).toHaveBeenCalledWith("get_entries_in_container", {
       path: "path",
@@ -61,13 +65,6 @@ describe("ContainerCommands", () => {
     expect(invoke).toHaveBeenCalledWith("set_image_resampling_method", { method: "lanczos3" });
   });
 
-  it("determineEpubNovel should call invoke", async () => {
-    vi.mocked(invoke).mockResolvedValue(true);
-    const result = await ContainerCommands.determineEpubNovel("path");
-    expect(invoke).toHaveBeenCalledWith("determine_epub_novel", { path: "path" });
-    expect(result).toBe(true);
-  });
-
   it("should throw CommandError on failure", async () => {
     vi.mocked(invoke).mockRejectedValue(new Error("fail"));
     await expect(ContainerCommands.getEntriesInContainer("path")).rejects.toThrow(CommandError);
@@ -101,11 +98,6 @@ describe("ContainerCommands", () => {
   it("setImageResamplingMethod should throw CommandError on failure", async () => {
     vi.mocked(invoke).mockRejectedValue(new Error("fail"));
     await expect(ContainerCommands.setImageResamplingMethod("m")).rejects.toThrow(CommandError);
-  });
-
-  it("determineEpubNovel should throw CommandError on failure", async () => {
-    vi.mocked(invoke).mockRejectedValue(new Error("fail"));
-    await expect(ContainerCommands.determineEpubNovel("p")).rejects.toThrow(CommandError);
   });
 
   it("should map structured error to CommandError", async () => {

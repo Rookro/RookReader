@@ -211,10 +211,10 @@ describe("ReadReducer", () => {
       it("should open container and update state on success", async () => {
         const mockBook = createMockBookWithState({ id: 1, last_read_page_index: 5 });
 
-        vi.mocked(ContainerCommands.determineEpubNovel).mockResolvedValue(false);
         vi.mocked(ContainerCommands.getEntriesInContainer).mockResolvedValue({
           is_directory: false,
           entries: ["p1", "p2"],
+          is_novel: false,
         });
         vi.mocked(BookCommands.upsertReadBook).mockResolvedValue(1);
         vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
@@ -231,7 +231,11 @@ describe("ReadReducer", () => {
       // Verify handling of EPUB novel format
       it("should handle EPUB novel", async () => {
         const mockBook = createMockBookWithState({ id: 1, last_read_page_index: 0 });
-        vi.mocked(ContainerCommands.determineEpubNovel).mockResolvedValue(true);
+        vi.mocked(ContainerCommands.getEntriesInContainer).mockResolvedValue({
+          is_directory: false,
+          entries: ["p1", "p2"],
+          is_novel: true,
+        });
         vi.mocked(BookCommands.upsertReadBook).mockResolvedValue(1);
         vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
 
@@ -239,7 +243,7 @@ describe("ReadReducer", () => {
 
         const state = store.getState().read;
         expect(state.containerFile.isNovel).toBe(true);
-        expect(ContainerCommands.getEntriesInContainer).not.toHaveBeenCalled();
+        expect(ContainerCommands.getEntriesInContainer).toHaveBeenCalled();
       });
 
       // Verify error handling when path is empty
@@ -254,7 +258,7 @@ describe("ReadReducer", () => {
       // Verify handling of CommandError during opening
       it("should handle CommandError during open", async () => {
         const mockError = new CommandError(ErrorCode.OTHER_ERROR, "cmd failed");
-        vi.mocked(ContainerCommands.determineEpubNovel).mockRejectedValue(mockError);
+        vi.mocked(ContainerCommands.getEntriesInContainer).mockRejectedValue(mockError);
 
         await store.dispatch(openContainerFile("fail.zip"));
 
@@ -334,7 +338,7 @@ describe("ReadReducer", () => {
       // Verify handling of generic error during container open
       it("should handle generic error during container open", async () => {
         const testError = "open failed";
-        vi.mocked(ContainerCommands.determineEpubNovel).mockRejectedValue(testError);
+        vi.mocked(ContainerCommands.getEntriesInContainer).mockRejectedValue(testError);
 
         await store.dispatch(openContainerFile("fail.zip"));
 

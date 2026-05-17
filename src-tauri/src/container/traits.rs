@@ -63,6 +63,11 @@ pub trait Container: Send + Sync + 'static {
     fn is_single_threaded(&self) -> bool {
         false
     }
+
+    /// Returns whether this container is a novel (text-based).
+    fn is_novel(&self) -> bool {
+        false
+    }
 }
 
 impl dyn Container {

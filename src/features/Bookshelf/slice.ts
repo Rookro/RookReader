@@ -15,7 +15,7 @@ import {
   getAllBookshelves,
   removeBookFromBookshelf,
 } from "../../bindings/BookshelfCommand";
-import { determineEpubNovel, getEntriesInContainer } from "../../bindings/ContainerCommands";
+import { getEntriesInContainer } from "../../bindings/ContainerCommands";
 import { getAllSeries } from "../../bindings/SeriesCommand";
 import { createTag, deleteTag, getAllTags } from "../../bindings/TagCommands";
 import { createAppAsyncThunk } from "../../types/CustomAsyncThunk";
@@ -173,16 +173,12 @@ export const addBookToBookshelf = createAppAsyncThunk(
     { rejectWithValue },
   ) => {
     try {
-      const isEpubNovel = await determineEpubNovel(bookPath);
-      let entriesResult: { entries: string[]; is_directory: boolean } | undefined;
-      if (!isEpubNovel) {
-        entriesResult = await getEntriesInContainer(bookPath);
-      }
+      const entriesResult = await getEntriesInContainer(bookPath);
 
       const bookId = await upsertBook({
         filePath: bookPath,
-        itemType: entriesResult?.is_directory ? "directory" : "file",
-        totalPages: entriesResult?.entries.length ?? 0,
+        itemType: entriesResult.is_directory ? "directory" : "file",
+        totalPages: entriesResult.entries.length,
         displayName: await basename(bookPath),
       });
 
