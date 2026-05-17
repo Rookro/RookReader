@@ -105,7 +105,7 @@ describe("NavigationBar", () => {
     expect(store.getState().bookCollection.series.selectedId).toBeNull();
   });
 
-  it("should hide sort controls when a series is selected", () => {
+  it("should hide sort controls and add button when a series is selected", () => {
     const preloadedState = createBasePreloadedState();
     preloadedState.bookCollection.series = {
       series: [{ id: 1, name: "Selected Series", created_at: "2026-03-01T15:30:00" }],
@@ -119,6 +119,7 @@ describe("NavigationBar", () => {
 
     expect(screen.queryByText(i18n.t("bookshelf.sort.title"))).not.toBeInTheDocument();
     expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+    expect(screen.queryByText(i18n.t("bookshelf.add-books"))).not.toBeInTheDocument();
   });
 
   it("should open edit series order dialog when 'Edit Order' button is clicked", async () => {

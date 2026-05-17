@@ -210,14 +210,16 @@ export default function NavigationBar() {
             {t("bookshelf.series.edit-order.title")}
           </Button>
         )}
-        <Button
-          variant="contained"
-          startIcon={<Add />}
-          sx={{ borderRadius: 50, marginLeft: 1 }}
-          onClick={handleAddClicked}
-        >
-          {t("bookshelf.add-books")}
-        </Button>
+        {selectedSeriesId === null && (
+          <Button
+            variant="contained"
+            startIcon={<Add />}
+            sx={{ borderRadius: 50, marginLeft: 1 }}
+            onClick={handleAddClicked}
+          >
+            {t("bookshelf.add-books")}
+          </Button>
+        )}
       </Toolbar>
       <BookAdditionToBookshelfDialog
         openDialog={isAddBookDialogOpen}
