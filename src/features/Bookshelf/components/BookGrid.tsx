@@ -10,12 +10,18 @@ import type { Book, BookWithState } from "../../../types/DatabaseModels";
 import { updateSettings } from "../../Settings/slice";
 import { useBookSelection } from "../hooks/useBookSelection";
 import { type BookshelfDialogType, useBookshelfDialogs } from "../hooks/useBookshelfDialogs";
-import { fetchBooksInSelectedBookshelf, fetchSeries, setSelectedSeriesId } from "../slice";
-import { andSearch, sortBy, sortByGridItem } from "../utils/BookshelfUtils";
+import {
+  fetchBooksInSelectedBookshelf,
+  fetchSeries,
+  setEditSeriesOrderDialogState,
+  setSelectedSeriesId,
+} from "../slice";
+import { andSearch, sortByGridItem, sortBySeriesOrder } from "../utils/BookshelfUtils";
 import BookGridCell, { type BookGridCellProps, type GridItem } from "./BookGridCell";
 import { BookshelfActionsContext } from "./BookshelfActionsContext";
 import AddBooksToBookshelvesDialog from "./Dialog/AddBooksToBookshelvesDialog";
 import BookDeleteDialog from "./Dialog/BookDeleteDialog";
+import EditSeriesOrderDialog from "./Dialog/EditSeriesOrderDialog";
 import SetBookTagsDialog from "./Dialog/SetBookTagsDialog";
 import SetSeriesDialog from "./Dialog/SetSeriesDialog";
 import FloatingActionBar from "./FloatingActionBar";
@@ -40,6 +46,8 @@ const selectBookGridState = createSelector(
     (state: RootState) => state.bookCollection.tag.tags,
     (state: RootState) => state.bookCollection.series.series,
     (state: RootState) => state.bookCollection.series.selectedId,
+    (state: RootState) => state.bookCollection.isEditSeriesOrderDialogOpen,
+    (state: RootState) => state.bookCollection.editSeriesOrderTargetId,
     (state: RootState) => state.view.activeView,
   ],
   (
@@ -53,6 +61,8 @@ const selectBookGridState = createSelector(
     availableTags,
     allSeries,
     selectedSeriesId,
+    isEditSeriesOrderDialogOpen,
+    editSeriesOrderTargetId,
     activeView,
   ) => ({
     bookshelfSettings,
@@ -65,6 +75,8 @@ const selectBookGridState = createSelector(
     availableTags,
     allSeries,
     selectedSeriesId,
+    isEditSeriesOrderDialogOpen,
+    editSeriesOrderTargetId,
     activeView,
   }),
 );
@@ -92,6 +104,8 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
     availableTags,
     allSeries,
     selectedSeriesId,
+    isEditSeriesOrderDialogOpen,
+    editSeriesOrderTargetId,
     activeView,
   } = useAppSelector(selectBookGridState);
 
@@ -106,6 +120,17 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
     openDialog,
     closeDialog,
   } = useBookshelfDialogs();
+
+  const handleCloseEditSeriesOrderDialog = useCallback(() => {
+    dispatch(setEditSeriesOrderDialogState({ isOpen: false, seriesId: null }));
+  }, [dispatch]);
+
+  const editSeriesOrderBooks = useMemo(() => {
+    if (editSeriesOrderTargetId === null) return [];
+    return booksInSelectedBookshelf
+      .filter((b) => b.series_id === editSeriesOrderTargetId)
+      .sort(sortBySeriesOrder);
+  }, [booksInSelectedBookshelf, editSeriesOrderTargetId]);
 
   const currentGridSize = useMemo(
     () => GRID_SIZES[bookshelfSettings.gridSize],
@@ -128,7 +153,7 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
     if (selectedSeriesId !== null) {
       return searchedBooks
         .filter((book) => book.series_id === selectedSeriesId)
-        .sort((a, b) => sortBy(a, b, bookshelfSettings.sortOrder))
+        .sort(sortBySeriesOrder)
         .map((book) => ({ type: "book" as const, data: book }));
     }
 
@@ -447,6 +472,11 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
           openDialog={dialogType === "delete-books"}
           books={dialogBooks}
           onClose={handleCloseDialog}
+        />
+        <EditSeriesOrderDialog
+          openDialog={isEditSeriesOrderDialogOpen}
+          books={editSeriesOrderBooks}
+          onClose={handleCloseEditSeriesOrderDialog}
         />
       </Stack>
     </BookshelfActionsContext.Provider>

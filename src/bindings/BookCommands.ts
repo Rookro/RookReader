@@ -182,6 +182,21 @@ export async function updateBookSeries(bookId: number, seriesId: number | null) 
 }
 
 /**
+ * Updates the order of books within a series.
+ *
+ * @param bookIds - An array of book IDs representing the new order.
+ * @returns A promise that resolves when the update is successful.
+ * @throws {CommandError} If the Tauri command fails.
+ */
+export async function updateSeriesOrders(bookIds: number[]) {
+  try {
+    return await invoke<void>("update_series_orders", { bookIds });
+  } catch (error) {
+    throw createCommandError(error);
+  }
+}
+
+/**
  * Inserts or updates the reading state of a book.
  *
  * @param stateData - The reading state data to upsert.

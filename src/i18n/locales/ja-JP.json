@@ -83,6 +83,9 @@
         "no-search-results": "\"{{searchText}}\" に一致するシリーズはありません。",
         "ok-button": "決定",
         "cancel-button": "キャンセル"
+      },
+      "edit-order": {
+        "title": "シリーズの並び替え"
       }
     },
     "search-placeholder": "タイトルで検索...",

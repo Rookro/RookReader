@@ -159,6 +159,8 @@ describe("BookGrid", () => {
     },
     bookCollection: {
       searchText: "",
+      isEditSeriesOrderDialogOpen: false,
+      editSeriesOrderTargetId: null,
       bookshelf: {
         books: [],
         bookshelves: [],
@@ -863,31 +865,57 @@ describe("BookGrid", () => {
     fireEvent.keyDown(container, { key: "ArrowUp" }); // -> 0 (clamped)
   });
 
-  it("sorts books in drill-down mode", () => {
+  it("sorts books in drill-down mode by series_order", () => {
     const series = createMockSeries({ id: 10, name: "Series" });
-    const bookB = createMockBookWithState({ id: 2, display_name: "B", series_id: 10 });
-    const bookA = createMockBookWithState({ id: 1, display_name: "A", series_id: 10 });
+    const bookB = createMockBookWithState({
+      id: 2,
+      display_name: "B",
+      series_id: 10,
+      series_order: 2,
+    });
+    const bookA = createMockBookWithState({
+      id: 1,
+      display_name: "A",
+      series_id: 10,
+      series_order: 1,
+    });
+    const bookC = createMockBookWithState({
+      id: 3,
+      display_name: "C",
+      series_id: 10,
+      series_order: null,
+    });
 
     vi.mocked(useAppSelector).mockImplementation(<T,>(selector: (state: RootState) => T): T => {
       return selector({
         ...defaultState,
         bookCollection: {
           ...defaultState.bookCollection,
-          bookshelf: { ...defaultState.bookCollection.bookshelf, books: [bookB, bookA] },
+          bookshelf: { ...defaultState.bookCollection.bookshelf, books: [bookC, bookB, bookA] },
           series: { ...defaultState.bookCollection.series, series: [series], selectedId: 10 },
         },
       } as unknown as RootState);
     });
 
-    render(
+    const { container } = render(
       <BookSelectionContext.Provider value={mockSelectionValue}>
         <BookGrid />
       </BookSelectionContext.Provider>,
     );
 
-    // This should hit the sort line in drill-down
-    expect(screen.getByText("A")).toBeInTheDocument();
-    expect(screen.getByText("B")).toBeInTheDocument();
+    // Verify visual rendering (A should be first, B second, C last because of null order)
+    const elements = container.querySelectorAll(".MuiTypography-root");
+    const textContents = Array.from(elements).map((e) => e.textContent);
+
+    // We expect the text to contain A, B, C in that order. Since Grid virtualizes, it renders them in DOM order
+    expect(textContents).toEqual(expect.arrayContaining(["A", "B", "C"]));
+
+    const indexA = textContents.indexOf("A");
+    const indexB = textContents.indexOf("B");
+    const indexC = textContents.indexOf("C");
+
+    expect(indexA).toBeLessThan(indexB);
+    expect(indexB).toBeLessThan(indexC);
   });
 
   it("groups multiple books in the same series", () => {

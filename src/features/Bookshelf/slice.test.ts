@@ -25,9 +25,11 @@ import bookCollectionReducer, {
   removeBookshelf,
   removeTag,
   setBookshelfSearchText,
+  setEditSeriesOrderDialogState,
   setSearchText,
   setSelectedSeriesId,
   setSelectedTag,
+  updateSeriesOrdersThunk,
 } from "./slice";
 
 describe("BookCollectionReducer", () => {
@@ -35,6 +37,8 @@ describe("BookCollectionReducer", () => {
 
   const initialState = {
     searchText: "",
+    isEditSeriesOrderDialogOpen: false,
+    editSeriesOrderTargetId: null as number | null,
     bookshelf: {
       bookshelves: [] as Bookshelf[],
       selectedId: null as number | null,
@@ -83,6 +87,16 @@ describe("BookCollectionReducer", () => {
   it("should handle setSelectedSeriesId", () => {
     const nextState = bookCollectionReducer(initialState, setSelectedSeriesId(1));
     expect(nextState.series.selectedId).toBe(1);
+  });
+
+  // Verify that edit series order dialog state is set correctly
+  it("should handle setEditSeriesOrderDialogState", () => {
+    const nextState = bookCollectionReducer(
+      initialState,
+      setEditSeriesOrderDialogState({ isOpen: true, seriesId: 10 }),
+    );
+    expect(nextState.isEditSeriesOrderDialogOpen).toBe(true);
+    expect(nextState.editSeriesOrderTargetId).toBe(10);
   });
 
   // Verify that state is updated when a bookshelf is added
@@ -479,6 +493,28 @@ describe("BookCollectionReducer", () => {
     });
 
     describe("Series Thunks", () => {
+      it("updateSeriesOrdersThunk should update order and fetch books in selected bookshelf", async () => {
+        vi.mocked(BookCommands.updateSeriesOrders).mockResolvedValue(undefined);
+        vi.mocked(BookCommands.getBooksWithStateByBookshelfId).mockResolvedValue([]);
+
+        // Pre-fill state with a selected bookshelf so it tries to fetch it
+        const preloadedState = { bookCollection: structuredClone(initialState) };
+        preloadedState.bookCollection.bookshelf.selectedId = 10;
+        store = createTestStore(preloadedState);
+
+        await store.dispatch(updateSeriesOrdersThunk([1, 2, 3]));
+
+        expect(BookCommands.updateSeriesOrders).toHaveBeenCalledWith([1, 2, 3]);
+        expect(BookCommands.getBooksWithStateByBookshelfId).toHaveBeenCalledWith(10);
+      });
+
+      it("updateSeriesOrdersThunk should handle generic failure", async () => {
+        vi.mocked(BookCommands.updateSeriesOrders).mockRejectedValue(new Error());
+
+        const result = await store.dispatch(updateSeriesOrdersThunk([1, 2, 3]));
+        expect(result.payload).toMatchObject({ code: ErrorCode.OTHER_ERROR });
+      });
+
       // Verify state update on successful series fetching
       it("fetchSeries should update state with fetched series on success", async () => {
         const mockSeries: Series[] = [
