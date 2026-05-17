@@ -203,7 +203,6 @@ export default function NavigationBar() {
           <Button
             variant="outlined"
             startIcon={<Sort />}
-            size="small"
             sx={{ borderRadius: 50, marginRight: 1 }}
             onClick={handleEditOrderClicked}
           >
@@ -214,7 +213,7 @@ export default function NavigationBar() {
           <Button
             variant="contained"
             startIcon={<Add />}
-            sx={{ borderRadius: 50, marginLeft: 1 }}
+            sx={{ borderRadius: 50, marginRight: 1 }}
             onClick={handleAddClicked}
           >
             {t("bookshelf.add-books")}
