@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Improved the settings screen layout by consolidating options into a more intuitive tab structure. (#217)
 * Persist side pane visibility and active tab across sessions in application settings. (#223)
 * Refined search behavior to better support grouped series and automatically reset filters when entering series view. (#227)
+* Optimized book opening and background image processing for a faster, smoother reading experience. (#228)
 
 ### Fixed
 
