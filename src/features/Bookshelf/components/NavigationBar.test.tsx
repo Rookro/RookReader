@@ -31,6 +31,18 @@ describe("NavigationBar", () => {
     expect(store.getState().bookCollection.searchText).toBe("test query");
   });
 
+  it("should reflect searchText from state", () => {
+    const preloadedState = createBasePreloadedState();
+    preloadedState.bookCollection.searchText = "initial search";
+
+    renderWithProviders(<NavigationBar />, { preloadedState });
+
+    const searchInput = screen.getByPlaceholderText(
+      i18n.t("bookshelf.search-placeholder"),
+    ) as HTMLInputElement;
+    expect(searchInput.value).toBe("initial search");
+  });
+
   // Verify that the sort order selection change is correctly reflected in the state
   it("should handle sort order change", async () => {
     const { store } = renderWithProviders(<NavigationBar />);

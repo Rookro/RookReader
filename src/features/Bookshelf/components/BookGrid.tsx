@@ -14,6 +14,7 @@ import {
   fetchBooksInSelectedBookshelf,
   fetchSeries,
   setEditSeriesOrderDialogState,
+  setSearchText,
   setSelectedSeriesId,
 } from "../slice";
 import {
@@ -258,6 +259,7 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
   const handleSeriesClick = useCallback(
     (seriesId: number) => {
       dispatch(setSelectedSeriesId(seriesId));
+      dispatch(setSearchText(""));
     },
     [dispatch],
   );

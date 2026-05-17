@@ -383,6 +383,12 @@ describe("BookGrid", () => {
         payload: 10, // setSelectedSeriesId payload
       }),
     );
+    expect(mockDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "bookCollection/setSearchText",
+        payload: "",
+      }),
+    );
   });
 
   it("calls handleSelectionClick when a book is clicked", () => {

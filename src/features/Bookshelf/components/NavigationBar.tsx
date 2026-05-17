@@ -34,6 +34,7 @@ export default function NavigationBar() {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const bookshelfSettings = useAppSelector((state) => state.settings.bookshelf);
+  const searchText = useAppSelector((state) => state.bookCollection.searchText);
   const bookshelfId = useAppSelector((state) => state.bookCollection.bookshelf.selectedId);
   const { selectedId: selectedSeriesId, series } = useAppSelector(
     (state) => state.bookCollection.series,
@@ -139,6 +140,7 @@ export default function NavigationBar() {
           size="small"
           placeholder={t("bookshelf.search-placeholder")}
           fullWidth
+          value={searchText}
           sx={{
             marginLeft: "16px",
             marginRight: "4px",
