@@ -78,6 +78,8 @@ export function createBasePreloadedState(): RootState {
       tag: { tags: [], selectedId: null, status: "idle", error: null },
       series: { series: [], selectedId: null, books: [], status: "idle", error: null },
       searchText: "",
+      isEditSeriesOrderDialogOpen: false,
+      editSeriesOrderTargetId: null,
     },
     history: { recentlyReadBooks: [], status: "idle", error: null },
   };

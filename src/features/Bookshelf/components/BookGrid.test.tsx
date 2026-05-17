@@ -159,6 +159,8 @@ describe("BookGrid", () => {
     },
     bookCollection: {
       searchText: "",
+      isEditSeriesOrderDialogOpen: false,
+      editSeriesOrderTargetId: null,
       bookshelf: {
         books: [],
         bookshelves: [],
