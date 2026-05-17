@@ -7,7 +7,7 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
+import { restrictToFirstScrollableAncestor, restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import {
   arrayMove,
   SortableContext,
@@ -70,14 +70,14 @@ export default function EditSeriesOrderDialog({
   };
 
   return (
-    <Dialog open={openDialog} onClose={onClose} fullWidth maxWidth="sm">
+    <Dialog open={openDialog} onClose={onClose}>
       <DialogTitle>{t("bookshelf.series.edit-order.title")}</DialogTitle>
-      <DialogContent dividers sx={{ p: 1, overflowX: "hidden" }}>
+      <DialogContent sx={{ padding: 1, overflowX: "hidden" }}>
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
           onDragEnd={handleDragEnd}
-          modifiers={[restrictToVerticalAxis]}
+          modifiers={[restrictToVerticalAxis, restrictToFirstScrollableAncestor]}
         >
           <SortableContext
             items={orderedBooks.map((b) => b.id)}
@@ -91,7 +91,7 @@ export default function EditSeriesOrderDialog({
           </SortableContext>
         </DndContext>
       </DialogContent>
-      <DialogActions>
+      <DialogActions sx={{ paddingBottom: 3, paddingRight: 3 }}>
         <Button onClick={onClose} sx={{ color: "text.secondary" }}>
           {t("bookshelf.collection.cancel-button")}
         </Button>

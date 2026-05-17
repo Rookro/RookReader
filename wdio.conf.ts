@@ -85,7 +85,7 @@ function closeTauriDriver() {
   tauriDriver?.kill();
 }
 
-function onShutdown(fn) {
+function onShutdown(fn: () => void) {
   const cleanup = () => {
     try {
       fn();
