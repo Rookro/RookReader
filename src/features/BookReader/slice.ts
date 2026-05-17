@@ -26,7 +26,12 @@ export const openContainerFile = createAppAsyncThunk(
     }
     info(`Open container file: ${path}`);
     try {
-      const entriesResult = await getEntriesInContainer(path);
+      const [entriesResult, dirPath, fileName] = await Promise.all([
+        getEntriesInContainer(path),
+        dirname(path),
+        basename(path),
+      ]);
+
       const isEpubNovel = entriesResult.is_novel;
 
       if (!isEpubNovel) {
@@ -37,7 +42,6 @@ export const openContainerFile = createAppAsyncThunk(
         debug(`openContainerFile: Epub Novel is opened.`);
       }
 
-      const dirPath = await dirname(path);
       dispatch(updateExploreBasePath({ dirPath }));
 
       debug(
@@ -47,7 +51,7 @@ export const openContainerFile = createAppAsyncThunk(
         filePath: path,
         itemType: entriesResult.is_directory ? "directory" : "file",
         totalPages: entriesResult.entries.length,
-        displayName: await basename(path),
+        displayName: fileName,
       });
 
       const book = await getBookWithStateById(bookId);

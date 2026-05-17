@@ -173,13 +173,16 @@ export const addBookToBookshelf = createAppAsyncThunk(
     { rejectWithValue },
   ) => {
     try {
-      const entriesResult = await getEntriesInContainer(bookPath);
+      const [entriesResult, fileName] = await Promise.all([
+        getEntriesInContainer(bookPath),
+        basename(bookPath),
+      ]);
 
       const bookId = await upsertBook({
         filePath: bookPath,
         itemType: entriesResult.is_directory ? "directory" : "file",
         totalPages: entriesResult.entries.length,
-        displayName: await basename(bookPath),
+        displayName: fileName,
       });
 
       if (bookshelfId !== null) {
