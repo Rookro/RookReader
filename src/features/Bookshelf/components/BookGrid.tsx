@@ -395,6 +395,7 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
       onSeriesClick: handleSeriesClick,
       enableAutoScroll: bookshelfSettings.enableAutoScroll,
       focusedIndex,
+      readingBookIndex,
     }),
     [
       filteredSortedItems,
@@ -405,6 +406,7 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
       handleSeriesClick,
       bookshelfSettings.enableAutoScroll,
       focusedIndex,
+      readingBookIndex,
     ],
   );
 

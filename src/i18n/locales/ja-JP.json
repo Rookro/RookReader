@@ -125,7 +125,8 @@
       "name-desc": "名前 (降順: Z->A)",
       "date-asc": "日付 (古い順)",
       "date-desc": "日付 (新しい順)"
-    }
+    },
+    "reading-chip-label": "読書中"
   },
   "settings": {
     "ui": {
