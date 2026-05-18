@@ -13,7 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Added image cache and page preloading settings to optimize reading performance. (#216)
 * Added search and filtering capabilities to font settings for quicker selection. (#219)
-* Added manual drag-and-drop sorting for books within a series (#226)
+* Added manual drag-and-drop sorting for books within a series. (#226, #229)
+* Added highlighting and auto-scroll for the currently reading book in the bookshelf. (#231)
 
 ### Changed
 
