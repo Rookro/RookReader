@@ -36,6 +36,7 @@ describe("BookCard", () => {
     size: "medium" as const,
     enableAutoScroll: true,
     onBookClick: vi.fn(),
+    isReading: false,
   };
 
   const renderBookCard = (props = defaultProps, selectionProviderProps = {}) => {
@@ -107,5 +108,12 @@ describe("BookCard", () => {
 
     const progressBar = screen.getByRole("progressbar");
     expect(progressBar).toHaveAttribute("aria-valuenow", "0");
+  });
+
+  it("should render reading chip when isReading is true", () => {
+    renderBookCard({ ...defaultProps, isReading: true });
+
+    expect(screen.getByText("Reading")).toBeInTheDocument();
+    expect(screen.getByTestId("MenuBookIcon")).toBeInTheDocument();
   });
 });

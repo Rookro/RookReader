@@ -5,6 +5,7 @@ import { type RootState, useAppDispatch, useAppSelector } from "../../../store/s
 import { createMockBookWithState, createMockSeries } from "../../../test/factories";
 import { useBookSelection } from "../hooks/useBookSelection";
 import { useBookshelfDialogs } from "../hooks/useBookshelfDialogs";
+import { useReadingBookSelection } from "../hooks/useReadingBookSelection";
 import BookGrid from "./BookGrid";
 import { BookSelectionContext } from "./BookSelectionContext";
 import { useBookshelfActions } from "./BookshelfActionsContext";
@@ -13,6 +14,7 @@ import { useBookshelfActions } from "./BookshelfActionsContext";
 vi.mock("../../../store/store");
 vi.mock("../hooks/useBookSelection");
 vi.mock("../hooks/useBookshelfDialogs");
+vi.mock("../hooks/useReadingBookSelection");
 vi.mock("../../../hooks/useResizeObserver");
 vi.mock("../../Settings/slice", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../Settings/slice")>();
@@ -23,8 +25,10 @@ vi.mock("../../Settings/slice", async (importOriginal) => {
 });
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
-    t: (key: string, options?: { searchText?: string }) =>
-      options?.searchText ? `${key}:${options.searchText}` : key,
+    t: (key: string, options?: { searchText?: string }) => {
+      if (key === "bookshelf.reading-chip-label") return "Reading";
+      return options?.searchText ? `${key}:${options.searchText}` : key;
+    },
   }),
   Trans: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
@@ -174,6 +178,11 @@ describe("BookGrid", () => {
       series: {
         series: [],
         selectedId: null,
+      },
+    },
+    read: {
+      containerFile: {
+        book: null,
       },
     },
     view: {
@@ -947,5 +956,37 @@ describe("BookGrid", () => {
     );
 
     expect(screen.getByText("Series")).toBeInTheDocument();
+  });
+
+  it("calls useReadingBookSelection with the reading book from state", () => {
+    const readingBook = createMockBookWithState({ id: 5, display_name: "Reading Book" });
+    const state = {
+      ...defaultState,
+      read: {
+        containerFile: {
+          book: readingBook,
+        },
+      },
+      bookCollection: {
+        ...defaultState.bookCollection,
+        bookshelf: { ...defaultState.bookCollection.bookshelf, books: [readingBook] },
+      },
+    };
+
+    vi.mocked(useAppSelector).mockImplementation(<T,>(selector: (state: RootState) => T): T => {
+      return selector(state as unknown as RootState);
+    });
+
+    render(
+      <BookSelectionContext.Provider value={mockSelectionValue}>
+        <BookGrid />
+      </BookSelectionContext.Provider>,
+    );
+
+    expect(useReadingBookSelection).toHaveBeenCalledWith(
+      readingBook,
+      expect.arrayContaining([expect.objectContaining({ data: readingBook })]),
+      expect.any(Function),
+    );
   });
 });
