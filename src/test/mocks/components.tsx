@@ -54,6 +54,7 @@ vi.mock("react-window", () => ({
     );
   },
   useListCallbackRef: vi.fn(() => [{ scrollToRow: mockScrollToRow }, vi.fn()]),
+  useGridCallbackRef: vi.fn(() => [{ scrollToCell: vi.fn() }, vi.fn()]),
 }));
 
 // Mock allotment

@@ -1,8 +1,9 @@
 import { Box, CircularProgress, Stack, Typography } from "@mui/material";
 import { createSelector } from "@reduxjs/toolkit";
+import { debug, error } from "@tauri-apps/plugin-log";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Grid } from "react-window";
+import { Grid, useGridCallbackRef } from "react-window";
 import { useAppTheme } from "../../../hooks/useAppTheme";
 import { useResizeObserver } from "../../../hooks/useResizeObserver";
 import { type RootState, useAppDispatch, useAppSelector } from "../../../store/store";
@@ -10,6 +11,7 @@ import type { Book, BookWithState } from "../../../types/DatabaseModels";
 import { updateSettings } from "../../Settings/slice";
 import { useBookSelection } from "../hooks/useBookSelection";
 import { type BookshelfDialogType, useBookshelfDialogs } from "../hooks/useBookshelfDialogs";
+import { useReadingBookSelection } from "../hooks/useReadingBookSelection";
 import {
   fetchBooksInSelectedBookshelf,
   fetchSeries,
@@ -54,6 +56,7 @@ const selectBookGridState = createSelector(
     (state: RootState) => state.bookCollection.series.selectedId,
     (state: RootState) => state.bookCollection.isEditSeriesOrderDialogOpen,
     (state: RootState) => state.bookCollection.editSeriesOrderTargetId,
+    (state: RootState) => state.read.containerFile.book,
     (state: RootState) => state.view.activeView,
   ],
   (
@@ -69,6 +72,7 @@ const selectBookGridState = createSelector(
     selectedSeriesId,
     isEditSeriesOrderDialogOpen,
     editSeriesOrderTargetId,
+    readingBook,
     activeView,
   ) => ({
     bookshelfSettings,
@@ -83,6 +87,7 @@ const selectBookGridState = createSelector(
     selectedSeriesId,
     isEditSeriesOrderDialogOpen,
     editSeriesOrderTargetId,
+    readingBook,
     activeView,
   }),
 );
@@ -112,12 +117,16 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
     selectedSeriesId,
     isEditSeriesOrderDialogOpen,
     editSeriesOrderTargetId,
+    readingBook,
     activeView,
   } = useAppSelector(selectBookGridState);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const containerWidth = useResizeObserver(containerRef);
   const [focusedIndex, setFocusedIndex] = useState<number>(-1);
+
+  const [grid, setGrid] = useGridCallbackRef(null);
+  const [readingBookIndex, setReadingBookIndex] = useState<number>(-1);
 
   const {
     dialogType,
@@ -275,6 +284,46 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
   const rowCount =
     filteredSortedItems.length === 0 ? 0 : Math.ceil(filteredSortedItems.length / columnCount);
 
+  useReadingBookSelection(readingBook, filteredSortedItems, setReadingBookIndex);
+
+  // Scroll to make the selected item visible
+  useEffect(() => {
+    if (filteredSortedItems.length === 0 || !grid) {
+      return;
+    }
+
+    // Use setTimeout to push the scroll command to the end of the event loop.
+    // This ensures that the virtualized list (react-window) has finished
+    // rendering and measuring item positions before attempting to scroll.
+    const timerId = setTimeout(() => {
+      try {
+        if (readingBookIndex === -1) {
+          debug("Scrolling to top.");
+          grid.scrollToCell({
+            behavior: "instant",
+            columnIndex: 0,
+            rowIndex: 0,
+          });
+        } else {
+          debug(`Scrolling to cell ${readingBookIndex}.`);
+          grid.scrollToCell({
+            behavior: "instant",
+            columnAlign: "smart",
+            rowAlign: "smart",
+            columnIndex: readingBookIndex % columnCount,
+            rowIndex: Math.floor(readingBookIndex / columnCount),
+          });
+        }
+      } catch (e) {
+        error(`Failed to scroll to cell ${readingBookIndex}: ${e}`);
+      }
+    }, 20);
+
+    return () => {
+      clearTimeout(timerId);
+    };
+  }, [readingBookIndex, filteredSortedItems, grid, columnCount]);
+
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       if (filteredSortedItems.length === 0) return;
@@ -346,6 +395,7 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
       onSeriesClick: handleSeriesClick,
       enableAutoScroll: bookshelfSettings.enableAutoScroll,
       focusedIndex,
+      readingBookIndex,
     }),
     [
       filteredSortedItems,
@@ -356,6 +406,7 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
       handleSeriesClick,
       bookshelfSettings.enableAutoScroll,
       focusedIndex,
+      readingBookIndex,
     ],
   );
 
@@ -424,6 +475,7 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
               }}
             >
               <Grid
+                gridRef={setGrid}
                 cellComponent={BookGridCell}
                 columnCount={columnCount}
                 columnWidth={columnWidth}

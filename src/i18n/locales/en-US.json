@@ -125,7 +125,8 @@
       "name-desc": "Name (Z->A)",
       "date-asc": "Date (Oldest first)",
       "date-desc": "Date (Newest first)"
-    }
+    },
+    "reading-chip-label": "Reading"
   },
   "settings": {
     "ui": {
