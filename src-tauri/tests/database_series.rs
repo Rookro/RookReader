@@ -35,6 +35,35 @@ async fn test_create_duplicate_series() {
 }
 
 #[tokio::test]
+async fn test_assign_book_to_series() {
+    let pool = setup_db().await;
+    let series_repo = SqliteSeriesRepository::new(pool.clone());
+    let book_repo = rookreader_lib::database::book::SqliteBookRepository::new(pool.clone());
+
+    let series_id = series_repo.create("Series X").await.unwrap();
+    let book_id = book_repo
+        .upsert_book("path/x", "file", "Book X", 100, None)
+        .await
+        .unwrap();
+
+    // Assign
+    series_repo
+        .assign_book_to_series(book_id, Some(series_id))
+        .await
+        .unwrap();
+    let book = book_repo.get_by_id(book_id).await.unwrap().unwrap();
+    assert_eq!(book.series_id, Some(series_id));
+
+    // Remove (assign None)
+    series_repo
+        .assign_book_to_series(book_id, None)
+        .await
+        .unwrap();
+    let book = book_repo.get_by_id(book_id).await.unwrap().unwrap();
+    assert_eq!(book.series_id, None);
+}
+
+#[tokio::test]
 async fn test_delete_series() {
     let pool = setup_db().await;
     let series_repo = SqliteSeriesRepository::new(pool.clone());
@@ -66,4 +95,55 @@ async fn test_delete_series() {
     // Verify book's series_id is now None
     let book = book_repo.get_by_id(book_id).await.unwrap().unwrap();
     assert_eq!(book.series_id, None);
+}
+
+#[tokio::test]
+async fn test_update_book_orders_in_series() {
+    let pool = setup_db().await;
+    let series_repo = SqliteSeriesRepository::new(pool.clone());
+    let book_repo = rookreader_lib::database::book::SqliteBookRepository::new(pool.clone());
+
+    let series_id = series_repo.create("Ordered Series").await.unwrap();
+
+    let b1 = book_repo
+        .upsert_book("path/1", "file", "Book 1", 100, None)
+        .await
+        .unwrap();
+    let b2 = book_repo
+        .upsert_book("path/2", "file", "Book 2", 100, None)
+        .await
+        .unwrap();
+    let b3 = book_repo
+        .upsert_book("path/3", "file", "Book 3", 100, None)
+        .await
+        .unwrap();
+
+    // Assign to series
+    series_repo
+        .assign_book_to_series(b1, Some(series_id))
+        .await
+        .unwrap();
+    series_repo
+        .assign_book_to_series(b2, Some(series_id))
+        .await
+        .unwrap();
+    series_repo
+        .assign_book_to_series(b3, Some(series_id))
+        .await
+        .unwrap();
+
+    // Initial order doesn't matter much for this test, let's set a specific one
+    series_repo
+        .update_book_orders_in_series(vec![b3, b1, b2])
+        .await
+        .unwrap();
+
+    // Verify order
+    let book3 = book_repo.get_by_id(b3).await.unwrap().unwrap();
+    let book1 = book_repo.get_by_id(b1).await.unwrap().unwrap();
+    let book2 = book_repo.get_by_id(b2).await.unwrap().unwrap();
+
+    assert_eq!(book3.series_order, Some(1));
+    assert_eq!(book1.series_order, Some(2));
+    assert_eq!(book2.series_order, Some(3));
 }

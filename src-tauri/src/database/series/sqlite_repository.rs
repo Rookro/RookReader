@@ -115,3 +115,89 @@ impl SeriesRepository for SqliteSeriesRepository {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::database::book::{BookRepository, SqliteBookRepository};
+
+    async fn setup_db() -> SqlitePool {
+        let pool = SqlitePool::connect("sqlite::memory:").await.unwrap();
+        sqlx::migrate!("./migrations").run(&pool).await.unwrap();
+        pool
+    }
+
+    #[tokio::test]
+    async fn test_create_and_get_all() {
+        let pool = setup_db().await;
+        let repo = SqliteSeriesRepository::new(pool);
+
+        let id = repo.create("Test Series").await.unwrap();
+        let all = repo.get_all().await.unwrap();
+
+        assert_eq!(all.len(), 1);
+        assert_eq!(all[0].id, id);
+        assert_eq!(all[0].name, "Test Series");
+    }
+
+    #[tokio::test]
+    async fn test_assign_book_to_series() {
+        let pool = setup_db().await;
+        let repo = SqliteSeriesRepository::new(pool.clone());
+        let book_repo = SqliteBookRepository::new(pool);
+
+        let series_id = repo.create("Series").await.unwrap();
+        let book_id = book_repo
+            .upsert_book("path", "file", "Book", 10, None)
+            .await
+            .unwrap();
+
+        repo.assign_book_to_series(book_id, Some(series_id))
+            .await
+            .unwrap();
+        let book = book_repo.get_by_id(book_id).await.unwrap().unwrap();
+        assert_eq!(book.series_id, Some(series_id));
+
+        repo.assign_book_to_series(book_id, None).await.unwrap();
+        let book = book_repo.get_by_id(book_id).await.unwrap().unwrap();
+        assert_eq!(book.series_id, None);
+    }
+
+    #[tokio::test]
+    async fn test_update_book_orders_in_series() {
+        let pool = setup_db().await;
+        let repo = SqliteSeriesRepository::new(pool.clone());
+        let book_repo = SqliteBookRepository::new(pool);
+
+        let b1 = book_repo
+            .upsert_book("p1", "file", "B1", 10, None)
+            .await
+            .unwrap();
+        let b2 = book_repo
+            .upsert_book("p2", "file", "B2", 10, None)
+            .await
+            .unwrap();
+
+        repo.update_book_orders_in_series(vec![b2, b1])
+            .await
+            .unwrap();
+
+        let book2 = book_repo.get_by_id(b2).await.unwrap().unwrap();
+        let book1 = book_repo.get_by_id(b1).await.unwrap().unwrap();
+
+        assert_eq!(book2.series_order, Some(1));
+        assert_eq!(book1.series_order, Some(2));
+    }
+
+    #[tokio::test]
+    async fn test_delete_series() {
+        let pool = setup_db().await;
+        let repo = SqliteSeriesRepository::new(pool);
+
+        let id = repo.create("To Delete").await.unwrap();
+        repo.delete(id).await.unwrap();
+
+        let all = repo.get_all().await.unwrap();
+        assert!(all.is_empty());
+    }
+}
