@@ -47,8 +47,8 @@ async fn test_delete_series() {
         .await
         .unwrap();
 
-    book_repo
-        .update_book_series(book_id, Some(series_id))
+    series_repo
+        .assign_book_to_series(book_id, Some(series_id))
         .await
         .unwrap();
 

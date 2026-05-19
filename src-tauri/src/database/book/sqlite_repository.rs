@@ -379,26 +379,6 @@ impl BookRepository for SqliteBookRepository {
         Ok(())
     }
 
-    async fn update_book_series(
-        &self,
-        book_id: i64,
-        series_id: Option<i64>,
-    ) -> Result<(), sqlx::Error> {
-        sqlx::query!(
-            r#"
-            UPDATE books
-            SET series_id = ?
-            WHERE id = ?
-            "#,
-            series_id,
-            book_id
-        )
-        .execute(&self.pool)
-        .await?;
-
-        Ok(())
-    }
-
     async fn update_series_orders(&self, book_ids: Vec<i64>) -> Result<(), sqlx::Error> {
         let mut tx = self.pool.begin().await?;
 

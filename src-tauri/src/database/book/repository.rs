@@ -241,26 +241,6 @@ pub trait BookRepository: Send + Sync {
     /// Returns an `Err` if a database operation fails.
     async fn delete_book(&self, id: i64) -> Result<(), sqlx::Error>;
 
-    /// Updates the series associated with a specific book.
-    ///
-    /// # Arguments
-    ///
-    /// * `book_id` - The unique identifier of the book.
-    /// * `series_id` - The unique identifier of the series to associate with the book, or `None` to remove.
-    ///
-    /// # Returns
-    ///
-    /// A `Result` indicating the success of the operation.
-    ///
-    /// # Errors
-    ///
-    /// Returns an `Err` if the database execution fails.
-    async fn update_book_series(
-        &self,
-        book_id: i64,
-        series_id: Option<i64>,
-    ) -> Result<(), sqlx::Error>;
-
     /// Updates the `series_order` for a given list of book IDs.
     /// The order is determined by the index of the book ID in the list (1-based).
     ///

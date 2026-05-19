@@ -32,6 +32,26 @@ pub trait SeriesRepository: Send + Sync {
     /// Returns an `Err` if the database query fails.
     async fn get_all(&self) -> Result<Vec<Series>, sqlx::Error>;
 
+    /// Updates the series associated with a specific book.
+    ///
+    /// # Arguments
+    ///
+    /// * `book_id` - The unique identifier of the book.
+    /// * `series_id` - The unique identifier of the series to associate with the book, or `None` to remove.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` indicating the success of the operation.
+    ///
+    /// # Errors
+    ///
+    /// Returns an `Err` if the database execution fails.
+    async fn assign_book_to_series(
+        &self,
+        book_id: i64,
+        series_id: Option<i64>,
+    ) -> Result<(), sqlx::Error>;
+
     /// Deletes a series by its ID.
     /// Books associated with this series will have their series_id set to NULL due to FK constraints.
     ///

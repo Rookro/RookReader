@@ -58,6 +58,26 @@ impl SeriesRepository for SqliteSeriesRepository {
         Ok(series_list)
     }
 
+    async fn assign_book_to_series(
+        &self,
+        book_id: i64,
+        series_id: Option<i64>,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            r#"
+            UPDATE books
+            SET series_id = ?
+            WHERE id = ?
+            "#,
+            series_id,
+            book_id
+        )
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+
     async fn delete(&self, id: i64) -> Result<(), sqlx::Error> {
         sqlx::query!(
             r#"

@@ -236,8 +236,8 @@ async fn test_filtering_by_bookshelf_tag_series() {
 
     // Series
     let series_id = series_repo.create("Series").await.unwrap();
-    repository
-        .update_book_series(b1, Some(series_id))
+    series_repo
+        .assign_book_to_series(b1, Some(series_id))
         .await
         .unwrap();
 

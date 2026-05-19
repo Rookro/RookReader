@@ -13,6 +13,7 @@ use crate::container::{
     pdf_container::PdfContainer, rar_container::RarContainer, zip_container::ZipContainer,
 };
 use crate::database::book::{Book, BookRepository, BookWithState, ReadBook, ReadingState};
+use crate::database::series::SeriesRepository;
 use crate::database::tag::TagRepository;
 use crate::error::{Error, Result};
 use crate::state::app_state::AppState;
@@ -506,7 +507,7 @@ pub async fn delete_book(id: i64, repo: State<'_, Arc<dyn BookRepository>>) -> R
 ///
 /// * `book_id` - The unique identifier of the book.
 /// * `series_id` - The unique identifier of the series to associate with the book, or `None` to remove.
-/// * `repo` - The managed book repository state.
+/// * `repo` - The managed series repository state.
 ///
 /// # Errors
 ///
@@ -515,14 +516,14 @@ pub async fn delete_book(id: i64, repo: State<'_, Arc<dyn BookRepository>>) -> R
 pub async fn update_book_series(
     book_id: i64,
     series_id: Option<i64>,
-    repo: State<'_, Arc<dyn BookRepository>>,
+    repo: State<'_, Arc<dyn SeriesRepository>>,
 ) -> Result<()> {
     log::debug!(
         "Update book series. (book id:{:?}, series id:{:?})",
         book_id,
         series_id
     );
-    Ok(repo.update_book_series(book_id, series_id).await?)
+    Ok(repo.assign_book_to_series(book_id, series_id).await?)
 }
 
 /// Updates the `series_order` for a given list of book IDs.
@@ -636,6 +637,7 @@ async fn generate_and_save_thumbnail<R: tauri::Runtime>(
 mod tests {
     use super::*;
     use crate::database::book::MockBookRepository;
+    use crate::database::series::MockSeriesRepository;
     use crate::database::tag::MockTagRepository;
     use crate::error::ErrorCode;
     use tauri::Manager;
@@ -741,16 +743,16 @@ mod tests {
 
     #[tokio::test]
     async fn test_update_book_series() {
-        let mut mock_repo = MockBookRepository::new();
+        let mut mock_repo = MockSeriesRepository::new();
         mock_repo
-            .expect_update_book_series()
+            .expect_assign_book_to_series()
             .with(mockall::predicate::eq(1), mockall::predicate::eq(Some(10)))
             .times(1)
             .returning(|_, _| Ok(()));
 
         let app = tauri::test::mock_app();
-        app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
-        let state = app.state::<Arc<dyn BookRepository>>();
+        app.manage(Arc::new(mock_repo) as Arc<dyn SeriesRepository>);
+        let state = app.state::<Arc<dyn SeriesRepository>>();
 
         let result = update_book_series(1, Some(10), state).await;
         assert!(result.is_ok());
