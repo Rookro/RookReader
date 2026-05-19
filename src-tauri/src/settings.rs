@@ -500,7 +500,7 @@ pub enum Direction {
 
 /// Represents the algorithm used for resampling images.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "camelCase")]
 pub enum ImageResamplingMethod {
     /// Nearest Neighbor
     Nearest,
