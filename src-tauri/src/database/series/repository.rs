@@ -52,6 +52,22 @@ pub trait SeriesRepository: Send + Sync {
         series_id: Option<i64>,
     ) -> Result<(), sqlx::Error>;
 
+    /// Updates the `series_order` for a given list of book IDs.
+    /// The order is determined by the index of the book ID in the list (1-based).
+    ///
+    /// # Arguments
+    ///
+    /// * `book_ids` - A list of book IDs in the desired order.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` indicating the success of the operation.
+    ///
+    /// # Errors
+    ///
+    /// Returns an `Err` if the database execution fails.
+    async fn update_book_orders_in_series(&self, book_ids: Vec<i64>) -> Result<(), sqlx::Error>;
+
     /// Deletes a series by its ID.
     /// Books associated with this series will have their series_id set to NULL due to FK constraints.
     ///

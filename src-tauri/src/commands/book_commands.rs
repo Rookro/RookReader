@@ -531,7 +531,7 @@ pub async fn update_book_series(
 /// # Arguments
 ///
 /// * `book_ids` - A list of book IDs in the desired order.
-/// * `repo` - The managed book repository state.
+/// * `repo` - The managed series repository state.
 ///
 /// # Errors
 ///
@@ -539,10 +539,10 @@ pub async fn update_book_series(
 #[tauri::command]
 pub async fn update_series_orders(
     book_ids: Vec<i64>,
-    repo: State<'_, Arc<dyn BookRepository>>,
+    repo: State<'_, Arc<dyn SeriesRepository>>,
 ) -> Result<()> {
     log::debug!("Update series orders for books: {:?}", book_ids);
-    Ok(repo.update_series_orders(book_ids).await?)
+    Ok(repo.update_book_orders_in_series(book_ids).await?)
 }
 
 /// Helper function to generate and save a thumbnail for a given file path.
@@ -760,16 +760,16 @@ mod tests {
 
     #[tokio::test]
     async fn test_update_series_orders() {
-        let mut mock_repo = MockBookRepository::new();
+        let mut mock_repo = MockSeriesRepository::new();
         mock_repo
-            .expect_update_series_orders()
+            .expect_update_book_orders_in_series()
             .with(mockall::predicate::eq(vec![1, 2, 3]))
             .times(1)
             .returning(|_| Ok(()));
 
         let app = tauri::test::mock_app();
-        app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
-        let state = app.state::<Arc<dyn BookRepository>>();
+        app.manage(Arc::new(mock_repo) as Arc<dyn SeriesRepository>);
+        let state = app.state::<Arc<dyn SeriesRepository>>();
 
         let result = update_series_orders(vec![1, 2, 3], state).await;
         assert!(result.is_ok());
