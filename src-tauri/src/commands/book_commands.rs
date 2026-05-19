@@ -439,7 +439,7 @@ pub async fn get_books_with_state_by_series_id(
 /// # Arguments
 ///
 /// * `book_id` - The unique identifier of the book.
-/// * `repo` - The managed book repository state.
+/// * `repo` - The managed tag repository state.
 ///
 /// # Returns
 ///
@@ -452,10 +452,10 @@ pub async fn get_books_with_state_by_series_id(
 #[tauri::command]
 pub async fn get_book_tags(
     book_id: i64,
-    repo: State<'_, Arc<dyn BookRepository>>,
+    repo: State<'_, Arc<dyn TagRepository>>,
 ) -> Result<Vec<i64>> {
     log::debug!("Get book tags of {:?}.", book_id);
-    Ok(repo.get_book_tags(book_id).await?)
+    Ok(repo.get_tags_for_book(book_id).await?)
 }
 
 /// Updates the tags associated with a specific book.
@@ -636,6 +636,7 @@ async fn generate_and_save_thumbnail<R: tauri::Runtime>(
 mod tests {
     use super::*;
     use crate::database::book::MockBookRepository;
+    use crate::database::tag::MockTagRepository;
     use crate::error::ErrorCode;
     use tauri::Manager;
 
@@ -807,16 +808,16 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_book_tags() {
-        let mut mock_repo = MockBookRepository::new();
+        let mut mock_repo = MockTagRepository::new();
         mock_repo
-            .expect_get_book_tags()
+            .expect_get_tags_for_book()
             .with(mockall::predicate::eq(1))
             .times(1)
             .returning(|_| Ok(vec![1, 2, 3]));
 
         let app = tauri::test::mock_app();
-        app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
-        let state = app.state::<Arc<dyn BookRepository>>();
+        app.manage(Arc::new(mock_repo) as Arc<dyn TagRepository>);
+        let state = app.state::<Arc<dyn TagRepository>>();
 
         let result = get_book_tags(1, state).await;
         assert!(result.is_ok());

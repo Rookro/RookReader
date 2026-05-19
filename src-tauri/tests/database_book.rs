@@ -300,7 +300,7 @@ async fn test_book_tags() {
         .await
         .unwrap();
 
-    let tags = repository.get_book_tags(book_id).await.unwrap();
+    let tags = tag_repo.get_tags_for_book(book_id).await.unwrap();
     assert_eq!(tags.len(), 2);
     assert!(tags.contains(&t1.id));
     assert!(tags.contains(&t2.id));
@@ -318,7 +318,7 @@ async fn test_book_tags() {
         .attach_tags_to_book(book_id, &[t1.id])
         .await
         .unwrap();
-    let tags = repository.get_book_tags(book_id).await.unwrap();
+    let tags = tag_repo.get_tags_for_book(book_id).await.unwrap();
     assert_eq!(tags.len(), 1);
     assert_eq!(tags[0], t1.id);
 }
@@ -358,7 +358,7 @@ async fn test_delete_book() {
     let book = repository.get_by_id(book_id).await.unwrap();
     assert!(book.is_none());
 
-    let tags = repository.get_book_tags(book_id).await.unwrap();
+    let tags = tag_repo.get_tags_for_book(book_id).await.unwrap();
     assert!(tags.is_empty());
 
     let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM bookshelf_items WHERE book_id = ?")

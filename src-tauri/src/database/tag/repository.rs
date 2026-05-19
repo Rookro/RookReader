@@ -49,6 +49,21 @@ pub trait TagRepository: Send + Sync {
     /// Returns an `Err` if the database execution fails.
     async fn attach_tags_to_book(&self, book_id: i64, tag_ids: &[i64]) -> Result<(), sqlx::Error>;
 
+    /// Retrieves the IDs of all tags associated with a specific book.
+    ///
+    /// # Arguments
+    ///
+    /// * `book_id` - The unique identifier of the book.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing a vector of tag IDs.
+    ///
+    /// # Errors
+    ///
+    /// Returns an `Err` if the database query fails.
+    async fn get_tags_for_book(&self, book_id: i64) -> Result<Vec<i64>, sqlx::Error>;
+
     /// Deletes a tag from the database.
     ///
     /// # Arguments

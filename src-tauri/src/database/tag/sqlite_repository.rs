@@ -88,6 +88,20 @@ impl TagRepository for SqliteTagRepository {
         Ok(())
     }
 
+    async fn get_tags_for_book(&self, book_id: i64) -> Result<Vec<i64>, sqlx::Error> {
+        let records = sqlx::query!(
+            r#"
+            SELECT tag_id FROM book_tags WHERE book_id = ?
+            "#,
+            book_id
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        let tag_ids = records.into_iter().map(|r| r.tag_id).collect();
+        Ok(tag_ids)
+    }
+
     async fn delete(&self, id: i64) -> Result<(), sqlx::Error> {
         sqlx::query!(
             r#"
