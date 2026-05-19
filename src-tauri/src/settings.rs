@@ -387,6 +387,7 @@ pub struct RenderingSettings {
     /// The algorithm used for resampling (resizing) images.
     pub image_resampling_method: ImageResamplingMethod,
     /// The vertical resolution used when rasterizing PDF pages to images.
+    #[serde(default = "default_pdf_render_resolution_height")]
     pub pdf_render_resolution_height: i32,
 }
 
@@ -396,9 +397,13 @@ impl Default for RenderingSettings {
             enable_thumbnail_preview: default_true(),
             max_image_height: i32::default(),
             image_resampling_method: ImageResamplingMethod::default(),
-            pdf_render_resolution_height: i32::default(),
+            pdf_render_resolution_height: default_pdf_render_resolution_height(),
         }
     }
+}
+
+fn default_pdf_render_resolution_height() -> i32 {
+    2000
 }
 
 /// Settings related to tracking user history.
@@ -576,6 +581,7 @@ mod tests {
         assert_eq!(settings.reader.comic.loupe.toggle_key, "MouseMiddle");
         assert_eq!(settings.reader.novel.font_family, "default-font");
         assert_eq!(settings.reader.novel.font_size, 16);
+        assert_eq!(settings.reader.rendering.pdf_render_resolution_height, 2000);
     }
 
     #[test]
@@ -603,5 +609,6 @@ mod tests {
         assert!(matches!(settings.startup.initial_view, InitialView::Reader));
         assert!(settings.startup.restore_last_book);
         assert_eq!(settings.reader.comic.loupe.radius, 200.0);
+        assert_eq!(settings.reader.rendering.pdf_render_resolution_height, 2000);
     }
 }
