@@ -228,7 +228,7 @@ async fn test_filtering_by_bookshelf_tag_series() {
 
     // Tag
     let tag = tag_repo.create("Tag", "#000").await.unwrap();
-    repository.update_book_tags(b2, &[tag.id]).await.unwrap();
+    tag_repo.attach_tags_to_book(b2, &[tag.id]).await.unwrap();
 
     let tag_books = repository
         .get_books_with_state_by_tag_id(tag.id)
@@ -295,8 +295,8 @@ async fn test_book_tags() {
     let t1 = tag_repo.create("Sci-Fi", "#000").await.unwrap();
     let t2 = tag_repo.create("Fantasy", "#111").await.unwrap();
 
-    repository
-        .update_book_tags(book_id, &[t1.id, t2.id])
+    tag_repo
+        .attach_tags_to_book(book_id, &[t1.id, t2.id])
         .await
         .unwrap();
 
@@ -314,8 +314,8 @@ async fn test_book_tags() {
     assert!(tags_str.contains(&t1.id.to_string()));
     assert!(tags_str.contains(&t2.id.to_string()));
 
-    repository
-        .update_book_tags(book_id, &[t1.id])
+    tag_repo
+        .attach_tags_to_book(book_id, &[t1.id])
         .await
         .unwrap();
     let tags = repository.get_book_tags(book_id).await.unwrap();
@@ -336,8 +336,8 @@ async fn test_delete_book() {
         .unwrap();
 
     let tag = tag_repo.create("Tag", "#000").await.unwrap();
-    repository
-        .update_book_tags(book_id, &[tag.id])
+    tag_repo
+        .attach_tags_to_book(book_id, &[tag.id])
         .await
         .unwrap();
 

@@ -59,6 +59,35 @@ impl TagRepository for SqliteTagRepository {
         Ok(tags)
     }
 
+    async fn attach_tags_to_book(&self, book_id: i64, tag_ids: &[i64]) -> Result<(), sqlx::Error> {
+        let mut tx = self.pool.begin().await?;
+
+        sqlx::query!(
+            r#"
+            DELETE FROM book_tags WHERE book_id = ?
+            "#,
+            book_id
+        )
+        .execute(&mut *tx)
+        .await?;
+
+        for tag_id in tag_ids {
+            sqlx::query!(
+                r#"
+                INSERT INTO book_tags (book_id, tag_id)
+                VALUES (?, ?)
+                "#,
+                book_id,
+                tag_id
+            )
+            .execute(&mut *tx)
+            .await?;
+        }
+
+        tx.commit().await?;
+        Ok(())
+    }
+
     async fn delete(&self, id: i64) -> Result<(), sqlx::Error> {
         sqlx::query!(
             r#"

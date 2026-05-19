@@ -13,6 +13,7 @@ use crate::container::{
     pdf_container::PdfContainer, rar_container::RarContainer, zip_container::ZipContainer,
 };
 use crate::database::book::{Book, BookRepository, BookWithState, ReadBook, ReadingState};
+use crate::database::tag::TagRepository;
 use crate::error::{Error, Result};
 use crate::state::app_state::AppState;
 
@@ -473,14 +474,14 @@ pub async fn get_book_tags(
 pub async fn update_book_tags(
     book_id: i64,
     tag_ids: Vec<i64>,
-    repo: State<'_, Arc<dyn BookRepository>>,
+    repo: State<'_, Arc<dyn TagRepository>>,
 ) -> Result<()> {
     log::debug!(
         "Update book tags. (book id:{:?}, tag ids:{:?})",
         book_id,
         tag_ids
     );
-    Ok(repo.update_book_tags(book_id, &tag_ids).await?)
+    Ok(repo.attach_tags_to_book(book_id, &tag_ids).await?)
 }
 
 /// Deletes a book by its unique ID.

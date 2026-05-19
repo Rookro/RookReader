@@ -146,22 +146,6 @@ pub trait BookRepository: Send + Sync {
     /// Returns an `Err` if the database execution fails.
     async fn clear_all_reading_history(&self) -> Result<(), sqlx::Error>;
 
-    /// Updates the tags associated with a specific book.
-    ///
-    /// # Arguments
-    ///
-    /// * `book_id` - The unique identifier of the book.
-    /// * `tag_ids` - A slice of tag IDs to associate with the book.
-    ///
-    /// # Returns
-    ///
-    /// A `Result` indicating the success of the operation.
-    ///
-    /// # Errors
-    ///
-    /// Returns an `Err` if the database execution fails.
-    async fn update_book_tags(&self, book_id: i64, tag_ids: &[i64]) -> Result<(), sqlx::Error>;
-
     /// Retrieves the IDs of all tags associated with a specific book.
     ///
     /// # Arguments
