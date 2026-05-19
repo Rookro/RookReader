@@ -1,6 +1,8 @@
 use async_trait::async_trait;
 use sqlx::SqlitePool;
 
+use crate::database::book::BookWithState;
+
 use super::model::Bookshelf;
 use super::repository::BookshelfRepository;
 
@@ -57,6 +59,29 @@ impl BookshelfRepository for SqliteBookshelfRepository {
         .await?;
 
         Ok(bookshelves)
+    }
+
+    async fn get_books_by_bookshelf(
+        &self,
+        bookshelf_id: i64,
+    ) -> Result<Vec<BookWithState>, sqlx::Error> {
+        let books = sqlx::query_as!(
+            BookWithState,
+            r#"
+            SELECT b.id, b.file_path, b.item_type, b.display_name, b.total_pages, b.series_id, b.series_order,
+                   b.thumbnail_path, r.last_read_page_index, r.last_opened_at,
+                   (SELECT GROUP_CONCAT(tag_id) FROM book_tags WHERE book_id = b.id) as "tag_ids_str?: String"
+            FROM books b
+            INNER JOIN bookshelf_items bi ON b.id = bi.book_id
+            LEFT JOIN reading_state r ON b.id = r.book_id
+            WHERE bi.bookshelf_id = ?
+            ORDER BY bi.added_at DESC
+            "#,
+            bookshelf_id
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(books)
     }
 
     async fn add_book_to_bookshelf(

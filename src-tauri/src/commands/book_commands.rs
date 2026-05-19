@@ -13,6 +13,7 @@ use crate::container::{
     pdf_container::PdfContainer, rar_container::RarContainer, zip_container::ZipContainer,
 };
 use crate::database::book::{Book, BookRepository, BookWithState, ReadBook, ReadingState};
+use crate::database::bookshelf::BookshelfRepository;
 use crate::database::series::SeriesRepository;
 use crate::database::tag::TagRepository;
 use crate::error::{Error, Result};
@@ -379,12 +380,10 @@ pub async fn get_all_books_with_state(
 #[tauri::command]
 pub async fn get_books_with_state_by_bookshelf_id(
     bookshelf_id: i64,
-    repo: State<'_, Arc<dyn BookRepository>>,
+    repo: State<'_, Arc<dyn BookshelfRepository>>,
 ) -> Result<Vec<BookWithState>> {
     log::debug!("Get books with state by bookshelf id({:?}).", bookshelf_id);
-    Ok(repo
-        .get_books_with_state_by_bookshelf_id(bookshelf_id)
-        .await?)
+    Ok(repo.get_books_by_bookshelf(bookshelf_id).await?)
 }
 
 /// Retrieves all books associated with a specific tag, including their reading states.
@@ -637,6 +636,7 @@ async fn generate_and_save_thumbnail<R: tauri::Runtime>(
 mod tests {
     use super::*;
     use crate::database::book::MockBookRepository;
+    use crate::database::bookshelf::MockBookshelfRepository;
     use crate::database::series::MockSeriesRepository;
     use crate::database::tag::MockTagRepository;
     use crate::error::ErrorCode;
@@ -897,16 +897,16 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_books_with_state_by_bookshelf_id() {
-        let mut mock_repo = MockBookRepository::new();
+        let mut mock_repo = MockBookshelfRepository::new();
         mock_repo
-            .expect_get_books_with_state_by_bookshelf_id()
+            .expect_get_books_by_bookshelf()
             .with(mockall::predicate::eq(1))
             .times(1)
             .returning(|_| Ok(vec![]));
 
         let app = tauri::test::mock_app();
-        app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
-        let state = app.state::<Arc<dyn BookRepository>>();
+        app.manage(Arc::new(mock_repo) as Arc<dyn BookshelfRepository>);
+        let state = app.state::<Arc<dyn BookshelfRepository>>();
 
         let result = get_books_with_state_by_bookshelf_id(1, state).await;
         assert!(result.is_ok());

@@ -1,5 +1,7 @@
 use async_trait::async_trait;
 
+use crate::database::book::BookWithState;
+
 use super::model::Bookshelf;
 
 /// Defines the data access operations for the `Bookshelf` aggregate.
@@ -32,6 +34,24 @@ pub trait BookshelfRepository: Send + Sync {
     ///
     /// Returns an `Err` if the database query fails.
     async fn get_all(&self) -> Result<Vec<Bookshelf>, sqlx::Error>;
+
+    /// Retrieves all books contained within a specific bookshelf, including their reading state.
+    ///
+    /// # Arguments
+    ///
+    /// * `bookshelf_id` - The ID of the bookshelf to filter by.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing a vector of `BookWithState` entities.
+    ///
+    /// # Errors
+    ///
+    /// Returns an `Err` if the database query fails.
+    async fn get_books_by_bookshelf(
+        &self,
+        bookshelf_id: i64,
+    ) -> Result<Vec<BookWithState>, sqlx::Error>;
 
     /// Adds a book to a specific bookshelf.
     ///

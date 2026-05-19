@@ -219,8 +219,8 @@ async fn test_filtering_by_bookshelf_tag_series() {
         .await
         .unwrap();
 
-    let shelf_books = repository
-        .get_books_with_state_by_bookshelf_id(shelf.id)
+    let shelf_books = bookshelf_repo
+        .get_books_by_bookshelf(shelf.id)
         .await
         .unwrap();
     assert_eq!(shelf_books.len(), 1);

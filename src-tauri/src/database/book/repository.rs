@@ -190,24 +190,6 @@ pub trait BookRepository: Send + Sync {
     /// Returns an `Err` if the database query fails.
     async fn get_all_books_with_state(&self) -> Result<Vec<BookWithState>, sqlx::Error>;
 
-    /// Retrieves all books contained within a specific bookshelf, including their reading state.
-    ///
-    /// # Arguments
-    ///
-    /// * `bookshelf_id` - The ID of the bookshelf to filter by.
-    ///
-    /// # Returns
-    ///
-    /// A `Result` containing a vector of `BookWithState` entities.
-    ///
-    /// # Errors
-    ///
-    /// Returns an `Err` if the database query fails.
-    async fn get_books_with_state_by_bookshelf_id(
-        &self,
-        bookshelf_id: i64,
-    ) -> Result<Vec<BookWithState>, sqlx::Error>;
-
     /// Retrieves all books belonging to a specific series, including their reading state.
     ///
     /// # Arguments
