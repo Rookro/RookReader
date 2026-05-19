@@ -1,5 +1,7 @@
 use async_trait::async_trait;
 
+use crate::database::book::BookWithState;
+
 use super::model::Series;
 
 /// Defines the data access operations for the `Series` aggregate.
@@ -31,6 +33,21 @@ pub trait SeriesRepository: Send + Sync {
     ///
     /// Returns an `Err` if the database query fails.
     async fn get_all(&self) -> Result<Vec<Series>, sqlx::Error>;
+
+    /// Retrieves all books belonging to a specific series, including their reading state.
+    ///
+    /// # Arguments
+    ///
+    /// * `series_id` - The ID of the series to filter by.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing a vector of `BookWithState` entities.
+    ///
+    /// # Errors
+    ///
+    /// Returns an `Err` if the database query fails.
+    async fn get_books_by_series(&self, series_id: i64) -> Result<Vec<BookWithState>, sqlx::Error>;
 
     /// Updates the series associated with a specific book.
     ///

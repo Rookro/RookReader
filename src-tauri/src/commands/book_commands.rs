@@ -428,10 +428,10 @@ pub async fn get_books_with_state_by_tag_id(
 #[tauri::command]
 pub async fn get_books_with_state_by_series_id(
     series_id: i64,
-    repo: State<'_, Arc<dyn BookRepository>>,
+    repo: State<'_, Arc<dyn SeriesRepository>>,
 ) -> Result<Vec<BookWithState>> {
     log::debug!("Get books with state by series id({:?}).", series_id);
-    Ok(repo.get_books_with_state_by_series_id(series_id).await?)
+    Ok(repo.get_books_by_series(series_id).await?)
 }
 
 /// Retrieves the IDs of all tags associated with a specific book.
@@ -931,16 +931,16 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_books_with_state_by_series_id() {
-        let mut mock_repo = MockBookRepository::new();
+        let mut mock_repo = MockSeriesRepository::new();
         mock_repo
-            .expect_get_books_with_state_by_series_id()
+            .expect_get_books_by_series()
             .with(mockall::predicate::eq(1))
             .times(1)
             .returning(|_| Ok(vec![]));
 
         let app = tauri::test::mock_app();
-        app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
-        let state = app.state::<Arc<dyn BookRepository>>();
+        app.manage(Arc::new(mock_repo) as Arc<dyn SeriesRepository>);
+        let state = app.state::<Arc<dyn SeriesRepository>>();
 
         let result = get_books_with_state_by_series_id(1, state).await;
         assert!(result.is_ok());

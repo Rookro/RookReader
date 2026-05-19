@@ -190,24 +190,6 @@ pub trait BookRepository: Send + Sync {
     /// Returns an `Err` if the database query fails.
     async fn get_all_books_with_state(&self) -> Result<Vec<BookWithState>, sqlx::Error>;
 
-    /// Retrieves all books belonging to a specific series, including their reading state.
-    ///
-    /// # Arguments
-    ///
-    /// * `series_id` - The ID of the series to filter by.
-    ///
-    /// # Returns
-    ///
-    /// A `Result` containing a vector of `BookWithState` entities.
-    ///
-    /// # Errors
-    ///
-    /// Returns an `Err` if the database query fails.
-    async fn get_books_with_state_by_series_id(
-        &self,
-        series_id: i64,
-    ) -> Result<Vec<BookWithState>, sqlx::Error>;
-
     /// Deletes a book by its unique ID.
     ///
     /// # Arguments
