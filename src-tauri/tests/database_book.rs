@@ -230,10 +230,7 @@ async fn test_filtering_by_bookshelf_tag_series() {
     let tag = tag_repo.create("Tag", "#000").await.unwrap();
     tag_repo.attach_tags_to_book(b2, &[tag.id]).await.unwrap();
 
-    let tag_books = repository
-        .get_books_with_state_by_tag_id(tag.id)
-        .await
-        .unwrap();
+    let tag_books = tag_repo.get_books_by_tag(tag.id).await.unwrap();
     assert_eq!(tag_books.len(), 1);
     assert_eq!(tag_books[0].id, b2);
 

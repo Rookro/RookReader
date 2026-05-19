@@ -1,6 +1,8 @@
 use async_trait::async_trait;
 use sqlx::SqlitePool;
 
+use crate::database::book::BookWithState;
+
 use super::model::Tag;
 use super::repository::TagRepository;
 
@@ -100,6 +102,26 @@ impl TagRepository for SqliteTagRepository {
 
         let tag_ids = records.into_iter().map(|r| r.tag_id).collect();
         Ok(tag_ids)
+    }
+
+    async fn get_books_by_tag(&self, tag_id: i64) -> Result<Vec<BookWithState>, sqlx::Error> {
+        let books = sqlx::query_as!(
+                BookWithState,
+                r#"
+                SELECT b.id, b.file_path, b.item_type, b.display_name, b.total_pages, b.series_id, b.series_order,
+                       b.thumbnail_path, r.last_read_page_index, r.last_opened_at,
+                       (SELECT GROUP_CONCAT(tag_id) FROM book_tags WHERE book_id = b.id) as "tag_ids_str?: String"
+                FROM books b
+                INNER JOIN book_tags bt ON b.id = bt.book_id
+                LEFT JOIN reading_state r ON b.id = r.book_id
+                WHERE bt.tag_id = ?
+                ORDER BY b.display_name ASC
+                "#,
+                tag_id
+            )
+            .fetch_all(&self.pool)
+            .await?;
+        Ok(books)
     }
 
     async fn delete(&self, id: i64) -> Result<(), sqlx::Error> {

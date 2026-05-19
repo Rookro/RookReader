@@ -1,5 +1,7 @@
 use async_trait::async_trait;
 
+use crate::database::book::BookWithState;
+
 use super::model::Tag;
 
 /// Defines the data access operations for the `Tag` aggregate.
@@ -63,6 +65,21 @@ pub trait TagRepository: Send + Sync {
     ///
     /// Returns an `Err` if the database query fails.
     async fn get_tags_for_book(&self, book_id: i64) -> Result<Vec<i64>, sqlx::Error>;
+
+    /// Retrieves all books associated with a specific tag, including their reading state.
+    ///
+    /// # Arguments
+    ///
+    /// * `tag_id` - The ID of the tag to filter by.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing a vector of `BookWithState` entities.
+    ///
+    /// # Errors
+    ///
+    /// Returns an `Err` if the database query fails.
+    async fn get_books_by_tag(&self, tag_id: i64) -> Result<Vec<BookWithState>, sqlx::Error>;
 
     /// Deletes a tag from the database.
     ///

@@ -208,24 +208,6 @@ pub trait BookRepository: Send + Sync {
         bookshelf_id: i64,
     ) -> Result<Vec<BookWithState>, sqlx::Error>;
 
-    /// Retrieves all books associated with a specific tag, including their reading state.
-    ///
-    /// # Arguments
-    ///
-    /// * `tag_id` - The ID of the tag to filter by.
-    ///
-    /// # Returns
-    ///
-    /// A `Result` containing a vector of `BookWithState` entities.
-    ///
-    /// # Errors
-    ///
-    /// Returns an `Err` if the database query fails.
-    async fn get_books_with_state_by_tag_id(
-        &self,
-        tag_id: i64,
-    ) -> Result<Vec<BookWithState>, sqlx::Error>;
-
     /// Retrieves all books belonging to a specific series, including their reading state.
     ///
     /// # Arguments
