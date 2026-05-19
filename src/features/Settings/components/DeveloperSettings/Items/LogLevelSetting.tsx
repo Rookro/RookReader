@@ -1,12 +1,11 @@
 import { FilterListOutlined, FolderOpen, SourceOutlined } from "@mui/icons-material";
+import type { SelectChangeEvent } from "@mui/material";
 import {
   IconButton,
   ListItem,
   ListItemIcon,
   ListItemText,
   MenuItem,
-  Select,
-  type SelectChangeEvent,
   TextField,
 } from "@mui/material";
 import { appLogDir } from "@tauri-apps/api/path";
@@ -16,6 +15,7 @@ import { useTranslation } from "react-i18next";
 import { useAppDispatch, useAppSelector } from "../../../../../store/store";
 import type { LogLevel } from "../../../../../types/AppSettings";
 import { updateSettings } from "../../../slice";
+import SelectSettingItem from "../../ui/SelectSettingItem";
 
 /**
  * Log setting component.
@@ -71,29 +71,19 @@ export default function LogLevelSetting() {
           <FolderOpen />
         </IconButton>
       </ListItem>
-      <ListItem>
-        <ListItemIcon>
-          <FilterListOutlined />
-        </ListItemIcon>
-        <ListItemText
-          primary={t("settings.developer.log.log-level.title")}
-          secondary={t("settings.developer.log.log-level.description")}
-        />
-        <Select
-          label={t("settings.developer.log.log-level.title")}
-          variant="standard"
-          defaultValue={generalSettings.log.level}
-          onChange={handleLogLevelChanged}
-          size="small"
-          autoWidth
-        >
-          <MenuItem value="trace">{t("settings.developer.log.log-level.trace")}</MenuItem>
-          <MenuItem value="debug">{t("settings.developer.log.log-level.debug")}</MenuItem>
-          <MenuItem value="info">{t("settings.developer.log.log-level.info")}</MenuItem>
-          <MenuItem value="warn">{t("settings.developer.log.log-level.warn")}</MenuItem>
-          <MenuItem value="error">{t("settings.developer.log.log-level.error")}</MenuItem>
-        </Select>
-      </ListItem>
+      <SelectSettingItem
+        icon={<FilterListOutlined />}
+        primaryText={t("settings.developer.log.log-level.title")}
+        secondaryText={t("settings.developer.log.log-level.description")}
+        defaultValue={generalSettings.log.level}
+        onChange={handleLogLevelChanged}
+      >
+        <MenuItem value="trace">{t("settings.developer.log.log-level.trace")}</MenuItem>
+        <MenuItem value="debug">{t("settings.developer.log.log-level.debug")}</MenuItem>
+        <MenuItem value="info">{t("settings.developer.log.log-level.info")}</MenuItem>
+        <MenuItem value="warn">{t("settings.developer.log.log-level.warn")}</MenuItem>
+        <MenuItem value="error">{t("settings.developer.log.log-level.error")}</MenuItem>
+      </SelectSettingItem>
     </>
   );
 }

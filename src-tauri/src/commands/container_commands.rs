@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use tauri::ipc::Response;
 
 use crate::{
-    container::epub_container::EpubContainer,
+    container::{epub_container::EpubContainer, traits::Container},
     error::{Error, Result},
     image::resizer::ResizeFilter,
     state::app_state::AppState,
@@ -18,6 +18,8 @@ pub struct EntriesResult {
     entries: Vec<String>,
     /// Whether the container is a directory.
     is_directory: bool,
+    /// Whether the container is an EPUB novel.
+    is_novel: bool,
 }
 
 /// Opens a container file (e.g., ZIP, RAR) and retrieves a list of its contents.
@@ -33,7 +35,7 @@ pub struct EntriesResult {
 /// # Returns
 ///
 /// A `Result` which is `Ok` with an `EntriesResult` struct containing the list of entry
-/// names and a boolean indicating if the path is a directory.
+/// names, a boolean indicating if the path is a directory, and a boolean indicating if it's a novel.
 ///
 /// # Errors
 ///
@@ -52,6 +54,7 @@ pub async fn get_entries_in_container(
 
     let entries;
     let is_directory;
+    let is_novel;
     {
         let container = state_lock
             .container_state
@@ -60,11 +63,20 @@ pub async fn get_entries_in_container(
             .ok_or_else(|| Error::Other("Unexpected error. Container is empty!".to_string()))?;
         entries = container.get_entries().clone();
         is_directory = container.is_directory();
+        is_novel = container.is_novel();
+    }
+
+    if !is_novel {
+        if let Some(loader) = state_lock.container_state.image_loader.as_mut() {
+            log::debug!("Triggering proactive preloading for {}", path);
+            loader.request_preload_around(0, 5)?;
+        }
     }
 
     Ok(EntriesResult {
         entries,
         is_directory,
+        is_novel,
     })
 }
 
@@ -76,7 +88,8 @@ pub async fn get_entries_in_container(
 /// # Arguments
 ///
 /// * `index` - The current page index around which to preload.
-/// * `buffer_size` - Optional. How many pages to preload in each direction. Defaults to 5.
+/// * `buffer_size` - Optional. How many pages to preload in each direction.
+///   Defaults to 10 if `None` is provided.
 /// * `state` - A `tauri::State` holding the application's global `AppState`.
 #[tauri::command()]
 pub async fn request_preload_around(
@@ -84,8 +97,14 @@ pub async fn request_preload_around(
     buffer_size: Option<usize>,
     state: tauri::State<'_, RwLock<AppState>>,
 ) -> Result<()> {
-    log::debug!("Request preload around index {}", index);
+    log::debug!(
+        "Request preload around index {}, buffer_size: {:?}",
+        index,
+        buffer_size
+    );
     let mut state_lock = state.write().await;
+
+    let buffer_size = buffer_size.unwrap_or(10);
 
     let image_loader = state_lock
         .container_state
@@ -93,7 +112,7 @@ pub async fn request_preload_around(
         .as_mut()
         .ok_or_else(|| Error::Other("Unexpected error. ImageLoader is empty!".to_string()))?;
 
-    image_loader.request_preload_around(index, buffer_size.unwrap_or(5))?;
+    image_loader.request_preload_around(index, buffer_size)?;
     Ok(())
 }
 
@@ -321,6 +340,33 @@ pub async fn set_image_resampling_method(
     Ok(())
 }
 
+/// Sets the maximum size of the image memory cache in MiB.
+///
+/// This will re-initialize the cache and clear all currently cached images.
+///
+/// # Arguments
+///
+/// * `size_mib` - The new cache size in MiB.
+/// * `state` - A `tauri::State` holding the application's global `AppState`.
+///
+/// # Returns
+///
+/// A `Result` which is `Ok` on successful update.
+#[tauri::command()]
+pub async fn set_image_cache_size_mib(
+    size_mib: u64,
+    state: tauri::State<'_, RwLock<AppState>>,
+) -> Result<()> {
+    log::debug!("set_image_cache_size_mib({})", size_mib);
+
+    let mut state_lock = state.write().await;
+
+    state_lock.container_state.settings.image_cache_size_mib = size_mib;
+    state_lock.container_state.update_image_cache_size(size_mib);
+
+    Ok(())
+}
+
 /// Determines if the file at the given path is an EPUB file containing a novel.
 ///
 /// This function checks the file extension and then inspects the EPUB's contents to
@@ -513,8 +559,16 @@ mod tests {
             container: Some(arc_mock_container.clone()),
             settings: ContainerSettings::default(),
             image_loader: Some(
-                ImageLoader::new(arc_mock_container.clone(), 2000, ResizeFilter::Bilinear).unwrap(),
+                ImageLoader::new(
+                    "dummy_book_id".to_string(),
+                    arc_mock_container.clone(),
+                    2000,
+                    ResizeFilter::Bilinear,
+                    mini_moka::sync::Cache::new(100),
+                )
+                .unwrap(),
             ),
+            image_cache: mini_moka::sync::Cache::new(100),
         };
         let state = AppState {
             container_state: mock_container_state,
@@ -575,8 +629,16 @@ mod tests {
             container: Some(arc_mock_container.clone()),
             settings: ContainerSettings::default(),
             image_loader: Some(
-                ImageLoader::new(arc_mock_container.clone(), 2000, ResizeFilter::Bilinear).unwrap(),
+                ImageLoader::new(
+                    "dummy_book_id".to_string(),
+                    arc_mock_container.clone(),
+                    2000,
+                    ResizeFilter::Bilinear,
+                    mini_moka::sync::Cache::new(100),
+                )
+                .unwrap(),
             ),
+            image_cache: mini_moka::sync::Cache::new(100),
         };
         let state = AppState {
             container_state: mock_container_state,
@@ -608,8 +670,16 @@ mod tests {
             container: Some(arc_mock_container.clone()),
             settings: ContainerSettings::default(),
             image_loader: Some(
-                ImageLoader::new(arc_mock_container.clone(), 2000, ResizeFilter::Bilinear).unwrap(),
+                ImageLoader::new(
+                    "dummy_book_id".to_string(),
+                    arc_mock_container.clone(),
+                    2000,
+                    ResizeFilter::Bilinear,
+                    mini_moka::sync::Cache::new(100),
+                )
+                .unwrap(),
             ),
+            image_cache: mini_moka::sync::Cache::new(100),
         };
         let state = AppState {
             container_state: mock_container_state,

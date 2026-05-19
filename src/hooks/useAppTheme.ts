@@ -1,4 +1,4 @@
-import { createTheme, useMediaQuery } from "@mui/material";
+import { createTheme, type Theme, useMediaQuery } from "@mui/material";
 import { useMemo } from "react";
 import { useAppSelector } from "../store/store";
 
@@ -9,22 +9,37 @@ import { useAppSelector } from "../store/store";
  * and the application's global font family setting stored in Redux. It also applies global
  * CSS baseline overrides, including custom scrollbar styling.
  *
- * @returns {import("@mui/material").Theme} The customized Material UI theme instance.
+ * @returns The customized Material UI theme instance.
  */
-export function useAppTheme() {
+export function useAppTheme(): Theme {
   const prefersDarkMode = useMediaQuery("(prefers-color-scheme: dark)");
+  const themeSetting = useAppSelector((state) => state.settings.general.theme);
   const fontFamily = useAppSelector((state) => state.settings.general.appFontFamily);
+
+  const isDarkMode = useMemo(() => {
+    if (themeSetting === "dark") {
+      return true;
+    } else if (themeSetting === "light") {
+      return false;
+    } else {
+      return prefersDarkMode;
+    }
+  }, [themeSetting, prefersDarkMode]);
 
   const theme = useMemo(
     () =>
       createTheme({
+        customScrollbar: {
+          width: 10,
+          height: 10,
+        },
         typography: {
           fontFamily: `${fontFamily}`,
         },
         palette: {
-          mode: prefersDarkMode ? "dark" : "light",
+          mode: isDarkMode ? "dark" : "light",
           background: {
-            paper: prefersDarkMode ? "#2f2f2f" : "#f6f6f6",
+            paper: isDarkMode ? "#2f2f2f" : "#f6f6f6",
           },
         },
         components: {
@@ -44,8 +59,8 @@ export function useAppTheme() {
                 WebkitTextSizeAdjust: "100%",
                 // Webkit scrollbar styles
                 "*::-webkit-scrollbar": {
-                  height: "10px",
-                  width: "10px",
+                  height: `${theme.customScrollbar.height}px`,
+                  width: `${theme.customScrollbar.width}px`,
                 },
                 "*::-webkit-scrollbar-track": {
                   background: theme.palette.background.paper,
@@ -67,7 +82,7 @@ export function useAppTheme() {
           },
         },
       }),
-    [prefersDarkMode, fontFamily],
+    [isDarkMode, fontFamily],
   );
 
   return theme;

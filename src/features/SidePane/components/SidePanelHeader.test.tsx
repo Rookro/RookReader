@@ -12,12 +12,12 @@ describe("SidePanelHeader", () => {
     expect(screen.getByText("Test Title")).toBeInTheDocument();
   });
 
-  it("should dispatch setIsLeftSidePanelsHidden(true) when close button is clicked", async () => {
+  it("should update layout settings when close button is clicked", async () => {
     const { store } = renderWithProviders(<SidePanelHeader title="Test Title" />);
 
     const closeButton = screen.getByRole("button");
     await user.click(closeButton);
 
-    expect(store.getState().sidePane.left.isHidden).toBe(true);
+    expect(store.getState().settings.layout.sidePane.isHidden).toBe(true);
   });
 });

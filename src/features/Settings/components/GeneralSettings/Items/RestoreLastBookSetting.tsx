@@ -1,9 +1,9 @@
 import { RestorePageOutlined } from "@mui/icons-material";
-import { ListItem, ListItemIcon, ListItemText, Switch } from "@mui/material";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppDispatch, useAppSelector } from "../../../../../store/store";
 import { updateSettings } from "../../../slice";
+import SwitchSettingItem from "../../ui/SwitchSettingItem";
 
 /**
  * Restore on startup setting component.
@@ -25,23 +25,12 @@ export default function RestoreLastBookSetting() {
   );
 
   return (
-    <ListItem
-      secondaryAction={
-        <Switch
-          edge="end"
-          defaultChecked={startupSettings.restoreLastBook}
-          onChange={handleRestoreLastBookChanged}
-        />
-      }
-    >
-      <ListItemIcon>
-        <RestorePageOutlined />
-      </ListItemIcon>
-      <ListItemText
-        primary={t("settings.startup.restore-last-read.title")}
-        secondary={t("settings.startup.restore-last-read.description")}
-        sx={{ marginRight: 3 }}
-      />
-    </ListItem>
+    <SwitchSettingItem
+      icon={<RestorePageOutlined />}
+      primaryText={t("settings.general.restore-last-read.title")}
+      secondaryText={t("settings.general.restore-last-read.description")}
+      defaultChecked={startupSettings.restoreLastBook}
+      onChange={handleRestoreLastBookChanged}
+    />
   );
 }

@@ -24,6 +24,7 @@ describe("useViewerController", () => {
     isFirstPageSingleView: false,
     direction: "ltr",
     enablePreview: false,
+    preloadPageCount: 10,
   };
 
   const mockedFetchImageBlob = vi.mocked(ImageUtils.fetchImageBlob);
@@ -282,6 +283,7 @@ describe("useViewerController", () => {
       isFirstPageSingleView: false,
       direction: "ltr",
       enablePreview: false,
+      preloadPageCount: 10,
     };
 
     // Verify that index increments by 2 in spread (two-paged) view

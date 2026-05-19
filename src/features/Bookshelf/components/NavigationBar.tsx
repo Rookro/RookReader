@@ -1,4 +1,4 @@
-import { Add, ArrowDownward, ArrowUpward, Home, Search, Settings } from "@mui/icons-material";
+import { Add, ArrowDownward, ArrowUpward, Home, Search, Settings, Sort } from "@mui/icons-material";
 import {
   Box,
   Breadcrumbs,
@@ -21,7 +21,12 @@ import { useAppDispatch, useAppSelector } from "../../../store/store";
 import type { SortOrder } from "../../../types/AppSettings";
 import { openSettingsWindow } from "../../../utils/WindowOpener";
 import { updateSettings } from "../../Settings/slice";
-import { addBookToBookshelf, setSearchText, setSelectedSeriesId } from "../slice";
+import {
+  addBookToBookshelf,
+  setEditSeriesOrderDialogState,
+  setSearchText,
+  setSelectedSeriesId,
+} from "../slice";
 import BookAdditionToBookshelfDialog from "./Dialog/BookAdditionToBookshelfDialog";
 
 /** Navigation bar for the bookshelf component */
@@ -29,6 +34,7 @@ export default function NavigationBar() {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const bookshelfSettings = useAppSelector((state) => state.settings.bookshelf);
+  const searchText = useAppSelector((state) => state.bookCollection.searchText);
   const bookshelfId = useAppSelector((state) => state.bookCollection.bookshelf.selectedId);
   const { selectedId: selectedSeriesId, series } = useAppSelector(
     (state) => state.bookCollection.series,
@@ -71,6 +77,12 @@ export default function NavigationBar() {
   const handleAddClicked = useCallback((_e: React.MouseEvent) => {
     setIsAddBookDialogOpen(true);
   }, []);
+
+  const handleEditOrderClicked = useCallback(() => {
+    if (selectedSeriesId !== null) {
+      dispatch(setEditSeriesOrderDialogState({ isOpen: true, seriesId: selectedSeriesId }));
+    }
+  }, [dispatch, selectedSeriesId]);
 
   const handleAddBooks = useCallback(
     (paths: string[]) => {
@@ -128,6 +140,7 @@ export default function NavigationBar() {
           size="small"
           placeholder={t("bookshelf.search-placeholder")}
           fullWidth
+          value={searchText}
           sx={{
             marginLeft: "16px",
             marginRight: "4px",
@@ -149,49 +162,65 @@ export default function NavigationBar() {
         </IconButton>
       </Toolbar>
       <Toolbar variant="dense" disableGutters sx={{ paddingBottom: 1, justifyContent: "flex-end" }}>
-        <Typography variant="body2" sx={{ alignContent: "center" }}>
-          {t("bookshelf.sort.title")}
-        </Typography>
-        <Select
-          size="small"
-          autoWidth
-          sx={{ marginX: 1 }}
-          defaultValue={bookshelfSettings.sortOrder}
-          onChange={handleSortOrderChanged}
-        >
-          <MenuItem value="name_asc">
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              <ArrowUpward fontSize="small" />
-              <Typography variant="body2">{t("bookshelf.sort.name-asc")}</Typography>
-            </Box>
-          </MenuItem>
-          <MenuItem value="name_desc">
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              <ArrowDownward fontSize="small" />
-              <Typography variant="body2">{t("bookshelf.sort.name-desc")}</Typography>
-            </Box>
-          </MenuItem>
-          <MenuItem value="date_asc">
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              <ArrowUpward fontSize="small" color="action" />
-              <Typography variant="body2">{t("bookshelf.sort.date-asc")}</Typography>
-            </Box>
-          </MenuItem>
-          <MenuItem value="date_desc">
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              <ArrowDownward fontSize="small" color="action" />
-              <Typography variant="body2">{t("bookshelf.sort.date-desc")}</Typography>
-            </Box>
-          </MenuItem>
-        </Select>
-        <Button
-          variant="contained"
-          startIcon={<Add />}
-          sx={{ borderRadius: 50 }}
-          onClick={handleAddClicked}
-        >
-          {t("bookshelf.add-books")}
-        </Button>
+        {selectedSeriesId === null && (
+          <>
+            <Typography variant="body2" sx={{ alignContent: "center" }}>
+              {t("bookshelf.sort.title")}
+            </Typography>
+            <Select
+              size="small"
+              autoWidth
+              sx={{ marginX: 1 }}
+              defaultValue={bookshelfSettings.sortOrder}
+              onChange={handleSortOrderChanged}
+            >
+              <MenuItem value="name_asc">
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <ArrowUpward fontSize="small" />
+                  <Typography variant="body2">{t("bookshelf.sort.name-asc")}</Typography>
+                </Box>
+              </MenuItem>
+              <MenuItem value="name_desc">
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <ArrowDownward fontSize="small" />
+                  <Typography variant="body2">{t("bookshelf.sort.name-desc")}</Typography>
+                </Box>
+              </MenuItem>
+              <MenuItem value="date_asc">
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <ArrowUpward fontSize="small" color="action" />
+                  <Typography variant="body2">{t("bookshelf.sort.date-asc")}</Typography>
+                </Box>
+              </MenuItem>
+              <MenuItem value="date_desc">
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <ArrowDownward fontSize="small" color="action" />
+                  <Typography variant="body2">{t("bookshelf.sort.date-desc")}</Typography>
+                </Box>
+              </MenuItem>
+            </Select>
+          </>
+        )}
+        {selectedSeriesId !== null && (
+          <Button
+            variant="outlined"
+            startIcon={<Sort />}
+            sx={{ borderRadius: 50, marginRight: 1 }}
+            onClick={handleEditOrderClicked}
+          >
+            {t("bookshelf.series.edit-order.title")}
+          </Button>
+        )}
+        {selectedSeriesId === null && (
+          <Button
+            variant="contained"
+            startIcon={<Add />}
+            sx={{ borderRadius: 50, marginRight: 1 }}
+            onClick={handleAddClicked}
+          >
+            {t("bookshelf.add-books")}
+          </Button>
+        )}
       </Toolbar>
       <BookAdditionToBookshelfDialog
         openDialog={isAddBookDialogOpen}

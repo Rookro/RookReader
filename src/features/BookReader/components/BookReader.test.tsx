@@ -119,12 +119,15 @@ describe("BookReader", () => {
     const setItemSpy = vi.spyOn(Storage.prototype, "setItem");
     renderWithProviders(<BookReader />, { preloadedState: createBasePreloadedState() });
 
-    await waitFor(() => {
-      expect(setItemSpy).toHaveBeenCalledWith(
-        "book-reader-left-pane-sizes",
-        JSON.stringify([100, 900]),
-      );
-    });
+    await waitFor(
+      () => {
+        expect(setItemSpy).toHaveBeenCalledWith(
+          "book-reader-left-pane-sizes",
+          JSON.stringify([100, 900]),
+        );
+      },
+      { timeout: 2000 },
+    );
   });
 
   it("should handle malformed localStorage data", () => {
@@ -141,5 +144,17 @@ describe("BookReader", () => {
 
     localStorage.setItem("book-reader-left-pane-sizes", JSON.stringify(["not", "numbers"]));
     renderWithProviders(<BookReader />, { preloadedState: createBasePreloadedState() });
+  });
+
+  it("should NOT save pane sizes to localStorage when hidden", async () => {
+    const setItemSpy = vi.spyOn(Storage.prototype, "setItem");
+    const preloadedState = createBasePreloadedState();
+    preloadedState.settings.layout.sidePane.isHidden = true;
+
+    renderWithProviders(<BookReader />, { preloadedState });
+
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
+    expect(setItemSpy).not.toHaveBeenCalledWith("book-reader-left-pane-sizes", expect.any(String));
   });
 });

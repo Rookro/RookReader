@@ -12,6 +12,22 @@ export interface AppSettings {
   reader: ReaderSettings;
   /** Settings related to user history and tracking. */
   history: HistorySettings;
+  /** Settings related to the application's layout. */
+  layout: LayoutSettings;
+}
+
+/** Settings related to the application's layout. */
+export interface LayoutSettings {
+  /** Settings for the side pane (tabs and visibility). */
+  sidePane: SidePaneSettings;
+}
+
+/** Settings for the side pane. */
+export interface SidePaneSettings {
+  /** Whether the side pane is hidden. */
+  isHidden: boolean;
+  /** The index of the active tab in the side pane. */
+  tabIndex: number;
 }
 
 /** General application settings. */
@@ -82,6 +98,16 @@ export interface ComicSettings {
   showCoverAsSinglePage: boolean;
   /** Configuration for the Loupe (Magnifier) feature. */
   loupe: LoupeSettings;
+  /** Configuration for image caching and preloading. */
+  cache: ComicCacheSettings;
+}
+
+/** Configuration for image caching and preloading. */
+export interface ComicCacheSettings {
+  /** The number of pages to preload in each direction (forward and backward). */
+  preloadPageCount: number;
+  /** The maximum size of the image memory cache in MiB. */
+  imageCacheSizeMib: number;
 }
 
 /** Configuration for the Loupe (Magnifier) feature. */

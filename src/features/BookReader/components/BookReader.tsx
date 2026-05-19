@@ -21,15 +21,15 @@ import NovelReader from "./NovelReader";
 const selectBookReaderState = createSelector(
   [
     (state: RootState) => state.view.activeView,
-    (state: RootState) => state.sidePane.left,
+    (state: RootState) => state.settings.layout.sidePane,
     (state: RootState) => state.read.containerFile,
     (state: RootState) => state.settings.history,
     (state: RootState) => state.settings.startup,
   ],
-  (activeView, leftPane, containerFile, historySettings, startupSettings) => ({
+  (activeView, sidePane, containerFile, historySettings, startupSettings) => ({
     activeView,
-    isHidden: leftPane.isHidden,
-    tabIndex: leftPane.tabIndex,
+    isHidden: sidePane.isHidden,
+    tabIndex: sidePane.tabIndex,
     history: containerFile.history,
     historyIndex: containerFile.historyIndex,
     isNovel: containerFile.isNovel,
@@ -67,7 +67,18 @@ export default function BookReader({ sx }: BookReaderProps) {
 
   const [droppedFile, setDroppedFile] = useState<string | undefined>(undefined);
 
-  const { paneSizes, handlePaneSizeChanged } = usePaneSizes("book-reader-left-pane-sizes");
+  const { paneSizes, setPaneSizes } = usePaneSizes("book-reader-left-pane-sizes");
+
+  const handlePaneSizeChanged = useCallback(
+    (sizes: number[]) => {
+      // Only update if the side pane is visible and has a non-zero size.
+      // This prevents saving 0 sizes when the pane is hidden or in the process of being hidden.
+      if (!isHidden && sizes.length > 0 && sizes[0] > 0) {
+        setPaneSizes(sizes);
+      }
+    },
+    [setPaneSizes, isHidden],
+  );
 
   const handleDropped = useCallback(
     (paths: string[]) => {

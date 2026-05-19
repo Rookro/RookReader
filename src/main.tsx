@@ -30,6 +30,9 @@ const initializeAndRender = async () => {
 
     const preloadedState = {
       settings,
+      view: {
+        activeView: settings.startup.initialView,
+      },
     };
 
     const store = createStore(preloadedState);

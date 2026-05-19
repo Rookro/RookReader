@@ -1,5 +1,6 @@
-import { CheckCircle } from "@mui/icons-material";
+import { CheckCircle, MenuBook } from "@mui/icons-material";
 import {
+  alpha,
   Box,
   Card,
   CardActionArea,
@@ -12,6 +13,7 @@ import {
 } from "@mui/material";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import dummy_thumbnail from "../../../assets/dummy_thumbnail.svg";
 import AutoScrollTypography from "../../../components/ui/AutoScrollTypography/AutoScrollTypography";
 import type { BookWithState, Tag } from "../../../types/DatabaseModels";
@@ -35,6 +37,8 @@ export interface BookCardProps {
   style?: React.CSSProperties;
   /** Whether the card is currently focused via keyboard navigation */
   isFocused?: boolean;
+  /** Whether the card is currently being read */
+  isReading?: boolean;
 }
 
 /**
@@ -50,7 +54,9 @@ export default function BookCard({
   onBookClick,
   style,
   isFocused,
+  isReading,
 }: BookCardProps) {
+  const { t } = useTranslation();
   const { selectedBookIds } = useBookSelection();
   const [menuAnchor, setMenuAnchor] = useState<{ mouseX: number; mouseY: number } | null>(null);
   const [imageError, setImageError] = useState(false);
@@ -93,24 +99,42 @@ export default function BookCard({
     >
       <Tooltip title={book.display_name} followCursor placement="right-start">
         <Card
-          sx={{
+          sx={(theme) => ({
             width: "100%",
             height: "100%",
-            bgcolor: "primary.paper",
-            outline: isSelected || isFocused ? "3px solid" : "none",
-            outlineColor: isSelected ? "primary.main" : "action.focus",
+            bgcolor: isReading ? alpha(theme.palette.secondary.main, 0.3) : "primary.paper",
+            outline: isSelected || isFocused || isReading ? "3px solid" : "none",
+            outlineColor: isSelected
+              ? "primary.main"
+              : isReading
+                ? "secondary.main"
+                : "action.focus",
             position: "relative",
-            boxShadow: isFocused ? 8 : 1,
-          }}
+            boxShadow: isFocused || isReading ? 8 : 1,
+          })}
         >
+          {isReading && (
+            <Chip
+              icon={<MenuBook fontSize="small" />}
+              label={t("bookshelf.reading-chip-label")}
+              color="secondary"
+              size="small"
+              sx={{
+                position: "absolute",
+                top: 4,
+                right: 4,
+                zIndex: 1,
+              }}
+            />
+          )}
           {isSelected && (
             <CheckCircle
               color="primary"
               sx={{
                 position: "absolute",
-                top: 8,
-                right: 8,
-                zIndex: 1,
+                top: 4,
+                right: 4,
+                zIndex: 2,
                 backgroundColor: "background.paper",
                 borderRadius: "50%",
               }}

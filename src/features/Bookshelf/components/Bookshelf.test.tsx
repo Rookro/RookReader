@@ -208,12 +208,15 @@ describe("Bookshelf", () => {
     const setItemSpy = vi.spyOn(Storage.prototype, "setItem");
     renderWithProviders(<Bookshelf />, { preloadedState: defaultPreloadedState });
 
-    await waitFor(() => {
-      expect(setItemSpy).toHaveBeenCalledWith(
-        "bookshelf-left-pane-sizes",
-        JSON.stringify([100, 900]),
-      );
-    });
+    await waitFor(
+      () => {
+        expect(setItemSpy).toHaveBeenCalledWith(
+          "bookshelf-left-pane-sizes",
+          JSON.stringify([100, 900]),
+        );
+      },
+      { timeout: 2000 },
+    );
   });
 
   it("should load pane sizes from localStorage on mount", () => {

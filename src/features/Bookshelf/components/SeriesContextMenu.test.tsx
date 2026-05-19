@@ -40,6 +40,18 @@ describe("SeriesContextMenu", () => {
     renderSeriesContextMenu();
 
     expect(screen.getByText(/Ungroup Series/i)).toBeInTheDocument();
+    expect(screen.getByText(/Edit Series Order/i)).toBeInTheDocument();
+  });
+
+  it("should call setEditSeriesOrderDialogState and onClose when Edit Order is clicked", async () => {
+    const { store } = renderSeriesContextMenu();
+
+    await user.click(screen.getByText(/Edit Series Order/i));
+
+    const state = store.getState().bookCollection;
+    expect(state.isEditSeriesOrderDialogOpen).toBe(true);
+    expect(state.editSeriesOrderTargetId).toBe(mockSeries.id);
+    expect(defaultProps.onClose).toHaveBeenCalled();
   });
 
   it("should call deleteSeries, refreshSeries and onClose when ungroup is clicked", async () => {

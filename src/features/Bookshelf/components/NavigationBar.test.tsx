@@ -31,6 +31,18 @@ describe("NavigationBar", () => {
     expect(store.getState().bookCollection.searchText).toBe("test query");
   });
 
+  it("should reflect searchText from state", () => {
+    const preloadedState = createBasePreloadedState();
+    preloadedState.bookCollection.searchText = "initial search";
+
+    renderWithProviders(<NavigationBar />, { preloadedState });
+
+    const searchInput = screen.getByPlaceholderText(
+      i18n.t("bookshelf.search-placeholder"),
+    ) as HTMLInputElement;
+    expect(searchInput.value).toBe("initial search");
+  });
+
   // Verify that the sort order selection change is correctly reflected in the state
   it("should handle sort order change", async () => {
     const { store } = renderWithProviders(<NavigationBar />);
@@ -103,5 +115,41 @@ describe("NavigationBar", () => {
     await user.click(bookshelfLink);
 
     expect(store.getState().bookCollection.series.selectedId).toBeNull();
+  });
+
+  it("should hide sort controls and add button when a series is selected", () => {
+    const preloadedState = createBasePreloadedState();
+    preloadedState.bookCollection.series = {
+      series: [{ id: 1, name: "Selected Series", created_at: "2026-03-01T15:30:00" }],
+      selectedId: 1,
+      books: [],
+      status: "idle",
+      error: null,
+    };
+
+    renderWithProviders(<NavigationBar />, { preloadedState });
+
+    expect(screen.queryByText(i18n.t("bookshelf.sort.title"))).not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+    expect(screen.queryByText(i18n.t("bookshelf.add-books"))).not.toBeInTheDocument();
+  });
+
+  it("should open edit series order dialog when 'Edit Order' button is clicked", async () => {
+    const preloadedState = createBasePreloadedState();
+    preloadedState.bookCollection.series = {
+      series: [{ id: 1, name: "Selected Series", created_at: "2026-03-01T15:30:00" }],
+      selectedId: 1,
+      books: [],
+      status: "idle",
+      error: null,
+    };
+
+    const { store } = renderWithProviders(<NavigationBar />, { preloadedState });
+
+    const editOrderButton = screen.getByText(i18n.t("bookshelf.series.edit-order.title"));
+    await user.click(editOrderButton);
+
+    expect(store.getState().bookCollection.isEditSeriesOrderDialogOpen).toBe(true);
+    expect(store.getState().bookCollection.editSeriesOrderTargetId).toBe(1);
   });
 });

@@ -152,6 +152,15 @@ describe("BookGridCell", () => {
     expect(screen.getByTestId("CheckCircleIcon")).toBeInTheDocument();
   });
 
+  it("displays reading indicator when index matches readingBookIndex", () => {
+    const book = createMockBookWithState({ id: 101, display_name: "Test Book" });
+    const items: GridItem[] = [{ type: "book", data: book }];
+
+    render(<BookGridCell {...defaultProps} items={items} readingBookIndex={0} />);
+
+    expect(screen.getByTestId("MenuBookIcon")).toBeInTheDocument();
+  });
+
   it("shows progress bar based on last_read_page_index", () => {
     const book = createMockBookWithState({
       id: 101,
@@ -323,6 +332,10 @@ describe("BookGridCell", () => {
 
     it("returns false if enableAutoScroll changes", () => {
       expect(areEqual(props, { ...props, enableAutoScroll: true })).toBe(false);
+    });
+
+    it("returns false if readingBookIndex changes", () => {
+      expect(areEqual(props, { ...props, readingBookIndex: 0 })).toBe(false);
     });
 
     it("returns false if the item at the current index changes", () => {

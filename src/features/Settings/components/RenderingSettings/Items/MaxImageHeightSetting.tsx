@@ -1,12 +1,13 @@
 import { AspectRatioOutlined } from "@mui/icons-material";
-import { ListItem, ListItemIcon, ListItemText, Typography } from "@mui/material";
+import { emit } from "@tauri-apps/api/event";
 import { error } from "@tauri-apps/plugin-log";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { setMaxImageHeight } from "../../../../../bindings/ContainerCommands";
-import NumberSpinner from "../../../../../components/ui/NumberSpinner";
 import { useAppDispatch, useAppSelector } from "../../../../../store/store";
+import type { SettingsChangedEvent } from "../../../../../types/SettingsChangedEvent";
 import { updateSettings } from "../../../slice";
+import NumberSpinnerSettingItem from "../../ui/NumberSpinnerSettingItem";
 
 /**
  * Max image height setting component.
@@ -38,35 +39,28 @@ export default function MaxImageHeightSetting() {
         ...readerSettings,
         rendering: { ...readerSettings.rendering, maxImageHeight: height },
       };
-      dispatch(updateSettings({ key: "reader", value: newSettings }));
+      await dispatch(updateSettings({ key: "reader", value: newSettings }));
+      await emit<SettingsChangedEvent>("settings-changed", {
+        appSettings: { reader: newSettings },
+      });
     },
     [t, dispatch, readerSettings],
   );
 
   return (
-    <ListItem>
-      <ListItemIcon>
-        <AspectRatioOutlined />
-      </ListItemIcon>
-      <ListItemText
-        primary={t("settings.rendering.resize.max-image-height.title")}
-        secondary={t("settings.rendering.resize.max-image-height.description")}
-        sx={{ marginRight: "10px" }}
-        slotProps={{ secondary: { sx: { whiteSpace: "pre-wrap" } } }}
-      />
-      <NumberSpinner
-        defaultValue={readerSettings.rendering.maxImageHeight}
-        min={0}
-        step={100}
-        size="small"
-        error={isError}
-        helperText={errorMsg}
-        onValueCommitted={handleMaxHeightValueChange}
-        sx={{ minWidth: "200px" }}
-      />
-      <Typography variant="body2" sx={{ marginLeft: 1 }}>
-        px
-      </Typography>
-    </ListItem>
+    <NumberSpinnerSettingItem
+      icon={<AspectRatioOutlined />}
+      primaryText={t("settings.rendering.resize.max-image-height.title")}
+      secondaryText={t("settings.rendering.resize.max-image-height.description")}
+      secondaryTextSx={{ whiteSpace: "pre-wrap" }}
+      defaultValue={readerSettings.rendering.maxImageHeight}
+      min={0}
+      step={100}
+      error={isError}
+      helperText={errorMsg}
+      onValueCommitted={handleMaxHeightValueChange}
+      inputSx={{ minWidth: "200px" }}
+      unit="px"
+    />
   );
 }

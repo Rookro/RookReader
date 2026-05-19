@@ -18,7 +18,6 @@ describe("Store", () => {
     // Verify that all reducers are correctly combined
     expect(state).toHaveProperty("read");
     expect(state).toHaveProperty("view");
-    expect(state).toHaveProperty("sidePane");
     expect(state).toHaveProperty("history");
     expect(state).toHaveProperty("bookCollection");
     expect(state).toHaveProperty("settings");

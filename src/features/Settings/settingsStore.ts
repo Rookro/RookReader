@@ -40,9 +40,13 @@ export const defaultSettings: AppSettings = {
       enableSpread: true,
       showCoverAsSinglePage: true,
       loupe: {
-        zoom: 2,
+        zoom: 2.0,
         radius: 200,
         toggleKey: "MouseMiddle",
+      },
+      cache: {
+        preloadPageCount: 10,
+        imageCacheSizeMib: 1024,
       },
     },
     novel: {
@@ -58,6 +62,12 @@ export const defaultSettings: AppSettings = {
   },
   history: {
     recordReadingHistory: true,
+  },
+  layout: {
+    sidePane: {
+      isHidden: false,
+      tabIndex: 0,
+    },
   },
 };
 

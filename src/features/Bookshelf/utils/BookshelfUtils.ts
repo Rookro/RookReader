@@ -40,6 +40,33 @@ export const andSearch = (entries: BookWithState[], query: string) => {
 };
 
 /**
+ * Filters an array of GridItem objects based on their names.
+ * For 'book' items, it checks 'display_name'.
+ * For 'series' items, it checks the series 'name'.
+ *
+ * @param items - The array of GridItem objects to be searched.
+ * @param query - The space-separated keywords for AND search.
+ * @returns A filtered array of GridItem objects.
+ */
+export const andSearchGridItems = (items: GridItem[], query: string) => {
+  const keywords = query
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((keyword) => keyword.length > 0);
+
+  if (keywords.length === 0) {
+    return items;
+  }
+
+  return items.filter((item) => {
+    const nameToSearch = item.type === "series" ? item.data.name : item.data.display_name;
+    const lowerCaseName = nameToSearch.toLowerCase();
+    return keywords.every((keyword) => lowerCaseName.includes(keyword));
+  });
+};
+
+/**
  * Comparison function for sorting an array of BookWithState objects based on a specified criterion and order.
  *
  * This function is designed to be passed directly to the native JavaScript Array.prototype.sort() method.
@@ -67,6 +94,30 @@ export const sortBy = (a: BookWithState, b: BookWithState, sortOrder: SortOrder)
     case "date_desc":
       return b.id - a.id;
   }
+};
+
+/**
+ * Comparison function for sorting an array of BookWithState objects by their series_order.
+ * Books with null series_order are placed at the end.
+ * Fallback to display_name (locale-aware) if both have null or the same series_order.
+ *
+ * @param a - The first BookWithState object for comparison.
+ * @param b - The second BookWithState object for comparison.
+ * @returns A number indicating the sort order.
+ */
+export const sortBySeriesOrder = (a: BookWithState, b: BookWithState) => {
+  if (a.series_order !== null && b.series_order !== null) {
+    if (a.series_order !== b.series_order) {
+      return a.series_order - b.series_order;
+    }
+  } else if (a.series_order !== null && b.series_order === null) {
+    return -1; // a comes first
+  } else if (a.series_order === null && b.series_order !== null) {
+    return 1; // b comes first
+  }
+
+  // Fallback: name_asc
+  return a.display_name.localeCompare(b.display_name);
 };
 
 /**

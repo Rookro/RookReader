@@ -27,6 +27,8 @@ export interface BookGridCellProps {
   onSeriesClick: (seriesId: number) => void;
   /** The currently focused item index. */
   focusedIndex?: number;
+  /** The index of the reading book. */
+  readingBookIndex?: number;
 }
 
 /**
@@ -45,6 +47,7 @@ function BookGridCellInner({
   size,
   style,
   focusedIndex,
+  readingBookIndex,
 }: CellComponentProps<BookGridCellProps>) {
   const index = rowIndex * columnCount + columnIndex;
   const item = items[index];
@@ -60,6 +63,7 @@ function BookGridCellInner({
   }
 
   const isFocused = index === focusedIndex;
+  const isReading = index === readingBookIndex;
 
   if (item.type === "series") {
     return (
@@ -84,6 +88,7 @@ function BookGridCellInner({
       onBookClick={onBookClick}
       style={style}
       isFocused={isFocused}
+      isReading={isReading}
     />
   );
 }
@@ -100,7 +105,8 @@ export function areEqual(
     prevProps.size !== nextProps.size ||
     prevProps.tags !== nextProps.tags ||
     prevProps.enableAutoScroll !== nextProps.enableAutoScroll ||
-    prevProps.focusedIndex !== nextProps.focusedIndex
+    prevProps.focusedIndex !== nextProps.focusedIndex ||
+    prevProps.readingBookIndex !== nextProps.readingBookIndex
   ) {
     return false;
   }

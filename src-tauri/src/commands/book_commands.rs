@@ -127,21 +127,40 @@ pub async fn upsert_book<R: tauri::Runtime>(
         total_pages
     );
 
-    let pdfium_path = {
+    let (pdfium_path, container) = {
         let state_lock = state.read().await;
-        state_lock
+        let pdfium_path = state_lock
             .container_state
             .settings
             .pdfium_library_path
-            .clone()
+            .clone();
+
+        let container = if let Some(ref c) = state_lock.container_state.container {
+            let matches = state_lock
+                .container_state
+                .image_loader
+                .as_ref()
+                .is_some_and(|loader| loader.book_id() == file_path);
+
+            if matches {
+                Some(c.clone())
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        (pdfium_path, container)
     };
 
-    let thumbnail_path = generate_and_save_thumbnail(app, file_path.clone(), pdfium_path)
-        .await
-        .unwrap_or_else(|e| {
-            log::warn!("Thumbnail of {} generation failed: {}", file_path, e);
-            None
-        });
+    let thumbnail_path =
+        generate_and_save_thumbnail(app, file_path.clone(), pdfium_path, container)
+            .await
+            .unwrap_or_else(|e| {
+                log::warn!("Thumbnail of {} generation failed: {}", file_path, e);
+                None
+            });
 
     Ok(repo
         .upsert_book(
@@ -192,21 +211,40 @@ pub async fn upsert_read_book<R: tauri::Runtime>(
         total_pages
     );
 
-    let pdfium_path = {
+    let (pdfium_path, container) = {
         let state_lock = state.read().await;
-        state_lock
+        let pdfium_path = state_lock
             .container_state
             .settings
             .pdfium_library_path
-            .clone()
+            .clone();
+
+        let container = if let Some(ref c) = state_lock.container_state.container {
+            let matches = state_lock
+                .container_state
+                .image_loader
+                .as_ref()
+                .is_some_and(|loader| loader.book_id() == file_path);
+
+            if matches {
+                Some(c.clone())
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        (pdfium_path, container)
     };
 
-    let thumbnail_path = generate_and_save_thumbnail(app, file_path.clone(), pdfium_path)
-        .await
-        .unwrap_or_else(|e| {
-            log::warn!("Thumbnail of {} generation failed: {}", file_path, e);
-            None
-        });
+    let thumbnail_path =
+        generate_and_save_thumbnail(app, file_path.clone(), pdfium_path, container)
+            .await
+            .unwrap_or_else(|e| {
+                log::warn!("Thumbnail of {} generation failed: {}", file_path, e);
+                None
+            });
 
     Ok(repo
         .upsert_read_book(
@@ -486,55 +524,99 @@ pub async fn update_book_series(
     Ok(repo.update_book_series(book_id, series_id).await?)
 }
 
+/// Updates the `series_order` for a given list of book IDs.
+///
+/// # Arguments
+///
+/// * `book_ids` - A list of book IDs in the desired order.
+/// * `repo` - The managed book repository state.
+///
+/// # Errors
+///
+/// This function will return an `Err` if the underlying repository operation fails.
+#[tauri::command]
+pub async fn update_series_orders(
+    book_ids: Vec<i64>,
+    repo: State<'_, Arc<dyn BookRepository>>,
+) -> Result<()> {
+    log::debug!("Update series orders for books: {:?}", book_ids);
+    Ok(repo.update_series_orders(book_ids).await?)
+}
+
 /// Helper function to generate and save a thumbnail for a given file path.
+///
+/// If a thumbnail corresponding to the hash of the `file_path` already exists
+/// in the app's thumbnail directory, the container parsing and image extraction
+/// are skipped, and the existing thumbnail path is returned.
+///
+/// # Arguments
+///
+/// * `app` - The Tauri AppHandle for resolving app data directories.
+/// * `file_path` - The unique file or directory path of the book.
+/// * `pdfium_path` - Optional path to the pdfium library.
+///
+/// # Returns
+///
+/// A `Result` containing an `Option<String>` which is the absolute path to the
+/// generated or existing thumbnail file, or `None` if the book contains no images.
 async fn generate_and_save_thumbnail<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
     file_path: String,
     pdfium_path: Option<String>,
+    container: Option<Arc<dyn Container>>,
 ) -> Result<Option<String>> {
     tauri::async_runtime::spawn_blocking(move || {
-        let path = std::path::Path::new(&file_path);
-        let container: Arc<dyn Container> = if path.is_dir() {
-            Arc::new(DirectoryContainer::new(&file_path)?)
-        } else if let Some(ext) = path.extension() {
-            let ext_str = ext.to_string_lossy().to_lowercase();
-            match ext_str.as_str() {
-                "zip" => Arc::new(ZipContainer::new(&file_path)?),
-                "pdf" => Arc::new(PdfContainer::new(
-                    &file_path,
-                    PdfRenderConfig::default(),
-                    pdfium_path,
-                )?),
-                "rar" => Arc::new(RarContainer::new(&file_path)?),
-                "epub" => Arc::new(EpubContainer::new(&file_path)?),
-                _ => {
-                    return Err(Error::UnsupportedContainer(format!(
-                        "Unsupported Format: {}",
-                        file_path
-                    )))
-                }
-            }
+        let mut hasher = DefaultHasher::new();
+        file_path.hash(&mut hasher);
+        let hash = hasher.finish();
+
+        let thumbnails_dir = app.path().app_data_dir()?.join("thumbnails");
+        if !thumbnails_dir.exists() {
+            fs::create_dir_all(&thumbnails_dir)?;
+        }
+
+        let thumbnail_filename = format!("thumbnail_{}.jpg", hash);
+        let thumbnail_path = thumbnails_dir.join(&thumbnail_filename);
+
+        if thumbnail_path.exists() {
+            return Ok(Some(thumbnail_path.to_string_lossy().to_string()));
+        }
+
+        let container: Arc<dyn Container> = if let Some(c) = container {
+            c
         } else {
-            return Err(Error::UnsupportedContainer(format!(
-                "No extension: {}",
-                file_path
-            )));
+            let path = std::path::Path::new(&file_path);
+            if path.is_dir() {
+                Arc::new(DirectoryContainer::new(&file_path)?)
+            } else if let Some(ext) = path.extension() {
+                let ext_str = ext.to_string_lossy().to_lowercase();
+                match ext_str.as_str() {
+                    "zip" => Arc::new(ZipContainer::new(&file_path)?),
+                    "pdf" => Arc::new(PdfContainer::new(
+                        &file_path,
+                        PdfRenderConfig::default(),
+                        pdfium_path,
+                    )?),
+                    "rar" => Arc::new(RarContainer::new(&file_path)?),
+                    "epub" => Arc::new(EpubContainer::new(&file_path)?),
+                    _ => {
+                        return Err(Error::UnsupportedContainer(format!(
+                            "Unsupported Format: {}",
+                            file_path
+                        )))
+                    }
+                }
+            } else {
+                return Err(Error::UnsupportedContainer(format!(
+                    "No extension: {}",
+                    file_path
+                )));
+            }
         };
 
         let first_image_entry = container.get_entries().first();
         if let Some(entry) = first_image_entry {
             let image = container.get_thumbnail(entry)?;
-            let mut hasher = DefaultHasher::new();
-            file_path.hash(&mut hasher);
-            let hash = hasher.finish();
-
-            let thumbnails_dir = app.path().app_data_dir()?.join("thumbnails");
-            if !thumbnails_dir.exists() {
-                fs::create_dir_all(&thumbnails_dir)?;
-            }
-
-            let thumbnail_filename = format!("thumbnail_{}.jpg", hash);
-            let thumbnail_path = thumbnails_dir.join(&thumbnail_filename);
 
             fs::write(&thumbnail_path, &image.data)?;
 
@@ -669,6 +751,23 @@ mod tests {
         let state = app.state::<Arc<dyn BookRepository>>();
 
         let result = update_book_series(1, Some(10), state).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_update_series_orders() {
+        let mut mock_repo = MockBookRepository::new();
+        mock_repo
+            .expect_update_series_orders()
+            .with(mockall::predicate::eq(vec![1, 2, 3]))
+            .times(1)
+            .returning(|_| Ok(()));
+
+        let app = tauri::test::mock_app();
+        app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
+        let state = app.state::<Arc<dyn BookRepository>>();
+
+        let result = update_series_orders(vec![1, 2, 3], state).await;
         assert!(result.is_ok());
     }
 
@@ -951,5 +1050,36 @@ mod tests {
         let e = result.unwrap_err();
         let error_code: ErrorCode = (&e).into();
         assert_eq!(error_code.code(), 70001);
+    }
+
+    #[tokio::test]
+    async fn test_generate_and_save_thumbnail_skips_when_exists() {
+        let app = tauri::test::mock_app();
+        let file_path = "fake_path_that_does_not_exist.zip".to_string();
+
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        std::hash::Hash::hash(&file_path, &mut hasher);
+        let hash = std::hash::Hasher::finish(&hasher);
+
+        let thumbnails_dir = app.path().app_data_dir().unwrap().join("thumbnails");
+        std::fs::create_dir_all(&thumbnails_dir).unwrap();
+
+        let thumbnail_filename = format!("thumbnail_{}.jpg", hash);
+        let thumbnail_path = thumbnails_dir.join(&thumbnail_filename);
+
+        std::fs::write(&thumbnail_path, "dummy image data").unwrap();
+
+        // Calling it with a fake file path. If it didn't skip, it would return an error
+        // because the fake zip file does not exist.
+        let result =
+            generate_and_save_thumbnail(app.app_handle().clone(), file_path, None, None).await;
+
+        assert!(result.is_ok());
+        let path_opt = result.unwrap();
+        assert!(path_opt.is_some());
+        assert_eq!(
+            path_opt.unwrap(),
+            thumbnail_path.to_string_lossy().to_string()
+        );
     }
 }

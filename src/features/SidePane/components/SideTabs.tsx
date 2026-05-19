@@ -2,7 +2,7 @@ import { Tab, Tabs } from "@mui/material";
 import type React from "react";
 import { type JSX, useCallback } from "react";
 import { useAppDispatch } from "../../../store/store";
-import { setIsLeftSidePanelsHidden, setLeftSideTabIndex } from "../slice";
+import { updateSettings } from "../../Settings/slice";
 
 /**
  * Side tabs component.
@@ -17,7 +17,12 @@ export default function SideTabs(props: {
   const handleTabClick = useCallback(
     (_event: React.MouseEvent, index: number) => {
       if (props.index === index) {
-        dispatch(setIsLeftSidePanelsHidden(!props.isHidden));
+        dispatch(
+          updateSettings({
+            key: "layout",
+            value: { sidePane: { isHidden: !props.isHidden, tabIndex: props.index } },
+          }),
+        );
       }
     },
     [dispatch, props.index, props.isHidden],
@@ -25,14 +30,23 @@ export default function SideTabs(props: {
 
   const handleChange = useCallback(
     (_event: React.SyntheticEvent, newValue: number) => {
-      dispatch(setIsLeftSidePanelsHidden(false));
-      dispatch(setLeftSideTabIndex(newValue));
+      dispatch(
+        updateSettings({
+          key: "layout",
+          value: { sidePane: { isHidden: false, tabIndex: newValue } },
+        }),
+      );
     },
     [dispatch],
   );
 
   if (props.tabs.length - 1 < props.index) {
-    dispatch(setLeftSideTabIndex(0));
+    dispatch(
+      updateSettings({
+        key: "layout",
+        value: { sidePane: { isHidden: props.isHidden, tabIndex: 0 } },
+      }),
+    );
   }
 
   return (

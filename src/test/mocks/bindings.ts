@@ -11,6 +11,7 @@ vi.mock("../../bindings/BookCommands", () => ({
   getBookTags: vi.fn(() => Promise.resolve([])),
   updateBookTags: vi.fn(() => Promise.resolve([])),
   updateBookSeries: vi.fn(() => Promise.resolve([])),
+  updateSeriesOrders: vi.fn(() => Promise.resolve([])),
   upsertReadingState: vi.fn(() => Promise.resolve([])),
   clearReadingHistory: vi.fn(() => Promise.resolve([])),
   clearAllReadingHistory: vi.fn(() => Promise.resolve([])),
@@ -29,14 +30,16 @@ vi.mock("../../bindings/BookshelfCommand", () => ({
 }));
 
 vi.mock("../../bindings/ContainerCommands", () => ({
-  getEntriesInContainer: vi.fn(() => Promise.resolve([])),
+  getEntriesInContainer: vi.fn(() =>
+    Promise.resolve({ entries: [], is_directory: false, is_novel: false }),
+  ),
   requestPreloadAround: vi.fn(() => Promise.resolve()),
-  getImage: vi.fn(() => Promise.resolve([])),
-  getImagePreview: vi.fn(() => Promise.resolve([])),
-  setPdfRenderResolutionHeight: vi.fn(() => Promise.resolve([])),
-  setMaxImageHeight: vi.fn(() => Promise.resolve([])),
-  setImageResamplingMethod: vi.fn(() => Promise.resolve([])),
-  determineEpubNovel: vi.fn(() => Promise.resolve([])),
+  getImage: vi.fn(() => Promise.resolve(new ArrayBuffer(0))),
+  getImagePreview: vi.fn(() => Promise.resolve(new ArrayBuffer(0))),
+  setPdfRenderResolutionHeight: vi.fn(() => Promise.resolve()),
+  setMaxImageHeight: vi.fn(() => Promise.resolve()),
+  setImageResamplingMethod: vi.fn(() => Promise.resolve()),
+  setImageCacheSizeMib: vi.fn(() => Promise.resolve()),
 }));
 
 vi.mock("../../bindings/DirectoryCommands", () => ({

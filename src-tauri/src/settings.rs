@@ -75,6 +75,8 @@ pub struct AppSettings {
     pub reader: ReaderSettings,
     /// Settings related to user history and tracking.
     pub history: HistorySettings,
+    /// Settings related to the application's layout.
+    pub layout: LayoutSettings,
 }
 
 impl AppSettings {
@@ -140,17 +142,33 @@ impl fmt::Display for AppSettings {
 }
 
 /// General application settings.
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct GeneralSettings {
     /// The application's color theme.
     pub theme: AppTheme,
     /// The font family used for the application's UI.
+    #[serde(default = "default_app_font_family")]
     pub app_font_family: String,
     /// Configuration for application logging.
     pub log: LogSettings,
     /// A flexible map for toggling or configuring experimental features.
     pub experimental_features: HashMap<String, serde_json::Value>,
+}
+
+impl Default for GeneralSettings {
+    fn default() -> Self {
+        Self {
+            theme: AppTheme::default(),
+            app_font_family: default_app_font_family(),
+            log: LogSettings::default(),
+            experimental_features: HashMap::new(),
+        }
+    }
+}
+
+fn default_app_font_family() -> String {
+    "Inter, Avenir, Helvetica, Arial, sans-serif".to_string()
 }
 
 /// Configuration for application logging.
@@ -242,6 +260,8 @@ pub struct ComicSettings {
     pub show_cover_as_single_page: bool,
     /// Configuration for the Loupe (Magnifier) feature.
     pub loupe: LoupeSettings,
+    /// Configuration for image caching and preloading.
+    pub cache: ComicCacheSettings,
 }
 
 impl Default for ComicSettings {
@@ -251,8 +271,38 @@ impl Default for ComicSettings {
             enable_spread: default_true(),
             show_cover_as_single_page: default_true(),
             loupe: LoupeSettings::default(),
+            cache: ComicCacheSettings::default(),
         }
     }
+}
+
+/// Configuration for image caching and preloading.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct ComicCacheSettings {
+    /// The number of pages to preload in each direction (forward and backward).
+    #[serde(default = "default_preload_page_count")]
+    pub preload_page_count: i32,
+    /// The maximum size of the image memory cache in MiB.
+    #[serde(default = "default_image_cache_size_mib")]
+    pub image_cache_size_mib: u64,
+}
+
+impl Default for ComicCacheSettings {
+    fn default() -> Self {
+        Self {
+            preload_page_count: default_preload_page_count(),
+            image_cache_size_mib: default_image_cache_size_mib(),
+        }
+    }
+}
+
+fn default_preload_page_count() -> i32 {
+    10
+}
+
+fn default_image_cache_size_mib() -> u64 {
+    1024
 }
 
 /// Configuration for the Loupe (Magnifier) feature.
@@ -293,13 +343,32 @@ fn default_loupe_toggle_key() -> String {
 }
 
 /// Configuration specific to reading novels (text-based content).
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct NovelSettings {
     /// The font family used for rendering the text.
+    #[serde(default = "default_novel_font_family")]
     pub font_family: String,
     /// The size of the font used for rendering the text.
+    #[serde(default = "default_novel_font_size")]
     pub font_size: i32,
+}
+
+impl Default for NovelSettings {
+    fn default() -> Self {
+        Self {
+            font_family: default_novel_font_family(),
+            font_size: default_novel_font_size(),
+        }
+    }
+}
+
+fn default_novel_font_family() -> String {
+    "default-font".to_string()
+}
+
+fn default_novel_font_size() -> i32 {
+    16
 }
 
 /// Configuration for image and document rendering.
@@ -343,6 +412,24 @@ impl Default for HistorySettings {
             record_reading_history: default_true(),
         }
     }
+}
+
+/// Settings related to the application's layout.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase", default)]
+pub struct LayoutSettings {
+    /// Settings for the side pane (tabs and visibility).
+    pub side_pane: SidePaneSettings,
+}
+
+/// Settings for the side pane.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase", default)]
+pub struct SidePaneSettings {
+    /// Whether the side pane is hidden.
+    pub is_hidden: bool,
+    /// The index of the active tab in the side pane.
+    pub tab_index: i32,
 }
 
 /// Represents the application's visual theme.
@@ -474,10 +561,16 @@ mod tests {
         );
         // Check static defaults
         assert!(matches!(settings.general.theme, AppTheme::System));
+        assert_eq!(
+            settings.general.app_font_family,
+            "Inter, Avenir, Helvetica, Arial, sans-serif"
+        );
         assert!(settings.reader.comic.enable_spread);
         assert_eq!(settings.reader.comic.loupe.zoom, 2.0);
         assert_eq!(settings.reader.comic.loupe.radius, 200.0);
         assert_eq!(settings.reader.comic.loupe.toggle_key, "MouseMiddle");
+        assert_eq!(settings.reader.novel.font_family, "default-font");
+        assert_eq!(settings.reader.novel.font_size, 16);
     }
 
     #[test]
@@ -485,7 +578,8 @@ mod tests {
         let provider = MockProvider {
             mock_json: json!({
                 "general": { "theme": "dark" },
-                "reader": { "comic": { "enableSpread": false, "loupe": { "zoom": 3.0, "toggleKey": "Alt+l" } } }
+                "reader": { "comic": { "enableSpread": false, "loupe": { "zoom": 3.0, "toggleKey": "Alt+l" } } },
+                "layout": { "sidePane": { "isHidden": true, "tabIndex": 2 } }
             }),
         };
         let settings = AppSettings::load_from_provider(&provider).unwrap();
@@ -495,6 +589,8 @@ mod tests {
         assert!(!settings.reader.comic.enable_spread);
         assert_eq!(settings.reader.comic.loupe.zoom, 3.0);
         assert_eq!(settings.reader.comic.loupe.toggle_key, "Alt+l");
+        assert!(settings.layout.side_pane.is_hidden);
+        assert_eq!(settings.layout.side_pane.tab_index, 2);
 
         // Omitted values should fall back to defaults safely
         assert!(matches!(settings.startup.initial_view, InitialView::Reader));

@@ -14,6 +14,8 @@ pub struct ContainerSettings {
     pub image_resampling_method: ResizeFilter,
     /// The target height in pixels when rendering a page from a PDF document as an image.
     pub pdf_render_resolution_height: i32,
+    /// The maximum size of the image memory cache in MiB.
+    pub image_cache_size_mib: u64,
     /// An optional path to the PDFium library, required for rendering PDF files.
     /// If `None`, the application may not be able to open PDF files.
     pub pdfium_library_path: Option<String>,
@@ -26,6 +28,7 @@ impl Default for ContainerSettings {
             max_image_height: 0,
             image_resampling_method: ResizeFilter::Bilinear,
             pdf_render_resolution_height: 2000,
+            image_cache_size_mib: 1024,
             pdfium_library_path: None,
         }
     }

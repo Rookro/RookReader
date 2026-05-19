@@ -1,5 +1,6 @@
+import { warn } from "@tauri-apps/plugin-log";
 import { useCallback, useEffect, useRef, useState } from "react";
-// import { requestPreloadAround } from "../../../bindings/ContainerCommands";
+import { requestPreloadAround } from "../../../bindings/ContainerCommands";
 import type { AppDispatch } from "../../../store/store";
 import { setImageIndex } from "../slice";
 import {
@@ -148,6 +149,15 @@ export const useViewerController = (
       abortControllerRef.current = null;
     };
   }, [containerPath, index, entries, settings]);
+
+  // Request preloading around the current index in the backend.
+  useEffect(() => {
+    if (entries.length > 0) {
+      requestPreloadAround(index, settings.preloadPageCount).catch((e) => {
+        warn(`Failed to request preload: ${String(e)}`);
+      });
+    }
+  }, [index, settings.preloadPageCount, entries.length]);
 
   const displayedLayout = layoutState?.path === containerPath ? layoutState?.layout : null;
 

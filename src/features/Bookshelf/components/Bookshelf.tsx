@@ -37,7 +37,7 @@ export default function Bookshelf({ sx }: BookshelfProps) {
   const handleOpenCreateBookTagDialog = useCallback(() => setIsBookTagDialogOpen(true), []);
   const handleCloseCreateBookTagDialog = useCallback(() => setIsBookTagDialogOpen(false), []);
 
-  const { paneSizes, handlePaneSizeChanged } = usePaneSizes("bookshelf-left-pane-sizes");
+  const { paneSizes, setPaneSizes } = usePaneSizes("bookshelf-left-pane-sizes");
 
   const handleBookSelected = useCallback(
     (book: Book) => {
@@ -63,11 +63,7 @@ export default function Bookshelf({ sx }: BookshelfProps) {
 
   return (
     <Box sx={{ width: "100%", height: "100%", ...sx }} data-testid="bookshelf">
-      <Allotment
-        defaultSizes={paneSizes}
-        proportionalLayout={false}
-        onChange={handlePaneSizeChanged}
-      >
+      <Allotment defaultSizes={paneSizes} proportionalLayout={false} onChange={setPaneSizes}>
         <Allotment.Pane preferredSize={200} minSize={200}>
           <MenuList
             onClickAddBookshelf={handleOpenCreateBookshelfDialog}

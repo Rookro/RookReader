@@ -41,11 +41,17 @@ export const LoupeSettingsSchema = z.object({
   toggleKey: z.string(),
 });
 
+export const ComicCacheSettingsSchema = z.object({
+  preloadPageCount: z.number(),
+  imageCacheSizeMib: z.number(),
+});
+
 export const ComicSettingsSchema = z.object({
   readingDirection: DirectionSchema,
   enableSpread: z.boolean(),
   showCoverAsSinglePage: z.boolean(),
   loupe: LoupeSettingsSchema,
+  cache: ComicCacheSettingsSchema,
 });
 
 export const NovelSettingsSchema = z.object({
@@ -70,6 +76,13 @@ export const HistorySettingsSchema = z.object({
   recordReadingHistory: z.boolean(),
 });
 
+export const LayoutSettingsSchema = z.object({
+  sidePane: z.object({
+    isHidden: z.boolean(),
+    tabIndex: z.number(),
+  }),
+});
+
 export const AppSettingsSchema = z.object({
   general: GeneralSettingsSchema,
   startup: StartupSettingsSchema,
@@ -77,4 +90,5 @@ export const AppSettingsSchema = z.object({
   fileNavigator: FileNavigatorSettingsSchema,
   reader: ReaderSettingsSchema,
   history: HistorySettingsSchema,
+  layout: LayoutSettingsSchema,
 });

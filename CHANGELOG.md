@@ -9,6 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-05-19
+
+### Added
+
+* Added image cache and page preloading settings to optimize reading performance. (#216)
+* Added search and filtering capabilities to font settings for quicker selection. (#219)
+* Added manual drag-and-drop sorting for books within a series. (#226, #229)
+* Added highlighting and auto-scroll for the currently reading book in the bookshelf. (#231)
+
+### Changed
+
+* Optimized thumbnail generation by skipping container parsing and image extraction if the thumbnail already exists, significantly improving performance. (#214)
+* Improved the settings screen layout by consolidating options into a more intuitive tab structure. (#217)
+* Persist side pane visibility and active tab across sessions in application settings. (#223)
+* Refined search behavior to better support grouped series and automatically reset filters when entering series view. (#227)
+* Optimized book opening and background image processing for a faster, smoother reading experience. (#228)
+
+### Fixed
+
+* Fixed an issue where the bookshelf's virtual scroll rendered all items at once. (#215)
+* Fixed an issue where the startup screen setting was not applied correctly on launch. (#220)
+* Fixed an issue where the manual theme setting was ignored in favor of the system theme. (#221)
+* Fixed an issue where the side pane width was reset on the next launch if the app was closed while the pane was hidden. (#224)
+
 ## [2.1.1] - 2026-05-07
 
 ### Fixed
@@ -341,7 +365,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Add an automatic two-page spread display feature (#4)
 * Add a page navigation feature using the mouse wheel up/down (#5)
 
-[unreleased]: https://github.com/Rookro/RookReader/compare/v2.1.1...HEAD
+[unreleased]: https://github.com/Rookro/RookReader/compare/v2.2.0...HEAD
+[2.2.0]: https://github.com/Rookro/RookReader/compare/v2.1.1...v2.2.0
 [2.1.1]: https://github.com/Rookro/RookReader/compare/v2.1.0...v2.1.1
 [2.1.0]: https://github.com/Rookro/RookReader/compare/v2.0.3...v2.1.0
 [2.0.3]: https://github.com/Rookro/RookReader/compare/v2.0.2...v2.0.3

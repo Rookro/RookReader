@@ -1,6 +1,6 @@
-import { expect, browser, $ } from "@wdio/globals";
-import { Key } from "webdriverio";
 import path from "node:path";
+import { $, browser, expect } from "@wdio/globals";
+import { Key } from "webdriverio";
 
 describe("RookReader E2E Tests - Page Navigation", () => {
   it("should load a directory and navigate pages", async () => {
@@ -9,6 +9,7 @@ describe("RookReader E2E Tests - Page Navigation", () => {
       const returnToReaderButton = $('button[aria-label="book-reader"]');
       await returnToReaderButton.waitForDisplayed();
       await expect(returnToReaderButton).toBeDisplayed();
+      await returnToReaderButton.waitForClickable();
 
       await returnToReaderButton.click();
     }

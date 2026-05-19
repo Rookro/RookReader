@@ -5,6 +5,7 @@ import { type RootState, useAppDispatch, useAppSelector } from "../../../store/s
 import { createMockBookWithState, createMockSeries } from "../../../test/factories";
 import { useBookSelection } from "../hooks/useBookSelection";
 import { useBookshelfDialogs } from "../hooks/useBookshelfDialogs";
+import { useReadingBookSelection } from "../hooks/useReadingBookSelection";
 import BookGrid from "./BookGrid";
 import { BookSelectionContext } from "./BookSelectionContext";
 import { useBookshelfActions } from "./BookshelfActionsContext";
@@ -13,6 +14,7 @@ import { useBookshelfActions } from "./BookshelfActionsContext";
 vi.mock("../../../store/store");
 vi.mock("../hooks/useBookSelection");
 vi.mock("../hooks/useBookshelfDialogs");
+vi.mock("../hooks/useReadingBookSelection");
 vi.mock("../../../hooks/useResizeObserver");
 vi.mock("../../Settings/slice", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../Settings/slice")>();
@@ -23,8 +25,10 @@ vi.mock("../../Settings/slice", async (importOriginal) => {
 });
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
-    t: (key: string, options?: { searchText?: string }) =>
-      options?.searchText ? `${key}:${options.searchText}` : key,
+    t: (key: string, options?: { searchText?: string }) => {
+      if (key === "bookshelf.reading-chip-label") return "Reading";
+      return options?.searchText ? `${key}:${options.searchText}` : key;
+    },
   }),
   Trans: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
@@ -153,9 +157,14 @@ describe("BookGrid", () => {
         sortOrder: "name_asc",
         enableAutoScroll: false,
       },
+      general: {
+        appFontFamily: "sans-serif",
+      },
     },
     bookCollection: {
       searchText: "",
+      isEditSeriesOrderDialogOpen: false,
+      editSeriesOrderTargetId: null,
       bookshelf: {
         books: [],
         bookshelves: [],
@@ -169,6 +178,11 @@ describe("BookGrid", () => {
       series: {
         series: [],
         selectedId: null,
+      },
+    },
+    read: {
+      containerFile: {
+        book: null,
       },
     },
     view: {
@@ -376,6 +390,12 @@ describe("BookGrid", () => {
     expect(mockDispatch).toHaveBeenCalledWith(
       expect.objectContaining({
         payload: 10, // setSelectedSeriesId payload
+      }),
+    );
+    expect(mockDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "bookCollection/setSearchText",
+        payload: "",
       }),
     );
   });
@@ -860,31 +880,57 @@ describe("BookGrid", () => {
     fireEvent.keyDown(container, { key: "ArrowUp" }); // -> 0 (clamped)
   });
 
-  it("sorts books in drill-down mode", () => {
+  it("sorts books in drill-down mode by series_order", () => {
     const series = createMockSeries({ id: 10, name: "Series" });
-    const bookB = createMockBookWithState({ id: 2, display_name: "B", series_id: 10 });
-    const bookA = createMockBookWithState({ id: 1, display_name: "A", series_id: 10 });
+    const bookB = createMockBookWithState({
+      id: 2,
+      display_name: "B",
+      series_id: 10,
+      series_order: 2,
+    });
+    const bookA = createMockBookWithState({
+      id: 1,
+      display_name: "A",
+      series_id: 10,
+      series_order: 1,
+    });
+    const bookC = createMockBookWithState({
+      id: 3,
+      display_name: "C",
+      series_id: 10,
+      series_order: null,
+    });
 
     vi.mocked(useAppSelector).mockImplementation(<T,>(selector: (state: RootState) => T): T => {
       return selector({
         ...defaultState,
         bookCollection: {
           ...defaultState.bookCollection,
-          bookshelf: { ...defaultState.bookCollection.bookshelf, books: [bookB, bookA] },
+          bookshelf: { ...defaultState.bookCollection.bookshelf, books: [bookC, bookB, bookA] },
           series: { ...defaultState.bookCollection.series, series: [series], selectedId: 10 },
         },
       } as unknown as RootState);
     });
 
-    render(
+    const { container } = render(
       <BookSelectionContext.Provider value={mockSelectionValue}>
         <BookGrid />
       </BookSelectionContext.Provider>,
     );
 
-    // This should hit the sort line in drill-down
-    expect(screen.getByText("A")).toBeInTheDocument();
-    expect(screen.getByText("B")).toBeInTheDocument();
+    // Verify visual rendering (A should be first, B second, C last because of null order)
+    const elements = container.querySelectorAll(".MuiTypography-root");
+    const textContents = Array.from(elements).map((e) => e.textContent);
+
+    // We expect the text to contain A, B, C in that order. Since Grid virtualizes, it renders them in DOM order
+    expect(textContents).toEqual(expect.arrayContaining(["A", "B", "C"]));
+
+    const indexA = textContents.indexOf("A");
+    const indexB = textContents.indexOf("B");
+    const indexC = textContents.indexOf("C");
+
+    expect(indexA).toBeLessThan(indexB);
+    expect(indexB).toBeLessThan(indexC);
   });
 
   it("groups multiple books in the same series", () => {
@@ -910,5 +956,37 @@ describe("BookGrid", () => {
     );
 
     expect(screen.getByText("Series")).toBeInTheDocument();
+  });
+
+  it("calls useReadingBookSelection with the reading book from state", () => {
+    const readingBook = createMockBookWithState({ id: 5, display_name: "Reading Book" });
+    const state = {
+      ...defaultState,
+      read: {
+        containerFile: {
+          book: readingBook,
+        },
+      },
+      bookCollection: {
+        ...defaultState.bookCollection,
+        bookshelf: { ...defaultState.bookCollection.bookshelf, books: [readingBook] },
+      },
+    };
+
+    vi.mocked(useAppSelector).mockImplementation(<T,>(selector: (state: RootState) => T): T => {
+      return selector(state as unknown as RootState);
+    });
+
+    render(
+      <BookSelectionContext.Provider value={mockSelectionValue}>
+        <BookGrid />
+      </BookSelectionContext.Provider>,
+    );
+
+    expect(useReadingBookSelection).toHaveBeenCalledWith(
+      readingBook,
+      expect.arrayContaining([expect.objectContaining({ data: readingBook })]),
+      expect.any(Function),
+    );
   });
 });

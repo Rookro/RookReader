@@ -12,7 +12,6 @@ import historyReducer from "../features/History/slice";
 import viewReducer from "../features/MainView/slice";
 import { defaultSettings } from "../features/Settings/settingsStore";
 import settingsReducer from "../features/Settings/slice";
-import sidePaneReducer from "../features/SidePane/slice";
 import translationEnUs from "../i18n/locales/en-US.json";
 import translationJaJp from "../i18n/locales/ja-JP.json";
 
@@ -34,7 +33,6 @@ const rootReducer = combineReducers({
   bookCollection: bookCollectionReducer,
   history: historyReducer,
   read: readReducer,
-  sidePane: sidePaneReducer,
   view: viewReducer,
   settings: settingsReducer,
 });
@@ -75,14 +73,13 @@ export function createBasePreloadedState(): RootState {
         error: null,
       },
     },
-    sidePane: {
-      left: { isHidden: false, tabIndex: 0 },
-    },
     bookCollection: {
       bookshelf: { bookshelves: [], selectedId: null, books: [], status: "idle", error: null },
       tag: { tags: [], selectedId: null, status: "idle", error: null },
       series: { series: [], selectedId: null, books: [], status: "idle", error: null },
       searchText: "",
+      isEditSeriesOrderDialogOpen: false,
+      editSeriesOrderTargetId: null,
     },
     history: { recentlyReadBooks: [], status: "idle", error: null },
   };
