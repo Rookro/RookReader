@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+* Fixed an issue where certain app settings (startup update checks, image resizing method, and PDF rendering quality) were not saved or applied correctly. (#234)
+
 ## [2.2.0] - 2026-05-19
 
 ### Added
