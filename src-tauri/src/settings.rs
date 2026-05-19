@@ -188,6 +188,9 @@ pub struct StartupSettings {
     /// Whether to automatically restore the last opened book/container on startup.
     #[serde(default = "default_true")]
     pub restore_last_book: bool,
+    /// Whether to automatically check for updates on startup.
+    #[serde(default = "default_true")]
+    pub check_update_on_startup: bool,
 }
 
 impl Default for StartupSettings {
@@ -195,6 +198,7 @@ impl Default for StartupSettings {
         Self {
             initial_view: InitialView::default(),
             restore_last_book: default_true(),
+            check_update_on_startup: default_true(),
         }
     }
 }
@@ -383,6 +387,7 @@ pub struct RenderingSettings {
     /// The algorithm used for resampling (resizing) images.
     pub image_resampling_method: ImageResamplingMethod,
     /// The vertical resolution used when rasterizing PDF pages to images.
+    #[serde(default = "default_pdf_render_resolution_height")]
     pub pdf_render_resolution_height: i32,
 }
 
@@ -392,9 +397,13 @@ impl Default for RenderingSettings {
             enable_thumbnail_preview: default_true(),
             max_image_height: i32::default(),
             image_resampling_method: ImageResamplingMethod::default(),
-            pdf_render_resolution_height: i32::default(),
+            pdf_render_resolution_height: default_pdf_render_resolution_height(),
         }
     }
+}
+
+fn default_pdf_render_resolution_height() -> i32 {
+    2000
 }
 
 /// Settings related to tracking user history.
@@ -496,7 +505,7 @@ pub enum Direction {
 
 /// Represents the algorithm used for resampling images.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "camelCase")]
 pub enum ImageResamplingMethod {
     /// Nearest Neighbor
     Nearest,
@@ -565,12 +574,14 @@ mod tests {
             settings.general.app_font_family,
             "Inter, Avenir, Helvetica, Arial, sans-serif"
         );
+        assert!(settings.startup.check_update_on_startup);
         assert!(settings.reader.comic.enable_spread);
         assert_eq!(settings.reader.comic.loupe.zoom, 2.0);
         assert_eq!(settings.reader.comic.loupe.radius, 200.0);
         assert_eq!(settings.reader.comic.loupe.toggle_key, "MouseMiddle");
         assert_eq!(settings.reader.novel.font_family, "default-font");
         assert_eq!(settings.reader.novel.font_size, 16);
+        assert_eq!(settings.reader.rendering.pdf_render_resolution_height, 2000);
     }
 
     #[test]
@@ -578,6 +589,7 @@ mod tests {
         let provider = MockProvider {
             mock_json: json!({
                 "general": { "theme": "dark" },
+                "startup": { "checkUpdateOnStartup": false },
                 "reader": { "comic": { "enableSpread": false, "loupe": { "zoom": 3.0, "toggleKey": "Alt+l" } } },
                 "layout": { "sidePane": { "isHidden": true, "tabIndex": 2 } }
             }),
@@ -586,6 +598,7 @@ mod tests {
 
         // Provided values should be parsed correctly
         assert!(matches!(settings.general.theme, AppTheme::Dark));
+        assert!(!settings.startup.check_update_on_startup);
         assert!(!settings.reader.comic.enable_spread);
         assert_eq!(settings.reader.comic.loupe.zoom, 3.0);
         assert_eq!(settings.reader.comic.loupe.toggle_key, "Alt+l");
@@ -594,6 +607,8 @@ mod tests {
 
         // Omitted values should fall back to defaults safely
         assert!(matches!(settings.startup.initial_view, InitialView::Reader));
+        assert!(settings.startup.restore_last_book);
         assert_eq!(settings.reader.comic.loupe.radius, 200.0);
+        assert_eq!(settings.reader.rendering.pdf_render_resolution_height, 2000);
     }
 }
