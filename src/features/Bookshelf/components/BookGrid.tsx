@@ -157,9 +157,7 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
     const taggedBooks =
       tagId === null
         ? booksInSelectedBookshelf
-        : booksInSelectedBookshelf.filter((book) =>
-            book.tag_ids_str?.split(",").includes(tagId.toString()),
-          );
+        : booksInSelectedBookshelf.filter((book) => book.tag_ids.includes(tagId));
 
     // Drill-down mode logic: if a series is selected, show only books in that series
     if (selectedSeriesId !== null) {

@@ -62,11 +62,10 @@ impl BookshelfRepository for SqliteBookshelfRepository {
     }
 
     async fn get_books_by_bookshelf(&self, bookshelf_id: i64) -> Result<Vec<BookWithState>> {
-        let books = sqlx::query_as!(
-            BookWithState,
+        let rows = sqlx::query!(
             r#"
             SELECT b.id, b.file_path, b.item_type, b.display_name, b.total_pages, b.series_id, b.series_order,
-                   b.thumbnail_path, r.last_read_page_index, r.last_opened_at,
+                   b.thumbnail_path, r.last_read_page_index as "last_read_page_index?", r.last_opened_at as "last_opened_at?",
                    (SELECT GROUP_CONCAT(tag_id) FROM book_tags WHERE book_id = b.id) as "tag_ids_str?: String"
             FROM books b
             INNER JOIN bookshelf_items bi ON b.id = bi.book_id
@@ -78,6 +77,29 @@ impl BookshelfRepository for SqliteBookshelfRepository {
         )
         .fetch_all(&self.pool)
         .await?;
+
+        let books = rows
+            .into_iter()
+            .map(|r| {
+                let mut b = BookWithState {
+                    id: r.id,
+                    file_path: r.file_path,
+                    item_type: r.item_type,
+                    display_name: r.display_name,
+                    total_pages: r.total_pages,
+                    series_id: r.series_id,
+                    series_order: r.series_order,
+                    thumbnail_path: r.thumbnail_path,
+                    last_read_page_index: r.last_read_page_index,
+                    last_opened_at: r.last_opened_at,
+                    tag_ids_str: r.tag_ids_str,
+                    tag_ids: Vec::new(),
+                };
+                b.fill_tag_ids();
+                b
+            })
+            .collect();
+
         Ok(books)
     }
 

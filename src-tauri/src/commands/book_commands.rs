@@ -847,6 +847,7 @@ mod tests {
                     last_read_page_index: Some(5),
                     last_opened_at: None,
                     tag_ids_str: None,
+                    tag_ids: vec![],
                 }))
             });
 

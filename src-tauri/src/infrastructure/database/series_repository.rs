@@ -61,8 +61,7 @@ impl SeriesRepository for SqliteSeriesRepository {
     }
 
     async fn get_books_by_series(&self, series_id: i64) -> Result<Vec<BookWithState>> {
-        let books = sqlx::query_as!(
-            BookWithState,
+        let rows = sqlx::query!(
             r#"
                 SELECT b.id, b.file_path, b.item_type, b.display_name, b.total_pages, b.series_id, b.series_order,
                        b.thumbnail_path, r.last_read_page_index, r.last_opened_at,
@@ -76,6 +75,29 @@ impl SeriesRepository for SqliteSeriesRepository {
         )
         .fetch_all(&self.pool)
         .await?;
+
+        let books = rows
+            .into_iter()
+            .map(|r| {
+                let mut b = BookWithState {
+                    id: r.id,
+                    file_path: r.file_path,
+                    item_type: r.item_type,
+                    display_name: r.display_name,
+                    total_pages: r.total_pages,
+                    series_id: r.series_id,
+                    series_order: r.series_order,
+                    thumbnail_path: r.thumbnail_path,
+                    last_read_page_index: r.last_read_page_index,
+                    last_opened_at: r.last_opened_at,
+                    tag_ids_str: r.tag_ids_str,
+                    tag_ids: Vec::new(),
+                };
+                b.fill_tag_ids();
+                b
+            })
+            .collect();
+
         Ok(books)
     }
 

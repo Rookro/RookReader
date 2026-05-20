@@ -91,8 +91,8 @@ export interface BookWithState {
    * Represented as an ISO 8601 string (e.g., "2026-03-01T15:30:00").
    */
   last_opened_at: string | null;
-  /** Comma-separated string of tag IDs. */
-  tag_ids_str: string | null;
+  /** List of tag IDs associated with this book. */
+  tag_ids: number[];
 }
 
 /**

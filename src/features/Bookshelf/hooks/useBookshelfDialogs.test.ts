@@ -16,7 +16,7 @@ describe("useBookshelfDialogs", () => {
       thumbnail_path: null,
       last_read_page_index: null,
       last_opened_at: null,
-      tag_ids_str: null,
+      tag_ids: [],
     },
     {
       id: 2,
@@ -29,7 +29,7 @@ describe("useBookshelfDialogs", () => {
       thumbnail_path: null,
       last_read_page_index: null,
       last_opened_at: null,
-      tag_ids_str: null,
+      tag_ids: [],
     },
   ];
 

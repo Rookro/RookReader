@@ -126,7 +126,7 @@ describe("BookGridCell", () => {
     const book = createMockBookWithState({
       id: 101,
       display_name: "Test Book",
-      tag_ids_str: "1",
+      tag_ids: [1],
     });
     const items: GridItem[] = [{ type: "book", data: book }];
 

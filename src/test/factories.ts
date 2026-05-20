@@ -15,7 +15,7 @@ export const createMockBookWithState = (overrides?: Partial<BookWithState>): Boo
   series_id: null,
   series_order: null,
   thumbnail_path: null,
-  tag_ids_str: null,
+  tag_ids: [],
   ...overrides,
 });
 

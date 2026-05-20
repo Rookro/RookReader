@@ -71,8 +71,7 @@ impl BookRepository for SqliteBookRepository {
     }
 
     async fn get_book_with_state_by_id(&self, id: i64) -> Result<Option<BookWithState>> {
-        let book = sqlx::query_as!(
-            BookWithState,
+        let row = sqlx::query!(
             r#"
             SELECT
                 b.id,
@@ -96,6 +95,25 @@ impl BookRepository for SqliteBookRepository {
         )
         .fetch_optional(&self.pool)
         .await?;
+
+        let book = row.map(|r| {
+            let mut b = BookWithState {
+                id: r.id,
+                file_path: r.file_path,
+                item_type: r.item_type,
+                display_name: r.display_name,
+                total_pages: r.total_pages,
+                series_id: r.series_id,
+                series_order: r.series_order,
+                thumbnail_path: r.thumbnail_path,
+                last_read_page_index: r.last_read_page_index,
+                last_opened_at: r.last_opened_at,
+                tag_ids_str: r.tag_ids_str,
+                tag_ids: Vec::new(),
+            };
+            b.fill_tag_ids();
+            b
+        });
 
         Ok(book)
     }
@@ -267,8 +285,7 @@ impl BookRepository for SqliteBookRepository {
     }
 
     async fn get_all_books_with_state(&self) -> Result<Vec<BookWithState>> {
-        let books = sqlx::query_as!(
-            BookWithState,
+        let rows = sqlx::query!(
             r#"
             SELECT b.id, b.file_path, b.item_type, b.display_name, b.total_pages, b.series_id, b.series_order,
                    b.thumbnail_path, r.last_read_page_index, r.last_opened_at,
@@ -280,6 +297,29 @@ impl BookRepository for SqliteBookRepository {
         )
         .fetch_all(&self.pool)
         .await?;
+
+        let books = rows
+            .into_iter()
+            .map(|r| {
+                let mut b = BookWithState {
+                    id: r.id,
+                    file_path: r.file_path,
+                    item_type: r.item_type,
+                    display_name: r.display_name,
+                    total_pages: r.total_pages,
+                    series_id: r.series_id,
+                    series_order: r.series_order,
+                    thumbnail_path: r.thumbnail_path,
+                    last_read_page_index: r.last_read_page_index,
+                    last_opened_at: r.last_opened_at,
+                    tag_ids_str: r.tag_ids_str,
+                    tag_ids: Vec::new(),
+                };
+                b.fill_tag_ids();
+                b
+            })
+            .collect();
+
         Ok(books)
     }
 
