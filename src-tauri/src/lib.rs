@@ -5,6 +5,7 @@ use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
 mod commands;
 mod container;
 pub mod database;
+pub mod domain;
 mod error;
 pub mod image;
 mod settings;
