@@ -4,6 +4,7 @@ use sqlx::SqlitePool;
 use crate::domain::book::entity::{Book, BookWithState, ReadBook, ReadingState};
 use crate::domain::book::repository::BookRepository;
 use crate::error::Result;
+use crate::infrastructure::database::models::BookWithStateRow;
 
 /// SQLite implementation of the `BookRepository`.
 pub struct SqliteBookRepository {
@@ -71,49 +72,21 @@ impl BookRepository for SqliteBookRepository {
     }
 
     async fn get_book_with_state_by_id(&self, id: i64) -> Result<Option<BookWithState>> {
-        let row = sqlx::query!(
+        let book = sqlx::query_as!(
+            BookWithStateRow,
             r#"
             SELECT
-                b.id,
-                b.file_path,
-                b.item_type,
-                b.display_name,
-                b.total_pages,
-                b.series_id,
-                b.series_order,
-                b.thumbnail_path,
-                r.last_read_page_index,
-                r.last_opened_at,
-                (SELECT GROUP_CONCAT(tag_id) FROM book_tags WHERE book_id = b.id) as "tag_ids_str?: String"
-            FROM books b
-            LEFT JOIN
-                reading_state r ON b.id = r.book_id
-            WHERE
-                b.id = ?
+                id, file_path, item_type, display_name, total_pages, series_id, series_order,
+                thumbnail_path, last_read_page_index, last_opened_at,
+                tag_ids_str as "tag_ids_str?: String"
+            FROM book_with_state_view
+            WHERE id = ?
             "#,
             id
         )
         .fetch_optional(&self.pool)
-        .await?;
-
-        let book = row.map(|r| {
-            let mut b = BookWithState {
-                id: r.id,
-                file_path: r.file_path,
-                item_type: r.item_type,
-                display_name: r.display_name,
-                total_pages: r.total_pages,
-                series_id: r.series_id,
-                series_order: r.series_order,
-                thumbnail_path: r.thumbnail_path,
-                last_read_page_index: r.last_read_page_index,
-                last_opened_at: r.last_opened_at,
-                tag_ids_str: r.tag_ids_str,
-                tag_ids: Vec::new(),
-            };
-            b.fill_tag_ids();
-            b
-        });
+        .await?
+        .map(BookWithState::from);
 
         Ok(book)
     }
@@ -285,41 +258,22 @@ impl BookRepository for SqliteBookRepository {
     }
 
     async fn get_all_books_with_state(&self) -> Result<Vec<BookWithState>> {
-        let rows = sqlx::query!(
+        let books = sqlx::query_as!(
+            BookWithStateRow,
             r#"
-            SELECT b.id, b.file_path, b.item_type, b.display_name, b.total_pages, b.series_id, b.series_order,
-                   b.thumbnail_path, r.last_read_page_index, r.last_opened_at,
-                       (SELECT GROUP_CONCAT(tag_id) FROM book_tags WHERE book_id = b.id) as "tag_ids_str?: String"
-            FROM books b
-            LEFT JOIN reading_state r ON b.id = r.book_id
-            ORDER BY b.id DESC
+            SELECT
+                id, file_path, item_type, display_name, total_pages, series_id, series_order,
+                thumbnail_path, last_read_page_index, last_opened_at,
+                tag_ids_str as "tag_ids_str?: String"
+            FROM book_with_state_view
+            ORDER BY id DESC
             "#
         )
         .fetch_all(&self.pool)
-        .await?;
-
-        let books = rows
-            .into_iter()
-            .map(|r| {
-                let mut b = BookWithState {
-                    id: r.id,
-                    file_path: r.file_path,
-                    item_type: r.item_type,
-                    display_name: r.display_name,
-                    total_pages: r.total_pages,
-                    series_id: r.series_id,
-                    series_order: r.series_order,
-                    thumbnail_path: r.thumbnail_path,
-                    last_read_page_index: r.last_read_page_index,
-                    last_opened_at: r.last_opened_at,
-                    tag_ids_str: r.tag_ids_str,
-                    tag_ids: Vec::new(),
-                };
-                b.fill_tag_ids();
-                b
-            })
-            .collect();
-
+        .await?
+        .into_iter()
+        .map(BookWithState::from)
+        .collect();
         Ok(books)
     }
 

@@ -5,6 +5,7 @@ use crate::domain::book::entity::BookWithState;
 use crate::domain::tag::entity::Tag;
 use crate::domain::tag::repository::TagRepository;
 use crate::error::Result;
+use crate::infrastructure::database::models::BookWithStateRow;
 
 /// SQLite implementation of the `TagRepository`.
 pub struct SqliteTagRepository {
@@ -105,44 +106,25 @@ impl TagRepository for SqliteTagRepository {
     }
 
     async fn get_books_by_tag(&self, tag_id: i64) -> Result<Vec<BookWithState>> {
-        let rows = sqlx::query!(
+        let books = sqlx::query_as!(
+            BookWithStateRow,
             r#"
-                SELECT b.id, b.file_path, b.item_type, b.display_name, b.total_pages, b.series_id, b.series_order,
-                       b.thumbnail_path, r.last_read_page_index, r.last_opened_at,
-                       (SELECT GROUP_CONCAT(tag_id) FROM book_tags WHERE book_id = b.id) as "tag_ids_str?: String"
-                FROM books b
-                INNER JOIN book_tags bt ON b.id = bt.book_id
-                LEFT JOIN reading_state r ON b.id = r.book_id
-                WHERE bt.tag_id = ?
-                ORDER BY b.display_name ASC
-                "#,
+            SELECT
+                v.id, v.file_path, v.item_type, v.display_name, v.total_pages, v.series_id, v.series_order,
+                v.thumbnail_path, v.last_read_page_index, v.last_opened_at,
+                v.tag_ids_str as "tag_ids_str?: String"
+            FROM book_with_state_view v
+            INNER JOIN book_tags bt ON v.id = bt.book_id
+            WHERE bt.tag_id = ?
+            ORDER BY v.display_name ASC
+            "#,
             tag_id
         )
         .fetch_all(&self.pool)
-        .await?;
-
-        let books = rows
-            .into_iter()
-            .map(|r| {
-                let mut b = BookWithState {
-                    id: r.id,
-                    file_path: r.file_path,
-                    item_type: r.item_type,
-                    display_name: r.display_name,
-                    total_pages: r.total_pages,
-                    series_id: r.series_id,
-                    series_order: r.series_order,
-                    thumbnail_path: r.thumbnail_path,
-                    last_read_page_index: r.last_read_page_index,
-                    last_opened_at: r.last_opened_at,
-                    tag_ids_str: r.tag_ids_str,
-                    tag_ids: Vec::new(),
-                };
-                b.fill_tag_ids();
-                b
-            })
-            .collect();
-
+        .await?
+        .into_iter()
+        .map(BookWithState::from)
+        .collect();
         Ok(books)
     }
 
