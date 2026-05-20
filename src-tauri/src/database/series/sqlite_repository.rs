@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use sqlx::SqlitePool;
 
-use crate::database::book::BookWithState;
+use crate::domain::book::entity::BookWithState;
 
 use super::model::Series;
 use super::repository::SeriesRepository;
@@ -140,7 +140,8 @@ impl SeriesRepository for SqliteSeriesRepository {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::database::book::{BookRepository, SqliteBookRepository};
+    use crate::domain::book::repository::BookRepository;
+    use crate::infrastructure::database::book_repository::SqliteBookRepository;
 
     async fn setup_db() -> SqlitePool {
         let pool = SqlitePool::connect("sqlite::memory:").await.unwrap();

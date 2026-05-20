@@ -1,5 +1,6 @@
-use rookreader_lib::database::book::BookRepository;
 use rookreader_lib::database::series::{SeriesRepository, SqliteSeriesRepository};
+use rookreader_lib::domain::book::repository::BookRepository;
+use rookreader_lib::infrastructure::database::book_repository::SqliteBookRepository;
 
 mod common;
 use common::setup_db;
@@ -38,7 +39,7 @@ async fn test_create_duplicate_series() {
 async fn test_assign_book_to_series() {
     let pool = setup_db().await;
     let series_repo = SqliteSeriesRepository::new(pool.clone());
-    let book_repo = rookreader_lib::database::book::SqliteBookRepository::new(pool.clone());
+    let book_repo = SqliteBookRepository::new(pool.clone());
 
     let series_id = series_repo.create("Series X").await.unwrap();
     let book_id = book_repo
@@ -67,7 +68,7 @@ async fn test_assign_book_to_series() {
 async fn test_delete_series() {
     let pool = setup_db().await;
     let series_repo = SqliteSeriesRepository::new(pool.clone());
-    let book_repo = rookreader_lib::database::book::SqliteBookRepository::new(pool.clone());
+    let book_repo = SqliteBookRepository::new(pool.clone());
 
     let series_id = series_repo.create("Series A").await.unwrap();
 
@@ -101,7 +102,7 @@ async fn test_delete_series() {
 async fn test_update_book_orders_in_series() {
     let pool = setup_db().await;
     let series_repo = SqliteSeriesRepository::new(pool.clone());
-    let book_repo = rookreader_lib::database::book::SqliteBookRepository::new(pool.clone());
+    let book_repo = SqliteBookRepository::new(pool.clone());
 
     let series_id = series_repo.create("Ordered Series").await.unwrap();
 

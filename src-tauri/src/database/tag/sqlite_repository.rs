@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use sqlx::SqlitePool;
 
-use crate::database::book::BookWithState;
+use crate::domain::book::entity::BookWithState;
 
 use super::model::Tag;
 use super::repository::TagRepository;

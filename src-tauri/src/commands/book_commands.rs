@@ -12,10 +12,11 @@ use crate::container::{
     directory_container::DirectoryContainer, epub_container::EpubContainer,
     pdf_container::PdfContainer, rar_container::RarContainer, zip_container::ZipContainer,
 };
-use crate::database::book::{Book, BookRepository, BookWithState, ReadBook, ReadingState};
 use crate::database::bookshelf::BookshelfRepository;
 use crate::database::series::SeriesRepository;
 use crate::database::tag::TagRepository;
+use crate::domain::book::entity::{Book, BookWithState, ReadBook, ReadingState};
+use crate::domain::book::repository::BookRepository;
 use crate::error::{Error, Result};
 use crate::state::app_state::AppState;
 
@@ -38,7 +39,7 @@ use crate::state::app_state::AppState;
 #[tauri::command]
 pub async fn get_book(id: i64, repo: State<'_, Arc<dyn BookRepository>>) -> Result<Option<Book>> {
     log::debug!("Get book by id({}).", id);
-    Ok(repo.get_by_id(id).await?)
+    repo.get_by_id(id).await
 }
 
 /// Retrieves a book by its unique file path.
@@ -63,7 +64,7 @@ pub async fn get_book_by_path(
     repo: State<'_, Arc<dyn BookRepository>>,
 ) -> Result<Option<Book>> {
     log::debug!("Get book by path({}).", file_path);
-    Ok(repo.get_by_path(&file_path).await?)
+    repo.get_by_path(&file_path).await
 }
 
 /// Retrieves a book along with its reading state by its unique ID.
@@ -89,7 +90,7 @@ pub async fn get_book_with_state_by_id(
     repo: State<'_, Arc<dyn BookRepository>>,
 ) -> Result<Option<BookWithState>> {
     log::debug!("Get book with state by id({}).", id);
-    Ok(repo.get_book_with_state_by_id(id).await?)
+    repo.get_book_with_state_by_id(id).await
 }
 
 /// Registers a book or returns its ID if it already exists, without updating reading state.
@@ -165,15 +166,14 @@ pub async fn upsert_book<R: tauri::Runtime>(
                 None
             });
 
-    Ok(repo
-        .upsert_book(
-            &file_path,
-            &item_type,
-            &display_name,
-            total_pages,
-            thumbnail_path,
-        )
-        .await?)
+    repo.upsert_book(
+        &file_path,
+        &item_type,
+        &display_name,
+        total_pages,
+        thumbnail_path,
+    )
+    .await
 }
 
 /// Registers a book when opened, or updates its last opened time if it already exists.
@@ -249,15 +249,14 @@ pub async fn upsert_read_book<R: tauri::Runtime>(
                 None
             });
 
-    Ok(repo
-        .upsert_read_book(
-            &file_path,
-            &item_type,
-            &display_name,
-            total_pages,
-            thumbnail_path,
-        )
-        .await?)
+    repo.upsert_read_book(
+        &file_path,
+        &item_type,
+        &display_name,
+        total_pages,
+        thumbnail_path,
+    )
+    .await
 }
 
 /// Clears the reading history for a specific book.
@@ -277,7 +276,7 @@ pub async fn clear_reading_history(
     repo: State<'_, Arc<dyn BookRepository>>,
 ) -> Result<()> {
     log::debug!("Clear reading history of {:?}", book_id);
-    Ok(repo.clear_reading_history(book_id).await?)
+    repo.clear_reading_history(book_id).await
 }
 
 /// Clears the reading history for all books in the library.
@@ -293,7 +292,7 @@ pub async fn clear_reading_history(
 #[tauri::command]
 pub async fn clear_all_reading_history(repo: State<'_, Arc<dyn BookRepository>>) -> Result<()> {
     log::debug!("Clear all reading history");
-    Ok(repo.clear_all_reading_history().await?)
+    repo.clear_all_reading_history().await
 }
 
 /// Updates or inserts the reading state for a book.
@@ -313,7 +312,7 @@ pub async fn upsert_reading_state(
     repo: State<'_, Arc<dyn BookRepository>>,
 ) -> Result<()> {
     log::debug!("Upsert reading state: {:?}", state_data);
-    Ok(repo.upsert_reading_state(&state_data).await?)
+    repo.upsert_reading_state(&state_data).await
 }
 
 /// Retrieves recently read books, ordered by the most recently opened.
@@ -337,7 +336,7 @@ pub async fn get_recently_read_books(
     repo: State<'_, Arc<dyn BookRepository>>,
 ) -> Result<Vec<ReadBook>> {
     log::debug!("Get recently read books(limit: {:?}).", limit);
-    Ok(repo.get_recently_read_books(limit).await?)
+    repo.get_recently_read_books(limit).await
 }
 
 /// Retrieves all books, including their reading states.
@@ -359,7 +358,7 @@ pub async fn get_all_books_with_state(
     repo: State<'_, Arc<dyn BookRepository>>,
 ) -> Result<Vec<BookWithState>> {
     log::debug!("Get all books with state.");
-    Ok(repo.get_all_books_with_state().await?)
+    repo.get_all_books_with_state().await
 }
 
 /// Retrieves all books contained within a specific bookshelf, including their reading states.
@@ -497,7 +496,7 @@ pub async fn update_book_tags(
 #[tauri::command]
 pub async fn delete_book(id: i64, repo: State<'_, Arc<dyn BookRepository>>) -> Result<()> {
     log::debug!("Delete book by id({}).", id);
-    Ok(repo.delete_book(id).await?)
+    repo.delete_book(id).await
 }
 
 /// Updates the series associated with a specific book.
@@ -635,10 +634,10 @@ async fn generate_and_save_thumbnail<R: tauri::Runtime>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::database::book::MockBookRepository;
     use crate::database::bookshelf::MockBookshelfRepository;
     use crate::database::series::MockSeriesRepository;
     use crate::database::tag::MockTagRepository;
+    use crate::domain::book::repository::MockBookRepository;
     use crate::error::ErrorCode;
     use tauri::Manager;
 
@@ -1023,7 +1022,7 @@ mod tests {
             .expect_get_by_id()
             .with(mockall::predicate::eq(1))
             .times(1)
-            .returning(|_| Err(sqlx::Error::RowNotFound));
+            .returning(|_| Err(sqlx::Error::RowNotFound.into()));
 
         let app = tauri::test::mock_app();
         app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
@@ -1043,7 +1042,7 @@ mod tests {
             .expect_delete_book()
             .with(mockall::predicate::eq(1))
             .times(1)
-            .returning(|_| Err(sqlx::Error::PoolTimedOut));
+            .returning(|_| Err(sqlx::Error::PoolTimedOut.into()));
 
         let app = tauri::test::mock_app();
         app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);

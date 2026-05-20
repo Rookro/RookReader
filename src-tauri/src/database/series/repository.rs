@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 
-use crate::database::book::BookWithState;
+use crate::domain::book::entity::BookWithState;
 
 use super::model::Series;
 
