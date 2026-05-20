@@ -1,11 +1,12 @@
-use rookreader_lib::database::tag::{SqliteTagRepository, TagRepository};
 use rookreader_lib::domain::book::entity::ReadingState;
 use rookreader_lib::domain::book::repository::BookRepository;
 use rookreader_lib::domain::bookshelf::repository::BookshelfRepository;
 use rookreader_lib::domain::series::repository::SeriesRepository;
+use rookreader_lib::domain::tag::repository::TagRepository;
 use rookreader_lib::infrastructure::database::book_repository::SqliteBookRepository;
 use rookreader_lib::infrastructure::database::bookshelf_repository::SqliteBookshelfRepository;
 use rookreader_lib::infrastructure::database::series_repository::SqliteSeriesRepository;
+use rookreader_lib::infrastructure::database::tag_repository::SqliteTagRepository;
 
 mod common;
 use common::setup_db;

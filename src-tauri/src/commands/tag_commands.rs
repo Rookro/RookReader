@@ -1,7 +1,8 @@
 use std::sync::Arc;
 use tauri::State;
 
-use crate::database::tag::{Tag, TagRepository};
+use crate::domain::tag::entity::Tag;
+use crate::domain::tag::repository::TagRepository;
 use crate::error::Result;
 
 /// Creates a new tag and returns its complete entity.
@@ -27,7 +28,7 @@ pub async fn create_tag(
     repo: State<'_, Arc<dyn TagRepository>>,
 ) -> Result<Tag> {
     log::debug!("Create tag. (name:{}, color_code:{})", name, color_code);
-    Ok(repo.create(&name, &color_code).await?)
+    repo.create(&name, &color_code).await
 }
 
 /// Retrieves all tags from the database.
@@ -47,7 +48,7 @@ pub async fn create_tag(
 #[tauri::command]
 pub async fn get_all_tags(repo: State<'_, Arc<dyn TagRepository>>) -> Result<Vec<Tag>> {
     log::debug!("Get all tags.");
-    Ok(repo.get_all().await?)
+    repo.get_all().await
 }
 
 /// Deletes a tag from the database.
@@ -63,13 +64,13 @@ pub async fn get_all_tags(repo: State<'_, Arc<dyn TagRepository>>) -> Result<Vec
 #[tauri::command]
 pub async fn delete_tag(id: i64, repo: State<'_, Arc<dyn TagRepository>>) -> Result<()> {
     log::debug!("Delete tag. (id:{})", id);
-    Ok(repo.delete(id).await?)
+    repo.delete(id).await
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::database::tag::MockTagRepository;
+    use crate::domain::tag::repository::MockTagRepository;
     use crate::error::ErrorCode;
     use tauri::Manager;
 
@@ -154,7 +155,7 @@ mod tests {
         let mut mock_repo = MockTagRepository::new();
         mock_repo
             .expect_create()
-            .returning(|_, _| Err(sqlx::Error::RowNotFound));
+            .returning(|_, _| Err(crate::error::Error::Database(sqlx::Error::RowNotFound)));
 
         let app = tauri::test::mock_app();
         app.manage(Arc::new(mock_repo) as Arc<dyn TagRepository>);

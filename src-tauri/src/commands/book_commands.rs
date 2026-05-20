@@ -12,11 +12,11 @@ use crate::container::{
     directory_container::DirectoryContainer, epub_container::EpubContainer,
     pdf_container::PdfContainer, rar_container::RarContainer, zip_container::ZipContainer,
 };
-use crate::database::tag::TagRepository;
 use crate::domain::book::entity::{Book, BookWithState, ReadBook, ReadingState};
 use crate::domain::book::repository::BookRepository;
 use crate::domain::bookshelf::repository::BookshelfRepository;
 use crate::domain::series::repository::SeriesRepository;
+use crate::domain::tag::repository::TagRepository;
 use crate::error::{Error, Result};
 use crate::state::app_state::AppState;
 
@@ -406,7 +406,7 @@ pub async fn get_books_with_state_by_tag_id(
     repo: State<'_, Arc<dyn TagRepository>>,
 ) -> Result<Vec<BookWithState>> {
     log::debug!("Get books with state by tag id({:?}).", tag_id);
-    Ok(repo.get_books_by_tag(tag_id).await?)
+    repo.get_books_by_tag(tag_id).await
 }
 
 /// Retrieves all books belonging to a specific series, including their reading states.
@@ -454,7 +454,7 @@ pub async fn get_book_tags(
     repo: State<'_, Arc<dyn TagRepository>>,
 ) -> Result<Vec<i64>> {
     log::debug!("Get book tags of {:?}.", book_id);
-    Ok(repo.get_tags_for_book(book_id).await?)
+    repo.get_tags_for_book(book_id).await
 }
 
 /// Updates the tags associated with a specific book.
@@ -480,7 +480,7 @@ pub async fn update_book_tags(
         book_id,
         tag_ids
     );
-    Ok(repo.attach_tags_to_book(book_id, &tag_ids).await?)
+    repo.attach_tags_to_book(book_id, &tag_ids).await
 }
 
 /// Deletes a book by its unique ID.
@@ -634,10 +634,10 @@ async fn generate_and_save_thumbnail<R: tauri::Runtime>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::database::tag::MockTagRepository;
     use crate::domain::book::repository::MockBookRepository;
     use crate::domain::bookshelf::repository::MockBookshelfRepository;
     use crate::domain::series::repository::MockSeriesRepository;
+    use crate::domain::tag::repository::MockTagRepository;
     use crate::error::ErrorCode;
     use tauri::Manager;
 

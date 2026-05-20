@@ -2,9 +2,9 @@ use async_trait::async_trait;
 use sqlx::SqlitePool;
 
 use crate::domain::book::entity::BookWithState;
-
-use super::model::Tag;
-use super::repository::TagRepository;
+use crate::domain::tag::entity::Tag;
+use crate::domain::tag::repository::TagRepository;
+use crate::error::Result;
 
 /// SQLite implementation of the `TagRepository`.
 pub struct SqliteTagRepository {
@@ -29,7 +29,7 @@ impl SqliteTagRepository {
 
 #[async_trait]
 impl TagRepository for SqliteTagRepository {
-    async fn create(&self, name: &str, color_code: &str) -> Result<Tag, sqlx::Error> {
+    async fn create(&self, name: &str, color_code: &str) -> Result<Tag> {
         let tag = sqlx::query_as!(
             Tag,
             r#"
@@ -46,7 +46,7 @@ impl TagRepository for SqliteTagRepository {
         Ok(tag)
     }
 
-    async fn get_all(&self) -> Result<Vec<Tag>, sqlx::Error> {
+    async fn get_all(&self) -> Result<Vec<Tag>> {
         let tags = sqlx::query_as!(
             Tag,
             r#"
@@ -61,7 +61,7 @@ impl TagRepository for SqliteTagRepository {
         Ok(tags)
     }
 
-    async fn attach_tags_to_book(&self, book_id: i64, tag_ids: &[i64]) -> Result<(), sqlx::Error> {
+    async fn attach_tags_to_book(&self, book_id: i64, tag_ids: &[i64]) -> Result<()> {
         let mut tx = self.pool.begin().await?;
 
         sqlx::query!(
@@ -90,7 +90,7 @@ impl TagRepository for SqliteTagRepository {
         Ok(())
     }
 
-    async fn get_tags_for_book(&self, book_id: i64) -> Result<Vec<i64>, sqlx::Error> {
+    async fn get_tags_for_book(&self, book_id: i64) -> Result<Vec<i64>> {
         let records = sqlx::query!(
             r#"
             SELECT tag_id FROM book_tags WHERE book_id = ?
@@ -104,10 +104,10 @@ impl TagRepository for SqliteTagRepository {
         Ok(tag_ids)
     }
 
-    async fn get_books_by_tag(&self, tag_id: i64) -> Result<Vec<BookWithState>, sqlx::Error> {
+    async fn get_books_by_tag(&self, tag_id: i64) -> Result<Vec<BookWithState>> {
         let books = sqlx::query_as!(
-                BookWithState,
-                r#"
+            BookWithState,
+            r#"
                 SELECT b.id, b.file_path, b.item_type, b.display_name, b.total_pages, b.series_id, b.series_order,
                        b.thumbnail_path, r.last_read_page_index, r.last_opened_at,
                        (SELECT GROUP_CONCAT(tag_id) FROM book_tags WHERE book_id = b.id) as "tag_ids_str?: String"
@@ -117,14 +117,14 @@ impl TagRepository for SqliteTagRepository {
                 WHERE bt.tag_id = ?
                 ORDER BY b.display_name ASC
                 "#,
-                tag_id
-            )
-            .fetch_all(&self.pool)
-            .await?;
+            tag_id
+        )
+        .fetch_all(&self.pool)
+        .await?;
         Ok(books)
     }
 
-    async fn delete(&self, id: i64) -> Result<(), sqlx::Error> {
+    async fn delete(&self, id: i64) -> Result<()> {
         sqlx::query!(
             r#"
             DELETE FROM tags

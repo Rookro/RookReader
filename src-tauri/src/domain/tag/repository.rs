@@ -1,8 +1,8 @@
+use crate::domain::book::entity::BookWithState;
+use crate::error::Result;
 use async_trait::async_trait;
 
-use crate::domain::book::entity::BookWithState;
-
-use super::model::Tag;
+use super::entity::Tag;
 
 /// Defines the data access operations for the `Tag` aggregate.
 #[cfg_attr(test, mockall::automock)]
@@ -22,7 +22,7 @@ pub trait TagRepository: Send + Sync {
     /// # Errors
     ///
     /// Returns an `Err` if the database insertion fails (e.g., name already exists).
-    async fn create(&self, name: &str, color_code: &str) -> Result<Tag, sqlx::Error>;
+    async fn create(&self, name: &str, color_code: &str) -> Result<Tag>;
 
     /// Retrieves all tags from the database.
     ///
@@ -33,7 +33,7 @@ pub trait TagRepository: Send + Sync {
     /// # Errors
     ///
     /// Returns an `Err` if the database query fails.
-    async fn get_all(&self) -> Result<Vec<Tag>, sqlx::Error>;
+    async fn get_all(&self) -> Result<Vec<Tag>>;
 
     /// Updates the tags associated with a specific book.
     ///
@@ -49,7 +49,7 @@ pub trait TagRepository: Send + Sync {
     /// # Errors
     ///
     /// Returns an `Err` if the database execution fails.
-    async fn attach_tags_to_book(&self, book_id: i64, tag_ids: &[i64]) -> Result<(), sqlx::Error>;
+    async fn attach_tags_to_book(&self, book_id: i64, tag_ids: &[i64]) -> Result<()>;
 
     /// Retrieves the IDs of all tags associated with a specific book.
     ///
@@ -64,7 +64,7 @@ pub trait TagRepository: Send + Sync {
     /// # Errors
     ///
     /// Returns an `Err` if the database query fails.
-    async fn get_tags_for_book(&self, book_id: i64) -> Result<Vec<i64>, sqlx::Error>;
+    async fn get_tags_for_book(&self, book_id: i64) -> Result<Vec<i64>>;
 
     /// Retrieves all books associated with a specific tag, including their reading state.
     ///
@@ -79,7 +79,7 @@ pub trait TagRepository: Send + Sync {
     /// # Errors
     ///
     /// Returns an `Err` if the database query fails.
-    async fn get_books_by_tag(&self, tag_id: i64) -> Result<Vec<BookWithState>, sqlx::Error>;
+    async fn get_books_by_tag(&self, tag_id: i64) -> Result<Vec<BookWithState>>;
 
     /// Deletes a tag from the database.
     ///
@@ -90,5 +90,5 @@ pub trait TagRepository: Send + Sync {
     /// # Errors
     ///
     /// Returns an `Err` if the database execution fails.
-    async fn delete(&self, id: i64) -> Result<(), sqlx::Error>;
+    async fn delete(&self, id: i64) -> Result<()>;
 }
