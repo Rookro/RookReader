@@ -1,4 +1,5 @@
-use rookreader_lib::database::bookshelf::{BookshelfRepository, SqliteBookshelfRepository};
+use rookreader_lib::domain::bookshelf::repository::BookshelfRepository;
+use rookreader_lib::infrastructure::database::bookshelf_repository::SqliteBookshelfRepository;
 use sqlx::Row;
 
 mod common;

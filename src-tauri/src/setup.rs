@@ -11,15 +11,16 @@ use tauri_plugin_log::{RotationStrategy, Target, TargetKind};
 use tokio::sync::RwLock;
 
 use crate::{
-    database::{
-        series::{SeriesRepository, SqliteSeriesRepository},
-        tag::{SqliteTagRepository, TagRepository},
+    database::tag::{SqliteTagRepository, TagRepository},
+    domain::{
+        book::repository::BookRepository, bookshelf::repository::BookshelfRepository,
+        series::repository::SeriesRepository,
     },
-    domain::{book::repository::BookRepository, bookshelf::repository::BookshelfRepository},
     error::{self, Error},
     image::resizer::ResizeFilter,
     infrastructure::database::{
         book_repository::SqliteBookRepository, bookshelf_repository::SqliteBookshelfRepository,
+        series_repository::SqliteSeriesRepository,
     },
     settings::{AppSettings, AppTheme, ImageResamplingMethod, LogLevel, LogSettings},
 };

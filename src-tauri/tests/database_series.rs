@@ -1,6 +1,8 @@
-use rookreader_lib::database::series::{SeriesRepository, SqliteSeriesRepository};
 use rookreader_lib::domain::book::repository::BookRepository;
+use rookreader_lib::domain::series::repository::SeriesRepository;
+use rookreader_lib::error::Error;
 use rookreader_lib::infrastructure::database::book_repository::SqliteBookRepository;
+use rookreader_lib::infrastructure::database::series_repository::SqliteSeriesRepository;
 
 mod common;
 use common::setup_db;
@@ -32,7 +34,7 @@ async fn test_create_duplicate_series() {
     let err = repository.create("Series A").await.unwrap_err();
 
     // Error should be a database constraint error due to UNIQUE constraint
-    assert!(matches!(err, sqlx::Error::Database(_)));
+    assert!(matches!(err, Error::Database(sqlx::Error::Database(_))));
 }
 
 #[tokio::test]

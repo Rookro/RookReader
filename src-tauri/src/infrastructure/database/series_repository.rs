@@ -2,9 +2,9 @@ use async_trait::async_trait;
 use sqlx::SqlitePool;
 
 use crate::domain::book::entity::BookWithState;
-
-use super::model::Series;
-use super::repository::SeriesRepository;
+use crate::domain::series::entity::Series;
+use crate::domain::series::repository::SeriesRepository;
+use crate::error::Result;
 
 /// SQLite implementation of the `SeriesRepository`.
 pub struct SqliteSeriesRepository {
@@ -29,7 +29,7 @@ impl SqliteSeriesRepository {
 
 #[async_trait]
 impl SeriesRepository for SqliteSeriesRepository {
-    async fn create(&self, name: &str) -> Result<i64, sqlx::Error> {
+    async fn create(&self, name: &str) -> Result<i64> {
         let id = sqlx::query!(
             r#"
             INSERT INTO series (name)
@@ -45,7 +45,7 @@ impl SeriesRepository for SqliteSeriesRepository {
         Ok(id)
     }
 
-    async fn get_all(&self) -> Result<Vec<Series>, sqlx::Error> {
+    async fn get_all(&self) -> Result<Vec<Series>> {
         let series_list = sqlx::query_as!(
             Series,
             r#"
@@ -60,10 +60,10 @@ impl SeriesRepository for SqliteSeriesRepository {
         Ok(series_list)
     }
 
-    async fn get_books_by_series(&self, series_id: i64) -> Result<Vec<BookWithState>, sqlx::Error> {
+    async fn get_books_by_series(&self, series_id: i64) -> Result<Vec<BookWithState>> {
         let books = sqlx::query_as!(
-                BookWithState,
-                r#"
+            BookWithState,
+            r#"
                 SELECT b.id, b.file_path, b.item_type, b.display_name, b.total_pages, b.series_id, b.series_order,
                        b.thumbnail_path, r.last_read_page_index, r.last_opened_at,
                        (SELECT GROUP_CONCAT(tag_id) FROM book_tags WHERE book_id = b.id) as "tag_ids_str?: String"
@@ -72,18 +72,14 @@ impl SeriesRepository for SqliteSeriesRepository {
                 WHERE b.series_id = ?
                 ORDER BY b.series_order ASC, b.display_name ASC
                 "#,
-                series_id
-            )
-            .fetch_all(&self.pool)
-            .await?;
+            series_id
+        )
+        .fetch_all(&self.pool)
+        .await?;
         Ok(books)
     }
 
-    async fn assign_book_to_series(
-        &self,
-        book_id: i64,
-        series_id: Option<i64>,
-    ) -> Result<(), sqlx::Error> {
+    async fn assign_book_to_series(&self, book_id: i64, series_id: Option<i64>) -> Result<()> {
         sqlx::query!(
             r#"
             UPDATE books
@@ -99,7 +95,7 @@ impl SeriesRepository for SqliteSeriesRepository {
         Ok(())
     }
 
-    async fn update_book_orders_in_series(&self, book_ids: Vec<i64>) -> Result<(), sqlx::Error> {
+    async fn update_book_orders_in_series(&self, book_ids: Vec<i64>) -> Result<()> {
         let mut tx = self.pool.begin().await?;
 
         for (index, &book_id) in book_ids.iter().enumerate() {
@@ -122,7 +118,7 @@ impl SeriesRepository for SqliteSeriesRepository {
         Ok(())
     }
 
-    async fn delete(&self, id: i64) -> Result<(), sqlx::Error> {
+    async fn delete(&self, id: i64) -> Result<()> {
         sqlx::query!(
             r#"
             DELETE FROM series

@@ -12,11 +12,11 @@ use crate::container::{
     directory_container::DirectoryContainer, epub_container::EpubContainer,
     pdf_container::PdfContainer, rar_container::RarContainer, zip_container::ZipContainer,
 };
-use crate::database::series::SeriesRepository;
 use crate::database::tag::TagRepository;
 use crate::domain::book::entity::{Book, BookWithState, ReadBook, ReadingState};
 use crate::domain::book::repository::BookRepository;
 use crate::domain::bookshelf::repository::BookshelfRepository;
+use crate::domain::series::repository::SeriesRepository;
 use crate::error::{Error, Result};
 use crate::state::app_state::AppState;
 
@@ -430,7 +430,7 @@ pub async fn get_books_with_state_by_series_id(
     repo: State<'_, Arc<dyn SeriesRepository>>,
 ) -> Result<Vec<BookWithState>> {
     log::debug!("Get books with state by series id({:?}).", series_id);
-    Ok(repo.get_books_by_series(series_id).await?)
+    repo.get_books_by_series(series_id).await
 }
 
 /// Retrieves the IDs of all tags associated with a specific book.
@@ -521,7 +521,7 @@ pub async fn update_book_series(
         book_id,
         series_id
     );
-    Ok(repo.assign_book_to_series(book_id, series_id).await?)
+    repo.assign_book_to_series(book_id, series_id).await
 }
 
 /// Updates the `series_order` for a given list of book IDs.
@@ -540,7 +540,7 @@ pub async fn update_series_orders(
     repo: State<'_, Arc<dyn SeriesRepository>>,
 ) -> Result<()> {
     log::debug!("Update series orders for books: {:?}", book_ids);
-    Ok(repo.update_book_orders_in_series(book_ids).await?)
+    repo.update_book_orders_in_series(book_ids).await
 }
 
 /// Helper function to generate and save a thumbnail for a given file path.
@@ -634,10 +634,10 @@ async fn generate_and_save_thumbnail<R: tauri::Runtime>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::database::series::MockSeriesRepository;
     use crate::database::tag::MockTagRepository;
     use crate::domain::book::repository::MockBookRepository;
     use crate::domain::bookshelf::repository::MockBookshelfRepository;
+    use crate::domain::series::repository::MockSeriesRepository;
     use crate::error::ErrorCode;
     use tauri::Manager;
 

@@ -1,8 +1,8 @@
+use crate::domain::book::entity::BookWithState;
+use crate::error::Result;
 use async_trait::async_trait;
 
-use crate::domain::book::entity::BookWithState;
-
-use super::model::Series;
+use super::entity::Series;
 
 /// Defines the data access operations for the `Series` aggregate.
 #[cfg_attr(test, mockall::automock)]
@@ -21,7 +21,7 @@ pub trait SeriesRepository: Send + Sync {
     /// # Errors
     ///
     /// Returns an `Err` if the database insertion fails (e.g., UNIQUE constraint violation).
-    async fn create(&self, name: &str) -> Result<i64, sqlx::Error>;
+    async fn create(&self, name: &str) -> Result<i64>;
 
     /// Retrieves all series from the database.
     ///
@@ -32,7 +32,7 @@ pub trait SeriesRepository: Send + Sync {
     /// # Errors
     ///
     /// Returns an `Err` if the database query fails.
-    async fn get_all(&self) -> Result<Vec<Series>, sqlx::Error>;
+    async fn get_all(&self) -> Result<Vec<Series>>;
 
     /// Retrieves all books belonging to a specific series, including their reading state.
     ///
@@ -47,7 +47,7 @@ pub trait SeriesRepository: Send + Sync {
     /// # Errors
     ///
     /// Returns an `Err` if the database query fails.
-    async fn get_books_by_series(&self, series_id: i64) -> Result<Vec<BookWithState>, sqlx::Error>;
+    async fn get_books_by_series(&self, series_id: i64) -> Result<Vec<BookWithState>>;
 
     /// Updates the series associated with a specific book.
     ///
@@ -63,11 +63,7 @@ pub trait SeriesRepository: Send + Sync {
     /// # Errors
     ///
     /// Returns an `Err` if the database execution fails.
-    async fn assign_book_to_series(
-        &self,
-        book_id: i64,
-        series_id: Option<i64>,
-    ) -> Result<(), sqlx::Error>;
+    async fn assign_book_to_series(&self, book_id: i64, series_id: Option<i64>) -> Result<()>;
 
     /// Updates the `series_order` for a given list of book IDs.
     /// The order is determined by the index of the book ID in the list (1-based).
@@ -83,7 +79,7 @@ pub trait SeriesRepository: Send + Sync {
     /// # Errors
     ///
     /// Returns an `Err` if the database execution fails.
-    async fn update_book_orders_in_series(&self, book_ids: Vec<i64>) -> Result<(), sqlx::Error>;
+    async fn update_book_orders_in_series(&self, book_ids: Vec<i64>) -> Result<()>;
 
     /// Deletes a series by its ID.
     /// Books associated with this series will have their series_id set to NULL due to FK constraints.
@@ -95,5 +91,5 @@ pub trait SeriesRepository: Send + Sync {
     /// # Errors
     ///
     /// Returns an `Err` if the database deletion fails.
-    async fn delete(&self, id: i64) -> Result<(), sqlx::Error>;
+    async fn delete(&self, id: i64) -> Result<()>;
 }
