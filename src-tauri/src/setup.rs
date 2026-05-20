@@ -12,13 +12,14 @@ use tokio::sync::RwLock;
 
 use crate::{
     database::{
-        book::{BookRepository, SqliteBookRepository},
         bookshelf::{BookshelfRepository, SqliteBookshelfRepository},
         series::{SeriesRepository, SqliteSeriesRepository},
         tag::{SqliteTagRepository, TagRepository},
     },
+    domain::book::repository::BookRepository,
     error::{self, Error},
     image::resizer::ResizeFilter,
+    infrastructure::database::book_repository::SqliteBookRepository,
     settings::{AppSettings, AppTheme, ImageResamplingMethod, LogLevel, LogSettings},
 };
 
