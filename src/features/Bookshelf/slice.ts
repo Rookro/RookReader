@@ -18,8 +18,11 @@ import {
 import { getEntriesInContainer } from "../../bindings/ContainerCommands";
 import { getAllSeries } from "../../bindings/SeriesCommand";
 import { createTag, deleteTag, getAllTags } from "../../bindings/TagCommands";
+import type { BookWithState } from "../../domain/book/schema";
+import type { Bookshelf } from "../../domain/bookshelf/schema";
+import type { Series } from "../../domain/series/schema";
+import type { Tag } from "../../domain/tag/schema";
 import { createAppAsyncThunk } from "../../types/CustomAsyncThunk";
-import type { Bookshelf, BookWithState, Series, Tag } from "../../types/DatabaseModels";
 import { CommandError, ErrorCode } from "../../types/Error";
 
 /**

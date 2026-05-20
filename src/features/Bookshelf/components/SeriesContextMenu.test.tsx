@@ -3,8 +3,8 @@ import { fireEvent, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as SeriesCommand from "../../../bindings/SeriesCommand";
+import type { Series } from "../../../domain/series/schema";
 import { renderWithProviders } from "../../../test/utils";
-import type { Series } from "../../../types/DatabaseModels";
 import { BookshelfActionsContext } from "./BookshelfActionsContext";
 import SeriesContextMenu, { type SeriesContextMenuProps } from "./SeriesContextMenu";
 

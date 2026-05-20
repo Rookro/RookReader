@@ -19,7 +19,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { updateBookSeries } from "../../../../bindings/BookCommands";
 import { createSeries } from "../../../../bindings/SeriesCommand";
-import type { Series } from "../../../../types/DatabaseModels";
+import type { Series } from "../../../../domain/series/schema";
 
 /** Props for the SetSeriesDialog component */
 export interface SetSeriesDialogProps {

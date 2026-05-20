@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import type { BookWithState } from "../../../types/DatabaseModels";
+import type { BookWithState } from "../../../domain/book/schema";
 
 /** Types of dialogs available in the bookshelf */
 export type BookshelfDialogType =

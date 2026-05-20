@@ -1,6 +1,6 @@
 import { renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import type { Book } from "../../../types/DatabaseModels";
+import type { Book } from "../../../domain/book/schema";
 import { useHistorySelection } from "./useHistorySelection";
 
 describe("useHistorySelection", () => {

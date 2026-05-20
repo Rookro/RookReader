@@ -4,9 +4,12 @@ import * as BookshelfCommand from "../../bindings/BookshelfCommand";
 import * as ContainerCommands from "../../bindings/ContainerCommands";
 import * as SeriesCommand from "../../bindings/SeriesCommand";
 import * as TagCommands from "../../bindings/TagCommands";
+import type { BookWithState } from "../../domain/book/schema";
+import type { Bookshelf } from "../../domain/bookshelf/schema";
+import type { Series } from "../../domain/series/schema";
+import type { Tag } from "../../domain/tag/schema";
 import { createMockBookshelf, createMockBookWithState, createMockTag } from "../../test/factories";
 import { type AppStore, createTestStore } from "../../test/utils";
-import type { Bookshelf, BookWithState, Series, Tag } from "../../types/DatabaseModels";
 import { CommandError, ErrorCode } from "../../types/Error";
 import bookCollectionReducer, {
   addBookshelf,

@@ -16,7 +16,8 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import dummy_thumbnail from "../../../assets/dummy_thumbnail.svg";
 import AutoScrollTypography from "../../../components/ui/AutoScrollTypography/AutoScrollTypography";
-import type { BookWithState, Tag } from "../../../types/DatabaseModels";
+import type { BookWithState } from "../../../domain/book/schema";
+import type { Tag } from "../../../domain/tag/schema";
 import { useBookSelection } from "../hooks/useBookSelection";
 import BookContextMenu from "./BookContextMenu";
 

@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { Bookshelf } from "../types/DatabaseModels";
+import type { Bookshelf } from "../domain/bookshelf/schema";
 import { createCommandError } from "../types/Error";
 
 /**

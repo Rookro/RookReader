@@ -2,7 +2,7 @@ import { debounce } from "@mui/material";
 import type { Middleware } from "@reduxjs/toolkit";
 import { error } from "@tauri-apps/plugin-log";
 import { upsertReadingState } from "../../bindings/BookCommands";
-import type { ReadingState } from "../../types/DatabaseModels";
+import type { ReadingState } from "../../domain/book/schema";
 import type { RootState } from "../store";
 
 const debouncedReadingStateUpdate = debounce(async (state: ReadingState) => {

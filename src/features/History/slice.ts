@@ -5,8 +5,8 @@ import {
   clearReadingHistory,
   getRecentlyReadBooks,
 } from "../../bindings/BookCommands";
+import type { ReadBook } from "../../domain/book/schema";
 import { createAppAsyncThunk } from "../../types/CustomAsyncThunk";
-import type { ReadBook } from "../../types/DatabaseModels";
 import { CommandError, ErrorCode } from "../../types/Error";
 
 /**

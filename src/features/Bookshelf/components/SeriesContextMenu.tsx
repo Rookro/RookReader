@@ -3,8 +3,8 @@ import { ListItemIcon, ListItemText, Menu, MenuItem } from "@mui/material";
 import { error } from "@tauri-apps/plugin-log";
 import { useTranslation } from "react-i18next";
 import { deleteSeries } from "../../../bindings/SeriesCommand";
+import type { Series } from "../../../domain/series/schema";
 import { useAppDispatch } from "../../../store/store";
-import type { Series } from "../../../types/DatabaseModels";
 import { setEditSeriesOrderDialogState } from "../slice";
 import { useBookshelfActions } from "./BookshelfActionsContext";
 

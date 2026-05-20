@@ -1,4 +1,4 @@
-import type { ReadBook } from "../../../types/DatabaseModels";
+import type { ReadBook } from "../../../domain/book/schema";
 
 /**
  * Filters an array of ReadBook objects to find entries whose 'display_name' property contains ALL specified keywords (AND search).

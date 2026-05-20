@@ -1,6 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import type { BookWithState } from "../../../types/DatabaseModels";
+import type { BookWithState } from "../../../domain/book/schema";
 import { useBookshelfDialogs } from "./useBookshelfDialogs";
 
 describe("useBookshelfDialogs", () => {

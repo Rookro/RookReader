@@ -1,4 +1,7 @@
-import type { Bookshelf, BookWithState, ReadBook, Series, Tag } from "../types/DatabaseModels";
+import type { BookWithState, ReadBook } from "../domain/book/schema";
+import type { Bookshelf } from "../domain/bookshelf/schema";
+import type { Series } from "../domain/series/schema";
+import type { Tag } from "../domain/tag/schema";
 import type { DirEntry } from "../types/DirEntry";
 
 /**

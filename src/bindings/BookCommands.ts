@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { Book, BookWithState, ReadBook, ReadingState } from "../types/DatabaseModels";
+import type { Book, BookWithState, ReadBook, ReadingState } from "../domain/book/schema";
 import { createCommandError } from "../types/Error";
 
 /**

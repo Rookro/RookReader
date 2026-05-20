@@ -1,9 +1,9 @@
 import { Box, type SxProps, type Theme } from "@mui/material";
 import { Allotment } from "allotment";
 import { useCallback, useState } from "react";
+import type { Book } from "../../../domain/book/schema";
 import { usePaneSizes } from "../../../hooks/usePaneSizes";
 import { useAppDispatch } from "../../../store/store";
-import type { Book } from "../../../types/DatabaseModels";
 import { setContainerFilePath } from "../../BookReader/slice";
 import { setActiveView } from "../../MainView/slice";
 import { useBookshelves } from "../hooks/useBookshelves";
