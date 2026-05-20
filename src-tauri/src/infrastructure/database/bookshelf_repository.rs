@@ -2,9 +2,9 @@ use async_trait::async_trait;
 use sqlx::SqlitePool;
 
 use crate::domain::book::entity::BookWithState;
-
-use super::model::Bookshelf;
-use super::repository::BookshelfRepository;
+use crate::domain::bookshelf::entity::Bookshelf;
+use crate::domain::bookshelf::repository::BookshelfRepository;
+use crate::error::Result;
 
 /// SQLite implementation of the `BookshelfRepository`.
 pub struct SqliteBookshelfRepository {
@@ -29,7 +29,7 @@ impl SqliteBookshelfRepository {
 
 #[async_trait]
 impl BookshelfRepository for SqliteBookshelfRepository {
-    async fn create(&self, name: &str, icon_id: &str) -> Result<Bookshelf, sqlx::Error> {
+    async fn create(&self, name: &str, icon_id: &str) -> Result<Bookshelf> {
         let bookshelf = sqlx::query_as!(
             Bookshelf,
             r#"
@@ -46,7 +46,7 @@ impl BookshelfRepository for SqliteBookshelfRepository {
         Ok(bookshelf)
     }
 
-    async fn get_all(&self) -> Result<Vec<Bookshelf>, sqlx::Error> {
+    async fn get_all(&self) -> Result<Vec<Bookshelf>> {
         let bookshelves = sqlx::query_as!(
             Bookshelf,
             r#"
@@ -61,10 +61,7 @@ impl BookshelfRepository for SqliteBookshelfRepository {
         Ok(bookshelves)
     }
 
-    async fn get_books_by_bookshelf(
-        &self,
-        bookshelf_id: i64,
-    ) -> Result<Vec<BookWithState>, sqlx::Error> {
+    async fn get_books_by_bookshelf(&self, bookshelf_id: i64) -> Result<Vec<BookWithState>> {
         let books = sqlx::query_as!(
             BookWithState,
             r#"
@@ -84,11 +81,7 @@ impl BookshelfRepository for SqliteBookshelfRepository {
         Ok(books)
     }
 
-    async fn add_book_to_bookshelf(
-        &self,
-        bookshelf_id: i64,
-        book_id: i64,
-    ) -> Result<(), sqlx::Error> {
+    async fn add_book_to_bookshelf(&self, bookshelf_id: i64, book_id: i64) -> Result<()> {
         sqlx::query!(
             r#"
             INSERT OR IGNORE INTO bookshelf_items (bookshelf_id, book_id)
@@ -103,11 +96,7 @@ impl BookshelfRepository for SqliteBookshelfRepository {
         Ok(())
     }
 
-    async fn remove_book_from_bookshelf(
-        &self,
-        bookshelf_id: i64,
-        book_id: i64,
-    ) -> Result<(), sqlx::Error> {
+    async fn remove_book_from_bookshelf(&self, bookshelf_id: i64, book_id: i64) -> Result<()> {
         sqlx::query!(
             r#"
             DELETE FROM bookshelf_items
@@ -122,7 +111,7 @@ impl BookshelfRepository for SqliteBookshelfRepository {
         Ok(())
     }
 
-    async fn delete(&self, id: i64) -> Result<(), sqlx::Error> {
+    async fn delete(&self, id: i64) -> Result<()> {
         sqlx::query!(
             r#"
             DELETE FROM bookshelves

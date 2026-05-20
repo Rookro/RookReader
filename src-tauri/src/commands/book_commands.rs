@@ -12,11 +12,11 @@ use crate::container::{
     directory_container::DirectoryContainer, epub_container::EpubContainer,
     pdf_container::PdfContainer, rar_container::RarContainer, zip_container::ZipContainer,
 };
-use crate::database::bookshelf::BookshelfRepository;
 use crate::database::series::SeriesRepository;
 use crate::database::tag::TagRepository;
 use crate::domain::book::entity::{Book, BookWithState, ReadBook, ReadingState};
 use crate::domain::book::repository::BookRepository;
+use crate::domain::bookshelf::repository::BookshelfRepository;
 use crate::error::{Error, Result};
 use crate::state::app_state::AppState;
 
@@ -382,7 +382,7 @@ pub async fn get_books_with_state_by_bookshelf_id(
     repo: State<'_, Arc<dyn BookshelfRepository>>,
 ) -> Result<Vec<BookWithState>> {
     log::debug!("Get books with state by bookshelf id({:?}).", bookshelf_id);
-    Ok(repo.get_books_by_bookshelf(bookshelf_id).await?)
+    repo.get_books_by_bookshelf(bookshelf_id).await
 }
 
 /// Retrieves all books associated with a specific tag, including their reading states.
@@ -634,10 +634,10 @@ async fn generate_and_save_thumbnail<R: tauri::Runtime>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::database::bookshelf::MockBookshelfRepository;
     use crate::database::series::MockSeriesRepository;
     use crate::database::tag::MockTagRepository;
     use crate::domain::book::repository::MockBookRepository;
+    use crate::domain::bookshelf::repository::MockBookshelfRepository;
     use crate::error::ErrorCode;
     use tauri::Manager;
 
