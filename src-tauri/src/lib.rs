@@ -8,6 +8,7 @@ pub mod database;
 pub mod domain;
 mod error;
 pub mod image;
+pub mod infrastructure;
 mod settings;
 mod setup;
 mod state;
