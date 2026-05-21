@@ -14,8 +14,6 @@ describe("BookContextMenu", () => {
 
   const mockActions = {
     openDialog: vi.fn(),
-    refreshBookshelf: vi.fn(),
-    refreshSeries: vi.fn(),
   };
 
   const defaultProps: BookContextMenuProps = {

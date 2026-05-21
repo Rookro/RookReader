@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use tauri::Emitter;
 use tauri::State;
 
 use crate::domain::series::entity::Series;
@@ -21,12 +22,15 @@ use crate::error::Result;
 /// This function will return an `Err` if the underlying repository operation fails
 /// (e.g., due to a database error, connection issue, or query execution failure).
 #[tauri::command]
-pub async fn create_series(
+pub async fn create_series<R: tauri::Runtime>(
     name: String,
     repo: State<'_, Arc<dyn SeriesRepository>>,
+    app: tauri::AppHandle<R>,
 ) -> Result<i64> {
     log::debug!("Create series. (name:{})", name);
-    repo.create(&name).await
+    let series_id = repo.create(&name).await?;
+    app.emit("history-changed", ())?;
+    Ok(series_id)
 }
 
 /// Retrieves all series from the database.
@@ -60,9 +64,15 @@ pub async fn get_all_series(repo: State<'_, Arc<dyn SeriesRepository>>) -> Resul
 ///
 /// This function will return an `Err` if the underlying repository operation fails.
 #[tauri::command]
-pub async fn delete_series(id: i64, repo: State<'_, Arc<dyn SeriesRepository>>) -> Result<()> {
+pub async fn delete_series<R: tauri::Runtime>(
+    id: i64,
+    repo: State<'_, Arc<dyn SeriesRepository>>,
+    app: tauri::AppHandle<R>,
+) -> Result<()> {
     log::debug!("Delete series. (id:{})", id);
-    repo.delete(id).await
+    repo.delete(id).await?;
+    app.emit("history-changed", ())?;
+    Ok(())
 }
 
 #[cfg(test)]
@@ -85,7 +95,7 @@ mod tests {
         app.manage(Arc::new(mock_repo) as Arc<dyn SeriesRepository>);
         let state = app.state::<Arc<dyn SeriesRepository>>();
 
-        let result = create_series("New Series".to_string(), state).await;
+        let result = create_series("New Series".to_string(), state, app.handle().clone()).await;
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), 1);
     }
@@ -138,7 +148,7 @@ mod tests {
         app.manage(Arc::new(mock_repo) as Arc<dyn SeriesRepository>);
         let state = app.state::<Arc<dyn SeriesRepository>>();
 
-        let result = delete_series(1, state).await;
+        let result = delete_series(1, state, app.handle().clone()).await;
         assert!(result.is_ok());
     }
 
@@ -153,7 +163,7 @@ mod tests {
         app.manage(Arc::new(mock_repo) as Arc<dyn SeriesRepository>);
         let state = app.state::<Arc<dyn SeriesRepository>>();
 
-        let result = create_series("Fail".to_string(), state).await;
+        let result = create_series("Fail".to_string(), state, app.handle().clone()).await;
         assert!(result.is_err());
         if let Err(e) = result {
             let error_code: ErrorCode = (&e).into();

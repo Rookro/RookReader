@@ -626,7 +626,7 @@ describe("BookGrid", () => {
     // Should not crash
   });
 
-  it("triggers refresh callbacks from dialogs", () => {
+  it("triggers handleCloseDialog from dialogs", () => {
     render(
       <BookSelectionContext.Provider value={mockSelectionValue}>
         <BookGrid />
@@ -634,13 +634,18 @@ describe("BookGrid", () => {
     );
 
     fireEvent.click(screen.getByTestId("add-books-trigger"));
-    expect(mockDispatch).toHaveBeenCalled();
+    expect(mockCloseDialog).toHaveBeenCalled();
+    expect(mockClearSelection).toHaveBeenCalled();
 
+    vi.clearAllMocks();
     fireEvent.click(screen.getByTestId("set-tags-trigger"));
-    expect(mockDispatch).toHaveBeenCalled();
+    expect(mockCloseDialog).toHaveBeenCalled();
+    expect(mockClearSelection).toHaveBeenCalled();
 
+    vi.clearAllMocks();
     fireEvent.click(screen.getByTestId("set-series-trigger"));
-    expect(mockDispatch).toHaveBeenCalled();
+    expect(mockCloseDialog).toHaveBeenCalled();
+    expect(mockClearSelection).toHaveBeenCalled();
   });
 
   it("sorts multiple items", () => {

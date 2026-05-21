@@ -14,8 +14,6 @@ describe("SeriesContextMenu", () => {
 
   const mockActions = {
     openDialog: vi.fn(),
-    refreshBookshelf: vi.fn(),
-    refreshSeries: vi.fn(),
   };
 
   const defaultProps: SeriesContextMenuProps = {
@@ -61,7 +59,6 @@ describe("SeriesContextMenu", () => {
     await user.click(screen.getByText(/Ungroup Series/i));
 
     expect(SeriesCommand.deleteSeries).toHaveBeenCalledWith(mockSeries.id);
-    expect(mockActions.refreshSeries).toHaveBeenCalled();
     expect(defaultProps.onClose).toHaveBeenCalled();
   });
 
