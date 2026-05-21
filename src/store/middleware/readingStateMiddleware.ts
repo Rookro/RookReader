@@ -1,13 +1,13 @@
 import { debounce } from "@mui/material";
 import type { Middleware } from "@reduxjs/toolkit";
 import { error } from "@tauri-apps/plugin-log";
-import { upsertReadingState } from "../../bindings/BookCommands";
+import { updateReadingProgress } from "../../bindings/BookCommands";
 import type { ReadingState } from "../../domain/book/schema";
 import type { RootState } from "../store";
 
 const debouncedReadingStateUpdate = debounce(async (state: ReadingState) => {
   try {
-    await upsertReadingState(state);
+    await updateReadingProgress(state);
   } catch (e) {
     error(`ReadingState update failed (${state.book_id}:${state.last_read_page_index}): ${e}`);
   }

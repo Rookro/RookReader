@@ -70,11 +70,11 @@ describe("BookCommands", () => {
     await expect(BookCommands.getAllBooksWithState()).rejects.toThrow(CommandError);
   });
 
-  it("upsertBook should call invoke", async () => {
+  it("registerBook should call invoke", async () => {
     vi.mocked(invoke).mockResolvedValue(10);
     const params = { filePath: "p", itemType: "file" as const, displayName: "d", totalPages: 100 };
-    const result = await BookCommands.upsertBook(params);
-    expect(invoke).toHaveBeenCalledWith("upsert_book", {
+    const result = await BookCommands.registerBook(params);
+    expect(invoke).toHaveBeenCalledWith("register_book", {
       filePath: "p",
       itemType: "file",
       displayName: "d",
@@ -83,13 +83,13 @@ describe("BookCommands", () => {
     expect(result).toBe(10);
   });
 
-  it("upsertBook should throw CommandError on failure", async () => {
+  it("registerBook should throw CommandError on failure", async () => {
     vi.mocked(invoke).mockRejectedValue(mockError);
     const params = { filePath: "p", itemType: "file" as const, displayName: "d", totalPages: 100 };
-    await expect(BookCommands.upsertBook(params)).rejects.toThrow(CommandError);
+    await expect(BookCommands.registerBook(params)).rejects.toThrow(CommandError);
   });
 
-  it("upsertReadBook should call invoke", async () => {
+  it("recordBookOpened should call invoke", async () => {
     vi.mocked(invoke).mockResolvedValue(20);
     const params = {
       filePath: "p2",
@@ -97,8 +97,8 @@ describe("BookCommands", () => {
       displayName: "d2",
       totalPages: 0,
     };
-    const result = await BookCommands.upsertReadBook(params);
-    expect(invoke).toHaveBeenCalledWith("upsert_read_book", {
+    const result = await BookCommands.recordBookOpened(params);
+    expect(invoke).toHaveBeenCalledWith("record_book_opened", {
       filePath: "p2",
       itemType: "directory",
       displayName: "d2",
@@ -107,7 +107,7 @@ describe("BookCommands", () => {
     expect(result).toBe(20);
   });
 
-  it("upsertReadBook should throw CommandError on failure", async () => {
+  it("recordBookOpened should throw CommandError on failure", async () => {
     vi.mocked(invoke).mockRejectedValue(mockError);
     const params = {
       filePath: "p2",
@@ -115,7 +115,7 @@ describe("BookCommands", () => {
       displayName: "d2",
       totalPages: 0,
     };
-    await expect(BookCommands.upsertReadBook(params)).rejects.toThrow(CommandError);
+    await expect(BookCommands.recordBookOpened(params)).rejects.toThrow(CommandError);
   });
 
   it("getBookTags should call invoke", async () => {
@@ -141,17 +141,17 @@ describe("BookCommands", () => {
     await expect(BookCommands.updateBookTags(1, [1])).rejects.toThrow(CommandError);
   });
 
-  it("upsertReadingState should call invoke", async () => {
+  it("updateReadingProgress should call invoke", async () => {
     vi.mocked(invoke).mockResolvedValue(undefined);
     const state = { book_id: 1, last_read_page_index: 5, last_opened_at: "now" };
-    await BookCommands.upsertReadingState(state);
-    expect(invoke).toHaveBeenCalledWith("upsert_reading_state", { stateData: state });
+    await BookCommands.updateReadingProgress(state);
+    expect(invoke).toHaveBeenCalledWith("update_reading_progress", { stateData: state });
   });
 
-  it("upsertReadingState should throw CommandError on failure", async () => {
+  it("updateReadingProgress should throw CommandError on failure", async () => {
     vi.mocked(invoke).mockRejectedValue(mockError);
     const state = { book_id: 1, last_read_page_index: 5, last_opened_at: "now" };
-    await expect(BookCommands.upsertReadingState(state)).rejects.toThrow(CommandError);
+    await expect(BookCommands.updateReadingProgress(state)).rejects.toThrow(CommandError);
   });
 
   it("clearReadingHistory should call invoke", async () => {

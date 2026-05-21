@@ -107,14 +107,14 @@ pub async fn get_book_with_state_by_id(
 ///
 /// # Returns
 ///
-/// A `Result` containing the ID of the upserted book.
+/// A `Result` containing the ID of the registered book.
 ///
 /// # Errors
 ///
 /// This function will return an `Err` if the underlying repository operation fails
 /// (e.g., due to a database error, connection issue, or query execution failure).
 #[tauri::command]
-pub async fn upsert_book<R: tauri::Runtime>(
+pub async fn register_book<R: tauri::Runtime>(
     file_path: String,
     item_type: String,
     display_name: String,
@@ -124,7 +124,7 @@ pub async fn upsert_book<R: tauri::Runtime>(
     state: State<'_, RwLock<AppState>>,
 ) -> Result<i64> {
     log::debug!(
-        "Upsert the book: (file_path: {}, item_type: {}, display_name: {}, total_pages: {})",
+        "Register the book: (file_path: {}, item_type: {}, display_name: {}, total_pages: {})",
         file_path,
         item_type,
         display_name,
@@ -166,7 +166,7 @@ pub async fn upsert_book<R: tauri::Runtime>(
                 None
             });
 
-    repo.upsert_book(
+    repo.register_book(
         &file_path,
         &item_type,
         &display_name,
@@ -176,7 +176,7 @@ pub async fn upsert_book<R: tauri::Runtime>(
     .await
 }
 
-/// Registers a book when opened, or updates its last opened time if it already exists.
+/// Records the event of a book being opened, updating its last opened time.
 ///
 /// # Arguments
 ///
@@ -190,14 +190,14 @@ pub async fn upsert_book<R: tauri::Runtime>(
 ///
 /// # Returns
 ///
-/// A `Result` containing the ID of the upserted read book
+/// A `Result` containing the ID of the book.
 ///
 /// # Errors
 ///
 /// This function will return an `Err` if the underlying repository operation fails
 /// (e.g., due to a database error, connection issue, or query execution failure).
 #[tauri::command]
-pub async fn upsert_read_book<R: tauri::Runtime>(
+pub async fn record_book_opened<R: tauri::Runtime>(
     file_path: String,
     item_type: String,
     display_name: String,
@@ -207,7 +207,7 @@ pub async fn upsert_read_book<R: tauri::Runtime>(
     state: State<'_, RwLock<AppState>>,
 ) -> Result<i64> {
     log::debug!(
-        "Upsert the read book: (file_path: {}, item_type: {}, display_name: {}, total_pages: {})",
+        "Record book opened: (file_path: {}, item_type: {}, display_name: {}, total_pages: {})",
         file_path,
         item_type,
         display_name,
@@ -249,7 +249,7 @@ pub async fn upsert_read_book<R: tauri::Runtime>(
                 None
             });
 
-    repo.upsert_read_book(
+    repo.record_book_opened(
         &file_path,
         &item_type,
         &display_name,
@@ -295,7 +295,7 @@ pub async fn clear_all_reading_history(repo: State<'_, Arc<dyn BookRepository>>)
     repo.clear_all_reading_history().await
 }
 
-/// Updates or inserts the reading state for a book.
+/// Updates the reading progress/state for a book.
 ///
 /// # Arguments
 ///
@@ -307,12 +307,12 @@ pub async fn clear_all_reading_history(repo: State<'_, Arc<dyn BookRepository>>)
 /// This function will return an `Err` if the underlying repository operation fails
 /// (e.g., due to a database error, connection issue, or query execution failure).
 #[tauri::command]
-pub async fn upsert_reading_state(
+pub async fn update_reading_progress(
     state_data: ReadingState,
     repo: State<'_, Arc<dyn BookRepository>>,
 ) -> Result<()> {
-    log::debug!("Upsert reading state: {:?}", state_data);
-    repo.upsert_reading_state(&state_data).await
+    log::debug!("Update reading progress: {:?}", state_data);
+    repo.update_reading_progress(&state_data).await
 }
 
 /// Retrieves recently read books, ordered by the most recently opened.
@@ -947,10 +947,10 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_upsert_book() {
+    async fn test_register_book() {
         let mut mock_repo = MockBookRepository::new();
         mock_repo
-            .expect_upsert_book()
+            .expect_register_book()
             .with(
                 mockall::predicate::eq("path"),
                 mockall::predicate::eq("file"),
@@ -967,7 +967,7 @@ mod tests {
         let repo = app.state::<Arc<dyn BookRepository>>();
         let state = app.state::<RwLock<AppState>>();
 
-        let result = upsert_book(
+        let result = register_book(
             "path".to_string(),
             "file".to_string(),
             "name".to_string(),
@@ -982,10 +982,10 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_upsert_read_book() {
+    async fn test_record_book_opened() {
         let mut mock_repo = MockBookRepository::new();
         mock_repo
-            .expect_upsert_read_book()
+            .expect_record_book_opened()
             .with(
                 mockall::predicate::eq("path"),
                 mockall::predicate::eq("file"),
@@ -1002,7 +1002,7 @@ mod tests {
         let repo = app.state::<Arc<dyn BookRepository>>();
         let state = app.state::<RwLock<AppState>>();
 
-        let result = upsert_read_book(
+        let result = record_book_opened(
             "path".to_string(),
             "file".to_string(),
             "name".to_string(),

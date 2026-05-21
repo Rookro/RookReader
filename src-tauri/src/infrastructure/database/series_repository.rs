@@ -170,7 +170,7 @@ mod tests {
 
         let series_id = repo.create("Series").await.unwrap();
         let book_id = book_repo
-            .upsert_book("path", "file", "Book", 10, None)
+            .register_book("path", "file", "Book", 10, None)
             .await
             .unwrap();
 
@@ -192,11 +192,11 @@ mod tests {
         let book_repo = SqliteBookRepository::new(pool);
 
         let b1 = book_repo
-            .upsert_book("p1", "file", "B1", 10, None)
+            .register_book("p1", "file", "B1", 10, None)
             .await
             .unwrap();
         let b2 = book_repo
-            .upsert_book("p2", "file", "B2", 10, None)
+            .register_book("p2", "file", "B2", 10, None)
             .await
             .unwrap();
 

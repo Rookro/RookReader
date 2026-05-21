@@ -45,7 +45,7 @@ async fn test_assign_book_to_series() {
 
     let series_id = series_repo.create("Series X").await.unwrap();
     let book_id = book_repo
-        .upsert_book("path/x", "file", "Book X", 100, None)
+        .register_book("path/x", "file", "Book X", 100, None)
         .await
         .unwrap();
 
@@ -75,7 +75,7 @@ async fn test_delete_series() {
     let series_id = series_repo.create("Series A").await.unwrap();
 
     let book_id = book_repo
-        .upsert_book("path/to/book.zip", "file", "Book A", 100, None)
+        .register_book("path/to/book.zip", "file", "Book A", 100, None)
         .await
         .unwrap();
 
@@ -109,15 +109,15 @@ async fn test_update_book_orders_in_series() {
     let series_id = series_repo.create("Ordered Series").await.unwrap();
 
     let b1 = book_repo
-        .upsert_book("path/1", "file", "Book 1", 100, None)
+        .register_book("path/1", "file", "Book 1", 100, None)
         .await
         .unwrap();
     let b2 = book_repo
-        .upsert_book("path/2", "file", "Book 2", 100, None)
+        .register_book("path/2", "file", "Book 2", 100, None)
         .await
         .unwrap();
     let b3 = book_repo
-        .upsert_book("path/3", "file", "Book 3", 100, None)
+        .register_book("path/3", "file", "Book 3", 100, None)
         .await
         .unwrap();
 

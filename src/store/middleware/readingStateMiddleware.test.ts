@@ -37,11 +37,11 @@ describe("readingStateMiddleware", () => {
   });
 
   // Verify that reading state (page index, etc.) is saved to the DB when read/setImageIndex action is dispatched
-  it("should call upsertReadingState when read/setImageIndex is dispatched", () => {
+  it("should call updateReadingProgress when read/setImageIndex is dispatched", () => {
     const action = { type: "read/setImageIndex", payload: 10 };
     readingStateMiddleware(store as MiddlewareAPI)(next as (action: unknown) => unknown)(action);
 
-    expect(bookCommands.upsertReadingState).toHaveBeenCalledWith({
+    expect(bookCommands.updateReadingProgress).toHaveBeenCalledWith({
       book_id: 1,
       last_read_page_index: 10,
       last_opened_at: "now",
@@ -49,7 +49,7 @@ describe("readingStateMiddleware", () => {
   });
 
   // Verify that reading state is not saved if history is disabled
-  it("should not call upsertReadingState if recordReadingHistory is false", () => {
+  it("should not call updateReadingProgress if recordReadingHistory is false", () => {
     store.getState.mockReturnValue({
       settings: {
         history: { recordReadingHistory: false },
@@ -60,11 +60,11 @@ describe("readingStateMiddleware", () => {
     const action = { type: "read/setImageIndex", payload: 10 };
     readingStateMiddleware(store as MiddlewareAPI)(next as (action: unknown) => unknown)(action);
 
-    expect(bookCommands.upsertReadingState).not.toHaveBeenCalled();
+    expect(bookCommands.updateReadingProgress).not.toHaveBeenCalled();
   });
 
   // Verify that reading state is not saved if book is null
-  it("should not call upsertReadingState if book is null", () => {
+  it("should not call updateReadingProgress if book is null", () => {
     store.getState.mockReturnValue({
       settings: {
         history: { recordReadingHistory: true },
@@ -82,15 +82,15 @@ describe("readingStateMiddleware", () => {
     const action = { type: "read/setImageIndex", payload: 10 };
     readingStateMiddleware(store as MiddlewareAPI)(next as (action: unknown) => unknown)(action);
 
-    expect(bookCommands.upsertReadingState).not.toHaveBeenCalled();
+    expect(bookCommands.updateReadingProgress).not.toHaveBeenCalled();
   });
 
   // Verify that reading state is saved to the DB when read/setNovelLocation action (for novels) is dispatched
-  it("should call upsertReadingState when read/setNovelLocation is dispatched", () => {
+  it("should call updateReadingProgress when read/setNovelLocation is dispatched", () => {
     const action = { type: "read/setNovelLocation", payload: { index: 5, cfi: "cfi" } };
     readingStateMiddleware(store as MiddlewareAPI)(next as (action: unknown) => unknown)(action);
 
-    expect(bookCommands.upsertReadingState).toHaveBeenCalledWith({
+    expect(bookCommands.updateReadingProgress).toHaveBeenCalledWith({
       book_id: 1,
       last_read_page_index: 10,
       last_opened_at: "now",
@@ -98,8 +98,8 @@ describe("readingStateMiddleware", () => {
   });
 
   // Verify that an error log is output if saving the reading state fails
-  it("should handle upsertReadingState error", async () => {
-    vi.mocked(bookCommands.upsertReadingState).mockRejectedValue(new Error("Database error"));
+  it("should handle updateReadingProgress error", async () => {
+    vi.mocked(bookCommands.updateReadingProgress).mockRejectedValue(new Error("Database error"));
     const action = { type: "read/setImageIndex", payload: 10 };
     readingStateMiddleware(store as MiddlewareAPI)(next as (action: unknown) => unknown)(action);
 
@@ -117,7 +117,7 @@ describe("readingStateMiddleware", () => {
 
     expect(result).toBe("STRING_ACTION");
     expect(next).toHaveBeenCalledWith("STRING_ACTION");
-    expect(bookCommands.upsertReadingState).not.toHaveBeenCalled();
+    expect(bookCommands.updateReadingProgress).not.toHaveBeenCalled();
   });
 
   // Verify that the middleware ignores actions without a type property and passes them to the next handler
@@ -129,6 +129,6 @@ describe("readingStateMiddleware", () => {
 
     expect(result).toEqual({ noType: "here" });
     expect(next).toHaveBeenCalledWith(action);
-    expect(bookCommands.upsertReadingState).not.toHaveBeenCalled();
+    expect(bookCommands.updateReadingProgress).not.toHaveBeenCalled();
   });
 });

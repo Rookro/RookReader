@@ -12,12 +12,12 @@ mod common;
 use common::setup_db;
 
 #[tokio::test]
-async fn test_upsert_and_get_book() {
+async fn test_register_and_get_book() {
     let pool = setup_db().await;
     let repository = SqliteBookRepository::new(pool.clone());
 
     let book_id = repository
-        .upsert_book("/path/to/book.epub", "file", "My Book", 100, None)
+        .register_book("/path/to/book.epub", "file", "My Book", 100, None)
         .await
         .unwrap();
 
@@ -27,10 +27,10 @@ async fn test_upsert_and_get_book() {
     assert_eq!(book.total_pages, 100);
 
     let updated_book_id = repository
-        .upsert_book(
+        .register_book(
             "/path/to/book.epub",
             "file",
-            "Updated Book", // Should not be updated by upsert logic due to ON CONFLICT
+            "Updated Book", // Should not be updated by register logic due to ON CONFLICT
             200,            // Should not be updated
             Some("/path/to/thumb".to_string()),
         )
@@ -57,7 +57,7 @@ async fn test_reading_state() {
     let repository = SqliteBookRepository::new(pool.clone());
 
     let book_id = repository
-        .upsert_book("/path/to/book.epub", "file", "My Book", 100, None)
+        .register_book("/path/to/book.epub", "file", "My Book", 100, None)
         .await
         .unwrap();
 
@@ -73,7 +73,7 @@ async fn test_reading_state() {
         last_read_page_index: 50,
         last_opened_at: Some(chrono::Utc::now().naive_utc()),
     };
-    repository.upsert_reading_state(&state).await.unwrap();
+    repository.update_reading_progress(&state).await.unwrap();
 
     let book_with_state = repository
         .get_book_with_state_by_id(book_id)
@@ -93,13 +93,13 @@ async fn test_reading_state() {
 }
 
 #[tokio::test]
-async fn test_upsert_read_book() {
+async fn test_record_book_opened() {
     let pool = setup_db().await;
     let repository = SqliteBookRepository::new(pool.clone());
 
     // 1. New book
     let book_id = repository
-        .upsert_read_book("/path/to/read.epub", "file", "Read Book", 100, None)
+        .record_book_opened("/path/to/read.epub", "file", "Read Book", 100, None)
         .await
         .unwrap();
 
@@ -118,7 +118,7 @@ async fn test_upsert_read_book() {
     tokio::time::sleep(std::time::Duration::from_millis(10)).await;
 
     let book_id_2 = repository
-        .upsert_read_book("/path/to/read.epub", "file", "Read Book", 100, None)
+        .record_book_opened("/path/to/read.epub", "file", "Read Book", 100, None)
         .await
         .unwrap();
 
@@ -138,22 +138,22 @@ async fn test_recently_read_books() {
     let repository = SqliteBookRepository::new(pool.clone());
 
     let b1 = repository
-        .upsert_book("/path/1", "file", "B1", 100, None)
+        .register_book("/path/1", "file", "B1", 100, None)
         .await
         .unwrap();
     let b2 = repository
-        .upsert_book("/path/2", "file", "B2", 100, None)
+        .register_book("/path/2", "file", "B2", 100, None)
         .await
         .unwrap();
     let _b3 = repository
-        .upsert_book("/path/3", "file", "B3", 100, None)
+        .register_book("/path/3", "file", "B3", 100, None)
         .await
         .unwrap();
 
     let now = chrono::Utc::now().naive_utc();
 
     repository
-        .upsert_reading_state(&ReadingState {
+        .update_reading_progress(&ReadingState {
             book_id: b1,
             last_read_page_index: 10,
             last_opened_at: Some(now - chrono::Duration::minutes(10)),
@@ -162,7 +162,7 @@ async fn test_recently_read_books() {
         .unwrap();
 
     repository
-        .upsert_reading_state(&ReadingState {
+        .update_reading_progress(&ReadingState {
             book_id: b2,
             last_read_page_index: 20,
             last_opened_at: Some(now),
@@ -188,11 +188,11 @@ async fn test_all_books_with_state() {
     let repository = SqliteBookRepository::new(pool.clone());
 
     repository
-        .upsert_book("/path/1", "file", "B1", 100, None)
+        .register_book("/path/1", "file", "B1", 100, None)
         .await
         .unwrap();
     repository
-        .upsert_book("/path/2", "file", "B2", 100, None)
+        .register_book("/path/2", "file", "B2", 100, None)
         .await
         .unwrap();
 
@@ -209,11 +209,11 @@ async fn test_filtering_by_bookshelf_tag_series() {
     let series_repo = SqliteSeriesRepository::new(pool.clone());
 
     let b1 = repository
-        .upsert_book("/path/1", "file", "B1", 100, None)
+        .register_book("/path/1", "file", "B1", 100, None)
         .await
         .unwrap();
     let b2 = repository
-        .upsert_book("/path/2", "file", "B2", 100, None)
+        .register_book("/path/2", "file", "B2", 100, None)
         .await
         .unwrap();
 
@@ -257,13 +257,13 @@ async fn test_clear_all_reading_history() {
     let repository = SqliteBookRepository::new(pool.clone());
 
     let b1 = repository
-        .upsert_book("/path/1", "file", "B1", 100, None)
+        .register_book("/path/1", "file", "B1", 100, None)
         .await
         .unwrap();
     let now = chrono::Utc::now().naive_utc();
 
     repository
-        .upsert_reading_state(&ReadingState {
+        .update_reading_progress(&ReadingState {
             book_id: b1,
             last_read_page_index: 10,
             last_opened_at: Some(now),
@@ -287,7 +287,7 @@ async fn test_book_tags() {
     let tag_repo = SqliteTagRepository::new(pool.clone());
 
     let book_id = repository
-        .upsert_book("/path/to/book.epub", "file", "My Book", 100, None)
+        .register_book("/path/to/book.epub", "file", "My Book", 100, None)
         .await
         .unwrap();
 
@@ -330,7 +330,7 @@ async fn test_delete_book() {
     let tag_repo = SqliteTagRepository::new(pool.clone());
 
     let book_id = repository
-        .upsert_book("/path/to/book.epub", "file", "My Book", 100, None)
+        .register_book("/path/to/book.epub", "file", "My Book", 100, None)
         .await
         .unwrap();
 
@@ -344,7 +344,7 @@ async fn test_delete_book() {
     bs_repo.add_book_to_bookshelf(bs.id, book_id).await.unwrap();
 
     repository
-        .upsert_reading_state(&ReadingState {
+        .update_reading_progress(&ReadingState {
             book_id,
             last_read_page_index: 10,
             last_opened_at: Some(chrono::Utc::now().naive_utc()),

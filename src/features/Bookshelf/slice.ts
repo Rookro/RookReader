@@ -5,8 +5,8 @@ import {
   deleteBook,
   getAllBooksWithState,
   getBooksWithStateByBookshelfId,
+  registerBook,
   updateSeriesOrders,
-  upsertBook,
 } from "../../bindings/BookCommands";
 import {
   addBookToBookshelf as addBookToBookshelfCommand,
@@ -181,7 +181,7 @@ export const addBookToBookshelf = createAppAsyncThunk(
         basename(bookPath),
       ]);
 
-      const bookId = await upsertBook({
+      const bookId = await registerBook({
         filePath: bookPath,
         itemType: entriesResult.is_directory ? "directory" : "file",
         totalPages: entriesResult.entries.length,

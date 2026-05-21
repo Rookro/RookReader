@@ -71,7 +71,7 @@ pub trait BookRepository: Send + Sync {
     /// # Errors
     ///
     /// Returns an `Err` if the database transaction fails.
-    async fn upsert_book(
+    async fn register_book(
         &self,
         file_path: &str,
         item_type: &str,
@@ -80,7 +80,7 @@ pub trait BookRepository: Send + Sync {
         thumbnail_path: Option<String>,
     ) -> Result<i64>;
 
-    /// Registers a book when opened, or updates its last opened time if it already exists.
+    /// Records the event of a book being opened, updating its last opened time.
     ///
     /// If the book is new, it is inserted into the `books` table with no tags or bookshelves,
     /// and a new `reading_state` is created with `last_read_page_index` set to 0.
@@ -101,7 +101,7 @@ pub trait BookRepository: Send + Sync {
     /// # Errors
     ///
     /// Returns an `Err` if the database transaction fails.
-    async fn upsert_read_book(
+    async fn record_book_opened(
         &self,
         file_path: &str,
         item_type: &str,
@@ -142,11 +142,11 @@ pub trait BookRepository: Send + Sync {
     /// Returns an `Err` if the database execution fails.
     async fn clear_all_reading_history(&self) -> Result<()>;
 
-    /// Updates or inserts the reading state for a book.
+    /// Updates the reading progress/state for a book.
     ///
     /// # Arguments
     ///
-    /// * `state` - The `ReadingState` to upsert.
+    /// * `state` - The `ReadingState` to update.
     ///
     /// # Returns
     ///
@@ -155,7 +155,7 @@ pub trait BookRepository: Send + Sync {
     /// # Errors
     ///
     /// Returns an `Err` if the database execution fails.
-    async fn upsert_reading_state(&self, state: &ReadingState) -> Result<()>;
+    async fn update_reading_progress(&self, state: &ReadingState) -> Result<()>;
 
     /// Retrieves books that have been opened, ordered by the last opened time in descending order.
     ///

@@ -578,7 +578,7 @@ describe("BookCollectionReducer", () => {
           entries: ["1.jpg"],
           is_novel: false,
         });
-        vi.mocked(BookCommands.upsertBook).mockResolvedValue(10);
+        vi.mocked(BookCommands.registerBook).mockResolvedValue(10);
         vi.mocked(BookCommands.getBooksWithStateByBookshelfId).mockResolvedValue(mockBooks);
 
         await store.dispatch(addBookToBookshelf({ bookshelfId: 1, bookPath: "path/to/book.zip" }));
@@ -586,7 +586,7 @@ describe("BookCollectionReducer", () => {
         const state = store.getState().bookCollection;
         expect(state.bookshelf.status).toBe("succeeded");
         expect(state.bookshelf.books).toEqual(mockBooks);
-        expect(BookCommands.upsertBook).toHaveBeenCalled();
+        expect(BookCommands.registerBook).toHaveBeenCalled();
       });
 
       // Verify that all books are fetched when adding a book with no bookshelf ID (null)
@@ -597,7 +597,7 @@ describe("BookCollectionReducer", () => {
           entries: ["1.jpg"],
           is_novel: false,
         });
-        vi.mocked(BookCommands.upsertBook).mockResolvedValue(10);
+        vi.mocked(BookCommands.registerBook).mockResolvedValue(10);
         vi.mocked(BookCommands.getAllBooksWithState).mockResolvedValue(mockBooks);
 
         await store.dispatch(addBookToBookshelf({ bookshelfId: null, bookPath: "path" }));
@@ -613,13 +613,13 @@ describe("BookCollectionReducer", () => {
           entries: [],
           is_novel: true,
         });
-        vi.mocked(BookCommands.upsertBook).mockResolvedValue(10);
+        vi.mocked(BookCommands.registerBook).mockResolvedValue(10);
         vi.mocked(BookCommands.getAllBooksWithState).mockResolvedValue([]);
 
         await store.dispatch(addBookToBookshelf({ bookshelfId: null, bookPath: "path.epub" }));
 
         expect(ContainerCommands.getEntriesInContainer).toHaveBeenCalled();
-        expect(BookCommands.upsertBook).toHaveBeenCalledWith(
+        expect(BookCommands.registerBook).toHaveBeenCalledWith(
           expect.objectContaining({ totalPages: 0 }),
         );
       });
@@ -631,12 +631,12 @@ describe("BookCollectionReducer", () => {
           entries: ["1.jpg"],
           is_novel: false,
         });
-        vi.mocked(BookCommands.upsertBook).mockResolvedValue(10);
+        vi.mocked(BookCommands.registerBook).mockResolvedValue(10);
         vi.mocked(BookCommands.getAllBooksWithState).mockResolvedValue([]);
 
         await store.dispatch(addBookToBookshelf({ bookshelfId: null, bookPath: "dir" }));
 
-        expect(BookCommands.upsertBook).toHaveBeenCalledWith(
+        expect(BookCommands.registerBook).toHaveBeenCalledWith(
           expect.objectContaining({ itemType: "directory" }),
         );
       });

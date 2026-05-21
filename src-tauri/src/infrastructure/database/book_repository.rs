@@ -91,7 +91,7 @@ impl BookRepository for SqliteBookRepository {
         Ok(book)
     }
 
-    async fn upsert_book(
+    async fn register_book(
         &self,
         file_path: &str,
         item_type: &str,
@@ -122,7 +122,7 @@ impl BookRepository for SqliteBookRepository {
         Ok(book_id)
     }
 
-    async fn upsert_read_book(
+    async fn record_book_opened(
         &self,
         file_path: &str,
         item_type: &str,
@@ -195,7 +195,7 @@ impl BookRepository for SqliteBookRepository {
         Ok(())
     }
 
-    async fn upsert_reading_state(&self, state: &ReadingState) -> Result<()> {
+    async fn update_reading_progress(&self, state: &ReadingState) -> Result<()> {
         sqlx::query!(
             r#"
             INSERT INTO reading_state (book_id, last_read_page_index, last_opened_at)

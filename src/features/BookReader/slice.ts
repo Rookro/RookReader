@@ -1,7 +1,7 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import { basename, dirname } from "@tauri-apps/api/path";
 import { debug, error, info } from "@tauri-apps/plugin-log";
-import { getBookWithStateById, upsertReadBook } from "../../bindings/BookCommands";
+import { getBookWithStateById, recordBookOpened } from "../../bindings/BookCommands";
 import { getEntriesInContainer, requestPreloadAround } from "../../bindings/ContainerCommands";
 import { getEntriesInDir as getEntriesInDirFromBackend } from "../../bindings/DirectoryCommands";
 import type { BookWithState } from "../../domain/book/schema";
@@ -47,7 +47,7 @@ export const openContainerFile = createAppAsyncThunk(
       debug(
         `Update container history: ${path}, ${entriesResult.is_directory ? "directory" : "file"}`,
       );
-      const bookId = await upsertReadBook({
+      const bookId = await recordBookOpened({
         filePath: path,
         itemType: entriesResult.is_directory ? "directory" : "file",
         totalPages: entriesResult.entries.length,

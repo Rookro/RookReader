@@ -77,24 +77,24 @@ export async function getAllBooksWithState() {
 }
 
 /**
- * Inserts or updates a book in the database.
+ * Registers a book or returns its ID if it already exists.
  *
- * @param params - The parameters for upserting the book.
+ * @param params - The parameters for registering the book.
  * @param params.filePath - The absolute path of the book file or directory.
  * @param params.itemType - The type of the item ("file" or "directory").
  * @param params.displayName - The display name of the book.
  * @param params.totalPages - The total number of pages in the book.
- * @returns A promise that resolves to the ID of the upserted book.
+ * @returns A promise that resolves to the ID of the registered book.
  * @throws {CommandError} If the Tauri command fails.
  */
-export async function upsertBook(params: {
+export async function registerBook(params: {
   filePath: string;
   itemType: "file" | "directory";
   displayName: string;
   totalPages: number;
 }) {
   try {
-    return await invoke<number>("upsert_book", {
+    return await invoke<number>("register_book", {
       filePath: params.filePath,
       itemType: params.itemType,
       displayName: params.displayName,
@@ -106,24 +106,24 @@ export async function upsertBook(params: {
 }
 
 /**
- * Inserts or updates a book in the database and records it as recently read.
+ * Records the event of a book being opened, or updates its last opened time.
  *
- * @param params - The parameters for upserting the read book.
+ * @param params - The parameters for the book being opened.
  * @param params.filePath - The absolute path of the book file or directory.
  * @param params.itemType - The type of the item ("file" or "directory").
  * @param params.displayName - The display name of the book.
  * @param params.totalPages - The total number of pages in the book.
- * @returns A promise that resolves to the ID of the upserted book.
+ * @returns A promise that resolves to the ID of the book.
  * @throws {CommandError} If the Tauri command fails.
  */
-export async function upsertReadBook(params: {
+export async function recordBookOpened(params: {
   filePath: string;
   itemType: "file" | "directory";
   displayName: string;
   totalPages: number;
 }) {
   try {
-    return await invoke<number>("upsert_read_book", {
+    return await invoke<number>("record_book_opened", {
       filePath: params.filePath,
       itemType: params.itemType,
       displayName: params.displayName,
@@ -197,15 +197,15 @@ export async function updateSeriesOrders(bookIds: number[]) {
 }
 
 /**
- * Inserts or updates the reading state of a book.
+ * Updates the reading progress/state of a book.
  *
- * @param stateData - The reading state data to upsert.
- * @returns A promise that resolves when the upsert is successful.
+ * @param stateData - The reading state data to update.
+ * @returns A promise that resolves when the update is successful.
  * @throws {CommandError} If the Tauri command fails.
  */
-export async function upsertReadingState(stateData: ReadingState) {
+export async function updateReadingProgress(stateData: ReadingState) {
   try {
-    return await invoke<void>("upsert_reading_state", { stateData });
+    return await invoke<void>("update_reading_progress", { stateData });
   } catch (error) {
     throw createCommandError(error);
   }
