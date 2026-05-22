@@ -3,7 +3,8 @@ import { convertFileSrc } from "@tauri-apps/api/core";
 import { useMemo, useState } from "react";
 import dummy_thumbnail from "../../../assets/dummy_thumbnail.svg";
 import AutoScrollTypography from "../../../components/ui/AutoScrollTypography/AutoScrollTypography";
-import type { BookWithState, Series } from "../../../types/DatabaseModels";
+import type { BookWithState } from "../../../domain/book/schema";
+import type { Series } from "../../../domain/series/schema";
 import SeriesContextMenu from "./SeriesContextMenu";
 
 export interface SeriesCardProps {

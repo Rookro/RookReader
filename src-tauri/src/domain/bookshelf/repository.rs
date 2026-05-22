@@ -1,6 +1,8 @@
+use crate::domain::book::entity::BookWithState;
+use crate::error::Result;
 use async_trait::async_trait;
 
-use super::model::Bookshelf;
+use super::entity::Bookshelf;
 
 /// Defines the data access operations for the `Bookshelf` aggregate.
 #[cfg_attr(test, mockall::automock)]
@@ -20,7 +22,7 @@ pub trait BookshelfRepository: Send + Sync {
     /// # Errors
     ///
     /// Returns an `Err` if the database insertion fails.
-    async fn create(&self, name: &str, icon_id: &str) -> Result<Bookshelf, sqlx::Error>;
+    async fn create(&self, name: &str, icon_id: &str) -> Result<Bookshelf>;
 
     /// Retrieves all bookshelves from the database.
     ///
@@ -31,7 +33,22 @@ pub trait BookshelfRepository: Send + Sync {
     /// # Errors
     ///
     /// Returns an `Err` if the database query fails.
-    async fn get_all(&self) -> Result<Vec<Bookshelf>, sqlx::Error>;
+    async fn get_all(&self) -> Result<Vec<Bookshelf>>;
+
+    /// Retrieves all books contained within a specific bookshelf, including their reading state.
+    ///
+    /// # Arguments
+    ///
+    /// * `bookshelf_id` - The ID of the bookshelf to filter by.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing a vector of `BookWithState` entities.
+    ///
+    /// # Errors
+    ///
+    /// Returns an `Err` if the database query fails.
+    async fn get_books_by_bookshelf(&self, bookshelf_id: i64) -> Result<Vec<BookWithState>>;
 
     /// Adds a book to a specific bookshelf.
     ///
@@ -43,11 +60,7 @@ pub trait BookshelfRepository: Send + Sync {
     /// # Errors
     ///
     /// Returns an `Err` if the database execution fails (e.g., constraint violation).
-    async fn add_book_to_bookshelf(
-        &self,
-        bookshelf_id: i64,
-        book_id: i64,
-    ) -> Result<(), sqlx::Error>;
+    async fn add_book_to_bookshelf(&self, bookshelf_id: i64, book_id: i64) -> Result<()>;
 
     /// Removes a book from a specific bookshelf.
     ///
@@ -59,11 +72,7 @@ pub trait BookshelfRepository: Send + Sync {
     /// # Errors
     ///
     /// Returns an `Err` if the database execution fails.
-    async fn remove_book_from_bookshelf(
-        &self,
-        bookshelf_id: i64,
-        book_id: i64,
-    ) -> Result<(), sqlx::Error>;
+    async fn remove_book_from_bookshelf(&self, bookshelf_id: i64, book_id: i64) -> Result<()>;
 
     /// Deletes a bookshelf from the database.
     ///
@@ -74,5 +83,5 @@ pub trait BookshelfRepository: Send + Sync {
     /// # Errors
     ///
     /// Returns an `Err` if the database execution fails.
-    async fn delete(&self, id: i64) -> Result<(), sqlx::Error>;
+    async fn delete(&self, id: i64) -> Result<()>;
 }

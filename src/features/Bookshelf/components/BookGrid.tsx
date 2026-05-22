@@ -4,10 +4,10 @@ import { debug, error } from "@tauri-apps/plugin-log";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Grid, useGridCallbackRef } from "react-window";
+import type { Book, BookWithState } from "../../../domain/book/schema";
 import { useAppTheme } from "../../../hooks/useAppTheme";
 import { useResizeObserver } from "../../../hooks/useResizeObserver";
 import { type RootState, useAppDispatch, useAppSelector } from "../../../store/store";
-import type { Book, BookWithState } from "../../../types/DatabaseModels";
 import { updateSettings } from "../../Settings/slice";
 import { useBookSelection } from "../hooks/useBookSelection";
 import { type BookshelfDialogType, useBookshelfDialogs } from "../hooks/useBookshelfDialogs";
@@ -157,9 +157,7 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
     const taggedBooks =
       tagId === null
         ? booksInSelectedBookshelf
-        : booksInSelectedBookshelf.filter((book) =>
-            book.tag_ids_str?.split(",").includes(tagId.toString()),
-          );
+        : booksInSelectedBookshelf.filter((book) => book.tag_ids.includes(tagId));
 
     // Drill-down mode logic: if a series is selected, show only books in that series
     if (selectedSeriesId !== null) {

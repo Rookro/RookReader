@@ -1,8 +1,11 @@
 use async_trait::async_trait;
 use sqlx::SqlitePool;
 
-use super::model::Bookshelf;
-use super::repository::BookshelfRepository;
+use crate::domain::book::entity::BookWithState;
+use crate::domain::bookshelf::entity::Bookshelf;
+use crate::domain::bookshelf::repository::BookshelfRepository;
+use crate::error::Result;
+use crate::infrastructure::database::models::BookWithStateRow;
 
 /// SQLite implementation of the `BookshelfRepository`.
 pub struct SqliteBookshelfRepository {
@@ -27,7 +30,7 @@ impl SqliteBookshelfRepository {
 
 #[async_trait]
 impl BookshelfRepository for SqliteBookshelfRepository {
-    async fn create(&self, name: &str, icon_id: &str) -> Result<Bookshelf, sqlx::Error> {
+    async fn create(&self, name: &str, icon_id: &str) -> Result<Bookshelf> {
         let bookshelf = sqlx::query_as!(
             Bookshelf,
             r#"
@@ -44,7 +47,7 @@ impl BookshelfRepository for SqliteBookshelfRepository {
         Ok(bookshelf)
     }
 
-    async fn get_all(&self) -> Result<Vec<Bookshelf>, sqlx::Error> {
+    async fn get_all(&self) -> Result<Vec<Bookshelf>> {
         let bookshelves = sqlx::query_as!(
             Bookshelf,
             r#"
@@ -59,11 +62,30 @@ impl BookshelfRepository for SqliteBookshelfRepository {
         Ok(bookshelves)
     }
 
-    async fn add_book_to_bookshelf(
-        &self,
-        bookshelf_id: i64,
-        book_id: i64,
-    ) -> Result<(), sqlx::Error> {
+    async fn get_books_by_bookshelf(&self, bookshelf_id: i64) -> Result<Vec<BookWithState>> {
+        let books = sqlx::query_as!(
+            BookWithStateRow,
+            r#"
+            SELECT
+                v.id, v.file_path, v.item_type, v.display_name, v.total_pages, v.series_id, v.series_order,
+                v.thumbnail_path, v.last_read_page_index, v.last_opened_at,
+                v.tag_ids_str as "tag_ids_str?: String"
+            FROM book_with_state_view v
+            INNER JOIN bookshelf_items bi ON v.id = bi.book_id
+            WHERE bi.bookshelf_id = ?
+            ORDER BY bi.added_at DESC
+            "#,
+            bookshelf_id
+        )
+        .fetch_all(&self.pool)
+        .await?
+        .into_iter()
+        .map(BookWithState::from)
+        .collect();
+        Ok(books)
+    }
+
+    async fn add_book_to_bookshelf(&self, bookshelf_id: i64, book_id: i64) -> Result<()> {
         sqlx::query!(
             r#"
             INSERT OR IGNORE INTO bookshelf_items (bookshelf_id, book_id)
@@ -78,11 +100,7 @@ impl BookshelfRepository for SqliteBookshelfRepository {
         Ok(())
     }
 
-    async fn remove_book_from_bookshelf(
-        &self,
-        bookshelf_id: i64,
-        book_id: i64,
-    ) -> Result<(), sqlx::Error> {
+    async fn remove_book_from_bookshelf(&self, bookshelf_id: i64, book_id: i64) -> Result<()> {
         sqlx::query!(
             r#"
             DELETE FROM bookshelf_items
@@ -97,7 +115,7 @@ impl BookshelfRepository for SqliteBookshelfRepository {
         Ok(())
     }
 
-    async fn delete(&self, id: i64) -> Result<(), sqlx::Error> {
+    async fn delete(&self, id: i64) -> Result<()> {
         sqlx::query!(
             r#"
             DELETE FROM bookshelves

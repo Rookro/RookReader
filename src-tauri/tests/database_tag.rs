@@ -1,4 +1,6 @@
-use rookreader_lib::database::tag::{SqliteTagRepository, TagRepository};
+use rookreader_lib::domain::tag::repository::TagRepository;
+use rookreader_lib::error::Error;
+use rookreader_lib::infrastructure::database::tag_repository::SqliteTagRepository;
 
 mod common;
 use common::setup_db;
@@ -31,7 +33,7 @@ async fn test_create_duplicate_tag() {
     let err = repository.create("Action", "#0000ff").await.unwrap_err();
 
     // Error should be a database constraint error due to UNIQUE constraint
-    assert!(matches!(err, sqlx::Error::Database(_)));
+    assert!(matches!(err, Error::Database(sqlx::Error::Database(_))));
 }
 
 #[tokio::test]

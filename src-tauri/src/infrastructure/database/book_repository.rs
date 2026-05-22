@@ -1,10 +1,10 @@
 use async_trait::async_trait;
 use sqlx::SqlitePool;
 
-use crate::database::book::{BookWithState, ReadBook};
-
-use super::model::{Book, ReadingState};
-use super::repository::BookRepository;
+use crate::domain::book::entity::{Book, BookWithState, ReadBook, ReadingState};
+use crate::domain::book::repository::BookRepository;
+use crate::error::Result;
+use crate::infrastructure::database::models::BookWithStateRow;
 
 /// SQLite implementation of the `BookRepository`.
 pub struct SqliteBookRepository {
@@ -29,7 +29,7 @@ impl SqliteBookRepository {
 
 #[async_trait]
 impl BookRepository for SqliteBookRepository {
-    async fn get_by_id(&self, id: i64) -> Result<Option<Book>, sqlx::Error> {
+    async fn get_by_id(&self, id: i64) -> Result<Option<Book>> {
         let book = sqlx::query_as!(
             Book,
             r#"
@@ -45,7 +45,7 @@ impl BookRepository for SqliteBookRepository {
         Ok(book)
     }
 
-    async fn get_by_path(&self, file_path: &str) -> Result<Option<Book>, sqlx::Error> {
+    async fn get_by_path(&self, file_path: &str) -> Result<Option<Book>> {
         let book = sqlx::query_as!(
             Book,
             r#"
@@ -71,47 +71,34 @@ impl BookRepository for SqliteBookRepository {
         Ok(book)
     }
 
-    async fn get_book_with_state_by_id(
-        &self,
-        id: i64,
-    ) -> Result<Option<BookWithState>, sqlx::Error> {
+    async fn get_book_with_state_by_id(&self, id: i64) -> Result<Option<BookWithState>> {
         let book = sqlx::query_as!(
-            BookWithState,
+            BookWithStateRow,
             r#"
             SELECT
-                b.id,
-                b.file_path,
-                b.item_type,
-                b.display_name,
-                b.total_pages,
-                b.series_id,
-                b.series_order,
-                b.thumbnail_path,
-                r.last_read_page_index,
-                r.last_opened_at,
-                (SELECT GROUP_CONCAT(tag_id) FROM book_tags WHERE book_id = b.id) as "tag_ids_str?: String"
-            FROM books b
-            LEFT JOIN
-                reading_state r ON b.id = r.book_id
-            WHERE
-                b.id = ?
+                id, file_path, item_type, display_name, total_pages, series_id, series_order,
+                thumbnail_path, last_read_page_index, last_opened_at,
+                tag_ids_str as "tag_ids_str?: String"
+            FROM book_with_state_view
+            WHERE id = ?
             "#,
             id
         )
         .fetch_optional(&self.pool)
-        .await?;
+        .await?
+        .map(BookWithState::from);
 
         Ok(book)
     }
 
-    async fn upsert_book(
+    async fn register_book(
         &self,
         file_path: &str,
         item_type: &str,
         display_name: &str,
         total_pages: i64,
         thumbnail_path: Option<String>,
-    ) -> Result<i64, sqlx::Error> {
+    ) -> Result<i64> {
         let book_id = sqlx::query!(
             r#"
             INSERT INTO books (file_path, item_type, display_name, total_pages, thumbnail_path)
@@ -135,14 +122,14 @@ impl BookRepository for SqliteBookRepository {
         Ok(book_id)
     }
 
-    async fn upsert_read_book(
+    async fn record_book_opened(
         &self,
         file_path: &str,
         item_type: &str,
         display_name: &str,
         total_pages: i64,
         thumbnail_path: Option<String>,
-    ) -> Result<i64, sqlx::Error> {
+    ) -> Result<i64> {
         let mut tx = self.pool.begin().await?;
         let now = chrono::Utc::now().naive_utc();
         let book_id = sqlx::query!(
@@ -182,7 +169,7 @@ impl BookRepository for SqliteBookRepository {
         Ok(book_id)
     }
 
-    async fn clear_reading_history(&self, book_id: i64) -> Result<(), sqlx::Error> {
+    async fn clear_reading_history(&self, book_id: i64) -> Result<()> {
         sqlx::query!(
             r#"
             DELETE FROM reading_state
@@ -196,7 +183,7 @@ impl BookRepository for SqliteBookRepository {
         Ok(())
     }
 
-    async fn clear_all_reading_history(&self) -> Result<(), sqlx::Error> {
+    async fn clear_all_reading_history(&self) -> Result<()> {
         sqlx::query!(
             r#"
             DELETE FROM reading_state
@@ -208,50 +195,7 @@ impl BookRepository for SqliteBookRepository {
         Ok(())
     }
 
-    async fn update_book_tags(&self, book_id: i64, tag_ids: &[i64]) -> Result<(), sqlx::Error> {
-        let mut tx = self.pool.begin().await?;
-
-        sqlx::query!(
-            r#"
-            DELETE FROM book_tags WHERE book_id = ?
-            "#,
-            book_id
-        )
-        .execute(&mut *tx)
-        .await?;
-
-        for tag_id in tag_ids {
-            sqlx::query!(
-                r#"
-                INSERT INTO book_tags (book_id, tag_id)
-                VALUES (?, ?)
-                "#,
-                book_id,
-                tag_id
-            )
-            .execute(&mut *tx)
-            .await?;
-        }
-
-        tx.commit().await?;
-        Ok(())
-    }
-
-    async fn get_book_tags(&self, book_id: i64) -> Result<Vec<i64>, sqlx::Error> {
-        let records = sqlx::query!(
-            r#"
-            SELECT tag_id FROM book_tags WHERE book_id = ?
-            "#,
-            book_id
-        )
-        .fetch_all(&self.pool)
-        .await?;
-
-        let tag_ids = records.into_iter().map(|r| r.tag_id).collect();
-        Ok(tag_ids)
-    }
-
-    async fn upsert_reading_state(&self, state: &ReadingState) -> Result<(), sqlx::Error> {
+    async fn update_reading_progress(&self, state: &ReadingState) -> Result<()> {
         sqlx::query!(
             r#"
             INSERT INTO reading_state (book_id, last_read_page_index, last_opened_at)
@@ -270,10 +214,7 @@ impl BookRepository for SqliteBookRepository {
         Ok(())
     }
 
-    async fn get_recently_read_books(
-        &self,
-        limit: Option<i64>,
-    ) -> Result<Vec<ReadBook>, sqlx::Error> {
+    async fn get_recently_read_books(&self, limit: Option<i64>) -> Result<Vec<ReadBook>> {
         let books = match limit {
             Some(limit) => {
                 sqlx::query_as!(
@@ -316,92 +257,27 @@ impl BookRepository for SqliteBookRepository {
         Ok(books)
     }
 
-    async fn get_all_books_with_state(&self) -> Result<Vec<BookWithState>, sqlx::Error> {
+    async fn get_all_books_with_state(&self) -> Result<Vec<BookWithState>> {
         let books = sqlx::query_as!(
-            BookWithState,
+            BookWithStateRow,
             r#"
-            SELECT b.id, b.file_path, b.item_type, b.display_name, b.total_pages, b.series_id, b.series_order,
-                   b.thumbnail_path, r.last_read_page_index, r.last_opened_at,
-                       (SELECT GROUP_CONCAT(tag_id) FROM book_tags WHERE book_id = b.id) as "tag_ids_str?: String"
-            FROM books b
-            LEFT JOIN reading_state r ON b.id = r.book_id
-            ORDER BY b.id DESC
+            SELECT
+                id, file_path, item_type, display_name, total_pages, series_id, series_order,
+                thumbnail_path, last_read_page_index, last_opened_at,
+                tag_ids_str as "tag_ids_str?: String"
+            FROM book_with_state_view
+            ORDER BY id DESC
             "#
         )
         .fetch_all(&self.pool)
-        .await?;
+        .await?
+        .into_iter()
+        .map(BookWithState::from)
+        .collect();
         Ok(books)
     }
 
-    async fn get_books_with_state_by_bookshelf_id(
-        &self,
-        bookshelf_id: i64,
-    ) -> Result<Vec<BookWithState>, sqlx::Error> {
-        let books = sqlx::query_as!(
-                BookWithState,
-                r#"
-                SELECT b.id, b.file_path, b.item_type, b.display_name, b.total_pages, b.series_id, b.series_order,
-                       b.thumbnail_path, r.last_read_page_index, r.last_opened_at,
-                       (SELECT GROUP_CONCAT(tag_id) FROM book_tags WHERE book_id = b.id) as "tag_ids_str?: String"
-                FROM books b
-                INNER JOIN bookshelf_items bi ON b.id = bi.book_id
-                LEFT JOIN reading_state r ON b.id = r.book_id
-                WHERE bi.bookshelf_id = ?
-                ORDER BY bi.added_at DESC
-                "#,
-                bookshelf_id
-            )
-            .fetch_all(&self.pool)
-            .await?;
-        Ok(books)
-    }
-
-    async fn get_books_with_state_by_tag_id(
-        &self,
-        tag_id: i64,
-    ) -> Result<Vec<BookWithState>, sqlx::Error> {
-        let books = sqlx::query_as!(
-                BookWithState,
-                r#"
-                SELECT b.id, b.file_path, b.item_type, b.display_name, b.total_pages, b.series_id, b.series_order,
-                       b.thumbnail_path, r.last_read_page_index, r.last_opened_at,
-                       (SELECT GROUP_CONCAT(tag_id) FROM book_tags WHERE book_id = b.id) as "tag_ids_str?: String"
-                FROM books b
-                INNER JOIN book_tags bt ON b.id = bt.book_id
-                LEFT JOIN reading_state r ON b.id = r.book_id
-                WHERE bt.tag_id = ?
-                ORDER BY b.display_name ASC
-                "#,
-                tag_id
-            )
-            .fetch_all(&self.pool)
-            .await?;
-        Ok(books)
-    }
-
-    async fn get_books_with_state_by_series_id(
-        &self,
-        series_id: i64,
-    ) -> Result<Vec<BookWithState>, sqlx::Error> {
-        let books = sqlx::query_as!(
-                BookWithState,
-                r#"
-                SELECT b.id, b.file_path, b.item_type, b.display_name, b.total_pages, b.series_id, b.series_order,
-                       b.thumbnail_path, r.last_read_page_index, r.last_opened_at,
-                       (SELECT GROUP_CONCAT(tag_id) FROM book_tags WHERE book_id = b.id) as "tag_ids_str?: String"
-                FROM books b
-                LEFT JOIN reading_state r ON b.id = r.book_id
-                WHERE b.series_id = ?
-                ORDER BY b.series_order ASC, b.display_name ASC
-                "#,
-                series_id
-            )
-            .fetch_all(&self.pool)
-            .await?;
-        Ok(books)
-    }
-
-    async fn delete_book(&self, id: i64) -> Result<(), sqlx::Error> {
+    async fn delete_book(&self, id: i64) -> Result<()> {
         let mut tx = self.pool.begin().await?;
 
         sqlx::query!(
@@ -439,49 +315,6 @@ impl BookRepository for SqliteBookRepository {
         )
         .execute(&mut *tx)
         .await?;
-
-        tx.commit().await?;
-
-        Ok(())
-    }
-
-    async fn update_book_series(
-        &self,
-        book_id: i64,
-        series_id: Option<i64>,
-    ) -> Result<(), sqlx::Error> {
-        sqlx::query!(
-            r#"
-            UPDATE books
-            SET series_id = ?
-            WHERE id = ?
-            "#,
-            series_id,
-            book_id
-        )
-        .execute(&self.pool)
-        .await?;
-
-        Ok(())
-    }
-
-    async fn update_series_orders(&self, book_ids: Vec<i64>) -> Result<(), sqlx::Error> {
-        let mut tx = self.pool.begin().await?;
-
-        for (index, &book_id) in book_ids.iter().enumerate() {
-            let order = (index + 1) as i64;
-            sqlx::query!(
-                r#"
-                UPDATE books
-                SET series_order = ?
-                WHERE id = ?
-                "#,
-                order,
-                book_id
-            )
-            .execute(&mut *tx)
-            .await?;
-        }
 
         tx.commit().await?;
 

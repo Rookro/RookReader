@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n                SELECT b.id, b.file_path, b.item_type, b.display_name, b.total_pages, b.series_id, b.series_order,\n                       b.thumbnail_path, r.last_read_page_index, r.last_opened_at,\n                       (SELECT GROUP_CONCAT(tag_id) FROM book_tags WHERE book_id = b.id) as \"tag_ids_str?: String\"\n                FROM books b\n                LEFT JOIN reading_state r ON b.id = r.book_id\n                WHERE b.series_id = ?\n                ORDER BY b.series_order ASC, b.display_name ASC\n                ",
+  "query": "\n            SELECT\n                id, file_path, item_type, display_name, total_pages, series_id, series_order,\n                thumbnail_path, last_read_page_index, last_opened_at,\n                tag_ids_str as \"tag_ids_str?: String\"\n            FROM book_with_state_view\n            ORDER BY id DESC\n            ",
   "describe": {
     "columns": [
       {
@@ -56,11 +56,11 @@
       {
         "name": "tag_ids_str?: String",
         "ordinal": 10,
-        "type_info": "Integer"
+        "type_info": "Text"
       }
     ],
     "parameters": {
-      "Right": 1
+      "Right": 0
     },
     "nullable": [
       false,
@@ -76,5 +76,5 @@
       true
     ]
   },
-  "hash": "bd929363f3e6bfbac44899cd7f5c4525ca1dfe4da4afbf9a30b86e62c6427f48"
+  "hash": "b41fc5c89154eacc69c3ffef5bd3dcaab7c6ba9a467173f276b3fc821ead6a32"
 }

@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { Tag } from "../types/DatabaseModels";
+import type { Tag } from "../domain/tag/schema";
 import { createCommandError } from "../types/Error";
 
 /**

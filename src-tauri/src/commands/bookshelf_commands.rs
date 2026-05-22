@@ -1,7 +1,8 @@
 use std::sync::Arc;
 use tauri::State;
 
-use crate::database::bookshelf::{Bookshelf, BookshelfRepository};
+use crate::domain::bookshelf::entity::Bookshelf;
+use crate::domain::bookshelf::repository::BookshelfRepository;
 use crate::error::Result;
 
 /// Creates a new bookshelf and returns its complete entity.
@@ -27,7 +28,7 @@ pub async fn create_bookshelf(
     repo: State<'_, Arc<dyn BookshelfRepository>>,
 ) -> Result<Bookshelf> {
     log::debug!("Create bookshelf. (name:{}, icon_id:{})", name, icon_id);
-    Ok(repo.create(&name, &icon_id).await?)
+    repo.create(&name, &icon_id).await
 }
 
 /// Retrieves all bookshelves from the database.
@@ -49,7 +50,7 @@ pub async fn get_all_bookshelves(
     repo: State<'_, Arc<dyn BookshelfRepository>>,
 ) -> Result<Vec<Bookshelf>> {
     log::debug!("Get all bookshelves");
-    Ok(repo.get_all().await?)
+    repo.get_all().await
 }
 
 /// Adds a book to a specific bookshelf.
@@ -75,7 +76,7 @@ pub async fn add_book_to_bookshelf(
         bookshelf_id,
         book_id
     );
-    Ok(repo.add_book_to_bookshelf(bookshelf_id, book_id).await?)
+    repo.add_book_to_bookshelf(bookshelf_id, book_id).await
 }
 
 /// Removes a book from a specific bookshelf.
@@ -100,9 +101,7 @@ pub async fn remove_book_from_bookshelf(
         bookshelf_id,
         book_id
     );
-    Ok(repo
-        .remove_book_from_bookshelf(bookshelf_id, book_id)
-        .await?)
+    repo.remove_book_from_bookshelf(bookshelf_id, book_id).await
 }
 
 /// Deletes a bookshelf from the database.
@@ -121,13 +120,13 @@ pub async fn delete_bookshelf(
     repo: State<'_, Arc<dyn BookshelfRepository>>,
 ) -> Result<()> {
     log::debug!("Delete bookshelf. (id:{})", id);
-    Ok(repo.delete(id).await?)
+    repo.delete(id).await
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::database::bookshelf::MockBookshelfRepository;
+    use crate::domain::bookshelf::repository::MockBookshelfRepository;
     use crate::error::ErrorCode;
     use tauri::Manager;
 
@@ -259,7 +258,7 @@ mod tests {
                 mockall::predicate::eq("icon1"),
             )
             .times(1)
-            .returning(|_, _| Err(sqlx::Error::RowNotFound));
+            .returning(|_, _| Err(crate::error::Error::Database(sqlx::Error::RowNotFound)));
 
         let app = tauri::test::mock_app();
         app.manage(Arc::new(mock_repo) as Arc<dyn BookshelfRepository>);
@@ -278,7 +277,7 @@ mod tests {
         mock_repo
             .expect_get_all()
             .times(1)
-            .returning(|| Err(sqlx::Error::PoolTimedOut));
+            .returning(|| Err(crate::error::Error::Database(sqlx::Error::PoolTimedOut)));
 
         let app = tauri::test::mock_app();
         app.manage(Arc::new(mock_repo) as Arc<dyn BookshelfRepository>);

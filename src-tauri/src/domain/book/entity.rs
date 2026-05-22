@@ -85,5 +85,90 @@ pub struct BookWithState {
     /// The timestamp when the book was last opened, if any.
     pub last_opened_at: Option<NaiveDateTime>,
     /// Comma-separated list of tag IDs associated with this book.
+    #[serde(skip)]
     pub tag_ids_str: Option<String>,
+    /// List of tag IDs associated with this book.
+    #[serde(default)]
+    #[sqlx(skip)]
+    pub tag_ids: Vec<i64>,
+}
+
+impl BookWithState {
+    /// Returns a list of tag IDs associated with the book.
+    ///
+    /// This method parses the internal `tag_ids_str` which is expected to be
+    /// a comma-separated string of integers.
+    ///
+    /// # Returns
+    ///
+    /// A `Vec<i64>` containing the parsed tag IDs.
+    pub fn tag_ids(&self) -> Vec<i64> {
+        self.tag_ids_str
+            .as_ref()
+            .map(|s| {
+                s.split(',')
+                    .filter_map(|id| id.trim().parse::<i64>().ok())
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    /// Populates the `tag_ids` field by parsing `tag_ids_str`.
+    ///
+    /// # Arguments
+    ///
+    /// * `&mut self` - The mutable reference to the book state.
+    pub fn fill_tag_ids(&mut self) {
+        self.tag_ids = self.tag_ids();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_book_with_state_tag_ids_parsing() {
+        let mut book = BookWithState {
+            id: 1,
+            file_path: "path".to_string(),
+            item_type: "file".to_string(),
+            display_name: "name".to_string(),
+            total_pages: 10,
+            series_id: None,
+            series_order: None,
+            thumbnail_path: None,
+            last_read_page_index: None,
+            last_opened_at: None,
+            tag_ids_str: Some("1,2,3".to_string()),
+            tag_ids: vec![],
+        };
+        assert_eq!(book.tag_ids(), vec![1, 2, 3]);
+        book.fill_tag_ids();
+        assert_eq!(book.tag_ids, vec![1, 2, 3]);
+
+        let mut book_with_spaces = BookWithState {
+            tag_ids_str: Some(" 4 , 5, 6 ".to_string()),
+            ..book.clone()
+        };
+        assert_eq!(book_with_spaces.tag_ids(), vec![4, 5, 6]);
+        book_with_spaces.fill_tag_ids();
+        assert_eq!(book_with_spaces.tag_ids, vec![4, 5, 6]);
+
+        let mut book_empty = BookWithState {
+            tag_ids_str: None,
+            ..book.clone()
+        };
+        assert!(book_empty.tag_ids().is_empty());
+        book_empty.fill_tag_ids();
+        assert!(book_empty.tag_ids.is_empty());
+
+        let mut book_invalid = BookWithState {
+            tag_ids_str: Some("1,abc,3".to_string()),
+            ..book
+        };
+        assert_eq!(book_invalid.tag_ids(), vec![1, 3]);
+        book_invalid.fill_tag_ids();
+        assert_eq!(book_invalid.tag_ids, vec![1, 3]);
+    }
 }

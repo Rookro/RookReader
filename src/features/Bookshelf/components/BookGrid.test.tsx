@@ -728,7 +728,7 @@ describe("BookGrid", () => {
   });
 
   it("filters books by tag", () => {
-    const book1 = createMockBookWithState({ id: 1, display_name: "Tagged Book", tag_ids_str: "5" });
+    const book1 = createMockBookWithState({ id: 1, display_name: "Tagged Book", tag_ids: [5] });
     const book2 = createMockBookWithState({ id: 2, display_name: "Untagged Book" });
 
     vi.mocked(useAppSelector).mockImplementation(<T,>(selector: (state: RootState) => T): T => {

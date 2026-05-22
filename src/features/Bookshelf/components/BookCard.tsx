@@ -16,7 +16,8 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import dummy_thumbnail from "../../../assets/dummy_thumbnail.svg";
 import AutoScrollTypography from "../../../components/ui/AutoScrollTypography/AutoScrollTypography";
-import type { BookWithState, Tag } from "../../../types/DatabaseModels";
+import type { BookWithState } from "../../../domain/book/schema";
+import type { Tag } from "../../../domain/tag/schema";
 import { useBookSelection } from "../hooks/useBookSelection";
 import BookContextMenu from "./BookContextMenu";
 
@@ -73,12 +74,11 @@ export default function BookCard({
   }, [book?.thumbnail_path, imageError]);
 
   const bookTags = useMemo(() => {
-    if (!book?.tag_ids_str || !tags) {
+    if (!book?.tag_ids || !tags) {
       return [];
     }
-    const ids = book.tag_ids_str.split(",").map(Number);
-    return tags.filter((tag) => ids.includes(tag.id));
-  }, [book?.tag_ids_str, tags]);
+    return tags.filter((tag) => book.tag_ids.includes(tag.id));
+  }, [book?.tag_ids, tags]);
 
   const isSelected = selectedBookIds.has(book.id);
 

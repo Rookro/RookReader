@@ -16,7 +16,7 @@ import { error as logError } from "@tauri-apps/plugin-log";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { addBookToBookshelf } from "../../../../bindings/BookshelfCommand";
-import type { Bookshelf } from "../../../../types/DatabaseModels";
+import type { Bookshelf } from "../../../../domain/bookshelf/schema";
 import { BookShelfIcons } from "../BookshelfIcons";
 
 /** Props for the AddBooksToBookshelvesDialog component */

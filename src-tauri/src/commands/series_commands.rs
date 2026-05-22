@@ -1,7 +1,8 @@
 use std::sync::Arc;
 use tauri::State;
 
-use crate::database::series::{Series, SeriesRepository};
+use crate::domain::series::entity::Series;
+use crate::domain::series::repository::SeriesRepository;
 use crate::error::Result;
 
 /// Creates a new series.
@@ -25,7 +26,7 @@ pub async fn create_series(
     repo: State<'_, Arc<dyn SeriesRepository>>,
 ) -> Result<i64> {
     log::debug!("Create series. (name:{})", name);
-    Ok(repo.create(&name).await?)
+    repo.create(&name).await
 }
 
 /// Retrieves all series from the database.
@@ -45,7 +46,7 @@ pub async fn create_series(
 #[tauri::command]
 pub async fn get_all_series(repo: State<'_, Arc<dyn SeriesRepository>>) -> Result<Vec<Series>> {
     log::debug!("Get all series.");
-    Ok(repo.get_all().await?)
+    repo.get_all().await
 }
 
 /// Deletes a series by its ID.
@@ -61,13 +62,13 @@ pub async fn get_all_series(repo: State<'_, Arc<dyn SeriesRepository>>) -> Resul
 #[tauri::command]
 pub async fn delete_series(id: i64, repo: State<'_, Arc<dyn SeriesRepository>>) -> Result<()> {
     log::debug!("Delete series. (id:{})", id);
-    Ok(repo.delete(id).await?)
+    repo.delete(id).await
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::database::series::MockSeriesRepository;
+    use crate::domain::series::repository::MockSeriesRepository;
     use crate::error::ErrorCode;
     use tauri::Manager;
 
@@ -146,7 +147,7 @@ mod tests {
         let mut mock_repo = MockSeriesRepository::new();
         mock_repo
             .expect_create()
-            .returning(|_| Err(sqlx::Error::RowNotFound));
+            .returning(|_| Err(crate::error::Error::Database(sqlx::Error::RowNotFound)));
 
         let app = tauri::test::mock_app();
         app.manage(Arc::new(mock_repo) as Arc<dyn SeriesRepository>);

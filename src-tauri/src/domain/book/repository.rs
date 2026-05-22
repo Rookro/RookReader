@@ -1,8 +1,7 @@
+use crate::error::Result;
 use async_trait::async_trait;
 
-use crate::database::book::{BookWithState, ReadBook};
-
-use super::model::{Book, ReadingState};
+use super::entity::{Book, BookWithState, ReadBook, ReadingState};
 
 /// Defines the data access operations for the `Book` aggregate.
 #[cfg_attr(test, mockall::automock)]
@@ -21,7 +20,7 @@ pub trait BookRepository: Send + Sync {
     /// # Errors
     ///
     /// Returns an `Err` if a database operation fails.
-    async fn get_by_id(&self, id: i64) -> Result<Option<Book>, sqlx::Error>;
+    async fn get_by_id(&self, id: i64) -> Result<Option<Book>>;
 
     /// Retrieves a book by its unique file path.
     ///
@@ -36,7 +35,7 @@ pub trait BookRepository: Send + Sync {
     /// # Errors
     ///
     /// Returns an `Err` if a database operation fails.
-    async fn get_by_path(&self, file_path: &str) -> Result<Option<Book>, sqlx::Error>;
+    async fn get_by_path(&self, file_path: &str) -> Result<Option<Book>>;
 
     /// Retrieves a book along with its reading state by its unique ID.
     ///
@@ -53,10 +52,7 @@ pub trait BookRepository: Send + Sync {
     /// # Errors
     ///
     /// Returns an `Err` if the database query fails.
-    async fn get_book_with_state_by_id(
-        &self,
-        id: i64,
-    ) -> Result<Option<BookWithState>, sqlx::Error>;
+    async fn get_book_with_state_by_id(&self, id: i64) -> Result<Option<BookWithState>>;
 
     /// Registers a book or returns its ID if it already exists, without updating reading state.
     ///
@@ -75,16 +71,16 @@ pub trait BookRepository: Send + Sync {
     /// # Errors
     ///
     /// Returns an `Err` if the database transaction fails.
-    async fn upsert_book(
+    async fn register_book(
         &self,
         file_path: &str,
         item_type: &str,
         display_name: &str,
         total_pages: i64,
         thumbnail_path: Option<String>,
-    ) -> Result<i64, sqlx::Error>;
+    ) -> Result<i64>;
 
-    /// Registers a book when opened, or updates its last opened time if it already exists.
+    /// Records the event of a book being opened, updating its last opened time.
     ///
     /// If the book is new, it is inserted into the `books` table with no tags or bookshelves,
     /// and a new `reading_state` is created with `last_read_page_index` set to 0.
@@ -105,14 +101,14 @@ pub trait BookRepository: Send + Sync {
     /// # Errors
     ///
     /// Returns an `Err` if the database transaction fails.
-    async fn upsert_read_book(
+    async fn record_book_opened(
         &self,
         file_path: &str,
         item_type: &str,
         display_name: &str,
         total_pages: i64,
         thumbnail_path: Option<String>,
-    ) -> Result<i64, sqlx::Error>;
+    ) -> Result<i64>;
 
     /// Clears the reading history for a specific book.
     ///
@@ -130,7 +126,7 @@ pub trait BookRepository: Send + Sync {
     /// # Errors
     ///
     /// Returns an `Err` if the database execution fails.
-    async fn clear_reading_history(&self, book_id: i64) -> Result<(), sqlx::Error>;
+    async fn clear_reading_history(&self, book_id: i64) -> Result<()>;
 
     /// Clears the reading history for all books.
     ///
@@ -144,14 +140,13 @@ pub trait BookRepository: Send + Sync {
     /// # Errors
     ///
     /// Returns an `Err` if the database execution fails.
-    async fn clear_all_reading_history(&self) -> Result<(), sqlx::Error>;
+    async fn clear_all_reading_history(&self) -> Result<()>;
 
-    /// Updates the tags associated with a specific book.
+    /// Updates the reading progress/state for a book.
     ///
     /// # Arguments
     ///
-    /// * `book_id` - The unique identifier of the book.
-    /// * `tag_ids` - A slice of tag IDs to associate with the book.
+    /// * `state` - The `ReadingState` to update.
     ///
     /// # Returns
     ///
@@ -160,37 +155,7 @@ pub trait BookRepository: Send + Sync {
     /// # Errors
     ///
     /// Returns an `Err` if the database execution fails.
-    async fn update_book_tags(&self, book_id: i64, tag_ids: &[i64]) -> Result<(), sqlx::Error>;
-
-    /// Retrieves the IDs of all tags associated with a specific book.
-    ///
-    /// # Arguments
-    ///
-    /// * `book_id` - The unique identifier of the book.
-    ///
-    /// # Returns
-    ///
-    /// A `Result` containing a vector of tag IDs.
-    ///
-    /// # Errors
-    ///
-    /// Returns an `Err` if the database query fails.
-    async fn get_book_tags(&self, book_id: i64) -> Result<Vec<i64>, sqlx::Error>;
-
-    /// Updates or inserts the reading state for a book.
-    ///
-    /// # Arguments
-    ///
-    /// * `state` - The `ReadingState` to upsert.
-    ///
-    /// # Returns
-    ///
-    /// A `Result` indicating the success of the operation.
-    ///
-    /// # Errors
-    ///
-    /// Returns an `Err` if the database execution fails.
-    async fn upsert_reading_state(&self, state: &ReadingState) -> Result<(), sqlx::Error>;
+    async fn update_reading_progress(&self, state: &ReadingState) -> Result<()>;
 
     /// Retrieves books that have been opened, ordered by the last opened time in descending order.
     ///
@@ -205,10 +170,7 @@ pub trait BookRepository: Send + Sync {
     /// # Errors
     ///
     /// Returns an `Err` if the database query fails.
-    async fn get_recently_read_books(
-        &self,
-        limit: Option<i64>,
-    ) -> Result<Vec<ReadBook>, sqlx::Error>;
+    async fn get_recently_read_books(&self, limit: Option<i64>) -> Result<Vec<ReadBook>>;
 
     /// Retrieves all books along with their reading state.
     ///
@@ -219,61 +181,7 @@ pub trait BookRepository: Send + Sync {
     /// # Errors
     ///
     /// Returns an `Err` if the database query fails.
-    async fn get_all_books_with_state(&self) -> Result<Vec<BookWithState>, sqlx::Error>;
-
-    /// Retrieves all books contained within a specific bookshelf, including their reading state.
-    ///
-    /// # Arguments
-    ///
-    /// * `bookshelf_id` - The ID of the bookshelf to filter by.
-    ///
-    /// # Returns
-    ///
-    /// A `Result` containing a vector of `BookWithState` entities.
-    ///
-    /// # Errors
-    ///
-    /// Returns an `Err` if the database query fails.
-    async fn get_books_with_state_by_bookshelf_id(
-        &self,
-        bookshelf_id: i64,
-    ) -> Result<Vec<BookWithState>, sqlx::Error>;
-
-    /// Retrieves all books associated with a specific tag, including their reading state.
-    ///
-    /// # Arguments
-    ///
-    /// * `tag_id` - The ID of the tag to filter by.
-    ///
-    /// # Returns
-    ///
-    /// A `Result` containing a vector of `BookWithState` entities.
-    ///
-    /// # Errors
-    ///
-    /// Returns an `Err` if the database query fails.
-    async fn get_books_with_state_by_tag_id(
-        &self,
-        tag_id: i64,
-    ) -> Result<Vec<BookWithState>, sqlx::Error>;
-
-    /// Retrieves all books belonging to a specific series, including their reading state.
-    ///
-    /// # Arguments
-    ///
-    /// * `series_id` - The ID of the series to filter by.
-    ///
-    /// # Returns
-    ///
-    /// A `Result` containing a vector of `BookWithState` entities.
-    ///
-    /// # Errors
-    ///
-    /// Returns an `Err` if the database query fails.
-    async fn get_books_with_state_by_series_id(
-        &self,
-        series_id: i64,
-    ) -> Result<Vec<BookWithState>, sqlx::Error>;
+    async fn get_all_books_with_state(&self) -> Result<Vec<BookWithState>>;
 
     /// Deletes a book by its unique ID.
     ///
@@ -288,41 +196,5 @@ pub trait BookRepository: Send + Sync {
     /// # Errors
     ///
     /// Returns an `Err` if a database operation fails.
-    async fn delete_book(&self, id: i64) -> Result<(), sqlx::Error>;
-
-    /// Updates the series associated with a specific book.
-    ///
-    /// # Arguments
-    ///
-    /// * `book_id` - The unique identifier of the book.
-    /// * `series_id` - The unique identifier of the series to associate with the book, or `None` to remove.
-    ///
-    /// # Returns
-    ///
-    /// A `Result` indicating the success of the operation.
-    ///
-    /// # Errors
-    ///
-    /// Returns an `Err` if the database execution fails.
-    async fn update_book_series(
-        &self,
-        book_id: i64,
-        series_id: Option<i64>,
-    ) -> Result<(), sqlx::Error>;
-
-    /// Updates the `series_order` for a given list of book IDs.
-    /// The order is determined by the index of the book ID in the list (1-based).
-    ///
-    /// # Arguments
-    ///
-    /// * `book_ids` - A list of book IDs in the desired order.
-    ///
-    /// # Returns
-    ///
-    /// A `Result` indicating the success of the operation.
-    ///
-    /// # Errors
-    ///
-    /// Returns an `Err` if the database execution fails.
-    async fn update_series_orders(&self, book_ids: Vec<i64>) -> Result<(), sqlx::Error>;
+    async fn delete_book(&self, id: i64) -> Result<()>;
 }

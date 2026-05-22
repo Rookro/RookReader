@@ -1,5 +1,5 @@
 import { createContext, useCallback, useMemo, useRef, useState } from "react";
-import type { BookWithState } from "../../../types/DatabaseModels";
+import type { BookWithState } from "../../../domain/book/schema";
 
 /** Context for managing book selection state */
 interface BookSelectionContextType {

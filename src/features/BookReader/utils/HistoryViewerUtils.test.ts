@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { ReadBook } from "../../../types/DatabaseModels";
+import type { ReadBook } from "../../../domain/book/schema";
 import { andSearch } from "./HistoryViewerUtils";
 
 describe("HistoryViewerUtils", () => {

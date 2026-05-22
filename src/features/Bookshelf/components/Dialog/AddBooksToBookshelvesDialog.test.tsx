@@ -3,8 +3,8 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as BookshelfCommand from "../../../../bindings/BookshelfCommand";
+import type { Bookshelf } from "../../../../domain/bookshelf/schema";
 import { renderWithProviders } from "../../../../test/utils";
-import type { Bookshelf } from "../../../../types/DatabaseModels";
 import AddBooksToBookshelvesDialog from "./AddBooksToBookshelvesDialog";
 
 describe("AddBooksToBookshelvesDialog", () => {
