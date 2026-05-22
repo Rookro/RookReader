@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 * Refactored the system-wide architecture to Domain-Driven Design (DDD) with Zod-backed type safety to improve maintainability. (#235)
+* Implemented real-time synchronization to instantly reflect reading progress and collection changes across all windows. (#236)
 
 ### Fixed
 
