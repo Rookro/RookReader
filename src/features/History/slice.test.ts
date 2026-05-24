@@ -55,28 +55,25 @@ describe("HistoryReducer", () => {
       expect(state.recentlyReadBooks).toEqual([mockReadBook]);
     });
 
-    // Verify that book history removal is successful and state is updated
-    it("clearHistory should remove book and update state", async () => {
+    // Verify that book history removal is successful
+    it("clearHistory should update status on success", async () => {
       vi.mocked(BookCommands.clearReadingHistory).mockResolvedValue(undefined);
-      vi.mocked(BookCommands.getRecentlyReadBooks).mockResolvedValue([]);
 
       await store.dispatch(clearHistory(1));
 
       const state = store.getState().history;
       expect(state.status).toBe("succeeded");
-      expect(state.recentlyReadBooks).toEqual([]);
       expect(BookCommands.clearReadingHistory).toHaveBeenCalledWith(1);
     });
 
-    // Verify that clearing all history is successful and state is updated
-    it("clearAllHistory should clear state", async () => {
+    // Verify that clearing all history is successful
+    it("clearAllHistory should update status on success", async () => {
       vi.mocked(BookCommands.clearAllReadingHistory).mockResolvedValue(undefined);
 
       await store.dispatch(clearAllHistory());
 
       const state = store.getState().history;
       expect(state.status).toBe("succeeded");
-      expect(state.recentlyReadBooks).toEqual([]);
     });
 
     describe("Error Handling", () => {

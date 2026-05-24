@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { useAppSelector } from "../../../store/store";
 import BookReader from "../../BookReader/components/BookReader";
 import Bookshelf from "../../Bookshelf/components/Bookshelf";
+import { useHistorySync } from "../../History/hooks/useHistorySync";
 import { useSettingsChange } from "../../Settings/hooks/useSettingsChange";
 import UpdaterConfirmDialog from "../../Updater/components/UpdaterConfirmDialog";
 import UpdaterMessageDialog from "../../Updater/components/UpdaterMessageDialog";
@@ -22,6 +23,7 @@ export interface MainContentProps {
  */
 export default function MainContent({ sx }: MainContentProps) {
   useSettingsChange();
+  useHistorySync();
   const activeView = useAppSelector((state) => state.view.activeView);
   const checkUpdateOnStartup = useAppSelector(
     (state) => state.settings.startup.checkUpdateOnStartup,

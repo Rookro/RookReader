@@ -6,8 +6,6 @@ import { usePaneSizes } from "../../../hooks/usePaneSizes";
 import { useAppDispatch } from "../../../store/store";
 import { setContainerFilePath } from "../../BookReader/slice";
 import { setActiveView } from "../../MainView/slice";
-import { useBookshelves } from "../hooks/useBookshelves";
-import { useBookTags } from "../hooks/useBookTags";
 import { addBookshelf, addTag } from "../slice";
 import BookGrid from "./BookGrid";
 import { BookSelectionProvider } from "./BookSelectionContext";
@@ -25,8 +23,6 @@ export interface BookshelfProps {
 
 /** Bookshelf component */
 export default function Bookshelf({ sx }: BookshelfProps) {
-  useBookshelves();
-  useBookTags();
   const dispatch = useAppDispatch();
   const [isBookshelfDialogOpen, setIsBookshelfDialogOpen] = useState(false);
   const [isBookTagDialogOpen, setIsBookTagDialogOpen] = useState(false);

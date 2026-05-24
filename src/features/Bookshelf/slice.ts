@@ -58,11 +58,9 @@ export const addBookshelf = createAppAsyncThunk(
  */
 export const updateSeriesOrdersThunk = createAppAsyncThunk(
   "bookCollection/updateSeriesOrdersThunk",
-  async (bookIds: number[], { rejectWithValue, dispatch, getState }) => {
+  async (bookIds: number[], { rejectWithValue }) => {
     try {
       await updateSeriesOrders(bookIds);
-      const state = getState().bookCollection;
-      dispatch(fetchBooksInSelectedBookshelf(state.bookshelf.selectedId));
     } catch (e) {
       const errorMessage = `Failed to update series orders. Error: ${JSON.stringify(e)}`;
       error(errorMessage);
@@ -143,10 +141,8 @@ export const deleteBookFromCollection = createAppAsyncThunk(
     try {
       if (bookshelfId !== null) {
         await removeBookFromBookshelf(bookshelfId, bookId);
-        return await getBooksWithStateByBookshelfId(bookshelfId);
       } else {
         await deleteBook(bookId);
-        return await getAllBooksWithState();
       }
     } catch (e) {
       const errorMessage = `Failed to delete book with bookId: ${bookId}. Error: ${JSON.stringify(e)}`;
@@ -190,9 +186,6 @@ export const addBookToBookshelf = createAppAsyncThunk(
 
       if (bookshelfId !== null) {
         await addBookToBookshelfCommand(bookshelfId, bookId);
-        return await getBooksWithStateByBookshelfId(bookshelfId);
-      } else {
-        return await getAllBooksWithState();
       }
     } catch (e) {
       const errorMessage = `Failed to add book(path: ${bookPath}) to bookshelf of bookshelfId: ${bookshelfId}. Error: ${JSON.stringify(e)}`;
@@ -261,10 +254,9 @@ export const fetchTags = createAppAsyncThunk(
  */
 export const removeBookshelf = createAppAsyncThunk(
   "bookCollection/removeBookshelf",
-  async (id: number, { rejectWithValue, dispatch }) => {
+  async (id: number, { rejectWithValue }) => {
     try {
       await deleteBookshelf(id);
-      dispatch(fetchBookshelves());
       return id;
     } catch (e) {
       const errorMessage = `Failed to remove bookshelf(id: ${id}). Error: ${JSON.stringify(e)}`;
@@ -286,10 +278,9 @@ export const removeBookshelf = createAppAsyncThunk(
  */
 export const removeTag = createAppAsyncThunk(
   "bookCollection/removeTag",
-  async (id: number, { rejectWithValue, dispatch }) => {
+  async (id: number, { rejectWithValue }) => {
     try {
       await deleteTag(id);
-      dispatch(fetchTags());
       return id;
     } catch (e) {
       const errorMessage = `Failed to remove tag(id: ${id}). Error: ${JSON.stringify(e)}`;
@@ -477,9 +468,8 @@ const bookCollectionSlice = createSlice({
         state.bookshelf.status = "loading";
         state.bookshelf.error = null;
       })
-      .addCase(addBookshelf.fulfilled, (state, action) => {
+      .addCase(addBookshelf.fulfilled, (state) => {
         state.bookshelf.status = "succeeded";
-        state.bookshelf.bookshelves.push(action.payload);
         state.bookshelf.error = null;
       })
       .addCase(addBookshelf.rejected, (state, action) => {
@@ -518,9 +508,8 @@ const bookCollectionSlice = createSlice({
         state.bookshelf.status = "loading";
         state.bookshelf.error = null;
       })
-      .addCase(deleteBookFromCollection.fulfilled, (state, action) => {
+      .addCase(deleteBookFromCollection.fulfilled, (state) => {
         state.bookshelf.status = "succeeded";
-        state.bookshelf.books = action.payload;
         state.bookshelf.error = null;
       })
       .addCase(deleteBookFromCollection.rejected, (state, action) => {
@@ -531,9 +520,8 @@ const bookCollectionSlice = createSlice({
         state.bookshelf.status = "loading";
         state.bookshelf.error = null;
       })
-      .addCase(addBookToBookshelf.fulfilled, (state, action) => {
+      .addCase(addBookToBookshelf.fulfilled, (state) => {
         state.bookshelf.status = "succeeded";
-        state.bookshelf.books = action.payload;
         state.bookshelf.error = null;
       })
       .addCase(addBookToBookshelf.rejected, (state, action) => {
@@ -586,9 +574,8 @@ const bookCollectionSlice = createSlice({
         state.tag.status = "loading";
         state.tag.error = null;
       })
-      .addCase(addTag.fulfilled, (state, action) => {
+      .addCase(addTag.fulfilled, (state) => {
         state.tag.status = "succeeded";
-        state.tag.tags.push(action.payload);
         state.tag.error = null;
       })
       .addCase(addTag.rejected, (state, action) => {

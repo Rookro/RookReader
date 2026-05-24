@@ -6,7 +6,6 @@ import { useTranslation } from "react-i18next";
 import { List, type RowComponentProps, useListCallbackRef } from "react-window";
 import type { ReadBook } from "../../../../domain/book/schema";
 import { useAppDispatch, useAppSelector } from "../../../../store/store";
-import { useHistoryEntriesUpdater } from "../../../History/hooks/useHistoryEntriesUpdater";
 import SidePanelHeader from "../../../SidePane/components/SidePanelHeader";
 import { useHistorySelection } from "../../hooks/useHistorySelection";
 import { setContainerFilePath } from "../../slice";
@@ -60,7 +59,6 @@ export default function HistoryViewer() {
     return andSearch(recentlyReadBooks, searchText);
   }, [recentlyReadBooks, searchText]);
 
-  useHistoryEntriesUpdater();
   useHistorySelection(history[historyIndex], filteredEntries, setSelectedIndex);
 
   // Scroll to make the selected item visible
