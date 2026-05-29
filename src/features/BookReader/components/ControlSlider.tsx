@@ -3,7 +3,7 @@ import { CacheProvider } from "@emotion/react";
 import { Box, Slider, Stack, Typography } from "@mui/material";
 import { createTheme, type Theme, ThemeProvider } from "@mui/material/styles";
 import rtlPlugin from "@mui/stylis-plugin-rtl";
-import { useCallback, useMemo } from "react";
+import { type SyntheticEvent, useCallback, useMemo } from "react";
 import { prefixer } from "stylis";
 import { useAppTheme } from "../../../hooks/useAppTheme";
 import { useAppDispatch, useAppSelector } from "../../../store/store";
@@ -41,6 +41,21 @@ export default function ControlSlider() {
     [dispatch],
   );
 
+  const handleSliderChangeCommitted = useCallback(
+    (_event: SyntheticEvent | Event, _value: number | number[]) => {
+      // Blur the slider element once the user finishes interacting with it (dragging or clicking).
+      // This is crucial to release focus from the Slider component. If focus remains on the Slider,
+      // subsequent left/right keyboard arrow key presses are intercepted by the Slider to change its
+      // value by its step size (1 page at a time), which bypasses the reader's correct keyboard navigation
+      // logic (e.g. 2-page navigation in spread mode). Blurring allows the window keydown listener
+      // to handle subsequent keyboard events correctly.
+      if (document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+      }
+    },
+    [],
+  );
+
   return (
     <Stack
       direction="row"
@@ -59,6 +74,7 @@ export default function ControlSlider() {
             min={0}
             max={entries.length - 1}
             onChange={handleSliderValueChanged}
+            onChangeCommitted={handleSliderChangeCommitted}
             disabled={entries.length === 0}
             data-testid="control-slider"
           />
