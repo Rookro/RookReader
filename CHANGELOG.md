@@ -13,10 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Refactored the system-wide architecture to Domain-Driven Design (DDD) with Zod-backed type safety to improve maintainability. (#235)
 * Implemented real-time synchronization to instantly reflect reading progress and collection changes across all windows. (#236)
+* Optimized EPUB loading to make opening files smoother and more reliable. (#237)
 
 ### Fixed
 
 * Fixed an issue where certain app settings (startup update checks, image resizing method, and PDF rendering quality) were not saved or applied correctly. (#234)
+* Fixed an issue where keyboard page navigation would get stuck moving one page at a time after using the page progress slider. (#238)
 
 ## [2.2.0] - 2026-05-19
 
