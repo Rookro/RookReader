@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Fixed an issue where certain app settings (startup update checks, image resizing method, and PDF rendering quality) were not saved or applied correctly. (#234)
 * Fixed an issue where keyboard page navigation would get stuck moving one page at a time after using the page progress slider. (#238)
+* Fixed an issue where the bookshelf scroll position would unexpectedly reset or jump when typing in the search bar, resizing the window, or when collection data updated in the background. (#239)
 
 ## [2.2.0] - 2026-05-19
 
