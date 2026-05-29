@@ -112,6 +112,7 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
   } = useAppSelector(selectBookGridState);
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const hasAutoScrolledRef = useRef(false);
   const containerWidth = useResizeObserver(containerRef);
   const [focusedIndex, setFocusedIndex] = useState<number>(-1);
 
@@ -224,6 +225,13 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
     }
   }, [activeView, clearSelection]);
 
+  // Reset auto-scroll flag when leaving the bookshelf view
+  useEffect(() => {
+    if (activeView !== "bookshelf") {
+      hasAutoScrolledRef.current = false;
+    }
+  }, [activeView]);
+
   const handleBookClick = useCallback(
     (book: BookWithState, e: React.MouseEvent | React.KeyboardEvent) => {
       // For selection logic, we only care about books in the current filtered list
@@ -264,7 +272,12 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
 
   // Scroll to make the selected item visible
   useEffect(() => {
-    if (filteredSortedItems.length === 0 || !grid) {
+    if (
+      filteredSortedItems.length === 0 ||
+      !grid ||
+      activeView !== "bookshelf" ||
+      hasAutoScrolledRef.current
+    ) {
       return;
     }
 
@@ -274,12 +287,9 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
     const timerId = setTimeout(() => {
       try {
         if (readingBookIndex === -1) {
-          debug("Scrolling to top.");
-          grid.scrollToCell({
-            behavior: "instant",
-            columnIndex: 0,
-            rowIndex: 0,
-          });
+          // If there is no reading book in the current grid, mark the auto-scroll
+          // session as complete without scrolling. This prevents sudden resets.
+          hasAutoScrolledRef.current = true;
         } else {
           debug(`Scrolling to cell ${readingBookIndex}.`);
           grid.scrollToCell({
@@ -289,6 +299,7 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
             columnIndex: readingBookIndex % columnCount,
             rowIndex: Math.floor(readingBookIndex / columnCount),
           });
+          hasAutoScrolledRef.current = true;
         }
       } catch (e) {
         error(`Failed to scroll to cell ${readingBookIndex}: ${e}`);
@@ -298,7 +309,7 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
     return () => {
       clearTimeout(timerId);
     };
-  }, [readingBookIndex, filteredSortedItems, grid, columnCount]);
+  }, [readingBookIndex, filteredSortedItems, grid, columnCount, activeView]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
