@@ -7,7 +7,7 @@ import { debug, trace } from "@tauri-apps/plugin-log";
  * @param data - The data to check.
  * @returns True if the data is likely too large to be logged, false otherwise.
  */
-function isLikelyTooLargeStrinct(data: unknown): boolean {
+function isLikelyTooLargeStrict(data: unknown): boolean {
   if (Array.isArray(data) && data.length > 10) {
     return true;
   }
@@ -24,7 +24,7 @@ function isLikelyTooLargeStrinct(data: unknown): boolean {
       }
 
       const prop = (data as Record<string, unknown>)[key];
-      if (prop && typeof prop === "object" && isLikelyTooLargeStrinct(prop)) {
+      if (prop && typeof prop === "object" && isLikelyTooLargeStrict(prop)) {
         return true;
       }
     }
@@ -35,7 +35,7 @@ function isLikelyTooLargeStrinct(data: unknown): boolean {
 
 export const loggerMiddleware: Middleware = (store) => (next) => (action: unknown) => {
   if (typeof action === "object" && action !== null && "type" in action && "payload" in action) {
-    if (isLikelyTooLargeStrinct(action.payload)) {
+    if (isLikelyTooLargeStrict(action.payload)) {
       debug(`Dispatching action. type:${action.type}}, payload: Large Object(Suppressed)`);
       trace(`Dispatching action. type:${action.type}}, payload:${JSON.stringify(action.payload)}`);
     } else {
