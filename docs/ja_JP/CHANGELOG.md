@@ -9,6 +9,8 @@
 
 ## [Unreleased]
 
+## [2.2.1] - 2026-06-01
+
 ### Changed
 
 * 保守性と型安全性の向上のため、システム全体をDDD（ドメイン駆動設計）ベースのアーキテクチャとZodスキーマへ刷新 (#235)
@@ -377,7 +379,8 @@
 * 自動見開き表示機能の追加 (#4)
 * ホイールの上下によるページ送り機能を追加 (#5)
 
-[unreleased]: https://github.com/Rookro/RookReader/compare/v2.2.0...HEAD
+[unreleased]: https://github.com/Rookro/RookReader/compare/v2.2.1...HEAD
+[2.2.1]: https://github.com/Rookro/RookReader/compare/v2.2.0...v2.2.1
 [2.2.0]: https://github.com/Rookro/RookReader/compare/v2.1.1...v2.2.0
 [2.1.1]: https://github.com/Rookro/RookReader/compare/v2.1.0...v2.1.1
 [2.1.0]: https://github.com/Rookro/RookReader/compare/v2.0.3...v2.1.0
