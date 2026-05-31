@@ -17,8 +17,6 @@ describe("BookshelfActionsContext", () => {
   it("should return context when used within BookshelfActionsProvider", () => {
     const mockActions = {
       openDialog: vi.fn(),
-      refreshBookshelf: vi.fn(),
-      refreshSeries: vi.fn(),
     };
 
     const { result } = renderHook(() => useBookshelfActions(), {

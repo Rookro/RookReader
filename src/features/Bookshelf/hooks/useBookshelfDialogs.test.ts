@@ -1,6 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import type { BookWithState } from "../../../types/DatabaseModels";
+import type { BookWithState } from "../../../domain/book/schema";
 import { useBookshelfDialogs } from "./useBookshelfDialogs";
 
 describe("useBookshelfDialogs", () => {
@@ -16,7 +16,7 @@ describe("useBookshelfDialogs", () => {
       thumbnail_path: null,
       last_read_page_index: null,
       last_opened_at: null,
-      tag_ids_str: null,
+      tag_ids: [],
     },
     {
       id: 2,
@@ -29,7 +29,7 @@ describe("useBookshelfDialogs", () => {
       thumbnail_path: null,
       last_read_page_index: null,
       last_opened_at: null,
-      tag_ids_str: null,
+      tag_ids: [],
     },
   ];
 

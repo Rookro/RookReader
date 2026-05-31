@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import type { BookWithState } from "../../../types/DatabaseModels";
+import type { BookWithState } from "../../../domain/book/schema";
 import type { GridItem } from "../components/BookGridCell";
 
 /**

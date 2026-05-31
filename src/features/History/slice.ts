@@ -5,8 +5,8 @@ import {
   clearReadingHistory,
   getRecentlyReadBooks,
 } from "../../bindings/BookCommands";
+import type { ReadBook } from "../../domain/book/schema";
 import { createAppAsyncThunk } from "../../types/CustomAsyncThunk";
-import type { ReadBook } from "../../types/DatabaseModels";
 import { CommandError, ErrorCode } from "../../types/Error";
 
 /**
@@ -42,7 +42,6 @@ export const clearHistory = createAppAsyncThunk(
   async (bookId: number, { rejectWithValue }) => {
     try {
       await clearReadingHistory(bookId);
-      return await getRecentlyReadBooks();
     } catch (e) {
       const errorMessage = `Failed to clear history of ${bookId}. Error: ${JSON.stringify(e)}`;
       error(errorMessage);
@@ -114,9 +113,8 @@ const historySlice = createSlice({
         state.status = "loading";
         state.error = null;
       })
-      .addCase(clearHistory.fulfilled, (state, action) => {
+      .addCase(clearHistory.fulfilled, (state) => {
         state.status = "succeeded";
-        state.recentlyReadBooks = action.payload;
         state.error = null;
       })
       .addCase(clearHistory.rejected, (state, action) => {

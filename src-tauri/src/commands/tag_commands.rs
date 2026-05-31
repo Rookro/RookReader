@@ -1,7 +1,9 @@
 use std::sync::Arc;
+use tauri::Emitter;
 use tauri::State;
 
-use crate::database::tag::{Tag, TagRepository};
+use crate::domain::tag::entity::Tag;
+use crate::domain::tag::repository::TagRepository;
 use crate::error::Result;
 
 /// Creates a new tag and returns its complete entity.
@@ -21,13 +23,16 @@ use crate::error::Result;
 /// This function will return an `Err` if the underlying repository operation fails
 /// (e.g., due to a database error, connection issue, or query execution failure).
 #[tauri::command]
-pub async fn create_tag(
+pub async fn create_tag<R: tauri::Runtime>(
     name: String,
     color_code: String,
     repo: State<'_, Arc<dyn TagRepository>>,
+    app: tauri::AppHandle<R>,
 ) -> Result<Tag> {
     log::debug!("Create tag. (name:{}, color_code:{})", name, color_code);
-    Ok(repo.create(&name, &color_code).await?)
+    let tag = repo.create(&name, &color_code).await?;
+    app.emit("history-changed", ())?;
+    Ok(tag)
 }
 
 /// Retrieves all tags from the database.
@@ -47,7 +52,7 @@ pub async fn create_tag(
 #[tauri::command]
 pub async fn get_all_tags(repo: State<'_, Arc<dyn TagRepository>>) -> Result<Vec<Tag>> {
     log::debug!("Get all tags.");
-    Ok(repo.get_all().await?)
+    repo.get_all().await
 }
 
 /// Deletes a tag from the database.
@@ -61,15 +66,21 @@ pub async fn get_all_tags(repo: State<'_, Arc<dyn TagRepository>>) -> Result<Vec
 ///
 /// This function will return an `Err` if the underlying repository operation fails.
 #[tauri::command]
-pub async fn delete_tag(id: i64, repo: State<'_, Arc<dyn TagRepository>>) -> Result<()> {
+pub async fn delete_tag<R: tauri::Runtime>(
+    id: i64,
+    repo: State<'_, Arc<dyn TagRepository>>,
+    app: tauri::AppHandle<R>,
+) -> Result<()> {
     log::debug!("Delete tag. (id:{})", id);
-    Ok(repo.delete(id).await?)
+    repo.delete(id).await?;
+    app.emit("history-changed", ())?;
+    Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::database::tag::MockTagRepository;
+    use crate::domain::tag::repository::MockTagRepository;
     use crate::error::ErrorCode;
     use tauri::Manager;
 
@@ -95,7 +106,13 @@ mod tests {
         app.manage(Arc::new(mock_repo) as Arc<dyn TagRepository>);
         let state = app.state::<Arc<dyn TagRepository>>();
 
-        let result = create_tag("tag1".to_string(), "#FF0000".to_string(), state).await;
+        let result = create_tag(
+            "tag1".to_string(),
+            "#FF0000".to_string(),
+            state,
+            app.handle().clone(),
+        )
+        .await;
         assert!(result.is_ok());
         let tag = result.unwrap();
         assert_eq!(tag.id, 1);
@@ -145,7 +162,7 @@ mod tests {
         app.manage(Arc::new(mock_repo) as Arc<dyn TagRepository>);
         let state = app.state::<Arc<dyn TagRepository>>();
 
-        let result = delete_tag(1, state).await;
+        let result = delete_tag(1, state, app.handle().clone()).await;
         assert!(result.is_ok());
     }
 
@@ -154,13 +171,19 @@ mod tests {
         let mut mock_repo = MockTagRepository::new();
         mock_repo
             .expect_create()
-            .returning(|_, _| Err(sqlx::Error::RowNotFound));
+            .returning(|_, _| Err(crate::error::Error::Database(sqlx::Error::RowNotFound)));
 
         let app = tauri::test::mock_app();
         app.manage(Arc::new(mock_repo) as Arc<dyn TagRepository>);
         let state = app.state::<Arc<dyn TagRepository>>();
 
-        let result = create_tag("fail".to_string(), "fail".to_string(), state).await;
+        let result = create_tag(
+            "fail".to_string(),
+            "fail".to_string(),
+            state,
+            app.handle().clone(),
+        )
+        .await;
         assert!(result.is_err());
         let e = result.unwrap_err();
         let error_code: ErrorCode = (&e).into();

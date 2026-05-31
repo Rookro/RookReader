@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { Series } from "../types/DatabaseModels";
+import type { Series } from "../domain/series/schema";
 import { createCommandError } from "../types/Error";
 
 /**

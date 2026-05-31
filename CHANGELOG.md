@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.1] - 2026-06-01
+
+### Changed
+
+* Refactored the system-wide architecture to Domain-Driven Design (DDD) with Zod-backed type safety to improve maintainability. (#235)
+* Implemented real-time synchronization to instantly reflect reading progress and collection changes across all windows. (#236)
+* Optimized EPUB loading to make opening files smoother and more reliable. (#237)
+
+### Fixed
+
+* Fixed an issue where certain app settings (startup update checks, image resizing method, and PDF rendering quality) were not saved or applied correctly. (#234)
+* Fixed an issue where keyboard page navigation would get stuck moving one page at a time after using the page progress slider. (#238)
+* Fixed an issue where the bookshelf scroll position would unexpectedly reset or jump when typing in the search bar, resizing the window, or when collection data updated in the background. (#239)
+
 ## [2.2.0] - 2026-05-19
 
 ### Added
@@ -365,7 +379,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Add an automatic two-page spread display feature (#4)
 * Add a page navigation feature using the mouse wheel up/down (#5)
 
-[unreleased]: https://github.com/Rookro/RookReader/compare/v2.2.0...HEAD
+[unreleased]: https://github.com/Rookro/RookReader/compare/v2.2.1...HEAD
+[2.2.1]: https://github.com/Rookro/RookReader/compare/v2.2.0...v2.2.1
 [2.2.0]: https://github.com/Rookro/RookReader/compare/v2.1.1...v2.2.0
 [2.1.1]: https://github.com/Rookro/RookReader/compare/v2.1.0...v2.1.1
 [2.1.0]: https://github.com/Rookro/RookReader/compare/v2.0.3...v2.1.0

@@ -1,7 +1,7 @@
 import { CollectionsBookmark, Delete, LibraryBooks, LocalOffer } from "@mui/icons-material";
 import { Divider, ListItemIcon, ListItemText, Menu, MenuItem } from "@mui/material";
 import { useTranslation } from "react-i18next";
-import type { BookWithState } from "../../../types/DatabaseModels";
+import type { BookWithState } from "../../../domain/book/schema";
 import { useBookshelfActions } from "./BookshelfActionsContext";
 
 export interface BookContextMenuProps {

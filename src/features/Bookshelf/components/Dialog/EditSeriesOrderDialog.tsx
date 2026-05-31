@@ -17,8 +17,8 @@ import {
 import { Button, Dialog, DialogActions, DialogContent, DialogTitle, List } from "@mui/material";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import type { BookWithState } from "../../../../domain/book/schema";
 import { useAppDispatch } from "../../../../store/store";
-import type { BookWithState } from "../../../../types/DatabaseModels";
 import { updateSeriesOrdersThunk } from "../../slice";
 import SortableBookItem from "./SortableBookItem";
 

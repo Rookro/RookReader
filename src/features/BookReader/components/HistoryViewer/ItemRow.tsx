@@ -11,8 +11,8 @@ import {
 } from "@mui/material";
 import { type CSSProperties, memo, useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
+import type { ReadBook } from "../../../../domain/book/schema";
 import { useAppDispatch } from "../../../../store/store";
-import type { ReadBook } from "../../../../types/DatabaseModels";
 import { clearHistory } from "../../../History/slice";
 
 /**

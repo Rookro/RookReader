@@ -1,6 +1,8 @@
 import { memo, useMemo } from "react";
 import type { CellComponentProps } from "react-window";
-import type { BookWithState, Series, Tag } from "../../../types/DatabaseModels";
+import type { BookWithState } from "../../../domain/book/schema";
+import type { Series } from "../../../domain/series/schema";
+import type { Tag } from "../../../domain/tag/schema";
 import BookCard from "./BookCard";
 import SeriesCard from "./SeriesCard";
 

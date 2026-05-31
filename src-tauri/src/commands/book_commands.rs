@@ -4,6 +4,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use pdfium_render::prelude::PdfRenderConfig;
+use tauri::Emitter;
 use tauri::Manager;
 use tauri::State;
 
@@ -12,7 +13,11 @@ use crate::container::{
     directory_container::DirectoryContainer, epub_container::EpubContainer,
     pdf_container::PdfContainer, rar_container::RarContainer, zip_container::ZipContainer,
 };
-use crate::database::book::{Book, BookRepository, BookWithState, ReadBook, ReadingState};
+use crate::domain::book::entity::{Book, BookWithState, ReadBook, ReadingState};
+use crate::domain::book::repository::BookRepository;
+use crate::domain::bookshelf::repository::BookshelfRepository;
+use crate::domain::series::repository::SeriesRepository;
+use crate::domain::tag::repository::TagRepository;
 use crate::error::{Error, Result};
 use crate::state::app_state::AppState;
 
@@ -35,7 +40,7 @@ use crate::state::app_state::AppState;
 #[tauri::command]
 pub async fn get_book(id: i64, repo: State<'_, Arc<dyn BookRepository>>) -> Result<Option<Book>> {
     log::debug!("Get book by id({}).", id);
-    Ok(repo.get_by_id(id).await?)
+    repo.get_by_id(id).await
 }
 
 /// Retrieves a book by its unique file path.
@@ -60,7 +65,7 @@ pub async fn get_book_by_path(
     repo: State<'_, Arc<dyn BookRepository>>,
 ) -> Result<Option<Book>> {
     log::debug!("Get book by path({}).", file_path);
-    Ok(repo.get_by_path(&file_path).await?)
+    repo.get_by_path(&file_path).await
 }
 
 /// Retrieves a book along with its reading state by its unique ID.
@@ -86,7 +91,7 @@ pub async fn get_book_with_state_by_id(
     repo: State<'_, Arc<dyn BookRepository>>,
 ) -> Result<Option<BookWithState>> {
     log::debug!("Get book with state by id({}).", id);
-    Ok(repo.get_book_with_state_by_id(id).await?)
+    repo.get_book_with_state_by_id(id).await
 }
 
 /// Registers a book or returns its ID if it already exists, without updating reading state.
@@ -103,14 +108,14 @@ pub async fn get_book_with_state_by_id(
 ///
 /// # Returns
 ///
-/// A `Result` containing the ID of the upserted book.
+/// A `Result` containing the ID of the registered book.
 ///
 /// # Errors
 ///
 /// This function will return an `Err` if the underlying repository operation fails
 /// (e.g., due to a database error, connection issue, or query execution failure).
 #[tauri::command]
-pub async fn upsert_book<R: tauri::Runtime>(
+pub async fn register_book<R: tauri::Runtime>(
     file_path: String,
     item_type: String,
     display_name: String,
@@ -120,7 +125,7 @@ pub async fn upsert_book<R: tauri::Runtime>(
     state: State<'_, RwLock<AppState>>,
 ) -> Result<i64> {
     log::debug!(
-        "Upsert the book: (file_path: {}, item_type: {}, display_name: {}, total_pages: {})",
+        "Register the book: (file_path: {}, item_type: {}, display_name: {}, total_pages: {})",
         file_path,
         item_type,
         display_name,
@@ -155,25 +160,29 @@ pub async fn upsert_book<R: tauri::Runtime>(
     };
 
     let thumbnail_path =
-        generate_and_save_thumbnail(app, file_path.clone(), pdfium_path, container)
+        generate_and_save_thumbnail(app.clone(), file_path.clone(), pdfium_path, container)
             .await
             .unwrap_or_else(|e| {
                 log::warn!("Thumbnail of {} generation failed: {}", file_path, e);
                 None
             });
 
-    Ok(repo
-        .upsert_book(
+    let book_id = repo
+        .register_book(
             &file_path,
             &item_type,
             &display_name,
             total_pages,
             thumbnail_path,
         )
-        .await?)
+        .await?;
+
+    app.emit("history-changed", ())?;
+
+    Ok(book_id)
 }
 
-/// Registers a book when opened, or updates its last opened time if it already exists.
+/// Records the event of a book being opened, updating its last opened time.
 ///
 /// # Arguments
 ///
@@ -187,14 +196,14 @@ pub async fn upsert_book<R: tauri::Runtime>(
 ///
 /// # Returns
 ///
-/// A `Result` containing the ID of the upserted read book
+/// A `Result` containing the ID of the book.
 ///
 /// # Errors
 ///
 /// This function will return an `Err` if the underlying repository operation fails
 /// (e.g., due to a database error, connection issue, or query execution failure).
 #[tauri::command]
-pub async fn upsert_read_book<R: tauri::Runtime>(
+pub async fn record_book_opened<R: tauri::Runtime>(
     file_path: String,
     item_type: String,
     display_name: String,
@@ -204,7 +213,7 @@ pub async fn upsert_read_book<R: tauri::Runtime>(
     state: State<'_, RwLock<AppState>>,
 ) -> Result<i64> {
     log::debug!(
-        "Upsert the read book: (file_path: {}, item_type: {}, display_name: {}, total_pages: {})",
+        "Record book opened: (file_path: {}, item_type: {}, display_name: {}, total_pages: {})",
         file_path,
         item_type,
         display_name,
@@ -239,22 +248,26 @@ pub async fn upsert_read_book<R: tauri::Runtime>(
     };
 
     let thumbnail_path =
-        generate_and_save_thumbnail(app, file_path.clone(), pdfium_path, container)
+        generate_and_save_thumbnail(app.clone(), file_path.clone(), pdfium_path, container)
             .await
             .unwrap_or_else(|e| {
                 log::warn!("Thumbnail of {} generation failed: {}", file_path, e);
                 None
             });
 
-    Ok(repo
-        .upsert_read_book(
+    let book_id = repo
+        .record_book_opened(
             &file_path,
             &item_type,
             &display_name,
             total_pages,
             thumbnail_path,
         )
-        .await?)
+        .await?;
+
+    app.emit("history-changed", ())?;
+
+    Ok(book_id)
 }
 
 /// Clears the reading history for a specific book.
@@ -263,18 +276,22 @@ pub async fn upsert_read_book<R: tauri::Runtime>(
 ///
 /// * `book_id` - The unique identifier of the book.
 /// * `repo` - The managed book repository state.
+/// * `app` - The Tauri AppHandle.
 ///
 /// # Errors
 ///
 /// This function will return an `Err` if the underlying repository operation fails
 /// (e.g., due to a database error, connection issue, or query execution failure).
 #[tauri::command]
-pub async fn clear_reading_history(
+pub async fn clear_reading_history<R: tauri::Runtime>(
     book_id: i64,
     repo: State<'_, Arc<dyn BookRepository>>,
+    app: tauri::AppHandle<R>,
 ) -> Result<()> {
     log::debug!("Clear reading history of {:?}", book_id);
-    Ok(repo.clear_reading_history(book_id).await?)
+    repo.clear_reading_history(book_id).await?;
+    app.emit("history-changed", ())?;
+    Ok(())
 }
 
 /// Clears the reading history for all books in the library.
@@ -282,35 +299,45 @@ pub async fn clear_reading_history(
 /// # Arguments
 ///
 /// * `repo` - The managed book repository state.
+/// * `app` - The Tauri AppHandle.
 ///
 /// # Errors
 ///
 /// This function will return an `Err` if the underlying repository operation fails
 /// (e.g., due to a database error, connection issue, or query execution failure).
 #[tauri::command]
-pub async fn clear_all_reading_history(repo: State<'_, Arc<dyn BookRepository>>) -> Result<()> {
+pub async fn clear_all_reading_history<R: tauri::Runtime>(
+    repo: State<'_, Arc<dyn BookRepository>>,
+    app: tauri::AppHandle<R>,
+) -> Result<()> {
     log::debug!("Clear all reading history");
-    Ok(repo.clear_all_reading_history().await?)
+    repo.clear_all_reading_history().await?;
+    app.emit("history-changed", ())?;
+    Ok(())
 }
 
-/// Updates or inserts the reading state for a book.
+/// Updates the reading progress/state for a book.
 ///
 /// # Arguments
 ///
 /// * `state_data` - The `ReadingState` object sent from the frontend.
 /// * `repo` - The managed book repository state.
+/// * `app` - The Tauri AppHandle.
 ///
 /// # Errors
 ///
 /// This function will return an `Err` if the underlying repository operation fails
 /// (e.g., due to a database error, connection issue, or query execution failure).
 #[tauri::command]
-pub async fn upsert_reading_state(
+pub async fn update_reading_progress<R: tauri::Runtime>(
     state_data: ReadingState,
     repo: State<'_, Arc<dyn BookRepository>>,
+    app: tauri::AppHandle<R>,
 ) -> Result<()> {
-    log::debug!("Upsert reading state: {:?}", state_data);
-    Ok(repo.upsert_reading_state(&state_data).await?)
+    log::debug!("Update reading progress: {:?}", state_data);
+    repo.update_reading_progress(&state_data).await?;
+    app.emit("history-changed", ())?;
+    Ok(())
 }
 
 /// Retrieves recently read books, ordered by the most recently opened.
@@ -334,7 +361,7 @@ pub async fn get_recently_read_books(
     repo: State<'_, Arc<dyn BookRepository>>,
 ) -> Result<Vec<ReadBook>> {
     log::debug!("Get recently read books(limit: {:?}).", limit);
-    Ok(repo.get_recently_read_books(limit).await?)
+    repo.get_recently_read_books(limit).await
 }
 
 /// Retrieves all books, including their reading states.
@@ -356,7 +383,7 @@ pub async fn get_all_books_with_state(
     repo: State<'_, Arc<dyn BookRepository>>,
 ) -> Result<Vec<BookWithState>> {
     log::debug!("Get all books with state.");
-    Ok(repo.get_all_books_with_state().await?)
+    repo.get_all_books_with_state().await
 }
 
 /// Retrieves all books contained within a specific bookshelf, including their reading states.
@@ -377,12 +404,10 @@ pub async fn get_all_books_with_state(
 #[tauri::command]
 pub async fn get_books_with_state_by_bookshelf_id(
     bookshelf_id: i64,
-    repo: State<'_, Arc<dyn BookRepository>>,
+    repo: State<'_, Arc<dyn BookshelfRepository>>,
 ) -> Result<Vec<BookWithState>> {
     log::debug!("Get books with state by bookshelf id({:?}).", bookshelf_id);
-    Ok(repo
-        .get_books_with_state_by_bookshelf_id(bookshelf_id)
-        .await?)
+    repo.get_books_by_bookshelf(bookshelf_id).await
 }
 
 /// Retrieves all books associated with a specific tag, including their reading states.
@@ -390,7 +415,7 @@ pub async fn get_books_with_state_by_bookshelf_id(
 /// # Arguments
 ///
 /// * `tag_id` - The unique identifier of the tag to filter by.
-/// * `repo` - The managed book repository state.
+/// * `repo` - The managed tag repository state.
 ///
 /// # Returns
 ///
@@ -403,10 +428,10 @@ pub async fn get_books_with_state_by_bookshelf_id(
 #[tauri::command]
 pub async fn get_books_with_state_by_tag_id(
     tag_id: i64,
-    repo: State<'_, Arc<dyn BookRepository>>,
+    repo: State<'_, Arc<dyn TagRepository>>,
 ) -> Result<Vec<BookWithState>> {
     log::debug!("Get books with state by tag id({:?}).", tag_id);
-    Ok(repo.get_books_with_state_by_tag_id(tag_id).await?)
+    repo.get_books_by_tag(tag_id).await
 }
 
 /// Retrieves all books belonging to a specific series, including their reading states.
@@ -427,10 +452,10 @@ pub async fn get_books_with_state_by_tag_id(
 #[tauri::command]
 pub async fn get_books_with_state_by_series_id(
     series_id: i64,
-    repo: State<'_, Arc<dyn BookRepository>>,
+    repo: State<'_, Arc<dyn SeriesRepository>>,
 ) -> Result<Vec<BookWithState>> {
     log::debug!("Get books with state by series id({:?}).", series_id);
-    Ok(repo.get_books_with_state_by_series_id(series_id).await?)
+    repo.get_books_by_series(series_id).await
 }
 
 /// Retrieves the IDs of all tags associated with a specific book.
@@ -438,7 +463,7 @@ pub async fn get_books_with_state_by_series_id(
 /// # Arguments
 ///
 /// * `book_id` - The unique identifier of the book.
-/// * `repo` - The managed book repository state.
+/// * `repo` - The managed tag repository state.
 ///
 /// # Returns
 ///
@@ -451,10 +476,10 @@ pub async fn get_books_with_state_by_series_id(
 #[tauri::command]
 pub async fn get_book_tags(
     book_id: i64,
-    repo: State<'_, Arc<dyn BookRepository>>,
+    repo: State<'_, Arc<dyn TagRepository>>,
 ) -> Result<Vec<i64>> {
     log::debug!("Get book tags of {:?}.", book_id);
-    Ok(repo.get_book_tags(book_id).await?)
+    repo.get_tags_for_book(book_id).await
 }
 
 /// Updates the tags associated with a specific book.
@@ -470,17 +495,20 @@ pub async fn get_book_tags(
 /// This function will return an `Err` if the underlying repository operation fails
 /// (e.g., due to a database error, connection issue, or query execution failure).
 #[tauri::command]
-pub async fn update_book_tags(
+pub async fn update_book_tags<R: tauri::Runtime>(
     book_id: i64,
     tag_ids: Vec<i64>,
-    repo: State<'_, Arc<dyn BookRepository>>,
+    repo: State<'_, Arc<dyn TagRepository>>,
+    app: tauri::AppHandle<R>,
 ) -> Result<()> {
     log::debug!(
         "Update book tags. (book id:{:?}, tag ids:{:?})",
         book_id,
         tag_ids
     );
-    Ok(repo.update_book_tags(book_id, &tag_ids).await?)
+    repo.attach_tags_to_book(book_id, &tag_ids).await?;
+    app.emit("history-changed", ())?;
+    Ok(())
 }
 
 /// Deletes a book by its unique ID.
@@ -489,14 +517,21 @@ pub async fn update_book_tags(
 ///
 /// * `id` - The unique identifier of the book to delete.
 /// * `repo` - The managed book repository state.
+/// * `app` - The Tauri AppHandle.
 ///
 /// # Errors
 ///
 /// This function will return an `Err` if the underlying repository operation fails.
 #[tauri::command]
-pub async fn delete_book(id: i64, repo: State<'_, Arc<dyn BookRepository>>) -> Result<()> {
+pub async fn delete_book<R: tauri::Runtime>(
+    id: i64,
+    repo: State<'_, Arc<dyn BookRepository>>,
+    app: tauri::AppHandle<R>,
+) -> Result<()> {
     log::debug!("Delete book by id({}).", id);
-    Ok(repo.delete_book(id).await?)
+    repo.delete_book(id).await?;
+    app.emit("history-changed", ())?;
+    Ok(())
 }
 
 /// Updates the series associated with a specific book.
@@ -505,23 +540,26 @@ pub async fn delete_book(id: i64, repo: State<'_, Arc<dyn BookRepository>>) -> R
 ///
 /// * `book_id` - The unique identifier of the book.
 /// * `series_id` - The unique identifier of the series to associate with the book, or `None` to remove.
-/// * `repo` - The managed book repository state.
+/// * `repo` - The managed series repository state.
 ///
 /// # Errors
 ///
 /// This function will return an `Err` if the underlying repository operation fails.
 #[tauri::command]
-pub async fn update_book_series(
+pub async fn update_book_series<R: tauri::Runtime>(
     book_id: i64,
     series_id: Option<i64>,
-    repo: State<'_, Arc<dyn BookRepository>>,
+    repo: State<'_, Arc<dyn SeriesRepository>>,
+    app: tauri::AppHandle<R>,
 ) -> Result<()> {
     log::debug!(
         "Update book series. (book id:{:?}, series id:{:?})",
         book_id,
         series_id
     );
-    Ok(repo.update_book_series(book_id, series_id).await?)
+    repo.assign_book_to_series(book_id, series_id).await?;
+    app.emit("history-changed", ())?;
+    Ok(())
 }
 
 /// Updates the `series_order` for a given list of book IDs.
@@ -529,18 +567,21 @@ pub async fn update_book_series(
 /// # Arguments
 ///
 /// * `book_ids` - A list of book IDs in the desired order.
-/// * `repo` - The managed book repository state.
+/// * `repo` - The managed series repository state.
 ///
 /// # Errors
 ///
 /// This function will return an `Err` if the underlying repository operation fails.
 #[tauri::command]
-pub async fn update_series_orders(
+pub async fn update_series_orders<R: tauri::Runtime>(
     book_ids: Vec<i64>,
-    repo: State<'_, Arc<dyn BookRepository>>,
+    repo: State<'_, Arc<dyn SeriesRepository>>,
+    app: tauri::AppHandle<R>,
 ) -> Result<()> {
     log::debug!("Update series orders for books: {:?}", book_ids);
-    Ok(repo.update_series_orders(book_ids).await?)
+    repo.update_book_orders_in_series(book_ids).await?;
+    app.emit("history-changed", ())?;
+    Ok(())
 }
 
 /// Helper function to generate and save a thumbnail for a given file path.
@@ -634,7 +675,10 @@ async fn generate_and_save_thumbnail<R: tauri::Runtime>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::database::book::MockBookRepository;
+    use crate::domain::book::repository::MockBookRepository;
+    use crate::domain::bookshelf::repository::MockBookshelfRepository;
+    use crate::domain::series::repository::MockSeriesRepository;
+    use crate::domain::tag::repository::MockTagRepository;
     use crate::error::ErrorCode;
     use tauri::Manager;
 
@@ -731,43 +775,43 @@ mod tests {
 
         let app = tauri::test::mock_app();
         app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
-        let state = app.state::<Arc<dyn BookRepository>>();
+        let repo = app.state::<Arc<dyn BookRepository>>();
 
-        let result = delete_book(1, state).await;
+        let result = delete_book(1, repo, app.handle().clone()).await;
         assert!(result.is_ok());
     }
 
     #[tokio::test]
     async fn test_update_book_series() {
-        let mut mock_repo = MockBookRepository::new();
+        let mut mock_repo = MockSeriesRepository::new();
         mock_repo
-            .expect_update_book_series()
+            .expect_assign_book_to_series()
             .with(mockall::predicate::eq(1), mockall::predicate::eq(Some(10)))
             .times(1)
             .returning(|_, _| Ok(()));
 
         let app = tauri::test::mock_app();
-        app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
-        let state = app.state::<Arc<dyn BookRepository>>();
+        app.manage(Arc::new(mock_repo) as Arc<dyn SeriesRepository>);
+        let repo = app.state::<Arc<dyn SeriesRepository>>();
 
-        let result = update_book_series(1, Some(10), state).await;
+        let result = update_book_series(1, Some(10), repo, app.handle().clone()).await;
         assert!(result.is_ok());
     }
 
     #[tokio::test]
     async fn test_update_series_orders() {
-        let mut mock_repo = MockBookRepository::new();
+        let mut mock_repo = MockSeriesRepository::new();
         mock_repo
-            .expect_update_series_orders()
+            .expect_update_book_orders_in_series()
             .with(mockall::predicate::eq(vec![1, 2, 3]))
             .times(1)
             .returning(|_| Ok(()));
 
         let app = tauri::test::mock_app();
-        app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
-        let state = app.state::<Arc<dyn BookRepository>>();
+        app.manage(Arc::new(mock_repo) as Arc<dyn SeriesRepository>);
+        let repo = app.state::<Arc<dyn SeriesRepository>>();
 
-        let result = update_series_orders(vec![1, 2, 3], state).await;
+        let result = update_series_orders(vec![1, 2, 3], repo, app.handle().clone()).await;
         assert!(result.is_ok());
     }
 
@@ -782,9 +826,9 @@ mod tests {
 
         let app = tauri::test::mock_app();
         app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
-        let state = app.state::<Arc<dyn BookRepository>>();
+        let repo = app.state::<Arc<dyn BookRepository>>();
 
-        let result = clear_reading_history(1, state).await;
+        let result = clear_reading_history(1, repo, app.handle().clone()).await;
         assert!(result.is_ok());
     }
 
@@ -798,24 +842,24 @@ mod tests {
 
         let app = tauri::test::mock_app();
         app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
-        let state = app.state::<Arc<dyn BookRepository>>();
+        let repo = app.state::<Arc<dyn BookRepository>>();
 
-        let result = clear_all_reading_history(state).await;
+        let result = clear_all_reading_history(repo, app.handle().clone()).await;
         assert!(result.is_ok());
     }
 
     #[tokio::test]
     async fn test_get_book_tags() {
-        let mut mock_repo = MockBookRepository::new();
+        let mut mock_repo = MockTagRepository::new();
         mock_repo
-            .expect_get_book_tags()
+            .expect_get_tags_for_book()
             .with(mockall::predicate::eq(1))
             .times(1)
             .returning(|_| Ok(vec![1, 2, 3]));
 
         let app = tauri::test::mock_app();
-        app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
-        let state = app.state::<Arc<dyn BookRepository>>();
+        app.manage(Arc::new(mock_repo) as Arc<dyn TagRepository>);
+        let state = app.state::<Arc<dyn TagRepository>>();
 
         let result = get_book_tags(1, state).await;
         assert!(result.is_ok());
@@ -844,6 +888,7 @@ mod tests {
                     last_read_page_index: Some(5),
                     last_opened_at: None,
                     tag_ids_str: None,
+                    tag_ids: vec![],
                 }))
             });
 
@@ -893,16 +938,16 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_books_with_state_by_bookshelf_id() {
-        let mut mock_repo = MockBookRepository::new();
+        let mut mock_repo = MockBookshelfRepository::new();
         mock_repo
-            .expect_get_books_with_state_by_bookshelf_id()
+            .expect_get_books_by_bookshelf()
             .with(mockall::predicate::eq(1))
             .times(1)
             .returning(|_| Ok(vec![]));
 
         let app = tauri::test::mock_app();
-        app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
-        let state = app.state::<Arc<dyn BookRepository>>();
+        app.manage(Arc::new(mock_repo) as Arc<dyn BookshelfRepository>);
+        let state = app.state::<Arc<dyn BookshelfRepository>>();
 
         let result = get_books_with_state_by_bookshelf_id(1, state).await;
         assert!(result.is_ok());
@@ -910,16 +955,16 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_books_with_state_by_tag_id() {
-        let mut mock_repo = MockBookRepository::new();
+        let mut mock_repo = MockTagRepository::new();
         mock_repo
-            .expect_get_books_with_state_by_tag_id()
+            .expect_get_books_by_tag()
             .with(mockall::predicate::eq(1))
             .times(1)
             .returning(|_| Ok(vec![]));
 
         let app = tauri::test::mock_app();
-        app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
-        let state = app.state::<Arc<dyn BookRepository>>();
+        app.manage(Arc::new(mock_repo) as Arc<dyn TagRepository>);
+        let state = app.state::<Arc<dyn TagRepository>>();
 
         let result = get_books_with_state_by_tag_id(1, state).await;
         assert!(result.is_ok());
@@ -927,26 +972,26 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_books_with_state_by_series_id() {
-        let mut mock_repo = MockBookRepository::new();
+        let mut mock_repo = MockSeriesRepository::new();
         mock_repo
-            .expect_get_books_with_state_by_series_id()
+            .expect_get_books_by_series()
             .with(mockall::predicate::eq(1))
             .times(1)
             .returning(|_| Ok(vec![]));
 
         let app = tauri::test::mock_app();
-        app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
-        let state = app.state::<Arc<dyn BookRepository>>();
+        app.manage(Arc::new(mock_repo) as Arc<dyn SeriesRepository>);
+        let state = app.state::<Arc<dyn SeriesRepository>>();
 
         let result = get_books_with_state_by_series_id(1, state).await;
         assert!(result.is_ok());
     }
 
     #[tokio::test]
-    async fn test_upsert_book() {
+    async fn test_register_book() {
         let mut mock_repo = MockBookRepository::new();
         mock_repo
-            .expect_upsert_book()
+            .expect_register_book()
             .with(
                 mockall::predicate::eq("path"),
                 mockall::predicate::eq("file"),
@@ -963,7 +1008,7 @@ mod tests {
         let repo = app.state::<Arc<dyn BookRepository>>();
         let state = app.state::<RwLock<AppState>>();
 
-        let result = upsert_book(
+        let result = register_book(
             "path".to_string(),
             "file".to_string(),
             "name".to_string(),
@@ -978,10 +1023,10 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_upsert_read_book() {
+    async fn test_record_book_opened() {
         let mut mock_repo = MockBookRepository::new();
         mock_repo
-            .expect_upsert_read_book()
+            .expect_record_book_opened()
             .with(
                 mockall::predicate::eq("path"),
                 mockall::predicate::eq("file"),
@@ -998,7 +1043,7 @@ mod tests {
         let repo = app.state::<Arc<dyn BookRepository>>();
         let state = app.state::<RwLock<AppState>>();
 
-        let result = upsert_read_book(
+        let result = record_book_opened(
             "path".to_string(),
             "file".to_string(),
             "name".to_string(),
@@ -1019,7 +1064,7 @@ mod tests {
             .expect_get_by_id()
             .with(mockall::predicate::eq(1))
             .times(1)
-            .returning(|_| Err(sqlx::Error::RowNotFound));
+            .returning(|_| Err(sqlx::Error::RowNotFound.into()));
 
         let app = tauri::test::mock_app();
         app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
@@ -1039,13 +1084,13 @@ mod tests {
             .expect_delete_book()
             .with(mockall::predicate::eq(1))
             .times(1)
-            .returning(|_| Err(sqlx::Error::PoolTimedOut));
+            .returning(|_| Err(sqlx::Error::PoolTimedOut.into()));
 
         let app = tauri::test::mock_app();
         app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
-        let state = app.state::<Arc<dyn BookRepository>>();
+        let repo = app.state::<Arc<dyn BookRepository>>();
 
-        let result = delete_book(1, state).await;
+        let result = delete_book(1, repo, app.handle().clone()).await;
         assert!(result.is_err());
         let e = result.unwrap_err();
         let error_code: ErrorCode = (&e).into();

@@ -16,7 +16,7 @@ describe("BookCard", () => {
     total_pages: 100,
     last_read_page_index: 49, // Page 50
     thumbnail_path: "thumbnail.jpg",
-    tag_ids_str: "1,2",
+    tag_ids: [1, 2],
   });
 
   const mockTags = [
@@ -26,8 +26,6 @@ describe("BookCard", () => {
 
   const mockActions = {
     openDialog: vi.fn(),
-    refreshBookshelf: vi.fn(),
-    refreshSeries: vi.fn(),
   };
 
   const defaultProps = {

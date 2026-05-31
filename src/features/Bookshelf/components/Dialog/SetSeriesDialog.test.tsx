@@ -4,8 +4,8 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as BookCommands from "../../../../bindings/BookCommands";
 import * as SeriesCommand from "../../../../bindings/SeriesCommand";
+import type { Series } from "../../../../domain/series/schema";
 import { renderWithProviders } from "../../../../test/utils";
-import type { Series } from "../../../../types/DatabaseModels";
 import SetSeriesDialog, { type SetSeriesDialogProps } from "./SetSeriesDialog";
 
 describe("SetSeriesDialog", () => {

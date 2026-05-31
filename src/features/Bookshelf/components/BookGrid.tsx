@@ -4,21 +4,15 @@ import { debug, error } from "@tauri-apps/plugin-log";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Grid, useGridCallbackRef } from "react-window";
+import type { Book, BookWithState } from "../../../domain/book/schema";
 import { useAppTheme } from "../../../hooks/useAppTheme";
 import { useResizeObserver } from "../../../hooks/useResizeObserver";
 import { type RootState, useAppDispatch, useAppSelector } from "../../../store/store";
-import type { Book, BookWithState } from "../../../types/DatabaseModels";
 import { updateSettings } from "../../Settings/slice";
 import { useBookSelection } from "../hooks/useBookSelection";
 import { type BookshelfDialogType, useBookshelfDialogs } from "../hooks/useBookshelfDialogs";
 import { useReadingBookSelection } from "../hooks/useReadingBookSelection";
-import {
-  fetchBooksInSelectedBookshelf,
-  fetchSeries,
-  setEditSeriesOrderDialogState,
-  setSearchText,
-  setSelectedSeriesId,
-} from "../slice";
+import { setEditSeriesOrderDialogState, setSearchText, setSelectedSeriesId } from "../slice";
 import {
   andSearch,
   andSearchGridItems,
@@ -48,7 +42,6 @@ const selectBookGridState = createSelector(
     (state: RootState) => state.bookCollection.searchText,
     (state: RootState) => state.bookCollection.bookshelf.books,
     (state: RootState) => state.bookCollection.bookshelf.bookshelves,
-    (state: RootState) => state.bookCollection.bookshelf.selectedId,
     (state: RootState) => state.bookCollection.bookshelf.status,
     (state: RootState) => state.bookCollection.tag.selectedId,
     (state: RootState) => state.bookCollection.tag.tags,
@@ -64,7 +57,6 @@ const selectBookGridState = createSelector(
     searchText,
     booksInSelectedBookshelf,
     availableBookshelves,
-    bookshelfId,
     status,
     tagId,
     availableTags,
@@ -79,7 +71,6 @@ const selectBookGridState = createSelector(
     searchText,
     booksInSelectedBookshelf,
     availableBookshelves,
-    bookshelfId,
     status,
     tagId,
     availableTags,
@@ -109,7 +100,6 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
     searchText,
     booksInSelectedBookshelf,
     availableBookshelves,
-    bookshelfId,
     status,
     tagId,
     availableTags,
@@ -122,12 +112,12 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
   } = useAppSelector(selectBookGridState);
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const hasAutoScrolledRef = useRef(false);
   const containerWidth = useResizeObserver(containerRef);
   const [focusedIndex, setFocusedIndex] = useState<number>(-1);
 
   const [grid, setGrid] = useGridCallbackRef(null);
   const [readingBookIndex, setReadingBookIndex] = useState<number>(-1);
-
   const {
     dialogType,
     selectedBookIds: dialogBookIds,
@@ -157,9 +147,7 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
     const taggedBooks =
       tagId === null
         ? booksInSelectedBookshelf
-        : booksInSelectedBookshelf.filter((book) =>
-            book.tag_ids_str?.split(",").includes(tagId.toString()),
-          );
+        : booksInSelectedBookshelf.filter((book) => book.tag_ids.includes(tagId));
 
     // Drill-down mode logic: if a series is selected, show only books in that series
     if (selectedSeriesId !== null) {
@@ -231,22 +219,18 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
     clearSelection();
   }, [closeDialog, clearSelection]);
 
-  const refreshBookshelf = useCallback(() => {
-    dispatch(fetchBooksInSelectedBookshelf(bookshelfId));
-  }, [dispatch, bookshelfId]);
-
-  const refreshSeries = useCallback(() => {
-    dispatch(fetchSeries());
-    dispatch(fetchBooksInSelectedBookshelf(bookshelfId));
-  }, [dispatch, bookshelfId]);
-
   useEffect(() => {
     if (activeView === "bookshelf") {
-      dispatch(fetchBooksInSelectedBookshelf(bookshelfId));
-      dispatch(fetchSeries());
       clearSelection();
     }
-  }, [dispatch, bookshelfId, activeView, clearSelection]);
+  }, [activeView, clearSelection]);
+
+  // Reset auto-scroll flag when leaving the bookshelf view
+  useEffect(() => {
+    if (activeView !== "bookshelf") {
+      hasAutoScrolledRef.current = false;
+    }
+  }, [activeView]);
 
   const handleBookClick = useCallback(
     (book: BookWithState, e: React.MouseEvent | React.KeyboardEvent) => {
@@ -288,7 +272,12 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
 
   // Scroll to make the selected item visible
   useEffect(() => {
-    if (filteredSortedItems.length === 0 || !grid) {
+    if (
+      filteredSortedItems.length === 0 ||
+      !grid ||
+      activeView !== "bookshelf" ||
+      hasAutoScrolledRef.current
+    ) {
       return;
     }
 
@@ -298,12 +287,9 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
     const timerId = setTimeout(() => {
       try {
         if (readingBookIndex === -1) {
-          debug("Scrolling to top.");
-          grid.scrollToCell({
-            behavior: "instant",
-            columnIndex: 0,
-            rowIndex: 0,
-          });
+          // If there is no reading book in the current grid, mark the auto-scroll
+          // session as complete without scrolling. This prevents sudden resets.
+          hasAutoScrolledRef.current = true;
         } else {
           debug(`Scrolling to cell ${readingBookIndex}.`);
           grid.scrollToCell({
@@ -313,6 +299,7 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
             columnIndex: readingBookIndex % columnCount,
             rowIndex: Math.floor(readingBookIndex / columnCount),
           });
+          hasAutoScrolledRef.current = true;
         }
       } catch (e) {
         error(`Failed to scroll to cell ${readingBookIndex}: ${e}`);
@@ -322,7 +309,7 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
     return () => {
       clearTimeout(timerId);
     };
-  }, [readingBookIndex, filteredSortedItems, grid, columnCount]);
+  }, [readingBookIndex, filteredSortedItems, grid, columnCount, activeView]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -379,10 +366,8 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
       openDialog: (type: BookshelfDialogType, books: BookWithState[]) => {
         openDialog(type, books);
       },
-      refreshBookshelf,
-      refreshSeries,
     }),
-    [openDialog, refreshBookshelf, refreshSeries],
+    [openDialog],
   );
 
   const cellProps: BookGridCellProps = useMemo(
@@ -512,21 +497,21 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
           bookIds={dialogBookIds}
           availableBookshelves={availableBookshelves}
           onClose={handleCloseDialog}
-          onAddBooks={refreshBookshelf}
+          onAddBooks={handleCloseDialog}
         />
         <SetBookTagsDialog
           openDialog={dialogType === "set-tags"}
           bookIds={dialogBookIds}
           availableTags={availableTags}
           onClose={handleCloseDialog}
-          onUpdateTags={refreshBookshelf}
+          onUpdateTags={handleCloseDialog}
         />
         <SetSeriesDialog
           openDialog={dialogType === "set-series"}
           bookIds={dialogBookIds}
           availableSeries={allSeries}
           onClose={handleCloseDialog}
-          onUpdateSeries={refreshSeries}
+          onUpdateSeries={handleCloseDialog}
         />
         <BookDeleteDialog
           openDialog={dialogType === "delete-books"}

@@ -1,7 +1,9 @@
 use std::sync::Arc;
+use tauri::Emitter;
 use tauri::State;
 
-use crate::database::bookshelf::{Bookshelf, BookshelfRepository};
+use crate::domain::bookshelf::entity::Bookshelf;
+use crate::domain::bookshelf::repository::BookshelfRepository;
 use crate::error::Result;
 
 /// Creates a new bookshelf and returns its complete entity.
@@ -21,13 +23,16 @@ use crate::error::Result;
 /// This function will return an `Err` if the underlying repository operation fails
 /// (e.g., due to a database error, connection issue, or query execution failure).
 #[tauri::command]
-pub async fn create_bookshelf(
+pub async fn create_bookshelf<R: tauri::Runtime>(
     name: String,
     icon_id: String,
     repo: State<'_, Arc<dyn BookshelfRepository>>,
+    app: tauri::AppHandle<R>,
 ) -> Result<Bookshelf> {
     log::debug!("Create bookshelf. (name:{}, icon_id:{})", name, icon_id);
-    Ok(repo.create(&name, &icon_id).await?)
+    let shelf = repo.create(&name, &icon_id).await?;
+    app.emit("history-changed", ())?;
+    Ok(shelf)
 }
 
 /// Retrieves all bookshelves from the database.
@@ -49,7 +54,7 @@ pub async fn get_all_bookshelves(
     repo: State<'_, Arc<dyn BookshelfRepository>>,
 ) -> Result<Vec<Bookshelf>> {
     log::debug!("Get all bookshelves");
-    Ok(repo.get_all().await?)
+    repo.get_all().await
 }
 
 /// Adds a book to a specific bookshelf.
@@ -65,17 +70,20 @@ pub async fn get_all_bookshelves(
 /// This function will return an `Err` if the underlying repository operation fails
 /// (e.g., due to a database error, connection issue, or query execution failure).
 #[tauri::command]
-pub async fn add_book_to_bookshelf(
+pub async fn add_book_to_bookshelf<R: tauri::Runtime>(
     bookshelf_id: i64,
     book_id: i64,
     repo: State<'_, Arc<dyn BookshelfRepository>>,
+    app: tauri::AppHandle<R>,
 ) -> Result<()> {
     log::debug!(
         "Add book to bookshelf. (bookshelf_id:{}, book_id:{})",
         bookshelf_id,
         book_id
     );
-    Ok(repo.add_book_to_bookshelf(bookshelf_id, book_id).await?)
+    repo.add_book_to_bookshelf(bookshelf_id, book_id).await?;
+    app.emit("history-changed", ())?;
+    Ok(())
 }
 
 /// Removes a book from a specific bookshelf.
@@ -90,19 +98,21 @@ pub async fn add_book_to_bookshelf(
 ///
 /// This function will return an `Err` if the underlying repository operation fails.
 #[tauri::command]
-pub async fn remove_book_from_bookshelf(
+pub async fn remove_book_from_bookshelf<R: tauri::Runtime>(
     bookshelf_id: i64,
     book_id: i64,
     repo: State<'_, Arc<dyn BookshelfRepository>>,
+    app: tauri::AppHandle<R>,
 ) -> Result<()> {
     log::debug!(
         "Remove book from bookshelf. (bookshelf_id:{}, book_id:{})",
         bookshelf_id,
         book_id
     );
-    Ok(repo
-        .remove_book_from_bookshelf(bookshelf_id, book_id)
-        .await?)
+    repo.remove_book_from_bookshelf(bookshelf_id, book_id)
+        .await?;
+    app.emit("history-changed", ())?;
+    Ok(())
 }
 
 /// Deletes a bookshelf from the database.
@@ -116,18 +126,21 @@ pub async fn remove_book_from_bookshelf(
 ///
 /// This function will return an `Err` if the underlying repository operation fails.
 #[tauri::command]
-pub async fn delete_bookshelf(
+pub async fn delete_bookshelf<R: tauri::Runtime>(
     id: i64,
     repo: State<'_, Arc<dyn BookshelfRepository>>,
+    app: tauri::AppHandle<R>,
 ) -> Result<()> {
     log::debug!("Delete bookshelf. (id:{})", id);
-    Ok(repo.delete(id).await?)
+    repo.delete(id).await?;
+    app.emit("history-changed", ())?;
+    Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::database::bookshelf::MockBookshelfRepository;
+    use crate::domain::bookshelf::repository::MockBookshelfRepository;
     use crate::error::ErrorCode;
     use tauri::Manager;
 
@@ -154,7 +167,13 @@ mod tests {
         app.manage(Arc::new(mock_repo) as Arc<dyn BookshelfRepository>);
         let state = app.state::<Arc<dyn BookshelfRepository>>();
 
-        let result = create_bookshelf("shelf1".to_string(), "icon1".to_string(), state).await;
+        let result = create_bookshelf(
+            "shelf1".to_string(),
+            "icon1".to_string(),
+            state,
+            app.handle().clone(),
+        )
+        .await;
         assert!(result.is_ok());
         let shelf = result.unwrap();
         assert_eq!(shelf.id, 1);
@@ -211,7 +230,7 @@ mod tests {
         app.manage(Arc::new(mock_repo) as Arc<dyn BookshelfRepository>);
         let state = app.state::<Arc<dyn BookshelfRepository>>();
 
-        let result = add_book_to_bookshelf(1, 2, state).await;
+        let result = add_book_to_bookshelf(1, 2, state, app.handle().clone()).await;
         assert!(result.is_ok());
     }
 
@@ -228,7 +247,7 @@ mod tests {
         app.manage(Arc::new(mock_repo) as Arc<dyn BookshelfRepository>);
         let state = app.state::<Arc<dyn BookshelfRepository>>();
 
-        let result = remove_book_from_bookshelf(1, 2, state).await;
+        let result = remove_book_from_bookshelf(1, 2, state, app.handle().clone()).await;
         assert!(result.is_ok());
     }
 
@@ -245,7 +264,7 @@ mod tests {
         app.manage(Arc::new(mock_repo) as Arc<dyn BookshelfRepository>);
         let state = app.state::<Arc<dyn BookshelfRepository>>();
 
-        let result = delete_bookshelf(1, state).await;
+        let result = delete_bookshelf(1, state, app.handle().clone()).await;
         assert!(result.is_ok());
     }
 
@@ -259,13 +278,19 @@ mod tests {
                 mockall::predicate::eq("icon1"),
             )
             .times(1)
-            .returning(|_, _| Err(sqlx::Error::RowNotFound));
+            .returning(|_, _| Err(crate::error::Error::Database(sqlx::Error::RowNotFound)));
 
         let app = tauri::test::mock_app();
         app.manage(Arc::new(mock_repo) as Arc<dyn BookshelfRepository>);
         let state = app.state::<Arc<dyn BookshelfRepository>>();
 
-        let result = create_bookshelf("shelf1".to_string(), "icon1".to_string(), state).await;
+        let result = create_bookshelf(
+            "shelf1".to_string(),
+            "icon1".to_string(),
+            state,
+            app.handle().clone(),
+        )
+        .await;
         assert!(result.is_err());
         let e = result.unwrap_err();
         let error_code: ErrorCode = (&e).into();
@@ -278,7 +303,7 @@ mod tests {
         mock_repo
             .expect_get_all()
             .times(1)
-            .returning(|| Err(sqlx::Error::PoolTimedOut));
+            .returning(|| Err(crate::error::Error::Database(sqlx::Error::PoolTimedOut)));
 
         let app = tauri::test::mock_app();
         app.manage(Arc::new(mock_repo) as Arc<dyn BookshelfRepository>);

@@ -16,7 +16,7 @@ import { error as logError } from "@tauri-apps/plugin-log";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getBookTags, updateBookTags } from "../../../../bindings/BookCommands";
-import type { Tag } from "../../../../types/DatabaseModels";
+import type { Tag } from "../../../../domain/tag/schema";
 
 /** Props for the SetBookTagsDialog component */
 export interface SetBookTagsDialogProps {

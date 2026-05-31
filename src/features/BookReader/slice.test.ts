@@ -216,7 +216,7 @@ describe("ReadReducer", () => {
           entries: ["p1", "p2"],
           is_novel: false,
         });
-        vi.mocked(BookCommands.upsertReadBook).mockResolvedValue(1);
+        vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(1);
         vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
 
         await store.dispatch(openContainerFile("path/to/book.zip"));
@@ -236,7 +236,7 @@ describe("ReadReducer", () => {
           entries: ["p1", "p2"],
           is_novel: true,
         });
-        vi.mocked(BookCommands.upsertReadBook).mockResolvedValue(1);
+        vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(1);
         vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
 
         await store.dispatch(openContainerFile("path.epub"));

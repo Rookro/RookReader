@@ -9,6 +9,20 @@
 
 ## [Unreleased]
 
+## [2.2.1] - 2026-06-01
+
+### Changed
+
+* 保守性と型安全性の向上のため、システム全体をDDD（ドメイン駆動設計）ベースのアーキテクチャとZodスキーマへ刷新 (#235)
+* 読書進捗や本棚の変更が、開いているすべてのウィンドウへ即座に反映されるように改善 (#236)
+* EPUBファイルをよりスムーズかつ安全に開けるよう、読み込み処理を最適化 (#237)
+
+### Fixed
+
+* アプリの設定（起動時のアップデート確認、画像のリサイズ方式、PDFの描画品質）が正しく保存・適用されない不具合を修正 (#234)
+* 画面下部のスライダー（ページ進捗バー）を操作した後に、キーボードでのページめくりが1ページずつになってしまう不具合を修正 (#238)
+* 本棚画面で検索ワードの入力、ウィンドウのリサイズ、または本棚情報が更新された際に、スクロール位置が不自然にリセット（ジャンプ）されてしまう不具合を修正 (#239)
+
 ## [2.2.0] - 2026-05-19
 
 ### Added
@@ -365,7 +379,8 @@
 * 自動見開き表示機能の追加 (#4)
 * ホイールの上下によるページ送り機能を追加 (#5)
 
-[unreleased]: https://github.com/Rookro/RookReader/compare/v2.2.0...HEAD
+[unreleased]: https://github.com/Rookro/RookReader/compare/v2.2.1...HEAD
+[2.2.1]: https://github.com/Rookro/RookReader/compare/v2.2.0...v2.2.1
 [2.2.0]: https://github.com/Rookro/RookReader/compare/v2.1.1...v2.2.0
 [2.1.1]: https://github.com/Rookro/RookReader/compare/v2.1.0...v2.1.1
 [2.1.0]: https://github.com/Rookro/RookReader/compare/v2.0.3...v2.1.0

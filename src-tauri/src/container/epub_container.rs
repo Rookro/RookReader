@@ -2,7 +2,7 @@ use std::{
     collections::HashMap,
     io::Cursor,
     path::Path,
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, OnceLock},
 };
 
 use image::{codecs::jpeg::JpegEncoder, ImageReader};
@@ -156,12 +156,32 @@ fn create_thumbnail(epub: &mut Epub, entry: &str) -> Result<Arc<Image>> {
     }))
 }
 
+/// Returns the thread-safe CSS selector for images within EPUB content.
+///
+/// This selector is lazily initialized and cached to avoid repeated parsing overhead.
+///
+/// # Returns
+///
+/// `Some(&Selector)` on success, or `None` on failure.
+fn get_image_selector() -> Option<&'static Selector> {
+    static SELECTOR: OnceLock<Option<Selector>> = OnceLock::new();
+    SELECTOR
+        .get_or_init(|| {
+            Selector::parse("img, image")
+                .map_err(|e| log::error!("Failed to parse CSS selector for EPUB images: {:?}", e))
+                .ok()
+        })
+        .as_ref()
+}
+
 /// Parses the EPUB's spine to determine the order of images as they appear in the content.
 ///
 /// Returns a `HashMap` mapping image resource IDs to their sequential order.
 fn create_image_order_map(epub: &mut Epub) -> Option<HashMap<String, usize>> {
     let mut map = HashMap::new();
     let mut current_order = 0;
+
+    let selector = get_image_selector()?;
 
     let mut reader = epub.reader();
     while let Some(Ok(page)) = reader.read_next() {
@@ -173,8 +193,7 @@ fn create_image_order_map(epub: &mut Epub) -> Option<HashMap<String, usize>> {
             continue;
         };
         let document = Html::parse_document(&content);
-        let selector = Selector::parse("img, image").unwrap();
-        for element in document.select(&selector) {
+        for element in document.select(selector) {
             let src_attr = element
                 .value()
                 .attr("src")

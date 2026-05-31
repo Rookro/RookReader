@@ -4,9 +4,10 @@ use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
 
 mod commands;
 mod container;
-pub mod database;
-mod error;
+pub mod domain;
+pub mod error;
 pub mod image;
+pub mod infrastructure;
 mod settings;
 mod setup;
 mod state;
@@ -51,13 +52,13 @@ pub fn run() {
             commands::book_commands::get_book,
             commands::book_commands::get_book_by_path,
             commands::book_commands::get_book_with_state_by_id,
-            commands::book_commands::upsert_book,
-            commands::book_commands::upsert_read_book,
+            commands::book_commands::register_book,
+            commands::book_commands::record_book_opened,
             commands::book_commands::delete_book,
             commands::book_commands::clear_reading_history,
             commands::book_commands::clear_all_reading_history,
             commands::book_commands::get_recently_read_books,
-            commands::book_commands::upsert_reading_state,
+            commands::book_commands::update_reading_progress,
             commands::book_commands::get_all_books_with_state,
             commands::book_commands::get_books_with_state_by_bookshelf_id,
             commands::book_commands::get_books_with_state_by_tag_id,
