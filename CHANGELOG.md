@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 * Fixed an issue where the "Edit Series Order" dialog would become unnaturally narrow when books in the series had short titles. (#243)
+* Fixed an issue where the "Set Series" and "Set Tags" dialogs would unexpectedly close after creating a new series or tag. (#244)
 
 ## [2.2.1] - 2026-06-01
 
