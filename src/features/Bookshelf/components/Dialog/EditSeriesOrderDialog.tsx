@@ -70,7 +70,7 @@ export default function EditSeriesOrderDialog({
   };
 
   return (
-    <Dialog open={openDialog} onClose={onClose}>
+    <Dialog open={openDialog} onClose={onClose} slotProps={{ paper: { sx: { minWidth: "40%" } } }}>
       <DialogTitle>{t("bookshelf.series.edit-order.title")}</DialogTitle>
       <DialogContent sx={{ padding: 1, overflowX: "hidden" }}>
         <DndContext
