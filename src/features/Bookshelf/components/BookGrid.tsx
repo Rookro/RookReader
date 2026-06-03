@@ -12,7 +12,13 @@ import { updateSettings } from "../../Settings/slice";
 import { useBookSelection } from "../hooks/useBookSelection";
 import { type BookshelfDialogType, useBookshelfDialogs } from "../hooks/useBookshelfDialogs";
 import { useReadingBookSelection } from "../hooks/useReadingBookSelection";
-import { setEditSeriesOrderDialogState, setSearchText, setSelectedSeriesId } from "../slice";
+import {
+  fetchSeries,
+  fetchTags,
+  setEditSeriesOrderDialogState,
+  setSearchText,
+  setSelectedSeriesId,
+} from "../slice";
 import {
   andSearch,
   andSearchGridItems,
@@ -218,6 +224,14 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
     closeDialog();
     clearSelection();
   }, [closeDialog, clearSelection]);
+
+  const handleUpdateTags = useCallback(() => {
+    dispatch(fetchTags());
+  }, [dispatch]);
+
+  const handleUpdateSeries = useCallback(() => {
+    dispatch(fetchSeries());
+  }, [dispatch]);
 
   useEffect(() => {
     if (activeView === "bookshelf") {
@@ -504,14 +518,14 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
           bookIds={dialogBookIds}
           availableTags={availableTags}
           onClose={handleCloseDialog}
-          onUpdateTags={handleCloseDialog}
+          onUpdateTags={handleUpdateTags}
         />
         <SetSeriesDialog
           openDialog={dialogType === "set-series"}
           bookIds={dialogBookIds}
           availableSeries={allSeries}
           onClose={handleCloseDialog}
-          onUpdateSeries={handleCloseDialog}
+          onUpdateSeries={handleUpdateSeries}
         />
         <BookDeleteDialog
           openDialog={dialogType === "delete-books"}

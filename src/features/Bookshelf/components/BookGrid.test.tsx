@@ -16,6 +16,14 @@ vi.mock("../hooks/useBookSelection");
 vi.mock("../hooks/useBookshelfDialogs");
 vi.mock("../hooks/useReadingBookSelection");
 vi.mock("../../../hooks/useResizeObserver");
+vi.mock("../slice", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../slice")>();
+  return {
+    ...actual,
+    fetchSeries: vi.fn(() => ({ type: "fetchSeries" })),
+    fetchTags: vi.fn(() => ({ type: "fetchTags" })),
+  };
+});
 vi.mock("../../Settings/slice", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../Settings/slice")>();
   return {
@@ -626,7 +634,7 @@ describe("BookGrid", () => {
     // Should not crash
   });
 
-  it("triggers handleCloseDialog from dialogs", () => {
+  it("triggers handleCloseDialog or fetch from dialogs", () => {
     render(
       <BookSelectionContext.Provider value={mockSelectionValue}>
         <BookGrid />
@@ -639,13 +647,13 @@ describe("BookGrid", () => {
 
     vi.clearAllMocks();
     fireEvent.click(screen.getByTestId("set-tags-trigger"));
-    expect(mockCloseDialog).toHaveBeenCalled();
-    expect(mockClearSelection).toHaveBeenCalled();
+    expect(mockDispatch).toHaveBeenCalledWith({ type: "fetchTags" });
+    expect(mockCloseDialog).not.toHaveBeenCalled();
 
     vi.clearAllMocks();
     fireEvent.click(screen.getByTestId("set-series-trigger"));
-    expect(mockCloseDialog).toHaveBeenCalled();
-    expect(mockClearSelection).toHaveBeenCalled();
+    expect(mockDispatch).toHaveBeenCalledWith({ type: "fetchSeries" });
+    expect(mockCloseDialog).not.toHaveBeenCalled();
   });
 
   it("sorts multiple items", () => {
