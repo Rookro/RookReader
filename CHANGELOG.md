@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+* Optimized background page preloading. (#245)
+
 ### Fixed
 
 * Fixed an issue where the "Edit Series Order" dialog would become unnaturally narrow when books in the series had short titles. (#243)
