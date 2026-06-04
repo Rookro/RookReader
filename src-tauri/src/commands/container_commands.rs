@@ -67,7 +67,7 @@ pub async fn get_entries_in_container(
     }
 
     if !is_novel {
-        if let Some(loader) = state_lock.container_state.image_loader.as_mut() {
+        if let Some(loader) = state_lock.container_state.image_loader.as_ref() {
             log::debug!("Triggering proactive preloading for {}", path);
             loader.request_preload_around(0, 5)?;
         }
@@ -102,14 +102,14 @@ pub async fn request_preload_around(
         index,
         buffer_size
     );
-    let mut state_lock = state.write().await;
+    let state_lock = state.read().await;
 
     let buffer_size = buffer_size.unwrap_or(10);
 
     let image_loader = state_lock
         .container_state
         .image_loader
-        .as_mut()
+        .as_ref()
         .ok_or_else(|| Error::Other("Unexpected error. ImageLoader is empty!".to_string()))?;
 
     image_loader.request_preload_around(index, buffer_size)?;
