@@ -2,7 +2,7 @@ use std::{
     cmp::max,
     io::Cursor,
     sync::{
-        atomic::{AtomicBool, Ordering},
+        atomic::{AtomicUsize, Ordering},
         Arc,
     },
 };
@@ -44,8 +44,8 @@ pub struct ImageLoader {
     cache: Cache,
     /// A Rayon thread pool dedicated to preloading images in the background.
     thread_pool: ThreadPool,
-    /// An atomic flag used to signal cancellation to active preloading threads.
-    is_preloading_cancel_requested: Arc<AtomicBool>,
+    /// A generation counter used to signal cancellation to active preloading threads.
+    preload_generation: Arc<AtomicUsize>,
     /// A shared reference to the container from which images are loaded.
     container: Arc<dyn Container>,
     /// The maximum height to which images should be resized upon loading. 0 means no limit.
@@ -100,7 +100,7 @@ impl ImageLoader {
             book_id,
             cache,
             thread_pool,
-            is_preloading_cancel_requested: Arc::new(AtomicBool::new(false)),
+            preload_generation: Arc::new(AtomicUsize::new(0)),
             container,
             max_image_height,
             resize_method,
@@ -207,11 +207,7 @@ impl ImageLoader {
     ///
     /// * `center_index` - The current page index around which to preload.
     /// * `buffer_size` - How many pages to preload in each direction.
-    pub fn request_preload_around(
-        &mut self,
-        center_index: usize,
-        buffer_size: usize,
-    ) -> Result<()> {
+    pub fn request_preload_around(&self, center_index: usize, buffer_size: usize) -> Result<()> {
         let entries = self.container.get_entries();
         let total_pages = entries.len();
 
@@ -222,17 +218,17 @@ impl ImageLoader {
         let start = center_index.saturating_sub(buffer_size);
         let end = (center_index + buffer_size + 1).min(total_pages);
 
-        self.cancel_preload();
-        self.is_preloading_cancel_requested = Arc::new(AtomicBool::new(false));
-        let is_cancel_requested = self.is_preloading_cancel_requested.clone();
+        let current_gen = self.preload_generation.fetch_add(1, Ordering::SeqCst) + 1;
+        let gen_ref = self.preload_generation.clone();
 
         // Generate target indices and sort them by priority:
         // 1. Distance from center (closer = higher priority)
         // 2. Future pages get slight preference over past pages
+        let book_id_for_filter = self.book_id.clone();
         let mut target_indices: Vec<usize> = (start..end)
             .filter(|&i| {
                 let key = CacheKey {
-                    book_id: self.book_id.clone(),
+                    book_id: book_id_for_filter.clone(),
                     entry: entries[i].clone(),
                 };
                 !self.cache.contains_key(&key)
@@ -267,7 +263,7 @@ impl ImageLoader {
         // Execute preloading in the Rayon thread pool.
         self.thread_pool.spawn(move || {
             entries_to_preload.into_par_iter().for_each(|entry| {
-                if is_cancel_requested.load(Ordering::Relaxed) {
+                if gen_ref.load(Ordering::Relaxed) != current_gen {
                     return;
                 }
 
@@ -295,8 +291,7 @@ impl ImageLoader {
     /// This sets an atomic flag that the background threads check periodically.
     /// The cancellation is not instantaneous.
     pub fn cancel_preload(&self) {
-        self.is_preloading_cancel_requested
-            .store(true, Ordering::Relaxed);
+        self.preload_generation.fetch_add(1, Ordering::Relaxed);
     }
 
     /// Returns the book identifier (usually the file path) for this loader.
@@ -363,4 +358,74 @@ fn resize_image(image: Arc<Image>, height: u32, resize_method: ResizeFilter) -> 
         width: scaled_image.width(),
         height: scaled_image.height(),
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::container::traits::MockContainer;
+    use std::time::Duration;
+
+    #[test]
+    fn test_preload_cancellation_generation() {
+        let mut mock_container = MockContainer::new();
+        mock_container.expect_get_entries().return_const(vec![
+            "test1.png".to_string(),
+            "test2.png".to_string(),
+            "test3.png".to_string(),
+        ]);
+
+        mock_container.expect_get_image().returning(|entry| {
+            if entry == "test1.png" {
+                std::thread::sleep(Duration::from_millis(50));
+            }
+            Ok(Arc::new(Image {
+                data: vec![0u8; 10],
+                width: 10,
+                height: 10,
+            }))
+        });
+
+        mock_container
+            .expect_is_single_threaded()
+            .return_const(false);
+
+        let container = Arc::new(mock_container);
+        let cache = mini_moka::sync::Cache::new(100);
+        let loader = ImageLoader::new(
+            "test_book".to_string(),
+            container,
+            2000,
+            ResizeFilter::Bilinear,
+            cache.clone(),
+        )
+        .unwrap();
+
+        // Start preloading
+        loader.request_preload_around(0, 3).unwrap();
+
+        // Cancel it immediately
+        loader.cancel_preload();
+
+        // Wait for thread pool to process
+        std::thread::sleep(Duration::from_millis(150));
+
+        let key2 = CacheKey {
+            book_id: "test_book".to_string(),
+            entry: "test2.png".to_string(),
+        };
+        let key3 = CacheKey {
+            book_id: "test_book".to_string(),
+            entry: "test3.png".to_string(),
+        };
+
+        assert!(
+            !cache.contains_key(&key2),
+            "test2.png should have been cancelled"
+        );
+        assert!(
+            !cache.contains_key(&key3),
+            "test3.png should have been cancelled"
+        );
+    }
 }

@@ -1,3 +1,11 @@
+//! RAR container implementation.
+//!
+//! # Performance Constraints
+//!
+//! The underlying `unrar` library's `OpenArchive` type does not implement `Send`.
+//! This prevents sharing a single opened archive instance across multiple threads (e.g., inside a Mutex).
+//! Consequently, the archive has to be opened and scanned sequentially for every image request.
+
 use image::{codecs::jpeg::JpegEncoder, ImageReader};
 use unrar::{Archive, CursorBeforeHeader, OpenArchive, Process};
 
@@ -86,6 +94,15 @@ fn open(path: &str) -> Result<OpenArchive<Process, CursorBeforeHeader>> {
 }
 
 /// Helper function to find and extract a specific file from a RAR archive.
+///
+/// # Performance
+///
+/// Because the underlying `unrar` crate does not support parallel random-access reading,
+/// we must re-open the archive and perform a sequential scan of entries until the target `entry` is found.
+/// This results in $O(N)$ operations where $N$ is the entry index.
+///
+/// TODO: In the future, we could consider an in-memory extraction cache or a dedicated background actor
+/// that keeps the archive open and processes requests sequentially on a single thread.
 fn load_image(path: &str, entry: &str) -> Result<Arc<Image>> {
     let mut archive = open(path)?;
     while let Some(header) = archive.read_header()? {
