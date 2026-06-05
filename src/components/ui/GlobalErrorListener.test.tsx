@@ -80,7 +80,7 @@ describe("GlobalErrorListener", () => {
 
   it("should trigger notification and clear error when bookshelf has error", async () => {
     const preloadedState = createBasePreloadedState();
-    preloadedState.bookCollection.bookshelf.error = { code: ErrorCode.OTHER_ERROR };
+    preloadedState.bookCollection.error = { code: ErrorCode.OTHER_ERROR };
 
     const { store } = renderWithProviders(<GlobalErrorListener />, { preloadedState });
 
@@ -90,7 +90,7 @@ describe("GlobalErrorListener", () => {
     });
 
     await waitFor(() => {
-      expect(store.getState().bookCollection.bookshelf.error).toBeNull();
+      expect(store.getState().bookCollection.error).toBeNull();
     });
   });
 

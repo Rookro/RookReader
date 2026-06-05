@@ -35,8 +35,8 @@ export interface MenuListProps {
 export default function MenuList({ onClickAddBookshelf, onClickAddBookTag }: MenuListProps) {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
-  const bookshelves = useAppSelector((state) => state.bookCollection.bookshelf.bookshelves);
-  const selectedBookshelfId = useAppSelector((state) => state.bookCollection.bookshelf.selectedId);
+  const bookshelves = useAppSelector((state) => state.bookCollection.bookshelves);
+  const selectedBookshelfId = useAppSelector((state) => state.bookCollection.selectedId);
   const tags = useAppSelector((state) => state.tag.tags);
   const selectedTagId = useAppSelector((state) => state.tag.selectedId);
 

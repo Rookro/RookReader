@@ -196,13 +196,11 @@ const bookCollectionSlice = createSlice({
   name: "bookCollection",
   initialState: {
     searchText: "",
-    bookshelf: {
-      bookshelves: [] as Bookshelf[],
-      selectedId: null as number | null,
-      books: [] as BookWithState[],
-      status: "idle" as "idle" | "loading" | "succeeded" | "failed",
-      error: null as { code: ErrorCode; message?: string } | null,
-    },
+    bookshelves: [] as Bookshelf[],
+    selectedId: null as number | null,
+    books: [] as BookWithState[],
+    status: "idle" as "idle" | "loading" | "succeeded" | "failed",
+    error: null as { code: ErrorCode; message?: string } | null,
   },
   reducers: {
     /**
@@ -212,7 +210,7 @@ const bookCollectionSlice = createSlice({
      * @param action - Payload containing the new Bookshelf object.
      */
     bookshelfAdded(state, action: PayloadAction<Bookshelf>) {
-      state.bookshelf.bookshelves.push(action.payload);
+      state.bookshelves.push(action.payload);
     },
     /**
      * Sets the search text for the bookshelf view.
@@ -229,103 +227,103 @@ const bookCollectionSlice = createSlice({
      * @param state - The current Redux state slice.
      */
     clearBookshelfError: (state) => {
-      state.bookshelf.error = null;
+      state.error = null;
     },
   },
   extraReducers: (builder) => {
     builder
       .addCase(addBookshelf.pending, (state) => {
-        state.bookshelf.status = "loading";
-        state.bookshelf.error = null;
+        state.status = "loading";
+        state.error = null;
       })
       .addCase(addBookshelf.fulfilled, (state) => {
-        state.bookshelf.status = "succeeded";
-        state.bookshelf.error = null;
+        state.status = "succeeded";
+        state.error = null;
       })
       .addCase(addBookshelf.rejected, (state, action) => {
-        state.bookshelf.status = "failed";
-        state.bookshelf.error = action.payload ?? null;
+        state.status = "failed";
+        state.error = action.payload ?? null;
       })
       .addCase(fetchBookshelves.pending, (state) => {
-        state.bookshelf.status = "loading";
-        state.bookshelf.error = null;
+        state.status = "loading";
+        state.error = null;
       })
       .addCase(fetchBookshelves.fulfilled, (state, action) => {
-        state.bookshelf.status = "succeeded";
-        state.bookshelf.bookshelves = action.payload;
-        state.bookshelf.error = null;
+        state.status = "succeeded";
+        state.bookshelves = action.payload;
+        state.error = null;
       })
       .addCase(fetchBookshelves.rejected, (state, action) => {
-        state.bookshelf.status = "failed";
-        state.bookshelf.bookshelves = [];
-        state.bookshelf.error = action.payload ?? null;
+        state.status = "failed";
+        state.bookshelves = [];
+        state.error = action.payload ?? null;
       })
       .addCase(fetchBooksInSelectedBookshelf.pending, (state) => {
-        state.bookshelf.status = "loading";
-        state.bookshelf.error = null;
+        state.status = "loading";
+        state.error = null;
       })
       .addCase(fetchBooksInSelectedBookshelf.fulfilled, (state, action) => {
-        state.bookshelf.status = "succeeded";
-        state.bookshelf.books = action.payload;
-        state.bookshelf.error = null;
+        state.status = "succeeded";
+        state.books = action.payload;
+        state.error = null;
       })
       .addCase(fetchBooksInSelectedBookshelf.rejected, (state, action) => {
-        state.bookshelf.status = "failed";
-        state.bookshelf.books = [];
-        state.bookshelf.error = action.payload ?? null;
+        state.status = "failed";
+        state.books = [];
+        state.error = action.payload ?? null;
       })
       .addCase(deleteBookFromCollection.pending, (state) => {
-        state.bookshelf.status = "loading";
-        state.bookshelf.error = null;
+        state.status = "loading";
+        state.error = null;
       })
       .addCase(deleteBookFromCollection.fulfilled, (state) => {
-        state.bookshelf.status = "succeeded";
-        state.bookshelf.error = null;
+        state.status = "succeeded";
+        state.error = null;
       })
       .addCase(deleteBookFromCollection.rejected, (state, action) => {
-        state.bookshelf.status = "failed";
-        state.bookshelf.error = action.payload ?? null;
+        state.status = "failed";
+        state.error = action.payload ?? null;
       })
       .addCase(addBookToBookshelf.pending, (state) => {
-        state.bookshelf.status = "loading";
-        state.bookshelf.error = null;
+        state.status = "loading";
+        state.error = null;
       })
       .addCase(addBookToBookshelf.fulfilled, (state) => {
-        state.bookshelf.status = "succeeded";
-        state.bookshelf.error = null;
+        state.status = "succeeded";
+        state.error = null;
       })
       .addCase(addBookToBookshelf.rejected, (state, action) => {
-        state.bookshelf.status = "failed";
-        state.bookshelf.error = action.payload ?? null;
+        state.status = "failed";
+        state.error = action.payload ?? null;
       })
       .addCase(changeBookshelf.pending, (state) => {
-        state.bookshelf.status = "loading";
-        state.bookshelf.error = null;
+        state.status = "loading";
+        state.error = null;
       })
       .addCase(changeBookshelf.fulfilled, (state, action) => {
-        state.bookshelf.status = "succeeded";
-        state.bookshelf.selectedId = action.payload.id;
-        state.bookshelf.books = action.payload.books;
-        state.bookshelf.error = null;
+        state.status = "succeeded";
+        state.selectedId = action.payload.id;
+        state.books = action.payload.books;
+        state.error = null;
       })
       .addCase(changeBookshelf.rejected, (state, action) => {
-        state.bookshelf.status = "failed";
-        state.bookshelf.selectedId = null;
-        state.bookshelf.books = [];
-        state.bookshelf.error = action.payload ?? null;
+        state.status = "failed";
+        state.selectedId = null;
+        state.books = [];
+        state.error = action.payload ?? null;
       })
       .addCase(removeBookshelf.pending, (state) => {
-        state.bookshelf.status = "loading";
-        state.bookshelf.error = null;
+        state.status = "loading";
+        state.error = null;
       })
       .addCase(removeBookshelf.fulfilled, (state, action) => {
-        if (state.bookshelf.selectedId === action.payload) {
-          state.bookshelf.selectedId = null;
+        if (state.selectedId === action.payload) {
+          state.selectedId = null;
         }
       })
       .addCase(removeBookshelf.rejected, (state, action) => {
-        state.bookshelf.status = "failed";
-        state.bookshelf.error = action.payload ?? null;
+        state.status = "failed";
+        state.error = action.payload ?? null;
       });
   },
 });

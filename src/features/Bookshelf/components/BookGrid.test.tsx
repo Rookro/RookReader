@@ -180,12 +180,11 @@ describe("BookGrid", () => {
     },
     bookCollection: {
       searchText: "",
-      bookshelf: {
-        books: [],
-        bookshelves: [],
-        selectedId: 1,
-        status: "idle",
-      },
+      books: [],
+      bookshelves: [],
+      selectedId: 1,
+      status: "idle",
+      error: null,
     },
     tag: {
       selectedId: null,
@@ -225,6 +224,8 @@ describe("BookGrid", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(useAppSelector).mockReset();
+    vi.mocked(useAppDispatch).mockReset();
     vi.mocked(useAppDispatch).mockReturnValue(mockDispatch);
     vi.mocked(useAppSelector).mockImplementation(<T,>(selector: (state: RootState) => T): T => {
       return selector(defaultState as unknown as RootState);
@@ -244,7 +245,7 @@ describe("BookGrid", () => {
         ...defaultState,
         bookCollection: {
           ...defaultState.bookCollection,
-          bookshelf: { ...defaultState.bookCollection.bookshelf, status: "loading" },
+          status: "loading",
         },
       } as unknown as RootState);
     });
@@ -300,7 +301,7 @@ describe("BookGrid", () => {
         ...defaultState,
         bookCollection: {
           ...defaultState.bookCollection,
-          bookshelf: { ...defaultState.bookCollection.bookshelf, books: [book, seriesBook] },
+          books: [book, seriesBook],
         },
         series: { ...defaultState.series, series: [series] },
       } as unknown as RootState);
@@ -326,7 +327,7 @@ describe("BookGrid", () => {
         bookCollection: {
           ...defaultState.bookCollection,
           searchText: "app",
-          bookshelf: { ...defaultState.bookCollection.bookshelf, books: [book1, book2] },
+          books: [book1, book2],
         },
       } as unknown as RootState);
     });
@@ -348,7 +349,7 @@ describe("BookGrid", () => {
         bookCollection: {
           ...defaultState.bookCollection,
           searchText: "nothing",
-          bookshelf: { ...defaultState.bookCollection.bookshelf, books: [] },
+          books: [],
         },
       } as unknown as RootState);
     });
@@ -391,7 +392,7 @@ describe("BookGrid", () => {
         ...defaultState,
         bookCollection: {
           ...defaultState.bookCollection,
-          bookshelf: { ...defaultState.bookCollection.bookshelf, books: [seriesBook] },
+          books: [seriesBook],
         },
         series: { ...defaultState.series, series: [series] },
       } as unknown as RootState);
@@ -425,7 +426,7 @@ describe("BookGrid", () => {
         ...defaultState,
         bookCollection: {
           ...defaultState.bookCollection,
-          bookshelf: { ...defaultState.bookCollection.bookshelf, books: [book] },
+          books: [book],
         },
       } as unknown as RootState);
     });
@@ -458,7 +459,7 @@ describe("BookGrid", () => {
         ...defaultState,
         bookCollection: {
           ...defaultState.bookCollection,
-          bookshelf: { ...defaultState.bookCollection.bookshelf, books: [book] },
+          books: [book],
         },
       } as unknown as RootState);
     });
@@ -498,7 +499,7 @@ describe("BookGrid", () => {
       ...defaultState,
       bookCollection: {
         ...defaultState.bookCollection,
-        bookshelf: { ...defaultState.bookCollection.bookshelf, books: [book1, book2] },
+        books: [book1, book2],
       },
       series: { ...defaultState.series, series: [series] },
     };
@@ -532,7 +533,7 @@ describe("BookGrid", () => {
       ...defaultState,
       bookCollection: {
         ...defaultState.bookCollection,
-        bookshelf: { ...defaultState.bookCollection.bookshelf, books: [book] },
+        books: [book],
       },
     };
 
@@ -568,7 +569,7 @@ describe("BookGrid", () => {
       ...defaultState,
       bookCollection: {
         ...defaultState.bookCollection,
-        bookshelf: { ...defaultState.bookCollection.bookshelf, books: [book] },
+        books: [book],
       },
     };
 
@@ -598,7 +599,7 @@ describe("BookGrid", () => {
       ...defaultState,
       bookCollection: {
         ...defaultState.bookCollection,
-        bookshelf: { ...defaultState.bookCollection.bookshelf, books: [book1, book2] },
+        books: [book1, book2],
       },
     };
 
@@ -672,7 +673,7 @@ describe("BookGrid", () => {
       ...defaultState,
       bookCollection: {
         ...defaultState.bookCollection,
-        bookshelf: { ...defaultState.bookCollection.bookshelf, books: [book1, book2] },
+        books: [book1, book2],
       },
     };
 
@@ -709,7 +710,7 @@ describe("BookGrid", () => {
       ...defaultState,
       bookCollection: {
         ...defaultState.bookCollection,
-        bookshelf: { ...defaultState.bookCollection.bookshelf, books: [book] },
+        books: [book],
       },
       series: { ...defaultState.series, series: [series] },
     };
@@ -758,7 +759,7 @@ describe("BookGrid", () => {
         ...defaultState,
         bookCollection: {
           ...defaultState.bookCollection,
-          bookshelf: { ...defaultState.bookCollection.bookshelf, books: [book1, book2] },
+          books: [book1, book2],
         },
         tag: { ...defaultState.tag, selectedId: 5 },
       } as unknown as RootState);
@@ -782,7 +783,7 @@ describe("BookGrid", () => {
         ...defaultState,
         bookCollection: {
           ...defaultState.bookCollection,
-          bookshelf: { ...defaultState.bookCollection.bookshelf, books: [book] },
+          books: [book],
         },
         series: { ...defaultState.series, series: [] }, // Missing series 99
       } as unknown as RootState);
@@ -811,10 +812,7 @@ describe("BookGrid", () => {
         ...defaultState,
         bookCollection: {
           ...defaultState.bookCollection,
-          bookshelf: {
-            ...defaultState.bookCollection.bookshelf,
-            books: [seriesBook, standaloneBook],
-          },
+          books: [seriesBook, standaloneBook],
         },
         series: { ...defaultState.series, series: [series], selectedId: 10 },
       } as unknown as RootState);
@@ -844,10 +842,7 @@ describe("BookGrid", () => {
         ...defaultState,
         bookCollection: {
           ...defaultState.bookCollection,
-          bookshelf: {
-            ...defaultState.bookCollection.bookshelf,
-            books: [book1, book2, book3, book4],
-          },
+          books: [book1, book2, book3, book4],
         },
       } as unknown as RootState);
     });
@@ -928,7 +923,7 @@ describe("BookGrid", () => {
         ...defaultState,
         bookCollection: {
           ...defaultState.bookCollection,
-          bookshelf: { ...defaultState.bookCollection.bookshelf, books: [bookC, bookB, bookA] },
+          books: [bookC, bookB, bookA],
         },
         series: { ...defaultState.series, series: [series], selectedId: 10 },
       } as unknown as RootState);
@@ -965,7 +960,7 @@ describe("BookGrid", () => {
         ...defaultState,
         bookCollection: {
           ...defaultState.bookCollection,
-          bookshelf: { ...defaultState.bookCollection.bookshelf, books: [book1, book2] },
+          books: [book1, book2],
         },
         series: { ...defaultState.series, series: [series] },
       } as unknown as RootState);
@@ -991,7 +986,7 @@ describe("BookGrid", () => {
       },
       bookCollection: {
         ...defaultState.bookCollection,
-        bookshelf: { ...defaultState.bookCollection.bookshelf, books: [readingBook] },
+        books: [readingBook],
       },
     };
 

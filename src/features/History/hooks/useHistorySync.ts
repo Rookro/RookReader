@@ -14,7 +14,7 @@ import { fetchRecentlyReadBooks } from "../slice";
  */
 export const useHistorySync = () => {
   const dispatch = useAppDispatch();
-  const selectedBookshelfId = useAppSelector((state) => state.bookCollection.bookshelf.selectedId);
+  const selectedBookshelfId = useAppSelector((state) => state.bookCollection.selectedId);
   const recordReadingHistory = useAppSelector(
     (state) => state.settings.history.recordReadingHistory,
   );

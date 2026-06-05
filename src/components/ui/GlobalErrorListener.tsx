@@ -36,7 +36,7 @@ export default function GlobalErrorListener() {
   const containerFileError = useAppSelector((state) => state.read.containerFile.error);
   const explorerError = useAppSelector((state) => state.read.explorer.error);
   const historyError = useAppSelector((state) => state.history.error);
-  const bookshelfError = useAppSelector((state) => state.bookCollection.bookshelf.error);
+  const bookshelfError = useAppSelector((state) => state.bookCollection.error);
   const tagsError = useAppSelector((state) => state.tag.error);
 
   useEffect(() => {

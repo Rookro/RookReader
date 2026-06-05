@@ -78,7 +78,11 @@ export function createBasePreloadedState(): RootState {
       },
     },
     bookCollection: {
-      bookshelf: { bookshelves: [], selectedId: null, books: [], status: "idle", error: null },
+      bookshelves: [],
+      selectedId: null,
+      books: [],
+      status: "idle",
+      error: null,
       searchText: "",
     },
     tag: { tags: [], selectedId: null, status: "idle", error: null },

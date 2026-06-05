@@ -55,9 +55,7 @@ describe("useHistorySync", () => {
     vi.mocked(useAppSelector).mockImplementation((selector) => {
       const state = {
         bookCollection: {
-          bookshelf: {
-            selectedId: mockSelectedBookshelfId,
-          },
+          selectedId: mockSelectedBookshelfId,
         },
         settings: {
           history: {
@@ -86,9 +84,7 @@ describe("useHistorySync", () => {
     vi.mocked(useAppSelector).mockImplementation((selector) => {
       const state = {
         bookCollection: {
-          bookshelf: {
-            selectedId: currentId,
-          },
+          selectedId: currentId,
         },
         settings: {
           history: {
@@ -142,9 +138,7 @@ describe("useHistorySync", () => {
     vi.mocked(useAppSelector).mockImplementation((selector) => {
       const state = {
         bookCollection: {
-          bookshelf: {
-            selectedId: mockSelectedBookshelfId,
-          },
+          selectedId: mockSelectedBookshelfId,
         },
         settings: {
           history: {

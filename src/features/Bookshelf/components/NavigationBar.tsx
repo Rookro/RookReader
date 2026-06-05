@@ -31,7 +31,7 @@ export default function NavigationBar() {
   const dispatch = useAppDispatch();
   const bookshelfSettings = useAppSelector((state) => state.settings.bookshelf);
   const searchText = useAppSelector((state) => state.bookCollection.searchText);
-  const bookshelfId = useAppSelector((state) => state.bookCollection.bookshelf.selectedId);
+  const bookshelfId = useAppSelector((state) => state.bookCollection.selectedId);
   const { selectedId: selectedSeriesId, series } = useAppSelector((state) => state.series);
 
   const selectedSeries = useMemo(() => {

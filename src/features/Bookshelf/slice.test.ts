@@ -43,13 +43,11 @@ describe("BookCollectionReducer", () => {
 
   const bookCollectionInitialState = {
     searchText: "",
-    bookshelf: {
-      bookshelves: [] as Bookshelf[],
-      selectedId: null as number | null,
-      books: [] as BookWithState[],
-      status: "idle" as const,
-      error: null as { code: ErrorCode; message?: string } | null,
-    },
+    bookshelves: [] as Bookshelf[],
+    selectedId: null as number | null,
+    books: [] as BookWithState[],
+    status: "idle" as const,
+    error: null as { code: ErrorCode; message?: string } | null,
   };
 
   beforeEach(() => {
@@ -77,15 +75,15 @@ describe("BookCollectionReducer", () => {
       bookCollectionInitialState,
       bookshelfAdded(newBookshelf),
     );
-    expect(nextState.bookshelf.bookshelves).toContainEqual(newBookshelf);
+    expect(nextState.bookshelves).toContainEqual(newBookshelf);
   });
 
   // Verify that bookshelf error state is cleared correctly
   it("should handle clearBookshelfError", () => {
     const stateWithError = structuredClone(bookCollectionInitialState);
-    stateWithError.bookshelf.error = { code: ErrorCode.OTHER_ERROR };
+    stateWithError.error = { code: ErrorCode.OTHER_ERROR };
     const nextState = bookCollectionReducer(stateWithError, clearBookshelfError());
-    expect(nextState.bookshelf.error).toBeNull();
+    expect(nextState.error).toBeNull();
   });
 
   describe("Async Thunk Integration Tests", () => {
@@ -93,8 +91,8 @@ describe("BookCollectionReducer", () => {
     it("should handle rejected actions with undefined payload", () => {
       const action = { type: addBookshelf.rejected.type, payload: undefined };
       const nextState = bookCollectionReducer(bookCollectionInitialState, action);
-      expect(nextState.bookshelf.status).toBe("failed");
-      expect(nextState.bookshelf.error).toBeNull();
+      expect(nextState.status).toBe("failed");
+      expect(nextState.error).toBeNull();
     });
 
     describe("Bookshelf Thunks", () => {
@@ -106,7 +104,7 @@ describe("BookCollectionReducer", () => {
         await store.dispatch(fetchBookshelves());
 
         const state = store.getState().bookCollection;
-        expect(state.bookshelf.status).toBe("succeeded");
+        expect(state.status).toBe("succeeded");
       });
 
       // Verify handling of CommandError when fetching bookshelves
@@ -117,8 +115,8 @@ describe("BookCollectionReducer", () => {
         await store.dispatch(fetchBookshelves());
 
         const state = store.getState().bookCollection;
-        expect(state.bookshelf.status).toBe("failed");
-        expect(state.bookshelf.error?.code).toBe(ErrorCode.IO_ERROR);
+        expect(state.status).toBe("failed");
+        expect(state.error?.code).toBe(ErrorCode.IO_ERROR);
       });
 
       // Verify error handling when bookshelf fetching fails
@@ -130,10 +128,7 @@ describe("BookCollectionReducer", () => {
         const preloadedState = {
           bookCollection: {
             ...bookCollectionInitialState,
-            bookshelf: {
-              ...bookCollectionInitialState.bookshelf,
-              bookshelves: [createMockBookshelf()],
-            },
+            bookshelves: [createMockBookshelf()],
           },
         };
         store = createTestStore(preloadedState);
@@ -141,9 +136,9 @@ describe("BookCollectionReducer", () => {
         await store.dispatch(fetchBookshelves());
 
         const state = store.getState().bookCollection;
-        expect(state.bookshelf.status).toBe("failed");
-        expect(state.bookshelf.error?.code).toBe(ErrorCode.OTHER_ERROR);
-        expect(state.bookshelf.bookshelves).toEqual([]);
+        expect(state.status).toBe("failed");
+        expect(state.error?.code).toBe(ErrorCode.OTHER_ERROR);
+        expect(state.bookshelves).toEqual([]);
       });
 
       // Verify state update on successful bookshelf creation
@@ -154,7 +149,7 @@ describe("BookCollectionReducer", () => {
         await store.dispatch(addBookshelf({ name: "New BS", icon_id: "folder" }));
 
         const state = store.getState().bookCollection;
-        expect(state.bookshelf.status).toBe("succeeded");
+        expect(state.status).toBe("succeeded");
       });
 
       // Verify handling of CommandError during bookshelf creation
@@ -165,8 +160,8 @@ describe("BookCollectionReducer", () => {
         await store.dispatch(addBookshelf({ name: "Existing BS", icon_id: "folder" }));
 
         const state = store.getState().bookCollection;
-        expect(state.bookshelf.status).toBe("failed");
-        expect(state.bookshelf.error?.code).toBe(ErrorCode.IO_ERROR);
+        expect(state.status).toBe("failed");
+        expect(state.error?.code).toBe(ErrorCode.IO_ERROR);
       });
 
       // Verify handling of generic Error during bookshelf creation
@@ -177,10 +172,11 @@ describe("BookCollectionReducer", () => {
         await store.dispatch(addBookshelf({ name: "Error BS", icon_id: "folder" }));
 
         const state = store.getState().bookCollection;
-        expect(state.bookshelf.status).toBe("failed");
-        expect(state.bookshelf.error?.code).toBe(ErrorCode.OTHER_ERROR);
+        expect(state.status).toBe("failed");
+        expect(state.error?.code).toBe(ErrorCode.OTHER_ERROR);
       });
 
+      // Verify error handling when bookshelf removal fails with no payload
       // Verify error handling when bookshelf removal fails with no payload
       it("removeBookshelf should handle failure with no payload", async () => {
         vi.mocked(BookshelfCommand.deleteBookshelf).mockImplementation(() => {
@@ -190,8 +186,8 @@ describe("BookCollectionReducer", () => {
         await store.dispatch(removeBookshelf(1));
 
         const state = store.getState().bookCollection;
-        expect(state.bookshelf.status).toBe("failed");
-        expect(state.bookshelf.error).toBeDefined();
+        expect(state.status).toBe("failed");
+        expect(state.error).toBeDefined();
       });
 
       // Verify that selectedId is reset if the selected bookshelf is deleted
@@ -199,7 +195,7 @@ describe("BookCollectionReducer", () => {
         const preloadedState = {
           bookCollection: structuredClone(bookCollectionInitialState),
         };
-        preloadedState.bookCollection.bookshelf.selectedId = 1;
+        preloadedState.bookCollection.selectedId = 1;
 
         store = createTestStore(preloadedState);
         vi.mocked(BookshelfCommand.deleteBookshelf).mockResolvedValue(undefined);
@@ -208,7 +204,7 @@ describe("BookCollectionReducer", () => {
         await store.dispatch(removeBookshelf(1));
 
         const state = store.getState().bookCollection;
-        expect(state.bookshelf.selectedId).toBeNull();
+        expect(state.selectedId).toBeNull();
       });
 
       // Verify that selectedId is maintained if a different bookshelf is deleted
@@ -216,7 +212,7 @@ describe("BookCollectionReducer", () => {
         const preloadedState = {
           bookCollection: structuredClone(bookCollectionInitialState),
         };
-        preloadedState.bookCollection.bookshelf.selectedId = 2;
+        preloadedState.bookCollection.selectedId = 2;
 
         store = createTestStore(preloadedState);
         vi.mocked(BookshelfCommand.deleteBookshelf).mockResolvedValue(undefined);
@@ -224,7 +220,7 @@ describe("BookCollectionReducer", () => {
         await store.dispatch(removeBookshelf(1));
 
         const state = store.getState().bookCollection;
-        expect(state.bookshelf.selectedId).toBe(2);
+        expect(state.selectedId).toBe(2);
       });
 
       // Verify error handling when bookshelf removal fails
@@ -234,8 +230,8 @@ describe("BookCollectionReducer", () => {
         await store.dispatch(removeBookshelf(1));
 
         const state = store.getState().bookCollection;
-        expect(state.bookshelf.status).toBe("failed");
-        expect(state.bookshelf.error?.code).toBe(ErrorCode.OTHER_ERROR);
+        expect(state.status).toBe("failed");
+        expect(state.error?.code).toBe(ErrorCode.OTHER_ERROR);
       });
 
       // Verify CommandError handling when bookshelf removal fails
@@ -246,8 +242,8 @@ describe("BookCollectionReducer", () => {
         await store.dispatch(removeBookshelf(1));
 
         const state = store.getState().bookCollection;
-        expect(state.bookshelf.status).toBe("failed");
-        expect(state.bookshelf.error?.code).toBe(ErrorCode.DATABASE_ERROR);
+        expect(state.status).toBe("failed");
+        expect(state.error?.code).toBe(ErrorCode.DATABASE_ERROR);
       });
 
       // Verify state update when switching bookshelves
@@ -258,8 +254,8 @@ describe("BookCollectionReducer", () => {
         await store.dispatch(changeBookshelf(1));
 
         const state = store.getState().bookCollection;
-        expect(state.bookshelf.selectedId).toBe(1);
-        expect(state.bookshelf.books).toEqual(mockBooks);
+        expect(state.selectedId).toBe(1);
+        expect(state.books).toEqual(mockBooks);
       });
 
       // Verify that all books are fetched when bookshelf selection is cleared (null)
@@ -270,8 +266,8 @@ describe("BookCollectionReducer", () => {
         await store.dispatch(changeBookshelf(null));
 
         const state = store.getState().bookCollection;
-        expect(state.bookshelf.selectedId).toBeNull();
-        expect(state.bookshelf.books).toEqual(mockBooks);
+        expect(state.selectedId).toBeNull();
+        expect(state.books).toEqual(mockBooks);
       });
 
       // Verify error handling when bookshelf switching fails
@@ -282,11 +278,8 @@ describe("BookCollectionReducer", () => {
         const preloadedState = {
           bookCollection: {
             ...bookCollectionInitialState,
-            bookshelf: {
-              ...bookCollectionInitialState.bookshelf,
-              selectedId: 1,
-              books: [createMockBookWithState()],
-            },
+            selectedId: 1,
+            books: [createMockBookWithState()],
           },
         };
         store = createTestStore(preloadedState);
@@ -294,9 +287,9 @@ describe("BookCollectionReducer", () => {
         await store.dispatch(changeBookshelf(1));
 
         const state = store.getState().bookCollection;
-        expect(state.bookshelf.status).toBe("failed");
-        expect(state.bookshelf.selectedId).toBeNull();
-        expect(state.bookshelf.books).toEqual([]);
+        expect(state.status).toBe("failed");
+        expect(state.selectedId).toBeNull();
+        expect(state.books).toEqual([]);
       });
 
       // Verify CommandError handling when bookshelf switching fails
@@ -307,12 +300,10 @@ describe("BookCollectionReducer", () => {
         await store.dispatch(changeBookshelf(1));
 
         const state = store.getState().bookCollection;
-        expect(state.bookshelf.status).toBe("failed");
-        expect(state.bookshelf.error?.code).toBe(ErrorCode.IO_ERROR);
+        expect(state.status).toBe("failed");
+        expect(state.error?.code).toBe(ErrorCode.IO_ERROR);
       });
-    });
 
-    describe("Book Thunks", () => {
       // Verify that book is added to bookshelf and status is updated
       it("addBookToBookshelf should add a book and update status", async () => {
         vi.mocked(ContainerCommands.getEntriesInContainer).mockResolvedValue({
@@ -325,7 +316,7 @@ describe("BookCollectionReducer", () => {
         await store.dispatch(addBookToBookshelf({ bookshelfId: 1, bookPath: "path/to/book.zip" }));
 
         const state = store.getState().bookCollection;
-        expect(state.bookshelf.status).toBe("succeeded");
+        expect(state.status).toBe("succeeded");
         expect(BookCommands.registerBook).toHaveBeenCalled();
       });
 
@@ -341,7 +332,7 @@ describe("BookCollectionReducer", () => {
         await store.dispatch(addBookToBookshelf({ bookshelfId: null, bookPath: "path" }));
 
         const state = store.getState().bookCollection;
-        expect(state.bookshelf.status).toBe("succeeded");
+        expect(state.status).toBe("succeeded");
         expect(BookCommands.registerBook).toHaveBeenCalled();
       });
 
@@ -387,8 +378,8 @@ describe("BookCollectionReducer", () => {
         await store.dispatch(addBookToBookshelf({ bookshelfId: 1, bookPath: "path" }));
 
         const state = store.getState().bookCollection;
-        expect(state.bookshelf.status).toBe("failed");
-        expect(state.bookshelf.error?.code).toBe(ErrorCode.OTHER_ERROR);
+        expect(state.status).toBe("failed");
+        expect(state.error?.code).toBe(ErrorCode.OTHER_ERROR);
       });
 
       // Verify CommandError handling when book addition fails
@@ -399,8 +390,8 @@ describe("BookCollectionReducer", () => {
         await store.dispatch(addBookToBookshelf({ bookshelfId: 1, bookPath: "path" }));
 
         const state = store.getState().bookCollection;
-        expect(state.bookshelf.status).toBe("failed");
-        expect(state.bookshelf.error?.code).toBe(ErrorCode.IO_ERROR);
+        expect(state.status).toBe("failed");
+        expect(state.error?.code).toBe(ErrorCode.IO_ERROR);
       });
 
       // Verify state update when removing a book from the collection
@@ -410,7 +401,7 @@ describe("BookCollectionReducer", () => {
         await store.dispatch(deleteBookFromCollection({ bookId: 10, bookshelfId: 1 }));
 
         const state = store.getState().bookCollection;
-        expect(state.bookshelf.status).toBe("succeeded");
+        expect(state.status).toBe("succeeded");
       });
 
       // Verify that book is deleted from DB when removed with no bookshelf ID (null)
@@ -429,8 +420,8 @@ describe("BookCollectionReducer", () => {
         await store.dispatch(deleteBookFromCollection({ bookId: 10, bookshelfId: null }));
 
         const state = store.getState().bookCollection;
-        expect(state.bookshelf.status).toBe("failed");
-        expect(state.bookshelf.error?.code).toBe(ErrorCode.OTHER_ERROR);
+        expect(state.status).toBe("failed");
+        expect(state.error?.code).toBe(ErrorCode.OTHER_ERROR);
       });
 
       // Verify CommandError handling when book deletion fails
@@ -441,8 +432,8 @@ describe("BookCollectionReducer", () => {
         await store.dispatch(deleteBookFromCollection({ bookId: 10, bookshelfId: null }));
 
         const state = store.getState().bookCollection;
-        expect(state.bookshelf.status).toBe("failed");
-        expect(state.bookshelf.error?.code).toBe(ErrorCode.DATABASE_ERROR);
+        expect(state.status).toBe("failed");
+        expect(state.error?.code).toBe(ErrorCode.DATABASE_ERROR);
       });
 
       // Verify state update on successful fetching of books in selected bookshelf
@@ -453,7 +444,7 @@ describe("BookCollectionReducer", () => {
         await store.dispatch(fetchBooksInSelectedBookshelf(1));
 
         const state = store.getState().bookCollection;
-        expect(state.bookshelf.books).toEqual(mockBooks);
+        expect(state.books).toEqual(mockBooks);
       });
 
       // Verify that all books are fetched when fetchBooksInSelectedBookshelf is called with null
@@ -464,7 +455,7 @@ describe("BookCollectionReducer", () => {
         await store.dispatch(fetchBooksInSelectedBookshelf(null));
 
         const state = store.getState().bookCollection;
-        expect(state.bookshelf.books).toEqual(mockBooks);
+        expect(state.books).toEqual(mockBooks);
       });
 
       // Verify error handling when book fetching in selected bookshelf fails
@@ -475,10 +466,7 @@ describe("BookCollectionReducer", () => {
         const preloadedState = {
           bookCollection: {
             ...bookCollectionInitialState,
-            bookshelf: {
-              ...bookCollectionInitialState.bookshelf,
-              books: [createMockBookWithState()],
-            },
+            books: [createMockBookWithState()],
           },
         };
         store = createTestStore(preloadedState);
@@ -486,8 +474,8 @@ describe("BookCollectionReducer", () => {
         await store.dispatch(fetchBooksInSelectedBookshelf(null));
 
         const state = store.getState().bookCollection;
-        expect(state.bookshelf.status).toBe("failed");
-        expect(state.bookshelf.books).toEqual([]);
+        expect(state.status).toBe("failed");
+        expect(state.books).toEqual([]);
       });
 
       // Verify CommandError handling when book fetching in selected bookshelf fails
@@ -498,8 +486,8 @@ describe("BookCollectionReducer", () => {
         await store.dispatch(fetchBooksInSelectedBookshelf(null));
 
         const state = store.getState().bookCollection;
-        expect(state.bookshelf.status).toBe("failed");
-        expect(state.bookshelf.error?.code).toBe(ErrorCode.IO_ERROR);
+        expect(state.status).toBe("failed");
+        expect(state.error?.code).toBe(ErrorCode.IO_ERROR);
       });
     });
   });

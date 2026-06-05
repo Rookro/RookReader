@@ -40,7 +40,7 @@ describe("MenuList", () => {
   const mockTags = [{ id: 10, name: "Tag 1", color_code: "#ff0000" }];
 
   const preloadedState = createBasePreloadedState();
-  preloadedState.bookCollection.bookshelf.bookshelves = mockBookshelves;
+  preloadedState.bookCollection.bookshelves = mockBookshelves;
   preloadedState.tag.tags = mockTags;
 
   const defaultProps = {
@@ -69,7 +69,7 @@ describe("MenuList", () => {
 
   it("should show fallback icon for unknown icon_id", () => {
     const stateWithUnknownIcon = createBasePreloadedState();
-    stateWithUnknownIcon.bookCollection.bookshelf.bookshelves = [
+    stateWithUnknownIcon.bookCollection.bookshelves = [
       { id: 2, name: "Unknown Icon", icon_id: "non-existent", created_at: "" },
     ];
     renderWithProviders(<MenuList {...defaultProps} />, { preloadedState: stateWithUnknownIcon });
@@ -85,7 +85,7 @@ describe("MenuList", () => {
 
   it("should deselect tag when the same tag is clicked", async () => {
     const stateWithTagSelected = createBasePreloadedState();
-    stateWithTagSelected.bookCollection.bookshelf.bookshelves = mockBookshelves;
+    stateWithTagSelected.bookCollection.bookshelves = mockBookshelves;
     stateWithTagSelected.tag.tags = mockTags;
     stateWithTagSelected.tag.selectedId = 10;
 
