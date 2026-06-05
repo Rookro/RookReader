@@ -21,12 +21,8 @@ import { useAppDispatch, useAppSelector } from "../../../store/store";
 import type { SortOrder } from "../../../types/AppSettings";
 import { openSettingsWindow } from "../../../utils/WindowOpener";
 import { updateSettings } from "../../Settings/slice";
-import {
-  addBookToBookshelf,
-  setEditSeriesOrderDialogState,
-  setSearchText,
-  setSelectedSeriesId,
-} from "../slice";
+import { setEditSeriesOrderDialogState, setSelectedSeriesId } from "../seriesSlice";
+import { addBookToBookshelf, setSearchText } from "../slice";
 import BookAdditionToBookshelfDialog from "./Dialog/BookAdditionToBookshelfDialog";
 
 /** Navigation bar for the bookshelf component */
@@ -36,9 +32,7 @@ export default function NavigationBar() {
   const bookshelfSettings = useAppSelector((state) => state.settings.bookshelf);
   const searchText = useAppSelector((state) => state.bookCollection.searchText);
   const bookshelfId = useAppSelector((state) => state.bookCollection.bookshelf.selectedId);
-  const { selectedId: selectedSeriesId, series } = useAppSelector(
-    (state) => state.bookCollection.series,
-  );
+  const { selectedId: selectedSeriesId, series } = useAppSelector((state) => state.series);
 
   const selectedSeries = useMemo(() => {
     return series.find((s) => s.id === selectedSeriesId);

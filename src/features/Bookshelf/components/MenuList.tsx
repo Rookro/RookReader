@@ -19,7 +19,8 @@ import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppDispatch, useAppSelector } from "../../../store/store";
 import { setActiveView } from "../../MainView/slice";
-import { changeBookshelf, removeBookshelf, removeTag, setSelectedTag } from "../slice";
+import { changeBookshelf, removeBookshelf } from "../slice";
+import { removeTag, setSelectedTag } from "../tagSlice";
 import { BookShelfIcons } from "./BookshelfIcons";
 
 /** Props for the MenuList of bookshelf component */
@@ -36,8 +37,8 @@ export default function MenuList({ onClickAddBookshelf, onClickAddBookTag }: Men
   const dispatch = useAppDispatch();
   const bookshelves = useAppSelector((state) => state.bookCollection.bookshelf.bookshelves);
   const selectedBookshelfId = useAppSelector((state) => state.bookCollection.bookshelf.selectedId);
-  const tags = useAppSelector((state) => state.bookCollection.tag.tags);
-  const selectedTagId = useAppSelector((state) => state.bookCollection.tag.selectedId);
+  const tags = useAppSelector((state) => state.tag.tags);
+  const selectedTagId = useAppSelector((state) => state.tag.selectedId);
 
   const [contextMenu, setContextMenu] = useState<{
     mouseX: number;

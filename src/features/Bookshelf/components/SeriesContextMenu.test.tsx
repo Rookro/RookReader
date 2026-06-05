@@ -46,7 +46,7 @@ describe("SeriesContextMenu", () => {
 
     await user.click(screen.getByText(/Edit Series Order/i));
 
-    const state = store.getState().bookCollection;
+    const state = store.getState().series;
     expect(state.isEditSeriesOrderDialogOpen).toBe(true);
     expect(state.editSeriesOrderTargetId).toBe(mockSeries.id);
     expect(defaultProps.onClose).toHaveBeenCalled();

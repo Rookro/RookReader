@@ -2,12 +2,9 @@ import { renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useTauriEvent } from "../../../hooks/useTauriEvent";
 import { type RootState, useAppDispatch, useAppSelector } from "../../../store/store";
-import {
-  fetchBookshelves,
-  fetchBooksInSelectedBookshelf,
-  fetchSeries,
-  fetchTags,
-} from "../../Bookshelf/slice";
+import { fetchSeries } from "../../Bookshelf/seriesSlice";
+import { fetchBookshelves, fetchBooksInSelectedBookshelf } from "../../Bookshelf/slice";
+import { fetchTags } from "../../Bookshelf/tagSlice";
 import { fetchRecentlyReadBooks } from "../slice";
 import { useHistorySync } from "./useHistorySync";
 
@@ -23,7 +20,19 @@ vi.mock("../../Bookshelf/slice", async (importOriginal) => {
       type: "fetchBooksInSelectedBookshelf",
       payload: id,
     })),
+  };
+});
+vi.mock("../../Bookshelf/seriesSlice", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../Bookshelf/seriesSlice")>();
+  return {
+    ...actual,
     fetchSeries: vi.fn(() => ({ type: "fetchSeries" })),
+  };
+});
+vi.mock("../../Bookshelf/tagSlice", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../Bookshelf/tagSlice")>();
+  return {
+    ...actual,
     fetchTags: vi.fn(() => ({ type: "fetchTags" })),
   };
 });

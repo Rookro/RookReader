@@ -9,6 +9,7 @@ import { createBasePreloadedState, renderWithProviders } from "../../../test/uti
 import * as ReadReducer from "../../BookReader/slice";
 import * as ViewReducer from "../../MainView/slice";
 import * as BookCollectionReducer from "../slice";
+import * as TagReducer from "../tagSlice";
 import Bookshelf from "./Bookshelf";
 
 // Mock sub-components
@@ -110,12 +111,19 @@ vi.mock("../slice", async () => {
       type: "bookCollection/addBookshelf",
       payload,
     })),
-    addTag: vi.fn((payload: { name: string; color_code: string }) => ({
-      type: "bookCollection/addTag",
-      payload,
-    })),
     setGridSize: vi.fn((payload: number) => ({ type: "bookCollection/setGridSize", payload })),
     setSortOrder: vi.fn((payload: string) => ({ type: "bookCollection/setSortOrder", payload })),
+  };
+});
+
+vi.mock("../tagSlice", async () => {
+  const actual = await vi.importActual("../tagSlice");
+  return {
+    ...actual,
+    addTag: vi.fn((payload: { name: string; color_code: string }) => ({
+      type: "tag/addTag",
+      payload,
+    })),
   };
 });
 
@@ -189,7 +197,7 @@ describe("Bookshelf", () => {
     expect(screen.getByTestId("create-book-tag-dialog")).toBeInTheDocument();
 
     await user.click(screen.getByTestId("confirm-create-tag"));
-    expect(BookCollectionReducer.addTag).toHaveBeenCalledWith({
+    expect(TagReducer.addTag).toHaveBeenCalledWith({
       name: "New Tag",
       color_code: "#ff0000",
     });

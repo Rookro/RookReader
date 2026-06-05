@@ -4,12 +4,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import i18n from "../../../../i18n/config";
 import { createMockBookWithState } from "../../../../test/factories";
 import { renderWithProviders } from "../../../../test/utils";
-import * as slice from "../../slice";
+import * as seriesSlice from "../../seriesSlice";
 import EditSeriesOrderDialog from "./EditSeriesOrderDialog";
 
-// Mock the entire slice module to intercept thunk calls
-vi.mock("../../slice", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../slice")>();
+// Mock the seriesSlice module to intercept thunk calls
+vi.mock("../../seriesSlice", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../seriesSlice")>();
   return {
     ...actual,
     updateSeriesOrdersThunk: vi.fn(() => ({ type: "mock/updateSeriesOrdersThunk" })),
@@ -89,7 +89,7 @@ describe("EditSeriesOrderDialog", () => {
     await user.click(okButton);
 
     // Verify the thunk itself was called with the expected IDs
-    expect(slice.updateSeriesOrdersThunk).toHaveBeenCalledWith([1, 2, 3]);
+    expect(seriesSlice.updateSeriesOrdersThunk).toHaveBeenCalledWith([1, 2, 3]);
     expect(handleClose).toHaveBeenCalled();
   });
 });

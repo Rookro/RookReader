@@ -17,10 +17,19 @@ vi.mock("../hooks/useBookshelfDialogs");
 vi.mock("../hooks/useReadingBookSelection");
 vi.mock("../../../hooks/useResizeObserver");
 vi.mock("../slice", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../slice")>();
+  return await importOriginal<typeof import("../slice")>();
+});
+vi.mock("../seriesSlice", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../seriesSlice")>();
   return {
     ...actual,
     fetchSeries: vi.fn(() => ({ type: "fetchSeries" })),
+  };
+});
+vi.mock("../tagSlice", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../tagSlice")>();
+  return {
+    ...actual,
     fetchTags: vi.fn(() => ({ type: "fetchTags" })),
   };
 });
@@ -171,22 +180,22 @@ describe("BookGrid", () => {
     },
     bookCollection: {
       searchText: "",
-      isEditSeriesOrderDialogOpen: false,
-      editSeriesOrderTargetId: null,
       bookshelf: {
         books: [],
         bookshelves: [],
         selectedId: 1,
         status: "idle",
       },
-      tag: {
-        selectedId: null,
-        tags: [],
-      },
-      series: {
-        series: [],
-        selectedId: null,
-      },
+    },
+    tag: {
+      selectedId: null,
+      tags: [],
+    },
+    series: {
+      series: [],
+      selectedId: null,
+      isEditSeriesOrderDialogOpen: false,
+      editSeriesOrderTargetId: null,
     },
     read: {
       containerFile: {
@@ -292,8 +301,8 @@ describe("BookGrid", () => {
         bookCollection: {
           ...defaultState.bookCollection,
           bookshelf: { ...defaultState.bookCollection.bookshelf, books: [book, seriesBook] },
-          series: { ...defaultState.bookCollection.series, series: [series] },
         },
+        series: { ...defaultState.series, series: [series] },
       } as unknown as RootState);
     });
 
@@ -383,8 +392,8 @@ describe("BookGrid", () => {
         bookCollection: {
           ...defaultState.bookCollection,
           bookshelf: { ...defaultState.bookCollection.bookshelf, books: [seriesBook] },
-          series: { ...defaultState.bookCollection.series, series: [series] },
         },
+        series: { ...defaultState.series, series: [series] },
       } as unknown as RootState);
     });
 
@@ -490,8 +499,8 @@ describe("BookGrid", () => {
       bookCollection: {
         ...defaultState.bookCollection,
         bookshelf: { ...defaultState.bookCollection.bookshelf, books: [book1, book2] },
-        series: { ...defaultState.bookCollection.series, series: [series] },
       },
+      series: { ...defaultState.series, series: [series] },
     };
 
     vi.mocked(useAppSelector).mockImplementation(<T,>(selector: (state: RootState) => T): T => {
@@ -700,9 +709,9 @@ describe("BookGrid", () => {
       ...defaultState,
       bookCollection: {
         ...defaultState.bookCollection,
-        series: { ...defaultState.bookCollection.series, series: [series] },
         bookshelf: { ...defaultState.bookCollection.bookshelf, books: [book] },
       },
+      series: { ...defaultState.series, series: [series] },
     };
 
     vi.mocked(useAppSelector).mockImplementation(<T,>(selector: (state: RootState) => T): T => {
@@ -749,9 +758,9 @@ describe("BookGrid", () => {
         ...defaultState,
         bookCollection: {
           ...defaultState.bookCollection,
-          tag: { ...defaultState.bookCollection.tag, selectedId: 5 },
           bookshelf: { ...defaultState.bookCollection.bookshelf, books: [book1, book2] },
         },
+        tag: { ...defaultState.tag, selectedId: 5 },
       } as unknown as RootState);
     });
 
@@ -774,8 +783,8 @@ describe("BookGrid", () => {
         bookCollection: {
           ...defaultState.bookCollection,
           bookshelf: { ...defaultState.bookCollection.bookshelf, books: [book] },
-          series: { ...defaultState.bookCollection.series, series: [] }, // Missing series 99
         },
+        series: { ...defaultState.series, series: [] }, // Missing series 99
       } as unknown as RootState);
     });
 
@@ -806,8 +815,8 @@ describe("BookGrid", () => {
             ...defaultState.bookCollection.bookshelf,
             books: [seriesBook, standaloneBook],
           },
-          series: { ...defaultState.bookCollection.series, series: [series], selectedId: 10 },
         },
+        series: { ...defaultState.series, series: [series], selectedId: 10 },
       } as unknown as RootState);
     });
 
@@ -920,8 +929,8 @@ describe("BookGrid", () => {
         bookCollection: {
           ...defaultState.bookCollection,
           bookshelf: { ...defaultState.bookCollection.bookshelf, books: [bookC, bookB, bookA] },
-          series: { ...defaultState.bookCollection.series, series: [series], selectedId: 10 },
         },
+        series: { ...defaultState.series, series: [series], selectedId: 10 },
       } as unknown as RootState);
     });
 
@@ -957,8 +966,8 @@ describe("BookGrid", () => {
         bookCollection: {
           ...defaultState.bookCollection,
           bookshelf: { ...defaultState.bookCollection.bookshelf, books: [book1, book2] },
-          series: { ...defaultState.bookCollection.series, series: [series] },
         },
+        series: { ...defaultState.series, series: [series] },
       } as unknown as RootState);
     });
 

@@ -85,10 +85,12 @@ describe("NavigationBar", () => {
 
   it("should render breadcrumbs when a series is selected", () => {
     const preloadedState = createBasePreloadedState();
-    preloadedState.bookCollection.series = {
+    preloadedState.series = {
       series: [{ id: 1, name: "Selected Series", created_at: "2026-03-01T15:30:00" }],
       selectedId: 1,
       books: [],
+      isEditSeriesOrderDialogOpen: false,
+      editSeriesOrderTargetId: null,
       status: "idle",
       error: null,
     };
@@ -101,10 +103,12 @@ describe("NavigationBar", () => {
 
   it("should clear selected series when 'Bookshelf' link is clicked", async () => {
     const preloadedState = createBasePreloadedState();
-    preloadedState.bookCollection.series = {
+    preloadedState.series = {
       series: [{ id: 1, name: "Selected Series", created_at: "2026-03-01T15:30:00" }],
       selectedId: 1,
       books: [],
+      isEditSeriesOrderDialogOpen: false,
+      editSeriesOrderTargetId: null,
       status: "idle",
       error: null,
     };
@@ -114,15 +118,17 @@ describe("NavigationBar", () => {
     const bookshelfLink = screen.getByText(i18n.t("bookshelf.title"));
     await user.click(bookshelfLink);
 
-    expect(store.getState().bookCollection.series.selectedId).toBeNull();
+    expect(store.getState().series.selectedId).toBeNull();
   });
 
   it("should hide sort controls and add button when a series is selected", () => {
     const preloadedState = createBasePreloadedState();
-    preloadedState.bookCollection.series = {
+    preloadedState.series = {
       series: [{ id: 1, name: "Selected Series", created_at: "2026-03-01T15:30:00" }],
       selectedId: 1,
       books: [],
+      isEditSeriesOrderDialogOpen: false,
+      editSeriesOrderTargetId: null,
       status: "idle",
       error: null,
     };
@@ -136,10 +142,12 @@ describe("NavigationBar", () => {
 
   it("should open edit series order dialog when 'Edit Order' button is clicked", async () => {
     const preloadedState = createBasePreloadedState();
-    preloadedState.bookCollection.series = {
+    preloadedState.series = {
       series: [{ id: 1, name: "Selected Series", created_at: "2026-03-01T15:30:00" }],
       selectedId: 1,
       books: [],
+      isEditSeriesOrderDialogOpen: false,
+      editSeriesOrderTargetId: null,
       status: "idle",
       error: null,
     };
@@ -149,7 +157,7 @@ describe("NavigationBar", () => {
     const editOrderButton = screen.getByText(i18n.t("bookshelf.series.edit-order.title"));
     await user.click(editOrderButton);
 
-    expect(store.getState().bookCollection.isEditSeriesOrderDialogOpen).toBe(true);
-    expect(store.getState().bookCollection.editSeriesOrderTargetId).toBe(1);
+    expect(store.getState().series.isEditSeriesOrderDialogOpen).toBe(true);
+    expect(store.getState().series.editSeriesOrderTargetId).toBe(1);
   });
 });

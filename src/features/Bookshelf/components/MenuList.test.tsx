@@ -3,7 +3,8 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createBasePreloadedState, renderWithProviders } from "../../../test/utils";
 import { setActiveView } from "../../MainView/slice";
-import { changeBookshelf, removeBookshelf, removeTag, setSelectedTag } from "../slice";
+import { changeBookshelf, removeBookshelf } from "../slice";
+import { removeTag, setSelectedTag } from "../tagSlice";
 import MenuList from "./MenuList";
 
 vi.mock("../slice", async () => {
@@ -11,8 +12,15 @@ vi.mock("../slice", async () => {
   return {
     ...actual,
     changeBookshelf: vi.fn((id) => ({ type: "changeBookshelf", payload: id })),
-    setSelectedTag: vi.fn((id) => ({ type: "setSelectedTag", payload: id })),
     removeBookshelf: vi.fn((id) => ({ type: "removeBookshelf", payload: id })),
+  };
+});
+
+vi.mock("../tagSlice", async () => {
+  const actual = await vi.importActual("../tagSlice");
+  return {
+    ...actual,
+    setSelectedTag: vi.fn((id) => ({ type: "setSelectedTag", payload: id })),
     removeTag: vi.fn((id) => ({ type: "removeTag", payload: id })),
   };
 });
@@ -33,7 +41,7 @@ describe("MenuList", () => {
 
   const preloadedState = createBasePreloadedState();
   preloadedState.bookCollection.bookshelf.bookshelves = mockBookshelves;
-  preloadedState.bookCollection.tag.tags = mockTags;
+  preloadedState.tag.tags = mockTags;
 
   const defaultProps = {
     onClickAddBookshelf: vi.fn(),
@@ -78,8 +86,8 @@ describe("MenuList", () => {
   it("should deselect tag when the same tag is clicked", async () => {
     const stateWithTagSelected = createBasePreloadedState();
     stateWithTagSelected.bookCollection.bookshelf.bookshelves = mockBookshelves;
-    stateWithTagSelected.bookCollection.tag.tags = mockTags;
-    stateWithTagSelected.bookCollection.tag.selectedId = 10;
+    stateWithTagSelected.tag.tags = mockTags;
+    stateWithTagSelected.tag.selectedId = 10;
 
     renderWithProviders(<MenuList {...defaultProps} />, { preloadedState: stateWithTagSelected });
     await user.click(screen.getByText("Tag 1"));

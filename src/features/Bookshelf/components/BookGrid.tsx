@@ -12,13 +12,9 @@ import { updateSettings } from "../../Settings/slice";
 import { useBookSelection } from "../hooks/useBookSelection";
 import { type BookshelfDialogType, useBookshelfDialogs } from "../hooks/useBookshelfDialogs";
 import { useReadingBookSelection } from "../hooks/useReadingBookSelection";
-import {
-  fetchSeries,
-  fetchTags,
-  setEditSeriesOrderDialogState,
-  setSearchText,
-  setSelectedSeriesId,
-} from "../slice";
+import { fetchSeries, setEditSeriesOrderDialogState, setSelectedSeriesId } from "../seriesSlice";
+import { setSearchText } from "../slice";
+import { fetchTags } from "../tagSlice";
 import {
   andSearch,
   andSearchGridItems,
@@ -49,12 +45,12 @@ const selectBookGridState = createSelector(
     (state: RootState) => state.bookCollection.bookshelf.books,
     (state: RootState) => state.bookCollection.bookshelf.bookshelves,
     (state: RootState) => state.bookCollection.bookshelf.status,
-    (state: RootState) => state.bookCollection.tag.selectedId,
-    (state: RootState) => state.bookCollection.tag.tags,
-    (state: RootState) => state.bookCollection.series.series,
-    (state: RootState) => state.bookCollection.series.selectedId,
-    (state: RootState) => state.bookCollection.isEditSeriesOrderDialogOpen,
-    (state: RootState) => state.bookCollection.editSeriesOrderTargetId,
+    (state: RootState) => state.tag.selectedId,
+    (state: RootState) => state.tag.tags,
+    (state: RootState) => state.series.series,
+    (state: RootState) => state.series.selectedId,
+    (state: RootState) => state.series.isEditSeriesOrderDialogOpen,
+    (state: RootState) => state.series.editSeriesOrderTargetId,
     (state: RootState) => state.read.containerFile.book,
     (state: RootState) => state.view.activeView,
   ],

@@ -1,12 +1,10 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import { basename } from "@tauri-apps/api/path";
-import { error } from "@tauri-apps/plugin-log";
 import {
   deleteBook,
   getAllBooksWithState,
   getBooksWithStateByBookshelfId,
   registerBook,
-  updateSeriesOrders,
 } from "../../bindings/BookCommands";
 import {
   addBookToBookshelf as addBookToBookshelfCommand,
@@ -16,14 +14,11 @@ import {
   removeBookFromBookshelf,
 } from "../../bindings/BookshelfCommand";
 import { getEntriesInContainer } from "../../bindings/ContainerCommands";
-import { getAllSeries } from "../../bindings/SeriesCommand";
-import { createTag, deleteTag, getAllTags } from "../../bindings/TagCommands";
 import type { BookWithState } from "../../domain/book/schema";
 import type { Bookshelf } from "../../domain/bookshelf/schema";
-import type { Series } from "../../domain/series/schema";
-import type { Tag } from "../../domain/tag/schema";
+import { handleThunkError } from "../../store/thunkErrorHandler";
 import { createAppAsyncThunk } from "../../types/CustomAsyncThunk";
-import { CommandError, ErrorCode } from "../../types/Error";
+import type { ErrorCode } from "../../types/Error";
 
 /**
  * Creates a new bookshelf and adds it to the database.
@@ -39,35 +34,10 @@ export const addBookshelf = createAppAsyncThunk(
     try {
       return await createBookshelf(name, icon_id);
     } catch (e) {
-      const errorMessage = `Failed to add bookshelf(name: ${name}, icon_id: ${icon_id}). Error: ${JSON.stringify(e)}`;
-      error(errorMessage);
-      return rejectWithValue(
-        e instanceof CommandError
-          ? { code: e.code, message: errorMessage }
-          : { code: ErrorCode.OTHER_ERROR, message: errorMessage },
-      );
-    }
-  },
-);
-
-/**
- * Updates the order of books within a series and refetches the bookshelf to reflect the changes.
- *
- * @param bookIds - The array of book IDs in the desired new order.
- * @returns A thunk that resolves when the update is successful.
- */
-export const updateSeriesOrdersThunk = createAppAsyncThunk(
-  "bookCollection/updateSeriesOrdersThunk",
-  async (bookIds: number[], { rejectWithValue }) => {
-    try {
-      await updateSeriesOrders(bookIds);
-    } catch (e) {
-      const errorMessage = `Failed to update series orders. Error: ${JSON.stringify(e)}`;
-      error(errorMessage);
-      return rejectWithValue(
-        e instanceof CommandError
-          ? { code: e.code, message: errorMessage }
-          : { code: ErrorCode.OTHER_ERROR, message: errorMessage },
+      return handleThunkError(
+        e,
+        `Failed to add bookshelf(name: ${name}, icon_id: ${icon_id}).`,
+        rejectWithValue,
       );
     }
   },
@@ -84,13 +54,7 @@ export const fetchBookshelves = createAppAsyncThunk(
     try {
       return await getAllBookshelves();
     } catch (e) {
-      const errorMessage = `Failed to fetch all available bookshelves. Error: ${JSON.stringify(e)}`;
-      error(errorMessage);
-      return rejectWithValue(
-        e instanceof CommandError
-          ? { code: e.code, message: errorMessage }
-          : { code: ErrorCode.OTHER_ERROR, message: errorMessage },
-      );
+      return handleThunkError(e, "Failed to fetch all available bookshelves.", rejectWithValue);
     }
   },
 );
@@ -111,12 +75,10 @@ export const fetchBooksInSelectedBookshelf = createAppAsyncThunk(
       }
       return await getBooksWithStateByBookshelfId(bookshelfId);
     } catch (e) {
-      const errorMessage = `Failed to fetch books in the bookshelf of bookshelfId: ${bookshelfId}. Error: ${JSON.stringify(e)}`;
-      error(errorMessage);
-      return rejectWithValue(
-        e instanceof CommandError
-          ? { code: e.code, message: errorMessage }
-          : { code: ErrorCode.OTHER_ERROR, message: errorMessage },
+      return handleThunkError(
+        e,
+        `Failed to fetch books in the bookshelf of bookshelfId: ${bookshelfId}.`,
+        rejectWithValue,
       );
     }
   },
@@ -145,13 +107,7 @@ export const deleteBookFromCollection = createAppAsyncThunk(
         await deleteBook(bookId);
       }
     } catch (e) {
-      const errorMessage = `Failed to delete book with bookId: ${bookId}. Error: ${JSON.stringify(e)}`;
-      error(errorMessage);
-      return rejectWithValue(
-        e instanceof CommandError
-          ? { code: e.code, message: errorMessage }
-          : { code: ErrorCode.OTHER_ERROR, message: errorMessage },
-      );
+      return handleThunkError(e, `Failed to delete book with bookId: ${bookId}.`, rejectWithValue);
     }
   },
 );
@@ -188,59 +144,10 @@ export const addBookToBookshelf = createAppAsyncThunk(
         await addBookToBookshelfCommand(bookshelfId, bookId);
       }
     } catch (e) {
-      const errorMessage = `Failed to add book(path: ${bookPath}) to bookshelf of bookshelfId: ${bookshelfId}. Error: ${JSON.stringify(e)}`;
-      error(errorMessage);
-      return rejectWithValue(
-        e instanceof CommandError
-          ? { code: e.code, message: errorMessage }
-          : { code: ErrorCode.OTHER_ERROR, message: errorMessage },
-      );
-    }
-  },
-);
-
-/**
- * Creates a new tag and adds it to the database.
- *
- * @param params - The parameters for creating a tag.
- * @param params.name - The name of the new tag.
- * @param params.color_code - The hex color code associated with the tag.
- * @returns A thunk that resolves to the newly created Tag object.
- */
-export const addTag = createAppAsyncThunk(
-  "bookCollection/addTag",
-  async ({ name, color_code }: { name: string; color_code: string }, { rejectWithValue }) => {
-    try {
-      return await createTag(name, color_code);
-    } catch (e) {
-      const errorMessage = `Failed to add tag(name: ${name}, color_code: ${color_code}). Error: ${JSON.stringify(e)}`;
-      error(errorMessage);
-      return rejectWithValue(
-        e instanceof CommandError
-          ? { code: e.code, message: errorMessage }
-          : { code: ErrorCode.OTHER_ERROR, message: errorMessage },
-      );
-    }
-  },
-);
-
-/**
- * Fetches all available tags from the database.
- *
- * @returns A thunk that resolves to an array of all Tag objects.
- */
-export const fetchTags = createAppAsyncThunk(
-  "bookCollection/fetchTags",
-  async (_, { rejectWithValue }) => {
-    try {
-      return await getAllTags();
-    } catch (e) {
-      const errorMessage = `Failed to fetch all available tags. Error: ${JSON.stringify(e)}`;
-      error(errorMessage);
-      return rejectWithValue(
-        e instanceof CommandError
-          ? { code: e.code, message: errorMessage }
-          : { code: ErrorCode.OTHER_ERROR, message: errorMessage },
+      return handleThunkError(
+        e,
+        `Failed to add book(path: ${bookPath}) to bookshelf of bookshelfId: ${bookshelfId}.`,
+        rejectWithValue,
       );
     }
   },
@@ -259,59 +166,7 @@ export const removeBookshelf = createAppAsyncThunk(
       await deleteBookshelf(id);
       return id;
     } catch (e) {
-      const errorMessage = `Failed to remove bookshelf(id: ${id}). Error: ${JSON.stringify(e)}`;
-      error(errorMessage);
-      return rejectWithValue(
-        e instanceof CommandError
-          ? { code: e.code, message: errorMessage }
-          : { code: ErrorCode.OTHER_ERROR, message: errorMessage },
-      );
-    }
-  },
-);
-
-/**
- * Deletes a tag and refetches all tags.
- *
- * @param id - The ID of the tag to delete.
- * @returns A thunk that resolves when the tag is deleted.
- */
-export const removeTag = createAppAsyncThunk(
-  "bookCollection/removeTag",
-  async (id: number, { rejectWithValue }) => {
-    try {
-      await deleteTag(id);
-      return id;
-    } catch (e) {
-      const errorMessage = `Failed to remove tag(id: ${id}). Error: ${JSON.stringify(e)}`;
-      error(errorMessage);
-      return rejectWithValue(
-        e instanceof CommandError
-          ? { code: e.code, message: errorMessage }
-          : { code: ErrorCode.OTHER_ERROR, message: errorMessage },
-      );
-    }
-  },
-);
-
-/**
- * Fetches all available series from the database.
- *
- * @returns A thunk that resolves to an array of all Series objects.
- */
-export const fetchSeries = createAppAsyncThunk(
-  "bookCollection/fetchSeries",
-  async (_, { rejectWithValue }) => {
-    try {
-      return await getAllSeries();
-    } catch (e) {
-      const errorMessage = `Failed to fetch all available series. Error: ${JSON.stringify(e)}`;
-      error(errorMessage);
-      return rejectWithValue(
-        e instanceof CommandError
-          ? { code: e.code, message: errorMessage }
-          : { code: ErrorCode.OTHER_ERROR, message: errorMessage },
-      );
+      return handleThunkError(e, `Failed to remove bookshelf(id: ${id}).`, rejectWithValue);
     }
   },
 );
@@ -332,31 +187,15 @@ export const changeBookshelf = createAppAsyncThunk(
       }
       return { id, books: await getBooksWithStateByBookshelfId(id) };
     } catch (e) {
-      const errorMessage = `Failed to change bookshelf to id: ${id}. Error: ${JSON.stringify(e)}`;
-      error(errorMessage);
-      return rejectWithValue(
-        e instanceof CommandError
-          ? { code: e.code, message: errorMessage }
-          : { code: ErrorCode.OTHER_ERROR, message: errorMessage },
-      );
+      return handleThunkError(e, `Failed to change bookshelf to id: ${id}.`, rejectWithValue);
     }
   },
 );
-
-/**
- * Changes the currently selected tag and fetches books associated with it.
- * If the provided ID is null, clears the selection and returns an empty book list.
- *
- * @param id - The ID of the tag to select, or null to clear selection.
- * @returns A thunk that resolves to an object containing the selected tag ID and its corresponding array of books.
- */
 
 const bookCollectionSlice = createSlice({
   name: "bookCollection",
   initialState: {
     searchText: "",
-    isEditSeriesOrderDialogOpen: false,
-    editSeriesOrderTargetId: null as number | null,
     bookshelf: {
       bookshelves: [] as Bookshelf[],
       selectedId: null as number | null,
@@ -364,34 +203,8 @@ const bookCollectionSlice = createSlice({
       status: "idle" as "idle" | "loading" | "succeeded" | "failed",
       error: null as { code: ErrorCode; message?: string } | null,
     },
-    tag: {
-      tags: [] as Tag[],
-      selectedId: null as number | null,
-      status: "idle" as "idle" | "loading" | "succeeded" | "failed",
-      error: null as { code: ErrorCode; message?: string } | null,
-    },
-    series: {
-      series: [] as Series[],
-      selectedId: null as number | null,
-      books: [] as BookWithState[],
-      status: "idle" as "idle" | "loading" | "succeeded" | "failed",
-      error: null as { code: ErrorCode; message?: string } | null,
-    },
   },
   reducers: {
-    /**
-     * Opens or closes the Edit Series Order dialog for a specific series.
-     *
-     * @param state - The current Redux state slice.
-     * @param action - Payload containing isOpen flag and the series ID (if opening).
-     */
-    setEditSeriesOrderDialogState(
-      state,
-      action: PayloadAction<{ isOpen: boolean; seriesId: number | null }>,
-    ) {
-      state.isEditSeriesOrderDialogOpen = action.payload.isOpen;
-      state.editSeriesOrderTargetId = action.payload.seriesId;
-    },
     /**
      * Optimistically adds a newly created bookshelf to the state.
      *
@@ -402,34 +215,7 @@ const bookCollectionSlice = createSlice({
       state.bookshelf.bookshelves.push(action.payload);
     },
     /**
-     * Sets the currently selected tag ID in the state.
-     *
-     * @param state - The current Redux state slice.
-     * @param action - Payload containing the selected tag ID, or null to clear.
-     */
-    setSelectedTag(state, action: PayloadAction<number | null>) {
-      state.tag.selectedId = action.payload;
-    },
-    /**
-     * Sets the ID of the currently selected series.
-     *
-     * @param state - The current Redux state slice.
-     * @param action - Payload containing the selected series ID, or null to clear.
-     */
-    setSelectedSeriesId(state, action: PayloadAction<number | null>) {
-      state.series.selectedId = action.payload;
-    },
-    /**
-     * Sets the search text specifically for the bookshelf view.
-     *
-     * @param state - The current Redux state slice.
-     * @param action - Payload containing the search text.
-     */
-    setBookshelfSearchText(state, action: PayloadAction<string>) {
-      state.searchText = action.payload;
-    },
-    /**
-     * Sets the global search text for the book collection.
+     * Sets the search text for the bookshelf view.
      *
      * @param state - The current Redux state slice.
      * @param action - Payload containing the search text.
@@ -444,22 +230,6 @@ const bookCollectionSlice = createSlice({
      */
     clearBookshelfError: (state) => {
       state.bookshelf.error = null;
-    },
-    /**
-     * Clears any error associated with the tag state.
-     *
-     * @param state - The current Redux state slice.
-     */
-    clearTagError: (state) => {
-      state.tag.error = null;
-    },
-    /**
-     * Clears any error associated with the series state.
-     *
-     * @param state - The current Redux state slice.
-     */
-    clearSeriesError: (state) => {
-      state.series.error = null;
     },
   },
   extraReducers: (builder) => {
@@ -556,72 +326,9 @@ const bookCollectionSlice = createSlice({
       .addCase(removeBookshelf.rejected, (state, action) => {
         state.bookshelf.status = "failed";
         state.bookshelf.error = action.payload ?? null;
-      })
-      .addCase(removeTag.pending, (state) => {
-        state.tag.status = "loading";
-        state.tag.error = null;
-      })
-      .addCase(removeTag.fulfilled, (state, action) => {
-        if (state.tag.selectedId === action.payload) {
-          state.tag.selectedId = null;
-        }
-      })
-      .addCase(removeTag.rejected, (state, action) => {
-        state.tag.status = "failed";
-        state.tag.error = action.payload ?? null;
-      })
-      .addCase(addTag.pending, (state) => {
-        state.tag.status = "loading";
-        state.tag.error = null;
-      })
-      .addCase(addTag.fulfilled, (state) => {
-        state.tag.status = "succeeded";
-        state.tag.error = null;
-      })
-      .addCase(addTag.rejected, (state, action) => {
-        state.tag.status = "failed";
-        state.tag.error = action.payload ?? null;
-      })
-      .addCase(fetchTags.pending, (state) => {
-        state.tag.status = "loading";
-        state.tag.error = null;
-      })
-      .addCase(fetchTags.fulfilled, (state, action) => {
-        state.tag.status = "succeeded";
-        state.tag.tags = action.payload;
-        state.tag.error = null;
-      })
-      .addCase(fetchTags.rejected, (state, action) => {
-        state.tag.status = "failed";
-        state.tag.tags = [];
-        state.tag.error = action.payload ?? null;
-      })
-      .addCase(fetchSeries.pending, (state) => {
-        state.series.status = "loading";
-        state.series.error = null;
-      })
-      .addCase(fetchSeries.fulfilled, (state, action) => {
-        state.series.status = "succeeded";
-        state.series.series = action.payload;
-        state.series.error = null;
-      })
-      .addCase(fetchSeries.rejected, (state, action) => {
-        state.series.status = "failed";
-        state.series.series = [];
-        state.series.error = action.payload ?? null;
       });
   },
 });
 
-export const {
-  bookshelfAdded,
-  setSelectedTag,
-  setSelectedSeriesId,
-  setBookshelfSearchText,
-  setSearchText,
-  clearBookshelfError,
-  clearTagError,
-  clearSeriesError,
-  setEditSeriesOrderDialogState,
-} = bookCollectionSlice.actions;
+export const { bookshelfAdded, setSearchText, clearBookshelfError } = bookCollectionSlice.actions;
 export default bookCollectionSlice.reducer;

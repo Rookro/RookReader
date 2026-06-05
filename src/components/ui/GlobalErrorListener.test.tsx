@@ -96,7 +96,7 @@ describe("GlobalErrorListener", () => {
 
   it("should trigger notification and clear error when tags has error", async () => {
     const preloadedState = createBasePreloadedState();
-    preloadedState.bookCollection.tag.error = { code: ErrorCode.OTHER_ERROR };
+    preloadedState.tag.error = { code: ErrorCode.OTHER_ERROR };
 
     const { store } = renderWithProviders(<GlobalErrorListener />, { preloadedState });
 
@@ -106,7 +106,7 @@ describe("GlobalErrorListener", () => {
     });
 
     await waitFor(() => {
-      expect(store.getState().bookCollection.tag.error).toBeNull();
+      expect(store.getState().tag.error).toBeNull();
     });
   });
 });
