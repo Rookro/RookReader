@@ -1,14 +1,13 @@
-use std::{path::Path, sync::Arc};
+use std::sync::Arc;
 
 use pdfium_render::prelude::PdfRenderConfig;
 
 use crate::{
     container::{
-        directory_container::DirectoryContainer, epub_container::EpubContainer,
-        pdf_container::PdfContainer, rar_container::RarContainer, traits::Container,
-        zip_container::ZipContainer,
+        factory::{create_container, ContainerConfig},
+        traits::Container,
     },
-    error::{Error, Result},
+    error::Result,
     image::loader::{CacheKey, ImageLoader},
     state::container_settings::ContainerSettings,
 };
@@ -68,9 +67,9 @@ impl ContainerState {
     /// Opens a container from the given path and initializes the state.
     ///
     /// This function determines the type of container based on the path (directory or file extension),
-    /// then creates the appropriate container handler (e.g., `ZipContainer`, `PdfContainer`).
-    /// It also initializes the `ImageLoader` for the newly opened container.
-    /// Any previously open container is closed.
+    /// then creates the appropriate container handler (e.g., `ZipContainer`, `PdfContainer`)
+    /// using the container factory. It also initializes the `ImageLoader` for the newly opened
+    /// container. Any previously open container is closed.
     ///
     /// # Arguments
     ///
@@ -87,86 +86,36 @@ impl ContainerState {
     /// * The underlying constructor for the container type fails (e.g., file not found, permission denied, corrupt file).
     pub fn open_container(&mut self, path: &str) -> Result<()> {
         self.container = None;
-        let file_path = Path::new(path);
 
-        if file_path.is_dir() {
-            let container = Arc::new(DirectoryContainer::new(path)?);
-            self.container = Some(container.clone());
-            self.image_loader = Some(ImageLoader::new(
-                path.to_string(),
-                container,
-                self.settings.max_image_height as u32,
-                self.settings.image_resampling_method,
-                self.image_cache.clone(),
-            )?);
-            return Ok(());
-        }
+        let is_pdf = std::path::Path::new(path)
+            .extension()
+            .is_some_and(|ext| ext.to_string_lossy().to_lowercase() == "pdf");
 
-        if let Some(ext) = file_path.extension() {
-            let ext_str = ext.to_string_lossy().to_lowercase();
-            match ext_str.as_str() {
-                "zip" => {
-                    let container = Arc::new(ZipContainer::new(path)?);
-                    self.container = Some(container.clone());
-                    self.image_loader = Some(ImageLoader::new(
-                        path.to_string(),
-                        container,
-                        self.settings.max_image_height as u32,
-                        self.settings.image_resampling_method,
-                        self.image_cache.clone(),
-                    )?);
-                }
-                "pdf" => {
-                    let container = Arc::new(PdfContainer::new(
-                        path,
-                        PdfRenderConfig::default()
-                            .set_target_height(self.settings.pdf_render_resolution_height),
-                        self.settings.pdfium_library_path.clone(),
-                    )?);
-                    self.container = Some(container.clone());
-                    self.image_loader = Some(ImageLoader::new(
-                        path.to_string(),
-                        container,
-                        0, // disable image resizing
-                        self.settings.image_resampling_method,
-                        self.image_cache.clone(),
-                    )?);
-                }
-                "rar" => {
-                    let container = Arc::new(RarContainer::new(path)?);
-                    self.container = Some(container.clone());
-                    self.image_loader = Some(ImageLoader::new(
-                        path.to_string(),
-                        container,
-                        self.settings.max_image_height as u32,
-                        self.settings.image_resampling_method,
-                        self.image_cache.clone(),
-                    )?);
-                }
-                "epub" => {
-                    let container = Arc::new(EpubContainer::new(path)?);
-                    self.container = Some(container.clone());
-                    self.image_loader = Some(ImageLoader::new(
-                        path.to_string(),
-                        container,
-                        self.settings.max_image_height as u32,
-                        self.settings.image_resampling_method,
-                        self.image_cache.clone(),
-                    )?);
-                }
-                _ => {
-                    log::error!("Unsupported Container Type: {}", ext_str);
-                    return Err(Error::UnsupportedContainer(format!(
-                        "Unsupported Container Type: {}",
-                        ext_str
-                    )));
-                }
-            };
-            Ok(())
+        let config = ContainerConfig {
+            pdf_render_config: PdfRenderConfig::default()
+                .set_target_height(self.settings.pdf_render_resolution_height),
+            pdfium_library_path: self.settings.pdfium_library_path.clone(),
+        };
+
+        let container = create_container(path, config)?;
+
+        // PDF rendering already controls the image size, so disable image resizing for PDF.
+        let max_image_height = if is_pdf {
+            0
         } else {
-            log::error!("Failed to get extension. {}", path);
-            Err(Error::Path(format!("Failed to get extension. {}", path)))
-        }
+            self.settings.max_image_height as u32
+        };
+
+        self.image_loader = Some(ImageLoader::new(
+            path.to_string(),
+            container.clone(),
+            max_image_height,
+            self.settings.image_resampling_method,
+            self.image_cache.clone(),
+        )?);
+        self.container = Some(container);
+
+        Ok(())
     }
 }
 

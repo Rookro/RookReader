@@ -1,21 +1,16 @@
 use std::{
     collections::HashMap,
-    io::Cursor,
     path::Path,
     sync::{Arc, Mutex, OnceLock},
 };
 
-use image::{codecs::jpeg::JpegEncoder, ImageReader};
 use rbook::Epub;
 use scraper::{Html, Selector};
 
 use crate::{
     container::traits::Container,
     error::{Error, Result},
-    image::{
-        resizer::{shrink_to_fit, ResizeFilter},
-        types::Image,
-    },
+    image::{thumbnail::generate_thumbnail, types::Image},
 };
 
 /// An implementation of the `Container` trait for reading content from EPUB files.
@@ -133,27 +128,7 @@ fn create_thumbnail(epub: &mut Epub, entry: &str) -> Result<Arc<Image>> {
     };
 
     let buffer = resource.read_bytes()?;
-    let cursor = Cursor::new(&buffer);
-    let image_reader = ImageReader::new(cursor).with_guessed_format()?;
-    let dyn_image = image_reader.decode()?;
-
-    let thumbnail = shrink_to_fit(
-        &dyn_image,
-        <dyn Container>::THUMBNAIL_SIZE,
-        <dyn Container>::THUMBNAIL_SIZE,
-        ResizeFilter::Bilinear,
-    )?;
-
-    let mut buffer = Vec::new();
-    // Use a lower quality for thumbnails to make them smaller and faster to encode.
-    let mut encoder = JpegEncoder::new_with_quality(&mut buffer, 10);
-    encoder.encode_image(&thumbnail)?;
-
-    Ok(Arc::new(Image {
-        data: buffer,
-        width: thumbnail.width(),
-        height: thumbnail.height(),
-    }))
+    generate_thumbnail(&buffer)
 }
 
 /// Returns the thread-safe CSS selector for images within EPUB content.
@@ -530,8 +505,8 @@ mod tests {
         let container = EpubContainer::new(epub_path.to_string_lossy().as_ref()).unwrap();
 
         let thumbnail = container.get_thumbnail("image1").unwrap();
-        assert!(thumbnail.width <= <dyn Container>::THUMBNAIL_SIZE);
-        assert!(thumbnail.height <= <dyn Container>::THUMBNAIL_SIZE);
+        assert!(thumbnail.width <= crate::image::thumbnail::THUMBNAIL_SIZE);
+        assert!(thumbnail.height <= crate::image::thumbnail::THUMBNAIL_SIZE);
         assert!(!thumbnail.data.is_empty());
     }
 
