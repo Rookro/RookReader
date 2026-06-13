@@ -3,6 +3,7 @@ import type { Middleware } from "@reduxjs/toolkit";
 import { error } from "@tauri-apps/plugin-log";
 import { updateReadingProgress } from "../../bindings/BookCommands";
 import type { ReadingState } from "../../domain/book/schema";
+import { setImageIndex, setNovelLocation } from "../../features/BookReader/slice";
 import type { RootState } from "../store";
 
 const debouncedReadingStateUpdate = debounce(async (state: ReadingState) => {
@@ -21,22 +22,8 @@ export const readingStateMiddleware: Middleware<object, RootState> =
       return result;
     }
     switch (action.type) {
-      case "read/setImageIndex": {
-        const state = store.getState();
-        if (state.settings.history.recordReadingHistory) {
-          const { history, historyIndex, index, book } = state.read.containerFile;
-
-          if (history[historyIndex] && index > -1 && book?.last_opened_at) {
-            debouncedReadingStateUpdate({
-              book_id: book.id,
-              last_read_page_index: index,
-              last_opened_at: book.last_opened_at,
-            });
-          }
-        }
-        break;
-      }
-      case "read/setNovelLocation": {
+      case setImageIndex.type:
+      case setNovelLocation.type: {
         const state = store.getState();
         if (state.settings.history.recordReadingHistory) {
           const { history, historyIndex, index, book } = state.read.containerFile;
