@@ -11,14 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-* Optimized background page preloading. (#245)
-* Improved internal state management for better stability and maintainability. (#246)
-* Optimized memory usage and improve comic (ZIP/RAR) thumbnail loading speed through a unified image/container processing pipeline. (#247)
+* Optimized background page preloading. (#247)
+* Improved internal state management for better stability and maintainability. (#248)
+* Optimized memory usage and improve comic (ZIP/RAR) thumbnail loading speed through a unified image/container processing pipeline. (#249)
+* Improved page loading speed, reduce memory usage, and optimize bookshelf rendering performance. (#250)
 
 ### Fixed
 
-* Fixed an issue where the "Edit Series Order" dialog would become unnaturally narrow when books in the series had short titles. (#243)
-* Fixed an issue where the "Set Series" and "Set Tags" dialogs would unexpectedly close after creating a new series or tag. (#244)
+* Fixed an issue where the "Edit Series Order" dialog would become unnaturally narrow when books in the series had short titles. (#245)
+* Fixed an issue where the "Set Series" and "Set Tags" dialogs would unexpectedly close after creating a new series or tag. (#246)
 
 ## [2.2.1] - 2026-06-01
 
