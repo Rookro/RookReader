@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Optimized memory usage and improve comic (ZIP/RAR) thumbnail loading speed through a unified image/container processing pipeline. (#249)
 * Improved page loading speed, reduce memory usage, and optimize bookshelf rendering performance. (#250)
 * Improved internal code structure for reading progress tracking to enhance maintainability. (#251)
+* Cleaned up internal code types and file structures to improve application stability and maintainability. (#252)
 
 ### Fixed
 

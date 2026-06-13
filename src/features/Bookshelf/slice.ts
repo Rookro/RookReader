@@ -12,7 +12,7 @@ import {
   deleteBookshelf,
   getAllBookshelves,
   removeBookFromBookshelf,
-} from "../../bindings/BookshelfCommand";
+} from "../../bindings/BookshelfCommands";
 import { getEntriesInContainer } from "../../bindings/ContainerCommands";
 import type { BookWithState } from "../../domain/book/schema";
 import type { Bookshelf } from "../../domain/bookshelf/schema";

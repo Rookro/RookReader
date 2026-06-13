@@ -3,7 +3,7 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as BookCommands from "../../../../bindings/BookCommands";
-import * as SeriesCommand from "../../../../bindings/SeriesCommand";
+import * as SeriesCommand from "../../../../bindings/SeriesCommands";
 import type { Series } from "../../../../domain/series/schema";
 import { renderWithProviders } from "../../../../test/utils";
 import SetSeriesDialog, { type SetSeriesDialogProps } from "./SetSeriesDialog";

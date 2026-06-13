@@ -2,7 +2,7 @@ import { Delete, Sort } from "@mui/icons-material";
 import { ListItemIcon, ListItemText, Menu, MenuItem } from "@mui/material";
 import { error } from "@tauri-apps/plugin-log";
 import { useTranslation } from "react-i18next";
-import { deleteSeries } from "../../../bindings/SeriesCommand";
+import { deleteSeries } from "../../../bindings/SeriesCommands";
 import type { Series } from "../../../domain/series/schema";
 import { useAppDispatch } from "../../../store/store";
 import { setEditSeriesOrderDialogState } from "../seriesSlice";

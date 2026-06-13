@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as BookCommands from "../../bindings/BookCommands";
-import * as BookshelfCommand from "../../bindings/BookshelfCommand";
+import * as BookshelfCommand from "../../bindings/BookshelfCommands";
 import * as ContainerCommands from "../../bindings/ContainerCommands";
-import * as SeriesCommand from "../../bindings/SeriesCommand";
+import * as SeriesCommand from "../../bindings/SeriesCommands";
 import * as TagCommands from "../../bindings/TagCommands";
 import type { BookWithState } from "../../domain/book/schema";
 import type { Bookshelf } from "../../domain/bookshelf/schema";
