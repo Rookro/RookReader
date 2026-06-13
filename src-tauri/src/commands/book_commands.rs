@@ -3,16 +3,12 @@ use std::hash::{DefaultHasher, Hash, Hasher};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use pdfium_render::prelude::PdfRenderConfig;
 use tauri::Emitter;
 use tauri::Manager;
 use tauri::State;
 
+use crate::container::factory::{create_container, ContainerConfig};
 use crate::container::traits::Container;
-use crate::container::{
-    directory_container::DirectoryContainer, epub_container::EpubContainer,
-    pdf_container::PdfContainer, rar_container::RarContainer, zip_container::ZipContainer,
-};
 use crate::domain::book::entity::{Book, BookWithState, ReadBook, ReadingState};
 use crate::domain::book::repository::BookRepository;
 use crate::domain::bookshelf::repository::BookshelfRepository;
@@ -132,40 +128,7 @@ pub async fn register_book<R: tauri::Runtime>(
         total_pages
     );
 
-    let (pdfium_path, container) = {
-        let state_lock = state.read().await;
-        let pdfium_path = state_lock
-            .container_state
-            .settings
-            .pdfium_library_path
-            .clone();
-
-        let container = if let Some(ref c) = state_lock.container_state.container {
-            let matches = state_lock
-                .container_state
-                .image_loader
-                .as_ref()
-                .is_some_and(|loader| loader.book_id() == file_path);
-
-            if matches {
-                Some(c.clone())
-            } else {
-                None
-            }
-        } else {
-            None
-        };
-
-        (pdfium_path, container)
-    };
-
-    let thumbnail_path =
-        generate_and_save_thumbnail(app.clone(), file_path.clone(), pdfium_path, container)
-            .await
-            .unwrap_or_else(|e| {
-                log::warn!("Thumbnail of {} generation failed: {}", file_path, e);
-                None
-            });
+    let thumbnail_path = resolve_thumbnail(&state, &app, &file_path).await;
 
     let book_id = repo
         .register_book(
@@ -220,40 +183,7 @@ pub async fn record_book_opened<R: tauri::Runtime>(
         total_pages
     );
 
-    let (pdfium_path, container) = {
-        let state_lock = state.read().await;
-        let pdfium_path = state_lock
-            .container_state
-            .settings
-            .pdfium_library_path
-            .clone();
-
-        let container = if let Some(ref c) = state_lock.container_state.container {
-            let matches = state_lock
-                .container_state
-                .image_loader
-                .as_ref()
-                .is_some_and(|loader| loader.book_id() == file_path);
-
-            if matches {
-                Some(c.clone())
-            } else {
-                None
-            }
-        } else {
-            None
-        };
-
-        (pdfium_path, container)
-    };
-
-    let thumbnail_path =
-        generate_and_save_thumbnail(app.clone(), file_path.clone(), pdfium_path, container)
-            .await
-            .unwrap_or_else(|e| {
-                log::warn!("Thumbnail of {} generation failed: {}", file_path, e);
-                None
-            });
+    let thumbnail_path = resolve_thumbnail(&state, &app, &file_path).await;
 
     let book_id = repo
         .record_book_opened(
@@ -584,6 +514,49 @@ pub async fn update_series_orders<R: tauri::Runtime>(
     Ok(())
 }
 
+/// Reads the current app state to extract the pdfium library path and, if available,
+/// the currently loaded container for the given `file_path`. Then generates and saves
+/// a thumbnail, returning its path or `None` on failure.
+async fn resolve_thumbnail<R: tauri::Runtime>(
+    state: &State<'_, RwLock<AppState>>,
+    app: &tauri::AppHandle<R>,
+    file_path: &str,
+) -> Option<String> {
+    let (pdfium_path, container) = {
+        let state_lock = state.read().await;
+        let pdfium_path = state_lock
+            .container_state
+            .settings
+            .pdfium_library_path
+            .clone();
+
+        let container = if let Some(ref c) = state_lock.container_state.container {
+            let matches = state_lock
+                .container_state
+                .image_loader
+                .as_ref()
+                .is_some_and(|loader| loader.book_id() == file_path);
+
+            if matches {
+                Some(c.clone())
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        (pdfium_path, container)
+    };
+
+    generate_and_save_thumbnail(app.clone(), file_path.to_string(), pdfium_path, container)
+        .await
+        .unwrap_or_else(|e| {
+            log::warn!("Thumbnail of {} generation failed: {}", file_path, e);
+            None
+        })
+}
+
 /// Helper function to generate and save a thumbnail for a given file path.
 ///
 /// If a thumbnail corresponding to the hash of the `file_path` already exists
@@ -595,6 +568,7 @@ pub async fn update_series_orders<R: tauri::Runtime>(
 /// * `app` - The Tauri AppHandle for resolving app data directories.
 /// * `file_path` - The unique file or directory path of the book.
 /// * `pdfium_path` - Optional path to the pdfium library.
+/// * `container` - An optional pre-loaded container to avoid re-opening the file.
 ///
 /// # Returns
 ///
@@ -626,33 +600,11 @@ async fn generate_and_save_thumbnail<R: tauri::Runtime>(
         let container: Arc<dyn Container> = if let Some(c) = container {
             c
         } else {
-            let path = std::path::Path::new(&file_path);
-            if path.is_dir() {
-                Arc::new(DirectoryContainer::new(&file_path)?)
-            } else if let Some(ext) = path.extension() {
-                let ext_str = ext.to_string_lossy().to_lowercase();
-                match ext_str.as_str() {
-                    "zip" => Arc::new(ZipContainer::new(&file_path)?),
-                    "pdf" => Arc::new(PdfContainer::new(
-                        &file_path,
-                        PdfRenderConfig::default(),
-                        pdfium_path,
-                    )?),
-                    "rar" => Arc::new(RarContainer::new(&file_path)?),
-                    "epub" => Arc::new(EpubContainer::new(&file_path)?),
-                    _ => {
-                        return Err(Error::UnsupportedContainer(format!(
-                            "Unsupported Format: {}",
-                            file_path
-                        )))
-                    }
-                }
-            } else {
-                return Err(Error::UnsupportedContainer(format!(
-                    "No extension: {}",
-                    file_path
-                )));
-            }
+            let config = ContainerConfig {
+                pdfium_library_path: pdfium_path,
+                ..ContainerConfig::default()
+            };
+            create_container(&file_path, config)?
         };
 
         let first_image_entry = container.get_entries().first();

@@ -1,15 +1,12 @@
-use std::{
-    collections::HashMap,
-    fs::File,
-    io::{Cursor, Read},
-    sync::Arc,
-    sync::Mutex,
-};
+use std::{collections::HashMap, fs::File, io::Read, sync::Arc, sync::Mutex};
 
-use image::{codecs::jpeg::JpegEncoder, ImageReader};
 use zip::ZipArchive;
 
-use crate::{container::traits::Container, error::Result, image::types::Image};
+use crate::{
+    container::traits::Container,
+    error::Result,
+    image::{thumbnail::generate_thumbnail, types::Image},
+};
 
 /// An implementation of the `Container` trait for reading content from ZIP archive files.
 pub struct ZipContainer {
@@ -58,25 +55,7 @@ impl Container for ZipContainer {
             buf
         };
 
-        let cursor = Cursor::new(&buffer);
-        let image_reader = ImageReader::new(cursor).with_guessed_format()?;
-        let image = image_reader.decode()?;
-
-        let thumbnail = image.thumbnail(
-            <dyn Container>::THUMBNAIL_SIZE,
-            <dyn Container>::THUMBNAIL_SIZE,
-        );
-
-        let mut buffer = Vec::new();
-        // Use a lower quality for thumbnails to make them smaller and faster to encode.
-        let mut encoder = JpegEncoder::new_with_quality(&mut buffer, 10);
-        encoder.encode_image(&thumbnail)?;
-
-        Ok(Arc::new(Image {
-            data: buffer,
-            width: thumbnail.width(),
-            height: thumbnail.height(),
-        }))
+        generate_thumbnail(&buffer)
     }
 
     fn is_directory(&self) -> bool {
@@ -281,8 +260,8 @@ mod tests {
         let container = ZipContainer::new(zip_path.to_string_lossy().to_string().as_str()).unwrap();
 
         let thumbnail = container.get_thumbnail("image1.png").unwrap();
-        assert!(thumbnail.width <= <dyn Container>::THUMBNAIL_SIZE);
-        assert!(thumbnail.height <= <dyn Container>::THUMBNAIL_SIZE);
+        assert!(thumbnail.width <= crate::image::thumbnail::THUMBNAIL_SIZE);
+        assert!(thumbnail.height <= crate::image::thumbnail::THUMBNAIL_SIZE);
         assert!(!thumbnail.data.is_empty());
     }
 }
