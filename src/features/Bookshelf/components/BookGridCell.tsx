@@ -1,4 +1,4 @@
-import { memo, useMemo } from "react";
+import { memo } from "react";
 import type { CellComponentProps } from "react-window";
 import type { BookWithState } from "../../../domain/book/schema";
 import type { Series } from "../../../domain/series/schema";
@@ -31,6 +31,8 @@ export interface BookGridCellProps {
   focusedIndex?: number;
   /** The index of the reading book. */
   readingBookIndex?: number;
+  /** The list of all books in the grid for context inside BookCard. */
+  allBooks: BookWithState[];
 }
 
 /**
@@ -50,15 +52,10 @@ function BookGridCellInner({
   style,
   focusedIndex,
   readingBookIndex,
+  allBooks,
 }: CellComponentProps<BookGridCellProps>) {
   const index = rowIndex * columnCount + columnIndex;
   const item = items[index];
-
-  const allBooks = useMemo(() => {
-    return items
-      .filter((i): i is { type: "book"; data: BookWithState } => i.type === "book")
-      .map((i) => i.data);
-  }, [items]);
 
   if (!item) {
     return null;
@@ -108,7 +105,8 @@ export function areEqual(
     prevProps.tags !== nextProps.tags ||
     prevProps.enableAutoScroll !== nextProps.enableAutoScroll ||
     prevProps.focusedIndex !== nextProps.focusedIndex ||
-    prevProps.readingBookIndex !== nextProps.readingBookIndex
+    prevProps.readingBookIndex !== nextProps.readingBookIndex ||
+    prevProps.allBooks !== nextProps.allBooks
   ) {
     return false;
   }
