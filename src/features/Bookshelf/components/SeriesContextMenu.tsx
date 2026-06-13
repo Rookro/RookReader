@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { deleteSeries } from "../../../bindings/SeriesCommand";
 import type { Series } from "../../../domain/series/schema";
 import { useAppDispatch } from "../../../store/store";
-import { setEditSeriesOrderDialogState } from "../slice";
+import { setEditSeriesOrderDialogState } from "../seriesSlice";
 
 export interface SeriesContextMenuProps {
   /** The series associated with this menu */

@@ -71,13 +71,11 @@ describe("BookDeleteDialog", () => {
   // Verify that the bookshelf name is correctly displayed when a bookshelf is selected
   it("should handle bookshelfName fallback when bookshelf is selected", () => {
     const preloadedState = createBasePreloadedState();
-    preloadedState.bookCollection.bookshelf.bookshelves = [
-      createMockBookshelf({ id: 1, name: "Shelf 1" }),
-    ];
-    preloadedState.bookCollection.bookshelf.selectedId = 1;
-    preloadedState.bookCollection.bookshelf.books = [];
-    preloadedState.bookCollection.bookshelf.status = "idle";
-    preloadedState.bookCollection.bookshelf.error = null;
+    preloadedState.bookCollection.bookshelves = [createMockBookshelf({ id: 1, name: "Shelf 1" })];
+    preloadedState.bookCollection.selectedId = 1;
+    preloadedState.bookCollection.books = [];
+    preloadedState.bookCollection.status = "idle";
+    preloadedState.bookCollection.error = null;
 
     renderWithProviders(<BookDeleteDialog {...defaultProps} />, { preloadedState });
     expect(screen.getByText(/Shelf 1/)).toBeInTheDocument();

@@ -19,7 +19,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { BookWithState } from "../../../../domain/book/schema";
 import { useAppDispatch } from "../../../../store/store";
-import { updateSeriesOrdersThunk } from "../../slice";
+import { updateSeriesOrdersThunk } from "../../seriesSlice";
 import SortableBookItem from "./SortableBookItem";
 
 export interface EditSeriesOrderDialogProps {

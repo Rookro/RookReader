@@ -7,7 +7,9 @@ import type { ReactElement } from "react";
 import { I18nextProvider, initReactI18next } from "react-i18next";
 import { Provider } from "react-redux";
 import readReducer from "../features/BookReader/slice";
+import seriesReducer from "../features/Bookshelf/seriesSlice";
 import bookCollectionReducer from "../features/Bookshelf/slice";
+import tagReducer from "../features/Bookshelf/tagSlice";
 import historyReducer from "../features/History/slice";
 import viewReducer from "../features/MainView/slice";
 import { defaultSettings } from "../features/Settings/settingsStore";
@@ -31,6 +33,8 @@ testI18n.use(initReactI18next).init({
 
 const rootReducer = combineReducers({
   bookCollection: bookCollectionReducer,
+  tag: tagReducer,
+  series: seriesReducer,
   history: historyReducer,
   read: readReducer,
   view: viewReducer,
@@ -74,12 +78,22 @@ export function createBasePreloadedState(): RootState {
       },
     },
     bookCollection: {
-      bookshelf: { bookshelves: [], selectedId: null, books: [], status: "idle", error: null },
-      tag: { tags: [], selectedId: null, status: "idle", error: null },
-      series: { series: [], selectedId: null, books: [], status: "idle", error: null },
+      bookshelves: [],
+      selectedId: null,
+      books: [],
+      status: "idle",
+      error: null,
       searchText: "",
+    },
+    tag: { tags: [], selectedId: null, status: "idle", error: null },
+    series: {
+      series: [],
+      selectedId: null,
+      books: [],
       isEditSeriesOrderDialogOpen: false,
       editSeriesOrderTargetId: null,
+      status: "idle",
+      error: null,
     },
     history: { recentlyReadBooks: [], status: "idle", error: null },
   };

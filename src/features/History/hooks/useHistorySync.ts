@@ -1,12 +1,9 @@
 import { useEffect } from "react";
 import { useTauriEvent } from "../../../hooks/useTauriEvent";
 import { useAppDispatch, useAppSelector } from "../../../store/store";
-import {
-  fetchBookshelves,
-  fetchBooksInSelectedBookshelf,
-  fetchSeries,
-  fetchTags,
-} from "../../Bookshelf/slice";
+import { fetchSeries } from "../../Bookshelf/seriesSlice";
+import { fetchBookshelves, fetchBooksInSelectedBookshelf } from "../../Bookshelf/slice";
+import { fetchTags } from "../../Bookshelf/tagSlice";
 import { fetchRecentlyReadBooks } from "../slice";
 
 /**
@@ -17,7 +14,7 @@ import { fetchRecentlyReadBooks } from "../slice";
  */
 export const useHistorySync = () => {
   const dispatch = useAppDispatch();
-  const selectedBookshelfId = useAppSelector((state) => state.bookCollection.bookshelf.selectedId);
+  const selectedBookshelfId = useAppSelector((state) => state.bookCollection.selectedId);
   const recordReadingHistory = useAppSelector(
     (state) => state.settings.history.recordReadingHistory,
   );

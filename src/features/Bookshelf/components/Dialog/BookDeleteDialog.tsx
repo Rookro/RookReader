@@ -27,8 +27,8 @@ export interface BookDeleteDialogProps {
 export default function BookDeleteDialog({ openDialog, books, onClose }: BookDeleteDialogProps) {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
-  const bookshelves = useAppSelector((state) => state.bookCollection.bookshelf.bookshelves);
-  const selectedId = useAppSelector((state) => state.bookCollection.bookshelf.selectedId);
+  const bookshelves = useAppSelector((state) => state.bookCollection.bookshelves);
+  const selectedId = useAppSelector((state) => state.bookCollection.selectedId);
 
   const handleDelete = useCallback(async () => {
     if (books.length > 0) {
