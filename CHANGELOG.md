@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Optimized background page preloading. (#245)
 * Improved internal state management for better stability and maintainability. (#246)
+* Optimized memory usage and improve comic (ZIP/RAR) thumbnail loading speed through a unified image/container processing pipeline. (#247)
 
 ### Fixed
 
