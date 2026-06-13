@@ -208,6 +208,12 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
     bookshelfSettings.sortOrder,
   ]);
 
+  const allBooks = useMemo(() => {
+    return filteredSortedItems
+      .filter((item): item is { type: "book"; data: BookWithState } => item.type === "book")
+      .map((item) => item.data);
+  }, [filteredSortedItems]);
+
   const handleGridSizeChange = useCallback(
     (newValue: number) => {
       const newBookshelfSettings = { ...bookshelfSettings, gridSize: newValue };
@@ -244,19 +250,14 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
 
   const handleBookClick = useCallback(
     (book: BookWithState, e: React.MouseEvent | React.KeyboardEvent) => {
-      // For selection logic, we only care about books in the current filtered list
-      const booksOnly = filteredSortedItems
-        .filter((item): item is { type: "book"; data: BookWithState } => item.type === "book")
-        .map((item) => item.data);
-
       const bookToIdx = new Map<number, number>();
-      booksOnly.forEach((b, i) => {
+      allBooks.forEach((b, i) => {
         bookToIdx.set(b.id, i);
       });
 
-      handleSelectionClick(book, e as React.MouseEvent, booksOnly, bookToIdx, onBookSelect);
+      handleSelectionClick(book, e as React.MouseEvent, allBooks, bookToIdx, onBookSelect);
     },
-    [filteredSortedItems, onBookSelect, handleSelectionClick],
+    [allBooks, onBookSelect, handleSelectionClick],
   );
 
   const handleSeriesClick = useCallback(
@@ -364,12 +365,8 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
   );
 
   const getTargetBooks = useCallback(() => {
-    const booksOnly = filteredSortedItems
-      .filter((item): item is { type: "book"; data: BookWithState } => item.type === "book")
-      .map((item) => item.data);
-
-    return booksOnly.filter((b) => selectedBookIds.has(b.id));
-  }, [selectedBookIds, filteredSortedItems]);
+    return allBooks.filter((b) => selectedBookIds.has(b.id));
+  }, [selectedBookIds, allBooks]);
 
   const bookshelfActions = useMemo(
     () => ({
@@ -391,6 +388,7 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
       enableAutoScroll: bookshelfSettings.enableAutoScroll,
       focusedIndex,
       readingBookIndex,
+      allBooks,
     }),
     [
       filteredSortedItems,
@@ -402,6 +400,7 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
       bookshelfSettings.enableAutoScroll,
       focusedIndex,
       readingBookIndex,
+      allBooks,
     ],
   );
 
