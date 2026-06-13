@@ -2,6 +2,7 @@ import { warn } from "@tauri-apps/plugin-log";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { requestPreloadAround } from "../../../bindings/ContainerCommands";
 import type { AppDispatch } from "../../../store/store";
+import type { Image } from "../../../types/Image";
 import { setImageIndex } from "../slice";
 import {
   calculateLayout,
@@ -80,13 +81,13 @@ export const useViewerController = (
 
       const loadAndUpdate = async (
         path: string,
-        fetcher: (containerPath: string, entryName: string) => Promise<unknown>,
+        fetcher: (containerPath: string, entryName: string) => Promise<Image | undefined>,
         isPreview: boolean,
       ) => {
         if (controller.signal.aborted) return;
         const img = await fetcher(containerPath, path);
         if (img && !controller.signal.aborted) {
-          const newItem = createImageCacheItem(img as never, isPreview);
+          const newItem = createImageCacheItem(img, isPreview);
           const existingItem = cache.get(path);
           if (existingItem) {
             if (isPreview) {

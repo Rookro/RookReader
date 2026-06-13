@@ -2,7 +2,7 @@ import { error as logError } from "@tauri-apps/plugin-log";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import * as BookshelfCommand from "../../../../bindings/BookshelfCommand";
+import * as BookshelfCommand from "../../../../bindings/BookshelfCommands";
 import type { Bookshelf } from "../../../../domain/bookshelf/schema";
 import { renderWithProviders } from "../../../../test/utils";
 import AddBooksToBookshelvesDialog from "./AddBooksToBookshelvesDialog";

@@ -1,6 +1,6 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import { updateSeriesOrders } from "../../bindings/BookCommands";
-import { getAllSeries } from "../../bindings/SeriesCommand";
+import { getAllSeries } from "../../bindings/SeriesCommands";
 import type { BookWithState } from "../../domain/book/schema";
 import type { Series } from "../../domain/series/schema";
 import { handleThunkError } from "../../store/thunkErrorHandler";
