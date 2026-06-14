@@ -32,6 +32,7 @@ vi.mock("../slice", async () => {
     ...actual,
     openContainerFile: vi.fn(() => ({ type: "read/openContainerFile" })),
     setContainerFilePath: vi.fn((p: string) => ({ type: "read/setContainerFilePath", payload: p })),
+    setOpenOrigin: vi.fn((p: unknown) => ({ type: "read/setOpenOrigin", payload: p })),
   };
 });
 
@@ -86,6 +87,7 @@ describe("BookReader", () => {
     await waitFor(() =>
       expect(readRed.setContainerFilePath).toHaveBeenCalledWith("/last/book.zip"),
     );
+    expect(readRed.setOpenOrigin).toHaveBeenCalledWith({ kind: "startup" });
   });
 
   it("should handle empty history during startup restoration", async () => {
@@ -111,6 +113,7 @@ describe("BookReader", () => {
       dropHandler?.(["/dropped/file.zip"]);
     });
     await waitFor(() => {
+      expect(readRed.setOpenOrigin).toHaveBeenCalledWith({ kind: "dragDrop" });
       expect(readRed.setContainerFilePath).toHaveBeenCalledWith("/dropped/file.zip");
     });
   });
