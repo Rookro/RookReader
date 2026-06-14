@@ -198,6 +198,13 @@
       "first-page": {
         "title": "Show the initial page in single-page view"
       },
+      "auto-open-adjacent-book": {
+        "title": "Auto-open Adjacent Book",
+        "description": "Open the next/previous book when paging past the last/first page.",
+        "off": "Off",
+        "ask": "Ask before opening",
+        "auto": "Auto-open"
+      },
       "loupe": {
         "title": "Loupe Settings",
         "description": "Settings for the magnifier tool. Toggle it using the configured key or mouse button.",

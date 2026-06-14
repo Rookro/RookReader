@@ -248,6 +248,8 @@ pub struct ReaderSettings {
     pub novel: NovelSettings,
     /// Configuration for how pages and previews are rendered.
     pub rendering: RenderingSettings,
+    /// Behavior when paging past the last/first page of a book (auto-open adjacent book).
+    pub auto_open_adjacent_book: AutoOpenAdjacentBookMode,
 }
 
 /// Configuration specific to reading comics (image-based content).
@@ -503,6 +505,19 @@ pub enum Direction {
     Ltr,
 }
 
+/// Behavior when paging past the last/first page of a book.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum AutoOpenAdjacentBookMode {
+    /// Do nothing at the book boundary (stay on the page).
+    Off,
+    /// Ask for confirmation before opening the adjacent book.
+    #[default]
+    Ask,
+    /// Open the adjacent book automatically.
+    Auto,
+}
+
 /// Represents the algorithm used for resampling images.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
@@ -582,6 +597,10 @@ mod tests {
         assert_eq!(settings.reader.novel.font_family, "default-font");
         assert_eq!(settings.reader.novel.font_size, 16);
         assert_eq!(settings.reader.rendering.pdf_render_resolution_height, 2000);
+        assert!(matches!(
+            settings.reader.auto_open_adjacent_book,
+            AutoOpenAdjacentBookMode::Ask
+        ));
     }
 
     #[test]
@@ -590,7 +609,7 @@ mod tests {
             mock_json: json!({
                 "general": { "theme": "dark" },
                 "startup": { "checkUpdateOnStartup": false },
-                "reader": { "comic": { "enableSpread": false, "loupe": { "zoom": 3.0, "toggleKey": "Alt+l" } } },
+                "reader": { "comic": { "enableSpread": false, "loupe": { "zoom": 3.0, "toggleKey": "Alt+l" } }, "autoOpenAdjacentBook": "ask" },
                 "layout": { "sidePane": { "isHidden": true, "tabIndex": 2 } }
             }),
         };
@@ -602,6 +621,10 @@ mod tests {
         assert!(!settings.reader.comic.enable_spread);
         assert_eq!(settings.reader.comic.loupe.zoom, 3.0);
         assert_eq!(settings.reader.comic.loupe.toggle_key, "Alt+l");
+        assert!(matches!(
+            settings.reader.auto_open_adjacent_book,
+            AutoOpenAdjacentBookMode::Ask
+        ));
         assert!(settings.layout.side_pane.is_hidden);
         assert_eq!(settings.layout.side_pane.tab_index, 2);
 
