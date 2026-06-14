@@ -2,6 +2,7 @@ import { warn } from "@tauri-apps/plugin-log";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { requestPreloadAround } from "../../../bindings/ContainerCommands";
 import type { AppDispatch } from "../../../store/store";
+import type { Image } from "../../../types/Image";
 import { setImageIndex } from "../slice";
 import {
   calculateLayout,
@@ -12,6 +13,22 @@ import {
   type ViewerSettings,
   type ViewLayout,
 } from "../utils/ImageUtils";
+
+/**
+ * Revokes every object URL held by the cache entries.
+ *
+ * @param cache - The image cache whose `previewUrl`/`fullUrl` object URLs should be revoked.
+ */
+const revokeCacheUrls = (cache: Map<string, ImageCacheItem>) => {
+  cache.forEach((item) => {
+    if (item.previewUrl) {
+      URL.revokeObjectURL(item.previewUrl);
+    }
+    if (item.fullUrl) {
+      URL.revokeObjectURL(item.fullUrl);
+    }
+  });
+};
 
 /**
  * ViewerController hook return type.
@@ -35,6 +52,8 @@ export interface ViewerController {
  * @param index Index of the current image.
  * @param settings Viewer settings.
  * @param dispatch Dispatch function from Redux.
+ * @param onForwardBoundary Called when moving forward past the last page.
+ * @param onBackwardBoundary Called when moving back before the first page.
  * @returns ViewerController.
  */
 export const useViewerController = (
@@ -43,6 +62,8 @@ export const useViewerController = (
   index: number,
   settings: ViewerSettings,
   dispatch: AppDispatch,
+  onForwardBoundary?: () => void,
+  onBackwardBoundary?: () => void,
 ): ViewerController => {
   const cacheRef = useRef<Map<string, ImageCacheItem>>(new Map());
   const [isImageLoading, setIsImageLoading] = useState(false);
@@ -51,17 +72,19 @@ export const useViewerController = (
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: update the cache whenever containerPath changes.
   useEffect(() => {
-    cacheRef.current.forEach((item) => {
-      if (item.previewUrl) {
-        URL.revokeObjectURL(item.previewUrl);
-      }
-      if (item.fullUrl) {
-        URL.revokeObjectURL(item.fullUrl);
-      }
-    });
+    revokeCacheUrls(cacheRef.current);
     cacheRef.current.clear();
     abortControllerRef.current?.abort();
   }, [containerPath]);
+
+  // Revoke any remaining object URLs when the component unmounts.
+  useEffect(() => {
+    const cache = cacheRef.current;
+    return () => {
+      revokeCacheUrls(cache);
+      cache.clear();
+    };
+  }, []);
 
   // Loads the missing images and updates the layout.
   useEffect(() => {
@@ -80,13 +103,13 @@ export const useViewerController = (
 
       const loadAndUpdate = async (
         path: string,
-        fetcher: (containerPath: string, entryName: string) => Promise<unknown>,
+        fetcher: (containerPath: string, entryName: string) => Promise<Image | undefined>,
         isPreview: boolean,
       ) => {
         if (controller.signal.aborted) return;
         const img = await fetcher(containerPath, path);
         if (img && !controller.signal.aborted) {
-          const newItem = createImageCacheItem(img as never, isPreview);
+          const newItem = createImageCacheItem(img, isPreview);
           const existingItem = cache.get(path);
           if (existingItem) {
             if (isPreview) {
@@ -171,11 +194,20 @@ export const useViewerController = (
 
     if (nextIndex < entries.length) {
       dispatch(setImageIndex(nextIndex));
+    } else {
+      // Already at the last page: hand off to the adjacent-book handler.
+      onForwardBoundary?.();
     }
-  }, [index, entries.length, dispatch, displayedLayout, settings]);
+  }, [index, entries.length, dispatch, displayedLayout, settings, onForwardBoundary]);
 
   const moveBack = useCallback(() => {
-    if (entries.length === 0 || index === 0) {
+    if (entries.length === 0) {
+      return;
+    }
+
+    if (index === 0) {
+      // Already at the first page: hand off to the adjacent-book handler.
+      onBackwardBoundary?.();
       return;
     }
 
@@ -228,7 +260,7 @@ export const useViewerController = (
     }
 
     dispatch(setImageIndex(indexFor2PagesBack));
-  }, [index, entries, settings, dispatch]);
+  }, [index, entries, settings, dispatch, onBackwardBoundary]);
 
   return {
     displayedLayout,

@@ -1,11 +1,9 @@
-use std::{path::Path, sync::Arc};
 use tokio::sync::RwLock;
 
 use serde::{Deserialize, Serialize};
 use tauri::ipc::Response;
 
 use crate::{
-    container::{epub_container::EpubContainer, traits::Container},
     error::{Error, Result},
     image::resizer::ResizeFilter,
     state::app_state::AppState,
@@ -67,7 +65,7 @@ pub async fn get_entries_in_container(
     }
 
     if !is_novel {
-        if let Some(loader) = state_lock.container_state.image_loader.as_mut() {
+        if let Some(loader) = state_lock.container_state.image_loader.as_ref() {
             log::debug!("Triggering proactive preloading for {}", path);
             loader.request_preload_around(0, 5)?;
         }
@@ -102,14 +100,14 @@ pub async fn request_preload_around(
         index,
         buffer_size
     );
-    let mut state_lock = state.write().await;
+    let state_lock = state.read().await;
 
     let buffer_size = buffer_size.unwrap_or(10);
 
     let image_loader = state_lock
         .container_state
         .image_loader
-        .as_mut()
+        .as_ref()
         .ok_or_else(|| Error::Other("Unexpected error. ImageLoader is empty!".to_string()))?;
 
     image_loader.request_preload_around(index, buffer_size)?;
@@ -155,13 +153,7 @@ pub async fn get_image(
 
     let image = image_loader.get_image(entry_name)?;
 
-    // Uses tauri::ipc::Response with a custom binary format to accelerate image data transfer.
-    let mut response_data = Vec::with_capacity(8 + image.data.len());
-    response_data.extend_from_slice(&image.width.to_be_bytes());
-    response_data.extend_from_slice(&image.height.to_be_bytes());
-    response_data.extend_from_slice(&image.data);
-
-    Ok(Response::new(response_data))
+    Ok(image.to_ipc_response())
 }
 
 /// Retrieves a preview version of an image from the container.
@@ -207,13 +199,7 @@ pub async fn get_image_preview(
         return Ok(Response::new(Vec::new()));
     };
 
-    // Uses tauri::ipc::Response with a custom binary format to accelerate image data transfer.
-    let mut response_data = Vec::with_capacity(8 + image.data.len());
-    response_data.extend_from_slice(&image.width.to_be_bytes());
-    response_data.extend_from_slice(&image.height.to_be_bytes());
-    response_data.extend_from_slice(&image.data);
-
-    Ok(Response::new(response_data))
+    Ok(image.to_ipc_response())
 }
 
 /// Sets the render resolution height for pages in PDF files.
@@ -365,49 +351,6 @@ pub async fn set_image_cache_size_mib(
     state_lock.container_state.update_image_cache_size(size_mib);
 
     Ok(())
-}
-
-/// Determines if the file at the given path is an EPUB file containing a novel.
-///
-/// This function checks the file extension and then inspects the EPUB's contents to
-/// distinguish text-based novels from image-based comics.
-///
-/// # Arguments
-///
-/// * `path` - The file path to the EPUB file to be checked.
-/// * `state` - A `tauri::State` holding the application's global `AppState`.
-///
-/// # Returns
-///
-/// A `Result` which is `Ok` with a boolean: `true` if the file is a novel EPUB, `false` otherwise.
-///
-/// # Errors
-///
-/// This function will return an `Err` if:
-/// * The file at `path` cannot be opened or is not a valid EPUB file.
-#[tauri::command()]
-pub async fn determine_epub_novel(
-    path: &str,
-    state: tauri::State<'_, RwLock<AppState>>,
-) -> Result<bool> {
-    let mut state_lock = state.write().await;
-
-    state_lock.container_state.container = None;
-    state_lock.container_state.image_loader = None;
-
-    let is_epub = Path::new(&path)
-        .extension()
-        .unwrap_or_default()
-        .to_string_lossy()
-        .to_lowercase()
-        == "epub";
-
-    if !is_epub {
-        return Ok(false);
-    }
-
-    let container = Arc::new(EpubContainer::new(path)?);
-    Ok(container.is_novel())
 }
 
 #[cfg(test)]
@@ -736,15 +679,5 @@ mod tests {
 
         let result_invalid = set_image_resampling_method("invalid", app.state()).await;
         assert!(result_invalid.is_err());
-    }
-
-    #[tokio::test]
-    async fn test_determine_epub_novel_non_epub() {
-        let app = tauri::test::mock_app();
-        app.manage(RwLock::new(AppState::default()));
-
-        let result = determine_epub_novel("test.zip", app.state()).await;
-        assert!(result.is_ok());
-        assert!(!result.unwrap());
     }
 }

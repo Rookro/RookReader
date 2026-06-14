@@ -37,6 +37,7 @@ vi.mock("../../slice", async () => {
       type: "read/setContainerFilePath",
       payload,
     })),
+    setOpenOrigin: vi.fn((payload: unknown) => ({ type: "read/setOpenOrigin", payload })),
     setSearchText: vi.fn((payload: string) => ({ type: "explorer/setSearchText", payload })),
   };
 });
@@ -89,6 +90,7 @@ describe("FileNavigator", () => {
     await user.click(rowButton);
 
     await waitFor(() => {
+      expect(ReadReducer.setOpenOrigin).toHaveBeenCalledWith({ kind: "fileNavigator" });
       expect(ReadReducer.setContainerFilePath).toHaveBeenCalledWith("/book.zip");
     });
   });

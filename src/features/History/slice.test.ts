@@ -96,6 +96,7 @@ describe("HistoryReducer", () => {
         const state = store.getState().history;
         expect(state.status).toBe("failed");
         expect(state.error?.code).toBe(ErrorCode.IO_ERROR);
+        expect(state.error?.message).toContain("io error");
       });
 
       // Verify handling of CommandError when clearing history
@@ -109,6 +110,7 @@ describe("HistoryReducer", () => {
         const state = store.getState().history;
         expect(state.status).toBe("failed");
         expect(state.error?.code).toBe(ErrorCode.IO_ERROR);
+        expect(state.error?.message).toContain("io error");
       });
 
       // Verify handling of CommandError when clearing all history
@@ -122,6 +124,7 @@ describe("HistoryReducer", () => {
         const state = store.getState().history;
         expect(state.status).toBe("failed");
         expect(state.error?.code).toBe(ErrorCode.IO_ERROR);
+        expect(state.error?.message).toContain("io error");
       });
 
       // Verify that failed status and error message are set on fetch error

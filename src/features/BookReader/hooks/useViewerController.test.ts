@@ -78,6 +78,26 @@ describe("useViewerController", () => {
     expect(global.URL.revokeObjectURL).toHaveBeenCalledWith("blob:preview");
   });
 
+  // Verify that remaining object URLs are revoked when the hook unmounts
+  it("should revoke object URLs on unmount", async () => {
+    mockedFetchImageBlob.mockResolvedValue({} as Image);
+    mockedCreateImageCacheItem.mockReturnValue({
+      fullUrl: "blob:full",
+      previewUrl: "blob:preview",
+    } as ImageUtils.ImageCacheItem);
+
+    const { unmount } = renderHook(() =>
+      useViewerController("path", mockEntries, 0, mockSettings, mockDispatch),
+    );
+
+    await waitFor(() => expect(ImageUtils.createImageCacheItem).toHaveBeenCalled());
+
+    unmount();
+
+    expect(global.URL.revokeObjectURL).toHaveBeenCalledWith("blob:full");
+    expect(global.URL.revokeObjectURL).toHaveBeenCalledWith("blob:preview");
+  });
+
   // Verify that displayedLayout is set on successful image loading
   it("should load image and set displayedLayout when successful", async () => {
     const mockLayout: ImageUtils.ViewLayout = {
@@ -211,6 +231,28 @@ describe("useViewerController", () => {
       result.current.moveForward();
       expect(mockDispatch).not.toHaveBeenCalled();
     });
+
+    // Verify that the forward boundary callback fires at the last page (instead of dispatching)
+    it("should call onForwardBoundary at the last page", async () => {
+      const mockLayout: ImageUtils.ViewLayout = {
+        nextIndexIncrement: 1,
+        isSpread: false,
+        firstImage: { url: "url1", width: 100, height: 100 } as ImageUtils.ImageCacheItem,
+      };
+      mockedFetchImageBlob.mockResolvedValue({} as Image);
+      mockedCalculateLayout.mockReturnValue(mockLayout);
+      const onForwardBoundary = vi.fn();
+
+      const { result } = renderHook(() =>
+        useViewerController("path", mockEntries, 2, mockSettings, mockDispatch, onForwardBoundary),
+      );
+
+      await waitFor(() => expect(result.current.isImageLoading).toBe(false));
+
+      result.current.moveForward();
+      expect(mockDispatch).not.toHaveBeenCalled();
+      expect(onForwardBoundary).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe("moveBack", () => {
@@ -257,6 +299,26 @@ describe("useViewerController", () => {
       );
       result.current.moveBack();
       expect(mockDispatch).not.toHaveBeenCalled();
+    });
+
+    // Verify that the backward boundary callback fires at the first page (instead of dispatching)
+    it("should call onBackwardBoundary at the first page", () => {
+      const onBackwardBoundary = vi.fn();
+      const { result } = renderHook(() =>
+        useViewerController(
+          "path",
+          mockEntries,
+          0,
+          mockSettings,
+          mockDispatch,
+          undefined,
+          onBackwardBoundary,
+        ),
+      );
+
+      result.current.moveBack();
+      expect(mockDispatch).not.toHaveBeenCalled();
+      expect(onBackwardBoundary).toHaveBeenCalledTimes(1);
     });
   });
 

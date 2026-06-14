@@ -5,10 +5,13 @@ import { getBookWithStateById, recordBookOpened } from "../../bindings/BookComma
 import { getEntriesInContainer, requestPreloadAround } from "../../bindings/ContainerCommands";
 import { getEntriesInDir as getEntriesInDirFromBackend } from "../../bindings/DirectoryCommands";
 import type { BookWithState } from "../../domain/book/schema";
+import { handleThunkError } from "../../store/thunkErrorHandler";
 import { createAppAsyncThunk } from "../../types/CustomAsyncThunk";
 import type { DirEntry } from "../../types/DirEntry";
-import { CommandError, ErrorCode } from "../../types/Error";
+import { ErrorCode } from "../../types/Error";
 import { convertEntriesInDir } from "../../utils/DirEntryUtils";
+import type { OpenOrigin } from "./types/OpenOrigin";
+import { goBackHistory, goForwardHistory, pushHistory } from "./utils/navigationHistory";
 
 /**
  * Opens a container file or directory, retrieves its contents, and updates the reading history.
@@ -72,13 +75,7 @@ export const openContainerFile = createAppAsyncThunk(
         book: book,
       };
     } catch (e) {
-      const errorMessage = `Failed to openContainerFile(${path}). Error: ${JSON.stringify(e)}`;
-      error(errorMessage);
-      return rejectWithValue(
-        e instanceof CommandError
-          ? { code: e.code, message: errorMessage }
-          : { code: ErrorCode.OTHER_ERROR, message: errorMessage },
-      );
+      return handleThunkError(e, `Failed to openContainerFile(${path}).`, rejectWithValue);
     }
   },
 );
@@ -116,13 +113,7 @@ export const updateExploreBasePath = createAppAsyncThunk(
       const entries = convertEntriesInDir(buffer);
       return { path: dirPath, entries: entries };
     } catch (e) {
-      const errorMessage = `Failed to getEntriesInDir(${dirPath}). Error: ${JSON.stringify(e)}`;
-      error(errorMessage);
-      return rejectWithValue(
-        e instanceof CommandError
-          ? { code: e.code, message: errorMessage }
-          : { code: ErrorCode.OTHER_ERROR, message: errorMessage },
-      );
+      return handleThunkError(e, `Failed to getEntriesInDir(${dirPath}).`, rejectWithValue);
     }
   },
 );
@@ -141,6 +132,14 @@ export const readSlice = createSlice({
       isNovel: false,
       isLoading: false,
       error: null as { code: ErrorCode; message?: string } | null,
+      /** Where the current book was opened from (used to resolve the adjacent book). */
+      origin: null as OpenOrigin | null,
+      /**
+       * Overrides the start page of the next opened container, used by adjacent-book
+       * navigation: "first" lands on page 1 (next book), "last" lands on the last page
+       * (previous book). When null, the last-read position is used.
+       */
+      pendingInitialPosition: null as "first" | "last" | null,
     },
     explorer: {
       history: [] as string[],
@@ -159,23 +158,31 @@ export const readSlice = createSlice({
      * @param action - Payload containing the container file path.
      */
     setContainerFilePath: (state, action: PayloadAction<string>) => {
-      if (
-        state.containerFile.history.length > 0 &&
-        state.containerFile.history[state.containerFile.historyIndex] === action.payload
-      ) {
+      if (!pushHistory(state.containerFile, action.payload)) {
         return;
       }
-
-      if (state.containerFile.historyIndex !== state.containerFile.history.length - 1) {
-        state.containerFile.history = state.containerFile.history.slice(
-          0,
-          state.containerFile.historyIndex + 1,
-        );
-      }
-      state.containerFile.history.push(action.payload);
-      state.containerFile.historyIndex = state.containerFile.history.length - 1;
       state.containerFile.index = 0;
       state.containerFile.isLoading = true;
+    },
+    /**
+     * Sets the origin (launch context) of the currently opened book.
+     *
+     * @param state - The current Redux state slice.
+     * @param action - Payload containing the open origin, or null to clear it.
+     */
+    setOpenOrigin: (state, action: PayloadAction<OpenOrigin | null>) => {
+      state.containerFile.origin = action.payload;
+    },
+    /**
+     * Sets the pending initial position for the next opened container.
+     * "first" starts on page 1, "last" starts on the last page; null uses the
+     * last-read position.
+     *
+     * @param state - The current Redux state slice.
+     * @param action - Payload containing the pending position, or null to clear it.
+     */
+    setPendingInitialPosition: (state, action: PayloadAction<"first" | "last" | null>) => {
+      state.containerFile.pendingInitialPosition = action.payload;
     },
     /**
      * Sets the current image index within a container file.
@@ -194,19 +201,9 @@ export const readSlice = createSlice({
      * @param action - Payload containing the directory path.
      */
     setExploreBasePath: (state, action: PayloadAction<string>) => {
-      if (
-        state.explorer.history.length > 0 &&
-        state.explorer.history[state.explorer.historyIndex] === action.payload
-      ) {
+      if (!pushHistory(state.explorer, action.payload)) {
         return;
       }
-
-      if (state.explorer.historyIndex !== state.explorer.history.length - 1) {
-        state.explorer.history = state.explorer.history.slice(0, state.explorer.historyIndex + 1);
-      }
-      state.explorer.history.push(action.payload);
-      state.explorer.historyIndex = state.explorer.history.length - 1;
-
       state.explorer.searchText = "";
       state.explorer.isLoading = true;
     },
@@ -225,8 +222,7 @@ export const readSlice = createSlice({
      * @param state - The current Redux state slice.
      */
     goBackContainerHistory: (state) => {
-      if (state.containerFile.historyIndex > 0) {
-        state.containerFile.historyIndex -= 1;
+      if (goBackHistory(state.containerFile)) {
         state.containerFile.isLoading = true;
       }
     },
@@ -236,8 +232,7 @@ export const readSlice = createSlice({
      * @param state - The current Redux state slice.
      */
     goForwardContainerHistory: (state) => {
-      if (state.containerFile.historyIndex < state.containerFile.history.length - 1) {
-        state.containerFile.historyIndex += 1;
+      if (goForwardHistory(state.containerFile)) {
         state.containerFile.isLoading = true;
       }
     },
@@ -247,9 +242,7 @@ export const readSlice = createSlice({
      * @param state - The current Redux state slice.
      */
     goBackExplorerHistory: (state) => {
-      if (state.explorer.historyIndex > 0) {
-        state.explorer.historyIndex -= 1;
-      }
+      goBackHistory(state.explorer);
     },
     /**
      * Navigates forwards in the file explorer history.
@@ -257,9 +250,7 @@ export const readSlice = createSlice({
      * @param state - The current Redux state slice.
      */
     goForwardExplorerHistory: (state) => {
-      if (state.explorer.historyIndex < state.explorer.history.length - 1) {
-        state.explorer.historyIndex += 1;
-      }
+      goForwardHistory(state.explorer);
     },
     /**
      * Sets the loading state for directory entries.
@@ -355,7 +346,15 @@ export const readSlice = createSlice({
           state.containerFile.isDirectory = action.payload.isDirectory;
           state.containerFile.isLoading = false;
           state.containerFile.book = action.payload.book;
-          state.containerFile.index = action.payload.book?.last_read_page_index ?? 0;
+          if (state.containerFile.pendingInitialPosition === "last") {
+            const total = action.payload.entries?.length ?? 0;
+            state.containerFile.index = Math.max(0, total - 1);
+          } else if (state.containerFile.pendingInitialPosition === "first") {
+            state.containerFile.index = 0;
+          } else {
+            state.containerFile.index = action.payload.book?.last_read_page_index ?? 0;
+          }
+          state.containerFile.pendingInitialPosition = null;
           state.containerFile.cfi = null;
           state.containerFile.error = null;
           if (action.payload.isNovel !== undefined) {
@@ -368,6 +367,7 @@ export const readSlice = createSlice({
         state.containerFile.isLoading = false;
         state.containerFile.index = 0;
         state.containerFile.cfi = null;
+        state.containerFile.pendingInitialPosition = null;
         state.containerFile.error = action.payload ?? null;
       });
   },
@@ -375,6 +375,8 @@ export const readSlice = createSlice({
 
 export const {
   setContainerFilePath,
+  setOpenOrigin,
+  setPendingInitialPosition,
   setImageIndex,
   setExploreBasePath,
   setSearchText,

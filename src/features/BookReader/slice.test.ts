@@ -20,6 +20,8 @@ import readReducer, {
   setImageIndex,
   setIsDirEntriesLoading,
   setNovelLocation,
+  setOpenOrigin,
+  setPendingInitialPosition,
   setSearchText,
   updateExploreBasePath,
 } from "./slice";
@@ -170,6 +172,39 @@ describe("ReadReducer", () => {
       expect(state.containerFile.cfi).toBe("epub-cfi");
     });
 
+    // Verify that the open origin is set and cleared correctly
+    it("should handle setOpenOrigin", () => {
+      const initialState = {
+        containerFile: { origin: null },
+      } as RootState["read"];
+
+      const state = readReducer(
+        initialState,
+        setOpenOrigin({ kind: "bookshelf", bookshelfId: 3, sortOrder: "name_asc" }),
+      );
+      expect(state.containerFile.origin).toEqual({
+        kind: "bookshelf",
+        bookshelfId: 3,
+        sortOrder: "name_asc",
+      });
+
+      const cleared = readReducer(state, setOpenOrigin(null));
+      expect(cleared.containerFile.origin).toBeNull();
+    });
+
+    // Verify that the pending initial position is set and cleared correctly
+    it("should handle setPendingInitialPosition", () => {
+      const initialState = {
+        containerFile: { pendingInitialPosition: null },
+      } as RootState["read"];
+
+      const state = readReducer(initialState, setPendingInitialPosition("last"));
+      expect(state.containerFile.pendingInitialPosition).toBe("last");
+
+      const cleared = readReducer(state, setPendingInitialPosition(null));
+      expect(cleared.containerFile.pendingInitialPosition).toBeNull();
+    });
+
     // Verify that container and explorer error states are cleared correctly
     it("should handle clear errors", () => {
       const initialState = {
@@ -228,6 +263,48 @@ describe("ReadReducer", () => {
         expect(state.containerFile.entries).toEqual(["p1", "p2"]);
       });
 
+      // Verify that the container opens on its last page when pendingInitialPosition is "last"
+      it("should open on the last page when pendingInitialPosition is 'last'", async () => {
+        const mockBook = createMockBookWithState({ id: 1, last_read_page_index: 5 });
+
+        vi.mocked(ContainerCommands.getEntriesInContainer).mockResolvedValue({
+          is_directory: false,
+          entries: ["p1", "p2", "p3"],
+          is_novel: false,
+        });
+        vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(1);
+        vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
+
+        store.dispatch(setPendingInitialPosition("last"));
+        await store.dispatch(openContainerFile("path/to/book.zip"));
+
+        const state = store.getState().read;
+        // Last page index (entries.length - 1), not last_read_page_index.
+        expect(state.containerFile.index).toBe(2);
+        expect(state.containerFile.pendingInitialPosition).toBeNull();
+      });
+
+      // Verify that the container opens on its first page when pendingInitialPosition is "first"
+      it("should open on the first page when pendingInitialPosition is 'first'", async () => {
+        const mockBook = createMockBookWithState({ id: 1, last_read_page_index: 5 });
+
+        vi.mocked(ContainerCommands.getEntriesInContainer).mockResolvedValue({
+          is_directory: false,
+          entries: ["p1", "p2", "p3"],
+          is_novel: false,
+        });
+        vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(1);
+        vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
+
+        store.dispatch(setPendingInitialPosition("first"));
+        await store.dispatch(openContainerFile("path/to/book.zip"));
+
+        const state = store.getState().read;
+        // First page (index 0), not last_read_page_index.
+        expect(state.containerFile.index).toBe(0);
+        expect(state.containerFile.pendingInitialPosition).toBeNull();
+      });
+
       // Verify handling of EPUB novel format
       it("should handle EPUB novel", async () => {
         const mockBook = createMockBookWithState({ id: 1, last_read_page_index: 0 });
@@ -264,6 +341,7 @@ describe("ReadReducer", () => {
 
         const state = store.getState().read;
         expect(state.containerFile.error?.code).toBe(ErrorCode.OTHER_ERROR);
+        expect(state.containerFile.error?.message).toContain("cmd failed");
       });
     });
 
@@ -320,6 +398,7 @@ describe("ReadReducer", () => {
 
         const state = store.getState().read;
         expect(state.explorer.error?.code).toBe(ErrorCode.OTHER_ERROR);
+        expect(state.explorer.error?.message).toContain("dir failed");
       });
 
       // Verify handling of generic error during entry conversion
@@ -345,6 +424,17 @@ describe("ReadReducer", () => {
         const state = store.getState().read;
         expect(state.containerFile.isLoading).toBe(false);
         expect(state.containerFile.error?.message).toContain(testError);
+      });
+
+      // Verify that a failed open clears a pending "last page" position so it does not
+      // leak into the next opened container.
+      it("should clear pendingInitialPosition when opening fails", async () => {
+        vi.mocked(ContainerCommands.getEntriesInContainer).mockRejectedValue("boom");
+
+        store.dispatch(setPendingInitialPosition("last"));
+        await store.dispatch(openContainerFile("fail.zip"));
+
+        expect(store.getState().read.containerFile.pendingInitialPosition).toBeNull();
       });
     });
   });

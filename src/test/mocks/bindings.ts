@@ -21,7 +21,7 @@ vi.mock("../../bindings/BookCommands", () => ({
   getBooksWithStateBySeriesId: vi.fn(() => Promise.resolve([])),
 }));
 
-vi.mock("../../bindings/BookshelfCommand", () => ({
+vi.mock("../../bindings/BookshelfCommands", () => ({
   createBookshelf: vi.fn(() => Promise.resolve([])),
   getAllBookshelves: vi.fn(() => Promise.resolve([])),
   addBookToBookshelf: vi.fn(() => Promise.resolve([])),
@@ -50,7 +50,7 @@ vi.mock("../../bindings/FontCommands", () => ({
   getFonts: vi.fn(() => Promise.resolve(["Arial", "Times New Roman"])),
 }));
 
-vi.mock("../../bindings/SeriesCommand", () => ({
+vi.mock("../../bindings/SeriesCommands", () => ({
   createSeries: vi.fn(() => Promise.resolve([])),
   getAllSeries: vi.fn(() => Promise.resolve([])),
   deleteSeries: vi.fn(() => Promise.resolve([])),

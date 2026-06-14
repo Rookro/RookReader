@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { imageResamplingMethods } from "../../types/AppSettings";
+import { autoOpenAdjacentBookModes, imageResamplingMethods } from "../../types/AppSettings";
 
 export const AppThemeSchema = z.enum(["light", "dark", "system"]);
 export const LogLevelSchema = z.enum(["trace", "debug", "info", "warn", "error"]);
@@ -66,10 +66,13 @@ export const RenderingSettingsSchema = z.object({
   pdfRenderResolutionHeight: z.number(),
 });
 
+export const AutoOpenAdjacentBookModeSchema = z.enum(autoOpenAdjacentBookModes);
+
 export const ReaderSettingsSchema = z.object({
   comic: ComicSettingsSchema,
   novel: NovelSettingsSchema,
   rendering: RenderingSettingsSchema,
+  autoOpenAdjacentBook: AutoOpenAdjacentBookModeSchema,
 });
 
 export const HistorySettingsSchema = z.object({

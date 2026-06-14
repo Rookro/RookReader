@@ -1,12 +1,19 @@
-use image::{codecs::jpeg::JpegEncoder, ImageReader};
+//! RAR container implementation.
+//!
+//! # Performance Constraints
+//!
+//! The underlying `unrar` library's `OpenArchive` type does not implement `Send`.
+//! This prevents sharing a single opened archive instance across multiple threads (e.g., inside a Mutex).
+//! Consequently, the archive has to be opened and scanned sequentially for every image request.
+
 use unrar::{Archive, CursorBeforeHeader, OpenArchive, Process};
 
-use std::{io::Cursor, sync::Arc};
+use std::sync::Arc;
 
 use crate::{
     container::traits::Container,
     error::{Error, Result},
-    image::types::Image,
+    image::{thumbnail::generate_thumbnail, types::Image},
 };
 
 /// An implementation of the `Container` trait for reading content from RAR archive files.
@@ -86,6 +93,15 @@ fn open(path: &str) -> Result<OpenArchive<Process, CursorBeforeHeader>> {
 }
 
 /// Helper function to find and extract a specific file from a RAR archive.
+///
+/// # Performance
+///
+/// Because the underlying `unrar` crate does not support parallel random-access reading,
+/// we must re-open the archive and perform a sequential scan of entries until the target `entry` is found.
+/// This results in $O(N)$ operations where $N$ is the entry index.
+///
+/// TODO: In the future, we could consider an in-memory extraction cache or a dedicated background actor
+/// that keeps the archive open and processes requests sequentially on a single thread.
 fn load_image(path: &str, entry: &str) -> Result<Arc<Image>> {
     let mut archive = open(path)?;
     while let Some(header) = archive.read_header()? {
@@ -106,25 +122,7 @@ fn load_image(path: &str, entry: &str) -> Result<Arc<Image>> {
 /// Helper function to load an image and generate a JPEG thumbnail for it.
 fn create_thumbnail(path: &str, entry: &str) -> Result<Arc<Image>> {
     let img = load_image(path, entry)?;
-    let cursor = Cursor::new(&img.data);
-    let image_reader = ImageReader::new(cursor).with_guessed_format()?;
-    let image = image_reader.decode()?;
-
-    let thumbnail = image.thumbnail(
-        <dyn Container>::THUMBNAIL_SIZE,
-        <dyn Container>::THUMBNAIL_SIZE,
-    );
-
-    let mut buffer = Vec::new();
-    // Use a lower quality for thumbnails to make them smaller and faster to encode.
-    let mut encoder = JpegEncoder::new_with_quality(&mut buffer, 10);
-    encoder.encode_image(&thumbnail)?;
-
-    Ok(Arc::new(Image {
-        data: buffer,
-        width: thumbnail.width(),
-        height: thumbnail.height(),
-    }))
+    generate_thumbnail(&img.data)
 }
 
 #[cfg(test)]
@@ -248,8 +246,8 @@ mod tests {
             .expect("failed to create RarContainer");
 
         let thumbnail = container.get_thumbnail("image1.png").unwrap();
-        assert!(thumbnail.width <= <dyn Container>::THUMBNAIL_SIZE);
-        assert!(thumbnail.height <= <dyn Container>::THUMBNAIL_SIZE);
+        assert!(thumbnail.width <= crate::image::thumbnail::THUMBNAIL_SIZE);
+        assert!(thumbnail.height <= crate::image::thumbnail::THUMBNAIL_SIZE);
         assert!(!thumbnail.data.is_empty());
     }
 }

@@ -98,7 +98,7 @@ impl PdfContainer {
             library_path,
             thumbnail_render_config: Arc::new(
                 PdfRenderConfig::default()
-                    .set_target_height(<dyn Container>::THUMBNAIL_SIZE as i32)
+                    .set_target_height(crate::image::thumbnail::THUMBNAIL_SIZE as i32)
                     .rotate(PdfPageRenderRotation::None, false)
                     .use_print_quality(false)
                     .set_image_smoothing(false)
@@ -304,8 +304,8 @@ mod tests {
         .unwrap();
 
         let thumbnail = container.get_thumbnail("0000").unwrap();
-        assert!(thumbnail.width <= <dyn Container>::THUMBNAIL_SIZE);
-        assert!(thumbnail.height <= <dyn Container>::THUMBNAIL_SIZE);
+        assert!(thumbnail.width <= crate::image::thumbnail::THUMBNAIL_SIZE);
+        assert!(thumbnail.height <= crate::image::thumbnail::THUMBNAIL_SIZE);
         assert!(!thumbnail.data.is_empty());
     }
 }

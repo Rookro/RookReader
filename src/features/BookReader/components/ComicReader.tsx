@@ -2,10 +2,12 @@ import { Box, CircularProgress } from "@mui/material";
 import { createSelector } from "@reduxjs/toolkit";
 import { useEffect, useMemo, useState } from "react";
 import { type RootState, useAppDispatch, useAppSelector } from "../../../store/store";
+import { useAdjacentBookNavigation } from "../hooks/useAdjacentBookNavigation";
 import { useLoupe } from "../hooks/useLoupe";
 import { usePageNavigation } from "../hooks/usePageNavigation";
 import { useViewerController } from "../hooks/useViewerController";
 import type { ViewerSettings } from "../utils/ImageUtils";
+import AdjacentBookConfirmDialog from "./AdjacentBookConfirmDialog";
 import Loupe from "./Loupe";
 
 const selectComicReaderState = createSelector(
@@ -46,12 +48,17 @@ export default function ComicReader() {
     ],
   );
 
+  const { onForwardBoundary, onBackwardBoundary, pending, confirmPending, cancelPending } =
+    useAdjacentBookNavigation();
+
   const { displayedLayout, moveForward, moveBack, isImageLoading } = useViewerController(
     containerPath,
     entries,
     index,
     settings,
     dispatch,
+    onForwardBoundary,
+    onBackwardBoundary,
   );
 
   const loupeSettings = readerSettings.comic.loupe;
@@ -108,6 +115,15 @@ export default function ComicReader() {
     </Box>
   ) : null;
 
+  const confirmDialog = (
+    <AdjacentBookConfirmDialog
+      open={pending != null}
+      title={pending?.book.displayName}
+      onConfirm={confirmPending}
+      onCancel={cancelPending}
+    />
+  );
+
   if (!displayedLayout) {
     return (
       <Box
@@ -117,6 +133,7 @@ export default function ComicReader() {
         }}
       >
         {spinnerOverlay}
+        {confirmDialog}
       </Box>
     );
   }
@@ -195,6 +212,7 @@ export default function ComicReader() {
           )}
         </Box>
       </Loupe>
+      {confirmDialog}
     </Box>
   );
 }

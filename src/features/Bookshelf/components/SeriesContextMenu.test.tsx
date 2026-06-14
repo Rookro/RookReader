@@ -2,7 +2,7 @@ import { error } from "@tauri-apps/plugin-log";
 import { fireEvent, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import * as SeriesCommand from "../../../bindings/SeriesCommand";
+import * as SeriesCommand from "../../../bindings/SeriesCommands";
 import type { Series } from "../../../domain/series/schema";
 import { renderWithProviders } from "../../../test/utils";
 import { BookshelfActionsContext } from "./BookshelfActionsContext";
@@ -46,7 +46,7 @@ describe("SeriesContextMenu", () => {
 
     await user.click(screen.getByText(/Edit Series Order/i));
 
-    const state = store.getState().bookCollection;
+    const state = store.getState().series;
     expect(state.isEditSeriesOrderDialogOpen).toBe(true);
     expect(state.editSeriesOrderTargetId).toBe(mockSeries.id);
     expect(defaultProps.onClose).toHaveBeenCalled();

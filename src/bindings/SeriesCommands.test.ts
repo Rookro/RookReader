@@ -1,9 +1,9 @@
 import { invoke } from "@tauri-apps/api/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CommandError } from "../types/Error";
-import * as SeriesCommand from "./SeriesCommand";
+import * as SeriesCommand from "./SeriesCommands";
 
-vi.unmock("./SeriesCommand");
+vi.unmock("./SeriesCommands");
 
 describe("SeriesCommand", () => {
   beforeEach(() => {

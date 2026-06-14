@@ -1,7 +1,8 @@
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { clearContainerFileError, clearExplorerError } from "../../features/BookReader/slice";
-import { clearBookshelfError, clearTagError } from "../../features/Bookshelf/slice";
+import { clearBookshelfError } from "../../features/Bookshelf/slice";
+import { clearTagError } from "../../features/Bookshelf/tagSlice";
 import { clearHistoryError } from "../../features/History/slice";
 import { useAppDispatch, useAppSelector } from "../../store/store";
 import { ErrorCode } from "../../types/Error";
@@ -35,8 +36,8 @@ export default function GlobalErrorListener() {
   const containerFileError = useAppSelector((state) => state.read.containerFile.error);
   const explorerError = useAppSelector((state) => state.read.explorer.error);
   const historyError = useAppSelector((state) => state.history.error);
-  const bookshelfError = useAppSelector((state) => state.bookCollection.bookshelf.error);
-  const tagsError = useAppSelector((state) => state.bookCollection.tag.error);
+  const bookshelfError = useAppSelector((state) => state.bookCollection.error);
+  const tagsError = useAppSelector((state) => state.tag.error);
 
   useEffect(() => {
     if (containerFileError) {

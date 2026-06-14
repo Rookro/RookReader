@@ -1,9 +1,9 @@
 import { invoke } from "@tauri-apps/api/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CommandError } from "../types/Error";
-import * as BookshelfCommand from "./BookshelfCommand";
+import * as BookshelfCommand from "./BookshelfCommands";
 
-vi.unmock("./BookshelfCommand");
+vi.unmock("./BookshelfCommands");
 
 describe("BookshelfCommand", () => {
   beforeEach(() => {

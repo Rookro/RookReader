@@ -3,10 +3,11 @@ import { Allotment } from "allotment";
 import { useCallback, useState } from "react";
 import type { Book } from "../../../domain/book/schema";
 import { usePaneSizes } from "../../../hooks/usePaneSizes";
-import { useAppDispatch } from "../../../store/store";
-import { setContainerFilePath } from "../../BookReader/slice";
+import { useAppDispatch, useAppSelector } from "../../../store/store";
+import { setContainerFilePath, setOpenOrigin } from "../../BookReader/slice";
 import { setActiveView } from "../../MainView/slice";
-import { addBookshelf, addTag } from "../slice";
+import { addBookshelf } from "../slice";
+import { addTag } from "../tagSlice";
 import BookGrid from "./BookGrid";
 import { BookSelectionProvider } from "./BookSelectionContext";
 import { CreateBookshelfDialog } from "./Dialog/CreateBookshelfDialog";
@@ -24,6 +25,8 @@ export interface BookshelfProps {
 /** Bookshelf component */
 export default function Bookshelf({ sx }: BookshelfProps) {
   const dispatch = useAppDispatch();
+  const selectedBookshelfId = useAppSelector((state) => state.bookCollection.selectedId);
+  const bookshelfSortOrder = useAppSelector((state) => state.settings.bookshelf.sortOrder);
   const [isBookshelfDialogOpen, setIsBookshelfDialogOpen] = useState(false);
   const [isBookTagDialogOpen, setIsBookTagDialogOpen] = useState(false);
 
@@ -37,10 +40,17 @@ export default function Bookshelf({ sx }: BookshelfProps) {
 
   const handleBookSelected = useCallback(
     (book: Book) => {
+      dispatch(
+        setOpenOrigin({
+          kind: "bookshelf",
+          bookshelfId: selectedBookshelfId,
+          sortOrder: bookshelfSortOrder,
+        }),
+      );
       dispatch(setContainerFilePath(book.file_path));
       dispatch(setActiveView("reader"));
     },
-    [dispatch],
+    [dispatch, selectedBookshelfId, bookshelfSortOrder],
   );
 
   const handleCreateBookshelf = useCallback(

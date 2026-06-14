@@ -1,17 +1,37 @@
-use std::{path::Path, sync::Arc};
+use std::sync::Arc;
 
 use pdfium_render::prelude::PdfRenderConfig;
 
 use crate::{
     container::{
-        directory_container::DirectoryContainer, epub_container::EpubContainer,
-        pdf_container::PdfContainer, rar_container::RarContainer, traits::Container,
-        zip_container::ZipContainer,
+        factory::{create_container, ContainerConfig},
+        traits::Container,
     },
-    error::{Error, Result},
-    image::loader::{CacheKey, ImageLoader},
+    error::Result,
+    image::loader::{Cache, ImageLoader},
     state::container_settings::ContainerSettings,
 };
+
+/// Builds an image cache whose total weight is capped at `size_mib` mebibytes.
+///
+/// Each entry's weight is its encoded byte length, so the cache evicts based on the
+/// actual memory footprint of the stored images.
+///
+/// # Arguments
+///
+/// * `size_mib` - The maximum total cache capacity, in mebibytes.
+///
+/// # Returns
+///
+/// A new, empty `Cache` with the configured capacity and weigher.
+fn build_image_cache(size_mib: u64) -> Cache {
+    mini_moka::sync::Cache::builder()
+        .max_capacity(size_mib * 1024 * 1024)
+        .weigher(|_key, value: &Arc<crate::image::types::Image>| -> u32 {
+            value.data.len().try_into().unwrap_or(u32::MAX)
+        })
+        .build()
+}
 
 /// Holds the state related to the currently open container (e.g., a file or directory).
 pub struct ContainerState {
@@ -24,18 +44,13 @@ pub struct ContainerState {
     /// `None` if no container is open.
     pub image_loader: Option<ImageLoader>,
     /// Global image cache shared across all containers.
-    pub image_cache: mini_moka::sync::Cache<CacheKey, Arc<crate::image::types::Image>>,
+    pub image_cache: Cache,
 }
 
 impl Default for ContainerState {
     fn default() -> Self {
         let settings = ContainerSettings::default();
-        let image_cache = mini_moka::sync::Cache::builder()
-            .max_capacity(settings.image_cache_size_mib * 1024 * 1024)
-            .weigher(|_key, value: &Arc<crate::image::types::Image>| -> u32 {
-                value.data.len().try_into().unwrap_or(u32::MAX)
-            })
-            .build();
+        let image_cache = build_image_cache(settings.image_cache_size_mib);
 
         Self {
             container: None,
@@ -52,12 +67,7 @@ impl ContainerState {
     /// This will clear the existing cache and recreate the image loader if a container is open.
     pub fn update_image_cache_size(&mut self, size_mib: u64) {
         log::debug!("Updating image cache size to {} MiB", size_mib);
-        self.image_cache = mini_moka::sync::Cache::builder()
-            .max_capacity(size_mib * 1024 * 1024)
-            .weigher(|_key, value: &Arc<crate::image::types::Image>| -> u32 {
-                value.data.len().try_into().unwrap_or(u32::MAX)
-            })
-            .build();
+        self.image_cache = build_image_cache(size_mib);
 
         // If a container is open, update the image loader with the new cache.
         if let Some(image_loader) = self.image_loader.as_mut() {
@@ -68,9 +78,9 @@ impl ContainerState {
     /// Opens a container from the given path and initializes the state.
     ///
     /// This function determines the type of container based on the path (directory or file extension),
-    /// then creates the appropriate container handler (e.g., `ZipContainer`, `PdfContainer`).
-    /// It also initializes the `ImageLoader` for the newly opened container.
-    /// Any previously open container is closed.
+    /// then creates the appropriate container handler (e.g., `ZipContainer`, `PdfContainer`)
+    /// using the container factory. It also initializes the `ImageLoader` for the newly opened
+    /// container. Any previously open container is closed.
     ///
     /// # Arguments
     ///
@@ -87,86 +97,36 @@ impl ContainerState {
     /// * The underlying constructor for the container type fails (e.g., file not found, permission denied, corrupt file).
     pub fn open_container(&mut self, path: &str) -> Result<()> {
         self.container = None;
-        let file_path = Path::new(path);
 
-        if file_path.is_dir() {
-            let container = Arc::new(DirectoryContainer::new(path)?);
-            self.container = Some(container.clone());
-            self.image_loader = Some(ImageLoader::new(
-                path.to_string(),
-                container,
-                self.settings.max_image_height as u32,
-                self.settings.image_resampling_method,
-                self.image_cache.clone(),
-            )?);
-            return Ok(());
-        }
+        let is_pdf = std::path::Path::new(path)
+            .extension()
+            .is_some_and(|ext| ext.to_string_lossy().to_lowercase() == "pdf");
 
-        if let Some(ext) = file_path.extension() {
-            let ext_str = ext.to_string_lossy().to_lowercase();
-            match ext_str.as_str() {
-                "zip" => {
-                    let container = Arc::new(ZipContainer::new(path)?);
-                    self.container = Some(container.clone());
-                    self.image_loader = Some(ImageLoader::new(
-                        path.to_string(),
-                        container,
-                        self.settings.max_image_height as u32,
-                        self.settings.image_resampling_method,
-                        self.image_cache.clone(),
-                    )?);
-                }
-                "pdf" => {
-                    let container = Arc::new(PdfContainer::new(
-                        path,
-                        PdfRenderConfig::default()
-                            .set_target_height(self.settings.pdf_render_resolution_height),
-                        self.settings.pdfium_library_path.clone(),
-                    )?);
-                    self.container = Some(container.clone());
-                    self.image_loader = Some(ImageLoader::new(
-                        path.to_string(),
-                        container,
-                        0, // disable image resizing
-                        self.settings.image_resampling_method,
-                        self.image_cache.clone(),
-                    )?);
-                }
-                "rar" => {
-                    let container = Arc::new(RarContainer::new(path)?);
-                    self.container = Some(container.clone());
-                    self.image_loader = Some(ImageLoader::new(
-                        path.to_string(),
-                        container,
-                        self.settings.max_image_height as u32,
-                        self.settings.image_resampling_method,
-                        self.image_cache.clone(),
-                    )?);
-                }
-                "epub" => {
-                    let container = Arc::new(EpubContainer::new(path)?);
-                    self.container = Some(container.clone());
-                    self.image_loader = Some(ImageLoader::new(
-                        path.to_string(),
-                        container,
-                        self.settings.max_image_height as u32,
-                        self.settings.image_resampling_method,
-                        self.image_cache.clone(),
-                    )?);
-                }
-                _ => {
-                    log::error!("Unsupported Container Type: {}", ext_str);
-                    return Err(Error::UnsupportedContainer(format!(
-                        "Unsupported Container Type: {}",
-                        ext_str
-                    )));
-                }
-            };
-            Ok(())
+        let config = ContainerConfig {
+            pdf_render_config: PdfRenderConfig::default()
+                .set_target_height(self.settings.pdf_render_resolution_height),
+            pdfium_library_path: self.settings.pdfium_library_path.clone(),
+        };
+
+        let container = create_container(path, config)?;
+
+        // PDF rendering already controls the image size, so disable image resizing for PDF.
+        let max_image_height = if is_pdf {
+            0
         } else {
-            log::error!("Failed to get extension. {}", path);
-            Err(Error::Path(format!("Failed to get extension. {}", path)))
-        }
+            self.settings.max_image_height as u32
+        };
+
+        self.image_loader = Some(ImageLoader::new(
+            path.to_string(),
+            container.clone(),
+            max_image_height,
+            self.settings.image_resampling_method,
+            self.image_cache.clone(),
+        )?);
+        self.container = Some(container);
+
+        Ok(())
     }
 }
 
@@ -331,5 +291,33 @@ mod tests {
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(!err.to_string().is_empty());
+    }
+
+    #[test]
+    fn test_build_image_cache_stores_and_reads_back() {
+        use crate::image::loader::CacheKey;
+        use crate::image::types::Image;
+
+        let cache = build_image_cache(64);
+        let key = CacheKey {
+            book_id: "book".to_string(),
+            entry: "p1.png".to_string(),
+        };
+        let image = Arc::new(Image {
+            data: vec![1, 2, 3],
+            width: 1,
+            height: 1,
+        });
+
+        cache.insert(key.clone(), image.clone());
+
+        assert!(cache.get(&key).is_some());
+    }
+
+    #[test]
+    fn test_build_image_cache_accepts_different_sizes() {
+        // Both a small and a large cache should build without panicking.
+        let _small = build_image_cache(1);
+        let _large = build_image_cache(4096);
     }
 }

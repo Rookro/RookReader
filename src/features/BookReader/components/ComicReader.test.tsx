@@ -2,6 +2,7 @@ import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createBasePreloadedState, renderWithProviders } from "../../../test/utils";
+import * as adjacentBookNavigation from "../hooks/useAdjacentBookNavigation";
 import * as pageNavigation from "../hooks/usePageNavigation";
 import * as viewerController from "../hooks/useViewerController";
 import ComicReader from "./ComicReader";
@@ -9,6 +10,7 @@ import ComicReader from "./ComicReader";
 // Mock the hooks
 vi.mock("../hooks/useViewerController");
 vi.mock("../hooks/usePageNavigation");
+vi.mock("../hooks/useAdjacentBookNavigation");
 
 describe("ComicReader", () => {
   const user = userEvent.setup();
@@ -22,6 +24,15 @@ describe("ComicReader", () => {
       handleContextMenu: vi.fn(),
       handleWheeled: vi.fn(),
       handleKeydown: vi.fn(),
+    });
+
+    // Default mock implementation for useAdjacentBookNavigation
+    vi.mocked(adjacentBookNavigation.useAdjacentBookNavigation).mockReturnValue({
+      onForwardBoundary: vi.fn(),
+      onBackwardBoundary: vi.fn(),
+      pending: null,
+      confirmPending: vi.fn(),
+      cancelPending: vi.fn(),
     });
 
     // Default mock implementation for useViewerController

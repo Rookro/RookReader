@@ -19,6 +19,6 @@ export class Image {
 
     this.width = dataView.getUint32(0);
     this.height = dataView.getUint32(4);
-    this.data = new Uint8Array(buffer.slice(8));
+    this.data = new Uint8Array(buffer, 8);
   }
 }

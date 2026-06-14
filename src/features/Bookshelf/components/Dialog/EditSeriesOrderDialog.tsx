@@ -19,7 +19,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { BookWithState } from "../../../../domain/book/schema";
 import { useAppDispatch } from "../../../../store/store";
-import { updateSeriesOrdersThunk } from "../../slice";
+import { updateSeriesOrdersThunk } from "../../seriesSlice";
 import SortableBookItem from "./SortableBookItem";
 
 export interface EditSeriesOrderDialogProps {
@@ -70,7 +70,7 @@ export default function EditSeriesOrderDialog({
   };
 
   return (
-    <Dialog open={openDialog} onClose={onClose}>
+    <Dialog open={openDialog} onClose={onClose} slotProps={{ paper: { sx: { minWidth: "40%" } } }}>
       <DialogTitle>{t("bookshelf.series.edit-order.title")}</DialogTitle>
       <DialogContent sx={{ padding: 1, overflowX: "hidden" }}>
         <DndContext

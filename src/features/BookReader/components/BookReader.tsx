@@ -9,7 +9,7 @@ import { usePaneSizes } from "../../../hooks/usePaneSizes";
 import { type RootState, useAppDispatch, useAppSelector } from "../../../store/store";
 import SidePanels from "../../SidePane/components/SidePanels";
 import SideTabs from "../../SidePane/components/SideTabs";
-import { openContainerFile, setContainerFilePath } from "../slice";
+import { openContainerFile, setContainerFilePath, setOpenOrigin } from "../slice";
 import ComicReader from "./ComicReader";
 import ControlSlider from "./ControlSlider";
 import FileNavigator from "./FileNavigator/FileNavigator";
@@ -116,6 +116,7 @@ export default function BookReader({ sx }: BookReaderProps) {
         const recentBooks = await getRecentlyReadBooks();
         const latestEntry = recentBooks.length > 0 ? recentBooks[0] : null;
         if (latestEntry) {
+          dispatch(setOpenOrigin({ kind: "startup" }));
           dispatch(setContainerFilePath(latestEntry.file_path));
         }
       }
@@ -135,6 +136,7 @@ export default function BookReader({ sx }: BookReaderProps) {
 
   useEffect(() => {
     if (droppedFile && droppedFile.length > 0) {
+      dispatch(setOpenOrigin({ kind: "dragDrop" }));
       dispatch(setContainerFilePath(droppedFile));
     }
   }, [droppedFile, dispatch]);

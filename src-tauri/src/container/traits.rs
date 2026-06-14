@@ -33,7 +33,7 @@ pub trait Container: Send + Sync + 'static {
 
     /// Retrieves a thumbnail-sized image for a given entry name.
     ///
-    /// The default thumbnail size is defined by `Container::THUMBNAIL_SIZE`.
+    /// The default thumbnail size is defined by `crate::image::thumbnail::THUMBNAIL_SIZE`.
     ///
     /// # Arguments
     ///
@@ -89,9 +89,6 @@ impl dyn Container {
             || lowercase_name.ends_with(".zip")
             || lowercase_name.ends_with(".epub")
     }
-
-    /// The target width and height in pixels for generated thumbnails.
-    pub const THUMBNAIL_SIZE: u32 = 300;
 }
 
 #[cfg(test)]

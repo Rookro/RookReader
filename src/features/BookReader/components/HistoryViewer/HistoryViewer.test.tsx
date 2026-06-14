@@ -31,6 +31,7 @@ vi.mock("../../slice", async () => {
       type: "read/setContainerFilePath",
       payload,
     })),
+    setOpenOrigin: vi.fn((payload: unknown) => ({ type: "read/setOpenOrigin", payload })),
   };
 });
 
@@ -75,6 +76,7 @@ describe("HistoryViewer", () => {
     const rowButton = screen.getByRole("button", { name: /Book 1/i });
     await user.click(rowButton);
 
+    expect(ReadReducer.setOpenOrigin).toHaveBeenCalledWith({ kind: "history" });
     expect(ReadReducer.setContainerFilePath).toHaveBeenCalledWith("/path/1");
   });
 

@@ -12,7 +12,9 @@ import { updateSettings } from "../../Settings/slice";
 import { useBookSelection } from "../hooks/useBookSelection";
 import { type BookshelfDialogType, useBookshelfDialogs } from "../hooks/useBookshelfDialogs";
 import { useReadingBookSelection } from "../hooks/useReadingBookSelection";
-import { setEditSeriesOrderDialogState, setSearchText, setSelectedSeriesId } from "../slice";
+import { fetchSeries, setEditSeriesOrderDialogState, setSelectedSeriesId } from "../seriesSlice";
+import { setSearchText } from "../slice";
+import { fetchTags } from "../tagSlice";
 import {
   andSearch,
   andSearchGridItems,
@@ -40,15 +42,15 @@ const selectBookGridState = createSelector(
   [
     (state: RootState) => state.settings.bookshelf,
     (state: RootState) => state.bookCollection.searchText,
-    (state: RootState) => state.bookCollection.bookshelf.books,
-    (state: RootState) => state.bookCollection.bookshelf.bookshelves,
-    (state: RootState) => state.bookCollection.bookshelf.status,
-    (state: RootState) => state.bookCollection.tag.selectedId,
-    (state: RootState) => state.bookCollection.tag.tags,
-    (state: RootState) => state.bookCollection.series.series,
-    (state: RootState) => state.bookCollection.series.selectedId,
-    (state: RootState) => state.bookCollection.isEditSeriesOrderDialogOpen,
-    (state: RootState) => state.bookCollection.editSeriesOrderTargetId,
+    (state: RootState) => state.bookCollection.books,
+    (state: RootState) => state.bookCollection.bookshelves,
+    (state: RootState) => state.bookCollection.status,
+    (state: RootState) => state.tag.selectedId,
+    (state: RootState) => state.tag.tags,
+    (state: RootState) => state.series.series,
+    (state: RootState) => state.series.selectedId,
+    (state: RootState) => state.series.isEditSeriesOrderDialogOpen,
+    (state: RootState) => state.series.editSeriesOrderTargetId,
     (state: RootState) => state.read.containerFile.book,
     (state: RootState) => state.view.activeView,
   ],
@@ -206,6 +208,12 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
     bookshelfSettings.sortOrder,
   ]);
 
+  const allBooks = useMemo(() => {
+    return filteredSortedItems
+      .filter((item): item is { type: "book"; data: BookWithState } => item.type === "book")
+      .map((item) => item.data);
+  }, [filteredSortedItems]);
+
   const handleGridSizeChange = useCallback(
     (newValue: number) => {
       const newBookshelfSettings = { ...bookshelfSettings, gridSize: newValue };
@@ -218,6 +226,14 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
     closeDialog();
     clearSelection();
   }, [closeDialog, clearSelection]);
+
+  const handleUpdateTags = useCallback(() => {
+    dispatch(fetchTags());
+  }, [dispatch]);
+
+  const handleUpdateSeries = useCallback(() => {
+    dispatch(fetchSeries());
+  }, [dispatch]);
 
   useEffect(() => {
     if (activeView === "bookshelf") {
@@ -234,19 +250,14 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
 
   const handleBookClick = useCallback(
     (book: BookWithState, e: React.MouseEvent | React.KeyboardEvent) => {
-      // For selection logic, we only care about books in the current filtered list
-      const booksOnly = filteredSortedItems
-        .filter((item): item is { type: "book"; data: BookWithState } => item.type === "book")
-        .map((item) => item.data);
-
       const bookToIdx = new Map<number, number>();
-      booksOnly.forEach((b, i) => {
+      allBooks.forEach((b, i) => {
         bookToIdx.set(b.id, i);
       });
 
-      handleSelectionClick(book, e as React.MouseEvent, booksOnly, bookToIdx, onBookSelect);
+      handleSelectionClick(book, e as React.MouseEvent, allBooks, bookToIdx, onBookSelect);
     },
-    [filteredSortedItems, onBookSelect, handleSelectionClick],
+    [allBooks, onBookSelect, handleSelectionClick],
   );
 
   const handleSeriesClick = useCallback(
@@ -354,12 +365,8 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
   );
 
   const getTargetBooks = useCallback(() => {
-    const booksOnly = filteredSortedItems
-      .filter((item): item is { type: "book"; data: BookWithState } => item.type === "book")
-      .map((item) => item.data);
-
-    return booksOnly.filter((b) => selectedBookIds.has(b.id));
-  }, [selectedBookIds, filteredSortedItems]);
+    return allBooks.filter((b) => selectedBookIds.has(b.id));
+  }, [selectedBookIds, allBooks]);
 
   const bookshelfActions = useMemo(
     () => ({
@@ -381,6 +388,7 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
       enableAutoScroll: bookshelfSettings.enableAutoScroll,
       focusedIndex,
       readingBookIndex,
+      allBooks,
     }),
     [
       filteredSortedItems,
@@ -392,6 +400,7 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
       bookshelfSettings.enableAutoScroll,
       focusedIndex,
       readingBookIndex,
+      allBooks,
     ],
   );
 
@@ -504,14 +513,14 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
           bookIds={dialogBookIds}
           availableTags={availableTags}
           onClose={handleCloseDialog}
-          onUpdateTags={handleCloseDialog}
+          onUpdateTags={handleUpdateTags}
         />
         <SetSeriesDialog
           openDialog={dialogType === "set-series"}
           bookIds={dialogBookIds}
           availableSeries={allSeries}
           onClose={handleCloseDialog}
-          onUpdateSeries={handleCloseDialog}
+          onUpdateSeries={handleUpdateSeries}
         />
         <BookDeleteDialog
           openDialog={dialogType === "delete-books"}
