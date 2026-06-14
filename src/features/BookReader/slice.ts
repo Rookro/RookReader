@@ -9,6 +9,7 @@ import { createAppAsyncThunk } from "../../types/CustomAsyncThunk";
 import type { DirEntry } from "../../types/DirEntry";
 import { CommandError, ErrorCode } from "../../types/Error";
 import { convertEntriesInDir } from "../../utils/DirEntryUtils";
+import type { OpenOrigin } from "./types/OpenOrigin";
 
 /**
  * Opens a container file or directory, retrieves its contents, and updates the reading history.
@@ -141,6 +142,10 @@ export const readSlice = createSlice({
       isNovel: false,
       isLoading: false,
       error: null as { code: ErrorCode; message?: string } | null,
+      /** Where the current book was opened from (used to resolve the adjacent book). */
+      origin: null as OpenOrigin | null,
+      /** When "last", the next opened container starts on its last page (for previous-book navigation). */
+      pendingInitialPosition: null as "last" | null,
     },
     explorer: {
       history: [] as string[],
@@ -176,6 +181,25 @@ export const readSlice = createSlice({
       state.containerFile.historyIndex = state.containerFile.history.length - 1;
       state.containerFile.index = 0;
       state.containerFile.isLoading = true;
+    },
+    /**
+     * Sets the origin (launch context) of the currently opened book.
+     *
+     * @param state - The current Redux state slice.
+     * @param action - Payload containing the open origin, or null to clear it.
+     */
+    setOpenOrigin: (state, action: PayloadAction<OpenOrigin | null>) => {
+      state.containerFile.origin = action.payload;
+    },
+    /**
+     * Sets the pending initial position for the next opened container.
+     * When "last", the container will start on its last page once loaded.
+     *
+     * @param state - The current Redux state slice.
+     * @param action - Payload containing the pending position, or null to clear it.
+     */
+    setPendingInitialPosition: (state, action: PayloadAction<"last" | null>) => {
+      state.containerFile.pendingInitialPosition = action.payload;
     },
     /**
      * Sets the current image index within a container file.
@@ -355,7 +379,13 @@ export const readSlice = createSlice({
           state.containerFile.isDirectory = action.payload.isDirectory;
           state.containerFile.isLoading = false;
           state.containerFile.book = action.payload.book;
-          state.containerFile.index = action.payload.book?.last_read_page_index ?? 0;
+          if (state.containerFile.pendingInitialPosition === "last") {
+            const total = action.payload.entries?.length ?? 0;
+            state.containerFile.index = Math.max(0, total - 1);
+          } else {
+            state.containerFile.index = action.payload.book?.last_read_page_index ?? 0;
+          }
+          state.containerFile.pendingInitialPosition = null;
           state.containerFile.cfi = null;
           state.containerFile.error = null;
           if (action.payload.isNovel !== undefined) {
@@ -375,6 +405,8 @@ export const readSlice = createSlice({
 
 export const {
   setContainerFilePath,
+  setOpenOrigin,
+  setPendingInitialPosition,
   setImageIndex,
   setExploreBasePath,
   setSearchText,
