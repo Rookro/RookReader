@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+* Added an option to automatically open the next or previous book when paging past the last or first page, with a choice of Off / Ask before opening / Auto-open in Reader settings. (#253)
+
 ### Changed
 
 * Optimized background page preloading. (#247)
