@@ -398,6 +398,7 @@ export const readSlice = createSlice({
         state.containerFile.isLoading = false;
         state.containerFile.index = 0;
         state.containerFile.cfi = null;
+        state.containerFile.pendingInitialPosition = null;
         state.containerFile.error = action.payload ?? null;
       });
   },

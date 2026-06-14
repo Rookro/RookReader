@@ -402,6 +402,17 @@ describe("ReadReducer", () => {
         expect(state.containerFile.isLoading).toBe(false);
         expect(state.containerFile.error?.message).toContain(testError);
       });
+
+      // Verify that a failed open clears a pending "last page" position so it does not
+      // leak into the next opened container.
+      it("should clear pendingInitialPosition when opening fails", async () => {
+        vi.mocked(ContainerCommands.getEntriesInContainer).mockRejectedValue("boom");
+
+        store.dispatch(setPendingInitialPosition("last"));
+        await store.dispatch(openContainerFile("fail.zip"));
+
+        expect(store.getState().read.containerFile.pendingInitialPosition).toBeNull();
+      });
     });
   });
 });
