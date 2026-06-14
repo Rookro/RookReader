@@ -1,3 +1,4 @@
+import { error } from "@tauri-apps/plugin-log";
 import { useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNotification } from "../../../components/ui/Notification/NotificationContext";
@@ -89,6 +90,9 @@ export const useAdjacentBookNavigation = () => {
         } else {
           openBook(book, direction);
         }
+      } catch (e) {
+        error(`Failed to open the adjacent book: ${String(e)}`);
+        showNotification(t("book-reader.adjacent-book.error"), "error");
       } finally {
         isResolving.current = false;
       }

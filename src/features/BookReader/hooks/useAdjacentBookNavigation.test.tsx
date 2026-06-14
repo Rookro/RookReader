@@ -110,6 +110,18 @@ describe("useAdjacentBookNavigation", () => {
     expect(dispatchSpy).not.toHaveBeenCalledWith(setContainerFilePath("/dir/book2.zip"));
   });
 
+  it("shows an error toast when resolution fails", async () => {
+    mockedResolve.mockRejectedValue(new Error("backend boom"));
+    const { result, dispatchSpy } = renderTrigger(buildState("auto"));
+
+    await act(async () => {
+      result.current.onForwardBoundary();
+    });
+
+    expect(showNotification).toHaveBeenCalledWith("Failed to open the adjacent book.", "error");
+    expect(dispatchSpy).not.toHaveBeenCalledWith(setContainerFilePath("/dir/book2.zip"));
+  });
+
   it("asks for confirmation in 'ask' mode before opening", async () => {
     mockedResolve.mockResolvedValue({ filePath: "/dir/book2.zip", displayName: "Book 2" });
     const { result, dispatchSpy } = renderTrigger(buildState("ask"));

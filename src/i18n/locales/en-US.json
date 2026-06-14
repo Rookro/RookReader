@@ -30,6 +30,7 @@
       "opening-previous": "Opening previous book: {{title}}…",
       "no-next": "No next book found.",
       "no-previous": "No previous book found.",
+      "error": "Failed to open the adjacent book.",
       "confirm": {
         "title": "Open adjacent book",
         "message": "Open <bold>{{title}}</bold>?",

@@ -30,6 +30,7 @@
       "opening-previous": "前の本を開きます: {{title}}…",
       "no-next": "次の本が見つかりませんでした。",
       "no-previous": "前の本が見つかりませんでした。",
+      "error": "隣の本を開けませんでした。",
       "confirm": {
         "title": "隣の本を開く",
         "message": "<bold>{{title}}</bold> を開きますか？",
