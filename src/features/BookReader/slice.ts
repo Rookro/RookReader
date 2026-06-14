@@ -144,8 +144,12 @@ export const readSlice = createSlice({
       error: null as { code: ErrorCode; message?: string } | null,
       /** Where the current book was opened from (used to resolve the adjacent book). */
       origin: null as OpenOrigin | null,
-      /** When "last", the next opened container starts on its last page (for previous-book navigation). */
-      pendingInitialPosition: null as "last" | null,
+      /**
+       * Overrides the start page of the next opened container, used by adjacent-book
+       * navigation: "first" lands on page 1 (next book), "last" lands on the last page
+       * (previous book). When null, the last-read position is used.
+       */
+      pendingInitialPosition: null as "first" | "last" | null,
     },
     explorer: {
       history: [] as string[],
@@ -193,12 +197,13 @@ export const readSlice = createSlice({
     },
     /**
      * Sets the pending initial position for the next opened container.
-     * When "last", the container will start on its last page once loaded.
+     * "first" starts on page 1, "last" starts on the last page; null uses the
+     * last-read position.
      *
      * @param state - The current Redux state slice.
      * @param action - Payload containing the pending position, or null to clear it.
      */
-    setPendingInitialPosition: (state, action: PayloadAction<"last" | null>) => {
+    setPendingInitialPosition: (state, action: PayloadAction<"first" | "last" | null>) => {
       state.containerFile.pendingInitialPosition = action.payload;
     },
     /**
@@ -382,6 +387,8 @@ export const readSlice = createSlice({
           if (state.containerFile.pendingInitialPosition === "last") {
             const total = action.payload.entries?.length ?? 0;
             state.containerFile.index = Math.max(0, total - 1);
+          } else if (state.containerFile.pendingInitialPosition === "first") {
+            state.containerFile.index = 0;
           } else {
             state.containerFile.index = action.payload.book?.last_read_page_index ?? 0;
           }

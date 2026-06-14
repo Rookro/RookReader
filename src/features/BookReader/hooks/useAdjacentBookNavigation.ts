@@ -39,10 +39,9 @@ export const useAdjacentBookNavigation = () => {
 
   const openBook = useCallback(
     (book: AdjacentBook, direction: Direction) => {
-      // Previous-book navigation should land on the last page of that book.
-      if (direction === "previous") {
-        dispatch(setPendingInitialPosition("last"));
-      }
+      // Land on a natural entry point of the adjacent book: the first page when moving
+      // forward, the last page when moving backward.
+      dispatch(setPendingInitialPosition(direction === "next" ? "first" : "last"));
       // Preserve the current origin so the series/bookshelf/directory chain continues.
       dispatch(setOpenOrigin(containerFile.origin));
       dispatch(setContainerFilePath(book.filePath));

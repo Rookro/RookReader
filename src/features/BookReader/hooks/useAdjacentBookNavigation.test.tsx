@@ -81,6 +81,8 @@ describe("useAdjacentBookNavigation", () => {
     );
     expect(dispatchSpy).toHaveBeenCalledWith(setOpenOrigin({ kind: "fileNavigator" }));
     expect(dispatchSpy).toHaveBeenCalledWith(setContainerFilePath("/dir/book2.zip"));
+    // Next book opens on its first page.
+    expect(dispatchSpy).toHaveBeenCalledWith(setPendingInitialPosition("first"));
     expect(dispatchSpy).not.toHaveBeenCalledWith(setPendingInitialPosition("last"));
     expect(showNotification).toHaveBeenCalledWith(expect.stringContaining("Book 2"), "info");
   });

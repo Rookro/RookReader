@@ -284,6 +284,27 @@ describe("ReadReducer", () => {
         expect(state.containerFile.pendingInitialPosition).toBeNull();
       });
 
+      // Verify that the container opens on its first page when pendingInitialPosition is "first"
+      it("should open on the first page when pendingInitialPosition is 'first'", async () => {
+        const mockBook = createMockBookWithState({ id: 1, last_read_page_index: 5 });
+
+        vi.mocked(ContainerCommands.getEntriesInContainer).mockResolvedValue({
+          is_directory: false,
+          entries: ["p1", "p2", "p3"],
+          is_novel: false,
+        });
+        vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(1);
+        vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
+
+        store.dispatch(setPendingInitialPosition("first"));
+        await store.dispatch(openContainerFile("path/to/book.zip"));
+
+        const state = store.getState().read;
+        // First page (index 0), not last_read_page_index.
+        expect(state.containerFile.index).toBe(0);
+        expect(state.containerFile.pendingInitialPosition).toBeNull();
+      });
+
       // Verify handling of EPUB novel format
       it("should handle EPUB novel", async () => {
         const mockBook = createMockBookWithState({ id: 1, last_read_page_index: 0 });
