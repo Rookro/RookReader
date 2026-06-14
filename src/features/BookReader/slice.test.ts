@@ -341,6 +341,7 @@ describe("ReadReducer", () => {
 
         const state = store.getState().read;
         expect(state.containerFile.error?.code).toBe(ErrorCode.OTHER_ERROR);
+        expect(state.containerFile.error?.message).toContain("cmd failed");
       });
     });
 
@@ -397,6 +398,7 @@ describe("ReadReducer", () => {
 
         const state = store.getState().read;
         expect(state.explorer.error?.code).toBe(ErrorCode.OTHER_ERROR);
+        expect(state.explorer.error?.message).toContain("dir failed");
       });
 
       // Verify handling of generic error during entry conversion

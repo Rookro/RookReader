@@ -15,7 +15,8 @@ export function handleThunkError(
   context: string,
   rejectWithValue: (value: { code: ErrorCode; message: string }) => unknown,
 ): never {
-  const errorMessage = `${context} Error: ${JSON.stringify(e)}`;
+  const detail = e instanceof Error ? e.message : JSON.stringify(e);
+  const errorMessage = `${context} Error: ${detail}`;
   error(errorMessage);
   return rejectWithValue(
     e instanceof CommandError

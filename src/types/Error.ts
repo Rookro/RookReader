@@ -32,7 +32,8 @@ export function createCommandError(error: unknown): CommandError {
     const message = error.message;
     return new CommandError(code, message);
   }
-  return new CommandError(ErrorCode.UNKNOWN_ERROR, `Unknown error: ${JSON.stringify(error)}`);
+  const detail = error instanceof Error ? error.message : JSON.stringify(error);
+  return new CommandError(ErrorCode.UNKNOWN_ERROR, `Unknown error: ${detail}`);
 }
 
 /**

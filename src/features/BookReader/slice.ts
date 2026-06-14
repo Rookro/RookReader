@@ -5,9 +5,10 @@ import { getBookWithStateById, recordBookOpened } from "../../bindings/BookComma
 import { getEntriesInContainer, requestPreloadAround } from "../../bindings/ContainerCommands";
 import { getEntriesInDir as getEntriesInDirFromBackend } from "../../bindings/DirectoryCommands";
 import type { BookWithState } from "../../domain/book/schema";
+import { handleThunkError } from "../../store/thunkErrorHandler";
 import { createAppAsyncThunk } from "../../types/CustomAsyncThunk";
 import type { DirEntry } from "../../types/DirEntry";
-import { CommandError, ErrorCode } from "../../types/Error";
+import { ErrorCode } from "../../types/Error";
 import { convertEntriesInDir } from "../../utils/DirEntryUtils";
 import type { OpenOrigin } from "./types/OpenOrigin";
 
@@ -73,13 +74,7 @@ export const openContainerFile = createAppAsyncThunk(
         book: book,
       };
     } catch (e) {
-      const errorMessage = `Failed to openContainerFile(${path}). Error: ${JSON.stringify(e)}`;
-      error(errorMessage);
-      return rejectWithValue(
-        e instanceof CommandError
-          ? { code: e.code, message: errorMessage }
-          : { code: ErrorCode.OTHER_ERROR, message: errorMessage },
-      );
+      return handleThunkError(e, `Failed to openContainerFile(${path}).`, rejectWithValue);
     }
   },
 );
@@ -117,13 +112,7 @@ export const updateExploreBasePath = createAppAsyncThunk(
       const entries = convertEntriesInDir(buffer);
       return { path: dirPath, entries: entries };
     } catch (e) {
-      const errorMessage = `Failed to getEntriesInDir(${dirPath}). Error: ${JSON.stringify(e)}`;
-      error(errorMessage);
-      return rejectWithValue(
-        e instanceof CommandError
-          ? { code: e.code, message: errorMessage }
-          : { code: ErrorCode.OTHER_ERROR, message: errorMessage },
-      );
+      return handleThunkError(e, `Failed to getEntriesInDir(${dirPath}).`, rejectWithValue);
     }
   },
 );
