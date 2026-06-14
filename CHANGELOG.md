@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-* Added an option to automatically open the next or previous book when paging past the last or first page, with a choice of Off / Ask before opening / Auto-open in Reader settings. (#253)
+* Added an option to automatically open the next or previous book when paging past the last or first page, with a choice of Off / Ask before opening / Auto-open in Reader settings. (#254)
 
 ### Changed
 
@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Improved page loading speed, reduce memory usage, and optimize bookshelf rendering performance. (#250)
 * Improved internal code structure for reading progress tracking to enhance maintainability. (#251)
 * Cleaned up internal code types and file structures to improve application stability and maintainability. (#252)
+* Improved internal error reporting and fixed a minor memory leak in the reader to enhance stability and maintainability. (#255)
 
 ### Fixed
 
