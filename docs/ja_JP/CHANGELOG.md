@@ -9,6 +9,8 @@
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-06-14
+
 ### Added
 
 * 本の最後/最初のページを超えてページをめくると、次/前の本を自動で開く機能を追加（リーダー設定で「オフ / 確認してから開く / 自動で開く」を選択可能） (#254)
@@ -398,7 +400,8 @@
 * 自動見開き表示機能の追加 (#4)
 * ホイールの上下によるページ送り機能を追加 (#5)
 
-[unreleased]: https://github.com/Rookro/RookReader/compare/v2.2.1...HEAD
+[unreleased]: https://github.com/Rookro/RookReader/compare/v2.3.0...HEAD
+[2.3.0]: https://github.com/Rookro/RookReader/compare/v2.2.1...v2.3.0
 [2.2.1]: https://github.com/Rookro/RookReader/compare/v2.2.0...v2.2.1
 [2.2.0]: https://github.com/Rookro/RookReader/compare/v2.1.1...v2.2.0
 [2.1.1]: https://github.com/Rookro/RookReader/compare/v2.1.0...v2.1.1
