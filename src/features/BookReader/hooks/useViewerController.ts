@@ -15,6 +15,22 @@ import {
 } from "../utils/ImageUtils";
 
 /**
+ * Revokes every object URL held by the cache entries.
+ *
+ * @param cache - The image cache whose `previewUrl`/`fullUrl` object URLs should be revoked.
+ */
+const revokeCacheUrls = (cache: Map<string, ImageCacheItem>) => {
+  cache.forEach((item) => {
+    if (item.previewUrl) {
+      URL.revokeObjectURL(item.previewUrl);
+    }
+    if (item.fullUrl) {
+      URL.revokeObjectURL(item.fullUrl);
+    }
+  });
+};
+
+/**
  * ViewerController hook return type.
  */
 export interface ViewerController {
@@ -56,17 +72,19 @@ export const useViewerController = (
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: update the cache whenever containerPath changes.
   useEffect(() => {
-    cacheRef.current.forEach((item) => {
-      if (item.previewUrl) {
-        URL.revokeObjectURL(item.previewUrl);
-      }
-      if (item.fullUrl) {
-        URL.revokeObjectURL(item.fullUrl);
-      }
-    });
+    revokeCacheUrls(cacheRef.current);
     cacheRef.current.clear();
     abortControllerRef.current?.abort();
   }, [containerPath]);
+
+  // Revoke any remaining object URLs when the component unmounts.
+  useEffect(() => {
+    const cache = cacheRef.current;
+    return () => {
+      revokeCacheUrls(cache);
+      cache.clear();
+    };
+  }, []);
 
   // Loads the missing images and updates the layout.
   useEffect(() => {

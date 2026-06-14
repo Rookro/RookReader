@@ -78,6 +78,26 @@ describe("useViewerController", () => {
     expect(global.URL.revokeObjectURL).toHaveBeenCalledWith("blob:preview");
   });
 
+  // Verify that remaining object URLs are revoked when the hook unmounts
+  it("should revoke object URLs on unmount", async () => {
+    mockedFetchImageBlob.mockResolvedValue({} as Image);
+    mockedCreateImageCacheItem.mockReturnValue({
+      fullUrl: "blob:full",
+      previewUrl: "blob:preview",
+    } as ImageUtils.ImageCacheItem);
+
+    const { unmount } = renderHook(() =>
+      useViewerController("path", mockEntries, 0, mockSettings, mockDispatch),
+    );
+
+    await waitFor(() => expect(ImageUtils.createImageCacheItem).toHaveBeenCalled());
+
+    unmount();
+
+    expect(global.URL.revokeObjectURL).toHaveBeenCalledWith("blob:full");
+    expect(global.URL.revokeObjectURL).toHaveBeenCalledWith("blob:preview");
+  });
+
   // Verify that displayedLayout is set on successful image loading
   it("should load image and set displayedLayout when successful", async () => {
     const mockLayout: ImageUtils.ViewLayout = {
