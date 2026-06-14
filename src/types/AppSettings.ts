@@ -86,7 +86,15 @@ export interface ReaderSettings {
   novel: NovelSettings;
   /** Configuration for how pages and previews are rendered. */
   rendering: RenderingSettings;
+  /** Behavior when paging past the last/first page of a book (auto-open the adjacent book). */
+  autoOpenAdjacentBook: AutoOpenAdjacentBookMode;
 }
+
+/** The available modes for auto-opening the adjacent book. */
+export const autoOpenAdjacentBookModes = ["off", "ask", "auto"] as const;
+
+/** Behavior when paging past the last/first page of a book. */
+export type AutoOpenAdjacentBookMode = (typeof autoOpenAdjacentBookModes)[number];
 
 /** Configuration specific to reading comics (image-based content). */
 export interface ComicSettings {

@@ -135,6 +135,10 @@ vi.mock("../../BookReader/slice", async () => {
       type: "read/setContainerFilePath",
       payload,
     })),
+    setOpenOrigin: vi.fn((payload: unknown) => ({
+      type: "read/setOpenOrigin",
+      payload,
+    })),
   };
 });
 
@@ -208,6 +212,11 @@ describe("Bookshelf", () => {
 
     await user.click(screen.getByTestId("select-book-btn"));
 
+    expect(ReadReducer.setOpenOrigin).toHaveBeenCalledWith({
+      kind: "bookshelf",
+      bookshelfId: null,
+      sortOrder: "date_desc",
+    });
     expect(ReadReducer.setContainerFilePath).toHaveBeenCalledWith("/test/book.zip");
     expect(ViewReducer.setActiveView).toHaveBeenCalledWith("reader");
   });

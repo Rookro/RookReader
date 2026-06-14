@@ -59,6 +59,7 @@ export const defaultSettings: AppSettings = {
       imageResamplingMethod: "bilinear",
       pdfRenderResolutionHeight: 2000,
     },
+    autoOpenAdjacentBook: "ask",
   },
   history: {
     recordReadingHistory: true,

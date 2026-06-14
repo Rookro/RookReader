@@ -10,7 +10,12 @@ import type { DirEntry } from "../../../../types/DirEntry";
 import SidePanelHeader from "../../../SidePane/components/SidePanelHeader";
 import { useDirectoryWatcher } from "../../hooks/useDirectoryWatcher";
 import { useFileSelection } from "../../hooks/useFileSelection";
-import { setContainerFilePath, setSearchText, updateExploreBasePath } from "../../slice";
+import {
+  setContainerFilePath,
+  setOpenOrigin,
+  setSearchText,
+  updateExploreBasePath,
+} from "../../slice";
 import { andSearch, sortBy } from "../../utils/FileNavigatorUtils";
 import { ItemRow } from "./ItemRow";
 import NavBar from "./NavBar";
@@ -130,6 +135,7 @@ export default function FileListViewer() {
   const handleListItemClicked = useCallback(
     async (_e: React.MouseEvent<HTMLDivElement>, entry: DirEntry, index: number) => {
       const path = await join(history[historyIndex], entry.name);
+      dispatch(setOpenOrigin({ kind: "fileNavigator" }));
       dispatch(setContainerFilePath(path));
       setSelectedIndex(index);
     },

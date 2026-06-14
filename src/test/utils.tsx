@@ -67,6 +67,8 @@ export function createBasePreloadedState(): RootState {
         book: null,
         cfi: null,
         error: null,
+        origin: null,
+        pendingInitialPosition: null,
       },
       explorer: {
         history: [],

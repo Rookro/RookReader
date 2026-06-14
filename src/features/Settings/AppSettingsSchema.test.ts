@@ -51,6 +51,7 @@ describe("AppSettingsSchema", () => {
         imageResamplingMethod: "bilinear",
         pdfRenderResolutionHeight: 1080,
       },
+      autoOpenAdjacentBook: "auto",
     },
     history: {
       recordReadingHistory: true,

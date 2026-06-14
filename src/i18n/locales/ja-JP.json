@@ -24,6 +24,19 @@
     "pages-viewer": {
       "title": "ページ",
       "no-pages": "表示可能なページがありません。"
+    },
+    "adjacent-book": {
+      "opening-next": "次の本を開きます: {{title}}…",
+      "opening-previous": "前の本を開きます: {{title}}…",
+      "no-next": "次の本が見つかりませんでした。",
+      "no-previous": "前の本が見つかりませんでした。",
+      "error": "隣の本を開けませんでした。",
+      "confirm": {
+        "title": "隣の本を開く",
+        "message": "<bold>{{title}}</bold> を開きますか？",
+        "open": "開く",
+        "cancel": "キャンセル"
+      }
     }
   },
   "bookshelf": {
@@ -197,6 +210,13 @@
       },
       "first-page": {
         "title": "最初のページを 1 ページ表示する"
+      },
+      "auto-open-adjacent-book": {
+        "title": "隣の本を自動で開く",
+        "description": "最後/最初のページを超えてめくったとき、次/前の本を開きます。",
+        "off": "オフ",
+        "ask": "確認してから開く",
+        "auto": "自動で開く"
       },
       "loupe": {
         "title": "ルーペ設定",

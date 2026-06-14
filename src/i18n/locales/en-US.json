@@ -24,6 +24,19 @@
     "pages-viewer": {
       "title": "Pages",
       "no-pages": "No pages."
+    },
+    "adjacent-book": {
+      "opening-next": "Opening next book: {{title}}…",
+      "opening-previous": "Opening previous book: {{title}}…",
+      "no-next": "No next book found.",
+      "no-previous": "No previous book found.",
+      "error": "Failed to open the adjacent book.",
+      "confirm": {
+        "title": "Open adjacent book",
+        "message": "Open <bold>{{title}}</bold>?",
+        "open": "Open",
+        "cancel": "Cancel"
+      }
     }
   },
   "bookshelf": {
@@ -197,6 +210,13 @@
       },
       "first-page": {
         "title": "Show the initial page in single-page view"
+      },
+      "auto-open-adjacent-book": {
+        "title": "Auto-open Adjacent Book",
+        "description": "Open the next/previous book when paging past the last/first page.",
+        "off": "Off",
+        "ask": "Ask before opening",
+        "auto": "Auto-open"
       },
       "loupe": {
         "title": "Loupe Settings",

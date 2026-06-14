@@ -36,6 +36,8 @@ export interface ViewerController {
  * @param index Index of the current image.
  * @param settings Viewer settings.
  * @param dispatch Dispatch function from Redux.
+ * @param onForwardBoundary Called when moving forward past the last page.
+ * @param onBackwardBoundary Called when moving back before the first page.
  * @returns ViewerController.
  */
 export const useViewerController = (
@@ -44,6 +46,8 @@ export const useViewerController = (
   index: number,
   settings: ViewerSettings,
   dispatch: AppDispatch,
+  onForwardBoundary?: () => void,
+  onBackwardBoundary?: () => void,
 ): ViewerController => {
   const cacheRef = useRef<Map<string, ImageCacheItem>>(new Map());
   const [isImageLoading, setIsImageLoading] = useState(false);
@@ -172,11 +176,20 @@ export const useViewerController = (
 
     if (nextIndex < entries.length) {
       dispatch(setImageIndex(nextIndex));
+    } else {
+      // Already at the last page: hand off to the adjacent-book handler.
+      onForwardBoundary?.();
     }
-  }, [index, entries.length, dispatch, displayedLayout, settings]);
+  }, [index, entries.length, dispatch, displayedLayout, settings, onForwardBoundary]);
 
   const moveBack = useCallback(() => {
-    if (entries.length === 0 || index === 0) {
+    if (entries.length === 0) {
+      return;
+    }
+
+    if (index === 0) {
+      // Already at the first page: hand off to the adjacent-book handler.
+      onBackwardBoundary?.();
       return;
     }
 
@@ -229,7 +242,7 @@ export const useViewerController = (
     }
 
     dispatch(setImageIndex(indexFor2PagesBack));
-  }, [index, entries, settings, dispatch]);
+  }, [index, entries, settings, dispatch, onBackwardBoundary]);
 
   return {
     displayedLayout,
