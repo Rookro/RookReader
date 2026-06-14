@@ -26,7 +26,8 @@ describe("handleThunkError", () => {
     expect(error).toHaveBeenCalledWith(expect.stringContaining("Fetch Books Error:"));
     expect(mockRejectWithValue).toHaveBeenCalledWith({
       code: ErrorCode.DATABASE_ERROR,
-      message: expect.stringContaining("Fetch Books Error:"),
+      // The original (non-enumerable) Error.message must be preserved, not dropped by JSON.stringify.
+      message: expect.stringContaining("DB fail"),
     });
   });
 
@@ -43,7 +44,23 @@ describe("handleThunkError", () => {
     expect(error).toHaveBeenCalledWith(expect.stringContaining("Load Tags Error:"));
     expect(mockRejectWithValue).toHaveBeenCalledWith({
       code: ErrorCode.OTHER_ERROR,
-      message: expect.stringContaining("Load Tags Error:"),
+      // The original Error.message must survive instead of being stringified to "{}".
+      message: expect.stringContaining("Generic failure"),
+    });
+  });
+
+  it("should JSON.stringify a non-Error value as the detail", () => {
+    const mockRejectWithValue = vi.fn((val) => val);
+
+    try {
+      handleThunkError({ foo: 1 }, "Plain Object", mockRejectWithValue);
+    } catch {
+      // Expected
+    }
+
+    expect(mockRejectWithValue).toHaveBeenCalledWith({
+      code: ErrorCode.OTHER_ERROR,
+      message: expect.stringContaining('{"foo":1}'),
     });
   });
 });

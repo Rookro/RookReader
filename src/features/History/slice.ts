@@ -1,13 +1,13 @@
 import { createSlice } from "@reduxjs/toolkit";
-import { error } from "@tauri-apps/plugin-log";
 import {
   clearAllReadingHistory,
   clearReadingHistory,
   getRecentlyReadBooks,
 } from "../../bindings/BookCommands";
 import type { ReadBook } from "../../domain/book/schema";
+import { handleThunkError } from "../../store/thunkErrorHandler";
 import { createAppAsyncThunk } from "../../types/CustomAsyncThunk";
-import { CommandError, ErrorCode } from "../../types/Error";
+import type { ErrorCode } from "../../types/Error";
 
 /**
  * Fetches the list of recently read books from the database.
@@ -20,13 +20,7 @@ export const fetchRecentlyReadBooks = createAppAsyncThunk(
     try {
       return await getRecentlyReadBooks();
     } catch (e) {
-      const errorMessage = `Failed to fetch recently read books. Error: ${JSON.stringify(e)}`;
-      error(errorMessage);
-      return rejectWithValue(
-        e instanceof CommandError
-          ? { code: e.code, message: errorMessage }
-          : { code: ErrorCode.OTHER_ERROR, message: errorMessage },
-      );
+      return handleThunkError(e, "Failed to fetch recently read books.", rejectWithValue);
     }
   },
 );
@@ -43,13 +37,7 @@ export const clearHistory = createAppAsyncThunk(
     try {
       await clearReadingHistory(bookId);
     } catch (e) {
-      const errorMessage = `Failed to clear history of ${bookId}. Error: ${JSON.stringify(e)}`;
-      error(errorMessage);
-      return rejectWithValue(
-        e instanceof CommandError
-          ? { code: e.code, message: errorMessage }
-          : { code: ErrorCode.OTHER_ERROR, message: errorMessage },
-      );
+      return handleThunkError(e, `Failed to clear history of ${bookId}.`, rejectWithValue);
     }
   },
 );
@@ -65,13 +53,7 @@ export const clearAllHistory = createAppAsyncThunk(
     try {
       await clearAllReadingHistory();
     } catch (e) {
-      const errorMessage = `Failed to clear all history. Error: ${JSON.stringify(e)}`;
-      error(errorMessage);
-      return rejectWithValue(
-        e instanceof CommandError
-          ? { code: e.code, message: errorMessage }
-          : { code: ErrorCode.OTHER_ERROR, message: errorMessage },
-      );
+      return handleThunkError(e, "Failed to clear all history.", rejectWithValue);
     }
   },
 );

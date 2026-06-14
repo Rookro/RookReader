@@ -120,17 +120,13 @@ impl ImageLoader {
     ///
     /// # Returns
     ///
-    /// An `Ok(Some(Arc<Image>))` if the image is found in the cache, `Ok(None)` otherwise.
-    pub fn get_image_from_cache(&self, entry: &str) -> Result<Option<Arc<Image>>> {
+    /// `Some(Arc<Image>)` if the image is found in the cache, `None` otherwise.
+    pub fn get_image_from_cache(&self, entry: &str) -> Option<Arc<Image>> {
         let key = CacheKey {
             book_id: self.book_id.clone(),
             entry: entry.to_string(),
         };
-        if let Some(imag) = self.cache.get(&key) {
-            Ok(Some(imag))
-        } else {
-            Ok(None)
-        }
+        self.cache.get(&key)
     }
 
     /// Retrieves an image, loading it from the container if not found in the cache.
@@ -150,7 +146,7 @@ impl ImageLoader {
     ///
     /// Returns an `Err` if the image cannot be loaded or resized.
     pub fn get_image(&self, entry: &str) -> Result<Arc<Image>> {
-        if let Some(image_arc) = self.get_image_from_cache(entry)? {
+        if let Some(image_arc) = self.get_image_from_cache(entry) {
             log::debug!("Hit cache: {}", entry);
             return Ok(image_arc);
         }
@@ -189,7 +185,7 @@ impl ImageLoader {
     ///
     /// Returns an `Err` if the thumbnail cannot be generated.
     pub fn get_preview_image(&self, entry: &str) -> Result<Option<Arc<Image>>> {
-        if self.get_image_from_cache(entry)?.is_some() {
+        if self.get_image_from_cache(entry).is_some() {
             log::debug!("Skip create the thumbnail. Hit cache: {}", entry);
             return Ok(None);
         }
@@ -427,5 +423,41 @@ mod tests {
             !cache.contains_key(&key3),
             "test3.png should have been cancelled"
         );
+    }
+
+    #[test]
+    fn test_get_image_from_cache_hit_and_miss() {
+        let mut mock_container = MockContainer::new();
+        mock_container
+            .expect_is_single_threaded()
+            .return_const(false);
+
+        let container = Arc::new(mock_container);
+        let cache = mini_moka::sync::Cache::new(100);
+        let loader = ImageLoader::new(
+            "test_book".to_string(),
+            container,
+            2000,
+            ResizeFilter::Bilinear,
+            cache.clone(),
+        )
+        .unwrap();
+
+        // Miss: nothing cached yet.
+        assert!(loader.get_image_from_cache("missing.png").is_none());
+
+        // Hit: insert under the loader's composite key, then read it back.
+        let key = CacheKey {
+            book_id: "test_book".to_string(),
+            entry: "cached.png".to_string(),
+        };
+        let image = Arc::new(Image {
+            data: vec![1, 2, 3],
+            width: 1,
+            height: 1,
+        });
+        cache.insert(key, image);
+
+        assert!(loader.get_image_from_cache("cached.png").is_some());
     }
 }

@@ -8,9 +8,30 @@ use crate::{
         traits::Container,
     },
     error::Result,
-    image::loader::{CacheKey, ImageLoader},
+    image::loader::{Cache, ImageLoader},
     state::container_settings::ContainerSettings,
 };
+
+/// Builds an image cache whose total weight is capped at `size_mib` mebibytes.
+///
+/// Each entry's weight is its encoded byte length, so the cache evicts based on the
+/// actual memory footprint of the stored images.
+///
+/// # Arguments
+///
+/// * `size_mib` - The maximum total cache capacity, in mebibytes.
+///
+/// # Returns
+///
+/// A new, empty `Cache` with the configured capacity and weigher.
+fn build_image_cache(size_mib: u64) -> Cache {
+    mini_moka::sync::Cache::builder()
+        .max_capacity(size_mib * 1024 * 1024)
+        .weigher(|_key, value: &Arc<crate::image::types::Image>| -> u32 {
+            value.data.len().try_into().unwrap_or(u32::MAX)
+        })
+        .build()
+}
 
 /// Holds the state related to the currently open container (e.g., a file or directory).
 pub struct ContainerState {
@@ -23,18 +44,13 @@ pub struct ContainerState {
     /// `None` if no container is open.
     pub image_loader: Option<ImageLoader>,
     /// Global image cache shared across all containers.
-    pub image_cache: mini_moka::sync::Cache<CacheKey, Arc<crate::image::types::Image>>,
+    pub image_cache: Cache,
 }
 
 impl Default for ContainerState {
     fn default() -> Self {
         let settings = ContainerSettings::default();
-        let image_cache = mini_moka::sync::Cache::builder()
-            .max_capacity(settings.image_cache_size_mib * 1024 * 1024)
-            .weigher(|_key, value: &Arc<crate::image::types::Image>| -> u32 {
-                value.data.len().try_into().unwrap_or(u32::MAX)
-            })
-            .build();
+        let image_cache = build_image_cache(settings.image_cache_size_mib);
 
         Self {
             container: None,
@@ -51,12 +67,7 @@ impl ContainerState {
     /// This will clear the existing cache and recreate the image loader if a container is open.
     pub fn update_image_cache_size(&mut self, size_mib: u64) {
         log::debug!("Updating image cache size to {} MiB", size_mib);
-        self.image_cache = mini_moka::sync::Cache::builder()
-            .max_capacity(size_mib * 1024 * 1024)
-            .weigher(|_key, value: &Arc<crate::image::types::Image>| -> u32 {
-                value.data.len().try_into().unwrap_or(u32::MAX)
-            })
-            .build();
+        self.image_cache = build_image_cache(size_mib);
 
         // If a container is open, update the image loader with the new cache.
         if let Some(image_loader) = self.image_loader.as_mut() {
@@ -280,5 +291,33 @@ mod tests {
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(!err.to_string().is_empty());
+    }
+
+    #[test]
+    fn test_build_image_cache_stores_and_reads_back() {
+        use crate::image::loader::CacheKey;
+        use crate::image::types::Image;
+
+        let cache = build_image_cache(64);
+        let key = CacheKey {
+            book_id: "book".to_string(),
+            entry: "p1.png".to_string(),
+        };
+        let image = Arc::new(Image {
+            data: vec![1, 2, 3],
+            width: 1,
+            height: 1,
+        });
+
+        cache.insert(key.clone(), image.clone());
+
+        assert!(cache.get(&key).is_some());
+    }
+
+    #[test]
+    fn test_build_image_cache_accepts_different_sizes() {
+        // Both a small and a large cache should build without panicking.
+        let _small = build_image_cache(1);
+        let _large = build_image_cache(4096);
     }
 }
