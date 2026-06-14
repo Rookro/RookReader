@@ -24,6 +24,18 @@
     "pages-viewer": {
       "title": "ページ",
       "no-pages": "表示可能なページがありません。"
+    },
+    "adjacent-book": {
+      "opening-next": "次の本を開きます: {{title}}…",
+      "opening-previous": "前の本を開きます: {{title}}…",
+      "no-next": "次の本が見つかりませんでした。",
+      "no-previous": "前の本が見つかりませんでした。",
+      "confirm": {
+        "title": "隣の本を開く",
+        "message": "<bold>{{title}}</bold> を開きますか？",
+        "open": "開く",
+        "cancel": "キャンセル"
+      }
     }
   },
   "bookshelf": {

@@ -24,6 +24,18 @@
     "pages-viewer": {
       "title": "Pages",
       "no-pages": "No pages."
+    },
+    "adjacent-book": {
+      "opening-next": "Opening next book: {{title}}…",
+      "opening-previous": "Opening previous book: {{title}}…",
+      "no-next": "No next book found.",
+      "no-previous": "No previous book found.",
+      "confirm": {
+        "title": "Open adjacent book",
+        "message": "Open <bold>{{title}}</bold>?",
+        "open": "Open",
+        "cancel": "Cancel"
+      }
     }
   },
   "bookshelf": {
