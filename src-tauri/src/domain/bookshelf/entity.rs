@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 
 /// Represents a bookshelf entity used to organize books.
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow, specta::Type)]
 pub struct Bookshelf {
     /// The unique identifier for the bookshelf.
     pub id: i64,

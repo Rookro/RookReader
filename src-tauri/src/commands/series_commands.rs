@@ -22,6 +22,7 @@ use crate::error::Result;
 /// This function will return an `Err` if the underlying repository operation fails
 /// (e.g., due to a database error, connection issue, or query execution failure).
 #[tauri::command]
+#[specta::specta]
 pub async fn create_series<R: tauri::Runtime>(
     name: String,
     repo: State<'_, Arc<dyn SeriesRepository>>,
@@ -48,6 +49,7 @@ pub async fn create_series<R: tauri::Runtime>(
 /// This function will return an `Err` if the underlying repository operation fails
 /// (e.g., due to a database error, connection issue, or query execution failure).
 #[tauri::command]
+#[specta::specta]
 pub async fn get_all_series(repo: State<'_, Arc<dyn SeriesRepository>>) -> Result<Vec<Series>> {
     log::debug!("Get all series.");
     repo.get_all().await
@@ -64,6 +66,7 @@ pub async fn get_all_series(repo: State<'_, Arc<dyn SeriesRepository>>) -> Resul
 ///
 /// This function will return an `Err` if the underlying repository operation fails.
 #[tauri::command]
+#[specta::specta]
 pub async fn delete_series<R: tauri::Runtime>(
     id: i64,
     repo: State<'_, Arc<dyn SeriesRepository>>,

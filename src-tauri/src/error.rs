@@ -168,5 +168,26 @@ impl Serialize for Error {
     }
 }
 
+/// The serialized shape of [`Error`] exposed to the frontend (`{ code, message }`).
+///
+/// This mirrors the custom `Serialize` implementation above and exists solely to
+/// provide a `specta::Type` definition for `Error`, since the `Error` enum itself
+/// wraps foreign error types that cannot derive `specta::Type`. The exported TS type
+/// takes this struct's name, `CommandError`.
+#[derive(specta::Type)]
+#[allow(dead_code)]
+struct CommandError {
+    /// The stable, programmatic error code.
+    code: i32,
+    /// The human-readable error message.
+    message: String,
+}
+
+impl specta::Type for Error {
+    fn definition(types: &mut specta::Types) -> specta::datatype::DataType {
+        CommandError::definition(types)
+    }
+}
+
 /// A specialized `Result` type for the application, using the custom `Error` enum.
 pub type Result<T> = std::result::Result<T, Error>;

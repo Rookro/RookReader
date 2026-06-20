@@ -29,6 +29,7 @@ const SETTINGS_CHANGED_EVENT: &str = "settings-changed";
 ///
 /// Returns an `Err` if the settings cannot be loaded.
 #[tauri::command]
+#[specta::specta]
 pub async fn get_settings(app: AppHandle) -> Result<AppSettings> {
     let provider = TauriStoreProvider::new(&app, setup::settings_filename());
     AppSettings::load(&provider)
@@ -57,6 +58,7 @@ pub async fn get_settings(app: AppHandle) -> Result<AppSettings> {
 /// Returns `Error::Settings` if the merged result is invalid (e.g. out of range),
 /// or a persistence/emit error.
 #[tauri::command]
+#[specta::specta]
 pub async fn set_settings(
     app: AppHandle,
     patch: SettingsPatch,

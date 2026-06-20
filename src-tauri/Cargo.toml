@@ -56,6 +56,9 @@ tauri-plugin-process = "2"
 tokio = { version = "1.52.3", features = ["sync"] }
 thread-priority = "3.0.0"
 garde = { version = "0.23", features = ["derive"] }
+specta = { version = "=2.0.0-rc.25", features = ["derive", "chrono", "serde_json", "function"] }
+specta-typescript = "=0.0.12"
+tauri-specta = { version = "=2.0.0-rc.25", features = ["derive", "typescript"] }
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-updater = "2"

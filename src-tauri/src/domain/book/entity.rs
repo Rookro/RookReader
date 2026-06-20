@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 
 /// Represents a book entity in the database.
-#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize, specta::Type)]
 pub struct Book {
     /// The unique identifier for the book.
     pub id: i64,
@@ -24,7 +24,7 @@ pub struct Book {
 }
 
 /// Represents the reading state of a specific book.
-#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize, specta::Type)]
 pub struct ReadingState {
     /// The unique identifier for the associated book.
     pub book_id: i64,
@@ -35,7 +35,7 @@ pub struct ReadingState {
 }
 
 /// Represents a book along with its reading state, specifically for books that have been opened.
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow, specta::Type)]
 pub struct ReadBook {
     /// The unique identifier for the book.
     pub id: i64,
@@ -62,7 +62,7 @@ pub struct ReadBook {
 
 /// Represents a book along with its optional reading state.
 /// Useful for displaying book details whether it has been read or not.
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow, specta::Type)]
 pub struct BookWithState {
     /// The unique identifier for the book.
     pub id: i64,

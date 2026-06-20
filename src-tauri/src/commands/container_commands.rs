@@ -10,7 +10,7 @@ use crate::{
 };
 
 /// The result of getting entries in a container.
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, specta::Type)]
 pub struct EntriesResult {
     /// The entry names in the container.
     entries: Vec<String>,
@@ -41,6 +41,7 @@ pub struct EntriesResult {
 /// * The container file cannot be opened (e.g., it does not exist or is corrupt).
 /// * The `container` within the application state is unexpectedly missing.
 #[tauri::command()]
+#[specta::specta]
 pub async fn get_entries_in_container(
     path: &str,
     state: tauri::State<'_, RwLock<AppState>>,
@@ -90,6 +91,7 @@ pub async fn get_entries_in_container(
 ///   Defaults to 10 if `None` is provided.
 /// * `state` - A `tauri::State` holding the application's global `AppState`.
 #[tauri::command()]
+#[specta::specta]
 pub async fn request_preload_around(
     index: usize,
     buffer_size: Option<usize>,
@@ -220,6 +222,7 @@ pub async fn get_image_preview(
 /// This function will return an `Err` if:
 /// * The `height` is less than 1.
 #[tauri::command()]
+#[specta::specta]
 pub async fn set_pdf_render_resolution_height(
     height: i32,
     state: tauri::State<'_, RwLock<AppState>>,
@@ -260,6 +263,7 @@ pub async fn set_pdf_render_resolution_height(
 /// This function will return an `Err` if:
 /// * The `height` is a negative value.
 #[tauri::command()]
+#[specta::specta]
 pub async fn set_max_image_height(
     height: i32,
     state: tauri::State<'_, RwLock<AppState>>,
@@ -297,6 +301,7 @@ pub async fn set_max_image_height(
 /// * The `method` string is empty.
 /// * The `method` does not match one of the valid filter types.
 #[tauri::command()]
+#[specta::specta]
 pub async fn set_image_resampling_method(
     method: &str,
     state: tauri::State<'_, RwLock<AppState>>,
@@ -339,6 +344,7 @@ pub async fn set_image_resampling_method(
 ///
 /// A `Result` which is `Ok` on successful update.
 #[tauri::command()]
+#[specta::specta]
 pub async fn set_image_cache_size_mib(
     size_mib: u64,
     state: tauri::State<'_, RwLock<AppState>>,

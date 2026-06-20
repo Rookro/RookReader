@@ -87,23 +87,28 @@ pub struct SettingsFileLock(pub tokio::sync::Mutex<()>);
 /// category (only the changed leaves), expressed as a raw JSON `Value`. The backend
 /// deep-merges this partial into the current settings, so untouched sibling leaves
 /// are preserved. The patch is deserialize-only; it is never serialized back.
-#[derive(Debug, Clone, Deserialize)]
+///
+/// Each payload is exported to TypeScript as `unknown` (via `#[specta(type = ...)]`):
+/// `serde_json::Value` is registered as an *inline* type in specta, and its recursive
+/// shape cannot be inlined by the exporter. The frontend builds a typed partial and
+/// casts it to `SettingsPatch`, so the looser `unknown` boundary is sufficient.
+#[derive(Debug, Clone, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub enum SettingsPatch {
     /// A partial update to [`GeneralSettings`].
-    General(Value),
+    General(#[specta(type = specta_typescript::Unknown)] Value),
     /// A partial update to [`StartupSettings`].
-    Startup(Value),
+    Startup(#[specta(type = specta_typescript::Unknown)] Value),
     /// A partial update to [`BookshelfSettings`].
-    Bookshelf(Value),
+    Bookshelf(#[specta(type = specta_typescript::Unknown)] Value),
     /// A partial update to [`FileNavigatorSettings`].
-    FileNavigator(Value),
+    FileNavigator(#[specta(type = specta_typescript::Unknown)] Value),
     /// A partial update to [`ReaderSettings`].
-    Reader(Value),
+    Reader(#[specta(type = specta_typescript::Unknown)] Value),
     /// A partial update to [`HistorySettings`].
-    History(Value),
+    History(#[specta(type = specta_typescript::Unknown)] Value),
     /// A partial update to [`LayoutSettings`].
-    Layout(Value),
+    Layout(#[specta(type = specta_typescript::Unknown)] Value),
 }
 
 impl SettingsPatch {
@@ -205,7 +210,7 @@ fn set_json_leaf(value: &mut Value, segments: &[String], new_value: Value) -> bo
 }
 
 /// Represents the root configuration of the application settings.
-#[derive(Debug, Clone, Serialize, Deserialize, Default, Validate)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, Validate, specta::Type)]
 #[serde(rename_all = "camelCase", default)]
 pub struct AppSettings {
     /// General application settings, including theming and fonts.
@@ -403,7 +408,7 @@ impl fmt::Display for AppSettings {
 }
 
 /// General application settings.
-#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+#[derive(Debug, Clone, Serialize, Deserialize, Validate, specta::Type)]
 #[serde(rename_all = "camelCase", default)]
 pub struct GeneralSettings {
     /// The application's color theme.
@@ -417,7 +422,11 @@ pub struct GeneralSettings {
     #[garde(dive)]
     pub log: LogSettings,
     /// A flexible map for toggling or configuring experimental features.
+    ///
+    /// Exported to TypeScript with `unknown` values: `serde_json::Value` is an inline,
+    /// recursive type the exporter cannot expand, and experimental flags are arbitrary.
     #[garde(skip)]
+    #[specta(type = std::collections::HashMap<String, specta_typescript::Unknown>)]
     pub experimental_features: HashMap<String, serde_json::Value>,
 }
 
@@ -437,7 +446,7 @@ fn default_app_font_family() -> String {
 }
 
 /// Configuration for application logging.
-#[derive(Debug, Clone, Serialize, Deserialize, Default, Validate)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, Validate, specta::Type)]
 #[serde(rename_all = "camelCase", default)]
 pub struct LogSettings {
     /// The minimum severity level to log.
@@ -446,7 +455,7 @@ pub struct LogSettings {
 }
 
 /// Settings related to the application's startup behavior.
-#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+#[derive(Debug, Clone, Serialize, Deserialize, Validate, specta::Type)]
 #[serde(rename_all = "camelCase", default)]
 pub struct StartupSettings {
     /// The initial view presented to the user upon launch.
@@ -473,7 +482,7 @@ impl Default for StartupSettings {
 }
 
 /// Settings specific to the bookshelf view.
-#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+#[derive(Debug, Clone, Serialize, Deserialize, Validate, specta::Type)]
 #[serde(rename_all = "camelCase", default)]
 pub struct BookshelfSettings {
     /// The criteria used to sort items in the bookshelf.
@@ -499,7 +508,7 @@ impl Default for BookshelfSettings {
 }
 
 /// Settings for the file navigator.
-#[derive(Debug, Clone, Serialize, Deserialize, Default, Validate)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, Validate, specta::Type)]
 #[serde(rename_all = "camelCase", default)]
 pub struct FileNavigatorSettings {
     /// The default directory opened when clicking the Home button.
@@ -514,7 +523,7 @@ pub struct FileNavigatorSettings {
 }
 
 /// Settings for the reading experience.
-#[derive(Debug, Clone, Serialize, Deserialize, Default, Validate)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, Validate, specta::Type)]
 #[serde(rename_all = "camelCase", default)]
 pub struct ReaderSettings {
     /// Configuration specific to reading comics/manga (images).
@@ -532,7 +541,7 @@ pub struct ReaderSettings {
 }
 
 /// Configuration specific to reading comics (image-based content).
-#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+#[derive(Debug, Clone, Serialize, Deserialize, Validate, specta::Type)]
 #[serde(rename_all = "camelCase", default)]
 pub struct ComicSettings {
     /// The reading direction (e.g., Right-to-Left for Japanese manga).
@@ -567,7 +576,7 @@ impl Default for ComicSettings {
 }
 
 /// Configuration for image caching and preloading.
-#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+#[derive(Debug, Clone, Serialize, Deserialize, Validate, specta::Type)]
 #[serde(rename_all = "camelCase", default)]
 pub struct ComicCacheSettings {
     /// The number of pages to preload in each direction (forward and backward).
@@ -598,7 +607,7 @@ fn default_image_cache_size_mib() -> u64 {
 }
 
 /// Configuration for the Loupe (Magnifier) feature.
-#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+#[derive(Debug, Clone, Serialize, Deserialize, Validate, specta::Type)]
 #[serde(rename_all = "camelCase", default)]
 pub struct LoupeSettings {
     /// The magnification zoom level of the loupe (`1.0` = no magnification).
@@ -638,7 +647,7 @@ fn default_loupe_toggle_key() -> String {
 }
 
 /// Configuration specific to reading novels (text-based content).
-#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+#[derive(Debug, Clone, Serialize, Deserialize, Validate, specta::Type)]
 #[serde(rename_all = "camelCase", default)]
 pub struct NovelSettings {
     /// The font family used for rendering the text.
@@ -669,7 +678,7 @@ fn default_novel_font_size() -> f64 {
 }
 
 /// Configuration for image and document rendering.
-#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+#[derive(Debug, Clone, Serialize, Deserialize, Validate, specta::Type)]
 #[serde(rename_all = "camelCase", default)]
 pub struct RenderingSettings {
     /// Whether to generate and display thumbnail previews for pages.
@@ -704,7 +713,7 @@ fn default_pdf_render_resolution_height() -> i32 {
 }
 
 /// Settings related to tracking user history.
-#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+#[derive(Debug, Clone, Serialize, Deserialize, Validate, specta::Type)]
 #[serde(rename_all = "camelCase", default)]
 pub struct HistorySettings {
     /// Whether to record the user's reading history and progress.
@@ -722,7 +731,7 @@ impl Default for HistorySettings {
 }
 
 /// Settings related to the application's layout.
-#[derive(Debug, Clone, Serialize, Deserialize, Default, Validate)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, Validate, specta::Type)]
 #[serde(rename_all = "camelCase", default)]
 pub struct LayoutSettings {
     /// Settings for the side pane (tabs and visibility).
@@ -731,7 +740,7 @@ pub struct LayoutSettings {
 }
 
 /// Settings for the side pane.
-#[derive(Debug, Clone, Serialize, Deserialize, Default, Validate)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, Validate, specta::Type)]
 #[serde(rename_all = "camelCase", default)]
 pub struct SidePaneSettings {
     /// Whether the side pane is hidden.
@@ -743,7 +752,7 @@ pub struct SidePaneSettings {
 }
 
 /// Represents the application's visual theme.
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, specta::Type)]
 #[serde(rename_all = "snake_case")]
 pub enum AppTheme {
     /// Matches the operating system's theme preference.
@@ -756,7 +765,7 @@ pub enum AppTheme {
 }
 
 /// Represents the severity level for application logs.
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, specta::Type)]
 #[serde(rename_all = "snake_case")]
 pub enum LogLevel {
     Trace,
@@ -768,7 +777,7 @@ pub enum LogLevel {
 }
 
 /// Represents the initial view shown when the app starts.
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, specta::Type)]
 #[serde(rename_all = "snake_case")]
 pub enum InitialView {
     /// Opens the reading interface.
@@ -779,7 +788,7 @@ pub enum InitialView {
 }
 
 /// Represents the criteria used for sorting items.
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, specta::Type)]
 #[serde(rename_all = "snake_case")]
 pub enum SortOrder {
     /// Sort alphabetically by name, ascending (A-Z).
@@ -794,7 +803,7 @@ pub enum SortOrder {
 }
 
 /// Represents the direction in which content should be read.
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, specta::Type)]
 #[serde(rename_all = "snake_case")]
 pub enum Direction {
     /// Right-to-Left (e.g., traditional Japanese manga).
@@ -805,7 +814,7 @@ pub enum Direction {
 }
 
 /// Behavior when paging past the last/first page of a book.
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, specta::Type)]
 #[serde(rename_all = "snake_case")]
 pub enum AutoOpenAdjacentBookMode {
     /// Do nothing at the book boundary (stay on the page).
@@ -818,7 +827,7 @@ pub enum AutoOpenAdjacentBookMode {
 }
 
 /// Represents the algorithm used for resampling images.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub enum ImageResamplingMethod {
     /// Nearest Neighbor
