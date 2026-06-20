@@ -24,6 +24,7 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(RwLock::new(state::app_state::AppState::default()))
+        .manage(settings::SettingsFileLock::default())
         .setup(|app| {
             if let Err(e) = setup::setup(app) {
                 app.dialog()
@@ -76,6 +77,8 @@ pub fn run() {
             commands::tag_commands::get_all_tags,
             commands::tag_commands::delete_tag,
             commands::updater_commands::is_updater_supported,
+            commands::settings_commands::get_settings,
+            commands::settings_commands::set_settings,
         ])
         .run(tauri::generate_context!());
 

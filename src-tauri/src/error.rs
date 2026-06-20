@@ -81,7 +81,6 @@ pub enum Error {
     // 5xxxx: Application Settings
     /// An error related to application settings.
     #[error("Settings Error: {0}")]
-    #[allow(dead_code)]
     Settings(String),
 
     // 6xxxx: Application Logic & State

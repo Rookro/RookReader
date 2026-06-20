@@ -16,13 +16,22 @@ use crate::{
         series::repository::SeriesRepository, tag::repository::TagRepository,
     },
     error::{self, Error},
-    image::resizer::ResizeFilter,
     infrastructure::database::{
         book_repository::SqliteBookRepository, bookshelf_repository::SqliteBookshelfRepository,
         series_repository::SqliteSeriesRepository, tag_repository::SqliteTagRepository,
     },
-    settings::{AppSettings, AppTheme, ImageResamplingMethod, LogLevel, LogSettings},
+    settings::{AppSettings, AppTheme, LogLevel, LogSettings, TauriStoreProvider},
+    state::app_state::AppState,
 };
+
+/// Returns the settings store filename for the current build profile.
+pub fn settings_filename() -> &'static str {
+    if cfg!(debug_assertions) {
+        "rook-reader_settings_dev.json"
+    } else {
+        "rook-reader_settings.json"
+    }
+}
 
 /// Orchestrates the initial setup of the application.
 ///
@@ -37,12 +46,8 @@ use crate::{
 ///
 /// Returns an `Err` if loading the settings or any of the setup sub-routines (e.g., logger setup) fail.
 pub fn setup(app: &App) -> error::Result<()> {
-    let settings_filename = if cfg!(debug_assertions) {
-        "rook-reader_settings_dev.json"
-    } else {
-        "rook-reader_settings.json"
-    };
-    let settings = AppSettings::load(app, settings_filename)?;
+    let provider = TauriStoreProvider::new(app.handle(), settings_filename());
+    let settings = AppSettings::load_and_persist_normalized(&provider)?;
 
     setup_logger(app, &settings.general.log)?;
     set_theme(app, &settings.general.theme);
@@ -69,34 +74,44 @@ pub fn setup(app: &App) -> error::Result<()> {
 ///
 /// Returns an `Err` if locating the bundled libraries directory fails.
 pub fn setup_container_settings(app: &App, settings: &AppSettings) -> error::Result<()> {
-    let state: tauri::State<'_, RwLock<crate::state::app_state::AppState>> = app.state();
+    let state: tauri::State<'_, RwLock<AppState>> = app.state();
     let mut locked_state = state.blocking_write();
 
     locked_state.container_state.settings.pdfium_library_path = Some(get_libs_dir(app)?);
-    locked_state.container_state.settings.enable_preview =
-        settings.reader.rendering.enable_thumbnail_preview;
-    locked_state.container_state.settings.max_image_height =
-        settings.reader.rendering.max_image_height;
-    locked_state.container_state.settings.image_cache_size_mib =
-        settings.reader.comic.cache.image_cache_size_mib;
-    locked_state
-        .container_state
-        .settings
-        .image_resampling_method = match settings.reader.rendering.image_resampling_method {
-        ImageResamplingMethod::Nearest => ResizeFilter::Nearest,
-        ImageResamplingMethod::Box => ResizeFilter::Box,
-        ImageResamplingMethod::Bilinear => ResizeFilter::Bilinear,
-        ImageResamplingMethod::Hamming => ResizeFilter::Hamming,
-        ImageResamplingMethod::CatmullRom => ResizeFilter::CatmullRom,
-        ImageResamplingMethod::MitchellNetravali => ResizeFilter::MitchellNetravali,
-        ImageResamplingMethod::Lanczos3 => ResizeFilter::Lanczos3,
-    };
-
-    locked_state
-        .container_state
-        .update_image_cache_size(settings.reader.comic.cache.image_cache_size_mib);
+    apply_reader_settings_to_container(&mut locked_state, settings);
 
     Ok(())
+}
+
+/// Applies the reader/rendering settings to the live container runtime state.
+///
+/// This reflects the persisted settings into `ContainerState`, so changes take effect
+/// without a restart. The image cache is rebuilt **only when its capacity changed**,
+/// because rebuilding evicts every cached image.
+///
+/// # Arguments
+///
+/// * `state` - The mutable application state to update.
+/// * `settings` - The settings whose reader values should be applied.
+pub fn apply_reader_settings_to_container(state: &mut AppState, settings: &AppSettings) {
+    let new_cache_size_mib = settings.reader.comic.cache.image_cache_size_mib;
+    let container_settings = &mut state.container_state.settings;
+    // Capture the previous capacity before overwriting it.
+    let cache_size_changed = container_settings.image_cache_size_mib != new_cache_size_mib;
+
+    container_settings.enable_preview = settings.reader.rendering.enable_thumbnail_preview;
+    container_settings.max_image_height = settings.reader.rendering.max_image_height;
+    container_settings.image_cache_size_mib = new_cache_size_mib;
+    container_settings.pdf_render_resolution_height =
+        settings.reader.rendering.pdf_render_resolution_height;
+    container_settings.image_resampling_method =
+        settings.reader.rendering.image_resampling_method.into();
+
+    if cache_size_changed {
+        state
+            .container_state
+            .update_image_cache_size(new_cache_size_mib);
+    }
 }
 
 /// Initializes the application's logging system using `tauri-plugin-log`.
@@ -211,4 +226,34 @@ fn get_libs_dir(app: &App) -> error::Result<String> {
     let libs_dir = app.path().resource_dir()?.join("libs");
 
     Ok(libs_dir.to_string_lossy().to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::image::resizer::ResizeFilter;
+    use crate::settings::ImageResamplingMethod;
+
+    #[test]
+    fn test_apply_reader_settings_to_container() {
+        let mut state = AppState::default();
+        let mut settings = AppSettings::default();
+        settings.reader.rendering.enable_thumbnail_preview = false;
+        settings.reader.rendering.max_image_height = 1234;
+        settings.reader.rendering.pdf_render_resolution_height = 1500;
+        settings.reader.rendering.image_resampling_method = ImageResamplingMethod::Lanczos3;
+        settings.reader.comic.cache.image_cache_size_mib = 2048;
+
+        apply_reader_settings_to_container(&mut state, &settings);
+
+        let container_settings = &state.container_state.settings;
+        assert!(!container_settings.enable_preview);
+        assert_eq!(container_settings.max_image_height, 1234);
+        assert_eq!(container_settings.pdf_render_resolution_height, 1500);
+        assert_eq!(
+            container_settings.image_resampling_method,
+            ResizeFilter::Lanczos3
+        );
+        assert_eq!(container_settings.image_cache_size_mib, 2048);
+    }
 }
