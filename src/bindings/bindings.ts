@@ -31,12 +31,19 @@ export const commands = {
 	 * 
 	 *  The `patch` carries only the changed leaves of a single category. The backend
 	 *  deep-merges it into the current settings, validates the merged whole, persists it,
-	 *  applies the reader/rendering values to the live container runtime, and broadcasts
-	 *  a `settings-changed` event so other windows re-hydrate.
+	 *  applies the reader/rendering values to the live container runtime, returns the
+	 *  full merged settings to the caller, and broadcasts a `settings-changed` event to
+	 *  every window **except the caller** so other windows re-hydrate.
+	 * 
+	 *  The caller is excluded from the emit because it already adopts the change from this
+	 *  command's return value (the `updateSettings` thunk replaces its slice with it); it
+	 *  converges on other windows' changes through *their* emits.
 	 * 
 	 *  # Arguments
 	 * 
 	 *  * `app` - The Tauri app handle.
+	 *  * `webview` - The window that initiated the change (excluded from the emit; this is
+	 *    a Tauri-injected argument that `tauri-specta` omits from the TS signature).
 	 *  * `patch` - The single-category partial change to apply.
 	 *  * `state` - The application's runtime state.
 	 *  * `lock` - The settings file lock serializing the read-modify-write.
