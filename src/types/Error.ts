@@ -57,7 +57,6 @@ export enum ErrorCode {
 
   // 3xxxx: Application Framework
   TAURI_ERROR = 30001,
-  TAURI_STORE_PLUGIN_ERROR = 30101,
 
   // 4xxxx: Data Serialization & Validation
   SERDE_JSON_ERROR = 40001,

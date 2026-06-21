@@ -60,9 +60,6 @@ pub enum Error {
     /// An error originating from the Tauri framework itself.
     #[error("Tauri Error: {0}")]
     Tauri(#[from] tauri::Error),
-    /// An error from the `tauri-plugin-store` plugin.
-    #[error("Tauri Store Plugin Error: {0}")]
-    TauriStorePlugin(#[from] tauri_plugin_store::Error),
     /// An error initializing the Rayon thread pool.
     #[error("Rayon Thread Pool Error: {0}")]
     RayonThreadPool(#[from] rayon::ThreadPoolBuildError),
@@ -128,7 +125,6 @@ impl ErrorCode {
 
             // 3xxxx: Application Framework
             ErrorCode::Tauri => 30001,
-            ErrorCode::TauriStorePlugin => 30101,
             ErrorCode::RayonThreadPool => 30201,
 
             // 4xxxx: Data Serialization & Validation

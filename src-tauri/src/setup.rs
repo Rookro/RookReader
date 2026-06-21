@@ -20,7 +20,7 @@ use crate::{
         book_repository::SqliteBookRepository, bookshelf_repository::SqliteBookshelfRepository,
         series_repository::SqliteSeriesRepository, tag_repository::SqliteTagRepository,
     },
-    settings::{AppSettings, AppTheme, LogLevel, LogSettings, TauriStoreProvider},
+    settings::{AppSettings, AppTheme, LogLevel, LogSettings, SettingsFileProvider},
     state::app_state::AppState,
 };
 
@@ -46,7 +46,7 @@ pub fn settings_filename() -> &'static str {
 ///
 /// Returns an `Err` if loading the settings or any of the setup sub-routines (e.g., logger setup) fail.
 pub fn setup(app: &App) -> error::Result<()> {
-    let provider = TauriStoreProvider::new(app.handle(), settings_filename());
+    let provider = SettingsFileProvider::new(app.handle(), settings_filename())?;
     let settings = AppSettings::load_and_persist_normalized(&provider)?;
 
     setup_logger(app, &settings.general.log)?;

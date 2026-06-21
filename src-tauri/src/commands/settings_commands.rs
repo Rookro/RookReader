@@ -3,7 +3,7 @@ use tokio::sync::RwLock;
 
 use crate::{
     error::Result,
-    settings::{AppSettings, SettingsFileLock, SettingsPatch, TauriStoreProvider},
+    settings::{AppSettings, SettingsFileLock, SettingsFileProvider, SettingsPatch},
     setup,
     state::app_state::AppState,
 };
@@ -31,7 +31,7 @@ const SETTINGS_CHANGED_EVENT: &str = "settings-changed";
 #[tauri::command]
 #[specta::specta]
 pub async fn get_settings(app: AppHandle) -> Result<AppSettings> {
-    let provider = TauriStoreProvider::new(&app, setup::settings_filename());
+    let provider = SettingsFileProvider::new(&app, setup::settings_filename())?;
     AppSettings::load(&provider)
 }
 
@@ -65,7 +65,7 @@ pub async fn set_settings(
     state: tauri::State<'_, RwLock<AppState>>,
     lock: tauri::State<'_, SettingsFileLock>,
 ) -> Result<AppSettings> {
-    let provider = TauriStoreProvider::new(&app, setup::settings_filename());
+    let provider = SettingsFileProvider::new(&app, setup::settings_filename())?;
     let settings = AppSettings::apply_patch_serialized(&provider, &lock.0, patch).await?;
 
     {

@@ -37,23 +37,11 @@ export const mockLog = {
   trace: vi.fn(() => Promise.resolve()),
 };
 
-export const mockStore = {
-  get: vi.fn(),
-  set: vi.fn(),
-  save: vi.fn(),
-};
-
 export const mockApp = {
   getName: vi.fn(() => Promise.resolve("RookReader")),
   getVersion: vi.fn(() => Promise.resolve("1.0.0")),
   setTheme: vi.fn(() => Promise.resolve()),
 };
-
-class MockLazyStore {
-  get = mockStore.get;
-  set = mockStore.set;
-  save = mockStore.save;
-}
 
 vi.mock("@tauri-apps/api/path", () => ({
   ...mockPath,
@@ -101,10 +89,6 @@ vi.mock("@tauri-apps/plugin-fs", () => mockFs);
 vi.mock("@tauri-apps/plugin-path", () => mockPath);
 vi.mock("@tauri-apps/plugin-dialog", () => mockDialog);
 vi.mock("@tauri-apps/plugin-log", () => mockLog);
-vi.mock("@tauri-apps/plugin-store", () => ({
-  load: vi.fn(() => Promise.resolve(mockStore)),
-  LazyStore: MockLazyStore,
-}));
 vi.mock("@tauri-apps/plugin-updater", () => ({
   check: vi.fn(() => Promise.resolve(null)),
 }));

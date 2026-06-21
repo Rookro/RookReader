@@ -3,7 +3,7 @@ import { act, screen, waitFor } from "@testing-library/react";
 import { makeBook } from "foliate-js/view.js";
 import type { Mock } from "vitest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { mockLog, mockStore } from "../../../test/mocks/tauri";
+import { mockLog } from "../../../test/mocks/tauri";
 import { createBasePreloadedState, renderWithProviders } from "../../../test/utils";
 import * as pageNav from "../hooks/usePageNavigation";
 import * as ReadReducer from "../slice";
@@ -67,7 +67,6 @@ describe("BookReader/NovelReader", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockStore.get.mockResolvedValue(null);
     vi.mocked(fs.readFile).mockResolvedValue(new Uint8Array([1, 2, 3]));
     vi.mocked(makeBook).mockResolvedValue(mockBook);
 
