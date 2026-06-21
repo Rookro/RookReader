@@ -227,7 +227,9 @@ export default function LoupeSettingsItem() {
         secondaryText={t("settings.reader.loupe.zoom-description")}
         secondaryTextSx={{ whiteSpace: "pre-wrap" }}
         defaultValue={readerSettings.comic.loupe?.zoom ?? 2}
+        // Bounds mirror the backend garde validation (range(min = 1.0, max = 100.0)).
         min={1}
+        max={100}
         step={0.1}
         error={zoomError}
         helperText={zoomHelperText}
@@ -241,7 +243,10 @@ export default function LoupeSettingsItem() {
         secondaryText={t("settings.reader.loupe.radius-description")}
         secondaryTextSx={{ whiteSpace: "pre-wrap" }}
         defaultValue={readerSettings.comic.loupe?.radius ?? 150}
+        // max mirrors the backend garde validation (max = 5000.0); the frontend floor of
+        // 50 is a UX minimum (the backend is raised to 50 to match in a follow-up).
         min={50}
+        max={5000}
         step={10}
         error={radiusError}
         helperText={radiusHelperText}

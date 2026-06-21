@@ -36,9 +36,9 @@ export default function ImageCacheSizeSetting() {
       secondaryText={t("settings.rendering.cache.image-cache-size.description")}
       secondaryTextSx={{ whiteSpace: "pre-wrap" }}
       defaultValue={imageCacheSizeMib}
-      // Bounds mirror the backend's garde validation for imageCacheSizeMib
-      // (range(min = 1, max = 65536)); the spinner clamps to them so an
-      // out-of-range value is never sent and then rejected.
+      // Bounds mirror the backend garde validation (range(min = 1, max = 65536)). The step
+      // buttons clamp to and disable at these bounds; a typed out-of-range value passes
+      // through (allowOutOfRange) and is rejected by the backend with an inline message.
       min={1}
       max={65536}
       error={error}

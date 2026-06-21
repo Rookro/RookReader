@@ -38,7 +38,9 @@ export default function PdfRenderResolutionHeightSetting() {
       primaryText={t("settings.rendering.pdf.title")}
       secondaryText={t("settings.rendering.pdf.description")}
       defaultValue={pdfRenderResolutionHeight}
+      // Bounds mirror the backend garde validation (range(min = 1, max = 20000)).
       min={1}
+      max={20000}
       step={100}
       error={error}
       helperText={helperText}
