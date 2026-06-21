@@ -16,6 +16,8 @@ import { defaultSettings } from "../features/Settings/settingsStore";
 import settingsReducer from "../features/Settings/slice";
 import translationEnUs from "../i18n/locales/en-US.json";
 import translationJaJp from "../i18n/locales/ja-JP.json";
+import type { AppSettings } from "../types/AppSettings";
+import { mockTauri } from "./mocks/tauri";
 
 // Create a lightweight i18n instance for testing with actual resources
 export const testI18n = i18n.createInstance();
@@ -105,6 +107,43 @@ export function createTestStore(preloadedState?: Partial<RootState>) {
   return configureStore({
     reducer: rootReducer,
     preloadedState,
+  });
+}
+
+/** Recursively merges `patch` into a clone of `base` (mirrors the backend deep-merge). */
+function deepMergeSettings<T>(base: T, patch: unknown): T {
+  if (
+    typeof base !== "object" ||
+    base === null ||
+    typeof patch !== "object" ||
+    patch === null ||
+    Array.isArray(patch)
+  ) {
+    return (patch as T) ?? base;
+  }
+  const result = { ...(base as Record<string, unknown>) };
+  for (const [key, value] of Object.entries(patch as Record<string, unknown>)) {
+    result[key] = deepMergeSettings(result[key], value);
+  }
+  return result as T;
+}
+
+/**
+ * Configures `invoke` so `get_settings`/`set_settings` behave like the backend in tests:
+ * `get_settings` returns `base`, and `set_settings` deep-merges the patch into `base` and
+ * returns the merged settings (which the slice then adopts). Other commands return `undefined`.
+ *
+ * @param base - The settings the fake backend starts from (defaults to {@link defaultSettings}).
+ */
+export function mockSettingsCommands(base: AppSettings = defaultSettings) {
+  mockTauri.invoke.mockImplementation((command: string, args?: Record<string, unknown>) => {
+    if (command === "get_settings") {
+      return Promise.resolve(structuredClone(base));
+    }
+    if (command === "set_settings") {
+      return Promise.resolve(deepMergeSettings(structuredClone(base), args?.patch));
+    }
+    return Promise.resolve(undefined);
   });
 }
 

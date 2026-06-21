@@ -1,11 +1,9 @@
 import { StorageOutlined } from "@mui/icons-material";
-import { emit } from "@tauri-apps/api/event";
 import { error } from "@tauri-apps/plugin-log";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { setImageCacheSizeMib } from "../../../../../bindings/ContainerCommands";
 import { useAppDispatch, useAppSelector } from "../../../../../store/store";
-import type { SettingsChangedEvent } from "../../../../../types/SettingsChangedEvent";
 import { updateSettings } from "../../../slice";
 import NumberSpinnerSettingItem from "../../ui/NumberSpinnerSettingItem";
 
@@ -18,9 +16,6 @@ export default function ImageCacheSizeSetting() {
   const comicSettings = useAppSelector((state) => state.settings.reader.comic);
   const [isError, setIsError] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
-
-  // Re-fetch current reader settings to ensure we update correctly
-  const readerSettings = useAppSelector((state) => state.settings.reader);
 
   const handleCommitted = useCallback(
     async (value: number | null) => {
@@ -38,21 +33,11 @@ export default function ImageCacheSizeSetting() {
       setIsError(false);
       setErrorMsg("");
 
-      const newComicSettings = {
-        ...readerSettings.comic,
-        cache: { ...readerSettings.comic.cache, imageCacheSizeMib: size },
-      };
-      const newReaderSettings = {
-        ...readerSettings,
-        comic: newComicSettings,
-      };
-
-      await dispatch(updateSettings({ key: "reader", value: newReaderSettings }));
-      await emit<SettingsChangedEvent>("settings-changed", {
-        appSettings: { reader: newReaderSettings },
-      });
+      await dispatch(
+        updateSettings({ key: "reader", value: { comic: { cache: { imageCacheSizeMib: size } } } }),
+      );
     },
-    [t, dispatch, readerSettings],
+    [t, dispatch],
   );
 
   return (

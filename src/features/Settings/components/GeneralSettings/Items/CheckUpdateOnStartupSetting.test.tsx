@@ -1,8 +1,12 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { mockStore } from "../../../../../test/mocks/tauri";
-import { createBasePreloadedState, renderWithProviders } from "../../../../../test/utils";
+import { mockTauri } from "../../../../../test/mocks/tauri";
+import {
+  createBasePreloadedState,
+  mockSettingsCommands,
+  renderWithProviders,
+} from "../../../../../test/utils";
 import CheckUpdateOnStartupSetting from "./CheckUpdateOnStartupSetting";
 
 describe("CheckUpdateOnStartupSetting", () => {
@@ -10,6 +14,7 @@ describe("CheckUpdateOnStartupSetting", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSettingsCommands();
   });
 
   it("should load initial state from settingsStore", async () => {
@@ -37,12 +42,9 @@ describe("CheckUpdateOnStartupSetting", () => {
     await user.click(switchElement);
 
     await waitFor(() => {
-      expect(mockStore.set).toHaveBeenCalledWith(
-        "startup",
-        expect.objectContaining({
-          checkUpdateOnStartup: true,
-        }),
-      );
+      expect(mockTauri.invoke).toHaveBeenCalledWith("set_settings", {
+        patch: { startup: { checkUpdateOnStartup: true } },
+      });
     });
   });
 });

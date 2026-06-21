@@ -2,16 +2,20 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as containerCmds from "../../../../../bindings/ContainerCommands";
-import { mockStore } from "../../../../../test/mocks/tauri";
-import { createBasePreloadedState, renderWithProviders } from "../../../../../test/utils";
+import { mockTauri } from "../../../../../test/mocks/tauri";
+import {
+  createBasePreloadedState,
+  mockSettingsCommands,
+  renderWithProviders,
+} from "../../../../../test/utils";
 import PdfRenderResolutionHeightSetting from "./PdfRenderResolutionHeightSetting";
 
-// Mock ContainerCommands
 describe("PdfRenderResolutionHeightSetting", () => {
   const user = userEvent.setup();
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSettingsCommands();
   });
 
   it("should load initial pdf rendering height from store", async () => {
@@ -40,12 +44,9 @@ describe("PdfRenderResolutionHeightSetting", () => {
 
     await waitFor(() => {
       expect(containerCmds.setPdfRenderResolutionHeight).toHaveBeenCalledWith(2500);
-      expect(mockStore.set).toHaveBeenCalledWith(
-        "reader",
-        expect.objectContaining({
-          rendering: expect.objectContaining({ pdfRenderResolutionHeight: 2500 }),
-        }),
-      );
+      expect(mockTauri.invoke).toHaveBeenCalledWith("set_settings", {
+        patch: { reader: { rendering: { pdfRenderResolutionHeight: 2500 } } },
+      });
     });
   });
 
@@ -82,7 +83,7 @@ describe("PdfRenderResolutionHeightSetting", () => {
     await waitFor(() => {
       expect(containerCmds.setPdfRenderResolutionHeight).toHaveBeenCalledWith(2500);
       expect(screen.getByText(/Failed to set PDF rendering height/i)).toBeInTheDocument();
-      expect(mockStore.set).not.toHaveBeenCalled();
+      expect(mockTauri.invoke).not.toHaveBeenCalledWith("set_settings", expect.anything());
     });
   });
 });

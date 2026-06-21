@@ -1,13 +1,11 @@
 import { Folder, HomeOutlined } from "@mui/icons-material";
 import { Box, IconButton, ListItem, ListItemIcon, ListItemText, TextField } from "@mui/material";
-import { emit } from "@tauri-apps/api/event";
 import { homeDir } from "@tauri-apps/api/path";
 import { open } from "@tauri-apps/plugin-dialog";
 import { error } from "@tauri-apps/plugin-log";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppDispatch, useAppSelector } from "../../../../../store/store";
-import type { SettingsChangedEvent } from "../../../../../types/SettingsChangedEvent";
 import { updateSettings } from "../../../slice";
 
 /**
@@ -40,16 +38,14 @@ export default function HomeDirSetting() {
           return;
         }
         setHomeDirPath(directory);
-        const newFileNavigatorSettings = { ...fileNavigatorSettings, homeDirectory: directory };
-        await dispatch(updateSettings({ key: "fileNavigator", value: newFileNavigatorSettings }));
-        await emit<SettingsChangedEvent>("settings-changed", {
-          appSettings: { fileNavigator: newFileNavigatorSettings },
-        });
+        await dispatch(
+          updateSettings({ key: "fileNavigator", value: { homeDirectory: directory } }),
+        );
       } catch (e) {
         error(`${e}`);
       }
     },
-    [dispatch, fileNavigatorSettings],
+    [dispatch],
   );
 
   const formAction = useCallback(
@@ -58,11 +54,10 @@ export default function HomeDirSetting() {
 
       if (inputPath && inputPath !== homeDirPath) {
         setHomeDirPath(inputPath);
-        const newFileNavigatorSettings = { ...fileNavigatorSettings, homeDirectory: inputPath };
-        dispatch(updateSettings({ key: "fileNavigator", value: newFileNavigatorSettings }));
+        dispatch(updateSettings({ key: "fileNavigator", value: { homeDirectory: inputPath } }));
       }
     },
-    [dispatch, fileNavigatorSettings, homeDirPath],
+    [dispatch, homeDirPath],
   );
 
   const handleBlur = useCallback((e: React.FocusEvent<HTMLInputElement>) => {

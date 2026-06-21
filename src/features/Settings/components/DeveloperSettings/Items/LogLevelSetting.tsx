@@ -40,13 +40,11 @@ export default function LogLevelSetting() {
 
   const handleLogLevelChanged = useCallback(
     async (e: SelectChangeEvent) => {
-      const newGeneralSettings = {
-        ...generalSettings,
-        log: { ...generalSettings.log, level: e.target.value as LogLevel },
-      };
-      await dispatch(updateSettings({ key: "general", value: newGeneralSettings }));
+      await dispatch(
+        updateSettings({ key: "general", value: { log: { level: e.target.value as LogLevel } } }),
+      );
     },
-    [dispatch, generalSettings],
+    [dispatch],
   );
 
   return (

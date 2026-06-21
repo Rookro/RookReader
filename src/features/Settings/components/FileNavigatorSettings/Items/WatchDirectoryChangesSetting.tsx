@@ -1,10 +1,8 @@
 import { PublishedWithChangesOutlined } from "@mui/icons-material";
-import { emit } from "@tauri-apps/api/event";
 import { debug } from "@tauri-apps/plugin-log";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppDispatch, useAppSelector } from "../../../../../store/store";
-import type { SettingsChangedEvent } from "../../../../../types/SettingsChangedEvent";
 import { updateSettings } from "../../../slice";
 import SwitchSettingItem from "../../ui/SwitchSettingItem";
 
@@ -19,16 +17,14 @@ export default function WatchDirectoryChangesSetting() {
   const handleIsWatchEnabledChange = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       debug(`Watch directory changes to ${e.target.checked}`);
-      const newFileNavigatorSettings = {
-        ...fileNavigatorSettings,
-        watchDirectoryChanges: e.target.checked,
-      };
-      await dispatch(updateSettings({ key: "fileNavigator", value: newFileNavigatorSettings }));
-      await emit<SettingsChangedEvent>("settings-changed", {
-        appSettings: { fileNavigator: newFileNavigatorSettings },
-      });
+      await dispatch(
+        updateSettings({
+          key: "fileNavigator",
+          value: { watchDirectoryChanges: e.target.checked },
+        }),
+      );
     },
-    [dispatch, fileNavigatorSettings],
+    [dispatch],
   );
 
   return (

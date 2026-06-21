@@ -4,7 +4,7 @@ import { emit } from "@tauri-apps/api/event";
 import { debug } from "@tauri-apps/plugin-log";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { SettingsChangedEvent } from "../../../../../types/SettingsChangedEvent";
+import type { LocaleChangedEvent } from "../../../../../types/LocaleChangedEvent";
 import SelectSettingItem from "../../ui/SelectSettingItem";
 
 /**
@@ -18,8 +18,8 @@ export default function LanguageSetting() {
     async (e: SelectChangeEvent) => {
       setLanguage(e.target.value as string);
       i18n.changeLanguage(e.target.value as string).then(() => {
-        emit<SettingsChangedEvent>("settings-changed", {
-          locale: { language: e.target.value as string },
+        emit<LocaleChangedEvent>("locale-changed", {
+          language: e.target.value as string,
         });
         debug(`Language changed: ${e.target.value}`);
       });

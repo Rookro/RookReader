@@ -1,8 +1,12 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { mockStore } from "../../../../../test/mocks/tauri";
-import { createBasePreloadedState, renderWithProviders } from "../../../../../test/utils";
+import { mockTauri } from "../../../../../test/mocks/tauri";
+import {
+  createBasePreloadedState,
+  mockSettingsCommands,
+  renderWithProviders,
+} from "../../../../../test/utils";
 import InitialViewSetting from "./InitialViewSetting";
 
 describe("InitialViewSetting", () => {
@@ -10,6 +14,7 @@ describe("InitialViewSetting", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSettingsCommands();
   });
 
   it("should load initial view from store", async () => {
@@ -39,10 +44,9 @@ describe("InitialViewSetting", () => {
     await user.click(option);
 
     await waitFor(() => {
-      expect(mockStore.set).toHaveBeenCalledWith(
-        "startup",
-        expect.objectContaining({ initialView: "bookshelf" }),
-      );
+      expect(mockTauri.invoke).toHaveBeenCalledWith("set_settings", {
+        patch: { startup: { initialView: "bookshelf" } },
+      });
     });
   });
 });

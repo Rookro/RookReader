@@ -10,7 +10,7 @@ This document provides foundational mandates, project context, and workflows for
   - **Frontend:** React (v19), TypeScript, Vite (v8), Material UI (MUI), Redux Toolkit.
   - **Backend:** Rust, Tauri (v2), SQLite (sqlx).
   - **Testing:** Vitest (Frontend unit tests), WebdriverIO (E2E).
-  - **Validation:** Zod (schema and input validation).
+  - **Validation:** Application settings are validated in Rust (serde for shape/enums + `garde` for value bounds); their TypeScript types are generated from Rust by `tauri-specta` (`src/bindings/bindings.ts`). Zod is used for other frontend schema/input validation (e.g. domain entities).
 - **Architecture:**
   - Frontend code resides in `src/`.
     - `src/features/`: Feature-scoped UI components.
@@ -73,7 +73,7 @@ This document provides foundational mandates, project context, and workflows for
 
 - Do not expose raw file system paths unnecessarily. Use Tauri's fs/path APIs where appropriate. Maintain strict capability scopes when using Tauri file system plugins to enforce secure boundaries.
 - Prevent SQL injection by using parameterized queries with `sqlx::query!`.
-- Ensure robust input validation between the frontend and backend boundaries using **Zod**.
+- Ensure robust input validation between the frontend and backend boundaries. Application **settings** are validated in **Rust** (serde + `garde`) with `tauri-specta`-generated TypeScript types; use **Zod** for other frontend-side schema/input validation.
 - Never log sensitive user data or full file contents in production logs.
 
 ## 5. Behavioral Guidelines

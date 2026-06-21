@@ -1,10 +1,13 @@
-import { emit } from "@tauri-apps/api/event";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { setImageCacheSizeMib } from "../../../../../bindings/ContainerCommands";
-import { mockStore } from "../../../../../test/mocks/tauri";
-import { createBasePreloadedState, renderWithProviders } from "../../../../../test/utils";
+import { mockTauri } from "../../../../../test/mocks/tauri";
+import {
+  createBasePreloadedState,
+  mockSettingsCommands,
+  renderWithProviders,
+} from "../../../../../test/utils";
 import ImageCacheSizeSetting from "./ImageCacheSizeSetting";
 
 vi.mock("../../../../../bindings/ContainerCommands", () => ({
@@ -16,6 +19,7 @@ describe("ImageCacheSizeSetting", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSettingsCommands();
   });
 
   it("should load initial state from settingsStore", async () => {
@@ -51,26 +55,9 @@ describe("ImageCacheSizeSetting", () => {
     await waitFor(() => {
       expect(setImageCacheSizeMib).toHaveBeenCalledWith(2048);
       expect(store.getState().settings.reader.comic.cache.imageCacheSizeMib).toBe(2048);
-      expect(mockStore.set).toHaveBeenCalledWith(
-        "reader",
-        expect.objectContaining({
-          comic: expect.objectContaining({
-            cache: expect.objectContaining({ imageCacheSizeMib: 2048 }),
-          }),
-        }),
-      );
-      expect(emit).toHaveBeenCalledWith(
-        "settings-changed",
-        expect.objectContaining({
-          appSettings: expect.objectContaining({
-            reader: expect.objectContaining({
-              comic: expect.objectContaining({
-                cache: expect.objectContaining({ imageCacheSizeMib: 2048 }),
-              }),
-            }),
-          }),
-        }),
-      );
+      expect(mockTauri.invoke).toHaveBeenCalledWith("set_settings", {
+        patch: { reader: { comic: { cache: { imageCacheSizeMib: 2048 } } } },
+      });
     });
   });
 

@@ -3,40 +3,34 @@ import { useCallback } from "react";
 import { useTauriEvent } from "../../../hooks/useTauriEvent";
 import i18n from "../../../i18n/config";
 import { useAppDispatch } from "../../../store/store";
-import type { SettingsChangedEvent } from "../../../types/SettingsChangedEvent";
-import { loadAllSettings } from "../settingsStore";
+import type { AppSettings } from "../../../types/AppSettings";
+import type { LocaleChangedEvent } from "../../../types/LocaleChangedEvent";
 import { setSettings } from "../slice";
 
 /**
- * A custom hook that listens for settings change events from the settings window.
+ * Listens for cross-window settings/locale changes and applies them to this window's store.
  *
- * The Redux store state is isolated within each WebView context.
- * Changes dispatched in the settings window will not be reflected in the main window's store.
- * This hook listens for the 'settings-changed' event, which is emitted by the settings window (SettingsApp),
- * and then dispatches the appropriate actions to apply the changes to the main window's Redux store.
+ * The Redux store is isolated per WebView. The backend broadcasts `settings-changed` (the
+ * full `AppSettings`) on every `set_settings`, so this hook re-hydrates the slice directly
+ * from the authoritative payload (no re-fetch). Application language is synced separately
+ * via the frontend-only `locale-changed` event.
  */
 export const useSettingsChange = () => {
   const dispatch = useAppDispatch();
 
-  /**
-   * Handles the incoming 'settings-changed' event from Tauri.
-   * It parses the payload and calls the appropriate function to apply the settings.
-   * @param event The Tauri event object containing the settings payload.
-   */
   const handleSettingsChanged = useCallback(
-    async (event: { payload: SettingsChangedEvent }) => {
-      debug(`Received settings changed event: ${JSON.stringify(event.payload)}`);
-
-      if (event.payload.locale?.language !== undefined) {
-        debug(`Received language changed event: ${event.payload.locale.language}`);
-        i18n.changeLanguage(event.payload.locale.language);
-      }
-
-      const newSettings = await loadAllSettings();
-      dispatch(setSettings(newSettings));
+    (event: { payload: AppSettings }) => {
+      debug("Received settings-changed event");
+      dispatch(setSettings(event.payload));
     },
     [dispatch],
   );
 
-  useTauriEvent<SettingsChangedEvent>("settings-changed", handleSettingsChanged);
+  const handleLocaleChanged = useCallback((event: { payload: LocaleChangedEvent }) => {
+    debug(`Received locale-changed event: ${event.payload.language}`);
+    i18n.changeLanguage(event.payload.language);
+  }, []);
+
+  useTauriEvent<AppSettings>("settings-changed", handleSettingsChanged);
+  useTauriEvent<LocaleChangedEvent>("locale-changed", handleLocaleChanged);
 };

@@ -1,9 +1,12 @@
-import { emit } from "@tauri-apps/api/event";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { mockStore } from "../../../../../test/mocks/tauri";
-import { createBasePreloadedState, renderWithProviders } from "../../../../../test/utils";
+import { mockTauri } from "../../../../../test/mocks/tauri";
+import {
+  createBasePreloadedState,
+  mockSettingsCommands,
+  renderWithProviders,
+} from "../../../../../test/utils";
 import AutoOpenAdjacentBookSetting from "./AutoOpenAdjacentBookSetting";
 
 describe("AutoOpenAdjacentBookSetting", () => {
@@ -11,6 +14,7 @@ describe("AutoOpenAdjacentBookSetting", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSettingsCommands();
   });
 
   it("should load the initial value from settings", async () => {
@@ -38,18 +42,9 @@ describe("AutoOpenAdjacentBookSetting", () => {
 
     await waitFor(() => {
       expect(store.getState().settings.reader.autoOpenAdjacentBook).toBe("ask");
-      expect(mockStore.set).toHaveBeenCalledWith(
-        "reader",
-        expect.objectContaining({ autoOpenAdjacentBook: "ask" }),
-      );
-      expect(emit).toHaveBeenCalledWith(
-        "settings-changed",
-        expect.objectContaining({
-          appSettings: expect.objectContaining({
-            reader: expect.objectContaining({ autoOpenAdjacentBook: "ask" }),
-          }),
-        }),
-      );
+      expect(mockTauri.invoke).toHaveBeenCalledWith("set_settings", {
+        patch: { reader: { autoOpenAdjacentBook: "ask" } },
+      });
     });
   });
 });

@@ -1,11 +1,16 @@
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
-import { renderWithProviders } from "../../../test/utils";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { mockSettingsCommands, renderWithProviders } from "../../../test/utils";
 import SideTabs from "./SideTabs";
 
 describe("SideTabs", () => {
   const user = userEvent.setup();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockSettingsCommands();
+  });
 
   const mockTabs = [
     { label: "Tab 1", icon: <span data-testid="icon-1" />, panel: <div /> },

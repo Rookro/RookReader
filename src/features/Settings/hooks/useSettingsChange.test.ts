@@ -1,9 +1,9 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useTauriEvent } from "../../../hooks/useTauriEvent";
 import i18n from "../../../i18n/config";
 import { useAppDispatch } from "../../../store/store";
-import { defaultSettings, loadAllSettings } from "../settingsStore";
+import { defaultSettings } from "../settingsStore";
 import { setSettings } from "../slice";
 import { useSettingsChange } from "./useSettingsChange";
 
@@ -29,14 +29,6 @@ vi.mock("../slice", async () => {
   };
 });
 
-vi.mock("../settingsStore", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../settingsStore")>();
-  return {
-    ...actual,
-    loadAllSettings: vi.fn(),
-  };
-});
-
 describe("useSettingsChange", () => {
   const mockDispatch = vi.fn();
 
@@ -45,41 +37,33 @@ describe("useSettingsChange", () => {
     vi.mocked(useAppDispatch).mockReturnValue(mockDispatch);
   });
 
-  // Verify that the Tauri event listener for 'settings-changed' is setup
-  it("should setup a Tauri event listener for 'settings-changed'", () => {
+  it("should register listeners for 'settings-changed' and 'locale-changed'", () => {
     renderHook(() => useSettingsChange());
     expect(useTauriEvent).toHaveBeenCalledWith("settings-changed", expect.any(Function));
+    expect(useTauriEvent).toHaveBeenCalledWith("locale-changed", expect.any(Function));
   });
 
-  // Verify that i18n language is switched when locale settings change
-  it("should change i18n language when locale changes", async () => {
-    const mockSettings = { ...defaultSettings };
-    vi.mocked(loadAllSettings).mockResolvedValue(mockSettings);
+  it("should dispatch setSettings with the settings-changed payload", () => {
+    const payload = structuredClone(defaultSettings);
+    payload.general.theme = "dark";
 
     renderHook(() => useSettingsChange());
-    const handler = vi.mocked(useTauriEvent).mock.calls[0][1];
-    handler({ event: "settings-changed", id: 1, payload: { locale: { language: "ja" } } });
+    const settingsHandler = vi
+      .mocked(useTauriEvent)
+      .mock.calls.find(([name]) => name === "settings-changed")?.[1];
+    settingsHandler?.({ event: "settings-changed", id: 1, payload });
+
+    expect(setSettings).toHaveBeenCalledWith(payload);
+    expect(mockDispatch).toHaveBeenCalledWith({ type: "setSettings", payload });
+  });
+
+  it("should change i18n language on a locale-changed event", () => {
+    renderHook(() => useSettingsChange());
+    const localeHandler = vi
+      .mocked(useTauriEvent)
+      .mock.calls.find(([name]) => name === "locale-changed")?.[1];
+    localeHandler?.({ event: "locale-changed", id: 1, payload: { language: "ja" } });
 
     expect(i18n.changeLanguage).toHaveBeenCalledWith("ja");
-  });
-
-  // Verify that it loads all settings and dispatches setSettings
-  it("should load all settings and dispatch setSettings", async () => {
-    const mockSettings = { ...defaultSettings };
-    vi.mocked(loadAllSettings).mockResolvedValue(mockSettings);
-
-    renderHook(() => useSettingsChange());
-    const handler = vi.mocked(useTauriEvent).mock.calls[0][1];
-    handler({
-      event: "settings-changed",
-      id: 1,
-      payload: { fontFamily: "Arial" },
-    });
-
-    await waitFor(() => {
-      expect(loadAllSettings).toHaveBeenCalled();
-      expect(setSettings).toHaveBeenCalledWith(mockSettings);
-      expect(mockDispatch).toHaveBeenCalledWith({ type: "setSettings", payload: mockSettings });
-    });
   });
 });

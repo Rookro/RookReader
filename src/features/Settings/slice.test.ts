@@ -1,24 +1,16 @@
 import { configureStore } from "@reduxjs/toolkit";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppDispatch } from "../../store/store";
+import { mockTauri } from "../../test/mocks/tauri";
+import { mockSettingsCommands } from "../../test/utils";
 import { ErrorCode } from "../../types/Error";
-import { defaultSettings, settingsStore } from "./settingsStore";
+import { defaultSettings } from "./settingsStore";
 import settingsReducer, { setSettings, updateSettings } from "./slice";
-
-vi.mock("../settings/SettingsStore", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("./settingsStore")>();
-  return {
-    ...actual,
-    settingsStore: {
-      set: vi.fn(() => Promise.resolve()),
-      get: vi.fn(),
-    },
-  };
-});
 
 describe("SettingsReducer", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSettingsCommands();
   });
 
   it("should return the initial state", () => {
@@ -35,62 +27,54 @@ describe("SettingsReducer", () => {
   });
 
   describe("updateSettings thunk", () => {
-    it("should update a simple setting", async () => {
-      const store = configureStore({
-        reducer: { settings: settingsReducer },
-      });
+    it("should send only the changed leaf as a SettingsPatch and adopt the merged result", async () => {
+      const store = configureStore({ reducer: { settings: settingsReducer } });
 
       await (store.dispatch as AppDispatch)(
-        updateSettings({ key: "general", value: { ...defaultSettings.general, theme: "dark" } }),
+        updateSettings({ key: "general", value: { theme: "dark" } }),
       );
 
-      expect(settingsStore.set).toHaveBeenCalledWith("general", {
-        ...defaultSettings.general,
-        theme: "dark",
+      expect(mockTauri.invoke).toHaveBeenCalledWith("set_settings", {
+        patch: { general: { theme: "dark" } },
       });
+      // The slice is replaced by the full settings the backend returned.
       expect(store.getState().settings.general.theme).toBe("dark");
     });
 
-    it("should update a nested object setting partially", async () => {
-      const store = configureStore({
-        reducer: { settings: settingsReducer },
-      });
+    it("should send a deep leaf patch without rebuilding the category", async () => {
+      const store = configureStore({ reducer: { settings: settingsReducer } });
 
       await (store.dispatch as AppDispatch)(
-        updateSettings({
-          key: "reader",
-          value: {
-            ...defaultSettings.reader,
-            rendering: { ...defaultSettings.reader.rendering, enableThumbnailPreview: false },
-          },
-        }),
+        updateSettings({ key: "reader", value: { rendering: { enableThumbnailPreview: false } } }),
       );
 
-      expect(settingsStore.set).toHaveBeenCalledWith(
-        "reader",
-        expect.objectContaining({
-          ...defaultSettings.reader,
-          rendering: { ...defaultSettings.reader.rendering, enableThumbnailPreview: false },
-        }),
-      );
+      expect(mockTauri.invoke).toHaveBeenCalledWith("set_settings", {
+        patch: { reader: { rendering: { enableThumbnailPreview: false } } },
+      });
       expect(store.getState().settings.reader.rendering.enableThumbnailPreview).toBe(false);
+      // A sibling leaf of the same category is preserved (backend merge).
+      expect(store.getState().settings.reader.comic.enableSpread).toBe(
+        defaultSettings.reader.comic.enableSpread,
+      );
     });
 
-    it("should reject if key is undefined", async () => {
-      const store = configureStore({
-        reducer: { settings: settingsReducer },
+    it("should reject with SETTINGS_ERROR when the backend rejects the patch", async () => {
+      mockTauri.invoke.mockRejectedValue({
+        code: ErrorCode.SETTINGS_ERROR,
+        message: "out of range",
       });
+      const store = configureStore({ reducer: { settings: settingsReducer } });
 
       const result = await (store.dispatch as AppDispatch)(
-        // biome-ignore lint/suspicious/noExplicitAny: for testing invalid input
-        updateSettings({ key: undefined as any, value: "test" as any }),
+        updateSettings({ key: "reader", value: { rendering: { maxImageHeight: 999999 } } }),
       );
 
       expect(result.meta.requestStatus).toBe("rejected");
-      expect(result.payload).toEqual({
-        code: ErrorCode.SETTINGS_ERROR,
-        message: "Failed to updateSettings. Error: Key is undefined.",
-      });
+      expect(result.payload).toEqual({ code: ErrorCode.SETTINGS_ERROR, message: "out of range" });
+      // State is unchanged on rejection.
+      expect(store.getState().settings.reader.rendering.maxImageHeight).toBe(
+        defaultSettings.reader.rendering.maxImageHeight,
+      );
     });
   });
 });

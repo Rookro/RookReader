@@ -18,11 +18,15 @@ export default function InitialViewSetting() {
   const handleInitialViewChanged = useCallback(
     async (e: SelectChangeEvent) => {
       if (e.target.value === "reader" || e.target.value === "bookshelf") {
-        const newSettings = { ...startupSettings, initialView: e.target.value as InitialView };
-        dispatch(updateSettings({ key: "startup", value: newSettings }));
+        dispatch(
+          updateSettings({
+            key: "startup",
+            value: { initialView: e.target.value as InitialView },
+          }),
+        );
       }
     },
-    [dispatch, startupSettings],
+    [dispatch],
   );
 
   return (

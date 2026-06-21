@@ -1,10 +1,8 @@
 import { Search } from "@mui/icons-material";
 import { Box, ListItem, ListItemIcon, ListItemText, TextField } from "@mui/material";
-import { emit } from "@tauri-apps/api/event";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppDispatch, useAppSelector } from "../../../../../store/store";
-import type { SettingsChangedEvent } from "../../../../../types/SettingsChangedEvent";
 import { updateSettings } from "../../../slice";
 import NumberSpinnerSettingItem from "../../ui/NumberSpinnerSettingItem";
 
@@ -20,22 +18,11 @@ export default function LoupeSettingsItem() {
 
   const handleUpdate = useCallback(
     async (newLoupeSettings: Partial<typeof readerSettings.comic.loupe>) => {
-      const newSettings = {
-        ...readerSettings,
-        comic: {
-          ...readerSettings.comic,
-          loupe: {
-            ...readerSettings.comic.loupe,
-            ...newLoupeSettings,
-          },
-        },
-      };
-      await dispatch(updateSettings({ key: "reader", value: newSettings }));
-      await emit<SettingsChangedEvent>("settings-changed", {
-        appSettings: { reader: newSettings },
-      });
+      await dispatch(
+        updateSettings({ key: "reader", value: { comic: { loupe: newLoupeSettings } } }),
+      );
     },
-    [dispatch, readerSettings],
+    [dispatch],
   );
 
   const handleContextMenu = useCallback((e: React.MouseEvent<HTMLElement>) => {
