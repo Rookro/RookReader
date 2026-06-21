@@ -161,6 +161,10 @@ mod bindings_export {
             "register_book",
             "export type AppSettings",
             "export type BookWithState",
+            // Structured settings-validation error shape surfaced to the frontend.
+            "SettingsValidationViolation",
+            "ViolationKind",
+            "details",
         ] {
             assert!(generated.contains(needle), "bindings.ts missing `{needle}`");
         }

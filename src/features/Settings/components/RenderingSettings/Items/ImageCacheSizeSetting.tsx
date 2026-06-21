@@ -1,8 +1,8 @@
 import { StorageOutlined } from "@mui/icons-material";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { useAppDispatch, useAppSelector } from "../../../../../store/store";
-import { updateSettings } from "../../../slice";
+import { useAppSelector } from "../../../../../store/store";
+import { useSettingsFieldError } from "../../../hooks/useSettingsFieldError";
 import NumberSpinnerSettingItem from "../../ui/NumberSpinnerSettingItem";
 
 /**
@@ -10,20 +10,23 @@ import NumberSpinnerSettingItem from "../../ui/NumberSpinnerSettingItem";
  */
 export default function ImageCacheSizeSetting() {
   const { t } = useTranslation();
-  const dispatch = useAppDispatch();
-  const comicSettings = useAppSelector((state) => state.settings.reader.comic);
+  const imageCacheSizeMib = useAppSelector(
+    (state) => state.settings.reader.comic.cache.imageCacheSizeMib,
+  );
+  const { error, helperText, commit } = useSettingsFieldError(
+    "reader.comic.cache.imageCacheSizeMib",
+    imageCacheSizeMib,
+  );
 
   const handleCommitted = useCallback(
     async (value: number | null) => {
       const size = value ?? 1024;
 
-      // Send only the changed leaf; updateSettings deep-merges it into the current
-      // reader settings. Validation happens in the backend and is applied at runtime.
-      await dispatch(
-        updateSettings({ key: "reader", value: { comic: { cache: { imageCacheSizeMib: size } } } }),
-      );
+      // Send only the changed leaf; the backend validates and, on rejection, returns a
+      // structured violation the hook surfaces inline below the field.
+      await commit({ key: "reader", value: { comic: { cache: { imageCacheSizeMib: size } } } });
     },
-    [dispatch],
+    [commit],
   );
 
   return (
@@ -32,12 +35,14 @@ export default function ImageCacheSizeSetting() {
       primaryText={t("settings.rendering.cache.image-cache-size.title")}
       secondaryText={t("settings.rendering.cache.image-cache-size.description")}
       secondaryTextSx={{ whiteSpace: "pre-wrap" }}
-      defaultValue={comicSettings.cache.imageCacheSizeMib}
+      defaultValue={imageCacheSizeMib}
       // Bounds mirror the backend's garde validation for imageCacheSizeMib
       // (range(min = 1, max = 65536)); the spinner clamps to them so an
       // out-of-range value is never sent and then rejected.
       min={1}
       max={65536}
+      error={error}
+      helperText={helperText}
       onValueCommitted={handleCommitted}
       inputSx={{ minWidth: "200px" }}
     />

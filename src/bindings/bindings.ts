@@ -826,6 +826,8 @@ export type CommandError = {
 	code: number,
 	/**  The human-readable error message. */
 	message: string,
+	/**  Per-field validation details, present only for `SettingsValidation` errors. */
+	details: SettingsValidationViolation[] | null,
 };
 
 /**  Represents the direction in which content should be read. */
@@ -1089,6 +1091,28 @@ export type SettingsPatch =
 /**  A partial update to [`LayoutSettings`]. */
 ({ layout: unknown }) & { bookshelf?: never; fileNavigator?: never; general?: never; history?: never; reader?: never; startup?: never };
 
+/**
+ *  A single settings field that failed validation, structured so the frontend can
+ *  render a localized, actionable message ("out of range" vs "must be a whole number")
+ *  pointing at the exact field and showing its valid bounds.
+ * 
+ *  Carried by [`Error::SettingsValidation`](crate::error::Error::SettingsValidation) and
+ *  serialized into the command error's `details` array.
+ */
+export type SettingsValidationViolation = {
+	/**
+	 *  The camelCase dotted path of the offending field, e.g.
+	 *  `"reader.rendering.maxImageHeight"`. Matches the keys the frontend dispatches.
+	 */
+	path: string,
+	/**  What is wrong with the value. */
+	kind: ViolationKind,
+	/**  The inclusive minimum valid value (always populated so the UI can show the range). */
+	min: number | null,
+	/**  The inclusive maximum valid value. */
+	max: number | null,
+};
+
 /**  Settings for the side pane. */
 export type SidePaneSettings = {
 	/**  Whether the side pane is hidden. */
@@ -1127,6 +1151,15 @@ export type Tag = {
 	/**  The color code of the tag (e.g., "#FF0000" for red). */
 	color_code: string,
 };
+
+/**  The category of a [`SettingsValidationViolation`]. */
+export type ViolationKind = 
+/**  The value is below `min` or above `max`. */
+"outOfRange" | 
+/**  An integer field received a value with a fractional part. */
+"notInteger" | 
+/**  The value is missing, not a number, or non-finite. */
+"notANumber";
 
 /* Tauri Specta runtime */
 async function typedError<T, E>(result: Promise<T>): Promise<{ status: "ok"; data: T } | { status: "error"; error: E }> {

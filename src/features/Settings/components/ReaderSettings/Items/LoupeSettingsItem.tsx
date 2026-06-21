@@ -3,6 +3,7 @@ import { Box, ListItem, ListItemIcon, ListItemText, TextField } from "@mui/mater
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppDispatch, useAppSelector } from "../../../../../store/store";
+import { useSettingsFieldError } from "../../../hooks/useSettingsFieldError";
 import { updateSettings } from "../../../slice";
 import NumberSpinnerSettingItem from "../../ui/NumberSpinnerSettingItem";
 
@@ -15,6 +16,16 @@ export default function LoupeSettingsItem() {
   const dispatch = useAppDispatch();
   const toggleKey = readerSettings.comic.loupe?.toggleKey || "MouseMiddle";
   const [isFocused, setIsFocused] = useState(false);
+  const {
+    error: zoomError,
+    helperText: zoomHelperText,
+    commit: commitZoom,
+  } = useSettingsFieldError("reader.comic.loupe.zoom", readerSettings.comic.loupe?.zoom);
+  const {
+    error: radiusError,
+    helperText: radiusHelperText,
+    commit: commitRadius,
+  } = useSettingsFieldError("reader.comic.loupe.radius", readerSettings.comic.loupe?.radius);
 
   const handleUpdate = useCallback(
     async (newLoupeSettings: Partial<typeof readerSettings.comic.loupe>) => {
@@ -128,23 +139,20 @@ export default function LoupeSettingsItem() {
   );
 
   const handleZoomChange = useCallback(
-    (value: number | null) => {
+    async (value: number | null) => {
       const val = value ?? 2;
-      if (!Number.isNaN(val) && val > 0) {
-        handleUpdate({ zoom: val });
-      }
+      // The backend validates the bound and surfaces an inline violation on rejection.
+      await commitZoom({ key: "reader", value: { comic: { loupe: { zoom: val } } } });
     },
-    [handleUpdate],
+    [commitZoom],
   );
 
   const handleRadiusChange = useCallback(
-    (value: number | null) => {
+    async (value: number | null) => {
       const val = value ?? 150;
-      if (!Number.isNaN(val) && val > 0) {
-        handleUpdate({ radius: val });
-      }
+      await commitRadius({ key: "reader", value: { comic: { loupe: { radius: val } } } });
     },
-    [handleUpdate],
+    [commitRadius],
   );
 
   const formatKeyCombo = useCallback(
@@ -221,6 +229,8 @@ export default function LoupeSettingsItem() {
         defaultValue={readerSettings.comic.loupe?.zoom ?? 2}
         min={1}
         step={0.1}
+        error={zoomError}
+        helperText={zoomHelperText}
         onValueCommitted={handleZoomChange}
         inputSx={{ minWidth: "200px" }}
       />
@@ -233,6 +243,8 @@ export default function LoupeSettingsItem() {
         defaultValue={readerSettings.comic.loupe?.radius ?? 150}
         min={50}
         step={10}
+        error={radiusError}
+        helperText={radiusHelperText}
         onValueCommitted={handleRadiusChange}
         inputSx={{ minWidth: "200px" }}
       />

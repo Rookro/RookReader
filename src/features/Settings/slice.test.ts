@@ -93,5 +93,36 @@ describe("SettingsReducer", () => {
 
       expect(store.getState().settingsError.error?.code).toBe(ErrorCode.SETTINGS_ERROR);
     });
+
+    it("returns structured details and does NOT raise the centralized error for field violations", async () => {
+      const details = [
+        {
+          path: "reader.rendering.maxImageHeight",
+          kind: "outOfRange" as const,
+          min: 0,
+          max: 65535,
+        },
+      ];
+      mockTauri.invoke.mockRejectedValue({
+        code: ErrorCode.SETTINGS_VALIDATION_ERROR,
+        message: "Settings validation failed",
+        details,
+      });
+      const store = configureStore({
+        reducer: { settings: settingsReducer, settingsError: settingsErrorReducer },
+      });
+
+      const result = await (store.dispatch as AppDispatch)(
+        updateSettings({ key: "reader", value: { rendering: { maxImageHeight: 70000 } } }),
+      );
+
+      // The violation details ride along in the rejected payload for the component...
+      expect(updateSettings.rejected.match(result)).toBe(true);
+      if (updateSettings.rejected.match(result)) {
+        expect(result.payload?.details).toEqual(details);
+      }
+      // ...and the centralized notification is suppressed (shown inline instead).
+      expect(store.getState().settingsError.error).toBeNull();
+    });
   });
 });

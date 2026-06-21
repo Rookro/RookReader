@@ -275,8 +275,7 @@
       },
       "pdf": {
         "title": "PDF Rendering Height(px)",
-        "description": "Height of the PDF rendering area in pixels.",
-        "range-error-message": "Please enter a positive integer."
+        "description": "Height of the PDF rendering area in pixels."
       },
       "cache": {
         "title": "Cache Settings",
@@ -342,7 +341,10 @@
       "entry-not-found": "Page not found."
     },
     "settings": {
-      "validation-failed": "Failed to save settings. Please check your input."
+      "validation-failed": "Failed to save settings. Please check your input.",
+      "out-of-range": "\"{{field}}\" must be between {{min}} and {{max}}.",
+      "not-integer": "\"{{field}}\" must be a whole number.",
+      "invalid-number": "\"{{field}}\" must be a valid number."
     }
   },
   "updater": {

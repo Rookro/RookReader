@@ -275,8 +275,7 @@
       },
       "pdf": {
         "title": "PDF 描画時の高さ(px)",
-        "description": "PDF 描画時の高さを設定します。",
-        "range-error-message": "1 以上の整数を入力してください。"
+        "description": "PDF 描画時の高さを設定します。"
       },
       "cache": {
         "title": "キャッシュ設定",
@@ -342,7 +341,10 @@
       "entry-not-found": "ページが見つかりません。"
     },
     "settings": {
-      "validation-failed": "設定の保存に失敗しました。入力内容を確認してください。"
+      "validation-failed": "設定の保存に失敗しました。入力内容を確認してください。",
+      "out-of-range": "「{{field}}」は {{min}}〜{{max}} の範囲で入力してください。",
+      "not-integer": "「{{field}}」は整数で入力してください。",
+      "invalid-number": "「{{field}}」には有効な数値を入力してください。"
     }
   },
   "updater": {

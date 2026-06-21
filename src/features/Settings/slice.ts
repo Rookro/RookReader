@@ -18,7 +18,7 @@ type DeepPartial<T, Depth extends number = 5> = [Depth] extends [never]
     : T;
 
 /** A `{ key, value }` pair where `value` is a deep-partial of exactly that category. */
-type UpdateSettingsPayload = {
+export type UpdateSettingsPayload = {
   [K in keyof AppSettings]: { key: K; value: DeepPartial<AppSettings[K]> };
 }[keyof AppSettings];
 
@@ -44,10 +44,15 @@ export const updateSettings = createAppAsyncThunk(
     } catch (e) {
       const code = e instanceof CommandError ? e.code : ErrorCode.SETTINGS_ERROR;
       const message = e instanceof CommandError ? e.message : String(e);
+      const details = e instanceof CommandError ? e.details : undefined;
       error(`Failed to persist settings: ${message}`);
-      // Record the error so the settings window's listener can surface a notification.
-      dispatch(setSettingsError({ code, message }));
-      return rejectWithValue({ code, message });
+      // Structured field violations are shown inline next to the offending field by the
+      // component (via the rejected payload's `details`). Only raise the centralized
+      // notification for generic (non-field) settings errors.
+      if (!details?.length) {
+        dispatch(setSettingsError({ code, message }));
+      }
+      return rejectWithValue({ code, message, details });
     }
   },
 );

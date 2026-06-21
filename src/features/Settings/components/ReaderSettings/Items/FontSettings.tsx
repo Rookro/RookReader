@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getFonts } from "../../../../../bindings/FontCommands";
 import { useAppDispatch, useAppSelector } from "../../../../../store/store";
+import { useSettingsFieldError } from "../../../hooks/useSettingsFieldError";
 import { updateSettings } from "../../../slice";
 import AutocompleteSettingItem from "../../ui/AutocompleteSettingItem";
 import NumberSpinnerSettingItem from "../../ui/NumberSpinnerSettingItem";
@@ -19,6 +20,11 @@ export default function FontSettings() {
   const dispatch = useAppDispatch();
   const readerSettings = useAppSelector((state) => state.settings.reader);
   const [fonts, setFonts] = useState<string[]>([]);
+  const {
+    error: fontSizeError,
+    helperText: fontSizeHelperText,
+    commit: commitFontSize,
+  } = useSettingsFieldError("reader.novel.fontSize", readerSettings.novel.fontSize);
 
   const handleFontChanged = useCallback(
     async (value: string) => {
@@ -32,9 +38,9 @@ export default function FontSettings() {
     async (value: number | null) => {
       const fontSize = value ?? 16;
       debug(`Font size of novel reader changed: ${fontSize}`);
-      await dispatch(updateSettings({ key: "reader", value: { novel: { fontSize } } }));
+      await commitFontSize({ key: "reader", value: { novel: { fontSize } } });
     },
-    [dispatch],
+    [commitFontSize],
   );
 
   useEffect(() => {
@@ -81,6 +87,8 @@ export default function FontSettings() {
         min={1}
         max={200}
         step={0.5}
+        error={fontSizeError}
+        helperText={fontSizeHelperText}
         onValueCommitted={handleFontSizeChanged}
         unit="px"
       />

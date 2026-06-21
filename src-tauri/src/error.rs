@@ -79,6 +79,13 @@ pub enum Error {
     /// An error related to application settings.
     #[error("Settings Error: {0}")]
     Settings(String),
+    /// One or more settings fields failed structured validation.
+    ///
+    /// Unlike [`Error::Settings`], this carries machine-readable per-field details
+    /// (path, kind, and valid bounds) in the serialized error's `details` array so the
+    /// frontend can render a localized, field-specific message.
+    #[error("Settings validation failed")]
+    SettingsValidation(Vec<crate::settings::SettingsValidationViolation>),
 
     // 6xxxx: Application Logic & State
 
@@ -134,6 +141,7 @@ impl ErrorCode {
 
             // 5xxxx: Application Settings
             ErrorCode::Settings => 50001,
+            ErrorCode::SettingsValidation => 50002,
 
             // 6xxxx: Application Logic & State
 
@@ -156,11 +164,24 @@ impl Serialize for Error {
     where
         S: Serializer,
     {
-        let mut state = serializer.serialize_struct("Error", 2)?;
         let error_code: ErrorCode = self.into();
-        state.serialize_field("code", &error_code.code())?;
-        state.serialize_field("message", &self.to_string())?;
-        state.end()
+        match self {
+            // Structured validation errors carry a third `details` field; every other
+            // variant keeps the stable two-field `{ code, message }` shape.
+            Error::SettingsValidation(violations) => {
+                let mut state = serializer.serialize_struct("Error", 3)?;
+                state.serialize_field("code", &error_code.code())?;
+                state.serialize_field("message", &self.to_string())?;
+                state.serialize_field("details", violations)?;
+                state.end()
+            }
+            _ => {
+                let mut state = serializer.serialize_struct("Error", 2)?;
+                state.serialize_field("code", &error_code.code())?;
+                state.serialize_field("message", &self.to_string())?;
+                state.end()
+            }
+        }
     }
 }
 
@@ -177,6 +198,8 @@ struct CommandError {
     code: i32,
     /// The human-readable error message.
     message: String,
+    /// Per-field validation details, present only for `SettingsValidation` errors.
+    details: Option<Vec<crate::settings::SettingsValidationViolation>>,
 }
 
 impl specta::Type for Error {
@@ -187,3 +210,38 @@ impl specta::Type for Error {
 
 /// A specialized `Result` type for the application, using the custom `Error` enum.
 pub type Result<T> = std::result::Result<T, Error>;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::settings::{SettingsValidationViolation, ViolationKind};
+
+    #[test]
+    fn serializes_generic_error_as_code_and_message() {
+        let value = serde_json::to_value(Error::Settings("boom".to_string())).unwrap();
+        assert_eq!(value["code"], 50001);
+        assert_eq!(value["message"], "Settings Error: boom");
+        // No `details` for non-validation errors.
+        assert!(value.get("details").is_none());
+    }
+
+    #[test]
+    fn serializes_settings_validation_with_details() {
+        let err = Error::SettingsValidation(vec![SettingsValidationViolation {
+            path: "reader.rendering.maxImageHeight".to_string(),
+            kind: ViolationKind::OutOfRange,
+            min: 0.0,
+            max: 65535.0,
+        }]);
+        let value = serde_json::to_value(err).unwrap();
+
+        assert_eq!(value["code"], 50002);
+        assert_eq!(value["message"], "Settings validation failed");
+        let details = value["details"].as_array().expect("details array");
+        assert_eq!(details.len(), 1);
+        assert_eq!(details[0]["path"], "reader.rendering.maxImageHeight");
+        assert_eq!(details[0]["kind"], "outOfRange");
+        assert_eq!(details[0]["min"], 0.0);
+        assert_eq!(details[0]["max"], 65535.0);
+    }
+}
