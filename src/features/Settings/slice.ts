@@ -5,6 +5,7 @@ import { getDataOrThrow } from "../../bindings/result";
 import type { AppSettings } from "../../types/AppSettings";
 import { createAppAsyncThunk } from "../../types/CustomAsyncThunk";
 import { CommandError, ErrorCode } from "../../types/Error";
+import { setSettingsError } from "./errorSlice";
 import { defaultSettings } from "./settingsStore";
 
 type DepthLimit = [never, 0, 1, 2, 3, 4, 5];
@@ -34,7 +35,7 @@ type UpdateSettingsPayload = {
  */
 export const updateSettings = createAppAsyncThunk(
   "settings/updateSettings",
-  async ({ key, value }: UpdateSettingsPayload, { rejectWithValue }) => {
+  async ({ key, value }: UpdateSettingsPayload, { dispatch, rejectWithValue }) => {
     const patch = { [key]: value } as unknown as SettingsPatch;
     try {
       // The backend returns a complete settings object; the generated type marks fields
@@ -44,6 +45,8 @@ export const updateSettings = createAppAsyncThunk(
       const code = e instanceof CommandError ? e.code : ErrorCode.SETTINGS_ERROR;
       const message = e instanceof CommandError ? e.message : String(e);
       error(`Failed to persist settings: ${message}`);
+      // Record the error so the settings window's listener can surface a notification.
+      dispatch(setSettingsError({ code, message }));
       return rejectWithValue({ code, message });
     }
   },

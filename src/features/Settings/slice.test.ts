@@ -4,6 +4,7 @@ import type { AppDispatch } from "../../store/store";
 import { mockTauri } from "../../test/mocks/tauri";
 import { mockSettingsCommands } from "../../test/utils";
 import { ErrorCode } from "../../types/Error";
+import settingsErrorReducer from "./errorSlice";
 import { defaultSettings } from "./settingsStore";
 import settingsReducer, { setSettings, updateSettings } from "./slice";
 
@@ -75,6 +76,22 @@ describe("SettingsReducer", () => {
       expect(store.getState().settings.reader.rendering.maxImageHeight).toBe(
         defaultSettings.reader.rendering.maxImageHeight,
       );
+    });
+
+    it("records the error so the UI can surface it when the backend rejects", async () => {
+      mockTauri.invoke.mockRejectedValue({
+        code: ErrorCode.SETTINGS_ERROR,
+        message: "Settings validation failed",
+      });
+      const store = configureStore({
+        reducer: { settings: settingsReducer, settingsError: settingsErrorReducer },
+      });
+
+      await (store.dispatch as AppDispatch)(
+        updateSettings({ key: "general", value: { theme: "dark" } }),
+      );
+
+      expect(store.getState().settingsError.error?.code).toBe(ErrorCode.SETTINGS_ERROR);
     });
   });
 });
