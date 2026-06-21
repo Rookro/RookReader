@@ -90,6 +90,7 @@ export default function FontSettings() {
         error={fontSizeError}
         helperText={fontSizeHelperText}
         onValueCommitted={handleFontSizeChanged}
+        inputSx={{ minWidth: "200px" }}
         unit="px"
       />
     </>
