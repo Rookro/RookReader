@@ -5,7 +5,6 @@ use tauri::ipc::Response;
 
 use crate::{
     error::{Error, Result},
-    image::resizer::ResizeFilter,
     state::app_state::AppState,
 };
 
@@ -204,165 +203,9 @@ pub async fn get_image_preview(
     Ok(image.to_ipc_response())
 }
 
-/// Sets the render resolution height for pages in PDF files.
-///
-/// This height is used when converting a PDF page into an image.
-///
-/// # Arguments
-///
-/// * `height` - The target height in pixels for the rendered PDF page image. Must be greater than 0.
-/// * `state` - A `tauri::State` holding the application's global `AppState`.
-///
-/// # Returns
-///
-/// A `Result` which is `Ok` on successful update.
-///
-/// # Errors
-///
-/// This function will return an `Err` if:
-/// * The `height` is less than 1.
-#[tauri::command()]
-#[specta::specta]
-pub async fn set_pdf_render_resolution_height(
-    height: i32,
-    state: tauri::State<'_, RwLock<AppState>>,
-) -> Result<()> {
-    log::debug!("set_pdf_render_resolution_height({})", height);
-
-    if height < 1 {
-        return Err(Error::Other(
-            "pdf render resolution height must be greater than 0. set_pdf_render_resolution_height() is Failed."
-                .to_string(),
-        ));
-    }
-
-    let mut state_lock = state.write().await;
-
-    state_lock
-        .container_state
-        .settings
-        .pdf_render_resolution_height = height;
-    Ok(())
-}
-
-/// Sets the maximum height for loaded images.
-///
-/// Images exceeding this height will be resized down to fit.
-///
-/// # Arguments
-///
-/// * `height` - The maximum image height in pixels. A value of 0 implies no limit.
-/// * `state` - A `tauri::State` holding the application's global `AppState`.
-///
-/// # Returns
-///
-/// A `Result` which is `Ok` on successful update.
-///
-/// # Errors
-///
-/// This function will return an `Err` if:
-/// * The `height` is a negative value.
-#[tauri::command()]
-#[specta::specta]
-pub async fn set_max_image_height(
-    height: i32,
-    state: tauri::State<'_, RwLock<AppState>>,
-) -> Result<()> {
-    log::debug!("set_max_image_height({})", height);
-
-    if height < 0 {
-        return Err(Error::Other(
-            "Max image height must be greater than or equal to 0. set_max_image_height() is Failed."
-                .to_string(),
-        ));
-    }
-
-    let mut state_lock = state.write().await;
-
-    state_lock.container_state.settings.max_image_height = height;
-    Ok(())
-}
-
-/// Sets the algorithm used for resampling images.
-///
-/// # Arguments
-///
-/// * `method` - A string representing the desired resampling filter.
-///   Valid options are: "nearest", "triangle", "catmullRom", "gaussian", "lanczos3".
-/// * `state` - A `tauri::State` holding the application's global `AppState`.
-///
-/// # Returns
-///
-/// A `Result` which is `Ok` on successful update.
-///
-/// # Errors
-///
-/// This function will return an `Err` if:
-/// * The `method` string is empty.
-/// * The `method` does not match one of the valid filter types.
-#[tauri::command()]
-#[specta::specta]
-pub async fn set_image_resampling_method(
-    method: &str,
-    state: tauri::State<'_, RwLock<AppState>>,
-) -> Result<()> {
-    log::debug!("set_image_resampling_method({})", method);
-
-    if method.is_empty() {
-        return Err(Error::Other(
-            "Method must be provided. set_image_resampling_method() is Failed.".to_string(),
-        ));
-    }
-
-    let mut state_lock = state.write().await;
-
-    let method = match method {
-        "nearest" => ResizeFilter::Nearest,
-        "box" => ResizeFilter::Box,
-        "bilinear" => ResizeFilter::Bilinear,
-        "hamming" => ResizeFilter::Hamming,
-        "catmullRom" => ResizeFilter::CatmullRom,
-        "mitchellNetravali" => ResizeFilter::MitchellNetravali,
-        "lanczos3" => ResizeFilter::Lanczos3,
-        _ => return Err(Error::Other("Invalid Resampling Method type".to_string())),
-    };
-
-    state_lock.container_state.settings.image_resampling_method = method;
-    Ok(())
-}
-
-/// Sets the maximum size of the image memory cache in MiB.
-///
-/// This will re-initialize the cache and clear all currently cached images.
-///
-/// # Arguments
-///
-/// * `size_mib` - The new cache size in MiB.
-/// * `state` - A `tauri::State` holding the application's global `AppState`.
-///
-/// # Returns
-///
-/// A `Result` which is `Ok` on successful update.
-#[tauri::command()]
-#[specta::specta]
-pub async fn set_image_cache_size_mib(
-    size_mib: u64,
-    state: tauri::State<'_, RwLock<AppState>>,
-) -> Result<()> {
-    log::debug!("set_image_cache_size_mib({})", size_mib);
-
-    let mut state_lock = state.write().await;
-
-    state_lock.container_state.settings.image_cache_size_mib = size_mib;
-    state_lock.container_state.update_image_cache_size(size_mib);
-
-    Ok(())
-}
-
 #[cfg(test)]
 mod tests {
     use mockall::predicate::eq;
-    use rstest::rstest;
 
     use super::*;
     use std::{path, sync::Arc};
@@ -371,7 +214,7 @@ mod tests {
 
     use crate::{
         container::traits::MockContainer,
-        image::{loader::ImageLoader, types::Image},
+        image::{loader::ImageLoader, resizer::ResizeFilter, types::Image},
         state::{container_settings::ContainerSettings, container_state::ContainerState},
     };
 
@@ -405,50 +248,6 @@ mod tests {
         let rar_filepath = dir.join(filename);
         std::fs::copy(dummy_rar_path, &rar_filepath).unwrap();
         rar_filepath
-    }
-
-    #[rstest]
-    #[tokio::test]
-    #[case(1)]
-    #[case(1200)]
-    #[case(100000)]
-    async fn test_set_pdf_render_resolution_height_valid_height(
-        #[case] pdf_render_resolution_height: i32,
-    ) {
-        let app = tauri::test::mock_app();
-        app.manage(RwLock::new(AppState::default()));
-
-        let result =
-            set_pdf_render_resolution_height(pdf_render_resolution_height, app.state()).await;
-
-        assert!(result.is_ok());
-        assert_eq!(
-            pdf_render_resolution_height,
-            app.state::<RwLock<AppState>>()
-                .read()
-                .await
-                .container_state
-                .settings
-                .pdf_render_resolution_height
-        );
-    }
-
-    #[rstest]
-    #[tokio::test]
-    #[case(0)]
-    #[case(-1)]
-    #[case(-1200)]
-    async fn test_set_pdf_render_resolution_height_negative(
-        #[case] invalid_pdf_render_resolution_height: i32,
-    ) {
-        let app = tauri::test::mock_app();
-        app.manage(RwLock::new(AppState::default()));
-
-        let result =
-            set_pdf_render_resolution_height(invalid_pdf_render_resolution_height, app.state())
-                .await;
-
-        assert!(result.is_err());
     }
 
     #[tokio::test]
@@ -643,47 +442,5 @@ mod tests {
             _ => panic!("Unexpected response body type"),
         };
         assert!(!body.is_empty());
-    }
-
-    #[tokio::test]
-    async fn test_set_max_image_height() {
-        let app = tauri::test::mock_app();
-        app.manage(RwLock::new(AppState::default()));
-
-        let result = set_max_image_height(1000, app.state()).await;
-        assert!(result.is_ok());
-        assert_eq!(
-            1000,
-            app.state::<RwLock<AppState>>()
-                .read()
-                .await
-                .container_state
-                .settings
-                .max_image_height
-        );
-
-        let result_err = set_max_image_height(-1, app.state()).await;
-        assert!(result_err.is_err());
-    }
-
-    #[tokio::test]
-    async fn test_set_image_resampling_method() {
-        let app = tauri::test::mock_app();
-        app.manage(RwLock::new(AppState::default()));
-
-        let result = set_image_resampling_method("nearest", app.state()).await;
-        assert!(result.is_ok());
-        assert_eq!(
-            ResizeFilter::Nearest,
-            app.state::<RwLock<AppState>>()
-                .read()
-                .await
-                .container_state
-                .settings
-                .image_resampling_method
-        );
-
-        let result_invalid = set_image_resampling_method("invalid", app.state()).await;
-        assert!(result_invalid.is_err());
     }
 }

@@ -1,7 +1,6 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import * as containerCmds from "../../../../../bindings/ContainerCommands";
 import { mockTauri } from "../../../../../test/mocks/tauri";
 import {
   createBasePreloadedState,
@@ -47,7 +46,6 @@ describe("ImageResamplingMethodSetting", () => {
     await user.click(option);
 
     await waitFor(() => {
-      expect(containerCmds.setImageResamplingMethod).toHaveBeenCalledWith("nearest");
       expect(mockTauri.invoke).toHaveBeenCalledWith("set_settings", {
         patch: { reader: { rendering: { imageResamplingMethod: "nearest" } } },
       });

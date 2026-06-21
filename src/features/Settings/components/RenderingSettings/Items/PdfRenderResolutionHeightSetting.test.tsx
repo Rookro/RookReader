@@ -1,7 +1,6 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import * as containerCmds from "../../../../../bindings/ContainerCommands";
 import { mockTauri } from "../../../../../test/mocks/tauri";
 import {
   createBasePreloadedState,
@@ -43,14 +42,13 @@ describe("PdfRenderResolutionHeightSetting", () => {
     await user.tab(); // Blur trigger
 
     await waitFor(() => {
-      expect(containerCmds.setPdfRenderResolutionHeight).toHaveBeenCalledWith(2500);
       expect(mockTauri.invoke).toHaveBeenCalledWith("set_settings", {
         patch: { reader: { rendering: { pdfRenderResolutionHeight: 2500 } } },
       });
     });
   });
 
-  it("should show error message for height < 1", async () => {
+  it("should show error message and not persist for height < 1", async () => {
     const preloadedState = createBasePreloadedState();
     preloadedState.settings.reader.rendering.pdfRenderResolutionHeight = 2000;
 
@@ -63,27 +61,6 @@ describe("PdfRenderResolutionHeightSetting", () => {
     await user.tab(); // Blur trigger
 
     expect(screen.getByText(/Please enter a positive integer/i)).toBeInTheDocument();
-    expect(containerCmds.setPdfRenderResolutionHeight).not.toHaveBeenCalledWith(0);
-  });
-
-  it("should display error message when backend call fails", async () => {
-    const preloadedState = createBasePreloadedState();
-    preloadedState.settings.reader.rendering.pdfRenderResolutionHeight = 2000;
-    vi.mocked(containerCmds.setPdfRenderResolutionHeight).mockRejectedValueOnce(
-      new Error("Backend error"),
-    );
-
-    renderWithProviders(<PdfRenderResolutionHeightSetting />, { preloadedState });
-
-    const input = screen.getByRole("textbox");
-    await user.clear(input);
-    await user.type(input, "2500");
-    await user.tab(); // Blur trigger
-
-    await waitFor(() => {
-      expect(containerCmds.setPdfRenderResolutionHeight).toHaveBeenCalledWith(2500);
-      expect(screen.getByText(/Failed to set PDF rendering height/i)).toBeInTheDocument();
-      expect(mockTauri.invoke).not.toHaveBeenCalledWith("set_settings", expect.anything());
-    });
+    expect(mockTauri.invoke).not.toHaveBeenCalledWith("set_settings", expect.anything());
   });
 });

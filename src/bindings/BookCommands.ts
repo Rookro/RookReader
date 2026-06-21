@@ -1,6 +1,11 @@
-import { invoke } from "@tauri-apps/api/core";
 import type { Book, BookWithState, ReadBook, ReadingState } from "../domain/book/schema";
 import { createCommandError } from "../types/Error";
+import { commands } from "./bindings";
+import { getDataOrThrow } from "./result";
+
+// The hand-written domain types (e.g. `Book.item_type` narrowed to "file" | "directory") are kept as
+// the frontend-facing contract; the generated types are wider (Rust `String`). The `as` casts below
+// bridge that intentional narrowing — the runtime shapes are identical.
 
 /**
  * Retrieves a book by its database ID.
@@ -9,9 +14,9 @@ import { createCommandError } from "../types/Error";
  * @returns A promise that resolves to the Book object if found, or null otherwise.
  * @throws {CommandError} If the Tauri command fails.
  */
-export async function getBook(id: number) {
+export async function getBook(id: number): Promise<Book | null> {
   try {
-    return await invoke<Book | null>("get_book", { id });
+    return getDataOrThrow(await commands.getBook(id)) as Book | null;
   } catch (error) {
     throw createCommandError(error);
   }
@@ -24,9 +29,9 @@ export async function getBook(id: number) {
  * @returns A promise that resolves when the deletion is successful.
  * @throws {CommandError} If the Tauri command fails.
  */
-export async function deleteBook(id: number) {
+export async function deleteBook(id: number): Promise<void> {
   try {
-    return await invoke<void>("delete_book", { id });
+    getDataOrThrow(await commands.deleteBook(id));
   } catch (error) {
     throw createCommandError(error);
   }
@@ -39,9 +44,9 @@ export async function deleteBook(id: number) {
  * @returns A promise that resolves to the Book object if found, or null otherwise.
  * @throws {CommandError} If the Tauri command fails.
  */
-export async function getBookByPath(file_path: string) {
+export async function getBookByPath(file_path: string): Promise<Book | null> {
   try {
-    return await invoke<Book | null>("get_book_by_path", { file_path });
+    return getDataOrThrow(await commands.getBookByPath(file_path)) as Book | null;
   } catch (error) {
     throw createCommandError(error);
   }
@@ -54,9 +59,9 @@ export async function getBookByPath(file_path: string) {
  * @returns A promise that resolves to the BookWithState object if found, or null otherwise.
  * @throws {CommandError} If the Tauri command fails.
  */
-export async function getBookWithStateById(id: number) {
+export async function getBookWithStateById(id: number): Promise<BookWithState | null> {
   try {
-    return await invoke<BookWithState | null>("get_book_with_state_by_id", { id });
+    return getDataOrThrow(await commands.getBookWithStateById(id)) as BookWithState | null;
   } catch (error) {
     throw createCommandError(error);
   }
@@ -68,9 +73,9 @@ export async function getBookWithStateById(id: number) {
  * @returns A promise that resolves to an array of BookWithState objects.
  * @throws {CommandError} If the Tauri command fails.
  */
-export async function getAllBooksWithState() {
+export async function getAllBooksWithState(): Promise<BookWithState[]> {
   try {
-    return await invoke<BookWithState[]>("get_all_books_with_state");
+    return getDataOrThrow(await commands.getAllBooksWithState()) as BookWithState[];
   } catch (error) {
     throw createCommandError(error);
   }
@@ -94,12 +99,14 @@ export async function registerBook(params: {
   totalPages: number;
 }) {
   try {
-    return await invoke<number>("register_book", {
-      filePath: params.filePath,
-      itemType: params.itemType,
-      displayName: params.displayName,
-      totalPages: params.totalPages,
-    });
+    return getDataOrThrow(
+      await commands.registerBook(
+        params.filePath,
+        params.itemType,
+        params.displayName,
+        params.totalPages,
+      ),
+    );
   } catch (error) {
     throw createCommandError(error);
   }
@@ -123,12 +130,14 @@ export async function recordBookOpened(params: {
   totalPages: number;
 }) {
   try {
-    return await invoke<number>("record_book_opened", {
-      filePath: params.filePath,
-      itemType: params.itemType,
-      displayName: params.displayName,
-      totalPages: params.totalPages,
-    });
+    return getDataOrThrow(
+      await commands.recordBookOpened(
+        params.filePath,
+        params.itemType,
+        params.displayName,
+        params.totalPages,
+      ),
+    );
   } catch (error) {
     throw createCommandError(error);
   }
@@ -143,7 +152,7 @@ export async function recordBookOpened(params: {
  */
 export async function getBookTags(bookId: number) {
   try {
-    return await invoke<number[]>("get_book_tags", { bookId });
+    return getDataOrThrow(await commands.getBookTags(bookId));
   } catch (error) {
     throw createCommandError(error);
   }
@@ -157,9 +166,9 @@ export async function getBookTags(bookId: number) {
  * @returns A promise that resolves when the update is successful.
  * @throws {CommandError} If the Tauri command fails.
  */
-export async function updateBookTags(bookId: number, tagIds: number[]) {
+export async function updateBookTags(bookId: number, tagIds: number[]): Promise<void> {
   try {
-    return await invoke<void>("update_book_tags", { bookId, tagIds });
+    getDataOrThrow(await commands.updateBookTags(bookId, tagIds));
   } catch (error) {
     throw createCommandError(error);
   }
@@ -173,9 +182,9 @@ export async function updateBookTags(bookId: number, tagIds: number[]) {
  * @returns A promise that resolves when the update is successful.
  * @throws {CommandError} If the Tauri command fails.
  */
-export async function updateBookSeries(bookId: number, seriesId: number | null) {
+export async function updateBookSeries(bookId: number, seriesId: number | null): Promise<void> {
   try {
-    return await invoke<void>("update_book_series", { bookId, seriesId });
+    getDataOrThrow(await commands.updateBookSeries(bookId, seriesId));
   } catch (error) {
     throw createCommandError(error);
   }
@@ -188,9 +197,9 @@ export async function updateBookSeries(bookId: number, seriesId: number | null) 
  * @returns A promise that resolves when the update is successful.
  * @throws {CommandError} If the Tauri command fails.
  */
-export async function updateSeriesOrders(bookIds: number[]) {
+export async function updateSeriesOrders(bookIds: number[]): Promise<void> {
   try {
-    return await invoke<void>("update_series_orders", { bookIds });
+    getDataOrThrow(await commands.updateSeriesOrders(bookIds));
   } catch (error) {
     throw createCommandError(error);
   }
@@ -203,9 +212,9 @@ export async function updateSeriesOrders(bookIds: number[]) {
  * @returns A promise that resolves when the update is successful.
  * @throws {CommandError} If the Tauri command fails.
  */
-export async function updateReadingProgress(stateData: ReadingState) {
+export async function updateReadingProgress(stateData: ReadingState): Promise<void> {
   try {
-    return await invoke<void>("update_reading_progress", { stateData });
+    getDataOrThrow(await commands.updateReadingProgress(stateData));
   } catch (error) {
     throw createCommandError(error);
   }
@@ -218,9 +227,9 @@ export async function updateReadingProgress(stateData: ReadingState) {
  * @returns A promise that resolves when the history is cleared.
  * @throws {CommandError} If the Tauri command fails.
  */
-export async function clearReadingHistory(bookId: number) {
+export async function clearReadingHistory(bookId: number): Promise<void> {
   try {
-    return await invoke<void>("clear_reading_history", { bookId });
+    getDataOrThrow(await commands.clearReadingHistory(bookId));
   } catch (error) {
     throw createCommandError(error);
   }
@@ -232,9 +241,9 @@ export async function clearReadingHistory(bookId: number) {
  * @returns A promise that resolves when all history is cleared.
  * @throws {CommandError} If the Tauri command fails.
  */
-export async function clearAllReadingHistory() {
+export async function clearAllReadingHistory(): Promise<void> {
   try {
-    return await invoke<void>("clear_all_reading_history");
+    getDataOrThrow(await commands.clearAllReadingHistory());
   } catch (error) {
     throw createCommandError(error);
   }
@@ -246,9 +255,10 @@ export async function clearAllReadingHistory() {
  * @returns A promise that resolves to an array of ReadBook objects.
  * @throws {CommandError} If the Tauri command fails.
  */
-export async function getRecentlyReadBooks() {
+export async function getRecentlyReadBooks(): Promise<ReadBook[]> {
   try {
-    return await invoke<ReadBook[]>("get_recently_read_books");
+    // `limit` is an `Option<i64>` on the backend; `null` requests the default limit.
+    return getDataOrThrow(await commands.getRecentlyReadBooks(null)) as ReadBook[];
   } catch (error) {
     throw createCommandError(error);
   }
@@ -261,9 +271,13 @@ export async function getRecentlyReadBooks() {
  * @returns A promise that resolves to an array of BookWithState objects.
  * @throws {CommandError} If the Tauri command fails.
  */
-export async function getBooksWithStateByBookshelfId(bookshelfId: number) {
+export async function getBooksWithStateByBookshelfId(
+  bookshelfId: number,
+): Promise<BookWithState[]> {
   try {
-    return await invoke<BookWithState[]>("get_books_with_state_by_bookshelf_id", { bookshelfId });
+    return getDataOrThrow(
+      await commands.getBooksWithStateByBookshelfId(bookshelfId),
+    ) as BookWithState[];
   } catch (error) {
     throw createCommandError(error);
   }
@@ -276,9 +290,9 @@ export async function getBooksWithStateByBookshelfId(bookshelfId: number) {
  * @returns A promise that resolves to an array of BookWithState objects.
  * @throws {CommandError} If the Tauri command fails.
  */
-export async function getBooksWithStateByTagId(tagId: number) {
+export async function getBooksWithStateByTagId(tagId: number): Promise<BookWithState[]> {
   try {
-    return await invoke<BookWithState[]>("get_books_with_state_by_tag_id", { tagId });
+    return getDataOrThrow(await commands.getBooksWithStateByTagId(tagId)) as BookWithState[];
   } catch (error) {
     throw createCommandError(error);
   }
@@ -291,9 +305,9 @@ export async function getBooksWithStateByTagId(tagId: number) {
  * @returns A promise that resolves to an array of BookWithState objects.
  * @throws {CommandError} If the Tauri command fails.
  */
-export async function getBooksWithStateBySeriesId(seriesId: number) {
+export async function getBooksWithStateBySeriesId(seriesId: number): Promise<BookWithState[]> {
   try {
-    return await invoke<BookWithState[]>("get_books_with_state_by_series_id", { seriesId });
+    return getDataOrThrow(await commands.getBooksWithStateBySeriesId(seriesId)) as BookWithState[];
   } catch (error) {
     throw createCommandError(error);
   }

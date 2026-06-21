@@ -31,10 +31,6 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
         commands::settings_commands::set_settings,
         commands::container_commands::request_preload_around,
         commands::container_commands::get_entries_in_container,
-        commands::container_commands::set_pdf_render_resolution_height,
-        commands::container_commands::set_max_image_height,
-        commands::container_commands::set_image_resampling_method,
-        commands::container_commands::set_image_cache_size_mib,
         commands::font_commands::get_fonts,
         commands::book_commands::get_book_tags,
         commands::book_commands::update_book_tags::<tauri::Wry>,
@@ -167,6 +163,20 @@ mod bindings_export {
             "export type BookWithState",
         ] {
             assert!(generated.contains(needle), "bindings.ts missing `{needle}`");
+        }
+
+        // The granular container setters were folded into `set_settings`
+        // (apply_reader_settings_to_container) and must no longer be generated.
+        for absent in [
+            "set_pdf_render_resolution_height",
+            "set_max_image_height",
+            "set_image_resampling_method",
+            "set_image_cache_size_mib",
+        ] {
+            assert!(
+                !generated.contains(absent),
+                "bindings.ts still contains removed command `{absent}`"
+            );
         }
     }
 }

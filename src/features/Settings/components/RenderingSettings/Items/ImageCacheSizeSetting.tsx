@@ -1,8 +1,6 @@
 import { StorageOutlined } from "@mui/icons-material";
-import { error } from "@tauri-apps/plugin-log";
-import { useCallback, useState } from "react";
+import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { setImageCacheSizeMib } from "../../../../../bindings/ContainerCommands";
 import { useAppDispatch, useAppSelector } from "../../../../../store/store";
 import { updateSettings } from "../../../slice";
 import NumberSpinnerSettingItem from "../../ui/NumberSpinnerSettingItem";
@@ -14,30 +12,18 @@ export default function ImageCacheSizeSetting() {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const comicSettings = useAppSelector((state) => state.settings.reader.comic);
-  const [isError, setIsError] = useState(false);
-  const [errorMsg, setErrorMsg] = useState("");
 
   const handleCommitted = useCallback(
     async (value: number | null) => {
       const size = value ?? 1024;
 
-      try {
-        await setImageCacheSizeMib(size);
-      } catch (e) {
-        error(`Failed to set image cache size: ${e}`);
-        setIsError(true);
-        setErrorMsg(t("settings.rendering.cache.image-cache-size.error-message"));
-        return;
-      }
-
-      setIsError(false);
-      setErrorMsg("");
-
+      // Send only the changed leaf; updateSettings deep-merges it into the current
+      // reader settings. Validation happens in the backend and is applied at runtime.
       await dispatch(
         updateSettings({ key: "reader", value: { comic: { cache: { imageCacheSizeMib: size } } } }),
       );
     },
-    [t, dispatch],
+    [dispatch],
   );
 
   return (
@@ -47,9 +33,11 @@ export default function ImageCacheSizeSetting() {
       secondaryText={t("settings.rendering.cache.image-cache-size.description")}
       secondaryTextSx={{ whiteSpace: "pre-wrap" }}
       defaultValue={comicSettings.cache.imageCacheSizeMib}
-      min={128}
-      error={isError}
-      helperText={errorMsg}
+      // Bounds mirror the backend's garde validation for imageCacheSizeMib
+      // (range(min = 1, max = 65536)); the spinner clamps to them so an
+      // out-of-range value is never sent and then rejected.
+      min={1}
+      max={65536}
       onValueCommitted={handleCommitted}
       inputSx={{ minWidth: "200px" }}
     />

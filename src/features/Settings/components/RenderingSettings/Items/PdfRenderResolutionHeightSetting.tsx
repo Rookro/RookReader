@@ -1,8 +1,7 @@
 import { AspectRatioOutlined } from "@mui/icons-material";
 import { error } from "@tauri-apps/plugin-log";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { setPdfRenderResolutionHeight } from "../../../../../bindings/ContainerCommands";
 import { useAppDispatch, useAppSelector } from "../../../../../store/store";
 import { updateSettings } from "../../../slice";
 import NumberSpinnerSettingItem from "../../ui/NumberSpinnerSettingItem";
@@ -14,13 +13,26 @@ export default function PdfRenderResolutionHeightSetting() {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const readerSettings = useAppSelector((state) => state.settings.reader);
+  const pdfRenderResolutionHeight = readerSettings.rendering.pdfRenderResolutionHeight;
   const [isError, setIsError] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+
+  // Clear the local validation error whenever the persisted value changes (e.g.
+  // an edit from another window syncs in and remounts the input). Without this,
+  // a stale "out of range" message would linger over a now-valid value. The
+  // value is the trigger, not read inside, so the dependency is intentional.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-run on external value change
+  useEffect(() => {
+    setIsError(false);
+    setErrorMsg("");
+  }, [pdfRenderResolutionHeight]);
 
   const handlePdfRenderResolutionHeightChange = useCallback(
     async (value: number | null) => {
       const height = value ?? 0;
 
+      // Client-side pre-check for immediate feedback; backend validation also
+      // guards this bound. The granular setter command is no longer used.
       if (height < 1) {
         error(`Failed to set PDF rendering height (must be at least 1): ${height}`);
         setIsError(true);
@@ -28,18 +40,11 @@ export default function PdfRenderResolutionHeightSetting() {
         return;
       }
 
-      try {
-        await setPdfRenderResolutionHeight(height);
-      } catch (e) {
-        error(`Failed to set PDF rendering height: ${e}`);
-        setIsError(true);
-        setErrorMsg(t("settings.rendering.pdf.error-message"));
-        return;
-      }
-
       setIsError(false);
       setErrorMsg("");
 
+      // Send only the changed leaf; updateSettings deep-merges it into the
+      // current reader settings.
       await dispatch(
         updateSettings({
           key: "reader",
@@ -55,7 +60,7 @@ export default function PdfRenderResolutionHeightSetting() {
       icon={<AspectRatioOutlined />}
       primaryText={t("settings.rendering.pdf.title")}
       secondaryText={t("settings.rendering.pdf.description")}
-      defaultValue={readerSettings.rendering.pdfRenderResolutionHeight}
+      defaultValue={pdfRenderResolutionHeight}
       min={1}
       step={100}
       error={isError}

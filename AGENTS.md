@@ -30,7 +30,7 @@ This document provides foundational mandates, project context, and workflows for
     - **Language:** All comments and documentation must be written in English.
     - **TypeScript:** Use TSDoc format (`/** ... */`) for exported functions, interfaces, types, and React component props.
     - **Rust:** Use standard Rustdoc (`///` or `//!`). For public functions, module definitions, and Tauri commands, explicitly document parameters and return types using `# Arguments`, `# Returns`, and `# Errors` sections.
-  - **Tauri Commands:** Ensure Tauri commands (`#[tauri::command]`) are properly registered in `src-tauri/src/lib.rs` and have corresponding TypeScript bindings in `src/bindings/`. For frontend integrations requiring system access, **must strictly use official Tauri v2 plugins** (e.g., `@tauri-apps/plugin-fs`, `@tauri-apps/plugin-dialog`) rather than legacy core APIs.
+  - **Tauri Commands:** Ensure Tauri commands (`#[tauri::command]` + `#[specta::specta]`) are registered in `src-tauri/src/lib.rs`'s `specta_builder()`; their TypeScript types and `invoke` wrappers are generated into `src/bindings/bindings.ts` by `tauri-specta`, and `src/bindings/*Commands.ts` are thin wrappers delegating to the generated `commands.*` (narrowed `domain/*` types are kept as the frontend contract via `as` casts). For frontend integrations requiring system access, **must strictly use official Tauri v2 plugins** (e.g., `@tauri-apps/plugin-fs`, `@tauri-apps/plugin-dialog`) rather than legacy core APIs.
 
 ## 2. Workflows & Commands
 
@@ -60,8 +60,10 @@ This document provides foundational mandates, project context, and workflows for
 1.  **Understand the Architecture:** When adding a new feature that touches both frontend and backend, ensure you:
     - Create or update the Rust core logic (e.g., in `src-tauri/src/database/` or `src-tauri/src/container/`).
     - Create or update the Tauri command in `src-tauri/src/commands/`.
-    - Register the command in `src-tauri/src/lib.rs`.
-    - Create or update the TypeScript binding in `src/bindings/`.
+    - Register the command in `src-tauri/src/lib.rs` (collected in `specta_builder()`).
+    - Regenerate the TypeScript bindings (`npm run gen:bindings`, which writes the `tauri-specta`-generated
+      `src/bindings/bindings.ts`), then add/update the thin wrapper in `src/bindings/*Commands.ts` that
+      delegates to the generated `commands.*` (binary `tauri::ipc::Response` commands keep a raw `invoke`).
     - Integrate the binding into the React frontend (e.g., Redux thunk or custom hook).
 2.  **State Management:** Prefer Redux Toolkit (`createAsyncThunk`, `createSlice`) for global application state (like reading history, bookshelf contents). Use local React state (`useState`, `useReducer`) for component-specific UI state.
 3.  **Error Handling:** Surface backend errors clearly to the frontend. Use the custom `CommandError` structure defined in `src/types/Error.ts`.

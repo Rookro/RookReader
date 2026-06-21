@@ -1,9 +1,8 @@
 import { FontDownloadOutlined } from "@mui/icons-material";
 import { MenuItem, type SelectChangeEvent } from "@mui/material";
-import { debug, error } from "@tauri-apps/plugin-log";
+import { debug } from "@tauri-apps/plugin-log";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { setImageResamplingMethod } from "../../../../../bindings/ContainerCommands";
 import { useAppDispatch, useAppSelector } from "../../../../../store/store";
 import {
   type ImageResamplingMethod,
@@ -47,12 +46,8 @@ export default function ImageResamplingMethodSetting() {
   const handleMethodChanged = useCallback(
     async (e: SelectChangeEvent) => {
       debug(`Image Resampling Method changed: ${e.target.value}`);
-      try {
-        await setImageResamplingMethod(e.target.value as string);
-      } catch (e) {
-        error(`Failed to set image resampling method: ${e}`);
-        return;
-      }
+      // Send only the changed leaf; updateSettings deep-merges it into the current
+      // reader settings. Validation happens in the backend and is applied at runtime.
       await dispatch(
         updateSettings({
           key: "reader",
