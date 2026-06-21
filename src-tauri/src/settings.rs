@@ -262,7 +262,7 @@ const FIELD_BOUNDS: &[FieldBound] = &[
     FieldBound {
         path: "reader.comic.loupe.radius",
         integer: false,
-        min: 1.0,
+        min: 50.0,
         max: 5000.0,
     },
     FieldBound {
@@ -812,7 +812,7 @@ pub struct LoupeSettings {
     #[serde(default = "default_loupe_zoom")]
     pub zoom: f64,
     /// The radius (size) of the loupe.
-    #[garde(range(min = 1.0, max = 5000.0), custom(finite_f64))]
+    #[garde(range(min = 50.0, max = 5000.0), custom(finite_f64))]
     #[serde(default = "default_loupe_radius")]
     pub radius: f64,
     /// The keyboard shortcut key to toggle the loupe.
@@ -1294,9 +1294,9 @@ mod tests {
     }
 
     #[rstest]
-    #[case(1.0, true)]
+    #[case(50.0, true)]
     #[case(5000.0, true)]
-    #[case(0.9, false)]
+    #[case(49.9, false)]
     #[case(5000.1, false)]
     #[case(f64::NAN, false)]
     fn test_loupe_radius_bounds(#[case] value: f64, #[case] valid: bool) {
