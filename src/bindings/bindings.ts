@@ -1076,19 +1076,19 @@ export type Series = {
  *  casts it to `SettingsPatch`, so the looser `unknown` boundary is sufficient.
  */
 export type SettingsPatch = 
-/**  A partial update to [`GeneralSettings`]. */
+/**  A partial update to [`GeneralSettings`](crate::settings::GeneralSettings). */
 ({ general: unknown }) & { bookshelf?: never; fileNavigator?: never; history?: never; layout?: never; reader?: never; startup?: never } | 
-/**  A partial update to [`StartupSettings`]. */
+/**  A partial update to [`StartupSettings`](crate::settings::StartupSettings). */
 ({ startup: unknown }) & { bookshelf?: never; fileNavigator?: never; general?: never; history?: never; layout?: never; reader?: never } | 
-/**  A partial update to [`BookshelfSettings`]. */
+/**  A partial update to [`BookshelfSettings`](crate::settings::BookshelfSettings). */
 ({ bookshelf: unknown }) & { fileNavigator?: never; general?: never; history?: never; layout?: never; reader?: never; startup?: never } | 
-/**  A partial update to [`FileNavigatorSettings`]. */
+/**  A partial update to [`FileNavigatorSettings`](crate::settings::FileNavigatorSettings). */
 ({ fileNavigator: unknown }) & { bookshelf?: never; general?: never; history?: never; layout?: never; reader?: never; startup?: never } | 
-/**  A partial update to [`ReaderSettings`]. */
+/**  A partial update to [`ReaderSettings`](crate::settings::ReaderSettings). */
 ({ reader: unknown }) & { bookshelf?: never; fileNavigator?: never; general?: never; history?: never; layout?: never; startup?: never } | 
-/**  A partial update to [`HistorySettings`]. */
+/**  A partial update to [`HistorySettings`](crate::settings::HistorySettings). */
 ({ history: unknown }) & { bookshelf?: never; fileNavigator?: never; general?: never; layout?: never; reader?: never; startup?: never } | 
-/**  A partial update to [`LayoutSettings`]. */
+/**  A partial update to [`LayoutSettings`](crate::settings::LayoutSettings). */
 ({ layout: unknown }) & { bookshelf?: never; fileNavigator?: never; general?: never; history?: never; reader?: never; startup?: never };
 
 /**
