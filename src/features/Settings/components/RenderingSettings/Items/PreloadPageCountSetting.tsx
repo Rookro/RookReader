@@ -33,7 +33,6 @@ export default function PreloadPageCountSetting() {
       secondaryText={t("settings.rendering.cache.preload-page-count.description")}
       secondaryTextSx={{ whiteSpace: "pre-wrap" }}
       defaultValue={preloadPageCount}
-      // Bounds mirror the backend garde validation (range(min = 0, max = 10000)).
       min={0}
       max={10000}
       step={1}

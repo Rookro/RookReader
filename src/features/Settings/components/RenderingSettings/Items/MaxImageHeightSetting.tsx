@@ -34,7 +34,6 @@ export default function MaxImageHeightSetting() {
       secondaryText={t("settings.rendering.resize.max-image-height.description")}
       secondaryTextSx={{ whiteSpace: "pre-wrap" }}
       defaultValue={maxImageHeight}
-      // Bounds mirror the backend garde validation (range(min = 0, max = 65535)).
       min={0}
       max={65535}
       step={100}
