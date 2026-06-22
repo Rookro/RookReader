@@ -139,13 +139,14 @@ export default function NavBar() {
 
   const handleSortOrderChanged = useCallback(
     (event: SelectChangeEvent) => {
-      const newFileNavigatorSettings = {
-        ...fileNavigatorSettings,
-        sortOrder: event.target.value as SortOrder,
-      };
-      dispatch(updateSettings({ key: "fileNavigator", value: newFileNavigatorSettings }));
+      dispatch(
+        updateSettings({
+          key: "fileNavigator",
+          value: { sortOrder: event.target.value as SortOrder },
+        }),
+      );
     },
-    [dispatch, fileNavigatorSettings],
+    [dispatch],
   );
 
   const handleContextMenu = useCallback((e: React.MouseEvent<HTMLElement>) => {

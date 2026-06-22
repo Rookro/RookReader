@@ -1,12 +1,10 @@
 import { FontDownloadOutlined } from "@mui/icons-material";
 import { Box } from "@mui/material";
-import { emit } from "@tauri-apps/api/event";
 import { debug } from "@tauri-apps/plugin-log";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getFonts } from "../../../../../bindings/FontCommands";
 import { useAppDispatch, useAppSelector } from "../../../../../store/store";
-import type { SettingsChangedEvent } from "../../../../../types/SettingsChangedEvent";
 import { updateSettings } from "../../../slice";
 import AutocompleteSettingItem from "../../ui/AutocompleteSettingItem";
 
@@ -24,13 +22,9 @@ export default function AppFontFamilySetting() {
   const handleFontFamilyChanged = useCallback(
     async (value: string) => {
       debug(`Application UI font family changed: ${value}`);
-      const newGeneralSettings = { ...generalSettings, appFontFamily: value };
-      await dispatch(updateSettings({ key: "general", value: newGeneralSettings }));
-      await emit<SettingsChangedEvent>("settings-changed", {
-        appSettings: { general: newGeneralSettings },
-      });
+      await dispatch(updateSettings({ key: "general", value: { appFontFamily: value } }));
     },
-    [generalSettings, dispatch],
+    [dispatch],
   );
 
   useEffect(() => {

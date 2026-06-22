@@ -216,10 +216,9 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
 
   const handleGridSizeChange = useCallback(
     (newValue: number) => {
-      const newBookshelfSettings = { ...bookshelfSettings, gridSize: newValue };
-      dispatch(updateSettings({ key: "bookshelf", value: newBookshelfSettings }));
+      dispatch(updateSettings({ key: "bookshelf", value: { gridSize: newValue } }));
     },
-    [dispatch, bookshelfSettings],
+    [dispatch],
   );
 
   const handleCloseDialog = useCallback(() => {

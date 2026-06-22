@@ -2,7 +2,11 @@ import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createBasePreloadedState, renderWithProviders } from "../../../test/utils";
+import {
+  createBasePreloadedState,
+  mockSettingsCommands,
+  renderWithProviders,
+} from "../../../test/utils";
 import * as SettingsReducer from "../../Settings/slice";
 import NavigationBar from "./NavigationBar";
 
@@ -11,6 +15,7 @@ describe("NavigationBar", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSettingsCommands();
     vi.spyOn(SettingsReducer, "updateSettings");
   });
 

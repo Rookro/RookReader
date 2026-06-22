@@ -1,12 +1,8 @@
 import { AspectRatioOutlined } from "@mui/icons-material";
-import { emit } from "@tauri-apps/api/event";
-import { error } from "@tauri-apps/plugin-log";
-import { useCallback, useState } from "react";
+import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { setMaxImageHeight } from "../../../../../bindings/ContainerCommands";
-import { useAppDispatch, useAppSelector } from "../../../../../store/store";
-import type { SettingsChangedEvent } from "../../../../../types/SettingsChangedEvent";
-import { updateSettings } from "../../../slice";
+import { useAppSelector } from "../../../../../store/store";
+import { useSettingsFieldError } from "../../../hooks/useSettingsFieldError";
 import NumberSpinnerSettingItem from "../../ui/NumberSpinnerSettingItem";
 
 /**
@@ -14,37 +10,21 @@ import NumberSpinnerSettingItem from "../../ui/NumberSpinnerSettingItem";
  */
 export default function MaxImageHeightSetting() {
   const { t } = useTranslation();
-  const dispatch = useAppDispatch();
-  const readerSettings = useAppSelector((state) => state.settings.reader);
-  const [isError, setIsError] = useState(false);
-  const [errorMsg, setErrorMsg] = useState("");
+  const maxImageHeight = useAppSelector((state) => state.settings.reader.rendering.maxImageHeight);
+  const { error, helperText, commit } = useSettingsFieldError(
+    "reader.rendering.maxImageHeight",
+    maxImageHeight,
+  );
 
   const handleMaxHeightValueChange = useCallback(
     async (value: number | null) => {
       const height = value ?? 0;
 
-      try {
-        await setMaxImageHeight(height);
-      } catch (e) {
-        error(`Failed to set max image height: ${e}`);
-        setIsError(true);
-        setErrorMsg(t("settings.rendering.resize.max-image-height.error-message"));
-        return;
-      }
-
-      setIsError(false);
-      setErrorMsg("");
-
-      const newSettings = {
-        ...readerSettings,
-        rendering: { ...readerSettings.rendering, maxImageHeight: height },
-      };
-      await dispatch(updateSettings({ key: "reader", value: newSettings }));
-      await emit<SettingsChangedEvent>("settings-changed", {
-        appSettings: { reader: newSettings },
-      });
+      // Send only the changed leaf; the backend deep-merges, validates, and on rejection
+      // returns a structured violation that the hook surfaces inline below the field.
+      await commit({ key: "reader", value: { rendering: { maxImageHeight: height } } });
     },
-    [t, dispatch, readerSettings],
+    [commit],
   );
 
   return (
@@ -53,11 +33,12 @@ export default function MaxImageHeightSetting() {
       primaryText={t("settings.rendering.resize.max-image-height.title")}
       secondaryText={t("settings.rendering.resize.max-image-height.description")}
       secondaryTextSx={{ whiteSpace: "pre-wrap" }}
-      defaultValue={readerSettings.rendering.maxImageHeight}
+      defaultValue={maxImageHeight}
       min={0}
+      max={65535}
       step={100}
-      error={isError}
-      helperText={errorMsg}
+      error={error}
+      helperText={helperText}
       onValueCommitted={handleMaxHeightValueChange}
       inputSx={{ minWidth: "200px" }}
       unit="px"

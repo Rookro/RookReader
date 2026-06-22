@@ -34,6 +34,7 @@ use crate::state::app_state::AppState;
 /// This function will return an `Err` if the underlying repository operation fails
 /// (e.g., due to a database error, connection issue, or query execution failure).
 #[tauri::command]
+#[specta::specta]
 pub async fn get_book(id: i64, repo: State<'_, Arc<dyn BookRepository>>) -> Result<Option<Book>> {
     log::debug!("Get book by id({}).", id);
     repo.get_by_id(id).await
@@ -56,6 +57,7 @@ pub async fn get_book(id: i64, repo: State<'_, Arc<dyn BookRepository>>) -> Resu
 /// This function will return an `Err` if the underlying repository operation fails
 /// (e.g., due to a database error, connection issue, or query execution failure).
 #[tauri::command]
+#[specta::specta]
 pub async fn get_book_by_path(
     file_path: String,
     repo: State<'_, Arc<dyn BookRepository>>,
@@ -82,6 +84,7 @@ pub async fn get_book_by_path(
 /// This function will return an `Err` if the underlying repository operation fails
 /// (e.g., due to a database error, connection issue, or query execution failure).
 #[tauri::command]
+#[specta::specta]
 pub async fn get_book_with_state_by_id(
     id: i64,
     repo: State<'_, Arc<dyn BookRepository>>,
@@ -111,6 +114,7 @@ pub async fn get_book_with_state_by_id(
 /// This function will return an `Err` if the underlying repository operation fails
 /// (e.g., due to a database error, connection issue, or query execution failure).
 #[tauri::command]
+#[specta::specta]
 pub async fn register_book<R: tauri::Runtime>(
     file_path: String,
     item_type: String,
@@ -166,6 +170,7 @@ pub async fn register_book<R: tauri::Runtime>(
 /// This function will return an `Err` if the underlying repository operation fails
 /// (e.g., due to a database error, connection issue, or query execution failure).
 #[tauri::command]
+#[specta::specta]
 pub async fn record_book_opened<R: tauri::Runtime>(
     file_path: String,
     item_type: String,
@@ -213,6 +218,7 @@ pub async fn record_book_opened<R: tauri::Runtime>(
 /// This function will return an `Err` if the underlying repository operation fails
 /// (e.g., due to a database error, connection issue, or query execution failure).
 #[tauri::command]
+#[specta::specta]
 pub async fn clear_reading_history<R: tauri::Runtime>(
     book_id: i64,
     repo: State<'_, Arc<dyn BookRepository>>,
@@ -236,6 +242,7 @@ pub async fn clear_reading_history<R: tauri::Runtime>(
 /// This function will return an `Err` if the underlying repository operation fails
 /// (e.g., due to a database error, connection issue, or query execution failure).
 #[tauri::command]
+#[specta::specta]
 pub async fn clear_all_reading_history<R: tauri::Runtime>(
     repo: State<'_, Arc<dyn BookRepository>>,
     app: tauri::AppHandle<R>,
@@ -259,6 +266,7 @@ pub async fn clear_all_reading_history<R: tauri::Runtime>(
 /// This function will return an `Err` if the underlying repository operation fails
 /// (e.g., due to a database error, connection issue, or query execution failure).
 #[tauri::command]
+#[specta::specta]
 pub async fn update_reading_progress<R: tauri::Runtime>(
     state_data: ReadingState,
     repo: State<'_, Arc<dyn BookRepository>>,
@@ -286,6 +294,7 @@ pub async fn update_reading_progress<R: tauri::Runtime>(
 /// This function will return an `Err` if the underlying repository operation fails
 /// (e.g., due to a database error, connection issue, or query execution failure).
 #[tauri::command]
+#[specta::specta]
 pub async fn get_recently_read_books(
     limit: Option<i64>,
     repo: State<'_, Arc<dyn BookRepository>>,
@@ -309,6 +318,7 @@ pub async fn get_recently_read_books(
 /// This function will return an `Err` if the underlying repository operation fails
 /// (e.g., due to a database error, connection issue, or query execution failure).
 #[tauri::command]
+#[specta::specta]
 pub async fn get_all_books_with_state(
     repo: State<'_, Arc<dyn BookRepository>>,
 ) -> Result<Vec<BookWithState>> {
@@ -332,6 +342,7 @@ pub async fn get_all_books_with_state(
 /// This function will return an `Err` if the underlying repository operation fails
 /// (e.g., due to a database error, connection issue, or query execution failure).
 #[tauri::command]
+#[specta::specta]
 pub async fn get_books_with_state_by_bookshelf_id(
     bookshelf_id: i64,
     repo: State<'_, Arc<dyn BookshelfRepository>>,
@@ -356,6 +367,7 @@ pub async fn get_books_with_state_by_bookshelf_id(
 /// This function will return an `Err` if the underlying repository operation fails
 /// (e.g., due to a database error, connection issue, or query execution failure).
 #[tauri::command]
+#[specta::specta]
 pub async fn get_books_with_state_by_tag_id(
     tag_id: i64,
     repo: State<'_, Arc<dyn TagRepository>>,
@@ -380,6 +392,7 @@ pub async fn get_books_with_state_by_tag_id(
 /// This function will return an `Err` if the underlying repository operation fails
 /// (e.g., due to a database error, connection issue, or query execution failure).
 #[tauri::command]
+#[specta::specta]
 pub async fn get_books_with_state_by_series_id(
     series_id: i64,
     repo: State<'_, Arc<dyn SeriesRepository>>,
@@ -404,6 +417,7 @@ pub async fn get_books_with_state_by_series_id(
 /// This function will return an `Err` if the underlying repository operation fails
 /// (e.g., due to a database error, connection issue, or query execution failure).
 #[tauri::command]
+#[specta::specta]
 pub async fn get_book_tags(
     book_id: i64,
     repo: State<'_, Arc<dyn TagRepository>>,
@@ -425,6 +439,7 @@ pub async fn get_book_tags(
 /// This function will return an `Err` if the underlying repository operation fails
 /// (e.g., due to a database error, connection issue, or query execution failure).
 #[tauri::command]
+#[specta::specta]
 pub async fn update_book_tags<R: tauri::Runtime>(
     book_id: i64,
     tag_ids: Vec<i64>,
@@ -453,6 +468,7 @@ pub async fn update_book_tags<R: tauri::Runtime>(
 ///
 /// This function will return an `Err` if the underlying repository operation fails.
 #[tauri::command]
+#[specta::specta]
 pub async fn delete_book<R: tauri::Runtime>(
     id: i64,
     repo: State<'_, Arc<dyn BookRepository>>,
@@ -476,6 +492,7 @@ pub async fn delete_book<R: tauri::Runtime>(
 ///
 /// This function will return an `Err` if the underlying repository operation fails.
 #[tauri::command]
+#[specta::specta]
 pub async fn update_book_series<R: tauri::Runtime>(
     book_id: i64,
     series_id: Option<i64>,
@@ -503,6 +520,7 @@ pub async fn update_book_series<R: tauri::Runtime>(
 ///
 /// This function will return an `Err` if the underlying repository operation fails.
 #[tauri::command]
+#[specta::specta]
 pub async fn update_series_orders<R: tauri::Runtime>(
     book_ids: Vec<i64>,
     repo: State<'_, Arc<dyn SeriesRepository>>,

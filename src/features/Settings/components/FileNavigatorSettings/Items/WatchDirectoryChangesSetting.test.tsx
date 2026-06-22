@@ -1,9 +1,12 @@
-import { emit } from "@tauri-apps/api/event";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { mockStore } from "../../../../../test/mocks/tauri";
-import { createBasePreloadedState, renderWithProviders } from "../../../../../test/utils";
+import { mockTauri } from "../../../../../test/mocks/tauri";
+import {
+  createBasePreloadedState,
+  mockSettingsCommands,
+  renderWithProviders,
+} from "../../../../../test/utils";
 import WatchDirectoryChangesSetting from "./WatchDirectoryChangesSetting";
 
 describe("WatchDirectoryChangesSetting", () => {
@@ -11,6 +14,7 @@ describe("WatchDirectoryChangesSetting", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSettingsCommands();
   });
 
   it("should load initial state from settingsStore", async () => {
@@ -45,18 +49,9 @@ describe("WatchDirectoryChangesSetting", () => {
 
     await waitFor(() => {
       expect(store.getState().settings.fileNavigator.watchDirectoryChanges).toBe(true);
-      expect(mockStore.set).toHaveBeenCalledWith(
-        "fileNavigator",
-        expect.objectContaining({ watchDirectoryChanges: true }),
-      );
-      expect(emit).toHaveBeenCalledWith(
-        "settings-changed",
-        expect.objectContaining({
-          appSettings: expect.objectContaining({
-            fileNavigator: expect.objectContaining({ watchDirectoryChanges: true }),
-          }),
-        }),
-      );
+      expect(mockTauri.invoke).toHaveBeenCalledWith("set_settings", {
+        patch: { fileNavigator: { watchDirectoryChanges: true } },
+      });
     });
   });
 });

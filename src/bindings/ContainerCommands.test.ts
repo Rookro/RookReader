@@ -30,11 +30,11 @@ describe("ContainerCommands", () => {
     });
   });
 
-  it("requestPreloadAround should call invoke with default bufferSize", async () => {
+  it("requestPreloadAround should call invoke with null bufferSize by default", async () => {
     await ContainerCommands.requestPreloadAround(5);
     expect(invoke).toHaveBeenCalledWith("request_preload_around", {
       index: 5,
-      bufferSize: undefined,
+      bufferSize: null,
     });
   });
 
@@ -48,21 +48,6 @@ describe("ContainerCommands", () => {
     vi.mocked(invoke).mockResolvedValue(new ArrayBuffer(0));
     await ContainerCommands.getImagePreview("path", "entry");
     expect(invoke).toHaveBeenCalledWith("get_image_preview", { path: "path", entryName: "entry" });
-  });
-
-  it("setPdfRenderResolutionHeight should call invoke", async () => {
-    await ContainerCommands.setPdfRenderResolutionHeight(1000);
-    expect(invoke).toHaveBeenCalledWith("set_pdf_render_resolution_height", { height: 1000 });
-  });
-
-  it("setMaxImageHeight should call invoke", async () => {
-    await ContainerCommands.setMaxImageHeight(2000);
-    expect(invoke).toHaveBeenCalledWith("set_max_image_height", { height: 2000 });
-  });
-
-  it("setImageResamplingMethod should call invoke", async () => {
-    await ContainerCommands.setImageResamplingMethod("lanczos3");
-    expect(invoke).toHaveBeenCalledWith("set_image_resampling_method", { method: "lanczos3" });
   });
 
   it("should throw CommandError on failure", async () => {
@@ -83,21 +68,6 @@ describe("ContainerCommands", () => {
   it("getImagePreview should throw CommandError on failure", async () => {
     vi.mocked(invoke).mockRejectedValue(new Error("fail"));
     await expect(ContainerCommands.getImagePreview("path", "e")).rejects.toThrow(CommandError);
-  });
-
-  it("setPdfRenderResolutionHeight should throw CommandError on failure", async () => {
-    vi.mocked(invoke).mockRejectedValue(new Error("fail"));
-    await expect(ContainerCommands.setPdfRenderResolutionHeight(100)).rejects.toThrow(CommandError);
-  });
-
-  it("setMaxImageHeight should throw CommandError on failure", async () => {
-    vi.mocked(invoke).mockRejectedValue(new Error("fail"));
-    await expect(ContainerCommands.setMaxImageHeight(100)).rejects.toThrow(CommandError);
-  });
-
-  it("setImageResamplingMethod should throw CommandError on failure", async () => {
-    vi.mocked(invoke).mockRejectedValue(new Error("fail"));
-    await expect(ContainerCommands.setImageResamplingMethod("m")).rejects.toThrow(CommandError);
   });
 
   it("should map structured error to CommandError", async () => {

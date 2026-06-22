@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+* Overhauled how application settings are saved and validated, for clearer and more reliable settings. (#260)
+  * Setting values are now reliably checked against valid ranges — out-of-range or malformed values are corrected or rejected instead of being applied.
+  * Errors now explain exactly what is wrong (out of range, or a whole number is required) and show the valid range right below the field, replacing the previous generic "failed to save" message.
+
 ## [2.3.0] - 2026-06-14
 
 ### Added

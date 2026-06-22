@@ -40,7 +40,7 @@ describe("BookCommands", () => {
   it("getBookByPath should call invoke", async () => {
     vi.mocked(invoke).mockResolvedValue(null);
     await BookCommands.getBookByPath("/path/to/book");
-    expect(invoke).toHaveBeenCalledWith("get_book_by_path", { file_path: "/path/to/book" });
+    expect(invoke).toHaveBeenCalledWith("get_book_by_path", { filePath: "/path/to/book" });
   });
 
   it("getBookByPath should throw CommandError on failure", async () => {
@@ -179,7 +179,8 @@ describe("BookCommands", () => {
   it("getRecentlyReadBooks should call invoke", async () => {
     vi.mocked(invoke).mockResolvedValue([]);
     await BookCommands.getRecentlyReadBooks();
-    expect(invoke).toHaveBeenCalledWith("get_recently_read_books");
+    // `limit` is `Option<i64>`; the wrapper passes `null` to request the default.
+    expect(invoke).toHaveBeenCalledWith("get_recently_read_books", { limit: null });
   });
 
   it("getRecentlyReadBooks should throw CommandError on failure", async () => {

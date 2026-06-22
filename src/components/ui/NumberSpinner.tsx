@@ -154,7 +154,11 @@ export default function NumberSpinner({
           <AddIcon fontSize={size} />
         </BaseNumberField.Increment>
       </Box>
-      <FormHelperText sx={{ ml: 0, "&:empty": { mt: 0 } }}>{helperText}</FormHelperText>
+      {/* width:0 + minWidth:100% lets a long error message wrap within the control's
+          existing width instead of stretching the FormControl (and the spinner) wider. */}
+      <FormHelperText sx={{ ml: 0, width: 0, minWidth: "100%", "&:empty": { mt: 0 } }}>
+        {helperText}
+      </FormHelperText>
     </BaseNumberField.Root>
   );
 }

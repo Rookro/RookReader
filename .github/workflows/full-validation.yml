@@ -77,6 +77,9 @@ jobs:
         working-directory: src-tauri
         run: cargo clippy --all-targets --all-features -- -D warnings
 
+      - name: Check generated TypeScript bindings are up to date
+        run: npm run gen:bindings:check
+
       - name: Run tests
         run: npm run test
 

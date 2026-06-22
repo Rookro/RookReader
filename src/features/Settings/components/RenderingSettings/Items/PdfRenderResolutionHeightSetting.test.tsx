@@ -1,17 +1,21 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import * as containerCmds from "../../../../../bindings/ContainerCommands";
-import { mockStore } from "../../../../../test/mocks/tauri";
-import { createBasePreloadedState, renderWithProviders } from "../../../../../test/utils";
+import { mockTauri } from "../../../../../test/mocks/tauri";
+import {
+  createBasePreloadedState,
+  mockSettingsCommands,
+  renderWithProviders,
+} from "../../../../../test/utils";
+import { ErrorCode } from "../../../../../types/Error";
 import PdfRenderResolutionHeightSetting from "./PdfRenderResolutionHeightSetting";
 
-// Mock ContainerCommands
 describe("PdfRenderResolutionHeightSetting", () => {
   const user = userEvent.setup();
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSettingsCommands();
   });
 
   it("should load initial pdf rendering height from store", async () => {
@@ -39,50 +43,44 @@ describe("PdfRenderResolutionHeightSetting", () => {
     await user.tab(); // Blur trigger
 
     await waitFor(() => {
-      expect(containerCmds.setPdfRenderResolutionHeight).toHaveBeenCalledWith(2500);
-      expect(mockStore.set).toHaveBeenCalledWith(
-        "reader",
-        expect.objectContaining({
-          rendering: expect.objectContaining({ pdfRenderResolutionHeight: 2500 }),
-        }),
-      );
+      expect(mockTauri.invoke).toHaveBeenCalledWith("set_settings", {
+        patch: { reader: { rendering: { pdfRenderResolutionHeight: 2500 } } },
+      });
     });
   });
 
-  it("should show error message for height < 1", async () => {
+  it("shows the backend's structured out-of-range message inline below the field", async () => {
     const preloadedState = createBasePreloadedState();
     preloadedState.settings.reader.rendering.pdfRenderResolutionHeight = 2000;
 
+    // The backend rejects an out-of-range value with a structured violation.
+    mockTauri.invoke.mockImplementation((command: string) => {
+      if (command === "set_settings") {
+        return Promise.reject({
+          code: ErrorCode.SETTINGS_VALIDATION_ERROR,
+          message: "Settings validation failed",
+          details: [
+            {
+              path: "reader.rendering.pdfRenderResolutionHeight",
+              kind: "outOfRange",
+              min: 1,
+              max: 20000,
+            },
+          ],
+        });
+      }
+      return Promise.resolve(undefined);
+    });
+
     renderWithProviders(<PdfRenderResolutionHeightSetting />, { preloadedState });
 
-    // Likewise, target the textbox instead of the hidden input
     const input = screen.getByRole("textbox");
     await user.clear(input);
-    await user.type(input, "0");
-    await user.tab(); // Blur trigger
-
-    expect(screen.getByText(/Please enter a positive integer/i)).toBeInTheDocument();
-    expect(containerCmds.setPdfRenderResolutionHeight).not.toHaveBeenCalledWith(0);
-  });
-
-  it("should display error message when backend call fails", async () => {
-    const preloadedState = createBasePreloadedState();
-    preloadedState.settings.reader.rendering.pdfRenderResolutionHeight = 2000;
-    vi.mocked(containerCmds.setPdfRenderResolutionHeight).mockRejectedValueOnce(
-      new Error("Backend error"),
-    );
-
-    renderWithProviders(<PdfRenderResolutionHeightSetting />, { preloadedState });
-
-    const input = screen.getByRole("textbox");
-    await user.clear(input);
-    await user.type(input, "2500");
+    await user.type(input, "50000");
     await user.tab(); // Blur trigger
 
     await waitFor(() => {
-      expect(containerCmds.setPdfRenderResolutionHeight).toHaveBeenCalledWith(2500);
-      expect(screen.getByText(/Failed to set PDF rendering height/i)).toBeInTheDocument();
-      expect(mockStore.set).not.toHaveBeenCalled();
+      expect(screen.getByText(/must be between 1 and 20000/i)).toBeInTheDocument();
     });
   });
 });

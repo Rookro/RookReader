@@ -23,6 +23,7 @@ use crate::error::Result;
 /// This function will return an `Err` if the underlying repository operation fails
 /// (e.g., due to a database error, connection issue, or query execution failure).
 #[tauri::command]
+#[specta::specta]
 pub async fn create_bookshelf<R: tauri::Runtime>(
     name: String,
     icon_id: String,
@@ -50,6 +51,7 @@ pub async fn create_bookshelf<R: tauri::Runtime>(
 /// This function will return an `Err` if the underlying repository operation fails
 /// (e.g., due to a database error, connection issue, or query execution failure).
 #[tauri::command]
+#[specta::specta]
 pub async fn get_all_bookshelves(
     repo: State<'_, Arc<dyn BookshelfRepository>>,
 ) -> Result<Vec<Bookshelf>> {
@@ -70,6 +72,7 @@ pub async fn get_all_bookshelves(
 /// This function will return an `Err` if the underlying repository operation fails
 /// (e.g., due to a database error, connection issue, or query execution failure).
 #[tauri::command]
+#[specta::specta]
 pub async fn add_book_to_bookshelf<R: tauri::Runtime>(
     bookshelf_id: i64,
     book_id: i64,
@@ -98,6 +101,7 @@ pub async fn add_book_to_bookshelf<R: tauri::Runtime>(
 ///
 /// This function will return an `Err` if the underlying repository operation fails.
 #[tauri::command]
+#[specta::specta]
 pub async fn remove_book_from_bookshelf<R: tauri::Runtime>(
     bookshelf_id: i64,
     book_id: i64,
@@ -126,6 +130,7 @@ pub async fn remove_book_from_bookshelf<R: tauri::Runtime>(
 ///
 /// This function will return an `Err` if the underlying repository operation fails.
 #[tauri::command]
+#[specta::specta]
 pub async fn delete_bookshelf<R: tauri::Runtime>(
     id: i64,
     repo: State<'_, Arc<dyn BookshelfRepository>>,

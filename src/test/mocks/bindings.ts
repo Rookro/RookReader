@@ -36,10 +36,6 @@ vi.mock("../../bindings/ContainerCommands", () => ({
   requestPreloadAround: vi.fn(() => Promise.resolve()),
   getImage: vi.fn(() => Promise.resolve(new ArrayBuffer(0))),
   getImagePreview: vi.fn(() => Promise.resolve(new ArrayBuffer(0))),
-  setPdfRenderResolutionHeight: vi.fn(() => Promise.resolve()),
-  setMaxImageHeight: vi.fn(() => Promise.resolve()),
-  setImageResamplingMethod: vi.fn(() => Promise.resolve()),
-  setImageCacheSizeMib: vi.fn(() => Promise.resolve()),
 }));
 
 vi.mock("../../bindings/DirectoryCommands", () => ({

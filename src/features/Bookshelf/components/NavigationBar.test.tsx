@@ -2,7 +2,11 @@ import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import i18n from "../../../i18n/config";
-import { createBasePreloadedState, renderWithProviders } from "../../../test/utils";
+import {
+  createBasePreloadedState,
+  mockSettingsCommands,
+  renderWithProviders,
+} from "../../../test/utils";
 import { openSettingsWindow } from "../../../utils/WindowOpener";
 import NavigationBar from "./NavigationBar";
 
@@ -16,6 +20,7 @@ describe("NavigationBar", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSettingsCommands();
   });
 
   // Verify that the search input field is displayed and state is updated based on input

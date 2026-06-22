@@ -49,26 +49,25 @@ export default function NavigationBar() {
 
   const handleSwitchTwoPagedClicked = useCallback(
     (_e: React.MouseEvent<HTMLButtonElement>) => {
-      const newReaderSettings = {
-        ...readerSettings,
-        comic: { ...readerSettings.comic, enableSpread: !readerSettings.comic.enableSpread },
-      };
-      dispatch(updateSettings({ key: "reader", value: newReaderSettings }));
+      dispatch(
+        updateSettings({
+          key: "reader",
+          value: { comic: { enableSpread: !readerSettings.comic.enableSpread } },
+        }),
+      );
     },
-    [dispatch, readerSettings],
+    [dispatch, readerSettings.comic.enableSpread],
   );
 
   const handleSwitchDirectionClicked = useCallback(
     (_e: React.MouseEvent<HTMLButtonElement>) => {
       const newDirection: Direction =
         readerSettings.comic.readingDirection === "rtl" ? "ltr" : "rtl";
-      const newReaderSettings = {
-        ...readerSettings,
-        comic: { ...readerSettings.comic, readingDirection: newDirection },
-      };
-      dispatch(updateSettings({ key: "reader", value: newReaderSettings }));
+      dispatch(
+        updateSettings({ key: "reader", value: { comic: { readingDirection: newDirection } } }),
+      );
     },
-    [dispatch, readerSettings],
+    [dispatch, readerSettings.comic.readingDirection],
   );
 
   const handleLibraryClicked = useCallback(

@@ -15,13 +15,9 @@ export default function RestoreLastBookSetting() {
 
   const handleRestoreLastBookChanged = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const newStartupSettings = {
-        ...startupSettings,
-        restoreLastBook: e.target.checked,
-      };
-      dispatch(updateSettings({ key: "startup", value: newStartupSettings }));
+      dispatch(updateSettings({ key: "startup", value: { restoreLastBook: e.target.checked } }));
     },
-    [dispatch, startupSettings],
+    [dispatch],
   );
 
   return (

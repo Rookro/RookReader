@@ -1,6 +1,5 @@
 import { MenuBook } from "@mui/icons-material";
 import { MenuItem, type SelectChangeEvent } from "@mui/material";
-import { emit } from "@tauri-apps/api/event";
 import { debug } from "@tauri-apps/plugin-log";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
@@ -9,7 +8,6 @@ import {
   type AutoOpenAdjacentBookMode,
   autoOpenAdjacentBookModes,
 } from "../../../../../types/AppSettings";
-import type { SettingsChangedEvent } from "../../../../../types/SettingsChangedEvent";
 import { updateSettings } from "../../../slice";
 import SelectSettingItem from "../../ui/SelectSettingItem";
 
@@ -34,16 +32,9 @@ export default function AutoOpenAdjacentBookSetting() {
         return;
       }
       debug(`"auto-open adjacent book" setting changed to ${value}`);
-      const newSettings = {
-        ...readerSettings,
-        autoOpenAdjacentBook: value,
-      };
-      await dispatch(updateSettings({ key: "reader", value: newSettings }));
-      await emit<SettingsChangedEvent>("settings-changed", {
-        appSettings: { reader: newSettings },
-      });
+      await dispatch(updateSettings({ key: "reader", value: { autoOpenAdjacentBook: value } }));
     },
-    [dispatch, readerSettings],
+    [dispatch],
   );
 
   return (

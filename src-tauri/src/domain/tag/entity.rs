@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 
 /// Represents a tag entity used to categorize books.
-#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize, specta::Type)]
 pub struct Tag {
     /// The unique identifier for the tag.
     pub id: i64,

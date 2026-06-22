@@ -1,17 +1,20 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import * as containerCmds from "../../../../../bindings/ContainerCommands";
-import { mockStore } from "../../../../../test/mocks/tauri";
-import { createBasePreloadedState, renderWithProviders } from "../../../../../test/utils";
+import { mockTauri } from "../../../../../test/mocks/tauri";
+import {
+  createBasePreloadedState,
+  mockSettingsCommands,
+  renderWithProviders,
+} from "../../../../../test/utils";
 import MaxImageHeightSetting from "./MaxImageHeightSetting";
 
-// Mock ContainerCommands
 describe("MaxImageHeightSetting", () => {
   const user = userEvent.setup();
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSettingsCommands();
   });
 
   it("should load initial height from store", async () => {
@@ -25,7 +28,7 @@ describe("MaxImageHeightSetting", () => {
     });
   });
 
-  it("should update store and call backend when input changes", async () => {
+  it("should persist the change via set_settings when input changes", async () => {
     const preloadedState = createBasePreloadedState();
     preloadedState.settings.reader.rendering.maxImageHeight = 0;
 
@@ -39,30 +42,9 @@ describe("MaxImageHeightSetting", () => {
     await user.tab(); // Blur trigger
 
     await waitFor(() => {
-      expect(containerCmds.setMaxImageHeight).toHaveBeenCalledWith(2000);
-      expect(mockStore.set).toHaveBeenCalledWith(
-        "reader",
-        expect.objectContaining({ rendering: expect.objectContaining({ maxImageHeight: 2000 }) }),
-      );
-    });
-  });
-
-  it("should display error message when backend call fails", async () => {
-    const preloadedState = createBasePreloadedState();
-    preloadedState.settings.reader.rendering.maxImageHeight = 0;
-    vi.mocked(containerCmds.setMaxImageHeight).mockRejectedValueOnce(new Error("Backend error"));
-
-    renderWithProviders(<MaxImageHeightSetting />, { preloadedState });
-
-    const input = screen.getByRole("textbox");
-    await user.clear(input);
-    await user.type(input, "2000");
-    await user.tab(); // Blur trigger
-
-    await waitFor(() => {
-      expect(containerCmds.setMaxImageHeight).toHaveBeenCalledWith(2000);
-      expect(screen.getByText(/Failed to set max image height/i)).toBeInTheDocument();
-      expect(mockStore.set).not.toHaveBeenCalled();
+      expect(mockTauri.invoke).toHaveBeenCalledWith("set_settings", {
+        patch: { reader: { rendering: { maxImageHeight: 2000 } } },
+      });
     });
   });
 });

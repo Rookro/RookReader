@@ -1,10 +1,9 @@
 import { Search } from "@mui/icons-material";
 import { Box, ListItem, ListItemIcon, ListItemText, TextField } from "@mui/material";
-import { emit } from "@tauri-apps/api/event";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppDispatch, useAppSelector } from "../../../../../store/store";
-import type { SettingsChangedEvent } from "../../../../../types/SettingsChangedEvent";
+import { useSettingsFieldError } from "../../../hooks/useSettingsFieldError";
 import { updateSettings } from "../../../slice";
 import NumberSpinnerSettingItem from "../../ui/NumberSpinnerSettingItem";
 
@@ -17,25 +16,24 @@ export default function LoupeSettingsItem() {
   const dispatch = useAppDispatch();
   const toggleKey = readerSettings.comic.loupe?.toggleKey || "MouseMiddle";
   const [isFocused, setIsFocused] = useState(false);
+  const {
+    error: zoomError,
+    helperText: zoomHelperText,
+    commit: commitZoom,
+  } = useSettingsFieldError("reader.comic.loupe.zoom", readerSettings.comic.loupe?.zoom);
+  const {
+    error: radiusError,
+    helperText: radiusHelperText,
+    commit: commitRadius,
+  } = useSettingsFieldError("reader.comic.loupe.radius", readerSettings.comic.loupe?.radius);
 
   const handleUpdate = useCallback(
     async (newLoupeSettings: Partial<typeof readerSettings.comic.loupe>) => {
-      const newSettings = {
-        ...readerSettings,
-        comic: {
-          ...readerSettings.comic,
-          loupe: {
-            ...readerSettings.comic.loupe,
-            ...newLoupeSettings,
-          },
-        },
-      };
-      await dispatch(updateSettings({ key: "reader", value: newSettings }));
-      await emit<SettingsChangedEvent>("settings-changed", {
-        appSettings: { reader: newSettings },
-      });
+      await dispatch(
+        updateSettings({ key: "reader", value: { comic: { loupe: newLoupeSettings } } }),
+      );
     },
-    [dispatch, readerSettings],
+    [dispatch],
   );
 
   const handleContextMenu = useCallback((e: React.MouseEvent<HTMLElement>) => {
@@ -141,23 +139,20 @@ export default function LoupeSettingsItem() {
   );
 
   const handleZoomChange = useCallback(
-    (value: number | null) => {
+    async (value: number | null) => {
       const val = value ?? 2;
-      if (!Number.isNaN(val) && val > 0) {
-        handleUpdate({ zoom: val });
-      }
+      // The backend validates the bound and surfaces an inline violation on rejection.
+      await commitZoom({ key: "reader", value: { comic: { loupe: { zoom: val } } } });
     },
-    [handleUpdate],
+    [commitZoom],
   );
 
   const handleRadiusChange = useCallback(
-    (value: number | null) => {
+    async (value: number | null) => {
       const val = value ?? 150;
-      if (!Number.isNaN(val) && val > 0) {
-        handleUpdate({ radius: val });
-      }
+      await commitRadius({ key: "reader", value: { comic: { loupe: { radius: val } } } });
     },
-    [handleUpdate],
+    [commitRadius],
   );
 
   const formatKeyCombo = useCallback(
@@ -233,7 +228,10 @@ export default function LoupeSettingsItem() {
         secondaryTextSx={{ whiteSpace: "pre-wrap" }}
         defaultValue={readerSettings.comic.loupe?.zoom ?? 2}
         min={1}
+        max={100}
         step={0.1}
+        error={zoomError}
+        helperText={zoomHelperText}
         onValueCommitted={handleZoomChange}
         inputSx={{ minWidth: "200px" }}
       />
@@ -245,7 +243,10 @@ export default function LoupeSettingsItem() {
         secondaryTextSx={{ whiteSpace: "pre-wrap" }}
         defaultValue={readerSettings.comic.loupe?.radius ?? 150}
         min={50}
+        max={5000}
         step={10}
+        error={radiusError}
+        helperText={radiusHelperText}
         onValueCommitted={handleRadiusChange}
         inputSx={{ minWidth: "200px" }}
       />

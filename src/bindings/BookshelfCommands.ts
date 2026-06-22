@@ -1,6 +1,7 @@
-import { invoke } from "@tauri-apps/api/core";
 import type { Bookshelf } from "../domain/bookshelf/schema";
 import { createCommandError } from "../types/Error";
+import { commands } from "./bindings";
+import { getDataOrThrow } from "./result";
 
 /**
  * Creates a new bookshelf.
@@ -10,9 +11,9 @@ import { createCommandError } from "../types/Error";
  * @returns A promise resolving to the complete newly created Bookshelf object.
  * @throws {CommandError} If the Tauri command fails.
  */
-export async function createBookshelf(name: string, iconId: string) {
+export async function createBookshelf(name: string, iconId: string): Promise<Bookshelf> {
   try {
-    return await invoke<Bookshelf>("create_bookshelf", { name, iconId });
+    return getDataOrThrow(await commands.createBookshelf(name, iconId)) as Bookshelf;
   } catch (error) {
     throw createCommandError(error);
   }
@@ -24,9 +25,9 @@ export async function createBookshelf(name: string, iconId: string) {
  * @returns A promise that resolves to an array of Bookshelf objects.
  * @throws {CommandError} If the Tauri command fails.
  */
-export async function getAllBookshelves() {
+export async function getAllBookshelves(): Promise<Bookshelf[]> {
   try {
-    return await invoke<Bookshelf[]>("get_all_bookshelves");
+    return getDataOrThrow(await commands.getAllBookshelves()) as Bookshelf[];
   } catch (error) {
     throw createCommandError(error);
   }
@@ -40,9 +41,9 @@ export async function getAllBookshelves() {
  * @returns A promise that resolves when the book is successfully added to the bookshelf.
  * @throws {CommandError} If the Tauri command fails.
  */
-export async function addBookToBookshelf(bookshelfId: number, bookId: number) {
+export async function addBookToBookshelf(bookshelfId: number, bookId: number): Promise<void> {
   try {
-    return await invoke<void>("add_book_to_bookshelf", { bookshelfId, bookId });
+    getDataOrThrow(await commands.addBookToBookshelf(bookshelfId, bookId));
   } catch (error) {
     throw createCommandError(error);
   }
@@ -56,9 +57,9 @@ export async function addBookToBookshelf(bookshelfId: number, bookId: number) {
  * @returns A promise that resolves when the book is successfully removed from the bookshelf.
  * @throws {CommandError} If the Tauri command fails.
  */
-export async function removeBookFromBookshelf(bookshelfId: number, bookId: number) {
+export async function removeBookFromBookshelf(bookshelfId: number, bookId: number): Promise<void> {
   try {
-    return await invoke<void>("remove_book_from_bookshelf", { bookshelfId, bookId });
+    getDataOrThrow(await commands.removeBookFromBookshelf(bookshelfId, bookId));
   } catch (error) {
     throw createCommandError(error);
   }
@@ -71,9 +72,9 @@ export async function removeBookFromBookshelf(bookshelfId: number, bookId: numbe
  * @returns A promise that resolves when the bookshelf is successfully deleted.
  * @throws {CommandError} If the Tauri command fails.
  */
-export async function deleteBookshelf(id: number) {
+export async function deleteBookshelf(id: number): Promise<void> {
   try {
-    return await invoke<void>("delete_bookshelf", { id });
+    getDataOrThrow(await commands.deleteBookshelf(id));
   } catch (error) {
     throw createCommandError(error);
   }

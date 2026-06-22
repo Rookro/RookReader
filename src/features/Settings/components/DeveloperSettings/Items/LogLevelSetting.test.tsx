@@ -3,8 +3,12 @@ import { openPath } from "@tauri-apps/plugin-opener";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { mockStore } from "../../../../../test/mocks/tauri";
-import { createBasePreloadedState, renderWithProviders } from "../../../../../test/utils";
+import { mockTauri } from "../../../../../test/mocks/tauri";
+import {
+  createBasePreloadedState,
+  mockSettingsCommands,
+  renderWithProviders,
+} from "../../../../../test/utils";
 import LogLevelSetting from "./LogLevelSetting";
 
 describe("LogLevelSetting", () => {
@@ -12,6 +16,7 @@ describe("LogLevelSetting", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSettingsCommands();
   });
 
   it("should load initial log directory and level from store", async () => {
@@ -41,8 +46,6 @@ describe("LogLevelSetting", () => {
   });
 
   it("should update store when log level is changed", async () => {
-    mockStore.get.mockResolvedValue({ level: "Info" });
-
     renderWithProviders(<LogLevelSetting />);
 
     await waitFor(() => expect(screen.getByRole("combobox")).toBeInTheDocument());
@@ -55,10 +58,9 @@ describe("LogLevelSetting", () => {
     await user.click(errorOption);
 
     await waitFor(() => {
-      expect(mockStore.set).toHaveBeenCalledWith(
-        "general",
-        expect.objectContaining({ log: { level: "error" } }),
-      );
+      expect(mockTauri.invoke).toHaveBeenCalledWith("set_settings", {
+        patch: { general: { log: { level: "error" } } },
+      });
     });
   });
 });

@@ -1,12 +1,11 @@
 import { FontDownloadOutlined, FormatSize } from "@mui/icons-material";
 import { Box } from "@mui/material";
-import { emit } from "@tauri-apps/api/event";
 import { debug } from "@tauri-apps/plugin-log";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getFonts } from "../../../../../bindings/FontCommands";
 import { useAppDispatch, useAppSelector } from "../../../../../store/store";
-import type { SettingsChangedEvent } from "../../../../../types/SettingsChangedEvent";
+import { useSettingsFieldError } from "../../../hooks/useSettingsFieldError";
 import { updateSettings } from "../../../slice";
 import AutocompleteSettingItem from "../../ui/AutocompleteSettingItem";
 import NumberSpinnerSettingItem from "../../ui/NumberSpinnerSettingItem";
@@ -21,34 +20,27 @@ export default function FontSettings() {
   const dispatch = useAppDispatch();
   const readerSettings = useAppSelector((state) => state.settings.reader);
   const [fonts, setFonts] = useState<string[]>([]);
+  const {
+    error: fontSizeError,
+    helperText: fontSizeHelperText,
+    commit: commitFontSize,
+  } = useSettingsFieldError("reader.novel.fontSize", readerSettings.novel.fontSize);
 
   const handleFontChanged = useCallback(
     async (value: string) => {
       debug(`Font family of novel reader changed: ${value}`);
-      const newSettings = {
-        ...readerSettings,
-        novel: { ...readerSettings.novel, fontFamily: value },
-      };
-      await dispatch(updateSettings({ key: "reader", value: newSettings }));
-      emit<SettingsChangedEvent>("settings-changed", { appSettings: { reader: newSettings } });
+      await dispatch(updateSettings({ key: "reader", value: { novel: { fontFamily: value } } }));
     },
-    [dispatch, readerSettings],
+    [dispatch],
   );
 
   const handleFontSizeChanged = useCallback(
     async (value: number | null) => {
-      value = value ?? 0;
-      debug(`Font size of novel reader changed: ${value}`);
-      const newSettings = {
-        ...readerSettings,
-        novel: { ...readerSettings.novel, fontSize: value },
-      };
-      await dispatch(updateSettings({ key: "reader", value: newSettings }));
-      await emit<SettingsChangedEvent>("settings-changed", {
-        appSettings: { reader: newSettings },
-      });
+      const fontSize = value ?? 16;
+      debug(`Font size of novel reader changed: ${fontSize}`);
+      await commitFontSize({ key: "reader", value: { novel: { fontSize } } });
     },
-    [dispatch, readerSettings],
+    [commitFontSize],
   );
 
   useEffect(() => {
@@ -92,9 +84,13 @@ export default function FontSettings() {
         icon={<FormatSize />}
         primaryText={t("settings.reader.font-size.title")}
         defaultValue={readerSettings.novel.fontSize}
-        min={0.5}
-        max={100}
+        min={1}
+        max={200}
+        step={0.5}
+        error={fontSizeError}
+        helperText={fontSizeHelperText}
         onValueCommitted={handleFontSizeChanged}
+        inputSx={{ minWidth: "200px" }}
         unit="px"
       />
     </>

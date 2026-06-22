@@ -1,5 +1,5 @@
-import { invoke } from "@tauri-apps/api/core";
 import { createCommandError } from "../types/Error";
+import { commands } from "./bindings";
 
 /**
  * Gets fonts.
@@ -8,7 +8,7 @@ import { createCommandError } from "../types/Error";
  */
 export const getFonts = async (): Promise<string[]> => {
   try {
-    return await invoke<string[]>("get_fonts");
+    return await commands.getFonts();
   } catch (error) {
     throw createCommandError(error);
   }

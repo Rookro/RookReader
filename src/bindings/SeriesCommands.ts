@@ -1,6 +1,6 @@
-import { invoke } from "@tauri-apps/api/core";
-import type { Series } from "../domain/series/schema";
 import { createCommandError } from "../types/Error";
+import { commands } from "./bindings";
+import { getDataOrThrow } from "./result";
 
 /**
  * Creates a new series in the database.
@@ -11,7 +11,7 @@ import { createCommandError } from "../types/Error";
  */
 export async function createSeries(name: string) {
   try {
-    return await invoke<number>("create_series", { name });
+    return getDataOrThrow(await commands.createSeries(name));
   } catch (error) {
     throw createCommandError(error);
   }
@@ -25,7 +25,7 @@ export async function createSeries(name: string) {
  */
 export async function getAllSeries() {
   try {
-    return await invoke<Series[]>("get_all_series");
+    return getDataOrThrow(await commands.getAllSeries());
   } catch (error) {
     throw createCommandError(error);
   }
@@ -38,9 +38,9 @@ export async function getAllSeries() {
  * @returns A promise that resolves when the series is deleted.
  * @throws {CommandError} If the Tauri command fails.
  */
-export async function deleteSeries(id: number) {
+export async function deleteSeries(id: number): Promise<void> {
   try {
-    return await invoke<void>("delete_series", { id });
+    getDataOrThrow(await commands.deleteSeries(id));
   } catch (error) {
     throw createCommandError(error);
   }

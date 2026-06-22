@@ -2,8 +2,12 @@ import { app } from "@tauri-apps/api";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { mockStore } from "../../../../../test/mocks/tauri";
-import { createBasePreloadedState, renderWithProviders } from "../../../../../test/utils";
+import { mockTauri } from "../../../../../test/mocks/tauri";
+import {
+  createBasePreloadedState,
+  mockSettingsCommands,
+  renderWithProviders,
+} from "../../../../../test/utils";
 import ThemeSetting from "./ThemeSetting";
 
 describe("ThemeSetting", () => {
@@ -11,6 +15,7 @@ describe("ThemeSetting", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSettingsCommands();
   });
 
   it("should load initial theme from store", async () => {
@@ -36,10 +41,9 @@ describe("ThemeSetting", () => {
     await user.click(lightButton);
 
     await waitFor(() => {
-      expect(mockStore.set).toHaveBeenCalledWith(
-        "general",
-        expect.objectContaining({ theme: "light" }),
-      );
+      expect(mockTauri.invoke).toHaveBeenCalledWith("set_settings", {
+        patch: { general: { theme: "light" } },
+      });
       expect(app.setTheme).toHaveBeenCalledWith("light");
       expect(lightButton).toHaveAttribute("aria-pressed", "true");
     });

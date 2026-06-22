@@ -257,9 +257,7 @@
       "resize": {
         "max-image-height": {
           "title": "Maximum image Height(px)",
-          "description": "Images taller than this will be resized proportionally.\nSets zero to disable resizing.",
-          "range-error-message": "Please enter an integer of 0 or greater.",
-          "error-message": "Failed to set max image height. Please check your input."
+          "description": "Images taller than this will be resized proportionally.\nSets zero to disable resizing."
         },
         "resize-method": {
           "title": "Resizing Method",
@@ -277,21 +275,17 @@
       },
       "pdf": {
         "title": "PDF Rendering Height(px)",
-        "description": "Height of the PDF rendering area in pixels.",
-        "range-error-message": "Please enter a positive integer.",
-        "error-message": "Failed to set PDF rendering height. Please check your input."
+        "description": "Height of the PDF rendering area in pixels."
       },
       "cache": {
         "title": "Cache Settings",
         "preload-page-count": {
           "title": "Preload Page Count",
-          "description": "The number of pages to preload in each direction (forward and backward).",
-          "error-message": "Failed to set preload page count. Please check your input."
+          "description": "The number of pages to preload in each direction (forward and backward)."
         },
         "image-cache-size": {
           "title": "Image Cache Size (MiB)",
-          "description": "The maximum size of the image memory cache in MiB.\nChanging this will clear the current cache.",
-          "error-message": "Failed to set image cache size. Please check your input."
+          "description": "The maximum size of the image memory cache in MiB.\nChanging this will clear the current cache."
         }
       }
     },
@@ -339,11 +333,18 @@
       "failed-to-get-dir-entries": "Failed to load folder contents.",
       "failed-to-fetch-history": "Failed to load history.",
       "bookshelf-error": "Bookshelf operation failed.",
-      "tag-error": "Tag operation failed."
+      "tag-error": "Tag operation failed.",
+      "unknown": "Something went wrong."
     },
     "container": {
       "unsupported-format": "Unsupported format.",
       "entry-not-found": "Page not found."
+    },
+    "settings": {
+      "validation-failed": "Failed to save settings. Please check your input.",
+      "out-of-range": "\"{{field}}\" must be between {{min}} and {{max}}.",
+      "not-integer": "\"{{field}}\" must be a whole number.",
+      "invalid-number": "\"{{field}}\" must be a valid number."
     }
   },
   "updater": {

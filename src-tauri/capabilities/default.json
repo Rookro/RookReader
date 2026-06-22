@@ -60,7 +60,6 @@
       ]
     },
     "opener:allow-default-urls",
-    "store:default",
     "log:default",
     "os:default",
     "core:webview:allow-create-webview-window",

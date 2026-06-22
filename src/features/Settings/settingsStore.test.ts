@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { mockStore } from "../../test/mocks/tauri";
-import { defaultSettings, loadAllSettings, settingsStore } from "./settingsStore";
+import { mockTauri } from "../../test/mocks/tauri";
+import { defaultSettings, loadAllSettings } from "./settingsStore";
 
 describe("SettingsStore", () => {
   beforeEach(() => {
@@ -8,150 +8,25 @@ describe("SettingsStore", () => {
   });
 
   describe("loadAllSettings", () => {
-    it("should return defaultSettings when store returns null for all keys", async () => {
-      // Mock get to return null for all keys
-      mockStore.get.mockResolvedValue(null);
+    it("should return the settings provided by the backend get_settings command", async () => {
+      const backendSettings = structuredClone(defaultSettings);
+      backendSettings.general.theme = "dark";
+      backendSettings.bookshelf.gridSize = 2;
+      mockTauri.invoke.mockResolvedValue(backendSettings);
+
+      const settings = await loadAllSettings();
+
+      expect(mockTauri.invoke).toHaveBeenCalledWith("get_settings");
+      expect(settings.general.theme).toBe("dark");
+      expect(settings.bookshelf.gridSize).toBe(2);
+    });
+
+    it("should fall back to defaultSettings when the backend load fails", async () => {
+      mockTauri.invoke.mockRejectedValue({ code: 50001, message: "boom" });
 
       const settings = await loadAllSettings();
 
       expect(settings).toEqual(defaultSettings);
-      expect(mockStore.get).toHaveBeenCalledTimes(Object.keys(defaultSettings).length);
-    });
-
-    it("should override defaultSettings with values from store", async () => {
-      // Mock specific values for some keys
-      mockStore.get.mockImplementation((key) => {
-        if (key === "general") {
-          return Promise.resolve({
-            ...defaultSettings.general,
-            theme: "dark",
-          });
-        }
-        if (key === "bookshelf") {
-          return Promise.resolve({
-            ...defaultSettings.bookshelf,
-            gridSize: 2,
-          });
-        }
-        return Promise.resolve(null);
-      });
-
-      const settings = await loadAllSettings();
-
-      expect(settings.general.theme).toBe("dark");
-      expect(settings.bookshelf.gridSize).toBe(2);
-      // Other values should remain default
-      expect(settings.reader).toEqual(defaultSettings.reader);
-    });
-
-    it("should not override when stored value type does not match default value type", async () => {
-      mockStore.get.mockImplementation((key) => {
-        // "bookshelf" is an object in defaultSettings
-        if (key === "bookshelf") return Promise.resolve("not-an-object");
-        // "history" is an object in defaultSettings
-        if (key === "history") return Promise.resolve(123);
-        return Promise.resolve(null);
-      });
-
-      const settings = await loadAllSettings();
-
-      expect(settings.bookshelf).toEqual(defaultSettings.bookshelf);
-      expect(settings.history).toEqual(defaultSettings.history);
-    });
-
-    it("should ignore null and undefined values from store", async () => {
-      mockStore.get.mockImplementation((key) => {
-        if (key === "general") return Promise.resolve(undefined);
-        if (key === "startup") return Promise.resolve(null);
-        return Promise.resolve(null);
-      });
-
-      const settings = await loadAllSettings();
-
-      expect(settings.general).toEqual(defaultSettings.general);
-      expect(settings.startup).toEqual(defaultSettings.startup);
-    });
-
-    it("should preserve nested default values when store has partial nested object", async () => {
-      mockStore.get.mockImplementation((key) => {
-        if (key === "reader") {
-          return Promise.resolve({
-            comic: {
-              readingDirection: "ltr",
-            },
-          });
-        }
-        return Promise.resolve(null);
-      });
-
-      const settings = await loadAllSettings();
-
-      expect(settings.reader.comic.readingDirection).toBe("ltr");
-      expect(settings.reader.comic.enableSpread).toBe(defaultSettings.reader.comic.enableSpread);
-      expect(settings.reader.comic.loupe.zoom).toBe(defaultSettings.reader.comic.loupe.zoom);
-      expect(settings.reader.novel.fontSize).toBe(defaultSettings.reader.novel.fontSize);
-    });
-
-    describe("Zod validation", () => {
-      it("should fallback to defaults when store returns invalid enum value", async () => {
-        mockStore.get.mockImplementation((key) => {
-          if (key === "general") {
-            return Promise.resolve({
-              ...defaultSettings.general,
-              theme: "invalid-theme",
-            });
-          }
-          return Promise.resolve(null);
-        });
-
-        const settings = await loadAllSettings();
-
-        // Should fallback to defaultSettings because of Zod validation failure
-        expect(settings).toEqual(defaultSettings);
-      });
-
-      it("should strip unknown properties from store", async () => {
-        mockStore.get.mockImplementation((key) => {
-          if (key === "general") {
-            return Promise.resolve({
-              ...defaultSettings.general,
-              unknownProperty: "should-be-removed",
-            });
-          }
-          return Promise.resolve(null);
-        });
-
-        const settings = await loadAllSettings();
-
-        expect(settings.general).not.toHaveProperty("unknownProperty");
-        expect(settings.general.theme).toBe(defaultSettings.general.theme);
-      });
-
-      it("should handle deeply nested validation failures", async () => {
-        mockStore.get.mockImplementation((key) => {
-          if (key === "reader") {
-            return Promise.resolve({
-              ...defaultSettings.reader,
-              comic: {
-                ...defaultSettings.reader.comic,
-                readingDirection: "invalid-direction",
-              },
-            });
-          }
-          return Promise.resolve(null);
-        });
-
-        const settings = await loadAllSettings();
-
-        // Validation failure in reader.comic.readingDirection should trigger fallback
-        expect(settings).toEqual(defaultSettings);
-      });
-    });
-  });
-
-  describe("settingsStore instance", () => {
-    it("should be initialized", () => {
-      expect(settingsStore).toBeDefined();
     });
   });
 });

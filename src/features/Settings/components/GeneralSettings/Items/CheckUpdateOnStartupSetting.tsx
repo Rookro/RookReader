@@ -15,13 +15,11 @@ export default function CheckUpdateOnStartupSetting() {
 
   const handleCheckUpdateChanged = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const newStartupSettings = {
-        ...startupSettings,
-        checkUpdateOnStartup: e.target.checked,
-      };
-      dispatch(updateSettings({ key: "startup", value: newStartupSettings }));
+      dispatch(
+        updateSettings({ key: "startup", value: { checkUpdateOnStartup: e.target.checked } }),
+      );
     },
-    [dispatch, startupSettings],
+    [dispatch],
   );
 
   return (
