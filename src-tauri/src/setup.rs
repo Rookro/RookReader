@@ -55,6 +55,11 @@ pub fn setup(app: &App) -> error::Result<()> {
 
     setup_container_settings(app, &settings)?;
 
+    // Provide the settings file provider as managed state so `get_settings` /
+    // `set_settings` reuse this single instance instead of reconstructing one (and
+    // re-running `create_dir_all` / home-dir resolution) on every invocation.
+    app.manage(provider);
+
     debug!("Application setup completed. Settings: {}", settings);
     Ok(())
 }
