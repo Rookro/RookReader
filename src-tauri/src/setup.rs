@@ -83,11 +83,18 @@ pub fn setup_container_settings(app: &App, settings: &AppSettings) -> error::Res
     Ok(())
 }
 
-/// Applies the reader/rendering settings to the live container runtime state.
+/// Applies the reader/rendering settings to the container runtime state.
 ///
-/// This reflects the persisted settings into `ContainerState`, so changes take effect
-/// without a restart. The image cache is rebuilt **only when its capacity changed**,
-/// because rebuilding evicts every cached image.
+/// This copies the persisted reader/rendering values into `ContainerState::settings`.
+/// Only the **image cache capacity** is applied to the currently-open container live:
+/// when it changes, the cache is rebuilt (which evicts every cached image) and handed to
+/// the open `ImageLoader`.
+///
+/// The other values (`max_image_height`, `image_resampling_method`,
+/// `pdf_render_resolution_height`, `enable_preview`) are stored for the **next**
+/// `ContainerState::open_container` call: the already-open `ImageLoader` captured its
+/// resize height/method at construction, so changing them does not re-render the book
+/// currently on screen — it takes effect when a container is next opened.
 ///
 /// # Arguments
 ///
