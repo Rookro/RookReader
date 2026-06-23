@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * Errors now explain exactly what is wrong (out of range, or a whole number is required) and show the valid range right below the field, replacing the previous generic "failed to save" message.
 * Improved the internal handling of saving and loading settings for slightly faster, more efficient settings access. (#261)
 
+### Fixed
+
+* Fixed an issue where, with automatic folder-change watching enabled, quickly switching folders could leave outdated watchers running in the background — wasting resources and occasionally triggering unexpected file list refreshes. (#262)
+
 ## [2.3.0] - 2026-06-14
 
 ### Added
