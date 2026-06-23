@@ -15,7 +15,7 @@ export const commands = {
 	 * 
 	 *  # Arguments
 	 * 
-	 *  * `app` - The Tauri app handle, used to access the settings store.
+	 *  * `provider` - The managed settings file provider backing the settings store.
 	 * 
 	 *  # Returns
 	 * 
@@ -47,6 +47,7 @@ export const commands = {
 	 *  * `patch` - The single-category partial change to apply.
 	 *  * `state` - The application's runtime state.
 	 *  * `lock` - The settings file lock serializing the read-modify-write.
+	 *  * `provider` - The managed settings file provider backing the settings store.
 	 * 
 	 *  # Returns
 	 * 

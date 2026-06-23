@@ -19,7 +19,7 @@ const SETTINGS_CHANGED_EVENT: &str = "settings-changed";
 ///
 /// # Arguments
 ///
-/// * `app` - The Tauri app handle, used to access the settings store.
+/// * `provider` - The managed settings file provider backing the settings store.
 ///
 /// # Returns
 ///
@@ -30,9 +30,8 @@ const SETTINGS_CHANGED_EVENT: &str = "settings-changed";
 /// Returns an `Err` if the settings cannot be loaded.
 #[tauri::command]
 #[specta::specta]
-pub async fn get_settings(app: AppHandle) -> Result<AppSettings> {
-    let provider = SettingsFileProvider::new(&app, setup::settings_filename())?;
-    AppSettings::load(&provider)
+pub async fn get_settings(provider: tauri::State<'_, SettingsFileProvider>) -> Result<AppSettings> {
+    AppSettings::load(provider.inner())
 }
 
 /// Applies a partial settings change and returns the full merged settings.
@@ -55,6 +54,7 @@ pub async fn get_settings(app: AppHandle) -> Result<AppSettings> {
 /// * `patch` - The single-category partial change to apply.
 /// * `state` - The application's runtime state.
 /// * `lock` - The settings file lock serializing the read-modify-write.
+/// * `provider` - The managed settings file provider backing the settings store.
 ///
 /// # Returns
 ///
@@ -72,9 +72,9 @@ pub async fn set_settings(
     patch: SettingsPatch,
     state: tauri::State<'_, RwLock<AppState>>,
     lock: tauri::State<'_, SettingsFileLock>,
+    provider: tauri::State<'_, SettingsFileProvider>,
 ) -> Result<AppSettings> {
-    let provider = SettingsFileProvider::new(&app, setup::settings_filename())?;
-    let settings = AppSettings::apply_patch_serialized(&provider, &lock.0, patch).await?;
+    let settings = AppSettings::apply_patch_serialized(provider.inner(), &lock.0, patch).await?;
 
     {
         let mut locked_state = state.write().await;
