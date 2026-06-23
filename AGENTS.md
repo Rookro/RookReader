@@ -1,6 +1,6 @@
-# RookReader Gemini AI Instructions
+# RookReader AI Agent Instructions
 
-This document provides foundational mandates, project context, and workflows for Gemini AI when assisting with the **RookReader** project. These instructions take absolute precedence.
+This document provides foundational mandates, project context, and workflows for AI agents when assisting with the **RookReader** project. These instructions take absolute precedence.
 
 ## 1. Project Context
 
@@ -20,7 +20,7 @@ This document provides foundational mandates, project context, and workflows for
   - Components are primarily functional React components with hooks.
   - Backend code resides in `src-tauri/src/`.
     - `src-tauri/src/commands/`: Tauri commands exposed to the frontend.
-    - `src-tauri/src/database/`: SQLite database operations via sqlx.
+    - `src-tauri/src/infrastructure/database/`: SQLite database operations via sqlx.
     - `src-tauri/src/container/`: File system access and parsing logic for zip, rar, pdf, and epub formats.
   - State management is handled by Redux Toolkit for complex global state, and React hooks for local state.
 - **Coding Standards:**
@@ -55,12 +55,12 @@ This document provides foundational mandates, project context, and workflows for
   - `sqlx migrate add -r <name>`: Creates a new migration file (`<timestamp>_<name>.up.sql` and `<timestamp>_<name>.down.sql`).
   - `cargo sqlx prepare`: Generates the `query-*.json` files required for OFFLINE builds. Ensure this is run after any schema or query changes.
 
-## 3. Core Mandates for Gemini AI
+## 3. Core Mandates for AI Agents
 
 1.  **Understand the Architecture:** When adding a new feature that touches both frontend and backend, ensure you:
-    - Create or update the Rust core logic (e.g., in `src-tauri/src/database/` or `src-tauri/src/container/`).
+    - Create or update the Rust core logic (e.g., in `src-tauri/src/infrastructure/database/` or `src-tauri/src/container/`).
     - Create or update the Tauri command in `src-tauri/src/commands/`.
-    - Register the command in `src-tauri/src/lib.rs` (collected in `specta_builder()`).
+    - Register the command in `src-tauri/src/lib.rs`: specta-compatible commands go in `specta_builder()` (`collect_commands!`); binary commands returning a raw `tauri::ipc::Response` are instead added to the small separate `generate_handler!` and routed by command name.
     - Regenerate the TypeScript bindings (`npm run gen:bindings`, which writes the `tauri-specta`-generated
       `src/bindings/bindings.ts`), then add/update the thin wrapper in `src/bindings/*Commands.ts` that
       delegates to the generated `commands.*` (binary `tauri::ipc::Response` commands keep a raw `invoke`).
