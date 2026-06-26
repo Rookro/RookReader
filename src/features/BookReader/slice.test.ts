@@ -244,7 +244,7 @@ describe("ReadReducer", () => {
     describe("openContainerFile thunk", () => {
       // Verify that container is opened and state is updated on success
       it("should open container and update state on success", async () => {
-        const mockBook = createMockBookWithState({ id: 1, last_read_page_index: 5 });
+        const mockBook = createMockBookWithState({ id: 1, last_read_page_index: 1 });
 
         vi.mocked(ContainerCommands.getEntriesInContainer).mockResolvedValue({
           is_directory: false,
@@ -259,7 +259,7 @@ describe("ReadReducer", () => {
         const state = store.getState().read;
         expect(state.containerFile.isLoading).toBe(false);
         expect(state.containerFile.book).toEqual(mockBook);
-        expect(state.containerFile.index).toBe(5);
+        expect(state.containerFile.index).toBe(1);
         expect(state.containerFile.entries).toEqual(["p1", "p2"]);
       });
 
@@ -303,6 +303,25 @@ describe("ReadReducer", () => {
         // First page (index 0), not last_read_page_index.
         expect(state.containerFile.index).toBe(0);
         expect(state.containerFile.pendingInitialPosition).toBeNull();
+      });
+
+      // Verify that a stale last_read_page_index past the page count is clamped to the last page
+      it("should clamp a restored index past the page count to the last page", async () => {
+        const mockBook = createMockBookWithState({ id: 1, last_read_page_index: 10 });
+
+        vi.mocked(ContainerCommands.getEntriesInContainer).mockResolvedValue({
+          is_directory: false,
+          entries: ["p1", "p2", "p3"],
+          is_novel: false,
+        });
+        vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(1);
+        vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
+
+        await store.dispatch(openContainerFile("path/to/book.zip"));
+
+        const state = store.getState().read;
+        // Restored index 10 is clamped to entries.length - 1 (2), not left out of range.
+        expect(state.containerFile.index).toBe(2);
       });
 
       // Verify handling of EPUB novel format
