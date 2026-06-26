@@ -297,9 +297,12 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
     const timerId = setTimeout(() => {
       try {
         if (readingBookIndex === -1) {
-          // If there is no reading book in the current grid, mark the auto-scroll
-          // session as complete without scrolling. This prevents sudden resets.
-          hasAutoScrolledRef.current = true;
+          // Conclude the session only when there is genuinely no reading book. If a
+          // reading book exists but its index has not resolved yet (books still
+          // loading), leave the latch off so a later run can scroll once it's known.
+          if (!readingBook) {
+            hasAutoScrolledRef.current = true;
+          }
         } else {
           debug(`Scrolling to cell ${readingBookIndex}.`);
           grid.scrollToCell({
@@ -319,7 +322,7 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
     return () => {
       clearTimeout(timerId);
     };
-  }, [readingBookIndex, filteredSortedItems, grid, columnCount, activeView]);
+  }, [readingBookIndex, readingBook, filteredSortedItems, grid, columnCount, activeView]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
