@@ -104,8 +104,10 @@ impl BookRepository for SqliteBookRepository {
             INSERT INTO books (file_path, item_type, display_name, total_pages, thumbnail_path)
             VALUES (?, ?, ?, ?, ?)
             ON CONFLICT(file_path) DO UPDATE SET
-                -- Use ON CONFLICT DO UPDATE SET id = id to always return the ID.
-                file_path = excluded.file_path,
+                -- Refresh the path-derived metadata so re-registering an existing book
+                -- reflects updated page counts and renamed display names.
+                display_name = excluded.display_name,
+                total_pages = excluded.total_pages,
                 thumbnail_path = excluded.thumbnail_path
             RETURNING id
             "#,
@@ -137,8 +139,10 @@ impl BookRepository for SqliteBookRepository {
             INSERT INTO books (file_path, item_type, display_name, total_pages, thumbnail_path)
             VALUES (?, ?, ?, ?, ?)
             ON CONFLICT(file_path) DO UPDATE SET
-                -- Use ON CONFLICT DO UPDATE SET id = id to always return the ID.
-                file_path = excluded.file_path,
+                -- Refresh the path-derived metadata so re-opening an existing book
+                -- reflects updated page counts and renamed display names.
+                display_name = excluded.display_name,
+                total_pages = excluded.total_pages,
                 thumbnail_path = excluded.thumbnail_path
             RETURNING id
             "#,

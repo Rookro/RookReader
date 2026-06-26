@@ -196,16 +196,29 @@ fn create_image_order_map(epub: &mut Epub) -> Option<HashMap<String, usize>> {
 
 /// Finds a resource's manifest ID by its file path within the EPUB.
 fn find_resource_id_by_path(epub: &Epub, target_path: &Path) -> Option<String> {
-    epub.manifest().images().find_map(|image| {
-        let image_id = image.id();
+    let ids: Vec<&str> = epub.manifest().images().map(|image| image.id()).collect();
+    select_resource_id(&ids, target_path)
+}
 
-        let image_path = Path::new(image_id);
-        if target_path == image_path || target_path.file_name() == image_path.file_name() {
-            Some(image_id.to_string())
-        } else {
-            None
-        }
-    })
+/// Pure resolution used by [`find_resource_id_by_path`] (testable without an `Epub`).
+///
+/// `image_ids` are manifest image ids, treated as paths. An exact path match wins;
+/// otherwise a basename match is used **only when it is unambiguous** (exactly one match),
+/// so two images sharing a basename in different folders (e.g. `ch1/p001.png` and
+/// `ch2/p001.png`) cannot be confused and mis-order the spine.
+fn select_resource_id(image_ids: &[&str], target_path: &Path) -> Option<String> {
+    if let Some(id) = image_ids.iter().find(|id| Path::new(id) == target_path) {
+        return Some((*id).to_string());
+    }
+    let target_name = target_path.file_name()?;
+    let mut basename = image_ids
+        .iter()
+        .filter(|id| Path::new(id).file_name() == Some(target_name));
+    let first = basename.next()?;
+    if basename.next().is_some() {
+        return None; // ambiguous basename across directories
+    }
+    Some((*first).to_string())
 }
 
 #[cfg(test)]
@@ -549,5 +562,26 @@ mod tests {
         let container_novel =
             EpubContainer::new(epub_path_novel.to_string_lossy().as_ref()).unwrap();
         assert!(container_novel.is_novel());
+    }
+
+    #[test]
+    fn select_resource_id_prefers_exact_and_rejects_ambiguous_basename() {
+        let ids = ["images/ch1/p001.png", "images/ch2/p001.png", "cover.png"];
+
+        // Exact path match wins even when the basename is shared.
+        assert_eq!(
+            select_resource_id(&ids, path::Path::new("images/ch2/p001.png")).as_deref(),
+            Some("images/ch2/p001.png")
+        );
+        // Ambiguous basename ("p001.png" appears twice) → no fallback match.
+        assert_eq!(
+            select_resource_id(&ids, path::Path::new("other/p001.png")),
+            None
+        );
+        // Unique basename still resolves via the fallback.
+        assert_eq!(
+            select_resource_id(&ids, path::Path::new("x/cover.png")).as_deref(),
+            Some("cover.png")
+        );
     }
 }

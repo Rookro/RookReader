@@ -19,6 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 * Fixed an issue where, with automatic folder-change watching enabled, quickly switching folders could leave outdated watchers running in the background — wasting resources and occasionally triggering unexpected file list refreshes. (#262)
+* Fixed several library and settings data-integrity issues. (#264)
+  * A book's page count and title are now updated when its files change on disk (for example, pages added to a folder), so newly added pages are no longer unreachable.
+  * A single invalid value in the settings file no longer resets every setting to its default — only the affected setting is restored and the rest are kept.
+  * Applying tags to a book no longer fails when the same tag is selected more than once.
+  * Some fixed-layout EPUBs with images that share a file name across different folders no longer display pages in the wrong order.
 
 ## [2.3.0] - 2026-06-14
 
