@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * A single invalid value in the settings file no longer resets every setting to its default — only the affected setting is restored and the rest are kept.
   * Applying tags to a book no longer fails when the same tag is selected more than once.
   * Some fixed-layout EPUBs with images that share a file name across different folders no longer display pages in the wrong order.
+* Fixed an issue where resizing a tall image with transparency (such as a transparent PNG) filled the transparent areas with a solid background; transparency is now preserved. (#265)
 
 ## [2.3.0] - 2026-06-14
 
