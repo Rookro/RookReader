@@ -190,10 +190,7 @@ impl AppSettings {
     /// Deserializes the raw value, fills the dynamic home directory, and repairs
     /// out-of-range fields. Never writes.
     fn normalize(raw: Value, default_home_dir: String) -> Self {
-        let mut config: AppSettings = serde_json::from_value(raw).unwrap_or_else(|e| {
-            log::warn!("Failed to parse settings, using default. Error: {e}");
-            AppSettings::default()
-        });
+        let mut config = Self::deserialize_tolerant(raw);
 
         // Dynamically set the default home directory if it's empty (e.g., on first launch).
         if config.file_navigator.home_directory.as_os_str().is_empty() {
@@ -202,6 +199,52 @@ impl AppSettings {
 
         config.repair_invalid_fields();
         config
+    }
+
+    /// Deserializes `raw` into `AppSettings`, healing individual corrupt leaves
+    /// (wrong type, unknown enum variant) by resetting only those leaves to their
+    /// default — never discarding the whole document.
+    ///
+    /// A single bad field (e.g. an enum variant renamed across versions) would
+    /// otherwise fail the whole `from_value` and collapse every setting to defaults.
+    fn deserialize_tolerant(raw: Value) -> Self {
+        // Start from a full default document so every key exists and every custom
+        // default (e.g. `enableSpread = true`) is represented, then overlay stored values.
+        let default_value = match serde_json::to_value(AppSettings::default()) {
+            Ok(v) => v,
+            Err(e) => {
+                log::error!("settings: serialize defaults failed: {e}");
+                return AppSettings::default();
+            }
+        };
+        let mut merged = default_value.clone();
+        json_deep_merge(&mut merged, raw);
+
+        // Deserialize; on each field-level failure reset that one leaf to its default
+        // and retry. Bounded by the number of corrupt leaves.
+        loop {
+            match serde_path_to_error::deserialize::<_, AppSettings>(&merged) {
+                Ok(config) => return config,
+                Err(err) => {
+                    let path = err.path().to_string();
+                    let segments: Vec<String> = path.split('.').map(str::to_string).collect();
+                    let reset = !path.is_empty()
+                        && json_leaf(&default_value, &segments)
+                            .cloned()
+                            .map(|def| set_json_leaf(&mut merged, &segments, def))
+                            .unwrap_or(false);
+                    if !reset {
+                        log::warn!(
+                            "settings: parse failure could not be localized ({err}); using defaults"
+                        );
+                        return AppSettings::default();
+                    }
+                    log::warn!(
+                        "settings: resetting unparseable field '{path}' to default. Reason: {err}"
+                    );
+                }
+            }
+        }
     }
 
     /// Resets any field violating a `garde` bound to its default value.
@@ -392,6 +435,28 @@ mod tests {
         assert!(settings.startup.restore_last_book);
         assert_eq!(settings.reader.comic.loupe.radius, 200.0);
         assert_eq!(settings.reader.rendering.pdf_render_resolution_height, 2000);
+    }
+
+    // ---- deserialize_tolerant (field-level healing) ----
+
+    #[test]
+    fn normalize_heals_single_bad_enum_and_keeps_siblings() {
+        let mut doc = default_doc_with_home();
+        doc["general"]["theme"] = json!("neon"); // invalid enum variant
+        doc["general"]["appFontFamily"] = json!("My Font"); // healthy sibling
+        let cfg = AppSettings::normalize(doc, "/mock/home".into());
+        assert!(matches!(cfg.general.theme, AppTheme::System)); // reset to default
+        assert_eq!(cfg.general.app_font_family, "My Font"); // preserved
+    }
+
+    #[test]
+    fn normalize_heals_wrong_typed_leaf_and_keeps_siblings() {
+        let mut doc = default_doc_with_home();
+        doc["reader"]["novel"]["fontSize"] = json!("big"); // wrong type
+        doc["reader"]["comic"]["enableSpread"] = json!(false);
+        let cfg = AppSettings::normalize(doc, "/mock/home".into());
+        assert_eq!(cfg.reader.novel.font_size, 16.0); // default restored
+        assert!(!cfg.reader.comic.enable_spread); // preserved
     }
 
     // ---- repair_invalid_fields ----
