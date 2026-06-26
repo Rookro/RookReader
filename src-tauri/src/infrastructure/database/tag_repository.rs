@@ -77,7 +77,9 @@ impl TagRepository for SqliteTagRepository {
         for tag_id in tag_ids {
             sqlx::query!(
                 r#"
-                INSERT INTO book_tags (book_id, tag_id)
+                -- OR IGNORE so a duplicated tag id in the request (a set, semantically)
+                -- does not hit the (book_id, tag_id) primary key and abort the whole update.
+                INSERT OR IGNORE INTO book_tags (book_id, tag_id)
                 VALUES (?, ?)
                 "#,
                 book_id,

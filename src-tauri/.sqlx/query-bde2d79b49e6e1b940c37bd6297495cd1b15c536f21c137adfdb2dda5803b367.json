@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                -- OR IGNORE so a duplicated tag id in the request (a set, semantically)\n                -- does not hit the (book_id, tag_id) primary key and abort the whole update.\n                INSERT OR IGNORE INTO book_tags (book_id, tag_id)\n                VALUES (?, ?)\n                ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "bde2d79b49e6e1b940c37bd6297495cd1b15c536f21c137adfdb2dda5803b367"
+}

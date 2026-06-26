@@ -1,5 +1,7 @@
+use rookreader_lib::domain::book::repository::BookRepository;
 use rookreader_lib::domain::tag::repository::TagRepository;
 use rookreader_lib::error::Error;
+use rookreader_lib::infrastructure::database::book_repository::SqliteBookRepository;
 use rookreader_lib::infrastructure::database::tag_repository::SqliteTagRepository;
 
 mod common;
@@ -34,6 +36,31 @@ async fn test_create_duplicate_tag() {
 
     // Error should be a database constraint error due to UNIQUE constraint
     assert!(matches!(err, Error::Database(sqlx::Error::Database(_))));
+}
+
+#[tokio::test]
+async fn test_attach_tags_tolerates_duplicate_ids() {
+    let pool = setup_db().await;
+    let tags = SqliteTagRepository::new(pool.clone());
+    let books = SqliteBookRepository::new(pool.clone());
+
+    let book_id = books
+        .register_book("/path/to/book", "file", "Book", 1, None)
+        .await
+        .unwrap();
+    let t = tags.create("Action", "#ff0000").await.unwrap();
+    let u = tags.create("Comedy", "#00ff00").await.unwrap();
+
+    // A duplicated tag id in the request must not abort the update.
+    tags.attach_tags_to_book(book_id, &[t.id, t.id, u.id])
+        .await
+        .unwrap();
+
+    let mut attached = tags.get_tags_for_book(book_id).await.unwrap();
+    attached.sort_unstable();
+    let mut expected = vec![t.id, u.id];
+    expected.sort_unstable();
+    assert_eq!(attached, expected);
 }
 
 #[tokio::test]
