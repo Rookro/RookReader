@@ -30,8 +30,8 @@ async fn test_register_and_get_book() {
         .register_book(
             "/path/to/book.epub",
             "file",
-            "Updated Book", // Should not be updated by register logic due to ON CONFLICT
-            200,            // Should not be updated
+            "Updated Book", // Refreshed on conflict (page-derived metadata).
+            200,            // Refreshed on conflict (e.g. pages added to a directory).
             Some("/path/to/thumb".to_string()),
         )
         .await
@@ -45,9 +45,10 @@ async fn test_register_and_get_book() {
         .unwrap()
         .unwrap();
     assert_eq!(book.file_path, "/path/to/book.epub");
-    // Only file_path and thumbnail_path are updated on conflict based on the query
-    assert_eq!(book.display_name, "My Book");
-    assert_eq!(book.total_pages, 100);
+    // Re-registering refreshes display_name, total_pages, and thumbnail_path so a book
+    // whose contents changed on disk is not stuck with stale metadata.
+    assert_eq!(book.display_name, "Updated Book");
+    assert_eq!(book.total_pages, 200);
     assert_eq!(book.thumbnail_path.unwrap(), "/path/to/thumb");
 }
 
