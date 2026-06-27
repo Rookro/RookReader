@@ -238,6 +238,7 @@ mod serialization_round_trip {
             series_id: None,
             series_order: None,
             thumbnail_path: None,
+            created_at: None,
             last_read_page_index: Some(2),
             last_opened_at: None,
             tag_ids_str: Some("1,2".into()),

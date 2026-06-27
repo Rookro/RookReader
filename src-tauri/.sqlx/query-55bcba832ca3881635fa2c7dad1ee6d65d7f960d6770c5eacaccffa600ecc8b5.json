@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n            SELECT\n                v.id, v.file_path, v.item_type, v.display_name, v.total_pages, v.series_id, v.series_order,\n                v.thumbnail_path, v.last_read_page_index, v.last_opened_at,\n                v.tag_ids_str as \"tag_ids_str?: String\"\n            FROM book_with_state_view v\n            INNER JOIN bookshelf_items bi ON v.id = bi.book_id\n            WHERE bi.bookshelf_id = ?\n            ORDER BY bi.added_at DESC\n            ",
+  "query": "\n            SELECT\n                v.id, v.file_path, v.item_type, v.display_name, v.total_pages, v.series_id, v.series_order,\n                v.thumbnail_path, v.created_at, v.last_read_page_index, v.last_opened_at,\n                v.tag_ids_str as \"tag_ids_str?: String\"\n            FROM book_with_state_view v\n            INNER JOIN bookshelf_items bi ON v.id = bi.book_id\n            WHERE bi.bookshelf_id = ?\n            ORDER BY bi.added_at DESC\n            ",
   "describe": {
     "columns": [
       {
@@ -44,18 +44,23 @@
         "type_info": "Text"
       },
       {
-        "name": "last_read_page_index",
+        "name": "created_at",
         "ordinal": 8,
+        "type_info": "Datetime"
+      },
+      {
+        "name": "last_read_page_index",
+        "ordinal": 9,
         "type_info": "Integer"
       },
       {
         "name": "last_opened_at",
-        "ordinal": 9,
+        "ordinal": 10,
         "type_info": "Datetime"
       },
       {
         "name": "tag_ids_str?: String",
-        "ordinal": 10,
+        "ordinal": 11,
         "type_info": "Null"
       }
     ],
@@ -72,9 +77,10 @@
       true,
       true,
       false,
+      false,
       true,
       null
     ]
   },
-  "hash": "0913e00721e95cb0b484cec1b983ae934c3dc3a102ad0394bbd667dadba42c11"
+  "hash": "55bcba832ca3881635fa2c7dad1ee6d65d7f960d6770c5eacaccffa600ecc8b5"
 }

@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n            SELECT\n                id, file_path, item_type, display_name, total_pages, series_id, series_order,\n                thumbnail_path, last_read_page_index, last_opened_at,\n                tag_ids_str as \"tag_ids_str?: String\"\n            FROM book_with_state_view\n            WHERE id = ?\n            ",
+  "query": "\n            SELECT\n                id, file_path, item_type, display_name, total_pages, series_id, series_order,\n                thumbnail_path, created_at, last_read_page_index, last_opened_at,\n                tag_ids_str as \"tag_ids_str?: String\"\n            FROM book_with_state_view\n            WHERE id = ?\n            ",
   "describe": {
     "columns": [
       {
@@ -44,18 +44,23 @@
         "type_info": "Text"
       },
       {
-        "name": "last_read_page_index",
+        "name": "created_at",
         "ordinal": 8,
+        "type_info": "Datetime"
+      },
+      {
+        "name": "last_read_page_index",
+        "ordinal": 9,
         "type_info": "Integer"
       },
       {
         "name": "last_opened_at",
-        "ordinal": 9,
+        "ordinal": 10,
         "type_info": "Datetime"
       },
       {
         "name": "tag_ids_str?: String",
-        "ordinal": 10,
+        "ordinal": 11,
         "type_info": "Text"
       }
     ],
@@ -71,10 +76,11 @@
       true,
       true,
       true,
+      false,
       true,
       true,
       true
     ]
   },
-  "hash": "2cf3675febb4df1b31c22cc9a2cfcd5e082d9d13db95a06d1ec3007b4a77b504"
+  "hash": "b927428b42e67f3daad8d295ff205e31f79d6e0a6464406d316c53cb3502b90c"
 }

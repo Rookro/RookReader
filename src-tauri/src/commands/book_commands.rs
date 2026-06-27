@@ -855,6 +855,7 @@ mod tests {
                     series_id: None,
                     series_order: None,
                     thumbnail_path: None,
+                    created_at: None,
                     last_read_page_index: Some(5),
                     last_opened_at: None,
                     tag_ids_str: None,
