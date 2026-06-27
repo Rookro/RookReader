@@ -7,7 +7,7 @@ use std::{
     },
 };
 
-use image::{codecs::jpeg::JpegEncoder, ImageReader};
+use image::{codecs::jpeg::JpegEncoder, ImageFormat, ImageReader};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use rayon::ThreadPool;
 use thread_priority::*;
@@ -329,7 +329,10 @@ fn load_image(
     }
 }
 
-/// Helper function to resize an image and re-encode it as a JPEG.
+/// Helper function to resize an image and re-encode it.
+///
+/// Images with an alpha channel are re-encoded as PNG to preserve transparency;
+/// opaque images are re-encoded as JPEG (quality 80) to minimize transferred bytes.
 ///
 /// # Arguments
 ///
@@ -346,8 +349,14 @@ fn resize_image(image: Arc<Image>, height: u32, resize_method: ResizeFilter) -> 
     let scaled_image = shrink_to_fit(&dyn_image, u32::MAX, height, resize_method)?;
 
     let mut buffer = Vec::new();
-    let mut encoder = JpegEncoder::new_with_quality(&mut buffer, 80);
-    encoder.encode_image(&scaled_image)?;
+    // Preserve transparency by re-encoding alpha images as PNG; opaque images stay
+    // JPEG (q80) to minimize the bytes sent to the frontend.
+    if scaled_image.color().has_alpha() {
+        scaled_image.write_to(&mut Cursor::new(&mut buffer), ImageFormat::Png)?;
+    } else {
+        let mut encoder = JpegEncoder::new_with_quality(&mut buffer, 80);
+        encoder.encode_image(&scaled_image)?;
+    }
 
     Ok(Arc::new(Image {
         data: buffer,
@@ -459,5 +468,48 @@ mod tests {
         cache.insert(key, image);
 
         assert!(loader.get_image_from_cache("cached.png").is_some());
+    }
+
+    #[test]
+    fn resize_keeps_alpha_as_png() {
+        // 2x100 RGBA with a transparent pixel, encoded as PNG bytes.
+        let mut img = image::RgbaImage::new(2, 100);
+        img.put_pixel(0, 0, image::Rgba([0, 0, 0, 0]));
+        let mut src = Vec::new();
+        image::DynamicImage::ImageRgba8(img)
+            .write_to(&mut std::io::Cursor::new(&mut src), image::ImageFormat::Png)
+            .unwrap();
+        let out = resize_image(
+            Arc::new(Image {
+                data: src,
+                width: 2,
+                height: 100,
+            }),
+            10,
+            ResizeFilter::Bilinear,
+        )
+        .unwrap();
+        let decoded = image::load_from_memory(&out.data).unwrap();
+        assert!(decoded.color().has_alpha());
+    }
+
+    #[test]
+    fn resize_opaque_stays_decodable() {
+        let img = image::RgbImage::from_pixel(2, 100, image::Rgb([10, 20, 30]));
+        let mut src = Vec::new();
+        image::DynamicImage::ImageRgb8(img)
+            .write_to(&mut std::io::Cursor::new(&mut src), image::ImageFormat::Png)
+            .unwrap();
+        let out = resize_image(
+            Arc::new(Image {
+                data: src,
+                width: 2,
+                height: 100,
+            }),
+            10,
+            ResizeFilter::Bilinear,
+        )
+        .unwrap();
+        assert!(image::load_from_memory(&out.data).is_ok());
     }
 }
