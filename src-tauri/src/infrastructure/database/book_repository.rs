@@ -99,10 +99,13 @@ impl BookRepository for SqliteBookRepository {
         total_pages: i64,
         thumbnail_path: Option<String>,
     ) -> Result<i64> {
+        // Stamp created_at on insert; it is intentionally absent from the ON CONFLICT
+        // clause so re-registering an existing book preserves its original timestamp.
+        let now = chrono::Utc::now().naive_utc();
         let book_id = sqlx::query!(
             r#"
-            INSERT INTO books (file_path, item_type, display_name, total_pages, thumbnail_path)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO books (file_path, item_type, display_name, total_pages, thumbnail_path, created_at)
+            VALUES (?, ?, ?, ?, ?, ?)
             ON CONFLICT(file_path) DO UPDATE SET
                 -- Refresh the path-derived metadata so re-registering an existing book
                 -- reflects updated page counts and renamed display names.
@@ -115,7 +118,8 @@ impl BookRepository for SqliteBookRepository {
             item_type,
             display_name,
             total_pages,
-            thumbnail_path
+            thumbnail_path,
+            now
         )
         .fetch_one(&self.pool)
         .await?
@@ -136,11 +140,12 @@ impl BookRepository for SqliteBookRepository {
         let now = chrono::Utc::now().naive_utc();
         let book_id = sqlx::query!(
             r#"
-            INSERT INTO books (file_path, item_type, display_name, total_pages, thumbnail_path)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO books (file_path, item_type, display_name, total_pages, thumbnail_path, created_at)
+            VALUES (?, ?, ?, ?, ?, ?)
             ON CONFLICT(file_path) DO UPDATE SET
                 -- Refresh the path-derived metadata so re-opening an existing book
                 -- reflects updated page counts and renamed display names.
+                -- created_at is intentionally left untouched to preserve the original.
                 display_name = excluded.display_name,
                 total_pages = excluded.total_pages,
                 thumbnail_path = excluded.thumbnail_path
@@ -150,7 +155,8 @@ impl BookRepository for SqliteBookRepository {
             item_type,
             display_name,
             total_pages,
-            thumbnail_path
+            thumbnail_path,
+            now
         )
         .fetch_one(&mut *tx)
         .await?

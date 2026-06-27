@@ -1,7 +1,10 @@
 -- Add a real creation timestamp to standalone books so the bookshelf can sort by
--- date. Mirrors the `series.created_at` column: NOT NULL with a CURRENT_TIMESTAMP
--- default, so existing rows are backfilled and new rows are stamped automatically.
-ALTER TABLE books ADD COLUMN created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP;
+-- date. SQLite forbids a non-constant default (CURRENT_TIMESTAMP) in ALTER TABLE
+-- ADD COLUMN, so the column is added nullable and existing rows are backfilled.
+-- New rows are stamped explicitly by the repository on insert (see register_book /
+-- record_book_opened).
+ALTER TABLE books ADD COLUMN created_at DATETIME;
+UPDATE books SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL;
 
 -- Recreate the view so `created_at` is surfaced alongside the other book columns.
 DROP VIEW IF EXISTS book_with_state_view;

@@ -54,6 +54,11 @@ export const ReadBookSchema = BookSchema.extend({
  * Represents a book along with its optional reading state.
  */
 export const BookWithStateSchema = BookSchema.extend({
+  /**
+   * The timestamp when the book was created (registered).
+   * Represented as an ISO 8601 string (e.g., "2026-03-01T15:30:00"), or null.
+   */
+  created_at: z.string().nullable(),
   /** The last read page index, if the book has been opened. */
   last_read_page_index: z.number().nullable(),
   /**
