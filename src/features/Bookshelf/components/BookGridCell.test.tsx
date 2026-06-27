@@ -62,6 +62,7 @@ describe("BookGridCell", () => {
     onBookClick: mockOnBookClick,
     onSeriesClick: mockOnSeriesClick,
     allBooks: [],
+    horizontalOffset: 0,
     ariaAttributes: {
       "aria-colindex": 1,
       role: "gridcell",

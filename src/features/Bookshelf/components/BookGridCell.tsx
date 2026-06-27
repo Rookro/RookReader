@@ -33,6 +33,8 @@ export interface BookGridCellProps {
   readingBookIndex?: number;
   /** The list of all books in the grid for context inside BookCard. */
   allBooks: BookWithState[];
+  /** Horizontal offset (px) applied to each cell to center the grid. */
+  horizontalOffset: number;
 }
 
 /**
@@ -53,6 +55,7 @@ function BookGridCellInner({
   focusedIndex,
   readingBookIndex,
   allBooks,
+  horizontalOffset,
 }: CellComponentProps<BookGridCellProps>) {
   const index = rowIndex * columnCount + columnIndex;
   const item = items[index];
@@ -64,6 +67,12 @@ function BookGridCellInner({
   const isFocused = index === focusedIndex;
   const isReading = index === readingBookIndex;
 
+  // Margin (not the container's padding) shifts the absolutely-positioned cell
+  // to keep the grid centered while the scroll container stays full width.
+  // Use a px string: BookCard/SeriesCard spread this into MUI's `sx`, where a
+  // bare number would be multiplied by the theme spacing scale (×8px).
+  const cellStyle = horizontalOffset ? { ...style, marginLeft: `${horizontalOffset}px` } : style;
+
   if (item.type === "series") {
     return (
       <SeriesCard
@@ -71,7 +80,7 @@ function BookGridCellInner({
         books={item.books}
         enableAutoScroll={enableAutoScroll}
         onClick={onSeriesClick}
-        style={style}
+        style={cellStyle}
         isFocused={isFocused}
       />
     );
@@ -85,7 +94,7 @@ function BookGridCellInner({
       size={size}
       enableAutoScroll={enableAutoScroll}
       onBookClick={onBookClick}
-      style={style}
+      style={cellStyle}
       isFocused={isFocused}
       isReading={isReading}
     />
@@ -106,7 +115,8 @@ export function areEqual(
     prevProps.enableAutoScroll !== nextProps.enableAutoScroll ||
     prevProps.focusedIndex !== nextProps.focusedIndex ||
     prevProps.readingBookIndex !== nextProps.readingBookIndex ||
-    prevProps.allBooks !== nextProps.allBooks
+    prevProps.allBooks !== nextProps.allBooks ||
+    prevProps.horizontalOffset !== nextProps.horizontalOffset
   ) {
     return false;
   }
