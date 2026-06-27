@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n            SELECT\n                v.id, v.file_path, v.item_type, v.display_name, v.total_pages, v.series_id, v.series_order,\n                v.thumbnail_path, v.last_read_page_index, v.last_opened_at,\n                v.tag_ids_str as \"tag_ids_str?: String\"\n            FROM book_with_state_view v\n            INNER JOIN book_tags bt ON v.id = bt.book_id\n            WHERE bt.tag_id = ?\n            ORDER BY v.display_name ASC\n            ",
+  "query": "\n            SELECT\n                id, file_path, item_type, display_name, total_pages, series_id, series_order,\n                thumbnail_path, created_at, last_read_page_index, last_opened_at,\n                tag_ids_str as \"tag_ids_str?: String\"\n            FROM book_with_state_view\n            ORDER BY id DESC\n            ",
   "describe": {
     "columns": [
       {
@@ -44,23 +44,28 @@
         "type_info": "Text"
       },
       {
-        "name": "last_read_page_index",
+        "name": "created_at",
         "ordinal": 8,
+        "type_info": "Datetime"
+      },
+      {
+        "name": "last_read_page_index",
+        "ordinal": 9,
         "type_info": "Integer"
       },
       {
         "name": "last_opened_at",
-        "ordinal": 9,
+        "ordinal": 10,
         "type_info": "Datetime"
       },
       {
         "name": "tag_ids_str?: String",
-        "ordinal": 10,
+        "ordinal": 11,
         "type_info": "Text"
       }
     ],
     "parameters": {
-      "Right": 1
+      "Right": 0
     },
     "nullable": [
       false,
@@ -73,8 +78,9 @@
       true,
       true,
       true,
+      true,
       true
     ]
   },
-  "hash": "f259bba50725ae3186289cec972f5d22a725fae73713bc9f6fe8380e99c2ed5c"
+  "hash": "b217562b5d94937913d1c216f1031854ad2c3ce517931bfae3654cef1b360964"
 }

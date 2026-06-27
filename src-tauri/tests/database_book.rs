@@ -53,6 +53,40 @@ async fn test_register_and_get_book() {
 }
 
 #[tokio::test]
+async fn test_register_sets_and_preserves_created_at() {
+    let pool = setup_db().await;
+    let repository = SqliteBookRepository::new(pool.clone());
+
+    let book_id = repository
+        .register_book("/path/to/book.epub", "file", "My Book", 100, None)
+        .await
+        .unwrap();
+
+    // created_at is stamped on insert.
+    let created_at = repository
+        .get_book_with_state_by_id(book_id)
+        .await
+        .unwrap()
+        .unwrap()
+        .created_at;
+    assert!(created_at.is_some());
+
+    // Re-registering refreshes metadata but must preserve the original created_at.
+    repository
+        .register_book("/path/to/book.epub", "file", "Renamed", 200, None)
+        .await
+        .unwrap();
+
+    let after = repository
+        .get_book_with_state_by_id(book_id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(after.display_name, "Renamed");
+    assert_eq!(after.created_at, created_at);
+}
+
+#[tokio::test]
 async fn test_reading_state() {
     let pool = setup_db().await;
     let repository = SqliteBookRepository::new(pool.clone());

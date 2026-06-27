@@ -90,9 +90,11 @@ export const sortBy = (a: BookWithState, b: BookWithState, sortOrder: SortOrder)
     case "name_desc":
       return b.display_name.localeCompare(a.display_name);
     case "date_asc":
-      return a.id - b.id;
+      // Sort by the real creation timestamp (ISO string), falling back to id so the
+      // order stays consistent with the bookshelf grid and adjacent-book navigation.
+      return (a.created_at ?? "").localeCompare(b.created_at ?? "") || a.id - b.id;
     case "date_desc":
-      return b.id - a.id;
+      return (b.created_at ?? "").localeCompare(a.created_at ?? "") || b.id - a.id;
   }
 };
 
@@ -139,9 +141,9 @@ export const sortByGridItem = (a: GridItem, b: GridItem, sortOrder: SortOrder) =
     }
     return {
       name: item.data.display_name,
-      // For standalone books, we use its ID as a proxy for date since it doesn't have a direct created_at.
-      // We convert it to a string to match the series created_at type for comparison if needed.
-      date: item.data.id.toString().padStart(10, "0"),
+      // Both series and standalone books now carry a real ISO `created_at`, so they
+      // interleave by actual creation date. Fall back to an empty string when absent.
+      date: item.data.created_at ?? "",
       id: item.data.id,
     };
   };

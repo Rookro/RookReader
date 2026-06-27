@@ -80,6 +80,8 @@ pub struct BookWithState {
     pub series_order: Option<i64>,
     /// The optional file path to the thumbnail image of the book.
     pub thumbnail_path: Option<String>,
+    /// The timestamp when the book was created (registered).
+    pub created_at: Option<NaiveDateTime>,
     /// The last read page index, if the book has been opened.
     pub last_read_page_index: Option<i64>,
     /// The timestamp when the book was last opened, if any.
@@ -138,6 +140,7 @@ mod tests {
             series_id: None,
             series_order: None,
             thumbnail_path: None,
+            created_at: None,
             last_read_page_index: None,
             last_opened_at: None,
             tag_ids_str: Some("1,2,3".to_string()),

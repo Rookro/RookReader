@@ -250,6 +250,8 @@ export const commands = {
 	series_order: number | null,
 	/**  The optional file path to the thumbnail image of the book. */
 	thumbnail_path: string | null,
+	/**  The timestamp when the book was created (registered). */
+	created_at: string | null,
 	/**  The last read page index, if the book has been opened. */
 	last_read_page_index: number | null,
 	/**  The timestamp when the book was last opened, if any. */
@@ -762,6 +764,8 @@ export type BookWithState = {
 	series_order: number | null,
 	/**  The optional file path to the thumbnail image of the book. */
 	thumbnail_path: string | null,
+	/**  The timestamp when the book was created (registered). */
+	created_at: string | null,
 	/**  The last read page index, if the book has been opened. */
 	last_read_page_index: number | null,
 	/**  The timestamp when the book was last opened, if any. */
