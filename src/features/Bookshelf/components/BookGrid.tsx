@@ -278,6 +278,12 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
   const rowCount =
     filteredSortedItems.length === 0 ? 0 : Math.ceil(filteredSortedItems.length / columnCount);
 
+  // Offset used to center the cells horizontally. Applied per cell (via the cell
+  // style) rather than as padding/margin on the Grid, because react-window's
+  // cells are absolutely positioned and the scroll container must stay full
+  // width so the wheel scrolls everywhere, including the empty side strips.
+  const horizontalOffset = Math.max((gridWidth - columnWidth * columnCount) / 2, 0);
+
   useReadingBookSelection(readingBook, filteredSortedItems, setReadingBookIndex);
 
   // Scroll to make the selected item visible
@@ -391,6 +397,7 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
       focusedIndex,
       readingBookIndex,
       allBooks,
+      horizontalOffset,
     }),
     [
       filteredSortedItems,
@@ -403,6 +410,7 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
       focusedIndex,
       readingBookIndex,
       allBooks,
+      horizontalOffset,
     ],
   );
 
@@ -480,8 +488,6 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
                 cellProps={cellProps}
                 overscanCount={2}
                 style={{
-                  // Center the grid horizontally
-                  marginLeft: (gridWidth - columnWidth * columnCount) / 2,
                   // Prevent overlap with bottom floating buttons and action bar
                   paddingBottom: "60px",
                 }}

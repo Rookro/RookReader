@@ -29,7 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * A book could open to a blank page if some pages had been removed since you last read it; it now opens to the last available page.
   * Closing the update dialog at certain moments could rarely block all later update checks until the app was restarted.
   * Opening the bookshelf while it was still loading could fail to scroll to the book you were reading; it now scrolls there once the list has finished loading.
-  * Sorting the bookshelf by date ordered standalone books by registration order instead of their real date; books and series now interleave by actual date.
+* Sorting the bookshelf by date ordered standalone books by registration order instead of their real date; books and series now interleave by actual date. (#267)
+* Fixed an issue where the empty space on the left side of the bookshelf grid could not be scrolled; scrolling now works across the whole area. (#268)
 
 ## [2.3.0] - 2026-06-14
 
