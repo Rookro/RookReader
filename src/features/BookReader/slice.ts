@@ -352,7 +352,11 @@ export const readSlice = createSlice({
           } else if (state.containerFile.pendingInitialPosition === "first") {
             state.containerFile.index = 0;
           } else {
-            state.containerFile.index = action.payload.book?.last_read_page_index ?? 0;
+            // Clamp the restored index so a stale last_read_page_index past the
+            // current page count never strands the viewer on a blank page.
+            const total = state.containerFile.entries.length;
+            const restored = action.payload.book?.last_read_page_index ?? 0;
+            state.containerFile.index = total > 0 ? Math.min(Math.max(0, restored), total - 1) : 0;
           }
           state.containerFile.pendingInitialPosition = null;
           state.containerFile.cfi = null;

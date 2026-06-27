@@ -1,7 +1,7 @@
 import { debug, error } from "@tauri-apps/plugin-log";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { check, type Update } from "@tauri-apps/plugin-updater";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { isUpdaterSupported } from "../../../bindings/UpdaterCommands";
 
@@ -36,6 +36,14 @@ export function useUpdater() {
 
   const closeMessageDialog = useCallback(() => {
     setMessageDialogOpen(false);
+  }, []);
+
+  // Safety net: if the hook unmounts while the global check lock is held (e.g. the
+  // confirm dialog was still open), release it so future update checks aren't blocked.
+  useEffect(() => {
+    return () => {
+      isCheckingGlobal = false;
+    };
   }, []);
 
   const checkForUpdates = useCallback(

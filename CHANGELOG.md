@@ -25,6 +25,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * Applying tags to a book no longer fails when the same tag is selected more than once.
   * Some fixed-layout EPUBs with images that share a file name across different folders no longer display pages in the wrong order.
 * Fixed an issue where resizing a tall image with transparency (such as a transparent PNG) filled the transparent areas with a solid background; transparency is now preserved. (#265)
+* Fixed several reader and bookshelf issues. (#266)
+  * A book could open to a blank page if some pages had been removed since you last read it; it now opens to the last available page.
+  * Closing the update dialog at certain moments could rarely block all later update checks until the app was restarted.
+  * Opening the bookshelf while it was still loading could fail to scroll to the book you were reading; it now scrolls there once the list has finished loading.
 
 ## [2.3.0] - 2026-06-14
 
