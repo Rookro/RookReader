@@ -975,6 +975,56 @@ describe("BookGrid", () => {
     expect(screen.getByText("Series")).toBeInTheDocument();
   });
 
+  it("does not activate a stale focus index after the list shrinks", () => {
+    const book1 = createMockBookWithState({ id: 1, display_name: "Apple" });
+    const book2 = createMockBookWithState({ id: 2, display_name: "Banana" });
+
+    let currentState = {
+      ...defaultState,
+      bookCollection: {
+        ...defaultState.bookCollection,
+        books: [book1, book2],
+      },
+    };
+
+    vi.mocked(useAppSelector).mockImplementation(<T,>(selector: (state: RootState) => T): T => {
+      return selector(currentState as unknown as RootState);
+    });
+
+    const { rerender } = render(
+      <BookSelectionContext.Provider value={mockSelectionValue}>
+        <BookGrid />
+      </BookSelectionContext.Provider>,
+    );
+
+    const container = screen.getByTestId("book-grid-container");
+
+    // Focus the last item (index 1).
+    fireEvent.keyDown(container, { key: "ArrowRight" });
+    fireEvent.keyDown(container, { key: "ArrowRight" });
+
+    // Shrink the list via search so only "Apple" (index 0) remains; the focus
+    // (index 1) is now out of range.
+    currentState = {
+      ...currentState,
+      bookCollection: {
+        ...currentState.bookCollection,
+        searchText: "app",
+      },
+    };
+    rerender(
+      <BookSelectionContext.Provider value={mockSelectionValue}>
+        <BookGrid />
+      </BookSelectionContext.Provider>,
+    );
+
+    mockHandleSelectionClick.mockClear();
+
+    // Pressing Enter must neither throw nor activate the stale index.
+    expect(() => fireEvent.keyDown(container, { key: "Enter" })).not.toThrow();
+    expect(mockHandleSelectionClick).not.toHaveBeenCalled();
+  });
+
   it("calls useReadingBookSelection with the reading book from state", () => {
     const readingBook = createMockBookWithState({ id: 5, display_name: "Reading Book" });
     const state = {

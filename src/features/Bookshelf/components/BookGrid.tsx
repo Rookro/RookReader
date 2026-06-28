@@ -247,6 +247,12 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
     }
   }, [activeView]);
 
+  // Keep the keyboard focus in range when the filtered list shrinks (e.g. typing
+  // into the search box), so Enter/Space can't dereference a stale index.
+  useEffect(() => {
+    setFocusedIndex((prev) => (prev >= filteredSortedItems.length ? -1 : prev));
+  }, [filteredSortedItems.length]);
+
   const handleBookClick = useCallback(
     (book: BookWithState, e: React.MouseEvent | React.KeyboardEvent) => {
       const bookToIdx = new Map<number, number>();
@@ -352,9 +358,9 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
       } else if (e.key === "End") {
         nextIndex = filteredSortedItems.length - 1;
       } else if (e.key === "Enter" || e.key === " ") {
-        if (focusedIndex >= 0) {
+        const item = filteredSortedItems[focusedIndex];
+        if (focusedIndex >= 0 && item) {
           e.preventDefault();
-          const item = filteredSortedItems[focusedIndex];
           if (item.type === "book") {
             handleBookClick(item.data, e);
           } else {
