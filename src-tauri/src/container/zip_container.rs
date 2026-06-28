@@ -8,6 +8,42 @@ use crate::{
     image::{thumbnail::generate_thumbnail, types::Image},
 };
 
+/// Absolute ceiling for a single page's preallocation, regardless of other signals.
+const MAX_PREALLOC_BYTES: u64 = 1024 * 1024 * 1024;
+
+/// Compression ratio we trust when anchoring the preallocation on the compressed
+/// size. This path only reads image entries (PNG/JPEG/WebP), which are already
+/// compressed and re-deflate at roughly 1:1, so 4x is generous real-world headroom
+/// while still tightly bounding a lying header. (DEFLATE's theoretical worst case is
+/// ~1032:1, but that does not occur for image data; the 1 GiB absolute cap covers any
+/// outlier.)
+const MAX_COMPRESSION_RATIO: u64 = 4;
+
+/// Computes a safe preallocation capacity for a ZIP entry.
+///
+/// The declared uncompressed size comes from the (attacker-controlled) central
+/// directory, so a crafted entry can claim a huge size and force an instant
+/// `Vec::with_capacity` abort. We anchor instead on the *compressed* size — bounded
+/// by bytes that actually exist in the archive — allowing up to `MAX_COMPRESSION_RATIO`
+/// times that size, and never reserve more than `MAX_PREALLOC_BYTES`. Legitimate (already
+/// poorly-compressible) image pages still preallocate exactly once, avoiding the
+/// repeated reallocation a flat cap would cause for large files.
+///
+/// # Arguments
+///
+/// * `declared_size` - The entry's declared uncompressed size (`ZipFile::size`).
+/// * `compressed_size` - The entry's compressed size (`ZipFile::compressed_size`).
+///
+/// # Returns
+///
+/// The number of bytes to pre-reserve.
+fn prealloc_capacity(declared_size: u64, compressed_size: u64) -> usize {
+    let ceiling = compressed_size
+        .saturating_mul(MAX_COMPRESSION_RATIO)
+        .min(MAX_PREALLOC_BYTES);
+    declared_size.min(ceiling) as usize
+}
+
 /// An implementation of the `Container` trait for reading content from ZIP archive files.
 pub struct ZipContainer {
     /// A naturally sorted list of image file names found within the archive.
@@ -32,7 +68,8 @@ impl Container for ZipContainer {
                 crate::error::Error::Other(format!("Entry not found in ZIP: {}", entry))
             })?;
             let mut file = archive.by_index(*index)?;
-            let mut buf = Vec::with_capacity(file.size() as usize);
+            let capacity = prealloc_capacity(file.size(), file.compressed_size());
+            let mut buf = Vec::with_capacity(capacity);
             file.read_to_end(&mut buf)?;
             buf
         };
@@ -50,7 +87,8 @@ impl Container for ZipContainer {
                 crate::error::Error::Other(format!("Entry not found in ZIP: {}", entry))
             })?;
             let mut file = archive.by_index(*index)?;
-            let mut buf = Vec::with_capacity(file.size() as usize);
+            let capacity = prealloc_capacity(file.size(), file.compressed_size());
+            let mut buf = Vec::with_capacity(capacity);
             file.read_to_end(&mut buf)?;
             buf
         };
@@ -251,6 +289,43 @@ mod tests {
         let container = ZipContainer::new(zip_path.to_string_lossy().to_string().as_str()).unwrap();
         let result = container.get_image("non_existent_image.png");
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_get_image_capacity_cap_does_not_truncate() {
+        // The preallocation is bounded; reading a normal entry must still return its
+        // exact bytes (guards against an off-by-one in the capacity computation).
+        let dir = tempdir().unwrap();
+        let zip_path = create_dummy_zip(dir.path(), "test.zip", &[("image1.png", DUMMY_PNG_DATA)]);
+        let container = ZipContainer::new(zip_path.to_string_lossy().to_string().as_str()).unwrap();
+
+        let image = container
+            .get_image("image1.png")
+            .expect("get_image should succeed for existing image");
+        assert_eq!(image.data, DUMMY_PNG_DATA);
+    }
+
+    #[test]
+    fn test_prealloc_capacity() {
+        // A legitimate, poorly-compressible page (declared ~= compressed) preallocates
+        // the full declared size in one shot.
+        assert_eq!(
+            prealloc_capacity(10 * 1024 * 1024, 10 * 1024 * 1024),
+            10 * 1024 * 1024
+        );
+
+        // A lying header (tiny compressed, huge declared) is clamped to the
+        // compressed-size-derived ceiling, not the declared size.
+        assert_eq!(
+            prealloc_capacity(10 * 1024 * 1024 * 1024, 1024),
+            (1024 * MAX_COMPRESSION_RATIO) as usize
+        );
+
+        // The absolute ceiling bounds even a large compressed entry.
+        assert_eq!(
+            prealloc_capacity(u64::MAX, u64::MAX),
+            MAX_PREALLOC_BYTES as usize
+        );
     }
 
     #[test]
