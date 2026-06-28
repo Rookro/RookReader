@@ -110,6 +110,23 @@ describe("FileNavigator", () => {
     });
   });
 
+  it("should open the file when a file is double-clicked", async () => {
+    const entries: DirEntry[] = [{ name: "book.zip", is_directory: false, last_modified: "" }];
+    const preloadedState = createBasePreloadedState();
+    preloadedState.read.explorer.entries = entries;
+
+    renderWithProviders(<FileNavigator />, { preloadedState });
+
+    const rowButton = await screen.findByRole("button", { name: /book.zip/i });
+    await user.dblClick(rowButton);
+
+    await waitFor(() => {
+      expect(ReadReducer.setContainerFilePath).toHaveBeenCalledWith("/book.zip");
+    });
+    // A file double-click must not be treated as a directory navigation.
+    expect(ReadReducer.updateExploreBasePath).not.toHaveBeenCalled();
+  });
+
   it("should scroll to row when selectedIndex is set", async () => {
     const entries: DirEntry[] = [{ name: "book.zip", is_directory: false, last_modified: "" }];
     vi.mocked(useFileSelection).mockImplementationOnce(

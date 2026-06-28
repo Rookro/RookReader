@@ -6,6 +6,7 @@ import {
   createImageCacheItem,
   fetchImageBlob,
   fetchImagePreviewBlob,
+  findPreviousUnitStart,
   ImageCacheItem,
   type ViewerSettings,
 } from "./ImageUtils";
@@ -151,6 +152,78 @@ describe("ImageUtils", () => {
         preloadPageCount: 10,
       };
       expect(calculateLayout(0, mockEntries, cache, settings)).toBeNull();
+    });
+  });
+
+  describe("findPreviousUnitStart", () => {
+    const portrait = () => new ImageCacheItem(100, 200, "url");
+    const landscape = () => new ImageCacheItem(200, 100, "url");
+
+    const twoPaged: ViewerSettings = {
+      isTwoPagedView: true,
+      isFirstPageSingleView: false,
+      direction: "ltr",
+      enablePreview: false,
+      preloadPageCount: 10,
+    };
+
+    /** Builds entries + a cache from a list of "P"/"L" orientations. */
+    const build = (orientations: ("P" | "L")[]) => {
+      const entries = orientations.map((_, i) => `p${i}`);
+      const cache = new Map<string, ImageCacheItem>();
+      orientations.forEach((o, i) => {
+        cache.set(`p${i}`, o === "P" ? portrait() : landscape());
+      });
+      return { entries, cache };
+    };
+
+    // Verify the previous unit start when a portrait page is single because its pair is landscape
+    it("returns the single portrait unit before a landscape page (P,P,P,L)", () => {
+      // units: {0,1} {2} {3}
+      const { entries, cache } = build(["P", "P", "P", "L"]);
+      expect(findPreviousUnitStart(3, entries, cache, twoPaged)).toBe(2);
+    });
+
+    // Verify stepping back from a landscape page lands on the start of the preceding spread
+    it("returns the spread start before a single page (P,P,L)", () => {
+      // units: {0,1} {2}
+      const { entries, cache } = build(["P", "P", "L"]);
+      expect(findPreviousUnitStart(2, entries, cache, twoPaged)).toBe(0);
+    });
+
+    // Verify even spreads are walked correctly
+    it("returns the previous spread start in an all-portrait book", () => {
+      // units: {0,1} {2,3} {4,5}
+      const { entries, cache } = build(["P", "P", "P", "P", "P", "P"]);
+      expect(findPreviousUnitStart(4, entries, cache, twoPaged)).toBe(2);
+    });
+
+    // Verify isFirstPageSingleView is honored by the walk
+    it("honors isFirstPageSingleView", () => {
+      // units: {0} {1,2} {3,4}
+      const { entries, cache } = build(["P", "P", "P", "P", "P"]);
+      const settings: ViewerSettings = { ...twoPaged, isFirstPageSingleView: true };
+      expect(findPreviousUnitStart(3, entries, cache, settings)).toBe(1);
+    });
+
+    // Verify the walk bails out (null) when a page on the path is not cached
+    it("returns null when a page dimension on the path is not cached", () => {
+      const { entries, cache } = build(["P", "P", "P", "L"]);
+      cache.delete("p1");
+      expect(findPreviousUnitStart(3, entries, cache, twoPaged)).toBeNull();
+    });
+
+    // Verify the walk bails out (null) when currentIndex is not a real unit start
+    it("returns null when currentIndex is mid-spread (overshoot)", () => {
+      // units: {0,1} ...; index 1 is the second page of the first spread.
+      const { entries, cache } = build(["P", "P", "P", "P"]);
+      expect(findPreviousUnitStart(1, entries, cache, twoPaged)).toBeNull();
+    });
+
+    // Verify there is no previous unit at or before the first page
+    it("returns null for the first page", () => {
+      const { entries, cache } = build(["P", "P"]);
+      expect(findPreviousUnitStart(0, entries, cache, twoPaged)).toBeNull();
     });
   });
 

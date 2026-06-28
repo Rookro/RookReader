@@ -159,6 +159,9 @@ export const readSlice = createSlice({
      */
     setContainerFilePath: (state, action: PayloadAction<string>) => {
       if (!pushHistory(state.containerFile, action.payload)) {
+        // No-op open (same path): drop any pending initial position so it can't
+        // leak into a later, unrelated open.
+        state.containerFile.pendingInitialPosition = null;
         return;
       }
       state.containerFile.index = 0;
