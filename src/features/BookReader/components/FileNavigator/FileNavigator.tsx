@@ -143,14 +143,18 @@ export default function FileListViewer() {
   );
 
   const handleListItemDoubleClicked = useCallback(
-    async (_e: React.MouseEvent<HTMLDivElement>, entry: DirEntry) => {
+    async (e: React.MouseEvent<HTMLDivElement>, entry: DirEntry, index: number) => {
       if (entry.is_directory) {
         const path = await join(history[historyIndex], entry.name);
         dispatch(setSearchText(""));
         dispatch(updateExploreBasePath({ dirPath: path }));
+      } else {
+        // Double-clicking a file opens it: the single-click timer was cancelled by
+        // the wrapper, so without this the file would never open.
+        handleListItemClicked(e, entry, index);
       }
     },
-    [dispatch, history, historyIndex],
+    [dispatch, history, historyIndex, handleListItemClicked],
   );
 
   const handleListItemClickedWrapper = useCallback(
@@ -158,7 +162,7 @@ export default function FileListViewer() {
       if (clickTimer.current) {
         clearTimeout(clickTimer.current);
         clickTimer.current = null;
-        handleListItemDoubleClicked(e, entry);
+        handleListItemDoubleClicked(e, entry, index);
       } else {
         clickTimer.current = window.setTimeout(() => {
           clickTimer.current = null;
