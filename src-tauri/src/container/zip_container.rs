@@ -8,6 +8,100 @@ use crate::{
     image::{thumbnail::generate_thumbnail, types::Image},
 };
 
+/// Absolute ceiling for a single page's preallocation, regardless of other signals.
+const MAX_PREALLOC_BYTES: u64 = 1024 * 1024 * 1024;
+
+/// Compression ratio we trust when anchoring the preallocation on the compressed
+/// size. This path only reads image entries (PNG/JPEG/WebP), which are already
+/// compressed and re-deflate at roughly 1:1, so 4x is generous real-world headroom
+/// while still tightly bounding a lying header. (DEFLATE's theoretical worst case is
+/// ~1032:1, but that does not occur for image data; the 1 GiB absolute cap covers any
+/// outlier.)
+const MAX_COMPRESSION_RATIO: u64 = 4;
+
+/// Computes a safe preallocation capacity for a ZIP entry.
+///
+/// The declared uncompressed size comes from the (attacker-controlled) central
+/// directory, so a crafted entry can claim a huge size and force an instant
+/// `Vec::with_capacity` abort. We anchor instead on the *compressed* size — bounded
+/// by bytes that actually exist in the archive — allowing up to `MAX_COMPRESSION_RATIO`
+/// times that size, and never reserve more than `MAX_PREALLOC_BYTES`. Legitimate (already
+/// poorly-compressible) image pages still preallocate exactly once, avoiding the
+/// repeated reallocation a flat cap would cause for large files.
+///
+/// # Arguments
+///
+/// * `declared_size` - The entry's declared uncompressed size (`ZipFile::size`).
+/// * `compressed_size` - The entry's compressed size (`ZipFile::compressed_size`).
+///
+/// # Returns
+///
+/// The number of bytes to pre-reserve: `declared_size`, capped to
+/// `MAX_COMPRESSION_RATIO * compressed_size` and to `MAX_PREALLOC_BYTES`.
+fn prealloc_capacity(declared_size: u64, compressed_size: u64) -> usize {
+    let ceiling = compressed_size
+        .saturating_mul(MAX_COMPRESSION_RATIO)
+        .min(MAX_PREALLOC_BYTES);
+    declared_size.min(ceiling) as usize
+}
+
+/// Decodes a raw ZIP entry name as UTF-8, falling back to Shift-JIS for archives
+/// produced by legacy Japanese tooling.
+///
+/// # Arguments
+///
+/// * `raw_name` - The raw bytes of the entry name from the archive.
+///
+/// # Returns
+///
+/// The decoded name.
+fn decode_entry_name(raw_name: &[u8]) -> String {
+    match std::str::from_utf8(raw_name) {
+        Ok(v) => v.to_string(),
+        Err(_) => {
+            let (decoded, _, _) = encoding_rs::SHIFT_JIS.decode(raw_name);
+            decoded.into_owned()
+        }
+    }
+}
+
+/// Builds the naturally-sorted image entry list and the name→archive-index map.
+///
+/// Each raw name is decoded ([`decode_entry_name`]) and filtered to supported image
+/// formats. The first occurrence of a decoded name wins; later duplicates — legal in
+/// the ZIP format, or produced by decode collisions (e.g. a UTF-8 name and a Shift-JIS
+/// name that decode to the same string) — are skipped so `entries` and `name_to_index`
+/// stay consistent. Otherwise the list would show a page twice while both entries
+/// resolved to the last index.
+///
+/// # Arguments
+///
+/// * `raw_names` - An iterator of `(archive_index, raw_name_bytes)` pairs.
+///
+/// # Returns
+///
+/// The sorted entry names and a map from each name to its archive index.
+fn collect_entries(
+    raw_names: impl Iterator<Item = (usize, Vec<u8>)>,
+) -> (Vec<String>, HashMap<String, usize>) {
+    let mut entries: Vec<String> = Vec::new();
+    let mut name_to_index: HashMap<String, usize> = HashMap::new();
+
+    for (i, raw_name) in raw_names {
+        let name = decode_entry_name(&raw_name);
+        if Image::is_supported_format(&name) {
+            if name_to_index.contains_key(&name) {
+                continue;
+            }
+            entries.push(name.clone());
+            name_to_index.insert(name, i);
+        }
+    }
+
+    entries.sort_by(|a, b| natord::compare_ignore_case(a, b));
+    (entries, name_to_index)
+}
+
 /// An implementation of the `Container` trait for reading content from ZIP archive files.
 pub struct ZipContainer {
     /// A naturally sorted list of image file names found within the archive.
@@ -32,7 +126,8 @@ impl Container for ZipContainer {
                 crate::error::Error::Other(format!("Entry not found in ZIP: {}", entry))
             })?;
             let mut file = archive.by_index(*index)?;
-            let mut buf = Vec::with_capacity(file.size() as usize);
+            let capacity = prealloc_capacity(file.size(), file.compressed_size());
+            let mut buf = Vec::with_capacity(capacity);
             file.read_to_end(&mut buf)?;
             buf
         };
@@ -50,7 +145,8 @@ impl Container for ZipContainer {
                 crate::error::Error::Other(format!("Entry not found in ZIP: {}", entry))
             })?;
             let mut file = archive.by_index(*index)?;
-            let mut buf = Vec::with_capacity(file.size() as usize);
+            let capacity = prealloc_capacity(file.size(), file.compressed_size());
+            let mut buf = Vec::with_capacity(capacity);
             file.read_to_end(&mut buf)?;
             buf
         };
@@ -85,29 +181,13 @@ impl ZipContainer {
         let mut archive = ZipArchive::new(file)?;
 
         let len = archive.len();
-        let mut entries = Vec::with_capacity(len);
-        let mut name_to_index = HashMap::with_capacity(len);
-
+        let mut raw_names: Vec<(usize, Vec<u8>)> = Vec::with_capacity(len);
         for i in 0..len {
             let file = archive.by_index(i)?;
-            let raw_name = file.name_raw();
-
-            // Decode filename: try UTF-8 first, fallback to Shift-JIS if invalid.
-            let name = match std::str::from_utf8(raw_name) {
-                Ok(v) => v.to_string(),
-                Err(_) => {
-                    let (decoded, _, _) = encoding_rs::SHIFT_JIS.decode(raw_name);
-                    decoded.into_owned()
-                }
-            };
-
-            if Image::is_supported_format(&name) {
-                entries.push(name.clone());
-                name_to_index.insert(name, i);
-            }
+            raw_names.push((i, file.name_raw().to_vec()));
         }
 
-        entries.sort_by(|a, b| natord::compare_ignore_case(a, b));
+        let (entries, name_to_index) = collect_entries(raw_names.into_iter());
 
         Ok(Self {
             entries,
@@ -191,6 +271,35 @@ mod tests {
     }
 
     #[test]
+    fn test_collect_entries_deduplicates_identical_names() {
+        // Two archive members with identical raw names (legal in the ZIP format, even
+        // though our writer forbids it) must collapse to a single entry; the first wins.
+        let (entries, name_to_index) = collect_entries(
+            vec![(0usize, b"a.png".to_vec()), (1usize, b"a.png".to_vec())].into_iter(),
+        );
+
+        assert_eq!(entries, vec!["a.png".to_string()]);
+        assert_eq!(name_to_index.get("a.png"), Some(&0));
+    }
+
+    #[test]
+    fn test_collect_entries_deduplicates_decoded_collisions() {
+        // Two DIFFERENT raw byte names that decode to the SAME string: one UTF-8, one
+        // Shift-JIS. The dedup must keep only the first occurrence.
+        let utf8_name = "ファイル.png".as_bytes().to_vec();
+        let (sjis_cow, _, _) = encoding_rs::SHIFT_JIS.encode("ファイル.png");
+        let sjis_name = sjis_cow.into_owned();
+        assert_ne!(utf8_name, sjis_name, "raw bytes must genuinely differ");
+
+        let (entries, name_to_index) =
+            collect_entries(vec![(0usize, utf8_name), (1usize, sjis_name)].into_iter());
+
+        assert_eq!(entries, vec!["ファイル.png".to_string()]);
+        // First occurrence (archive index 0) wins.
+        assert_eq!(name_to_index.get("ファイル.png"), Some(&0));
+    }
+
+    #[test]
     fn test_new_empty_zip() {
         let dir = tempdir().expect("failed to create tempdir");
         let zip_path = create_dummy_zip(dir.path(), "empty.zip", &[]);
@@ -251,6 +360,43 @@ mod tests {
         let container = ZipContainer::new(zip_path.to_string_lossy().to_string().as_str()).unwrap();
         let result = container.get_image("non_existent_image.png");
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_get_image_capacity_cap_does_not_truncate() {
+        // The preallocation is bounded; reading a normal entry must still return its
+        // exact bytes (guards against an off-by-one in the capacity computation).
+        let dir = tempdir().unwrap();
+        let zip_path = create_dummy_zip(dir.path(), "test.zip", &[("image1.png", DUMMY_PNG_DATA)]);
+        let container = ZipContainer::new(zip_path.to_string_lossy().to_string().as_str()).unwrap();
+
+        let image = container
+            .get_image("image1.png")
+            .expect("get_image should succeed for existing image");
+        assert_eq!(image.data, DUMMY_PNG_DATA);
+    }
+
+    #[test]
+    fn test_prealloc_capacity() {
+        // A legitimate, poorly-compressible page (declared ~= compressed) preallocates
+        // the full declared size in one shot.
+        assert_eq!(
+            prealloc_capacity(10 * 1024 * 1024, 10 * 1024 * 1024),
+            10 * 1024 * 1024
+        );
+
+        // A lying header (tiny compressed, huge declared) is clamped to the
+        // compressed-size-derived ceiling, not the declared size.
+        assert_eq!(
+            prealloc_capacity(10 * 1024 * 1024 * 1024, 1024),
+            (1024 * MAX_COMPRESSION_RATIO) as usize
+        );
+
+        // The absolute ceiling bounds even a large compressed entry.
+        assert_eq!(
+            prealloc_capacity(u64::MAX, u64::MAX),
+            MAX_PREALLOC_BYTES as usize
+        );
     }
 
     #[test]

@@ -209,10 +209,10 @@ impl BookRepository for SqliteBookRepository {
         sqlx::query!(
             r#"
             INSERT INTO reading_state (book_id, last_read_page_index, last_opened_at)
-            VALUES (?, ?, ?)
+            VALUES (?, ?, COALESCE(?, CURRENT_TIMESTAMP))
             ON CONFLICT(book_id) DO UPDATE SET
                 last_read_page_index = excluded.last_read_page_index,
-                last_opened_at = excluded.last_opened_at
+                last_opened_at = COALESCE(excluded.last_opened_at, reading_state.last_opened_at)
             "#,
             state.book_id,
             state.last_read_page_index,
@@ -227,6 +227,9 @@ impl BookRepository for SqliteBookRepository {
     async fn get_recently_read_books(&self, limit: Option<i64>) -> Result<Vec<ReadBook>> {
         let books = match limit {
             Some(limit) => {
+                // SQLite treats a negative LIMIT as unlimited; clamp so the contract
+                // ("at most N") holds even for a negative input.
+                let limit = limit.max(0);
                 sqlx::query_as!(
                     ReadBook,
                     r#"

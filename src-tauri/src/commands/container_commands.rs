@@ -1,4 +1,4 @@
-use tokio::sync::RwLock;
+use tokio::sync::{Mutex, RwLock};
 
 use serde::{Deserialize, Serialize};
 use tauri::ipc::Response;
@@ -7,6 +7,13 @@ use crate::{
     error::{Error, Result},
     state::app_state::AppState,
 };
+
+/// Serializes container opens so the most recently started one is left installed.
+///
+/// The heavy build still runs without holding the state write lock (so image fetches
+/// aren't blocked); this only orders the opens themselves, preventing a slower earlier
+/// open from installing after a newer one.
+static OPEN_CONTAINER_LOCK: Mutex<()> = Mutex::const_new(());
 
 /// The result of getting entries in a container.
 #[derive(Serialize, Deserialize, specta::Type)]
@@ -46,25 +53,37 @@ pub async fn get_entries_in_container(
     state: tauri::State<'_, RwLock<AppState>>,
 ) -> Result<EntriesResult> {
     log::debug!("Get the entries in {}", path);
-    let mut state_lock = state.write().await;
 
-    state_lock.container_state.open_container(path)?;
+    // Serialize opens so a slower earlier open can't install after a newer one and
+    // leave the wrong book's images loaded.
+    let _open_guard = OPEN_CONTAINER_LOCK.lock().await;
 
-    let entries;
-    let is_directory;
-    let is_novel;
+    // Build under a read lock so concurrent image fetches (also readers) aren't blocked;
+    // only the brief install needs a write lock.
+    let built = {
+        let state_lock = state.read().await;
+        state_lock.container_state.build(path)
+    };
+    let (container, loader) = match built {
+        Ok(built) => built,
+        Err(e) => {
+            // Clear stale state so a failed open doesn't keep serving the previous book.
+            state.write().await.container_state.clear();
+            return Err(e);
+        }
+    };
+
+    let entries = container.get_entries().clone();
+    let is_directory = container.is_directory();
+    let is_novel = container.is_novel();
+
     {
-        let container = state_lock
-            .container_state
-            .container
-            .as_ref()
-            .ok_or_else(|| Error::Other("Unexpected error. Container is empty!".to_string()))?;
-        entries = container.get_entries().clone();
-        is_directory = container.is_directory();
-        is_novel = container.is_novel();
+        let mut state_lock = state.write().await;
+        state_lock.container_state.install(container, loader);
     }
 
     if !is_novel {
+        let state_lock = state.read().await;
         if let Some(loader) = state_lock.container_state.image_loader.as_ref() {
             log::debug!("Triggering proactive preloading for {}", path);
             loader.request_preload_around(0, 5)?;
@@ -284,6 +303,37 @@ mod tests {
         let result = get_entries_in_container("non_existent_path", app.state()).await;
 
         assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_get_entries_in_container_clears_state_on_failure() {
+        let dir = tempfile::tempdir().unwrap();
+        let rar_path = create_dummy_rar(dir.path(), "dummy.rar");
+
+        let app = tauri::test::mock_app();
+        app.manage(RwLock::new(AppState::default()));
+
+        // Open a valid container first; state now holds a container + loader.
+        get_entries_in_container(rar_path.to_string_lossy().as_ref(), app.state())
+            .await
+            .expect("opening a valid container should succeed");
+        {
+            let binding = app.state::<RwLock<AppState>>();
+            let guard = binding.read().await;
+            assert!(guard.container_state.container.is_some());
+            assert!(guard.container_state.image_loader.is_some());
+        }
+
+        // A subsequent failed open must clear the previous container/loader so we
+        // never serve images from the old book.
+        let result = get_entries_in_container("non_existent_path", app.state()).await;
+        assert!(result.is_err());
+        {
+            let binding = app.state::<RwLock<AppState>>();
+            let guard = binding.read().await;
+            assert!(guard.container_state.container.is_none());
+            assert!(guard.container_state.image_loader.is_none());
+        }
     }
 
     #[tokio::test]

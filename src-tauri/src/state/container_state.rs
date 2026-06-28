@@ -75,29 +75,30 @@ impl ContainerState {
         }
     }
 
-    /// Opens a container from the given path and initializes the state.
+    /// Clears any open container and its image loader.
+    pub fn clear(&mut self) {
+        self.container = None;
+        self.image_loader = None;
+    }
+
+    /// Builds the container and image loader for `path` without mutating `self`.
     ///
-    /// This function determines the type of container based on the path (directory or file extension),
-    /// then creates the appropriate container handler (e.g., `ZipContainer`, `PdfContainer`)
-    /// using the container factory. It also initializes the `ImageLoader` for the newly opened
-    /// container. Any previously open container is closed.
+    /// Building without `&mut self` lets callers run the heavy I/O without holding a
+    /// write lock on the shared state.
     ///
     /// # Arguments
     ///
-    /// * `path` - The file system path to the container to open.
+    /// * `path` - The file system path to the container to build.
     ///
     /// # Returns
     ///
-    /// An `Ok(())` on success.
+    /// The built container and its initialized `ImageLoader` on success.
     ///
     /// # Errors
     ///
-    /// This function will return an `Err` if:
-    /// * The file extension is missing or unsupported.
-    /// * The underlying constructor for the container type fails (e.g., file not found, permission denied, corrupt file).
-    pub fn open_container(&mut self, path: &str) -> Result<()> {
-        self.container = None;
-
+    /// Returns an `Err` if the file extension is missing or unsupported, or the
+    /// underlying constructor fails (e.g. file not found, corrupt file).
+    pub fn build(&self, path: &str) -> Result<(Arc<dyn Container>, ImageLoader)> {
         let is_pdf = std::path::Path::new(path)
             .extension()
             .is_some_and(|ext| ext.to_string_lossy().to_lowercase() == "pdf");
@@ -117,16 +118,26 @@ impl ContainerState {
             self.settings.max_image_height as u32
         };
 
-        self.image_loader = Some(ImageLoader::new(
+        let loader = ImageLoader::new(
             path.to_string(),
             container.clone(),
             max_image_height,
             self.settings.image_resampling_method,
             self.image_cache.clone(),
-        )?);
-        self.container = Some(container);
+        )?;
 
-        Ok(())
+        Ok((container, loader))
+    }
+
+    /// Installs a previously built container and image loader, replacing any open one.
+    ///
+    /// # Arguments
+    ///
+    /// * `container` - The container to install.
+    /// * `loader` - The image loader to install.
+    pub fn install(&mut self, container: Arc<dyn Container>, loader: ImageLoader) {
+        self.image_loader = Some(loader);
+        self.container = Some(container);
     }
 }
 
@@ -163,42 +174,63 @@ mod tests {
     }
 
     #[test]
-    fn test_open_container_with_unsupported_extension() {
-        let mut state = ContainerState::default();
-        let result = state.open_container("/path/to/file.unsupported");
+    fn test_build_with_unsupported_extension() {
+        let state = ContainerState::default();
+        let result = state.build("/path/to/file.unsupported");
 
-        assert!(result.is_err());
-        let err = result.unwrap_err();
+        let Err(err) = result else {
+            panic!("expected an error for an unsupported extension");
+        };
         assert!(err
             .to_string()
             .contains("Unsupported Container Type: unsupported"));
-        assert!(state.container.is_none());
     }
 
     #[test]
-    fn test_open_container_without_extension() {
-        let mut state = ContainerState::default();
-        let result = state.open_container("/path/to/noextension");
+    fn test_build_without_extension() {
+        let state = ContainerState::default();
+        let result = state.build("/path/to/noextension");
 
-        assert!(result.is_err());
-        let err = result.unwrap_err();
+        let Err(err) = result else {
+            panic!("expected an error for a missing extension");
+        };
         assert!(err.to_string().contains("Failed to get extension"));
     }
 
     #[test]
-    fn test_open_container_resets_previous_container() {
+    fn test_clear_resets_container_and_image_loader() {
+        use std::fs::File;
+        use std::io::Write;
+        use tempfile::tempdir;
+
+        // Minimal valid 1x1 PNG.
+        let png_data: &[u8] = &[
+            0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x48,
+            0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x06, 0x00, 0x00,
+            0x00, 0x1F, 0x15, 0xC4, 0x89, 0x00, 0x00, 0x00, 0x0A, 0x49, 0x44, 0x41, 0x54, 0x78,
+            0x9C, 0x63, 0x00, 0x01, 0x00, 0x00, 0x05, 0x00, 0x01, 0x0D, 0x0A, 0x2D, 0xB4, 0x00,
+            0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82,
+        ];
+
+        let dir = tempdir().expect("failed to create tempdir");
+        let mut file = File::create(dir.path().join("page1.png")).expect("failed to create image");
+        file.write_all(png_data).expect("failed to write image");
+
         let mut state = ContainerState::default();
 
-        // First attempt to open
-        let result1 = state.open_container("/path/to/file.unsupported");
-        assert!(result1.is_err());
+        // Build a valid directory container and install it.
+        let (container, loader) = state
+            .build(dir.path().to_string_lossy().as_ref())
+            .expect("building a valid directory container should succeed");
+        state.install(container, loader);
+        assert!(state.container.is_some());
+        assert!(state.image_loader.is_some());
 
-        // Second attempt
-        let result2 = state.open_container("/path/to/another.unsupported");
-        assert!(result2.is_err());
-
-        // Container should still be None
+        // Clearing must drop BOTH container and image_loader, so we never serve
+        // images from a previously opened book.
+        state.clear();
         assert!(state.container.is_none());
+        assert!(state.image_loader.is_none());
     }
 
     #[test]
@@ -209,7 +241,7 @@ mod tests {
 
         // This would fail because the file doesn't exist, but it tests that
         // the height is being used in the PdfContainer::new call
-        let result = state.open_container("/path/to/file.pdf");
+        let result = state.build("/path/to/file.pdf");
 
         // The error is expected because the file doesn't exist
         assert!(result.is_err());
@@ -219,7 +251,7 @@ mod tests {
 
     #[test]
     fn test_unsupported_file_extensions() {
-        let mut state = ContainerState::default();
+        let state = ContainerState::default();
         let unsupported_files = vec![
             "/path/to/file.txt",
             "/path/to/file.doc",
@@ -229,9 +261,10 @@ mod tests {
         ];
 
         for file_path in unsupported_files {
-            let result = state.open_container(file_path);
-            assert!(result.is_err(), "File {} should be unsupported", file_path);
-            let err = result.unwrap_err();
+            let result = state.build(file_path);
+            let Err(err) = result else {
+                panic!("File {} should be unsupported", file_path);
+            };
             assert!(err.to_string().contains("Unsupported Container Type"));
         }
     }
@@ -247,7 +280,7 @@ mod tests {
         ];
 
         for (file_path, ext) in supported_files {
-            let result = state.open_container(file_path);
+            let result = state.build(file_path);
 
             // These will fail because files don't exist, but we verify the
             // extension is recognized (different error message)
@@ -269,14 +302,14 @@ mod tests {
         state.settings.pdfium_library_path = Some(get_pdfium_lib_path());
 
         // Test uppercase extension
-        let result = state.open_container("/path/to/file.ZIP");
+        let result = state.build("/path/to/file.ZIP");
         if let Err(err) = result {
             // Should not be "Unsupported" error, meaning it recognized ZIP
             assert!(!err.to_string().contains("Unsupported Container Type"));
         }
 
         // Test mixed case
-        let result = state.open_container("/path/to/file.Pdf");
+        let result = state.build("/path/to/file.Pdf");
         if let Err(err) = result {
             assert!(!err.to_string().contains("Unsupported Container Type"));
         }
@@ -284,12 +317,13 @@ mod tests {
 
     #[test]
     fn test_container_error_fields() {
-        let mut state = ContainerState::default();
+        let state = ContainerState::default();
         let test_path = "/test/path/file.unknown".to_string();
-        let result = state.open_container(&test_path);
+        let result = state.build(&test_path);
 
-        assert!(result.is_err());
-        let err = result.unwrap_err();
+        let Err(err) = result else {
+            panic!("expected an error for an unknown extension");
+        };
         assert!(!err.to_string().is_empty());
     }
 

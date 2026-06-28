@@ -25,11 +25,13 @@ impl Container for DirectoryContainer {
     }
 
     fn get_image(&self, entry: &str) -> Result<Arc<Image>> {
+        self.ensure_member(entry)?;
         let image_arc = load_image(&self.path, entry)?;
         Ok(image_arc)
     }
 
     fn get_thumbnail(&self, entry: &str) -> Result<Arc<Image>> {
+        self.ensure_member(entry)?;
         create_thumbnail(&self.path, entry)
     }
 
@@ -39,6 +41,33 @@ impl Container for DirectoryContainer {
 }
 
 impl DirectoryContainer {
+    /// Rejects any entry that is not part of the scanned directory listing.
+    ///
+    /// Entry names arrive from the frontend (`get_image` command). Without this
+    /// check, a crafted name such as `../../secret.png` would be joined onto the
+    /// container directory and read a file outside it (path traversal).
+    ///
+    /// # Arguments
+    ///
+    /// * `entry` - The caller-supplied entry name to validate.
+    ///
+    /// # Returns
+    ///
+    /// `Ok(())` if `entry` is one of the scanned entries.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Error::Path` if `entry` is not a member of `self.entries`.
+    fn ensure_member(&self, entry: &str) -> Result<()> {
+        if self.entries.iter().any(|e| e == entry) {
+            Ok(())
+        } else {
+            Err(Error::Path(format!(
+                "entry is not a member of the container: {entry}"
+            )))
+        }
+    }
+
     /// Creates a new `DirectoryContainer` by scanning a directory for supported image files.
     ///
     /// The found image files are sorted in natural order (e.g., "2.jpg" comes before "10.jpg").
@@ -222,6 +251,30 @@ mod tests {
             .expect("failed to create DirectoryContainer");
         let result = container.get_image("non_existent.png");
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_get_image_rejects_path_traversal() {
+        let dir = tempdir().expect("failed to create tempdir");
+        create_dummy_image(dir.path(), "test.png");
+
+        // Place a readable image OUTSIDE the container directory.
+        let outside = dir.path().parent().expect("tempdir should have a parent");
+        let secret_name = "rook_reader_traversal_secret.png";
+        create_dummy_image(outside, secret_name);
+
+        let container = DirectoryContainer::new(dir.path().to_string_lossy().as_ref())
+            .expect("failed to create DirectoryContainer");
+
+        // A traversal entry that resolves to the file outside the directory must be
+        // rejected before any file is opened.
+        let traversal = format!("../{secret_name}");
+        let result = container.get_image(&traversal);
+        assert!(result.is_err());
+        assert!(container.get_thumbnail(&traversal).is_err());
+
+        // Cleanup the file we created outside the tempdir.
+        let _ = fs::remove_file(outside.join(secret_name));
     }
 
     #[test]

@@ -218,6 +218,61 @@ async fn test_recently_read_books() {
 }
 
 #[tokio::test]
+async fn test_update_reading_progress_defaults_null_last_opened_at() {
+    let pool = setup_db().await;
+    let repository = SqliteBookRepository::new(pool.clone());
+
+    let book_id = repository
+        .register_book("/path/to/book.epub", "file", "My Book", 100, None)
+        .await
+        .unwrap();
+
+    // last_opened_at = None must not write NULL (which would exclude the book from
+    // recent lists); it defaults to the current timestamp.
+    repository
+        .update_reading_progress(&ReadingState {
+            book_id,
+            last_read_page_index: 5,
+            last_opened_at: None,
+        })
+        .await
+        .unwrap();
+
+    let book_with_state = repository
+        .get_book_with_state_by_id(book_id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(book_with_state.last_opened_at.is_some());
+
+    let recent = repository.get_recently_read_books(None).await.unwrap();
+    assert!(recent.iter().any(|b| b.id == book_id));
+}
+
+#[tokio::test]
+async fn test_recently_read_books_negative_limit_returns_empty() {
+    let pool = setup_db().await;
+    let repository = SqliteBookRepository::new(pool.clone());
+
+    let book_id = repository
+        .register_book("/path/1", "file", "B1", 100, None)
+        .await
+        .unwrap();
+    repository
+        .update_reading_progress(&ReadingState {
+            book_id,
+            last_read_page_index: 10,
+            last_opened_at: Some(chrono::Utc::now().naive_utc()),
+        })
+        .await
+        .unwrap();
+
+    // A negative limit must clamp to 0 (at most N), not return every row.
+    let recent = repository.get_recently_read_books(Some(-1)).await.unwrap();
+    assert!(recent.is_empty());
+}
+
+#[tokio::test]
 async fn test_all_books_with_state() {
     let pool = setup_db().await;
     let repository = SqliteBookRepository::new(pool.clone());
