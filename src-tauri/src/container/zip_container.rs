@@ -44,6 +44,63 @@ fn prealloc_capacity(declared_size: u64, compressed_size: u64) -> usize {
     declared_size.min(ceiling) as usize
 }
 
+/// Decodes a raw ZIP entry name as UTF-8, falling back to Shift-JIS for archives
+/// produced by legacy Japanese tooling.
+///
+/// # Arguments
+///
+/// * `raw_name` - The raw bytes of the entry name from the archive.
+///
+/// # Returns
+///
+/// The decoded name.
+fn decode_entry_name(raw_name: &[u8]) -> String {
+    match std::str::from_utf8(raw_name) {
+        Ok(v) => v.to_string(),
+        Err(_) => {
+            let (decoded, _, _) = encoding_rs::SHIFT_JIS.decode(raw_name);
+            decoded.into_owned()
+        }
+    }
+}
+
+/// Builds the naturally-sorted image entry list and the name→archive-index map.
+///
+/// Each raw name is decoded ([`decode_entry_name`]) and filtered to supported image
+/// formats. The first occurrence of a decoded name wins; later duplicates — legal in
+/// the ZIP format, or produced by decode collisions (e.g. a UTF-8 name and a Shift-JIS
+/// name that decode to the same string) — are skipped so `entries` and `name_to_index`
+/// stay consistent. Otherwise the list would show a page twice while both entries
+/// resolved to the last index.
+///
+/// # Arguments
+///
+/// * `raw_names` - An iterator of `(archive_index, raw_name_bytes)` pairs.
+///
+/// # Returns
+///
+/// The sorted entry names and a map from each name to its archive index.
+fn collect_entries(
+    raw_names: impl Iterator<Item = (usize, Vec<u8>)>,
+) -> (Vec<String>, HashMap<String, usize>) {
+    let mut entries: Vec<String> = Vec::new();
+    let mut name_to_index: HashMap<String, usize> = HashMap::new();
+
+    for (i, raw_name) in raw_names {
+        let name = decode_entry_name(&raw_name);
+        if Image::is_supported_format(&name) {
+            if name_to_index.contains_key(&name) {
+                continue;
+            }
+            entries.push(name.clone());
+            name_to_index.insert(name, i);
+        }
+    }
+
+    entries.sort_by(|a, b| natord::compare_ignore_case(a, b));
+    (entries, name_to_index)
+}
+
 /// An implementation of the `Container` trait for reading content from ZIP archive files.
 pub struct ZipContainer {
     /// A naturally sorted list of image file names found within the archive.
@@ -123,29 +180,13 @@ impl ZipContainer {
         let mut archive = ZipArchive::new(file)?;
 
         let len = archive.len();
-        let mut entries = Vec::with_capacity(len);
-        let mut name_to_index = HashMap::with_capacity(len);
-
+        let mut raw_names: Vec<(usize, Vec<u8>)> = Vec::with_capacity(len);
         for i in 0..len {
             let file = archive.by_index(i)?;
-            let raw_name = file.name_raw();
-
-            // Decode filename: try UTF-8 first, fallback to Shift-JIS if invalid.
-            let name = match std::str::from_utf8(raw_name) {
-                Ok(v) => v.to_string(),
-                Err(_) => {
-                    let (decoded, _, _) = encoding_rs::SHIFT_JIS.decode(raw_name);
-                    decoded.into_owned()
-                }
-            };
-
-            if Image::is_supported_format(&name) {
-                entries.push(name.clone());
-                name_to_index.insert(name, i);
-            }
+            raw_names.push((i, file.name_raw().to_vec()));
         }
 
-        entries.sort_by(|a, b| natord::compare_ignore_case(a, b));
+        let (entries, name_to_index) = collect_entries(raw_names.into_iter());
 
         Ok(Self {
             entries,
@@ -226,6 +267,35 @@ mod tests {
         assert_eq!(container.entries.len(), 2);
         assert_eq!(container.entries[0], "image1.png");
         assert_eq!(container.entries[1], "image2.png");
+    }
+
+    #[test]
+    fn test_collect_entries_deduplicates_identical_names() {
+        // Two archive members with identical raw names (legal in the ZIP format, even
+        // though our writer forbids it) must collapse to a single entry; the first wins.
+        let (entries, name_to_index) = collect_entries(
+            vec![(0usize, b"a.png".to_vec()), (1usize, b"a.png".to_vec())].into_iter(),
+        );
+
+        assert_eq!(entries, vec!["a.png".to_string()]);
+        assert_eq!(name_to_index.get("a.png"), Some(&0));
+    }
+
+    #[test]
+    fn test_collect_entries_deduplicates_decoded_collisions() {
+        // Two DIFFERENT raw byte names that decode to the SAME string: one UTF-8, one
+        // Shift-JIS. The dedup must keep only the first occurrence.
+        let utf8_name = "ファイル.png".as_bytes().to_vec();
+        let (sjis_cow, _, _) = encoding_rs::SHIFT_JIS.encode("ファイル.png");
+        let sjis_name = sjis_cow.into_owned();
+        assert_ne!(utf8_name, sjis_name, "raw bytes must genuinely differ");
+
+        let (entries, name_to_index) =
+            collect_entries(vec![(0usize, utf8_name), (1usize, sjis_name)].into_iter());
+
+        assert_eq!(entries, vec!["ファイル.png".to_string()]);
+        // First occurrence (archive index 0) wins.
+        assert_eq!(name_to_index.get("ファイル.png"), Some(&0));
     }
 
     #[test]
