@@ -40,6 +40,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * SVG files were listed as readable pages but always failed to display; they are no longer shown as pages.
   * Applying tags to a book no longer fails if one of the selected tags was deleted in the meantime.
   * Closed a path-traversal issue where a crafted file name inside an opened folder could read a file outside it.
+* Fixed several reader navigation issues. (#270)
+  * In two-page (spread) view, paging forward right after the layout changed could advance by the wrong amount, skipping or repeating a page; forward paging now follows the current page's layout.
+  * In two-page view, paging backward through a mix of single and double-page spreads could land in the middle of a spread; it now returns to the correct page.
+  * In two-page view, when the second page of a spread failed to load, the viewer could be left blank or stuck on the previous page; it now falls back to showing the available page.
+  * Double-clicking a file in the file navigator did nothing; it now opens the file.
+  * Re-selecting the book you were already viewing could carry a pending "open to the first/last page" action over into a later, unrelated book.
 
 ## [2.3.0] - 2026-06-14
 
