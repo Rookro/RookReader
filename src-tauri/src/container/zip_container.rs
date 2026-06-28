@@ -36,7 +36,8 @@ const MAX_COMPRESSION_RATIO: u64 = 4;
 ///
 /// # Returns
 ///
-/// The number of bytes to pre-reserve.
+/// The number of bytes to pre-reserve: `declared_size`, capped to
+/// `MAX_COMPRESSION_RATIO * compressed_size` and to `MAX_PREALLOC_BYTES`.
 fn prealloc_capacity(declared_size: u64, compressed_size: u64) -> usize {
     let ceiling = compressed_size
         .saturating_mul(MAX_COMPRESSION_RATIO)
