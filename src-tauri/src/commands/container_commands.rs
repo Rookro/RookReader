@@ -1,4 +1,4 @@
-use tokio::sync::RwLock;
+use tokio::sync::{Mutex, RwLock};
 
 use serde::{Deserialize, Serialize};
 use tauri::ipc::Response;
@@ -7,6 +7,13 @@ use crate::{
     error::{Error, Result},
     state::app_state::AppState,
 };
+
+/// Serializes container opens so the most recently started one is left installed.
+///
+/// The heavy build still runs without holding the state write lock (so image fetches
+/// aren't blocked); this only orders the opens themselves, preventing a slower earlier
+/// open from installing after a newer one.
+static OPEN_CONTAINER_LOCK: Mutex<()> = Mutex::const_new(());
 
 /// The result of getting entries in a container.
 #[derive(Serialize, Deserialize, specta::Type)]
@@ -46,6 +53,10 @@ pub async fn get_entries_in_container(
     state: tauri::State<'_, RwLock<AppState>>,
 ) -> Result<EntriesResult> {
     log::debug!("Get the entries in {}", path);
+
+    // Serialize opens so a slower earlier open can't install after a newer one and
+    // leave the wrong book's images loaded.
+    let _open_guard = OPEN_CONTAINER_LOCK.lock().await;
 
     // Build under a read lock so concurrent image fetches (also readers) aren't blocked;
     // only the brief install needs a write lock.
