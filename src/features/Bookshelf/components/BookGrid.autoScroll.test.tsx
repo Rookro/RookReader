@@ -158,6 +158,42 @@ describe("BookGrid auto-scroll latch", () => {
     });
   });
 
+  it("does not scroll (or latch) until the grid width is measured", async () => {
+    const otherBook = createMockBookWithState({ id: 1, display_name: "Other" });
+    const readingBook = createMockBookWithState({ id: 5, display_name: "Reading" });
+
+    const state = makeState([otherBook, readingBook], readingBook);
+    vi.mocked(useAppSelector).mockImplementation(
+      <T,>(selector: (s: RootState) => T): T => selector(state as unknown as RootState),
+    );
+
+    // Container width not measured yet (0): the effect must bail without scrolling
+    // and without latching.
+    vi.mocked(useResizeObserver).mockReturnValue(0);
+
+    const { rerender } = render(
+      <BookSelectionContext.Provider value={mockSelectionValue}>
+        <BookGrid />
+      </BookSelectionContext.Provider>,
+    );
+
+    await waitFor(() => {
+      expect(mockScrollToCell).not.toHaveBeenCalled();
+    });
+
+    // Width arrives; because the latch was not set, the scroll now runs.
+    vi.mocked(useResizeObserver).mockReturnValue(1000);
+    rerender(
+      <BookSelectionContext.Provider value={mockSelectionValue}>
+        <BookGrid />
+      </BookSelectionContext.Provider>,
+    );
+
+    await waitFor(() => {
+      expect(mockScrollToCell).toHaveBeenCalled();
+    });
+  });
+
   it("does not scroll when there is genuinely no reading book", async () => {
     const book = createMockBookWithState({ id: 1, display_name: "Only" });
     const state = makeState([book], null);

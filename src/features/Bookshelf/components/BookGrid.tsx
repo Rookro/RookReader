@@ -303,6 +303,14 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
       return;
     }
 
+    // Wait until the container has been measured so columnCount is accurate.
+    // Scrolling with the fallback columnCount=1 would target the wrong row and
+    // then latch, preventing a correct re-scroll. The effect re-runs when
+    // columnCount changes (its dependency), so this resumes once width arrives.
+    if (gridWidth <= 0) {
+      return;
+    }
+
     // Use setTimeout to push the scroll command to the end of the event loop.
     // This ensures that the virtualized list (react-window) has finished
     // rendering and measuring item positions before attempting to scroll.
@@ -334,7 +342,15 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
     return () => {
       clearTimeout(timerId);
     };
-  }, [readingBookIndex, readingBook, filteredSortedItems, grid, columnCount, activeView]);
+  }, [
+    readingBookIndex,
+    readingBook,
+    filteredSortedItems,
+    grid,
+    columnCount,
+    activeView,
+    gridWidth,
+  ]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
