@@ -717,6 +717,16 @@ describe("SeriesReducer", () => {
       expect(BookCommands.updateSeriesOrders).toHaveBeenCalledWith([1, 2, 3]);
     });
 
+    it("updateSeriesOrdersThunk should refetch the bookshelf after a successful update", async () => {
+      vi.mocked(BookCommands.updateSeriesOrders).mockResolvedValue(undefined);
+      vi.mocked(BookCommands.getAllBooksWithState).mockResolvedValue([]);
+
+      await store.dispatch(updateSeriesOrdersThunk([1, 2, 3]));
+
+      // selectedId is null in the initial store, so the refetch hits getAllBooksWithState.
+      expect(BookCommands.getAllBooksWithState).toHaveBeenCalled();
+    });
+
     it("updateSeriesOrdersThunk should handle generic failure", async () => {
       vi.mocked(BookCommands.updateSeriesOrders).mockRejectedValue(new Error());
 
