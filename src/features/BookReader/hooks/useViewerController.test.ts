@@ -15,6 +15,8 @@ vi.mock("../utils/ImageUtils", () => ({
     isSpread: false,
     nextIndexIncrement: 1,
   })),
+  // Default to null so moveBack exercises the local heuristic unless a test overrides it.
+  findPreviousUnitStart: vi.fn(() => null),
 }));
 
 vi.mock("../reducers/ReadReducer", () => ({
@@ -35,6 +37,7 @@ describe("useViewerController", () => {
   const mockedFetchImageBlob = vi.mocked(ImageUtils.fetchImageBlob);
   const mockedCreateImageCacheItem = vi.mocked(ImageUtils.createImageCacheItem);
   const mockedCalculateLayout = vi.mocked(ImageUtils.calculateLayout);
+  const mockedFindPreviousUnitStart = vi.mocked(ImageUtils.findPreviousUnitStart);
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -563,6 +566,60 @@ describe("useViewerController", () => {
         width: 100,
         height: 200,
       });
+    });
+
+    // Verify moveBack dispatches the unit start found by the forward walk
+    it("should dispatch findPreviousUnitStart's result for moveBack when available", async () => {
+      const longEntries = ["p1", "p2", "p3", "p4", "p5"];
+      mockedFetchImageBlob.mockResolvedValue({} as Image);
+      mockedCreateImageCacheItem.mockReturnValue({
+        width: 100,
+        height: 200,
+      } as ImageUtils.ImageCacheItem);
+      mockedCalculateLayout.mockReturnValue({
+        nextIndexIncrement: 2,
+        isSpread: true,
+        firstImage: { width: 100, height: 200 } as ImageUtils.ImageCacheItem,
+      });
+      mockedFindPreviousUnitStart.mockReturnValueOnce(2);
+
+      const { result } = renderHook(() =>
+        useViewerController("path", longEntries, 4, twoPagedSettings, mockDispatch),
+      );
+
+      await waitFor(() => expect(result.current.isImageLoading).toBe(false));
+
+      result.current.moveBack();
+      expect(mockedFindPreviousUnitStart).toHaveBeenCalled();
+      expect(mockDispatch).toHaveBeenCalledWith(setImageIndex(2));
+    });
+
+    // Verify moveBack falls back to the local heuristic when the walk can't run
+    it("should fall back to the local heuristic for moveBack when findPreviousUnitStart returns null", async () => {
+      mockedFetchImageBlob.mockResolvedValue({} as Image);
+      // findPreviousUnitStart returns null by default (e.g. incomplete cache).
+      mockedCalculateLayout
+        .mockReturnValueOnce({
+          nextIndexIncrement: 2,
+          isSpread: true,
+          firstImage: { width: 100, height: 100 } as ImageUtils.ImageCacheItem,
+        }) // current (effect)
+        .mockReturnValueOnce({
+          nextIndexIncrement: 1,
+          isSpread: false,
+          firstImage: { width: 200, height: 100 } as ImageUtils.ImageCacheItem,
+        }); // 1 page back (landscape)
+
+      const { result } = renderHook(() =>
+        useViewerController("path", mockEntries, 2, twoPagedSettings, mockDispatch),
+      );
+
+      await waitFor(() => expect(result.current.isImageLoading).toBe(false));
+
+      result.current.moveBack();
+      expect(mockedFindPreviousUnitStart).toHaveBeenCalled();
+      // Heuristic: the page 1 step back is landscape → go back one page.
+      expect(mockDispatch).toHaveBeenCalledWith(setImageIndex(1));
     });
   });
 

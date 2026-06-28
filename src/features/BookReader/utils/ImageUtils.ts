@@ -146,6 +146,49 @@ export const buildSinglePageLayout = (firstImage: ImageCacheItem): ViewLayout =>
 });
 
 /**
+ * Finds the start index of the page unit immediately preceding `currentIndex` by
+ * walking unit boundaries forward from page 0.
+ *
+ * Spread boundaries depend on the whole chain from the start, so the previous unit
+ * cannot be derived from a local look-back. This walk uses the same per-unit
+ * `nextIndexIncrement` as forward navigation, keeping back/forward in sync.
+ *
+ * @param currentIndex The current unit-start index to step back from.
+ * @param entries The list of entry names.
+ * @param cache The image cache.
+ * @param settings The viewer settings.
+ * @returns The previous unit's start index, or `null` when `currentIndex <= 0`, when a
+ *   page dimension needed to reach `currentIndex` is not cached, or when `currentIndex`
+ *   is not a real unit start under the current layout (the caller should fall back).
+ */
+export const findPreviousUnitStart = (
+  currentIndex: number,
+  entries: string[],
+  cache: Map<string, ImageCacheItem>,
+  settings: ViewerSettings,
+): number | null => {
+  if (currentIndex <= 0) {
+    return null;
+  }
+  let start = 0;
+  let prev = 0;
+  while (start < currentIndex) {
+    const layout = calculateLayout(start, entries, cache, settings);
+    if (!layout) {
+      // A page dimension on the path is not cached; can't reconstruct boundaries.
+      return null;
+    }
+    prev = start;
+    start += layout.nextIndexIncrement;
+  }
+  // Overshooting means `currentIndex` is not a real unit start under this layout.
+  if (start !== currentIndex) {
+    return null;
+  }
+  return prev;
+};
+
+/**
  * Calculates the view layout based on the current state.
  * Returns null if required images are not yet cached, preventing partial layout decisions.
  *

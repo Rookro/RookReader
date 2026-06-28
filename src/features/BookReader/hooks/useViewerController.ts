@@ -10,6 +10,7 @@ import {
   createImageCacheItem,
   fetchImageBlob,
   fetchImagePreviewBlob,
+  findPreviousUnitStart,
   type ImageCacheItem,
   type ViewerSettings,
   type ViewLayout,
@@ -233,6 +234,15 @@ export const useViewerController = (
 
     if (!settings.isTwoPagedView) {
       dispatch(setImageIndex(Math.max(0, index - 1)));
+      return;
+    }
+
+    // Reconstruct the real previous unit start from a forward walk (mirrors
+    // moveForward). Falls back to the local heuristic below when the walk can't
+    // run (incomplete cache / unexpected layout).
+    const previousStart = findPreviousUnitStart(index, entries, cacheRef.current, settings);
+    if (previousStart !== null) {
+      dispatch(setImageIndex(previousStart));
       return;
     }
 
