@@ -189,7 +189,10 @@ export const useViewerController = (
       return;
     }
 
-    const increment = displayedLayout?.nextIndexIncrement ?? (settings.isTwoPagedView ? 2 : 1);
+    // Derive the increment from the current index's layout (read from the cache now),
+    // not the lagging displayedLayout, which would desync spread pairs / skip pages.
+    const currentLayout = calculateLayout(index, entries, cacheRef.current, settings);
+    const increment = currentLayout?.nextIndexIncrement ?? (settings.isTwoPagedView ? 2 : 1);
     const nextIndex = index + increment;
 
     if (nextIndex < entries.length) {
@@ -198,7 +201,7 @@ export const useViewerController = (
       // Already at the last page: hand off to the adjacent-book handler.
       onForwardBoundary?.();
     }
-  }, [index, entries.length, dispatch, displayedLayout, settings, onForwardBoundary]);
+  }, [index, entries, dispatch, settings, onForwardBoundary]);
 
   const moveBack = useCallback(() => {
     if (entries.length === 0) {

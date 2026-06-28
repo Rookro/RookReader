@@ -381,6 +381,37 @@ describe("useViewerController", () => {
       expect(mockDispatch).toHaveBeenCalledWith(setImageIndex(2));
     });
 
+    // Verify that moveForward uses the current page's layout, not a stale displayedLayout
+    it("should use the current page's layout for the increment, not stale displayedLayout", async () => {
+      mockedFetchImageBlob.mockResolvedValue({} as Image);
+
+      // The effect settles displayedLayout as a single page (increment 1).
+      mockedCalculateLayout.mockReturnValue({
+        nextIndexIncrement: 1,
+        isSpread: false,
+        firstImage: { width: 200, height: 100 } as ImageUtils.ImageCacheItem,
+      });
+
+      const { result } = renderHook(() =>
+        useViewerController("path", mockEntries, 0, twoPagedSettings, mockDispatch),
+      );
+
+      await waitFor(() => expect(result.current.isImageLoading).toBe(false));
+      expect(result.current.displayedLayout?.nextIndexIncrement).toBe(1);
+
+      // The current page is actually a spread (increment 2). moveForward must use this,
+      // not the increment-1 displayedLayout captured above.
+      mockedCalculateLayout.mockReturnValue({
+        nextIndexIncrement: 2,
+        isSpread: true,
+        firstImage: { width: 100, height: 200 } as ImageUtils.ImageCacheItem,
+        secondImage: { width: 100, height: 200 } as ImageUtils.ImageCacheItem,
+      });
+
+      result.current.moveForward();
+      expect(mockDispatch).toHaveBeenCalledWith(setImageIndex(2));
+    });
+
     // Verify that index goes back appropriately based on landscape image detection in two-paged view
     it("should handle moveBack in two-paged view with landscape detection", async () => {
       mockedFetchImageBlob.mockResolvedValue({} as Image);
