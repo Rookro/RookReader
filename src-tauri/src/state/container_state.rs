@@ -97,6 +97,9 @@ impl ContainerState {
     /// * The underlying constructor for the container type fails (e.g., file not found, permission denied, corrupt file).
     pub fn open_container(&mut self, path: &str) -> Result<()> {
         self.container = None;
+        // Clear the previous loader up front: if creation below fails via `?`,
+        // we must not keep serving images from the previously opened book.
+        self.image_loader = None;
 
         let is_pdf = std::path::Path::new(path)
             .extension()
@@ -199,6 +202,42 @@ mod tests {
 
         // Container should still be None
         assert!(state.container.is_none());
+    }
+
+    #[test]
+    fn test_open_container_resets_image_loader_on_failure() {
+        use std::fs::File;
+        use std::io::Write;
+        use tempfile::tempdir;
+
+        // Minimal valid 1x1 PNG.
+        let png_data: &[u8] = &[
+            0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x48,
+            0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x06, 0x00, 0x00,
+            0x00, 0x1F, 0x15, 0xC4, 0x89, 0x00, 0x00, 0x00, 0x0A, 0x49, 0x44, 0x41, 0x54, 0x78,
+            0x9C, 0x63, 0x00, 0x01, 0x00, 0x00, 0x05, 0x00, 0x01, 0x0D, 0x0A, 0x2D, 0xB4, 0x00,
+            0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82,
+        ];
+
+        let dir = tempdir().expect("failed to create tempdir");
+        let mut file = File::create(dir.path().join("page1.png")).expect("failed to create image");
+        file.write_all(png_data).expect("failed to write image");
+
+        let mut state = ContainerState::default();
+
+        // Open a valid directory container; the image loader should now be set.
+        state
+            .open_container(dir.path().to_string_lossy().as_ref())
+            .expect("opening a valid directory container should succeed");
+        assert!(state.container.is_some());
+        assert!(state.image_loader.is_some());
+
+        // A subsequent failed open must clear BOTH container and image_loader, so we
+        // never serve images from the previously opened book.
+        let result = state.open_container("/path/to/file.unsupported");
+        assert!(result.is_err());
+        assert!(state.container.is_none());
+        assert!(state.image_loader.is_none());
     }
 
     #[test]
