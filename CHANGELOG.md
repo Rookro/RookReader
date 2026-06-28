@@ -31,6 +31,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * Opening the bookshelf while it was still loading could fail to scroll to the book you were reading; it now scrolls there once the list has finished loading.
 * Sorting the bookshelf by date ordered standalone books by registration order instead of their real date; books and series now interleave by actual date. (#267)
 * Fixed an issue where the empty space on the left side of the bookshelf grid could not be scrolled; scrolling now works across the whole area. (#268)
+* Fixed several reader, bookshelf, and file-handling issues. (#269)
+  * Opening a book that fails to load no longer keeps showing the previously opened book's pages.
+  * A folder containing an unreadable item (such as a broken shortcut) no longer appears empty; the remaining items are still listed.
+  * Comic archives (ZIP) containing two images with the same name no longer show one page twice while hiding another.
+  * A malformed comic archive (ZIP) reporting a misleading size could crash the app when opening a page; such archives are now handled safely.
+  * Opening a large book no longer briefly blocks other actions, such as loading images.
+  * SVG files were listed as readable pages but always failed to display; they are no longer shown as pages.
+  * Applying tags to a book no longer fails if one of the selected tags was deleted in the meantime.
+  * Closed a path-traversal issue where a crafted file name inside an opened folder could read a file outside it.
 
 ## [2.3.0] - 2026-06-14
 
