@@ -70,6 +70,16 @@ describe("ReadReducer", () => {
       expect(state.containerFile.history).toHaveLength(1);
     });
 
+    // Verify that a no-op open (same path) clears any pending initial position
+    it("should clear pendingInitialPosition on a no-op setContainerFilePath", () => {
+      const initialState = {
+        containerFile: { history: ["current"], historyIndex: 0, pendingInitialPosition: "last" },
+      } as RootState["read"];
+      const state = readReducer(initialState, setContainerFilePath("current"));
+      expect(state.containerFile.history).toHaveLength(1);
+      expect(state.containerFile.pendingInitialPosition).toBeNull();
+    });
+
     // Verify that subsequent history is sliced when a new path is set while in the middle of history
     it("should slice history in setContainerFilePath when index is not at the end", () => {
       const initialState = {
