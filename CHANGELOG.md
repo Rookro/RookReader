@@ -46,6 +46,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * In two-page view, when the second page of a spread failed to load, the viewer could be left blank or stuck on the previous page; it now falls back to showing the available page.
   * Double-clicking a file in the file navigator did nothing; it now opens the file.
   * Re-selecting the book you were already viewing could carry a pending "open to the first/last page" action over into a later, unrelated book.
+* Fixed several bookshelf issues. (#271)
+  * In the bookshelf, pressing Enter or Space right after a search shortened the list could crash the grid; it no longer does.
+  * When entering the bookshelf, the automatic scroll to the book you were reading could occasionally settle on the wrong row before the grid was measured; it now waits until the width is known.
+  * Reordering the books within a series was not reflected on the bookshelf right away (the series cover stack and the in-series order); the new order now appears immediately.
+  * A book you had read only the first page of showed 0% progress instead of its actual reading progress; the progress bar now reflects it.
 
 ## [2.3.0] - 2026-06-14
 
