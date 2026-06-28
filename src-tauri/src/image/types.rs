@@ -68,7 +68,6 @@ impl Image {
             || lowercase_name.ends_with(".jif")
             || lowercase_name.ends_with(".jfif")
             || lowercase_name.ends_with(".png")
-            || lowercase_name.ends_with(".svg")
             || lowercase_name.ends_with(".webp")
     }
 
@@ -113,8 +112,8 @@ mod tests {
     #[case("test.JFIF", true)]
     #[case("test.png", true)]
     #[case("test.PNG", true)]
-    #[case("test.svg", true)]
-    #[case("test.SVG", true)]
+    #[case("test.svg", false)]
+    #[case("test.SVG", false)]
     #[case("test.webp", true)]
     #[case("test.WEBP", true)]
     #[case("test.test.png", true)]
