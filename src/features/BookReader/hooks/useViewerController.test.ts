@@ -10,6 +10,11 @@ vi.mock("../utils/ImageUtils", () => ({
   fetchImageBlob: vi.fn(),
   fetchImagePreviewBlob: vi.fn(),
   createImageCacheItem: vi.fn(),
+  buildSinglePageLayout: vi.fn((firstImage) => ({
+    firstImage,
+    isSpread: false,
+    nextIndexIncrement: 1,
+  })),
 }));
 
 vi.mock("../reducers/ReadReducer", () => ({
@@ -525,6 +530,39 @@ describe("useViewerController", () => {
       await waitFor(() => expect(result.current.isImageLoading).toBe(false));
       result.current.moveBack();
       expect(mockDispatch).toHaveBeenCalledWith(setImageIndex(1));
+    });
+
+    // Verify the viewer degrades to a single page when the spread's second page fails to load
+    it("should fall back to a single-page layout when the spread's second page fails to load", async () => {
+      // First page loads; the second page fetch fails (resolves undefined).
+      mockedFetchImageBlob.mockImplementation((_path, entry) =>
+        Promise.resolve(entry === "p1.jpg" ? ({} as Image) : undefined),
+      );
+      mockedCreateImageCacheItem.mockReturnValue({
+        fullUrl: "url1",
+        url: "url1",
+        width: 100,
+        height: 200,
+      } as ImageUtils.ImageCacheItem);
+      // A spread cannot form while the second page is missing.
+      mockedCalculateLayout.mockReturnValue(null);
+
+      const { result } = renderHook(() =>
+        useViewerController("path", mockEntries, 0, twoPagedSettings, mockDispatch),
+      );
+
+      await waitFor(() => expect(result.current.isImageLoading).toBe(false));
+
+      // Degraded to a single-page layout for the first image instead of staying null.
+      expect(result.current.displayedLayout).not.toBeNull();
+      expect(result.current.displayedLayout?.isSpread).toBe(false);
+      expect(result.current.displayedLayout?.nextIndexIncrement).toBe(1);
+      expect(result.current.displayedLayout?.firstImage).toEqual({
+        fullUrl: "url1",
+        url: "url1",
+        width: 100,
+        height: 200,
+      });
     });
   });
 

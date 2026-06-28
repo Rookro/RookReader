@@ -5,6 +5,7 @@ import type { AppDispatch } from "../../../store/store";
 import type { Image } from "../../../types/Image";
 import { setImageIndex } from "../slice";
 import {
+  buildSinglePageLayout,
   calculateLayout,
   createImageCacheItem,
   fetchImageBlob,
@@ -101,6 +102,10 @@ export const useViewerController = (
 
       const cache = cacheRef.current;
 
+      // Tracks whether a full layout was resolved this run, so the post-settle
+      // fallback only fires when calculateLayout never produced one.
+      let layoutResolved = false;
+
       const loadAndUpdate = async (
         path: string,
         fetcher: (containerPath: string, entryName: string) => Promise<Image | undefined>,
@@ -122,6 +127,7 @@ export const useViewerController = (
           }
           const layout = calculateLayout(index, entries, cache, settings);
           if (layout) {
+            layoutResolved = true;
             setLayoutState({ layout, path: containerPath });
           }
         }
@@ -160,8 +166,19 @@ export const useViewerController = (
       // Continue fetching full-res images in the background
       await Promise.all(fullPromises);
 
-      if (previewPromises.length === 0 && !controller.signal.aborted) {
-        setIsImageLoading(false);
+      if (!controller.signal.aborted) {
+        // Loading has settled. If no full layout resolved (e.g. a spread's second
+        // page failed to load), degrade to a single-page layout for the first image
+        // instead of leaving the viewer blank/stale.
+        if (!layoutResolved) {
+          const firstImg = cache.get(entries[index]);
+          if (firstImg) {
+            setLayoutState({ layout: buildSinglePageLayout(firstImg), path: containerPath });
+          }
+        }
+        if (previewPromises.length === 0) {
+          setIsImageLoading(false);
+        }
       }
     };
 

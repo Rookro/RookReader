@@ -134,6 +134,18 @@ export const createImageCacheItem = (image: Image, isPreview: boolean): ImageCac
 };
 
 /**
+ * Builds a single-page (non-spread) layout for an already-loaded first image.
+ *
+ * @param firstImage The cached first image to display alone.
+ * @returns A single-page ViewLayout that advances by one index.
+ */
+export const buildSinglePageLayout = (firstImage: ImageCacheItem): ViewLayout => ({
+  firstImage,
+  isSpread: false,
+  nextIndexIncrement: 1,
+});
+
+/**
  * Calculates the view layout based on the current state.
  * Returns null if required images are not yet cached, preventing partial layout decisions.
  *
