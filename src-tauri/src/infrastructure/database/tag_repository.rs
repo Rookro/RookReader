@@ -75,12 +75,13 @@ impl TagRepository for SqliteTagRepository {
         .await?;
 
         for tag_id in tag_ids {
+            // SELECT from `tags` so a stale tag_id (no matching row) is skipped instead of
+            // raising a FOREIGN KEY error, which OR IGNORE does not suppress. OR IGNORE
+            // still dedupes against the (book_id, tag_id) primary key.
             sqlx::query!(
                 r#"
-                -- OR IGNORE so a duplicated tag id in the request (a set, semantically)
-                -- does not hit the (book_id, tag_id) primary key and abort the whole update.
                 INSERT OR IGNORE INTO book_tags (book_id, tag_id)
-                VALUES (?, ?)
+                SELECT ?, id FROM tags WHERE id = ?
                 "#,
                 book_id,
                 tag_id
