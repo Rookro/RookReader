@@ -108,6 +108,30 @@ describe("BookCard", () => {
     expect(progressBar).toHaveAttribute("aria-valuenow", "0");
   });
 
+  it("should render non-zero progress when the first page (index 0) has been read", () => {
+    const bookAtFirstPage = createMockBookWithState({
+      ...mockBook,
+      total_pages: 10,
+      last_read_page_index: 0,
+    });
+    renderBookCard({ ...defaultProps, book: bookAtFirstPage });
+
+    const progressBar = screen.getByRole("progressbar");
+    expect(progressBar).toHaveAttribute("aria-valuenow", "10");
+  });
+
+  it("should render progress as 0 when the book is unread (null index)", () => {
+    const unreadBook = createMockBookWithState({
+      ...mockBook,
+      total_pages: 10,
+      last_read_page_index: null,
+    });
+    renderBookCard({ ...defaultProps, book: unreadBook });
+
+    const progressBar = screen.getByRole("progressbar");
+    expect(progressBar).toHaveAttribute("aria-valuenow", "0");
+  });
+
   it("should render reading chip when isReading is true", () => {
     renderBookCard({ ...defaultProps, isReading: true });
 

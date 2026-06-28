@@ -208,9 +208,7 @@ export default function BookCard({
                 variant="determinate"
                 value={
                   book.total_pages !== 0
-                    ? ((book.last_read_page_index ? book.last_read_page_index + 1 : 0) /
-                        book.total_pages) *
-                      100
+                    ? (((book.last_read_page_index ?? -1) + 1) / book.total_pages) * 100
                     : 0
                 }
                 sx={{
