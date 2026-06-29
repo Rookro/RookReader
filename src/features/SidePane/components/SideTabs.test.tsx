@@ -1,6 +1,7 @@
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { mockTauri } from "../../../test/mocks/tauri";
 import { mockSettingsCommands, renderWithProviders } from "../../../test/utils";
 import SideTabs from "./SideTabs";
 
@@ -45,8 +46,20 @@ describe("SideTabs", () => {
     expect(store.getState().settings.layout.sidePane.isHidden).toBe(false);
   });
 
-  it("should reset tabIndex if current index is out of bounds", () => {
+  it("should reset tabIndex if current index is out of bounds", async () => {
     const { store } = renderWithProviders(<SideTabs tabs={mockTabs} index={5} isHidden={false} />);
-    expect(store.getState().settings.layout.sidePane.tabIndex).toBe(0);
+    await waitFor(() => {
+      expect(store.getState().settings.layout.sidePane.tabIndex).toBe(0);
+    });
+
+    // The reset runs in an effect, so it dispatches exactly once instead of
+    // re-firing on every render until the async settings round-trip resolves.
+    const resetCalls = mockTauri.invoke.mock.calls.filter(
+      ([command, args]) =>
+        command === "set_settings" &&
+        (args as { patch?: { layout?: { sidePane?: { tabIndex?: number } } } })?.patch?.layout
+          ?.sidePane?.tabIndex === 0,
+    );
+    expect(resetCalls).toHaveLength(1);
   });
 });

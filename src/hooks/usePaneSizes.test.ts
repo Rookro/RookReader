@@ -62,4 +62,18 @@ describe("usePaneSizes", () => {
     // Now it should be updated
     expect(localStorage.getItem(TEST_KEY)).toBe(JSON.stringify([300, 700]));
   });
+
+  it("should flush the latest sizes on unmount before the debounce window elapses", () => {
+    const { result, unmount } = renderHook(() => usePaneSizes(TEST_KEY));
+
+    result.current.setPaneSizes([250, 750]);
+
+    // Not yet written: still within the debounce window.
+    expect(localStorage.getItem(TEST_KEY)).toBeNull();
+
+    // Unmount before the 500ms elapses; the cleanup must flush, not just cancel.
+    unmount();
+
+    expect(localStorage.getItem(TEST_KEY)).toBe(JSON.stringify([250, 750]));
+  });
 });

@@ -51,6 +51,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * When entering the bookshelf, the automatic scroll to the book you were reading could occasionally settle on the wrong row before the grid was measured; it now waits until the width is known.
   * Reordering the books within a series was not reflected on the bookshelf right away (the series cover stack and the in-series order); the new order now appears immediately.
   * A book you had read only the first page of showed 0% progress instead of its actual reading progress; the progress bar now reflects it.
+* Fixed several settings and layout issues. (#272)
+  * Clearing the PDF rendering resolution field no longer commits an invalid value that always failed validation; the current value is kept instead.
+  * When a saved side-pane tab no longer exists, resetting it to the first tab no longer repeatedly re-saved the settings.
+  * Turning off "record reading history" right after changing the page no longer records that last page; the setting is now re-checked just before the delayed write.
+  * Resizing a pane and then immediately switching views or closing no longer discarded the final size; the latest pane size is now saved.
 
 ## [2.3.0] - 2026-06-14
 

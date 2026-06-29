@@ -1,6 +1,6 @@
 import { debounce } from "@mui/material";
 import { error } from "@tauri-apps/plugin-log";
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 
 /**
  * A custom hook to manage pane sizes in localStorage.
@@ -24,7 +24,9 @@ export function usePaneSizes(storageKey: string) {
     return undefined;
   }, [storageKey]);
 
-  const setPaneSizes = useMemo(
+  const latestSizesRef = useRef<number[] | null>(null);
+
+  const debouncedWrite = useMemo(
     () =>
       debounce((sizes: number[]) => {
         localStorage.setItem(storageKey, JSON.stringify(sizes));
@@ -32,11 +34,24 @@ export function usePaneSizes(storageKey: string) {
     [storageKey],
   );
 
+  const setPaneSizes = useCallback(
+    (sizes: number[]) => {
+      latestSizesRef.current = sizes;
+      debouncedWrite(sizes);
+    },
+    [debouncedWrite],
+  );
+
   useEffect(() => {
     return () => {
-      setPaneSizes.clear();
+      // Flush the pending write on unmount: `debounce(...).clear()` only cancels,
+      // which would lose the last resize made within the debounce window.
+      debouncedWrite.clear();
+      if (latestSizesRef.current) {
+        localStorage.setItem(storageKey, JSON.stringify(latestSizesRef.current));
+      }
     };
-  }, [setPaneSizes]);
+  }, [debouncedWrite, storageKey]);
 
   return { paneSizes, setPaneSizes };
 }

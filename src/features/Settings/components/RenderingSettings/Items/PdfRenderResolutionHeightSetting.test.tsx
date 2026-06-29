@@ -49,6 +49,27 @@ describe("PdfRenderResolutionHeightSetting", () => {
     });
   });
 
+  it("commits the current in-range value (not 0) when the field is cleared", async () => {
+    const preloadedState = createBasePreloadedState();
+    preloadedState.settings.reader.rendering.pdfRenderResolutionHeight = 3000;
+
+    renderWithProviders(<PdfRenderResolutionHeightSetting />, { preloadedState });
+
+    const input = screen.getByRole("textbox");
+    await user.clear(input);
+    await user.tab(); // Blur with an empty field
+
+    await waitFor(() => {
+      expect(mockTauri.invoke).toHaveBeenCalledWith("set_settings", {
+        patch: { reader: { rendering: { pdfRenderResolutionHeight: 3000 } } },
+      });
+    });
+    // The cleared field must never commit 0 (below the min of 1).
+    expect(mockTauri.invoke).not.toHaveBeenCalledWith("set_settings", {
+      patch: { reader: { rendering: { pdfRenderResolutionHeight: 0 } } },
+    });
+  });
+
   it("shows the backend's structured out-of-range message inline below the field", async () => {
     const preloadedState = createBasePreloadedState();
     preloadedState.settings.reader.rendering.pdfRenderResolutionHeight = 2000;
