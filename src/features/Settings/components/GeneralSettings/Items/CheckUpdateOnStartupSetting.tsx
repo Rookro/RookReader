@@ -27,7 +27,7 @@ export default function CheckUpdateOnStartupSetting() {
       icon={<SystemUpdateAlt />}
       primaryText={t("settings.general.check-update-on-startup.title")}
       secondaryText={t("settings.general.check-update-on-startup.description")}
-      defaultChecked={startupSettings.checkUpdateOnStartup ?? true}
+      checked={startupSettings.checkUpdateOnStartup}
       onChange={handleCheckUpdateChanged}
     />
   );

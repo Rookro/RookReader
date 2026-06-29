@@ -32,7 +32,7 @@ export default function ThumbnailPreviewSetting() {
       icon={<AutoStoriesOutlined />}
       primaryText={t("settings.rendering.preview.title")}
       secondaryText={t("settings.rendering.preview.description")}
-      defaultChecked={readerSettings.rendering.enableThumbnailPreview}
+      checked={readerSettings.rendering.enableThumbnailPreview}
       onChange={handleEnablePreviewSwitchChange}
     />
   );

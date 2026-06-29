@@ -73,7 +73,7 @@ export default function LogLevelSetting() {
         icon={<FilterListOutlined />}
         primaryText={t("settings.developer.log.log-level.title")}
         secondaryText={t("settings.developer.log.log-level.description")}
-        defaultValue={generalSettings.log.level}
+        value={generalSettings.log.level}
         onChange={handleLogLevelChanged}
       >
         <MenuItem value="trace">{t("settings.developer.log.log-level.trace")}</MenuItem>

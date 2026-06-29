@@ -25,7 +25,7 @@ export default function RestoreLastBookSetting() {
       icon={<RestorePageOutlined />}
       primaryText={t("settings.general.restore-last-read.title")}
       secondaryText={t("settings.general.restore-last-read.description")}
-      defaultChecked={startupSettings.restoreLastBook}
+      checked={startupSettings.restoreLastBook}
       onChange={handleRestoreLastBookChanged}
     />
   );
