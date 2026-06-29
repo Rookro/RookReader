@@ -6,6 +6,7 @@ import type { Series } from "../../domain/series/schema";
 import { handleThunkError } from "../../store/thunkErrorHandler";
 import { createAppAsyncThunk } from "../../types/CustomAsyncThunk";
 import type { ErrorCode } from "../../types/Error";
+import { fetchBooksInSelectedBookshelf } from "./slice";
 
 /**
  * Updates the order of books within a series and refetches the bookshelf to reflect the changes.
@@ -15,9 +16,12 @@ import type { ErrorCode } from "../../types/Error";
  */
 export const updateSeriesOrdersThunk = createAppAsyncThunk(
   "series/updateSeriesOrdersThunk",
-  async (bookIds: number[], { rejectWithValue }) => {
+  async (bookIds: number[], { rejectWithValue, dispatch, getState }) => {
     try {
       await updateSeriesOrders(bookIds);
+      // Honor the documented contract: refetch so the new order is reflected.
+      const selectedBookshelfId = getState().bookCollection.selectedId;
+      await dispatch(fetchBooksInSelectedBookshelf(selectedBookshelfId));
     } catch (e) {
       return handleThunkError(e, "Failed to update series orders.", rejectWithValue);
     }

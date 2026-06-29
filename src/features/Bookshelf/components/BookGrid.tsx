@@ -247,6 +247,12 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
     }
   }, [activeView]);
 
+  // Keep the keyboard focus in range when the filtered list shrinks (e.g. typing
+  // into the search box), so Enter/Space can't dereference a stale index.
+  useEffect(() => {
+    setFocusedIndex((prev) => (prev >= filteredSortedItems.length ? -1 : prev));
+  }, [filteredSortedItems.length]);
+
   const handleBookClick = useCallback(
     (book: BookWithState, e: React.MouseEvent | React.KeyboardEvent) => {
       const bookToIdx = new Map<number, number>();
@@ -297,6 +303,14 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
       return;
     }
 
+    // Wait until the container has been measured so columnCount is accurate.
+    // Scrolling with the fallback columnCount=1 would target the wrong row and
+    // then latch, preventing a correct re-scroll. The effect re-runs when
+    // columnCount changes (its dependency), so this resumes once width arrives.
+    if (gridWidth <= 0) {
+      return;
+    }
+
     // Use setTimeout to push the scroll command to the end of the event loop.
     // This ensures that the virtualized list (react-window) has finished
     // rendering and measuring item positions before attempting to scroll.
@@ -328,7 +342,15 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
     return () => {
       clearTimeout(timerId);
     };
-  }, [readingBookIndex, readingBook, filteredSortedItems, grid, columnCount, activeView]);
+  }, [
+    readingBookIndex,
+    readingBook,
+    filteredSortedItems,
+    grid,
+    columnCount,
+    activeView,
+    gridWidth,
+  ]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -352,9 +374,9 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
       } else if (e.key === "End") {
         nextIndex = filteredSortedItems.length - 1;
       } else if (e.key === "Enter" || e.key === " ") {
-        if (focusedIndex >= 0) {
+        const item = filteredSortedItems[focusedIndex];
+        if (focusedIndex >= 0 && item) {
           e.preventDefault();
-          const item = filteredSortedItems[focusedIndex];
           if (item.type === "book") {
             handleBookClick(item.data, e);
           } else {
