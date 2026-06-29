@@ -20,7 +20,9 @@ export default function PdfRenderResolutionHeightSetting() {
 
   const handlePdfRenderResolutionHeightChange = useCallback(
     async (value: number | null) => {
-      const height = value ?? 0;
+      // A cleared field commits the current (always in-range) value instead of 0,
+      // which is below the field's min of 1 and would always fail validation.
+      const height = value ?? pdfRenderResolutionHeight;
 
       // Send only the changed leaf; the backend validates the bound and, on rejection,
       // returns a structured violation the hook surfaces inline below the field.
@@ -29,7 +31,7 @@ export default function PdfRenderResolutionHeightSetting() {
         value: { rendering: { pdfRenderResolutionHeight: height } },
       });
     },
-    [commit],
+    [commit, pdfRenderResolutionHeight],
   );
 
   return (
