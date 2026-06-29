@@ -1,6 +1,6 @@
 import { Tab, Tabs } from "@mui/material";
 import type React from "react";
-import { type JSX, useCallback } from "react";
+import { type JSX, useCallback, useEffect } from "react";
 import { useAppDispatch } from "../../../store/store";
 import { updateSettings } from "../../Settings/slice";
 
@@ -40,14 +40,19 @@ export default function SideTabs(props: {
     [dispatch],
   );
 
-  if (props.tabs.length - 1 < props.index) {
-    dispatch(
-      updateSettings({
-        key: "layout",
-        value: { sidePane: { isHidden: props.isHidden, tabIndex: 0 } },
-      }),
-    );
-  }
+  // Reset a persisted tabIndex that no longer maps to a tab. Done in an effect so
+  // we don't dispatch during render (which re-fires every render until the async
+  // settings round-trip resolves).
+  useEffect(() => {
+    if (props.tabs.length - 1 < props.index) {
+      dispatch(
+        updateSettings({
+          key: "layout",
+          value: { sidePane: { isHidden: props.isHidden, tabIndex: 0 } },
+        }),
+      );
+    }
+  }, [props.tabs.length, props.index, props.isHidden, dispatch]);
 
   return (
     <Tabs
