@@ -15,7 +15,7 @@ vi.mock("../../../utils/DirEntryUtils", () => ({
 const dirEntry = (name: string, isDir = false): DirEntry => ({
   name,
   is_directory: isDir,
-  last_modified: "",
+  last_modified: 0,
 });
 
 describe("resolveAdjacentBook", () => {

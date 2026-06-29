@@ -72,7 +72,7 @@ describe("FileNavigator", () => {
     const preloadedState = createBasePreloadedState();
     preloadedState.read.explorer.searchText = "Banana";
     preloadedState.read.explorer.entries = [
-      { name: "Apple", is_directory: false, last_modified: "" },
+      { name: "Apple", is_directory: false, last_modified: 0 },
     ];
 
     renderWithProviders(<FileNavigator />, { preloadedState });
@@ -80,7 +80,7 @@ describe("FileNavigator", () => {
   });
 
   it("should dispatch setContainerFilePath when a file is clicked", async () => {
-    const entries: DirEntry[] = [{ name: "book.zip", is_directory: false, last_modified: "" }];
+    const entries: DirEntry[] = [{ name: "book.zip", is_directory: false, last_modified: 0 }];
     const preloadedState = createBasePreloadedState();
     preloadedState.read.explorer.entries = entries;
 
@@ -96,7 +96,7 @@ describe("FileNavigator", () => {
   });
 
   it("should dispatch updateExploreBasePath when a directory is double-clicked", async () => {
-    const entries: DirEntry[] = [{ name: "folder", is_directory: true, last_modified: "" }];
+    const entries: DirEntry[] = [{ name: "folder", is_directory: true, last_modified: 0 }];
     const preloadedState = createBasePreloadedState();
     preloadedState.read.explorer.entries = entries;
 
@@ -111,7 +111,7 @@ describe("FileNavigator", () => {
   });
 
   it("should open the file when a file is double-clicked", async () => {
-    const entries: DirEntry[] = [{ name: "book.zip", is_directory: false, last_modified: "" }];
+    const entries: DirEntry[] = [{ name: "book.zip", is_directory: false, last_modified: 0 }];
     const preloadedState = createBasePreloadedState();
     preloadedState.read.explorer.entries = entries;
 
@@ -128,7 +128,7 @@ describe("FileNavigator", () => {
   });
 
   it("should scroll to row when selectedIndex is set", async () => {
-    const entries: DirEntry[] = [{ name: "book.zip", is_directory: false, last_modified: "" }];
+    const entries: DirEntry[] = [{ name: "book.zip", is_directory: false, last_modified: 0 }];
     vi.mocked(useFileSelection).mockImplementationOnce(
       (_fileHistory, _fileHistoryIndex, _entries, callback) => {
         callback(0);
@@ -152,7 +152,7 @@ describe("FileNavigator", () => {
   });
 
   it("should log error if scrollToRow fails", async () => {
-    const entries: DirEntry[] = [{ name: "book.zip", is_directory: false, last_modified: "" }];
+    const entries: DirEntry[] = [{ name: "book.zip", is_directory: false, last_modified: 0 }];
     vi.mocked(useFileSelection).mockImplementationOnce(
       (_fileHistory, _fileHistoryIndex, _entries, callback) => {
         callback(0);
