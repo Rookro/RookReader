@@ -85,6 +85,34 @@ describe("readingStateMiddleware", () => {
     expect(bookCommands.updateReadingProgress).not.toHaveBeenCalled();
   });
 
+  // Verify that the fire-time re-check skips the write when history is disabled
+  // after the write was scheduled (within the debounce window).
+  it("should not persist if recordReadingHistory is disabled before the write fires", () => {
+    const enabledState = {
+      settings: { history: { recordReadingHistory: true } },
+      read: {
+        containerFile: {
+          history: ["path1"],
+          historyIndex: 0,
+          index: 10,
+          book: { id: 1, last_opened_at: "now" },
+        },
+      },
+    };
+    const disabledState = {
+      settings: { history: { recordReadingHistory: false } },
+      read: { containerFile: {} },
+    };
+    // Enabled when the write is scheduled (outer guard), disabled by the time the
+    // debounced function fires and re-checks via the predicate.
+    store.getState.mockReturnValueOnce(enabledState).mockReturnValue(disabledState);
+
+    const action = { type: "read/setImageIndex", payload: 10 };
+    readingStateMiddleware(store as MiddlewareAPI)(next as (action: unknown) => unknown)(action);
+
+    expect(bookCommands.updateReadingProgress).not.toHaveBeenCalled();
+  });
+
   // Verify that reading state is saved to the DB when read/setNovelLocation action (for novels) is dispatched
   it("should call updateReadingProgress when read/setNovelLocation is dispatched", () => {
     const action = { type: "read/setNovelLocation", payload: { index: 5, cfi: "cfi" } };
