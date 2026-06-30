@@ -341,6 +341,7 @@
       "entry-not-found": "Page not found."
     },
     "settings": {
+      "save-failed": "Failed to save settings.",
       "validation-failed": "Failed to save settings. Please check your input.",
       "out-of-range": "\"{{field}}\" must be between {{min}} and {{max}}.",
       "not-integer": "\"{{field}}\" must be a whole number.",

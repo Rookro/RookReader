@@ -341,6 +341,7 @@
       "entry-not-found": "ページが見つかりません。"
     },
     "settings": {
+      "save-failed": "設定の保存に失敗しました。",
       "validation-failed": "設定の保存に失敗しました。入力内容を確認してください。",
       "out-of-range": "「{{field}}」は {{min}}〜{{max}} の範囲で入力してください。",
       "not-integer": "「{{field}}」は整数で入力してください。",

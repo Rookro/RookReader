@@ -24,10 +24,7 @@ describe("SettingsErrorListener", () => {
     const { store } = renderWithProviders(<SettingsErrorListener />, { preloadedState });
 
     await waitFor(() => {
-      expect(showNotification).toHaveBeenCalledWith(
-        "Failed to save settings. Please check your input.",
-        "error",
-      );
+      expect(showNotification).toHaveBeenCalledWith("Failed to save settings.", "error");
       expect(store.getState().settingsError.error).toBeNull();
     });
   });
