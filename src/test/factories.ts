@@ -77,6 +77,6 @@ export const createMockSeries = (overrides?: Partial<Series>): Series => ({
 export const createMockDirEntry = (overrides?: Partial<DirEntry>): DirEntry => ({
   name: "mock-entry.zip",
   is_directory: false,
-  last_modified: "2026-03-18T12:00:00Z",
+  last_modified: Date.parse("2026-03-18T12:00:00Z"),
   ...overrides,
 });

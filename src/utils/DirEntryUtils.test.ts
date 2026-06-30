@@ -46,12 +46,12 @@ describe("DirEntryUtils", () => {
     expect(result[0]).toEqual({
       is_directory: true,
       name: "dir1",
-      last_modified: new Date(1000).toLocaleString(),
+      last_modified: 1000,
     });
     expect(result[1]).toEqual({
       is_directory: false,
       name: "file1.txt",
-      last_modified: new Date(2000).toLocaleString(),
+      last_modified: 2000,
     });
   });
 

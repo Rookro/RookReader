@@ -6,8 +6,8 @@ import { useFileSelection } from "./useFileSelection";
 describe("useFileSelection", () => {
   const setSelectedIndex = vi.fn();
   const mockEntries = [
-    { name: "file1.zip", is_directory: false, last_modified: "" },
-    { name: "file2.zip", is_directory: false, last_modified: "" },
+    { name: "file1.zip", is_directory: false, last_modified: 0 },
+    { name: "file2.zip", is_directory: false, last_modified: 0 },
   ];
 
   beforeEach(() => {
