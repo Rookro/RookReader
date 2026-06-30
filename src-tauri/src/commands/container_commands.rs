@@ -86,7 +86,10 @@ pub async fn get_entries_in_container(
         let state_lock = state.read().await;
         if let Some(loader) = state_lock.container_state.image_loader.as_ref() {
             log::debug!("Triggering proactive preloading for {}", path);
-            loader.request_preload_around(0, 5)?;
+            if let Err(e) = loader.request_preload_around(0, 5) {
+                // Proactive preloading is best-effort; a failure here must not fail the open.
+                log::warn!("Failed to trigger proactive preloading for {path}: {e}");
+            }
         }
     }
 
@@ -334,6 +337,29 @@ mod tests {
             assert!(guard.container_state.container.is_none());
             assert!(guard.container_state.image_loader.is_none());
         }
+    }
+
+    #[tokio::test]
+    async fn test_get_entries_in_container_succeeds_with_best_effort_preload() {
+        // A non-novel open triggers proactive preloading, which is best-effort: the open
+        // must still succeed and return its entries, and the loader must be installed
+        // regardless of the preload outcome.
+        let dir = tempfile::tempdir().unwrap();
+        let rar_path = create_dummy_rar(dir.path(), "dummy.rar");
+
+        let app = tauri::test::mock_app();
+        app.manage(RwLock::new(AppState::default()));
+
+        let result =
+            get_entries_in_container(rar_path.to_string_lossy().as_ref(), app.state()).await;
+
+        let entries_result = result.expect("a valid non-novel open should succeed");
+        assert!(!entries_result.is_novel);
+        assert_eq!(3, entries_result.entries.len());
+
+        let binding = app.state::<RwLock<AppState>>();
+        let guard = binding.read().await;
+        assert!(guard.container_state.image_loader.is_some());
     }
 
     #[tokio::test]
