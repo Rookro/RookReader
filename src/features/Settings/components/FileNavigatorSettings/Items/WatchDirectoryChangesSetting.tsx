@@ -32,7 +32,7 @@ export default function WatchDirectoryChangesSetting() {
       icon={<PublishedWithChangesOutlined />}
       primaryText={t("settings.file-navigator.dir-watch.title")}
       secondaryText={t("settings.file-navigator.dir-watch.warn-message")}
-      defaultChecked={fileNavigatorSettings.watchDirectoryChanges}
+      checked={fileNavigatorSettings.watchDirectoryChanges}
       onChange={handleIsWatchEnabledChange}
     />
   );

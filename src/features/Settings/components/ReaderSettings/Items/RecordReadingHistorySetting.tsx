@@ -27,7 +27,7 @@ export default function RecordReadingHistorySetting() {
       icon={<HistoryOutlined />}
       primaryText={t("settings.reader.history-feature.title")}
       secondaryText={t("settings.reader.history-feature.description")}
-      defaultChecked={historySettings.recordReadingHistory}
+      checked={historySettings.recordReadingHistory}
       onChange={handleRecordReadingHistoryChanged}
     />
   );

@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { mockTauri } from "../../../../../test/mocks/tauri";
@@ -7,6 +7,7 @@ import {
   mockSettingsCommands,
   renderWithProviders,
 } from "../../../../../test/utils";
+import { setSettings } from "../../../slice";
 import RecordReadingHistorySetting from "./RecordReadingHistorySetting";
 
 describe("RecordReadingHistorySetting", () => {
@@ -55,5 +56,29 @@ describe("RecordReadingHistorySetting", () => {
         patch: { history: { recordReadingHistory: false } },
       });
     });
+  });
+
+  it("should reflect an external settings change after mount (controlled input)", async () => {
+    const preloadedState = structuredClone(createBasePreloadedState());
+    preloadedState.settings.history.recordReadingHistory = true;
+
+    const { store } = renderWithProviders(<RecordReadingHistorySetting />, {
+      preloadedState,
+    });
+
+    expect(screen.getByRole("switch")).toBeChecked();
+
+    // Simulate a cross-window `settings-changed` broadcast re-hydrating the slice.
+    act(() => {
+      const current = store.getState().settings;
+      store.dispatch(
+        setSettings({
+          ...current,
+          history: { ...current.history, recordReadingHistory: false },
+        }),
+      );
+    });
+
+    await waitFor(() => expect(screen.getByRole("switch")).not.toBeChecked());
   });
 });

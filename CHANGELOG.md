@@ -57,6 +57,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * Turning off "record reading history" right after changing the page no longer records that last page; the setting is now re-checked just before the delayed write.
   * Resizing a pane and then immediately switching views or closing no longer discarded the final size; the latest pane size is now saved.
 * Sorting the file browser by date could be wrong in regions whose date format is not month-first; date sorting is now correct regardless of your system's locale. (#273)
+* When a setting was changed in another window (or rejected while saving), some toggles and dropdowns in the open Settings window kept showing the old value; they now always reflect the saved setting. (#274)
 
 ## [2.3.0] - 2026-06-14
 

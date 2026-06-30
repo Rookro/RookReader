@@ -31,7 +31,7 @@ export default function ShowCoverAsSinglePageSetting() {
     <SwitchSettingItem
       icon={<AutoStoriesOutlined />}
       primaryText={t("settings.reader.first-page.title")}
-      defaultChecked={readerSettings.comic.showCoverAsSinglePage}
+      checked={readerSettings.comic.showCoverAsSinglePage}
       onChange={handleFirstPageSingleViewSwitchChange}
     />
   );
