@@ -59,6 +59,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Sorting the file browser by date could be wrong in regions whose date format is not month-first; date sorting is now correct regardless of your system's locale. (#273)
 * When a setting was changed in another window (or rejected while saving), some toggles and dropdowns in the open Settings window kept showing the old value; they now always reflect the saved setting. (#274)
 * In some EPUBs, a single unreadable chapter could push the rest of the book's pages out of reading order; the remaining pages now stay correctly ordered. (#275)
+* Opening a book could be reported as a failure when its background page preloading failed, even though the book had opened fine; preloading is now best-effort and no longer fails the open. (#276)
 
 ## [2.3.0] - 2026-06-14
 
