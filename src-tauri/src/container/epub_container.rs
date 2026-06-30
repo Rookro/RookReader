@@ -159,7 +159,7 @@ fn create_image_order_map(epub: &mut Epub) -> Option<HashMap<String, usize>> {
     let selector = get_image_selector()?;
 
     let mut reader = epub.reader();
-    while let Some(Ok(page)) = reader.read_next() {
+    while let Some(page) = next_readable_page(|| reader.read_next()) {
         let chapter_dir = Path::new(page.manifest_entry().id())
             .parent()
             .unwrap_or(Path::new(""));
@@ -191,6 +191,22 @@ fn create_image_order_map(epub: &mut Epub) -> Option<HashMap<String, usize>> {
         None
     } else {
         Some(map)
+    }
+}
+
+/// Advances `next` until it yields a readable page, skipping (and logging) any read errors.
+///
+/// A single unreadable spine item must not truncate the rest of the spine; otherwise every
+/// later image would be left unmapped and sorted to the end in manifest (not reading) order.
+/// Returns `None` once the iterator is exhausted.
+fn next_readable_page<P, E: std::fmt::Display>(
+    mut next: impl FnMut() -> Option<std::result::Result<P, E>>,
+) -> Option<P> {
+    loop {
+        match next()? {
+            Ok(page) => return Some(page),
+            Err(e) => log::warn!("Skipping unreadable EPUB spine item: {e}"),
+        }
     }
 }
 
@@ -583,5 +599,26 @@ mod tests {
             select_resource_id(&ids, path::Path::new("x/cover.png")).as_deref(),
             Some("cover.png")
         );
+    }
+
+    #[test]
+    fn next_readable_page_skips_read_errors() {
+        // A spine whose middle item fails to read must not truncate iteration: every
+        // readable page is still yielded, in order (the old `while let Some(Ok(_))` stopped
+        // at the first error, dropping pages 2 and 3).
+        let mut items = vec![
+            Ok::<i32, String>(1),
+            Err("unreadable spine item".to_string()),
+            Ok(2),
+            Ok(3),
+        ]
+        .into_iter();
+
+        let mut collected = Vec::new();
+        while let Some(page) = next_readable_page(|| items.next()) {
+            collected.push(page);
+        }
+
+        assert_eq!(collected, vec![1, 2, 3]);
     }
 }
