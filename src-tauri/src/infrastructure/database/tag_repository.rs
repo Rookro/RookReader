@@ -74,21 +74,22 @@ impl TagRepository for SqliteTagRepository {
         .execute(&mut *tx)
         .await?;
 
-        for tag_id in tag_ids {
-            // SELECT from `tags` so a stale tag_id (no matching row) is skipped instead of
-            // raising a FOREIGN KEY error, which OR IGNORE does not suppress. OR IGNORE
-            // still dedupes against the (book_id, tag_id) primary key.
-            sqlx::query!(
-                r#"
-                INSERT OR IGNORE INTO book_tags (book_id, tag_id)
-                SELECT ?, id FROM tags WHERE id = ?
-                "#,
-                book_id,
-                tag_id
-            )
-            .execute(&mut *tx)
-            .await?;
-        }
+        // Insert all tags in one statement. The JOIN against `tags` skips any stale tag_id
+        // (no matching row) instead of raising a FOREIGN KEY error, which OR IGNORE does not
+        // suppress; OR IGNORE still dedupes against the (book_id, tag_id) primary key.
+        let tag_ids_json = serde_json::to_string(tag_ids)?;
+        sqlx::query!(
+            r#"
+            INSERT OR IGNORE INTO book_tags (book_id, tag_id)
+            SELECT ?, t.id
+            FROM tags t
+            WHERE t.id IN (SELECT value FROM json_each(?))
+            "#,
+            book_id,
+            tag_ids_json
+        )
+        .execute(&mut *tx)
+        .await?;
 
         tx.commit().await?;
         Ok(())
