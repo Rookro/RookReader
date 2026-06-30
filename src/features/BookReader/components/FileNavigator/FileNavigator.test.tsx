@@ -1,5 +1,5 @@
 import { error } from "@tauri-apps/plugin-log";
-import { screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { mockScrollToRow } from "../../../../test/mocks/components";
@@ -108,6 +108,35 @@ describe("FileNavigator", () => {
     await waitFor(() => {
       expect(ReadReducer.updateExploreBasePath).toHaveBeenCalled();
     });
+  });
+
+  it("should not treat single clicks on different rows as a double-click", async () => {
+    // Single-clicking row A then row B within the double-click interval must not be
+    // misread as a double-click on B; B is selected and no directory navigation occurs.
+    const entries: DirEntry[] = [
+      { name: "folderA", is_directory: true, last_modified: "" },
+      { name: "folderB", is_directory: true, last_modified: "" },
+    ];
+    const preloadedState = createBasePreloadedState();
+    preloadedState.read.explorer.entries = entries;
+
+    renderWithProviders(<FileNavigator />, { preloadedState });
+
+    const rowA = await screen.findByRole("button", { name: /folderA/i });
+    const rowB = await screen.findByRole("button", { name: /folderB/i });
+
+    // Two synchronous clicks land well within the 200ms double-click interval.
+    fireEvent.click(rowA);
+    fireEvent.click(rowB);
+
+    // A click on a different row must not navigate into the directory.
+    expect(ReadReducer.updateExploreBasePath).not.toHaveBeenCalled();
+
+    // The pending single-click resolves to selecting row B.
+    await waitFor(() => {
+      expect(ReadReducer.setContainerFilePath).toHaveBeenCalledWith("/folderB");
+    });
+    expect(ReadReducer.updateExploreBasePath).not.toHaveBeenCalled();
   });
 
   it("should open the file when a file is double-clicked", async () => {
