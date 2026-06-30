@@ -1,6 +1,5 @@
-import { createCommandError } from "../types/Error";
 import { commands } from "./bindings";
-import { getDataOrThrow } from "./result";
+import { runCommand } from "./result";
 
 /**
  * Creates a new series in the database.
@@ -10,11 +9,7 @@ import { getDataOrThrow } from "./result";
  * @throws {CommandError} If the Tauri command fails.
  */
 export async function createSeries(name: string) {
-  try {
-    return getDataOrThrow(await commands.createSeries(name));
-  } catch (error) {
-    throw createCommandError(error);
-  }
+  return await runCommand(commands.createSeries(name));
 }
 
 /**
@@ -24,11 +19,7 @@ export async function createSeries(name: string) {
  * @throws {CommandError} If the Tauri command fails.
  */
 export async function getAllSeries() {
-  try {
-    return getDataOrThrow(await commands.getAllSeries());
-  } catch (error) {
-    throw createCommandError(error);
-  }
+  return await runCommand(commands.getAllSeries());
 }
 
 /**
@@ -39,9 +30,5 @@ export async function getAllSeries() {
  * @throws {CommandError} If the Tauri command fails.
  */
 export async function deleteSeries(id: number): Promise<void> {
-  try {
-    getDataOrThrow(await commands.deleteSeries(id));
-  } catch (error) {
-    throw createCommandError(error);
-  }
+  await runCommand(commands.deleteSeries(id));
 }
