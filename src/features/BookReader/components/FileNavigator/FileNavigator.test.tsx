@@ -114,8 +114,8 @@ describe("FileNavigator", () => {
     // Single-clicking row A then row B within the double-click interval must not be
     // misread as a double-click on B; B is selected and no directory navigation occurs.
     const entries: DirEntry[] = [
-      { name: "folderA", is_directory: true, last_modified: "" },
-      { name: "folderB", is_directory: true, last_modified: "" },
+      { name: "folderA", is_directory: true, last_modified: 0 },
+      { name: "folderB", is_directory: true, last_modified: 0 },
     ];
     const preloadedState = createBasePreloadedState();
     preloadedState.read.explorer.entries = entries;
