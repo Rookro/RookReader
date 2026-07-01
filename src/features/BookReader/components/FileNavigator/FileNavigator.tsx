@@ -88,6 +88,7 @@ export default function FileListViewer() {
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [list, setList] = useListCallbackRef(null);
   const clickTimer = useRef<number | null>(null);
+  const pendingIndex = useRef<number | null>(null);
   const doubleClickIntervalMs = 200;
 
   const filteredSortedEntries = useMemo(() => {
@@ -159,19 +160,36 @@ export default function FileListViewer() {
 
   const handleListItemClickedWrapper = useCallback(
     (e: React.MouseEvent<HTMLDivElement>, entry: DirEntry, index: number) => {
-      if (clickTimer.current) {
+      // Only treat a second click as a double-click when it lands on the same row;
+      // a click on a different row restarts the single-click timer for that row.
+      if (clickTimer.current && pendingIndex.current === index) {
         clearTimeout(clickTimer.current);
         clickTimer.current = null;
+        pendingIndex.current = null;
         handleListItemDoubleClicked(e, entry, index);
       } else {
+        if (clickTimer.current) {
+          clearTimeout(clickTimer.current);
+        }
+        pendingIndex.current = index;
         clickTimer.current = window.setTimeout(() => {
           clickTimer.current = null;
+          pendingIndex.current = null;
           handleListItemClicked(e, entry, index);
         }, doubleClickIntervalMs);
       }
     },
     [handleListItemClicked, handleListItemDoubleClicked],
   );
+
+  // Cancel any pending single-click callback when the component unmounts.
+  useEffect(() => {
+    return () => {
+      if (clickTimer.current) {
+        clearTimeout(clickTimer.current);
+      }
+    };
+  }, []);
 
   const rowData: RowProps = useMemo(
     () => ({

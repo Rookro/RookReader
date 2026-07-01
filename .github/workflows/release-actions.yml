@@ -34,9 +34,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Install cargo-about
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-about
+        run: cargo install cargo-about --locked --features cli
 
       - name: Install dependencies (ubuntu only)
         if: matrix.platform == 'ubuntu-latest'
