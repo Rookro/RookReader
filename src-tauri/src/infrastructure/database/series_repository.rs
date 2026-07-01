@@ -102,20 +102,22 @@ impl SeriesRepository for SqliteSeriesRepository {
     async fn update_book_orders_in_series(&self, book_ids: Vec<i64>) -> Result<()> {
         let mut tx = self.pool.begin().await?;
 
-        for (index, &book_id) in book_ids.iter().enumerate() {
-            let order = (index + 1) as i64;
-            sqlx::query!(
-                r#"
-                UPDATE books
-                SET series_order = ?
-                WHERE id = ?
-                "#,
-                order,
-                book_id
+        // Apply every order in one statement. json_each's `key` is the 0-based array index,
+        // so series_order = key + 1 reproduces the previous (index + 1) ordering.
+        let book_ids_json = serde_json::to_string(&book_ids)?;
+        sqlx::query!(
+            r#"
+            UPDATE books
+            SET series_order = (
+                SELECT j.key + 1 FROM json_each(?) j WHERE j.value = books.id
             )
-            .execute(&mut *tx)
-            .await?;
-        }
+            WHERE id IN (SELECT value FROM json_each(?))
+            "#,
+            book_ids_json,
+            book_ids_json
+        )
+        .execute(&mut *tx)
+        .await?;
 
         tx.commit().await?;
 

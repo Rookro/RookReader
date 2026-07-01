@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { createCommandError } from "../types/Error";
 import { commands } from "./bindings";
-import { getDataOrThrow } from "./result";
+import { runCommand } from "./result";
 
 /**
  * Opens a container file and fetches its entries from the backend.
@@ -10,11 +10,7 @@ import { getDataOrThrow } from "./result";
  * @returns A promise that resolves to an object containing entries, directory status, and novel status.
  */
 export const getEntriesInContainer = async (path: string) => {
-  try {
-    return getDataOrThrow(await commands.getEntriesInContainer(path));
-  } catch (error) {
-    throw createCommandError(error);
-  }
+  return await runCommand(commands.getEntriesInContainer(path));
 };
 
 /**
@@ -28,11 +24,7 @@ export const requestPreloadAround = async (
   index: number,
   bufferSize: number | undefined = undefined,
 ): Promise<void> => {
-  try {
-    getDataOrThrow(await commands.requestPreloadAround(index, bufferSize ?? null));
-  } catch (error) {
-    throw createCommandError(error);
-  }
+  await runCommand(commands.requestPreloadAround(index, bufferSize ?? null));
 };
 
 // NOTE: `getImage` / `getImagePreview` return a raw binary `tauri::ipc::Response` from the backend,
