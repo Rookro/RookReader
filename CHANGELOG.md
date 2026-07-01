@@ -61,6 +61,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * In some EPUBs, a single unreadable chapter could push the rest of the book's pages out of reading order; the remaining pages now stay correctly ordered. (#275)
 * Opening a book could be reported as a failure when its background page preloading failed, even though the book had opened fine; preloading is now best-effort and no longer fails the open. (#276)
 * In the file navigator, quickly single-clicking two different rows no longer misfires as a double-click on the second row (opening a file or entering a folder); each row is just selected. (#277)
+* A failed settings save now shows a clear "Failed to save settings." message instead of wrongly asking you to check your input, and an input-validation failure shows the right guidance instead of a generic error. (#278)
 
 ## [2.3.0] - 2026-06-14
 
