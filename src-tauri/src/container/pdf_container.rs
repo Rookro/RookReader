@@ -5,7 +5,11 @@ use std::sync::Arc;
 use crate::{
     container::traits::Container,
     error::{Error, Result},
-    image::types::Image,
+    image::{
+        resizer::{shrink_to_fit, ResizeFilter},
+        thumbnail::THUMBNAIL_SIZE,
+        types::Image,
+    },
 };
 
 /// An implementation of the `Container` trait for reading content from PDF files.
@@ -146,6 +150,10 @@ fn create_thumbnail(
         Ok(thumbnail) => thumbnail.as_image(),
         Err(_) => page.render_with_config(render_config)?.as_image(),
     };
+    // Cap both dimensions to the thumbnail contract: embedded thumbnails have no
+    // spec-mandated size, and the render config constrains height only (a landscape
+    // page still exceeds the width cap). Other containers already uphold this.
+    let img = shrink_to_fit(&img, THUMBNAIL_SIZE, THUMBNAIL_SIZE, ResizeFilter::Bilinear)?;
 
     let mut buffer = Vec::new();
     // Use a lower quality for thumbnails to make them smaller and faster to encode.
@@ -196,6 +204,11 @@ mod tests {
 
     // A minimal 1-page PDF file content
     const SINGLE_PAGE_PDF_DATA: &[u8] = b"%PDF-1.4\n1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n2 0 obj << /Type /Pages /Count 1 /Kids [ 3 0 R ] >> endobj\n3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] >> endobj\nxref\n0 4\n0000000000 65535 f\n0000000009 00000 n\n0000000057 00000 n\n0000000107 00000 n\ntrailer << /Size 4 /Root 1 0 R >> startxref\n157\n%%EOF\n";
+
+    // A minimal 1-page landscape PDF (MediaBox wider than tall). A height-capped
+    // thumbnail render of this page exceeds the width cap, so it only stays within
+    // THUMBNAIL_SIZE if create_thumbnail shrinks both dimensions.
+    const LANDSCAPE_PAGE_PDF_DATA: &[u8] = b"%PDF-1.4\n1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n2 0 obj << /Type /Pages /Count 1 /Kids [ 3 0 R ] >> endobj\n3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 792 612] >> endobj\nxref\n0 4\n0000000000 65535 f\n0000000009 00000 n\n0000000057 00000 n\n0000000107 00000 n\ntrailer << /Size 4 /Root 1 0 R >> startxref\n157\n%%EOF\n";
 
     // Create a dummy PDF file for testing.
     fn create_dummy_pdf(dir: &path::Path, filename: &str) -> path::PathBuf {
@@ -303,6 +316,30 @@ mod tests {
         )
         .unwrap();
 
+        let thumbnail = container.get_thumbnail("0000").unwrap();
+        assert!(thumbnail.width <= crate::image::thumbnail::THUMBNAIL_SIZE);
+        assert!(thumbnail.height <= crate::image::thumbnail::THUMBNAIL_SIZE);
+        assert!(!thumbnail.data.is_empty());
+    }
+
+    #[test]
+    fn test_get_thumbnail_landscape_capped_both_dimensions() {
+        let dir = tempdir().unwrap();
+        let filepath = dir.path().join("landscape.pdf");
+        File::create(&filepath)
+            .unwrap()
+            .write_all(LANDSCAPE_PAGE_PDF_DATA)
+            .unwrap();
+
+        let container = PdfContainer::new(
+            filepath.to_string_lossy().as_ref(),
+            PdfRenderConfig::default(),
+            Some(get_pdfium_lib_path()),
+        )
+        .unwrap();
+
+        // A landscape page rendered at target_height=THUMBNAIL_SIZE would be wider than
+        // THUMBNAIL_SIZE; create_thumbnail must cap the width too (C4/C6).
         let thumbnail = container.get_thumbnail("0000").unwrap();
         assert!(thumbnail.width <= crate::image::thumbnail::THUMBNAIL_SIZE);
         assert!(thumbnail.height <= crate::image::thumbnail::THUMBNAIL_SIZE);
