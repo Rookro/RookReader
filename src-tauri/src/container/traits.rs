@@ -5,6 +5,11 @@ use crate::{error::Result, image::types::Image};
 #[cfg(test)]
 use mockall::{automock, predicate::*};
 
+/// File extensions (lowercase, without the dot) the container factory can open.
+/// [`Container::is_supported_format`] and the factory's dispatch must both derive from
+/// this list; a `factory.rs` test cross-checks that they stay in sync.
+pub const SUPPORTED_EXTENSIONS: [&str; 4] = ["pdf", "rar", "zip", "epub"];
+
 /// A trait representing a container for readable content, such as an archive file or a directory.
 ///
 /// This trait defines a common interface for different types of containers to allow
@@ -68,6 +73,12 @@ pub trait Container: Send + Sync + 'static {
     fn is_novel(&self) -> bool {
         false
     }
+
+    /// Returns whether this container renders pages at its own controlled resolution,
+    /// making the generic max-image-height resize unnecessary (e.g. PDF).
+    fn controls_own_resolution(&self) -> bool {
+        false
+    }
 }
 
 impl dyn Container {
@@ -84,10 +95,9 @@ impl dyn Container {
     /// Returns `true` if the filename ends with a supported extension, `false` otherwise.
     pub fn is_supported_format(filename: &str) -> bool {
         let lowercase_name = filename.to_lowercase();
-        lowercase_name.ends_with(".pdf")
-            || lowercase_name.ends_with(".rar")
-            || lowercase_name.ends_with(".zip")
-            || lowercase_name.ends_with(".epub")
+        SUPPORTED_EXTENSIONS
+            .iter()
+            .any(|ext| lowercase_name.ends_with(&format!(".{ext}")))
     }
 }
 

@@ -99,10 +99,6 @@ impl ContainerState {
     /// Returns an `Err` if the file extension is missing or unsupported, or the
     /// underlying constructor fails (e.g. file not found, corrupt file).
     pub fn build(&self, path: &str) -> Result<(Arc<dyn Container>, ImageLoader)> {
-        let is_pdf = std::path::Path::new(path)
-            .extension()
-            .is_some_and(|ext| ext.to_string_lossy().to_lowercase() == "pdf");
-
         let config = ContainerConfig {
             pdf_render_config: PdfRenderConfig::default()
                 .set_target_height(self.settings.pdf_render_resolution_height),
@@ -111,8 +107,9 @@ impl ContainerState {
 
         let container = create_container(path, config)?;
 
-        // PDF rendering already controls the image size, so disable image resizing for PDF.
-        let max_image_height = if is_pdf {
+        // Containers that render at their own resolution (PDF) skip the generic resize,
+        // asked of the container itself rather than sniffed from the path extension.
+        let max_image_height = if container.controls_own_resolution() {
             0
         } else {
             self.settings.max_image_height as u32

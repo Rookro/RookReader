@@ -71,7 +71,45 @@ pub fn create_container(path: &str, config: ContainerConfig) -> Result<Arc<dyn C
 
 #[cfg(test)]
 mod tests {
+    use std::path;
+
     use super::*;
+
+    fn get_pdfium_lib_path() -> String {
+        let pdfium_path = path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("target")
+            .join("dependencies")
+            .join("pdfium");
+
+        let lib_path = if pdfium_path.join("bin").exists() {
+            pdfium_path.join("bin")
+        } else {
+            pdfium_path.join("lib")
+        };
+
+        lib_path.to_string_lossy().to_string()
+    }
+
+    #[test]
+    fn test_factory_covers_all_supported_extensions() {
+        for ext in crate::container::traits::SUPPORTED_EXTENSIONS {
+            // Provide the pdfium path so the .pdf branch binds via Result (Pdfium::default
+            // would panic if no library is found); the file is missing either way.
+            let config = ContainerConfig {
+                pdfium_library_path: Some(get_pdfium_lib_path()),
+                ..Default::default()
+            };
+            let result = create_container(&format!("/nonexistent/file.{ext}"), config);
+
+            // Construction fails (file missing) but never with "Unsupported Container
+            // Type" — that would mean the factory and SUPPORTED_EXTENSIONS drifted.
+            let err = result.err().map(|e| e.to_string()).unwrap_or_default();
+            assert!(
+                !err.contains("Unsupported Container Type"),
+                "factory missing .{ext}"
+            );
+        }
+    }
 
     #[test]
     fn test_create_container_unsupported_extension() {
