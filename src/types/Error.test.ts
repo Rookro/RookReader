@@ -26,6 +26,15 @@ describe("CommandError", () => {
     const err = new CommandError(undefined, "no code");
     expect(err.code).toBe(ErrorCode.UNKNOWN_ERROR);
   });
+
+  // Verify the backend codes for EPUB-archive and Rayon thread-pool failures are
+  // recognized (kept as-is, not coerced to UNKNOWN_ERROR).
+  it("should preserve the EPUB-archive and thread-pool error codes", () => {
+    expect(new CommandError(10502, "epub archive").code).toBe(
+      ErrorCode.CONTAINER_EPUB_ARCHIVE_ERROR,
+    );
+    expect(new CommandError(30201, "thread pool").code).toBe(ErrorCode.RAYON_THREAD_POOL_ERROR);
+  });
 });
 
 describe("createCommandError", () => {
