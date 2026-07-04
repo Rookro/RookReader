@@ -20,7 +20,9 @@ use crate::{
         book_repository::SqliteBookRepository, bookshelf_repository::SqliteBookshelfRepository,
         series_repository::SqliteSeriesRepository, tag_repository::SqliteTagRepository,
     },
-    settings::{AppSettings, AppTheme, LogLevel, LogSettings, SettingsFileProvider},
+    settings::{
+        AppSettings, AppTheme, LogLevel, LogSettings, SettingsFileProvider, SettingsStoreProvider,
+    },
     state::app_state::AppState,
 };
 
@@ -47,9 +49,20 @@ pub fn settings_filename() -> &'static str {
 /// Returns an `Err` if loading the settings or any of the setup sub-routines (e.g., logger setup) fail.
 pub fn setup(app: &App) -> error::Result<()> {
     let provider = SettingsFileProvider::new(app.handle(), settings_filename())?;
+
+    // Attach the logger before settings healing runs so its repair warnings are not
+    // dropped. Peek only the log level from the raw file (defaulting if unreadable);
+    // full load + heal happens right after.
+    let log_settings: LogSettings = provider
+        .get_all_settings()
+        .ok()
+        .and_then(|raw| raw.pointer("/general/log").cloned())
+        .and_then(|value| serde_json::from_value(value).ok())
+        .unwrap_or_default();
+    setup_logger(app, &log_settings)?;
+
     let settings = AppSettings::load_and_persist_normalized(&provider)?;
 
-    setup_logger(app, &settings.general.log)?;
     set_theme(app, &settings.general.theme);
     setup_database(app)?;
 

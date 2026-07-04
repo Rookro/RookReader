@@ -15,7 +15,10 @@ static TMP_COUNTER: AtomicU64 = AtomicU64::new(0);
 /// Trait for settings storage to enable testing and abstract the storage mechanism.
 pub trait SettingsStoreProvider {
     /// Retrieves all settings from the store as a single JSON `Value`.
-    fn get_all_settings(&self) -> Value;
+    ///
+    /// A missing store reads as an empty object (defaults); any other read failure is an
+    /// `Err` so callers can distinguish "no settings yet" from "could not read settings".
+    fn get_all_settings(&self) -> Result<Value>;
     /// Saves all settings to the store.
     fn save_all_settings(&self, settings: Value) -> Result<()>;
     /// Retrieves the default home directory dynamically based on the OS.
@@ -76,18 +79,22 @@ impl SettingsFileProvider {
 }
 
 impl SettingsStoreProvider for SettingsFileProvider {
-    fn get_all_settings(&self) -> Value {
-        let Ok(contents) = fs::read_to_string(&self.path) else {
+    fn get_all_settings(&self) -> Result<Value> {
+        let contents = match fs::read_to_string(&self.path) {
+            Ok(contents) => contents,
             // Missing file (e.g. first launch) → start from defaults.
-            return serde_json::json!({});
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(serde_json::json!({})),
+            // Any other failure (share lock, permissions) must not look like an empty
+            // file: a later save would overwrite the user's real settings with defaults.
+            Err(e) => return Err(e.into()),
         };
-        serde_json::from_str(&contents).unwrap_or_else(|e| {
+        Ok(serde_json::from_str(&contents).unwrap_or_else(|e| {
             log::warn!(
                 "Failed to parse settings file, using defaults. Error: {}",
                 e
             );
             serde_json::json!({})
-        })
+        }))
     }
 
     fn save_all_settings(&self, settings: Value) -> Result<()> {
@@ -181,6 +188,19 @@ mod tests {
         // Omitted fields fall back to defaults.
         assert_eq!(loaded.reader.rendering.pdf_render_resolution_height, 2000);
         assert!(matches!(loaded.startup.initial_view, InitialView::Reader));
+    }
+
+    #[test]
+    fn file_provider_read_error_other_than_not_found_propagates() {
+        // A path that exists but is a directory: reading it fails with a kind other than
+        // NotFound. It must propagate as Err rather than read as "empty" — otherwise a
+        // later save would overwrite the user's real settings with defaults.
+        let dir = tempfile::tempdir().unwrap();
+        let settings_as_dir = dir.path().join("settings.json");
+        fs::create_dir(&settings_as_dir).unwrap();
+        let provider = provider_at(settings_as_dir);
+
+        assert!(provider.get_all_settings().is_err());
     }
 
     #[test]

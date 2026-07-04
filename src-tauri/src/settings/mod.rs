@@ -94,11 +94,11 @@ impl AppSettings {
     ///
     /// # Errors
     ///
-    /// Currently infallible in practice, but returns `Result` to keep the read API
-    /// symmetric with [`AppSettings::save`] and tolerant of future fallible providers.
+    /// Returns an `Err` if the provider fails to read the store (other than a missing
+    /// file, which reads as defaults).
     pub fn load<P: SettingsStoreProvider>(provider: &P) -> Result<Self> {
         Ok(Self::normalize(
-            provider.get_all_settings(),
+            provider.get_all_settings()?,
             provider.default_home_dir(),
         ))
     }
@@ -130,7 +130,21 @@ impl AppSettings {
     ///
     /// Returns an `Err` if serialization or the provider write fails.
     pub fn load_and_persist_normalized<P: SettingsStoreProvider>(provider: &P) -> Result<Self> {
-        let raw = provider.get_all_settings();
+        let raw = match provider.get_all_settings() {
+            Ok(raw) => raw,
+            // An unreadable file (share lock, permissions) must not be healed: writing
+            // defaults back would clobber the user's real settings. Run with in-memory
+            // defaults and leave the file untouched so it can recover on the next launch.
+            Err(e) => {
+                log::error!(
+                    "Settings file unreadable; running with defaults without persisting: {e}"
+                );
+                return Ok(Self::normalize(
+                    serde_json::json!({}),
+                    provider.default_home_dir(),
+                ));
+            }
+        };
         let config = Self::normalize(raw.clone(), provider.default_home_dir());
         if serde_json::to_value(&config)? != raw {
             config.save(provider)?;
@@ -320,8 +334,8 @@ mod tests {
     }
 
     impl SettingsStoreProvider for MockProvider {
-        fn get_all_settings(&self) -> Value {
-            self.mock_json.clone()
+        fn get_all_settings(&self) -> Result<Value> {
+            Ok(self.mock_json.clone())
         }
         fn save_all_settings(&self, _settings: Value) -> Result<()> {
             Ok(())
@@ -356,12 +370,13 @@ mod tests {
     }
 
     impl SettingsStoreProvider for RecordingProvider {
-        fn get_all_settings(&self) -> Value {
-            self.last_saved
+        fn get_all_settings(&self) -> Result<Value> {
+            Ok(self
+                .last_saved
                 .lock()
                 .unwrap()
                 .clone()
-                .unwrap_or_else(|| self.initial.clone())
+                .unwrap_or_else(|| self.initial.clone()))
         }
         fn save_all_settings(&self, settings: Value) -> Result<()> {
             self.saves.fetch_add(1, Ordering::SeqCst);
@@ -555,6 +570,39 @@ mod tests {
         let provider = RecordingProvider::new(doc);
         AppSettings::load_and_persist_normalized(&provider).unwrap();
         assert_eq!(provider.save_count(), 0);
+    }
+
+    /// A provider whose reads always fail (e.g. an exclusively-locked settings file),
+    /// recording whether `save` was ever called.
+    struct FailingReadProvider {
+        saves: AtomicUsize,
+    }
+
+    impl SettingsStoreProvider for FailingReadProvider {
+        fn get_all_settings(&self) -> Result<Value> {
+            Err(Error::Settings("read failed".to_string()))
+        }
+        fn save_all_settings(&self, _settings: Value) -> Result<()> {
+            self.saves.fetch_add(1, Ordering::SeqCst);
+            Ok(())
+        }
+        fn default_home_dir(&self) -> String {
+            "/mock/home".to_string()
+        }
+    }
+
+    #[test]
+    fn test_persist_normalized_unreadable_file_uses_defaults_without_saving() {
+        let provider = FailingReadProvider {
+            saves: AtomicUsize::new(0),
+        };
+
+        let settings = AppSettings::load_and_persist_normalized(&provider).unwrap();
+
+        // Runs with in-memory defaults...
+        assert!(matches!(settings.general.theme, AppTheme::System));
+        // ...and must never persist, which would clobber the real file with defaults.
+        assert_eq!(provider.saves.load(Ordering::SeqCst), 0);
     }
 
     #[test]
