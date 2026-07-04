@@ -23,13 +23,13 @@ import bookCollectionReducer, {
   addBookshelf,
   addBookToBookshelf,
   bookshelfAdded,
-  changeBookshelf,
   clearBookshelfError,
   deleteBookFromCollection,
   fetchBookshelves,
   fetchBooksInSelectedBookshelf,
   removeBookshelf,
   setSearchText,
+  setSelectedBookshelf,
 } from "./slice";
 import tagReducer, {
   addTag,
@@ -286,62 +286,37 @@ describe("BookCollectionReducer", () => {
         expect(state.error?.code).toBe(ErrorCode.DATABASE_ERROR);
       });
 
-      // Verify state update when switching bookshelves
-      it("changeBookshelf should update selectedId and books", async () => {
-        const mockBooks = [createMockBookWithState({ id: 10, display_name: "B1" })];
-        vi.mocked(BookCommands.getBooksWithStateByBookshelfId).mockResolvedValue(mockBooks);
+      // Verify that selecting a bookshelf updates selectedId (the fetch is driven
+      // separately by the useHistorySync effect that watches selectedId).
+      it("setSelectedBookshelf should update selectedId", () => {
+        const selected = bookCollectionReducer(bookCollectionInitialState, setSelectedBookshelf(3));
+        expect(selected.selectedId).toBe(3);
 
-        await store.dispatch(changeBookshelf(1));
-
-        const state = store.getState().bookCollection;
-        expect(state.selectedId).toBe(1);
-        expect(state.books).toEqual(mockBooks);
+        const cleared = bookCollectionReducer(selected, setSelectedBookshelf(null));
+        expect(cleared.selectedId).toBeNull();
       });
 
-      // Verify that all books are fetched when bookshelf selection is cleared (null)
-      it("changeBookshelf(null) should fetch all books", async () => {
-        const mockBooks = [createMockBookWithState({ id: 10, display_name: "B1" })];
-        vi.mocked(BookCommands.getAllBooksWithState).mockResolvedValue(mockBooks);
-
-        await store.dispatch(changeBookshelf(null));
-
-        const state = store.getState().bookCollection;
-        expect(state.selectedId).toBeNull();
-        expect(state.books).toEqual(mockBooks);
-      });
-
-      // Verify error handling when bookshelf switching fails
-      it("changeBookshelf should handle generic failure and clear state", async () => {
-        vi.mocked(BookCommands.getBooksWithStateByBookshelfId).mockRejectedValue(new Error());
-
-        // Pre-fill state to verify clearing
+      // Verify that a stale fetch response for a shelf the user already left is ignored.
+      it("fetchBooksInSelectedBookshelf ignores a stale response for a superseded shelf", async () => {
+        const currentBooks = [createMockBookWithState({ id: 1, display_name: "current" })];
+        const staleBooks = [createMockBookWithState({ id: 99, display_name: "stale" })];
+        // The user is now on shelf 2 with its books already loaded.
         const preloadedState = {
           bookCollection: {
             ...bookCollectionInitialState,
-            selectedId: 1,
-            books: [createMockBookWithState()],
+            selectedId: 2,
+            books: currentBooks,
           },
         };
         store = createTestStore(preloadedState);
 
-        await store.dispatch(changeBookshelf(1));
+        // A slow fetch for the previous shelf (1) finally resolves.
+        vi.mocked(BookCommands.getBooksWithStateByBookshelfId).mockResolvedValue(staleBooks);
+        await store.dispatch(fetchBooksInSelectedBookshelf(1));
 
+        // Shelf 2's books are preserved, not overwritten by the stale shelf-1 response.
         const state = store.getState().bookCollection;
-        expect(state.status).toBe("failed");
-        expect(state.selectedId).toBeNull();
-        expect(state.books).toEqual([]);
-      });
-
-      // Verify CommandError handling when bookshelf switching fails
-      it("changeBookshelf should handle CommandError", async () => {
-        const mockError = new CommandError(ErrorCode.IO_ERROR, "io fail");
-        vi.mocked(BookCommands.getBooksWithStateByBookshelfId).mockRejectedValue(mockError);
-
-        await store.dispatch(changeBookshelf(1));
-
-        const state = store.getState().bookCollection;
-        expect(state.status).toBe("failed");
-        expect(state.error?.code).toBe(ErrorCode.IO_ERROR);
+        expect(state.books).toEqual(currentBooks);
       });
 
       // Verify that book is added to bookshelf and status is updated
@@ -481,6 +456,8 @@ describe("BookCollectionReducer", () => {
         const mockBooks = [createMockBookWithState({ id: 1, file_path: "b1.zip" })];
         vi.mocked(BookCommands.getBooksWithStateByBookshelfId).mockResolvedValue(mockBooks);
 
+        // The response only applies when its arg matches the current selection.
+        store.dispatch(setSelectedBookshelf(1));
         await store.dispatch(fetchBooksInSelectedBookshelf(1));
 
         const state = store.getState().bookCollection;
