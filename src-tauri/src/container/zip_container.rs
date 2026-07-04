@@ -1,4 +1,10 @@
-use std::{collections::HashMap, fs::File, io::Read, sync::Arc, sync::Mutex};
+use std::{
+    collections::HashMap,
+    fs::File,
+    io::{Read, Seek},
+    sync::Arc,
+    sync::Mutex,
+};
 
 use zip::ZipArchive;
 
@@ -8,7 +14,10 @@ use crate::{
     image::{thumbnail::generate_thumbnail, types::Image},
 };
 
-/// Absolute ceiling for a single page's preallocation, regardless of other signals.
+/// Absolute ceiling for a single page's preallocation, and the largest declared
+/// uncompressed size [`read_entry_checked`] will attempt to read. An entry declaring
+/// more than this is rejected outright instead of being decompressed, so a lying
+/// header cannot drive an unbounded read.
 const MAX_PREALLOC_BYTES: u64 = 1024 * 1024 * 1024;
 
 /// Compression ratio we trust when anchoring the preallocation on the compressed
@@ -43,6 +52,80 @@ fn prealloc_capacity(declared_size: u64, compressed_size: u64) -> usize {
         .saturating_mul(MAX_COMPRESSION_RATIO)
         .min(MAX_PREALLOC_BYTES);
     declared_size.min(ceiling) as usize
+}
+
+/// Reads a decompression stream, bounding it to its declared size.
+///
+/// Preallocation alone (see [`prealloc_capacity`]) caps only the initial reservation;
+/// without a read limit a high-ratio DEFLATE bomb would still grow the buffer far past
+/// the reserved capacity. Reading at most `declared + 1` bytes makes an over-long stream
+/// observable: if the reader yields more than `declared`, the entry is rejected instead
+/// of trusting the (attacker-controlled) declared size.
+///
+/// # Arguments
+///
+/// * `reader` - The entry's (decompressing) reader.
+/// * `declared` - The entry's declared uncompressed size.
+/// * `capacity` - Bytes to pre-reserve (from [`prealloc_capacity`]).
+/// * `entry` - The entry name, for error messages.
+///
+/// # Returns
+///
+/// The entry's bytes, guaranteed to be at most `declared` long.
+///
+/// # Errors
+///
+/// Returns an error if the stream produces more than `declared` bytes (possible zip bomb)
+/// or if the underlying read fails.
+fn read_within_declared<R: Read>(
+    reader: R,
+    declared: u64,
+    capacity: usize,
+    entry: &str,
+) -> Result<Vec<u8>> {
+    let mut buf = Vec::with_capacity(capacity);
+    reader.take(declared + 1).read_to_end(&mut buf)?;
+    if buf.len() as u64 > declared {
+        return Err(crate::error::Error::Other(format!(
+            "ZIP entry {entry} exceeds its declared size; possible zip bomb"
+        )));
+    }
+    Ok(buf)
+}
+
+/// Reads one archive entry's bytes with the decompressed size bounded.
+///
+/// Rejects an entry whose declared size exceeds [`MAX_PREALLOC_BYTES`] before reading,
+/// then reads through [`read_within_declared`] so a bomb cannot grow the buffer unbounded.
+///
+/// # Arguments
+///
+/// * `archive` - The opened ZIP archive.
+/// * `index` - The entry's archive index.
+/// * `entry` - The entry name, for error messages.
+///
+/// # Returns
+///
+/// The entry's decompressed bytes.
+///
+/// # Errors
+///
+/// Returns an error if the entry declares more than [`MAX_PREALLOC_BYTES`], exceeds its
+/// declared size while reading, or cannot be read.
+fn read_entry_checked<R: Read + Seek>(
+    archive: &mut ZipArchive<R>,
+    index: usize,
+    entry: &str,
+) -> Result<Vec<u8>> {
+    let mut file = archive.by_index(index)?;
+    let declared = file.size();
+    if declared > MAX_PREALLOC_BYTES {
+        return Err(crate::error::Error::Other(format!(
+            "ZIP entry {entry} declares {declared} bytes, exceeding the {MAX_PREALLOC_BYTES} byte limit"
+        )));
+    }
+    let capacity = prealloc_capacity(declared, file.compressed_size());
+    read_within_declared(&mut file, declared, capacity, entry)
 }
 
 /// Decodes a raw ZIP entry name as UTF-8, falling back to Shift-JIS for archives
@@ -122,14 +205,10 @@ impl Container for ZipContainer {
             let mut archive = self.archive.lock().map_err(|e| {
                 crate::error::Error::Other(format!("Failed to lock zip archive: {}", e))
             })?;
-            let index = self.name_to_index.get(entry).ok_or_else(|| {
+            let index = *self.name_to_index.get(entry).ok_or_else(|| {
                 crate::error::Error::Other(format!("Entry not found in ZIP: {}", entry))
             })?;
-            let mut file = archive.by_index(*index)?;
-            let capacity = prealloc_capacity(file.size(), file.compressed_size());
-            let mut buf = Vec::with_capacity(capacity);
-            file.read_to_end(&mut buf)?;
-            buf
+            read_entry_checked(&mut archive, index, entry)?
         };
 
         let image = Image::new(buffer)?;
@@ -141,14 +220,10 @@ impl Container for ZipContainer {
             let mut archive = self.archive.lock().map_err(|e| {
                 crate::error::Error::Other(format!("Failed to lock zip archive: {}", e))
             })?;
-            let index = self.name_to_index.get(entry).ok_or_else(|| {
+            let index = *self.name_to_index.get(entry).ok_or_else(|| {
                 crate::error::Error::Other(format!("Entry not found in ZIP: {}", entry))
             })?;
-            let mut file = archive.by_index(*index)?;
-            let capacity = prealloc_capacity(file.size(), file.compressed_size());
-            let mut buf = Vec::with_capacity(capacity);
-            file.read_to_end(&mut buf)?;
-            buf
+            read_entry_checked(&mut archive, index, entry)?
         };
 
         generate_thumbnail(&buffer)
@@ -397,6 +472,47 @@ mod tests {
             prealloc_capacity(u64::MAX, u64::MAX),
             MAX_PREALLOC_BYTES as usize
         );
+    }
+
+    #[test]
+    fn read_within_declared_accepts_exact_size() {
+        // A well-formed entry (actual == declared) reads back its exact bytes with no
+        // false-positive bomb rejection.
+        let data = vec![1u8, 2, 3, 4, 5];
+        let out =
+            read_within_declared(data.as_slice(), data.len() as u64, data.len(), "ok.png").unwrap();
+        assert_eq!(out, data);
+    }
+
+    #[test]
+    fn read_within_declared_rejects_oversized_stream() {
+        // The stream yields far more than the declared size: a bomb. The read is bounded
+        // to declared + 1 and the entry is rejected instead of growing unbounded.
+        let data = vec![0u8; 100];
+        let err = read_within_declared(data.as_slice(), 10, 10, "bomb.png").unwrap_err();
+        assert!(
+            err.to_string().contains("possible zip bomb"),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn read_entry_checked_reads_valid_entry() {
+        // End-to-end through the checked path on an in-memory archive: a valid entry
+        // round-trips unchanged.
+        let mut bytes = Vec::new();
+        {
+            let mut zip = ZipWriter::new(std::io::Cursor::new(&mut bytes));
+            let options = FileOptions::<()>::default()
+                .compression_method(zip::CompressionMethod::DEFLATE);
+            zip.start_file("image1.png", options).unwrap();
+            zip.write_all(DUMMY_PNG_DATA).unwrap();
+            zip.finish().unwrap();
+        }
+        let mut archive = ZipArchive::new(std::io::Cursor::new(bytes)).unwrap();
+
+        let out = read_entry_checked(&mut archive, 0, "image1.png").unwrap();
+        assert_eq!(out, DUMMY_PNG_DATA);
     }
 
     #[test]
