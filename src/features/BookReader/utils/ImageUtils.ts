@@ -26,6 +26,20 @@ export class ImageCacheItem {
 }
 
 /**
+ * Revokes the object URLs (preview and full) held by a single cache item.
+ *
+ * @param item - The cache item whose `previewUrl`/`fullUrl` object URLs should be revoked.
+ */
+export const revokeCacheItemUrls = (item: ImageCacheItem) => {
+  if (item.previewUrl) {
+    URL.revokeObjectURL(item.previewUrl);
+  }
+  if (item.fullUrl) {
+    URL.revokeObjectURL(item.fullUrl);
+  }
+};
+
+/**
  * Layout for displaying images.
  */
 export interface ViewLayout {

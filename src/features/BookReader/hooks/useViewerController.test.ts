@@ -15,6 +15,15 @@ vi.mock("../utils/ImageUtils", () => ({
     isSpread: false,
     nextIndexIncrement: 1,
   })),
+  // Mirror the real per-item revoke so cache-eviction tests observe revokeObjectURL.
+  revokeCacheItemUrls: vi.fn((item: ImageUtils.ImageCacheItem) => {
+    if (item.previewUrl) {
+      URL.revokeObjectURL(item.previewUrl);
+    }
+    if (item.fullUrl) {
+      URL.revokeObjectURL(item.fullUrl);
+    }
+  }),
   // Default to null so moveBack exercises the local heuristic unless a test overrides it.
   findPreviousUnitStart: vi.fn(() => null),
 }));
@@ -104,6 +113,35 @@ describe("useViewerController", () => {
 
     expect(global.URL.revokeObjectURL).toHaveBeenCalledWith("blob:full");
     expect(global.URL.revokeObjectURL).toHaveBeenCalledWith("blob:preview");
+  });
+
+  // Verify that pages outside a window around the current index are evicted (their
+  // blob URLs revoked) while pages inside the window survive, so long reading
+  // sessions don't accumulate every visited page's blob URLs.
+  it("should evict cached pages outside the window and keep those inside", async () => {
+    const longEntries = Array.from({ length: 100 }, (_, i) => `p${i}.jpg`);
+    mockedFetchImageBlob.mockResolvedValue({} as Image);
+    let urlCounter = 0;
+    mockedCreateImageCacheItem.mockImplementation(
+      () => ({ fullUrl: `blob:${urlCounter++}` }) as ImageUtils.ImageCacheItem,
+    );
+
+    const { rerender } = renderHook(
+      ({ index }: { index: number }) =>
+        useViewerController("path", longEntries, index, mockSettings, mockDispatch),
+      { initialProps: { index: 0 } },
+    );
+
+    // entries[0] is cached as "blob:0".
+    await waitFor(() => expect(ImageUtils.createImageCacheItem).toHaveBeenCalled());
+
+    // Navigate within the window (radius = max(preloadPageCount, 5) = 10): entries[0] survives.
+    rerender({ index: 5 });
+    expect(global.URL.revokeObjectURL).not.toHaveBeenCalledWith("blob:0");
+
+    // Navigate far past the window: entries[0] is now evicted and its URL revoked.
+    rerender({ index: 50 });
+    expect(global.URL.revokeObjectURL).toHaveBeenCalledWith("blob:0");
   });
 
   // Verify that displayedLayout is set on successful image loading
