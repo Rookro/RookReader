@@ -1,13 +1,15 @@
 import { waitFor } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createBasePreloadedState, renderWithProviders } from "../../test/utils";
 import { ErrorCode } from "../../types/Error";
 import GlobalErrorListener from "./GlobalErrorListener";
 import * as notificationContext from "./Notification/NotificationContext";
 
-// Mock useNotification
+// Mock useNotification; keep a passthrough provider so renderWithProviders can render it.
 vi.mock("./Notification/NotificationContext", () => ({
   useNotification: vi.fn(),
+  default: ({ children }: { children: ReactNode }) => children,
 }));
 
 describe("GlobalErrorListener", () => {

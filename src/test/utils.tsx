@@ -6,6 +6,7 @@ import type React from "react";
 import type { ReactElement } from "react";
 import { I18nextProvider, initReactI18next } from "react-i18next";
 import { Provider } from "react-redux";
+import NotificationProvider from "../components/ui/Notification/NotificationContext";
 import { defaultSettings } from "../features/Settings/settingsStore";
 import translationEnUs from "../i18n/locales/en-US.json";
 import translationJaJp from "../i18n/locales/ja-JP.json";
@@ -146,7 +147,9 @@ export function renderWithProviders(
     return (
       <Provider store={store}>
         <ThemeProvider theme={theme}>
-          <I18nextProvider i18n={testI18n}>{children}</I18nextProvider>
+          <I18nextProvider i18n={testI18n}>
+            <NotificationProvider>{children}</NotificationProvider>
+          </I18nextProvider>
         </ThemeProvider>
       </Provider>
     );

@@ -1,12 +1,15 @@
 import { waitFor } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createBasePreloadedState, renderWithProviders } from "../../../test/utils";
 import { ErrorCode } from "../../../types/Error";
 import SettingsErrorListener from "./SettingsErrorListener";
 
 const showNotification = vi.fn();
+// Mock useNotification; keep a passthrough provider so renderWithProviders can render it.
 vi.mock("../../../components/ui/Notification/NotificationContext", () => ({
   useNotification: () => ({ showNotification }),
+  default: ({ children }: { children: ReactNode }) => children,
 }));
 
 describe("SettingsErrorListener", () => {
