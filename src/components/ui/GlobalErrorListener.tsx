@@ -42,9 +42,9 @@ export default function GlobalErrorListener() {
   useEffect(() => {
     if (containerFileError) {
       let sub_msg = "";
-      if (containerFileError.code === ErrorCode.CONTAINER_UNSUPPORTED_CONTAINER_ERROR) {
+      if (containerFileError.code === ErrorCode.unsupportedContainer) {
         sub_msg = t("error-message.container.unsupported-format");
-      } else if (containerFileError.code === ErrorCode.CONTAINER_ENTRY_NOT_FOUND_ERROR) {
+      } else if (containerFileError.code === ErrorCode.entryNotFound) {
         sub_msg = t("error-message.container.entry-not-found");
       }
 

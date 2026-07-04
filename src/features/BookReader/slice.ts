@@ -25,7 +25,7 @@ export const openContainerFile = createAppAsyncThunk(
     if (!path || path.length === 0) {
       const errorMessage = "Failed to openContainerFile. Error: Container path is empty.";
       error(errorMessage);
-      return rejectWithValue({ code: ErrorCode.PATH_ERROR, message: errorMessage });
+      return rejectWithValue({ code: ErrorCode.path, message: errorMessage });
     }
     info(`Open container file: ${path}`);
     try {
@@ -98,7 +98,7 @@ export const updateExploreBasePath = createAppAsyncThunk(
     if (!dirPath || dirPath.length === 0) {
       const errorMessage = "Failed to updateExploreBasePath. Error: Directory path is empty.";
       error(errorMessage);
-      return rejectWithValue({ code: ErrorCode.PATH_ERROR, message: errorMessage });
+      return rejectWithValue({ code: ErrorCode.path, message: errorMessage });
     }
 
     const state = getState();

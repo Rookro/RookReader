@@ -15,7 +15,7 @@ vi.mock("@tauri-apps/plugin-log", () => ({
 describe("handleThunkError", () => {
   it("should handle CommandError and call rejectWithValue with the error code and message", () => {
     const mockRejectWithValue = vi.fn((val) => val);
-    const commandError = new CommandError(ErrorCode.DATABASE_ERROR, "DB fail");
+    const commandError = new CommandError(ErrorCode.database, "DB fail");
 
     try {
       handleThunkError(commandError, "Fetch Books", mockRejectWithValue);
@@ -25,13 +25,13 @@ describe("handleThunkError", () => {
 
     expect(error).toHaveBeenCalledWith(expect.stringContaining("Fetch Books Error:"));
     expect(mockRejectWithValue).toHaveBeenCalledWith({
-      code: ErrorCode.DATABASE_ERROR,
+      code: ErrorCode.database,
       // The original (non-enumerable) Error.message must be preserved, not dropped by JSON.stringify.
       message: expect.stringContaining("DB fail"),
     });
   });
 
-  it("should handle non-CommandError and call rejectWithValue with ErrorCode.OTHER_ERROR", () => {
+  it("should handle non-CommandError and call rejectWithValue with ErrorCode.other", () => {
     const mockRejectWithValue = vi.fn((val) => val);
     const genericError = new Error("Generic failure");
 
@@ -43,7 +43,7 @@ describe("handleThunkError", () => {
 
     expect(error).toHaveBeenCalledWith(expect.stringContaining("Load Tags Error:"));
     expect(mockRejectWithValue).toHaveBeenCalledWith({
-      code: ErrorCode.OTHER_ERROR,
+      code: ErrorCode.other,
       // The original Error.message must survive instead of being stringified to "{}".
       message: expect.stringContaining("Generic failure"),
     });
@@ -59,7 +59,7 @@ describe("handleThunkError", () => {
     }
 
     expect(mockRejectWithValue).toHaveBeenCalledWith({
-      code: ErrorCode.OTHER_ERROR,
+      code: ErrorCode.other,
       message: expect.stringContaining('{"foo":1}'),
     });
   });

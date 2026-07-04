@@ -61,7 +61,7 @@ describe("SettingsReducer", () => {
 
     it("should reject with SETTINGS_ERROR when the backend rejects the patch", async () => {
       mockTauri.invoke.mockRejectedValue({
-        code: ErrorCode.SETTINGS_ERROR,
+        code: ErrorCode.settings,
         message: "out of range",
       });
       const store = configureStore({ reducer: { settings: settingsReducer } });
@@ -71,7 +71,7 @@ describe("SettingsReducer", () => {
       );
 
       expect(result.meta.requestStatus).toBe("rejected");
-      expect(result.payload).toEqual({ code: ErrorCode.SETTINGS_ERROR, message: "out of range" });
+      expect(result.payload).toEqual({ code: ErrorCode.settings, message: "out of range" });
       // State is unchanged on rejection.
       expect(store.getState().settings.reader.rendering.maxImageHeight).toBe(
         defaultSettings.reader.rendering.maxImageHeight,
@@ -80,7 +80,7 @@ describe("SettingsReducer", () => {
 
     it("records the error so the UI can surface it when the backend rejects", async () => {
       mockTauri.invoke.mockRejectedValue({
-        code: ErrorCode.SETTINGS_ERROR,
+        code: ErrorCode.settings,
         message: "Settings validation failed",
       });
       const store = configureStore({
@@ -91,7 +91,7 @@ describe("SettingsReducer", () => {
         updateSettings({ key: "general", value: { theme: "dark" } }),
       );
 
-      expect(store.getState().settingsError.error?.code).toBe(ErrorCode.SETTINGS_ERROR);
+      expect(store.getState().settingsError.error?.code).toBe(ErrorCode.settings);
     });
 
     it("returns structured details and does NOT raise the centralized error for field violations", async () => {
@@ -104,7 +104,7 @@ describe("SettingsReducer", () => {
         },
       ];
       mockTauri.invoke.mockRejectedValue({
-        code: ErrorCode.SETTINGS_VALIDATION_ERROR,
+        code: ErrorCode.settingsValidation,
         message: "Settings validation failed",
         details,
       });

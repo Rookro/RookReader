@@ -1,4 +1,5 @@
 import type { SettingsValidationViolation } from "../bindings/bindings";
+import { ErrorCode as BackendErrorCode } from "../bindings/errorCodes";
 
 /**
  * Command Error interface for the application.
@@ -9,7 +10,7 @@ export class CommandError extends Error {
 
   /**
    * Structured per-field validation details, present only for
-   * {@link ErrorCode.SETTINGS_VALIDATION_ERROR}. Lets the UI render a localized,
+   * {@link ErrorCode.settingsValidation}. Lets the UI render a localized,
    * field-specific message (kind + valid range) instead of a generic one.
    */
   public readonly details?: SettingsValidationViolation[];
@@ -22,10 +23,11 @@ export class CommandError extends Error {
    */
   constructor(code?: number, message?: string, details?: SettingsValidationViolation[]) {
     super(message);
+    // Keep a recognized code as-is; fall back to the frontend-only `unknown` sentinel.
     this.code =
-      code !== undefined && Object.values(ErrorCode).includes(code)
-        ? code
-        : ErrorCode.UNKNOWN_ERROR;
+      code !== undefined && (Object.values(ErrorCode) as number[]).includes(code)
+        ? (code as ErrorCode)
+        : ErrorCode.unknown;
     this.details = details;
   }
 }
@@ -48,52 +50,21 @@ export function createCommandError(error: unknown): CommandError {
     return new CommandError(code, message, details);
   }
   const detail = error instanceof Error ? error.message : JSON.stringify(error);
-  return new CommandError(ErrorCode.UNKNOWN_ERROR, `Unknown error: ${detail}`);
+  return new CommandError(ErrorCode.unknown, `Unknown error: ${detail}`);
 }
 
 /**
- * Error code for the application.
+ * Application error codes. The backend codes are generated from Rust
+ * (`../bindings/errorCodes`, the single source of truth); `unknown` is a
+ * frontend-only sentinel for an unrecognized or absent code.
  */
-export enum ErrorCode {
-  /** Unknown error. */
-  UNKNOWN_ERROR = 90000,
+export const ErrorCode = {
+  ...BackendErrorCode,
+  /** Frontend-only fallback when a code is missing or not recognized. */
+  unknown: 90000,
+} as const;
 
-  // 1xxxx: Container Processing
-  CONTAINER_UNSUPPORTED_CONTAINER_ERROR = 10001,
-  CONTAINER_ENTRY_NOT_FOUND_ERROR = 10002,
-  CONTAINER_PDF_ERROR = 10101,
-  CONTAINER_UNRAR_ERROR = 10301,
-  CONTAINER_ZIP_ERROR = 10401,
-  CONTAINER_EPUB_ERROR = 10501,
-  CONTAINER_EPUB_ARCHIVE_ERROR = 10502,
-
-  // 2xxxx: File System & I/O
-  IO_ERROR = 20001,
-  PATH_ERROR = 20101,
-
-  // 3xxxx: Application Framework
-  TAURI_ERROR = 30001,
-  RAYON_THREAD_POOL_ERROR = 30201,
-
-  // 4xxxx: Data Serialization & Validation
-  SERDE_JSON_ERROR = 40001,
-  STRUM_PARSE_ERROR = 40101,
-  PARSE_INT_ERROR = 40201,
-
-  // 5xxxx: Application Settings
-  SETTINGS_ERROR = 50001,
-  SETTINGS_VALIDATION_ERROR = 50002,
-
-  // 6xxxx: Application Logic & State
-
-  // 7xxxx: Database
-  DATABASE_ERROR = 70001,
-  MIGRATION_ERROR = 70101,
-
-  // 8xxxx: Image Processing
-  IMAGE_ERROR = 80001,
-  IMAGE_RESIZE_ERROR = 80101,
-
-  // 9xxxx: Unexpected Errors
-  OTHER_ERROR = 90001,
-}
+/**
+ * Union of all application error-code values.
+ */
+export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];

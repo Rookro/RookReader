@@ -78,7 +78,7 @@ describe("PdfRenderResolutionHeightSetting", () => {
     mockTauri.invoke.mockImplementation((command: string) => {
       if (command === "set_settings") {
         return Promise.reject({
-          code: ErrorCode.SETTINGS_VALIDATION_ERROR,
+          code: ErrorCode.settingsValidation,
           message: "Settings validation failed",
           details: [
             {
