@@ -118,6 +118,34 @@ describe("BookReader", () => {
     });
   });
 
+  it("should re-open when the same file is dropped again", async () => {
+    renderWithProviders(<BookReader />, { preloadedState: createBasePreloadedState() });
+
+    await waitFor(() => expect(dragDrop.useDragDropEvent).toHaveBeenCalled());
+    const dropHandler = (
+      vi.mocked(dragDrop.useDragDropEvent).mock.calls[0][0] as { onDrop: (paths: string[]) => void }
+    ).onDrop;
+
+    // Drop the same path twice: the effect must re-trigger both times (the dropped
+    // path is reset after each dispatch), rather than a same-value setState bailing out.
+    act(() => {
+      dropHandler?.(["/same/file.zip"]);
+    });
+    await waitFor(() => {
+      expect(readRed.setContainerFilePath).toHaveBeenCalledWith("/same/file.zip");
+    });
+
+    act(() => {
+      dropHandler?.(["/same/file.zip"]);
+    });
+    await waitFor(() => {
+      const sameFileCalls = vi
+        .mocked(readRed.setContainerFilePath)
+        .mock.calls.filter((c) => c[0] === "/same/file.zip");
+      expect(sameFileCalls).toHaveLength(2);
+    });
+  });
+
   it("should save pane sizes to localStorage on change", async () => {
     const setItemSpy = vi.spyOn(Storage.prototype, "setItem");
     renderWithProviders(<BookReader />, { preloadedState: createBasePreloadedState() });

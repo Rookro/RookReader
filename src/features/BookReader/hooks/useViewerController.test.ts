@@ -389,6 +389,25 @@ describe("useViewerController", () => {
       expect(mockDispatch).toHaveBeenCalledWith(setImageIndex(2));
     });
 
+    // Verify that when the current page's layout is unknown (image not cached yet),
+    // two-page mode advances by 1, never 2, so a page is never permanently skipped.
+    it("should advance by 1 when the layout is unknown in two-paged view", async () => {
+      mockedFetchImageBlob.mockResolvedValue({} as Image);
+      // No layout can be resolved yet (cache miss for the current page).
+      mockedCalculateLayout.mockReturnValue(null);
+
+      const { result } = renderHook(() =>
+        useViewerController("path", mockEntries, 0, twoPagedSettings, mockDispatch),
+      );
+
+      await waitFor(() => {
+        expect(result.current.isImageLoading).toBe(false);
+      });
+
+      result.current.moveForward();
+      expect(mockDispatch).toHaveBeenCalledWith(setImageIndex(1));
+    });
+
     // Verify that moveForward uses the current page's layout, not a stale displayedLayout
     it("should use the current page's layout for the increment, not stale displayedLayout", async () => {
       mockedFetchImageBlob.mockResolvedValue({} as Image);

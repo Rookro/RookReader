@@ -57,6 +57,7 @@ export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
   const bookRef = useRef<Book | null>(null);
   const index = useAppSelector((state) => state.read.containerFile.index);
   const cfi = useAppSelector((state) => state.read.containerFile.cfi);
+  const isNovel = useAppSelector((state) => state.read.containerFile.isNovel);
   const readingDirection = useAppSelector((state) => state.settings.reader.comic.readingDirection);
   const fontFamily = useAppSelector((state) => state.settings.reader.novel.fontFamily);
   const fontSize = useAppSelector((state) => state.settings.reader.novel.fontSize);
@@ -153,9 +154,10 @@ export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
       bookRef.current?.destroy?.();
       bookRef.current = null;
 
-      // Defensive check: only read if the file is an EPUB.
-      if (!filePath.toLowerCase().endsWith(".epub")) {
-        error(`Attempted to load non-EPUB file in NovelReader: ${filePath}`);
+      // Defensive check: route on the backend's is_novel contract, not the extension,
+      // so this guard cannot disagree with the slice's routing decision.
+      if (!isNovel) {
+        error(`Attempted to load non-novel file in NovelReader: ${filePath}`);
         return;
       }
 
@@ -258,7 +260,7 @@ export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
       bookRef.current?.destroy?.();
       bookRef.current = null;
     };
-  }, [filePath]);
+  }, [filePath, isNovel]);
 
   useEffect(() => {
     if (viewRef.current) {
