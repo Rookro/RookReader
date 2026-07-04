@@ -1,5 +1,6 @@
 import type { SortOrder } from "../../../types/AppSettings";
 import type { DirEntry } from "../../../types/DirEntry";
+import { andSearchBy } from "../../../utils/SearchUtils";
 
 /**
  * Filters an array of DirEntry objects to find entries whose 'name' property contains ALL specified keywords (AND search).
@@ -17,26 +18,8 @@ import type { DirEntry } from "../../../types/DirEntry";
  * andSearch(entries, "test file"); // Returns [{ name: "test_file", ... }]
  * andSearch(entries, "example"); // Returns []
  */
-export const andSearch = (entries: DirEntry[], query: string) => {
-  const keywords = query
-    .trim()
-    .toLowerCase()
-    .split(/\s+/)
-    .filter((keyword) => keyword.length > 0);
-
-  if (keywords.length === 0) {
-    return entries;
-  }
-
-  const filtered = entries.filter((item) => {
-    const lowerCaseName = item.name.toLowerCase();
-    return keywords.every((keyword) => {
-      return lowerCaseName.includes(keyword);
-    });
-  });
-
-  return filtered;
-};
+export const andSearch = (entries: DirEntry[], query: string) =>
+  andSearchBy(entries, query, (entry) => entry.name);
 
 /**
  * Comparison function for sorting an array of DirEntry objects based on a specified criterion and order.
