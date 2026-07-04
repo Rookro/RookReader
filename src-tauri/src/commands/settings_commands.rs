@@ -74,7 +74,12 @@ pub async fn set_settings(
     lock: tauri::State<'_, SettingsFileLock>,
     provider: tauri::State<'_, SettingsFileProvider>,
 ) -> Result<AppSettings> {
-    let settings = AppSettings::apply_patch_serialized(provider.inner(), &lock.0, patch).await?;
+    // Hold the settings file lock across the persist, the runtime apply, and the
+    // broadcast so two concurrent calls cannot persist A,B but then apply/announce B,A.
+    // Lock order is SettingsFileLock -> AppState(write); no path takes them the other way.
+    let _guard = lock.0.lock().await;
+
+    let settings = AppSettings::apply_patch(provider.inner(), patch)?;
 
     {
         let mut locked_state = state.write().await;

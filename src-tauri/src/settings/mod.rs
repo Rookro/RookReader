@@ -152,17 +152,18 @@ impl AppSettings {
         Ok(config)
     }
 
-    /// Serialized read-modify-write: deep-merges `patch` into the current settings,
-    /// validates the merged whole, persists it, and returns it.
+    /// Read-modify-write: deep-merges `patch` into the current settings, validates the
+    /// merged whole, persists it, and returns it.
     ///
-    /// The whole cycle is serialized on `lock` so concurrent writers cannot interleave.
-    /// Out-of-range merged results are rejected **without** persisting (repair is only
-    /// applied when *loading* a pre-existing file, never on writes).
+    /// This is **not** self-synchronizing: the caller must hold the `SettingsFileLock`
+    /// across this call and any dependent runtime apply/broadcast, so two concurrent
+    /// writers cannot persist A,B but then apply/announce B,A. Out-of-range merged
+    /// results are rejected **without** persisting (repair is only applied when *loading*
+    /// a pre-existing file, never on writes).
     ///
     /// # Arguments
     ///
     /// * `provider` - The storage backend.
-    /// * `lock` - The process-wide settings file lock.
     /// * `patch` - The single-category partial change to apply.
     ///
     /// # Returns
@@ -173,12 +174,10 @@ impl AppSettings {
     ///
     /// Returns `Error::Settings` if the patch produces an undeserializable or
     /// out-of-range result, or a serialization/write error from the provider.
-    pub async fn apply_patch_serialized<P: SettingsStoreProvider>(
+    pub fn apply_patch<P: SettingsStoreProvider>(
         provider: &P,
-        lock: &tokio::sync::Mutex<()>,
         patch: SettingsPatch,
     ) -> Result<Self> {
-        let _guard = lock.lock().await;
         // load() normalizes + repairs, so the merge base is always valid.
         let current = Self::load(provider)?;
         let mut merged_json = serde_json::to_value(&current)?;
@@ -621,17 +620,14 @@ mod tests {
         );
     }
 
-    // ---- apply_patch_serialized ----
+    // ---- apply_patch ----
 
-    #[tokio::test]
-    async fn test_apply_patch_preserves_same_category_siblings() {
+    #[test]
+    fn test_apply_patch_preserves_same_category_siblings() {
         let provider = RecordingProvider::new(default_doc_with_home());
-        let lock = tokio::sync::Mutex::new(());
         let patch = SettingsPatch::Reader(json!({ "rendering": { "maxImageHeight": 500 } }));
 
-        let merged = AppSettings::apply_patch_serialized(&provider, &lock, patch)
-            .await
-            .unwrap();
+        let merged = AppSettings::apply_patch(&provider, patch).unwrap();
 
         assert_eq!(merged.reader.rendering.max_image_height, 500);
         // Sibling leaf of the same coarse category is preserved.
@@ -639,36 +635,30 @@ mod tests {
         assert_eq!(provider.save_count(), 1);
     }
 
-    #[tokio::test]
-    async fn test_apply_patch_rejects_out_of_range_without_persisting() {
+    #[test]
+    fn test_apply_patch_rejects_out_of_range_without_persisting() {
         let provider = RecordingProvider::new(default_doc_with_home());
-        let lock = tokio::sync::Mutex::new(());
         let patch = SettingsPatch::Reader(json!({ "rendering": { "maxImageHeight": 70000 } }));
 
-        let result = AppSettings::apply_patch_serialized(&provider, &lock, patch).await;
+        let result = AppSettings::apply_patch(&provider, patch);
 
         assert!(result.is_err());
         assert_eq!(provider.save_count(), 0);
     }
 
-    #[tokio::test]
-    async fn test_apply_patch_sequential_accumulates() {
+    #[test]
+    fn test_apply_patch_sequential_accumulates() {
         let provider = RecordingProvider::new(default_doc_with_home());
-        let lock = tokio::sync::Mutex::new(());
 
-        AppSettings::apply_patch_serialized(
+        AppSettings::apply_patch(
             &provider,
-            &lock,
             SettingsPatch::Reader(json!({ "rendering": { "maxImageHeight": 500 } })),
         )
-        .await
         .unwrap();
-        let merged = AppSettings::apply_patch_serialized(
+        let merged = AppSettings::apply_patch(
             &provider,
-            &lock,
             SettingsPatch::Bookshelf(json!({ "gridSize": 2 })),
         )
-        .await
         .unwrap();
 
         // The second read-modify-write sees the first write's result.
@@ -676,14 +666,12 @@ mod tests {
         assert_eq!(merged.bookshelf.grid_size, 2);
     }
 
-    #[tokio::test]
-    async fn test_apply_patch_returns_structured_validation_error() {
+    #[test]
+    fn test_apply_patch_returns_structured_validation_error() {
         let provider = RecordingProvider::new(default_doc_with_home());
-        let lock = tokio::sync::Mutex::new(());
         let patch = SettingsPatch::Reader(json!({ "rendering": { "maxImageHeight": 70000 } }));
 
-        let err = AppSettings::apply_patch_serialized(&provider, &lock, patch)
-            .await
+        let err = AppSettings::apply_patch(&provider, patch)
             .expect_err("out-of-range patch should be rejected");
 
         match err {

@@ -118,12 +118,15 @@ impl SettingsStoreProvider for SettingsFileProvider {
     }
 }
 
-/// Process-wide lock serializing the settings file's read-modify-write cycle.
+/// Process-wide lock serializing the settings file's read-modify-write cycle **and** the
+/// dependent runtime apply/broadcast.
 ///
-/// Managed by Tauri as application state and passed to [`AppSettings::apply_patch_serialized`]
-/// so concurrent `set_settings` calls cannot interleave their load/merge/save steps.
+/// Managed by Tauri as application state. `set_settings` holds it across
+/// [`AppSettings::apply_patch`] (persist), the container-runtime apply, and the
+/// `settings-changed` broadcast, so two concurrent calls cannot persist A,B but then
+/// apply/announce B,A.
 ///
-/// [`AppSettings::apply_patch_serialized`]: crate::settings::AppSettings::apply_patch_serialized
+/// [`AppSettings::apply_patch`]: crate::settings::AppSettings::apply_patch
 #[derive(Default)]
 pub struct SettingsFileLock(pub tokio::sync::Mutex<()>);
 
