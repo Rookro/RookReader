@@ -75,6 +75,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * Quickly switching between books could momentarily show a page from the previous book; such stale page requests are now rejected.
 * Application settings are no longer reset to defaults when the settings file is temporarily locked or unreadable (for example, by antivirus or a backup tool); the app runs with the current values and leaves the file intact. (#282)
 * Fixed the last page position sometimes being lost when quickly switching between books; the previous book's final position is now saved before switching. (#283)
+* Fixed several reader issues. (#284)
+  * Opening a second book while the first was still loading could show the wrong book and save reading progress against it; the newer book now always wins.
+  * In two-page view, paging forward before the page's layout was known could permanently skip a page; it now advances one page in that case.
+  * Dragging in the same file again after opening another book did nothing; it now reopens the file.
+  * Long reading sessions no longer keep every visited page in memory, reducing reader memory use.
 
 ## [2.3.0] - 2026-06-14
 
