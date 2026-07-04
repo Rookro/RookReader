@@ -332,44 +332,45 @@ export const readSlice = createSlice({
         state.containerFile.cfi = null;
         state.containerFile.error = null;
       })
-      .addCase(
-        openContainerFile.fulfilled,
-        (
-          state,
-          action: PayloadAction<{
-            entries?: string[];
-            isDirectory: boolean;
-            isNovel: boolean;
-            book: BookWithState | null;
-          }>,
-        ) => {
-          if (action.payload.entries) {
-            state.containerFile.entries = action.payload.entries;
-          }
-          state.containerFile.isDirectory = action.payload.isDirectory;
-          state.containerFile.isLoading = false;
-          state.containerFile.book = action.payload.book;
-          if (state.containerFile.pendingInitialPosition === "last") {
-            const total = action.payload.entries?.length ?? 0;
-            state.containerFile.index = Math.max(0, total - 1);
-          } else if (state.containerFile.pendingInitialPosition === "first") {
-            state.containerFile.index = 0;
-          } else {
-            // Clamp the restored index so a stale last_read_page_index past the
-            // current page count never strands the viewer on a blank page.
-            const total = state.containerFile.entries.length;
-            const restored = action.payload.book?.last_read_page_index ?? 0;
-            state.containerFile.index = total > 0 ? Math.min(Math.max(0, restored), total - 1) : 0;
-          }
-          state.containerFile.pendingInitialPosition = null;
-          state.containerFile.cfi = null;
-          state.containerFile.error = null;
-          if (action.payload.isNovel !== undefined) {
-            state.containerFile.isNovel = action.payload.isNovel;
-          }
-        },
-      )
+      .addCase(openContainerFile.fulfilled, (state, action) => {
+        // Ignore stale responses: the user may have opened another book before this
+        // load finished (mirrors updateExploreBasePath.fulfilled's guard). Without
+        // this, a slow earlier open overwrites the newer book's state and progress
+        // is then persisted against the wrong book.
+        if (state.containerFile.history[state.containerFile.historyIndex] !== action.meta.arg) {
+          return;
+        }
+        if (action.payload.entries) {
+          state.containerFile.entries = action.payload.entries;
+        }
+        state.containerFile.isDirectory = action.payload.isDirectory;
+        state.containerFile.isLoading = false;
+        state.containerFile.book = action.payload.book;
+        if (state.containerFile.pendingInitialPosition === "last") {
+          const total = action.payload.entries?.length ?? 0;
+          state.containerFile.index = Math.max(0, total - 1);
+        } else if (state.containerFile.pendingInitialPosition === "first") {
+          state.containerFile.index = 0;
+        } else {
+          // Clamp the restored index so a stale last_read_page_index past the
+          // current page count never strands the viewer on a blank page.
+          const total = state.containerFile.entries.length;
+          const restored = action.payload.book?.last_read_page_index ?? 0;
+          state.containerFile.index = total > 0 ? Math.min(Math.max(0, restored), total - 1) : 0;
+        }
+        state.containerFile.pendingInitialPosition = null;
+        state.containerFile.cfi = null;
+        state.containerFile.error = null;
+        if (action.payload.isNovel !== undefined) {
+          state.containerFile.isNovel = action.payload.isNovel;
+        }
+      })
       .addCase(openContainerFile.rejected, (state, action) => {
+        // Same staleness guard as fulfilled: a stale rejection must not clobber the
+        // newer book's freshly loaded state.
+        if (state.containerFile.history[state.containerFile.historyIndex] !== action.meta.arg) {
+          return;
+        }
         state.containerFile.entries = [];
         state.containerFile.isLoading = false;
         state.containerFile.index = 0;
