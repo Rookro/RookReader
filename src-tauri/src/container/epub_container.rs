@@ -1,6 +1,6 @@
 use std::{
     collections::HashMap,
-    path::Path,
+    path::{Path, PathBuf},
     sync::{Arc, Mutex, OnceLock},
 };
 
@@ -160,11 +160,17 @@ fn create_image_order_map(epub: &mut Epub) -> Option<HashMap<String, usize>> {
 
     let mut reader = epub.reader();
     while let Some(page) = next_readable_page(|| reader.read_next()) {
-        let chapter_dir = Path::new(page.manifest_entry().id())
+        let entry = page.manifest_entry();
+        // Resolve against the chapter's href (a real path), not its id (an opaque
+        // identifier): rbook already resolves manifest hrefs to absolute paths, so
+        // both the chapter dir and the manifest image hrefs share one path domain.
+        let chapter_href = entry.href();
+        let chapter_dir = Path::new(chapter_href.as_str())
             .parent()
-            .unwrap_or(Path::new(""));
+            .unwrap_or(Path::new(""))
+            .to_path_buf();
 
-        let Ok(content) = page.manifest_entry().read_str() else {
+        let Ok(content) = entry.read_str() else {
             continue;
         };
         let document = Html::parse_document(&content);
@@ -176,7 +182,7 @@ fn create_image_order_map(epub: &mut Epub) -> Option<HashMap<String, usize>> {
                 .or_else(|| element.value().attr("href"));
 
             if let Some(src) = src_attr {
-                let resolved_path = chapter_dir.join(src);
+                let resolved_path = normalize_path(&chapter_dir.join(src));
                 if let Some(resource_id) = find_resource_id_by_path(epub, &resolved_path) {
                     map.entry(resource_id).or_insert_with(|| {
                         let order = current_order;
@@ -210,31 +216,55 @@ fn next_readable_page<P, E: std::fmt::Display>(
     }
 }
 
+/// Folds `.` and `..` components so a relative reference such as
+/// `text/../images/x.png` compares equal to the resolved href `images/x.png`.
+fn normalize_path(path: &Path) -> PathBuf {
+    let mut out = PathBuf::new();
+    for comp in path.components() {
+        match comp {
+            std::path::Component::ParentDir => {
+                out.pop();
+            }
+            std::path::Component::CurDir => {}
+            other => out.push(other),
+        }
+    }
+    out
+}
+
 /// Finds a resource's manifest ID by its file path within the EPUB.
 fn find_resource_id_by_path(epub: &Epub, target_path: &Path) -> Option<String> {
-    let ids: Vec<&str> = epub.manifest().images().map(|image| image.id()).collect();
-    select_resource_id(&ids, target_path)
+    let images: Vec<(&str, &str)> = epub
+        .manifest()
+        .images()
+        .map(|image| (image.id(), image.href().as_str()))
+        .collect();
+    select_resource_id(&images, target_path)
 }
 
 /// Pure resolution used by [`find_resource_id_by_path`] (testable without an `Epub`).
 ///
-/// `image_ids` are manifest image ids, treated as paths. An exact path match wins;
-/// otherwise a basename match is used **only when it is unambiguous** (exactly one match),
-/// so two images sharing a basename in different folders (e.g. `ch1/p001.png` and
-/// `ch2/p001.png`) cannot be confused and mis-order the spine.
-fn select_resource_id(image_ids: &[&str], target_path: &Path) -> Option<String> {
-    if let Some(id) = image_ids.iter().find(|id| Path::new(id) == target_path) {
+/// `images` are `(id, href)` pairs; matching is done on the (normalized) href, and the
+/// matching id is returned. An exact path match wins; otherwise a basename match is used
+/// **only when it is unambiguous** (exactly one match), so two images sharing a basename
+/// in different folders (e.g. `ch1/p001.png` and `ch2/p001.png`) cannot be confused and
+/// mis-order the spine.
+fn select_resource_id(images: &[(&str, &str)], target_path: &Path) -> Option<String> {
+    if let Some((id, _)) = images
+        .iter()
+        .find(|(_, href)| normalize_path(Path::new(href)) == *target_path)
+    {
         return Some((*id).to_string());
     }
     let target_name = target_path.file_name()?;
-    let mut basename = image_ids
+    let mut basename = images
         .iter()
-        .filter(|id| Path::new(id).file_name() == Some(target_name));
-    let first = basename.next()?;
+        .filter(|(_, href)| Path::new(href).file_name() == Some(target_name));
+    let (first_id, _) = basename.next()?;
     if basename.next().is_some() {
         return None; // ambiguous basename across directories
     }
-    Some((*first).to_string())
+    Some((*first_id).to_string())
 }
 
 #[cfg(test)]
@@ -374,9 +404,12 @@ mod tests {
         let container = EpubContainer::new(epub_path.to_string_lossy().as_ref())
             .expect("failed to create EpubContainer");
 
+        // Spine order applies: the chapter references image1 (which sorts *after*
+        // cover by id), so image1 comes first and the unreferenced cover trails.
+        // This also guards C1: manifest-id order would have yielded ["cover", "image1"].
         assert_eq!(container.entries.len(), 2);
-        assert_eq!(container.entries[0], "cover");
-        assert_eq!(container.entries[1], "image1");
+        assert_eq!(container.entries[0], "image1");
+        assert_eq!(container.entries[1], "cover");
     }
 
     #[test]
@@ -460,8 +493,8 @@ mod tests {
         let entries = container.get_entries();
 
         assert_eq!(entries.len(), 2);
-        assert_eq!(entries[0], "cover");
-        assert_eq!(entries[1], "image1");
+        assert_eq!(entries[0], "image1");
+        assert_eq!(entries[1], "cover");
     }
 
     #[test]
@@ -582,22 +615,33 @@ mod tests {
 
     #[test]
     fn select_resource_id_prefers_exact_and_rejects_ambiguous_basename() {
-        let ids = ["images/ch1/p001.png", "images/ch2/p001.png", "cover.png"];
+        let images = [
+            ("id-ch1", "images/ch1/p001.png"),
+            ("id-ch2", "images/ch2/p001.png"),
+            ("id-cover", "cover.png"),
+        ];
 
-        // Exact path match wins even when the basename is shared.
+        // Exact path match wins even when the basename is shared; the matching id
+        // (not the href) is returned.
         assert_eq!(
-            select_resource_id(&ids, path::Path::new("images/ch2/p001.png")).as_deref(),
-            Some("images/ch2/p001.png")
+            select_resource_id(&images, path::Path::new("images/ch2/p001.png")).as_deref(),
+            Some("id-ch2")
         );
         // Ambiguous basename ("p001.png" appears twice) → no fallback match.
         assert_eq!(
-            select_resource_id(&ids, path::Path::new("other/p001.png")),
+            select_resource_id(&images, path::Path::new("other/p001.png")),
             None
         );
         // Unique basename still resolves via the fallback.
         assert_eq!(
-            select_resource_id(&ids, path::Path::new("x/cover.png")).as_deref(),
-            Some("cover.png")
+            select_resource_id(&images, path::Path::new("x/cover.png")).as_deref(),
+            Some("id-cover")
+        );
+        // A `..` in the target normalizes before matching the resolved href.
+        assert_eq!(
+            select_resource_id(&images, &normalize_path(path::Path::new("images/ch1/../ch2/p001.png")))
+                .as_deref(),
+            Some("id-ch2")
         );
     }
 
