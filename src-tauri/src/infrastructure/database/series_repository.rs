@@ -84,12 +84,23 @@ impl SeriesRepository for SqliteSeriesRepository {
     }
 
     async fn assign_book_to_series(&self, book_id: i64, series_id: Option<i64>) -> Result<()> {
+        // Append at the end of the target series; clearing the series also clears the
+        // order so it cannot resurface when the book later joins another series.
         sqlx::query!(
             r#"
             UPDATE books
-            SET series_id = ?
+            SET series_id = ?,
+                series_order = CASE
+                    WHEN ? IS NULL THEN NULL
+                    ELSE (
+                        SELECT COALESCE(MAX(b2.series_order), 0) + 1
+                        FROM books b2 WHERE b2.series_id = ?
+                    )
+                END
             WHERE id = ?
             "#,
+            series_id,
+            series_id,
             series_id,
             book_id
         )

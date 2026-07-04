@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            UPDATE books\n            SET series_id = ?,\n                series_order = CASE\n                    WHEN ? IS NULL THEN NULL\n                    ELSE (\n                        SELECT COALESCE(MAX(b2.series_order), 0) + 1\n                        FROM books b2 WHERE b2.series_id = ?\n                    )\n                END\n            WHERE id = ?\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "8f42687dd985c91724f26c7a775220be38f25cdb96344171ac5af9f980c25c30"
+}

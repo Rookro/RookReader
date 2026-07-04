@@ -150,3 +150,114 @@ async fn test_update_book_orders_in_series() {
     assert_eq!(book1.series_order, Some(2));
     assert_eq!(book2.series_order, Some(3));
 }
+
+#[tokio::test]
+async fn test_assign_appends_at_end_of_series() {
+    let pool = setup_db().await;
+    let series_repo = SqliteSeriesRepository::new(pool.clone());
+    let book_repo = SqliteBookRepository::new(pool.clone());
+
+    let series_id = series_repo.create("Series").await.unwrap();
+    let b1 = book_repo
+        .register_book("path/1", "file", "Book 1", 100, None)
+        .await
+        .unwrap();
+    let b2 = book_repo
+        .register_book("path/2", "file", "Book 2", 100, None)
+        .await
+        .unwrap();
+
+    series_repo
+        .assign_book_to_series(b1, Some(series_id))
+        .await
+        .unwrap();
+    series_repo
+        .assign_book_to_series(b2, Some(series_id))
+        .await
+        .unwrap();
+
+    // Each newly assigned book gets MAX(series_order) + 1 within the target series.
+    let book1 = book_repo.get_by_id(b1).await.unwrap().unwrap();
+    let book2 = book_repo.get_by_id(b2).await.unwrap().unwrap();
+    assert_eq!(book1.series_order, Some(1));
+    assert_eq!(book2.series_order, Some(2));
+}
+
+#[tokio::test]
+async fn test_unassign_clears_series_order() {
+    let pool = setup_db().await;
+    let series_repo = SqliteSeriesRepository::new(pool.clone());
+    let book_repo = SqliteBookRepository::new(pool.clone());
+
+    let series_id = series_repo.create("Series").await.unwrap();
+    let book_id = book_repo
+        .register_book("path/x", "file", "Book X", 100, None)
+        .await
+        .unwrap();
+
+    series_repo
+        .assign_book_to_series(book_id, Some(series_id))
+        .await
+        .unwrap();
+    let book = book_repo.get_by_id(book_id).await.unwrap().unwrap();
+    assert_eq!(book.series_order, Some(1));
+
+    // Clearing the series also clears the order so it cannot resurface later.
+    series_repo
+        .assign_book_to_series(book_id, None)
+        .await
+        .unwrap();
+    let book = book_repo.get_by_id(book_id).await.unwrap().unwrap();
+    assert_eq!(book.series_id, None);
+    assert_eq!(book.series_order, None);
+}
+
+#[tokio::test]
+async fn test_move_book_between_series_has_no_order_collision() {
+    let pool = setup_db().await;
+    let series_repo = SqliteSeriesRepository::new(pool.clone());
+    let book_repo = SqliteBookRepository::new(pool.clone());
+
+    let series_a = series_repo.create("Series A").await.unwrap();
+    let series_b = series_repo.create("Series B").await.unwrap();
+
+    // Series B already has two ordered books.
+    let p = book_repo
+        .register_book("path/p", "file", "Book P", 100, None)
+        .await
+        .unwrap();
+    let q = book_repo
+        .register_book("path/q", "file", "Book Q", 100, None)
+        .await
+        .unwrap();
+    series_repo
+        .assign_book_to_series(p, Some(series_b))
+        .await
+        .unwrap();
+    series_repo
+        .assign_book_to_series(q, Some(series_b))
+        .await
+        .unwrap();
+
+    // A book that starts in Series A (with a stale order) is moved into Series B.
+    let x = book_repo
+        .register_book("path/x", "file", "Book X", 100, None)
+        .await
+        .unwrap();
+    series_repo
+        .assign_book_to_series(x, Some(series_a))
+        .await
+        .unwrap();
+    series_repo
+        .assign_book_to_series(x, Some(series_b))
+        .await
+        .unwrap();
+
+    // X lands at the end of Series B without colliding with P/Q's orders.
+    let book_p = book_repo.get_by_id(p).await.unwrap().unwrap();
+    let book_q = book_repo.get_by_id(q).await.unwrap().unwrap();
+    let book_x = book_repo.get_by_id(x).await.unwrap().unwrap();
+    assert_eq!(book_p.series_order, Some(1));
+    assert_eq!(book_q.series_order, Some(2));
+    assert_eq!(book_x.series_order, Some(3));
+}
