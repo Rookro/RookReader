@@ -41,8 +41,9 @@ pub struct ContainerState {
     /// A nested struct containing settings specific to container handling, like rendering quality.
     pub settings: ContainerSettings,
     /// The image loader responsible for loading and caching images from the current container.
-    /// `None` if no container is open.
-    pub image_loader: Option<ImageLoader>,
+    /// `None` if no container is open. Shared behind an `Arc` so image commands can clone a
+    /// handle out of the state and decode off the async runtime without holding the lock.
+    pub image_loader: Option<Arc<ImageLoader>>,
     /// Global image cache shared across all containers.
     pub image_cache: Cache,
 }
@@ -70,7 +71,8 @@ impl ContainerState {
         self.image_cache = build_image_cache(size_mib);
 
         // If a container is open, update the image loader with the new cache.
-        if let Some(image_loader) = self.image_loader.as_mut() {
+        // set_cache takes &self (interior mutability), so a shared Arc handle suffices.
+        if let Some(image_loader) = self.image_loader.as_ref() {
             image_loader.set_cache(self.image_cache.clone());
         }
     }
@@ -81,13 +83,16 @@ impl ContainerState {
         self.image_loader = None;
     }
 
-    /// Builds the container and image loader for `path` without mutating `self`.
+    /// Builds the container and image loader from borrowed settings and a cache handle.
     ///
-    /// Building without `&mut self` lets callers run the heavy I/O without holding a
-    /// write lock on the shared state.
+    /// This takes its inputs by reference rather than through `&self` so a caller can
+    /// snapshot the (cheap-to-clone) settings and cache under a brief lock and then run
+    /// this heavy I/O on a blocking thread without holding any lock on the shared state.
     ///
     /// # Arguments
     ///
+    /// * `settings` - The container settings snapshot to build with.
+    /// * `image_cache` - The shared image cache handle.
     /// * `path` - The file system path to the container to build.
     ///
     /// # Returns
@@ -98,11 +103,15 @@ impl ContainerState {
     ///
     /// Returns an `Err` if the file extension is missing or unsupported, or the
     /// underlying constructor fails (e.g. file not found, corrupt file).
-    pub fn build(&self, path: &str) -> Result<(Arc<dyn Container>, ImageLoader)> {
+    pub fn build_with(
+        settings: &ContainerSettings,
+        image_cache: &Cache,
+        path: &str,
+    ) -> Result<(Arc<dyn Container>, ImageLoader)> {
         let config = ContainerConfig {
             pdf_render_config: PdfRenderConfig::default()
-                .set_target_height(self.settings.pdf_render_resolution_height),
-            pdfium_library_path: self.settings.pdfium_library_path.clone(),
+                .set_target_height(settings.pdf_render_resolution_height),
+            pdfium_library_path: settings.pdfium_library_path.clone(),
         };
 
         let container = create_container(path, config)?;
@@ -112,15 +121,15 @@ impl ContainerState {
         let max_image_height = if container.controls_own_resolution() {
             0
         } else {
-            self.settings.max_image_height as u32
+            settings.max_image_height as u32
         };
 
         let loader = ImageLoader::new(
             path.to_string(),
             container.clone(),
             max_image_height,
-            self.settings.image_resampling_method,
-            self.image_cache.clone(),
+            settings.image_resampling_method,
+            image_cache.clone(),
         )?;
 
         Ok((container, loader))
@@ -133,7 +142,7 @@ impl ContainerState {
     /// * `container` - The container to install.
     /// * `loader` - The image loader to install.
     pub fn install(&mut self, container: Arc<dyn Container>, loader: ImageLoader) {
-        self.image_loader = Some(loader);
+        self.image_loader = Some(Arc::new(loader));
         self.container = Some(container);
     }
 }
@@ -173,7 +182,11 @@ mod tests {
     #[test]
     fn test_build_with_unsupported_extension() {
         let state = ContainerState::default();
-        let result = state.build("/path/to/file.unsupported");
+        let result = ContainerState::build_with(
+            &state.settings,
+            &state.image_cache,
+            "/path/to/file.unsupported",
+        );
 
         let Err(err) = result else {
             panic!("expected an error for an unsupported extension");
@@ -186,7 +199,8 @@ mod tests {
     #[test]
     fn test_build_without_extension() {
         let state = ContainerState::default();
-        let result = state.build("/path/to/noextension");
+        let result =
+            ContainerState::build_with(&state.settings, &state.image_cache, "/path/to/noextension");
 
         let Err(err) = result else {
             panic!("expected an error for a missing extension");
@@ -216,9 +230,12 @@ mod tests {
         let mut state = ContainerState::default();
 
         // Build a valid directory container and install it.
-        let (container, loader) = state
-            .build(dir.path().to_string_lossy().as_ref())
-            .expect("building a valid directory container should succeed");
+        let (container, loader) = ContainerState::build_with(
+            &state.settings,
+            &state.image_cache,
+            dir.path().to_string_lossy().as_ref(),
+        )
+        .expect("building a valid directory container should succeed");
         state.install(container, loader);
         assert!(state.container.is_some());
         assert!(state.image_loader.is_some());
@@ -238,7 +255,8 @@ mod tests {
 
         // This would fail because the file doesn't exist, but it tests that
         // the height is being used in the PdfContainer::new call
-        let result = state.build("/path/to/file.pdf");
+        let result =
+            ContainerState::build_with(&state.settings, &state.image_cache, "/path/to/file.pdf");
 
         // The error is expected because the file doesn't exist
         assert!(result.is_err());
@@ -258,7 +276,7 @@ mod tests {
         ];
 
         for file_path in unsupported_files {
-            let result = state.build(file_path);
+            let result = ContainerState::build_with(&state.settings, &state.image_cache, file_path);
             let Err(err) = result else {
                 panic!("File {} should be unsupported", file_path);
             };
@@ -277,7 +295,7 @@ mod tests {
         ];
 
         for (file_path, ext) in supported_files {
-            let result = state.build(file_path);
+            let result = ContainerState::build_with(&state.settings, &state.image_cache, file_path);
 
             // These will fail because files don't exist, but we verify the
             // extension is recognized (different error message)
@@ -299,14 +317,16 @@ mod tests {
         state.settings.pdfium_library_path = Some(get_pdfium_lib_path());
 
         // Test uppercase extension
-        let result = state.build("/path/to/file.ZIP");
+        let result =
+            ContainerState::build_with(&state.settings, &state.image_cache, "/path/to/file.ZIP");
         if let Err(err) = result {
             // Should not be "Unsupported" error, meaning it recognized ZIP
             assert!(!err.to_string().contains("Unsupported Container Type"));
         }
 
         // Test mixed case
-        let result = state.build("/path/to/file.Pdf");
+        let result =
+            ContainerState::build_with(&state.settings, &state.image_cache, "/path/to/file.Pdf");
         if let Err(err) = result {
             assert!(!err.to_string().contains("Unsupported Container Type"));
         }
@@ -316,7 +336,7 @@ mod tests {
     fn test_container_error_fields() {
         let state = ContainerState::default();
         let test_path = "/test/path/file.unknown".to_string();
-        let result = state.build(&test_path);
+        let result = ContainerState::build_with(&state.settings, &state.image_cache, &test_path);
 
         let Err(err) = result else {
             panic!("expected an error for an unknown extension");

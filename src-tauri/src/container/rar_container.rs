@@ -223,8 +223,8 @@ mod tests {
             vec![
                 "b.png".to_string(),
                 "a.png".to_string(),
-                "b.png".to_string(),      // duplicate → skipped
-                "notes.txt".to_string(),  // unsupported → skipped
+                "b.png".to_string(),     // duplicate → skipped
+                "notes.txt".to_string(), // unsupported → skipped
             ]
             .into_iter(),
         );

@@ -639,8 +639,11 @@ mod tests {
         );
         // A `..` in the target normalizes before matching the resolved href.
         assert_eq!(
-            select_resource_id(&images, &normalize_path(path::Path::new("images/ch1/../ch2/p001.png")))
-                .as_deref(),
+            select_resource_id(
+                &images,
+                &normalize_path(path::Path::new("images/ch1/../ch2/p001.png"))
+            )
+            .as_deref(),
             Some("id-ch2")
         );
     }

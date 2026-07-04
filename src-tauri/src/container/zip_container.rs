@@ -503,8 +503,8 @@ mod tests {
         let mut bytes = Vec::new();
         {
             let mut zip = ZipWriter::new(std::io::Cursor::new(&mut bytes));
-            let options = FileOptions::<()>::default()
-                .compression_method(zip::CompressionMethod::DEFLATE);
+            let options =
+                FileOptions::<()>::default().compression_method(zip::CompressionMethod::DEFLATE);
             zip.start_file("image1.png", options).unwrap();
             zip.write_all(DUMMY_PNG_DATA).unwrap();
             zip.finish().unwrap();
