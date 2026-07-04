@@ -64,6 +64,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * In the file navigator, quickly single-clicking two different rows no longer misfires as a double-click on the second row (opening a file or entering a folder); each row is just selected. (#277)
 * A failed settings save now shows a clear "Failed to save settings." message instead of wrongly asking you to check your input, and an input-validation failure shows the right guidance instead of a generic error. (#278)
 * Moving a book from one series into another could leave it out of order in its new series; books moved between series are now placed correctly at the end. (#280)
+* Fixed several comic, PDF, and EPUB handling issues. (#281)
+  * Some fixed-layout EPUBs displayed their pages out of reading order; pages now follow the book's spine order.
+  * Opening a folder that contained a file with an unusual (non-Unicode) name could fail entirely; the unreadable file is now skipped and the remaining pages open.
+  * Some RAR archives showed a page twice while hiding another; duplicate entries are now handled correctly.
+  * PDF thumbnails could be oversized or blurry; they now match the thumbnail size used for other formats.
+  * Hardened comic archive (ZIP) handling against malformed "zip bomb" files that could otherwise exhaust memory.
+  * Opening a large book on slow storage no longer briefly freezes the rest of the app.
+  * Quickly switching between books could momentarily show a page from the previous book; such stale page requests are now rejected.
 
 ## [2.3.0] - 2026-06-14
 
