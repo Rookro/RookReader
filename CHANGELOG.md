@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * Errors now explain exactly what is wrong (out of range, or a whole number is required) and show the valid range right below the field, replacing the previous generic "failed to save" message.
 * Improved the internal handling of saving and loading settings for slightly faster, more efficient settings access. (#261)
 * Tidied up internal code and made tag and series updates more efficient, and fixed a small missing margin in the update progress dialog. (#279)
+* Improved performance while reading: turning pages no longer reloads the whole library. (#283)
 
 ### Fixed
 
@@ -73,6 +74,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * Opening a large book on slow storage no longer briefly freezes the rest of the app.
   * Quickly switching between books could momentarily show a page from the previous book; such stale page requests are now rejected.
 * Application settings are no longer reset to defaults when the settings file is temporarily locked or unreadable (for example, by antivirus or a backup tool); the app runs with the current values and leaves the file intact. (#282)
+* Fixed the last page position sometimes being lost when quickly switching between books; the previous book's final position is now saved before switching. (#283)
 
 ## [2.3.0] - 2026-06-14
 
