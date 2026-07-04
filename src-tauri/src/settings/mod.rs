@@ -563,6 +563,24 @@ mod tests {
     }
 
     #[test]
+    fn test_defaults_agree_with_frontend_json() {
+        // The frontend's defaultSettings fixture must equal the backend defaults (with the
+        // dynamic home directory neutralized to ""), so the two hardcoded default copies
+        // cannot drift.
+        let mut cfg = AppSettings::normalize(json!({}), "/dummy/home".to_string());
+        cfg.file_navigator.home_directory = PathBuf::from("");
+        let backend = serde_json::to_value(&cfg).unwrap();
+
+        let fixture: Value = serde_json::from_str(include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../src/features/Settings/defaultSettings.json"
+        )))
+        .unwrap();
+
+        assert_eq!(backend, fixture);
+    }
+
+    #[test]
     fn test_persist_normalized_exact_f64_does_not_rewrite() {
         let mut doc = default_doc_with_home();
         doc["reader"]["comic"]["loupe"]["zoom"] = json!(3.0);

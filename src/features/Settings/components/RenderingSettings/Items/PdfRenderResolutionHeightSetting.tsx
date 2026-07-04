@@ -3,7 +3,10 @@ import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppSelector } from "../../../../../store/store";
 import { useSettingsFieldError } from "../../../hooks/useSettingsFieldError";
+import { SETTINGS_BOUNDS } from "../../../settingsBounds";
 import NumberSpinnerSettingItem from "../../ui/NumberSpinnerSettingItem";
+
+const bounds = SETTINGS_BOUNDS["reader.rendering.pdfRenderResolutionHeight"];
 
 /**
  * PDF rendering setting component.
@@ -40,8 +43,8 @@ export default function PdfRenderResolutionHeightSetting() {
       primaryText={t("settings.rendering.pdf.title")}
       secondaryText={t("settings.rendering.pdf.description")}
       defaultValue={pdfRenderResolutionHeight}
-      min={1}
-      max={20000}
+      min={bounds.min}
+      max={bounds.max}
       step={100}
       error={error}
       helperText={helperText}

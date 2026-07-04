@@ -6,9 +6,12 @@ import { useTranslation } from "react-i18next";
 import { getFonts } from "../../../../../bindings/FontCommands";
 import { useAppDispatch, useAppSelector } from "../../../../../store/store";
 import { useSettingsFieldError } from "../../../hooks/useSettingsFieldError";
+import { SETTINGS_BOUNDS } from "../../../settingsBounds";
 import { updateSettings } from "../../../slice";
 import AutocompleteSettingItem from "../../ui/AutocompleteSettingItem";
 import NumberSpinnerSettingItem from "../../ui/NumberSpinnerSettingItem";
+
+const fontSizeBounds = SETTINGS_BOUNDS["reader.novel.fontSize"];
 
 const defaultFont = "default-font";
 
@@ -84,8 +87,8 @@ export default function FontSettings() {
         icon={<FormatSize />}
         primaryText={t("settings.reader.font-size.title")}
         defaultValue={readerSettings.novel.fontSize}
-        min={1}
-        max={200}
+        min={fontSizeBounds.min}
+        max={fontSizeBounds.max}
         step={0.5}
         error={fontSizeError}
         helperText={fontSizeHelperText}
