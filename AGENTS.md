@@ -66,7 +66,7 @@ This document provides foundational mandates, project context, and workflows for
       delegates to the generated `commands.*` (binary `tauri::ipc::Response` commands keep a raw `invoke`).
     - Integrate the binding into the React frontend (e.g., Redux thunk or custom hook).
 2.  **State Management:** Prefer Redux Toolkit (`createAsyncThunk`, `createSlice`) for global application state (like reading history, bookshelf contents). Use local React state (`useState`, `useReducer`) for component-specific UI state.
-3.  **Error Handling:** Surface backend errors clearly to the frontend. Use the custom `CommandError` structure defined in `src/types/Error.ts`.
+3.  **Error Handling:** Surface backend errors clearly to the frontend. Use the custom `CommandError` structure defined in `src/types/Error.ts`. The numeric `ErrorCode` values are the **single source of truth in Rust** (`ErrorCode::code()` in `src-tauri/src/error.rs`): `npm run gen:bindings` generates `src/bindings/errorCodes.ts` from the Rust variants (camelCase keys), and `gen:bindings:check` fails CI on drift. `src/types/Error.ts` re-exports those codes and adds the frontend-only `unknown` sentinel — **never hand-edit the codes**; add a variant + `code()` arm in Rust and regenerate.
 4.  **Localization (i18n):** The project uses `react-i18next`. New user-facing strings should be added to the localization files in `src/i18n/locales/`.
 5.  **Styling:** Use Material UI (MUI) components and the `sx` prop for styling. Ensure UI is responsive and follows the established theme (`src/hooks/useAppTheme.ts`).
 6.  **Validation:** After making changes, always verify correctness using `cargo clippy` for Rust, and `npx tsc --noEmit` and `npm run check` for TypeScript.

@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Improved the internal handling of saving and loading settings for slightly faster, more efficient settings access. (#261)
 * Tidied up internal code and made tag and series updates more efficient, and fixed a small missing margin in the update progress dialog. (#279)
 * Improved performance while reading: turning pages no longer reloads the whole library. (#283)
+* Made the frontend error codes generate from the Rust backend so they stay automatically in sync. (#287)
 
 ### Fixed
 

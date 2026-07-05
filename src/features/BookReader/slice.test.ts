@@ -218,8 +218,8 @@ describe("ReadReducer", () => {
     // Verify that container and explorer error states are cleared correctly
     it("should handle clear errors", () => {
       const initialState = {
-        containerFile: { error: { code: ErrorCode.OTHER_ERROR } },
-        explorer: { error: { code: ErrorCode.OTHER_ERROR } },
+        containerFile: { error: { code: ErrorCode.other } },
+        explorer: { error: { code: ErrorCode.other } },
       } as RootState["read"];
 
       let state = readReducer(initialState, clearContainerFileError());
@@ -405,19 +405,19 @@ describe("ReadReducer", () => {
 
         const state = store.getState().read;
         expect(state.containerFile.isLoading).toBe(false);
-        expect(state.containerFile.error?.code).toBe(ErrorCode.PATH_ERROR);
+        expect(state.containerFile.error?.code).toBe(ErrorCode.path);
       });
 
       // Verify handling of CommandError during opening
       it("should handle CommandError during open", async () => {
-        const mockError = new CommandError(ErrorCode.OTHER_ERROR, "cmd failed");
+        const mockError = new CommandError(ErrorCode.other, "cmd failed");
         vi.mocked(ContainerCommands.getEntriesInContainer).mockRejectedValue(mockError);
 
         store.dispatch(setContainerFilePath("fail.zip"));
         await store.dispatch(openContainerFile("fail.zip"));
 
         const state = store.getState().read;
-        expect(state.containerFile.error?.code).toBe(ErrorCode.OTHER_ERROR);
+        expect(state.containerFile.error?.code).toBe(ErrorCode.other);
         expect(state.containerFile.error?.message).toContain("cmd failed");
       });
     });
@@ -463,18 +463,18 @@ describe("ReadReducer", () => {
         await store.dispatch(updateExploreBasePath({ dirPath: "" }));
 
         const state = store.getState().read;
-        expect(state.explorer.error?.code).toBe(ErrorCode.PATH_ERROR);
+        expect(state.explorer.error?.code).toBe(ErrorCode.path);
       });
 
       // Verify handling of CommandError during explorer update
       it("should handle CommandError during explorer update", async () => {
-        const mockError = new CommandError(ErrorCode.OTHER_ERROR, "dir failed");
+        const mockError = new CommandError(ErrorCode.other, "dir failed");
         vi.mocked(DirectoryCommands.getEntriesInDir).mockRejectedValue(mockError);
 
         await store.dispatch(updateExploreBasePath({ dirPath: "/error/dir", forceUpdate: true }));
 
         const state = store.getState().read;
-        expect(state.explorer.error?.code).toBe(ErrorCode.OTHER_ERROR);
+        expect(state.explorer.error?.code).toBe(ErrorCode.other);
         expect(state.explorer.error?.message).toContain("dir failed");
       });
 

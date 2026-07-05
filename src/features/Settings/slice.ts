@@ -40,7 +40,7 @@ export const updateSettings = createAppAsyncThunk(
     try {
       return await persistSettings(patch);
     } catch (e) {
-      const code = e instanceof CommandError ? e.code : ErrorCode.SETTINGS_ERROR;
+      const code = e instanceof CommandError ? e.code : ErrorCode.settings;
       const message = e instanceof CommandError ? e.message : String(e);
       const details = e instanceof CommandError ? e.details : undefined;
       error(`Failed to persist settings: ${message}`);

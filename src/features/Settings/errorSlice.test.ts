@@ -8,14 +8,14 @@ describe("settingsErrorSlice", () => {
   });
 
   it("setSettingsError records the error payload", () => {
-    const payload = { code: ErrorCode.SETTINGS_ERROR, message: "out of range" };
+    const payload = { code: ErrorCode.settings, message: "out of range" };
 
     expect(settingsErrorReducer({ error: null }, setSettingsError(payload)).error).toEqual(payload);
   });
 
   it("clearSettingsError resets the error", () => {
     const state = settingsErrorReducer(
-      { error: { code: ErrorCode.SETTINGS_ERROR, message: "x" } },
+      { error: { code: ErrorCode.settings, message: "x" } },
       clearSettingsError(),
     );
 

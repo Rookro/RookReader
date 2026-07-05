@@ -20,7 +20,7 @@ describe("SettingsErrorListener", () => {
   it("shows a notification and clears the error when a settings error is present", async () => {
     const preloadedState = createBasePreloadedState();
     preloadedState.settingsError.error = {
-      code: ErrorCode.SETTINGS_ERROR,
+      code: ErrorCode.settings,
       message: "out of range",
     };
 

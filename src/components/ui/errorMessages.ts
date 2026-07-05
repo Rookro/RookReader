@@ -10,9 +10,9 @@ import { ErrorCode } from "../../types/Error";
  */
 export function errorCodeToMessageKey(code: number) {
   switch (code) {
-    case ErrorCode.SETTINGS_ERROR:
+    case ErrorCode.settings:
       return "error-message.settings.save-failed";
-    case ErrorCode.SETTINGS_VALIDATION_ERROR:
+    case ErrorCode.settingsValidation:
       return "error-message.settings.validation-failed";
     default:
       return "error-message.common.unknown";

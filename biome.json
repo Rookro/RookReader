@@ -11,7 +11,8 @@
       "!!**/dist",
       "!!**/node_modules",
       "!!**/src-tauri",
-      "!!src/bindings/bindings.ts"
+      "!!src/bindings/bindings.ts",
+      "!!src/bindings/errorCodes.ts"
     ]
   },
   "formatter": {

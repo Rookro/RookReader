@@ -16,8 +16,9 @@ use zip::result::ZipError;
 /// consistent error handling mechanism.
 #[derive(Debug, Error, EnumDiscriminants)]
 #[strum_discriminants(name(ErrorCode))]
-#[strum_discriminants(derive(Serialize))]
+#[strum_discriminants(derive(Serialize, strum_macros::EnumIter, strum_macros::IntoStaticStr))]
 #[strum_discriminants(serde(rename_all = "camelCase"))]
+#[strum_discriminants(strum(serialize_all = "camelCase"))]
 pub enum Error {
     // 1xxxx: Container Processing
     /// An error for unsupported container formats (e.g., trying to open a .txt file).
@@ -215,6 +216,19 @@ pub type Result<T> = std::result::Result<T, Error>;
 mod tests {
     use super::*;
     use crate::settings::{SettingsValidationViolation, ViolationKind};
+
+    #[test]
+    fn error_codes_are_unique() {
+        use strum::IntoEnumIterator;
+        let mut seen = std::collections::HashSet::new();
+        for variant in ErrorCode::iter() {
+            assert!(
+                seen.insert(variant.code()),
+                "duplicate code {}",
+                variant.code()
+            );
+        }
+    }
 
     #[test]
     fn serializes_generic_error_as_code_and_message() {
