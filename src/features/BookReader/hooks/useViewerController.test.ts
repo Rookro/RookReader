@@ -15,6 +15,15 @@ vi.mock("../utils/ImageUtils", () => ({
     isSpread: false,
     nextIndexIncrement: 1,
   })),
+  // Mirror the real per-item revoke so cache-eviction tests observe revokeObjectURL.
+  revokeCacheItemUrls: vi.fn((item: ImageUtils.ImageCacheItem) => {
+    if (item.previewUrl) {
+      URL.revokeObjectURL(item.previewUrl);
+    }
+    if (item.fullUrl) {
+      URL.revokeObjectURL(item.fullUrl);
+    }
+  }),
   // Default to null so moveBack exercises the local heuristic unless a test overrides it.
   findPreviousUnitStart: vi.fn(() => null),
 }));
@@ -104,6 +113,35 @@ describe("useViewerController", () => {
 
     expect(global.URL.revokeObjectURL).toHaveBeenCalledWith("blob:full");
     expect(global.URL.revokeObjectURL).toHaveBeenCalledWith("blob:preview");
+  });
+
+  // Verify that pages outside a window around the current index are evicted (their
+  // blob URLs revoked) while pages inside the window survive, so long reading
+  // sessions don't accumulate every visited page's blob URLs.
+  it("should evict cached pages outside the window and keep those inside", async () => {
+    const longEntries = Array.from({ length: 100 }, (_, i) => `p${i}.jpg`);
+    mockedFetchImageBlob.mockResolvedValue({} as Image);
+    let urlCounter = 0;
+    mockedCreateImageCacheItem.mockImplementation(
+      () => ({ fullUrl: `blob:${urlCounter++}` }) as ImageUtils.ImageCacheItem,
+    );
+
+    const { rerender } = renderHook(
+      ({ index }: { index: number }) =>
+        useViewerController("path", longEntries, index, mockSettings, mockDispatch),
+      { initialProps: { index: 0 } },
+    );
+
+    // entries[0] is cached as "blob:0".
+    await waitFor(() => expect(ImageUtils.createImageCacheItem).toHaveBeenCalled());
+
+    // Navigate within the window (radius = max(preloadPageCount, 5) = 10): entries[0] survives.
+    rerender({ index: 5 });
+    expect(global.URL.revokeObjectURL).not.toHaveBeenCalledWith("blob:0");
+
+    // Navigate far past the window: entries[0] is now evicted and its URL revoked.
+    rerender({ index: 50 });
+    expect(global.URL.revokeObjectURL).toHaveBeenCalledWith("blob:0");
   });
 
   // Verify that displayedLayout is set on successful image loading
@@ -387,6 +425,25 @@ describe("useViewerController", () => {
 
       result.current.moveForward();
       expect(mockDispatch).toHaveBeenCalledWith(setImageIndex(2));
+    });
+
+    // Verify that when the current page's layout is unknown (image not cached yet),
+    // two-page mode advances by 1, never 2, so a page is never permanently skipped.
+    it("should advance by 1 when the layout is unknown in two-paged view", async () => {
+      mockedFetchImageBlob.mockResolvedValue({} as Image);
+      // No layout can be resolved yet (cache miss for the current page).
+      mockedCalculateLayout.mockReturnValue(null);
+
+      const { result } = renderHook(() =>
+        useViewerController("path", mockEntries, 0, twoPagedSettings, mockDispatch),
+      );
+
+      await waitFor(() => {
+        expect(result.current.isImageLoading).toBe(false);
+      });
+
+      result.current.moveForward();
+      expect(mockDispatch).toHaveBeenCalledWith(setImageIndex(1));
     });
 
     // Verify that moveForward uses the current page's layout, not a stale displayedLayout

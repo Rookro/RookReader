@@ -138,6 +138,9 @@ export default function BookReader({ sx }: BookReaderProps) {
     if (droppedFile && droppedFile.length > 0) {
       dispatch(setOpenOrigin({ kind: "dragDrop" }));
       dispatch(setContainerFilePath(droppedFile));
+      // Reset so dropping the same path again re-triggers this effect
+      // (a same-value setState bails out and would silently ignore the drop).
+      setDroppedFile(undefined);
     }
   }, [droppedFile, dispatch]);
 

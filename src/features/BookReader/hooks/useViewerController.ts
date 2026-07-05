@@ -12,6 +12,7 @@ import {
   fetchImagePreviewBlob,
   findPreviousUnitStart,
   type ImageCacheItem,
+  revokeCacheItemUrls,
   type ViewerSettings,
   type ViewLayout,
 } from "../utils/ImageUtils";
@@ -22,14 +23,7 @@ import {
  * @param cache - The image cache whose `previewUrl`/`fullUrl` object URLs should be revoked.
  */
 const revokeCacheUrls = (cache: Map<string, ImageCacheItem>) => {
-  cache.forEach((item) => {
-    if (item.previewUrl) {
-      URL.revokeObjectURL(item.previewUrl);
-    }
-    if (item.fullUrl) {
-      URL.revokeObjectURL(item.fullUrl);
-    }
-  });
+  cache.forEach(revokeCacheItemUrls);
 };
 
 /**
@@ -200,6 +194,21 @@ export const useViewerController = (
     }
   }, [index, settings.preloadPageCount, entries.length]);
 
+  // Evict cached pages outside a window around the current index so long sessions
+  // don't retain every visited page's blob URLs (unbounded renderer memory). The
+  // window always contains the current spread (index, index + 1) and the backend
+  // preload range, so backtrack re-fetches hit the backend LRU cache.
+  useEffect(() => {
+    const radius = Math.max(settings.preloadPageCount, 5);
+    const keep = new Set(entries.slice(Math.max(0, index - radius), index + radius + 1));
+    for (const [key, item] of cacheRef.current) {
+      if (!keep.has(key)) {
+        revokeCacheItemUrls(item);
+        cacheRef.current.delete(key);
+      }
+    }
+  }, [index, entries, settings.preloadPageCount]);
+
   const displayedLayout = layoutState?.path === containerPath ? layoutState?.layout : null;
 
   const moveForward = useCallback(() => {
@@ -210,7 +219,9 @@ export const useViewerController = (
     // Derive the increment from the current index's layout (read from the cache now),
     // not the lagging displayedLayout, which would desync spread pairs / skip pages.
     const currentLayout = calculateLayout(index, entries, cacheRef.current, settings);
-    const increment = currentLayout?.nextIndexIncrement ?? (settings.isTwoPagedView ? 2 : 1);
+    // When the layout is unknown (image not cached yet) advance by 1: advancing 2
+    // could skip a page permanently, while a transient half-spread self-corrects.
+    const increment = currentLayout?.nextIndexIncrement ?? 1;
     const nextIndex = index + increment;
 
     if (nextIndex < entries.length) {
