@@ -334,6 +334,7 @@
       "failed-to-fetch-history": "履歴が読み込めませんでした。",
       "bookshelf-error": "本棚の操作でエラーが発生しました。",
       "tag-error": "タグの操作でエラーが発生しました。",
+      "series-error": "シリーズの操作でエラーが発生しました。",
       "unknown": "問題が発生しました。"
     },
     "container": {

@@ -334,6 +334,7 @@
       "failed-to-fetch-history": "Failed to load history.",
       "bookshelf-error": "Bookshelf operation failed.",
       "tag-error": "Tag operation failed.",
+      "series-error": "Series operation failed.",
       "unknown": "Something went wrong."
     },
     "container": {

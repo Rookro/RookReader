@@ -104,6 +104,23 @@ describe("SetSeriesDialog", () => {
     });
   });
 
+  it("surfaces a save failure with a notification, refetches, and keeps the dialog open", async () => {
+    vi.mocked(BookCommands.updateBookSeries).mockRejectedValue(new Error("Update failed"));
+    const onUpdateSeries = vi.fn();
+    const onClose = vi.fn();
+
+    renderWithProviders(
+      <SetSeriesDialog {...defaultProps} onUpdateSeries={onUpdateSeries} onClose={onClose} />,
+    );
+
+    await user.click(screen.getByText("Series A"));
+    await user.click(screen.getByRole("button", { name: /ok/i }));
+
+    await waitFor(() => expect(screen.getByText("Series operation failed.")).toBeInTheDocument());
+    expect(onUpdateSeries).toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
   it("should log error if create fails", async () => {
     vi.mocked(SeriesCommand.createSeries).mockRejectedValue(new Error("Create failed"));
 

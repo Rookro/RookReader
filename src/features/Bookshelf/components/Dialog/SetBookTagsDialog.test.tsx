@@ -126,6 +126,100 @@ describe("SetBookTagsDialog", () => {
     });
   });
 
+  it("surfaces a save failure with a notification, refetches, and keeps the dialog open", async () => {
+    vi.mocked(BookCommands.getBookTags).mockResolvedValue([]);
+    vi.mocked(BookCommands.updateBookTags).mockRejectedValue(new Error("Update failed"));
+    const onUpdateTags = vi.fn();
+    const onClose = vi.fn();
+
+    renderWithProviders(
+      <SetBookTagsDialog
+        openDialog={true}
+        bookIds={[123]}
+        availableTags={mockTags}
+        onClose={onClose}
+        onUpdateTags={onUpdateTags}
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByText("Tag 1")).toBeInTheDocument());
+    await user.click(screen.getByRole("button", { name: /ok/i }));
+
+    // An error notification appears, the refetch callback runs (so partial success
+    // is reflected), and the dialog stays open for retry.
+    await waitFor(() => expect(screen.getByText("Tag operation failed.")).toBeInTheDocument());
+    expect(onUpdateTags).toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("ignores a late tag fetch after reopening for another book", async () => {
+    let resolveA: (v: number[]) => void = () => {};
+    const aPromise = new Promise<number[]>((res) => {
+      resolveA = res;
+    });
+    vi.mocked(BookCommands.getBookTags)
+      .mockReturnValueOnce(aPromise) // book 1: slow
+      .mockResolvedValueOnce([]); // book 2: fast, no tags
+
+    const { rerender } = renderWithProviders(
+      <SetBookTagsDialog
+        openDialog={true}
+        bookIds={[1]}
+        availableTags={mockTags}
+        onClose={vi.fn()}
+        onUpdateTags={vi.fn()}
+      />,
+    );
+
+    // Reopen for book 2 before book 1's fetch resolves.
+    rerender(
+      <SetBookTagsDialog
+        openDialog={true}
+        bookIds={[2]}
+        availableTags={mockTags}
+        onClose={vi.fn()}
+        onUpdateTags={vi.fn()}
+      />,
+    );
+    await waitFor(() => expect(BookCommands.getBookTags).toHaveBeenCalledWith(2));
+
+    // Book 1's fetch resolves late with tag 1 selected: it must not be applied.
+    resolveA([1]);
+    await Promise.resolve();
+
+    expect(screen.getAllByRole("checkbox")[0]).not.toBeChecked();
+  });
+
+  it("clears the prior selection when a reopened fetch fails", async () => {
+    vi.mocked(BookCommands.getBookTags)
+      .mockResolvedValueOnce([1]) // book 1: tag 1 selected
+      .mockRejectedValueOnce(new Error("boom")); // book 2: fetch fails
+
+    const { rerender } = renderWithProviders(
+      <SetBookTagsDialog
+        openDialog={true}
+        bookIds={[1]}
+        availableTags={mockTags}
+        onClose={vi.fn()}
+        onUpdateTags={vi.fn()}
+      />,
+    );
+    await waitFor(() => expect(screen.getAllByRole("checkbox")[0]).toBeChecked());
+
+    rerender(
+      <SetBookTagsDialog
+        openDialog={true}
+        bookIds={[2]}
+        availableTags={mockTags}
+        onClose={vi.fn()}
+        onUpdateTags={vi.fn()}
+      />,
+    );
+
+    // Book 2's fetch failed: the checkboxes reset instead of keeping book 1's tag.
+    await waitFor(() => expect(screen.getAllByRole("checkbox")[0]).not.toBeChecked());
+  });
+
   it("should do nothing if handleSave is called while bookIds is empty", async () => {
     vi.mocked(BookCommands.updateBookTags).mockResolvedValue();
     const onUpdateTags = vi.fn();

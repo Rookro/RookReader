@@ -97,8 +97,9 @@ describe("BookSelectionContext", () => {
     expect(result.current.selectedBookIds.has(4)).toBe(true);
   });
 
-  it("should clear selection and select new book when clicking without modifiers", () => {
+  it("should clear selection and select new book (without opening) when clicking with an active selection", () => {
     const { result } = renderHook(() => useBookSelection(), { wrapper });
+    const onBookSelect = vi.fn();
 
     act(() => {
       result.current.toggleSelection(1);
@@ -112,11 +113,14 @@ describe("BookSelectionContext", () => {
         {} as React.MouseEvent,
         mockBooks,
         bookIdToIndexMap,
+        onBookSelect,
       );
     });
 
     expect(result.current.selectedBookIds.size).toBe(1);
     expect(result.current.selectedBookIds.has(3)).toBe(true);
+    // A plain click with an active selection selects, it does not open the book.
+    expect(onBookSelect).not.toHaveBeenCalled();
   });
 
   it("should call onBookSelect when clicking without modifiers and no previous selection", () => {

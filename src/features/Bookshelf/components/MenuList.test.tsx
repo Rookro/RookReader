@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createBasePreloadedState, renderWithProviders } from "../../../test/utils";
 import { setActiveView } from "../../MainView/slice";
-import { changeBookshelf, removeBookshelf } from "../slice";
+import { removeBookshelf, setSelectedBookshelf } from "../slice";
 import { removeTag, setSelectedTag } from "../tagSlice";
 import MenuList from "./MenuList";
 
@@ -11,7 +11,7 @@ vi.mock("../slice", async () => {
   const actual = await vi.importActual("../slice");
   return {
     ...actual,
-    changeBookshelf: vi.fn((id) => ({ type: "changeBookshelf", payload: id })),
+    setSelectedBookshelf: vi.fn((id) => ({ type: "setSelectedBookshelf", payload: id })),
     removeBookshelf: vi.fn((id) => ({ type: "removeBookshelf", payload: id })),
   };
 });
@@ -60,11 +60,11 @@ describe("MenuList", () => {
     expect(screen.getByText("Tag 1")).toBeInTheDocument();
   });
 
-  // Verify that changeBookshelf action is called correctly when a bookshelf is clicked
-  it("should call changeBookshelf when a bookshelf is clicked", async () => {
+  // Verify that setSelectedBookshelf action is called correctly when a bookshelf is clicked
+  it("should call setSelectedBookshelf when a bookshelf is clicked", async () => {
     renderWithProviders(<MenuList {...defaultProps} />, { preloadedState });
     await user.click(screen.getByText("Bookshelf 1"));
-    expect(changeBookshelf).toHaveBeenCalledWith(1);
+    expect(setSelectedBookshelf).toHaveBeenCalledWith(1);
   });
 
   it("should show fallback icon for unknown icon_id", () => {

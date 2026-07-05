@@ -176,9 +176,12 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
 
     const groupedItems: GridItem[] = [];
 
+    // Index series by id once, instead of an O(S) find per grouped series (O(S²)).
+    const seriesById = new Map(allSeries.map((s) => [s.id, s]));
+
     // Add series items
     seriesMap.forEach((booksInSeries, id) => {
-      const seriesObj = allSeries.find((s) => s.id === id);
+      const seriesObj = seriesById.get(id);
       if (seriesObj) {
         groupedItems.push({ type: "series", data: seriesObj, books: booksInSeries });
       } else {
