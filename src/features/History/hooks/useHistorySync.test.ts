@@ -1,6 +1,9 @@
+import type { Event } from "@tauri-apps/api/event";
 import { renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { ReadingState } from "../../../domain/book/schema";
 import { useTauriEvent } from "../../../hooks/useTauriEvent";
+import { readingProgressChanged } from "../../../store/actions";
 import { type RootState, useAppDispatch, useAppSelector } from "../../../store/store";
 import { fetchSeries } from "../../Bookshelf/seriesSlice";
 import { fetchBookshelves, fetchBooksInSelectedBookshelf } from "../../Bookshelf/slice";
@@ -159,5 +162,32 @@ describe("useHistorySync", () => {
     expect(mockDispatch).toHaveBeenCalledWith(
       fetchBooksInSelectedBookshelf(mockSelectedBookshelfId),
     );
+  });
+
+  it("patches the store in place on 'reading-progress-changed' without refetching", () => {
+    let eventHandler: (event: Event<ReadingState>) => void = () => {};
+    vi.mocked(useTauriEvent).mockImplementation((name, handler) => {
+      if (name === "reading-progress-changed") {
+        eventHandler = handler as (event: Event<ReadingState>) => void;
+      }
+    });
+
+    renderHook(() => useHistorySync());
+    vi.clearAllMocks();
+
+    const payload: ReadingState = {
+      book_id: 42,
+      last_read_page_index: 7,
+      last_opened_at: "2026-03-01T15:30:00",
+    };
+    eventHandler({ payload } as Event<ReadingState>);
+
+    expect(mockDispatch).toHaveBeenCalledTimes(1);
+    expect(mockDispatch).toHaveBeenCalledWith(readingProgressChanged(payload));
+    // No IPC refetch thunks are dispatched for a page turn.
+    expect(mockDispatch).not.toHaveBeenCalledWith(fetchRecentlyReadBooks());
+    expect(mockDispatch).not.toHaveBeenCalledWith(fetchBookshelves());
+    expect(mockDispatch).not.toHaveBeenCalledWith(fetchTags());
+    expect(mockDispatch).not.toHaveBeenCalledWith(fetchSeries());
   });
 });

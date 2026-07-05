@@ -17,6 +17,11 @@ use crate::domain::tag::repository::TagRepository;
 use crate::error::{Error, Result};
 use crate::state::app_state::AppState;
 
+/// Event emitted when a book's reading progress changes (a page turn). It carries the
+/// updated `ReadingState` so the frontend can patch the affected book in place, instead
+/// of the coarse `history-changed` event that triggers a full-collection refetch.
+const READING_PROGRESS_CHANGED_EVENT: &str = "reading-progress-changed";
+
 /// Retrieves a book by its unique ID.
 ///
 /// # Arguments
@@ -274,7 +279,7 @@ pub async fn update_reading_progress<R: tauri::Runtime>(
 ) -> Result<()> {
     log::debug!("Update reading progress: {:?}", state_data);
     repo.update_reading_progress(&state_data).await?;
-    app.emit("history-changed", ())?;
+    app.emit(READING_PROGRESS_CHANGED_EVENT, &state_data)?;
     Ok(())
 }
 
@@ -799,6 +804,28 @@ mod tests {
         let repo = app.state::<Arc<dyn BookRepository>>();
 
         let result = clear_reading_history(1, repo, app.handle().clone()).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_update_reading_progress() {
+        let mut mock_repo = MockBookRepository::new();
+        mock_repo
+            .expect_update_reading_progress()
+            .withf(|state: &ReadingState| state.book_id == 1 && state.last_read_page_index == 7)
+            .times(1)
+            .returning(|_| Ok(()));
+
+        let app = tauri::test::mock_app();
+        app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
+        let repo = app.state::<Arc<dyn BookRepository>>();
+
+        let state_data = ReadingState {
+            book_id: 1,
+            last_read_page_index: 7,
+            last_opened_at: None,
+        };
+        let result = update_reading_progress(state_data, repo, app.handle().clone()).await;
         assert!(result.is_ok());
     }
 

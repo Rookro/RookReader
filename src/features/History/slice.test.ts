@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as BookCommands from "../../bindings/BookCommands";
+import { readingProgressChanged } from "../../store/actions";
 import { createMockReadBook } from "../../test/factories";
 import { type AppStore, createTestStore } from "../../test/utils";
 import { ErrorCode } from "../../types/Error";
@@ -35,6 +36,45 @@ describe("HistoryReducer", () => {
     stateWithError.error = { code: ErrorCode.OTHER_ERROR, message: "test error" };
     const nextState = historyReducer(stateWithError, clearHistoryError());
     expect(nextState.error).toBeNull();
+  });
+
+  // Verify that readingProgressChanged patches the matching book in place.
+  it("should patch the matching book on readingProgressChanged", () => {
+    const state = {
+      ...initialState,
+      recentlyReadBooks: [
+        createMockReadBook({ id: 1, last_read_page_index: 0 }),
+        createMockReadBook({ id: 2, last_read_page_index: 5 }),
+      ],
+    };
+    const nextState = historyReducer(
+      state,
+      readingProgressChanged({
+        book_id: 2,
+        last_read_page_index: 9,
+        last_opened_at: "2026-07-04T10:00:00",
+      }),
+    );
+    expect(nextState.recentlyReadBooks[0].last_read_page_index).toBe(0);
+    expect(nextState.recentlyReadBooks[1].last_read_page_index).toBe(9);
+    expect(nextState.recentlyReadBooks[1].last_opened_at).toBe("2026-07-04T10:00:00");
+  });
+
+  // Verify that readingProgressChanged for an unknown book id is a no-op.
+  it("should ignore readingProgressChanged for an unknown book id", () => {
+    const state = {
+      ...initialState,
+      recentlyReadBooks: [createMockReadBook({ id: 1, last_read_page_index: 3 })],
+    };
+    const nextState = historyReducer(
+      state,
+      readingProgressChanged({
+        book_id: 999,
+        last_read_page_index: 42,
+        last_opened_at: "2026-07-04T10:00:00",
+      }),
+    );
+    expect(nextState.recentlyReadBooks[0].last_read_page_index).toBe(3);
   });
 
   describe("Async Thunk Integration Tests", () => {

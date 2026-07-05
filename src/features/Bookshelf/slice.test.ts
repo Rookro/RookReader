@@ -8,6 +8,7 @@ import type { BookWithState } from "../../domain/book/schema";
 import type { Bookshelf } from "../../domain/bookshelf/schema";
 import type { Series } from "../../domain/series/schema";
 import type { Tag } from "../../domain/tag/schema";
+import { readingProgressChanged } from "../../store/actions";
 import { createMockBookshelf, createMockBookWithState, createMockTag } from "../../test/factories";
 import { type AppStore, createTestStore } from "../../test/utils";
 import { CommandError, ErrorCode } from "../../types/Error";
@@ -84,6 +85,45 @@ describe("BookCollectionReducer", () => {
     stateWithError.error = { code: ErrorCode.OTHER_ERROR };
     const nextState = bookCollectionReducer(stateWithError, clearBookshelfError());
     expect(nextState.error).toBeNull();
+  });
+
+  // Verify that readingProgressChanged patches the matching book in place.
+  it("should patch the matching book on readingProgressChanged", () => {
+    const state = {
+      ...bookCollectionInitialState,
+      books: [
+        createMockBookWithState({ id: 1, last_read_page_index: 0 }),
+        createMockBookWithState({ id: 2, last_read_page_index: 5 }),
+      ],
+    };
+    const nextState = bookCollectionReducer(
+      state,
+      readingProgressChanged({
+        book_id: 2,
+        last_read_page_index: 9,
+        last_opened_at: "2026-07-04T10:00:00",
+      }),
+    );
+    expect(nextState.books[0].last_read_page_index).toBe(0);
+    expect(nextState.books[1].last_read_page_index).toBe(9);
+    expect(nextState.books[1].last_opened_at).toBe("2026-07-04T10:00:00");
+  });
+
+  // Verify that readingProgressChanged for an unknown book id is a no-op.
+  it("should ignore readingProgressChanged for an unknown book id", () => {
+    const state = {
+      ...bookCollectionInitialState,
+      books: [createMockBookWithState({ id: 1, last_read_page_index: 3 })],
+    };
+    const nextState = bookCollectionReducer(
+      state,
+      readingProgressChanged({
+        book_id: 999,
+        last_read_page_index: 42,
+        last_opened_at: "2026-07-04T10:00:00",
+      }),
+    );
+    expect(nextState.books[0].last_read_page_index).toBe(3);
   });
 
   describe("Async Thunk Integration Tests", () => {
