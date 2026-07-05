@@ -3,7 +3,10 @@ import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppSelector } from "../../../../../store/store";
 import { useSettingsFieldError } from "../../../hooks/useSettingsFieldError";
+import { SETTINGS_BOUNDS } from "../../../settingsBounds";
 import NumberSpinnerSettingItem from "../../ui/NumberSpinnerSettingItem";
+
+const bounds = SETTINGS_BOUNDS["reader.comic.cache.imageCacheSizeMib"];
 
 /**
  * Image cache size setting component.
@@ -36,8 +39,8 @@ export default function ImageCacheSizeSetting() {
       secondaryText={t("settings.rendering.cache.image-cache-size.description")}
       secondaryTextSx={{ whiteSpace: "pre-wrap" }}
       defaultValue={imageCacheSizeMib}
-      min={1}
-      max={65536}
+      min={bounds.min}
+      max={bounds.max}
       error={error}
       helperText={helperText}
       onValueCommitted={handleCommitted}

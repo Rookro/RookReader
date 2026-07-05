@@ -1,10 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { mockTauri } from "../../test/mocks/tauri";
+import defaultSettingsFixture from "./defaultSettings.json";
 import { defaultSettings, loadAllSettings } from "./settingsStore";
 
 describe("SettingsStore", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("defaultSettings matches the backend defaults fixture", () => {
+    // defaultSettings.json is generated from the backend defaults (home directory
+    // neutralized to ""); a Rust test keeps that fixture in sync with the backend, so
+    // this ties the TS defaultSettings object to the backend too.
+    expect(defaultSettings).toEqual(defaultSettingsFixture);
   });
 
   describe("loadAllSettings", () => {

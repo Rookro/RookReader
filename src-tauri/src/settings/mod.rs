@@ -94,11 +94,11 @@ impl AppSettings {
     ///
     /// # Errors
     ///
-    /// Currently infallible in practice, but returns `Result` to keep the read API
-    /// symmetric with [`AppSettings::save`] and tolerant of future fallible providers.
+    /// Returns an `Err` if the provider fails to read the store (other than a missing
+    /// file, which reads as defaults).
     pub fn load<P: SettingsStoreProvider>(provider: &P) -> Result<Self> {
         Ok(Self::normalize(
-            provider.get_all_settings(),
+            provider.get_all_settings()?,
             provider.default_home_dir(),
         ))
     }
@@ -130,7 +130,21 @@ impl AppSettings {
     ///
     /// Returns an `Err` if serialization or the provider write fails.
     pub fn load_and_persist_normalized<P: SettingsStoreProvider>(provider: &P) -> Result<Self> {
-        let raw = provider.get_all_settings();
+        let raw = match provider.get_all_settings() {
+            Ok(raw) => raw,
+            // An unreadable file (share lock, permissions) must not be healed: writing
+            // defaults back would clobber the user's real settings. Run with in-memory
+            // defaults and leave the file untouched so it can recover on the next launch.
+            Err(e) => {
+                log::error!(
+                    "Settings file unreadable; running with defaults without persisting: {e}"
+                );
+                return Ok(Self::normalize(
+                    serde_json::json!({}),
+                    provider.default_home_dir(),
+                ));
+            }
+        };
         let config = Self::normalize(raw.clone(), provider.default_home_dir());
         if serde_json::to_value(&config)? != raw {
             config.save(provider)?;
@@ -138,17 +152,18 @@ impl AppSettings {
         Ok(config)
     }
 
-    /// Serialized read-modify-write: deep-merges `patch` into the current settings,
-    /// validates the merged whole, persists it, and returns it.
+    /// Read-modify-write: deep-merges `patch` into the current settings, validates the
+    /// merged whole, persists it, and returns it.
     ///
-    /// The whole cycle is serialized on `lock` so concurrent writers cannot interleave.
-    /// Out-of-range merged results are rejected **without** persisting (repair is only
-    /// applied when *loading* a pre-existing file, never on writes).
+    /// This is **not** self-synchronizing: the caller must hold the `SettingsFileLock`
+    /// across this call and any dependent runtime apply/broadcast, so two concurrent
+    /// writers cannot persist A,B but then apply/announce B,A. Out-of-range merged
+    /// results are rejected **without** persisting (repair is only applied when *loading*
+    /// a pre-existing file, never on writes).
     ///
     /// # Arguments
     ///
     /// * `provider` - The storage backend.
-    /// * `lock` - The process-wide settings file lock.
     /// * `patch` - The single-category partial change to apply.
     ///
     /// # Returns
@@ -159,12 +174,10 @@ impl AppSettings {
     ///
     /// Returns `Error::Settings` if the patch produces an undeserializable or
     /// out-of-range result, or a serialization/write error from the provider.
-    pub async fn apply_patch_serialized<P: SettingsStoreProvider>(
+    pub fn apply_patch<P: SettingsStoreProvider>(
         provider: &P,
-        lock: &tokio::sync::Mutex<()>,
         patch: SettingsPatch,
     ) -> Result<Self> {
-        let _guard = lock.lock().await;
         // load() normalizes + repairs, so the merge base is always valid.
         let current = Self::load(provider)?;
         let mut merged_json = serde_json::to_value(&current)?;
@@ -320,8 +333,8 @@ mod tests {
     }
 
     impl SettingsStoreProvider for MockProvider {
-        fn get_all_settings(&self) -> Value {
-            self.mock_json.clone()
+        fn get_all_settings(&self) -> Result<Value> {
+            Ok(self.mock_json.clone())
         }
         fn save_all_settings(&self, _settings: Value) -> Result<()> {
             Ok(())
@@ -356,12 +369,13 @@ mod tests {
     }
 
     impl SettingsStoreProvider for RecordingProvider {
-        fn get_all_settings(&self) -> Value {
-            self.last_saved
+        fn get_all_settings(&self) -> Result<Value> {
+            Ok(self
+                .last_saved
                 .lock()
                 .unwrap()
                 .clone()
-                .unwrap_or_else(|| self.initial.clone())
+                .unwrap_or_else(|| self.initial.clone()))
         }
         fn save_all_settings(&self, settings: Value) -> Result<()> {
             self.saves.fetch_add(1, Ordering::SeqCst);
@@ -549,12 +563,63 @@ mod tests {
     }
 
     #[test]
+    fn test_defaults_agree_with_frontend_json() {
+        // The frontend's defaultSettings fixture must equal the backend defaults (with the
+        // dynamic home directory neutralized to ""), so the two hardcoded default copies
+        // cannot drift.
+        let mut cfg = AppSettings::normalize(json!({}), "/dummy/home".to_string());
+        cfg.file_navigator.home_directory = PathBuf::from("");
+        let backend = serde_json::to_value(&cfg).unwrap();
+
+        let fixture: Value = serde_json::from_str(include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../src/features/Settings/defaultSettings.json"
+        )))
+        .unwrap();
+
+        assert_eq!(backend, fixture);
+    }
+
+    #[test]
     fn test_persist_normalized_exact_f64_does_not_rewrite() {
         let mut doc = default_doc_with_home();
         doc["reader"]["comic"]["loupe"]["zoom"] = json!(3.0);
         let provider = RecordingProvider::new(doc);
         AppSettings::load_and_persist_normalized(&provider).unwrap();
         assert_eq!(provider.save_count(), 0);
+    }
+
+    /// A provider whose reads always fail (e.g. an exclusively-locked settings file),
+    /// recording whether `save` was ever called.
+    struct FailingReadProvider {
+        saves: AtomicUsize,
+    }
+
+    impl SettingsStoreProvider for FailingReadProvider {
+        fn get_all_settings(&self) -> Result<Value> {
+            Err(Error::Settings("read failed".to_string()))
+        }
+        fn save_all_settings(&self, _settings: Value) -> Result<()> {
+            self.saves.fetch_add(1, Ordering::SeqCst);
+            Ok(())
+        }
+        fn default_home_dir(&self) -> String {
+            "/mock/home".to_string()
+        }
+    }
+
+    #[test]
+    fn test_persist_normalized_unreadable_file_uses_defaults_without_saving() {
+        let provider = FailingReadProvider {
+            saves: AtomicUsize::new(0),
+        };
+
+        let settings = AppSettings::load_and_persist_normalized(&provider).unwrap();
+
+        // Runs with in-memory defaults...
+        assert!(matches!(settings.general.theme, AppTheme::System));
+        // ...and must never persist, which would clobber the real file with defaults.
+        assert_eq!(provider.saves.load(Ordering::SeqCst), 0);
     }
 
     #[test]
@@ -573,17 +638,14 @@ mod tests {
         );
     }
 
-    // ---- apply_patch_serialized ----
+    // ---- apply_patch ----
 
-    #[tokio::test]
-    async fn test_apply_patch_preserves_same_category_siblings() {
+    #[test]
+    fn test_apply_patch_preserves_same_category_siblings() {
         let provider = RecordingProvider::new(default_doc_with_home());
-        let lock = tokio::sync::Mutex::new(());
         let patch = SettingsPatch::Reader(json!({ "rendering": { "maxImageHeight": 500 } }));
 
-        let merged = AppSettings::apply_patch_serialized(&provider, &lock, patch)
-            .await
-            .unwrap();
+        let merged = AppSettings::apply_patch(&provider, patch).unwrap();
 
         assert_eq!(merged.reader.rendering.max_image_height, 500);
         // Sibling leaf of the same coarse category is preserved.
@@ -591,36 +653,30 @@ mod tests {
         assert_eq!(provider.save_count(), 1);
     }
 
-    #[tokio::test]
-    async fn test_apply_patch_rejects_out_of_range_without_persisting() {
+    #[test]
+    fn test_apply_patch_rejects_out_of_range_without_persisting() {
         let provider = RecordingProvider::new(default_doc_with_home());
-        let lock = tokio::sync::Mutex::new(());
         let patch = SettingsPatch::Reader(json!({ "rendering": { "maxImageHeight": 70000 } }));
 
-        let result = AppSettings::apply_patch_serialized(&provider, &lock, patch).await;
+        let result = AppSettings::apply_patch(&provider, patch);
 
         assert!(result.is_err());
         assert_eq!(provider.save_count(), 0);
     }
 
-    #[tokio::test]
-    async fn test_apply_patch_sequential_accumulates() {
+    #[test]
+    fn test_apply_patch_sequential_accumulates() {
         let provider = RecordingProvider::new(default_doc_with_home());
-        let lock = tokio::sync::Mutex::new(());
 
-        AppSettings::apply_patch_serialized(
+        AppSettings::apply_patch(
             &provider,
-            &lock,
             SettingsPatch::Reader(json!({ "rendering": { "maxImageHeight": 500 } })),
         )
-        .await
         .unwrap();
-        let merged = AppSettings::apply_patch_serialized(
+        let merged = AppSettings::apply_patch(
             &provider,
-            &lock,
             SettingsPatch::Bookshelf(json!({ "gridSize": 2 })),
         )
-        .await
         .unwrap();
 
         // The second read-modify-write sees the first write's result.
@@ -628,14 +684,12 @@ mod tests {
         assert_eq!(merged.bookshelf.grid_size, 2);
     }
 
-    #[tokio::test]
-    async fn test_apply_patch_returns_structured_validation_error() {
+    #[test]
+    fn test_apply_patch_returns_structured_validation_error() {
         let provider = RecordingProvider::new(default_doc_with_home());
-        let lock = tokio::sync::Mutex::new(());
         let patch = SettingsPatch::Reader(json!({ "rendering": { "maxImageHeight": 70000 } }));
 
-        let err = AppSettings::apply_patch_serialized(&provider, &lock, patch)
-            .await
+        let err = AppSettings::apply_patch(&provider, patch)
             .expect_err("out-of-range patch should be rejected");
 
         match err {

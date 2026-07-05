@@ -3,7 +3,10 @@ import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppSelector } from "../../../../../store/store";
 import { useSettingsFieldError } from "../../../hooks/useSettingsFieldError";
+import { SETTINGS_BOUNDS } from "../../../settingsBounds";
 import NumberSpinnerSettingItem from "../../ui/NumberSpinnerSettingItem";
+
+const bounds = SETTINGS_BOUNDS["reader.rendering.maxImageHeight"];
 
 /**
  * Max image height setting component.
@@ -34,8 +37,8 @@ export default function MaxImageHeightSetting() {
       secondaryText={t("settings.rendering.resize.max-image-height.description")}
       secondaryTextSx={{ whiteSpace: "pre-wrap" }}
       defaultValue={maxImageHeight}
-      min={0}
-      max={65535}
+      min={bounds.min}
+      max={bounds.max}
       step={100}
       error={error}
       helperText={helperText}

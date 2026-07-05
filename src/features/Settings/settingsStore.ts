@@ -1,6 +1,5 @@
 import { error } from "@tauri-apps/plugin-log";
-import { commands } from "../../bindings/bindings";
-import { getDataOrThrow } from "../../bindings/result";
+import { getSettings } from "../../bindings/SettingsCommands";
 import type { AppSettings } from "../../types/AppSettings";
 
 /**
@@ -82,9 +81,7 @@ export const defaultSettings: AppSettings = {
  */
 export const loadAllSettings = async (): Promise<AppSettings> => {
   try {
-    // The backend always returns a complete settings object; the generated type marks
-    // fields optional (container serde default), so assert the required-field shape.
-    return getDataOrThrow(await commands.getSettings()) as AppSettings;
+    return await getSettings();
   } catch (e) {
     error(`Failed to load settings from backend; using defaults: ${e}`);
     return defaultSettings;

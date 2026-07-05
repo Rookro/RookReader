@@ -4,8 +4,12 @@ import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppDispatch, useAppSelector } from "../../../../../store/store";
 import { useSettingsFieldError } from "../../../hooks/useSettingsFieldError";
+import { SETTINGS_BOUNDS } from "../../../settingsBounds";
 import { updateSettings } from "../../../slice";
 import NumberSpinnerSettingItem from "../../ui/NumberSpinnerSettingItem";
+
+const zoomBounds = SETTINGS_BOUNDS["reader.comic.loupe.zoom"];
+const radiusBounds = SETTINGS_BOUNDS["reader.comic.loupe.radius"];
 
 /**
  * Loupe setting component.
@@ -227,8 +231,8 @@ export default function LoupeSettingsItem() {
         secondaryText={t("settings.reader.loupe.zoom-description")}
         secondaryTextSx={{ whiteSpace: "pre-wrap" }}
         defaultValue={readerSettings.comic.loupe?.zoom ?? 2}
-        min={1}
-        max={100}
+        min={zoomBounds.min}
+        max={zoomBounds.max}
         step={0.1}
         error={zoomError}
         helperText={zoomHelperText}
@@ -242,8 +246,8 @@ export default function LoupeSettingsItem() {
         secondaryText={t("settings.reader.loupe.radius-description")}
         secondaryTextSx={{ whiteSpace: "pre-wrap" }}
         defaultValue={readerSettings.comic.loupe?.radius ?? 150}
-        min={50}
-        max={5000}
+        min={radiusBounds.min}
+        max={radiusBounds.max}
         step={10}
         error={radiusError}
         helperText={radiusHelperText}

@@ -72,6 +72,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * Hardened comic archive (ZIP) handling against malformed "zip bomb" files that could otherwise exhaust memory.
   * Opening a large book on slow storage no longer briefly freezes the rest of the app.
   * Quickly switching between books could momentarily show a page from the previous book; such stale page requests are now rejected.
+* Application settings are no longer reset to defaults when the settings file is temporarily locked or unreadable (for example, by antivirus or a backup tool); the app runs with the current values and leaves the file intact. (#282)
 
 ## [2.3.0] - 2026-06-14
 

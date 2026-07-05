@@ -1,7 +1,7 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import { error } from "@tauri-apps/plugin-log";
-import { commands, type SettingsPatch } from "../../bindings/bindings";
-import { getDataOrThrow } from "../../bindings/result";
+import type { SettingsPatch } from "../../bindings/bindings";
+import { setSettings as persistSettings } from "../../bindings/SettingsCommands";
 import type { AppSettings } from "../../types/AppSettings";
 import { createAppAsyncThunk } from "../../types/CustomAsyncThunk";
 import { CommandError, ErrorCode } from "../../types/Error";
@@ -38,9 +38,7 @@ export const updateSettings = createAppAsyncThunk(
   async ({ key, value }: UpdateSettingsPayload, { dispatch, rejectWithValue }) => {
     const patch = { [key]: value } as unknown as SettingsPatch;
     try {
-      // The backend returns a complete settings object; the generated type marks fields
-      // optional (container serde default), so assert the required-field shape.
-      return getDataOrThrow(await commands.setSettings(patch)) as AppSettings;
+      return await persistSettings(patch);
     } catch (e) {
       const code = e instanceof CommandError ? e.code : ErrorCode.SETTINGS_ERROR;
       const message = e instanceof CommandError ? e.message : String(e);

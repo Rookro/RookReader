@@ -323,6 +323,34 @@ mod tests {
     }
 
     #[test]
+    fn test_bounds_agree_with_frontend_json() {
+        // The frontend consumes settingsBounds.json as its single source of validation
+        // bounds; this asserts that file stays byte-for-byte in sync with FIELD_BOUNDS, so
+        // the two copies cannot drift.
+        let json = include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../src/features/Settings/settingsBounds.json"
+        ));
+        let parsed: serde_json::Value = serde_json::from_str(json).unwrap();
+        let obj = parsed.as_object().unwrap();
+
+        assert_eq!(obj.len(), FIELD_BOUNDS.len(), "entry count drifted");
+        for bound in FIELD_BOUNDS {
+            let entry = obj
+                .get(bound.path)
+                .unwrap_or_else(|| panic!("missing bound for {}", bound.path));
+            assert_eq!(
+                entry["integer"].as_bool().unwrap(),
+                bound.integer,
+                "{}",
+                bound.path
+            );
+            assert_eq!(entry["min"].as_f64().unwrap(), bound.min, "{}", bound.path);
+            assert_eq!(entry["max"].as_f64().unwrap(), bound.max, "{}", bound.path);
+        }
+    }
+
+    #[test]
     fn test_snake_to_camel_case() {
         assert_eq!(snake_to_camel_case("max_image_height"), "maxImageHeight");
         assert_eq!(snake_to_camel_case("zoom"), "zoom");
