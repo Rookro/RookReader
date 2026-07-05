@@ -67,24 +67,47 @@ impl RarContainer {
     pub fn new(path: &str) -> Result<Self> {
         let archive = Archive::new(path).open_for_listing()?;
 
-        let mut entries: Vec<String> = Vec::new();
+        let mut filenames: Vec<String> = Vec::new();
         for entry_result in archive {
             let entry = entry_result?;
             if entry.is_file() {
-                let filename = entry.filename.to_string_lossy().to_string();
-                if Image::is_supported_format(&filename) {
-                    entries.push(filename);
-                }
+                filenames.push(entry.filename.to_string_lossy().to_string());
             }
         }
 
-        entries.sort_by(|a, b| natord::compare_ignore_case(a, b));
+        let entries = collect_entries(filenames.into_iter());
 
         Ok(Self {
             path: path.to_string(),
             entries,
         })
     }
+}
+
+/// Builds the naturally-sorted image entry list from raw RAR entry filenames.
+///
+/// RAR permits duplicate entry names, and lossy filename decoding can also collide;
+/// [`load_image`] returns the first match, so only the first occurrence of each name is
+/// kept — otherwise the list would show a page twice while both names resolved to the
+/// same file, hiding another page.
+///
+/// # Arguments
+///
+/// * `filenames` - An iterator of (lossily decoded) entry filenames.
+///
+/// # Returns
+///
+/// The supported image names, deduplicated (first occurrence wins) and naturally sorted.
+fn collect_entries(filenames: impl Iterator<Item = String>) -> Vec<String> {
+    let mut entries: Vec<String> = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+    for filename in filenames {
+        if Image::is_supported_format(&filename) && seen.insert(filename.clone()) {
+            entries.push(filename);
+        }
+    }
+    entries.sort_by(|a, b| natord::compare_ignore_case(a, b));
+    entries
 }
 
 /// Helper function to open a RAR archive for processing its file data.
@@ -188,6 +211,25 @@ mod tests {
         assert_eq!(container.entries[0], "image1.png");
         assert_eq!(container.entries[1], "image2.png");
         assert_eq!(container.entries[2], "image3.png");
+    }
+
+    #[test]
+    fn collect_entries_deduplicates_and_sorts() {
+        // Duplicate names collapse to the first occurrence, unsupported files are
+        // dropped, and the result is naturally sorted. Guards against phantom pages
+        // from RAR duplicate entries / lossy-decode collisions without needing a
+        // duplicate-entry RAR fixture.
+        let out = collect_entries(
+            vec![
+                "b.png".to_string(),
+                "a.png".to_string(),
+                "b.png".to_string(),     // duplicate → skipped
+                "notes.txt".to_string(), // unsupported → skipped
+            ]
+            .into_iter(),
+        );
+
+        assert_eq!(out, vec!["a.png".to_string(), "b.png".to_string()]);
     }
 
     #[test]

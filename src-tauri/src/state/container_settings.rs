@@ -4,6 +4,7 @@ use crate::image::resizer::ResizeFilter;
 ///
 /// These settings control aspects like image rendering quality, resizing behavior,
 /// and dependencies for specific file types like PDF.
+#[derive(Clone)]
 pub struct ContainerSettings {
     /// If `true`, enables the generation of low-resolution image previews for faster loading.
     pub enable_preview: bool,

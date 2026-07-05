@@ -5,7 +5,7 @@ use tauri::ipc::Response;
 
 use crate::{
     error::{Error, Result},
-    state::app_state::AppState,
+    state::{app_state::AppState, container_state::ContainerState},
 };
 
 /// Serializes container opens so the most recently started one is left installed.
@@ -58,12 +58,23 @@ pub async fn get_entries_in_container(
     // leave the wrong book's images loaded.
     let _open_guard = OPEN_CONTAINER_LOCK.lock().await;
 
-    // Build under a read lock so concurrent image fetches (also readers) aren't blocked;
-    // only the brief install needs a write lock.
-    let built = {
+    // Snapshot the (cheap-to-clone) settings and cache handle under a brief read lock,
+    // then run the heavy build on a blocking thread so it never stalls the async runtime
+    // (image fetches, IPC) while opening a large book on slow storage.
+    let (settings, image_cache) = {
         let state_lock = state.read().await;
-        state_lock.container_state.build(path)
+        (
+            state_lock.container_state.settings.clone(),
+            state_lock.container_state.image_cache.clone(),
+        )
     };
+    let path_owned = path.to_string();
+    let built = tauri::async_runtime::spawn_blocking(move || {
+        ContainerState::build_with(&settings, &image_cache, &path_owned)
+    })
+    .await
+    .map_err(|e| Error::Other(format!("Spawn blocking failed: {e}")))
+    .and_then(|result| result);
     let (container, loader) = match built {
         Ok(built) => built,
         Err(e) => {
@@ -166,15 +177,27 @@ pub async fn get_image(
 ) -> Result<Response> {
     log::debug!("Get the binary of {} in {}", entry_name, path);
 
-    let state_lock = state.read().await;
+    // Clone the loader handle out under a brief read lock, then release the lock so the
+    // decode below runs without blocking other state access.
+    let image_loader = {
+        let state_lock = state.read().await;
+        state_lock.container_state.image_loader.clone()
+    }
+    .ok_or_else(|| Error::Other("Unexpected error. Container is empty!".to_string()))?;
 
-    let image_loader = state_lock
-        .container_state
-        .image_loader
-        .as_ref()
-        .ok_or_else(|| Error::Other("Unexpected error. Container is empty!".to_string()))?;
+    // Reject stale requests that raced a book switch: entry names collide across archives
+    // (e.g. 0001.jpg), so resolving against the wrong loader would silently return another
+    // book's page.
+    if image_loader.book_id() != path {
+        return Err(Error::EntryNotFound(format!(
+            "Container changed while requesting {entry_name} (requested {path})"
+        )));
+    }
 
-    let image = image_loader.get_image(entry_name)?;
+    let entry = entry_name.to_string();
+    let image = tauri::async_runtime::spawn_blocking(move || image_loader.get_image(&entry))
+        .await
+        .map_err(|e| Error::Other(format!("Spawn blocking failed: {e}")))??;
 
     Ok(image.to_ipc_response())
 }
@@ -209,15 +232,26 @@ pub async fn get_image_preview(
 ) -> Result<Response> {
     log::debug!("Get the preview binary of {} in {}", entry_name, path);
 
-    let state_lock = state.read().await;
+    let image_loader = {
+        let state_lock = state.read().await;
+        state_lock.container_state.image_loader.clone()
+    }
+    .ok_or_else(|| Error::Other("Unexpected error. Container is empty!".to_string()))?;
 
-    let image_loader = state_lock
-        .container_state
-        .image_loader
-        .as_ref()
-        .ok_or_else(|| Error::Other("Unexpected error. Container is empty!".to_string()))?;
+    // Reject stale requests that raced a book switch (see get_image).
+    if image_loader.book_id() != path {
+        return Err(Error::EntryNotFound(format!(
+            "Container changed while requesting {entry_name} (requested {path})"
+        )));
+    }
 
-    let Some(image) = image_loader.get_preview_image(entry_name)? else {
+    let entry = entry_name.to_string();
+    let preview =
+        tauri::async_runtime::spawn_blocking(move || image_loader.get_preview_image(&entry))
+            .await
+            .map_err(|e| Error::Other(format!("Spawn blocking failed: {e}")))??;
+
+    let Some(image) = preview else {
         // Return an empty response if preview skipped.
         return Ok(Response::new(Vec::new()));
     };
@@ -382,7 +416,7 @@ mod tests {
         let mock_container_state = ContainerState {
             container: Some(arc_mock_container.clone()),
             settings: ContainerSettings::default(),
-            image_loader: Some(
+            image_loader: Some(Arc::new(
                 ImageLoader::new(
                     "dummy_book_id".to_string(),
                     arc_mock_container.clone(),
@@ -391,7 +425,7 @@ mod tests {
                     mini_moka::sync::Cache::new(100),
                 )
                 .unwrap(),
-            ),
+            )),
             image_cache: mini_moka::sync::Cache::new(100),
         };
         let state = AppState {
@@ -399,7 +433,9 @@ mod tests {
         };
         app.manage(RwLock::new(state));
 
-        let result = get_image("mock_container", "test1.png", app.state()).await;
+        // The path must match the loader's book_id ("dummy_book_id"): the S2 guard
+        // rejects a request whose path disagrees with the installed loader.
+        let result = get_image("dummy_book_id", "test1.png", app.state()).await;
 
         assert!(result.is_ok());
 
@@ -422,6 +458,52 @@ mod tests {
         assert_eq!(expected_image.width, actual_width);
         assert_eq!(expected_image.height, actual_height);
         assert_eq!(expected_image.data.as_slice(), actual_data);
+    }
+
+    #[tokio::test]
+    async fn test_get_image_rejects_stale_container_path() {
+        // A request whose path does not match the installed loader's book_id raced a
+        // book switch; it must be rejected (EntryNotFound), not served another book's page.
+        let app = tauri::test::mock_app();
+        let mut mock_container = MockContainer::new();
+        mock_container
+            .expect_get_entries()
+            .return_const(vec!["test1.png".to_string()]);
+        mock_container
+            .expect_is_single_threaded()
+            .return_const(false);
+
+        let arc_mock_container = Arc::new(mock_container);
+        let mock_container_state = ContainerState {
+            container: Some(arc_mock_container.clone()),
+            settings: ContainerSettings::default(),
+            image_loader: Some(Arc::new(
+                ImageLoader::new(
+                    "current_book_id".to_string(),
+                    arc_mock_container.clone(),
+                    2000,
+                    ResizeFilter::Bilinear,
+                    mini_moka::sync::Cache::new(100),
+                )
+                .unwrap(),
+            )),
+            image_cache: mini_moka::sync::Cache::new(100),
+        };
+        let state = AppState {
+            container_state: mock_container_state,
+        };
+        app.manage(RwLock::new(state));
+
+        // Ask for a page in a *different* book than the one installed.
+        let result = get_image("stale_book_id", "test1.png", app.state()).await;
+
+        let Err(err) = result else {
+            panic!("a stale-path get_image should be rejected");
+        };
+        assert!(
+            matches!(err, Error::EntryNotFound(_)),
+            "unexpected error: {err}"
+        );
     }
 
     #[tokio::test]
@@ -452,7 +534,7 @@ mod tests {
         let mock_container_state = ContainerState {
             container: Some(arc_mock_container.clone()),
             settings: ContainerSettings::default(),
-            image_loader: Some(
+            image_loader: Some(Arc::new(
                 ImageLoader::new(
                     "dummy_book_id".to_string(),
                     arc_mock_container.clone(),
@@ -461,7 +543,7 @@ mod tests {
                     mini_moka::sync::Cache::new(100),
                 )
                 .unwrap(),
-            ),
+            )),
             image_cache: mini_moka::sync::Cache::new(100),
         };
         let state = AppState {
@@ -493,7 +575,7 @@ mod tests {
         let mock_container_state = ContainerState {
             container: Some(arc_mock_container.clone()),
             settings: ContainerSettings::default(),
-            image_loader: Some(
+            image_loader: Some(Arc::new(
                 ImageLoader::new(
                     "dummy_book_id".to_string(),
                     arc_mock_container.clone(),
@@ -502,7 +584,7 @@ mod tests {
                     mini_moka::sync::Cache::new(100),
                 )
                 .unwrap(),
-            ),
+            )),
             image_cache: mini_moka::sync::Cache::new(100),
         };
         let state = AppState {
@@ -510,7 +592,7 @@ mod tests {
         };
         app.manage(RwLock::new(state));
 
-        let result = get_image_preview("mock_container", "test1.png", app.state()).await;
+        let result = get_image_preview("dummy_book_id", "test1.png", app.state()).await;
         assert!(result.is_ok());
         let response = result.unwrap();
         let body = match response.body().unwrap() {
