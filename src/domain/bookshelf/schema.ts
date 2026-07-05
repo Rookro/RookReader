@@ -12,9 +12,9 @@ export const BookshelfSchema = z.object({
   icon_id: z.string(),
   /**
    * The timestamp when the bookshelf was created.
-   * Represented as an ISO 8601 string (e.g., "2026-03-01T15:30:00").
+   * Represented as an ISO 8601 string (e.g., "2026-03-01T15:30:00"), or null.
    */
-  created_at: z.string(),
+  created_at: z.string().nullable(),
 });
 
 /**

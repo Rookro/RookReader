@@ -85,6 +85,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * The set-tags, set-series, and add-to-bookshelf dialogs could fail silently; they now show an error, refresh to reflect any partial changes, and stay open for retry.
   * Opening the tag dialog for one book right after another could show or save the wrong book's tags; it now always reflects the current book.
   * A book could occasionally fail to open on a plain click; clicking now opens reliably.
+* Fixed EPUB archive and rendering thread-pool errors showing a generic message instead of a specific one. (#286)
 
 ## [2.3.0] - 2026-06-14
 

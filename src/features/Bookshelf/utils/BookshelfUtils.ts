@@ -1,5 +1,6 @@
 import type { BookWithState } from "../../../domain/book/schema";
 import type { SortOrder } from "../../../types/AppSettings";
+import { andSearchBy } from "../../../utils/SearchUtils";
 import type { GridItem } from "../components/BookGridCell";
 
 /**
@@ -18,26 +19,8 @@ import type { GridItem } from "../components/BookGridCell";
  * andSearch(entries, "test file"); // Returns [{ display_name: "test_file", ... }]
  * andSearch(entries, "example"); // Returns []
  */
-export const andSearch = (entries: BookWithState[], query: string) => {
-  const keywords = query
-    .trim()
-    .toLowerCase()
-    .split(/\s+/)
-    .filter((keyword) => keyword.length > 0);
-
-  if (keywords.length === 0) {
-    return entries;
-  }
-
-  const filtered = entries.filter((entry) => {
-    const lowerCaseName = entry.display_name.toLowerCase();
-    return keywords.every((keyword) => {
-      return lowerCaseName.includes(keyword);
-    });
-  });
-
-  return filtered;
-};
+export const andSearch = (entries: BookWithState[], query: string) =>
+  andSearchBy(entries, query, (entry) => entry.display_name);
 
 /**
  * Filters an array of GridItem objects based on their names.
@@ -48,23 +31,10 @@ export const andSearch = (entries: BookWithState[], query: string) => {
  * @param query - The space-separated keywords for AND search.
  * @returns A filtered array of GridItem objects.
  */
-export const andSearchGridItems = (items: GridItem[], query: string) => {
-  const keywords = query
-    .trim()
-    .toLowerCase()
-    .split(/\s+/)
-    .filter((keyword) => keyword.length > 0);
-
-  if (keywords.length === 0) {
-    return items;
-  }
-
-  return items.filter((item) => {
-    const nameToSearch = item.type === "series" ? item.data.name : item.data.display_name;
-    const lowerCaseName = nameToSearch.toLowerCase();
-    return keywords.every((keyword) => lowerCaseName.includes(keyword));
-  });
-};
+export const andSearchGridItems = (items: GridItem[], query: string) =>
+  andSearchBy(items, query, (item) =>
+    item.type === "series" ? item.data.name : item.data.display_name,
+  );
 
 /**
  * Comparison function for sorting an array of BookWithState objects based on a specified criterion and order.

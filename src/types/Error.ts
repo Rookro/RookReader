@@ -65,6 +65,7 @@ export enum ErrorCode {
   CONTAINER_UNRAR_ERROR = 10301,
   CONTAINER_ZIP_ERROR = 10401,
   CONTAINER_EPUB_ERROR = 10501,
+  CONTAINER_EPUB_ARCHIVE_ERROR = 10502,
 
   // 2xxxx: File System & I/O
   IO_ERROR = 20001,
@@ -72,6 +73,7 @@ export enum ErrorCode {
 
   // 3xxxx: Application Framework
   TAURI_ERROR = 30001,
+  RAYON_THREAD_POOL_ERROR = 30201,
 
   // 4xxxx: Data Serialization & Validation
   SERDE_JSON_ERROR = 40001,
