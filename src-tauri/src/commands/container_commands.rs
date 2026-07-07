@@ -1,16 +1,22 @@
-use tokio::sync::RwLock;
+use tokio::sync::{Mutex, RwLock};
 
 use serde::{Deserialize, Serialize};
 use tauri::ipc::Response;
 
 use crate::{
     error::{Error, Result},
-    image::resizer::ResizeFilter,
-    state::app_state::AppState,
+    state::{app_state::AppState, container_state::ContainerState},
 };
 
+/// Serializes container opens so the most recently started one is left installed.
+///
+/// The heavy build still runs without holding the state write lock (so image fetches
+/// aren't blocked); this only orders the opens themselves, preventing a slower earlier
+/// open from installing after a newer one.
+static OPEN_CONTAINER_LOCK: Mutex<()> = Mutex::const_new(());
+
 /// The result of getting entries in a container.
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, specta::Type)]
 pub struct EntriesResult {
     /// The entry names in the container.
     entries: Vec<String>,
@@ -41,33 +47,60 @@ pub struct EntriesResult {
 /// * The container file cannot be opened (e.g., it does not exist or is corrupt).
 /// * The `container` within the application state is unexpectedly missing.
 #[tauri::command()]
+#[specta::specta]
 pub async fn get_entries_in_container(
     path: &str,
     state: tauri::State<'_, RwLock<AppState>>,
 ) -> Result<EntriesResult> {
     log::debug!("Get the entries in {}", path);
-    let mut state_lock = state.write().await;
 
-    state_lock.container_state.open_container(path)?;
+    // Serialize opens so a slower earlier open can't install after a newer one and
+    // leave the wrong book's images loaded.
+    let _open_guard = OPEN_CONTAINER_LOCK.lock().await;
 
-    let entries;
-    let is_directory;
-    let is_novel;
+    // Snapshot the (cheap-to-clone) settings and cache handle under a brief read lock,
+    // then run the heavy build on a blocking thread so it never stalls the async runtime
+    // (image fetches, IPC) while opening a large book on slow storage.
+    let (settings, image_cache) = {
+        let state_lock = state.read().await;
+        (
+            state_lock.container_state.settings.clone(),
+            state_lock.container_state.image_cache.clone(),
+        )
+    };
+    let path_owned = path.to_string();
+    let built = tauri::async_runtime::spawn_blocking(move || {
+        ContainerState::build_with(&settings, &image_cache, &path_owned)
+    })
+    .await
+    .map_err(|e| Error::Other(format!("Spawn blocking failed: {e}")))
+    .and_then(|result| result);
+    let (container, loader) = match built {
+        Ok(built) => built,
+        Err(e) => {
+            // Clear stale state so a failed open doesn't keep serving the previous book.
+            state.write().await.container_state.clear();
+            return Err(e);
+        }
+    };
+
+    let entries = container.get_entries().clone();
+    let is_directory = container.is_directory();
+    let is_novel = container.is_novel();
+
     {
-        let container = state_lock
-            .container_state
-            .container
-            .as_ref()
-            .ok_or_else(|| Error::Other("Unexpected error. Container is empty!".to_string()))?;
-        entries = container.get_entries().clone();
-        is_directory = container.is_directory();
-        is_novel = container.is_novel();
+        let mut state_lock = state.write().await;
+        state_lock.container_state.install(container, loader);
     }
 
     if !is_novel {
+        let state_lock = state.read().await;
         if let Some(loader) = state_lock.container_state.image_loader.as_ref() {
             log::debug!("Triggering proactive preloading for {}", path);
-            loader.request_preload_around(0, 5)?;
+            if let Err(e) = loader.request_preload_around(0, 5) {
+                // Proactive preloading is best-effort; a failure here must not fail the open.
+                log::warn!("Failed to trigger proactive preloading for {path}: {e}");
+            }
         }
     }
 
@@ -90,6 +123,7 @@ pub async fn get_entries_in_container(
 ///   Defaults to 10 if `None` is provided.
 /// * `state` - A `tauri::State` holding the application's global `AppState`.
 #[tauri::command()]
+#[specta::specta]
 pub async fn request_preload_around(
     index: usize,
     buffer_size: Option<usize>,
@@ -143,15 +177,27 @@ pub async fn get_image(
 ) -> Result<Response> {
     log::debug!("Get the binary of {} in {}", entry_name, path);
 
-    let state_lock = state.read().await;
+    // Clone the loader handle out under a brief read lock, then release the lock so the
+    // decode below runs without blocking other state access.
+    let image_loader = {
+        let state_lock = state.read().await;
+        state_lock.container_state.image_loader.clone()
+    }
+    .ok_or_else(|| Error::Other("Unexpected error. Container is empty!".to_string()))?;
 
-    let image_loader = state_lock
-        .container_state
-        .image_loader
-        .as_ref()
-        .ok_or_else(|| Error::Other("Unexpected error. Container is empty!".to_string()))?;
+    // Reject stale requests that raced a book switch: entry names collide across archives
+    // (e.g. 0001.jpg), so resolving against the wrong loader would silently return another
+    // book's page.
+    if image_loader.book_id() != path {
+        return Err(Error::EntryNotFound(format!(
+            "Container changed while requesting {entry_name} (requested {path})"
+        )));
+    }
 
-    let image = image_loader.get_image(entry_name)?;
+    let entry = entry_name.to_string();
+    let image = tauri::async_runtime::spawn_blocking(move || image_loader.get_image(&entry))
+        .await
+        .map_err(|e| Error::Other(format!("Spawn blocking failed: {e}")))??;
 
     Ok(image.to_ipc_response())
 }
@@ -186,15 +232,26 @@ pub async fn get_image_preview(
 ) -> Result<Response> {
     log::debug!("Get the preview binary of {} in {}", entry_name, path);
 
-    let state_lock = state.read().await;
+    let image_loader = {
+        let state_lock = state.read().await;
+        state_lock.container_state.image_loader.clone()
+    }
+    .ok_or_else(|| Error::Other("Unexpected error. Container is empty!".to_string()))?;
 
-    let image_loader = state_lock
-        .container_state
-        .image_loader
-        .as_ref()
-        .ok_or_else(|| Error::Other("Unexpected error. Container is empty!".to_string()))?;
+    // Reject stale requests that raced a book switch (see get_image).
+    if image_loader.book_id() != path {
+        return Err(Error::EntryNotFound(format!(
+            "Container changed while requesting {entry_name} (requested {path})"
+        )));
+    }
 
-    let Some(image) = image_loader.get_preview_image(entry_name)? else {
+    let entry = entry_name.to_string();
+    let preview =
+        tauri::async_runtime::spawn_blocking(move || image_loader.get_preview_image(&entry))
+            .await
+            .map_err(|e| Error::Other(format!("Spawn blocking failed: {e}")))??;
+
+    let Some(image) = preview else {
         // Return an empty response if preview skipped.
         return Ok(Response::new(Vec::new()));
     };
@@ -202,161 +259,9 @@ pub async fn get_image_preview(
     Ok(image.to_ipc_response())
 }
 
-/// Sets the render resolution height for pages in PDF files.
-///
-/// This height is used when converting a PDF page into an image.
-///
-/// # Arguments
-///
-/// * `height` - The target height in pixels for the rendered PDF page image. Must be greater than 0.
-/// * `state` - A `tauri::State` holding the application's global `AppState`.
-///
-/// # Returns
-///
-/// A `Result` which is `Ok` on successful update.
-///
-/// # Errors
-///
-/// This function will return an `Err` if:
-/// * The `height` is less than 1.
-#[tauri::command()]
-pub async fn set_pdf_render_resolution_height(
-    height: i32,
-    state: tauri::State<'_, RwLock<AppState>>,
-) -> Result<()> {
-    log::debug!("set_pdf_render_resolution_height({})", height);
-
-    if height < 1 {
-        return Err(Error::Other(
-            "pdf render resolution height must be greater than 0. set_pdf_render_resolution_height() is Failed."
-                .to_string(),
-        ));
-    }
-
-    let mut state_lock = state.write().await;
-
-    state_lock
-        .container_state
-        .settings
-        .pdf_render_resolution_height = height;
-    Ok(())
-}
-
-/// Sets the maximum height for loaded images.
-///
-/// Images exceeding this height will be resized down to fit.
-///
-/// # Arguments
-///
-/// * `height` - The maximum image height in pixels. A value of 0 implies no limit.
-/// * `state` - A `tauri::State` holding the application's global `AppState`.
-///
-/// # Returns
-///
-/// A `Result` which is `Ok` on successful update.
-///
-/// # Errors
-///
-/// This function will return an `Err` if:
-/// * The `height` is a negative value.
-#[tauri::command()]
-pub async fn set_max_image_height(
-    height: i32,
-    state: tauri::State<'_, RwLock<AppState>>,
-) -> Result<()> {
-    log::debug!("set_max_image_height({})", height);
-
-    if height < 0 {
-        return Err(Error::Other(
-            "Max image height must be greater than or equal to 0. set_max_image_height() is Failed."
-                .to_string(),
-        ));
-    }
-
-    let mut state_lock = state.write().await;
-
-    state_lock.container_state.settings.max_image_height = height;
-    Ok(())
-}
-
-/// Sets the algorithm used for resampling images.
-///
-/// # Arguments
-///
-/// * `method` - A string representing the desired resampling filter.
-///   Valid options are: "nearest", "triangle", "catmullRom", "gaussian", "lanczos3".
-/// * `state` - A `tauri::State` holding the application's global `AppState`.
-///
-/// # Returns
-///
-/// A `Result` which is `Ok` on successful update.
-///
-/// # Errors
-///
-/// This function will return an `Err` if:
-/// * The `method` string is empty.
-/// * The `method` does not match one of the valid filter types.
-#[tauri::command()]
-pub async fn set_image_resampling_method(
-    method: &str,
-    state: tauri::State<'_, RwLock<AppState>>,
-) -> Result<()> {
-    log::debug!("set_image_resampling_method({})", method);
-
-    if method.is_empty() {
-        return Err(Error::Other(
-            "Method must be provided. set_image_resampling_method() is Failed.".to_string(),
-        ));
-    }
-
-    let mut state_lock = state.write().await;
-
-    let method = match method {
-        "nearest" => ResizeFilter::Nearest,
-        "box" => ResizeFilter::Box,
-        "bilinear" => ResizeFilter::Bilinear,
-        "hamming" => ResizeFilter::Hamming,
-        "catmullRom" => ResizeFilter::CatmullRom,
-        "mitchellNetravali" => ResizeFilter::MitchellNetravali,
-        "lanczos3" => ResizeFilter::Lanczos3,
-        _ => return Err(Error::Other("Invalid Resampling Method type".to_string())),
-    };
-
-    state_lock.container_state.settings.image_resampling_method = method;
-    Ok(())
-}
-
-/// Sets the maximum size of the image memory cache in MiB.
-///
-/// This will re-initialize the cache and clear all currently cached images.
-///
-/// # Arguments
-///
-/// * `size_mib` - The new cache size in MiB.
-/// * `state` - A `tauri::State` holding the application's global `AppState`.
-///
-/// # Returns
-///
-/// A `Result` which is `Ok` on successful update.
-#[tauri::command()]
-pub async fn set_image_cache_size_mib(
-    size_mib: u64,
-    state: tauri::State<'_, RwLock<AppState>>,
-) -> Result<()> {
-    log::debug!("set_image_cache_size_mib({})", size_mib);
-
-    let mut state_lock = state.write().await;
-
-    state_lock.container_state.settings.image_cache_size_mib = size_mib;
-    state_lock.container_state.update_image_cache_size(size_mib);
-
-    Ok(())
-}
-
 #[cfg(test)]
 mod tests {
     use mockall::predicate::eq;
-    use rstest::rstest;
 
     use super::*;
     use std::{path, sync::Arc};
@@ -365,7 +270,7 @@ mod tests {
 
     use crate::{
         container::traits::MockContainer,
-        image::{loader::ImageLoader, types::Image},
+        image::{loader::ImageLoader, resizer::ResizeFilter, types::Image},
         state::{container_settings::ContainerSettings, container_state::ContainerState},
     };
 
@@ -399,50 +304,6 @@ mod tests {
         let rar_filepath = dir.join(filename);
         std::fs::copy(dummy_rar_path, &rar_filepath).unwrap();
         rar_filepath
-    }
-
-    #[rstest]
-    #[tokio::test]
-    #[case(1)]
-    #[case(1200)]
-    #[case(100000)]
-    async fn test_set_pdf_render_resolution_height_valid_height(
-        #[case] pdf_render_resolution_height: i32,
-    ) {
-        let app = tauri::test::mock_app();
-        app.manage(RwLock::new(AppState::default()));
-
-        let result =
-            set_pdf_render_resolution_height(pdf_render_resolution_height, app.state()).await;
-
-        assert!(result.is_ok());
-        assert_eq!(
-            pdf_render_resolution_height,
-            app.state::<RwLock<AppState>>()
-                .read()
-                .await
-                .container_state
-                .settings
-                .pdf_render_resolution_height
-        );
-    }
-
-    #[rstest]
-    #[tokio::test]
-    #[case(0)]
-    #[case(-1)]
-    #[case(-1200)]
-    async fn test_set_pdf_render_resolution_height_negative(
-        #[case] invalid_pdf_render_resolution_height: i32,
-    ) {
-        let app = tauri::test::mock_app();
-        app.manage(RwLock::new(AppState::default()));
-
-        let result =
-            set_pdf_render_resolution_height(invalid_pdf_render_resolution_height, app.state())
-                .await;
-
-        assert!(result.is_err());
     }
 
     #[tokio::test]
@@ -482,6 +343,60 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_get_entries_in_container_clears_state_on_failure() {
+        let dir = tempfile::tempdir().unwrap();
+        let rar_path = create_dummy_rar(dir.path(), "dummy.rar");
+
+        let app = tauri::test::mock_app();
+        app.manage(RwLock::new(AppState::default()));
+
+        // Open a valid container first; state now holds a container + loader.
+        get_entries_in_container(rar_path.to_string_lossy().as_ref(), app.state())
+            .await
+            .expect("opening a valid container should succeed");
+        {
+            let binding = app.state::<RwLock<AppState>>();
+            let guard = binding.read().await;
+            assert!(guard.container_state.container.is_some());
+            assert!(guard.container_state.image_loader.is_some());
+        }
+
+        // A subsequent failed open must clear the previous container/loader so we
+        // never serve images from the old book.
+        let result = get_entries_in_container("non_existent_path", app.state()).await;
+        assert!(result.is_err());
+        {
+            let binding = app.state::<RwLock<AppState>>();
+            let guard = binding.read().await;
+            assert!(guard.container_state.container.is_none());
+            assert!(guard.container_state.image_loader.is_none());
+        }
+    }
+
+    #[tokio::test]
+    async fn test_get_entries_in_container_succeeds_with_best_effort_preload() {
+        // A non-novel open triggers proactive preloading, which is best-effort: the open
+        // must still succeed and return its entries, and the loader must be installed
+        // regardless of the preload outcome.
+        let dir = tempfile::tempdir().unwrap();
+        let rar_path = create_dummy_rar(dir.path(), "dummy.rar");
+
+        let app = tauri::test::mock_app();
+        app.manage(RwLock::new(AppState::default()));
+
+        let result =
+            get_entries_in_container(rar_path.to_string_lossy().as_ref(), app.state()).await;
+
+        let entries_result = result.expect("a valid non-novel open should succeed");
+        assert!(!entries_result.is_novel);
+        assert_eq!(3, entries_result.entries.len());
+
+        let binding = app.state::<RwLock<AppState>>();
+        let guard = binding.read().await;
+        assert!(guard.container_state.image_loader.is_some());
+    }
+
+    #[tokio::test]
     async fn test_get_image_in_container() {
         let app = tauri::test::mock_app();
         let mut mock_container = MockContainer::new();
@@ -501,7 +416,7 @@ mod tests {
         let mock_container_state = ContainerState {
             container: Some(arc_mock_container.clone()),
             settings: ContainerSettings::default(),
-            image_loader: Some(
+            image_loader: Some(Arc::new(
                 ImageLoader::new(
                     "dummy_book_id".to_string(),
                     arc_mock_container.clone(),
@@ -510,7 +425,7 @@ mod tests {
                     mini_moka::sync::Cache::new(100),
                 )
                 .unwrap(),
-            ),
+            )),
             image_cache: mini_moka::sync::Cache::new(100),
         };
         let state = AppState {
@@ -518,7 +433,9 @@ mod tests {
         };
         app.manage(RwLock::new(state));
 
-        let result = get_image("mock_container", "test1.png", app.state()).await;
+        // The path must match the loader's book_id ("dummy_book_id"): the S2 guard
+        // rejects a request whose path disagrees with the installed loader.
+        let result = get_image("dummy_book_id", "test1.png", app.state()).await;
 
         assert!(result.is_ok());
 
@@ -541,6 +458,52 @@ mod tests {
         assert_eq!(expected_image.width, actual_width);
         assert_eq!(expected_image.height, actual_height);
         assert_eq!(expected_image.data.as_slice(), actual_data);
+    }
+
+    #[tokio::test]
+    async fn test_get_image_rejects_stale_container_path() {
+        // A request whose path does not match the installed loader's book_id raced a
+        // book switch; it must be rejected (EntryNotFound), not served another book's page.
+        let app = tauri::test::mock_app();
+        let mut mock_container = MockContainer::new();
+        mock_container
+            .expect_get_entries()
+            .return_const(vec!["test1.png".to_string()]);
+        mock_container
+            .expect_is_single_threaded()
+            .return_const(false);
+
+        let arc_mock_container = Arc::new(mock_container);
+        let mock_container_state = ContainerState {
+            container: Some(arc_mock_container.clone()),
+            settings: ContainerSettings::default(),
+            image_loader: Some(Arc::new(
+                ImageLoader::new(
+                    "current_book_id".to_string(),
+                    arc_mock_container.clone(),
+                    2000,
+                    ResizeFilter::Bilinear,
+                    mini_moka::sync::Cache::new(100),
+                )
+                .unwrap(),
+            )),
+            image_cache: mini_moka::sync::Cache::new(100),
+        };
+        let state = AppState {
+            container_state: mock_container_state,
+        };
+        app.manage(RwLock::new(state));
+
+        // Ask for a page in a *different* book than the one installed.
+        let result = get_image("stale_book_id", "test1.png", app.state()).await;
+
+        let Err(err) = result else {
+            panic!("a stale-path get_image should be rejected");
+        };
+        assert!(
+            matches!(err, Error::EntryNotFound(_)),
+            "unexpected error: {err}"
+        );
     }
 
     #[tokio::test]
@@ -571,7 +534,7 @@ mod tests {
         let mock_container_state = ContainerState {
             container: Some(arc_mock_container.clone()),
             settings: ContainerSettings::default(),
-            image_loader: Some(
+            image_loader: Some(Arc::new(
                 ImageLoader::new(
                     "dummy_book_id".to_string(),
                     arc_mock_container.clone(),
@@ -580,7 +543,7 @@ mod tests {
                     mini_moka::sync::Cache::new(100),
                 )
                 .unwrap(),
-            ),
+            )),
             image_cache: mini_moka::sync::Cache::new(100),
         };
         let state = AppState {
@@ -612,7 +575,7 @@ mod tests {
         let mock_container_state = ContainerState {
             container: Some(arc_mock_container.clone()),
             settings: ContainerSettings::default(),
-            image_loader: Some(
+            image_loader: Some(Arc::new(
                 ImageLoader::new(
                     "dummy_book_id".to_string(),
                     arc_mock_container.clone(),
@@ -621,7 +584,7 @@ mod tests {
                     mini_moka::sync::Cache::new(100),
                 )
                 .unwrap(),
-            ),
+            )),
             image_cache: mini_moka::sync::Cache::new(100),
         };
         let state = AppState {
@@ -629,7 +592,7 @@ mod tests {
         };
         app.manage(RwLock::new(state));
 
-        let result = get_image_preview("mock_container", "test1.png", app.state()).await;
+        let result = get_image_preview("dummy_book_id", "test1.png", app.state()).await;
         assert!(result.is_ok());
         let response = result.unwrap();
         let body = match response.body().unwrap() {
@@ -637,47 +600,5 @@ mod tests {
             _ => panic!("Unexpected response body type"),
         };
         assert!(!body.is_empty());
-    }
-
-    #[tokio::test]
-    async fn test_set_max_image_height() {
-        let app = tauri::test::mock_app();
-        app.manage(RwLock::new(AppState::default()));
-
-        let result = set_max_image_height(1000, app.state()).await;
-        assert!(result.is_ok());
-        assert_eq!(
-            1000,
-            app.state::<RwLock<AppState>>()
-                .read()
-                .await
-                .container_state
-                .settings
-                .max_image_height
-        );
-
-        let result_err = set_max_image_height(-1, app.state()).await;
-        assert!(result_err.is_err());
-    }
-
-    #[tokio::test]
-    async fn test_set_image_resampling_method() {
-        let app = tauri::test::mock_app();
-        app.manage(RwLock::new(AppState::default()));
-
-        let result = set_image_resampling_method("nearest", app.state()).await;
-        assert!(result.is_ok());
-        assert_eq!(
-            ResizeFilter::Nearest,
-            app.state::<RwLock<AppState>>()
-                .read()
-                .await
-                .container_state
-                .settings
-                .image_resampling_method
-        );
-
-        let result_invalid = set_image_resampling_method("invalid", app.state()).await;
-        assert!(result_invalid.is_err());
     }
 }

@@ -176,9 +176,12 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
 
     const groupedItems: GridItem[] = [];
 
+    // Index series by id once, instead of an O(S) find per grouped series (O(S²)).
+    const seriesById = new Map(allSeries.map((s) => [s.id, s]));
+
     // Add series items
     seriesMap.forEach((booksInSeries, id) => {
-      const seriesObj = allSeries.find((s) => s.id === id);
+      const seriesObj = seriesById.get(id);
       if (seriesObj) {
         groupedItems.push({ type: "series", data: seriesObj, books: booksInSeries });
       } else {
@@ -216,10 +219,9 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
 
   const handleGridSizeChange = useCallback(
     (newValue: number) => {
-      const newBookshelfSettings = { ...bookshelfSettings, gridSize: newValue };
-      dispatch(updateSettings({ key: "bookshelf", value: newBookshelfSettings }));
+      dispatch(updateSettings({ key: "bookshelf", value: { gridSize: newValue } }));
     },
-    [dispatch, bookshelfSettings],
+    [dispatch],
   );
 
   const handleCloseDialog = useCallback(() => {
@@ -247,6 +249,12 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
       hasAutoScrolledRef.current = false;
     }
   }, [activeView]);
+
+  // Keep the keyboard focus in range when the filtered list shrinks (e.g. typing
+  // into the search box), so Enter/Space can't dereference a stale index.
+  useEffect(() => {
+    setFocusedIndex((prev) => (prev >= filteredSortedItems.length ? -1 : prev));
+  }, [filteredSortedItems.length]);
 
   const handleBookClick = useCallback(
     (book: BookWithState, e: React.MouseEvent | React.KeyboardEvent) => {
@@ -279,6 +287,12 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
   const rowCount =
     filteredSortedItems.length === 0 ? 0 : Math.ceil(filteredSortedItems.length / columnCount);
 
+  // Offset used to center the cells horizontally. Applied per cell (via the cell
+  // style) rather than as padding/margin on the Grid, because react-window's
+  // cells are absolutely positioned and the scroll container must stay full
+  // width so the wheel scrolls everywhere, including the empty side strips.
+  const horizontalOffset = Math.max((gridWidth - columnWidth * columnCount) / 2, 0);
+
   useReadingBookSelection(readingBook, filteredSortedItems, setReadingBookIndex);
 
   // Scroll to make the selected item visible
@@ -292,15 +306,26 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
       return;
     }
 
+    // Wait until the container has been measured so columnCount is accurate.
+    // Scrolling with the fallback columnCount=1 would target the wrong row and
+    // then latch, preventing a correct re-scroll. The effect re-runs when
+    // columnCount changes (its dependency), so this resumes once width arrives.
+    if (gridWidth <= 0) {
+      return;
+    }
+
     // Use setTimeout to push the scroll command to the end of the event loop.
     // This ensures that the virtualized list (react-window) has finished
     // rendering and measuring item positions before attempting to scroll.
     const timerId = setTimeout(() => {
       try {
         if (readingBookIndex === -1) {
-          // If there is no reading book in the current grid, mark the auto-scroll
-          // session as complete without scrolling. This prevents sudden resets.
-          hasAutoScrolledRef.current = true;
+          // Conclude the session only when there is genuinely no reading book. If a
+          // reading book exists but its index has not resolved yet (books still
+          // loading), leave the latch off so a later run can scroll once it's known.
+          if (!readingBook) {
+            hasAutoScrolledRef.current = true;
+          }
         } else {
           debug(`Scrolling to cell ${readingBookIndex}.`);
           grid.scrollToCell({
@@ -320,7 +345,15 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
     return () => {
       clearTimeout(timerId);
     };
-  }, [readingBookIndex, filteredSortedItems, grid, columnCount, activeView]);
+  }, [
+    readingBookIndex,
+    readingBook,
+    filteredSortedItems,
+    grid,
+    columnCount,
+    activeView,
+    gridWidth,
+  ]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -344,9 +377,9 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
       } else if (e.key === "End") {
         nextIndex = filteredSortedItems.length - 1;
       } else if (e.key === "Enter" || e.key === " ") {
-        if (focusedIndex >= 0) {
+        const item = filteredSortedItems[focusedIndex];
+        if (focusedIndex >= 0 && item) {
           e.preventDefault();
-          const item = filteredSortedItems[focusedIndex];
           if (item.type === "book") {
             handleBookClick(item.data, e);
           } else {
@@ -389,6 +422,7 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
       focusedIndex,
       readingBookIndex,
       allBooks,
+      horizontalOffset,
     }),
     [
       filteredSortedItems,
@@ -401,6 +435,7 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
       focusedIndex,
       readingBookIndex,
       allBooks,
+      horizontalOffset,
     ],
   );
 
@@ -478,8 +513,6 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
                 cellProps={cellProps}
                 overscanCount={2}
                 style={{
-                  // Center the grid horizontally
-                  marginLeft: (gridWidth - columnWidth * columnCount) / 2,
                   // Prevent overlap with bottom floating buttons and action bar
                   paddingBottom: "60px",
                 }}

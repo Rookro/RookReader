@@ -1,11 +1,16 @@
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
-import { renderWithProviders } from "../../../test/utils";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { mockSettingsCommands, renderWithProviders } from "../../../test/utils";
 import SidePanelHeader from "./SidePanelHeader";
 
 describe("SidePanelHeader", () => {
   const user = userEvent.setup();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockSettingsCommands();
+  });
 
   it("should render title correctly", () => {
     renderWithProviders(<SidePanelHeader title="Test Title" />);

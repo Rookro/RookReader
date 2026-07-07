@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { createMockBookWithState, createMockTag } from "../../../test/factories";
 import { renderWithProviders } from "../../../test/utils";
+import { useBookSelection } from "../hooks/useBookSelection";
 import BookCard from "./BookCard";
 import { BookSelectionProvider } from "./BookSelectionContext";
 import { BookshelfActionsContext } from "./BookshelfActionsContext";
@@ -82,6 +83,39 @@ describe("BookCard", () => {
     expect(await screen.findByText(/Add to Collection/i)).toBeInTheDocument();
   });
 
+  it("materializes the full selection for the context menu when opened (K4)", async () => {
+    const bookA = createMockBookWithState({ id: 1, display_name: "Book A", tag_ids: [] });
+    const bookB = createMockBookWithState({ id: 2, display_name: "Book B", tag_ids: [] });
+    const openDialog = vi.fn();
+
+    const Seeder = () => {
+      const { setSelection } = useBookSelection();
+      return (
+        <button type="button" onClick={() => setSelection(new Set([1, 2]))}>
+          seed-selection
+        </button>
+      );
+    };
+
+    renderWithProviders(
+      <BookshelfActionsContext.Provider value={{ openDialog }}>
+        <BookSelectionProvider>
+          <Seeder />
+          <BookCard {...defaultProps} book={bookA} allBooks={[bookA, bookB]} />
+        </BookSelectionProvider>
+      </BookshelfActionsContext.Provider>,
+    );
+
+    // Select both books, then open this card's context menu.
+    await user.click(screen.getByText("seed-selection"));
+    await user.pointer({ keys: "[MouseRight]", target: screen.getByText("Book A") });
+
+    // The action applies to the whole selection — proving selectedBooks was
+    // materialized once the menu opened (not eagerly in every card).
+    await user.click(await screen.findByText(/Add to Collection/i));
+    expect(openDialog).toHaveBeenCalledWith("add-to-bookshelf", [bookA, bookB]);
+  });
+
   it("should display a checkmark when selected", () => {
     // To test selection, we can preload the state or mock the context.
     // BookSelectionProvider by default uses its own state.
@@ -103,6 +137,30 @@ describe("BookCard", () => {
       total_pages: 0,
     });
     renderBookCard({ ...defaultProps, book: bookWithNoPages });
+
+    const progressBar = screen.getByRole("progressbar");
+    expect(progressBar).toHaveAttribute("aria-valuenow", "0");
+  });
+
+  it("should render non-zero progress when the first page (index 0) has been read", () => {
+    const bookAtFirstPage = createMockBookWithState({
+      ...mockBook,
+      total_pages: 10,
+      last_read_page_index: 0,
+    });
+    renderBookCard({ ...defaultProps, book: bookAtFirstPage });
+
+    const progressBar = screen.getByRole("progressbar");
+    expect(progressBar).toHaveAttribute("aria-valuenow", "10");
+  });
+
+  it("should render progress as 0 when the book is unread (null index)", () => {
+    const unreadBook = createMockBookWithState({
+      ...mockBook,
+      total_pages: 10,
+      last_read_page_index: null,
+    });
+    renderBookCard({ ...defaultProps, book: unreadBook });
 
     const progressBar = screen.getByRole("progressbar");
     expect(progressBar).toHaveAttribute("aria-valuenow", "0");

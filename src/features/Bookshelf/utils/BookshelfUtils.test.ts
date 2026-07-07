@@ -63,6 +63,21 @@ describe("BookshelfUtils", () => {
     it("should sort by date_desc", () => {
       expect(sortBy(a, b, "date_desc")).toBeGreaterThan(0);
     });
+
+    it("should sort by real created_at, not id, when dates differ", () => {
+      // older has a smaller id but a newer created_at; date order must follow the date.
+      const older = createMockBookWithState({ id: 5, created_at: "2023-11-01" });
+      const newer = createMockBookWithState({ id: 4, created_at: "2023-12-01" });
+      expect(sortBy(older, newer, "date_asc")).toBeLessThan(0);
+      expect(sortBy(older, newer, "date_desc")).toBeGreaterThan(0);
+    });
+
+    it("should fall back to id when created_at is equal", () => {
+      const x = createMockBookWithState({ id: 1, created_at: "2023-11-01" });
+      const y = createMockBookWithState({ id: 2, created_at: "2023-11-01" });
+      expect(sortBy(x, y, "date_asc")).toBeLessThan(0);
+      expect(sortBy(x, y, "date_desc")).toBeGreaterThan(0);
+    });
   });
 
   describe("sortBySeriesOrder", () => {
@@ -96,8 +111,16 @@ describe("BookshelfUtils", () => {
   });
 
   describe("sortByGridItem", () => {
-    const book1 = createMockBookWithState({ id: 1, display_name: "Book A" });
-    const book2 = createMockBookWithState({ id: 2, display_name: "Book B" });
+    const book1 = createMockBookWithState({
+      id: 1,
+      display_name: "Book A",
+      created_at: "2023-11-01",
+    });
+    const book2 = createMockBookWithState({
+      id: 2,
+      display_name: "Book B",
+      created_at: "2023-12-01",
+    });
     const series1 = createMockSeries({ id: 1, name: "Series A", created_at: "2023-01-01" });
     const series2 = createMockSeries({ id: 2, name: "Series B", created_at: "2023-01-02" });
 
@@ -129,15 +152,16 @@ describe("BookshelfUtils", () => {
         expect(sortByGridItem(gridSeries1, gridSeries2, "date_desc")).toBeGreaterThan(0);
       });
 
-      it("should sort books by date_asc (using ID as proxy)", () => {
+      it("should sort books by their real created_at (date_asc)", () => {
+        // book1 created_at "2023-11-01" is older than book2 "2023-12-01".
         expect(sortByGridItem(gridBook1, gridBook2, "date_asc")).toBeLessThan(0);
       });
 
-      it("should sort series and book by date_asc", () => {
-        // gridSeries1 date: "2023-01-01"
-        // gridBook1 date (id 1): "0000000001"
-        // "0000000001" comes before "2023-01-01"
-        expect(sortByGridItem(gridBook1, gridSeries1, "date_asc")).toBeLessThan(0);
+      it("should interleave books and series by real created_at, not by type", () => {
+        // book1 created_at "2023-11-01" is newer than series1 "2023-01-01", so the
+        // older series comes first in date_asc and the newer book first in date_desc.
+        expect(sortByGridItem(gridBook1, gridSeries1, "date_asc")).toBeGreaterThan(0);
+        expect(sortByGridItem(gridBook1, gridSeries1, "date_desc")).toBeLessThan(0);
       });
 
       it("should fall back to ID if dates are equal", () => {

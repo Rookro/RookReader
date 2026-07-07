@@ -177,6 +177,33 @@ describe("useUpdater", () => {
     expect(check).toHaveBeenCalledTimes(2);
   });
 
+  it("should release the global lock on unmount so later checks can proceed", async () => {
+    const mockUpdate = {
+      version: "2.0.0",
+      body: "Release notes",
+      downloadAndInstall: vi.fn(),
+    };
+    vi.mocked(check).mockResolvedValue(mockUpdate as unknown as Update);
+
+    // First hook holds the global lock (confirm dialog open) then unmounts.
+    const first = renderHook(() => useUpdater());
+    await act(async () => {
+      await first.result.current.checkForUpdates(true);
+    });
+    expect(first.result.current.confirmDialogOpen).toBe(true);
+    expect(check).toHaveBeenCalledTimes(1);
+
+    // Unmount while the lock is still held; cleanup must release it.
+    first.unmount();
+
+    // A freshly mounted hook can check again instead of being blocked forever.
+    const second = renderHook(() => useUpdater());
+    await act(async () => {
+      await second.result.current.checkForUpdates(true);
+    });
+    expect(check).toHaveBeenCalledTimes(2);
+  });
+
   it("should check for updates and show message when no update is available (manual check)", async () => {
     vi.mocked(check).mockResolvedValue(null);
 

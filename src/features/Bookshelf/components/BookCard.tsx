@@ -63,9 +63,11 @@ export default function BookCard({
   const [imageError, setImageError] = useState(false);
 
   const selectedBooks = useMemo(() => {
-    if (selectedBookIds.size === 0) return [];
+    // Only materialized while the context menu is open; a selection sweep must not
+    // run an O(n) filter in every visible card.
+    if (menuAnchor === null || selectedBookIds.size === 0) return [];
     return allBooks.filter((b) => selectedBookIds.has(b.id));
-  }, [selectedBookIds, allBooks]);
+  }, [menuAnchor, selectedBookIds, allBooks]);
 
   const imageSrc = useMemo(() => {
     return !imageError && book?.thumbnail_path
@@ -208,9 +210,7 @@ export default function BookCard({
                 variant="determinate"
                 value={
                   book.total_pages !== 0
-                    ? ((book.last_read_page_index ? book.last_read_page_index + 1 : 0) /
-                        book.total_pages) *
-                      100
+                    ? (((book.last_read_page_index ?? -1) + 1) / book.total_pages) * 100
                     : 0
                 }
                 sx={{

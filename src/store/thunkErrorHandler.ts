@@ -21,6 +21,6 @@ export function handleThunkError(
   return rejectWithValue(
     e instanceof CommandError
       ? { code: e.code, message: errorMessage }
-      : { code: ErrorCode.OTHER_ERROR, message: errorMessage },
+      : { code: ErrorCode.other, message: errorMessage },
   ) as never;
 }

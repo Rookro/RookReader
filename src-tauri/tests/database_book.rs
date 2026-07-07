@@ -30,8 +30,8 @@ async fn test_register_and_get_book() {
         .register_book(
             "/path/to/book.epub",
             "file",
-            "Updated Book", // Should not be updated by register logic due to ON CONFLICT
-            200,            // Should not be updated
+            "Updated Book", // Refreshed on conflict (page-derived metadata).
+            200,            // Refreshed on conflict (e.g. pages added to a directory).
             Some("/path/to/thumb".to_string()),
         )
         .await
@@ -45,10 +45,45 @@ async fn test_register_and_get_book() {
         .unwrap()
         .unwrap();
     assert_eq!(book.file_path, "/path/to/book.epub");
-    // Only file_path and thumbnail_path are updated on conflict based on the query
-    assert_eq!(book.display_name, "My Book");
-    assert_eq!(book.total_pages, 100);
+    // Re-registering refreshes display_name, total_pages, and thumbnail_path so a book
+    // whose contents changed on disk is not stuck with stale metadata.
+    assert_eq!(book.display_name, "Updated Book");
+    assert_eq!(book.total_pages, 200);
     assert_eq!(book.thumbnail_path.unwrap(), "/path/to/thumb");
+}
+
+#[tokio::test]
+async fn test_register_sets_and_preserves_created_at() {
+    let pool = setup_db().await;
+    let repository = SqliteBookRepository::new(pool.clone());
+
+    let book_id = repository
+        .register_book("/path/to/book.epub", "file", "My Book", 100, None)
+        .await
+        .unwrap();
+
+    // created_at is stamped on insert.
+    let created_at = repository
+        .get_book_with_state_by_id(book_id)
+        .await
+        .unwrap()
+        .unwrap()
+        .created_at;
+    assert!(created_at.is_some());
+
+    // Re-registering refreshes metadata but must preserve the original created_at.
+    repository
+        .register_book("/path/to/book.epub", "file", "Renamed", 200, None)
+        .await
+        .unwrap();
+
+    let after = repository
+        .get_book_with_state_by_id(book_id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(after.display_name, "Renamed");
+    assert_eq!(after.created_at, created_at);
 }
 
 #[tokio::test]
@@ -180,6 +215,61 @@ async fn test_recently_read_books() {
     let recent_limited = repository.get_recently_read_books(Some(1)).await.unwrap();
     assert_eq!(recent_limited.len(), 1);
     assert_eq!(recent_limited[0].id, b2);
+}
+
+#[tokio::test]
+async fn test_update_reading_progress_defaults_null_last_opened_at() {
+    let pool = setup_db().await;
+    let repository = SqliteBookRepository::new(pool.clone());
+
+    let book_id = repository
+        .register_book("/path/to/book.epub", "file", "My Book", 100, None)
+        .await
+        .unwrap();
+
+    // last_opened_at = None must not write NULL (which would exclude the book from
+    // recent lists); it defaults to the current timestamp.
+    repository
+        .update_reading_progress(&ReadingState {
+            book_id,
+            last_read_page_index: 5,
+            last_opened_at: None,
+        })
+        .await
+        .unwrap();
+
+    let book_with_state = repository
+        .get_book_with_state_by_id(book_id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(book_with_state.last_opened_at.is_some());
+
+    let recent = repository.get_recently_read_books(None).await.unwrap();
+    assert!(recent.iter().any(|b| b.id == book_id));
+}
+
+#[tokio::test]
+async fn test_recently_read_books_negative_limit_returns_empty() {
+    let pool = setup_db().await;
+    let repository = SqliteBookRepository::new(pool.clone());
+
+    let book_id = repository
+        .register_book("/path/1", "file", "B1", 100, None)
+        .await
+        .unwrap();
+    repository
+        .update_reading_progress(&ReadingState {
+            book_id,
+            last_read_page_index: 10,
+            last_opened_at: Some(chrono::Utc::now().naive_utc()),
+        })
+        .await
+        .unwrap();
+
+    // A negative limit must clamp to 0 (at most N), not return every row.
+    let recent = repository.get_recently_read_books(Some(-1)).await.unwrap();
+    assert!(recent.is_empty());
 }
 
 #[tokio::test]

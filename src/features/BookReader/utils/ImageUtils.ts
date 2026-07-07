@@ -26,6 +26,20 @@ export class ImageCacheItem {
 }
 
 /**
+ * Revokes the object URLs (preview and full) held by a single cache item.
+ *
+ * @param item - The cache item whose `previewUrl`/`fullUrl` object URLs should be revoked.
+ */
+export const revokeCacheItemUrls = (item: ImageCacheItem) => {
+  if (item.previewUrl) {
+    URL.revokeObjectURL(item.previewUrl);
+  }
+  if (item.fullUrl) {
+    URL.revokeObjectURL(item.fullUrl);
+  }
+};
+
+/**
  * Layout for displaying images.
  */
 export interface ViewLayout {
@@ -131,6 +145,61 @@ export const createImageCacheItem = (image: Image, isPreview: boolean): ImageCac
     isPreview ? url : undefined,
     !isPreview ? url : undefined,
   );
+};
+
+/**
+ * Builds a single-page (non-spread) layout for an already-loaded first image.
+ *
+ * @param firstImage The cached first image to display alone.
+ * @returns A single-page ViewLayout that advances by one index.
+ */
+export const buildSinglePageLayout = (firstImage: ImageCacheItem): ViewLayout => ({
+  firstImage,
+  isSpread: false,
+  nextIndexIncrement: 1,
+});
+
+/**
+ * Finds the start index of the page unit immediately preceding `currentIndex` by
+ * walking unit boundaries forward from page 0.
+ *
+ * Spread boundaries depend on the whole chain from the start, so the previous unit
+ * cannot be derived from a local look-back. This walk uses the same per-unit
+ * `nextIndexIncrement` as forward navigation, keeping back/forward in sync.
+ *
+ * @param currentIndex The current unit-start index to step back from.
+ * @param entries The list of entry names.
+ * @param cache The image cache.
+ * @param settings The viewer settings.
+ * @returns The previous unit's start index, or `null` when `currentIndex <= 0`, when a
+ *   page dimension needed to reach `currentIndex` is not cached, or when `currentIndex`
+ *   is not a real unit start under the current layout (the caller should fall back).
+ */
+export const findPreviousUnitStart = (
+  currentIndex: number,
+  entries: string[],
+  cache: Map<string, ImageCacheItem>,
+  settings: ViewerSettings,
+): number | null => {
+  if (currentIndex <= 0) {
+    return null;
+  }
+  let start = 0;
+  let prev = 0;
+  while (start < currentIndex) {
+    const layout = calculateLayout(start, entries, cache, settings);
+    if (!layout) {
+      // A page dimension on the path is not cached; can't reconstruct boundaries.
+      return null;
+    }
+    prev = start;
+    start += layout.nextIndexIncrement;
+  }
+  // Overshooting means `currentIndex` is not a real unit start under this layout.
+  if (start !== currentIndex) {
+    return null;
+  }
+  return prev;
 };
 
 /**

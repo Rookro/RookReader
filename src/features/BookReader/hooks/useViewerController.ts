@@ -5,11 +5,14 @@ import type { AppDispatch } from "../../../store/store";
 import type { Image } from "../../../types/Image";
 import { setImageIndex } from "../slice";
 import {
+  buildSinglePageLayout,
   calculateLayout,
   createImageCacheItem,
   fetchImageBlob,
   fetchImagePreviewBlob,
+  findPreviousUnitStart,
   type ImageCacheItem,
+  revokeCacheItemUrls,
   type ViewerSettings,
   type ViewLayout,
 } from "../utils/ImageUtils";
@@ -20,14 +23,7 @@ import {
  * @param cache - The image cache whose `previewUrl`/`fullUrl` object URLs should be revoked.
  */
 const revokeCacheUrls = (cache: Map<string, ImageCacheItem>) => {
-  cache.forEach((item) => {
-    if (item.previewUrl) {
-      URL.revokeObjectURL(item.previewUrl);
-    }
-    if (item.fullUrl) {
-      URL.revokeObjectURL(item.fullUrl);
-    }
-  });
+  cache.forEach(revokeCacheItemUrls);
 };
 
 /**
@@ -101,6 +97,10 @@ export const useViewerController = (
 
       const cache = cacheRef.current;
 
+      // Tracks whether a full layout was resolved this run, so the post-settle
+      // fallback only fires when calculateLayout never produced one.
+      let layoutResolved = false;
+
       const loadAndUpdate = async (
         path: string,
         fetcher: (containerPath: string, entryName: string) => Promise<Image | undefined>,
@@ -122,6 +122,7 @@ export const useViewerController = (
           }
           const layout = calculateLayout(index, entries, cache, settings);
           if (layout) {
+            layoutResolved = true;
             setLayoutState({ layout, path: containerPath });
           }
         }
@@ -160,8 +161,19 @@ export const useViewerController = (
       // Continue fetching full-res images in the background
       await Promise.all(fullPromises);
 
-      if (previewPromises.length === 0 && !controller.signal.aborted) {
-        setIsImageLoading(false);
+      if (!controller.signal.aborted) {
+        // Loading has settled. If no full layout resolved (e.g. a spread's second
+        // page failed to load), degrade to a single-page layout for the first image
+        // instead of leaving the viewer blank/stale.
+        if (!layoutResolved) {
+          const firstImg = cache.get(entries[index]);
+          if (firstImg) {
+            setLayoutState({ layout: buildSinglePageLayout(firstImg), path: containerPath });
+          }
+        }
+        if (previewPromises.length === 0) {
+          setIsImageLoading(false);
+        }
       }
     };
 
@@ -182,6 +194,21 @@ export const useViewerController = (
     }
   }, [index, settings.preloadPageCount, entries.length]);
 
+  // Evict cached pages outside a window around the current index so long sessions
+  // don't retain every visited page's blob URLs (unbounded renderer memory). The
+  // window always contains the current spread (index, index + 1) and the backend
+  // preload range, so backtrack re-fetches hit the backend LRU cache.
+  useEffect(() => {
+    const radius = Math.max(settings.preloadPageCount, 5);
+    const keep = new Set(entries.slice(Math.max(0, index - radius), index + radius + 1));
+    for (const [key, item] of cacheRef.current) {
+      if (!keep.has(key)) {
+        revokeCacheItemUrls(item);
+        cacheRef.current.delete(key);
+      }
+    }
+  }, [index, entries, settings.preloadPageCount]);
+
   const displayedLayout = layoutState?.path === containerPath ? layoutState?.layout : null;
 
   const moveForward = useCallback(() => {
@@ -189,7 +216,12 @@ export const useViewerController = (
       return;
     }
 
-    const increment = displayedLayout?.nextIndexIncrement ?? (settings.isTwoPagedView ? 2 : 1);
+    // Derive the increment from the current index's layout (read from the cache now),
+    // not the lagging displayedLayout, which would desync spread pairs / skip pages.
+    const currentLayout = calculateLayout(index, entries, cacheRef.current, settings);
+    // When the layout is unknown (image not cached yet) advance by 1: advancing 2
+    // could skip a page permanently, while a transient half-spread self-corrects.
+    const increment = currentLayout?.nextIndexIncrement ?? 1;
     const nextIndex = index + increment;
 
     if (nextIndex < entries.length) {
@@ -198,7 +230,7 @@ export const useViewerController = (
       // Already at the last page: hand off to the adjacent-book handler.
       onForwardBoundary?.();
     }
-  }, [index, entries.length, dispatch, displayedLayout, settings, onForwardBoundary]);
+  }, [index, entries, dispatch, settings, onForwardBoundary]);
 
   const moveBack = useCallback(() => {
     if (entries.length === 0) {
@@ -213,6 +245,15 @@ export const useViewerController = (
 
     if (!settings.isTwoPagedView) {
       dispatch(setImageIndex(Math.max(0, index - 1)));
+      return;
+    }
+
+    // Reconstruct the real previous unit start from a forward walk (mirrors
+    // moveForward). Falls back to the local heuristic below when the walk can't
+    // run (incomplete cache / unexpected layout).
+    const previousStart = findPreviousUnitStart(index, entries, cacheRef.current, settings);
+    if (previousStart !== null) {
+      dispatch(setImageIndex(previousStart));
       return;
     }
 

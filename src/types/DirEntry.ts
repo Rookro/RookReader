@@ -6,6 +6,6 @@ export type DirEntry = {
   is_directory: boolean;
   /** Entry name. */
   name: string;
-  /** Last modified date. */
-  last_modified: string;
+  /** Last modified time as a raw timestamp (ms), as sent by the backend. */
+  last_modified: number;
 };

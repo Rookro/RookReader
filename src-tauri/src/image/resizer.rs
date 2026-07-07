@@ -31,6 +31,21 @@ pub enum ResizeFilter {
     Lanczos3,
 }
 
+impl From<crate::settings::ImageResamplingMethod> for ResizeFilter {
+    fn from(method: crate::settings::ImageResamplingMethod) -> Self {
+        use crate::settings::ImageResamplingMethod as ResamplingMethod;
+        match method {
+            ResamplingMethod::Nearest => Self::Nearest,
+            ResamplingMethod::Box => Self::Box,
+            ResamplingMethod::Bilinear => Self::Bilinear,
+            ResamplingMethod::Hamming => Self::Hamming,
+            ResamplingMethod::CatmullRom => Self::CatmullRom,
+            ResamplingMethod::MitchellNetravali => Self::MitchellNetravali,
+            ResamplingMethod::Lanczos3 => Self::Lanczos3,
+        }
+    }
+}
+
 impl From<ResizeFilter> for ResizeAlg {
     fn from(filter: ResizeFilter) -> Self {
         match filter {
@@ -231,6 +246,36 @@ pub fn shrink_to_fit(
 mod tests {
     use super::*;
     use image::{ImageBuffer, Rgba};
+
+    #[test]
+    fn test_image_resampling_method_into_resize_filter() {
+        use crate::settings::ImageResamplingMethod as ResamplingMethod;
+        assert_eq!(
+            ResizeFilter::from(ResamplingMethod::Nearest),
+            ResizeFilter::Nearest
+        );
+        assert_eq!(ResizeFilter::from(ResamplingMethod::Box), ResizeFilter::Box);
+        assert_eq!(
+            ResizeFilter::from(ResamplingMethod::Bilinear),
+            ResizeFilter::Bilinear
+        );
+        assert_eq!(
+            ResizeFilter::from(ResamplingMethod::Hamming),
+            ResizeFilter::Hamming
+        );
+        assert_eq!(
+            ResizeFilter::from(ResamplingMethod::CatmullRom),
+            ResizeFilter::CatmullRom
+        );
+        assert_eq!(
+            ResizeFilter::from(ResamplingMethod::MitchellNetravali),
+            ResizeFilter::MitchellNetravali
+        );
+        assert_eq!(
+            ResizeFilter::from(ResamplingMethod::Lanczos3),
+            ResizeFilter::Lanczos3
+        );
+    }
 
     #[test]
     fn test_resize_exact() {

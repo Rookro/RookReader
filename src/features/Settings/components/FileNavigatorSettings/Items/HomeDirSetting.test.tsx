@@ -4,8 +4,12 @@ import { error } from "@tauri-apps/plugin-log";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { mockStore } from "../../../../../test/mocks/tauri";
-import { createBasePreloadedState, renderWithProviders } from "../../../../../test/utils";
+import { mockTauri } from "../../../../../test/mocks/tauri";
+import {
+  createBasePreloadedState,
+  mockSettingsCommands,
+  renderWithProviders,
+} from "../../../../../test/utils";
 import HomeDirSetting from "./HomeDirSetting";
 
 describe("HomeDirSetting", () => {
@@ -13,6 +17,7 @@ describe("HomeDirSetting", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSettingsCommands();
     vi.mocked(homeDir).mockResolvedValue("/default/home");
   });
 
@@ -50,10 +55,9 @@ describe("HomeDirSetting", () => {
     await user.type(input, "/manual/path");
     await user.tab(); // Blur trigger
 
-    expect(mockStore.set).toHaveBeenCalledWith(
-      "fileNavigator",
-      expect.objectContaining({ homeDirectory: "/manual/path" }),
-    );
+    expect(mockTauri.invoke).toHaveBeenCalledWith("set_settings", {
+      patch: { fileNavigator: { homeDirectory: "/manual/path" } },
+    });
   });
 
   it("should not update store if text input has not changed", async () => {
@@ -66,7 +70,7 @@ describe("HomeDirSetting", () => {
     await user.click(input);
     await user.tab(); // Blur trigger
 
-    expect(mockStore.set).not.toHaveBeenCalled();
+    expect(mockTauri.invoke).not.toHaveBeenCalledWith("set_settings", expect.anything());
   });
 
   it("should open dialog and update store when folder button is clicked", async () => {
@@ -82,10 +86,9 @@ describe("HomeDirSetting", () => {
     expect(dialog.open).toHaveBeenCalledWith({ multiple: false, directory: true });
 
     await waitFor(() => {
-      expect(mockStore.set).toHaveBeenCalledWith(
-        "fileNavigator",
-        expect.objectContaining({ homeDirectory: "/picked/path" }),
-      );
+      expect(mockTauri.invoke).toHaveBeenCalledWith("set_settings", {
+        patch: { fileNavigator: { homeDirectory: "/picked/path" } },
+      });
       expect(screen.getByDisplayValue("/picked/path")).toBeInTheDocument();
     });
   });
@@ -101,7 +104,7 @@ describe("HomeDirSetting", () => {
     await user.click(folderButton);
 
     expect(dialog.open).toHaveBeenCalled();
-    expect(mockStore.set).not.toHaveBeenCalled();
+    expect(mockTauri.invoke).not.toHaveBeenCalledWith("set_settings", expect.anything());
     expect(screen.getByDisplayValue("/saved/path")).toBeInTheDocument();
   });
 

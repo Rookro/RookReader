@@ -5,6 +5,7 @@
 /// - macOS: Always supported.
 /// - Linux: Supported only if running as an AppImage (checked via `APPIMAGE` environment variable).
 #[tauri::command]
+#[specta::specta]
 pub fn is_updater_supported() -> bool {
     #[cfg(target_os = "linux")]
     {

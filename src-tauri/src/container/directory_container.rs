@@ -25,11 +25,13 @@ impl Container for DirectoryContainer {
     }
 
     fn get_image(&self, entry: &str) -> Result<Arc<Image>> {
+        self.ensure_member(entry)?;
         let image_arc = load_image(&self.path, entry)?;
         Ok(image_arc)
     }
 
     fn get_thumbnail(&self, entry: &str) -> Result<Arc<Image>> {
+        self.ensure_member(entry)?;
         create_thumbnail(&self.path, entry)
     }
 
@@ -39,6 +41,33 @@ impl Container for DirectoryContainer {
 }
 
 impl DirectoryContainer {
+    /// Rejects any entry that is not part of the scanned directory listing.
+    ///
+    /// Entry names arrive from the frontend (`get_image` command). Without this
+    /// check, a crafted name such as `../../secret.png` would be joined onto the
+    /// container directory and read a file outside it (path traversal).
+    ///
+    /// # Arguments
+    ///
+    /// * `entry` - The caller-supplied entry name to validate.
+    ///
+    /// # Returns
+    ///
+    /// `Ok(())` if `entry` is one of the scanned entries.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Error::Path` if `entry` is not a member of `self.entries`.
+    fn ensure_member(&self, entry: &str) -> Result<()> {
+        if self.entries.iter().any(|e| e == entry) {
+            Ok(())
+        } else {
+            Err(Error::Path(format!(
+                "entry is not a member of the container: {entry}"
+            )))
+        }
+    }
+
     /// Creates a new `DirectoryContainer` by scanning a directory for supported image files.
     ///
     /// The found image files are sorted in natural order (e.g., "2.jpg" comes before "10.jpg").
@@ -53,8 +82,8 @@ impl DirectoryContainer {
     ///
     /// # Errors
     ///
-    /// Returns an `Err` if the directory cannot be read or if a file entry
-    /// has a name that cannot be converted to a string.
+    /// Returns an `Err` if the directory cannot be read. A file whose name is not
+    /// valid Unicode is skipped (logged), not treated as an error.
     pub fn new(path: &str) -> Result<Self> {
         let dir_entries = read_dir(path)?;
 
@@ -65,12 +94,12 @@ impl DirectoryContainer {
             if file_type.is_dir() {
                 continue;
             }
-            let file_name = entry.file_name().into_string().map_err(|e| {
-                Error::Path(format!(
-                    "failed to get file name from DirEntry. {}",
-                    e.display()
-                ))
-            })?;
+            let Ok(file_name) = entry.file_name().into_string() else {
+                // One non-Unicode name (legacy archivers, NAS shares) must not fail the
+                // whole folder; skip the file and keep the readable pages.
+                log::warn!("Skipping non-Unicode file name in {}", path);
+                continue;
+            };
 
             if Image::is_supported_format(&file_name) {
                 entries.push(file_name);
@@ -145,6 +174,47 @@ mod tests {
         assert_eq!(container.entries.len(), 2);
         assert_eq!(container.entries[0], "test1.png");
         assert_eq!(container.entries[1], "test2.jpg");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_new_skips_non_unicode_file_name() {
+        use std::ffi::OsStr;
+        use std::os::unix::ffi::OsStrExt;
+
+        let dir = tempdir().expect("failed to create tempdir");
+        create_dummy_image(dir.path(), "valid.png");
+        // A name with an invalid UTF-8 byte: into_string() rejects it. The old code
+        // failed the whole directory; now the file is skipped and valid.png survives.
+        let bad = OsStr::from_bytes(b"bad\xFF.png");
+        File::create(dir.path().join(bad)).expect("failed to create non-unicode file");
+
+        let container = DirectoryContainer::new(dir.path().to_string_lossy().as_ref())
+            .expect("directory with a non-unicode name should still open");
+        assert_eq!(container.entries, vec!["valid.png".to_string()]);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn test_new_skips_non_unicode_file_name() {
+        use std::ffi::OsString;
+        use std::os::windows::ffi::OsStringExt;
+
+        let dir = tempdir().expect("failed to create tempdir");
+        create_dummy_image(dir.path(), "valid.png");
+        // "test<unpaired-surrogate>.png": 0xD800 is an unpaired surrogate, so
+        // into_string() rejects the name. Skip the file, keep valid.png.
+        let bad: OsString = OsString::from_wide(&[
+            0x0074, 0x0065, 0x0073, 0x0074, 0xD800, 0x002E, 0x0070, 0x006E, 0x0067,
+        ]);
+        if File::create(dir.path().join(&bad)).is_err() {
+            // Some filesystems reject unpaired surrogates outright; nothing to assert.
+            return;
+        }
+
+        let container = DirectoryContainer::new(dir.path().to_string_lossy().as_ref())
+            .expect("directory with a non-unicode name should still open");
+        assert_eq!(container.entries, vec!["valid.png".to_string()]);
     }
 
     #[test]
@@ -222,6 +292,30 @@ mod tests {
             .expect("failed to create DirectoryContainer");
         let result = container.get_image("non_existent.png");
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_get_image_rejects_path_traversal() {
+        let dir = tempdir().expect("failed to create tempdir");
+        create_dummy_image(dir.path(), "test.png");
+
+        // Place a readable image OUTSIDE the container directory.
+        let outside = dir.path().parent().expect("tempdir should have a parent");
+        let secret_name = "rook_reader_traversal_secret.png";
+        create_dummy_image(outside, secret_name);
+
+        let container = DirectoryContainer::new(dir.path().to_string_lossy().as_ref())
+            .expect("failed to create DirectoryContainer");
+
+        // A traversal entry that resolves to the file outside the directory must be
+        // rejected before any file is opened.
+        let traversal = format!("../{secret_name}");
+        let result = container.get_image(&traversal);
+        assert!(result.is_err());
+        assert!(container.get_thumbnail(&traversal).is_err());
+
+        // Cleanup the file we created outside the tempdir.
+        let _ = fs::remove_file(outside.join(secret_name));
     }
 
     #[test]

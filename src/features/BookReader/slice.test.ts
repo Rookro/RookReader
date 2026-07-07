@@ -70,6 +70,16 @@ describe("ReadReducer", () => {
       expect(state.containerFile.history).toHaveLength(1);
     });
 
+    // Verify that a no-op open (same path) clears any pending initial position
+    it("should clear pendingInitialPosition on a no-op setContainerFilePath", () => {
+      const initialState = {
+        containerFile: { history: ["current"], historyIndex: 0, pendingInitialPosition: "last" },
+      } as RootState["read"];
+      const state = readReducer(initialState, setContainerFilePath("current"));
+      expect(state.containerFile.history).toHaveLength(1);
+      expect(state.containerFile.pendingInitialPosition).toBeNull();
+    });
+
     // Verify that subsequent history is sliced when a new path is set while in the middle of history
     it("should slice history in setContainerFilePath when index is not at the end", () => {
       const initialState = {
@@ -208,8 +218,8 @@ describe("ReadReducer", () => {
     // Verify that container and explorer error states are cleared correctly
     it("should handle clear errors", () => {
       const initialState = {
-        containerFile: { error: { code: ErrorCode.OTHER_ERROR } },
-        explorer: { error: { code: ErrorCode.OTHER_ERROR } },
+        containerFile: { error: { code: ErrorCode.other } },
+        explorer: { error: { code: ErrorCode.other } },
       } as RootState["read"];
 
       let state = readReducer(initialState, clearContainerFileError());
@@ -224,7 +234,9 @@ describe("ReadReducer", () => {
     // Verify error handling for rejected actions with undefined payload
     it("should handle rejected actions with undefined payload", () => {
       const mockState = {
-        containerFile: { error: null },
+        // History head matches the rejected action's meta.arg ("arg") so the
+        // staleness guard lets the rejection through.
+        containerFile: { error: null, history: ["arg"], historyIndex: 0 },
         explorer: { error: null },
       } as RootState["read"];
 
@@ -244,7 +256,7 @@ describe("ReadReducer", () => {
     describe("openContainerFile thunk", () => {
       // Verify that container is opened and state is updated on success
       it("should open container and update state on success", async () => {
-        const mockBook = createMockBookWithState({ id: 1, last_read_page_index: 5 });
+        const mockBook = createMockBookWithState({ id: 1, last_read_page_index: 1 });
 
         vi.mocked(ContainerCommands.getEntriesInContainer).mockResolvedValue({
           is_directory: false,
@@ -254,12 +266,13 @@ describe("ReadReducer", () => {
         vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(1);
         vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
 
+        store.dispatch(setContainerFilePath("path/to/book.zip"));
         await store.dispatch(openContainerFile("path/to/book.zip"));
 
         const state = store.getState().read;
         expect(state.containerFile.isLoading).toBe(false);
         expect(state.containerFile.book).toEqual(mockBook);
-        expect(state.containerFile.index).toBe(5);
+        expect(state.containerFile.index).toBe(1);
         expect(state.containerFile.entries).toEqual(["p1", "p2"]);
       });
 
@@ -275,6 +288,7 @@ describe("ReadReducer", () => {
         vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(1);
         vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
 
+        store.dispatch(setContainerFilePath("path/to/book.zip"));
         store.dispatch(setPendingInitialPosition("last"));
         await store.dispatch(openContainerFile("path/to/book.zip"));
 
@@ -296,6 +310,7 @@ describe("ReadReducer", () => {
         vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(1);
         vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
 
+        store.dispatch(setContainerFilePath("path/to/book.zip"));
         store.dispatch(setPendingInitialPosition("first"));
         await store.dispatch(openContainerFile("path/to/book.zip"));
 
@@ -303,6 +318,26 @@ describe("ReadReducer", () => {
         // First page (index 0), not last_read_page_index.
         expect(state.containerFile.index).toBe(0);
         expect(state.containerFile.pendingInitialPosition).toBeNull();
+      });
+
+      // Verify that a stale last_read_page_index past the page count is clamped to the last page
+      it("should clamp a restored index past the page count to the last page", async () => {
+        const mockBook = createMockBookWithState({ id: 1, last_read_page_index: 10 });
+
+        vi.mocked(ContainerCommands.getEntriesInContainer).mockResolvedValue({
+          is_directory: false,
+          entries: ["p1", "p2", "p3"],
+          is_novel: false,
+        });
+        vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(1);
+        vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
+
+        store.dispatch(setContainerFilePath("path/to/book.zip"));
+        await store.dispatch(openContainerFile("path/to/book.zip"));
+
+        const state = store.getState().read;
+        // Restored index 10 is clamped to entries.length - 1 (2), not left out of range.
+        expect(state.containerFile.index).toBe(2);
       });
 
       // Verify handling of EPUB novel format
@@ -316,6 +351,7 @@ describe("ReadReducer", () => {
         vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(1);
         vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
 
+        store.dispatch(setContainerFilePath("path.epub"));
         await store.dispatch(openContainerFile("path.epub"));
 
         const state = store.getState().read;
@@ -323,24 +359,65 @@ describe("ReadReducer", () => {
         expect(ContainerCommands.getEntriesInContainer).toHaveBeenCalled();
       });
 
+      // Verify that a stale fulfilled response (for a book the user already navigated
+      // away from) does not overwrite the newer book's state.
+      it("should ignore a stale fulfilled response for a superseded book", () => {
+        // Current head is the newer book "new.zip" with its own loaded state.
+        const initialState = {
+          containerFile: {
+            history: ["new.zip"],
+            historyIndex: 0,
+            entries: ["n1", "n2"],
+            book: createMockBookWithState({ id: 2 }),
+            index: 1,
+            isNovel: false,
+            isDirectory: false,
+            isLoading: false,
+            cfi: null,
+            error: null,
+            pendingInitialPosition: null,
+          },
+        } as unknown as RootState["read"];
+
+        // A slow open for the previous book "old.zip" finally resolves.
+        const staleAction = openContainerFile.fulfilled(
+          {
+            entries: ["o1", "o2", "o3"],
+            isDirectory: false,
+            isNovel: false,
+            book: createMockBookWithState({ id: 1 }),
+          },
+          "requestId",
+          "old.zip",
+        );
+        const state = readReducer(initialState, staleAction);
+
+        // The newer book's state is preserved, unchanged by the stale response.
+        expect(state.containerFile.entries).toEqual(["n1", "n2"]);
+        expect(state.containerFile.book?.id).toBe(2);
+        expect(state.containerFile.index).toBe(1);
+      });
+
       // Verify error handling when path is empty
       it("should handle error when path is empty", async () => {
+        store.dispatch(setContainerFilePath(""));
         await store.dispatch(openContainerFile(""));
 
         const state = store.getState().read;
         expect(state.containerFile.isLoading).toBe(false);
-        expect(state.containerFile.error?.code).toBe(ErrorCode.PATH_ERROR);
+        expect(state.containerFile.error?.code).toBe(ErrorCode.path);
       });
 
       // Verify handling of CommandError during opening
       it("should handle CommandError during open", async () => {
-        const mockError = new CommandError(ErrorCode.OTHER_ERROR, "cmd failed");
+        const mockError = new CommandError(ErrorCode.other, "cmd failed");
         vi.mocked(ContainerCommands.getEntriesInContainer).mockRejectedValue(mockError);
 
+        store.dispatch(setContainerFilePath("fail.zip"));
         await store.dispatch(openContainerFile("fail.zip"));
 
         const state = store.getState().read;
-        expect(state.containerFile.error?.code).toBe(ErrorCode.OTHER_ERROR);
+        expect(state.containerFile.error?.code).toBe(ErrorCode.other);
         expect(state.containerFile.error?.message).toContain("cmd failed");
       });
     });
@@ -386,18 +463,18 @@ describe("ReadReducer", () => {
         await store.dispatch(updateExploreBasePath({ dirPath: "" }));
 
         const state = store.getState().read;
-        expect(state.explorer.error?.code).toBe(ErrorCode.PATH_ERROR);
+        expect(state.explorer.error?.code).toBe(ErrorCode.path);
       });
 
       // Verify handling of CommandError during explorer update
       it("should handle CommandError during explorer update", async () => {
-        const mockError = new CommandError(ErrorCode.OTHER_ERROR, "dir failed");
+        const mockError = new CommandError(ErrorCode.other, "dir failed");
         vi.mocked(DirectoryCommands.getEntriesInDir).mockRejectedValue(mockError);
 
         await store.dispatch(updateExploreBasePath({ dirPath: "/error/dir", forceUpdate: true }));
 
         const state = store.getState().read;
-        expect(state.explorer.error?.code).toBe(ErrorCode.OTHER_ERROR);
+        expect(state.explorer.error?.code).toBe(ErrorCode.other);
         expect(state.explorer.error?.message).toContain("dir failed");
       });
 
@@ -419,6 +496,7 @@ describe("ReadReducer", () => {
         const testError = "open failed";
         vi.mocked(ContainerCommands.getEntriesInContainer).mockRejectedValue(testError);
 
+        store.dispatch(setContainerFilePath("fail.zip"));
         await store.dispatch(openContainerFile("fail.zip"));
 
         const state = store.getState().read;
@@ -431,6 +509,7 @@ describe("ReadReducer", () => {
       it("should clear pendingInitialPosition when opening fails", async () => {
         vi.mocked(ContainerCommands.getEntriesInContainer).mockRejectedValue("boom");
 
+        store.dispatch(setContainerFilePath("fail.zip"));
         store.dispatch(setPendingInitialPosition("last"));
         await store.dispatch(openContainerFile("fail.zip"));
 

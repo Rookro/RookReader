@@ -62,10 +62,11 @@ export default function NavigationBar() {
 
   const handleSortOrderChanged = useCallback(
     (e: SelectChangeEvent) => {
-      const newBookshelfSettings = { ...bookshelfSettings, sortOrder: e.target.value as SortOrder };
-      dispatch(updateSettings({ key: "bookshelf", value: newBookshelfSettings }));
+      dispatch(
+        updateSettings({ key: "bookshelf", value: { sortOrder: e.target.value as SortOrder } }),
+      );
     },
-    [dispatch, bookshelfSettings],
+    [dispatch],
   );
 
   const handleAddClicked = useCallback((_e: React.MouseEvent) => {

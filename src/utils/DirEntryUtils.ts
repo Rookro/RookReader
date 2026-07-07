@@ -41,7 +41,8 @@ export const convertEntriesInDir = (entriesData: ArrayBuffer) => {
       break;
     }
     const timestamp = view.getBigUint64(offset);
-    const last_modified = new Date(Number(timestamp)).toLocaleString();
+    // Carry the raw timestamp (ms); formatting/sorting is left to the consumer.
+    const last_modified = Number(timestamp);
     offset += 8;
 
     entries.push({ is_directory, name, last_modified });

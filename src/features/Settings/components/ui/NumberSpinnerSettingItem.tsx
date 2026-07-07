@@ -50,6 +50,10 @@ export default function NumberSpinnerSettingItem({
         min={min}
         max={max}
         step={step}
+        // Typed out-of-range values pass through to the backend (the validation source of
+        // truth) so the inline error is shown; the step buttons/arrows still clamp to and
+        // disable at min/max, which is purely a UI affordance.
+        allowOutOfRange
         size="small"
         error={error}
         helperText={helperText}

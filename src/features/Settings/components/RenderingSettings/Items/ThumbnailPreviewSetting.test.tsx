@@ -1,9 +1,12 @@
-import { emit } from "@tauri-apps/api/event";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { mockStore } from "../../../../../test/mocks/tauri";
-import { createBasePreloadedState, renderWithProviders } from "../../../../../test/utils";
+import { mockTauri } from "../../../../../test/mocks/tauri";
+import {
+  createBasePreloadedState,
+  mockSettingsCommands,
+  renderWithProviders,
+} from "../../../../../test/utils";
 import ThumbnailPreviewSetting from "./ThumbnailPreviewSetting";
 
 describe("ThumbnailPreviewSetting", () => {
@@ -11,6 +14,7 @@ describe("ThumbnailPreviewSetting", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSettingsCommands();
   });
 
   it("should load initial state from settingsStore", async () => {
@@ -36,22 +40,9 @@ describe("ThumbnailPreviewSetting", () => {
     await user.click(switchElement);
 
     await waitFor(() => {
-      expect(mockStore.set).toHaveBeenCalledWith(
-        "reader",
-        expect.objectContaining({
-          rendering: expect.objectContaining({ enableThumbnailPreview: false }),
-        }),
-      );
-      expect(emit).toHaveBeenCalledWith(
-        "settings-changed",
-        expect.objectContaining({
-          appSettings: expect.objectContaining({
-            reader: expect.objectContaining({
-              rendering: expect.objectContaining({ enableThumbnailPreview: false }),
-            }),
-          }),
-        }),
-      );
+      expect(mockTauri.invoke).toHaveBeenCalledWith("set_settings", {
+        patch: { reader: { rendering: { enableThumbnailPreview: false } } },
+      });
     });
   });
 });

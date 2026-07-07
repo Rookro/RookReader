@@ -257,9 +257,7 @@
       "resize": {
         "max-image-height": {
           "title": "画像の最大の高さ(px)",
-          "description": "指定した高さを超える画像は、縦横比を保って縮小されます。\n0を設定するとリサイズを無効にします。",
-          "range-error-message": "0 以上の整数を入力してください。",
-          "error-message": "設定できませんでした。入力内容を確認してください。"
+          "description": "指定した高さを超える画像は、縦横比を保って縮小されます。\n0を設定するとリサイズを無効にします。"
         },
         "resize-method": {
           "title": "リサイズ方式",
@@ -277,21 +275,17 @@
       },
       "pdf": {
         "title": "PDF 描画時の高さ(px)",
-        "description": "PDF 描画時の高さを設定します。",
-        "range-error-message": "1 以上の整数を入力してください。",
-        "error-message": "設定できませんでした。入力内容を確認してください。"
+        "description": "PDF 描画時の高さを設定します。"
       },
       "cache": {
         "title": "キャッシュ設定",
         "preload-page-count": {
           "title": "先読みページ数",
-          "description": "前後方向に先読みするページ数を指定します。",
-          "error-message": "先読みページ数の設定に失敗しました。入力内容を確認してください。"
+          "description": "前後方向に先読みするページ数を指定します。"
         },
         "image-cache-size": {
           "title": "画像キャッシュサイズ (MiB)",
-          "description": "メモリ上に保持する画像キャッシュの最大サイズ (MiB) です。\nこの設定を変更すると現在のキャッシュはクリアされます。",
-          "error-message": "画像キャッシュサイズの設定に失敗しました。入力内容を確認してください。"
+          "description": "メモリ上に保持する画像キャッシュの最大サイズ (MiB) です。\nこの設定を変更すると現在のキャッシュはクリアされます。"
         }
       }
     },
@@ -339,11 +333,20 @@
       "failed-to-get-dir-entries": "フォルダーの中身が読み込めませんでした。",
       "failed-to-fetch-history": "履歴が読み込めませんでした。",
       "bookshelf-error": "本棚の操作でエラーが発生しました。",
-      "tag-error": "タグの操作でエラーが発生しました。"
+      "tag-error": "タグの操作でエラーが発生しました。",
+      "series-error": "シリーズの操作でエラーが発生しました。",
+      "unknown": "問題が発生しました。"
     },
     "container": {
       "unsupported-format": "非対応形式です。",
       "entry-not-found": "ページが見つかりません。"
+    },
+    "settings": {
+      "save-failed": "設定の保存に失敗しました。",
+      "validation-failed": "設定の保存に失敗しました。入力内容を確認してください。",
+      "out-of-range": "「{{field}}」は {{min}}〜{{max}} の範囲で入力してください。",
+      "not-integer": "「{{field}}」は整数で入力してください。",
+      "invalid-number": "「{{field}}」には有効な数値を入力してください。"
     }
   },
   "updater": {

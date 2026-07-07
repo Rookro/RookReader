@@ -3,11 +3,11 @@ use std::{
     io::Cursor,
     sync::{
         atomic::{AtomicUsize, Ordering},
-        Arc,
+        Arc, RwLock,
     },
 };
 
-use image::{codecs::jpeg::JpegEncoder, ImageReader};
+use image::{codecs::jpeg::JpegEncoder, ImageFormat, ImageReader};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use rayon::ThreadPool;
 use thread_priority::*;
@@ -41,7 +41,10 @@ pub struct ImageLoader {
     /// Identifier for the current book (usually the file path).
     book_id: String,
     /// A shared, thread-safe cache for storing loaded images.
-    cache: Cache,
+    ///
+    /// Behind an `RwLock` so the handle can be swapped (on a cache-size change) through a
+    /// shared `&self`, letting the loader live inside an `Arc` shared across threads.
+    cache: RwLock<Cache>,
     /// A Rayon thread pool dedicated to preloading images in the background.
     thread_pool: ThreadPool,
     /// A generation counter used to signal cancellation to active preloading threads.
@@ -98,7 +101,7 @@ impl ImageLoader {
 
         Ok(Self {
             book_id,
-            cache,
+            cache: RwLock::new(cache),
             thread_pool,
             preload_generation: Arc::new(AtomicUsize::new(0)),
             container,
@@ -108,8 +111,18 @@ impl ImageLoader {
     }
 
     /// Sets a new cache instance for the image loader.
-    pub fn set_cache(&mut self, cache: Cache) {
-        self.cache = cache;
+    ///
+    /// Takes `&self` (not `&mut self`) so the loader can be swapped while shared behind an
+    /// `Arc`. A poisoned lock is recovered rather than propagated: the cache handle is a
+    /// plain value, so no invariant is broken by a panic mid-swap.
+    pub fn set_cache(&self, cache: Cache) {
+        *self.cache.write().unwrap_or_else(|e| e.into_inner()) = cache;
+    }
+
+    /// Returns a clone of the current cache handle (mini-moka handles are cheap Arc-like
+    /// clones). Recovers a poisoned lock instead of propagating it.
+    fn cache(&self) -> Cache {
+        self.cache.read().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
     /// Retrieves an image directly from the cache.
@@ -126,7 +139,7 @@ impl ImageLoader {
             book_id: self.book_id.clone(),
             entry: entry.to_string(),
         };
-        self.cache.get(&key)
+        self.cache().get(&key)
     }
 
     /// Retrieves an image, loading it from the container if not found in the cache.
@@ -162,7 +175,7 @@ impl ImageLoader {
             book_id: self.book_id.clone(),
             entry: entry.to_string(),
         };
-        self.cache.insert(key, image_arc.clone());
+        self.cache().insert(key, image_arc.clone());
 
         Ok(image_arc)
     }
@@ -220,6 +233,9 @@ impl ImageLoader {
         // Generate target indices and sort them by priority:
         // 1. Distance from center (closer = higher priority)
         // 2. Future pages get slight preference over past pages
+        // Snapshot the cache handle once (cheap Arc-like clone) and reuse it for the
+        // membership filter and the spawned preload, so we take the lock only once.
+        let cache = self.cache();
         let book_id_for_filter = self.book_id.clone();
         let mut target_indices: Vec<usize> = (start..end)
             .filter(|&i| {
@@ -227,7 +243,7 @@ impl ImageLoader {
                     book_id: book_id_for_filter.clone(),
                     entry: entries[i].clone(),
                 };
-                !self.cache.contains_key(&key)
+                !cache.contains_key(&key)
             })
             .collect();
 
@@ -251,7 +267,7 @@ impl ImageLoader {
             .collect();
 
         let container = self.container.clone();
-        let cache_clone = self.cache.clone();
+        let cache_clone = cache;
         let max_image_height = self.max_image_height;
         let resize_method = self.resize_method;
         let book_id = self.book_id.clone();
@@ -329,7 +345,10 @@ fn load_image(
     }
 }
 
-/// Helper function to resize an image and re-encode it as a JPEG.
+/// Helper function to resize an image and re-encode it.
+///
+/// Images with an alpha channel are re-encoded as PNG to preserve transparency;
+/// opaque images are re-encoded as JPEG (quality 80) to minimize transferred bytes.
 ///
 /// # Arguments
 ///
@@ -346,8 +365,14 @@ fn resize_image(image: Arc<Image>, height: u32, resize_method: ResizeFilter) -> 
     let scaled_image = shrink_to_fit(&dyn_image, u32::MAX, height, resize_method)?;
 
     let mut buffer = Vec::new();
-    let mut encoder = JpegEncoder::new_with_quality(&mut buffer, 80);
-    encoder.encode_image(&scaled_image)?;
+    // Preserve transparency by re-encoding alpha images as PNG; opaque images stay
+    // JPEG (q80) to minimize the bytes sent to the frontend.
+    if scaled_image.color().has_alpha() {
+        scaled_image.write_to(&mut Cursor::new(&mut buffer), ImageFormat::Png)?;
+    } else {
+        let mut encoder = JpegEncoder::new_with_quality(&mut buffer, 80);
+        encoder.encode_image(&scaled_image)?;
+    }
 
     Ok(Arc::new(Image {
         data: buffer,
@@ -459,5 +484,48 @@ mod tests {
         cache.insert(key, image);
 
         assert!(loader.get_image_from_cache("cached.png").is_some());
+    }
+
+    #[test]
+    fn resize_keeps_alpha_as_png() {
+        // 2x100 RGBA with a transparent pixel, encoded as PNG bytes.
+        let mut img = image::RgbaImage::new(2, 100);
+        img.put_pixel(0, 0, image::Rgba([0, 0, 0, 0]));
+        let mut src = Vec::new();
+        image::DynamicImage::ImageRgba8(img)
+            .write_to(&mut std::io::Cursor::new(&mut src), image::ImageFormat::Png)
+            .unwrap();
+        let out = resize_image(
+            Arc::new(Image {
+                data: src,
+                width: 2,
+                height: 100,
+            }),
+            10,
+            ResizeFilter::Bilinear,
+        )
+        .unwrap();
+        let decoded = image::load_from_memory(&out.data).unwrap();
+        assert!(decoded.color().has_alpha());
+    }
+
+    #[test]
+    fn resize_opaque_stays_decodable() {
+        let img = image::RgbImage::from_pixel(2, 100, image::Rgb([10, 20, 30]));
+        let mut src = Vec::new();
+        image::DynamicImage::ImageRgb8(img)
+            .write_to(&mut std::io::Cursor::new(&mut src), image::ImageFormat::Png)
+            .unwrap();
+        let out = resize_image(
+            Arc::new(Image {
+                data: src,
+                width: 2,
+                height: 100,
+            }),
+            10,
+            ResizeFilter::Bilinear,
+        )
+        .unwrap();
+        assert!(image::load_from_memory(&out.data).is_ok());
     }
 }

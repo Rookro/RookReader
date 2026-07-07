@@ -2,7 +2,7 @@ use std::fs::read_dir;
 use tauri::ipc::Response;
 
 use crate::container::traits::Container;
-use crate::error::{Error, Result};
+use crate::error::Result;
 
 /// Reads the contents of a directory and returns a list of its entries.
 ///
@@ -35,13 +35,39 @@ pub async fn get_entries_in_dir(dir_path: &str) -> Result<Response> {
     log::debug!("Get the directory entries in {}", dir_path);
     let mut buffer = Vec::new();
     for entry in read_dir(dir_path)? {
-        let entry = entry?;
-        let file_name = entry
-            .file_name()
-            .into_string()
-            .map_err(|_e| Error::Path("failed to get file name from DirEntry.".to_string()))?;
-        let file_type = entry.file_type()?;
-        let last_modified = entry.metadata()?.modified()?;
+        let entry = match entry {
+            Ok(entry) => entry,
+            Err(e) => {
+                log::warn!("skipping unreadable directory entry: {e}");
+                continue;
+            }
+        };
+        let file_name = match entry.file_name().into_string() {
+            Ok(file_name) => file_name,
+            Err(os_name) => {
+                // The name is valid on this OS but isn't representable as UTF-8, which
+                // the response format requires. Skip it rather than failing the listing.
+                log::warn!(
+                    "skipping entry whose name could not be decoded as UTF-8: {}",
+                    os_name.to_string_lossy()
+                );
+                continue;
+            }
+        };
+        let file_type = match entry.file_type() {
+            Ok(file_type) => file_type,
+            Err(e) => {
+                log::warn!("skipping entry '{file_name}': failed to read file type: {e}");
+                continue;
+            }
+        };
+        let last_modified = match entry.metadata().and_then(|m| m.modified()) {
+            Ok(modified) => modified,
+            Err(e) => {
+                log::warn!("skipping entry '{file_name}': failed to read metadata: {e}");
+                continue;
+            }
+        };
         let since_epoch = last_modified
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default();
@@ -173,6 +199,31 @@ mod tests {
         let entries = parse_entries(&bytes);
         // Unsupported files should be filtered out
         assert!(!entries.iter().any(|e| e.name == "test.txt"));
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn test_get_entries_in_dir_skips_broken_symlink() {
+        // A dangling symlink makes metadata()/modified() fail. It must be skipped
+        // rather than aborting the whole listing.
+        let temp_dir = TempDir::new().unwrap();
+        fs::File::create(temp_dir.path().join("archive.zip")).unwrap();
+        std::os::unix::fs::symlink(
+            temp_dir.path().join("does-not-exist"),
+            temp_dir.path().join("broken"),
+        )
+        .unwrap();
+
+        let result = get_entries_in_dir(temp_dir.path().to_string_lossy().as_ref())
+            .await
+            .unwrap();
+        let bytes = get_bytes_from_response(result);
+        let entries = parse_entries(&bytes);
+
+        // The valid archive is still listed despite the broken symlink.
+        assert!(entries
+            .iter()
+            .any(|e| e.name == "archive.zip" && !e.is_directory));
     }
 
     #[tokio::test]

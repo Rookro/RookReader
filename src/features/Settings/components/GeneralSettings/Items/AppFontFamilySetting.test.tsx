@@ -1,9 +1,13 @@
-import { emit } from "@tauri-apps/api/event";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getFonts } from "../../../../../bindings/FontCommands";
-import { createBasePreloadedState, renderWithProviders } from "../../../../../test/utils";
+import { mockTauri } from "../../../../../test/mocks/tauri";
+import {
+  createBasePreloadedState,
+  mockSettingsCommands,
+  renderWithProviders,
+} from "../../../../../test/utils";
 import AppFontFamilySetting from "./AppFontFamilySetting";
 
 describe("AppFontFamilySetting", () => {
@@ -11,6 +15,7 @@ describe("AppFontFamilySetting", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSettingsCommands();
     vi.mocked(getFonts).mockResolvedValue(["Arial", "Times New Roman"]);
   });
 
@@ -41,14 +46,9 @@ describe("AppFontFamilySetting", () => {
     await user.click(option);
 
     await waitFor(() => {
-      expect(emit).toHaveBeenCalledWith(
-        "settings-changed",
-        expect.objectContaining({
-          appSettings: expect.objectContaining({
-            general: expect.objectContaining({ appFontFamily: "Times New Roman" }),
-          }),
-        }),
-      );
+      expect(mockTauri.invoke).toHaveBeenCalledWith("set_settings", {
+        patch: { general: { appFontFamily: "Times New Roman" } },
+      });
     });
   });
 

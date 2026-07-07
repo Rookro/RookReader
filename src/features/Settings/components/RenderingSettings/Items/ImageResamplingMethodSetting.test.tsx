@@ -1,17 +1,20 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import * as containerCmds from "../../../../../bindings/ContainerCommands";
-import { mockStore } from "../../../../../test/mocks/tauri";
-import { createBasePreloadedState, renderWithProviders } from "../../../../../test/utils";
+import { mockTauri } from "../../../../../test/mocks/tauri";
+import {
+  createBasePreloadedState,
+  mockSettingsCommands,
+  renderWithProviders,
+} from "../../../../../test/utils";
 import ImageResamplingMethodSetting from "./ImageResamplingMethodSetting";
 
-// Mock ContainerCommands
 describe("ImageResamplingMethodSetting", () => {
   const user = userEvent.setup();
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSettingsCommands();
   });
 
   it("should load initial resize method from store", async () => {
@@ -43,13 +46,9 @@ describe("ImageResamplingMethodSetting", () => {
     await user.click(option);
 
     await waitFor(() => {
-      expect(containerCmds.setImageResamplingMethod).toHaveBeenCalledWith("nearest");
-      expect(mockStore.set).toHaveBeenCalledWith(
-        "reader",
-        expect.objectContaining({
-          rendering: expect.objectContaining({ imageResamplingMethod: "nearest" }),
-        }),
-      );
+      expect(mockTauri.invoke).toHaveBeenCalledWith("set_settings", {
+        patch: { reader: { rendering: { imageResamplingMethod: "nearest" } } },
+      });
     });
   });
 });

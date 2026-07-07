@@ -1,6 +1,6 @@
 [package]
 name = "rook-reader"
-version = "2.3.0"
+version = "2.3.1"
 description = "Comic Reader"
 authors = ["Rookro"]
 edition = "2021"
@@ -28,8 +28,8 @@ tauri = { version = "2", features = ["protocol-asset", "test"] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+serde_path_to_error = "0.1"
 tauri-plugin-fs = { version = "2", features = ["watch"] }
-tauri-plugin-store = "2"
 zip = "8.6.0"
 tauri-plugin-log = "2"
 log = "0.4"
@@ -55,6 +55,10 @@ async-trait = "0.1.89"
 tauri-plugin-process = "2"
 tokio = { version = "1.52.3", features = ["sync"] }
 thread-priority = "3.0.0"
+garde = { version = "0.23", features = ["derive"] }
+specta = { version = "=2.0.0-rc.25", features = ["derive", "chrono", "serde_json", "function"] }
+specta-typescript = "=0.0.12"
+tauri-specta = { version = "=2.0.0-rc.25", features = ["derive", "typescript"] }
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-updater = "2"
@@ -64,4 +68,4 @@ tauri-plugin-window-state = "2"
 mockall = "0.14.0"
 rstest = "0.26.1"
 tempfile = "3.27.0"
-tokio = "1.52.3"
+tokio = { version = "1.52.3", features = ["macros", "rt-multi-thread"] }

@@ -73,6 +73,7 @@ describe("useNovelReader", () => {
       containerFile: {
         index: 0,
         cfi: null as string | null,
+        isNovel: true,
       },
     },
     settings: {
@@ -141,8 +142,20 @@ describe("useNovelReader", () => {
     expect(viewElement.init).toHaveBeenCalled();
   });
 
-  it("should not load non-EPUB files", async () => {
-    setupHook("test.pdf");
+  it("should not load when the container is not a novel (per is_novel state)", async () => {
+    // Gate on the backend's is_novel contract, not the extension: even a .epub path
+    // is skipped when the slice says the container is not a novel.
+    vi.mocked(useAppSelector).mockImplementation(<T>(selector: (state: RootState) => T): T => {
+      const nonNovelState = {
+        ...defaultState,
+        read: {
+          containerFile: { ...defaultState.read.containerFile, isNovel: false },
+        },
+      };
+      return selector(nonNovelState as RootState);
+    });
+
+    setupHook("test.epub");
 
     await waitFor(() => {
       expect(readFile).not.toHaveBeenCalled();
@@ -365,7 +378,7 @@ describe("useNovelReader", () => {
         vi.mocked(useAppSelector).mockImplementation(<T>(selector: (state: RootState) => T): T => {
           return selector({
             ...defaultState,
-            read: { containerFile: { index: 0, cfi } },
+            read: { containerFile: { index: 0, cfi, isNovel: true } },
           } as RootState);
         });
         return useNovelReader({ filePath });
@@ -406,7 +419,7 @@ describe("useNovelReader", () => {
         vi.mocked(useAppSelector).mockImplementation(<T>(selector: (state: RootState) => T): T => {
           return selector({
             ...defaultState,
-            read: { containerFile: { index, cfi: null } },
+            read: { containerFile: { index, cfi: null, isNovel: true } },
           } as RootState);
         });
         return useNovelReader({ filePath });
@@ -607,7 +620,7 @@ describe("useNovelReader", () => {
     vi.mocked(useAppSelector).mockImplementation(<T>(selector: (state: RootState) => T): T => {
       const state = {
         ...defaultState,
-        read: { containerFile: { index: 5, cfi: "saved-cfi" } },
+        read: { containerFile: { index: 5, cfi: "saved-cfi", isNovel: true } },
       };
       return selector(state as RootState);
     });
@@ -684,7 +697,7 @@ describe("useNovelReader", () => {
         vi.mocked(useAppSelector).mockImplementation(<T>(selector: (state: RootState) => T): T => {
           return selector({
             ...defaultState,
-            read: { containerFile: { index, cfi: null } },
+            read: { containerFile: { index, cfi: null, isNovel: true } },
           } as RootState);
         });
         return useNovelReader({ filePath });

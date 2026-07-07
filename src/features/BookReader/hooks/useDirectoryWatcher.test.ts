@@ -76,4 +76,54 @@ describe("useDirectoryWatcher", () => {
       expect(error).toHaveBeenCalledWith(expect.stringContaining("Failed to watch /test/path"));
     });
   });
+
+  // Verify that a watcher resolved AFTER unmount is torn down immediately (no leak)
+  it("should unwatch when unmounted before watch resolves", async () => {
+    vi.mocked(useAppSelector).mockReturnValue(true);
+
+    let resolveWatch: (value: () => void) => void = () => {};
+    const mockUnwatch = vi.fn();
+    vi.mocked(watch).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveWatch = resolve;
+        }),
+    );
+
+    const { unmount } = renderHook(() => useDirectoryWatcher("/test/path", mockCallback));
+
+    // Unmount before the watch promise resolves, then resolve it.
+    unmount();
+    resolveWatch(mockUnwatch);
+
+    await waitFor(() => {
+      expect(mockUnwatch).toHaveBeenCalled();
+    });
+  });
+
+  // Verify that a stale watcher resolved after dirPath changes is torn down immediately
+  it("should unwatch the previous watcher when dirPath changes before watch resolves", async () => {
+    vi.mocked(useAppSelector).mockReturnValue(true);
+
+    const resolvers: Array<(value: () => void) => void> = [];
+    const staleUnwatch = vi.fn();
+    vi.mocked(watch).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolvers.push(resolve);
+        }),
+    );
+
+    const { rerender } = renderHook(({ dir }) => useDirectoryWatcher(dir, mockCallback), {
+      initialProps: { dir: "/path/a" },
+    });
+
+    // Change dirPath before the first watch resolves, then resolve the stale one.
+    rerender({ dir: "/path/b" });
+    resolvers[0]?.(staleUnwatch);
+
+    await waitFor(() => {
+      expect(staleUnwatch).toHaveBeenCalled();
+    });
+  });
 });

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            UPDATE books\n            SET series_order = (\n                SELECT j.key + 1 FROM json_each(?) j WHERE j.value = books.id\n            )\n            WHERE id IN (SELECT value FROM json_each(?))\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "4c6c50bfd1009943c82291e74a4a90fe2007e3cc9bd4c75ae417590081e3f684"
+}

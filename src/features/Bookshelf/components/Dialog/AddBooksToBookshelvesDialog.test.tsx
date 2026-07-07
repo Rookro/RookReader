@@ -113,6 +113,32 @@ describe("AddBooksToBookshelvesDialog", () => {
     });
   });
 
+  it("surfaces a save failure with a notification, refetches, and keeps the dialog open", async () => {
+    vi.mocked(BookshelfCommand.addBookToBookshelf).mockRejectedValue(new Error("Add failed"));
+    const onAddBooks = vi.fn();
+    const onClose = vi.fn();
+
+    renderWithProviders(
+      <AddBooksToBookshelvesDialog
+        openDialog={true}
+        bookIds={[123]}
+        availableBookshelves={mockBookshelves}
+        onClose={onClose}
+        onAddBooks={onAddBooks}
+      />,
+    );
+
+    await waitFor(() => expect(screen.getByText("Shelf 1")).toBeInTheDocument());
+    await user.click(screen.getAllByRole("checkbox")[0]);
+    await user.click(screen.getByRole("button", { name: /ok|決定/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText("Bookshelf operation failed.")).toBeInTheDocument(),
+    );
+    expect(onAddBooks).toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
   it("should just close if no book is passed and ok is clicked somehow", async () => {
     const onClose = vi.fn();
     const onAddBooks = vi.fn();

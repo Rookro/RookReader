@@ -1,9 +1,12 @@
-import { emit } from "@tauri-apps/api/event";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { mockStore } from "../../../../../test/mocks/tauri";
-import { createBasePreloadedState, renderWithProviders } from "../../../../../test/utils";
+import { mockTauri } from "../../../../../test/mocks/tauri";
+import {
+  createBasePreloadedState,
+  mockSettingsCommands,
+  renderWithProviders,
+} from "../../../../../test/utils";
 import PreloadPageCountSetting from "./PreloadPageCountSetting";
 
 describe("PreloadPageCountSetting", () => {
@@ -11,6 +14,7 @@ describe("PreloadPageCountSetting", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSettingsCommands();
   });
 
   it("should load initial state from settingsStore", async () => {
@@ -45,26 +49,9 @@ describe("PreloadPageCountSetting", () => {
 
     await waitFor(() => {
       expect(store.getState().settings.reader.comic.cache.preloadPageCount).toBe(20);
-      expect(mockStore.set).toHaveBeenCalledWith(
-        "reader",
-        expect.objectContaining({
-          comic: expect.objectContaining({
-            cache: expect.objectContaining({ preloadPageCount: 20 }),
-          }),
-        }),
-      );
-      expect(emit).toHaveBeenCalledWith(
-        "settings-changed",
-        expect.objectContaining({
-          appSettings: expect.objectContaining({
-            reader: expect.objectContaining({
-              comic: expect.objectContaining({
-                cache: expect.objectContaining({ preloadPageCount: 20 }),
-              }),
-            }),
-          }),
-        }),
-      );
+      expect(mockTauri.invoke).toHaveBeenCalledWith("set_settings", {
+        patch: { reader: { comic: { cache: { preloadPageCount: 20 } } } },
+      });
     });
   });
 });

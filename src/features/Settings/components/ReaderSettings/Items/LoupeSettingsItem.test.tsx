@@ -1,8 +1,12 @@
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { mockStore } from "../../../../../test/mocks/tauri";
-import { createBasePreloadedState, renderWithProviders } from "../../../../../test/utils";
+import { mockTauri } from "../../../../../test/mocks/tauri";
+import {
+  createBasePreloadedState,
+  mockSettingsCommands,
+  renderWithProviders,
+} from "../../../../../test/utils";
 import LoupeSettingsItem from "./LoupeSettingsItem";
 
 describe("LoupeSettingsItem", () => {
@@ -10,6 +14,7 @@ describe("LoupeSettingsItem", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSettingsCommands();
   });
 
   it("should load initial state from settingsStore", async () => {
@@ -53,14 +58,9 @@ describe("LoupeSettingsItem", () => {
 
     await waitFor(() => {
       expect(store.getState().settings.reader.comic.loupe.zoom).toBe(3.5);
-      expect(mockStore.set).toHaveBeenCalledWith(
-        "reader",
-        expect.objectContaining({
-          comic: expect.objectContaining({
-            loupe: expect.objectContaining({ zoom: 3.5 }),
-          }),
-        }),
-      );
+      expect(mockTauri.invoke).toHaveBeenCalledWith("set_settings", {
+        patch: { reader: { comic: { loupe: { zoom: 3.5 } } } },
+      });
     });
   });
 
@@ -80,14 +80,9 @@ describe("LoupeSettingsItem", () => {
 
     await waitFor(() => {
       expect(store.getState().settings.reader.comic.loupe.radius).toBe(250);
-      expect(mockStore.set).toHaveBeenCalledWith(
-        "reader",
-        expect.objectContaining({
-          comic: expect.objectContaining({
-            loupe: expect.objectContaining({ radius: 250 }),
-          }),
-        }),
-      );
+      expect(mockTauri.invoke).toHaveBeenCalledWith("set_settings", {
+        patch: { reader: { comic: { loupe: { radius: 250 } } } },
+      });
     });
   });
 

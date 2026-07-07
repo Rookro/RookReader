@@ -1,175 +1,80 @@
-/** Application settings */
-export interface AppSettings {
-  /** General application settings, including theming and fonts.*/
-  general: GeneralSettings;
-  /** Settings related to the application's startup behavior. */
-  startup: StartupSettings;
-  /** Settings specific to the bookshelf (library) view. */
-  bookshelf: BookshelfSettings;
-  /** Settings for the file navigator and directory management. */
-  fileNavigator: FileNavigatorSettings;
-  /** Settings for reading content (both comics and novels). */
-  reader: ReaderSettings;
-  /** Settings related to user history and tracking. */
-  history: HistorySettings;
-  /** Settings related to the application's layout. */
-  layout: LayoutSettings;
-}
+/**
+ * Frontend contract for application settings.
+ *
+ * The settings schema, defaults, and validation are owned by Rust; the TypeScript types
+ * are generated into `src/bindings/bindings.ts` by `tauri-specta`. This module re-exports
+ * those generated types under stable names and keeps the runtime const arrays the UI needs
+ * (specta exports *types*, not *values*).
+ *
+ * Two rc.25 wrinkles are smoothed over here:
+ * - Some settings types split into `_Serialize | _Deserialize` (because `ImageResamplingMethod`
+ *   has serde aliases). Commands return the `_Serialize` variant, so those are aliased to it.
+ * - The container `#[serde(default)]` makes every generated field **optional**. But the backend
+ *   always returns a fully-populated settings object (serialization emits every field), so the
+ *   data is complete at runtime. We therefore wrap the object types in {@link DeepRequired} to
+ *   recover the required-field shape the UI relies on (matching the pre-rc.25 generated types).
+ */
+import type {
+  AppSettings_Serialize,
+  BookshelfSettings as BookshelfSettingsGen,
+  ComicCacheSettings as ComicCacheSettingsGen,
+  ComicSettings as ComicSettingsGen,
+  FileNavigatorSettings as FileNavigatorSettingsGen,
+  GeneralSettings as GeneralSettingsGen,
+  HistorySettings as HistorySettingsGen,
+  LayoutSettings as LayoutSettingsGen,
+  LogSettings as LogSettingsGen,
+  LoupeSettings as LoupeSettingsGen,
+  NovelSettings as NovelSettingsGen,
+  ReaderSettings_Serialize,
+  RenderingSettings_Serialize,
+  SidePaneSettings as SidePaneSettingsGen,
+  StartupSettings as StartupSettingsGen,
+} from "../bindings/bindings";
 
-/** Settings related to the application's layout. */
-export interface LayoutSettings {
-  /** Settings for the side pane (tabs and visibility). */
-  sidePane: SidePaneSettings;
-}
+/**
+ * Recursively removes optionality and nullability.
+ *
+ * Sound for the settings tree because the backend always returns a complete object and no
+ * settings field is legitimately null. Stripping `null` also fixes the float fields, which
+ * specta types as `number | null` (serde serializes non-finite `f64` as JSON `null`) even
+ * though the `finite_f64` validator guarantees they are always finite at runtime.
+ */
+type DeepRequired<T> = T extends object ? { [K in keyof T]-?: DeepRequired<NonNullable<T[K]>> } : T;
 
-/** Settings for the side pane. */
-export interface SidePaneSettings {
-  /** Whether the side pane is hidden. */
-  isHidden: boolean;
-  /** The index of the active tab in the side pane. */
-  tabIndex: number;
-}
+export type AppSettings = DeepRequired<AppSettings_Serialize>;
+export type ReaderSettings = DeepRequired<ReaderSettings_Serialize>;
+export type RenderingSettings = DeepRequired<RenderingSettings_Serialize>;
+export type GeneralSettings = DeepRequired<GeneralSettingsGen>;
+export type StartupSettings = DeepRequired<StartupSettingsGen>;
+export type BookshelfSettings = DeepRequired<BookshelfSettingsGen>;
+export type FileNavigatorSettings = DeepRequired<FileNavigatorSettingsGen>;
+export type ComicSettings = DeepRequired<ComicSettingsGen>;
+export type ComicCacheSettings = DeepRequired<ComicCacheSettingsGen>;
+export type LoupeSettings = DeepRequired<LoupeSettingsGen>;
+export type NovelSettings = DeepRequired<NovelSettingsGen>;
+export type HistorySettings = DeepRequired<HistorySettingsGen>;
+export type LayoutSettings = DeepRequired<LayoutSettingsGen>;
+export type SidePaneSettings = DeepRequired<SidePaneSettingsGen>;
+export type LogSettings = DeepRequired<LogSettingsGen>;
 
-/** General application settings. */
-export interface GeneralSettings {
-  /** The application's color theme. */
-  theme: AppTheme;
-  /** The font family used for the application's UI. */
-  appFontFamily: string;
-  /** Configuration for application logging. */
-  log: LogSettings;
-  /** Configuration for experimental features. */
-  experimentalFeatures: ExperimentalFeaturesSettings;
-}
+/** String-union enums (no optionality concern — re-exported directly). */
+export type {
+  AppTheme,
+  AutoOpenAdjacentBookMode,
+  Direction,
+  ImageResamplingMethod_Serialize as ImageResamplingMethod,
+  InitialView,
+  LogLevel,
+  SortOrder,
+} from "../bindings/bindings";
 
-/** Configuration for application logging. */
-export interface LogSettings {
-  /** The minimum severity level to log. */
-  level: LogLevel;
-}
+import type {
+  AutoOpenAdjacentBookMode,
+  ImageResamplingMethod_Serialize,
+} from "../bindings/bindings";
 
-/** Settings related to the application's startup behavior. */
-export interface StartupSettings {
-  /** The initial view presented to the user upon launch. */
-  initialView: "reader" | "bookshelf";
-  /** Whether to automatically restore the last opened book/container on startup. */
-  restoreLastBook: boolean;
-  /** Whether to automatically check for updates on startup. */
-  checkUpdateOnStartup: boolean;
-}
-
-/** Settings specific to the bookshelf view. */
-export interface BookshelfSettings {
-  /** The criteria used to sort items in the bookshelf. */
-  sortOrder: SortOrder;
-  /** The number of size to display in the bookshelf grid. */
-  gridSize: number;
-  /** Whether to enable automatic horizontal scrolling for overflowing text. */
-  enableAutoScroll: boolean;
-}
-
-/** Settings for the file navigator. */
-export interface FileNavigatorSettings {
-  /** The default directory opened when clicking the Home button. */
-  homeDirectory: string;
-  /** The criteria used to sort files and directories. */
-  sortOrder: SortOrder;
-  /** Whether to automatically watch the current directory for file changes. */
-  watchDirectoryChanges: boolean;
-}
-
-/**  Settings for the reading experience. */
-export interface ReaderSettings {
-  /** Configuration specific to reading comics/manga (images). */
-  comic: ComicSettings;
-  /** Configuration specific to reading novels (text). */
-  novel: NovelSettings;
-  /** Configuration for how pages and previews are rendered. */
-  rendering: RenderingSettings;
-  /** Behavior when paging past the last/first page of a book (auto-open the adjacent book). */
-  autoOpenAdjacentBook: AutoOpenAdjacentBookMode;
-}
-
-/** The available modes for auto-opening the adjacent book. */
-export const autoOpenAdjacentBookModes = ["off", "ask", "auto"] as const;
-
-/** Behavior when paging past the last/first page of a book. */
-export type AutoOpenAdjacentBookMode = (typeof autoOpenAdjacentBookModes)[number];
-
-/** Configuration specific to reading comics (image-based content). */
-export interface ComicSettings {
-  /** The reading direction (e.g., Right-to-Left for Japanese manga). */
-  readingDirection: Direction;
-  /** Whether to display pages side-by-side (two-page spread). */
-  enableSpread: boolean;
-  /** Whether to force the first page (cover) to display as a single page in spread mode. */
-  showCoverAsSinglePage: boolean;
-  /** Configuration for the Loupe (Magnifier) feature. */
-  loupe: LoupeSettings;
-  /** Configuration for image caching and preloading. */
-  cache: ComicCacheSettings;
-}
-
-/** Configuration for image caching and preloading. */
-export interface ComicCacheSettings {
-  /** The number of pages to preload in each direction (forward and backward). */
-  preloadPageCount: number;
-  /** The maximum size of the image memory cache in MiB. */
-  imageCacheSizeMib: number;
-}
-
-/** Configuration for the Loupe (Magnifier) feature. */
-export interface LoupeSettings {
-  /** The magnification zoom level of the loupe. */
-  zoom: number;
-  /** The radius (size) of the loupe. */
-  radius: number;
-  /** The keyboard shortcut key to toggle the loupe. */
-  toggleKey: string;
-}
-
-/** Configuration specific to reading novels (text-based content).*/
-export interface NovelSettings {
-  /** The font family used for rendering the text. */
-  fontFamily: string;
-  /** The size of the font used for rendering the text. */
-  fontSize: number;
-}
-
-/** Configuration for image and document rendering. */
-export interface RenderingSettings {
-  /** Whether to generate and display thumbnail previews for pages. */
-  enableThumbnailPreview: boolean;
-  /** The maximum allowed height for an image before it is scaled down. */
-  maxImageHeight: number;
-  /** The algorithm used for resampling (resizing) images. */
-  imageResamplingMethod: ImageResamplingMethod;
-  /** The vertical resolution used when rasterizing PDF pages to images. */
-  pdfRenderResolutionHeight: number;
-}
-
-/** Settings related to tracking user history. */
-export interface HistorySettings {
-  /** Whether to record the user's reading history and progress. */
-  recordReadingHistory: boolean;
-}
-
-/** Represents the application's visual theme. */
-export type AppTheme = "light" | "dark" | "system";
-
-/** Represents the severity level for application logs. */
-export type LogLevel = "trace" | "debug" | "info" | "warn" | "error";
-
-/** Represents the initial view shown when the app starts. */
-export type InitialView = "reader" | "bookshelf";
-
-/** Represents the criteria used for sorting items. */
-export type SortOrder = "name_asc" | "name_desc" | "date_asc" | "date_desc";
-
-/** Represents the direction in which content should be read. */
-export type Direction = "rtl" | "ltr";
-
-/** The algorithms used for resampling (resizing) images. */
+/** The algorithms available for resampling (resizing) images (UI dropdown order). */
 export const imageResamplingMethods = [
   "nearest",
   "box",
@@ -178,13 +83,11 @@ export const imageResamplingMethods = [
   "catmullRom",
   "mitchellNetravali",
   "lanczos3",
-] as const;
+] as const satisfies readonly ImageResamplingMethod_Serialize[];
 
-/** Represents the algorithm used for resampling (resizing) images. */
-export type ImageResamplingMethod = (typeof imageResamplingMethods)[number];
-
-/** Configuration for experimental features. */
-export interface ExperimentalFeaturesSettings {
-  /** To avoid empty interface .*/
-  dummy?: never;
-}
+/** The available modes for auto-opening the adjacent book (UI dropdown order). */
+export const autoOpenAdjacentBookModes = [
+  "off",
+  "ask",
+  "auto",
+] as const satisfies readonly AutoOpenAdjacentBookMode[];

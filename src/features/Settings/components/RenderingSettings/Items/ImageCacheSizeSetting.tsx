@@ -1,58 +1,35 @@
 import { StorageOutlined } from "@mui/icons-material";
-import { emit } from "@tauri-apps/api/event";
-import { error } from "@tauri-apps/plugin-log";
-import { useCallback, useState } from "react";
+import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { setImageCacheSizeMib } from "../../../../../bindings/ContainerCommands";
-import { useAppDispatch, useAppSelector } from "../../../../../store/store";
-import type { SettingsChangedEvent } from "../../../../../types/SettingsChangedEvent";
-import { updateSettings } from "../../../slice";
+import { useAppSelector } from "../../../../../store/store";
+import { useSettingsFieldError } from "../../../hooks/useSettingsFieldError";
+import { SETTINGS_BOUNDS } from "../../../settingsBounds";
 import NumberSpinnerSettingItem from "../../ui/NumberSpinnerSettingItem";
+
+const bounds = SETTINGS_BOUNDS["reader.comic.cache.imageCacheSizeMib"];
 
 /**
  * Image cache size setting component.
  */
 export default function ImageCacheSizeSetting() {
   const { t } = useTranslation();
-  const dispatch = useAppDispatch();
-  const comicSettings = useAppSelector((state) => state.settings.reader.comic);
-  const [isError, setIsError] = useState(false);
-  const [errorMsg, setErrorMsg] = useState("");
-
-  // Re-fetch current reader settings to ensure we update correctly
-  const readerSettings = useAppSelector((state) => state.settings.reader);
+  const imageCacheSizeMib = useAppSelector(
+    (state) => state.settings.reader.comic.cache.imageCacheSizeMib,
+  );
+  const { error, helperText, commit } = useSettingsFieldError(
+    "reader.comic.cache.imageCacheSizeMib",
+    imageCacheSizeMib,
+  );
 
   const handleCommitted = useCallback(
     async (value: number | null) => {
       const size = value ?? 1024;
 
-      try {
-        await setImageCacheSizeMib(size);
-      } catch (e) {
-        error(`Failed to set image cache size: ${e}`);
-        setIsError(true);
-        setErrorMsg(t("settings.rendering.cache.image-cache-size.error-message"));
-        return;
-      }
-
-      setIsError(false);
-      setErrorMsg("");
-
-      const newComicSettings = {
-        ...readerSettings.comic,
-        cache: { ...readerSettings.comic.cache, imageCacheSizeMib: size },
-      };
-      const newReaderSettings = {
-        ...readerSettings,
-        comic: newComicSettings,
-      };
-
-      await dispatch(updateSettings({ key: "reader", value: newReaderSettings }));
-      await emit<SettingsChangedEvent>("settings-changed", {
-        appSettings: { reader: newReaderSettings },
-      });
+      // Send only the changed leaf; the backend validates and, on rejection, returns a
+      // structured violation the hook surfaces inline below the field.
+      await commit({ key: "reader", value: { comic: { cache: { imageCacheSizeMib: size } } } });
     },
-    [t, dispatch, readerSettings],
+    [commit],
   );
 
   return (
@@ -61,10 +38,11 @@ export default function ImageCacheSizeSetting() {
       primaryText={t("settings.rendering.cache.image-cache-size.title")}
       secondaryText={t("settings.rendering.cache.image-cache-size.description")}
       secondaryTextSx={{ whiteSpace: "pre-wrap" }}
-      defaultValue={comicSettings.cache.imageCacheSizeMib}
-      min={128}
-      error={isError}
-      helperText={errorMsg}
+      defaultValue={imageCacheSizeMib}
+      min={bounds.min}
+      max={bounds.max}
+      error={error}
+      helperText={helperText}
       onValueCommitted={handleCommitted}
       inputSx={{ minWidth: "200px" }}
     />

@@ -77,7 +77,7 @@ impl BookRepository for SqliteBookRepository {
             r#"
             SELECT
                 id, file_path, item_type, display_name, total_pages, series_id, series_order,
-                thumbnail_path, last_read_page_index, last_opened_at,
+                thumbnail_path, created_at, last_read_page_index, last_opened_at,
                 tag_ids_str as "tag_ids_str?: String"
             FROM book_with_state_view
             WHERE id = ?
@@ -99,13 +99,18 @@ impl BookRepository for SqliteBookRepository {
         total_pages: i64,
         thumbnail_path: Option<String>,
     ) -> Result<i64> {
+        // Stamp created_at on insert; it is intentionally absent from the ON CONFLICT
+        // clause so re-registering an existing book preserves its original timestamp.
+        let now = chrono::Utc::now().naive_utc();
         let book_id = sqlx::query!(
             r#"
-            INSERT INTO books (file_path, item_type, display_name, total_pages, thumbnail_path)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO books (file_path, item_type, display_name, total_pages, thumbnail_path, created_at)
+            VALUES (?, ?, ?, ?, ?, ?)
             ON CONFLICT(file_path) DO UPDATE SET
-                -- Use ON CONFLICT DO UPDATE SET id = id to always return the ID.
-                file_path = excluded.file_path,
+                -- Refresh the path-derived metadata so re-registering an existing book
+                -- reflects updated page counts and renamed display names.
+                display_name = excluded.display_name,
+                total_pages = excluded.total_pages,
                 thumbnail_path = excluded.thumbnail_path
             RETURNING id
             "#,
@@ -113,7 +118,8 @@ impl BookRepository for SqliteBookRepository {
             item_type,
             display_name,
             total_pages,
-            thumbnail_path
+            thumbnail_path,
+            now
         )
         .fetch_one(&self.pool)
         .await?
@@ -134,11 +140,14 @@ impl BookRepository for SqliteBookRepository {
         let now = chrono::Utc::now().naive_utc();
         let book_id = sqlx::query!(
             r#"
-            INSERT INTO books (file_path, item_type, display_name, total_pages, thumbnail_path)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO books (file_path, item_type, display_name, total_pages, thumbnail_path, created_at)
+            VALUES (?, ?, ?, ?, ?, ?)
             ON CONFLICT(file_path) DO UPDATE SET
-                -- Use ON CONFLICT DO UPDATE SET id = id to always return the ID.
-                file_path = excluded.file_path,
+                -- Refresh the path-derived metadata so re-opening an existing book
+                -- reflects updated page counts and renamed display names.
+                -- created_at is intentionally left untouched to preserve the original.
+                display_name = excluded.display_name,
+                total_pages = excluded.total_pages,
                 thumbnail_path = excluded.thumbnail_path
             RETURNING id
             "#,
@@ -146,7 +155,8 @@ impl BookRepository for SqliteBookRepository {
             item_type,
             display_name,
             total_pages,
-            thumbnail_path
+            thumbnail_path,
+            now
         )
         .fetch_one(&mut *tx)
         .await?
@@ -199,10 +209,10 @@ impl BookRepository for SqliteBookRepository {
         sqlx::query!(
             r#"
             INSERT INTO reading_state (book_id, last_read_page_index, last_opened_at)
-            VALUES (?, ?, ?)
+            VALUES (?, ?, COALESCE(?, CURRENT_TIMESTAMP))
             ON CONFLICT(book_id) DO UPDATE SET
                 last_read_page_index = excluded.last_read_page_index,
-                last_opened_at = excluded.last_opened_at
+                last_opened_at = COALESCE(excluded.last_opened_at, reading_state.last_opened_at)
             "#,
             state.book_id,
             state.last_read_page_index,
@@ -217,6 +227,9 @@ impl BookRepository for SqliteBookRepository {
     async fn get_recently_read_books(&self, limit: Option<i64>) -> Result<Vec<ReadBook>> {
         let books = match limit {
             Some(limit) => {
+                // SQLite treats a negative LIMIT as unlimited; clamp so the contract
+                // ("at most N") holds even for a negative input.
+                let limit = limit.max(0);
                 sqlx::query_as!(
                     ReadBook,
                     r#"
@@ -263,7 +276,7 @@ impl BookRepository for SqliteBookRepository {
             r#"
             SELECT
                 id, file_path, item_type, display_name, total_pages, series_id, series_order,
-                thumbnail_path, last_read_page_index, last_opened_at,
+                thumbnail_path, created_at, last_read_page_index, last_opened_at,
                 tag_ids_str as "tag_ids_str?: String"
             FROM book_with_state_view
             ORDER BY id DESC

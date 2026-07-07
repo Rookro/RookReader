@@ -23,6 +23,7 @@ use crate::error::Result;
 /// This function will return an `Err` if the underlying repository operation fails
 /// (e.g., due to a database error, connection issue, or query execution failure).
 #[tauri::command]
+#[specta::specta]
 pub async fn create_tag<R: tauri::Runtime>(
     name: String,
     color_code: String,
@@ -50,6 +51,7 @@ pub async fn create_tag<R: tauri::Runtime>(
 /// This function will return an `Err` if the underlying repository operation fails
 /// (e.g., due to a database error, connection issue, or query execution failure).
 #[tauri::command]
+#[specta::specta]
 pub async fn get_all_tags(repo: State<'_, Arc<dyn TagRepository>>) -> Result<Vec<Tag>> {
     log::debug!("Get all tags.");
     repo.get_all().await
@@ -66,6 +68,7 @@ pub async fn get_all_tags(repo: State<'_, Arc<dyn TagRepository>>) -> Result<Vec
 ///
 /// This function will return an `Err` if the underlying repository operation fails.
 #[tauri::command]
+#[specta::specta]
 pub async fn delete_tag<R: tauri::Runtime>(
     id: i64,
     repo: State<'_, Arc<dyn TagRepository>>,

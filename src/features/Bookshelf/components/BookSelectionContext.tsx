@@ -82,25 +82,16 @@ export function BookSelectionProvider({ children }: BookSelectionProviderProps) 
             return next;
           });
         }
+      } else if (selectedBookIds.size > 0) {
+        // A plain click with an active selection clears it and selects this book.
+        lastClickedBookIdRef.current = book.id;
+        setSelectedBookIds(new Set([book.id]));
       } else {
-        let shouldOpen = false;
-        setSelectedBookIds((prev) => {
-          if (prev.size > 0) {
-            // If we have selections, clicking without modifiers clears selection and selects the new one
-            lastClickedBookIdRef.current = book.id;
-            return new Set([book.id]);
-          } else {
-            shouldOpen = true;
-            return prev;
-          }
-        });
-
-        if (shouldOpen) {
-          onBookSelect?.(book);
-        }
+        // No active selection: a plain click opens the book.
+        onBookSelect?.(book);
       }
     },
-    [toggleSelection],
+    [toggleSelection, selectedBookIds],
   );
 
   const value = useMemo(

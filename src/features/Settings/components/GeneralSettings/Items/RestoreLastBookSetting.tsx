@@ -15,13 +15,9 @@ export default function RestoreLastBookSetting() {
 
   const handleRestoreLastBookChanged = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const newStartupSettings = {
-        ...startupSettings,
-        restoreLastBook: e.target.checked,
-      };
-      dispatch(updateSettings({ key: "startup", value: newStartupSettings }));
+      dispatch(updateSettings({ key: "startup", value: { restoreLastBook: e.target.checked } }));
     },
-    [dispatch, startupSettings],
+    [dispatch],
   );
 
   return (
@@ -29,7 +25,7 @@ export default function RestoreLastBookSetting() {
       icon={<RestorePageOutlined />}
       primaryText={t("settings.general.restore-last-read.title")}
       secondaryText={t("settings.general.restore-last-read.description")}
-      defaultChecked={startupSettings.restoreLastBook}
+      checked={startupSettings.restoreLastBook}
       onChange={handleRestoreLastBookChanged}
     />
   );

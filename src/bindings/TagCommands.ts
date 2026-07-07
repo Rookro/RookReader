@@ -1,6 +1,5 @@
-import { invoke } from "@tauri-apps/api/core";
-import type { Tag } from "../domain/tag/schema";
-import { createCommandError } from "../types/Error";
+import { commands } from "./bindings";
+import { runCommand } from "./result";
 
 /**
  * Creates a new tag in the database.
@@ -11,11 +10,7 @@ import { createCommandError } from "../types/Error";
  * @throws {CommandError} If the Tauri command fails.
  */
 export async function createTag(name: string, colorCode: string) {
-  try {
-    return await invoke<Tag>("create_tag", { name, colorCode });
-  } catch (error) {
-    throw createCommandError(error);
-  }
+  return await runCommand(commands.createTag(name, colorCode));
 }
 
 /**
@@ -25,11 +20,7 @@ export async function createTag(name: string, colorCode: string) {
  * @throws {CommandError} If the Tauri command fails.
  */
 export async function getAllTags() {
-  try {
-    return await invoke<Tag[]>("get_all_tags");
-  } catch (error) {
-    throw createCommandError(error);
-  }
+  return await runCommand(commands.getAllTags());
 }
 
 /**
@@ -39,10 +30,7 @@ export async function getAllTags() {
  * @returns A promise that resolves when the tag is successfully deleted.
  * @throws {CommandError} If the Tauri command fails.
  */
-export async function deleteTag(id: number) {
-  try {
-    return await invoke<void>("delete_tag", { id });
-  } catch (error) {
-    throw createCommandError(error);
-  }
+export async function deleteTag(id: number): Promise<void> {
+  // Throws on error; the unwrapped `null` payload is intentionally ignored.
+  await runCommand(commands.deleteTag(id));
 }

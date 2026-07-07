@@ -16,6 +16,7 @@ import { error as logError } from "@tauri-apps/plugin-log";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getBookTags, updateBookTags } from "../../../../bindings/BookCommands";
+import { useNotification } from "../../../../components/ui/Notification/NotificationContext";
 import type { Tag } from "../../../../domain/tag/schema";
 
 /** Props for the SetBookTagsDialog component */
@@ -41,18 +42,28 @@ export default function SetBookTagsDialog({
   onClose,
 }: SetBookTagsDialogProps) {
   const { t } = useTranslation();
+  const { showNotification } = useNotification();
   const [selectedTagIds, setSelectedTagIds] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     if (openDialog && bookIds.length === 1) {
+      let stale = false;
       getBookTags(bookIds[0])
         .then((tagIds) => {
-          setSelectedTagIds(new Set(tagIds));
+          if (!stale) setSelectedTagIds(new Set(tagIds));
         })
         .catch((e) => {
           logError(`Failed to fetch book tags: ${e}`);
+          // Never keep a previous session's checkboxes: saving those would
+          // silently overwrite this book's tags.
+          if (!stale) setSelectedTagIds(new Set());
         });
-    } else if (openDialog && bookIds.length > 1) {
+      return () => {
+        // Ignore a late response after the dialog reopened for another book.
+        stale = true;
+      };
+    }
+    if (openDialog && bookIds.length > 1) {
       // Start with no tags selected when modifying multiple books.
       setSelectedTagIds(new Set());
     }
@@ -80,8 +91,12 @@ export default function SetBookTagsDialog({
       onClose();
     } catch (e) {
       logError(`Failed to update book tags: ${e}`);
+      // Some updates may have succeeded before the failure: refetch so the UI
+      // reflects reality, keep the dialog open for retry, and tell the user.
+      onUpdateTags();
+      showNotification(t("error-message.common.tag-error"), "error");
     }
-  }, [bookIds, selectedTagIds, onUpdateTags, onClose]);
+  }, [bookIds, selectedTagIds, onUpdateTags, onClose, showNotification, t]);
 
   return (
     <Dialog open={openDialog} onClose={onClose} fullWidth>

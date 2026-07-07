@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as BookCommands from "../../bindings/BookCommands";
+import { readingProgressChanged } from "../../store/actions";
 import { createMockReadBook } from "../../test/factories";
 import { type AppStore, createTestStore } from "../../test/utils";
 import { ErrorCode } from "../../types/Error";
@@ -32,9 +33,48 @@ describe("HistoryReducer", () => {
   // Verify that history related error state is cleared correctly
   it("should handle clearHistoryError", () => {
     const stateWithError = structuredClone(initialState);
-    stateWithError.error = { code: ErrorCode.OTHER_ERROR, message: "test error" };
+    stateWithError.error = { code: ErrorCode.other, message: "test error" };
     const nextState = historyReducer(stateWithError, clearHistoryError());
     expect(nextState.error).toBeNull();
+  });
+
+  // Verify that readingProgressChanged patches the matching book in place.
+  it("should patch the matching book on readingProgressChanged", () => {
+    const state = {
+      ...initialState,
+      recentlyReadBooks: [
+        createMockReadBook({ id: 1, last_read_page_index: 0 }),
+        createMockReadBook({ id: 2, last_read_page_index: 5 }),
+      ],
+    };
+    const nextState = historyReducer(
+      state,
+      readingProgressChanged({
+        book_id: 2,
+        last_read_page_index: 9,
+        last_opened_at: "2026-07-04T10:00:00",
+      }),
+    );
+    expect(nextState.recentlyReadBooks[0].last_read_page_index).toBe(0);
+    expect(nextState.recentlyReadBooks[1].last_read_page_index).toBe(9);
+    expect(nextState.recentlyReadBooks[1].last_opened_at).toBe("2026-07-04T10:00:00");
+  });
+
+  // Verify that readingProgressChanged for an unknown book id is a no-op.
+  it("should ignore readingProgressChanged for an unknown book id", () => {
+    const state = {
+      ...initialState,
+      recentlyReadBooks: [createMockReadBook({ id: 1, last_read_page_index: 3 })],
+    };
+    const nextState = historyReducer(
+      state,
+      readingProgressChanged({
+        book_id: 999,
+        last_read_page_index: 42,
+        last_opened_at: "2026-07-04T10:00:00",
+      }),
+    );
+    expect(nextState.recentlyReadBooks[0].last_read_page_index).toBe(3);
   });
 
   describe("Async Thunk Integration Tests", () => {
@@ -88,42 +128,42 @@ describe("HistoryReducer", () => {
       // Verify handling of CommandError when fetching recently read books
       it("fetchRecentlyReadBooks should handle CommandError", async () => {
         const { CommandError } = await import("../../types/Error");
-        const mockError = new CommandError(ErrorCode.IO_ERROR, "io error");
+        const mockError = new CommandError(ErrorCode.io, "io error");
         vi.mocked(BookCommands.getRecentlyReadBooks).mockRejectedValue(mockError);
 
         await store.dispatch(fetchRecentlyReadBooks());
 
         const state = store.getState().history;
         expect(state.status).toBe("failed");
-        expect(state.error?.code).toBe(ErrorCode.IO_ERROR);
+        expect(state.error?.code).toBe(ErrorCode.io);
         expect(state.error?.message).toContain("io error");
       });
 
       // Verify handling of CommandError when clearing history
       it("clearHistory should handle CommandError", async () => {
         const { CommandError } = await import("../../types/Error");
-        const mockError = new CommandError(ErrorCode.IO_ERROR, "io error");
+        const mockError = new CommandError(ErrorCode.io, "io error");
         vi.mocked(BookCommands.clearReadingHistory).mockRejectedValue(mockError);
 
         await store.dispatch(clearHistory(1));
 
         const state = store.getState().history;
         expect(state.status).toBe("failed");
-        expect(state.error?.code).toBe(ErrorCode.IO_ERROR);
+        expect(state.error?.code).toBe(ErrorCode.io);
         expect(state.error?.message).toContain("io error");
       });
 
       // Verify handling of CommandError when clearing all history
       it("clearAllHistory should handle CommandError", async () => {
         const { CommandError } = await import("../../types/Error");
-        const mockError = new CommandError(ErrorCode.IO_ERROR, "io error");
+        const mockError = new CommandError(ErrorCode.io, "io error");
         vi.mocked(BookCommands.clearAllReadingHistory).mockRejectedValue(mockError);
 
         await store.dispatch(clearAllHistory());
 
         const state = store.getState().history;
         expect(state.status).toBe("failed");
-        expect(state.error?.code).toBe(ErrorCode.IO_ERROR);
+        expect(state.error?.code).toBe(ErrorCode.io);
         expect(state.error?.message).toContain("io error");
       });
 

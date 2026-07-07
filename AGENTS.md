@@ -1,6 +1,6 @@
-# RookReader Gemini AI Instructions
+# RookReader AI Agent Instructions
 
-This document provides foundational mandates, project context, and workflows for Gemini AI when assisting with the **RookReader** project. These instructions take absolute precedence.
+This document provides foundational mandates, project context, and workflows for AI agents when assisting with the **RookReader** project. These instructions take absolute precedence.
 
 ## 1. Project Context
 
@@ -10,7 +10,7 @@ This document provides foundational mandates, project context, and workflows for
   - **Frontend:** React (v19), TypeScript, Vite (v8), Material UI (MUI), Redux Toolkit.
   - **Backend:** Rust, Tauri (v2), SQLite (sqlx).
   - **Testing:** Vitest (Frontend unit tests), WebdriverIO (E2E).
-  - **Validation:** Zod (schema and input validation).
+  - **Validation:** Application settings are validated in Rust (serde for shape/enums + `garde` for value bounds); their TypeScript types are generated from Rust by `tauri-specta` (`src/bindings/bindings.ts`). Zod is used for other frontend schema/input validation (e.g. domain entities).
 - **Architecture:**
   - Frontend code resides in `src/`.
     - `src/features/`: Feature-scoped UI components.
@@ -20,7 +20,7 @@ This document provides foundational mandates, project context, and workflows for
   - Components are primarily functional React components with hooks.
   - Backend code resides in `src-tauri/src/`.
     - `src-tauri/src/commands/`: Tauri commands exposed to the frontend.
-    - `src-tauri/src/database/`: SQLite database operations via sqlx.
+    - `src-tauri/src/infrastructure/database/`: SQLite database operations via sqlx.
     - `src-tauri/src/container/`: File system access and parsing logic for zip, rar, pdf, and epub formats.
   - State management is handled by Redux Toolkit for complex global state, and React hooks for local state.
 - **Coding Standards:**
@@ -30,7 +30,7 @@ This document provides foundational mandates, project context, and workflows for
     - **Language:** All comments and documentation must be written in English.
     - **TypeScript:** Use TSDoc format (`/** ... */`) for exported functions, interfaces, types, and React component props.
     - **Rust:** Use standard Rustdoc (`///` or `//!`). For public functions, module definitions, and Tauri commands, explicitly document parameters and return types using `# Arguments`, `# Returns`, and `# Errors` sections.
-  - **Tauri Commands:** Ensure Tauri commands (`#[tauri::command]`) are properly registered in `src-tauri/src/lib.rs` and have corresponding TypeScript bindings in `src/bindings/`. For frontend integrations requiring system access, **must strictly use official Tauri v2 plugins** (e.g., `@tauri-apps/plugin-fs`, `@tauri-apps/plugin-dialog`) rather than legacy core APIs.
+  - **Tauri Commands:** Ensure Tauri commands (`#[tauri::command]` + `#[specta::specta]`) are registered in `src-tauri/src/lib.rs`'s `specta_builder()`; their TypeScript types and `invoke` wrappers are generated into `src/bindings/bindings.ts` by `tauri-specta`, and `src/bindings/*Commands.ts` are thin wrappers delegating to the generated `commands.*` (narrowed `domain/*` types are kept as the frontend contract via `as` casts). For frontend integrations requiring system access, **must strictly use official Tauri v2 plugins** (e.g., `@tauri-apps/plugin-fs`, `@tauri-apps/plugin-dialog`) rather than legacy core APIs.
 
 ## 2. Workflows & Commands
 
@@ -55,16 +55,18 @@ This document provides foundational mandates, project context, and workflows for
   - `sqlx migrate add -r <name>`: Creates a new migration file (`<timestamp>_<name>.up.sql` and `<timestamp>_<name>.down.sql`).
   - `cargo sqlx prepare`: Generates the `query-*.json` files required for OFFLINE builds. Ensure this is run after any schema or query changes.
 
-## 3. Core Mandates for Gemini AI
+## 3. Core Mandates for AI Agents
 
 1.  **Understand the Architecture:** When adding a new feature that touches both frontend and backend, ensure you:
-    - Create or update the Rust core logic (e.g., in `src-tauri/src/database/` or `src-tauri/src/container/`).
+    - Create or update the Rust core logic (e.g., in `src-tauri/src/infrastructure/database/` or `src-tauri/src/container/`).
     - Create or update the Tauri command in `src-tauri/src/commands/`.
-    - Register the command in `src-tauri/src/lib.rs`.
-    - Create or update the TypeScript binding in `src/bindings/`.
+    - Register the command in `src-tauri/src/lib.rs`: specta-compatible commands go in `specta_builder()` (`collect_commands!`); binary commands returning a raw `tauri::ipc::Response` are instead added to the small separate `generate_handler!` and routed by command name.
+    - Regenerate the TypeScript bindings (`npm run gen:bindings`, which writes the `tauri-specta`-generated
+      `src/bindings/bindings.ts`), then add/update the thin wrapper in `src/bindings/*Commands.ts` that
+      delegates to the generated `commands.*` (binary `tauri::ipc::Response` commands keep a raw `invoke`).
     - Integrate the binding into the React frontend (e.g., Redux thunk or custom hook).
 2.  **State Management:** Prefer Redux Toolkit (`createAsyncThunk`, `createSlice`) for global application state (like reading history, bookshelf contents). Use local React state (`useState`, `useReducer`) for component-specific UI state.
-3.  **Error Handling:** Surface backend errors clearly to the frontend. Use the custom `CommandError` structure defined in `src/types/Error.ts`.
+3.  **Error Handling:** Surface backend errors clearly to the frontend. Use the custom `CommandError` structure defined in `src/types/Error.ts`. The numeric `ErrorCode` values are the **single source of truth in Rust** (`ErrorCode::code()` in `src-tauri/src/error.rs`): `npm run gen:bindings` generates `src/bindings/errorCodes.ts` from the Rust variants (camelCase keys), and `gen:bindings:check` fails CI on drift. `src/types/Error.ts` re-exports those codes and adds the frontend-only `unknown` sentinel — **never hand-edit the codes**; add a variant + `code()` arm in Rust and regenerate.
 4.  **Localization (i18n):** The project uses `react-i18next`. New user-facing strings should be added to the localization files in `src/i18n/locales/`.
 5.  **Styling:** Use Material UI (MUI) components and the `sx` prop for styling. Ensure UI is responsive and follows the established theme (`src/hooks/useAppTheme.ts`).
 6.  **Validation:** After making changes, always verify correctness using `cargo clippy` for Rust, and `npx tsc --noEmit` and `npm run check` for TypeScript.
@@ -73,7 +75,7 @@ This document provides foundational mandates, project context, and workflows for
 
 - Do not expose raw file system paths unnecessarily. Use Tauri's fs/path APIs where appropriate. Maintain strict capability scopes when using Tauri file system plugins to enforce secure boundaries.
 - Prevent SQL injection by using parameterized queries with `sqlx::query!`.
-- Ensure robust input validation between the frontend and backend boundaries using **Zod**.
+- Ensure robust input validation between the frontend and backend boundaries. Application **settings** are validated in **Rust** (serde + `garde`) with `tauri-specta`-generated TypeScript types; use **Zod** for other frontend-side schema/input validation.
 - Never log sensitive user data or full file contents in production logs.
 
 ## 5. Behavioral Guidelines

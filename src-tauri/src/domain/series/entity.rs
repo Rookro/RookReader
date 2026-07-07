@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 
 /// Represents a series entity that groups multiple books together.
-#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize, specta::Type)]
 pub struct Series {
     /// The unique identifier for the series.
     pub id: i64,

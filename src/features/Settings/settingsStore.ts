@@ -1,15 +1,14 @@
 import { error } from "@tauri-apps/plugin-log";
-import { LazyStore } from "@tauri-apps/plugin-store";
-import { deepmerge } from "deepmerge-ts";
+import { getSettings } from "../../bindings/SettingsCommands";
 import type { AppSettings } from "../../types/AppSettings";
-import { AppSettingsSchema } from "./AppSettingsSchema";
 
-const settingsFileName = import.meta.env.DEV
-  ? "rook-reader_settings_dev.json"
-  : "rook-reader_settings.json";
-
-export const settingsStore = new LazyStore(settingsFileName);
-
+/**
+ * Synchronous bootstrap fixture for settings.
+ *
+ * The backend is the source of truth for runtime defaults (delivered via `get_settings`);
+ * this object exists only as the Redux `initialState` before hydration and as a test
+ * fixture. Note font sizes are plain numbers (Rust `f64`), e.g. `fontSize: 16`.
+ */
 export const defaultSettings: AppSettings = {
   general: {
     theme: "system",
@@ -73,29 +72,18 @@ export const defaultSettings: AppSettings = {
 };
 
 /**
- * Loads all settings from the store, merging with defaults and validating with Zod.
+ * Loads the authoritative settings from the backend (`get_settings`).
+ *
+ * Falls back to {@link defaultSettings} (logged) if the backend load fails, so the app
+ * still renders.
+ *
+ * @returns The current application settings.
  */
 export const loadAllSettings = async (): Promise<AppSettings> => {
-  const savedSettings: Record<string, unknown> = {};
-
-  const keys = Object.keys(defaultSettings) as Array<keyof AppSettings>;
-  for (const key of keys) {
-    const value = await settingsStore.get(key);
-    if (value != null) {
-      savedSettings[key] = value;
-    }
-  }
-
-  // Deep merge defaults with saved settings
-  const merged = deepmerge(defaultSettings, savedSettings);
-
-  // Validate and strip unknown properties using Zod
-  const result = AppSettingsSchema.safeParse(merged);
-
-  if (!result.success) {
-    error(`Failed to validate settings, falling back to defaults: ${result.error.message}`);
+  try {
+    return await getSettings();
+  } catch (e) {
+    error(`Failed to load settings from backend; using defaults: ${e}`);
     return defaultSettings;
   }
-
-  return result.data as AppSettings;
 };

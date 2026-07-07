@@ -1,5 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { createCommandError } from "../types/Error";
+import { commands } from "./bindings";
+import { runCommand } from "./result";
 
 /**
  * Opens a container file and fetches its entries from the backend.
@@ -7,14 +9,8 @@ import { createCommandError } from "../types/Error";
  * @param path The path of the container file.
  * @returns A promise that resolves to an object containing entries, directory status, and novel status.
  */
-export const getEntriesInContainer = async (
-  path: string,
-): Promise<{ entries: string[]; is_directory: boolean; is_novel: boolean }> => {
-  try {
-    return await invoke("get_entries_in_container", { path });
-  } catch (error) {
-    throw createCommandError(error);
-  }
+export const getEntriesInContainer = async (path: string) => {
+  return await runCommand(commands.getEntriesInContainer(path));
 };
 
 /**
@@ -28,12 +24,12 @@ export const requestPreloadAround = async (
   index: number,
   bufferSize: number | undefined = undefined,
 ): Promise<void> => {
-  try {
-    return await invoke("request_preload_around", { index, bufferSize });
-  } catch (error) {
-    throw createCommandError(error);
-  }
+  await runCommand(commands.requestPreloadAround(index, bufferSize ?? null));
 };
+
+// NOTE: `getImage` / `getImagePreview` return a raw binary `tauri::ipc::Response` from the backend,
+// which has no `specta::Type` and is not part of the generated `commands`. They keep a hand-written
+// `invoke` wrapper that receives the custom `[width][height][data]` binary payload.
 
 /**
  * Fetches an image from a container in the backend.
@@ -60,62 +56,6 @@ export const getImage = async (path: string, entryName: string): Promise<ArrayBu
 export const getImagePreview = async (path: string, entryName: string): Promise<ArrayBuffer> => {
   try {
     return await invoke("get_image_preview", { path, entryName });
-  } catch (error) {
-    throw createCommandError(error);
-  }
-};
-
-/**
- * Sets the render resolution height for PDF files in the backend.
- *
- * @param height The render resolution height.
- * @returns A promise that resolves when the operation is complete.
- */
-export const setPdfRenderResolutionHeight = async (height: number): Promise<void> => {
-  try {
-    return await invoke("set_pdf_render_resolution_height", { height });
-  } catch (error) {
-    throw createCommandError(error);
-  }
-};
-
-/**
- * Sets the max image height in the backend.
- *
- * @param height The max image height.
- * @returns A promise that resolves when the operation is complete.
- */
-export const setMaxImageHeight = async (height: number): Promise<void> => {
-  try {
-    return await invoke("set_max_image_height", { height });
-  } catch (error) {
-    throw createCommandError(error);
-  }
-};
-
-/**
- * Sets the image resampling method in the backend.
- *
- * @param method The image resampling method.
- * @returns A promise that resolves when the operation is complete.
- */
-export const setImageResamplingMethod = async (method: string): Promise<void> => {
-  try {
-    return await invoke("set_image_resampling_method", { method });
-  } catch (error) {
-    throw createCommandError(error);
-  }
-};
-
-/**
- * Sets the image cache size in MiB in the backend.
- *
- * @param sizeMib The cache size in MiB.
- * @returns A promise that resolves when the operation is complete.
- */
-export const setImageCacheSizeMib = async (sizeMib: number): Promise<void> => {
-  try {
-    return await invoke("set_image_cache_size_mib", { sizeMib });
   } catch (error) {
     throw createCommandError(error);
   }

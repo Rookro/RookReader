@@ -9,6 +9,87 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.1] - 2026-07-07
+
+### Changed
+
+* Overhauled how application settings are saved and validated, for clearer and more reliable settings. (#260)
+  * Setting values are now reliably checked against valid ranges — out-of-range or malformed values are corrected or rejected instead of being applied.
+  * Errors now explain exactly what is wrong (out of range, or a whole number is required) and show the valid range right below the field, replacing the previous generic "failed to save" message.
+* Improved the internal handling of saving and loading settings for slightly faster, more efficient settings access. (#261)
+* Tidied up internal code and made tag and series updates more efficient, and fixed a small missing margin in the update progress dialog. (#279)
+* Improved performance while reading: turning pages no longer reloads the whole library. (#283)
+* Made the frontend error codes generate from the Rust backend so they stay automatically in sync. (#287)
+
+### Fixed
+
+* Fixed an issue where, with automatic folder-change watching enabled, quickly switching folders could leave outdated watchers running in the background — wasting resources and occasionally triggering unexpected file list refreshes. (#262)
+* Fixed several library and settings data-integrity issues. (#264)
+  * A book's page count and title are now updated when its files change on disk (for example, pages added to a folder), so newly added pages are no longer unreachable.
+  * A single invalid value in the settings file no longer resets every setting to its default — only the affected setting is restored and the rest are kept.
+  * Applying tags to a book no longer fails when the same tag is selected more than once.
+  * Some fixed-layout EPUBs with images that share a file name across different folders no longer display pages in the wrong order.
+* Fixed an issue where resizing a tall image with transparency (such as a transparent PNG) filled the transparent areas with a solid background; transparency is now preserved. (#265)
+* Fixed several reader and bookshelf issues. (#266)
+  * A book could open to a blank page if some pages had been removed since you last read it; it now opens to the last available page.
+  * Closing the update dialog at certain moments could rarely block all later update checks until the app was restarted.
+  * Opening the bookshelf while it was still loading could fail to scroll to the book you were reading; it now scrolls there once the list has finished loading.
+* Sorting the bookshelf by date ordered standalone books by registration order instead of their real date; books and series now interleave by actual date. (#267)
+* Fixed an issue where the empty space on the left side of the bookshelf grid could not be scrolled; scrolling now works across the whole area. (#268)
+* Fixed several reader, bookshelf, and file-handling issues. (#269)
+  * Opening a book that fails to load no longer keeps showing the previously opened book's pages.
+  * A folder containing an unreadable item (such as a broken shortcut) no longer appears empty; the remaining items are still listed.
+  * Comic archives (ZIP) containing two images with the same name no longer show one page twice while hiding another.
+  * A malformed comic archive (ZIP) reporting a misleading size could crash the app when opening a page; such archives are now handled safely.
+  * Opening a large book no longer briefly blocks other actions, such as loading images.
+  * SVG files were listed as readable pages but always failed to display; they are no longer shown as pages.
+  * Applying tags to a book no longer fails if one of the selected tags was deleted in the meantime.
+  * Closed a path-traversal issue where a crafted file name inside an opened folder could read a file outside it.
+* Fixed several reader navigation issues. (#270)
+  * In two-page (spread) view, paging forward right after the layout changed could advance by the wrong amount, skipping or repeating a page; forward paging now follows the current page's layout.
+  * In two-page view, paging backward through a mix of single and double-page spreads could land in the middle of a spread; it now returns to the correct page.
+  * In two-page view, when the second page of a spread failed to load, the viewer could be left blank or stuck on the previous page; it now falls back to showing the available page.
+  * Double-clicking a file in the file navigator did nothing; it now opens the file.
+  * Re-selecting the book you were already viewing could carry a pending "open to the first/last page" action over into a later, unrelated book.
+* Fixed several bookshelf issues. (#271)
+  * In the bookshelf, pressing Enter or Space right after a search shortened the list could crash the grid; it no longer does.
+  * When entering the bookshelf, the automatic scroll to the book you were reading could occasionally settle on the wrong row before the grid was measured; it now waits until the width is known.
+  * Reordering the books within a series was not reflected on the bookshelf right away (the series cover stack and the in-series order); the new order now appears immediately.
+  * A book you had read only the first page of showed 0% progress instead of its actual reading progress; the progress bar now reflects it.
+* Fixed several settings and layout issues. (#272)
+  * Clearing the PDF rendering resolution field no longer commits an invalid value that always failed validation; the current value is kept instead.
+  * When a saved side-pane tab no longer exists, resetting it to the first tab no longer repeatedly re-saved the settings.
+  * Turning off "record reading history" right after changing the page no longer records that last page; the setting is now re-checked just before the delayed write.
+  * Resizing a pane and then immediately switching views or closing no longer discarded the final size; the latest pane size is now saved.
+* Sorting the file browser by date could be wrong in regions whose date format is not month-first; date sorting is now correct regardless of your system's locale. (#273)
+* When a setting was changed in another window (or rejected while saving), some toggles and dropdowns in the open Settings window kept showing the old value; they now always reflect the saved setting. (#274)
+* In some EPUBs, a single unreadable chapter could push the rest of the book's pages out of reading order; the remaining pages now stay correctly ordered. (#275)
+* Opening a book could be reported as a failure when its background page preloading failed, even though the book had opened fine; preloading is now best-effort and no longer fails the open. (#276)
+* In the file navigator, quickly single-clicking two different rows no longer misfires as a double-click on the second row (opening a file or entering a folder); each row is just selected. (#277)
+* A failed settings save now shows a clear "Failed to save settings." message instead of wrongly asking you to check your input, and an input-validation failure shows the right guidance instead of a generic error. (#278)
+* Moving a book from one series into another could leave it out of order in its new series; books moved between series are now placed correctly at the end. (#280)
+* Fixed several comic, PDF, and EPUB handling issues. (#281)
+  * Some fixed-layout EPUBs displayed their pages out of reading order; pages now follow the book's spine order.
+  * Opening a folder that contained a file with an unusual (non-Unicode) name could fail entirely; the unreadable file is now skipped and the remaining pages open.
+  * Some RAR archives showed a page twice while hiding another; duplicate entries are now handled correctly.
+  * PDF thumbnails could be oversized or blurry; they now match the thumbnail size used for other formats.
+  * Hardened comic archive (ZIP) handling against malformed "zip bomb" files that could otherwise exhaust memory.
+  * Opening a large book on slow storage no longer briefly freezes the rest of the app.
+  * Quickly switching between books could momentarily show a page from the previous book; such stale page requests are now rejected.
+* Application settings are no longer reset to defaults when the settings file is temporarily locked or unreadable (for example, by antivirus or a backup tool); the app runs with the current values and leaves the file intact. (#282)
+* Fixed the last page position sometimes being lost when quickly switching between books; the previous book's final position is now saved before switching. (#283)
+* Fixed several reader issues. (#284)
+  * Opening a second book while the first was still loading could show the wrong book and save reading progress against it; the newer book now always wins.
+  * In two-page view, paging forward before the page's layout was known could permanently skip a page; it now advances one page in that case.
+  * Dragging in the same file again after opening another book did nothing; it now reopens the file.
+  * Long reading sessions no longer keep every visited page in memory, reducing reader memory use.
+* Fixed several bookshelf issues. (#285)
+  * Quickly switching between bookshelves could briefly snap back to the previous shelf's books; the latest selection now always wins.
+  * The set-tags, set-series, and add-to-bookshelf dialogs could fail silently; they now show an error, refresh to reflect any partial changes, and stay open for retry.
+  * Opening the tag dialog for one book right after another could show or save the wrong book's tags; it now always reflects the current book.
+  * A book could occasionally fail to open on a plain click; clicking now opens reliably.
+* Fixed EPUB archive and rendering thread-pool errors showing a generic message instead of a specific one. (#286)
+
 ## [2.3.0] - 2026-06-14
 
 ### Added
@@ -400,7 +481,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Add an automatic two-page spread display feature (#4)
 * Add a page navigation feature using the mouse wheel up/down (#5)
 
-[unreleased]: https://github.com/Rookro/RookReader/compare/v2.3.0...HEAD
+[unreleased]: https://github.com/Rookro/RookReader/compare/v2.3.1...HEAD
+[2.3.1]: https://github.com/Rookro/RookReader/compare/v2.3.0...v2.3.1
 [2.3.0]: https://github.com/Rookro/RookReader/compare/v2.2.1...v2.3.0
 [2.2.1]: https://github.com/Rookro/RookReader/compare/v2.2.0...v2.2.1
 [2.2.0]: https://github.com/Rookro/RookReader/compare/v2.1.1...v2.2.0

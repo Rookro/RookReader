@@ -19,7 +19,7 @@ import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppDispatch, useAppSelector } from "../../../store/store";
 import { setActiveView } from "../../MainView/slice";
-import { changeBookshelf, removeBookshelf } from "../slice";
+import { removeBookshelf, setSelectedBookshelf } from "../slice";
 import { removeTag, setSelectedTag } from "../tagSlice";
 import { BookShelfIcons } from "./BookshelfIcons";
 
@@ -56,7 +56,7 @@ export default function MenuList({ onClickAddBookshelf, onClickAddBookTag }: Men
 
   const handleBookshelfClicked = useCallback(
     (id: number | null) => {
-      dispatch(changeBookshelf(id));
+      dispatch(setSelectedBookshelf(id));
     },
     [dispatch],
   );

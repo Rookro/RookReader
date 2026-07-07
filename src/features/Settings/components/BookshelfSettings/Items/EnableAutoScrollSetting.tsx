@@ -1,9 +1,7 @@
 import { TextRotationNoneOutlined } from "@mui/icons-material";
-import { emit } from "@tauri-apps/api/event";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppDispatch, useAppSelector } from "../../../../../store/store";
-import type { SettingsChangedEvent } from "../../../../../types/SettingsChangedEvent";
 import { updateSettings } from "../../../slice";
 import SwitchSettingItem from "../../ui/SwitchSettingItem";
 
@@ -17,13 +15,11 @@ export default function EnableAutoScrollSetting() {
 
   const handleAutoScrollChanged = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const newBookshelfSettings = { ...bookshelfSettings, enableAutoScroll: e.target.checked };
-      await dispatch(updateSettings({ key: "bookshelf", value: newBookshelfSettings }));
-      await emit<SettingsChangedEvent>("settings-changed", {
-        appSettings: { bookshelf: newBookshelfSettings },
-      });
+      await dispatch(
+        updateSettings({ key: "bookshelf", value: { enableAutoScroll: e.target.checked } }),
+      );
     },
-    [dispatch, bookshelfSettings],
+    [dispatch],
   );
 
   return (

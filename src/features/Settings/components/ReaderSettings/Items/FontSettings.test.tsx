@@ -1,10 +1,9 @@
-import { emit } from "@tauri-apps/api/event";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getFonts } from "../../../../../bindings/FontCommands";
-import { mockStore } from "../../../../../test/mocks/tauri";
-import { renderWithProviders } from "../../../../../test/utils";
+import { mockTauri } from "../../../../../test/mocks/tauri";
+import { mockSettingsCommands, renderWithProviders } from "../../../../../test/utils";
 import FontSettings from "./FontSettings";
 
 describe("FontSettings", () => {
@@ -12,6 +11,7 @@ describe("FontSettings", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSettingsCommands();
     vi.mocked(getFonts).mockResolvedValue(["Arial", "Times New Roman"]);
   });
 
@@ -38,20 +38,9 @@ describe("FontSettings", () => {
     await user.click(option);
 
     await waitFor(() => {
-      expect(mockStore.set).toHaveBeenCalledWith(
-        "reader",
-        expect.objectContaining({ novel: expect.objectContaining({ fontFamily: "Arial" }) }),
-      );
-      expect(emit).toHaveBeenCalledWith(
-        "settings-changed",
-        expect.objectContaining({
-          appSettings: expect.objectContaining({
-            reader: expect.objectContaining({
-              novel: expect.objectContaining({ fontFamily: "Arial" }),
-            }),
-          }),
-        }),
-      );
+      expect(mockTauri.invoke).toHaveBeenCalledWith("set_settings", {
+        patch: { reader: { novel: { fontFamily: "Arial" } } },
+      });
     });
   });
 
@@ -64,20 +53,9 @@ describe("FontSettings", () => {
     await user.tab();
 
     await waitFor(() => {
-      expect(mockStore.set).toHaveBeenCalledWith(
-        "reader",
-        expect.objectContaining({ novel: expect.objectContaining({ fontSize: 24 }) }),
-      );
-      expect(emit).toHaveBeenCalledWith(
-        "settings-changed",
-        expect.objectContaining({
-          appSettings: expect.objectContaining({
-            reader: expect.objectContaining({
-              novel: expect.objectContaining({ fontSize: 24 }),
-            }),
-          }),
-        }),
-      );
+      expect(mockTauri.invoke).toHaveBeenCalledWith("set_settings", {
+        patch: { reader: { novel: { fontSize: 24 } } },
+      });
     });
   });
 });

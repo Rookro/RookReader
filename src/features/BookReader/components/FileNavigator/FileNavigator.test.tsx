@@ -1,5 +1,5 @@
 import { error } from "@tauri-apps/plugin-log";
-import { screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { mockScrollToRow } from "../../../../test/mocks/components";
@@ -72,7 +72,7 @@ describe("FileNavigator", () => {
     const preloadedState = createBasePreloadedState();
     preloadedState.read.explorer.searchText = "Banana";
     preloadedState.read.explorer.entries = [
-      { name: "Apple", is_directory: false, last_modified: "" },
+      { name: "Apple", is_directory: false, last_modified: 0 },
     ];
 
     renderWithProviders(<FileNavigator />, { preloadedState });
@@ -80,7 +80,7 @@ describe("FileNavigator", () => {
   });
 
   it("should dispatch setContainerFilePath when a file is clicked", async () => {
-    const entries: DirEntry[] = [{ name: "book.zip", is_directory: false, last_modified: "" }];
+    const entries: DirEntry[] = [{ name: "book.zip", is_directory: false, last_modified: 0 }];
     const preloadedState = createBasePreloadedState();
     preloadedState.read.explorer.entries = entries;
 
@@ -96,7 +96,7 @@ describe("FileNavigator", () => {
   });
 
   it("should dispatch updateExploreBasePath when a directory is double-clicked", async () => {
-    const entries: DirEntry[] = [{ name: "folder", is_directory: true, last_modified: "" }];
+    const entries: DirEntry[] = [{ name: "folder", is_directory: true, last_modified: 0 }];
     const preloadedState = createBasePreloadedState();
     preloadedState.read.explorer.entries = entries;
 
@@ -110,8 +110,54 @@ describe("FileNavigator", () => {
     });
   });
 
+  it("should not treat single clicks on different rows as a double-click", async () => {
+    // Single-clicking row A then row B within the double-click interval must not be
+    // misread as a double-click on B; B is selected and no directory navigation occurs.
+    const entries: DirEntry[] = [
+      { name: "folderA", is_directory: true, last_modified: 0 },
+      { name: "folderB", is_directory: true, last_modified: 0 },
+    ];
+    const preloadedState = createBasePreloadedState();
+    preloadedState.read.explorer.entries = entries;
+
+    renderWithProviders(<FileNavigator />, { preloadedState });
+
+    const rowA = await screen.findByRole("button", { name: /folderA/i });
+    const rowB = await screen.findByRole("button", { name: /folderB/i });
+
+    // Two synchronous clicks land well within the 200ms double-click interval.
+    fireEvent.click(rowA);
+    fireEvent.click(rowB);
+
+    // A click on a different row must not navigate into the directory.
+    expect(ReadReducer.updateExploreBasePath).not.toHaveBeenCalled();
+
+    // The pending single-click resolves to selecting row B.
+    await waitFor(() => {
+      expect(ReadReducer.setContainerFilePath).toHaveBeenCalledWith("/folderB");
+    });
+    expect(ReadReducer.updateExploreBasePath).not.toHaveBeenCalled();
+  });
+
+  it("should open the file when a file is double-clicked", async () => {
+    const entries: DirEntry[] = [{ name: "book.zip", is_directory: false, last_modified: 0 }];
+    const preloadedState = createBasePreloadedState();
+    preloadedState.read.explorer.entries = entries;
+
+    renderWithProviders(<FileNavigator />, { preloadedState });
+
+    const rowButton = await screen.findByRole("button", { name: /book.zip/i });
+    await user.dblClick(rowButton);
+
+    await waitFor(() => {
+      expect(ReadReducer.setContainerFilePath).toHaveBeenCalledWith("/book.zip");
+    });
+    // A file double-click must not be treated as a directory navigation.
+    expect(ReadReducer.updateExploreBasePath).not.toHaveBeenCalled();
+  });
+
   it("should scroll to row when selectedIndex is set", async () => {
-    const entries: DirEntry[] = [{ name: "book.zip", is_directory: false, last_modified: "" }];
+    const entries: DirEntry[] = [{ name: "book.zip", is_directory: false, last_modified: 0 }];
     vi.mocked(useFileSelection).mockImplementationOnce(
       (_fileHistory, _fileHistoryIndex, _entries, callback) => {
         callback(0);
@@ -135,7 +181,7 @@ describe("FileNavigator", () => {
   });
 
   it("should log error if scrollToRow fails", async () => {
-    const entries: DirEntry[] = [{ name: "book.zip", is_directory: false, last_modified: "" }];
+    const entries: DirEntry[] = [{ name: "book.zip", is_directory: false, last_modified: 0 }];
     vi.mocked(useFileSelection).mockImplementationOnce(
       (_fileHistory, _fileHistoryIndex, _entries, callback) => {
         callback(0);

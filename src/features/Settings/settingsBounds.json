@@ -1,0 +1,11 @@
+{
+  "bookshelf.gridSize": { "integer": true, "min": 0, "max": 2 },
+  "reader.comic.cache.preloadPageCount": { "integer": true, "min": 0, "max": 10000 },
+  "reader.comic.cache.imageCacheSizeMib": { "integer": true, "min": 1, "max": 65536 },
+  "reader.comic.loupe.zoom": { "integer": false, "min": 1, "max": 100 },
+  "reader.comic.loupe.radius": { "integer": false, "min": 50, "max": 5000 },
+  "reader.novel.fontSize": { "integer": false, "min": 1, "max": 200 },
+  "reader.rendering.maxImageHeight": { "integer": true, "min": 0, "max": 65535 },
+  "reader.rendering.pdfRenderResolutionHeight": { "integer": true, "min": 1, "max": 20000 },
+  "layout.sidePane.tabIndex": { "integer": true, "min": 0, "max": 100 }
+}

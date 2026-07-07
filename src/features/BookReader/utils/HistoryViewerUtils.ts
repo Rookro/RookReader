@@ -1,4 +1,5 @@
 import type { ReadBook } from "../../../domain/book/schema";
+import { andSearchBy } from "../../../utils/SearchUtils";
 
 /**
  * Filters an array of ReadBook objects to find entries whose 'display_name' property contains ALL specified keywords (AND search).
@@ -16,23 +17,5 @@ import type { ReadBook } from "../../../domain/book/schema";
  * andSearch(entries, "test file"); // Returns [{ display_name: "test_file", ... }]
  * andSearch(entries, "example"); // Returns []
  */
-export const andSearch = (entries: ReadBook[], query: string) => {
-  const keywords = query
-    .trim()
-    .toLowerCase()
-    .split(/\s+/)
-    .filter((keyword) => keyword.length > 0);
-
-  if (keywords.length === 0) {
-    return entries;
-  }
-
-  const filtered = entries.filter((entry) => {
-    const lowerCaseName = entry.display_name.toLowerCase();
-    return keywords.every((keyword) => {
-      return lowerCaseName.includes(keyword);
-    });
-  });
-
-  return filtered;
-};
+export const andSearch = (entries: ReadBook[], query: string) =>
+  andSearchBy(entries, query, (entry) => entry.display_name);

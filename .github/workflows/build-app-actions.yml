@@ -34,9 +34,7 @@ jobs:
           components: rustfmt, clippy
 
       - name: Install cargo-about
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-about
+        run: cargo install cargo-about --locked --features cli
 
       - name: Install dependencies (ubuntu only)
         if: matrix.platform == 'ubuntu-latest'
@@ -66,6 +64,9 @@ jobs:
       - name: Run cargo clippy
         working-directory: src-tauri
         run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Check generated TypeScript bindings are up to date
+        run: npm run gen:bindings:check
 
       - name: Run tests
         run: npm run test

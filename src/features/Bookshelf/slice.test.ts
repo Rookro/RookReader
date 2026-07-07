@@ -8,6 +8,7 @@ import type { BookWithState } from "../../domain/book/schema";
 import type { Bookshelf } from "../../domain/bookshelf/schema";
 import type { Series } from "../../domain/series/schema";
 import type { Tag } from "../../domain/tag/schema";
+import { readingProgressChanged } from "../../store/actions";
 import { createMockBookshelf, createMockBookWithState, createMockTag } from "../../test/factories";
 import { type AppStore, createTestStore } from "../../test/utils";
 import { CommandError, ErrorCode } from "../../types/Error";
@@ -22,13 +23,13 @@ import bookCollectionReducer, {
   addBookshelf,
   addBookToBookshelf,
   bookshelfAdded,
-  changeBookshelf,
   clearBookshelfError,
   deleteBookFromCollection,
   fetchBookshelves,
   fetchBooksInSelectedBookshelf,
   removeBookshelf,
   setSearchText,
+  setSelectedBookshelf,
 } from "./slice";
 import tagReducer, {
   addTag,
@@ -81,9 +82,48 @@ describe("BookCollectionReducer", () => {
   // Verify that bookshelf error state is cleared correctly
   it("should handle clearBookshelfError", () => {
     const stateWithError = structuredClone(bookCollectionInitialState);
-    stateWithError.error = { code: ErrorCode.OTHER_ERROR };
+    stateWithError.error = { code: ErrorCode.other };
     const nextState = bookCollectionReducer(stateWithError, clearBookshelfError());
     expect(nextState.error).toBeNull();
+  });
+
+  // Verify that readingProgressChanged patches the matching book in place.
+  it("should patch the matching book on readingProgressChanged", () => {
+    const state = {
+      ...bookCollectionInitialState,
+      books: [
+        createMockBookWithState({ id: 1, last_read_page_index: 0 }),
+        createMockBookWithState({ id: 2, last_read_page_index: 5 }),
+      ],
+    };
+    const nextState = bookCollectionReducer(
+      state,
+      readingProgressChanged({
+        book_id: 2,
+        last_read_page_index: 9,
+        last_opened_at: "2026-07-04T10:00:00",
+      }),
+    );
+    expect(nextState.books[0].last_read_page_index).toBe(0);
+    expect(nextState.books[1].last_read_page_index).toBe(9);
+    expect(nextState.books[1].last_opened_at).toBe("2026-07-04T10:00:00");
+  });
+
+  // Verify that readingProgressChanged for an unknown book id is a no-op.
+  it("should ignore readingProgressChanged for an unknown book id", () => {
+    const state = {
+      ...bookCollectionInitialState,
+      books: [createMockBookWithState({ id: 1, last_read_page_index: 3 })],
+    };
+    const nextState = bookCollectionReducer(
+      state,
+      readingProgressChanged({
+        book_id: 999,
+        last_read_page_index: 42,
+        last_opened_at: "2026-07-04T10:00:00",
+      }),
+    );
+    expect(nextState.books[0].last_read_page_index).toBe(3);
   });
 
   describe("Async Thunk Integration Tests", () => {
@@ -109,14 +149,14 @@ describe("BookCollectionReducer", () => {
 
       // Verify handling of CommandError when fetching bookshelves
       it("fetchBookshelves should handle CommandError", async () => {
-        const mockError = new CommandError(ErrorCode.IO_ERROR, "failed");
+        const mockError = new CommandError(ErrorCode.io, "failed");
         vi.mocked(BookshelfCommand.getAllBookshelves).mockRejectedValue(mockError);
 
         await store.dispatch(fetchBookshelves());
 
         const state = store.getState().bookCollection;
         expect(state.status).toBe("failed");
-        expect(state.error?.code).toBe(ErrorCode.IO_ERROR);
+        expect(state.error?.code).toBe(ErrorCode.io);
       });
 
       // Verify error handling when bookshelf fetching fails
@@ -137,7 +177,7 @@ describe("BookCollectionReducer", () => {
 
         const state = store.getState().bookCollection;
         expect(state.status).toBe("failed");
-        expect(state.error?.code).toBe(ErrorCode.OTHER_ERROR);
+        expect(state.error?.code).toBe(ErrorCode.other);
         expect(state.bookshelves).toEqual([]);
       });
 
@@ -154,14 +194,14 @@ describe("BookCollectionReducer", () => {
 
       // Verify handling of CommandError during bookshelf creation
       it("addBookshelf should handle CommandError", async () => {
-        const mockError = new CommandError(ErrorCode.IO_ERROR, "io error");
+        const mockError = new CommandError(ErrorCode.io, "io error");
         vi.mocked(BookshelfCommand.createBookshelf).mockRejectedValue(mockError);
 
         await store.dispatch(addBookshelf({ name: "Existing BS", icon_id: "folder" }));
 
         const state = store.getState().bookCollection;
         expect(state.status).toBe("failed");
-        expect(state.error?.code).toBe(ErrorCode.IO_ERROR);
+        expect(state.error?.code).toBe(ErrorCode.io);
       });
 
       // Verify handling of generic Error during bookshelf creation
@@ -173,7 +213,7 @@ describe("BookCollectionReducer", () => {
 
         const state = store.getState().bookCollection;
         expect(state.status).toBe("failed");
-        expect(state.error?.code).toBe(ErrorCode.OTHER_ERROR);
+        expect(state.error?.code).toBe(ErrorCode.other);
       });
 
       // Verify error handling when bookshelf removal fails with no payload
@@ -231,77 +271,52 @@ describe("BookCollectionReducer", () => {
 
         const state = store.getState().bookCollection;
         expect(state.status).toBe("failed");
-        expect(state.error?.code).toBe(ErrorCode.OTHER_ERROR);
+        expect(state.error?.code).toBe(ErrorCode.other);
       });
 
       // Verify CommandError handling when bookshelf removal fails
       it("removeBookshelf should handle CommandError", async () => {
-        const mockError = new CommandError(ErrorCode.DATABASE_ERROR, "db fail");
+        const mockError = new CommandError(ErrorCode.database, "db fail");
         vi.mocked(BookshelfCommand.deleteBookshelf).mockRejectedValue(mockError);
 
         await store.dispatch(removeBookshelf(1));
 
         const state = store.getState().bookCollection;
         expect(state.status).toBe("failed");
-        expect(state.error?.code).toBe(ErrorCode.DATABASE_ERROR);
+        expect(state.error?.code).toBe(ErrorCode.database);
       });
 
-      // Verify state update when switching bookshelves
-      it("changeBookshelf should update selectedId and books", async () => {
-        const mockBooks = [createMockBookWithState({ id: 10, display_name: "B1" })];
-        vi.mocked(BookCommands.getBooksWithStateByBookshelfId).mockResolvedValue(mockBooks);
+      // Verify that selecting a bookshelf updates selectedId (the fetch is driven
+      // separately by the useHistorySync effect that watches selectedId).
+      it("setSelectedBookshelf should update selectedId", () => {
+        const selected = bookCollectionReducer(bookCollectionInitialState, setSelectedBookshelf(3));
+        expect(selected.selectedId).toBe(3);
 
-        await store.dispatch(changeBookshelf(1));
-
-        const state = store.getState().bookCollection;
-        expect(state.selectedId).toBe(1);
-        expect(state.books).toEqual(mockBooks);
+        const cleared = bookCollectionReducer(selected, setSelectedBookshelf(null));
+        expect(cleared.selectedId).toBeNull();
       });
 
-      // Verify that all books are fetched when bookshelf selection is cleared (null)
-      it("changeBookshelf(null) should fetch all books", async () => {
-        const mockBooks = [createMockBookWithState({ id: 10, display_name: "B1" })];
-        vi.mocked(BookCommands.getAllBooksWithState).mockResolvedValue(mockBooks);
-
-        await store.dispatch(changeBookshelf(null));
-
-        const state = store.getState().bookCollection;
-        expect(state.selectedId).toBeNull();
-        expect(state.books).toEqual(mockBooks);
-      });
-
-      // Verify error handling when bookshelf switching fails
-      it("changeBookshelf should handle generic failure and clear state", async () => {
-        vi.mocked(BookCommands.getBooksWithStateByBookshelfId).mockRejectedValue(new Error());
-
-        // Pre-fill state to verify clearing
+      // Verify that a stale fetch response for a shelf the user already left is ignored.
+      it("fetchBooksInSelectedBookshelf ignores a stale response for a superseded shelf", async () => {
+        const currentBooks = [createMockBookWithState({ id: 1, display_name: "current" })];
+        const staleBooks = [createMockBookWithState({ id: 99, display_name: "stale" })];
+        // The user is now on shelf 2 with its books already loaded.
         const preloadedState = {
           bookCollection: {
             ...bookCollectionInitialState,
-            selectedId: 1,
-            books: [createMockBookWithState()],
+            selectedId: 2,
+            books: currentBooks,
           },
         };
         store = createTestStore(preloadedState);
 
-        await store.dispatch(changeBookshelf(1));
+        // A slow fetch for the previous shelf (1) finally resolves.
+        vi.mocked(BookCommands.getBooksWithStateByBookshelfId).mockResolvedValue(staleBooks);
+        await store.dispatch(fetchBooksInSelectedBookshelf(1));
 
+        // Shelf 2's books are preserved, not overwritten by the stale shelf-1 response.
         const state = store.getState().bookCollection;
-        expect(state.status).toBe("failed");
-        expect(state.selectedId).toBeNull();
-        expect(state.books).toEqual([]);
-      });
-
-      // Verify CommandError handling when bookshelf switching fails
-      it("changeBookshelf should handle CommandError", async () => {
-        const mockError = new CommandError(ErrorCode.IO_ERROR, "io fail");
-        vi.mocked(BookCommands.getBooksWithStateByBookshelfId).mockRejectedValue(mockError);
-
-        await store.dispatch(changeBookshelf(1));
-
-        const state = store.getState().bookCollection;
-        expect(state.status).toBe("failed");
-        expect(state.error?.code).toBe(ErrorCode.IO_ERROR);
+        expect(state.books).toEqual(currentBooks);
       });
 
       // Verify that book is added to bookshelf and status is updated
@@ -379,19 +394,19 @@ describe("BookCollectionReducer", () => {
 
         const state = store.getState().bookCollection;
         expect(state.status).toBe("failed");
-        expect(state.error?.code).toBe(ErrorCode.OTHER_ERROR);
+        expect(state.error?.code).toBe(ErrorCode.other);
       });
 
       // Verify CommandError handling when book addition fails
       it("addBookToBookshelf should handle CommandError", async () => {
-        const mockError = new CommandError(ErrorCode.IO_ERROR, "io fail");
+        const mockError = new CommandError(ErrorCode.io, "io fail");
         vi.mocked(ContainerCommands.getEntriesInContainer).mockRejectedValue(mockError);
 
         await store.dispatch(addBookToBookshelf({ bookshelfId: 1, bookPath: "path" }));
 
         const state = store.getState().bookCollection;
         expect(state.status).toBe("failed");
-        expect(state.error?.code).toBe(ErrorCode.IO_ERROR);
+        expect(state.error?.code).toBe(ErrorCode.io);
       });
 
       // Verify state update when removing a book from the collection
@@ -421,19 +436,19 @@ describe("BookCollectionReducer", () => {
 
         const state = store.getState().bookCollection;
         expect(state.status).toBe("failed");
-        expect(state.error?.code).toBe(ErrorCode.OTHER_ERROR);
+        expect(state.error?.code).toBe(ErrorCode.other);
       });
 
       // Verify CommandError handling when book deletion fails
       it("deleteBookFromCollection should handle CommandError", async () => {
-        const mockError = new CommandError(ErrorCode.DATABASE_ERROR, "db error");
+        const mockError = new CommandError(ErrorCode.database, "db error");
         vi.mocked(BookCommands.deleteBook).mockRejectedValue(mockError);
 
         await store.dispatch(deleteBookFromCollection({ bookId: 10, bookshelfId: null }));
 
         const state = store.getState().bookCollection;
         expect(state.status).toBe("failed");
-        expect(state.error?.code).toBe(ErrorCode.DATABASE_ERROR);
+        expect(state.error?.code).toBe(ErrorCode.database);
       });
 
       // Verify state update on successful fetching of books in selected bookshelf
@@ -441,6 +456,8 @@ describe("BookCollectionReducer", () => {
         const mockBooks = [createMockBookWithState({ id: 1, file_path: "b1.zip" })];
         vi.mocked(BookCommands.getBooksWithStateByBookshelfId).mockResolvedValue(mockBooks);
 
+        // The response only applies when its arg matches the current selection.
+        store.dispatch(setSelectedBookshelf(1));
         await store.dispatch(fetchBooksInSelectedBookshelf(1));
 
         const state = store.getState().bookCollection;
@@ -480,14 +497,14 @@ describe("BookCollectionReducer", () => {
 
       // Verify CommandError handling when book fetching in selected bookshelf fails
       it("fetchBooksInSelectedBookshelf should handle CommandError", async () => {
-        const mockError = new CommandError(ErrorCode.IO_ERROR, "io fail");
+        const mockError = new CommandError(ErrorCode.io, "io fail");
         vi.mocked(BookCommands.getAllBooksWithState).mockRejectedValue(mockError);
 
         await store.dispatch(fetchBooksInSelectedBookshelf(null));
 
         const state = store.getState().bookCollection;
         expect(state.status).toBe("failed");
-        expect(state.error?.code).toBe(ErrorCode.IO_ERROR);
+        expect(state.error?.code).toBe(ErrorCode.io);
       });
     });
   });
@@ -523,7 +540,7 @@ describe("TagReducer", () => {
   it("should handle clearTagError", () => {
     const stateWithError = {
       ...tagInitialState,
-      error: { code: ErrorCode.OTHER_ERROR },
+      error: { code: ErrorCode.other },
     };
     const nextState = tagReducer(stateWithError, clearTagError());
     expect(nextState.error).toBeNull();
@@ -561,14 +578,14 @@ describe("TagReducer", () => {
 
     // Verify CommandError handling when tag fetching fails
     it("fetchTags should handle CommandError", async () => {
-      const mockError = new CommandError(ErrorCode.DATABASE_ERROR, "db error");
+      const mockError = new CommandError(ErrorCode.database, "db error");
       vi.mocked(TagCommands.getAllTags).mockRejectedValue(mockError);
 
       await store.dispatch(fetchTags());
 
       const state = store.getState().tag;
       expect(state.status).toBe("failed");
-      expect(state.error?.code).toBe(ErrorCode.DATABASE_ERROR);
+      expect(state.error?.code).toBe(ErrorCode.database);
     });
 
     // Verify state update on successful tag creation
@@ -590,19 +607,19 @@ describe("TagReducer", () => {
 
       const state = store.getState().tag;
       expect(state.status).toBe("failed");
-      expect(state.error?.code).toBe(ErrorCode.OTHER_ERROR);
+      expect(state.error?.code).toBe(ErrorCode.other);
     });
 
     // Verify CommandError handling when tag creation fails
     it("addTag should handle CommandError", async () => {
-      const mockError = new CommandError(ErrorCode.IO_ERROR, "io fail");
+      const mockError = new CommandError(ErrorCode.io, "io fail");
       vi.mocked(TagCommands.createTag).mockRejectedValue(mockError);
 
       await store.dispatch(addTag({ name: "New Tag", color_code: "#00ff00" }));
 
       const state = store.getState().tag;
       expect(state.status).toBe("failed");
-      expect(state.error?.code).toBe(ErrorCode.IO_ERROR);
+      expect(state.error?.code).toBe(ErrorCode.io);
     });
 
     // Verify that selectedId is reset if the selected tag is deleted
@@ -644,19 +661,19 @@ describe("TagReducer", () => {
 
       const state = store.getState().tag;
       expect(state.status).toBe("failed");
-      expect(state.error?.code).toBe(ErrorCode.OTHER_ERROR);
+      expect(state.error?.code).toBe(ErrorCode.other);
     });
 
     // Verify CommandError handling when tag removal fails
     it("removeTag should handle CommandError", async () => {
-      const mockError = new CommandError(ErrorCode.DATABASE_ERROR, "db fail");
+      const mockError = new CommandError(ErrorCode.database, "db fail");
       vi.mocked(TagCommands.deleteTag).mockRejectedValue(mockError);
 
       await store.dispatch(removeTag(1));
 
       const state = store.getState().tag;
       expect(state.status).toBe("failed");
-      expect(state.error?.code).toBe(ErrorCode.DATABASE_ERROR);
+      expect(state.error?.code).toBe(ErrorCode.database);
     });
   });
 });
@@ -703,7 +720,7 @@ describe("SeriesReducer", () => {
   // Verify that series error state is cleared correctly
   it("should handle clearSeriesError", () => {
     const stateWithError = structuredClone(seriesInitialState);
-    stateWithError.error = { code: ErrorCode.OTHER_ERROR };
+    stateWithError.error = { code: ErrorCode.other };
     const nextState = seriesReducer(stateWithError, clearSeriesError());
     expect(nextState.error).toBeNull();
   });
@@ -717,11 +734,21 @@ describe("SeriesReducer", () => {
       expect(BookCommands.updateSeriesOrders).toHaveBeenCalledWith([1, 2, 3]);
     });
 
+    it("updateSeriesOrdersThunk should refetch the bookshelf after a successful update", async () => {
+      vi.mocked(BookCommands.updateSeriesOrders).mockResolvedValue(undefined);
+      vi.mocked(BookCommands.getAllBooksWithState).mockResolvedValue([]);
+
+      await store.dispatch(updateSeriesOrdersThunk([1, 2, 3]));
+
+      // selectedId is null in the initial store, so the refetch hits getAllBooksWithState.
+      expect(BookCommands.getAllBooksWithState).toHaveBeenCalled();
+    });
+
     it("updateSeriesOrdersThunk should handle generic failure", async () => {
       vi.mocked(BookCommands.updateSeriesOrders).mockRejectedValue(new Error());
 
       const result = await store.dispatch(updateSeriesOrdersThunk([1, 2, 3]));
-      expect(result.payload).toMatchObject({ code: ErrorCode.OTHER_ERROR });
+      expect(result.payload).toMatchObject({ code: ErrorCode.other });
     });
 
     // Verify state update on successful series fetching
@@ -758,14 +785,14 @@ describe("SeriesReducer", () => {
 
     // Verify CommandError handling when series fetching fails
     it("fetchSeries should handle CommandError", async () => {
-      const mockError = new CommandError(ErrorCode.DATABASE_ERROR, "db fail");
+      const mockError = new CommandError(ErrorCode.database, "db fail");
       vi.mocked(SeriesCommand.getAllSeries).mockRejectedValue(mockError);
 
       await store.dispatch(fetchSeries());
 
       const state = store.getState().series;
       expect(state.status).toBe("failed");
-      expect(state.error?.code).toBe(ErrorCode.DATABASE_ERROR);
+      expect(state.error?.code).toBe(ErrorCode.database);
     });
   });
 });

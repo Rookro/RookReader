@@ -67,7 +67,7 @@ impl SeriesRepository for SqliteSeriesRepository {
             r#"
             SELECT
                 id, file_path, item_type, display_name, total_pages, series_id, series_order,
-                thumbnail_path, last_read_page_index, last_opened_at,
+                thumbnail_path, created_at, last_read_page_index, last_opened_at,
                 tag_ids_str as "tag_ids_str?: String"
             FROM book_with_state_view
             WHERE series_id = ?
@@ -84,12 +84,23 @@ impl SeriesRepository for SqliteSeriesRepository {
     }
 
     async fn assign_book_to_series(&self, book_id: i64, series_id: Option<i64>) -> Result<()> {
+        // Append at the end of the target series; clearing the series also clears the
+        // order so it cannot resurface when the book later joins another series.
         sqlx::query!(
             r#"
             UPDATE books
-            SET series_id = ?
+            SET series_id = ?,
+                series_order = CASE
+                    WHEN ? IS NULL THEN NULL
+                    ELSE (
+                        SELECT COALESCE(MAX(b2.series_order), 0) + 1
+                        FROM books b2 WHERE b2.series_id = ?
+                    )
+                END
             WHERE id = ?
             "#,
+            series_id,
+            series_id,
             series_id,
             book_id
         )
@@ -102,20 +113,22 @@ impl SeriesRepository for SqliteSeriesRepository {
     async fn update_book_orders_in_series(&self, book_ids: Vec<i64>) -> Result<()> {
         let mut tx = self.pool.begin().await?;
 
-        for (index, &book_id) in book_ids.iter().enumerate() {
-            let order = (index + 1) as i64;
-            sqlx::query!(
-                r#"
-                UPDATE books
-                SET series_order = ?
-                WHERE id = ?
-                "#,
-                order,
-                book_id
+        // Apply every order in one statement. json_each's `key` is the 0-based array index,
+        // so series_order = key + 1 reproduces the previous (index + 1) ordering.
+        let book_ids_json = serde_json::to_string(&book_ids)?;
+        sqlx::query!(
+            r#"
+            UPDATE books
+            SET series_order = (
+                SELECT j.key + 1 FROM json_each(?) j WHERE j.value = books.id
             )
-            .execute(&mut *tx)
-            .await?;
-        }
+            WHERE id IN (SELECT value FROM json_each(?))
+            "#,
+            book_ids_json,
+            book_ids_json
+        )
+        .execute(&mut *tx)
+        .await?;
 
         tx.commit().await?;
 

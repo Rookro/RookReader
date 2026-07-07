@@ -16,6 +16,7 @@ import {
 import { getEntriesInContainer } from "../../bindings/ContainerCommands";
 import type { BookWithState } from "../../domain/book/schema";
 import type { Bookshelf } from "../../domain/bookshelf/schema";
+import { readingProgressChanged } from "../../store/actions";
 import { handleThunkError } from "../../store/thunkErrorHandler";
 import { createAppAsyncThunk } from "../../types/CustomAsyncThunk";
 import type { ErrorCode } from "../../types/Error";
@@ -171,27 +172,6 @@ export const removeBookshelf = createAppAsyncThunk(
   },
 );
 
-/**
- * Changes the currently selected bookshelf and fetches its corresponding books.
- * If the provided ID is null, fetches all books.
- *
- * @param id - The ID of the bookshelf to select, or null to clear selection and fetch all books.
- * @returns A thunk that resolves to an object containing the selected bookshelf ID and its corresponding array of books.
- */
-export const changeBookshelf = createAppAsyncThunk(
-  "bookCollection/changeBookshelf",
-  async (id: number | null, { rejectWithValue }) => {
-    try {
-      if (id === null) {
-        return { id, books: await getAllBooksWithState() };
-      }
-      return { id, books: await getBooksWithStateByBookshelfId(id) };
-    } catch (e) {
-      return handleThunkError(e, `Failed to change bookshelf to id: ${id}.`, rejectWithValue);
-    }
-  },
-);
-
 const bookCollectionSlice = createSlice({
   name: "bookCollection",
   initialState: {
@@ -220,6 +200,17 @@ const bookCollectionSlice = createSlice({
      */
     setSearchText(state, action: PayloadAction<string>) {
       state.searchText = action.payload;
+    },
+    /**
+     * Selects a bookshelf (or null for "all books"). The actual book fetch is
+     * driven by the `useHistorySync` effect that watches `selectedId`; keeping this
+     * a plain reducer avoids duplicating the fetch logic in a thunk.
+     *
+     * @param state - The current Redux state slice.
+     * @param action - Payload containing the bookshelf ID to select, or null for all books.
+     */
+    setSelectedBookshelf(state, action: PayloadAction<number | null>) {
+      state.selectedId = action.payload;
     },
     /**
      * Clears any error associated with the bookshelf state.
@@ -263,11 +254,18 @@ const bookCollectionSlice = createSlice({
         state.error = null;
       })
       .addCase(fetchBooksInSelectedBookshelf.fulfilled, (state, action) => {
+        // Ignore stale responses for a shelf the user has already navigated away from.
+        if (action.meta.arg !== state.selectedId) {
+          return;
+        }
         state.status = "succeeded";
         state.books = action.payload;
         state.error = null;
       })
       .addCase(fetchBooksInSelectedBookshelf.rejected, (state, action) => {
+        if (action.meta.arg !== state.selectedId) {
+          return;
+        }
         state.status = "failed";
         state.books = [];
         state.error = action.payload ?? null;
@@ -296,22 +294,6 @@ const bookCollectionSlice = createSlice({
         state.status = "failed";
         state.error = action.payload ?? null;
       })
-      .addCase(changeBookshelf.pending, (state) => {
-        state.status = "loading";
-        state.error = null;
-      })
-      .addCase(changeBookshelf.fulfilled, (state, action) => {
-        state.status = "succeeded";
-        state.selectedId = action.payload.id;
-        state.books = action.payload.books;
-        state.error = null;
-      })
-      .addCase(changeBookshelf.rejected, (state, action) => {
-        state.status = "failed";
-        state.selectedId = null;
-        state.books = [];
-        state.error = action.payload ?? null;
-      })
       .addCase(removeBookshelf.pending, (state) => {
         state.status = "loading";
         state.error = null;
@@ -324,9 +306,19 @@ const bookCollectionSlice = createSlice({
       .addCase(removeBookshelf.rejected, (state, action) => {
         state.status = "failed";
         state.error = action.payload ?? null;
+      })
+      .addCase(readingProgressChanged, (state, action) => {
+        // A page turn cannot change list membership or order (last_opened_at is only
+        // set when a book is opened), so patch the matching entry in place.
+        const book = state.books.find((b) => b.id === action.payload.book_id);
+        if (book) {
+          book.last_read_page_index = action.payload.last_read_page_index;
+          book.last_opened_at = action.payload.last_opened_at;
+        }
       });
   },
 });
 
-export const { bookshelfAdded, setSearchText, clearBookshelfError } = bookCollectionSlice.actions;
+export const { bookshelfAdded, setSearchText, setSelectedBookshelf, clearBookshelfError } =
+  bookCollectionSlice.actions;
 export default bookCollectionSlice.reducer;

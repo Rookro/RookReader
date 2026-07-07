@@ -1,5 +1,6 @@
 import type { SortOrder } from "../../../types/AppSettings";
 import type { DirEntry } from "../../../types/DirEntry";
+import { andSearchBy } from "../../../utils/SearchUtils";
 
 /**
  * Filters an array of DirEntry objects to find entries whose 'name' property contains ALL specified keywords (AND search).
@@ -17,26 +18,8 @@ import type { DirEntry } from "../../../types/DirEntry";
  * andSearch(entries, "test file"); // Returns [{ name: "test_file", ... }]
  * andSearch(entries, "example"); // Returns []
  */
-export const andSearch = (entries: DirEntry[], query: string) => {
-  const keywords = query
-    .trim()
-    .toLowerCase()
-    .split(/\s+/)
-    .filter((keyword) => keyword.length > 0);
-
-  if (keywords.length === 0) {
-    return entries;
-  }
-
-  const filtered = entries.filter((item) => {
-    const lowerCaseName = item.name.toLowerCase();
-    return keywords.every((keyword) => {
-      return lowerCaseName.includes(keyword);
-    });
-  });
-
-  return filtered;
-};
+export const andSearch = (entries: DirEntry[], query: string) =>
+  andSearchBy(entries, query, (entry) => entry.name);
 
 /**
  * Comparison function for sorting an array of DirEntry objects based on a specified criterion and order.
@@ -62,8 +45,8 @@ export const sortBy = (a: DirEntry, b: DirEntry, sortOrder: SortOrder) => {
     case "name_desc":
       return b.name.localeCompare(a.name);
     case "date_asc":
-      return Date.parse(a.last_modified) - Date.parse(b.last_modified);
+      return a.last_modified - b.last_modified;
     case "date_desc":
-      return Date.parse(b.last_modified) - Date.parse(a.last_modified);
+      return b.last_modified - a.last_modified;
   }
 };

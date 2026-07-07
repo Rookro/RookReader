@@ -52,7 +52,7 @@ export default function UpdaterProgressDialog({
 
       <DialogContent>
         <Box
-          sx={{ display: "flex", justifyContent: "space-between", mmarginBottom: 1, paddingX: 0.5 }}
+          sx={{ display: "flex", justifyContent: "space-between", marginBottom: 1, paddingX: 0.5 }}
         >
           <Typography variant="body2" sx={{ color: "text.secondary" }}>
             {updateStatus}

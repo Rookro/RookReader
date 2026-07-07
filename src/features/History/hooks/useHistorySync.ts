@@ -1,5 +1,7 @@
 import { useEffect } from "react";
+import type { ReadingState } from "../../../domain/book/schema";
 import { useTauriEvent } from "../../../hooks/useTauriEvent";
+import { readingProgressChanged } from "../../../store/actions";
 import { useAppDispatch, useAppSelector } from "../../../store/store";
 import { fetchSeries } from "../../Bookshelf/seriesSlice";
 import { fetchBookshelves, fetchBooksInSelectedBookshelf } from "../../Bookshelf/slice";
@@ -9,8 +11,9 @@ import { fetchRecentlyReadBooks } from "../slice";
 /**
  * A custom hook to synchronize history and bookshelf data across the application.
  *
- * This hook performs the initial data load and listens for 'history-changed' events
- * from the backend to trigger real-time updates of the reading history and bookshelf contents.
+ * This hook performs the initial data load and listens for backend events: 'history-changed'
+ * triggers a full refresh of the reading history and bookshelf contents, while the finer
+ * 'reading-progress-changed' (a page turn) patches only the affected book in place.
  */
 export const useHistorySync = () => {
   const dispatch = useAppDispatch();
@@ -41,5 +44,11 @@ export const useHistorySync = () => {
     dispatch(fetchTags());
     dispatch(fetchSeries());
     dispatch(fetchBooksInSelectedBookshelf(selectedBookshelfId));
+  });
+
+  // A page turn only changes reading progress; patch the affected book in place
+  // instead of refetching the whole library (unlike the coarse 'history-changed').
+  useTauriEvent<ReadingState>("reading-progress-changed", (event) => {
+    dispatch(readingProgressChanged(event.payload));
   });
 };

@@ -1,13 +1,15 @@
 import { waitFor } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createBasePreloadedState, renderWithProviders } from "../../test/utils";
 import { ErrorCode } from "../../types/Error";
 import GlobalErrorListener from "./GlobalErrorListener";
 import * as notificationContext from "./Notification/NotificationContext";
 
-// Mock useNotification
+// Mock useNotification; keep a passthrough provider so renderWithProviders can render it.
 vi.mock("./Notification/NotificationContext", () => ({
   useNotification: vi.fn(),
+  default: ({ children }: { children: ReactNode }) => children,
 }));
 
 describe("GlobalErrorListener", () => {
@@ -23,7 +25,7 @@ describe("GlobalErrorListener", () => {
   it("should trigger notification and clear error when containerFile has error", async () => {
     const preloadedState = structuredClone(createBasePreloadedState());
     preloadedState.read.containerFile.error = {
-      code: ErrorCode.CONTAINER_UNSUPPORTED_CONTAINER_ERROR,
+      code: ErrorCode.unsupportedContainer,
     };
 
     const { store } = renderWithProviders(<GlobalErrorListener />, { preloadedState });
@@ -48,7 +50,7 @@ describe("GlobalErrorListener", () => {
 
   it("should trigger notification and clear error when explorer has error", async () => {
     const preloadedState = createBasePreloadedState();
-    preloadedState.read.explorer.error = { code: ErrorCode.IO_ERROR };
+    preloadedState.read.explorer.error = { code: ErrorCode.io };
 
     const { store } = renderWithProviders(<GlobalErrorListener />, { preloadedState });
 
@@ -64,7 +66,7 @@ describe("GlobalErrorListener", () => {
 
   it("should trigger notification and clear error when history has error", async () => {
     const preloadedState = createBasePreloadedState();
-    preloadedState.history.error = { code: ErrorCode.OTHER_ERROR };
+    preloadedState.history.error = { code: ErrorCode.other };
 
     const { store } = renderWithProviders(<GlobalErrorListener />, { preloadedState });
 
@@ -80,7 +82,7 @@ describe("GlobalErrorListener", () => {
 
   it("should trigger notification and clear error when bookshelf has error", async () => {
     const preloadedState = createBasePreloadedState();
-    preloadedState.bookCollection.error = { code: ErrorCode.OTHER_ERROR };
+    preloadedState.bookCollection.error = { code: ErrorCode.other };
 
     const { store } = renderWithProviders(<GlobalErrorListener />, { preloadedState });
 
@@ -96,7 +98,7 @@ describe("GlobalErrorListener", () => {
 
   it("should trigger notification and clear error when tags has error", async () => {
     const preloadedState = createBasePreloadedState();
-    preloadedState.tag.error = { code: ErrorCode.OTHER_ERROR };
+    preloadedState.tag.error = { code: ErrorCode.other };
 
     const { store } = renderWithProviders(<GlobalErrorListener />, { preloadedState });
 
