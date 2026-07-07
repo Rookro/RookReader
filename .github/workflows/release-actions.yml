@@ -48,6 +48,9 @@ jobs:
       - name: Run biome check
         run: npm run check
 
+      - name: Generate third-party licenses
+        run: npm run licenses
+
       - name: Check generated TypeScript bindings are up to date
         run: npm run gen:bindings:check
 
