@@ -8,7 +8,7 @@ use mockall::{automock, predicate::*};
 /// File extensions (lowercase, without the dot) the container factory can open.
 /// [`Container::is_supported_format`] and the factory's dispatch must both derive from
 /// this list; a `factory.rs` test cross-checks that they stay in sync.
-pub const SUPPORTED_EXTENSIONS: [&str; 4] = ["pdf", "rar", "zip", "epub"];
+pub const SUPPORTED_EXTENSIONS: [&str; 6] = ["pdf", "rar", "zip", "epub", "cbz", "cbr"];
 
 /// A trait representing a container for readable content, such as an archive file or a directory.
 ///
@@ -84,7 +84,8 @@ pub trait Container: Send + Sync + 'static {
 impl dyn Container {
     /// Checks if a given filename has a supported container file extension.
     ///
-    /// The check is case-insensitive. Supported formats include "pdf", "rar", "zip", and "epub".
+    /// The check is case-insensitive. Supported formats include "pdf", "rar", "zip", "epub",
+    /// "cbz" (a ZIP comic archive), and "cbr" (a RAR comic archive).
     ///
     /// # Arguments
     ///
@@ -114,6 +115,10 @@ mod tests {
     #[case("archive.RAR", true)]
     #[case("compressed.zip", true)]
     #[case("compressed.ZIP", true)]
+    #[case("comic.cbz", true)]
+    #[case("comic.CBZ", true)]
+    #[case("comic.cbr", true)]
+    #[case("comic.CBR", true)]
     #[case("test.pdf.rar", true)]
     #[case(".pdf", true)]
     #[case(".rar", true)]

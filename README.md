@@ -23,6 +23,8 @@ It supports image sequences (such as comics and magazines) contained in a direct
 * **Supported file formats:**
   * zip
   * rar
+  * cbz (a ZIP comic archive)
+  * cbr (a RAR comic archive)
   * pdf
   * epub (Note: The novel reading function is an experimental feature.)
 * **Bookshelf Management:** Organize your library with multiple bookshelves and custom icons.

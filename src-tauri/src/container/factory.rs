@@ -51,13 +51,13 @@ pub fn create_container(path: &str, config: ContainerConfig) -> Result<Arc<dyn C
     if let Some(ext) = file_path.extension() {
         let ext_str = ext.to_string_lossy().to_lowercase();
         match ext_str.as_str() {
-            "zip" => Ok(Arc::new(ZipContainer::new(path)?)),
+            "zip" | "cbz" => Ok(Arc::new(ZipContainer::new(path)?)),
             "pdf" => Ok(Arc::new(PdfContainer::new(
                 path,
                 config.pdf_render_config,
                 config.pdfium_library_path,
             )?)),
-            "rar" => Ok(Arc::new(RarContainer::new(path)?)),
+            "rar" | "cbr" => Ok(Arc::new(RarContainer::new(path)?)),
             "epub" => Ok(Arc::new(EpubContainer::new(path)?)),
             _ => Err(Error::UnsupportedContainer(format!(
                 "Unsupported Container Type: {}",
