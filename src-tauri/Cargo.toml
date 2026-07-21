@@ -16,6 +16,13 @@ repository = "https://github.com/Rookro/RookReader"
 name = "rookreader_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
+[features]
+# Marks an E2E test build: pulls in the WDIO backend plugin plus the embedded W3C
+# WebDriver server used by the @wdio/tauri-service E2E suite. Enabled only for the E2E
+# build (`tauri build --no-bundle --features e2e-test`); never for shipped/production
+# builds, so the automation servers are not compiled into them.
+e2e-test = ["dep:tauri-plugin-wdio", "dep:tauri-plugin-wdio-webdriver"]
+
 [build-dependencies]
 flate2 = "1.1.9"
 reqwest = { version = "0.13.4", features = ["blocking"] }
@@ -63,6 +70,11 @@ tauri-specta = { version = "=2.0.0-rc.25", features = ["derive", "typescript"] }
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-updater = "2"
 tauri-plugin-window-state = "2"
+# WDIO backend plugin (`/wdio/eval`, log capture) + embedded W3C WebDriver server for the
+# @wdio/tauri-service `embedded` provider. Optional and gated behind the `e2e-test` feature —
+# MUST NOT be enabled for shipped/production builds (they expose automation HTTP servers).
+tauri-plugin-wdio = { version = "1", optional = true }
+tauri-plugin-wdio-webdriver = { version = "1", optional = true }
 
 [dev-dependencies]
 mockall = "0.14.0"

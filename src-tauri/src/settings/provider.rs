@@ -53,7 +53,7 @@ impl SettingsFileProvider {
     ///
     /// Returns an `Err` if the app data directory cannot be resolved or created.
     pub fn new(app: &AppHandle, filename: &str) -> Result<Self> {
-        let dir = app.path().app_data_dir()?;
+        let dir = crate::setup::app_data_dir(app)?;
         fs::create_dir_all(&dir)?;
         let home_dir = app
             .path()

@@ -4,7 +4,6 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use tauri::Emitter;
-use tauri::Manager;
 use tauri::State;
 
 use crate::container::factory::{create_container, ContainerConfig};
@@ -608,7 +607,7 @@ async fn generate_and_save_thumbnail<R: tauri::Runtime>(
         file_path.hash(&mut hasher);
         let hash = hasher.finish();
 
-        let thumbnails_dir = app.path().app_data_dir()?.join("thumbnails");
+        let thumbnails_dir = crate::setup::app_data_dir(&app)?.join("thumbnails");
         if !thumbnails_dir.exists() {
             fs::create_dir_all(&thumbnails_dir)?;
         }
@@ -1104,7 +1103,7 @@ mod tests {
         std::hash::Hash::hash(&file_path, &mut hasher);
         let hash = std::hash::Hasher::finish(&hasher);
 
-        let thumbnails_dir = app.path().app_data_dir().unwrap().join("thumbnails");
+        let thumbnails_dir = crate::setup::app_data_dir(&app).unwrap().join("thumbnails");
         std::fs::create_dir_all(&thumbnails_dir).unwrap();
 
         let thumbnail_filename = format!("thumbnail_{}.jpg", hash);
