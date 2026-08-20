@@ -53,15 +53,15 @@ export const readingStateMiddleware: Middleware<object, RootState> =
       case setNovelLocation.type: {
         const state = store.getState();
         if (state.settings.history.recordReadingHistory) {
-          const { history, historyIndex, index, book } = state.read.containerFile;
+          const { history, historyIndex, index, cfi, book } = state.read.containerFile;
 
           if (history[historyIndex] && index > -1 && book?.last_opened_at) {
-            // TODO(Rookro): Persist the current CFI to the database for EPUB novels.
             queueReadingStateUpdate({
               state: {
                 book_id: book.id,
                 last_read_page_index: index,
-                cfi: null,
+                // foliate-js occasionally emits an empty CFI; store null instead of "".
+                cfi: cfi || null,
                 last_opened_at: book.last_opened_at,
               },
               shouldRecord: () => store.getState().settings.history.recordReadingHistory,
