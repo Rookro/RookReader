@@ -340,6 +340,77 @@ describe("ReadReducer", () => {
         expect(state.containerFile.index).toBe(2);
       });
 
+      // Verify that a novel's persisted CFI is restored on open
+      it("should restore the persisted CFI when opening an EPUB novel", async () => {
+        const mockBook = createMockBookWithState({
+          id: 1,
+          last_read_page_index: 3,
+          cfi: "epubcfi(/6/8!/4/2/1:0)",
+        });
+
+        vi.mocked(ContainerCommands.getEntriesInContainer).mockResolvedValue({
+          is_directory: false,
+          entries: ["s1", "s2", "s3", "s4"],
+          is_novel: true,
+        });
+        vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(1);
+        vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
+
+        store.dispatch(setContainerFilePath("path.epub"));
+        await store.dispatch(openContainerFile("path.epub"));
+
+        const state = store.getState().read;
+        expect(state.containerFile.index).toBe(3);
+        expect(state.containerFile.cfi).toBe("epubcfi(/6/8!/4/2/1:0)");
+      });
+
+      // Verify that a comic never restores a CFI, even if the row carries a stale one
+      it("should keep cfi null when opening a comic", async () => {
+        const mockBook = createMockBookWithState({
+          id: 1,
+          last_read_page_index: 1,
+          cfi: "epubcfi(/6/8!/4/2/1:0)",
+        });
+
+        vi.mocked(ContainerCommands.getEntriesInContainer).mockResolvedValue({
+          is_directory: false,
+          entries: ["p1", "p2"],
+          is_novel: false,
+        });
+        vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(1);
+        vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
+
+        store.dispatch(setContainerFilePath("path/to/book.zip"));
+        await store.dispatch(openContainerFile("path/to/book.zip"));
+
+        expect(store.getState().read.containerFile.cfi).toBeNull();
+      });
+
+      // Verify that adjacent-book "first"/"last" overrides win over the CFI restore
+      it("should not restore the CFI when pendingInitialPosition is set", async () => {
+        const mockBook = createMockBookWithState({
+          id: 1,
+          last_read_page_index: 3,
+          cfi: "epubcfi(/6/8!/4/2/1:0)",
+        });
+
+        vi.mocked(ContainerCommands.getEntriesInContainer).mockResolvedValue({
+          is_directory: false,
+          entries: ["s1", "s2", "s3"],
+          is_novel: true,
+        });
+        vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(1);
+        vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
+
+        store.dispatch(setContainerFilePath("path.epub"));
+        store.dispatch(setPendingInitialPosition("first"));
+        await store.dispatch(openContainerFile("path.epub"));
+
+        const state = store.getState().read;
+        expect(state.containerFile.index).toBe(0);
+        expect(state.containerFile.cfi).toBeNull();
+      });
+
       // Verify handling of EPUB novel format
       it("should handle EPUB novel", async () => {
         const mockBook = createMockBookWithState({ id: 1, last_read_page_index: 0 });
