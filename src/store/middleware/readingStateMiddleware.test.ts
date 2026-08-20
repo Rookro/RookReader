@@ -55,6 +55,7 @@ describe("readingStateMiddleware", () => {
     expect(bookCommands.updateReadingProgress).toHaveBeenCalledWith({
       book_id: 1,
       last_read_page_index: 10,
+      cfi: null,
       last_opened_at: "now",
     });
   });
@@ -73,6 +74,7 @@ describe("readingStateMiddleware", () => {
     expect(bookCommands.updateReadingProgress).toHaveBeenCalledWith({
       book_id: 1,
       last_read_page_index: 20,
+      cfi: null,
       last_opened_at: "now",
     });
   });
@@ -91,6 +93,7 @@ describe("readingStateMiddleware", () => {
     expect(bookCommands.updateReadingProgress).toHaveBeenCalledWith({
       book_id: 1,
       last_read_page_index: 10,
+      cfi: null,
       last_opened_at: "a",
     });
 
@@ -100,6 +103,7 @@ describe("readingStateMiddleware", () => {
     expect(bookCommands.updateReadingProgress).toHaveBeenLastCalledWith({
       book_id: 2,
       last_read_page_index: 3,
+      cfi: null,
       last_opened_at: "b",
     });
   });
@@ -155,6 +159,7 @@ describe("readingStateMiddleware", () => {
     expect(bookCommands.updateReadingProgress).toHaveBeenCalledWith({
       book_id: 1,
       last_read_page_index: 10,
+      cfi: null,
       last_opened_at: "now",
     });
   });

@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n            SELECT\n                id, file_path, item_type, display_name, total_pages, series_id, series_order,\n                thumbnail_path, created_at, last_read_page_index, last_opened_at,\n                tag_ids_str as \"tag_ids_str?: String\"\n            FROM book_with_state_view\n            ORDER BY id DESC\n            ",
+  "query": "\n            SELECT\n                id, file_path, item_type, display_name, total_pages, series_id, series_order,\n                thumbnail_path, created_at, last_read_page_index, last_opened_at,\n                cfi as \"cfi?: String\",\n                tag_ids_str as \"tag_ids_str?: String\"\n            FROM book_with_state_view\n            WHERE series_id = ?\n            ORDER BY series_order ASC, display_name ASC\n            ",
   "describe": {
     "columns": [
       {
@@ -59,13 +59,18 @@
         "type_info": "Datetime"
       },
       {
-        "name": "tag_ids_str?: String",
+        "name": "cfi?: String",
         "ordinal": 11,
+        "type_info": "Text"
+      },
+      {
+        "name": "tag_ids_str?: String",
+        "ordinal": 12,
         "type_info": "Text"
       }
     ],
     "parameters": {
-      "Right": 0
+      "Right": 1
     },
     "nullable": [
       false,
@@ -79,8 +84,9 @@
       true,
       true,
       true,
+      true,
       true
     ]
   },
-  "hash": "b217562b5d94937913d1c216f1031854ad2c3ce517931bfae3654cef1b360964"
+  "hash": "37faa9f8ce3b3eeba58c3448d039f6bbed3b8258f4f70a6248341541403bc233"
 }

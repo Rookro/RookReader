@@ -61,6 +61,7 @@ export const readingStateMiddleware: Middleware<object, RootState> =
               state: {
                 book_id: book.id,
                 last_read_page_index: index,
+                cfi: null,
                 last_opened_at: book.last_opened_at,
               },
               shouldRecord: () => store.getState().settings.history.recordReadingHistory,

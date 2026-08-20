@@ -69,6 +69,7 @@ impl BookshelfRepository for SqliteBookshelfRepository {
             SELECT
                 v.id, v.file_path, v.item_type, v.display_name, v.total_pages, v.series_id, v.series_order,
                 v.thumbnail_path, v.created_at, v.last_read_page_index, v.last_opened_at,
+                v.cfi as "cfi?: String",
                 v.tag_ids_str as "tag_ids_str?: String"
             FROM book_with_state_view v
             INNER JOIN bookshelf_items bi ON v.id = bi.book_id

@@ -27,6 +27,7 @@ erDiagram
     reading_state {
         INTEGER book_id PK, FK "books.id"
         INTEGER last_read_page_index
+        TEXT cfi "EPUB CFI; NULL for comics"
         DATETIME last_opened_at
     }
 
