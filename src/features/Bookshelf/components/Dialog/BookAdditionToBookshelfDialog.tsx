@@ -1,4 +1,5 @@
-import { DeleteOutline, InsertDriveFileOutlined } from "@mui/icons-material";
+import DeleteOutline from "@mui/icons-material/DeleteOutline";
+import InsertDriveFileOutlined from "@mui/icons-material/InsertDriveFileOutlined";
 import {
   Box,
   Button,

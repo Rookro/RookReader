@@ -1,9 +1,7 @@
-import {
-  DarkModeOutlined,
-  LightModeOutlined,
-  Palette,
-  SettingsBrightnessOutlined,
-} from "@mui/icons-material";
+import DarkModeOutlined from "@mui/icons-material/DarkModeOutlined";
+import LightModeOutlined from "@mui/icons-material/LightModeOutlined";
+import Palette from "@mui/icons-material/Palette";
+import SettingsBrightnessOutlined from "@mui/icons-material/SettingsBrightnessOutlined";
 import {
   ListItem,
   ListItemIcon,

@@ -1,4 +1,7 @@
-import { CollectionsBookmark, Delete, LibraryBooks, LocalOffer } from "@mui/icons-material";
+import CollectionsBookmark from "@mui/icons-material/CollectionsBookmark";
+import Delete from "@mui/icons-material/Delete";
+import LibraryBooks from "@mui/icons-material/LibraryBooks";
+import LocalOffer from "@mui/icons-material/LocalOffer";
 import { Divider, ListItemIcon, ListItemText, Menu, MenuItem } from "@mui/material";
 import { useTranslation } from "react-i18next";
 import type { BookWithState } from "../../../domain/book/schema";

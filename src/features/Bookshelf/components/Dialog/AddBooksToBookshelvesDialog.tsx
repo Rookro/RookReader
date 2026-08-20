@@ -1,4 +1,4 @@
-import { LibraryBooks } from "@mui/icons-material";
+import LibraryBooks from "@mui/icons-material/LibraryBooks";
 import {
   Box,
   Button,

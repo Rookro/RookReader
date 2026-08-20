@@ -1,4 +1,4 @@
-import { FolderOutlined } from "@mui/icons-material";
+import FolderOutlined from "@mui/icons-material/FolderOutlined";
 import {
   Box,
   ListItem,
