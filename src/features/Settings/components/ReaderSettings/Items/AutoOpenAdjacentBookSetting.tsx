@@ -1,4 +1,4 @@
-import { MenuBook } from "@mui/icons-material";
+import MenuBook from "@mui/icons-material/MenuBook";
 import { MenuItem, type SelectChangeEvent } from "@mui/material";
 import { debug } from "@tauri-apps/plugin-log";
 import { useCallback } from "react";

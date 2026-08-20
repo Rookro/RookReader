@@ -1,4 +1,4 @@
-import { StorageOutlined } from "@mui/icons-material";
+import StorageOutlined from "@mui/icons-material/StorageOutlined";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppSelector } from "../../../../../store/store";

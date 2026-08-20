@@ -1,4 +1,5 @@
-import { ZoomIn, ZoomOut } from "@mui/icons-material";
+import ZoomIn from "@mui/icons-material/ZoomIn";
+import ZoomOut from "@mui/icons-material/ZoomOut";
 import { Paper, Slider, Stack } from "@mui/material";
 import { useTranslation } from "react-i18next";
 

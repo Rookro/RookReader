@@ -1,4 +1,4 @@
-import { FontDownloadOutlined } from "@mui/icons-material";
+import FontDownloadOutlined from "@mui/icons-material/FontDownloadOutlined";
 import { MenuItem, type SelectChangeEvent } from "@mui/material";
 import { debug } from "@tauri-apps/plugin-log";
 import { useCallback } from "react";

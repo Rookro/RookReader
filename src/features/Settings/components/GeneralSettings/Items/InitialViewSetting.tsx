@@ -1,4 +1,4 @@
-import { RocketLaunch } from "@mui/icons-material";
+import RocketLaunch from "@mui/icons-material/RocketLaunch";
 import { MenuItem, type SelectChangeEvent } from "@mui/material";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";

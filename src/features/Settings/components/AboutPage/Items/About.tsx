@@ -1,4 +1,5 @@
-import { GitHub, SystemUpdateAlt } from "@mui/icons-material";
+import GitHub from "@mui/icons-material/GitHub";
+import SystemUpdateAlt from "@mui/icons-material/SystemUpdateAlt";
 import { Box, Button, Link, Stack, Typography } from "@mui/material";
 import { getName, getVersion } from "@tauri-apps/api/app";
 import { error } from "@tauri-apps/plugin-log";

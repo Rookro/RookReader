@@ -1,4 +1,5 @@
-import { CheckCircle, MenuBook } from "@mui/icons-material";
+import CheckCircle from "@mui/icons-material/CheckCircle";
+import MenuBook from "@mui/icons-material/MenuBook";
 import {
   alpha,
   Box,

@@ -1,4 +1,4 @@
-import { Image } from "@mui/icons-material";
+import Image from "@mui/icons-material/Image";
 import { ListItem, ListItemButton, ListItemText, Tooltip } from "@mui/material";
 import { type CSSProperties, memo } from "react";
 

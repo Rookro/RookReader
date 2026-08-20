@@ -1,4 +1,4 @@
-import { AspectRatioOutlined } from "@mui/icons-material";
+import AspectRatioOutlined from "@mui/icons-material/AspectRatioOutlined";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppSelector } from "../../../../../store/store";

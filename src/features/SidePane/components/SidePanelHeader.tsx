@@ -1,4 +1,4 @@
-import { Close } from "@mui/icons-material";
+import Close from "@mui/icons-material/Close";
 import { Divider, IconButton, Stack, Typography } from "@mui/material";
 import { useCallback } from "react";
 import { useAppDispatch, useAppSelector } from "../../../store/store";

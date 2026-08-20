@@ -1,4 +1,6 @@
-import { Explore, History, PhotoLibrary } from "@mui/icons-material";
+import Explore from "@mui/icons-material/Explore";
+import History from "@mui/icons-material/History";
+import PhotoLibrary from "@mui/icons-material/PhotoLibrary";
 import { Box, CircularProgress, Stack, type SxProps, type Theme } from "@mui/material";
 import { createSelector } from "@reduxjs/toolkit";
 import { Allotment } from "allotment";

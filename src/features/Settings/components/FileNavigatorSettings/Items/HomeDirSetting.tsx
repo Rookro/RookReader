@@ -1,4 +1,5 @@
-import { Folder, HomeOutlined } from "@mui/icons-material";
+import Folder from "@mui/icons-material/Folder";
+import HomeOutlined from "@mui/icons-material/HomeOutlined";
 import { Box, IconButton, ListItem, ListItemIcon, ListItemText, TextField } from "@mui/material";
 import { homeDir } from "@tauri-apps/api/path";
 import { open } from "@tauri-apps/plugin-dialog";

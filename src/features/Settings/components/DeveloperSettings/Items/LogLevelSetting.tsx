@@ -1,4 +1,6 @@
-import { FilterListOutlined, FolderOpen, SourceOutlined } from "@mui/icons-material";
+import FilterListOutlined from "@mui/icons-material/FilterListOutlined";
+import FolderOpen from "@mui/icons-material/FolderOpen";
+import SourceOutlined from "@mui/icons-material/SourceOutlined";
 import type { SelectChangeEvent } from "@mui/material";
 import {
   IconButton,

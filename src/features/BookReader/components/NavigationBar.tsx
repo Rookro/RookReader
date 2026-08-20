@@ -1,13 +1,11 @@
-import {
-  ArrowBack,
-  ArrowForward,
-  LocalLibrary,
-  LooksOne,
-  LooksTwo,
-  Settings,
-  SwitchLeft,
-  SwitchRight,
-} from "@mui/icons-material";
+import ArrowBack from "@mui/icons-material/ArrowBack";
+import ArrowForward from "@mui/icons-material/ArrowForward";
+import LocalLibrary from "@mui/icons-material/LocalLibrary";
+import LooksOne from "@mui/icons-material/LooksOne";
+import LooksTwo from "@mui/icons-material/LooksTwo";
+import Settings from "@mui/icons-material/Settings";
+import SwitchLeft from "@mui/icons-material/SwitchLeft";
+import SwitchRight from "@mui/icons-material/SwitchRight";
 import { Box, IconButton, OutlinedInput, Toolbar, Tooltip } from "@mui/material";
 import { debug } from "@tauri-apps/plugin-log";
 import type React from "react";

@@ -1,4 +1,4 @@
-import { CloudDownloadOutlined } from "@mui/icons-material";
+import CloudDownloadOutlined from "@mui/icons-material/CloudDownloadOutlined";
 import { Box, Dialog, DialogContent, DialogTitle, LinearProgress, Typography } from "@mui/material";
 import { useTranslation } from "react-i18next";
 

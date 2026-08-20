@@ -1,4 +1,4 @@
-import { Search } from "@mui/icons-material";
+import Search from "@mui/icons-material/Search";
 import { Box, ListItem, ListItemIcon, ListItemText, TextField } from "@mui/material";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";

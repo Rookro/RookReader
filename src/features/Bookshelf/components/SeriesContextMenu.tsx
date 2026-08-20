@@ -1,4 +1,5 @@
-import { Delete, Sort } from "@mui/icons-material";
+import Delete from "@mui/icons-material/Delete";
+import Sort from "@mui/icons-material/Sort";
 import { ListItemIcon, ListItemText, Menu, MenuItem } from "@mui/material";
 import { error } from "@tauri-apps/plugin-log";
 import { useTranslation } from "react-i18next";

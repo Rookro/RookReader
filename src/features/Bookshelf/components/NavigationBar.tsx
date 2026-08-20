@@ -1,4 +1,10 @@
-import { Add, ArrowDownward, ArrowUpward, Home, Search, Settings, Sort } from "@mui/icons-material";
+import Add from "@mui/icons-material/Add";
+import ArrowDownward from "@mui/icons-material/ArrowDownward";
+import ArrowUpward from "@mui/icons-material/ArrowUpward";
+import Home from "@mui/icons-material/Home";
+import Search from "@mui/icons-material/Search";
+import Settings from "@mui/icons-material/Settings";
+import Sort from "@mui/icons-material/Sort";
 import {
   Box,
   Breadcrumbs,

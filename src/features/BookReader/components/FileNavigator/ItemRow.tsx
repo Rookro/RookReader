@@ -1,4 +1,4 @@
-import { FolderOutlined } from "@mui/icons-material";
+import FolderOutlined from "@mui/icons-material/FolderOutlined";
 import { ListItem, ListItemButton, ListItemText, Tooltip } from "@mui/material";
 import { type CSSProperties, memo } from "react";
 import type { DirEntry } from "../../../../types/DirEntry";

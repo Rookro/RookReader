@@ -1,4 +1,9 @@
-import { ArrowBack, ArrowForward, ArrowUpward, Home, Refresh, Search } from "@mui/icons-material";
+import ArrowBack from "@mui/icons-material/ArrowBack";
+import ArrowForward from "@mui/icons-material/ArrowForward";
+import ArrowUpward from "@mui/icons-material/ArrowUpward";
+import Home from "@mui/icons-material/Home";
+import Refresh from "@mui/icons-material/Refresh";
+import Search from "@mui/icons-material/Search";
 import {
   Box,
   IconButton,

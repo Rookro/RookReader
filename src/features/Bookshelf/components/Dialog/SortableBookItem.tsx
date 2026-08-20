@@ -1,6 +1,6 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { DragIndicator } from "@mui/icons-material";
+import DragIndicator from "@mui/icons-material/DragIndicator";
 import { Avatar, Box, IconButton, ListItem, ListItemAvatar, ListItemText } from "@mui/material";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import dummy_thumbnail from "../../../../assets/dummy_thumbnail.svg";

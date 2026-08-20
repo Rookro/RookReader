@@ -1,4 +1,4 @@
-import { RestorePageOutlined } from "@mui/icons-material";
+import RestorePageOutlined from "@mui/icons-material/RestorePageOutlined";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppDispatch, useAppSelector } from "../../../../../store/store";

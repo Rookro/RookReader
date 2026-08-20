@@ -1,4 +1,9 @@
-import { Add, AutoStories, Delete, LocalOffer, MenuBook, QuestionMark } from "@mui/icons-material";
+import Add from "@mui/icons-material/Add";
+import AutoStories from "@mui/icons-material/AutoStories";
+import Delete from "@mui/icons-material/Delete";
+import LocalOffer from "@mui/icons-material/LocalOffer";
+import MenuBook from "@mui/icons-material/MenuBook";
+import QuestionMark from "@mui/icons-material/QuestionMark";
 import {
   Box,
   Divider,

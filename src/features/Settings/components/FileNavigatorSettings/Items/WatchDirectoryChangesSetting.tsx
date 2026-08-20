@@ -1,4 +1,4 @@
-import { PublishedWithChangesOutlined } from "@mui/icons-material";
+import PublishedWithChangesOutlined from "@mui/icons-material/PublishedWithChangesOutlined";
 import { debug } from "@tauri-apps/plugin-log";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";

@@ -1,4 +1,4 @@
-import { AutoStoriesOutlined } from "@mui/icons-material";
+import AutoStoriesOutlined from "@mui/icons-material/AutoStoriesOutlined";
 import { debug } from "@tauri-apps/plugin-log";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
