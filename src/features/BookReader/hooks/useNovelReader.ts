@@ -2,7 +2,7 @@ import { readFile } from "@tauri-apps/plugin-fs";
 import { error } from "@tauri-apps/plugin-log";
 import type { TOCItem } from "foliate-js/epub.js";
 import { Paginator } from "foliate-js/paginator.js";
-import { type Book, makeBook, type View } from "foliate-js/view.js";
+import { type Book, makeBook, type View, type ViewLocation } from "foliate-js/view.js";
 import { useCallback, useEffect, useRef } from "react";
 import BundledNotoSerifJP from "../../../assets/fonts/NotoSerifJP-VariableFont_wght.woff2";
 import { useAppTheme } from "../../../hooks/useAppTheme";
@@ -36,6 +36,18 @@ const buildTocMap = (book: Book): Map<number, string> => {
   traverse(book.toc);
   return map;
 };
+
+/**
+ * Reads the spine section index out of a foliate-js location.
+ * The view's `lastLocation` is the very object the `relocate` event carries, so
+ * both sides must derive the index the same way; `lastLocation` has no `index`
+ * of its own, only `section.current`.
+ *
+ * @param location - A foliate-js location, or null when the view has none yet.
+ * @returns The section index, or undefined if the location carries none.
+ */
+const sectionIndexOf = (location: ViewLocation | null | undefined): number | undefined =>
+  location?.section?.current ?? location?.index;
 
 /** Options for the useNovelReader hook */
 export interface UseNovelReaderOptions {
@@ -240,8 +252,7 @@ export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
 
         view.addEventListener("relocate", (e) => {
           if (!isMounted) return;
-          // foliate-js view's relocate event returns index in detail.section.current, or occasionally detail.index.
-          const newIndex = e.detail.section?.current ?? e.detail.index ?? 0;
+          const newIndex = sectionIndexOf(e.detail) ?? 0;
           const newCfi = e.detail.cfi ?? "";
           contextRef.current.dispatch(setNovelLocation({ index: newIndex, cfi: newCfi }));
         });
@@ -274,7 +285,7 @@ export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
     }
 
     const currentCfi = viewRef.current.lastLocation?.cfi;
-    const currentIndex = viewRef.current.lastLocation?.index;
+    const currentIndex = sectionIndexOf(viewRef.current.lastLocation);
 
     if (cfi && cfi !== currentCfi) {
       viewRef.current.goTo(cfi).catch((e) => {

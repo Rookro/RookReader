@@ -10,13 +10,19 @@ const run = (
   action: unknown,
 ) => readingStateMiddleware(store as MiddlewareAPI)(next as (action: unknown) => unknown)(action);
 
-const stateFor = (book: unknown, recordReadingHistory = true, index = 10) => ({
+const stateFor = (
+  book: unknown,
+  recordReadingHistory = true,
+  index = 10,
+  cfi: string | null = null,
+) => ({
   settings: { history: { recordReadingHistory } },
   read: {
     containerFile: {
       history: ["path1"],
       historyIndex: 0,
       index,
+      cfi,
       book,
     },
   },
@@ -55,6 +61,7 @@ describe("readingStateMiddleware", () => {
     expect(bookCommands.updateReadingProgress).toHaveBeenCalledWith({
       book_id: 1,
       last_read_page_index: 10,
+      cfi: null,
       last_opened_at: "now",
     });
   });
@@ -73,6 +80,7 @@ describe("readingStateMiddleware", () => {
     expect(bookCommands.updateReadingProgress).toHaveBeenCalledWith({
       book_id: 1,
       last_read_page_index: 20,
+      cfi: null,
       last_opened_at: "now",
     });
   });
@@ -91,6 +99,7 @@ describe("readingStateMiddleware", () => {
     expect(bookCommands.updateReadingProgress).toHaveBeenCalledWith({
       book_id: 1,
       last_read_page_index: 10,
+      cfi: null,
       last_opened_at: "a",
     });
 
@@ -100,6 +109,7 @@ describe("readingStateMiddleware", () => {
     expect(bookCommands.updateReadingProgress).toHaveBeenLastCalledWith({
       book_id: 2,
       last_read_page_index: 3,
+      cfi: null,
       last_opened_at: "b",
     });
   });
@@ -148,13 +158,36 @@ describe("readingStateMiddleware", () => {
   });
 
   // Verify that reading state is saved to the DB when read/setNovelLocation action (for novels) is dispatched
-  it("should call updateReadingProgress when read/setNovelLocation is dispatched", async () => {
-    run(store, next, { type: "read/setNovelLocation", payload: { index: 5, cfi: "cfi" } });
+  it("should call updateReadingProgress with the CFI when read/setNovelLocation is dispatched", async () => {
+    store.getState.mockReturnValue(
+      stateFor({ id: 1, last_opened_at: "now" }, true, 5, "epubcfi(/6/8!/4/2/1:0)"),
+    );
+
+    run(store, next, {
+      type: "read/setNovelLocation",
+      payload: { index: 5, cfi: "epubcfi(/6/8!/4/2/1:0)" },
+    });
     await vi.advanceTimersByTimeAsync(500);
 
     expect(bookCommands.updateReadingProgress).toHaveBeenCalledWith({
       book_id: 1,
-      last_read_page_index: 10,
+      last_read_page_index: 5,
+      cfi: "epubcfi(/6/8!/4/2/1:0)",
+      last_opened_at: "now",
+    });
+  });
+
+  // Verify that an empty CFI (occasionally emitted by foliate-js) is stored as null, never "".
+  it("should normalize an empty-string CFI to null before persisting", async () => {
+    store.getState.mockReturnValue(stateFor({ id: 1, last_opened_at: "now" }, true, 5, ""));
+
+    run(store, next, { type: "read/setNovelLocation", payload: { index: 5, cfi: "" } });
+    await vi.advanceTimersByTimeAsync(500);
+
+    expect(bookCommands.updateReadingProgress).toHaveBeenCalledWith({
+      book_id: 1,
+      last_read_page_index: 5,
+      cfi: null,
       last_opened_at: "now",
     });
   });

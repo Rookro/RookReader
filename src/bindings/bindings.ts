@@ -256,6 +256,8 @@ export const commands = {
 	last_read_page_index: number | null,
 	/**  The timestamp when the book was last opened, if any. */
 	last_opened_at: string | null,
+	/**  The last EPUB reading position (CFI), if any. `None` for comics. */
+	cfi: string | null,
 	/**  List of tag IDs associated with this book. */
 	tag_ids?: number[],
 } | null, CommandError>(__TAURI_INVOKE("get_book_with_state_by_id", { id })),
@@ -770,6 +772,8 @@ export type BookWithState = {
 	last_read_page_index: number | null,
 	/**  The timestamp when the book was last opened, if any. */
 	last_opened_at: string | null,
+	/**  The last EPUB reading position (CFI), if any. `None` for comics. */
+	cfi: string | null,
 	/**  List of tag IDs associated with this book. */
 	tag_ids?: number[],
 };
@@ -1026,6 +1030,8 @@ export type ReadingState = {
 	book_id: number,
 	/**  The last read page index. */
 	last_read_page_index: number,
+	/**  The last EPUB reading position (CFI). `None` for comics. */
+	cfi: string | null,
 	/**  The timestamp when the book was last opened. */
 	last_opened_at: string | null,
 };

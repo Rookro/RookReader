@@ -811,7 +811,11 @@ mod tests {
         let mut mock_repo = MockBookRepository::new();
         mock_repo
             .expect_update_reading_progress()
-            .withf(|state: &ReadingState| state.book_id == 1 && state.last_read_page_index == 7)
+            .withf(|state: &ReadingState| {
+                state.book_id == 1
+                    && state.last_read_page_index == 7
+                    && state.cfi.as_deref() == Some("epubcfi(/6/8!/4/2/1:0)")
+            })
             .times(1)
             .returning(|_| Ok(()));
 
@@ -822,6 +826,7 @@ mod tests {
         let state_data = ReadingState {
             book_id: 1,
             last_read_page_index: 7,
+            cfi: Some("epubcfi(/6/8!/4/2/1:0)".to_string()),
             last_opened_at: None,
         };
         let result = update_reading_progress(state_data, repo, app.handle().clone()).await;
@@ -884,6 +889,7 @@ mod tests {
                     created_at: None,
                     last_read_page_index: Some(5),
                     last_opened_at: None,
+                    cfi: None,
                     tag_ids_str: None,
                     tag_ids: vec![],
                 }))

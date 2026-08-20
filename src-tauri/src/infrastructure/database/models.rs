@@ -28,6 +28,8 @@ pub struct BookWithStateRow {
     pub last_read_page_index: Option<i64>,
     /// The timestamp when the book was last opened, if any.
     pub last_opened_at: Option<NaiveDateTime>,
+    /// The last EPUB reading position (CFI), if any. `None` for comics.
+    pub cfi: Option<String>,
     /// Comma-separated list of tag IDs associated with this book.
     pub tag_ids_str: Option<String>,
 }
@@ -46,6 +48,7 @@ impl From<BookWithStateRow> for BookWithState {
             created_at: r.created_at,
             last_read_page_index: r.last_read_page_index,
             last_opened_at: r.last_opened_at,
+            cfi: r.cfi,
             tag_ids_str: r.tag_ids_str,
             tag_ids: Vec::new(),
         };

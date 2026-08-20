@@ -349,17 +349,23 @@ export const readSlice = createSlice({
         if (state.containerFile.pendingInitialPosition === "last") {
           const total = action.payload.entries?.length ?? 0;
           state.containerFile.index = Math.max(0, total - 1);
+          state.containerFile.cfi = null;
         } else if (state.containerFile.pendingInitialPosition === "first") {
           state.containerFile.index = 0;
+          state.containerFile.cfi = null;
         } else {
           // Clamp the restored index so a stale last_read_page_index past the
           // current page count never strands the viewer on a blank page.
           const total = state.containerFile.entries.length;
           const restored = action.payload.book?.last_read_page_index ?? 0;
           state.containerFile.index = total > 0 ? Math.min(Math.max(0, restored), total - 1) : 0;
+          // Novels resume at the persisted CFI; NovelReader passes it to
+          // view.init({ lastLocation }) on mount. Comics never carry a CFI.
+          state.containerFile.cfi = action.payload.isNovel
+            ? (action.payload.book?.cfi ?? null)
+            : null;
         }
         state.containerFile.pendingInitialPosition = null;
-        state.containerFile.cfi = null;
         state.containerFile.error = null;
         if (action.payload.isNovel !== undefined) {
           state.containerFile.isNovel = action.payload.isNovel;

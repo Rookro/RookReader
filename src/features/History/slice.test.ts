@@ -52,6 +52,7 @@ describe("HistoryReducer", () => {
       readingProgressChanged({
         book_id: 2,
         last_read_page_index: 9,
+        cfi: null,
         last_opened_at: "2026-07-04T10:00:00",
       }),
     );
@@ -71,6 +72,7 @@ describe("HistoryReducer", () => {
       readingProgressChanged({
         book_id: 999,
         last_read_page_index: 42,
+        cfi: null,
         last_opened_at: "2026-07-04T10:00:00",
       }),
     );

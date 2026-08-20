@@ -30,6 +30,8 @@ pub struct ReadingState {
     pub book_id: i64,
     /// The last read page index.
     pub last_read_page_index: i64,
+    /// The last EPUB reading position (CFI). `None` for comics.
+    pub cfi: Option<String>,
     /// The timestamp when the book was last opened.
     pub last_opened_at: Option<NaiveDateTime>,
 }
@@ -86,6 +88,8 @@ pub struct BookWithState {
     pub last_read_page_index: Option<i64>,
     /// The timestamp when the book was last opened, if any.
     pub last_opened_at: Option<NaiveDateTime>,
+    /// The last EPUB reading position (CFI), if any. `None` for comics.
+    pub cfi: Option<String>,
     /// Comma-separated list of tag IDs associated with this book.
     #[serde(skip)]
     pub tag_ids_str: Option<String>,
@@ -143,6 +147,7 @@ mod tests {
             created_at: None,
             last_read_page_index: None,
             last_opened_at: None,
+            cfi: None,
             tag_ids_str: Some("1,2,3".to_string()),
             tag_ids: vec![],
         };

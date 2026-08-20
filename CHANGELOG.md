@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 * Switched Material UI icon imports to per-icon paths so only the icons actually used are pre-bundled. This fixes the development server failing to start and makes it start noticeably faster. (#296)
+* EPUB novels now reopen at the exact last reading position instead of losing it when closed. (#297)
 
 ## [2.3.1] - 2026-07-07
 

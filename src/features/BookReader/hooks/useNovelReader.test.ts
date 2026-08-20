@@ -36,7 +36,7 @@ vi.mock("../slice", () => ({
 
 interface ExtendedView extends View {
   renderer: Paginator;
-  lastLocation: { cfi: string; index: number };
+  lastLocation: { cfi: string; section: { current: number; total: number } };
 }
 
 // Mock foliate-view custom element
@@ -51,7 +51,12 @@ class MockView extends HTMLElement implements Partial<ExtendedView> {
   next = vi.fn<(distance?: number) => Promise<void>>().mockResolvedValue(undefined);
   prev = vi.fn<(distance?: number) => Promise<void>>().mockResolvedValue(undefined);
   renderer = new Paginator();
-  lastLocation = { cfi: "epubcfi(/6/4[chap01]!/4/2/2[p1])", index: 0 };
+  // Mirrors foliate-js: `lastLocation` carries the section index under
+  // `section.current` and has no `index` of its own.
+  lastLocation = {
+    cfi: "epubcfi(/6/4[chap01]!/4/2/2[p1])",
+    section: { current: 0, total: 2 },
+  };
 }
 
 if (!customElements.get("foliate-view")) {
@@ -637,6 +642,44 @@ describe("useNovelReader", () => {
       expect(viewElement).not.toBeNull();
       expect(viewElement.init).toHaveBeenCalledWith({ lastLocation: "saved-cfi" });
     });
+  });
+
+  it("should not re-navigate to the section start once relocate syncs the restored position", async () => {
+    const mockBook = { sections: [], toc: [], destroy: vi.fn() } as Book;
+    vi.mocked(makeBook).mockResolvedValue(mockBook);
+
+    const { rerender, result } = renderHook(
+      ({ index, cfi, filePath }) => {
+        vi.mocked(useAppSelector).mockImplementation(<T>(selector: (state: RootState) => T): T => {
+          return selector({
+            ...defaultState,
+            read: { containerFile: { index, cfi, isNovel: true } },
+          } as RootState);
+        });
+        return useNovelReader({ filePath });
+      },
+      { initialProps: { index: 3, cfi: "restored-cfi" as string | null, filePath: "" } },
+    );
+
+    result.current.viewerRef.current = document.createElement("div");
+    rerender({ index: 3, cfi: "restored-cfi", filePath: "test.epub" });
+
+    await waitFor(() => {
+      const viewElement = result.current.viewerRef.current?.querySelector(
+        "foliate-view",
+      ) as MockView;
+      expect(viewElement).not.toBeNull();
+      expect(viewElement.init).toHaveBeenCalledWith({ lastLocation: "restored-cfi" });
+    });
+
+    const viewElement = result.current.viewerRef.current?.querySelector("foliate-view") as MockView;
+
+    // The view settled on the restored position and its relocate listener pushed
+    // that exact location into the store. Syncing back must not move the view.
+    viewElement.lastLocation = { cfi: "settled-cfi", section: { current: 3, total: 10 } };
+    rerender({ index: 3, cfi: "settled-cfi", filePath: "test.epub" });
+
+    expect(viewElement.goTo).not.toHaveBeenCalled();
   });
 
   it("should destroy book if unmounted during loading", async () => {

@@ -178,6 +178,7 @@ describe("useHistorySync", () => {
     const payload: ReadingState = {
       book_id: 42,
       last_read_page_index: 7,
+      cfi: null,
       last_opened_at: "2026-03-01T15:30:00",
     };
     eventHandler({ payload } as Event<ReadingState>);

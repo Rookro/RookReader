@@ -102,10 +102,12 @@ async fn test_reading_state() {
         .unwrap()
         .unwrap();
     assert!(book_with_state.last_read_page_index.is_none());
+    assert!(book_with_state.cfi.is_none());
 
     let state = ReadingState {
         book_id,
         last_read_page_index: 50,
+        cfi: None,
         last_opened_at: Some(chrono::Utc::now().naive_utc()),
     };
     repository.update_reading_progress(&state).await.unwrap();
@@ -117,6 +119,7 @@ async fn test_reading_state() {
         .unwrap();
     assert_eq!(book_with_state.last_read_page_index, Some(50));
     assert!(book_with_state.last_opened_at.is_some());
+    assert!(book_with_state.cfi.is_none());
 
     repository.clear_reading_history(book_id).await.unwrap();
     let book_with_state = repository
@@ -125,6 +128,55 @@ async fn test_reading_state() {
         .unwrap()
         .unwrap();
     assert!(book_with_state.last_read_page_index.is_none());
+}
+
+#[tokio::test]
+async fn test_reading_state_cfi_roundtrip_and_preservation() {
+    let pool = setup_db().await;
+    let repository = SqliteBookRepository::new(pool.clone());
+
+    let book_id = repository
+        .record_book_opened("/path/to/novel.epub", "file", "novel.epub", 10, None)
+        .await
+        .unwrap();
+
+    // Persist a CFI and read it back through the view.
+    repository
+        .update_reading_progress(&ReadingState {
+            book_id,
+            last_read_page_index: 3,
+            cfi: Some("epubcfi(/6/8!/4/2/1:0)".to_string()),
+            last_opened_at: Some(chrono::Utc::now().naive_utc()),
+        })
+        .await
+        .unwrap();
+    let book = repository
+        .get_book_with_state_by_id(book_id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(book.cfi.as_deref(), Some("epubcfi(/6/8!/4/2/1:0)"));
+
+    // Re-opening the book must not wipe the stored CFI.
+    repository
+        .record_book_opened("/path/to/novel.epub", "file", "novel.epub", 10, None)
+        .await
+        .unwrap();
+    let book = repository
+        .get_book_with_state_by_id(book_id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(book.cfi.as_deref(), Some("epubcfi(/6/8!/4/2/1:0)"));
+
+    // Clearing history clears the CFI with the row.
+    repository.clear_reading_history(book_id).await.unwrap();
+    let book = repository
+        .get_book_with_state_by_id(book_id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(book.cfi.is_none());
 }
 
 #[tokio::test]
@@ -191,6 +243,7 @@ async fn test_recently_read_books() {
         .update_reading_progress(&ReadingState {
             book_id: b1,
             last_read_page_index: 10,
+            cfi: None,
             last_opened_at: Some(now - chrono::Duration::minutes(10)),
         })
         .await
@@ -200,6 +253,7 @@ async fn test_recently_read_books() {
         .update_reading_progress(&ReadingState {
             book_id: b2,
             last_read_page_index: 20,
+            cfi: None,
             last_opened_at: Some(now),
         })
         .await
@@ -233,6 +287,7 @@ async fn test_update_reading_progress_defaults_null_last_opened_at() {
         .update_reading_progress(&ReadingState {
             book_id,
             last_read_page_index: 5,
+            cfi: None,
             last_opened_at: None,
         })
         .await
@@ -262,6 +317,7 @@ async fn test_recently_read_books_negative_limit_returns_empty() {
         .update_reading_progress(&ReadingState {
             book_id,
             last_read_page_index: 10,
+            cfi: None,
             last_opened_at: Some(chrono::Utc::now().naive_utc()),
         })
         .await
@@ -356,6 +412,7 @@ async fn test_clear_all_reading_history() {
         .update_reading_progress(&ReadingState {
             book_id: b1,
             last_read_page_index: 10,
+            cfi: None,
             last_opened_at: Some(now),
         })
         .await
@@ -437,6 +494,7 @@ async fn test_delete_book() {
         .update_reading_progress(&ReadingState {
             book_id,
             last_read_page_index: 10,
+            cfi: None,
             last_opened_at: Some(chrono::Utc::now().naive_utc()),
         })
         .await

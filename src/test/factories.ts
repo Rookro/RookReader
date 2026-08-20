@@ -16,6 +16,7 @@ export const createMockBookWithState = (overrides?: Partial<BookWithState>): Boo
   created_at: "2026-03-01T15:30:00",
   last_read_page_index: 0,
   last_opened_at: "2026-03-18T12:00:00Z",
+  cfi: null,
   series_id: null,
   series_order: null,
   thumbnail_path: null,

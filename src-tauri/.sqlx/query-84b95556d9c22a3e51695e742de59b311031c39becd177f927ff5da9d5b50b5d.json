@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            INSERT INTO reading_state (book_id, last_read_page_index, cfi, last_opened_at)\n            VALUES (?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP))\n            ON CONFLICT(book_id) DO UPDATE SET\n                last_read_page_index = excluded.last_read_page_index,\n                cfi = excluded.cfi,\n                last_opened_at = COALESCE(excluded.last_opened_at, reading_state.last_opened_at)\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "84b95556d9c22a3e51695e742de59b311031c39becd177f927ff5da9d5b50b5d"
+}

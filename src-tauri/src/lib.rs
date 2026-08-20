@@ -291,6 +291,7 @@ mod tests {
             created_at: None,
             last_read_page_index: Some(2),
             last_opened_at: None,
+            cfi: None,
             tag_ids_str: Some("1,2".into()),
             tag_ids: vec![1, 2],
         };
