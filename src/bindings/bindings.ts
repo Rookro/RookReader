@@ -97,6 +97,31 @@ export const commands = {
 	 */
 	getEntriesInContainer: (path: string) => typedError<EntriesResult, CommandError>(__TAURI_INVOKE("get_entries_in_container", { path })),
 	/**
+	 *  Retrieves the pixel dimensions of every entry in the currently open container.
+	 * 
+	 *  The viewer needs the orientation of every page to decide where two-page spreads
+	 *  start, including pages it has not displayed yet. Dimensions are read from image
+	 *  headers (or PDF page sizes), so no pixel data is decoded.
+	 * 
+	 *  # Arguments
+	 * 
+	 *  * `path` - The path of the container the caller believes is open.
+	 *  * `state` - A `tauri::State` holding the application's global `AppState`.
+	 * 
+	 *  # Returns
+	 * 
+	 *  A `Result` which is `Ok` with one `ImageDimensions` per entry, in the same order as
+	 *  `get_entries_in_container` returned them.
+	 * 
+	 *  # Errors
+	 * 
+	 *  This function will return an `Err` if:
+	 *  * No container is currently open.
+	 *  * `path` does not match the open container (the book was switched meanwhile).
+	 *  * An entry cannot be read or is not a supported image.
+	 */
+	getImageDimensions: (path: string) => typedError<ImageDimensions[], CommandError>(__TAURI_INVOKE("get_image_dimensions", { path })),
+	/**
 	 *  Retrieves a list of all font families installed on the system.
 	 * 
 	 *  This function queries the system's font source to get a list of all available
@@ -968,6 +993,14 @@ export type GeneralSettings = {
 export type HistorySettings = {
 	/**  Whether to record the user's reading history and progress. */
 	recordReadingHistory?: boolean,
+};
+
+/**  The pixel dimensions of a single image, without its data. */
+export type ImageDimensions = {
+	/**  The width of the image in pixels. */
+	width: number,
+	/**  The height of the image in pixels. */
+	height: number,
 };
 
 /**  Represents the algorithm used for resampling images. */

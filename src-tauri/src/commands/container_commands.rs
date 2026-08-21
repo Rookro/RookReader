@@ -5,6 +5,7 @@ use tauri::ipc::Response;
 
 use crate::{
     error::{Error, Result},
+    image::types::ImageDimensions,
     state::{app_state::AppState, container_state::ContainerState},
 };
 
@@ -146,6 +147,63 @@ pub async fn request_preload_around(
 
     image_loader.request_preload_around(index, buffer_size)?;
     Ok(())
+}
+
+/// Retrieves the pixel dimensions of every entry in the currently open container.
+///
+/// The viewer needs the orientation of every page to decide where two-page spreads
+/// start, including pages it has not displayed yet. Dimensions are read from image
+/// headers (or PDF page sizes), so no pixel data is decoded.
+///
+/// # Arguments
+///
+/// * `path` - The path of the container the caller believes is open.
+/// * `state` - A `tauri::State` holding the application's global `AppState`.
+///
+/// # Returns
+///
+/// A `Result` which is `Ok` with one `ImageDimensions` per entry, in the same order as
+/// `get_entries_in_container` returned them.
+///
+/// # Errors
+///
+/// This function will return an `Err` if:
+/// * No container is currently open.
+/// * `path` does not match the open container (the book was switched meanwhile).
+/// * An entry cannot be read or is not a supported image.
+#[tauri::command()]
+#[specta::specta]
+pub async fn get_image_dimensions(
+    path: &str,
+    state: tauri::State<'_, RwLock<AppState>>,
+) -> Result<Vec<ImageDimensions>> {
+    log::debug!("Get the dimensions of every entry in {}", path);
+
+    // Clone the handles out under a brief read lock, then release it so the scan below
+    // runs without blocking other state access.
+    let (container, image_loader) = {
+        let state_lock = state.read().await;
+        (
+            state_lock.container_state.container.clone(),
+            state_lock.container_state.image_loader.clone(),
+        )
+    };
+
+    let container = container
+        .ok_or_else(|| Error::Other("Unexpected error. Container is empty!".to_string()))?;
+    let image_loader = image_loader
+        .ok_or_else(|| Error::Other("Unexpected error. Container is empty!".to_string()))?;
+
+    // Reject stale requests that raced a book switch, mirroring `get_image`.
+    if image_loader.book_id() != path {
+        return Err(Error::EntryNotFound(format!(
+            "Container changed while requesting dimensions (requested {path})"
+        )));
+    }
+
+    tauri::async_runtime::spawn_blocking(move || container.get_image_dimensions())
+        .await
+        .map_err(|e| Error::Other(format!("Spawn blocking failed: {e}")))?
 }
 
 /// Retrieves an image from the currently open container.
@@ -504,6 +562,97 @@ mod tests {
             matches!(err, Error::EntryNotFound(_)),
             "unexpected error: {err}"
         );
+    }
+
+    /// Builds an app state around a mock container installed under `book_id`.
+    fn manage_mock_state(app: &tauri::App<tauri::test::MockRuntime>, book_id: &str) {
+        let mut mock_container = MockContainer::new();
+        mock_container
+            .expect_get_entries()
+            .return_const(vec!["test1.png".to_string(), "test2.png".to_string()]);
+        mock_container.expect_get_image_dimensions().returning(|| {
+            Ok(vec![
+                ImageDimensions {
+                    width: 800,
+                    height: 600,
+                },
+                ImageDimensions {
+                    width: 600,
+                    height: 800,
+                },
+            ])
+        });
+        mock_container
+            .expect_is_single_threaded()
+            .return_const(false);
+
+        let arc_mock_container = Arc::new(mock_container);
+        let container_state = ContainerState {
+            container: Some(arc_mock_container.clone()),
+            settings: ContainerSettings::default(),
+            image_loader: Some(Arc::new(
+                ImageLoader::new(
+                    book_id.to_string(),
+                    arc_mock_container.clone(),
+                    2000,
+                    ResizeFilter::Bilinear,
+                    mini_moka::sync::Cache::new(100),
+                )
+                .unwrap(),
+            )),
+            image_cache: mini_moka::sync::Cache::new(100),
+        };
+        app.manage(RwLock::new(AppState { container_state }));
+    }
+
+    #[tokio::test]
+    async fn test_get_image_dimensions_returns_one_entry_per_page() {
+        let app = tauri::test::mock_app();
+        manage_mock_state(&app, "dummy_book_id");
+
+        let result = get_image_dimensions("dummy_book_id", app.state()).await;
+
+        assert_eq!(
+            result.expect("get_image_dimensions should succeed"),
+            vec![
+                ImageDimensions {
+                    width: 800,
+                    height: 600
+                },
+                ImageDimensions {
+                    width: 600,
+                    height: 800
+                },
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn test_get_image_dimensions_rejects_stale_container_path() {
+        // Mirrors get_image: a request that raced a book switch must be rejected rather
+        // than measured against another book's pages.
+        let app = tauri::test::mock_app();
+        manage_mock_state(&app, "current_book_id");
+
+        let result = get_image_dimensions("stale_book_id", app.state()).await;
+
+        let Err(err) = result else {
+            panic!("a stale-path get_image_dimensions should be rejected");
+        };
+        assert!(
+            matches!(err, Error::EntryNotFound(_)),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_get_image_dimensions_empty_container() {
+        let app = tauri::test::mock_app();
+        app.manage(RwLock::new(AppState::default()));
+
+        let result = get_image_dimensions("non_existent_path", app.state()).await;
+
+        assert!(result.is_err());
     }
 
     #[tokio::test]
