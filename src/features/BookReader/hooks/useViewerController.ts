@@ -273,50 +273,26 @@ export const useViewerController = (
       return;
     }
 
-    const indexFor1PagesBack = Math.max(0, index - 1);
-    const simulatedLayoutFor1PagesBack = calculateLayout(
-      indexFor1PagesBack,
-      entries,
-      cacheRef.current,
-      settings,
-    );
-
-    // If the previous page is landscape, go back only one page.
-    if (
-      simulatedLayoutFor1PagesBack &&
-      !simulatedLayoutFor1PagesBack.isSpread &&
-      simulatedLayoutFor1PagesBack.firstImage &&
-      simulatedLayoutFor1PagesBack.firstImage.width > simulatedLayoutFor1PagesBack.firstImage.height
-    ) {
-      dispatch(setImageIndex(indexFor1PagesBack));
+    // The walk could not run. Pick the candidate whose unit increment lands exactly on
+    // the current index; "is the previous page landscape" misses portrait pages that are
+    // single because the page after them is landscape. Parity is locally unknowable, so
+    // prefer the spread two pages back when both candidates are consistent.
+    const unitTwoBack = index >= 2 ? resolveUnit(index - 2, entries, getDims, settings) : null;
+    if (unitTwoBack?.nextIndexIncrement === 2) {
+      dispatch(setImageIndex(index - 2));
       return;
     }
 
-    const indexFor2PagesBack = Math.max(0, index - 2);
-    const simulatedLayoutFor2PagesBack = calculateLayout(
-      indexFor2PagesBack,
-      entries,
-      cacheRef.current,
-      settings,
-    );
-
-    // If the layout calculation fails, fall back to going back two pages.
-    if (!simulatedLayoutFor2PagesBack) {
-      dispatch(setImageIndex(indexFor2PagesBack));
+    // Either index - 1 is a unit start of its own, or it starts the spread the current
+    // index sits inside; both cases re-align to it.
+    const unitOneBack = resolveUnit(index - 1, entries, getDims, settings);
+    if (unitOneBack) {
+      dispatch(setImageIndex(index - 1));
       return;
     }
 
-    // If the page 2 steps back is landscape, go back only one page.
-    if (
-      !simulatedLayoutFor2PagesBack.isSpread &&
-      simulatedLayoutFor2PagesBack.firstImage &&
-      simulatedLayoutFor2PagesBack.firstImage.width > simulatedLayoutFor2PagesBack.firstImage.height
-    ) {
-      dispatch(setImageIndex(indexFor1PagesBack));
-      return;
-    }
-
-    dispatch(setImageIndex(indexFor2PagesBack));
+    // Dimensions unknown: keep the historical "two pages back" default.
+    dispatch(setImageIndex(Math.max(0, index - 2)));
   }, [index, entries, settings, dispatch, getDims, onBackwardBoundary]);
 
   return {

@@ -512,23 +512,19 @@ describe("useViewerController", () => {
       expect(getDims(0)).toEqual({ width: 100, height: 200 });
     });
 
-    // Verify that index goes back appropriately based on landscape image detection in two-paged view
-    it("should handle moveBack in two-paged view with landscape detection", async () => {
+    /** Drives resolveUnit from a per-index map of unit increments. */
+    const mockUnitsByIndex = (increments: Record<number, 1 | 2 | null>) => {
+      mockedResolveUnit.mockImplementation((i) => {
+        const increment = increments[i];
+        return increment ? { isSpread: increment === 2, nextIndexIncrement: increment } : null;
+      });
+    };
+
+    // Verify that moveBack lands on the single unit before a page whose pair is landscape
+    it("should go back 1 page when the page before is a single unit", async () => {
       mockedFetchImageBlob.mockResolvedValue({} as Image);
-
-      // Current layout (index 2)
-      mockedCalculateLayout.mockReturnValueOnce({
-        nextIndexIncrement: 2,
-        isSpread: true,
-        firstImage: { width: 100, height: 100 } as ImageUtils.ImageCacheItem,
-      });
-
-      // Simulation for 1 page back (index 1) - Landscape
-      mockedCalculateLayout.mockReturnValueOnce({
-        nextIndexIncrement: 1,
-        isSpread: false,
-        firstImage: { width: 200, height: 100 } as ImageUtils.ImageCacheItem, // Landscape
-      });
+      // Chain around index 2: {0} {1} {2} - page 1 is single, so index 2 follows it directly.
+      mockUnitsByIndex({ 0: 1, 1: 1 });
 
       const { result } = renderHook(() =>
         useViewerController("path", mockEntries, 2, twoPagedSettings, mockDispatch),
@@ -539,34 +535,15 @@ describe("useViewerController", () => {
       });
 
       result.current.moveBack();
-      // Should go back 1 page because index 1 is landscape
+      // The unit at index 0 advances by 1, so it cannot be the unit preceding index 2.
       expect(mockDispatch).toHaveBeenCalledWith(setImageIndex(1));
     });
 
-    // Verify that index goes back appropriately based on portrait image detection in two-paged view
-    it("should handle moveBack in two-paged view with portrait detection", async () => {
+    // Verify that moveBack lands on the spread start when it ends exactly on the current index
+    it("should go back 2 pages when the spread two pages back ends on the current index", async () => {
       mockedFetchImageBlob.mockResolvedValue({} as Image);
-
-      // Current layout (index 2)
-      mockedCalculateLayout.mockReturnValueOnce({
-        nextIndexIncrement: 2,
-        isSpread: true,
-        firstImage: { width: 100, height: 100 } as ImageUtils.ImageCacheItem,
-      });
-
-      // Simulation for 1 page back (index 1) - Portrait
-      mockedCalculateLayout.mockReturnValueOnce({
-        nextIndexIncrement: 2,
-        isSpread: true,
-        firstImage: { width: 100, height: 200 } as ImageUtils.ImageCacheItem,
-      });
-
-      // Simulation for 2 pages back (index 0) - Portrait
-      mockedCalculateLayout.mockReturnValueOnce({
-        nextIndexIncrement: 2,
-        isSpread: true,
-        firstImage: { width: 100, height: 200 } as ImageUtils.ImageCacheItem,
-      });
+      // Chain around index 2: {0,1} {2}
+      mockUnitsByIndex({ 0: 2, 1: 2 });
 
       const { result } = renderHook(() =>
         useViewerController("path", mockEntries, 2, twoPagedSettings, mockDispatch),
@@ -577,21 +554,13 @@ describe("useViewerController", () => {
       });
 
       result.current.moveBack();
-      // Should go back 2 pages
       expect(mockDispatch).toHaveBeenCalledWith(setImageIndex(0));
     });
 
-    // Verify that moving back falls back to 2 pages if layout calculation fails
-    it("should fallback to 2 pages back if layout calculation fails for moveBack", async () => {
+    // Verify the historical two-pages-back default when no dimensions are known
+    it("should fall back to 2 pages back when no unit can be resolved", async () => {
       mockedFetchImageBlob.mockResolvedValue({} as Image);
-      mockedCalculateLayout
-        .mockReturnValueOnce({} as ImageUtils.ViewLayout) // current
-        .mockReturnValueOnce({
-          nextIndexIncrement: 2,
-          isSpread: true,
-          firstImage: { width: 100, height: 200 } as ImageUtils.ImageCacheItem,
-        } as ImageUtils.ViewLayout) // 1 page back (portrait)
-        .mockReturnValueOnce(null); // 2 pages back fails
+      mockUnitsByIndex({});
 
       const { result } = renderHook(() =>
         useViewerController("path", mockEntries, 2, twoPagedSettings, mockDispatch),
@@ -602,21 +571,11 @@ describe("useViewerController", () => {
       expect(mockDispatch).toHaveBeenCalledWith(setImageIndex(0));
     });
 
-    // Verify that moving back goes 1 page if the entry 2 pages back is a landscape image
-    it("should go back 1 page if 2 pages back is landscape", async () => {
+    // Verify that a mid-spread current index re-aligns to the spread that contains it
+    it("should re-align to the containing spread when the current index is mid-spread", async () => {
       mockedFetchImageBlob.mockResolvedValue({} as Image);
-      mockedCalculateLayout
-        .mockReturnValueOnce({} as ImageUtils.ViewLayout) // current
-        .mockReturnValueOnce({
-          nextIndexIncrement: 2,
-          isSpread: true,
-          firstImage: { width: 100, height: 200 } as ImageUtils.ImageCacheItem,
-        } as ImageUtils.ViewLayout) // 1 page back (portrait)
-        .mockReturnValueOnce({
-          nextIndexIncrement: 1,
-          isSpread: false,
-          firstImage: { width: 200, height: 100 } as ImageUtils.ImageCacheItem,
-        } as ImageUtils.ViewLayout); // 2 pages back (landscape)
+      // Chain: {0} {1,2} - index 2 is the second page of the spread starting at 1.
+      mockUnitsByIndex({ 0: 1, 1: 2 });
 
       const { result } = renderHook(() =>
         useViewerController("path", mockEntries, 2, twoPagedSettings, mockDispatch),
@@ -625,6 +584,22 @@ describe("useViewerController", () => {
       await waitFor(() => expect(result.current.isImageLoading).toBe(false));
       result.current.moveBack();
       expect(mockDispatch).toHaveBeenCalledWith(setImageIndex(1));
+    });
+
+    // Verify the fallback reads dimensions, which outlive the blob cache, rather than layouts
+    it("should still resolve units for moveBack after the blob cache evicted the pages", async () => {
+      const longEntries = Array.from({ length: 20 }, (_, i) => `p${i}`);
+      mockedFetchImageBlob.mockResolvedValue({} as Image);
+      // Chain around index 16: {14,15} {16}
+      mockUnitsByIndex({ 14: 2, 15: 2 });
+
+      const { result } = renderHook(() =>
+        useViewerController("path", longEntries, 16, twoPagedSettings, mockDispatch),
+      );
+
+      await waitFor(() => expect(result.current.isImageLoading).toBe(false));
+      result.current.moveBack();
+      expect(mockDispatch).toHaveBeenCalledWith(setImageIndex(14));
     });
 
     // Verify the viewer degrades to a single page when the spread's second page fails to load
@@ -689,18 +664,9 @@ describe("useViewerController", () => {
     // Verify moveBack falls back to the local heuristic when the walk can't run
     it("should fall back to the local heuristic for moveBack when findPreviousUnitStart returns null", async () => {
       mockedFetchImageBlob.mockResolvedValue({} as Image);
-      // findPreviousUnitStart returns null by default (e.g. incomplete cache).
-      mockedCalculateLayout
-        .mockReturnValueOnce({
-          nextIndexIncrement: 2,
-          isSpread: true,
-          firstImage: { width: 100, height: 100 } as ImageUtils.ImageCacheItem,
-        }) // current (effect)
-        .mockReturnValueOnce({
-          nextIndexIncrement: 1,
-          isSpread: false,
-          firstImage: { width: 200, height: 100 } as ImageUtils.ImageCacheItem,
-        }); // 1 page back (landscape)
+      // findPreviousUnitStart returns null by default (e.g. incomplete dimensions).
+      // Chain around index 2: {0} {1} {2}
+      mockUnitsByIndex({ 0: 1, 1: 1 });
 
       const { result } = renderHook(() =>
         useViewerController("path", mockEntries, 2, twoPagedSettings, mockDispatch),
@@ -710,7 +676,7 @@ describe("useViewerController", () => {
 
       result.current.moveBack();
       expect(mockedFindPreviousUnitStart).toHaveBeenCalled();
-      // Heuristic: the page 1 step back is landscape → go back one page.
+      // The unit at index 0 does not reach index 2, so index 1 is the preceding unit.
       expect(mockDispatch).toHaveBeenCalledWith(setImageIndex(1));
     });
   });
