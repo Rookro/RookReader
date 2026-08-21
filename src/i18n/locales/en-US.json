@@ -25,6 +25,27 @@
       "title": "Pages",
       "no-pages": "No pages."
     },
+    "add-bookmark": "Add bookmark",
+    "remove-bookmark": "Remove bookmark",
+    "bookmark": {
+      "default-page-name": "Page {{page}}"
+    },
+    "bookmark-viewer": {
+      "title": "Bookmarks",
+      "no-bookmarks": "No bookmarks.",
+      "page-caption": "Page {{page}}",
+      "menu": {
+        "jump": "Jump",
+        "rename": "Rename",
+        "remove": "Remove bookmark"
+      },
+      "rename-dialog": {
+        "title": "Rename bookmark",
+        "name-label": "Name",
+        "ok": "OK",
+        "cancel": "Cancel"
+      }
+    },
     "adjacent-book": {
       "opening-next": "Opening next book: {{title}}…",
       "opening-previous": "Opening previous book: {{title}}…",

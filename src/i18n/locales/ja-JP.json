@@ -25,6 +25,27 @@
       "title": "ページ",
       "no-pages": "表示可能なページがありません。"
     },
+    "add-bookmark": "しおりを追加",
+    "remove-bookmark": "しおりを削除",
+    "bookmark": {
+      "default-page-name": "ページ {{page}}"
+    },
+    "bookmark-viewer": {
+      "title": "しおり",
+      "no-bookmarks": "しおりがありません。",
+      "page-caption": "ページ {{page}}",
+      "menu": {
+        "jump": "移動",
+        "rename": "名前を変更",
+        "remove": "しおりを削除"
+      },
+      "rename-dialog": {
+        "title": "しおりの名前を変更",
+        "name-label": "名前",
+        "ok": "OK",
+        "cancel": "キャンセル"
+      }
+    },
     "adjacent-book": {
       "opening-next": "次の本を開きます: {{title}}…",
       "opening-previous": "前の本を開きます: {{title}}…",
