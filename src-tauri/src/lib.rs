@@ -61,6 +61,10 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
         commands::tag_commands::create_tag::<tauri::Wry>,
         commands::tag_commands::get_all_tags,
         commands::tag_commands::delete_tag::<tauri::Wry>,
+        commands::bookmark_commands::create_bookmark,
+        commands::bookmark_commands::get_bookmarks_by_book_id,
+        commands::bookmark_commands::rename_bookmark,
+        commands::bookmark_commands::delete_bookmark,
         commands::updater_commands::is_updater_supported,
     ])
 }

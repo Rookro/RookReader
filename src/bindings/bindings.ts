@@ -657,6 +657,71 @@ export const commands = {
 	 */
 	deleteTag: (id: number) => typedError<null, CommandError>(__TAURI_INVOKE("delete_tag", { id })),
 	/**
+	 *  Creates a bookmark for a book and returns its complete entity.
+	 * 
+	 *  # Arguments
+	 * 
+	 *  * `book_id` - The identifier of the book to bookmark.
+	 *  * `name` - The display name of the new bookmark.
+	 *  * `page_index` - The comic page index, or the EPUB spine section index.
+	 *  * `cfi` - The position within an EPUB section, or `None` for comics.
+	 *  * `repo` - The managed bookmark repository state.
+	 * 
+	 *  # Returns
+	 * 
+	 *  A `Result` containing the newly created `Bookmark` entity.
+	 * 
+	 *  # Errors
+	 * 
+	 *  This function will return an `Err` if the underlying repository operation fails
+	 *  (e.g., due to a database error, connection issue, or query execution failure).
+	 */
+	createBookmark: (bookId: number, name: string, pageIndex: number, cfi: string | null) => typedError<Bookmark, CommandError>(__TAURI_INVOKE("create_bookmark", { bookId, name, pageIndex, cfi })),
+	/**
+	 *  Retrieves all bookmarks of a book, ordered by their position in the book.
+	 * 
+	 *  # Arguments
+	 * 
+	 *  * `book_id` - The identifier of the book.
+	 *  * `repo` - The managed bookmark repository state.
+	 * 
+	 *  # Returns
+	 * 
+	 *  A `Result` containing a vector of `Bookmark` entities, empty if the book has none.
+	 * 
+	 *  # Errors
+	 * 
+	 *  This function will return an `Err` if the underlying repository operation fails.
+	 */
+	getBookmarksByBookId: (bookId: number) => typedError<Bookmark[], CommandError>(__TAURI_INVOKE("get_bookmarks_by_book_id", { bookId })),
+	/**
+	 *  Renames an existing bookmark.
+	 * 
+	 *  # Arguments
+	 * 
+	 *  * `id` - The ID of the bookmark to rename.
+	 *  * `name` - The new display name.
+	 *  * `repo` - The managed bookmark repository state.
+	 * 
+	 *  # Errors
+	 * 
+	 *  This function will return an `Err` if the underlying repository operation fails.
+	 */
+	renameBookmark: (id: number, name: string) => typedError<null, CommandError>(__TAURI_INVOKE("rename_bookmark", { id, name })),
+	/**
+	 *  Deletes a bookmark from the database.
+	 * 
+	 *  # Arguments
+	 * 
+	 *  * `id` - The ID of the bookmark to delete.
+	 *  * `repo` - The managed bookmark repository state.
+	 * 
+	 *  # Errors
+	 * 
+	 *  This function will return an `Err` if the underlying repository operation fails.
+	 */
+	deleteBookmark: (id: number) => typedError<null, CommandError>(__TAURI_INVOKE("delete_bookmark", { id })),
+	/**
 	 *  Checks if the auto-updater is supported on the current platform/environment.
 	 * 
 	 *  Returns `true` if the updater is supported, `false` otherwise.
@@ -776,6 +841,22 @@ export type BookWithState = {
 	cfi: string | null,
 	/**  List of tag IDs associated with this book. */
 	tag_ids?: number[],
+};
+
+/**  Represents a saved reading position (bookmark) within a book. */
+export type Bookmark = {
+	/**  The unique identifier for the bookmark. */
+	id: number,
+	/**  The identifier of the book this bookmark belongs to. */
+	book_id: number,
+	/**  The display name of the bookmark. */
+	name: string,
+	/**  The bookmarked page index: the comic page, or the EPUB spine section index. */
+	page_index: number,
+	/**  The bookmarked position within an EPUB section (CFI). `None` for comics. */
+	cfi: string | null,
+	/**  The timestamp when the bookmark was created. */
+	created_at: string,
 };
 
 /**  Represents a bookshelf entity used to organize books. */

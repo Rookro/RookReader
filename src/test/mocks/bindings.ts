@@ -21,6 +21,13 @@ vi.mock("../../bindings/BookCommands", () => ({
   getBooksWithStateBySeriesId: vi.fn(() => Promise.resolve([])),
 }));
 
+vi.mock("../../bindings/BookmarkCommands", () => ({
+  createBookmark: vi.fn(() => Promise.resolve([])),
+  getBookmarksByBookId: vi.fn(() => Promise.resolve([])),
+  renameBookmark: vi.fn(() => Promise.resolve([])),
+  deleteBookmark: vi.fn(() => Promise.resolve([])),
+}));
+
 vi.mock("../../bindings/BookshelfCommands", () => ({
   createBookshelf: vi.fn(() => Promise.resolve([])),
   getAllBookshelves: vi.fn(() => Promise.resolve([])),
