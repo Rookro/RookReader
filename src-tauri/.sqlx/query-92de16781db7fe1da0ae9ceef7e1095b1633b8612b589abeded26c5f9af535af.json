@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            DELETE FROM bookmarks WHERE book_id = ?\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "92de16781db7fe1da0ae9ceef7e1095b1633b8612b589abeded26c5f9af535af"
+}

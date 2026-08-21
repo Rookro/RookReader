@@ -1,0 +1,50 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            INSERT INTO bookmarks (book_id, name, page_index, cfi)\n            VALUES (?, ?, ?, ?)\n            RETURNING id, book_id, name, page_index, cfi, created_at\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "book_id",
+        "ordinal": 1,
+        "type_info": "Integer"
+      },
+      {
+        "name": "name",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "page_index",
+        "ordinal": 3,
+        "type_info": "Integer"
+      },
+      {
+        "name": "cfi",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "created_at",
+        "ordinal": 5,
+        "type_info": "Datetime"
+      }
+    ],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "de1b73cf77bafbdfda8a31ea8d20eca2476667245a13569e0fe5263577349442"
+}
