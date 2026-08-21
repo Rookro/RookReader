@@ -270,6 +270,69 @@ export const buildUnitLayout = (
 };
 
 /**
+ * Every display unit of a book, precomputed from a complete set of page dimensions.
+ */
+export interface UnitChain {
+  /** Unit start indices, ascending. */
+  starts: number[];
+  /** Unit start index to that unit's decision. */
+  units: Map<number, UnitDecision>;
+}
+
+/**
+ * Builds the unit chain for a whole book, anchored at a known unit start.
+ *
+ * Unit boundaries are a chain, so they can only be laid out from a fixed point. Forward
+ * of `anchor` the walk applies the same rules as {@link resolveUnit}. Backward of it
+ * there is no chain to follow, so two portrait pages are paired greedily; this keeps the
+ * pages the reader jumped to intact instead of shifting them.
+ *
+ * @param anchor The index to treat as a unit start (typically the current page).
+ * @param entries The list of entry names.
+ * @param getDims Lookup for page dimensions.
+ * @param settings The viewer settings.
+ * @returns The chain covering every index from 0 to the last entry.
+ */
+export const buildUnitChain = (
+  anchor: number,
+  entries: string[],
+  getDims: DimsLookup,
+  settings: ViewerSettings,
+): UnitChain => {
+  const units = new Map<number, UnitDecision>();
+
+  const isPortrait = (i: number): boolean => {
+    const dims = getDims(i);
+    return dims !== undefined && dims.width <= dims.height;
+  };
+
+  // Backward from the anchor: each step decides which pages fill the slot just before
+  // the boundary reached so far.
+  let boundary = anchor;
+  while (boundary > 0) {
+    const canPair =
+      settings.isTwoPagedView &&
+      boundary >= 2 &&
+      isPortrait(boundary - 1) &&
+      isPortrait(boundary - 2) &&
+      !(boundary - 2 === 0 && settings.isFirstPageSingleView);
+    const start = canPair ? boundary - 2 : boundary - 1;
+    units.set(start, { isSpread: canPair, nextIndexIncrement: boundary - start });
+    boundary = start;
+  }
+
+  // Forward from the anchor.
+  let start = anchor;
+  while (start < entries.length) {
+    const unit = resolveUnit(start, entries, getDims, settings) ?? SINGLE_UNIT;
+    units.set(start, unit);
+    start += unit.nextIndexIncrement;
+  }
+
+  return { starts: [...units.keys()].sort((a, b) => a - b), units };
+};
+
+/**
  * Finds the start index of the page unit immediately preceding `currentIndex` by
  * walking unit boundaries forward from page 0.
  *
@@ -310,29 +373,4 @@ export const findPreviousUnitStart = (
     return null;
   }
   return prev;
-};
-
-/**
- * Calculates the view layout based on the current state.
- * Returns null if required images are not yet cached, preventing partial layout decisions.
- *
- * @param currentIndex The current index in the entries list.
- * @param entries The list of entry names.
- * @param cache The image cache.
- * @param settings The viewer settings.
- * @returns The calculated layout or null if not enough information is available.
- */
-export const calculateLayout = (
-  currentIndex: number,
-  entries: string[],
-  cache: Map<string, ImageCacheItem>,
-  settings: ViewerSettings,
-): ViewLayout | null => {
-  const unit = resolveUnit(currentIndex, entries, (i) => cache.get(entries[i]), settings);
-
-  if (!unit) {
-    return null;
-  }
-
-  return buildUnitLayout(unit, currentIndex, entries, cache);
 };

@@ -1,12 +1,13 @@
 import { warn } from "@tauri-apps/plugin-log";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { requestPreloadAround } from "../../../bindings/ContainerCommands";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { getImageDimensions, requestPreloadAround } from "../../../bindings/ContainerCommands";
 import type { AppDispatch } from "../../../store/store";
 import type { Image } from "../../../types/Image";
 import { setImageIndex } from "../slice";
 import {
   buildSinglePageLayout,
-  calculateLayout,
+  buildUnitChain,
+  buildUnitLayout,
   createImageCacheItem,
   fetchImageBlob,
   fetchImagePreviewBlob,
@@ -15,6 +16,7 @@ import {
   type PageDims,
   resolveUnit,
   revokeCacheItemUrls,
+  type UnitDecision,
   type ViewerSettings,
   type ViewLayout,
 } from "../utils/ImageUtils";
@@ -70,6 +72,13 @@ export const useViewerController = (
   const [isImageLoading, setIsImageLoading] = useState(false);
   const [layoutState, setLayoutState] = useState<{ layout: ViewLayout; path: string } | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const [scannedDims, setScannedDims] = useState<{ path: string; dims: PageDims[] } | null>(null);
+  // The index the unit chain is laid out from. A page jumped to becomes a unit start,
+  // so the chain has to be rebuilt from wherever the reader landed.
+  const [anchor, setAnchor] = useState(index);
+  // The index this hook is about to dispatch, so an index change it did not cause
+  // (slider, bookmark, restored position) is recognisable as an external jump.
+  const expectedIndexRef = useRef<number | null>(null);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: update the cache whenever containerPath changes.
   useEffect(() => {
@@ -90,6 +99,65 @@ export const useViewerController = (
     };
   }, []);
 
+  // Scan every page's dimensions in the background. Until it lands (or if it fails) the
+  // viewer runs on the dimensions of the pages it has actually loaded.
+  useEffect(() => {
+    setScannedDims(null);
+    if (!containerPath || entries.length === 0) {
+      return;
+    }
+
+    let cancelled = false;
+    getImageDimensions(containerPath)
+      .then((dims) => {
+        if (!cancelled) {
+          setScannedDims({ path: containerPath, dims });
+        }
+      })
+      .catch((e) => {
+        warn(`Failed to scan image dimensions: ${String(e)}`);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [containerPath, entries.length]);
+
+  // Re-anchor the chain at the current page whenever it has to be rebuilt: an external
+  // jump, or a change to one of the chain's inputs. Navigation this hook dispatched
+  // follows the existing chain and must not move the anchor.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the extra dependencies are rebuild triggers; the anchor is always the current index.
+  useEffect(() => {
+    if (expectedIndexRef.current !== index) {
+      setAnchor(index);
+    }
+    expectedIndexRef.current = null;
+  }, [index, scannedDims, entries, settings]);
+
+  const chain = useMemo(() => {
+    if (!scannedDims || scannedDims.path !== containerPath) {
+      return null;
+    }
+    // A short or stale scan cannot describe this book; keep the fallback instead.
+    if (scannedDims.dims.length !== entries.length) {
+      return null;
+    }
+    return buildUnitChain(anchor, entries, (i) => scannedDims.dims[i], settings);
+  }, [scannedDims, containerPath, anchor, entries, settings]);
+
+  const getDims = useCallback(
+    (i: number): PageDims | undefined => dimsRef.current.get(entries[i]),
+    [entries],
+  );
+
+  // The chain wins when it exists: a unit it derived while walking backward can differ
+  // from what the local forward rule would decide, and display and navigation must agree.
+  const currentUnit = useCallback(
+    (): UnitDecision | null =>
+      chain?.units.get(index) ?? resolveUnit(index, entries, getDims, settings),
+    [chain, index, entries, getDims, settings],
+  );
+
   // Loads the missing images and updates the layout.
   useEffect(() => {
     const updateLayout = async () => {
@@ -105,8 +173,14 @@ export const useViewerController = (
 
       const cache = cacheRef.current;
 
+      /** Builds the layout for the current index from its unit, if both are available. */
+      const layoutForCurrentIndex = (): ViewLayout | null => {
+        const unit = currentUnit();
+        return unit ? buildUnitLayout(unit, index, entries, cache) : null;
+      };
+
       // Tracks whether a full layout was resolved this run, so the post-settle
-      // fallback only fires when calculateLayout never produced one.
+      // fallback only fires when no layout ever came out.
       let layoutResolved = false;
 
       const loadAndUpdate = async (
@@ -131,7 +205,7 @@ export const useViewerController = (
           } else {
             cache.set(path, newItem);
           }
-          const layout = calculateLayout(index, entries, cache, settings);
+          const layout = layoutForCurrentIndex();
           if (layout) {
             layoutResolved = true;
             setLayoutState({ layout, path: containerPath });
@@ -142,7 +216,7 @@ export const useViewerController = (
       const missingFullPaths = pathsToLoad.filter((p) => !cache.get(p)?.fullUrl);
       if (missingFullPaths.length === 0) {
         setIsImageLoading(false);
-        const layout = calculateLayout(index, entries, cache, settings);
+        const layout = layoutForCurrentIndex();
         setLayoutState(layout ? { layout, path: containerPath } : null);
         return;
       }
@@ -194,7 +268,7 @@ export const useViewerController = (
       abortControllerRef.current?.abort();
       abortControllerRef.current = null;
     };
-  }, [containerPath, index, entries, settings]);
+  }, [containerPath, index, entries, settings, currentUnit]);
 
   // Request preloading around the current index in the backend.
   useEffect(() => {
@@ -222,9 +296,13 @@ export const useViewerController = (
 
   const displayedLayout = layoutState?.path === containerPath ? layoutState?.layout : null;
 
-  const getDims = useCallback(
-    (i: number): PageDims | undefined => dimsRef.current.get(entries[i]),
-    [entries],
+  /** Records the index about to be dispatched, then dispatches it. */
+  const goTo = useCallback(
+    (nextIndex: number) => {
+      expectedIndexRef.current = nextIndex;
+      dispatch(setImageIndex(nextIndex));
+    },
+    [dispatch],
   );
 
   const moveForward = useCallback(() => {
@@ -232,21 +310,20 @@ export const useViewerController = (
       return;
     }
 
-    // Derive the increment from the current index's unit (read from the dimensions now),
-    // not the lagging displayedLayout, which would desync spread pairs / skip pages.
-    const currentUnit = resolveUnit(index, entries, getDims, settings);
+    // Derive the increment from the current index's unit, not the lagging
+    // displayedLayout, which would desync spread pairs / skip pages.
     // When the unit is unknown (dimensions not known yet) advance by 1: advancing 2
     // could skip a page permanently, while a transient half-spread self-corrects.
-    const increment = currentUnit?.nextIndexIncrement ?? 1;
+    const increment = currentUnit()?.nextIndexIncrement ?? 1;
     const nextIndex = index + increment;
 
     if (nextIndex < entries.length) {
-      dispatch(setImageIndex(nextIndex));
+      goTo(nextIndex);
     } else {
       // Already at the last page: hand off to the adjacent-book handler.
       onForwardBoundary?.();
     }
-  }, [index, entries, dispatch, settings, getDims, onForwardBoundary]);
+  }, [index, entries, goTo, currentUnit, onForwardBoundary]);
 
   const moveBack = useCallback(() => {
     if (entries.length === 0) {
@@ -260,16 +337,26 @@ export const useViewerController = (
     }
 
     if (!settings.isTwoPagedView) {
-      dispatch(setImageIndex(Math.max(0, index - 1)));
+      goTo(index - 1);
       return;
+    }
+
+    // With the whole book measured, the preceding unit is simply the last boundary
+    // before the current index.
+    if (chain) {
+      const previous = chain.starts.filter((start) => start < index).at(-1);
+      if (previous !== undefined) {
+        goTo(previous);
+        return;
+      }
     }
 
     // Reconstruct the real previous unit start from a forward walk (mirrors
     // moveForward). Falls back to the local heuristic below when the walk can't
-    // run (incomplete cache / unexpected layout).
+    // run (incomplete dimensions / unexpected layout).
     const previousStart = findPreviousUnitStart(index, entries, getDims, settings);
     if (previousStart !== null) {
-      dispatch(setImageIndex(previousStart));
+      goTo(previousStart);
       return;
     }
 
@@ -279,7 +366,7 @@ export const useViewerController = (
     // prefer the spread two pages back when both candidates are consistent.
     const unitTwoBack = index >= 2 ? resolveUnit(index - 2, entries, getDims, settings) : null;
     if (unitTwoBack?.nextIndexIncrement === 2) {
-      dispatch(setImageIndex(index - 2));
+      goTo(index - 2);
       return;
     }
 
@@ -287,13 +374,13 @@ export const useViewerController = (
     // index sits inside; both cases re-align to it.
     const unitOneBack = resolveUnit(index - 1, entries, getDims, settings);
     if (unitOneBack) {
-      dispatch(setImageIndex(index - 1));
+      goTo(index - 1);
       return;
     }
 
     // Dimensions unknown: keep the historical "two pages back" default.
-    dispatch(setImageIndex(Math.max(0, index - 2)));
-  }, [index, entries, settings, dispatch, getDims, onBackwardBoundary]);
+    goTo(Math.max(0, index - 2));
+  }, [index, entries, settings, goTo, chain, getDims, onBackwardBoundary]);
 
   return {
     displayedLayout,
