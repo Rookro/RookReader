@@ -74,6 +74,7 @@ export function createBasePreloadedState(): RootState {
       error: null,
       searchText: "",
     },
+    bookmark: { bookmarks: [], status: "idle", error: null },
     tag: { tags: [], selectedId: null, status: "idle", error: null },
     series: {
       series: [],
