@@ -12,6 +12,8 @@ import {
   fetchImagePreviewBlob,
   findPreviousUnitStart,
   type ImageCacheItem,
+  type PageDims,
+  resolveUnit,
   revokeCacheItemUrls,
   type ViewerSettings,
   type ViewLayout,
@@ -62,6 +64,9 @@ export const useViewerController = (
   onBackwardBoundary?: () => void,
 ): ViewerController => {
   const cacheRef = useRef<Map<string, ImageCacheItem>>(new Map());
+  // Dimensions are kept apart from the blob cache: they are tiny, and navigation needs
+  // them for pages whose blobs have already been evicted.
+  const dimsRef = useRef<Map<string, PageDims>>(new Map());
   const [isImageLoading, setIsImageLoading] = useState(false);
   const [layoutState, setLayoutState] = useState<{ layout: ViewLayout; path: string } | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -70,15 +75,18 @@ export const useViewerController = (
   useEffect(() => {
     revokeCacheUrls(cacheRef.current);
     cacheRef.current.clear();
+    dimsRef.current.clear();
     abortControllerRef.current?.abort();
   }, [containerPath]);
 
   // Revoke any remaining object URLs when the component unmounts.
   useEffect(() => {
     const cache = cacheRef.current;
+    const dims = dimsRef.current;
     return () => {
       revokeCacheUrls(cache);
       cache.clear();
+      dims.clear();
     };
   }, []);
 
@@ -110,6 +118,9 @@ export const useViewerController = (
         const img = await fetcher(containerPath, path);
         if (img && !controller.signal.aborted) {
           const newItem = createImageCacheItem(img, isPreview);
+          if (!dimsRef.current.has(path)) {
+            dimsRef.current.set(path, { width: newItem.width, height: newItem.height });
+          }
           const existingItem = cache.get(path);
           if (existingItem) {
             if (isPreview) {
@@ -211,17 +222,22 @@ export const useViewerController = (
 
   const displayedLayout = layoutState?.path === containerPath ? layoutState?.layout : null;
 
+  const getDims = useCallback(
+    (i: number): PageDims | undefined => dimsRef.current.get(entries[i]),
+    [entries],
+  );
+
   const moveForward = useCallback(() => {
     if (entries.length === 0) {
       return;
     }
 
-    // Derive the increment from the current index's layout (read from the cache now),
+    // Derive the increment from the current index's unit (read from the dimensions now),
     // not the lagging displayedLayout, which would desync spread pairs / skip pages.
-    const currentLayout = calculateLayout(index, entries, cacheRef.current, settings);
-    // When the layout is unknown (image not cached yet) advance by 1: advancing 2
+    const currentUnit = resolveUnit(index, entries, getDims, settings);
+    // When the unit is unknown (dimensions not known yet) advance by 1: advancing 2
     // could skip a page permanently, while a transient half-spread self-corrects.
-    const increment = currentLayout?.nextIndexIncrement ?? 1;
+    const increment = currentUnit?.nextIndexIncrement ?? 1;
     const nextIndex = index + increment;
 
     if (nextIndex < entries.length) {
@@ -230,7 +246,7 @@ export const useViewerController = (
       // Already at the last page: hand off to the adjacent-book handler.
       onForwardBoundary?.();
     }
-  }, [index, entries, dispatch, settings, onForwardBoundary]);
+  }, [index, entries, dispatch, settings, getDims, onForwardBoundary]);
 
   const moveBack = useCallback(() => {
     if (entries.length === 0) {
@@ -251,7 +267,7 @@ export const useViewerController = (
     // Reconstruct the real previous unit start from a forward walk (mirrors
     // moveForward). Falls back to the local heuristic below when the walk can't
     // run (incomplete cache / unexpected layout).
-    const previousStart = findPreviousUnitStart(index, entries, cacheRef.current, settings);
+    const previousStart = findPreviousUnitStart(index, entries, getDims, settings);
     if (previousStart !== null) {
       dispatch(setImageIndex(previousStart));
       return;
@@ -301,7 +317,7 @@ export const useViewerController = (
     }
 
     dispatch(setImageIndex(indexFor2PagesBack));
-  }, [index, entries, settings, dispatch, onBackwardBoundary]);
+  }, [index, entries, settings, dispatch, getDims, onBackwardBoundary]);
 
   return {
     displayedLayout,

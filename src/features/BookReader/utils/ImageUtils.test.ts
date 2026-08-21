@@ -2,14 +2,27 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as ContainerCommands from "../../../bindings/ContainerCommands";
 import { Image } from "../../../types/Image";
 import {
+  buildUnitLayout,
   calculateLayout,
   createImageCacheItem,
   fetchImageBlob,
   fetchImagePreviewBlob,
   findPreviousUnitStart,
   ImageCacheItem,
+  type PageDims,
+  resolveUnit,
   type ViewerSettings,
 } from "./ImageUtils";
+
+/** Builds entries plus a dimensions lookup from a list of "P"/"L" orientations. */
+const buildDims = (orientations: ("P" | "L")[]) => {
+  const entries = orientations.map((_, i) => `p${i}`);
+  const dims = new Map<number, PageDims>();
+  orientations.forEach((o, i) => {
+    dims.set(i, o === "P" ? { width: 100, height: 200 } : { width: 200, height: 100 });
+  });
+  return { entries, dims, getDims: (i: number) => dims.get(i) };
+};
 
 describe("ImageUtils", () => {
   beforeEach(() => {
@@ -155,10 +168,7 @@ describe("ImageUtils", () => {
     });
   });
 
-  describe("findPreviousUnitStart", () => {
-    const portrait = () => new ImageCacheItem(100, 200, "url");
-    const landscape = () => new ImageCacheItem(200, 100, "url");
-
+  describe("resolveUnit", () => {
     const twoPaged: ViewerSettings = {
       isTwoPagedView: true,
       isFirstPageSingleView: false,
@@ -167,63 +177,161 @@ describe("ImageUtils", () => {
       preloadPageCount: 10,
     };
 
-    /** Builds entries + a cache from a list of "P"/"L" orientations. */
-    const build = (orientations: ("P" | "L")[]) => {
-      const entries = orientations.map((_, i) => `p${i}`);
-      const cache = new Map<string, ImageCacheItem>();
-      orientations.forEach((o, i) => {
-        cache.set(`p${i}`, o === "P" ? portrait() : landscape());
+    // Verify that two portrait pages are paired into a spread
+    it("returns a spread for two portrait pages", () => {
+      const { entries, getDims } = buildDims(["P", "P"]);
+      expect(resolveUnit(0, entries, getDims, twoPaged)).toEqual({
+        isSpread: true,
+        nextIndexIncrement: 2,
       });
-      return { entries, cache };
+    });
+
+    // Verify that a landscape page occupies a unit on its own
+    it("returns a single unit for a landscape first page", () => {
+      const { entries, getDims } = buildDims(["L", "P"]);
+      expect(resolveUnit(0, entries, getDims, twoPaged)).toEqual({
+        isSpread: false,
+        nextIndexIncrement: 1,
+      });
+    });
+
+    // Verify that a portrait page followed by a landscape page is shown alone
+    it("returns a single unit when the second page is landscape", () => {
+      const { entries, getDims } = buildDims(["P", "L"]);
+      expect(resolveUnit(0, entries, getDims, twoPaged)).toEqual({
+        isSpread: false,
+        nextIndexIncrement: 1,
+      });
+    });
+
+    // Verify that the last page is never paired
+    it("returns a single unit for the last page", () => {
+      const { entries, getDims } = buildDims(["P", "P"]);
+      expect(resolveUnit(1, entries, getDims, twoPaged)).toEqual({
+        isSpread: false,
+        nextIndexIncrement: 1,
+      });
+    });
+
+    // Verify that spread mode being off always yields single units
+    it("returns a single unit when two-paged view is off", () => {
+      const { entries, getDims } = buildDims(["P", "P"]);
+      expect(resolveUnit(0, entries, getDims, { ...twoPaged, isTwoPagedView: false })).toEqual({
+        isSpread: false,
+        nextIndexIncrement: 1,
+      });
+    });
+
+    // Verify that the cover is shown alone when isFirstPageSingleView is enabled
+    it("returns a single unit for page 0 when isFirstPageSingleView is on", () => {
+      const { entries, getDims } = buildDims(["P", "P"]);
+      expect(
+        resolveUnit(0, entries, getDims, { ...twoPaged, isFirstPageSingleView: true }),
+      ).toEqual({ isSpread: false, nextIndexIncrement: 1 });
+    });
+
+    // Verify that an unknown dimension prevents a partial decision
+    it("returns null when a needed dimension is unknown", () => {
+      const { entries, dims } = buildDims(["P", "P"]);
+      dims.delete(1);
+      expect(resolveUnit(0, entries, (i) => dims.get(i), twoPaged)).toBeNull();
+    });
+  });
+
+  describe("buildUnitLayout", () => {
+    const portrait = new ImageCacheItem(100, 200, "url1");
+    const portraitNext = new ImageCacheItem(100, 200, "url2");
+    const entries = ["p0", "p1"];
+
+    // Verify that a spread decision attaches both images
+    it("attaches both images for a spread", () => {
+      const cache = new Map([
+        ["p0", portrait],
+        ["p1", portraitNext],
+      ]);
+      expect(buildUnitLayout({ isSpread: true, nextIndexIncrement: 2 }, 0, entries, cache)).toEqual(
+        {
+          firstImage: portrait,
+          secondImage: portraitNext,
+          isSpread: true,
+          nextIndexIncrement: 2,
+        },
+      );
+    });
+
+    // Verify that a spread decision fails when the second image is not loaded yet
+    it("returns null when the spread's second image is not cached", () => {
+      const cache = new Map([["p0", portrait]]);
+      expect(
+        buildUnitLayout({ isSpread: true, nextIndexIncrement: 2 }, 0, entries, cache),
+      ).toBeNull();
+    });
+
+    // Verify that a single-page decision only needs the first image
+    it("attaches only the first image for a single unit", () => {
+      const cache = new Map([["p0", portrait]]);
+      expect(
+        buildUnitLayout({ isSpread: false, nextIndexIncrement: 1 }, 0, entries, cache),
+      ).toEqual({ firstImage: portrait, isSpread: false, nextIndexIncrement: 1 });
+    });
+  });
+
+  describe("findPreviousUnitStart", () => {
+    const twoPaged: ViewerSettings = {
+      isTwoPagedView: true,
+      isFirstPageSingleView: false,
+      direction: "ltr",
+      enablePreview: false,
+      preloadPageCount: 10,
     };
 
     // Verify the previous unit start when a portrait page is single because its pair is landscape
     it("returns the single portrait unit before a landscape page (P,P,P,L)", () => {
       // units: {0,1} {2} {3}
-      const { entries, cache } = build(["P", "P", "P", "L"]);
-      expect(findPreviousUnitStart(3, entries, cache, twoPaged)).toBe(2);
+      const { entries, getDims } = buildDims(["P", "P", "P", "L"]);
+      expect(findPreviousUnitStart(3, entries, getDims, twoPaged)).toBe(2);
     });
 
     // Verify stepping back from a landscape page lands on the start of the preceding spread
     it("returns the spread start before a single page (P,P,L)", () => {
       // units: {0,1} {2}
-      const { entries, cache } = build(["P", "P", "L"]);
-      expect(findPreviousUnitStart(2, entries, cache, twoPaged)).toBe(0);
+      const { entries, getDims } = buildDims(["P", "P", "L"]);
+      expect(findPreviousUnitStart(2, entries, getDims, twoPaged)).toBe(0);
     });
 
     // Verify even spreads are walked correctly
     it("returns the previous spread start in an all-portrait book", () => {
       // units: {0,1} {2,3} {4,5}
-      const { entries, cache } = build(["P", "P", "P", "P", "P", "P"]);
-      expect(findPreviousUnitStart(4, entries, cache, twoPaged)).toBe(2);
+      const { entries, getDims } = buildDims(["P", "P", "P", "P", "P", "P"]);
+      expect(findPreviousUnitStart(4, entries, getDims, twoPaged)).toBe(2);
     });
 
     // Verify isFirstPageSingleView is honored by the walk
     it("honors isFirstPageSingleView", () => {
       // units: {0} {1,2} {3,4}
-      const { entries, cache } = build(["P", "P", "P", "P", "P"]);
+      const { entries, getDims } = buildDims(["P", "P", "P", "P", "P"]);
       const settings: ViewerSettings = { ...twoPaged, isFirstPageSingleView: true };
-      expect(findPreviousUnitStart(3, entries, cache, settings)).toBe(1);
+      expect(findPreviousUnitStart(3, entries, getDims, settings)).toBe(1);
     });
 
-    // Verify the walk bails out (null) when a page on the path is not cached
-    it("returns null when a page dimension on the path is not cached", () => {
-      const { entries, cache } = build(["P", "P", "P", "L"]);
-      cache.delete("p1");
-      expect(findPreviousUnitStart(3, entries, cache, twoPaged)).toBeNull();
+    // Verify the walk bails out (null) when a page on the path has unknown dimensions
+    it("returns null when a page dimension on the path is unknown", () => {
+      const { entries, dims } = buildDims(["P", "P", "P", "L"]);
+      dims.delete(1);
+      expect(findPreviousUnitStart(3, entries, (i) => dims.get(i), twoPaged)).toBeNull();
     });
 
     // Verify the walk bails out (null) when currentIndex is not a real unit start
     it("returns null when currentIndex is mid-spread (overshoot)", () => {
       // units: {0,1} ...; index 1 is the second page of the first spread.
-      const { entries, cache } = build(["P", "P", "P", "P"]);
-      expect(findPreviousUnitStart(1, entries, cache, twoPaged)).toBeNull();
+      const { entries, getDims } = buildDims(["P", "P", "P", "P"]);
+      expect(findPreviousUnitStart(1, entries, getDims, twoPaged)).toBeNull();
     });
 
     // Verify there is no previous unit at or before the first page
     it("returns null for the first page", () => {
-      const { entries, cache } = build(["P", "P"]);
-      expect(findPreviousUnitStart(0, entries, cache, twoPaged)).toBeNull();
+      const { entries, getDims } = buildDims(["P", "P"]);
+      expect(findPreviousUnitStart(0, entries, getDims, twoPaged)).toBeNull();
     });
   });
 
