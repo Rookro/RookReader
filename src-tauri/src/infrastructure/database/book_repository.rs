@@ -326,6 +326,15 @@ impl BookRepository for SqliteBookRepository {
 
         sqlx::query!(
             r#"
+            DELETE FROM bookmarks WHERE book_id = ?
+            "#,
+            id
+        )
+        .execute(&mut *tx)
+        .await?;
+
+        sqlx::query!(
+            r#"
             DELETE FROM books WHERE id = ?
             "#,
             id

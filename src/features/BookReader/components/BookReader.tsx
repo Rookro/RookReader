@@ -1,3 +1,4 @@
+import Bookmarks from "@mui/icons-material/Bookmarks";
 import Explore from "@mui/icons-material/Explore";
 import History from "@mui/icons-material/History";
 import PhotoLibrary from "@mui/icons-material/PhotoLibrary";
@@ -12,6 +13,7 @@ import { type RootState, useAppDispatch, useAppSelector } from "../../../store/s
 import SidePanels from "../../SidePane/components/SidePanels";
 import SideTabs from "../../SidePane/components/SideTabs";
 import { openContainerFile, setContainerFilePath, setOpenOrigin } from "../slice";
+import BookmarkViewer from "./BookmarkViewer/BookmarkViewer";
 import ComicReader from "./ComicReader";
 import ControlSlider from "./ControlSlider";
 import FileNavigator from "./FileNavigator/FileNavigator";
@@ -103,6 +105,9 @@ export default function BookReader({ sx }: BookReaderProps) {
     if (historySettings.recordReadingHistory) {
       tabs.push({ label: "history", icon: <History />, panel: <HistoryViewer /> });
     }
+    // Appended last so the persisted tabIndex of the existing tabs keeps pointing
+    // at the same panel.
+    tabs.push({ label: "bookmarks", icon: <Bookmarks />, panel: <BookmarkViewer /> });
     return tabs;
   }, [historySettings.recordReadingHistory]);
 

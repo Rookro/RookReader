@@ -12,13 +12,15 @@ use tokio::sync::RwLock;
 
 use crate::{
     domain::{
-        book::repository::BookRepository, bookshelf::repository::BookshelfRepository,
-        series::repository::SeriesRepository, tag::repository::TagRepository,
+        book::repository::BookRepository, bookmark::repository::BookmarkRepository,
+        bookshelf::repository::BookshelfRepository, series::repository::SeriesRepository,
+        tag::repository::TagRepository,
     },
     error::{self, Error},
     infrastructure::database::{
-        book_repository::SqliteBookRepository, bookshelf_repository::SqliteBookshelfRepository,
-        series_repository::SqliteSeriesRepository, tag_repository::SqliteTagRepository,
+        book_repository::SqliteBookRepository, bookmark_repository::SqliteBookmarkRepository,
+        bookshelf_repository::SqliteBookshelfRepository, series_repository::SqliteSeriesRepository,
+        tag_repository::SqliteTagRepository,
     },
     settings::{
         AppSettings, AppTheme, LogLevel, LogSettings, SettingsFileProvider, SettingsStoreProvider,
@@ -283,11 +285,14 @@ fn setup_database(app: &App) -> error::Result<()> {
     let tag_repository: Arc<dyn TagRepository> = Arc::new(SqliteTagRepository::new(pool.clone()));
     let series_repository: Arc<dyn SeriesRepository> =
         Arc::new(SqliteSeriesRepository::new(pool.clone()));
+    let bookmark_repository: Arc<dyn BookmarkRepository> =
+        Arc::new(SqliteBookmarkRepository::new(pool.clone()));
 
     app.manage(book_repository);
     app.manage(bookshelf_repository);
     app.manage(tag_repository);
     app.manage(series_repository);
+    app.manage(bookmark_repository);
 
     Ok(())
 }

@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 * Added support for CBZ and CBR comic archives, which open as ZIP and RAR respectively. (#293)
+* Added bookmarks: save any number of positions in a book with one click from the reader toolbar, then jump back to them, rename them, or remove them from the new Bookmarks tab in the side pane. Works for both comics and EPUB novels, where a bookmark returns you to the exact position. (#298)
 
 ### Changed
 

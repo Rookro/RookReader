@@ -1,7 +1,9 @@
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import * as BookmarkCommands from "../../../bindings/BookmarkCommands";
+import { createMockBookmark, createMockBookWithState } from "../../../test/factories";
 import {
   createBasePreloadedState,
   mockSettingsCommands,
@@ -186,5 +188,113 @@ describe("NavigationBar", () => {
     await user.click(settingsButton);
 
     expect(WebviewWindow).toHaveBeenCalledWith("settings", expect.anything());
+  });
+
+  describe("bookmark toggle", () => {
+    /** Builds a state with a book open at `index`, optionally as a novel at `cfi`. */
+    const stateWithOpenBook = (options?: {
+      index?: number;
+      cfi?: string | null;
+      isNovel?: boolean;
+      entries?: string[];
+    }) => {
+      const preloadedState = createBasePreloadedState();
+      preloadedState.read.containerFile.history = ["/path/book.zip"];
+      preloadedState.read.containerFile.historyIndex = 0;
+      preloadedState.read.containerFile.book = createMockBookWithState({ id: 42 });
+      preloadedState.read.containerFile.index = options?.index ?? 3;
+      preloadedState.read.containerFile.cfi = options?.cfi ?? null;
+      preloadedState.read.containerFile.isNovel = options?.isNovel ?? false;
+      preloadedState.read.containerFile.entries = options?.entries ?? ["p1", "p2", "p3", "p4"];
+      return preloadedState;
+    };
+
+    it("should be disabled while no book is open", () => {
+      renderWithProviders(<NavigationBar />);
+
+      expect(screen.getByLabelText("toggle-bookmark")).toBeDisabled();
+    });
+
+    it("should add a bookmark named after the page number for a comic", async () => {
+      const preloadedState = stateWithOpenBook();
+      vi.mocked(BookmarkCommands.createBookmark).mockResolvedValue(
+        createMockBookmark({ id: 1, book_id: 42, page_index: 3 }),
+      );
+
+      renderWithProviders(<NavigationBar />, { preloadedState });
+      await user.click(screen.getByLabelText("toggle-bookmark"));
+
+      await waitFor(() => {
+        expect(BookmarkCommands.createBookmark).toHaveBeenCalledWith({
+          bookId: 42,
+          name: "Page 4",
+          pageIndex: 3,
+          cfi: null,
+        });
+      });
+    });
+
+    it("should add a bookmark named after the section label for a novel", async () => {
+      const preloadedState = stateWithOpenBook({
+        index: 1,
+        cfi: "epubcfi(/6/8!/4/2/1:0)",
+        isNovel: true,
+        entries: ["Chapter 1", "Chapter 2"],
+      });
+      vi.mocked(BookmarkCommands.createBookmark).mockResolvedValue(
+        createMockBookmark({ id: 1, book_id: 42, page_index: 1 }),
+      );
+
+      renderWithProviders(<NavigationBar />, { preloadedState });
+      await user.click(screen.getByLabelText("toggle-bookmark"));
+
+      await waitFor(() => {
+        expect(BookmarkCommands.createBookmark).toHaveBeenCalledWith({
+          bookId: 42,
+          name: "Chapter 2",
+          pageIndex: 1,
+          cfi: "epubcfi(/6/8!/4/2/1:0)",
+        });
+      });
+    });
+
+    it("should remove the bookmark when the current position is already bookmarked", async () => {
+      const preloadedState = stateWithOpenBook();
+      preloadedState.bookmark.bookmarks = [
+        createMockBookmark({ id: 7, book_id: 42, page_index: 3, cfi: null }),
+      ];
+
+      renderWithProviders(<NavigationBar />, { preloadedState });
+      await user.click(screen.getByLabelText("toggle-bookmark"));
+
+      await waitFor(() => {
+        expect(BookmarkCommands.deleteBookmark).toHaveBeenCalledWith(7);
+      });
+      expect(BookmarkCommands.createBookmark).not.toHaveBeenCalled();
+    });
+
+    it("should match a novel bookmark by CFI rather than page index", async () => {
+      const preloadedState = stateWithOpenBook({
+        index: 1,
+        cfi: "epubcfi(/6/8!/4/2/1:0)",
+        isNovel: true,
+        entries: ["Chapter 1", "Chapter 2"],
+      });
+      // Same section, different position: this is not the current bookmark.
+      preloadedState.bookmark.bookmarks = [
+        createMockBookmark({ id: 7, book_id: 42, page_index: 1, cfi: "epubcfi(/6/8!/4/2/9:0)" }),
+      ];
+      vi.mocked(BookmarkCommands.createBookmark).mockResolvedValue(
+        createMockBookmark({ id: 8, book_id: 42, page_index: 1 }),
+      );
+
+      renderWithProviders(<NavigationBar />, { preloadedState });
+      await user.click(screen.getByLabelText("toggle-bookmark"));
+
+      await waitFor(() => {
+        expect(BookmarkCommands.createBookmark).toHaveBeenCalled();
+      });
+      expect(BookmarkCommands.deleteBookmark).not.toHaveBeenCalled();
+    });
   });
 });
