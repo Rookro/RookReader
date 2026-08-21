@@ -4,6 +4,35 @@ use image::ImageReader;
 use serde::{Deserialize, Serialize};
 use tauri::ipc::Response;
 
+/// The pixel dimensions of a single image, without its data.
+#[derive(Serialize, Deserialize, specta::Type, Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ImageDimensions {
+    /// The width of the image in pixels.
+    pub width: u32,
+    /// The height of the image in pixels.
+    pub height: u32,
+}
+
+/// Reads an image's dimensions from its header, without decoding the pixel data.
+///
+/// # Arguments
+///
+/// * `data` - The encoded bytes of an image file.
+///
+/// # Returns
+///
+/// A `Result` containing the image's dimensions on success.
+///
+/// # Errors
+///
+/// Returns an `image::ImageError` if the format cannot be guessed or the header is
+/// not a supported image.
+pub fn read_dimensions(data: &[u8]) -> Result<ImageDimensions, image::ImageError> {
+    let image_reader = ImageReader::new(Cursor::new(data)).with_guessed_format()?;
+    let (width, height) = image_reader.into_dimensions()?;
+    Ok(ImageDimensions { width, height })
+}
+
 /// Represents image data and its dimensions.
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Image {
@@ -34,9 +63,7 @@ impl Image {
     /// Returns an `image::ImageError` if the provided data cannot be decoded as a
     /// supported image format.
     pub fn new(data: Vec<u8>) -> Result<Self, image::ImageError> {
-        let cursor = Cursor::new(&data);
-        let image_reader = ImageReader::new(cursor).with_guessed_format()?;
-        let (width, height) = image_reader.into_dimensions()?;
+        let ImageDimensions { width, height } = read_dimensions(&data)?;
         Ok(Image {
             data,
             width,
@@ -152,6 +179,38 @@ mod tests {
         assert_eq!(image.width, 1);
         assert_eq!(image.height, 1);
         assert_eq!(image.data, png_data);
+    }
+
+    #[test]
+    fn test_read_dimensions_without_decoding_the_pixel_data() {
+        // A 1x1 PNG whose IHDR is intact but whose IDAT payload is garbage. Reading the
+        // dimensions must still succeed, proving no pixel data is decoded; a full decode
+        // of the same bytes fails.
+        let mut corrupt_idat = vec![
+            0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x48,
+            0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x02, 0x00, 0x00,
+            0x00, 0x90, 0x77, 0x53, 0xDE, 0x00, 0x00, 0x00, 0x0C, 0x49, 0x44, 0x41, 0x54, 0x08,
+            0x99, 0x63, 0xF8, 0xFF, 0xFF, 0xFF, 0x7F, 0x00, 0x09, 0xFB, 0x03, 0xFD, 0xDE, 0x54,
+            0x4D, 0xEE, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82,
+        ];
+        // Overwrite the IDAT chunk's 12-byte payload (it starts right after the type tag).
+        corrupt_idat[41..53].fill(0xFF);
+
+        let dimensions =
+            read_dimensions(&corrupt_idat).expect("the IHDR alone must be enough for dimensions");
+        assert_eq!(
+            dimensions,
+            ImageDimensions {
+                width: 1,
+                height: 1
+            }
+        );
+        assert!(image::load_from_memory(&corrupt_idat).is_err());
+    }
+
+    #[test]
+    fn test_read_dimensions_with_invalid_data() {
+        assert!(read_dimensions(&[0xFF, 0xD8, 0xFF, 0xE0]).is_err());
     }
 
     #[test]

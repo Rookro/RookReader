@@ -11,7 +11,10 @@ use zip::ZipArchive;
 use crate::{
     container::traits::Container,
     error::Result,
-    image::{thumbnail::generate_thumbnail, types::Image},
+    image::{
+        thumbnail::generate_thumbnail,
+        types::{read_dimensions, Image, ImageDimensions},
+    },
 };
 
 /// Absolute ceiling for a single page's preallocation, and the largest declared
@@ -229,6 +232,24 @@ impl Container for ZipContainer {
         generate_thumbnail(&buffer)
     }
 
+    fn get_image_dimensions(&self) -> Result<Vec<ImageDimensions>> {
+        // Hold the lock across the whole pass: re-locking per entry only adds contention.
+        let mut archive = self.archive.lock().map_err(|e| {
+            crate::error::Error::Other(format!("Failed to lock zip archive: {}", e))
+        })?;
+
+        self.entries
+            .iter()
+            .map(|entry| {
+                let index = *self.name_to_index.get(entry).ok_or_else(|| {
+                    crate::error::Error::Other(format!("Entry not found in ZIP: {}", entry))
+                })?;
+                let buffer = read_entry_checked(&mut archive, index, entry)?;
+                Ok(read_dimensions(&buffer)?)
+            })
+            .collect()
+    }
+
     fn is_directory(&self) -> bool {
         false
     }
@@ -426,6 +447,31 @@ mod tests {
         assert_eq!(image.width, 1);
         assert_eq!(image.height, 1);
         assert_eq!(image.data, DUMMY_PNG_DATA);
+    }
+
+    #[test]
+    fn test_get_image_dimensions_matches_entries() {
+        let dir = tempdir().unwrap();
+        let zip_path = create_dummy_zip(
+            dir.path(),
+            "test.zip",
+            &[
+                ("image1.png", DUMMY_PNG_DATA),
+                ("image2.png", DUMMY_PNG_DATA),
+            ],
+        );
+        let container = ZipContainer::new(zip_path.to_string_lossy().to_string().as_str()).unwrap();
+
+        let dimensions = container
+            .get_image_dimensions()
+            .expect("get_image_dimensions should succeed");
+
+        assert_eq!(dimensions.len(), container.get_entries().len());
+        assert!(dimensions.iter().all(|d| *d
+            == ImageDimensions {
+                width: 1,
+                height: 1
+            }));
     }
 
     #[test]

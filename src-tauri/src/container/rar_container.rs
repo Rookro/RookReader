@@ -13,7 +13,10 @@ use std::sync::Arc;
 use crate::{
     container::traits::Container,
     error::{Error, Result},
-    image::{thumbnail::generate_thumbnail, types::Image},
+    image::{
+        thumbnail::generate_thumbnail,
+        types::{read_dimensions, Image, ImageDimensions},
+    },
 };
 
 /// An implementation of the `Container` trait for reading content from RAR archive files.
@@ -39,6 +42,10 @@ impl Container for RarContainer {
 
     fn get_thumbnail(&self, entry: &str) -> Result<Arc<Image>> {
         create_thumbnail(&self.path, entry)
+    }
+
+    fn get_image_dimensions(&self) -> Result<Vec<ImageDimensions>> {
+        read_all_dimensions(&self.path, &self.entries)
     }
 
     fn is_directory(&self) -> bool {
@@ -140,6 +147,53 @@ fn load_image(path: &str, entry: &str) -> Result<Arc<Image>> {
     }
 
     Err(Error::EntryNotFound(format!("Entry not found: {}", entry)))
+}
+
+/// Reads every entry's dimensions in a single pass over the archive.
+///
+/// [`load_image`] rescans from the start for each entry, so calling it per entry would
+/// be $O(N^2)$; this walks the archive once and extracts only the wanted entries.
+///
+/// # Arguments
+///
+/// * `path` - The path to the RAR file.
+/// * `entries` - The entry names to measure, in the order the result must follow.
+///
+/// # Returns
+///
+/// One `ImageDimensions` per name in `entries`.
+///
+/// # Errors
+///
+/// Returns an `Err` if the archive cannot be walked, an entry is missing from it, or an
+/// entry is not a supported image.
+fn read_all_dimensions(path: &str, entries: &[String]) -> Result<Vec<ImageDimensions>> {
+    let wanted: std::collections::HashSet<&str> = entries.iter().map(String::as_str).collect();
+    let mut found: std::collections::HashMap<String, ImageDimensions> =
+        std::collections::HashMap::new();
+
+    let mut archive = open(path)?;
+    while let Some(header) = archive.read_header()? {
+        let filename = header.entry().filename.to_string_lossy().to_string();
+        // Duplicate names are possible; load_image returns the first match, so keep it.
+        if wanted.contains(filename.as_str()) && !found.contains_key(&filename) {
+            let (data, rest) = header.read()?;
+            found.insert(filename, read_dimensions(&data)?);
+            archive = rest;
+        } else {
+            archive = header.skip()?;
+        }
+    }
+
+    entries
+        .iter()
+        .map(|entry| {
+            found
+                .get(entry)
+                .copied()
+                .ok_or_else(|| Error::EntryNotFound(format!("Entry not found: {}", entry)))
+        })
+        .collect()
 }
 
 /// Helper function to load an image and generate a JPEG thumbnail for it.
@@ -278,6 +332,36 @@ mod tests {
             .expect("failed to create RarContainer");
         let result = container.get_image("non_existent_image.png");
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_get_image_dimensions_covers_every_entry_in_one_pass() {
+        let dir = tempdir().expect("failed to create tempdir");
+        let rar_path = create_dummy_rar(dir.path(), "dummy.rar");
+        let container = RarContainer::new(rar_path.to_string_lossy().as_ref())
+            .expect("failed to create RarContainer");
+
+        let dimensions = container
+            .get_image_dimensions()
+            .expect("get_image_dimensions should succeed");
+
+        assert_eq!(dimensions.len(), container.get_entries().len());
+        assert!(dimensions.iter().all(|d| *d
+            == ImageDimensions {
+                width: 1,
+                height: 1
+            }));
+    }
+
+    #[test]
+    fn test_get_image_dimensions_reports_a_missing_entry() {
+        let dir = tempdir().expect("failed to create tempdir");
+        let rar_path = create_dummy_rar(dir.path(), "dummy.rar");
+        let entries = vec!["not_in_the_archive.png".to_string()];
+
+        let result = read_all_dimensions(rar_path.to_string_lossy().as_ref(), &entries);
+
+        assert!(matches!(result, Err(Error::EntryNotFound(_))));
     }
 
     #[test]
