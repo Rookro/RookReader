@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
-use crate::{error::Result, image::types::Image};
+use crate::{
+    error::Result,
+    image::types::{Image, ImageDimensions},
+};
 
 #[cfg(test)]
 use mockall::{automock, predicate::*};
@@ -53,6 +56,22 @@ pub trait Container: Send + Sync + 'static {
     /// Returns an `Err` if the entry cannot be found, or if the thumbnail cannot be
     /// generated or decoded.
     fn get_thumbnail(&self, entry: &str) -> Result<Arc<Image>>;
+
+    /// Retrieves the pixel dimensions of every entry, in [`Container::get_entries`] order.
+    ///
+    /// Implementations read dimensions from image headers (or, for PDF, from the page
+    /// size) rather than decoding pixels, so the whole container can be measured in one
+    /// pass. The values describe the source pages, which may be larger than the images
+    /// [`Container::get_image`] delivers, but the aspect ratio is the same.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing one `ImageDimensions` per entry.
+    ///
+    /// # Errors
+    ///
+    /// Returns an `Err` if an entry cannot be read or is not a supported image.
+    fn get_image_dimensions(&self) -> Result<Vec<ImageDimensions>>;
 
     /// Checks whether the container corresponds to a directory on the filesystem.
     ///

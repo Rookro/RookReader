@@ -5,10 +5,15 @@ use std::{
     sync::Arc,
 };
 
+use image::ImageReader;
+
 use crate::{
     container::traits::Container,
     error::{Error, Result},
-    image::{thumbnail::generate_thumbnail, types::Image},
+    image::{
+        thumbnail::generate_thumbnail,
+        types::{Image, ImageDimensions},
+    },
 };
 
 /// An implementation of the `Container` trait for browsing images in a filesystem directory.
@@ -33,6 +38,13 @@ impl Container for DirectoryContainer {
     fn get_thumbnail(&self, entry: &str) -> Result<Arc<Image>> {
         self.ensure_member(entry)?;
         create_thumbnail(&self.path, entry)
+    }
+
+    fn get_image_dimensions(&self) -> Result<Vec<ImageDimensions>> {
+        self.entries
+            .iter()
+            .map(|entry| read_file_dimensions(&self.path, entry))
+            .collect()
     }
 
     fn is_directory(&self) -> bool {
@@ -124,6 +136,18 @@ fn load_image(path: &str, entry: &str) -> Result<Arc<Image>> {
     Ok(Arc::new(Image::new(buffer)?))
 }
 
+/// Helper function to read an image file's dimensions from its header.
+///
+/// Uses `ImageReader::open` so only the header is read, not the whole file.
+fn read_file_dimensions(path: &str, entry: &str) -> Result<ImageDimensions> {
+    let file_path = path::Path::new(&path).join(entry);
+    let (width, height) = ImageReader::open(file_path)?
+        .with_guessed_format()?
+        .into_dimensions()?;
+
+    Ok(ImageDimensions { width, height })
+}
+
 /// Helper function to create a JPEG thumbnail for an image file.
 fn create_thumbnail(path: &str, entry: &str) -> Result<Arc<Image>> {
     let file_path = path::Path::new(&path).join(entry);
@@ -159,6 +183,26 @@ mod tests {
         ];
         file.write_all(&png_data).expect("failed to write png data");
         filepath
+    }
+
+    #[test]
+    fn test_get_image_dimensions_matches_entries() {
+        let dir = tempdir().expect("failed to create tempdir");
+        create_dummy_image(dir.path(), "test1.png");
+        create_dummy_image(dir.path(), "test2.png");
+        let container = DirectoryContainer::new(dir.path().to_string_lossy().as_ref())
+            .expect("failed to create DirectoryContainer");
+
+        let dimensions = container
+            .get_image_dimensions()
+            .expect("get_image_dimensions should succeed");
+
+        assert_eq!(dimensions.len(), container.get_entries().len());
+        assert!(dimensions.iter().all(|d| *d
+            == ImageDimensions {
+                width: 1,
+                height: 1
+            }));
     }
 
     #[test]

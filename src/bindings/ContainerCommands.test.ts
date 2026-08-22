@@ -38,6 +38,18 @@ describe("ContainerCommands", () => {
     });
   });
 
+  it("getImageDimensions should call invoke", async () => {
+    vi.mocked(invoke).mockResolvedValue([{ width: 100, height: 200 }]);
+    const dimensions = await ContainerCommands.getImageDimensions("path");
+    expect(invoke).toHaveBeenCalledWith("get_image_dimensions", { path: "path" });
+    expect(dimensions).toEqual([{ width: 100, height: 200 }]);
+  });
+
+  it("getImageDimensions should throw CommandError on failure", async () => {
+    vi.mocked(invoke).mockRejectedValue(new Error("fail"));
+    await expect(ContainerCommands.getImageDimensions("path")).rejects.toThrow(CommandError);
+  });
+
   it("getImage should call invoke", async () => {
     vi.mocked(invoke).mockResolvedValue(new ArrayBuffer(0));
     await ContainerCommands.getImage("path", "entry");

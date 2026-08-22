@@ -41,6 +41,7 @@ vi.mock("../../bindings/ContainerCommands", () => ({
     Promise.resolve({ entries: [], is_directory: false, is_novel: false }),
   ),
   requestPreloadAround: vi.fn(() => Promise.resolve()),
+  getImageDimensions: vi.fn(() => Promise.resolve([])),
   getImage: vi.fn(() => Promise.resolve(new ArrayBuffer(0))),
   getImagePreview: vi.fn(() => Promise.resolve(new ArrayBuffer(0))),
 }));

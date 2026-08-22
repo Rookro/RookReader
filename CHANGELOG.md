@@ -19,6 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Switched Material UI icon imports to per-icon paths so only the icons actually used are pre-bundled. This fixes the development server failing to start and makes it start noticeably faster. (#296)
 * EPUB novels now reopen at the exact last reading position instead of losing it when closed. (#297)
 
+### Fixed
+
+* Fixed two-page spread mode pairing pages differently when you turn back. Going back through a book — or turning pages after jumping with the slider, a bookmark, or a restored reading position — now keeps every spread paired exactly as it was on the way forward, so a page no longer appears twice or alongside the wrong one. (#299)
+
 ## [2.3.1] - 2026-07-07
 
 ### Changed

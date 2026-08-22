@@ -54,6 +54,31 @@ export interface ViewLayout {
 }
 
 /**
+ * Pixel dimensions of a page.
+ */
+export interface PageDims {
+  /** Width of the page. */
+  width: number;
+  /** Height of the page. */
+  height: number;
+}
+
+/**
+ * Returns the dimensions of the entry at the given index, or undefined when unknown.
+ */
+export type DimsLookup = (index: number) => PageDims | undefined;
+
+/**
+ * Decision for a single display unit, independent of whether its images are loaded.
+ */
+export interface UnitDecision {
+  /** Is the unit a spread (two pages). */
+  isSpread: boolean;
+  /** Increment for the next index. */
+  nextIndexIncrement: number;
+}
+
+/**
  * Settings for the viewer.
  */
 export interface ViewerSettings {
@@ -159,6 +184,154 @@ export const buildSinglePageLayout = (firstImage: ImageCacheItem): ViewLayout =>
   nextIndexIncrement: 1,
 });
 
+/** Decision shared by every single-page unit. */
+const SINGLE_UNIT: UnitDecision = { isSpread: false, nextIndexIncrement: 1 };
+
+/**
+ * Decides the display unit starting at `currentIndex` from page dimensions alone.
+ *
+ * This holds the spread rules; layout building only attaches images to the decision.
+ *
+ * @param currentIndex The index the unit starts at.
+ * @param entries The list of entry names.
+ * @param getDims Lookup for page dimensions.
+ * @param settings The viewer settings.
+ * @returns The unit decision, or null when a dimension needed to decide is unknown.
+ */
+export const resolveUnit = (
+  currentIndex: number,
+  entries: string[],
+  getDims: DimsLookup,
+  settings: ViewerSettings,
+): UnitDecision | null => {
+  const first = getDims(currentIndex);
+
+  if (!first) {
+    return null;
+  }
+
+  if (!settings.isTwoPagedView || currentIndex + 1 >= entries.length) {
+    return SINGLE_UNIT;
+  }
+
+  if (first.width > first.height) {
+    return SINGLE_UNIT;
+  }
+
+  if (currentIndex === 0 && settings.isFirstPageSingleView) {
+    return SINGLE_UNIT;
+  }
+
+  const second = getDims(currentIndex + 1);
+
+  if (!second) {
+    return null;
+  }
+
+  if (second.width > second.height) {
+    return SINGLE_UNIT;
+  }
+
+  return { isSpread: true, nextIndexIncrement: 2 };
+};
+
+/**
+ * Attaches cached images to a unit decision.
+ *
+ * @param unit The decided unit.
+ * @param currentIndex The index the unit starts at.
+ * @param entries The list of entry names.
+ * @param cache The image cache.
+ * @returns The layout, or null when a required image is not cached yet.
+ */
+export const buildUnitLayout = (
+  unit: UnitDecision,
+  currentIndex: number,
+  entries: string[],
+  cache: Map<string, ImageCacheItem>,
+): ViewLayout | null => {
+  const firstImage = cache.get(entries[currentIndex]);
+
+  if (!firstImage) {
+    return null;
+  }
+
+  if (!unit.isSpread) {
+    return { firstImage, isSpread: false, nextIndexIncrement: unit.nextIndexIncrement };
+  }
+
+  const secondImage = cache.get(entries[currentIndex + 1]);
+
+  if (!secondImage) {
+    return null;
+  }
+
+  return { firstImage, secondImage, isSpread: true, nextIndexIncrement: unit.nextIndexIncrement };
+};
+
+/**
+ * Every display unit of a book, precomputed from a complete set of page dimensions.
+ */
+export interface UnitChain {
+  /** Unit start indices, ascending. */
+  starts: number[];
+  /** Unit start index to that unit's decision. */
+  units: Map<number, UnitDecision>;
+}
+
+/**
+ * Builds the unit chain for a whole book, anchored at a known unit start.
+ *
+ * Unit boundaries are a chain, so they can only be laid out from a fixed point. Forward
+ * of `anchor` the walk applies the same rules as {@link resolveUnit}. Backward of it
+ * there is no chain to follow, so two portrait pages are paired greedily; this keeps the
+ * pages the reader jumped to intact instead of shifting them.
+ *
+ * @param anchor The index to treat as a unit start (typically the current page).
+ * @param entries The list of entry names.
+ * @param getDims Lookup for page dimensions.
+ * @param settings The viewer settings.
+ * @returns The chain covering every index from 0 to the last entry.
+ */
+export const buildUnitChain = (
+  anchor: number,
+  entries: string[],
+  getDims: DimsLookup,
+  settings: ViewerSettings,
+): UnitChain => {
+  const units = new Map<number, UnitDecision>();
+
+  const isPortrait = (i: number): boolean => {
+    const dims = getDims(i);
+    return dims !== undefined && dims.width <= dims.height;
+  };
+
+  // Backward from the anchor: each step decides which pages fill the slot just before
+  // the boundary reached so far.
+  let boundary = anchor;
+  while (boundary > 0) {
+    const canPair =
+      settings.isTwoPagedView &&
+      boundary >= 2 &&
+      isPortrait(boundary - 1) &&
+      isPortrait(boundary - 2) &&
+      !(boundary - 2 === 0 && settings.isFirstPageSingleView);
+    const start = canPair ? boundary - 2 : boundary - 1;
+    units.set(start, { isSpread: canPair, nextIndexIncrement: boundary - start });
+    boundary = start;
+  }
+
+  // Forward from the anchor.
+  let start = anchor;
+  while (start < entries.length) {
+    const unit = resolveUnit(start, entries, getDims, settings) ?? SINGLE_UNIT;
+    units.set(start, unit);
+    start += unit.nextIndexIncrement;
+  }
+
+  return { starts: [...units.keys()].sort((a, b) => a - b), units };
+};
+
 /**
  * Finds the start index of the page unit immediately preceding `currentIndex` by
  * walking unit boundaries forward from page 0.
@@ -169,16 +342,16 @@ export const buildSinglePageLayout = (firstImage: ImageCacheItem): ViewLayout =>
  *
  * @param currentIndex The current unit-start index to step back from.
  * @param entries The list of entry names.
- * @param cache The image cache.
+ * @param getDims Lookup for page dimensions.
  * @param settings The viewer settings.
  * @returns The previous unit's start index, or `null` when `currentIndex <= 0`, when a
- *   page dimension needed to reach `currentIndex` is not cached, or when `currentIndex`
+ *   page dimension needed to reach `currentIndex` is unknown, or when `currentIndex`
  *   is not a real unit start under the current layout (the caller should fall back).
  */
 export const findPreviousUnitStart = (
   currentIndex: number,
   entries: string[],
-  cache: Map<string, ImageCacheItem>,
+  getDims: DimsLookup,
   settings: ViewerSettings,
 ): number | null => {
   if (currentIndex <= 0) {
@@ -187,72 +360,17 @@ export const findPreviousUnitStart = (
   let start = 0;
   let prev = 0;
   while (start < currentIndex) {
-    const layout = calculateLayout(start, entries, cache, settings);
-    if (!layout) {
-      // A page dimension on the path is not cached; can't reconstruct boundaries.
+    const unit = resolveUnit(start, entries, getDims, settings);
+    if (!unit) {
+      // A page dimension on the path is unknown; can't reconstruct boundaries.
       return null;
     }
     prev = start;
-    start += layout.nextIndexIncrement;
+    start += unit.nextIndexIncrement;
   }
   // Overshooting means `currentIndex` is not a real unit start under this layout.
   if (start !== currentIndex) {
     return null;
   }
   return prev;
-};
-
-/**
- * Calculates the view layout based on the current state.
- * Returns null if required images are not yet cached, preventing partial layout decisions.
- *
- * @param currentIndex The current index in the entries list.
- * @param entries The list of entry names.
- * @param cache The image cache.
- * @param settings The viewer settings.
- * @returns The calculated layout or null if not enough information is available.
- */
-export const calculateLayout = (
-  currentIndex: number,
-  entries: string[],
-  cache: Map<string, ImageCacheItem>,
-  settings: ViewerSettings,
-): ViewLayout | null => {
-  const firstPath = entries[currentIndex];
-  const secondPath = entries[currentIndex + 1];
-
-  const firstImg = cache.get(firstPath);
-
-  if (!firstImg) {
-    return null;
-  }
-
-  if (!settings.isTwoPagedView || !secondPath) {
-    return { firstImage: firstImg, isSpread: false, nextIndexIncrement: 1 };
-  }
-
-  if (firstImg.width > firstImg.height) {
-    return { firstImage: firstImg, isSpread: false, nextIndexIncrement: 1 };
-  }
-
-  if (currentIndex === 0 && settings.isFirstPageSingleView) {
-    return { firstImage: firstImg, isSpread: false, nextIndexIncrement: 1 };
-  }
-
-  const secondImg = cache.get(secondPath);
-
-  if (!secondImg) {
-    return null;
-  }
-
-  if (secondImg.width > secondImg.height) {
-    return { firstImage: firstImg, isSpread: false, nextIndexIncrement: 1 };
-  }
-
-  return {
-    firstImage: firstImg,
-    secondImage: secondImg,
-    isSpread: true,
-    nextIndexIncrement: 2,
-  };
 };
