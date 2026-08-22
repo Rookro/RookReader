@@ -141,7 +141,7 @@ fn read_entry_checked<R: Read + Seek>(
 /// # Returns
 ///
 /// The decoded name.
-fn decode_entry_name(raw_name: &[u8]) -> String {
+pub(crate) fn decode_entry_name(raw_name: &[u8]) -> String {
     match std::str::from_utf8(raw_name) {
         Ok(v) => v.to_string(),
         Err(_) => {
