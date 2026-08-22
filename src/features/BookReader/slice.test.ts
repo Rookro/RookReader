@@ -23,6 +23,7 @@ import readReducer, {
   setOpenOrigin,
   setPendingInitialPosition,
   setSearchText,
+  setSpreadAnchor,
   updateExploreBasePath,
 } from "./slice";
 
@@ -50,6 +51,24 @@ describe("ReadReducer", () => {
       expect(state.containerFile.cfi).toBeNull();
     });
 
+    // Verify that the spread anchor is stored as given
+    it("should handle setSpreadAnchor", () => {
+      const initialState = {
+        containerFile: { spreadAnchor: 0 },
+      } as RootState["read"];
+      const state = readReducer(initialState, setSpreadAnchor(7));
+      expect(state.containerFile.spreadAnchor).toBe(7);
+    });
+
+    // Verify that page turns never move the spread anchor
+    it("should leave the spread anchor untouched on setImageIndex", () => {
+      const initialState = {
+        containerFile: { index: 0, spreadAnchor: 7, cfi: null },
+      } as RootState["read"];
+      const state = readReducer(initialState, setImageIndex(10));
+      expect(state.containerFile.spreadAnchor).toBe(7);
+    });
+
     // Verify that container file path is set and history is updated
     it("should handle setContainerFilePath and update history", () => {
       const initialState = {
@@ -59,6 +78,15 @@ describe("ReadReducer", () => {
       expect(state.containerFile.history).toEqual(["old", "new"]);
       expect(state.containerFile.historyIndex).toBe(1);
       expect(state.containerFile.index).toBe(0);
+    });
+
+    // Verify that opening another book drops the previous book's spread anchor
+    it("should reset the spread anchor in setContainerFilePath", () => {
+      const initialState = {
+        containerFile: { history: ["old"], historyIndex: 0, index: 5, spreadAnchor: 3 },
+      } as RootState["read"];
+      const state = readReducer(initialState, setContainerFilePath("new"));
+      expect(state.containerFile.spreadAnchor).toBe(0);
     });
 
     // Verify that history is not updated when setContainerFilePath is called with current path
@@ -274,6 +302,8 @@ describe("ReadReducer", () => {
         expect(state.containerFile.book).toEqual(mockBook);
         expect(state.containerFile.index).toBe(1);
         expect(state.containerFile.entries).toEqual(["p1", "p2"]);
+        // The viewer adopts an anchor only when the restored page needs one.
+        expect(state.containerFile.spreadAnchor).toBe(0);
       });
 
       // Verify that the container opens on its last page when pendingInitialPosition is "last"

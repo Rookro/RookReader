@@ -128,6 +128,8 @@ export const readSlice = createSlice({
       entries: [] as string[],
       book: null as BookWithState | null,
       index: 0,
+      /** Index forced to start a display unit, or 0 for the book's natural pairing. */
+      spreadAnchor: 0,
       cfi: null as string | null,
       isNovel: false,
       isLoading: false,
@@ -165,6 +167,7 @@ export const readSlice = createSlice({
         return;
       }
       state.containerFile.index = 0;
+      state.containerFile.spreadAnchor = 0;
       state.containerFile.isLoading = true;
     },
     /**
@@ -196,6 +199,16 @@ export const readSlice = createSlice({
     setImageIndex: (state, action: PayloadAction<number>) => {
       state.containerFile.index = action.payload;
       state.containerFile.cfi = null;
+    },
+    /**
+     * Forces the given index to start a display unit, shifting the spread pairing from
+     * there on. Pass 0 to restore the book's natural pairing.
+     *
+     * @param state - The current Redux state slice.
+     * @param action - Payload containing the anchor index, or 0 to clear it.
+     */
+    setSpreadAnchor: (state, action: PayloadAction<number>) => {
+      state.containerFile.spreadAnchor = action.payload;
     },
     /**
      * Sets the base path for the file explorer and updates history.
@@ -329,6 +342,7 @@ export const readSlice = createSlice({
         state.containerFile.entries = [];
         state.containerFile.isLoading = true;
         state.containerFile.index = 0;
+        state.containerFile.spreadAnchor = 0;
         state.containerFile.cfi = null;
         state.containerFile.error = null;
       })
@@ -380,6 +394,7 @@ export const readSlice = createSlice({
         state.containerFile.entries = [];
         state.containerFile.isLoading = false;
         state.containerFile.index = 0;
+        state.containerFile.spreadAnchor = 0;
         state.containerFile.cfi = null;
         state.containerFile.pendingInitialPosition = null;
         state.containerFile.error = action.payload ?? null;
@@ -392,6 +407,7 @@ export const {
   setOpenOrigin,
   setPendingInitialPosition,
   setImageIndex,
+  setSpreadAnchor,
   setExploreBasePath,
   setSearchText,
   goBackContainerHistory,
