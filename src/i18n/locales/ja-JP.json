@@ -25,6 +25,8 @@
       "title": "ページ",
       "no-pages": "表示可能なページがありません。"
     },
+    "shift-spread": "見開きを 1 ページずらす",
+    "reset-spread": "見開きのずらしを解除",
     "add-bookmark": "しおりを追加",
     "remove-bookmark": "しおりを削除",
     "bookmark": {

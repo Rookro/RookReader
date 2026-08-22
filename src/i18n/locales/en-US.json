@@ -25,6 +25,8 @@
       "title": "Pages",
       "no-pages": "No pages."
     },
+    "shift-spread": "Shift the spread pairing by one page",
+    "reset-spread": "Reset the spread pairing",
     "add-bookmark": "Add bookmark",
     "remove-bookmark": "Remove bookmark",
     "bookmark": {
