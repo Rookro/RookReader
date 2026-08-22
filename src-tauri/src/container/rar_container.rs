@@ -8,10 +8,10 @@
 
 use unrar::{Archive, CursorBeforeHeader, OpenArchive, Process};
 
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use crate::{
-    container::traits::Container,
+    container::{archive_path, traits::Container},
     error::{Error, Result},
     image::{
         thumbnail::generate_thumbnail,
@@ -27,8 +27,11 @@ use crate::{
 pub struct RarContainer {
     /// The file path of the RAR container.
     path: String,
-    /// A naturally sorted list of image file names found within the archive.
+    /// A naturally sorted list of the image leaf names in the opened folder.
     entries: Vec<String>,
+    /// Maps each leaf name back to its full path inside the archive, which is what the
+    /// archive headers carry.
+    entry_to_path: HashMap<String, String>,
 }
 
 impl Container for RarContainer {
@@ -37,15 +40,20 @@ impl Container for RarContainer {
     }
 
     fn get_image(&self, entry: &str) -> Result<Arc<Image>> {
-        load_image(&self.path, entry)
+        load_image(&self.path, self.resolve_entry(entry)?)
     }
 
     fn get_thumbnail(&self, entry: &str) -> Result<Arc<Image>> {
-        create_thumbnail(&self.path, entry)
+        create_thumbnail(&self.path, self.resolve_entry(entry)?)
     }
 
     fn get_image_dimensions(&self) -> Result<Vec<ImageDimensions>> {
-        read_all_dimensions(&self.path, &self.entries)
+        let paths = self
+            .entries
+            .iter()
+            .map(|entry| self.resolve_entry(entry).map(str::to_string))
+            .collect::<Result<Vec<String>>>()?;
+        read_all_dimensions(&self.path, &paths)
     }
 
     fn is_directory(&self) -> bool {
@@ -62,6 +70,8 @@ impl RarContainer {
     /// # Arguments
     ///
     /// * `path` - The path to the RAR file.
+    /// * `inner_dir` - The folder inside the archive to open as the book, `/`-separated.
+    ///   Empty opens the archive root.
     ///
     /// # Returns
     ///
@@ -71,7 +81,7 @@ impl RarContainer {
     ///
     /// Returns an `Err` if the RAR file cannot be opened or an error occurs
     /// while reading its entries.
-    pub fn new(path: &str) -> Result<Self> {
+    pub fn new(path: &str, inner_dir: &str) -> Result<Self> {
         let archive = Archive::new(path).open_for_listing()?;
 
         let mut filenames: Vec<String> = Vec::new();
@@ -82,39 +92,81 @@ impl RarContainer {
             }
         }
 
-        let entries = collect_entries(filenames.into_iter());
+        let (entries, entry_to_path) = collect_entries(filenames.into_iter(), inner_dir);
 
         Ok(Self {
             path: path.to_string(),
             entries,
+            entry_to_path,
         })
+    }
+
+    /// Maps a leaf entry name to its full path inside the archive.
+    ///
+    /// # Arguments
+    ///
+    /// * `entry` - The leaf name as it appears in [`Container::get_entries`].
+    ///
+    /// # Returns
+    ///
+    /// The entry's full path inside the archive, as the archive headers spell it.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::EntryNotFound`] when the name is not part of this book.
+    fn resolve_entry(&self, entry: &str) -> Result<&str> {
+        self.entry_to_path
+            .get(entry)
+            .map(String::as_str)
+            .ok_or_else(|| Error::EntryNotFound(format!("Entry not found in RAR: {entry}")))
     }
 }
 
-/// Builds the naturally-sorted image entry list from raw RAR entry filenames.
+/// Builds the naturally-sorted image entry list for one folder inside the archive.
+///
+/// Only entries sitting *directly* inside `inner_dir` are kept — sub-folders are their
+/// own books, exactly as they are on disk — and each is stored under its leaf file name
+/// so the page list reads like a folder listing.
 ///
 /// RAR permits duplicate entry names, and lossy filename decoding can also collide;
-/// [`load_image`] returns the first match, so only the first occurrence of each name is
-/// kept — otherwise the list would show a page twice while both names resolved to the
-/// same file, hiding another page.
+/// [`load_image`] returns the first match, so only the first occurrence of each leaf
+/// name is kept — otherwise the list would show a page twice while both names resolved
+/// to the same file, hiding another page.
 ///
 /// # Arguments
 ///
 /// * `filenames` - An iterator of (lossily decoded) entry filenames.
+/// * `inner_dir` - The folder inside the archive; empty means the archive root.
 ///
 /// # Returns
 ///
-/// The supported image names, deduplicated (first occurrence wins) and naturally sorted.
-fn collect_entries(filenames: impl Iterator<Item = String>) -> Vec<String> {
+/// The naturally-sorted leaf names, and a map from each leaf name to the archive's own
+/// spelling of its full path.
+fn collect_entries(
+    filenames: impl Iterator<Item = String>,
+    inner_dir: &str,
+) -> (Vec<String>, HashMap<String, String>) {
     let mut entries: Vec<String> = Vec::new();
-    let mut seen = std::collections::HashSet::new();
+    let mut entry_to_path: HashMap<String, String> = HashMap::new();
+
     for filename in filenames {
-        if Image::is_supported_format(&filename) && seen.insert(filename.clone()) {
-            entries.push(filename);
+        let normalized = archive_path::normalize_entry(&filename);
+        if archive_path::is_ignored_entry(&normalized) {
+            continue;
         }
+        let Some(leaf) = archive_path::leaf_in(&normalized, inner_dir) else {
+            continue;
+        };
+        if !Image::is_supported_format(leaf) || entry_to_path.contains_key(leaf) {
+            continue;
+        }
+        entries.push(leaf.to_string());
+        // Keep the archive's own spelling: header names are matched verbatim.
+        entry_to_path.insert(leaf.to_string(), filename);
     }
+
     entries.sort_by(|a, b| natord::compare_ignore_case(a, b));
-    entries
+    (entries, entry_to_path)
 }
 
 /// Helper function to open a RAR archive for processing its file data.
@@ -256,7 +308,7 @@ mod tests {
         let dir = tempdir().expect("failed to create tempdir");
         let rar_path = create_dummy_rar(dir.path(), "dummy.rar");
 
-        let container = RarContainer::new(rar_path.to_string_lossy().as_ref())
+        let container = RarContainer::new(rar_path.to_string_lossy().as_ref(), "")
             .expect("failed to create RarContainer");
 
         assert_eq!(container.path, rar_path.to_string_lossy().to_string());
@@ -281,15 +333,16 @@ mod tests {
                 "notes.txt".to_string(), // unsupported → skipped
             ]
             .into_iter(),
+            "",
         );
 
-        assert_eq!(out, vec!["a.png".to_string(), "b.png".to_string()]);
+        assert_eq!(out.0, vec!["a.png".to_string(), "b.png".to_string()]);
     }
 
     #[test]
     fn test_new_non_existent_rar() {
         let non_existent_path = String::from("/non/existent/file.rar");
-        let container = RarContainer::new(&non_existent_path);
+        let container = RarContainer::new(&non_existent_path, "");
         assert!(container.is_err());
     }
 
@@ -297,7 +350,7 @@ mod tests {
     fn test_get_entries() {
         let dir = tempdir().expect("failed to create tempdir");
         let rar_path = create_dummy_rar(dir.path(), "dummy.rar");
-        let container = RarContainer::new(rar_path.to_string_lossy().as_ref())
+        let container = RarContainer::new(rar_path.to_string_lossy().as_ref(), "")
             .expect("failed to create RarContainer");
         let entries = container.get_entries();
 
@@ -311,7 +364,7 @@ mod tests {
     fn test_get_image_existing() {
         let dir = tempdir().expect("failed to create tempdir");
         let rar_path = create_dummy_rar(dir.path(), "dummy.rar");
-        let container = RarContainer::new(rar_path.to_string_lossy().as_ref())
+        let container = RarContainer::new(rar_path.to_string_lossy().as_ref(), "")
             .expect("failed to create RarContainer");
 
         // Assuming 'image1.png' exists in dummy.rar and is a valid image
@@ -328,7 +381,7 @@ mod tests {
     fn test_get_image_non_existing() {
         let dir = tempdir().expect("failed to create tempdir");
         let rar_path = create_dummy_rar(dir.path(), "dummy.rar");
-        let container = RarContainer::new(rar_path.to_string_lossy().as_ref())
+        let container = RarContainer::new(rar_path.to_string_lossy().as_ref(), "")
             .expect("failed to create RarContainer");
         let result = container.get_image("non_existent_image.png");
         assert!(result.is_err());
@@ -338,7 +391,7 @@ mod tests {
     fn test_get_image_dimensions_covers_every_entry_in_one_pass() {
         let dir = tempdir().expect("failed to create tempdir");
         let rar_path = create_dummy_rar(dir.path(), "dummy.rar");
-        let container = RarContainer::new(rar_path.to_string_lossy().as_ref())
+        let container = RarContainer::new(rar_path.to_string_lossy().as_ref(), "")
             .expect("failed to create RarContainer");
 
         let dimensions = container
@@ -368,12 +421,41 @@ mod tests {
     fn test_get_thumbnail() {
         let dir = tempdir().expect("failed to create tempdir");
         let rar_path = create_dummy_rar(dir.path(), "dummy.rar");
-        let container = RarContainer::new(rar_path.to_string_lossy().as_ref())
+        let container = RarContainer::new(rar_path.to_string_lossy().as_ref(), "")
             .expect("failed to create RarContainer");
 
         let thumbnail = container.get_thumbnail("image1.png").unwrap();
         assert!(thumbnail.width <= crate::image::thumbnail::THUMBNAIL_SIZE);
         assert!(thumbnail.height <= crate::image::thumbnail::THUMBNAIL_SIZE);
         assert!(!thumbnail.data.is_empty());
+    }
+
+    #[test]
+    fn test_collect_entries_keeps_only_the_opened_folder() {
+        let (entries, map) = collect_entries(
+            [
+                "cover.png".to_string(),
+                "ch1/002.png".to_string(),
+                "ch1/001.png".to_string(),
+                "ch1/deeper/003.png".to_string(),
+                "__MACOSX/._001.png".to_string(),
+            ]
+            .into_iter(),
+            "ch1",
+        );
+
+        assert_eq!(vec!["001.png".to_string(), "002.png".to_string()], entries);
+        // The archive's own spelling is preserved for header matching.
+        assert_eq!(Some(&"ch1/001.png".to_string()), map.get("001.png"));
+    }
+
+    #[test]
+    fn test_collect_entries_at_the_root_excludes_sub_folders() {
+        let (entries, _) = collect_entries(
+            ["cover.png".to_string(), "ch1/001.png".to_string()].into_iter(),
+            "",
+        );
+
+        assert_eq!(vec!["cover.png".to_string()], entries);
     }
 }

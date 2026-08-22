@@ -4,7 +4,7 @@ use pdfium_render::prelude::PdfRenderConfig;
 
 use crate::{
     container::{
-        directory_container::DirectoryContainer, epub_container::EpubContainer,
+        archive_path, directory_container::DirectoryContainer, epub_container::EpubContainer,
         pdf_container::PdfContainer, rar_container::RarContainer, traits::Container,
         zip_container::ZipContainer,
     },
@@ -48,16 +48,22 @@ pub fn create_container(path: &str, config: ContainerConfig) -> Result<Arc<dyn C
         return Ok(Arc::new(DirectoryContainer::new(path)?));
     }
 
+    // A path pointing inside an archive (e.g. `comic.zip/ch1`) opens that folder as its
+    // own book. Real filesystem paths are matched first, so a folder named `foo.zip` is
+    // unaffected.
+    if let Some(location) = archive_path::resolve(path) {
+        return create_archive_container(&location.archive, &location.inner_dir);
+    }
+
     if let Some(ext) = file_path.extension() {
         let ext_str = ext.to_string_lossy().to_lowercase();
         match ext_str.as_str() {
-            "zip" | "cbz" => Ok(Arc::new(ZipContainer::new(path)?)),
+            "zip" | "cbz" | "rar" | "cbr" => create_archive_container(file_path, ""),
             "pdf" => Ok(Arc::new(PdfContainer::new(
                 path,
                 config.pdf_render_config,
                 config.pdfium_library_path,
             )?)),
-            "rar" | "cbr" => Ok(Arc::new(RarContainer::new(path)?)),
             "epub" => Ok(Arc::new(EpubContainer::new(path)?)),
             _ => Err(Error::UnsupportedContainer(format!(
                 "Unsupported Container Type: {}",
@@ -66,6 +72,37 @@ pub fn create_container(path: &str, config: ContainerConfig) -> Result<Arc<dyn C
         }
     } else {
         Err(Error::Path(format!("Failed to get extension. {}", path)))
+    }
+}
+
+/// Builds the container for one folder inside a browsable archive.
+///
+/// # Arguments
+///
+/// * `archive` - The archive file on disk.
+/// * `inner_dir` - The folder inside the archive; empty means the archive root.
+///
+/// # Returns
+///
+/// A `Result` containing a shared pointer to the created `Container`.
+///
+/// # Errors
+///
+/// Returns an `Err` if the archive format is not browsable or the underlying
+/// constructor fails.
+fn create_archive_container(archive: &Path, inner_dir: &str) -> Result<Arc<dyn Container>> {
+    let path = archive.to_string_lossy();
+    let ext = archive
+        .extension()
+        .map(|ext| ext.to_string_lossy().to_lowercase())
+        .unwrap_or_default();
+
+    match ext.as_str() {
+        "zip" | "cbz" => Ok(Arc::new(ZipContainer::new(&path, inner_dir)?)),
+        "rar" | "cbr" => Ok(Arc::new(RarContainer::new(&path, inner_dir)?)),
+        _ => Err(Error::UnsupportedContainer(format!(
+            "Unsupported Container Type: {ext}"
+        ))),
     }
 }
 
@@ -127,5 +164,64 @@ mod tests {
         assert!(result.is_err());
         let err = result.err().unwrap();
         assert!(err.to_string().contains("Failed to get extension"));
+    }
+
+    /// Builds a ZIP with the given entry names and one dummy byte each.
+    fn create_test_zip(dir: &path::Path, names: &[&str]) -> path::PathBuf {
+        use std::io::Write;
+        use zip::write::{FileOptions, ZipWriter};
+
+        let zip_path = dir.join("nested.zip");
+        let mut zip = ZipWriter::new(std::fs::File::create(&zip_path).expect("create zip"));
+        for name in names {
+            zip.start_file(*name, FileOptions::<()>::default())
+                .expect("start entry");
+            zip.write_all(&[0u8]).expect("write entry");
+        }
+        zip.finish().expect("finish zip");
+        zip_path
+    }
+
+    #[test]
+    fn test_create_container_opens_a_folder_inside_a_zip() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let zip_path = create_test_zip(dir.path(), &["cover.png", "ch1/001.png"]);
+
+        let inner = zip_path.join("ch1");
+        let container =
+            create_container(inner.to_string_lossy().as_ref(), ContainerConfig::default())
+                .expect("opens the folder inside the archive");
+
+        assert_eq!(vec!["001.png".to_string()], *container.get_entries());
+        assert!(!container.is_directory());
+    }
+
+    #[test]
+    fn test_create_container_opens_the_archive_root_without_sub_folders() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let zip_path = create_test_zip(dir.path(), &["cover.png", "ch1/001.png"]);
+
+        let container = create_container(
+            zip_path.to_string_lossy().as_ref(),
+            ContainerConfig::default(),
+        )
+        .expect("opens the archive root");
+
+        assert_eq!(vec!["cover.png".to_string()], *container.get_entries());
+    }
+
+    #[test]
+    fn test_create_container_treats_a_real_zip_named_folder_as_a_directory() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let folder = dir.path().join("comic.zip");
+        std::fs::create_dir(&folder).expect("create dir");
+
+        let container = create_container(
+            folder.to_string_lossy().as_ref(),
+            ContainerConfig::default(),
+        )
+        .expect("opens as a directory");
+
+        assert!(container.is_directory());
     }
 }
