@@ -59,6 +59,7 @@ export const defaultSettings: AppSettings = {
       pdfRenderResolutionHeight: 2000,
     },
     autoOpenAdjacentBook: "ask",
+    autoDescendSingleFolder: true,
   },
   history: {
     recordReadingHistory: true,

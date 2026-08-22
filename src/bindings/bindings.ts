@@ -1124,6 +1124,15 @@ export type ReaderSettings_Deserialize = {
 	rendering?: RenderingSettings_Deserialize,
 	/**  Behavior when paging past the last/first page of a book (auto-open adjacent book). */
 	autoOpenAdjacentBook?: AutoOpenAdjacentBookMode,
+	/**
+	 *  Whether opening an archive descends through a chain of single sub-folders to the
+	 *  first level that actually holds pages.
+	 * 
+	 *  Archives that merely wrap their pages in one folder (`comic.zip` → `Comic/`) then
+	 *  open in one click. Turning this off opens exactly the level that was asked for.
+	 *  Folders on disk are unaffected.
+	 */
+	autoDescendSingleFolder?: boolean,
 };
 
 /**  Settings for the reading experience. */
@@ -1136,6 +1145,15 @@ export type ReaderSettings_Serialize = {
 	rendering: RenderingSettings_Serialize,
 	/**  Behavior when paging past the last/first page of a book (auto-open adjacent book). */
 	autoOpenAdjacentBook: AutoOpenAdjacentBookMode,
+	/**
+	 *  Whether opening an archive descends through a chain of single sub-folders to the
+	 *  first level that actually holds pages.
+	 * 
+	 *  Archives that merely wrap their pages in one folder (`comic.zip` → `Comic/`) then
+	 *  open in one click. Turning this off opens exactly the level that was asked for.
+	 *  Folders on disk are unaffected.
+	 */
+	autoDescendSingleFolder: boolean,
 };
 
 /**  Represents the reading state of a specific book. */

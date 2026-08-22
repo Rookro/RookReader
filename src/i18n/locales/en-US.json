@@ -241,6 +241,10 @@
         "ask": "Ask before opening",
         "auto": "Auto-open"
       },
+      "auto-descend-single-folder": {
+        "title": "Open the folder inside an archive automatically",
+        "description": "When an archive holds no pages of its own and contains a single folder, open that folder instead. Repeats for nested single folders."
+      },
       "loupe": {
         "title": "Loupe Settings",
         "description": "Settings for the magnifier tool. Toggle it using the configured key or mouse button.",

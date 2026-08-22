@@ -122,7 +122,7 @@ pub struct FileNavigatorSettings {
 }
 
 /// Settings for the reading experience.
-#[derive(Debug, Clone, Serialize, Deserialize, Default, Validate, specta::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, Validate, specta::Type)]
 #[serde(rename_all = "camelCase", default)]
 pub struct ReaderSettings {
     /// Configuration specific to reading comics/manga (images).
@@ -137,6 +137,27 @@ pub struct ReaderSettings {
     /// Behavior when paging past the last/first page of a book (auto-open adjacent book).
     #[garde(skip)]
     pub auto_open_adjacent_book: AutoOpenAdjacentBookMode,
+    /// Whether opening an archive descends through a chain of single sub-folders to the
+    /// first level that actually holds pages.
+    ///
+    /// Archives that merely wrap their pages in one folder (`comic.zip` → `Comic/`) then
+    /// open in one click. Turning this off opens exactly the level that was asked for.
+    /// Folders on disk are unaffected.
+    #[garde(skip)]
+    #[serde(default = "default_true")]
+    pub auto_descend_single_folder: bool,
+}
+
+impl Default for ReaderSettings {
+    fn default() -> Self {
+        Self {
+            comic: ComicSettings::default(),
+            novel: NovelSettings::default(),
+            rendering: RenderingSettings::default(),
+            auto_open_adjacent_book: AutoOpenAdjacentBookMode::default(),
+            auto_descend_single_folder: default_true(),
+        }
+    }
 }
 
 /// Configuration specific to reading comics (image-based content).
