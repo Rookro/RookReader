@@ -280,37 +280,45 @@ export interface UnitChain {
 }
 
 /**
- * Builds the unit chain for a whole book, forcing a unit boundary at `anchor`.
+ * Builds the unit chain for a whole book from its pages' physical page numbers.
  *
- * The walk runs forward from page 0 under {@link resolveUnit}'s rules. A unit that would
- * span across `anchor` is truncated to a single page so the next unit starts exactly
- * there — the same thing as inserting a blank page at `anchor`, which is how a shifted
- * pairing is expressed. Pass `0` for the book's natural pairing.
+ * The first image is physical page 1 when the archive includes the front cover and page 2
+ * when it does not; a landscape image is a photograph of one spread and so occupies two
+ * physical pages, a portrait image one. A screen starts at page 1 (the cover, shown alone)
+ * and at every even page, which is what makes two facing pages share a screen.
  *
- * @param anchor The index to force a unit boundary at, or 0 for no forced boundary.
- * @param entries The list of entry names.
- * @param getDims Lookup for page dimensions.
+ * @param dims The dimensions of every page, in entry order.
  * @param settings The viewer settings.
- * @returns The chain covering every index from 0 to the last entry.
+ * @param hasCover Whether the archive's first image is the book's front cover.
+ * @returns The chain covering every index from 0 to the last page.
  */
 export const buildUnitChain = (
-  anchor: number,
-  entries: string[],
-  getDims: DimsLookup,
+  dims: PageDims[],
   settings: ViewerSettings,
+  hasCover: boolean,
 ): UnitChain => {
   const units = new Map<number, UnitDecision>();
   const starts: number[] = [];
+  const isLandscape = (i: number): boolean =>
+    dims[i] !== undefined && dims[i].width > dims[i].height;
 
-  let start = 0;
-  while (start < entries.length) {
-    let unit = resolveUnit(start, entries, getDims, settings) ?? SINGLE_UNIT;
-    if (start < anchor && start + unit.nextIndexIncrement > anchor) {
-      unit = SINGLE_UNIT;
-    }
-    units.set(start, unit);
-    starts.push(start);
-    start += unit.nextIndexIncrement;
+  let page = hasCover ? 1 : 2;
+  let index = 0;
+  while (index < dims.length) {
+    // Only an even page faces the page after it, and only two portrait images can share
+    // a screen — a landscape image is already a whole spread.
+    const pairs =
+      settings.isTwoPagedView &&
+      page % 2 === 0 &&
+      !isLandscape(index) &&
+      index + 1 < dims.length &&
+      !isLandscape(index + 1);
+
+    const unit = pairs ? { isSpread: true, nextIndexIncrement: 2 } : SINGLE_UNIT;
+    units.set(index, unit);
+    starts.push(index);
+    page += isLandscape(index) ? 2 : unit.nextIndexIncrement;
+    index += unit.nextIndexIncrement;
   }
 
   return { starts, units };

@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getImageDimensions, requestPreloadAround } from "../../../bindings/ContainerCommands";
 import type { AppDispatch } from "../../../store/store";
 import type { Image } from "../../../types/Image";
-import { setImageIndex, setSpreadAnchor } from "../slice";
+import { setImageIndex, setSpreadShifted } from "../slice";
 import {
   buildSinglePageLayout,
   buildUnitChain,
@@ -50,7 +50,7 @@ export interface ViewerController {
  * @param containerPath The path of the container file.
  * @param entries Entries in the container.
  * @param index Index of the current image.
- * @param spreadAnchor Index forced to start a display unit, or 0 for the natural pairing.
+ * @param isSpreadShifted Whether this book's spread pairing is shifted by one.
  * @param settings Viewer settings.
  * @param dispatch Dispatch function from Redux.
  * @param onForwardBoundary Called when moving forward past the last page.
@@ -61,7 +61,7 @@ export const useViewerController = (
   containerPath: string,
   entries: string[],
   index: number,
-  spreadAnchor: number,
+  isSpreadShifted: boolean,
   settings: ViewerSettings,
   dispatch: AppDispatch,
   onForwardBoundary?: () => void,
@@ -75,7 +75,7 @@ export const useViewerController = (
   const [layoutState, setLayoutState] = useState<{ layout: ViewLayout; path: string } | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const [scannedDims, setScannedDims] = useState<{ path: string; dims: PageDims[] } | null>(null);
-  // The book whose restored page has already been considered as a forced boundary.
+  // The book whose restored page has already been checked against the natural pairing.
   const adoptedPathRef = useRef<string | null>(null);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: update the cache whenever containerPath changes.
@@ -129,16 +129,20 @@ export const useViewerController = (
     if (scannedDims.dims.length !== entries.length) {
       return null;
     }
-    return buildUnitChain(spreadAnchor, entries, (i) => scannedDims.dims[i], settings);
-  }, [scannedDims, containerPath, spreadAnchor, entries, settings]);
+    // `isFirstPageSingleView` states whether this kind of archive carries the cover;
+    // a shifted book is one where that is wrong, so the reader flipped it.
+    const hasCover = isSpreadShifted
+      ? !settings.isFirstPageSingleView
+      : settings.isFirstPageSingleView;
+    return buildUnitChain(scannedDims.dims, settings, hasCover);
+  }, [scannedDims, containerPath, isSpreadShifted, entries, settings]);
 
   // Two jobs, in order, both of which need a chain to exist.
   //
   // On the first chain for a book: if the restored page is not a boundary of the book's
-  // natural pairing, the reader had deliberately shifted it, so adopt that page as the
-  // anchor. This is what carries a shift across sessions without persisting anything of
-  // its own. For a well-formed book the restored page is already a boundary and nothing
-  // happens.
+  // natural pairing, the reader had deliberately shifted it, so shift it again. This is
+  // what carries a shift across sessions without persisting anything of its own. For a
+  // well-formed book the restored page is already a boundary and nothing happens.
   //
   // Afterwards: a page reached by a jump (slider, bookmark, page list) may sit inside a
   // unit rather than start one. Snap back to the unit that contains it, so the pairing is
@@ -151,7 +155,7 @@ export const useViewerController = (
     if (adoptedPathRef.current !== containerPath) {
       adoptedPathRef.current = containerPath;
       if (!chain.units.has(index)) {
-        dispatch(setSpreadAnchor(index));
+        dispatch(setSpreadShifted(true));
       }
       return;
     }

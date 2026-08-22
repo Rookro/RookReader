@@ -17,7 +17,7 @@ const selectComicReaderState = createSelector(
     historyIndex: containerFile.historyIndex,
     entries: containerFile.entries,
     index: containerFile.index,
-    spreadAnchor: containerFile.spreadAnchor,
+    isSpreadShifted: containerFile.isSpreadShifted,
     readerSettings,
   }),
 );
@@ -27,7 +27,7 @@ const selectComicReaderState = createSelector(
  */
 export default function ComicReader() {
   const dispatch = useAppDispatch();
-  const { history, historyIndex, entries, index, spreadAnchor, readerSettings } =
+  const { history, historyIndex, entries, index, isSpreadShifted, readerSettings } =
     useAppSelector(selectComicReaderState);
 
   const containerPath = history[historyIndex];
@@ -56,7 +56,7 @@ export default function ComicReader() {
     containerPath,
     entries,
     index,
-    spreadAnchor,
+    isSpreadShifted,
     settings,
     dispatch,
     onForwardBoundary,

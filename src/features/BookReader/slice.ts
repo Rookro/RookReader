@@ -128,8 +128,11 @@ export const readSlice = createSlice({
       entries: [] as string[],
       book: null as BookWithState | null,
       index: 0,
-      /** Index forced to start a display unit, or 0 for the book's natural pairing. */
-      spreadAnchor: 0,
+      /**
+       * Whether this book's spread pairing is shifted by one relative to the app's
+       * cover setting, to line up an archive whose pages are offset.
+       */
+      isSpreadShifted: false,
       cfi: null as string | null,
       isNovel: false,
       isLoading: false,
@@ -167,7 +170,7 @@ export const readSlice = createSlice({
         return;
       }
       state.containerFile.index = 0;
-      state.containerFile.spreadAnchor = 0;
+      state.containerFile.isSpreadShifted = false;
       state.containerFile.isLoading = true;
     },
     /**
@@ -201,14 +204,13 @@ export const readSlice = createSlice({
       state.containerFile.cfi = null;
     },
     /**
-     * Forces the given index to start a display unit, shifting the spread pairing from
-     * there on. Pass 0 to restore the book's natural pairing.
+     * Shifts this book's spread pairing by one, or restores the natural pairing.
      *
      * @param state - The current Redux state slice.
-     * @param action - Payload containing the anchor index, or 0 to clear it.
+     * @param action - Payload containing whether the pairing is shifted.
      */
-    setSpreadAnchor: (state, action: PayloadAction<number>) => {
-      state.containerFile.spreadAnchor = action.payload;
+    setSpreadShifted: (state, action: PayloadAction<boolean>) => {
+      state.containerFile.isSpreadShifted = action.payload;
     },
     /**
      * Sets the base path for the file explorer and updates history.
@@ -342,7 +344,7 @@ export const readSlice = createSlice({
         state.containerFile.entries = [];
         state.containerFile.isLoading = true;
         state.containerFile.index = 0;
-        state.containerFile.spreadAnchor = 0;
+        state.containerFile.isSpreadShifted = false;
         state.containerFile.cfi = null;
         state.containerFile.error = null;
       })
@@ -394,7 +396,7 @@ export const readSlice = createSlice({
         state.containerFile.entries = [];
         state.containerFile.isLoading = false;
         state.containerFile.index = 0;
-        state.containerFile.spreadAnchor = 0;
+        state.containerFile.isSpreadShifted = false;
         state.containerFile.cfi = null;
         state.containerFile.pendingInitialPosition = null;
         state.containerFile.error = action.payload ?? null;
@@ -407,7 +409,7 @@ export const {
   setOpenOrigin,
   setPendingInitialPosition,
   setImageIndex,
-  setSpreadAnchor,
+  setSpreadShifted,
   setExploreBasePath,
   setSearchText,
   goBackContainerHistory,
