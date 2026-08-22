@@ -89,6 +89,15 @@ pub async fn get_entries_in_container(
     let is_directory = container.is_directory();
     let is_novel = container.is_novel();
 
+    // A container with no readable pages is not a book. Failing here keeps it out of the
+    // library and the history, since the frontend only records a book after this returns.
+    // EPUB novels are exempt: their text has no image entries.
+    if !is_novel && entries.is_empty() {
+        log::info!("Refusing to open {path}: no readable pages");
+        state.write().await.container_state.clear();
+        return Err(Error::EmptyContainer(path.to_string()));
+    }
+
     {
         let mut state_lock = state.write().await;
         state_lock.container_state.install(container, loader);
@@ -362,6 +371,34 @@ mod tests {
         let rar_filepath = dir.join(filename);
         std::fs::copy(dummy_rar_path, &rar_filepath).unwrap();
         rar_filepath
+    }
+
+    #[tokio::test]
+    async fn test_get_entries_in_container_rejects_a_container_without_pages() {
+        use std::io::Write;
+        use zip::write::{FileOptions, ZipWriter};
+
+        let dir = tempfile::tempdir().expect("tempdir");
+        let zip_path = dir.path().join("multi.zip");
+        let mut zip = ZipWriter::new(std::fs::File::create(&zip_path).expect("create zip"));
+        // Two sub-folders, so auto-descend has nothing to pick and the root stays empty.
+        for name in ["ch1/001.png", "ch2/001.png"] {
+            zip.start_file(name, FileOptions::<()>::default())
+                .expect("start entry");
+            zip.write_all(&[0u8]).expect("write entry");
+        }
+        zip.finish().expect("finish zip");
+
+        let app = tauri::test::mock_app();
+        app.manage(RwLock::new(AppState::default()));
+
+        let result =
+            get_entries_in_container(zip_path.to_string_lossy().as_ref(), app.state()).await;
+
+        let Err(err) = result else {
+            panic!("expected an empty-container error");
+        };
+        assert!(err.to_string().contains("Empty Container Error"));
     }
 
     #[tokio::test]

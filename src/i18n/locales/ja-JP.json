@@ -366,7 +366,8 @@
     },
     "container": {
       "unsupported-format": "非対応形式です。",
-      "entry-not-found": "ページが見つかりません。"
+      "entry-not-found": "ページが見つかりません。",
+      "empty": "読み込めるページがありません。"
     },
     "settings": {
       "save-failed": "設定の保存に失敗しました。",

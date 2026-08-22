@@ -366,7 +366,8 @@
     },
     "container": {
       "unsupported-format": "Unsupported format.",
-      "entry-not-found": "Page not found."
+      "entry-not-found": "Page not found.",
+      "empty": "It contains no readable pages."
     },
     "settings": {
       "save-failed": "Failed to save settings.",

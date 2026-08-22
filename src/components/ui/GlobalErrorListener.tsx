@@ -46,6 +46,8 @@ export default function GlobalErrorListener() {
         sub_msg = t("error-message.container.unsupported-format");
       } else if (containerFileError.code === ErrorCode.entryNotFound) {
         sub_msg = t("error-message.container.entry-not-found");
+      } else if (containerFileError.code === ErrorCode.emptyContainer) {
+        sub_msg = t("error-message.container.empty");
       }
 
       const msg = `${t("error-message.common.failed-to-open-container-file")} ${sub_msg}`;
