@@ -280,14 +280,14 @@ export interface UnitChain {
 }
 
 /**
- * Builds the unit chain for a whole book, anchored at a known unit start.
+ * Builds the unit chain for a whole book, forcing a unit boundary at `anchor`.
  *
- * Unit boundaries are a chain, so they can only be laid out from a fixed point. Forward
- * of `anchor` the walk applies the same rules as {@link resolveUnit}. Backward of it
- * there is no chain to follow, so two portrait pages are paired greedily; this keeps the
- * pages the reader jumped to intact instead of shifting them.
+ * The walk runs forward from page 0 under {@link resolveUnit}'s rules. A unit that would
+ * span across `anchor` is truncated to a single page so the next unit starts exactly
+ * there — the same thing as inserting a blank page at `anchor`, which is how a shifted
+ * pairing is expressed. Pass `0` for the book's natural pairing.
  *
- * @param anchor The index to treat as a unit start (typically the current page).
+ * @param anchor The index to force a unit boundary at, or 0 for no forced boundary.
  * @param entries The list of entry names.
  * @param getDims Lookup for page dimensions.
  * @param settings The viewer settings.
@@ -300,36 +300,20 @@ export const buildUnitChain = (
   settings: ViewerSettings,
 ): UnitChain => {
   const units = new Map<number, UnitDecision>();
+  const starts: number[] = [];
 
-  const isPortrait = (i: number): boolean => {
-    const dims = getDims(i);
-    return dims !== undefined && dims.width <= dims.height;
-  };
-
-  // Backward from the anchor: each step decides which pages fill the slot just before
-  // the boundary reached so far.
-  let boundary = anchor;
-  while (boundary > 0) {
-    const canPair =
-      settings.isTwoPagedView &&
-      boundary >= 2 &&
-      isPortrait(boundary - 1) &&
-      isPortrait(boundary - 2) &&
-      !(boundary - 2 === 0 && settings.isFirstPageSingleView);
-    const start = canPair ? boundary - 2 : boundary - 1;
-    units.set(start, { isSpread: canPair, nextIndexIncrement: boundary - start });
-    boundary = start;
-  }
-
-  // Forward from the anchor.
-  let start = anchor;
+  let start = 0;
   while (start < entries.length) {
-    const unit = resolveUnit(start, entries, getDims, settings) ?? SINGLE_UNIT;
+    let unit = resolveUnit(start, entries, getDims, settings) ?? SINGLE_UNIT;
+    if (start < anchor && start + unit.nextIndexIncrement > anchor) {
+      unit = SINGLE_UNIT;
+    }
     units.set(start, unit);
+    starts.push(start);
     start += unit.nextIndexIncrement;
   }
 
-  return { starts: [...units.keys()].sort((a, b) => a - b), units };
+  return { starts, units };
 };
 
 /**

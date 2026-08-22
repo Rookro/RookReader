@@ -162,8 +162,8 @@ describe("ImageUtils", () => {
       preloadPageCount: 10,
     };
 
-    // Verify the forward walk pairs portraits and leaves a portrait before a landscape alone
-    it("lays out units forward from the anchor", () => {
+    // Verify the natural pairing: portraits pair up, a portrait before a landscape is alone
+    it("lays out the book's natural pairing when the anchor is 0", () => {
       const { entries, getDims } = buildDims(["P", "P", "P", "L", "P", "P"]);
       const chain = buildUnitChain(0, entries, getDims, twoPaged);
 
@@ -175,35 +175,47 @@ describe("ImageUtils", () => {
       expect(chain.units.get(4)).toEqual({ isSpread: true, nextIndexIncrement: 2 });
     });
 
-    // Verify the anchor always starts its own unit and the pages before it are still covered
-    it("treats the anchor as a unit start and pairs backward from it", () => {
+    // Verify the anchor splits the unit that would otherwise swallow it
+    it("truncates the unit that would span the anchor", () => {
       const { entries, getDims } = buildDims(["P", "P", "P", "P", "P"]);
       const chain = buildUnitChain(3, entries, getDims, twoPaged);
 
-      // {0} {1,2} {3,4} - page 3 is a unit start because that is where the reader landed.
-      expect(chain.starts).toEqual([0, 1, 3]);
-      expect(chain.units.get(1)).toEqual({ isSpread: true, nextIndexIncrement: 2 });
+      // Natural: {0,1} {2,3} {4}. Anchored at 3: {0,1} {2} {3,4}
+      expect(chain.starts).toEqual([0, 2, 3]);
+      expect(chain.units.get(0)).toEqual({ isSpread: true, nextIndexIncrement: 2 });
+      expect(chain.units.get(2)).toEqual({ isSpread: false, nextIndexIncrement: 1 });
       expect(chain.units.get(3)).toEqual({ isSpread: true, nextIndexIncrement: 2 });
     });
 
-    // Verify a landscape page is never paired when walking backward
-    it("does not pair a landscape page when walking backward", () => {
-      const { entries, getDims } = buildDims(["P", "L", "P", "P"]);
-      const chain = buildUnitChain(2, entries, getDims, twoPaged);
+    // Verify an anchor that already falls on a boundary changes nothing
+    it("is a no-op when the anchor is already a unit start", () => {
+      const { entries, getDims } = buildDims(["P", "P", "P", "P"]);
+      const natural = buildUnitChain(0, entries, getDims, twoPaged);
+      const anchored = buildUnitChain(2, entries, getDims, twoPaged);
 
-      // {0} {1} {2,3}
-      expect(chain.starts).toEqual([0, 1, 2]);
+      expect(anchored.starts).toEqual(natural.starts);
+      expect([...anchored.units]).toEqual([...natural.units]);
+    });
+
+    // Verify pages before the anchor keep their natural pairing rather than being re-derived
+    it("keeps the natural pairing before the anchor", () => {
+      const { entries, getDims } = buildDims(["P", "L", "P", "P", "P"]);
+      const chain = buildUnitChain(4, entries, getDims, twoPaged);
+
+      // Natural: {0} {1} {2,3} {4}. Anchoring at 4 is already a boundary here.
+      expect(chain.starts).toEqual([0, 1, 2, 4]);
       expect(chain.units.get(1)).toEqual({ isSpread: false, nextIndexIncrement: 1 });
     });
 
-    // Verify the cover stays alone in both directions when isFirstPageSingleView is on
+    // Verify the cover stays alone with and without an anchor
     it("keeps page 0 alone when isFirstPageSingleView is on", () => {
       const settings: ViewerSettings = { ...twoPaged, isFirstPageSingleView: true };
       const { entries, getDims } = buildDims(["P", "P", "P", "P", "P"]);
 
+      // Natural: {0} {1,2} {3,4}
       expect(buildUnitChain(0, entries, getDims, settings).starts).toEqual([0, 1, 3]);
-      // Anchored mid-book, the backward walk must not pair page 0 with page 1 either.
-      expect(buildUnitChain(3, entries, getDims, settings).starts).toEqual([0, 1, 3]);
+      // Anchored at 2: {0} {1} {2,3} {4}
+      expect(buildUnitChain(2, entries, getDims, settings).starts).toEqual([0, 1, 2, 4]);
     });
 
     // Verify every page belongs to exactly one unit, so no page is unreachable
