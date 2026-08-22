@@ -8,6 +8,7 @@ import LooksTwo from "@mui/icons-material/LooksTwo";
 import Settings from "@mui/icons-material/Settings";
 import SwitchLeft from "@mui/icons-material/SwitchLeft";
 import SwitchRight from "@mui/icons-material/SwitchRight";
+import ViewColumn from "@mui/icons-material/ViewColumn";
 import { Box, IconButton, OutlinedInput, Toolbar, Tooltip } from "@mui/material";
 import { debug } from "@tauri-apps/plugin-log";
 import type React from "react";
@@ -19,7 +20,12 @@ import { openSettingsWindow } from "../../../utils/WindowOpener";
 import { setActiveView } from "../../MainView/slice";
 import { updateSettings } from "../../Settings/slice";
 import { addBookmark, removeBookmark } from "../bookmarkSlice";
-import { goBackContainerHistory, goForwardContainerHistory, setContainerFilePath } from "../slice";
+import {
+  goBackContainerHistory,
+  goForwardContainerHistory,
+  setContainerFilePath,
+  setSpreadShifted,
+} from "../slice";
 
 /**
  * Navigation bar component.
@@ -34,6 +40,7 @@ export default function NavigationBar() {
   const cfi = useAppSelector((state) => state.read.containerFile.cfi);
   const isNovel = useAppSelector((state) => state.read.containerFile.isNovel);
   const entries = useAppSelector((state) => state.read.containerFile.entries);
+  const isSpreadShifted = useAppSelector((state) => state.read.containerFile.isSpreadShifted);
   const bookmarks = useAppSelector((state) => state.bookmark.bookmarks);
   const dispatch = useAppDispatch();
 
@@ -76,6 +83,10 @@ export default function NavigationBar() {
     },
     [dispatch, readerSettings.comic.enableSpread],
   );
+
+  const handleShiftSpreadClicked = useCallback(() => {
+    dispatch(setSpreadShifted(!isSpreadShifted));
+  }, [dispatch, isSpreadShifted]);
 
   const handleSwitchDirectionClicked = useCallback(
     (_e: React.MouseEvent<HTMLButtonElement>) => {
@@ -195,6 +206,20 @@ export default function NavigationBar() {
       <IconButton onClick={handleSwitchTwoPagedClicked} aria-label="toggle-two-paged">
         {readerSettings.comic.enableSpread ? <LooksTwo /> : <LooksOne />}
       </IconButton>
+      <Tooltip
+        title={isSpreadShifted ? t("book-reader.reset-spread") : t("book-reader.shift-spread")}
+      >
+        <span>
+          <IconButton
+            onClick={handleShiftSpreadClicked}
+            disabled={!readerSettings.comic.enableSpread}
+            color={isSpreadShifted ? "primary" : "default"}
+            aria-label="shift-spread"
+          >
+            <ViewColumn />
+          </IconButton>
+        </span>
+      </Tooltip>
       <IconButton onClick={handleSwitchDirectionClicked} aria-label="toggle-direction">
         {readerSettings.comic.readingDirection === "rtl" ? <SwitchRight /> : <SwitchLeft />}
       </IconButton>

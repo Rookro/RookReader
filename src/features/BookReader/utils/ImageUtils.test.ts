@@ -5,6 +5,7 @@ import {
   buildUnitChain,
   buildUnitLayout,
   createImageCacheItem,
+  detectCoverPresence,
   fetchImageBlob,
   fetchImagePreviewBlob,
   findPreviousUnitStart,
@@ -14,14 +15,14 @@ import {
   type ViewerSettings,
 } from "./ImageUtils";
 
-/** Builds entries plus a dimensions lookup from a list of "P"/"L" orientations. */
+/** Builds entries, a dimensions list and a lookup from a list of "P"/"L" orientations. */
 const buildDims = (orientations: ("P" | "L")[]) => {
   const entries = orientations.map((_, i) => `p${i}`);
-  const dims = new Map<number, PageDims>();
-  orientations.forEach((o, i) => {
-    dims.set(i, o === "P" ? { width: 100, height: 200 } : { width: 200, height: 100 });
-  });
-  return { entries, dims, getDims: (i: number) => dims.get(i) };
+  const pages: PageDims[] = orientations.map((o) =>
+    o === "P" ? { width: 100, height: 200 } : { width: 200, height: 100 },
+  );
+  const dims = new Map<number, PageDims>(pages.map((page, i) => [i, page]));
+  return { entries, pages, dims, getDims: (i: number) => dims.get(i) };
 };
 
 describe("ImageUtils", () => {
@@ -153,6 +154,45 @@ describe("ImageUtils", () => {
     });
   });
 
+  describe("detectCoverPresence", () => {
+    // Verify an archive with no landscape page offers nothing to go on
+    it("returns null when the archive has no landscape page", () => {
+      const { pages } = buildDims(["P", "P", "P", "P"]);
+      expect(detectCoverPresence(pages)).toBeNull();
+    });
+
+    // Verify one page before a landscape page proves the first image is page 1
+    it("detects a cover when one page precedes the landscape page", () => {
+      const { pages } = buildDims(["P", "L", "P", "P"]);
+      expect(detectCoverPresence(pages)).toBe(true);
+    });
+
+    // Verify a landscape first image cannot be page 1, so the archive has no cover
+    it("detects no cover when the archive opens on a landscape page", () => {
+      const { pages } = buildDims(["L", "P", "P"]);
+      expect(detectCoverPresence(pages)).toBe(false);
+    });
+
+    // Verify a landscape page counts as two pages when locating the next one
+    it("counts a landscape page as two pages when checking the next one", () => {
+      // Pages before the second landscape: P(1) + L(2) + P(1) + P(1) = 5, odd, so both agree.
+      const { pages } = buildDims(["P", "L", "P", "P", "L", "P"]);
+      expect(detectCoverPresence(pages)).toBe(true);
+    });
+
+    // Verify landscape pages that disagree prove a missing page, so detection gives up
+    it("returns null when two landscape pages disagree", () => {
+      // Pages before the second landscape: P(1) + L(2) + P(1) = 4, even, contradicting the first.
+      const { pages } = buildDims(["P", "L", "P", "L", "P"]);
+      expect(detectCoverPresence(pages)).toBeNull();
+    });
+
+    // Verify an empty book offers no evidence either
+    it("returns null for an empty book", () => {
+      expect(detectCoverPresence([])).toBeNull();
+    });
+  });
+
   describe("buildUnitChain", () => {
     const twoPaged: ViewerSettings = {
       isTwoPagedView: true,
@@ -162,69 +202,77 @@ describe("ImageUtils", () => {
       preloadPageCount: 10,
     };
 
-    // Verify the forward walk pairs portraits and leaves a portrait before a landscape alone
-    it("lays out units forward from the anchor", () => {
-      const { entries, getDims } = buildDims(["P", "P", "P", "L", "P", "P"]);
-      const chain = buildUnitChain(0, entries, getDims, twoPaged);
+    /** Flattens a chain into the page indices each unit covers, in order. */
+    const covered = (chain: ReturnType<typeof buildUnitChain>) =>
+      chain.starts.flatMap((start) => {
+        const unit = chain.units.get(start);
+        return unit?.isSpread ? [start, start + 1] : [start];
+      });
 
-      // {0,1} {2} {3} {4,5}
-      expect(chain.starts).toEqual([0, 2, 3, 4]);
-      expect(chain.units.get(0)).toEqual({ isSpread: true, nextIndexIncrement: 2 });
-      expect(chain.units.get(2)).toEqual({ isSpread: false, nextIndexIncrement: 1 });
+    // Verify the cover is alone and the pages after it pair up as facing pages
+    it("shows the cover alone and pairs the pages after it", () => {
+      const { pages } = buildDims(["P", "P", "P", "P", "P", "P"]);
+      const chain = buildUnitChain(pages, twoPaged, true);
+
+      // Physical pages 1 | 2,3 | 4,5 | 6
+      expect(chain.starts).toEqual([0, 1, 3, 5]);
+      expect(chain.units.get(0)).toEqual({ isSpread: false, nextIndexIncrement: 1 });
+      expect(chain.units.get(1)).toEqual({ isSpread: true, nextIndexIncrement: 2 });
+    });
+
+    // Verify an archive without a cover starts pairing from its very first image
+    it("pairs from the first image when the archive has no cover", () => {
+      const { pages } = buildDims(["P", "P", "P", "P", "P", "P"]);
+      const chain = buildUnitChain(pages, twoPaged, false);
+
+      // Physical pages 2,3 | 4,5 | 6,7
+      expect(chain.starts).toEqual([0, 2, 4]);
+    });
+
+    // Verify a landscape image occupies two physical pages, keeping the pages after it aligned
+    it("counts a landscape image as two physical pages", () => {
+      const { pages } = buildDims(["P", "P", "P", "L", "P", "P"]);
+      const chain = buildUnitChain(pages, twoPaged, true);
+
+      // 1 | 2,3 | 4,5 (landscape) | 6,7
+      expect(chain.starts).toEqual([0, 1, 3, 4]);
       expect(chain.units.get(3)).toEqual({ isSpread: false, nextIndexIncrement: 1 });
       expect(chain.units.get(4)).toEqual({ isSpread: true, nextIndexIncrement: 2 });
     });
 
-    // Verify the anchor always starts its own unit and the pages before it are still covered
-    it("treats the anchor as a unit start and pairs backward from it", () => {
-      const { entries, getDims } = buildDims(["P", "P", "P", "P", "P"]);
-      const chain = buildUnitChain(3, entries, getDims, twoPaged);
+    // Verify cover presence still changes the chain when the first image is landscape
+    it("responds to cover presence when the first image is landscape", () => {
+      const { pages } = buildDims(["L", "P", "P", "P"]);
 
-      // {0} {1,2} {3,4} - page 3 is a unit start because that is where the reader landed.
-      expect(chain.starts).toEqual([0, 1, 3]);
-      expect(chain.units.get(1)).toEqual({ isSpread: true, nextIndexIncrement: 2 });
-      expect(chain.units.get(3)).toEqual({ isSpread: true, nextIndexIncrement: 2 });
+      expect(buildUnitChain(pages, twoPaged, true).starts).not.toEqual(
+        buildUnitChain(pages, twoPaged, false).starts,
+      );
     });
 
-    // Verify a landscape page is never paired when walking backward
-    it("does not pair a landscape page when walking backward", () => {
-      const { entries, getDims } = buildDims(["P", "L", "P", "P"]);
-      const chain = buildUnitChain(2, entries, getDims, twoPaged);
+    // Verify the same when the landscape image sits right after the cover
+    it("responds to cover presence when the second image is landscape", () => {
+      const { pages } = buildDims(["P", "L", "P", "P"]);
 
-      // {0} {1} {2,3}
-      expect(chain.starts).toEqual([0, 1, 2]);
-      expect(chain.units.get(1)).toEqual({ isSpread: false, nextIndexIncrement: 1 });
-    });
-
-    // Verify the cover stays alone in both directions when isFirstPageSingleView is on
-    it("keeps page 0 alone when isFirstPageSingleView is on", () => {
-      const settings: ViewerSettings = { ...twoPaged, isFirstPageSingleView: true };
-      const { entries, getDims } = buildDims(["P", "P", "P", "P", "P"]);
-
-      expect(buildUnitChain(0, entries, getDims, settings).starts).toEqual([0, 1, 3]);
-      // Anchored mid-book, the backward walk must not pair page 0 with page 1 either.
-      expect(buildUnitChain(3, entries, getDims, settings).starts).toEqual([0, 1, 3]);
+      expect(buildUnitChain(pages, twoPaged, true).starts).not.toEqual(
+        buildUnitChain(pages, twoPaged, false).starts,
+      );
     });
 
     // Verify every page belongs to exactly one unit, so no page is unreachable
     it("covers every page exactly once", () => {
-      const { entries, getDims } = buildDims(["P", "P", "L", "P", "P", "P", "L"]);
-      const chain = buildUnitChain(4, entries, getDims, twoPaged);
+      const { pages } = buildDims(["P", "P", "L", "P", "P", "P", "L"]);
 
-      const covered = chain.starts.flatMap((start) => {
-        const unit = chain.units.get(start);
-        return unit?.isSpread ? [start, start + 1] : [start];
-      });
-      expect(covered).toEqual([0, 1, 2, 3, 4, 5, 6]);
+      expect(covered(buildUnitChain(pages, twoPaged, true))).toEqual([0, 1, 2, 3, 4, 5, 6]);
+      expect(covered(buildUnitChain(pages, twoPaged, false))).toEqual([0, 1, 2, 3, 4, 5, 6]);
     });
 
     // Verify single-page mode never produces a spread
     it("produces only single units when two-paged view is off", () => {
-      const { entries, getDims } = buildDims(["P", "P", "P"]);
-      const chain = buildUnitChain(2, entries, getDims, { ...twoPaged, isTwoPagedView: false });
+      const { pages } = buildDims(["P", "P", "P"]);
+      const chain = buildUnitChain(pages, { ...twoPaged, isTwoPagedView: false }, true);
 
       expect(chain.starts).toEqual([0, 1, 2]);
-      expect(chain.starts.every((s) => chain.units.get(s)?.isSpread === false)).toBe(true);
+      expect(chain.starts.every((start) => chain.units.get(start)?.isSpread === false)).toBe(true);
     });
   });
 

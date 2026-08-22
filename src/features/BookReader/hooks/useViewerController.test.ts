@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getImageDimensions } from "../../../bindings/ContainerCommands";
 import type { Image } from "../../../types/Image";
-import { setImageIndex } from "../slice";
+import { setImageIndex, setSpreadShifted } from "../slice";
 import * as ImageUtils from "../utils/ImageUtils";
 import { useViewerController } from "./useViewerController";
 
@@ -11,6 +11,8 @@ vi.mock("../utils/ImageUtils", () => ({
   resolveUnit: vi.fn(() => null),
   // Default to null so the fallback path runs unless a test supplies a chain.
   buildUnitChain: vi.fn(() => null),
+  // Default to null so the configured cover setting is used unless a test proves one.
+  detectCoverPresence: vi.fn(() => null),
   fetchImageBlob: vi.fn(),
   fetchImagePreviewBlob: vi.fn(),
   createImageCacheItem: vi.fn(),
@@ -78,6 +80,7 @@ describe("useViewerController", () => {
   const mockedCreateImageCacheItem = vi.mocked(ImageUtils.createImageCacheItem);
   const mockedResolveUnit = vi.mocked(ImageUtils.resolveUnit);
   const mockedBuildUnitChain = vi.mocked(ImageUtils.buildUnitChain);
+  const mockedDetectCoverPresence = vi.mocked(ImageUtils.detectCoverPresence);
   const mockedFindPreviousUnitStart = vi.mocked(ImageUtils.findPreviousUnitStart);
 
   /** Makes resolveUnit report a single-page unit for every index. */
@@ -101,6 +104,7 @@ describe("useViewerController", () => {
         "path",
         mockEntries,
         0,
+        false,
         { ...mockSettings, enablePreview: true },
         mockDispatch,
       ),
@@ -120,7 +124,7 @@ describe("useViewerController", () => {
 
     const { rerender } = renderHook(
       ({ path }: { path: string }) =>
-        useViewerController(path, mockEntries, 0, mockSettings, mockDispatch),
+        useViewerController(path, mockEntries, 0, false, mockSettings, mockDispatch),
       { initialProps: { path: "path1" } },
     );
 
@@ -141,7 +145,7 @@ describe("useViewerController", () => {
     } as ImageUtils.ImageCacheItem);
 
     const { unmount } = renderHook(() =>
-      useViewerController("path", mockEntries, 0, mockSettings, mockDispatch),
+      useViewerController("path", mockEntries, 0, false, mockSettings, mockDispatch),
     );
 
     await waitFor(() => expect(ImageUtils.createImageCacheItem).toHaveBeenCalled());
@@ -165,7 +169,7 @@ describe("useViewerController", () => {
 
     const { rerender } = renderHook(
       ({ index }: { index: number }) =>
-        useViewerController("path", longEntries, index, mockSettings, mockDispatch),
+        useViewerController("path", longEntries, index, false, mockSettings, mockDispatch),
       { initialProps: { index: 0 } },
     );
 
@@ -205,7 +209,7 @@ describe("useViewerController", () => {
     resolveSinglePages();
 
     const { result } = renderHook(() =>
-      useViewerController("path", mockEntries, 0, mockSettings, mockDispatch),
+      useViewerController("path", mockEntries, 0, false, mockSettings, mockDispatch),
     );
 
     await waitFor(() => {
@@ -227,7 +231,7 @@ describe("useViewerController", () => {
 
     const { result, rerender } = renderHook(
       ({ index }: { index: number }) =>
-        useViewerController("path", mockEntries, index, mockSettings, mockDispatch),
+        useViewerController("path", mockEntries, index, false, mockSettings, mockDispatch),
       { initialProps: { index: 0 } },
     );
 
@@ -253,7 +257,7 @@ describe("useViewerController", () => {
       resolveSinglePages();
 
       const { result } = renderHook(() =>
-        useViewerController("path", mockEntries, 0, mockSettings, mockDispatch),
+        useViewerController("path", mockEntries, 0, false, mockSettings, mockDispatch),
       );
 
       await waitFor(() => {
@@ -270,7 +274,7 @@ describe("useViewerController", () => {
       resolveSinglePages();
 
       const { result } = renderHook(() =>
-        useViewerController("path", mockEntries, 2, mockSettings, mockDispatch),
+        useViewerController("path", mockEntries, 2, false, mockSettings, mockDispatch),
       );
 
       await waitFor(() => {
@@ -284,7 +288,7 @@ describe("useViewerController", () => {
     // Verify that moving forward does nothing if entries are empty
     it("should do nothing if entries are empty", () => {
       const { result } = renderHook(() =>
-        useViewerController("path", [], 0, mockSettings, mockDispatch),
+        useViewerController("path", [], 0, false, mockSettings, mockDispatch),
       );
       result.current.moveForward();
       expect(mockDispatch).not.toHaveBeenCalled();
@@ -297,7 +301,15 @@ describe("useViewerController", () => {
       const onForwardBoundary = vi.fn();
 
       const { result } = renderHook(() =>
-        useViewerController("path", mockEntries, 2, mockSettings, mockDispatch, onForwardBoundary),
+        useViewerController(
+          "path",
+          mockEntries,
+          2,
+          false,
+          mockSettings,
+          mockDispatch,
+          onForwardBoundary,
+        ),
       );
 
       await waitFor(() => expect(result.current.isImageLoading).toBe(false));
@@ -315,7 +327,7 @@ describe("useViewerController", () => {
       resolveSinglePages();
 
       const { result } = renderHook(() =>
-        useViewerController("path", mockEntries, 1, mockSettings, mockDispatch),
+        useViewerController("path", mockEntries, 1, false, mockSettings, mockDispatch),
       );
 
       await waitFor(() => {
@@ -329,7 +341,7 @@ describe("useViewerController", () => {
     // Verify that action is not dispatched when moving back from the first page (index 0)
     it("should not dispatch if current index is 0", async () => {
       const { result } = renderHook(() =>
-        useViewerController("path", mockEntries, 0, mockSettings, mockDispatch),
+        useViewerController("path", mockEntries, 0, false, mockSettings, mockDispatch),
       );
 
       result.current.moveBack();
@@ -339,7 +351,7 @@ describe("useViewerController", () => {
     // Verify that moving back does nothing if entries are empty
     it("should handle moveBack when entries are empty", () => {
       const { result } = renderHook(() =>
-        useViewerController("path", [], 0, mockSettings, mockDispatch),
+        useViewerController("path", [], 0, false, mockSettings, mockDispatch),
       );
       result.current.moveBack();
       expect(mockDispatch).not.toHaveBeenCalled();
@@ -353,6 +365,7 @@ describe("useViewerController", () => {
           "path",
           mockEntries,
           0,
+          false,
           mockSettings,
           mockDispatch,
           undefined,
@@ -372,7 +385,7 @@ describe("useViewerController", () => {
       mockedFetchImageBlob.mockResolvedValue(undefined);
 
       const { result } = renderHook(() =>
-        useViewerController("path", mockEntries, 0, mockSettings, mockDispatch),
+        useViewerController("path", mockEntries, 0, false, mockSettings, mockDispatch),
       );
 
       await waitFor(() => {
@@ -398,7 +411,7 @@ describe("useViewerController", () => {
       mockedResolveUnit.mockReturnValue({ isSpread: true, nextIndexIncrement: 2 });
 
       const { result } = renderHook(() =>
-        useViewerController("path", mockEntries, 0, twoPagedSettings, mockDispatch),
+        useViewerController("path", mockEntries, 0, false, twoPagedSettings, mockDispatch),
       );
 
       await waitFor(() => {
@@ -417,7 +430,7 @@ describe("useViewerController", () => {
       mockedResolveUnit.mockReturnValue(null);
 
       const { result } = renderHook(() =>
-        useViewerController("path", mockEntries, 0, twoPagedSettings, mockDispatch),
+        useViewerController("path", mockEntries, 0, false, twoPagedSettings, mockDispatch),
       );
 
       await waitFor(() => {
@@ -442,7 +455,7 @@ describe("useViewerController", () => {
       mockedResolveUnit.mockReturnValue({ isSpread: false, nextIndexIncrement: 1 });
 
       const { result } = renderHook(() =>
-        useViewerController("path", mockEntries, 0, twoPagedSettings, mockDispatch),
+        useViewerController("path", mockEntries, 0, false, twoPagedSettings, mockDispatch),
       );
 
       await waitFor(() => expect(result.current.isImageLoading).toBe(false));
@@ -470,7 +483,7 @@ describe("useViewerController", () => {
 
       const { result, rerender } = renderHook(
         ({ index }) =>
-          useViewerController("path", longEntries, index, twoPagedSettings, mockDispatch),
+          useViewerController("path", longEntries, index, false, twoPagedSettings, mockDispatch),
         { initialProps: { index: 0 } },
       );
       await waitFor(() => expect(result.current.isImageLoading).toBe(false));
@@ -501,7 +514,7 @@ describe("useViewerController", () => {
       mockUnitsByIndex({ 0: 1, 1: 1 });
 
       const { result } = renderHook(() =>
-        useViewerController("path", mockEntries, 2, twoPagedSettings, mockDispatch),
+        useViewerController("path", mockEntries, 2, false, twoPagedSettings, mockDispatch),
       );
 
       await waitFor(() => {
@@ -520,7 +533,7 @@ describe("useViewerController", () => {
       mockUnitsByIndex({ 0: 2, 1: 2 });
 
       const { result } = renderHook(() =>
-        useViewerController("path", mockEntries, 2, twoPagedSettings, mockDispatch),
+        useViewerController("path", mockEntries, 2, false, twoPagedSettings, mockDispatch),
       );
 
       await waitFor(() => {
@@ -537,7 +550,7 @@ describe("useViewerController", () => {
       mockUnitsByIndex({});
 
       const { result } = renderHook(() =>
-        useViewerController("path", mockEntries, 2, twoPagedSettings, mockDispatch),
+        useViewerController("path", mockEntries, 2, false, twoPagedSettings, mockDispatch),
       );
 
       await waitFor(() => expect(result.current.isImageLoading).toBe(false));
@@ -552,7 +565,7 @@ describe("useViewerController", () => {
       mockUnitsByIndex({ 0: 1, 1: 2 });
 
       const { result } = renderHook(() =>
-        useViewerController("path", mockEntries, 2, twoPagedSettings, mockDispatch),
+        useViewerController("path", mockEntries, 2, false, twoPagedSettings, mockDispatch),
       );
 
       await waitFor(() => expect(result.current.isImageLoading).toBe(false));
@@ -568,7 +581,7 @@ describe("useViewerController", () => {
       mockUnitsByIndex({ 14: 2, 15: 2 });
 
       const { result } = renderHook(() =>
-        useViewerController("path", longEntries, 16, twoPagedSettings, mockDispatch),
+        useViewerController("path", longEntries, 16, false, twoPagedSettings, mockDispatch),
       );
 
       await waitFor(() => expect(result.current.isImageLoading).toBe(false));
@@ -592,7 +605,7 @@ describe("useViewerController", () => {
       mockedResolveUnit.mockReturnValue({ isSpread: true, nextIndexIncrement: 2 });
 
       const { result } = renderHook(() =>
-        useViewerController("path", mockEntries, 0, twoPagedSettings, mockDispatch),
+        useViewerController("path", mockEntries, 0, false, twoPagedSettings, mockDispatch),
       );
 
       await waitFor(() => expect(result.current.isImageLoading).toBe(false));
@@ -621,7 +634,7 @@ describe("useViewerController", () => {
       mockedFindPreviousUnitStart.mockReturnValueOnce(2);
 
       const { result } = renderHook(() =>
-        useViewerController("path", longEntries, 4, twoPagedSettings, mockDispatch),
+        useViewerController("path", longEntries, 4, false, twoPagedSettings, mockDispatch),
       );
 
       await waitFor(() => expect(result.current.isImageLoading).toBe(false));
@@ -639,7 +652,7 @@ describe("useViewerController", () => {
       mockUnitsByIndex({ 0: 1, 1: 1 });
 
       const { result } = renderHook(() =>
-        useViewerController("path", mockEntries, 2, twoPagedSettings, mockDispatch),
+        useViewerController("path", mockEntries, 2, false, twoPagedSettings, mockDispatch),
       );
 
       await waitFor(() => expect(result.current.isImageLoading).toBe(false));
@@ -675,6 +688,8 @@ describe("useViewerController", () => {
     };
 
     beforeEach(() => {
+      // mockReturnValue survives clearAllMocks, so reset the default each test.
+      mockedDetectCoverPresence.mockReturnValue(null);
       mockedFetchImageBlob.mockResolvedValue({} as Image);
       mockedCreateImageCacheItem.mockReturnValue({
         fullUrl: "url",
@@ -696,7 +711,7 @@ describe("useViewerController", () => {
       mockedFindPreviousUnitStart.mockReturnValue(99);
 
       const { result } = renderHook(() =>
-        useViewerController("path", mockEntries, 1, twoPagedSettings, mockDispatch),
+        useViewerController("path", mockEntries, 1, false, twoPagedSettings, mockDispatch),
       );
 
       await waitFor(() => expect(mockedBuildUnitChain).toHaveBeenCalled());
@@ -713,7 +728,7 @@ describe("useViewerController", () => {
       mockedResolveUnit.mockReturnValue({ isSpread: true, nextIndexIncrement: 2 });
 
       const { result } = renderHook(() =>
-        useViewerController("path", mockEntries, 0, twoPagedSettings, mockDispatch),
+        useViewerController("path", mockEntries, 0, false, twoPagedSettings, mockDispatch),
       );
 
       await waitFor(() => expect(mockedBuildUnitChain).toHaveBeenCalled());
@@ -722,30 +737,148 @@ describe("useViewerController", () => {
       expect(mockDispatch).toHaveBeenCalledWith(setImageIndex(1));
     });
 
-    // Verify an external jump re-anchors the chain while internal navigation does not
-    it("re-anchors the chain on an external jump but not on its own navigation", async () => {
+    // Verify a proven cover presence outranks the configured setting
+    it("builds the chain from the detected cover presence", async () => {
+      mockChain({ 0: 1, 1: 2 });
+      mockedDetectCoverPresence.mockReturnValue(!twoPagedSettings.isFirstPageSingleView);
+
+      renderHook(() =>
+        useViewerController("path", mockEntries, 1, false, twoPagedSettings, mockDispatch),
+      );
+
+      await waitFor(() => expect(mockedBuildUnitChain).toHaveBeenCalled());
+      expect(mockedBuildUnitChain.mock.calls.at(-1)?.[2]).toBe(
+        !twoPagedSettings.isFirstPageSingleView,
+      );
+    });
+
+    // Verify the reader's toggle still wins over a proven cover presence
+    it("inverts the detected cover presence when the book is shifted", async () => {
+      mockChain({ 0: 1, 1: 2 });
+      mockedDetectCoverPresence.mockReturnValue(true);
+
+      renderHook(() =>
+        useViewerController("path", mockEntries, 1, true, twoPagedSettings, mockDispatch),
+      );
+
+      await waitFor(() => expect(mockedBuildUnitChain).toHaveBeenCalled());
+      expect(mockedBuildUnitChain.mock.calls.at(-1)?.[2]).toBe(false);
+    });
+
+    // Verify an unshifted book takes cover presence straight from the setting
+    it("builds the chain with the configured cover presence", async () => {
+      mockChain({ 0: 1, 1: 2 });
+
+      renderHook(() =>
+        useViewerController("path", mockEntries, 1, false, twoPagedSettings, mockDispatch),
+      );
+
+      await waitFor(() => expect(mockedBuildUnitChain).toHaveBeenCalled());
+      expect(mockedBuildUnitChain.mock.calls.at(-1)?.[2]).toBe(
+        twoPagedSettings.isFirstPageSingleView,
+      );
+    });
+
+    // Verify a shifted book inverts cover presence, which is what moves every pair by one
+    it("builds the chain with cover presence inverted when the book is shifted", async () => {
+      mockChain({ 0: 1, 1: 2 });
+
+      renderHook(() =>
+        useViewerController("path", mockEntries, 1, true, twoPagedSettings, mockDispatch),
+      );
+
+      await waitFor(() => expect(mockedBuildUnitChain).toHaveBeenCalled());
+      expect(mockedBuildUnitChain.mock.calls.at(-1)?.[2]).toBe(
+        !twoPagedSettings.isFirstPageSingleView,
+      );
+    });
+
+    // Verify a page reached mid-unit is pulled back to the unit that contains it
+    it("snaps an index that landed inside a unit back to its unit start", async () => {
+      // {0} {1,2} - index 2 is the second page of the spread starting at 1.
+      mockChain({ 0: 1, 1: 2 });
+
+      const { result, rerender } = renderHook(
+        ({ index }) =>
+          useViewerController("path", mockEntries, index, false, twoPagedSettings, mockDispatch),
+        { initialProps: { index: 0 } },
+      );
+
+      await waitFor(() => expect(mockedBuildUnitChain).toHaveBeenCalled());
+      mockDispatch.mockClear();
+
+      rerender({ index: 2 });
+      await waitFor(() => expect(mockDispatch).toHaveBeenCalledWith(setImageIndex(1)));
+      expect(result.current).toBeDefined();
+    });
+
+    // Verify an index that already starts a unit is left alone
+    it("does not snap an index that already starts a unit", async () => {
+      mockChain({ 0: 1, 1: 2 });
+
+      const { rerender } = renderHook(
+        ({ index }) =>
+          useViewerController("path", mockEntries, index, false, twoPagedSettings, mockDispatch),
+        { initialProps: { index: 0 } },
+      );
+
+      await waitFor(() => expect(mockedBuildUnitChain).toHaveBeenCalled());
+      mockDispatch.mockClear();
+
+      rerender({ index: 1 });
+      await waitFor(() => expect(mockedBuildUnitChain).toHaveBeenCalled());
+      expect(mockDispatch).not.toHaveBeenCalled();
+    });
+
+    // Verify a restored page off the natural pairing shifts the book, rather than snapping
+    it("shifts the pairing when the restored page is not a unit start", async () => {
+      // {0} {1,2} - opening straight onto index 2 means the reader had shifted the pairing.
+      mockChain({ 0: 1, 1: 2 });
+
+      renderHook(() =>
+        useViewerController("path", mockEntries, 2, false, twoPagedSettings, mockDispatch),
+      );
+
+      await waitFor(() => expect(mockDispatch).toHaveBeenCalledWith(setSpreadShifted(true)));
+      expect(mockDispatch).not.toHaveBeenCalledWith(setImageIndex(1));
+    });
+
+    // Verify the shift is considered once per book, so later jumps snap instead
+    it("shifts only once per book and snaps afterwards", async () => {
+      mockChain({ 0: 1, 1: 2 });
+
+      const { rerender } = renderHook(
+        ({ index }) =>
+          useViewerController("path", mockEntries, index, false, twoPagedSettings, mockDispatch),
+        { initialProps: { index: 0 } },
+      );
+
+      await waitFor(() => expect(mockedBuildUnitChain).toHaveBeenCalled());
+      mockDispatch.mockClear();
+
+      rerender({ index: 2 });
+      await waitFor(() => expect(mockDispatch).toHaveBeenCalledWith(setImageIndex(1)));
+      expect(mockDispatch).not.toHaveBeenCalledWith(setSpreadShifted(true));
+    });
+
+    // Verify navigation this hook dispatched never changes the pairing
+    it("never shifts the pairing on its own navigation", async () => {
       mockChain({ 0: 1, 1: 1, 2: 1 });
 
       const { result, rerender } = renderHook(
         ({ index }) =>
-          useViewerController("path", mockEntries, index, twoPagedSettings, mockDispatch),
+          useViewerController("path", mockEntries, index, false, twoPagedSettings, mockDispatch),
         { initialProps: { index: 0 } },
       );
 
       await waitFor(() => expect(mockedBuildUnitChain).toHaveBeenCalled());
 
-      // An index this hook dispatched: the anchor must stay where it is.
       result.current.moveForward();
       expect(mockDispatch).toHaveBeenCalledWith(setImageIndex(1));
       rerender({ index: 1 });
       await waitFor(() => expect(result.current.isImageLoading).toBe(false));
-      expect(mockedBuildUnitChain.mock.calls.at(-1)?.[0]).toBe(0);
 
-      // An index nobody here dispatched (slider / bookmark): re-anchor on it.
-      mockedBuildUnitChain.mockClear();
-      rerender({ index: 2 });
-      await waitFor(() => expect(mockedBuildUnitChain).toHaveBeenCalled());
-      expect(mockedBuildUnitChain.mock.calls.at(-1)?.[0]).toBe(2);
+      expect(mockDispatch).not.toHaveBeenCalledWith(setSpreadShifted(true));
     });
 
     // Verify a scan that does not describe this book is ignored
@@ -754,7 +887,7 @@ describe("useViewerController", () => {
       vi.mocked(getImageDimensions).mockResolvedValue([{ width: 100, height: 200 }]);
 
       const { result } = renderHook(() =>
-        useViewerController("path", mockEntries, 1, twoPagedSettings, mockDispatch),
+        useViewerController("path", mockEntries, 1, false, twoPagedSettings, mockDispatch),
       );
 
       await waitFor(() => expect(result.current.isImageLoading).toBe(false));
@@ -763,6 +896,7 @@ describe("useViewerController", () => {
       // The chain was never built, so the walk (mocked to null) and heuristic decided.
       expect(mockedBuildUnitChain).not.toHaveBeenCalled();
       expect(mockedFindPreviousUnitStart).toHaveBeenCalled();
+      expect(mockDispatch).not.toHaveBeenCalledWith(setSpreadShifted(true));
     });
 
     // Verify a failed scan leaves the viewer on the fallback instead of breaking it
@@ -771,7 +905,7 @@ describe("useViewerController", () => {
       mockedResolveUnit.mockReturnValue({ isSpread: false, nextIndexIncrement: 1 });
 
       const { result } = renderHook(() =>
-        useViewerController("path", mockEntries, 0, twoPagedSettings, mockDispatch),
+        useViewerController("path", mockEntries, 0, false, twoPagedSettings, mockDispatch),
       );
 
       await waitFor(() => expect(result.current.isImageLoading).toBe(false));
@@ -795,7 +929,7 @@ describe("useViewerController", () => {
       } as ImageUtils.ImageCacheItem);
 
       renderHook(() =>
-        useViewerController("path", mockEntries, 0, settingsWithPreview, mockDispatch),
+        useViewerController("path", mockEntries, 0, false, settingsWithPreview, mockDispatch),
       );
 
       await waitFor(() => {
@@ -829,7 +963,7 @@ describe("useViewerController", () => {
       } as ImageUtils.ImageCacheItem);
 
       renderHook(() =>
-        useViewerController("path", mockEntries, 0, settingsWithPreview, mockDispatch),
+        useViewerController("path", mockEntries, 0, false, settingsWithPreview, mockDispatch),
       );
 
       // Wait for full image to be processed and cached
@@ -869,7 +1003,7 @@ describe("useViewerController", () => {
       } as ImageUtils.ImageCacheItem);
 
       renderHook(() =>
-        useViewerController("path", mockEntries, 0, settingsWithPreview, mockDispatch),
+        useViewerController("path", mockEntries, 0, false, settingsWithPreview, mockDispatch),
       );
 
       // Wait for everything to finish

@@ -3,12 +3,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getImageDimensions, requestPreloadAround } from "../../../bindings/ContainerCommands";
 import type { AppDispatch } from "../../../store/store";
 import type { Image } from "../../../types/Image";
-import { setImageIndex } from "../slice";
+import { setImageIndex, setSpreadShifted } from "../slice";
 import {
   buildSinglePageLayout,
   buildUnitChain,
   buildUnitLayout,
   createImageCacheItem,
+  detectCoverPresence,
   fetchImageBlob,
   fetchImagePreviewBlob,
   findPreviousUnitStart,
@@ -50,6 +51,7 @@ export interface ViewerController {
  * @param containerPath The path of the container file.
  * @param entries Entries in the container.
  * @param index Index of the current image.
+ * @param isSpreadShifted Whether this book's spread pairing is shifted by one.
  * @param settings Viewer settings.
  * @param dispatch Dispatch function from Redux.
  * @param onForwardBoundary Called when moving forward past the last page.
@@ -60,6 +62,7 @@ export const useViewerController = (
   containerPath: string,
   entries: string[],
   index: number,
+  isSpreadShifted: boolean,
   settings: ViewerSettings,
   dispatch: AppDispatch,
   onForwardBoundary?: () => void,
@@ -73,12 +76,8 @@ export const useViewerController = (
   const [layoutState, setLayoutState] = useState<{ layout: ViewLayout; path: string } | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const [scannedDims, setScannedDims] = useState<{ path: string; dims: PageDims[] } | null>(null);
-  // The index the unit chain is laid out from. A page jumped to becomes a unit start,
-  // so the chain has to be rebuilt from wherever the reader landed.
-  const [anchor, setAnchor] = useState(index);
-  // The index this hook is about to dispatch, so an index change it did not cause
-  // (slider, bookmark, restored position) is recognisable as an external jump.
-  const expectedIndexRef = useRef<number | null>(null);
+  // The book whose restored page has already been checked against the natural pairing.
+  const adoptedPathRef = useRef<string | null>(null);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: update the cache whenever containerPath changes.
   useEffect(() => {
@@ -123,17 +122,6 @@ export const useViewerController = (
     };
   }, [containerPath, entries.length]);
 
-  // Re-anchor the chain at the current page whenever it has to be rebuilt: an external
-  // jump, or a change to one of the chain's inputs. Navigation this hook dispatched
-  // follows the existing chain and must not move the anchor.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: the extra dependencies are rebuild triggers; the anchor is always the current index.
-  useEffect(() => {
-    if (expectedIndexRef.current !== index) {
-      setAnchor(index);
-    }
-    expectedIndexRef.current = null;
-  }, [index, scannedDims, entries, settings]);
-
   const chain = useMemo(() => {
     if (!scannedDims || scannedDims.path !== containerPath) {
       return null;
@@ -142,16 +130,53 @@ export const useViewerController = (
     if (scannedDims.dims.length !== entries.length) {
       return null;
     }
-    return buildUnitChain(anchor, entries, (i) => scannedDims.dims[i], settings);
-  }, [scannedDims, containerPath, anchor, entries, settings]);
+    // The archive's own landscape pages prove whether it carries the cover, so they
+    // outrank `isFirstPageSingleView`, which is only a default for archives that offer
+    // no proof. The reader's toggle outranks both, so the button always changes the
+    // chain — including when a landscape page would otherwise decide it.
+    const base = detectCoverPresence(scannedDims.dims) ?? settings.isFirstPageSingleView;
+    const hasCover = isSpreadShifted ? !base : base;
+    return buildUnitChain(scannedDims.dims, settings, hasCover);
+  }, [scannedDims, containerPath, isSpreadShifted, entries, settings]);
+
+  // Two jobs, in order, both of which need a chain to exist.
+  //
+  // On the first chain for a book: if the restored page is not a boundary of the book's
+  // natural pairing, the reader had deliberately shifted it, so shift it again. This is
+  // what carries a shift across sessions without persisting anything of its own. For a
+  // well-formed book the restored page is already a boundary and nothing happens.
+  //
+  // Afterwards: a page reached by a jump (slider, bookmark, page list) may sit inside a
+  // unit rather than start one. Snap back to the unit that contains it, so the pairing is
+  // a property of the book instead of the reader's navigation history.
+  useEffect(() => {
+    if (!chain) {
+      return;
+    }
+
+    if (adoptedPathRef.current !== containerPath) {
+      adoptedPathRef.current = containerPath;
+      if (!chain.units.has(index)) {
+        dispatch(setSpreadShifted(true));
+      }
+      return;
+    }
+
+    if (!chain.units.has(index)) {
+      const start = chain.starts.filter((s) => s < index).at(-1);
+      if (start !== undefined) {
+        dispatch(setImageIndex(start));
+      }
+    }
+  }, [chain, containerPath, index, dispatch]);
 
   const getDims = useCallback(
     (i: number): PageDims | undefined => dimsRef.current.get(entries[i]),
     [entries],
   );
 
-  // The chain wins when it exists: a unit it derived while walking backward can differ
-  // from what the local forward rule would decide, and display and navigation must agree.
+  // The chain wins when it exists: an anchored unit can differ from what the local rule
+  // would decide, and display and navigation must agree on the same one.
   const currentUnit = useCallback(
     (): UnitDecision | null =>
       chain?.units.get(index) ?? resolveUnit(index, entries, getDims, settings),
@@ -296,10 +321,8 @@ export const useViewerController = (
 
   const displayedLayout = layoutState?.path === containerPath ? layoutState?.layout : null;
 
-  /** Records the index about to be dispatched, then dispatches it. */
   const goTo = useCallback(
     (nextIndex: number) => {
-      expectedIndexRef.current = nextIndex;
       dispatch(setImageIndex(nextIndex));
     },
     [dispatch],

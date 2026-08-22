@@ -75,6 +75,45 @@ describe("NavigationBar", () => {
     });
   });
 
+  it("should shift the spread pairing when the button is clicked", async () => {
+    const preloadedState = createBasePreloadedState();
+    preloadedState.view.activeView = "reader" as const;
+    preloadedState.settings.reader.comic.enableSpread = true;
+    preloadedState.read.containerFile.entries = ["p1", "p2", "p3", "p4"];
+    preloadedState.read.containerFile.index = 2;
+
+    const { store } = renderWithProviders(<NavigationBar />, { preloadedState });
+
+    await user.click(screen.getByLabelText("shift-spread"));
+
+    expect(store.getState().read.containerFile.isSpreadShifted).toBe(true);
+  });
+
+  it("should reset the spread pairing when it is already shifted", async () => {
+    const preloadedState = createBasePreloadedState();
+    preloadedState.view.activeView = "reader" as const;
+    preloadedState.settings.reader.comic.enableSpread = true;
+    preloadedState.read.containerFile.entries = ["p1", "p2", "p3"];
+    preloadedState.read.containerFile.isSpreadShifted = true;
+
+    const { store } = renderWithProviders(<NavigationBar />, { preloadedState });
+
+    await user.click(screen.getByLabelText("shift-spread"));
+
+    expect(store.getState().read.containerFile.isSpreadShifted).toBe(false);
+  });
+
+  it("should disable the shift-spread button when spread mode is off", () => {
+    const preloadedState = createBasePreloadedState();
+    preloadedState.view.activeView = "reader" as const;
+    preloadedState.settings.reader.comic.enableSpread = false;
+    preloadedState.read.containerFile.entries = ["p1", "p2", "p3"];
+
+    renderWithProviders(<NavigationBar />, { preloadedState });
+
+    expect(screen.getByLabelText("shift-spread")).toBeDisabled();
+  });
+
   it("should toggle direction when button is clicked", async () => {
     const preloadedState = createBasePreloadedState();
     preloadedState.view.activeView = "reader" as const;

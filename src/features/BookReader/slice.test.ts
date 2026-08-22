@@ -23,6 +23,7 @@ import readReducer, {
   setOpenOrigin,
   setPendingInitialPosition,
   setSearchText,
+  setSpreadShifted,
   updateExploreBasePath,
 } from "./slice";
 
@@ -50,6 +51,24 @@ describe("ReadReducer", () => {
       expect(state.containerFile.cfi).toBeNull();
     });
 
+    // Verify that the shifted flag is stored as given
+    it("should handle setSpreadShifted", () => {
+      const initialState = {
+        containerFile: { isSpreadShifted: false },
+      } as RootState["read"];
+      const state = readReducer(initialState, setSpreadShifted(true));
+      expect(state.containerFile.isSpreadShifted).toBe(true);
+    });
+
+    // Verify that page turns never change the pairing
+    it("should leave the shifted flag untouched on setImageIndex", () => {
+      const initialState = {
+        containerFile: { index: 0, isSpreadShifted: true, cfi: null },
+      } as RootState["read"];
+      const state = readReducer(initialState, setImageIndex(10));
+      expect(state.containerFile.isSpreadShifted).toBe(true);
+    });
+
     // Verify that container file path is set and history is updated
     it("should handle setContainerFilePath and update history", () => {
       const initialState = {
@@ -59,6 +78,15 @@ describe("ReadReducer", () => {
       expect(state.containerFile.history).toEqual(["old", "new"]);
       expect(state.containerFile.historyIndex).toBe(1);
       expect(state.containerFile.index).toBe(0);
+    });
+
+    // Verify that opening another book drops the previous book's shifted pairing
+    it("should reset the shifted flag in setContainerFilePath", () => {
+      const initialState = {
+        containerFile: { history: ["old"], historyIndex: 0, index: 5, isSpreadShifted: true },
+      } as RootState["read"];
+      const state = readReducer(initialState, setContainerFilePath("new"));
+      expect(state.containerFile.isSpreadShifted).toBe(false);
     });
 
     // Verify that history is not updated when setContainerFilePath is called with current path
@@ -274,6 +302,8 @@ describe("ReadReducer", () => {
         expect(state.containerFile.book).toEqual(mockBook);
         expect(state.containerFile.index).toBe(1);
         expect(state.containerFile.entries).toEqual(["p1", "p2"]);
+        // The viewer shifts the pairing only when the restored page needs it.
+        expect(state.containerFile.isSpreadShifted).toBe(false);
       });
 
       // Verify that the container opens on its last page when pendingInitialPosition is "last"
