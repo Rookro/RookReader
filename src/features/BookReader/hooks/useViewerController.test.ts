@@ -11,6 +11,8 @@ vi.mock("../utils/ImageUtils", () => ({
   resolveUnit: vi.fn(() => null),
   // Default to null so the fallback path runs unless a test supplies a chain.
   buildUnitChain: vi.fn(() => null),
+  // Default to null so the configured cover setting is used unless a test proves one.
+  detectCoverPresence: vi.fn(() => null),
   fetchImageBlob: vi.fn(),
   fetchImagePreviewBlob: vi.fn(),
   createImageCacheItem: vi.fn(),
@@ -78,6 +80,7 @@ describe("useViewerController", () => {
   const mockedCreateImageCacheItem = vi.mocked(ImageUtils.createImageCacheItem);
   const mockedResolveUnit = vi.mocked(ImageUtils.resolveUnit);
   const mockedBuildUnitChain = vi.mocked(ImageUtils.buildUnitChain);
+  const mockedDetectCoverPresence = vi.mocked(ImageUtils.detectCoverPresence);
   const mockedFindPreviousUnitStart = vi.mocked(ImageUtils.findPreviousUnitStart);
 
   /** Makes resolveUnit report a single-page unit for every index. */
@@ -685,6 +688,8 @@ describe("useViewerController", () => {
     };
 
     beforeEach(() => {
+      // mockReturnValue survives clearAllMocks, so reset the default each test.
+      mockedDetectCoverPresence.mockReturnValue(null);
       mockedFetchImageBlob.mockResolvedValue({} as Image);
       mockedCreateImageCacheItem.mockReturnValue({
         fullUrl: "url",
@@ -730,6 +735,34 @@ describe("useViewerController", () => {
 
       result.current.moveForward();
       expect(mockDispatch).toHaveBeenCalledWith(setImageIndex(1));
+    });
+
+    // Verify a proven cover presence outranks the configured setting
+    it("builds the chain from the detected cover presence", async () => {
+      mockChain({ 0: 1, 1: 2 });
+      mockedDetectCoverPresence.mockReturnValue(!twoPagedSettings.isFirstPageSingleView);
+
+      renderHook(() =>
+        useViewerController("path", mockEntries, 1, false, twoPagedSettings, mockDispatch),
+      );
+
+      await waitFor(() => expect(mockedBuildUnitChain).toHaveBeenCalled());
+      expect(mockedBuildUnitChain.mock.calls.at(-1)?.[2]).toBe(
+        !twoPagedSettings.isFirstPageSingleView,
+      );
+    });
+
+    // Verify the reader's toggle still wins over a proven cover presence
+    it("inverts the detected cover presence when the book is shifted", async () => {
+      mockChain({ 0: 1, 1: 2 });
+      mockedDetectCoverPresence.mockReturnValue(true);
+
+      renderHook(() =>
+        useViewerController("path", mockEntries, 1, true, twoPagedSettings, mockDispatch),
+      );
+
+      await waitFor(() => expect(mockedBuildUnitChain).toHaveBeenCalled());
+      expect(mockedBuildUnitChain.mock.calls.at(-1)?.[2]).toBe(false);
     });
 
     // Verify an unshifted book takes cover presence straight from the setting

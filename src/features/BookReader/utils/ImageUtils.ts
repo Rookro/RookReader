@@ -280,6 +280,42 @@ export interface UnitChain {
 }
 
 /**
+ * Reports whether an archive's first image is the book's front cover.
+ *
+ * A landscape image is a photograph of one physical spread, so it always begins on an
+ * even page. With `P(i) = P(0) + pagesBefore(i)`, and only two candidates for `P(0)` —
+ * 1 with a cover and 2 without — a single landscape image settles which one it is.
+ *
+ * This holds only while no pages are missing, so landscape images that disagree are
+ * proof that one is; detection then gives up rather than guess.
+ *
+ * @param dims The dimensions of every page, in entry order.
+ * @returns Whether the first image is the cover, or null when the archive offers no
+ *   evidence or contradicts itself.
+ */
+export const detectCoverPresence = (dims: PageDims[]): boolean | null => {
+  let pagesBefore = 0;
+  let detected: boolean | null = null;
+
+  for (const page of dims) {
+    const isLandscape = page.width > page.height;
+    if (isLandscape) {
+      // P(i) has to be even: with P(0) = 1 that needs an odd number of pages before it,
+      // with P(0) = 2 an even one.
+      const hasCover = pagesBefore % 2 === 1;
+      if (detected === null) {
+        detected = hasCover;
+      } else if (detected !== hasCover) {
+        return null;
+      }
+    }
+    pagesBefore += isLandscape ? 2 : 1;
+  }
+
+  return detected;
+};
+
+/**
  * Builds the unit chain for a whole book from its pages' physical page numbers.
  *
  * The first image is physical page 1 when the archive includes the front cover and page 2

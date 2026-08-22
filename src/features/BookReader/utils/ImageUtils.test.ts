@@ -5,6 +5,7 @@ import {
   buildUnitChain,
   buildUnitLayout,
   createImageCacheItem,
+  detectCoverPresence,
   fetchImageBlob,
   fetchImagePreviewBlob,
   findPreviousUnitStart,
@@ -150,6 +151,45 @@ describe("ImageUtils", () => {
       expect(
         buildUnitLayout({ isSpread: false, nextIndexIncrement: 1 }, 0, entries, cache),
       ).toEqual({ firstImage: portrait, isSpread: false, nextIndexIncrement: 1 });
+    });
+  });
+
+  describe("detectCoverPresence", () => {
+    // Verify an archive with no landscape page offers nothing to go on
+    it("returns null when the archive has no landscape page", () => {
+      const { pages } = buildDims(["P", "P", "P", "P"]);
+      expect(detectCoverPresence(pages)).toBeNull();
+    });
+
+    // Verify one page before a landscape page proves the first image is page 1
+    it("detects a cover when one page precedes the landscape page", () => {
+      const { pages } = buildDims(["P", "L", "P", "P"]);
+      expect(detectCoverPresence(pages)).toBe(true);
+    });
+
+    // Verify a landscape first image cannot be page 1, so the archive has no cover
+    it("detects no cover when the archive opens on a landscape page", () => {
+      const { pages } = buildDims(["L", "P", "P"]);
+      expect(detectCoverPresence(pages)).toBe(false);
+    });
+
+    // Verify a landscape page counts as two pages when locating the next one
+    it("counts a landscape page as two pages when checking the next one", () => {
+      // Pages before the second landscape: P(1) + L(2) + P(1) + P(1) = 5, odd, so both agree.
+      const { pages } = buildDims(["P", "L", "P", "P", "L", "P"]);
+      expect(detectCoverPresence(pages)).toBe(true);
+    });
+
+    // Verify landscape pages that disagree prove a missing page, so detection gives up
+    it("returns null when two landscape pages disagree", () => {
+      // Pages before the second landscape: P(1) + L(2) + P(1) = 4, even, contradicting the first.
+      const { pages } = buildDims(["P", "L", "P", "L", "P"]);
+      expect(detectCoverPresence(pages)).toBeNull();
+    });
+
+    // Verify an empty book offers no evidence either
+    it("returns null for an empty book", () => {
+      expect(detectCoverPresence([])).toBeNull();
     });
   });
 

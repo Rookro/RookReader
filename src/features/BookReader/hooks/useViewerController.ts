@@ -9,6 +9,7 @@ import {
   buildUnitChain,
   buildUnitLayout,
   createImageCacheItem,
+  detectCoverPresence,
   fetchImageBlob,
   fetchImagePreviewBlob,
   findPreviousUnitStart,
@@ -129,11 +130,12 @@ export const useViewerController = (
     if (scannedDims.dims.length !== entries.length) {
       return null;
     }
-    // `isFirstPageSingleView` states whether this kind of archive carries the cover;
-    // a shifted book is one where that is wrong, so the reader flipped it.
-    const hasCover = isSpreadShifted
-      ? !settings.isFirstPageSingleView
-      : settings.isFirstPageSingleView;
+    // The archive's own landscape pages prove whether it carries the cover, so they
+    // outrank `isFirstPageSingleView`, which is only a default for archives that offer
+    // no proof. The reader's toggle outranks both, so the button always changes the
+    // chain — including when a landscape page would otherwise decide it.
+    const base = detectCoverPresence(scannedDims.dims) ?? settings.isFirstPageSingleView;
+    const hasCover = isSpreadShifted ? !base : base;
     return buildUnitChain(scannedDims.dims, settings, hasCover);
   }, [scannedDims, containerPath, isSpreadShifted, entries, settings]);
 
