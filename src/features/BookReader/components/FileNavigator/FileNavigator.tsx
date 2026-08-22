@@ -16,6 +16,7 @@ import {
   setSearchText,
   updateExploreBasePath,
 } from "../../slice";
+import { isInsideArchive, isNavigableArchiveName } from "../../utils/ArchivePathUtils";
 import { andSearch, sortBy } from "../../utils/FileNavigatorUtils";
 import { ItemRow } from "./ItemRow";
 import NavBar from "./NavBar";
@@ -97,6 +98,8 @@ export default function FileListViewer() {
       .sort((a, b) => sortBy(a, b, fileNavigatorSettings.sortOrder));
   }, [entries, fileNavigatorSettings.sortOrder, searchText]);
 
+  const currentPath = history[historyIndex];
+
   const updateEntriesCallback = useCallback(() => {
     if (history[historyIndex]) {
       dispatch(updateExploreBasePath({ dirPath: history[historyIndex], forceUpdate: true }));
@@ -107,7 +110,12 @@ export default function FileListViewer() {
     updateEntriesCallback();
   }, [updateEntriesCallback]);
 
-  useDirectoryWatcher(history[historyIndex], updateEntriesCallback);
+  // A folder inside an archive has no filesystem path to watch; the archive file
+  // itself does, so only inner paths are skipped.
+  useDirectoryWatcher(
+    currentPath && !isInsideArchive(currentPath) ? currentPath : null,
+    updateEntriesCallback,
+  );
   useFileSelection(fileHistory, fileHistoryIndex, filteredSortedEntries, setSelectedIndex);
 
   // Scroll to make the selected item visible
@@ -145,7 +153,9 @@ export default function FileListViewer() {
 
   const handleListItemDoubleClicked = useCallback(
     async (e: React.MouseEvent<HTMLDivElement>, entry: DirEntry, index: number) => {
-      if (entry.is_directory) {
+      // A browsable archive is entered like a folder; a single click still opens it
+      // as a book, so nothing is lost by not opening it here.
+      if (entry.is_directory || isNavigableArchiveName(entry.name)) {
         const path = await join(history[historyIndex], entry.name);
         dispatch(setSearchText(""));
         dispatch(updateExploreBasePath({ dirPath: path }));
