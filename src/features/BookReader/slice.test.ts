@@ -635,6 +635,19 @@ describe("ReadReducer", () => {
         expect(state.containerFile.entries).toEqual([]);
       });
 
+      // A slow failure must not drag the navigator away from a book opened after it.
+      it("should not move the file navigator when another book was opened meanwhile", async () => {
+        vi.mocked(ContainerCommands.getEntriesInContainer).mockRejectedValue(
+          new CommandError(ErrorCode.emptyContainer, "Empty Container Error: stale.zip"),
+        );
+
+        // `stale.zip` is no longer the head of the container history.
+        store.dispatch(setContainerFilePath("current.zip"));
+        await store.dispatch(openContainerFile("stale.zip"));
+
+        expect(DirectoryCommands.getEntriesInDir).not.toHaveBeenCalled();
+      });
+
       // Other failures leave the navigator alone: there is no path worth entering.
       it("should not move the file navigator for a failure other than an empty container", async () => {
         vi.mocked(ContainerCommands.getEntriesInContainer).mockRejectedValue(

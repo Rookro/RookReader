@@ -81,7 +81,15 @@ export const openContainerFile = createAppAsyncThunk(
       // archive whose pages all live in sub-folders would otherwise be a dead end.
       // Only folders and browsable archives can be empty this way, and both list their
       // contents, so entering the path is always meaningful.
-      if (e instanceof CommandError && e.code === ErrorCode.emptyContainer) {
+      //
+      // Guarded like the fulfilled/rejected reducers: a slow failure must not drag the
+      // navigator away from a book the user opened in the meantime.
+      const { history, historyIndex } = getState().read.containerFile;
+      if (
+        history[historyIndex] === path &&
+        e instanceof CommandError &&
+        e.code === ErrorCode.emptyContainer
+      ) {
         dispatch(updateExploreBasePath({ dirPath: path }));
       }
       return handleThunkError(e, `Failed to openContainerFile(${path}).`, rejectWithValue);
