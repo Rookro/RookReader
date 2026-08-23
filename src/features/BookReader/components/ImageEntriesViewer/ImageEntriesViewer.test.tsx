@@ -47,6 +47,47 @@ describe("ImageEntriesViewer", () => {
     expect(screen.getByText("p2.jpg")).toBeInTheDocument();
   });
 
+  it("should select only the current page when a single page is displayed", () => {
+    const preloadedState = createBasePreloadedState();
+    preloadedState.read.containerFile.entries = ["p1.jpg", "p2.jpg", "p3.jpg"];
+    preloadedState.read.containerFile.index = 1;
+    preloadedState.read.containerFile.isSpreadDisplayed = false;
+
+    renderWithProviders(<ImageEntriesViewer />, { preloadedState });
+
+    const buttons = screen.getAllByRole("button");
+    expect(buttons[0]).not.toHaveClass("Mui-selected");
+    expect(buttons[1]).toHaveClass("Mui-selected");
+    expect(buttons[2]).not.toHaveClass("Mui-selected");
+  });
+
+  it("should select both displayed pages when a spread is displayed", () => {
+    const preloadedState = createBasePreloadedState();
+    preloadedState.read.containerFile.entries = ["p1.jpg", "p2.jpg", "p3.jpg"];
+    preloadedState.read.containerFile.index = 1;
+    preloadedState.read.containerFile.isSpreadDisplayed = true;
+
+    renderWithProviders(<ImageEntriesViewer />, { preloadedState });
+
+    const buttons = screen.getAllByRole("button");
+    expect(buttons[0]).not.toHaveClass("Mui-selected");
+    expect(buttons[1]).toHaveClass("Mui-selected");
+    expect(buttons[2]).toHaveClass("Mui-selected");
+  });
+
+  it("should not select a page past the end of the list on the last spread", () => {
+    const preloadedState = createBasePreloadedState();
+    preloadedState.read.containerFile.entries = ["p1.jpg", "p2.jpg"];
+    preloadedState.read.containerFile.index = 1;
+    preloadedState.read.containerFile.isSpreadDisplayed = true;
+
+    renderWithProviders(<ImageEntriesViewer />, { preloadedState });
+
+    const buttons = screen.getAllByRole("button");
+    expect(buttons).toHaveLength(2);
+    expect(buttons[1]).toHaveClass("Mui-selected");
+  });
+
   it("should dispatch setImageIndex when an item is clicked", async () => {
     const preloadedState = createBasePreloadedState();
     preloadedState.read.containerFile.entries = ["p1.jpg", "p2.jpg"];
