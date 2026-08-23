@@ -50,7 +50,11 @@ export default function GlobalErrorListener() {
         sub_msg = t("error-message.container.empty");
       }
 
-      const msg = `${t("error-message.common.failed-to-open-container-file")} ${sub_msg}`;
+      // Joined rather than interpolated: without a specific sub-message the
+      // template would leave a trailing space on the notification.
+      const msg = [t("error-message.common.failed-to-open-container-file"), sub_msg]
+        .filter(Boolean)
+        .join(" ");
       showNotification(msg, "error");
       dispatch(clearContainerFileError());
     }

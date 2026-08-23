@@ -217,14 +217,14 @@
     "file-navigator": {
       "tab-name": "File Navigator",
       "title": "File Navigator Settings",
-      "home-directory-title": "Home Directory",
+      "home-directory-title": "Home Folder",
       "dir-watch": {
-        "title": "Watch a directory or file for changes",
-        "warn-message": "Enabling this feature may cause high system load when accessing directories with a large volume of files."
+        "title": "Watch a folder or file for changes",
+        "warn-message": "Enabling this feature may cause high system load when opening folders with a large number of files."
       }
     },
     "reader": {
-      "tab-name": "Reader Settings",
+      "tab-name": "Reader",
       "title": "Reader Settings",
       "headers": {
         "comic": "Comic",
@@ -283,8 +283,8 @@
       },
       "resize": {
         "max-image-height": {
-          "title": "Maximum image Height(px)",
-          "description": "Images taller than this will be resized proportionally.\nSets zero to disable resizing."
+          "title": "Maximum Image Height (px)",
+          "description": "Images taller than this will be resized proportionally.\nSet zero to disable resizing."
         },
         "resize-method": {
           "title": "Resizing Method",
@@ -301,7 +301,7 @@
         }
       },
       "pdf": {
-        "title": "PDF Rendering Height(px)",
+        "title": "PDF Rendering Height (px)",
         "description": "Height of the PDF rendering area in pixels."
       },
       "cache": {
