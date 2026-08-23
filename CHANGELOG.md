@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 * Fixed two-page spread mode pairing pages differently when you turn back. Going back through a book — or turning pages after jumping with the slider, a bookmark, or a restored reading position — now keeps every spread paired exactly as it was on the way forward, so a page no longer appears twice or alongside the wrong one. (#299)
+* Fixed windows growing a few pixels on every launch on Linux under Wayland; the window size is no longer restored on Linux, so the main window and the settings window open at their default size. The window position, the maximized state, and full screen are still restored. (#303)
 
 ## [2.3.1] - 2026-07-07
 
