@@ -23,7 +23,9 @@ RUN apt-get update && apt-get install -y \
     fonts-noto-cjk \
     language-pack-ja-base \
     language-pack-ja \
-    locales
+    locales \
+    patchelf \
+    xvfb
 
 # Generate Japanse locale.
 RUN locale-gen ja_JP.UTF-8
@@ -42,4 +44,5 @@ RUN echo "export LANG=ja_JP.UTF-8" >> ~/.bashrc &&\
 RUN curl --proto '=https' --tlsv1.2 https://sh.rustup.rs -sSf | sh -s -- -y &&\
     . "$HOME/.cargo/env" && \
     rustup default stable && \
-    cargo install cargo-about sqlx-cli
+    cargo install cargo-about --locked --features cli && \
+    cargo install sqlx-cli
