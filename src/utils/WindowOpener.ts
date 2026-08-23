@@ -10,8 +10,8 @@ export function openSettingsWindow() {
       url: "/#/settings",
       title: "Settings",
       parent: "main",
-      width: 800,
-      height: 400,
+      width: 940,
+      height: 450,
       resizable: true,
       center: true,
     });
