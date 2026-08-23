@@ -306,6 +306,27 @@ describe("ReadReducer", () => {
         expect(state.containerFile.isSpreadShifted).toBe(false);
       });
 
+      // A folder inside an archive is stored as a folder, so the History tab shows it
+      // with a folder icon like any other folder of pages.
+      it("should record a folder inside an archive as a directory", async () => {
+        vi.mocked(ContainerCommands.getEntriesInContainer).mockResolvedValue({
+          is_directory: false,
+          entries: ["001.png"],
+          is_novel: false,
+        });
+        vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(1);
+        vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(
+          createMockBookWithState({ id: 1 }),
+        );
+
+        store.dispatch(setContainerFilePath("/books/comic.zip/ch1"));
+        await store.dispatch(openContainerFile("/books/comic.zip/ch1"));
+
+        expect(BookCommands.recordBookOpened).toHaveBeenCalledWith(
+          expect.objectContaining({ itemType: "directory" }),
+        );
+      });
+
       // Verify that the container opens on its last page when pendingInitialPosition is "last"
       it("should open on the last page when pendingInitialPosition is 'last'", async () => {
         const mockBook = createMockBookWithState({ id: 1, last_read_page_index: 5 });

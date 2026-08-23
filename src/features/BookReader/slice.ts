@@ -9,6 +9,7 @@ import { handleThunkError } from "../../store/thunkErrorHandler";
 import { createAppAsyncThunk } from "../../types/CustomAsyncThunk";
 import type { DirEntry } from "../../types/DirEntry";
 import { CommandError, ErrorCode } from "../../types/Error";
+import { isInsideArchive } from "../../utils/ArchivePathUtils";
 import { convertEntriesInDir } from "../../utils/DirEntryUtils";
 import type { OpenOrigin } from "./types/OpenOrigin";
 import { goBackHistory, goForwardHistory, pushHistory } from "./utils/navigationHistory";
@@ -47,12 +48,14 @@ export const openContainerFile = createAppAsyncThunk(
 
       dispatch(updateExploreBasePath({ dirPath }));
 
-      debug(
-        `Update container history: ${path}, ${entriesResult.is_directory ? "directory" : "file"}`,
-      );
+      // A folder inside an archive is a folder to the user, even though its container
+      // is not a filesystem directory, so the library records it as one.
+      const itemType = entriesResult.is_directory || isInsideArchive(path) ? "directory" : "file";
+
+      debug(`Update container history: ${path}, ${itemType}`);
       const bookId = await recordBookOpened({
         filePath: path,
-        itemType: entriesResult.is_directory ? "directory" : "file",
+        itemType,
         totalPages: entriesResult.entries.length,
         displayName: fileName,
       });
