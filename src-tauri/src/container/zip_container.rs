@@ -201,9 +201,9 @@ fn collect_entries(
 
 /// An implementation of the `Container` trait for reading content from ZIP archive files.
 pub struct ZipContainer {
-    /// A naturally sorted list of image file names found within the archive.
+    /// A naturally sorted list of the image leaf names in the opened folder.
     entries: Vec<String>,
-    /// A mapping from (possibly garbled) entry names to their indices in the ZIP archive.
+    /// A mapping from each (possibly garbled) leaf name to its index in the ZIP archive.
     name_to_index: HashMap<String, usize>,
     /// The ZIP archive, protected by a Mutex for thread-safe access to the underlying file.
     archive: Mutex<ZipArchive<File>>,

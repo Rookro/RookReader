@@ -21,7 +21,12 @@ pub const SUPPORTED_EXTENSIONS: [&str; 6] = ["pdf", "rar", "zip", "epub", "cbz",
 pub trait Container: Send + Sync + 'static {
     /// Returns a reference to a vector of entry names within the container.
     ///
-    /// The entries are typically file names or paths inside an archive or directory.
+    /// An entry names one page and is opaque to callers: image containers use the page's
+    /// file name, PDF a zero-padded page number, EPUB a manifest id.
+    ///
+    /// Directory and archive containers list only the pages sitting *directly* inside the
+    /// folder they opened, under the leaf file name — a page in `comic.zip/ch1` is listed
+    /// as `001.jpg`, and pages in sub-folders belong to their own container.
     fn get_entries(&self) -> &Vec<String>;
 
     /// Retrieves a full-sized image for a given entry name.

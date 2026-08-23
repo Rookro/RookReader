@@ -4,7 +4,7 @@
 //! folder holding nothing readable — `__MACOSX`, a metadata-only folder — is invisible
 //! everywhere: it is never listed, and never descended into.
 
-use std::{collections::BTreeSet, fs::File, path::Path};
+use std::{collections::HashSet, fs::File, path::Path};
 
 use crate::{
     container::{archive_path, zip_container::decode_entry_name},
@@ -91,7 +91,8 @@ fn descend_to_content(names: &[String], inner_dir: &str) -> String {
 
 /// Collects the immediate sub-folders of `inner_dir`, naturally sorted.
 fn child_dirs(names: &[String], inner_dir: &str) -> Vec<String> {
-    let dirs: BTreeSet<&str> = names
+    // A plain set: the final order comes from the natural sort below.
+    let dirs: HashSet<&str> = names
         .iter()
         .filter_map(|name| archive_path::child_dir_in(name, inner_dir))
         .collect();
