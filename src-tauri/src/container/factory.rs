@@ -4,20 +4,33 @@ use pdfium_render::prelude::PdfRenderConfig;
 
 use crate::{
     container::{
-        directory_container::DirectoryContainer, epub_container::EpubContainer,
-        pdf_container::PdfContainer, rar_container::RarContainer, traits::Container,
-        zip_container::ZipContainer,
+        archive_listing, archive_path, directory_container::DirectoryContainer,
+        epub_container::EpubContainer, pdf_container::PdfContainer, rar_container::RarContainer,
+        traits::Container, zip_container::ZipContainer,
     },
     error::{Error, Result},
 };
 
 /// Configuration options for creating a container.
-#[derive(Default)]
 pub struct ContainerConfig {
     /// The rendering configuration for PDF containers.
     pub pdf_render_config: PdfRenderConfig,
     /// An optional path to the directory containing the `pdfium` library.
     pub pdfium_library_path: Option<String>,
+    /// If `true`, opening an archive descends through a chain of single sub-folders to
+    /// the first level that actually holds pages.
+    pub auto_descend_single_folder: bool,
+}
+
+impl Default for ContainerConfig {
+    fn default() -> Self {
+        Self {
+            pdf_render_config: PdfRenderConfig::default(),
+            pdfium_library_path: None,
+            // Mirrors the persisted default, so tests and ad-hoc callers behave like the app.
+            auto_descend_single_folder: true,
+        }
+    }
 }
 
 /// Creates a `Container` from a file path based on its type (directory or file extension).
@@ -48,16 +61,28 @@ pub fn create_container(path: &str, config: ContainerConfig) -> Result<Arc<dyn C
         return Ok(Arc::new(DirectoryContainer::new(path)?));
     }
 
+    // A path pointing inside an archive (e.g. `comic.zip/ch1`) opens that folder as its
+    // own book. Real filesystem paths are matched first, so a folder named `foo.zip` is
+    // unaffected.
+    if let Some(location) = archive_path::resolve(path) {
+        return create_archive_container(
+            &location.archive,
+            &location.inner_dir,
+            config.auto_descend_single_folder,
+        );
+    }
+
     if let Some(ext) = file_path.extension() {
         let ext_str = ext.to_string_lossy().to_lowercase();
         match ext_str.as_str() {
-            "zip" | "cbz" => Ok(Arc::new(ZipContainer::new(path)?)),
+            "zip" | "cbz" | "rar" | "cbr" => {
+                create_archive_container(file_path, "", config.auto_descend_single_folder)
+            }
             "pdf" => Ok(Arc::new(PdfContainer::new(
                 path,
                 config.pdf_render_config,
                 config.pdfium_library_path,
             )?)),
-            "rar" | "cbr" => Ok(Arc::new(RarContainer::new(path)?)),
             "epub" => Ok(Arc::new(EpubContainer::new(path)?)),
             _ => Err(Error::UnsupportedContainer(format!(
                 "Unsupported Container Type: {}",
@@ -66,6 +91,79 @@ pub fn create_container(path: &str, config: ContainerConfig) -> Result<Arc<dyn C
         }
     } else {
         Err(Error::Path(format!("Failed to get extension. {}", path)))
+    }
+}
+
+/// Builds the container for one folder inside a browsable archive.
+///
+/// When `auto_descend` is set and the requested folder holds no pages, a chain of single
+/// sub-folders is followed down to the level that does (see
+/// [`archive_listing::resolve_content_dir`]).
+///
+/// # Arguments
+///
+/// * `archive` - The archive file on disk.
+/// * `inner_dir` - The folder inside the archive; empty means the archive root.
+/// * `auto_descend` - Whether to descend through single sub-folders to the pages.
+///
+/// # Returns
+///
+/// A `Result` containing a shared pointer to the created `Container`.
+///
+/// # Errors
+///
+/// Returns an `Err` if the archive format is not browsable or the underlying
+/// constructor fails.
+fn create_archive_container(
+    archive: &Path,
+    inner_dir: &str,
+    auto_descend: bool,
+) -> Result<Arc<dyn Container>> {
+    let container = open_archive_at(archive, inner_dir)?;
+
+    // An empty container means this level holds no pages, which is the only case where
+    // descending can help — and it is the same condition `descend_to_content` tests. So
+    // the archive listing is read a second time only when it might change the answer,
+    // keeping the common open to a single pass.
+    if !auto_descend || !container.get_entries().is_empty() {
+        return Ok(container);
+    }
+
+    let content_dir = archive_listing::resolve_content_dir(archive, inner_dir)?;
+    if content_dir == inner_dir {
+        return Ok(container);
+    }
+    open_archive_at(archive, &content_dir)
+}
+
+/// Opens one folder inside a browsable archive, exactly as asked.
+///
+/// # Arguments
+///
+/// * `archive` - The archive file on disk.
+/// * `inner_dir` - The folder inside the archive; empty means the archive root.
+///
+/// # Returns
+///
+/// A `Result` containing a shared pointer to the created `Container`.
+///
+/// # Errors
+///
+/// Returns an `Err` if the archive format is not browsable or the underlying
+/// constructor fails.
+fn open_archive_at(archive: &Path, inner_dir: &str) -> Result<Arc<dyn Container>> {
+    let path = archive.to_string_lossy();
+    let ext = archive
+        .extension()
+        .map(|ext| ext.to_string_lossy().to_lowercase())
+        .unwrap_or_default();
+
+    match ext.as_str() {
+        "zip" | "cbz" => Ok(Arc::new(ZipContainer::new(&path, inner_dir)?)),
+        "rar" | "cbr" => Ok(Arc::new(RarContainer::new(&path, inner_dir)?)),
+        _ => Err(Error::UnsupportedContainer(format!(
+            "Unsupported Container Type: {ext}"
+        ))),
     }
 }
 
@@ -127,5 +225,111 @@ mod tests {
         assert!(result.is_err());
         let err = result.err().unwrap();
         assert!(err.to_string().contains("Failed to get extension"));
+    }
+
+    /// Builds a ZIP with the given entry names and one dummy byte each.
+    fn create_test_zip(dir: &path::Path, names: &[&str]) -> path::PathBuf {
+        use std::io::Write;
+        use zip::write::{FileOptions, ZipWriter};
+
+        let zip_path = dir.join("nested.zip");
+        let mut zip = ZipWriter::new(std::fs::File::create(&zip_path).expect("create zip"));
+        for name in names {
+            zip.start_file(*name, FileOptions::<()>::default())
+                .expect("start entry");
+            zip.write_all(&[0u8]).expect("write entry");
+        }
+        zip.finish().expect("finish zip");
+        zip_path
+    }
+
+    #[test]
+    fn test_create_container_opens_a_folder_inside_a_zip() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let zip_path = create_test_zip(dir.path(), &["cover.png", "ch1/001.png"]);
+
+        let inner = zip_path.join("ch1");
+        let container =
+            create_container(inner.to_string_lossy().as_ref(), ContainerConfig::default())
+                .expect("opens the folder inside the archive");
+
+        assert_eq!(vec!["001.png".to_string()], *container.get_entries());
+        assert!(!container.is_directory());
+    }
+
+    #[test]
+    fn test_create_container_opens_the_archive_root_without_sub_folders() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let zip_path = create_test_zip(dir.path(), &["cover.png", "ch1/001.png"]);
+
+        let container = create_container(
+            zip_path.to_string_lossy().as_ref(),
+            ContainerConfig::default(),
+        )
+        .expect("opens the archive root");
+
+        assert_eq!(vec!["cover.png".to_string()], *container.get_entries());
+    }
+
+    #[test]
+    fn test_create_container_descends_into_a_single_wrapper_folder() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let zip_path = create_test_zip(dir.path(), &["Comic/path/deep/001.png"]);
+
+        let container = create_container(
+            zip_path.to_string_lossy().as_ref(),
+            ContainerConfig::default(),
+        )
+        .expect("descends to the pages");
+
+        assert_eq!(vec!["001.png".to_string()], *container.get_entries());
+    }
+
+    #[test]
+    fn test_create_container_keeps_the_level_when_descending_cannot_help() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let zip_path = create_test_zip(dir.path(), &["ch1/001.png", "ch2/001.png"]);
+
+        let container = create_container(
+            zip_path.to_string_lossy().as_ref(),
+            ContainerConfig::default(),
+        )
+        .expect("opens the root");
+
+        // Two sub-folders, so there is nothing to descend into: the empty root is
+        // returned and the command layer rejects it as a container with no pages.
+        assert!(container.get_entries().is_empty());
+    }
+
+    #[test]
+    fn test_create_container_does_not_descend_when_the_setting_is_off() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let zip_path = create_test_zip(dir.path(), &["Comic/001.png"]);
+
+        let container = create_container(
+            zip_path.to_string_lossy().as_ref(),
+            ContainerConfig {
+                auto_descend_single_folder: false,
+                ..Default::default()
+            },
+        )
+        .expect("opens the root");
+
+        assert!(container.get_entries().is_empty());
+    }
+
+    #[test]
+    fn test_create_container_treats_a_real_zip_named_folder_as_a_directory() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let folder = dir.path().join("comic.zip");
+        std::fs::create_dir(&folder).expect("create dir");
+
+        let container = create_container(
+            folder.to_string_lossy().as_ref(),
+            ContainerConfig::default(),
+        )
+        .expect("opens as a directory");
+
+        assert!(container.is_directory());
     }
 }

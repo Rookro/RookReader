@@ -110,6 +110,24 @@ describe("FileNavigator", () => {
     });
   });
 
+  it("should dispatch updateExploreBasePath when a browsable archive is double-clicked", async () => {
+    // Double-clicking a .zip steps into it like a folder rather than opening it as a
+    // book; a single click still opens it.
+    const entries: DirEntry[] = [{ name: "book.zip", is_directory: false, last_modified: 0 }];
+    const preloadedState = createBasePreloadedState();
+    preloadedState.read.explorer.entries = entries;
+
+    renderWithProviders(<FileNavigator />, { preloadedState });
+
+    const rowButton = await screen.findByRole("button", { name: /book.zip/i });
+    await user.dblClick(rowButton);
+
+    await waitFor(() => {
+      expect(ReadReducer.updateExploreBasePath).toHaveBeenCalled();
+    });
+    expect(ReadReducer.setContainerFilePath).not.toHaveBeenCalled();
+  });
+
   it("should not treat single clicks on different rows as a double-click", async () => {
     // Single-clicking row A then row B within the double-click interval must not be
     // misread as a double-click on B; B is selected and no directory navigation occurs.
@@ -140,17 +158,18 @@ describe("FileNavigator", () => {
   });
 
   it("should open the file when a file is double-clicked", async () => {
-    const entries: DirEntry[] = [{ name: "book.zip", is_directory: false, last_modified: 0 }];
+    // A PDF is a single document, not a browsable archive, so a double-click opens it.
+    const entries: DirEntry[] = [{ name: "book.pdf", is_directory: false, last_modified: 0 }];
     const preloadedState = createBasePreloadedState();
     preloadedState.read.explorer.entries = entries;
 
     renderWithProviders(<FileNavigator />, { preloadedState });
 
-    const rowButton = await screen.findByRole("button", { name: /book.zip/i });
+    const rowButton = await screen.findByRole("button", { name: /book.pdf/i });
     await user.dblClick(rowButton);
 
     await waitFor(() => {
-      expect(ReadReducer.setContainerFilePath).toHaveBeenCalledWith("/book.zip");
+      expect(ReadReducer.setContainerFilePath).toHaveBeenCalledWith("/book.pdf");
     });
     // A file double-click must not be treated as a directory navigation.
     expect(ReadReducer.updateExploreBasePath).not.toHaveBeenCalled();

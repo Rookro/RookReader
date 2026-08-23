@@ -112,6 +112,7 @@ impl ContainerState {
             pdf_render_config: PdfRenderConfig::default()
                 .set_target_height(settings.pdf_render_resolution_height),
             pdfium_library_path: settings.pdfium_library_path.clone(),
+            auto_descend_single_folder: settings.auto_descend_single_folder,
         };
 
         let container = create_container(path, config)?;

@@ -20,6 +20,9 @@ pub struct ContainerSettings {
     /// An optional path to the PDFium library, required for rendering PDF files.
     /// If `None`, the application may not be able to open PDF files.
     pub pdfium_library_path: Option<String>,
+    /// If `true`, opening an archive descends through single sub-folders to the first
+    /// level that holds pages.
+    pub auto_descend_single_folder: bool,
 }
 
 impl Default for ContainerSettings {
@@ -31,6 +34,7 @@ impl Default for ContainerSettings {
             pdf_render_resolution_height: 2000,
             image_cache_size_mib: 1024,
             pdfium_library_path: None,
+            auto_descend_single_folder: true,
         }
     }
 }

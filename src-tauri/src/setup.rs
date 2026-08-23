@@ -157,7 +157,8 @@ pub fn setup_container_settings(app: &App, settings: &AppSettings) -> error::Res
 /// the open `ImageLoader`.
 ///
 /// The other values (`max_image_height`, `image_resampling_method`,
-/// `pdf_render_resolution_height`, `enable_preview`) are stored for the **next**
+/// `pdf_render_resolution_height`, `enable_preview`, `auto_descend_single_folder`) are
+/// stored for the **next**
 /// `ContainerState::open_container` call: the already-open `ImageLoader` captured its
 /// resize height/method at construction, so changing them does not re-render the book
 /// currently on screen — it takes effect when a container is next opened.
@@ -179,6 +180,7 @@ pub fn apply_reader_settings_to_container(state: &mut AppState, settings: &AppSe
         settings.reader.rendering.pdf_render_resolution_height;
     container_settings.image_resampling_method =
         settings.reader.rendering.image_resampling_method.into();
+    container_settings.auto_descend_single_folder = settings.reader.auto_descend_single_folder;
 
     if cache_size_changed {
         state

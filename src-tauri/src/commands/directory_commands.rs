@@ -1,7 +1,8 @@
 use std::fs::read_dir;
+use std::path::Path;
 use tauri::ipc::Response;
 
-use crate::container::traits::Container;
+use crate::container::{archive_listing, archive_path, traits::Container};
 use crate::error::Result;
 
 /// Reads the contents of a directory and returns a list of its entries.
@@ -30,9 +31,28 @@ use crate::error::Result;
 /// * The specified `dir_path` does not exist or cannot be read.
 /// * An entry's file name contains invalid UTF-8.
 /// * Filesystem metadata for an entry cannot be accessed.
+///
+/// # Note
+///
+/// `dir_path` may also name a browsable archive (`.zip`, `.cbz`, `.rar`, `.cbr`) or a
+/// folder inside one, in which case the archive's folders at that level are returned.
+/// Files inside an archive are never listed: only a folder inside an archive can be
+/// opened as a book. The listing always mirrors the archive's real structure,
+/// independently of the `autoDescendSingleFolder` setting, which governs opening only.
 #[tauri::command()]
 pub async fn get_entries_in_dir(dir_path: &str) -> Result<Response> {
     log::debug!("Get the directory entries in {}", dir_path);
+
+    // Browsing inside an archive: either a folder within it, or the archive file itself
+    // (its root). Real filesystem paths are matched first by `archive_path::resolve`.
+    if let Some(location) = archive_path::resolve(dir_path) {
+        return list_archive_dirs(&location.archive, &location.inner_dir);
+    }
+    let path = Path::new(dir_path);
+    if path.is_file() && archive_path::is_navigable_archive(path) {
+        return list_archive_dirs(path, "");
+    }
+
     let mut buffer = Vec::new();
     for entry in read_dir(dir_path)? {
         let entry = match entry {
@@ -76,19 +96,68 @@ pub async fn get_entries_in_dir(dir_path: &str) -> Result<Response> {
         if (file_type.is_file() && <dyn Container>::is_supported_format(&file_name))
             || file_type.is_dir()
         {
-            // is_directory (1 byte)
-            buffer.push(if file_type.is_dir() { 1 } else { 0 });
-
-            // name (len: 4 bytes + content)
-            let name_bytes = file_name.as_bytes();
-            buffer.extend_from_slice(&(name_bytes.len() as u32).to_be_bytes());
-            buffer.extend_from_slice(name_bytes);
-
-            // last_modified (8 bytes)
-            buffer.extend_from_slice(&last_modified_timestamp_ms.to_be_bytes());
+            push_entry(
+                &mut buffer,
+                file_type.is_dir(),
+                &file_name,
+                last_modified_timestamp_ms,
+            );
         }
     }
     Ok(Response::new(buffer))
+}
+
+/// Encodes an archive's child folders in the same binary record format as the
+/// filesystem listing.
+///
+/// Every row carries the archive file's own modification time: a folder inside an
+/// archive has no timestamp of its own, so date sorting falls back to the archive's.
+///
+/// # Arguments
+///
+/// * `archive` - The archive file on disk.
+/// * `inner_dir` - The folder inside the archive; empty means the archive root.
+///
+/// # Returns
+///
+/// A `tauri::ipc::Response` holding the encoded folder rows.
+///
+/// # Errors
+///
+/// Returns an `Err` if the archive cannot be read.
+fn list_archive_dirs(archive: &Path, inner_dir: &str) -> Result<Response> {
+    let last_modified_timestamp_ms = archive
+        .metadata()
+        .and_then(|metadata| metadata.modified())
+        .map(|modified| {
+            modified
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_millis() as u64
+        })
+        .unwrap_or_default();
+
+    let mut buffer = Vec::new();
+    for name in archive_listing::list_child_dirs(archive, inner_dir)? {
+        push_entry(&mut buffer, true, &name, last_modified_timestamp_ms);
+    }
+    Ok(Response::new(buffer))
+}
+
+/// Appends one entry record to the binary listing buffer.
+///
+/// See [`get_entries_in_dir`] for the record layout.
+fn push_entry(buffer: &mut Vec<u8>, is_directory: bool, name: &str, last_modified_ms: u64) {
+    // is_directory (1 byte)
+    buffer.push(if is_directory { 1 } else { 0 });
+
+    // name (len: 4 bytes + content)
+    let name_bytes = name.as_bytes();
+    buffer.extend_from_slice(&(name_bytes.len() as u32).to_be_bytes());
+    buffer.extend_from_slice(name_bytes);
+
+    // last_modified (8 bytes)
+    buffer.extend_from_slice(&last_modified_ms.to_be_bytes());
 }
 
 #[cfg(test)]
@@ -224,6 +293,85 @@ mod tests {
         assert!(entries
             .iter()
             .any(|e| e.name == "archive.zip" && !e.is_directory));
+    }
+
+    /// Builds a ZIP with the given entry names and one dummy byte each.
+    fn create_test_zip(dir: &std::path::Path, names: &[&str]) -> std::path::PathBuf {
+        use std::io::Write;
+        use zip::write::{FileOptions, ZipWriter};
+
+        let zip_path = dir.join("nested.zip");
+        let mut zip = ZipWriter::new(fs::File::create(&zip_path).expect("create zip"));
+        for name in names {
+            zip.start_file(*name, FileOptions::<()>::default())
+                .expect("start entry");
+            zip.write_all(&[0u8]).expect("write entry");
+        }
+        zip.finish().expect("finish zip");
+        zip_path
+    }
+
+    #[tokio::test]
+    async fn test_get_entries_in_dir_lists_the_folders_at_an_archive_root() {
+        let temp_dir = TempDir::new().unwrap();
+        let zip_path = create_test_zip(
+            temp_dir.path(),
+            &[
+                "cover.png",
+                "ch1/001.png",
+                "ch2/001.png",
+                "ch1/deeper/002.png",
+            ],
+        );
+
+        let result = get_entries_in_dir(zip_path.to_string_lossy().as_ref())
+            .await
+            .unwrap();
+        let entries = parse_entries(&get_bytes_from_response(result));
+
+        // Folders only: pages are not books, and `deeper` belongs to the level below.
+        assert_eq!(
+            vec!["ch1".to_string(), "ch2".to_string()],
+            entries.iter().map(|e| e.name.clone()).collect::<Vec<_>>()
+        );
+        assert!(entries.iter().all(|e| e.is_directory));
+    }
+
+    #[tokio::test]
+    async fn test_get_entries_in_dir_lists_the_folders_inside_an_archive_folder() {
+        let temp_dir = TempDir::new().unwrap();
+        let zip_path = create_test_zip(temp_dir.path(), &["ch1/001.png", "ch1/deeper/002.png"]);
+
+        let inner = zip_path.join("ch1");
+        let result = get_entries_in_dir(inner.to_string_lossy().as_ref())
+            .await
+            .unwrap();
+        let entries = parse_entries(&get_bytes_from_response(result));
+
+        assert_eq!(1, entries.len());
+        assert!(entries[0].is_directory);
+        assert_eq!("deeper", entries[0].name);
+    }
+
+    #[tokio::test]
+    async fn test_get_entries_in_dir_reads_a_real_folder_named_like_an_archive() {
+        // A folder literally called `comic.zip` must still be listed from the filesystem.
+        let temp_dir = TempDir::new().unwrap();
+        let folder = temp_dir.path().join("comic.zip");
+        fs::create_dir(&folder).unwrap();
+        fs::create_dir(folder.join("ch1")).unwrap();
+        fs::File::create(folder.join("inner.zip")).unwrap();
+
+        let result = get_entries_in_dir(folder.to_string_lossy().as_ref())
+            .await
+            .unwrap();
+        let entries = parse_entries(&get_bytes_from_response(result));
+
+        assert_eq!(2, entries.len());
+        assert!(entries.iter().any(|e| e.is_directory && e.name == "ch1"));
+        assert!(entries
+            .iter()
+            .any(|e| !e.is_directory && e.name == "inner.zip"));
     }
 
     #[tokio::test]

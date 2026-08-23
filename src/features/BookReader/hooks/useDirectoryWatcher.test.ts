@@ -1,4 +1,4 @@
-import { watch } from "@tauri-apps/plugin-fs";
+import { exists, watch } from "@tauri-apps/plugin-fs";
 import { error } from "@tauri-apps/plugin-log";
 import { renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -29,6 +29,17 @@ describe("useDirectoryWatcher", () => {
     vi.mocked(useAppSelector).mockReturnValue(true);
 
     renderHook(() => useDirectoryWatcher(null, mockCallback));
+    expect(watch).not.toHaveBeenCalled();
+  });
+
+  // A path inside an archive has nothing on disk to watch.
+  it("should not setup watcher for a path that does not exist on disk", async () => {
+    vi.mocked(useAppSelector).mockReturnValue(true);
+    vi.mocked(exists).mockResolvedValueOnce(false);
+
+    renderHook(() => useDirectoryWatcher("/books/comic.zip/ch1", mockCallback));
+
+    await waitFor(() => expect(exists).toHaveBeenCalledWith("/books/comic.zip/ch1"));
     expect(watch).not.toHaveBeenCalled();
   });
 
@@ -91,6 +102,7 @@ describe("useDirectoryWatcher", () => {
     );
 
     const { unmount } = renderHook(() => useDirectoryWatcher("/test/path", mockCallback));
+    await waitFor(() => expect(watch).toHaveBeenCalled());
 
     // Unmount before the watch promise resolves, then resolve it.
     unmount();
@@ -117,6 +129,8 @@ describe("useDirectoryWatcher", () => {
     const { rerender } = renderHook(({ dir }) => useDirectoryWatcher(dir, mockCallback), {
       initialProps: { dir: "/path/a" },
     });
+
+    await waitFor(() => expect(watch).toHaveBeenCalled());
 
     // Change dirPath before the first watch resolves, then resolve the stale one.
     rerender({ dir: "/path/b" });

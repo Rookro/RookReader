@@ -47,7 +47,8 @@
       "imageResamplingMethod": "bilinear",
       "pdfRenderResolutionHeight": 2000
     },
-    "autoOpenAdjacentBook": "ask"
+    "autoOpenAdjacentBook": "ask",
+    "autoDescendSingleFolder": true
   },
   "history": {
     "recordReadingHistory": true

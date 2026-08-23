@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Added support for CBZ and CBR comic archives, which open as ZIP and RAR respectively. (#293)
 * Added bookmarks: save any number of positions in a book with one click from the reader toolbar, then jump back to them, rename them, or remove them from the new Bookmarks tab in the side pane. Works for both comics and EPUB novels, where a bookmark returns you to the exact position. (#298)
+* Added folder support inside ZIP and RAR archives, so each folder can be read as its own book. (#301)
+  * Each folder inside an archive is now a book of its own, and opening an archive shows only the pages sitting directly inside it. Archives without folders are unaffected.
+  * Double-click an archive in the File Navigator to step into it like a folder. Back, Forward, Up and the path box all work across the archive boundary, and next/previous book follows the archive's folders too.
+  * A new reader setting, "Open the folder inside an archive automatically" (on by default), opens the single folder an archive wraps its pages in, following nested single folders all the way down.
+  * A folder or archive with no readable pages is no longer recorded as an empty book. It reports "It contains no readable pages." and the File Navigator moves into it, so you can pick a folder inside.
+  * Bookmarks and reading positions are stored as page numbers, so any saved before this release may land on a different page in an archive that is now split into several books.
 
 ### Changed
 

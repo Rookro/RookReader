@@ -20,6 +20,7 @@ import { readingProgressChanged } from "../../store/actions";
 import { handleThunkError } from "../../store/thunkErrorHandler";
 import { createAppAsyncThunk } from "../../types/CustomAsyncThunk";
 import type { ErrorCode } from "../../types/Error";
+import { isInsideArchive } from "../../utils/ArchivePathUtils";
 
 /**
  * Creates a new bookshelf and adds it to the database.
@@ -136,7 +137,9 @@ export const addBookToBookshelf = createAppAsyncThunk(
 
       const bookId = await registerBook({
         filePath: bookPath,
-        itemType: entriesResult.is_directory ? "directory" : "file",
+        // A folder inside an archive is a folder to the user; same derivation as in
+        // the reader's openContainerFile.
+        itemType: entriesResult.is_directory || isInsideArchive(bookPath) ? "directory" : "file",
         totalPages: entriesResult.entries.length,
         displayName: fileName,
       });
