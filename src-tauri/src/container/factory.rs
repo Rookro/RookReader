@@ -96,6 +96,10 @@ pub fn create_container(path: &str, config: ContainerConfig) -> Result<Arc<dyn C
 
 /// Builds the container for one folder inside a browsable archive.
 ///
+/// When `auto_descend` is set and the requested folder holds no pages, a chain of single
+/// sub-folders is followed down to the level that does (see
+/// [`archive_listing::resolve_content_dir`]).
+///
 /// # Arguments
 ///
 /// * `archive` - The archive file on disk.
@@ -115,20 +119,44 @@ fn create_archive_container(
     inner_dir: &str,
     auto_descend: bool,
 ) -> Result<Arc<dyn Container>> {
+    let container = open_archive_at(archive, inner_dir)?;
+
+    // An empty container means this level holds no pages, which is the only case where
+    // descending can help — and it is the same condition `descend_to_content` tests. So
+    // the archive listing is read a second time only when it might change the answer,
+    // keeping the common open to a single pass.
+    if !auto_descend || !container.get_entries().is_empty() {
+        return Ok(container);
+    }
+
+    let content_dir = archive_listing::resolve_content_dir(archive, inner_dir)?;
+    if content_dir == inner_dir {
+        return Ok(container);
+    }
+    open_archive_at(archive, &content_dir)
+}
+
+/// Opens one folder inside a browsable archive, exactly as asked.
+///
+/// # Arguments
+///
+/// * `archive` - The archive file on disk.
+/// * `inner_dir` - The folder inside the archive; empty means the archive root.
+///
+/// # Returns
+///
+/// A `Result` containing a shared pointer to the created `Container`.
+///
+/// # Errors
+///
+/// Returns an `Err` if the archive format is not browsable or the underlying
+/// constructor fails.
+fn open_archive_at(archive: &Path, inner_dir: &str) -> Result<Arc<dyn Container>> {
     let path = archive.to_string_lossy();
     let ext = archive
         .extension()
         .map(|ext| ext.to_string_lossy().to_lowercase())
         .unwrap_or_default();
-
-    // An extra listing pass, cheap next to opening the book, and only when it can help:
-    // a level that already holds pages is returned unchanged.
-    let inner_dir = if auto_descend {
-        archive_listing::resolve_content_dir(archive, inner_dir)?
-    } else {
-        inner_dir.to_string()
-    };
-    let inner_dir = inner_dir.as_str();
 
     match ext.as_str() {
         "zip" | "cbz" => Ok(Arc::new(ZipContainer::new(&path, inner_dir)?)),
@@ -255,6 +283,22 @@ mod tests {
         .expect("descends to the pages");
 
         assert_eq!(vec!["001.png".to_string()], *container.get_entries());
+    }
+
+    #[test]
+    fn test_create_container_keeps_the_level_when_descending_cannot_help() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let zip_path = create_test_zip(dir.path(), &["ch1/001.png", "ch2/001.png"]);
+
+        let container = create_container(
+            zip_path.to_string_lossy().as_ref(),
+            ContainerConfig::default(),
+        )
+        .expect("opens the root");
+
+        // Two sub-folders, so there is nothing to descend into: the empty root is
+        // returned and the command layer rejects it as a container with no pages.
+        assert!(container.get_entries().is_empty());
     }
 
     #[test]
