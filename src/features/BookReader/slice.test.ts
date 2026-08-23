@@ -23,6 +23,7 @@ import readReducer, {
   setOpenOrigin,
   setPendingInitialPosition,
   setSearchText,
+  setSpreadDisplayed,
   setSpreadShifted,
   updateExploreBasePath,
 } from "./slice";
@@ -58,6 +59,24 @@ describe("ReadReducer", () => {
       } as RootState["read"];
       const state = readReducer(initialState, setSpreadShifted(true));
       expect(state.containerFile.isSpreadShifted).toBe(true);
+    });
+
+    // Verify that the displayed-spread flag is stored as given
+    it("should handle setSpreadDisplayed", () => {
+      const initialState = {
+        containerFile: { isSpreadDisplayed: false },
+      } as RootState["read"];
+      const state = readReducer(initialState, setSpreadDisplayed(true));
+      expect(state.containerFile.isSpreadDisplayed).toBe(true);
+    });
+
+    // Verify that opening another book never leaves a stale spread flag behind
+    it("should clear the displayed-spread flag on setContainerFilePath", () => {
+      const initialState = {
+        containerFile: { history: [], historyIndex: -1, isSpreadDisplayed: true },
+      } as unknown as RootState["read"];
+      const state = readReducer(initialState, setContainerFilePath("/books/a.zip"));
+      expect(state.containerFile.isSpreadDisplayed).toBe(false);
     });
 
     // Verify that page turns never change the pairing

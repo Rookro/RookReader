@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * The pairing is now worked out from where each page falls in the printed book, so it no longer depends on whether you reached a page by turning, by dragging the slider, from the page list, or from a bookmark.
   * Books containing a double-page illustration now work out on their own whether the archive starts with the cover, and pair every page correctly without being told.
   * For books that offer no such clue, a new toolbar button shifts the pairing by one page and resets it again. The shift is remembered the next time you open the book.
+* The page list in the side pane now highlights both pages shown in two-page spread mode, instead of only the first one. (#302)
 
 ### Fixed
 

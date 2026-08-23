@@ -153,6 +153,8 @@ export const readSlice = createSlice({
        * cover setting, to line up an archive whose pages are offset.
        */
       isSpreadShifted: false,
+      /** Whether the reader is currently showing two pages side by side. */
+      isSpreadDisplayed: false,
       cfi: null as string | null,
       isNovel: false,
       isLoading: false,
@@ -191,6 +193,7 @@ export const readSlice = createSlice({
       }
       state.containerFile.index = 0;
       state.containerFile.isSpreadShifted = false;
+      state.containerFile.isSpreadDisplayed = false;
       state.containerFile.isLoading = true;
     },
     /**
@@ -231,6 +234,16 @@ export const readSlice = createSlice({
      */
     setSpreadShifted: (state, action: PayloadAction<boolean>) => {
       state.containerFile.isSpreadShifted = action.payload;
+    },
+    /**
+     * Records whether the reader is currently showing a two-page spread, so the page
+     * list can highlight both displayed pages.
+     *
+     * @param state - The current Redux state slice.
+     * @param action - Payload containing whether two pages are on screen.
+     */
+    setSpreadDisplayed: (state, action: PayloadAction<boolean>) => {
+      state.containerFile.isSpreadDisplayed = action.payload;
     },
     /**
      * Sets the base path for the file explorer and updates history.
@@ -365,6 +378,7 @@ export const readSlice = createSlice({
         state.containerFile.isLoading = true;
         state.containerFile.index = 0;
         state.containerFile.isSpreadShifted = false;
+        state.containerFile.isSpreadDisplayed = false;
         state.containerFile.cfi = null;
         state.containerFile.error = null;
       })
@@ -417,6 +431,7 @@ export const readSlice = createSlice({
         state.containerFile.isLoading = false;
         state.containerFile.index = 0;
         state.containerFile.isSpreadShifted = false;
+        state.containerFile.isSpreadDisplayed = false;
         state.containerFile.cfi = null;
         state.containerFile.pendingInitialPosition = null;
         // Drop every trace of the previously opened book. The reader is now at the path
@@ -436,6 +451,7 @@ export const {
   setPendingInitialPosition,
   setImageIndex,
   setSpreadShifted,
+  setSpreadDisplayed,
   setExploreBasePath,
   setSearchText,
   goBackContainerHistory,

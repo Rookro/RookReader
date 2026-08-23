@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getImageDimensions } from "../../../bindings/ContainerCommands";
 import type { Image } from "../../../types/Image";
-import { setImageIndex, setSpreadShifted } from "../slice";
+import { setImageIndex, setSpreadDisplayed, setSpreadShifted } from "../slice";
 import * as ImageUtils from "../utils/ImageUtils";
 import { useViewerController } from "./useViewerController";
 
@@ -86,6 +86,13 @@ describe("useViewerController", () => {
   /** Makes resolveUnit report a single-page unit for every index. */
   const resolveSinglePages = () => {
     mockedResolveUnit.mockReturnValue({ isSpread: false, nextIndexIncrement: 1 });
+  };
+
+  /** Asserts no page move happened, ignoring the spread flag the hook always publishes. */
+  const expectNoPageMove = () => {
+    expect(mockDispatch).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: setImageIndex.type }),
+    );
   };
 
   beforeEach(() => {
@@ -220,6 +227,39 @@ describe("useViewerController", () => {
     expect(result.current.displayedLayout).toEqual(mockLayout);
   });
 
+  // Verify that a spread on screen is published to the store for the page list
+  it("should dispatch setSpreadDisplayed(true) while a spread is displayed", async () => {
+    mockedResolveUnit.mockReturnValue({ isSpread: true, nextIndexIncrement: 2 });
+    mockedFetchImageBlob.mockResolvedValue({} as Image);
+    mockedCreateImageCacheItem.mockReturnValue({ fullUrl: "url" } as ImageUtils.ImageCacheItem);
+
+    renderHook(() =>
+      useViewerController(
+        "path",
+        mockEntries,
+        0,
+        false,
+        { ...mockSettings, isTwoPagedView: true },
+        mockDispatch,
+      ),
+    );
+
+    await waitFor(() => expect(mockDispatch).toHaveBeenCalledWith(setSpreadDisplayed(true)));
+  });
+
+  // Verify that a single-page layout is published as such
+  it("should dispatch setSpreadDisplayed(false) while a single page is displayed", async () => {
+    resolveSinglePages();
+    mockedFetchImageBlob.mockResolvedValue({} as Image);
+    mockedCreateImageCacheItem.mockReturnValue({ fullUrl: "url" } as ImageUtils.ImageCacheItem);
+
+    renderHook(() =>
+      useViewerController("path", mockEntries, 0, false, mockSettings, mockDispatch),
+    );
+
+    await waitFor(() => expect(mockDispatch).toHaveBeenCalledWith(setSpreadDisplayed(false)));
+  });
+
   // Verify that fetching is not performed for images that are already cached
   it("should handle already cached images", async () => {
     mockedFetchImageBlob.mockResolvedValue({} as Image);
@@ -282,7 +322,7 @@ describe("useViewerController", () => {
       });
 
       result.current.moveForward();
-      expect(mockDispatch).not.toHaveBeenCalled();
+      expectNoPageMove();
     });
 
     // Verify that moving forward does nothing if entries are empty
@@ -291,7 +331,7 @@ describe("useViewerController", () => {
         useViewerController("path", [], 0, false, mockSettings, mockDispatch),
       );
       result.current.moveForward();
-      expect(mockDispatch).not.toHaveBeenCalled();
+      expectNoPageMove();
     });
 
     // Verify that the forward boundary callback fires at the last page (instead of dispatching)
@@ -315,7 +355,7 @@ describe("useViewerController", () => {
       await waitFor(() => expect(result.current.isImageLoading).toBe(false));
 
       result.current.moveForward();
-      expect(mockDispatch).not.toHaveBeenCalled();
+      expectNoPageMove();
       expect(onForwardBoundary).toHaveBeenCalledTimes(1);
     });
   });
@@ -345,7 +385,7 @@ describe("useViewerController", () => {
       );
 
       result.current.moveBack();
-      expect(mockDispatch).not.toHaveBeenCalled();
+      expectNoPageMove();
     });
 
     // Verify that moving back does nothing if entries are empty
@@ -354,7 +394,7 @@ describe("useViewerController", () => {
         useViewerController("path", [], 0, false, mockSettings, mockDispatch),
       );
       result.current.moveBack();
-      expect(mockDispatch).not.toHaveBeenCalled();
+      expectNoPageMove();
     });
 
     // Verify that the backward boundary callback fires at the first page (instead of dispatching)
@@ -374,7 +414,7 @@ describe("useViewerController", () => {
       );
 
       result.current.moveBack();
-      expect(mockDispatch).not.toHaveBeenCalled();
+      expectNoPageMove();
       expect(onBackwardBoundary).toHaveBeenCalledTimes(1);
     });
   });
@@ -827,7 +867,7 @@ describe("useViewerController", () => {
 
       rerender({ index: 1 });
       await waitFor(() => expect(mockedBuildUnitChain).toHaveBeenCalled());
-      expect(mockDispatch).not.toHaveBeenCalled();
+      expectNoPageMove();
     });
 
     // Verify a restored page off the natural pairing shifts the book, rather than snapping

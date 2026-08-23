@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getImageDimensions, requestPreloadAround } from "../../../bindings/ContainerCommands";
 import type { AppDispatch } from "../../../store/store";
 import type { Image } from "../../../types/Image";
-import { setImageIndex, setSpreadShifted } from "../slice";
+import { setImageIndex, setSpreadDisplayed, setSpreadShifted } from "../slice";
 import {
   buildSinglePageLayout,
   buildUnitChain,
@@ -320,6 +320,14 @@ export const useViewerController = (
   }, [index, entries, settings.preloadPageCount]);
 
   const displayedLayout = layoutState?.path === containerPath ? layoutState?.layout : null;
+
+  // Publish what is actually on screen so the page list can highlight both pages of a
+  // spread. Driven by the resolved layout rather than the unit decision, so a spread
+  // that degraded to a single page is reported as one page.
+  const isSpreadDisplayed = displayedLayout?.isSpread ?? false;
+  useEffect(() => {
+    dispatch(setSpreadDisplayed(isSpreadDisplayed));
+  }, [isSpreadDisplayed, dispatch]);
 
   const goTo = useCallback(
     (nextIndex: number) => {

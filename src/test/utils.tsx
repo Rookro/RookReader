@@ -49,6 +49,7 @@ export function createBasePreloadedState(): RootState {
         entries: [],
         index: 0,
         isSpreadShifted: false,
+        isSpreadDisplayed: false,
         isNovel: false,
         isLoading: false,
         isDirectory: false,
