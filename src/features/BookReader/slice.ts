@@ -8,7 +8,7 @@ import type { BookWithState } from "../../domain/book/schema";
 import { handleThunkError } from "../../store/thunkErrorHandler";
 import { createAppAsyncThunk } from "../../types/CustomAsyncThunk";
 import type { DirEntry } from "../../types/DirEntry";
-import { ErrorCode } from "../../types/Error";
+import { CommandError, ErrorCode } from "../../types/Error";
 import { convertEntriesInDir } from "../../utils/DirEntryUtils";
 import type { OpenOrigin } from "./types/OpenOrigin";
 import { goBackHistory, goForwardHistory, pushHistory } from "./utils/navigationHistory";
@@ -75,6 +75,15 @@ export const openContainerFile = createAppAsyncThunk(
         book: book,
       };
     } catch (e) {
+      // A container with no readable pages is not a book, but the path itself is real.
+      // Move the navigator into it so its folders can be opened, rather than leaving the
+      // previously opened book on screen and stranding the user there — dropping an
+      // archive whose pages all live in sub-folders would otherwise be a dead end.
+      // Only folders and browsable archives can be empty this way, and both list their
+      // contents, so entering the path is always meaningful.
+      if (e instanceof CommandError && e.code === ErrorCode.emptyContainer) {
+        dispatch(updateExploreBasePath({ dirPath: path }));
+      }
       return handleThunkError(e, `Failed to openContainerFile(${path}).`, rejectWithValue);
     }
   },
@@ -399,6 +408,12 @@ export const readSlice = createSlice({
         state.containerFile.isSpreadShifted = false;
         state.containerFile.cfi = null;
         state.containerFile.pendingInitialPosition = null;
+        // Drop every trace of the previously opened book. The reader is now at the path
+        // that failed to open, showing no pages, instead of still showing the old book's
+        // title, type and reading state.
+        state.containerFile.book = null;
+        state.containerFile.isDirectory = false;
+        state.containerFile.isNovel = false;
         state.containerFile.error = action.payload ?? null;
       });
   },
