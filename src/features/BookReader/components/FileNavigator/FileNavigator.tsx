@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import { List, type RowComponentProps, useListCallbackRef } from "react-window";
 import { type RootState, useAppDispatch, useAppSelector } from "../../../../store/store";
 import type { DirEntry } from "../../../../types/DirEntry";
+import { isNavigableArchiveName } from "../../../../utils/ArchivePathUtils";
 import SidePanelHeader from "../../../SidePane/components/SidePanelHeader";
 import { useDirectoryWatcher } from "../../hooks/useDirectoryWatcher";
 import { useFileSelection } from "../../hooks/useFileSelection";
@@ -16,7 +17,6 @@ import {
   setSearchText,
   updateExploreBasePath,
 } from "../../slice";
-import { isInsideArchive, isNavigableArchiveName } from "../../utils/ArchivePathUtils";
 import { andSearch, sortBy } from "../../utils/FileNavigatorUtils";
 import { ItemRow } from "./ItemRow";
 import NavBar from "./NavBar";
@@ -98,8 +98,6 @@ export default function FileListViewer() {
       .sort((a, b) => sortBy(a, b, fileNavigatorSettings.sortOrder));
   }, [entries, fileNavigatorSettings.sortOrder, searchText]);
 
-  const currentPath = history[historyIndex];
-
   const updateEntriesCallback = useCallback(() => {
     if (history[historyIndex]) {
       dispatch(updateExploreBasePath({ dirPath: history[historyIndex], forceUpdate: true }));
@@ -110,12 +108,7 @@ export default function FileListViewer() {
     updateEntriesCallback();
   }, [updateEntriesCallback]);
 
-  // A folder inside an archive has no filesystem path to watch; the archive file
-  // itself does, so only inner paths are skipped.
-  useDirectoryWatcher(
-    currentPath && !isInsideArchive(currentPath) ? currentPath : null,
-    updateEntriesCallback,
-  );
+  useDirectoryWatcher(history[historyIndex], updateEntriesCallback);
   useFileSelection(fileHistory, fileHistoryIndex, filteredSortedEntries, setSelectedIndex);
 
   // Scroll to make the selected item visible

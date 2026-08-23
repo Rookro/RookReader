@@ -1,4 +1,4 @@
-import { watch } from "@tauri-apps/plugin-fs";
+import { exists, watch } from "@tauri-apps/plugin-fs";
 import { error } from "@tauri-apps/plugin-log";
 import { useEffect, useRef } from "react";
 import { useAppSelector } from "../../../store/store";
@@ -36,6 +36,14 @@ export function useDirectoryWatcher(dirPath: string | null, callback: () => void
       }
 
       try {
+        // A path inside an archive (`comic.zip/ch1`) has nothing on disk to watch.
+        // Asking the filesystem is what tells it apart from a real folder that merely
+        // happens to be named `comic.zip`, whose children must keep being watched — the
+        // same "a real path wins" rule the backend resolves archive paths by.
+        if (!(await exists(dirPath))) {
+          return;
+        }
+
         const unwatch = await watch(
           dirPath,
           (event) => {
