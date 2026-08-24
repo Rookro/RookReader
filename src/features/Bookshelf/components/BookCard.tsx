@@ -136,7 +136,8 @@ export default function BookCard({
               sx={{
                 position: "absolute",
                 top: 4,
-                right: 4,
+                // Left, so it never sits under the "Reading" chip in the right corner.
+                left: 4,
                 zIndex: 2,
                 backgroundColor: "background.paper",
                 borderRadius: "50%",

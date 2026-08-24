@@ -47,7 +47,7 @@ export default function BookDeleteDialog({ openDialog, books, onClose }: BookDel
 
   return (
     <Dialog open={openDialog} onClose={onClose}>
-      <DialogTitle>{t("bookshelf.book-deletion.title")}</DialogTitle>
+      <DialogTitle>{t("bookshelf.book-deletion.title", { count: books.length })}</DialogTitle>
 
       <DialogContent>
         <DialogContentText>

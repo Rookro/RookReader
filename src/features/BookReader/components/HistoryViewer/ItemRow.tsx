@@ -9,7 +9,7 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import { type CSSProperties, memo, useCallback, useState } from "react";
+import { type CSSProperties, memo, useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ReadBook } from "../../../../domain/book/schema";
 import { useAppDispatch } from "../../../../store/store";
@@ -37,7 +37,16 @@ export const ItemRow = memo(function ItemRow({
   onClick?: (e: React.MouseEvent<HTMLElement>, entry: ReadBook, index: number) => void;
   style?: CSSProperties;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+
+  // The backend stores this as a naive UTC timestamp with no offset, so mark it as
+  // UTC before formatting it for the active locale.
+  const lastOpenedAt = useMemo(() => {
+    const parsed = new Date(`${entry.last_opened_at}Z`);
+    return Number.isNaN(parsed.getTime())
+      ? entry.last_opened_at
+      : parsed.toLocaleString(i18n.language);
+  }, [entry.last_opened_at, i18n.language]);
   const dispatch = useAppDispatch();
   const [contextMenu, setContextMenu] = useState<{ mouseX: number; mouseY: number } | null>(null);
 
@@ -80,7 +89,9 @@ export const ItemRow = memo(function ItemRow({
         title={
           <>
             <Typography variant="inherit">{entry.file_path}</Typography>
-            <Typography variant="inherit">{entry.last_opened_at}</Typography>
+            <Typography variant="inherit">
+              {t("book-reader.history-viewer.last-opened-at", { date: lastOpenedAt })}
+            </Typography>
           </>
         }
         followCursor

@@ -86,7 +86,7 @@ export default function FloatingActionBar({
           {t("bookshelf.tag.set-tags")}
         </Button>
         <Button size="small" color="inherit" startIcon={<Delete />} onClick={onDelete}>
-          {t("bookshelf.remove-book")}
+          {t("bookshelf.remove-book", { count: selectionCount })}
         </Button>
         <Tooltip title={t("bookshelf.selection.clear")}>
           <IconButton size="small" color="inherit" onClick={onClear} aria-label="clear-selection">

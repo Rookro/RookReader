@@ -96,7 +96,9 @@ export default function BookContextMenu({
         <ListItemIcon>
           <Delete color="error" />
         </ListItemIcon>
-        <ListItemText>{t("bookshelf.remove-book")}</ListItemText>
+        <ListItemText>
+          {t("bookshelf.remove-book", { count: getTargetBooks().length })}
+        </ListItemText>
       </MenuItem>
     </Menu>
   );

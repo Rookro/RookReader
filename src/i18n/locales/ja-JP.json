@@ -22,6 +22,7 @@
       "no-search-results": "\"{{searchText}}\" に一致するファイルはありません。"
     },
     "history-viewer": {
+      "last-opened-at": "最終閲覧: {{date}}",
       "title": "履歴",
       "menu": {
         "open": "開く",
@@ -77,7 +78,8 @@
   "bookshelf": {
     "title": "本棚",
     "delete": "削除",
-    "remove-book": "本を削除",
+    "remove-book_one": "本を削除",
+    "remove-book_other": "本を削除",
     "collection": {
       "title": "コレクション",
       "create": "コレクションを作成",
@@ -153,7 +155,8 @@
       "selected-files": "選択されたファイル ({{count}}):"
     },
     "book-deletion": {
-      "title": "本当に削除しますか？",
+      "title_one": "本当に削除しますか？",
+      "title_other": "{{count}} 冊を本当に削除しますか？",
       "description": "<bold>「{{bookName}}」</bold>を<bold>「{{bookshelfName}}」</bold>から削除しようとしています。この操作は取り消すことができません。",
       "description-multiple": "<bold>{{count}} 冊の本</bold>を<bold>「{{bookshelfName}}」</bold>から削除しようとしています。この操作は取り消すことができません。",
       "cancel-button": "キャンセル",
