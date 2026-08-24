@@ -68,7 +68,9 @@ export default function About() {
       <Stack direction="column" spacing={1}>
         <Typography variant="h3">{appName}</Typography>
         <Stack direction="row" spacing={2}>
-          <Typography variant="h5">version {appVersion}</Typography>
+          <Typography variant="h5">
+            {t("settings.about.version", { version: appVersion })}
+          </Typography>
           <Button
             variant="outlined"
             size="small"

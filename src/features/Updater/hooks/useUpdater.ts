@@ -103,7 +103,7 @@ export function useUpdater() {
     }
 
     setIsUpdating(true);
-    setUpdateStatus(t("updater.downloading", { progress: 0 }));
+    setUpdateStatus(t("updater.downloading"));
 
     try {
       let downloaded = 0;
@@ -114,7 +114,7 @@ export function useUpdater() {
           case "Started":
             contentLength = event.data.contentLength || 0;
             debug(`Start downloading update...(total: ${contentLength})`);
-            setUpdateStatus(t("updater.downloading", { progress: 0 }));
+            setUpdateStatus(t("updater.downloading"));
             break;
           case "Progress":
             downloaded += event.data.chunkLength;
@@ -122,7 +122,6 @@ export function useUpdater() {
               const percent = Math.round((downloaded / contentLength) * 100);
               debug(`Downloading update... (downloaded: ${downloaded}, progress: ${percent}%)`);
               setUpdateProgress(percent);
-              setUpdateStatus(t("updater.downloading", { progress: percent }));
             }
             break;
           case "Finished":

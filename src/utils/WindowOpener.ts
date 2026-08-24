@@ -3,12 +3,14 @@ import { error } from "@tauri-apps/plugin-log";
 
 /**
  * Opens the settings window.
+ *
+ * @param title - Localized title shown in the window's title bar.
  */
-export function openSettingsWindow() {
+export function openSettingsWindow(title: string) {
   try {
     const settingsWindow = new WebviewWindow("settings", {
       url: "/#/settings",
-      title: "Settings",
+      title,
       parent: "main",
       width: 940,
       height: 450,

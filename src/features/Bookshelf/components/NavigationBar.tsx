@@ -47,10 +47,13 @@ export default function NavigationBar() {
 
   const [isAddBookDialogOpen, setIsAddBookDialogOpen] = useState(false);
 
-  const handleSettingsClicked = useCallback(async (_e: React.MouseEvent<HTMLButtonElement>) => {
-    debug("Settings button clicked in bookshelf.");
-    openSettingsWindow();
-  }, []);
+  const handleSettingsClicked = useCallback(
+    async (_e: React.MouseEvent<HTMLButtonElement>) => {
+      debug("Settings button clicked in bookshelf.");
+      openSettingsWindow(t("common.settings"));
+    },
+    [t],
+  );
 
   const handleBackToBookshelf = useCallback(
     (e: React.MouseEvent) => {

@@ -344,6 +344,7 @@
     "about": {
       "tab-name": "About",
       "title": "About",
+      "version": "Version {{version}}",
       "project-page": "Project page",
       "updater": {
         "check": "Check for updates",
@@ -384,7 +385,7 @@
   },
   "updater": {
     "not-available": "Your application is up to date.",
-    "downloading": "Downloading: {{progress}}%",
+    "downloading": "Downloading…",
     "installing": "Installing…",
     "restart": "The application will automatically restart to apply the update.",
     "checking-error": "An error occurred while checking for updates.\n{{error}}",

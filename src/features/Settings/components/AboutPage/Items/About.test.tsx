@@ -21,7 +21,7 @@ describe("About", () => {
 
     await waitFor(() => {
       expect(screen.getByText("Test Reader")).toBeInTheDocument();
-      expect(screen.getByText(/version 2.0.0/i)).toBeInTheDocument();
+      expect(screen.getByText("Version 2.0.0")).toBeInTheDocument();
     });
   });
 

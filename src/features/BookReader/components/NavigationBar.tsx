@@ -145,10 +145,13 @@ export default function NavigationBar() {
     [dispatch, book, currentBookmark, isNovel, entries, index, cfi, t],
   );
 
-  const handleSettingsClicked = useCallback(async (_e: React.MouseEvent<HTMLButtonElement>) => {
-    debug("handleSettingsClicked");
-    openSettingsWindow();
-  }, []);
+  const handleSettingsClicked = useCallback(
+    async (_e: React.MouseEvent<HTMLButtonElement>) => {
+      debug("handleSettingsClicked");
+      openSettingsWindow(t("common.settings"));
+    },
+    [t],
+  );
 
   const handleContextMenu = useCallback((e: React.MouseEvent<HTMLElement>) => {
     e.stopPropagation();
