@@ -17,7 +17,8 @@ import {
 } from "@mui/material";
 import { dirname, homeDir } from "@tauri-apps/api/path";
 import { warn } from "@tauri-apps/plugin-log";
-import React, { useCallback, useEffect, useRef } from "react";
+import type React from "react";
+import { useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppDispatch, useAppSelector } from "../../../../store/store";
 import type { SortOrder } from "../../../../types/AppSettings";
@@ -41,10 +42,6 @@ export default function NavBar() {
   const fileNavigatorSettings = useAppSelector((state) => state.settings.fileNavigator);
   const dispatch = useAppDispatch();
 
-  const [width, setWidth] = React.useState(0);
-
-  const navButtonsRef = useRef<HTMLElement>(null);
-
   const currentPath = history[historyIndex] ?? "";
 
   const setDirParh = useCallback(
@@ -63,21 +60,6 @@ export default function NavBar() {
       const dirPath = historyIndex === -1 ? undefined : history[historyIndex];
       setDirParh(dirPath);
     }
-
-    const element = navButtonsRef.current;
-    if (!element) {
-      return;
-    }
-    const observer = new ResizeObserver(() => {
-      setWidth(element?.offsetWidth ?? 0);
-    });
-    observer.observe(element);
-
-    return () => {
-      if (element) {
-        observer.unobserve(element);
-      }
-    };
   }, [entries.length, historyIndex, history, setDirParh]);
 
   const formAction = useCallback(
@@ -179,8 +161,10 @@ export default function NavBar() {
         />
       </Box>
       <Box
-        ref={navButtonsRef}
         sx={{
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "center",
           "& .MuiIconButton-root": {
             color: (theme) => theme.palette.primary.main,
           },
@@ -222,27 +206,25 @@ export default function NavBar() {
             <Refresh />
           </IconButton>
         </Tooltip>
-        {width >= 310 && (
-          <Select
-            size="small"
-            defaultValue={fileNavigatorSettings.sortOrder}
-            sx={{ minWidth: "100px" }}
-            onChange={handleSortOrderChanged}
-          >
-            <MenuItem value={"name_asc"}>
-              {t("book-reader.file-navigator.sort-order.name-asc")}
-            </MenuItem>
-            <MenuItem value={"name_desc"}>
-              {t("book-reader.file-navigator.sort-order.name-desc")}
-            </MenuItem>
-            <MenuItem value={"date_asc"}>
-              {t("book-reader.file-navigator.sort-order.date-asc")}
-            </MenuItem>
-            <MenuItem value={"date_desc"}>
-              {t("book-reader.file-navigator.sort-order.date-desc")}
-            </MenuItem>
-          </Select>
-        )}
+        <Select
+          size="small"
+          value={fileNavigatorSettings.sortOrder}
+          sx={{ minWidth: "100px" }}
+          onChange={handleSortOrderChanged}
+        >
+          <MenuItem value={"name_asc"}>
+            {t("book-reader.file-navigator.sort-order.name-asc")}
+          </MenuItem>
+          <MenuItem value={"name_desc"}>
+            {t("book-reader.file-navigator.sort-order.name-desc")}
+          </MenuItem>
+          <MenuItem value={"date_asc"}>
+            {t("book-reader.file-navigator.sort-order.date-asc")}
+          </MenuItem>
+          <MenuItem value={"date_desc"}>
+            {t("book-reader.file-navigator.sort-order.date-desc")}
+          </MenuItem>
+        </Select>
       </Box>
       <OutlinedInput
         type="search"

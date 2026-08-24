@@ -178,7 +178,7 @@ export default function NavigationBar() {
               size="small"
               autoWidth
               sx={{ marginX: 1 }}
-              defaultValue={bookshelfSettings.sortOrder}
+              value={bookshelfSettings.sortOrder}
               onChange={handleSortOrderChanged}
             >
               <MenuItem value="name_asc">

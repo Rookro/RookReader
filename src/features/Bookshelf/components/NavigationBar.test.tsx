@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import i18n from "../../../i18n/config";
@@ -8,6 +8,7 @@ import {
   renderWithProviders,
 } from "../../../test/utils";
 import { openSettingsWindow } from "../../../utils/WindowOpener";
+import { setSettings } from "../../Settings/slice";
 import NavigationBar from "./NavigationBar";
 
 // Mock WindowOpener
@@ -164,5 +165,32 @@ describe("NavigationBar", () => {
 
     expect(store.getState().series.isEditSeriesOrderDialogOpen).toBe(true);
     expect(store.getState().series.editSeriesOrderTargetId).toBe(1);
+  });
+  it("should reflect the stored sort order rather than only its initial value", () => {
+    const preloadedState = createBasePreloadedState();
+    preloadedState.settings.bookshelf.sortOrder = "date_desc";
+
+    renderWithProviders(<NavigationBar />, { preloadedState });
+
+    expect(screen.getByRole("combobox")).toHaveTextContent(i18n.t("bookshelf.sort.date-desc"));
+  });
+
+  it("should follow the store when the sort order changes elsewhere", async () => {
+    const { store } = renderWithProviders(<NavigationBar />, {
+      preloadedState: createBasePreloadedState(),
+    });
+    expect(screen.getByRole("combobox")).toHaveTextContent(i18n.t("bookshelf.sort.name-asc"));
+
+    // Stands in for the settings window writing a new sort order.
+    const settings = store.getState().settings;
+    act(() => {
+      store.dispatch(
+        setSettings({ ...settings, bookshelf: { ...settings.bookshelf, sortOrder: "date_asc" } }),
+      );
+    });
+
+    await waitFor(() =>
+      expect(screen.getByRole("combobox")).toHaveTextContent(i18n.t("bookshelf.sort.date-asc")),
+    );
   });
 });
