@@ -5,6 +5,7 @@
     "up": "上の階層へ",
     "refresh": "再読み込み",
     "settings": "設定",
+    "cancel": "キャンセル",
     "close": "閉じる"
   },
   "book-reader": {
@@ -88,6 +89,10 @@
       "no-collections-available": "利用可能なコレクションがありません。",
       "ok-button": "決定",
       "cancel-button": "キャンセル",
+      "deletion": {
+        "title": "このコレクションを削除しますか？",
+        "description": "「{{name}}」を削除します。中の本はライブラリーに残ります。この操作は取り消せません。"
+      },
       "creation": {
         "title": "コレクションを作成",
         "name-placeholder": "コレクション名",
@@ -109,6 +114,10 @@
         "creation-button": "作成",
         "cancel-button": "キャンセル"
       },
+      "deletion": {
+        "title": "このタグを削除しますか？",
+        "description": "「{{name}}」を、付いているすべての本から取り外します。この操作は取り消せません。"
+      },
       "set": {
         "title": "タグを設定",
         "no-tags-available": "利用可能なタグがありません。",
@@ -129,6 +138,10 @@
         "none": "シリーズなし",
         "search-placeholder": "シリーズ名で検索…",
         "no-search-results": "\"{{searchText}}\" に一致するシリーズはありません。"
+      },
+      "ungroup-confirm": {
+        "title": "このシリーズを解除しますか？",
+        "description": "「{{name}}」のまとまりを解除し、本を個別に表示します。本自体は削除されません。"
       },
       "edit-order": {
         "title": "シリーズの並び替え"

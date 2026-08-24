@@ -5,6 +5,7 @@
     "up": "Up one level",
     "refresh": "Refresh",
     "settings": "Settings",
+    "cancel": "Cancel",
     "close": "Close"
   },
   "book-reader": {
@@ -88,6 +89,10 @@
       "no-collections-available": "No collections available.",
       "ok-button": "OK",
       "cancel-button": "Cancel",
+      "deletion": {
+        "title": "Delete this collection?",
+        "description": "\"{{name}}\" will be deleted. The books inside it stay in your library. This action cannot be undone."
+      },
       "creation": {
         "title": "Create a Collection",
         "name-placeholder": "Collection name",
@@ -109,6 +114,10 @@
         "creation-button": "Create",
         "cancel-button": "Cancel"
       },
+      "deletion": {
+        "title": "Delete this tag?",
+        "description": "\"{{name}}\" will be removed from every book it is attached to. This action cannot be undone."
+      },
       "set": {
         "title": "Set Tags",
         "no-tags-available": "No tags available.",
@@ -129,6 +138,10 @@
         "none": "No series",
         "search-placeholder": "Search series…",
         "no-search-results": "No results for \"{{searchText}}\"."
+      },
+      "ungroup-confirm": {
+        "title": "Ungroup this series?",
+        "description": "\"{{name}}\" will be ungrouped and its books shown individually. The books themselves are not deleted."
       },
       "edit-order": {
         "title": "Edit Series Order"

@@ -1,5 +1,5 @@
 import { error } from "@tauri-apps/plugin-log";
-import { fireEvent, screen } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as SeriesCommand from "../../../bindings/SeriesCommands";
@@ -52,14 +52,28 @@ describe("SeriesContextMenu", () => {
     expect(defaultProps.onClose).toHaveBeenCalled();
   });
 
-  it("should call deleteSeries, refreshSeries and onClose when ungroup is clicked", async () => {
+  it("should call deleteSeries and onClose once the ungroup is confirmed", async () => {
     vi.mocked(SeriesCommand.deleteSeries).mockResolvedValue();
     renderSeriesContextMenu();
 
     await user.click(screen.getByText(/Ungroup Series/i));
+    expect(defaultProps.onClose).toHaveBeenCalled();
+    expect(SeriesCommand.deleteSeries).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: /Ungroup series/i }));
 
     expect(SeriesCommand.deleteSeries).toHaveBeenCalledWith(mockSeries.id);
-    expect(defaultProps.onClose).toHaveBeenCalled();
+  });
+
+  it("should not ungroup when the confirmation is cancelled", async () => {
+    renderSeriesContextMenu();
+
+    await user.click(screen.getByText(/Ungroup Series/i));
+    expect(screen.getByText("Ungroup this series?")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(SeriesCommand.deleteSeries).not.toHaveBeenCalled();
   });
 
   it("should not render menu when anchor is null", () => {
@@ -73,9 +87,12 @@ describe("SeriesContextMenu", () => {
     renderSeriesContextMenu();
 
     await user.click(screen.getByText(/Ungroup Series/i));
+    await user.click(screen.getByRole("button", { name: /Ungroup series/i }));
 
     expect(SeriesCommand.deleteSeries).toHaveBeenCalledWith(mockSeries.id);
-    expect(error).toHaveBeenCalledWith(expect.stringContaining("Failed to remove series"));
+    await waitFor(() =>
+      expect(error).toHaveBeenCalledWith(expect.stringContaining("Failed to remove series")),
+    );
   });
 
   it("should prevent default and stop propagation on context menu event", async () => {
