@@ -16,6 +16,7 @@ import {
 } from "@mui/material";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { getReadableTextColor } from "../../../../utils/ColorUtils";
 
 /** Props for the CreateTagDialog component */
 export interface CreateTagDialogProps {
@@ -185,14 +186,14 @@ export function ColorButton({ color, selected, onClick }: ColorButtonProps) {
     >
       {selected && (
         <Check
-          sx={{
-            color: "#fff",
+          sx={(theme) => ({
+            color: getReadableTextColor(theme, color),
             fontSize: "1.5rem",
             position: "absolute",
             top: "50%",
             left: "50%",
             transform: "translate(-50%, -50%)",
-          }}
+          })}
         />
       )}
     </IconButton>
@@ -211,10 +212,11 @@ export function TagPreview({ name, color }: TagPreviewProps) {
   return (
     <Chip
       label={name || t("bookshelf.tag.creation.preview-name")}
-      sx={{
+      sx={(theme) => ({
         backgroundColor: color,
+        color: getReadableTextColor(theme, color),
         fontSize: "1rem",
-      }}
+      })}
     />
   );
 }

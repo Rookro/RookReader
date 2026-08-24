@@ -19,6 +19,7 @@ import dummy_thumbnail from "../../../assets/dummy_thumbnail.svg";
 import AutoScrollTypography from "../../../components/ui/AutoScrollTypography/AutoScrollTypography";
 import type { BookWithState } from "../../../domain/book/schema";
 import type { Tag } from "../../../domain/tag/schema";
+import { getReadableTextColor } from "../../../utils/ColorUtils";
 import { useBookSelection } from "../hooks/useBookSelection";
 import BookContextMenu from "./BookContextMenu";
 
@@ -191,11 +192,12 @@ export default function BookCard({
                         key={tag.id}
                         label={tag.name}
                         size={size}
-                        sx={{
+                        sx={(theme) => ({
                           backgroundColor: tag.color_code,
+                          color: getReadableTextColor(theme, tag.color_code),
                           fontSize: "0.65rem",
                           height: "20px",
-                        }}
+                        })}
                       />
                     ))}
                   </Stack>
