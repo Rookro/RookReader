@@ -1,4 +1,4 @@
-import SubdirectoryArrowRight from "@mui/icons-material/SubdirectoryArrowRight";
+import SubdirectoryArrowRightOutlined from "@mui/icons-material/SubdirectoryArrowRightOutlined";
 import { debug } from "@tauri-apps/plugin-log";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
@@ -29,7 +29,7 @@ export default function AutoDescendSingleFolderSetting() {
 
   return (
     <SwitchSettingItem
-      icon={<SubdirectoryArrowRight />}
+      icon={<SubdirectoryArrowRightOutlined />}
       primaryText={t("settings.reader.auto-descend-single-folder.title")}
       secondaryText={t("settings.reader.auto-descend-single-folder.description")}
       checked={readerSettings.autoDescendSingleFolder}

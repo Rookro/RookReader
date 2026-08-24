@@ -1,9 +1,9 @@
 import Add from "@mui/icons-material/Add";
 import AutoStories from "@mui/icons-material/AutoStories";
 import Delete from "@mui/icons-material/Delete";
+import FolderOutlined from "@mui/icons-material/FolderOutlined";
 import LocalOffer from "@mui/icons-material/LocalOffer";
 import MenuBook from "@mui/icons-material/MenuBook";
-import QuestionMark from "@mui/icons-material/QuestionMark";
 import {
   Box,
   Divider,
@@ -181,7 +181,7 @@ export default function MenuList({ onClickAddBookshelf, onClickAddBookTag }: Men
                 >
                   <ListItemIcon sx={{ minWidth: "auto", marginRight: "12px" }}>
                     {BookShelfIcons.find((icon) => icon.key === item.icon_id)?.icon ?? (
-                      <QuestionMark />
+                      <FolderOutlined />
                     )}
                   </ListItemIcon>
                   <ListItemText primary={item.name} slotProps={{ primary: { noWrap: true } }} />

@@ -73,7 +73,7 @@ describe("MenuList", () => {
       { id: 2, name: "Unknown Icon", icon_id: "non-existent", created_at: "" },
     ];
     renderWithProviders(<MenuList {...defaultProps} />, { preloadedState: stateWithUnknownIcon });
-    expect(screen.getByTestId("QuestionMarkIcon")).toBeInTheDocument();
+    expect(screen.getByTestId("FolderOutlinedIcon")).toBeInTheDocument();
   });
 
   // Verify that setSelectedTag action is called correctly when a tag is clicked

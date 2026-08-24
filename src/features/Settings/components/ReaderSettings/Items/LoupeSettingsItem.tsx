@@ -1,4 +1,4 @@
-import Search from "@mui/icons-material/Search";
+import ZoomInOutlined from "@mui/icons-material/ZoomInOutlined";
 import { Box, ListItem, ListItemIcon, ListItemText, TextField } from "@mui/material";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -185,7 +185,7 @@ export default function LoupeSettingsItem() {
     <>
       <ListItem>
         <ListItemIcon>
-          <Search />
+          <ZoomInOutlined />
         </ListItemIcon>
         <ListItemText
           primary={t("settings.reader.loupe.title")}

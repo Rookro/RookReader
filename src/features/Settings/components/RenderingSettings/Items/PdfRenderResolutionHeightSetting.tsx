@@ -1,4 +1,4 @@
-import AspectRatioOutlined from "@mui/icons-material/AspectRatioOutlined";
+import PictureAsPdfOutlined from "@mui/icons-material/PictureAsPdfOutlined";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppSelector } from "../../../../../store/store";
@@ -39,7 +39,7 @@ export default function PdfRenderResolutionHeightSetting() {
 
   return (
     <NumberSpinnerSettingItem
-      icon={<AspectRatioOutlined />}
+      icon={<PictureAsPdfOutlined />}
       primaryText={t("settings.rendering.pdf.title")}
       secondaryText={t("settings.rendering.pdf.description")}
       defaultValue={pdfRenderResolutionHeight}

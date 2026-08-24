@@ -1,4 +1,4 @@
-import Delete from "@mui/icons-material/Delete";
+import LinkOff from "@mui/icons-material/LinkOff";
 import Sort from "@mui/icons-material/Sort";
 import { ListItemIcon, ListItemText, Menu, MenuItem } from "@mui/material";
 import { error } from "@tauri-apps/plugin-log";
@@ -59,7 +59,7 @@ export default function SeriesContextMenu({ series, anchor, onClose }: SeriesCon
       </MenuItem>
       <MenuItem dense onClick={handleRemoveSeries}>
         <ListItemIcon>
-          <Delete color="error" />
+          <LinkOff />
         </ListItemIcon>
         <ListItemText>{t("bookshelf.series.ungroup-series")}</ListItemText>
       </MenuItem>

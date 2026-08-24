@@ -1,5 +1,5 @@
 import Bookmarks from "@mui/icons-material/Bookmarks";
-import Explore from "@mui/icons-material/Explore";
+import Folder from "@mui/icons-material/Folder";
 import History from "@mui/icons-material/History";
 import PhotoLibrary from "@mui/icons-material/PhotoLibrary";
 import { Box, CircularProgress, Stack, type SxProps, type Theme } from "@mui/material";
@@ -98,7 +98,7 @@ export default function BookReader({ sx }: BookReaderProps) {
 
   const tabs: { label: string; icon: JSX.Element; panel: JSX.Element }[] = useMemo(() => {
     const tabs = [
-      { label: "file-navigator", icon: <Explore />, panel: <FileNavigator /> },
+      { label: "file-navigator", icon: <Folder />, panel: <FileNavigator /> },
       { label: "image-entries", icon: <PhotoLibrary />, panel: <ImageEntriesViewer /> },
     ];
 

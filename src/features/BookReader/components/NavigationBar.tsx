@@ -2,12 +2,12 @@ import ArrowBack from "@mui/icons-material/ArrowBack";
 import ArrowForward from "@mui/icons-material/ArrowForward";
 import Bookmark from "@mui/icons-material/Bookmark";
 import BookmarkBorder from "@mui/icons-material/BookmarkBorder";
+import FormatTextdirectionLToR from "@mui/icons-material/FormatTextdirectionLToR";
+import FormatTextdirectionRToL from "@mui/icons-material/FormatTextdirectionRToL";
 import LocalLibrary from "@mui/icons-material/LocalLibrary";
 import LooksOne from "@mui/icons-material/LooksOne";
 import LooksTwo from "@mui/icons-material/LooksTwo";
 import Settings from "@mui/icons-material/Settings";
-import SwitchLeft from "@mui/icons-material/SwitchLeft";
-import SwitchRight from "@mui/icons-material/SwitchRight";
 import ViewColumn from "@mui/icons-material/ViewColumn";
 import { Box, IconButton, OutlinedInput, Toolbar, Tooltip } from "@mui/material";
 import { debug } from "@tauri-apps/plugin-log";
@@ -232,7 +232,11 @@ export default function NavigationBar() {
       </Tooltip>
       <Tooltip title={t("book-reader.toggle-direction")}>
         <IconButton onClick={handleSwitchDirectionClicked} aria-label="toggle-direction">
-          {readerSettings.comic.readingDirection === "rtl" ? <SwitchRight /> : <SwitchLeft />}
+          {readerSettings.comic.readingDirection === "rtl" ? (
+            <FormatTextdirectionRToL />
+          ) : (
+            <FormatTextdirectionLToR />
+          )}
         </IconButton>
       </Tooltip>
       <Tooltip title={t("common.settings")}>

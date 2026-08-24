@@ -1,5 +1,5 @@
+import AutoAwesomeMotion from "@mui/icons-material/AutoAwesomeMotion";
 import Close from "@mui/icons-material/Close";
-import CollectionsBookmark from "@mui/icons-material/CollectionsBookmark";
 import Delete from "@mui/icons-material/Delete";
 import LibraryBooks from "@mui/icons-material/LibraryBooks";
 import LocalOffer from "@mui/icons-material/LocalOffer";
@@ -77,7 +77,7 @@ export default function FloatingActionBar({
         <Button
           size="small"
           color="inherit"
-          startIcon={<CollectionsBookmark />}
+          startIcon={<AutoAwesomeMotion />}
           onClick={onSetSeries}
         >
           {t("bookshelf.series.set-series")}

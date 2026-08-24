@@ -337,6 +337,20 @@ describe("NavigationBar", () => {
     });
   });
 
+  describe("icons", () => {
+    it.each([
+      ["rtl", "FormatTextdirectionRToLIcon"],
+      ["ltr", "FormatTextdirectionLToRIcon"],
+    ])("should show the %s text-direction icon", (direction, testId) => {
+      const preloadedState = createBasePreloadedState();
+      preloadedState.settings.reader.comic.readingDirection = direction as "rtl" | "ltr";
+
+      renderWithProviders(<NavigationBar />, { preloadedState });
+
+      expect(screen.getByTestId(testId)).toBeInTheDocument();
+    });
+  });
+
   describe("tooltips", () => {
     it.each([
       ["back", "Back"],
