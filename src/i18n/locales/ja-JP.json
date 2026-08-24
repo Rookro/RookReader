@@ -101,24 +101,18 @@
       }
     },
     "series": {
-      "title": "シリーズ",
       "set-series": "シリーズを設定",
       "ungroup-series": "シリーズを解除",
       "creation": {
-        "title": "シリーズを作成",
         "name-placeholder": "シリーズ名を入力してください",
         "create-new": "新しいシリーズを作成",
-        "creation-button": "作成",
-        "cancel-button": "キャンセル"
+        "creation-button": "作成"
       },
       "set": {
         "title": "シリーズを設定",
         "none": "シリーズなし",
-        "no-series-available": "利用可能なシリーズがありません。",
         "search-placeholder": "シリーズ名で検索...",
-        "no-search-results": "\"{{searchText}}\" に一致するシリーズはありません。",
-        "ok-button": "決定",
-        "cancel-button": "キャンセル"
+        "no-search-results": "\"{{searchText}}\" に一致するシリーズはありません。"
       },
       "edit-order": {
         "title": "シリーズの並び替え"
@@ -291,12 +285,10 @@
           "description": "縮小処理に使用するアルゴリズムを選択します。\n画質と処理速度のバランスを用途に合わせて設定してください。",
           "nearest": "ニアレスト (最速 / 粗い)",
           "box": "ボックス (高速 / 粗い)",
-          "triangle": "トライアングル (高速 / 標準画質)",
           "bilinear": "バイリニア (高速 / 標準画質)",
           "hamming": "ハミング (標準的)",
           "catmullRom": "Catmull-Rom (中速 / 高画質・滑らか)",
           "mitchellNetravali": "Mitchell-Netravali (中速 / 高画質)",
-          "gaussian": "ガウシアン (中速 / ソフト・ぼかし)",
           "lanczos3": "ランチョス 3 (低速 / 最高画質)"
         }
       },
@@ -305,7 +297,6 @@
         "description": "PDF 描画時の高さを設定します。"
       },
       "cache": {
-        "title": "キャッシュ設定",
         "preload-page-count": {
           "title": "先読みページ数",
           "description": "前後方向に先読みするページ数を指定します。"
@@ -378,7 +369,6 @@
     }
   },
   "updater": {
-    "available": "アップデートが利用可能です: {{version}}",
     "not-available": "最新バージョンです",
     "downloading": "ダウンロード中: {{progress}}%",
     "installing": "インストール中...",

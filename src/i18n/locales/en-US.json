@@ -101,24 +101,18 @@
       }
     },
     "series": {
-      "title": "Series",
       "set-series": "Set series",
       "ungroup-series": "Ungroup series",
       "creation": {
-        "title": "Create a Series",
         "name-placeholder": "Series name",
         "create-new": "Create new series",
-        "creation-button": "create",
-        "cancel-button": "cancel"
+        "creation-button": "create"
       },
       "set": {
         "title": "Set Series",
         "none": "No Series",
-        "no-series-available": "No series available.",
         "search-placeholder": "Search series...",
-        "no-search-results": "No search results for \"{{searchText}}\".",
-        "ok-button": "ok",
-        "cancel-button": "cancel"
+        "no-search-results": "No search results for \"{{searchText}}\"."
       },
       "edit-order": {
         "title": "Edit Series Order"
@@ -291,12 +285,10 @@
           "description": "Select the algorithm used for resizing. Choose the best balance between image quality and processing speed for your needs.",
           "nearest": "Nearest Neighbor (Fastest / Low Quality)",
           "box": "Box (Fast / Low Quality)",
-          "triangle": "Triangle (Fast / Standard Quality)",
           "bilinear": "Bilinear (Fast / Standard Quality)",
           "hamming": "Hamming (Medium Quality)",
           "catmullRom": "Catmull-Rom (Medium / High Quality)",
           "mitchellNetravali": "Mitchell-Netravali (Medium / High Quality)",
-          "gaussian": "Gaussian (Medium / Soft Look)",
           "lanczos3": "Lanczos 3 (Slow / Best Quality)"
         }
       },
@@ -305,7 +297,6 @@
         "description": "Height of the PDF rendering area in pixels."
       },
       "cache": {
-        "title": "Cache Settings",
         "preload-page-count": {
           "title": "Preload Page Count",
           "description": "The number of pages to preload in each direction (forward and backward)."
@@ -349,7 +340,7 @@
         "body": "This application is built with open source software.",
         "frontend": "Frontend Licenses (npm)",
         "backend": "Backend Licenses (cargo)",
-        "bundled": "Boundled Library Licenses",
+        "bundled": "Bundled Library Licenses",
         "pdfium": "PDFium License"
       }
     }
@@ -378,7 +369,6 @@
     }
   },
   "updater": {
-    "available": "Update Available: {{version}}",
     "not-available": "Your application is up to date.",
     "downloading": "Downloading: {{progress}}%",
     "installing": "Installing...",
