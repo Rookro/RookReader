@@ -1,10 +1,12 @@
 import Close from "@mui/icons-material/Close";
-import { Divider, IconButton, Stack, Typography } from "@mui/material";
+import { Divider, IconButton, Stack, Tooltip, Typography } from "@mui/material";
 import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { useAppDispatch, useAppSelector } from "../../../store/store";
 import { updateSettings } from "../../Settings/slice";
 
 export default function SidePanelHeader(props: { title: string }) {
+  const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const tabIndex = useAppSelector((state) => state.settings.layout.sidePane.tabIndex);
 
@@ -33,9 +35,16 @@ export default function SidePanelHeader(props: { title: string }) {
         <Typography variant="body1" noWrap>
           {props.title}
         </Typography>
-        <IconButton size="small" sx={{ padding: 0 }} onClick={handleCloseClicked}>
-          <Close fontSize="small" />
-        </IconButton>
+        <Tooltip title={t("common.close")}>
+          <IconButton
+            size="small"
+            sx={{ padding: 0 }}
+            onClick={handleCloseClicked}
+            aria-label="close-side-panel"
+          >
+            <Close fontSize="small" />
+          </IconButton>
+        </Tooltip>
       </Stack>
       <Divider />
     </>

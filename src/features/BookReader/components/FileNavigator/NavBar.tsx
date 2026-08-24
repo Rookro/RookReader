@@ -13,6 +13,7 @@ import {
   Select,
   type SelectChangeEvent,
   Stack,
+  Tooltip,
 } from "@mui/material";
 import { dirname, homeDir } from "@tauri-apps/api/path";
 import { warn } from "@tauri-apps/plugin-log";
@@ -188,25 +189,39 @@ export default function NavBar() {
           },
         }}
       >
-        <IconButton onClick={handleHomeClicked} aria-label="home">
-          <Home />
-        </IconButton>
-        <IconButton onClick={handleBackClicked} disabled={historyIndex <= 0} aria-label="back">
-          <ArrowBack />
-        </IconButton>
-        <IconButton
-          onClick={handleForwardClicked}
-          disabled={history.length - historyIndex <= 1}
-          aria-label="forward"
-        >
-          <ArrowForward />
-        </IconButton>
-        <IconButton onClick={handleParentClicked} aria-label="up">
-          <ArrowUpward />
-        </IconButton>
-        <IconButton onClick={handleRefleshClicked} aria-label="refresh">
-          <Refresh />
-        </IconButton>
+        <Tooltip title={t("book-reader.file-navigator.home")}>
+          <IconButton onClick={handleHomeClicked} aria-label="home">
+            <Home />
+          </IconButton>
+        </Tooltip>
+        <Tooltip title={t("common.back")}>
+          <span>
+            <IconButton onClick={handleBackClicked} disabled={historyIndex <= 0} aria-label="back">
+              <ArrowBack />
+            </IconButton>
+          </span>
+        </Tooltip>
+        <Tooltip title={t("common.forward")}>
+          <span>
+            <IconButton
+              onClick={handleForwardClicked}
+              disabled={history.length - historyIndex <= 1}
+              aria-label="forward"
+            >
+              <ArrowForward />
+            </IconButton>
+          </span>
+        </Tooltip>
+        <Tooltip title={t("common.up")}>
+          <IconButton onClick={handleParentClicked} aria-label="up">
+            <ArrowUpward />
+          </IconButton>
+        </Tooltip>
+        <Tooltip title={t("common.refresh")}>
+          <IconButton onClick={handleRefleshClicked} aria-label="refresh">
+            <Refresh />
+          </IconButton>
+        </Tooltip>
         {width >= 310 && (
           <Select
             size="small"

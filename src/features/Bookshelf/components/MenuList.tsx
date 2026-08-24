@@ -143,14 +143,17 @@ export default function MenuList({ onClickAddBookshelf, onClickAddBookTag }: Men
               }}
             >
               <Typography variant="body1">{t("bookshelf.collection.title")}</Typography>
-              <IconButton
-                edge="end"
-                size="small"
-                onClick={onClickAddBookshelf}
-                sx={{ color: "text.secondary" }}
-              >
-                <Add />
-              </IconButton>
+              <Tooltip title={t("bookshelf.collection.create")}>
+                <IconButton
+                  edge="end"
+                  size="small"
+                  onClick={onClickAddBookshelf}
+                  aria-label="add-bookshelf"
+                  sx={{ color: "text.secondary" }}
+                >
+                  <Add />
+                </IconButton>
+              </Tooltip>
             </ListSubheader>
           }
           sx={{ height: "50%", overflow: "auto" }}
@@ -200,14 +203,17 @@ export default function MenuList({ onClickAddBookshelf, onClickAddBookTag }: Men
               }}
             >
               <Typography variant="body1">{t("bookshelf.tag.title")}</Typography>
-              <IconButton
-                edge="end"
-                size="small"
-                onClick={onClickAddBookTag}
-                sx={{ color: "text.secondary" }}
-              >
-                <Add />
-              </IconButton>
+              <Tooltip title={t("bookshelf.tag.create")}>
+                <IconButton
+                  edge="end"
+                  size="small"
+                  onClick={onClickAddBookTag}
+                  aria-label="add-tag"
+                  sx={{ color: "text.secondary" }}
+                >
+                  <Add />
+                </IconButton>
+              </Tooltip>
             </ListSubheader>
           }
           sx={{ height: "50%", overflow: "auto" }}

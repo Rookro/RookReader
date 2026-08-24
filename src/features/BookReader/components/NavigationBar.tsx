@@ -161,16 +161,24 @@ export default function NavigationBar() {
           <LocalLibrary />
         </IconButton>
       </Tooltip>
-      <IconButton onClick={handleBackClicked} disabled={historyIndex <= 0} aria-label="back">
-        <ArrowBack />
-      </IconButton>
-      <IconButton
-        onClick={handleForwardClicked}
-        disabled={history.length - historyIndex <= 1}
-        aria-label="forward"
-      >
-        <ArrowForward />
-      </IconButton>
+      <Tooltip title={t("common.back")}>
+        <span>
+          <IconButton onClick={handleBackClicked} disabled={historyIndex <= 0} aria-label="back">
+            <ArrowBack />
+          </IconButton>
+        </span>
+      </Tooltip>
+      <Tooltip title={t("common.forward")}>
+        <span>
+          <IconButton
+            onClick={handleForwardClicked}
+            disabled={history.length - historyIndex <= 1}
+            aria-label="forward"
+          >
+            <ArrowForward />
+          </IconButton>
+        </span>
+      </Tooltip>
       <Box component="form" action={formAction} sx={{ flexGrow: 1 }}>
         <OutlinedInput
           // Force DOM recreation to update the initial value on external state changes.
@@ -203,9 +211,11 @@ export default function NavigationBar() {
           </IconButton>
         </span>
       </Tooltip>
-      <IconButton onClick={handleSwitchTwoPagedClicked} aria-label="toggle-two-paged">
-        {readerSettings.comic.enableSpread ? <LooksTwo /> : <LooksOne />}
-      </IconButton>
+      <Tooltip title={t("book-reader.toggle-spread")}>
+        <IconButton onClick={handleSwitchTwoPagedClicked} aria-label="toggle-two-paged">
+          {readerSettings.comic.enableSpread ? <LooksTwo /> : <LooksOne />}
+        </IconButton>
+      </Tooltip>
       <Tooltip
         title={isSpreadShifted ? t("book-reader.reset-spread") : t("book-reader.shift-spread")}
       >
@@ -220,12 +230,16 @@ export default function NavigationBar() {
           </IconButton>
         </span>
       </Tooltip>
-      <IconButton onClick={handleSwitchDirectionClicked} aria-label="toggle-direction">
-        {readerSettings.comic.readingDirection === "rtl" ? <SwitchRight /> : <SwitchLeft />}
-      </IconButton>
-      <IconButton onClick={handleSettingsClicked} aria-label="settings">
-        <Settings />
-      </IconButton>
+      <Tooltip title={t("book-reader.toggle-direction")}>
+        <IconButton onClick={handleSwitchDirectionClicked} aria-label="toggle-direction">
+          {readerSettings.comic.readingDirection === "rtl" ? <SwitchRight /> : <SwitchLeft />}
+        </IconButton>
+      </Tooltip>
+      <Tooltip title={t("common.settings")}>
+        <IconButton onClick={handleSettingsClicked} aria-label="settings">
+          <Settings />
+        </IconButton>
+      </Tooltip>
     </Toolbar>
   );
 }

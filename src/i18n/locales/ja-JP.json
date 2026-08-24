@@ -1,8 +1,17 @@
 {
+  "common": {
+    "back": "戻る",
+    "forward": "進む",
+    "up": "上の階層へ",
+    "refresh": "再読み込み",
+    "settings": "設定",
+    "close": "閉じる"
+  },
   "book-reader": {
     "move-to-bookshelf": "本棚画面に移動する",
     "file-navigator": {
       "title": "ファイルナビゲーター",
+      "home": "ホームフォルダー",
       "sort-order": {
         "name-asc": "名前↑",
         "name-desc": "名前↓",
@@ -27,6 +36,9 @@
     },
     "shift-spread": "見開きを 1 ページずらす",
     "reset-spread": "見開きのずらしを解除",
+    "toggle-spread": "見開き表示を切り替える",
+    "toggle-direction": "読み方向を切り替える",
+    "page-slider": "ページ位置",
     "add-bookmark": "しおりを追加",
     "remove-bookmark": "しおりを削除",
     "bookmark": {
@@ -68,6 +80,7 @@
     "remove-book": "本を削除",
     "collection": {
       "title": "コレクション",
+      "create": "コレクションを作成",
       "all-books": "すべての本",
       "add-books-title": "コレクションに追加",
       "no-collections-available": "利用可能なコレクションがありません。",
@@ -83,6 +96,7 @@
     },
     "tag": {
       "title": "タグ",
+      "create": "タグを作成",
       "set-tags": "タグを設定",
       "creation": {
         "title": "タグを作成",

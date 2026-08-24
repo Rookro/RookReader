@@ -40,7 +40,7 @@ describe("FloatingActionBar", () => {
     await user.click(screen.getByRole("button", { name: /Remove book/i }));
     expect(defaultProps.onDelete).toHaveBeenCalled();
 
-    await user.click(screen.getByTitle(/Clear selection/i));
+    await user.click(screen.getByLabelText("clear-selection"));
     expect(defaultProps.onClear).toHaveBeenCalled();
   });
 

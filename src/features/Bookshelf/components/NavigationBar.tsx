@@ -18,6 +18,7 @@ import {
   type SelectChangeEvent,
   Stack,
   Toolbar,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import { debug } from "@tauri-apps/plugin-log";
@@ -158,9 +159,11 @@ export default function NavigationBar() {
           }
           onChange={handleSearchTextChanged}
         />
-        <IconButton onClick={handleSettingsClicked} aria-label="settings">
-          <Settings />
-        </IconButton>
+        <Tooltip title={t("common.settings")}>
+          <IconButton onClick={handleSettingsClicked} aria-label="settings">
+            <Settings />
+          </IconButton>
+        </Tooltip>
       </Toolbar>
       <Toolbar variant="dense" disableGutters sx={{ paddingBottom: 1, justifyContent: "flex-end" }}>
         {selectedSeriesId === null && (

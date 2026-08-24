@@ -1,8 +1,17 @@
 {
+  "common": {
+    "back": "Back",
+    "forward": "Forward",
+    "up": "Up one level",
+    "refresh": "Refresh",
+    "settings": "Settings",
+    "close": "Close"
+  },
   "book-reader": {
     "move-to-bookshelf": "Move to Bookshelf",
     "file-navigator": {
       "title": "File Navigator",
+      "home": "Home folder",
       "sort-order": {
         "name-asc": "Name↑",
         "name-desc": "Name↓",
@@ -27,6 +36,9 @@
     },
     "shift-spread": "Shift the spread pairing by one page",
     "reset-spread": "Reset the spread pairing",
+    "toggle-spread": "Toggle two-page spread",
+    "toggle-direction": "Toggle reading direction",
+    "page-slider": "Page position",
     "add-bookmark": "Add bookmark",
     "remove-bookmark": "Remove bookmark",
     "bookmark": {
@@ -68,6 +80,7 @@
     "remove-book": "Remove book",
     "collection": {
       "title": "Collections",
+      "create": "New collection",
       "all-books": "All Books",
       "add-books-title": "Add to collections",
       "no-collections-available": "No collections available.",
@@ -83,6 +96,7 @@
     },
     "tag": {
       "title": "Tags",
+      "create": "New tag",
       "set-tags": "Set tags",
       "creation": {
         "title": "Create a Tag",

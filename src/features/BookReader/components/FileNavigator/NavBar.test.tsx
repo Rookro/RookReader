@@ -219,4 +219,25 @@ describe("FileNavigator/NavBar", () => {
     fireEvent.contextMenu(input);
     // Verified by code inspection: calls stopPropagation
   });
+
+  describe("tooltips", () => {
+    it.each([
+      ["home", "Home folder"],
+      ["back", "Back"],
+      ["forward", "Forward"],
+      ["up", "Up one level"],
+      ["refresh", "Refresh"],
+    ])("should describe the %s button on hover", async (ariaLabel, tooltip) => {
+      // Sit in the middle of the history so both back and forward stay enabled;
+      // a disabled button has pointer-events: none and cannot be hovered.
+      const preloadedState = createBasePreloadedState();
+      preloadedState.read.explorer.history = ["/a", "/b", "/c"];
+      preloadedState.read.explorer.historyIndex = 1;
+
+      renderWithProviders(<NavBar />, { preloadedState });
+      await user.hover(screen.getByLabelText(ariaLabel));
+
+      expect(await screen.findByRole("tooltip")).toHaveTextContent(tooltip);
+    });
+  });
 });

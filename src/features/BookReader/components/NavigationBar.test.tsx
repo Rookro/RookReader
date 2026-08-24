@@ -336,4 +336,25 @@ describe("NavigationBar", () => {
       expect(BookmarkCommands.deleteBookmark).not.toHaveBeenCalled();
     });
   });
+
+  describe("tooltips", () => {
+    it.each([
+      ["back", "Back"],
+      ["forward", "Forward"],
+      ["toggle-two-paged", "Toggle two-page spread"],
+      ["toggle-direction", "Toggle reading direction"],
+      ["settings", "Settings"],
+    ])("should describe the %s button on hover", async (ariaLabel, tooltip) => {
+      // Sit in the middle of the history so both back and forward stay enabled;
+      // a disabled button has pointer-events: none and cannot be hovered.
+      const preloadedState = createBasePreloadedState();
+      preloadedState.read.containerFile.history = ["/path/1", "/path/2", "/path/3"];
+      preloadedState.read.containerFile.historyIndex = 1;
+
+      renderWithProviders(<NavigationBar />, { preloadedState });
+      await user.hover(screen.getByLabelText(ariaLabel));
+
+      expect(await screen.findByRole("tooltip")).toHaveTextContent(tooltip);
+    });
+  });
 });

@@ -11,6 +11,7 @@ import {
   Grid,
   IconButton,
   TextField,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import { useCallback, useState } from "react";
@@ -50,13 +51,16 @@ export default function CreateTagDialog({ openDialog, onCreate, onClose }: Creat
   return (
     <Dialog open={openDialog} onClose={handleClose}>
       <DialogTitle>{t("bookshelf.tag.creation.title")}</DialogTitle>
-      <IconButton
-        size="small"
-        onClick={handleClose}
-        sx={{ position: "absolute", right: 8, top: 8, color: "text.secondary" }}
-      >
-        <Close fontSize="small" />
-      </IconButton>
+      <Tooltip title={t("common.close")}>
+        <IconButton
+          size="small"
+          onClick={handleClose}
+          aria-label="close-dialog"
+          sx={{ position: "absolute", right: 8, top: 8, color: "text.secondary" }}
+        >
+          <Close fontSize="small" />
+        </IconButton>
+      </Tooltip>
       <DialogContent sx={{ paddingTop: 0 }}>
         <TextField
           type="text"
