@@ -59,7 +59,7 @@ describe("GlobalErrorListener", () => {
     await waitFor(() => {
       // "Failed to open book. It contains no readable pages."
       expect(showNotificationMock).toHaveBeenCalledWith(
-        expect.stringContaining("It contains no readable pages."),
+        expect.stringContaining("The book contains no readable pages."),
         "error",
       );
     });

@@ -184,7 +184,7 @@ describe("SetSeriesDialog", () => {
     const searchInput = screen.getByPlaceholderText(/Search series/i);
     await user.type(searchInput, "Non-existent Series");
 
-    expect(screen.getByText(/No search results for "Non-existent Series"/i)).toBeInTheDocument();
+    expect(screen.getByText(/No results for "Non-existent Series"/i)).toBeInTheDocument();
   });
 
   it("should close dialog when cancel button is clicked", async () => {

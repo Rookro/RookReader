@@ -28,9 +28,9 @@ describe("About", () => {
   it("should open project page when link is clicked", async () => {
     renderWithProviders(<About />);
 
-    await waitFor(() => expect(screen.getByText("Project Page")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Project page")).toBeInTheDocument());
 
-    const projectLink = screen.getByText("Project Page").closest("button");
+    const projectLink = screen.getByText("Project page").closest("button");
     if (projectLink) {
       await user.click(projectLink);
     }

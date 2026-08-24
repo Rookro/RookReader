@@ -69,16 +69,16 @@
     "collection": {
       "title": "Collections",
       "all-books": "All Books",
-      "add-books-title": "Add to Collection(s)",
+      "add-books-title": "Add to collections",
       "no-collections-available": "No collections available.",
-      "ok-button": "ok",
-      "cancel-button": "cancel",
+      "ok-button": "OK",
+      "cancel-button": "Cancel",
       "creation": {
         "title": "Create a Collection",
         "name-placeholder": "Collection name",
         "icon-selection-title": "Select an icon",
-        "creation-button": "create",
-        "cancel-button": "cancel"
+        "creation-button": "Create",
+        "cancel-button": "Cancel"
       }
     },
     "tag": {
@@ -90,14 +90,14 @@
         "color-title": "Select a color",
         "preview-title": "Preview",
         "preview-name": "Tag Preview",
-        "creation-button": "create",
-        "cancel-button": "cancel"
+        "creation-button": "Create",
+        "cancel-button": "Cancel"
       },
       "set": {
         "title": "Set Tags",
         "no-tags-available": "No tags available.",
-        "ok-button": "ok",
-        "cancel-button": "cancel"
+        "ok-button": "OK",
+        "cancel-button": "Cancel"
       }
     },
     "series": {
@@ -106,20 +106,20 @@
       "creation": {
         "name-placeholder": "Series name",
         "create-new": "Create new series",
-        "creation-button": "create"
+        "creation-button": "Create"
       },
       "set": {
         "title": "Set Series",
-        "none": "No Series",
-        "search-placeholder": "Search series...",
-        "no-search-results": "No search results for \"{{searchText}}\"."
+        "none": "No series",
+        "search-placeholder": "Search series…",
+        "no-search-results": "No results for \"{{searchText}}\"."
       },
       "edit-order": {
         "title": "Edit Series Order"
       }
     },
-    "search-placeholder": "Search by title...",
-    "no-search-results": "No books for \"{{searchText}}\".",
+    "search-placeholder": "Search by title…",
+    "no-search-results": "No results for \"{{searchText}}\".",
     "no-books": "No books in this collection.",
     "return-to-reader": "Return to reader",
     "grid-size-change": "Change grid size",
@@ -131,8 +131,8 @@
     "add-books": "Add books",
     "book-addition": {
       "title": "Select files to add",
-      "ok-button": "ok",
-      "cancel-button": "cancel",
+      "ok-button": "OK",
+      "cancel-button": "Cancel",
       "drag-drop": "Drop files here to add",
       "or": "or",
       "select-file": "Select files",
@@ -142,8 +142,8 @@
       "title": "Are you sure you want to delete this book?",
       "description": "You are about to delete <bold>\"{{bookName}}\"</bold> from <bold>\"{{bookshelfName}}\"</bold>. This action cannot be undone.",
       "description-multiple": "You are about to delete <bold>{{count}} books</bold> from <bold>\"{{bookshelfName}}\"</bold>. This action cannot be undone.",
-      "cancel-button": "cancel",
-      "delete-button": "delete"
+      "cancel-button": "Cancel",
+      "delete-button": "Delete"
     },
     "selection": {
       "count": "{{count}} selected",
@@ -151,8 +151,8 @@
     },
     "sort": {
       "title": "Sort by",
-      "name-asc": "Name (A->Z)",
-      "name-desc": "Name (Z->A)",
+      "name-asc": "Name (A→Z)",
+      "name-desc": "Name (Z→A)",
       "date-asc": "Date (Oldest first)",
       "date-desc": "Date (Newest first)"
     },
@@ -177,7 +177,7 @@
         "japanese": "日本語"
       },
       "font-family": {
-        "title": "Font Family",
+        "title": "Font family",
         "default-font-name": "Default"
       },
       "theme": {
@@ -187,16 +187,16 @@
         "dark": "Dark"
       },
       "initial-view": {
-        "title": "Initial View on Startup",
+        "title": "Initial view on startup",
         "reader": "Reader",
         "bookshelf": "Bookshelf"
       },
       "restore-last-read": {
-        "title": "Restore Last Read Book on Startup",
+        "title": "Restore last read book on startup",
         "description": "If history is disabled, this setting will be ignored."
       },
       "check-update-on-startup": {
-        "title": "Check for Updates on Startup",
+        "title": "Check for updates on startup",
         "description": "Automatically check for a new version when the application starts."
       }
     },
@@ -204,16 +204,16 @@
       "tab-name": "Bookshelf",
       "title": "Bookshelf Settings",
       "auto-scroll": {
-        "title": "Auto Scroll Text",
+        "title": "Auto-scroll text",
         "description": "Automatically scrolls long titles in the bookshelf view. Turning this off can improve performance if the bookshelf feels slow."
       }
     },
     "file-navigator": {
       "tab-name": "File Navigator",
       "title": "File Navigator Settings",
-      "home-directory-title": "Home Folder",
+      "home-directory-title": "Home folder",
       "dir-watch": {
-        "title": "Watch a folder or file for changes",
+        "title": "Watch folders and files for changes",
         "warn-message": "Enabling this feature may cause high system load when opening folders with a large number of files."
       }
     },
@@ -229,7 +229,7 @@
         "title": "Show the initial page in single-page view"
       },
       "auto-open-adjacent-book": {
-        "title": "Auto-open Adjacent Book",
+        "title": "Auto-open adjacent book",
         "description": "Open the next/previous book when paging past the last/first page.",
         "off": "Off",
         "ask": "Ask before opening",
@@ -240,27 +240,27 @@
         "description": "When an archive holds no pages of its own and contains a single folder, open that folder instead. Repeats for nested single folders."
       },
       "loupe": {
-        "title": "Loupe Settings",
+        "title": "Loupe",
         "description": "Settings for the magnifier tool. Toggle it using the configured key or mouse button.",
-        "toggle-key": "Toggle Key",
+        "toggle-key": "Toggle key",
         "toggle-key-description": "The keyboard key or mouse button used to toggle the loupe.",
-        "zoom": "Zoom Level",
+        "zoom": "Zoom level",
         "zoom-description": "The magnification level of the loupe.",
         "radius": "Radius",
         "radius-description": "The size of the loupe in pixels.",
-        "mouse-middle": "Mouse Middle Button",
-        "mouse-back": "Mouse Back Button",
-        "mouse-forward": "Mouse Forward Button"
+        "mouse-middle": "Mouse middle button",
+        "mouse-back": "Mouse back button",
+        "mouse-forward": "Mouse forward button"
       },
       "font": {
-        "title": "Font Family",
+        "title": "Font family",
         "default-font-name": "Default"
       },
       "font-size": {
-        "title": "Font Size"
+        "title": "Font size"
       },
       "history-feature": {
-        "title": "Reading History",
+        "title": "Reading history",
         "description": "When enabled, reading history will be saved for each book you read."
       }
     },
@@ -277,32 +277,32 @@
       },
       "resize": {
         "max-image-height": {
-          "title": "Maximum Image Height (px)",
+          "title": "Maximum image height (px)",
           "description": "Images taller than this will be resized proportionally.\nSet zero to disable resizing."
         },
         "resize-method": {
-          "title": "Resizing Method",
+          "title": "Resizing method",
           "description": "Select the algorithm used for resizing. Choose the best balance between image quality and processing speed for your needs.",
           "nearest": "Nearest Neighbor (Fastest / Low Quality)",
           "box": "Box (Fast / Low Quality)",
           "bilinear": "Bilinear (Fast / Standard Quality)",
-          "hamming": "Hamming (Medium Quality)",
+          "hamming": "Hamming (Medium / Standard Quality)",
           "catmullRom": "Catmull-Rom (Medium / High Quality)",
           "mitchellNetravali": "Mitchell-Netravali (Medium / High Quality)",
           "lanczos3": "Lanczos 3 (Slow / Best Quality)"
         }
       },
       "pdf": {
-        "title": "PDF Rendering Height (px)",
+        "title": "PDF rendering height (px)",
         "description": "Height of the PDF rendering area in pixels."
       },
       "cache": {
         "preload-page-count": {
-          "title": "Preload Page Count",
+          "title": "Preload page count",
           "description": "The number of pages to preload in each direction (forward and backward)."
         },
         "image-cache-size": {
-          "title": "Image Cache Size (MiB)",
+          "title": "Image cache size (MiB)",
           "description": "The maximum size of the image memory cache in MiB.\nChanging this will clear the current cache."
         }
       }
@@ -311,9 +311,9 @@
       "tab-name": "Developer",
       "title": "Developer Settings",
       "log": {
-        "log-directory": "Log Directory",
+        "log-directory": "Log directory",
         "log-level": {
-          "title": "Log Level",
+          "title": "Log level",
           "description": "A restart of the application is required to apply the log level settings.",
           "trace": "Trace",
           "debug": "Debug",
@@ -323,25 +323,25 @@
         }
       },
       "experimental-features": {
-        "title": "Experimental Features",
+        "title": "Experimental features",
         "description": "These features are currently under development. They may be changed or removed without notice, and functionality may be unstable."
       }
     },
     "about": {
       "tab-name": "About",
       "title": "About",
-      "project-page": "Project Page",
+      "project-page": "Project page",
       "updater": {
-        "check": "Check for Updates",
-        "checking": "Checking..."
+        "check": "Check for updates",
+        "checking": "Checking…"
       },
       "third-party-licenses": {
         "title": "Third-Party Licenses",
         "body": "This application is built with open source software.",
-        "frontend": "Frontend Licenses (npm)",
-        "backend": "Backend Licenses (cargo)",
+        "frontend": "Frontend licenses (npm)",
+        "backend": "Backend licenses (cargo)",
         "bundled": "Bundled Library Licenses",
-        "pdfium": "PDFium License"
+        "pdfium": "PDFium license"
       }
     }
   },
@@ -358,7 +358,7 @@
     "container": {
       "unsupported-format": "Unsupported format.",
       "entry-not-found": "Page not found.",
-      "empty": "It contains no readable pages."
+      "empty": "The book contains no readable pages."
     },
     "settings": {
       "save-failed": "Failed to save settings.",
@@ -371,7 +371,7 @@
   "updater": {
     "not-available": "Your application is up to date.",
     "downloading": "Downloading: {{progress}}%",
-    "installing": "Installing...",
+    "installing": "Installing…",
     "restart": "The application will automatically restart to apply the update.",
     "checking-error": "An error occurred while checking for updates.\n{{error}}",
     "unsupported-platform": "Auto-updater is not supported on this platform.\nPlease update using your package manager.",

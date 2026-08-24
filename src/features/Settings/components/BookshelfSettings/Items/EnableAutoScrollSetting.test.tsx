@@ -22,7 +22,7 @@ describe("EnableAutoScrollSetting", () => {
 
     const switchElement = screen.getByRole("switch");
     expect(switchElement).toBeChecked();
-    expect(screen.getByText("Auto Scroll Text")).toBeInTheDocument();
+    expect(screen.getByText("Auto-scroll text")).toBeInTheDocument();
   });
 
   it("should persist the changed leaf via set_settings when toggled", async () => {
