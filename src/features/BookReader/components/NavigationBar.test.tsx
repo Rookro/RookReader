@@ -339,9 +339,9 @@ describe("NavigationBar", () => {
 
   describe("icons", () => {
     it.each([
-      ["rtl", "FormatTextdirectionRToLIcon"],
-      ["ltr", "FormatTextdirectionLToRIcon"],
-    ])("should show the %s text-direction icon", (direction, testId) => {
+      ["rtl", "ReadingDirection-rtl"],
+      ["ltr", "ReadingDirection-ltr"],
+    ])("should show the %s reading-direction icon", (direction, testId) => {
       const preloadedState = createBasePreloadedState();
       preloadedState.settings.reader.comic.readingDirection = direction as "rtl" | "ltr";
 
@@ -353,10 +353,22 @@ describe("NavigationBar", () => {
 
   describe("tooltips", () => {
     it.each([
+      ["rtl", "Switch to left-to-right"],
+      ["ltr", "Switch to right-to-left"],
+    ])("should offer the opposite direction when reading %s", async (direction, tooltip) => {
+      const preloadedState = createBasePreloadedState();
+      preloadedState.settings.reader.comic.readingDirection = direction as "rtl" | "ltr";
+
+      renderWithProviders(<NavigationBar />, { preloadedState });
+      await user.hover(screen.getByLabelText("toggle-direction"));
+
+      expect(await screen.findByRole("tooltip")).toHaveTextContent(tooltip);
+    });
+
+    it.each([
       ["back", "Back"],
       ["forward", "Forward"],
       ["toggle-two-paged", "Toggle two-page spread"],
-      ["toggle-direction", "Toggle reading direction"],
       ["settings", "Settings"],
     ])("should describe the %s button on hover", async (ariaLabel, tooltip) => {
       // Sit in the middle of the history so both back and forward stay enabled;

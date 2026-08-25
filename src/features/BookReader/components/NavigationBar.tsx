@@ -2,8 +2,6 @@ import ArrowBack from "@mui/icons-material/ArrowBack";
 import ArrowForward from "@mui/icons-material/ArrowForward";
 import Bookmark from "@mui/icons-material/Bookmark";
 import BookmarkBorder from "@mui/icons-material/BookmarkBorder";
-import FormatTextdirectionLToR from "@mui/icons-material/FormatTextdirectionLToR";
-import FormatTextdirectionRToL from "@mui/icons-material/FormatTextdirectionRToL";
 import LocalLibrary from "@mui/icons-material/LocalLibrary";
 import LooksOne from "@mui/icons-material/LooksOne";
 import LooksTwo from "@mui/icons-material/LooksTwo";
@@ -14,6 +12,7 @@ import { debug } from "@tauri-apps/plugin-log";
 import type React from "react";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import ReadingDirectionIcon from "../../../components/ui/ReadingDirectionIcon";
 import { useAppDispatch, useAppSelector } from "../../../store/store";
 import type { Direction } from "../../../types/AppSettings";
 import { openSettingsWindow } from "../../../utils/WindowOpener";
@@ -45,6 +44,8 @@ export default function NavigationBar() {
   const dispatch = useAppDispatch();
 
   const currentPath = history[historyIndex] ?? "";
+
+  const isRtl = readerSettings.comic.readingDirection === "rtl";
 
   // A novel position is identified by its CFI, a comic position by its page index.
   const currentBookmark = useMemo(
@@ -233,13 +234,9 @@ export default function NavigationBar() {
           </IconButton>
         </span>
       </Tooltip>
-      <Tooltip title={t("book-reader.toggle-direction")}>
+      <Tooltip title={isRtl ? t("book-reader.switch-to-ltr") : t("book-reader.switch-to-rtl")}>
         <IconButton onClick={handleSwitchDirectionClicked} aria-label="toggle-direction">
-          {readerSettings.comic.readingDirection === "rtl" ? (
-            <FormatTextdirectionRToL />
-          ) : (
-            <FormatTextdirectionLToR />
-          )}
+          <ReadingDirectionIcon direction={isRtl ? "rtl" : "ltr"} />
         </IconButton>
       </Tooltip>
       <Tooltip title={t("common.settings")}>
