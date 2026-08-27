@@ -30,6 +30,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * For books that offer no such clue, a new toolbar button shifts the pairing by one page and resets it again. The shift is remembered the next time you open the book.
 * The page list in the side pane now highlights both pages shown in two-page spread mode, instead of only the first one. (#302)
 * Reviewed the whole UI for consistency in wording, tooltips, and icons. (#305)
+* Bookshelf titles that scroll no longer stutter on Linux (WebKitGTK). (#306)
+  * The scroll is driven by the Web Animations API instead of a CSS animation. Every distinct title width used to need its own `@keyframes` rule, and inserting those rules made WebKitGTK re-resolve styles across the whole document each time cards scrolled into view.
+  * A scrolling title is promoted to its own compositing layer, so its glyphs are no longer re-rasterised on every frame.
+  * Titles are measured after paint rather than during commit, and a resize reporting an unchanged width no longer re-renders the card or restarts its animation.
+  * Every card shares one ResizeObserver and one `prefers-reduced-motion` listener, instead of registering a pair per card.
 
 ### Fixed
 
