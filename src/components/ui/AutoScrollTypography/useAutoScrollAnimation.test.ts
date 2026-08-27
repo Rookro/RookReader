@@ -1,160 +1,130 @@
 import { act, renderHook } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAutoScrollAnimation } from "./useAutoScrollAnimation";
 
+/** Installs a matchMedia stub and returns a handle to flip the query result. */
+function stubMatchMedia(initialMatches: boolean) {
+  const listeners = new Set<() => void>();
+  const mediaQuery = {
+    matches: initialMatches,
+    addEventListener: (_type: string, listener: () => void) => listeners.add(listener),
+    removeEventListener: (_type: string, listener: () => void) => listeners.delete(listener),
+  };
+
+  vi.stubGlobal(
+    "matchMedia",
+    vi.fn(() => mediaQuery),
+  );
+
+  return {
+    set(matches: boolean) {
+      mediaQuery.matches = matches;
+      for (const listener of listeners) listener();
+    },
+    get listenerCount() {
+      return listeners.size;
+    },
+  };
+}
+
+/** Mounts the hook against elements whose measured widths overflow. */
+function renderOverflowing(enabled = true) {
+  const container = document.createElement("div");
+  const content = document.createElement("span");
+  container.appendChild(content);
+  document.body.appendChild(container);
+
+  Object.defineProperty(container, "clientWidth", { get: () => 100, configurable: true });
+  Object.defineProperty(content, "offsetWidth", { get: () => 200, configurable: true });
+
+  return renderHook(() => {
+    const result = useAutoScrollAnimation(enabled, 50, 2);
+    result.containerRef.current = container;
+    result.contentRef.current = content;
+    return result;
+  });
+}
+
 describe("useAutoScrollAnimation", () => {
+  beforeEach(() => {
+    stubMatchMedia(false);
+  });
+
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+    document.body.innerHTML = "";
   });
 
-  it("should return initial state", () => {
-    const { result } = renderHook(() => useAutoScrollAnimation(50, 2));
+  it("should return idle state before anything is measured", () => {
+    const { result } = renderHook(() => useAutoScrollAnimation(true, 50, 2));
 
     expect(result.current.isOverflowing).toBe(false);
-    expect(result.current.animationStyle).toEqual({});
-    expect(result.current.delayPercent).toBe(0);
+    expect(result.current.shouldAnimate).toBe(false);
+    expect(result.current.metrics).toBeNull();
     expect(result.current.containerRef.current).toBeNull();
     expect(result.current.contentRef.current).toBeNull();
+    expect(result.current.scrollRef.current).toBeNull();
   });
 
-  it("should detect overflow and calculate animation parameters", () => {
-    const pixelsPerSecond = 50;
-    const delaySeconds = 2;
+  it("should expose the cycle timing derived from the measured width", () => {
+    const { result, rerender } = renderOverflowing();
 
-    let observerCallback: ResizeObserverCallback = () => {};
-
-    class ResizeObserverMock {
-      constructor(cb: ResizeObserverCallback) {
-        observerCallback = cb;
-      }
-      observe = vi.fn();
-      unobserve = vi.fn();
-      disconnect = vi.fn();
-    }
-
-    vi.stubGlobal("ResizeObserver", ResizeObserverMock);
-
-    // Mock container and content elements using full DOM elements
-    const mockContainer = document.createElement("div");
-    const mockContent = document.createElement("span");
-
-    Object.defineProperty(mockContainer, "clientWidth", {
-      get: () => 100,
-      configurable: true,
-    });
-    Object.defineProperty(mockContent, "offsetWidth", {
-      get: () => 200,
-      configurable: true,
-    });
-
-    const { result, rerender } = renderHook(
-      ({ pps, ds }) => {
-        const res = useAutoScrollAnimation(pps, ds);
-        res.containerRef.current = mockContainer;
-        res.contentRef.current = mockContent;
-        return res;
-      },
-      {
-        initialProps: { pps: pixelsPerSecond, ds: delaySeconds },
-      },
-    );
-
-    // Trigger calculation
+    // The refs are only populated by the first render, so measure on the second.
     act(() => {
-      rerender({ pps: pixelsPerSecond, ds: delaySeconds });
+      rerender();
     });
 
-    // Also trigger via observer callback
-    act(() => {
-      observerCallback([], {} as ResizeObserver);
-    });
-
-    // Verify overflowing state
     expect(result.current.isOverflowing).toBe(true);
-
-    // Verify animation style calculations
-    expect(result.current.animationStyle).toEqual({
-      "--scroll-duration": "6s",
-      "--scroll-offset": "-200px",
+    expect(result.current.shouldAnimate).toBe(true);
+    expect(result.current.metrics).toEqual({
+      contentWidth: 200,
+      durationMs: 6000,
+      delayFraction: expect.closeTo(1 / 3, 5),
     });
-
-    expect(result.current.delayPercent).toBeCloseTo(33.333, 3);
-
-    // Test resizing to a different overflow value
-    Object.defineProperty(mockContent, "offsetWidth", {
-      get: () => 150,
-      configurable: true,
-    });
-    act(() => {
-      observerCallback([], {} as ResizeObserver);
-    });
-
-    expect(result.current.animationStyle).toEqual({
-      "--scroll-duration": "5s",
-      "--scroll-offset": "-150px",
-    });
-    expect(result.current.delayPercent).toBe(40);
-
-    // Test resizing to non-overflow
-    Object.defineProperty(mockContent, "offsetWidth", {
-      get: () => 50,
-      configurable: true,
-    });
-    act(() => {
-      observerCallback([], {} as ResizeObserver);
-    });
-
-    expect(result.current.isOverflowing).toBe(false);
-    expect(result.current.animationStyle).toEqual({});
-    expect(result.current.delayPercent).toBe(0);
   });
 
-  it("should handle non-overflowing state initially", () => {
-    let observerCallback: ResizeObserverCallback = () => {};
+  it("should not animate when the user prefers reduced motion", () => {
+    stubMatchMedia(true);
 
-    class ResizeObserverMock {
-      constructor(cb: ResizeObserverCallback) {
-        observerCallback = cb;
-      }
-      observe = vi.fn();
-      unobserve = vi.fn();
-      disconnect = vi.fn();
-    }
-
-    vi.stubGlobal("ResizeObserver", ResizeObserverMock);
-
-    const mockContainer = document.createElement("div");
-    const mockContent = document.createElement("span");
-
-    Object.defineProperty(mockContainer, "clientWidth", {
-      get: () => 200,
-      configurable: true,
-    });
-    Object.defineProperty(mockContent, "offsetWidth", {
-      get: () => 100,
-      configurable: true,
+    const { result, rerender } = renderOverflowing();
+    act(() => {
+      rerender();
     });
 
-    const { result, rerender } = renderHook(
-      ({ pps, ds }) => {
-        const res = useAutoScrollAnimation(pps, ds);
-        res.containerRef.current = mockContainer;
-        res.contentRef.current = mockContent;
-        return res;
-      },
-      {
-        initialProps: { pps: 50, ds: 2 },
-      },
-    );
+    expect(result.current.isOverflowing).toBe(true);
+    expect(result.current.shouldAnimate).toBe(false);
+  });
+
+  it("should stop animating when the reduced motion preference turns on", () => {
+    const media = stubMatchMedia(false);
+
+    const { result, rerender } = renderOverflowing();
+    act(() => {
+      rerender();
+    });
+    expect(result.current.shouldAnimate).toBe(true);
 
     act(() => {
-      rerender({ pps: 50, ds: 2 });
-      observerCallback([], {} as ResizeObserver);
+      media.set(true);
     });
 
-    expect(result.current.isOverflowing).toBe(false);
-    expect(result.current.animationStyle).toEqual({});
-    expect(result.current.delayPercent).toBe(0);
+    expect(result.current.shouldAnimate).toBe(false);
+  });
+
+  it("should register a single reduced motion listener for many instances", () => {
+    const media = stubMatchMedia(false);
+
+    const { unmount } = renderHook(() => {
+      useAutoScrollAnimation(true, 50, 2);
+      useAutoScrollAnimation(true, 50, 2);
+      useAutoScrollAnimation(true, 50, 2);
+    });
+
+    expect(media.listenerCount).toBe(1);
+
+    unmount();
+
+    expect(media.listenerCount).toBe(0);
   });
 });
