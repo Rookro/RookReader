@@ -1,10 +1,10 @@
+import AccessTime from "@mui/icons-material/AccessTime";
 import Add from "@mui/icons-material/Add";
-import ArrowDownward from "@mui/icons-material/ArrowDownward";
-import ArrowUpward from "@mui/icons-material/ArrowUpward";
 import Home from "@mui/icons-material/Home";
 import Search from "@mui/icons-material/Search";
 import Settings from "@mui/icons-material/Settings";
 import Sort from "@mui/icons-material/Sort";
+import SortByAlpha from "@mui/icons-material/SortByAlpha";
 import {
   Box,
   Breadcrumbs,
@@ -18,6 +18,7 @@ import {
   type SelectChangeEvent,
   Stack,
   Toolbar,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import { debug } from "@tauri-apps/plugin-log";
@@ -46,10 +47,13 @@ export default function NavigationBar() {
 
   const [isAddBookDialogOpen, setIsAddBookDialogOpen] = useState(false);
 
-  const handleSettingsClicked = useCallback(async (_e: React.MouseEvent<HTMLButtonElement>) => {
-    debug("Settings button clicked in bookshelf.");
-    openSettingsWindow();
-  }, []);
+  const handleSettingsClicked = useCallback(
+    async (_e: React.MouseEvent<HTMLButtonElement>) => {
+      debug("Settings button clicked in bookshelf.");
+      openSettingsWindow(t("common.settings"));
+    },
+    [t],
+  );
 
   const handleBackToBookshelf = useCallback(
     (e: React.MouseEvent) => {
@@ -158,9 +162,11 @@ export default function NavigationBar() {
           }
           onChange={handleSearchTextChanged}
         />
-        <IconButton onClick={handleSettingsClicked} aria-label="settings">
-          <Settings />
-        </IconButton>
+        <Tooltip title={t("common.settings")}>
+          <IconButton onClick={handleSettingsClicked} aria-label="settings">
+            <Settings />
+          </IconButton>
+        </Tooltip>
       </Toolbar>
       <Toolbar variant="dense" disableGutters sx={{ paddingBottom: 1, justifyContent: "flex-end" }}>
         {selectedSeriesId === null && (
@@ -172,30 +178,30 @@ export default function NavigationBar() {
               size="small"
               autoWidth
               sx={{ marginX: 1 }}
-              defaultValue={bookshelfSettings.sortOrder}
+              value={bookshelfSettings.sortOrder}
               onChange={handleSortOrderChanged}
             >
               <MenuItem value="name_asc">
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                  <ArrowUpward fontSize="small" />
+                  <SortByAlpha fontSize="small" />
                   <Typography variant="body2">{t("bookshelf.sort.name-asc")}</Typography>
                 </Box>
               </MenuItem>
               <MenuItem value="name_desc">
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                  <ArrowDownward fontSize="small" />
+                  <SortByAlpha fontSize="small" />
                   <Typography variant="body2">{t("bookshelf.sort.name-desc")}</Typography>
                 </Box>
               </MenuItem>
               <MenuItem value="date_asc">
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                  <ArrowUpward fontSize="small" color="action" />
+                  <AccessTime fontSize="small" />
                   <Typography variant="body2">{t("bookshelf.sort.date-asc")}</Typography>
                 </Box>
               </MenuItem>
               <MenuItem value="date_desc">
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                  <ArrowDownward fontSize="small" color="action" />
+                  <AccessTime fontSize="small" />
                   <Typography variant="body2">{t("bookshelf.sort.date-desc")}</Typography>
                 </Box>
               </MenuItem>

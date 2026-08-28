@@ -336,4 +336,51 @@ describe("NavigationBar", () => {
       expect(BookmarkCommands.deleteBookmark).not.toHaveBeenCalled();
     });
   });
+
+  describe("icons", () => {
+    it.each([
+      ["rtl", "ReadingDirection-rtl"],
+      ["ltr", "ReadingDirection-ltr"],
+    ])("should show the %s reading-direction icon", (direction, testId) => {
+      const preloadedState = createBasePreloadedState();
+      preloadedState.settings.reader.comic.readingDirection = direction as "rtl" | "ltr";
+
+      renderWithProviders(<NavigationBar />, { preloadedState });
+
+      expect(screen.getByTestId(testId)).toBeInTheDocument();
+    });
+  });
+
+  describe("tooltips", () => {
+    it.each([
+      ["rtl", "Switch to left-to-right"],
+      ["ltr", "Switch to right-to-left"],
+    ])("should offer the opposite direction when reading %s", async (direction, tooltip) => {
+      const preloadedState = createBasePreloadedState();
+      preloadedState.settings.reader.comic.readingDirection = direction as "rtl" | "ltr";
+
+      renderWithProviders(<NavigationBar />, { preloadedState });
+      await user.hover(screen.getByLabelText("toggle-direction"));
+
+      expect(await screen.findByRole("tooltip")).toHaveTextContent(tooltip);
+    });
+
+    it.each([
+      ["back", "Back"],
+      ["forward", "Forward"],
+      ["toggle-two-paged", "Toggle two-page spread"],
+      ["settings", "Settings"],
+    ])("should describe the %s button on hover", async (ariaLabel, tooltip) => {
+      // Sit in the middle of the history so both back and forward stay enabled;
+      // a disabled button has pointer-events: none and cannot be hovered.
+      const preloadedState = createBasePreloadedState();
+      preloadedState.read.containerFile.history = ["/path/1", "/path/2", "/path/3"];
+      preloadedState.read.containerFile.historyIndex = 1;
+
+      renderWithProviders(<NavigationBar />, { preloadedState });
+      await user.hover(screen.getByLabelText(ariaLabel));
+
+      expect(await screen.findByRole("tooltip")).toHaveTextContent(tooltip);
+    });
+  });
 });

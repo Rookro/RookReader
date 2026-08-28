@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "Rook Reader",
+        "title": "RookReader",
         "width": 1240,
         "height": 690
       }

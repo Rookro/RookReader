@@ -48,7 +48,7 @@ describe("RookReader Application E2E Tests", () => {
     await settingsContainer.waitForExist();
     await expect(settingsContainer).toExist();
 
-    const settingsTabs = $('[aria-label="setttings tabs"]');
+    const settingsTabs = $('[aria-label="settings tabs"]');
     await settingsTabs.waitForExist();
     await expect(settingsTabs).toExist();
 

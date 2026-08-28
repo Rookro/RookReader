@@ -32,6 +32,7 @@ export default function GridSizeControl({ value, onChange }: GridSizeControlProp
       <Stack direction="row" spacing={2} alignItems="center" sx={{ width: "100%" }}>
         <ZoomOut />
         <Slider
+          aria-label={t("bookshelf.grid-size-change")}
           value={value}
           onChange={(_e, newValue) => onChange(newValue as number)}
           min={0}

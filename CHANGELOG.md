@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * Each folder inside an archive is now a book of its own, and opening an archive shows only the pages sitting directly inside it. Archives without folders are unaffected.
   * Double-click an archive in the File Navigator to step into it like a folder. Back, Forward, Up and the path box all work across the archive boundary, and next/previous book follows the archive's folders too.
   * A new reader setting, "Open the folder inside an archive automatically" (on by default), opens the single folder an archive wraps its pages in, following nested single folders all the way down.
-  * A folder or archive with no readable pages is no longer recorded as an empty book. It reports "It contains no readable pages." and the File Navigator moves into it, so you can pick a folder inside.
+  * A folder or archive with no readable pages is no longer recorded as an empty book. It reports "The book contains no readable pages." and the File Navigator moves into it, so you can pick a folder inside.
   * Bookmarks and reading positions are stored as page numbers, so any saved before this release may land on a different page in an archive that is now split into several books.
 
 ### Changed
@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * Books containing a double-page illustration now work out on their own whether the archive starts with the cover, and pair every page correctly without being told.
   * For books that offer no such clue, a new toolbar button shifts the pairing by one page and resets it again. The shift is remembered the next time you open the book.
 * The page list in the side pane now highlights both pages shown in two-page spread mode, instead of only the first one. (#302)
+* Reviewed the whole UI for consistency in wording, tooltips, and icons. (#305)
 
 ### Fixed
 

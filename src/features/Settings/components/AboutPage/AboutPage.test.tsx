@@ -9,9 +9,15 @@ describe("AboutPage", () => {
 
     await waitFor(() => {
       // The word "About" might be in the tab or elsewhere, but we can check app name
-      expect(screen.getByText(/Project Page/i)).toBeInTheDocument();
+      expect(screen.getByText(/Project page/i)).toBeInTheDocument();
     });
 
     expect(screen.getByText(/Third-Party Licenses/i)).toBeInTheDocument();
+  });
+
+  it("should render the panel heading like every other settings tab", () => {
+    renderWithProviders(<AboutPage />);
+
+    expect(screen.getByRole("heading", { name: "About" })).toBeInTheDocument();
   });
 });

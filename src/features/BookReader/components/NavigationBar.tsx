@@ -6,14 +6,13 @@ import LocalLibrary from "@mui/icons-material/LocalLibrary";
 import LooksOne from "@mui/icons-material/LooksOne";
 import LooksTwo from "@mui/icons-material/LooksTwo";
 import Settings from "@mui/icons-material/Settings";
-import SwitchLeft from "@mui/icons-material/SwitchLeft";
-import SwitchRight from "@mui/icons-material/SwitchRight";
 import ViewColumn from "@mui/icons-material/ViewColumn";
 import { Box, IconButton, OutlinedInput, Toolbar, Tooltip } from "@mui/material";
 import { debug } from "@tauri-apps/plugin-log";
 import type React from "react";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import ReadingDirectionIcon from "../../../components/ui/ReadingDirectionIcon";
 import { useAppDispatch, useAppSelector } from "../../../store/store";
 import type { Direction } from "../../../types/AppSettings";
 import { openSettingsWindow } from "../../../utils/WindowOpener";
@@ -45,6 +44,8 @@ export default function NavigationBar() {
   const dispatch = useAppDispatch();
 
   const currentPath = history[historyIndex] ?? "";
+
+  const isRtl = readerSettings.comic.readingDirection === "rtl";
 
   // A novel position is identified by its CFI, a comic position by its page index.
   const currentBookmark = useMemo(
@@ -145,10 +146,13 @@ export default function NavigationBar() {
     [dispatch, book, currentBookmark, isNovel, entries, index, cfi, t],
   );
 
-  const handleSettingsClicked = useCallback(async (_e: React.MouseEvent<HTMLButtonElement>) => {
-    debug("handleSettingsClicked");
-    openSettingsWindow();
-  }, []);
+  const handleSettingsClicked = useCallback(
+    async (_e: React.MouseEvent<HTMLButtonElement>) => {
+      debug("handleSettingsClicked");
+      openSettingsWindow(t("common.settings"));
+    },
+    [t],
+  );
 
   const handleContextMenu = useCallback((e: React.MouseEvent<HTMLElement>) => {
     e.stopPropagation();
@@ -161,16 +165,24 @@ export default function NavigationBar() {
           <LocalLibrary />
         </IconButton>
       </Tooltip>
-      <IconButton onClick={handleBackClicked} disabled={historyIndex <= 0} aria-label="back">
-        <ArrowBack />
-      </IconButton>
-      <IconButton
-        onClick={handleForwardClicked}
-        disabled={history.length - historyIndex <= 1}
-        aria-label="forward"
-      >
-        <ArrowForward />
-      </IconButton>
+      <Tooltip title={t("common.back")}>
+        <span>
+          <IconButton onClick={handleBackClicked} disabled={historyIndex <= 0} aria-label="back">
+            <ArrowBack />
+          </IconButton>
+        </span>
+      </Tooltip>
+      <Tooltip title={t("common.forward")}>
+        <span>
+          <IconButton
+            onClick={handleForwardClicked}
+            disabled={history.length - historyIndex <= 1}
+            aria-label="forward"
+          >
+            <ArrowForward />
+          </IconButton>
+        </span>
+      </Tooltip>
       <Box component="form" action={formAction} sx={{ flexGrow: 1 }}>
         <OutlinedInput
           // Force DOM recreation to update the initial value on external state changes.
@@ -203,9 +215,11 @@ export default function NavigationBar() {
           </IconButton>
         </span>
       </Tooltip>
-      <IconButton onClick={handleSwitchTwoPagedClicked} aria-label="toggle-two-paged">
-        {readerSettings.comic.enableSpread ? <LooksTwo /> : <LooksOne />}
-      </IconButton>
+      <Tooltip title={t("book-reader.toggle-spread")}>
+        <IconButton onClick={handleSwitchTwoPagedClicked} aria-label="toggle-two-paged">
+          {readerSettings.comic.enableSpread ? <LooksTwo /> : <LooksOne />}
+        </IconButton>
+      </Tooltip>
       <Tooltip
         title={isSpreadShifted ? t("book-reader.reset-spread") : t("book-reader.shift-spread")}
       >
@@ -220,12 +234,16 @@ export default function NavigationBar() {
           </IconButton>
         </span>
       </Tooltip>
-      <IconButton onClick={handleSwitchDirectionClicked} aria-label="toggle-direction">
-        {readerSettings.comic.readingDirection === "rtl" ? <SwitchRight /> : <SwitchLeft />}
-      </IconButton>
-      <IconButton onClick={handleSettingsClicked} aria-label="settings">
-        <Settings />
-      </IconButton>
+      <Tooltip title={isRtl ? t("book-reader.switch-to-ltr") : t("book-reader.switch-to-rtl")}>
+        <IconButton onClick={handleSwitchDirectionClicked} aria-label="toggle-direction">
+          <ReadingDirectionIcon direction={isRtl ? "rtl" : "ltr"} />
+        </IconButton>
+      </Tooltip>
+      <Tooltip title={t("common.settings")}>
+        <IconButton onClick={handleSettingsClicked} aria-label="settings">
+          <Settings />
+        </IconButton>
+      </Tooltip>
     </Toolbar>
   );
 }

@@ -62,4 +62,10 @@ describe("SideTabs", () => {
     );
     expect(resetCalls).toHaveLength(1);
   });
+  it("should describe each tab with a tooltip", async () => {
+    renderWithProviders(<SideTabs tabs={mockTabs} index={0} isHidden={false} />);
+    await user.hover(screen.getByLabelText("Tab 1"));
+
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("Tab 1");
+  });
 });

@@ -4,6 +4,7 @@ import { Box, Slider, Stack, Typography } from "@mui/material";
 import { createTheme, type Theme, ThemeProvider } from "@mui/material/styles";
 import rtlPlugin from "@mui/stylis-plugin-rtl";
 import { type SyntheticEvent, useCallback, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { prefixer } from "stylis";
 import { useAppTheme } from "../../../hooks/useAppTheme";
 import { useAppDispatch, useAppSelector } from "../../../store/store";
@@ -13,6 +14,7 @@ import { setImageIndex } from "../slice";
  * Control Slider Component
  */
 export default function ControlSlider() {
+  const { t } = useTranslation();
   const entries = useAppSelector((state) => state.read.containerFile.entries);
   const index = useAppSelector((state) => state.read.containerFile.index);
   const readerSettings = useAppSelector((state) => state.settings.reader);
@@ -68,6 +70,7 @@ export default function ControlSlider() {
       <CacheProvider value={cache}>
         <ThemeProvider theme={theme}>
           <Slider
+            aria-label={t("book-reader.page-slider")}
             value={index}
             defaultValue={1}
             step={1}

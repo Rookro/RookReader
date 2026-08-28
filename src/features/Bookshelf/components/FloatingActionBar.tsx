@@ -1,9 +1,9 @@
+import AutoAwesomeMotion from "@mui/icons-material/AutoAwesomeMotion";
 import Close from "@mui/icons-material/Close";
-import CollectionsBookmark from "@mui/icons-material/CollectionsBookmark";
 import Delete from "@mui/icons-material/Delete";
 import LibraryBooks from "@mui/icons-material/LibraryBooks";
 import LocalOffer from "@mui/icons-material/LocalOffer";
-import { Box, Button, Divider, IconButton, Paper, Typography } from "@mui/material";
+import { Box, Button, Divider, IconButton, Paper, Tooltip, Typography } from "@mui/material";
 import { useTranslation } from "react-i18next";
 
 interface FloatingActionBarProps {
@@ -77,7 +77,7 @@ export default function FloatingActionBar({
         <Button
           size="small"
           color="inherit"
-          startIcon={<CollectionsBookmark />}
+          startIcon={<AutoAwesomeMotion />}
           onClick={onSetSeries}
         >
           {t("bookshelf.series.set-series")}
@@ -86,16 +86,13 @@ export default function FloatingActionBar({
           {t("bookshelf.tag.set-tags")}
         </Button>
         <Button size="small" color="inherit" startIcon={<Delete />} onClick={onDelete}>
-          {t("bookshelf.remove-book")}
+          {t("bookshelf.remove-book", { count: selectionCount })}
         </Button>
-        <IconButton
-          size="small"
-          color="inherit"
-          onClick={onClear}
-          title={t("bookshelf.selection.clear")}
-        >
-          <Close fontSize="small" />
-        </IconButton>
+        <Tooltip title={t("bookshelf.selection.clear")}>
+          <IconButton size="small" color="inherit" onClick={onClear} aria-label="clear-selection">
+            <Close fontSize="small" />
+          </IconButton>
+        </Tooltip>
       </Paper>
     </Box>
   );

@@ -45,7 +45,7 @@ export default function SettingsView() {
         variant="scrollable"
         value={value}
         onChange={handleChange}
-        aria-label="setttings tabs"
+        aria-label="settings tabs"
         sx={{ borderRight: 2, borderColor: "divider" }}
       >
         {tabs.map((tab) => (

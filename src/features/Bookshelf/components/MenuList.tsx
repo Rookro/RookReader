@@ -1,9 +1,9 @@
 import Add from "@mui/icons-material/Add";
 import AutoStories from "@mui/icons-material/AutoStories";
 import Delete from "@mui/icons-material/Delete";
+import FolderOutlined from "@mui/icons-material/FolderOutlined";
 import LocalOffer from "@mui/icons-material/LocalOffer";
 import MenuBook from "@mui/icons-material/MenuBook";
-import QuestionMark from "@mui/icons-material/QuestionMark";
 import {
   Box,
   Divider,
@@ -22,6 +22,7 @@ import {
 } from "@mui/material";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
+import ConfirmDialog from "../../../components/ui/ConfirmDialog";
 import { useAppDispatch, useAppSelector } from "../../../store/store";
 import { setActiveView } from "../../MainView/slice";
 import { removeBookshelf, setSelectedBookshelf } from "../slice";
@@ -50,6 +51,12 @@ export default function MenuList({ onClickAddBookshelf, onClickAddBookTag }: Men
     mouseY: number;
     type: "bookshelf" | "tag";
     id: number;
+  } | null>(null);
+
+  const [pendingDelete, setPendingDelete] = useState<{
+    type: "bookshelf" | "tag";
+    id: number;
+    name: string;
   } | null>(null);
 
   const handleReturnToReaderClicked = useCallback(
@@ -94,15 +101,23 @@ export default function MenuList({ onClickAddBookshelf, onClickAddBookTag }: Men
     setContextMenu(null);
   };
 
-  const handleDelete = () => {
+  // Deleting a collection or a tag is not undoable, so confirm before dispatching.
+  const handleDeleteRequested = () => {
     if (contextMenu) {
-      if (contextMenu.type === "bookshelf") {
-        dispatch(removeBookshelf(contextMenu.id));
-      } else if (contextMenu.type === "tag") {
-        dispatch(removeTag(contextMenu.id));
-      }
+      const items = contextMenu.type === "bookshelf" ? bookshelves : tags;
+      const name = items.find((item) => item.id === contextMenu.id)?.name ?? "";
+      setPendingDelete({ type: contextMenu.type, id: contextMenu.id, name });
     }
     handleClose();
+  };
+
+  const handleDeleteConfirmed = () => {
+    if (pendingDelete?.type === "bookshelf") {
+      dispatch(removeBookshelf(pendingDelete.id));
+    } else if (pendingDelete?.type === "tag") {
+      dispatch(removeTag(pendingDelete.id));
+    }
+    setPendingDelete(null);
   };
 
   return (
@@ -143,14 +158,17 @@ export default function MenuList({ onClickAddBookshelf, onClickAddBookTag }: Men
               }}
             >
               <Typography variant="body1">{t("bookshelf.collection.title")}</Typography>
-              <IconButton
-                edge="end"
-                size="small"
-                onClick={onClickAddBookshelf}
-                sx={{ color: "text.secondary" }}
-              >
-                <Add />
-              </IconButton>
+              <Tooltip title={t("bookshelf.collection.create")}>
+                <IconButton
+                  edge="end"
+                  size="small"
+                  onClick={onClickAddBookshelf}
+                  aria-label="add-bookshelf"
+                  sx={{ color: "text.secondary" }}
+                >
+                  <Add />
+                </IconButton>
+              </Tooltip>
             </ListSubheader>
           }
           sx={{ height: "50%", overflow: "auto" }}
@@ -178,7 +196,7 @@ export default function MenuList({ onClickAddBookshelf, onClickAddBookTag }: Men
                 >
                   <ListItemIcon sx={{ minWidth: "auto", marginRight: "12px" }}>
                     {BookShelfIcons.find((icon) => icon.key === item.icon_id)?.icon ?? (
-                      <QuestionMark />
+                      <FolderOutlined />
                     )}
                   </ListItemIcon>
                   <ListItemText primary={item.name} slotProps={{ primary: { noWrap: true } }} />
@@ -200,14 +218,17 @@ export default function MenuList({ onClickAddBookshelf, onClickAddBookTag }: Men
               }}
             >
               <Typography variant="body1">{t("bookshelf.tag.title")}</Typography>
-              <IconButton
-                edge="end"
-                size="small"
-                onClick={onClickAddBookTag}
-                sx={{ color: "text.secondary" }}
-              >
-                <Add />
-              </IconButton>
+              <Tooltip title={t("bookshelf.tag.create")}>
+                <IconButton
+                  edge="end"
+                  size="small"
+                  onClick={onClickAddBookTag}
+                  aria-label="add-tag"
+                  sx={{ color: "text.secondary" }}
+                >
+                  <Add />
+                </IconButton>
+              </Tooltip>
             </ListSubheader>
           }
           sx={{ height: "50%", overflow: "auto" }}
@@ -243,13 +264,30 @@ export default function MenuList({ onClickAddBookshelf, onClickAddBookTag }: Men
           contextMenu !== null ? { top: contextMenu.mouseY, left: contextMenu.mouseX } : undefined
         }
       >
-        <MenuItem dense onClick={handleDelete}>
+        <MenuItem dense onClick={handleDeleteRequested}>
           <ListItemIcon>
             <Delete color="error" />
           </ListItemIcon>
           <ListItemText>{t("bookshelf.delete")}</ListItemText>
         </MenuItem>
       </Menu>
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title={t(
+          pendingDelete?.type === "tag"
+            ? "bookshelf.tag.deletion.title"
+            : "bookshelf.collection.deletion.title",
+        )}
+        description={t(
+          pendingDelete?.type === "tag"
+            ? "bookshelf.tag.deletion.description"
+            : "bookshelf.collection.deletion.description",
+          { name: pendingDelete?.name ?? "" },
+        )}
+        confirmLabel={t("bookshelf.delete")}
+        onConfirm={handleDeleteConfirmed}
+        onCancel={() => setPendingDelete(null)}
+      />
     </Stack>
   );
 }

@@ -73,7 +73,7 @@ describe("MenuList", () => {
       { id: 2, name: "Unknown Icon", icon_id: "non-existent", created_at: "" },
     ];
     renderWithProviders(<MenuList {...defaultProps} />, { preloadedState: stateWithUnknownIcon });
-    expect(screen.getByTestId("QuestionMarkIcon")).toBeInTheDocument();
+    expect(screen.getByTestId("FolderOutlinedIcon")).toBeInTheDocument();
   });
 
   // Verify that setSelectedTag action is called correctly when a tag is clicked
@@ -114,6 +114,9 @@ describe("MenuList", () => {
     expect(deleteButton).toBeInTheDocument();
 
     await user.click(deleteButton);
+    expect(screen.getByText("Delete this collection?")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Delete" }));
     expect(removeBookshelf).toHaveBeenCalledWith(1);
   });
 
@@ -124,9 +127,27 @@ describe("MenuList", () => {
 
     await user.pointer({ keys: "[MouseRight]", target: tagItem });
 
-    const deleteButton = screen.getByText("Delete");
-    await user.click(deleteButton);
+    await user.click(screen.getByText("Delete"));
+    expect(screen.getByText("Delete this tag?")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Delete" }));
     expect(removeTag).toHaveBeenCalledWith(10);
+  });
+
+  it("should not delete a collection until the confirmation is accepted", async () => {
+    renderWithProviders(<MenuList {...defaultProps} />, { preloadedState });
+
+    await user.pointer({ keys: "[MouseRight]", target: screen.getByText("Bookshelf 1") });
+    await user.click(screen.getByText("Delete"));
+
+    expect(removeBookshelf).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(removeBookshelf).not.toHaveBeenCalled();
+    await waitFor(() =>
+      expect(screen.queryByText("Delete this collection?")).not.toBeInTheDocument(),
+    );
   });
 
   it("should close context menu on backdrop click", async () => {

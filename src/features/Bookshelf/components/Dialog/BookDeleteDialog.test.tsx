@@ -36,7 +36,9 @@ describe("BookDeleteDialog", () => {
   // Verify that the delete dialog is rendered correctly and includes the book name
   it("should render correctly and show book name", () => {
     renderWithProviders(<BookDeleteDialog {...defaultProps} />);
-    expect(screen.getByText(i18n.t("bookshelf.book-deletion.title"))).toBeInTheDocument();
+    expect(
+      screen.getByText(i18n.t("bookshelf.book-deletion.title", { count: 1 })),
+    ).toBeInTheDocument();
     expect(screen.getByText(/Test Book/)).toBeInTheDocument();
   });
 
@@ -93,5 +95,17 @@ describe("BookDeleteDialog", () => {
       expect(BookCollectionReducer.deleteBookFromCollection).not.toHaveBeenCalled();
       expect(onClose).toHaveBeenCalled();
     });
+  });
+  it("should use the plural title when several books are selected", () => {
+    renderWithProviders(
+      <BookDeleteDialog {...defaultProps} books={[mockBook, { ...mockBook, id: 2 }]} />,
+    );
+
+    expect(
+      screen.getByText(i18n.t("bookshelf.book-deletion.title", { count: 2 })),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(i18n.t("bookshelf.book-deletion.title", { count: 1 })),
+    ).not.toBeInTheDocument();
   });
 });
