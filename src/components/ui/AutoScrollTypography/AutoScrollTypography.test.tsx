@@ -1,4 +1,3 @@
-import { useMediaQuery } from "@mui/material";
 import { screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../../../test/utils";
@@ -10,82 +9,73 @@ vi.mock("./useAutoScrollAnimation", () => ({
   useAutoScrollAnimation: vi.fn(),
 }));
 
-// Mock useMediaQuery
-vi.mock("@mui/material", async () => {
-  const actual = await vi.importActual("@mui/material");
-  return {
-    ...actual,
-    useMediaQuery: vi.fn(),
-  };
-});
+/** Builds the hook's return value with the animation state under test. */
+function mockHook(shouldAnimate: boolean) {
+  vi.mocked(autoScrollHook.useAutoScrollAnimation).mockReturnValue({
+    containerRef: { current: null },
+    contentRef: { current: null },
+    scrollRef: { current: null },
+    isOverflowing: shouldAnimate,
+    shouldAnimate,
+    metrics: shouldAnimate ? { contentWidth: 200, durationMs: 6000, delayFraction: 1 / 3 } : null,
+  });
+}
 
 describe("AutoScrollTypography", () => {
   const mockText = "This is a very long text that should scroll";
 
   beforeEach(() => {
     vi.clearAllMocks();
-    // Default: no reduced motion
-    vi.mocked(useMediaQuery).mockReturnValue(false);
   });
 
   it("should render the text content", () => {
-    vi.mocked(autoScrollHook.useAutoScrollAnimation).mockReturnValue({
-      containerRef: { current: null },
-      contentRef: { current: null },
-      isOverflowing: false,
-      animationStyle: {},
-      delayPercent: 0,
-    });
+    mockHook(false);
 
     renderWithProviders(<AutoScrollTypography text={mockText} />);
     expect(screen.getByText(mockText)).toBeInTheDocument();
   });
 
-  it("should not apply animation when not overflowing", () => {
-    vi.mocked(autoScrollHook.useAutoScrollAnimation).mockReturnValue({
-      containerRef: { current: null },
-      contentRef: { current: null },
-      isOverflowing: false,
-      animationStyle: {},
-      delayPercent: 0,
-    });
+  it("should clamp the text with an ellipsis when not animating", () => {
+    mockHook(false);
 
     renderWithProviders(<AutoScrollTypography text={mockText} />);
 
     const typography = screen.getByText(mockText).closest("[data-animating]");
     expect(typography).toHaveAttribute("data-animating", "false");
+    expect(typography).toHaveStyle({ textOverflow: "ellipsis" });
   });
 
-  it("should apply animation style when overflowing", () => {
-    const mockAnimationStyle = { animation: "scroll 10s linear infinite" };
-    vi.mocked(autoScrollHook.useAutoScrollAnimation).mockReturnValue({
-      containerRef: { current: null },
-      contentRef: { current: null },
-      isOverflowing: true,
-      animationStyle: mockAnimationStyle,
-      delayPercent: 20,
-    });
+  it("should promote the text to its own layer while animating", () => {
+    mockHook(true);
 
     renderWithProviders(<AutoScrollTypography text={mockText} />);
 
     const typography = screen.getByText(mockText).closest("[data-animating]");
     expect(typography).toHaveAttribute("data-animating", "true");
+    expect(typography).toHaveStyle({ display: "inline-block", willChange: "transform" });
   });
 
-  it("should not animate if prefers-reduced-motion is enabled", () => {
-    vi.mocked(useMediaQuery).mockReturnValue(true);
-    vi.mocked(autoScrollHook.useAutoScrollAnimation).mockReturnValue({
-      containerRef: { current: null },
-      contentRef: { current: null },
-      isOverflowing: true,
-      animationStyle: { animation: "scroll 10s" },
-      delayPercent: 0,
-    });
+  it("should pass the animation settings to the hook", () => {
+    mockHook(true);
 
-    renderWithProviders(<AutoScrollTypography text={mockText} />);
+    renderWithProviders(
+      <AutoScrollTypography
+        text={mockText}
+        enabled={false}
+        pixelsPerSecond={40}
+        delaySeconds={5}
+      />,
+    );
+
+    expect(autoScrollHook.useAutoScrollAnimation).toHaveBeenCalledWith(false, 40, 5);
+  });
+
+  it("should keep styles supplied by the caller", () => {
+    mockHook(true);
+
+    renderWithProviders(<AutoScrollTypography text={mockText} sx={{ paddingTop: "8px" }} />);
 
     const typography = screen.getByText(mockText).closest("[data-animating]");
-    // Even if overflowing, should not animate due to prefers-reduced-motion
-    expect(typography).toHaveAttribute("data-animating", "false");
+    expect(typography).toHaveStyle({ paddingTop: "8px" });
   });
 });
