@@ -67,7 +67,7 @@ jobs:
 
       - name: Generate Release Body
         id: generate-release-body
-        run: npx tsx scripts/generate-release-body.ts
+        run: npm run release:body
 
       - name: Build and create a draft Release
         uses: tauri-apps/tauri-action@v0
