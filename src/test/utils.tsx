@@ -48,7 +48,10 @@ export function createBasePreloadedState(): RootState {
         historyIndex: -1,
         entries: [],
         index: 0,
+        isSpreadShifted: false,
+        isSpreadDisplayed: false,
         isNovel: false,
+        novelDirection: null,
         isLoading: false,
         isDirectory: false,
         book: null,
@@ -74,6 +77,7 @@ export function createBasePreloadedState(): RootState {
       error: null,
       searchText: "",
     },
+    bookmark: { bookmarks: [], status: "idle", error: null },
     tag: { tags: [], selectedId: null, status: "idle", error: null },
     series: {
       series: [],

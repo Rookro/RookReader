@@ -48,8 +48,13 @@ describe("RookReader Application E2E Tests", () => {
     await settingsContainer.waitForExist();
     await expect(settingsContainer).toExist();
 
-    const settingsTabs = $('[aria-label="setttings tabs"]');
+    const settingsTabs = $('[aria-label="settings tabs"]');
     await settingsTabs.waitForExist();
     await expect(settingsTabs).toExist();
+
+    // Close the settings window and return to the main window so later specs (which share
+    // this single app instance) run against one window and not the leftover settings window.
+    await browser.closeWindow();
+    await browser.switchToWindow(mainWindowHandle);
   });
 });

@@ -1,7 +1,9 @@
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
-import { screen } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import * as BookmarkCommands from "../../../bindings/BookmarkCommands";
+import { createMockBookmark, createMockBookWithState } from "../../../test/factories";
 import {
   createBasePreloadedState,
   mockSettingsCommands,
@@ -71,6 +73,45 @@ describe("NavigationBar", () => {
       key: "reader",
       value: expect.objectContaining({ comic: expect.objectContaining({ enableSpread: false }) }),
     });
+  });
+
+  it("should shift the spread pairing when the button is clicked", async () => {
+    const preloadedState = createBasePreloadedState();
+    preloadedState.view.activeView = "reader" as const;
+    preloadedState.settings.reader.comic.enableSpread = true;
+    preloadedState.read.containerFile.entries = ["p1", "p2", "p3", "p4"];
+    preloadedState.read.containerFile.index = 2;
+
+    const { store } = renderWithProviders(<NavigationBar />, { preloadedState });
+
+    await user.click(screen.getByLabelText("shift-spread"));
+
+    expect(store.getState().read.containerFile.isSpreadShifted).toBe(true);
+  });
+
+  it("should reset the spread pairing when it is already shifted", async () => {
+    const preloadedState = createBasePreloadedState();
+    preloadedState.view.activeView = "reader" as const;
+    preloadedState.settings.reader.comic.enableSpread = true;
+    preloadedState.read.containerFile.entries = ["p1", "p2", "p3"];
+    preloadedState.read.containerFile.isSpreadShifted = true;
+
+    const { store } = renderWithProviders(<NavigationBar />, { preloadedState });
+
+    await user.click(screen.getByLabelText("shift-spread"));
+
+    expect(store.getState().read.containerFile.isSpreadShifted).toBe(false);
+  });
+
+  it("should disable the shift-spread button when spread mode is off", () => {
+    const preloadedState = createBasePreloadedState();
+    preloadedState.view.activeView = "reader" as const;
+    preloadedState.settings.reader.comic.enableSpread = false;
+    preloadedState.read.containerFile.entries = ["p1", "p2", "p3"];
+
+    renderWithProviders(<NavigationBar />, { preloadedState });
+
+    expect(screen.getByLabelText("shift-spread")).toBeDisabled();
   });
 
   it("should toggle direction when button is clicked", async () => {
@@ -186,5 +227,206 @@ describe("NavigationBar", () => {
     await user.click(settingsButton);
 
     expect(WebviewWindow).toHaveBeenCalledWith("settings", expect.anything());
+  });
+
+  describe("bookmark toggle", () => {
+    /** Builds a state with a book open at `index`, optionally as a novel at `cfi`. */
+    const stateWithOpenBook = (options?: {
+      index?: number;
+      cfi?: string | null;
+      isNovel?: boolean;
+      entries?: string[];
+    }) => {
+      const preloadedState = createBasePreloadedState();
+      preloadedState.read.containerFile.history = ["/path/book.zip"];
+      preloadedState.read.containerFile.historyIndex = 0;
+      preloadedState.read.containerFile.book = createMockBookWithState({ id: 42 });
+      preloadedState.read.containerFile.index = options?.index ?? 3;
+      preloadedState.read.containerFile.cfi = options?.cfi ?? null;
+      preloadedState.read.containerFile.isNovel = options?.isNovel ?? false;
+      preloadedState.read.containerFile.entries = options?.entries ?? ["p1", "p2", "p3", "p4"];
+      return preloadedState;
+    };
+
+    it("should be disabled while no book is open", () => {
+      renderWithProviders(<NavigationBar />);
+
+      expect(screen.getByLabelText("toggle-bookmark")).toBeDisabled();
+    });
+
+    it("should add a bookmark named after the page number for a comic", async () => {
+      const preloadedState = stateWithOpenBook();
+      vi.mocked(BookmarkCommands.createBookmark).mockResolvedValue(
+        createMockBookmark({ id: 1, book_id: 42, page_index: 3 }),
+      );
+
+      renderWithProviders(<NavigationBar />, { preloadedState });
+      await user.click(screen.getByLabelText("toggle-bookmark"));
+
+      await waitFor(() => {
+        expect(BookmarkCommands.createBookmark).toHaveBeenCalledWith({
+          bookId: 42,
+          name: "Page 4",
+          pageIndex: 3,
+          cfi: null,
+        });
+      });
+    });
+
+    it("should add a bookmark named after the section label for a novel", async () => {
+      const preloadedState = stateWithOpenBook({
+        index: 1,
+        cfi: "epubcfi(/6/8!/4/2/1:0)",
+        isNovel: true,
+        entries: ["Chapter 1", "Chapter 2"],
+      });
+      vi.mocked(BookmarkCommands.createBookmark).mockResolvedValue(
+        createMockBookmark({ id: 1, book_id: 42, page_index: 1 }),
+      );
+
+      renderWithProviders(<NavigationBar />, { preloadedState });
+      await user.click(screen.getByLabelText("toggle-bookmark"));
+
+      await waitFor(() => {
+        expect(BookmarkCommands.createBookmark).toHaveBeenCalledWith({
+          bookId: 42,
+          name: "Chapter 2",
+          pageIndex: 1,
+          cfi: "epubcfi(/6/8!/4/2/1:0)",
+        });
+      });
+    });
+
+    it("should remove the bookmark when the current position is already bookmarked", async () => {
+      const preloadedState = stateWithOpenBook();
+      preloadedState.bookmark.bookmarks = [
+        createMockBookmark({ id: 7, book_id: 42, page_index: 3, cfi: null }),
+      ];
+
+      renderWithProviders(<NavigationBar />, { preloadedState });
+      await user.click(screen.getByLabelText("toggle-bookmark"));
+
+      await waitFor(() => {
+        expect(BookmarkCommands.deleteBookmark).toHaveBeenCalledWith(7);
+      });
+      expect(BookmarkCommands.createBookmark).not.toHaveBeenCalled();
+    });
+
+    it("should match a novel bookmark by CFI rather than page index", async () => {
+      const preloadedState = stateWithOpenBook({
+        index: 1,
+        cfi: "epubcfi(/6/8!/4/2/1:0)",
+        isNovel: true,
+        entries: ["Chapter 1", "Chapter 2"],
+      });
+      // Same section, different position: this is not the current bookmark.
+      preloadedState.bookmark.bookmarks = [
+        createMockBookmark({ id: 7, book_id: 42, page_index: 1, cfi: "epubcfi(/6/8!/4/2/9:0)" }),
+      ];
+      vi.mocked(BookmarkCommands.createBookmark).mockResolvedValue(
+        createMockBookmark({ id: 8, book_id: 42, page_index: 1 }),
+      );
+
+      renderWithProviders(<NavigationBar />, { preloadedState });
+      await user.click(screen.getByLabelText("toggle-bookmark"));
+
+      await waitFor(() => {
+        expect(BookmarkCommands.createBookmark).toHaveBeenCalled();
+      });
+      expect(BookmarkCommands.deleteBookmark).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("icons", () => {
+    it.each([
+      ["rtl", "ReadingDirection-rtl"],
+      ["ltr", "ReadingDirection-ltr"],
+    ])("should show the %s reading-direction icon", (direction, testId) => {
+      const preloadedState = createBasePreloadedState();
+      preloadedState.settings.reader.comic.readingDirection = direction as "rtl" | "ltr";
+
+      renderWithProviders(<NavigationBar />, { preloadedState });
+
+      expect(screen.getByTestId(testId)).toBeInTheDocument();
+    });
+  });
+
+  describe("novel direction", () => {
+    // A novel's page order comes from its writing mode, so the toolbar reports it and
+    // offers no switch; the comic setting is deliberately the opposite in each case.
+    it.each([
+      ["rtl", "ltr", "ReadingDirection-rtl"],
+      ["ltr", "rtl", "ReadingDirection-ltr"],
+    ])("should show the detected %s direction and disable the button", (novelDirection, comicDirection, testId) => {
+      const preloadedState = createBasePreloadedState();
+      preloadedState.read.containerFile.isNovel = true;
+      preloadedState.read.containerFile.novelDirection = novelDirection as "rtl" | "ltr";
+      preloadedState.settings.reader.comic.readingDirection = comicDirection as "rtl" | "ltr";
+
+      renderWithProviders(<NavigationBar />, { preloadedState });
+
+      expect(screen.getByTestId(testId)).toBeInTheDocument();
+      expect(screen.getByLabelText("toggle-direction")).toBeDisabled();
+    });
+
+    it("should fall back to rtl before the novel's writing mode is detected", () => {
+      const preloadedState = createBasePreloadedState();
+      preloadedState.read.containerFile.isNovel = true;
+      preloadedState.read.containerFile.novelDirection = null;
+      preloadedState.settings.reader.comic.readingDirection = "ltr";
+
+      renderWithProviders(<NavigationBar />, { preloadedState });
+
+      expect(screen.getByTestId("ReadingDirection-rtl")).toBeInTheDocument();
+    });
+
+    it("should not change the comic setting when the disabled button is clicked", () => {
+      const preloadedState = createBasePreloadedState();
+      preloadedState.read.containerFile.isNovel = true;
+      preloadedState.read.containerFile.novelDirection = "rtl";
+      preloadedState.settings.reader.comic.readingDirection = "ltr";
+
+      const { store } = renderWithProviders(<NavigationBar />, { preloadedState });
+
+      // userEvent refuses to click through `pointer-events: none`, so dispatch the
+      // event directly to prove a disabled button still runs no handler.
+      fireEvent.click(screen.getByLabelText("toggle-direction"));
+
+      expect(SettingsReducer.updateSettings).not.toHaveBeenCalled();
+      expect(store.getState().settings.reader.comic.readingDirection).toBe("ltr");
+    });
+  });
+
+  describe("tooltips", () => {
+    it.each([
+      ["rtl", "Switch to left-to-right"],
+      ["ltr", "Switch to right-to-left"],
+    ])("should offer the opposite direction when reading %s", async (direction, tooltip) => {
+      const preloadedState = createBasePreloadedState();
+      preloadedState.settings.reader.comic.readingDirection = direction as "rtl" | "ltr";
+
+      renderWithProviders(<NavigationBar />, { preloadedState });
+      await user.hover(screen.getByLabelText("toggle-direction"));
+
+      expect(await screen.findByRole("tooltip")).toHaveTextContent(tooltip);
+    });
+
+    it.each([
+      ["back", "Back"],
+      ["forward", "Forward"],
+      ["toggle-two-paged", "Toggle two-page spread"],
+      ["settings", "Settings"],
+    ])("should describe the %s button on hover", async (ariaLabel, tooltip) => {
+      // Sit in the middle of the history so both back and forward stay enabled;
+      // a disabled button has pointer-events: none and cannot be hovered.
+      const preloadedState = createBasePreloadedState();
+      preloadedState.read.containerFile.history = ["/path/1", "/path/2", "/path/3"];
+      preloadedState.read.containerFile.historyIndex = 1;
+
+      renderWithProviders(<NavigationBar />, { preloadedState });
+      await user.hover(screen.getByLabelText(ariaLabel));
+
+      expect(await screen.findByRole("tooltip")).toHaveTextContent(tooltip);
+    });
   });
 });

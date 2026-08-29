@@ -1,0 +1,6 @@
+{
+  "identifier": "wdio-webdriver-runtime",
+  "description": "Debug-only WebDriver automation capability, added at runtime for E2E tests.",
+  "windows": ["main", "settings"],
+  "permissions": ["wdio:default", "wdio-webdriver:default"]
+}

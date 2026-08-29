@@ -68,6 +68,7 @@ impl SeriesRepository for SqliteSeriesRepository {
             SELECT
                 id, file_path, item_type, display_name, total_pages, series_id, series_order,
                 thumbnail_path, created_at, last_read_page_index, last_opened_at,
+                cfi as "cfi?: String",
                 tag_ids_str as "tag_ids_str?: String"
             FROM book_with_state_view
             WHERE series_id = ?

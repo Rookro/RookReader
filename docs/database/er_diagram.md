@@ -6,6 +6,7 @@ erDiagram
     books ||--o{ bookshelf_items : "placed in"
     books ||--o{ book_tags : "has tags"
     tags ||--o{ book_tags : "is assigned to"
+    books ||--o{ bookmarks : "has bookmarks"
 
     books {
         INTEGER id PK
@@ -27,6 +28,7 @@ erDiagram
     reading_state {
         INTEGER book_id PK, FK "books.id"
         INTEGER last_read_page_index
+        TEXT cfi "EPUB CFI; NULL for comics"
         DATETIME last_opened_at
     }
 
@@ -52,5 +54,14 @@ erDiagram
     book_tags {
         INTEGER book_id PK, FK "books.id"
         INTEGER tag_id PK, FK "tags.id"
+    }
+
+    bookmarks {
+        INTEGER id PK
+        INTEGER book_id FK "books.id"
+        TEXT name
+        INTEGER page_index "comic page or EPUB section index"
+        TEXT cfi "EPUB CFI; NULL for comics"
+        DATETIME created_at
     }
 ```

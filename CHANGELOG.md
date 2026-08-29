@@ -9,6 +9,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.4.0] - 2026-08-30
+
+### Added
+
+* Added support for CBZ and CBR comic archives, which open as ZIP and RAR respectively. (#293)
+* Added bookmarks: save any number of positions in a book with one click from the reader toolbar, then jump back to them, rename them, or remove them from the new Bookmarks tab in the side pane. Works for both comics and EPUB novels, where a bookmark returns you to the exact position. (#298)
+* Added folder support inside ZIP and RAR archives, so each folder can be read as its own book. (#301)
+  * Each folder inside an archive is now a book of its own, and opening an archive shows only the pages sitting directly inside it. Archives without folders are unaffected.
+  * Double-click an archive in the File Navigator to step into it like a folder. Back, Forward, Up and the path box all work across the archive boundary, and next/previous book follows the archive's folders too.
+  * A new reader setting, "Open the folder inside an archive automatically" (on by default), opens the single folder an archive wraps its pages in, following nested single folders all the way down.
+  * A folder or archive with no readable pages is no longer recorded as an empty book. It reports "The book contains no readable pages." and the File Navigator moves into it, so you can pick a folder inside.
+  * Bookmarks and reading positions are stored as page numbers, so any saved before this release may land on a different page in an archive that is now split into several books.
+
+### Changed
+
+* Switched Material UI icon imports to per-icon paths so only the icons actually used are pre-bundled. This fixes the development server failing to start and makes it start noticeably faster. (#296)
+* EPUB novels now reopen at the exact last reading position instead of losing it when closed. (#297)
+* Improved how two-page spread mode decides which pages share a screen. (#300)
+  * The pairing is now worked out from where each page falls in the printed book, so it no longer depends on whether you reached a page by turning, by dragging the slider, from the page list, or from a bookmark.
+  * Books containing a double-page illustration now work out on their own whether the archive starts with the cover, and pair every page correctly without being told.
+  * For books that offer no such clue, a new toolbar button shifts the pairing by one page and resets it again. The shift is remembered the next time you open the book.
+* The page list in the side pane now highlights both pages shown in two-page spread mode, instead of only the first one. (#302)
+* Reviewed the whole UI for consistency in wording, tooltips, and icons. (#305)
+* Bookshelf titles that scroll no longer stutter on Linux (WebKitGTK). (#306)
+  * The scroll is driven by the Web Animations API instead of a CSS animation. Every distinct title width used to need its own `@keyframes` rule, and inserting those rules made WebKitGTK re-resolve styles across the whole document each time cards scrolled into view.
+  * A scrolling title is promoted to its own compositing layer, so its glyphs are no longer re-rasterised on every frame.
+  * Titles are measured after paint rather than during commit, and a resize reporting an unchanged width no longer re-renders the card or restarts its animation.
+  * Every card shares one ResizeObserver and one `prefers-reduced-motion` listener, instead of registering a pair per card.
+* EPUB novels now turn pages in the direction the book itself states, instead of following the comic reading direction. (#311)
+  * The direction comes from the page progression direction the book declares, or, for a book that declares none, from the writing mode of its body text: vertically written books turn right to left, horizontally written ones left to right.
+  * The direction button in the toolbar is disabled while a novel is open and shows the direction the book turns in. The page slider follows it too, and comics are unchanged.
+* Updated the project's dependencies and cleared every outstanding `npm audit` advisory. (#312)
+
+### Fixed
+
+* Fixed two-page spread mode pairing pages differently when you turn back. Going back through a book — or turning pages after jumping with the slider, a bookmark, or a restored reading position — now keeps every spread paired exactly as it was on the way forward, so a page no longer appears twice or alongside the wrong one. (#299)
+* Fixed windows growing a few pixels on every launch on Linux under Wayland; the window size is no longer restored on Linux, so the main window and the settings window open at their default size. The window position, the maximized state, and full screen are still restored. (#303)
+
 ## [2.3.1] - 2026-07-07
 
 ### Changed
@@ -481,7 +519,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Add an automatic two-page spread display feature (#4)
 * Add a page navigation feature using the mouse wheel up/down (#5)
 
-[unreleased]: https://github.com/Rookro/RookReader/compare/v2.3.1...HEAD
+[unreleased]: https://github.com/Rookro/RookReader/compare/v2.4.0...HEAD
+[2.4.0]: https://github.com/Rookro/RookReader/compare/v2.3.1...v2.4.0
 [2.3.1]: https://github.com/Rookro/RookReader/compare/v2.3.0...v2.3.1
 [2.3.0]: https://github.com/Rookro/RookReader/compare/v2.2.1...v2.3.0
 [2.2.1]: https://github.com/Rookro/RookReader/compare/v2.2.0...v2.2.1

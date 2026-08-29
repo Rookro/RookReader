@@ -1,6 +1,7 @@
 use tokio::sync::RwLock;
 
 use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
+use tauri_plugin_window_state::StateFlags;
 use tauri_specta::{collect_commands, Builder};
 
 mod commands;
@@ -31,6 +32,7 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
         commands::settings_commands::set_settings,
         commands::container_commands::request_preload_around,
         commands::container_commands::get_entries_in_container,
+        commands::container_commands::get_image_dimensions,
         commands::font_commands::get_fonts,
         commands::book_commands::get_book_tags,
         commands::book_commands::update_book_tags::<tauri::Wry>,
@@ -61,8 +63,32 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
         commands::tag_commands::create_tag::<tauri::Wry>,
         commands::tag_commands::get_all_tags,
         commands::tag_commands::delete_tag::<tauri::Wry>,
+        commands::bookmark_commands::create_bookmark,
+        commands::bookmark_commands::get_bookmarks_by_book_id,
+        commands::bookmark_commands::rename_bookmark,
+        commands::bookmark_commands::delete_bookmark,
         commands::updater_commands::is_updater_supported,
     ])
+}
+
+/// Returns the window state that `tauri-plugin-window-state` saves and restores.
+///
+/// The size is excluded on Linux. Under Wayland the size GTK reports for a window is a
+/// few pixels larger than the size the window was created with, so saving and restoring
+/// it makes every window creep larger on each launch
+/// (<https://github.com/Rookro/RookReader/issues/140>). The plugin gates saving and
+/// restoring on the same flags, so dropping `SIZE` stops both. Every other flag is kept,
+/// so the position, the maximized state and full screen still restore.
+///
+/// # Returns
+///
+/// `StateFlags::all()` minus `StateFlags::SIZE` on Linux, `StateFlags::all()` elsewhere.
+fn window_state_flags() -> StateFlags {
+    if cfg!(target_os = "linux") {
+        StateFlags::all().difference(StateFlags::SIZE)
+    } else {
+        StateFlags::all()
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -85,7 +111,11 @@ pub fn run() {
 
     let result = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_window_state::Builder::new().build())
+        .plugin(
+            tauri_plugin_window_state::Builder::new()
+                .with_state_flags(window_state_flags())
+                .build(),
+        )
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
@@ -291,6 +321,7 @@ mod tests {
             created_at: None,
             last_read_page_index: Some(2),
             last_opened_at: None,
+            cfi: None,
             tag_ids_str: Some("1,2".into()),
             tag_ids: vec![1, 2],
         };
@@ -329,5 +360,36 @@ mod tests {
         assert!(value.get("created_at").is_some());
         let back: Series = serde_json::from_value(value.clone()).unwrap();
         assert_eq!(serde_json::to_value(&back).unwrap(), value);
+    }
+}
+
+#[cfg(test)]
+mod window_state_flags_tests {
+    use super::window_state_flags;
+    use tauri_plugin_window_state::StateFlags;
+
+    /// The window size is tracked everywhere except Linux, where restoring it makes
+    /// windows creep larger under Wayland (#140).
+    #[test]
+    fn size_is_tracked_everywhere_but_linux() {
+        assert_eq!(
+            window_state_flags().contains(StateFlags::SIZE),
+            !cfg!(target_os = "linux")
+        );
+    }
+
+    /// Only the size is dropped: full screen in particular must still restore.
+    #[test]
+    fn every_other_state_is_still_tracked() {
+        let flags = window_state_flags();
+        for flag in [
+            StateFlags::POSITION,
+            StateFlags::MAXIMIZED,
+            StateFlags::VISIBLE,
+            StateFlags::DECORATIONS,
+            StateFlags::FULLSCREEN,
+        ] {
+            assert!(flags.contains(flag), "{flag:?} should still be tracked");
+        }
     }
 }

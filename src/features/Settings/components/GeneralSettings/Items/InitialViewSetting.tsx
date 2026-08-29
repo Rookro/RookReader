@@ -1,4 +1,4 @@
-import { RocketLaunch } from "@mui/icons-material";
+import RocketLaunchOutlined from "@mui/icons-material/RocketLaunchOutlined";
 import { MenuItem, type SelectChangeEvent } from "@mui/material";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
@@ -31,7 +31,7 @@ export default function InitialViewSetting() {
 
   return (
     <SelectSettingItem
-      icon={<RocketLaunch />}
+      icon={<RocketLaunchOutlined />}
       primaryText={t("settings.general.initial-view.title")}
       value={startupSettings.initialView}
       onChange={handleInitialViewChanged}

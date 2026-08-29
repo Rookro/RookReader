@@ -97,6 +97,31 @@ export const commands = {
 	 */
 	getEntriesInContainer: (path: string) => typedError<EntriesResult, CommandError>(__TAURI_INVOKE("get_entries_in_container", { path })),
 	/**
+	 *  Retrieves the pixel dimensions of every entry in the currently open container.
+	 * 
+	 *  The viewer needs the orientation of every page to decide where two-page spreads
+	 *  start, including pages it has not displayed yet. Dimensions are read from image
+	 *  headers (or PDF page sizes), so no pixel data is decoded.
+	 * 
+	 *  # Arguments
+	 * 
+	 *  * `path` - The path of the container the caller believes is open.
+	 *  * `state` - A `tauri::State` holding the application's global `AppState`.
+	 * 
+	 *  # Returns
+	 * 
+	 *  A `Result` which is `Ok` with one `ImageDimensions` per entry, in the same order as
+	 *  `get_entries_in_container` returned them.
+	 * 
+	 *  # Errors
+	 * 
+	 *  This function will return an `Err` if:
+	 *  * No container is currently open.
+	 *  * `path` does not match the open container (the book was switched meanwhile).
+	 *  * An entry cannot be read or is not a supported image.
+	 */
+	getImageDimensions: (path: string) => typedError<ImageDimensions[], CommandError>(__TAURI_INVOKE("get_image_dimensions", { path })),
+	/**
 	 *  Retrieves a list of all font families installed on the system.
 	 * 
 	 *  This function queries the system's font source to get a list of all available
@@ -256,6 +281,8 @@ export const commands = {
 	last_read_page_index: number | null,
 	/**  The timestamp when the book was last opened, if any. */
 	last_opened_at: string | null,
+	/**  The last EPUB reading position (CFI), if any. `None` for comics. */
+	cfi: string | null,
 	/**  List of tag IDs associated with this book. */
 	tag_ids?: number[],
 } | null, CommandError>(__TAURI_INVOKE("get_book_with_state_by_id", { id })),
@@ -655,6 +682,71 @@ export const commands = {
 	 */
 	deleteTag: (id: number) => typedError<null, CommandError>(__TAURI_INVOKE("delete_tag", { id })),
 	/**
+	 *  Creates a bookmark for a book and returns its complete entity.
+	 * 
+	 *  # Arguments
+	 * 
+	 *  * `book_id` - The identifier of the book to bookmark.
+	 *  * `name` - The display name of the new bookmark.
+	 *  * `page_index` - The comic page index, or the EPUB spine section index.
+	 *  * `cfi` - The position within an EPUB section, or `None` for comics.
+	 *  * `repo` - The managed bookmark repository state.
+	 * 
+	 *  # Returns
+	 * 
+	 *  A `Result` containing the newly created `Bookmark` entity.
+	 * 
+	 *  # Errors
+	 * 
+	 *  This function will return an `Err` if the underlying repository operation fails
+	 *  (e.g., due to a database error, connection issue, or query execution failure).
+	 */
+	createBookmark: (bookId: number, name: string, pageIndex: number, cfi: string | null) => typedError<Bookmark, CommandError>(__TAURI_INVOKE("create_bookmark", { bookId, name, pageIndex, cfi })),
+	/**
+	 *  Retrieves all bookmarks of a book, ordered by their position in the book.
+	 * 
+	 *  # Arguments
+	 * 
+	 *  * `book_id` - The identifier of the book.
+	 *  * `repo` - The managed bookmark repository state.
+	 * 
+	 *  # Returns
+	 * 
+	 *  A `Result` containing a vector of `Bookmark` entities, empty if the book has none.
+	 * 
+	 *  # Errors
+	 * 
+	 *  This function will return an `Err` if the underlying repository operation fails.
+	 */
+	getBookmarksByBookId: (bookId: number) => typedError<Bookmark[], CommandError>(__TAURI_INVOKE("get_bookmarks_by_book_id", { bookId })),
+	/**
+	 *  Renames an existing bookmark.
+	 * 
+	 *  # Arguments
+	 * 
+	 *  * `id` - The ID of the bookmark to rename.
+	 *  * `name` - The new display name.
+	 *  * `repo` - The managed bookmark repository state.
+	 * 
+	 *  # Errors
+	 * 
+	 *  This function will return an `Err` if the underlying repository operation fails.
+	 */
+	renameBookmark: (id: number, name: string) => typedError<null, CommandError>(__TAURI_INVOKE("rename_bookmark", { id, name })),
+	/**
+	 *  Deletes a bookmark from the database.
+	 * 
+	 *  # Arguments
+	 * 
+	 *  * `id` - The ID of the bookmark to delete.
+	 *  * `repo` - The managed bookmark repository state.
+	 * 
+	 *  # Errors
+	 * 
+	 *  This function will return an `Err` if the underlying repository operation fails.
+	 */
+	deleteBookmark: (id: number) => typedError<null, CommandError>(__TAURI_INVOKE("delete_bookmark", { id })),
+	/**
 	 *  Checks if the auto-updater is supported on the current platform/environment.
 	 * 
 	 *  Returns `true` if the updater is supported, `false` otherwise.
@@ -770,8 +862,26 @@ export type BookWithState = {
 	last_read_page_index: number | null,
 	/**  The timestamp when the book was last opened, if any. */
 	last_opened_at: string | null,
+	/**  The last EPUB reading position (CFI), if any. `None` for comics. */
+	cfi: string | null,
 	/**  List of tag IDs associated with this book. */
 	tag_ids?: number[],
+};
+
+/**  Represents a saved reading position (bookmark) within a book. */
+export type Bookmark = {
+	/**  The unique identifier for the bookmark. */
+	id: number,
+	/**  The identifier of the book this bookmark belongs to. */
+	book_id: number,
+	/**  The display name of the bookmark. */
+	name: string,
+	/**  The bookmarked page index: the comic page, or the EPUB spine section index. */
+	page_index: number,
+	/**  The bookmarked position within an EPUB section (CFI). `None` for comics. */
+	cfi: string | null,
+	/**  The timestamp when the bookmark was created. */
+	created_at: string,
 };
 
 /**  Represents a bookshelf entity used to organize books. */
@@ -883,6 +993,14 @@ export type GeneralSettings = {
 export type HistorySettings = {
 	/**  Whether to record the user's reading history and progress. */
 	recordReadingHistory?: boolean,
+};
+
+/**  The pixel dimensions of a single image, without its data. */
+export type ImageDimensions = {
+	/**  The width of the image in pixels. */
+	width: number,
+	/**  The height of the image in pixels. */
+	height: number,
 };
 
 /**  Represents the algorithm used for resampling images. */
@@ -1006,6 +1124,15 @@ export type ReaderSettings_Deserialize = {
 	rendering?: RenderingSettings_Deserialize,
 	/**  Behavior when paging past the last/first page of a book (auto-open adjacent book). */
 	autoOpenAdjacentBook?: AutoOpenAdjacentBookMode,
+	/**
+	 *  Whether opening an archive descends through a chain of single sub-folders to the
+	 *  first level that actually holds pages.
+	 * 
+	 *  Archives that merely wrap their pages in one folder (`comic.zip` → `Comic/`) then
+	 *  open in one click. Turning this off opens exactly the level that was asked for.
+	 *  Folders on disk are unaffected.
+	 */
+	autoDescendSingleFolder?: boolean,
 };
 
 /**  Settings for the reading experience. */
@@ -1018,6 +1145,15 @@ export type ReaderSettings_Serialize = {
 	rendering: RenderingSettings_Serialize,
 	/**  Behavior when paging past the last/first page of a book (auto-open adjacent book). */
 	autoOpenAdjacentBook: AutoOpenAdjacentBookMode,
+	/**
+	 *  Whether opening an archive descends through a chain of single sub-folders to the
+	 *  first level that actually holds pages.
+	 * 
+	 *  Archives that merely wrap their pages in one folder (`comic.zip` → `Comic/`) then
+	 *  open in one click. Turning this off opens exactly the level that was asked for.
+	 *  Folders on disk are unaffected.
+	 */
+	autoDescendSingleFolder: boolean,
 };
 
 /**  Represents the reading state of a specific book. */
@@ -1026,6 +1162,8 @@ export type ReadingState = {
 	book_id: number,
 	/**  The last read page index. */
 	last_read_page_index: number,
+	/**  The last EPUB reading position (CFI). `None` for comics. */
+	cfi: string | null,
 	/**  The timestamp when the book was last opened. */
 	last_opened_at: string | null,
 };

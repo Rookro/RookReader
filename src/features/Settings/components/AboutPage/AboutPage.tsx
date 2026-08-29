@@ -1,4 +1,5 @@
-import { Container } from "@mui/material";
+import { useTranslation } from "react-i18next";
+import SettingsPanel from "../SettingsPanel";
 import About from "./Items/About";
 import ThirdParty from "./Items/ThirdParty";
 
@@ -6,10 +7,12 @@ import ThirdParty from "./Items/ThirdParty";
  * About page component.
  */
 export default function AboutPage() {
+  const { t } = useTranslation();
+
   return (
-    <Container sx={{ minWidth: "650px" }}>
+    <SettingsPanel title={t("settings.about.title")} sx={{ minWidth: "650px" }}>
       <About />
       <ThirdParty />
-    </Container>
+    </SettingsPanel>
   );
 }

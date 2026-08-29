@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import { List, type RowComponentProps, useListCallbackRef } from "react-window";
 import { type RootState, useAppDispatch, useAppSelector } from "../../../../store/store";
 import type { DirEntry } from "../../../../types/DirEntry";
+import { isNavigableArchiveName } from "../../../../utils/ArchivePathUtils";
 import SidePanelHeader from "../../../SidePane/components/SidePanelHeader";
 import { useDirectoryWatcher } from "../../hooks/useDirectoryWatcher";
 import { useFileSelection } from "../../hooks/useFileSelection";
@@ -145,7 +146,9 @@ export default function FileListViewer() {
 
   const handleListItemDoubleClicked = useCallback(
     async (e: React.MouseEvent<HTMLDivElement>, entry: DirEntry, index: number) => {
-      if (entry.is_directory) {
+      // A browsable archive is entered like a folder; a single click still opens it
+      // as a book, so nothing is lost by not opening it here.
+      if (entry.is_directory || isNavigableArchiveName(entry.name)) {
         const path = await join(history[historyIndex], entry.name);
         dispatch(setSearchText(""));
         dispatch(updateExploreBasePath({ dirPath: path }));

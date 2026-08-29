@@ -27,6 +27,11 @@ pub enum Error {
     /// An error for when a specific entry (e.g., an image file) is not found within a container.
     #[error("Entry Not Found Error: {0}")]
     EntryNotFound(String),
+    /// An error for a container that holds no readable pages — an empty folder, or an
+    /// archive folder whose images all live in sub-folders. Such a container is not a
+    /// book, and is never registered in the library or the reading history.
+    #[error("Empty Container Error: {0}")]
+    EmptyContainer(String),
     /// An error originating from the `pdfium_render` library.
     #[error("PDFium Error: {0}")]
     Pdfium(#[from] PdfiumError),
@@ -121,6 +126,7 @@ impl ErrorCode {
             // 1xxxx: Container Processing
             ErrorCode::UnsupportedContainer => 10001,
             ErrorCode::EntryNotFound => 10002,
+            ErrorCode::EmptyContainer => 10003,
             ErrorCode::Pdfium => 10101,
             ErrorCode::Unrar => 10301,
             ErrorCode::Zip => 10401,

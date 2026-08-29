@@ -1,4 +1,4 @@
-import { FontDownloadOutlined } from "@mui/icons-material";
+import PhotoSizeSelectLargeOutlined from "@mui/icons-material/PhotoSizeSelectLargeOutlined";
 import { MenuItem, type SelectChangeEvent } from "@mui/material";
 import { debug } from "@tauri-apps/plugin-log";
 import { useCallback } from "react";
@@ -60,7 +60,7 @@ export default function ImageResamplingMethodSetting() {
 
   return (
     <SelectSettingItem
-      icon={<FontDownloadOutlined />}
+      icon={<PhotoSizeSelectLargeOutlined />}
       primaryText={t("settings.rendering.resize.resize-method.title")}
       secondaryText={t("settings.rendering.resize.resize-method.description")}
       secondaryTextSx={{ whiteSpace: "pre-wrap" }}

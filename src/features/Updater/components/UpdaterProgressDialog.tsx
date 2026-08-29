@@ -1,4 +1,4 @@
-import { CloudDownloadOutlined } from "@mui/icons-material";
+import CloudDownloadOutlined from "@mui/icons-material/CloudDownloadOutlined";
 import { Box, Dialog, DialogContent, DialogTitle, LinearProgress, Typography } from "@mui/material";
 import { useTranslation } from "react-i18next";
 
@@ -46,17 +46,14 @@ export default function UpdaterProgressDialog({
       >
         <CloudDownloadOutlined color="primary" />
         <Typography variant="h6" component="span" fontWeight="bold">
-          {t("updater.installing")}
+          {/* The status already names the current phase (downloading, then installing),
+              so drive the title from it rather than always claiming to install. */}
+          {updateStatus || t("updater.installing")}
         </Typography>
       </DialogTitle>
 
       <DialogContent>
-        <Box
-          sx={{ display: "flex", justifyContent: "space-between", marginBottom: 1, paddingX: 0.5 }}
-        >
-          <Typography variant="body2" sx={{ color: "text.secondary" }}>
-            {updateStatus}
-          </Typography>
+        <Box sx={{ display: "flex", justifyContent: "flex-end", marginBottom: 1, paddingX: 0.5 }}>
           <Typography variant="body2" sx={{ color: "text.primary", fontWeight: "bold" }}>
             {Math.round(updateProgress)}%
           </Typography>

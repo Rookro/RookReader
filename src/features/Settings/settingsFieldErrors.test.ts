@@ -38,7 +38,7 @@ describe("settingsFieldErrors", () => {
         i18n.t,
         violation({ kind: "outOfRange", min: 0, max: 65535 }),
       );
-      expect(message).toContain("Maximum image Height(px)");
+      expect(message).toContain("Maximum image height (px)");
       expect(message).toContain("0");
       expect(message).toContain("65535");
     });

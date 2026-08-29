@@ -1,4 +1,4 @@
-import { MenuBook } from "@mui/icons-material";
+import MenuBookOutlined from "@mui/icons-material/MenuBookOutlined";
 import { MenuItem, type SelectChangeEvent } from "@mui/material";
 import { debug } from "@tauri-apps/plugin-log";
 import { useCallback } from "react";
@@ -39,7 +39,7 @@ export default function AutoOpenAdjacentBookSetting() {
 
   return (
     <SelectSettingItem
-      icon={<MenuBook />}
+      icon={<MenuBookOutlined />}
       primaryText={t("settings.reader.auto-open-adjacent-book.title")}
       secondaryText={t("settings.reader.auto-open-adjacent-book.description")}
       value={readerSettings.autoOpenAdjacentBook}

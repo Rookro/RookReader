@@ -1,41 +1,70 @@
-import { spawn, spawnSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, readdirSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+
+/** Best-effort removal of a directory, tolerating Windows file locks and missing paths. */
+function removeDir(dir: string): void {
+  try {
+    rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 });
+  } catch {
+    // ignore — a leftover temp dir is harmless and the OS reclaims it later
+  }
+}
 
 const isWindows = os.platform() === "win32";
 const binaryExt = isWindows ? ".exe" : "";
 
-let tauriDriver: ReturnType<typeof spawn>;
-let exit = false;
+// A fresh, empty data directory per run isolates the app's config/DB/thumbnails from any
+// pre-existing user data. The e2e-test build honours ROOKREADER_DATA_DIR. Created only in the
+// launcher process (which spawns the shared app instance); spec workers re-load this config
+// too, so guarding on WDIO_WORKER_ID avoids leaking an unused empty dir per worker.
+const dataDir = process.env.WDIO_WORKER_ID
+  ? ""
+  : mkdtempSync(path.join(os.tmpdir(), "rookreader-e2e-"));
+
+// E2E runs the RELEASE binary built with the `e2e-test` feature (which compiles in the
+// embedded WebDriver plugin). Testing the optimized binary matches pre-migration behaviour.
+const appBinary = path.join(
+  process.cwd(),
+  "src-tauri",
+  "target",
+  "release",
+  `rook-reader${binaryExt}`,
+);
 
 export const config = {
   runner: "local",
   tsConfigPath: "tsconfig.json",
-  host: "127.0.0.1",
-  port: 4444,
   specs: ["e2e/specs/**/*.ts"],
+  maxInstances: 1,
+  capabilities: [
+    {
+      browserName: "tauri",
+      "wdio:enforceWebDriverClassic": true,
+      "tauri:options": {
+        application: appBinary,
+      },
+      "wdio:tauriServiceOptions": {
+        appBinaryPath: appBinary,
+        env: {
+          ROOKREADER_DATA_DIR: dataDir,
+        },
+      },
+    },
+  ],
   services: [
     [
       "@wdio/tauri-service",
       {
-        autoInstallTauriDriver: true,
+        driverProvider: "embedded",
+        appBinaryPath: appBinary,
+        // The embedded WebDriver server takes longer to come up (especially on
+        // Windows); give it headroom and avoid false "unreachable — restarting".
+        startTimeout: 60000,
+        statusPollTimeout: 8000,
       },
     ],
-  ],
-  maxInstances: 1,
-  capabilities: [
-    {
-      maxInstances: 1,
-      "tauri:options": {
-        application: path.join(
-          process.cwd(),
-          "src-tauri",
-          "target",
-          "release",
-          `rook-reader${binaryExt}`,
-        ),
-      },
-    },
   ],
   reporters: ["spec"],
   framework: "mocha",
@@ -45,63 +74,47 @@ export const config = {
     timeout: 60000,
   },
 
-  // ensure the rust project is built since we expect this binary to exist for the webdriver sessions
+  // Build the RELEASE binary WITH the e2e-test feature (compiles in the WDIO plugins),
+  // VITE_E2E=true (loads the @wdio/tauri-plugin frontend bridge into the webview), and the
+  // E2E config overlay that enables withGlobalTauri (needed by the frontend bridge for
+  // window-state/focus). The overlay is applied only here, so production keeps it disabled.
   onPrepare: () => {
-    spawnSync("npm", ["run", "tauri", "build", "--", "--no-bundle"], {
-      cwd: process.cwd(),
-      stdio: "inherit",
-      shell: true,
-    });
-  },
-
-  // ensure we are running `tauri-driver` before the session starts so that we can proxy the webdriver requests
-  beforeSession: () => {
-    const args = isWindows ? ["--native-driver", path.join(process.cwd(), "msedgedriver.exe")] : [];
-    tauriDriver = spawn(path.resolve(os.homedir(), ".cargo", "bin", "tauri-driver"), args, {
-      stdio: [null, process.stdout, process.stderr],
-    });
-
-    tauriDriver.on("error", (error) => {
-      console.error("tauri-driver error:", error);
-      process.exit(1);
-    });
-    tauriDriver.on("exit", (code) => {
-      if (!exit) {
-        console.error("tauri-driver exited with code:", code);
-        process.exit(1);
+    // Self-healing cleanup: remove any leftover data dirs from previous runs whose
+    // onComplete could not delete them (the app briefly holds the SQLite file on exit).
+    const tmp = os.tmpdir();
+    for (const entry of readdirSync(tmp)) {
+      if (entry.startsWith("rookreader-e2e-") && path.join(tmp, entry) !== dataDir) {
+        removeDir(path.join(tmp, entry));
       }
-    });
+    }
+
+    const e2eConfig = path.join(process.cwd(), "src-tauri", "tauri.conf.e2e.json");
+    spawnSync(
+      "npm",
+      [
+        "run",
+        "tauri",
+        "build",
+        "--",
+        "--no-bundle",
+        "--features",
+        "e2e-test",
+        "--config",
+        e2eConfig,
+      ],
+      {
+        cwd: process.cwd(),
+        stdio: "inherit",
+        shell: true,
+        env: { ...process.env, VITE_E2E: "true" },
+      },
+    );
   },
 
-  // clean up the `tauri-driver` process we spawned at the start of the session
-  // note that afterSession might not run if the session fails to start, so we also run the cleanup on shutdown
-  afterSession: () => {
-    closeTauriDriver();
+  // Remove the ephemeral data directory once the run completes. Any dir that can't be
+  // deleted in time (Windows may hold the SQLite file briefly after shutdown) is swept by
+  // the next run's onPrepare.
+  onComplete: () => {
+    if (dataDir) removeDir(dataDir);
   },
 };
-
-function closeTauriDriver() {
-  exit = true;
-  tauriDriver?.kill();
-}
-
-function onShutdown(fn: () => void) {
-  const cleanup = () => {
-    try {
-      fn();
-    } finally {
-      process.exit();
-    }
-  };
-
-  process.on("exit", cleanup);
-  process.on("SIGINT", cleanup);
-  process.on("SIGTERM", cleanup);
-  process.on("SIGHUP", cleanup);
-  process.on("SIGBREAK", cleanup);
-}
-
-// ensure tauri-driver is closed when our test process exits
-onShutdown(() => {
-  closeTauriDriver();
-});

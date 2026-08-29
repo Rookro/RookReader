@@ -21,6 +21,13 @@ vi.mock("../../bindings/BookCommands", () => ({
   getBooksWithStateBySeriesId: vi.fn(() => Promise.resolve([])),
 }));
 
+vi.mock("../../bindings/BookmarkCommands", () => ({
+  createBookmark: vi.fn(() => Promise.resolve([])),
+  getBookmarksByBookId: vi.fn(() => Promise.resolve([])),
+  renameBookmark: vi.fn(() => Promise.resolve([])),
+  deleteBookmark: vi.fn(() => Promise.resolve([])),
+}));
+
 vi.mock("../../bindings/BookshelfCommands", () => ({
   createBookshelf: vi.fn(() => Promise.resolve([])),
   getAllBookshelves: vi.fn(() => Promise.resolve([])),
@@ -34,6 +41,7 @@ vi.mock("../../bindings/ContainerCommands", () => ({
     Promise.resolve({ entries: [], is_directory: false, is_novel: false }),
   ),
   requestPreloadAround: vi.fn(() => Promise.resolve()),
+  getImageDimensions: vi.fn(() => Promise.resolve([])),
   getImage: vi.fn(() => Promise.resolve(new ArrayBuffer(0))),
   getImagePreview: vi.fn(() => Promise.resolve(new ArrayBuffer(0))),
 }));

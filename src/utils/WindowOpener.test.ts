@@ -13,7 +13,7 @@ describe("WindowOpener", () => {
   });
 
   it("should create a new WebviewWindow for settings", () => {
-    openSettingsWindow();
+    openSettingsWindow("Settings");
     expect(WebviewWindow).toHaveBeenCalledWith(
       "settings",
       expect.objectContaining({
@@ -28,7 +28,7 @@ describe("WindowOpener", () => {
       throw new Error("Creation failed");
     });
 
-    openSettingsWindow();
+    openSettingsWindow("Settings");
     expect(error).toHaveBeenCalledWith(expect.stringContaining("Failed to open settings window"));
   });
 });

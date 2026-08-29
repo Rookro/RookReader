@@ -1,4 +1,7 @@
-import { CollectionsBookmark, Delete, LibraryBooks, LocalOffer } from "@mui/icons-material";
+import AutoAwesomeMotion from "@mui/icons-material/AutoAwesomeMotion";
+import Delete from "@mui/icons-material/Delete";
+import LibraryBooks from "@mui/icons-material/LibraryBooks";
+import LocalOffer from "@mui/icons-material/LocalOffer";
 import { Divider, ListItemIcon, ListItemText, Menu, MenuItem } from "@mui/material";
 import { useTranslation } from "react-i18next";
 import type { BookWithState } from "../../../domain/book/schema";
@@ -66,7 +69,7 @@ export default function BookContextMenu({
         }}
       >
         <ListItemIcon>
-          <CollectionsBookmark sx={{ color: "text.secondary" }} />
+          <AutoAwesomeMotion sx={{ color: "text.secondary" }} />
         </ListItemIcon>
         <ListItemText>{t("bookshelf.series.set-series")}</ListItemText>
       </MenuItem>
@@ -93,7 +96,9 @@ export default function BookContextMenu({
         <ListItemIcon>
           <Delete color="error" />
         </ListItemIcon>
-        <ListItemText>{t("bookshelf.remove-book")}</ListItemText>
+        <ListItemText>
+          {t("bookshelf.remove-book", { count: getTargetBooks().length })}
+        </ListItemText>
       </MenuItem>
     </Menu>
   );

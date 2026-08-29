@@ -12,6 +12,8 @@ import { ItemRow } from "./ItemRow";
 interface RowProps {
   entries: string[];
   selectedIndex: number;
+  /** Whether the selected page is displayed alongside the page after it. */
+  isSpreadSelected: boolean;
   onClick: (e: React.MouseEvent<HTMLDivElement>, index: number) => void;
 }
 
@@ -21,17 +23,20 @@ function Row({
   entries,
   style,
   selectedIndex,
+  isSpreadSelected,
   onClick,
   ...others
 }: RowComponentProps<RowProps>) {
   const entry = entries[index];
+  // A spread puts the page after the selected one on screen too, so both are selected.
+  const isPaired = isSpreadSelected && selectedIndex >= 0 && index === selectedIndex + 1;
   return (
     <ItemRow
       {...others}
       key={entry}
       entry={entry}
       index={index}
-      selected={selectedIndex === index}
+      selected={selectedIndex === index || isPaired}
       onClick={onClick}
       style={style}
     />
@@ -45,6 +50,7 @@ export default function ImageEntriesViewer() {
   const { t } = useTranslation();
   const entries = useAppSelector((state) => state.read.containerFile.entries);
   const index = useAppSelector((state) => state.read.containerFile.index);
+  const isSpreadDisplayed = useAppSelector((state) => state.read.containerFile.isSpreadDisplayed);
   const dispatch = useAppDispatch();
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [list, setList] = useListCallbackRef(null);
@@ -88,9 +94,10 @@ export default function ImageEntriesViewer() {
     () => ({
       entries,
       selectedIndex,
+      isSpreadSelected: isSpreadDisplayed,
       onClick: handleListItemClicked,
     }),
-    [entries, selectedIndex, handleListItemClicked],
+    [entries, selectedIndex, isSpreadDisplayed, handleListItemClicked],
   );
 
   return (

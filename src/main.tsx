@@ -26,6 +26,13 @@ if (!rootElement) {
 
 const initializeAndRender = async () => {
   try {
+    // Load the WDIO frontend bridge only in E2E builds. `VITE_E2E` is set by
+    // `wdio.conf.ts` onPrepare; in normal builds this branch is tree-shaken away,
+    // so `@wdio/tauri-plugin` never ships to production.
+    if (import.meta.env.VITE_E2E === "true") {
+      await import("@wdio/tauri-plugin");
+    }
+
     const settings = await loadAllSettings();
 
     const preloadedState = {

@@ -1,4 +1,9 @@
-import { ArrowBack, ArrowForward, ArrowUpward, Home, Refresh, Search } from "@mui/icons-material";
+import ArrowBack from "@mui/icons-material/ArrowBack";
+import ArrowForward from "@mui/icons-material/ArrowForward";
+import ArrowUpward from "@mui/icons-material/ArrowUpward";
+import Home from "@mui/icons-material/Home";
+import Refresh from "@mui/icons-material/Refresh";
+import Search from "@mui/icons-material/Search";
 import {
   Box,
   IconButton,
@@ -8,10 +13,12 @@ import {
   Select,
   type SelectChangeEvent,
   Stack,
+  Tooltip,
 } from "@mui/material";
 import { dirname, homeDir } from "@tauri-apps/api/path";
 import { warn } from "@tauri-apps/plugin-log";
-import React, { useCallback, useEffect, useRef } from "react";
+import type React from "react";
+import { useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppDispatch, useAppSelector } from "../../../../store/store";
 import type { SortOrder } from "../../../../types/AppSettings";
@@ -35,10 +42,6 @@ export default function NavBar() {
   const fileNavigatorSettings = useAppSelector((state) => state.settings.fileNavigator);
   const dispatch = useAppDispatch();
 
-  const [width, setWidth] = React.useState(0);
-
-  const navButtonsRef = useRef<HTMLElement>(null);
-
   const currentPath = history[historyIndex] ?? "";
 
   const setDirParh = useCallback(
@@ -57,21 +60,6 @@ export default function NavBar() {
       const dirPath = historyIndex === -1 ? undefined : history[historyIndex];
       setDirParh(dirPath);
     }
-
-    const element = navButtonsRef.current;
-    if (!element) {
-      return;
-    }
-    const observer = new ResizeObserver(() => {
-      setWidth(element?.offsetWidth ?? 0);
-    });
-    observer.observe(element);
-
-    return () => {
-      if (element) {
-        observer.unobserve(element);
-      }
-    };
   }, [entries.length, historyIndex, history, setDirParh]);
 
   const formAction = useCallback(
@@ -173,8 +161,10 @@ export default function NavBar() {
         />
       </Box>
       <Box
-        ref={navButtonsRef}
         sx={{
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "center",
           "& .MuiIconButton-root": {
             color: (theme) => theme.palette.primary.main,
           },
@@ -183,46 +173,58 @@ export default function NavBar() {
           },
         }}
       >
-        <IconButton onClick={handleHomeClicked} aria-label="home">
-          <Home />
-        </IconButton>
-        <IconButton onClick={handleBackClicked} disabled={historyIndex <= 0} aria-label="back">
-          <ArrowBack />
-        </IconButton>
-        <IconButton
-          onClick={handleForwardClicked}
-          disabled={history.length - historyIndex <= 1}
-          aria-label="forward"
+        <Tooltip title={t("book-reader.file-navigator.home")}>
+          <IconButton onClick={handleHomeClicked} aria-label="home">
+            <Home />
+          </IconButton>
+        </Tooltip>
+        <Tooltip title={t("common.back")}>
+          <span>
+            <IconButton onClick={handleBackClicked} disabled={historyIndex <= 0} aria-label="back">
+              <ArrowBack />
+            </IconButton>
+          </span>
+        </Tooltip>
+        <Tooltip title={t("common.forward")}>
+          <span>
+            <IconButton
+              onClick={handleForwardClicked}
+              disabled={history.length - historyIndex <= 1}
+              aria-label="forward"
+            >
+              <ArrowForward />
+            </IconButton>
+          </span>
+        </Tooltip>
+        <Tooltip title={t("common.up")}>
+          <IconButton onClick={handleParentClicked} aria-label="up">
+            <ArrowUpward />
+          </IconButton>
+        </Tooltip>
+        <Tooltip title={t("common.refresh")}>
+          <IconButton onClick={handleRefleshClicked} aria-label="refresh">
+            <Refresh />
+          </IconButton>
+        </Tooltip>
+        <Select
+          size="small"
+          value={fileNavigatorSettings.sortOrder}
+          sx={{ minWidth: "100px" }}
+          onChange={handleSortOrderChanged}
         >
-          <ArrowForward />
-        </IconButton>
-        <IconButton onClick={handleParentClicked} aria-label="up">
-          <ArrowUpward />
-        </IconButton>
-        <IconButton onClick={handleRefleshClicked} aria-label="refresh">
-          <Refresh />
-        </IconButton>
-        {width >= 310 && (
-          <Select
-            size="small"
-            defaultValue={fileNavigatorSettings.sortOrder}
-            sx={{ minWidth: "100px" }}
-            onChange={handleSortOrderChanged}
-          >
-            <MenuItem value={"name_asc"}>
-              {t("book-reader.file-navigator.sort-order.name-asc")}
-            </MenuItem>
-            <MenuItem value={"name_desc"}>
-              {t("book-reader.file-navigator.sort-order.name-desc")}
-            </MenuItem>
-            <MenuItem value={"date_asc"}>
-              {t("book-reader.file-navigator.sort-order.date-asc")}
-            </MenuItem>
-            <MenuItem value={"date_desc"}>
-              {t("book-reader.file-navigator.sort-order.date-desc")}
-            </MenuItem>
-          </Select>
-        )}
+          <MenuItem value={"name_asc"}>
+            {t("book-reader.file-navigator.sort-order.name-asc")}
+          </MenuItem>
+          <MenuItem value={"name_desc"}>
+            {t("book-reader.file-navigator.sort-order.name-desc")}
+          </MenuItem>
+          <MenuItem value={"date_asc"}>
+            {t("book-reader.file-navigator.sort-order.date-asc")}
+          </MenuItem>
+          <MenuItem value={"date_desc"}>
+            {t("book-reader.file-navigator.sort-order.date-desc")}
+          </MenuItem>
+        </Select>
       </Box>
       <OutlinedInput
         type="search"

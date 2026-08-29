@@ -12,7 +12,7 @@
 
 ## Overview
 
-RookReader is a modern, fast, cross-platform application for viewing e-book files in zip, rar, pdf, and epub formats. It is available for Windows and Linux environments.
+RookReader is a modern, fast, cross-platform application for viewing e-book files in zip, rar, cbz, cbr, pdf, and epub formats. It is available for Windows and Linux environments.
 
 It supports image sequences (such as comics and magazines) contained in a directory, common archive files and PDF documents, and is specialized for the reading experience of Japanese novels and comics.
 
@@ -23,6 +23,8 @@ It supports image sequences (such as comics and magazines) contained in a direct
 * **Supported file formats:**
   * zip
   * rar
+  * cbz (a ZIP comic archive)
+  * cbr (a RAR comic archive)
   * pdf
   * epub (Note: The novel reading function is an experimental feature.)
 * **Bookshelf Management:** Organize your library with multiple bookshelves and custom icons.
@@ -102,6 +104,8 @@ For users running Arch Linux or Manjaro, you can build and install the package u
 
 This project recommends a development flow using DevContainer to minimize environmental differences between developers.
 
+> For a native (non-container) setup, the full list of prerequisites, and the checks to run before opening a Pull Request, see [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ### Prerequisites
 
 *   Docker: Required for using container technology.
@@ -135,6 +139,8 @@ Contributions to this project are welcome.
 
 For bug reports and feature suggestions, please use GitHub Issues.
 For code contributions, please send a Pull Request.
+
+Before you start, please read our [Contributing Guide](CONTRIBUTING.md), which covers our Git Flow branching model, local setup, coding guidelines, and the checks to run before opening a Pull Request.
 
 ## LICENSE
 

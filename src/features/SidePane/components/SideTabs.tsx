@@ -1,4 +1,4 @@
-import { Tab, Tabs } from "@mui/material";
+import { Tab, Tabs, Tooltip } from "@mui/material";
 import type React from "react";
 import { type JSX, useCallback, useEffect } from "react";
 import { useAppDispatch } from "../../../store/store";
@@ -70,12 +70,9 @@ export default function SideTabs(props: {
       }}
     >
       {props.tabs.map((tab, index) => (
-        <Tab
-          key={tab.label}
-          icon={tab.icon}
-          aria-label={tab.label}
-          onClick={(e) => handleTabClick(e, index)}
-        />
+        <Tooltip key={tab.label} title={tab.label} placement="right">
+          <Tab icon={tab.icon} aria-label={tab.label} onClick={(e) => handleTabClick(e, index)} />
+        </Tooltip>
       ))}
     </Tabs>
   );

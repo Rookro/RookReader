@@ -1,4 +1,4 @@
-import { Cached } from "@mui/icons-material";
+import CachedOutlined from "@mui/icons-material/CachedOutlined";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppSelector } from "../../../../../store/store";
@@ -31,7 +31,7 @@ export default function PreloadPageCountSetting() {
 
   return (
     <NumberSpinnerSettingItem
-      icon={<Cached />}
+      icon={<CachedOutlined />}
       primaryText={t("settings.rendering.cache.preload-page-count.title")}
       secondaryText={t("settings.rendering.cache.preload-page-count.description")}
       secondaryTextSx={{ whiteSpace: "pre-wrap" }}

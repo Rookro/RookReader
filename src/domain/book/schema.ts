@@ -30,6 +30,8 @@ export const ReadingStateSchema = z.object({
   book_id: z.number(),
   /** The last read page index. */
   last_read_page_index: z.number(),
+  /** The last EPUB reading position (CFI). Null for comics. */
+  cfi: z.string().nullable(),
   /**
    * The timestamp when the book was last opened.
    * Represented as an ISO 8601 string (e.g., "2026-03-01T15:30:00").
@@ -66,6 +68,8 @@ export const BookWithStateSchema = BookSchema.extend({
    * Represented as an ISO 8601 string (e.g., "2026-03-01T15:30:00").
    */
   last_opened_at: z.string().nullable(),
+  /** The last EPUB reading position (CFI), if any. Null for comics. */
+  cfi: z.string().nullable(),
   /** List of tag IDs associated with this book. */
   tag_ids: z.array(z.number()),
 });

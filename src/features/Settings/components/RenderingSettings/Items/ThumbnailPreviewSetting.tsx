@@ -1,4 +1,4 @@
-import { AutoStoriesOutlined } from "@mui/icons-material";
+import ImageOutlined from "@mui/icons-material/ImageOutlined";
 import { debug } from "@tauri-apps/plugin-log";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
@@ -29,7 +29,7 @@ export default function ThumbnailPreviewSetting() {
 
   return (
     <SwitchSettingItem
-      icon={<AutoStoriesOutlined />}
+      icon={<ImageOutlined />}
       primaryText={t("settings.rendering.preview.title")}
       secondaryText={t("settings.rendering.preview.description")}
       checked={readerSettings.rendering.enableThumbnailPreview}

@@ -143,14 +143,14 @@ describe("BookCommands", () => {
 
   it("updateReadingProgress should call invoke", async () => {
     vi.mocked(invoke).mockResolvedValue(undefined);
-    const state = { book_id: 1, last_read_page_index: 5, last_opened_at: "now" };
+    const state = { book_id: 1, last_read_page_index: 5, cfi: null, last_opened_at: "now" };
     await BookCommands.updateReadingProgress(state);
     expect(invoke).toHaveBeenCalledWith("update_reading_progress", { stateData: state });
   });
 
   it("updateReadingProgress should throw CommandError on failure", async () => {
     vi.mocked(invoke).mockRejectedValue(mockError);
-    const state = { book_id: 1, last_read_page_index: 5, last_opened_at: "now" };
+    const state = { book_id: 1, last_read_page_index: 5, cfi: null, last_opened_at: "now" };
     await expect(BookCommands.updateReadingProgress(state)).rejects.toThrow(CommandError);
   });
 

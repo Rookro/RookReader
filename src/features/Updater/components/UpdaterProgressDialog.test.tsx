@@ -13,6 +13,25 @@ describe("UpdaterProgressDialog", () => {
     expect(screen.getByRole("progressbar")).toBeInTheDocument();
   });
 
+  it("should title the dialog with the current phase and show the percentage once", () => {
+    renderWithProviders(
+      <UpdaterProgressDialog isUpdating={true} updateProgress={45} updateStatus="Downloading…" />,
+    );
+
+    expect(screen.getByText("Downloading…")).toBeInTheDocument();
+    expect(screen.getByText("45%")).toBeInTheDocument();
+    // The phase must not claim to install while the download is still running.
+    expect(screen.queryByText("Installing…")).not.toBeInTheDocument();
+  });
+
+  it("should fall back to the installing phase when no status is set yet", () => {
+    renderWithProviders(
+      <UpdaterProgressDialog isUpdating={true} updateProgress={100} updateStatus="" />,
+    );
+
+    expect(screen.getByText("Installing…")).toBeInTheDocument();
+  });
+
   it("should not render dialog content when isUpdating is false", () => {
     renderWithProviders(
       <UpdaterProgressDialog isUpdating={false} updateProgress={0} updateStatus="" />,

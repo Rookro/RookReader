@@ -9,9 +9,12 @@ use std::{
 use zip::ZipArchive;
 
 use crate::{
-    container::traits::Container,
+    container::{archive_path, traits::Container},
     error::Result,
-    image::{thumbnail::generate_thumbnail, types::Image},
+    image::{
+        thumbnail::generate_thumbnail,
+        types::{read_dimensions, Image, ImageDimensions},
+    },
 };
 
 /// Absolute ceiling for a single page's preallocation, and the largest declared
@@ -138,7 +141,7 @@ fn read_entry_checked<R: Read + Seek>(
 /// # Returns
 ///
 /// The decoded name.
-fn decode_entry_name(raw_name: &[u8]) -> String {
+pub(crate) fn decode_entry_name(raw_name: &[u8]) -> String {
     match std::str::from_utf8(raw_name) {
         Ok(v) => v.to_string(),
         Err(_) => {
@@ -148,37 +151,48 @@ fn decode_entry_name(raw_name: &[u8]) -> String {
     }
 }
 
-/// Builds the naturally-sorted image entry list and the name→archive-index map.
+/// Builds the naturally-sorted image entry list and the name→archive-index map for one
+/// folder inside the archive.
 ///
-/// Each raw name is decoded ([`decode_entry_name`]) and filtered to supported image
-/// formats. The first occurrence of a decoded name wins; later duplicates — legal in
-/// the ZIP format, or produced by decode collisions (e.g. a UTF-8 name and a Shift-JIS
-/// name that decode to the same string) — are skipped so `entries` and `name_to_index`
+/// Each raw name is decoded ([`decode_entry_name`]), normalized, and kept only when it
+/// is a supported image sitting *directly* inside `inner_dir` — sub-folders are their
+/// own books, exactly as they are on disk. Entries are stored under their leaf file
+/// name so the page list reads like a folder listing.
+///
+/// The first occurrence of a leaf name wins; later duplicates — legal in the ZIP
+/// format, or produced by decode collisions (e.g. a UTF-8 name and a Shift-JIS name
+/// that decode to the same string) — are skipped so `entries` and `name_to_index`
 /// stay consistent. Otherwise the list would show a page twice while both entries
 /// resolved to the last index.
 ///
 /// # Arguments
 ///
 /// * `raw_names` - An iterator of `(archive_index, raw_name_bytes)` pairs.
+/// * `inner_dir` - The folder inside the archive; empty means the archive root.
 ///
 /// # Returns
 ///
-/// The sorted entry names and a map from each name to its archive index.
+/// The sorted leaf names and a map from each leaf name to its archive index.
 fn collect_entries(
     raw_names: impl Iterator<Item = (usize, Vec<u8>)>,
+    inner_dir: &str,
 ) -> (Vec<String>, HashMap<String, usize>) {
     let mut entries: Vec<String> = Vec::new();
     let mut name_to_index: HashMap<String, usize> = HashMap::new();
 
     for (i, raw_name) in raw_names {
-        let name = decode_entry_name(&raw_name);
-        if Image::is_supported_format(&name) {
-            if name_to_index.contains_key(&name) {
-                continue;
-            }
-            entries.push(name.clone());
-            name_to_index.insert(name, i);
+        let normalized = archive_path::normalize_entry(&decode_entry_name(&raw_name));
+        if archive_path::is_ignored_entry(&normalized) {
+            continue;
         }
+        let Some(leaf) = archive_path::leaf_in(&normalized, inner_dir) else {
+            continue;
+        };
+        if !Image::is_supported_format(leaf) || name_to_index.contains_key(leaf) {
+            continue;
+        }
+        entries.push(leaf.to_string());
+        name_to_index.insert(leaf.to_string(), i);
     }
 
     entries.sort_by(|a, b| natord::compare_ignore_case(a, b));
@@ -187,9 +201,9 @@ fn collect_entries(
 
 /// An implementation of the `Container` trait for reading content from ZIP archive files.
 pub struct ZipContainer {
-    /// A naturally sorted list of image file names found within the archive.
+    /// A naturally sorted list of the image leaf names in the opened folder.
     entries: Vec<String>,
-    /// A mapping from (possibly garbled) entry names to their indices in the ZIP archive.
+    /// A mapping from each (possibly garbled) leaf name to its index in the ZIP archive.
     name_to_index: HashMap<String, usize>,
     /// The ZIP archive, protected by a Mutex for thread-safe access to the underlying file.
     archive: Mutex<ZipArchive<File>>,
@@ -229,6 +243,24 @@ impl Container for ZipContainer {
         generate_thumbnail(&buffer)
     }
 
+    fn get_image_dimensions(&self) -> Result<Vec<ImageDimensions>> {
+        // Hold the lock across the whole pass: re-locking per entry only adds contention.
+        let mut archive = self.archive.lock().map_err(|e| {
+            crate::error::Error::Other(format!("Failed to lock zip archive: {}", e))
+        })?;
+
+        self.entries
+            .iter()
+            .map(|entry| {
+                let index = *self.name_to_index.get(entry).ok_or_else(|| {
+                    crate::error::Error::Other(format!("Entry not found in ZIP: {}", entry))
+                })?;
+                let buffer = read_entry_checked(&mut archive, index, entry)?;
+                Ok(read_dimensions(&buffer)?)
+            })
+            .collect()
+    }
+
     fn is_directory(&self) -> bool {
         false
     }
@@ -243,6 +275,8 @@ impl ZipContainer {
     /// # Arguments
     ///
     /// * `path` - The path to the ZIP file.
+    /// * `inner_dir` - The folder inside the archive to open as the book, `/`-separated.
+    ///   Empty opens the archive root, whose pages are the images directly at the root.
     ///
     /// # Returns
     ///
@@ -251,7 +285,7 @@ impl ZipContainer {
     /// # Errors
     ///
     /// Returns an `Err` if the ZIP file cannot be opened or read.
-    pub fn new(path: &str) -> Result<Self> {
+    pub fn new(path: &str, inner_dir: &str) -> Result<Self> {
         let file = File::open(path)?;
         let mut archive = ZipArchive::new(file)?;
 
@@ -262,7 +296,7 @@ impl ZipContainer {
             raw_names.push((i, file.name_raw().to_vec()));
         }
 
-        let (entries, name_to_index) = collect_entries(raw_names.into_iter());
+        let (entries, name_to_index) = collect_entries(raw_names.into_iter(), inner_dir);
 
         Ok(Self {
             entries,
@@ -337,7 +371,7 @@ mod tests {
             ],
         );
 
-        let container = ZipContainer::new(zip_path.to_string_lossy().to_string().as_str())
+        let container = ZipContainer::new(zip_path.to_string_lossy().to_string().as_str(), "")
             .expect("failed to create ZipContainer");
 
         assert_eq!(container.entries.len(), 2);
@@ -351,6 +385,7 @@ mod tests {
         // though our writer forbids it) must collapse to a single entry; the first wins.
         let (entries, name_to_index) = collect_entries(
             vec![(0usize, b"a.png".to_vec()), (1usize, b"a.png".to_vec())].into_iter(),
+            "",
         );
 
         assert_eq!(entries, vec!["a.png".to_string()]);
@@ -366,8 +401,10 @@ mod tests {
         let sjis_name = sjis_cow.into_owned();
         assert_ne!(utf8_name, sjis_name, "raw bytes must genuinely differ");
 
-        let (entries, name_to_index) =
-            collect_entries(vec![(0usize, utf8_name), (1usize, sjis_name)].into_iter());
+        let (entries, name_to_index) = collect_entries(
+            vec![(0usize, utf8_name), (1usize, sjis_name)].into_iter(),
+            "",
+        );
 
         assert_eq!(entries, vec!["ファイル.png".to_string()]);
         // First occurrence (archive index 0) wins.
@@ -379,7 +416,7 @@ mod tests {
         let dir = tempdir().expect("failed to create tempdir");
         let zip_path = create_dummy_zip(dir.path(), "empty.zip", &[]);
 
-        let container = ZipContainer::new(zip_path.to_string_lossy().to_string().as_str())
+        let container = ZipContainer::new(zip_path.to_string_lossy().to_string().as_str(), "")
             .expect("failed to create ZipContainer");
         assert!(container.entries.is_empty());
     }
@@ -387,7 +424,7 @@ mod tests {
     #[test]
     fn test_new_non_existent_zip() {
         let non_existent_path = String::from("/non/existent/file.zip");
-        let container = ZipContainer::new(&non_existent_path);
+        let container = ZipContainer::new(&non_existent_path, "");
         assert!(container.is_err());
     }
 
@@ -404,7 +441,8 @@ mod tests {
             ],
         );
 
-        let container = ZipContainer::new(zip_path.to_string_lossy().to_string().as_str()).unwrap();
+        let container =
+            ZipContainer::new(zip_path.to_string_lossy().to_string().as_str(), "").unwrap();
         let entries = container.get_entries();
 
         assert_eq!(entries.len(), 3);
@@ -417,7 +455,7 @@ mod tests {
     fn test_get_image_existing() {
         let dir = tempdir().unwrap();
         let zip_path = create_dummy_zip(dir.path(), "test.zip", &[("image1.png", DUMMY_PNG_DATA)]);
-        let container = ZipContainer::new(zip_path.to_string_lossy().to_string().as_str())
+        let container = ZipContainer::new(zip_path.to_string_lossy().to_string().as_str(), "")
             .expect("failed to create ZipContainer");
 
         let image = container
@@ -429,10 +467,37 @@ mod tests {
     }
 
     #[test]
+    fn test_get_image_dimensions_matches_entries() {
+        let dir = tempdir().unwrap();
+        let zip_path = create_dummy_zip(
+            dir.path(),
+            "test.zip",
+            &[
+                ("image1.png", DUMMY_PNG_DATA),
+                ("image2.png", DUMMY_PNG_DATA),
+            ],
+        );
+        let container =
+            ZipContainer::new(zip_path.to_string_lossy().to_string().as_str(), "").unwrap();
+
+        let dimensions = container
+            .get_image_dimensions()
+            .expect("get_image_dimensions should succeed");
+
+        assert_eq!(dimensions.len(), container.get_entries().len());
+        assert!(dimensions.iter().all(|d| *d
+            == ImageDimensions {
+                width: 1,
+                height: 1
+            }));
+    }
+
+    #[test]
     fn test_get_image_non_existing() {
         let dir = tempdir().unwrap();
         let zip_path = create_dummy_zip(dir.path(), "test.zip", &[("image1.png", DUMMY_PNG_DATA)]);
-        let container = ZipContainer::new(zip_path.to_string_lossy().to_string().as_str()).unwrap();
+        let container =
+            ZipContainer::new(zip_path.to_string_lossy().to_string().as_str(), "").unwrap();
         let result = container.get_image("non_existent_image.png");
         assert!(result.is_err());
     }
@@ -443,7 +508,8 @@ mod tests {
         // exact bytes (guards against an off-by-one in the capacity computation).
         let dir = tempdir().unwrap();
         let zip_path = create_dummy_zip(dir.path(), "test.zip", &[("image1.png", DUMMY_PNG_DATA)]);
-        let container = ZipContainer::new(zip_path.to_string_lossy().to_string().as_str()).unwrap();
+        let container =
+            ZipContainer::new(zip_path.to_string_lossy().to_string().as_str(), "").unwrap();
 
         let image = container
             .get_image("image1.png")
@@ -519,11 +585,74 @@ mod tests {
     fn test_get_thumbnail() {
         let dir = tempdir().unwrap();
         let zip_path = create_dummy_zip(dir.path(), "test.zip", &[("image1.png", DUMMY_PNG_DATA)]);
-        let container = ZipContainer::new(zip_path.to_string_lossy().to_string().as_str()).unwrap();
+        let container =
+            ZipContainer::new(zip_path.to_string_lossy().to_string().as_str(), "").unwrap();
 
         let thumbnail = container.get_thumbnail("image1.png").unwrap();
         assert!(thumbnail.width <= crate::image::thumbnail::THUMBNAIL_SIZE);
         assert!(thumbnail.height <= crate::image::thumbnail::THUMBNAIL_SIZE);
         assert!(!thumbnail.data.is_empty());
+    }
+
+    #[test]
+    fn test_root_book_excludes_images_in_sub_folders() {
+        let dir = tempdir().expect("failed to create tempdir");
+        let zip_path = create_dummy_zip(
+            dir.path(),
+            "nested.zip",
+            &[
+                ("cover.png", DUMMY_PNG_DATA),
+                ("ch1/001.png", DUMMY_PNG_DATA),
+                ("ch1/002.png", DUMMY_PNG_DATA),
+            ],
+        );
+
+        let container =
+            ZipContainer::new(zip_path.to_string_lossy().as_ref(), "").expect("open root");
+
+        assert_eq!(vec!["cover.png".to_string()], *container.get_entries());
+    }
+
+    #[test]
+    fn test_inner_folder_is_its_own_book_with_leaf_names() {
+        let dir = tempdir().expect("failed to create tempdir");
+        let zip_path = create_dummy_zip(
+            dir.path(),
+            "nested.zip",
+            &[
+                ("cover.png", DUMMY_PNG_DATA),
+                ("ch1/002.png", DUMMY_PNG_DATA),
+                ("ch1/001.png", DUMMY_PNG_DATA),
+                ("ch1/deeper/003.png", DUMMY_PNG_DATA),
+            ],
+        );
+
+        let container =
+            ZipContainer::new(zip_path.to_string_lossy().as_ref(), "ch1").expect("open ch1");
+
+        // Leaf names only, naturally sorted, and `deeper/` is a separate book.
+        assert_eq!(
+            vec!["001.png".to_string(), "002.png".to_string()],
+            *container.get_entries()
+        );
+        assert!(container.get_image("001.png").is_ok());
+    }
+
+    #[test]
+    fn test_macos_metadata_entries_are_skipped() {
+        let dir = tempdir().expect("failed to create tempdir");
+        let zip_path = create_dummy_zip(
+            dir.path(),
+            "macos.zip",
+            &[
+                ("001.png", DUMMY_PNG_DATA),
+                ("__MACOSX/._001.png", DUMMY_PNG_DATA),
+            ],
+        );
+
+        let container =
+            ZipContainer::new(zip_path.to_string_lossy().as_ref(), "").expect("open root");
+
+        assert_eq!(vec!["001.png".to_string()], *container.get_entries());
     }
 }

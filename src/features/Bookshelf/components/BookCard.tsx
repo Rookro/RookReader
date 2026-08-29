@@ -1,4 +1,5 @@
-import { CheckCircle, MenuBook } from "@mui/icons-material";
+import CheckCircle from "@mui/icons-material/CheckCircle";
+import MenuBook from "@mui/icons-material/MenuBook";
 import {
   alpha,
   Box,
@@ -18,6 +19,7 @@ import dummy_thumbnail from "../../../assets/dummy_thumbnail.svg";
 import AutoScrollTypography from "../../../components/ui/AutoScrollTypography/AutoScrollTypography";
 import type { BookWithState } from "../../../domain/book/schema";
 import type { Tag } from "../../../domain/tag/schema";
+import { getReadableTextColor } from "../../../utils/ColorUtils";
 import { useBookSelection } from "../hooks/useBookSelection";
 import BookContextMenu from "./BookContextMenu";
 
@@ -135,7 +137,8 @@ export default function BookCard({
               sx={{
                 position: "absolute",
                 top: 4,
-                right: 4,
+                // Left, so it never sits under the "Reading" chip in the right corner.
+                left: 4,
                 zIndex: 2,
                 backgroundColor: "background.paper",
                 borderRadius: "50%",
@@ -189,11 +192,12 @@ export default function BookCard({
                         key={tag.id}
                         label={tag.name}
                         size={size}
-                        sx={{
+                        sx={(theme) => ({
                           backgroundColor: tag.color_code,
+                          color: getReadableTextColor(theme, tag.color_code),
                           fontSize: "0.65rem",
                           height: "20px",
-                        }}
+                        })}
                       />
                     ))}
                   </Stack>

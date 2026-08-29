@@ -1,4 +1,4 @@
-import { Box, Button, Paper, Typography } from "@mui/material";
+import { Box, Button, Typography } from "@mui/material";
 import { resolveResource } from "@tauri-apps/api/path";
 import { error } from "@tauri-apps/plugin-log";
 import { openPath } from "@tauri-apps/plugin-opener";
@@ -21,9 +21,11 @@ export default function ThirdParty() {
   }, []);
 
   return (
-    <Paper elevation={3} sx={{ padding: 2 }}>
-      <Typography variant="h5">{t("settings.about.third-party-licenses.title")}</Typography>
-      <Typography variant="body1" sx={{ marginTop: 1, marginBottom: 1 }}>
+    <Box sx={{ marginTop: 4 }}>
+      <Typography variant="subtitle1" color="primary" sx={{ fontWeight: "bold" }}>
+        {t("settings.about.third-party-licenses.title")}
+      </Typography>
+      <Typography variant="body2" sx={{ marginTop: 1, marginBottom: 1, color: "text.secondary" }}>
         {t("settings.about.third-party-licenses.body")}
       </Typography>
       <Box sx={{ display: "flex", gap: "10px", marginTop: 2 }}>
@@ -35,13 +37,13 @@ export default function ThirdParty() {
         </Button>
       </Box>
       <Box sx={{ marginTop: 3 }}>
-        <Typography variant="body1" sx={{ marginTop: 1, marginBottom: 1, color: "text.secondary" }}>
+        <Typography variant="subtitle2" sx={{ marginBottom: 1, fontWeight: "bold" }}>
           {t("settings.about.third-party-licenses.bundled")}
         </Typography>
         <Button variant="outlined" onClick={() => openLicense("pdfium/")}>
           {t("settings.about.third-party-licenses.pdfium")}
         </Button>
       </Box>
-    </Paper>
+    </Box>
   );
 }

@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createBasePreloadedState, renderWithProviders } from "../../../../test/utils";
 import * as SettingsReducer from "../../../Settings/slice";
+import { setSettings } from "../../../Settings/slice";
 import * as ReadReducer from "../../slice";
 import NavBar from "./NavBar";
 
@@ -218,5 +219,71 @@ describe("FileNavigator/NavBar", () => {
     const input = screen.getByDisplayValue("/home/user/books");
     fireEvent.contextMenu(input);
     // Verified by code inspection: calls stopPropagation
+  });
+
+  describe("tooltips", () => {
+    it.each([
+      ["home", "Home folder"],
+      ["back", "Back"],
+      ["forward", "Forward"],
+      ["up", "Up one level"],
+      ["refresh", "Refresh"],
+    ])("should describe the %s button on hover", async (ariaLabel, tooltip) => {
+      // Sit in the middle of the history so both back and forward stay enabled;
+      // a disabled button has pointer-events: none and cannot be hovered.
+      const preloadedState = createBasePreloadedState();
+      preloadedState.read.explorer.history = ["/a", "/b", "/c"];
+      preloadedState.read.explorer.historyIndex = 1;
+
+      renderWithProviders(<NavBar />, { preloadedState });
+      await user.hover(screen.getByLabelText(ariaLabel));
+
+      expect(await screen.findByRole("tooltip")).toHaveTextContent(tooltip);
+    });
+  });
+  describe("sort order", () => {
+    it("should reflect the stored sort order rather than only its initial value", () => {
+      const preloadedState = createBasePreloadedState();
+      preloadedState.read.explorer.history = ["/home/user/books"];
+      preloadedState.read.explorer.historyIndex = 0;
+      preloadedState.settings.fileNavigator.sortOrder = "date_desc";
+
+      renderWithProviders(<NavBar />, { preloadedState });
+
+      expect(screen.getByRole("combobox")).toHaveTextContent("Date↓");
+    });
+
+    it("should follow the store when the sort order changes elsewhere", async () => {
+      const preloadedState = createBasePreloadedState();
+      preloadedState.read.explorer.history = ["/home/user/books"];
+      preloadedState.read.explorer.historyIndex = 0;
+
+      const { store } = renderWithProviders(<NavBar />, { preloadedState });
+      expect(screen.getByRole("combobox")).toHaveTextContent("Name↑");
+
+      // Stands in for the settings window writing a new sort order.
+      const settings = store.getState().settings;
+      act(() => {
+        store.dispatch(
+          setSettings({
+            ...settings,
+            fileNavigator: { ...settings.fileNavigator, sortOrder: "date_asc" },
+          }),
+        );
+      });
+
+      await waitFor(() => expect(screen.getByRole("combobox")).toHaveTextContent("Date↑"));
+    });
+
+    it("should keep the sort control reachable regardless of the pane width", () => {
+      const preloadedState = createBasePreloadedState();
+      preloadedState.read.explorer.history = ["/home/user/books"];
+      preloadedState.read.explorer.historyIndex = 0;
+
+      renderWithProviders(<NavBar />, { preloadedState });
+
+      // jsdom reports a zero width, which used to hide the control entirely.
+      expect(screen.getByRole("combobox")).toBeInTheDocument();
+    });
   });
 });

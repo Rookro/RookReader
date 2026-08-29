@@ -48,6 +48,27 @@ describe("GlobalErrorListener", () => {
     });
   });
 
+  it("should trigger notification and clear error when the container has no pages", async () => {
+    const preloadedState = structuredClone(createBasePreloadedState());
+    preloadedState.read.containerFile.error = {
+      code: ErrorCode.emptyContainer,
+    };
+
+    const { store } = renderWithProviders(<GlobalErrorListener />, { preloadedState });
+
+    await waitFor(() => {
+      // "Failed to open book. It contains no readable pages."
+      expect(showNotificationMock).toHaveBeenCalledWith(
+        expect.stringContaining("The book contains no readable pages."),
+        "error",
+      );
+    });
+
+    await waitFor(() => {
+      expect(store.getState().read.containerFile.error).toBeNull();
+    });
+  });
+
   it("should trigger notification and clear error when explorer has error", async () => {
     const preloadedState = createBasePreloadedState();
     preloadedState.read.explorer.error = { code: ErrorCode.io };

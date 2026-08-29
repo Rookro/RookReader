@@ -1,18 +1,23 @@
 import { warn } from "@tauri-apps/plugin-log";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { requestPreloadAround } from "../../../bindings/ContainerCommands";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { getImageDimensions, requestPreloadAround } from "../../../bindings/ContainerCommands";
 import type { AppDispatch } from "../../../store/store";
 import type { Image } from "../../../types/Image";
-import { setImageIndex } from "../slice";
+import { setImageIndex, setSpreadDisplayed, setSpreadShifted } from "../slice";
 import {
   buildSinglePageLayout,
-  calculateLayout,
+  buildUnitChain,
+  buildUnitLayout,
   createImageCacheItem,
+  detectCoverPresence,
   fetchImageBlob,
   fetchImagePreviewBlob,
   findPreviousUnitStart,
   type ImageCacheItem,
+  type PageDims,
+  resolveUnit,
   revokeCacheItemUrls,
+  type UnitDecision,
   type ViewerSettings,
   type ViewLayout,
 } from "../utils/ImageUtils";
@@ -46,6 +51,7 @@ export interface ViewerController {
  * @param containerPath The path of the container file.
  * @param entries Entries in the container.
  * @param index Index of the current image.
+ * @param isSpreadShifted Whether this book's spread pairing is shifted by one.
  * @param settings Viewer settings.
  * @param dispatch Dispatch function from Redux.
  * @param onForwardBoundary Called when moving forward past the last page.
@@ -56,31 +62,126 @@ export const useViewerController = (
   containerPath: string,
   entries: string[],
   index: number,
+  isSpreadShifted: boolean,
   settings: ViewerSettings,
   dispatch: AppDispatch,
   onForwardBoundary?: () => void,
   onBackwardBoundary?: () => void,
 ): ViewerController => {
   const cacheRef = useRef<Map<string, ImageCacheItem>>(new Map());
+  // Dimensions are kept apart from the blob cache: they are tiny, and navigation needs
+  // them for pages whose blobs have already been evicted.
+  const dimsRef = useRef<Map<string, PageDims>>(new Map());
   const [isImageLoading, setIsImageLoading] = useState(false);
   const [layoutState, setLayoutState] = useState<{ layout: ViewLayout; path: string } | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const [scannedDims, setScannedDims] = useState<{ path: string; dims: PageDims[] } | null>(null);
+  // The book whose restored page has already been checked against the natural pairing.
+  const adoptedPathRef = useRef<string | null>(null);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: update the cache whenever containerPath changes.
   useEffect(() => {
     revokeCacheUrls(cacheRef.current);
     cacheRef.current.clear();
+    dimsRef.current.clear();
     abortControllerRef.current?.abort();
   }, [containerPath]);
 
   // Revoke any remaining object URLs when the component unmounts.
   useEffect(() => {
     const cache = cacheRef.current;
+    const dims = dimsRef.current;
     return () => {
       revokeCacheUrls(cache);
       cache.clear();
+      dims.clear();
     };
   }, []);
+
+  // Scan every page's dimensions in the background. Until it lands (or if it fails) the
+  // viewer runs on the dimensions of the pages it has actually loaded.
+  useEffect(() => {
+    setScannedDims(null);
+    if (!containerPath || entries.length === 0) {
+      return;
+    }
+
+    let cancelled = false;
+    getImageDimensions(containerPath)
+      .then((dims) => {
+        if (!cancelled) {
+          setScannedDims({ path: containerPath, dims });
+        }
+      })
+      .catch((e) => {
+        warn(`Failed to scan image dimensions: ${String(e)}`);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [containerPath, entries.length]);
+
+  const chain = useMemo(() => {
+    if (!scannedDims || scannedDims.path !== containerPath) {
+      return null;
+    }
+    // A short or stale scan cannot describe this book; keep the fallback instead.
+    if (scannedDims.dims.length !== entries.length) {
+      return null;
+    }
+    // The archive's own landscape pages prove whether it carries the cover, so they
+    // outrank `isFirstPageSingleView`, which is only a default for archives that offer
+    // no proof. The reader's toggle outranks both, so the button always changes the
+    // chain — including when a landscape page would otherwise decide it.
+    const base = detectCoverPresence(scannedDims.dims) ?? settings.isFirstPageSingleView;
+    const hasCover = isSpreadShifted ? !base : base;
+    return buildUnitChain(scannedDims.dims, settings, hasCover);
+  }, [scannedDims, containerPath, isSpreadShifted, entries, settings]);
+
+  // Two jobs, in order, both of which need a chain to exist.
+  //
+  // On the first chain for a book: if the restored page is not a boundary of the book's
+  // natural pairing, the reader had deliberately shifted it, so shift it again. This is
+  // what carries a shift across sessions without persisting anything of its own. For a
+  // well-formed book the restored page is already a boundary and nothing happens.
+  //
+  // Afterwards: a page reached by a jump (slider, bookmark, page list) may sit inside a
+  // unit rather than start one. Snap back to the unit that contains it, so the pairing is
+  // a property of the book instead of the reader's navigation history.
+  useEffect(() => {
+    if (!chain) {
+      return;
+    }
+
+    if (adoptedPathRef.current !== containerPath) {
+      adoptedPathRef.current = containerPath;
+      if (!chain.units.has(index)) {
+        dispatch(setSpreadShifted(true));
+      }
+      return;
+    }
+
+    if (!chain.units.has(index)) {
+      const start = chain.starts.filter((s) => s < index).at(-1);
+      if (start !== undefined) {
+        dispatch(setImageIndex(start));
+      }
+    }
+  }, [chain, containerPath, index, dispatch]);
+
+  const getDims = useCallback(
+    (i: number): PageDims | undefined => dimsRef.current.get(entries[i]),
+    [entries],
+  );
+
+  // The chain wins when it exists: an anchored unit can differ from what the local rule
+  // would decide, and display and navigation must agree on the same one.
+  const currentUnit = useCallback(
+    (): UnitDecision | null =>
+      chain?.units.get(index) ?? resolveUnit(index, entries, getDims, settings),
+    [chain, index, entries, getDims, settings],
+  );
 
   // Loads the missing images and updates the layout.
   useEffect(() => {
@@ -97,8 +198,14 @@ export const useViewerController = (
 
       const cache = cacheRef.current;
 
+      /** Builds the layout for the current index from its unit, if both are available. */
+      const layoutForCurrentIndex = (): ViewLayout | null => {
+        const unit = currentUnit();
+        return unit ? buildUnitLayout(unit, index, entries, cache) : null;
+      };
+
       // Tracks whether a full layout was resolved this run, so the post-settle
-      // fallback only fires when calculateLayout never produced one.
+      // fallback only fires when no layout ever came out.
       let layoutResolved = false;
 
       const loadAndUpdate = async (
@@ -110,6 +217,9 @@ export const useViewerController = (
         const img = await fetcher(containerPath, path);
         if (img && !controller.signal.aborted) {
           const newItem = createImageCacheItem(img, isPreview);
+          if (!dimsRef.current.has(path)) {
+            dimsRef.current.set(path, { width: newItem.width, height: newItem.height });
+          }
           const existingItem = cache.get(path);
           if (existingItem) {
             if (isPreview) {
@@ -120,7 +230,7 @@ export const useViewerController = (
           } else {
             cache.set(path, newItem);
           }
-          const layout = calculateLayout(index, entries, cache, settings);
+          const layout = layoutForCurrentIndex();
           if (layout) {
             layoutResolved = true;
             setLayoutState({ layout, path: containerPath });
@@ -131,7 +241,7 @@ export const useViewerController = (
       const missingFullPaths = pathsToLoad.filter((p) => !cache.get(p)?.fullUrl);
       if (missingFullPaths.length === 0) {
         setIsImageLoading(false);
-        const layout = calculateLayout(index, entries, cache, settings);
+        const layout = layoutForCurrentIndex();
         setLayoutState(layout ? { layout, path: containerPath } : null);
         return;
       }
@@ -183,7 +293,7 @@ export const useViewerController = (
       abortControllerRef.current?.abort();
       abortControllerRef.current = null;
     };
-  }, [containerPath, index, entries, settings]);
+  }, [containerPath, index, entries, settings, currentUnit]);
 
   // Request preloading around the current index in the backend.
   useEffect(() => {
@@ -211,26 +321,40 @@ export const useViewerController = (
 
   const displayedLayout = layoutState?.path === containerPath ? layoutState?.layout : null;
 
+  // Publish what is actually on screen so the page list can highlight both pages of a
+  // spread. Driven by the resolved layout rather than the unit decision, so a spread
+  // that degraded to a single page is reported as one page.
+  const isSpreadDisplayed = displayedLayout?.isSpread ?? false;
+  useEffect(() => {
+    dispatch(setSpreadDisplayed(isSpreadDisplayed));
+  }, [isSpreadDisplayed, dispatch]);
+
+  const goTo = useCallback(
+    (nextIndex: number) => {
+      dispatch(setImageIndex(nextIndex));
+    },
+    [dispatch],
+  );
+
   const moveForward = useCallback(() => {
     if (entries.length === 0) {
       return;
     }
 
-    // Derive the increment from the current index's layout (read from the cache now),
-    // not the lagging displayedLayout, which would desync spread pairs / skip pages.
-    const currentLayout = calculateLayout(index, entries, cacheRef.current, settings);
-    // When the layout is unknown (image not cached yet) advance by 1: advancing 2
+    // Derive the increment from the current index's unit, not the lagging
+    // displayedLayout, which would desync spread pairs / skip pages.
+    // When the unit is unknown (dimensions not known yet) advance by 1: advancing 2
     // could skip a page permanently, while a transient half-spread self-corrects.
-    const increment = currentLayout?.nextIndexIncrement ?? 1;
+    const increment = currentUnit()?.nextIndexIncrement ?? 1;
     const nextIndex = index + increment;
 
     if (nextIndex < entries.length) {
-      dispatch(setImageIndex(nextIndex));
+      goTo(nextIndex);
     } else {
       // Already at the last page: hand off to the adjacent-book handler.
       onForwardBoundary?.();
     }
-  }, [index, entries, dispatch, settings, onForwardBoundary]);
+  }, [index, entries, goTo, currentUnit, onForwardBoundary]);
 
   const moveBack = useCallback(() => {
     if (entries.length === 0) {
@@ -244,64 +368,50 @@ export const useViewerController = (
     }
 
     if (!settings.isTwoPagedView) {
-      dispatch(setImageIndex(Math.max(0, index - 1)));
+      goTo(index - 1);
       return;
+    }
+
+    // With the whole book measured, the preceding unit is simply the last boundary
+    // before the current index.
+    if (chain) {
+      const previous = chain.starts.filter((start) => start < index).at(-1);
+      if (previous !== undefined) {
+        goTo(previous);
+        return;
+      }
     }
 
     // Reconstruct the real previous unit start from a forward walk (mirrors
     // moveForward). Falls back to the local heuristic below when the walk can't
-    // run (incomplete cache / unexpected layout).
-    const previousStart = findPreviousUnitStart(index, entries, cacheRef.current, settings);
+    // run (incomplete dimensions / unexpected layout).
+    const previousStart = findPreviousUnitStart(index, entries, getDims, settings);
     if (previousStart !== null) {
-      dispatch(setImageIndex(previousStart));
+      goTo(previousStart);
       return;
     }
 
-    const indexFor1PagesBack = Math.max(0, index - 1);
-    const simulatedLayoutFor1PagesBack = calculateLayout(
-      indexFor1PagesBack,
-      entries,
-      cacheRef.current,
-      settings,
-    );
-
-    // If the previous page is landscape, go back only one page.
-    if (
-      simulatedLayoutFor1PagesBack &&
-      !simulatedLayoutFor1PagesBack.isSpread &&
-      simulatedLayoutFor1PagesBack.firstImage &&
-      simulatedLayoutFor1PagesBack.firstImage.width > simulatedLayoutFor1PagesBack.firstImage.height
-    ) {
-      dispatch(setImageIndex(indexFor1PagesBack));
+    // The walk could not run. Pick the candidate whose unit increment lands exactly on
+    // the current index; "is the previous page landscape" misses portrait pages that are
+    // single because the page after them is landscape. Parity is locally unknowable, so
+    // prefer the spread two pages back when both candidates are consistent.
+    const unitTwoBack = index >= 2 ? resolveUnit(index - 2, entries, getDims, settings) : null;
+    if (unitTwoBack?.nextIndexIncrement === 2) {
+      goTo(index - 2);
       return;
     }
 
-    const indexFor2PagesBack = Math.max(0, index - 2);
-    const simulatedLayoutFor2PagesBack = calculateLayout(
-      indexFor2PagesBack,
-      entries,
-      cacheRef.current,
-      settings,
-    );
-
-    // If the layout calculation fails, fall back to going back two pages.
-    if (!simulatedLayoutFor2PagesBack) {
-      dispatch(setImageIndex(indexFor2PagesBack));
+    // Either index - 1 is a unit start of its own, or it starts the spread the current
+    // index sits inside; both cases re-align to it.
+    const unitOneBack = resolveUnit(index - 1, entries, getDims, settings);
+    if (unitOneBack) {
+      goTo(index - 1);
       return;
     }
 
-    // If the page 2 steps back is landscape, go back only one page.
-    if (
-      !simulatedLayoutFor2PagesBack.isSpread &&
-      simulatedLayoutFor2PagesBack.firstImage &&
-      simulatedLayoutFor2PagesBack.firstImage.width > simulatedLayoutFor2PagesBack.firstImage.height
-    ) {
-      dispatch(setImageIndex(indexFor1PagesBack));
-      return;
-    }
-
-    dispatch(setImageIndex(indexFor2PagesBack));
-  }, [index, entries, settings, dispatch, onBackwardBoundary]);
+    // Dimensions unknown: keep the historical "two pages back" default.
+    goTo(Math.max(0, index - 2));
+  }, [index, entries, settings, goTo, chain, getDims, onBackwardBoundary]);
 
   return {
     displayedLayout,

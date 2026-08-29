@@ -1,9 +1,7 @@
-import {
-  DarkModeOutlined,
-  LightModeOutlined,
-  Palette,
-  SettingsBrightnessOutlined,
-} from "@mui/icons-material";
+import DarkModeOutlined from "@mui/icons-material/DarkModeOutlined";
+import LightModeOutlined from "@mui/icons-material/LightModeOutlined";
+import PaletteOutlined from "@mui/icons-material/PaletteOutlined";
+import SettingsBrightnessOutlined from "@mui/icons-material/SettingsBrightnessOutlined";
 import {
   ListItem,
   ListItemIcon,
@@ -49,7 +47,7 @@ export default function ThemeSetting() {
   return (
     <ListItem>
       <ListItemIcon>
-        <Palette />
+        <PaletteOutlined />
       </ListItemIcon>
       <ListItemText primary={t("settings.general.theme.title")} />
       <ToggleButtonGroup

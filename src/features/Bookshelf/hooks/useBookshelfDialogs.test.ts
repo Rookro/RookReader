@@ -17,6 +17,7 @@ describe("useBookshelfDialogs", () => {
       created_at: null,
       last_read_page_index: null,
       last_opened_at: null,
+      cfi: null,
       tag_ids: [],
     },
     {
@@ -31,6 +32,7 @@ describe("useBookshelfDialogs", () => {
       created_at: null,
       last_read_page_index: null,
       last_opened_at: null,
+      cfi: null,
       tag_ids: [],
     },
   ];

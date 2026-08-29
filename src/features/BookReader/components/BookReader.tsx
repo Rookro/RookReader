@@ -1,8 +1,12 @@
-import { Explore, History, PhotoLibrary } from "@mui/icons-material";
+import Bookmarks from "@mui/icons-material/Bookmarks";
+import Folder from "@mui/icons-material/Folder";
+import History from "@mui/icons-material/History";
+import PhotoLibrary from "@mui/icons-material/PhotoLibrary";
 import { Box, CircularProgress, Stack, type SxProps, type Theme } from "@mui/material";
 import { createSelector } from "@reduxjs/toolkit";
 import { Allotment } from "allotment";
 import { type JSX, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { getRecentlyReadBooks } from "../../../bindings/BookCommands";
 import { useDragDropEvent } from "../../../hooks/useDragDropEvent";
 import { usePaneSizes } from "../../../hooks/usePaneSizes";
@@ -10,6 +14,7 @@ import { type RootState, useAppDispatch, useAppSelector } from "../../../store/s
 import SidePanels from "../../SidePane/components/SidePanels";
 import SideTabs from "../../SidePane/components/SideTabs";
 import { openContainerFile, setContainerFilePath, setOpenOrigin } from "../slice";
+import BookmarkViewer from "./BookmarkViewer/BookmarkViewer";
 import ComicReader from "./ComicReader";
 import ControlSlider from "./ControlSlider";
 import FileNavigator from "./FileNavigator/FileNavigator";
@@ -51,6 +56,7 @@ export interface BookReaderProps {
  * Component for rendering a book reader.
  */
 export default function BookReader({ sx }: BookReaderProps) {
+  const { t } = useTranslation();
   const initialized = useRef(false);
   const {
     activeView,
@@ -92,17 +98,38 @@ export default function BookReader({ sx }: BookReaderProps) {
   );
   useDragDropEvent({ onDrop: handleDropped });
 
+  // The labels double as the tabs' accessible names and tooltips, so they reuse the
+  // same titles the panels show in their headers.
   const tabs: { label: string; icon: JSX.Element; panel: JSX.Element }[] = useMemo(() => {
     const tabs = [
-      { label: "file-navigator", icon: <Explore />, panel: <FileNavigator /> },
-      { label: "image-entries", icon: <PhotoLibrary />, panel: <ImageEntriesViewer /> },
+      {
+        label: t("book-reader.file-navigator.title"),
+        icon: <Folder />,
+        panel: <FileNavigator />,
+      },
+      {
+        label: t("book-reader.pages-viewer.title"),
+        icon: <PhotoLibrary />,
+        panel: <ImageEntriesViewer />,
+      },
     ];
 
     if (historySettings.recordReadingHistory) {
-      tabs.push({ label: "history", icon: <History />, panel: <HistoryViewer /> });
+      tabs.push({
+        label: t("book-reader.history-viewer.title"),
+        icon: <History />,
+        panel: <HistoryViewer />,
+      });
     }
+    // Appended last so the persisted tabIndex of the existing tabs keeps pointing
+    // at the same panel.
+    tabs.push({
+      label: t("book-reader.bookmark-viewer.title"),
+      icon: <Bookmarks />,
+      panel: <BookmarkViewer />,
+    });
     return tabs;
-  }, [historySettings.recordReadingHistory]);
+  }, [historySettings.recordReadingHistory, t]);
 
   useEffect(() => {
     if (initialized.current) {

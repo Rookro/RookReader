@@ -1,8 +1,18 @@
 {
+  "common": {
+    "back": "戻る",
+    "forward": "進む",
+    "up": "上の階層へ",
+    "refresh": "再読み込み",
+    "settings": "設定",
+    "cancel": "キャンセル",
+    "close": "閉じる"
+  },
   "book-reader": {
     "move-to-bookshelf": "本棚画面に移動する",
     "file-navigator": {
       "title": "ファイルナビゲーター",
+      "home": "ホームフォルダー",
       "sort-order": {
         "name-asc": "名前↑",
         "name-desc": "名前↓",
@@ -13,6 +23,7 @@
       "no-search-results": "\"{{searchText}}\" に一致するファイルはありません。"
     },
     "history-viewer": {
+      "last-opened-at": "最終閲覧: {{date}}",
       "title": "履歴",
       "menu": {
         "open": "開く",
@@ -24,6 +35,34 @@
     "pages-viewer": {
       "title": "ページ",
       "no-pages": "表示可能なページがありません。"
+    },
+    "shift-spread": "見開きを 1 ページずらす",
+    "reset-spread": "見開きのずらしを解除",
+    "toggle-spread": "見開き表示を切り替える",
+    "switch-to-ltr": "左から右に切り替える",
+    "switch-to-rtl": "右から左に切り替える",
+    "direction-auto": "ページ送り方向は本の組み方向に従います",
+    "page-slider": "ページ位置",
+    "add-bookmark": "しおりを追加",
+    "remove-bookmark": "しおりを削除",
+    "bookmark": {
+      "default-page-name": "ページ {{page}}"
+    },
+    "bookmark-viewer": {
+      "title": "しおり",
+      "no-bookmarks": "しおりがありません。",
+      "page-caption": "ページ {{page}}",
+      "menu": {
+        "jump": "移動",
+        "rename": "名前を変更",
+        "remove": "しおりを削除"
+      },
+      "rename-dialog": {
+        "title": "しおりの名前を変更",
+        "name-label": "名前",
+        "ok": "OK",
+        "cancel": "キャンセル"
+      }
     },
     "adjacent-book": {
       "opening-next": "次の本を開きます: {{title}}…",
@@ -42,17 +81,23 @@
   "bookshelf": {
     "title": "本棚",
     "delete": "削除",
-    "remove-book": "本を削除",
+    "remove-book_one": "本を削除",
+    "remove-book_other": "本を削除",
     "collection": {
       "title": "コレクション",
+      "create": "コレクションを作成",
       "all-books": "すべての本",
       "add-books-title": "コレクションに追加",
       "no-collections-available": "利用可能なコレクションがありません。",
       "ok-button": "決定",
       "cancel-button": "キャンセル",
+      "deletion": {
+        "title": "このコレクションを削除しますか？",
+        "description": "「{{name}}」を削除します。中の本はライブラリーに残ります。この操作は取り消せません。"
+      },
       "creation": {
         "title": "コレクションを作成",
-        "name-placeholder": "コレクションの名前を入力してください",
+        "name-placeholder": "コレクション名",
         "icon-selection-title": "アイコンを選択",
         "creation-button": "作成",
         "cancel-button": "キャンセル"
@@ -60,15 +105,20 @@
     },
     "tag": {
       "title": "タグ",
+      "create": "タグを作成",
       "set-tags": "タグを設定",
       "creation": {
         "title": "タグを作成",
-        "name-placeholder": "タグ名を入力してください",
+        "name-placeholder": "タグ名",
         "color-title": "色を選択",
         "preview-title": "プレビュー",
-        "preview-name": "プレビュー",
+        "preview-name": "タグのプレビュー",
         "creation-button": "作成",
         "cancel-button": "キャンセル"
+      },
+      "deletion": {
+        "title": "このタグを削除しますか？",
+        "description": "「{{name}}」を、付いているすべての本から取り外します。この操作は取り消せません。"
       },
       "set": {
         "title": "タグを設定",
@@ -78,30 +128,28 @@
       }
     },
     "series": {
-      "title": "シリーズ",
       "set-series": "シリーズを設定",
       "ungroup-series": "シリーズを解除",
       "creation": {
-        "title": "シリーズを作成",
-        "name-placeholder": "シリーズ名を入力してください",
+        "name-placeholder": "シリーズ名",
         "create-new": "新しいシリーズを作成",
-        "creation-button": "作成",
-        "cancel-button": "キャンセル"
+        "creation-button": "作成"
       },
       "set": {
         "title": "シリーズを設定",
         "none": "シリーズなし",
-        "no-series-available": "利用可能なシリーズがありません。",
-        "search-placeholder": "シリーズ名で検索...",
-        "no-search-results": "\"{{searchText}}\" に一致するシリーズはありません。",
-        "ok-button": "決定",
-        "cancel-button": "キャンセル"
+        "search-placeholder": "シリーズ名で検索…",
+        "no-search-results": "\"{{searchText}}\" に一致するシリーズはありません。"
+      },
+      "ungroup-confirm": {
+        "title": "このシリーズを解除しますか？",
+        "description": "「{{name}}」のまとまりを解除し、本を個別に表示します。本自体は削除されません。"
       },
       "edit-order": {
         "title": "シリーズの並び替え"
       }
     },
-    "search-placeholder": "タイトルで検索...",
+    "search-placeholder": "タイトルで検索…",
     "no-search-results": "\"{{searchText}}\" に一致する本はありません。",
     "no-books": "このコレクションに本はありません。",
     "return-to-reader": "読書に戻る",
@@ -122,7 +170,8 @@
       "selected-files": "選択されたファイル ({{count}}):"
     },
     "book-deletion": {
-      "title": "本当に削除しますか？",
+      "title_one": "本当に削除しますか？",
+      "title_other": "{{count}} 冊を本当に削除しますか？",
       "description": "<bold>「{{bookName}}」</bold>を<bold>「{{bookshelfName}}」</bold>から削除しようとしています。この操作は取り消すことができません。",
       "description-multiple": "<bold>{{count}} 冊の本</bold>を<bold>「{{bookshelfName}}」</bold>から削除しようとしています。この操作は取り消すことができません。",
       "cancel-button": "キャンセル",
@@ -134,8 +183,8 @@
     },
     "sort": {
       "title": "並び替え",
-      "name-asc": "名前 (昇順: A->Z)",
-      "name-desc": "名前 (降順: Z->A)",
+      "name-asc": "名前 (昇順: A→Z)",
+      "name-desc": "名前 (降順: Z→A)",
       "date-asc": "日付 (古い順)",
       "date-desc": "日付 (新しい順)"
     },
@@ -155,7 +204,7 @@
         "startup-behavior": "起動時の動作"
       },
       "language": {
-        "title": "言語設定",
+        "title": "言語",
         "english": "English",
         "japanese": "日本語"
       },
@@ -164,7 +213,7 @@
         "default-font-name": "デフォルト"
       },
       "theme": {
-        "title": "テーマ設定",
+        "title": "テーマ",
         "system": "システム",
         "light": "ライト",
         "dark": "ダーク"
@@ -175,7 +224,7 @@
         "bookshelf": "本棚画面"
       },
       "restore-last-read": {
-        "title": "最後に開いていた書籍を起動時に復元する",
+        "title": "最後に開いていた本を起動時に復元する",
         "description": "履歴機能が無効の場合は、復元されません。"
       },
       "check-update-on-startup": {
@@ -187,17 +236,17 @@
       "tab-name": "本棚設定",
       "title": "本棚設定",
       "auto-scroll": {
-        "title": "テキストの自動スクロール",
+        "title": "長いタイトルを自動でスクロールする",
         "description": "本棚ビューで長いタイトルを自動的にスクロール表示します。動作が重いと感じる場合は、オフにすることで動作が改善される場合があります。"
       }
     },
     "file-navigator": {
       "tab-name": "ファイルナビゲーター設定",
       "title": "ファイルナビゲーター設定",
-      "home-directory-title": "ホームディレクトリー",
+      "home-directory-title": "ホームフォルダー",
       "dir-watch": {
-        "title": "ディレクトリー/ファイルの変更監視を有効にする",
-        "warn-message": "この機能を有効にすると、大量のファイル/ディレクトリーを含むディレクトリーにアクセスした際、システム負荷が高くなる恐れがあります。"
+        "title": "フォルダー/ファイルの変更監視を有効にする",
+        "warn-message": "この機能を有効にすると、ファイルやフォルダーが大量にあるフォルダーを開いた際、システム負荷が高くなる恐れがあります。"
       }
     },
     "reader": {
@@ -209,7 +258,7 @@
         "history": "履歴"
       },
       "first-page": {
-        "title": "最初のページを 1 ページ表示する"
+        "title": "表紙を単ページで表示する"
       },
       "auto-open-adjacent-book": {
         "title": "隣の本を自動で開く",
@@ -218,10 +267,14 @@
         "ask": "確認してから開く",
         "auto": "自動で開く"
       },
+      "auto-descend-single-folder": {
+        "title": "アーカイブ内のフォルダーを自動的に開く",
+        "description": "アーカイブ直下に画像がなく、フォルダーが 1 つだけの場合は、そのフォルダーを開きます。入れ子になっている場合も同様にたどります。"
+      },
       "loupe": {
-        "title": "ルーペ設定",
+        "title": "ルーペ",
         "description": "画像の一部を一時的に拡大表示する機能の設定です。設定したキーまたはマウスボタンで表示を切り替えられます。",
-        "toggle-key": "トグルキー",
+        "toggle-key": "切り替えキー",
         "toggle-key-description": "ルーペの表示を切り替えるキーボードのキーやマウスのボタンを設定します。",
         "zoom": "倍率",
         "zoom-description": "ルーペで拡大する倍率を設定します。",
@@ -240,7 +293,7 @@
       },
       "history-feature": {
         "title": "読書履歴機能",
-        "description": "読書履歴機能を有効にすると、読んだ本の履歴を保存できます。"
+        "description": "有効にすると、開いた本と読み終えたページを記録します。"
       }
     },
     "rendering": {
@@ -251,34 +304,31 @@
         "cache-and-preload": "キャッシュ・先読み"
       },
       "preview": {
-        "title": "読み込み中のプレビュー表示",
+        "title": "読み込み中にプレビューを表示する",
         "description": "画像の読み込みが完了するまで、低解像度のサムネイルを一時的に表示します。"
       },
       "resize": {
         "max-image-height": {
-          "title": "画像の最大の高さ(px)",
-          "description": "指定した高さを超える画像は、縦横比を保って縮小されます。\n0を設定するとリサイズを無効にします。"
+          "title": "画像の最大の高さ (px)",
+          "description": "指定した高さを超える画像は、縦横比を保って縮小されます。\n0 を設定するとリサイズを無効にします。"
         },
         "resize-method": {
           "title": "リサイズ方式",
           "description": "縮小処理に使用するアルゴリズムを選択します。\n画質と処理速度のバランスを用途に合わせて設定してください。",
           "nearest": "ニアレスト (最速 / 粗い)",
           "box": "ボックス (高速 / 粗い)",
-          "triangle": "トライアングル (高速 / 標準画質)",
           "bilinear": "バイリニア (高速 / 標準画質)",
-          "hamming": "ハミング (標準的)",
+          "hamming": "ハミング (中速 / 標準画質)",
           "catmullRom": "Catmull-Rom (中速 / 高画質・滑らか)",
           "mitchellNetravali": "Mitchell-Netravali (中速 / 高画質)",
-          "gaussian": "ガウシアン (中速 / ソフト・ぼかし)",
-          "lanczos3": "ランチョス3 (低速 / 最高画質)"
+          "lanczos3": "ランチョス 3 (低速 / 最高画質)"
         }
       },
       "pdf": {
-        "title": "PDF 描画時の高さ(px)",
-        "description": "PDF 描画時の高さを設定します。"
+        "title": "PDF 描画時の高さ (px)",
+        "description": "PDF のページを描画する高さをピクセル単位で指定します。"
       },
       "cache": {
-        "title": "キャッシュ設定",
         "preload-page-count": {
           "title": "先読みページ数",
           "description": "前後方向に先読みするページ数を指定します。"
@@ -293,7 +343,7 @@
       "tab-name": "開発者向け設定",
       "title": "開発者向け設定",
       "log": {
-        "log-directory": "ログディレクトリー",
+        "log-directory": "ログフォルダー",
         "log-level": {
           "title": "ログレベル",
           "description": "ログ設定を反映するには再起動が必要です。",
@@ -310,18 +360,19 @@
       }
     },
     "about": {
-      "tab-name": "About",
-      "title": "About",
+      "tab-name": "このアプリについて",
+      "title": "このアプリについて",
+      "version": "バージョン {{version}}",
       "project-page": "プロジェクトページ",
       "updater": {
         "check": "アップデートを確認",
-        "checking": "確認中..."
+        "checking": "確認中…"
       },
       "third-party-licenses": {
-        "title": "サードパーティー ライセンス",
+        "title": "サードパーティーのライセンス",
         "body": "このアプリケーションはオープンソースのソフトウェアで構築されています。",
-        "frontend": "フロントエンド ライセンス(npm)",
-        "backend": "バックエンド ライセンス(cargo)",
+        "frontend": "フロントエンドのライセンス (npm)",
+        "backend": "バックエンドのライセンス (cargo)",
         "bundled": "バンドルしているライブラリーのライセンス",
         "pdfium": "PDFium ライセンス"
       }
@@ -339,7 +390,8 @@
     },
     "container": {
       "unsupported-format": "非対応形式です。",
-      "entry-not-found": "ページが見つかりません。"
+      "entry-not-found": "ページが見つかりません。",
+      "empty": "読み込めるページがありません。"
     },
     "settings": {
       "save-failed": "設定の保存に失敗しました。",
@@ -350,10 +402,9 @@
     }
   },
   "updater": {
-    "available": "アップデートが利用可能です: {{version}}",
-    "not-available": "最新バージョンです",
-    "downloading": "ダウンロード中: {{progress}}%",
-    "installing": "インストール中...",
+    "not-available": "最新バージョンです。",
+    "downloading": "ダウンロード中…",
+    "installing": "インストール中…",
     "restart": "自動的に再起動して更新を適用します。",
     "checking-error": "アップデートの確認中にエラーが発生しました。\n{{error}}",
     "unsupported-platform": "お使いの環境では自動アップデートがサポートされていません。\nパッケージマネージャー等を利用して手動でアップデートしてください。",
@@ -362,7 +413,7 @@
     "dialog-error-copied": "クリップボードにコピーしました",
     "dialog-error-title": "アップデートに失敗しました",
     "dialog-title": "アプリケーションの更新",
-    "dialog-content": "RookReaderの新しいバージョン({{version}})が利用可能です。\n今すぐダウンロードしてインストールしますか？",
+    "dialog-content": "RookReader の新しいバージョン ({{version}}) が利用可能です。\n今すぐダウンロードしてインストールしますか？",
     "dialog-release-notes": "リリースノート:",
     "dialog-close-label": "閉じる",
     "dialog-update-label": "今すぐ更新",

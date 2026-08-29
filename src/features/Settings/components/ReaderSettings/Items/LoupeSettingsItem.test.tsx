@@ -351,7 +351,7 @@ describe("LoupeSettingsItem", () => {
       (el) => el.getAttribute("name") === "toggleKey",
     );
     expect(toggleKeyInput).toHaveValue(
-      "Mouse Middle Button+Mouse Back Button+Mouse Forward Button",
+      "Mouse middle button+Mouse back button+Mouse forward button",
     );
   });
 });

@@ -5,26 +5,60 @@ use sqlx::{
     sqlite::{SqliteConnectOptions, SqlitePoolOptions},
     SqlitePool,
 };
-use std::{fs, str::FromStr, sync::Arc};
-use tauri::{App, Manager, Theme};
+use std::{fs, path::PathBuf, str::FromStr, sync::Arc};
+use tauri::{App, Manager, Runtime, Theme};
 use tauri_plugin_log::{RotationStrategy, Target, TargetKind};
 use tokio::sync::RwLock;
 
 use crate::{
     domain::{
-        book::repository::BookRepository, bookshelf::repository::BookshelfRepository,
-        series::repository::SeriesRepository, tag::repository::TagRepository,
+        book::repository::BookRepository, bookmark::repository::BookmarkRepository,
+        bookshelf::repository::BookshelfRepository, series::repository::SeriesRepository,
+        tag::repository::TagRepository,
     },
     error::{self, Error},
     infrastructure::database::{
-        book_repository::SqliteBookRepository, bookshelf_repository::SqliteBookshelfRepository,
-        series_repository::SqliteSeriesRepository, tag_repository::SqliteTagRepository,
+        book_repository::SqliteBookRepository, bookmark_repository::SqliteBookmarkRepository,
+        bookshelf_repository::SqliteBookshelfRepository, series_repository::SqliteSeriesRepository,
+        tag_repository::SqliteTagRepository,
     },
     settings::{
         AppSettings, AppTheme, LogLevel, LogSettings, SettingsFileProvider, SettingsStoreProvider,
     },
     state::app_state::AppState,
 };
+
+/// Reads a non-empty `ROOKREADER_DATA_DIR` override into a path, if present.
+#[cfg(any(debug_assertions, feature = "e2e-test"))]
+fn data_dir_from_env(var: Option<std::ffi::OsString>) -> Option<PathBuf> {
+    var.filter(|v| !v.is_empty()).map(PathBuf::from)
+}
+
+/// Resolves the base directory for app data (DB, settings, thumbnails).
+///
+/// In debug builds and in the `e2e-test` E2E build, a non-empty `ROOKREADER_DATA_DIR`
+/// environment variable overrides Tauri's `app_data_dir()`, so E2E tests run against an
+/// isolated, ephemeral directory instead of the real user profile. Shipped/production builds
+/// (release without the feature) always use `app_data_dir()`.
+///
+/// # Arguments
+///
+/// * `manager` - Any Tauri manager (`App` or `AppHandle`) able to resolve paths.
+///
+/// # Returns
+///
+/// The base directory that holds the app's data files.
+///
+/// # Errors
+///
+/// Returns an `Err` if the app data directory cannot be resolved.
+pub(crate) fn app_data_dir<R: Runtime, M: Manager<R>>(manager: &M) -> error::Result<PathBuf> {
+    #[cfg(any(debug_assertions, feature = "e2e-test"))]
+    if let Some(dir) = data_dir_from_env(std::env::var_os("ROOKREADER_DATA_DIR")) {
+        return Ok(dir);
+    }
+    Ok(manager.path().app_data_dir()?)
+}
 
 /// Returns the settings store filename for the current build profile.
 pub fn settings_filename() -> &'static str {
@@ -60,6 +94,20 @@ pub fn setup(app: &App) -> error::Result<()> {
         .and_then(|value| serde_json::from_value(value).ok())
         .unwrap_or_default();
     setup_logger(app, &log_settings)?;
+
+    // E2E only: register the WDIO plugins AFTER our logger has claimed the global `log`
+    // logger, so tauri-plugin-wdio's own `set_boxed_logger` fails gracefully instead of
+    // blocking ours. Then grant the WDIO ACL permission (the plugins must be registered
+    // first for the permission to resolve). Gated by the `e2e-test` feature and the
+    // `TAURI_WEBDRIVER_PORT` the service sets when it launches the app; absent from
+    // shipped/production builds.
+    #[cfg(feature = "e2e-test")]
+    if std::env::var_os("TAURI_WEBDRIVER_PORT").is_some() {
+        let handle = app.handle();
+        handle.plugin(tauri_plugin_wdio::init())?;
+        handle.plugin(tauri_plugin_wdio_webdriver::init())?;
+        handle.add_capability(include_str!("../runtime-capabilities/wdio-webdriver.json"))?;
+    }
 
     let settings = AppSettings::load_and_persist_normalized(&provider)?;
 
@@ -109,7 +157,8 @@ pub fn setup_container_settings(app: &App, settings: &AppSettings) -> error::Res
 /// the open `ImageLoader`.
 ///
 /// The other values (`max_image_height`, `image_resampling_method`,
-/// `pdf_render_resolution_height`, `enable_preview`) are stored for the **next**
+/// `pdf_render_resolution_height`, `enable_preview`, `auto_descend_single_folder`) are
+/// stored for the **next**
 /// `ContainerState::open_container` call: the already-open `ImageLoader` captured its
 /// resize height/method at construction, so changing them does not re-render the book
 /// currently on screen — it takes effect when a container is next opened.
@@ -131,6 +180,7 @@ pub fn apply_reader_settings_to_container(state: &mut AppState, settings: &AppSe
         settings.reader.rendering.pdf_render_resolution_height;
     container_settings.image_resampling_method =
         settings.reader.rendering.image_resampling_method.into();
+    container_settings.auto_descend_single_folder = settings.reader.auto_descend_single_folder;
 
     if cache_size_changed {
         state
@@ -211,7 +261,7 @@ fn set_theme(app: &App, app_theme: &AppTheme) {
 
 /// Helper function to initialize the database for the application.
 fn setup_database(app: &App) -> error::Result<()> {
-    let app_data_dir_path = app.path().app_data_dir()?;
+    let app_data_dir_path = app_data_dir(app)?;
     fs::create_dir_all(&app_data_dir_path)?;
 
     let db_filename = if cfg!(debug_assertions) {
@@ -237,11 +287,14 @@ fn setup_database(app: &App) -> error::Result<()> {
     let tag_repository: Arc<dyn TagRepository> = Arc::new(SqliteTagRepository::new(pool.clone()));
     let series_repository: Arc<dyn SeriesRepository> =
         Arc::new(SqliteSeriesRepository::new(pool.clone()));
+    let bookmark_repository: Arc<dyn BookmarkRepository> =
+        Arc::new(SqliteBookmarkRepository::new(pool.clone()));
 
     app.manage(book_repository);
     app.manage(bookshelf_repository);
     app.manage(tag_repository);
     app.manage(series_repository);
+    app.manage(bookmark_repository);
 
     Ok(())
 }
@@ -280,5 +333,21 @@ mod tests {
             ResizeFilter::Lanczos3
         );
         assert_eq!(container_settings.image_cache_size_mib, 2048);
+    }
+
+    #[cfg(any(debug_assertions, feature = "e2e-test"))]
+    #[test]
+    fn env_override_used_when_non_empty() {
+        assert_eq!(
+            data_dir_from_env(Some(std::ffi::OsString::from("/tmp/rr-e2e"))),
+            Some(PathBuf::from("/tmp/rr-e2e"))
+        );
+    }
+
+    #[cfg(any(debug_assertions, feature = "e2e-test"))]
+    #[test]
+    fn env_override_ignored_when_absent_or_empty() {
+        assert_eq!(data_dir_from_env(None), None);
+        assert_eq!(data_dir_from_env(Some(std::ffi::OsString::new())), None);
     }
 }

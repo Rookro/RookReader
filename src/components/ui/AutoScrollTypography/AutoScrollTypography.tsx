@@ -1,4 +1,4 @@
-import { Box, Typography, type TypographyProps, useMediaQuery } from "@mui/material";
+import { Box, Typography, type TypographyProps } from "@mui/material";
 import { memo } from "react";
 import { useAutoScrollAnimation } from "./useAutoScrollAnimation";
 
@@ -23,12 +23,36 @@ interface AutoScrollTypographyProps extends TypographyProps {
   delaySeconds?: number;
 }
 
+const containerSx = {
+  width: "100%",
+  overflow: "hidden",
+  display: "flex",
+  alignItems: "center",
+} as const;
+
+// `will-change` asks the compositor to keep the text on its own layer. Without
+// it WebKitGTK re-rasterises every glyph on each frame instead of just moving
+// an existing layer, which dominates the cost on a shelf full of long titles.
+const animatingSx = {
+  whiteSpace: "nowrap",
+  display: "inline-block",
+  willChange: "transform",
+} as const;
+
+const clampedSx = {
+  whiteSpace: "nowrap",
+  display: "block",
+  textOverflow: "ellipsis",
+  overflow: "hidden",
+} as const;
+
 /**
  * A component that displays text and automatically scrolls it horizontally
  * if the text content overflows its container.
  *
- * Uses CSS animations calculated based on the text width and container width.
- * Respects 'prefers-reduced-motion' by disabling animation.
+ * The scroll itself is driven by the Web Animations API from
+ * {@link useAutoScrollAnimation}. Respects 'prefers-reduced-motion' by
+ * disabling animation.
  */
 const AutoScrollTypography = memo(function AutoScrollTypography({
   text,
@@ -38,46 +62,19 @@ const AutoScrollTypography = memo(function AutoScrollTypography({
   sx,
   ...props
 }: AutoScrollTypographyProps) {
-  const prefersReducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
-  const { containerRef, contentRef, isOverflowing, animationStyle, delayPercent } =
-    useAutoScrollAnimation(pixelsPerSecond, delaySeconds);
-
-  // If user prefers reduced motion, force non-scrolling behavior
-  const shouldAnimate = enabled && isOverflowing && !prefersReducedMotion;
-  const keyframeName = `auto-scroll-text-${delayPercent.toFixed(2).replace(".", "-")}`;
+  const { containerRef, contentRef, scrollRef, shouldAnimate } = useAutoScrollAnimation(
+    enabled,
+    pixelsPerSecond,
+    delaySeconds,
+  );
 
   return (
-    <Box
-      ref={containerRef}
-      sx={{
-        width: "100%",
-        overflow: "hidden",
-        display: "flex",
-        alignItems: "center",
-      }}
-    >
+    <Box ref={containerRef} sx={containerSx}>
       <Typography
         component="div"
+        ref={scrollRef}
         data-animating={shouldAnimate}
-        sx={{
-          whiteSpace: "nowrap",
-          ...(shouldAnimate
-            ? {
-                display: "inline-block",
-                animation: `${keyframeName} var(--scroll-duration) linear infinite`,
-                [`@keyframes ${keyframeName}`]: {
-                  [`0%, ${delayPercent}%`]: { transform: "translateX(0)" },
-                  "100%": { transform: "translateX(var(--scroll-offset))" },
-                },
-                ...animationStyle,
-              }
-            : {
-                display: "block",
-                textOverflow: "ellipsis",
-                overflow: "hidden",
-              }),
-          ...sx,
-        }}
+        sx={[shouldAnimate ? animatingSx : clampedSx, ...(Array.isArray(sx) ? sx : [sx])]}
         {...props}
       >
         <Box component="span" ref={contentRef}>

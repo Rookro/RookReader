@@ -1,4 +1,4 @@
-import { HistoryOutlined } from "@mui/icons-material";
+import HistoryOutlined from "@mui/icons-material/HistoryOutlined";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppDispatch, useAppSelector } from "../../../../../store/store";

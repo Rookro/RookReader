@@ -1,6 +1,7 @@
 import { Divider, List, ListSubheader } from "@mui/material";
 import { useTranslation } from "react-i18next";
 import SettingsPanel from "../SettingsPanel";
+import AutoDescendSingleFolderSetting from "./Items/AutoDescendSingleFolderSetting";
 import AutoOpenAdjacentBookSetting from "./Items/AutoOpenAdjacentBookSetting";
 import FontSettings from "./Items/FontSettings";
 import LoupeSettingsItem from "./Items/LoupeSettingsItem";
@@ -22,6 +23,8 @@ export default function ReaderSettings() {
         <ShowCoverAsSinglePageSetting />
         <Divider />
         <AutoOpenAdjacentBookSetting />
+        <Divider />
+        <AutoDescendSingleFolderSetting />
         <Divider />
         <LoupeSettingsItem />
       </List>

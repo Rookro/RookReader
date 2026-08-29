@@ -1,4 +1,4 @@
-import { ScienceOutlined } from "@mui/icons-material";
+import ScienceOutlined from "@mui/icons-material/ScienceOutlined";
 import { ListItem, ListItemIcon, ListItemText } from "@mui/material";
 import { useTranslation } from "react-i18next";
 

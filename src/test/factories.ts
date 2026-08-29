@@ -1,4 +1,5 @@
 import type { BookWithState, ReadBook } from "../domain/book/schema";
+import type { Bookmark } from "../domain/bookmark/schema";
 import type { Bookshelf } from "../domain/bookshelf/schema";
 import type { Series } from "../domain/series/schema";
 import type { Tag } from "../domain/tag/schema";
@@ -16,6 +17,7 @@ export const createMockBookWithState = (overrides?: Partial<BookWithState>): Boo
   created_at: "2026-03-01T15:30:00",
   last_read_page_index: 0,
   last_opened_at: "2026-03-18T12:00:00Z",
+  cfi: null,
   series_id: null,
   series_order: null,
   thumbnail_path: null,
@@ -48,6 +50,19 @@ export const createMockBookshelf = (overrides?: Partial<Bookshelf>): Bookshelf =
   name: "Mock Bookshelf",
   icon_id: "folder",
   created_at: "2026-03-18T12:00:00Z",
+  ...overrides,
+});
+
+/**
+ * Creates a mock Bookmark object for testing.
+ */
+export const createMockBookmark = (overrides?: Partial<Bookmark>): Bookmark => ({
+  id: 1,
+  book_id: 1,
+  name: "Mock Bookmark",
+  page_index: 0,
+  cfi: null,
+  created_at: "2026-03-01T15:30:00",
   ...overrides,
 });
 

@@ -10,7 +10,10 @@ use scraper::{Html, Selector};
 use crate::{
     container::traits::Container,
     error::{Error, Result},
-    image::{thumbnail::generate_thumbnail, types::Image},
+    image::{
+        thumbnail::generate_thumbnail,
+        types::{read_dimensions, Image, ImageDimensions},
+    },
 };
 
 /// An implementation of the `Container` trait for reading content from EPUB files.
@@ -42,6 +45,18 @@ impl Container for EpubContainer {
             .lock()
             .map_err(|e| Error::Other(format!("Failed to lock epub archive: {}", e)))?;
         create_thumbnail(&mut epub, entry)
+    }
+
+    fn get_image_dimensions(&self) -> Result<Vec<ImageDimensions>> {
+        let mut epub = self
+            .epub
+            .lock()
+            .map_err(|e| Error::Other(format!("Failed to lock epub archive: {}", e)))?;
+
+        self.entries
+            .iter()
+            .map(|entry| load_dimensions(&mut epub, entry))
+            .collect()
     }
 
     fn is_directory(&self) -> bool {
@@ -116,6 +131,18 @@ fn load_image(epub: &mut Epub, entry: &str) -> Result<Arc<Image>> {
 
     let image = Image::new(resource.read_bytes()?)?;
     Ok(Arc::new(image))
+}
+
+/// Helper function to read an image resource's dimensions from its header.
+fn load_dimensions(epub: &mut Epub, entry: &str) -> Result<ImageDimensions> {
+    let Some(resource) = epub.manifest().images().find(|image| image.id() == entry) else {
+        return Err(Error::EntryNotFound(format!(
+            "[EPUB] Resource not found: {}",
+            entry
+        )));
+    };
+
+    Ok(read_dimensions(&resource.read_bytes()?)?)
 }
 
 /// Helper function to find, load, and create a thumbnail for an image resource.
@@ -495,6 +522,39 @@ mod tests {
         assert_eq!(entries.len(), 2);
         assert_eq!(entries[0], "image1");
         assert_eq!(entries[1], "cover");
+    }
+
+    #[test]
+    fn test_get_image_dimensions_matches_entries() {
+        let dir = tempdir().unwrap();
+        let content_opf_str = content_opf(true, false);
+        let chapter1_xhtml_str = chapter1_xhtml(true);
+
+        let epub_path = create_dummy_epub(
+            dir.path(),
+            "test.epub",
+            &[
+                ("mimetype", b"application/epub+zip"),
+                ("META-INF/container.xml", CONTAINER_XML.as_bytes()),
+                ("OEBPS/content.opf", content_opf_str.as_bytes()),
+                ("OEBPS/text/chapter1.xhtml", chapter1_xhtml_str.as_bytes()),
+                ("OEBPS/images/image1.png", DUMMY_PNG_DATA),
+                ("OEBPS/images/cover.png", DUMMY_PNG_DATA),
+            ],
+        );
+        let container = EpubContainer::new(epub_path.to_string_lossy().as_ref())
+            .expect("failed to create EpubContainer");
+
+        let dimensions = container
+            .get_image_dimensions()
+            .expect("get_image_dimensions should succeed");
+
+        assert_eq!(dimensions.len(), container.get_entries().len());
+        assert!(dimensions.iter().all(|d| *d
+            == ImageDimensions {
+                width: 1,
+                height: 1
+            }));
     }
 
     #[test]

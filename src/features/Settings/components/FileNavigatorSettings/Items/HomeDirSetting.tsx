@@ -1,4 +1,5 @@
-import { Folder, HomeOutlined } from "@mui/icons-material";
+import FolderOutlined from "@mui/icons-material/FolderOutlined";
+import HomeOutlined from "@mui/icons-material/HomeOutlined";
 import { Box, IconButton, ListItem, ListItemIcon, ListItemText, TextField } from "@mui/material";
 import { homeDir } from "@tauri-apps/api/path";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -91,7 +92,7 @@ export default function HomeDirSetting() {
         />
       </Box>
       <IconButton size="small" onClick={handleFolderClicked}>
-        <Folder />
+        <FolderOutlined />
       </IconButton>
     </ListItem>
   );

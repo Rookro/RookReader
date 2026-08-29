@@ -1,4 +1,4 @@
-import { Close } from "@mui/icons-material";
+import Close from "@mui/icons-material/Close";
 import {
   Box,
   Button,
@@ -9,6 +9,7 @@ import {
   Grid,
   IconButton,
   TextField,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import { useCallback, useState } from "react";
@@ -53,13 +54,16 @@ export function CreateBookshelfDialog({
   return (
     <Dialog open={openDialog} onClose={onClose}>
       <DialogTitle>{t("bookshelf.collection.creation.title")}</DialogTitle>
-      <IconButton
-        size="small"
-        onClick={handleCancelClicked}
-        sx={{ position: "absolute", right: 8, top: 8, color: "text.secondary" }}
-      >
-        <Close fontSize="small" />
-      </IconButton>
+      <Tooltip title={t("common.close")}>
+        <IconButton
+          size="small"
+          onClick={handleCancelClicked}
+          aria-label="close-dialog"
+          sx={{ position: "absolute", right: 8, top: 8, color: "text.secondary" }}
+        >
+          <Close fontSize="small" />
+        </IconButton>
+      </Tooltip>
       <DialogContent sx={{ paddingTop: 0 }}>
         <TextField
           type="text"

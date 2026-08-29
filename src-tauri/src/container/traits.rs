@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
-use crate::{error::Result, image::types::Image};
+use crate::{
+    error::Result,
+    image::types::{Image, ImageDimensions},
+};
 
 #[cfg(test)]
 use mockall::{automock, predicate::*};
@@ -8,7 +11,7 @@ use mockall::{automock, predicate::*};
 /// File extensions (lowercase, without the dot) the container factory can open.
 /// [`Container::is_supported_format`] and the factory's dispatch must both derive from
 /// this list; a `factory.rs` test cross-checks that they stay in sync.
-pub const SUPPORTED_EXTENSIONS: [&str; 4] = ["pdf", "rar", "zip", "epub"];
+pub const SUPPORTED_EXTENSIONS: [&str; 6] = ["pdf", "rar", "zip", "epub", "cbz", "cbr"];
 
 /// A trait representing a container for readable content, such as an archive file or a directory.
 ///
@@ -18,7 +21,12 @@ pub const SUPPORTED_EXTENSIONS: [&str; 4] = ["pdf", "rar", "zip", "epub"];
 pub trait Container: Send + Sync + 'static {
     /// Returns a reference to a vector of entry names within the container.
     ///
-    /// The entries are typically file names or paths inside an archive or directory.
+    /// An entry names one page and is opaque to callers: image containers use the page's
+    /// file name, PDF a zero-padded page number, EPUB a manifest id.
+    ///
+    /// Directory and archive containers list only the pages sitting *directly* inside the
+    /// folder they opened, under the leaf file name — a page in `comic.zip/ch1` is listed
+    /// as `001.jpg`, and pages in sub-folders belong to their own container.
     fn get_entries(&self) -> &Vec<String>;
 
     /// Retrieves a full-sized image for a given entry name.
@@ -54,6 +62,22 @@ pub trait Container: Send + Sync + 'static {
     /// generated or decoded.
     fn get_thumbnail(&self, entry: &str) -> Result<Arc<Image>>;
 
+    /// Retrieves the pixel dimensions of every entry, in [`Container::get_entries`] order.
+    ///
+    /// Implementations read dimensions from image headers (or, for PDF, from the page
+    /// size) rather than decoding pixels, so the whole container can be measured in one
+    /// pass. The values describe the source pages, which may be larger than the images
+    /// [`Container::get_image`] delivers, but the aspect ratio is the same.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing one `ImageDimensions` per entry.
+    ///
+    /// # Errors
+    ///
+    /// Returns an `Err` if an entry cannot be read or is not a supported image.
+    fn get_image_dimensions(&self) -> Result<Vec<ImageDimensions>>;
+
     /// Checks whether the container corresponds to a directory on the filesystem.
     ///
     /// # Returns
@@ -84,7 +108,8 @@ pub trait Container: Send + Sync + 'static {
 impl dyn Container {
     /// Checks if a given filename has a supported container file extension.
     ///
-    /// The check is case-insensitive. Supported formats include "pdf", "rar", "zip", and "epub".
+    /// The check is case-insensitive. Supported formats include "pdf", "rar", "zip", "epub",
+    /// "cbz" (a ZIP comic archive), and "cbr" (a RAR comic archive).
     ///
     /// # Arguments
     ///
@@ -114,6 +139,10 @@ mod tests {
     #[case("archive.RAR", true)]
     #[case("compressed.zip", true)]
     #[case("compressed.ZIP", true)]
+    #[case("comic.cbz", true)]
+    #[case("comic.CBZ", true)]
+    #[case("comic.cbr", true)]
+    #[case("comic.CBR", true)]
     #[case("test.pdf.rar", true)]
     #[case(".pdf", true)]
     #[case(".rar", true)]

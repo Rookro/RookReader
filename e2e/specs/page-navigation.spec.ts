@@ -1,6 +1,6 @@
 import path from "node:path";
 import { $, browser, expect } from "@wdio/globals";
-import { Key } from "webdriverio";
+import { pressKey, rightClick } from "../input";
 
 describe("RookReader E2E Tests - Page Navigation", () => {
   it("should load a directory and navigate pages", async () => {
@@ -23,16 +23,14 @@ describe("RookReader E2E Tests - Page Navigation", () => {
 
     const dummyPath = path.join(process.cwd(), "e2e", "fixtures", "dummy_book");
 
-    // Clear the path input manually since clearValue() won't work here.
-    await pathInput.click();
-    await browser.keys([Key.Ctrl, "a"]);
-    await browser.keys(Key.Delete);
-
-    await pathInput.addValue(dummyPath);
-    await browser.keys(Key.Enter);
-
-    // Wait for the loading images to finish.
-    await browser.pause(1000);
+    // Submit the container-path form directly: the embedded WebDriver provider cannot
+    // reliably submit via the Enter key, so drive the same submit the input's onBlur uses.
+    await pathInput.setValue(dummyPath);
+    await browser.execute(() => {
+      document
+        .querySelector<HTMLInputElement>('input[aria-label="container-path-input"]')
+        ?.form?.requestSubmit();
+    });
 
     const pageIndicator = $('[aria-label="page-indicator"]');
     await pageIndicator.waitForDisplayed();
@@ -62,15 +60,7 @@ describe("RookReader E2E Tests - Page Navigation", () => {
 
     // Test right click navigation
     currentText = await pageIndicator.getText();
-    // Workaround for Linux where standard `click({ button: "right" })` is flaky.
-    // Using the W3C Action API with a slight pause ensures the `contextmenu` event fires reliably.
-    await browser
-      .action("pointer")
-      .move({ origin: await comicReaderArea })
-      .down({ button: 2 })
-      .pause(20)
-      .up({ button: 2 })
-      .perform();
+    await rightClick('[data-testid="comic-reader-area"]');
 
     await browser.waitUntil(
       async () => {
@@ -82,7 +72,7 @@ describe("RookReader E2E Tests - Page Navigation", () => {
 
     // Test keyboard navigation
     currentText = await pageIndicator.getText();
-    await comicReaderArea.addValue(Key.ArrowLeft);
+    await pressKey("ArrowLeft");
 
     await browser.waitUntil(
       async () => {
@@ -93,7 +83,7 @@ describe("RookReader E2E Tests - Page Navigation", () => {
     );
 
     currentText = await pageIndicator.getText();
-    await comicReaderArea.addValue(Key.ArrowRight);
+    await pressKey("ArrowRight");
 
     await browser.waitUntil(
       async () => {

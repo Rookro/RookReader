@@ -5,7 +5,7 @@ This document provides foundational mandates, project context, and workflows for
 ## 1. Project Context
 
 - **Project Name:** RookReader
-- **Description:** A modern, fast, cross-platform e-book reader (comic/novel viewer) supporting zip, rar, pdf, and epub formats. Specialized for Japanese vertical writing (right-to-left).
+- **Description:** A modern, fast, cross-platform e-book reader (comic/novel viewer) supporting zip, rar, cbz, cbr, pdf, and epub formats. Specialized for Japanese vertical writing (right-to-left).
 - **Tech Stack:**
   - **Frontend:** React (v19), TypeScript, Vite (v8), Material UI (MUI), Redux Toolkit.
   - **Backend:** Rust, Tauri (v2), SQLite (sqlx).
@@ -25,7 +25,7 @@ This document provides foundational mandates, project context, and workflows for
   - State management is handled by Redux Toolkit for complex global state, and React hooks for local state.
 - **Coding Standards:**
   - **TypeScript:** Strict type checking (`npx tsc --noEmit`). Do not use the `any` type. Adhere to Biome rules (`npm run check`). Use functional components and hooks. **NEVER use `console.log` or other `console` methods for logging; use the Tauri logger plugin (`@tauri-apps/plugin-log`) instead.**
-  - **Rust:** Adhere to `cargo clippy` and `cargo fmt` standards. Error handling should be explicit (using `Result` and `anyhow`/`thiserror` where appropriate). **NEVER use `.unwrap()` or `.expect()` in production code; always handle errors explicitly.** Asynchronous programming using `tokio` and `async-trait`. **NEVER use `println!` or similar macros for logging; use the `log` crate (Tauri logger) instead.**
+  - **Rust:** Adhere to `cargo clippy` and `cargo fmt` standards. Error handling should be explicit (using `Result` and `thiserror` where appropriate). **NEVER use `.unwrap()` or `.expect()` in production code; always handle errors explicitly.** Asynchronous programming using `tokio` and `async-trait`. **NEVER use `println!` or similar macros for logging; use the `log` crate (Tauri logger) instead.**
   - **Documentation Comments:**
     - **Language:** All comments and documentation must be written in English.
     - **TypeScript:** Use TSDoc format (`/** ... */`) for exported functions, interfaces, types, and React component props.
@@ -49,7 +49,6 @@ This document provides foundational mandates, project context, and workflows for
   - `npm run test:frontend:coverage` (Runs frontend test coverage).
   - `npm run test:backend` (Runs only Rust tests via cargo).
   - `npm run test:e2e` (Runs WebdriverIO E2E tests).
-  - `npm run test:e2e:win` (Runs WebdriverIO E2E tests on Windows).
 - **Database Migrations (sqlx):**
   Run the following commands within the `src-tauri/` directory:
   - `sqlx migrate add -r <name>`: Creates a new migration file (`<timestamp>_<name>.up.sql` and `<timestamp>_<name>.down.sql`).

@@ -78,6 +78,7 @@ impl BookRepository for SqliteBookRepository {
             SELECT
                 id, file_path, item_type, display_name, total_pages, series_id, series_order,
                 thumbnail_path, created_at, last_read_page_index, last_opened_at,
+                cfi as "cfi?: String",
                 tag_ids_str as "tag_ids_str?: String"
             FROM book_with_state_view
             WHERE id = ?
@@ -208,14 +209,16 @@ impl BookRepository for SqliteBookRepository {
     async fn update_reading_progress(&self, state: &ReadingState) -> Result<()> {
         sqlx::query!(
             r#"
-            INSERT INTO reading_state (book_id, last_read_page_index, last_opened_at)
-            VALUES (?, ?, COALESCE(?, CURRENT_TIMESTAMP))
+            INSERT INTO reading_state (book_id, last_read_page_index, cfi, last_opened_at)
+            VALUES (?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP))
             ON CONFLICT(book_id) DO UPDATE SET
                 last_read_page_index = excluded.last_read_page_index,
+                cfi = excluded.cfi,
                 last_opened_at = COALESCE(excluded.last_opened_at, reading_state.last_opened_at)
             "#,
             state.book_id,
             state.last_read_page_index,
+            state.cfi,
             state.last_opened_at
         )
         .execute(&self.pool)
@@ -277,6 +280,7 @@ impl BookRepository for SqliteBookRepository {
             SELECT
                 id, file_path, item_type, display_name, total_pages, series_id, series_order,
                 thumbnail_path, created_at, last_read_page_index, last_opened_at,
+                cfi as "cfi?: String",
                 tag_ids_str as "tag_ids_str?: String"
             FROM book_with_state_view
             ORDER BY id DESC
@@ -314,6 +318,15 @@ impl BookRepository for SqliteBookRepository {
         sqlx::query!(
             r#"
             DELETE FROM bookshelf_items WHERE book_id = ?
+            "#,
+            id
+        )
+        .execute(&mut *tx)
+        .await?;
+
+        sqlx::query!(
+            r#"
+            DELETE FROM bookmarks WHERE book_id = ?
             "#,
             id
         )

@@ -8,7 +8,7 @@ use crate::{
     image::{
         resizer::{shrink_to_fit, ResizeFilter},
         thumbnail::THUMBNAIL_SIZE,
-        types::Image,
+        types::{Image, ImageDimensions},
     },
 };
 
@@ -50,6 +50,16 @@ impl Container for PdfContainer {
         let pdfium = get_pdfium(&self.library_path)?;
         let pdf = pdfium.load_pdf_from_file(&self.path, None)?;
         create_thumbnail(&pdf, &self.thumbnail_render_config, entry)
+    }
+
+    fn get_image_dimensions(&self) -> Result<Vec<ImageDimensions>> {
+        let pdfium = get_pdfium(&self.library_path)?;
+        let pdf = pdfium.load_pdf_from_file(&self.path, None)?;
+
+        self.entries
+            .iter()
+            .map(|entry| page_dimensions(&pdf, entry))
+            .collect()
     }
 
     fn is_directory(&self) -> bool {
@@ -139,6 +149,21 @@ fn load_image(
     };
 
     Ok(Arc::new(image))
+}
+
+/// Helper function to read a PDF page's size, in points rounded to whole pixels.
+///
+/// The page is not rendered: rendering scales the page to the configured target height
+/// while preserving its aspect ratio, so the points already carry the orientation and
+/// ratio the caller needs.
+fn page_dimensions(pdf: &PdfDocument, entry: &str) -> Result<ImageDimensions> {
+    let index: u16 = entry.parse()?;
+    let page = pdf.pages().get(index).map_err(Error::from)?;
+
+    Ok(ImageDimensions {
+        width: page.width().value.round().max(1.0) as u32,
+        height: page.height().value.round().max(1.0) as u32,
+    })
 }
 
 /// Helper function to render a PDF page to a thumbnail image.
@@ -324,6 +349,55 @@ mod tests {
         assert!(thumbnail.width <= crate::image::thumbnail::THUMBNAIL_SIZE);
         assert!(thumbnail.height <= crate::image::thumbnail::THUMBNAIL_SIZE);
         assert!(!thumbnail.data.is_empty());
+    }
+
+    #[test]
+    fn test_get_image_dimensions_uses_the_page_size() {
+        let dir = tempdir().unwrap();
+        let pdf_path = create_dummy_pdf(dir.path(), "test.pdf");
+        let container = PdfContainer::new(
+            pdf_path.to_string_lossy().as_ref(),
+            PdfRenderConfig::default(),
+            Some(get_pdfium_lib_path()),
+        )
+        .unwrap();
+
+        let dimensions = container
+            .get_image_dimensions()
+            .expect("get_image_dimensions should succeed");
+
+        // SINGLE_PAGE_PDF_DATA declares MediaBox [0 0 612 792].
+        assert_eq!(
+            dimensions,
+            vec![ImageDimensions {
+                width: 612,
+                height: 792
+            }]
+        );
+    }
+
+    #[test]
+    fn test_get_image_dimensions_keeps_landscape_orientation() {
+        let dir = tempdir().unwrap();
+        let filepath = dir.path().join("landscape.pdf");
+        File::create(&filepath)
+            .unwrap()
+            .write_all(LANDSCAPE_PAGE_PDF_DATA)
+            .unwrap();
+
+        let container = PdfContainer::new(
+            filepath.to_string_lossy().as_ref(),
+            PdfRenderConfig::default(),
+            Some(get_pdfium_lib_path()),
+        )
+        .unwrap();
+
+        let dimensions = container
+            .get_image_dimensions()
+            .expect("get_image_dimensions should succeed");
+
+        // LANDSCAPE_PAGE_PDF_DATA declares MediaBox [0 0 792 612].
+        assert!(dimensions[0].width > dimensions[0].height);
     }
 
     #[test]

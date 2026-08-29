@@ -1,4 +1,5 @@
-import { Check, Close } from "@mui/icons-material";
+import Check from "@mui/icons-material/Check";
+import Close from "@mui/icons-material/Close";
 import {
   Box,
   Button,
@@ -10,10 +11,12 @@ import {
   Grid,
   IconButton,
   TextField,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { getReadableTextColor } from "../../../../utils/ColorUtils";
 
 /** Props for the CreateTagDialog component */
 export interface CreateTagDialogProps {
@@ -49,13 +52,16 @@ export default function CreateTagDialog({ openDialog, onCreate, onClose }: Creat
   return (
     <Dialog open={openDialog} onClose={handleClose}>
       <DialogTitle>{t("bookshelf.tag.creation.title")}</DialogTitle>
-      <IconButton
-        size="small"
-        onClick={handleClose}
-        sx={{ position: "absolute", right: 8, top: 8, color: "text.secondary" }}
-      >
-        <Close fontSize="small" />
-      </IconButton>
+      <Tooltip title={t("common.close")}>
+        <IconButton
+          size="small"
+          onClick={handleClose}
+          aria-label="close-dialog"
+          sx={{ position: "absolute", right: 8, top: 8, color: "text.secondary" }}
+        >
+          <Close fontSize="small" />
+        </IconButton>
+      </Tooltip>
       <DialogContent sx={{ paddingTop: 0 }}>
         <TextField
           type="text"
@@ -180,14 +186,14 @@ export function ColorButton({ color, selected, onClick }: ColorButtonProps) {
     >
       {selected && (
         <Check
-          sx={{
-            color: "#fff",
+          sx={(theme) => ({
+            color: getReadableTextColor(theme, color),
             fontSize: "1.5rem",
             position: "absolute",
             top: "50%",
             left: "50%",
             transform: "translate(-50%, -50%)",
-          }}
+          })}
         />
       )}
     </IconButton>
@@ -206,10 +212,11 @@ export function TagPreview({ name, color }: TagPreviewProps) {
   return (
     <Chip
       label={name || t("bookshelf.tag.creation.preview-name")}
-      sx={{
+      sx={(theme) => ({
         backgroundColor: color,
+        color: getReadableTextColor(theme, color),
         fontSize: "1rem",
-      }}
+      })}
     />
   );
 }

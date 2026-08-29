@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { createCommandError } from "../types/Error";
-import { commands } from "./bindings";
+import { commands, type ImageDimensions } from "./bindings";
 import { runCommand } from "./result";
 
 /**
@@ -25,6 +25,16 @@ export const requestPreloadAround = async (
   bufferSize: number | undefined = undefined,
 ): Promise<void> => {
   await runCommand(commands.requestPreloadAround(index, bufferSize ?? null));
+};
+
+/**
+ * Fetches the pixel dimensions of every entry in the opened container.
+ *
+ * @param path The path of the container file.
+ * @returns A promise that resolves to one dimensions record per entry, in entry order.
+ */
+export const getImageDimensions = async (path: string): Promise<ImageDimensions[]> => {
+  return await runCommand(commands.getImageDimensions(path));
 };
 
 // NOTE: `getImage` / `getImagePreview` return a raw binary `tauri::ipc::Response` from the backend,

@@ -103,4 +103,36 @@ describe("HistoryViewer/ItemRow", () => {
       expect(BookCommands.clearReadingHistory).toHaveBeenCalledWith(mockBook.id);
     });
   });
+  describe("last opened tooltip", () => {
+    it("should format the stored UTC timestamp for the active locale", async () => {
+      const entry = createMockReadBook({
+        id: 3,
+        display_name: "Dated Book",
+        last_opened_at: "2026-08-24T12:34:56",
+      });
+      const expected = new Date("2026-08-24T12:34:56Z").toLocaleString("en-US");
+
+      renderWithProviders(<ItemRow entry={entry} index={0} selected={false} />, {
+        preloadedState,
+      });
+      await user.hover(screen.getByText("Dated Book"));
+
+      expect(await screen.findByRole("tooltip")).toHaveTextContent(`Last opened: ${expected}`);
+    });
+
+    it("should fall back to the raw value when the timestamp cannot be parsed", async () => {
+      const entry = createMockReadBook({
+        id: 4,
+        display_name: "Broken Book",
+        last_opened_at: "not-a-date",
+      });
+
+      renderWithProviders(<ItemRow entry={entry} index={0} selected={false} />, {
+        preloadedState,
+      });
+      await user.hover(screen.getByText("Broken Book"));
+
+      expect(await screen.findByRole("tooltip")).toHaveTextContent("Last opened: not-a-date");
+    });
+  });
 });

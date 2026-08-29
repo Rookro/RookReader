@@ -1,4 +1,4 @@
-import { Language } from "@mui/icons-material";
+import Language from "@mui/icons-material/Language";
 import { MenuItem, type SelectChangeEvent } from "@mui/material";
 import { emit } from "@tauri-apps/api/event";
 import { debug } from "@tauri-apps/plugin-log";

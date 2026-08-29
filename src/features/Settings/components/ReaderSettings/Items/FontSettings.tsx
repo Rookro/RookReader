@@ -1,4 +1,5 @@
-import { FontDownloadOutlined, FormatSize } from "@mui/icons-material";
+import FontDownloadOutlined from "@mui/icons-material/FontDownloadOutlined";
+import FormatSize from "@mui/icons-material/FormatSize";
 import { Box } from "@mui/material";
 import { debug } from "@tauri-apps/plugin-log";
 import { useCallback, useEffect, useMemo, useState } from "react";

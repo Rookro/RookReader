@@ -29,7 +29,7 @@ import { useNotification } from "./Notification/NotificationContext";
  * ```
  */
 export default function GlobalErrorListener() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { showNotification } = useNotification();
   const dispatch = useAppDispatch();
 
@@ -46,9 +46,17 @@ export default function GlobalErrorListener() {
         sub_msg = t("error-message.container.unsupported-format");
       } else if (containerFileError.code === ErrorCode.entryNotFound) {
         sub_msg = t("error-message.container.entry-not-found");
+      } else if (containerFileError.code === ErrorCode.emptyContainer) {
+        sub_msg = t("error-message.container.empty");
       }
 
-      const msg = `${t("error-message.common.failed-to-open-container-file")} ${sub_msg}`;
+      // Joined rather than interpolated: without a specific sub-message the
+      // template would leave a trailing separator on the notification. Japanese
+      // needs no space after its full stop, so the separator follows the language.
+      const separator = i18n.language.startsWith("ja") ? "" : " ";
+      const msg = [t("error-message.common.failed-to-open-container-file"), sub_msg]
+        .filter(Boolean)
+        .join(separator);
       showNotification(msg, "error");
       dispatch(clearContainerFileError());
     }
@@ -76,6 +84,7 @@ export default function GlobalErrorListener() {
     }
   }, [
     t,
+    i18n.language,
     dispatch,
     showNotification,
     containerFileError,

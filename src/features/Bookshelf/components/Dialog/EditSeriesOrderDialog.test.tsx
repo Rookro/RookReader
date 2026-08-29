@@ -74,7 +74,7 @@ describe("EditSeriesOrderDialog", () => {
       <EditSeriesOrderDialog openDialog={true} books={mockBooks} onClose={handleClose} />,
     );
 
-    const cancelButton = screen.getByRole("button", { name: "cancel" });
+    const cancelButton = screen.getByRole("button", { name: "Cancel" });
     await user.click(cancelButton);
     expect(handleClose).toHaveBeenCalled();
   });
@@ -85,7 +85,7 @@ describe("EditSeriesOrderDialog", () => {
       <EditSeriesOrderDialog openDialog={true} books={mockBooks} onClose={handleClose} />,
     );
 
-    const okButton = screen.getByRole("button", { name: "ok" });
+    const okButton = screen.getByRole("button", { name: "OK" });
     await user.click(okButton);
 
     // Verify the thunk itself was called with the expected IDs

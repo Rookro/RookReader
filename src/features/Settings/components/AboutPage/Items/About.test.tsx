@@ -21,16 +21,16 @@ describe("About", () => {
 
     await waitFor(() => {
       expect(screen.getByText("Test Reader")).toBeInTheDocument();
-      expect(screen.getByText(/version 2.0.0/i)).toBeInTheDocument();
+      expect(screen.getByText("Version 2.0.0")).toBeInTheDocument();
     });
   });
 
   it("should open project page when link is clicked", async () => {
     renderWithProviders(<About />);
 
-    await waitFor(() => expect(screen.getByText("Project Page")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Project page")).toBeInTheDocument());
 
-    const projectLink = screen.getByText("Project Page").closest("button");
+    const projectLink = screen.getByText("Project page").closest("button");
     if (projectLink) {
       await user.click(projectLink);
     }

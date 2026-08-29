@@ -1,4 +1,5 @@
-import { GitHub, SystemUpdateAlt } from "@mui/icons-material";
+import GitHub from "@mui/icons-material/GitHub";
+import SystemUpdateAlt from "@mui/icons-material/SystemUpdateAlt";
 import { Box, Button, Link, Stack, Typography } from "@mui/material";
 import { getName, getVersion } from "@tauri-apps/api/app";
 import { error } from "@tauri-apps/plugin-log";
@@ -67,7 +68,9 @@ export default function About() {
       <Stack direction="column" spacing={1}>
         <Typography variant="h3">{appName}</Typography>
         <Stack direction="row" spacing={2}>
-          <Typography variant="h5">version {appVersion}</Typography>
+          <Typography variant="h5">
+            {t("settings.about.version", { version: appVersion })}
+          </Typography>
           <Button
             variant="outlined"
             size="small"

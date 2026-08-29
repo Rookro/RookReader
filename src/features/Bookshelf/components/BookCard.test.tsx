@@ -63,6 +63,23 @@ describe("BookCard", () => {
     expect(screen.getByText("Tag2")).toBeInTheDocument();
   });
 
+  it("should keep tag labels readable on both pale and dark tag colors", () => {
+    renderBookCard({
+      ...defaultProps,
+      tags: [
+        createMockTag({ id: 1, name: "Pale", color_code: "#FFEB3B" }),
+        createMockTag({ id: 2, name: "Dark", color_code: "#212121" }),
+      ],
+      book: { ...mockBook, tag_ids: [1, 2] },
+    });
+
+    const pale = getComputedStyle(screen.getByText("Pale"));
+    const dark = getComputedStyle(screen.getByText("Dark"));
+
+    // The chip label inherits its color from the chip root.
+    expect(pale.color).not.toBe(dark.color);
+  });
+
   it("should call onBookClick when clicked", async () => {
     const onBookClick = vi.fn();
     renderBookCard({ ...defaultProps, onBookClick });

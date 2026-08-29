@@ -1,4 +1,5 @@
 import { combineReducers } from "@reduxjs/toolkit";
+import BookmarkReducer from "../features/BookReader/bookmarkSlice";
 import ReadReducer from "../features/BookReader/slice";
 import SeriesReducer from "../features/Bookshelf/seriesSlice";
 import BookCollectionReducer from "../features/Bookshelf/slice";
@@ -10,6 +11,7 @@ import SettingsReducer from "../features/Settings/slice";
 
 export const rootReducer = combineReducers({
   read: ReadReducer,
+  bookmark: BookmarkReducer,
   view: ViewReducer,
   history: HistoryReducer,
   bookCollection: BookCollectionReducer,

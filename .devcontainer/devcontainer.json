@@ -13,5 +13,13 @@
             ]
         }
     },
+    "mounts": [
+        "source=${localEnv:XDG_RUNTIME_DIR}/${localEnv:WAYLAND_DISPLAY},target=/tmp/wayland-0,type=bind"
+    ],
+    "containerEnv": {
+        "WAYLAND_DISPLAY": "wayland-0",
+        "XDG_RUNTIME_DIR": "/tmp",
+        "DISPLAY": "${localEnv:DISPLAY}"
+    },
     "remoteUser": "vscode"
 }

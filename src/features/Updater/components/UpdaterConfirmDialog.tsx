@@ -1,4 +1,4 @@
-import { SystemUpdateAlt as UpdateIcon } from "@mui/icons-material";
+import UpdateIcon from "@mui/icons-material/SystemUpdateAlt";
 import {
   Box,
   Button,

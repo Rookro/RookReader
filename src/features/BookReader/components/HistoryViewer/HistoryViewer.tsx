@@ -1,4 +1,4 @@
-import { Search } from "@mui/icons-material";
+import Search from "@mui/icons-material/Search";
 import { Box, InputAdornment, OutlinedInput, Stack, Typography } from "@mui/material";
 import { debug, error } from "@tauri-apps/plugin-log";
 import { useCallback, useEffect, useMemo, useState } from "react";

@@ -2,13 +2,14 @@ import { readFile } from "@tauri-apps/plugin-fs";
 import { error } from "@tauri-apps/plugin-log";
 import type { TOCItem } from "foliate-js/epub.js";
 import { Paginator } from "foliate-js/paginator.js";
-import { type Book, makeBook, type View } from "foliate-js/view.js";
+import { type Book, makeBook, type View, type ViewLocation } from "foliate-js/view.js";
 import { useCallback, useEffect, useRef } from "react";
 import BundledNotoSerifJP from "../../../assets/fonts/NotoSerifJP-VariableFont_wght.woff2";
 import { useAppTheme } from "../../../hooks/useAppTheme";
 import { useAppDispatch, useAppSelector } from "../../../store/store";
-import { setEntries, setNovelLocation } from "../slice";
+import { setEntries, setNovelDirection, setNovelLocation } from "../slice";
 import { usePageNavigation } from "./usePageNavigation";
+import { useReadingDirection } from "./useReadingDirection";
 
 /**
  * Builds a mapping of section indices to their corresponding Table of Contents (TOC) labels.
@@ -37,6 +38,18 @@ const buildTocMap = (book: Book): Map<number, string> => {
   return map;
 };
 
+/**
+ * Reads the spine section index out of a foliate-js location.
+ * The view's `lastLocation` is the very object the `relocate` event carries, so
+ * both sides must derive the index the same way; `lastLocation` has no `index`
+ * of its own, only `section.current`.
+ *
+ * @param location - A foliate-js location, or null when the view has none yet.
+ * @returns The section index, or undefined if the location carries none.
+ */
+const sectionIndexOf = (location: ViewLocation | null | undefined): number | undefined =>
+  location?.section?.current ?? location?.index;
+
 /** Options for the useNovelReader hook */
 export interface UseNovelReaderOptions {
   /** Path to the local EPUB file */
@@ -55,10 +68,18 @@ export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
   const viewerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<View | null>(null);
   const bookRef = useRef<Book | null>(null);
+  /**
+   * Whether the open book's page direction is final. A novel pages one way as a whole, so
+   * the declared page progression direction, or the first vertically written section,
+   * settles it; a horizontally written section (a horizontal table of contents in a
+   * vertical novel) only fills in until the body text is reached.
+   */
+  const isDirectionSettledRef = useRef(false);
   const index = useAppSelector((state) => state.read.containerFile.index);
   const cfi = useAppSelector((state) => state.read.containerFile.cfi);
   const isNovel = useAppSelector((state) => state.read.containerFile.isNovel);
-  const readingDirection = useAppSelector((state) => state.settings.reader.comic.readingDirection);
+  // A novel pages in the direction its own writing mode dictates, not the comic setting.
+  const readingDirection = useReadingDirection();
   const fontFamily = useAppSelector((state) => state.settings.reader.novel.fontFamily);
   const fontSize = useAppSelector((state) => state.settings.reader.novel.fontSize);
   const dispatch = useAppDispatch();
@@ -153,6 +174,7 @@ export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
       viewRef.current = null;
       bookRef.current?.destroy?.();
       bookRef.current = null;
+      isDirectionSettledRef.current = false;
 
       // Defensive check: route on the backend's is_novel contract, not the extension,
       // so this guard cannot disagree with the slice's routing decision.
@@ -170,6 +192,13 @@ export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
       const file = new File([binaryData], filePath, { type: "application/epub+zip" });
       const book = await makeBook(file);
       bookRef.current = book;
+
+      // The spine's page-progression-direction states how the whole book pages, so it
+      // settles the direction before a single section is rendered.
+      if (book.dir === "rtl" || book.dir === "ltr") {
+        contextRef.current.dispatch(setNovelDirection(book.dir));
+        isDirectionSettledRef.current = true;
+      }
 
       if (!isMounted) {
         book.destroy?.();
@@ -202,9 +231,22 @@ export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
       view.addEventListener("load", (e) => {
         const { doc } = e.detail;
 
-        const isVertical = doc.defaultView
-          ? doc.defaultView.getComputedStyle(doc.body).writingMode.includes("vertical")
-          : false;
+        const writingMode = doc.defaultView
+          ? doc.defaultView.getComputedStyle(doc.body).writingMode
+          : "horizontal-tb";
+        const isVertical = writingMode.includes("vertical");
+
+        // Only vertical-rl runs pages right to left, and it settles the book: a novel
+        // whose body is vertical must not flip back on a horizontally written section
+        // such as its table of contents.
+        if (!isDirectionSettledRef.current) {
+          if (writingMode === "vertical-rl") {
+            contextRef.current.dispatch(setNovelDirection("rtl"));
+            isDirectionSettledRef.current = true;
+          } else {
+            contextRef.current.dispatch(setNovelDirection("ltr"));
+          }
+        }
 
         if (view.renderer && view.renderer instanceof Paginator) {
           if (isVertical) {
@@ -240,8 +282,7 @@ export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
 
         view.addEventListener("relocate", (e) => {
           if (!isMounted) return;
-          // foliate-js view's relocate event returns index in detail.section.current, or occasionally detail.index.
-          const newIndex = e.detail.section?.current ?? e.detail.index ?? 0;
+          const newIndex = sectionIndexOf(e.detail) ?? 0;
           const newCfi = e.detail.cfi ?? "";
           contextRef.current.dispatch(setNovelLocation({ index: newIndex, cfi: newCfi }));
         });
@@ -274,7 +315,7 @@ export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
     }
 
     const currentCfi = viewRef.current.lastLocation?.cfi;
-    const currentIndex = viewRef.current.lastLocation?.index;
+    const currentIndex = sectionIndexOf(viewRef.current.lastLocation);
 
     if (cfi && cfi !== currentCfi) {
       viewRef.current.goTo(cfi).catch((e) => {
