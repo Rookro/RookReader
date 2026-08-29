@@ -41,6 +41,7 @@
     "toggle-spread": "見開き表示を切り替える",
     "switch-to-ltr": "左から右に切り替える",
     "switch-to-rtl": "右から左に切り替える",
+    "direction-auto": "ページ送り方向は本の組み方向に従います",
     "page-slider": "ページ位置",
     "add-bookmark": "しおりを追加",
     "remove-bookmark": "しおりを削除",

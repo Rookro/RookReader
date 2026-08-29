@@ -19,6 +19,7 @@ import { openSettingsWindow } from "../../../utils/WindowOpener";
 import { setActiveView } from "../../MainView/slice";
 import { updateSettings } from "../../Settings/slice";
 import { addBookmark, removeBookmark } from "../bookmarkSlice";
+import { useReadingDirection } from "../hooks/useReadingDirection";
 import {
   goBackContainerHistory,
   goForwardContainerHistory,
@@ -45,7 +46,8 @@ export default function NavigationBar() {
 
   const currentPath = history[historyIndex] ?? "";
 
-  const isRtl = readerSettings.comic.readingDirection === "rtl";
+  // A novel reports its own direction and cannot be switched; comics follow the setting.
+  const isRtl = useReadingDirection() === "rtl";
 
   // A novel position is identified by its CFI, a comic position by its page index.
   const currentBookmark = useMemo(
@@ -234,10 +236,24 @@ export default function NavigationBar() {
           </IconButton>
         </span>
       </Tooltip>
-      <Tooltip title={isRtl ? t("book-reader.switch-to-ltr") : t("book-reader.switch-to-rtl")}>
-        <IconButton onClick={handleSwitchDirectionClicked} aria-label="toggle-direction">
-          <ReadingDirectionIcon direction={isRtl ? "rtl" : "ltr"} />
-        </IconButton>
+      <Tooltip
+        title={
+          isNovel
+            ? t("book-reader.direction-auto")
+            : isRtl
+              ? t("book-reader.switch-to-ltr")
+              : t("book-reader.switch-to-rtl")
+        }
+      >
+        <span>
+          <IconButton
+            onClick={handleSwitchDirectionClicked}
+            disabled={isNovel}
+            aria-label="toggle-direction"
+          >
+            <ReadingDirectionIcon direction={isRtl ? "rtl" : "ltr"} />
+          </IconButton>
+        </span>
       </Tooltip>
       <Tooltip title={t("common.settings")}>
         <IconButton onClick={handleSettingsClicked} aria-label="settings">

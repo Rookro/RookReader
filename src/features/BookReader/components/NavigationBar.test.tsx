@@ -1,5 +1,5 @@
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
-import { screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as BookmarkCommands from "../../../bindings/BookmarkCommands";
@@ -348,6 +348,52 @@ describe("NavigationBar", () => {
       renderWithProviders(<NavigationBar />, { preloadedState });
 
       expect(screen.getByTestId(testId)).toBeInTheDocument();
+    });
+  });
+
+  describe("novel direction", () => {
+    // A novel's page order comes from its writing mode, so the toolbar reports it and
+    // offers no switch; the comic setting is deliberately the opposite in each case.
+    it.each([
+      ["rtl", "ltr", "ReadingDirection-rtl"],
+      ["ltr", "rtl", "ReadingDirection-ltr"],
+    ])("should show the detected %s direction and disable the button", (novelDirection, comicDirection, testId) => {
+      const preloadedState = createBasePreloadedState();
+      preloadedState.read.containerFile.isNovel = true;
+      preloadedState.read.containerFile.novelDirection = novelDirection as "rtl" | "ltr";
+      preloadedState.settings.reader.comic.readingDirection = comicDirection as "rtl" | "ltr";
+
+      renderWithProviders(<NavigationBar />, { preloadedState });
+
+      expect(screen.getByTestId(testId)).toBeInTheDocument();
+      expect(screen.getByLabelText("toggle-direction")).toBeDisabled();
+    });
+
+    it("should fall back to rtl before the novel's writing mode is detected", () => {
+      const preloadedState = createBasePreloadedState();
+      preloadedState.read.containerFile.isNovel = true;
+      preloadedState.read.containerFile.novelDirection = null;
+      preloadedState.settings.reader.comic.readingDirection = "ltr";
+
+      renderWithProviders(<NavigationBar />, { preloadedState });
+
+      expect(screen.getByTestId("ReadingDirection-rtl")).toBeInTheDocument();
+    });
+
+    it("should not change the comic setting when the disabled button is clicked", () => {
+      const preloadedState = createBasePreloadedState();
+      preloadedState.read.containerFile.isNovel = true;
+      preloadedState.read.containerFile.novelDirection = "rtl";
+      preloadedState.settings.reader.comic.readingDirection = "ltr";
+
+      const { store } = renderWithProviders(<NavigationBar />, { preloadedState });
+
+      // userEvent refuses to click through `pointer-events: none`, so dispatch the
+      // event directly to prove a disabled button still runs no handler.
+      fireEvent.click(screen.getByLabelText("toggle-direction"));
+
+      expect(SettingsReducer.updateSettings).not.toHaveBeenCalled();
+      expect(store.getState().settings.reader.comic.readingDirection).toBe("ltr");
     });
   });
 

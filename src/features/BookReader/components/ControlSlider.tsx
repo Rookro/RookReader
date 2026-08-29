@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next";
 import { prefixer } from "stylis";
 import { useAppTheme } from "../../../hooks/useAppTheme";
 import { useAppDispatch, useAppSelector } from "../../../store/store";
+import { useReadingDirection } from "../hooks/useReadingDirection";
 import { setImageIndex } from "../slice";
 
 /**
@@ -17,24 +18,23 @@ export default function ControlSlider() {
   const { t } = useTranslation();
   const entries = useAppSelector((state) => state.read.containerFile.entries);
   const index = useAppSelector((state) => state.read.containerFile.index);
-  const readerSettings = useAppSelector((state) => state.settings.reader);
   const dispatch = useAppDispatch();
   const appTheme = useAppTheme();
+  // Follows the novel's detected writing mode, or the comic setting.
+  const isRtl = useReadingDirection() === "rtl";
 
   const cache = useMemo(() => {
-    const isRtl = readerSettings.comic.readingDirection === "rtl";
     return createCache({
       key: isRtl ? "muirtl" : "muiltr",
       stylisPlugins: isRtl ? [prefixer, rtlPlugin] : [prefixer],
     });
-  }, [readerSettings.comic.readingDirection]);
+  }, [isRtl]);
 
   const theme = useMemo(() => {
-    const isRtl = readerSettings.comic.readingDirection === "rtl";
     return createTheme(appTheme, {
       direction: isRtl ? "rtl" : "ltr",
     } as Theme);
-  }, [appTheme, readerSettings.comic.readingDirection]);
+  }, [appTheme, isRtl]);
 
   const handleSliderValueChanged = useCallback(
     (_event: Event, value: number, _activeThumb: number) => {
