@@ -6,6 +6,7 @@ import { getEntriesInContainer, requestPreloadAround } from "../../bindings/Cont
 import { getEntriesInDir as getEntriesInDirFromBackend } from "../../bindings/DirectoryCommands";
 import type { BookWithState } from "../../domain/book/schema";
 import { handleThunkError } from "../../store/thunkErrorHandler";
+import type { Direction } from "../../types/AppSettings";
 import { createAppAsyncThunk } from "../../types/CustomAsyncThunk";
 import type { DirEntry } from "../../types/DirEntry";
 import { CommandError, ErrorCode } from "../../types/Error";
@@ -157,6 +158,12 @@ export const readSlice = createSlice({
       isSpreadDisplayed: false,
       cfi: null as string | null,
       isNovel: false,
+      /**
+       * Page-turn direction detected from the open novel's writing mode
+       * (`vertical-rl` maps to "rtl", every other mode to "ltr"). Null until the novel's
+       * first section has loaded, and always null for comics, which follow the setting.
+       */
+      novelDirection: null as Direction | null,
       isLoading: false,
       error: null as { code: ErrorCode; message?: string } | null,
       /** Where the current book was opened from (used to resolve the adjacent book). */
@@ -332,6 +339,15 @@ export const readSlice = createSlice({
       state.containerFile.cfi = action.payload.cfi;
     },
     /**
+     * Records the page-turn direction detected from the open novel's writing mode.
+     *
+     * @param state - The current Redux state slice.
+     * @param action - Payload containing the detected direction.
+     */
+    setNovelDirection: (state, action: PayloadAction<Direction>) => {
+      state.containerFile.novelDirection = action.payload;
+    },
+    /**
      * Clears any error associated with the container file state.
      *
      * @param state - The current Redux state slice.
@@ -380,6 +396,7 @@ export const readSlice = createSlice({
         state.containerFile.isSpreadShifted = false;
         state.containerFile.isSpreadDisplayed = false;
         state.containerFile.cfi = null;
+        state.containerFile.novelDirection = null;
         state.containerFile.error = null;
       })
       .addCase(openContainerFile.fulfilled, (state, action) => {
@@ -440,6 +457,7 @@ export const readSlice = createSlice({
         state.containerFile.book = null;
         state.containerFile.isDirectory = false;
         state.containerFile.isNovel = false;
+        state.containerFile.novelDirection = null;
         state.containerFile.error = action.payload ?? null;
       });
   },
@@ -461,6 +479,7 @@ export const {
   setIsDirEntriesLoading,
   setEntries,
   setNovelLocation,
+  setNovelDirection,
   clearContainerFileError,
   clearExplorerError,
 } = readSlice.actions;
