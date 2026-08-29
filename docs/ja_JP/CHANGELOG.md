@@ -9,6 +9,8 @@
 
 ## [Unreleased]
 
+## [2.4.0] - 2026-08-30
+
 ### Added
 
 * CBZ・CBR 形式のコミックアーカイブに対応（それぞれ ZIP・RAR として開く） (#293)
@@ -517,7 +519,8 @@
 * 自動見開き表示機能の追加 (#4)
 * ホイールの上下によるページ送り機能を追加 (#5)
 
-[unreleased]: https://github.com/Rookro/RookReader/compare/v2.3.1...HEAD
+[unreleased]: https://github.com/Rookro/RookReader/compare/v2.4.0...HEAD
+[2.4.0]: https://github.com/Rookro/RookReader/compare/v2.3.1...v2.4.0
 [2.3.1]: https://github.com/Rookro/RookReader/compare/v2.3.0...v2.3.1
 [2.3.0]: https://github.com/Rookro/RookReader/compare/v2.2.1...v2.3.0
 [2.2.1]: https://github.com/Rookro/RookReader/compare/v2.2.0...v2.2.1

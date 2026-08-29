@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.4.0] - 2026-08-30
+
 ### Added
 
 * Added support for CBZ and CBR comic archives, which open as ZIP and RAR respectively. (#293)
@@ -517,7 +519,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Add an automatic two-page spread display feature (#4)
 * Add a page navigation feature using the mouse wheel up/down (#5)
 
-[unreleased]: https://github.com/Rookro/RookReader/compare/v2.3.1...HEAD
+[unreleased]: https://github.com/Rookro/RookReader/compare/v2.4.0...HEAD
+[2.4.0]: https://github.com/Rookro/RookReader/compare/v2.3.1...v2.4.0
 [2.3.1]: https://github.com/Rookro/RookReader/compare/v2.3.0...v2.3.1
 [2.3.0]: https://github.com/Rookro/RookReader/compare/v2.2.1...v2.3.0
 [2.2.1]: https://github.com/Rookro/RookReader/compare/v2.2.0...v2.2.1
