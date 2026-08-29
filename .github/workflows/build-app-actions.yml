@@ -77,8 +77,8 @@ jobs:
 
       - name: Build and upload artifacts.
         uses: tauri-apps/tauri-action@dev # use dev to upload artifacts.
-        env:
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
         with:
           uploadWorkflowArtifacts: true
+          # tauri.conf.json enables updater artifacts, which cannot be built
+          # without the signing key. PR builds must not have that key.
+          args: '--config {"bundle":{"createUpdaterArtifacts":false}}'
