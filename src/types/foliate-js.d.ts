@@ -201,7 +201,7 @@ declare module "foliate-js/epub.js" {
         }
       | undefined;
 
-    /** The base directory of the EPUB package. */
+    /** The page progression direction declared by the EPUB spine. */
     dir: string;
 
     /**
@@ -829,8 +829,11 @@ declare module "foliate-js/view.js" {
     pageList?: import("foliate-js/epub.js").PageItem[];
     /** The landmarks within the book. */
     landmarks?: import("foliate-js/epub.js").LandmarkItem[];
-    /** The base directory of the book's assets. */
-    dir?: string;
+    /**
+     * The page progression direction declared by the book (the EPUB spine's
+     * `page-progression-direction`), or null when the book declares none.
+     */
+    dir?: string | null;
     /** Rendition settings specified by the book. */
     rendition?: Record<string, unknown>;
     /** Media properties, including total duration. */

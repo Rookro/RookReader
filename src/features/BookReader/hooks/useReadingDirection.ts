@@ -11,7 +11,7 @@ export const NOVEL_FALLBACK_DIRECTION: Direction = "rtl";
  * Resolves the direction pages advance in for the book currently open.
  *
  * Comics follow the user's `reader.comic.readingDirection` setting. Novels follow the
- * writing mode detected from the EPUB itself and cannot be overridden, because the page
+ * direction detected from the EPUB itself and cannot be overridden, because the page
  * order of a vertically written book is a property of the book, not a preference.
  *
  * @returns The effective reading direction.

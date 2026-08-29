@@ -159,9 +159,10 @@ export const readSlice = createSlice({
       cfi: null as string | null,
       isNovel: false,
       /**
-       * Page-turn direction detected from the open novel's writing mode
-       * (`vertical-rl` maps to "rtl", every other mode to "ltr"). Null until the novel's
-       * first section has loaded, and always null for comics, which follow the setting.
+       * Page-turn direction of the open novel, decided for the book as a whole: its
+       * declared page progression direction, or else the writing mode of its body text.
+       * Null until the book reports one, and always null for comics, which follow the
+       * user's setting.
        */
       novelDirection: null as Direction | null,
       isLoading: false,

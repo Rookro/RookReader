@@ -361,19 +361,6 @@ describe("useNovelReader", () => {
     };
     viewElement.dispatchEvent(new CustomEvent("load", { detail: { doc: mockDocVertical } }));
     expect(viewElement.renderer.setAttribute).toHaveBeenCalledWith("max-inline-size", "10000px");
-    expect(mockDispatch).toHaveBeenCalledWith(setNovelDirection("rtl"));
-
-    // Vertical, but progressing left to right: the pages still turn like a horizontal book.
-    const mockDocVerticalLtr = {
-      defaultView: {
-        getComputedStyle: vi.fn().mockReturnValue({ writingMode: "vertical-lr" }),
-      },
-      body: {},
-      addEventListener: vi.fn(),
-    };
-    viewElement.dispatchEvent(new CustomEvent("load", { detail: { doc: mockDocVerticalLtr } }));
-    expect(viewElement.renderer.setAttribute).toHaveBeenCalledWith("max-inline-size", "10000px");
-    expect(mockDispatch).toHaveBeenCalledWith(setNovelDirection("ltr"));
 
     // Simulate horizontal layout
     const mockDocHorizontal = {
@@ -385,7 +372,87 @@ describe("useNovelReader", () => {
     };
     viewElement.dispatchEvent(new CustomEvent("load", { detail: { doc: mockDocHorizontal } }));
     expect(viewElement.renderer.removeAttribute).toHaveBeenCalledWith("max-inline-size");
-    expect(mockDispatch).toHaveBeenCalledWith(setNovelDirection("ltr"));
+  });
+
+  describe("page direction", () => {
+    /** Builds a section document reporting the given writing mode. */
+    const sectionDoc = (writingMode: string) => ({
+      defaultView: {
+        getComputedStyle: vi.fn().mockReturnValue({ writingMode }),
+      },
+      body: {},
+      addEventListener: vi.fn(),
+    });
+
+    /** Loads a book and returns its rendered view element. */
+    const loadBook = async (book: Book) => {
+      vi.mocked(makeBook).mockResolvedValue(book);
+      const { result } = setupHook();
+      await waitFor(() => {
+        expect(result.current.viewerRef.current?.querySelector("foliate-view")).not.toBeNull();
+      });
+      return result.current.viewerRef.current?.querySelector("foliate-view") as MockView;
+    };
+
+    const undeclaredBook = { sections: [], toc: [], destroy: vi.fn() } as Book;
+
+    it.each([
+      ["rtl", "vertical-rl"],
+      ["ltr", "horizontal-tb"],
+    ] as const)("should take the declared %s direction for the whole book, before any section renders", async (declared, sectionWritingMode) => {
+      const viewElement = await loadBook({
+        ...undeclaredBook,
+        dir: declared,
+      } as Book);
+
+      expect(mockDispatch).toHaveBeenCalledWith(setNovelDirection(declared));
+      mockDispatch.mockClear();
+
+      // A section written the other way round must not overrule the book.
+      viewElement.dispatchEvent(
+        new CustomEvent("load", { detail: { doc: sectionDoc(sectionWritingMode) } }),
+      );
+      expect(mockDispatch).not.toHaveBeenCalledWith(setNovelDirection("rtl"));
+      expect(mockDispatch).not.toHaveBeenCalledWith(setNovelDirection("ltr"));
+    });
+
+    it.each([
+      ["vertical-rl", "rtl"],
+      ["vertical-lr", "ltr"],
+      ["horizontal-tb", "ltr"],
+    ] as const)("should fall back to the %s writing mode when the book declares no direction", async (writingMode, expected) => {
+      const viewElement = await loadBook(undeclaredBook);
+
+      viewElement.dispatchEvent(
+        new CustomEvent("load", { detail: { doc: sectionDoc(writingMode) } }),
+      );
+
+      expect(mockDispatch).toHaveBeenCalledWith(setNovelDirection(expected));
+    });
+
+    // The case this exists for: a vertical novel whose table of contents is horizontal.
+    it("should keep a vertical book right-to-left once its body text has been seen", async () => {
+      const viewElement = await loadBook(undeclaredBook);
+
+      // Opened on the horizontally written table of contents.
+      viewElement.dispatchEvent(
+        new CustomEvent("load", { detail: { doc: sectionDoc("horizontal-tb") } }),
+      );
+      expect(mockDispatch).toHaveBeenCalledWith(setNovelDirection("ltr"));
+
+      // Reaching the body text settles the book as right-to-left...
+      viewElement.dispatchEvent(
+        new CustomEvent("load", { detail: { doc: sectionDoc("vertical-rl") } }),
+      );
+      expect(mockDispatch).toHaveBeenCalledWith(setNovelDirection("rtl"));
+      mockDispatch.mockClear();
+
+      // ...and a later horizontal section no longer turns it back.
+      viewElement.dispatchEvent(
+        new CustomEvent("load", { detail: { doc: sectionDoc("horizontal-tb") } }),
+      );
+      expect(mockDispatch).not.toHaveBeenCalledWith(setNovelDirection("ltr"));
+    });
   });
 
   it.each([
