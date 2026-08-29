@@ -6,7 +6,7 @@ import { type Book, makeBook, type View } from "foliate-js/view.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAppTheme } from "../../../hooks/useAppTheme";
 import { type RootState, useAppDispatch, useAppSelector } from "../../../store/store";
-import { setEntries, setNovelLocation } from "../slice";
+import { setEntries, setNovelDirection, setNovelLocation } from "../slice";
 import { useNovelReader } from "./useNovelReader";
 
 // Mocks
@@ -27,6 +27,10 @@ vi.mock("foliate-js/paginator.js", () => {
 });
 vi.mock("../slice", () => ({
   setEntries: vi.fn((entries: string[]) => ({ type: "setEntries", payload: entries })),
+  setNovelDirection: vi.fn((direction: string) => ({
+    type: "setNovelDirection",
+    payload: direction,
+  })),
   setNovelLocation: vi.fn((loc: { index: number; cfi: string }) => ({
     type: "setNovelLocation",
     payload: loc,
@@ -79,6 +83,7 @@ describe("useNovelReader", () => {
         index: 0,
         cfi: null as string | null,
         isNovel: true,
+        novelDirection: null as "ltr" | "rtl" | null,
       },
     },
     settings: {
@@ -356,6 +361,19 @@ describe("useNovelReader", () => {
     };
     viewElement.dispatchEvent(new CustomEvent("load", { detail: { doc: mockDocVertical } }));
     expect(viewElement.renderer.setAttribute).toHaveBeenCalledWith("max-inline-size", "10000px");
+    expect(mockDispatch).toHaveBeenCalledWith(setNovelDirection("rtl"));
+
+    // Vertical, but progressing left to right: the pages still turn like a horizontal book.
+    const mockDocVerticalLtr = {
+      defaultView: {
+        getComputedStyle: vi.fn().mockReturnValue({ writingMode: "vertical-lr" }),
+      },
+      body: {},
+      addEventListener: vi.fn(),
+    };
+    viewElement.dispatchEvent(new CustomEvent("load", { detail: { doc: mockDocVerticalLtr } }));
+    expect(viewElement.renderer.setAttribute).toHaveBeenCalledWith("max-inline-size", "10000px");
+    expect(mockDispatch).toHaveBeenCalledWith(setNovelDirection("ltr"));
 
     // Simulate horizontal layout
     const mockDocHorizontal = {
@@ -367,6 +385,49 @@ describe("useNovelReader", () => {
     };
     viewElement.dispatchEvent(new CustomEvent("load", { detail: { doc: mockDocHorizontal } }));
     expect(viewElement.renderer.removeAttribute).toHaveBeenCalledWith("max-inline-size");
+    expect(mockDispatch).toHaveBeenCalledWith(setNovelDirection("ltr"));
+  });
+
+  it.each([
+    ["rtl", "ArrowLeft", "ArrowRight"],
+    ["ltr", "ArrowRight", "ArrowLeft"],
+  ])("should turn pages by the detected %s direction, ignoring the comic setting", async (direction, forwardKey, backKey) => {
+    vi.mocked(useAppSelector).mockImplementation(<T>(selector: (state: RootState) => T): T => {
+      const state = {
+        ...defaultState,
+        read: { containerFile: { index: 0, cfi: null, isNovel: true, novelDirection: direction } },
+        settings: {
+          ...defaultState.settings,
+          reader: {
+            ...defaultState.settings.reader,
+            // The opposite comic setting must not reach the novel.
+            comic: { readingDirection: direction === "rtl" ? "ltr" : "rtl" },
+          },
+        },
+      };
+      return selector(state as RootState);
+    });
+
+    const mockBook = { sections: [], toc: [], destroy: vi.fn() } as Book;
+    vi.mocked(makeBook).mockResolvedValue(mockBook);
+
+    const { result } = setupHook();
+
+    await waitFor(() => {
+      const viewElement = result.current.viewerRef.current?.querySelector(
+        "foliate-view",
+      ) as MockView;
+      expect(viewElement).not.toBeNull();
+    });
+
+    const viewElement = result.current.viewerRef.current?.querySelector("foliate-view") as MockView;
+
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: forwardKey }));
+    expect(viewElement.next).toHaveBeenCalledTimes(1);
+    expect(viewElement.prev).not.toHaveBeenCalled();
+
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: backKey }));
+    expect(viewElement.prev).toHaveBeenCalledTimes(1);
   });
 
   it("should handle navigation failures and log errors", async () => {

@@ -7,8 +7,9 @@ import { useCallback, useEffect, useRef } from "react";
 import BundledNotoSerifJP from "../../../assets/fonts/NotoSerifJP-VariableFont_wght.woff2";
 import { useAppTheme } from "../../../hooks/useAppTheme";
 import { useAppDispatch, useAppSelector } from "../../../store/store";
-import { setEntries, setNovelLocation } from "../slice";
+import { setEntries, setNovelDirection, setNovelLocation } from "../slice";
 import { usePageNavigation } from "./usePageNavigation";
+import { useReadingDirection } from "./useReadingDirection";
 
 /**
  * Builds a mapping of section indices to their corresponding Table of Contents (TOC) labels.
@@ -70,7 +71,8 @@ export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
   const index = useAppSelector((state) => state.read.containerFile.index);
   const cfi = useAppSelector((state) => state.read.containerFile.cfi);
   const isNovel = useAppSelector((state) => state.read.containerFile.isNovel);
-  const readingDirection = useAppSelector((state) => state.settings.reader.comic.readingDirection);
+  // A novel pages in the direction its own writing mode dictates, not the comic setting.
+  const readingDirection = useReadingDirection();
   const fontFamily = useAppSelector((state) => state.settings.reader.novel.fontFamily);
   const fontSize = useAppSelector((state) => state.settings.reader.novel.fontSize);
   const dispatch = useAppDispatch();
@@ -214,9 +216,16 @@ export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
       view.addEventListener("load", (e) => {
         const { doc } = e.detail;
 
-        const isVertical = doc.defaultView
-          ? doc.defaultView.getComputedStyle(doc.body).writingMode.includes("vertical")
-          : false;
+        const writingMode = doc.defaultView
+          ? doc.defaultView.getComputedStyle(doc.body).writingMode
+          : "horizontal-tb";
+        const isVertical = writingMode.includes("vertical");
+
+        // Only vertical-rl runs pages right to left; vertical-lr and every horizontal
+        // mode advance left to right.
+        contextRef.current.dispatch(
+          setNovelDirection(writingMode === "vertical-rl" ? "rtl" : "ltr"),
+        );
 
         if (view.renderer && view.renderer instanceof Paginator) {
           if (isVertical) {
