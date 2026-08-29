@@ -6,7 +6,7 @@ import { type Book, makeBook, type View } from "foliate-js/view.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAppTheme } from "../../../hooks/useAppTheme";
 import { type RootState, useAppDispatch, useAppSelector } from "../../../store/store";
-import { setEntries, setNovelLocation } from "../slice";
+import { setEntries, setNovelDirection, setNovelLocation } from "../slice";
 import { useNovelReader } from "./useNovelReader";
 
 // Mocks
@@ -27,6 +27,10 @@ vi.mock("foliate-js/paginator.js", () => {
 });
 vi.mock("../slice", () => ({
   setEntries: vi.fn((entries: string[]) => ({ type: "setEntries", payload: entries })),
+  setNovelDirection: vi.fn((direction: string) => ({
+    type: "setNovelDirection",
+    payload: direction,
+  })),
   setNovelLocation: vi.fn((loc: { index: number; cfi: string }) => ({
     type: "setNovelLocation",
     payload: loc,
@@ -79,6 +83,7 @@ describe("useNovelReader", () => {
         index: 0,
         cfi: null as string | null,
         isNovel: true,
+        novelDirection: null as "ltr" | "rtl" | null,
       },
     },
     settings: {
@@ -367,6 +372,129 @@ describe("useNovelReader", () => {
     };
     viewElement.dispatchEvent(new CustomEvent("load", { detail: { doc: mockDocHorizontal } }));
     expect(viewElement.renderer.removeAttribute).toHaveBeenCalledWith("max-inline-size");
+  });
+
+  describe("page direction", () => {
+    /** Builds a section document reporting the given writing mode. */
+    const sectionDoc = (writingMode: string) => ({
+      defaultView: {
+        getComputedStyle: vi.fn().mockReturnValue({ writingMode }),
+      },
+      body: {},
+      addEventListener: vi.fn(),
+    });
+
+    /** Loads a book and returns its rendered view element. */
+    const loadBook = async (book: Book) => {
+      vi.mocked(makeBook).mockResolvedValue(book);
+      const { result } = setupHook();
+      await waitFor(() => {
+        expect(result.current.viewerRef.current?.querySelector("foliate-view")).not.toBeNull();
+      });
+      return result.current.viewerRef.current?.querySelector("foliate-view") as MockView;
+    };
+
+    const undeclaredBook = { sections: [], toc: [], destroy: vi.fn() } as Book;
+
+    it.each([
+      ["rtl", "vertical-rl"],
+      ["ltr", "horizontal-tb"],
+    ] as const)("should take the declared %s direction for the whole book, before any section renders", async (declared, sectionWritingMode) => {
+      const viewElement = await loadBook({
+        ...undeclaredBook,
+        dir: declared,
+      } as Book);
+
+      expect(mockDispatch).toHaveBeenCalledWith(setNovelDirection(declared));
+      mockDispatch.mockClear();
+
+      // A section written the other way round must not overrule the book.
+      viewElement.dispatchEvent(
+        new CustomEvent("load", { detail: { doc: sectionDoc(sectionWritingMode) } }),
+      );
+      expect(mockDispatch).not.toHaveBeenCalledWith(setNovelDirection("rtl"));
+      expect(mockDispatch).not.toHaveBeenCalledWith(setNovelDirection("ltr"));
+    });
+
+    it.each([
+      ["vertical-rl", "rtl"],
+      ["vertical-lr", "ltr"],
+      ["horizontal-tb", "ltr"],
+    ] as const)("should fall back to the %s writing mode when the book declares no direction", async (writingMode, expected) => {
+      const viewElement = await loadBook(undeclaredBook);
+
+      viewElement.dispatchEvent(
+        new CustomEvent("load", { detail: { doc: sectionDoc(writingMode) } }),
+      );
+
+      expect(mockDispatch).toHaveBeenCalledWith(setNovelDirection(expected));
+    });
+
+    // The case this exists for: a vertical novel whose table of contents is horizontal.
+    it("should keep a vertical book right-to-left once its body text has been seen", async () => {
+      const viewElement = await loadBook(undeclaredBook);
+
+      // Opened on the horizontally written table of contents.
+      viewElement.dispatchEvent(
+        new CustomEvent("load", { detail: { doc: sectionDoc("horizontal-tb") } }),
+      );
+      expect(mockDispatch).toHaveBeenCalledWith(setNovelDirection("ltr"));
+
+      // Reaching the body text settles the book as right-to-left...
+      viewElement.dispatchEvent(
+        new CustomEvent("load", { detail: { doc: sectionDoc("vertical-rl") } }),
+      );
+      expect(mockDispatch).toHaveBeenCalledWith(setNovelDirection("rtl"));
+      mockDispatch.mockClear();
+
+      // ...and a later horizontal section no longer turns it back.
+      viewElement.dispatchEvent(
+        new CustomEvent("load", { detail: { doc: sectionDoc("horizontal-tb") } }),
+      );
+      expect(mockDispatch).not.toHaveBeenCalledWith(setNovelDirection("ltr"));
+    });
+  });
+
+  it.each([
+    ["rtl", "ArrowLeft", "ArrowRight"],
+    ["ltr", "ArrowRight", "ArrowLeft"],
+  ])("should turn pages by the detected %s direction, ignoring the comic setting", async (direction, forwardKey, backKey) => {
+    vi.mocked(useAppSelector).mockImplementation(<T>(selector: (state: RootState) => T): T => {
+      const state = {
+        ...defaultState,
+        read: { containerFile: { index: 0, cfi: null, isNovel: true, novelDirection: direction } },
+        settings: {
+          ...defaultState.settings,
+          reader: {
+            ...defaultState.settings.reader,
+            // The opposite comic setting must not reach the novel.
+            comic: { readingDirection: direction === "rtl" ? "ltr" : "rtl" },
+          },
+        },
+      };
+      return selector(state as RootState);
+    });
+
+    const mockBook = { sections: [], toc: [], destroy: vi.fn() } as Book;
+    vi.mocked(makeBook).mockResolvedValue(mockBook);
+
+    const { result } = setupHook();
+
+    await waitFor(() => {
+      const viewElement = result.current.viewerRef.current?.querySelector(
+        "foliate-view",
+      ) as MockView;
+      expect(viewElement).not.toBeNull();
+    });
+
+    const viewElement = result.current.viewerRef.current?.querySelector("foliate-view") as MockView;
+
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: forwardKey }));
+    expect(viewElement.next).toHaveBeenCalledTimes(1);
+    expect(viewElement.prev).not.toHaveBeenCalled();
+
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: backKey }));
+    expect(viewElement.prev).toHaveBeenCalledTimes(1);
   });
 
   it("should handle navigation failures and log errors", async () => {

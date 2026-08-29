@@ -19,6 +19,7 @@ import readReducer, {
   setExploreBasePath,
   setImageIndex,
   setIsDirEntriesLoading,
+  setNovelDirection,
   setNovelLocation,
   setOpenOrigin,
   setPendingInitialPosition,
@@ -229,6 +230,15 @@ describe("ReadReducer", () => {
       expect(state.containerFile.cfi).toBe("epub-cfi");
     });
 
+    // Verify that the detected novel direction is stored as given
+    it("should handle setNovelDirection", () => {
+      const initialState = {
+        containerFile: { novelDirection: null },
+      } as RootState["read"];
+      const state = readReducer(initialState, setNovelDirection("rtl"));
+      expect(state.containerFile.novelDirection).toBe("rtl");
+    });
+
     // Verify that the open origin is set and cleared correctly
     it("should handle setOpenOrigin", () => {
       const initialState = {
@@ -278,6 +288,32 @@ describe("ReadReducer", () => {
   });
 
   describe("Async Thunk Integration Tests", () => {
+    // Verify that the previous book's detected direction cannot survive into the next one
+    it("should clear novelDirection when a container starts opening", () => {
+      const initialState = {
+        containerFile: { novelDirection: "rtl" },
+      } as RootState["read"];
+
+      const state = readReducer(
+        initialState,
+        openContainerFile.pending("requestId", "/path/to/book.epub"),
+      );
+      expect(state.containerFile.novelDirection).toBeNull();
+    });
+
+    // Verify that a failed open leaves no direction behind, like the other book state
+    it("should clear novelDirection when opening fails", () => {
+      const initialState = {
+        containerFile: { novelDirection: "rtl", history: ["arg"], historyIndex: 0 },
+      } as RootState["read"];
+
+      const state = readReducer(
+        initialState,
+        openContainerFile.rejected(new Error(), "requestId", "arg", undefined),
+      );
+      expect(state.containerFile.novelDirection).toBeNull();
+    });
+
     // Verify error handling for rejected actions with undefined payload
     it("should handle rejected actions with undefined payload", () => {
       const mockState = {

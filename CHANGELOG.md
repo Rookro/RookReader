@@ -35,6 +35,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * A scrolling title is promoted to its own compositing layer, so its glyphs are no longer re-rasterised on every frame.
   * Titles are measured after paint rather than during commit, and a resize reporting an unchanged width no longer re-renders the card or restarts its animation.
   * Every card shares one ResizeObserver and one `prefers-reduced-motion` listener, instead of registering a pair per card.
+* EPUB novels now turn pages in the direction the book itself states, instead of following the comic reading direction. (#309)
+  * The direction comes from the page progression direction the book declares, or, for a book that declares none, from the writing mode of its body text: vertically written books turn right to left, horizontally written ones left to right.
+  * The direction button in the toolbar is disabled while a novel is open and shows the direction the book turns in. The page slider follows it too, and comics are unchanged.
 
 ### Fixed
 

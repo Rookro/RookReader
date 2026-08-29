@@ -41,6 +41,7 @@
     "toggle-spread": "Toggle two-page spread",
     "switch-to-ltr": "Switch to left-to-right",
     "switch-to-rtl": "Switch to right-to-left",
+    "direction-auto": "Page direction follows the book's writing mode",
     "page-slider": "Page position",
     "add-bookmark": "Add bookmark",
     "remove-bookmark": "Remove bookmark",
