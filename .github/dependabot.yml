@@ -1,0 +1,13 @@
+version: 2
+updates:
+  # Keeps the commit SHAs the workflows pin from going stale.
+  # Dependabot bumps the SHA and the version comment together.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "sunday"
+    target-branch: "develop"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "ci"
