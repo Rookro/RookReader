@@ -14,6 +14,11 @@ mod settings;
 mod setup;
 mod state;
 
+/// Loading benchmarks. Never run by a plain `cargo test`; invoke them by name, e.g.
+/// `cargo test --release --lib perfbench_report -- --ignored --nocapture --test-threads=1`.
+#[cfg(test)]
+mod perfbench;
+
 /// Builds the `tauri-specta` command registry used to export the TypeScript bindings.
 ///
 /// This intentionally excludes the three binary commands (`get_image`,
