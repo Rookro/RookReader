@@ -1,14 +1,15 @@
 use std::{
+    collections::HashSet,
     fs::{read_dir, File},
     io::Read,
-    path,
+    path::{self, PathBuf},
     sync::Arc,
 };
 
 use image::ImageReader;
 
 use crate::{
-    container::traits::Container,
+    container::traits::{Container, PageReader},
     error::{Error, Result},
     image::{
         thumbnail::generate_thumbnail,
@@ -22,6 +23,9 @@ pub struct DirectoryContainer {
     path: String,
     /// A naturally sorted list of image file names within the directory.
     entries: Vec<String>,
+    /// The same names as a set, for the membership check every read performs. Shared with
+    /// the readers so each one answers in constant time rather than scanning `entries`.
+    allowed: Arc<HashSet<String>>,
 }
 
 impl Container for DirectoryContainer {
@@ -50,6 +54,59 @@ impl Container for DirectoryContainer {
     fn is_directory(&self) -> bool {
         true
     }
+
+    fn open_reader(&self) -> Result<Box<dyn PageReader>> {
+        Ok(Box::new(DirectoryReader {
+            path: PathBuf::from(&self.path),
+            allowed: self.allowed.clone(),
+        }))
+    }
+}
+
+/// A single thread's reader over a directory of images.
+///
+/// The filesystem already gives every thread an independent handle per `File::open`, so
+/// this holds no open file at all — only what it needs to build and validate a path.
+struct DirectoryReader {
+    path: PathBuf,
+    allowed: Arc<HashSet<String>>,
+}
+
+impl DirectoryReader {
+    /// Resolves an entry name to a path inside the container, rejecting anything else.
+    ///
+    /// Entry names reach a reader from the frontend, so a crafted name such as
+    /// `../../secret.png` would otherwise be joined onto the container directory and read
+    /// a file outside it. Only names the directory scan itself produced are accepted.
+    fn resolve(&self, entry: &str) -> Result<PathBuf> {
+        if !self.allowed.contains(entry) {
+            return Err(Error::Path(format!(
+                "entry is not a member of the container: {entry}"
+            )));
+        }
+        Ok(self.path.join(entry))
+    }
+}
+
+impl PageReader for DirectoryReader {
+    fn read_page(&mut self, entry: &str) -> Result<Vec<u8>> {
+        let file_path = self.resolve(entry)?;
+        let file = File::open(&file_path)?;
+        // The file's own length is trustworthy here — unlike an archive's declared size,
+        // it is what the filesystem reports — so one allocation covers the whole read.
+        let capacity = file.metadata().map(|m| m.len() as usize).unwrap_or(0);
+        let mut buffer = Vec::with_capacity(capacity);
+        (&file).read_to_end(&mut buffer)?;
+        Ok(buffer)
+    }
+
+    fn page_dimensions(&mut self, entry: &str) -> Result<ImageDimensions> {
+        let file_path = self.resolve(entry)?;
+        let (width, height) = ImageReader::open(file_path)?
+            .with_guessed_format()?
+            .into_dimensions()?;
+        Ok(ImageDimensions { width, height })
+    }
 }
 
 impl DirectoryContainer {
@@ -71,7 +128,7 @@ impl DirectoryContainer {
     ///
     /// Returns `Error::Path` if `entry` is not a member of `self.entries`.
     fn ensure_member(&self, entry: &str) -> Result<()> {
-        if self.entries.iter().any(|e| e == entry) {
+        if self.allowed.contains(entry) {
             Ok(())
         } else {
             Err(Error::Path(format!(
@@ -119,10 +176,12 @@ impl DirectoryContainer {
         }
 
         entries.sort_by(|a, b| natord::compare_ignore_case(a, b));
+        let allowed = Arc::new(entries.iter().cloned().collect::<HashSet<String>>());
 
         Ok(Self {
             path: path.to_string(),
             entries,
+            allowed,
         })
     }
 }
@@ -183,6 +242,43 @@ mod tests {
         ];
         file.write_all(&png_data).expect("failed to write png data");
         filepath
+    }
+
+    #[test]
+    fn directory_reader_reads_file_bytes_and_measures_them() {
+        let dir = tempdir().expect("failed to create tempdir");
+        create_dummy_image(dir.path(), "image1.png");
+        let container = DirectoryContainer::new(dir.path().to_string_lossy().as_ref())
+            .expect("failed to create DirectoryContainer");
+
+        let mut reader = container.open_reader().expect("failed to open a reader");
+        let bytes = reader.read_page("image1.png").expect("read_page failed");
+
+        assert_eq!(
+            reader.page_dimensions("image1.png").unwrap(),
+            crate::image::types::read_dimensions(&bytes).unwrap()
+        );
+        assert_eq!(reader.read_preview("image1.png").unwrap(), None);
+    }
+
+    #[test]
+    fn directory_reader_rejects_entries_outside_the_container() {
+        let dir = tempdir().expect("failed to create tempdir");
+        let outside = dir.path().join("secret.png");
+        let inner = dir.path().join("book");
+        fs::create_dir(&inner).expect("failed to create the book folder");
+        create_dummy_image(&inner, "image1.png");
+        create_dummy_image(dir.path(), "secret.png");
+        assert!(outside.exists(), "the traversal target must exist");
+
+        let container = DirectoryContainer::new(inner.to_string_lossy().as_ref())
+            .expect("failed to create DirectoryContainer");
+        let mut reader = container.open_reader().expect("failed to open a reader");
+
+        // Entry names reach a reader from the frontend, so a name that escapes the
+        // container must be refused rather than joined onto its path.
+        assert!(reader.read_page("../secret.png").is_err());
+        assert!(reader.page_dimensions("../secret.png").is_err());
     }
 
     #[test]

@@ -3,7 +3,7 @@ use pdfium_render::prelude::{PdfDocument, PdfPageRenderRotation, PdfRenderConfig
 use std::sync::Arc;
 
 use crate::{
-    container::traits::Container,
+    container::traits::{Container, PageReader},
     error::{Error, Result},
     image::{
         resizer::{shrink_to_fit, ResizeFilter},
@@ -73,6 +73,56 @@ impl Container for PdfContainer {
     fn controls_own_resolution(&self) -> bool {
         true
     }
+
+    fn max_readers(&self) -> usize {
+        1
+    }
+
+    fn open_reader(&self) -> Result<Box<dyn PageReader>> {
+        Ok(Box::new(PdfReader {
+            pdfium: get_pdfium(&self.library_path)?,
+            path: self.path.clone(),
+            render_config: self.render_config.clone(),
+            thumbnail_render_config: self.thumbnail_render_config.clone(),
+        }))
+    }
+}
+
+/// A reader over one PDF document.
+///
+/// It keeps its `Pdfium` for as long as it lives but reloads the document per page,
+/// because a `PdfDocument` borrows from the `Pdfium` that produced it and the two cannot
+/// be held in one struct. The load is 0.9 ms against a ~120 ms render, and both the
+/// binding and the reload go away once a single process-wide worker owns the library.
+///
+/// Only one of these may exist at a time — `Drop for Pdfium` calls `FPDF_DestroyLibrary`,
+/// which pulls the library out from under any other live instance. That is why
+/// [`Container::max_readers`] is 1 here, and why nothing opens a reader while
+/// [`Container::get_image`] is still binding its own.
+struct PdfReader {
+    pdfium: Pdfium,
+    path: String,
+    render_config: Arc<PdfRenderConfig>,
+    thumbnail_render_config: Arc<PdfRenderConfig>,
+}
+
+impl PageReader for PdfReader {
+    fn read_page(&mut self, entry: &str) -> Result<Vec<u8>> {
+        let pdf = self.pdfium.load_pdf_from_file(&self.path, None)?;
+        Ok(render_page(&pdf, &self.render_config, entry)?.data)
+    }
+
+    fn page_dimensions(&mut self, entry: &str) -> Result<ImageDimensions> {
+        let pdf = self.pdfium.load_pdf_from_file(&self.path, None)?;
+        page_dimensions(&pdf, entry)
+    }
+
+    fn read_preview(&mut self, entry: &str) -> Result<Option<Vec<u8>>> {
+        let pdf = self.pdfium.load_pdf_from_file(&self.path, None)?;
+        Ok(Some(
+            render_thumbnail(&pdf, &self.thumbnail_render_config, entry)?.data,
+        ))
+    }
 }
 
 impl PdfContainer {
@@ -127,12 +177,8 @@ impl PdfContainer {
     }
 }
 
-/// Helper function to render a PDF page to an image using a specific config.
-fn load_image(
-    pdf: &PdfDocument,
-    render_config: &PdfRenderConfig,
-    entry: &str,
-) -> Result<Arc<Image>> {
+/// Renders a PDF page to a JPEG using a specific config.
+fn render_page(pdf: &PdfDocument, render_config: &PdfRenderConfig, entry: &str) -> Result<Image> {
     let index: u16 = entry.parse()?;
 
     let page = pdf.pages().get(index).map_err(Error::from)?;
@@ -142,13 +188,20 @@ fn load_image(
     let mut encoder = JpegEncoder::new_with_quality(&mut buffer, 80);
     encoder.encode_image(&img)?;
 
-    let image = Image {
+    Ok(Image {
         data: buffer,
         width: img.width(),
         height: img.height(),
-    };
+    })
+}
 
-    Ok(Arc::new(image))
+/// Helper function to render a PDF page to an image using a specific config.
+fn load_image(
+    pdf: &PdfDocument,
+    render_config: &PdfRenderConfig,
+    entry: &str,
+) -> Result<Arc<Image>> {
+    Ok(Arc::new(render_page(pdf, render_config, entry)?))
 }
 
 /// Helper function to read a PDF page's size, in points rounded to whole pixels.
@@ -172,6 +225,19 @@ fn create_thumbnail(
     render_config: &PdfRenderConfig,
     entry: &str,
 ) -> Result<Arc<Image>> {
+    Ok(Arc::new(render_thumbnail(pdf, render_config, entry)?))
+}
+
+/// Renders a PDF page to a thumbnail-sized JPEG.
+///
+/// PDF is the one format where this is *cheaper* than reading the page: pdfium renders
+/// straight to the smaller size, or hands back a thumbnail the document already carries,
+/// instead of decoding a full page and shrinking it.
+fn render_thumbnail(
+    pdf: &PdfDocument,
+    render_config: &PdfRenderConfig,
+    entry: &str,
+) -> Result<Image> {
     let index: u16 = entry.parse()?;
 
     let page = pdf.pages().get(index).map_err(Error::from)?;
@@ -189,13 +255,11 @@ fn create_thumbnail(
     let mut encoder = JpegEncoder::new_with_quality(&mut buffer, 10);
     encoder.encode_image(&img)?;
 
-    let image = Image {
+    Ok(Image {
         data: buffer,
         width: img.width(),
         height: img.height(),
-    };
-
-    Ok(Arc::new(image))
+    })
 }
 
 /// Initializes the `Pdfium` instance, binding to the library at the given path.
@@ -331,6 +395,48 @@ mod tests {
 
         let result = container.get_image("0001"); // Page 1 does not exist
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn pdf_reader_reads_renders_and_previews() {
+        let dir = tempdir().unwrap();
+        let pdf_path = create_dummy_pdf(dir.path(), "test.pdf");
+        let container = PdfContainer::new(
+            pdf_path.to_string_lossy().as_ref(),
+            PdfRenderConfig::default(),
+            Some(get_pdfium_lib_path()),
+        )
+        .unwrap();
+
+        let mut reader = container.open_reader().expect("failed to open a reader");
+
+        // The page comes back as encoded bytes, like every other format's.
+        let page = reader.read_page("0000").expect("read_page failed");
+        assert!(crate::image::types::read_dimensions(&page).is_ok());
+
+        // Measured from the MediaBox, so it costs no render at all.
+        assert_eq!(
+            reader.page_dimensions("0000").unwrap(),
+            ImageDimensions {
+                width: 612,
+                height: 792
+            }
+        );
+
+        // PDF is the one format that overrides read_preview, because pdfium renders
+        // straight to the smaller size instead of shrinking a full page.
+        let preview = reader
+            .read_preview("0000")
+            .expect("read_preview failed")
+            .expect("PDF must offer a preview");
+        let measured = crate::image::types::read_dimensions(&preview).unwrap();
+        assert!(measured.width <= crate::image::thumbnail::THUMBNAIL_SIZE);
+        assert!(measured.height <= crate::image::thumbnail::THUMBNAIL_SIZE);
+        assert!(preview.len() < page.len());
+
+        assert!(reader.read_page("9999").is_err());
+        // Only one `Pdfium` may be alive in the process at a time.
+        assert_eq!(container.max_readers(), 1);
     }
 
     #[test]

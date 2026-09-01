@@ -11,7 +11,10 @@ use unrar::{Archive, CursorBeforeHeader, OpenArchive, Process};
 use std::{collections::HashMap, sync::Arc};
 
 use crate::{
-    container::{archive_path, traits::Container},
+    container::{
+        archive_path,
+        traits::{Container, PageReader},
+    },
     error::{Error, Result},
     image::{
         thumbnail::generate_thumbnail,
@@ -30,8 +33,8 @@ pub struct RarContainer {
     /// A naturally sorted list of the image leaf names in the opened folder.
     entries: Vec<String>,
     /// Maps each leaf name back to its full path inside the archive, which is what the
-    /// archive headers carry.
-    entry_to_path: HashMap<String, String>,
+    /// archive headers carry. Shared with every reader rather than copied into each one.
+    entry_to_path: Arc<HashMap<String, String>>,
 }
 
 impl Container for RarContainer {
@@ -58,6 +61,50 @@ impl Container for RarContainer {
 
     fn is_directory(&self) -> bool {
         false
+    }
+
+    fn max_readers(&self) -> usize {
+        1
+    }
+
+    fn open_reader(&self) -> Result<Box<dyn PageReader>> {
+        Ok(Box::new(RarReader {
+            path: self.path.clone(),
+            entry_to_path: self.entry_to_path.clone(),
+        }))
+    }
+}
+
+/// A reader over one RAR archive.
+///
+/// It reopens the archive for every page, which is what the container has always done —
+/// `unrar`'s `OpenArchive` is not `Send`, so there was nowhere to keep one. Owning the
+/// reader for the life of a book is what makes a persistent cursor possible; that lands
+/// separately, and until it does the cost is unchanged.
+struct RarReader {
+    path: String,
+    entry_to_path: Arc<HashMap<String, String>>,
+}
+
+impl PageReader for RarReader {
+    fn read_page(&mut self, entry: &str) -> Result<Vec<u8>> {
+        let target = self
+            .entry_to_path
+            .get(entry)
+            .ok_or_else(|| Error::EntryNotFound(format!("Entry not found in RAR: {entry}")))?;
+
+        let mut archive = open(&self.path)?;
+        while let Some(header) = archive.read_header()? {
+            let filename = header.entry().filename.to_string_lossy().to_string();
+            if filename == *target {
+                let (data, rest) = header.read()?;
+                drop(rest); // close the archive
+                return Ok(data);
+            }
+            archive = header.skip()?;
+        }
+
+        Err(Error::EntryNotFound(format!("Entry not found: {target}")))
     }
 }
 
@@ -97,7 +144,7 @@ impl RarContainer {
         Ok(Self {
             path: path.to_string(),
             entries,
-            entry_to_path,
+            entry_to_path: Arc::new(entry_to_path),
         })
     }
 
@@ -375,6 +422,24 @@ mod tests {
         assert!(image.height > 0);
         assert!(!image.data.is_empty());
         assert_eq!(image.data, DUMMY_PNG_DATA);
+    }
+
+    #[test]
+    fn rar_reader_reads_stored_bytes_and_measures_them() {
+        let dir = tempdir().expect("failed to create tempdir");
+        let rar_path = create_dummy_rar(dir.path(), "dummy.rar");
+        let container = RarContainer::new(rar_path.to_string_lossy().as_ref(), "")
+            .expect("failed to create RarContainer");
+
+        let mut reader = container.open_reader().expect("failed to open a reader");
+
+        assert_eq!(reader.read_page("image1.png").unwrap(), DUMMY_PNG_DATA);
+        assert_eq!(
+            reader.page_dimensions("image2.png").unwrap(),
+            read_dimensions(DUMMY_PNG_DATA).unwrap()
+        );
+        assert!(reader.read_page("absent.png").is_err());
+        assert_eq!(reader.read_preview("image1.png").unwrap(), None);
     }
 
     #[test]
