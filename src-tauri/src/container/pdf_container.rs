@@ -1,15 +1,13 @@
-use image::codecs::jpeg::JpegEncoder;
-use pdfium_render::prelude::{PdfDocument, PdfPageRenderRotation, PdfRenderConfig, Pdfium};
+use pdfium_render::prelude::{PdfPageRenderRotation, PdfRenderConfig};
 use std::sync::Arc;
 
 use crate::{
-    container::traits::{Container, PageReader},
-    error::{Error, Result},
-    image::{
-        resizer::{shrink_to_fit, ResizeFilter},
-        thumbnail::THUMBNAIL_SIZE,
-        types::{Image, ImageDimensions},
+    container::{
+        pdf_worker::{self, Worker},
+        traits::{Container, PageReader},
     },
+    error::Result,
+    image::types::{Image, ImageDimensions},
 };
 
 /// An implementation of the `Container` trait for reading content from PDF files.
@@ -17,9 +15,9 @@ use crate::{
 /// This container treats each page of a PDF document as an entry, which can be
 /// rendered into an image.
 ///
-/// NOTE: The underlying `pdfium-render` library's `PdfDocument` type does not implement `Send`,
-/// which prevents us from sharing a single opened document instance across threads using a Mutex.
-/// As a result, this implementation currently opens the PDF for each image request.
+/// It holds no pdfium state of its own. `Drop for Pdfium` unloads the library, so exactly
+/// one instance may exist in the process; [`crate::container::pdf_worker`] owns it, and
+/// everything here is a message to that thread.
 pub struct PdfContainer {
     /// The file path of the PDF container.
     path: String,
@@ -27,10 +25,10 @@ pub struct PdfContainer {
     entries: Vec<String>,
     /// The configuration used for rendering full-sized page images.
     render_config: Arc<PdfRenderConfig>,
-    /// The path to the directory containing the `pdfium` dynamic library.
-    library_path: Option<String>,
     /// The configuration used for rendering smaller thumbnail images.
     thumbnail_render_config: Arc<PdfRenderConfig>,
+    /// The one worker that owns the library.
+    worker: &'static Worker,
 }
 
 impl Container for PdfContainer {
@@ -39,26 +37,25 @@ impl Container for PdfContainer {
     }
 
     fn get_image(&self, entry: &str) -> Result<Arc<Image>> {
-        let pdfium = get_pdfium(&self.library_path)?;
-        let pdf = pdfium.load_pdf_from_file(&self.path, None)?;
-
-        let image_arc = load_image(&pdf, &self.render_config, entry)?;
-        Ok(image_arc)
+        let image =
+            self.worker
+                .render_page(&self.path, parse_index(entry)?, self.render_config.clone())?;
+        Ok(Arc::new(image))
     }
 
     fn get_thumbnail(&self, entry: &str) -> Result<Arc<Image>> {
-        let pdfium = get_pdfium(&self.library_path)?;
-        let pdf = pdfium.load_pdf_from_file(&self.path, None)?;
-        create_thumbnail(&pdf, &self.thumbnail_render_config, entry)
+        let image = self.worker.render_thumbnail(
+            &self.path,
+            parse_index(entry)?,
+            self.thumbnail_render_config.clone(),
+        )?;
+        Ok(Arc::new(image))
     }
 
     fn get_image_dimensions(&self) -> Result<Vec<ImageDimensions>> {
-        let pdfium = get_pdfium(&self.library_path)?;
-        let pdf = pdfium.load_pdf_from_file(&self.path, None)?;
-
         self.entries
             .iter()
-            .map(|entry| page_dimensions(&pdf, entry))
+            .map(|entry| self.worker.page_dimensions(&self.path, parse_index(entry)?))
             .collect()
     }
 
@@ -80,62 +77,78 @@ impl Container for PdfContainer {
 
     fn open_reader(&self) -> Result<Box<dyn PageReader>> {
         Ok(Box::new(PdfReader {
-            pdfium: get_pdfium(&self.library_path)?,
             path: self.path.clone(),
             render_config: self.render_config.clone(),
             thumbnail_render_config: self.thumbnail_render_config.clone(),
+            worker: self.worker,
         }))
     }
 }
 
 /// A reader over one PDF document.
 ///
-/// It keeps its `Pdfium` for as long as it lives but reloads the document per page,
-/// because a `PdfDocument` borrows from the `Pdfium` that produced it and the two cannot
-/// be held in one struct. The load is 0.9 ms against a ~120 ms render, and both the
-/// binding and the reload go away once a single process-wide worker owns the library.
-///
-/// Only one of these may exist at a time — `Drop for Pdfium` calls `FPDF_DestroyLibrary`,
-/// which pulls the library out from under any other live instance. That is why
-/// [`Container::max_readers`] is 1 here, and why nothing opens a reader while
-/// [`Container::get_image`] is still binding its own.
+/// Like the container, it holds no pdfium state — only the address of the worker and the
+/// configs to render with. A second reader would therefore be harmless, but
+/// [`Container::max_readers`] still caps this format at one: every request funnels through
+/// the single worker thread, so extra readers would only queue behind each other.
 struct PdfReader {
-    pdfium: Pdfium,
     path: String,
     render_config: Arc<PdfRenderConfig>,
     thumbnail_render_config: Arc<PdfRenderConfig>,
+    worker: &'static Worker,
 }
 
 impl PageReader for PdfReader {
     fn read_page(&mut self, entry: &str) -> Result<Vec<u8>> {
-        let pdf = self.pdfium.load_pdf_from_file(&self.path, None)?;
-        Ok(render_page(&pdf, &self.render_config, entry)?.data)
+        Ok(self
+            .worker
+            .render_page(&self.path, parse_index(entry)?, self.render_config.clone())?
+            .data)
     }
 
     fn page_dimensions(&mut self, entry: &str) -> Result<ImageDimensions> {
-        let pdf = self.pdfium.load_pdf_from_file(&self.path, None)?;
-        page_dimensions(&pdf, entry)
+        self.worker.page_dimensions(&self.path, parse_index(entry)?)
     }
 
     fn read_preview(&mut self, entry: &str) -> Result<Option<Vec<u8>>> {
-        let pdf = self.pdfium.load_pdf_from_file(&self.path, None)?;
         Ok(Some(
-            render_thumbnail(&pdf, &self.thumbnail_render_config, entry)?.data,
+            self.worker
+                .render_thumbnail(
+                    &self.path,
+                    parse_index(entry)?,
+                    self.thumbnail_render_config.clone(),
+                )?
+                .data,
         ))
+    }
+}
+
+impl Drop for PdfReader {
+    /// Lets the worker close the document as soon as the book is closed.
+    ///
+    /// Every other format holds its handles only while the book is open, and PDF must not
+    /// be the exception. The worker's cache is bound at two documents, so without this a
+    /// closed book's parsed structures and file handle stay resident until two *other*
+    /// PDFs displace them.
+    fn drop(&mut self) {
+        self.worker.release(&self.path);
     }
 }
 
 impl PdfContainer {
     /// Creates a new `PdfContainer` from the PDF file at the specified path.
     ///
-    /// This constructor initializes the `pdfium` library to open the PDF and
-    /// determine the number of pages, which become the entries for this container.
+    /// The page count comes from the worker rather than from a `Pdfium` built here. That
+    /// is not tidiness: a local instance would be dropped at the end of this function, and
+    /// that drop calls `FPDF_DestroyLibrary()` out from under the worker's live one —
+    /// opening a PDF would hang the process.
     ///
     /// # Arguments
     ///
     /// * `path` - The path to the PDF file.
     /// * `render_config` - The base configuration for rendering pages.
     /// * `library_path` - An optional path to the directory containing the `pdfium` library.
+    ///   Only the first PDF opened in a process decides this; see [`pdf_worker::worker`].
     ///
     /// # Returns
     ///
@@ -149,21 +162,15 @@ impl PdfContainer {
         render_config: PdfRenderConfig,
         library_path: Option<String>,
     ) -> Result<Self> {
-        let mut entries: Vec<String> = Vec::new();
-        {
-            let pdfium = get_pdfium(&library_path)?;
-            let pdf = pdfium.load_pdf_from_file(path, None)?;
-
-            for index in 0..pdf.pages().len() {
-                entries.push(format!("{:0>4}", index));
-            }
-        }
+        let worker = pdf_worker::worker(&library_path);
+        let entries = (0..worker.page_count(path)?)
+            .map(|index| format!("{index:0>4}"))
+            .collect();
 
         Ok(Self {
             path: path.to_string(),
             entries,
             render_config: Arc::new(render_config),
-            library_path,
             thumbnail_render_config: Arc::new(
                 PdfRenderConfig::default()
                     .set_target_height(crate::image::thumbnail::THUMBNAIL_SIZE as i32)
@@ -173,104 +180,14 @@ impl PdfContainer {
                     .render_annotations(false)
                     .render_form_data(false),
             ),
+            worker,
         })
     }
 }
 
-/// Renders a PDF page to a JPEG using a specific config.
-fn render_page(pdf: &PdfDocument, render_config: &PdfRenderConfig, entry: &str) -> Result<Image> {
-    let index: u16 = entry.parse()?;
-
-    let page = pdf.pages().get(index).map_err(Error::from)?;
-    let img = page.render_with_config(render_config)?.as_image();
-
-    let mut buffer = Vec::new();
-    let mut encoder = JpegEncoder::new_with_quality(&mut buffer, 80);
-    encoder.encode_image(&img)?;
-
-    Ok(Image {
-        data: buffer,
-        width: img.width(),
-        height: img.height(),
-    })
-}
-
-/// Helper function to render a PDF page to an image using a specific config.
-fn load_image(
-    pdf: &PdfDocument,
-    render_config: &PdfRenderConfig,
-    entry: &str,
-) -> Result<Arc<Image>> {
-    Ok(Arc::new(render_page(pdf, render_config, entry)?))
-}
-
-/// Helper function to read a PDF page's size, in points rounded to whole pixels.
-///
-/// The page is not rendered: rendering scales the page to the configured target height
-/// while preserving its aspect ratio, so the points already carry the orientation and
-/// ratio the caller needs.
-fn page_dimensions(pdf: &PdfDocument, entry: &str) -> Result<ImageDimensions> {
-    let index: u16 = entry.parse()?;
-    let page = pdf.pages().get(index).map_err(Error::from)?;
-
-    Ok(ImageDimensions {
-        width: page.width().value.round().max(1.0) as u32,
-        height: page.height().value.round().max(1.0) as u32,
-    })
-}
-
-/// Helper function to render a PDF page to a thumbnail image.
-fn create_thumbnail(
-    pdf: &PdfDocument,
-    render_config: &PdfRenderConfig,
-    entry: &str,
-) -> Result<Arc<Image>> {
-    Ok(Arc::new(render_thumbnail(pdf, render_config, entry)?))
-}
-
-/// Renders a PDF page to a thumbnail-sized JPEG.
-///
-/// PDF is the one format where this is *cheaper* than reading the page: pdfium renders
-/// straight to the smaller size, or hands back a thumbnail the document already carries,
-/// instead of decoding a full page and shrinking it.
-fn render_thumbnail(
-    pdf: &PdfDocument,
-    render_config: &PdfRenderConfig,
-    entry: &str,
-) -> Result<Image> {
-    let index: u16 = entry.parse()?;
-
-    let page = pdf.pages().get(index).map_err(Error::from)?;
-    let img = match page.embedded_thumbnail() {
-        Ok(thumbnail) => thumbnail.as_image(),
-        Err(_) => page.render_with_config(render_config)?.as_image(),
-    };
-    // Cap both dimensions to the thumbnail contract: embedded thumbnails have no
-    // spec-mandated size, and the render config constrains height only (a landscape
-    // page still exceeds the width cap). Other containers already uphold this.
-    let img = shrink_to_fit(&img, THUMBNAIL_SIZE, THUMBNAIL_SIZE, ResizeFilter::Bilinear)?;
-
-    let mut buffer = Vec::new();
-    // Use a lower quality for thumbnails to make them smaller and faster to encode.
-    let mut encoder = JpegEncoder::new_with_quality(&mut buffer, 10);
-    encoder.encode_image(&img)?;
-
-    Ok(Image {
-        data: buffer,
-        width: img.width(),
-        height: img.height(),
-    })
-}
-
-/// Initializes the `Pdfium` instance, binding to the library at the given path.
-fn get_pdfium(library_path: &Option<String>) -> Result<Pdfium> {
-    if let Some(lib_path) = library_path {
-        let lib_name = Pdfium::pdfium_platform_library_name_at_path(lib_path);
-        let bindings = Pdfium::bind_to_library(lib_name)?;
-        Ok(Pdfium::new(bindings))
-    } else {
-        Ok(Pdfium::default())
-    }
+/// Parses an entry name back into the page index it encodes.
+fn parse_index(entry: &str) -> Result<u16> {
+    Ok(entry.parse()?)
 }
 
 #[cfg(test)]
@@ -304,6 +221,56 @@ mod tests {
     const LANDSCAPE_PAGE_PDF_DATA: &[u8] = b"%PDF-1.4\n1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n2 0 obj << /Type /Pages /Count 1 /Kids [ 3 0 R ] >> endobj\n3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 792 612] >> endobj\nxref\n0 4\n0000000000 65535 f\n0000000009 00000 n\n0000000057 00000 n\n0000000107 00000 n\ntrailer << /Size 4 /Root 1 0 R >> startxref\n157\n%%EOF\n";
 
     // Create a dummy PDF file for testing.
+    // A 2-page PDF whose pages differ in size, so an index mix-up is visible.
+    const TWO_PAGE_PDF_DATA: &[u8] = b"%PDF-1.4
+1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj
+2 0 obj << /Type /Pages /Count 2 /Kids [ 3 0 R 4 0 R ] >> endobj
+3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] >> endobj
+4 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 300 400] >> endobj
+trailer << /Size 5 /Root 1 0 R >>
+%%EOF
+";
+
+    /// Writes `data` into `dir` and opens it as a container.
+    fn container_for(dir: &path::Path, filename: &str, data: &[u8]) -> (path::PathBuf, PdfContainer) {
+        let filepath = dir.join(filename);
+        File::create(&filepath).unwrap().write_all(data).unwrap();
+        let container = PdfContainer::new(
+            filepath.to_string_lossy().as_ref(),
+            PdfRenderConfig::default(),
+            Some(get_pdfium_lib_path()),
+        )
+        .expect("failed to open the PDF");
+        (filepath, container)
+    }
+
+    /// Runs `body` on its own thread and fails if it has not finished within `secs`.
+    ///
+    /// The failure being guarded against is a *hang*, and a hanging test would block CI
+    /// rather than report anything, so the deadline has to be the assertion.
+    fn within_seconds(secs: u64, body: impl FnOnce() + Send + 'static) {
+        let (done_tx, done_rx) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            body();
+            let _ = done_tx.send(());
+        });
+        done_rx
+            .recv_timeout(std::time::Duration::from_secs(secs))
+            .expect("timed out: a second live Pdfium would hang here");
+    }
+
+    /// Serialises the tests in this module.
+    ///
+    /// They share one process-global worker whose document cache holds two entries, so
+    /// tests running side by side evict each other's documents — which is invisible to
+    /// most of them and fatal to the one that observes that cache.
+    static PDF_TESTS: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    fn pdf_test_guard() -> std::sync::MutexGuard<'static, ()> {
+        // A panicking test must not take the rest of the module down with it.
+        PDF_TESTS.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
+
     fn create_dummy_pdf(dir: &path::Path, filename: &str) -> path::PathBuf {
         let filepath = dir.join(filename);
         let mut file = File::create(&filepath).unwrap();
@@ -313,6 +280,7 @@ mod tests {
 
     #[test]
     fn test_new_valid_pdf() {
+        let _guard = pdf_test_guard();
         let dir = tempdir().unwrap();
         let pdf_path = create_dummy_pdf(dir.path(), "test.pdf");
 
@@ -330,6 +298,7 @@ mod tests {
 
     #[test]
     fn test_new_non_existent_pdf() {
+        let _guard = pdf_test_guard();
         let non_existent_path = String::from("/non/existent/file.pdf");
         let render_config = PdfRenderConfig::default();
         let container = PdfContainer::new(
@@ -343,6 +312,7 @@ mod tests {
 
     #[test]
     fn test_get_entries() {
+        let _guard = pdf_test_guard();
         let dir = tempdir().unwrap();
         let pdf_path = create_dummy_pdf(dir.path(), "test.pdf");
         let render_config = PdfRenderConfig::default();
@@ -360,6 +330,7 @@ mod tests {
 
     #[test]
     fn test_get_image_existing() {
+        let _guard = pdf_test_guard();
         let dir = tempdir().unwrap();
         let pdf_path = create_dummy_pdf(dir.path(), "test.pdf");
 
@@ -381,6 +352,7 @@ mod tests {
 
     #[test]
     fn test_get_image_non_existing() {
+        let _guard = pdf_test_guard();
         let dir = tempdir().unwrap();
         let pdf_path = create_dummy_pdf(dir.path(), "test.pdf");
 
@@ -399,6 +371,7 @@ mod tests {
 
     #[test]
     fn pdf_reader_reads_renders_and_previews() {
+        let _guard = pdf_test_guard();
         let dir = tempdir().unwrap();
         let pdf_path = create_dummy_pdf(dir.path(), "test.pdf");
         let container = PdfContainer::new(
@@ -441,6 +414,7 @@ mod tests {
 
     #[test]
     fn test_get_thumbnail() {
+        let _guard = pdf_test_guard();
         let dir = tempdir().unwrap();
         let pdf_path = create_dummy_pdf(dir.path(), "test.pdf");
         let render_config = PdfRenderConfig::default();
@@ -459,6 +433,7 @@ mod tests {
 
     #[test]
     fn test_get_image_dimensions_uses_the_page_size() {
+        let _guard = pdf_test_guard();
         let dir = tempdir().unwrap();
         let pdf_path = create_dummy_pdf(dir.path(), "test.pdf");
         let container = PdfContainer::new(
@@ -484,6 +459,7 @@ mod tests {
 
     #[test]
     fn test_get_image_dimensions_keeps_landscape_orientation() {
+        let _guard = pdf_test_guard();
         let dir = tempdir().unwrap();
         let filepath = dir.path().join("landscape.pdf");
         File::create(&filepath)
@@ -508,6 +484,7 @@ mod tests {
 
     #[test]
     fn test_get_thumbnail_landscape_capped_both_dimensions() {
+        let _guard = pdf_test_guard();
         let dir = tempdir().unwrap();
         let filepath = dir.path().join("landscape.pdf");
         File::create(&filepath)
@@ -528,5 +505,103 @@ mod tests {
         assert!(thumbnail.width <= crate::image::thumbnail::THUMBNAIL_SIZE);
         assert!(thumbnail.height <= crate::image::thumbnail::THUMBNAIL_SIZE);
         assert!(!thumbnail.data.is_empty());
+    }
+
+    #[test]
+    fn two_pdfs_render_concurrently_without_hanging() {
+        let _guard = pdf_test_guard();
+        let dir = tempdir().unwrap();
+        let (_, first) = container_for(dir.path(), "a.pdf", SINGLE_PAGE_PDF_DATA);
+        let (_, second) = container_for(dir.path(), "b.pdf", LANDSCAPE_PAGE_PDF_DATA);
+
+        // Two books rendering at once used to mean two live `Pdfium`s, and the second
+        // one's drop unloaded the library out from under the first.
+        within_seconds(30, move || {
+            let left = std::thread::spawn(move || {
+                for _ in 0..5 {
+                    first.get_image("0000").expect("first container failed");
+                }
+            });
+            let right = std::thread::spawn(move || {
+                for _ in 0..5 {
+                    second.get_image("0000").expect("second container failed");
+                }
+            });
+            left.join().unwrap();
+            right.join().unwrap();
+        });
+    }
+
+    #[test]
+    fn opening_a_pdf_while_another_is_being_read_does_not_hang() {
+        let _guard = pdf_test_guard();
+        let dir = tempdir().unwrap();
+        let (_, open_book) = container_for(dir.path(), "open.pdf", SINGLE_PAGE_PDF_DATA);
+        let mut reader = open_book.open_reader().unwrap();
+        reader.read_page("0000").unwrap();
+
+        // `PdfContainer::new` used to build a `Pdfium` and drop it at the end of the call,
+        // which unloaded the library while this reader still held a document.
+        let path = dir.path().to_path_buf();
+        within_seconds(30, move || {
+            let (_, other) = container_for(&path, "other.pdf", LANDSCAPE_PAGE_PDF_DATA);
+            other.get_image("0000").expect("the new container failed");
+        });
+
+        // The original reader is still usable: the library was never unloaded.
+        assert!(!reader.read_page("0000").unwrap().is_empty());
+    }
+
+    #[test]
+    fn the_worker_serves_every_page_of_a_multi_page_pdf() {
+        let _guard = pdf_test_guard();
+        let dir = tempdir().unwrap();
+        let (_, container) = container_for(dir.path(), "two.pdf", TWO_PAGE_PDF_DATA);
+        assert_eq!(container.get_entries(), &["0000".to_string(), "0001".to_string()]);
+
+        let mut reader = container.open_reader().unwrap();
+
+        // The two pages differ in size, so this also pins that the entry name is what
+        // selects the page.
+        assert_eq!(
+            reader.page_dimensions("0000").unwrap(),
+            ImageDimensions { width: 612, height: 792 }
+        );
+        assert_eq!(
+            reader.page_dimensions("0001").unwrap(),
+            ImageDimensions { width: 300, height: 400 }
+        );
+
+        for entry in ["0000", "0001"] {
+            assert!(!reader.read_page(entry).unwrap().is_empty());
+            assert!(!reader.read_preview(entry).unwrap().unwrap().is_empty());
+        }
+    }
+
+    #[test]
+    fn dropping_the_reader_closes_the_document() {
+        let _guard = pdf_test_guard();
+        let dir = tempdir().unwrap();
+        let (filepath, container) = container_for(dir.path(), "closing.pdf", SINGLE_PAGE_PDF_DATA);
+        let held = filepath.to_string_lossy().to_string();
+
+        let mut reader = container.open_reader().unwrap();
+        reader.read_page("0000").unwrap();
+
+        let worker = crate::container::pdf_worker::worker(&None);
+        assert!(
+            worker.open_documents().unwrap().contains(&held),
+            "reading a page must leave the document open"
+        );
+
+        drop(reader);
+        drop(container);
+
+        // `release` is a message; `open_documents` is a later one, and the worker serves
+        // them in order, so its answer already reflects the release.
+        assert!(
+            !worker.open_documents().unwrap().contains(&held),
+            "a closed book must not stay open in the worker"
+        );
     }
 }

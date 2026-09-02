@@ -631,9 +631,14 @@ async fn generate_and_save_thumbnail<R: tauri::Runtime>(
 
         let first_image_entry = container.get_entries().first();
         if let Some(entry) = first_image_entry {
-            let image = container.get_thumbnail(entry)?;
-
-            fs::write(&thumbnail_path, &image.data)?;
+            // Ask the reader first. For PDF that renders a thumbnail-sized page through
+            // the one worker that owns the library, instead of binding a second `Pdfium`
+            // beside the one an open book is already using. Every other format has no
+            // cheaper path and falls back to decoding and shrinking its stored page.
+            match container.open_reader()?.read_preview(entry)? {
+                Some(bytes) => fs::write(&thumbnail_path, &bytes)?,
+                None => fs::write(&thumbnail_path, &container.get_thumbnail(entry)?.data)?,
+            }
 
             Ok(Some(thumbnail_path.to_string_lossy().to_string()))
         } else {
