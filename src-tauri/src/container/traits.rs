@@ -1,8 +1,6 @@
-use std::sync::Arc;
-
 use crate::{
     error::Result,
-    image::types::{read_dimensions, Image, ImageDimensions},
+    image::types::{read_dimensions, ImageDimensions},
 };
 
 #[cfg(test)]
@@ -13,10 +11,12 @@ use mockall::{automock, predicate::*};
 /// this list; a `factory.rs` test cross-checks that they stay in sync.
 pub const SUPPORTED_EXTENSIONS: [&str; 6] = ["pdf", "rar", "zip", "epub", "cbz", "cbr"];
 
-/// A trait representing a container for readable content, such as an archive file or a directory.
+/// A book's identity and structure: what its pages are called, and how to open a reader
+/// over them.
 ///
-/// This trait defines a common interface for different types of containers to allow
-/// abstracting over their specific implementations.
+/// Immutable after construction, shared across threads, and it performs no I/O of its
+/// own. Reading is [`PageReader`]'s job, and a reader belongs to one thread — which is
+/// what leaves a format implementation with no concurrency decisions to make.
 #[cfg_attr(test, automock)]
 pub trait Container: Send + Sync + 'static {
     /// Returns a reference to a vector of entry names within the container.
@@ -29,55 +29,6 @@ pub trait Container: Send + Sync + 'static {
     /// as `001.jpg`, and pages in sub-folders belong to their own container.
     fn get_entries(&self) -> &Vec<String>;
 
-    /// Retrieves a full-sized image for a given entry name.
-    ///
-    /// # Arguments
-    ///
-    /// * `entry` - The name of the entry corresponding to the image to be retrieved.
-    ///
-    /// # Returns
-    ///
-    /// A `Result` containing a shared pointer (`Arc`) to the `Image` data on success.
-    ///
-    /// # Errors
-    ///
-    /// Returns an `Err` if the entry cannot be found, read, or decoded into an image.
-    fn get_image(&self, entry: &str) -> Result<Arc<Image>>;
-
-    /// Retrieves a thumbnail-sized image for a given entry name.
-    ///
-    /// The default thumbnail size is defined by `crate::image::thumbnail::THUMBNAIL_SIZE`.
-    ///
-    /// # Arguments
-    ///
-    /// * `entry` - The name of the entry for which to retrieve a thumbnail.
-    ///
-    /// # Returns
-    ///
-    /// A `Result` containing a shared pointer (`Arc`) to the thumbnail `Image` data on success.
-    ///
-    /// # Errors
-    ///
-    /// Returns an `Err` if the entry cannot be found, or if the thumbnail cannot be
-    /// generated or decoded.
-    fn get_thumbnail(&self, entry: &str) -> Result<Arc<Image>>;
-
-    /// Retrieves the pixel dimensions of every entry, in [`Container::get_entries`] order.
-    ///
-    /// Implementations read dimensions from image headers (or, for PDF, from the page
-    /// size) rather than decoding pixels, so the whole container can be measured in one
-    /// pass. The values describe the source pages, which may be larger than the images
-    /// [`Container::get_image`] delivers, but the aspect ratio is the same.
-    ///
-    /// # Returns
-    ///
-    /// A `Result` containing one `ImageDimensions` per entry.
-    ///
-    /// # Errors
-    ///
-    /// Returns an `Err` if an entry cannot be read or is not a supported image.
-    fn get_image_dimensions(&self) -> Result<Vec<ImageDimensions>>;
-
     /// Checks whether the container corresponds to a directory on the filesystem.
     ///
     /// # Returns
@@ -87,12 +38,6 @@ pub trait Container: Send + Sync + 'static {
 
     /// Returns whether this container is a novel (text-based).
     fn is_novel(&self) -> bool {
-        false
-    }
-
-    /// Returns whether this container renders pages at its own controlled resolution,
-    /// making the generic max-image-height resize unnecessary (e.g. PDF).
-    fn controls_own_resolution(&self) -> bool {
         false
     }
 

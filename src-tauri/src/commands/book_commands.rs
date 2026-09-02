@@ -14,6 +14,7 @@ use crate::domain::bookshelf::repository::BookshelfRepository;
 use crate::domain::series::repository::SeriesRepository;
 use crate::domain::tag::repository::TagRepository;
 use crate::error::{Error, Result};
+use crate::page::pipeline::Pipeline;
 use crate::state::app_state::AppState;
 
 /// Event emitted when a book's reading progress changes (a page turn). It carries the
@@ -623,13 +624,18 @@ async fn generate_and_save_thumbnail<R: tauri::Runtime>(
 
         let first_image_entry = container.get_entries().first();
         if let Some(entry) = first_image_entry {
-            // Ask the reader first. For PDF that renders a thumbnail-sized page through
-            // the one worker that owns the library, instead of binding a second `Pdfium`
-            // beside the one an open book is already using. Every other format has no
-            // cheaper path and falls back to decoding and shrinking its stored page.
-            match container.open_reader()?.read_preview(entry)? {
+            // Ask the reader for a preview first. For PDF that renders a
+            // thumbnail-sized page through the one worker that owns the library, instead
+            // of binding a second `Pdfium` beside the one an open book is already using.
+            // Every other format has no cheaper path, so its page is read in full and
+            // shrunk here.
+            let mut reader = container.open_reader()?;
+            match reader.read_preview(entry)? {
                 Some(bytes) => fs::write(&thumbnail_path, &bytes)?,
-                None => fs::write(&thumbnail_path, &container.get_thumbnail(entry)?.data)?,
+                None => {
+                    let page = reader.read_page(entry)?;
+                    fs::write(&thumbnail_path, &Pipeline::thumbnail(&page)?.data)?;
+                }
             }
 
             Ok(Some(thumbnail_path.to_string_lossy().to_string()))

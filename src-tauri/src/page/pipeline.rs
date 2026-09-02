@@ -67,10 +67,14 @@ impl Pipeline {
     /// Shrinks a full page to the thumbnail contract, for a format with no preview of
     /// its own.
     ///
+    /// Associated rather than a method: a thumbnail's size is fixed by what displays it,
+    /// so unlike [`Pipeline::page`] it owes nothing to the book's display settings. It
+    /// lives here because this is the only module that decodes.
+    ///
     /// # Errors
     ///
     /// Returns an `Err` if the bytes are not a supported image, or the resize fails.
-    pub fn thumbnail(&self, bytes: &[u8]) -> Result<Arc<Image>> {
+    pub fn thumbnail(bytes: &[u8]) -> Result<Arc<Image>> {
         generate_thumbnail(bytes)
     }
 
@@ -203,7 +207,7 @@ mod tests {
             .write_to(&mut Cursor::new(&mut buffer), ImageFormat::Png)
             .unwrap();
 
-        let thumbnail = pipeline(0).thumbnail(&buffer).unwrap();
+        let thumbnail = Pipeline::thumbnail(&buffer).unwrap();
         assert!(thumbnail.width <= crate::image::thumbnail::THUMBNAIL_SIZE);
         assert!(thumbnail.height <= crate::image::thumbnail::THUMBNAIL_SIZE);
     }

@@ -3,7 +3,6 @@ use std::{
     fs::File,
     io::{Read, Seek},
     sync::Arc,
-    sync::Mutex,
 };
 
 use zip::{read::ZipArchiveMetadata, ZipArchive};
@@ -14,10 +13,7 @@ use crate::{
         traits::{Container, PageReader},
     },
     error::{Error, Result},
-    image::{
-        thumbnail::generate_thumbnail,
-        types::{read_dimensions, Image, ImageDimensions},
-    },
+    image::types::{read_dimensions, Image, ImageDimensions},
 };
 
 /// Absolute ceiling for a single page's preallocation, and the largest declared
@@ -221,60 +217,11 @@ pub struct ZipContainer {
     /// The parsed central directory, shared with every reader so opening one costs a
     /// `File::open` rather than a re-parse of the whole directory.
     metadata: Arc<ZipArchiveMetadata>,
-    /// The ZIP archive, protected by a Mutex for thread-safe access to the underlying file.
-    archive: Mutex<ZipArchive<File>>,
 }
 
 impl Container for ZipContainer {
     fn get_entries(&self) -> &Vec<String> {
         &self.entries
-    }
-
-    fn get_image(&self, entry: &str) -> Result<Arc<Image>> {
-        let buffer = {
-            let mut archive = self.archive.lock().map_err(|e| {
-                crate::error::Error::Other(format!("Failed to lock zip archive: {}", e))
-            })?;
-            let index = *self.name_to_index.get(entry).ok_or_else(|| {
-                crate::error::Error::Other(format!("Entry not found in ZIP: {}", entry))
-            })?;
-            read_entry_checked(&mut archive, index, entry)?
-        };
-
-        let image = Image::new(buffer)?;
-        Ok(Arc::new(image))
-    }
-
-    fn get_thumbnail(&self, entry: &str) -> Result<Arc<Image>> {
-        let buffer = {
-            let mut archive = self.archive.lock().map_err(|e| {
-                crate::error::Error::Other(format!("Failed to lock zip archive: {}", e))
-            })?;
-            let index = *self.name_to_index.get(entry).ok_or_else(|| {
-                crate::error::Error::Other(format!("Entry not found in ZIP: {}", entry))
-            })?;
-            read_entry_checked(&mut archive, index, entry)?
-        };
-
-        generate_thumbnail(&buffer)
-    }
-
-    fn get_image_dimensions(&self) -> Result<Vec<ImageDimensions>> {
-        // Hold the lock across the whole pass: re-locking per entry only adds contention.
-        let mut archive = self.archive.lock().map_err(|e| {
-            crate::error::Error::Other(format!("Failed to lock zip archive: {}", e))
-        })?;
-
-        self.entries
-            .iter()
-            .map(|entry| {
-                let index = *self.name_to_index.get(entry).ok_or_else(|| {
-                    crate::error::Error::Other(format!("Entry not found in ZIP: {}", entry))
-                })?;
-                let buffer = read_entry_checked(&mut archive, index, entry)?;
-                Ok(read_dimensions(&buffer)?)
-            })
-            .collect()
     }
 
     fn is_directory(&self) -> bool {
@@ -369,6 +316,8 @@ impl ZipContainer {
         }
 
         let (entries, name_to_index) = collect_entries(raw_names.into_iter(), inner_dir);
+        // The archive opened for listing is dropped with this function: its central
+        // directory is all that is kept, and every reader opens its own handle over it.
         let metadata = archive.metadata();
 
         Ok(Self {
@@ -376,7 +325,6 @@ impl ZipContainer {
             entries,
             name_to_index: Arc::new(name_to_index),
             metadata,
-            archive: Mutex::new(archive),
         })
     }
 }
@@ -621,57 +569,6 @@ mod tests {
     }
 
     #[test]
-    fn test_get_image_existing() {
-        let dir = tempdir().unwrap();
-        let zip_path = create_dummy_zip(dir.path(), "test.zip", &[("image1.png", DUMMY_PNG_DATA)]);
-        let container = ZipContainer::new(zip_path.to_string_lossy().to_string().as_str(), "")
-            .expect("failed to create ZipContainer");
-
-        let image = container
-            .get_image("image1.png")
-            .expect("get_image should succeed for existing image");
-        assert_eq!(image.width, 1);
-        assert_eq!(image.height, 1);
-        assert_eq!(image.data, DUMMY_PNG_DATA);
-    }
-
-    #[test]
-    fn test_get_image_dimensions_matches_entries() {
-        let dir = tempdir().unwrap();
-        let zip_path = create_dummy_zip(
-            dir.path(),
-            "test.zip",
-            &[
-                ("image1.png", DUMMY_PNG_DATA),
-                ("image2.png", DUMMY_PNG_DATA),
-            ],
-        );
-        let container =
-            ZipContainer::new(zip_path.to_string_lossy().to_string().as_str(), "").unwrap();
-
-        let dimensions = container
-            .get_image_dimensions()
-            .expect("get_image_dimensions should succeed");
-
-        assert_eq!(dimensions.len(), container.get_entries().len());
-        assert!(dimensions.iter().all(|d| *d
-            == ImageDimensions {
-                width: 1,
-                height: 1
-            }));
-    }
-
-    #[test]
-    fn test_get_image_non_existing() {
-        let dir = tempdir().unwrap();
-        let zip_path = create_dummy_zip(dir.path(), "test.zip", &[("image1.png", DUMMY_PNG_DATA)]);
-        let container =
-            ZipContainer::new(zip_path.to_string_lossy().to_string().as_str(), "").unwrap();
-        let result = container.get_image("non_existent_image.png");
-        assert!(result.is_err());
-    }
-
-    #[test]
     fn test_get_image_capacity_cap_does_not_truncate() {
         // The preallocation is bounded; reading a normal entry must still return its
         // exact bytes (guards against an off-by-one in the capacity computation).
@@ -680,10 +577,12 @@ mod tests {
         let container =
             ZipContainer::new(zip_path.to_string_lossy().to_string().as_str(), "").unwrap();
 
-        let image = container
-            .get_image("image1.png")
-            .expect("get_image should succeed for existing image");
-        assert_eq!(image.data, DUMMY_PNG_DATA);
+        let page = container
+            .open_reader()
+            .unwrap()
+            .read_page("image1.png")
+            .expect("reading an existing entry should succeed");
+        assert_eq!(page, DUMMY_PNG_DATA);
     }
 
     #[test]
@@ -751,19 +650,6 @@ mod tests {
     }
 
     #[test]
-    fn test_get_thumbnail() {
-        let dir = tempdir().unwrap();
-        let zip_path = create_dummy_zip(dir.path(), "test.zip", &[("image1.png", DUMMY_PNG_DATA)]);
-        let container =
-            ZipContainer::new(zip_path.to_string_lossy().to_string().as_str(), "").unwrap();
-
-        let thumbnail = container.get_thumbnail("image1.png").unwrap();
-        assert!(thumbnail.width <= crate::image::thumbnail::THUMBNAIL_SIZE);
-        assert!(thumbnail.height <= crate::image::thumbnail::THUMBNAIL_SIZE);
-        assert!(!thumbnail.data.is_empty());
-    }
-
-    #[test]
     fn test_root_book_excludes_images_in_sub_folders() {
         let dir = tempdir().expect("failed to create tempdir");
         let zip_path = create_dummy_zip(
@@ -804,7 +690,7 @@ mod tests {
             vec!["001.png".to_string(), "002.png".to_string()],
             *container.get_entries()
         );
-        assert!(container.get_image("001.png").is_ok());
+        assert!(container.open_reader().unwrap().read_page("001.png").is_ok());
     }
 
     #[test]

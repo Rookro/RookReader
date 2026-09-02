@@ -7,7 +7,7 @@ use crate::{
         traits::{Container, PageReader},
     },
     error::Result,
-    image::types::{Image, ImageDimensions},
+    image::types::ImageDimensions,
 };
 
 /// An implementation of the `Container` trait for reading content from PDF files.
@@ -36,35 +36,8 @@ impl Container for PdfContainer {
         &self.entries
     }
 
-    fn get_image(&self, entry: &str) -> Result<Arc<Image>> {
-        let image =
-            self.worker
-                .render_page(&self.path, parse_index(entry)?, self.render_config.clone())?;
-        Ok(Arc::new(image))
-    }
-
-    fn get_thumbnail(&self, entry: &str) -> Result<Arc<Image>> {
-        let image = self.worker.render_thumbnail(
-            &self.path,
-            parse_index(entry)?,
-            self.thumbnail_render_config.clone(),
-        )?;
-        Ok(Arc::new(image))
-    }
-
-    fn get_image_dimensions(&self) -> Result<Vec<ImageDimensions>> {
-        self.entries
-            .iter()
-            .map(|entry| self.worker.page_dimensions(&self.path, parse_index(entry)?))
-            .collect()
-    }
-
     fn is_directory(&self) -> bool {
         false
-    }
-
-    fn controls_own_resolution(&self) -> bool {
-        true
     }
 
     fn max_readers(&self) -> usize {
@@ -325,47 +298,6 @@ trailer << /Size 5 /Root 1 0 R >>
     }
 
     #[test]
-    fn test_get_image_existing() {
-        let _guard = pdf_test_guard();
-        let dir = tempdir().unwrap();
-        let pdf_path = create_dummy_pdf(dir.path(), "test.pdf");
-
-        let rendering_height: u32 = 100;
-        let render_config = PdfRenderConfig::default().set_target_height(rendering_height as i32);
-        let container = PdfContainer::new(
-            pdf_path.to_string_lossy().as_ref(),
-            render_config,
-            Some(get_pdfium_lib_path()),
-        )
-        .unwrap();
-
-        let image = container.get_image("0000").unwrap();
-
-        assert!(image.width > 0);
-        assert_eq!(rendering_height, image.height);
-        assert!(!image.data.is_empty());
-    }
-
-    #[test]
-    fn test_get_image_non_existing() {
-        let _guard = pdf_test_guard();
-        let dir = tempdir().unwrap();
-        let pdf_path = create_dummy_pdf(dir.path(), "test.pdf");
-
-        let rendering_height = 100;
-        let render_config = PdfRenderConfig::default().set_target_height(rendering_height);
-        let container = PdfContainer::new(
-            pdf_path.to_string_lossy().as_ref(),
-            render_config,
-            Some(get_pdfium_lib_path()),
-        )
-        .unwrap();
-
-        let result = container.get_image("0001"); // Page 1 does not exist
-        assert!(result.is_err());
-    }
-
-    #[test]
     fn pdf_reader_reads_renders_and_previews() {
         let _guard = pdf_test_guard();
         let dir = tempdir().unwrap();
@@ -409,51 +341,6 @@ trailer << /Size 5 /Root 1 0 R >>
     }
 
     #[test]
-    fn test_get_thumbnail() {
-        let _guard = pdf_test_guard();
-        let dir = tempdir().unwrap();
-        let pdf_path = create_dummy_pdf(dir.path(), "test.pdf");
-        let render_config = PdfRenderConfig::default();
-        let container = PdfContainer::new(
-            pdf_path.to_string_lossy().as_ref(),
-            render_config,
-            Some(get_pdfium_lib_path()),
-        )
-        .unwrap();
-
-        let thumbnail = container.get_thumbnail("0000").unwrap();
-        assert!(thumbnail.width <= crate::image::thumbnail::THUMBNAIL_SIZE);
-        assert!(thumbnail.height <= crate::image::thumbnail::THUMBNAIL_SIZE);
-        assert!(!thumbnail.data.is_empty());
-    }
-
-    #[test]
-    fn test_get_image_dimensions_uses_the_page_size() {
-        let _guard = pdf_test_guard();
-        let dir = tempdir().unwrap();
-        let pdf_path = create_dummy_pdf(dir.path(), "test.pdf");
-        let container = PdfContainer::new(
-            pdf_path.to_string_lossy().as_ref(),
-            PdfRenderConfig::default(),
-            Some(get_pdfium_lib_path()),
-        )
-        .unwrap();
-
-        let dimensions = container
-            .get_image_dimensions()
-            .expect("get_image_dimensions should succeed");
-
-        // SINGLE_PAGE_PDF_DATA declares MediaBox [0 0 612 792].
-        assert_eq!(
-            dimensions,
-            vec![ImageDimensions {
-                width: 612,
-                height: 792
-            }]
-        );
-    }
-
-    #[test]
     fn test_get_image_dimensions_keeps_landscape_orientation() {
         let _guard = pdf_test_guard();
         let dir = tempdir().unwrap();
@@ -470,12 +357,14 @@ trailer << /Size 5 /Root 1 0 R >>
         )
         .unwrap();
 
-        let dimensions = container
-            .get_image_dimensions()
-            .expect("get_image_dimensions should succeed");
+        let measured = container
+            .open_reader()
+            .unwrap()
+            .page_dimensions("0000")
+            .expect("page_dimensions should succeed");
 
         // LANDSCAPE_PAGE_PDF_DATA declares MediaBox [0 0 792 612].
-        assert!(dimensions[0].width > dimensions[0].height);
+        assert!(measured.width > measured.height);
     }
 
     #[test]
@@ -496,11 +385,16 @@ trailer << /Size 5 /Root 1 0 R >>
         .unwrap();
 
         // A landscape page rendered at target_height=THUMBNAIL_SIZE would be wider than
-        // THUMBNAIL_SIZE; create_thumbnail must cap the width too (C4/C6).
-        let thumbnail = container.get_thumbnail("0000").unwrap();
-        assert!(thumbnail.width <= crate::image::thumbnail::THUMBNAIL_SIZE);
-        assert!(thumbnail.height <= crate::image::thumbnail::THUMBNAIL_SIZE);
-        assert!(!thumbnail.data.is_empty());
+        // THUMBNAIL_SIZE; the preview must cap the width too (C4/C6).
+        let preview = container
+            .open_reader()
+            .unwrap()
+            .read_preview("0000")
+            .unwrap()
+            .expect("PDF offers a preview");
+        let measured = crate::image::types::read_dimensions(&preview).unwrap();
+        assert!(measured.width <= crate::image::thumbnail::THUMBNAIL_SIZE);
+        assert!(measured.height <= crate::image::thumbnail::THUMBNAIL_SIZE);
     }
 
     #[test]
@@ -514,13 +408,15 @@ trailer << /Size 5 /Root 1 0 R >>
         // one's drop unloaded the library out from under the first.
         within_seconds(30, move || {
             let left = std::thread::spawn(move || {
+                let mut reader = first.open_reader().unwrap();
                 for _ in 0..5 {
-                    first.get_image("0000").expect("first container failed");
+                    reader.read_page("0000").expect("first container failed");
                 }
             });
             let right = std::thread::spawn(move || {
+                let mut reader = second.open_reader().unwrap();
                 for _ in 0..5 {
-                    second.get_image("0000").expect("second container failed");
+                    reader.read_page("0000").expect("second container failed");
                 }
             });
             left.join().unwrap();
@@ -541,7 +437,11 @@ trailer << /Size 5 /Root 1 0 R >>
         let path = dir.path().to_path_buf();
         within_seconds(30, move || {
             let (_, other) = container_for(&path, "other.pdf", LANDSCAPE_PAGE_PDF_DATA);
-            other.get_image("0000").expect("the new container failed");
+            other
+                .open_reader()
+                .unwrap()
+                .read_page("0000")
+                .expect("the new container failed");
         });
 
         // The original reader is still usable: the library was never unloaded.

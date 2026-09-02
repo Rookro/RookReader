@@ -10,7 +10,7 @@ use std::{
     fs::{self, File},
     io::{Read, Write},
     path::{Path, PathBuf},
-    sync::Arc,
+    sync::{Arc, Mutex},
     time::{Duration, Instant},
 };
 
@@ -24,7 +24,10 @@ use crate::{
         pdf_container::PdfContainer, rar_container::RarContainer, traits::Container,
         zip_container::ZipContainer,
     },
-    image::{resizer::ResizeFilter, types::read_dimensions},
+    image::{
+        resizer::ResizeFilter,
+        types::{read_dimensions, Image},
+    },
     page::{
         cache::Cache,
         pipeline::Pipeline,
@@ -221,10 +224,52 @@ fn build_pdf(dir: &Path, pages: &[Vec<u8>]) -> PathBuf {
     path
 }
 
+// -------------------------------------------------------- reading, as the app does
+
+/// The pipeline the shipped defaults produce: no height cap, so a page reaches the
+/// viewer as its archive stored it.
+const PIPELINE: Pipeline = Pipeline {
+    max_image_height: 0,
+    resize_method: ResizeFilter::Bilinear,
+};
+
+/// One page, read and prepared exactly as a `PageService` worker prepares it.
+fn page(container: &Arc<dyn Container>, entry: &str) -> Arc<Image> {
+    let bytes = container
+        .open_reader()
+        .expect("open reader")
+        .read_page(entry)
+        .expect("read page");
+    PIPELINE.page(bytes).expect("decode page")
+}
+
+/// Every page's dimensions through one reader — the shape `PageService::dimensions` uses.
+fn scan(container: &Arc<dyn Container>, entries: &[String]) -> Vec<crate::image::types::ImageDimensions> {
+    let mut reader = container.open_reader().expect("open reader");
+    entries
+        .iter()
+        .map(|entry| reader.page_dimensions(entry).expect("measure page"))
+        .collect()
+}
+
+/// A page's thumbnail, the way a bookshelf entry gets one: the format's own preview when
+/// it has a cheaper path to one, and a full read shrunk here when it does not.
+fn thumbnail(container: &Arc<dyn Container>, entry: &str) -> Vec<u8> {
+    let mut reader = container.open_reader().expect("open reader");
+    match reader.read_preview(entry).expect("preview") {
+        Some(bytes) => bytes,
+        None => Pipeline::thumbnail(&reader.read_page(entry).expect("read page"))
+            .expect("shrink page")
+            .data
+            .clone(),
+    }
+}
+
 // ------------------------------------------------------------- zip A/B helpers
 
-/// Reproduces the current `ZipContainer::get_image_dimensions`: full decompression
-/// of every entry, one shared archive handle.
+/// A whole-book scan by full decompression of every entry, through one shared archive
+/// handle: the shape the container layer used to impose, kept as the floor the two
+/// variants below are measured against.
 fn zip_scan_full(path: &Path) -> usize {
     let mut ar = ZipArchive::new(File::open(path).unwrap()).unwrap();
     let mut n = 0;
@@ -237,7 +282,7 @@ fn zip_scan_full(path: &Path) -> usize {
     n
 }
 
-/// Proposal A2: stop the decompression stream once the header is in hand.
+/// The same scan, stopping each decompression stream once the header is in hand.
 fn zip_scan_header_only(path: &Path) -> usize {
     let mut ar = ZipArchive::new(File::open(path).unwrap()).unwrap();
     let mut n = 0;
@@ -251,7 +296,8 @@ fn zip_scan_header_only(path: &Path) -> usize {
     n
 }
 
-/// Proposal A1 + A2: per-thread archive handles over the shared central directory.
+/// The same scan again, with per-thread archive handles over one shared central
+/// directory — what `ZipReader` does, and what the app now pays.
 fn zip_scan_parallel_header_only(path: &Path, pool: &rayon::ThreadPool) -> usize {
     let base = ZipArchive::new(File::open(path).unwrap()).unwrap();
     let meta = base.metadata();
@@ -275,16 +321,36 @@ fn zip_scan_parallel_header_only(path: &Path, pool: &rayon::ThreadPool) -> usize
     })
 }
 
-/// Current shape: N/2 threads all funnelled through one `Mutex<ZipArchive>`.
-fn zip_burst_shared(container: &Arc<dyn Container>, entries: &[String], pool: &rayon::ThreadPool) {
+/// One entry read through a shared, locked archive handle, with the lock held across the
+/// decompression — the mistake the whole restructure removes, kept measurable.
+fn zip_read_shared(archive: &Mutex<ZipArchive<File>>, index: usize) -> usize {
+    let mut guard = archive.lock().unwrap();
+    let mut f = guard.by_index(index).unwrap();
+    let mut buf = Vec::with_capacity(f.size() as usize);
+    f.read_to_end(&mut buf).unwrap();
+    buf.len()
+}
+
+/// N/2 threads all funnelled through one `Mutex<ZipArchive>`, holding the lock across
+/// each decompression: the shape the container layer used to impose, reproduced here so
+/// the per-thread version below still has something to be measured against.
+fn zip_burst_shared(path: &Path, indices: &[usize], pool: &rayon::ThreadPool) {
+    let archive = Mutex::new(ZipArchive::new(File::open(path).unwrap()).unwrap());
     pool.install(|| {
-        entries.par_iter().for_each(|e| {
-            std::hint::black_box(container.get_image(e).unwrap());
+        indices.par_iter().for_each(|&i| {
+            let buf = {
+                let mut guard = archive.lock().unwrap();
+                let mut f = guard.by_index(i).unwrap();
+                let mut buf = Vec::with_capacity(f.size() as usize);
+                f.read_to_end(&mut buf).unwrap();
+                buf
+            };
+            std::hint::black_box(Image::new(buf).unwrap());
         });
     });
 }
 
-/// Proposal A1: N/2 threads, each with its own archive handle.
+/// N/2 threads, each with its own archive handle.
 fn zip_burst_per_thread(path: &Path, indices: &[usize], pool: &rayon::ThreadPool) {
     let base = ZipArchive::new(File::open(path).unwrap()).unwrap();
     let meta = base.metadata();
@@ -356,75 +422,80 @@ fn perfbench_report() {
     bench("ZipContainer::new (open)", 5, || {
         ZipContainer::new(zip_path.to_string_lossy().as_ref(), "").unwrap()
     });
-    let dim_now = bench("get_image_dimensions  [current, full inflate]", 3, || {
-        zip.get_image_dimensions().unwrap()
-    });
-    let ab_full = bench("  A/B baseline: standalone full inflate", 3, || {
+    let ab_full = bench("scan: full inflate, one shared handle", 3, || {
         zip_scan_full(&zip_path)
     });
-    let ab_hdr = bench("  A2: header-only (64 KiB cap)", 3, || {
+    let ab_hdr = bench("scan: header-only probe (64 KiB cap)", 3, || {
         zip_scan_header_only(&zip_path)
     });
-    let ab_par = bench("  A1+A2: per-thread handles + header-only", 3, || {
+    let ab_par = bench("scan: per-thread handles + header-only", 3, || {
         zip_scan_parallel_header_only(&zip_path, &pool)
     });
-    let one_img = bench("get_image (1 page, warm)", 20, || {
-        zip.get_image(&entries[7]).unwrap()
+    let one_img = bench("read_page + pipeline (1 page, warm)", 20, || {
+        page(&zip, &entries[7])
     });
-    let one_thumb = bench("get_thumbnail (1 page) [= what preview costs]", 20, || {
-        zip.get_thumbnail(&entries[7]).unwrap()
+    let one_thumb = bench("thumbnail (1 page) [= what a preview would cost]", 20, || {
+        thumbnail(&zip, &entries[7])
     });
 
     let burst: Vec<String> = entries[..BURST].to_vec();
     let burst_idx: Vec<usize> = (0..BURST).collect();
     let seq = bench("preload burst 20 pages, sequential", 3, || {
         for e in &burst {
-            std::hint::black_box(zip.get_image(e).unwrap());
+            std::hint::black_box(page(&zip, e));
         }
     });
-    let par_shared = bench("preload burst 20 pages, rayon [current Mutex]", 3, || {
-        zip_burst_shared(&zip, &burst, &pool)
+    let par_shared = bench("preload burst 20 pages, one shared handle", 3, || {
+        zip_burst_shared(&zip_path, &burst_idx, &pool)
     });
-    let par_own = bench("preload burst 20 pages, rayon [A1 per-thread]", 3, || {
+    let par_own = bench("preload burst 20 pages, per-thread handles", 3, || {
         zip_burst_per_thread(&zip_path, &burst_idx, &pool)
     });
 
-    // Head-of-line blocking: how long does page 1 wait while the scan runs?
+    // Head-of-line blocking, reproduced standalone: one shared, locked archive handle,
+    // with a whole-book scan holding it while a page read waits behind.
     let idle = {
-        let mut s = Vec::new();
+        let mut samples = Vec::new();
+        let archive = Mutex::new(ZipArchive::new(File::open(&zip_path).unwrap()).unwrap());
         for _ in 0..5 {
             let t = Instant::now();
-            std::hint::black_box(zip.get_image(&entries[0]).unwrap());
-            s.push(t.elapsed());
+            std::hint::black_box(zip_read_shared(&archive, 0));
+            samples.push(t.elapsed());
         }
-        median(s)
+        median(samples)
     };
     let blocked = {
-        let scanner = Arc::clone(&zip);
+        let archive = Arc::new(Mutex::new(
+            ZipArchive::new(File::open(&zip_path).unwrap()).unwrap(),
+        ));
+        let scanner = Arc::clone(&archive);
+        let count = entries.len();
         let handle = std::thread::spawn(move || {
-            std::hint::black_box(scanner.get_image_dimensions().unwrap());
+            for i in 0..count {
+                std::hint::black_box(zip_read_shared(&scanner, i));
+            }
         });
         std::thread::sleep(Duration::from_millis(20));
         let t = Instant::now();
-        std::hint::black_box(zip.get_image(&entries[0]).unwrap());
+        std::hint::black_box(zip_read_shared(&archive, 0));
         let waited = t.elapsed();
         handle.join().unwrap();
         waited
     };
     println!(
         "  {:<52} {:>9.2} ms",
-        "get_image(page 0), scanner idle",
+        "page 0 through a shared handle, scanner idle",
         ms(idle)
     );
     println!(
         "  {:<52} {:>9.2} ms",
-        "get_image(page 0), while dimension scan runs",
+        "page 0 through a shared handle, while a scan holds it",
         ms(blocked)
     );
 
     println!(
         "\n  => dim scan = {:.0}x one page load; header-only {:.1}x faster; +parallel {:.1}x faster",
-        ms(dim_now) / ms(one_img),
+        ms(ab_full) / ms(one_img),
         ms(ab_full) / ms(ab_hdr),
         ms(ab_full) / ms(ab_par)
     );
@@ -513,10 +584,10 @@ fn perfbench_report() {
     );
 
     println!(
-        "\n  => dim scan {:.1}x faster than the container pass ({:.1} ms vs {:.1} ms)",
-        ms(dim_now) / ms(svc_dim),
+        "\n  => dim scan {:.1}x faster than the shared-handle pass ({:.1} ms vs {:.1} ms)",
+        ms(ab_full) / ms(svc_dim),
         ms(svc_dim),
-        ms(dim_now)
+        ms(ab_full)
     );
     println!(
         "  => preload burst {:.1}x faster than the shared-handle pool ({:.1} ms vs {:.1} ms)",
@@ -541,9 +612,7 @@ fn perfbench_report() {
     bench("DirectoryContainer::new (open)", 5, || {
         DirectoryContainer::new(dir_path.to_string_lossy().as_ref()).unwrap()
     });
-    let d_dim = bench("get_image_dimensions [current, sequential]", 5, || {
-        d.get_image_dimensions().unwrap()
-    });
+    let d_dim = bench("scan through one reader", 5, || scan(&d, &d_entries));
     let d_par = bench("  E2: same scan, rayon", 5, || {
         let names = &d_entries;
         pool.install(|| {
@@ -561,12 +630,10 @@ fn perfbench_report() {
                 .collect::<Vec<_>>()
         })
     });
-    let d_img = bench("get_image (1 page, warm)", 20, || {
-        d.get_image(&d_entries[7]).unwrap()
+    let d_img = bench("read_page + pipeline (1 page, warm)", 20, || {
+        page(&d, &d_entries[7])
     });
-    let d_thumb = bench("get_thumbnail (1 page)", 20, || {
-        d.get_thumbnail(&d_entries[7]).unwrap()
-    });
+    let d_thumb = bench("thumbnail (1 page)", 20, || thumbnail(&d, &d_entries[7]));
     println!(
         "\n  => scan rayon speedup {:.1}x; preview/full {:.1}x\n",
         ms(d_dim) / ms(d_par),
@@ -581,15 +648,11 @@ fn perfbench_report() {
     let ep: Arc<dyn Container> =
         Arc::new(EpubContainer::new(epub_path.to_string_lossy().as_ref()).expect("open epub"));
     let e_entries = ep.get_entries().clone();
-    let e_dim = bench("get_image_dimensions [current, full read]", 3, || {
-        ep.get_image_dimensions().unwrap()
+    let e_dim = bench("scan through one reader", 3, || scan(&ep, &e_entries));
+    let e_img = bench("read_page + pipeline (1 page, warm)", 20, || {
+        page(&ep, &e_entries[7])
     });
-    let e_img = bench("get_image (1 page, warm)", 20, || {
-        ep.get_image(&e_entries[7]).unwrap()
-    });
-    let e_thumb = bench("get_thumbnail (1 page)", 20, || {
-        ep.get_thumbnail(&e_entries[7]).unwrap()
-    });
+    let e_thumb = bench("thumbnail (1 page)", 20, || thumbnail(&ep, &e_entries[7]));
     println!(
         "\n  => open = {:.0}x one page load; dim scan {:.0}x; preview/full {:.1}x\n",
         ms(e_open) / ms(e_img),
@@ -612,18 +675,14 @@ fn perfbench_report() {
         bench("RarContainer::new (open_for_listing)", 20, || {
             RarContainer::new(rar_path.to_string_lossy().as_ref(), "").unwrap()
         });
-        let r0 = bench("get_image entry #0 (re-open + scan to 0)", 30, || {
-            r.get_image(&r_entries[0]).unwrap()
+        let r0 = bench("read_page entry #0 (fresh reader)", 30, || {
+            page(&r, &r_entries[0])
         });
-        let r_last = bench("get_image last entry (re-open + scan to N-1)", 30, || {
-            r.get_image(r_entries.last().unwrap()).unwrap()
+        let r_last = bench("read_page last entry (fresh reader)", 30, || {
+            page(&r, r_entries.last().unwrap())
         });
-        bench("get_thumbnail entry #0 (2nd full scan)", 30, || {
-            r.get_thumbnail(&r_entries[0]).unwrap()
-        });
-        bench("get_image_dimensions (single pass, full extract)", 20, || {
-            r.get_image_dimensions().unwrap()
-        });
+        bench("thumbnail entry #0", 30, || thumbnail(&r, &r_entries[0]));
+        bench("scan through one cursor reader", 20, || scan(&r, &r_entries));
         println!(
             "\n  => per-entry scan step {:.3} ms over {} entries ({:.3} -> {:.3} ms)\n",
             (ms(r_last) - ms(r0)) / (r_entries.len() as f64 - 1.0),
@@ -663,15 +722,11 @@ fn perfbench_report() {
         .expect("open pdf"),
     );
     let p_entries = p.get_entries().clone();
-    let p_img = bench("get_image (1 page: bind + load + render)", 10, || {
-        p.get_image(&p_entries[7]).unwrap()
+    let p_img = bench("read_page (1 page: render + encode)", 10, || {
+        page(&p, &p_entries[7])
     });
-    let p_dim = bench("get_image_dimensions (page sizes only)", 5, || {
-        p.get_image_dimensions().unwrap()
-    });
-    let p_thumb = bench("get_thumbnail (1 page)", 10, || {
-        p.get_thumbnail(&p_entries[7]).unwrap()
-    });
+    let p_dim = bench("scan (page sizes only)", 5, || scan(&p, &p_entries));
+    let p_thumb = bench("thumbnail (1 page)", 10, || thumbnail(&p, &p_entries[7]));
     println!(
         "  => dim scan {:.1} ms, preview/full {:.2}x
 ",
@@ -775,8 +830,10 @@ set ROOKREADER_BENCH_RAR=<path>[;<path>] to run this
             .collect();
         let mut probe_ms = Vec::new();
         for i in probes.iter().copied() {
-            let d = bench(&format!("get_image entry #{i} (reopens per page)"), 3, || {
-                c.get_image(&entries[i]).unwrap()
+            // A fresh reader per page is what the container layer used to do for every
+            // request, and it is the floor the cursor walk below is measured against.
+            let d = bench(&format!("read_page entry #{i} (fresh reader each time)"), 3, || {
+                page(&c, &entries[i])
             });
             probe_ms.push((i, ms(d)));
         }
@@ -810,23 +867,19 @@ set ROOKREADER_BENCH_RAR=<path>[;<path>] to run this
             ms(walk_total)
         );
 
-        bench("get_thumbnail entry #0 (2nd full scan + decode)", 3, || {
-            c.get_thumbnail(&entries[0]).unwrap()
-        });
-        let dim = bench("get_image_dimensions (single pass, full extract)", 3, || {
-            c.get_image_dimensions().unwrap()
-        });
+        bench("thumbnail entry #0", 3, || thumbnail(&c, &entries[0]));
+        let dim = bench("scan through one cursor reader", 3, || scan(&c, &entries));
 
         let burst: Vec<String> = entries[..BURST.min(entries.len())].to_vec();
         let seq = bench("preload burst 20 pages, sequential", 3, || {
             for e in &burst {
-                std::hint::black_box(c.get_image(e).unwrap());
+                std::hint::black_box(page(&c, e));
             }
         });
-        let par = bench("preload burst 20 pages, rayon [current]", 3, || {
+        let par = bench("preload burst 20 pages, rayon", 3, || {
             pool.install(|| {
                 burst.par_iter().for_each(|e| {
-                    std::hint::black_box(c.get_image(e).unwrap());
+                    std::hint::black_box(page(&c, e));
                 });
             })
         });

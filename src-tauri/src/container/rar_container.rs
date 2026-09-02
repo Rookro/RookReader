@@ -19,10 +19,7 @@ use crate::{
         traits::{Container, PageReader},
     },
     error::{Error, Result},
-    image::{
-        thumbnail::generate_thumbnail,
-        types::{Image, ImageDimensions},
-    },
+    image::types::Image,
 };
 
 /// An implementation of the `Container` trait for reading content from RAR archive files.
@@ -46,23 +43,6 @@ pub struct RarContainer {
 impl Container for RarContainer {
     fn get_entries(&self) -> &Vec<String> {
         &self.entries
-    }
-
-    fn get_image(&self, entry: &str) -> Result<Arc<Image>> {
-        load_image(&self.path, self.resolve_entry(entry)?)
-    }
-
-    fn get_thumbnail(&self, entry: &str) -> Result<Arc<Image>> {
-        create_thumbnail(&self.path, self.resolve_entry(entry)?)
-    }
-
-    fn get_image_dimensions(&self) -> Result<Vec<ImageDimensions>> {
-        // One reader walked in entry order *is* the single pass this used to special-case.
-        let mut reader = self.open_reader()?;
-        self.entries
-            .iter()
-            .map(|entry| reader.page_dimensions(entry))
-            .collect()
     }
 
     fn is_directory(&self) -> bool {
@@ -239,25 +219,6 @@ impl RarContainer {
         }
     }
 
-    /// Maps a leaf entry name to its full path inside the archive.
-    ///
-    /// # Arguments
-    ///
-    /// * `entry` - The leaf name as it appears in [`Container::get_entries`].
-    ///
-    /// # Returns
-    ///
-    /// The entry's full path inside the archive, as the archive headers spell it.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Error::EntryNotFound`] when the name is not part of this book.
-    fn resolve_entry(&self, entry: &str) -> Result<&str> {
-        self.entry_to_path
-            .get(entry)
-            .map(String::as_str)
-            .ok_or_else(|| Error::EntryNotFound(format!("Entry not found in RAR: {entry}")))
-    }
 }
 
 /// Builds the naturally-sorted image entry list for one folder inside the archive.
@@ -310,39 +271,6 @@ fn collect_entries(
 /// Helper function to open a RAR archive for processing its file data.
 fn open(path: &str) -> Result<OpenArchive<Process, CursorBeforeHeader>> {
     Ok(Archive::new(path).open_for_processing()?)
-}
-
-/// Helper function to find and extract a specific file from a RAR archive.
-///
-/// # Performance
-///
-/// Because the underlying `unrar` crate does not support parallel random-access reading,
-/// we must re-open the archive and perform a sequential scan of entries until the target `entry` is found.
-/// This results in $O(N)$ operations where $N$ is the entry index.
-///
-/// TODO: In the future, we could consider an in-memory extraction cache or a dedicated background actor
-/// that keeps the archive open and processes requests sequentially on a single thread.
-fn load_image(path: &str, entry: &str) -> Result<Arc<Image>> {
-    let mut archive = open(path)?;
-    while let Some(header) = archive.read_header()? {
-        let filename = header.entry().filename.to_string_lossy().to_string();
-        if filename == *entry {
-            let (data, rest) = header.read()?;
-            drop(rest); // close the archive
-            let img = Image::new(data)?;
-            return Ok(Arc::new(img));
-        } else {
-            archive = header.skip()?;
-        }
-    }
-
-    Err(Error::EntryNotFound(format!("Entry not found: {}", entry)))
-}
-
-/// Helper function to load an image and generate a JPEG thumbnail for it.
-fn create_thumbnail(path: &str, entry: &str) -> Result<Arc<Image>> {
-    let img = load_image(path, entry)?;
-    generate_thumbnail(&img.data)
 }
 
 #[cfg(test)]
@@ -453,23 +381,6 @@ mod tests {
     }
 
     #[test]
-    fn test_get_image_existing() {
-        let dir = tempdir().expect("failed to create tempdir");
-        let rar_path = create_dummy_rar(dir.path(), "dummy.rar");
-        let container = RarContainer::new(rar_path.to_string_lossy().as_ref(), "")
-            .expect("failed to create RarContainer");
-
-        // Assuming 'image1.png' exists in dummy.rar and is a valid image
-        let image = container
-            .get_image("image1.png")
-            .expect("get_image should succeed for existing image");
-        assert!(image.width > 0);
-        assert!(image.height > 0);
-        assert!(!image.data.is_empty());
-        assert_eq!(image.data, DUMMY_PNG_DATA);
-    }
-
-    #[test]
     fn rar_reader_reads_stored_bytes_and_measures_them() {
         let dir = tempdir().expect("failed to create tempdir");
         let rar_path = create_dummy_rar(dir.path(), "dummy.rar");
@@ -485,35 +396,6 @@ mod tests {
         );
         assert!(reader.read_page("absent.png").is_err());
         assert_eq!(reader.read_preview("image1.png").unwrap(), None);
-    }
-
-    #[test]
-    fn test_get_image_non_existing() {
-        let dir = tempdir().expect("failed to create tempdir");
-        let rar_path = create_dummy_rar(dir.path(), "dummy.rar");
-        let container = RarContainer::new(rar_path.to_string_lossy().as_ref(), "")
-            .expect("failed to create RarContainer");
-        let result = container.get_image("non_existent_image.png");
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_get_image_dimensions_covers_every_entry_in_one_pass() {
-        let dir = tempdir().expect("failed to create tempdir");
-        let rar_path = create_dummy_rar(dir.path(), "dummy.rar");
-        let container = RarContainer::new(rar_path.to_string_lossy().as_ref(), "")
-            .expect("failed to create RarContainer");
-
-        let dimensions = container
-            .get_image_dimensions()
-            .expect("get_image_dimensions should succeed");
-
-        assert_eq!(dimensions.len(), container.get_entries().len());
-        assert!(dimensions.iter().all(|d| *d
-            == ImageDimensions {
-                width: 1,
-                height: 1
-            }));
     }
 
     #[test]
@@ -598,19 +480,6 @@ mod tests {
         // the decision it drives, not how `unrar` reports it.
         container.is_solid = true;
         assert_eq!(container.max_readers(), 1);
-    }
-
-    #[test]
-    fn test_get_thumbnail() {
-        let dir = tempdir().expect("failed to create tempdir");
-        let rar_path = create_dummy_rar(dir.path(), "dummy.rar");
-        let container = RarContainer::new(rar_path.to_string_lossy().as_ref(), "")
-            .expect("failed to create RarContainer");
-
-        let thumbnail = container.get_thumbnail("image1.png").unwrap();
-        assert!(thumbnail.width <= crate::image::thumbnail::THUMBNAIL_SIZE);
-        assert!(thumbnail.height <= crate::image::thumbnail::THUMBNAIL_SIZE);
-        assert!(!thumbnail.data.is_empty());
     }
 
     #[test]

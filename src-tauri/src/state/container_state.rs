@@ -34,6 +34,30 @@ fn build_image_cache(size_mib: u64) -> Cache {
         .build()
 }
 
+/// The height pdfium is asked to render a PDF page at.
+///
+/// Never larger than the page will be displayed. Formats that render their own pages used
+/// to be exempted from the generic resize instead, which left pdfium producing a page the
+/// pipeline then decoded and shrank again; this replaces that exemption, and pdfium
+/// renders the right size to begin with.
+///
+/// # Arguments
+///
+/// * `settings` - The container settings to read the two heights from.
+///
+/// # Returns
+///
+/// The render height, capped by `max_image_height` unless that is 0 (no limit).
+fn pdf_render_height(settings: &ContainerSettings) -> i32 {
+    if settings.max_image_height > 0 {
+        settings
+            .pdf_render_resolution_height
+            .min(settings.max_image_height)
+    } else {
+        settings.pdf_render_resolution_height
+    }
+}
+
 /// Holds the state related to the currently open container (e.g., a file or directory).
 pub struct ContainerState {
     /// A nested struct containing settings specific to container handling, like rendering quality.
@@ -143,26 +167,16 @@ impl ContainerState {
     ) -> Result<PageService> {
         let config = ContainerConfig {
             pdf_render_config: PdfRenderConfig::default()
-                .set_target_height(settings.pdf_render_resolution_height),
+                .set_target_height(pdf_render_height(settings)),
             pdfium_library_path: settings.pdfium_library_path.clone(),
             auto_descend_single_folder: settings.auto_descend_single_folder,
         };
 
-        let container = create_container(path, config)?;
-
-        // Containers that render at their own resolution (PDF) skip the generic resize,
-        // asked of the container itself rather than sniffed from the path extension.
-        let max_image_height = if container.controls_own_resolution() {
-            0
-        } else {
-            settings.max_image_height as u32
-        };
-
         Ok(PageService::new(
             path.to_string(),
-            container,
+            create_container(path, config)?,
             Pipeline {
-                max_image_height,
+                max_image_height: settings.max_image_height as u32,
                 resize_method: settings.image_resampling_method,
             },
             image_cache.clone(),
@@ -277,20 +291,24 @@ mod tests {
     }
 
     #[test]
-    fn test_pdf_rendering_height_passed_to_pdf_container() {
-        let mut state = ContainerState::default();
-        state.settings.pdfium_library_path = Some(get_pdfium_lib_path());
-        state.settings.pdf_render_resolution_height = 1200;
+    fn pdf_render_height_is_capped_by_the_display_height() {
+        let mut settings = ContainerSettings {
+            pdf_render_resolution_height: 2000,
+            max_image_height: 0,
+            ..ContainerSettings::default()
+        };
 
-        // This would fail because the file doesn't exist, but it tests that
-        // the height is being used in the PdfContainer::new call
-        let result =
-            ContainerState::build_with(&state.settings, &state.image_cache, "/path/to/file.pdf");
+        // No display limit: render at the configured resolution.
+        assert_eq!(pdf_render_height(&settings), 2000);
 
-        // The error is expected because the file doesn't exist
-        assert!(result.is_err());
-        // But we can verify the height was set
-        assert_eq!(1200, state.settings.pdf_render_resolution_height);
+        // A lower display limit wins — rendering larger only to shrink it afterwards is
+        // work spent on pixels nobody sees.
+        settings.max_image_height = 1200;
+        assert_eq!(pdf_render_height(&settings), 1200);
+
+        // A higher one does not raise the render resolution.
+        settings.max_image_height = 4000;
+        assert_eq!(pdf_render_height(&settings), 2000);
     }
 
     #[test]
