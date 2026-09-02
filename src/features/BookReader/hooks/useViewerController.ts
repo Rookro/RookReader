@@ -78,12 +78,18 @@ export const useViewerController = (
   const [scannedDims, setScannedDims] = useState<{ path: string; dims: PageDims[] } | null>(null);
   // The book whose restored page has already been checked against the natural pairing.
   const adoptedPathRef = useRef<string | null>(null);
+  // Set once this book answers a preview request with "no preview". Only a container that
+  // can build a small image more cheaply than the page itself has one to give, so for
+  // every image format the answer is no — and asking again for every page turn buys
+  // nothing but a round trip. One wasted request per book settles it.
+  const previewUnsupportedRef = useRef(false);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: update the cache whenever containerPath changes.
   useEffect(() => {
     revokeCacheUrls(cacheRef.current);
     cacheRef.current.clear();
     dimsRef.current.clear();
+    previewUnsupportedRef.current = false;
     abortControllerRef.current?.abort();
   }, [containerPath]);
 
@@ -210,11 +216,16 @@ export const useViewerController = (
 
       const loadAndUpdate = async (
         path: string,
-        fetcher: (containerPath: string, entryName: string) => Promise<Image | undefined>,
+        fetcher: (containerPath: string, entryName: string) => Promise<Image | null | undefined>,
         isPreview: boolean,
       ) => {
         if (controller.signal.aborted) return;
         const img = await fetcher(containerPath, path);
+        // Null is the backend declining, not a failure: only that answer is evidence
+        // about the container.
+        if (isPreview && img === null && !controller.signal.aborted) {
+          previewUnsupportedRef.current = true;
+        }
         if (img && !controller.signal.aborted) {
           const newItem = createImageCacheItem(img, isPreview);
           if (!dimsRef.current.has(path)) {
@@ -248,9 +259,10 @@ export const useViewerController = (
 
       setIsImageLoading(true);
 
-      const missingPreviewPaths = settings.enablePreview
-        ? pathsToLoad.filter((p) => !cache.get(p)?.previewUrl)
-        : [];
+      const missingPreviewPaths =
+        settings.enablePreview && !previewUnsupportedRef.current
+          ? pathsToLoad.filter((p) => !cache.get(p)?.previewUrl)
+          : [];
 
       const previewPromises = missingPreviewPaths.map((path) =>
         loadAndUpdate(path, fetchImagePreviewBlob, true),

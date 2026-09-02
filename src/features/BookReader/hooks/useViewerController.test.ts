@@ -1058,5 +1058,89 @@ describe("useViewerController", () => {
         await new Promise(process.nextTick);
       });
     });
+
+    // Only PDF can build a preview more cheaply than the page it stands in for. Every
+    // other container answers "no preview", and one such answer must settle it for the
+    // whole book rather than costing a wasted round trip on every page turn.
+    it("stops requesting previews after the container declines one", async () => {
+      const settingsWithPreview = { ...mockSettings, enablePreview: true };
+      mockedFetchImageBlob.mockResolvedValue({} as Image);
+      vi.mocked(ImageUtils.fetchImagePreviewBlob).mockResolvedValue(null);
+      mockedCreateImageCacheItem.mockReturnValue({
+        fullUrl: "f",
+        url: "f",
+      } as ImageUtils.ImageCacheItem);
+
+      const { rerender } = renderHook(
+        ({ index }: { index: number }) =>
+          useViewerController("path", mockEntries, index, false, settingsWithPreview, mockDispatch),
+        { initialProps: { index: 0 } },
+      );
+
+      await waitFor(() => expect(ImageUtils.fetchImagePreviewBlob).toHaveBeenCalled());
+      const afterFirstPage = vi.mocked(ImageUtils.fetchImagePreviewBlob).mock.calls.length;
+
+      rerender({ index: 1 });
+      await waitFor(() => expect(mockedFetchImageBlob).toHaveBeenCalledWith("path", "p2.jpg"));
+      await act(async () => {
+        await new Promise(process.nextTick);
+      });
+
+      expect(vi.mocked(ImageUtils.fetchImagePreviewBlob).mock.calls.length).toBe(afterFirstPage);
+    });
+
+    // A failed request says nothing about the container, so it must not disable previews.
+    it("keeps requesting previews after a failed request", async () => {
+      const settingsWithPreview = { ...mockSettings, enablePreview: true };
+      mockedFetchImageBlob.mockResolvedValue({} as Image);
+      vi.mocked(ImageUtils.fetchImagePreviewBlob).mockResolvedValue(undefined);
+      mockedCreateImageCacheItem.mockReturnValue({
+        fullUrl: "f",
+        url: "f",
+      } as ImageUtils.ImageCacheItem);
+
+      const { rerender } = renderHook(
+        ({ index }: { index: number }) =>
+          useViewerController("path", mockEntries, index, false, settingsWithPreview, mockDispatch),
+        { initialProps: { index: 0 } },
+      );
+
+      await waitFor(() => expect(ImageUtils.fetchImagePreviewBlob).toHaveBeenCalled());
+      const afterFirstPage = vi.mocked(ImageUtils.fetchImagePreviewBlob).mock.calls.length;
+
+      rerender({ index: 1 });
+      await waitFor(() =>
+        expect(vi.mocked(ImageUtils.fetchImagePreviewBlob).mock.calls.length).toBeGreaterThan(
+          afterFirstPage,
+        ),
+      );
+    });
+
+    // The answer describes one container, so opening another book has to ask again.
+    it("asks again after switching containers", async () => {
+      const settingsWithPreview = { ...mockSettings, enablePreview: true };
+      mockedFetchImageBlob.mockResolvedValue({} as Image);
+      vi.mocked(ImageUtils.fetchImagePreviewBlob).mockResolvedValue(null);
+      mockedCreateImageCacheItem.mockReturnValue({
+        fullUrl: "f",
+        url: "f",
+      } as ImageUtils.ImageCacheItem);
+
+      const { rerender } = renderHook(
+        ({ path }: { path: string }) =>
+          useViewerController(path, mockEntries, 0, false, settingsWithPreview, mockDispatch),
+        { initialProps: { path: "path" } },
+      );
+
+      await waitFor(() => expect(ImageUtils.fetchImagePreviewBlob).toHaveBeenCalled());
+      const afterFirstBook = vi.mocked(ImageUtils.fetchImagePreviewBlob).mock.calls.length;
+
+      rerender({ path: "other" });
+      await waitFor(() =>
+        expect(vi.mocked(ImageUtils.fetchImagePreviewBlob).mock.calls.length).toBeGreaterThan(
+          afterFirstBook,
+        ),
+      );
+    });
   });
 });

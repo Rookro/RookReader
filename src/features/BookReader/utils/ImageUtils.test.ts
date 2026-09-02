@@ -393,12 +393,13 @@ describe("ImageUtils", () => {
       expect(result?.width).toBe(50);
     });
 
-    // Verify that undefined is returned for empty responses to skip preview display
-    it("should return undefined if response is empty (skip preview)", async () => {
+    // An empty response is the backend declining to make a preview, and reads as null:
+    // a caller that stops asking after a decline must not also stop after a failure.
+    it("should return null if response is empty (skip preview)", async () => {
       const buffer = new ArrayBuffer(0);
       vi.mocked(ContainerCommands.getImagePreview).mockResolvedValue(buffer);
       const result = await fetchImagePreviewBlob("path", "file");
-      expect(result).toBeUndefined();
+      expect(result).toBeNull();
     });
 
     // Verify that undefined is returned and an error log is output if getImagePreview fails

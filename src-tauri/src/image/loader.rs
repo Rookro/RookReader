@@ -180,10 +180,14 @@ impl ImageLoader {
         Ok(image_arc)
     }
 
-    /// Retrieves a preview (thumbnail) for a given image entry.
+    /// Retrieves a preview (thumbnail) for a given image entry, if one is worth making.
     ///
-    /// This method is optimized to skip thumbnail generation if the full-sized image
-    /// is already present in the cache.
+    /// Skipped when the full-sized image is already cached, and skipped entirely for any
+    /// container that cannot build a small image *more cheaply* than the page itself —
+    /// which is every image format. There both paths read and decode the same stored
+    /// bytes, and the preview then pays a resize and a re-encode on top, so it arrives
+    /// after the page it was meant to stand in for. Only PDF, which renders its pages
+    /// and can render a smaller one, answers this at all.
     ///
     /// # Arguments
     ///
@@ -191,20 +195,24 @@ impl ImageLoader {
     ///
     /// # Returns
     ///
-    /// An `Ok(Some(Arc<Image>))` containing the thumbnail if generated.
-    /// An `Ok(None)` if the full image was already cached, skipping thumbnail generation.
+    /// An `Ok(Some(Arc<Image>))` containing the thumbnail if one was generated.
+    /// An `Ok(None)` if the preview was skipped, for either reason above.
     ///
     /// # Errors
     ///
-    /// Returns an `Err` if the thumbnail cannot be generated.
+    /// Returns an `Err` if the reader cannot be opened or the preview cannot be built.
     pub fn get_preview_image(&self, entry: &str) -> Result<Option<Arc<Image>>> {
         if self.get_image_from_cache(entry).is_some() {
             log::debug!("Skip create the thumbnail. Hit cache: {}", entry);
             return Ok(None);
         }
 
-        let thumbnail = self.container.get_thumbnail(entry)?;
-        Ok(Some(thumbnail))
+        let mut reader = self.container.open_reader()?;
+        let Some(bytes) = reader.read_preview(entry)? else {
+            log::debug!("Skip create the thumbnail. No cheaper preview path: {entry}");
+            return Ok(None);
+        };
+        Ok(Some(Arc::new(Image::new(bytes)?)))
     }
 
     /// Submits a request to preload images around a specific index.
@@ -384,8 +392,64 @@ fn resize_image(image: Arc<Image>, height: u32, resize_method: ResizeFilter) -> 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::container::traits::MockContainer;
+    use crate::container::traits::{MockContainer, MockPageReader, PageReader};
     use std::time::Duration;
+
+    /// A loader over a container whose readers answer `read_preview` with `preview`.
+    fn loader_with_preview(preview: Option<Vec<u8>>) -> ImageLoader {
+        let mut mock_container = MockContainer::new();
+        mock_container
+            .expect_is_single_threaded()
+            .return_const(false);
+        mock_container.expect_open_reader().returning(move || {
+            let preview = preview.clone();
+            let mut reader = MockPageReader::new();
+            reader
+                .expect_read_preview()
+                .returning(move |_| Ok(preview.clone()));
+            Ok(Box::new(reader) as Box<dyn PageReader>)
+        });
+
+        ImageLoader::new(
+            "test_book".to_string(),
+            Arc::new(mock_container),
+            0,
+            ResizeFilter::Bilinear,
+            mini_moka::sync::Cache::new(100),
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn get_preview_image_skips_a_container_with_no_cheaper_path() {
+        // Every image format answers None: reading the page and previewing it cost the
+        // same read and decode, so a preview would arrive after the page it stands in for.
+        assert!(loader_with_preview(None)
+            .get_preview_image("test1.png")
+            .unwrap()
+            .is_none());
+    }
+
+    #[test]
+    fn get_preview_image_returns_what_the_reader_produced() {
+        // A 1x1 PNG standing in for what pdfium renders.
+        const PNG: &[u8] = &[
+            0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x48,
+            0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x06, 0x00, 0x00,
+            0x00, 0x1F, 0x15, 0xC4, 0x89, 0x00, 0x00, 0x00, 0x0A, 0x49, 0x44, 0x41, 0x54, 0x78,
+            0x9C, 0x63, 0x00, 0x01, 0x00, 0x00, 0x05, 0x00, 0x01, 0x0D, 0x0A, 0x2D, 0xB4, 0x00,
+            0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82,
+        ];
+
+        let preview = loader_with_preview(Some(PNG.to_vec()))
+            .get_preview_image("test1.png")
+            .unwrap()
+            .expect("a container that offers a preview must deliver one");
+
+        assert_eq!(preview.data, PNG);
+        assert_eq!(preview.width, 1);
+        assert_eq!(preview.height, 1);
+    }
 
     #[test]
     fn test_preload_cancellation_generation() {

@@ -120,14 +120,19 @@ export const fetchImageBlob = async (
 /**
  * Fetches an image preview blob from the backend.
  *
+ * The backend distinguishes "no preview was made" (an empty response) from "the request
+ * failed" (an error), and so does this: a caller that stops asking for previews after an
+ * empty answer must not also stop after a transient failure.
+ *
  * @param containerPath The path of the container file.
  * @param entryName The name of the entry to fetch.
- * @returns The fetched image or undefined if the fetch failed.
+ * @returns The fetched image, null if the backend produced no preview, or undefined if
+ *   the fetch failed.
  */
 export const fetchImagePreviewBlob = async (
   containerPath: string,
   entryName: string,
-): Promise<Image | undefined> => {
+): Promise<Image | null | undefined> => {
   if (!containerPath || !entryName || containerPath.length === 0 || entryName.length === 0) {
     return undefined;
   }
@@ -135,7 +140,7 @@ export const fetchImagePreviewBlob = async (
     const response = await getImagePreview(containerPath, entryName);
     if (response.byteLength === 0) {
       debug(`Skip preview image for ${entryName}`);
-      return undefined;
+      return null;
     }
     return new Image(response);
   } catch (ex) {

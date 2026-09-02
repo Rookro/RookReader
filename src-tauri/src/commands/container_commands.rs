@@ -336,7 +336,7 @@ mod tests {
     use tokio::sync::RwLock;
 
     use crate::{
-        container::traits::MockContainer,
+        container::traits::{MockContainer, MockPageReader, PageReader},
         image::{loader::ImageLoader, resizer::ResizeFilter, types::Image},
         state::{container_settings::ContainerSettings, container_state::ContainerState},
     };
@@ -351,6 +351,16 @@ mod tests {
             })
         }
     }
+
+    /// A valid 1x1 PNG. Previews travel as encoded bytes and are decoded by the loader,
+    /// so a preview fixture has to be a real image where `create_dummy_image` need not be.
+    const DUMMY_PNG_DATA: &[u8] = &[
+        0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44,
+        0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x06, 0x00, 0x00, 0x00, 0x1F,
+        0x15, 0xC4, 0x89, 0x00, 0x00, 0x00, 0x0A, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9C, 0x63, 0x00,
+        0x01, 0x00, 0x00, 0x05, 0x00, 0x01, 0x0D, 0x0A, 0x2D, 0xB4, 0x00, 0x00, 0x00, 0x00, 0x49,
+        0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82,
+    ];
 
     // Since programmatically generating a RAR file is complicated,
     // a dummy RAR file was created manually beforehand.
@@ -745,11 +755,17 @@ mod tests {
     async fn test_get_image_preview() {
         let app = tauri::test::mock_app();
         let mut mock_container = MockContainer::new();
-        mock_container
-            .expect_get_thumbnail()
-            .with(eq("test1.png".to_string()))
-            .times(1)
-            .returning(|_entry| Ok(MockContainer::create_dummy_image()));
+        // A preview now comes from a reader, and only from a container that has a cheaper
+        // path to one; this mock stands in for PDF, the only such format.
+        mock_container.expect_open_reader().times(1).returning(|| {
+            let mut reader = MockPageReader::new();
+            reader
+                .expect_read_preview()
+                .with(eq("test1.png".to_string()))
+                .times(1)
+                .returning(|_| Ok(Some(DUMMY_PNG_DATA.to_vec())));
+            Ok(Box::new(reader) as Box<dyn PageReader>)
+        });
         mock_container
             .expect_get_entries()
             .return_const(vec!["test1.png".to_string()]);
@@ -785,6 +801,55 @@ mod tests {
             Raw(bytes) => bytes,
             _ => panic!("Unexpected response body type"),
         };
-        assert!(!body.is_empty());
+        // `to_ipc_response` frames the bytes behind a width/height header, so the reader's
+        // own bytes are what follows it.
+        assert!(body.ends_with(DUMMY_PNG_DATA));
+    }
+
+    #[tokio::test]
+    async fn test_get_image_preview_is_empty_without_a_cheaper_path() {
+        let app = tauri::test::mock_app();
+        let mut mock_container = MockContainer::new();
+        // Every image container answers this way: reading the page and previewing it cost
+        // the same read and decode, so there is nothing cheaper to send.
+        mock_container.expect_open_reader().returning(|| {
+            let mut reader = MockPageReader::new();
+            reader.expect_read_preview().returning(|_| Ok(None));
+            Ok(Box::new(reader) as Box<dyn PageReader>)
+        });
+        mock_container
+            .expect_get_entries()
+            .return_const(vec!["test1.png".to_string()]);
+        mock_container
+            .expect_is_single_threaded()
+            .return_const(false);
+
+        let arc_mock_container = Arc::new(mock_container);
+        let mock_container_state = ContainerState {
+            container: Some(arc_mock_container.clone()),
+            settings: ContainerSettings::default(),
+            image_loader: Some(Arc::new(
+                ImageLoader::new(
+                    "dummy_book_id".to_string(),
+                    arc_mock_container.clone(),
+                    2000,
+                    ResizeFilter::Bilinear,
+                    mini_moka::sync::Cache::new(100),
+                )
+                .unwrap(),
+            )),
+            image_cache: mini_moka::sync::Cache::new(100),
+        };
+        app.manage(RwLock::new(AppState {
+            container_state: mock_container_state,
+        }));
+
+        let result = get_image_preview("dummy_book_id", "test1.png", app.state()).await;
+        let body = match result.unwrap().body().unwrap() {
+            Raw(bytes) => bytes,
+            _ => panic!("Unexpected response body type"),
+        };
+        // An empty response is the wire form of "no preview"; the frontend stops asking.
+        assert!(body.is_empty());
     }
 }
