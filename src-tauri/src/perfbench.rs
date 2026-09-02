@@ -775,11 +775,40 @@ set ROOKREADER_BENCH_RAR=<path>[;<path>] to run this
             .collect();
         let mut probe_ms = Vec::new();
         for i in probes.iter().copied() {
-            let d = bench(&format!("get_image entry #{i}"), 3, || {
+            let d = bench(&format!("get_image entry #{i} (reopens per page)"), 3, || {
                 c.get_image(&entries[i]).unwrap()
             });
             probe_ms.push((i, ms(d)));
         }
+
+        // The same probe points, but through one `PageReader` walked forward — the order
+        // a book is actually read in. Above, every call reopens the archive and, on a
+        // solid one, decompresses everything before its target; here the cursor is
+        // already standing there.
+        let mut reader = c.open_reader().expect("open reader");
+        let mut walk_ms: Vec<(usize, f64)> = Vec::new();
+        let walk_started = Instant::now();
+        for (i, entry) in entries.iter().enumerate() {
+            let t = Instant::now();
+            std::hint::black_box(reader.read_page(entry).unwrap());
+            let step = t.elapsed();
+            if probes.contains(&i) {
+                walk_ms.push((i, ms(step)));
+            }
+        }
+        let walk_total = walk_started.elapsed();
+        for (i, step) in &walk_ms {
+            println!(
+                "  {:<52} {:>9.2} ms",
+                format!("read_page entry #{i} (one cursor, walked forward)"),
+                step
+            );
+        }
+        println!(
+            "  {:<52} {:>9.2} ms",
+            format!("full forward read-through, all {} pages", entries.len()),
+            ms(walk_total)
+        );
 
         bench("get_thumbnail entry #0 (2nd full scan + decode)", 3, || {
             c.get_thumbnail(&entries[0]).unwrap()
@@ -801,6 +830,19 @@ set ROOKREADER_BENCH_RAR=<path>[;<path>] to run this
                 });
             })
         });
+
+        let (w0, wt0) = walk_ms[0];
+        let (w1, wt1) = *walk_ms.last().unwrap();
+        println!(
+            "
+  => cursor per-page #{} = {:.2} ms -> #{} = {:.2} ms ({:.1}x); whole book in {:.2} s",
+            w0,
+            wt0,
+            w1,
+            wt1,
+            wt1 / wt0.max(0.0001),
+            walk_total.as_secs_f64()
+        );
 
         let (i0, t0) = probe_ms[0];
         let (i1, t1) = *probe_ms.last().unwrap();
