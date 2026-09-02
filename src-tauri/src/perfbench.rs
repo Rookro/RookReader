@@ -24,7 +24,12 @@ use crate::{
         pdf_container::PdfContainer, rar_container::RarContainer, traits::Container,
         zip_container::ZipContainer,
     },
-    image::types::read_dimensions,
+    image::{resizer::ResizeFilter, types::read_dimensions},
+    page::{
+        cache::Cache,
+        pipeline::Pipeline,
+        service::{PageService, Priority},
+    },
 };
 
 const PAGE_W: u32 = 1400;
@@ -434,6 +439,100 @@ fn perfbench_report() {
         ms(blocked) / ms(idle)
     );
 
+    // ------------------------------------------------- ZIP through PageService
+    //
+    // Everything above calls the container directly, which is what the app used to do.
+    // These lines drive the same archive through the scheduler the app actually uses:
+    // one queue, per-thread readers, a header-only probe, and foreground jobs that
+    // outrank a running scan.
+    println!("--- ZIP via PageService ---");
+
+    let service_for = |cache: Cache| {
+        Arc::new(PageService::new(
+            "bench".to_string(),
+            Arc::clone(&zip),
+            Pipeline {
+                max_image_height: 0,
+                resize_method: ResizeFilter::Bilinear,
+            },
+            cache,
+        ))
+    };
+    // A fresh cache per sample, or the second one measures a hash lookup.
+    let fresh = || mini_moka::sync::Cache::new(1_000);
+
+    let svc_dim = bench("PageService::dimensions (200 pages)", 3, || {
+        service_for(fresh()).dimensions().unwrap()
+    });
+
+    let svc_burst = bench("preload burst 20 pages through the queue", 5, || {
+        let service = service_for(fresh());
+        service.request_preload_around(0, BURST - 1).unwrap();
+        while entries[..BURST]
+            .iter()
+            .any(|entry| service.cached(entry).is_none())
+        {
+            std::thread::yield_now();
+        }
+    });
+
+    let svc_idle = {
+        let mut samples = Vec::new();
+        for _ in 0..5 {
+            let service = service_for(fresh());
+            let t = Instant::now();
+            std::hint::black_box(service.page(&entries[0], Priority::Foreground).unwrap());
+            samples.push(t.elapsed());
+        }
+        median(samples)
+    };
+    let svc_blocked = {
+        let service = service_for(fresh());
+        let scanner = Arc::clone(&service);
+        let handle = std::thread::spawn(move || {
+            let _ = scanner.dimensions();
+        });
+        // Long enough for the scan to be well under way, as above.
+        std::thread::sleep(Duration::from_millis(20));
+        let t = Instant::now();
+        std::hint::black_box(service.page(&entries[0], Priority::Foreground).unwrap());
+        let waited = t.elapsed();
+        service.close();
+        let _ = handle.join();
+        waited
+    };
+    println!(
+        "  {:<52} {:>9.2} ms",
+        "page(0), scanner idle",
+        ms(svc_idle)
+    );
+    println!(
+        "  {:<52} {:>9.2} ms",
+        "page(0), while dimensions() runs",
+        ms(svc_blocked)
+    );
+
+    println!(
+        "\n  => dim scan {:.1}x faster than the container pass ({:.1} ms vs {:.1} ms)",
+        ms(dim_now) / ms(svc_dim),
+        ms(svc_dim),
+        ms(dim_now)
+    );
+    println!(
+        "  => preload burst {:.1}x faster than the shared-handle pool ({:.1} ms vs {:.1} ms)",
+        ms(par_shared) / ms(svc_burst),
+        ms(svc_burst),
+        ms(par_shared)
+    );
+    println!(
+        "  => page-0 latency during a scan {:.0}x lower ({:.1} ms vs {:.1} ms); inflated {:.1}x rather than {:.0}x\n",
+        ms(blocked) / ms(svc_blocked),
+        ms(svc_blocked),
+        ms(blocked),
+        ms(svc_blocked) / ms(svc_idle),
+        ms(blocked) / ms(idle)
+    );
+
     // ---------------------------------------------------------------- Directory
     println!("--- Directory ---");
     let d: Arc<dyn Container> =
@@ -538,10 +637,14 @@ fn perfbench_report() {
 
     // ---------------------------------------------------------------- PDF
     println!("--- PDF ---");
-    use pdfium_render::prelude::{PdfRenderConfig, Pdfium};
+    use pdfium_render::prelude::PdfRenderConfig;
     let lib = pdfium_lib_path();
-    // `Drop for Pdfium` calls FPDF_DestroyLibrary, so at most ONE instance may be alive
-    // at any moment. Every block below upholds that.
+    // Nothing here may construct a `Pdfium`. One thread owns the process's only instance
+    // and never drops it; a second one built to time a bind would call
+    // FPDF_DestroyLibrary on the way out and unload the library under that thread, which
+    // hangs the process. The per-call bind and document-load costs this section used to
+    // report no longer exist to be measured: the bind happens once per process, and the
+    // open documents are kept beside the library.
     bench("PdfContainer::new (open)", 5, || {
         PdfContainer::new(
             pdf_path.to_string_lossy().as_ref(),
@@ -549,20 +652,6 @@ fn perfbench_report() {
             Some(lib.clone()),
         )
         .unwrap()
-    });
-    let p_bind = bench("  fixed cost: bind_to_library alone", 10, || {
-        Pdfium::new(
-            Pdfium::bind_to_library(Pdfium::pdfium_platform_library_name_at_path(&lib)).unwrap(),
-        )
-    });
-    let p_bind_load = bench("  fixed cost: bind + load_pdf_from_file", 10, || {
-        let pdfium = Pdfium::new(
-            Pdfium::bind_to_library(Pdfium::pdfium_platform_library_name_at_path(&lib)).unwrap(),
-        );
-        let doc = pdfium
-            .load_pdf_from_file(pdf_path.to_string_lossy().as_ref(), None)
-            .unwrap();
-        std::hint::black_box(doc.pages().len());
     });
 
     let p: Arc<dyn Container> = Arc::new(
@@ -583,18 +672,6 @@ fn perfbench_report() {
     let p_thumb = bench("get_thumbnail (1 page)", 10, || {
         p.get_thumbnail(&p_entries[7]).unwrap()
     });
-    println!(
-        "
-  => per-call fixed overhead {:.1} ms of {:.1} ms per page = {:.0}%",
-        ms(p_bind_load),
-        ms(p_img),
-        ms(p_bind_load) / ms(p_img) * 100.0
-    );
-    println!(
-        "     (of which bind_to_library {:.2} ms, document load {:.2} ms)",
-        ms(p_bind),
-        ms(p_bind_load) - ms(p_bind)
-    );
     println!(
         "  => dim scan {:.1} ms, preview/full {:.2}x
 ",

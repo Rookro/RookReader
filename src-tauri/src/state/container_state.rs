@@ -3,12 +3,13 @@ use std::sync::Arc;
 use pdfium_render::prelude::PdfRenderConfig;
 
 use crate::{
-    container::{
-        factory::{create_container, ContainerConfig},
-        traits::Container,
-    },
+    container::factory::{create_container, ContainerConfig},
     error::Result,
-    image::loader::{Cache, ImageLoader},
+    page::{
+        cache::Cache,
+        pipeline::Pipeline,
+        service::PageService,
+    },
     state::container_settings::ContainerSettings,
 };
 
@@ -35,15 +36,14 @@ fn build_image_cache(size_mib: u64) -> Cache {
 
 /// Holds the state related to the currently open container (e.g., a file or directory).
 pub struct ContainerState {
-    /// The active container, wrapped in an `Arc` for shared ownership.
-    /// This can be a directory, a ZIP file, a PDF, etc. `None` if no container is open.
-    pub container: Option<Arc<dyn Container>>,
     /// A nested struct containing settings specific to container handling, like rendering quality.
     pub settings: ContainerSettings,
-    /// The image loader responsible for loading and caching images from the current container.
-    /// `None` if no container is open. Shared behind an `Arc` so image commands can clone a
-    /// handle out of the state and decode off the async runtime without holding the lock.
-    pub image_loader: Option<Arc<ImageLoader>>,
+    /// The open book: its structure, its reader threads and its queue, in one handle.
+    /// `None` if no container is open.
+    ///
+    /// Private because [`ContainerState::service_for`] is the only way to reach it, and
+    /// that is the point: the book a request names has to be the book that is open.
+    service: Option<Arc<PageService>>,
     /// Global image cache shared across all containers.
     pub image_cache: Cache,
 }
@@ -54,40 +54,73 @@ impl Default for ContainerState {
         let image_cache = build_image_cache(settings.image_cache_size_mib);
 
         Self {
-            container: None,
             settings,
-            image_loader: None,
+            service: None,
             image_cache,
         }
     }
 }
 
 impl ContainerState {
+    /// The open book's service, or `None` when the book currently open is not `path`.
+    ///
+    /// Entry names collide across archives — every book has an `0001.jpg` — so resolving
+    /// one against the wrong book silently serves another book's page. Making this check
+    /// the only way to reach the service is what keeps it from being forgotten at the
+    /// next call site.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - The book the caller believes is open.
+    pub fn service_for(&self, path: &str) -> Option<Arc<PageService>> {
+        self.service
+            .as_ref()
+            .filter(|service| service.book_id() == path)
+            .cloned()
+    }
+
+    /// Whether any book is open.
+    ///
+    /// Test-only on purpose: production code always asks about a *specific* book, through
+    /// [`ContainerState::service_for`], because "some book is open" is never the question
+    /// a request needs answered.
+    #[cfg(test)]
+    pub fn is_open(&self) -> bool {
+        self.service.is_some()
+    }
+
     /// Re-initializes the image cache with a new maximum capacity.
     ///
-    /// This will clear the existing cache and recreate the image loader if a container is open.
+    /// This clears the existing cache and hands the new one to the open book's workers,
+    /// which read it through the same handle they write through.
     pub fn update_image_cache_size(&mut self, size_mib: u64) {
         log::debug!("Updating image cache size to {} MiB", size_mib);
         self.image_cache = build_image_cache(size_mib);
 
-        // If a container is open, update the image loader with the new cache.
-        // set_cache takes &self (interior mutability), so a shared Arc handle suffices.
-        if let Some(image_loader) = self.image_loader.as_ref() {
-            image_loader.set_cache(self.image_cache.clone());
+        if let Some(service) = self.service.as_ref() {
+            service.set_cache(self.image_cache.clone());
         }
     }
 
-    /// Clears any open container and its image loader.
+    /// Closes any open book and drops its service.
     pub fn clear(&mut self) {
-        self.container = None;
-        self.image_loader = None;
+        if let Some(service) = self.service.take() {
+            // Explicitly, and before dropping: a caller blocked in `dimensions` holds an
+            // `Arc` of its own, so the drop alone would leave the outgoing book's scan
+            // running against the incoming book's reads.
+            service.close();
+        }
     }
 
-    /// Builds the container and image loader from borrowed settings and a cache handle.
+    /// Builds the page service from borrowed settings and a cache handle.
     ///
     /// This takes its inputs by reference rather than through `&self` so a caller can
     /// snapshot the (cheap-to-clone) settings and cache under a brief lock and then run
     /// this heavy I/O on a blocking thread without holding any lock on the shared state.
+    ///
+    /// The container is not returned beside the service: the service owns it, and holding
+    /// the two next to each other is exactly what forces every caller to re-establish
+    /// that they describe the same book.
     ///
     /// # Arguments
     ///
@@ -97,7 +130,7 @@ impl ContainerState {
     ///
     /// # Returns
     ///
-    /// The built container and its initialized `ImageLoader` on success.
+    /// The started `PageService` for the book on success.
     ///
     /// # Errors
     ///
@@ -107,7 +140,7 @@ impl ContainerState {
         settings: &ContainerSettings,
         image_cache: &Cache,
         path: &str,
-    ) -> Result<(Arc<dyn Container>, ImageLoader)> {
+    ) -> Result<PageService> {
         let config = ContainerConfig {
             pdf_render_config: PdfRenderConfig::default()
                 .set_target_height(settings.pdf_render_resolution_height),
@@ -125,26 +158,25 @@ impl ContainerState {
             settings.max_image_height as u32
         };
 
-        let loader = ImageLoader::new(
+        Ok(PageService::new(
             path.to_string(),
-            container.clone(),
-            max_image_height,
-            settings.image_resampling_method,
+            container,
+            Pipeline {
+                max_image_height,
+                resize_method: settings.image_resampling_method,
+            },
             image_cache.clone(),
-        )?;
-
-        Ok((container, loader))
+        ))
     }
 
-    /// Installs a previously built container and image loader, replacing any open one.
+    /// Installs a previously built service, closing and replacing any open one.
     ///
     /// # Arguments
     ///
-    /// * `container` - The container to install.
-    /// * `loader` - The image loader to install.
-    pub fn install(&mut self, container: Arc<dyn Container>, loader: ImageLoader) {
-        self.image_loader = Some(Arc::new(loader));
-        self.container = Some(container);
+    /// * `service` - The service to install.
+    pub fn install(&mut self, service: PageService) {
+        self.clear();
+        self.service = Some(Arc::new(service));
     }
 }
 
@@ -173,7 +205,7 @@ mod tests {
     fn test_default_container_state() {
         let state = ContainerState::default();
 
-        assert!(state.container.is_none());
+        assert!(!state.is_open());
         assert_eq!(
             ContainerSettings::default().pdf_render_resolution_height,
             state.settings.pdf_render_resolution_height
@@ -231,21 +263,17 @@ mod tests {
         let mut state = ContainerState::default();
 
         // Build a valid directory container and install it.
-        let (container, loader) = ContainerState::build_with(
-            &state.settings,
-            &state.image_cache,
-            dir.path().to_string_lossy().as_ref(),
-        )
-        .expect("building a valid directory container should succeed");
-        state.install(container, loader);
-        assert!(state.container.is_some());
-        assert!(state.image_loader.is_some());
+        let path = dir.path().to_string_lossy().to_string();
+        let service = ContainerState::build_with(&state.settings, &state.image_cache, &path)
+            .expect("building a valid directory container should succeed");
+        state.install(service);
+        assert!(state.service_for(&path).is_some());
 
-        // Clearing must drop BOTH container and image_loader, so we never serve
-        // images from a previously opened book.
+        // Clearing must drop the service, so we never serve images from a previously
+        // opened book.
         state.clear();
-        assert!(state.container.is_none());
-        assert!(state.image_loader.is_none());
+        assert!(!state.is_open());
+        assert!(state.service_for(&path).is_none());
     }
 
     #[test]
@@ -347,7 +375,7 @@ mod tests {
 
     #[test]
     fn test_build_image_cache_stores_and_reads_back() {
-        use crate::image::loader::CacheKey;
+        use crate::page::cache::CacheKey;
         use crate::image::types::Image;
 
         let cache = build_image_cache(64);

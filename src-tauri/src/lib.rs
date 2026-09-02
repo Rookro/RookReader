@@ -10,6 +10,7 @@ pub mod domain;
 pub mod error;
 pub mod image;
 pub mod infrastructure;
+pub mod page;
 mod settings;
 mod setup;
 mod state;

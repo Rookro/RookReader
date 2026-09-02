@@ -552,21 +552,13 @@ async fn resolve_thumbnail<R: tauri::Runtime>(
             .pdfium_library_path
             .clone();
 
-        let container = if let Some(ref c) = state_lock.container_state.container {
-            let matches = state_lock
-                .container_state
-                .image_loader
-                .as_ref()
-                .is_some_and(|loader| loader.book_id() == file_path);
-
-            if matches {
-                Some(c.clone())
-            } else {
-                None
-            }
-        } else {
-            None
-        };
+        // Reuse the open book's own container when this thumbnail is for that book, so a
+        // PDF does not get a second handle opened beside the one being read. One lookup
+        // establishes both "a book is open" and "it is this book".
+        let container = state_lock
+            .container_state
+            .service_for(file_path)
+            .map(|service| service.container());
 
         (pdfium_path, container)
     };

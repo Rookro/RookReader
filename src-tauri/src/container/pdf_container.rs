@@ -63,10 +63,6 @@ impl Container for PdfContainer {
         false
     }
 
-    fn is_single_threaded(&self) -> bool {
-        true
-    }
-
     fn controls_own_resolution(&self) -> bool {
         true
     }

@@ -67,12 +67,19 @@ export const commands = {
 	 * 
 	 *  # Arguments
 	 * 
+	 *  * `path` - The path of the container the caller believes is open.
 	 *  * `index` - The current page index around which to preload.
 	 *  * `buffer_size` - Optional. How many pages to preload in each direction.
 	 *    Defaults to 10 if `None` is provided.
 	 *  * `state` - A `tauri::State` holding the application's global `AppState`.
+	 * 
+	 *  # Errors
+	 * 
+	 *  Returns an `Err` if no container is open, or `path` does not match the open one — the
+	 *  frontend calls this on every page turn, so it is exactly the request most likely to
+	 *  race a book switch.
 	 */
-	requestPreloadAround: (index: number, bufferSize: number | null) => typedError<null, CommandError>(__TAURI_INVOKE("request_preload_around", { index, bufferSize })),
+	requestPreloadAround: (path: string, index: number, bufferSize: number | null) => typedError<null, CommandError>(__TAURI_INVOKE("request_preload_around", { path, index, bufferSize })),
 	/**
 	 *  Opens a container file (e.g., ZIP, RAR) and retrieves a list of its contents.
 	 * 

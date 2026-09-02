@@ -16,15 +16,19 @@ export const getEntriesInContainer = async (path: string) => {
 /**
  * Requests preloading of images around a specific index in the backend.
  *
+ * @param path The path of the container the caller believes is open. The backend rejects
+ *   the request if a different book is open, which is what keeps a preload issued just
+ *   before a book switch from warming the wrong pages.
  * @param index The current page index around which to preload.
  * @param bufferSize How many pages to preload in each direction.
  * @returns A promise that resolves when the request is submitted.
  */
 export const requestPreloadAround = async (
+  path: string,
   index: number,
   bufferSize: number | undefined = undefined,
 ): Promise<void> => {
-  await runCommand(commands.requestPreloadAround(index, bufferSize ?? null));
+  await runCommand(commands.requestPreloadAround(path, index, bufferSize ?? null));
 };
 
 /**

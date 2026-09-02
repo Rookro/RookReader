@@ -67,7 +67,7 @@ export const openContainerFile = createAppAsyncThunk(
         const state = getState();
         const preloadPageCount = state.settings.reader.comic.cache.preloadPageCount;
         const startIndex = book?.last_read_page_index ?? 0;
-        requestPreloadAround(startIndex, preloadPageCount).catch((e) => {
+        requestPreloadAround(path, startIndex, preloadPageCount).catch((e) => {
           error(`Failed to request preload: ${String(e)}`);
         });
       }

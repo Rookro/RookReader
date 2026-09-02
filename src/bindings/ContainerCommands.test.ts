@@ -23,16 +23,18 @@ describe("ContainerCommands", () => {
   });
 
   it("requestPreloadAround should call invoke", async () => {
-    await ContainerCommands.requestPreloadAround(5, 10);
+    await ContainerCommands.requestPreloadAround("path", 5, 10);
     expect(invoke).toHaveBeenCalledWith("request_preload_around", {
+      path: "path",
       index: 5,
       bufferSize: 10,
     });
   });
 
   it("requestPreloadAround should call invoke with null bufferSize by default", async () => {
-    await ContainerCommands.requestPreloadAround(5);
+    await ContainerCommands.requestPreloadAround("path", 5);
     expect(invoke).toHaveBeenCalledWith("request_preload_around", {
+      path: "path",
       index: 5,
       bufferSize: null,
     });
@@ -69,7 +71,7 @@ describe("ContainerCommands", () => {
 
   it("requestPreloadAround should throw CommandError on failure", async () => {
     vi.mocked(invoke).mockRejectedValue(new Error("fail"));
-    await expect(ContainerCommands.requestPreloadAround(0)).rejects.toThrow(CommandError);
+    await expect(ContainerCommands.requestPreloadAround("path", 0)).rejects.toThrow(CommandError);
   });
 
   it("getImage should throw CommandError on failure", async () => {

@@ -310,11 +310,11 @@ export const useViewerController = (
   // Request preloading around the current index in the backend.
   useEffect(() => {
     if (entries.length > 0) {
-      requestPreloadAround(index, settings.preloadPageCount).catch((e) => {
+      requestPreloadAround(containerPath, index, settings.preloadPageCount).catch((e) => {
         warn(`Failed to request preload: ${String(e)}`);
       });
     }
-  }, [index, settings.preloadPageCount, entries.length]);
+  }, [containerPath, index, settings.preloadPageCount, entries.length]);
 
   // Evict cached pages outside a window around the current index so long sessions
   // don't retain every visited page's blob URLs (unbounded renderer memory). The
