@@ -71,7 +71,11 @@ export const openContainerFile = createAppAsyncThunk(
         const state = getState();
         const preloadPageCount = state.settings.reader.comic.cache.preloadPageCount;
         const startIndex = book?.last_read_page_index ?? 0;
-        requestPreloadAround(path, startIndex, preloadPageCount).catch((e) => {
+        // The viewer mounts moments from now and asks for its own unit at foreground
+        // priority; leave those pages to it rather than have this window reach them
+        // first and make the reader wait on a background job.
+        const callerPages = state.settings.reader.comic.enableSpread ? 2 : 1;
+        requestPreloadAround(path, startIndex, preloadPageCount, callerPages).catch((e) => {
           error(`Failed to request preload: ${String(e)}`);
         });
       }

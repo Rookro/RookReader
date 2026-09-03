@@ -71,6 +71,10 @@ export const commands = {
 	 *  * `index` - The current page index around which to preload.
 	 *  * `buffer_size` - Optional. How many pages to preload in each direction.
 	 *    Defaults to 10 if `None` is provided.
+	 *  * `caller_pages` - How many pages from `index` the caller is fetching itself. Those
+	 *    are left out of the window: preloading a page the viewer is already requesting at
+	 *    foreground priority only lets a background job reach it first, and the foreground
+	 *    request then waits on that job instead of being served.
 	 *  * `state` - A `tauri::State` holding the application's global `AppState`.
 	 * 
 	 *  # Errors
@@ -79,7 +83,7 @@ export const commands = {
 	 *  frontend calls this on every page turn, so it is exactly the request most likely to
 	 *  race a book switch.
 	 */
-	requestPreloadAround: (path: string, index: number, bufferSize: number | null) => typedError<null, CommandError>(__TAURI_INVOKE("request_preload_around", { path, index, bufferSize })),
+	requestPreloadAround: (path: string, index: number, bufferSize: number | null, callerPages: number | null) => typedError<null, CommandError>(__TAURI_INVOKE("request_preload_around", { path, index, bufferSize, callerPages })),
 	/**
 	 *  Opens a container file (e.g., ZIP, RAR) and retrieves a list of its contents.
 	 * 
@@ -986,6 +990,15 @@ export type ComicCacheSettings = {
 	preloadPageCount?: number,
 	/**  The maximum size of the image memory cache in MiB. */
 	imageCacheSizeMib?: number,
+	/**
+	 *  How many threads may read pages at once (`0` = pick one from the machine).
+	 * 
+	 *  A ceiling, not a demand: a format that admits only one reader — a solid RAR, an
+	 *  EPUB, a PDF — stays at one however high this goes. Worth lowering where the
+	 *  pages come over a network, since there the readers compete for one link rather
+	 *  than for cores, and each read gets slower as more of them run.
+	 */
+	pageReaderCount?: number,
 };
 
 /**  Configuration specific to reading comics (image-based content). */

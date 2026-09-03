@@ -1,6 +1,7 @@
 {
   "bookshelf.gridSize": { "integer": true, "min": 0, "max": 2 },
   "reader.comic.cache.preloadPageCount": { "integer": true, "min": 0, "max": 10000 },
+  "reader.comic.cache.pageReaderCount": { "integer": true, "min": 0, "max": 64 },
   "reader.comic.cache.imageCacheSizeMib": { "integer": true, "min": 1, "max": 65536 },
   "reader.comic.loupe.zoom": { "integer": false, "min": 1, "max": 100 },
   "reader.comic.loupe.radius": { "integer": false, "min": 50, "max": 5000 },

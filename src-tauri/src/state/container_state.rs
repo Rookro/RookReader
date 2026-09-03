@@ -180,6 +180,7 @@ impl ContainerState {
                 resize_method: settings.image_resampling_method,
             },
             image_cache.clone(),
+            settings.page_reader_count.max(0) as usize,
         ))
     }
 

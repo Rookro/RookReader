@@ -525,11 +525,16 @@ export const useViewerController = ({
   // Request preloading around the current index in the backend.
   useEffect(() => {
     if (entries.length > 0) {
-      requestPreloadAround(containerPath, index, settings.preloadPageCount).catch((e) => {
-        warn(`Failed to request preload: ${String(e)}`);
-      });
+      // The same pages the layout effect above loads, named so the backend leaves them
+      // to the foreground requests already on their way.
+      const callerPages = settings.isTwoPagedView && index + 1 < entries.length ? 2 : 1;
+      requestPreloadAround(containerPath, index, settings.preloadPageCount, callerPages).catch(
+        (e) => {
+          warn(`Failed to request preload: ${String(e)}`);
+        },
+      );
     }
-  }, [containerPath, index, settings.preloadPageCount, entries.length]);
+  }, [containerPath, index, settings.preloadPageCount, settings.isTwoPagedView, entries.length]);
 
   // Evict cached pages outside a window around the current index so long sessions
   // don't retain every visited page's blob URLs (unbounded renderer memory). The

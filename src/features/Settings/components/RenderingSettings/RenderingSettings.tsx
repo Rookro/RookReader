@@ -4,6 +4,7 @@ import SettingsPanel from "../SettingsPanel";
 import ImageCacheSizeSetting from "./Items/ImageCacheSizeSetting";
 import ImageResamplingMethodSetting from "./Items/ImageResamplingMethodSetting";
 import MaxImageHeightSetting from "./Items/MaxImageHeightSetting";
+import PageReaderCountSetting from "./Items/PageReaderCountSetting";
 import PdfRenderResolutionHeightSetting from "./Items/PdfRenderResolutionHeightSetting";
 import PreloadPageCountSetting from "./Items/PreloadPageCountSetting";
 import ThumbnailPreviewSetting from "./Items/ThumbnailPreviewSetting";
@@ -32,6 +33,7 @@ export default function RenderingSettings() {
           {t("settings.rendering.headers.cache-and-preload")}
         </ListSubheader>
         <PreloadPageCountSetting />
+        <PageReaderCountSetting />
         <Divider />
         <ImageCacheSizeSetting />
       </List>

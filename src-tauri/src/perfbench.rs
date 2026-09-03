@@ -559,6 +559,7 @@ fn perfbench_report() {
                 resize_method: ResizeFilter::Bilinear,
             },
             cache,
+            0,
         ))
     };
     // A fresh cache per sample, or the second one measures a hash lookup.
@@ -570,7 +571,7 @@ fn perfbench_report() {
 
     let svc_burst = bench("preload burst 20 pages through the queue", 5, || {
         let service = service_for(fresh());
-        service.request_preload_around(0, BURST - 1).unwrap();
+        service.request_preload_around(0, BURST - 1, 0).unwrap();
         while entries[..BURST]
             .iter()
             .any(|entry| service.cached(entry).is_none())

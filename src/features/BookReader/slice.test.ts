@@ -362,6 +362,30 @@ describe("ReadReducer", () => {
         expect(state.containerFile.isSpreadShifted).toBe(false);
       });
 
+      // The open-time window is the one that races the viewer's first request: it must
+      // leave the pages the viewer is about to ask for to the viewer.
+      it("leaves the pages the viewer will load out of the opening window", async () => {
+        const mockBook = createMockBookWithState({ id: 1, last_read_page_index: 4 });
+
+        vi.mocked(ContainerCommands.getEntriesInContainer).mockResolvedValue({
+          is_directory: false,
+          entries: ["p1", "p2", "p3", "p4", "p5", "p6"],
+          is_novel: false,
+        });
+        vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(1);
+        vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
+
+        await store.dispatch(openContainerFile("path/to/book.zip"));
+
+        // The test store's default reader shows spreads, so the viewer will ask for two.
+        expect(ContainerCommands.requestPreloadAround).toHaveBeenCalledWith(
+          "path/to/book.zip",
+          4,
+          store.getState().settings.reader.comic.cache.preloadPageCount,
+          2,
+        );
+      });
+
       // Verify the reader's own correction comes back with the book
       it("restores the spread shift from the book", async () => {
         const mockBook = createMockBookWithState({ id: 7, is_spread_shifted: true });

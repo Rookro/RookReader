@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { updatePageLayout } from "../../../bindings/BookCommands";
-import { getImageDimensions } from "../../../bindings/ContainerCommands";
+import { getImageDimensions, requestPreloadAround } from "../../../bindings/ContainerCommands";
 import { createMockBookWithState } from "../../../test/factories";
 import type { Image } from "../../../types/Image";
 import * as perfLog from "../../../utils/perf";
@@ -1770,6 +1770,44 @@ describe("useViewerController", () => {
         expect(vi.mocked(ImageUtils.fetchImagePreviewBlob).mock.calls.length).toBeGreaterThan(
           afterFirstBook,
         ),
+      );
+    });
+  });
+
+  // The backend leaves the caller's own pages out of the preload window, so the viewer has
+  // to say how many it is fetching itself.
+  describe("preload window", () => {
+    const renderAt = (settings: ImageUtils.ViewerSettings, index: number) =>
+      renderHook(() =>
+        useViewerController({
+          containerPath: "path",
+          entries: mockEntries,
+          index,
+          isSpreadShifted: false,
+          settings,
+          dispatch: mockDispatch,
+        }),
+      );
+
+    it("names one page in single-page view", async () => {
+      renderAt(mockSettings, 0);
+
+      await waitFor(() => expect(requestPreloadAround).toHaveBeenCalledWith("path", 0, 10, 1));
+    });
+
+    it("names both pages in spread view", async () => {
+      renderAt({ ...mockSettings, isTwoPagedView: true }, 0);
+
+      await waitFor(() => expect(requestPreloadAround).toHaveBeenCalledWith("path", 0, 10, 2));
+    });
+
+    // The last page has nothing beside it, so the viewer loads one page there whatever the
+    // setting says — and preload must not be told to skip a page that follows the book.
+    it("names one page on the last page of a spread book", async () => {
+      renderAt({ ...mockSettings, isTwoPagedView: true }, mockEntries.length - 1);
+
+      await waitFor(() =>
+        expect(requestPreloadAround).toHaveBeenCalledWith("path", mockEntries.length - 1, 10, 1),
       );
     });
   });

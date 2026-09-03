@@ -124,7 +124,7 @@ pub async fn get_entries_in_container(
         let state_lock = state.read().await;
         if let Some(service) = state_lock.container_state.service_for(path) {
             log::debug!("Triggering proactive preloading for {}", path);
-            if let Err(e) = service.request_preload_around(0, 5) {
+            if let Err(e) = service.request_preload_around(0, 5, 0) {
                 // Proactive preloading is best-effort; a failure here must not fail the open.
                 log::warn!("Failed to trigger proactive preloading for {path}: {e}");
             }
@@ -161,6 +161,10 @@ pub async fn get_entries_in_container(
 /// * `index` - The current page index around which to preload.
 /// * `buffer_size` - Optional. How many pages to preload in each direction.
 ///   Defaults to 10 if `None` is provided.
+/// * `caller_pages` - How many pages from `index` the caller is fetching itself. Those
+///   are left out of the window: preloading a page the viewer is already requesting at
+///   foreground priority only lets a background job reach it first, and the foreground
+///   request then waits on that job instead of being served.
 /// * `state` - A `tauri::State` holding the application's global `AppState`.
 ///
 /// # Errors
@@ -174,6 +178,7 @@ pub async fn request_preload_around(
     path: &str,
     index: usize,
     buffer_size: Option<usize>,
+    caller_pages: Option<usize>,
     state: tauri::State<'_, RwLock<AppState>>,
 ) -> Result<()> {
     log::debug!(
@@ -190,7 +195,7 @@ pub async fn request_preload_around(
         .service_for(path)
         .ok_or_else(|| stale(path, "preloading"))?;
 
-    service.request_preload_around(index, buffer_size)?;
+    service.request_preload_around(index, buffer_size, caller_pages.unwrap_or(0))?;
     Ok(())
 }
 
@@ -412,6 +417,7 @@ mod tests {
                 resize_method: ResizeFilter::Bilinear,
             },
             mini_moka::sync::Cache::new(100),
+            0,
         ));
         app.manage(RwLock::new(AppState { container_state }));
     }
@@ -710,12 +716,12 @@ mod tests {
         let app = tauri::test::mock_app();
         manage_service(&app, "dummy_book_id", page_container(&["test1.png"]));
 
-        let result = request_preload_around("dummy_book_id", 0, Some(5), app.state()).await;
+        let result = request_preload_around("dummy_book_id", 0, Some(5), None, app.state()).await;
         assert!(result.is_ok());
 
         // Preloading is subject to the same check as every other request: the frontend
         // issues it on every page turn, so it is the one most likely to race a switch.
-        let stale = request_preload_around("stale_book_id", 0, Some(5), app.state()).await;
+        let stale = request_preload_around("stale_book_id", 0, Some(5), None, app.state()).await;
         assert!(matches!(stale, Err(Error::EntryNotFound(_))));
     }
 

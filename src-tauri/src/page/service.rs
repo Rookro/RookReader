@@ -1,4 +1,4 @@
-//! One scheduler for one open book: every reader thread and one priority queue.
+//! One scheduler for one open book: every reader thread and the queue they take from.
 //!
 //! A format decides how to read a page; it does not decide when, in what order, or on how
 //! many threads. Those are decided here, once, for every format — which is what keeps a
@@ -6,7 +6,7 @@
 //! per call.
 
 use std::{
-    cmp::{max, Ordering},
+    cmp::{max, min, Ordering},
     collections::{hash_map::Entry, BinaryHeap, HashMap},
     sync::{mpsc, Arc, Condvar, Mutex, MutexGuard, RwLock},
     thread,
@@ -34,7 +34,7 @@ use crate::{
 pub enum Priority {
     /// A page the reader is waiting to see.
     Foreground,
-    /// The current page and the pages after it.
+    /// The pages after the one the reader asked for.
     PreloadAhead,
     /// The pages before the current one.
     PreloadBehind,
@@ -43,7 +43,7 @@ pub enum Priority {
 }
 
 impl Priority {
-    /// Whether a queued job of this class is dropped when a new preload window arrives.
+    /// Whether this class is preload, which is queued apart and bounded by the reserve.
     fn is_preload(self) -> bool {
         matches!(self, Priority::PreloadAhead | Priority::PreloadBehind)
     }
@@ -111,11 +111,24 @@ impl Ord for Job {
 
 /// The queue itself, plus what is needed to keep two workers off the same page.
 struct Queue {
+    /// The jobs a worker may always take: foreground, preview, and the scan.
     jobs: BinaryHeap<Job>,
+    /// Preload, held in its own heap.
+    ///
+    /// Not a priority band inside `jobs`: preload outranks the scan, so a worker the
+    /// reserve keeps out of preload would peek a job it may not take and park, with the
+    /// scan below it unread. Two heaps let that worker look straight past preload.
+    preload: BinaryHeap<Job>,
     /// Entries a worker is currently reading, and the callers waiting on each. A request
     /// for a page another worker has already picked up attaches here instead of reading
     /// it a second time.
     in_flight: HashMap<String, Vec<mpsc::Sender<Result<Arc<Image>>>>>,
+    /// How many workers are inside a preload job right now.
+    ///
+    /// Preload may not take the last [`Shared::reserve`] workers, so a page the reader
+    /// asks for always finds one free. Counted rather than dedicated because which worker
+    /// is idle does not matter, only that one is.
+    preloading: usize,
     closed: bool,
 }
 
@@ -132,6 +145,18 @@ struct Shared {
     wake: Condvar,
     cache: RwLock<Cache>,
     pipeline: Pipeline,
+    /// How many reader threads this book has.
+    workers: usize,
+    /// How many of them preload may never occupy.
+    ///
+    /// Two wherever there are three or more readers, because the viewer displays two
+    /// pages at once: a spread issues two foreground requests together and shows nothing
+    /// until both land, so a single free worker would leave the reader waiting on the
+    /// second exactly as before. It is a property of the viewer rather than of the
+    /// two-page setting — two is the most foreground work one screen can ask for — so no
+    /// setting is plumbed in here and nothing has to be updated when the reader toggles
+    /// spreads. A book with one reader reserves nothing and still preloads.
+    reserve: usize,
 }
 
 impl Shared {
@@ -206,11 +231,14 @@ impl PageService {
     /// * `container` - The book's structure, which mints the readers.
     /// * `pipeline` - How a page's bytes become an image.
     /// * `cache` - The global image cache.
+    /// * `max_workers` - The reader's ceiling on reader threads; `0` picks one from the
+    ///   machine's parallelism. `Container::max_readers` caps it either way.
     pub fn new(
         book_id: String,
         container: Arc<dyn Container>,
         pipeline: Pipeline,
         cache: Cache,
+        max_workers: usize,
     ) -> Self {
         let order: HashMap<String, usize> = container
             .get_entries()
@@ -219,24 +247,35 @@ impl PageService {
             .map(|(index, entry)| (entry.clone(), index))
             .collect();
 
+        // The reader's ceiling, then the format's — which always wins, so a solid RAR
+        // stays at one reader however high the setting goes.
+        let workers = if order.is_empty() {
+            0
+        } else {
+            let wanted = if max_workers == 0 {
+                let cores = thread::available_parallelism().map_or(1, std::num::NonZeroUsize::get);
+                max(1, cores / 2)
+            } else {
+                max_workers
+            };
+            container.max_readers().min(wanted)
+        };
+
         let shared = Arc::new(Shared {
             book_id,
             queue: Mutex::new(Queue {
                 jobs: BinaryHeap::new(),
+                preload: BinaryHeap::new(),
                 in_flight: HashMap::new(),
+                preloading: 0,
                 closed: false,
             }),
             wake: Condvar::new(),
             cache: RwLock::new(cache),
             pipeline,
+            workers,
+            reserve: min(2, workers.saturating_sub(1)),
         });
-
-        let workers = if order.is_empty() {
-            0
-        } else {
-            let cores = thread::available_parallelism().map_or(1, std::num::NonZeroUsize::get);
-            container.max_readers().min(max(1, cores / 2))
-        };
 
         for index in 0..workers {
             let shared = shared.clone();
@@ -310,7 +349,7 @@ impl PageService {
             if queue.closed {
                 return Err(closed());
             }
-            let queued = queue.jobs.len();
+            let queued = queue.jobs.len() + queue.preload.len();
             match queue.in_flight.entry(entry.to_string()) {
                 // A worker already has this page open; wait on its result rather than
                 // reading the same bytes twice.
@@ -386,16 +425,28 @@ impl PageService {
 
     /// Enqueues the window around `center`, skipping entries already cached.
     ///
-    /// `center..=center + buffer` goes in as [`Priority::PreloadAhead`] and
-    /// `center - buffer..center` as [`Priority::PreloadBehind`], both in ascending entry
-    /// order.
+    /// `center + caller_pages ..= center + buffer` goes in as [`Priority::PreloadAhead`]
+    /// and `center - buffer..center` as [`Priority::PreloadBehind`], both in ascending
+    /// entry order.
+    ///
+    /// `caller_pages` is how many pages from `center` the caller is fetching itself, and
+    /// they are left out. The viewer requests its own unit at [`Priority::Foreground`];
+    /// preloading those same pages only lets a background job reach them first, and a job
+    /// already picked up cannot be outranked — so the foreground request would attach to
+    /// it and wait. Nothing is lost by skipping them: they are the pages already on their
+    /// way.
     ///
     /// Un-started preload jobs from the previous window are dropped first: the frontend
     /// calls this on every page turn, and a window the reader has left must not outrank
     /// the one they are in. A job a worker has already picked up still finishes. This
     /// replaces the old generation counter; book switches are cancelled by
     /// [`PageService::close`].
-    pub fn request_preload_around(&self, center: usize, buffer: usize) -> Result<()> {
+    pub fn request_preload_around(
+        &self,
+        center: usize,
+        buffer: usize,
+        caller_pages: usize,
+    ) -> Result<()> {
         let entries = self.container.get_entries();
         if entries.is_empty() {
             return Ok(());
@@ -403,7 +454,8 @@ impl PageService {
 
         let start = center.saturating_sub(buffer);
         let end = (center + buffer + 1).min(entries.len());
-        let ahead = center.min(entries.len())..end;
+        let first_ahead = center.saturating_add(caller_pages).min(entries.len());
+        let ahead = first_ahead..end.max(first_ahead);
         let behind = start..center.min(entries.len());
 
         let span = Span::start();
@@ -414,9 +466,8 @@ impl PageService {
         if queue.closed {
             return Ok(());
         }
-        let before = queue.jobs.len();
-        queue.jobs.retain(|job| !job.priority.is_preload());
-        let dropped = before - queue.jobs.len();
+        let dropped = queue.preload.len();
+        queue.preload.clear();
 
         for (range, priority) in [
             (ahead, Priority::PreloadAhead),
@@ -428,7 +479,7 @@ impl PageService {
                     cached += 1;
                     continue;
                 }
-                queue.jobs.push(Job {
+                queue.preload.push(Job {
                     priority,
                     order: (index, 1),
                     entry: entry.clone(),
@@ -444,7 +495,7 @@ impl PageService {
         perf!(
             span,
             "preload",
-            "center={center} ahead={ahead_len} behind={behind_len} cached={cached} dropped={dropped}"
+            "center={center} skipped={caller_pages} ahead={ahead_len} behind={behind_len} cached={cached} dropped={dropped}"
         );
 
         Ok(())
@@ -530,8 +581,12 @@ impl PageService {
         let (queued, inflight) = {
             let mut queue = self.shared.lock();
             queue.closed = true;
-            let counts = (queue.jobs.len(), queue.in_flight.len());
+            let counts = (
+                queue.jobs.len() + queue.preload.len(),
+                queue.in_flight.len(),
+            );
             queue.jobs.clear();
+            queue.preload.clear();
             queue.in_flight.clear();
             counts
         };
@@ -562,6 +617,7 @@ fn worker(shared: Arc<Shared>, container: Arc<dyn Container>) {
 
     loop {
         let Some(job) = next_job(&shared) else { return };
+        let _slot = PreloadSlot(job.priority.is_preload().then_some(&*shared));
 
         // Another worker may have cached this page between the enqueue and this pop.
         // Answer from the cache rather than skipping the job: skipping would drop
@@ -603,34 +659,76 @@ fn worker(shared: Arc<Shared>, container: Arc<dyn Container>) {
 /// exactly the mistake that makes an un-restructured ZIP scan block page 0 for half a
 /// second. Returns `None` once the book is closed.
 fn next_job(shared: &Shared) -> Option<Job> {
-    let mut queue = shared.lock();
+    let mut guard = shared.lock();
     loop {
-        if queue.closed {
-            return None;
-        }
-        if let Some(job) = queue.jobs.pop() {
-            if !job.reads_the_page() {
-                return Some(job);
+        {
+            let queue = &mut *guard;
+            if queue.closed {
+                return None;
             }
-            match queue.in_flight.entry(job.entry.clone()) {
-                // Two callers asked for the same page before either was picked up. Wait
-                // on the one that is running instead of reading the bytes twice.
-                Entry::Occupied(mut waiting) => {
-                    if let Reply::Page(tx) = job.reply {
-                        waiting.get_mut().push(tx);
+
+            // Preload is taken only while it would leave the reader a worker to be
+            // served by; the rest of the queue is taken as before, so the reserve costs
+            // preload throughput and never correctness.
+            let may_preload = queue.preloading + shared.reserve < shared.workers;
+            let take_preload = match (queue.jobs.peek(), queue.preload.peek()) {
+                (_, None) => false,
+                (None, Some(_)) => may_preload,
+                // `Ord` is reversed for the heap, so the greater job is the higher
+                // priority one. Preload before the scan, after the foreground.
+                (Some(next), Some(ahead)) => may_preload && ahead > next,
+            };
+
+            if take_preload || !queue.jobs.is_empty() {
+                let heap = if take_preload {
+                    &mut queue.preload
+                } else {
+                    &mut queue.jobs
+                };
+                let job = heap.pop().expect("a job was just peeked");
+                if job.reads_the_page() {
+                    match queue.in_flight.entry(job.entry.clone()) {
+                        // Two callers asked for the same page before either was picked
+                        // up. Wait on the one that is running instead of reading the
+                        // bytes twice.
+                        Entry::Occupied(mut waiting) => {
+                            if let Reply::Page(tx) = job.reply {
+                                waiting.get_mut().push(tx);
+                            }
+                            // Absorbed rather than taken, so it holds no worker.
+                            continue;
+                        }
+                        Entry::Vacant(slot) => {
+                            slot.insert(Vec::new());
+                        }
                     }
                 }
-                Entry::Vacant(slot) => {
-                    slot.insert(Vec::new());
-                    return Some(job);
+                if take_preload {
+                    queue.preloading += 1;
                 }
+                return Some(job);
             }
-            continue;
         }
-        queue = shared
+        guard = shared
             .wake
-            .wait(queue)
+            .wait(guard)
             .unwrap_or_else(|poisoned| poisoned.into_inner());
+    }
+}
+
+/// Holds a worker's preload slot, and gives it back however the job ends.
+///
+/// A slot leaked by an early return would shrink the pool for the life of the book, so
+/// releasing it is a `Drop` rather than a line at each exit.
+struct PreloadSlot<'a>(Option<&'a Shared>);
+
+impl Drop for PreloadSlot<'_> {
+    fn drop(&mut self) {
+        if let Some(shared) = self.0 {
+            shared.lock().preloading -= 1;
+            // A freed slot may be exactly what a waiting worker needs.
+            shared.wake.notify_one();
+        }
     }
 }
 
@@ -751,6 +849,7 @@ mod tests {
             Arc::new(container),
             pipeline(),
             mini_moka::sync::Cache::new(1000),
+            0,
         )
     }
 
@@ -791,7 +890,8 @@ mod tests {
     /// The tests below are in this module, so they can wait on the scheduler's own state
     /// instead of sleeping long enough to usually be right.
     fn queued(service: &PageService) -> usize {
-        service.shared.lock().jobs.len()
+        let queue = service.shared.lock();
+        queue.jobs.len() + queue.preload.len()
     }
 
     fn reading(service: &PageService, entry: &str) -> bool {
@@ -895,7 +995,7 @@ mod tests {
         let log = Arc::new(Mutex::new(Vec::new()));
         let service = service(recording_container(names.clone(), 1, log.clone()));
 
-        service.request_preload_around(5, 2).unwrap();
+        service.request_preload_around(5, 2, 0).unwrap();
         eventually("the window to be read", || log.lock().unwrap().len() == 5);
 
         let read = log.lock().unwrap().clone();
@@ -911,6 +1011,209 @@ mod tests {
                 names[4].clone(),
             ]
         );
+    }
+
+    #[test]
+    fn a_preload_window_leaves_out_the_pages_the_caller_is_fetching() {
+        let names = entries(10);
+        let log = Arc::new(Mutex::new(Vec::new()));
+        let service = service(recording_container(names.clone(), 1, log.clone()));
+
+        // A spread: the viewer asks for 5 and 6 itself, at foreground priority.
+        service.request_preload_around(5, 2, 2).unwrap();
+        eventually("the queue to drain", || {
+            let queue = service.shared.lock();
+            queue.jobs.is_empty() && queue.preload.is_empty() && queue.in_flight.is_empty()
+        });
+
+        let read = log.lock().unwrap().clone();
+        // Ahead resumes past the pair; behind is untouched by the skip.
+        assert_eq!(
+            read,
+            vec![names[7].clone(), names[3].clone(), names[4].clone()],
+            "preload read a page the caller was already fetching"
+        );
+    }
+
+    /// A gate the test opens once, for every reader at once.
+    ///
+    /// A `Barrier` cannot express this: the tests below hold an unknown number of reads
+    /// and release them from a thread that is not one of them.
+    #[derive(Default)]
+    struct Latch {
+        open: Mutex<bool>,
+        changed: Condvar,
+    }
+
+    impl Latch {
+        fn wait(&self) {
+            let mut open = self.open.lock().unwrap();
+            while !*open {
+                open = self.changed.wait(open).unwrap();
+            }
+        }
+
+        fn open(&self) {
+            *self.open.lock().unwrap() = true;
+            self.changed.notify_all();
+        }
+    }
+
+    /// A container whose page reads park until `latch` opens.
+    ///
+    /// `free` is the one entry that reads straight through, which is how a test asks for
+    /// a page while every other read is held. Measuring never parks, so a scan can be
+    /// watched against held reads too.
+    fn latched_container(
+        names: Vec<String>,
+        readers: usize,
+        free: String,
+        latch: Arc<Latch>,
+    ) -> MockContainer {
+        let mut container = MockContainer::new();
+        container.expect_get_entries().return_const(names);
+        container.expect_max_readers().return_const(readers);
+        container.expect_open_reader().returning(move || {
+            let latch = latch.clone();
+            let free = free.clone();
+            let mut reader = MockPageReader::new();
+            reader.expect_read_page().returning(move |entry| {
+                if entry != free {
+                    latch.wait();
+                }
+                Ok(page_bytes())
+            });
+            reader.expect_page_dimensions().returning(|_| {
+                Ok(ImageDimensions {
+                    width: 4,
+                    height: 2,
+                })
+            });
+            Ok(Box::new(reader) as Box<dyn PageReader>)
+        });
+        container
+    }
+
+    /// Four readers held by preload, with the two reserved workers still free.
+    fn service_with_preload_at_its_ceiling(
+        names: &[String],
+        free: &str,
+        latch: Arc<Latch>,
+    ) -> Arc<PageService> {
+        let service = Arc::new(PageService::new(
+            "book".to_string(),
+            Arc::new(latched_container(
+                names.to_vec(),
+                8,
+                free.to_string(),
+                latch,
+            )),
+            pipeline(),
+            mini_moka::sync::Cache::new(1000),
+            4,
+        ));
+        assert_eq!((service.shared.workers, service.shared.reserve), (4, 2));
+
+        service.request_preload_around(0, 10, 0).unwrap();
+        // At least two, so that a build without the reserve fails on what the reserve is
+        // for — the request below — rather than here.
+        eventually("preload to take a worker", || {
+            service.shared.lock().preloading >= 2
+        });
+        service
+    }
+
+    #[test]
+    fn a_foreground_page_is_served_while_preload_holds_every_worker_it_may() {
+        let names = entries(30);
+        let wanted = names[20].clone();
+        let latch = Arc::new(Latch::default());
+        let service = service_with_preload_at_its_ceiling(&names, &wanted, latch.clone());
+
+        // On another thread: a foreground request that never returns must fail this test
+        // as a timeout, not hang it.
+        let served = Arc::new(AtomicUsize::new(0));
+        let foreground = {
+            let service = service.clone();
+            let served = served.clone();
+            thread::spawn(move || {
+                let page = service.page(&wanted, Priority::Foreground);
+                served.fetch_add(1, Ordering::SeqCst);
+                page
+            })
+        };
+
+        eventually("the foreground page", || served.load(Ordering::SeqCst) == 1);
+        assert!(foreground.join().unwrap().is_ok());
+        // Served by a reserved worker: the two preload reads never finished.
+        assert_eq!(service.shared.lock().preloading, 2);
+
+        latch.open();
+        service.close();
+    }
+
+    #[test]
+    fn a_scan_is_not_held_back_by_the_reserve() {
+        let names = entries(30);
+        let latch = Arc::new(Latch::default());
+        let service = service_with_preload_at_its_ceiling(&names, &names[20], latch.clone());
+
+        let scanned = Arc::new(AtomicUsize::new(0));
+        let scanner = {
+            let service = service.clone();
+            let scanned = scanned.clone();
+            thread::spawn(move || {
+                let measured = service.dimensions();
+                scanned.fetch_add(1, Ordering::SeqCst);
+                measured
+            })
+        };
+
+        eventually("the scan", || scanned.load(Ordering::SeqCst) == 1);
+        assert_eq!(scanner.join().unwrap().unwrap().len(), names.len());
+
+        latch.open();
+        service.close();
+    }
+
+    #[test]
+    fn a_book_with_one_reader_reserves_nothing_and_still_preloads() {
+        let names = entries(5);
+        let log = Arc::new(Mutex::new(Vec::new()));
+        let service = service(recording_container(names, 1, log.clone()));
+
+        // A solid RAR, an EPUB, a PDF: reserving a worker here would reserve the only one.
+        assert_eq!((service.shared.workers, service.shared.reserve), (1, 0));
+
+        service.request_preload_around(0, 2, 0).unwrap();
+        eventually("the window to be read", || log.lock().unwrap().len() == 3);
+    }
+
+    #[test]
+    fn the_reader_caps_the_pool_and_the_format_caps_it_lower() {
+        let names = entries(4);
+        let log = Arc::new(Mutex::new(Vec::new()));
+        let build = |readers: usize, max_workers: usize| {
+            PageService::new(
+                "book".to_string(),
+                Arc::new(recording_container(names.clone(), readers, log.clone())),
+                pipeline(),
+                mini_moka::sync::Cache::new(1000),
+                max_workers,
+            )
+        };
+
+        // 0 is the setting's default: the machine answers, and never with none.
+        assert!(build(64, 0).shared.workers >= 1);
+
+        assert_eq!(build(64, 3).shared.workers, 3);
+        // The format's own limit wins however high the reader sets theirs.
+        assert_eq!(build(1, 8).shared.workers, 1);
+
+        // Reserve two wherever there are three, one of two, and none of one.
+        assert_eq!(build(64, 3).shared.reserve, 2);
+        assert_eq!(build(64, 2).shared.reserve, 1);
+        assert_eq!(build(1, 8).shared.reserve, 0);
     }
 
     #[test]
@@ -945,11 +1248,12 @@ mod tests {
             Arc::new(container),
             pipeline(),
             mini_moka::sync::Cache::new(1000),
+            0,
         );
 
-        service.request_preload_around(0, 3).unwrap();
+        service.request_preload_around(0, 3, 0).unwrap();
         // The worker is now parked inside the first window's first page.
-        service.request_preload_around(30, 3).unwrap();
+        service.request_preload_around(30, 3, 0).unwrap();
         gate.wait();
 
         // Wait for the queue to drain rather than for a duration: the assertion below is
@@ -957,7 +1261,7 @@ mod tests {
         // that could still read it.
         eventually("the queue to drain", || {
             let queue = service.shared.lock();
-            queue.jobs.is_empty() && queue.in_flight.is_empty()
+            queue.jobs.is_empty() && queue.preload.is_empty() && queue.in_flight.is_empty()
         });
 
         let read = log.lock().unwrap().clone();
@@ -995,6 +1299,7 @@ mod tests {
             Arc::new(container),
             pipeline(),
             mini_moka::sync::Cache::new(1000),
+            0,
         ));
 
         let wanted = names[0].clone();
@@ -1119,6 +1424,7 @@ mod tests {
             Arc::new(container),
             pipeline(),
             mini_moka::sync::Cache::new(1000),
+            0,
         ));
 
         let scanner = {
@@ -1274,10 +1580,11 @@ mod tests {
             Arc::new(container),
             pipeline(),
             mini_moka::sync::Cache::new(100),
+            0,
         );
 
         assert_eq!(service.dimensions().unwrap(), Vec::new());
-        service.request_preload_around(0, 5).unwrap();
+        service.request_preload_around(0, 5, 0).unwrap();
         assert!(service.page("anything", Priority::Foreground).is_err());
     }
 }

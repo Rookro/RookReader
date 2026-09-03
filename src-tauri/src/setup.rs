@@ -176,6 +176,7 @@ pub fn apply_reader_settings_to_container(state: &mut AppState, settings: &AppSe
     container_settings.enable_preview = settings.reader.rendering.enable_thumbnail_preview;
     container_settings.max_image_height = settings.reader.rendering.max_image_height;
     container_settings.image_cache_size_mib = new_cache_size_mib;
+    container_settings.page_reader_count = settings.reader.comic.cache.page_reader_count;
     container_settings.pdf_render_resolution_height =
         settings.reader.rendering.pdf_render_resolution_height;
     container_settings.image_resampling_method =
@@ -321,6 +322,7 @@ mod tests {
         settings.reader.rendering.pdf_render_resolution_height = 1500;
         settings.reader.rendering.image_resampling_method = ImageResamplingMethod::Lanczos3;
         settings.reader.comic.cache.image_cache_size_mib = 2048;
+        settings.reader.comic.cache.page_reader_count = 3;
 
         apply_reader_settings_to_container(&mut state, &settings);
 
@@ -333,6 +335,7 @@ mod tests {
             ResizeFilter::Lanczos3
         );
         assert_eq!(container_settings.image_cache_size_mib, 2048);
+        assert_eq!(container_settings.page_reader_count, 3);
     }
 
     #[cfg(any(debug_assertions, feature = "e2e-test"))]

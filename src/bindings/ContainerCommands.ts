@@ -21,14 +21,21 @@ export const getEntriesInContainer = async (path: string) => {
  *   before a book switch from warming the wrong pages.
  * @param index The current page index around which to preload.
  * @param bufferSize How many pages to preload in each direction.
+ * @param callerPages How many pages from `index` the caller is fetching itself. They are
+ *   left out of the window: the caller asks for them at foreground priority, so
+ *   preloading them only lets a background job reach them first, and the foreground
+ *   request then waits on that job instead of being served.
  * @returns A promise that resolves when the request is submitted.
  */
 export const requestPreloadAround = async (
   path: string,
   index: number,
   bufferSize: number | undefined = undefined,
+  callerPages: number | undefined = undefined,
 ): Promise<void> => {
-  await runCommand(commands.requestPreloadAround(path, index, bufferSize ?? null));
+  await runCommand(
+    commands.requestPreloadAround(path, index, bufferSize ?? null, callerPages ?? null),
+  );
 };
 
 /**

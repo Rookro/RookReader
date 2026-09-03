@@ -23,20 +23,22 @@ describe("ContainerCommands", () => {
   });
 
   it("requestPreloadAround should call invoke", async () => {
-    await ContainerCommands.requestPreloadAround("path", 5, 10);
+    await ContainerCommands.requestPreloadAround("path", 5, 10, 2);
     expect(invoke).toHaveBeenCalledWith("request_preload_around", {
       path: "path",
       index: 5,
       bufferSize: 10,
+      callerPages: 2,
     });
   });
 
-  it("requestPreloadAround should call invoke with null bufferSize by default", async () => {
+  it("requestPreloadAround should call invoke with null optionals by default", async () => {
     await ContainerCommands.requestPreloadAround("path", 5);
     expect(invoke).toHaveBeenCalledWith("request_preload_around", {
       path: "path",
       index: 5,
       bufferSize: null,
+      callerPages: null,
     });
   });
 
