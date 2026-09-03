@@ -737,6 +737,9 @@ describe("useViewerController", () => {
       });
     };
 
+    /** The landscape flags the scan below reports, in entry order. */
+    const MEASURED = [false, true, false];
+
     beforeEach(() => {
       mockedFetchImageBlob.mockResolvedValue({} as Image);
       mockedCreateImageCacheItem.mockReturnValue({
@@ -745,6 +748,13 @@ describe("useViewerController", () => {
         width: 100,
         height: 200,
       } as ImageUtils.ImageCacheItem);
+      // One landscape page, so an assertion can name the measured chain's call: the
+      // assumed chain sees only the pages the viewer has loaded, never this.
+      vi.mocked(getImageDimensions).mockResolvedValue([
+        { width: 100, height: 200 },
+        { width: 200, height: 100 },
+        { width: 100, height: 200 },
+      ]);
     });
 
     // Verify the chain's boundary wins over the walk and the local heuristic
@@ -807,9 +817,12 @@ describe("useViewerController", () => {
         }),
       );
 
-      await waitFor(() => expect(mockedBuildUnitChain).toHaveBeenCalled());
-      expect(mockedBuildUnitChain.mock.calls.at(-1)?.[2]).toBe(
-        !twoPagedSettings.isFirstPageSingleView,
+      await waitFor(() =>
+        expect(mockedBuildUnitChain).toHaveBeenCalledWith(
+          MEASURED,
+          twoPagedSettings,
+          !twoPagedSettings.isFirstPageSingleView,
+        ),
       );
     });
 
@@ -829,8 +842,9 @@ describe("useViewerController", () => {
         }),
       );
 
-      await waitFor(() => expect(mockedBuildUnitChain).toHaveBeenCalled());
-      expect(mockedBuildUnitChain.mock.calls.at(-1)?.[2]).toBe(false);
+      await waitFor(() =>
+        expect(mockedBuildUnitChain).toHaveBeenCalledWith(MEASURED, twoPagedSettings, false),
+      );
     });
 
     // Verify an unshifted book takes cover presence straight from the setting
@@ -848,9 +862,12 @@ describe("useViewerController", () => {
         }),
       );
 
-      await waitFor(() => expect(mockedBuildUnitChain).toHaveBeenCalled());
-      expect(mockedBuildUnitChain.mock.calls.at(-1)?.[2]).toBe(
-        twoPagedSettings.isFirstPageSingleView,
+      await waitFor(() =>
+        expect(mockedBuildUnitChain).toHaveBeenCalledWith(
+          MEASURED,
+          twoPagedSettings,
+          twoPagedSettings.isFirstPageSingleView,
+        ),
       );
     });
 
@@ -869,9 +886,12 @@ describe("useViewerController", () => {
         }),
       );
 
-      await waitFor(() => expect(mockedBuildUnitChain).toHaveBeenCalled());
-      expect(mockedBuildUnitChain.mock.calls.at(-1)?.[2]).toBe(
-        !twoPagedSettings.isFirstPageSingleView,
+      await waitFor(() =>
+        expect(mockedBuildUnitChain).toHaveBeenCalledWith(
+          MEASURED,
+          twoPagedSettings,
+          !twoPagedSettings.isFirstPageSingleView,
+        ),
       );
     });
 
@@ -977,9 +997,16 @@ describe("useViewerController", () => {
         });
 
         expect(result.current.isImageLoading).toBe(false);
-        expect(result.current.displayedLayout?.isSpread).toBe(false);
+        expect(result.current.displayedLayout).not.toBeNull();
+        // A failed scan is a book that offered no evidence, so the setting decides.
+        expect(mockedBuildUnitChain).toHaveBeenCalledWith(
+          [false, false, false],
+          twoPagedSettings,
+          twoPagedSettings.isFirstPageSingleView,
+        );
+        // Navigation still steps one page at a time: only the book's own chain may say
+        // a step is two.
         result.current.moveForward();
-        expect(mockedBuildUnitChain).not.toHaveBeenCalled();
         expect(mockDispatch).toHaveBeenCalledWith(setImageIndex(1));
       } finally {
         vi.useRealTimers();
@@ -1125,12 +1152,94 @@ describe("useViewerController", () => {
       expect(result.current.isImageLoading).toBe(true);
     });
 
-    // Verify a scan that never lands still lets the reader read
-    it("falls back to single pages once the wait cap has passed", async () => {
-      vi.useFakeTimers();
+    /** Renders with a never-landing scan and lets the wait cap elapse. */
+    const afterTheWaitCap = async (settings: ImageUtils.ViewerSettings, shifted = false) => {
       vi.mocked(getImageDimensions).mockReturnValue(new Promise(() => {}));
+      const { result } = renderHook(() =>
+        useViewerController({
+          containerPath: "path",
+          entries: mockEntries,
+          index: 0,
+          isSpreadShifted: shifted,
+          settings,
+          dispatch: mockDispatch,
+        }),
+      );
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1000);
+      });
+      return result;
+    };
 
+    // Verify a scan that never lands still lets the reader read
+    it("pairs from the setting once the wait cap has passed", async () => {
+      vi.useFakeTimers();
       try {
+        const result = await afterTheWaitCap(twoPaged);
+
+        expect(result.current.displayedLayout).not.toBeNull();
+        expect(result.current.isImageLoading).toBe(false);
+        // A book that has offered no measurement is paired as one with no landscape page
+        // would be, which for most books is already the final answer.
+        expect(mockedBuildUnitChain).toHaveBeenCalledWith(
+          [false, false, false],
+          twoPaged,
+          twoPaged.isFirstPageSingleView,
+        );
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    // Verify the cover setting is what decides the assumed pairing
+    it("follows the cover setting while the book is unmeasured", async () => {
+      vi.useFakeTimers();
+      try {
+        await afterTheWaitCap({ ...twoPaged, isFirstPageSingleView: true });
+        expect(mockedBuildUnitChain).toHaveBeenCalledWith(
+          [false, false, false],
+          expect.objectContaining({ isFirstPageSingleView: true }),
+          true,
+        );
+
+        mockedBuildUnitChain.mockClear();
+        await afterTheWaitCap({ ...twoPaged, isFirstPageSingleView: false });
+        expect(mockedBuildUnitChain).toHaveBeenCalledWith(
+          [false, false, false],
+          expect.objectContaining({ isFirstPageSingleView: false }),
+          false,
+        );
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    // Verify the reader's correction still flips the assumed pairing, so the button does
+    // something even before the book has been measured
+    it("lets the reader's shift flip the assumed pairing", async () => {
+      vi.useFakeTimers();
+      try {
+        await afterTheWaitCap({ ...twoPaged, isFirstPageSingleView: true }, true);
+        expect(mockedBuildUnitChain).toHaveBeenCalledWith(
+          [false, false, false],
+          expect.objectContaining({ isFirstPageSingleView: true }),
+          false,
+        );
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    // Verify a page turn never lands back on a page the reader has just seen
+    it("steps by the assumed pairing's own increment", async () => {
+      vi.useFakeTimers();
+      try {
+        // {0,1} {2} for a three-page book: the pairing on screen is a spread, so the
+        // page after it is 2. Stepping by one would show page 1 again, on the other
+        // side of the screen, and the reader would re-read what they just read.
+        mockedBuildUnitChain.mockImplementation(spreadPairs);
+        vi.mocked(getImageDimensions).mockReturnValue(new Promise(() => {}));
+
         const { result } = renderHook(() =>
           useViewerController({
             containerPath: "path",
@@ -1146,8 +1255,202 @@ describe("useViewerController", () => {
           await vi.advanceTimersByTimeAsync(1000);
         });
 
-        expect(result.current.displayedLayout).not.toBeNull();
-        expect(result.current.displayedLayout?.isSpread).toBe(false);
+        expect(result.current.displayedLayout?.isSpread).toBe(true);
+        result.current.moveForward();
+        expect(mockDispatch).toHaveBeenCalledWith(setImageIndex(2));
+        expect(mockDispatch).not.toHaveBeenCalledWith(setImageIndex(1));
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    // Verify stepping back lands on the unit start, not inside the unit before it
+    it("steps back to the assumed pairing's previous unit start", async () => {
+      vi.useFakeTimers();
+      try {
+        mockedBuildUnitChain.mockImplementation(spreadPairs);
+        vi.mocked(getImageDimensions).mockReturnValue(new Promise(() => {}));
+
+        const { result } = renderHook(() =>
+          useViewerController({
+            containerPath: "path",
+            entries: mockEntries,
+            index: 2,
+            isSpreadShifted: false,
+            settings: twoPaged,
+            dispatch: mockDispatch,
+          }),
+        );
+
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(1000);
+        });
+
+        result.current.moveBack();
+        // Back from {2} is the spread {0,1}, not page 1 on its own.
+        expect(mockDispatch).toHaveBeenCalledWith(setImageIndex(0));
+        expect(mockDispatch).not.toHaveBeenCalledWith(setImageIndex(1));
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    // Verify a landscape page is never shown as half of a spread
+    it("never pairs a page it has loaded and found landscape", async () => {
+      vi.useFakeTimers();
+      try {
+        // A landscape image is one physical spread, so it never shares a screen — a fact
+        // about that page alone, true whatever the rest of the book turns out to be.
+        mockedCreateImageCacheItem.mockReturnValue({
+          fullUrl: "url",
+          url: "url",
+          width: 200,
+          height: 100,
+        } as ImageUtils.ImageCacheItem);
+        vi.mocked(getImageDimensions).mockReturnValue(new Promise(() => {}));
+
+        renderHook(() =>
+          useViewerController({
+            containerPath: "path",
+            entries: mockEntries,
+            index: 0,
+            isSpreadShifted: false,
+            settings: twoPaged,
+            dispatch: mockDispatch,
+          }),
+        );
+
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(1000);
+        });
+
+        // Let the loaded pages reach the chain. `waitFor` cannot be used here: it polls
+        // on a timer that these fake ones never advance.
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(0);
+        });
+
+        // Pages 0 and 1 are the ones on screen, so they are the ones the viewer knows.
+        expect(mockedBuildUnitChain).toHaveBeenCalledWith(
+          [true, true, false],
+          twoPaged,
+          twoPaged.isFirstPageSingleView,
+        );
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    // Verify the page's own bytes decide its shape, not the stand-in shown before them
+    it("measures the page, not its preview", async () => {
+      vi.useFakeTimers();
+      try {
+        // Only the preview arrives, and it reports the opposite orientation. Holding the
+        // page back is also what keeps this test from re-entering the load effect.
+        mockedCreateImageCacheItem.mockReturnValue({
+          previewUrl: "p",
+          url: "p",
+          width: 200,
+          height: 100,
+        } as ImageUtils.ImageCacheItem);
+        vi.mocked(ImageUtils.fetchImagePreviewBlob).mockResolvedValue({} as Image);
+        mockedFetchImageBlob.mockReturnValue(new Promise(() => {}));
+        vi.mocked(getImageDimensions).mockReturnValue(new Promise(() => {}));
+
+        renderHook(() =>
+          useViewerController({
+            containerPath: "path",
+            entries: mockEntries,
+            index: 0,
+            isSpreadShifted: false,
+            settings: { ...twoPaged, enablePreview: true },
+            dispatch: mockDispatch,
+          }),
+        );
+
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(1000);
+        });
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(0);
+        });
+
+        // A preview is rendered at whatever size its format chose; the page it stands in
+        // for is the only thing that says how that page is shaped.
+        const seen = mockedBuildUnitChain.mock.calls.map((call) => call[0]);
+        expect(seen).toContainEqual([false, false, false]);
+        expect(seen.some((landscape) => landscape.includes(true))).toBe(false);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    // Verify a page it has not seen is assumed portrait rather than guessed at
+    it("takes an unloaded page for portrait", async () => {
+      vi.useFakeTimers();
+      try {
+        vi.mocked(getImageDimensions).mockReturnValue(new Promise(() => {}));
+        // Nothing loads, so nothing is known.
+        mockedFetchImageBlob.mockReturnValue(new Promise(() => {}));
+
+        await afterTheWaitCap(twoPaged);
+
+        expect(mockedBuildUnitChain).toHaveBeenCalledWith(
+          [false, false, false],
+          twoPaged,
+          twoPaged.isFirstPageSingleView,
+        );
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    // Verify the parity is never taken from a page set the viewer has only half seen
+    it("never reads cover presence from a partly loaded book", async () => {
+      vi.useFakeTimers();
+      try {
+        mockedDetectCoverPresence.mockReturnValue(!twoPaged.isFirstPageSingleView);
+        vi.mocked(getImageDimensions).mockReturnValue(new Promise(() => {}));
+
+        await afterTheWaitCap(twoPaged);
+
+        // Detection counts the pages before a landscape image to fix the parity, so an
+        // unloaded landscape page earlier in the book flips its answer. The setting is
+        // the only thing that can be trusted here.
+        expect(mockedDetectCoverPresence).not.toHaveBeenCalled();
+        expect(
+          mockedBuildUnitChain.mock.calls.every(
+            (call) => call[2] === twoPaged.isFirstPageSingleView,
+          ),
+        ).toBe(true);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    // Verify an assumed pairing is never mistaken for a measurement
+    it("never stores the assumed pairing as a measurement", async () => {
+      vi.useFakeTimers();
+      try {
+        vi.mocked(getImageDimensions).mockReturnValue(new Promise(() => {}));
+        renderHook(() =>
+          useViewerController({
+            containerPath: "path",
+            entries: mockEntries,
+            index: 0,
+            isSpreadShifted: false,
+            settings: twoPaged,
+            dispatch: mockDispatch,
+            book: createMockBookWithState({ landscape_bits: null }),
+          }),
+        );
+
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(1000);
+        });
+
+        // It is a display decision, not something measured about the book.
+        expect(updatePageLayout).not.toHaveBeenCalled();
       } finally {
         vi.useRealTimers();
       }

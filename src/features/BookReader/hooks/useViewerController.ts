@@ -26,10 +26,70 @@ import {
  * How long the viewer holds the loading state waiting to be told how the book pairs.
  *
  * Only a book being measured for the first time can reach it: after that the pairing
- * arrives with the book. One second is the limit for a flow of thought — past it, being
- * able to read beats being paired, so the viewer falls back to single pages.
+ * arrives with the book, and a measured 200-page book scans in 8 ms (ZIP) to 434 ms (a
+ * solid RAR). One second is the limit for a flow of thought — past it, being able to read
+ * beats being paired, so the viewer pairs from the setting alone and corrects itself if
+ * the measurement disagrees.
+ *
+ * The cap is what keeps that correction rare, which is why it is not simply zero: showing
+ * the assumed pairing immediately would guarantee a visible correction on the first open
+ * of every book that has a landscape page.
  */
 const CHAIN_WAIT_CAP_MS = 1000;
+
+/**
+ * Builds a book's unit chain from its measured pages and the reader's correction.
+ *
+ * The archive's own landscape pages prove whether it carries the cover, so they outrank
+ * `isFirstPageSingleView`, which is only a default for archives that offer no proof. The
+ * reader's toggle outranks both, so the button always changes the chain — including when
+ * a landscape page would otherwise decide it.
+ *
+ * @param landscape Whether each page is wider than it is tall, in entry order.
+ * @param settings The viewer settings.
+ * @param isSpreadShifted The reader's persisted correction for this book.
+ * @returns The chain covering every page.
+ */
+const chainFrom = (landscape: boolean[], settings: ViewerSettings, isSpreadShifted: boolean) => {
+  const base = detectCoverPresence(landscape) ?? settings.isFirstPageSingleView;
+  return buildUnitChain(landscape, settings, isSpreadShifted ? !base : base);
+};
+
+/**
+ * Builds the chain to use while the book has not been measured, from whatever pages the
+ * viewer has already loaded.
+ *
+ * Two tiers of evidence, taken separately because only one of them survives partial
+ * knowledge:
+ *
+ * - **Whether a page pairs** is read from the pages actually loaded. A landscape image is
+ *   one physical spread, so it never shares a screen — a fact about that page alone, true
+ *   no matter what the rest of the book turns out to be.
+ * - **Where spreads begin** comes from `isFirstPageSingleView` only, never from
+ *   [`detectCoverPresence`]. Detection counts the pages before a landscape image to fix
+ *   the parity, so a single unloaded landscape page earlier in the book flips its answer;
+ *   on partial knowledge it is not evidence, it is a coin flip.
+ *
+ * Unloaded pages are taken for portrait, which is what the whole fallback assumes, and the
+ * chain sharpens as the reader reads. A displayed unit is always decided with its own
+ * pages known, because a layout is only published once its images are cached.
+ *
+ * @param entries The list of entry names.
+ * @param landscapeByEntry What the viewer has measured so far, by entry name.
+ * @param settings The viewer settings.
+ * @param isSpreadShifted The reader's persisted correction for this book.
+ * @returns The chain covering every page.
+ */
+const assumedChainFrom = (
+  entries: string[],
+  landscapeByEntry: ReadonlyMap<string, boolean>,
+  settings: ViewerSettings,
+  isSpreadShifted: boolean,
+) => {
+  const landscape = entries.map((entry) => landscapeByEntry.get(entry) ?? false);
+  const base = settings.isFirstPageSingleView;
+  return buildUnitChain(landscape, settings, isSpreadShifted ? !base : base);
+};
 
 /**
  * Revokes every object URL held by the cache entries.
@@ -112,6 +172,10 @@ export const useViewerController = ({
   } | null>(null);
   // Set once the viewer has waited CHAIN_WAIT_CAP_MS for a chain that has not arrived.
   const [chainWaitElapsed, setChainWaitElapsed] = useState(false);
+  // The shape of the pages the viewer has loaded, which is all it knows about a book the
+  // measurement has not described yet. Recorded only while that is the case, so a
+  // measured book — every book after its first open — never pays for it.
+  const [loadedLandscape, setLoadedLandscape] = useState<ReadonlyMap<string, boolean>>(new Map());
   // The book whose measurement has already been written back, so a re-render cannot
   // write it twice.
   const savedLayoutRef = useRef<string | null>(null);
@@ -126,6 +190,7 @@ export const useViewerController = ({
     revokeCacheUrls(cacheRef.current);
     cacheRef.current.clear();
     previewUnsupportedRef.current = false;
+    setLoadedLandscape(new Map());
     abortControllerRef.current?.abort();
   }, [containerPath]);
 
@@ -192,13 +257,44 @@ export const useViewerController = ({
     if (!landscape) {
       return null;
     }
-    // The archive's own landscape pages prove whether it carries the cover, so they
-    // outrank `isFirstPageSingleView`, which is only a default for archives that offer
-    // no proof. The reader's toggle outranks both, so the button always changes the
-    // chain — including when a landscape page would otherwise decide it.
-    const base = detectCoverPresence(landscape) ?? settings.isFirstPageSingleView;
-    return buildUnitChain(landscape, settings, isSpreadShifted ? !base : base);
+    return chainFrom(landscape, settings, isSpreadShifted);
   }, [landscape, isSpreadShifted, settings]);
+
+  /**
+   * The pairing to show when the measurement has not arrived and the wait cap has passed.
+   *
+   * The book has offered no evidence *yet*, which is the case the settings tier of the
+   * evidence order already covers: assume no page is landscape and let
+   * `isFirstPageSingleView` decide, exactly as it would for a book that turns out to have
+   * none. For such a book — most of them — this is already the final answer and the
+   * measurement changes nothing when it lands.
+   *
+   * Where the book does have landscape pages, the measurement can move a spread boundary,
+   * and the facing page changes under the reader. That is the cost of pairing at all
+   * before the book has been measured; the page the reader is on stays on screen either
+   * way, because the chain effect snaps to the unit containing it rather than past it.
+   */
+  const assumedChain = useMemo(
+    () => assumedChainFrom(entries, loadedLandscape, settings, isSpreadShifted),
+    [entries, loadedLandscape, isSpreadShifted, settings],
+  );
+
+  /**
+   * The pairing everything downstream uses: the book's own once it is known, and the one
+   * the settings imply once the viewer has waited long enough for it.
+   *
+   * Null only while the book is still being measured inside the wait cap, which is when
+   * the viewer shows nothing rather than a pairing it would have to correct.
+   *
+   * Display, navigation and the boundary snap all read *this*, never `chain` directly.
+   * They have to agree: a viewer that displays the spread {0,1} but steps forward by one
+   * page shows page 1 again on its own, and the reader turns the page to re-read what
+   * they just read.
+   */
+  const pairing = useMemo(
+    () => chain ?? (chainWaitElapsed ? assumedChain : null),
+    [chain, chainWaitElapsed, assumedChain],
+  );
 
   // Remember the measurement so this book never has to be scanned again. Only a fully
   // successful scan is written back: a page that failed once, and so measured as 0x0,
@@ -240,23 +336,23 @@ export const useViewerController = ({
   // facing page. Never the other way round — where the reader entered the book must not
   // decide how the book is paired.
   useEffect(() => {
-    if (!chain) {
+    if (!pairing) {
       return;
     }
-    if (!chain.units.has(index)) {
-      const start = chain.starts.filter((s) => s < index).at(-1);
+    if (!pairing.units.has(index)) {
+      const start = pairing.starts.filter((s) => s < index).at(-1);
       if (start !== undefined) {
         dispatch(setImageIndex(start));
       }
     }
-  }, [chain, index, dispatch]);
+  }, [pairing, index, dispatch]);
 
-  // Single pages until the book has been measured. A provisional pairing would be a coin
-  // flip on parity, and correcting it swaps the facing page under the reader; falling
-  // back to single pages means the settled chain can only add one.
+  // The unit the viewer is showing, which is also the unit navigation steps by. A single
+  // page is the answer while no pairing is available at all, and for an index that is not
+  // a unit start — the snap above is what normally settles that.
   const currentUnit = useCallback(
-    (): UnitDecision => chain?.units.get(index) ?? SINGLE_UNIT,
-    [chain, index],
+    (): UnitDecision => pairing?.units.get(index) ?? SINGLE_UNIT,
+    [pairing, index],
   );
 
   // Loads the missing images and updates the layout.
@@ -274,20 +370,15 @@ export const useViewerController = ({
 
       const cache = cacheRef.current;
 
-      // Whether the viewer may show anything yet. A book being measured for the first
-      // time is the only one that reaches this false, and it becomes true either when the
-      // chain lands or when the wait cap gives up on it.
-      const pairingKnown = chain !== null || chainWaitElapsed;
-
       /**
-       * Builds the layout for the current index, once the book's pairing is settled.
+       * Builds the layout for the current index, once a pairing is available.
        *
        * Display is gated on the pairing; loading is not. `pathsToLoad` above is built
        * from the index and the two-page setting, never from the unit, so both pages are
        * already decoded when the chain lands and the hold costs waiting, not latency.
        */
       const layoutForCurrentIndex = (): ViewLayout | null =>
-        pairingKnown ? buildUnitLayout(currentUnit(), index, entries, cache) : null;
+        pairing ? buildUnitLayout(currentUnit(), index, entries, cache) : null;
 
       // Tracks whether a full layout was resolved this run, so the post-settle
       // fallback only fires when no layout ever came out.
@@ -307,6 +398,13 @@ export const useViewerController = ({
         }
         if (img && !controller.signal.aborted) {
           const newItem = createImageCacheItem(img, isPreview);
+          // A full page's own dimensions are the one thing the viewer can know about an
+          // unmeasured book. A preview is not that page: its format chose its size.
+          if (!isPreview && !chain) {
+            setLoadedLandscape((known) =>
+              known.has(path) ? known : new Map(known).set(path, newItem.width > newItem.height),
+            );
+          }
           const existingItem = cache.get(path);
           if (existingItem) {
             if (isPreview) {
@@ -327,7 +425,7 @@ export const useViewerController = ({
 
       const missingFullPaths = pathsToLoad.filter((p) => !cache.get(p)?.fullUrl);
       if (missingFullPaths.length === 0) {
-        setIsImageLoading(!pairingKnown);
+        setIsImageLoading(pairing === null);
         const layout = layoutForCurrentIndex();
         setLayoutState(layout ? { layout, path: containerPath } : null);
         return;
@@ -352,7 +450,7 @@ export const useViewerController = ({
         await Promise.all(previewPromises);
 
         if (!controller.signal.aborted) {
-          setIsImageLoading(!pairingKnown);
+          setIsImageLoading(pairing === null);
         }
       }
 
@@ -364,14 +462,14 @@ export const useViewerController = ({
         // failed to load), degrade to a single-page layout for the first image instead of
         // leaving the viewer blank. Only once the pairing is known, though: a single page
         // published while it is not is exactly the guess the hold exists to avoid.
-        if (!layoutResolved && pairingKnown) {
+        if (!layoutResolved && pairing) {
           const firstImg = cache.get(entries[index]);
           if (firstImg) {
             setLayoutState({ layout: buildSinglePageLayout(firstImg), path: containerPath });
           }
         }
         if (previewPromises.length === 0) {
-          setIsImageLoading(!pairingKnown);
+          setIsImageLoading(pairing === null);
         }
       }
     };
@@ -382,7 +480,7 @@ export const useViewerController = ({
       abortControllerRef.current?.abort();
       abortControllerRef.current = null;
     };
-  }, [containerPath, index, entries, settings, currentUnit, chain, chainWaitElapsed]);
+  }, [containerPath, index, entries, settings, currentUnit, pairing, chain]);
 
   // Request preloading around the current index in the backend.
   useEffect(() => {
@@ -431,10 +529,10 @@ export const useViewerController = ({
     }
 
     // Derive the increment from the current index's unit, not the lagging
-    // displayedLayout, which would desync spread pairs / skip pages.
-    // When the unit is unknown (dimensions not known yet) advance by 1: advancing 2
-    // could skip a page permanently, while a transient half-spread self-corrects.
-    const increment = currentUnit()?.nextIndexIncrement ?? 1;
+    // displayedLayout, which would desync spread pairs / skip pages. The unit is the one
+    // being displayed, so a step never lands on a page the reader has just seen, and a
+    // unit chain covers every index contiguously, so it never skips one either.
+    const increment = currentUnit().nextIndexIncrement;
     const nextIndex = index + increment;
 
     if (nextIndex < entries.length) {
@@ -461,19 +559,19 @@ export const useViewerController = ({
       return;
     }
 
-    // With the whole book measured, the preceding unit is simply the last boundary
-    // before the current index.
-    if (chain) {
-      const previous = chain.starts.filter((start) => start < index).at(-1);
+    // The preceding unit is simply the last boundary before the current index — of the
+    // same pairing the viewer is displaying, so back and forward stay in step.
+    if (pairing) {
+      const previous = pairing.starts.filter((start) => start < index).at(-1);
       if (previous !== undefined) {
         goTo(previous);
         return;
       }
     }
 
-    // Without a chain every unit is a single page, so one step back is the whole answer.
+    // Without a pairing every unit is a single page, so one step back is the answer.
     goTo(index - 1);
-  }, [index, entries.length, settings, goTo, chain, onBackwardBoundary]);
+  }, [index, entries.length, settings, goTo, pairing, onBackwardBoundary]);
 
   return {
     displayedLayout,
