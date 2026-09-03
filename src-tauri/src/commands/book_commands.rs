@@ -283,6 +283,60 @@ pub async fn update_reading_progress<R: tauri::Runtime>(
     Ok(())
 }
 
+/// Records the reader's correction to how a book pairs into spreads.
+///
+/// Written straight through rather than debounced with the reading progress: this changes
+/// on a button press, not on every page turn, and it must be kept even when the reader has
+/// turned reading history off.
+///
+/// # Arguments
+///
+/// * `book_id` - The book to update.
+/// * `is_spread_shifted` - Whether the reader has shifted the book's spreads.
+/// * `repo` - The managed book repository state.
+///
+/// # Errors
+///
+/// Returns an `Err` if the underlying repository operation fails.
+#[tauri::command]
+#[specta::specta]
+pub async fn update_spread_shift(
+    book_id: i64,
+    is_spread_shifted: bool,
+    repo: State<'_, Arc<dyn BookRepository>>,
+) -> Result<()> {
+    log::debug!("Update spread shift of book {book_id}: {is_spread_shifted}");
+    repo.update_spread_shift(book_id, is_spread_shifted).await?;
+    Ok(())
+}
+
+/// Records how a book's pages are shaped, so it need not be measured again.
+///
+/// # Arguments
+///
+/// * `book_id` - The book to update.
+/// * `landscape_bits` - One `'0'`/`'1'` per page in entry order, `'1'` for a page wider
+///   than it is tall.
+/// * `repo` - The managed book repository state.
+///
+/// # Errors
+///
+/// Returns an `Err` if the underlying repository operation fails.
+#[tauri::command]
+#[specta::specta]
+pub async fn update_page_layout(
+    book_id: i64,
+    landscape_bits: String,
+    repo: State<'_, Arc<dyn BookRepository>>,
+) -> Result<()> {
+    log::debug!(
+        "Update page layout of book {book_id}: {} pages",
+        landscape_bits.len()
+    );
+    repo.update_page_layout(book_id, &landscape_bits).await?;
+    Ok(())
+}
+
 /// Retrieves recently read books, ordered by the most recently opened.
 ///
 /// # Arguments
@@ -890,6 +944,8 @@ mod tests {
                     series_order: None,
                     thumbnail_path: None,
                     created_at: None,
+                    is_spread_shifted: false,
+                    landscape_bits: None,
                     last_read_page_index: Some(5),
                     last_opened_at: None,
                     cfi: None,

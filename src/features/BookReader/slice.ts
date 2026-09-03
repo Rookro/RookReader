@@ -1,7 +1,11 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import { basename, dirname } from "@tauri-apps/api/path";
 import { debug, error, info } from "@tauri-apps/plugin-log";
-import { getBookWithStateById, recordBookOpened } from "../../bindings/BookCommands";
+import {
+  getBookWithStateById,
+  recordBookOpened,
+  updateSpreadShift,
+} from "../../bindings/BookCommands";
 import { getEntriesInContainer, requestPreloadAround } from "../../bindings/ContainerCommands";
 import { getEntriesInDir as getEntriesInDirFromBackend } from "../../bindings/DirectoryCommands";
 import type { BookWithState } from "../../domain/book/schema";
@@ -135,6 +139,32 @@ export const updateExploreBasePath = createAppAsyncThunk(
       return { path: dirPath, entries: entries };
     } catch (e) {
       return handleThunkError(e, `Failed to getEntriesInDir(${dirPath}).`, rejectWithValue);
+    }
+  },
+);
+
+/**
+ * Flips this book's spread pairing and remembers it.
+ *
+ * Written straight through rather than debounced with the reading progress: it changes on
+ * a button press, not on every page turn, and it belongs to the book rather than to the
+ * reading history — which the reader can switch off or clear.
+ *
+ * @returns A thunk that flips the flag and persists it against the open book.
+ */
+export const toggleSpreadShift = createAppAsyncThunk(
+  "read/toggleSpreadShift",
+  async (_: undefined, { getState, dispatch }) => {
+    const { isSpreadShifted, book } = getState().read.containerFile;
+    const next = !isSpreadShifted;
+    dispatch(setSpreadShifted(next));
+    if (book) {
+      try {
+        await updateSpreadShift(book.id, next);
+      } catch (e) {
+        // The flag still applies to this session; only remembering it failed.
+        error(`Failed to store the spread shift: ${String(e)}`);
+      }
     }
   },
 );
@@ -433,6 +463,10 @@ export const readSlice = createSlice({
             ? (action.payload.book?.cfi ?? null)
             : null;
         }
+        // The reader's own correction to how this book pairs, restored with the book. It
+        // used to be inferred from whether the restored page happened to be a spread
+        // boundary, which made where they stopped reading decide how the book pairs.
+        state.containerFile.isSpreadShifted = action.payload.book?.is_spread_shifted ?? false;
         state.containerFile.pendingInitialPosition = null;
         state.containerFile.error = null;
         if (action.payload.isNovel !== undefined) {

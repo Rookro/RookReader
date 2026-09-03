@@ -1,16 +1,23 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { updatePageLayout } from "../../../bindings/BookCommands";
 import { getImageDimensions } from "../../../bindings/ContainerCommands";
+import { createMockBookWithState } from "../../../test/factories";
 import type { Image } from "../../../types/Image";
-import { setImageIndex, setSpreadDisplayed, setSpreadShifted } from "../slice";
+import { setImageIndex, setSpreadDisplayed } from "../slice";
 import * as ImageUtils from "../utils/ImageUtils";
 import { useViewerController } from "./useViewerController";
 
 vi.mock("../utils/ImageUtils", () => ({
-  // Default to null so navigation falls back to advancing by one unless a test overrides it.
-  resolveUnit: vi.fn(() => null),
-  // Default to null so the fallback path runs unless a test supplies a chain.
-  buildUnitChain: vi.fn(() => null),
+  SINGLE_UNIT: { isSpread: false, nextIndexIncrement: 1 },
+  // Default to a chain of single pages. Display is gated on the chain now, so a test that
+  // does not care how the book pairs still needs one to exist.
+  buildUnitChain: vi.fn((landscape: boolean[]) => ({
+    starts: landscape.map((_, i) => i),
+    units: new Map(
+      landscape.map((_, i) => [i, { isSpread: false, nextIndexIncrement: 1 }] as const),
+    ),
+  })),
   // Default to null so the configured cover setting is used unless a test proves one.
   detectCoverPresence: vi.fn(() => null),
   fetchImageBlob: vi.fn(),
@@ -57,8 +64,6 @@ vi.mock("../utils/ImageUtils", () => ({
       URL.revokeObjectURL(item.fullUrl);
     }
   }),
-  // Default to null so moveBack exercises the local heuristic unless a test overrides it.
-  findPreviousUnitStart: vi.fn(() => null),
 }));
 
 vi.mock("../reducers/ReadReducer", () => ({
@@ -78,15 +83,35 @@ describe("useViewerController", () => {
 
   const mockedFetchImageBlob = vi.mocked(ImageUtils.fetchImageBlob);
   const mockedCreateImageCacheItem = vi.mocked(ImageUtils.createImageCacheItem);
-  const mockedResolveUnit = vi.mocked(ImageUtils.resolveUnit);
   const mockedBuildUnitChain = vi.mocked(ImageUtils.buildUnitChain);
   const mockedDetectCoverPresence = vi.mocked(ImageUtils.detectCoverPresence);
-  const mockedFindPreviousUnitStart = vi.mocked(ImageUtils.findPreviousUnitStart);
 
-  /** Makes resolveUnit report a single-page unit for every index. */
-  const resolveSinglePages = () => {
-    mockedResolveUnit.mockReturnValue({ isSpread: false, nextIndexIncrement: 1 });
+  /** Makes the dimension scan report `count` portrait pages. */
+  const mockScan = (count: number) => {
+    vi.mocked(getImageDimensions).mockResolvedValue(
+      Array.from({ length: count }, () => ({ width: 100, height: 200 })),
+    );
   };
+
+  /** A chain that pairs every two pages, for tests about spread display. */
+  const spreadPairs = (landscape: boolean[]) => {
+    const units = new Map<number, ImageUtils.UnitDecision>();
+    const starts: number[] = [];
+    for (let i = 0; i < landscape.length; i += 2) {
+      const isSpread = i + 1 < landscape.length;
+      units.set(i, { isSpread, nextIndexIncrement: isSpread ? 2 : 1 });
+      starts.push(i);
+    }
+    return { starts, units };
+  };
+
+  /** A chain of single pages covering `landscape`, the shape most tests want. */
+  const singlePages = (landscape: boolean[]) => ({
+    starts: landscape.map((_, i) => i),
+    units: new Map(
+      landscape.map((_, i) => [i, { isSpread: false, nextIndexIncrement: 1 }] as const),
+    ),
+  });
 
   /** Asserts no page move happened, ignoring the spread flag the hook always publishes. */
   const expectNoPageMove = () => {
@@ -98,6 +123,12 @@ describe("useViewerController", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     global.URL.revokeObjectURL = vi.fn();
+    // The viewer holds its layout until the book has been measured, so every test needs a
+    // measurement to arrive; `mockReturnValue` survives clearAllMocks, so both defaults
+    // are restored here rather than set once.
+    mockScan(mockEntries.length);
+    mockedBuildUnitChain.mockImplementation(singlePages);
+    mockedDetectCoverPresence.mockReturnValue(null);
   });
 
   // Verify that loading flag is true and displayedLayout is null on initialization
@@ -182,6 +213,7 @@ describe("useViewerController", () => {
   // sessions don't accumulate every visited page's blob URLs.
   it("should evict cached pages outside the window and keep those inside", async () => {
     const longEntries = Array.from({ length: 100 }, (_, i) => `p${i}.jpg`);
+    mockScan(longEntries.length);
     mockedFetchImageBlob.mockResolvedValue({} as Image);
     let urlCounter = 0;
     mockedCreateImageCacheItem.mockImplementation(
@@ -234,7 +266,6 @@ describe("useViewerController", () => {
       height: 100,
       url: "url1",
     } as ImageUtils.ImageCacheItem);
-    resolveSinglePages();
 
     const { result } = renderHook(() =>
       useViewerController({
@@ -257,7 +288,7 @@ describe("useViewerController", () => {
 
   // Verify that a spread on screen is published to the store for the page list
   it("should dispatch setSpreadDisplayed(true) while a spread is displayed", async () => {
-    mockedResolveUnit.mockReturnValue({ isSpread: true, nextIndexIncrement: 2 });
+    mockedBuildUnitChain.mockImplementation(spreadPairs);
     mockedFetchImageBlob.mockResolvedValue({} as Image);
     mockedCreateImageCacheItem.mockReturnValue({ fullUrl: "url" } as ImageUtils.ImageCacheItem);
 
@@ -277,7 +308,6 @@ describe("useViewerController", () => {
 
   // Verify that a single-page layout is published as such
   it("should dispatch setSpreadDisplayed(false) while a single page is displayed", async () => {
-    resolveSinglePages();
     mockedFetchImageBlob.mockResolvedValue({} as Image);
     mockedCreateImageCacheItem.mockReturnValue({ fullUrl: "url" } as ImageUtils.ImageCacheItem);
 
@@ -302,7 +332,6 @@ describe("useViewerController", () => {
       fullUrl: "url1",
       url: "url1",
     } as ImageUtils.ImageCacheItem);
-    resolveSinglePages();
 
     const { result, rerender } = renderHook(
       ({ index }: { index: number }) =>
@@ -336,7 +365,6 @@ describe("useViewerController", () => {
     // Verify that index update action is dispatched correctly when moving to the next page
     it("should dispatch setImageIndex with next index", async () => {
       mockedFetchImageBlob.mockResolvedValue({} as Image);
-      resolveSinglePages();
 
       const { result } = renderHook(() =>
         useViewerController({
@@ -360,7 +388,6 @@ describe("useViewerController", () => {
     // Verify that action is not dispatched if the next page is out of bounds
     it("should not dispatch if next index is out of bounds", async () => {
       mockedFetchImageBlob.mockResolvedValue({} as Image);
-      resolveSinglePages();
 
       const { result } = renderHook(() =>
         useViewerController({
@@ -400,7 +427,6 @@ describe("useViewerController", () => {
     // Verify that the forward boundary callback fires at the last page (instead of dispatching)
     it("should call onForwardBoundary at the last page", async () => {
       mockedFetchImageBlob.mockResolvedValue({} as Image);
-      resolveSinglePages();
       const onForwardBoundary = vi.fn();
 
       const { result } = renderHook(() =>
@@ -427,7 +453,6 @@ describe("useViewerController", () => {
     // Verify that index update action is dispatched correctly when moving to the previous page
     it("should dispatch setImageIndex with previous index", async () => {
       mockedFetchImageBlob.mockResolvedValue({} as Image);
-      resolveSinglePages();
 
       const { result } = renderHook(() =>
         useViewerController({
@@ -539,7 +564,7 @@ describe("useViewerController", () => {
     // Verify that index increments by 2 in spread (two-paged) view
     it("should increment index by 2 when the current unit is a spread", async () => {
       mockedFetchImageBlob.mockResolvedValue({} as Image);
-      mockedResolveUnit.mockReturnValue({ isSpread: true, nextIndexIncrement: 2 });
+      mockedBuildUnitChain.mockImplementation(spreadPairs);
 
       const { result } = renderHook(() =>
         useViewerController({
@@ -560,12 +585,13 @@ describe("useViewerController", () => {
       expect(mockDispatch).toHaveBeenCalledWith(setImageIndex(2));
     });
 
-    // Verify that when the current page's unit is unknown (dimensions not known yet),
-    // two-page mode advances by 1, never 2, so a page is never permanently skipped.
-    it("should advance by 1 when the unit is unknown in two-paged view", async () => {
+    // Verify that a book still being measured advances by 1, never 2, so a page is never
+    // permanently skipped while the pairing is unknown.
+    it("should advance by 1 while the book is still being measured", async () => {
       mockedFetchImageBlob.mockResolvedValue({} as Image);
-      // No unit can be resolved yet (dimensions unknown for the current page).
-      mockedResolveUnit.mockReturnValue(null);
+      // The book has not been measured, so the chain never lands and every unit is a
+      // single page.
+      vi.mocked(getImageDimensions).mockReturnValue(new Promise(() => {}));
 
       const { result } = renderHook(() =>
         useViewerController({
@@ -578,91 +604,24 @@ describe("useViewerController", () => {
         }),
       );
 
-      await waitFor(() => {
-        expect(result.current.isImageLoading).toBe(false);
-      });
+      // The viewer is still holding its layout, but navigation is not gated on that.
+      await waitFor(() => expect(mockedFetchImageBlob).toHaveBeenCalled());
 
       result.current.moveForward();
       expect(mockDispatch).toHaveBeenCalledWith(setImageIndex(1));
     });
 
-    // Verify that moveForward uses the current page's unit, not a stale displayedLayout
-    it("should use the current page's unit for the increment, not stale displayedLayout", async () => {
-      mockedFetchImageBlob.mockResolvedValue({} as Image);
-
-      mockedCreateImageCacheItem.mockReturnValue({
-        fullUrl: "url1",
-        url: "url1",
-        width: 200,
-        height: 100,
-      } as ImageUtils.ImageCacheItem);
-      // The effect settles displayedLayout as a single page (increment 1).
-      mockedResolveUnit.mockReturnValue({ isSpread: false, nextIndexIncrement: 1 });
-
-      const { result } = renderHook(() =>
-        useViewerController({
-          containerPath: "path",
-          entries: mockEntries,
-          index: 0,
-          isSpreadShifted: false,
-          settings: twoPagedSettings,
-          dispatch: mockDispatch,
-        }),
+    /** Builds a chain from a per-start map of unit increments. */
+    const mockUnitsByIndex = (increments: Record<number, 1 | 2>) => {
+      const units = new Map(
+        Object.entries(increments).map(([start, increment]) => [
+          Number(start),
+          { isSpread: increment === 2, nextIndexIncrement: increment },
+        ]),
       );
-
-      await waitFor(() => expect(result.current.isImageLoading).toBe(false));
-      expect(result.current.displayedLayout?.nextIndexIncrement).toBe(1);
-
-      // The current page is actually a spread (increment 2). moveForward must use this,
-      // not the increment-1 displayedLayout captured above.
-      mockedResolveUnit.mockReturnValue({ isSpread: true, nextIndexIncrement: 2 });
-
-      result.current.moveForward();
-      expect(mockDispatch).toHaveBeenCalledWith(setImageIndex(2));
-    });
-
-    // Verify that dimensions outlive the blob cache so the backward walk keeps working
-    it("keeps page dimensions after the blob cache evicts them", async () => {
-      const longEntries = Array.from({ length: 20 }, (_, i) => `p${i}`);
-      mockedFetchImageBlob.mockResolvedValue({} as Image);
-      mockedCreateImageCacheItem.mockReturnValue({
-        width: 100,
-        height: 200,
-        fullUrl: "url",
-        url: "url",
-      } as ImageUtils.ImageCacheItem);
-      mockedResolveUnit.mockReturnValue({ isSpread: true, nextIndexIncrement: 2 });
-
-      const { result, rerender } = renderHook(
-        ({ index }) =>
-          useViewerController({
-            containerPath: "path",
-            entries: longEntries,
-            index,
-            isSpreadShifted: false,
-            settings: twoPagedSettings,
-            dispatch: mockDispatch,
-          }),
-        { initialProps: { index: 0 } },
-      );
-      await waitFor(() => expect(result.current.isImageLoading).toBe(false));
-
-      // Move far enough that the eviction window drops the first pages' blobs.
-      rerender({ index: 16 });
-      await waitFor(() => expect(result.current.isImageLoading).toBe(false));
-
-      mockedFindPreviousUnitStart.mockClear();
-      result.current.moveBack();
-
-      const getDims = mockedFindPreviousUnitStart.mock.calls[0][2];
-      expect(getDims(0)).toEqual({ width: 100, height: 200 });
-    });
-
-    /** Drives resolveUnit from a per-index map of unit increments. */
-    const mockUnitsByIndex = (increments: Record<number, 1 | 2 | null>) => {
-      mockedResolveUnit.mockImplementation((i) => {
-        const increment = increments[i];
-        return increment ? { isSpread: increment === 2, nextIndexIncrement: increment } : null;
+      mockedBuildUnitChain.mockReturnValue({
+        starts: [...units.keys()].sort((a, b) => a - b),
+        units,
       });
     };
 
@@ -692,52 +651,6 @@ describe("useViewerController", () => {
       expect(mockDispatch).toHaveBeenCalledWith(setImageIndex(1));
     });
 
-    // Verify that moveBack lands on the spread start when it ends exactly on the current index
-    it("should go back 2 pages when the spread two pages back ends on the current index", async () => {
-      mockedFetchImageBlob.mockResolvedValue({} as Image);
-      // Chain around index 2: {0,1} {2}
-      mockUnitsByIndex({ 0: 2, 1: 2 });
-
-      const { result } = renderHook(() =>
-        useViewerController({
-          containerPath: "path",
-          entries: mockEntries,
-          index: 2,
-          isSpreadShifted: false,
-          settings: twoPagedSettings,
-          dispatch: mockDispatch,
-        }),
-      );
-
-      await waitFor(() => {
-        expect(result.current.isImageLoading).toBe(false);
-      });
-
-      result.current.moveBack();
-      expect(mockDispatch).toHaveBeenCalledWith(setImageIndex(0));
-    });
-
-    // Verify the historical two-pages-back default when no dimensions are known
-    it("should fall back to 2 pages back when no unit can be resolved", async () => {
-      mockedFetchImageBlob.mockResolvedValue({} as Image);
-      mockUnitsByIndex({});
-
-      const { result } = renderHook(() =>
-        useViewerController({
-          containerPath: "path",
-          entries: mockEntries,
-          index: 2,
-          isSpreadShifted: false,
-          settings: twoPagedSettings,
-          dispatch: mockDispatch,
-        }),
-      );
-
-      await waitFor(() => expect(result.current.isImageLoading).toBe(false));
-      result.current.moveBack();
-      expect(mockDispatch).toHaveBeenCalledWith(setImageIndex(0));
-    });
-
     // Verify that a mid-spread current index re-aligns to the spread that contains it
     it("should re-align to the containing spread when the current index is mid-spread", async () => {
       mockedFetchImageBlob.mockResolvedValue({} as Image);
@@ -760,29 +673,6 @@ describe("useViewerController", () => {
       expect(mockDispatch).toHaveBeenCalledWith(setImageIndex(1));
     });
 
-    // Verify the fallback reads dimensions, which outlive the blob cache, rather than layouts
-    it("should still resolve units for moveBack after the blob cache evicted the pages", async () => {
-      const longEntries = Array.from({ length: 20 }, (_, i) => `p${i}`);
-      mockedFetchImageBlob.mockResolvedValue({} as Image);
-      // Chain around index 16: {14,15} {16}
-      mockUnitsByIndex({ 14: 2, 15: 2 });
-
-      const { result } = renderHook(() =>
-        useViewerController({
-          containerPath: "path",
-          entries: longEntries,
-          index: 16,
-          isSpreadShifted: false,
-          settings: twoPagedSettings,
-          dispatch: mockDispatch,
-        }),
-      );
-
-      await waitFor(() => expect(result.current.isImageLoading).toBe(false));
-      result.current.moveBack();
-      expect(mockDispatch).toHaveBeenCalledWith(setImageIndex(14));
-    });
-
     // Verify the viewer degrades to a single page when the spread's second page fails to load
     it("should fall back to a single-page layout when the spread's second page fails to load", async () => {
       // First page loads; the second page fetch fails (resolves undefined).
@@ -796,7 +686,7 @@ describe("useViewerController", () => {
         height: 200,
       } as ImageUtils.ImageCacheItem);
       // A spread is the current unit, but its second page never reaches the cache.
-      mockedResolveUnit.mockReturnValue({ isSpread: true, nextIndexIncrement: 2 });
+      mockedBuildUnitChain.mockImplementation(spreadPairs);
 
       const { result } = renderHook(() =>
         useViewerController({
@@ -821,61 +711,6 @@ describe("useViewerController", () => {
         width: 100,
         height: 200,
       });
-    });
-
-    // Verify moveBack dispatches the unit start found by the forward walk
-    it("should dispatch findPreviousUnitStart's result for moveBack when available", async () => {
-      const longEntries = ["p1", "p2", "p3", "p4", "p5"];
-      mockedFetchImageBlob.mockResolvedValue({} as Image);
-      mockedCreateImageCacheItem.mockReturnValue({
-        width: 100,
-        height: 200,
-      } as ImageUtils.ImageCacheItem);
-      mockedResolveUnit.mockReturnValue({ isSpread: true, nextIndexIncrement: 2 });
-      mockedFindPreviousUnitStart.mockReturnValueOnce(2);
-
-      const { result } = renderHook(() =>
-        useViewerController({
-          containerPath: "path",
-          entries: longEntries,
-          index: 4,
-          isSpreadShifted: false,
-          settings: twoPagedSettings,
-          dispatch: mockDispatch,
-        }),
-      );
-
-      await waitFor(() => expect(result.current.isImageLoading).toBe(false));
-
-      result.current.moveBack();
-      expect(mockedFindPreviousUnitStart).toHaveBeenCalled();
-      expect(mockDispatch).toHaveBeenCalledWith(setImageIndex(2));
-    });
-
-    // Verify moveBack falls back to the local heuristic when the walk can't run
-    it("should fall back to the local heuristic for moveBack when findPreviousUnitStart returns null", async () => {
-      mockedFetchImageBlob.mockResolvedValue({} as Image);
-      // findPreviousUnitStart returns null by default (e.g. incomplete dimensions).
-      // Chain around index 2: {0} {1} {2}
-      mockUnitsByIndex({ 0: 1, 1: 1 });
-
-      const { result } = renderHook(() =>
-        useViewerController({
-          containerPath: "path",
-          entries: mockEntries,
-          index: 2,
-          isSpreadShifted: false,
-          settings: twoPagedSettings,
-          dispatch: mockDispatch,
-        }),
-      );
-
-      await waitFor(() => expect(result.current.isImageLoading).toBe(false));
-
-      result.current.moveBack();
-      expect(mockedFindPreviousUnitStart).toHaveBeenCalled();
-      // The unit at index 0 does not reach index 2, so index 1 is the preceding unit.
-      expect(mockDispatch).toHaveBeenCalledWith(setImageIndex(1));
     });
   });
 
@@ -903,8 +738,6 @@ describe("useViewerController", () => {
     };
 
     beforeEach(() => {
-      // mockReturnValue survives clearAllMocks, so reset the default each test.
-      mockedDetectCoverPresence.mockReturnValue(null);
       mockedFetchImageBlob.mockResolvedValue({} as Image);
       mockedCreateImageCacheItem.mockReturnValue({
         fullUrl: "url",
@@ -912,18 +745,12 @@ describe("useViewerController", () => {
         width: 100,
         height: 200,
       } as ImageUtils.ImageCacheItem);
-      vi.mocked(getImageDimensions).mockResolvedValue([
-        { width: 100, height: 200 },
-        { width: 100, height: 200 },
-        { width: 100, height: 200 },
-      ]);
     });
 
     // Verify the chain's boundary wins over the walk and the local heuristic
     it("moves back to the chain's previous unit start", async () => {
       // {0} {1,2}
       mockChain({ 0: 1, 1: 2 });
-      mockedFindPreviousUnitStart.mockReturnValue(99);
 
       const { result } = renderHook(() =>
         useViewerController({
@@ -940,14 +767,12 @@ describe("useViewerController", () => {
 
       result.current.moveBack();
       expect(mockDispatch).toHaveBeenCalledWith(setImageIndex(0));
-      expect(mockedFindPreviousUnitStart).not.toHaveBeenCalled();
     });
 
     // Verify the chain's unit, not the local rule, drives the forward increment
     it("moves forward by the chain's increment", async () => {
-      // {0} {1,2} - the local rule would report a spread at index 0.
+      // {0} {1,2} - the chain says index 0 is a single page.
       mockChain({ 0: 1, 1: 2 });
-      mockedResolveUnit.mockReturnValue({ isSpread: true, nextIndexIncrement: 2 });
 
       const { result } = renderHook(() =>
         useViewerController({
@@ -1101,51 +926,6 @@ describe("useViewerController", () => {
       expectNoPageMove();
     });
 
-    // Verify a restored page off the natural pairing shifts the book, rather than snapping
-    it("shifts the pairing when the restored page is not a unit start", async () => {
-      // {0} {1,2} - opening straight onto index 2 means the reader had shifted the pairing.
-      mockChain({ 0: 1, 1: 2 });
-
-      renderHook(() =>
-        useViewerController({
-          containerPath: "path",
-          entries: mockEntries,
-          index: 2,
-          isSpreadShifted: false,
-          settings: twoPagedSettings,
-          dispatch: mockDispatch,
-        }),
-      );
-
-      await waitFor(() => expect(mockDispatch).toHaveBeenCalledWith(setSpreadShifted(true)));
-      expect(mockDispatch).not.toHaveBeenCalledWith(setImageIndex(1));
-    });
-
-    // Verify the shift is considered once per book, so later jumps snap instead
-    it("shifts only once per book and snaps afterwards", async () => {
-      mockChain({ 0: 1, 1: 2 });
-
-      const { rerender } = renderHook(
-        ({ index }) =>
-          useViewerController({
-            containerPath: "path",
-            entries: mockEntries,
-            index,
-            isSpreadShifted: false,
-            settings: twoPagedSettings,
-            dispatch: mockDispatch,
-          }),
-        { initialProps: { index: 0 } },
-      );
-
-      await waitFor(() => expect(mockedBuildUnitChain).toHaveBeenCalled());
-      mockDispatch.mockClear();
-
-      rerender({ index: 2 });
-      await waitFor(() => expect(mockDispatch).toHaveBeenCalledWith(setImageIndex(1)));
-      expect(mockDispatch).not.toHaveBeenCalledWith(setSpreadShifted(true));
-    });
-
     // Verify navigation this hook dispatched never changes the pairing
     it("never shifts the pairing on its own navigation", async () => {
       mockChain({ 0: 1, 1: 1, 2: 1 });
@@ -1170,38 +950,86 @@ describe("useViewerController", () => {
       rerender({ index: 1 });
       await waitFor(() => expect(result.current.isImageLoading).toBe(false));
 
-      expect(mockDispatch).not.toHaveBeenCalledWith(setSpreadShifted(true));
-    });
-
-    // Verify a scan that does not describe this book is ignored
-    it("ignores a scan whose length does not match the entries", async () => {
-      mockChain({ 0: 2 });
-      vi.mocked(getImageDimensions).mockResolvedValue([{ width: 100, height: 200 }]);
-
-      const { result } = renderHook(() =>
-        useViewerController({
-          containerPath: "path",
-          entries: mockEntries,
-          index: 1,
-          isSpreadShifted: false,
-          settings: twoPagedSettings,
-          dispatch: mockDispatch,
-        }),
-      );
-
-      await waitFor(() => expect(result.current.isImageLoading).toBe(false));
-
-      result.current.moveBack();
-      // The chain was never built, so the walk (mocked to null) and heuristic decided.
-      expect(mockedBuildUnitChain).not.toHaveBeenCalled();
-      expect(mockedFindPreviousUnitStart).toHaveBeenCalled();
-      expect(mockDispatch).not.toHaveBeenCalledWith(setSpreadShifted(true));
+      // Where the reader navigated must leave no trace on how the book pairs.
+      expect(mockedBuildUnitChain.mock.calls.map((call) => call[2])).not.toContain(true);
     });
 
     // Verify a failed scan leaves the viewer on the fallback instead of breaking it
     it("keeps working when the scan fails", async () => {
+      vi.useFakeTimers();
       vi.mocked(getImageDimensions).mockRejectedValue(new Error("scan failed"));
-      mockedResolveUnit.mockReturnValue({ isSpread: false, nextIndexIncrement: 1 });
+
+      try {
+        const { result } = renderHook(() =>
+          useViewerController({
+            containerPath: "path",
+            entries: mockEntries,
+            index: 0,
+            isSpreadShifted: false,
+            settings: twoPagedSettings,
+            dispatch: mockDispatch,
+          }),
+        );
+
+        // The chain never arrives, so the wait cap is what lets the reader read.
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(1000);
+        });
+
+        expect(result.current.isImageLoading).toBe(false);
+        expect(result.current.displayedLayout?.isSpread).toBe(false);
+        result.current.moveForward();
+        expect(mockedBuildUnitChain).not.toHaveBeenCalled();
+        expect(mockDispatch).toHaveBeenCalledWith(setImageIndex(1));
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
+
+  describe("the book's own pairing", () => {
+    const twoPaged: ImageUtils.ViewerSettings = {
+      isTwoPagedView: true,
+      isFirstPageSingleView: false,
+      direction: "ltr",
+      enablePreview: false,
+      preloadPageCount: 10,
+    };
+
+    beforeEach(() => {
+      mockedFetchImageBlob.mockResolvedValue({} as Image);
+      mockedCreateImageCacheItem.mockReturnValue({
+        fullUrl: "url",
+        url: "url",
+        width: 100,
+        height: 200,
+      } as ImageUtils.ImageCacheItem);
+    });
+
+    // Verify where the reader entered the book leaves no trace on how it pairs
+    it("builds the same chain wherever the book was opened", async () => {
+      const chainFor = async (index: number) => {
+        mockedBuildUnitChain.mockClear();
+        renderHook(() =>
+          useViewerController({
+            containerPath: "path",
+            entries: mockEntries,
+            index,
+            isSpreadShifted: false,
+            settings: twoPaged,
+            dispatch: mockDispatch,
+          }),
+        );
+        await waitFor(() => expect(mockedBuildUnitChain).toHaveBeenCalled());
+        return mockedBuildUnitChain.mock.calls[0];
+      };
+
+      expect(await chainFor(0)).toEqual(await chainFor(2));
+    });
+
+    // Verify a measured book needs no scan at all
+    it("uses the stored measurement instead of scanning", async () => {
+      const book = createMockBookWithState({ landscape_bits: "010" });
 
       const { result } = renderHook(() =>
         useViewerController({
@@ -1209,16 +1037,147 @@ describe("useViewerController", () => {
           entries: mockEntries,
           index: 0,
           isSpreadShifted: false,
-          settings: twoPagedSettings,
+          settings: twoPaged,
           dispatch: mockDispatch,
+          book,
         }),
       );
 
       await waitFor(() => expect(result.current.isImageLoading).toBe(false));
+      expect(getImageDimensions).not.toHaveBeenCalled();
+      expect(mockedBuildUnitChain).toHaveBeenCalledWith([false, true, false], twoPaged, false);
+    });
 
-      result.current.moveForward();
-      expect(mockedBuildUnitChain).not.toHaveBeenCalled();
-      expect(mockDispatch).toHaveBeenCalledWith(setImageIndex(1));
+    // Verify bits that cannot describe this book are re-measured rather than trusted
+    it("re-measures when the stored bits do not fit the book", async () => {
+      const book = createMockBookWithState({ landscape_bits: "01" });
+
+      renderHook(() =>
+        useViewerController({
+          containerPath: "path",
+          entries: mockEntries,
+          index: 0,
+          isSpreadShifted: false,
+          settings: twoPaged,
+          dispatch: mockDispatch,
+          book,
+        }),
+      );
+
+      await waitFor(() => expect(getImageDimensions).toHaveBeenCalled());
+    });
+
+    // Verify a fresh measurement is stored, once, so the next open needs no scan
+    it("writes a completed scan back exactly once", async () => {
+      const book = createMockBookWithState({ landscape_bits: null });
+      vi.mocked(getImageDimensions).mockResolvedValue([
+        { width: 100, height: 200 },
+        { width: 200, height: 100 },
+        { width: 100, height: 200 },
+      ]);
+
+      const { rerender } = renderHook(
+        ({ book }) =>
+          useViewerController({
+            containerPath: "path",
+            entries: mockEntries,
+            index: 0,
+            isSpreadShifted: false,
+            settings: twoPaged,
+            dispatch: mockDispatch,
+            book,
+          }),
+        { initialProps: { book } },
+      );
+
+      await waitFor(() => expect(updatePageLayout).toHaveBeenCalledWith(book.id, "010"));
+
+      // The same book arriving as a fresh object — a bookshelf refresh, say — must not
+      // make the viewer store the measurement it has already stored.
+      rerender({ book: { ...book } });
+      await act(async () => {
+        await new Promise(process.nextTick);
+      });
+      expect(vi.mocked(updatePageLayout).mock.calls.length).toBe(1);
+    });
+
+    // Verify the viewer shows nothing rather than a pairing it would have to correct
+    it("publishes no layout while the book is still being measured", async () => {
+      vi.mocked(getImageDimensions).mockReturnValue(new Promise(() => {}));
+
+      const { result } = renderHook(() =>
+        useViewerController({
+          containerPath: "path",
+          entries: mockEntries,
+          index: 0,
+          isSpreadShifted: false,
+          settings: twoPaged,
+          dispatch: mockDispatch,
+        }),
+      );
+
+      await waitFor(() => expect(mockedFetchImageBlob).toHaveBeenCalled());
+      await act(async () => {
+        await new Promise(process.nextTick);
+      });
+      // The pages are loaded; only the decision about how to show them is missing.
+      expect(result.current.displayedLayout).toBeNull();
+      expect(result.current.isImageLoading).toBe(true);
+    });
+
+    // Verify a scan that never lands still lets the reader read
+    it("falls back to single pages once the wait cap has passed", async () => {
+      vi.useFakeTimers();
+      vi.mocked(getImageDimensions).mockReturnValue(new Promise(() => {}));
+
+      try {
+        const { result } = renderHook(() =>
+          useViewerController({
+            containerPath: "path",
+            entries: mockEntries,
+            index: 0,
+            isSpreadShifted: false,
+            settings: twoPaged,
+            dispatch: mockDispatch,
+          }),
+        );
+
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(1000);
+        });
+
+        expect(result.current.displayedLayout).not.toBeNull();
+        expect(result.current.displayedLayout?.isSpread).toBe(false);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    // Verify the reader's own correction, not their position, decides the pairing
+    it("never infers the shift from where the book was opened", async () => {
+      mockedBuildUnitChain.mockReturnValue({
+        starts: [0, 1],
+        units: new Map([
+          [0, { isSpread: false, nextIndexIncrement: 1 }],
+          [1, { isSpread: true, nextIndexIncrement: 2 }],
+        ]),
+      });
+
+      renderHook(() =>
+        useViewerController({
+          containerPath: "path",
+          entries: mockEntries,
+          index: 2,
+          isSpreadShifted: false,
+          settings: twoPaged,
+          dispatch: mockDispatch,
+        }),
+      );
+
+      // Index 2 sits inside the spread starting at 1, so the viewer snaps to it rather
+      // than concluding the reader must have shifted the book.
+      await waitFor(() => expect(mockDispatch).toHaveBeenCalledWith(setImageIndex(1)));
+      expect(mockedBuildUnitChain.mock.calls.map((call) => call[2])).not.toContain(true);
     });
   });
 

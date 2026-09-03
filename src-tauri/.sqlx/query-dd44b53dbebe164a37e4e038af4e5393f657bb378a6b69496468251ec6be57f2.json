@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n            SELECT\n                id, file_path, item_type, display_name, total_pages, series_id, series_order,\n                thumbnail_path, created_at, last_read_page_index, last_opened_at,\n                cfi as \"cfi?: String\",\n                tag_ids_str as \"tag_ids_str?: String\"\n            FROM book_with_state_view\n            WHERE series_id = ?\n            ORDER BY series_order ASC, display_name ASC\n            ",
+  "query": "\n            SELECT\n                id, file_path, item_type, display_name, total_pages, series_id, series_order,\n                thumbnail_path, created_at, is_spread_shifted, landscape_bits,\n                last_read_page_index, last_opened_at,\n                cfi as \"cfi?: String\",\n                tag_ids_str as \"tag_ids_str?: String\"\n            FROM book_with_state_view\n            WHERE series_id = ?\n            ORDER BY series_order ASC, display_name ASC\n            ",
   "describe": {
     "columns": [
       {
@@ -49,23 +49,33 @@
         "type_info": "Datetime"
       },
       {
-        "name": "last_read_page_index",
+        "name": "is_spread_shifted",
         "ordinal": 9,
+        "type_info": "Bool"
+      },
+      {
+        "name": "landscape_bits",
+        "ordinal": 10,
+        "type_info": "Text"
+      },
+      {
+        "name": "last_read_page_index",
+        "ordinal": 11,
         "type_info": "Integer"
       },
       {
         "name": "last_opened_at",
-        "ordinal": 10,
+        "ordinal": 12,
         "type_info": "Datetime"
       },
       {
         "name": "cfi?: String",
-        "ordinal": 11,
+        "ordinal": 13,
         "type_info": "Text"
       },
       {
         "name": "tag_ids_str?: String",
-        "ordinal": 12,
+        "ordinal": 14,
         "type_info": "Text"
       }
     ],
@@ -82,11 +92,13 @@
       true,
       true,
       true,
+      false,
+      true,
       true,
       true,
       true,
       true
     ]
   },
-  "hash": "37faa9f8ce3b3eeba58c3448d039f6bbed3b8258f4f70a6248341541403bc233"
+  "hash": "dd44b53dbebe164a37e4e038af4e5393f657bb378a6b69496468251ec6be57f2"
 }

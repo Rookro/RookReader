@@ -522,3 +522,57 @@ async fn test_delete_book() {
         .unwrap();
     assert_eq!(count, 0);
 }
+
+#[tokio::test]
+async fn spread_state_round_trips_and_survives_clearing_history() {
+    let pool = setup_db().await;
+    let repository = SqliteBookRepository::new(pool.clone());
+
+    let book_id = repository
+        .register_book("/path/to/comic.cbz", "file", "Comic", 4, None)
+        .await
+        .unwrap();
+
+    // A book starts unshifted and unmeasured.
+    let book = repository
+        .get_book_with_state_by_id(book_id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(!book.is_spread_shifted);
+    assert_eq!(book.landscape_bits, None);
+
+    repository.update_spread_shift(book_id, true).await.unwrap();
+    repository.update_page_layout(book_id, "0100").await.unwrap();
+
+    let book = repository
+        .get_book_with_state_by_id(book_id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(book.is_spread_shifted);
+    assert_eq!(book.landscape_bits.as_deref(), Some("0100"));
+
+    // Give the book some reading history, then clear it. Both columns live on `books`
+    // precisely so that clearing history — or turning it off — cannot discard how the
+    // reader corrected the book's pairing.
+    repository
+        .update_reading_progress(&ReadingState {
+            book_id,
+            last_read_page_index: 2,
+            last_opened_at: None,
+            cfi: None,
+        })
+        .await
+        .unwrap();
+    repository.clear_reading_history(book_id).await.unwrap();
+
+    let book = repository
+        .get_book_with_state_by_id(book_id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(book.last_read_page_index, None, "history really was cleared");
+    assert!(book.is_spread_shifted, "the shift is not reading history");
+    assert_eq!(book.landscape_bits.as_deref(), Some("0100"));
+}

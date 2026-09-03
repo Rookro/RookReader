@@ -437,7 +437,17 @@ impl PageService {
         let mut measured: Vec<Option<ImageDimensions>> = vec![None; entries.len()];
         for _ in 0..entries.len() {
             let (index, result) = rx.recv().map_err(|_| closed())?;
-            measured[index] = Some(result?);
+            measured[index] = Some(result.unwrap_or_else(|e| {
+                // One unreadable page must not cost a book its two-page view: the viewer
+                // holds its layout until this scan lands, so failing the whole scan would
+                // leave the book on single pages. A zero-sized page reads as portrait,
+                // which is the pairing a page of unknown shape gets anyway.
+                log::warn!("Could not measure {}: {e}", entries[index]);
+                ImageDimensions {
+                    width: 0,
+                    height: 0,
+                }
+            }));
         }
 
         measured
@@ -714,6 +724,18 @@ mod tests {
         container
     }
 
+    /// How many jobs are waiting, and which entries are being read right now.
+    ///
+    /// The tests below are in this module, so they can wait on the scheduler's own state
+    /// instead of sleeping long enough to usually be right.
+    fn queued(service: &PageService) -> usize {
+        service.shared.lock().jobs.len()
+    }
+
+    fn reading(service: &PageService, entry: &str) -> bool {
+        service.shared.lock().in_flight.contains_key(entry)
+    }
+
     /// Waits until `check` holds, or fails after a second.
     ///
     /// The scheduler answers on other threads, so a test that asserts immediately would
@@ -772,6 +794,13 @@ mod tests {
             thread::spawn(move || service.dimensions())
         };
 
+        // Only once the worker is parked inside the scan's first job is there a scan for
+        // the foreground request to overtake. Asking earlier would let the request be
+        // served before the scan had even queued, which proves nothing about priority.
+        eventually("the worker to park on its first page", || {
+            !log.lock().unwrap().is_empty()
+        });
+
         // The last page of the book, so entry order cannot be what puts it early.
         let wanted = names[7].clone();
         let foreground = {
@@ -779,10 +808,9 @@ mod tests {
             let wanted = wanted.clone();
             thread::spawn(move || service.page(&wanted, Priority::Foreground))
         };
-        eventually("the scan to park on its first page", || {
-            !log.lock().unwrap().is_empty()
-        });
-        thread::sleep(Duration::from_millis(50));
+        // Seven scan jobs are left in the queue; the eighth is the foreground request,
+        // and waiting for it to arrive is what makes the pop below decide this test.
+        eventually("the foreground request to be queued", || queued(&service) == 8);
 
         // Release the parked worker; its next pop decides this test.
         gate.wait();
@@ -862,10 +890,13 @@ mod tests {
         service.request_preload_around(30, 3).unwrap();
         gate.wait();
 
-        eventually("the second window to be read", || {
-            log.lock().unwrap().len() >= 7
+        // Wait for the queue to drain rather than for a duration: the assertion below is
+        // that a page was *never* read, so it has to be made once there is nothing left
+        // that could still read it.
+        eventually("the queue to drain", || {
+            let queue = service.shared.lock();
+            queue.jobs.is_empty() && queue.in_flight.is_empty()
         });
-        thread::sleep(Duration::from_millis(50));
 
         let read = log.lock().unwrap().clone();
         // Page 2 belonged only to the abandoned window, so it must never have been read.
@@ -905,15 +936,22 @@ mod tests {
         ));
 
         let wanted = names[0].clone();
-        let callers: Vec<_> = (0..2)
-            .map(|_| {
-                let service = service.clone();
-                let wanted = wanted.clone();
-                thread::spawn(move || service.page(&wanted, Priority::Foreground))
-            })
-            .collect();
+        let first = {
+            let service = service.clone();
+            let wanted = wanted.clone();
+            thread::spawn(move || service.page(&wanted, Priority::Foreground))
+        };
+        // Only once the page is genuinely being read does the second caller have anything
+        // to join; before that it would simply queue a job of its own.
+        eventually("the first read to start", || reading(&service, &wanted));
 
-        for caller in callers {
+        let second = {
+            let service = service.clone();
+            let wanted = wanted.clone();
+            thread::spawn(move || service.page(&wanted, Priority::Foreground))
+        };
+
+        for caller in [first, second] {
             assert!(caller.join().unwrap().is_ok(), "both callers get the page");
         }
         assert_eq!(
@@ -978,8 +1016,9 @@ mod tests {
                 thread::spawn(move || service.page(&wanted, Priority::Foreground))
             })
             .collect();
-        // Both requests are queued now; neither worker can have popped one yet.
-        thread::sleep(Duration::from_millis(50));
+        // Both requests are queued now; neither worker can have popped one, because both
+        // are parked.
+        eventually("both requests to be queued", || queued(&service) == 2);
         gate.wait();
 
         for blocker in blockers {
@@ -1082,6 +1121,48 @@ mod tests {
         // be popped; the entry lookup is what keeps a caller from blocking forever.
         assert!(service.page("absent.png", Priority::Foreground).is_err());
         assert!(service.preview("absent.png").is_err());
+    }
+
+    #[test]
+    fn one_unmeasurable_page_does_not_fail_the_scan() {
+        let names = entries(4);
+        let mut container = MockContainer::new();
+        container.expect_get_entries().return_const(names.clone());
+        container.expect_max_readers().return_const(1usize);
+        container.expect_open_reader().returning(|| {
+            let mut reader = MockPageReader::new();
+            reader.expect_page_dimensions().returning(|entry| {
+                if entry.ends_with("002.png") {
+                    Err(Error::Other("unreadable".to_string()))
+                } else {
+                    Ok(ImageDimensions {
+                        width: 4,
+                        height: 2,
+                    })
+                }
+            });
+            Ok(Box::new(reader) as Box<dyn PageReader>)
+        });
+
+        // The viewer holds its layout until this scan lands, so failing the whole scan
+        // would cost the book its two-page view over one bad page.
+        let measured = service(container).dimensions().unwrap();
+        assert_eq!(measured.len(), 4);
+        assert_eq!(
+            measured[2],
+            ImageDimensions {
+                width: 0,
+                height: 0
+            },
+            "an unmeasurable page reads as portrait, the shape an unknown page gets anyway"
+        );
+        assert_eq!(
+            measured[3],
+            ImageDimensions {
+                width: 4,
+                height: 2
+            }
+        );
     }
 
     #[test]

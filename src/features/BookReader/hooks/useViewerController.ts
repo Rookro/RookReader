@@ -1,9 +1,11 @@
 import { warn } from "@tauri-apps/plugin-log";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { updatePageLayout } from "../../../bindings/BookCommands";
+import type { BookWithState } from "../../../bindings/bindings";
 import { getImageDimensions, requestPreloadAround } from "../../../bindings/ContainerCommands";
 import type { AppDispatch } from "../../../store/store";
 import type { Image } from "../../../types/Image";
-import { setImageIndex, setSpreadDisplayed, setSpreadShifted } from "../slice";
+import { setImageIndex, setSpreadDisplayed } from "../slice";
 import {
   buildSinglePageLayout,
   buildUnitChain,
@@ -12,15 +14,22 @@ import {
   detectCoverPresence,
   fetchImageBlob,
   fetchImagePreviewBlob,
-  findPreviousUnitStart,
   type ImageCacheItem,
-  type PageDims,
-  resolveUnit,
   revokeCacheItemUrls,
+  SINGLE_UNIT,
   type UnitDecision,
   type ViewerSettings,
   type ViewLayout,
 } from "../utils/ImageUtils";
+
+/**
+ * How long the viewer holds the loading state waiting to be told how the book pairs.
+ *
+ * Only a book being measured for the first time can reach it: after that the pairing
+ * arrives with the book. One second is the limit for a flow of thought — past it, being
+ * able to read beats being paired, so the viewer falls back to single pages.
+ */
+const CHAIN_WAIT_CAP_MS = 1000;
 
 /**
  * Revokes every object URL held by the cache entries.
@@ -59,6 +68,14 @@ export interface ViewerControllerOptions {
   settings: ViewerSettings;
   /** Dispatch function from Redux. */
   dispatch: AppDispatch;
+  /**
+   * The open book's record, when it has one.
+   *
+   * Carries the measurement that decides how the book pairs, and the id to write a fresh
+   * one back under. Null only when the book could not be recorded, in which case the
+   * pairing is worked out again next time.
+   */
+  book?: BookWithState | null;
   /** Called when moving forward past the last page. */
   onForwardBoundary?: () => void;
   /** Called when moving back before the first page. */
@@ -81,19 +98,23 @@ export const useViewerController = ({
   isSpreadShifted,
   settings,
   dispatch,
+  book,
   onForwardBoundary,
   onBackwardBoundary,
 }: ViewerControllerOptions): ViewerController => {
   const cacheRef = useRef<Map<string, ImageCacheItem>>(new Map());
-  // Dimensions are kept apart from the blob cache: they are tiny, and navigation needs
-  // them for pages whose blobs have already been evicted.
-  const dimsRef = useRef<Map<string, PageDims>>(new Map());
   const [isImageLoading, setIsImageLoading] = useState(false);
   const [layoutState, setLayoutState] = useState<{ layout: ViewLayout; path: string } | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const [scannedDims, setScannedDims] = useState<{ path: string; dims: PageDims[] } | null>(null);
-  // The book whose restored page has already been checked against the natural pairing.
-  const adoptedPathRef = useRef<string | null>(null);
+  const [scannedLandscape, setScannedLandscape] = useState<{
+    path: string;
+    landscape: boolean[];
+  } | null>(null);
+  // Set once the viewer has waited CHAIN_WAIT_CAP_MS for a chain that has not arrived.
+  const [chainWaitElapsed, setChainWaitElapsed] = useState(false);
+  // The book whose measurement has already been written back, so a re-render cannot
+  // write it twice.
+  const savedLayoutRef = useRef<string | null>(null);
   // Set once this book answers a preview request with "no preview". Only a container that
   // can build a small image more cheaply than the page itself has one to give, so for
   // every image format the answer is no — and asking again for every page turn buys
@@ -104,7 +125,6 @@ export const useViewerController = ({
   useEffect(() => {
     revokeCacheUrls(cacheRef.current);
     cacheRef.current.clear();
-    dimsRef.current.clear();
     previewUnsupportedRef.current = false;
     abortControllerRef.current?.abort();
   }, [containerPath]);
@@ -112,19 +132,24 @@ export const useViewerController = ({
   // Revoke any remaining object URLs when the component unmounts.
   useEffect(() => {
     const cache = cacheRef.current;
-    const dims = dimsRef.current;
     return () => {
       revokeCacheUrls(cache);
       cache.clear();
-      dims.clear();
     };
   }, []);
 
-  // Scan every page's dimensions in the background. Until it lands (or if it fails) the
-  // viewer runs on the dimensions of the pages it has actually loaded.
+  // The book as already measured, when the stored bits describe *this* book. Bits of a
+  // different length belong to a book whose pages have changed since.
+  const cachedLandscape = useMemo(() => {
+    const bits = book?.landscape_bits;
+    return bits && bits.length === entries.length ? Array.from(bits, (bit) => bit === "1") : null;
+  }, [book, entries.length]);
+
+  // Measure the book, unless it already carries its measurement. Skipping the scan for a
+  // known book is what takes a full re-measure off every reopen.
   useEffect(() => {
-    setScannedDims(null);
-    if (!containerPath || entries.length === 0) {
+    setScannedLandscape(null);
+    if (!containerPath || entries.length === 0 || cachedLandscape) {
       return;
     }
 
@@ -132,7 +157,10 @@ export const useViewerController = ({
     getImageDimensions(containerPath)
       .then((dims) => {
         if (!cancelled) {
-          setScannedDims({ path: containerPath, dims });
+          setScannedLandscape({
+            path: containerPath,
+            landscape: dims.map((page) => page.width > page.height),
+          });
         }
       })
       .catch((e) => {
@@ -142,67 +170,93 @@ export const useViewerController = ({
     return () => {
       cancelled = true;
     };
-  }, [containerPath, entries.length]);
+  }, [containerPath, entries.length, cachedLandscape]);
 
-  const chain = useMemo(() => {
-    if (!scannedDims || scannedDims.path !== containerPath) {
+  // One value, two origins. A scan belonging to another book, or reporting a different
+  // page count, is ignored: it cannot describe this one.
+  const landscape = useMemo(() => {
+    if (cachedLandscape) {
+      return cachedLandscape;
+    }
+    if (
+      !scannedLandscape ||
+      scannedLandscape.path !== containerPath ||
+      scannedLandscape.landscape.length !== entries.length
+    ) {
       return null;
     }
-    // A short or stale scan cannot describe this book; keep the fallback instead.
-    if (scannedDims.dims.length !== entries.length) {
+    return scannedLandscape.landscape;
+  }, [cachedLandscape, scannedLandscape, containerPath, entries.length]);
+
+  const chain = useMemo(() => {
+    if (!landscape) {
       return null;
     }
     // The archive's own landscape pages prove whether it carries the cover, so they
     // outrank `isFirstPageSingleView`, which is only a default for archives that offer
     // no proof. The reader's toggle outranks both, so the button always changes the
     // chain — including when a landscape page would otherwise decide it.
-    const base = detectCoverPresence(scannedDims.dims) ?? settings.isFirstPageSingleView;
-    const hasCover = isSpreadShifted ? !base : base;
-    return buildUnitChain(scannedDims.dims, settings, hasCover);
-  }, [scannedDims, containerPath, isSpreadShifted, entries, settings]);
+    const base = detectCoverPresence(landscape) ?? settings.isFirstPageSingleView;
+    return buildUnitChain(landscape, settings, isSpreadShifted ? !base : base);
+  }, [landscape, isSpreadShifted, settings]);
 
-  // Two jobs, in order, both of which need a chain to exist.
-  //
-  // On the first chain for a book: if the restored page is not a boundary of the book's
-  // natural pairing, the reader had deliberately shifted it, so shift it again. This is
-  // what carries a shift across sessions without persisting anything of its own. For a
-  // well-formed book the restored page is already a boundary and nothing happens.
-  //
-  // Afterwards: a page reached by a jump (slider, bookmark, page list) may sit inside a
-  // unit rather than start one. Snap back to the unit that contains it, so the pairing is
-  // a property of the book instead of the reader's navigation history.
+  // Remember the measurement so this book never has to be scanned again. Only a fully
+  // successful scan is written back: a page that failed once, and so measured as 0x0,
+  // must not fix the book's pairing forever.
+  useEffect(() => {
+    const id = book?.id;
+    if (
+      id === undefined ||
+      !scannedLandscape ||
+      scannedLandscape.path !== containerPath ||
+      scannedLandscape.landscape.length !== entries.length ||
+      savedLayoutRef.current === containerPath
+    ) {
+      return;
+    }
+    savedLayoutRef.current = containerPath;
+    const bits = scannedLandscape.landscape.map((bit) => (bit ? "1" : "0")).join("");
+    updatePageLayout(id, bits).catch((e: unknown) => {
+      warn(`Failed to store the page layout: ${String(e)}`);
+    });
+  }, [book, scannedLandscape, containerPath, entries.length]);
+
+  // Hold the loading state until the book's pairing is known, then give up. Only a book
+  // being measured for the first time can reach the cap.
+  useEffect(() => {
+    setChainWaitElapsed(false);
+    if (chain) {
+      return;
+    }
+    const timer = setTimeout(() => setChainWaitElapsed(true), CHAIN_WAIT_CAP_MS);
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [chain]);
+
+  // The chain is the book's own pairing, so a page reached by a restore or a jump
+  // (slider, bookmark, page list) may sit inside a unit rather than start one. Snap to
+  // the unit that contains it: the page on screen stays on screen and only gains its
+  // facing page. Never the other way round — where the reader entered the book must not
+  // decide how the book is paired.
   useEffect(() => {
     if (!chain) {
       return;
     }
-
-    if (adoptedPathRef.current !== containerPath) {
-      adoptedPathRef.current = containerPath;
-      if (!chain.units.has(index)) {
-        dispatch(setSpreadShifted(true));
-      }
-      return;
-    }
-
     if (!chain.units.has(index)) {
       const start = chain.starts.filter((s) => s < index).at(-1);
       if (start !== undefined) {
         dispatch(setImageIndex(start));
       }
     }
-  }, [chain, containerPath, index, dispatch]);
+  }, [chain, index, dispatch]);
 
-  const getDims = useCallback(
-    (i: number): PageDims | undefined => dimsRef.current.get(entries[i]),
-    [entries],
-  );
-
-  // The chain wins when it exists: an anchored unit can differ from what the local rule
-  // would decide, and display and navigation must agree on the same one.
+  // Single pages until the book has been measured. A provisional pairing would be a coin
+  // flip on parity, and correcting it swaps the facing page under the reader; falling
+  // back to single pages means the settled chain can only add one.
   const currentUnit = useCallback(
-    (): UnitDecision | null =>
-      chain?.units.get(index) ?? resolveUnit(index, entries, getDims, settings),
-    [chain, index, entries, getDims, settings],
+    (): UnitDecision => chain?.units.get(index) ?? SINGLE_UNIT,
+    [chain, index],
   );
 
   // Loads the missing images and updates the layout.
@@ -220,11 +274,20 @@ export const useViewerController = ({
 
       const cache = cacheRef.current;
 
-      /** Builds the layout for the current index from its unit, if both are available. */
-      const layoutForCurrentIndex = (): ViewLayout | null => {
-        const unit = currentUnit();
-        return unit ? buildUnitLayout(unit, index, entries, cache) : null;
-      };
+      // Whether the viewer may show anything yet. A book being measured for the first
+      // time is the only one that reaches this false, and it becomes true either when the
+      // chain lands or when the wait cap gives up on it.
+      const pairingKnown = chain !== null || chainWaitElapsed;
+
+      /**
+       * Builds the layout for the current index, once the book's pairing is settled.
+       *
+       * Display is gated on the pairing; loading is not. `pathsToLoad` above is built
+       * from the index and the two-page setting, never from the unit, so both pages are
+       * already decoded when the chain lands and the hold costs waiting, not latency.
+       */
+      const layoutForCurrentIndex = (): ViewLayout | null =>
+        pairingKnown ? buildUnitLayout(currentUnit(), index, entries, cache) : null;
 
       // Tracks whether a full layout was resolved this run, so the post-settle
       // fallback only fires when no layout ever came out.
@@ -244,9 +307,6 @@ export const useViewerController = ({
         }
         if (img && !controller.signal.aborted) {
           const newItem = createImageCacheItem(img, isPreview);
-          if (!dimsRef.current.has(path)) {
-            dimsRef.current.set(path, { width: newItem.width, height: newItem.height });
-          }
           const existingItem = cache.get(path);
           if (existingItem) {
             if (isPreview) {
@@ -267,7 +327,7 @@ export const useViewerController = ({
 
       const missingFullPaths = pathsToLoad.filter((p) => !cache.get(p)?.fullUrl);
       if (missingFullPaths.length === 0) {
-        setIsImageLoading(false);
+        setIsImageLoading(!pairingKnown);
         const layout = layoutForCurrentIndex();
         setLayoutState(layout ? { layout, path: containerPath } : null);
         return;
@@ -292,7 +352,7 @@ export const useViewerController = ({
         await Promise.all(previewPromises);
 
         if (!controller.signal.aborted) {
-          setIsImageLoading(false);
+          setIsImageLoading(!pairingKnown);
         }
       }
 
@@ -300,17 +360,18 @@ export const useViewerController = ({
       await Promise.all(fullPromises);
 
       if (!controller.signal.aborted) {
-        // Loading has settled. If no full layout resolved (e.g. a spread's second
-        // page failed to load), degrade to a single-page layout for the first image
-        // instead of leaving the viewer blank/stale.
-        if (!layoutResolved) {
+        // Loading has settled. If no full layout resolved (e.g. a spread's second page
+        // failed to load), degrade to a single-page layout for the first image instead of
+        // leaving the viewer blank. Only once the pairing is known, though: a single page
+        // published while it is not is exactly the guess the hold exists to avoid.
+        if (!layoutResolved && pairingKnown) {
           const firstImg = cache.get(entries[index]);
           if (firstImg) {
             setLayoutState({ layout: buildSinglePageLayout(firstImg), path: containerPath });
           }
         }
         if (previewPromises.length === 0) {
-          setIsImageLoading(false);
+          setIsImageLoading(!pairingKnown);
         }
       }
     };
@@ -321,7 +382,7 @@ export const useViewerController = ({
       abortControllerRef.current?.abort();
       abortControllerRef.current = null;
     };
-  }, [containerPath, index, entries, settings, currentUnit]);
+  }, [containerPath, index, entries, settings, currentUnit, chain, chainWaitElapsed]);
 
   // Request preloading around the current index in the backend.
   useEffect(() => {
@@ -410,36 +471,9 @@ export const useViewerController = ({
       }
     }
 
-    // Reconstruct the real previous unit start from a forward walk (mirrors
-    // moveForward). Falls back to the local heuristic below when the walk can't
-    // run (incomplete dimensions / unexpected layout).
-    const previousStart = findPreviousUnitStart(index, entries, getDims, settings);
-    if (previousStart !== null) {
-      goTo(previousStart);
-      return;
-    }
-
-    // The walk could not run. Pick the candidate whose unit increment lands exactly on
-    // the current index; "is the previous page landscape" misses portrait pages that are
-    // single because the page after them is landscape. Parity is locally unknowable, so
-    // prefer the spread two pages back when both candidates are consistent.
-    const unitTwoBack = index >= 2 ? resolveUnit(index - 2, entries, getDims, settings) : null;
-    if (unitTwoBack?.nextIndexIncrement === 2) {
-      goTo(index - 2);
-      return;
-    }
-
-    // Either index - 1 is a unit start of its own, or it starts the spread the current
-    // index sits inside; both cases re-align to it.
-    const unitOneBack = resolveUnit(index - 1, entries, getDims, settings);
-    if (unitOneBack) {
-      goTo(index - 1);
-      return;
-    }
-
-    // Dimensions unknown: keep the historical "two pages back" default.
-    goTo(Math.max(0, index - 2));
-  }, [index, entries, settings, goTo, chain, getDims, onBackwardBoundary]);
+    // Without a chain every unit is a single page, so one step back is the whole answer.
+    goTo(index - 1);
+  }, [index, entries.length, settings, goTo, chain, onBackwardBoundary]);
 
   return {
     displayedLayout,

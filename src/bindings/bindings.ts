@@ -284,6 +284,23 @@ export const commands = {
 	thumbnail_path: string | null,
 	/**  The timestamp when the book was created (registered). */
 	created_at: string | null,
+	/**
+	 *  Whether the reader has shifted this book's spreads by one page.
+	 * 
+	 *  Beside `total_pages` rather than in the reading state: it is a correction to how
+	 *  the book is laid out, and turning reading history off — or clearing it — must not
+	 *  discard it.
+	 */
+	is_spread_shifted: boolean,
+	/**
+	 *  One `'0'`/`'1'` per page in entry order, `'1'` where the page is wider than it is
+	 *  tall. `None` until the book has been measured once.
+	 * 
+	 *  A landscape page is one physical spread, so it always starts on an even page:
+	 *  that is what settles where two-page spreads begin, and 200 bytes is the whole
+	 *  measurement for a 200-page book.
+	 */
+	landscape_bits: string | null,
 	/**  The last read page index, if the book has been opened. */
 	last_read_page_index: number | null,
 	/**  The timestamp when the book was last opened, if any. */
@@ -382,6 +399,39 @@ export const commands = {
 	 *  (e.g., due to a database error, connection issue, or query execution failure).
 	 */
 	clearAllReadingHistory: () => typedError<null, CommandError>(__TAURI_INVOKE("clear_all_reading_history")),
+	/**
+	 *  Records the reader's correction to how a book pairs into spreads.
+	 * 
+	 *  Written straight through rather than debounced with the reading progress: this changes
+	 *  on a button press, not on every page turn, and it must be kept even when the reader has
+	 *  turned reading history off.
+	 * 
+	 *  # Arguments
+	 * 
+	 *  * `book_id` - The book to update.
+	 *  * `is_spread_shifted` - Whether the reader has shifted the book's spreads.
+	 *  * `repo` - The managed book repository state.
+	 * 
+	 *  # Errors
+	 * 
+	 *  Returns an `Err` if the underlying repository operation fails.
+	 */
+	updateSpreadShift: (bookId: number, isSpreadShifted: boolean) => typedError<null, CommandError>(__TAURI_INVOKE("update_spread_shift", { bookId, isSpreadShifted })),
+	/**
+	 *  Records how a book's pages are shaped, so it need not be measured again.
+	 * 
+	 *  # Arguments
+	 * 
+	 *  * `book_id` - The book to update.
+	 *  * `landscape_bits` - One `'0'`/`'1'` per page in entry order, `'1'` for a page wider
+	 *    than it is tall.
+	 *  * `repo` - The managed book repository state.
+	 * 
+	 *  # Errors
+	 * 
+	 *  Returns an `Err` if the underlying repository operation fails.
+	 */
+	updatePageLayout: (bookId: number, landscapeBits: string) => typedError<null, CommandError>(__TAURI_INVOKE("update_page_layout", { bookId, landscapeBits })),
 	/**
 	 *  Retrieves recently read books, ordered by the most recently opened.
 	 * 
@@ -865,6 +915,23 @@ export type BookWithState = {
 	thumbnail_path: string | null,
 	/**  The timestamp when the book was created (registered). */
 	created_at: string | null,
+	/**
+	 *  Whether the reader has shifted this book's spreads by one page.
+	 * 
+	 *  Beside `total_pages` rather than in the reading state: it is a correction to how
+	 *  the book is laid out, and turning reading history off — or clearing it — must not
+	 *  discard it.
+	 */
+	is_spread_shifted: boolean,
+	/**
+	 *  One `'0'`/`'1'` per page in entry order, `'1'` where the page is wider than it is
+	 *  tall. `None` until the book has been measured once.
+	 * 
+	 *  A landscape page is one physical spread, so it always starts on an even page:
+	 *  that is what settles where two-page spreads begin, and 200 bytes is the whole
+	 *  measurement for a 200-page book.
+	 */
+	landscape_bits: string | null,
 	/**  The last read page index, if the book has been opened. */
 	last_read_page_index: number | null,
 	/**  The timestamp when the book was last opened, if any. */

@@ -61,6 +61,18 @@ export const BookWithStateSchema = BookSchema.extend({
    * Represented as an ISO 8601 string (e.g., "2026-03-01T15:30:00"), or null.
    */
   created_at: z.string().nullable(),
+  /**
+   * Whether the reader has shifted this book's spreads by one page.
+   *
+   * Part of the book rather than its reading state: it corrects how the book is laid
+   * out, and turning reading history off — or clearing it — must not discard it.
+   */
+  is_spread_shifted: z.boolean(),
+  /**
+   * One "0"/"1" per page in entry order, "1" where the page is wider than it is tall.
+   * Null until the book has been measured once.
+   */
+  landscape_bits: z.string().nullable(),
   /** The last read page index, if the book has been opened. */
   last_read_page_index: z.number().nullable(),
   /**

@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n            SELECT\n                v.id, v.file_path, v.item_type, v.display_name, v.total_pages, v.series_id, v.series_order,\n                v.thumbnail_path, v.created_at, v.last_read_page_index, v.last_opened_at,\n                v.cfi as \"cfi?: String\",\n                v.tag_ids_str as \"tag_ids_str?: String\"\n            FROM book_with_state_view v\n            INNER JOIN book_tags bt ON v.id = bt.book_id\n            WHERE bt.tag_id = ?\n            ORDER BY v.display_name ASC\n            ",
+  "query": "\n            SELECT\n                v.id, v.file_path, v.item_type, v.display_name, v.total_pages, v.series_id, v.series_order,\n                v.thumbnail_path, v.created_at, v.is_spread_shifted, v.landscape_bits,\n                v.last_read_page_index, v.last_opened_at,\n                v.cfi as \"cfi?: String\",\n                v.tag_ids_str as \"tag_ids_str?: String\"\n            FROM book_with_state_view v\n            INNER JOIN book_tags bt ON v.id = bt.book_id\n            WHERE bt.tag_id = ?\n            ORDER BY v.display_name ASC\n            ",
   "describe": {
     "columns": [
       {
@@ -49,23 +49,33 @@
         "type_info": "Datetime"
       },
       {
-        "name": "last_read_page_index",
+        "name": "is_spread_shifted",
         "ordinal": 9,
+        "type_info": "Bool"
+      },
+      {
+        "name": "landscape_bits",
+        "ordinal": 10,
+        "type_info": "Text"
+      },
+      {
+        "name": "last_read_page_index",
+        "ordinal": 11,
         "type_info": "Integer"
       },
       {
         "name": "last_opened_at",
-        "ordinal": 10,
+        "ordinal": 12,
         "type_info": "Datetime"
       },
       {
         "name": "cfi?: String",
-        "ordinal": 11,
+        "ordinal": 13,
         "type_info": "Text"
       },
       {
         "name": "tag_ids_str?: String",
-        "ordinal": 12,
+        "ordinal": 14,
         "type_info": "Text"
       }
     ],
@@ -82,11 +92,13 @@
       true,
       true,
       true,
+      false,
+      true,
       true,
       true,
       true,
       true
     ]
   },
-  "hash": "2a3ffe78c07e9fd1a0ef9c18af5d514792a59ba27dee4bde5e9830ce9f32bcdb"
+  "hash": "c5de1eee134b45d5f6f7c973aec8d3f44dabfe556c3ed54e19de3608ed1f8f80"
 }

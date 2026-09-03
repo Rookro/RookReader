@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE books SET landscape_bits = ? WHERE id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "6065ad4d44fd022fb5393b117cde9a7ee3210023ad689d53eccc1a0d7cc3a48c"
+}

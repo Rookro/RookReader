@@ -234,3 +234,29 @@ export async function getBooksWithStateByTagId(tagId: number): Promise<BookWithS
 export async function getBooksWithStateBySeriesId(seriesId: number): Promise<BookWithState[]> {
   return (await runCommand(commands.getBooksWithStateBySeriesId(seriesId))) as BookWithState[];
 }
+
+/**
+ * Records the reader's correction to how a book pairs into spreads.
+ *
+ * Stored on the book rather than in its reading state, so turning reading history off —
+ * or clearing it — cannot discard how the reader corrected the book's layout.
+ *
+ * @param bookId - The unique identifier of the book.
+ * @param isSpreadShifted - Whether the reader has shifted the book's spreads by one page.
+ * @throws {CommandError} If the Tauri command fails.
+ */
+export async function updateSpreadShift(bookId: number, isSpreadShifted: boolean): Promise<void> {
+  await runCommand(commands.updateSpreadShift(bookId, isSpreadShifted));
+}
+
+/**
+ * Records how a book's pages are shaped, so it need not be measured again.
+ *
+ * @param bookId - The unique identifier of the book.
+ * @param landscapeBits - One "0"/"1" per page in entry order, "1" for a page wider than
+ *   it is tall.
+ * @throws {CommandError} If the Tauri command fails.
+ */
+export async function updatePageLayout(bookId: number, landscapeBits: string): Promise<void> {
+  await runCommand(commands.updatePageLayout(bookId, landscapeBits));
+}
