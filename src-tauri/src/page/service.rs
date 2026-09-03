@@ -565,6 +565,14 @@ impl PageService {
             .collect()
     }
 
+    /// How many jobs are queued or being read, for a test that asserts nothing was asked
+    /// for.
+    #[cfg(test)]
+    pub fn pending(&self) -> usize {
+        let queue = self.shared.lock();
+        queue.jobs.len() + queue.preload.len() + queue.in_flight.len()
+    }
+
     /// Reads one page straight from the cache, without queuing anything.
     pub fn cached(&self, entry: &str) -> Option<Arc<Image>> {
         self.shared.cached(entry)

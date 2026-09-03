@@ -120,17 +120,6 @@ pub async fn get_entries_in_container(
         state_lock.container_state.install(service);
     }
 
-    if !is_novel {
-        let state_lock = state.read().await;
-        if let Some(service) = state_lock.container_state.service_for(path) {
-            log::debug!("Triggering proactive preloading for {}", path);
-            if let Err(e) = service.request_preload_around(0, 5, 0) {
-                // Proactive preloading is best-effort; a failure here must not fail the open.
-                log::warn!("Failed to trigger proactive preloading for {path}: {e}");
-            }
-        }
-    }
-
     // The whole open: the container build, and the reader pool it started.
     let pages = entries.len();
     let format = std::path::Path::new(path)
@@ -547,18 +536,18 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_get_entries_in_container_succeeds_with_best_effort_preload() {
-        // A non-novel open triggers proactive preloading, which is best-effort: the open
-        // must still succeed and return its entries, and the loader must be installed
-        // regardless of the preload outcome.
+    async fn test_get_entries_in_container_installs_the_service_without_asking_for_a_page() {
+        // Opening a book lists it and starts its readers; what to read is the viewer's
+        // decision, made once it knows where the reader is resuming. This command cannot
+        // know that, so it must queue nothing.
         let dir = tempfile::tempdir().unwrap();
         let rar_path = create_dummy_rar(dir.path(), "dummy.rar");
+        let path = rar_path.to_string_lossy().into_owned();
 
         let app = tauri::test::mock_app();
         app.manage(RwLock::new(AppState::default()));
 
-        let result =
-            get_entries_in_container(rar_path.to_string_lossy().as_ref(), app.state()).await;
+        let result = get_entries_in_container(&path, app.state()).await;
 
         let entries_result = result.expect("a valid non-novel open should succeed");
         assert!(!entries_result.is_novel);
@@ -567,6 +556,18 @@ mod tests {
         let binding = app.state::<RwLock<AppState>>();
         let guard = binding.read().await;
         assert!(guard.container_state.is_open());
+
+        let service = guard
+            .container_state
+            .service_for(&path)
+            .expect("the open book's service");
+        assert_eq!(service.pending(), 0, "the open queued work of its own");
+        for entry in &entries_result.entries {
+            assert!(
+                service.cached(entry).is_none(),
+                "the open read {entry} before anyone asked for it"
+            );
+        }
     }
 
     #[tokio::test]
