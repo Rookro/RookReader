@@ -24,6 +24,8 @@ use crate::{
         thumbnail::THUMBNAIL_SIZE,
         types::{Image, ImageDimensions},
     },
+    perf,
+    perf::Span,
 };
 
 /// How many documents the worker keeps open: the book being read, plus the one-shot a
@@ -214,8 +216,32 @@ fn run(rx: mpsc::Receiver<Request>, library_path: Option<String>) {
                 config,
                 reply,
             } => {
-                let result = document(&pdfium, &mut docs, &path)
-                    .and_then(|doc| render_page(doc, &config, index));
+                // A PDF page is the most expensive read in the app and it is two costs in
+                // one: parsing the document behind the page, and rendering the page.
+                // Splitting them is what says which of the two a slow page was.
+                let span = Span::start();
+                // `document` below is what would say this, but it takes `docs` mutably —
+                // so ask first, and only when someone is listening.
+                let doc = if !span.active() {
+                    ""
+                } else if docs.iter().any(|(open, _)| open == &path) {
+                    "hit"
+                } else {
+                    "load"
+                };
+                let loading = Span::start();
+                let document = document(&pdfium, &mut docs, &path);
+                let load_ms = loading.ms().unwrap_or_default();
+
+                let rendering = Span::start();
+                let result = document.and_then(|doc| render_page(doc, &config, index));
+                let render_ms = rendering.ms().unwrap_or_default();
+
+                perf!(
+                    span,
+                    "pdf",
+                    "page={index} doc={doc} load_ms={load_ms:.2} render_ms={render_ms:.2}"
+                );
                 let _ = reply.send(result);
             }
             Request::Dimensions { path, index, reply } => {

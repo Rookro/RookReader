@@ -5,6 +5,7 @@ import type { BookWithState } from "../../../bindings/bindings";
 import { getImageDimensions, requestPreloadAround } from "../../../bindings/ContainerCommands";
 import type { AppDispatch } from "../../../store/store";
 import type { Image } from "../../../types/Image";
+import { perf, perfSince, perfStart } from "../../../utils/perf";
 import { setImageIndex, setSpreadDisplayed } from "../slice";
 import {
   buildSinglePageLayout,
@@ -215,13 +216,20 @@ export const useViewerController = ({
   useEffect(() => {
     setScannedLandscape(null);
     if (!containerPath || entries.length === 0 || cachedLandscape) {
+      if (cachedLandscape) {
+        // The measurement arrived with the book, so there is no scan to wait for. This
+        // is the line that says a reopen cost nothing.
+        perf("chain", `source=cached pages=${cachedLandscape.length}`, 0);
+      }
       return;
     }
 
     let cancelled = false;
+    const started = perfStart();
     getImageDimensions(containerPath)
       .then((dims) => {
         if (!cancelled) {
+          perf("chain", `source=scanned pages=${dims.length}`, perfSince(started) ?? 0);
           setScannedLandscape({
             path: containerPath,
             landscape: dims.map((page) => page.width > page.height),
@@ -355,6 +363,23 @@ export const useViewerController = ({
     [pairing, index],
   );
 
+  // When the reader last asked for a different page, and whether they have been shown
+  // one since.
+  //
+  // The layout effect below re-runs whenever the pairing changes as well, and on a book
+  // whose measurement arrives late that re-run is the one that publishes — so a span
+  // started there would time the re-run and miss the wait that preceded it, which is the
+  // whole of what the reader experienced. Declared above that effect so it is reset
+  // first on the render where the index changes.
+  const askedRef = useRef<number | null>(null);
+  const shownRef = useRef(false);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: restart the wait whenever the reader asks for a different page.
+  useEffect(() => {
+    askedRef.current = perfStart();
+    shownRef.current = false;
+  }, [containerPath, index]);
+
   // Loads the missing images and updates the layout.
   useEffect(() => {
     const updateLayout = async () => {
@@ -369,6 +394,16 @@ export const useViewerController = ({
       }
 
       const cache = cacheRef.current;
+
+      /** Reports the first page shown since the reader asked for this one. */
+      const reportDisplayed = () => {
+        if (shownRef.current) {
+          return;
+        }
+        shownRef.current = true;
+        const source = chain ? "chain" : "assumed";
+        perf("display", `index=${index} pairing=${source}`, perfSince(askedRef.current) ?? 0);
+      };
 
       /**
        * Builds the layout for the current index, once a pairing is available.
@@ -418,6 +453,7 @@ export const useViewerController = ({
           const layout = layoutForCurrentIndex();
           if (layout) {
             layoutResolved = true;
+            reportDisplayed();
             setLayoutState({ layout, path: containerPath });
           }
         }
@@ -427,6 +463,9 @@ export const useViewerController = ({
       if (missingFullPaths.length === 0) {
         setIsImageLoading(pairing === null);
         const layout = layoutForCurrentIndex();
+        if (layout) {
+          reportDisplayed();
+        }
         setLayoutState(layout ? { layout, path: containerPath } : null);
         return;
       }
@@ -465,6 +504,7 @@ export const useViewerController = ({
         if (!layoutResolved && pairing) {
           const firstImg = cache.get(entries[index]);
           if (firstImg) {
+            reportDisplayed();
             setLayoutState({ layout: buildSinglePageLayout(firstImg), path: containerPath });
           }
         }

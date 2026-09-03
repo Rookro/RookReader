@@ -5,6 +5,7 @@ import { setSettings as persistSettings } from "../../bindings/SettingsCommands"
 import type { AppSettings } from "../../types/AppSettings";
 import { createAppAsyncThunk } from "../../types/CustomAsyncThunk";
 import { CommandError, ErrorCode } from "../../types/Error";
+import { setPerfLogging } from "../../utils/perf";
 import { setSettingsError } from "./errorSlice";
 import { defaultSettings } from "./settingsStore";
 
@@ -38,7 +39,10 @@ export const updateSettings = createAppAsyncThunk(
   async ({ key, value }: UpdateSettingsPayload, { dispatch, rejectWithValue }) => {
     const patch = { [key]: value } as unknown as SettingsPatch;
     try {
-      return await persistSettings(patch);
+      const merged = await persistSettings(patch);
+      // Turning debug logging on takes effect here rather than at the next start.
+      setPerfLogging(merged.general.log.level);
+      return merged;
     } catch (e) {
       const code = e instanceof CommandError ? e.code : ErrorCode.settings;
       const message = e instanceof CommandError ? e.message : String(e);

@@ -43,6 +43,37 @@ const BURST: usize = 20;
 /// Bytes of a decompressed entry the proposed header-only scan reads.
 const HEADER_PROBE: u64 = 64 * 1024;
 
+/// Raises the log level to `Debug` behind a logger that keeps nothing, when
+/// `ROOKREADER_BENCH_PERF_LOG` is set.
+///
+/// The `perf` records claim to cost nothing at the level the app ships with, which is
+/// what an ordinary run measures — no logger is installed, so every span is empty. This
+/// switch measures the other half of the claim: with the level raised, the clock reads
+/// and the formatting happen for real, and only the file the reader opted into is
+/// missing. The two runs should not differ.
+fn install_discarding_logger_if_asked() {
+    struct Discard;
+
+    impl log::Log for Discard {
+        fn enabled(&self, _: &log::Metadata) -> bool {
+            true
+        }
+        fn log(&self, record: &log::Record) {
+            std::hint::black_box(record.args().to_string());
+        }
+        fn flush(&self) {}
+    }
+
+    if std::env::var("ROOKREADER_BENCH_PERF_LOG").is_err() {
+        return;
+    }
+    static LOGGER: Discard = Discard;
+    if log::set_logger(&LOGGER).is_ok() {
+        log::set_max_level(log::LevelFilter::Debug);
+        println!("perf records enabled (formatted, then discarded)");
+    }
+}
+
 // ---------------------------------------------------------------- timing utils
 
 fn median(mut v: Vec<Duration>) -> Duration {
@@ -375,6 +406,7 @@ fn zip_burst_per_thread(path: &Path, indices: &[usize], pool: &rayon::ThreadPool
 #[test]
 #[ignore = "benchmark; run with -- --ignored"]
 fn perfbench_report() {
+    install_discarding_logger_if_asked();
     let threads = std::cmp::max(
         1,
         std::thread::available_parallelism().map_or(1, |n| n.get()) / 2,

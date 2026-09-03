@@ -4,6 +4,7 @@ import { updatePageLayout } from "../../../bindings/BookCommands";
 import { getImageDimensions } from "../../../bindings/ContainerCommands";
 import { createMockBookWithState } from "../../../test/factories";
 import type { Image } from "../../../types/Image";
+import * as perfLog from "../../../utils/perf";
 import { setImageIndex, setSpreadDisplayed } from "../slice";
 import * as ImageUtils from "../utils/ImageUtils";
 import { useViewerController } from "./useViewerController";
@@ -64,6 +65,12 @@ vi.mock("../utils/ImageUtils", () => ({
       URL.revokeObjectURL(item.fullUrl);
     }
   }),
+}));
+
+vi.mock("../../../utils/perf", () => ({
+  perf: vi.fn(),
+  perfStart: vi.fn(() => 0),
+  perfSince: vi.fn((started: number | null) => (started === null ? null : 1234)),
 }));
 
 vi.mock("../reducers/ReadReducer", () => ({
@@ -1423,6 +1430,59 @@ describe("useViewerController", () => {
             (call) => call[2] === twoPaged.isFirstPageSingleView,
           ),
         ).toBe(true);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    // Verify the reported wait spans the hold, not just the render that ended it
+    it("times the display from when the reader asked for the page", async () => {
+      vi.useFakeTimers();
+      try {
+        // The measurement lands late, so the layout effect runs twice: once that shows
+        // nothing, and once — triggered by the chain — that publishes. A span started in
+        // the second run would report the render and miss the wait the reader sat through.
+        let land: ((dims: { width: number; height: number }[]) => void) | undefined;
+        vi.mocked(getImageDimensions).mockReturnValue(
+          new Promise((resolve) => {
+            land = resolve;
+          }),
+        );
+
+        renderHook(() =>
+          useViewerController({
+            containerPath: "path",
+            entries: mockEntries,
+            index: 0,
+            isSpreadShifted: false,
+            settings: twoPaged,
+            dispatch: mockDispatch,
+          }),
+        );
+
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(0);
+        });
+        expect(perfLog.perf).not.toHaveBeenCalledWith(
+          "display",
+          expect.anything(),
+          expect.anything(),
+        );
+        // Every clock the hook has taken so far. The reader waits from here on.
+        const takenBeforeTheWait = vi.mocked(perfLog.perfStart).mock.calls.length;
+
+        land?.(mockEntries.map(() => ({ width: 100, height: 200 })));
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(0);
+        });
+
+        // The wait may not be restarted by the render that ends it: no new clock was
+        // taken between the reader asking for the page and being shown one.
+        expect(vi.mocked(perfLog.perfStart).mock.calls.length).toBe(takenBeforeTheWait);
+
+        const displays = vi.mocked(perfLog.perf).mock.calls.filter(([op]) => op === "display");
+        expect(displays).toHaveLength(1);
+        expect(displays[0][2]).toBe(1234);
       } finally {
         vi.useRealTimers();
       }

@@ -11,6 +11,7 @@ pub mod error;
 pub mod image;
 pub mod infrastructure;
 pub mod page;
+pub mod perf;
 mod settings;
 mod setup;
 mod state;

@@ -20,6 +20,8 @@ use crate::{
         cache::{Cache, CacheKey},
         pipeline::Pipeline,
     },
+    perf,
+    perf::Span,
 };
 
 /// Job classes, most urgent first. Ties are broken by ascending entry index so a
@@ -184,6 +186,8 @@ pub struct PageService {
     /// Entry name to position, built once: it is the tiebreak inside a priority class, so
     /// every enqueue needs it and none of them can afford a scan of `get_entries`.
     order: HashMap<String, usize>,
+    /// How many reader threads were started for this book.
+    workers: usize,
     shared: Arc<Shared>,
 }
 
@@ -251,8 +255,17 @@ impl PageService {
         Self {
             container,
             order,
+            workers,
             shared,
         }
+    }
+
+    /// How many reader threads this book was given.
+    ///
+    /// The container's `max_readers`, bounded by the machine's parallelism — the number
+    /// that explains why one book preloads faster than another.
+    pub fn workers(&self) -> usize {
+        self.workers
     }
 
     /// The book this service reads.
@@ -282,33 +295,45 @@ impl PageService {
     /// Returns an `Err` if the entry is not part of this book, the book is closed while
     /// the page is being read, or the page cannot be read or decoded.
     pub fn page(&self, entry: &str, priority: Priority) -> Result<Arc<Image>> {
+        let span = Span::start();
         if let Some(image) = self.shared.cached(entry) {
-            log::debug!("Hit cache: {entry}");
+            perf!(span, "page", "entry={entry} prio={priority:?} source=cache queued=0");
             return Ok(image);
         }
 
         let index = self.index_of(entry)?;
         let (tx, rx) = mpsc::channel();
-        {
+        // What the wait is spent on, which is what makes the duration readable: a page
+        // already being read is joined rather than read again.
+        let (source, queued) = {
             let mut queue = self.shared.lock();
             if queue.closed {
                 return Err(closed());
             }
+            let queued = queue.jobs.len();
             match queue.in_flight.entry(entry.to_string()) {
                 // A worker already has this page open; wait on its result rather than
                 // reading the same bytes twice.
-                Entry::Occupied(mut waiting) => waiting.get_mut().push(tx),
-                Entry::Vacant(_) => queue.jobs.push(Job {
-                    priority,
-                    order: (index, 1),
-                    entry: entry.to_string(),
-                    reply: Reply::Page(tx),
-                }),
+                Entry::Occupied(mut waiting) => {
+                    waiting.get_mut().push(tx);
+                    ("inflight", queued)
+                }
+                Entry::Vacant(_) => {
+                    queue.jobs.push(Job {
+                        priority,
+                        order: (index, 1),
+                        entry: entry.to_string(),
+                        reply: Reply::Page(tx),
+                    });
+                    ("read", queued)
+                }
             }
-        }
+        };
         self.shared.wake.notify_one();
 
-        rx.recv().map_err(|_| closed())?
+        let page = rx.recv().map_err(|_| closed())?;
+        perf!(span, "page", "entry={entry} prio={priority:?} source={source} queued={queued}");
+        page
     }
 
     /// Reads a small stand-in for one page, if its format has a cheaper path to one.
@@ -325,8 +350,9 @@ impl PageService {
     /// Returns an `Err` if the entry is not part of this book, the book is closed, or the
     /// preview cannot be produced.
     pub fn preview(&self, entry: &str) -> Result<Option<Arc<Image>>> {
+        let span = Span::start();
         if self.shared.cached(entry).is_some() {
-            log::debug!("Skip create the thumbnail. Hit cache: {entry}");
+            perf!(span, "preview", "entry={entry} source=cached-page");
             return Ok(None);
         }
 
@@ -346,7 +372,16 @@ impl PageService {
         }
         self.shared.wake.notify_one();
 
-        rx.recv().map_err(|_| closed())?
+        let preview = rx.recv().map_err(|_| closed())?;
+        let source = match &preview {
+            Ok(Some(_)) => "render",
+            // Every format but PDF: a preview costs the page's own read and decode, so
+            // there is nothing cheaper to make.
+            Ok(None) => "unsupported",
+            Err(_) => "failed",
+        };
+        perf!(span, "preview", "entry={entry} source={source}");
+        preview
     }
 
     /// Enqueues the window around `center`, skipping entries already cached.
@@ -371,11 +406,17 @@ impl PageService {
         let ahead = center.min(entries.len())..end;
         let behind = start..center.min(entries.len());
 
+        let span = Span::start();
+        let (ahead_len, behind_len) = (ahead.len(), behind.len());
+        let mut cached = 0usize;
+
         let mut queue = self.shared.lock();
         if queue.closed {
             return Ok(());
         }
+        let before = queue.jobs.len();
         queue.jobs.retain(|job| !job.priority.is_preload());
+        let dropped = before - queue.jobs.len();
 
         for (range, priority) in [
             (ahead, Priority::PreloadAhead),
@@ -384,6 +425,7 @@ impl PageService {
             for index in range {
                 let entry = &entries[index];
                 if self.shared.cached(entry).is_some() {
+                    cached += 1;
                     continue;
                 }
                 queue.jobs.push(Job {
@@ -396,6 +438,14 @@ impl PageService {
         }
         drop(queue);
         self.shared.wake.notify_all();
+
+        // `dropped` is the pages of a window the reader has already left, which is the
+        // number that says whether preloading is chasing them or lagging behind.
+        perf!(
+            span,
+            "preload",
+            "center={center} ahead={ahead_len} behind={behind_len} cached={cached} dropped={dropped}"
+        );
 
         Ok(())
     }
@@ -434,6 +484,8 @@ impl PageService {
         drop(tx);
         self.shared.wake.notify_all();
 
+        let span = Span::start();
+        let mut failed = 0usize;
         let mut measured: Vec<Option<ImageDimensions>> = vec![None; entries.len()];
         for _ in 0..entries.len() {
             let (index, result) = rx.recv().map_err(|_| closed())?;
@@ -443,12 +495,18 @@ impl PageService {
                 // leave the book on single pages. A zero-sized page reads as portrait,
                 // which is the pairing a page of unknown shape gets anyway.
                 log::warn!("Could not measure {}: {e}", entries[index]);
+                failed += 1;
                 ImageDimensions {
                     width: 0,
                     height: 0,
                 }
             }));
         }
+
+        // One record for the whole scan, never one per page: two hundred lines would cost
+        // more in log I/O than the scan costs in work.
+        let pages = entries.len();
+        perf!(span, "scan", "pages={pages} failed={failed}");
 
         measured
             .into_iter()
@@ -468,13 +526,17 @@ impl PageService {
     /// is what wakes a `recv`. It never joins a worker, so a caller may close a book
     /// while a page is still being read.
     pub fn close(&self) {
-        {
+        let span = Span::start();
+        let (queued, inflight) = {
             let mut queue = self.shared.lock();
             queue.closed = true;
+            let counts = (queue.jobs.len(), queue.in_flight.len());
             queue.jobs.clear();
             queue.in_flight.clear();
-        }
+            counts
+        };
         self.shared.wake.notify_all();
+        perf!(span, "close", "queued={queued} inflight={inflight}");
     }
 
     /// The entry's position in the book.
@@ -1163,6 +1225,42 @@ mod tests {
                 height: 2
             }
         );
+    }
+
+    #[test]
+    fn a_scan_is_one_record_however_many_pages_it_measures() {
+        let recording = crate::perf::capture::record();
+        let names = entries(40);
+        let log = Arc::new(Mutex::new(Vec::new()));
+
+        let measured = service(recording_container(names.clone(), 1, log))
+            .dimensions()
+            .unwrap();
+        assert_eq!(measured.len(), 40);
+
+        // Forty pages, one line. A record per page would cost more in log I/O than the
+        // scan costs in work, and would bury every other record in the file.
+        let lines = recording.lines("scan");
+        assert_eq!(lines.len(), 1, "{lines:?}");
+        assert!(lines[0].contains(" pages=40 failed=0 ms="), "{}", lines[0]);
+    }
+
+    #[test]
+    fn a_page_record_says_which_of_the_three_it_was() {
+        let recording = crate::perf::capture::record();
+        let names = entries(2);
+        let log = Arc::new(Mutex::new(Vec::new()));
+        let service = service(recording_container(names.clone(), 1, log));
+
+        service.page(&names[0], Priority::Foreground).unwrap();
+        service.page(&names[0], Priority::Foreground).unwrap();
+
+        // A duration is unreadable without this: the second call is fast because it never
+        // left the cache, not because the archive got quicker.
+        let lines = recording.lines("page");
+        assert_eq!(lines.len(), 2, "{lines:?}");
+        assert!(lines[0].contains(" source=read "), "{}", lines[0]);
+        assert!(lines[1].contains(" source=cache "), "{}", lines[1]);
     }
 
     #[test]

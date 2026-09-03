@@ -7,6 +7,8 @@ use crate::{
     error::{Error, Result},
     image::types::ImageDimensions,
     page::service::Priority,
+    perf,
+    perf::Span,
     state::{app_state::AppState, container_state::ContainerState},
 };
 
@@ -69,6 +71,7 @@ pub async fn get_entries_in_container(
 
     // Serialize opens so a slower earlier open can't install after a newer one and
     // leave the wrong book's images loaded.
+    let span = Span::start();
     let _open_guard = OPEN_CONTAINER_LOCK.lock().await;
 
     // Snapshot the (cheap-to-clone) settings and cache handle under a brief read lock,
@@ -98,6 +101,7 @@ pub async fn get_entries_in_container(
     };
 
     let container = service.container();
+    let workers = service.workers();
     let entries = container.get_entries().clone();
     let is_directory = container.is_directory();
     let is_novel = container.is_novel();
@@ -126,6 +130,18 @@ pub async fn get_entries_in_container(
             }
         }
     }
+
+    // The whole open: the container build, and the reader pool it started.
+    let pages = entries.len();
+    let format = std::path::Path::new(path)
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .unwrap_or("dir");
+    perf!(
+        span,
+        "open",
+        "format={format} pages={pages} workers={workers} novel={is_novel}"
+    );
 
     Ok(EntriesResult {
         entries,
