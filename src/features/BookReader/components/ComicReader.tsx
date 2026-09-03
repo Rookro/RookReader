@@ -52,7 +52,7 @@ export default function ComicReader() {
   const { onForwardBoundary, onBackwardBoundary, pending, confirmPending, cancelPending } =
     useAdjacentBookNavigation();
 
-  const { displayedLayout, moveForward, moveBack, isImageLoading } = useViewerController(
+  const { displayedLayout, moveForward, moveBack, isImageLoading } = useViewerController({
     containerPath,
     entries,
     index,
@@ -61,7 +61,7 @@ export default function ComicReader() {
     dispatch,
     onForwardBoundary,
     onBackwardBoundary,
-  );
+  });
 
   const loupeSettings = readerSettings.comic.loupe;
 

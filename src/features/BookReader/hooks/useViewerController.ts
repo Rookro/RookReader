@@ -45,29 +45,45 @@ export interface ViewerController {
   moveBack: () => void;
 }
 
+/** What {@link useViewerController} needs to drive the viewer. */
+export interface ViewerControllerOptions {
+  /** The path of the container file. */
+  containerPath: string;
+  /** Entries in the container. */
+  entries: string[];
+  /** Index of the current image. */
+  index: number;
+  /** Whether this book's spread pairing is shifted by one. */
+  isSpreadShifted: boolean;
+  /** Viewer settings. */
+  settings: ViewerSettings;
+  /** Dispatch function from Redux. */
+  dispatch: AppDispatch;
+  /** Called when moving forward past the last page. */
+  onForwardBoundary?: () => void;
+  /** Called when moving back before the first page. */
+  onBackwardBoundary?: () => void;
+}
+
 /**
  * Hooks for controlling the image viewer.
  *
- * @param containerPath The path of the container file.
- * @param entries Entries in the container.
- * @param index Index of the current image.
- * @param isSpreadShifted Whether this book's spread pairing is shifted by one.
- * @param settings Viewer settings.
- * @param dispatch Dispatch function from Redux.
- * @param onForwardBoundary Called when moving forward past the last page.
- * @param onBackwardBoundary Called when moving back before the first page.
+ * Takes an options object rather than a positional list: at seven parameters the next
+ * one would touch every call site again, and the one after that would too.
+ *
+ * @param options See {@link ViewerControllerOptions}.
  * @returns ViewerController.
  */
-export const useViewerController = (
-  containerPath: string,
-  entries: string[],
-  index: number,
-  isSpreadShifted: boolean,
-  settings: ViewerSettings,
-  dispatch: AppDispatch,
-  onForwardBoundary?: () => void,
-  onBackwardBoundary?: () => void,
-): ViewerController => {
+export const useViewerController = ({
+  containerPath,
+  entries,
+  index,
+  isSpreadShifted,
+  settings,
+  dispatch,
+  onForwardBoundary,
+  onBackwardBoundary,
+}: ViewerControllerOptions): ViewerController => {
   const cacheRef = useRef<Map<string, ImageCacheItem>>(new Map());
   // Dimensions are kept apart from the blob cache: they are tiny, and navigation needs
   // them for pages whose blobs have already been evicted.
