@@ -241,9 +241,11 @@ fn build_pdf(dir: &Path, pages: &[Vec<u8>]) -> PathBuf {
     let size = PdfPagePaperSize::a4();
     let (w, h) = (size.width(), size.height());
     for (i, page_bytes) in pages.iter().enumerate() {
-        let mut obj =
-            PdfPageImageObject::new_from_jpeg_reader(&doc, std::io::Cursor::new(page_bytes.clone()))
-                .expect("embed jpeg");
+        let mut obj = PdfPageImageObject::new_from_jpeg_reader(
+            &doc,
+            std::io::Cursor::new(page_bytes.clone()),
+        )
+        .expect("embed jpeg");
         obj.scale(w.value, h.value).expect("scale");
         let mut page = doc
             .pages_mut()
@@ -275,7 +277,10 @@ fn page(container: &Arc<dyn Container>, entry: &str) -> Arc<Image> {
 }
 
 /// Every page's dimensions through one reader — the shape `PageService::dimensions` uses.
-fn scan(container: &Arc<dyn Container>, entries: &[String]) -> Vec<crate::image::types::ImageDimensions> {
+fn scan(
+    container: &Arc<dyn Container>,
+    entries: &[String],
+) -> Vec<crate::image::types::ImageDimensions> {
     let mut reader = container.open_reader().expect("open reader");
     entries
         .iter()
@@ -466,9 +471,11 @@ fn perfbench_report() {
     let one_img = bench("read_page + pipeline (1 page, warm)", 20, || {
         page(&zip, &entries[7])
     });
-    let one_thumb = bench("thumbnail (1 page) [= what a preview would cost]", 20, || {
-        thumbnail(&zip, &entries[7])
-    });
+    let one_thumb = bench(
+        "thumbnail (1 page) [= what a preview would cost]",
+        20,
+        || thumbnail(&zip, &entries[7]),
+    );
 
     let burst: Vec<String> = entries[..BURST].to_vec();
     let burst_idx: Vec<usize> = (0..BURST).collect();
@@ -605,11 +612,7 @@ fn perfbench_report() {
         let _ = handle.join();
         waited
     };
-    println!(
-        "  {:<52} {:>9.2} ms",
-        "page(0), scanner idle",
-        ms(svc_idle)
-    );
+    println!("  {:<52} {:>9.2} ms", "page(0), scanner idle", ms(svc_idle));
     println!(
         "  {:<52} {:>9.2} ms",
         "page(0), while dimensions() runs",
@@ -675,9 +678,11 @@ fn perfbench_report() {
 
     // ---------------------------------------------------------------- EPUB
     println!("--- EPUB ---");
-    let e_open = bench("EpubContainer::new (open, incl. spine HTML parse)", 3, || {
-        EpubContainer::new(epub_path.to_string_lossy().as_ref()).unwrap()
-    });
+    let e_open = bench(
+        "EpubContainer::new (open, incl. spine HTML parse)",
+        3,
+        || EpubContainer::new(epub_path.to_string_lossy().as_ref()).unwrap(),
+    );
     let ep: Arc<dyn Container> =
         Arc::new(EpubContainer::new(epub_path.to_string_lossy().as_ref()).expect("open epub"));
     let e_entries = ep.get_entries().clone();
@@ -715,7 +720,9 @@ fn perfbench_report() {
             page(&r, r_entries.last().unwrap())
         });
         bench("thumbnail entry #0", 30, || thumbnail(&r, &r_entries[0]));
-        bench("scan through one cursor reader", 20, || scan(&r, &r_entries));
+        bench("scan through one cursor reader", 20, || {
+            scan(&r, &r_entries)
+        });
         println!(
             "\n  => per-entry scan step {:.3} ms over {} entries ({:.3} -> {:.3} ms)\n",
             (ms(r_last) - ms(r0)) / (r_entries.len() as f64 - 1.0),
@@ -813,9 +820,11 @@ exported {} pages, {:.1} MiB total, {:.0} KiB/page
 #[ignore = "benchmark; run with -- --ignored"]
 fn perfbench_rar_at_scale() {
     let Ok(list) = std::env::var("ROOKREADER_BENCH_RAR") else {
-        println!("
+        println!(
+            "
 set ROOKREADER_BENCH_RAR=<path>[;<path>] to run this
-");
+"
+        );
         return;
     };
 
@@ -865,9 +874,11 @@ set ROOKREADER_BENCH_RAR=<path>[;<path>] to run this
         for i in probes.iter().copied() {
             // A fresh reader per page is what the container layer used to do for every
             // request, and it is the floor the cursor walk below is measured against.
-            let d = bench(&format!("read_page entry #{i} (fresh reader each time)"), 3, || {
-                page(&c, &entries[i])
-            });
+            let d = bench(
+                &format!("read_page entry #{i} (fresh reader each time)"),
+                3,
+                || page(&c, &entries[i]),
+            );
             probe_ms.push((i, ms(d)));
         }
 

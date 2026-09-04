@@ -1,9 +1,4 @@
-use std::{
-    collections::HashSet,
-    fs::read_dir,
-    path::PathBuf,
-    sync::Arc,
-};
+use std::{collections::HashSet, fs::read_dir, path::PathBuf, sync::Arc};
 
 use image::ImageReader;
 
@@ -308,5 +303,4 @@ mod tests {
 
         assert_eq!(entries, &expected_sorted_strings);
     }
-
 }

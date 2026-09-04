@@ -77,9 +77,7 @@ enum Request {
     /// Closes a document the caller has finished with. Without it the worker holds a
     /// closed book's parsed structures and its file handle until two *other* PDFs displace
     /// it, so a reader who opens one large PDF and moves on keeps paying for it.
-    Release {
-        path: String,
-    },
+    Release { path: String },
     /// Reports which documents are currently open, so a test can observe a release.
     #[cfg(test)]
     OpenDocuments {
@@ -326,7 +324,11 @@ fn page_size(pdf: &PdfDocument, index: u16) -> Result<ImageDimensions> {
 /// PDF is the one format where this is *cheaper* than reading the page: pdfium renders
 /// straight to the smaller size, or hands back a thumbnail the document already carries,
 /// instead of decoding a full page and shrinking it.
-fn render_thumbnail(pdf: &PdfDocument, render_config: &PdfRenderConfig, index: u16) -> Result<Image> {
+fn render_thumbnail(
+    pdf: &PdfDocument,
+    render_config: &PdfRenderConfig,
+    index: u16,
+) -> Result<Image> {
     let page = pdf.pages().get(index).map_err(Error::from)?;
     let img = match page.embedded_thumbnail() {
         Ok(thumbnail) => thumbnail.as_image(),

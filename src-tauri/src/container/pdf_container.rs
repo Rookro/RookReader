@@ -208,7 +208,11 @@ trailer << /Size 5 /Root 1 0 R >>
 ";
 
     /// Writes `data` into `dir` and opens it as a container.
-    fn container_for(dir: &path::Path, filename: &str, data: &[u8]) -> (path::PathBuf, PdfContainer) {
+    fn container_for(
+        dir: &path::Path,
+        filename: &str,
+        data: &[u8],
+    ) -> (path::PathBuf, PdfContainer) {
         let filepath = dir.join(filename);
         File::create(&filepath).unwrap().write_all(data).unwrap();
         let container = PdfContainer::new(
@@ -244,7 +248,9 @@ trailer << /Size 5 /Root 1 0 R >>
 
     fn pdf_test_guard() -> std::sync::MutexGuard<'static, ()> {
         // A panicking test must not take the rest of the module down with it.
-        PDF_TESTS.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+        PDF_TESTS
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
     }
 
     fn create_dummy_pdf(dir: &path::Path, filename: &str) -> path::PathBuf {
@@ -460,7 +466,10 @@ trailer << /Size 5 /Root 1 0 R >>
         let _guard = pdf_test_guard();
         let dir = tempdir().unwrap();
         let (_, container) = container_for(dir.path(), "two.pdf", TWO_PAGE_PDF_DATA);
-        assert_eq!(container.get_entries(), &["0000".to_string(), "0001".to_string()]);
+        assert_eq!(
+            container.get_entries(),
+            &["0000".to_string(), "0001".to_string()]
+        );
 
         let mut reader = container.open_reader().unwrap();
 
@@ -468,11 +477,17 @@ trailer << /Size 5 /Root 1 0 R >>
         // selects the page.
         assert_eq!(
             reader.page_dimensions("0000").unwrap(),
-            ImageDimensions { width: 612, height: 792 }
+            ImageDimensions {
+                width: 612,
+                height: 792
+            }
         );
         assert_eq!(
             reader.page_dimensions("0001").unwrap(),
-            ImageDimensions { width: 300, height: 400 }
+            ImageDimensions {
+                width: 300,
+                height: 400
+            }
         );
 
         for entry in ["0000", "0001"] {

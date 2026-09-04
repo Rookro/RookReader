@@ -5,11 +5,7 @@ use pdfium_render::prelude::PdfRenderConfig;
 use crate::{
     container::factory::{create_container, ContainerConfig},
     error::Result,
-    page::{
-        cache::Cache,
-        pipeline::Pipeline,
-        service::PageService,
-    },
+    page::{cache::Cache, pipeline::Pipeline, service::PageService},
     state::container_settings::ContainerSettings,
 };
 
@@ -410,8 +406,8 @@ mod tests {
 
     #[test]
     fn test_build_image_cache_stores_and_reads_back() {
-        use crate::page::cache::CacheKey;
         use crate::image::types::Image;
+        use crate::page::cache::CacheKey;
 
         let cache = build_image_cache(64);
         let key = CacheKey {

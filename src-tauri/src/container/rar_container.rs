@@ -134,7 +134,11 @@ impl PageReader for RarReader {
             .clone();
         // An unlisted name would compare as "ahead of everything", which only costs a
         // reopen before the walk below reports it missing.
-        let target = self.member_order.get(&wanted).copied().unwrap_or(usize::MAX);
+        let target = self
+            .member_order
+            .get(&wanted)
+            .copied()
+            .unwrap_or(usize::MAX);
 
         if self.cursor.is_none() || self.position > target {
             self.reopen()?;
@@ -218,7 +222,6 @@ impl RarContainer {
             walked: 0,
         }
     }
-
 }
 
 /// Builds the naturally-sorted image entry list for one folder inside the archive.

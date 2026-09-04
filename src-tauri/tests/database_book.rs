@@ -543,7 +543,10 @@ async fn spread_state_round_trips_and_survives_clearing_history() {
     assert_eq!(book.landscape_bits, None);
 
     repository.update_spread_shift(book_id, true).await.unwrap();
-    repository.update_page_layout(book_id, "0100").await.unwrap();
+    repository
+        .update_page_layout(book_id, "0100")
+        .await
+        .unwrap();
 
     let book = repository
         .get_book_with_state_by_id(book_id)
@@ -572,7 +575,10 @@ async fn spread_state_round_trips_and_survives_clearing_history() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(book.last_read_page_index, None, "history really was cleared");
+    assert_eq!(
+        book.last_read_page_index, None,
+        "history really was cleared"
+    );
     assert!(book.is_spread_shifted, "the shift is not reading history");
     assert_eq!(book.landscape_bits.as_deref(), Some("0100"));
 }

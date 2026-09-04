@@ -429,7 +429,10 @@ mod tests {
         let zip_path = create_dummy_zip(
             dir.path(),
             "test.zip",
-            &[("image1.png", DUMMY_PNG_DATA), ("image2.png", DUMMY_PNG_DATA)],
+            &[
+                ("image1.png", DUMMY_PNG_DATA),
+                ("image2.png", DUMMY_PNG_DATA),
+            ],
         );
         let container = ZipContainer::new(zip_path.to_string_lossy().as_ref(), "")
             .expect("failed to create ZipContainer");
@@ -479,14 +482,19 @@ mod tests {
         let zip_path = create_dummy_zip(
             dir.path(),
             "test.zip",
-            &[("image1.png", DUMMY_PNG_DATA), ("image2.png", DUMMY_PNG_DATA)],
+            &[
+                ("image1.png", DUMMY_PNG_DATA),
+                ("image2.png", DUMMY_PNG_DATA),
+            ],
         );
         let container = ZipContainer::new(zip_path.to_string_lossy().as_ref(), "")
             .expect("failed to create ZipContainer");
 
         // Two readers over one archive, interleaved: each owns its own file handle, so
         // neither disturbs the other's position.
-        let mut first = container.open_reader().expect("failed to open the first reader");
+        let mut first = container
+            .open_reader()
+            .expect("failed to open the first reader");
         let mut second = container
             .open_reader()
             .expect("failed to open the second reader");
@@ -690,7 +698,11 @@ mod tests {
             vec!["001.png".to_string(), "002.png".to_string()],
             *container.get_entries()
         );
-        assert!(container.open_reader().unwrap().read_page("001.png").is_ok());
+        assert!(container
+            .open_reader()
+            .unwrap()
+            .read_page("001.png")
+            .is_ok());
     }
 
     #[test]

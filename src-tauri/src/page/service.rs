@@ -351,7 +351,11 @@ impl PageService {
     pub fn page(&self, entry: &str, priority: Priority) -> Result<Arc<Image>> {
         let span = Span::start();
         if let Some(image) = self.shared.cached(entry) {
-            perf!(span, "page", "entry={entry} prio={priority:?} source=cache queued=0");
+            perf!(
+                span,
+                "page",
+                "entry={entry} prio={priority:?} source=cache queued=0"
+            );
             return Ok(image);
         }
 
@@ -386,7 +390,11 @@ impl PageService {
         self.shared.wake.notify_one();
 
         let page = rx.recv().map_err(|_| closed())?;
-        perf!(span, "page", "entry={entry} prio={priority:?} source={source} queued={queued}");
+        perf!(
+            span,
+            "page",
+            "entry={entry} prio={priority:?} source={source} queued={queued}"
+        );
         page
     }
 
@@ -830,7 +838,9 @@ fn run(shared: &Shared, reader: &mut dyn PageReader, job: Job) {
         }
         Reply::Preview(tx) => {
             let preview = reader.read_preview(&job.entry).and_then(|bytes| {
-                bytes.map(|bytes| shared.pipeline.preview(bytes)).transpose()
+                bytes
+                    .map(|bytes| shared.pipeline.preview(bytes))
+                    .transpose()
             });
             let _ = tx.send(preview);
         }
@@ -1062,7 +1072,9 @@ mod tests {
         };
         // Seven scan jobs are left in the queue; the eighth is the foreground request,
         // and waiting for it to arrive is what makes the pop below decide this test.
-        eventually("the foreground request to be queued", || queued(&service) == 8);
+        eventually("the foreground request to be queued", || {
+            queued(&service) == 8
+        });
 
         // Release the parked worker; its next pop decides this test.
         gate.wait();
@@ -1569,7 +1581,9 @@ mod tests {
                 thread::spawn(move || service.page(&entry, Priority::Foreground))
             })
             .collect();
-        eventually("both workers to park", || parked.load(Ordering::SeqCst) == 2);
+        eventually("both workers to park", || {
+            parked.load(Ordering::SeqCst) == 2
+        });
 
         let callers: Vec<_> = (0..2)
             .map(|_| {
