@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+* Made pages load faster and page turns feel immediate. (#315)
+  * A page turn no longer stalls while other pages are loading in the background, and reading forward through a solid RAR no longer slows down the further in you get.
+  * A book opens at the page you left off, and opening it again no longer re-reads the whole book to work out its two-page spreads.
+  * PDFs no longer freeze the app when opened while the bookshelf is still loading covers.
+  * Adding a book to a bookshelf no longer interrupts the book you are reading, and a page that cannot be read now reports an error instead of loading forever.
+  * A new "Page reader threads" setting helps books on a network drive, where reading fewer pages at once is often faster.
+
 ## [2.4.0] - 2026-08-30
 
 ### Added
