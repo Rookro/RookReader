@@ -40,7 +40,8 @@ export const updateSettings = createAppAsyncThunk(
     const patch = { [key]: value } as unknown as SettingsPatch;
     try {
       const merged = await persistSettings(patch);
-      // Turning debug logging on takes effect here rather than at the next start.
+      // For this window only. The backend leaves the caller out of the `settings-changed`
+      // broadcast, so `useSettingsChange` never sees the change this window made.
       setPerfLogging(merged.general.log.level);
       return merged;
     } catch (e) {

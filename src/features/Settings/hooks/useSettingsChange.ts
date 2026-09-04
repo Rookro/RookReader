@@ -5,6 +5,7 @@ import i18n from "../../../i18n/config";
 import { useAppDispatch } from "../../../store/store";
 import type { AppSettings } from "../../../types/AppSettings";
 import type { LocaleChangedEvent } from "../../../types/LocaleChangedEvent";
+import { setPerfLogging } from "../../../utils/perf";
 import { setSettings } from "../slice";
 
 /**
@@ -21,6 +22,11 @@ export const useSettingsChange = () => {
   const handleSettingsChanged = useCallback(
     (event: { payload: AppSettings }) => {
       debug("Received settings-changed event");
+      // The perf flag is this window's own module state, and the records that read it —
+      // the reader's `display` and `chain` spans — are written in the window that did not
+      // make the change. The backend leaves the caller out of this broadcast, so for
+      // every other window this event is the only thing that reaches it.
+      setPerfLogging(event.payload.general.log.level);
       dispatch(setSettings(event.payload));
     },
     [dispatch],
