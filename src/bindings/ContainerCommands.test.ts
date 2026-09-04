@@ -22,6 +22,15 @@ describe("ContainerCommands", () => {
     });
   });
 
+  it("countPagesInContainer should call invoke", async () => {
+    vi.mocked(invoke).mockResolvedValue({ total_pages: 3, is_directory: false });
+    await expect(ContainerCommands.countPagesInContainer("path")).resolves.toEqual({
+      total_pages: 3,
+      is_directory: false,
+    });
+    expect(invoke).toHaveBeenCalledWith("count_pages_in_container", { path: "path" });
+  });
+
   it("requestPreloadAround should call invoke", async () => {
     await ContainerCommands.requestPreloadAround("path", 5, 10, 2);
     expect(invoke).toHaveBeenCalledWith("request_preload_around", {
@@ -69,6 +78,11 @@ describe("ContainerCommands", () => {
   it("should throw CommandError on failure", async () => {
     vi.mocked(invoke).mockRejectedValue(new Error("fail"));
     await expect(ContainerCommands.getEntriesInContainer("path")).rejects.toThrow(CommandError);
+  });
+
+  it("countPagesInContainer should throw CommandError on failure", async () => {
+    vi.mocked(invoke).mockRejectedValue(new Error("fail"));
+    await expect(ContainerCommands.countPagesInContainer("path")).rejects.toThrow(CommandError);
   });
 
   it("requestPreloadAround should throw CommandError on failure", async () => {

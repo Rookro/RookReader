@@ -108,6 +108,29 @@ export const commands = {
 	 */
 	getEntriesInContainer: (path: string) => typedError<EntriesResult, CommandError>(__TAURI_INVOKE("get_entries_in_container", { path })),
 	/**
+	 *  Counts a container's pages without opening it for reading.
+	 * 
+	 *  Separate from [`get_entries_in_container`], which *installs* the book it opens and so
+	 *  closes the reader threads of the book already open. A caller that only wants to
+	 *  register a book must not do that to the book on screen, so nothing is installed here
+	 *  and no reader thread is started: the container is built, counted, and dropped.
+	 * 
+	 *  # Arguments
+	 * 
+	 *  * `path` - The file path to the container to count.
+	 *  * `state` - A `tauri::State` holding the application's global `AppState`.
+	 * 
+	 *  # Returns
+	 * 
+	 *  The container's page count, and whether it is a directory.
+	 * 
+	 *  # Errors
+	 * 
+	 *  Returns an `Err` if the path has no supported extension, or the container cannot be
+	 *  opened (e.g. it does not exist or is corrupt).
+	 */
+	countPagesInContainer: (path: string) => typedError<ContainerSummary, CommandError>(__TAURI_INVOKE("count_pages_in_container", { path })),
+	/**
 	 *  Retrieves the pixel dimensions of every entry in the currently open container.
 	 * 
 	 *  The viewer needs the orientation of every page to decide where two-page spreads
@@ -1030,6 +1053,14 @@ export type CommandError = {
 	message: string,
 	/**  Per-field validation details, present only for `SettingsValidation` errors. */
 	details: SettingsValidationViolation[] | null,
+};
+
+/**  What a caller that only registers a book needs to know about it. */
+export type ContainerSummary = {
+	/**  How many pages the container holds. */
+	total_pages: number,
+	/**  Whether the container is a directory. */
+	is_directory: boolean,
 };
 
 /**  Represents the direction in which content should be read. */

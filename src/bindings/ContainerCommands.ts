@@ -14,6 +14,20 @@ export const getEntriesInContainer = async (path: string) => {
 };
 
 /**
+ * Counts a container's pages without opening it for reading.
+ *
+ * Distinct from {@link getEntriesInContainer}, which installs the book it opens and so
+ * closes the reader threads of the book already on screen. Use this wherever a book is
+ * only being registered.
+ *
+ * @param path The path of the container file.
+ * @returns A promise resolving to the page count and whether the path is a directory.
+ */
+export const countPagesInContainer = async (path: string) => {
+  return await runCommand(commands.countPagesInContainer(path));
+};
+
+/**
  * Requests preloading of images around a specific index in the backend.
  *
  * @param path The path of the container the caller believes is open. The backend rejects

@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use tauri::ipc::Response;
 
 use crate::{
+    container::factory::create_container,
     error::{Error, Result},
     image::types::ImageDimensions,
     page::service::Priority,
@@ -39,6 +40,58 @@ pub struct EntriesResult {
     is_directory: bool,
     /// Whether the container is an EPUB novel.
     is_novel: bool,
+}
+
+/// What a caller that only registers a book needs to know about it.
+#[derive(Serialize, Deserialize, specta::Type)]
+pub struct ContainerSummary {
+    /// How many pages the container holds.
+    total_pages: usize,
+    /// Whether the container is a directory.
+    is_directory: bool,
+}
+
+/// Counts a container's pages without opening it for reading.
+///
+/// Separate from [`get_entries_in_container`], which *installs* the book it opens and so
+/// closes the reader threads of the book already open. A caller that only wants to
+/// register a book must not do that to the book on screen, so nothing is installed here
+/// and no reader thread is started: the container is built, counted, and dropped.
+///
+/// # Arguments
+///
+/// * `path` - The file path to the container to count.
+/// * `state` - A `tauri::State` holding the application's global `AppState`.
+///
+/// # Returns
+///
+/// The container's page count, and whether it is a directory.
+///
+/// # Errors
+///
+/// Returns an `Err` if the path has no supported extension, or the container cannot be
+/// opened (e.g. it does not exist or is corrupt).
+#[tauri::command()]
+#[specta::specta]
+pub async fn count_pages_in_container(
+    path: &str,
+    state: tauri::State<'_, RwLock<AppState>>,
+) -> Result<ContainerSummary> {
+    log::debug!("Count the pages in {}", path);
+
+    let settings = state.read().await.container_state.settings.clone();
+    let path_owned = path.to_string();
+    // On a blocking thread for the same reason the open is: parsing an archive's
+    // directory is heavy, and a bookshelf registers books while pages are being fetched.
+    tauri::async_runtime::spawn_blocking(move || {
+        let container = create_container(&path_owned, ContainerState::container_config(&settings))?;
+        Ok(ContainerSummary {
+            total_pages: container.get_entries().len(),
+            is_directory: container.is_directory(),
+        })
+    })
+    .await
+    .map_err(|e| Error::Other(format!("Spawn blocking failed: {e}")))?
 }
 
 /// Opens a container file (e.g., ZIP, RAR) and retrieves a list of its contents.
@@ -533,6 +586,37 @@ mod tests {
             let guard = binding.read().await;
             assert!(!guard.container_state.is_open());
         }
+    }
+
+    #[tokio::test]
+    async fn counting_a_container_leaves_the_open_book_alone() {
+        // Registering a book must not disturb the book being read. Counting goes through
+        // its own command for exactly this reason: the open command installs what it
+        // opens, which closes the reader threads of whatever was open before.
+        let dir = tempfile::tempdir().unwrap();
+        let open_path = create_dummy_rar(dir.path(), "open.rar");
+        let other_path = create_dummy_rar(dir.path(), "other.rar");
+        let open = open_path.to_string_lossy().into_owned();
+
+        let app = tauri::test::mock_app();
+        app.manage(RwLock::new(AppState::default()));
+
+        get_entries_in_container(&open, app.state())
+            .await
+            .expect("opening a valid container should succeed");
+
+        let summary = count_pages_in_container(other_path.to_string_lossy().as_ref(), app.state())
+            .await
+            .expect("counting a valid container should succeed");
+        assert_eq!(3, summary.total_pages);
+        assert!(!summary.is_directory);
+
+        let binding = app.state::<RwLock<AppState>>();
+        let guard = binding.read().await;
+        assert!(
+            guard.container_state.service_for(&open).is_some(),
+            "counting another book closed the one being read"
+        );
     }
 
     #[tokio::test]

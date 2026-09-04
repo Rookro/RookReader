@@ -136,6 +136,29 @@ impl ContainerState {
         }
     }
 
+    /// The container options these settings imply.
+    ///
+    /// Shared by every caller that opens a container, because the options decide what the
+    /// container *is*: `auto_descend_single_folder` changes which folder inside an archive
+    /// becomes the book, so a caller that guessed it would describe a different set of
+    /// pages than the one the reader would see.
+    ///
+    /// # Arguments
+    ///
+    /// * `settings` - The container settings snapshot to derive the options from.
+    ///
+    /// # Returns
+    ///
+    /// The options to pass to [`create_container`].
+    pub fn container_config(settings: &ContainerSettings) -> ContainerConfig {
+        ContainerConfig {
+            pdf_render_config: PdfRenderConfig::default()
+                .set_target_height(pdf_render_height(settings)),
+            pdfium_library_path: settings.pdfium_library_path.clone(),
+            auto_descend_single_folder: settings.auto_descend_single_folder,
+        }
+    }
+
     /// Builds the page service from borrowed settings and a cache handle.
     ///
     /// This takes its inputs by reference rather than through `&self` so a caller can
@@ -165,16 +188,9 @@ impl ContainerState {
         image_cache: &Cache,
         path: &str,
     ) -> Result<PageService> {
-        let config = ContainerConfig {
-            pdf_render_config: PdfRenderConfig::default()
-                .set_target_height(pdf_render_height(settings)),
-            pdfium_library_path: settings.pdfium_library_path.clone(),
-            auto_descend_single_folder: settings.auto_descend_single_folder,
-        };
-
         Ok(PageService::new(
             path.to_string(),
-            create_container(path, config)?,
+            create_container(path, Self::container_config(settings))?,
             Pipeline {
                 max_image_height: settings.max_image_height as u32,
                 resize_method: settings.image_resampling_method,
