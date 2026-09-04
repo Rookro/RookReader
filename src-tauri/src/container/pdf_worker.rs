@@ -265,28 +265,31 @@ fn run(rx: mpsc::Receiver<Request>, library_path: Option<String>) {
 
 /// Returns the open document for `path`, loading it if the worker does not hold it.
 ///
-/// Eviction is oldest-first rather than least-recently-used: with room for two, the only
-/// pattern that matters is "the open book plus a passer-by", and the passer-by is always
-/// the newer of the two.
+/// `docs` is held least-recently-used: a hit moves to the back, and eviction takes the
+/// front. With room for two, the pattern that matters is "the book being read plus a
+/// passer-by", and the book being read is the one asked for constantly — so it is never
+/// the least recent, and a run of bookshelf thumbnails displaces each other rather than
+/// it. Evicting by age instead would throw the open book out on the second thumbnail.
 fn document<'p, 'd>(
     pdfium: &'p Pdfium,
     docs: &'d mut Vec<(String, PdfDocument<'p>)>,
     path: &str,
 ) -> Result<&'d PdfDocument<'p>> {
-    if let Some(index) = docs.iter().position(|(open, _)| open == path) {
-        return Ok(&docs[index].1);
+    match docs.iter().position(|(open, _)| open == path) {
+        Some(index) => {
+            let hit = docs.remove(index);
+            docs.push(hit);
+        }
+        None => {
+            if docs.len() >= MAX_OPEN_DOCUMENTS {
+                docs.remove(0);
+            }
+            let document = pdfium.load_pdf_from_file(path, None)?;
+            docs.push((path.to_string(), document));
+        }
     }
 
-    if docs.len() >= MAX_OPEN_DOCUMENTS {
-        docs.remove(0);
-    }
-    let document = pdfium.load_pdf_from_file(path, None)?;
-    docs.push((path.to_string(), document));
-
-    Ok(&docs
-        .last()
-        .expect("a document was just pushed onto the list")
-        .1)
+    Ok(&docs[docs.len() - 1].1)
 }
 
 /// Renders a PDF page to a JPEG using a specific config.

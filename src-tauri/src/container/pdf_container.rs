@@ -482,6 +482,31 @@ trailer << /Size 5 /Root 1 0 R >>
     }
 
     #[test]
+    fn the_book_being_read_survives_a_run_of_thumbnails() {
+        let _guard = pdf_test_guard();
+        let dir = tempdir().unwrap();
+        let (open_path, open) = container_for(dir.path(), "open.pdf", SINGLE_PAGE_PDF_DATA);
+        let held = open_path.to_string_lossy().to_string();
+        let worker = crate::container::pdf_worker::worker(&None);
+
+        let mut reader = open.open_reader().unwrap();
+        reader.read_page("0000").unwrap();
+
+        // Two thumbnails in flight at once, as a bookshelf generates them: each holds its
+        // own container while the reader goes on turning pages.
+        let (_, first) = container_for(dir.path(), "first.pdf", TWO_PAGE_PDF_DATA);
+        first.open_reader().unwrap().read_preview("0000").unwrap();
+        reader.read_page("0000").unwrap();
+        let (_, second) = container_for(dir.path(), "second.pdf", LANDSCAPE_PAGE_PDF_DATA);
+        second.open_reader().unwrap().read_preview("0000").unwrap();
+
+        assert!(
+            worker.open_documents().unwrap().contains(&held),
+            "the book being read was evicted by a thumbnail"
+        );
+    }
+
+    #[test]
     fn the_document_closes_with_the_container_not_with_a_reader() {
         let _guard = pdf_test_guard();
         let dir = tempdir().unwrap();
