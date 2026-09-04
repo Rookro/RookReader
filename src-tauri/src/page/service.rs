@@ -129,6 +129,11 @@ struct Queue {
     /// asks for always finds one free. Counted rather than dedicated because which worker
     /// is idle does not matter, only that one is.
     preloading: usize,
+    /// How many reader threads are still running.
+    ///
+    /// Once this reaches zero the queue has no consumer, so the jobs it holds would be
+    /// waited on forever rather than fail. [`worker_left`] is where that is noticed.
+    live: usize,
     closed: bool,
 }
 
@@ -268,6 +273,7 @@ impl PageService {
                 preload: BinaryHeap::new(),
                 in_flight: HashMap::new(),
                 preloading: 0,
+                live: workers,
                 closed: false,
             }),
             wake: Condvar::new(),
@@ -278,17 +284,26 @@ impl PageService {
         });
 
         for index in 0..workers {
-            let shared = shared.clone();
+            let for_worker = shared.clone();
             let container = container.clone();
             // Detached on purpose. Teardown must never join: `close` is called from
             // `ContainerState` under the state write lock, and waiting there for a worker
             // to finish a page would hold every command behind an in-flight read.
             let spawned = thread::Builder::new()
                 .name(format!("page-reader-{index}"))
-                .spawn(move || worker(shared, container));
+                .spawn(move || worker(for_worker, container));
             if let Err(e) = spawned {
                 log::error!("Failed to start a page reader thread: {e}");
+                // The thread that would have counted itself out never ran.
+                worker_left(&shared);
             }
+        }
+
+        // A book with pages and no reader at all: `max_readers` of 0, or every spawn
+        // failing. Closing now is what turns a request into an error rather than a wait
+        // for a worker that does not exist.
+        if workers == 0 && !order.is_empty() {
+            shared.lock().closed = true;
         }
 
         Self {
@@ -586,18 +601,7 @@ impl PageService {
     /// while a page is still being read.
     pub fn close(&self) {
         let span = Span::start();
-        let (queued, inflight) = {
-            let mut queue = self.shared.lock();
-            queue.closed = true;
-            let counts = (
-                queue.jobs.len() + queue.preload.len(),
-                queue.in_flight.len(),
-            );
-            queue.jobs.clear();
-            queue.preload.clear();
-            queue.in_flight.clear();
-            counts
-        };
+        let (queued, inflight) = shutdown(&mut self.shared.lock());
         self.shared.wake.notify_all();
         perf!(span, "close", "queued={queued} inflight={inflight}");
     }
@@ -619,13 +623,87 @@ impl Drop for PageService {
     }
 }
 
+/// Closes the queue and drops every job it holds, reporting what was discarded.
+///
+/// Dropping the jobs drops the reply senders they carry, which is what turns a caller's
+/// blocked `recv` into an error instead of a wait with no end.
+fn shutdown(queue: &mut Queue) -> (usize, usize) {
+    queue.closed = true;
+    let counts = (
+        queue.jobs.len() + queue.preload.len(),
+        queue.in_flight.len(),
+    );
+    queue.jobs.clear();
+    queue.preload.clear();
+    queue.in_flight.clear();
+    counts
+}
+
+/// Counts one reader thread out, closing the queue when the last one is gone.
+fn worker_left(shared: &Shared) {
+    let mut queue = shared.lock();
+    queue.live -= 1;
+    if queue.live == 0 {
+        shutdown(&mut queue);
+        shared.wake.notify_all();
+    }
+}
+
+/// Counts one reader thread for as long as it runs.
+///
+/// A `Drop` rather than a line at each exit, so a thread that unwinds is counted out by
+/// the same code as one that returns.
+struct WorkerLife<'a>(&'a Shared);
+
+impl Drop for WorkerLife<'_> {
+    fn drop(&mut self) {
+        worker_left(self.0);
+    }
+}
+
+/// Answers the callers attached to one page, however the job ends.
+///
+/// A worker that leaves mid-read would otherwise leave the entry in `in_flight` forever,
+/// and every later request for that page would attach to a read nobody is performing.
+struct Delivery<'a> {
+    shared: &'a Shared,
+    /// The entry still owed an answer, taken once one has been given.
+    entry: Option<String>,
+}
+
+impl Delivery<'_> {
+    /// Records that the waiters have been answered.
+    fn done(&mut self) {
+        self.entry = None;
+    }
+}
+
+impl Drop for Delivery<'_> {
+    fn drop(&mut self) {
+        let Some(entry) = self.entry.take() else {
+            return;
+        };
+        // Dropping the senders is what wakes a blocked `recv`; there is no result to
+        // send, because whatever was going to produce one is gone.
+        self.shared.lock().in_flight.remove(&entry);
+    }
+}
+
 /// One reader thread's whole life.
 fn worker(shared: Arc<Shared>, container: Arc<dyn Container>) {
+    let _life = WorkerLife(&shared);
     let mut reader: Option<Box<dyn PageReader>> = None;
 
     loop {
         let Some(job) = next_job(&shared) else { return };
         let _slot = PreloadSlot(job.priority.is_preload().then_some(&*shared));
+        // Armed for the length of this job: whatever ends it — a delivery, an early
+        // return, an unwind out of the decoder — the callers attached to this entry are
+        // let go rather than left waiting on a read that is no longer running.
+        let mut delivery = Delivery {
+            shared: &shared,
+            entry: job.reads_the_page().then(|| job.entry.clone()),
+        };
 
         // Another worker may have cached this page between the enqueue and this pop.
         // Answer from the cache rather than skipping the job: skipping would drop
@@ -634,6 +712,7 @@ fn worker(shared: Arc<Shared>, container: Arc<dyn Container>) {
         if job.reads_the_page() {
             if let Some(image) = shared.cached(&job.entry) {
                 deliver_page(&shared, &job, Ok(image));
+                delivery.done();
                 continue;
             }
         }
@@ -646,8 +725,10 @@ fn worker(shared: Arc<Shared>, container: Arc<dyn Container>) {
                 Err(e) => {
                     let message = e.to_string();
                     deliver_error(&shared, &job, &message);
+                    delivery.done();
                     // The handle will not appear on a retry, so leave rather than fail
-                    // every remaining job one at a time.
+                    // every remaining job one at a time. Whatever is still queued is
+                    // failed by `worker_left` once the last reader has gone.
                     log::error!("Failed to open a page reader: {message}");
                     return;
                 }
@@ -658,6 +739,7 @@ fn worker(shared: Arc<Shared>, container: Arc<dyn Container>) {
         };
 
         run(&shared, reader.as_mut(), job);
+        delivery.done();
     }
 }
 
@@ -1222,6 +1304,111 @@ mod tests {
         assert_eq!(build(64, 3).shared.reserve, 2);
         assert_eq!(build(64, 2).shared.reserve, 1);
         assert_eq!(build(1, 8).shared.reserve, 0);
+    }
+
+    #[test]
+    fn a_book_whose_readers_cannot_open_fails_every_caller() {
+        let names = entries(4);
+        let mut container = MockContainer::new();
+        container.expect_get_entries().return_const(names.clone());
+        container.expect_max_readers().return_const(1usize);
+        container
+            .expect_open_reader()
+            .returning(|| Err(Error::Other("no handle".to_string())));
+        let service = Arc::new(service(container));
+
+        // Two pages, so the second is one the failing worker never reached: it is the job
+        // that used to sit in the queue with nobody left to pop it.
+        let answered = Arc::new(AtomicUsize::new(0));
+        let waiting: Vec<_> = names
+            .iter()
+            .take(2)
+            .map(|name| {
+                let (service, answered, name) = (service.clone(), answered.clone(), name.clone());
+                thread::spawn(move || {
+                    let page = service.page(&name, Priority::Foreground);
+                    answered.fetch_add(1, Ordering::SeqCst);
+                    page
+                })
+            })
+            .collect();
+
+        eventually("both callers to be answered", || {
+            answered.load(Ordering::SeqCst) == 2
+        });
+        for handle in waiting {
+            assert!(
+                handle.join().unwrap().is_err(),
+                "a page no reader can produce must fail rather than wait"
+            );
+        }
+    }
+
+    #[test]
+    fn a_page_a_dead_worker_never_finished_is_read_by_another() {
+        let names = entries(4);
+        let doomed = names[0].clone();
+        let reads = Arc::new(AtomicUsize::new(0));
+
+        let mut container = MockContainer::new();
+        container.expect_get_entries().return_const(names.clone());
+        container.expect_max_readers().return_const(usize::MAX);
+        let (target, count) = (doomed.clone(), reads.clone());
+        container.expect_open_reader().returning(move || {
+            let (target, count) = (target.clone(), count.clone());
+            let mut reader = MockPageReader::new();
+            reader.expect_read_page().returning(move |entry| {
+                // The first read of this page takes its worker down with it, exactly as an
+                // unwind out of the decoder would. The thread is detached, so the panic is
+                // reported on stderr and fails nothing by itself.
+                if entry == target && count.fetch_add(1, Ordering::SeqCst) == 0 {
+                    panic!("the reader died mid-page");
+                }
+                Ok(page_bytes())
+            });
+            Ok(Box::new(reader) as Box<dyn PageReader>)
+        });
+
+        let service = Arc::new(PageService::new(
+            "book".to_string(),
+            Arc::new(container),
+            pipeline(),
+            mini_moka::sync::Cache::new(1000),
+            2,
+        ));
+
+        assert!(
+            service.page(&doomed, Priority::Foreground).is_err(),
+            "the caller whose worker died must be told"
+        );
+
+        // The entry must no longer be marked as being read: a second request has to queue
+        // a job of its own rather than attach to a read nobody is performing.
+        let served = Arc::new(AtomicUsize::new(0));
+        let again = {
+            let (service, served, doomed) = (service.clone(), served.clone(), doomed.clone());
+            thread::spawn(move || {
+                let page = service.page(&doomed, Priority::Foreground);
+                served.fetch_add(1, Ordering::SeqCst);
+                page
+            })
+        };
+        eventually("the page to be read again", || {
+            served.load(Ordering::SeqCst) == 1
+        });
+        assert!(again.join().unwrap().is_ok());
+    }
+
+    #[test]
+    fn a_book_with_no_readers_answers_instead_of_queueing() {
+        let names = entries(3);
+        let log = Arc::new(Mutex::new(Vec::new()));
+        // A format that admits no reader at all: nothing would ever pop a job.
+        let service = service(recording_container(names.clone(), 0, log));
+
+        assert_eq!(service.workers(), 0);
+        assert!(service.page(&names[0], Priority::Foreground).is_err());
+        assert!(service.dimensions().is_err());
     }
 
     #[test]
