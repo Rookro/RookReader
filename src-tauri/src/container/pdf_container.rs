@@ -92,8 +92,15 @@ impl PageReader for PdfReader {
     }
 }
 
-impl Drop for PdfReader {
+impl Drop for PdfContainer {
     /// Lets the worker close the document as soon as the book is closed.
+    ///
+    /// The container, not the reader, is what has the book's lifetime: the open book's is
+    /// one `Arc` shared with every caller — a thumbnail of the book being read reuses it —
+    /// so releasing per reader would close the document out from under the threads still
+    /// reading it. A thumbnail of *another* PDF builds a container of its own, and that
+    /// one is released here on the way out. It also covers the document
+    /// [`PdfContainer::new`] loads to count the pages, which no reader need ever touch.
     ///
     /// Every other format holds its handles only while the book is open, and PDF must not
     /// be the exception. The worker's cache is bound at two documents, so without this a
@@ -475,7 +482,7 @@ trailer << /Size 5 /Root 1 0 R >>
     }
 
     #[test]
-    fn dropping_the_reader_closes_the_document() {
+    fn the_document_closes_with_the_container_not_with_a_reader() {
         let _guard = pdf_test_guard();
         let dir = tempdir().unwrap();
         let (filepath, container) = container_for(dir.path(), "closing.pdf", SINGLE_PAGE_PDF_DATA);
@@ -490,7 +497,14 @@ trailer << /Size 5 /Root 1 0 R >>
             "reading a page must leave the document open"
         );
 
+        // A thumbnail of the book being read opens a second reader over that book's own
+        // container and drops it. The book is still open, so its document must still be.
         drop(reader);
+        assert!(
+            worker.open_documents().unwrap().contains(&held),
+            "a reader going away must not close the book's document"
+        );
+
         drop(container);
 
         // `release` is a message; `open_documents` is a later one, and the worker serves
