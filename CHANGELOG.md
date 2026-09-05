@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * Adding a book to a bookshelf no longer interrupts the book you are reading, and a page that cannot be read now reports an error instead of loading forever.
   * A new "Page reader threads" setting helps books on a network drive, where reading fewer pages at once is often faster.
 
+### Fixed
+
+* Fixed the Pages list in the side pane highlighting the current page in a different color from the History and File Navigator lists instead of following the app theme. (#316)
+
 ## [2.4.0] - 2026-08-30
 
 ### Added
