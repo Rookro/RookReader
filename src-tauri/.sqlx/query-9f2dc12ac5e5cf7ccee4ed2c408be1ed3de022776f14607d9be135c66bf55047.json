@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n            SELECT\n                id, file_path, item_type, display_name, total_pages, series_id, series_order,\n                thumbnail_path, created_at, is_spread_shifted, landscape_bits,\n                last_read_page_index, last_opened_at,\n                cfi as \"cfi?: String\",\n                tag_ids_str as \"tag_ids_str?: String\"\n            FROM book_with_state_view\n            WHERE id = ?\n            ",
+  "query": "\n            SELECT\n                id, file_path, item_type, display_name, total_pages, series_id, series_order,\n                thumbnail_path, created_at, is_spread_shifted, landscape_bits, reading_direction,\n                last_read_page_index, last_opened_at,\n                cfi as \"cfi?: String\",\n                tag_ids_str as \"tag_ids_str?: String\"\n            FROM book_with_state_view\n            ORDER BY id DESC\n            ",
   "describe": {
     "columns": [
       {
@@ -59,28 +59,33 @@
         "type_info": "Text"
       },
       {
-        "name": "last_read_page_index",
+        "name": "reading_direction",
         "ordinal": 11,
+        "type_info": "Text"
+      },
+      {
+        "name": "last_read_page_index",
+        "ordinal": 12,
         "type_info": "Integer"
       },
       {
         "name": "last_opened_at",
-        "ordinal": 12,
+        "ordinal": 13,
         "type_info": "Datetime"
       },
       {
         "name": "cfi?: String",
-        "ordinal": 13,
+        "ordinal": 14,
         "type_info": "Text"
       },
       {
         "name": "tag_ids_str?: String",
-        "ordinal": 14,
+        "ordinal": 15,
         "type_info": "Text"
       }
     ],
     "parameters": {
-      "Right": 1
+      "Right": 0
     },
     "nullable": [
       false,
@@ -97,8 +102,9 @@
       true,
       true,
       true,
+      true,
       true
     ]
   },
-  "hash": "9d8ca54a5bd994c1a4aa800f0e33e7fe7afbd6afa67a376d6951b5f81e26aae8"
+  "hash": "9f2dc12ac5e5cf7ccee4ed2c408be1ed3de022776f14607d9be135c66bf55047"
 }

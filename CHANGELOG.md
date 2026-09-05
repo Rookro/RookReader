@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+* The page direction is now remembered per book. (#317)
+  * A new "Default page direction" setting decides which way a book turns pages the first time you open it.
+  * Changing the direction in the reader now applies to that book alone, instead of switching every book in the library.
+
 ### Changed
 
 * Made pages load faster and page turns feel immediate. (#315)

@@ -173,6 +173,18 @@ pub trait BookRepository: Send + Sync {
     /// Returns an `Err` if the database query fails.
     async fn update_spread_shift(&self, book_id: i64, is_spread_shifted: bool) -> Result<()>;
 
+    /// Records the page direction a book opens with.
+    ///
+    /// # Arguments
+    ///
+    /// * `book_id` - The book to update.
+    /// * `reading_direction` - `"rtl"` or `"ltr"`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an `Err` if the database update fails.
+    async fn update_reading_direction(&self, book_id: i64, reading_direction: &str) -> Result<()>;
+
     /// Records how a book's pages are shaped, so it need not be measured again.
     ///
     /// # Arguments

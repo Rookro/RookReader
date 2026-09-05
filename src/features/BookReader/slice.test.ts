@@ -26,6 +26,7 @@ import readReducer, {
   setSearchText,
   setSpreadDisplayed,
   setSpreadShifted,
+  toggleReadingDirection,
   toggleSpreadShift,
   updateExploreBasePath,
 } from "./slice";
@@ -446,6 +447,86 @@ describe("ReadReducer", () => {
         expect(BookCommands.updateSpreadShift).not.toHaveBeenCalled();
       });
 
+      // Verify a book met for the first time takes, and keeps, the reader's default
+      it("seeds the reading direction from the default when the book has none", async () => {
+        const mockBook = createMockBookWithState({ id: 7, reading_direction: null });
+
+        vi.mocked(ContainerCommands.getEntriesInContainer).mockResolvedValue({
+          is_directory: false,
+          entries: ["p1", "p2"],
+          is_novel: false,
+        });
+        vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(7);
+        vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
+
+        store.dispatch(setContainerFilePath("path/to/book.zip"));
+        await store.dispatch(openContainerFile("path/to/book.zip"));
+
+        expect(store.getState().read.containerFile.readingDirection).toBe("rtl");
+        expect(BookCommands.updateReadingDirection).toHaveBeenCalledWith(7, "rtl");
+      });
+
+      // Verify the stored direction wins, so changing the default leaves it alone
+      it("restores the stored reading direction without rewriting it", async () => {
+        const mockBook = createMockBookWithState({ id: 7, reading_direction: "ltr" });
+
+        vi.mocked(ContainerCommands.getEntriesInContainer).mockResolvedValue({
+          is_directory: false,
+          entries: ["p1", "p2"],
+          is_novel: false,
+        });
+        vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(7);
+        vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
+
+        store.dispatch(setContainerFilePath("path/to/book.zip"));
+        await store.dispatch(openContainerFile("path/to/book.zip"));
+
+        expect(store.getState().read.containerFile.readingDirection).toBe("ltr");
+        expect(BookCommands.updateReadingDirection).not.toHaveBeenCalled();
+      });
+
+      // A novel's direction is the EPUB's own, so nothing is seeded against it
+      it("leaves a novel's reading direction unset", async () => {
+        const mockBook = createMockBookWithState({ id: 7, reading_direction: null });
+
+        vi.mocked(ContainerCommands.getEntriesInContainer).mockResolvedValue({
+          is_directory: false,
+          entries: ["Chapter 1"],
+          is_novel: true,
+        });
+        vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(7);
+        vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
+
+        store.dispatch(setContainerFilePath("path/to/book.epub"));
+        await store.dispatch(openContainerFile("path/to/book.epub"));
+
+        expect(store.getState().read.containerFile.readingDirection).toBeNull();
+        expect(BookCommands.updateReadingDirection).not.toHaveBeenCalled();
+      });
+
+      // Verify the toggle both applies and persists, against the book alone
+      it("toggleReadingDirection flips the direction and stores it against the book", async () => {
+        const mockBook = createMockBookWithState({ id: 7, reading_direction: "rtl" });
+
+        vi.mocked(ContainerCommands.getEntriesInContainer).mockResolvedValue({
+          is_directory: false,
+          entries: ["p1", "p2"],
+          is_novel: false,
+        });
+        vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(7);
+        vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
+
+        store.dispatch(setContainerFilePath("path/to/book.zip"));
+        await store.dispatch(openContainerFile("path/to/book.zip"));
+
+        await store.dispatch(toggleReadingDirection());
+
+        expect(store.getState().read.containerFile.readingDirection).toBe("ltr");
+        expect(BookCommands.updateReadingDirection).toHaveBeenCalledWith(7, "ltr");
+        // The default is the seed for new books only; flipping one book must not move it.
+        expect(store.getState().settings.reader.comic.readingDirection).toBe("rtl");
+      });
+
       // A folder inside an archive is stored as a folder, so the History tab shows it
       // with a folder icon like any other folder of pages.
       it("should record a folder inside an archive as a directory", async () => {
@@ -648,6 +729,7 @@ describe("ReadReducer", () => {
             isDirectory: false,
             isNovel: false,
             book: createMockBookWithState({ id: 1 }),
+            readingDirection: "rtl",
           },
           "requestId",
           "old.zip",

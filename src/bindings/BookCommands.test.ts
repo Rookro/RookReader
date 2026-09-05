@@ -243,6 +243,20 @@ describe("BookCommands", () => {
     await expect(BookCommands.updateSeriesOrders([1, 2, 3])).rejects.toThrow(CommandError);
   });
 
+  it("updateReadingDirection should call invoke", async () => {
+    vi.mocked(invoke).mockResolvedValue(undefined);
+    await BookCommands.updateReadingDirection(7, "ltr");
+    expect(invoke).toHaveBeenCalledWith("update_reading_direction", {
+      bookId: 7,
+      readingDirection: "ltr",
+    });
+  });
+
+  it("updateReadingDirection should throw CommandError on failure", async () => {
+    vi.mocked(invoke).mockRejectedValue(mockError);
+    await expect(BookCommands.updateReadingDirection(7, "ltr")).rejects.toThrow(CommandError);
+  });
+
   it("should handle non-standard error objects using createCommandError", async () => {
     const strangeError = "Something went wrong";
     vi.mocked(invoke).mockRejectedValue(strangeError);

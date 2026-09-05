@@ -2,6 +2,7 @@ import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import * as BookCommands from "../../../bindings/BookCommands";
 import * as BookmarkCommands from "../../../bindings/BookmarkCommands";
 import { createMockBookmark, createMockBookWithState } from "../../../test/factories";
 import {
@@ -117,20 +118,20 @@ describe("NavigationBar", () => {
   it("should toggle direction when button is clicked", async () => {
     const preloadedState = createBasePreloadedState();
     preloadedState.view.activeView = "reader" as const;
-    preloadedState.settings.reader.comic.readingDirection = "ltr" as const;
+    preloadedState.read.containerFile.book = createMockBookWithState({ id: 7 });
+    preloadedState.read.containerFile.readingDirection = "ltr" as const;
 
     const { store } = renderWithProviders(<NavigationBar />, { preloadedState });
 
     const directionButton = screen.getByLabelText("toggle-direction");
     await user.click(directionButton);
 
-    expect(store.getState().settings.reader.comic.readingDirection).toBe("rtl");
-    expect(SettingsReducer.updateSettings).toHaveBeenCalledWith({
-      key: "reader",
-      value: expect.objectContaining({
-        comic: expect.objectContaining({ readingDirection: "rtl" }),
-      }),
+    await waitFor(() => {
+      expect(BookCommands.updateReadingDirection).toHaveBeenCalledWith(7, "rtl");
     });
+    expect(store.getState().read.containerFile.readingDirection).toBe("rtl");
+    // The direction belongs to the book; the default that seeds new books stays put.
+    expect(SettingsReducer.updateSettings).not.toHaveBeenCalled();
   });
 
   it("should dispatch goForwardContainerHistory when forward button is clicked", async () => {
@@ -164,20 +165,19 @@ describe("NavigationBar", () => {
   it("should toggle direction from rtl to ltr when button is clicked", async () => {
     const preloadedState = createBasePreloadedState();
     preloadedState.view.activeView = "reader" as const;
-    preloadedState.settings.reader.comic.readingDirection = "rtl" as const;
+    preloadedState.read.containerFile.book = createMockBookWithState({ id: 7 });
+    preloadedState.read.containerFile.readingDirection = "rtl" as const;
 
     const { store } = renderWithProviders(<NavigationBar />, { preloadedState });
 
     const directionButton = screen.getByLabelText("toggle-direction");
     await user.click(directionButton);
 
-    expect(store.getState().settings.reader.comic.readingDirection).toBe("ltr");
-    expect(SettingsReducer.updateSettings).toHaveBeenCalledWith({
-      key: "reader",
-      value: expect.objectContaining({
-        comic: expect.objectContaining({ readingDirection: "ltr" }),
-      }),
+    await waitFor(() => {
+      expect(BookCommands.updateReadingDirection).toHaveBeenCalledWith(7, "ltr");
     });
+    expect(store.getState().read.containerFile.readingDirection).toBe("ltr");
+    expect(SettingsReducer.updateSettings).not.toHaveBeenCalled();
   });
 
   it("should dispatch setContainerFilePath when path input is submitted", async () => {
@@ -343,7 +343,7 @@ describe("NavigationBar", () => {
       ["ltr", "ReadingDirection-ltr"],
     ])("should show the %s reading-direction icon", (direction, testId) => {
       const preloadedState = createBasePreloadedState();
-      preloadedState.settings.reader.comic.readingDirection = direction as "rtl" | "ltr";
+      preloadedState.read.containerFile.readingDirection = direction as "rtl" | "ltr";
 
       renderWithProviders(<NavigationBar />, { preloadedState });
 
@@ -361,7 +361,7 @@ describe("NavigationBar", () => {
       const preloadedState = createBasePreloadedState();
       preloadedState.read.containerFile.isNovel = true;
       preloadedState.read.containerFile.novelDirection = novelDirection as "rtl" | "ltr";
-      preloadedState.settings.reader.comic.readingDirection = comicDirection as "rtl" | "ltr";
+      preloadedState.read.containerFile.readingDirection = comicDirection as "rtl" | "ltr";
 
       renderWithProviders(<NavigationBar />, { preloadedState });
 
@@ -380,11 +380,12 @@ describe("NavigationBar", () => {
       expect(screen.getByTestId("ReadingDirection-rtl")).toBeInTheDocument();
     });
 
-    it("should not change the comic setting when the disabled button is clicked", () => {
+    it("should not change the stored direction when the disabled button is clicked", () => {
       const preloadedState = createBasePreloadedState();
       preloadedState.read.containerFile.isNovel = true;
       preloadedState.read.containerFile.novelDirection = "rtl";
-      preloadedState.settings.reader.comic.readingDirection = "ltr";
+      preloadedState.read.containerFile.book = createMockBookWithState({ id: 7 });
+      preloadedState.read.containerFile.readingDirection = "ltr";
 
       const { store } = renderWithProviders(<NavigationBar />, { preloadedState });
 
@@ -392,8 +393,8 @@ describe("NavigationBar", () => {
       // event directly to prove a disabled button still runs no handler.
       fireEvent.click(screen.getByLabelText("toggle-direction"));
 
-      expect(SettingsReducer.updateSettings).not.toHaveBeenCalled();
-      expect(store.getState().settings.reader.comic.readingDirection).toBe("ltr");
+      expect(BookCommands.updateReadingDirection).not.toHaveBeenCalled();
+      expect(store.getState().read.containerFile.readingDirection).toBe("ltr");
     });
   });
 
@@ -403,7 +404,7 @@ describe("NavigationBar", () => {
       ["ltr", "Switch to right-to-left"],
     ])("should offer the opposite direction when reading %s", async (direction, tooltip) => {
       const preloadedState = createBasePreloadedState();
-      preloadedState.settings.reader.comic.readingDirection = direction as "rtl" | "ltr";
+      preloadedState.read.containerFile.readingDirection = direction as "rtl" | "ltr";
 
       renderWithProviders(<NavigationBar />, { preloadedState });
       await user.hover(screen.getByLabelText("toggle-direction"));

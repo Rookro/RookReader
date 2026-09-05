@@ -68,7 +68,7 @@ impl BookshelfRepository for SqliteBookshelfRepository {
             r#"
             SELECT
                 v.id, v.file_path, v.item_type, v.display_name, v.total_pages, v.series_id, v.series_order,
-                v.thumbnail_path, v.created_at, v.is_spread_shifted, v.landscape_bits,
+                v.thumbnail_path, v.created_at, v.is_spread_shifted, v.landscape_bits, v.reading_direction,
                 v.last_read_page_index, v.last_opened_at,
                 v.cfi as "cfi?: String",
                 v.tag_ids_str as "tag_ids_str?: String"

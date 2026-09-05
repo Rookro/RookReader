@@ -14,7 +14,6 @@ import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import ReadingDirectionIcon from "../../../components/ui/ReadingDirectionIcon";
 import { useAppDispatch, useAppSelector } from "../../../store/store";
-import type { Direction } from "../../../types/AppSettings";
 import { openSettingsWindow } from "../../../utils/WindowOpener";
 import { setActiveView } from "../../MainView/slice";
 import { updateSettings } from "../../Settings/slice";
@@ -24,6 +23,7 @@ import {
   goBackContainerHistory,
   goForwardContainerHistory,
   setContainerFilePath,
+  toggleReadingDirection,
   toggleSpreadShift,
 } from "../slice";
 
@@ -93,13 +93,9 @@ export default function NavigationBar() {
 
   const handleSwitchDirectionClicked = useCallback(
     (_e: React.MouseEvent<HTMLButtonElement>) => {
-      const newDirection: Direction =
-        readerSettings.comic.readingDirection === "rtl" ? "ltr" : "rtl";
-      dispatch(
-        updateSettings({ key: "reader", value: { comic: { readingDirection: newDirection } } }),
-      );
+      dispatch(toggleReadingDirection());
     },
-    [dispatch, readerSettings.comic.readingDirection],
+    [dispatch],
   );
 
   const handleLibraryClicked = useCallback(

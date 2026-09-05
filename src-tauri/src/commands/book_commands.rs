@@ -310,6 +310,34 @@ pub async fn update_spread_shift(
     Ok(())
 }
 
+/// Records the page direction a book opens with.
+///
+/// Written straight through rather than debounced with the reading progress: it changes on
+/// a button press, not on every page turn, and it must be kept even when the reader has
+/// turned reading history off.
+///
+/// # Arguments
+///
+/// * `book_id` - The book to update.
+/// * `reading_direction` - `"rtl"` or `"ltr"`.
+/// * `repo` - The managed book repository state.
+///
+/// # Errors
+///
+/// Returns an `Err` if the underlying repository operation fails.
+#[tauri::command]
+#[specta::specta]
+pub async fn update_reading_direction(
+    book_id: i64,
+    reading_direction: String,
+    repo: State<'_, Arc<dyn BookRepository>>,
+) -> Result<()> {
+    log::debug!("Update reading direction of book {book_id}: {reading_direction}");
+    repo.update_reading_direction(book_id, &reading_direction)
+        .await?;
+    Ok(())
+}
+
 /// Records how a book's pages are shaped, so it need not be measured again.
 ///
 /// # Arguments
@@ -891,6 +919,23 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_update_reading_direction() {
+        let mut mock_repo = MockBookRepository::new();
+        mock_repo
+            .expect_update_reading_direction()
+            .with(mockall::predicate::eq(7), mockall::predicate::eq("ltr"))
+            .times(1)
+            .returning(|_, _| Ok(()));
+
+        let app = tauri::test::mock_app();
+        app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
+        let repo = app.state::<Arc<dyn BookRepository>>();
+
+        let result = update_reading_direction(7, "ltr".to_string(), repo).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
     async fn test_clear_all_reading_history() {
         let mut mock_repo = MockBookRepository::new();
         mock_repo
@@ -946,6 +991,7 @@ mod tests {
                     created_at: None,
                     is_spread_shifted: false,
                     landscape_bits: None,
+                    reading_direction: None,
                     last_read_page_index: Some(5),
                     last_opened_at: None,
                     cfi: None,

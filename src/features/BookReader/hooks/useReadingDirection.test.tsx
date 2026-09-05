@@ -17,9 +17,22 @@ describe("useReadingDirection", () => {
   it.each([
     "rtl",
     "ltr",
-  ] as const)("should follow the comic setting (%s) for a comic", (direction) => {
+  ] as const)("should follow the book's own direction (%s) for a comic", (direction) => {
     const state = createBasePreloadedState();
     state.read.containerFile.isNovel = false;
+    state.read.containerFile.readingDirection = direction;
+    state.settings.reader.comic.readingDirection = direction === "rtl" ? "ltr" : "rtl";
+
+    expect(renderDirection(state).current).toBe(direction);
+  });
+
+  it.each([
+    "rtl",
+    "ltr",
+  ] as const)("should fall back to the default (%s) while no book is loaded", (direction) => {
+    const state = createBasePreloadedState();
+    state.read.containerFile.isNovel = false;
+    state.read.containerFile.readingDirection = null;
     state.settings.reader.comic.readingDirection = direction;
 
     expect(renderDirection(state).current).toBe(direction);

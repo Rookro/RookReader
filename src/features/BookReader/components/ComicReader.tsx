@@ -5,6 +5,7 @@ import { type RootState, useAppDispatch, useAppSelector } from "../../../store/s
 import { useAdjacentBookNavigation } from "../hooks/useAdjacentBookNavigation";
 import { useLoupe } from "../hooks/useLoupe";
 import { usePageNavigation } from "../hooks/usePageNavigation";
+import { useReadingDirection } from "../hooks/useReadingDirection";
 import { useViewerController } from "../hooks/useViewerController";
 import type { ViewerSettings } from "../utils/ImageUtils";
 import AdjacentBookConfirmDialog from "./AdjacentBookConfirmDialog";
@@ -33,18 +34,20 @@ export default function ComicReader() {
 
   const containerPath = history[historyIndex];
 
+  const readingDirection = useReadingDirection();
+
   const settings: ViewerSettings = useMemo(
     () => ({
       isTwoPagedView: readerSettings.comic.enableSpread,
       isFirstPageSingleView: readerSettings.comic.showCoverAsSinglePage,
-      direction: readerSettings.comic.readingDirection,
+      direction: readingDirection,
       enablePreview: readerSettings.rendering.enableThumbnailPreview,
       preloadPageCount: readerSettings.comic.cache.preloadPageCount,
     }),
     [
       readerSettings.comic.enableSpread,
       readerSettings.comic.showCoverAsSinglePage,
-      readerSettings.comic.readingDirection,
+      readingDirection,
       readerSettings.rendering.enableThumbnailPreview,
       readerSettings.comic.cache.preloadPageCount,
     ],

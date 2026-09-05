@@ -15,6 +15,7 @@ vi.mock("../../bindings/BookCommands", () => ({
   updateReadingProgress: vi.fn(() => Promise.resolve([])),
   updateSpreadShift: vi.fn(() => Promise.resolve()),
   updatePageLayout: vi.fn(() => Promise.resolve()),
+  updateReadingDirection: vi.fn(() => Promise.resolve()),
   clearReadingHistory: vi.fn(() => Promise.resolve([])),
   clearAllReadingHistory: vi.fn(() => Promise.resolve([])),
   getRecentlyReadBooks: vi.fn(() => Promise.resolve([])),

@@ -328,6 +328,15 @@ export const commands = {
 	 *  measurement for a 200-page book.
 	 */
 	landscape_bits: string | null,
+	/**
+	 *  The page direction this book opens with, `"rtl"` or `"ltr"`.
+	 * 
+	 *  Seeded from the reader's default the first time the book is opened, then
+	 *  overwritten whenever the direction is flipped in the navigation bar. `None` until
+	 *  the book has been opened once, and always `None` for novels, whose direction is
+	 *  the EPUB's own and cannot be overridden.
+	 */
+	reading_direction: string | null,
 	/**  The last read page index, if the book has been opened. */
 	last_read_page_index: number | null,
 	/**  The timestamp when the book was last opened, if any. */
@@ -444,6 +453,24 @@ export const commands = {
 	 *  Returns an `Err` if the underlying repository operation fails.
 	 */
 	updateSpreadShift: (bookId: number, isSpreadShifted: boolean) => typedError<null, CommandError>(__TAURI_INVOKE("update_spread_shift", { bookId, isSpreadShifted })),
+	/**
+	 *  Records the page direction a book opens with.
+	 * 
+	 *  Written straight through rather than debounced with the reading progress: it changes on
+	 *  a button press, not on every page turn, and it must be kept even when the reader has
+	 *  turned reading history off.
+	 * 
+	 *  # Arguments
+	 * 
+	 *  * `book_id` - The book to update.
+	 *  * `reading_direction` - `"rtl"` or `"ltr"`.
+	 *  * `repo` - The managed book repository state.
+	 * 
+	 *  # Errors
+	 * 
+	 *  Returns an `Err` if the underlying repository operation fails.
+	 */
+	updateReadingDirection: (bookId: number, readingDirection: string) => typedError<null, CommandError>(__TAURI_INVOKE("update_reading_direction", { bookId, readingDirection })),
 	/**
 	 *  Records how a book's pages are shaped, so it need not be measured again.
 	 * 
@@ -959,6 +986,15 @@ export type BookWithState = {
 	 *  measurement for a 200-page book.
 	 */
 	landscape_bits: string | null,
+	/**
+	 *  The page direction this book opens with, `"rtl"` or `"ltr"`.
+	 * 
+	 *  Seeded from the reader's default the first time the book is opened, then
+	 *  overwritten whenever the direction is flipped in the navigation bar. `None` until
+	 *  the book has been opened once, and always `None` for novels, whose direction is
+	 *  the EPUB's own and cannot be overridden.
+	 */
+	reading_direction: string | null,
 	/**  The last read page index, if the book has been opened. */
 	last_read_page_index: number | null,
 	/**  The timestamp when the book was last opened, if any. */

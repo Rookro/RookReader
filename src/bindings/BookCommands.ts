@@ -1,4 +1,5 @@
 import type { Book, BookWithState, ReadBook, ReadingState } from "../domain/book/schema";
+import type { Direction } from "../types/AppSettings";
 import { commands } from "./bindings";
 import { runCommand } from "./result";
 
@@ -259,4 +260,18 @@ export async function updateSpreadShift(bookId: number, isSpreadShifted: boolean
  */
 export async function updatePageLayout(bookId: number, landscapeBits: string): Promise<void> {
   await runCommand(commands.updatePageLayout(bookId, landscapeBits));
+}
+
+/**
+ * Records the page direction a book opens with.
+ *
+ * Stored on the book rather than in its reading state, so turning reading history off —
+ * or clearing it — cannot discard the direction the reader chose for this book.
+ *
+ * @param bookId - The unique identifier of the book.
+ * @param direction - The page direction to store for the book.
+ * @throws {CommandError} If the Tauri command fails.
+ */
+export async function updateReadingDirection(bookId: number, direction: Direction): Promise<void> {
+  await runCommand(commands.updateReadingDirection(bookId, direction));
 }

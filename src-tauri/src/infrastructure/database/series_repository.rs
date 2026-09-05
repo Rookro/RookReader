@@ -67,7 +67,7 @@ impl SeriesRepository for SqliteSeriesRepository {
             r#"
             SELECT
                 id, file_path, item_type, display_name, total_pages, series_id, series_order,
-                thumbnail_path, created_at, is_spread_shifted, landscape_bits,
+                thumbnail_path, created_at, is_spread_shifted, landscape_bits, reading_direction,
                 last_read_page_index, last_opened_at,
                 cfi as "cfi?: String",
                 tag_ids_str as "tag_ids_str?: String"
