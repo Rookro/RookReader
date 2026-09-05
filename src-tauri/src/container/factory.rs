@@ -51,8 +51,8 @@ impl Default for ContainerConfig {
 /// # Errors
 ///
 /// Returns an `Err` if:
-/// * The path has no file extension (and is not a directory).
-/// * The file extension is not supported.
+/// * The path does not exist ([`Error::PathNotFound`]).
+/// * The file extension is not supported, or the path has none (and is not a directory).
 /// * The underlying container constructor fails.
 pub fn create_container(path: &str, config: ContainerConfig) -> Result<Arc<dyn Container>> {
     let file_path = Path::new(path);
@@ -70,6 +70,16 @@ pub fn create_container(path: &str, config: ContainerConfig) -> Result<Arc<dyn C
             &location.inner_dir,
             config.auto_descend_single_folder,
         );
+    }
+
+    // Everything below decides the format from the extension, which is only meaningful
+    // for a path that exists: a folder book that was moved away has no extension of its
+    // own, and `Dr.STONE 01` would be opened as a `.stone 01` file. `try_exists` rather
+    // than `exists` so an unreadable path stays an I/O error instead of "not found".
+    match file_path.try_exists() {
+        Ok(true) => {}
+        Ok(false) => return Err(Error::PathNotFound(path.to_string())),
+        Err(e) => return Err(e.into()),
     }
 
     if let Some(ext) = file_path.extension() {
@@ -90,7 +100,12 @@ pub fn create_container(path: &str, config: ContainerConfig) -> Result<Arc<dyn C
             ))),
         }
     } else {
-        Err(Error::Path(format!("Failed to get extension. {}", path)))
+        // The path exists and is not a directory, so a missing extension is simply a
+        // format we cannot read.
+        Err(Error::UnsupportedContainer(format!(
+            "Unsupported Container Type: no extension. {}",
+            path
+        )))
     }
 }
 
@@ -190,17 +205,23 @@ mod tests {
 
     #[test]
     fn test_factory_covers_all_supported_extensions() {
+        // The fixtures must exist: a missing path is now rejected as "not found" before
+        // the extension is ever looked at, which would hide a drift here.
+        let dir = tempfile::tempdir().expect("tempdir");
         for ext in crate::container::traits::SUPPORTED_EXTENSIONS {
+            let file = dir.path().join(format!("file.{ext}"));
+            std::fs::write(&file, b"").expect("create fixture");
             // Provide the pdfium path so the .pdf branch binds via Result (Pdfium::default
-            // would panic if no library is found); the file is missing either way.
+            // would panic if no library is found); the file is empty either way.
             let config = ContainerConfig {
                 pdfium_library_path: Some(get_pdfium_lib_path()),
                 ..Default::default()
             };
-            let result = create_container(&format!("/nonexistent/file.{ext}"), config);
+            let result = create_container(file.to_string_lossy().as_ref(), config);
 
-            // Construction fails (file missing) but never with "Unsupported Container
-            // Type" — that would mean the factory and SUPPORTED_EXTENSIONS drifted.
+            // Construction fails (the file is not a real archive) but never with
+            // "Unsupported Container Type" — that would mean the factory and
+            // SUPPORTED_EXTENSIONS drifted.
             let err = result.err().map(|e| e.to_string()).unwrap_or_default();
             assert!(
                 !err.contains("Unsupported Container Type"),
@@ -211,9 +232,13 @@ mod tests {
 
     #[test]
     fn test_create_container_unsupported_extension() {
-        let result = create_container("/path/to/file.unsupported", ContainerConfig::default());
-        assert!(result.is_err());
-        let err = result.err().unwrap();
+        let dir = tempfile::tempdir().expect("tempdir");
+        let file = dir.path().join("file.unsupported");
+        std::fs::write(&file, b"").expect("create fixture");
+
+        let result = create_container(file.to_string_lossy().as_ref(), ContainerConfig::default());
+
+        let err = result.err().expect("expected an error");
         assert!(err
             .to_string()
             .contains("Unsupported Container Type: unsupported"));
@@ -221,10 +246,41 @@ mod tests {
 
     #[test]
     fn test_create_container_no_extension() {
-        let result = create_container("/path/to/noextension", ContainerConfig::default());
-        assert!(result.is_err());
-        let err = result.err().unwrap();
-        assert!(err.to_string().contains("Failed to get extension"));
+        let dir = tempfile::tempdir().expect("tempdir");
+        let file = dir.path().join("noextension");
+        std::fs::write(&file, b"").expect("create fixture");
+
+        let result = create_container(file.to_string_lossy().as_ref(), ContainerConfig::default());
+
+        assert!(matches!(result, Err(Error::UnsupportedContainer(_))));
+    }
+
+    #[test]
+    fn test_create_container_reports_a_missing_folder_book_as_not_found() {
+        // A dot in a folder name used to be read as an extension, so a folder book that
+        // had been moved away was reported as an unsupported format.
+        let dir = tempfile::tempdir().expect("tempdir");
+        let missing = dir.path().join("Dr.STONE 01");
+
+        let result = create_container(
+            missing.to_string_lossy().as_ref(),
+            ContainerConfig::default(),
+        );
+
+        assert!(matches!(result, Err(Error::PathNotFound(_))));
+    }
+
+    #[test]
+    fn test_create_container_reports_a_missing_archive_as_not_found() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let missing = dir.path().join("comic.zip");
+
+        let result = create_container(
+            missing.to_string_lossy().as_ref(),
+            ContainerConfig::default(),
+        );
+
+        assert!(matches!(result, Err(Error::PathNotFound(_))));
     }
 
     /// Builds a ZIP with the given entry names and one dummy byte each.

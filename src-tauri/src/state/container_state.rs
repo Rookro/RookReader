@@ -241,11 +241,17 @@ mod tests {
 
     #[test]
     fn test_build_with_unsupported_extension() {
+        // The fixture must exist: a missing path is rejected as "not found" before the
+        // extension is inspected.
+        let dir = tempfile::tempdir().expect("tempdir");
+        let file = dir.path().join("file.unsupported");
+        std::fs::write(&file, b"").expect("create fixture");
         let state = ContainerState::default();
+
         let result = ContainerState::build_with(
             &state.settings,
             &state.image_cache,
-            "/path/to/file.unsupported",
+            file.to_string_lossy().as_ref(),
         );
 
         let Err(err) = result else {
@@ -257,15 +263,18 @@ mod tests {
     }
 
     #[test]
-    fn test_build_without_extension() {
+    fn test_build_with_a_missing_path() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let missing = dir.path().join("gone.zip");
         let state = ContainerState::default();
-        let result =
-            ContainerState::build_with(&state.settings, &state.image_cache, "/path/to/noextension");
 
-        let Err(err) = result else {
-            panic!("expected an error for a missing extension");
-        };
-        assert!(err.to_string().contains("Failed to get extension"));
+        let result = ContainerState::build_with(
+            &state.settings,
+            &state.image_cache,
+            missing.to_string_lossy().as_ref(),
+        );
+
+        assert!(matches!(result, Err(crate::error::Error::PathNotFound(_))));
     }
 
     #[test]
@@ -326,19 +335,24 @@ mod tests {
 
     #[test]
     fn test_unsupported_file_extensions() {
+        // The fixtures must exist: a missing path is rejected as "not found" before the
+        // extension is inspected, which would make this pass for the wrong reason.
+        let dir = tempfile::tempdir().expect("tempdir");
         let state = ContainerState::default();
-        let unsupported_files = vec![
-            "/path/to/file.txt",
-            "/path/to/file.doc",
-            "/path/to/file.jpg",
-            "/path/to/file.exe",
-            "/path/to/file.mp4",
-        ];
+        let unsupported_files = vec!["file.txt", "file.doc", "file.jpg", "file.exe", "file.mp4"];
 
-        for file_path in unsupported_files {
-            let result = ContainerState::build_with(&state.settings, &state.image_cache, file_path);
+        for file_name in unsupported_files {
+            let file_path = dir.path().join(file_name);
+            std::fs::write(&file_path, b"").expect("create fixture");
+
+            let result = ContainerState::build_with(
+                &state.settings,
+                &state.image_cache,
+                file_path.to_string_lossy().as_ref(),
+            );
+
             let Err(err) = result else {
-                panic!("File {} should be unsupported", file_path);
+                panic!("File {} should be unsupported", file_name);
             };
             assert!(err.to_string().contains("Unsupported Container Type"));
         }
@@ -348,23 +362,33 @@ mod tests {
     fn test_supported_file_extensions() {
         let mut state = ContainerState::default();
         state.settings.pdfium_library_path = Some(get_pdfium_lib_path());
+        // The fixtures must exist: a missing path is rejected as "not found" before the
+        // extension is inspected, which would make this pass for the wrong reason.
+        let dir = tempfile::tempdir().expect("tempdir");
         let supported_files = vec![
-            ("/path/to/file.zip", "zip"),
-            ("/path/to/file.pdf", "pdf"),
-            ("/path/to/file.rar", "rar"),
+            ("file.zip", "zip"),
+            ("file.pdf", "pdf"),
+            ("file.rar", "rar"),
         ];
 
-        for (file_path, ext) in supported_files {
-            let result = ContainerState::build_with(&state.settings, &state.image_cache, file_path);
+        for (file_name, ext) in supported_files {
+            let file_path = dir.path().join(file_name);
+            std::fs::write(&file_path, b"").expect("create fixture");
 
-            // These will fail because files don't exist, but we verify the
+            let result = ContainerState::build_with(
+                &state.settings,
+                &state.image_cache,
+                file_path.to_string_lossy().as_ref(),
+            );
+
+            // These will fail because the files are not real archives, but we verify the
             // extension is recognized (different error message)
             if let Err(err) = result {
                 // Should not be "Unsupported Container Type" error
                 assert!(
                     !err.to_string().contains("Unsupported Container Type"),
                     "File {} with extension {} should be supported",
-                    file_path,
+                    file_name,
                     ext
                 );
             }

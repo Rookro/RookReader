@@ -262,6 +262,9 @@ mod error_codes_export {
         for needle in [
             "export const ErrorCode",
             "io: 20001",
+            "pathNotFound: 20102",
+            "pdfUnavailable: 10102",
+            "bookChanged: 60001",
             "epubArchive: 10502",
             "rayonThreadPool: 30201",
             "settingsValidation: 50002",
