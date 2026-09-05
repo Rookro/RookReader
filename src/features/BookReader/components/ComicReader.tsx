@@ -2,6 +2,7 @@ import { Box, CircularProgress } from "@mui/material";
 import { createSelector } from "@reduxjs/toolkit";
 import { useEffect, useMemo, useState } from "react";
 import { type RootState, useAppDispatch, useAppSelector } from "../../../store/store";
+import type { ErrorCode } from "../../../types/Error";
 import { useAdjacentBookNavigation } from "../hooks/useAdjacentBookNavigation";
 import { useLoupe } from "../hooks/useLoupe";
 import { usePageNavigation } from "../hooks/usePageNavigation";
@@ -10,6 +11,41 @@ import { useViewerController } from "../hooks/useViewerController";
 import type { ViewerSettings } from "../utils/ImageUtils";
 import AdjacentBookConfirmDialog from "./AdjacentBookConfirmDialog";
 import Loupe from "./Loupe";
+import PageErrorMessage from "./PageErrorMessage";
+
+/** What one place on the screen shows: the page, or why the page is not there. */
+interface PageSlot {
+  /** The blob URL of the page, once it has one. */
+  url?: string;
+  /** Why the page has no image, when it failed. */
+  error?: ErrorCode;
+}
+
+/**
+ * Draws one page of the reader: the image, or the reason it could not be loaded.
+ *
+ * @param page The page to draw.
+ * @param alt The alt text naming the page's place on screen.
+ * @param width How much of the reader the page fills.
+ * @param objectPosition Which edge of its place the image is aligned to.
+ * @returns The page, or null while it is still loading.
+ */
+const renderPage = (page: PageSlot, alt: string, width: string, objectPosition: string) => {
+  if (page.url) {
+    return (
+      <Box
+        component="img"
+        src={page.url}
+        alt={alt}
+        sx={{ width, height: "100%", objectPosition, objectFit: "contain" }}
+      />
+    );
+  }
+  if (page.error !== undefined) {
+    return <PageErrorMessage code={page.error} width={width} />;
+  }
+  return null;
+};
 
 const selectComicReaderState = createSelector(
   [(state: RootState) => state.read.containerFile, (state: RootState) => state.settings.reader],
@@ -122,6 +158,14 @@ export default function ComicReader() {
     </Box>
   ) : null;
 
+  // The same navigation in both branches: with nothing on screen — a book still opening,
+  // or a page that failed — turning the page is how the reader reaches one that works.
+  const navigationHandlers = {
+    onClick: handleClicked,
+    onContextMenu: handleContextMenu,
+    onWheel: handleWheeled,
+  };
+
   const confirmDialog = (
     <AdjacentBookConfirmDialog
       open={pending != null}
@@ -134,6 +178,9 @@ export default function ComicReader() {
   if (!displayedLayout) {
     return (
       <Box
+        tabIndex={0}
+        {...navigationHandlers}
+        data-testid="comic-reader-area"
         sx={{
           width: "100%",
           height: "100%",
@@ -145,22 +192,22 @@ export default function ComicReader() {
     );
   }
 
-  const srcLeft =
-    settings.direction === "ltr"
-      ? displayedLayout.firstImage?.url
-      : displayedLayout.secondImage?.url || displayedLayout.firstImage?.url;
-  const srcRight =
-    settings.direction === "ltr"
-      ? displayedLayout.secondImage?.url
-      : displayedLayout.firstImage?.url;
-  const srcSingle = displayedLayout.firstImage?.url;
+  const firstPage: PageSlot = {
+    url: displayedLayout.firstImage?.url,
+    error: displayedLayout.firstError,
+  };
+  const secondPage: PageSlot = {
+    url: displayedLayout.secondImage?.url,
+    error: displayedLayout.secondError,
+  };
+  // The pair is in reading order, the screen is not: in RTL the first page is the right one.
+  const [leftPage, rightPage] =
+    settings.direction === "ltr" ? [firstPage, secondPage] : [secondPage, firstPage];
 
   return (
     <Box
       tabIndex={0}
-      onClick={handleClicked}
-      onContextMenu={handleContextMenu}
-      onWheel={handleWheeled}
+      {...navigationHandlers}
       onMouseMove={handleMouseMove}
       onMouseDown={handleMouseDown}
       ref={containerRef}
@@ -181,41 +228,11 @@ export default function ComicReader() {
           {spinnerOverlay}
           {displayedLayout.isSpread ? (
             <>
-              <Box
-                component="img"
-                src={srcLeft}
-                alt="Left Page"
-                sx={{
-                  width: "50%",
-                  height: "100%",
-                  objectPosition: "right center",
-                  objectFit: "contain",
-                }}
-              />
-              <Box
-                component="img"
-                src={srcRight}
-                alt="Right Page"
-                sx={{
-                  width: "50%",
-                  height: "100%",
-                  objectPosition: "left center",
-                  objectFit: "contain",
-                }}
-              />
+              {renderPage(leftPage, "Left Page", "50%", "right center")}
+              {renderPage(rightPage, "Right Page", "50%", "left center")}
             </>
           ) : (
-            <Box
-              component="img"
-              src={srcSingle}
-              alt="Single Page"
-              sx={{
-                width: "100%",
-                height: "100%",
-                objectPosition: "center center",
-                objectFit: "contain",
-              }}
-            />
+            renderPage(firstPage, "Single Page", "100%", "center center")
           )}
         </Box>
       </Loupe>

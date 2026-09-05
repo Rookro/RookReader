@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { updatePageLayout } from "../../../bindings/BookCommands";
 import { getImageDimensions, requestPreloadAround } from "../../../bindings/ContainerCommands";
 import { createMockBookWithState } from "../../../test/factories";
+import { CommandError, ErrorCode } from "../../../types/Error";
 import type { Image } from "../../../types/Image";
 import * as perfLog from "../../../utils/perf";
 import { setImageIndex, setSpreadDisplayed } from "../slice";
@@ -36,21 +37,31 @@ vi.mock("../utils/ImageUtils", () => ({
       currentIndex: number,
       entries: string[],
       cache: Map<string, ImageUtils.ImageCacheItem>,
+      failures: ReadonlyMap<string, number>,
     ) => {
       const firstImage = cache.get(entries[currentIndex]);
-      if (!firstImage) {
+      const firstError = firstImage ? undefined : failures.get(entries[currentIndex]);
+      if (!firstImage && firstError === undefined) {
         return null;
       }
       if (!unit.isSpread) {
-        return { firstImage, isSpread: false, nextIndexIncrement: unit.nextIndexIncrement };
+        return {
+          firstImage,
+          firstError,
+          isSpread: false,
+          nextIndexIncrement: unit.nextIndexIncrement,
+        };
       }
       const secondImage = cache.get(entries[currentIndex + 1]);
-      if (!secondImage) {
+      const secondError = secondImage ? undefined : failures.get(entries[currentIndex + 1]);
+      if (!secondImage && secondError === undefined) {
         return null;
       }
       return {
         firstImage,
         secondImage,
+        firstError,
+        secondError,
         isSpread: true,
         nextIndexIncrement: unit.nextIndexIncrement,
       };
@@ -538,7 +549,7 @@ describe("useViewerController", () => {
   describe("error handling", () => {
     // Verify that loading flag becomes false on image acquisition failure
     it("should set isImageLoading to false when fetch fails", async () => {
-      mockedFetchImageBlob.mockResolvedValue(undefined);
+      mockedFetchImageBlob.mockRejectedValue(new CommandError(ErrorCode.image, "decode failed"));
 
       const { result } = renderHook(() =>
         useViewerController({
@@ -555,7 +566,90 @@ describe("useViewerController", () => {
         expect(result.current.isImageLoading).toBe(false);
       });
 
-      expect(result.current.displayedLayout).toBeNull();
+      expect(result.current.displayedLayout?.firstImage).toBeUndefined();
+    });
+
+    // Verify that a page which cannot be loaded reports its reason in the page's own place
+    it("reports why the current page could not be shown", async () => {
+      mockedFetchImageBlob.mockRejectedValue(new CommandError(ErrorCode.image, "decode failed"));
+
+      const { result } = renderHook(() =>
+        useViewerController({
+          containerPath: "path",
+          entries: mockEntries,
+          index: 0,
+          isSpreadShifted: false,
+          settings: mockSettings,
+          dispatch: mockDispatch,
+        }),
+      );
+
+      await waitFor(() => {
+        expect(result.current.displayedLayout?.firstError).toBe(ErrorCode.image);
+      });
+      expect(result.current.displayedLayout?.firstImage).toBeUndefined();
+    });
+
+    // Verify the page before the failed one is replaced, not left on screen as though the
+    // page turn had not registered
+    it("takes the previous page off screen when the next one fails", async () => {
+      mockedFetchImageBlob.mockImplementation((_path, entry) =>
+        entry === "p1.jpg"
+          ? Promise.resolve({} as Image)
+          : Promise.reject(new CommandError(ErrorCode.image, "decode failed")),
+      );
+      mockedCreateImageCacheItem.mockReturnValue({
+        fullUrl: "url1",
+        url: "url1",
+      } as ImageUtils.ImageCacheItem);
+
+      const { result, rerender } = renderHook(
+        ({ index }: { index: number }) =>
+          useViewerController({
+            containerPath: "path",
+            entries: mockEntries,
+            index,
+            isSpreadShifted: false,
+            settings: mockSettings,
+            dispatch: mockDispatch,
+          }),
+        { initialProps: { index: 0 } },
+      );
+
+      await waitFor(() => expect(result.current.displayedLayout).not.toBeNull());
+
+      rerender({ index: 1 });
+
+      await waitFor(() => {
+        expect(result.current.displayedLayout?.firstError).toBe(ErrorCode.image);
+      });
+      expect(result.current.displayedLayout?.firstImage).toBeUndefined();
+    });
+
+    // A page that came out of its preview is on screen, so there is nothing to report
+    it("stays silent when the page resolved from its preview", async () => {
+      mockedFetchImageBlob.mockRejectedValue(new CommandError(ErrorCode.image, "decode failed"));
+      vi.mocked(ImageUtils.fetchImagePreviewBlob).mockResolvedValue({} as Image);
+      mockedCreateImageCacheItem.mockReturnValue({
+        previewUrl: "preview1",
+        url: "preview1",
+      } as ImageUtils.ImageCacheItem);
+
+      const { result } = renderHook(() =>
+        useViewerController({
+          containerPath: "path",
+          entries: mockEntries,
+          index: 0,
+          isSpreadShifted: false,
+          settings: { ...mockSettings, enablePreview: true },
+          dispatch: mockDispatch,
+        }),
+      );
+
+      await waitFor(() => {
+        expect(result.current.displayedLayout).not.toBeNull();
+      });
+      expect(result.current.displayedLayout?.firstError).toBeUndefined();
     });
   });
 
@@ -718,6 +812,67 @@ describe("useViewerController", () => {
         width: 100,
         height: 200,
       });
+    });
+
+    // The failure belongs to one page of the pair, so the other keeps its place beside it
+    it("keeps the spread together when only its second page fails", async () => {
+      mockedFetchImageBlob.mockImplementation((_path, entry) =>
+        entry === "p1.jpg"
+          ? Promise.resolve({} as Image)
+          : Promise.reject(new CommandError(ErrorCode.entryNotFound, "missing")),
+      );
+      mockedCreateImageCacheItem.mockReturnValue({
+        fullUrl: "url1",
+        url: "url1",
+      } as ImageUtils.ImageCacheItem);
+      mockedBuildUnitChain.mockImplementation(spreadPairs);
+
+      const { result } = renderHook(() =>
+        useViewerController({
+          containerPath: "path",
+          entries: mockEntries,
+          index: 0,
+          isSpreadShifted: false,
+          settings: twoPagedSettings,
+          dispatch: mockDispatch,
+        }),
+      );
+
+      await waitFor(() => {
+        expect(result.current.displayedLayout?.secondError).toBe(ErrorCode.entryNotFound);
+      });
+      expect(result.current.displayedLayout?.isSpread).toBe(true);
+      expect(result.current.displayedLayout?.firstImage).toEqual({
+        fullUrl: "url1",
+        url: "url1",
+      });
+    });
+
+    // Verify both halves say why, so two failures read as two failed pages
+    it("gives each page of a spread its own reason", async () => {
+      mockedFetchImageBlob.mockImplementation((_path, entry) =>
+        Promise.reject(
+          new CommandError(entry === "p1.jpg" ? ErrorCode.image : ErrorCode.entryNotFound, "no"),
+        ),
+      );
+      mockedBuildUnitChain.mockImplementation(spreadPairs);
+
+      const { result } = renderHook(() =>
+        useViewerController({
+          containerPath: "path",
+          entries: mockEntries,
+          index: 0,
+          isSpreadShifted: false,
+          settings: twoPagedSettings,
+          dispatch: mockDispatch,
+        }),
+      );
+
+      await waitFor(() => {
+        expect(result.current.displayedLayout?.firstError).toBe(ErrorCode.image);
+      });
+      expect(result.current.displayedLayout?.secondError).toBe(ErrorCode.entryNotFound);
+      expect(result.current.displayedLayout?.isSpread).toBe(true);
     });
   });
 
@@ -1709,7 +1864,9 @@ describe("useViewerController", () => {
     it("keeps requesting previews after a failed request", async () => {
       const settingsWithPreview = { ...mockSettings, enablePreview: true };
       mockedFetchImageBlob.mockResolvedValue({} as Image);
-      vi.mocked(ImageUtils.fetchImagePreviewBlob).mockResolvedValue(undefined);
+      vi.mocked(ImageUtils.fetchImagePreviewBlob).mockRejectedValue(
+        new CommandError(ErrorCode.io, "preview failed"),
+      );
       mockedCreateImageCacheItem.mockReturnValue({
         fullUrl: "f",
         url: "f",

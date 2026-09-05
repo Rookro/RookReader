@@ -1,5 +1,6 @@
-import { debug, error } from "@tauri-apps/plugin-log";
+import { debug } from "@tauri-apps/plugin-log";
 import { getImage, getImagePreview } from "../../../bindings/ContainerCommands";
+import type { ErrorCode } from "../../../types/Error";
 import { Image } from "../../../types/Image";
 
 /**
@@ -47,6 +48,13 @@ export interface ViewLayout {
   firstImage?: ImageCacheItem;
   /** Second image in the layout. */
   secondImage?: ImageCacheItem;
+  /**
+   * Why the first page has no image, when it failed. Carried in the layout so the reader
+   * sees the reason in that page's own place, which is what says *which* page failed.
+   */
+  firstError?: ErrorCode;
+  /** Why the second page has no image, when it failed. */
+  secondError?: ErrorCode;
   /** Is the layout a spread (two pages). */
   isSpread: boolean;
   /** Increment for the next index. */
@@ -83,7 +91,9 @@ export interface ViewerSettings {
  *
  * @param containerPath The path of the container file.
  * @param entryName The name of the entry to fetch.
- * @returns The fetched image or undefined if the fetch failed.
+ * @returns The fetched image, or undefined when there was nothing to ask for.
+ * @throws {CommandError} When the backend could not produce the image. Swallowing it here
+ *   is what left the viewer on the previous page with nothing to say about this one.
  */
 export const fetchImageBlob = async (
   containerPath: string,
@@ -92,13 +102,8 @@ export const fetchImageBlob = async (
   if (!containerPath || !entryName || containerPath.length === 0 || entryName.length === 0) {
     return undefined;
   }
-  try {
-    const response = await getImage(containerPath, entryName);
-    return new Image(response);
-  } catch (ex) {
-    error(`Failed to load an image of ${entryName}: ${JSON.stringify(ex)}`);
-    return undefined;
-  }
+  const response = await getImage(containerPath, entryName);
+  return new Image(response);
 };
 
 /**
@@ -110,8 +115,9 @@ export const fetchImageBlob = async (
  *
  * @param containerPath The path of the container file.
  * @param entryName The name of the entry to fetch.
- * @returns The fetched image, null if the backend produced no preview, or undefined if
- *   the fetch failed.
+ * @returns The fetched image, null if the backend produced no preview, or undefined when
+ *   there was nothing to ask for.
+ * @throws {CommandError} When the request itself failed.
  */
 export const fetchImagePreviewBlob = async (
   containerPath: string,
@@ -120,17 +126,12 @@ export const fetchImagePreviewBlob = async (
   if (!containerPath || !entryName || containerPath.length === 0 || entryName.length === 0) {
     return undefined;
   }
-  try {
-    const response = await getImagePreview(containerPath, entryName);
-    if (response.byteLength === 0) {
-      debug(`Skip preview image for ${entryName}`);
-      return null;
-    }
-    return new Image(response);
-  } catch (ex) {
-    error(`Failed to load an image preview of ${entryName}: ${JSON.stringify(ex)}`);
-    return undefined;
+  const response = await getImagePreview(containerPath, entryName);
+  if (response.byteLength === 0) {
+    debug(`Skip preview image for ${entryName}`);
+    return null;
   }
+  return new Image(response);
 };
 
 /**
@@ -182,37 +183,54 @@ export const buildSinglePageLayout = (firstImage: ImageCacheItem): ViewLayout =>
  */
 export const SINGLE_UNIT: UnitDecision = { isSpread: false, nextIndexIncrement: 1 };
 /**
- * Attaches cached images to a unit decision.
+ * Attaches cached images, and the reasons the missing ones are missing, to a unit decision.
+ *
+ * A page is settled once it has either an image or a reason it has none, so a page that
+ * failed no longer holds the whole unit back: its facing page is shown as usual and the
+ * failure is named in the failed page's own place.
  *
  * @param unit The decided unit.
  * @param currentIndex The index the unit starts at.
  * @param entries The list of entry names.
  * @param cache The image cache.
- * @returns The layout, or null when a required image is not cached yet.
+ * @param failures Why each page that failed could not be loaded, by entry name.
+ * @returns The layout, or null while a page is neither cached nor failed.
  */
 export const buildUnitLayout = (
   unit: UnitDecision,
   currentIndex: number,
   entries: string[],
   cache: Map<string, ImageCacheItem>,
+  failures: ReadonlyMap<string, ErrorCode>,
 ): ViewLayout | null => {
+  // An image beats a reason: a page that came out of its preview is on screen, whatever
+  // became of the request for the full one.
   const firstImage = cache.get(entries[currentIndex]);
+  const firstError = firstImage ? undefined : failures.get(entries[currentIndex]);
 
-  if (!firstImage) {
+  if (!firstImage && firstError === undefined) {
     return null;
   }
 
   if (!unit.isSpread) {
-    return { firstImage, isSpread: false, nextIndexIncrement: unit.nextIndexIncrement };
+    return { firstImage, firstError, isSpread: false, nextIndexIncrement: unit.nextIndexIncrement };
   }
 
   const secondImage = cache.get(entries[currentIndex + 1]);
+  const secondError = secondImage ? undefined : failures.get(entries[currentIndex + 1]);
 
-  if (!secondImage) {
+  if (!secondImage && secondError === undefined) {
     return null;
   }
 
-  return { firstImage, secondImage, isSpread: true, nextIndexIncrement: unit.nextIndexIncrement };
+  return {
+    firstImage,
+    secondImage,
+    firstError,
+    secondError,
+    isSpread: true,
+    nextIndexIncrement: unit.nextIndexIncrement,
+  };
 };
 
 /**

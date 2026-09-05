@@ -31,6 +31,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * A book whose file has been moved or deleted now reports that it could not be found, instead of claiming the format is not supported. Folder names containing a dot, such as "Dr.STONE 01" or "Vol.1", were affected in particular.
   * Bookshelf, tag, series, history and settings errors now say why the operation failed, instead of only saying that it did.
   * A book that opened successfully is no longer closed with "Failed to open book." when only saving it to the reading history failed.
+* Fixed a page that fails to load leaving the reader with no explanation. (#319)
+  * A page that cannot be read now says why on the page itself, instead of leaving the previous page on screen as though the page turn had not registered.
+  * A novel whose file has been moved, deleted, or cannot be read now says so, instead of showing an empty white page.
 
 ## [2.4.0] - 2026-08-30
 

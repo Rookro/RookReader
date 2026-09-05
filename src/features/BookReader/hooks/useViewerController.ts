@@ -1,9 +1,10 @@
-import { warn } from "@tauri-apps/plugin-log";
+import { error, warn } from "@tauri-apps/plugin-log";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { updatePageLayout } from "../../../bindings/BookCommands";
 import type { BookWithState } from "../../../bindings/bindings";
 import { getImageDimensions, requestPreloadAround } from "../../../bindings/ContainerCommands";
 import type { AppDispatch } from "../../../store/store";
+import { createCommandError, type ErrorCode } from "../../../types/Error";
 import type { Image } from "../../../types/Image";
 import { perf, perfSince, perfStart } from "../../../utils/perf";
 import { setImageIndex, setSpreadDisplayed } from "../slice";
@@ -405,6 +406,11 @@ export const useViewerController = ({
         perf("display", `index=${index} pairing=${source}`, perfSince(askedRef.current) ?? 0);
       };
 
+      // Why each page this run asked for could not be loaded, for the pages that failed.
+      // The reader is told in the failed page's own place, which is what says *which*
+      // page failed, so this travels in the layout rather than as viewer-wide state.
+      const failures = new Map<string, ErrorCode>();
+
       /**
        * Builds the layout for the current index, once a pairing is available.
        *
@@ -413,11 +419,21 @@ export const useViewerController = ({
        * already decoded when the chain lands and the hold costs waiting, not latency.
        */
       const layoutForCurrentIndex = (): ViewLayout | null =>
-        pairing ? buildUnitLayout(currentUnit(), index, entries, cache) : null;
+        pairing ? buildUnitLayout(currentUnit(), index, entries, cache, failures) : null;
 
       // Tracks whether a full layout was resolved this run, so the post-settle
       // fallback only fires when no layout ever came out.
       let layoutResolved = false;
+
+      /** Shows the current index's unit as soon as every page in it is settled. */
+      const publishLayout = () => {
+        const layout = layoutForCurrentIndex();
+        if (layout) {
+          layoutResolved = true;
+          reportDisplayed();
+          setLayoutState({ layout, path: containerPath });
+        }
+      };
 
       const loadAndUpdate = async (
         path: string,
@@ -425,7 +441,23 @@ export const useViewerController = ({
         isPreview: boolean,
       ) => {
         if (controller.signal.aborted) return;
-        const img = await fetcher(containerPath, path);
+        let img: Image | null | undefined;
+        try {
+          img = await fetcher(containerPath, path);
+        } catch (e) {
+          const commandError = createCommandError(e);
+          error(
+            `Failed to load ${isPreview ? "a preview" : "an image"} of ${path}: ` +
+              `${commandError.message} (code ${commandError.code})`,
+          );
+          // A preview is answered by the full image that follows it, so only the page
+          // itself failing is worth putting on screen.
+          if (!isPreview && !controller.signal.aborted) {
+            failures.set(path, commandError.code);
+            publishLayout();
+          }
+          return;
+        }
         // Null is the backend declining, not a failure: only that answer is evidence
         // about the container.
         if (isPreview && img === null && !controller.signal.aborted) {
@@ -450,12 +482,7 @@ export const useViewerController = ({
           } else {
             cache.set(path, newItem);
           }
-          const layout = layoutForCurrentIndex();
-          if (layout) {
-            layoutResolved = true;
-            reportDisplayed();
-            setLayoutState({ layout, path: containerPath });
-          }
+          publishLayout();
         }
       };
 

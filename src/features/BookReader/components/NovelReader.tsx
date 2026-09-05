@@ -1,5 +1,6 @@
 import { Badge, Box } from "@mui/material";
 import { useNovelReader } from "../hooks/useNovelReader";
+import ReaderErrorOverlay from "./ReaderErrorOverlay";
 
 /** Props for the NovelReader component */
 export interface NovelReaderProps {
@@ -17,7 +18,7 @@ export interface NovelReaderProps {
  * in future releases.
  */
 export default function NovelReader({ filePath }: NovelReaderProps) {
-  const { viewerRef } = useNovelReader({ filePath });
+  const { viewerRef, loadError } = useNovelReader({ filePath });
 
   return (
     <Badge
@@ -37,6 +38,7 @@ export default function NovelReader({ filePath }: NovelReaderProps) {
       }}
     >
       <Box component="div" ref={viewerRef} sx={{ width: "100%", height: "100%" }} />
+      {loadError ? <ReaderErrorOverlay context="load-novel" code={loadError.code} /> : null}
     </Badge>
   );
 }

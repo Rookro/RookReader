@@ -392,6 +392,8 @@
     "headline": {
       "open-container": "Failed to open book.",
       "record-book": "Failed to record the reading history.",
+      "load-page": "Failed to load the page.",
+      "load-novel": "Failed to load the book's text.",
       "explorer": "Failed to load folder contents.",
       "history": "Failed to load history.",
       "bookshelf": "Bookshelf operation failed.",

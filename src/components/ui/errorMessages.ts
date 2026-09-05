@@ -8,6 +8,8 @@ import { ErrorCode } from "../../types/Error";
 export type ErrorContext =
   | "open-container"
   | "record-book"
+  | "load-page"
+  | "load-novel"
   | "explorer"
   | "history"
   | "bookshelf"
@@ -19,6 +21,8 @@ export type ErrorContext =
 const HEADLINE_KEY_BY_CONTEXT = {
   "open-container": "error-message.headline.open-container",
   "record-book": "error-message.headline.record-book",
+  "load-page": "error-message.headline.load-page",
+  "load-novel": "error-message.headline.load-novel",
   explorer: "error-message.headline.explorer",
   history: "error-message.headline.history",
   bookshelf: "error-message.headline.bookshelf",

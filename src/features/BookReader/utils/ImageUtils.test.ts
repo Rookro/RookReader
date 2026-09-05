@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as ContainerCommands from "../../../bindings/ContainerCommands";
+import { CommandError, ErrorCode } from "../../../types/Error";
 import { Image } from "../../../types/Image";
 import {
   buildUnitChain,
@@ -44,6 +45,7 @@ describe("ImageUtils", () => {
     const portrait = new ImageCacheItem(100, 200, "url1");
     const portraitNext = new ImageCacheItem(100, 200, "url2");
     const entries = ["p0", "p1"];
+    const noFailures = new Map<string, ErrorCode>();
 
     // Verify that a spread decision attaches both images
     it("attaches both images for a spread", () => {
@@ -51,21 +53,23 @@ describe("ImageUtils", () => {
         ["p0", portrait],
         ["p1", portraitNext],
       ]);
-      expect(buildUnitLayout({ isSpread: true, nextIndexIncrement: 2 }, 0, entries, cache)).toEqual(
-        {
-          firstImage: portrait,
-          secondImage: portraitNext,
-          isSpread: true,
-          nextIndexIncrement: 2,
-        },
-      );
+      expect(
+        buildUnitLayout({ isSpread: true, nextIndexIncrement: 2 }, 0, entries, cache, noFailures),
+      ).toEqual({
+        firstImage: portrait,
+        secondImage: portraitNext,
+        firstError: undefined,
+        secondError: undefined,
+        isSpread: true,
+        nextIndexIncrement: 2,
+      });
     });
 
     // Verify that a spread decision fails when the second image is not loaded yet
     it("returns null when the spread's second image is not cached", () => {
       const cache = new Map([["p0", portrait]]);
       expect(
-        buildUnitLayout({ isSpread: true, nextIndexIncrement: 2 }, 0, entries, cache),
+        buildUnitLayout({ isSpread: true, nextIndexIncrement: 2 }, 0, entries, cache, noFailures),
       ).toBeNull();
     });
 
@@ -73,8 +77,60 @@ describe("ImageUtils", () => {
     it("attaches only the first image for a single unit", () => {
       const cache = new Map([["p0", portrait]]);
       expect(
-        buildUnitLayout({ isSpread: false, nextIndexIncrement: 1 }, 0, entries, cache),
-      ).toEqual({ firstImage: portrait, isSpread: false, nextIndexIncrement: 1 });
+        buildUnitLayout({ isSpread: false, nextIndexIncrement: 1 }, 0, entries, cache, noFailures),
+      ).toEqual({
+        firstImage: portrait,
+        firstError: undefined,
+        isSpread: false,
+        nextIndexIncrement: 1,
+      });
+    });
+
+    // A page that failed is settled, so the spread is shown with the reason in its place
+    it("keeps the spread together when one page failed", () => {
+      const cache = new Map([["p0", portrait]]);
+      const failures = new Map([["p1", ErrorCode.image]]);
+      expect(
+        buildUnitLayout({ isSpread: true, nextIndexIncrement: 2 }, 0, entries, cache, failures),
+      ).toEqual({
+        firstImage: portrait,
+        secondImage: undefined,
+        firstError: undefined,
+        secondError: ErrorCode.image,
+        isSpread: true,
+        nextIndexIncrement: 2,
+      });
+    });
+
+    // Verify both halves of a spread can carry their own reason
+    it("gives each page of a spread its own reason", () => {
+      const failures = new Map([
+        ["p0", ErrorCode.entryNotFound],
+        ["p1", ErrorCode.image],
+      ]);
+      const layout = buildUnitLayout(
+        { isSpread: true, nextIndexIncrement: 2 },
+        0,
+        entries,
+        new Map(),
+        failures,
+      );
+      expect(layout?.firstError).toBe(ErrorCode.entryNotFound);
+      expect(layout?.secondError).toBe(ErrorCode.image);
+    });
+
+    // A page that came out of its preview is on screen, so it has nothing to explain
+    it("drops the reason once the page has an image", () => {
+      const cache = new Map([["p0", portrait]]);
+      const failures = new Map([["p0", ErrorCode.image]]);
+      expect(
+        buildUnitLayout({ isSpread: false, nextIndexIncrement: 1 }, 0, entries, cache, failures),
+      ).toEqual({
+        firstImage: portrait,
+        firstError: undefined,
+        isSpread: false,
+        nextIndexIncrement: 1,
+      });
     });
   });
 
@@ -270,11 +326,12 @@ describe("ImageUtils", () => {
       expect(result?.width).toBe(width);
     });
 
-    // Verify that undefined is returned and an error log is output if getImage fails
-    it("should return undefined and log error if getImage fails", async () => {
-      vi.mocked(ContainerCommands.getImage).mockRejectedValue(new Error("fetch failed"));
-      const result = await fetchImageBlob("path", "file");
-      expect(result).toBeUndefined();
+    // Verify that a backend failure reaches the caller instead of being swallowed
+    it("should reject when getImage fails", async () => {
+      vi.mocked(ContainerCommands.getImage).mockRejectedValue(
+        new CommandError(ErrorCode.image, "fetch failed"),
+      );
+      await expect(fetchImageBlob("path", "file")).rejects.toBeInstanceOf(CommandError);
     });
   });
 
@@ -312,11 +369,12 @@ describe("ImageUtils", () => {
       expect(result).toBeNull();
     });
 
-    // Verify that undefined is returned and an error log is output if getImagePreview fails
-    it("should return undefined and log error if getImagePreview fails", async () => {
-      vi.mocked(ContainerCommands.getImagePreview).mockRejectedValue(new Error("preview failed"));
-      const result = await fetchImagePreviewBlob("path", "file");
-      expect(result).toBeUndefined();
+    // Verify that a failed request is distinguishable from the backend declining a preview
+    it("should reject when getImagePreview fails", async () => {
+      vi.mocked(ContainerCommands.getImagePreview).mockRejectedValue(
+        new CommandError(ErrorCode.image, "preview failed"),
+      );
+      await expect(fetchImagePreviewBlob("path", "file")).rejects.toBeInstanceOf(CommandError);
     });
   });
 
