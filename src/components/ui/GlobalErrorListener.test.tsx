@@ -69,6 +69,26 @@ describe("GlobalErrorListener", () => {
     });
   });
 
+  it("should report a book whose file is gone as not found", async () => {
+    const preloadedState = structuredClone(createBasePreloadedState());
+    preloadedState.read.containerFile.error = {
+      code: ErrorCode.pathNotFound,
+    };
+
+    const { store } = renderWithProviders(<GlobalErrorListener />, { preloadedState });
+
+    await waitFor(() => {
+      expect(showNotificationMock).toHaveBeenCalledWith(
+        "Failed to open book. The file or folder was not found.",
+        "error",
+      );
+    });
+
+    await waitFor(() => {
+      expect(store.getState().read.containerFile.error).toBeNull();
+    });
+  });
+
   it("should trigger notification and clear error when explorer has error", async () => {
     const preloadedState = createBasePreloadedState();
     preloadedState.read.explorer.error = { code: ErrorCode.io };
@@ -76,8 +96,10 @@ describe("GlobalErrorListener", () => {
     const { store } = renderWithProviders(<GlobalErrorListener />, { preloadedState });
 
     await waitFor(() => {
-      // "Failed to load folder contents."
-      expect(showNotificationMock).toHaveBeenCalledWith("Failed to load folder contents.", "error");
+      expect(showNotificationMock).toHaveBeenCalledWith(
+        "Failed to load folder contents. Reading or writing the file failed.",
+        "error",
+      );
     });
 
     await waitFor(() => {
@@ -92,8 +114,10 @@ describe("GlobalErrorListener", () => {
     const { store } = renderWithProviders(<GlobalErrorListener />, { preloadedState });
 
     await waitFor(() => {
-      // "Failed to load history."
-      expect(showNotificationMock).toHaveBeenCalledWith("Failed to load history.", "error");
+      expect(showNotificationMock).toHaveBeenCalledWith(
+        "Failed to load history. (Error code: 90001)",
+        "error",
+      );
     });
 
     await waitFor(() => {
@@ -108,8 +132,10 @@ describe("GlobalErrorListener", () => {
     const { store } = renderWithProviders(<GlobalErrorListener />, { preloadedState });
 
     await waitFor(() => {
-      // "Bookshelf operation failed."
-      expect(showNotificationMock).toHaveBeenCalledWith("Bookshelf operation failed.", "error");
+      expect(showNotificationMock).toHaveBeenCalledWith(
+        "Bookshelf operation failed. (Error code: 90001)",
+        "error",
+      );
     });
 
     await waitFor(() => {
@@ -124,8 +150,10 @@ describe("GlobalErrorListener", () => {
     const { store } = renderWithProviders(<GlobalErrorListener />, { preloadedState });
 
     await waitFor(() => {
-      // "Tag operation failed."
-      expect(showNotificationMock).toHaveBeenCalledWith("Tag operation failed.", "error");
+      expect(showNotificationMock).toHaveBeenCalledWith(
+        "Tag operation failed. (Error code: 90001)",
+        "error",
+      );
     });
 
     await waitFor(() => {

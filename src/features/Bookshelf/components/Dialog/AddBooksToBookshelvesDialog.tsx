@@ -17,7 +17,9 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { addBookToBookshelf } from "../../../../bindings/BookshelfCommands";
 import { useNotification } from "../../../../components/ui/Notification/NotificationContext";
+import { useErrorMessage } from "../../../../components/ui/useErrorMessage";
 import type { Bookshelf } from "../../../../domain/bookshelf/schema";
+import { createCommandError } from "../../../../types/Error";
 import { BookShelfIcons } from "../BookshelfIcons";
 
 /** Props for the AddBooksToBookshelvesDialog component */
@@ -43,6 +45,7 @@ export default function AddBooksToBookshelvesDialog({
   onClose,
 }: AddBooksToBookshelvesDialogProps) {
   const { t } = useTranslation();
+  const errorMessage = useErrorMessage();
   const { showNotification } = useNotification();
   const [selectedBookshelfIds, setSelectedBookshelfIds] = useState<Set<number>>(new Set());
 
@@ -90,9 +93,9 @@ export default function AddBooksToBookshelvesDialog({
       // Some adds may have succeeded before the failure: refetch so the UI
       // reflects reality, keep the dialog open for retry, and tell the user.
       onAddBooks();
-      showNotification(t("error-message.common.bookshelf-error"), "error");
+      showNotification(errorMessage("bookshelf", createCommandError(e).code), "error");
     }
-  }, [bookIds, selectedBookshelfIds, onAddBooks, onClose, showNotification, t]);
+  }, [bookIds, selectedBookshelfIds, onAddBooks, onClose, showNotification, errorMessage]);
 
   return (
     <Dialog open={openDialog} onClose={onClose} fullWidth>

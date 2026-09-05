@@ -1,12 +1,11 @@
 import { useEffect } from "react";
-import { useTranslation } from "react-i18next";
 import { clearContainerFileError, clearExplorerError } from "../../features/BookReader/slice";
 import { clearBookshelfError } from "../../features/Bookshelf/slice";
 import { clearTagError } from "../../features/Bookshelf/tagSlice";
 import { clearHistoryError } from "../../features/History/slice";
 import { useAppDispatch, useAppSelector } from "../../store/store";
-import { ErrorCode } from "../../types/Error";
 import { useNotification } from "./Notification/NotificationContext";
+import { useErrorMessage } from "./useErrorMessage";
 
 /**
  * A headless component that listens to Redux error states and triggers UI notifications.
@@ -29,7 +28,7 @@ import { useNotification } from "./Notification/NotificationContext";
  * ```
  */
 export default function GlobalErrorListener() {
-  const { t, i18n } = useTranslation();
+  const errorMessage = useErrorMessage();
   const { showNotification } = useNotification();
   const dispatch = useAppDispatch();
 
@@ -41,50 +40,31 @@ export default function GlobalErrorListener() {
 
   useEffect(() => {
     if (containerFileError) {
-      let sub_msg = "";
-      if (containerFileError.code === ErrorCode.unsupportedContainer) {
-        sub_msg = t("error-message.container.unsupported-format");
-      } else if (containerFileError.code === ErrorCode.entryNotFound) {
-        sub_msg = t("error-message.container.entry-not-found");
-      } else if (containerFileError.code === ErrorCode.emptyContainer) {
-        sub_msg = t("error-message.container.empty");
-      }
-
-      // Joined rather than interpolated: without a specific sub-message the
-      // template would leave a trailing separator on the notification. Japanese
-      // needs no space after its full stop, so the separator follows the language.
-      const separator = i18n.language.startsWith("ja") ? "" : " ";
-      const msg = [t("error-message.common.failed-to-open-container-file"), sub_msg]
-        .filter(Boolean)
-        .join(separator);
-      showNotification(msg, "error");
+      showNotification(errorMessage("open-container", containerFileError.code), "error");
       dispatch(clearContainerFileError());
     }
 
     if (explorerError) {
-      showNotification(t("error-message.common.failed-to-get-dir-entries"), "error");
+      showNotification(errorMessage("explorer", explorerError.code), "error");
       dispatch(clearExplorerError());
     }
 
     if (historyError) {
-      showNotification(t("error-message.common.failed-to-fetch-history"), "error");
+      showNotification(errorMessage("history", historyError.code), "error");
       dispatch(clearHistoryError());
     }
 
     if (bookshelfError) {
-      // TODO(Rookro): Show appropriate error message according to the error code
-      showNotification(t("error-message.common.bookshelf-error"), "error");
+      showNotification(errorMessage("bookshelf", bookshelfError.code), "error");
       dispatch(clearBookshelfError());
     }
 
     if (tagsError) {
-      // TODO(Rookro): Show appropriate error message according to the error code
-      showNotification(t("error-message.common.tag-error"), "error");
+      showNotification(errorMessage("tag", tagsError.code), "error");
       dispatch(clearTagError());
     }
   }, [
-    t,
-    i18n.language,
+    errorMessage,
     dispatch,
     showNotification,
     containerFileError,
