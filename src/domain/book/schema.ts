@@ -73,6 +73,13 @@ export const BookWithStateSchema = BookSchema.extend({
    * Null until the book has been measured once.
    */
   landscape_bits: z.string().nullable(),
+  /**
+   * The page direction this book opens with. Seeded from the reader's default the first
+   * time the book is opened, then overwritten whenever the direction is flipped in the
+   * navigation bar. Null until the book has been opened once, and always null for novels,
+   * whose direction is the EPUB's own.
+   */
+  reading_direction: z.enum(["rtl", "ltr"]).nullable(),
   /** The last read page index, if the book has been opened. */
   last_read_page_index: z.number().nullable(),
   /**
