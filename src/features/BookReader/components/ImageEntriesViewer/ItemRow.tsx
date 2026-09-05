@@ -31,14 +31,9 @@ export const ItemRow = memo(function ItemRow({
           selected={selected}
           onClick={(e) => onClick?.(e, index)}
           key={entry}
-          sx={{
-            padding: "4px 8px",
-            "&.Mui-selected": { backgroundColor: (theme) => theme.palette.action.selected },
-            "&.Mui-selected:hover": { backgroundColor: (theme) => theme.palette.action.selected },
-            "&:hover": { backgroundColor: (theme) => theme.palette.action.hover },
-          }}
+          sx={{ padding: "4px 8px" }}
         >
-          <Image />
+          <Image fontSize="small" />
           <ListItemText
             primary={entry}
             slotProps={{ primary: { noWrap: true } }}
