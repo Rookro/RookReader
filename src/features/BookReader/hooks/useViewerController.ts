@@ -110,11 +110,6 @@ export interface ViewerController {
   displayedLayout: ViewLayout | null;
   /** Is loading a image. */
   isImageLoading: boolean;
-  /**
-   * Why the current page could not be shown at all, if it could not. Null while a page is
-   * on screen, including one that only resolved from its preview.
-   */
-  pageError: { code: ErrorCode } | null;
   /** Move forward action. */
   moveForward: () => void;
   /** Move backward action. */
@@ -171,7 +166,6 @@ export const useViewerController = ({
 }: ViewerControllerOptions): ViewerController => {
   const cacheRef = useRef<Map<string, ImageCacheItem>>(new Map());
   const [isImageLoading, setIsImageLoading] = useState(false);
-  const [pageError, setPageError] = useState<{ code: ErrorCode } | null>(null);
   const [layoutState, setLayoutState] = useState<{ layout: ViewLayout; path: string } | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const [scannedLandscape, setScannedLandscape] = useState<{
@@ -412,6 +406,11 @@ export const useViewerController = ({
         perf("display", `index=${index} pairing=${source}`, perfSince(askedRef.current) ?? 0);
       };
 
+      // Why each page this run asked for could not be loaded, for the pages that failed.
+      // The reader is told in the failed page's own place, which is what says *which*
+      // page failed, so this travels in the layout rather than as viewer-wide state.
+      const failures = new Map<string, ErrorCode>();
+
       /**
        * Builds the layout for the current index, once a pairing is available.
        *
@@ -420,19 +419,21 @@ export const useViewerController = ({
        * already decoded when the chain lands and the hold costs waiting, not latency.
        */
       const layoutForCurrentIndex = (): ViewLayout | null =>
-        pairing ? buildUnitLayout(currentUnit(), index, entries, cache) : null;
+        pairing ? buildUnitLayout(currentUnit(), index, entries, cache, failures) : null;
 
       // Tracks whether a full layout was resolved this run, so the post-settle
       // fallback only fires when no layout ever came out.
       let layoutResolved = false;
 
-      // Why the page the reader asked for could not be drawn, if it could not. Recorded
-      // rather than shown at once: a page that still resolves from its preview, and a
-      // spread that degrades to a single page, are not failures worth interrupting for.
-      // Held in an object so its type survives being written from the closure below.
-      const failure: { code: ErrorCode | null } = { code: null };
-
-      setPageError(null);
+      /** Shows the current index's unit as soon as every page in it is settled. */
+      const publishLayout = () => {
+        const layout = layoutForCurrentIndex();
+        if (layout) {
+          layoutResolved = true;
+          reportDisplayed();
+          setLayoutState({ layout, path: containerPath });
+        }
+      };
 
       const loadAndUpdate = async (
         path: string,
@@ -449,10 +450,11 @@ export const useViewerController = ({
             `Failed to load ${isPreview ? "a preview" : "an image"} of ${path}: ` +
               `${commandError.message} (code ${commandError.code})`,
           );
-          // Only the page the reader is on can leave the viewer with nothing to show; the
-          // facing page of a spread degrades, and a preview is answered by the full image.
-          if (!isPreview && path === entries[index]) {
-            failure.code = commandError.code;
+          // A preview is answered by the full image that follows it, so only the page
+          // itself failing is worth putting on screen.
+          if (!isPreview && !controller.signal.aborted) {
+            failures.set(path, commandError.code);
+            publishLayout();
           }
           return;
         }
@@ -480,12 +482,7 @@ export const useViewerController = ({
           } else {
             cache.set(path, newItem);
           }
-          const layout = layoutForCurrentIndex();
-          if (layout) {
-            layoutResolved = true;
-            reportDisplayed();
-            setLayoutState({ layout, path: containerPath });
-          }
+          publishLayout();
         }
       };
 
@@ -537,11 +534,6 @@ export const useViewerController = ({
             reportDisplayed();
             setLayoutState({ layout: buildSinglePageLayout(firstImg), path: containerPath });
           }
-        }
-        // Nothing came out for the page that was asked for, so say why instead of leaving
-        // the reader on the page before it wondering whether the click registered.
-        if (failure.code !== null && !cache.get(entries[index])?.url) {
-          setPageError({ code: failure.code });
         }
         if (previewPromises.length === 0) {
           setIsImageLoading(pairing === null);
@@ -656,7 +648,6 @@ export const useViewerController = ({
   return {
     displayedLayout,
     isImageLoading,
-    pageError,
     moveForward,
     moveBack,
   };

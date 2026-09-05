@@ -37,21 +37,31 @@ vi.mock("../utils/ImageUtils", () => ({
       currentIndex: number,
       entries: string[],
       cache: Map<string, ImageUtils.ImageCacheItem>,
+      failures: ReadonlyMap<string, number>,
     ) => {
       const firstImage = cache.get(entries[currentIndex]);
-      if (!firstImage) {
+      const firstError = firstImage ? undefined : failures.get(entries[currentIndex]);
+      if (!firstImage && firstError === undefined) {
         return null;
       }
       if (!unit.isSpread) {
-        return { firstImage, isSpread: false, nextIndexIncrement: unit.nextIndexIncrement };
+        return {
+          firstImage,
+          firstError,
+          isSpread: false,
+          nextIndexIncrement: unit.nextIndexIncrement,
+        };
       }
       const secondImage = cache.get(entries[currentIndex + 1]);
-      if (!secondImage) {
+      const secondError = secondImage ? undefined : failures.get(entries[currentIndex + 1]);
+      if (!secondImage && secondError === undefined) {
         return null;
       }
       return {
         firstImage,
         secondImage,
+        firstError,
+        secondError,
         isSpread: true,
         nextIndexIncrement: unit.nextIndexIncrement,
       };
@@ -556,10 +566,10 @@ describe("useViewerController", () => {
         expect(result.current.isImageLoading).toBe(false);
       });
 
-      expect(result.current.displayedLayout).toBeNull();
+      expect(result.current.displayedLayout?.firstImage).toBeUndefined();
     });
 
-    // Verify that a page which cannot be loaded reports its reason instead of nothing
+    // Verify that a page which cannot be loaded reports its reason in the page's own place
     it("reports why the current page could not be shown", async () => {
       mockedFetchImageBlob.mockRejectedValue(new CommandError(ErrorCode.image, "decode failed"));
 
@@ -575,9 +585,45 @@ describe("useViewerController", () => {
       );
 
       await waitFor(() => {
-        expect(result.current.pageError).toEqual({ code: ErrorCode.image });
+        expect(result.current.displayedLayout?.firstError).toBe(ErrorCode.image);
       });
-      expect(result.current.displayedLayout).toBeNull();
+      expect(result.current.displayedLayout?.firstImage).toBeUndefined();
+    });
+
+    // Verify the page before the failed one is replaced, not left on screen as though the
+    // page turn had not registered
+    it("takes the previous page off screen when the next one fails", async () => {
+      mockedFetchImageBlob.mockImplementation((_path, entry) =>
+        entry === "p1.jpg"
+          ? Promise.resolve({} as Image)
+          : Promise.reject(new CommandError(ErrorCode.image, "decode failed")),
+      );
+      mockedCreateImageCacheItem.mockReturnValue({
+        fullUrl: "url1",
+        url: "url1",
+      } as ImageUtils.ImageCacheItem);
+
+      const { result, rerender } = renderHook(
+        ({ index }: { index: number }) =>
+          useViewerController({
+            containerPath: "path",
+            entries: mockEntries,
+            index,
+            isSpreadShifted: false,
+            settings: mockSettings,
+            dispatch: mockDispatch,
+          }),
+        { initialProps: { index: 0 } },
+      );
+
+      await waitFor(() => expect(result.current.displayedLayout).not.toBeNull());
+
+      rerender({ index: 1 });
+
+      await waitFor(() => {
+        expect(result.current.displayedLayout?.firstError).toBe(ErrorCode.image);
+      });
+      expect(result.current.displayedLayout?.firstImage).toBeUndefined();
     });
 
     // A page that came out of its preview is on screen, so there is nothing to report
@@ -603,7 +649,7 @@ describe("useViewerController", () => {
       await waitFor(() => {
         expect(result.current.displayedLayout).not.toBeNull();
       });
-      expect(result.current.pageError).toBeNull();
+      expect(result.current.displayedLayout?.firstError).toBeUndefined();
     });
   });
 
@@ -768,8 +814,8 @@ describe("useViewerController", () => {
       });
     });
 
-    // The reader can read past a missing facing page, so it stays in the log only
-    it("says nothing when only the spread's second page fails", async () => {
+    // The failure belongs to one page of the pair, so the other keeps its place beside it
+    it("keeps the spread together when only its second page fails", async () => {
       mockedFetchImageBlob.mockImplementation((_path, entry) =>
         entry === "p1.jpg"
           ? Promise.resolve({} as Image)
@@ -792,8 +838,41 @@ describe("useViewerController", () => {
         }),
       );
 
-      await waitFor(() => expect(result.current.displayedLayout?.isSpread).toBe(false));
-      expect(result.current.pageError).toBeNull();
+      await waitFor(() => {
+        expect(result.current.displayedLayout?.secondError).toBe(ErrorCode.entryNotFound);
+      });
+      expect(result.current.displayedLayout?.isSpread).toBe(true);
+      expect(result.current.displayedLayout?.firstImage).toEqual({
+        fullUrl: "url1",
+        url: "url1",
+      });
+    });
+
+    // Verify both halves say why, so two failures read as two failed pages
+    it("gives each page of a spread its own reason", async () => {
+      mockedFetchImageBlob.mockImplementation((_path, entry) =>
+        Promise.reject(
+          new CommandError(entry === "p1.jpg" ? ErrorCode.image : ErrorCode.entryNotFound, "no"),
+        ),
+      );
+      mockedBuildUnitChain.mockImplementation(spreadPairs);
+
+      const { result } = renderHook(() =>
+        useViewerController({
+          containerPath: "path",
+          entries: mockEntries,
+          index: 0,
+          isSpreadShifted: false,
+          settings: twoPagedSettings,
+          dispatch: mockDispatch,
+        }),
+      );
+
+      await waitFor(() => {
+        expect(result.current.displayedLayout?.firstError).toBe(ErrorCode.image);
+      });
+      expect(result.current.displayedLayout?.secondError).toBe(ErrorCode.entryNotFound);
+      expect(result.current.displayedLayout?.isSpread).toBe(true);
     });
   });
 
