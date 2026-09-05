@@ -177,7 +177,9 @@ impl Worker {
 /// The error every request gets once the worker thread is gone. The `OnceLock` cannot be
 /// re-initialised, so this is permanent for the life of the process.
 fn unavailable() -> Error {
-    Error::Other("PDF support is unavailable: the pdfium library could not be loaded".to_string())
+    Error::PdfUnavailable(
+        "PDF support is unavailable: the pdfium library could not be loaded".to_string(),
+    )
 }
 
 /// The worker thread's whole life: bind the library once, then serve requests against

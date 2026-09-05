@@ -389,23 +389,31 @@
     }
   },
   "error-message": {
-    "common": {
-      "failed-to-open-container-file": "Failed to open book.",
-      "failed-to-get-dir-entries": "Failed to load folder contents.",
-      "failed-to-fetch-history": "Failed to load history.",
-      "bookshelf-error": "Bookshelf operation failed.",
-      "tag-error": "Tag operation failed.",
-      "series-error": "Series operation failed.",
-      "unknown": "Something went wrong."
+    "headline": {
+      "open-container": "Failed to open book.",
+      "record-book": "Failed to record the reading history.",
+      "explorer": "Failed to load folder contents.",
+      "history": "Failed to load history.",
+      "bookshelf": "Bookshelf operation failed.",
+      "tag": "Tag operation failed.",
+      "series": "Series operation failed.",
+      "settings-save": "Failed to save settings."
     },
-    "container": {
+    "reason": {
+      "not-found": "The file or folder was not found.",
       "unsupported-format": "Unsupported format.",
+      "empty-container": "The book contains no readable pages.",
       "entry-not-found": "Page not found.",
-      "empty": "The book contains no readable pages."
+      "damaged": "The file is damaged or could not be read.",
+      "pdf-unavailable": "PDF support is unavailable.",
+      "book-changed": "A different book was opened.",
+      "io": "Reading or writing the file failed.",
+      "invalid-path": "The path is not valid.",
+      "database": "Saving data failed.",
+      "settings-validation": "Please check your input.",
+      "unspecified": "(Error code: {{code}})"
     },
     "settings": {
-      "save-failed": "Failed to save settings.",
-      "validation-failed": "Failed to save settings. Please check your input.",
       "out-of-range": "\"{{field}}\" must be between {{min}} and {{max}}.",
       "not-integer": "\"{{field}}\" must be a whole number.",
       "invalid-number": "\"{{field}}\" must be a valid number."

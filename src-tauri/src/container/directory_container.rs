@@ -53,7 +53,7 @@ impl DirectoryReader {
     /// a file outside it. Only names the directory scan itself produced are accepted.
     fn resolve(&self, entry: &str) -> Result<PathBuf> {
         if !self.allowed.contains(entry) {
-            return Err(Error::Path(format!(
+            return Err(Error::EntryNotFound(format!(
                 "entry is not a member of the container: {entry}"
             )));
         }

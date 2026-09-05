@@ -26,7 +26,7 @@ static OPEN_CONTAINER_LOCK: Mutex<()> = Mutex::const_new(());
 /// against the wrong book would silently serve another book's page. Raised in one place
 /// rather than repeated at each command, because `service_for` is the only way in.
 fn stale(path: &str, what: &str) -> Error {
-    Error::EntryNotFound(format!(
+    Error::BookChanged(format!(
         "Container changed while requesting {what} (requested {path})"
     ))
 }
@@ -693,7 +693,7 @@ mod tests {
     #[tokio::test]
     async fn test_get_image_rejects_stale_container_path() {
         // A request whose path does not match the installed loader's book_id raced a
-        // book switch; it must be rejected (EntryNotFound), not served another book's page.
+        // book switch; it must be rejected (BookChanged), not served another book's page.
         let app = tauri::test::mock_app();
         manage_service(&app, "current_book_id", page_container(&["test1.png"]));
 
@@ -704,7 +704,7 @@ mod tests {
             panic!("a stale-path get_image should be rejected");
         };
         assert!(
-            matches!(err, Error::EntryNotFound(_)),
+            matches!(err, Error::BookChanged(_)),
             "unexpected error: {err}"
         );
     }
@@ -771,7 +771,7 @@ mod tests {
             panic!("a stale-path get_image_dimensions should be rejected");
         };
         assert!(
-            matches!(err, Error::EntryNotFound(_)),
+            matches!(err, Error::BookChanged(_)),
             "unexpected error: {err}"
         );
     }
@@ -807,7 +807,7 @@ mod tests {
         // Preloading is subject to the same check as every other request: the frontend
         // issues it on every page turn, so it is the one most likely to race a switch.
         let stale = request_preload_around("stale_book_id", 0, Some(5), None, app.state()).await;
-        assert!(matches!(stale, Err(Error::EntryNotFound(_))));
+        assert!(matches!(stale, Err(Error::BookChanged(_))));
     }
 
     #[tokio::test]

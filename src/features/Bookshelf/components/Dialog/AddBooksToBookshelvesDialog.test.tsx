@@ -133,7 +133,7 @@ describe("AddBooksToBookshelvesDialog", () => {
     await user.click(screen.getByRole("button", { name: /ok|決定/i }));
 
     await waitFor(() =>
-      expect(screen.getByText("Bookshelf operation failed.")).toBeInTheDocument(),
+      expect(screen.getByText(/^Bookshelf operation failed\./)).toBeInTheDocument(),
     );
     expect(onAddBooks).toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();

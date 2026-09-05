@@ -389,23 +389,31 @@
     }
   },
   "error-message": {
-    "common": {
-      "failed-to-open-container-file": "本が開けませんでした。",
-      "failed-to-get-dir-entries": "フォルダーの中身が読み込めませんでした。",
-      "failed-to-fetch-history": "履歴が読み込めませんでした。",
-      "bookshelf-error": "本棚の操作でエラーが発生しました。",
-      "tag-error": "タグの操作でエラーが発生しました。",
-      "series-error": "シリーズの操作でエラーが発生しました。",
-      "unknown": "問題が発生しました。"
+    "headline": {
+      "open-container": "本が開けませんでした。",
+      "record-book": "読書履歴の記録に失敗しました。",
+      "explorer": "フォルダーの中身が読み込めませんでした。",
+      "history": "履歴が読み込めませんでした。",
+      "bookshelf": "本棚の操作でエラーが発生しました。",
+      "tag": "タグの操作でエラーが発生しました。",
+      "series": "シリーズの操作でエラーが発生しました。",
+      "settings-save": "設定の保存に失敗しました。"
     },
-    "container": {
+    "reason": {
+      "not-found": "ファイルまたはフォルダーが見つかりません。",
       "unsupported-format": "非対応形式です。",
+      "empty-container": "読み込めるページがありません。",
       "entry-not-found": "ページが見つかりません。",
-      "empty": "読み込めるページがありません。"
+      "damaged": "ファイルが壊れているか、読み込めません。",
+      "pdf-unavailable": "PDF 機能を利用できません。",
+      "book-changed": "別の本に切り替わりました。",
+      "io": "ファイルの読み書きに失敗しました。",
+      "invalid-path": "パスが正しくありません。",
+      "database": "データの保存に失敗しました。",
+      "settings-validation": "入力内容を確認してください。",
+      "unspecified": "(エラーコード: {{code}})"
     },
     "settings": {
-      "save-failed": "設定の保存に失敗しました。",
-      "validation-failed": "設定の保存に失敗しました。入力内容を確認してください。",
       "out-of-range": "「{{field}}」は {{min}}〜{{max}} の範囲で入力してください。",
       "not-integer": "「{{field}}」は整数で入力してください。",
       "invalid-number": "「{{field}}」には有効な数値を入力してください。"

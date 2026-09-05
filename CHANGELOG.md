@@ -27,6 +27,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 * Fixed the Pages list in the side pane highlighting the current page in a different color from the History and File Navigator lists instead of following the app theme. (#316)
+* Fixed error messages that gave the wrong reason, or no reason at all. (#318)
+  * A book whose file has been moved or deleted now reports that it could not be found, instead of claiming the format is not supported. Folder names containing a dot, such as "Dr.STONE 01" or "Vol.1", were affected in particular.
+  * Bookshelf, tag, series, history and settings errors now say why the operation failed, instead of only saying that it did.
+  * A book that opened successfully is no longer closed with "Failed to open book." when only saving it to the reading history failed.
 
 ## [2.4.0] - 2026-08-30
 

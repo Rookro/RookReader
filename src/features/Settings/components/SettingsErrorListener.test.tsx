@@ -27,7 +27,10 @@ describe("SettingsErrorListener", () => {
     const { store } = renderWithProviders(<SettingsErrorListener />, { preloadedState });
 
     await waitFor(() => {
-      expect(showNotification).toHaveBeenCalledWith("Failed to save settings.", "error");
+      expect(showNotification).toHaveBeenCalledWith(
+        "Failed to save settings. (Error code: 50001)",
+        "error",
+      );
       expect(store.getState().settingsError.error).toBeNull();
     });
   });

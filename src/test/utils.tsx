@@ -58,6 +58,7 @@ export function createBasePreloadedState(): RootState {
         book: null,
         cfi: null,
         error: null,
+        bookRecordError: null,
         origin: null,
         pendingInitialPosition: null,
       },
