@@ -21,7 +21,7 @@ mod tests {
     fn test_default_app_state() {
         let app_state = AppState::default();
 
-        assert!(app_state.container_state.container.is_none());
+        assert!(!app_state.container_state.is_open());
         assert_eq!(
             ContainerSettings::default().pdf_render_resolution_height,
             app_state

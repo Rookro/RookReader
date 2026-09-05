@@ -24,7 +24,7 @@ import {
   goBackContainerHistory,
   goForwardContainerHistory,
   setContainerFilePath,
-  setSpreadShifted,
+  toggleSpreadShift,
 } from "../slice";
 
 /**
@@ -88,8 +88,8 @@ export default function NavigationBar() {
   );
 
   const handleShiftSpreadClicked = useCallback(() => {
-    dispatch(setSpreadShifted(!isSpreadShifted));
-  }, [dispatch, isSpreadShifted]);
+    dispatch(toggleSpreadShift());
+  }, [dispatch]);
 
   const handleSwitchDirectionClicked = useCallback(
     (_e: React.MouseEvent<HTMLButtonElement>) => {

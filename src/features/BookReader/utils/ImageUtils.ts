@@ -52,22 +52,6 @@ export interface ViewLayout {
   /** Increment for the next index. */
   nextIndexIncrement: number;
 }
-
-/**
- * Pixel dimensions of a page.
- */
-export interface PageDims {
-  /** Width of the page. */
-  width: number;
-  /** Height of the page. */
-  height: number;
-}
-
-/**
- * Returns the dimensions of the entry at the given index, or undefined when unknown.
- */
-export type DimsLookup = (index: number) => PageDims | undefined;
-
 /**
  * Decision for a single display unit, independent of whether its images are loaded.
  */
@@ -120,14 +104,19 @@ export const fetchImageBlob = async (
 /**
  * Fetches an image preview blob from the backend.
  *
+ * The backend distinguishes "no preview was made" (an empty response) from "the request
+ * failed" (an error), and so does this: a caller that stops asking for previews after an
+ * empty answer must not also stop after a transient failure.
+ *
  * @param containerPath The path of the container file.
  * @param entryName The name of the entry to fetch.
- * @returns The fetched image or undefined if the fetch failed.
+ * @returns The fetched image, null if the backend produced no preview, or undefined if
+ *   the fetch failed.
  */
 export const fetchImagePreviewBlob = async (
   containerPath: string,
   entryName: string,
-): Promise<Image | undefined> => {
+): Promise<Image | null | undefined> => {
   if (!containerPath || !entryName || containerPath.length === 0 || entryName.length === 0) {
     return undefined;
   }
@@ -135,7 +124,7 @@ export const fetchImagePreviewBlob = async (
     const response = await getImagePreview(containerPath, entryName);
     if (response.byteLength === 0) {
       debug(`Skip preview image for ${entryName}`);
-      return undefined;
+      return null;
     }
     return new Image(response);
   } catch (ex) {
@@ -184,57 +173,14 @@ export const buildSinglePageLayout = (firstImage: ImageCacheItem): ViewLayout =>
   nextIndexIncrement: 1,
 });
 
-/** Decision shared by every single-page unit. */
-const SINGLE_UNIT: UnitDecision = { isSpread: false, nextIndexIncrement: 1 };
-
 /**
- * Decides the display unit starting at `currentIndex` from page dimensions alone.
+ * Decision shared by every single-page unit.
  *
- * This holds the spread rules; layout building only attaches images to the decision.
- *
- * @param currentIndex The index the unit starts at.
- * @param entries The list of entry names.
- * @param getDims Lookup for page dimensions.
- * @param settings The viewer settings.
- * @returns The unit decision, or null when a dimension needed to decide is unknown.
+ * Exported because it is also the viewer's fallback while a book is still being measured:
+ * a guessed pairing would be a coin flip on parity, and correcting one swaps the facing
+ * page under the reader, where single pages can only gain one.
  */
-export const resolveUnit = (
-  currentIndex: number,
-  entries: string[],
-  getDims: DimsLookup,
-  settings: ViewerSettings,
-): UnitDecision | null => {
-  const first = getDims(currentIndex);
-
-  if (!first) {
-    return null;
-  }
-
-  if (!settings.isTwoPagedView || currentIndex + 1 >= entries.length) {
-    return SINGLE_UNIT;
-  }
-
-  if (first.width > first.height) {
-    return SINGLE_UNIT;
-  }
-
-  if (currentIndex === 0 && settings.isFirstPageSingleView) {
-    return SINGLE_UNIT;
-  }
-
-  const second = getDims(currentIndex + 1);
-
-  if (!second) {
-    return null;
-  }
-
-  if (second.width > second.height) {
-    return SINGLE_UNIT;
-  }
-
-  return { isSpread: true, nextIndexIncrement: 2 };
-};
-
+export const SINGLE_UNIT: UnitDecision = { isSpread: false, nextIndexIncrement: 1 };
 /**
  * Attaches cached images to a unit decision.
  *
@@ -289,16 +235,15 @@ export interface UnitChain {
  * This holds only while no pages are missing, so landscape images that disagree are
  * proof that one is; detection then gives up rather than guess.
  *
- * @param dims The dimensions of every page, in entry order.
+ * @param landscape Whether each page is wider than it is tall, in entry order.
  * @returns Whether the first image is the cover, or null when the archive offers no
  *   evidence or contradicts itself.
  */
-export const detectCoverPresence = (dims: PageDims[]): boolean | null => {
+export const detectCoverPresence = (landscape: boolean[]): boolean | null => {
   let pagesBefore = 0;
   let detected: boolean | null = null;
 
-  for (const page of dims) {
-    const isLandscape = page.width > page.height;
+  for (const isLandscape of landscape) {
     if (isLandscape) {
       // P(i) has to be even: with P(0) = 1 that needs an odd number of pages before it,
       // with P(0) = 2 an even one.
@@ -323,31 +268,30 @@ export const detectCoverPresence = (dims: PageDims[]): boolean | null => {
  * physical pages, a portrait image one. A screen starts at page 1 (the cover, shown alone)
  * and at every even page, which is what makes two facing pages share a screen.
  *
- * @param dims The dimensions of every page, in entry order.
+ * @param landscape Whether each page is wider than it is tall, in entry order.
  * @param settings The viewer settings.
  * @param hasCover Whether the archive's first image is the book's front cover.
  * @returns The chain covering every index from 0 to the last page.
  */
 export const buildUnitChain = (
-  dims: PageDims[],
+  landscape: boolean[],
   settings: ViewerSettings,
   hasCover: boolean,
 ): UnitChain => {
   const units = new Map<number, UnitDecision>();
   const starts: number[] = [];
-  const isLandscape = (i: number): boolean =>
-    dims[i] !== undefined && dims[i].width > dims[i].height;
+  const isLandscape = (i: number): boolean => landscape[i] === true;
 
   let page = hasCover ? 1 : 2;
   let index = 0;
-  while (index < dims.length) {
+  while (index < landscape.length) {
     // Only an even page faces the page after it, and only two portrait images can share
     // a screen — a landscape image is already a whole spread.
     const pairs =
       settings.isTwoPagedView &&
       page % 2 === 0 &&
       !isLandscape(index) &&
-      index + 1 < dims.length &&
+      index + 1 < landscape.length &&
       !isLandscape(index + 1);
 
     const unit = pairs ? { isSpread: true, nextIndexIncrement: 2 } : SINGLE_UNIT;
@@ -358,47 +302,4 @@ export const buildUnitChain = (
   }
 
   return { starts, units };
-};
-
-/**
- * Finds the start index of the page unit immediately preceding `currentIndex` by
- * walking unit boundaries forward from page 0.
- *
- * Spread boundaries depend on the whole chain from the start, so the previous unit
- * cannot be derived from a local look-back. This walk uses the same per-unit
- * `nextIndexIncrement` as forward navigation, keeping back/forward in sync.
- *
- * @param currentIndex The current unit-start index to step back from.
- * @param entries The list of entry names.
- * @param getDims Lookup for page dimensions.
- * @param settings The viewer settings.
- * @returns The previous unit's start index, or `null` when `currentIndex <= 0`, when a
- *   page dimension needed to reach `currentIndex` is unknown, or when `currentIndex`
- *   is not a real unit start under the current layout (the caller should fall back).
- */
-export const findPreviousUnitStart = (
-  currentIndex: number,
-  entries: string[],
-  getDims: DimsLookup,
-  settings: ViewerSettings,
-): number | null => {
-  if (currentIndex <= 0) {
-    return null;
-  }
-  let start = 0;
-  let prev = 0;
-  while (start < currentIndex) {
-    const unit = resolveUnit(start, entries, getDims, settings);
-    if (!unit) {
-      // A page dimension on the path is unknown; can't reconstruct boundaries.
-      return null;
-    }
-    prev = start;
-    start += unit.nextIndexIncrement;
-  }
-  // Overshooting means `currentIndex` is not a real unit start under this layout.
-  if (start !== currentIndex) {
-    return null;
-  }
-  return prev;
 };

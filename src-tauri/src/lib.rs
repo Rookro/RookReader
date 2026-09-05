@@ -10,9 +10,16 @@ pub mod domain;
 pub mod error;
 pub mod image;
 pub mod infrastructure;
+pub mod page;
+pub mod perf;
 mod settings;
 mod setup;
 mod state;
+
+/// Loading benchmarks. Never run by a plain `cargo test`; invoke them by name, e.g.
+/// `cargo test --release --lib perfbench_report -- --ignored --nocapture --test-threads=1`.
+#[cfg(test)]
+mod perfbench;
 
 /// Builds the `tauri-specta` command registry used to export the TypeScript bindings.
 ///
@@ -32,6 +39,7 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
         commands::settings_commands::set_settings,
         commands::container_commands::request_preload_around,
         commands::container_commands::get_entries_in_container,
+        commands::container_commands::count_pages_in_container,
         commands::container_commands::get_image_dimensions,
         commands::font_commands::get_fonts,
         commands::book_commands::get_book_tags,
@@ -44,6 +52,8 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
         commands::book_commands::delete_book::<tauri::Wry>,
         commands::book_commands::clear_reading_history::<tauri::Wry>,
         commands::book_commands::clear_all_reading_history::<tauri::Wry>,
+        commands::book_commands::update_spread_shift,
+        commands::book_commands::update_page_layout,
         commands::book_commands::get_recently_read_books,
         commands::book_commands::update_reading_progress::<tauri::Wry>,
         commands::book_commands::get_all_books_with_state,
@@ -319,6 +329,8 @@ mod tests {
             series_order: None,
             thumbnail_path: None,
             created_at: None,
+            is_spread_shifted: false,
+            landscape_bits: None,
             last_read_page_index: Some(2),
             last_opened_at: None,
             cfi: None,

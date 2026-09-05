@@ -26,6 +26,7 @@ import readReducer, {
   setSearchText,
   setSpreadDisplayed,
   setSpreadShifted,
+  toggleSpreadShift,
   updateExploreBasePath,
 } from "./slice";
 
@@ -357,8 +358,92 @@ describe("ReadReducer", () => {
         expect(state.containerFile.book).toEqual(mockBook);
         expect(state.containerFile.index).toBe(1);
         expect(state.containerFile.entries).toEqual(["p1", "p2"]);
-        // The viewer shifts the pairing only when the restored page needs it.
+        // The book carries no correction, so the pairing is the one it measures.
         expect(state.containerFile.isSpreadShifted).toBe(false);
+      });
+
+      // The open-time window is the one that races the viewer's first request: it must
+      // leave the pages the viewer is about to ask for to the viewer.
+      it("leaves the pages the viewer will load out of the opening window", async () => {
+        const mockBook = createMockBookWithState({ id: 1, last_read_page_index: 4 });
+
+        vi.mocked(ContainerCommands.getEntriesInContainer).mockResolvedValue({
+          is_directory: false,
+          entries: ["p1", "p2", "p3", "p4", "p5", "p6"],
+          is_novel: false,
+        });
+        vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(1);
+        vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
+
+        await store.dispatch(openContainerFile("path/to/book.zip"));
+
+        // The test store's default reader shows spreads, so the viewer will ask for two.
+        expect(ContainerCommands.requestPreloadAround).toHaveBeenCalledWith(
+          "path/to/book.zip",
+          4,
+          store.getState().settings.reader.comic.cache.preloadPageCount,
+          2,
+        );
+      });
+
+      // Verify the reader's own correction comes back with the book
+      it("restores the spread shift from the book", async () => {
+        const mockBook = createMockBookWithState({ id: 7, is_spread_shifted: true });
+
+        vi.mocked(ContainerCommands.getEntriesInContainer).mockResolvedValue({
+          is_directory: false,
+          entries: ["p1", "p2"],
+          is_novel: false,
+        });
+        vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(7);
+        vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
+
+        store.dispatch(setContainerFilePath("path/to/book.zip"));
+        await store.dispatch(openContainerFile("path/to/book.zip"));
+
+        // It used to be inferred from whether the restored page happened to be a spread
+        // boundary, which made where the reader stopped decide how the book pairs.
+        expect(store.getState().read.containerFile.isSpreadShifted).toBe(true);
+      });
+
+      // Verify the toggle both applies and persists
+      it("toggleSpreadShift flips the flag and stores it against the book", async () => {
+        const mockBook = createMockBookWithState({ id: 7, is_spread_shifted: false });
+
+        vi.mocked(ContainerCommands.getEntriesInContainer).mockResolvedValue({
+          is_directory: false,
+          entries: ["p1", "p2"],
+          is_novel: false,
+        });
+        vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(7);
+        vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
+
+        store.dispatch(setContainerFilePath("path/to/book.zip"));
+        await store.dispatch(openContainerFile("path/to/book.zip"));
+
+        await store.dispatch(toggleSpreadShift());
+
+        expect(store.getState().read.containerFile.isSpreadShifted).toBe(true);
+        expect(BookCommands.updateSpreadShift).toHaveBeenCalledWith(7, true);
+      });
+
+      // Verify a book that could not be recorded still pairs as the reader asked
+      it("toggleSpreadShift still applies when there is no book to store it against", async () => {
+        vi.mocked(ContainerCommands.getEntriesInContainer).mockResolvedValue({
+          is_directory: false,
+          entries: ["p1", "p2"],
+          is_novel: false,
+        });
+        vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(1);
+        vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(null);
+
+        store.dispatch(setContainerFilePath("path/to/book.zip"));
+        await store.dispatch(openContainerFile("path/to/book.zip"));
+
+        await store.dispatch(toggleSpreadShift());
+
+        expect(store.getState().read.containerFile.isSpreadShifted).toBe(true);
+        expect(BookCommands.updateSpreadShift).not.toHaveBeenCalled();
       });
 
       // A folder inside an archive is stored as a folder, so the History tab shows it

@@ -18,6 +18,7 @@ const selectComicReaderState = createSelector(
     entries: containerFile.entries,
     index: containerFile.index,
     isSpreadShifted: containerFile.isSpreadShifted,
+    book: containerFile.book,
     readerSettings,
   }),
 );
@@ -27,7 +28,7 @@ const selectComicReaderState = createSelector(
  */
 export default function ComicReader() {
   const dispatch = useAppDispatch();
-  const { history, historyIndex, entries, index, isSpreadShifted, readerSettings } =
+  const { history, historyIndex, entries, index, isSpreadShifted, book, readerSettings } =
     useAppSelector(selectComicReaderState);
 
   const containerPath = history[historyIndex];
@@ -52,16 +53,17 @@ export default function ComicReader() {
   const { onForwardBoundary, onBackwardBoundary, pending, confirmPending, cancelPending } =
     useAdjacentBookNavigation();
 
-  const { displayedLayout, moveForward, moveBack, isImageLoading } = useViewerController(
+  const { displayedLayout, moveForward, moveBack, isImageLoading } = useViewerController({
     containerPath,
     entries,
     index,
     isSpreadShifted,
     settings,
     dispatch,
+    book,
     onForwardBoundary,
     onBackwardBoundary,
-  );
+  });
 
   const loupeSettings = readerSettings.comic.loupe;
 

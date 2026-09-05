@@ -13,6 +13,8 @@ vi.mock("../../bindings/BookCommands", () => ({
   updateBookSeries: vi.fn(() => Promise.resolve([])),
   updateSeriesOrders: vi.fn(() => Promise.resolve([])),
   updateReadingProgress: vi.fn(() => Promise.resolve([])),
+  updateSpreadShift: vi.fn(() => Promise.resolve()),
+  updatePageLayout: vi.fn(() => Promise.resolve()),
   clearReadingHistory: vi.fn(() => Promise.resolve([])),
   clearAllReadingHistory: vi.fn(() => Promise.resolve([])),
   getRecentlyReadBooks: vi.fn(() => Promise.resolve([])),
@@ -40,6 +42,7 @@ vi.mock("../../bindings/ContainerCommands", () => ({
   getEntriesInContainer: vi.fn(() =>
     Promise.resolve({ entries: [], is_directory: false, is_novel: false }),
   ),
+  countPagesInContainer: vi.fn(() => Promise.resolve({ total_pages: 0, is_directory: false })),
   requestPreloadAround: vi.fn(() => Promise.resolve()),
   getImageDimensions: vi.fn(() => Promise.resolve([])),
   getImage: vi.fn(() => Promise.resolve(new ArrayBuffer(0))),

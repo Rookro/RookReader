@@ -157,6 +157,35 @@ pub trait BookRepository: Send + Sync {
     /// Returns an `Err` if the database execution fails.
     async fn update_reading_progress(&self, state: &ReadingState) -> Result<()>;
 
+    /// Records the reader's correction to how a book pairs into spreads.
+    ///
+    /// Separate from [`BookRepository::update_page_layout`] because the two have separate
+    /// triggers — a button press and a finished measurement — and neither should have to
+    /// read the other back in order to write its own.
+    ///
+    /// # Arguments
+    ///
+    /// * `book_id` - The book to update.
+    /// * `is_spread_shifted` - Whether the reader has shifted the book's spreads.
+    ///
+    /// # Errors
+    ///
+    /// Returns an `Err` if the database query fails.
+    async fn update_spread_shift(&self, book_id: i64, is_spread_shifted: bool) -> Result<()>;
+
+    /// Records how a book's pages are shaped, so it need not be measured again.
+    ///
+    /// # Arguments
+    ///
+    /// * `book_id` - The book to update.
+    /// * `landscape_bits` - One `'0'`/`'1'` per page in entry order, `'1'` for a page
+    ///   wider than it is tall.
+    ///
+    /// # Errors
+    ///
+    /// Returns an `Err` if the database query fails.
+    async fn update_page_layout(&self, book_id: i64, landscape_bits: &str) -> Result<()>;
+
     /// Retrieves books that have been opened, ordered by the last opened time in descending order.
     ///
     /// # Arguments

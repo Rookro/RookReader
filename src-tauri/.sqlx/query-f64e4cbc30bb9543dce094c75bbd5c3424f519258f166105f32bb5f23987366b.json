@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE books SET is_spread_shifted = ? WHERE id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "f64e4cbc30bb9543dce094c75bbd5c3424f519258f166105f32bb5f23987366b"
+}

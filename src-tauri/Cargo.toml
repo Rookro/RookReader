@@ -61,7 +61,6 @@ sqlx = { version = "0.8.6", features = ["sqlite", "runtime-tokio-native-tls", "c
 async-trait = "0.1.89"
 tauri-plugin-process = "2"
 tokio = { version = "1.52.3", features = ["sync"] }
-thread-priority = "3.0.0"
 garde = { version = "0.23", features = ["derive"] }
 specta = { version = "=2.0.0-rc.25", features = ["derive", "chrono", "serde_json", "function"] }
 specta-typescript = "=0.0.12"

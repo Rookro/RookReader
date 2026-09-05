@@ -15,6 +15,8 @@ export const createMockBookWithState = (overrides?: Partial<BookWithState>): Boo
   item_type: "file",
   total_pages: 100,
   created_at: "2026-03-01T15:30:00",
+  is_spread_shifted: false,
+  landscape_bits: null,
   last_read_page_index: 0,
   last_opened_at: "2026-03-18T12:00:00Z",
   cfi: null,

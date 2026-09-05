@@ -35,6 +35,12 @@ const FIELD_BOUNDS: &[FieldBound] = &[
         max: 10000.0,
     },
     FieldBound {
+        path: "reader.comic.cache.pageReaderCount",
+        integer: true,
+        min: 0.0,
+        max: 64.0,
+    },
+    FieldBound {
         path: "reader.comic.cache.imageCacheSizeMib",
         integer: true,
         min: 1.0,

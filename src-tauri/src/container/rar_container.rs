@@ -2,36 +2,42 @@
 //!
 //! # Performance Constraints
 //!
-//! The underlying `unrar` library's `OpenArchive` type does not implement `Send`.
-//! This prevents sharing a single opened archive instance across multiple threads (e.g., inside a Mutex).
-//! Consequently, the archive has to be opened and scanned sequentially for every image request.
+//! `unrar`'s `OpenArchive` is not `Send` and has no random access: reaching a page means
+//! walking the headers from wherever the cursor stands. A reader is owned by one thread
+//! for the life of a book, so it keeps that cursor between pages and a forward read is a
+//! step rather than a rescan. On a solid archive the difference is the whole cost —
+//! every member sits in one compressed block, so skipping to page N decompresses
+//! everything before it.
 
 use unrar::{Archive, CursorBeforeHeader, OpenArchive, Process};
 
 use std::{collections::HashMap, sync::Arc};
 
 use crate::{
-    container::{archive_path, traits::Container},
-    error::{Error, Result},
-    image::{
-        thumbnail::generate_thumbnail,
-        types::{read_dimensions, Image, ImageDimensions},
+    container::{
+        archive_path,
+        traits::{Container, PageReader},
     },
+    error::{Error, Result},
+    image::types::Image,
 };
 
 /// An implementation of the `Container` trait for reading content from RAR archive files.
-///
-/// NOTE: The underlying `unrar` library's `OpenArchive` type does not implement `Send`,
-/// which prevents us from sharing a single opened archive instance across threads using a Mutex.
-/// As a result, this implementation currently opens the archive for each image request.
 pub struct RarContainer {
     /// The file path of the RAR container.
     path: String,
     /// A naturally sorted list of the image leaf names in the opened folder.
     entries: Vec<String>,
     /// Maps each leaf name back to its full path inside the archive, which is what the
-    /// archive headers carry.
-    entry_to_path: HashMap<String, String>,
+    /// archive headers carry. Shared with every reader rather than copied into each one.
+    entry_to_path: Arc<HashMap<String, String>>,
+    /// Every archive member's position in header order, including the directories a
+    /// reader has to walk past. This is what lets a reader tell "still ahead of me" from
+    /// "already behind me" without walking to the end to find out.
+    member_order: Arc<HashMap<String, usize>>,
+    /// Whether all members share one compressed block, in which case a second reader
+    /// would only repeat the first one's decompression.
+    is_solid: bool,
 }
 
 impl Container for RarContainer {
@@ -39,25 +45,114 @@ impl Container for RarContainer {
         &self.entries
     }
 
-    fn get_image(&self, entry: &str) -> Result<Arc<Image>> {
-        load_image(&self.path, self.resolve_entry(entry)?)
-    }
-
-    fn get_thumbnail(&self, entry: &str) -> Result<Arc<Image>> {
-        create_thumbnail(&self.path, self.resolve_entry(entry)?)
-    }
-
-    fn get_image_dimensions(&self) -> Result<Vec<ImageDimensions>> {
-        let paths = self
-            .entries
-            .iter()
-            .map(|entry| self.resolve_entry(entry).map(str::to_string))
-            .collect::<Result<Vec<String>>>()?;
-        read_all_dimensions(&self.path, &paths)
-    }
-
     fn is_directory(&self) -> bool {
         false
+    }
+
+    fn max_readers(&self) -> usize {
+        if self.is_solid {
+            // One compressed block: a second reader decompresses the same prefix again
+            // rather than doing anything the first is not already doing.
+            1
+        } else {
+            usize::MAX
+        }
+    }
+
+    fn open_reader(&self) -> Result<Box<dyn PageReader>> {
+        Ok(Box::new(self.reader()))
+    }
+}
+
+/// A reader over one RAR archive, holding its cursor between pages.
+///
+/// Reading the book in order therefore costs one walk over the archive rather than one
+/// per page. A backward target has to reopen and re-walk, which on a solid archive is
+/// the expensive direction — but it is the right trade: the page a reader is waiting for
+/// always outranks scan throughput.
+struct RarReader {
+    path: String,
+    entry_to_path: Arc<HashMap<String, String>>,
+    member_order: Arc<HashMap<String, usize>>,
+    /// `None` before the first read, and after anything leaves the cursor's position
+    /// unknown — the end of the archive, or a failed read.
+    cursor: Option<OpenArchive<Process, CursorBeforeHeader>>,
+    /// How many headers the cursor has walked past.
+    position: usize,
+    /// How many headers this reader has walked in total, across every read.
+    ///
+    /// The cost of a RAR page is the headers between it and the previous one, so this is
+    /// the number that says whether a reading order is a single pass or a rescan per
+    /// page. `position` cannot show that: it is reset by every reopen, and so reads the
+    /// same either way.
+    #[cfg(test)]
+    walked: usize,
+}
+
+impl RarReader {
+    /// Opens the archive again, with the cursor back at the first header.
+    fn reopen(&mut self) -> Result<()> {
+        self.cursor = Some(open(&self.path)?);
+        self.position = 0;
+        Ok(())
+    }
+
+    /// Walks forward to `wanted` and reads it, or reaches the end without finding it.
+    ///
+    /// `read`, `skip` and `read_header` each consume the archive and hand back a new
+    /// value, so the cursor is moved out and put back rather than borrowed. Anything that
+    /// fails part-way therefore leaves it `None`, and the next read reopens — a lost
+    /// position is a slow read, never a wrong one.
+    fn walk_to(&mut self, wanted: &str) -> Result<Option<Vec<u8>>> {
+        while let Some(cursor) = self.cursor.take() {
+            let Some(at_file) = cursor.read_header()? else {
+                return Ok(None);
+            };
+            let filename = at_file.entry().filename.to_string_lossy().to_string();
+            self.position += 1;
+            #[cfg(test)]
+            {
+                self.walked += 1;
+            }
+            if filename == wanted {
+                let (data, rest) = at_file.read()?;
+                self.cursor = Some(rest);
+                return Ok(Some(data));
+            }
+            self.cursor = Some(at_file.skip()?);
+        }
+        Ok(None)
+    }
+}
+
+impl PageReader for RarReader {
+    fn read_page(&mut self, entry: &str) -> Result<Vec<u8>> {
+        let wanted = self
+            .entry_to_path
+            .get(entry)
+            .ok_or_else(|| Error::EntryNotFound(format!("Entry not found in RAR: {entry}")))?
+            .clone();
+        // An unlisted name would compare as "ahead of everything", which only costs a
+        // reopen before the walk below reports it missing.
+        let target = self
+            .member_order
+            .get(&wanted)
+            .copied()
+            .unwrap_or(usize::MAX);
+
+        if self.cursor.is_none() || self.position > target {
+            self.reopen()?;
+        }
+        if let Some(data) = self.walk_to(&wanted)? {
+            return Ok(data);
+        }
+
+        // The cursor ran out before reaching it. Bookkeeping can only ever be wrong in
+        // this direction, so one restart from the top settles whether the entry is really
+        // absent rather than merely behind us.
+        self.reopen()?;
+        self.walk_to(&wanted)?
+            .ok_or_else(|| Error::EntryNotFound(format!("Entry not found: {wanted}")))
     }
 }
 
@@ -83,12 +178,21 @@ impl RarContainer {
     /// while reading its entries.
     pub fn new(path: &str, inner_dir: &str) -> Result<Self> {
         let archive = Archive::new(path).open_for_listing()?;
+        let is_solid = archive.is_solid();
 
         let mut filenames: Vec<String> = Vec::new();
-        for entry_result in archive {
+        let mut member_order: HashMap<String, usize> = HashMap::new();
+        for (position, entry_result) in archive.enumerate() {
             let entry = entry_result?;
+            let filename = entry.filename.to_string_lossy().to_string();
+            // Directories are indexed too: a reader walks past their headers, so leaving
+            // them out would make every position after one of them too small.
+            //
+            // RAR permits duplicate names, and a reader stops at the first match, so the
+            // first position wins — the same rule `collect_entries` applies.
+            member_order.entry(filename.clone()).or_insert(position);
             if entry.is_file() {
-                filenames.push(entry.filename.to_string_lossy().to_string());
+                filenames.push(filename);
             }
         }
 
@@ -97,28 +201,26 @@ impl RarContainer {
         Ok(Self {
             path: path.to_string(),
             entries,
-            entry_to_path,
+            entry_to_path: Arc::new(entry_to_path),
+            member_order: Arc::new(member_order),
+            is_solid,
         })
     }
 
-    /// Maps a leaf entry name to its full path inside the archive.
+    /// Builds a reader with its cursor unopened.
     ///
-    /// # Arguments
-    ///
-    /// * `entry` - The leaf name as it appears in [`Container::get_entries`].
-    ///
-    /// # Returns
-    ///
-    /// The entry's full path inside the archive, as the archive headers spell it.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Error::EntryNotFound`] when the name is not part of this book.
-    fn resolve_entry(&self, entry: &str) -> Result<&str> {
-        self.entry_to_path
-            .get(entry)
-            .map(String::as_str)
-            .ok_or_else(|| Error::EntryNotFound(format!("Entry not found in RAR: {entry}")))
+    /// Separate from [`Container::open_reader`] so a test can hold the concrete type and
+    /// see where the cursor has reached, which is the whole subject of this file.
+    fn reader(&self) -> RarReader {
+        RarReader {
+            path: self.path.clone(),
+            entry_to_path: self.entry_to_path.clone(),
+            member_order: self.member_order.clone(),
+            cursor: None,
+            position: 0,
+            #[cfg(test)]
+            walked: 0,
+        }
     }
 }
 
@@ -174,92 +276,13 @@ fn open(path: &str) -> Result<OpenArchive<Process, CursorBeforeHeader>> {
     Ok(Archive::new(path).open_for_processing()?)
 }
 
-/// Helper function to find and extract a specific file from a RAR archive.
-///
-/// # Performance
-///
-/// Because the underlying `unrar` crate does not support parallel random-access reading,
-/// we must re-open the archive and perform a sequential scan of entries until the target `entry` is found.
-/// This results in $O(N)$ operations where $N$ is the entry index.
-///
-/// TODO: In the future, we could consider an in-memory extraction cache or a dedicated background actor
-/// that keeps the archive open and processes requests sequentially on a single thread.
-fn load_image(path: &str, entry: &str) -> Result<Arc<Image>> {
-    let mut archive = open(path)?;
-    while let Some(header) = archive.read_header()? {
-        let filename = header.entry().filename.to_string_lossy().to_string();
-        if filename == *entry {
-            let (data, rest) = header.read()?;
-            drop(rest); // close the archive
-            let img = Image::new(data)?;
-            return Ok(Arc::new(img));
-        } else {
-            archive = header.skip()?;
-        }
-    }
-
-    Err(Error::EntryNotFound(format!("Entry not found: {}", entry)))
-}
-
-/// Reads every entry's dimensions in a single pass over the archive.
-///
-/// [`load_image`] rescans from the start for each entry, so calling it per entry would
-/// be $O(N^2)$; this walks the archive once and extracts only the wanted entries.
-///
-/// # Arguments
-///
-/// * `path` - The path to the RAR file.
-/// * `entries` - The entry names to measure, in the order the result must follow.
-///
-/// # Returns
-///
-/// One `ImageDimensions` per name in `entries`.
-///
-/// # Errors
-///
-/// Returns an `Err` if the archive cannot be walked, an entry is missing from it, or an
-/// entry is not a supported image.
-fn read_all_dimensions(path: &str, entries: &[String]) -> Result<Vec<ImageDimensions>> {
-    let wanted: std::collections::HashSet<&str> = entries.iter().map(String::as_str).collect();
-    let mut found: std::collections::HashMap<String, ImageDimensions> =
-        std::collections::HashMap::new();
-
-    let mut archive = open(path)?;
-    while let Some(header) = archive.read_header()? {
-        let filename = header.entry().filename.to_string_lossy().to_string();
-        // Duplicate names are possible; load_image returns the first match, so keep it.
-        if wanted.contains(filename.as_str()) && !found.contains_key(&filename) {
-            let (data, rest) = header.read()?;
-            found.insert(filename, read_dimensions(&data)?);
-            archive = rest;
-        } else {
-            archive = header.skip()?;
-        }
-    }
-
-    entries
-        .iter()
-        .map(|entry| {
-            found
-                .get(entry)
-                .copied()
-                .ok_or_else(|| Error::EntryNotFound(format!("Entry not found: {}", entry)))
-        })
-        .collect()
-}
-
-/// Helper function to load an image and generate a JPEG thumbnail for it.
-fn create_thumbnail(path: &str, entry: &str) -> Result<Arc<Image>> {
-    let img = load_image(path, entry)?;
-    generate_thumbnail(&img.data)
-}
-
 #[cfg(test)]
 mod tests {
     use std::path;
     use tempfile::tempdir;
 
     use super::*;
+    use crate::image::types::read_dimensions;
 
     // A valid 1x1 transparent PNG
     const DUMMY_PNG_DATA: &[u8] = &[
@@ -361,73 +384,105 @@ mod tests {
     }
 
     #[test]
-    fn test_get_image_existing() {
+    fn rar_reader_reads_stored_bytes_and_measures_them() {
         let dir = tempdir().expect("failed to create tempdir");
         let rar_path = create_dummy_rar(dir.path(), "dummy.rar");
         let container = RarContainer::new(rar_path.to_string_lossy().as_ref(), "")
             .expect("failed to create RarContainer");
 
-        // Assuming 'image1.png' exists in dummy.rar and is a valid image
-        let image = container
-            .get_image("image1.png")
-            .expect("get_image should succeed for existing image");
-        assert!(image.width > 0);
-        assert!(image.height > 0);
-        assert!(!image.data.is_empty());
-        assert_eq!(image.data, DUMMY_PNG_DATA);
+        let mut reader = container.open_reader().expect("failed to open a reader");
+
+        assert_eq!(reader.read_page("image1.png").unwrap(), DUMMY_PNG_DATA);
+        assert_eq!(
+            reader.page_dimensions("image2.png").unwrap(),
+            read_dimensions(DUMMY_PNG_DATA).unwrap()
+        );
+        assert!(reader.read_page("absent.png").is_err());
+        assert_eq!(reader.read_preview("image1.png").unwrap(), None);
     }
 
     #[test]
-    fn test_get_image_non_existing() {
-        let dir = tempdir().expect("failed to create tempdir");
-        let rar_path = create_dummy_rar(dir.path(), "dummy.rar");
-        let container = RarContainer::new(rar_path.to_string_lossy().as_ref(), "")
-            .expect("failed to create RarContainer");
-        let result = container.get_image("non_existent_image.png");
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_get_image_dimensions_covers_every_entry_in_one_pass() {
+    fn test_reader_reports_a_missing_entry() {
         let dir = tempdir().expect("failed to create tempdir");
         let rar_path = create_dummy_rar(dir.path(), "dummy.rar");
         let container = RarContainer::new(rar_path.to_string_lossy().as_ref(), "")
             .expect("failed to create RarContainer");
 
-        let dimensions = container
-            .get_image_dimensions()
-            .expect("get_image_dimensions should succeed");
-
-        assert_eq!(dimensions.len(), container.get_entries().len());
-        assert!(dimensions.iter().all(|d| *d
-            == ImageDimensions {
-                width: 1,
-                height: 1
-            }));
-    }
-
-    #[test]
-    fn test_get_image_dimensions_reports_a_missing_entry() {
-        let dir = tempdir().expect("failed to create tempdir");
-        let rar_path = create_dummy_rar(dir.path(), "dummy.rar");
-        let entries = vec!["not_in_the_archive.png".to_string()];
-
-        let result = read_all_dimensions(rar_path.to_string_lossy().as_ref(), &entries);
+        let result = container.reader().read_page("not_in_the_archive.png");
 
         assert!(matches!(result, Err(Error::EntryNotFound(_))));
     }
 
     #[test]
-    fn test_get_thumbnail() {
+    fn reading_in_order_walks_the_archive_once() {
+        let dir = tempdir().expect("failed to create tempdir");
+        let rar_path = create_dummy_rar(dir.path(), "dummy.rar");
+        let container = RarContainer::new(rar_path.to_string_lossy().as_ref(), "")
+            .expect("failed to create RarContainer");
+        let entries = container.get_entries().clone();
+
+        let mut reader = container.reader();
+        for (index, entry) in entries.iter().enumerate() {
+            assert_eq!(reader.read_page(entry).unwrap(), DUMMY_PNG_DATA);
+            // Each page costs exactly the headers between it and the previous one, so
+            // reading the book in order walks the archive once. Reopening per page would
+            // make this 1, 3, 6, ... — the quadratic cost that on a solid archive means
+            // decompressing every earlier page again.
+            assert_eq!(
+                reader.walked,
+                index + 1,
+                "reading {entry} in order must not rewind"
+            );
+            assert_eq!(reader.position, index + 1);
+        }
+    }
+
+    #[test]
+    fn reading_backwards_reopens_and_still_returns_the_page() {
+        let dir = tempdir().expect("failed to create tempdir");
+        let rar_path = create_dummy_rar(dir.path(), "dummy.rar");
+        let container = RarContainer::new(rar_path.to_string_lossy().as_ref(), "")
+            .expect("failed to create RarContainer");
+        let entries = container.get_entries().clone();
+
+        let mut reader = container.reader();
+        assert_eq!(reader.read_page(&entries[2]).unwrap(), DUMMY_PNG_DATA);
+        assert_eq!(reader.walked, 3);
+
+        // The cursor cannot go back, so this restarts the walk — the trade the reader
+        // makes so a page turn never waits for a scan to finish.
+        assert_eq!(reader.read_page(&entries[0]).unwrap(), DUMMY_PNG_DATA);
+        assert_eq!(reader.position, 1, "a backward read restarts the walk");
+        assert_eq!(reader.walked, 4);
+
+        // And the cursor keeps working forward afterwards, from where it now stands.
+        assert_eq!(reader.read_page(&entries[1]).unwrap(), DUMMY_PNG_DATA);
+        assert_eq!(reader.position, 2);
+        assert_eq!(reader.walked, 5);
+    }
+
+    #[test]
+    fn a_non_solid_archive_admits_many_readers() {
         let dir = tempdir().expect("failed to create tempdir");
         let rar_path = create_dummy_rar(dir.path(), "dummy.rar");
         let container = RarContainer::new(rar_path.to_string_lossy().as_ref(), "")
             .expect("failed to create RarContainer");
 
-        let thumbnail = container.get_thumbnail("image1.png").unwrap();
-        assert!(thumbnail.width <= crate::image::thumbnail::THUMBNAIL_SIZE);
-        assert!(thumbnail.height <= crate::image::thumbnail::THUMBNAIL_SIZE);
-        assert!(!thumbnail.data.is_empty());
+        assert!(!container.is_solid, "the fixture is a normal archive");
+        assert_eq!(container.max_readers(), usize::MAX);
+    }
+
+    #[test]
+    fn a_solid_archive_admits_one_reader() {
+        let dir = tempdir().expect("failed to create tempdir");
+        let rar_path = create_dummy_rar(dir.path(), "dummy.rar");
+        let mut container = RarContainer::new(rar_path.to_string_lossy().as_ref(), "")
+            .expect("failed to create RarContainer");
+
+        // No RAR writer exists here, so the flag is set directly: what is under test is
+        // the decision it drives, not how `unrar` reports it.
+        container.is_solid = true;
+        assert_eq!(container.max_readers(), 1);
     }
 
     #[test]

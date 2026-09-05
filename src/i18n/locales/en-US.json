@@ -333,6 +333,10 @@
           "title": "Preload page count",
           "description": "The number of pages to preload in each direction (forward and backward)."
         },
+        "page-reader-count": {
+          "title": "Page reader threads",
+          "description": "How many threads may read pages at once. 0 lets the app choose.\nA ceiling, not a demand: formats that allow only one reader, such as solid RAR, EPUB and PDF, stay at one.\nLower this for books on a network drive, where the readers compete for one link rather than for cores."
+        },
         "image-cache-size": {
           "title": "Image cache size (MiB)",
           "description": "The maximum size of the image memory cache in MiB.\nChanging this will clear the current cache."

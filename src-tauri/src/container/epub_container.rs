@@ -1,19 +1,15 @@
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
-    sync::{Arc, Mutex, OnceLock},
+    sync::{Arc, OnceLock},
 };
 
 use rbook::Epub;
 use scraper::{Html, Selector};
 
 use crate::{
-    container::traits::Container,
+    container::traits::{Container, PageReader},
     error::{Error, Result},
-    image::{
-        thumbnail::generate_thumbnail,
-        types::{read_dimensions, Image, ImageDimensions},
-    },
 };
 
 /// An implementation of the `Container` trait for reading content from EPUB files.
@@ -21,8 +17,11 @@ pub struct EpubContainer {
     /// A list of image resource IDs (keys) found in the EPUB's manifest,
     /// sorted according to their appearance in the spine.
     entries: Vec<String>,
-    /// The opened EPUB archive, protected by a Mutex for thread-safe access.
-    epub: Mutex<Epub>,
+    /// The opened EPUB, shared with every reader. `rbook` is `Send + Sync` under its
+    /// default `threadsafe` feature and already serialises archive access behind its own
+    /// lock, so nothing is gained by adding one here — and that internal lock is why
+    /// [`Container::max_readers`] is 1 for this format.
+    epub: Arc<Epub>,
 }
 
 impl Container for EpubContainer {
@@ -30,44 +29,12 @@ impl Container for EpubContainer {
         &self.entries
     }
 
-    fn get_image(&self, entry: &str) -> Result<Arc<Image>> {
-        let mut epub = self
-            .epub
-            .lock()
-            .map_err(|e| Error::Other(format!("Failed to lock epub archive: {}", e)))?;
-        let image = load_image(&mut epub, entry)?;
-        Ok(image)
-    }
-
-    fn get_thumbnail(&self, entry: &str) -> Result<Arc<Image>> {
-        let mut epub = self
-            .epub
-            .lock()
-            .map_err(|e| Error::Other(format!("Failed to lock epub archive: {}", e)))?;
-        create_thumbnail(&mut epub, entry)
-    }
-
-    fn get_image_dimensions(&self) -> Result<Vec<ImageDimensions>> {
-        let mut epub = self
-            .epub
-            .lock()
-            .map_err(|e| Error::Other(format!("Failed to lock epub archive: {}", e)))?;
-
-        self.entries
-            .iter()
-            .map(|entry| load_dimensions(&mut epub, entry))
-            .collect()
-    }
-
     fn is_directory(&self) -> bool {
         false
     }
 
     fn is_novel(&self) -> bool {
-        let Ok(epub) = self.epub.lock() else {
-            return false;
-        };
-        let Some(layout) = epub.metadata().iter().find_map(|meta| {
+        let Some(layout) = self.epub.metadata().iter().find_map(|meta| {
             if meta.property().as_str() == "rendition:layout" {
                 Some(meta.value().to_string())
             } else {
@@ -77,6 +44,32 @@ impl Container for EpubContainer {
             return true;
         };
         layout != "pre-paginated"
+    }
+
+    fn max_readers(&self) -> usize {
+        1
+    }
+
+    fn open_reader(&self) -> Result<Box<dyn PageReader>> {
+        Ok(Box::new(EpubReader {
+            epub: self.epub.clone(),
+        }))
+    }
+}
+
+/// A reader over one opened EPUB.
+///
+/// It holds no state of its own: `rbook` owns the archive handle and guards it, so every
+/// reader of a book shares the same one. [`Container::max_readers`] therefore caps this
+/// format at one reader, and this type exists to give EPUB the same shape as the others
+/// rather than to add any parallelism.
+struct EpubReader {
+    epub: Arc<Epub>,
+}
+
+impl PageReader for EpubReader {
+    fn read_page(&mut self, entry: &str) -> Result<Vec<u8>> {
+        read_resource_bytes(&self.epub, entry)
     }
 }
 
@@ -100,14 +93,14 @@ impl EpubContainer {
     ///
     /// Returns an `Err` if the EPUB file cannot be opened or its contents cannot be parsed.
     pub fn new(path: &str) -> Result<Self> {
-        let mut epub = Epub::options().strict(false).open(path)?;
+        let epub = Epub::options().strict(false).open(path)?;
         let mut entries: Vec<String> = epub
             .manifest()
             .images()
             .map(|manifest| manifest.id().to_string())
             .collect();
 
-        if let Some(order_map) = create_image_order_map(&mut epub) {
+        if let Some(order_map) = create_image_order_map(&epub) {
             entries.sort_by_key(|id| *order_map.get(id).unwrap_or(&usize::MAX));
         } else {
             entries.sort_by(|a, b| natord::compare_ignore_case(a, b));
@@ -115,13 +108,13 @@ impl EpubContainer {
 
         Ok(Self {
             entries,
-            epub: Mutex::new(epub),
+            epub: Arc::new(epub),
         })
     }
 }
 
-/// Helper function to find and load an image resource from the EPUB.
-fn load_image(epub: &mut Epub, entry: &str) -> Result<Arc<Image>> {
+/// Reads one image resource's stored bytes, found by its manifest id.
+fn read_resource_bytes(epub: &Epub, entry: &str) -> Result<Vec<u8>> {
     let Some(resource) = epub.manifest().images().find(|image| image.id() == entry) else {
         return Err(Error::EntryNotFound(format!(
             "[EPUB] Resource not found: {}",
@@ -129,33 +122,7 @@ fn load_image(epub: &mut Epub, entry: &str) -> Result<Arc<Image>> {
         )));
     };
 
-    let image = Image::new(resource.read_bytes()?)?;
-    Ok(Arc::new(image))
-}
-
-/// Helper function to read an image resource's dimensions from its header.
-fn load_dimensions(epub: &mut Epub, entry: &str) -> Result<ImageDimensions> {
-    let Some(resource) = epub.manifest().images().find(|image| image.id() == entry) else {
-        return Err(Error::EntryNotFound(format!(
-            "[EPUB] Resource not found: {}",
-            entry
-        )));
-    };
-
-    Ok(read_dimensions(&resource.read_bytes()?)?)
-}
-
-/// Helper function to find, load, and create a thumbnail for an image resource.
-fn create_thumbnail(epub: &mut Epub, entry: &str) -> Result<Arc<Image>> {
-    let Some(resource) = epub.manifest().images().find(|image| image.id() == entry) else {
-        return Err(Error::EntryNotFound(format!(
-            "[EPUB] Resource not found: {}",
-            entry
-        )));
-    };
-
-    let buffer = resource.read_bytes()?;
-    generate_thumbnail(&buffer)
+    Ok(resource.read_bytes()?)
 }
 
 /// Returns the thread-safe CSS selector for images within EPUB content.
@@ -179,11 +146,19 @@ fn get_image_selector() -> Option<&'static Selector> {
 /// Parses the EPUB's spine to determine the order of images as they appear in the content.
 ///
 /// Returns a `HashMap` mapping image resource IDs to their sequential order.
-fn create_image_order_map(epub: &mut Epub) -> Option<HashMap<String, usize>> {
+fn create_image_order_map(epub: &Epub) -> Option<HashMap<String, usize>> {
     let mut map = HashMap::new();
     let mut current_order = 0;
 
     let selector = get_image_selector()?;
+
+    // Collected once. This is consulted for every `<img>` in every chapter, so rebuilding
+    // it from the manifest per lookup made opening a book quadratic in its image count.
+    let images: Vec<(String, String)> = epub
+        .manifest()
+        .images()
+        .map(|image| (image.id().to_string(), image.href().as_str().to_string()))
+        .collect();
 
     let mut reader = epub.reader();
     while let Some(page) = next_readable_page(|| reader.read_next()) {
@@ -210,7 +185,7 @@ fn create_image_order_map(epub: &mut Epub) -> Option<HashMap<String, usize>> {
 
             if let Some(src) = src_attr {
                 let resolved_path = normalize_path(&chapter_dir.join(src));
-                if let Some(resource_id) = find_resource_id_by_path(epub, &resolved_path) {
+                if let Some(resource_id) = select_resource_id(&images, &resolved_path) {
                     map.entry(resource_id).or_insert_with(|| {
                         let order = current_order;
                         current_order += 1;
@@ -259,39 +234,29 @@ fn normalize_path(path: &Path) -> PathBuf {
     out
 }
 
-/// Finds a resource's manifest ID by its file path within the EPUB.
-fn find_resource_id_by_path(epub: &Epub, target_path: &Path) -> Option<String> {
-    let images: Vec<(&str, &str)> = epub
-        .manifest()
-        .images()
-        .map(|image| (image.id(), image.href().as_str()))
-        .collect();
-    select_resource_id(&images, target_path)
-}
-
-/// Pure resolution used by [`find_resource_id_by_path`] (testable without an `Epub`).
+/// Resolves an `<img>` target path to the manifest id of the image it names.
 ///
 /// `images` are `(id, href)` pairs; matching is done on the (normalized) href, and the
 /// matching id is returned. An exact path match wins; otherwise a basename match is used
 /// **only when it is unambiguous** (exactly one match), so two images sharing a basename
 /// in different folders (e.g. `ch1/p001.png` and `ch2/p001.png`) cannot be confused and
 /// mis-order the spine.
-fn select_resource_id(images: &[(&str, &str)], target_path: &Path) -> Option<String> {
+fn select_resource_id<S: AsRef<str>>(images: &[(S, S)], target_path: &Path) -> Option<String> {
     if let Some((id, _)) = images
         .iter()
-        .find(|(_, href)| normalize_path(Path::new(href)) == *target_path)
+        .find(|(_, href)| normalize_path(Path::new(href.as_ref())) == *target_path)
     {
-        return Some((*id).to_string());
+        return Some(id.as_ref().to_string());
     }
     let target_name = target_path.file_name()?;
     let mut basename = images
         .iter()
-        .filter(|(_, href)| Path::new(href).file_name() == Some(target_name));
+        .filter(|(_, href)| Path::new(href.as_ref()).file_name() == Some(target_name));
     let (first_id, _) = basename.next()?;
     if basename.next().is_some() {
         return None; // ambiguous basename across directories
     }
-    Some((*first_id).to_string())
+    Some(first_id.as_ref().to_string())
 }
 
 #[cfg(test)]
@@ -302,6 +267,7 @@ mod tests {
     use zip::{write::FileOptions, ZipWriter};
 
     use super::*;
+    use crate::image::types::read_dimensions;
 
     // A valid 1x1 transparent PNG
     const DUMMY_PNG_DATA: &[u8] = &[
@@ -525,7 +491,7 @@ mod tests {
     }
 
     #[test]
-    fn test_get_image_dimensions_matches_entries() {
+    fn epub_reader_reads_stored_bytes_and_measures_them() {
         let dir = tempdir().unwrap();
         let content_opf_str = content_opf(true, false);
         let chapter1_xhtml_str = chapter1_xhtml(true);
@@ -545,91 +511,17 @@ mod tests {
         let container = EpubContainer::new(epub_path.to_string_lossy().as_ref())
             .expect("failed to create EpubContainer");
 
-        let dimensions = container
-            .get_image_dimensions()
-            .expect("get_image_dimensions should succeed");
+        let mut reader = container.open_reader().expect("failed to open a reader");
 
-        assert_eq!(dimensions.len(), container.get_entries().len());
-        assert!(dimensions.iter().all(|d| *d
-            == ImageDimensions {
-                width: 1,
-                height: 1
-            }));
-    }
-
-    #[test]
-    fn test_get_image_existing() {
-        let dir = tempdir().unwrap();
-        let content_opf_str = content_opf(true, false);
-        let chapter1_xhtml_str = chapter1_xhtml(true);
-
-        let epub_path = create_dummy_epub(
-            dir.path(),
-            "test.epub",
-            &[
-                ("mimetype", b"application/epub+zip"),
-                ("META-INF/container.xml", CONTAINER_XML.as_bytes()),
-                ("OEBPS/content.opf", content_opf_str.as_bytes()),
-                ("OEBPS/text/chapter1.xhtml", chapter1_xhtml_str.as_bytes()),
-                ("OEBPS/images/image1.png", DUMMY_PNG_DATA),
-                ("OEBPS/images/cover.png", DUMMY_PNG_DATA),
-            ],
+        assert_eq!(reader.read_page("image1").unwrap(), DUMMY_PNG_DATA);
+        assert_eq!(
+            reader.page_dimensions("cover").unwrap(),
+            read_dimensions(DUMMY_PNG_DATA).unwrap()
         );
-        let container = EpubContainer::new(epub_path.to_string_lossy().as_ref())
-            .expect("failed to create EpubContainer");
-
-        let image = container
-            .get_image("image1")
-            .expect("get_image should succeed for existing image");
-        assert_eq!(image.width, 1);
-        assert_eq!(image.height, 1);
-        assert_eq!(image.data, DUMMY_PNG_DATA);
-    }
-
-    #[test]
-    fn test_get_image_non_existing() {
-        let dir = tempdir().unwrap();
-        let content_opf_str = content_opf(true, false);
-        let chapter1_xhtml_str = chapter1_xhtml(true);
-        let epub_path = create_dummy_epub(
-            dir.path(),
-            "test.epub",
-            &[
-                ("mimetype", b"application/epub+zip"),
-                ("META-INF/container.xml", CONTAINER_XML.as_bytes()),
-                ("OEBPS/content.opf", content_opf_str.as_bytes()),
-                ("OEBPS/text/chapter1.xhtml", chapter1_xhtml_str.as_bytes()),
-                ("OEBPS/images/image1.png", DUMMY_PNG_DATA),
-            ],
-        );
-        let container = EpubContainer::new(epub_path.to_string_lossy().as_ref()).unwrap();
-        let result = container.get_image("non_existent_image");
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_get_thumbnail() {
-        let dir = tempdir().unwrap();
-        let content_opf_str = content_opf(true, false);
-        let chapter1_xhtml_str = chapter1_xhtml(true);
-        let epub_path = create_dummy_epub(
-            dir.path(),
-            "test.epub",
-            &[
-                ("mimetype", b"application/epub+zip"),
-                ("META-INF/container.xml", CONTAINER_XML.as_bytes()),
-                ("OEBPS/content.opf", content_opf_str.as_bytes()),
-                ("OEBPS/text/chapter1.xhtml", chapter1_xhtml_str.as_bytes()),
-                ("OEBPS/images/image1.png", DUMMY_PNG_DATA),
-                ("OEBPS/images/cover.png", DUMMY_PNG_DATA),
-            ],
-        );
-        let container = EpubContainer::new(epub_path.to_string_lossy().as_ref()).unwrap();
-
-        let thumbnail = container.get_thumbnail("image1").unwrap();
-        assert!(thumbnail.width <= crate::image::thumbnail::THUMBNAIL_SIZE);
-        assert!(thumbnail.height <= crate::image::thumbnail::THUMBNAIL_SIZE);
-        assert!(!thumbnail.data.is_empty());
+        assert!(reader.read_page("absent").is_err());
+        assert_eq!(reader.read_preview("image1").unwrap(), None);
+        // rbook guards the archive itself, so extra readers would only queue behind it.
+        assert_eq!(container.max_readers(), 1);
     }
 
     #[test]

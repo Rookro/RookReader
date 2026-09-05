@@ -67,12 +67,23 @@ export const commands = {
 	 * 
 	 *  # Arguments
 	 * 
+	 *  * `path` - The path of the container the caller believes is open.
 	 *  * `index` - The current page index around which to preload.
 	 *  * `buffer_size` - Optional. How many pages to preload in each direction.
 	 *    Defaults to 10 if `None` is provided.
+	 *  * `caller_pages` - How many pages from `index` the caller is fetching itself. Those
+	 *    are left out of the window: preloading a page the viewer is already requesting at
+	 *    foreground priority only lets a background job reach it first, and the foreground
+	 *    request then waits on that job instead of being served.
 	 *  * `state` - A `tauri::State` holding the application's global `AppState`.
+	 * 
+	 *  # Errors
+	 * 
+	 *  Returns an `Err` if no container is open, or `path` does not match the open one — the
+	 *  frontend calls this on every page turn, so it is exactly the request most likely to
+	 *  race a book switch.
 	 */
-	requestPreloadAround: (index: number, bufferSize: number | null) => typedError<null, CommandError>(__TAURI_INVOKE("request_preload_around", { index, bufferSize })),
+	requestPreloadAround: (path: string, index: number, bufferSize: number | null, callerPages: number | null) => typedError<null, CommandError>(__TAURI_INVOKE("request_preload_around", { path, index, bufferSize, callerPages })),
 	/**
 	 *  Opens a container file (e.g., ZIP, RAR) and retrieves a list of its contents.
 	 * 
@@ -96,6 +107,29 @@ export const commands = {
 	 *  * The `container` within the application state is unexpectedly missing.
 	 */
 	getEntriesInContainer: (path: string) => typedError<EntriesResult, CommandError>(__TAURI_INVOKE("get_entries_in_container", { path })),
+	/**
+	 *  Counts a container's pages without opening it for reading.
+	 * 
+	 *  Separate from [`get_entries_in_container`], which *installs* the book it opens and so
+	 *  closes the reader threads of the book already open. A caller that only wants to
+	 *  register a book must not do that to the book on screen, so nothing is installed here
+	 *  and no reader thread is started: the container is built, counted, and dropped.
+	 * 
+	 *  # Arguments
+	 * 
+	 *  * `path` - The file path to the container to count.
+	 *  * `state` - A `tauri::State` holding the application's global `AppState`.
+	 * 
+	 *  # Returns
+	 * 
+	 *  The container's page count, and whether it is a directory.
+	 * 
+	 *  # Errors
+	 * 
+	 *  Returns an `Err` if the path has no supported extension, or the container cannot be
+	 *  opened (e.g. it does not exist or is corrupt).
+	 */
+	countPagesInContainer: (path: string) => typedError<ContainerSummary, CommandError>(__TAURI_INVOKE("count_pages_in_container", { path })),
 	/**
 	 *  Retrieves the pixel dimensions of every entry in the currently open container.
 	 * 
@@ -277,6 +311,23 @@ export const commands = {
 	thumbnail_path: string | null,
 	/**  The timestamp when the book was created (registered). */
 	created_at: string | null,
+	/**
+	 *  Whether the reader has shifted this book's spreads by one page.
+	 * 
+	 *  Beside `total_pages` rather than in the reading state: it is a correction to how
+	 *  the book is laid out, and turning reading history off — or clearing it — must not
+	 *  discard it.
+	 */
+	is_spread_shifted: boolean,
+	/**
+	 *  One `'0'`/`'1'` per page in entry order, `'1'` where the page is wider than it is
+	 *  tall. `None` until the book has been measured once.
+	 * 
+	 *  A landscape page is one physical spread, so it always starts on an even page:
+	 *  that is what settles where two-page spreads begin, and 200 bytes is the whole
+	 *  measurement for a 200-page book.
+	 */
+	landscape_bits: string | null,
 	/**  The last read page index, if the book has been opened. */
 	last_read_page_index: number | null,
 	/**  The timestamp when the book was last opened, if any. */
@@ -375,6 +426,39 @@ export const commands = {
 	 *  (e.g., due to a database error, connection issue, or query execution failure).
 	 */
 	clearAllReadingHistory: () => typedError<null, CommandError>(__TAURI_INVOKE("clear_all_reading_history")),
+	/**
+	 *  Records the reader's correction to how a book pairs into spreads.
+	 * 
+	 *  Written straight through rather than debounced with the reading progress: this changes
+	 *  on a button press, not on every page turn, and it must be kept even when the reader has
+	 *  turned reading history off.
+	 * 
+	 *  # Arguments
+	 * 
+	 *  * `book_id` - The book to update.
+	 *  * `is_spread_shifted` - Whether the reader has shifted the book's spreads.
+	 *  * `repo` - The managed book repository state.
+	 * 
+	 *  # Errors
+	 * 
+	 *  Returns an `Err` if the underlying repository operation fails.
+	 */
+	updateSpreadShift: (bookId: number, isSpreadShifted: boolean) => typedError<null, CommandError>(__TAURI_INVOKE("update_spread_shift", { bookId, isSpreadShifted })),
+	/**
+	 *  Records how a book's pages are shaped, so it need not be measured again.
+	 * 
+	 *  # Arguments
+	 * 
+	 *  * `book_id` - The book to update.
+	 *  * `landscape_bits` - One `'0'`/`'1'` per page in entry order, `'1'` for a page wider
+	 *    than it is tall.
+	 *  * `repo` - The managed book repository state.
+	 * 
+	 *  # Errors
+	 * 
+	 *  Returns an `Err` if the underlying repository operation fails.
+	 */
+	updatePageLayout: (bookId: number, landscapeBits: string) => typedError<null, CommandError>(__TAURI_INVOKE("update_page_layout", { bookId, landscapeBits })),
 	/**
 	 *  Retrieves recently read books, ordered by the most recently opened.
 	 * 
@@ -858,6 +942,23 @@ export type BookWithState = {
 	thumbnail_path: string | null,
 	/**  The timestamp when the book was created (registered). */
 	created_at: string | null,
+	/**
+	 *  Whether the reader has shifted this book's spreads by one page.
+	 * 
+	 *  Beside `total_pages` rather than in the reading state: it is a correction to how
+	 *  the book is laid out, and turning reading history off — or clearing it — must not
+	 *  discard it.
+	 */
+	is_spread_shifted: boolean,
+	/**
+	 *  One `'0'`/`'1'` per page in entry order, `'1'` where the page is wider than it is
+	 *  tall. `None` until the book has been measured once.
+	 * 
+	 *  A landscape page is one physical spread, so it always starts on an even page:
+	 *  that is what settles where two-page spreads begin, and 200 bytes is the whole
+	 *  measurement for a 200-page book.
+	 */
+	landscape_bits: string | null,
 	/**  The last read page index, if the book has been opened. */
 	last_read_page_index: number | null,
 	/**  The timestamp when the book was last opened, if any. */
@@ -912,6 +1013,15 @@ export type ComicCacheSettings = {
 	preloadPageCount?: number,
 	/**  The maximum size of the image memory cache in MiB. */
 	imageCacheSizeMib?: number,
+	/**
+	 *  How many threads may read pages at once (`0` = pick one from the machine).
+	 * 
+	 *  A ceiling, not a demand: a format that admits only one reader — a solid RAR, an
+	 *  EPUB, a PDF — stays at one however high this goes. Worth lowering where the
+	 *  pages come over a network, since there the readers compete for one link rather
+	 *  than for cores, and each read gets slower as more of them run.
+	 */
+	pageReaderCount?: number,
 };
 
 /**  Configuration specific to reading comics (image-based content). */
@@ -943,6 +1053,14 @@ export type CommandError = {
 	message: string,
 	/**  Per-field validation details, present only for `SettingsValidation` errors. */
 	details: SettingsValidationViolation[] | null,
+};
+
+/**  What a caller that only registers a book needs to know about it. */
+export type ContainerSummary = {
+	/**  How many pages the container holds. */
+	total_pages: number,
+	/**  Whether the container is a directory. */
+	is_directory: boolean,
 };
 
 /**  Represents the direction in which content should be read. */

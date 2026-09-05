@@ -46,6 +46,7 @@ export const defaultSettings: AppSettings = {
       cache: {
         preloadPageCount: 10,
         imageCacheSizeMib: 1024,
+        pageReaderCount: 0,
       },
     },
     novel: {
