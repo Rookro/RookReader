@@ -14,7 +14,7 @@ import { handleThunkError } from "../../store/thunkErrorHandler";
 import type { Direction } from "../../types/AppSettings";
 import { createAppAsyncThunk } from "../../types/CustomAsyncThunk";
 import type { DirEntry } from "../../types/DirEntry";
-import { CommandError, ErrorCode } from "../../types/Error";
+import { CommandError, createCommandError, ErrorCode } from "../../types/Error";
 import { isInsideArchive } from "../../utils/ArchivePathUtils";
 import { convertEntriesInDir } from "../../utils/DirEntryUtils";
 import type { OpenOrigin } from "./types/OpenOrigin";
@@ -59,14 +59,25 @@ export const openContainerFile = createAppAsyncThunk(
       const itemType = entriesResult.is_directory || isInsideArchive(path) ? "directory" : "file";
 
       debug(`Update container history: ${path}, ${itemType}`);
-      const bookId = await recordBookOpened({
-        filePath: path,
-        itemType,
-        totalPages: entriesResult.entries.length,
-        displayName: fileName,
-      });
-
-      const book = await getBookWithStateById(bookId);
+      // The container is already open here. Failing to remember it in the library is
+      // worth telling the user about, but it is not "the book could not be opened":
+      // reporting it that way threw the entries away and left the reader empty on a
+      // book that had in fact opened.
+      let book: BookWithState | null = null;
+      let bookRecordError: { code: ErrorCode; message?: string } | null = null;
+      try {
+        const bookId = await recordBookOpened({
+          filePath: path,
+          itemType,
+          totalPages: entriesResult.entries.length,
+          displayName: fileName,
+        });
+        book = await getBookWithStateById(bookId);
+      } catch (e) {
+        const commandError = createCommandError(e);
+        error(`Failed to record the opened book(${path}). Error: ${commandError.message}`);
+        bookRecordError = { code: commandError.code, message: commandError.message };
+      }
 
       // A comic carries its own page direction. The first time a book is opened it is
       // seeded from the default setting, so changing that default later leaves books the
@@ -105,6 +116,7 @@ export const openContainerFile = createAppAsyncThunk(
         isNovel: isEpubNovel,
         book: book,
         readingDirection,
+        bookRecordError,
       };
     } catch (e) {
       // A container with no readable pages is not a book, but the path itself is real.
@@ -256,6 +268,11 @@ export const readSlice = createSlice({
       novelDirection: null as Direction | null,
       isLoading: false,
       error: null as { code: ErrorCode; message?: string } | null,
+      /**
+       * Why remembering the opened book in the library failed, if it did. Kept apart
+       * from `error`: the book itself is on screen, only its history entry is missing.
+       */
+      bookRecordError: null as { code: ErrorCode; message?: string } | null,
       /** Where the current book was opened from (used to resolve the adjacent book). */
       origin: null as OpenOrigin | null,
       /**
@@ -456,6 +473,14 @@ export const readSlice = createSlice({
       state.containerFile.error = null;
     },
     /**
+     * Clears the error left by a failed attempt to record the opened book.
+     *
+     * @param state - The current Redux state slice.
+     */
+    clearBookRecordError: (state) => {
+      state.containerFile.bookRecordError = null;
+    },
+    /**
      * Clears any error associated with the file explorer state.
      *
      * @param state - The current Redux state slice.
@@ -499,6 +524,7 @@ export const readSlice = createSlice({
         state.containerFile.cfi = null;
         state.containerFile.novelDirection = null;
         state.containerFile.error = null;
+        state.containerFile.bookRecordError = null;
       })
       .addCase(openContainerFile.fulfilled, (state, action) => {
         // Ignore stale responses: the user may have opened another book before this
@@ -540,6 +566,7 @@ export const readSlice = createSlice({
         state.containerFile.readingDirection = action.payload.readingDirection;
         state.containerFile.pendingInitialPosition = null;
         state.containerFile.error = null;
+        state.containerFile.bookRecordError = action.payload.bookRecordError;
         if (action.payload.isNovel !== undefined) {
           state.containerFile.isNovel = action.payload.isNovel;
         }
@@ -589,6 +616,7 @@ export const {
   setNovelLocation,
   setNovelDirection,
   clearContainerFileError,
+  clearBookRecordError,
   clearExplorerError,
 } = readSlice.actions;
 export default readSlice.reducer;

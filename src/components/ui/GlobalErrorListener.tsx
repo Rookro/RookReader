@@ -1,5 +1,9 @@
 import { useEffect } from "react";
-import { clearContainerFileError, clearExplorerError } from "../../features/BookReader/slice";
+import {
+  clearBookRecordError,
+  clearContainerFileError,
+  clearExplorerError,
+} from "../../features/BookReader/slice";
 import { clearBookshelfError } from "../../features/Bookshelf/slice";
 import { clearTagError } from "../../features/Bookshelf/tagSlice";
 import { clearHistoryError } from "../../features/History/slice";
@@ -33,6 +37,7 @@ export default function GlobalErrorListener() {
   const dispatch = useAppDispatch();
 
   const containerFileError = useAppSelector((state) => state.read.containerFile.error);
+  const bookRecordError = useAppSelector((state) => state.read.containerFile.bookRecordError);
   const explorerError = useAppSelector((state) => state.read.explorer.error);
   const historyError = useAppSelector((state) => state.history.error);
   const bookshelfError = useAppSelector((state) => state.bookCollection.error);
@@ -42,6 +47,11 @@ export default function GlobalErrorListener() {
     if (containerFileError) {
       showNotification(errorMessage("open-container", containerFileError.code), "error");
       dispatch(clearContainerFileError());
+    }
+
+    if (bookRecordError) {
+      showNotification(errorMessage("record-book", bookRecordError.code), "error");
+      dispatch(clearBookRecordError());
     }
 
     if (explorerError) {
@@ -68,6 +78,7 @@ export default function GlobalErrorListener() {
     dispatch,
     showNotification,
     containerFileError,
+    bookRecordError,
     explorerError,
     historyError,
     bookshelfError,

@@ -89,6 +89,24 @@ describe("GlobalErrorListener", () => {
     });
   });
 
+  it("should report a failure to record the opened book on its own", async () => {
+    const preloadedState = structuredClone(createBasePreloadedState());
+    preloadedState.read.containerFile.bookRecordError = { code: ErrorCode.database };
+
+    const { store } = renderWithProviders(<GlobalErrorListener />, { preloadedState });
+
+    await waitFor(() => {
+      expect(showNotificationMock).toHaveBeenCalledWith(
+        "Failed to record the reading history. Saving data failed.",
+        "error",
+      );
+    });
+
+    await waitFor(() => {
+      expect(store.getState().read.containerFile.bookRecordError).toBeNull();
+    });
+  });
+
   it("should trigger notification and clear error when explorer has error", async () => {
     const preloadedState = createBasePreloadedState();
     preloadedState.read.explorer.error = { code: ErrorCode.io };

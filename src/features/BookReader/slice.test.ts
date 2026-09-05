@@ -363,6 +363,33 @@ describe("ReadReducer", () => {
         expect(state.containerFile.isSpreadShifted).toBe(false);
       });
 
+      // Verify that a book which opened stays on screen when the library cannot record it
+      it("keeps the pages when recording the opened book fails", async () => {
+        vi.mocked(ContainerCommands.getEntriesInContainer).mockResolvedValue({
+          is_directory: false,
+          entries: ["p1", "p2"],
+          is_novel: false,
+        });
+        vi.mocked(BookCommands.recordBookOpened).mockRejectedValue(
+          new CommandError(ErrorCode.database, "database is locked"),
+        );
+
+        store.dispatch(setContainerFilePath("path/to/book.zip"));
+        const result = await store.dispatch(openContainerFile("path/to/book.zip"));
+
+        // It used to reject, which emptied the reader and claimed the book itself
+        // could not be opened.
+        expect(result.type).toBe("read/openContainerFile/fulfilled");
+        const state = store.getState().read;
+        expect(state.containerFile.entries).toEqual(["p1", "p2"]);
+        expect(state.containerFile.book).toBeNull();
+        expect(state.containerFile.error).toBeNull();
+        expect(state.containerFile.bookRecordError).toEqual({
+          code: ErrorCode.database,
+          message: "database is locked",
+        });
+      });
+
       // The open-time window is the one that races the viewer's first request: it must
       // leave the pages the viewer is about to ask for to the viewer.
       it("leaves the pages the viewer will load out of the opening window", async () => {
@@ -730,6 +757,7 @@ describe("ReadReducer", () => {
             isNovel: false,
             book: createMockBookWithState({ id: 1 }),
             readingDirection: "rtl",
+            bookRecordError: null,
           },
           "requestId",
           "old.zip",
