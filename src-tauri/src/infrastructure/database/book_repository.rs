@@ -77,7 +77,7 @@ impl BookRepository for SqliteBookRepository {
             r#"
             SELECT
                 id, file_path, item_type, display_name, total_pages, series_id, series_order,
-                thumbnail_path, created_at, is_spread_shifted, landscape_bits,
+                thumbnail_path, created_at, is_spread_shifted, landscape_bits, reading_direction,
                 last_read_page_index, last_opened_at,
                 cfi as "cfi?: String",
                 tag_ids_str as "tag_ids_str?: String"
@@ -219,6 +219,18 @@ impl BookRepository for SqliteBookRepository {
         Ok(())
     }
 
+    async fn update_reading_direction(&self, book_id: i64, reading_direction: &str) -> Result<()> {
+        sqlx::query!(
+            "UPDATE books SET reading_direction = ? WHERE id = ?",
+            reading_direction,
+            book_id
+        )
+        .execute(&self.pool)
+        .await?;
+
+        Ok(())
+    }
+
     async fn update_page_layout(&self, book_id: i64, landscape_bits: &str) -> Result<()> {
         sqlx::query!(
             "UPDATE books SET landscape_bits = ? WHERE id = ?",
@@ -304,7 +316,7 @@ impl BookRepository for SqliteBookRepository {
             r#"
             SELECT
                 id, file_path, item_type, display_name, total_pages, series_id, series_order,
-                thumbnail_path, created_at, is_spread_shifted, landscape_bits,
+                thumbnail_path, created_at, is_spread_shifted, landscape_bits, reading_direction,
                 last_read_page_index, last_opened_at,
                 cfi as "cfi?: String",
                 tag_ids_str as "tag_ids_str?: String"

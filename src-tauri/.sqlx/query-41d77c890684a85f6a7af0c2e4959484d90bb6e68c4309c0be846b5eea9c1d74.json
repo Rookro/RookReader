@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE books SET reading_direction = ? WHERE id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "41d77c890684a85f6a7af0c2e4959484d90bb6e68c4309c0be846b5eea9c1d74"
+}

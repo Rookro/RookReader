@@ -97,6 +97,13 @@ pub struct BookWithState {
     /// that is what settles where two-page spreads begin, and 200 bytes is the whole
     /// measurement for a 200-page book.
     pub landscape_bits: Option<String>,
+    /// The page direction this book opens with, `"rtl"` or `"ltr"`.
+    ///
+    /// Seeded from the reader's default the first time the book is opened, then
+    /// overwritten whenever the direction is flipped in the navigation bar. `None` until
+    /// the book has been opened once, and always `None` for novels, whose direction is
+    /// the EPUB's own and cannot be overridden.
+    pub reading_direction: Option<String>,
     /// The last read page index, if the book has been opened.
     pub last_read_page_index: Option<i64>,
     /// The timestamp when the book was last opened, if any.
@@ -160,6 +167,7 @@ mod tests {
             created_at: None,
             is_spread_shifted: false,
             landscape_bits: None,
+            reading_direction: None,
             last_read_page_index: None,
             last_opened_at: None,
             cfi: None,
