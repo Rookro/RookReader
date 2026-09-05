@@ -1,11 +1,12 @@
 ﻿import type { Theme } from "@mui/material";
-import { readFile } from "@tauri-apps/plugin-fs";
+import { exists, readFile } from "@tauri-apps/plugin-fs";
 import { renderHook, waitFor } from "@testing-library/react";
 import { Paginator } from "foliate-js/paginator.js";
 import { type Book, makeBook, type View } from "foliate-js/view.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAppTheme } from "../../../hooks/useAppTheme";
 import { type RootState, useAppDispatch, useAppSelector } from "../../../store/store";
+import { ErrorCode } from "../../../types/Error";
 import { setEntries, setNovelDirection, setNovelLocation } from "../slice";
 import { useNovelReader } from "./useNovelReader";
 
@@ -107,6 +108,8 @@ describe("useNovelReader", () => {
       return selector(defaultState as RootState);
     });
     vi.mocked(readFile).mockResolvedValue(new Uint8Array([1, 2, 3]));
+    // The module is automocked, so without this every case would see "the file is gone".
+    vi.mocked(exists).mockResolvedValue(true);
   });
 
   afterEach(() => {
@@ -856,6 +859,40 @@ describe("useNovelReader", () => {
       expect(error).toHaveBeenCalledWith(
         expect.stringContaining("Error loading EPUB file: Error: File read error"),
       );
+    });
+  });
+
+  // Verify that a novel whose file is gone says so, rather than leaving an empty viewer
+  it("reports a missing EPUB as not found", async () => {
+    vi.mocked(readFile).mockRejectedValue(new Error("File read error"));
+    vi.mocked(exists).mockResolvedValue(false);
+
+    const { result } = setupHook("gone.epub");
+
+    await waitFor(() => {
+      expect(result.current.loadError).toEqual({ code: ErrorCode.pathNotFound });
+    });
+  });
+
+  // Verify that a file which is still there is reported as a read failure, not as missing
+  it("reports an unreadable EPUB as an I/O failure", async () => {
+    vi.mocked(readFile).mockRejectedValue(new Error("File read error"));
+
+    const { result } = setupHook("locked.epub");
+
+    await waitFor(() => {
+      expect(result.current.loadError).toEqual({ code: ErrorCode.io });
+    });
+  });
+
+  // Verify that a book foliate-js cannot parse is reported as unreadable, not as missing
+  it("reports an unparsable EPUB as damaged", async () => {
+    vi.mocked(makeBook).mockRejectedValue(new Error("bad zip"));
+
+    const { result } = setupHook("broken.epub");
+
+    await waitFor(() => {
+      expect(result.current.loadError).toEqual({ code: ErrorCode.epub });
     });
   });
 

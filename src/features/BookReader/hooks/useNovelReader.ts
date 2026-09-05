@@ -1,12 +1,13 @@
-import { readFile } from "@tauri-apps/plugin-fs";
+import { exists, readFile } from "@tauri-apps/plugin-fs";
 import { error } from "@tauri-apps/plugin-log";
 import type { TOCItem } from "foliate-js/epub.js";
 import { Paginator } from "foliate-js/paginator.js";
 import { type Book, makeBook, type View, type ViewLocation } from "foliate-js/view.js";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import BundledNotoSerifJP from "../../../assets/fonts/NotoSerifJP-VariableFont_wght.woff2";
 import { useAppTheme } from "../../../hooks/useAppTheme";
 import { useAppDispatch, useAppSelector } from "../../../store/store";
+import { CommandError, ErrorCode } from "../../../types/Error";
 import { setEntries, setNovelDirection, setNovelLocation } from "../slice";
 import { usePageNavigation } from "./usePageNavigation";
 import { useReadingDirection } from "./useReadingDirection";
@@ -66,6 +67,8 @@ export interface UseNovelReaderOptions {
 export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
   const theme = useAppTheme();
   const viewerRef = useRef<HTMLDivElement>(null);
+  /** Why the book's text could not be loaded, if it could not. */
+  const [loadError, setLoadError] = useState<{ code: ErrorCode } | null>(null);
   const viewRef = useRef<View | null>(null);
   const bookRef = useRef<Book | null>(null);
   /**
@@ -162,6 +165,7 @@ export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
 
   useEffect(() => {
     let isMounted = true;
+    setLoadError(null);
 
     const loadBook = async () => {
       if (!filePath || !viewerRef.current) {
@@ -183,7 +187,23 @@ export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
         return;
       }
 
-      const binaryData = await readFile(filePath);
+      let binaryData: Awaited<ReturnType<typeof readFile>>;
+      try {
+        binaryData = await readFile(filePath);
+      } catch (ex) {
+        // "The book is gone" is the one read failure the reader can act on, and the OS
+        // message is localized, so ask the filesystem rather than match on its text.
+        let code: ErrorCode = ErrorCode.io;
+        try {
+          if (!(await exists(filePath))) {
+            code = ErrorCode.pathNotFound;
+          }
+        } catch {
+          // The check failing says nothing about the file; keep the I/O code.
+        }
+        // Re-thrown with the original message so the log line below is unchanged.
+        throw new CommandError(code, ex instanceof Error ? ex.message : String(ex));
+      }
 
       if (!isMounted) {
         return;
@@ -291,6 +311,12 @@ export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
 
     loadBook().catch((ex) => {
       error(`Error loading EPUB file: ${ex}`);
+      if (!isMounted) {
+        return;
+      }
+      // Everything past the file read is foliate-js parsing or rendering the EPUB, which
+      // fails for one reason the reader cares about: the book cannot be read.
+      setLoadError({ code: ex instanceof CommandError ? ex.code : ErrorCode.epub });
     });
 
     return () => {
@@ -338,5 +364,5 @@ export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
     };
   }, [handleKeydown]);
 
-  return { viewerRef };
+  return { viewerRef, loadError };
 };
