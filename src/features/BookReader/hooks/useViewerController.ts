@@ -1,9 +1,10 @@
-import { warn } from "@tauri-apps/plugin-log";
+import { error, warn } from "@tauri-apps/plugin-log";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { updatePageLayout } from "../../../bindings/BookCommands";
 import type { BookWithState } from "../../../bindings/bindings";
 import { getImageDimensions, requestPreloadAround } from "../../../bindings/ContainerCommands";
 import type { AppDispatch } from "../../../store/store";
+import { createCommandError, type ErrorCode } from "../../../types/Error";
 import type { Image } from "../../../types/Image";
 import { perf, perfSince, perfStart } from "../../../utils/perf";
 import { setImageIndex, setSpreadDisplayed } from "../slice";
@@ -109,6 +110,11 @@ export interface ViewerController {
   displayedLayout: ViewLayout | null;
   /** Is loading a image. */
   isImageLoading: boolean;
+  /**
+   * Why the current page could not be shown at all, if it could not. Null while a page is
+   * on screen, including one that only resolved from its preview.
+   */
+  pageError: { code: ErrorCode } | null;
   /** Move forward action. */
   moveForward: () => void;
   /** Move backward action. */
@@ -165,6 +171,7 @@ export const useViewerController = ({
 }: ViewerControllerOptions): ViewerController => {
   const cacheRef = useRef<Map<string, ImageCacheItem>>(new Map());
   const [isImageLoading, setIsImageLoading] = useState(false);
+  const [pageError, setPageError] = useState<{ code: ErrorCode } | null>(null);
   const [layoutState, setLayoutState] = useState<{ layout: ViewLayout; path: string } | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const [scannedLandscape, setScannedLandscape] = useState<{
@@ -419,13 +426,36 @@ export const useViewerController = ({
       // fallback only fires when no layout ever came out.
       let layoutResolved = false;
 
+      // Why the page the reader asked for could not be drawn, if it could not. Recorded
+      // rather than shown at once: a page that still resolves from its preview, and a
+      // spread that degrades to a single page, are not failures worth interrupting for.
+      // Held in an object so its type survives being written from the closure below.
+      const failure: { code: ErrorCode | null } = { code: null };
+
+      setPageError(null);
+
       const loadAndUpdate = async (
         path: string,
         fetcher: (containerPath: string, entryName: string) => Promise<Image | null | undefined>,
         isPreview: boolean,
       ) => {
         if (controller.signal.aborted) return;
-        const img = await fetcher(containerPath, path);
+        let img: Image | null | undefined;
+        try {
+          img = await fetcher(containerPath, path);
+        } catch (e) {
+          const commandError = createCommandError(e);
+          error(
+            `Failed to load ${isPreview ? "a preview" : "an image"} of ${path}: ` +
+              `${commandError.message} (code ${commandError.code})`,
+          );
+          // Only the page the reader is on can leave the viewer with nothing to show; the
+          // facing page of a spread degrades, and a preview is answered by the full image.
+          if (!isPreview && path === entries[index]) {
+            failure.code = commandError.code;
+          }
+          return;
+        }
         // Null is the backend declining, not a failure: only that answer is evidence
         // about the container.
         if (isPreview && img === null && !controller.signal.aborted) {
@@ -507,6 +537,11 @@ export const useViewerController = ({
             reportDisplayed();
             setLayoutState({ layout: buildSinglePageLayout(firstImg), path: containerPath });
           }
+        }
+        // Nothing came out for the page that was asked for, so say why instead of leaving
+        // the reader on the page before it wondering whether the click registered.
+        if (failure.code !== null && !cache.get(entries[index])?.url) {
+          setPageError({ code: failure.code });
         }
         if (previewPromises.length === 0) {
           setIsImageLoading(pairing === null);
@@ -621,6 +656,7 @@ export const useViewerController = ({
   return {
     displayedLayout,
     isImageLoading,
+    pageError,
     moveForward,
     moveBack,
   };

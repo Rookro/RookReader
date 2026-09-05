@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as ContainerCommands from "../../../bindings/ContainerCommands";
+import { CommandError, ErrorCode } from "../../../types/Error";
 import { Image } from "../../../types/Image";
 import {
   buildUnitChain,
@@ -270,11 +271,12 @@ describe("ImageUtils", () => {
       expect(result?.width).toBe(width);
     });
 
-    // Verify that undefined is returned and an error log is output if getImage fails
-    it("should return undefined and log error if getImage fails", async () => {
-      vi.mocked(ContainerCommands.getImage).mockRejectedValue(new Error("fetch failed"));
-      const result = await fetchImageBlob("path", "file");
-      expect(result).toBeUndefined();
+    // Verify that a backend failure reaches the caller instead of being swallowed
+    it("should reject when getImage fails", async () => {
+      vi.mocked(ContainerCommands.getImage).mockRejectedValue(
+        new CommandError(ErrorCode.image, "fetch failed"),
+      );
+      await expect(fetchImageBlob("path", "file")).rejects.toBeInstanceOf(CommandError);
     });
   });
 
@@ -312,11 +314,12 @@ describe("ImageUtils", () => {
       expect(result).toBeNull();
     });
 
-    // Verify that undefined is returned and an error log is output if getImagePreview fails
-    it("should return undefined and log error if getImagePreview fails", async () => {
-      vi.mocked(ContainerCommands.getImagePreview).mockRejectedValue(new Error("preview failed"));
-      const result = await fetchImagePreviewBlob("path", "file");
-      expect(result).toBeUndefined();
+    // Verify that a failed request is distinguishable from the backend declining a preview
+    it("should reject when getImagePreview fails", async () => {
+      vi.mocked(ContainerCommands.getImagePreview).mockRejectedValue(
+        new CommandError(ErrorCode.image, "preview failed"),
+      );
+      await expect(fetchImagePreviewBlob("path", "file")).rejects.toBeInstanceOf(CommandError);
     });
   });
 

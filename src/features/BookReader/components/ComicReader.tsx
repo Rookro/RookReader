@@ -10,6 +10,7 @@ import { useViewerController } from "../hooks/useViewerController";
 import type { ViewerSettings } from "../utils/ImageUtils";
 import AdjacentBookConfirmDialog from "./AdjacentBookConfirmDialog";
 import Loupe from "./Loupe";
+import ReaderErrorOverlay from "./ReaderErrorOverlay";
 
 const selectComicReaderState = createSelector(
   [(state: RootState) => state.read.containerFile, (state: RootState) => state.settings.reader],
@@ -56,17 +57,19 @@ export default function ComicReader() {
   const { onForwardBoundary, onBackwardBoundary, pending, confirmPending, cancelPending } =
     useAdjacentBookNavigation();
 
-  const { displayedLayout, moveForward, moveBack, isImageLoading } = useViewerController({
-    containerPath,
-    entries,
-    index,
-    isSpreadShifted,
-    settings,
-    dispatch,
-    book,
-    onForwardBoundary,
-    onBackwardBoundary,
-  });
+  const { displayedLayout, moveForward, moveBack, isImageLoading, pageError } = useViewerController(
+    {
+      containerPath,
+      entries,
+      index,
+      isSpreadShifted,
+      settings,
+      dispatch,
+      book,
+      onForwardBoundary,
+      onBackwardBoundary,
+    },
+  );
 
   const loupeSettings = readerSettings.comic.loupe;
 
@@ -122,6 +125,12 @@ export default function ComicReader() {
     </Box>
   ) : null;
 
+  // Sits alongside the spinner rather than replacing the layout: a page that fails while
+  // another is on screen must not leave the previous one showing with no explanation.
+  const errorOverlay = pageError ? (
+    <ReaderErrorOverlay context="load-page" code={pageError.code} />
+  ) : null;
+
   const confirmDialog = (
     <AdjacentBookConfirmDialog
       open={pending != null}
@@ -140,6 +149,7 @@ export default function ComicReader() {
         }}
       >
         {spinnerOverlay}
+        {errorOverlay}
         {confirmDialog}
       </Box>
     );
@@ -179,6 +189,7 @@ export default function ComicReader() {
       >
         <Box sx={{ display: "flex", width: "100%", height: "100%" }}>
           {spinnerOverlay}
+          {errorOverlay}
           {displayedLayout.isSpread ? (
             <>
               <Box

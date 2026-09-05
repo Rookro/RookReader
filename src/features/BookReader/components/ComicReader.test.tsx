@@ -2,6 +2,7 @@ import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createBasePreloadedState, renderWithProviders } from "../../../test/utils";
+import { ErrorCode } from "../../../types/Error";
 import * as adjacentBookNavigation from "../hooks/useAdjacentBookNavigation";
 import * as pageNavigation from "../hooks/usePageNavigation";
 import * as viewerController from "../hooks/useViewerController";
@@ -41,6 +42,7 @@ describe("ComicReader", () => {
       moveForward: vi.fn(),
       moveBack: vi.fn(),
       isImageLoading: false,
+      pageError: null,
     });
   });
 
@@ -57,6 +59,7 @@ describe("ComicReader", () => {
       moveForward: vi.fn(),
       moveBack: vi.fn(),
       isImageLoading: false,
+      pageError: null,
     });
 
     renderWithProviders(<ComicReader />, { preloadedState });
@@ -80,6 +83,7 @@ describe("ComicReader", () => {
       moveForward: vi.fn(),
       moveBack: vi.fn(),
       isImageLoading: false,
+      pageError: null,
     });
 
     renderWithProviders(<ComicReader />, { preloadedState });
@@ -106,6 +110,7 @@ describe("ComicReader", () => {
       moveForward: vi.fn(),
       moveBack: vi.fn(),
       isImageLoading: false,
+      pageError: null,
     });
 
     renderWithProviders(<ComicReader />, { preloadedState });
@@ -138,6 +143,7 @@ describe("ComicReader", () => {
       moveForward: vi.fn(),
       moveBack: vi.fn(),
       isImageLoading: false,
+      pageError: null,
     });
 
     renderWithProviders(<ComicReader />);
@@ -161,6 +167,7 @@ describe("ComicReader", () => {
       moveForward: vi.fn(),
       moveBack: vi.fn(),
       isImageLoading: false,
+      pageError: null,
     });
 
     renderWithProviders(<ComicReader />);
@@ -171,5 +178,22 @@ describe("ComicReader", () => {
     // Check if event handlers are present
     expect(readerArea).toHaveProperty("onmousemove");
     expect(readerArea).toHaveProperty("onmousedown");
+  });
+
+  // Verify the reader is told why the page is missing, rather than being left with a blank area
+  it("shows why the page could not be loaded", () => {
+    vi.mocked(viewerController.useViewerController).mockReturnValue({
+      displayedLayout: null,
+      moveForward: vi.fn(),
+      moveBack: vi.fn(),
+      isImageLoading: false,
+      pageError: { code: ErrorCode.image },
+    });
+
+    renderWithProviders(<ComicReader />, { preloadedState: createBasePreloadedState() });
+
+    expect(
+      screen.getByText("Failed to load the page. The file is damaged or could not be read."),
+    ).toBeInTheDocument();
   });
 });

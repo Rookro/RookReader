@@ -1,4 +1,4 @@
-import { debug, error } from "@tauri-apps/plugin-log";
+import { debug } from "@tauri-apps/plugin-log";
 import { getImage, getImagePreview } from "../../../bindings/ContainerCommands";
 import { Image } from "../../../types/Image";
 
@@ -83,7 +83,9 @@ export interface ViewerSettings {
  *
  * @param containerPath The path of the container file.
  * @param entryName The name of the entry to fetch.
- * @returns The fetched image or undefined if the fetch failed.
+ * @returns The fetched image, or undefined when there was nothing to ask for.
+ * @throws {CommandError} When the backend could not produce the image. Swallowing it here
+ *   is what left the viewer on the previous page with nothing to say about this one.
  */
 export const fetchImageBlob = async (
   containerPath: string,
@@ -92,13 +94,8 @@ export const fetchImageBlob = async (
   if (!containerPath || !entryName || containerPath.length === 0 || entryName.length === 0) {
     return undefined;
   }
-  try {
-    const response = await getImage(containerPath, entryName);
-    return new Image(response);
-  } catch (ex) {
-    error(`Failed to load an image of ${entryName}: ${JSON.stringify(ex)}`);
-    return undefined;
-  }
+  const response = await getImage(containerPath, entryName);
+  return new Image(response);
 };
 
 /**
@@ -110,8 +107,9 @@ export const fetchImageBlob = async (
  *
  * @param containerPath The path of the container file.
  * @param entryName The name of the entry to fetch.
- * @returns The fetched image, null if the backend produced no preview, or undefined if
- *   the fetch failed.
+ * @returns The fetched image, null if the backend produced no preview, or undefined when
+ *   there was nothing to ask for.
+ * @throws {CommandError} When the request itself failed.
  */
 export const fetchImagePreviewBlob = async (
   containerPath: string,
@@ -120,17 +118,12 @@ export const fetchImagePreviewBlob = async (
   if (!containerPath || !entryName || containerPath.length === 0 || entryName.length === 0) {
     return undefined;
   }
-  try {
-    const response = await getImagePreview(containerPath, entryName);
-    if (response.byteLength === 0) {
-      debug(`Skip preview image for ${entryName}`);
-      return null;
-    }
-    return new Image(response);
-  } catch (ex) {
-    error(`Failed to load an image preview of ${entryName}: ${JSON.stringify(ex)}`);
-    return undefined;
+  const response = await getImagePreview(containerPath, entryName);
+  if (response.byteLength === 0) {
+    debug(`Skip preview image for ${entryName}`);
+    return null;
   }
+  return new Image(response);
 };
 
 /**
