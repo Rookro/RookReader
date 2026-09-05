@@ -71,6 +71,7 @@ export type {
 
 import type {
   AutoOpenAdjacentBookMode,
+  Direction,
   ImageResamplingMethod_Serialize,
 } from "../bindings/bindings";
 
@@ -84,6 +85,9 @@ export const imageResamplingMethods = [
   "mitchellNetravali",
   "lanczos3",
 ] as const satisfies readonly ImageResamplingMethod_Serialize[];
+
+/** The available comic reading directions (UI dropdown order). */
+export const directions = ["rtl", "ltr"] as const satisfies readonly Direction[];
 
 /** The available modes for auto-opening the adjacent book (UI dropdown order). */
 export const autoOpenAdjacentBookModes = [

@@ -257,6 +257,12 @@
         "novel": "Novel",
         "history": "History"
       },
+      "reading-direction": {
+        "title": "Default page direction",
+        "description": "The direction pages turn in when a book is opened for the first time. Changing the direction while reading is remembered for that book only.",
+        "rtl": "Right to left",
+        "ltr": "Left to right"
+      },
       "first-page": {
         "title": "Show the initial page in single-page view"
       },
