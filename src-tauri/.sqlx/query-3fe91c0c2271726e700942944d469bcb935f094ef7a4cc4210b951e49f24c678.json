@@ -1,10 +1,10 @@
 {
   "db_name": "SQLite",
-  "query": "\n            SELECT id, book_id, name, page_index, cfi, created_at\n            FROM bookmarks\n            WHERE book_id = ?\n            ORDER BY page_index ASC, created_at ASC, id ASC\n            ",
+  "query": "\n            INSERT INTO bookmarks (book_id, name, page_index, cfi)\n            VALUES (?, ?, ?, ?)\n            RETURNING id AS \"id!\", book_id, name, page_index, cfi, created_at\n            ",
   "describe": {
     "columns": [
       {
-        "name": "id",
+        "name": "id!",
         "ordinal": 0,
         "type_info": "Integer",
         "origin": {
@@ -71,10 +71,10 @@
       }
     ],
     "parameters": {
-      "Right": 1
+      "Right": 4
     },
     "nullable": [
-      false,
+      null,
       false,
       false,
       false,
@@ -82,5 +82,5 @@
       false
     ]
   },
-  "hash": "ae2f9895860b8dccf201e65b01e3123242f0fed7362b3684442a7e6319f42e12"
+  "hash": "3fe91c0c2271726e700942944d469bcb935f094ef7a4cc4210b951e49f24c678"
 }

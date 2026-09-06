@@ -249,7 +249,7 @@ fn build_pdf(dir: &Path, pages: &[Vec<u8>]) -> PathBuf {
         obj.scale(w.value, h.value).expect("scale");
         let mut page = doc
             .pages_mut()
-            .create_page_at_index(PdfPagePaperSize::a4(), i as u16)
+            .create_page_at_index(PdfPagePaperSize::a4(), i as i32)
             .expect("create page");
         page.objects_mut().add_image_object(obj).expect("add image");
     }

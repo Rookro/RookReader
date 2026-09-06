@@ -294,8 +294,8 @@ fn document<'p, 'd>(
 
 /// Renders a PDF page to a JPEG using a specific config.
 fn render_page(pdf: &PdfDocument, render_config: &PdfRenderConfig, index: u16) -> Result<Image> {
-    let page = pdf.pages().get(index).map_err(Error::from)?;
-    let img = page.render_with_config(render_config)?.as_image();
+    let page = pdf.pages().get(index.into()).map_err(Error::from)?;
+    let img = page.render_with_config(render_config)?.as_image()?;
 
     let mut buffer = Vec::new();
     JpegEncoder::new_with_quality(&mut buffer, 80).encode_image(&img)?;
@@ -313,7 +313,7 @@ fn render_page(pdf: &PdfDocument, render_config: &PdfRenderConfig, index: u16) -
 /// while preserving its aspect ratio, so the points already carry the orientation and
 /// ratio the caller needs.
 fn page_size(pdf: &PdfDocument, index: u16) -> Result<ImageDimensions> {
-    let page = pdf.pages().get(index).map_err(Error::from)?;
+    let page = pdf.pages().get(index.into()).map_err(Error::from)?;
 
     Ok(ImageDimensions {
         width: page.width().value.round().max(1.0) as u32,
@@ -331,11 +331,11 @@ fn render_thumbnail(
     render_config: &PdfRenderConfig,
     index: u16,
 ) -> Result<Image> {
-    let page = pdf.pages().get(index).map_err(Error::from)?;
+    let page = pdf.pages().get(index.into()).map_err(Error::from)?;
     let img = match page.embedded_thumbnail() {
         Ok(thumbnail) => thumbnail.as_image(),
         Err(_) => page.render_with_config(render_config)?.as_image(),
-    };
+    }?;
     // Cap both dimensions to the thumbnail contract: embedded thumbnails have no
     // spec-mandated size, and the render config constrains height only (a landscape
     // page still exceeds the width cap). Other containers already uphold this.
