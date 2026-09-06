@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.5.0] - 2026-09-06
+
 ### Added
 
 * The page direction is now remembered per book. (#317)
@@ -23,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * PDFs no longer freeze the app when opened while the bookshelf is still loading covers.
   * Adding a book to a bookshelf no longer interrupts the book you are reading, and a page that cannot be read now reports an error instead of loading forever.
   * A new "Page reader threads" setting helps books on a network drive, where reading fewer pages at once is often faster.
+* Updated the project's dependencies, including the bundled PDFium engine that renders PDF pages. (#321)
 
 ### Fixed
 
@@ -547,7 +550,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Add an automatic two-page spread display feature (#4)
 * Add a page navigation feature using the mouse wheel up/down (#5)
 
-[unreleased]: https://github.com/Rookro/RookReader/compare/v2.4.0...HEAD
+[unreleased]: https://github.com/Rookro/RookReader/compare/v2.5.0...HEAD
+[2.5.0]: https://github.com/Rookro/RookReader/compare/v2.4.0...v2.5.0
 [2.4.0]: https://github.com/Rookro/RookReader/compare/v2.3.1...v2.4.0
 [2.3.1]: https://github.com/Rookro/RookReader/compare/v2.3.0...v2.3.1
 [2.3.0]: https://github.com/Rookro/RookReader/compare/v2.2.1...v2.3.0

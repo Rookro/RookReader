@@ -9,6 +9,8 @@
 
 ## [Unreleased]
 
+## [2.5.0] - 2026-09-06
+
 ### Added
 
 * ページ送り方向を本ごとに記憶するように変更 (#317)
@@ -23,6 +25,7 @@
   * 本棚が表紙を読み込んでいる最中に PDF を開いてもアプリが固まらないように
   * 本棚に本を追加しても読んでいる本が中断されないように変更。読み込めないページは、いつまでも読み込み中にならずエラーを表示
   * 「ページ読み込みスレッド数」設定を追加。ネットワーク上の本では、同時に読み込む数を減らすと速くなることがある
+* 依存関係を更新。PDF の描画に使う PDFium エンジンも更新 (#321)
 
 ### Fixed
 
@@ -547,7 +550,8 @@
 * 自動見開き表示機能の追加 (#4)
 * ホイールの上下によるページ送り機能を追加 (#5)
 
-[unreleased]: https://github.com/Rookro/RookReader/compare/v2.4.0...HEAD
+[unreleased]: https://github.com/Rookro/RookReader/compare/v2.5.0...HEAD
+[2.5.0]: https://github.com/Rookro/RookReader/compare/v2.4.0...v2.5.0
 [2.4.0]: https://github.com/Rookro/RookReader/compare/v2.3.1...v2.4.0
 [2.3.1]: https://github.com/Rookro/RookReader/compare/v2.3.0...v2.3.1
 [2.3.0]: https://github.com/Rookro/RookReader/compare/v2.2.1...v2.3.0
