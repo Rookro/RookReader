@@ -4,6 +4,7 @@ pub mod directory_container;
 pub mod epub_container;
 pub mod factory;
 pub mod pdf_container;
+pub mod pdf_worker;
 pub mod rar_container;
 pub mod traits;
 pub mod zip_container;

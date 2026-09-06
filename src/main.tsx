@@ -7,6 +7,7 @@ import App from "./App";
 import { loadAllSettings } from "./features/Settings/settingsStore";
 import SettingsApp from "./SettingsApp";
 import { createStore } from "./store/store";
+import { setPerfLogging } from "./utils/perf";
 import "./i18n/config";
 import "allotment/dist/style.css";
 
@@ -34,6 +35,7 @@ const initializeAndRender = async () => {
     }
 
     const settings = await loadAllSettings();
+    setPerfLogging(settings.general.log.level);
 
     const preloadedState = {
       settings,

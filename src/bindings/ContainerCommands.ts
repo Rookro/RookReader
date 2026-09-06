@@ -14,17 +14,42 @@ export const getEntriesInContainer = async (path: string) => {
 };
 
 /**
+ * Counts a container's pages without opening it for reading.
+ *
+ * Distinct from {@link getEntriesInContainer}, which installs the book it opens and so
+ * closes the reader threads of the book already on screen. Use this wherever a book is
+ * only being registered.
+ *
+ * @param path The path of the container file.
+ * @returns A promise resolving to the page count and whether the path is a directory.
+ */
+export const countPagesInContainer = async (path: string) => {
+  return await runCommand(commands.countPagesInContainer(path));
+};
+
+/**
  * Requests preloading of images around a specific index in the backend.
  *
+ * @param path The path of the container the caller believes is open. The backend rejects
+ *   the request if a different book is open, which is what keeps a preload issued just
+ *   before a book switch from warming the wrong pages.
  * @param index The current page index around which to preload.
  * @param bufferSize How many pages to preload in each direction.
+ * @param callerPages How many pages from `index` the caller is fetching itself. They are
+ *   left out of the window: the caller asks for them at foreground priority, so
+ *   preloading them only lets a background job reach them first, and the foreground
+ *   request then waits on that job instead of being served.
  * @returns A promise that resolves when the request is submitted.
  */
 export const requestPreloadAround = async (
+  path: string,
   index: number,
   bufferSize: number | undefined = undefined,
+  callerPages: number | undefined = undefined,
 ): Promise<void> => {
-  await runCommand(commands.requestPreloadAround(index, bufferSize ?? null));
+  await runCommand(
+    commands.requestPreloadAround(path, index, bufferSize ?? null, callerPages ?? null),
+  );
 };
 
 /**

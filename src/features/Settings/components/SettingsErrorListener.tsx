@@ -1,7 +1,6 @@
 import { useEffect } from "react";
-import { useTranslation } from "react-i18next";
-import { errorCodeToMessageKey } from "../../../components/ui/errorMessages";
 import { useNotification } from "../../../components/ui/Notification/NotificationContext";
+import { useErrorMessage } from "../../../components/ui/useErrorMessage";
 import { useAppDispatch, useAppSelector } from "../../../store/store";
 import { clearSettingsError } from "../errorSlice";
 
@@ -15,17 +14,17 @@ import { clearSettingsError } from "../errorSlice";
  * observes that error and shows it. It renders nothing.
  */
 export default function SettingsErrorListener() {
-  const { t } = useTranslation();
+  const errorMessage = useErrorMessage();
   const { showNotification } = useNotification();
   const dispatch = useAppDispatch();
   const settingsError = useAppSelector((state) => state.settingsError.error);
 
   useEffect(() => {
     if (settingsError) {
-      showNotification(t(errorCodeToMessageKey(settingsError.code)), "error");
+      showNotification(errorMessage("settings-save", settingsError.code), "error");
       dispatch(clearSettingsError());
     }
-  }, [settingsError, t, showNotification, dispatch]);
+  }, [settingsError, errorMessage, showNotification, dispatch]);
 
   return null;
 }

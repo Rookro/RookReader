@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useTauriEvent } from "../../../hooks/useTauriEvent";
 import i18n from "../../../i18n/config";
 import { useAppDispatch } from "../../../store/store";
+import { perfStart } from "../../../utils/perf";
 import { defaultSettings } from "../settingsStore";
 import { setSettings } from "../slice";
 import { useSettingsChange } from "./useSettingsChange";
@@ -55,6 +56,28 @@ describe("useSettingsChange", () => {
 
     expect(setSettings).toHaveBeenCalledWith(payload);
     expect(mockDispatch).toHaveBeenCalledWith({ type: "setSettings", payload });
+  });
+
+  it("should turn the perf log on and off with the broadcast level", () => {
+    // Asserted through what the flag actually does, because that is the point: the reader
+    // window writes the `display` and `chain` records, and this event is the only thing
+    // that reaches it when the change was made in the settings window.
+    expect(perfStart()).toBeNull();
+
+    renderHook(() => useSettingsChange());
+    const settingsHandler = vi
+      .mocked(useTauriEvent)
+      .mock.calls.find(([name]) => name === "settings-changed")?.[1];
+
+    const debugLevel = structuredClone(defaultSettings);
+    debugLevel.general.log.level = "debug";
+    settingsHandler?.({ event: "settings-changed", id: 1, payload: debugLevel });
+    expect(perfStart()).toEqual(expect.any(Number));
+
+    const infoLevel = structuredClone(defaultSettings);
+    infoLevel.general.log.level = "info";
+    settingsHandler?.({ event: "settings-changed", id: 2, payload: infoLevel });
+    expect(perfStart()).toBeNull();
   });
 
   it("should change i18n language on a locale-changed event", () => {

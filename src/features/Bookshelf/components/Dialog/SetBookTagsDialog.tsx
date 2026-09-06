@@ -17,7 +17,9 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getBookTags, updateBookTags } from "../../../../bindings/BookCommands";
 import { useNotification } from "../../../../components/ui/Notification/NotificationContext";
+import { useErrorMessage } from "../../../../components/ui/useErrorMessage";
 import type { Tag } from "../../../../domain/tag/schema";
+import { createCommandError } from "../../../../types/Error";
 
 /** Props for the SetBookTagsDialog component */
 export interface SetBookTagsDialogProps {
@@ -42,6 +44,7 @@ export default function SetBookTagsDialog({
   onClose,
 }: SetBookTagsDialogProps) {
   const { t } = useTranslation();
+  const errorMessage = useErrorMessage();
   const { showNotification } = useNotification();
   const [selectedTagIds, setSelectedTagIds] = useState<Set<number>>(new Set());
 
@@ -94,9 +97,9 @@ export default function SetBookTagsDialog({
       // Some updates may have succeeded before the failure: refetch so the UI
       // reflects reality, keep the dialog open for retry, and tell the user.
       onUpdateTags();
-      showNotification(t("error-message.common.tag-error"), "error");
+      showNotification(errorMessage("tag", createCommandError(e).code), "error");
     }
-  }, [bookIds, selectedTagIds, onUpdateTags, onClose, showNotification, t]);
+  }, [bookIds, selectedTagIds, onUpdateTags, onClose, showNotification, errorMessage]);
 
   return (
     <Dialog open={openDialog} onClose={onClose} fullWidth>

@@ -10,16 +10,21 @@ export const NOVEL_FALLBACK_DIRECTION: Direction = "rtl";
 /**
  * Resolves the direction pages advance in for the book currently open.
  *
- * Comics follow the user's `reader.comic.readingDirection` setting. Novels follow the
- * direction detected from the EPUB itself and cannot be overridden, because the page
- * order of a vertically written book is a property of the book, not a preference.
+ * Comics follow the direction stored against the book, seeded from the
+ * `reader.comic.readingDirection` default the first time the book is opened; that default
+ * is the fallback while no book is loaded. Novels follow the direction detected from the
+ * EPUB itself and cannot be overridden, because the page order of a vertically written
+ * book is a property of the book, not a preference.
  *
  * @returns The effective reading direction.
  */
 export const useReadingDirection = (): Direction => {
   const isNovel = useAppSelector((state) => state.read.containerFile.isNovel);
   const novelDirection = useAppSelector((state) => state.read.containerFile.novelDirection);
-  const comicDirection = useAppSelector((state) => state.settings.reader.comic.readingDirection);
+  const bookDirection = useAppSelector((state) => state.read.containerFile.readingDirection);
+  const defaultDirection = useAppSelector((state) => state.settings.reader.comic.readingDirection);
 
-  return isNovel ? (novelDirection ?? NOVEL_FALLBACK_DIRECTION) : comicDirection;
+  return isNovel
+    ? (novelDirection ?? NOVEL_FALLBACK_DIRECTION)
+    : (bookDirection ?? defaultDirection);
 };

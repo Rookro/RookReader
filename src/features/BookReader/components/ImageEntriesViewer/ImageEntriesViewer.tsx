@@ -1,4 +1,4 @@
-import { Box, Typography } from "@mui/material";
+import { Box, Stack, Typography } from "@mui/material";
 import { debug, error } from "@tauri-apps/plugin-log";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -101,7 +101,12 @@ export default function ImageEntriesViewer() {
   );
 
   return (
-    <Box sx={{ width: "100%", height: "100%", display: "grid", alignContent: "start" }}>
+    <Stack
+      sx={{
+        width: "100%",
+        height: "100%",
+      }}
+    >
       <SidePanelHeader title={t("book-reader.pages-viewer.title")} />
       {entries.length === 0 ? (
         <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
@@ -110,14 +115,17 @@ export default function ImageEntriesViewer() {
           </Typography>
         </Box>
       ) : (
-        <List
-          rowComponent={Row}
-          rowProps={rowData}
-          rowCount={entries.length}
-          rowHeight={36}
-          listRef={setList}
-        />
+        <Box sx={{ flexGrow: 1, overflow: "auto" }}>
+          <List
+            rowComponent={Row}
+            rowProps={rowData}
+            rowCount={entries.length}
+            rowHeight={36}
+            overscanCount={5}
+            listRef={setList}
+          />
+        </Box>
       )}
-    </Box>
+    </Stack>
   );
 }

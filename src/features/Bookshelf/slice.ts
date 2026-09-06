@@ -13,7 +13,7 @@ import {
   getAllBookshelves,
   removeBookFromBookshelf,
 } from "../../bindings/BookshelfCommands";
-import { getEntriesInContainer } from "../../bindings/ContainerCommands";
+import { countPagesInContainer } from "../../bindings/ContainerCommands";
 import type { BookWithState } from "../../domain/book/schema";
 import type { Bookshelf } from "../../domain/bookshelf/schema";
 import { readingProgressChanged } from "../../store/actions";
@@ -130,8 +130,10 @@ export const addBookToBookshelf = createAppAsyncThunk(
     { rejectWithValue },
   ) => {
     try {
-      const [entriesResult, fileName] = await Promise.all([
-        getEntriesInContainer(bookPath),
+      // Counting only. Opening the container here would install it as the open book and
+      // stop the reader threads of the book actually on screen.
+      const [summary, fileName] = await Promise.all([
+        countPagesInContainer(bookPath),
         basename(bookPath),
       ]);
 
@@ -139,8 +141,8 @@ export const addBookToBookshelf = createAppAsyncThunk(
         filePath: bookPath,
         // A folder inside an archive is a folder to the user; same derivation as in
         // the reader's openContainerFile.
-        itemType: entriesResult.is_directory || isInsideArchive(bookPath) ? "directory" : "file",
-        totalPages: entriesResult.entries.length,
+        itemType: summary.is_directory || isInsideArchive(bookPath) ? "directory" : "file",
+        totalPages: summary.total_pages,
         displayName: fileName,
       });
 

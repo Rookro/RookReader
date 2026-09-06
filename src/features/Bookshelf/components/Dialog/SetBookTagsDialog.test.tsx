@@ -147,7 +147,7 @@ describe("SetBookTagsDialog", () => {
 
     // An error notification appears, the refetch callback runs (so partial success
     // is reflected), and the dialog stays open for retry.
-    await waitFor(() => expect(screen.getByText("Tag operation failed.")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/^Tag operation failed\./)).toBeInTheDocument());
     expect(onUpdateTags).toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
   });

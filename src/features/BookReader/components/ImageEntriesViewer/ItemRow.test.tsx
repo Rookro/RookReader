@@ -1,3 +1,4 @@
+import { alpha, createTheme } from "@mui/material";
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
@@ -32,5 +33,17 @@ describe("ImageEntriesViewer/ItemRow", () => {
     renderWithProviders(<ItemRow entry={mockEntry} index={0} selected={true} />);
     const button = screen.getByRole("button");
     expect(button).toHaveClass("Mui-selected");
+  });
+
+  it("should take the selected row color from the theme instead of overriding it", () => {
+    const theme = createTheme();
+    renderWithProviders(<ItemRow entry={mockEntry} index={0} selected={true} />);
+
+    const backgroundColor = getComputedStyle(screen.getByRole("button")).backgroundColor;
+
+    expect(backgroundColor).toBe(
+      alpha(theme.palette.primary.main, theme.palette.action.selectedOpacity),
+    );
+    expect(backgroundColor).not.toBe(theme.palette.action.selected);
   });
 });

@@ -1,8 +1,10 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 
+import type { ErrorCode } from "../../types/Error";
+
 /** A settings error surfaced to the user (mirrors a `CommandError`'s code/message). */
 export interface SettingsError {
-  code: number;
+  code: ErrorCode;
   message?: string;
 }
 

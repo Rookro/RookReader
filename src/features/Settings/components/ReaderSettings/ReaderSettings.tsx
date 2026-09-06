@@ -5,6 +5,7 @@ import AutoDescendSingleFolderSetting from "./Items/AutoDescendSingleFolderSetti
 import AutoOpenAdjacentBookSetting from "./Items/AutoOpenAdjacentBookSetting";
 import FontSettings from "./Items/FontSettings";
 import LoupeSettingsItem from "./Items/LoupeSettingsItem";
+import ReadingDirectionSetting from "./Items/ReadingDirectionSetting";
 import RecordReadingHistorySetting from "./Items/RecordReadingHistorySetting";
 import ShowCoverAsSinglePageSetting from "./Items/ShowCoverAsSinglePageSetting";
 
@@ -20,6 +21,8 @@ export default function ReaderSettings() {
         <ListSubheader disableSticky color="primary">
           {t("settings.reader.headers.comic")}
         </ListSubheader>
+        <ReadingDirectionSetting />
+        <Divider />
         <ShowCoverAsSinglePageSetting />
         <Divider />
         <AutoOpenAdjacentBookSetting />

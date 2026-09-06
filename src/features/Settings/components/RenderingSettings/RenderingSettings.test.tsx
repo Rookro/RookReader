@@ -43,6 +43,12 @@ vi.mock("./Items/PreloadPageCountSetting", () => {
   return { default: PreloadPageCountSetting };
 });
 
+vi.mock("./Items/PageReaderCountSetting", () => {
+  const PageReaderCountSetting = (): JSX.Element => <div data-testid="page-reader-count-setting" />;
+  PageReaderCountSetting.displayName = "PageReaderCountSetting";
+  return { default: PageReaderCountSetting };
+});
+
 vi.mock("./Items/ImageCacheSizeSetting", () => {
   const ImageCacheSizeSetting = (): JSX.Element => <div data-testid="image-cache-size-setting" />;
   ImageCacheSizeSetting.displayName = "ImageCacheSizeSetting";
@@ -78,6 +84,7 @@ describe("RenderingSettings", () => {
     expect(screen.getByTestId("image-resampling-method-setting")).toBeInTheDocument();
     expect(screen.getByTestId("pdf-render-resolution-height-setting")).toBeInTheDocument();
     expect(screen.getByTestId("preload-page-count-setting")).toBeInTheDocument();
+    expect(screen.getByTestId("page-reader-count-setting")).toBeInTheDocument();
     expect(screen.getByTestId("image-cache-size-setting")).toBeInTheDocument();
   });
 });

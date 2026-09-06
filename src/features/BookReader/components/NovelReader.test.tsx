@@ -137,6 +137,20 @@ describe("BookReader/NovelReader", () => {
     );
   });
 
+  // Verify the reader is told why the text is missing, instead of facing an empty page
+  it("shows why the book's text could not be loaded", async () => {
+    vi.mocked(fs.readFile).mockRejectedValue(new Error("File read error"));
+    vi.mocked(fs.exists).mockResolvedValue(false);
+
+    renderWithProviders(<NovelReader filePath={mockFilePath} />, {
+      preloadedState: defaultPreloadedState,
+    });
+
+    expect(
+      await screen.findByText("Failed to load the book's text. The file or folder was not found."),
+    ).toBeInTheDocument();
+  });
+
   it("should handle relocate events", async () => {
     renderWithProviders(<NovelReader filePath={mockFilePath} />, {
       preloadedState: defaultPreloadedState,

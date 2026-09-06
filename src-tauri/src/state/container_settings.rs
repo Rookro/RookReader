@@ -17,6 +17,9 @@ pub struct ContainerSettings {
     pub pdf_render_resolution_height: i32,
     /// The maximum size of the image memory cache in MiB.
     pub image_cache_size_mib: u64,
+    /// How many threads may read pages at once (`0` = pick one from the machine).
+    /// Capped by the container's own `max_readers`.
+    pub page_reader_count: i32,
     /// An optional path to the PDFium library, required for rendering PDF files.
     /// If `None`, the application may not be able to open PDF files.
     pub pdfium_library_path: Option<String>,
@@ -33,6 +36,7 @@ impl Default for ContainerSettings {
             image_resampling_method: ResizeFilter::Bilinear,
             pdf_render_resolution_height: 2000,
             image_cache_size_mib: 1024,
+            page_reader_count: 0,
             pdfium_library_path: None,
             auto_descend_single_folder: true,
         }

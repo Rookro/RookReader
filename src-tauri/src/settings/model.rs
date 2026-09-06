@@ -207,12 +207,22 @@ pub struct ComicCacheSettings {
     #[garde(range(min = 1, max = 65536))]
     #[serde(default = "default_image_cache_size_mib")]
     pub image_cache_size_mib: u64,
+    /// How many threads may read pages at once (`0` = pick one from the machine).
+    ///
+    /// A ceiling, not a demand: a format that admits only one reader — a solid RAR, an
+    /// EPUB, a PDF — stays at one however high this goes. Worth lowering where the
+    /// pages come over a network, since there the readers compete for one link rather
+    /// than for cores, and each read gets slower as more of them run.
+    #[garde(range(min = 0, max = 64))]
+    #[serde(default = "default_page_reader_count")]
+    pub page_reader_count: i32,
 }
 
 impl Default for ComicCacheSettings {
     fn default() -> Self {
         Self {
             preload_page_count: default_preload_page_count(),
+            page_reader_count: default_page_reader_count(),
             image_cache_size_mib: default_image_cache_size_mib(),
         }
     }
@@ -220,6 +230,10 @@ impl Default for ComicCacheSettings {
 
 fn default_preload_page_count() -> i32 {
     10
+}
+
+fn default_page_reader_count() -> i32 {
+    0
 }
 
 fn default_image_cache_size_mib() -> u64 {

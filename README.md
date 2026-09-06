@@ -59,15 +59,8 @@ Please follow the steps below to download and install the appropriate file for y
 
 For users running Arch Linux or Manjaro, you can build and install the package using the provided PKGBUILD.
 
-1. Download the following files:
-
-   | File Name | Location |
-   | -- | -- |
-   | PKGBUILD | PKGBUILD/ in the repository |
-   | RookReader.install | PKGBUILD/ in the repository |
-
-1. Place all downloaded files in the same directory.
-1. Open the terminal, navigate to that directory, and run the following command to build and install the package:
+1. Download `PKGBUILD` from the `PKGBUILD/` directory in the repository.
+1. Open the terminal, navigate to the directory containing it, and run the following command to build and install the package:
 
    ``` bash
    makepkg -si

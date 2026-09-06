@@ -257,6 +257,12 @@
         "novel": "小説",
         "history": "履歴"
       },
+      "reading-direction": {
+        "title": "既定のページ送り方向",
+        "description": "本を初めて開いたときのページ送り方向です。閲覧中に変更した方向は、その本ごとに記憶されます。",
+        "rtl": "右から左",
+        "ltr": "左から右"
+      },
       "first-page": {
         "title": "表紙を単ページで表示する"
       },
@@ -333,6 +339,10 @@
           "title": "先読みページ数",
           "description": "前後方向に先読みするページ数を指定します。"
         },
+        "page-reader-count": {
+          "title": "ページ読み込みスレッド数",
+          "description": "同時にページを読み込むスレッド数です。0 を指定すると自動で決定します。\n上限値のため、ソリッド RAR、EPUB、PDF など 1 つしか読み込めない形式は 1 のままです。\nネットワーク上の本では、読み込みが CPU よりも回線を奪い合うため小さくすると速くなります。"
+        },
         "image-cache-size": {
           "title": "画像キャッシュサイズ (MiB)",
           "description": "メモリ上に保持する画像キャッシュの最大サイズ (MiB) です。\nこの設定を変更すると現在のキャッシュはクリアされます。"
@@ -379,23 +389,33 @@
     }
   },
   "error-message": {
-    "common": {
-      "failed-to-open-container-file": "本が開けませんでした。",
-      "failed-to-get-dir-entries": "フォルダーの中身が読み込めませんでした。",
-      "failed-to-fetch-history": "履歴が読み込めませんでした。",
-      "bookshelf-error": "本棚の操作でエラーが発生しました。",
-      "tag-error": "タグの操作でエラーが発生しました。",
-      "series-error": "シリーズの操作でエラーが発生しました。",
-      "unknown": "問題が発生しました。"
+    "headline": {
+      "open-container": "本が開けませんでした。",
+      "record-book": "読書履歴の記録に失敗しました。",
+      "load-page": "ページを読み込めませんでした。",
+      "load-novel": "本文を読み込めませんでした。",
+      "explorer": "フォルダーの中身が読み込めませんでした。",
+      "history": "履歴が読み込めませんでした。",
+      "bookshelf": "本棚の操作でエラーが発生しました。",
+      "tag": "タグの操作でエラーが発生しました。",
+      "series": "シリーズの操作でエラーが発生しました。",
+      "settings-save": "設定の保存に失敗しました。"
     },
-    "container": {
+    "reason": {
+      "not-found": "ファイルまたはフォルダーが見つかりません。",
       "unsupported-format": "非対応形式です。",
+      "empty-container": "読み込めるページがありません。",
       "entry-not-found": "ページが見つかりません。",
-      "empty": "読み込めるページがありません。"
+      "damaged": "ファイルが壊れているか、読み込めません。",
+      "pdf-unavailable": "PDF 機能を利用できません。",
+      "book-changed": "別の本に切り替わりました。",
+      "io": "ファイルの読み書きに失敗しました。",
+      "invalid-path": "パスが正しくありません。",
+      "database": "データの保存に失敗しました。",
+      "settings-validation": "入力内容を確認してください。",
+      "unspecified": "(エラーコード: {{code}})"
     },
     "settings": {
-      "save-failed": "設定の保存に失敗しました。",
-      "validation-failed": "設定の保存に失敗しました。入力内容を確認してください。",
       "out-of-range": "「{{field}}」は {{min}}〜{{max}} の範囲で入力してください。",
       "not-integer": "「{{field}}」は整数で入力してください。",
       "invalid-number": "「{{field}}」には有効な数値を入力してください。"

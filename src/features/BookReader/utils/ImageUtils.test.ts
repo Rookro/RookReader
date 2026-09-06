@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as ContainerCommands from "../../../bindings/ContainerCommands";
+import { CommandError, ErrorCode } from "../../../types/Error";
 import { Image } from "../../../types/Image";
 import {
   buildUnitChain,
@@ -8,21 +9,15 @@ import {
   detectCoverPresence,
   fetchImageBlob,
   fetchImagePreviewBlob,
-  findPreviousUnitStart,
   ImageCacheItem,
-  type PageDims,
-  resolveUnit,
   type ViewerSettings,
 } from "./ImageUtils";
 
-/** Builds entries, a dimensions list and a lookup from a list of "P"/"L" orientations. */
+/** Builds entries and the landscape bits from a list of "P"/"L" orientations. */
 const buildDims = (orientations: ("P" | "L")[]) => {
   const entries = orientations.map((_, i) => `p${i}`);
-  const pages: PageDims[] = orientations.map((o) =>
-    o === "P" ? { width: 100, height: 200 } : { width: 200, height: 100 },
-  );
-  const dims = new Map<number, PageDims>(pages.map((page, i) => [i, page]));
-  return { entries, pages, dims, getDims: (i: number) => dims.get(i) };
+  const pages: boolean[] = orientations.map((o) => o === "L");
+  return { entries, pages };
 };
 
 describe("ImageUtils", () => {
@@ -46,80 +41,11 @@ describe("ImageUtils", () => {
     });
   });
 
-  describe("resolveUnit", () => {
-    const twoPaged: ViewerSettings = {
-      isTwoPagedView: true,
-      isFirstPageSingleView: false,
-      direction: "ltr",
-      enablePreview: false,
-      preloadPageCount: 10,
-    };
-
-    // Verify that two portrait pages are paired into a spread
-    it("returns a spread for two portrait pages", () => {
-      const { entries, getDims } = buildDims(["P", "P"]);
-      expect(resolveUnit(0, entries, getDims, twoPaged)).toEqual({
-        isSpread: true,
-        nextIndexIncrement: 2,
-      });
-    });
-
-    // Verify that a landscape page occupies a unit on its own
-    it("returns a single unit for a landscape first page", () => {
-      const { entries, getDims } = buildDims(["L", "P"]);
-      expect(resolveUnit(0, entries, getDims, twoPaged)).toEqual({
-        isSpread: false,
-        nextIndexIncrement: 1,
-      });
-    });
-
-    // Verify that a portrait page followed by a landscape page is shown alone
-    it("returns a single unit when the second page is landscape", () => {
-      const { entries, getDims } = buildDims(["P", "L"]);
-      expect(resolveUnit(0, entries, getDims, twoPaged)).toEqual({
-        isSpread: false,
-        nextIndexIncrement: 1,
-      });
-    });
-
-    // Verify that the last page is never paired
-    it("returns a single unit for the last page", () => {
-      const { entries, getDims } = buildDims(["P", "P"]);
-      expect(resolveUnit(1, entries, getDims, twoPaged)).toEqual({
-        isSpread: false,
-        nextIndexIncrement: 1,
-      });
-    });
-
-    // Verify that spread mode being off always yields single units
-    it("returns a single unit when two-paged view is off", () => {
-      const { entries, getDims } = buildDims(["P", "P"]);
-      expect(resolveUnit(0, entries, getDims, { ...twoPaged, isTwoPagedView: false })).toEqual({
-        isSpread: false,
-        nextIndexIncrement: 1,
-      });
-    });
-
-    // Verify that the cover is shown alone when isFirstPageSingleView is enabled
-    it("returns a single unit for page 0 when isFirstPageSingleView is on", () => {
-      const { entries, getDims } = buildDims(["P", "P"]);
-      expect(
-        resolveUnit(0, entries, getDims, { ...twoPaged, isFirstPageSingleView: true }),
-      ).toEqual({ isSpread: false, nextIndexIncrement: 1 });
-    });
-
-    // Verify that an unknown dimension prevents a partial decision
-    it("returns null when a needed dimension is unknown", () => {
-      const { entries, dims } = buildDims(["P", "P"]);
-      dims.delete(1);
-      expect(resolveUnit(0, entries, (i) => dims.get(i), twoPaged)).toBeNull();
-    });
-  });
-
   describe("buildUnitLayout", () => {
     const portrait = new ImageCacheItem(100, 200, "url1");
     const portraitNext = new ImageCacheItem(100, 200, "url2");
     const entries = ["p0", "p1"];
+    const noFailures = new Map<string, ErrorCode>();
 
     // Verify that a spread decision attaches both images
     it("attaches both images for a spread", () => {
@@ -127,21 +53,23 @@ describe("ImageUtils", () => {
         ["p0", portrait],
         ["p1", portraitNext],
       ]);
-      expect(buildUnitLayout({ isSpread: true, nextIndexIncrement: 2 }, 0, entries, cache)).toEqual(
-        {
-          firstImage: portrait,
-          secondImage: portraitNext,
-          isSpread: true,
-          nextIndexIncrement: 2,
-        },
-      );
+      expect(
+        buildUnitLayout({ isSpread: true, nextIndexIncrement: 2 }, 0, entries, cache, noFailures),
+      ).toEqual({
+        firstImage: portrait,
+        secondImage: portraitNext,
+        firstError: undefined,
+        secondError: undefined,
+        isSpread: true,
+        nextIndexIncrement: 2,
+      });
     });
 
     // Verify that a spread decision fails when the second image is not loaded yet
     it("returns null when the spread's second image is not cached", () => {
       const cache = new Map([["p0", portrait]]);
       expect(
-        buildUnitLayout({ isSpread: true, nextIndexIncrement: 2 }, 0, entries, cache),
+        buildUnitLayout({ isSpread: true, nextIndexIncrement: 2 }, 0, entries, cache, noFailures),
       ).toBeNull();
     });
 
@@ -149,8 +77,60 @@ describe("ImageUtils", () => {
     it("attaches only the first image for a single unit", () => {
       const cache = new Map([["p0", portrait]]);
       expect(
-        buildUnitLayout({ isSpread: false, nextIndexIncrement: 1 }, 0, entries, cache),
-      ).toEqual({ firstImage: portrait, isSpread: false, nextIndexIncrement: 1 });
+        buildUnitLayout({ isSpread: false, nextIndexIncrement: 1 }, 0, entries, cache, noFailures),
+      ).toEqual({
+        firstImage: portrait,
+        firstError: undefined,
+        isSpread: false,
+        nextIndexIncrement: 1,
+      });
+    });
+
+    // A page that failed is settled, so the spread is shown with the reason in its place
+    it("keeps the spread together when one page failed", () => {
+      const cache = new Map([["p0", portrait]]);
+      const failures = new Map([["p1", ErrorCode.image]]);
+      expect(
+        buildUnitLayout({ isSpread: true, nextIndexIncrement: 2 }, 0, entries, cache, failures),
+      ).toEqual({
+        firstImage: portrait,
+        secondImage: undefined,
+        firstError: undefined,
+        secondError: ErrorCode.image,
+        isSpread: true,
+        nextIndexIncrement: 2,
+      });
+    });
+
+    // Verify both halves of a spread can carry their own reason
+    it("gives each page of a spread its own reason", () => {
+      const failures = new Map([
+        ["p0", ErrorCode.entryNotFound],
+        ["p1", ErrorCode.image],
+      ]);
+      const layout = buildUnitLayout(
+        { isSpread: true, nextIndexIncrement: 2 },
+        0,
+        entries,
+        new Map(),
+        failures,
+      );
+      expect(layout?.firstError).toBe(ErrorCode.entryNotFound);
+      expect(layout?.secondError).toBe(ErrorCode.image);
+    });
+
+    // A page that came out of its preview is on screen, so it has nothing to explain
+    it("drops the reason once the page has an image", () => {
+      const cache = new Map([["p0", portrait]]);
+      const failures = new Map([["p0", ErrorCode.image]]);
+      expect(
+        buildUnitLayout({ isSpread: false, nextIndexIncrement: 1 }, 0, entries, cache, failures),
+      ).toEqual({
+        firstImage: portrait,
+        firstError: undefined,
+        isSpread: false,
+        nextIndexIncrement: 1,
+      });
     });
   });
 
@@ -190,6 +170,51 @@ describe("ImageUtils", () => {
     // Verify an empty book offers no evidence either
     it("returns null for an empty book", () => {
       expect(detectCoverPresence([])).toBeNull();
+    });
+  });
+
+  describe("the evidence order for hasCover", () => {
+    const twoPaged: ViewerSettings = {
+      isTwoPagedView: true,
+      isFirstPageSingleView: false,
+      direction: "ltr",
+      enablePreview: false,
+      preloadPageCount: 10,
+    };
+
+    /**
+     * How the viewer decides `hasCover`, in the order the evidence ranks: the reader's
+     * persisted correction, then the archive's landscape pages, then the setting.
+     */
+    const hasCover = (landscape: boolean[], settings: ViewerSettings, shifted: boolean) => {
+      const base = detectCoverPresence(landscape) ?? settings.isFirstPageSingleView;
+      return shifted ? !base : base;
+    };
+
+    // Verify a landscape page outranks the configured default
+    it("lets a landscape page settle the parity against the setting", () => {
+      // A landscape page at index 1 has one page before it, so the first image is the
+      // cover — the opposite of what isFirstPageSingleView says here.
+      const { pages } = buildDims(["P", "L", "P"]);
+      expect(detectCoverPresence(pages)).toBe(true);
+      expect(hasCover(pages, { ...twoPaged, isFirstPageSingleView: false }, false)).toBe(true);
+    });
+
+    // Verify the setting decides only when the archive offers no proof
+    it("falls back to the setting when no page is landscape", () => {
+      const { pages } = buildDims(["P", "P", "P"]);
+      expect(detectCoverPresence(pages)).toBeNull();
+      expect(hasCover(pages, { ...twoPaged, isFirstPageSingleView: true }, false)).toBe(true);
+      expect(hasCover(pages, { ...twoPaged, isFirstPageSingleView: false }, false)).toBe(false);
+    });
+
+    // Verify the reader's correction outranks both, so the button always changes something
+    it("flips whichever of the two decided", () => {
+      const proven = buildDims(["P", "L", "P"]).pages;
+      const unproven = buildDims(["P", "P", "P"]).pages;
+
+      expect(hasCover(proven, twoPaged, true)).toBe(!hasCover(proven, twoPaged, false));
+      expect(hasCover(unproven, twoPaged, true)).toBe(!hasCover(unproven, twoPaged, false));
     });
   });
 
@@ -276,65 +301,6 @@ describe("ImageUtils", () => {
     });
   });
 
-  describe("findPreviousUnitStart", () => {
-    const twoPaged: ViewerSettings = {
-      isTwoPagedView: true,
-      isFirstPageSingleView: false,
-      direction: "ltr",
-      enablePreview: false,
-      preloadPageCount: 10,
-    };
-
-    // Verify the previous unit start when a portrait page is single because its pair is landscape
-    it("returns the single portrait unit before a landscape page (P,P,P,L)", () => {
-      // units: {0,1} {2} {3}
-      const { entries, getDims } = buildDims(["P", "P", "P", "L"]);
-      expect(findPreviousUnitStart(3, entries, getDims, twoPaged)).toBe(2);
-    });
-
-    // Verify stepping back from a landscape page lands on the start of the preceding spread
-    it("returns the spread start before a single page (P,P,L)", () => {
-      // units: {0,1} {2}
-      const { entries, getDims } = buildDims(["P", "P", "L"]);
-      expect(findPreviousUnitStart(2, entries, getDims, twoPaged)).toBe(0);
-    });
-
-    // Verify even spreads are walked correctly
-    it("returns the previous spread start in an all-portrait book", () => {
-      // units: {0,1} {2,3} {4,5}
-      const { entries, getDims } = buildDims(["P", "P", "P", "P", "P", "P"]);
-      expect(findPreviousUnitStart(4, entries, getDims, twoPaged)).toBe(2);
-    });
-
-    // Verify isFirstPageSingleView is honored by the walk
-    it("honors isFirstPageSingleView", () => {
-      // units: {0} {1,2} {3,4}
-      const { entries, getDims } = buildDims(["P", "P", "P", "P", "P"]);
-      const settings: ViewerSettings = { ...twoPaged, isFirstPageSingleView: true };
-      expect(findPreviousUnitStart(3, entries, getDims, settings)).toBe(1);
-    });
-
-    // Verify the walk bails out (null) when a page on the path has unknown dimensions
-    it("returns null when a page dimension on the path is unknown", () => {
-      const { entries, dims } = buildDims(["P", "P", "P", "L"]);
-      dims.delete(1);
-      expect(findPreviousUnitStart(3, entries, (i) => dims.get(i), twoPaged)).toBeNull();
-    });
-
-    // Verify the walk bails out (null) when currentIndex is not a real unit start
-    it("returns null when currentIndex is mid-spread (overshoot)", () => {
-      // units: {0,1} ...; index 1 is the second page of the first spread.
-      const { entries, getDims } = buildDims(["P", "P", "P", "P"]);
-      expect(findPreviousUnitStart(1, entries, getDims, twoPaged)).toBeNull();
-    });
-
-    // Verify there is no previous unit at or before the first page
-    it("returns null for the first page", () => {
-      const { entries, getDims } = buildDims(["P", "P"]);
-      expect(findPreviousUnitStart(0, entries, getDims, twoPaged)).toBeNull();
-    });
-  });
-
   describe("fetchImageBlob", () => {
     // Verify that image acquisition returns undefined if the path is empty
     it("should return undefined if path is empty", async () => {
@@ -360,11 +326,12 @@ describe("ImageUtils", () => {
       expect(result?.width).toBe(width);
     });
 
-    // Verify that undefined is returned and an error log is output if getImage fails
-    it("should return undefined and log error if getImage fails", async () => {
-      vi.mocked(ContainerCommands.getImage).mockRejectedValue(new Error("fetch failed"));
-      const result = await fetchImageBlob("path", "file");
-      expect(result).toBeUndefined();
+    // Verify that a backend failure reaches the caller instead of being swallowed
+    it("should reject when getImage fails", async () => {
+      vi.mocked(ContainerCommands.getImage).mockRejectedValue(
+        new CommandError(ErrorCode.image, "fetch failed"),
+      );
+      await expect(fetchImageBlob("path", "file")).rejects.toBeInstanceOf(CommandError);
     });
   });
 
@@ -393,19 +360,21 @@ describe("ImageUtils", () => {
       expect(result?.width).toBe(50);
     });
 
-    // Verify that undefined is returned for empty responses to skip preview display
-    it("should return undefined if response is empty (skip preview)", async () => {
+    // An empty response is the backend declining to make a preview, and reads as null:
+    // a caller that stops asking after a decline must not also stop after a failure.
+    it("should return null if response is empty (skip preview)", async () => {
       const buffer = new ArrayBuffer(0);
       vi.mocked(ContainerCommands.getImagePreview).mockResolvedValue(buffer);
       const result = await fetchImagePreviewBlob("path", "file");
-      expect(result).toBeUndefined();
+      expect(result).toBeNull();
     });
 
-    // Verify that undefined is returned and an error log is output if getImagePreview fails
-    it("should return undefined and log error if getImagePreview fails", async () => {
-      vi.mocked(ContainerCommands.getImagePreview).mockRejectedValue(new Error("preview failed"));
-      const result = await fetchImagePreviewBlob("path", "file");
-      expect(result).toBeUndefined();
+    // Verify that a failed request is distinguishable from the backend declining a preview
+    it("should reject when getImagePreview fails", async () => {
+      vi.mocked(ContainerCommands.getImagePreview).mockRejectedValue(
+        new CommandError(ErrorCode.image, "preview failed"),
+      );
+      await expect(fetchImagePreviewBlob("path", "file")).rejects.toBeInstanceOf(CommandError);
     });
   });
 

@@ -6,32 +6,68 @@
       {
         "name": "id",
         "ordinal": 0,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "bookmarks",
+            "name": "id"
+          }
+        }
       },
       {
         "name": "book_id",
         "ordinal": 1,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "bookmarks",
+            "name": "book_id"
+          }
+        }
       },
       {
         "name": "name",
         "ordinal": 2,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "bookmarks",
+            "name": "name"
+          }
+        }
       },
       {
         "name": "page_index",
         "ordinal": 3,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "bookmarks",
+            "name": "page_index"
+          }
+        }
       },
       {
         "name": "cfi",
         "ordinal": 4,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "bookmarks",
+            "name": "cfi"
+          }
+        }
       },
       {
         "name": "created_at",
         "ordinal": 5,
-        "type_info": "Datetime"
+        "type_info": "Datetime",
+        "origin": {
+          "Table": {
+            "table": "bookmarks",
+            "name": "created_at"
+          }
+        }
       }
     ],
     "parameters": {

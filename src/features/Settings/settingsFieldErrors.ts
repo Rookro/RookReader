@@ -10,6 +10,7 @@ const FIELD_LABEL_KEY = {
   "reader.rendering.maxImageHeight": "settings.rendering.resize.max-image-height.title",
   "reader.rendering.pdfRenderResolutionHeight": "settings.rendering.pdf.title",
   "reader.comic.cache.preloadPageCount": "settings.rendering.cache.preload-page-count.title",
+  "reader.comic.cache.pageReaderCount": "settings.rendering.cache.page-reader-count.title",
   "reader.comic.cache.imageCacheSizeMib": "settings.rendering.cache.image-cache-size.title",
   "reader.novel.fontSize": "settings.reader.font-size.title",
   "reader.comic.loupe.zoom": "settings.reader.loupe.zoom",

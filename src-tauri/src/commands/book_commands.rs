@@ -14,6 +14,7 @@ use crate::domain::bookshelf::repository::BookshelfRepository;
 use crate::domain::series::repository::SeriesRepository;
 use crate::domain::tag::repository::TagRepository;
 use crate::error::{Error, Result};
+use crate::page::pipeline::Pipeline;
 use crate::state::app_state::AppState;
 
 /// Event emitted when a book's reading progress changes (a page turn). It carries the
@@ -279,6 +280,88 @@ pub async fn update_reading_progress<R: tauri::Runtime>(
     log::debug!("Update reading progress: {:?}", state_data);
     repo.update_reading_progress(&state_data).await?;
     app.emit(READING_PROGRESS_CHANGED_EVENT, &state_data)?;
+    Ok(())
+}
+
+/// Records the reader's correction to how a book pairs into spreads.
+///
+/// Written straight through rather than debounced with the reading progress: this changes
+/// on a button press, not on every page turn, and it must be kept even when the reader has
+/// turned reading history off.
+///
+/// # Arguments
+///
+/// * `book_id` - The book to update.
+/// * `is_spread_shifted` - Whether the reader has shifted the book's spreads.
+/// * `repo` - The managed book repository state.
+///
+/// # Errors
+///
+/// Returns an `Err` if the underlying repository operation fails.
+#[tauri::command]
+#[specta::specta]
+pub async fn update_spread_shift(
+    book_id: i64,
+    is_spread_shifted: bool,
+    repo: State<'_, Arc<dyn BookRepository>>,
+) -> Result<()> {
+    log::debug!("Update spread shift of book {book_id}: {is_spread_shifted}");
+    repo.update_spread_shift(book_id, is_spread_shifted).await?;
+    Ok(())
+}
+
+/// Records the page direction a book opens with.
+///
+/// Written straight through rather than debounced with the reading progress: it changes on
+/// a button press, not on every page turn, and it must be kept even when the reader has
+/// turned reading history off.
+///
+/// # Arguments
+///
+/// * `book_id` - The book to update.
+/// * `reading_direction` - `"rtl"` or `"ltr"`.
+/// * `repo` - The managed book repository state.
+///
+/// # Errors
+///
+/// Returns an `Err` if the underlying repository operation fails.
+#[tauri::command]
+#[specta::specta]
+pub async fn update_reading_direction(
+    book_id: i64,
+    reading_direction: String,
+    repo: State<'_, Arc<dyn BookRepository>>,
+) -> Result<()> {
+    log::debug!("Update reading direction of book {book_id}: {reading_direction}");
+    repo.update_reading_direction(book_id, &reading_direction)
+        .await?;
+    Ok(())
+}
+
+/// Records how a book's pages are shaped, so it need not be measured again.
+///
+/// # Arguments
+///
+/// * `book_id` - The book to update.
+/// * `landscape_bits` - One `'0'`/`'1'` per page in entry order, `'1'` for a page wider
+///   than it is tall.
+/// * `repo` - The managed book repository state.
+///
+/// # Errors
+///
+/// Returns an `Err` if the underlying repository operation fails.
+#[tauri::command]
+#[specta::specta]
+pub async fn update_page_layout(
+    book_id: i64,
+    landscape_bits: String,
+    repo: State<'_, Arc<dyn BookRepository>>,
+) -> Result<()> {
+    log::debug!(
+        "Update page layout of book {book_id}: {} pages",
+        landscape_bits.len()
+    );
+    repo.update_page_layout(book_id, &landscape_bits).await?;
     Ok(())
 }
 
@@ -552,21 +635,13 @@ async fn resolve_thumbnail<R: tauri::Runtime>(
             .pdfium_library_path
             .clone();
 
-        let container = if let Some(ref c) = state_lock.container_state.container {
-            let matches = state_lock
-                .container_state
-                .image_loader
-                .as_ref()
-                .is_some_and(|loader| loader.book_id() == file_path);
-
-            if matches {
-                Some(c.clone())
-            } else {
-                None
-            }
-        } else {
-            None
-        };
+        // Reuse the open book's own container when this thumbnail is for that book, so a
+        // PDF does not get a second handle opened beside the one being read. One lookup
+        // establishes both "a book is open" and "it is this book".
+        let container = state_lock
+            .container_state
+            .service_for(file_path)
+            .map(|service| service.container());
 
         (pdfium_path, container)
     };
@@ -631,9 +706,19 @@ async fn generate_and_save_thumbnail<R: tauri::Runtime>(
 
         let first_image_entry = container.get_entries().first();
         if let Some(entry) = first_image_entry {
-            let image = container.get_thumbnail(entry)?;
-
-            fs::write(&thumbnail_path, &image.data)?;
+            // Ask the reader for a preview first. For PDF that renders a
+            // thumbnail-sized page through the one worker that owns the library, instead
+            // of binding a second `Pdfium` beside the one an open book is already using.
+            // Every other format has no cheaper path, so its page is read in full and
+            // shrunk here.
+            let mut reader = container.open_reader()?;
+            match reader.read_preview(entry)? {
+                Some(bytes) => fs::write(&thumbnail_path, &bytes)?,
+                None => {
+                    let page = reader.read_page(entry)?;
+                    fs::write(&thumbnail_path, &Pipeline::thumbnail(&page)?.data)?;
+                }
+            }
 
             Ok(Some(thumbnail_path.to_string_lossy().to_string()))
         } else {
@@ -834,6 +919,23 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_update_reading_direction() {
+        let mut mock_repo = MockBookRepository::new();
+        mock_repo
+            .expect_update_reading_direction()
+            .with(mockall::predicate::eq(7), mockall::predicate::eq("ltr"))
+            .times(1)
+            .returning(|_, _| Ok(()));
+
+        let app = tauri::test::mock_app();
+        app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
+        let repo = app.state::<Arc<dyn BookRepository>>();
+
+        let result = update_reading_direction(7, "ltr".to_string(), repo).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
     async fn test_clear_all_reading_history() {
         let mut mock_repo = MockBookRepository::new();
         mock_repo
@@ -887,6 +989,9 @@ mod tests {
                     series_order: None,
                     thumbnail_path: None,
                     created_at: None,
+                    is_spread_shifted: false,
+                    landscape_bits: None,
+                    reading_direction: None,
                     last_read_page_index: Some(5),
                     last_opened_at: None,
                     cfi: None,

@@ -9,6 +9,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.5.0] - 2026-09-06
+
+### Added
+
+* The page direction is now remembered per book. (#317)
+  * A new "Default page direction" setting decides which way a book turns pages the first time you open it.
+  * Changing the direction in the reader now applies to that book alone, instead of switching every book in the library.
+
+### Changed
+
+* Made pages load faster and page turns feel immediate. (#315)
+  * A page turn no longer stalls while other pages are loading in the background, and reading forward through a solid RAR no longer slows down the further in you get.
+  * A book opens at the page you left off, and opening it again no longer re-reads the whole book to work out its two-page spreads.
+  * PDFs no longer freeze the app when opened while the bookshelf is still loading covers.
+  * Adding a book to a bookshelf no longer interrupts the book you are reading, and a page that cannot be read now reports an error instead of loading forever.
+  * A new "Page reader threads" setting helps books on a network drive, where reading fewer pages at once is often faster.
+* Updated the project's dependencies, including the bundled PDFium engine that renders PDF pages. (#321)
+
+### Fixed
+
+* Fixed the Pages list in the side pane highlighting the current page in a different color from the History and File Navigator lists instead of following the app theme. (#316)
+* Fixed error messages that gave the wrong reason, or no reason at all. (#318)
+  * A book whose file has been moved or deleted now reports that it could not be found, instead of claiming the format is not supported. Folder names containing a dot, such as "Dr.STONE 01" or "Vol.1", were affected in particular.
+  * Bookshelf, tag, series, history and settings errors now say why the operation failed, instead of only saying that it did.
+  * A book that opened successfully is no longer closed with "Failed to open book." when only saving it to the reading history failed.
+* Fixed a page that fails to load leaving the reader with no explanation. (#319)
+  * A page that cannot be read now says why on the page itself, instead of leaving the previous page on screen as though the page turn had not registered.
+  * A novel whose file has been moved, deleted, or cannot be read now says so, instead of showing an empty white page.
+* Fixed the Arch Linux package failing to install, so `makepkg -si` works again. (#320)
+  * Only `PKGBUILD` has to be downloaded now. `RookReader.install` is no longer needed.
+
 ## [2.4.0] - 2026-08-30
 
 ### Added
@@ -519,7 +550,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Add an automatic two-page spread display feature (#4)
 * Add a page navigation feature using the mouse wheel up/down (#5)
 
-[unreleased]: https://github.com/Rookro/RookReader/compare/v2.4.0...HEAD
+[unreleased]: https://github.com/Rookro/RookReader/compare/v2.5.0...HEAD
+[2.5.0]: https://github.com/Rookro/RookReader/compare/v2.4.0...v2.5.0
 [2.4.0]: https://github.com/Rookro/RookReader/compare/v2.3.1...v2.4.0
 [2.3.1]: https://github.com/Rookro/RookReader/compare/v2.3.0...v2.3.1
 [2.3.0]: https://github.com/Rookro/RookReader/compare/v2.2.1...v2.3.0

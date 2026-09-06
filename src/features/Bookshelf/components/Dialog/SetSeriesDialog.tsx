@@ -20,7 +20,9 @@ import { useTranslation } from "react-i18next";
 import { updateBookSeries } from "../../../../bindings/BookCommands";
 import { createSeries } from "../../../../bindings/SeriesCommands";
 import { useNotification } from "../../../../components/ui/Notification/NotificationContext";
+import { useErrorMessage } from "../../../../components/ui/useErrorMessage";
 import type { Series } from "../../../../domain/series/schema";
+import { createCommandError } from "../../../../types/Error";
 
 /** Props for the SetSeriesDialog component */
 export interface SetSeriesDialogProps {
@@ -45,6 +47,7 @@ export default function SetSeriesDialog({
   onClose,
 }: SetSeriesDialogProps) {
   const { t } = useTranslation();
+  const errorMessage = useErrorMessage();
   const { showNotification } = useNotification();
   const [selectedSeriesId, setSelectedSeriesId] = useState<number | null>(null);
   const [searchText, setSearchText] = useState("");
@@ -86,9 +89,9 @@ export default function SetSeriesDialog({
       // Some updates may have succeeded before the failure: refetch so the UI
       // reflects reality, keep the dialog open for retry, and tell the user.
       onUpdateSeries();
-      showNotification(t("error-message.common.series-error"), "error");
+      showNotification(errorMessage("series", createCommandError(e).code), "error");
     }
-  }, [bookIds, selectedSeriesId, onUpdateSeries, onClose, showNotification, t]);
+  }, [bookIds, selectedSeriesId, onUpdateSeries, onClose, showNotification, errorMessage]);
 
   const handleCreateSeries = useCallback(async () => {
     if (!newSeriesName.trim()) return;

@@ -35,6 +35,11 @@ pub enum Error {
     /// An error originating from the `pdfium_render` library.
     #[error("PDFium Error: {0}")]
     Pdfium(#[from] PdfiumError),
+    /// An error for a PDF that cannot be handled at all because the `pdfium` library
+    /// could not be loaded. Distinct from [`Error::Pdfium`], which is a failure *inside*
+    /// a working library: this one is about the environment, not the file.
+    #[error("PDF Unavailable Error: {0}")]
+    PdfUnavailable(String),
     /// An error originating from the `image` crate.
     #[error("Image Error: {0}")]
     Image(#[from] ImageError),
@@ -57,10 +62,15 @@ pub enum Error {
     // 2xxxx: File System & I/O
     /// An error originating from standard library I/O operations.
     #[error("IO Error: {0}")]
-    Io(#[from] std::io::Error),
+    Io(std::io::Error),
     /// An error related to file paths (e.g., invalid format).
     #[error("Path Error: {0}")]
     Path(String),
+    /// An error for a path that does not exist. Split out of [`Error::Io`] because "the
+    /// book is gone" is the one I/O failure the user can act on, and it must never be
+    /// reported as an unsupported format or a malformed path.
+    #[error("Path Not Found Error: {0}")]
+    PathNotFound(String),
 
     // 3xxxx: Application Framework
     /// An error originating from the Tauri framework itself.
@@ -94,6 +104,10 @@ pub enum Error {
     SettingsValidation(Vec<crate::settings::SettingsValidationViolation>),
 
     // 6xxxx: Application Logic & State
+    /// A request that named a book other than the one now open. Not an entry lookup
+    /// failure: the entry may well exist, in a book that is no longer installed.
+    #[error("Book Changed Error: {0}")]
+    BookChanged(String),
 
     // 7xxxx: Database
     /// An error related to database operations.
@@ -115,6 +129,20 @@ impl From<String> for Error {
     }
 }
 
+/// Routes a missing path to [`Error::PathNotFound`] and everything else to [`Error::Io`].
+///
+/// Written by hand rather than derived with `#[from]` so every `?` on an I/O result in
+/// the crate classifies "not found" the same way, without a check at each call site.
+impl From<std::io::Error> for Error {
+    fn from(error: std::io::Error) -> Self {
+        if error.kind() == std::io::ErrorKind::NotFound {
+            Error::PathNotFound(error.to_string())
+        } else {
+            Error::Io(error)
+        }
+    }
+}
+
 /// A serializable representation of the `Error` enum variants, used for stable error codes.
 impl ErrorCode {
     /// Maps each error variant to a unique, stable integer code.
@@ -128,6 +156,7 @@ impl ErrorCode {
             ErrorCode::EntryNotFound => 10002,
             ErrorCode::EmptyContainer => 10003,
             ErrorCode::Pdfium => 10101,
+            ErrorCode::PdfUnavailable => 10102,
             ErrorCode::Unrar => 10301,
             ErrorCode::Zip => 10401,
             ErrorCode::Epub => 10501,
@@ -136,6 +165,7 @@ impl ErrorCode {
             // 2xxxx: File System & I/O
             ErrorCode::Io => 20001,
             ErrorCode::Path => 20101,
+            ErrorCode::PathNotFound => 20102,
 
             // 3xxxx: Application Framework
             ErrorCode::Tauri => 30001,
@@ -151,6 +181,7 @@ impl ErrorCode {
             ErrorCode::SettingsValidation => 50002,
 
             // 6xxxx: Application Logic & State
+            ErrorCode::BookChanged => 60001,
 
             // 7xxxx: Database
             ErrorCode::Database => 70001,
@@ -234,6 +265,22 @@ mod tests {
                 variant.code()
             );
         }
+    }
+
+    #[test]
+    fn maps_a_missing_path_to_path_not_found() {
+        let error: Error = std::io::Error::from(std::io::ErrorKind::NotFound).into();
+
+        assert!(matches!(error, Error::PathNotFound(_)));
+        assert_eq!(ErrorCode::from(&error).code(), 20102);
+    }
+
+    #[test]
+    fn keeps_other_io_failures_as_io() {
+        let error: Error = std::io::Error::from(std::io::ErrorKind::PermissionDenied).into();
+
+        assert!(matches!(error, Error::Io(_)));
+        assert_eq!(ErrorCode::from(&error).code(), 20001);
     }
 
     #[test]

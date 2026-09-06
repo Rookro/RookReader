@@ -116,7 +116,7 @@ describe("SetSeriesDialog", () => {
     await user.click(screen.getByText("Series A"));
     await user.click(screen.getByRole("button", { name: /ok/i }));
 
-    await waitFor(() => expect(screen.getByText("Series operation failed.")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/^Series operation failed\./)).toBeInTheDocument());
     expect(onUpdateSeries).toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
   });
