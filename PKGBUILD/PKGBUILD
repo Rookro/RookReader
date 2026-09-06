@@ -6,9 +6,8 @@ pkgdesc="The book reader for a archive or pdf file."
 arch=('x86_64')
 url="https://github.com/Rookro/RookReader"
 license=('MIT')
-depends=('webkit2gtk-4.1' 'desktop-file-utils' 'hicolor-icon-theme')
+depends=('webkit2gtk-4.1' 'hicolor-icon-theme')
 options=('!strip' '!debug')
-install=${pkgname}.install
 source_x86_64=("${url}/releases/download/v${pkgver}/${pkgname}_${pkgver}_amd64.deb")
 sha256sums_x86_64=('SKIP')
 package() {
