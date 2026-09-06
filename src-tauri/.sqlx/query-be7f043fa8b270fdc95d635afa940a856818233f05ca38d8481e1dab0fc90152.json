@@ -6,82 +6,173 @@
       {
         "name": "id",
         "ordinal": 0,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "books",
+            "name": "id"
+          }
+        }
       },
       {
         "name": "file_path",
         "ordinal": 1,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "books",
+            "name": "file_path"
+          }
+        }
       },
       {
         "name": "item_type",
         "ordinal": 2,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "books",
+            "name": "item_type"
+          }
+        }
       },
       {
         "name": "display_name",
         "ordinal": 3,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "books",
+            "name": "display_name"
+          }
+        }
       },
       {
         "name": "total_pages",
         "ordinal": 4,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "books",
+            "name": "total_pages"
+          }
+        }
       },
       {
         "name": "series_id",
         "ordinal": 5,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "books",
+            "name": "series_id"
+          }
+        }
       },
       {
         "name": "series_order",
         "ordinal": 6,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "books",
+            "name": "series_order"
+          }
+        }
       },
       {
         "name": "thumbnail_path",
         "ordinal": 7,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "books",
+            "name": "thumbnail_path"
+          }
+        }
       },
       {
         "name": "created_at",
         "ordinal": 8,
-        "type_info": "Datetime"
+        "type_info": "Datetime",
+        "origin": {
+          "Table": {
+            "table": "books",
+            "name": "created_at"
+          }
+        }
       },
       {
         "name": "is_spread_shifted",
         "ordinal": 9,
-        "type_info": "Bool"
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "books",
+            "name": "is_spread_shifted"
+          }
+        }
       },
       {
         "name": "landscape_bits",
         "ordinal": 10,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "books",
+            "name": "landscape_bits"
+          }
+        }
       },
       {
         "name": "reading_direction",
         "ordinal": 11,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "books",
+            "name": "reading_direction"
+          }
+        }
       },
       {
         "name": "last_read_page_index",
         "ordinal": 12,
-        "type_info": "Integer"
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "reading_state",
+            "name": "last_read_page_index"
+          }
+        }
       },
       {
         "name": "last_opened_at",
         "ordinal": 13,
-        "type_info": "Datetime"
+        "type_info": "Datetime",
+        "origin": {
+          "Table": {
+            "table": "reading_state",
+            "name": "last_opened_at"
+          }
+        }
       },
       {
         "name": "cfi?: String",
         "ordinal": 14,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "reading_state",
+            "name": "cfi"
+          }
+        }
       },
       {
         "name": "tag_ids_str?: String",
         "ordinal": 15,
-        "type_info": "Text"
+        "type_info": "Text",
+        "origin": "Expression"
       }
     ],
     "parameters": {

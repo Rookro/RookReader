@@ -35,12 +35,16 @@ impl BookmarkRepository for SqliteBookmarkRepository {
         page_index: i64,
         cfi: Option<String>,
     ) -> Result<Bookmark> {
+        // `id!`: sqlx cannot prove the rowid alias is non-null here — the foreign key on
+        // `book_id` compiles a check into the statement that stops its inference — so it
+        // would type `id` as `Option`. SQLite always assigns a rowid, even for an explicit
+        // NULL, so the column is non-null as long as `id` stays an INTEGER PRIMARY KEY.
         let bookmark = sqlx::query_as!(
             Bookmark,
             r#"
             INSERT INTO bookmarks (book_id, name, page_index, cfi)
             VALUES (?, ?, ?, ?)
-            RETURNING id, book_id, name, page_index, cfi, created_at
+            RETURNING id AS "id!", book_id, name, page_index, cfi, created_at
             "#,
             book_id,
             name,
