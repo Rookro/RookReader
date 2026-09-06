@@ -34,6 +34,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Fixed a page that fails to load leaving the reader with no explanation. (#319)
   * A page that cannot be read now says why on the page itself, instead of leaving the previous page on screen as though the page turn had not registered.
   * A novel whose file has been moved, deleted, or cannot be read now says so, instead of showing an empty white page.
+* Fixed the Arch Linux package failing to install, so `makepkg -si` works again. (#320)
+  * Only `PKGBUILD` has to be downloaded now. `RookReader.install` is no longer needed.
 
 ## [2.4.0] - 2026-08-30
 
