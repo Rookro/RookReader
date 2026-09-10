@@ -79,9 +79,10 @@ export const setDisplaySize = async (width: number, height: number): Promise<voi
   await runCommand(commands.setDisplaySize(width, height));
 };
 
-// NOTE: `getImage` / `getImagePreview` return a raw binary `tauri::ipc::Response` from the backend,
-// which has no `specta::Type` and is not part of the generated `commands`. They keep a hand-written
-// `invoke` wrapper that receives the custom `[width][height][data]` binary payload.
+// NOTE: `getImage` / `getImageFull` / `getImagePreview` return a raw binary
+// `tauri::ipc::Response` from the backend, which has no `specta::Type` and is not part of the
+// generated `commands`. They keep a hand-written `invoke` wrapper that receives the custom
+// `[width][height][data]` binary payload.
 
 /**
  * Fetches an image from a container in the backend.
@@ -93,6 +94,24 @@ export const setDisplaySize = async (width: number, height: number): Promise<voi
 export const getImage = async (path: string, entryName: string): Promise<ArrayBuffer> => {
   try {
     return await invoke("get_image", { path, entryName });
+  } catch (error) {
+    throw createCommandError(error);
+  }
+};
+
+/**
+ * Fetches a page at its full size, for the loupe.
+ *
+ * Every other page arrives fitted to the reader's viewport. The loupe draws a page
+ * magnified, so a fitted one would only be an upscale of what is already on screen.
+ *
+ * @param path The path of the container file.
+ * @param entryName The name of the image entry.
+ * @returns A promise that resolves to the image data as an ArrayBuffer.
+ */
+export const getImageFull = async (path: string, entryName: string): Promise<ArrayBuffer> => {
+  try {
+    return await invoke("get_image_full", { path, entryName });
   } catch (error) {
     throw createCommandError(error);
   }

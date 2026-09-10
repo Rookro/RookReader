@@ -5,6 +5,7 @@ import { type RootState, useAppDispatch, useAppSelector } from "../../../store/s
 import type { ErrorCode } from "../../../types/Error";
 import { useAdjacentBookNavigation } from "../hooks/useAdjacentBookNavigation";
 import { useDisplaySize } from "../hooks/useDisplaySize";
+import { useFullSizePages } from "../hooks/useFullSizePages";
 import { useLoupe } from "../hooks/useLoupe";
 import { usePageNavigation } from "../hooks/usePageNavigation";
 import { useReadingDirection } from "../hooks/useReadingDirection";
@@ -113,6 +114,15 @@ export default function ComicReader() {
 
   const loupeSettings = readerSettings.comic.loupe;
 
+  const displayedEntries = useMemo(() => {
+    const shown = entries[index] ? [entries[index]] : [];
+    if (displayedLayout?.isSpread && entries[index + 1]) {
+      shown.push(entries[index + 1]);
+    }
+    return shown;
+  }, [entries, index, displayedLayout?.isSpread]);
+  const fullSizeUrls = useFullSizePages(containerPath, displayedEntries, isLoupeEnabled);
+
   const [showSpinner, setShowSpinner] = useState(false);
 
   useEffect(() => {
@@ -183,29 +193,32 @@ export default function ComicReader() {
       return spinnerOverlay;
     }
 
-    const firstPage: PageSlot = {
-      url: displayedLayout.firstImage?.url,
-      error: displayedLayout.firstError,
-    };
-    const secondPage: PageSlot = {
-      url: displayedLayout.secondImage?.url,
-      error: displayedLayout.secondError,
-    };
-    // The pair is in reading order, the screen is not: in RTL the first page is the right one.
-    const [leftPage, rightPage] =
-      settings.direction === "ltr" ? [firstPage, secondPage] : [secondPage, firstPage];
+    const layout = displayedLayout;
 
-    return (
-      <Loupe
-        isLoupeEnabled={isLoupeEnabled}
-        loupePos={loupePos}
-        containerRef={containerRef}
-        zoom={loupeSettings?.zoom}
-        radius={loupeSettings?.radius}
-      >
+    /**
+     * The pages as one pane, taking each page's URL from `urlFor`.
+     *
+     * Written once and called twice: the lens shows the same pages in the same places
+     * as the reader, only at their full size, so anything the two did differently would
+     * be visible as the lens passing over a page.
+     */
+    const pane = (urlFor: (entry: string | undefined, url?: string) => string | undefined) => {
+      const firstPage: PageSlot = {
+        url: urlFor(entries[index], layout.firstImage?.url),
+        error: layout.firstError,
+      };
+      const secondPage: PageSlot = {
+        url: urlFor(entries[index + 1], layout.secondImage?.url),
+        error: layout.secondError,
+      };
+      // The pair is in reading order, the screen is not: in RTL the first page is the right one.
+      const [leftPage, rightPage] =
+        settings.direction === "ltr" ? [firstPage, secondPage] : [secondPage, firstPage];
+
+      return (
         <Box sx={{ display: "flex", width: "100%", height: "100%" }}>
           {spinnerOverlay}
-          {displayedLayout.isSpread ? (
+          {layout.isSpread ? (
             <>
               {renderPage(leftPage, "Left Page", "50%", "right center")}
               {renderPage(rightPage, "Right Page", "50%", "left center")}
@@ -214,6 +227,25 @@ export default function ComicReader() {
             renderPage(firstPage, "Single Page", "100%", "center center")
           )}
         </Box>
+      );
+    };
+
+    return (
+      <Loupe
+        isLoupeEnabled={isLoupeEnabled}
+        loupePos={loupePos}
+        containerRef={containerRef}
+        zoom={loupeSettings?.zoom}
+        radius={loupeSettings?.radius}
+        magnified={
+          // A page whose full-size copy has not arrived falls back to the displayed one:
+          // softer under the lens, never blank.
+          fullSizeUrls.size > 0
+            ? pane((entry, url) => (entry && fullSizeUrls.get(entry)) ?? url)
+            : undefined
+        }
+      >
+        {pane((_, url) => url)}
       </Loupe>
     );
   };

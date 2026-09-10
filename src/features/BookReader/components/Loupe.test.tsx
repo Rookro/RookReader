@@ -29,6 +29,35 @@ describe("Loupe", () => {
     expect(screen.getAllByTestId("child-element")).toHaveLength(1);
   });
 
+  it("shows the magnified content under the lens, and the children behind it", () => {
+    render(
+      <Loupe
+        isLoupeEnabled={true}
+        loupePos={{ x: 10, y: 10 }}
+        containerRef={mockContainerRef}
+        magnified={<div data-testid="full-size">Full Size</div>}
+      >
+        <div data-testid="child-element">Child Content</div>
+      </Loupe>,
+    );
+
+    // The reader draws its pages at the size they are displayed at, so scaling those
+    // under the lens would add no detail; the lens gets the full-size copy instead.
+    expect(screen.getAllByTestId("child-element")).toHaveLength(1);
+    expect(screen.getAllByTestId("full-size")).toHaveLength(1);
+  });
+
+  it("magnifies the children when there is nothing better to show", () => {
+    render(
+      <Loupe isLoupeEnabled={true} loupePos={{ x: 10, y: 10 }} containerRef={mockContainerRef}>
+        <div data-testid="child-element">Child Content</div>
+      </Loupe>,
+    );
+
+    // Once behind the lens and once under it.
+    expect(screen.getAllByTestId("child-element")).toHaveLength(2);
+  });
+
   it("should apply correct styles for zoom and radius", () => {
     const zoom = 4;
     const radius = 120;

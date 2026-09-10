@@ -23,11 +23,11 @@ mod perfbench;
 
 /// Builds the `tauri-specta` command registry used to export the TypeScript bindings.
 ///
-/// This intentionally excludes the three binary commands (`get_image`,
-/// `get_image_preview`, `get_entries_in_dir`) that return a raw
+/// This intentionally excludes the four binary commands (`get_image`,
+/// `get_image_full`, `get_image_preview`, `get_entries_in_dir`) that return a raw
 /// `tauri::ipc::Response`: that type has no `specta::Type`, and the frontend keeps
 /// hand-written wrappers for them. At runtime [`run`] serves every command listed
-/// here through this builder's invoke handler and routes only those three binary
+/// here through this builder's invoke handler and routes only those four binary
 /// commands to a small separate `tauri::generate_handler!`.
 ///
 /// # Returns
@@ -114,9 +114,15 @@ pub fn run() {
     // hand-written handler and are routed to it by command name; everything else
     // falls through to the generated handler above. Keep this list in sync with the
     // `generate_handler!` invocation below — both are the single, small binary set.
-    const BINARY_COMMANDS: [&str; 3] = ["get_image", "get_image_preview", "get_entries_in_dir"];
+    const BINARY_COMMANDS: [&str; 4] = [
+        "get_image",
+        "get_image_full",
+        "get_image_preview",
+        "get_entries_in_dir",
+    ];
     let binary_handler = tauri::generate_handler![
         commands::container_commands::get_image,
+        commands::container_commands::get_image_full,
         commands::container_commands::get_image_preview,
         commands::directory_commands::get_entries_in_dir,
     ] as fn(tauri::ipc::Invoke<tauri::Wry>) -> bool;

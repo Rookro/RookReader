@@ -48,6 +48,7 @@ vi.mock("../../bindings/ContainerCommands", () => ({
   getImageDimensions: vi.fn(() => Promise.resolve([])),
   setDisplaySize: vi.fn(() => Promise.resolve()),
   getImage: vi.fn(() => Promise.resolve(new ArrayBuffer(0))),
+  getImageFull: vi.fn(() => Promise.resolve(new ArrayBuffer(0))),
   getImagePreview: vi.fn(() => Promise.resolve(new ArrayBuffer(0))),
 }));
 

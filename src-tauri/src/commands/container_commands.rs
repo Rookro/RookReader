@@ -375,6 +375,50 @@ pub async fn get_image(
     Ok(image.to_ipc_response())
 }
 
+/// Retrieves an image from the currently open container at its full size.
+///
+/// What the loupe shows. A page fitted to the viewport is exactly the wrong one there:
+/// the loupe draws it magnified, so what it would show is an upscale of what is already
+/// on screen.
+///
+/// # Arguments
+///
+/// * `path` - The path of the container the caller believes is open.
+/// * `entry_name` - The name of the image entry to retrieve (e.g., "image1.png").
+/// * `state` - A `tauri::State` holding the application's global `AppState`.
+///
+/// # Returns
+///
+/// A `Result` which is `Ok` with a `tauri::ipc::Response`, in the same binary format
+/// [`get_image`] answers with: `[Width (4 bytes)][Height (4 bytes)][Image Data...]`.
+///
+/// # Errors
+///
+/// This function will return an `Err` if:
+/// * The book it names is not the book that is open.
+/// * The requested image entry cannot be found or decoded.
+#[tauri::command]
+pub async fn get_image_full(
+    path: &str,
+    entry_name: &str,
+    state: tauri::State<'_, RwLock<AppState>>,
+) -> Result<Response> {
+    log::debug!("Get the full-size binary of {} in {}", entry_name, path);
+
+    let service = {
+        let state_lock = state.read().await;
+        state_lock.container_state.service_for(path)
+    }
+    .ok_or_else(|| stale(path, entry_name))?;
+
+    let entry = entry_name.to_string();
+    let image = tauri::async_runtime::spawn_blocking(move || service.page_full(&entry))
+        .await
+        .map_err(|e| Error::Other(format!("Spawn blocking failed: {e}")))??;
+
+    Ok(image.to_ipc_response())
+}
+
 /// Retrieves a preview version of an image from the container.
 ///
 /// This function fetches a smaller, preview version of an image entry. If a preview is
@@ -848,6 +892,34 @@ mod tests {
             u32::from_be_bytes([body[0], body[1], body[2], body[3]]),
             u32::from_be_bytes([body[4], body[5], body[6], body[7]]),
         )
+    }
+
+    #[tokio::test]
+    async fn the_loupe_reads_the_page_at_its_full_size() {
+        let app = tauri::test::mock_app();
+        manage_service(&app, "dummy_book_id", page_container(&["test1.png"]));
+        set_display_size(400, 300, app.state()).await.unwrap();
+
+        let displayed = get_image("dummy_book_id", "test1.png", app.state())
+            .await
+            .expect("read the displayed page");
+        let magnified = get_image_full("dummy_book_id", "test1.png", app.state())
+            .await
+            .expect("read the full-size page");
+
+        // Magnifying the fitted page would only upscale what is already on screen.
+        assert_eq!(page_size(displayed), (400, 300));
+        assert_eq!(page_size(magnified), (800, 600));
+    }
+
+    #[tokio::test]
+    async fn a_stale_path_is_refused_a_full_size_page() {
+        let app = tauri::test::mock_app();
+        manage_service(&app, "current_book_id", page_container(&["test1.png"]));
+
+        // The loupe is held open across a book switch as readily as any other request.
+        let result = get_image_full("stale_book_id", "test1.png", app.state()).await;
+        assert!(matches!(result, Err(Error::BookChanged(_))));
     }
 
     #[tokio::test]
