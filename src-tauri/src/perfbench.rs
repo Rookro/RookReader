@@ -263,6 +263,7 @@ fn build_pdf(dir: &Path, pages: &[Vec<u8>]) -> PathBuf {
 /// The pipeline the shipped defaults produce: no height cap, so a page reaches the
 /// viewer as its archive stored it.
 const PIPELINE: Pipeline = Pipeline {
+    display: None,
     max_image_height: 0,
     resize_method: ResizeFilter::Bilinear,
 };
@@ -274,7 +275,7 @@ fn page(container: &Arc<dyn Container>, entry: &str) -> Arc<Image> {
         .expect("open reader")
         .read_page(entry)
         .expect("read page");
-    PIPELINE.page(bytes).expect("decode page")
+    PIPELINE.page(bytes, PIPELINE.fit()).expect("decode page")
 }
 
 /// Every page's dimensions through one reader — the shape `PageService::dimensions` uses.
@@ -563,6 +564,7 @@ fn perfbench_report() {
             "bench".to_string(),
             Arc::clone(&zip),
             Pipeline {
+                display: None,
                 max_image_height: 0,
                 resize_method: ResizeFilter::Bilinear,
             },

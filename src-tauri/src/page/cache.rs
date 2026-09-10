@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use crate::image::types::Image;
+use crate::{image::types::Image, page::pipeline::Fit};
 
 /// The composite key for the global image cache.
 ///
@@ -15,6 +15,12 @@ pub struct CacheKey {
     pub book_id: String,
     /// The name of the image entry within the book.
     pub entry: String,
+    /// The box the cached page was fitted into.
+    ///
+    /// Part of the key because the viewport decides the pixels: the page rendered for a
+    /// small window is not the page a maximised one needs, and the loupe's full-size
+    /// copy is neither.
+    pub fit: Fit,
 }
 
 /// A thread-safe cache mapping entry names to `Image` data.

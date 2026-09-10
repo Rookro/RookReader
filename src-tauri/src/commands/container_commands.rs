@@ -455,6 +455,7 @@ mod tests {
             book_id.to_string(),
             Arc::new(container),
             Pipeline {
+                display: None,
                 max_image_height: 2000,
                 resize_method: ResizeFilter::Bilinear,
             },

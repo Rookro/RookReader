@@ -188,6 +188,7 @@ impl ContainerState {
             path.to_string(),
             create_container(path, Self::container_config(settings))?,
             Pipeline {
+                display: None,
                 max_image_height: settings.max_image_height as u32,
                 resize_method: settings.image_resampling_method,
             },
@@ -437,6 +438,7 @@ mod tests {
         let key = CacheKey {
             book_id: "book".to_string(),
             entry: "p1.png".to_string(),
+            fit: crate::page::pipeline::Fit::UNBOUNDED,
         };
         let image = Arc::new(Image {
             data: vec![1, 2, 3],
