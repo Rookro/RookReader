@@ -154,14 +154,17 @@ pub fn setup_container_settings(app: &App, settings: &AppSettings) -> error::Res
 /// This copies the persisted reader/rendering values into `ContainerState::settings`.
 /// Only the **image cache capacity** is applied to the currently-open container live:
 /// when it changes, the cache is rebuilt (which evicts every cached image) and handed to
-/// the open `ImageLoader`.
+/// the open `PageService`.
 ///
 /// The other values (`max_image_height`, `image_resampling_method`,
 /// `pdf_render_resolution_height`, `enable_preview`, `auto_descend_single_folder`) are
-/// stored for the **next**
-/// `ContainerState::open_container` call: the already-open `ImageLoader` captured its
-/// resize height/method at construction, so changing them does not re-render the book
-/// currently on screen — it takes effect when a container is next opened.
+/// stored for the **next** open: the running `PageService` captured its pipeline at
+/// construction, so changing them does not re-render the book currently on screen.
+///
+/// The ones that change what a page's pixels are do empty the image cache, though. It
+/// outlives a book and its key says nothing about the filter or the height cap, so
+/// without that, reopening the same book would serve pages rendered with the settings
+/// the user just changed away from.
 ///
 /// # Arguments
 ///
@@ -170,8 +173,14 @@ pub fn setup_container_settings(app: &App, settings: &AppSettings) -> error::Res
 pub fn apply_reader_settings_to_container(state: &mut AppState, settings: &AppSettings) {
     let new_cache_size_mib = settings.reader.comic.cache.image_cache_size_mib;
     let container_settings = &mut state.container_state.settings;
-    // Capture the previous capacity before overwriting it.
+    // Capture the previous values before overwriting them.
     let cache_size_changed = container_settings.image_cache_size_mib != new_cache_size_mib;
+    let rendering_changed = container_settings.max_image_height
+        != settings.reader.rendering.max_image_height
+        || container_settings.image_resampling_method
+            != settings.reader.rendering.image_resampling_method.into()
+        || container_settings.pdf_render_resolution_height
+            != settings.reader.rendering.pdf_render_resolution_height;
 
     container_settings.enable_preview = settings.reader.rendering.enable_thumbnail_preview;
     container_settings.max_image_height = settings.reader.rendering.max_image_height;
@@ -187,6 +196,12 @@ pub fn apply_reader_settings_to_container(state: &mut AppState, settings: &AppSe
         state
             .container_state
             .update_image_cache_size(new_cache_size_mib);
+    } else if rendering_changed {
+        // The cache outlives a book, and its key says nothing about how a page was
+        // rendered beyond the box it was fitted into. Without this, changing the filter
+        // or the height cap and reopening the same book serves pages made with the old
+        // ones.
+        state.container_state.image_cache.invalidate_all();
     }
 }
 
@@ -336,6 +351,67 @@ mod tests {
         );
         assert_eq!(container_settings.image_cache_size_mib, 2048);
         assert_eq!(container_settings.page_reader_count, 3);
+    }
+
+    #[test]
+    fn changing_a_rendering_setting_empties_the_image_cache() {
+        use crate::page::{cache::CacheKey, pipeline::Fit};
+        use std::sync::Arc;
+
+        let mut state = AppState::default();
+        let key = CacheKey {
+            book_id: "book".to_string(),
+            entry: "p001.png".to_string(),
+            fit: Fit::UNBOUNDED,
+        };
+        let cached = Arc::new(crate::image::types::Image {
+            data: vec![1, 2, 3],
+            width: 1,
+            height: 1,
+        });
+        state
+            .container_state
+            .image_cache
+            .insert(key.clone(), cached);
+        assert!(state.container_state.image_cache.get(&key).is_some());
+
+        let mut settings = AppSettings::default();
+        settings.reader.rendering.image_resampling_method = ImageResamplingMethod::Nearest;
+        // The cache size is left alone, so nothing else would clear it.
+        apply_reader_settings_to_container(&mut state, &settings);
+
+        // The cache outlives a book. Without this, reopening the same book would serve
+        // pages rendered with the filter the user just changed away from.
+        assert!(state.container_state.image_cache.get(&key).is_none());
+    }
+
+    #[test]
+    fn re_applying_the_same_settings_keeps_the_image_cache() {
+        use crate::page::{cache::CacheKey, pipeline::Fit};
+        use std::sync::Arc;
+
+        let mut state = AppState::default();
+        let settings = AppSettings::default();
+        apply_reader_settings_to_container(&mut state, &settings);
+
+        let key = CacheKey {
+            book_id: "book".to_string(),
+            entry: "p001.png".to_string(),
+            fit: Fit::UNBOUNDED,
+        };
+        state.container_state.image_cache.insert(
+            key.clone(),
+            Arc::new(crate::image::types::Image {
+                data: vec![1, 2, 3],
+                width: 1,
+                height: 1,
+            }),
+        );
+
+        // Settings are re-applied on every save, most of which change nothing about how
+        // a page is rendered.
+        apply_reader_settings_to_container(&mut state, &settings);
+        assert!(state.container_state.image_cache.get(&key).is_some());
     }
 
     #[cfg(any(debug_assertions, feature = "e2e-test"))]

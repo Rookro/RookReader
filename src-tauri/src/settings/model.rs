@@ -470,7 +470,6 @@ pub enum ImageResamplingMethod {
     #[serde(alias = "gaussian")]
     Box,
     /// Bilinear Filter (formerly Triangle)
-    #[default]
     #[serde(alias = "triangle")]
     Bilinear,
     /// Hamming Filter
@@ -480,6 +479,10 @@ pub enum ImageResamplingMethod {
     /// Mitchell-Netravali Filter
     MitchellNetravali,
     /// Lanczos with window 3
+    ///
+    /// The default: a page is now rendered at the size it is displayed at, so the one
+    /// resample it gets is worth a wide kernel.
+    #[default]
     Lanczos3,
 }
 

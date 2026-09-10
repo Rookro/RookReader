@@ -156,6 +156,31 @@ export const commands = {
 	 */
 	getImageDimensions: (path: string) => typedError<ImageDimensions[], CommandError>(__TAURI_INVOKE("get_image_dimensions", { path })),
 	/**
+	 *  Reports the size of the reader's viewport, in device pixels.
+	 * 
+	 *  Pages are rendered to fit it so the viewer can draw them without scaling: the
+	 *  browser's own downscale is a 2x2 bilinear tap below a 2x reduction, which is what
+	 *  puts moire on a screentoned page.
+	 * 
+	 *  Recorded whether or not a book is open, because the size belongs to the window: the
+	 *  next book has to open at the size the reader is already reading at.
+	 * 
+	 *  # Arguments
+	 * 
+	 *  * `width` - The viewport width in device pixels. `0` means "not measured yet".
+	 *  * `height` - The viewport height in device pixels.
+	 *  * `state` - A `tauri::State` holding the application's global `AppState`.
+	 * 
+	 *  # Returns
+	 * 
+	 *  `Ok(())` once the size is recorded.
+	 * 
+	 *  # Errors
+	 * 
+	 *  Never returns an `Err`; the `Result` keeps the command's shape with its neighbours.
+	 */
+	setDisplaySize: (width: number, height: number) => typedError<null, CommandError>(__TAURI_INVOKE("set_display_size", { width, height })),
+	/**
 	 *  Retrieves a list of all font families installed on the system.
 	 * 
 	 *  This function queries the system's font source to get a list of all available
@@ -1178,7 +1203,12 @@ export type ImageResamplingMethod_Deserialize =
 "catmullRom" | 
 /**  Mitchell-Netravali Filter */
 "mitchellNetravali" | 
-/**  Lanczos with window 3 */
+/**
+ *  Lanczos with window 3
+ * 
+ *  The default: a page is now rendered at the size it is displayed at, so the one
+ *  resample it gets is worth a wide kernel.
+ */
 "lanczos3";
 
 /**  Represents the algorithm used for resampling images. */
@@ -1195,7 +1225,12 @@ export type ImageResamplingMethod_Serialize =
 "catmullRom" | 
 /**  Mitchell-Netravali Filter */
 "mitchellNetravali" | 
-/**  Lanczos with window 3 */
+/**
+ *  Lanczos with window 3
+ * 
+ *  The default: a page is now rendered at the size it is displayed at, so the one
+ *  resample it gets is worth a wide kernel.
+ */
 "lanczos3";
 
 /**  Represents the initial view shown when the app starts. */
