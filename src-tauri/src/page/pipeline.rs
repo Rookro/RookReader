@@ -1,8 +1,15 @@
-//! Turning a page's stored bytes into the image the viewer receives.
+//! Turning a page's stored bytes into the image the viewer receives, at the size it is
+//! displayed at.
 //!
-//! This is the only place that decodes. A [`PageReader`](crate::container::traits::PageReader)
-//! yields bytes and [`PageService`](super::service::PageService) decides *when* they are
-//! read; what the pixels end up being is decided here, and nowhere else.
+//! This is the only place that decodes, and the only place that resamples. A
+//! [`PageReader`](crate::container::traits::PageReader) yields bytes and
+//! [`PageService`](super::service::PageService) decides *when* they are read; what the
+//! pixels end up being is decided here, and nowhere else.
+//!
+//! That the resample happens here at all is the point. Left to the browser, a page is
+//! scaled by a 2x2 bilinear tap below a 2x reduction — under the Nyquist limit for a
+//! screentone, which is moiré. A page fitted to the viewer's own box arrives at 1:1 and
+//! the browser scales nothing.
 
 use std::{io::Cursor, sync::Arc};
 

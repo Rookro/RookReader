@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+* Fixed moiré on screentoned pages by rendering pages at the displayed size instead of letting the browser shrink them. (#324)
+  * The loupe now magnifies the full-size page.
+  * Resized pages are no longer re-compressed as JPEG, which uses more memory. Lower the image cache size in Settings → Rendering & Performance if needed.
+  * The default resizing method for new installs is now Lanczos3. Existing settings are unchanged.
+
 ## [2.5.0] - 2026-09-06
 
 ### Added

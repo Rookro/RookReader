@@ -36,10 +36,13 @@ fn build_image_cache(size_mib: u64) -> Cache {
 
 /// The height pdfium is asked to render a PDF page at.
 ///
-/// Never larger than the page will be displayed. Formats that render their own pages used
-/// to be exempted from the generic resize instead, which left pdfium producing a page the
-/// pipeline then decoded and shrank again; this replaces that exemption, and pdfium
-/// renders the right size to begin with.
+/// The pipeline now shrinks this again, on purpose: rendering above the viewport and
+/// resampling down is supersampling, and it is what makes a PDF's own halftones come out
+/// clean. What this bound is for is the *cost* of the render, not the resize — pdfium
+/// rasterising a 10000 px page nobody asked for.
+///
+/// It is also the ceiling on how sharp a PDF can be: a reader on a display taller than
+/// this in device pixels raises Settings -> Rendering & Performance -> PDF rendering height.
 ///
 /// # Arguments
 ///
