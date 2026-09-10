@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { type RootState, useAppDispatch, useAppSelector } from "../../../store/store";
 import type { ErrorCode } from "../../../types/Error";
 import { useAdjacentBookNavigation } from "../hooks/useAdjacentBookNavigation";
+import { useDisplaySize } from "../hooks/useDisplaySize";
 import { useLoupe } from "../hooks/useLoupe";
 import { usePageNavigation } from "../hooks/usePageNavigation";
 import { useReadingDirection } from "../hooks/useReadingDirection";
@@ -92,12 +93,18 @@ export default function ComicReader() {
   const { onForwardBoundary, onBackwardBoundary, pending, confirmPending, cancelPending } =
     useAdjacentBookNavigation();
 
+  const { isLoupeEnabled, loupePos, containerRef, handleMouseMove, handleMouseDown } = useLoupe(
+    readerSettings.comic.loupe?.toggleKey,
+  );
+  const displaySize = useDisplaySize(containerRef);
+
   const { displayedLayout, moveForward, moveBack, isImageLoading } = useViewerController({
     containerPath,
     entries,
     index,
     isSpreadShifted,
     settings,
+    displaySize,
     dispatch,
     book,
     onForwardBoundary,
@@ -124,10 +131,6 @@ export default function ComicReader() {
     moveForward,
     moveBack,
     settings.direction,
-  );
-
-  const { isLoupeEnabled, loupePos, containerRef, handleMouseMove, handleMouseDown } = useLoupe(
-    loupeSettings?.toggleKey,
   );
 
   useEffect(() => {
@@ -175,48 +178,24 @@ export default function ComicReader() {
     />
   );
 
-  if (!displayedLayout) {
+  const pages = () => {
+    if (!displayedLayout) {
+      return spinnerOverlay;
+    }
+
+    const firstPage: PageSlot = {
+      url: displayedLayout.firstImage?.url,
+      error: displayedLayout.firstError,
+    };
+    const secondPage: PageSlot = {
+      url: displayedLayout.secondImage?.url,
+      error: displayedLayout.secondError,
+    };
+    // The pair is in reading order, the screen is not: in RTL the first page is the right one.
+    const [leftPage, rightPage] =
+      settings.direction === "ltr" ? [firstPage, secondPage] : [secondPage, firstPage];
+
     return (
-      <Box
-        tabIndex={0}
-        {...navigationHandlers}
-        data-testid="comic-reader-area"
-        sx={{
-          width: "100%",
-          height: "100%",
-        }}
-      >
-        {spinnerOverlay}
-        {confirmDialog}
-      </Box>
-    );
-  }
-
-  const firstPage: PageSlot = {
-    url: displayedLayout.firstImage?.url,
-    error: displayedLayout.firstError,
-  };
-  const secondPage: PageSlot = {
-    url: displayedLayout.secondImage?.url,
-    error: displayedLayout.secondError,
-  };
-  // The pair is in reading order, the screen is not: in RTL the first page is the right one.
-  const [leftPage, rightPage] =
-    settings.direction === "ltr" ? [firstPage, secondPage] : [secondPage, firstPage];
-
-  return (
-    <Box
-      tabIndex={0}
-      {...navigationHandlers}
-      onMouseMove={handleMouseMove}
-      onMouseDown={handleMouseDown}
-      ref={containerRef}
-      data-testid="comic-reader-area"
-      sx={{
-        width: "100%",
-        height: "100%",
-      }}
-    >
       <Loupe
         isLoupeEnabled={isLoupeEnabled}
         loupePos={loupePos}
@@ -236,6 +215,26 @@ export default function ComicReader() {
           )}
         </Box>
       </Loupe>
+    );
+  };
+
+  // One root whether or not a page is on screen: the reader area has to be measured
+  // before the first page is asked for, and a second root would leave the size observer
+  // watching the node React swapped out.
+  return (
+    <Box
+      tabIndex={0}
+      {...navigationHandlers}
+      onMouseMove={handleMouseMove}
+      onMouseDown={handleMouseDown}
+      ref={containerRef}
+      data-testid="comic-reader-area"
+      sx={{
+        width: "100%",
+        height: "100%",
+      }}
+    >
+      {pages()}
       {confirmDialog}
     </Box>
   );

@@ -45,6 +45,37 @@ describe("ComicReader", () => {
     });
   });
 
+  it("measures the reader area before the first page arrives", () => {
+    const observed: Element[] = [];
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        observe(element: Element) {
+          observed.push(element);
+        }
+        unobserve() {}
+        disconnect() {}
+      },
+    );
+
+    // Nothing is on screen yet — which is exactly when the area has to be measured,
+    // because no page is asked for until its size has been reported.
+    renderWithProviders(<ComicReader />, { preloadedState: createBasePreloadedState() });
+
+    expect(observed).toContain(screen.getByTestId("comic-reader-area"));
+    vi.unstubAllGlobals();
+  });
+
+  it("reports the measured viewport to the controller", () => {
+    renderWithProviders(<ComicReader />, { preloadedState: createBasePreloadedState() });
+
+    // jsdom lays nothing out, so the measurement is zero — what matters is that the
+    // controller is given one at all, since it is what gates every page request.
+    expect(vi.mocked(viewerController.useViewerController)).toHaveBeenCalledWith(
+      expect.objectContaining({ displaySize: { width: 0, height: 0 } }),
+    );
+  });
+
   it("should render a single page layout correctly", () => {
     const preloadedState = createBasePreloadedState();
     preloadedState.settings.reader.comic.enableSpread = false;
