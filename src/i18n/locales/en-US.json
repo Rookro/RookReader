@@ -316,7 +316,7 @@
       "resize": {
         "max-image-height": {
           "title": "Maximum image height (px)",
-          "description": "Images taller than this will be resized proportionally.\nSet zero to disable resizing."
+          "description": "Pages are always resized to fit the reader area. This caps their height further: a page taller than this is shrunk to it even when the reader area is taller.\nSet zero to let the reader area alone decide."
         },
         "resize-method": {
           "title": "Resizing method",
@@ -332,7 +332,7 @@
       },
       "pdf": {
         "title": "PDF rendering height (px)",
-        "description": "Height of the PDF rendering area in pixels."
+        "description": "The height PDF pages are rendered at, in pixels, before being resized to fit the reader area.\nA reader area taller than this shows the page upscaled, so raise it for a large or high-resolution display. Lowering it makes PDFs faster to open."
       },
       "cache": {
         "preload-page-count": {

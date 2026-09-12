@@ -1,14 +1,27 @@
+import { warn } from "@tauri-apps/plugin-log";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { updatePageLayout } from "../../../bindings/BookCommands";
-import { getImageDimensions, requestPreloadAround } from "../../../bindings/ContainerCommands";
+import {
+  getImageDimensions,
+  requestPreloadAround,
+  setDisplaySize,
+} from "../../../bindings/ContainerCommands";
 import { createMockBookWithState } from "../../../test/factories";
 import { CommandError, ErrorCode } from "../../../types/Error";
 import type { Image } from "../../../types/Image";
 import * as perfLog from "../../../utils/perf";
 import { setImageIndex, setSpreadDisplayed } from "../slice";
 import * as ImageUtils from "../utils/ImageUtils";
+import type { DisplaySize } from "./useDisplaySize";
 import { useViewerController } from "./useViewerController";
+
+/**
+ * A viewport the reader has already measured.
+ *
+ * Every test needs one: pages are rendered to fit it, so nothing loads until it is known.
+ */
+const VIEWPORT: DisplaySize = { width: 1024, height: 1536 };
 
 vi.mock("../utils/ImageUtils", () => ({
   SINGLE_UNIT: { isSpread: false, nextIndexIncrement: 1 },
@@ -158,6 +171,7 @@ describe("useViewerController", () => {
     const { result } = renderHook(() =>
       useViewerController({
         containerPath: "path",
+        displaySize: VIEWPORT,
         entries: mockEntries,
         index: 0,
         isSpreadShifted: false,
@@ -182,6 +196,7 @@ describe("useViewerController", () => {
       ({ path }: { path: string }) =>
         useViewerController({
           containerPath: path,
+          displaySize: VIEWPORT,
           entries: mockEntries,
           index: 0,
           isSpreadShifted: false,
@@ -210,6 +225,7 @@ describe("useViewerController", () => {
     const { unmount } = renderHook(() =>
       useViewerController({
         containerPath: "path",
+        displaySize: VIEWPORT,
         entries: mockEntries,
         index: 0,
         isSpreadShifted: false,
@@ -242,6 +258,7 @@ describe("useViewerController", () => {
       ({ index }: { index: number }) =>
         useViewerController({
           containerPath: "path",
+          displaySize: VIEWPORT,
           entries: longEntries,
           index,
           isSpreadShifted: false,
@@ -288,6 +305,7 @@ describe("useViewerController", () => {
     const { result } = renderHook(() =>
       useViewerController({
         containerPath: "path",
+        displaySize: VIEWPORT,
         entries: mockEntries,
         index: 0,
         isSpreadShifted: false,
@@ -313,6 +331,7 @@ describe("useViewerController", () => {
     renderHook(() =>
       useViewerController({
         containerPath: "path",
+        displaySize: VIEWPORT,
         entries: mockEntries,
         index: 0,
         isSpreadShifted: false,
@@ -332,6 +351,7 @@ describe("useViewerController", () => {
     renderHook(() =>
       useViewerController({
         containerPath: "path",
+        displaySize: VIEWPORT,
         entries: mockEntries,
         index: 0,
         isSpreadShifted: false,
@@ -355,6 +375,7 @@ describe("useViewerController", () => {
       ({ index }: { index: number }) =>
         useViewerController({
           containerPath: "path",
+          displaySize: VIEWPORT,
           entries: mockEntries,
           index,
           isSpreadShifted: false,
@@ -387,6 +408,7 @@ describe("useViewerController", () => {
       const { result } = renderHook(() =>
         useViewerController({
           containerPath: "path",
+          displaySize: VIEWPORT,
           entries: mockEntries,
           index: 0,
           isSpreadShifted: false,
@@ -410,6 +432,7 @@ describe("useViewerController", () => {
       const { result } = renderHook(() =>
         useViewerController({
           containerPath: "path",
+          displaySize: VIEWPORT,
           entries: mockEntries,
           index: 2,
           isSpreadShifted: false,
@@ -431,6 +454,7 @@ describe("useViewerController", () => {
       const { result } = renderHook(() =>
         useViewerController({
           containerPath: "path",
+          displaySize: VIEWPORT,
           entries: [],
           index: 0,
           isSpreadShifted: false,
@@ -450,6 +474,7 @@ describe("useViewerController", () => {
       const { result } = renderHook(() =>
         useViewerController({
           containerPath: "path",
+          displaySize: VIEWPORT,
           entries: mockEntries,
           index: 2,
           isSpreadShifted: false,
@@ -475,6 +500,7 @@ describe("useViewerController", () => {
       const { result } = renderHook(() =>
         useViewerController({
           containerPath: "path",
+          displaySize: VIEWPORT,
           entries: mockEntries,
           index: 1,
           isSpreadShifted: false,
@@ -496,6 +522,7 @@ describe("useViewerController", () => {
       const { result } = renderHook(() =>
         useViewerController({
           containerPath: "path",
+          displaySize: VIEWPORT,
           entries: mockEntries,
           index: 0,
           isSpreadShifted: false,
@@ -513,6 +540,7 @@ describe("useViewerController", () => {
       const { result } = renderHook(() =>
         useViewerController({
           containerPath: "path",
+          displaySize: VIEWPORT,
           entries: [],
           index: 0,
           isSpreadShifted: false,
@@ -530,6 +558,7 @@ describe("useViewerController", () => {
       const { result } = renderHook(() =>
         useViewerController({
           containerPath: "path",
+          displaySize: VIEWPORT,
           entries: mockEntries,
           index: 0,
           isSpreadShifted: false,
@@ -554,6 +583,7 @@ describe("useViewerController", () => {
       const { result } = renderHook(() =>
         useViewerController({
           containerPath: "path",
+          displaySize: VIEWPORT,
           entries: mockEntries,
           index: 0,
           isSpreadShifted: false,
@@ -576,6 +606,7 @@ describe("useViewerController", () => {
       const { result } = renderHook(() =>
         useViewerController({
           containerPath: "path",
+          displaySize: VIEWPORT,
           entries: mockEntries,
           index: 0,
           isSpreadShifted: false,
@@ -607,6 +638,7 @@ describe("useViewerController", () => {
         ({ index }: { index: number }) =>
           useViewerController({
             containerPath: "path",
+            displaySize: VIEWPORT,
             entries: mockEntries,
             index,
             isSpreadShifted: false,
@@ -638,6 +670,7 @@ describe("useViewerController", () => {
       const { result } = renderHook(() =>
         useViewerController({
           containerPath: "path",
+          displaySize: VIEWPORT,
           entries: mockEntries,
           index: 0,
           isSpreadShifted: false,
@@ -670,6 +703,7 @@ describe("useViewerController", () => {
       const { result } = renderHook(() =>
         useViewerController({
           containerPath: "path",
+          displaySize: VIEWPORT,
           entries: mockEntries,
           index: 0,
           isSpreadShifted: false,
@@ -697,6 +731,7 @@ describe("useViewerController", () => {
       const { result } = renderHook(() =>
         useViewerController({
           containerPath: "path",
+          displaySize: VIEWPORT,
           entries: mockEntries,
           index: 0,
           isSpreadShifted: false,
@@ -735,6 +770,7 @@ describe("useViewerController", () => {
       const { result } = renderHook(() =>
         useViewerController({
           containerPath: "path",
+          displaySize: VIEWPORT,
           entries: mockEntries,
           index: 2,
           isSpreadShifted: false,
@@ -761,6 +797,7 @@ describe("useViewerController", () => {
       const { result } = renderHook(() =>
         useViewerController({
           containerPath: "path",
+          displaySize: VIEWPORT,
           entries: mockEntries,
           index: 2,
           isSpreadShifted: false,
@@ -792,6 +829,7 @@ describe("useViewerController", () => {
       const { result } = renderHook(() =>
         useViewerController({
           containerPath: "path",
+          displaySize: VIEWPORT,
           entries: mockEntries,
           index: 0,
           isSpreadShifted: false,
@@ -830,6 +868,7 @@ describe("useViewerController", () => {
       const { result } = renderHook(() =>
         useViewerController({
           containerPath: "path",
+          displaySize: VIEWPORT,
           entries: mockEntries,
           index: 0,
           isSpreadShifted: false,
@@ -860,6 +899,7 @@ describe("useViewerController", () => {
       const { result } = renderHook(() =>
         useViewerController({
           containerPath: "path",
+          displaySize: VIEWPORT,
           entries: mockEntries,
           index: 0,
           isSpreadShifted: false,
@@ -927,6 +967,7 @@ describe("useViewerController", () => {
       const { result } = renderHook(() =>
         useViewerController({
           containerPath: "path",
+          displaySize: VIEWPORT,
           entries: mockEntries,
           index: 1,
           isSpreadShifted: false,
@@ -949,6 +990,7 @@ describe("useViewerController", () => {
       const { result } = renderHook(() =>
         useViewerController({
           containerPath: "path",
+          displaySize: VIEWPORT,
           entries: mockEntries,
           index: 0,
           isSpreadShifted: false,
@@ -971,6 +1013,7 @@ describe("useViewerController", () => {
       renderHook(() =>
         useViewerController({
           containerPath: "path",
+          displaySize: VIEWPORT,
           entries: mockEntries,
           index: 1,
           isSpreadShifted: false,
@@ -996,6 +1039,7 @@ describe("useViewerController", () => {
       renderHook(() =>
         useViewerController({
           containerPath: "path",
+          displaySize: VIEWPORT,
           entries: mockEntries,
           index: 1,
           isSpreadShifted: true,
@@ -1016,6 +1060,7 @@ describe("useViewerController", () => {
       renderHook(() =>
         useViewerController({
           containerPath: "path",
+          displaySize: VIEWPORT,
           entries: mockEntries,
           index: 1,
           isSpreadShifted: false,
@@ -1040,6 +1085,7 @@ describe("useViewerController", () => {
       renderHook(() =>
         useViewerController({
           containerPath: "path",
+          displaySize: VIEWPORT,
           entries: mockEntries,
           index: 1,
           isSpreadShifted: true,
@@ -1066,6 +1112,7 @@ describe("useViewerController", () => {
         ({ index }) =>
           useViewerController({
             containerPath: "path",
+            displaySize: VIEWPORT,
             entries: mockEntries,
             index,
             isSpreadShifted: false,
@@ -1091,6 +1138,7 @@ describe("useViewerController", () => {
         ({ index }) =>
           useViewerController({
             containerPath: "path",
+            displaySize: VIEWPORT,
             entries: mockEntries,
             index,
             isSpreadShifted: false,
@@ -1116,6 +1164,7 @@ describe("useViewerController", () => {
         ({ index }) =>
           useViewerController({
             containerPath: "path",
+            displaySize: VIEWPORT,
             entries: mockEntries,
             index,
             isSpreadShifted: false,
@@ -1145,6 +1194,7 @@ describe("useViewerController", () => {
         const { result } = renderHook(() =>
           useViewerController({
             containerPath: "path",
+            displaySize: VIEWPORT,
             entries: mockEntries,
             index: 0,
             isSpreadShifted: false,
@@ -1202,6 +1252,7 @@ describe("useViewerController", () => {
         renderHook(() =>
           useViewerController({
             containerPath: "path",
+            displaySize: VIEWPORT,
             entries: mockEntries,
             index,
             isSpreadShifted: false,
@@ -1223,6 +1274,7 @@ describe("useViewerController", () => {
       const { result } = renderHook(() =>
         useViewerController({
           containerPath: "path",
+          displaySize: VIEWPORT,
           entries: mockEntries,
           index: 0,
           isSpreadShifted: false,
@@ -1244,6 +1296,7 @@ describe("useViewerController", () => {
       renderHook(() =>
         useViewerController({
           containerPath: "path",
+          displaySize: VIEWPORT,
           entries: mockEntries,
           index: 0,
           isSpreadShifted: false,
@@ -1269,6 +1322,7 @@ describe("useViewerController", () => {
         ({ book }) =>
           useViewerController({
             containerPath: "path",
+            displaySize: VIEWPORT,
             entries: mockEntries,
             index: 0,
             isSpreadShifted: false,
@@ -1297,6 +1351,7 @@ describe("useViewerController", () => {
       const { result } = renderHook(() =>
         useViewerController({
           containerPath: "path",
+          displaySize: VIEWPORT,
           entries: mockEntries,
           index: 0,
           isSpreadShifted: false,
@@ -1320,6 +1375,7 @@ describe("useViewerController", () => {
       const { result } = renderHook(() =>
         useViewerController({
           containerPath: "path",
+          displaySize: VIEWPORT,
           entries: mockEntries,
           index: 0,
           isSpreadShifted: shifted,
@@ -1405,6 +1461,7 @@ describe("useViewerController", () => {
         const { result } = renderHook(() =>
           useViewerController({
             containerPath: "path",
+            displaySize: VIEWPORT,
             entries: mockEntries,
             index: 0,
             isSpreadShifted: false,
@@ -1436,6 +1493,7 @@ describe("useViewerController", () => {
         const { result } = renderHook(() =>
           useViewerController({
             containerPath: "path",
+            displaySize: VIEWPORT,
             entries: mockEntries,
             index: 2,
             isSpreadShifted: false,
@@ -1474,6 +1532,7 @@ describe("useViewerController", () => {
         renderHook(() =>
           useViewerController({
             containerPath: "path",
+            displaySize: VIEWPORT,
             entries: mockEntries,
             index: 0,
             isSpreadShifted: false,
@@ -1522,6 +1581,7 @@ describe("useViewerController", () => {
         renderHook(() =>
           useViewerController({
             containerPath: "path",
+            displaySize: VIEWPORT,
             entries: mockEntries,
             index: 0,
             isSpreadShifted: false,
@@ -1607,6 +1667,7 @@ describe("useViewerController", () => {
         renderHook(() =>
           useViewerController({
             containerPath: "path",
+            displaySize: VIEWPORT,
             entries: mockEntries,
             index: 0,
             isSpreadShifted: false,
@@ -1651,6 +1712,7 @@ describe("useViewerController", () => {
         renderHook(() =>
           useViewerController({
             containerPath: "path",
+            displaySize: VIEWPORT,
             entries: mockEntries,
             index: 0,
             isSpreadShifted: false,
@@ -1684,6 +1746,7 @@ describe("useViewerController", () => {
       renderHook(() =>
         useViewerController({
           containerPath: "path",
+          displaySize: VIEWPORT,
           entries: mockEntries,
           index: 2,
           isSpreadShifted: false,
@@ -1714,6 +1777,7 @@ describe("useViewerController", () => {
       renderHook(() =>
         useViewerController({
           containerPath: "path",
+          displaySize: VIEWPORT,
           entries: mockEntries,
           index: 0,
           isSpreadShifted: false,
@@ -1755,6 +1819,7 @@ describe("useViewerController", () => {
       renderHook(() =>
         useViewerController({
           containerPath: "path",
+          displaySize: VIEWPORT,
           entries: mockEntries,
           index: 0,
           isSpreadShifted: false,
@@ -1802,6 +1867,7 @@ describe("useViewerController", () => {
       renderHook(() =>
         useViewerController({
           containerPath: "path",
+          displaySize: VIEWPORT,
           entries: mockEntries,
           index: 0,
           isSpreadShifted: false,
@@ -1839,6 +1905,7 @@ describe("useViewerController", () => {
         ({ index }: { index: number }) =>
           useViewerController({
             containerPath: "path",
+            displaySize: VIEWPORT,
             entries: mockEntries,
             index,
             isSpreadShifted: false,
@@ -1876,6 +1943,7 @@ describe("useViewerController", () => {
         ({ index }: { index: number }) =>
           useViewerController({
             containerPath: "path",
+            displaySize: VIEWPORT,
             entries: mockEntries,
             index,
             isSpreadShifted: false,
@@ -1910,6 +1978,7 @@ describe("useViewerController", () => {
         ({ path }: { path: string }) =>
           useViewerController({
             containerPath: path,
+            displaySize: VIEWPORT,
             entries: mockEntries,
             index: 0,
             isSpreadShifted: false,
@@ -1938,6 +2007,7 @@ describe("useViewerController", () => {
       renderHook(() =>
         useViewerController({
           containerPath: "path",
+          displaySize: VIEWPORT,
           entries: mockEntries,
           index,
           isSpreadShifted: false,
@@ -1966,6 +2036,142 @@ describe("useViewerController", () => {
       await waitFor(() =>
         expect(requestPreloadAround).toHaveBeenCalledWith("path", mockEntries.length - 1, 10, 1),
       );
+    });
+  });
+
+  describe("the reader's viewport", () => {
+    beforeEach(() => {
+      mockedFetchImageBlob.mockResolvedValue({} as Image);
+      mockedCreateImageCacheItem.mockReturnValue({
+        fullUrl: "blob:full",
+        url: "blob:full",
+        width: 100,
+        height: 200,
+      } as ImageUtils.ImageCacheItem);
+    });
+
+    const renderAtSize = (displaySize: DisplaySize) =>
+      renderHook(
+        ({ size }: { size: DisplaySize }) =>
+          useViewerController({
+            containerPath: "path",
+            displaySize: size,
+            entries: mockEntries,
+            index: 0,
+            isSpreadShifted: false,
+            settings: mockSettings,
+            dispatch: mockDispatch,
+          }),
+        { initialProps: { size: displaySize } },
+      );
+
+    it("loads nothing before the viewport has been measured", async () => {
+      renderAtSize({ width: 0, height: 0 });
+
+      // A page fetched now would arrive at its stored size and be fetched again at the
+      // right one, so the viewer waits instead.
+      await waitFor(() => expect(getImageDimensions).toHaveBeenCalled());
+      expect(setDisplaySize).not.toHaveBeenCalled();
+      expect(ImageUtils.fetchImageBlob).not.toHaveBeenCalled();
+      expect(requestPreloadAround).not.toHaveBeenCalled();
+    });
+
+    it("waits for the backend to have the viewport before asking for a page", async () => {
+      // Not merely called first: a page asked for while this is in flight is rendered
+      // for whatever viewport the backend still had, and fetched again after.
+      let acknowledge: () => void = () => {};
+      vi.mocked(setDisplaySize).mockReturnValueOnce(
+        new Promise((resolve) => {
+          acknowledge = () => {
+            resolve();
+          };
+        }),
+      );
+
+      const { result } = renderAtSize(VIEWPORT);
+
+      await waitFor(() =>
+        expect(setDisplaySize).toHaveBeenCalledWith(VIEWPORT.width, VIEWPORT.height),
+      );
+      expect(ImageUtils.fetchImageBlob).not.toHaveBeenCalled();
+      // And the reader is told it is waiting, because it is.
+      expect(result.current.isImageLoading).toBe(true);
+
+      act(() => {
+        acknowledge();
+      });
+      await waitFor(() => expect(ImageUtils.fetchImageBlob).toHaveBeenCalled());
+    });
+
+    it("waits for the backend to have the viewport before asking it to preload", async () => {
+      let acknowledge: () => void = () => {};
+      vi.mocked(setDisplaySize).mockReturnValueOnce(
+        new Promise((resolve) => {
+          acknowledge = () => {
+            resolve();
+          };
+        }),
+      );
+
+      renderAtSize(VIEWPORT);
+
+      // A preload that lands first fills the cache with pages rendered for whatever
+      // viewport the backend still had, and the next page turn misses on every one.
+      await waitFor(() =>
+        expect(setDisplaySize).toHaveBeenCalledWith(VIEWPORT.width, VIEWPORT.height),
+      );
+      expect(requestPreloadAround).not.toHaveBeenCalled();
+
+      act(() => {
+        acknowledge();
+      });
+      await waitFor(() => expect(requestPreloadAround).toHaveBeenCalledTimes(1));
+    });
+
+    it("re-fetches the current page when the viewport changes", async () => {
+      const { rerender } = renderAtSize(VIEWPORT);
+      await waitFor(() => expect(ImageUtils.fetchImageBlob).toHaveBeenCalledTimes(1));
+
+      rerender({ size: { width: 2048, height: 1536 } });
+
+      await waitFor(() => expect(setDisplaySize).toHaveBeenCalledWith(2048, 1536));
+      // The cached blob URL is a page rendered for the old viewport: nothing would
+      // reload it, because the backend keys a page by the box it was fitted into.
+      await waitFor(() => expect(global.URL.revokeObjectURL).toHaveBeenCalledWith("blob:full"));
+      await waitFor(() => expect(ImageUtils.fetchImageBlob).toHaveBeenCalledTimes(2));
+    });
+
+    it("preloads again when the viewport changes", async () => {
+      const { rerender } = renderAtSize(VIEWPORT);
+      await waitFor(() => expect(requestPreloadAround).toHaveBeenCalledTimes(1));
+
+      rerender({ size: { width: 2048, height: 1536 } });
+
+      // The pages around this one are wanted at the new size too, and asking is also
+      // what makes the backend drop the preload jobs still queued for the old one.
+      await waitFor(() => expect(requestPreloadAround).toHaveBeenCalledTimes(2));
+    });
+
+    it("keeps the page when the viewport is re-rendered at the same size", async () => {
+      const { rerender } = renderAtSize(VIEWPORT);
+      await waitFor(() => expect(ImageUtils.fetchImageBlob).toHaveBeenCalledTimes(1));
+
+      rerender({ size: VIEWPORT });
+
+      await waitFor(() => expect(setDisplaySize).toHaveBeenCalledTimes(1));
+      expect(ImageUtils.fetchImageBlob).toHaveBeenCalledTimes(1);
+    });
+
+    it("still shows a page when the viewport cannot be reported", async () => {
+      vi.mocked(setDisplaySize).mockRejectedValueOnce(new Error("the book was closed"));
+      renderAtSize(VIEWPORT);
+
+      // The backend still has whatever viewport it was last told, so a page rendered for
+      // that beats no page at all.
+      await waitFor(() => expect(warn).toHaveBeenCalled());
+      await waitFor(() => expect(ImageUtils.fetchImageBlob).toHaveBeenCalled());
+      // And the cache is kept, because it matches what the backend would serve.
+      expect(global.URL.revokeObjectURL).not.toHaveBeenCalledWith("blob:full");
     });
   });
 });

@@ -62,9 +62,27 @@ export const getImageDimensions = async (path: string): Promise<ImageDimensions[
   return await runCommand(commands.getImageDimensions(path));
 };
 
-// NOTE: `getImage` / `getImagePreview` return a raw binary `tauri::ipc::Response` from the backend,
-// which has no `specta::Type` and is not part of the generated `commands`. They keep a hand-written
-// `invoke` wrapper that receives the custom `[width][height][data]` binary payload.
+/**
+ * Tells the backend how large the reader draws a page, in device pixels.
+ *
+ * Pages come back fitted to it, so the viewer can draw them 1:1: the browser's own
+ * downscale is what puts moiré on a screentoned page.
+ *
+ * No path, unlike the commands above: the viewport belongs to the window, so it is
+ * recorded whether or not a book is open and survives a book switch.
+ *
+ * @param width The reader viewport's width in device pixels.
+ * @param height The reader viewport's height in device pixels.
+ * @returns A promise that resolves once the backend has the size.
+ */
+export const setDisplaySize = async (width: number, height: number): Promise<void> => {
+  await runCommand(commands.setDisplaySize(width, height));
+};
+
+// NOTE: `getImage` / `getImageFull` / `getImagePreview` return a raw binary
+// `tauri::ipc::Response` from the backend, which has no `specta::Type` and is not part of the
+// generated `commands`. They keep a hand-written `invoke` wrapper that receives the custom
+// `[width][height][data]` binary payload.
 
 /**
  * Fetches an image from a container in the backend.
@@ -76,6 +94,24 @@ export const getImageDimensions = async (path: string): Promise<ImageDimensions[
 export const getImage = async (path: string, entryName: string): Promise<ArrayBuffer> => {
   try {
     return await invoke("get_image", { path, entryName });
+  } catch (error) {
+    throw createCommandError(error);
+  }
+};
+
+/**
+ * Fetches a page at its full size, for the loupe.
+ *
+ * Every other page arrives fitted to the reader's viewport. The loupe draws a page
+ * magnified, so a fitted one would only be an upscale of what is already on screen.
+ *
+ * @param path The path of the container file.
+ * @param entryName The name of the image entry.
+ * @returns A promise that resolves to the image data as an ArrayBuffer.
+ */
+export const getImageFull = async (path: string, entryName: string): Promise<ArrayBuffer> => {
+  try {
+    return await invoke("get_image_full", { path, entryName });
   } catch (error) {
     throw createCommandError(error);
   }

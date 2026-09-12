@@ -1,5 +1,5 @@
 import { debug } from "@tauri-apps/plugin-log";
-import { getImage, getImagePreview } from "../../../bindings/ContainerCommands";
+import { getImage, getImageFull, getImagePreview } from "../../../bindings/ContainerCommands";
 import type { ErrorCode } from "../../../types/Error";
 import { Image } from "../../../types/Image";
 
@@ -103,6 +103,28 @@ export const fetchImageBlob = async (
     return undefined;
   }
   const response = await getImage(containerPath, entryName);
+  return new Image(response);
+};
+
+/**
+ * Fetches a page at its full size, for the loupe.
+ *
+ * The pair of {@link fetchImageBlob}: that one asks for the page fitted to the reader's
+ * viewport, this one for the page whole.
+ *
+ * @param containerPath The path of the container file.
+ * @param entryName The name of the entry to fetch.
+ * @returns The fetched image, or undefined when there was nothing to ask for.
+ * @throws {CommandError} When the backend could not produce the image.
+ */
+export const fetchImageFullBlob = async (
+  containerPath: string,
+  entryName: string,
+): Promise<Image | undefined> => {
+  if (!containerPath || !entryName || containerPath.length === 0 || entryName.length === 0) {
+    return undefined;
+  }
+  const response = await getImageFull(containerPath, entryName);
   return new Image(response);
 };
 

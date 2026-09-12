@@ -1,5 +1,6 @@
 //! Loading benchmarks for the container layer: archive open, the dimension scan, a single
-//! page, a thumbnail, a preload burst, and the latency a page read sees while a scan runs.
+//! page, a thumbnail, a preload burst, the latency a page read sees while a scan runs, and
+//! what a resized page costs to encode for the trip to the viewer.
 //!
 //! Permanent, but never part of a plain `cargo test`: every test here is `#[ignore]`d, so
 //! neither `npm run test:backend` nor CI builds the 170 MiB fixture set. Run one by name,
@@ -262,6 +263,7 @@ fn build_pdf(dir: &Path, pages: &[Vec<u8>]) -> PathBuf {
 /// The pipeline the shipped defaults produce: no height cap, so a page reaches the
 /// viewer as its archive stored it.
 const PIPELINE: Pipeline = Pipeline {
+    display: None,
     max_image_height: 0,
     resize_method: ResizeFilter::Bilinear,
 };
@@ -273,7 +275,7 @@ fn page(container: &Arc<dyn Container>, entry: &str) -> Arc<Image> {
         .expect("open reader")
         .read_page(entry)
         .expect("read page");
-    PIPELINE.page(bytes).expect("decode page")
+    PIPELINE.page(bytes, PIPELINE.fit()).expect("decode page")
 }
 
 /// Every page's dimensions through one reader — the shape `PageService::dimensions` uses.
@@ -562,6 +564,7 @@ fn perfbench_report() {
             "bench".to_string(),
             Arc::clone(&zip),
             Pipeline {
+                display: None,
                 max_image_height: 0,
                 resize_method: ResizeFilter::Bilinear,
             },
@@ -965,5 +968,319 @@ set ROOKREADER_BENCH_RAR=<path>[;<path>] to run this
             ms(dim),
             ms(seq) / ms(par)
         );
+    }
+}
+
+// ------------------------------------------------- page transport format costs
+
+/// The viewport a maximised 1440p window gives one page, in device pixels.
+const VIEWPORT_W: u32 = 1000;
+const VIEWPORT_H: u32 = 1440;
+
+/// A page's size before it is fitted: a B5 spread scanned at 300 dpi.
+const SCAN_W: u32 = 2480;
+const SCAN_H: u32 = 3508;
+
+/// Builds a grayscale page shaped like a scanned manga page: white ground, black line art
+/// and screentone.
+///
+/// The dot fields are the point. `make_page`'s gradient-and-noise would rank the encoders
+/// on content the reader never opens; screentone is both what moirés and what a resize
+/// turns into the smooth grey the encoders then have to carry.
+fn make_screentone_page() -> image::DynamicImage {
+    let mut buf = image::GrayImage::new(SCAN_W, SCAN_H);
+    // A 45-degree halftone at roughly 65 lines per inch on a 300 dpi scan.
+    let cell = 4.6_f32;
+    for (x, y, px) in buf.enumerate_pixels_mut() {
+        let (fx, fy) = (x as f32, y as f32);
+        // Panel borders and strokes: the hard black edges a lossy encoder rings around.
+        let border = x < 60 || y < 60 || x >= SCAN_W - 60 || y >= SCAN_H - 60;
+        let stroke = ((fx * 0.7 + fy * 0.3) as u32 % 211) < 6
+            || ((fx * 0.9 - fy * 0.4 + 4000.0) as u32 % 307) < 5;
+        if border || stroke {
+            *px = image::Luma([0]);
+            continue;
+        }
+        // Six bands of tone density, so both fine and coarse dots are represented.
+        let density = 0.08 + (y * 6 / SCAN_H) as f32 * 0.15;
+        let diag = std::f32::consts::FRAC_1_SQRT_2;
+        let (u, v) = ((fx + fy) * diag, (fy - fx) * diag);
+        let (du, dv) = (
+            u.rem_euclid(cell) - cell / 2.0,
+            v.rem_euclid(cell) - cell / 2.0,
+        );
+        let radius = (cell / 2.0) * density.sqrt() * 1.6;
+        *px = if du.mul_add(du, dv * dv).sqrt() < radius {
+            image::Luma([0])
+        } else {
+            image::Luma([255])
+        };
+    }
+    image::DynamicImage::ImageLuma8(buf)
+}
+
+/// Builds a colour page shaped like a painted illustration: smooth ramps with grain.
+fn make_colour_page() -> image::DynamicImage {
+    let mut buf = image::RgbImage::new(SCAN_W, SCAN_H);
+    let mut state = 0x9E37_79B9_u32;
+    for (x, y, px) in buf.enumerate_pixels_mut() {
+        state = state.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+        let grain = i32::from((state >> 26) as u8) - 32;
+        let r = ((x * 200 / SCAN_W) as i32 + grain).clamp(0, 255) as u8;
+        let g = ((y * 180 / SCAN_H) as i32 + 40 + grain).clamp(0, 255) as u8;
+        let b = (255 - (x * 160 / SCAN_W) as i32 + grain).clamp(0, 255) as u8;
+        *px = image::Rgb([r, g, b]);
+    }
+    image::DynamicImage::ImageRgb8(buf)
+}
+
+fn encode_with(img: &image::DynamicImage, format: image::ImageFormat) -> Vec<u8> {
+    let mut out = Vec::new();
+    img.write_to(&mut std::io::Cursor::new(&mut out), format)
+        .expect("encode");
+    out
+}
+
+fn encode_jpeg(img: &image::DynamicImage, quality: u8) -> Vec<u8> {
+    let mut out = Vec::new();
+    JpegEncoder::new_with_quality(&mut out, quality)
+        .encode_image(img)
+        .expect("encode jpeg");
+    out
+}
+
+/// Encodes every page in `set` and reports the median time and median size.
+fn bench_encode(
+    label: &str,
+    set: &[image::DynamicImage],
+    encode: impl Fn(&image::DynamicImage) -> Vec<u8>,
+) {
+    // Enough samples for the median to mean something when the set is one synthetic page.
+    let reps = (5 / set.len().max(1)).max(1);
+    let mut samples = Vec::new();
+    let mut sizes = Vec::new();
+    for _ in 0..reps {
+        for img in set {
+            let t = Instant::now();
+            let out = encode(img);
+            samples.push(t.elapsed());
+            sizes.push(out.len());
+            std::hint::black_box(out);
+        }
+    }
+    sizes.sort_unstable();
+    println!(
+        "  {label:<24} {:>9.2} ms {:>10.1} KiB",
+        ms(median(samples)),
+        sizes[sizes.len() / 2] as f64 / 1024.0
+    );
+}
+
+/// Reports what one page costs between the resize and the `<img>`, per candidate format.
+fn report_transport_formats(name: &str, sources: &[image::DynamicImage], encoded: &[Vec<u8>]) {
+    println!("\n=== {name} ({} page(s)) ===", sources.len());
+
+    // The page of median size, not the first: the first is a cover, and a cover is not
+    // what a report about a book should be measured on.
+    let rep = {
+        let mut by_pixels: Vec<usize> = (0..sources.len()).collect();
+        by_pixels.sort_by_key(|&i| u64::from(sources[i].width()) * u64::from(sources[i].height()));
+        by_pixels[by_pixels.len() / 2]
+    };
+
+    // What the encode is a fraction of. A page is read, decoded, resized and only then
+    // encoded, so the format's few milliseconds only matter against the whole trip.
+    if let Some(bytes) = encoded.get(rep) {
+        let mut samples = Vec::new();
+        for _ in 0..3 {
+            let t = Instant::now();
+            let img = image::load_from_memory(bytes).expect("decode source");
+            samples.push(t.elapsed());
+            std::hint::black_box(img);
+        }
+        println!(
+            "  decode the source ({:.0} KiB){:>29.2} ms",
+            bytes.len() as f64 / 1024.0,
+            ms(median(samples))
+        );
+    }
+
+    let t = Instant::now();
+    let fitted: Vec<_> = sources
+        .iter()
+        .map(|s| {
+            crate::image::resizer::shrink_to_fit(s, VIEWPORT_W, VIEWPORT_H, ResizeFilter::Lanczos3)
+                .expect("resize")
+        })
+        .collect();
+    let shrunk = fitted
+        .iter()
+        .zip(sources)
+        .filter(|(f, s)| f.width() != s.width())
+        .count();
+    println!(
+        "  resize Lanczos3 -> fit {VIEWPORT_W}x{VIEWPORT_H} ({:?}), {shrunk}/{} shrunk, {:.2} ms/page",
+        fitted[rep].color(),
+        sources.len(),
+        ms(t.elapsed()) / sources.len() as f64
+    );
+
+    println!("  -- fitted to the viewport (what the reader sees) --");
+    bench_encode("bmp", &fitted, |i| encode_with(i, image::ImageFormat::Bmp));
+    bench_encode("png", &fitted, |i| encode_with(i, image::ImageFormat::Png));
+    bench_encode("webp lossless", &fitted, |i| {
+        encode_with(i, image::ImageFormat::WebP)
+    });
+    if fitted[rep].color().has_color() {
+        // An option the reader does not take, kept measurable: a monochrome page stored
+        // as RGB carries three copies of one channel, and folding it back is worth 3x the
+        // bytes — but it discards the residual chroma noise a JPEG source leaves behind,
+        // which the "<=16" column above sizes, so it is not the lossless path shipped.
+        bench_encode("png, folded to Luma8", &fitted, |i| {
+            encode_with(
+                &image::DynamicImage::ImageLuma8(i.to_luma8()),
+                image::ImageFormat::Png,
+            )
+        });
+    }
+    bench_encode("jpeg q92", &fitted, |i| encode_jpeg(i, 92));
+    bench_encode("jpeg q80", &fitted, |i| encode_jpeg(i, 80));
+
+    if let Ok(dir) = std::env::var("ROOKREADER_BENCH_DUMP") {
+        // The browser's decode is the other half of the format's cost, and it can only be
+        // measured in a browser: load these into one and time `createImageBitmap`.
+        let dir = PathBuf::from(dir);
+        fs::create_dir_all(&dir).expect("create dump dir");
+        let stem = name.replace([',', ' '], "_");
+        for (ext, format) in [
+            ("bmp", image::ImageFormat::Bmp),
+            ("png", image::ImageFormat::Png),
+        ] {
+            let out = encode_with(&fitted[rep], format);
+            println!(
+                "  dumped {stem}.{ext} ({:.0} KiB)",
+                out.len() as f64 / 1024.0
+            );
+            fs::write(dir.join(format!("{stem}.{ext}")), out).expect("dump");
+        }
+    }
+
+    println!("  -- full size (what the loupe asks for) --");
+    bench_encode("bmp", sources, |i| encode_with(i, image::ImageFormat::Bmp));
+    bench_encode("png", sources, |i| encode_with(i, image::ImageFormat::Png));
+    bench_encode("jpeg q92", sources, |i| encode_jpeg(i, 92));
+}
+
+/// How close an RGB page's channels are to each other: the share of pixels whose channels
+/// sit within 4 levels, and the widest spread anywhere.
+///
+/// A grey page stored as RGB reads as ~100% near-grey, and the colour type survives the
+/// resize, so that page costs three times the bytes of the same page stored as grayscale.
+/// Whether real archives do that is not a guess worth making.
+fn channel_spread(img: &image::DynamicImage) -> (f64, f64, u8) {
+    let Some(rgb) = img.as_rgb8() else {
+        return (1.0, 1.0, 0);
+    };
+    let (mut near4, mut near16, mut widest) = (0u64, 0u64, 0u8);
+    for p in rgb.pixels() {
+        let spread = p.0.iter().max().unwrap_or(&0) - p.0.iter().min().unwrap_or(&0);
+        if spread <= 4 {
+            near4 += 1;
+        }
+        if spread <= 16 {
+            near16 += 1;
+        }
+        widest = widest.max(spread);
+    }
+    let pixels = (u64::from(rgb.width()) * u64::from(rgb.height())) as f64;
+    (near4 as f64 / pixels, near16 as f64 / pixels, widest)
+}
+
+/// Reports what the source pages actually are, which is half of the format question.
+fn describe_sources(sources: &[(PathBuf, image::DynamicImage, Vec<u8>)]) {
+    println!(
+        "  {:<26} {:>11} {:>8} {:>8} {:>9} {:>7}",
+        "page", "pixels", "colour", "<=4", "<=16", "widest"
+    );
+    for (path, img, _) in sources {
+        let (near4, near16, widest) = channel_spread(img);
+        println!(
+            "  {:<26} {:>5}x{:<5} {:>8} {:>7.2}% {:>8.3}% {:>7}",
+            path.file_name().unwrap_or_default().to_string_lossy(),
+            img.width(),
+            img.height(),
+            format!("{:?}", img.color()),
+            near4 * 100.0,
+            near16 * 100.0,
+            widest
+        );
+    }
+}
+
+/// What a page costs between the resize and the `<img>`: encode time and bytes, per format.
+///
+/// The reader draws a fitted page at 1:1, so the format it travels in is a three-way trade
+/// between fidelity, the time to write it and the bytes it occupies in the image cache.
+/// This measures the two halves that are measurable.
+///
+/// Synthetic pages by default. Point `ROOKREADER_BENCH_REAL_PAGES` at a directory of page
+/// images (an extracted CBZ will do) to run the same report over real scans.
+#[test]
+#[ignore = "benchmark; run with -- --ignored"]
+fn perfbench_encode_formats() {
+    println!("\n### transport format, viewport {VIEWPORT_W}x{VIEWPORT_H}");
+
+    let Ok(dir) = std::env::var("ROOKREADER_BENCH_REAL_PAGES") else {
+        report_transport_formats(
+            "synthetic, grayscale screentone",
+            &[make_screentone_page()],
+            &[],
+        );
+        report_transport_formats("synthetic, colour illustration", &[make_colour_page()], &[]);
+        return;
+    };
+
+    let mut paths: Vec<PathBuf> = fs::read_dir(&dir)
+        .expect("read the real page directory")
+        .filter_map(|e| e.ok().map(|e| e.path()))
+        .filter(|p| p.is_file())
+        .collect();
+    paths.sort();
+    // Evenly spaced rather than the first twelve: the front of a book is its cover and
+    // front matter, and the pages this measures are the ones a reader spends time on.
+    let sampled = 12.min(paths.len());
+    let stride = paths.len() as f64 / sampled as f64;
+    let paths: Vec<PathBuf> = (0..sampled)
+        .map(|i| paths[(i as f64 * stride) as usize].clone())
+        .collect();
+
+    let loaded: Vec<(PathBuf, image::DynamicImage, Vec<u8>)> = paths
+        .into_iter()
+        .filter_map(|p| {
+            let bytes = fs::read(&p).ok()?;
+            let img = image::load_from_memory(&bytes).ok()?;
+            Some((p, img, bytes))
+        })
+        .collect();
+    assert!(!loaded.is_empty(), "no readable images in {dir}");
+
+    println!("\n=== sources: {dir} ===");
+    describe_sources(&loaded);
+
+    // Split on what the encoder actually sees, which is the colour type — not on whether
+    // the page looks grey.
+    let (colour, grey): (Vec<_>, Vec<_>) = loaded
+        .into_iter()
+        .map(|(_, img, bytes)| (img, bytes))
+        .partition(|(img, _)| img.color().has_color());
+    for (label, set) in [
+        ("real, grayscale-encoded", grey),
+        ("real, colour-encoded", colour),
+    ] {
+        if set.is_empty() {
+            continue;
+        }
+        let (images, encoded): (Vec<_>, Vec<_>) = set.into_iter().unzip();
+        report_transport_formats(label, &images, &encoded);
     }
 }

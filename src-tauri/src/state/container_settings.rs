@@ -33,7 +33,7 @@ impl Default for ContainerSettings {
         ContainerSettings {
             enable_preview: true,
             max_image_height: 0,
-            image_resampling_method: ResizeFilter::Bilinear,
+            image_resampling_method: ResizeFilter::Lanczos3,
             pdf_render_resolution_height: 2000,
             image_cache_size_mib: 1024,
             page_reader_count: 0,

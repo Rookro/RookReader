@@ -16,6 +16,20 @@ class ResizeObserverMock {
 
 global.ResizeObserver = ResizeObserverMock;
 
+// jsdom has no media queries either. Reported as never matching, so a component that
+// asks gets a definite answer rather than a crash; a test that cares stubs its own.
+global.matchMedia = (query: string) =>
+  ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  }) as unknown as MediaQueryList;
+
 afterEach(() => {
   localStorage.clear();
   vi.clearAllMocks();

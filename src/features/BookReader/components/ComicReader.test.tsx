@@ -4,6 +4,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createBasePreloadedState, renderWithProviders } from "../../../test/utils";
 import { ErrorCode } from "../../../types/Error";
 import * as adjacentBookNavigation from "../hooks/useAdjacentBookNavigation";
+import * as fullSizePages from "../hooks/useFullSizePages";
+import * as loupe from "../hooks/useLoupe";
 import * as pageNavigation from "../hooks/usePageNavigation";
 import * as viewerController from "../hooks/useViewerController";
 import ComicReader from "./ComicReader";
@@ -12,6 +14,8 @@ import ComicReader from "./ComicReader";
 vi.mock("../hooks/useViewerController");
 vi.mock("../hooks/usePageNavigation");
 vi.mock("../hooks/useAdjacentBookNavigation");
+vi.mock("../hooks/useFullSizePages");
+vi.mock("../hooks/useLoupe");
 
 describe("ComicReader", () => {
   const user = userEvent.setup();
@@ -36,12 +40,122 @@ describe("ComicReader", () => {
       cancelPending: vi.fn(),
     });
 
+    // The loupe is closed by default, which is how every test but the loupe's own sees it.
+    vi.mocked(loupe.useLoupe).mockReturnValue({
+      isLoupeEnabled: false,
+      loupePos: { x: 0, y: 0 },
+      containerRef: { current: null },
+      handleMouseMove: vi.fn(),
+      handleMouseDown: vi.fn(),
+      toggleLoupe: vi.fn(),
+    });
+    vi.mocked(fullSizePages.useFullSizePages).mockReturnValue(new Map());
+
     // Default mock implementation for useViewerController
     vi.mocked(viewerController.useViewerController).mockReturnValue({
       displayedLayout: null,
       moveForward: vi.fn(),
       moveBack: vi.fn(),
       isImageLoading: false,
+    });
+  });
+
+  it("measures the reader area before the first page arrives", () => {
+    const observed: Element[] = [];
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        observe(element: Element) {
+          observed.push(element);
+        }
+        unobserve() {}
+        disconnect() {}
+      },
+    );
+
+    // Nothing is on screen yet — which is exactly when the area has to be measured,
+    // because no page is asked for until its size has been reported.
+    renderWithProviders(<ComicReader />, { preloadedState: createBasePreloadedState() });
+
+    expect(observed).toContain(screen.getByTestId("comic-reader-area"));
+    vi.unstubAllGlobals();
+  });
+
+  it("reports the measured viewport to the controller", () => {
+    renderWithProviders(<ComicReader />, { preloadedState: createBasePreloadedState() });
+
+    // jsdom lays nothing out, so the measurement is zero — what matters is that the
+    // controller is given one at all, since it is what gates every page request.
+    expect(vi.mocked(viewerController.useViewerController)).toHaveBeenCalledWith(
+      expect.objectContaining({ displaySize: { width: 0, height: 0 } }),
+    );
+  });
+
+  describe("the loupe", () => {
+    /** The open loupe, over a spread of `p1.jpg` and `p2.jpg`. */
+    const openOverASpread = (fullSize: Map<string, string>) => {
+      vi.mocked(loupe.useLoupe).mockReturnValue({
+        isLoupeEnabled: true,
+        loupePos: { x: 10, y: 10 },
+        containerRef: { current: null },
+        handleMouseMove: vi.fn(),
+        handleMouseDown: vi.fn(),
+        toggleLoupe: vi.fn(),
+      });
+      vi.mocked(fullSizePages.useFullSizePages).mockReturnValue(fullSize);
+      vi.mocked(viewerController.useViewerController).mockReturnValue({
+        displayedLayout: {
+          isSpread: true,
+          firstImage: { url: "blob:p1", width: 100, height: 100 },
+          secondImage: { url: "blob:p2", width: 100, height: 100 },
+          nextIndexIncrement: 2,
+        },
+        moveForward: vi.fn(),
+        moveBack: vi.fn(),
+        isImageLoading: false,
+      });
+
+      const preloadedState = createBasePreloadedState();
+      preloadedState.settings.reader.comic.enableSpread = true;
+      preloadedState.read.containerFile.entries = ["p1.jpg", "p2.jpg"];
+      preloadedState.read.containerFile.history = ["book.zip"];
+      preloadedState.read.containerFile.historyIndex = 0;
+      renderWithProviders(<ComicReader />, { preloadedState });
+    };
+
+    it("asks for the pages on screen at full size", () => {
+      openOverASpread(new Map());
+
+      expect(vi.mocked(fullSizePages.useFullSizePages)).toHaveBeenCalledWith(
+        "book.zip",
+        ["p1.jpg", "p2.jpg"],
+        true,
+      );
+    });
+
+    it("shows the full-size pages under the lens", () => {
+      openOverASpread(
+        new Map([
+          ["p1.jpg", "blob:p1-full"],
+          ["p2.jpg", "blob:p2-full"],
+        ]),
+      );
+
+      // Twice each: once behind the lens at the displayed size, once under it at full
+      // size. Scaling the displayed page would add no detail.
+      const sources = screen.getAllByRole("img").map((img) => img.getAttribute("src"));
+      expect(sources).toContain("blob:p1");
+      expect(sources).toContain("blob:p1-full");
+      expect(sources).toContain("blob:p2-full");
+    });
+
+    it("falls back to the displayed page when a full-size copy is missing", () => {
+      openOverASpread(new Map([["p1.jpg", "blob:p1-full"]]));
+
+      // Softer under the lens than it could be, but never blank.
+      const sources = screen.getAllByRole("img").map((img) => img.getAttribute("src"));
+      expect(sources).toContain("blob:p1-full");
+      expect(sources.filter((src) => src === "blob:p2")).toHaveLength(2);
     });
   });
 
