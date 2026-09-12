@@ -36,6 +36,13 @@ const measure = (element: HTMLElement, ratio: number): DisplaySize => {
  * with the bookshelf: a page is fitted on both axes, and it is device pixels that decide
  * whether the browser has to scale it.
  *
+ * The whole area, in two-page view too, where each page gets half the width. Reporting
+ * the half instead would halve the resolution of covers and landscape spreads, which
+ * are shown alone. The cost is that a window narrower than twice a page's aspect ratio
+ * (about 1.4:1 for B5) leaves each page width-bound by its half and scaled by the
+ * browser — at a ratio that reaches 0.5 on a portrait window. The pages are small enough
+ * there that the moiré is not worth the trade.
+ *
  * @param ref The reader area to observe.
  * @param debounceMs How long a resize settles before it is reported.
  * @returns The viewport, or {@link UNMEASURED} before the first measurement.
