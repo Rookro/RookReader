@@ -246,7 +246,7 @@ pub async fn request_preload_around(
 ///
 /// Pages are rendered to fit it so the viewer can draw them without scaling: the
 /// browser's own downscale is a 2x2 bilinear tap below a 2x reduction, which is what
-/// puts moire on a screentoned page.
+/// puts moiré on a screentoned page.
 ///
 /// Recorded whether or not a book is open, because the size belongs to the window: the
 /// next book has to open at the size the reader is already reading at.
