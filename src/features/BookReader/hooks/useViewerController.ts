@@ -611,8 +611,13 @@ export const useViewerController = ({
   }, [containerPath, index, entries, settings, currentUnit, pairing, chain, reportedSize]);
 
   // Request preloading around the current index in the backend.
+  //
+  // Gated on the viewport like the load effect, and re-run when it changes: a preload
+  // issued before the backend has the viewport fills the cache with pages rendered for
+  // the previous one, and the backend drops the preload jobs still queued for a
+  // viewport the reader has left only when it is asked to preload for the new one.
   useEffect(() => {
-    if (entries.length > 0) {
+    if (entries.length > 0 && reportedSize) {
       // The same pages the layout effect above loads, named so the backend leaves them
       // to the foreground requests already on their way.
       const callerPages = settings.isTwoPagedView && index + 1 < entries.length ? 2 : 1;
@@ -622,7 +627,14 @@ export const useViewerController = ({
         },
       );
     }
-  }, [containerPath, index, settings.preloadPageCount, settings.isTwoPagedView, entries.length]);
+  }, [
+    containerPath,
+    index,
+    settings.preloadPageCount,
+    settings.isTwoPagedView,
+    entries.length,
+    reportedSize,
+  ]);
 
   // Evict cached pages outside a window around the current index so long sessions
   // don't retain every visited page's blob URLs (unbounded renderer memory). The

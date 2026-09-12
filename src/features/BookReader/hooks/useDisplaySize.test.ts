@@ -9,9 +9,9 @@ let disconnectCount = 0;
 /** The listeners the hook attached to the `dppx` media query, by the query it matched on. */
 let mediaListeners: Array<{ query: string; listener: () => void }> = [];
 
-/** An element reporting a fixed CSS box. */
+/** An element reporting a fixed CSS box, fractional as a laid-out box can be. */
 const element = (width: number, height: number) =>
-  ({ clientWidth: width, clientHeight: height }) as HTMLElement;
+  ({ getBoundingClientRect: () => ({ width, height }) }) as unknown as HTMLElement;
 
 /** A ref holding that element, stable across renders as `useRef` is. */
 const refTo = (width: number, height: number): { current: HTMLElement | null } => ({
@@ -20,7 +20,7 @@ const refTo = (width: number, height: number): { current: HTMLElement | null } =
 
 /** Resizes the observed element in place, which is what a real resize does. */
 const resize = (ref: { current: HTMLElement | null }, width: number, height: number) => {
-  Object.assign(ref.current as HTMLElement, { clientWidth: width, clientHeight: height });
+  Object.assign(ref.current as HTMLElement, { getBoundingClientRect: () => ({ width, height }) });
 };
 
 describe("useDisplaySize", () => {
@@ -69,30 +69,31 @@ describe("useDisplaySize", () => {
     // holds every request until it arrives.
     const ref = refTo(1000, 1400);
     const { result } = renderHook(() => useDisplaySize(ref));
-    expect(result.current).toEqual({ width: 1024, height: 1408 });
+    expect(result.current).toEqual({ width: 1000, height: 1400 });
   });
 
-  it("rounds up to a multiple of 64", () => {
-    const ref = refTo(961, 65);
+  it("reports the box to the pixel, not rounded to a coarser step", () => {
+    const ref = refTo(999.6, 1399.5);
     const { result } = renderHook(() => useDisplaySize(ref));
 
-    // Up, never down: a page rounded down would be stretched to fill the viewport, which
-    // is the browser upscale this whole change exists to avoid.
-    expect(result.current).toEqual({ width: 1024, height: 128 });
+    // A page rendered even a few percent larger than its box is scaled by the browser at
+    // a ratio just under 1, which on a screentone is a beat: bands of rising and falling
+    // contrast every few dozen pixels. To the pixel, the same drift spans the whole page.
+    expect(result.current).toEqual({ width: 1000, height: 1400 });
   });
 
   it("measures in device pixels, not CSS pixels", () => {
     vi.stubGlobal("devicePixelRatio", 2);
     const ref = refTo(500, 700);
     const { result } = renderHook(() => useDisplaySize(ref));
-    expect(result.current).toEqual({ width: 1024, height: 1408 });
+    expect(result.current).toEqual({ width: 1000, height: 1400 });
   });
 
   it("falls back to a ratio of 1 when the browser reports none", () => {
     vi.stubGlobal("devicePixelRatio", 0);
     const ref = refTo(1000, 1400);
     const { result } = renderHook(() => useDisplaySize(ref));
-    expect(result.current).toEqual({ width: 1024, height: 1408 });
+    expect(result.current).toEqual({ width: 1000, height: 1400 });
   });
 
   it("debounces a resize", () => {
@@ -106,23 +107,23 @@ describe("useDisplaySize", () => {
     });
     // A window drag fires this on every frame; re-rendering every page at every
     // intermediate width is what the debounce is for.
-    expect(result.current).toEqual({ width: 1024, height: 1408 });
+    expect(result.current).toEqual({ width: 1000, height: 1400 });
 
     act(() => {
       vi.advanceTimersByTime(150);
     });
-    expect(result.current).toEqual({ width: 1216, height: 1408 });
+    expect(result.current).toEqual({ width: 1200, height: 1400 });
   });
 
-  it("keeps the same object when a resize lands on the same quantised size", () => {
+  it("keeps the same object when a resize lands on the same size", () => {
     vi.useFakeTimers();
     const ref = refTo(1000, 1400);
     const { result } = renderHook(() => useDisplaySize(ref, 150));
     const first = result.current;
 
-    // Inside the same 64 px step. Every consumer reloads the book when this object
-    // changes, so an equal size must not be a new one.
-    resize(ref, 1010, 1400);
+    // A sub-pixel nudge rounds to the size already reported. Every consumer reloads the
+    // book when this object changes, so an equal size must not be a new one.
+    resize(ref, 1000.4, 1400);
     act(() => {
       observerCallbacks.at(-1)?.([], {} as ResizeObserver);
       vi.advanceTimersByTime(150);
@@ -133,7 +134,7 @@ describe("useDisplaySize", () => {
   it("re-measures when the display's scale factor changes", () => {
     const ref = refTo(1000, 1400);
     const { result } = renderHook(() => useDisplaySize(ref));
-    expect(result.current).toEqual({ width: 1024, height: 1408 });
+    expect(result.current).toEqual({ width: 1000, height: 1400 });
 
     // Moving the window to a display with a different scale factor changes the device
     // pixels behind an unchanged CSS box, which no ResizeObserver reports.
@@ -142,7 +143,7 @@ describe("useDisplaySize", () => {
     act(() => {
       mediaListeners[0]?.listener();
     });
-    expect(result.current).toEqual({ width: 2048, height: 2816 });
+    expect(result.current).toEqual({ width: 2000, height: 2800 });
   });
 
   it("stops observing when it unmounts", () => {

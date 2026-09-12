@@ -2073,6 +2073,7 @@ describe("useViewerController", () => {
       await waitFor(() => expect(getImageDimensions).toHaveBeenCalled());
       expect(setDisplaySize).not.toHaveBeenCalled();
       expect(ImageUtils.fetchImageBlob).not.toHaveBeenCalled();
+      expect(requestPreloadAround).not.toHaveBeenCalled();
     });
 
     it("waits for the backend to have the viewport before asking for a page", async () => {
@@ -2102,6 +2103,31 @@ describe("useViewerController", () => {
       await waitFor(() => expect(ImageUtils.fetchImageBlob).toHaveBeenCalled());
     });
 
+    it("waits for the backend to have the viewport before asking it to preload", async () => {
+      let acknowledge: () => void = () => {};
+      vi.mocked(setDisplaySize).mockReturnValueOnce(
+        new Promise((resolve) => {
+          acknowledge = () => {
+            resolve();
+          };
+        }),
+      );
+
+      renderAtSize(VIEWPORT);
+
+      // A preload that lands first fills the cache with pages rendered for whatever
+      // viewport the backend still had, and the next page turn misses on every one.
+      await waitFor(() =>
+        expect(setDisplaySize).toHaveBeenCalledWith(VIEWPORT.width, VIEWPORT.height),
+      );
+      expect(requestPreloadAround).not.toHaveBeenCalled();
+
+      act(() => {
+        acknowledge();
+      });
+      await waitFor(() => expect(requestPreloadAround).toHaveBeenCalledTimes(1));
+    });
+
     it("re-fetches the current page when the viewport changes", async () => {
       const { rerender } = renderAtSize(VIEWPORT);
       await waitFor(() => expect(ImageUtils.fetchImageBlob).toHaveBeenCalledTimes(1));
@@ -2113,6 +2139,17 @@ describe("useViewerController", () => {
       // reload it, because the backend keys a page by the box it was fitted into.
       await waitFor(() => expect(global.URL.revokeObjectURL).toHaveBeenCalledWith("blob:full"));
       await waitFor(() => expect(ImageUtils.fetchImageBlob).toHaveBeenCalledTimes(2));
+    });
+
+    it("preloads again when the viewport changes", async () => {
+      const { rerender } = renderAtSize(VIEWPORT);
+      await waitFor(() => expect(requestPreloadAround).toHaveBeenCalledTimes(1));
+
+      rerender({ size: { width: 2048, height: 1536 } });
+
+      // The pages around this one are wanted at the new size too, and asking is also
+      // what makes the backend drop the preload jobs still queued for the old one.
+      await waitFor(() => expect(requestPreloadAround).toHaveBeenCalledTimes(2));
     });
 
     it("keeps the page when the viewport is re-rendered at the same size", async () => {

@@ -1,15 +1,6 @@
 import { debounce } from "@mui/material";
 import { type RefObject, useCallback, useEffect, useMemo, useState } from "react";
 
-/**
- * Device pixels the reported size is rounded up to.
- *
- * Rounding up costs at most a 64 px browser downscale — a few percent, far below where
- * aliasing shows — and is what keeps a window drag from re-rendering every page at every
- * intermediate width.
- */
-const QUANTUM = 64;
-
 /** How long a resize settles before it is reported. */
 const DEBOUNCE_MS = 150;
 
@@ -24,10 +15,18 @@ export interface DisplaySize {
 /** The size of a viewer that has not measured itself yet. */
 export const UNMEASURED: DisplaySize = { width: 0, height: 0 };
 
-/** The element's size in device pixels, rounded up to {@link QUANTUM}. */
+/**
+ * The element's size in device pixels, to the nearest pixel.
+ *
+ * Exact, not rounded to a coarser step. A page even a few percent larger than its box is
+ * scaled by the browser at a ratio just under 1, and on a screentone that is a beat: the
+ * sample phase drifts across the page, so the tone's contrast rises and falls every
+ * 1 / (1 / ratio - 1) pixels — 42 px at 1536 / 1500 — as visible bands. At the exact
+ * size the same drift takes the whole page to complete once.
+ */
 const measure = (element: HTMLElement, ratio: number): DisplaySize => {
-  const quantize = (value: number) => Math.ceil((value * ratio) / QUANTUM) * QUANTUM;
-  return { width: quantize(element.clientWidth), height: quantize(element.clientHeight) };
+  const { width, height } = element.getBoundingClientRect();
+  return { width: Math.round(width * ratio), height: Math.round(height * ratio) };
 };
 
 /**
