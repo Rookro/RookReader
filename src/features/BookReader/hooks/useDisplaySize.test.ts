@@ -132,8 +132,9 @@ describe("useDisplaySize", () => {
   });
 
   it("re-measures when the display's scale factor changes", () => {
+    vi.useFakeTimers();
     const ref = refTo(1000, 1400);
-    const { result } = renderHook(() => useDisplaySize(ref));
+    const { result } = renderHook(() => useDisplaySize(ref, 150));
     expect(result.current).toEqual({ width: 1000, height: 1400 });
 
     // Moving the window to a display with a different scale factor changes the device
@@ -143,7 +144,40 @@ describe("useDisplaySize", () => {
     act(() => {
       mediaListeners[0]?.listener();
     });
+    expect(mediaListeners.at(-1)?.query).toBe("(resolution: 2dppx)");
+    // Settled like a resize, because the OS resizes the window along with it.
+    expect(result.current).toEqual({ width: 1000, height: 1400 });
+    act(() => {
+      vi.advanceTimersByTime(150);
+    });
     expect(result.current).toEqual({ width: 2000, height: 2800 });
+  });
+
+  it("reports a scale-factor change and the resize that comes with it once", () => {
+    vi.useFakeTimers();
+    const ref = refTo(1000, 1400);
+    const reported: unknown[] = [];
+    renderHook(() => {
+      const size = useDisplaySize(ref, 150);
+      reported.push(size);
+      return size;
+    });
+    const measuredOnce = new Set(reported).size;
+
+    // The OS resizes the window as it moves to the other display. Two reports here are
+    // two reloads of every page on screen, the first of them for a size nobody sees.
+    vi.stubGlobal("devicePixelRatio", 2);
+    act(() => {
+      mediaListeners[0]?.listener();
+    });
+    resize(ref, 800, 1100);
+    act(() => {
+      observerCallbacks.at(-1)?.([], {} as ResizeObserver);
+      vi.advanceTimersByTime(150);
+    });
+
+    expect(new Set(reported).size).toBe(measuredOnce + 1);
+    expect(reported.at(-1)).toEqual({ width: 1600, height: 2200 });
   });
 
   it("stops observing when it unmounts", () => {

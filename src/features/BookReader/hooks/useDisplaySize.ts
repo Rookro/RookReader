@@ -1,5 +1,5 @@
 import { debounce } from "@mui/material";
-import { type RefObject, useCallback, useEffect, useMemo, useState } from "react";
+import { type RefObject, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 /** How long a resize settles before it is reported. */
 const DEBOUNCE_MS = 150;
@@ -58,6 +58,7 @@ export function useDisplaySize(
   }, []);
 
   const update = useMemo(() => debounce(report, debounceMs), [report, debounceMs]);
+  const measured = useRef(false);
 
   useEffect(() => {
     const element = ref.current;
@@ -66,8 +67,15 @@ export function useDisplaySize(
     }
 
     // The first measurement decides what the first page is rendered at, and the viewer
-    // waits for it before asking for anything, so it is not debounced.
-    report(measure(element, ratio));
+    // waits for it before asking for anything, so it is not debounced. Every later one
+    // is a resize and settles like one — a scale-factor change included, since the OS
+    // resizes the window with it and the two must land as one report, not two reloads.
+    if (measured.current) {
+      update(measure(element, ratio));
+    } else {
+      measured.current = true;
+      report(measure(element, ratio));
+    }
 
     const observer = new ResizeObserver(() => {
       update(measure(element, ratio));
