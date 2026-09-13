@@ -10,7 +10,7 @@ import BookGrid from "./BookGrid";
 import { BookSelectionContext } from "./BookSelectionContext";
 
 // This suite focuses on the auto-scroll latch. Unlike BookGrid.test.tsx it uses the
-// REAL useReadingBookSelection so the reading-book index actually resolves, and mocks
+// REAL useReadingBookIndex so the reading-book index actually resolves, and mocks
 // react-window so grid.scrollToCell can be observed.
 
 const mockScrollToCell = vi.fn();

@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createMockReadBook } from "../../../../test/factories";
 import { mockScrollToRow } from "../../../../test/mocks/components";
 import { createBasePreloadedState, renderWithProviders } from "../../../../test/utils";
-import { useHistorySelection } from "../../hooks/useHistorySelection";
+import { useHistoryIndex } from "../../hooks/useHistoryIndex";
 import * as ReadReducer from "../../slice";
 import HistoryViewer from "./HistoryViewer";
 
@@ -13,8 +13,8 @@ import HistoryViewer from "./HistoryViewer";
 vi.mock("../../../History/hooks/useHistoryEntriesUpdater", () => ({
   useHistoryEntriesUpdater: vi.fn(),
 }));
-vi.mock("../../hooks/useHistorySelection", () => ({
-  useHistorySelection: vi.fn(),
+vi.mock("../../hooks/useHistoryIndex", () => ({
+  useHistoryIndex: vi.fn(),
 }));
 
 // Mock SidePanelHeader
@@ -40,6 +40,7 @@ describe("HistoryViewer", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(useHistoryIndex).mockReturnValue(-1);
   });
 
   it("should render SidePanelHeader and Search input", () => {
@@ -111,9 +112,7 @@ describe("HistoryViewer", () => {
   });
 
   it("should scroll to row when selectedIndex is set", async () => {
-    vi.mocked(useHistorySelection).mockImplementationOnce((_path, _entries, callback) => {
-      callback(1);
-    });
+    vi.mocked(useHistoryIndex).mockReturnValue(1);
 
     const preloadedState = createBasePreloadedState();
     preloadedState.history.recentlyReadBooks = [
@@ -135,9 +134,7 @@ describe("HistoryViewer", () => {
   });
 
   it("should log error if scrollToRow fails", async () => {
-    vi.mocked(useHistorySelection).mockImplementationOnce((_path, _entries, callback) => {
-      callback(0);
-    });
+    vi.mocked(useHistoryIndex).mockReturnValue(0);
 
     const preloadedState = createBasePreloadedState();
     preloadedState.history.recentlyReadBooks = [createMockReadBook({ file_path: "/path/2" })];

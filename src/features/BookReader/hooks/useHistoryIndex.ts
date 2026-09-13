@@ -1,38 +1,16 @@
-import { useEffect } from "react";
+import { useMemo } from "react";
 import type { Book } from "../../../domain/book/schema";
 
 /**
- * Custom hook to determine the selected index in a history list.
+ * Locates the open book within a history list.
  *
- * @param path The current file path.
- * @param entries The list of history.
- * @param setSelectedIndex The function to set the selected index.
+ * @param path - The path of the open container file.
+ * @param entries - The history entries currently listed.
+ * @returns The index of the entry whose path matches, or -1 when there is no open book or no match.
  */
-export function useHistorySelection(
-  path: string,
-  entries: Book[],
-  setSelectedIndex: (index: number) => void,
-) {
-  useEffect(() => {
-    let cancelled = false;
-    const initSelected = async () => {
-      if (!path || path.length === 0) {
-        if (!cancelled) {
-          setSelectedIndex(-1);
-        }
-        return;
-      }
-
-      const idx = entries.findIndex((entry) => entry.file_path === path);
-      if (!cancelled) {
-        setSelectedIndex(idx);
-      }
-    };
-
-    initSelected();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [entries, setSelectedIndex, path]);
+export function useHistoryIndex(path: string, entries: Book[]): number {
+  return useMemo(
+    () => (path ? entries.findIndex((entry) => entry.file_path === path) : -1),
+    [path, entries],
+  );
 }

@@ -7,7 +7,7 @@ import { List, type RowComponentProps, useListCallbackRef } from "react-window";
 import type { ReadBook } from "../../../../domain/book/schema";
 import { useAppDispatch, useAppSelector } from "../../../../store/store";
 import SidePanelHeader from "../../../SidePane/components/SidePanelHeader";
-import { useHistorySelection } from "../../hooks/useHistorySelection";
+import { useHistoryIndex } from "../../hooks/useHistoryIndex";
 import { setContainerFilePath, setOpenOrigin } from "../../slice";
 import { andSearch } from "../../utils/HistoryViewerUtils";
 import { ItemRow } from "./ItemRow";
@@ -50,7 +50,6 @@ export default function HistoryViewer() {
   const history = useAppSelector((state) => state.read.containerFile.history);
   const historyIndex = useAppSelector((state) => state.read.containerFile.historyIndex);
   const recentlyReadBooks = useAppSelector((state) => state.history.recentlyReadBooks);
-  const [selectedIndex, setSelectedIndex] = useState(-1);
   const [searchText, setSearchText] = useState("");
   const [list, setList] = useListCallbackRef(null);
   const dispatch = useAppDispatch();
@@ -59,7 +58,7 @@ export default function HistoryViewer() {
     return andSearch(recentlyReadBooks, searchText);
   }, [recentlyReadBooks, searchText]);
 
-  useHistorySelection(history[historyIndex], filteredEntries, setSelectedIndex);
+  const selectedIndex = useHistoryIndex(history[historyIndex], filteredEntries);
 
   // Scroll to make the selected item visible
   useEffect(() => {
@@ -87,8 +86,7 @@ export default function HistoryViewer() {
   }, [selectedIndex, filteredEntries.length, list]);
 
   const handleListItemClicked = useCallback(
-    async (_e: React.MouseEvent<HTMLElement>, entry: ReadBook, index: number) => {
-      setSelectedIndex(index);
+    async (_e: React.MouseEvent<HTMLElement>, entry: ReadBook, _index: number) => {
       dispatch(setOpenOrigin({ kind: "history" }));
       dispatch(setContainerFilePath(entry.file_path));
     },

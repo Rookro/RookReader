@@ -1,10 +1,10 @@
-import { renderHook, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { renderHook } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 import { createMockBookWithState, createMockSeries } from "../../../test/factories";
 import type { GridItem } from "../components/BookGridCell";
-import { useReadingBookSelection } from "./useReadingBookSelection";
+import { useReadingBookIndex } from "./useReadingBookIndex";
 
-describe("useReadingBookSelection", () => {
+describe("useReadingBookIndex", () => {
   const mockBooks = [
     createMockBookWithState({ id: 1 }),
     createMockBookWithState({ id: 2 }),
@@ -16,69 +16,39 @@ describe("useReadingBookSelection", () => {
     data: book,
   }));
 
-  it("should set index to -1 when readingBook is null", async () => {
-    const setReadingBookIndex = vi.fn();
-    renderHook(() => useReadingBookSelection(null, mockItems, setReadingBookIndex));
-
-    await waitFor(() => {
-      expect(setReadingBookIndex).toHaveBeenCalledWith(-1);
-    });
+  it("should return -1 when readingBook is null", () => {
+    const { result } = renderHook(() => useReadingBookIndex(null, mockItems));
+    expect(result.current).toBe(-1);
   });
 
-  it("should find the index of the reading book", async () => {
-    const setReadingBookIndex = vi.fn();
-    const readingBook = mockBooks[1];
-    renderHook(() => useReadingBookSelection(readingBook, mockItems, setReadingBookIndex));
-
-    await waitFor(() => {
-      expect(setReadingBookIndex).toHaveBeenCalledWith(1);
-    });
+  it("should find the index of the reading book", () => {
+    const { result } = renderHook(() => useReadingBookIndex(mockBooks[1], mockItems));
+    expect(result.current).toBe(1);
   });
 
-  it("should set index to -1 if reading book is not in items", async () => {
-    const setReadingBookIndex = vi.fn();
+  it("should return -1 if the reading book is not in items", () => {
     const otherBook = createMockBookWithState({ id: 99 });
-    renderHook(() => useReadingBookSelection(otherBook, mockItems, setReadingBookIndex));
-
-    await waitFor(() => {
-      expect(setReadingBookIndex).toHaveBeenCalledWith(-1);
-    });
+    const { result } = renderHook(() => useReadingBookIndex(otherBook, mockItems));
+    expect(result.current).toBe(-1);
   });
 
-  it("should handle mixed items (books and series)", async () => {
+  it("should count series items when locating the book", () => {
     const mixedItems: GridItem[] = [
       { type: "series", data: createMockSeries({ id: 1, name: "Series 1" }), books: [] },
       { type: "book", data: mockBooks[0] },
       { type: "book", data: mockBooks[1] },
     ];
-    const setReadingBookIndex = vi.fn();
-    const readingBook = mockBooks[1];
-    renderHook(() => useReadingBookSelection(readingBook, mixedItems, setReadingBookIndex));
-
-    await waitFor(() => {
-      expect(setReadingBookIndex).toHaveBeenCalledWith(2);
-    });
+    const { result } = renderHook(() => useReadingBookIndex(mockBooks[1], mixedItems));
+    expect(result.current).toBe(2);
   });
 
-  it("should update index when items change", async () => {
-    const setReadingBookIndex = vi.fn();
-    const readingBook = mockBooks[1];
-    const { rerender } = renderHook(
-      ({ items }) => useReadingBookSelection(readingBook, items, setReadingBookIndex),
-      {
-        initialProps: { items: mockItems },
-      },
-    );
-
-    await waitFor(() => {
-      expect(setReadingBookIndex).toHaveBeenCalledWith(1);
+  it("should follow the reading book when it changes", () => {
+    const { result, rerender } = renderHook(({ book }) => useReadingBookIndex(book, mockItems), {
+      initialProps: { book: mockBooks[0] },
     });
+    expect(result.current).toBe(0);
 
-    const newItems: GridItem[] = [mockItems[1], mockItems[0], mockItems[2]];
-    rerender({ items: newItems });
-
-    await waitFor(() => {
-      expect(setReadingBookIndex).toHaveBeenCalledWith(0);
-    });
+    rerender({ book: mockBooks[2] });
+    expect(result.current).toBe(2);
   });
 });

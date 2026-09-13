@@ -5,7 +5,7 @@ import { type RootState, useAppDispatch, useAppSelector } from "../../../store/s
 import { createMockBookWithState, createMockSeries } from "../../../test/factories";
 import { useBookSelection } from "../hooks/useBookSelection";
 import { useBookshelfDialogs } from "../hooks/useBookshelfDialogs";
-import { useReadingBookSelection } from "../hooks/useReadingBookSelection";
+import { useReadingBookIndex } from "../hooks/useReadingBookIndex";
 import BookGrid from "./BookGrid";
 import { BookSelectionContext } from "./BookSelectionContext";
 import { useBookshelfActions } from "./BookshelfActionsContext";
@@ -14,7 +14,7 @@ import { useBookshelfActions } from "./BookshelfActionsContext";
 vi.mock("../../../store/store");
 vi.mock("../hooks/useBookSelection");
 vi.mock("../hooks/useBookshelfDialogs");
-vi.mock("../hooks/useReadingBookSelection");
+vi.mock("../hooks/useReadingBookIndex");
 vi.mock("../../../hooks/useResizeObserver");
 vi.mock("../slice", async (importOriginal) => {
   return await importOriginal<typeof import("../slice")>();
@@ -230,6 +230,7 @@ describe("BookGrid", () => {
       return selector(defaultState as unknown as RootState);
     });
     vi.mocked(useResizeObserver).mockReturnValue(1000);
+    vi.mocked(useReadingBookIndex).mockReturnValue(-1);
     vi.mocked(useBookSelection).mockReturnValue(
       mockSelectionValue as unknown as ReturnType<typeof useBookSelection>,
     );
@@ -1048,7 +1049,7 @@ describe("BookGrid", () => {
     expect(mockHandleSelectionClick).not.toHaveBeenCalled();
   });
 
-  it("calls useReadingBookSelection with the reading book from state", () => {
+  it("calls useReadingBookIndex with the reading book from state", () => {
     const readingBook = createMockBookWithState({ id: 5, display_name: "Reading Book" });
     const state = {
       ...defaultState,
@@ -1073,10 +1074,9 @@ describe("BookGrid", () => {
       </BookSelectionContext.Provider>,
     );
 
-    expect(useReadingBookSelection).toHaveBeenCalledWith(
+    expect(useReadingBookIndex).toHaveBeenCalledWith(
       readingBook,
       expect.arrayContaining([expect.objectContaining({ data: readingBook })]),
-      expect.any(Function),
     );
   });
 });

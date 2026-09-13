@@ -11,7 +11,7 @@ import { type RootState, useAppDispatch, useAppSelector } from "../../../store/s
 import { updateSettings } from "../../Settings/slice";
 import { useBookSelection } from "../hooks/useBookSelection";
 import { useBookshelfDialogs } from "../hooks/useBookshelfDialogs";
-import { useReadingBookSelection } from "../hooks/useReadingBookSelection";
+import { useReadingBookIndex } from "../hooks/useReadingBookIndex";
 import { setSelectedSeriesId } from "../seriesSlice";
 import { setSearchText } from "../slice";
 import {
@@ -110,7 +110,6 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
   const [focusedIndex, setFocusedIndex] = useState<number>(-1);
 
   const [grid, setGrid] = useGridCallbackRef(null);
-  const [readingBookIndex, setReadingBookIndex] = useState<number>(-1);
   const {
     dialogType,
     dialogBooks,
@@ -274,7 +273,7 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
   // width so the wheel scrolls everywhere, including the empty side strips.
   const horizontalOffset = Math.max((gridWidth - columnWidth * columnCount) / 2, 0);
 
-  useReadingBookSelection(readingBook, filteredSortedItems, setReadingBookIndex);
+  const readingBookIndex = useReadingBookIndex(readingBook, filteredSortedItems);
 
   // Scroll to make the selected item visible
   useEffect(() => {
