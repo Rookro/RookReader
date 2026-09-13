@@ -238,12 +238,7 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
 
   const handleBookClick = useCallback(
     (book: BookWithState, e: React.MouseEvent | React.KeyboardEvent) => {
-      const bookToIdx = new Map<number, number>();
-      allBooks.forEach((b, i) => {
-        bookToIdx.set(b.id, i);
-      });
-
-      handleSelectionClick(book, e as React.MouseEvent, allBooks, bookToIdx, onBookSelect);
+      handleSelectionClick(book, e as React.MouseEvent, allBooks, onBookSelect);
     },
     [allBooks, onBookSelect, handleSelectionClick],
   );
@@ -377,13 +372,14 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
     [focusedIndex, filteredSortedItems, columnCount, handleBookClick, handleSeriesClick],
   );
 
-  const getTargetBooks = useCallback(() => {
-    return allBooks.filter((b) => selectedBookIds.has(b.id));
-  }, [selectedBookIds, allBooks]);
+  const getSelectedBooks = useCallback(
+    () => allBooks.filter((b) => selectedBookIds.has(b.id)),
+    [selectedBookIds, allBooks],
+  );
 
   const bookshelfActions = useMemo(
-    () => ({ openDialog, openEditSeriesOrderDialog }),
-    [openDialog, openEditSeriesOrderDialog],
+    () => ({ openDialog, openEditSeriesOrderDialog, getSelectedBooks }),
+    [openDialog, openEditSeriesOrderDialog, getSelectedBooks],
   );
 
   const cellProps: BookGridCellProps = useMemo(
@@ -397,7 +393,6 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
       enableAutoScroll: bookshelfSettings.enableAutoScroll,
       focusedIndex,
       readingBookIndex,
-      allBooks,
       horizontalOffset,
     }),
     [
@@ -410,7 +405,6 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
       bookshelfSettings.enableAutoScroll,
       focusedIndex,
       readingBookIndex,
-      allBooks,
       horizontalOffset,
     ],
   );
@@ -504,10 +498,10 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
         <FloatingActionBar
           selectionCount={selectedBookIds.size}
           onClear={clearSelection}
-          onAddToBookshelf={() => openDialog("add-to-bookshelf", getTargetBooks())}
-          onSetTags={() => openDialog("set-tags", getTargetBooks())}
-          onSetSeries={() => openDialog("set-series", getTargetBooks())}
-          onDelete={() => openDialog("delete-books", getTargetBooks())}
+          onAddToBookshelf={() => openDialog("add-to-bookshelf", getSelectedBooks())}
+          onSetTags={() => openDialog("set-tags", getSelectedBooks())}
+          onSetSeries={() => openDialog("set-series", getSelectedBooks())}
+          onDelete={() => openDialog("delete-books", getSelectedBooks())}
         />
 
         <AddBooksToBookshelvesDialog

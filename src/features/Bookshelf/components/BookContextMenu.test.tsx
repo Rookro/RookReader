@@ -1,9 +1,11 @@
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
+import type { BookWithState } from "../../../domain/book/schema";
 import { createMockBookWithState } from "../../../test/factories";
 import { renderWithProviders } from "../../../test/utils";
 import BookContextMenu, { type BookContextMenuProps } from "./BookContextMenu";
+import { BookSelectionContext } from "./BookSelectionContext";
 import { BookshelfActionsContext } from "./BookshelfActionsContext";
 
 describe("BookContextMenu", () => {
@@ -15,20 +17,34 @@ describe("BookContextMenu", () => {
   const mockActions = {
     openDialog: vi.fn(),
     openEditSeriesOrderDialog: vi.fn(),
+    getSelectedBooks: vi.fn((): BookWithState[] => []),
   };
 
   const defaultProps: BookContextMenuProps = {
     book: mockBook1,
-    selectedBooks: [],
     anchor: { mouseX: 100, mouseY: 100 },
     onClose: vi.fn(),
   };
 
-  const renderBookContextMenu = (props = defaultProps) => {
+  /** Renders the menu with the given books selected in the grid. */
+  const renderBookContextMenu = (
+    props = defaultProps,
+    selectedBooks: (typeof mockBook1)[] = [],
+  ) => {
+    mockActions.getSelectedBooks.mockReturnValue(selectedBooks);
+    const selection = {
+      selectedBookIds: new Set(selectedBooks.map((b) => b.id)),
+      toggleSelection: vi.fn(),
+      setSelection: vi.fn(),
+      clearSelection: vi.fn(),
+      handleSelectionClick: vi.fn(),
+    };
     return renderWithProviders(
-      <BookshelfActionsContext.Provider value={mockActions}>
-        <BookContextMenu {...props} />
-      </BookshelfActionsContext.Provider>,
+      <BookSelectionContext.Provider value={selection}>
+        <BookshelfActionsContext.Provider value={mockActions}>
+          <BookContextMenu {...props} />
+        </BookshelfActionsContext.Provider>
+      </BookSelectionContext.Provider>,
     );
   };
 
@@ -42,7 +58,7 @@ describe("BookContextMenu", () => {
   });
 
   it("should act on a single book when no books are selected", async () => {
-    renderBookContextMenu({ ...defaultProps, selectedBooks: [] });
+    renderBookContextMenu(defaultProps, []);
 
     await user.click(screen.getByText(/Add to Collection/i));
     expect(mockActions.openDialog).toHaveBeenCalledWith("add-to-bookshelf", [mockBook1]);
@@ -50,7 +66,7 @@ describe("BookContextMenu", () => {
   });
 
   it("should act on a single book when it is NOT part of the selection", async () => {
-    renderBookContextMenu({ ...defaultProps, selectedBooks: [mockBook2, mockBook3] });
+    renderBookContextMenu(defaultProps, [mockBook2, mockBook3]);
 
     await user.click(screen.getByText(/Set Series/i));
     expect(mockActions.openDialog).toHaveBeenCalledWith("set-series", [mockBook1]);
@@ -59,7 +75,7 @@ describe("BookContextMenu", () => {
 
   it("should act on all selected books when the clicked book IS part of the selection", async () => {
     const selectedBooks = [mockBook1, mockBook2];
-    renderBookContextMenu({ ...defaultProps, selectedBooks });
+    renderBookContextMenu(defaultProps, selectedBooks);
 
     await user.click(screen.getByText(/Set tags/i));
     expect(mockActions.openDialog).toHaveBeenCalledWith("set-tags", selectedBooks);

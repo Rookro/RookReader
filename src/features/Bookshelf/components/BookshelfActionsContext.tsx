@@ -7,6 +7,8 @@ export interface BookshelfActions {
   openDialog: (type: BookDialogType, books: BookWithState[]) => void;
   /** Opens the Edit Series Order dialog for a series */
   openEditSeriesOrderDialog: (seriesId: number) => void;
+  /** Returns the currently selected books, in display order */
+  getSelectedBooks: () => BookWithState[];
 }
 
 export const BookshelfActionsContext = createContext<BookshelfActions | null>(null);

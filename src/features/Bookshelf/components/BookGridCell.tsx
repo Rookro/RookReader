@@ -31,8 +31,6 @@ export interface BookGridCellProps {
   focusedIndex?: number;
   /** The index of the reading book. */
   readingBookIndex?: number;
-  /** The list of all books in the grid for context inside BookCard. */
-  allBooks: BookWithState[];
   /** Horizontal offset (px) applied to each cell to center the grid. */
   horizontalOffset: number;
 }
@@ -54,7 +52,6 @@ function BookGridCellInner({
   style,
   focusedIndex,
   readingBookIndex,
-  allBooks,
   horizontalOffset,
 }: CellComponentProps<BookGridCellProps>) {
   const index = rowIndex * columnCount + columnIndex;
@@ -89,7 +86,6 @@ function BookGridCellInner({
   return (
     <BookCard
       book={item.data}
-      allBooks={allBooks}
       tags={tags}
       size={size}
       enableAutoScroll={enableAutoScroll}
@@ -115,7 +111,6 @@ export function areEqual(
     prevProps.enableAutoScroll !== nextProps.enableAutoScroll ||
     prevProps.focusedIndex !== nextProps.focusedIndex ||
     prevProps.readingBookIndex !== nextProps.readingBookIndex ||
-    prevProps.allBooks !== nextProps.allBooks ||
     prevProps.horizontalOffset !== nextProps.horizontalOffset
   ) {
     return false;

@@ -15,6 +15,7 @@ describe("SeriesContextMenu", () => {
   const mockActions = {
     openDialog: vi.fn(),
     openEditSeriesOrderDialog: vi.fn(),
+    getSelectedBooks: vi.fn(() => []),
   };
 
   const defaultProps: SeriesContextMenuProps = {

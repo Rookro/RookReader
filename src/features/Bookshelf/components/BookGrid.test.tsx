@@ -442,7 +442,6 @@ describe("BookGrid", () => {
       book,
       expect.anything(),
       expect.arrayContaining([book]),
-      expect.any(Map),
       undefined,
     );
   });
@@ -557,7 +556,6 @@ describe("BookGrid", () => {
       book,
       expect.anything(),
       expect.arrayContaining([book]),
-      expect.any(Map),
       undefined,
     );
   });
@@ -578,7 +576,7 @@ describe("BookGrid", () => {
     });
 
     // Mock handleSelectionClick to call onBookSelect (simulating the real behavior)
-    mockHandleSelectionClick.mockImplementation((b, _e, _books, _map, onSelect) => {
+    mockHandleSelectionClick.mockImplementation((b, _e, _books, onSelect) => {
       onSelect?.(b);
     });
 

@@ -5,13 +5,12 @@ import LocalOffer from "@mui/icons-material/LocalOffer";
 import { Divider, ListItemIcon, ListItemText, Menu, MenuItem } from "@mui/material";
 import { useTranslation } from "react-i18next";
 import type { BookWithState } from "../../../domain/book/schema";
+import { useBookSelection } from "../hooks/useBookSelection";
 import { useBookshelfActions } from "./BookshelfActionsContext";
 
 export interface BookContextMenuProps {
   /** The book associated with this menu */
   book: BookWithState;
-  /** Currently selected books (optional, for multi-select actions) */
-  selectedBooks?: BookWithState[];
   /** Context menu anchor position */
   anchor: { mouseX: number; mouseY: number } | null;
   /** Callback to close the menu */
@@ -21,21 +20,13 @@ export interface BookContextMenuProps {
 /**
  * Context menu for a single book card.
  */
-export default function BookContextMenu({
-  book,
-  selectedBooks = [],
-  anchor,
-  onClose,
-}: BookContextMenuProps) {
+export default function BookContextMenu({ book, anchor, onClose }: BookContextMenuProps) {
   const { t } = useTranslation();
-  const { openDialog } = useBookshelfActions();
+  const { selectedBookIds } = useBookSelection();
+  const { openDialog, getSelectedBooks } = useBookshelfActions();
 
-  const getTargetBooks = () => {
-    // If the book is part of the current selection, apply action to all selected books.
-    // Otherwise, apply only to this book.
-    const isSelected = selectedBooks.some((b) => b.id === book.id);
-    return isSelected ? selectedBooks : [book];
-  };
+  // Acting on a selected book means acting on the whole selection.
+  const getTargetBooks = () => (selectedBookIds.has(book.id) ? getSelectedBooks() : [book]);
 
   return (
     <Menu

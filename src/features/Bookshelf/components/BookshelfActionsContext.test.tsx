@@ -18,6 +18,7 @@ describe("BookshelfActionsContext", () => {
     const mockActions = {
       openDialog: vi.fn(),
       openEditSeriesOrderDialog: vi.fn(),
+      getSelectedBooks: vi.fn(() => []),
     };
 
     const { result } = renderHook(() => useBookshelfActions(), {

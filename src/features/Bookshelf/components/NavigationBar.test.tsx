@@ -22,6 +22,7 @@ describe("NavigationBar", () => {
   const mockActions = {
     openDialog: vi.fn(),
     openEditSeriesOrderDialog: vi.fn(),
+    getSelectedBooks: vi.fn(() => []),
   };
   // The toolbar opens grid-hosted dialogs through the actions context.
   const navigationBar = (

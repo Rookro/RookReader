@@ -26,8 +26,6 @@ import BookContextMenu from "./BookContextMenu";
 export interface BookCardProps {
   /** The book to display */
   book: BookWithState;
-  /** Currently filtered and sorted books (to get objects for multi-selection) */
-  allBooks?: BookWithState[];
   /** The list of tags to display */
   tags: Tag[];
   /** The size of the card */
@@ -50,7 +48,6 @@ export interface BookCardProps {
  */
 export default function BookCard({
   book,
-  allBooks = [],
   tags,
   size,
   enableAutoScroll,
@@ -63,13 +60,6 @@ export default function BookCard({
   const { selectedBookIds } = useBookSelection();
   const [menuAnchor, setMenuAnchor] = useState<{ mouseX: number; mouseY: number } | null>(null);
   const [imageError, setImageError] = useState(false);
-
-  const selectedBooks = useMemo(() => {
-    // Only materialized while the context menu is open; a selection sweep must not
-    // run an O(n) filter in every visible card.
-    if (menuAnchor === null || selectedBookIds.size === 0) return [];
-    return allBooks.filter((b) => selectedBookIds.has(b.id));
-  }, [menuAnchor, selectedBookIds, allBooks]);
 
   const imageSrc = useMemo(() => {
     return !imageError && book?.thumbnail_path
@@ -226,12 +216,7 @@ export default function BookCard({
           </CardActionArea>
         </Card>
       </Tooltip>
-      <BookContextMenu
-        book={book}
-        selectedBooks={selectedBooks}
-        anchor={menuAnchor}
-        onClose={() => setMenuAnchor(null)}
-      />
+      <BookContextMenu book={book} anchor={menuAnchor} onClose={() => setMenuAnchor(null)} />
     </Box>
   );
 }

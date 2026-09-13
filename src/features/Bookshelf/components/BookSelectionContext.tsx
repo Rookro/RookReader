@@ -11,12 +11,15 @@ interface BookSelectionContextType {
   setSelection: (bookIds: Set<number>) => void;
   /** Clears all selections */
   clearSelection: () => void;
-  /** Handles shift-click or ctrl-click range selection */
+  /**
+   * Handles shift-click or ctrl-click range selection.
+   *
+   * @param orderedBooks - The books in display order; shift-click selects a range of them.
+   */
   handleSelectionClick: (
     book: BookWithState,
     event: React.MouseEvent,
-    filteredSortedBooks: BookWithState[],
-    bookIdToIndexMap: Map<number, number>,
+    orderedBooks: BookWithState[],
     onBookSelect?: (book: BookWithState) => void,
   ) => void;
 }
@@ -54,8 +57,7 @@ export function BookSelectionProvider({ children }: BookSelectionProviderProps) 
     (
       book: BookWithState,
       e: React.MouseEvent,
-      filteredSortedBooks: BookWithState[],
-      bookIdToIndexMap: Map<number, number>,
+      orderedBooks: BookWithState[],
       onBookSelect?: (book: BookWithState) => void,
     ) => {
       if (e.ctrlKey || e.metaKey) {
@@ -64,20 +66,18 @@ export function BookSelectionProvider({ children }: BookSelectionProviderProps) 
         lastClickedBookIdRef.current = book.id;
       } else if (e.shiftKey && lastClickedBookIdRef.current !== null) {
         // Range selection
-        const currentIndex = bookIdToIndexMap.get(book.id);
-        const lastIndex = bookIdToIndexMap.get(lastClickedBookIdRef.current);
+        const lastId = lastClickedBookIdRef.current;
+        const currentIndex = orderedBooks.findIndex((b) => b.id === book.id);
+        const lastIndex = orderedBooks.findIndex((b) => b.id === lastId);
 
-        if (currentIndex !== undefined && lastIndex !== undefined) {
+        if (currentIndex !== -1 && lastIndex !== -1) {
           const start = Math.min(currentIndex, lastIndex);
           const end = Math.max(currentIndex, lastIndex);
 
           setSelectedBookIds((prev) => {
             const next = new Set(prev);
             for (let i = start; i <= end; i++) {
-              const currentBook = filteredSortedBooks[i];
-              if (currentBook) {
-                next.add(currentBook.id);
-              }
+              next.add(orderedBooks[i].id);
             }
             return next;
           });
