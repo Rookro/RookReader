@@ -109,8 +109,6 @@ const seriesSlice = createSlice({
     series: [] as Series[],
     selectedId: null as number | null,
     books: [] as BookWithState[],
-    isEditSeriesOrderDialogOpen: false,
-    editSeriesOrderTargetId: null as number | null,
     status: "idle" as "idle" | "loading" | "succeeded" | "failed",
     error: null as { code: ErrorCode; message?: string } | null,
   },
@@ -123,19 +121,6 @@ const seriesSlice = createSlice({
      */
     setSelectedSeriesId(state, action: PayloadAction<number | null>) {
       state.selectedId = action.payload;
-    },
-    /**
-     * Opens or closes the Edit Series Order dialog for a specific series.
-     *
-     * @param state - The current Redux state slice.
-     * @param action - Payload containing isOpen flag and the series ID (if opening).
-     */
-    setEditSeriesOrderDialogState(
-      state,
-      action: PayloadAction<{ isOpen: boolean; seriesId: number | null }>,
-    ) {
-      state.isEditSeriesOrderDialogOpen = action.payload.isOpen;
-      state.editSeriesOrderTargetId = action.payload.seriesId;
     },
     /**
      * Clears any error associated with the series state.
@@ -176,6 +161,5 @@ const seriesSlice = createSlice({
   },
 });
 
-export const { setSelectedSeriesId, setEditSeriesOrderDialogState, clearSeriesError } =
-  seriesSlice.actions;
+export const { setSelectedSeriesId, clearSeriesError } = seriesSlice.actions;
 export default seriesSlice.reducer;

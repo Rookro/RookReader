@@ -27,6 +27,7 @@ describe("BookCard", () => {
 
   const mockActions = {
     openDialog: vi.fn(),
+    openEditSeriesOrderDialog: vi.fn(),
   };
 
   const defaultProps = {
@@ -115,7 +116,7 @@ describe("BookCard", () => {
     };
 
     renderWithProviders(
-      <BookshelfActionsContext.Provider value={{ openDialog }}>
+      <BookshelfActionsContext.Provider value={{ openDialog, openEditSeriesOrderDialog: vi.fn() }}>
         <BookSelectionProvider>
           <Seeder />
           <BookCard {...defaultProps} book={bookA} allBooks={[bookA, bookB]} />

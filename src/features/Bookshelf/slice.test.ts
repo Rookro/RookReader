@@ -17,7 +17,6 @@ import seriesReducer, {
   clearSeriesError,
   fetchSeries,
   removeSeries,
-  setEditSeriesOrderDialogState,
   setSelectedSeriesId,
   updateBooksSeries,
   updateSeriesOrdersThunk,
@@ -739,8 +738,6 @@ describe("SeriesReducer", () => {
     series: [] as Series[],
     selectedId: null as number | null,
     books: [] as BookWithState[],
-    isEditSeriesOrderDialogOpen: false,
-    editSeriesOrderTargetId: null as number | null,
     status: "idle" as const,
     error: null as { code: ErrorCode; message?: string } | null,
   };
@@ -759,16 +756,6 @@ describe("SeriesReducer", () => {
   it("should handle setSelectedSeriesId", () => {
     const nextState = seriesReducer(seriesInitialState, setSelectedSeriesId(1));
     expect(nextState.selectedId).toBe(1);
-  });
-
-  // Verify that edit series order dialog state is set correctly
-  it("should handle setEditSeriesOrderDialogState", () => {
-    const nextState = seriesReducer(
-      seriesInitialState,
-      setEditSeriesOrderDialogState({ isOpen: true, seriesId: 10 }),
-    );
-    expect(nextState.isEditSeriesOrderDialogOpen).toBe(true);
-    expect(nextState.editSeriesOrderTargetId).toBe(10);
   });
 
   // Verify that series error state is cleared correctly

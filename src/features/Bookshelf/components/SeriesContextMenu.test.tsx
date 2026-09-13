@@ -14,6 +14,7 @@ describe("SeriesContextMenu", () => {
 
   const mockActions = {
     openDialog: vi.fn(),
+    openEditSeriesOrderDialog: vi.fn(),
   };
 
   const defaultProps: SeriesContextMenuProps = {
@@ -41,14 +42,12 @@ describe("SeriesContextMenu", () => {
     expect(screen.getByText(/Edit Series Order/i)).toBeInTheDocument();
   });
 
-  it("should call setEditSeriesOrderDialogState and onClose when Edit Order is clicked", async () => {
-    const { store } = renderSeriesContextMenu();
+  it("should open the edit-order dialog for this series and close when Edit Order is clicked", async () => {
+    renderSeriesContextMenu();
 
     await user.click(screen.getByText(/Edit Series Order/i));
 
-    const state = store.getState().series;
-    expect(state.isEditSeriesOrderDialogOpen).toBe(true);
-    expect(state.editSeriesOrderTargetId).toBe(mockSeries.id);
+    expect(mockActions.openEditSeriesOrderDialog).toHaveBeenCalledWith(mockSeries.id);
     expect(defaultProps.onClose).toHaveBeenCalled();
   });
 

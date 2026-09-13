@@ -22,6 +22,7 @@ describe("SeriesCard", () => {
 
   const mockActions = {
     openDialog: vi.fn(),
+    openEditSeriesOrderDialog: vi.fn(),
   };
 
   const defaultProps = {

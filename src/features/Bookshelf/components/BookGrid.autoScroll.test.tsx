@@ -93,8 +93,6 @@ describe("BookGrid auto-scroll latch", () => {
     series: {
       series: [],
       selectedId: null,
-      isEditSeriesOrderDialogOpen: false,
-      editSeriesOrderTargetId: null,
     },
     read: { containerFile: { book: null as unknown } },
     view: { activeView: "bookshelf" },

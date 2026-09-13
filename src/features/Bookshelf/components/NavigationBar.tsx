@@ -28,8 +28,9 @@ import { useAppDispatch, useAppSelector } from "../../../store/store";
 import type { SortOrder } from "../../../types/AppSettings";
 import { openSettingsWindow } from "../../../utils/WindowOpener";
 import { updateSettings } from "../../Settings/slice";
-import { setEditSeriesOrderDialogState, setSelectedSeriesId } from "../seriesSlice";
+import { setSelectedSeriesId } from "../seriesSlice";
 import { addBookToBookshelf, setSearchText } from "../slice";
+import { useBookshelfActions } from "./BookshelfActionsContext";
 import BookAdditionToBookshelfDialog from "./Dialog/BookAdditionToBookshelfDialog";
 
 /** Navigation bar for the bookshelf component */
@@ -40,6 +41,7 @@ export default function NavigationBar() {
   const searchText = useAppSelector((state) => state.bookCollection.searchText);
   const bookshelfId = useAppSelector((state) => state.bookCollection.selectedId);
   const { selectedId: selectedSeriesId, series } = useAppSelector((state) => state.series);
+  const { openEditSeriesOrderDialog } = useBookshelfActions();
 
   const selectedSeries = useMemo(() => {
     return series.find((s) => s.id === selectedSeriesId);
@@ -85,9 +87,9 @@ export default function NavigationBar() {
 
   const handleEditOrderClicked = useCallback(() => {
     if (selectedSeriesId !== null) {
-      dispatch(setEditSeriesOrderDialogState({ isOpen: true, seriesId: selectedSeriesId }));
+      openEditSeriesOrderDialog(selectedSeriesId);
     }
-  }, [dispatch, selectedSeriesId]);
+  }, [openEditSeriesOrderDialog, selectedSeriesId]);
 
   const handleAddBooks = useCallback(
     (paths: string[]) => {

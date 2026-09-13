@@ -6,7 +6,8 @@ import { useTranslation } from "react-i18next";
 import ConfirmDialog from "../../../components/ui/ConfirmDialog";
 import type { Series } from "../../../domain/series/schema";
 import { useAppDispatch } from "../../../store/store";
-import { removeSeries, setEditSeriesOrderDialogState } from "../seriesSlice";
+import { removeSeries } from "../seriesSlice";
+import { useBookshelfActions } from "./BookshelfActionsContext";
 
 export interface SeriesContextMenuProps {
   /** The series associated with this menu */
@@ -24,6 +25,7 @@ export interface SeriesContextMenuProps {
 export default function SeriesContextMenu({ series, anchor, onClose }: SeriesContextMenuProps) {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
+  const { openEditSeriesOrderDialog } = useBookshelfActions();
 
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
@@ -39,7 +41,7 @@ export default function SeriesContextMenu({ series, anchor, onClose }: SeriesCon
   };
 
   const handleEditOrder = () => {
-    dispatch(setEditSeriesOrderDialogState({ isOpen: true, seriesId: series.id }));
+    openEditSeriesOrderDialog(series.id);
     onClose();
   };
 
