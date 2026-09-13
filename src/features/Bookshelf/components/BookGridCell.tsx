@@ -1,15 +1,12 @@
 import { memo } from "react";
 import type { CellComponentProps } from "react-window";
 import type { BookWithState } from "../../../domain/book/schema";
-import type { Series } from "../../../domain/series/schema";
 import type { Tag } from "../../../domain/tag/schema";
+import type { GridItem } from "../utils/BookshelfUtils";
 import BookCard from "./BookCard";
 import SeriesCard from "./SeriesCard";
 
-/** Represents an item that can be displayed in the book grid. */
-export type GridItem =
-  | { type: "book"; data: BookWithState }
-  | { type: "series"; data: Series; books: BookWithState[] };
+export type { GridItem } from "../utils/BookshelfUtils";
 
 /** Props for the BookGridCell component. */
 export interface BookGridCellProps {
@@ -31,8 +28,6 @@ export interface BookGridCellProps {
   focusedIndex?: number;
   /** The index of the reading book. */
   readingBookIndex?: number;
-  /** The list of all books in the grid for context inside BookCard. */
-  allBooks: BookWithState[];
   /** Horizontal offset (px) applied to each cell to center the grid. */
   horizontalOffset: number;
 }
@@ -54,7 +49,6 @@ function BookGridCellInner({
   style,
   focusedIndex,
   readingBookIndex,
-  allBooks,
   horizontalOffset,
 }: CellComponentProps<BookGridCellProps>) {
   const index = rowIndex * columnCount + columnIndex;
@@ -89,7 +83,6 @@ function BookGridCellInner({
   return (
     <BookCard
       book={item.data}
-      allBooks={allBooks}
       tags={tags}
       size={size}
       enableAutoScroll={enableAutoScroll}
@@ -115,7 +108,6 @@ export function areEqual(
     prevProps.enableAutoScroll !== nextProps.enableAutoScroll ||
     prevProps.focusedIndex !== nextProps.focusedIndex ||
     prevProps.readingBookIndex !== nextProps.readingBookIndex ||
-    prevProps.allBooks !== nextProps.allBooks ||
     prevProps.horizontalOffset !== nextProps.horizontalOffset
   ) {
     return false;

@@ -54,13 +54,13 @@ vi.mock("./MenuList", () => {
 
 vi.mock("./Dialog/CreateBookshelfDialog", () => {
   const CreateBookshelfDialog = ({
-    openDialog,
+    open,
     onCreate,
   }: {
-    openDialog: boolean;
+    open: boolean;
     onCreate: (name: string, icon_id: string) => void;
   }): JSX.Element | null =>
-    openDialog ? (
+    open ? (
       <div data-testid="create-bookshelf-dialog">
         <button
           type="button"
@@ -77,13 +77,13 @@ vi.mock("./Dialog/CreateBookshelfDialog", () => {
 
 vi.mock("./Dialog/CreateBookTagDialog", () => {
   const CreateBookTagDialog = ({
-    openDialog,
+    open,
     onCreate,
   }: {
-    openDialog: boolean;
+    open: boolean;
     onCreate: (name: string, color_code: string) => void;
   }): JSX.Element | null =>
-    openDialog ? (
+    open ? (
       <div data-testid="create-book-tag-dialog">
         <button
           type="button"
@@ -131,14 +131,7 @@ vi.mock("../../BookReader/slice", async () => {
   const actual = await vi.importActual("../../BookReader/slice");
   return {
     ...actual,
-    setContainerFilePath: vi.fn((payload: string) => ({
-      type: "read/setContainerFilePath",
-      payload,
-    })),
-    setOpenOrigin: vi.fn((payload: unknown) => ({
-      type: "read/setOpenOrigin",
-      payload,
-    })),
+    openBook: vi.fn((payload: unknown) => ({ type: "read/openBook", payload })),
   };
 });
 
@@ -212,12 +205,10 @@ describe("Bookshelf", () => {
 
     await user.click(screen.getByTestId("select-book-btn"));
 
-    expect(ReadReducer.setOpenOrigin).toHaveBeenCalledWith({
-      kind: "bookshelf",
-      bookshelfId: null,
-      sortOrder: "date_desc",
+    expect(ReadReducer.openBook).toHaveBeenCalledWith({
+      path: "/test/book.zip",
+      origin: { kind: "bookshelf", bookshelfId: null, sortOrder: "date_desc" },
     });
-    expect(ReadReducer.setContainerFilePath).toHaveBeenCalledWith("/test/book.zip");
     expect(ViewReducer.setActiveView).toHaveBeenCalledWith("reader");
   });
 

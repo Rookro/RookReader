@@ -28,9 +28,9 @@ import {
 } from "../slice";
 
 /**
- * Navigation bar component.
+ * Toolbar of the reader: back/forward, path input, and view controls.
  */
-export default function NavigationBar() {
+export default function ReaderToolbar() {
   const { t } = useTranslation();
   const readerSettings = useAppSelector((state) => state.settings.reader);
   const history = useAppSelector((state) => state.read.containerFile.history);

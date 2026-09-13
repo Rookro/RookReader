@@ -13,6 +13,7 @@ import readReducer, {
   goBackExplorerHistory,
   goForwardContainerHistory,
   goForwardExplorerHistory,
+  openBook,
   openContainerFile,
   setContainerFilePath,
   setEntries,
@@ -21,7 +22,6 @@ import readReducer, {
   setIsDirEntriesLoading,
   setNovelDirection,
   setNovelLocation,
-  setOpenOrigin,
   setPendingInitialPosition,
   setSearchText,
   setSpreadDisplayed,
@@ -241,24 +241,69 @@ describe("ReadReducer", () => {
       expect(state.containerFile.novelDirection).toBe("rtl");
     });
 
-    // Verify that the open origin is set and cleared correctly
-    it("should handle setOpenOrigin", () => {
+    // Verify that openBook records the origin and opens the path in one step
+    it("should handle openBook", () => {
       const initialState = {
-        containerFile: { origin: null },
+        containerFile: {
+          history: ["old"],
+          historyIndex: 0,
+          index: 5,
+          isSpreadShifted: true,
+          isSpreadDisplayed: true,
+          readingDirection: "ltr",
+          isLoading: false,
+          origin: null,
+          pendingInitialPosition: null,
+        },
       } as RootState["read"];
 
       const state = readReducer(
         initialState,
-        setOpenOrigin({ kind: "bookshelf", bookshelfId: 3, sortOrder: "name_asc" }),
+        openBook({
+          path: "new",
+          origin: { kind: "bookshelf", bookshelfId: 3, sortOrder: "name_asc" },
+        }),
       );
       expect(state.containerFile.origin).toEqual({
         kind: "bookshelf",
         bookshelfId: 3,
         sortOrder: "name_asc",
       });
+      // The path is applied exactly like setContainerFilePath.
+      expect(state.containerFile.history).toEqual(["old", "new"]);
+      expect(state.containerFile.historyIndex).toBe(1);
+      expect(state.containerFile.index).toBe(0);
+      expect(state.containerFile.isSpreadShifted).toBe(false);
+      expect(state.containerFile.isSpreadDisplayed).toBe(false);
+      expect(state.containerFile.readingDirection).toBeNull();
+      expect(state.containerFile.isLoading).toBe(true);
 
-      const cleared = readReducer(state, setOpenOrigin(null));
+      const cleared = readReducer(state, openBook({ path: "other", origin: null }));
       expect(cleared.containerFile.origin).toBeNull();
+    });
+
+    it("should record the origin but keep the view on a no-op openBook", () => {
+      const initialState = {
+        containerFile: {
+          history: ["current"],
+          historyIndex: 0,
+          index: 7,
+          isLoading: false,
+          origin: { kind: "history" },
+          pendingInitialPosition: "last",
+        },
+      } as RootState["read"];
+
+      const state = readReducer(
+        initialState,
+        openBook({ path: "current", origin: { kind: "dragDrop" } }),
+      );
+      expect(state.containerFile.origin).toEqual({ kind: "dragDrop" });
+      expect(state.containerFile.history).toEqual(["current"]);
+      expect(state.containerFile.index).toBe(7);
+      expect(state.containerFile.isLoading).toBe(false);
+      // The same-path guard still drops a stale pending position.
+      expect(state.containerFile.pendingInitialPosition).toBeNull();
     });
 
     // Verify that the pending initial position is set and cleared correctly

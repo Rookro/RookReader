@@ -73,6 +73,15 @@ export const settingsSlice = createSlice({
     setSettings: (_state, action: PayloadAction<AppSettings>) => {
       return action.payload;
     },
+    /**
+     * Applies a side-pane layout change locally before it is persisted.
+     *
+     * @param state - The current Redux state slice.
+     * @param action - Payload containing the new side-pane layout.
+     */
+    setSidePane: (state, action: PayloadAction<AppSettings["layout"]["sidePane"]>) => {
+      state.layout.sidePane = action.payload;
+    },
   },
   extraReducers: (builder) => {
     // `set_settings` returns the merged settings → replace the slice with it.
@@ -80,5 +89,5 @@ export const settingsSlice = createSlice({
   },
 });
 
-export const { setSettings } = settingsSlice.actions;
+export const { setSettings, setSidePane } = settingsSlice.actions;
 export default settingsSlice.reducer;

@@ -1,14 +1,11 @@
 import { Box } from "@mui/material";
-import type { JSX } from "react";
 import TabPanel from "../../../components/ui/TabPanel/TabPanel";
+import type { SideTab } from "../types";
 
 /**
  * Side panels component.
  */
-export default function SidePanels(props: {
-  tabs: { label: string; icon: JSX.Element; panel: JSX.Element }[];
-  index: number;
-}) {
+export default function SidePanels(props: { tabs: SideTab[]; index: number }) {
   return (
     <Box
       sx={{

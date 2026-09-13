@@ -85,8 +85,6 @@ export function createBasePreloadedState(): RootState {
       series: [],
       selectedId: null,
       books: [],
-      isEditSeriesOrderDialogOpen: false,
-      editSeriesOrderTargetId: null,
       status: "idle",
       error: null,
     },

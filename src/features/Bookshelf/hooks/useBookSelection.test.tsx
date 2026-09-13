@@ -10,11 +10,6 @@ describe("useBookSelection", () => {
     createMockBookWithState({ id: 2 }),
     createMockBookWithState({ id: 3 }),
   ];
-  const bookIdToIndexMap = new Map([
-    [1, 0],
-    [2, 1],
-    [3, 2],
-  ]);
 
   const wrapper = ({ children }: { children: React.ReactNode }) => (
     <BookSelectionProvider>{children}</BookSelectionProvider>
@@ -45,14 +40,14 @@ describe("useBookSelection", () => {
     // Select first book normally (simulated via handleSelectionClick)
     const event1 = { ctrlKey: true } as React.MouseEvent;
     act(() => {
-      result.current.handleSelectionClick(mockBooks[0], event1, mockBooks, bookIdToIndexMap);
+      result.current.handleSelectionClick(mockBooks[0], event1, mockBooks);
     });
     expect(result.current.selectedBookIds.size).toBe(1);
 
     // Shift-click the third book
     const event2 = { shiftKey: true } as React.MouseEvent;
     act(() => {
-      result.current.handleSelectionClick(mockBooks[2], event2, mockBooks, bookIdToIndexMap);
+      result.current.handleSelectionClick(mockBooks[2], event2, mockBooks);
     });
 
     // Should have selected index 0, 1, and 2

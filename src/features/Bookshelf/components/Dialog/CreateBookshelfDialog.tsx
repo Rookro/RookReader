@@ -19,7 +19,7 @@ import { BookShelfIcons } from "../BookshelfIcons";
 /** Props for the CreateBookshelfDialog component */
 export interface CreateBookshelfDialogProps {
   /** Whether the dialog is open or closed. */
-  openDialog: boolean;
+  open: boolean;
   /** Callback to create a bookshelf. */
   onCreate: (name: string, icon_id: string) => void;
   /** Callback to close the dialog. */
@@ -27,11 +27,7 @@ export interface CreateBookshelfDialogProps {
 }
 
 /** Dialog for creating a bookshelf */
-export function CreateBookshelfDialog({
-  openDialog,
-  onCreate,
-  onClose,
-}: CreateBookshelfDialogProps) {
+export function CreateBookshelfDialog({ open, onCreate, onClose }: CreateBookshelfDialogProps) {
   const { t } = useTranslation();
   const [name, setName] = useState("");
   const [selectedIconIndex, setSelectedIconIndex] = useState(0);
@@ -52,7 +48,7 @@ export function CreateBookshelfDialog({
   const isCreateEnabled = name.trim().length > 0;
 
   return (
-    <Dialog open={openDialog} onClose={onClose}>
+    <Dialog open={open} onClose={onClose}>
       <DialogTitle>{t("bookshelf.collection.creation.title")}</DialogTitle>
       <Tooltip title={t("common.close")}>
         <IconButton

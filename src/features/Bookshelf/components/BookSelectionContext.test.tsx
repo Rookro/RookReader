@@ -23,8 +23,6 @@ describe("BookSelectionContext", () => {
     createMockBookWithState({ id: 4 }),
   ];
 
-  const bookIdToIndexMap = new Map(mockBooks.map((b, i) => [b.id, i]));
-
   const wrapper = ({ children }: { children: React.ReactNode }) => (
     <BookSelectionProvider>{children}</BookSelectionProvider>
   );
@@ -51,7 +49,6 @@ describe("BookSelectionContext", () => {
         mockBooks[0],
         { ctrlKey: true } as React.MouseEvent,
         mockBooks,
-        bookIdToIndexMap,
       );
     });
     expect(result.current.selectedBookIds.has(1)).toBe(true);
@@ -61,7 +58,6 @@ describe("BookSelectionContext", () => {
         mockBooks[0],
         { ctrlKey: true } as React.MouseEvent,
         mockBooks,
-        bookIdToIndexMap,
       );
     });
     expect(result.current.selectedBookIds.has(1)).toBe(false);
@@ -76,7 +72,6 @@ describe("BookSelectionContext", () => {
         mockBooks[0],
         { ctrlKey: true } as React.MouseEvent,
         mockBooks,
-        bookIdToIndexMap,
       );
     });
 
@@ -86,7 +81,6 @@ describe("BookSelectionContext", () => {
         mockBooks[3],
         { shiftKey: true } as React.MouseEvent,
         mockBooks,
-        bookIdToIndexMap,
       );
     });
 
@@ -112,7 +106,6 @@ describe("BookSelectionContext", () => {
         mockBooks[2],
         {} as React.MouseEvent,
         mockBooks,
-        bookIdToIndexMap,
         onBookSelect,
       );
     });
@@ -132,7 +125,6 @@ describe("BookSelectionContext", () => {
         mockBooks[0],
         {} as React.MouseEvent,
         mockBooks,
-        bookIdToIndexMap,
         onBookSelect,
       );
     });

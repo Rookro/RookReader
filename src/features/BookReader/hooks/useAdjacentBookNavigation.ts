@@ -3,7 +3,7 @@ import { useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNotification } from "../../../components/ui/Notification/NotificationContext";
 import { type RootState, useAppDispatch, useAppSelector } from "../../../store/store";
-import { setContainerFilePath, setOpenOrigin, setPendingInitialPosition } from "../slice";
+import { openBook, setPendingInitialPosition } from "../slice";
 import {
   type AdjacentBook,
   type Direction,
@@ -37,14 +37,13 @@ export const useAdjacentBookNavigation = () => {
   const isResolving = useRef(false);
   const [pending, setPending] = useState<PendingAdjacentBook | null>(null);
 
-  const openBook = useCallback(
+  const openAdjacentBook = useCallback(
     (book: AdjacentBook, direction: Direction) => {
       // Land on a natural entry point of the adjacent book: the first page when moving
       // forward, the last page when moving backward.
       dispatch(setPendingInitialPosition(direction === "next" ? "first" : "last"));
       // Preserve the current origin so the series/bookshelf/directory chain continues.
-      dispatch(setOpenOrigin(containerFile.origin));
-      dispatch(setContainerFilePath(book.filePath));
+      dispatch(openBook({ path: book.filePath, origin: containerFile.origin }));
       showNotification(
         t(
           direction === "next"
@@ -87,7 +86,7 @@ export const useAdjacentBookNavigation = () => {
         if (mode === "ask") {
           setPending({ book, direction });
         } else {
-          openBook(book, direction);
+          openAdjacentBook(book, direction);
         }
       } catch (e) {
         error(`Failed to open the adjacent book: ${String(e)}`);
@@ -96,7 +95,7 @@ export const useAdjacentBookNavigation = () => {
         isResolving.current = false;
       }
     },
-    [mode, pending, containerFile, fileNavigatorSortOrder, showNotification, t, openBook],
+    [mode, pending, containerFile, fileNavigatorSortOrder, showNotification, t, openAdjacentBook],
   );
 
   const onForwardBoundary = useCallback(() => {
@@ -109,10 +108,10 @@ export const useAdjacentBookNavigation = () => {
 
   const confirmPending = useCallback(() => {
     if (pending) {
-      openBook(pending.book, pending.direction);
+      openAdjacentBook(pending.book, pending.direction);
     }
     setPending(null);
-  }, [pending, openBook]);
+  }, [pending, openAdjacentBook]);
 
   const cancelPending = useCallback(() => {
     setPending(null);

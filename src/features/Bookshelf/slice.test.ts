@@ -13,14 +13,17 @@ import { createMockBookshelf, createMockBookWithState, createMockTag } from "../
 import { type AppStore, createTestStore } from "../../test/utils";
 import { CommandError, ErrorCode } from "../../types/Error";
 import seriesReducer, {
+  addSeries,
   clearSeriesError,
   fetchSeries,
-  setEditSeriesOrderDialogState,
+  removeSeries,
   setSelectedSeriesId,
+  updateBooksSeries,
   updateSeriesOrdersThunk,
 } from "./seriesSlice";
 import bookCollectionReducer, {
   addBookshelf,
+  addBooksToBookshelves,
   addBookToBookshelf,
   bookshelfAdded,
   clearBookshelfError,
@@ -37,6 +40,7 @@ import tagReducer, {
   fetchTags,
   removeTag,
   setSelectedTag,
+  updateBooksTags,
 } from "./tagSlice";
 
 describe("BookCollectionReducer", () => {
@@ -507,6 +511,32 @@ describe("BookCollectionReducer", () => {
         expect(state.status).toBe("failed");
         expect(state.error?.code).toBe(ErrorCode.io);
       });
+
+      it("addBooksToBookshelves should add every book to every bookshelf", async () => {
+        vi.mocked(BookshelfCommand.addBookToBookshelf).mockResolvedValue();
+
+        const result = await store.dispatch(
+          addBooksToBookshelves({ bookIds: [1, 2], bookshelfIds: [10, 20] }),
+        );
+
+        expect(addBooksToBookshelves.fulfilled.match(result)).toBe(true);
+        expect(BookshelfCommand.addBookToBookshelf).toHaveBeenCalledTimes(4);
+        expect(BookshelfCommand.addBookToBookshelf).toHaveBeenCalledWith(10, 1);
+        expect(BookshelfCommand.addBookToBookshelf).toHaveBeenCalledWith(20, 2);
+      });
+
+      it("addBooksToBookshelves should set only the error on failure", async () => {
+        vi.mocked(BookshelfCommand.addBookToBookshelf).mockRejectedValue(
+          new CommandError(ErrorCode.database, "db fail"),
+        );
+
+        await store.dispatch(addBooksToBookshelves({ bookIds: [1], bookshelfIds: [10] }));
+
+        const state = store.getState().bookCollection;
+        // A mutation never flips the grid into its loading state.
+        expect(state.status).toBe("idle");
+        expect(state.error?.code).toBe(ErrorCode.database);
+      });
     });
   });
 });
@@ -676,6 +706,28 @@ describe("TagReducer", () => {
       expect(state.status).toBe("failed");
       expect(state.error?.code).toBe(ErrorCode.database);
     });
+
+    it("updateBooksTags should replace the tag set of every book", async () => {
+      vi.mocked(BookCommands.updateBookTags).mockResolvedValue();
+
+      const result = await store.dispatch(updateBooksTags({ bookIds: [1, 2], tagIds: [7] }));
+
+      expect(updateBooksTags.fulfilled.match(result)).toBe(true);
+      expect(BookCommands.updateBookTags).toHaveBeenCalledWith(1, [7]);
+      expect(BookCommands.updateBookTags).toHaveBeenCalledWith(2, [7]);
+    });
+
+    it("updateBooksTags should set only the error on failure", async () => {
+      vi.mocked(BookCommands.updateBookTags).mockRejectedValue(
+        new CommandError(ErrorCode.database, "db fail"),
+      );
+
+      await store.dispatch(updateBooksTags({ bookIds: [1], tagIds: [7] }));
+
+      const state = store.getState().tag;
+      expect(state.status).toBe("idle");
+      expect(state.error?.code).toBe(ErrorCode.database);
+    });
   });
 });
 
@@ -686,8 +738,6 @@ describe("SeriesReducer", () => {
     series: [] as Series[],
     selectedId: null as number | null,
     books: [] as BookWithState[],
-    isEditSeriesOrderDialogOpen: false,
-    editSeriesOrderTargetId: null as number | null,
     status: "idle" as const,
     error: null as { code: ErrorCode; message?: string } | null,
   };
@@ -706,16 +756,6 @@ describe("SeriesReducer", () => {
   it("should handle setSelectedSeriesId", () => {
     const nextState = seriesReducer(seriesInitialState, setSelectedSeriesId(1));
     expect(nextState.selectedId).toBe(1);
-  });
-
-  // Verify that edit series order dialog state is set correctly
-  it("should handle setEditSeriesOrderDialogState", () => {
-    const nextState = seriesReducer(
-      seriesInitialState,
-      setEditSeriesOrderDialogState({ isOpen: true, seriesId: 10 }),
-    );
-    expect(nextState.isEditSeriesOrderDialogOpen).toBe(true);
-    expect(nextState.editSeriesOrderTargetId).toBe(10);
   });
 
   // Verify that series error state is cleared correctly
@@ -750,6 +790,72 @@ describe("SeriesReducer", () => {
 
       const result = await store.dispatch(updateSeriesOrdersThunk([1, 2, 3]));
       expect(result.payload).toMatchObject({ code: ErrorCode.other });
+    });
+
+    it("addSeries should create the series, refetch the list, and return the new id", async () => {
+      const created: Series = { id: 3, name: "New", created_at: "2026-03-01T15:30:00" };
+      vi.mocked(SeriesCommand.createSeries).mockResolvedValue(3);
+      vi.mocked(SeriesCommand.getAllSeries).mockResolvedValue([created]);
+
+      const result = await store.dispatch(addSeries("New"));
+
+      expect(SeriesCommand.createSeries).toHaveBeenCalledWith("New");
+      expect(result.payload).toBe(3);
+      expect(store.getState().series.series).toEqual([created]);
+    });
+
+    it("addSeries should set only the error on failure", async () => {
+      vi.mocked(SeriesCommand.createSeries).mockRejectedValue(
+        new CommandError(ErrorCode.database, "db fail"),
+      );
+
+      await store.dispatch(addSeries("New"));
+
+      const state = store.getState().series;
+      expect(state.status).toBe("idle");
+      expect(state.error?.code).toBe(ErrorCode.database);
+      expect(SeriesCommand.getAllSeries).not.toHaveBeenCalled();
+    });
+
+    it("removeSeries should delete the series", async () => {
+      vi.mocked(SeriesCommand.deleteSeries).mockResolvedValue();
+
+      const result = await store.dispatch(removeSeries(5));
+
+      expect(removeSeries.fulfilled.match(result)).toBe(true);
+      expect(SeriesCommand.deleteSeries).toHaveBeenCalledWith(5);
+    });
+
+    it("removeSeries should set only the error on failure", async () => {
+      vi.mocked(SeriesCommand.deleteSeries).mockRejectedValue(new Error());
+
+      await store.dispatch(removeSeries(5));
+
+      const state = store.getState().series;
+      expect(state.status).toBe("idle");
+      expect(state.error?.code).toBe(ErrorCode.other);
+    });
+
+    it("updateBooksSeries should assign the series to every book", async () => {
+      vi.mocked(BookCommands.updateBookSeries).mockResolvedValue();
+
+      const result = await store.dispatch(updateBooksSeries({ bookIds: [1, 2], seriesId: null }));
+
+      expect(updateBooksSeries.fulfilled.match(result)).toBe(true);
+      expect(BookCommands.updateBookSeries).toHaveBeenCalledWith(1, null);
+      expect(BookCommands.updateBookSeries).toHaveBeenCalledWith(2, null);
+    });
+
+    it("updateBooksSeries should set only the error on failure", async () => {
+      vi.mocked(BookCommands.updateBookSeries).mockRejectedValue(
+        new CommandError(ErrorCode.database, "db fail"),
+      );
+
+      await store.dispatch(updateBooksSeries({ bookIds: [1], seriesId: 2 }));
+
+      const state = store.getState().series;
+      expect(state.status).toBe("idle");
+      expect(state.error?.code).toBe(ErrorCode.database);
     });
 
     // Verify state update on successful series fetching

@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createMockReadBook } from "../../../../test/factories";
 import { mockScrollToRow } from "../../../../test/mocks/components";
 import { createBasePreloadedState, renderWithProviders } from "../../../../test/utils";
-import { useHistorySelection } from "../../hooks/useHistorySelection";
+import { useHistoryIndex } from "../../hooks/useHistoryIndex";
 import * as ReadReducer from "../../slice";
 import HistoryViewer from "./HistoryViewer";
 
@@ -13,8 +13,8 @@ import HistoryViewer from "./HistoryViewer";
 vi.mock("../../../History/hooks/useHistoryEntriesUpdater", () => ({
   useHistoryEntriesUpdater: vi.fn(),
 }));
-vi.mock("../../hooks/useHistorySelection", () => ({
-  useHistorySelection: vi.fn(),
+vi.mock("../../hooks/useHistoryIndex", () => ({
+  useHistoryIndex: vi.fn(),
 }));
 
 // Mock SidePanelHeader
@@ -27,11 +27,7 @@ vi.mock("../../slice", async () => {
   const actual = await vi.importActual("../../slice");
   return {
     ...actual,
-    setContainerFilePath: vi.fn((payload: string) => ({
-      type: "read/setContainerFilePath",
-      payload,
-    })),
-    setOpenOrigin: vi.fn((payload: unknown) => ({ type: "read/setOpenOrigin", payload })),
+    openBook: vi.fn((payload: unknown) => ({ type: "read/openBook", payload })),
   };
 });
 
@@ -40,6 +36,7 @@ describe("HistoryViewer", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(useHistoryIndex).mockReturnValue(-1);
   });
 
   it("should render SidePanelHeader and Search input", () => {
@@ -65,7 +62,7 @@ describe("HistoryViewer", () => {
     expect(screen.getByText("Book 2")).toBeInTheDocument();
   });
 
-  it("should dispatch setContainerFilePath when an item is clicked", async () => {
+  it("should dispatch openBook when an item is clicked", async () => {
     const preloadedState = createBasePreloadedState();
     preloadedState.history.recentlyReadBooks = [
       createMockReadBook({ id: 1, file_path: "/path/1", display_name: "Book 1" }),
@@ -76,8 +73,10 @@ describe("HistoryViewer", () => {
     const rowButton = screen.getByRole("button", { name: /Book 1/i });
     await user.click(rowButton);
 
-    expect(ReadReducer.setOpenOrigin).toHaveBeenCalledWith({ kind: "history" });
-    expect(ReadReducer.setContainerFilePath).toHaveBeenCalledWith("/path/1");
+    expect(ReadReducer.openBook).toHaveBeenCalledWith({
+      path: "/path/1",
+      origin: { kind: "history" },
+    });
   });
 
   it("should filter results based on search input", async () => {
@@ -111,9 +110,7 @@ describe("HistoryViewer", () => {
   });
 
   it("should scroll to row when selectedIndex is set", async () => {
-    vi.mocked(useHistorySelection).mockImplementationOnce((_path, _entries, callback) => {
-      callback(1);
-    });
+    vi.mocked(useHistoryIndex).mockReturnValue(1);
 
     const preloadedState = createBasePreloadedState();
     preloadedState.history.recentlyReadBooks = [
@@ -135,9 +132,7 @@ describe("HistoryViewer", () => {
   });
 
   it("should log error if scrollToRow fails", async () => {
-    vi.mocked(useHistorySelection).mockImplementationOnce((_path, _entries, callback) => {
-      callback(0);
-    });
+    vi.mocked(useHistoryIndex).mockReturnValue(0);
 
     const preloadedState = createBasePreloadedState();
     preloadedState.history.recentlyReadBooks = [createMockReadBook({ file_path: "/path/2" })];

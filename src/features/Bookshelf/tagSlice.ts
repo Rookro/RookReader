@@ -1,4 +1,5 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
+import { updateBookTags } from "../../bindings/BookCommands";
 import { createTag, deleteTag, getAllTags } from "../../bindings/TagCommands";
 import type { Tag } from "../../domain/tag/schema";
 import { handleThunkError } from "../../store/thunkErrorHandler";
@@ -55,6 +56,25 @@ export const removeTag = createAppAsyncThunk(
       return id;
     } catch (e) {
       return handleThunkError(e, `Failed to remove tag(id: ${id}).`, rejectWithValue);
+    }
+  },
+);
+
+/**
+ * Replaces the tag set of every given book.
+ *
+ * @param params - The parameters for the update.
+ * @param params.bookIds - The books to update.
+ * @param params.tagIds - The complete new tag set for each book.
+ * @returns A thunk that resolves when every book is updated.
+ */
+export const updateBooksTags = createAppAsyncThunk(
+  "tag/updateBooksTags",
+  async ({ bookIds, tagIds }: { bookIds: number[]; tagIds: number[] }, { rejectWithValue }) => {
+    try {
+      await Promise.all(bookIds.map((id) => updateBookTags(id, tagIds)));
+    } catch (e) {
+      return handleThunkError(e, "Failed to update book tags.", rejectWithValue);
     }
   },
 );
@@ -125,6 +145,11 @@ const tagSlice = createSlice({
       })
       .addCase(removeTag.rejected, (state, action) => {
         state.status = "failed";
+        state.error = action.payload ?? null;
+      })
+      // Only the error: a mutation must not flip `status` to "loading", which would
+      // blank the grid behind the open dialog.
+      .addCase(updateBooksTags.rejected, (state, action) => {
         state.error = action.payload ?? null;
       });
   },

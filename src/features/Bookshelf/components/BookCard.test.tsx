@@ -27,6 +27,8 @@ describe("BookCard", () => {
 
   const mockActions = {
     openDialog: vi.fn(),
+    openEditSeriesOrderDialog: vi.fn(),
+    getSelectedBooks: vi.fn(() => []),
   };
 
   const defaultProps = {
@@ -100,10 +102,11 @@ describe("BookCard", () => {
     expect(await screen.findByText(/Add to Collection/i)).toBeInTheDocument();
   });
 
-  it("materializes the full selection for the context menu when opened (K4)", async () => {
+  it("acts on the whole selection from the context menu when this book is selected", async () => {
     const bookA = createMockBookWithState({ id: 1, display_name: "Book A", tag_ids: [] });
     const bookB = createMockBookWithState({ id: 2, display_name: "Book B", tag_ids: [] });
     const openDialog = vi.fn();
+    const getSelectedBooks = vi.fn(() => [bookA, bookB]);
 
     const Seeder = () => {
       const { setSelection } = useBookSelection();
@@ -115,10 +118,12 @@ describe("BookCard", () => {
     };
 
     renderWithProviders(
-      <BookshelfActionsContext.Provider value={{ openDialog }}>
+      <BookshelfActionsContext.Provider
+        value={{ openDialog, openEditSeriesOrderDialog: vi.fn(), getSelectedBooks }}
+      >
         <BookSelectionProvider>
           <Seeder />
-          <BookCard {...defaultProps} book={bookA} allBooks={[bookA, bookB]} />
+          <BookCard {...defaultProps} book={bookA} />
         </BookSelectionProvider>
       </BookshelfActionsContext.Provider>,
     );
@@ -127,8 +132,8 @@ describe("BookCard", () => {
     await user.click(screen.getByText("seed-selection"));
     await user.pointer({ keys: "[MouseRight]", target: screen.getByText("Book A") });
 
-    // The action applies to the whole selection — proving selectedBooks was
-    // materialized once the menu opened (not eagerly in every card).
+    // The action applies to the whole selection, taken from the actions context
+    // rather than from a list drilled through every card.
     await user.click(await screen.findByText(/Add to Collection/i));
     expect(openDialog).toHaveBeenCalledWith("add-to-bookshelf", [bookA, bookB]);
   });

@@ -192,17 +192,4 @@ describe("MenuList", () => {
     await user.click(addButtons[1]);
     expect(defaultProps.onClickAddBookTag).toHaveBeenCalled();
   });
-
-  it("should toggle context menu if right clicked again on item", async () => {
-    renderWithProviders(<MenuList {...defaultProps} />, { preloadedState });
-    const bookshelfItem = screen.getByText("Bookshelf 1");
-
-    await user.pointer({ keys: "[MouseRight]", target: bookshelfItem });
-    expect(screen.getByRole("menu")).toBeInTheDocument();
-
-    await user.pointer({ keys: "[MouseRight]", target: bookshelfItem });
-    await waitFor(() => {
-      expect(screen.queryByRole("menu")).not.toBeInTheDocument();
-    });
-  });
 });

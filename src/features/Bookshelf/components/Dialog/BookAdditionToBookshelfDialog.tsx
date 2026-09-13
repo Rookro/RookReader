@@ -15,7 +15,7 @@ import {
   Paper,
   Typography,
 } from "@mui/material";
-import { open } from "@tauri-apps/plugin-dialog";
+import { open as openFilePicker } from "@tauri-apps/plugin-dialog";
 import { error } from "@tauri-apps/plugin-log";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -24,7 +24,7 @@ import { useDragDropEvent } from "../../../../hooks/useDragDropEvent";
 /** Props for the BookAdditionToBookshelfDialog component */
 export interface BookAdditionToBookshelfProps {
   /** Whether the dialog is open or closed. */
-  openDialog: boolean;
+  open: boolean;
   /** Callback to add books to the bookshelf. */
   onAddBooks: (paths: string[]) => void;
   /** Callback to close the dialog. */
@@ -33,7 +33,7 @@ export interface BookAdditionToBookshelfProps {
 
 /** Dialog for adding books to a bookshelf */
 export default function BookAdditionToBookshelfDialog({
-  openDialog,
+  open,
   onAddBooks,
   onClose,
 }: BookAdditionToBookshelfProps) {
@@ -43,7 +43,7 @@ export default function BookAdditionToBookshelfDialog({
 
   const handleOpenDialog = useCallback(async () => {
     try {
-      const selected = await open({
+      const selected = await openFilePicker({
         multiple: true,
         directory: false,
       });
@@ -59,28 +59,28 @@ export default function BookAdditionToBookshelfDialog({
   }, []);
 
   const handleDragged = useCallback(() => {
-    if (openDialog) {
+    if (open) {
       setIsDragActive(true);
     }
-  }, [openDialog]);
+  }, [open]);
 
   const handleDropped = useCallback(
     (paths: string[]) => {
-      if (openDialog) {
+      if (open) {
         setIsDragActive(false);
         if (paths && paths.length > 0) {
           setFilePaths((prev) => [...new Set([...prev, ...paths])]);
         }
       }
     },
-    [openDialog],
+    [open],
   );
 
   const handleLeft = useCallback(() => {
-    if (openDialog) {
+    if (open) {
       setIsDragActive(false);
     }
-  }, [openDialog]);
+  }, [open]);
 
   useDragDropEvent({ onDrag: handleDragged, onDrop: handleDropped, onLeave: handleLeft });
 
@@ -100,7 +100,7 @@ export default function BookAdditionToBookshelfDialog({
   }, []);
 
   return (
-    <Dialog open={openDialog} onClose={handleClose} fullWidth>
+    <Dialog open={open} onClose={handleClose} fullWidth>
       <DialogTitle>{t("bookshelf.book-addition.title")}</DialogTitle>
 
       <DialogContent>

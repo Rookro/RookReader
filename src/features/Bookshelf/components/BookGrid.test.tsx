@@ -5,7 +5,7 @@ import { type RootState, useAppDispatch, useAppSelector } from "../../../store/s
 import { createMockBookWithState, createMockSeries } from "../../../test/factories";
 import { useBookSelection } from "../hooks/useBookSelection";
 import { useBookshelfDialogs } from "../hooks/useBookshelfDialogs";
-import { useReadingBookSelection } from "../hooks/useReadingBookSelection";
+import { useReadingBookIndex } from "../hooks/useReadingBookIndex";
 import BookGrid from "./BookGrid";
 import { BookSelectionContext } from "./BookSelectionContext";
 import { useBookshelfActions } from "./BookshelfActionsContext";
@@ -14,24 +14,10 @@ import { useBookshelfActions } from "./BookshelfActionsContext";
 vi.mock("../../../store/store");
 vi.mock("../hooks/useBookSelection");
 vi.mock("../hooks/useBookshelfDialogs");
-vi.mock("../hooks/useReadingBookSelection");
+vi.mock("../hooks/useReadingBookIndex");
 vi.mock("../../../hooks/useResizeObserver");
 vi.mock("../slice", async (importOriginal) => {
   return await importOriginal<typeof import("../slice")>();
-});
-vi.mock("../seriesSlice", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../seriesSlice")>();
-  return {
-    ...actual,
-    fetchSeries: vi.fn(() => ({ type: "fetchSeries" })),
-  };
-});
-vi.mock("../tagSlice", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../tagSlice")>();
-  return {
-    ...actual,
-    fetchTags: vi.fn(() => ({ type: "fetchTags" })),
-  };
 });
 vi.mock("../../Settings/slice", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../Settings/slice")>();
@@ -51,11 +37,11 @@ vi.mock("react-i18next", () => ({
 }));
 
 // Mock child components that are not the focus of this test or too complex
-vi.mock("./NavigationBar", () => ({
+vi.mock("./BookshelfToolbar", () => ({
   default: () => {
     const { openDialog } = useBookshelfActions();
     return (
-      <div data-testid="navigation-bar">
+      <div data-testid="bookshelf-toolbar">
         <button
           type="button"
           data-testid="context-open-dialog"
@@ -113,47 +99,28 @@ vi.mock("./FloatingActionBar", () => ({
   ),
 }));
 
-// Mock Dialogs to trigger callbacks
-vi.mock("./Dialog/AddBooksToBookshelvesDialog", () => ({
-  default: ({ onAddBooks, onClose }: { onAddBooks: () => void; onClose: () => void }) => (
-    <div data-testid="add-books-dialog">
-      <button type="button" data-testid="add-books-trigger" onClick={onAddBooks}>
-        Trigger Add
-      </button>
-      <button type="button" data-testid="add-books-close" onClick={onClose}>
+// Mock the dialog host so its close callbacks can be triggered.
+vi.mock("./Dialog/BookshelfDialogs", () => ({
+  default: ({
+    dialogType,
+    editSeriesOrderSeriesId,
+    onBookDialogClose,
+    onEditSeriesOrderClose,
+  }: {
+    dialogType: string | null;
+    editSeriesOrderSeriesId: number | null;
+    onBookDialogClose: () => void;
+    onEditSeriesOrderClose: () => void;
+  }) => (
+    <div
+      data-testid="bookshelf-dialogs"
+      data-dialog-type={dialogType ?? ""}
+      data-series-id={editSeriesOrderSeriesId ?? ""}
+    >
+      <button type="button" data-testid="book-dialog-close" onClick={onBookDialogClose}>
         Close
       </button>
-    </div>
-  ),
-}));
-vi.mock("./Dialog/SetBookTagsDialog", () => ({
-  default: ({ onUpdateTags, onClose }: { onUpdateTags: () => void; onClose: () => void }) => (
-    <div data-testid="set-tags-dialog">
-      <button type="button" data-testid="set-tags-trigger" onClick={onUpdateTags}>
-        Trigger Set Tags
-      </button>
-      <button type="button" data-testid="set-tags-close" onClick={onClose}>
-        Close
-      </button>
-    </div>
-  ),
-}));
-vi.mock("./Dialog/SetSeriesDialog", () => ({
-  default: ({ onUpdateSeries, onClose }: { onUpdateSeries: () => void; onClose: () => void }) => (
-    <div data-testid="set-series-dialog">
-      <button type="button" data-testid="set-series-trigger" onClick={onUpdateSeries}>
-        Trigger Set Series
-      </button>
-      <button type="button" data-testid="set-series-close" onClick={onClose}>
-        Close
-      </button>
-    </div>
-  ),
-}));
-vi.mock("./Dialog/BookDeleteDialog", () => ({
-  default: ({ onClose }: { onClose: () => void }) => (
-    <div data-testid="delete-books-dialog">
-      <button type="button" data-testid="delete-books-close" onClick={onClose}>
+      <button type="button" data-testid="edit-series-order-close" onClick={onEditSeriesOrderClose}>
         Close
       </button>
     </div>
@@ -193,8 +160,6 @@ describe("BookGrid", () => {
     series: {
       series: [],
       selectedId: null,
-      isEditSeriesOrderDialogOpen: false,
-      editSeriesOrderTargetId: null,
     },
     read: {
       containerFile: {
@@ -214,11 +179,14 @@ describe("BookGrid", () => {
     handleSelectionClick: mockHandleSelectionClick,
   };
 
+  const mockOpenEditSeriesOrderDialog = vi.fn();
   const mockDialogsValue = {
     dialogType: null,
-    selectedBookIds: [],
-    selectedBooks: [],
+    dialogBooks: [],
+    dialogBookIds: [],
+    editSeriesOrderSeriesId: null,
     openDialog: mockOpenDialog,
+    openEditSeriesOrderDialog: mockOpenEditSeriesOrderDialog,
     closeDialog: mockCloseDialog,
   };
 
@@ -231,6 +199,7 @@ describe("BookGrid", () => {
       return selector(defaultState as unknown as RootState);
     });
     vi.mocked(useResizeObserver).mockReturnValue(1000);
+    vi.mocked(useReadingBookIndex).mockReturnValue(-1);
     vi.mocked(useBookSelection).mockReturnValue(
       mockSelectionValue as unknown as ReturnType<typeof useBookSelection>,
     );
@@ -442,7 +411,6 @@ describe("BookGrid", () => {
       book,
       expect.anything(),
       expect.arrayContaining([book]),
-      expect.any(Map),
       undefined,
     );
   });
@@ -557,7 +525,6 @@ describe("BookGrid", () => {
       book,
       expect.anything(),
       expect.arrayContaining([book]),
-      expect.any(Map),
       undefined,
     );
   });
@@ -578,7 +545,7 @@ describe("BookGrid", () => {
     });
 
     // Mock handleSelectionClick to call onBookSelect (simulating the real behavior)
-    mockHandleSelectionClick.mockImplementation((b, _e, _books, _map, onSelect) => {
+    mockHandleSelectionClick.mockImplementation((b, _e, _books, onSelect) => {
       onSelect?.(b);
     });
 
@@ -644,28 +611,6 @@ describe("BookGrid", () => {
     // Should not crash
   });
 
-  it("triggers handleCloseDialog or fetch from dialogs", () => {
-    render(
-      <BookSelectionContext.Provider value={mockSelectionValue}>
-        <BookGrid />
-      </BookSelectionContext.Provider>,
-    );
-
-    fireEvent.click(screen.getByTestId("add-books-trigger"));
-    expect(mockCloseDialog).toHaveBeenCalled();
-    expect(mockClearSelection).toHaveBeenCalled();
-
-    vi.clearAllMocks();
-    fireEvent.click(screen.getByTestId("set-tags-trigger"));
-    expect(mockDispatch).toHaveBeenCalledWith({ type: "fetchTags" });
-    expect(mockCloseDialog).not.toHaveBeenCalled();
-
-    vi.clearAllMocks();
-    fireEvent.click(screen.getByTestId("set-series-trigger"));
-    expect(mockDispatch).toHaveBeenCalledWith({ type: "fetchSeries" });
-    expect(mockCloseDialog).not.toHaveBeenCalled();
-  });
-
   it("sorts multiple items", () => {
     const book1 = createMockBookWithState({ id: 1, display_name: "B" });
     const book2 = createMockBookWithState({ id: 2, display_name: "A" });
@@ -691,16 +636,41 @@ describe("BookGrid", () => {
     expect(screen.getByText("B")).toBeInTheDocument();
   });
 
-  it("handles handleCloseDialog via dialog onClose", () => {
+  it("passes the open dialog to the dialog host", () => {
+    vi.mocked(useBookshelfDialogs).mockReturnValue({
+      ...mockDialogsValue,
+      dialogType: "edit-series-order",
+      editSeriesOrderSeriesId: 10,
+    } as unknown as ReturnType<typeof useBookshelfDialogs>);
+
     render(
       <BookSelectionContext.Provider value={mockSelectionValue}>
         <BookGrid />
       </BookSelectionContext.Provider>,
     );
 
-    fireEvent.click(screen.getByTestId("add-books-close"));
-    expect(mockCloseDialog).toHaveBeenCalled();
-    expect(mockClearSelection).toHaveBeenCalled();
+    const host = screen.getByTestId("bookshelf-dialogs");
+    expect(host.dataset.dialogType).toBe("edit-series-order");
+    expect(host.dataset.seriesId).toBe("10");
+  });
+
+  it("closing a book dialog also clears the selection; closing the edit-order dialog does not", () => {
+    render(
+      <BookSelectionContext.Provider value={mockSelectionValue}>
+        <BookGrid />
+      </BookSelectionContext.Provider>,
+    );
+
+    // Entering the bookshelf already clears the selection once on mount.
+    const clearsOnMount = mockClearSelection.mock.calls.length;
+
+    fireEvent.click(screen.getByTestId("book-dialog-close"));
+    expect(mockCloseDialog).toHaveBeenCalledTimes(1);
+    expect(mockClearSelection).toHaveBeenCalledTimes(clearsOnMount + 1);
+
+    fireEvent.click(screen.getByTestId("edit-series-order-close"));
+    expect(mockCloseDialog).toHaveBeenCalledTimes(2);
+    expect(mockClearSelection).toHaveBeenCalledTimes(clearsOnMount + 1);
   });
 
   it("triggers series drill-down on focused series item via Enter key", () => {
@@ -1025,7 +995,7 @@ describe("BookGrid", () => {
     expect(mockHandleSelectionClick).not.toHaveBeenCalled();
   });
 
-  it("calls useReadingBookSelection with the reading book from state", () => {
+  it("calls useReadingBookIndex with the reading book from state", () => {
     const readingBook = createMockBookWithState({ id: 5, display_name: "Reading Book" });
     const state = {
       ...defaultState,
@@ -1050,10 +1020,9 @@ describe("BookGrid", () => {
       </BookSelectionContext.Provider>,
     );
 
-    expect(useReadingBookSelection).toHaveBeenCalledWith(
+    expect(useReadingBookIndex).toHaveBeenCalledWith(
       readingBook,
       expect.arrayContaining([expect.objectContaining({ data: readingBook })]),
-      expect.any(Function),
     );
   });
 });
