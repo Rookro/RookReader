@@ -115,6 +115,32 @@ export const deleteBookFromCollection = createAppAsyncThunk(
 );
 
 /**
+ * Adds every given book to every given bookshelf.
+ *
+ * @param params - The parameters for the addition.
+ * @param params.bookIds - The books to add.
+ * @param params.bookshelfIds - The bookshelves to add each book to.
+ * @returns A thunk that resolves when every addition is done.
+ */
+export const addBooksToBookshelves = createAppAsyncThunk(
+  "bookCollection/addBooksToBookshelves",
+  async (
+    { bookIds, bookshelfIds }: { bookIds: number[]; bookshelfIds: number[] },
+    { rejectWithValue },
+  ) => {
+    try {
+      await Promise.all(
+        bookIds.flatMap((bookId) =>
+          bookshelfIds.map((bookshelfId) => addBookToBookshelfCommand(bookshelfId, bookId)),
+        ),
+      );
+    } catch (e) {
+      return handleThunkError(e, "Failed to add books to bookshelves.", rejectWithValue);
+    }
+  },
+);
+
+/**
  * Adds a new book to the database and optionally to a specific bookshelf.
  * If the book is a container (like a ZIP or EPUB), it evaluates its contents first.
  *
@@ -310,6 +336,11 @@ const bookCollectionSlice = createSlice({
       })
       .addCase(removeBookshelf.rejected, (state, action) => {
         state.status = "failed";
+        state.error = action.payload ?? null;
+      })
+      // Only the error: a mutation must not flip `status` to "loading", which would
+      // blank the grid behind the open dialog.
+      .addCase(addBooksToBookshelves.rejected, (state, action) => {
         state.error = action.payload ?? null;
       })
       .addCase(readingProgressChanged, (state, action) => {

@@ -29,7 +29,6 @@ describe("SetBookTagsDialog", () => {
         bookIds={[123]}
         availableTags={mockTags}
         onClose={vi.fn()}
-        onUpdateTags={vi.fn()}
       />,
     );
 
@@ -45,7 +44,6 @@ describe("SetBookTagsDialog", () => {
   it("should toggle selections and call updateBookTags on OK", async () => {
     vi.mocked(BookCommands.getBookTags).mockResolvedValue([]);
     vi.mocked(BookCommands.updateBookTags).mockResolvedValue();
-    const onUpdateTags = vi.fn();
     const onClose = vi.fn();
 
     renderWithProviders(
@@ -54,7 +52,6 @@ describe("SetBookTagsDialog", () => {
         bookIds={[123]}
         availableTags={mockTags}
         onClose={onClose}
-        onUpdateTags={onUpdateTags}
       />,
     );
 
@@ -68,20 +65,13 @@ describe("SetBookTagsDialog", () => {
 
     await waitFor(() => {
       expect(BookCommands.updateBookTags).toHaveBeenCalledWith(123, [2]);
-      expect(onUpdateTags).toHaveBeenCalled();
       expect(onClose).toHaveBeenCalled();
     });
   });
 
   it("should show 'no tags available' message when availableTags is empty", () => {
     renderWithProviders(
-      <SetBookTagsDialog
-        openDialog={true}
-        bookIds={[123]}
-        availableTags={[]}
-        onClose={vi.fn()}
-        onUpdateTags={vi.fn()}
-      />,
+      <SetBookTagsDialog openDialog={true} bookIds={[123]} availableTags={[]} onClose={vi.fn()} />,
     );
     expect(screen.getByText(/No tags available/i)).toBeInTheDocument();
   });
@@ -95,7 +85,6 @@ describe("SetBookTagsDialog", () => {
         bookIds={[123]}
         availableTags={mockTags}
         onClose={vi.fn()}
-        onUpdateTags={vi.fn()}
       />,
     );
 
@@ -114,7 +103,6 @@ describe("SetBookTagsDialog", () => {
         bookIds={[123]}
         availableTags={mockTags}
         onClose={vi.fn()}
-        onUpdateTags={vi.fn()}
       />,
     );
 
@@ -126,29 +114,26 @@ describe("SetBookTagsDialog", () => {
     });
   });
 
-  it("surfaces a save failure with a notification, refetches, and keeps the dialog open", async () => {
+  it("records a save failure in the tag slice and keeps the dialog open", async () => {
     vi.mocked(BookCommands.getBookTags).mockResolvedValue([]);
     vi.mocked(BookCommands.updateBookTags).mockRejectedValue(new Error("Update failed"));
-    const onUpdateTags = vi.fn();
     const onClose = vi.fn();
 
-    renderWithProviders(
+    const { store } = renderWithProviders(
       <SetBookTagsDialog
         openDialog={true}
         bookIds={[123]}
         availableTags={mockTags}
         onClose={onClose}
-        onUpdateTags={onUpdateTags}
       />,
     );
 
     await waitFor(() => expect(screen.getByText("Tag 1")).toBeInTheDocument());
     await user.click(screen.getByRole("button", { name: /ok/i }));
 
-    // An error notification appears, the refetch callback runs (so partial success
-    // is reflected), and the dialog stays open for retry.
-    await waitFor(() => expect(screen.getByText(/^Tag operation failed\./)).toBeInTheDocument());
-    expect(onUpdateTags).toHaveBeenCalled();
+    // The slice error is what GlobalErrorListener turns into the notification;
+    // the dialog stays open for retry.
+    await waitFor(() => expect(store.getState().tag.error).not.toBeNull());
     expect(onClose).not.toHaveBeenCalled();
   });
 
@@ -167,7 +152,6 @@ describe("SetBookTagsDialog", () => {
         bookIds={[1]}
         availableTags={mockTags}
         onClose={vi.fn()}
-        onUpdateTags={vi.fn()}
       />,
     );
 
@@ -178,7 +162,6 @@ describe("SetBookTagsDialog", () => {
         bookIds={[2]}
         availableTags={mockTags}
         onClose={vi.fn()}
-        onUpdateTags={vi.fn()}
       />,
     );
     await waitFor(() => expect(BookCommands.getBookTags).toHaveBeenCalledWith(2));
@@ -201,7 +184,6 @@ describe("SetBookTagsDialog", () => {
         bookIds={[1]}
         availableTags={mockTags}
         onClose={vi.fn()}
-        onUpdateTags={vi.fn()}
       />,
     );
     await waitFor(() => expect(screen.getAllByRole("checkbox")[0]).toBeChecked());
@@ -212,7 +194,6 @@ describe("SetBookTagsDialog", () => {
         bookIds={[2]}
         availableTags={mockTags}
         onClose={vi.fn()}
-        onUpdateTags={vi.fn()}
       />,
     );
 
@@ -222,22 +203,21 @@ describe("SetBookTagsDialog", () => {
 
   it("should do nothing if handleSave is called while bookIds is empty", async () => {
     vi.mocked(BookCommands.updateBookTags).mockResolvedValue();
-    const onUpdateTags = vi.fn();
+    const onClose = vi.fn();
 
     renderWithProviders(
       <SetBookTagsDialog
         openDialog={true}
         bookIds={[]}
         availableTags={mockTags}
-        onClose={vi.fn()}
-        onUpdateTags={onUpdateTags}
+        onClose={onClose}
       />,
     );
 
     // ok button is still there but logic should return early
     await user.click(screen.getByRole("button", { name: /ok/i }));
     expect(BookCommands.updateBookTags).not.toHaveBeenCalled();
-    expect(onUpdateTags).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it("should untoggle an already selected tag", async () => {
@@ -250,7 +230,6 @@ describe("SetBookTagsDialog", () => {
         bookIds={[123]}
         availableTags={mockTags}
         onClose={vi.fn()}
-        onUpdateTags={vi.fn()}
       />,
     );
 

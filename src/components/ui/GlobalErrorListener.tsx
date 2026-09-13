@@ -4,6 +4,7 @@ import {
   clearContainerFileError,
   clearExplorerError,
 } from "../../features/BookReader/slice";
+import { clearSeriesError } from "../../features/Bookshelf/seriesSlice";
 import { clearBookshelfError } from "../../features/Bookshelf/slice";
 import { clearTagError } from "../../features/Bookshelf/tagSlice";
 import { clearHistoryError } from "../../features/History/slice";
@@ -42,6 +43,7 @@ export default function GlobalErrorListener() {
   const historyError = useAppSelector((state) => state.history.error);
   const bookshelfError = useAppSelector((state) => state.bookCollection.error);
   const tagsError = useAppSelector((state) => state.tag.error);
+  const seriesError = useAppSelector((state) => state.series.error);
 
   useEffect(() => {
     if (containerFileError) {
@@ -73,6 +75,11 @@ export default function GlobalErrorListener() {
       showNotification(errorMessage("tag", tagsError.code), "error");
       dispatch(clearTagError());
     }
+
+    if (seriesError) {
+      showNotification(errorMessage("series", seriesError.code), "error");
+      dispatch(clearSeriesError());
+    }
   }, [
     errorMessage,
     dispatch,
@@ -83,6 +90,7 @@ export default function GlobalErrorListener() {
     historyError,
     bookshelfError,
     tagsError,
+    seriesError,
   ]);
 
   return null;

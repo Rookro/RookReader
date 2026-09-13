@@ -1,14 +1,12 @@
 import LinkOff from "@mui/icons-material/LinkOff";
 import Sort from "@mui/icons-material/Sort";
 import { ListItemIcon, ListItemText, Menu, MenuItem } from "@mui/material";
-import { error } from "@tauri-apps/plugin-log";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { deleteSeries } from "../../../bindings/SeriesCommands";
 import ConfirmDialog from "../../../components/ui/ConfirmDialog";
 import type { Series } from "../../../domain/series/schema";
 import { useAppDispatch } from "../../../store/store";
-import { setEditSeriesOrderDialogState } from "../seriesSlice";
+import { removeSeries, setEditSeriesOrderDialogState } from "../seriesSlice";
 
 export interface SeriesContextMenuProps {
   /** The series associated with this menu */
@@ -35,13 +33,9 @@ export default function SeriesContextMenu({ series, anchor, onClose }: SeriesCon
     onClose();
   };
 
-  const handleRemoveSeriesConfirmed = async () => {
+  const handleRemoveSeriesConfirmed = () => {
     setIsConfirmOpen(false);
-    try {
-      await deleteSeries(series.id);
-    } catch (e) {
-      error(`Failed to remove series: ${e}`);
-    }
+    dispatch(removeSeries(series.id));
   };
 
   const handleEditOrder = () => {

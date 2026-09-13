@@ -20,7 +20,6 @@ describe("SetSeriesDialog", () => {
     openDialog: true,
     bookIds: [101, 102],
     availableSeries: mockSeries,
-    onUpdateSeries: vi.fn(),
     onClose: vi.fn(),
   };
 
@@ -56,7 +55,6 @@ describe("SetSeriesDialog", () => {
 
     expect(BookCommands.updateBookSeries).toHaveBeenCalledWith(101, 2);
     expect(BookCommands.updateBookSeries).toHaveBeenCalledWith(102, 2);
-    expect(defaultProps.onUpdateSeries).toHaveBeenCalled();
     expect(defaultProps.onClose).toHaveBeenCalled();
   });
 
@@ -72,10 +70,15 @@ describe("SetSeriesDialog", () => {
     expect(BookCommands.updateBookSeries).toHaveBeenCalledWith(102, null);
   });
 
-  it("should create a new series", async () => {
+  it("should create a new series, refetch the list, and select it", async () => {
     vi.mocked(SeriesCommand.createSeries).mockResolvedValue(3);
+    vi.mocked(SeriesCommand.getAllSeries).mockResolvedValue([
+      ...mockSeries,
+      { id: 3, name: "New Series", created_at: "2026-03-01T15:30:00" },
+    ]);
+    vi.mocked(BookCommands.updateBookSeries).mockResolvedValue();
 
-    renderWithProviders(<SetSeriesDialog {...defaultProps} />);
+    const { store } = renderWithProviders(<SetSeriesDialog {...defaultProps} />);
 
     await user.click(screen.getByText(/Create new series/i));
 
@@ -84,9 +87,11 @@ describe("SetSeriesDialog", () => {
     await user.click(screen.getByText(/Create/i));
 
     expect(SeriesCommand.createSeries).toHaveBeenCalledWith("New Series");
-    expect(defaultProps.onUpdateSeries).toHaveBeenCalled();
-    // After creation, it should be selected (implicitly checked by handleSave behavior, but let's check state via interaction if possible)
-    // Here we just check if it was called.
+    await waitFor(() => expect(store.getState().series.series).toHaveLength(3));
+
+    // The new series is the selected radio, so OK assigns it.
+    await user.click(screen.getByRole("button", { name: /ok/i }));
+    expect(BookCommands.updateBookSeries).toHaveBeenCalledWith(101, 3);
   });
 
   it("should log error if update fails", async () => {
@@ -104,20 +109,18 @@ describe("SetSeriesDialog", () => {
     });
   });
 
-  it("surfaces a save failure with a notification, refetches, and keeps the dialog open", async () => {
+  it("records a save failure in the series slice and keeps the dialog open", async () => {
     vi.mocked(BookCommands.updateBookSeries).mockRejectedValue(new Error("Update failed"));
-    const onUpdateSeries = vi.fn();
     const onClose = vi.fn();
 
-    renderWithProviders(
-      <SetSeriesDialog {...defaultProps} onUpdateSeries={onUpdateSeries} onClose={onClose} />,
-    );
+    const { store } = renderWithProviders(<SetSeriesDialog {...defaultProps} onClose={onClose} />);
 
     await user.click(screen.getByText("Series A"));
     await user.click(screen.getByRole("button", { name: /ok/i }));
 
-    await waitFor(() => expect(screen.getByText(/^Series operation failed\./)).toBeInTheDocument());
-    expect(onUpdateSeries).toHaveBeenCalled();
+    // The slice error is what GlobalErrorListener turns into the notification;
+    // the dialog stays open for retry.
+    await waitFor(() => expect(store.getState().series.error).not.toBeNull());
     expect(onClose).not.toHaveBeenCalled();
   });
 
@@ -131,7 +134,7 @@ describe("SetSeriesDialog", () => {
     await user.click(screen.getByText(/Create/i));
 
     await waitFor(() => {
-      expect(logError).toHaveBeenCalledWith(expect.stringContaining("Failed to create series"));
+      expect(logError).toHaveBeenCalledWith(expect.stringContaining("Failed to add series"));
     });
   });
 

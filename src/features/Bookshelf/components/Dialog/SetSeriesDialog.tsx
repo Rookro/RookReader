@@ -14,15 +14,11 @@ import {
   OutlinedInput,
   Radio,
 } from "@mui/material";
-import { error as logError } from "@tauri-apps/plugin-log";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { updateBookSeries } from "../../../../bindings/BookCommands";
-import { createSeries } from "../../../../bindings/SeriesCommands";
-import { useNotification } from "../../../../components/ui/Notification/NotificationContext";
-import { useErrorMessage } from "../../../../components/ui/useErrorMessage";
 import type { Series } from "../../../../domain/series/schema";
-import { createCommandError } from "../../../../types/Error";
+import { useAppDispatch } from "../../../../store/store";
+import { addSeries, updateBooksSeries } from "../../seriesSlice";
 
 /** Props for the SetSeriesDialog component */
 export interface SetSeriesDialogProps {
@@ -32,8 +28,6 @@ export interface SetSeriesDialogProps {
   bookIds: number[];
   /** The available series to choose from. */
   availableSeries: Series[];
-  /** Callback after successfully updating the series. */
-  onUpdateSeries: () => void;
   /** Callback to close the dialog. */
   onClose: () => void;
 }
@@ -43,12 +37,10 @@ export default function SetSeriesDialog({
   openDialog,
   bookIds,
   availableSeries,
-  onUpdateSeries,
   onClose,
 }: SetSeriesDialogProps) {
   const { t } = useTranslation();
-  const errorMessage = useErrorMessage();
-  const { showNotification } = useNotification();
+  const dispatch = useAppDispatch();
   const [selectedSeriesId, setSelectedSeriesId] = useState<number | null>(null);
   const [searchText, setSearchText] = useState("");
   const [isCreating, setIsCreating] = useState(false);
@@ -79,32 +71,23 @@ export default function SetSeriesDialog({
       onClose();
       return;
     }
-    try {
-      const promises = bookIds.map((id) => updateBookSeries(id, selectedSeriesId));
-      await Promise.all(promises);
-      onUpdateSeries();
+    const result = await dispatch(updateBooksSeries({ bookIds, seriesId: selectedSeriesId }));
+    // On failure the slice error is shown by GlobalErrorListener and the backend's
+    // `history-changed` refetch reflects any partial success; stay open for retry.
+    if (updateBooksSeries.fulfilled.match(result)) {
       onClose();
-    } catch (e) {
-      logError(`Failed to update book series: ${e}`);
-      // Some updates may have succeeded before the failure: refetch so the UI
-      // reflects reality, keep the dialog open for retry, and tell the user.
-      onUpdateSeries();
-      showNotification(errorMessage("series", createCommandError(e).code), "error");
     }
-  }, [bookIds, selectedSeriesId, onUpdateSeries, onClose, showNotification, errorMessage]);
+  }, [bookIds, selectedSeriesId, dispatch, onClose]);
 
   const handleCreateSeries = useCallback(async () => {
     if (!newSeriesName.trim()) return;
-    try {
-      const newId = await createSeries(newSeriesName.trim());
-      setSelectedSeriesId(newId);
+    const result = await dispatch(addSeries(newSeriesName.trim()));
+    if (addSeries.fulfilled.match(result)) {
+      setSelectedSeriesId(result.payload);
       setNewSeriesName("");
       setIsCreating(false);
-      onUpdateSeries(); // Refetch series list
-    } catch (e) {
-      logError(`Failed to create series: ${e}`);
     }
-  }, [newSeriesName, onUpdateSeries]);
+  }, [newSeriesName, dispatch]);
 
   return (
     <Dialog open={openDialog} onClose={onClose} fullWidth maxWidth="xs">

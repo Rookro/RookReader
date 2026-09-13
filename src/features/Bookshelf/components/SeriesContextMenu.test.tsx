@@ -81,10 +81,10 @@ describe("SeriesContextMenu", () => {
     expect(screen.queryByText(/Ungroup Series/i)).not.toBeInTheDocument();
   });
 
-  it("should handle deleteSeries error", async () => {
+  it("should record a deleteSeries failure in the series slice", async () => {
     vi.mocked(SeriesCommand.deleteSeries).mockRejectedValue(new Error("Delete failed"));
 
-    renderSeriesContextMenu();
+    const { store } = renderSeriesContextMenu();
 
     await user.click(screen.getByText(/Ungroup Series/i));
     await user.click(screen.getByRole("button", { name: /Ungroup series/i }));
@@ -93,6 +93,7 @@ describe("SeriesContextMenu", () => {
     await waitFor(() =>
       expect(error).toHaveBeenCalledWith(expect.stringContaining("Failed to remove series")),
     );
+    expect(store.getState().series.error).not.toBeNull();
   });
 
   it("should prevent default and stop propagation on context menu event", async () => {

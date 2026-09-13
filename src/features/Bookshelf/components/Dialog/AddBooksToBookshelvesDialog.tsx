@@ -12,14 +12,11 @@ import {
   ListItemIcon,
   ListItemText,
 } from "@mui/material";
-import { error as logError } from "@tauri-apps/plugin-log";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { addBookToBookshelf } from "../../../../bindings/BookshelfCommands";
-import { useNotification } from "../../../../components/ui/Notification/NotificationContext";
-import { useErrorMessage } from "../../../../components/ui/useErrorMessage";
 import type { Bookshelf } from "../../../../domain/bookshelf/schema";
-import { createCommandError } from "../../../../types/Error";
+import { useAppDispatch } from "../../../../store/store";
+import { addBooksToBookshelves } from "../../slice";
 import { BookShelfIcons } from "../BookshelfIcons";
 
 /** Props for the AddBooksToBookshelvesDialog component */
@@ -30,8 +27,6 @@ export interface AddBooksToBookshelvesDialogProps {
   bookIds: number[];
   /** The available bookshelves to choose from. */
   availableBookshelves: Bookshelf[];
-  /** Callback after successfully adding books to the selected bookshelves. */
-  onAddBooks: () => void;
   /** Callback to close the dialog. */
   onClose: () => void;
 }
@@ -41,12 +36,10 @@ export default function AddBooksToBookshelvesDialog({
   openDialog,
   bookIds,
   availableBookshelves,
-  onAddBooks,
   onClose,
 }: AddBooksToBookshelvesDialogProps) {
   const { t } = useTranslation();
-  const errorMessage = useErrorMessage();
-  const { showNotification } = useNotification();
+  const dispatch = useAppDispatch();
   const [selectedBookshelfIds, setSelectedBookshelfIds] = useState<Set<number>>(new Set());
 
   // Always reset selection when dialog opens
@@ -74,28 +67,15 @@ export default function AddBooksToBookshelvesDialog({
       onClose();
       return;
     }
-    try {
-      const bookshelfIdsArray = Array.from(selectedBookshelfIds);
-      const promises = [];
-
-      // Iterate over each book and each selected bookshelf
-      for (const bookId of bookIds) {
-        for (const bookshelfId of bookshelfIdsArray) {
-          promises.push(addBookToBookshelf(bookshelfId, bookId));
-        }
-      }
-
-      await Promise.all(promises);
-      onAddBooks();
+    const result = await dispatch(
+      addBooksToBookshelves({ bookIds, bookshelfIds: Array.from(selectedBookshelfIds) }),
+    );
+    // On failure the slice error is shown by GlobalErrorListener and the backend's
+    // `history-changed` refetch reflects any partial success; stay open for retry.
+    if (addBooksToBookshelves.fulfilled.match(result)) {
       onClose();
-    } catch (e) {
-      logError(`Failed to add books to bookshelves: ${e}`);
-      // Some adds may have succeeded before the failure: refetch so the UI
-      // reflects reality, keep the dialog open for retry, and tell the user.
-      onAddBooks();
-      showNotification(errorMessage("bookshelf", createCommandError(e).code), "error");
     }
-  }, [bookIds, selectedBookshelfIds, onAddBooks, onClose, showNotification, errorMessage]);
+  }, [bookIds, selectedBookshelfIds, dispatch, onClose]);
 
   return (
     <Dialog open={openDialog} onClose={onClose} fullWidth>

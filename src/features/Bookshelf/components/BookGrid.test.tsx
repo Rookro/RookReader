@@ -19,20 +19,6 @@ vi.mock("../../../hooks/useResizeObserver");
 vi.mock("../slice", async (importOriginal) => {
   return await importOriginal<typeof import("../slice")>();
 });
-vi.mock("../seriesSlice", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../seriesSlice")>();
-  return {
-    ...actual,
-    fetchSeries: vi.fn(() => ({ type: "fetchSeries" })),
-  };
-});
-vi.mock("../tagSlice", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../tagSlice")>();
-  return {
-    ...actual,
-    fetchTags: vi.fn(() => ({ type: "fetchTags" })),
-  };
-});
 vi.mock("../../Settings/slice", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../Settings/slice")>();
   return {
@@ -115,11 +101,8 @@ vi.mock("./FloatingActionBar", () => ({
 
 // Mock Dialogs to trigger callbacks
 vi.mock("./Dialog/AddBooksToBookshelvesDialog", () => ({
-  default: ({ onAddBooks, onClose }: { onAddBooks: () => void; onClose: () => void }) => (
+  default: ({ onClose }: { onClose: () => void }) => (
     <div data-testid="add-books-dialog">
-      <button type="button" data-testid="add-books-trigger" onClick={onAddBooks}>
-        Trigger Add
-      </button>
       <button type="button" data-testid="add-books-close" onClick={onClose}>
         Close
       </button>
@@ -127,11 +110,8 @@ vi.mock("./Dialog/AddBooksToBookshelvesDialog", () => ({
   ),
 }));
 vi.mock("./Dialog/SetBookTagsDialog", () => ({
-  default: ({ onUpdateTags, onClose }: { onUpdateTags: () => void; onClose: () => void }) => (
+  default: ({ onClose }: { onClose: () => void }) => (
     <div data-testid="set-tags-dialog">
-      <button type="button" data-testid="set-tags-trigger" onClick={onUpdateTags}>
-        Trigger Set Tags
-      </button>
       <button type="button" data-testid="set-tags-close" onClick={onClose}>
         Close
       </button>
@@ -139,11 +119,8 @@ vi.mock("./Dialog/SetBookTagsDialog", () => ({
   ),
 }));
 vi.mock("./Dialog/SetSeriesDialog", () => ({
-  default: ({ onUpdateSeries, onClose }: { onUpdateSeries: () => void; onClose: () => void }) => (
+  default: ({ onClose }: { onClose: () => void }) => (
     <div data-testid="set-series-dialog">
-      <button type="button" data-testid="set-series-trigger" onClick={onUpdateSeries}>
-        Trigger Set Series
-      </button>
       <button type="button" data-testid="set-series-close" onClick={onClose}>
         Close
       </button>
@@ -642,28 +619,6 @@ describe("BookGrid", () => {
     const container = screen.getByTestId("book-grid-container");
     fireEvent.keyDown(container, { key: "ArrowRight" });
     // Should not crash
-  });
-
-  it("triggers handleCloseDialog or fetch from dialogs", () => {
-    render(
-      <BookSelectionContext.Provider value={mockSelectionValue}>
-        <BookGrid />
-      </BookSelectionContext.Provider>,
-    );
-
-    fireEvent.click(screen.getByTestId("add-books-trigger"));
-    expect(mockCloseDialog).toHaveBeenCalled();
-    expect(mockClearSelection).toHaveBeenCalled();
-
-    vi.clearAllMocks();
-    fireEvent.click(screen.getByTestId("set-tags-trigger"));
-    expect(mockDispatch).toHaveBeenCalledWith({ type: "fetchTags" });
-    expect(mockCloseDialog).not.toHaveBeenCalled();
-
-    vi.clearAllMocks();
-    fireEvent.click(screen.getByTestId("set-series-trigger"));
-    expect(mockDispatch).toHaveBeenCalledWith({ type: "fetchSeries" });
-    expect(mockCloseDialog).not.toHaveBeenCalled();
   });
 
   it("sorts multiple items", () => {

@@ -26,7 +26,6 @@ describe("AddBooksToBookshelvesDialog", () => {
         bookIds={[123]}
         availableBookshelves={mockBookshelves}
         onClose={vi.fn()}
-        onAddBooks={vi.fn()}
       />,
     );
 
@@ -41,7 +40,6 @@ describe("AddBooksToBookshelvesDialog", () => {
 
   it("should toggle selections and call addBookToBookshelf on OK", async () => {
     vi.mocked(BookshelfCommand.addBookToBookshelf).mockResolvedValue();
-    const onAddBooks = vi.fn();
     const onClose = vi.fn();
 
     renderWithProviders(
@@ -50,7 +48,6 @@ describe("AddBooksToBookshelvesDialog", () => {
         bookIds={[123, 456]}
         availableBookshelves={mockBookshelves}
         onClose={onClose}
-        onAddBooks={onAddBooks}
       />,
     );
 
@@ -68,7 +65,6 @@ describe("AddBooksToBookshelvesDialog", () => {
       expect(BookshelfCommand.addBookToBookshelf).toHaveBeenCalledTimes(2);
       expect(BookshelfCommand.addBookToBookshelf).toHaveBeenCalledWith(2, 123);
       expect(BookshelfCommand.addBookToBookshelf).toHaveBeenCalledWith(2, 456);
-      expect(onAddBooks).toHaveBeenCalled();
       expect(onClose).toHaveBeenCalled();
     });
   });
@@ -80,7 +76,6 @@ describe("AddBooksToBookshelvesDialog", () => {
         bookIds={[123]}
         availableBookshelves={[]}
         onClose={vi.fn()}
-        onAddBooks={vi.fn()}
       />,
     );
     expect(screen.getByText(/No collections available/i)).toBeInTheDocument();
@@ -95,7 +90,6 @@ describe("AddBooksToBookshelvesDialog", () => {
         bookIds={[123]}
         availableBookshelves={mockBookshelves}
         onClose={vi.fn()}
-        onAddBooks={vi.fn()}
       />,
     );
 
@@ -113,18 +107,16 @@ describe("AddBooksToBookshelvesDialog", () => {
     });
   });
 
-  it("surfaces a save failure with a notification, refetches, and keeps the dialog open", async () => {
+  it("records a save failure in the bookshelf slice and keeps the dialog open", async () => {
     vi.mocked(BookshelfCommand.addBookToBookshelf).mockRejectedValue(new Error("Add failed"));
-    const onAddBooks = vi.fn();
     const onClose = vi.fn();
 
-    renderWithProviders(
+    const { store } = renderWithProviders(
       <AddBooksToBookshelvesDialog
         openDialog={true}
         bookIds={[123]}
         availableBookshelves={mockBookshelves}
         onClose={onClose}
-        onAddBooks={onAddBooks}
       />,
     );
 
@@ -132,16 +124,14 @@ describe("AddBooksToBookshelvesDialog", () => {
     await user.click(screen.getAllByRole("checkbox")[0]);
     await user.click(screen.getByRole("button", { name: /ok|決定/i }));
 
-    await waitFor(() =>
-      expect(screen.getByText(/^Bookshelf operation failed\./)).toBeInTheDocument(),
-    );
-    expect(onAddBooks).toHaveBeenCalled();
+    // The slice error is what GlobalErrorListener turns into the notification;
+    // the dialog stays open for retry.
+    await waitFor(() => expect(store.getState().bookCollection.error).not.toBeNull());
     expect(onClose).not.toHaveBeenCalled();
   });
 
   it("should just close if no book is passed and ok is clicked somehow", async () => {
     const onClose = vi.fn();
-    const onAddBooks = vi.fn();
 
     renderWithProviders(
       <AddBooksToBookshelvesDialog
@@ -149,7 +139,6 @@ describe("AddBooksToBookshelvesDialog", () => {
         bookIds={[]}
         availableBookshelves={mockBookshelves}
         onClose={onClose}
-        onAddBooks={onAddBooks}
       />,
     );
 
@@ -161,7 +150,6 @@ describe("AddBooksToBookshelvesDialog", () => {
     await user.click(screen.getByRole("button", { name: /ok|決定/i }));
 
     expect(BookshelfCommand.addBookToBookshelf).not.toHaveBeenCalled();
-    expect(onAddBooks).not.toHaveBeenCalled();
     expect(onClose).toHaveBeenCalled();
   });
 });

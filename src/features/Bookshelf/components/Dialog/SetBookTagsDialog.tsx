@@ -15,11 +15,10 @@ import {
 import { error as logError } from "@tauri-apps/plugin-log";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getBookTags, updateBookTags } from "../../../../bindings/BookCommands";
-import { useNotification } from "../../../../components/ui/Notification/NotificationContext";
-import { useErrorMessage } from "../../../../components/ui/useErrorMessage";
+import { getBookTags } from "../../../../bindings/BookCommands";
 import type { Tag } from "../../../../domain/tag/schema";
-import { createCommandError } from "../../../../types/Error";
+import { useAppDispatch } from "../../../../store/store";
+import { updateBooksTags } from "../../tagSlice";
 
 /** Props for the SetBookTagsDialog component */
 export interface SetBookTagsDialogProps {
@@ -29,8 +28,6 @@ export interface SetBookTagsDialogProps {
   bookIds: number[];
   /** The available tags to choose from. */
   availableTags: Tag[];
-  /** Callback to update the tags for the book. */
-  onUpdateTags: () => void;
   /** Callback to close the dialog. */
   onClose: () => void;
 }
@@ -40,12 +37,10 @@ export default function SetBookTagsDialog({
   openDialog,
   bookIds,
   availableTags,
-  onUpdateTags,
   onClose,
 }: SetBookTagsDialogProps) {
   const { t } = useTranslation();
-  const errorMessage = useErrorMessage();
-  const { showNotification } = useNotification();
+  const dispatch = useAppDispatch();
   const [selectedTagIds, setSelectedTagIds] = useState<Set<number>>(new Set());
 
   useEffect(() => {
@@ -87,19 +82,13 @@ export default function SetBookTagsDialog({
 
   const handleSave = useCallback(async () => {
     if (bookIds.length === 0) return;
-    try {
-      const tagArray = Array.from(selectedTagIds);
-      await Promise.all(bookIds.map((id) => updateBookTags(id, tagArray)));
-      onUpdateTags();
+    const result = await dispatch(updateBooksTags({ bookIds, tagIds: Array.from(selectedTagIds) }));
+    // On failure the slice error is shown by GlobalErrorListener and the backend's
+    // `history-changed` refetch reflects any partial success; stay open for retry.
+    if (updateBooksTags.fulfilled.match(result)) {
       onClose();
-    } catch (e) {
-      logError(`Failed to update book tags: ${e}`);
-      // Some updates may have succeeded before the failure: refetch so the UI
-      // reflects reality, keep the dialog open for retry, and tell the user.
-      onUpdateTags();
-      showNotification(errorMessage("tag", createCommandError(e).code), "error");
     }
-  }, [bookIds, selectedTagIds, onUpdateTags, onClose, showNotification, errorMessage]);
+  }, [bookIds, selectedTagIds, dispatch, onClose]);
 
   return (
     <Dialog open={openDialog} onClose={onClose} fullWidth>
