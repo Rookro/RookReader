@@ -1,7 +1,6 @@
 import { Box, CircularProgress, Stack, Typography } from "@mui/material";
 import { createSelector } from "@reduxjs/toolkit";
-import { debug, error } from "@tauri-apps/plugin-log";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Grid, useGridCallbackRef } from "react-window";
 import type { Book, BookWithState } from "../../../domain/book/schema";
@@ -11,7 +10,9 @@ import { type RootState, useAppDispatch, useAppSelector } from "../../../store/s
 import { updateSettings } from "../../Settings/slice";
 import { useBookSelection } from "../hooks/useBookSelection";
 import { useBookshelfDialogs } from "../hooks/useBookshelfDialogs";
+import { useGridKeyboardNavigation } from "../hooks/useGridKeyboardNavigation";
 import { useReadingBookIndex } from "../hooks/useReadingBookIndex";
+import { useScrollToReadingBook } from "../hooks/useScrollToReadingBook";
 import { selectGridItems } from "../selectors";
 import { setSelectedSeriesId } from "../seriesSlice";
 import { setSearchText } from "../slice";
@@ -94,9 +95,7 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
   const filteredSortedItems = useAppSelector(selectGridItems);
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const hasAutoScrolledRef = useRef(false);
   const containerWidth = useResizeObserver(containerRef);
-  const [focusedIndex, setFocusedIndex] = useState<number>(-1);
 
   const [grid, setGrid] = useGridCallbackRef(null);
   const {
@@ -145,19 +144,6 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
     }
   }, [activeView, clearSelection]);
 
-  // Reset auto-scroll flag when leaving the bookshelf view
-  useEffect(() => {
-    if (activeView !== "bookshelf") {
-      hasAutoScrolledRef.current = false;
-    }
-  }, [activeView]);
-
-  // Keep the keyboard focus in range when the filtered list shrinks (e.g. typing
-  // into the search box), so Enter/Space can't dereference a stale index.
-  useEffect(() => {
-    setFocusedIndex((prev) => (prev >= filteredSortedItems.length ? -1 : prev));
-  }, [filteredSortedItems.length]);
-
   const handleBookClick = useCallback(
     (book: BookWithState, e: React.MouseEvent | React.KeyboardEvent) => {
       handleSelectionClick(book, e as React.MouseEvent, allBooks, onBookSelect);
@@ -191,108 +177,22 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
   const horizontalOffset = Math.max((gridWidth - columnWidth * columnCount) / 2, 0);
 
   const readingBookIndex = useReadingBookIndex(readingBook, filteredSortedItems);
-
-  // Scroll to make the selected item visible
-  useEffect(() => {
-    if (
-      filteredSortedItems.length === 0 ||
-      !grid ||
-      activeView !== "bookshelf" ||
-      hasAutoScrolledRef.current
-    ) {
-      return;
-    }
-
-    // Wait until the container has been measured so columnCount is accurate.
-    // Scrolling with the fallback columnCount=1 would target the wrong row and
-    // then latch, preventing a correct re-scroll. The effect re-runs when
-    // columnCount changes (its dependency), so this resumes once width arrives.
-    if (gridWidth <= 0) {
-      return;
-    }
-
-    // Use setTimeout to push the scroll command to the end of the event loop.
-    // This ensures that the virtualized list (react-window) has finished
-    // rendering and measuring item positions before attempting to scroll.
-    const timerId = setTimeout(() => {
-      try {
-        if (readingBookIndex === -1) {
-          // Conclude the session only when there is genuinely no reading book. If a
-          // reading book exists but its index has not resolved yet (books still
-          // loading), leave the latch off so a later run can scroll once it's known.
-          if (!readingBook) {
-            hasAutoScrolledRef.current = true;
-          }
-        } else {
-          debug(`Scrolling to cell ${readingBookIndex}.`);
-          grid.scrollToCell({
-            behavior: "instant",
-            columnAlign: "smart",
-            rowAlign: "smart",
-            columnIndex: readingBookIndex % columnCount,
-            rowIndex: Math.floor(readingBookIndex / columnCount),
-          });
-          hasAutoScrolledRef.current = true;
-        }
-      } catch (e) {
-        error(`Failed to scroll to cell ${readingBookIndex}: ${e}`);
-      }
-    }, 20);
-
-    return () => {
-      clearTimeout(timerId);
-    };
-  }, [
-    readingBookIndex,
-    readingBook,
-    filteredSortedItems,
+  useScrollToReadingBook({
     grid,
+    items: filteredSortedItems,
+    readingBook,
+    readingBookIndex,
     columnCount,
-    activeView,
     gridWidth,
-  ]);
+    activeView,
+  });
 
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (filteredSortedItems.length === 0) return;
-
-      let nextIndex = focusedIndex;
-      if (e.key === "ArrowRight") {
-        nextIndex =
-          focusedIndex === -1 ? 0 : Math.min(filteredSortedItems.length - 1, focusedIndex + 1);
-      } else if (e.key === "ArrowLeft") {
-        nextIndex = focusedIndex === -1 ? 0 : Math.max(0, focusedIndex - 1);
-      } else if (e.key === "ArrowDown") {
-        nextIndex =
-          focusedIndex === -1
-            ? 0
-            : Math.min(filteredSortedItems.length - 1, focusedIndex + columnCount);
-      } else if (e.key === "ArrowUp") {
-        nextIndex = focusedIndex === -1 ? 0 : Math.max(0, focusedIndex - columnCount);
-      } else if (e.key === "Home") {
-        nextIndex = 0;
-      } else if (e.key === "End") {
-        nextIndex = filteredSortedItems.length - 1;
-      } else if (e.key === "Enter" || e.key === " ") {
-        const item = filteredSortedItems[focusedIndex];
-        if (focusedIndex >= 0 && item) {
-          e.preventDefault();
-          if (item.type === "book") {
-            handleBookClick(item.data, e);
-          } else {
-            handleSeriesClick(item.data.id);
-          }
-        }
-        return;
-      } else {
-        return;
-      }
-
-      e.preventDefault();
-      setFocusedIndex(nextIndex);
-    },
-    [focusedIndex, filteredSortedItems, columnCount, handleBookClick, handleSeriesClick],
-  );
+  const { focusedIndex, handleKeyDown } = useGridKeyboardNavigation({
+    items: filteredSortedItems,
+    columnCount,
+    onBookActivate: handleBookClick,
+    onSeriesActivate: handleSeriesClick,
+  });
 
   const getSelectedBooks = useCallback(
     () => allBooks.filter((b) => selectedBookIds.has(b.id)),
