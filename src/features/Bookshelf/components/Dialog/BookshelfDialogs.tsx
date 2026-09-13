@@ -47,30 +47,30 @@ export default function BookshelfDialogs({
   return (
     <>
       <AddBooksToBookshelvesDialog
-        openDialog={dialogType === "add-to-bookshelf"}
+        open={dialogType === "add-to-bookshelf"}
         bookIds={dialogBookIds}
         availableBookshelves={availableBookshelves}
         onClose={onBookDialogClose}
       />
       <SetBookTagsDialog
-        openDialog={dialogType === "set-tags"}
+        open={dialogType === "set-tags"}
         bookIds={dialogBookIds}
         availableTags={availableTags}
         onClose={onBookDialogClose}
       />
       <SetSeriesDialog
-        openDialog={dialogType === "set-series"}
+        open={dialogType === "set-series"}
         bookIds={dialogBookIds}
         availableSeries={availableSeries}
         onClose={onBookDialogClose}
       />
       <BookDeleteDialog
-        openDialog={dialogType === "delete-books"}
+        open={dialogType === "delete-books"}
         books={dialogBooks}
         onClose={onBookDialogClose}
       />
       <EditSeriesOrderDialog
-        openDialog={dialogType === "edit-series-order"}
+        open={dialogType === "edit-series-order"}
         books={editSeriesOrderBooks}
         onClose={onEditSeriesOrderClose}
       />

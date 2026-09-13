@@ -54,13 +54,13 @@ vi.mock("./MenuList", () => {
 
 vi.mock("./Dialog/CreateBookshelfDialog", () => {
   const CreateBookshelfDialog = ({
-    openDialog,
+    open,
     onCreate,
   }: {
-    openDialog: boolean;
+    open: boolean;
     onCreate: (name: string, icon_id: string) => void;
   }): JSX.Element | null =>
-    openDialog ? (
+    open ? (
       <div data-testid="create-bookshelf-dialog">
         <button
           type="button"
@@ -77,13 +77,13 @@ vi.mock("./Dialog/CreateBookshelfDialog", () => {
 
 vi.mock("./Dialog/CreateBookTagDialog", () => {
   const CreateBookTagDialog = ({
-    openDialog,
+    open,
     onCreate,
   }: {
-    openDialog: boolean;
+    open: boolean;
     onCreate: (name: string, color_code: string) => void;
   }): JSX.Element | null =>
-    openDialog ? (
+    open ? (
       <div data-testid="create-book-tag-dialog">
         <button
           type="button"

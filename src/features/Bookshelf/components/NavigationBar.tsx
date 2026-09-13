@@ -237,7 +237,7 @@ export default function NavigationBar() {
         )}
       </Toolbar>
       <BookAdditionToBookshelfDialog
-        openDialog={isAddBookDialogOpen}
+        open={isAddBookDialogOpen}
         onClose={() => setIsAddBookDialogOpen(false)}
         onAddBooks={handleAddBooks}
       />

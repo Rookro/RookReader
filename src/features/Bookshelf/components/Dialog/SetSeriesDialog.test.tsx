@@ -17,7 +17,7 @@ describe("SetSeriesDialog", () => {
   ];
 
   const defaultProps: SetSeriesDialogProps = {
-    openDialog: true,
+    open: true,
     bookIds: [101, 102],
     availableSeries: mockSeries,
     onClose: vi.fn(),
@@ -198,7 +198,7 @@ describe("SetSeriesDialog", () => {
     expect(defaultProps.onClose).toHaveBeenCalled();
   });
 
-  it("should not reset state when openDialog becomes false", async () => {
+  it("should not reset state when open becomes false", async () => {
     const { rerender } = renderWithProviders(<SetSeriesDialog {...defaultProps} />);
 
     // Trigger some state changes
@@ -206,7 +206,7 @@ describe("SetSeriesDialog", () => {
     await user.type(searchInput, "Test");
 
     // Close dialog
-    rerender(<SetSeriesDialog {...defaultProps} openDialog={false} />);
+    rerender(<SetSeriesDialog {...defaultProps} open={false} />);
 
     // Since it's closed, it's not in the document anymore (usually Mui Dialog hides it)
     // but the point is hitting the branch.

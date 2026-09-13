@@ -23,7 +23,7 @@ import { addSeries, updateBooksSeries } from "../../seriesSlice";
 /** Props for the SetSeriesDialog component */
 export interface SetSeriesDialogProps {
   /** Whether the dialog is open or closed. */
-  openDialog: boolean;
+  open: boolean;
   /** The IDs of the books to update. */
   bookIds: number[];
   /** The available series to choose from. */
@@ -34,7 +34,7 @@ export interface SetSeriesDialogProps {
 
 /** Dialog for setting a series for one or more books */
 export default function SetSeriesDialog({
-  openDialog,
+  open,
   bookIds,
   availableSeries,
   onClose,
@@ -48,13 +48,13 @@ export default function SetSeriesDialog({
 
   // Reset state when dialog opens
   useEffect(() => {
-    if (openDialog) {
+    if (open) {
       setSelectedSeriesId(null);
       setSearchText("");
       setIsCreating(false);
       setNewSeriesName("");
     }
-  }, [openDialog]);
+  }, [open]);
 
   const filteredSeries = useMemo(() => {
     if (!searchText) return availableSeries;
@@ -90,7 +90,7 @@ export default function SetSeriesDialog({
   }, [newSeriesName, dispatch]);
 
   return (
-    <Dialog open={openDialog} onClose={onClose} fullWidth maxWidth="xs">
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
       <DialogTitle>{t("bookshelf.series.set.title")}</DialogTitle>
       <DialogContent>
         <Box sx={{ mb: 2, mt: 1 }}>

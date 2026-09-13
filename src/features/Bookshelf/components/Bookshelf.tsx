@@ -91,12 +91,12 @@ export default function Bookshelf({ sx }: BookshelfProps) {
         </Allotment.Pane>
       </Allotment>
       <CreateBookshelfDialog
-        openDialog={isBookshelfDialogOpen}
+        open={isBookshelfDialogOpen}
         onClose={handleCloseCreateBookshelfDialog}
         onCreate={handleCreateBookshelf}
       />
       <CreateBookTagDialog
-        openDialog={isBookTagDialogOpen}
+        open={isBookTagDialogOpen}
         onClose={handleCloseCreateBookTagDialog}
         onCreate={handleCreateBookTag}
       />

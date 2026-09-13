@@ -5,20 +5,17 @@ import { createBasePreloadedState, renderWithProviders } from "../../../../test/
 import BookshelfDialogs, { type BookshelfDialogsProps } from "./BookshelfDialogs";
 
 vi.mock("./AddBooksToBookshelvesDialog", () => ({
-  default: ({ openDialog }: { openDialog: boolean }) =>
-    openDialog ? <div data-testid="add-to-bookshelf" /> : null,
+  default: ({ open }: { open: boolean }) => (open ? <div data-testid="add-to-bookshelf" /> : null),
 }));
 vi.mock("./SetBookTagsDialog", () => ({
-  default: ({ openDialog }: { openDialog: boolean }) =>
-    openDialog ? <div data-testid="set-tags" /> : null,
+  default: ({ open }: { open: boolean }) => (open ? <div data-testid="set-tags" /> : null),
 }));
 vi.mock("./SetSeriesDialog", () => ({
-  default: ({ openDialog }: { openDialog: boolean }) =>
-    openDialog ? <div data-testid="set-series" /> : null,
+  default: ({ open }: { open: boolean }) => (open ? <div data-testid="set-series" /> : null),
 }));
 vi.mock("./BookDeleteDialog", () => ({
-  default: ({ openDialog, onClose }: { openDialog: boolean; onClose: () => void }) =>
-    openDialog ? (
+  default: ({ open, onClose }: { open: boolean; onClose: () => void }) =>
+    open ? (
       <button type="button" data-testid="delete-books" onClick={onClose}>
         close
       </button>
@@ -26,15 +23,15 @@ vi.mock("./BookDeleteDialog", () => ({
 }));
 vi.mock("./EditSeriesOrderDialog", () => ({
   default: ({
-    openDialog,
+    open,
     books,
     onClose,
   }: {
-    openDialog: boolean;
+    open: boolean;
     books: { display_name: string }[];
     onClose: () => void;
   }) =>
-    openDialog ? (
+    open ? (
       <button type="button" data-testid="edit-series-order" onClick={onClose}>
         {books.map((b) => b.display_name).join(",")}
       </button>

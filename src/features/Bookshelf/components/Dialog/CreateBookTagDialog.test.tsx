@@ -8,16 +8,12 @@ describe("CreateBookTagDialog", () => {
   const user = userEvent.setup();
 
   it("should render dialog with title", () => {
-    renderWithProviders(
-      <CreateBookTagDialog openDialog={true} onCreate={vi.fn()} onClose={vi.fn()} />,
-    );
+    renderWithProviders(<CreateBookTagDialog open={true} onCreate={vi.fn()} onClose={vi.fn()} />);
     expect(screen.getByText(/Create a Tag/i)).toBeInTheDocument();
   });
 
   it("should enable create button only when name is entered", async () => {
-    renderWithProviders(
-      <CreateBookTagDialog openDialog={true} onCreate={vi.fn()} onClose={vi.fn()} />,
-    );
+    renderWithProviders(<CreateBookTagDialog open={true} onCreate={vi.fn()} onClose={vi.fn()} />);
 
     const createButton = screen.getByRole("button", { name: /create/i });
     expect(createButton).toBeDisabled();
@@ -31,9 +27,7 @@ describe("CreateBookTagDialog", () => {
   it("should call onCreate with name and selected color", async () => {
     const onCreate = vi.fn();
     const onClose = vi.fn();
-    renderWithProviders(
-      <CreateBookTagDialog openDialog={true} onCreate={onCreate} onClose={onClose} />,
-    );
+    renderWithProviders(<CreateBookTagDialog open={true} onCreate={onCreate} onClose={onClose} />);
 
     await user.type(screen.getByLabelText(/Tag name/i), "Blue Tag");
 
@@ -53,9 +47,7 @@ describe("CreateBookTagDialog", () => {
 
   it("should call onClose when cancel is clicked", async () => {
     const onClose = vi.fn();
-    renderWithProviders(
-      <CreateBookTagDialog openDialog={true} onCreate={vi.fn()} onClose={onClose} />,
-    );
+    renderWithProviders(<CreateBookTagDialog open={true} onCreate={vi.fn()} onClose={onClose} />);
 
     await user.click(screen.getByRole("button", { name: /cancel/i }));
     expect(onClose).toHaveBeenCalled();

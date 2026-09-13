@@ -24,7 +24,7 @@ describe("BookDeleteDialog", () => {
   });
 
   const defaultProps = {
-    openDialog: true,
+    open: true,
     books: [mockBook],
     onClose: vi.fn(),
   };

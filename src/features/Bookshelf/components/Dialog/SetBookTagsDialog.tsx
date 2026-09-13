@@ -23,7 +23,7 @@ import { updateBooksTags } from "../../tagSlice";
 /** Props for the SetBookTagsDialog component */
 export interface SetBookTagsDialogProps {
   /** Whether the dialog is open or closed. */
-  openDialog: boolean;
+  open: boolean;
   /** The IDs of the books for which tags are being set. */
   bookIds: number[];
   /** The available tags to choose from. */
@@ -34,7 +34,7 @@ export interface SetBookTagsDialogProps {
 
 /** Dialog for setting book tags */
 export default function SetBookTagsDialog({
-  openDialog,
+  open,
   bookIds,
   availableTags,
   onClose,
@@ -44,7 +44,7 @@ export default function SetBookTagsDialog({
   const [selectedTagIds, setSelectedTagIds] = useState<Set<number>>(new Set());
 
   useEffect(() => {
-    if (openDialog && bookIds.length === 1) {
+    if (open && bookIds.length === 1) {
       let stale = false;
       getBookTags(bookIds[0])
         .then((tagIds) => {
@@ -61,11 +61,11 @@ export default function SetBookTagsDialog({
         stale = true;
       };
     }
-    if (openDialog && bookIds.length > 1) {
+    if (open && bookIds.length > 1) {
       // Start with no tags selected when modifying multiple books.
       setSelectedTagIds(new Set());
     }
-  }, [openDialog, bookIds]);
+  }, [open, bookIds]);
 
   const handleToggle = useCallback(
     (tagId: number) => {
@@ -91,7 +91,7 @@ export default function SetBookTagsDialog({
   }, [bookIds, selectedTagIds, dispatch, onClose]);
 
   return (
-    <Dialog open={openDialog} onClose={onClose} fullWidth>
+    <Dialog open={open} onClose={onClose} fullWidth>
       <DialogTitle>{t("bookshelf.tag.set.title")}</DialogTitle>
       <DialogContent>
         <Box

@@ -16,7 +16,7 @@ import { deleteBookFromCollection } from "../../slice";
 /** Props for the BookDeleteDialog component. */
 export interface BookDeleteDialogProps {
   /** Whether the dialog is open or closed. */
-  openDialog: boolean;
+  open: boolean;
   /** The books to delete. */
   books: BookWithState[];
   /** Callback to close the dialog. */
@@ -24,7 +24,7 @@ export interface BookDeleteDialogProps {
 }
 
 /** Dialog for deleting books from a bookshelf. */
-export default function BookDeleteDialog({ openDialog, books, onClose }: BookDeleteDialogProps) {
+export default function BookDeleteDialog({ open, books, onClose }: BookDeleteDialogProps) {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const bookshelves = useAppSelector((state) => state.bookCollection.bookshelves);
@@ -46,7 +46,7 @@ export default function BookDeleteDialog({ openDialog, books, onClose }: BookDel
     t("bookshelf.collection.all-books");
 
   return (
-    <Dialog open={openDialog} onClose={onClose}>
+    <Dialog open={open} onClose={onClose}>
       <DialogTitle>{t("bookshelf.book-deletion.title", { count: books.length })}</DialogTitle>
 
       <DialogContent>

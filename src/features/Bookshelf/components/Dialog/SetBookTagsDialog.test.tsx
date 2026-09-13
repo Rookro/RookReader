@@ -24,12 +24,7 @@ describe("SetBookTagsDialog", () => {
     vi.mocked(BookCommands.getBookTags).mockResolvedValue([1]);
 
     renderWithProviders(
-      <SetBookTagsDialog
-        openDialog={true}
-        bookIds={[123]}
-        availableTags={mockTags}
-        onClose={vi.fn()}
-      />,
+      <SetBookTagsDialog open={true} bookIds={[123]} availableTags={mockTags} onClose={vi.fn()} />,
     );
 
     expect(BookCommands.getBookTags).toHaveBeenCalledWith(123);
@@ -47,12 +42,7 @@ describe("SetBookTagsDialog", () => {
     const onClose = vi.fn();
 
     renderWithProviders(
-      <SetBookTagsDialog
-        openDialog={true}
-        bookIds={[123]}
-        availableTags={mockTags}
-        onClose={onClose}
-      />,
+      <SetBookTagsDialog open={true} bookIds={[123]} availableTags={mockTags} onClose={onClose} />,
     );
 
     await waitFor(() => expect(screen.getByText("Tag 1")).toBeInTheDocument());
@@ -71,7 +61,7 @@ describe("SetBookTagsDialog", () => {
 
   it("should show 'no tags available' message when availableTags is empty", () => {
     renderWithProviders(
-      <SetBookTagsDialog openDialog={true} bookIds={[123]} availableTags={[]} onClose={vi.fn()} />,
+      <SetBookTagsDialog open={true} bookIds={[123]} availableTags={[]} onClose={vi.fn()} />,
     );
     expect(screen.getByText(/No tags available/i)).toBeInTheDocument();
   });
@@ -80,12 +70,7 @@ describe("SetBookTagsDialog", () => {
     vi.mocked(BookCommands.getBookTags).mockRejectedValue(new Error("Fetch failed"));
 
     renderWithProviders(
-      <SetBookTagsDialog
-        openDialog={true}
-        bookIds={[123]}
-        availableTags={mockTags}
-        onClose={vi.fn()}
-      />,
+      <SetBookTagsDialog open={true} bookIds={[123]} availableTags={mockTags} onClose={vi.fn()} />,
     );
 
     await waitFor(() => {
@@ -98,12 +83,7 @@ describe("SetBookTagsDialog", () => {
     vi.mocked(BookCommands.updateBookTags).mockRejectedValue(new Error("Update failed"));
 
     renderWithProviders(
-      <SetBookTagsDialog
-        openDialog={true}
-        bookIds={[123]}
-        availableTags={mockTags}
-        onClose={vi.fn()}
-      />,
+      <SetBookTagsDialog open={true} bookIds={[123]} availableTags={mockTags} onClose={vi.fn()} />,
     );
 
     await waitFor(() => expect(screen.getByText("Tag 1")).toBeInTheDocument());
@@ -120,12 +100,7 @@ describe("SetBookTagsDialog", () => {
     const onClose = vi.fn();
 
     const { store } = renderWithProviders(
-      <SetBookTagsDialog
-        openDialog={true}
-        bookIds={[123]}
-        availableTags={mockTags}
-        onClose={onClose}
-      />,
+      <SetBookTagsDialog open={true} bookIds={[123]} availableTags={mockTags} onClose={onClose} />,
     );
 
     await waitFor(() => expect(screen.getByText("Tag 1")).toBeInTheDocument());
@@ -147,22 +122,12 @@ describe("SetBookTagsDialog", () => {
       .mockResolvedValueOnce([]); // book 2: fast, no tags
 
     const { rerender } = renderWithProviders(
-      <SetBookTagsDialog
-        openDialog={true}
-        bookIds={[1]}
-        availableTags={mockTags}
-        onClose={vi.fn()}
-      />,
+      <SetBookTagsDialog open={true} bookIds={[1]} availableTags={mockTags} onClose={vi.fn()} />,
     );
 
     // Reopen for book 2 before book 1's fetch resolves.
     rerender(
-      <SetBookTagsDialog
-        openDialog={true}
-        bookIds={[2]}
-        availableTags={mockTags}
-        onClose={vi.fn()}
-      />,
+      <SetBookTagsDialog open={true} bookIds={[2]} availableTags={mockTags} onClose={vi.fn()} />,
     );
     await waitFor(() => expect(BookCommands.getBookTags).toHaveBeenCalledWith(2));
 
@@ -179,22 +144,12 @@ describe("SetBookTagsDialog", () => {
       .mockRejectedValueOnce(new Error("boom")); // book 2: fetch fails
 
     const { rerender } = renderWithProviders(
-      <SetBookTagsDialog
-        openDialog={true}
-        bookIds={[1]}
-        availableTags={mockTags}
-        onClose={vi.fn()}
-      />,
+      <SetBookTagsDialog open={true} bookIds={[1]} availableTags={mockTags} onClose={vi.fn()} />,
     );
     await waitFor(() => expect(screen.getAllByRole("checkbox")[0]).toBeChecked());
 
     rerender(
-      <SetBookTagsDialog
-        openDialog={true}
-        bookIds={[2]}
-        availableTags={mockTags}
-        onClose={vi.fn()}
-      />,
+      <SetBookTagsDialog open={true} bookIds={[2]} availableTags={mockTags} onClose={vi.fn()} />,
     );
 
     // Book 2's fetch failed: the checkboxes reset instead of keeping book 1's tag.
@@ -206,12 +161,7 @@ describe("SetBookTagsDialog", () => {
     const onClose = vi.fn();
 
     renderWithProviders(
-      <SetBookTagsDialog
-        openDialog={true}
-        bookIds={[]}
-        availableTags={mockTags}
-        onClose={onClose}
-      />,
+      <SetBookTagsDialog open={true} bookIds={[]} availableTags={mockTags} onClose={onClose} />,
     );
 
     // ok button is still there but logic should return early
@@ -225,12 +175,7 @@ describe("SetBookTagsDialog", () => {
     vi.mocked(BookCommands.updateBookTags).mockResolvedValue();
 
     renderWithProviders(
-      <SetBookTagsDialog
-        openDialog={true}
-        bookIds={[123]}
-        availableTags={mockTags}
-        onClose={vi.fn()}
-      />,
+      <SetBookTagsDialog open={true} bookIds={[123]} availableTags={mockTags} onClose={vi.fn()} />,
     );
 
     await waitFor(() => {

@@ -22,7 +22,7 @@ describe("AddBooksToBookshelvesDialog", () => {
   it("should display available bookshelves and start empty", async () => {
     renderWithProviders(
       <AddBooksToBookshelvesDialog
-        openDialog={true}
+        open={true}
         bookIds={[123]}
         availableBookshelves={mockBookshelves}
         onClose={vi.fn()}
@@ -44,7 +44,7 @@ describe("AddBooksToBookshelvesDialog", () => {
 
     renderWithProviders(
       <AddBooksToBookshelvesDialog
-        openDialog={true}
+        open={true}
         bookIds={[123, 456]}
         availableBookshelves={mockBookshelves}
         onClose={onClose}
@@ -72,7 +72,7 @@ describe("AddBooksToBookshelvesDialog", () => {
   it("should show 'no collections available' message when availableBookshelves is empty", () => {
     renderWithProviders(
       <AddBooksToBookshelvesDialog
-        openDialog={true}
+        open={true}
         bookIds={[123]}
         availableBookshelves={[]}
         onClose={vi.fn()}
@@ -86,7 +86,7 @@ describe("AddBooksToBookshelvesDialog", () => {
 
     renderWithProviders(
       <AddBooksToBookshelvesDialog
-        openDialog={true}
+        open={true}
         bookIds={[123]}
         availableBookshelves={mockBookshelves}
         onClose={vi.fn()}
@@ -113,7 +113,7 @@ describe("AddBooksToBookshelvesDialog", () => {
 
     const { store } = renderWithProviders(
       <AddBooksToBookshelvesDialog
-        openDialog={true}
+        open={true}
         bookIds={[123]}
         availableBookshelves={mockBookshelves}
         onClose={onClose}
@@ -135,7 +135,7 @@ describe("AddBooksToBookshelvesDialog", () => {
 
     renderWithProviders(
       <AddBooksToBookshelvesDialog
-        openDialog={true}
+        open={true}
         bookIds={[]}
         availableBookshelves={mockBookshelves}
         onClose={onClose}

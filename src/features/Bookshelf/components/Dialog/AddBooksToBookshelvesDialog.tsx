@@ -22,7 +22,7 @@ import { BookShelfIcons } from "../BookshelfIcons";
 /** Props for the AddBooksToBookshelvesDialog component */
 export interface AddBooksToBookshelvesDialogProps {
   /** Whether the dialog is open or closed. */
-  openDialog: boolean;
+  open: boolean;
   /** The IDs of the books to add. */
   bookIds: number[];
   /** The available bookshelves to choose from. */
@@ -33,7 +33,7 @@ export interface AddBooksToBookshelvesDialogProps {
 
 /** Dialog for adding books to one or more bookshelves */
 export default function AddBooksToBookshelvesDialog({
-  openDialog,
+  open,
   bookIds,
   availableBookshelves,
   onClose,
@@ -44,10 +44,10 @@ export default function AddBooksToBookshelvesDialog({
 
   // Always reset selection when dialog opens
   useEffect(() => {
-    if (openDialog) {
+    if (open) {
       setSelectedBookshelfIds(new Set());
     }
-  }, [openDialog]);
+  }, [open]);
 
   const handleToggle = useCallback(
     (bookshelfId: number) => {
@@ -78,7 +78,7 @@ export default function AddBooksToBookshelvesDialog({
   }, [bookIds, selectedBookshelfIds, dispatch, onClose]);
 
   return (
-    <Dialog open={openDialog} onClose={onClose} fullWidth>
+    <Dialog open={open} onClose={onClose} fullWidth>
       <DialogTitle>{t("bookshelf.collection.add-books-title")}</DialogTitle>
       <DialogContent>
         <Box

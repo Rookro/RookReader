@@ -21,22 +21,18 @@ describe("BookAdditionToBookshelfDialog", () => {
     vi.clearAllMocks();
   });
 
-  // Verify that the dialog is not visible when openDialog is false
-  it("should not be visible when openDialog is false", () => {
+  // Verify that the dialog is not visible when open is false
+  it("should not be visible when open is false", () => {
     renderWithProviders(
-      <BookAdditionToBookshelfDialog
-        openDialog={false}
-        onAddBooks={onAddBooks}
-        onClose={onClose}
-      />,
+      <BookAdditionToBookshelfDialog open={false} onAddBooks={onAddBooks} onClose={onClose} />,
     );
     expect(screen.queryByText(i18n.t("bookshelf.book-addition.title"))).not.toBeInTheDocument();
   });
 
-  // Verify that the dialog is visible when openDialog is true
-  it("should be visible when openDialog is true", () => {
+  // Verify that the dialog is visible when open is true
+  it("should be visible when open is true", () => {
     renderWithProviders(
-      <BookAdditionToBookshelfDialog openDialog={true} onAddBooks={onAddBooks} onClose={onClose} />,
+      <BookAdditionToBookshelfDialog open={true} onAddBooks={onAddBooks} onClose={onClose} />,
     );
     expect(screen.getByText(i18n.t("bookshelf.book-addition.title"))).toBeInTheDocument();
   });
@@ -46,7 +42,7 @@ describe("BookAdditionToBookshelfDialog", () => {
     vi.mocked(open).mockResolvedValue(["/path/to/book1.epub", "/path/to/book2.zip"]);
 
     renderWithProviders(
-      <BookAdditionToBookshelfDialog openDialog={true} onAddBooks={onAddBooks} onClose={onClose} />,
+      <BookAdditionToBookshelfDialog open={true} onAddBooks={onAddBooks} onClose={onClose} />,
     );
 
     const selectButton = screen.getByText(i18n.t("bookshelf.book-addition.select-file"));
@@ -69,7 +65,7 @@ describe("BookAdditionToBookshelfDialog", () => {
     vi.mocked(open).mockResolvedValue(["/path/to/book1.epub"]);
 
     renderWithProviders(
-      <BookAdditionToBookshelfDialog openDialog={true} onAddBooks={onAddBooks} onClose={onClose} />,
+      <BookAdditionToBookshelfDialog open={true} onAddBooks={onAddBooks} onClose={onClose} />,
     );
 
     const selectButton = screen.getByText(i18n.t("bookshelf.book-addition.select-file"));
@@ -88,7 +84,7 @@ describe("BookAdditionToBookshelfDialog", () => {
   // Verify that onClose is called when the cancel button is clicked
   it("should call onClose when cancel is clicked", async () => {
     renderWithProviders(
-      <BookAdditionToBookshelfDialog openDialog={true} onAddBooks={onAddBooks} onClose={onClose} />,
+      <BookAdditionToBookshelfDialog open={true} onAddBooks={onAddBooks} onClose={onClose} />,
     );
 
     const cancelButton = screen.getByText(i18n.t("bookshelf.book-addition.cancel-button"));
@@ -105,7 +101,7 @@ describe("BookAdditionToBookshelfDialog", () => {
     });
 
     renderWithProviders(
-      <BookAdditionToBookshelfDialog openDialog={true} onAddBooks={onAddBooks} onClose={onClose} />,
+      <BookAdditionToBookshelfDialog open={true} onAddBooks={onAddBooks} onClose={onClose} />,
     );
 
     // Simulate drag enter
@@ -123,7 +119,7 @@ describe("BookAdditionToBookshelfDialog", () => {
     vi.mocked(open).mockRejectedValue(new Error("Open failed"));
 
     renderWithProviders(
-      <BookAdditionToBookshelfDialog openDialog={true} onAddBooks={onAddBooks} onClose={onClose} />,
+      <BookAdditionToBookshelfDialog open={true} onAddBooks={onAddBooks} onClose={onClose} />,
     );
 
     const selectButton = screen.getByText(i18n.t("bookshelf.book-addition.select-file"));
@@ -141,7 +137,7 @@ describe("BookAdditionToBookshelfDialog", () => {
     vi.mocked(open).mockResolvedValue("/path/to/single.epub");
 
     renderWithProviders(
-      <BookAdditionToBookshelfDialog openDialog={true} onAddBooks={onAddBooks} onClose={onClose} />,
+      <BookAdditionToBookshelfDialog open={true} onAddBooks={onAddBooks} onClose={onClose} />,
     );
 
     const selectButton = screen.getByText(i18n.t("bookshelf.book-addition.select-file"));
