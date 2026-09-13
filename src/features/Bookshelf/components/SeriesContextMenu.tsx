@@ -1,9 +1,11 @@
 import LinkOff from "@mui/icons-material/LinkOff";
 import Sort from "@mui/icons-material/Sort";
-import { ListItemIcon, ListItemText, Menu, MenuItem } from "@mui/material";
+import { ListItemIcon, ListItemText, MenuItem } from "@mui/material";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import ConfirmDialog from "../../../components/ui/ConfirmDialog";
+import ContextMenu from "../../../components/ui/ContextMenu/ContextMenu";
+import type { ContextMenuAnchor } from "../../../components/ui/ContextMenu/useContextMenuAnchor";
 import type { Series } from "../../../domain/series/schema";
 import { useAppDispatch } from "../../../store/store";
 import { removeSeries } from "../seriesSlice";
@@ -13,7 +15,7 @@ export interface SeriesContextMenuProps {
   /** The series associated with this menu */
   series: Series;
   /** Context menu anchor position */
-  anchor: { mouseX: number; mouseY: number } | null;
+  anchor: ContextMenuAnchor | null;
   /** Callback to close the menu */
   onClose: () => void;
 }
@@ -47,17 +49,7 @@ export default function SeriesContextMenu({ series, anchor, onClose }: SeriesCon
 
   return (
     <>
-      <Menu
-        open={anchor !== null}
-        onClose={onClose}
-        onContextMenu={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          onClose();
-        }}
-        anchorReference="anchorPosition"
-        anchorPosition={anchor !== null ? { top: anchor.mouseY, left: anchor.mouseX } : undefined}
-      >
+      <ContextMenu anchor={anchor} onClose={onClose}>
         <MenuItem dense onClick={handleEditOrder}>
           <ListItemIcon>
             <Sort />
@@ -70,7 +62,7 @@ export default function SeriesContextMenu({ series, anchor, onClose }: SeriesCon
           </ListItemIcon>
           <ListItemText>{t("bookshelf.series.ungroup-series")}</ListItemText>
         </MenuItem>
-      </Menu>
+      </ContextMenu>
       <ConfirmDialog
         open={isConfirmOpen}
         title={t("bookshelf.series.ungroup-confirm.title")}

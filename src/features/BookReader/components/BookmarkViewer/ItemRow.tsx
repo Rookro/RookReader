@@ -1,6 +1,8 @@
-import { Box, ListItem, ListItemButton, ListItemText, Menu, MenuItem } from "@mui/material";
-import { memo, useCallback, useState } from "react";
+import { Box, ListItem, ListItemButton, ListItemText, MenuItem } from "@mui/material";
+import { memo, useCallback } from "react";
 import { useTranslation } from "react-i18next";
+import ContextMenu from "../../../../components/ui/ContextMenu/ContextMenu";
+import { useContextMenuAnchor } from "../../../../components/ui/ContextMenu/useContextMenuAnchor";
 import type { Bookmark } from "../../../../domain/bookmark/schema";
 
 /**
@@ -23,31 +25,26 @@ export const ItemRow = memo(function ItemRow({
   onRemove: (bookmark: Bookmark) => void;
 }) {
   const { t } = useTranslation();
-  const [contextMenu, setContextMenu] = useState<{ mouseX: number; mouseY: number } | null>(null);
-
-  const handleContextMenu = useCallback((event: React.MouseEvent) => {
-    event.preventDefault();
-    setContextMenu({ mouseX: event.clientX, mouseY: event.clientY });
-  }, []);
-
-  const handleMenuClosed = useCallback(() => {
-    setContextMenu(null);
-  }, []);
+  const {
+    anchor: contextMenu,
+    open: handleContextMenu,
+    close: handleMenuClosed,
+  } = useContextMenuAnchor();
 
   const handleJumpClicked = useCallback(() => {
-    setContextMenu(null);
+    handleMenuClosed();
     onJump(bookmark);
-  }, [onJump, bookmark]);
+  }, [onJump, bookmark, handleMenuClosed]);
 
   const handleRenameClicked = useCallback(() => {
-    setContextMenu(null);
+    handleMenuClosed();
     onRename(bookmark);
-  }, [onRename, bookmark]);
+  }, [onRename, bookmark, handleMenuClosed]);
 
   const handleRemoveClicked = useCallback(() => {
-    setContextMenu(null);
+    handleMenuClosed();
     onRemove(bookmark);
-  }, [onRemove, bookmark]);
+  }, [onRemove, bookmark, handleMenuClosed]);
 
   return (
     <Box component="div" onContextMenu={handleContextMenu}>
@@ -62,15 +59,7 @@ export const ItemRow = memo(function ItemRow({
           />
         </ListItemButton>
       </ListItem>
-      <Menu
-        open={contextMenu !== null}
-        onClose={handleMenuClosed}
-        anchorReference="anchorPosition"
-        anchorPosition={
-          contextMenu !== null ? { top: contextMenu.mouseY, left: contextMenu.mouseX } : undefined
-        }
-        slotProps={{ list: { dense: true } }}
-      >
+      <ContextMenu anchor={contextMenu} onClose={handleMenuClosed}>
         <MenuItem onClick={handleJumpClicked}>
           {t("book-reader.bookmark-viewer.menu.jump")}
         </MenuItem>
@@ -80,7 +69,7 @@ export const ItemRow = memo(function ItemRow({
         <MenuItem onClick={handleRemoveClicked}>
           {t("book-reader.bookmark-viewer.menu.remove")}
         </MenuItem>
-      </Menu>
+      </ContextMenu>
     </Box>
   );
 });

@@ -17,6 +17,7 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import dummy_thumbnail from "../../../assets/dummy_thumbnail.svg";
 import AutoScrollTypography from "../../../components/ui/AutoScrollTypography/AutoScrollTypography";
+import { useContextMenuAnchor } from "../../../components/ui/ContextMenu/useContextMenuAnchor";
 import type { BookWithState } from "../../../domain/book/schema";
 import type { Tag } from "../../../domain/tag/schema";
 import { getReadableTextColor } from "../../../utils/ColorUtils";
@@ -58,7 +59,7 @@ export default function BookCard({
 }: BookCardProps) {
   const { t } = useTranslation();
   const { selectedBookIds } = useBookSelection();
-  const [menuAnchor, setMenuAnchor] = useState<{ mouseX: number; mouseY: number } | null>(null);
+  const { anchor: menuAnchor, open: handleContextMenu, close: closeMenu } = useContextMenuAnchor();
   const [imageError, setImageError] = useState(false);
 
   const imageSrc = useMemo(() => {
@@ -75,12 +76,6 @@ export default function BookCard({
   }, [book?.tag_ids, tags]);
 
   const isSelected = selectedBookIds.has(book.id);
-
-  const handleContextMenu = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setMenuAnchor({ mouseX: e.clientX, mouseY: e.clientY });
-  };
 
   return (
     <Box
@@ -216,7 +211,7 @@ export default function BookCard({
           </CardActionArea>
         </Card>
       </Tooltip>
-      <BookContextMenu book={book} anchor={menuAnchor} onClose={() => setMenuAnchor(null)} />
+      <BookContextMenu book={book} anchor={menuAnchor} onClose={closeMenu} />
     </Box>
   );
 }

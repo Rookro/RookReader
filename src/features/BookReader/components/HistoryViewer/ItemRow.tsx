@@ -4,13 +4,14 @@ import {
   ListItem,
   ListItemButton,
   ListItemText,
-  Menu,
   MenuItem,
   Tooltip,
   Typography,
 } from "@mui/material";
-import { type CSSProperties, memo, useCallback, useMemo, useState } from "react";
+import { type CSSProperties, memo, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import ContextMenu from "../../../../components/ui/ContextMenu/ContextMenu";
+import { useContextMenuAnchor } from "../../../../components/ui/ContextMenu/useContextMenuAnchor";
 import type { ReadBook } from "../../../../domain/book/schema";
 import { useAppDispatch } from "../../../../store/store";
 import { clearHistory } from "../../../History/slice";
@@ -48,39 +49,26 @@ export const ItemRow = memo(function ItemRow({
       : parsed.toLocaleString(i18n.language);
   }, [entry.last_opened_at, i18n.language]);
   const dispatch = useAppDispatch();
-  const [contextMenu, setContextMenu] = useState<{ mouseX: number; mouseY: number } | null>(null);
-
-  const handleContextMenu = (event: React.MouseEvent) => {
-    event.preventDefault();
-
-    setContextMenu(
-      contextMenu === null
-        ? {
-            mouseX: event.clientX,
-            mouseY: event.clientY,
-          }
-        : null,
-    );
-  };
-
-  const handleMenuClosed = useCallback(() => {
-    setContextMenu(null);
-  }, []);
+  const {
+    anchor: contextMenu,
+    open: handleContextMenu,
+    close: handleMenuClosed,
+  } = useContextMenuAnchor();
 
   const handleOpenClicked = useCallback(
     (e: React.MouseEvent<HTMLElement>, entry: ReadBook, index: number) => {
-      setContextMenu(null);
+      handleMenuClosed();
       onClick?.(e, entry, index);
     },
-    [onClick],
+    [onClick, handleMenuClosed],
   );
 
   const handleRemoveClicked = useCallback(
     async (_e: React.MouseEvent<HTMLElement>, entry: ReadBook, _index: number) => {
-      setContextMenu(null);
+      handleMenuClosed();
       dispatch(clearHistory(entry.id));
     },
-    [dispatch],
+    [dispatch, handleMenuClosed],
   );
 
   return (
@@ -109,22 +97,14 @@ export const ItemRow = memo(function ItemRow({
           </ListItemButton>
         </ListItem>
       </Tooltip>
-      <Menu
-        open={contextMenu !== null}
-        onClose={handleMenuClosed}
-        anchorReference="anchorPosition"
-        anchorPosition={
-          contextMenu !== null ? { top: contextMenu.mouseY, left: contextMenu.mouseX } : undefined
-        }
-        slotProps={{ list: { dense: true } }}
-      >
+      <ContextMenu anchor={contextMenu} onClose={handleMenuClosed}>
         <MenuItem onClick={(e) => handleOpenClicked(e, entry, index)}>
           {t("book-reader.history-viewer.menu.open")}
         </MenuItem>
         <MenuItem onClick={(e) => handleRemoveClicked(e, entry, index)}>
           {t("book-reader.history-viewer.menu.remove")}
         </MenuItem>
-      </Menu>
+      </ContextMenu>
     </Box>
   );
 });
