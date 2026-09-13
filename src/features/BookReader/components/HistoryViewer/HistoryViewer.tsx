@@ -8,7 +8,7 @@ import type { ReadBook } from "../../../../domain/book/schema";
 import { useAppDispatch, useAppSelector } from "../../../../store/store";
 import SidePanelHeader from "../../../SidePane/components/SidePanelHeader";
 import { useHistoryIndex } from "../../hooks/useHistoryIndex";
-import { setContainerFilePath, setOpenOrigin } from "../../slice";
+import { openBook } from "../../slice";
 import { andSearch } from "../../utils/HistoryViewerUtils";
 import { ItemRow } from "./ItemRow";
 
@@ -87,8 +87,7 @@ export default function HistoryViewer() {
 
   const handleListItemClicked = useCallback(
     async (_e: React.MouseEvent<HTMLElement>, entry: ReadBook, _index: number) => {
-      dispatch(setOpenOrigin({ kind: "history" }));
-      dispatch(setContainerFilePath(entry.file_path));
+      dispatch(openBook({ path: entry.file_path, origin: { kind: "history" } }));
     },
     [dispatch],
   );

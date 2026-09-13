@@ -33,11 +33,7 @@ vi.mock("../../slice", async () => {
   return {
     ...actual,
     updateExploreBasePath: vi.fn(() => ({ type: "explorer/updateExploreBasePath" })),
-    setContainerFilePath: vi.fn((payload: string) => ({
-      type: "read/setContainerFilePath",
-      payload,
-    })),
-    setOpenOrigin: vi.fn((payload: unknown) => ({ type: "read/setOpenOrigin", payload })),
+    openBook: vi.fn((payload: unknown) => ({ type: "read/openBook", payload })),
     setSearchText: vi.fn((payload: string) => ({ type: "explorer/setSearchText", payload })),
   };
 });
@@ -79,7 +75,7 @@ describe("FileNavigator", () => {
     expect(screen.getByText(/No results for "Banana"/i)).toBeInTheDocument();
   });
 
-  it("should dispatch setContainerFilePath when a file is clicked", async () => {
+  it("should dispatch openBook when a file is clicked", async () => {
     const entries: DirEntry[] = [{ name: "book.zip", is_directory: false, last_modified: 0 }];
     const preloadedState = createBasePreloadedState();
     preloadedState.read.explorer.entries = entries;
@@ -90,8 +86,10 @@ describe("FileNavigator", () => {
     await user.click(rowButton);
 
     await waitFor(() => {
-      expect(ReadReducer.setOpenOrigin).toHaveBeenCalledWith({ kind: "fileNavigator" });
-      expect(ReadReducer.setContainerFilePath).toHaveBeenCalledWith("/book.zip");
+      expect(ReadReducer.openBook).toHaveBeenCalledWith({
+        path: "/book.zip",
+        origin: { kind: "fileNavigator" },
+      });
     });
   });
 
@@ -125,7 +123,7 @@ describe("FileNavigator", () => {
     await waitFor(() => {
       expect(ReadReducer.updateExploreBasePath).toHaveBeenCalled();
     });
-    expect(ReadReducer.setContainerFilePath).not.toHaveBeenCalled();
+    expect(ReadReducer.openBook).not.toHaveBeenCalled();
   });
 
   it("should not treat single clicks on different rows as a double-click", async () => {
@@ -152,7 +150,9 @@ describe("FileNavigator", () => {
 
     // The pending single-click resolves to selecting row B.
     await waitFor(() => {
-      expect(ReadReducer.setContainerFilePath).toHaveBeenCalledWith("/folderB");
+      expect(ReadReducer.openBook).toHaveBeenCalledWith(
+        expect.objectContaining({ path: "/folderB" }),
+      );
     });
     expect(ReadReducer.updateExploreBasePath).not.toHaveBeenCalled();
   });
@@ -169,7 +169,9 @@ describe("FileNavigator", () => {
     await user.dblClick(rowButton);
 
     await waitFor(() => {
-      expect(ReadReducer.setContainerFilePath).toHaveBeenCalledWith("/book.pdf");
+      expect(ReadReducer.openBook).toHaveBeenCalledWith(
+        expect.objectContaining({ path: "/book.pdf" }),
+      );
     });
     // A file double-click must not be treated as a directory navigation.
     expect(ReadReducer.updateExploreBasePath).not.toHaveBeenCalled();

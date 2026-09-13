@@ -27,11 +27,7 @@ vi.mock("../../slice", async () => {
   const actual = await vi.importActual("../../slice");
   return {
     ...actual,
-    setContainerFilePath: vi.fn((payload: string) => ({
-      type: "read/setContainerFilePath",
-      payload,
-    })),
-    setOpenOrigin: vi.fn((payload: unknown) => ({ type: "read/setOpenOrigin", payload })),
+    openBook: vi.fn((payload: unknown) => ({ type: "read/openBook", payload })),
   };
 });
 
@@ -66,7 +62,7 @@ describe("HistoryViewer", () => {
     expect(screen.getByText("Book 2")).toBeInTheDocument();
   });
 
-  it("should dispatch setContainerFilePath when an item is clicked", async () => {
+  it("should dispatch openBook when an item is clicked", async () => {
     const preloadedState = createBasePreloadedState();
     preloadedState.history.recentlyReadBooks = [
       createMockReadBook({ id: 1, file_path: "/path/1", display_name: "Book 1" }),
@@ -77,8 +73,10 @@ describe("HistoryViewer", () => {
     const rowButton = screen.getByRole("button", { name: /Book 1/i });
     await user.click(rowButton);
 
-    expect(ReadReducer.setOpenOrigin).toHaveBeenCalledWith({ kind: "history" });
-    expect(ReadReducer.setContainerFilePath).toHaveBeenCalledWith("/path/1");
+    expect(ReadReducer.openBook).toHaveBeenCalledWith({
+      path: "/path/1",
+      origin: { kind: "history" },
+    });
   });
 
   it("should filter results based on search input", async () => {

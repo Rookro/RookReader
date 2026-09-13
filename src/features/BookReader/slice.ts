@@ -234,63 +234,82 @@ export const toggleReadingDirection = createAppAsyncThunk(
   },
 );
 
+const initialState = {
+  containerFile: {
+    history: [] as string[],
+    historyIndex: -1,
+    isDirectory: false,
+    entries: [] as string[],
+    book: null as BookWithState | null,
+    index: 0,
+    /**
+     * Whether this book's spread pairing is shifted by one relative to the app's
+     * cover setting, to line up an archive whose pages are offset.
+     */
+    isSpreadShifted: false,
+    /** Whether the reader is currently showing two pages side by side. */
+    isSpreadDisplayed: false,
+    /**
+     * Page-turn direction of the open comic, restored with the book and seeded from
+     * `reader.comic.readingDirection` the first time the book is opened. Null while no
+     * book is loaded, and for novels, which report their own direction.
+     */
+    readingDirection: null as Direction | null,
+    cfi: null as string | null,
+    isNovel: false,
+    /**
+     * Page-turn direction of the open novel, decided for the book as a whole: its
+     * declared page progression direction, or else the writing mode of its body text.
+     * Null until the book reports one, and always null for comics, which follow the
+     * user's setting.
+     */
+    novelDirection: null as Direction | null,
+    isLoading: false,
+    error: null as { code: ErrorCode; message?: string } | null,
+    /**
+     * Why remembering the opened book in the library failed, if it did. Kept apart
+     * from `error`: the book itself is on screen, only its history entry is missing.
+     */
+    bookRecordError: null as { code: ErrorCode; message?: string } | null,
+    /** Where the current book was opened from (used to resolve the adjacent book). */
+    origin: null as OpenOrigin | null,
+    /**
+     * Overrides the start page of the next opened container, used by adjacent-book
+     * navigation: "first" lands on page 1 (next book), "last" lands on the last page
+     * (previous book). When null, the last-read position is used.
+     */
+    pendingInitialPosition: null as "first" | "last" | null,
+  },
+  explorer: {
+    history: [] as string[],
+    historyIndex: -1,
+    entries: [] as DirEntry[],
+    searchText: "",
+    isLoading: false,
+    error: null as { code: ErrorCode; message?: string } | null,
+  },
+};
+
+type ContainerFileState = typeof initialState.containerFile;
+
+/** Applies a new container path: pushes history and resets the per-book view state. */
+const openContainerPath = (containerFile: ContainerFileState, path: string) => {
+  if (!pushHistory(containerFile, path)) {
+    // No-op open (same path): drop any pending initial position so it can't
+    // leak into a later, unrelated open.
+    containerFile.pendingInitialPosition = null;
+    return;
+  }
+  containerFile.index = 0;
+  containerFile.isSpreadShifted = false;
+  containerFile.isSpreadDisplayed = false;
+  containerFile.readingDirection = null;
+  containerFile.isLoading = true;
+};
+
 export const readSlice = createSlice({
   name: "read",
-  initialState: {
-    containerFile: {
-      history: [] as string[],
-      historyIndex: -1,
-      isDirectory: false,
-      entries: [] as string[],
-      book: null as BookWithState | null,
-      index: 0,
-      /**
-       * Whether this book's spread pairing is shifted by one relative to the app's
-       * cover setting, to line up an archive whose pages are offset.
-       */
-      isSpreadShifted: false,
-      /** Whether the reader is currently showing two pages side by side. */
-      isSpreadDisplayed: false,
-      /**
-       * Page-turn direction of the open comic, restored with the book and seeded from
-       * `reader.comic.readingDirection` the first time the book is opened. Null while no
-       * book is loaded, and for novels, which report their own direction.
-       */
-      readingDirection: null as Direction | null,
-      cfi: null as string | null,
-      isNovel: false,
-      /**
-       * Page-turn direction of the open novel, decided for the book as a whole: its
-       * declared page progression direction, or else the writing mode of its body text.
-       * Null until the book reports one, and always null for comics, which follow the
-       * user's setting.
-       */
-      novelDirection: null as Direction | null,
-      isLoading: false,
-      error: null as { code: ErrorCode; message?: string } | null,
-      /**
-       * Why remembering the opened book in the library failed, if it did. Kept apart
-       * from `error`: the book itself is on screen, only its history entry is missing.
-       */
-      bookRecordError: null as { code: ErrorCode; message?: string } | null,
-      /** Where the current book was opened from (used to resolve the adjacent book). */
-      origin: null as OpenOrigin | null,
-      /**
-       * Overrides the start page of the next opened container, used by adjacent-book
-       * navigation: "first" lands on page 1 (next book), "last" lands on the last page
-       * (previous book). When null, the last-read position is used.
-       */
-      pendingInitialPosition: null as "first" | "last" | null,
-    },
-    explorer: {
-      history: [] as string[],
-      historyIndex: -1,
-      entries: [] as DirEntry[],
-      searchText: "",
-      isLoading: false,
-      error: null as { code: ErrorCode; message?: string } | null,
-    },
-  },
+  initialState,
   reducers: {
     /**
      * Sets the path of the container file being read and updates history.
@@ -299,26 +318,18 @@ export const readSlice = createSlice({
      * @param action - Payload containing the container file path.
      */
     setContainerFilePath: (state, action: PayloadAction<string>) => {
-      if (!pushHistory(state.containerFile, action.payload)) {
-        // No-op open (same path): drop any pending initial position so it can't
-        // leak into a later, unrelated open.
-        state.containerFile.pendingInitialPosition = null;
-        return;
-      }
-      state.containerFile.index = 0;
-      state.containerFile.isSpreadShifted = false;
-      state.containerFile.isSpreadDisplayed = false;
-      state.containerFile.readingDirection = null;
-      state.containerFile.isLoading = true;
+      openContainerPath(state.containerFile, action.payload);
     },
     /**
-     * Sets the origin (launch context) of the currently opened book.
+     * Opens a book from a known origin. The origin is recorded first so the adjacent-book
+     * resolver sees it together with the path.
      *
      * @param state - The current Redux state slice.
-     * @param action - Payload containing the open origin, or null to clear it.
+     * @param action - Payload containing the container file path and where it was opened from.
      */
-    setOpenOrigin: (state, action: PayloadAction<OpenOrigin | null>) => {
-      state.containerFile.origin = action.payload;
+    openBook: (state, action: PayloadAction<{ path: string; origin: OpenOrigin | null }>) => {
+      state.containerFile.origin = action.payload.origin;
+      openContainerPath(state.containerFile, action.payload.path);
     },
     /**
      * Sets the pending initial position for the next opened container.
@@ -599,7 +610,7 @@ export const readSlice = createSlice({
 
 export const {
   setContainerFilePath,
-  setOpenOrigin,
+  openBook,
   setPendingInitialPosition,
   setImageIndex,
   setSpreadShifted,

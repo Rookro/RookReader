@@ -4,7 +4,7 @@ import { useCallback, useState } from "react";
 import type { Book } from "../../../domain/book/schema";
 import { usePaneSizes } from "../../../hooks/usePaneSizes";
 import { useAppDispatch, useAppSelector } from "../../../store/store";
-import { setContainerFilePath, setOpenOrigin } from "../../BookReader/slice";
+import { openBook } from "../../BookReader/slice";
 import { setActiveView } from "../../MainView/slice";
 import { addBookshelf } from "../slice";
 import { addTag } from "../tagSlice";
@@ -41,13 +41,15 @@ export default function Bookshelf({ sx }: BookshelfProps) {
   const handleBookSelected = useCallback(
     (book: Book) => {
       dispatch(
-        setOpenOrigin({
-          kind: "bookshelf",
-          bookshelfId: selectedBookshelfId,
-          sortOrder: bookshelfSortOrder,
+        openBook({
+          path: book.file_path,
+          origin: {
+            kind: "bookshelf",
+            bookshelfId: selectedBookshelfId,
+            sortOrder: bookshelfSortOrder,
+          },
         }),
       );
-      dispatch(setContainerFilePath(book.file_path));
       dispatch(setActiveView("reader"));
     },
     [dispatch, selectedBookshelfId, bookshelfSortOrder],

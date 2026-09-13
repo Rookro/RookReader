@@ -13,7 +13,7 @@ import { usePaneSizes } from "../../../hooks/usePaneSizes";
 import { type RootState, useAppDispatch, useAppSelector } from "../../../store/store";
 import SidePanels from "../../SidePane/components/SidePanels";
 import SideTabs from "../../SidePane/components/SideTabs";
-import { openContainerFile, setContainerFilePath, setOpenOrigin } from "../slice";
+import { openBook, openContainerFile } from "../slice";
 import BookmarkViewer from "./BookmarkViewer/BookmarkViewer";
 import ComicReader from "./ComicReader";
 import ControlSlider from "./ControlSlider";
@@ -143,8 +143,7 @@ export default function BookReader({ sx }: BookReaderProps) {
         const recentBooks = await getRecentlyReadBooks();
         const latestEntry = recentBooks.length > 0 ? recentBooks[0] : null;
         if (latestEntry) {
-          dispatch(setOpenOrigin({ kind: "startup" }));
-          dispatch(setContainerFilePath(latestEntry.file_path));
+          dispatch(openBook({ path: latestEntry.file_path, origin: { kind: "startup" } }));
         }
       }
 
@@ -163,8 +162,7 @@ export default function BookReader({ sx }: BookReaderProps) {
 
   useEffect(() => {
     if (droppedFile && droppedFile.length > 0) {
-      dispatch(setOpenOrigin({ kind: "dragDrop" }));
-      dispatch(setContainerFilePath(droppedFile));
+      dispatch(openBook({ path: droppedFile, origin: { kind: "dragDrop" } }));
       // Reset so dropping the same path again re-triggers this effect
       // (a same-value setState bails out and would silently ignore the drop).
       setDroppedFile(undefined);
