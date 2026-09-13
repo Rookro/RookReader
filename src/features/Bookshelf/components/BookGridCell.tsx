@@ -1,15 +1,12 @@
 import { memo } from "react";
 import type { CellComponentProps } from "react-window";
 import type { BookWithState } from "../../../domain/book/schema";
-import type { Series } from "../../../domain/series/schema";
 import type { Tag } from "../../../domain/tag/schema";
+import type { GridItem } from "../utils/BookshelfUtils";
 import BookCard from "./BookCard";
 import SeriesCard from "./SeriesCard";
 
-/** Represents an item that can be displayed in the book grid. */
-export type GridItem =
-  | { type: "book"; data: BookWithState }
-  | { type: "series"; data: Series; books: BookWithState[] };
+export type { GridItem } from "../utils/BookshelfUtils";
 
 /** Props for the BookGridCell component. */
 export interface BookGridCellProps {

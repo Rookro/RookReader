@@ -12,15 +12,11 @@ import { updateSettings } from "../../Settings/slice";
 import { useBookSelection } from "../hooks/useBookSelection";
 import { useBookshelfDialogs } from "../hooks/useBookshelfDialogs";
 import { useReadingBookIndex } from "../hooks/useReadingBookIndex";
+import { selectGridItems } from "../selectors";
 import { setSelectedSeriesId } from "../seriesSlice";
 import { setSearchText } from "../slice";
-import {
-  andSearch,
-  andSearchGridItems,
-  sortByGridItem,
-  sortBySeriesOrder,
-} from "../utils/BookshelfUtils";
-import BookGridCell, { type BookGridCellProps, type GridItem } from "./BookGridCell";
+import { sortBySeriesOrder } from "../utils/BookshelfUtils";
+import BookGridCell, { type BookGridCellProps } from "./BookGridCell";
 import { BookshelfActionsContext } from "./BookshelfActionsContext";
 import AddBooksToBookshelvesDialog from "./Dialog/AddBooksToBookshelvesDialog";
 import BookDeleteDialog from "./Dialog/BookDeleteDialog";
@@ -44,10 +40,8 @@ const selectBookGridState = createSelector(
     (state: RootState) => state.bookCollection.books,
     (state: RootState) => state.bookCollection.bookshelves,
     (state: RootState) => state.bookCollection.status,
-    (state: RootState) => state.tag.selectedId,
     (state: RootState) => state.tag.tags,
     (state: RootState) => state.series.series,
-    (state: RootState) => state.series.selectedId,
     (state: RootState) => state.read.containerFile.book,
     (state: RootState) => state.view.activeView,
   ],
@@ -57,10 +51,8 @@ const selectBookGridState = createSelector(
     booksInSelectedBookshelf,
     availableBookshelves,
     status,
-    tagId,
     availableTags,
     allSeries,
-    selectedSeriesId,
     readingBook,
     activeView,
   ) => ({
@@ -69,10 +61,8 @@ const selectBookGridState = createSelector(
     booksInSelectedBookshelf,
     availableBookshelves,
     status,
-    tagId,
     availableTags,
     allSeries,
-    selectedSeriesId,
     readingBook,
     activeView,
   }),
@@ -96,13 +86,12 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
     booksInSelectedBookshelf,
     availableBookshelves,
     status,
-    tagId,
     availableTags,
     allSeries,
-    selectedSeriesId,
     readingBook,
     activeView,
   } = useAppSelector(selectBookGridState);
+  const filteredSortedItems = useAppSelector(selectGridItems);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const hasAutoScrolledRef = useRef(false);
@@ -131,73 +120,6 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
     () => GRID_SIZES[bookshelfSettings.gridSize],
     [bookshelfSettings.gridSize],
   );
-
-  const filteredSortedItems = useMemo(() => {
-    // Filter books based on selected tag
-    const taggedBooks =
-      tagId === null
-        ? booksInSelectedBookshelf
-        : booksInSelectedBookshelf.filter((book) => book.tag_ids.includes(tagId));
-
-    // Drill-down mode logic: if a series is selected, show only books in that series
-    if (selectedSeriesId !== null) {
-      return andSearch(taggedBooks, searchText)
-        .filter((book) => book.series_id === selectedSeriesId)
-        .sort(sortBySeriesOrder)
-        .map((book) => ({ type: "book" as const, data: book }));
-    }
-
-    // Main Bookshelf logic: Group books by series_id BEFORE searching
-    const seriesMap = new Map<number, BookWithState[]>();
-    const standaloneBooks: BookWithState[] = [];
-
-    taggedBooks.forEach((book) => {
-      if (book.series_id !== null) {
-        if (!seriesMap.has(book.series_id)) {
-          seriesMap.set(book.series_id, []);
-        }
-        seriesMap.get(book.series_id)?.push(book);
-      } else {
-        standaloneBooks.push(book);
-      }
-    });
-
-    const groupedItems: GridItem[] = [];
-
-    // Index series by id once, instead of an O(S) find per grouped series (O(S²)).
-    const seriesById = new Map(allSeries.map((s) => [s.id, s]));
-
-    // Add series items
-    seriesMap.forEach((booksInSeries, id) => {
-      const seriesObj = seriesById.get(id);
-      if (seriesObj) {
-        groupedItems.push({ type: "series", data: seriesObj, books: booksInSeries });
-      } else {
-        // Fallback for missing series data
-        booksInSeries.forEach((book) => {
-          standaloneBooks.push(book);
-        });
-      }
-    });
-
-    // Add standalone book items
-    standaloneBooks.forEach((book) => {
-      groupedItems.push({ type: "book", data: book });
-    });
-
-    // Perform search on the grouped items (Search by Series name or Standalone Book name)
-    const searchedItems = andSearchGridItems(groupedItems, searchText);
-
-    // Sort the final list
-    return searchedItems.sort((a, b) => sortByGridItem(a, b, bookshelfSettings.sortOrder));
-  }, [
-    booksInSelectedBookshelf,
-    tagId,
-    searchText,
-    selectedSeriesId,
-    allSeries,
-    bookshelfSettings.sortOrder,
-  ]);
 
   const allBooks = useMemo(() => {
     return filteredSortedItems
