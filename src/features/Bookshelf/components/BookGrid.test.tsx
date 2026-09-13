@@ -99,59 +99,28 @@ vi.mock("./FloatingActionBar", () => ({
   ),
 }));
 
-// Mock Dialogs to trigger callbacks
-vi.mock("./Dialog/AddBooksToBookshelvesDialog", () => ({
-  default: ({ onClose }: { onClose: () => void }) => (
-    <div data-testid="add-books-dialog">
-      <button type="button" data-testid="add-books-close" onClick={onClose}>
-        Close
-      </button>
-    </div>
-  ),
-}));
-vi.mock("./Dialog/SetBookTagsDialog", () => ({
-  default: ({ onClose }: { onClose: () => void }) => (
-    <div data-testid="set-tags-dialog">
-      <button type="button" data-testid="set-tags-close" onClick={onClose}>
-        Close
-      </button>
-    </div>
-  ),
-}));
-vi.mock("./Dialog/SetSeriesDialog", () => ({
-  default: ({ onClose }: { onClose: () => void }) => (
-    <div data-testid="set-series-dialog">
-      <button type="button" data-testid="set-series-close" onClick={onClose}>
-        Close
-      </button>
-    </div>
-  ),
-}));
-vi.mock("./Dialog/EditSeriesOrderDialog", () => ({
+// Mock the dialog host so its close callbacks can be triggered.
+vi.mock("./Dialog/BookshelfDialogs", () => ({
   default: ({
-    openDialog,
-    books,
-    onClose,
+    dialogType,
+    editSeriesOrderSeriesId,
+    onBookDialogClose,
+    onEditSeriesOrderClose,
   }: {
-    openDialog: boolean;
-    books: { display_name: string }[];
-    onClose: () => void;
-  }) =>
-    openDialog ? (
-      <div data-testid="edit-series-order-dialog">
-        {books.map((b) => (
-          <span key={b.display_name}>{b.display_name}</span>
-        ))}
-        <button type="button" data-testid="edit-series-order-close" onClick={onClose}>
-          Close
-        </button>
-      </div>
-    ) : null,
-}));
-vi.mock("./Dialog/BookDeleteDialog", () => ({
-  default: ({ onClose }: { onClose: () => void }) => (
-    <div data-testid="delete-books-dialog">
-      <button type="button" data-testid="delete-books-close" onClick={onClose}>
+    dialogType: string | null;
+    editSeriesOrderSeriesId: number | null;
+    onBookDialogClose: () => void;
+    onEditSeriesOrderClose: () => void;
+  }) => (
+    <div
+      data-testid="bookshelf-dialogs"
+      data-dialog-type={dialogType ?? ""}
+      data-series-id={editSeriesOrderSeriesId ?? ""}
+    >
+      <button type="button" data-testid="book-dialog-close" onClick={onBookDialogClose}>
+        Close
+      </button>
+      <button type="button" data-testid="edit-series-order-close" onClick={onEditSeriesOrderClose}>
         Close
       </button>
     </div>
@@ -667,32 +636,7 @@ describe("BookGrid", () => {
     expect(screen.getByText("B")).toBeInTheDocument();
   });
 
-  it("opens the edit-order dialog with the series' books in series order", () => {
-    const first = createMockBookWithState({
-      id: 1,
-      display_name: "Vol 1",
-      series_id: 10,
-      series_order: 1,
-    });
-    const second = createMockBookWithState({
-      id: 2,
-      display_name: "Vol 2",
-      series_id: 10,
-      series_order: 2,
-    });
-    const other = createMockBookWithState({
-      id: 3,
-      display_name: "Other",
-      series_id: 11,
-      series_order: 1,
-    });
-    const state = {
-      ...defaultState,
-      bookCollection: { ...defaultState.bookCollection, books: [second, other, first] },
-    };
-    vi.mocked(useAppSelector).mockImplementation(<T,>(selector: (state: RootState) => T): T => {
-      return selector(state as unknown as RootState);
-    });
+  it("passes the open dialog to the dialog host", () => {
     vi.mocked(useBookshelfDialogs).mockReturnValue({
       ...mockDialogsValue,
       dialogType: "edit-series-order",
@@ -705,24 +649,28 @@ describe("BookGrid", () => {
       </BookSelectionContext.Provider>,
     );
 
-    const dialog = screen.getByTestId("edit-series-order-dialog");
-    expect(dialog.textContent).toContain("Vol 1Vol 2");
-    expect(dialog.textContent).not.toContain("Other");
-
-    fireEvent.click(screen.getByTestId("edit-series-order-close"));
-    expect(mockCloseDialog).toHaveBeenCalled();
+    const host = screen.getByTestId("bookshelf-dialogs");
+    expect(host.dataset.dialogType).toBe("edit-series-order");
+    expect(host.dataset.seriesId).toBe("10");
   });
 
-  it("handles handleCloseDialog via dialog onClose", () => {
+  it("closing a book dialog also clears the selection; closing the edit-order dialog does not", () => {
     render(
       <BookSelectionContext.Provider value={mockSelectionValue}>
         <BookGrid />
       </BookSelectionContext.Provider>,
     );
 
-    fireEvent.click(screen.getByTestId("add-books-close"));
-    expect(mockCloseDialog).toHaveBeenCalled();
-    expect(mockClearSelection).toHaveBeenCalled();
+    // Entering the bookshelf already clears the selection once on mount.
+    const clearsOnMount = mockClearSelection.mock.calls.length;
+
+    fireEvent.click(screen.getByTestId("book-dialog-close"));
+    expect(mockCloseDialog).toHaveBeenCalledTimes(1);
+    expect(mockClearSelection).toHaveBeenCalledTimes(clearsOnMount + 1);
+
+    fireEvent.click(screen.getByTestId("edit-series-order-close"));
+    expect(mockCloseDialog).toHaveBeenCalledTimes(2);
+    expect(mockClearSelection).toHaveBeenCalledTimes(clearsOnMount + 1);
   });
 
   it("triggers series drill-down on focused series item via Enter key", () => {
