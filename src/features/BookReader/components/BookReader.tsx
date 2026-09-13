@@ -5,7 +5,7 @@ import PhotoLibrary from "@mui/icons-material/PhotoLibrary";
 import { Box, CircularProgress, Stack, type SxProps, type Theme } from "@mui/material";
 import { createSelector } from "@reduxjs/toolkit";
 import { Allotment } from "allotment";
-import { type JSX, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getRecentlyReadBooks } from "../../../bindings/BookCommands";
 import { useDragDropEvent } from "../../../hooks/useDragDropEvent";
@@ -13,6 +13,7 @@ import { usePaneSizes } from "../../../hooks/usePaneSizes";
 import { type RootState, useAppDispatch, useAppSelector } from "../../../store/store";
 import SidePanels from "../../SidePane/components/SidePanels";
 import SideTabs from "../../SidePane/components/SideTabs";
+import type { SideTab } from "../../SidePane/types";
 import { openBook, openContainerFile } from "../slice";
 import BookmarkViewer from "./BookmarkViewer/BookmarkViewer";
 import ComicReader from "./ComicReader";
@@ -100,7 +101,7 @@ export default function BookReader({ sx }: BookReaderProps) {
 
   // The labels double as the tabs' accessible names and tooltips, so they reuse the
   // same titles the panels show in their headers.
-  const tabs: { label: string; icon: JSX.Element; panel: JSX.Element }[] = useMemo(() => {
+  const tabs: SideTab[] = useMemo(() => {
     const tabs = [
       {
         label: t("book-reader.file-navigator.title"),

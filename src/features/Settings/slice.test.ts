@@ -6,7 +6,7 @@ import { mockSettingsCommands } from "../../test/utils";
 import { ErrorCode } from "../../types/Error";
 import settingsErrorReducer from "./errorSlice";
 import { defaultSettings } from "./settingsStore";
-import settingsReducer, { setSettings, updateSettings } from "./slice";
+import settingsReducer, { setSettings, setSidePane, updateSettings } from "./slice";
 
 describe("SettingsReducer", () => {
   beforeEach(() => {
@@ -25,6 +25,15 @@ describe("SettingsReducer", () => {
     };
     const nextState = settingsReducer(defaultSettings, setSettings(newSettings));
     expect(nextState.general.theme).toBe("dark");
+  });
+
+  it("should handle setSidePane without touching the rest of the settings", () => {
+    const nextState = settingsReducer(
+      defaultSettings,
+      setSidePane({ isHidden: true, tabIndex: 2 }),
+    );
+    expect(nextState.layout.sidePane).toEqual({ isHidden: true, tabIndex: 2 });
+    expect(nextState.general).toEqual(defaultSettings.general);
   });
 
   describe("updateSettings thunk", () => {
