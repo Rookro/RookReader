@@ -49,6 +49,8 @@ This document provides foundational mandates, project context, and workflows for
   - `npm run test:frontend:coverage` (Runs frontend test coverage).
   - `npm run test:backend` (Runs only Rust tests via cargo).
   - `npm run test:e2e` (Runs WebdriverIO E2E tests).
+- **Documentation:**
+  - `npm run check:wiki` (Checks that `docs/wiki/*.md` only references existing repository paths and npm scripts, and that the settings reference in `docs/wiki/User-Guide.md` matches `src/i18n/locales/en-US.json` and `src/features/Settings/defaultSettings.json`).
 - **Database Migrations (sqlx):**
   Run the following commands within the `src-tauri/` directory:
   - `sqlx migrate add -r <name>`: Creates a new migration file (`<timestamp>_<name>.up.sql` and `<timestamp>_<name>.down.sql`).
@@ -69,6 +71,12 @@ This document provides foundational mandates, project context, and workflows for
 4.  **Localization (i18n):** The project uses `react-i18next`. New user-facing strings should be added to the localization files in `src/i18n/locales/`.
 5.  **Styling:** Use Material UI (MUI) components and the `sx` prop for styling. Ensure UI is responsive and follows the established theme (`src/hooks/useAppTheme.ts`).
 6.  **Validation:** After making changes, always verify correctness using `cargo clippy` for Rust, and `npx tsc --noEmit` and `npm run check` for TypeScript.
+7.  **Documentation (Wiki):** The GitHub Wiki is generated from `docs/wiki/` (synced on every push to `main`). Update the relevant page **in the same PR** whenever a change touches something a page describes:
+    - `docs/wiki/User-Guide.md` — user-visible behaviour: supported formats, File Navigator / toolbar / side-pane controls, keyboard and mouse controls, page display (direction, spread, loupe), continuous reading, bookmarks, bookshelf / collections / tags / series, reading history, EPUB, and **every settings tab and item** (names from `src/i18n/locales/en-US.json`, defaults from `src/features/Settings/defaultSettings.json`, bounds from `src/features/Settings/settingsBounds.json`).
+    - `docs/wiki/FAQ-&-Troubleshooting.md` — data and log locations (`src-tauri/src/setup.rs`), logging behaviour, Linux packaging and window-state behaviour.
+    - `docs/wiki/Developer-Guide.md` — directory layout (`src/`, `src-tauri/src/`), the Tauri command / `tauri-specta` bindings workflow, error codes, npm scripts (`package.json`), CI checks (`.github/workflows/`), prerequisites and branching (`CONTRIBUTING.md`), database schema (`docs/database/er_diagram.md`).
+    - `docs/wiki/Home.md` — the one-paragraph feature summary and supported formats.
+    A `CHANGELOG.md` entry under **Added** or **Changed** almost always needs a wiki update; check the pages when writing the entry. Run `npm run check:wiki` after editing a page. Validate changed Mermaid diagrams before committing.
 
 ## 4. Security & Safety
 

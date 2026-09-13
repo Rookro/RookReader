@@ -94,6 +94,10 @@ If you work natively instead, you need: Node.js (v22 or higher), Rust via `rustu
 
 The project follows [Git Flow](https://nvie.com/posts/a-successful-git-branching-model/): `develop` is the integration branch for the next release and `main` always reflects the latest released version. Create your branch **from `develop`** (e.g. `feature/<short-description>` or `bugfix/<short-description>`) and open your Pull Request **against `develop`**. Commit messages loosely follow [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `docs:`, `test:`, `ci:` …). See [CONTRIBUTING.md](https://github.com/Rookro/RookReader/blob/main/CONTRIBUTING.md) for the full guide.
 
+### Documentation (this wiki)
+
+These pages are sourced from [`docs/wiki/`](https://github.com/Rookro/RookReader/tree/main/docs/wiki) in the main repository and pushed to the GitHub Wiki automatically on every release, so edit them there — in the same Pull Request as the change they describe — and never on the wiki directly. `npm run check:wiki` verifies that the pages only reference existing paths and npm scripts and that the settings reference matches the code.
+
 ## Database Migrations & Setup
 
 RookReader uses `sqlx` for compile-time checked SQLite queries. The `sqlx-cli` tool is required for managing migrations.
@@ -168,6 +172,7 @@ Run the same checks CI enforces before opening a Pull Request:
 | Rust format | `cargo fmt --all` (run from `src-tauri/`) |
 | Rust lint | `cargo clippy --all-targets --all-features -- -D warnings` (run from `src-tauri/`) |
 | Generated TypeScript bindings are up to date | `npm run gen:bindings:check` |
+| Wiki pages reference existing paths, scripts and settings | `npm run check:wiki` |
 | Frontend unit tests (Vitest) | `npm run test:frontend` (coverage: `npm run test:frontend:coverage`) |
 | Rust tests | `npm run test:backend` |
 | Both test suites | `npm run test` |
