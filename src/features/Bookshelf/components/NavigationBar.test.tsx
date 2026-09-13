@@ -49,6 +49,19 @@ describe("NavigationBar", () => {
     expect(searchInput.value).toBe("initial search");
   });
 
+  // The app suppresses the native context menu at `document`; the search field must stop the
+  // event before it gets there so the browser's edit menu can open.
+  it("should stop context menu propagation on the search input", () => {
+    renderWithProviders(<NavigationBar />);
+
+    const event = new MouseEvent("contextmenu", { bubbles: true, cancelable: true });
+    const stopPropagationSpy = vi.spyOn(event, "stopPropagation");
+
+    screen.getByPlaceholderText(i18n.t("bookshelf.search-placeholder")).dispatchEvent(event);
+
+    expect(stopPropagationSpy).toHaveBeenCalled();
+  });
+
   // Verify that the sort order selection change is correctly reflected in the state
   it("should handle sort order change", async () => {
     const { store } = renderWithProviders(<NavigationBar />);
