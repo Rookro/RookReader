@@ -15,7 +15,7 @@ vi.mock("../../SidePane/components/SidePanels", () => ({
   default: () => <div data-testid="side-panels" />,
 }));
 vi.mock("./ControlSlider", () => ({ default: () => <div data-testid="control-slider" /> }));
-vi.mock("./NavigationBar", () => ({ default: () => <div data-testid="navigation-bar" /> }));
+vi.mock("./ReaderToolbar", () => ({ default: () => <div data-testid="reader-toolbar" /> }));
 vi.mock("./FileNavigator/FileNavigator", () => ({ default: () => <div /> }));
 vi.mock("./ImageEntriesViewer/ImageEntriesViewer", () => ({ default: () => <div /> }));
 vi.mock("./HistoryViewer/HistoryViewer", () => ({ default: () => <div /> }));
@@ -51,7 +51,7 @@ describe("BookReader", () => {
 
   it("should render main sub-components", async () => {
     renderWithProviders(<BookReader />, { preloadedState: createBasePreloadedState() });
-    await waitFor(() => expect(screen.getByTestId("navigation-bar")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId("reader-toolbar")).toBeInTheDocument());
     expect(screen.getByTestId("control-slider")).toBeInTheDocument();
   });
 

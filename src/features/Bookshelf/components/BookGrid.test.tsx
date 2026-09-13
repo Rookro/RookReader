@@ -37,11 +37,11 @@ vi.mock("react-i18next", () => ({
 }));
 
 // Mock child components that are not the focus of this test or too complex
-vi.mock("./NavigationBar", () => ({
+vi.mock("./BookshelfToolbar", () => ({
   default: () => {
     const { openDialog } = useBookshelfActions();
     return (
-      <div data-testid="navigation-bar">
+      <div data-testid="bookshelf-toolbar">
         <button
           type="button"
           data-testid="context-open-dialog"

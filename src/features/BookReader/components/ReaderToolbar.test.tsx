@@ -11,9 +11,9 @@ import {
   renderWithProviders,
 } from "../../../test/utils";
 import * as SettingsReducer from "../../Settings/slice";
-import NavigationBar from "./NavigationBar";
+import ReaderToolbar from "./ReaderToolbar";
 
-describe("NavigationBar", () => {
+describe("ReaderToolbar", () => {
   const user = userEvent.setup();
 
   beforeEach(() => {
@@ -23,7 +23,7 @@ describe("NavigationBar", () => {
   });
 
   it("should dispatch setActiveView('bookshelf') when library button is clicked", async () => {
-    const { store } = renderWithProviders(<NavigationBar />);
+    const { store } = renderWithProviders(<ReaderToolbar />);
 
     const libraryButton = screen.getByRole("button", { name: "library" });
     await user.click(libraryButton);
@@ -38,7 +38,7 @@ describe("NavigationBar", () => {
     preloadedState.read.containerFile.entries = [];
     preloadedState.read.containerFile.index = 0;
 
-    const { store } = renderWithProviders(<NavigationBar />, { preloadedState });
+    const { store } = renderWithProviders(<ReaderToolbar />, { preloadedState });
 
     const backButton = screen.getByLabelText("back");
     await user.click(backButton);
@@ -53,7 +53,7 @@ describe("NavigationBar", () => {
     preloadedState.read.containerFile.entries = [];
     preloadedState.read.containerFile.index = 0;
 
-    renderWithProviders(<NavigationBar />, { preloadedState });
+    renderWithProviders(<ReaderToolbar />, { preloadedState });
 
     const backButton = screen.getByLabelText("back");
     expect(backButton).toBeDisabled();
@@ -64,7 +64,7 @@ describe("NavigationBar", () => {
     preloadedState.view.activeView = "reader" as const;
     preloadedState.settings.reader.comic.enableSpread = true;
 
-    const { store } = renderWithProviders(<NavigationBar />, { preloadedState });
+    const { store } = renderWithProviders(<ReaderToolbar />, { preloadedState });
 
     const toggleButton = screen.getByLabelText("toggle-two-paged");
     await user.click(toggleButton);
@@ -83,7 +83,7 @@ describe("NavigationBar", () => {
     preloadedState.read.containerFile.entries = ["p1", "p2", "p3", "p4"];
     preloadedState.read.containerFile.index = 2;
 
-    const { store } = renderWithProviders(<NavigationBar />, { preloadedState });
+    const { store } = renderWithProviders(<ReaderToolbar />, { preloadedState });
 
     await user.click(screen.getByLabelText("shift-spread"));
 
@@ -97,7 +97,7 @@ describe("NavigationBar", () => {
     preloadedState.read.containerFile.entries = ["p1", "p2", "p3"];
     preloadedState.read.containerFile.isSpreadShifted = true;
 
-    const { store } = renderWithProviders(<NavigationBar />, { preloadedState });
+    const { store } = renderWithProviders(<ReaderToolbar />, { preloadedState });
 
     await user.click(screen.getByLabelText("shift-spread"));
 
@@ -110,7 +110,7 @@ describe("NavigationBar", () => {
     preloadedState.settings.reader.comic.enableSpread = false;
     preloadedState.read.containerFile.entries = ["p1", "p2", "p3"];
 
-    renderWithProviders(<NavigationBar />, { preloadedState });
+    renderWithProviders(<ReaderToolbar />, { preloadedState });
 
     expect(screen.getByLabelText("shift-spread")).toBeDisabled();
   });
@@ -121,7 +121,7 @@ describe("NavigationBar", () => {
     preloadedState.read.containerFile.book = createMockBookWithState({ id: 7 });
     preloadedState.read.containerFile.readingDirection = "ltr" as const;
 
-    const { store } = renderWithProviders(<NavigationBar />, { preloadedState });
+    const { store } = renderWithProviders(<ReaderToolbar />, { preloadedState });
 
     const directionButton = screen.getByLabelText("toggle-direction");
     await user.click(directionButton);
@@ -141,7 +141,7 @@ describe("NavigationBar", () => {
     preloadedState.read.containerFile.entries = [];
     preloadedState.read.containerFile.index = 0;
 
-    const { store } = renderWithProviders(<NavigationBar />, { preloadedState });
+    const { store } = renderWithProviders(<ReaderToolbar />, { preloadedState });
 
     const forwardButton = screen.getByLabelText("forward");
     await user.click(forwardButton);
@@ -156,7 +156,7 @@ describe("NavigationBar", () => {
     preloadedState.read.containerFile.entries = [];
     preloadedState.read.containerFile.index = 0;
 
-    renderWithProviders(<NavigationBar />, { preloadedState });
+    renderWithProviders(<ReaderToolbar />, { preloadedState });
 
     const forwardButton = screen.getByLabelText("forward");
     expect(forwardButton).toBeDisabled();
@@ -168,7 +168,7 @@ describe("NavigationBar", () => {
     preloadedState.read.containerFile.book = createMockBookWithState({ id: 7 });
     preloadedState.read.containerFile.readingDirection = "rtl" as const;
 
-    const { store } = renderWithProviders(<NavigationBar />, { preloadedState });
+    const { store } = renderWithProviders(<ReaderToolbar />, { preloadedState });
 
     const directionButton = screen.getByLabelText("toggle-direction");
     await user.click(directionButton);
@@ -185,7 +185,7 @@ describe("NavigationBar", () => {
     preloadedState.read.containerFile.history = ["/path/old"];
     preloadedState.read.containerFile.historyIndex = 0;
 
-    const { store } = renderWithProviders(<NavigationBar />, { preloadedState });
+    const { store } = renderWithProviders(<ReaderToolbar />, { preloadedState });
 
     const input = screen.getByLabelText("container-path-input");
     await user.clear(input);
@@ -199,7 +199,7 @@ describe("NavigationBar", () => {
     preloadedState.read.containerFile.history = ["/path/old"];
     preloadedState.read.containerFile.historyIndex = 0;
 
-    const { store } = renderWithProviders(<NavigationBar />, { preloadedState });
+    const { store } = renderWithProviders(<ReaderToolbar />, { preloadedState });
 
     const input = screen.getByLabelText("container-path-input");
     await user.clear(input);
@@ -210,7 +210,7 @@ describe("NavigationBar", () => {
   });
 
   it("should prevent context menu propagation on input", () => {
-    renderWithProviders(<NavigationBar />);
+    renderWithProviders(<ReaderToolbar />);
 
     const event = new MouseEvent("contextmenu", { bubbles: true, cancelable: true });
     const stopPropagationSpy = vi.spyOn(event, "stopPropagation");
@@ -221,7 +221,7 @@ describe("NavigationBar", () => {
   });
 
   it("should open settings window when button is clicked", async () => {
-    renderWithProviders(<NavigationBar />);
+    renderWithProviders(<ReaderToolbar />);
 
     const settingsButton = screen.getByLabelText("settings");
     await user.click(settingsButton);
@@ -249,7 +249,7 @@ describe("NavigationBar", () => {
     };
 
     it("should be disabled while no book is open", () => {
-      renderWithProviders(<NavigationBar />);
+      renderWithProviders(<ReaderToolbar />);
 
       expect(screen.getByLabelText("toggle-bookmark")).toBeDisabled();
     });
@@ -260,7 +260,7 @@ describe("NavigationBar", () => {
         createMockBookmark({ id: 1, book_id: 42, page_index: 3 }),
       );
 
-      renderWithProviders(<NavigationBar />, { preloadedState });
+      renderWithProviders(<ReaderToolbar />, { preloadedState });
       await user.click(screen.getByLabelText("toggle-bookmark"));
 
       await waitFor(() => {
@@ -284,7 +284,7 @@ describe("NavigationBar", () => {
         createMockBookmark({ id: 1, book_id: 42, page_index: 1 }),
       );
 
-      renderWithProviders(<NavigationBar />, { preloadedState });
+      renderWithProviders(<ReaderToolbar />, { preloadedState });
       await user.click(screen.getByLabelText("toggle-bookmark"));
 
       await waitFor(() => {
@@ -303,7 +303,7 @@ describe("NavigationBar", () => {
         createMockBookmark({ id: 7, book_id: 42, page_index: 3, cfi: null }),
       ];
 
-      renderWithProviders(<NavigationBar />, { preloadedState });
+      renderWithProviders(<ReaderToolbar />, { preloadedState });
       await user.click(screen.getByLabelText("toggle-bookmark"));
 
       await waitFor(() => {
@@ -327,7 +327,7 @@ describe("NavigationBar", () => {
         createMockBookmark({ id: 8, book_id: 42, page_index: 1 }),
       );
 
-      renderWithProviders(<NavigationBar />, { preloadedState });
+      renderWithProviders(<ReaderToolbar />, { preloadedState });
       await user.click(screen.getByLabelText("toggle-bookmark"));
 
       await waitFor(() => {
@@ -345,7 +345,7 @@ describe("NavigationBar", () => {
       const preloadedState = createBasePreloadedState();
       preloadedState.read.containerFile.readingDirection = direction as "rtl" | "ltr";
 
-      renderWithProviders(<NavigationBar />, { preloadedState });
+      renderWithProviders(<ReaderToolbar />, { preloadedState });
 
       expect(screen.getByTestId(testId)).toBeInTheDocument();
     });
@@ -363,7 +363,7 @@ describe("NavigationBar", () => {
       preloadedState.read.containerFile.novelDirection = novelDirection as "rtl" | "ltr";
       preloadedState.read.containerFile.readingDirection = comicDirection as "rtl" | "ltr";
 
-      renderWithProviders(<NavigationBar />, { preloadedState });
+      renderWithProviders(<ReaderToolbar />, { preloadedState });
 
       expect(screen.getByTestId(testId)).toBeInTheDocument();
       expect(screen.getByLabelText("toggle-direction")).toBeDisabled();
@@ -375,7 +375,7 @@ describe("NavigationBar", () => {
       preloadedState.read.containerFile.novelDirection = null;
       preloadedState.settings.reader.comic.readingDirection = "ltr";
 
-      renderWithProviders(<NavigationBar />, { preloadedState });
+      renderWithProviders(<ReaderToolbar />, { preloadedState });
 
       expect(screen.getByTestId("ReadingDirection-rtl")).toBeInTheDocument();
     });
@@ -387,7 +387,7 @@ describe("NavigationBar", () => {
       preloadedState.read.containerFile.book = createMockBookWithState({ id: 7 });
       preloadedState.read.containerFile.readingDirection = "ltr";
 
-      const { store } = renderWithProviders(<NavigationBar />, { preloadedState });
+      const { store } = renderWithProviders(<ReaderToolbar />, { preloadedState });
 
       // userEvent refuses to click through `pointer-events: none`, so dispatch the
       // event directly to prove a disabled button still runs no handler.
@@ -406,7 +406,7 @@ describe("NavigationBar", () => {
       const preloadedState = createBasePreloadedState();
       preloadedState.read.containerFile.readingDirection = direction as "rtl" | "ltr";
 
-      renderWithProviders(<NavigationBar />, { preloadedState });
+      renderWithProviders(<ReaderToolbar />, { preloadedState });
       await user.hover(screen.getByLabelText("toggle-direction"));
 
       expect(await screen.findByRole("tooltip")).toHaveTextContent(tooltip);
@@ -424,7 +424,7 @@ describe("NavigationBar", () => {
       preloadedState.read.containerFile.history = ["/path/1", "/path/2", "/path/3"];
       preloadedState.read.containerFile.historyIndex = 1;
 
-      renderWithProviders(<NavigationBar />, { preloadedState });
+      renderWithProviders(<ReaderToolbar />, { preloadedState });
       await user.hover(screen.getByLabelText(ariaLabel));
 
       expect(await screen.findByRole("tooltip")).toHaveTextContent(tooltip);

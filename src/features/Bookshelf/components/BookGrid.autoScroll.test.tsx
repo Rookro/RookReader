@@ -55,7 +55,7 @@ vi.mock("react-window", () => ({
 }));
 
 // Child components that are irrelevant to this suite.
-vi.mock("./NavigationBar", () => ({ default: () => <div data-testid="navigation-bar" /> }));
+vi.mock("./BookshelfToolbar", () => ({ default: () => <div data-testid="bookshelf-toolbar" /> }));
 vi.mock("./GridSizeControl", () => ({ default: () => <div data-testid="grid-size-control" /> }));
 vi.mock("./FloatingActionBar", () => ({
   default: () => <div data-testid="floating-action-bar" />,

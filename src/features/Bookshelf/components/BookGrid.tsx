@@ -18,10 +18,10 @@ import { setSelectedSeriesId } from "../seriesSlice";
 import { setSearchText } from "../slice";
 import BookGridCell, { type BookGridCellProps } from "./BookGridCell";
 import { BookshelfActionsContext } from "./BookshelfActionsContext";
+import BookshelfToolbar from "./BookshelfToolbar";
 import BookshelfDialogs from "./Dialog/BookshelfDialogs";
 import FloatingActionBar from "./FloatingActionBar";
 import GridSizeControl from "./GridSizeControl";
-import NavigationBar from "./NavigationBar";
 
 const GRID_SIZES = [
   { width: 140, height: 220 },
@@ -203,7 +203,7 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
           position: "relative",
         }}
       >
-        <NavigationBar />
+        <BookshelfToolbar />
 
         <Box
           ref={containerRef}

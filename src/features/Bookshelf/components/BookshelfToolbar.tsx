@@ -33,8 +33,8 @@ import { addBookToBookshelf, setSearchText } from "../slice";
 import { useBookshelfActions } from "./BookshelfActionsContext";
 import BookAdditionToBookshelfDialog from "./Dialog/BookAdditionToBookshelfDialog";
 
-/** Navigation bar for the bookshelf component */
-export default function NavigationBar() {
+/** Toolbar of the bookshelf: search, sort, add books, and the series breadcrumb */
+export default function BookshelfToolbar() {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const bookshelfSettings = useAppSelector((state) => state.settings.bookshelf);

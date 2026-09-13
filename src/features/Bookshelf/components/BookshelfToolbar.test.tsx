@@ -10,14 +10,14 @@ import {
 import { openSettingsWindow } from "../../../utils/WindowOpener";
 import { setSettings } from "../../Settings/slice";
 import { BookshelfActionsContext } from "./BookshelfActionsContext";
-import NavigationBar from "./NavigationBar";
+import BookshelfToolbar from "./BookshelfToolbar";
 
 // Mock WindowOpener
 vi.mock("../../../utils/WindowOpener", () => ({
   openSettingsWindow: vi.fn(),
 }));
 
-describe("NavigationBar", () => {
+describe("BookshelfToolbar", () => {
   const user = userEvent.setup();
   const mockActions = {
     openDialog: vi.fn(),
@@ -27,7 +27,7 @@ describe("NavigationBar", () => {
   // The toolbar opens grid-hosted dialogs through the actions context.
   const navigationBar = (
     <BookshelfActionsContext.Provider value={mockActions}>
-      <NavigationBar />
+      <BookshelfToolbar />
     </BookshelfActionsContext.Provider>
   );
 

@@ -21,8 +21,8 @@ import ControlSlider from "./ControlSlider";
 import FileNavigator from "./FileNavigator/FileNavigator";
 import HistoryViewer from "./HistoryViewer/HistoryViewer";
 import ImageEntriesViewer from "./ImageEntriesViewer/ImageEntriesViewer";
-import NavigationBar from "./NavigationBar";
 import NovelReader from "./NovelReader";
+import ReaderToolbar from "./ReaderToolbar";
 
 const selectBookReaderState = createSelector(
   [
@@ -176,7 +176,7 @@ export default function BookReader({ sx }: BookReaderProps) {
       sx={{ width: "100%", height: "100%", ...sx }}
       data-testid="book-reader"
     >
-      <NavigationBar />
+      <ReaderToolbar />
       <Stack direction="row" sx={{ width: "100%", height: "100%" }}>
         <SideTabs tabs={tabs} index={tabIndex} isHidden={isHidden} />
         <Box sx={{ flex: 1 }}>
