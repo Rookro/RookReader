@@ -181,7 +181,7 @@ The file list's **sort order** (Name↑/↓, Date↑/↓) is chosen in the File 
 - **Auto-open adjacent book**: Off / Ask before opening / Auto-open — see *Continuous Reading*.
 - **Open the folder inside an archive automatically** — see *Folders inside archives*.
 - **Loupe**: toggle key, zoom level and radius — see *Magnifier (Loupe)*.
-- **Novel font family / font size** for EPUB novels.
+- **Font family** and **Font size** (under *Novel*): the font used for EPUB novels.
 - **Reading history**: record the books you read and your position in them.
 
 ### Rendering & Performance
