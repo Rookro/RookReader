@@ -98,6 +98,10 @@ export default function NavigationBar() {
     [dispatch, bookshelfId],
   );
 
+  const handleContextMenu = useCallback((e: React.MouseEvent<HTMLElement>) => {
+    e.stopPropagation();
+  }, []);
+
   return (
     <Stack>
       <Toolbar variant="dense" disableGutters sx={{ minHeight: "40px" }}>
@@ -161,6 +165,7 @@ export default function NavigationBar() {
             </InputAdornment>
           }
           onChange={handleSearchTextChanged}
+          onContextMenu={handleContextMenu}
         />
         <Tooltip title={t("common.settings")}>
           <IconButton onClick={handleSettingsClicked} aria-label="settings">

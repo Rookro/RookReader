@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * The loupe now magnifies the full-size page.
   * Resized pages are no longer re-compressed as JPEG, which uses more memory. Lower the image cache size in Settings → Rendering & Performance if needed.
   * The default resizing method for new installs is now Lanczos3. Existing settings are unchanged.
+* Fixed the bookshelf search box not opening the right-click menu, so text can be cut, copied, and pasted there like in the reader's path box. (#325)
 
 ## [2.5.0] - 2026-09-06
 
