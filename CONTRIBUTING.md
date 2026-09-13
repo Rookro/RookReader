@@ -74,6 +74,14 @@ To maintain consistency across the codebase, please follow these rules:
 
 We loosely follow the [Conventional Commits](https://www.conventionalcommits.org/) style (e.g. `feat:`, `fix:`, `test:`, `ci:`, `docs:`). This keeps the history readable and helps with changelog generation.
 
+## Documentation (Wiki)
+
+The [project wiki](https://github.com/Rookro/RookReader/wiki) is generated from the Markdown pages in [`docs/wiki/`](docs/wiki/) and pushed to the GitHub Wiki automatically on every release (push to `main`). **Do not edit the wiki on GitHub directly** — your change would be overwritten by the next sync.
+
+* If your change affects anything a page describes (user-visible behaviour, a setting, a keyboard/mouse control, a directory, an npm script, a CI check, the contribution workflow), update the page **in the same Pull Request**.
+* Run `npm run check:wiki`. It fails when a page references a repository path or an npm script that does not exist, or when the settings reference in `docs/wiki/User-Guide.md` names a setting or a default value that differs from the code.
+* If you edit a Mermaid diagram, make sure it still renders (e.g. paste it into the [Mermaid Live Editor](https://mermaid.live/)).
+
 ## Before Submitting a Pull Request
 
 Run the same checks that CI enforces, so your PR passes on the first try:
@@ -84,6 +92,7 @@ Run the same checks that CI enforces, so your PR passes on the first try:
 | Rust format              | `cargo fmt --all` (from `src-tauri/`)                         |
 | Rust lint                | `cargo clippy --all-targets --all-features -- -D warnings`    |
 | Generated TS bindings    | `npm run gen:bindings:check`                                  |
+| Wiki pages               | `npm run check:wiki`                                          |
 | Tests (frontend + Rust)  | `npm run test`                                                |
 | End-to-end tests         | `npm run test:e2e`                                            |
 

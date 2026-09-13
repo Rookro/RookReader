@@ -20,6 +20,7 @@
     "format": "biome format --write src",
     "check": "biome check src",
     "check:fix": "biome check --write src",
+    "check:wiki": "tsx scripts/check-wiki.ts",
     "licenses": "npm run mk-licenses-dir && npm run licenses:frontend && npm run licenses:backend",
     "mk-licenses-dir": "node -e \"require('fs').mkdirSync('src-tauri/target/dependencies/licenses', { recursive: true })\"",
     "licenses:backend": "cargo about generate --manifest-path src-tauri/Cargo.toml src-tauri/about.hbs --output-file src-tauri/target/dependencies/licenses/backend-licenses.html",

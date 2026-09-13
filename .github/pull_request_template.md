@@ -14,7 +14,7 @@
 * [ ] My code follows the style guidelines of this project.
 * [ ] I have performed a self-review of my own code.
 * [ ] I have commented my code in English, particularly in hard-to-understand areas.
-* [ ] I have made corresponding changes to the documentation.
+* [ ] I have updated `docs/wiki/` (and `README.md` / `CHANGELOG.md` where relevant) for every user-visible or developer-workflow change, and `npm run check:wiki` passes — or no documentation change was needed.
 * [ ] My changes generate no new warnings (e.g., passed `cargo clippy` for Rust, Biome check for frontend).
 * [ ] I have run the test suites and they pass (`npm run test`, and `npm run test:e2e` if applicable).
 * [ ] If I changed Rust types exposed to the frontend, I regenerated the TypeScript bindings (`npm run gen:bindings`) and committed the result (`npm run gen:bindings:check` passes).
