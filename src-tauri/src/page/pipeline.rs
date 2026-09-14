@@ -13,7 +13,10 @@
 
 use std::{io::Cursor, sync::Arc};
 
-use image::{DynamicImage, ImageDecoder, ImageFormat, ImageReader, Limits};
+use image::{
+    codecs::png::PngEncoder, DynamicImage, ImageDecoder, ImageEncoder, ImageError, ImageReader,
+    Limits,
+};
 
 use crate::{
     error::Result,
@@ -146,7 +149,8 @@ impl Pipeline {
     /// Resizes into `fit` and writes the result as PNG.
     ///
     /// The EXIF orientation is applied to the pixels first. The PNG written here carries
-    /// no EXIF, so the browser has nothing to rotate a second time.
+    /// no EXIF, so the browser has nothing to rotate a second time. The ICC profile, if
+    /// there is one, is copied across so the colours are read the way the source meant.
     ///
     /// Lossless, because the page is now drawn at 1:1 and a re-encode's artifacts would
     /// be shown at full size rather than blurred away by the browser's downscale. PNG is
@@ -160,6 +164,7 @@ impl Pipeline {
         // What `ImageReader::decode` checks before allocating the pixel buffer.
         Limits::default().reserve(decoder.total_bytes())?;
         let orientation = decoder.orientation()?;
+        let icc_profile = decoder.icc_profile()?;
         let mut dyn_image = DynamicImage::from_decoder(decoder)?;
         dyn_image.apply_orientation(orientation);
 
@@ -167,7 +172,13 @@ impl Pipeline {
         let scaled_image = shrink_to_fit(&dyn_image, fit.width, fit.height, self.resize_method)?;
 
         let mut buffer = Vec::new();
-        scaled_image.write_to(&mut Cursor::new(&mut buffer), ImageFormat::Png)?;
+        let mut encoder = PngEncoder::new(&mut buffer);
+        if let Some(profile) = icc_profile {
+            encoder
+                .set_icc_profile(profile)
+                .map_err(ImageError::Unsupported)?;
+        }
+        scaled_image.write_with_encoder(encoder)?;
 
         Ok(Arc::new(Image {
             data: buffer,
@@ -179,7 +190,7 @@ impl Pipeline {
 
 #[cfg(test)]
 mod tests {
-    use image::ImageEncoder;
+    use image::ImageFormat;
 
     use super::*;
 
@@ -388,6 +399,31 @@ mod tests {
         assert_eq!(
             decoder.orientation().unwrap(),
             image::metadata::Orientation::NoTransforms
+        );
+    }
+
+    /// `opaque_png` tagged with a (dummy) ICC profile. `png` stores the bytes verbatim.
+    fn profiled_png() -> Vec<u8> {
+        let mut buffer = Vec::new();
+        let mut encoder = PngEncoder::new(&mut buffer);
+        encoder
+            .set_icc_profile(b"not a real profile".to_vec())
+            .unwrap();
+        decode(&opaque_png()).write_with_encoder(encoder).unwrap();
+        buffer
+    }
+
+    #[test]
+    fn shrinking_keeps_the_icc_profile() {
+        let pipeline = displaying(2, 100);
+        let image = pipeline.page(profiled_png(), pipeline.fit()).unwrap();
+        assert_eq!((image.width, image.height), (2, 1));
+
+        let mut decoder =
+            image::codecs::png::PngDecoder::new(Cursor::new(&image.data[..])).unwrap();
+        assert_eq!(
+            decoder.icc_profile().unwrap().as_deref(),
+            Some(&b"not a real profile"[..])
         );
     }
 
