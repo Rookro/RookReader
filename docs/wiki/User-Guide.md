@@ -185,7 +185,7 @@ The file list's **sort order** (Name↑/↓, Date↑/↓) is chosen in the File 
 - **Reading history**: record the books you read and your position in them.
 
 ### Rendering & Performance
-Pages are always rendered at the size they are displayed at, which keeps screentones free of moiré.
+Pages are always rendered at the size they are displayed at, which keeps screentones free of moiré. Animated pages (GIF, APNG, WebP) are the exception: they are never resized, so every frame plays.
 - **Show preview while loading**: display a low-resolution thumbnail until the full page is ready.
 - **Maximum image height (px)**: an additional cap on page height. A page taller than this is shrunk to it even when the reader area is taller; `0` lets the reader area alone decide.
 - **Resizing method**: the resampling algorithm, from Nearest Neighbor (fastest) to Lanczos 3 (best quality, the default).
