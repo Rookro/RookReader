@@ -20,7 +20,7 @@ use crate::{
     image::{
         resizer::{shrink_to_fit, ResizeFilter},
         thumbnail::generate_thumbnail,
-        types::Image,
+        types::{is_animated, Image},
     },
 };
 
@@ -97,7 +97,9 @@ impl Pipeline {
     /// Prepares one page for display: decode, fit into `fit`, re-encode.
     ///
     /// A page already inside the box is passed through untouched — no decode, no encode —
-    /// so the bytes reach the viewer exactly as the archive stored them.
+    /// so the bytes reach the viewer exactly as the archive stored them. So is an animated
+    /// page whatever its size: a resample keeps one frame, and the browser scaling an
+    /// animation is the lesser loss.
     ///
     /// # Arguments
     ///
@@ -109,7 +111,7 @@ impl Pipeline {
     /// Returns an `Err` if the bytes are not a supported image, or the resize fails.
     pub fn page(&self, bytes: Vec<u8>, fit: Fit) -> Result<Arc<Image>> {
         let image = Image::new(bytes)?;
-        if fit.holds(image.width, image.height) {
+        if fit.holds(image.width, image.height) || is_animated(&image.data)? {
             return Ok(Arc::new(image));
         }
         self.shrink(&image.data, fit)
@@ -245,6 +247,19 @@ mod tests {
         let pipeline = displaying(100, 100);
         let image = pipeline.page(bytes.clone(), pipeline.fit()).unwrap();
         assert_eq!(image.data, bytes);
+    }
+
+    #[test]
+    fn an_animated_page_passes_through_even_outside_the_box() {
+        let bytes = crate::image::types::tests::animated_gif();
+        let pipeline = displaying(2, 100);
+
+        // The still fixture of the same size is shrunk by this box (see
+        // `page_shrinks_to_the_display_box`); the animation is not, or it would lose
+        // every frame but the first.
+        let image = pipeline.page(bytes.clone(), pipeline.fit()).unwrap();
+        assert_eq!(image.data, bytes);
+        assert_eq!((image.width, image.height), (4, 2));
     }
 
     #[test]
