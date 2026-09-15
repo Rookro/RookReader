@@ -7,6 +7,14 @@ use image::{
 use serde::{Deserialize, Serialize};
 use tauri::ipc::Response;
 
+use super::avif;
+
+/// Bytes a reader takes from the front of a page before falling back to a full read when
+/// it only needs the dimensions. A PNG `IHDR` sits in the first 33 bytes, a JPEG `SOF`
+/// marker within the first few KiB even behind a large EXIF block, and an AVIF's `meta`
+/// box precedes its coded pixels — so this bound turns a 200-page scan into a header probe.
+pub const HEADER_PROBE_BYTES: u64 = 64 * 1024;
+
 /// The pixel dimensions of a single image, without its data.
 #[derive(Serialize, Deserialize, specta::Type, Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ImageDimensions {
@@ -32,6 +40,11 @@ pub struct ImageDimensions {
 /// not a supported image.
 pub fn read_dimensions(data: &[u8]) -> Result<ImageDimensions, image::ImageError> {
     let image_reader = ImageReader::new(Cursor::new(data)).with_guessed_format()?;
+    // `image`'s AVIF decoder decodes the whole picture to learn its size; the container
+    // states it up front.
+    if image_reader.format() == Some(ImageFormat::Avif) {
+        return avif::read_dimensions(data);
+    }
     let (width, height) = image_reader.into_dimensions()?;
     Ok(ImageDimensions { width, height })
 }
@@ -107,7 +120,7 @@ impl Image {
 
     /// Checks if a filename has a supported image file extension.
     ///
-    /// Supported formats are based on common web formats like PNG, JPEG, GIF, and WebP.
+    /// Supported formats are based on common web formats like PNG, JPEG, GIF, WebP and AVIF.
     /// The check is case-insensitive.
     ///
     /// # Arguments
@@ -120,8 +133,7 @@ impl Image {
     pub fn is_supported_format(filename: &str) -> bool {
         let lowercase_name = filename.to_lowercase();
         lowercase_name.ends_with(".apng")
-            // AVIF images are not supported because image crate require a external library for avif support.
-            //|| lowercase_name.ends_with(".avif")
+            || lowercase_name.ends_with(".avif")
             || lowercase_name.ends_with(".gif")
             || lowercase_name.ends_with(".jpg")
             || lowercase_name.ends_with(".jpeg")
@@ -258,6 +270,7 @@ pub(crate) mod tests {
     #[case::still_png(still_png(), false)]
     #[case::animated_webp(animated_webp(), true)]
     #[case::still_webp(still_webp(), false)]
+    #[case::avif(crate::image::avif::tests::avif(), false)]
     #[case::jpeg(jpeg(), false)]
     fn test_is_animated(#[case] data: Vec<u8>, #[case] expected: bool) {
         // Every fixture must be something the pipeline would accept in the first place.
@@ -278,8 +291,8 @@ pub(crate) mod tests {
     #[rstest]
     #[case("test.apng", true)]
     #[case("test.APNG", true)]
-    #[case("test.avif", false)] // Currently not supported
-    #[case("test.AVIF", false)] // Currently not supported
+    #[case("test.avif", true)]
+    #[case("test.AVIF", true)]
     #[case("test.gif", true)]
     #[case("test.GIF", true)]
     #[case("test.jpg", true)]
@@ -361,6 +374,21 @@ pub(crate) mod tests {
             }
         );
         assert!(image::load_from_memory(&corrupt_idat).is_err());
+    }
+
+    #[test]
+    fn test_read_dimensions_of_an_avif_without_decoding_it() {
+        // A 200-page scan must not run dav1d once per page: the size comes from the header
+        // alone, so a probe that stops short of `mdat` is enough.
+        let data = crate::image::avif::tests::avif();
+        let mdat = data.windows(4).position(|w| w == b"mdat").unwrap();
+        assert_eq!(
+            read_dimensions(&data[..mdat - 4]).unwrap(),
+            ImageDimensions {
+                width: 8,
+                height: 4
+            }
+        );
     }
 
     #[test]

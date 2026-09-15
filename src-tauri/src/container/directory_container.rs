@@ -1,11 +1,15 @@
-use std::{collections::HashSet, fs::read_dir, path::PathBuf, sync::Arc};
-
-use image::ImageReader;
+use std::{
+    collections::HashSet,
+    fs::{read_dir, File},
+    io::Read,
+    path::PathBuf,
+    sync::Arc,
+};
 
 use crate::{
     container::traits::{Container, PageReader},
     error::{Error, Result},
-    image::types::{Image, ImageDimensions},
+    image::types::{read_dimensions, Image, ImageDimensions, HEADER_PROBE_BYTES},
 };
 
 /// An implementation of the `Container` trait for browsing images in a filesystem directory.
@@ -70,11 +74,20 @@ impl PageReader for DirectoryReader {
     }
 
     fn page_dimensions(&mut self, entry: &str) -> Result<ImageDimensions> {
-        let file_path = self.resolve(entry)?;
-        let (width, height) = ImageReader::open(file_path)?
-            .with_guessed_format()?
-            .into_dimensions()?;
-        Ok(ImageDimensions { width, height })
+        let mut file = File::open(self.resolve(entry)?)?;
+        // A header probe first, as the ZIP reader does; the rest of the file is read only
+        // when the header alone does not say.
+        let mut head = Vec::new();
+        (&mut file)
+            .take(HEADER_PROBE_BYTES)
+            .read_to_end(&mut head)?;
+        match read_dimensions(&head) {
+            Ok(dimensions) => Ok(dimensions),
+            Err(_) => {
+                file.read_to_end(&mut head)?;
+                Ok(read_dimensions(&head)?)
+            }
+        }
     }
 }
 
@@ -172,6 +185,28 @@ mod tests {
             crate::image::types::read_dimensions(&bytes).unwrap()
         );
         assert_eq!(reader.read_preview("image1.png").unwrap(), None);
+    }
+
+    #[test]
+    fn directory_reader_lists_and_measures_an_avif() {
+        let dir = tempdir().expect("failed to create tempdir");
+        fs::write(
+            dir.path().join("page.avif"),
+            crate::image::avif::tests::avif(),
+        )
+        .unwrap();
+        let container = DirectoryContainer::new(dir.path().to_string_lossy().as_ref())
+            .expect("failed to create DirectoryContainer");
+        assert_eq!(container.entries, ["page.avif"]);
+
+        let mut reader = container.open_reader().expect("failed to open a reader");
+        assert_eq!(
+            reader.page_dimensions("page.avif").unwrap(),
+            ImageDimensions {
+                width: 8,
+                height: 4
+            }
+        );
     }
 
     #[test]

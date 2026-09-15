@@ -284,6 +284,16 @@ mod tests {
     }
 
     #[test]
+    fn an_avif_page_shrinks_like_any_other() {
+        let pipeline = displaying(2, 100);
+        let image = pipeline
+            .page(crate::image::avif::tests::avif(), pipeline.fit())
+            .unwrap();
+        assert_eq!((image.width, image.height), (2, 1));
+        assert_eq!(image::guess_format(&image.data).unwrap(), ImageFormat::Png);
+    }
+
+    #[test]
     fn page_shrinks_to_the_display_box() {
         let pipeline = displaying(2, 100);
         let image = pipeline.page(opaque_png(), pipeline.fit()).unwrap();
