@@ -1,6 +1,9 @@
 use std::io::Cursor;
 
-use image::ImageReader;
+use image::{
+    codecs::{gif::GifDecoder, png::PngDecoder, webp::WebPDecoder},
+    AnimationDecoder, ImageFormat, ImageReader,
+};
 use serde::{Deserialize, Serialize};
 use tauri::ipc::Response;
 
@@ -31,6 +34,37 @@ pub fn read_dimensions(data: &[u8]) -> Result<ImageDimensions, image::ImageError
     let image_reader = ImageReader::new(Cursor::new(data)).with_guessed_format()?;
     let (width, height) = image_reader.into_dimensions()?;
     Ok(ImageDimensions { width, height })
+}
+
+/// Whether an encoded image carries more than one frame.
+///
+/// Reads only what each format needs to answer: the PNG and WebP headers, and for GIF
+/// up to two frames, since its container does not announce a frame count.
+///
+/// # Arguments
+///
+/// * `data` - The encoded bytes of an image file.
+///
+/// # Returns
+///
+/// `true` for an animated GIF, APNG or animated WebP; `false` for every other image.
+///
+/// # Errors
+///
+/// Returns an `image::ImageError` if the bytes look like a GIF, PNG or WebP whose header
+/// cannot be read.
+pub fn is_animated(data: &[u8]) -> Result<bool, image::ImageError> {
+    let reader = ImageReader::new(Cursor::new(data)).with_guessed_format()?;
+    let animated = match reader.format() {
+        Some(ImageFormat::Gif) => GifDecoder::new(reader.into_inner())?
+            .into_frames()
+            .nth(1)
+            .is_some(),
+        Some(ImageFormat::Png) => PngDecoder::new(reader.into_inner())?.is_apng()?,
+        Some(ImageFormat::WebP) => WebPDecoder::new(reader.into_inner())?.has_animation(),
+        _ => false,
+    };
+    Ok(animated)
 }
 
 /// Represents image data and its dimensions.
@@ -115,10 +149,131 @@ impl Image {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
+    use image::{codecs::gif::GifEncoder, DynamicImage, Frame, RgbImage, Rgba, RgbaImage};
     use rstest::*;
 
     use super::*;
+
+    /// A 4x2 two-frame GIF.
+    pub(crate) fn animated_gif() -> Vec<u8> {
+        let mut buffer = Vec::new();
+        {
+            let mut encoder = GifEncoder::new(&mut buffer);
+            let frames = [[255u8, 0, 0, 255], [0, 0, 255, 255]]
+                .map(|px| Frame::new(RgbaImage::from_pixel(4, 2, Rgba(px))));
+            encoder.encode_frames(frames).unwrap();
+        }
+        buffer
+    }
+
+    /// A 4x2 single-frame GIF.
+    fn still_gif() -> Vec<u8> {
+        let mut buffer = Vec::new();
+        DynamicImage::ImageRgba8(RgbaImage::new(4, 2))
+            .write_to(&mut Cursor::new(&mut buffer), ImageFormat::Gif)
+            .unwrap();
+        buffer
+    }
+
+    /// A 4x2 two-frame APNG. `image` cannot write one, so this goes through `png` directly.
+    fn apng() -> Vec<u8> {
+        let mut buffer = Vec::new();
+        {
+            let mut encoder = png::Encoder::new(&mut buffer, 4, 2);
+            encoder.set_color(png::ColorType::Rgb);
+            encoder.set_animated(2, 0).unwrap();
+            let mut writer = encoder.write_header().unwrap();
+            writer.write_image_data(&[0u8; 24]).unwrap();
+            writer.write_image_data(&[255u8; 24]).unwrap();
+            writer.finish().unwrap();
+        }
+        buffer
+    }
+
+    fn still_png() -> Vec<u8> {
+        let mut buffer = Vec::new();
+        DynamicImage::ImageRgb8(RgbImage::new(4, 2))
+            .write_to(&mut Cursor::new(&mut buffer), ImageFormat::Png)
+            .unwrap();
+        buffer
+    }
+
+    fn still_webp() -> Vec<u8> {
+        let mut buffer = Vec::new();
+        DynamicImage::ImageRgb8(RgbImage::new(4, 2))
+            .write_to(&mut Cursor::new(&mut buffer), ImageFormat::WebP)
+            .unwrap();
+        buffer
+    }
+
+    /// A 4x2 two-frame animated WebP. `image-webp` only writes stills, so the animated
+    /// container is assembled by hand around the VP8L chunk it produced.
+    fn animated_webp() -> Vec<u8> {
+        fn chunk(fourcc: &[u8; 4], payload: &[u8]) -> Vec<u8> {
+            let mut out = fourcc.to_vec();
+            out.extend_from_slice(&(payload.len() as u32).to_le_bytes());
+            out.extend_from_slice(payload);
+            if payload.len() % 2 == 1 {
+                out.push(0);
+            }
+            out
+        }
+
+        // A simple-format still is "RIFF" + size + "WEBP" + the VP8L chunk.
+        let still = still_webp();
+        let vp8l_chunk = &still[12..];
+
+        // ANMF: x/2, y/2, width-1, height-1, duration (3 bytes each), flags, then the frame.
+        let mut frame = vec![0, 0, 0, 0, 0, 0, 3, 0, 0, 1, 0, 0, 100, 0, 0, 0];
+        frame.extend_from_slice(vp8l_chunk);
+        let anmf = chunk(b"ANMF", &frame);
+
+        let mut body = b"WEBP".to_vec();
+        // VP8X: flags (0x02 = animation), reserved, canvas width-1 and height-1 (3 bytes each).
+        body.extend(chunk(b"VP8X", &[0x02, 0, 0, 0, 3, 0, 0, 1, 0, 0]));
+        // ANIM: background colour, loop count 0 (forever).
+        body.extend(chunk(b"ANIM", &[0, 0, 0, 0, 0, 0]));
+        body.extend_from_slice(&anmf);
+        body.extend_from_slice(&anmf);
+
+        let mut out = b"RIFF".to_vec();
+        out.extend_from_slice(&(body.len() as u32).to_le_bytes());
+        out.extend(body);
+        out
+    }
+
+    fn jpeg() -> Vec<u8> {
+        let mut buffer = Vec::new();
+        DynamicImage::ImageRgb8(RgbImage::new(4, 2))
+            .write_to(&mut Cursor::new(&mut buffer), ImageFormat::Jpeg)
+            .unwrap();
+        buffer
+    }
+
+    #[rstest]
+    #[case::animated_gif(animated_gif(), true)]
+    #[case::still_gif(still_gif(), false)]
+    #[case::apng(apng(), true)]
+    #[case::still_png(still_png(), false)]
+    #[case::animated_webp(animated_webp(), true)]
+    #[case::still_webp(still_webp(), false)]
+    #[case::jpeg(jpeg(), false)]
+    fn test_is_animated(#[case] data: Vec<u8>, #[case] expected: bool) {
+        // Every fixture must be something the pipeline would accept in the first place.
+        assert!(Image::new(data.clone()).is_ok());
+        assert_eq!(is_animated(&data).unwrap(), expected);
+    }
+
+    #[test]
+    fn test_is_animated_with_truncated_header() {
+        assert!(is_animated(b"GIF89a").is_err());
+    }
+
+    #[test]
+    fn test_is_animated_with_unknown_format() {
+        assert!(!is_animated(b"not an image").unwrap());
+    }
 
     #[rstest]
     #[case("test.apng", true)]

@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * Resized pages are no longer re-compressed as JPEG, which uses more memory. Lower the image cache size in Settings → Rendering & Performance if needed.
   * The default resizing method for new installs is now Lanczos3. Existing settings are unchanged.
 * Fixed the bookshelf search box not opening the right-click menu, so text can be cut, copied, and pasted there like in the reader's path box. (#325)
+* Fixed pages larger than the reader area losing their animation, EXIF orientation and colour profile when shrunk. (#328)
+  * Animated GIF, APNG and WebP pages are no longer resized, so every frame plays.
+  * Photos stored on their side are now shown upright, and a page with an embedded ICC profile keeps its colours.
 
 ## [2.5.0] - 2026-09-06
 

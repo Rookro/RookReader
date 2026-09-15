@@ -13,14 +13,17 @@
 
 use std::{io::Cursor, sync::Arc};
 
-use image::{ImageFormat, ImageReader};
+use image::{
+    codecs::png::PngEncoder, DynamicImage, ImageDecoder, ImageEncoder, ImageError, ImageReader,
+    Limits,
+};
 
 use crate::{
     error::Result,
     image::{
         resizer::{shrink_to_fit, ResizeFilter},
         thumbnail::generate_thumbnail,
-        types::Image,
+        types::{is_animated, Image},
     },
 };
 
@@ -97,7 +100,9 @@ impl Pipeline {
     /// Prepares one page for display: decode, fit into `fit`, re-encode.
     ///
     /// A page already inside the box is passed through untouched — no decode, no encode —
-    /// so the bytes reach the viewer exactly as the archive stored them.
+    /// so the bytes reach the viewer exactly as the archive stored them. So is an animated
+    /// page whatever its size: a resample keeps one frame, and the browser scaling an
+    /// animation is the lesser loss.
     ///
     /// # Arguments
     ///
@@ -109,7 +114,7 @@ impl Pipeline {
     /// Returns an `Err` if the bytes are not a supported image, or the resize fails.
     pub fn page(&self, bytes: Vec<u8>, fit: Fit) -> Result<Arc<Image>> {
         let image = Image::new(bytes)?;
-        if fit.holds(image.width, image.height) {
+        if fit.holds(image.width, image.height) || is_animated(&image.data)? {
             return Ok(Arc::new(image));
         }
         self.shrink(&image.data, fit)
@@ -143,21 +148,37 @@ impl Pipeline {
 
     /// Resizes into `fit` and writes the result as PNG.
     ///
+    /// The EXIF orientation is applied to the pixels first. The PNG written here carries
+    /// no EXIF, so the browser has nothing to rotate a second time. The ICC profile, if
+    /// there is one, is copied across so the colours are read the way the source meant.
+    ///
     /// Lossless, because the page is now drawn at 1:1 and a re-encode's artifacts would
     /// be shown at full size rather than blurred away by the browser's downscale. PNG is
     /// also the cheapest of the candidates a browser reads: `image`'s JPEG encoder is
     /// scalar pure Rust and takes 27-42 ms a page against PNG's 4-10 ms, and on line art
     /// it comes out larger as well.
     fn shrink(&self, data: &[u8], fit: Fit) -> Result<Arc<Image>> {
-        let dyn_image = ImageReader::new(Cursor::new(data))
+        let mut decoder = ImageReader::new(Cursor::new(data))
             .with_guessed_format()?
-            .decode()?;
+            .into_decoder()?;
+        // What `ImageReader::decode` checks before allocating the pixel buffer.
+        Limits::default().reserve(decoder.total_bytes())?;
+        let orientation = decoder.orientation()?;
+        let icc_profile = decoder.icc_profile()?;
+        let mut dyn_image = DynamicImage::from_decoder(decoder)?;
+        dyn_image.apply_orientation(orientation);
 
         // Use SIMD accelerated resizing.
         let scaled_image = shrink_to_fit(&dyn_image, fit.width, fit.height, self.resize_method)?;
 
         let mut buffer = Vec::new();
-        scaled_image.write_to(&mut Cursor::new(&mut buffer), ImageFormat::Png)?;
+        let mut encoder = PngEncoder::new(&mut buffer);
+        if let Some(profile) = icc_profile {
+            encoder
+                .set_icc_profile(profile)
+                .map_err(ImageError::Unsupported)?;
+        }
+        scaled_image.write_with_encoder(encoder)?;
 
         Ok(Arc::new(Image {
             data: buffer,
@@ -169,6 +190,8 @@ impl Pipeline {
 
 #[cfg(test)]
 mod tests {
+    use image::ImageFormat;
+
     use super::*;
 
     /// A 4x2 opaque PNG of four saturated columns, so a resize is visible and a lossy
@@ -245,6 +268,19 @@ mod tests {
         let pipeline = displaying(100, 100);
         let image = pipeline.page(bytes.clone(), pipeline.fit()).unwrap();
         assert_eq!(image.data, bytes);
+    }
+
+    #[test]
+    fn an_animated_page_passes_through_even_outside_the_box() {
+        let bytes = crate::image::types::tests::animated_gif();
+        let pipeline = displaying(2, 100);
+
+        // The still fixture of the same size is shrunk by this box (see
+        // `page_shrinks_to_the_display_box`); the animation is not, or it would lose
+        // every frame but the first.
+        let image = pipeline.page(bytes.clone(), pipeline.fit()).unwrap();
+        assert_eq!(image.data, bytes);
+        assert_eq!((image.width, image.height), (4, 2));
     }
 
     #[test]
@@ -327,6 +363,68 @@ mod tests {
         // pixel for pixel. This is the assertion the old JPEG encoder fails.
         let expected = shrink_to_fit(&decode(&bytes), 2, 100, ResizeFilter::Bilinear).unwrap();
         assert_eq!(decode(&image.data).to_rgb8(), expected.to_rgb8());
+    }
+
+    /// A minimal big-endian EXIF block whose only entry is Orientation = 6 (rotate 90° CW).
+    const EXIF_ROTATE_90: [u8; 26] = [
+        0x4D, 0x4D, 0x00, 0x2A, // "MM", 42
+        0x00, 0x00, 0x00, 0x08, // offset of the first IFD
+        0x00, 0x01, // one entry
+        0x01, 0x12, 0x00, 0x03, // tag 0x0112 Orientation, type SHORT
+        0x00, 0x00, 0x00, 0x01, // count 1
+        0x00, 0x06, 0x00, 0x00, // value 6, padding
+        0x00, 0x00, 0x00, 0x00, // no next IFD
+    ];
+
+    /// `opaque_png` with an eXIf chunk that says the page is stored on its side.
+    fn rotated_png() -> Vec<u8> {
+        let mut buffer = Vec::new();
+        let mut encoder = image::codecs::png::PngEncoder::new(&mut buffer);
+        encoder.set_exif_metadata(EXIF_ROTATE_90.to_vec()).unwrap();
+        decode(&opaque_png()).write_with_encoder(encoder).unwrap();
+        buffer
+    }
+
+    #[test]
+    fn shrinking_applies_the_exif_orientation() {
+        // The header says 4x2, so a 1-wide box shrinks it. Upright the page is 2x4, and
+        // 2x4 into 1x100 is 1x2; unrotated it would have come out 1x1.
+        let pipeline = displaying(1, 100);
+        let image = pipeline.page(rotated_png(), pipeline.fit()).unwrap();
+        assert_eq!((image.width, image.height), (1, 2));
+
+        // Nothing is left for the browser to rotate again.
+        let mut decoder =
+            image::codecs::png::PngDecoder::new(Cursor::new(&image.data[..])).unwrap();
+        assert_eq!(
+            decoder.orientation().unwrap(),
+            image::metadata::Orientation::NoTransforms
+        );
+    }
+
+    /// `opaque_png` tagged with a (dummy) ICC profile. `png` stores the bytes verbatim.
+    fn profiled_png() -> Vec<u8> {
+        let mut buffer = Vec::new();
+        let mut encoder = PngEncoder::new(&mut buffer);
+        encoder
+            .set_icc_profile(b"not a real profile".to_vec())
+            .unwrap();
+        decode(&opaque_png()).write_with_encoder(encoder).unwrap();
+        buffer
+    }
+
+    #[test]
+    fn shrinking_keeps_the_icc_profile() {
+        let pipeline = displaying(2, 100);
+        let image = pipeline.page(profiled_png(), pipeline.fit()).unwrap();
+        assert_eq!((image.width, image.height), (2, 1));
+
+        let mut decoder =
+            image::codecs::png::PngDecoder::new(Cursor::new(&image.data[..])).unwrap();
+        assert_eq!(
+            decoder.icc_profile().unwrap().as_deref(),
+            Some(&b"not a real profile"[..])
+        );
     }
 
     #[test]

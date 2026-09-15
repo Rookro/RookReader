@@ -5005,6 +5005,7 @@ dependencies = [
  "mockall",
  "natord",
  "pdfium-render",
+ "png 0.18.1",
  "rayon",
  "rbook",
  "reqwest",
