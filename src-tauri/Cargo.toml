@@ -40,7 +40,8 @@ tauri-plugin-fs = { version = "2", features = ["watch"] }
 zip = "8.6.0"
 tauri-plugin-log = "2"
 log = "0.4"
-image = "0.25"
+# `avif-native` decodes AVIF through libdav1d, built by vcpkg; see CONTRIBUTING.md.
+image = { version = "0.25", features = ["avif-native"] }
 encoding_rs = "0.8.35"
 fast_image_resize = { version = "6", features = ["image", "rayon"] }
 tauri-plugin-os = "2"

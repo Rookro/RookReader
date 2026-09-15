@@ -37,6 +37,11 @@ RookReader is built with **Tauri**, using **React**, **TypeScript**, and **Rust*
   ```bash
   cargo install cargo-about --locked --features cli
   ```
+* [vcpkg](https://github.com/microsoft/vcpkg) (Windows) — builds the static libdav1d that the `image` crate's `avif-native` feature links for AVIF pages. Clone it, bootstrap it (`bootstrap-vcpkg.bat`) and put it on your `PATH`. Then, once, in `src-tauri/`:
+  ```powershell
+  vcpkg install --triplet rookreader-static
+  ```
+  This builds `dav1d` from source into the git-ignored `src-tauri/vcpkg_installed/`, which the repo's `.cargo/config.toml` points the build at; no environment variables are needed. The dav1d version is the one your vcpkg checkout carries; `git pull` it to get a newer one. On Linux, use the Dev Container below: it contains vcpkg and runs this command when the container is created, so nothing is installed on the host.
 
 *Note: We also support development using **Dev Containers**. If your editor (like VS Code) supports it, you can open the project in a container for a ready-to-use environment that includes all of the above.*
 
