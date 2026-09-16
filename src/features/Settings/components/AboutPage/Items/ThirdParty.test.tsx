@@ -20,6 +20,7 @@ describe("ThirdParty", () => {
     expect(screen.getByText(/Frontend Licenses/i)).toBeInTheDocument();
     expect(screen.getByText(/Backend Licenses/i)).toBeInTheDocument();
     expect(screen.getByText(/PDFium License/i)).toBeInTheDocument();
+    expect(screen.getByText(/dav1d License/i)).toBeInTheDocument();
   });
 
   it("should open license files when buttons are clicked", async () => {
@@ -48,6 +49,13 @@ describe("ThirdParty", () => {
     await waitFor(() => {
       expect(resolveResource).toHaveBeenCalledWith("licenses/pdfium/");
       expect(openPath).toHaveBeenCalledWith("/mock/resource/licenses/pdfium/");
+    });
+
+    // dav1d
+    await user.click(screen.getByText(/dav1d License/i));
+    await waitFor(() => {
+      expect(resolveResource).toHaveBeenCalledWith("licenses/dav1d/");
+      expect(openPath).toHaveBeenCalledWith("/mock/resource/licenses/dav1d/");
     });
   });
 });

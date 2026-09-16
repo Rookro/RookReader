@@ -384,7 +384,8 @@
         "frontend": "Frontend licenses (npm)",
         "backend": "Backend licenses (cargo)",
         "bundled": "Bundled Library Licenses",
-        "pdfium": "PDFium license"
+        "pdfium": "PDFium license",
+        "dav1d": "dav1d license"
       }
     }
   },

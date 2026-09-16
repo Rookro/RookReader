@@ -384,7 +384,8 @@
         "frontend": "フロントエンドのライセンス (npm)",
         "backend": "バックエンドのライセンス (cargo)",
         "bundled": "バンドルしているライブラリーのライセンス",
-        "pdfium": "PDFium ライセンス"
+        "pdfium": "PDFium ライセンス",
+        "dav1d": "dav1d ライセンス"
       }
     }
   },
