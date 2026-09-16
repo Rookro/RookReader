@@ -14,13 +14,14 @@
 use std::{io::Cursor, sync::Arc};
 
 use image::{
-    codecs::png::PngEncoder, DynamicImage, ImageDecoder, ImageEncoder, ImageError, ImageReader,
-    Limits,
+    codecs::png::PngEncoder, DynamicImage, ImageDecoder, ImageEncoder, ImageError, ImageFormat,
+    ImageReader, Limits,
 };
 
 use crate::{
     error::Result,
     image::{
+        avif,
         resizer::{shrink_to_fit, ResizeFilter},
         thumbnail::generate_thumbnail,
         types::{is_animated, Image},
@@ -148,9 +149,10 @@ impl Pipeline {
 
     /// Resizes into `fit` and writes the result as PNG.
     ///
-    /// The EXIF orientation is applied to the pixels first. The PNG written here carries
-    /// no EXIF, so the browser has nothing to rotate a second time. The ICC profile, if
-    /// there is one, is copied across so the colours are read the way the source meant.
+    /// The orientation — EXIF, or an AVIF's `irot`/`imir` — is applied to the pixels
+    /// first. The PNG written here carries no EXIF, so the browser has nothing to rotate
+    /// a second time. The ICC profile, if there is one, is copied across so the colours
+    /// are read the way the source meant.
     ///
     /// Lossless, because the page is now drawn at 1:1 and a re-encode's artifacts would
     /// be shown at full size rather than blurred away by the browser's downscale. PNG is
@@ -158,12 +160,17 @@ impl Pipeline {
     /// scalar pure Rust and takes 27-42 ms a page against PNG's 4-10 ms, and on line art
     /// it comes out larger as well.
     fn shrink(&self, data: &[u8], fit: Fit) -> Result<Arc<Image>> {
-        let mut decoder = ImageReader::new(Cursor::new(data))
-            .with_guessed_format()?
-            .into_decoder()?;
+        let reader = ImageReader::new(Cursor::new(data)).with_guessed_format()?;
+        let format = reader.format();
+        let mut decoder = reader.into_decoder()?;
         // What `ImageReader::decode` checks before allocating the pixel buffer.
         Limits::default().reserve(decoder.total_bytes())?;
-        let orientation = decoder.orientation()?;
+        // `image`'s AVIF decoder reports no orientation; the container's own boxes do.
+        let orientation = if format == Some(ImageFormat::Avif) {
+            avif::orientation(data)?
+        } else {
+            decoder.orientation()?
+        };
         let icc_profile = decoder.icc_profile()?;
         let mut dyn_image = DynamicImage::from_decoder(decoder)?;
         dyn_image.apply_orientation(orientation);
@@ -190,8 +197,6 @@ impl Pipeline {
 
 #[cfg(test)]
 mod tests {
-    use image::ImageFormat;
-
     use super::*;
 
     /// A 4x2 opaque PNG of four saturated columns, so a resize is visible and a lossy
@@ -410,6 +415,16 @@ mod tests {
             decoder.orientation().unwrap(),
             image::metadata::Orientation::NoTransforms
         );
+    }
+
+    #[test]
+    fn shrinking_applies_the_avif_rotation() {
+        // `ispe` says 8x4, so a 1-wide box shrinks it. `irot` 1 turns it upright to 4x8,
+        // and 4x8 into 1x100 is 1x2; unrotated it would have come out 1x1.
+        let bytes = crate::image::avif::tests::transformed_avif(&[(b"irot", &[1u8][..])]);
+        let pipeline = displaying(1, 100);
+        let image = pipeline.page(bytes, pipeline.fit()).unwrap();
+        assert_eq!((image.width, image.height), (1, 2));
     }
 
     /// `opaque_png` tagged with a (dummy) ICC profile. `png` stores the bytes verbatim.
