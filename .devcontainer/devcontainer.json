@@ -21,5 +21,6 @@
         "XDG_RUNTIME_DIR": "/tmp",
         "DISPLAY": "${localEnv:DISPLAY}"
     },
+    "postCreateCommand": "cd src-tauri && vcpkg install --triplet rookreader-static",
     "remoteUser": "vscode"
 }

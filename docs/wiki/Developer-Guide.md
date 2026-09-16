@@ -73,9 +73,9 @@ graph TD
 
 ## Development Environment Setup
 
-We highly recommend using DevContainers for a consistent development environment. The container already includes Rust, Node.js, `sqlx-cli` and `cargo-about`.
+We highly recommend using DevContainers for a consistent development environment. The container already includes Rust, Node.js, `sqlx-cli`, `cargo-about` and vcpkg, and builds libdav1d (for AVIF pages) when it is created.
 
-If you work natively instead, you need: Node.js (v22 or higher), Rust via `rustup`, the [Tauri prerequisites](https://tauri.app/start/prerequisites/) for your OS, `sqlx-cli` (`cargo install sqlx-cli`) and `cargo-about` (`cargo install cargo-about --locked --features cli`). `cargo-about` is mandatory: `npm run dev` and `npm run build` generate the third-party license files with it and fail without it.
+If you work natively instead, you need: Node.js (v22 or higher), Rust via `rustup`, the [Tauri prerequisites](https://tauri.app/start/prerequisites/) for your OS, `sqlx-cli` (`cargo install sqlx-cli`), `cargo-about` (`cargo install cargo-about --locked --features cli`) and, on Windows, vcpkg for libdav1d — see `CONTRIBUTING.md`; on Linux use the Dev Container. `cargo-about` is mandatory: `npm run dev` and `npm run build` generate the third-party license files with it and fail without it.
 
 1. Clone the repository: `git clone https://github.com/Rookro/RookReader.git`
 1. Open the folder in VS Code (or another DevContainer-compatible editor).

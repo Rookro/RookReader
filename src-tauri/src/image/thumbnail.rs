@@ -79,6 +79,12 @@ mod tests {
     }
 
     #[test]
+    fn test_generate_thumbnail_from_an_avif() {
+        let thumbnail = generate_thumbnail(&crate::image::avif::tests::avif()).unwrap();
+        assert_eq!((thumbnail.width, thumbnail.height), (8, 4));
+    }
+
+    #[test]
     fn test_generate_thumbnail_invalid_data() {
         let invalid_data = vec![0xFF, 0xD8, 0xFF, 0xE0];
         let result = generate_thumbnail(&invalid_data);

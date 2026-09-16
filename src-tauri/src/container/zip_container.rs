@@ -13,7 +13,7 @@ use crate::{
         traits::{Container, PageReader},
     },
     error::{Error, Result},
-    image::types::{read_dimensions, Image, ImageDimensions},
+    image::types::{read_dimensions, Image, ImageDimensions, HEADER_PROBE_BYTES},
 };
 
 /// Absolute ceiling for a single page's preallocation, and the largest declared
@@ -21,13 +21,6 @@ use crate::{
 /// more than this is rejected outright instead of being decompressed, so a lying
 /// header cannot drive an unbounded read.
 const MAX_PREALLOC_BYTES: u64 = 1024 * 1024 * 1024;
-
-/// Bytes of a decompressed entry [`ZipReader::page_dimensions`] reads before giving up
-/// and falling back to a full read. A PNG `IHDR` sits in the first 33 bytes and a JPEG
-/// `SOF` marker within the first few KiB, so this bound is generous even for a page
-/// carrying a large EXIF block — and it turns a 200-page scan from a full inflate of the
-/// archive into a header probe.
-const HEADER_PROBE_BYTES: u64 = 64 * 1024;
 
 /// Compression ratio we trust when anchoring the preallocation on the compressed
 /// size. This path only reads image entries (PNG/JPEG/WebP), which are already

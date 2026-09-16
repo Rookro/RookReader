@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+* AVIF pages are now supported in archives, folders and EPUBs. (#329)
+  * Animated AVIF is not supported yet.
+
 ### Fixed
 
 * Fixed moiré on screentoned pages by rendering pages at the displayed size instead of letting the browser shrink them. (#324)
