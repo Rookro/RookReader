@@ -224,11 +224,16 @@ impl ContainerState {
 
     /// Installs a previously built service, closing and replacing any open one.
     ///
+    /// The service is brought up to date with the viewport and the cache the state holds
+    /// *now*: it was built from a snapshot, and both may have changed while the build ran.
+    ///
     /// # Arguments
     ///
     /// * `service` - The service to install.
     pub fn install(&mut self, service: PageService) {
         self.clear();
+        service.set_display_size(self.display_size);
+        service.set_cache(self.image_cache.clone());
         self.service = Some(Arc::new(service));
     }
 }
@@ -556,5 +561,55 @@ mod tests {
             .page("p001.png", crate::page::service::Priority::Foreground)
             .expect("read the page");
         assert_eq!((page.width, page.height), (2, 1));
+    }
+
+    #[test]
+    fn installing_applies_the_size_reported_while_the_book_was_built() {
+        let (_dir, path) = one_page_book();
+        let mut state = ContainerState::default();
+        // Built from a snapshot taken before the viewport was reported.
+        let service = ContainerState::build_with(&state.settings, &state.image_cache, None, &path)
+            .expect("building a valid directory container should succeed");
+        state.display_size = Some(Fit {
+            width: 2,
+            height: 2,
+        });
+        state.install(service);
+
+        let page = state
+            .service_for(&path)
+            .expect("the book is open")
+            .page("p001.png", crate::page::service::Priority::Foreground)
+            .expect("read the page");
+        assert_eq!((page.width, page.height), (2, 1));
+    }
+
+    #[test]
+    fn installing_hands_the_book_the_cache_the_state_holds_now() {
+        use crate::page::cache::CacheKey;
+
+        let (_dir, path) = one_page_book();
+        let mut state = ContainerState::default();
+        // Built against the cache the state held at the time...
+        let service = ContainerState::build_with(&state.settings, &state.image_cache, None, &path)
+            .expect("building a valid directory container should succeed");
+        // ...which is then replaced before the install.
+        state.update_image_cache_size(64);
+        state.install(service);
+
+        state
+            .service_for(&path)
+            .expect("the book is open")
+            .page("p001.png", crate::page::service::Priority::Foreground)
+            .expect("read the page");
+        let key = CacheKey {
+            book_id: path.clone(),
+            entry: "p001.png".to_string(),
+            fit: Fit::UNBOUNDED,
+        };
+        assert!(
+            state.image_cache.get(&key).is_some(),
+            "the page must land in the cache the state reads, not the one it discarded"
+        );
     }
 }
