@@ -6,8 +6,6 @@ use crate::image::resizer::ResizeFilter;
 /// and dependencies for specific file types like PDF.
 #[derive(Clone)]
 pub struct ContainerSettings {
-    /// If `true`, enables the generation of low-resolution image previews for faster loading.
-    pub enable_preview: bool,
     /// The maximum height in pixels for displayed images. Images exceeding this will be resized.
     /// A value of 0 implies no height limit.
     pub max_image_height: i32,
@@ -31,7 +29,6 @@ pub struct ContainerSettings {
 impl Default for ContainerSettings {
     fn default() -> Self {
         ContainerSettings {
-            enable_preview: true,
             max_image_height: 0,
             image_resampling_method: ResizeFilter::Lanczos3,
             pdf_render_resolution_height: 2000,

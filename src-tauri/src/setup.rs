@@ -157,7 +157,7 @@ pub fn setup_container_settings(app: &App, settings: &AppSettings) -> error::Res
 /// the open `PageService`.
 ///
 /// The other values (`max_image_height`, `image_resampling_method`,
-/// `pdf_render_resolution_height`, `enable_preview`, `auto_descend_single_folder`) are
+/// `pdf_render_resolution_height`, `auto_descend_single_folder`) are
 /// stored for the **next** open: the running `PageService` captured its pipeline at
 /// construction, so changing them does not re-render the book currently on screen.
 ///
@@ -182,7 +182,6 @@ pub fn apply_reader_settings_to_container(state: &mut AppState, settings: &AppSe
         || container_settings.pdf_render_resolution_height
             != settings.reader.rendering.pdf_render_resolution_height;
 
-    container_settings.enable_preview = settings.reader.rendering.enable_thumbnail_preview;
     container_settings.max_image_height = settings.reader.rendering.max_image_height;
     container_settings.image_cache_size_mib = new_cache_size_mib;
     container_settings.page_reader_count = settings.reader.comic.cache.page_reader_count;
@@ -332,7 +331,6 @@ mod tests {
     fn test_apply_reader_settings_to_container() {
         let mut state = AppState::default();
         let mut settings = AppSettings::default();
-        settings.reader.rendering.enable_thumbnail_preview = false;
         settings.reader.rendering.max_image_height = 1234;
         settings.reader.rendering.pdf_render_resolution_height = 1500;
         settings.reader.rendering.image_resampling_method = ImageResamplingMethod::Lanczos3;
@@ -342,7 +340,6 @@ mod tests {
         apply_reader_settings_to_container(&mut state, &settings);
 
         let container_settings = &state.container_state.settings;
-        assert!(!container_settings.enable_preview);
         assert_eq!(container_settings.max_image_height, 1234);
         assert_eq!(container_settings.pdf_render_resolution_height, 1500);
         assert_eq!(
