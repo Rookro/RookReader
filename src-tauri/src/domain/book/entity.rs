@@ -24,6 +24,30 @@ pub enum ItemType {
     Directory,
 }
 
+/// The direction a comic's pages are turned in.
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Default,
+    Serialize,
+    Deserialize,
+    EnumString,
+    IntoStaticStr,
+    specta::Type,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum Direction {
+    /// Right-to-Left (e.g., traditional Japanese manga).
+    #[default]
+    Rtl,
+    /// Left-to-Right (e.g., western comics).
+    Ltr,
+}
+
 /// Represents a book entity in the database.
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 pub struct Book {
@@ -119,13 +143,13 @@ pub struct BookWithState {
     /// that is what settles where two-page spreads begin, and 200 bytes is the whole
     /// measurement for a 200-page book.
     pub landscape_bits: Option<String>,
-    /// The page direction this book opens with, `"rtl"` or `"ltr"`.
+    /// The page direction this book opens with.
     ///
     /// Seeded from the reader's default the first time the book is opened, then
     /// overwritten whenever the direction is flipped in the navigation bar. `None` until
     /// the book has been opened once, and always `None` for novels, whose direction is
     /// the EPUB's own and cannot be overridden.
-    pub reading_direction: Option<String>,
+    pub reading_direction: Option<Direction>,
     /// The last read page index, if the book has been opened.
     pub last_read_page_index: Option<i64>,
     /// The timestamp when the book was last opened, if any.
@@ -149,5 +173,15 @@ mod tests {
         );
         assert_eq!("file".parse::<ItemType>(), Ok(ItemType::File));
         assert_eq!(<&str>::from(ItemType::Directory), "directory");
+    }
+
+    #[test]
+    fn direction_is_a_lowercase_word_on_the_wire_and_in_the_database() {
+        assert_eq!(
+            serde_json::to_value(Direction::Ltr).unwrap(),
+            serde_json::json!("ltr")
+        );
+        assert_eq!("rtl".parse::<Direction>(), Ok(Direction::Rtl));
+        assert_eq!(<&str>::from(Direction::Ltr), "ltr");
     }
 }

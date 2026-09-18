@@ -1,7 +1,7 @@
 use crate::error::Result;
 use async_trait::async_trait;
 
-use super::entity::{Book, BookWithState, ItemType, ReadBook, ReadingState};
+use super::entity::{Book, BookWithState, Direction, ItemType, ReadBook, ReadingState};
 
 /// Defines the data access operations for the `Book` aggregate.
 #[cfg_attr(test, mockall::automock)]
@@ -178,12 +178,16 @@ pub trait BookRepository: Send + Sync {
     /// # Arguments
     ///
     /// * `book_id` - The book to update.
-    /// * `reading_direction` - `"rtl"` or `"ltr"`.
+    /// * `reading_direction` - The direction the book's pages are turned in.
     ///
     /// # Errors
     ///
     /// Returns an `Err` if the database update fails.
-    async fn update_reading_direction(&self, book_id: i64, reading_direction: &str) -> Result<()>;
+    async fn update_reading_direction(
+        &self,
+        book_id: i64,
+        reading_direction: Direction,
+    ) -> Result<()>;
 
     /// Records how a book's pages are shaped, so it need not be measured again.
     ///

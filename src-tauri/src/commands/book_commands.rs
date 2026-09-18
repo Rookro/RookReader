@@ -8,7 +8,9 @@ use tauri::State;
 
 use crate::container::factory::{create_container, ContainerConfig};
 use crate::container::traits::Container;
-use crate::domain::book::entity::{Book, BookWithState, ItemType, ReadBook, ReadingState};
+use crate::domain::book::entity::{
+    Book, BookWithState, Direction, ItemType, ReadBook, ReadingState,
+};
 use crate::domain::book::repository::BookRepository;
 use crate::domain::bookshelf::repository::BookshelfRepository;
 use crate::domain::series::repository::SeriesRepository;
@@ -319,7 +321,7 @@ pub async fn update_spread_shift(
 /// # Arguments
 ///
 /// * `book_id` - The book to update.
-/// * `reading_direction` - `"rtl"` or `"ltr"`.
+/// * `reading_direction` - The direction the book's pages are turned in.
 /// * `repo` - The managed book repository state.
 ///
 /// # Errors
@@ -329,11 +331,11 @@ pub async fn update_spread_shift(
 #[specta::specta]
 pub async fn update_reading_direction(
     book_id: i64,
-    reading_direction: String,
+    reading_direction: Direction,
     repo: State<'_, Arc<dyn BookRepository>>,
 ) -> Result<()> {
-    log::debug!("Update reading direction of book {book_id}: {reading_direction}");
-    repo.update_reading_direction(book_id, &reading_direction)
+    log::debug!("Update reading direction of book {book_id}: {reading_direction:?}");
+    repo.update_reading_direction(book_id, reading_direction)
         .await?;
     Ok(())
 }
@@ -923,7 +925,10 @@ mod tests {
         let mut mock_repo = MockBookRepository::new();
         mock_repo
             .expect_update_reading_direction()
-            .with(mockall::predicate::eq(7), mockall::predicate::eq("ltr"))
+            .with(
+                mockall::predicate::eq(7),
+                mockall::predicate::eq(Direction::Ltr),
+            )
             .times(1)
             .returning(|_, _| Ok(()));
 
@@ -931,7 +936,7 @@ mod tests {
         app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
         let repo = app.state::<Arc<dyn BookRepository>>();
 
-        let result = update_reading_direction(7, "ltr".to_string(), repo).await;
+        let result = update_reading_direction(7, Direction::Ltr, repo).await;
         assert!(result.is_ok());
     }
 

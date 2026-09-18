@@ -1,7 +1,7 @@
 use chrono::NaiveDateTime;
 use sqlx::FromRow;
 
-use crate::domain::book::entity::{Book, BookWithState, ReadBook};
+use crate::domain::book::entity::{Book, BookWithState, Direction, ReadBook};
 use crate::error::{Error, Result};
 
 /// A row of `books`, as the database stores it.
@@ -135,7 +135,11 @@ impl TryFrom<BookWithStateRow> for BookWithState {
             created_at: r.created_at,
             is_spread_shifted: r.is_spread_shifted,
             landscape_bits: r.landscape_bits,
-            reading_direction: r.reading_direction,
+            reading_direction: r
+                .reading_direction
+                .as_deref()
+                .map(str::parse::<Direction>)
+                .transpose()?,
             last_read_page_index: r.last_read_page_index,
             last_opened_at: r.last_opened_at,
             cfi: r.cfi,

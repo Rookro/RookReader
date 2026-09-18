@@ -1,7 +1,9 @@
 use async_trait::async_trait;
 use sqlx::SqlitePool;
 
-use crate::domain::book::entity::{Book, BookWithState, ItemType, ReadBook, ReadingState};
+use crate::domain::book::entity::{
+    Book, BookWithState, Direction, ItemType, ReadBook, ReadingState,
+};
 use crate::domain::book::repository::BookRepository;
 use crate::error::Result;
 use crate::infrastructure::database::models::{BookRow, BookWithStateRow, ReadBookRow};
@@ -226,7 +228,12 @@ impl BookRepository for SqliteBookRepository {
         Ok(())
     }
 
-    async fn update_reading_direction(&self, book_id: i64, reading_direction: &str) -> Result<()> {
+    async fn update_reading_direction(
+        &self,
+        book_id: i64,
+        reading_direction: Direction,
+    ) -> Result<()> {
+        let reading_direction: &str = reading_direction.into();
         sqlx::query!(
             "UPDATE books SET reading_direction = ? WHERE id = ?",
             reading_direction,
