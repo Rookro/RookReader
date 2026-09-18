@@ -364,13 +364,9 @@ pub async fn get_image(
     }
     .ok_or_else(|| stale(path, entry_name))?;
 
-    let entry = entry_name.to_string();
     // Foreground: this page is what the reader is waiting to see, so it outranks every
     // queued preload and scan job and waits only on the page each worker is already on.
-    let image =
-        tauri::async_runtime::spawn_blocking(move || service.page(&entry, Priority::Foreground))
-            .await
-            .map_err(|e| Error::Other(format!("Spawn blocking failed: {e}")))??;
+    let image = service.page(entry_name, Priority::Foreground).await?;
 
     Ok(image.to_ipc_response())
 }
@@ -411,10 +407,7 @@ pub async fn get_image_full(
     }
     .ok_or_else(|| stale(path, entry_name))?;
 
-    let entry = entry_name.to_string();
-    let image = tauri::async_runtime::spawn_blocking(move || service.page_full(&entry))
-        .await
-        .map_err(|e| Error::Other(format!("Spawn blocking failed: {e}")))??;
+    let image = service.page_full(entry_name).await?;
 
     Ok(image.to_ipc_response())
 }
@@ -455,10 +448,7 @@ pub async fn get_image_preview(
     }
     .ok_or_else(|| stale(path, entry_name))?;
 
-    let entry = entry_name.to_string();
-    let preview = tauri::async_runtime::spawn_blocking(move || service.preview(&entry))
-        .await
-        .map_err(|e| Error::Other(format!("Spawn blocking failed: {e}")))??;
+    let preview = service.preview(entry_name).await?;
 
     let Some(image) = preview else {
         // Return an empty response if preview skipped.

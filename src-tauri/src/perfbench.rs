@@ -595,7 +595,11 @@ fn perfbench_report() {
         for _ in 0..5 {
             let service = service_for(fresh());
             let t = Instant::now();
-            std::hint::black_box(service.page(&entries[0], Priority::Foreground).unwrap());
+            std::hint::black_box(
+                service
+                    .page_blocking(&entries[0], Priority::Foreground)
+                    .unwrap(),
+            );
             samples.push(t.elapsed());
         }
         median(samples)
@@ -609,7 +613,11 @@ fn perfbench_report() {
         // Long enough for the scan to be well under way, as above.
         std::thread::sleep(Duration::from_millis(20));
         let t = Instant::now();
-        std::hint::black_box(service.page(&entries[0], Priority::Foreground).unwrap());
+        std::hint::black_box(
+            service
+                .page_blocking(&entries[0], Priority::Foreground)
+                .unwrap(),
+        );
         let waited = t.elapsed();
         service.close();
         let _ = handle.join();
