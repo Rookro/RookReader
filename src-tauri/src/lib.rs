@@ -331,7 +331,7 @@ mod tests {
     }
 
     #[test]
-    fn book_with_state_omits_skipped_field_and_round_trips() {
+    fn book_with_state_round_trips() {
         let book = BookWithState {
             id: 1,
             file_path: "p".into(),
@@ -348,12 +348,9 @@ mod tests {
             last_read_page_index: Some(2),
             last_opened_at: None,
             cfi: None,
-            tag_ids_str: Some("1,2".into()),
             tag_ids: vec![1, 2],
         };
         let value = serde_json::to_value(&book).unwrap();
-        // `tag_ids_str` is `#[serde(skip)]` and must not appear on the wire.
-        assert!(value.get("tag_ids_str").is_none());
         assert!(value.get("tag_ids").is_some());
         let back: BookWithState = serde_json::from_value(value.clone()).unwrap();
         assert_eq!(serde_json::to_value(&back).unwrap(), value);

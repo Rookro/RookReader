@@ -1,7 +1,67 @@
 use chrono::NaiveDateTime;
 use sqlx::FromRow;
 
-use crate::domain::book::entity::BookWithState;
+use crate::domain::book::entity::{Book, BookWithState, ReadBook};
+
+/// A row of `books`, as the database stores it.
+#[derive(Debug, FromRow)]
+pub struct BookRow {
+    pub id: i64,
+    pub file_path: String,
+    pub item_type: String,
+    pub display_name: String,
+    pub total_pages: i64,
+    pub series_id: Option<i64>,
+    pub series_order: Option<i64>,
+    pub thumbnail_path: Option<String>,
+}
+
+impl From<BookRow> for Book {
+    fn from(r: BookRow) -> Self {
+        Book {
+            id: r.id,
+            file_path: r.file_path,
+            item_type: r.item_type,
+            display_name: r.display_name,
+            total_pages: r.total_pages,
+            series_id: r.series_id,
+            series_order: r.series_order,
+            thumbnail_path: r.thumbnail_path,
+        }
+    }
+}
+
+/// A `books` row joined with its `reading_state`, for the recently-read list.
+#[derive(Debug, FromRow)]
+pub struct ReadBookRow {
+    pub id: i64,
+    pub file_path: String,
+    pub item_type: String,
+    pub display_name: String,
+    pub total_pages: i64,
+    pub series_id: Option<i64>,
+    pub series_order: Option<i64>,
+    pub thumbnail_path: Option<String>,
+    pub last_read_page_index: i64,
+    pub last_opened_at: NaiveDateTime,
+}
+
+impl From<ReadBookRow> for ReadBook {
+    fn from(r: ReadBookRow) -> Self {
+        ReadBook {
+            id: r.id,
+            file_path: r.file_path,
+            item_type: r.item_type,
+            display_name: r.display_name,
+            total_pages: r.total_pages,
+            series_id: r.series_id,
+            series_order: r.series_order,
+            thumbnail_path: r.thumbnail_path,
+            last_read_page_index: r.last_read_page_index,
+            last_opened_at: r.last_opened_at,
+        }
+    }
+}
 
 /// Represents a raw row from the `book_with_state_view`.
 #[derive(Debug, FromRow)]
@@ -56,7 +116,7 @@ pub struct BookWithStateRow {
 
 impl From<BookWithStateRow> for BookWithState {
     fn from(r: BookWithStateRow) -> Self {
-        let mut b = BookWithState {
+        BookWithState {
             id: r.id,
             file_path: r.file_path,
             item_type: r.item_type,
@@ -72,10 +132,40 @@ impl From<BookWithStateRow> for BookWithState {
             last_read_page_index: r.last_read_page_index,
             last_opened_at: r.last_opened_at,
             cfi: r.cfi,
-            tag_ids_str: r.tag_ids_str,
-            tag_ids: Vec::new(),
-        };
-        b.fill_tag_ids();
-        b
+            tag_ids: r
+                .tag_ids_str
+                .as_deref()
+                .map(parse_tag_ids)
+                .unwrap_or_default(),
+        }
+    }
+}
+
+/// Parses the view's comma-joined tag id list, skipping anything that is not an id.
+///
+/// # Arguments
+///
+/// * `joined` - The `tag_ids_str` column, e.g. `"1,2,3"`.
+///
+/// # Returns
+///
+/// The ids in the order they were joined.
+pub fn parse_tag_ids(joined: &str) -> Vec<i64> {
+    joined
+        .split(',')
+        .filter_map(|id| id.trim().parse::<i64>().ok())
+        .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_tag_ids;
+
+    #[test]
+    fn parse_tag_ids_keeps_the_ids_and_drops_the_rest() {
+        assert_eq!(parse_tag_ids("1,2,3"), vec![1, 2, 3]);
+        assert_eq!(parse_tag_ids(" 4 , 5, 6 "), vec![4, 5, 6]);
+        assert!(parse_tag_ids("").is_empty());
+        assert_eq!(parse_tag_ids("1,abc,3"), vec![1, 3]);
     }
 }

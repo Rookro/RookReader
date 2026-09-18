@@ -4,7 +4,7 @@ use sqlx::SqlitePool;
 use crate::domain::book::entity::{Book, BookWithState, ReadBook, ReadingState};
 use crate::domain::book::repository::BookRepository;
 use crate::error::Result;
-use crate::infrastructure::database::models::BookWithStateRow;
+use crate::infrastructure::database::models::{BookRow, BookWithStateRow, ReadBookRow};
 
 /// SQLite implementation of the `BookRepository`.
 pub struct SqliteBookRepository {
@@ -31,7 +31,7 @@ impl SqliteBookRepository {
 impl BookRepository for SqliteBookRepository {
     async fn get_by_id(&self, id: i64) -> Result<Option<Book>> {
         let book = sqlx::query_as!(
-            Book,
+            BookRow,
             r#"
             SELECT id, file_path, item_type, display_name, total_pages, series_id, series_order, thumbnail_path
             FROM books
@@ -40,14 +40,15 @@ impl BookRepository for SqliteBookRepository {
             id
         )
         .fetch_optional(&self.pool)
-        .await?;
+        .await?
+        .map(Book::from);
 
         Ok(book)
     }
 
     async fn get_by_path(&self, file_path: &str) -> Result<Option<Book>> {
         let book = sqlx::query_as!(
-            Book,
+            BookRow,
             r#"
             SELECT
                 id,
@@ -66,7 +67,8 @@ impl BookRepository for SqliteBookRepository {
             file_path
         )
         .fetch_optional(&self.pool)
-        .await?;
+        .await?
+        .map(Book::from);
 
         Ok(book)
     }
@@ -271,7 +273,7 @@ impl BookRepository for SqliteBookRepository {
                 // ("at most N") holds even for a negative input.
                 let limit = limit.max(0);
                 sqlx::query_as!(
-                    ReadBook,
+                    ReadBookRow,
                     r#"
                     SELECT
                         b.id, b.file_path, b.item_type, b.display_name, b.total_pages,
@@ -287,11 +289,13 @@ impl BookRepository for SqliteBookRepository {
                 )
                 .fetch_all(&self.pool)
                 .await?
+                .into_iter()
+                .map(ReadBook::from)
+                .collect()
             }
-            None => {
-                sqlx::query_as!(
-                    ReadBook,
-                    r#"
+            None => sqlx::query_as!(
+                ReadBookRow,
+                r#"
                     SELECT
                         b.id, b.file_path, b.item_type, b.display_name, b.total_pages,
                         b.series_id, b.series_order, b.thumbnail_path, r.last_read_page_index,
@@ -301,10 +305,12 @@ impl BookRepository for SqliteBookRepository {
                     WHERE r.last_opened_at IS NOT NULL
                     ORDER BY r.last_opened_at DESC
                     "#
-                )
-                .fetch_all(&self.pool)
-                .await?
-            }
+            )
+            .fetch_all(&self.pool)
+            .await?
+            .into_iter()
+            .map(ReadBook::from)
+            .collect(),
         };
 
         Ok(books)

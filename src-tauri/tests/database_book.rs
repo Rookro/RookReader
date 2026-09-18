@@ -456,9 +456,8 @@ async fn test_book_tags() {
         .await
         .unwrap()
         .unwrap();
-    let tags_str = book_with_state.tag_ids_str.unwrap();
-    assert!(tags_str.contains(&t1.id.to_string()));
-    assert!(tags_str.contains(&t2.id.to_string()));
+    assert!(book_with_state.tag_ids.contains(&t1.id));
+    assert!(book_with_state.tag_ids.contains(&t2.id));
 
     tag_repo
         .attach_tags_to_book(book_id, &[t1.id])
