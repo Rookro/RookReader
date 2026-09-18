@@ -30,6 +30,7 @@ pub trait SettingsStoreProvider {
 /// Reads/writes `<app_data_dir>/<filename>` directly with `serde_json` + `std::fs`,
 /// the same path the former `tauri-plugin-store` used, so existing users' settings
 /// files load transparently.
+#[derive(Clone)]
 pub struct SettingsFileProvider {
     /// Absolute path to the settings JSON file.
     path: PathBuf,
