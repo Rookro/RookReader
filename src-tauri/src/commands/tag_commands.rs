@@ -174,7 +174,7 @@ mod tests {
         let mut mock_repo = MockTagRepository::new();
         mock_repo
             .expect_create()
-            .returning(|_, _| Err(crate::error::Error::Database(sqlx::Error::RowNotFound)));
+            .returning(|_, _| Err(sqlx::Error::RowNotFound.into()));
 
         let app = tauri::test::mock_app();
         app.manage(Arc::new(mock_repo) as Arc<dyn TagRepository>);

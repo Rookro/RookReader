@@ -119,5 +119,5 @@ async fn test_create_bookmark_for_missing_book_fails() {
         .unwrap_err();
 
     // The foreign key to books(id) rejects the insert.
-    assert!(matches!(err, Error::Database(sqlx::Error::Database(_))));
+    assert!(matches!(&err, Error::Database(e) if matches!(**e, sqlx::Error::Database(_))));
 }

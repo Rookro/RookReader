@@ -3,7 +3,7 @@ use image::ImageError;
 use pdfium_render::prelude::PdfiumError;
 use rbook::ebook::errors::{ArchiveError, EbookError};
 use serde::{ser::SerializeStruct, Serialize, Serializer};
-use std::num::ParseIntError;
+use std::{num::ParseIntError, sync::Arc};
 use strum_macros::EnumDiscriminants;
 use thiserror::Error;
 use unrar::error::UnrarError;
@@ -14,7 +14,10 @@ use zip::result::ZipError;
 /// This enum consolidates errors from various sources, including I/O,
 /// external libraries, and application-specific logic, into a single,
 /// consistent error handling mechanism.
-#[derive(Debug, Error, EnumDiscriminants)]
+///
+/// `Clone` so one failed page read can answer every caller waiting on it. The foreign
+/// errors it wraps are not `Clone`, so they are shared behind an `Arc`.
+#[derive(Debug, Clone, Error, EnumDiscriminants)]
 #[strum_discriminants(name(ErrorCode))]
 #[strum_discriminants(derive(Serialize, strum_macros::EnumIter, strum_macros::IntoStaticStr))]
 #[strum_discriminants(serde(rename_all = "camelCase"))]
@@ -34,7 +37,7 @@ pub enum Error {
     EmptyContainer(String),
     /// An error originating from the `pdfium_render` library.
     #[error("PDFium Error: {0}")]
-    Pdfium(#[from] PdfiumError),
+    Pdfium(Arc<PdfiumError>),
     /// An error for a PDF that cannot be handled at all because the `pdfium` library
     /// could not be loaded. Distinct from [`Error::Pdfium`], which is a failure *inside*
     /// a working library: this one is about the environment, not the file.
@@ -42,27 +45,31 @@ pub enum Error {
     PdfUnavailable(String),
     /// An error originating from the `image` crate.
     #[error("Image Error: {0}")]
-    Image(#[from] ImageError),
+    Image(Arc<ImageError>),
     /// An error originating from the `fast_image_resize` crate.
     #[error("Image Resize Error: {0}")]
-    ImageResize(#[from] ResizeError),
+    ImageResize(Arc<ResizeError>),
     /// An error originating from the `unrar` library.
     #[error("Unrar Error: {0}")]
-    Unrar(#[from] UnrarError),
+    Unrar(Arc<UnrarError>),
     /// An error originating from the `zip` crate.
     #[error("Zip Error: {0}")]
-    Zip(#[from] ZipError),
+    Zip(Arc<ZipError>),
+    /// A ZIP entry refused before it was read in full: it declares more than the read
+    /// limit, or it inflated past the size its header declared.
+    #[error("Zip Bomb Error: {0}")]
+    ZipBomb(String),
     /// An error originating from the `rbook` (EPUB) library.
     #[error("Epub Error: {0}")]
-    Epub(#[from] EbookError),
+    Epub(Arc<EbookError>),
     #[error("Epub Archive Error: {0}")]
     /// An error originating from the `rbook` (EPUB archive) library.
-    EpubArchive(#[from] ArchiveError),
+    EpubArchive(Arc<ArchiveError>),
 
     // 2xxxx: File System & I/O
     /// An error originating from standard library I/O operations.
     #[error("IO Error: {0}")]
-    Io(std::io::Error),
+    Io(Arc<std::io::Error>),
     /// An error related to file paths (e.g., invalid format).
     #[error("Path Error: {0}")]
     Path(String),
@@ -75,15 +82,15 @@ pub enum Error {
     // 3xxxx: Application Framework
     /// An error originating from the Tauri framework itself.
     #[error("Tauri Error: {0}")]
-    Tauri(#[from] tauri::Error),
+    Tauri(Arc<tauri::Error>),
     /// An error initializing the Rayon thread pool.
     #[error("Rayon Thread Pool Error: {0}")]
-    RayonThreadPool(#[from] rayon::ThreadPoolBuildError),
+    RayonThreadPool(Arc<rayon::ThreadPoolBuildError>),
 
     // 4xxxx: Data Serialization & Validation
     /// An error from the `serde_json` library during serialization or deserialization.
     #[error("Serde JSON Error: {0}")]
-    SerdeJson(#[from] serde_json::Error),
+    SerdeJson(Arc<serde_json::Error>),
     /// An error during the parsing of a string into a strum-generated enum.
     #[error("Strum Parse Error: {0}")]
     StrumParse(#[from] strum::ParseError),
@@ -108,14 +115,18 @@ pub enum Error {
     /// failure: the entry may well exist, in a book that is no longer installed.
     #[error("Book Changed Error: {0}")]
     BookChanged(String),
+    /// A page read abandoned because its book was closed while the read was queued or
+    /// running. Expected on every book switch, so distinct from a page that cannot be read.
+    #[error("Book Closed Error: {0}")]
+    BookClosed(String),
 
     // 7xxxx: Database
     /// An error related to database operations.
     #[error("Database Error: {0}")]
-    Database(#[from] sqlx::Error),
+    Database(Arc<sqlx::Error>),
     /// An error related to database migrations.
     #[error("Migration Error: {0}")]
-    Migration(#[from] sqlx::migrate::MigrateError),
+    Migration(Arc<sqlx::migrate::MigrateError>),
 
     // 9xxxx: Unexpected Errors
     /// A general-purpose error for miscellaneous or unexpected issues.
@@ -123,11 +134,30 @@ pub enum Error {
     Other(String),
 }
 
-impl From<String> for Error {
-    fn from(message: String) -> Self {
-        Error::Other(message)
-    }
+macro_rules! from_shared {
+    ($($source:ty => $variant:ident),* $(,)?) => {$(
+        impl From<$source> for Error {
+            fn from(error: $source) -> Self {
+                Error::$variant(Arc::new(error))
+            }
+        }
+    )*};
 }
+
+from_shared!(
+    PdfiumError => Pdfium,
+    ImageError => Image,
+    ResizeError => ImageResize,
+    UnrarError => Unrar,
+    ZipError => Zip,
+    EbookError => Epub,
+    ArchiveError => EpubArchive,
+    tauri::Error => Tauri,
+    rayon::ThreadPoolBuildError => RayonThreadPool,
+    serde_json::Error => SerdeJson,
+    sqlx::Error => Database,
+    sqlx::migrate::MigrateError => Migration,
+);
 
 /// Routes a missing path to [`Error::PathNotFound`] and everything else to [`Error::Io`].
 ///
@@ -138,7 +168,7 @@ impl From<std::io::Error> for Error {
         if error.kind() == std::io::ErrorKind::NotFound {
             Error::PathNotFound(error.to_string())
         } else {
-            Error::Io(error)
+            Error::Io(Arc::new(error))
         }
     }
 }
@@ -159,6 +189,7 @@ impl ErrorCode {
             ErrorCode::PdfUnavailable => 10102,
             ErrorCode::Unrar => 10301,
             ErrorCode::Zip => 10401,
+            ErrorCode::ZipBomb => 10402,
             ErrorCode::Epub => 10501,
             ErrorCode::EpubArchive => 10502,
 
@@ -182,6 +213,7 @@ impl ErrorCode {
 
             // 6xxxx: Application Logic & State
             ErrorCode::BookChanged => 60001,
+            ErrorCode::BookClosed => 60002,
 
             // 7xxxx: Database
             ErrorCode::Database => 70001,
@@ -290,6 +322,13 @@ mod tests {
         assert_eq!(value["message"], "Settings Error: boom");
         // No `details` for non-validation errors.
         assert!(value.get("details").is_none());
+    }
+
+    #[test]
+    fn serializes_book_closed_with_its_own_code() {
+        let value = serde_json::to_value(Error::BookClosed("closed".to_string())).unwrap();
+        assert_eq!(value["code"], 60002);
+        assert_eq!(value["message"], "Book Closed Error: closed");
     }
 
     #[test]

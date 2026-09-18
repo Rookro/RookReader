@@ -35,7 +35,7 @@ async fn test_create_duplicate_tag() {
     let err = repository.create("Action", "#0000ff").await.unwrap_err();
 
     // Error should be a database constraint error due to UNIQUE constraint
-    assert!(matches!(err, Error::Database(sqlx::Error::Database(_))));
+    assert!(matches!(&err, Error::Database(e) if matches!(**e, sqlx::Error::Database(_))));
 }
 
 #[tokio::test]

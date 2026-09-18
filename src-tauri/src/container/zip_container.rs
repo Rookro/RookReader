@@ -88,7 +88,7 @@ fn read_within_declared<R: Read>(
     let mut buf = Vec::with_capacity(capacity);
     reader.take(declared + 1).read_to_end(&mut buf)?;
     if buf.len() as u64 > declared {
-        return Err(crate::error::Error::Other(format!(
+        return Err(Error::ZipBomb(format!(
             "ZIP entry {entry} exceeds its declared size; possible zip bomb"
         )));
     }
@@ -122,7 +122,7 @@ fn read_entry_checked<R: Read + Seek>(
     let mut file = archive.by_index(index)?;
     let declared = file.size();
     if declared > MAX_PREALLOC_BYTES {
-        return Err(crate::error::Error::Other(format!(
+        return Err(Error::ZipBomb(format!(
             "ZIP entry {entry} declares {declared} bytes, exceeding the {MAX_PREALLOC_BYTES} byte limit"
         )));
     }
@@ -625,10 +625,7 @@ mod tests {
         // to declared + 1 and the entry is rejected instead of growing unbounded.
         let data = vec![0u8; 100];
         let err = read_within_declared(data.as_slice(), 10, 10, "bomb.png").unwrap_err();
-        assert!(
-            err.to_string().contains("possible zip bomb"),
-            "unexpected error: {err}"
-        );
+        assert!(matches!(err, Error::ZipBomb(_)), "unexpected error: {err}");
     }
 
     #[test]

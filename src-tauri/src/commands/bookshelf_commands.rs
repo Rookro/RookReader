@@ -283,7 +283,7 @@ mod tests {
                 mockall::predicate::eq("icon1"),
             )
             .times(1)
-            .returning(|_, _| Err(crate::error::Error::Database(sqlx::Error::RowNotFound)));
+            .returning(|_, _| Err(sqlx::Error::RowNotFound.into()));
 
         let app = tauri::test::mock_app();
         app.manage(Arc::new(mock_repo) as Arc<dyn BookshelfRepository>);
@@ -308,7 +308,7 @@ mod tests {
         mock_repo
             .expect_get_all()
             .times(1)
-            .returning(|| Err(crate::error::Error::Database(sqlx::Error::PoolTimedOut)));
+            .returning(|| Err(sqlx::Error::PoolTimedOut.into()));
 
         let app = tauri::test::mock_app();
         app.manage(Arc::new(mock_repo) as Arc<dyn BookshelfRepository>);
