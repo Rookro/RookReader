@@ -811,13 +811,12 @@ fn worker(shared: Arc<Shared>, container: Arc<dyn Container>) {
             match container.open_reader() {
                 Ok(opened) => reader = Some(opened),
                 Err(e) => {
-                    let message = e.to_string();
-                    deliver_error(&shared, &job, &message);
+                    deliver_error(&shared, &job, &e);
                     delivery.done();
                     // The handle will not appear on a retry, so leave rather than fail
                     // every remaining job one at a time. Whatever is still queued is
                     // failed by `worker_left` once the last reader has gone.
-                    log::error!("Failed to open a page reader: {message}");
+                    log::error!("Failed to open a page reader: {e}");
                     return;
                 }
             }
@@ -939,11 +938,6 @@ fn run(shared: &Shared, reader: &mut dyn PageReader, job: Job) {
 }
 
 /// Sends a page result to the job's own caller and to everyone who attached to it.
-///
-/// `Error` is not `Clone` — several of its variants wrap foreign error types that are not
-/// — so a failure shared by more than one caller is re-rendered as its message. Which
-/// page failed is reported either way; only the exact variant is lost, and only for the
-/// second and later callers waiting on a single read.
 fn deliver_page(shared: &Shared, job: &Job, result: Result<Arc<Image>>) {
     let waiting = shared
         .lock()
@@ -951,38 +945,25 @@ fn deliver_page(shared: &Shared, job: &Job, result: Result<Arc<Image>>) {
         .remove(&(job.entry.clone(), job.fit))
         .unwrap_or_default();
 
-    match result {
-        Ok(image) => {
-            if let Reply::Page(tx) = &job.reply {
-                let _ = tx.send(Ok(image.clone()));
-            }
-            for tx in waiting {
-                let _ = tx.send(Ok(image.clone()));
-            }
-        }
-        Err(e) => {
-            let message = e.to_string();
-            if let Reply::Page(tx) = &job.reply {
-                let _ = tx.send(Err(e));
-            }
-            for tx in waiting {
-                let _ = tx.send(Err(Error::Other(message.clone())));
-            }
-        }
+    if let Reply::Page(tx) = &job.reply {
+        let _ = tx.send(result.clone());
+    }
+    for tx in waiting {
+        let _ = tx.send(result.clone());
     }
 }
 
 /// Fails one job, and anything attached to it, without having read anything.
-fn deliver_error(shared: &Shared, job: &Job, message: &str) {
+fn deliver_error(shared: &Shared, job: &Job, error: &Error) {
     match &job.reply {
         Reply::Dimensions(index, tx) => {
-            let _ = tx.send((*index, Err(Error::Other(message.to_string()))));
+            let _ = tx.send((*index, Err(error.clone())));
         }
         Reply::Preview(tx) => {
-            let _ = tx.send(Err(Error::Other(message.to_string())));
+            let _ = tx.send(Err(error.clone()));
         }
         Reply::Page(_) | Reply::None => {
-            deliver_page(shared, job, Err(Error::Other(message.to_string())));
+            deliver_page(shared, job, Err(error.clone()));
         }
     }
 }
@@ -1621,6 +1602,52 @@ mod tests {
             1,
             "the second caller must attach to the read in flight, not start another"
         );
+    }
+
+    #[test]
+    fn a_caller_that_joined_a_failing_read_gets_the_same_error() {
+        let names = entries(1);
+        let mut container = MockContainer::new();
+        container.expect_get_entries().return_const(names.clone());
+        container.expect_max_readers().return_const(usize::MAX);
+        container.expect_open_reader().returning(|| {
+            let mut reader = MockPageReader::new();
+            reader.expect_read_page().returning(|_| {
+                thread::sleep(Duration::from_millis(80));
+                Err(Error::PathNotFound("the page is gone".to_string()))
+            });
+            Ok(Box::new(reader) as Box<dyn PageReader>)
+        });
+
+        let service = Arc::new(PageService::new(
+            "book".to_string(),
+            Arc::new(container),
+            pipeline(),
+            mini_moka::sync::Cache::new(1000),
+            0,
+        ));
+
+        let wanted = names[0].clone();
+        let first = {
+            let service = service.clone();
+            let wanted = wanted.clone();
+            thread::spawn(move || service.page(&wanted, Priority::Foreground))
+        };
+        eventually("the first read to start", || reading(&service, &wanted));
+        let second = {
+            let service = service.clone();
+            let wanted = wanted.clone();
+            thread::spawn(move || service.page(&wanted, Priority::Foreground))
+        };
+
+        for caller in [first, second] {
+            // The variant is what the frontend maps to a message, so the second caller
+            // must see the same one as the first, not a re-rendering of its text.
+            assert!(matches!(
+                caller.join().unwrap(),
+                Err(Error::PathNotFound(_))
+            ));
+        }
     }
 
     #[test]

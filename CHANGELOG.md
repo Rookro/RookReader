@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * Animated GIF, APNG and WebP pages are no longer resized, so every frame plays.
   * Photos stored on their side are now shown upright, and a page with an embedded ICC profile keeps its colours.
 * Fixed a book opened while the window was being resized showing its pages at the previous window size until the next resize. (#331)
+* Fixed a page that failed while being loaded in the background showing a generic error instead of the reason, and a page interrupted by switching books being reported as a failure. (#332)
 
 ## [2.5.0] - 2026-09-06
 
