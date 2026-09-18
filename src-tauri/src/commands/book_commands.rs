@@ -1,5 +1,4 @@
 use std::fs;
-use std::hash::{DefaultHasher, Hash, Hasher};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -545,7 +544,7 @@ pub async fn update_book_tags<R: tauri::Runtime>(
     Ok(())
 }
 
-/// Deletes a book by its unique ID.
+/// Deletes a book by its unique ID, along with its thumbnail file.
 ///
 /// # Arguments
 ///
@@ -564,9 +563,32 @@ pub async fn delete_book<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
 ) -> Result<()> {
     log::debug!("Delete book by id({}).", id);
+    let thumbnail_path = repo
+        .get_by_id(id)
+        .await?
+        .and_then(|book| book.thumbnail_path);
     repo.delete_book(id).await?;
+    if let Some(path) = thumbnail_path {
+        remove_thumbnail(path).await;
+    }
     app.emit("history-changed", ())?;
     Ok(())
+}
+
+/// Removes a deleted book's thumbnail file. Best effort: the row is already gone, so a
+/// file that cannot be removed is logged, not reported.
+async fn remove_thumbnail(path: String) {
+    let removed = tauri::async_runtime::spawn_blocking(move || match fs::remove_file(&path) {
+        Ok(()) => Ok(()),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(e) => Err(format!("{path}: {e}")),
+    })
+    .await;
+    match removed {
+        Ok(Ok(())) => {}
+        Ok(Err(reason)) => log::warn!("Could not remove a thumbnail: {reason}"),
+        Err(e) => log::warn!("Could not remove a thumbnail: {e}"),
+    }
 }
 
 /// Updates the series associated with a specific book.
@@ -656,6 +678,27 @@ async fn resolve_thumbnail<R: tauri::Runtime>(
         })
 }
 
+/// The file name a book's thumbnail is stored under.
+///
+/// FNV-1a over the path, so the name is the same on every Rust release: `DefaultHasher`
+/// makes no such promise, and a change to it would orphan every thumbnail on disk.
+///
+/// # Arguments
+///
+/// * `file_path` - The book's path, which is unique in the library.
+///
+/// # Returns
+///
+/// `thumbnail_<16 hex digits>.jpg`.
+fn thumbnail_file_name(file_path: &str) -> String {
+    const OFFSET_BASIS: u64 = 0xcbf2_9ce4_8422_2325;
+    const PRIME: u64 = 0x0000_0100_0000_01b3;
+    let hash = file_path.bytes().fold(OFFSET_BASIS, |hash, byte| {
+        (hash ^ u64::from(byte)).wrapping_mul(PRIME)
+    });
+    format!("thumbnail_{hash:016x}.jpg")
+}
+
 /// Helper function to generate and save a thumbnail for a given file path.
 ///
 /// If a thumbnail corresponding to the hash of the `file_path` already exists
@@ -680,17 +723,12 @@ async fn generate_and_save_thumbnail<R: tauri::Runtime>(
     container: Option<Arc<dyn Container>>,
 ) -> Result<Option<String>> {
     tauri::async_runtime::spawn_blocking(move || {
-        let mut hasher = DefaultHasher::new();
-        file_path.hash(&mut hasher);
-        let hash = hasher.finish();
-
         let thumbnails_dir = crate::setup::app_data_dir(&app)?.join("thumbnails");
         if !thumbnails_dir.exists() {
             fs::create_dir_all(&thumbnails_dir)?;
         }
 
-        let thumbnail_filename = format!("thumbnail_{}.jpg", hash);
-        let thumbnail_path = thumbnails_dir.join(&thumbnail_filename);
+        let thumbnail_path = thumbnails_dir.join(thumbnail_file_name(&file_path));
 
         if thumbnail_path.exists() {
             return Ok(Some(thumbnail_path.to_string_lossy().to_string()));
@@ -827,7 +865,62 @@ mod tests {
 
     #[tokio::test]
     async fn test_delete_book() {
+        let dir = tempfile::tempdir().unwrap();
+        let thumbnail = dir.path().join("thumbnail_1.jpg");
+        std::fs::write(&thumbnail, b"jpg").unwrap();
+        let thumbnail_path = thumbnail.to_string_lossy().to_string();
+
         let mut mock_repo = MockBookRepository::new();
+        mock_repo
+            .expect_get_by_id()
+            .with(mockall::predicate::eq(1))
+            .times(1)
+            .returning(move |id| {
+                Ok(Some(Book {
+                    id,
+                    file_path: "path".to_string(),
+                    item_type: ItemType::File,
+                    display_name: "name".to_string(),
+                    total_pages: 10,
+                    series_id: None,
+                    series_order: None,
+                    thumbnail_path: Some(thumbnail_path.clone()),
+                }))
+            });
+        mock_repo
+            .expect_delete_book()
+            .with(mockall::predicate::eq(1))
+            .times(1)
+            .returning(|_| Ok(()));
+
+        let app = tauri::test::mock_app();
+        app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
+        let repo = app.state::<Arc<dyn BookRepository>>();
+
+        let result = delete_book(1, repo, app.handle().clone()).await;
+        assert!(result.is_ok());
+        assert!(!thumbnail.exists(), "the thumbnail must go with the book");
+    }
+
+    #[tokio::test]
+    async fn test_delete_book_without_thumbnail() {
+        let mut mock_repo = MockBookRepository::new();
+        mock_repo
+            .expect_get_by_id()
+            .with(mockall::predicate::eq(1))
+            .times(1)
+            .returning(|id| {
+                Ok(Some(Book {
+                    id,
+                    file_path: "path".to_string(),
+                    item_type: ItemType::File,
+                    display_name: "name".to_string(),
+                    total_pages: 10,
+                    series_id: None,
+                    series_order: None,
+                    thumbnail_path: None,
+                }))
+            });
         mock_repo
             .expect_delete_book()
             .with(mockall::predicate::eq(1))
@@ -1193,6 +1286,11 @@ mod tests {
     async fn test_delete_book_error() {
         let mut mock_repo = MockBookRepository::new();
         mock_repo
+            .expect_get_by_id()
+            .with(mockall::predicate::eq(1))
+            .times(1)
+            .returning(|_| Ok(None));
+        mock_repo
             .expect_delete_book()
             .with(mockall::predicate::eq(1))
             .times(1)
@@ -1209,20 +1307,25 @@ mod tests {
         assert_eq!(error_code.code(), 70001);
     }
 
+    #[test]
+    fn thumbnail_file_name_is_fnv1a_of_the_path() {
+        assert_eq!(thumbnail_file_name(""), "thumbnail_cbf29ce484222325.jpg");
+        assert_eq!(thumbnail_file_name("a"), "thumbnail_af63dc4c8601ec8c.jpg");
+        assert_eq!(
+            thumbnail_file_name("foobar"),
+            "thumbnail_85944171f73967e8.jpg"
+        );
+    }
+
     #[tokio::test]
     async fn test_generate_and_save_thumbnail_skips_when_exists() {
         let app = tauri::test::mock_app();
         let file_path = "fake_path_that_does_not_exist.zip".to_string();
 
-        let mut hasher = std::collections::hash_map::DefaultHasher::new();
-        std::hash::Hash::hash(&file_path, &mut hasher);
-        let hash = std::hash::Hasher::finish(&hasher);
-
         let thumbnails_dir = crate::setup::app_data_dir(&app).unwrap().join("thumbnails");
         std::fs::create_dir_all(&thumbnails_dir).unwrap();
 
-        let thumbnail_filename = format!("thumbnail_{}.jpg", hash);
-        let thumbnail_path = thumbnails_dir.join(&thumbnail_filename);
+        let thumbnail_path = thumbnails_dir.join(thumbnail_file_name(&file_path));
 
         std::fs::write(&thumbnail_path, "dummy image data").unwrap();
 

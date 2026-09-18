@@ -418,7 +418,7 @@ export const commands = {
 	 */
 	recordBookOpened: (filePath: string, itemType: ItemType, displayName: string, totalPages: number) => typedError<number, CommandError>(__TAURI_INVOKE("record_book_opened", { filePath, itemType, displayName, totalPages })),
 	/**
-	 *  Deletes a book by its unique ID.
+	 *  Deletes a book by its unique ID, along with its thumbnail file.
 	 * 
 	 *  # Arguments
 	 * 
