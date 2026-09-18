@@ -1,3 +1,4 @@
+use rookreader_lib::domain::book::entity::ItemType;
 use rookreader_lib::domain::book::repository::BookRepository;
 use rookreader_lib::domain::series::repository::SeriesRepository;
 use rookreader_lib::error::Error;
@@ -45,7 +46,7 @@ async fn test_assign_book_to_series() {
 
     let series_id = series_repo.create("Series X").await.unwrap();
     let book_id = book_repo
-        .register_book("path/x", "file", "Book X", 100, None)
+        .register_book("path/x", ItemType::File, "Book X", 100, None)
         .await
         .unwrap();
 
@@ -75,7 +76,7 @@ async fn test_delete_series() {
     let series_id = series_repo.create("Series A").await.unwrap();
 
     let book_id = book_repo
-        .register_book("path/to/book.zip", "file", "Book A", 100, None)
+        .register_book("path/to/book.zip", ItemType::File, "Book A", 100, None)
         .await
         .unwrap();
 
@@ -109,15 +110,15 @@ async fn test_update_book_orders_in_series() {
     let series_id = series_repo.create("Ordered Series").await.unwrap();
 
     let b1 = book_repo
-        .register_book("path/1", "file", "Book 1", 100, None)
+        .register_book("path/1", ItemType::File, "Book 1", 100, None)
         .await
         .unwrap();
     let b2 = book_repo
-        .register_book("path/2", "file", "Book 2", 100, None)
+        .register_book("path/2", ItemType::File, "Book 2", 100, None)
         .await
         .unwrap();
     let b3 = book_repo
-        .register_book("path/3", "file", "Book 3", 100, None)
+        .register_book("path/3", ItemType::File, "Book 3", 100, None)
         .await
         .unwrap();
 
@@ -159,11 +160,11 @@ async fn test_assign_appends_at_end_of_series() {
 
     let series_id = series_repo.create("Series").await.unwrap();
     let b1 = book_repo
-        .register_book("path/1", "file", "Book 1", 100, None)
+        .register_book("path/1", ItemType::File, "Book 1", 100, None)
         .await
         .unwrap();
     let b2 = book_repo
-        .register_book("path/2", "file", "Book 2", 100, None)
+        .register_book("path/2", ItemType::File, "Book 2", 100, None)
         .await
         .unwrap();
 
@@ -191,7 +192,7 @@ async fn test_unassign_clears_series_order() {
 
     let series_id = series_repo.create("Series").await.unwrap();
     let book_id = book_repo
-        .register_book("path/x", "file", "Book X", 100, None)
+        .register_book("path/x", ItemType::File, "Book X", 100, None)
         .await
         .unwrap();
 
@@ -223,11 +224,11 @@ async fn test_move_book_between_series_has_no_order_collision() {
 
     // Series B already has two ordered books.
     let p = book_repo
-        .register_book("path/p", "file", "Book P", 100, None)
+        .register_book("path/p", ItemType::File, "Book P", 100, None)
         .await
         .unwrap();
     let q = book_repo
-        .register_book("path/q", "file", "Book Q", 100, None)
+        .register_book("path/q", ItemType::File, "Book Q", 100, None)
         .await
         .unwrap();
     series_repo
@@ -241,7 +242,7 @@ async fn test_move_book_between_series_has_no_order_collision() {
 
     // A book that starts in Series A (with a stale order) is moved into Series B.
     let x = book_repo
-        .register_book("path/x", "file", "Book X", 100, None)
+        .register_book("path/x", ItemType::File, "Book X", 100, None)
         .await
         .unwrap();
     series_repo

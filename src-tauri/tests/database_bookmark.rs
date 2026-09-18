@@ -1,3 +1,4 @@
+use rookreader_lib::domain::book::entity::ItemType;
 use rookreader_lib::domain::book::repository::BookRepository;
 use rookreader_lib::domain::bookmark::repository::BookmarkRepository;
 use rookreader_lib::error::Error;
@@ -10,7 +11,7 @@ use common::setup_db;
 /// Registers a book and returns its id, so each test starts from a valid foreign key.
 async fn setup_book(pool: &sqlx::SqlitePool, path: &str) -> i64 {
     SqliteBookRepository::new(pool.clone())
-        .register_book(path, "file", "My Book", 100, None)
+        .register_book(path, ItemType::File, "My Book", 100, None)
         .await
         .unwrap()
 }
