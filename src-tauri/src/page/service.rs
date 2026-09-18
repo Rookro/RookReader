@@ -220,7 +220,7 @@ impl Shared {
 
 /// The error every blocked caller gets once its book is closed.
 fn closed() -> Error {
-    Error::Other("The book was closed while a page was being read".to_string())
+    Error::BookClosed("The book was closed while a page was being read".to_string())
 }
 
 /// Owns every reader thread for one open book, plus the queue feeding them.
@@ -1745,7 +1745,10 @@ mod tests {
         );
 
         // And a later request is refused rather than queued against dead workers.
-        assert!(service.page(&names[0], Priority::Foreground).is_err());
+        assert!(matches!(
+            service.page(&names[0], Priority::Foreground),
+            Err(Error::BookClosed(_))
+        ));
     }
 
     #[test]

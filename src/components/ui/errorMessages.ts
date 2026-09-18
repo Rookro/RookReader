@@ -63,6 +63,7 @@ const REASON_KEY_BY_CODE = {
   [ErrorCode.settings]: null,
   [ErrorCode.settingsValidation]: "error-message.reason.settings-validation",
   [ErrorCode.bookChanged]: "error-message.reason.book-changed",
+  [ErrorCode.bookClosed]: "error-message.reason.book-closed",
   [ErrorCode.database]: "error-message.reason.database",
   [ErrorCode.migration]: "error-message.reason.database",
   [ErrorCode.other]: null,

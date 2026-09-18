@@ -108,6 +108,10 @@ pub enum Error {
     /// failure: the entry may well exist, in a book that is no longer installed.
     #[error("Book Changed Error: {0}")]
     BookChanged(String),
+    /// A page read abandoned because its book was closed while the read was queued or
+    /// running. Expected on every book switch, so distinct from a page that cannot be read.
+    #[error("Book Closed Error: {0}")]
+    BookClosed(String),
 
     // 7xxxx: Database
     /// An error related to database operations.
@@ -121,12 +125,6 @@ pub enum Error {
     /// A general-purpose error for miscellaneous or unexpected issues.
     #[error("Error: {0}")]
     Other(String),
-}
-
-impl From<String> for Error {
-    fn from(message: String) -> Self {
-        Error::Other(message)
-    }
 }
 
 /// Routes a missing path to [`Error::PathNotFound`] and everything else to [`Error::Io`].
@@ -182,6 +180,7 @@ impl ErrorCode {
 
             // 6xxxx: Application Logic & State
             ErrorCode::BookChanged => 60001,
+            ErrorCode::BookClosed => 60002,
 
             // 7xxxx: Database
             ErrorCode::Database => 70001,
@@ -290,6 +289,13 @@ mod tests {
         assert_eq!(value["message"], "Settings Error: boom");
         // No `details` for non-validation errors.
         assert!(value.get("details").is_none());
+    }
+
+    #[test]
+    fn serializes_book_closed_with_its_own_code() {
+        let value = serde_json::to_value(Error::BookClosed("closed".to_string())).unwrap();
+        assert_eq!(value["code"], 60002);
+        assert_eq!(value["message"], "Book Closed Error: closed");
     }
 
     #[test]

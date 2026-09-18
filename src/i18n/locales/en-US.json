@@ -410,6 +410,7 @@
       "damaged": "The file is damaged or could not be read.",
       "pdf-unavailable": "PDF support is unavailable.",
       "book-changed": "A different book was opened.",
+      "book-closed": "The book was closed before the page finished loading.",
       "io": "Reading or writing the file failed.",
       "invalid-path": "The path is not valid.",
       "database": "Saving data failed.",
