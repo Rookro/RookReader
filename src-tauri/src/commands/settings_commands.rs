@@ -2,7 +2,7 @@ use tauri::{AppHandle, Emitter, Manager, WebviewWindow};
 use tokio::sync::RwLock;
 
 use crate::{
-    error::Result,
+    error::{Error, Result},
     settings::{AppSettings, SettingsFileLock, SettingsFileProvider, SettingsPatch},
     setup,
     state::app_state::AppState,
@@ -31,7 +31,10 @@ const SETTINGS_CHANGED_EVENT: &str = "settings-changed";
 #[tauri::command]
 #[specta::specta]
 pub async fn get_settings(provider: tauri::State<'_, SettingsFileProvider>) -> Result<AppSettings> {
-    AppSettings::load(provider.inner())
+    let provider = provider.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || AppSettings::load(&provider))
+        .await
+        .map_err(|e| Error::Other(format!("Spawn blocking failed: {e}")))?
 }
 
 /// Applies a partial settings change and returns the full merged settings.
@@ -79,7 +82,12 @@ pub async fn set_settings(
     // Lock order is SettingsFileLock -> AppState(write); no path takes them the other way.
     let _guard = lock.0.lock().await;
 
-    let settings = AppSettings::apply_patch(provider.inner(), patch)?;
+    let settings = {
+        let provider = provider.inner().clone();
+        tauri::async_runtime::spawn_blocking(move || AppSettings::apply_patch(&provider, patch))
+            .await
+            .map_err(|e| Error::Other(format!("Spawn blocking failed: {e}")))??
+    };
 
     {
         let mut locked_state = state.write().await;

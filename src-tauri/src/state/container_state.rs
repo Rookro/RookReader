@@ -538,7 +538,7 @@ mod tests {
         .expect("building a valid directory container should succeed");
 
         let page = service
-            .page("p001.png", crate::page::service::Priority::Foreground)
+            .page_blocking("p001.png", crate::page::service::Priority::Foreground)
             .expect("read the page");
         assert_eq!((page.width, page.height), (2, 1));
     }
@@ -558,7 +558,7 @@ mod tests {
         }));
 
         let page = service
-            .page("p001.png", crate::page::service::Priority::Foreground)
+            .page_blocking("p001.png", crate::page::service::Priority::Foreground)
             .expect("read the page");
         assert_eq!((page.width, page.height), (2, 1));
     }
@@ -579,7 +579,7 @@ mod tests {
         let page = state
             .service_for(&path)
             .expect("the book is open")
-            .page("p001.png", crate::page::service::Priority::Foreground)
+            .page_blocking("p001.png", crate::page::service::Priority::Foreground)
             .expect("read the page");
         assert_eq!((page.width, page.height), (2, 1));
     }
@@ -600,7 +600,7 @@ mod tests {
         state
             .service_for(&path)
             .expect("the book is open")
-            .page("p001.png", crate::page::service::Priority::Foreground)
+            .page_blocking("p001.png", crate::page::service::Priority::Foreground)
             .expect("read the page");
         let key = CacheKey {
             book_id: path.clone(),

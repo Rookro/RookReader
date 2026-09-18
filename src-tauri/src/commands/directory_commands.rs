@@ -3,7 +3,7 @@ use std::path::Path;
 use tauri::ipc::Response;
 
 use crate::container::{archive_listing, archive_path, traits::Container};
-use crate::error::Result;
+use crate::error::{Error, Result};
 
 /// Reads the contents of a directory and returns a list of its entries.
 ///
@@ -42,7 +42,30 @@ use crate::error::Result;
 #[tauri::command()]
 pub async fn get_entries_in_dir(dir_path: &str) -> Result<Response> {
     log::debug!("Get the directory entries in {}", dir_path);
+    let dir_path = dir_path.to_string();
+    // On a blocking thread: a folder on a NAS or a spun-down disk must not stall every
+    // other IPC call while it is read.
+    let buffer = tauri::async_runtime::spawn_blocking(move || list_entries(&dir_path))
+        .await
+        .map_err(|e| Error::Other(format!("Spawn blocking failed: {e}")))??;
+    Ok(Response::new(buffer))
+}
 
+/// Lists the sub-folders and supported books directly inside `dir_path`, encoded as
+/// [`push_entry`] writes them.
+///
+/// # Arguments
+///
+/// * `dir_path` - A directory, an archive file, or a folder inside an archive.
+///
+/// # Returns
+///
+/// The encoded entries.
+///
+/// # Errors
+///
+/// Returns an `Err` if the directory or archive cannot be read.
+fn list_entries(dir_path: &str) -> Result<Vec<u8>> {
     // Browsing inside an archive: either a folder within it, or the archive file itself
     // (its root). Real filesystem paths are matched first by `archive_path::resolve`.
     if let Some(location) = archive_path::resolve(dir_path) {
@@ -104,7 +127,7 @@ pub async fn get_entries_in_dir(dir_path: &str) -> Result<Response> {
             );
         }
     }
-    Ok(Response::new(buffer))
+    Ok(buffer)
 }
 
 /// Encodes an archive's child folders in the same binary record format as the
@@ -120,12 +143,12 @@ pub async fn get_entries_in_dir(dir_path: &str) -> Result<Response> {
 ///
 /// # Returns
 ///
-/// A `tauri::ipc::Response` holding the encoded folder rows.
+/// The encoded folder rows.
 ///
 /// # Errors
 ///
 /// Returns an `Err` if the archive cannot be read.
-fn list_archive_dirs(archive: &Path, inner_dir: &str) -> Result<Response> {
+fn list_archive_dirs(archive: &Path, inner_dir: &str) -> Result<Vec<u8>> {
     let last_modified_timestamp_ms = archive
         .metadata()
         .and_then(|metadata| metadata.modified())
@@ -141,7 +164,7 @@ fn list_archive_dirs(archive: &Path, inner_dir: &str) -> Result<Response> {
     for name in archive_listing::list_child_dirs(archive, inner_dir)? {
         push_entry(&mut buffer, true, &name, last_modified_timestamp_ms);
     }
-    Ok(Response::new(buffer))
+    Ok(buffer)
 }
 
 /// Appends one entry record to the binary listing buffer.
