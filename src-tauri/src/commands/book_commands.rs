@@ -1,5 +1,4 @@
 use std::fs;
-use std::hash::{DefaultHasher, Hash, Hasher};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -656,6 +655,27 @@ async fn resolve_thumbnail<R: tauri::Runtime>(
         })
 }
 
+/// The file name a book's thumbnail is stored under.
+///
+/// FNV-1a over the path, so the name is the same on every Rust release: `DefaultHasher`
+/// makes no such promise, and a change to it would orphan every thumbnail on disk.
+///
+/// # Arguments
+///
+/// * `file_path` - The book's path, which is unique in the library.
+///
+/// # Returns
+///
+/// `thumbnail_<16 hex digits>.jpg`.
+fn thumbnail_file_name(file_path: &str) -> String {
+    const OFFSET_BASIS: u64 = 0xcbf2_9ce4_8422_2325;
+    const PRIME: u64 = 0x0000_0100_0000_01b3;
+    let hash = file_path.bytes().fold(OFFSET_BASIS, |hash, byte| {
+        (hash ^ u64::from(byte)).wrapping_mul(PRIME)
+    });
+    format!("thumbnail_{hash:016x}.jpg")
+}
+
 /// Helper function to generate and save a thumbnail for a given file path.
 ///
 /// If a thumbnail corresponding to the hash of the `file_path` already exists
@@ -680,17 +700,12 @@ async fn generate_and_save_thumbnail<R: tauri::Runtime>(
     container: Option<Arc<dyn Container>>,
 ) -> Result<Option<String>> {
     tauri::async_runtime::spawn_blocking(move || {
-        let mut hasher = DefaultHasher::new();
-        file_path.hash(&mut hasher);
-        let hash = hasher.finish();
-
         let thumbnails_dir = crate::setup::app_data_dir(&app)?.join("thumbnails");
         if !thumbnails_dir.exists() {
             fs::create_dir_all(&thumbnails_dir)?;
         }
 
-        let thumbnail_filename = format!("thumbnail_{}.jpg", hash);
-        let thumbnail_path = thumbnails_dir.join(&thumbnail_filename);
+        let thumbnail_path = thumbnails_dir.join(thumbnail_file_name(&file_path));
 
         if thumbnail_path.exists() {
             return Ok(Some(thumbnail_path.to_string_lossy().to_string()));
@@ -1209,20 +1224,25 @@ mod tests {
         assert_eq!(error_code.code(), 70001);
     }
 
+    #[test]
+    fn thumbnail_file_name_is_fnv1a_of_the_path() {
+        assert_eq!(thumbnail_file_name(""), "thumbnail_cbf29ce484222325.jpg");
+        assert_eq!(thumbnail_file_name("a"), "thumbnail_af63dc4c8601ec8c.jpg");
+        assert_eq!(
+            thumbnail_file_name("foobar"),
+            "thumbnail_85944171f73967e8.jpg"
+        );
+    }
+
     #[tokio::test]
     async fn test_generate_and_save_thumbnail_skips_when_exists() {
         let app = tauri::test::mock_app();
         let file_path = "fake_path_that_does_not_exist.zip".to_string();
 
-        let mut hasher = std::collections::hash_map::DefaultHasher::new();
-        std::hash::Hash::hash(&file_path, &mut hasher);
-        let hash = std::hash::Hasher::finish(&hasher);
-
         let thumbnails_dir = crate::setup::app_data_dir(&app).unwrap().join("thumbnails");
         std::fs::create_dir_all(&thumbnails_dir).unwrap();
 
-        let thumbnail_filename = format!("thumbnail_{}.jpg", hash);
-        let thumbnail_path = thumbnails_dir.join(&thumbnail_filename);
+        let thumbnail_path = thumbnails_dir.join(thumbnail_file_name(&file_path));
 
         std::fs::write(&thumbnail_path, "dummy image data").unwrap();
 
