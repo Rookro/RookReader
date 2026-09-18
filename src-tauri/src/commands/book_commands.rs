@@ -544,7 +544,7 @@ pub async fn update_book_tags<R: tauri::Runtime>(
     Ok(())
 }
 
-/// Deletes a book by its unique ID.
+/// Deletes a book by its unique ID, along with its thumbnail file.
 ///
 /// # Arguments
 ///
@@ -563,9 +563,32 @@ pub async fn delete_book<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
 ) -> Result<()> {
     log::debug!("Delete book by id({}).", id);
+    let thumbnail_path = repo
+        .get_by_id(id)
+        .await?
+        .and_then(|book| book.thumbnail_path);
     repo.delete_book(id).await?;
+    if let Some(path) = thumbnail_path {
+        remove_thumbnail(path).await;
+    }
     app.emit("history-changed", ())?;
     Ok(())
+}
+
+/// Removes a deleted book's thumbnail file. Best effort: the row is already gone, so a
+/// file that cannot be removed is logged, not reported.
+async fn remove_thumbnail(path: String) {
+    let removed = tauri::async_runtime::spawn_blocking(move || match fs::remove_file(&path) {
+        Ok(()) => Ok(()),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(e) => Err(format!("{path}: {e}")),
+    })
+    .await;
+    match removed {
+        Ok(Ok(())) => {}
+        Ok(Err(reason)) => log::warn!("Could not remove a thumbnail: {reason}"),
+        Err(e) => log::warn!("Could not remove a thumbnail: {e}"),
+    }
 }
 
 /// Updates the series associated with a specific book.
@@ -842,7 +865,62 @@ mod tests {
 
     #[tokio::test]
     async fn test_delete_book() {
+        let dir = tempfile::tempdir().unwrap();
+        let thumbnail = dir.path().join("thumbnail_1.jpg");
+        std::fs::write(&thumbnail, b"jpg").unwrap();
+        let thumbnail_path = thumbnail.to_string_lossy().to_string();
+
         let mut mock_repo = MockBookRepository::new();
+        mock_repo
+            .expect_get_by_id()
+            .with(mockall::predicate::eq(1))
+            .times(1)
+            .returning(move |id| {
+                Ok(Some(Book {
+                    id,
+                    file_path: "path".to_string(),
+                    item_type: ItemType::File,
+                    display_name: "name".to_string(),
+                    total_pages: 10,
+                    series_id: None,
+                    series_order: None,
+                    thumbnail_path: Some(thumbnail_path.clone()),
+                }))
+            });
+        mock_repo
+            .expect_delete_book()
+            .with(mockall::predicate::eq(1))
+            .times(1)
+            .returning(|_| Ok(()));
+
+        let app = tauri::test::mock_app();
+        app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
+        let repo = app.state::<Arc<dyn BookRepository>>();
+
+        let result = delete_book(1, repo, app.handle().clone()).await;
+        assert!(result.is_ok());
+        assert!(!thumbnail.exists(), "the thumbnail must go with the book");
+    }
+
+    #[tokio::test]
+    async fn test_delete_book_without_thumbnail() {
+        let mut mock_repo = MockBookRepository::new();
+        mock_repo
+            .expect_get_by_id()
+            .with(mockall::predicate::eq(1))
+            .times(1)
+            .returning(|id| {
+                Ok(Some(Book {
+                    id,
+                    file_path: "path".to_string(),
+                    item_type: ItemType::File,
+                    display_name: "name".to_string(),
+                    total_pages: 10,
+                    series_id: None,
+                    series_order: None,
+                    thumbnail_path: None,
+                }))
+            });
         mock_repo
             .expect_delete_book()
             .with(mockall::predicate::eq(1))
@@ -1207,6 +1285,11 @@ mod tests {
     #[tokio::test]
     async fn test_delete_book_error() {
         let mut mock_repo = MockBookRepository::new();
+        mock_repo
+            .expect_get_by_id()
+            .with(mockall::predicate::eq(1))
+            .times(1)
+            .returning(|_| Ok(None));
         mock_repo
             .expect_delete_book()
             .with(mockall::predicate::eq(1))
