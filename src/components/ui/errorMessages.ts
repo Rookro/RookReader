@@ -50,6 +50,7 @@ const REASON_KEY_BY_CODE = {
   [ErrorCode.imageResize]: null,
   [ErrorCode.unrar]: "error-message.reason.damaged",
   [ErrorCode.zip]: "error-message.reason.damaged",
+  [ErrorCode.zipBomb]: "error-message.reason.zip-bomb",
   [ErrorCode.epub]: "error-message.reason.damaged",
   [ErrorCode.epubArchive]: "error-message.reason.damaged",
   [ErrorCode.io]: "error-message.reason.io",

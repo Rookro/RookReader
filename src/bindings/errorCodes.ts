@@ -14,6 +14,7 @@ export const ErrorCode = {
   imageResize: 80101,
   unrar: 10301,
   zip: 10401,
+  zipBomb: 10402,
   epub: 10501,
   epubArchive: 10502,
   io: 20001,

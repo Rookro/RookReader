@@ -52,6 +52,10 @@ pub enum Error {
     /// An error originating from the `zip` crate.
     #[error("Zip Error: {0}")]
     Zip(#[from] ZipError),
+    /// A ZIP entry refused before it was read in full: it declares more than the read
+    /// limit, or it inflated past the size its header declared.
+    #[error("Zip Bomb Error: {0}")]
+    ZipBomb(String),
     /// An error originating from the `rbook` (EPUB) library.
     #[error("Epub Error: {0}")]
     Epub(#[from] EbookError),
@@ -157,6 +161,7 @@ impl ErrorCode {
             ErrorCode::PdfUnavailable => 10102,
             ErrorCode::Unrar => 10301,
             ErrorCode::Zip => 10401,
+            ErrorCode::ZipBomb => 10402,
             ErrorCode::Epub => 10501,
             ErrorCode::EpubArchive => 10502,
 

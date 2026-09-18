@@ -273,6 +273,7 @@ mod error_codes_export {
             "pdfUnavailable: 10102",
             "bookChanged: 60001",
             "bookClosed: 60002",
+            "zipBomb: 10402",
             "epubArchive: 10502",
             "rayonThreadPool: 30201",
             "settingsValidation: 50002",
