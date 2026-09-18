@@ -249,8 +249,8 @@ export const commands = {
 	id: number,
 	/**  The unique file path or directory path of the book. */
 	file_path: string,
-	/**  The type of the item ('file' or 'directory'). */
-	item_type: string,
+	/**  What the path points at. */
+	item_type: ItemType,
 	/**  The display name of the book. */
 	display_name: string,
 	/**  The total number of pages in the book. */
@@ -285,8 +285,8 @@ export const commands = {
 	id: number,
 	/**  The unique file path or directory path of the book. */
 	file_path: string,
-	/**  The type of the item ('file' or 'directory'). */
-	item_type: string,
+	/**  What the path points at. */
+	item_type: ItemType,
 	/**  The display name of the book. */
 	display_name: string,
 	/**  The total number of pages in the book. */
@@ -322,8 +322,8 @@ export const commands = {
 	id: number,
 	/**  The unique file path or directory path of the book. */
 	file_path: string,
-	/**  The type of the item ('file' or 'directory'). */
-	item_type: string,
+	/**  What the path points at. */
+	item_type: ItemType,
 	/**  The display name of the book. */
 	display_name: string,
 	/**  The total number of pages in the book. */
@@ -377,7 +377,7 @@ export const commands = {
 	 *  # Arguments
 	 * 
 	 *  * `file_path` - The unique file or directory path.
-	 *  * `item_type` - The type of the item ('file' or 'directory').
+	 *  * `item_type` - What the path points at.
 	 *  * `display_name` - The display name of the book.
 	 *  * `total_pages` - The total number of pages.
 	 *  * `repo` - The managed book repository state.
@@ -393,14 +393,14 @@ export const commands = {
 	 *  This function will return an `Err` if the underlying repository operation fails
 	 *  (e.g., due to a database error, connection issue, or query execution failure).
 	 */
-	registerBook: (filePath: string, itemType: string, displayName: string, totalPages: number) => typedError<number, CommandError>(__TAURI_INVOKE("register_book", { filePath, itemType, displayName, totalPages })),
+	registerBook: (filePath: string, itemType: ItemType, displayName: string, totalPages: number) => typedError<number, CommandError>(__TAURI_INVOKE("register_book", { filePath, itemType, displayName, totalPages })),
 	/**
 	 *  Records the event of a book being opened, updating its last opened time.
 	 * 
 	 *  # Arguments
 	 * 
 	 *  * `file_path` - The unique file or directory path.
-	 *  * `item_type` - The type of the item ('file' or 'directory').
+	 *  * `item_type` - What the path points at.
 	 *  * `display_name` - The display name of the book.
 	 *  * `total_pages` - The total number of pages.
 	 *  * `repo` - The managed book repository state.
@@ -416,7 +416,7 @@ export const commands = {
 	 *  This function will return an `Err` if the underlying repository operation fails
 	 *  (e.g., due to a database error, connection issue, or query execution failure).
 	 */
-	recordBookOpened: (filePath: string, itemType: string, displayName: string, totalPages: number) => typedError<number, CommandError>(__TAURI_INVOKE("record_book_opened", { filePath, itemType, displayName, totalPages })),
+	recordBookOpened: (filePath: string, itemType: ItemType, displayName: string, totalPages: number) => typedError<number, CommandError>(__TAURI_INVOKE("record_book_opened", { filePath, itemType, displayName, totalPages })),
 	/**
 	 *  Deletes a book by its unique ID.
 	 * 
@@ -957,8 +957,8 @@ export type Book = {
 	id: number,
 	/**  The unique file path or directory path of the book. */
 	file_path: string,
-	/**  The type of the item ('file' or 'directory'). */
-	item_type: string,
+	/**  What the path points at. */
+	item_type: ItemType,
 	/**  The display name of the book. */
 	display_name: string,
 	/**  The total number of pages in the book. */
@@ -980,8 +980,8 @@ export type BookWithState = {
 	id: number,
 	/**  The unique file path or directory path of the book. */
 	file_path: string,
-	/**  The type of the item ('file' or 'directory'). */
-	item_type: string,
+	/**  What the path points at. */
+	item_type: ItemType,
 	/**  The display name of the book. */
 	display_name: string,
 	/**  The total number of pages in the book. */
@@ -1240,6 +1240,13 @@ export type InitialView =
 /**  Opens the bookshelf / library interface. */
 "bookshelf";
 
+/**  What a book's path points at. */
+export type ItemType = 
+/**  An archive, PDF or EPUB file. */
+"file" | 
+/**  A folder of pages. */
+"directory";
+
 /**  Settings related to the application's layout. */
 export type LayoutSettings = {
 	/**  Settings for the side pane (tabs and visibility). */
@@ -1279,8 +1286,8 @@ export type ReadBook = {
 	id: number,
 	/**  The unique file path or directory path of the book. */
 	file_path: string,
-	/**  The type of the item ('file' or 'directory'). */
-	item_type: string,
+	/**  What the path points at. */
+	item_type: ItemType,
 	/**  The display name of the book. */
 	display_name: string,
 	/**  The total number of pages in the book. */

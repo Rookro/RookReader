@@ -290,7 +290,7 @@ mod error_codes_export {
 
 #[cfg(test)]
 mod tests {
-    use crate::domain::book::entity::{Book, BookWithState};
+    use crate::domain::book::entity::{Book, BookWithState, ItemType};
     use crate::domain::series::entity::Series;
     use crate::domain::tag::entity::Tag;
     use crate::settings::AppSettings;
@@ -317,7 +317,7 @@ mod tests {
         let book = Book {
             id: 1,
             file_path: "p".into(),
-            item_type: "file".into(),
+            item_type: ItemType::File,
             display_name: "n".into(),
             total_pages: 3,
             series_id: None,
@@ -335,7 +335,7 @@ mod tests {
         let book = BookWithState {
             id: 1,
             file_path: "p".into(),
-            item_type: "file".into(),
+            item_type: ItemType::File,
             display_name: "n".into(),
             total_pages: 3,
             series_id: None,

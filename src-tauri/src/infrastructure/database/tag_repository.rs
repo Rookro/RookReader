@@ -129,8 +129,8 @@ impl TagRepository for SqliteTagRepository {
         .fetch_all(&self.pool)
         .await?
         .into_iter()
-        .map(BookWithState::from)
-        .collect();
+        .map(BookWithState::try_from)
+        .collect::<Result<Vec<_>>>()?;
         Ok(books)
     }
 

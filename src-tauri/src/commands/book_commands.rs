@@ -8,7 +8,7 @@ use tauri::State;
 
 use crate::container::factory::{create_container, ContainerConfig};
 use crate::container::traits::Container;
-use crate::domain::book::entity::{Book, BookWithState, ReadBook, ReadingState};
+use crate::domain::book::entity::{Book, BookWithState, ItemType, ReadBook, ReadingState};
 use crate::domain::book::repository::BookRepository;
 use crate::domain::bookshelf::repository::BookshelfRepository;
 use crate::domain::series::repository::SeriesRepository;
@@ -103,7 +103,7 @@ pub async fn get_book_with_state_by_id(
 /// # Arguments
 ///
 /// * `file_path` - The unique file or directory path.
-/// * `item_type` - The type of the item ('file' or 'directory').
+/// * `item_type` - What the path points at.
 /// * `display_name` - The display name of the book.
 /// * `total_pages` - The total number of pages.
 /// * `repo` - The managed book repository state.
@@ -122,7 +122,7 @@ pub async fn get_book_with_state_by_id(
 #[specta::specta]
 pub async fn register_book<R: tauri::Runtime>(
     file_path: String,
-    item_type: String,
+    item_type: ItemType,
     display_name: String,
     total_pages: i64,
     repo: State<'_, Arc<dyn BookRepository>>,
@@ -130,7 +130,7 @@ pub async fn register_book<R: tauri::Runtime>(
     state: State<'_, RwLock<AppState>>,
 ) -> Result<i64> {
     log::debug!(
-        "Register the book: (file_path: {}, item_type: {}, display_name: {}, total_pages: {})",
+        "Register the book: (file_path: {}, item_type: {:?}, display_name: {}, total_pages: {})",
         file_path,
         item_type,
         display_name,
@@ -142,7 +142,7 @@ pub async fn register_book<R: tauri::Runtime>(
     let book_id = repo
         .register_book(
             &file_path,
-            &item_type,
+            item_type,
             &display_name,
             total_pages,
             thumbnail_path,
@@ -159,7 +159,7 @@ pub async fn register_book<R: tauri::Runtime>(
 /// # Arguments
 ///
 /// * `file_path` - The unique file or directory path.
-/// * `item_type` - The type of the item ('file' or 'directory').
+/// * `item_type` - What the path points at.
 /// * `display_name` - The display name of the book.
 /// * `total_pages` - The total number of pages.
 /// * `repo` - The managed book repository state.
@@ -178,7 +178,7 @@ pub async fn register_book<R: tauri::Runtime>(
 #[specta::specta]
 pub async fn record_book_opened<R: tauri::Runtime>(
     file_path: String,
-    item_type: String,
+    item_type: ItemType,
     display_name: String,
     total_pages: i64,
     repo: State<'_, Arc<dyn BookRepository>>,
@@ -186,7 +186,7 @@ pub async fn record_book_opened<R: tauri::Runtime>(
     state: State<'_, RwLock<AppState>>,
 ) -> Result<i64> {
     log::debug!(
-        "Record book opened: (file_path: {}, item_type: {}, display_name: {}, total_pages: {})",
+        "Record book opened: (file_path: {}, item_type: {:?}, display_name: {}, total_pages: {})",
         file_path,
         item_type,
         display_name,
@@ -198,7 +198,7 @@ pub async fn record_book_opened<R: tauri::Runtime>(
     let book_id = repo
         .record_book_opened(
             &file_path,
-            &item_type,
+            item_type,
             &display_name,
             total_pages,
             thumbnail_path,
@@ -752,7 +752,7 @@ mod tests {
                 Ok(Some(Book {
                     id,
                     file_path: "path".to_string(),
-                    item_type: "file".to_string(),
+                    item_type: ItemType::File,
                     display_name: "name".to_string(),
                     total_pages: 10,
                     series_id: None,
@@ -773,7 +773,7 @@ mod tests {
             let book = book.unwrap();
             assert_eq!(book.id, 1);
             assert_eq!(book.file_path, "path");
-            assert_eq!(book.item_type, "file");
+            assert_eq!(book.item_type, ItemType::File);
             assert_eq!(book.display_name, "name");
             assert_eq!(book.total_pages, 10);
             assert!(book.series_id.is_none());
@@ -793,7 +793,7 @@ mod tests {
                 Ok(Some(Book {
                     id: 1,
                     file_path: path.to_string(),
-                    item_type: "file".to_string(),
+                    item_type: ItemType::File,
                     display_name: "name".to_string(),
                     total_pages: 10,
                     series_id: None,
@@ -814,7 +814,7 @@ mod tests {
             let book = book.unwrap();
             assert_eq!(book.id, 1);
             assert_eq!(book.file_path, "fake_path");
-            assert_eq!(book.item_type, "file");
+            assert_eq!(book.item_type, ItemType::File);
             assert_eq!(book.display_name, "name");
             assert_eq!(book.total_pages, 10);
             assert!(book.series_id.is_none());
@@ -982,7 +982,7 @@ mod tests {
                 Ok(Some(BookWithState {
                     id,
                     file_path: "path".to_string(),
-                    item_type: "file".to_string(),
+                    item_type: ItemType::File,
                     display_name: "name".to_string(),
                     total_pages: 10,
                     series_id: None,
@@ -1101,7 +1101,7 @@ mod tests {
             .expect_register_book()
             .with(
                 mockall::predicate::eq("path"),
-                mockall::predicate::eq("file"),
+                mockall::predicate::eq(ItemType::File),
                 mockall::predicate::eq("name"),
                 mockall::predicate::eq(10),
                 mockall::predicate::always(),
@@ -1117,7 +1117,7 @@ mod tests {
 
         let result = register_book(
             "path".to_string(),
-            "file".to_string(),
+            ItemType::File,
             "name".to_string(),
             10,
             repo,
@@ -1136,7 +1136,7 @@ mod tests {
             .expect_record_book_opened()
             .with(
                 mockall::predicate::eq("path"),
-                mockall::predicate::eq("file"),
+                mockall::predicate::eq(ItemType::File),
                 mockall::predicate::eq("name"),
                 mockall::predicate::eq(10),
                 mockall::predicate::always(),
@@ -1152,7 +1152,7 @@ mod tests {
 
         let result = record_book_opened(
             "path".to_string(),
-            "file".to_string(),
+            ItemType::File,
             "name".to_string(),
             10,
             repo,

@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use sqlx::SqlitePool;
 
-use crate::domain::book::entity::{Book, BookWithState, ReadBook, ReadingState};
+use crate::domain::book::entity::{Book, BookWithState, ItemType, ReadBook, ReadingState};
 use crate::domain::book::repository::BookRepository;
 use crate::error::Result;
 use crate::infrastructure::database::models::{BookRow, BookWithStateRow, ReadBookRow};
@@ -41,7 +41,8 @@ impl BookRepository for SqliteBookRepository {
         )
         .fetch_optional(&self.pool)
         .await?
-        .map(Book::from);
+        .map(Book::try_from)
+        .transpose()?;
 
         Ok(book)
     }
@@ -68,7 +69,8 @@ impl BookRepository for SqliteBookRepository {
         )
         .fetch_optional(&self.pool)
         .await?
-        .map(Book::from);
+        .map(Book::try_from)
+        .transpose()?;
 
         Ok(book)
     }
@@ -90,7 +92,8 @@ impl BookRepository for SqliteBookRepository {
         )
         .fetch_optional(&self.pool)
         .await?
-        .map(BookWithState::from);
+        .map(BookWithState::try_from)
+        .transpose()?;
 
         Ok(book)
     }
@@ -98,11 +101,12 @@ impl BookRepository for SqliteBookRepository {
     async fn register_book(
         &self,
         file_path: &str,
-        item_type: &str,
+        item_type: ItemType,
         display_name: &str,
         total_pages: i64,
         thumbnail_path: Option<String>,
     ) -> Result<i64> {
+        let item_type: &str = item_type.into();
         // Stamp created_at on insert; it is intentionally absent from the ON CONFLICT
         // clause so re-registering an existing book preserves its original timestamp.
         let now = chrono::Utc::now().naive_utc();
@@ -135,11 +139,12 @@ impl BookRepository for SqliteBookRepository {
     async fn record_book_opened(
         &self,
         file_path: &str,
-        item_type: &str,
+        item_type: ItemType,
         display_name: &str,
         total_pages: i64,
         thumbnail_path: Option<String>,
     ) -> Result<i64> {
+        let item_type: &str = item_type.into();
         let mut tx = self.pool.begin().await?;
         let now = chrono::Utc::now().naive_utc();
         let book_id = sqlx::query!(
@@ -290,8 +295,8 @@ impl BookRepository for SqliteBookRepository {
                 .fetch_all(&self.pool)
                 .await?
                 .into_iter()
-                .map(ReadBook::from)
-                .collect()
+                .map(ReadBook::try_from)
+                .collect::<Result<Vec<_>>>()?
             }
             None => sqlx::query_as!(
                 ReadBookRow,
@@ -309,8 +314,8 @@ impl BookRepository for SqliteBookRepository {
             .fetch_all(&self.pool)
             .await?
             .into_iter()
-            .map(ReadBook::from)
-            .collect(),
+            .map(ReadBook::try_from)
+            .collect::<Result<Vec<_>>>()?,
         };
 
         Ok(books)
@@ -333,8 +338,8 @@ impl BookRepository for SqliteBookRepository {
         .fetch_all(&self.pool)
         .await?
         .into_iter()
-        .map(BookWithState::from)
-        .collect();
+        .map(BookWithState::try_from)
+        .collect::<Result<Vec<_>>>()?;
         Ok(books)
     }
 

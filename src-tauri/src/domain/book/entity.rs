@@ -1,5 +1,28 @@
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
+use strum_macros::{EnumString, IntoStaticStr};
+
+/// What a book's path points at.
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    EnumString,
+    IntoStaticStr,
+    specta::Type,
+)]
+#[serde(rename_all = "lowercase")]
+#[strum(serialize_all = "lowercase")]
+pub enum ItemType {
+    /// An archive, PDF or EPUB file.
+    File,
+    /// A folder of pages.
+    Directory,
+}
 
 /// Represents a book entity in the database.
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
@@ -8,8 +31,8 @@ pub struct Book {
     pub id: i64,
     /// The unique file path or directory path of the book.
     pub file_path: String,
-    /// The type of the item ('file' or 'directory').
-    pub item_type: String,
+    /// What the path points at.
+    pub item_type: ItemType,
     /// The display name of the book.
     pub display_name: String,
     /// The total number of pages in the book.
@@ -42,8 +65,8 @@ pub struct ReadBook {
     pub id: i64,
     /// The unique file path or directory path of the book.
     pub file_path: String,
-    /// The type of the item ('file' or 'directory').
-    pub item_type: String,
+    /// What the path points at.
+    pub item_type: ItemType,
     /// The display name of the book.
     pub display_name: String,
     /// The total number of pages in the book.
@@ -69,8 +92,8 @@ pub struct BookWithState {
     pub id: i64,
     /// The unique file path or directory path of the book.
     pub file_path: String,
-    /// The type of the item ('file' or 'directory').
-    pub item_type: String,
+    /// What the path points at.
+    pub item_type: ItemType,
     /// The display name of the book.
     pub display_name: String,
     /// The total number of pages in the book.
@@ -112,4 +135,19 @@ pub struct BookWithState {
     /// List of tag IDs associated with this book.
     #[serde(default)]
     pub tag_ids: Vec<i64>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn item_type_is_a_lowercase_word_on_the_wire_and_in_the_database() {
+        assert_eq!(
+            serde_json::to_value(ItemType::Directory).unwrap(),
+            serde_json::json!("directory")
+        );
+        assert_eq!("file".parse::<ItemType>(), Ok(ItemType::File));
+        assert_eq!(<&str>::from(ItemType::Directory), "directory");
+    }
 }

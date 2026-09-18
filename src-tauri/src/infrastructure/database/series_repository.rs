@@ -80,8 +80,8 @@ impl SeriesRepository for SqliteSeriesRepository {
         .fetch_all(&self.pool)
         .await?
         .into_iter()
-        .map(BookWithState::from)
-        .collect();
+        .map(BookWithState::try_from)
+        .collect::<Result<Vec<_>>>()?;
         Ok(books)
     }
 
@@ -155,6 +155,7 @@ impl SeriesRepository for SqliteSeriesRepository {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::domain::book::entity::ItemType;
     use crate::domain::book::repository::BookRepository;
     use crate::infrastructure::database::book_repository::SqliteBookRepository;
 
@@ -185,7 +186,7 @@ mod tests {
 
         let series_id = repo.create("Series").await.unwrap();
         let book_id = book_repo
-            .register_book("path", "file", "Book", 10, None)
+            .register_book("path", ItemType::File, "Book", 10, None)
             .await
             .unwrap();
 
@@ -207,11 +208,11 @@ mod tests {
         let book_repo = SqliteBookRepository::new(pool);
 
         let b1 = book_repo
-            .register_book("p1", "file", "B1", 10, None)
+            .register_book("p1", ItemType::File, "B1", 10, None)
             .await
             .unwrap();
         let b2 = book_repo
-            .register_book("p2", "file", "B2", 10, None)
+            .register_book("p2", ItemType::File, "B2", 10, None)
             .await
             .unwrap();
 

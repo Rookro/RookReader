@@ -1,7 +1,7 @@
 use crate::error::Result;
 use async_trait::async_trait;
 
-use super::entity::{Book, BookWithState, ReadBook, ReadingState};
+use super::entity::{Book, BookWithState, ItemType, ReadBook, ReadingState};
 
 /// Defines the data access operations for the `Book` aggregate.
 #[cfg_attr(test, mockall::automock)]
@@ -59,7 +59,7 @@ pub trait BookRepository: Send + Sync {
     /// # Arguments
     ///
     /// * `file_path` - The unique file or directory path.
-    /// * `item_type` - The type of the item ('file' or 'directory').
+    /// * `item_type` - What the path points at.
     /// * `display_name` - The display name of the book.
     /// * `total_pages` - The total number of pages.
     /// * `thumbnail_path` - The path to the thumbnail image of the book.
@@ -74,7 +74,7 @@ pub trait BookRepository: Send + Sync {
     async fn register_book(
         &self,
         file_path: &str,
-        item_type: &str,
+        item_type: ItemType,
         display_name: &str,
         total_pages: i64,
         thumbnail_path: Option<String>,
@@ -89,7 +89,7 @@ pub trait BookRepository: Send + Sync {
     /// # Arguments
     ///
     /// * `file_path` - The unique file or directory path.
-    /// * `item_type` - The type of the item ('file' or 'directory').
+    /// * `item_type` - What the path points at.
     /// * `display_name` - The display name of the book.
     /// * `total_pages` - The total number of pages.
     /// * `thumbnail_path` - The path to the thumbnail image of the book.
@@ -104,7 +104,7 @@ pub trait BookRepository: Send + Sync {
     async fn record_book_opened(
         &self,
         file_path: &str,
-        item_type: &str,
+        item_type: ItemType,
         display_name: &str,
         total_pages: i64,
         thumbnail_path: Option<String>,

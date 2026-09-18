@@ -1,4 +1,4 @@
-use rookreader_lib::domain::book::entity::ReadingState;
+use rookreader_lib::domain::book::entity::{ItemType, ReadingState};
 use rookreader_lib::domain::book::repository::BookRepository;
 use rookreader_lib::domain::bookshelf::repository::BookshelfRepository;
 use rookreader_lib::domain::series::repository::SeriesRepository;
@@ -17,7 +17,7 @@ async fn test_register_and_get_book() {
     let repository = SqliteBookRepository::new(pool.clone());
 
     let book_id = repository
-        .register_book("/path/to/book.epub", "file", "My Book", 100, None)
+        .register_book("/path/to/book.epub", ItemType::File, "My Book", 100, None)
         .await
         .unwrap();
 
@@ -29,7 +29,7 @@ async fn test_register_and_get_book() {
     let updated_book_id = repository
         .register_book(
             "/path/to/book.epub",
-            "file",
+            ItemType::File,
             "Updated Book", // Refreshed on conflict (page-derived metadata).
             200,            // Refreshed on conflict (e.g. pages added to a directory).
             Some("/path/to/thumb".to_string()),
@@ -58,7 +58,7 @@ async fn test_register_sets_and_preserves_created_at() {
     let repository = SqliteBookRepository::new(pool.clone());
 
     let book_id = repository
-        .register_book("/path/to/book.epub", "file", "My Book", 100, None)
+        .register_book("/path/to/book.epub", ItemType::File, "My Book", 100, None)
         .await
         .unwrap();
 
@@ -73,7 +73,7 @@ async fn test_register_sets_and_preserves_created_at() {
 
     // Re-registering refreshes metadata but must preserve the original created_at.
     repository
-        .register_book("/path/to/book.epub", "file", "Renamed", 200, None)
+        .register_book("/path/to/book.epub", ItemType::File, "Renamed", 200, None)
         .await
         .unwrap();
 
@@ -92,7 +92,7 @@ async fn test_reading_state() {
     let repository = SqliteBookRepository::new(pool.clone());
 
     let book_id = repository
-        .register_book("/path/to/book.epub", "file", "My Book", 100, None)
+        .register_book("/path/to/book.epub", ItemType::File, "My Book", 100, None)
         .await
         .unwrap();
 
@@ -136,7 +136,13 @@ async fn test_reading_state_cfi_roundtrip_and_preservation() {
     let repository = SqliteBookRepository::new(pool.clone());
 
     let book_id = repository
-        .record_book_opened("/path/to/novel.epub", "file", "novel.epub", 10, None)
+        .record_book_opened(
+            "/path/to/novel.epub",
+            ItemType::File,
+            "novel.epub",
+            10,
+            None,
+        )
         .await
         .unwrap();
 
@@ -159,7 +165,13 @@ async fn test_reading_state_cfi_roundtrip_and_preservation() {
 
     // Re-opening the book must not wipe the stored CFI.
     repository
-        .record_book_opened("/path/to/novel.epub", "file", "novel.epub", 10, None)
+        .record_book_opened(
+            "/path/to/novel.epub",
+            ItemType::File,
+            "novel.epub",
+            10,
+            None,
+        )
         .await
         .unwrap();
     let book = repository
@@ -186,7 +198,7 @@ async fn test_record_book_opened() {
 
     // 1. New book
     let book_id = repository
-        .record_book_opened("/path/to/read.epub", "file", "Read Book", 100, None)
+        .record_book_opened("/path/to/read.epub", ItemType::File, "Read Book", 100, None)
         .await
         .unwrap();
 
@@ -205,7 +217,7 @@ async fn test_record_book_opened() {
     tokio::time::sleep(std::time::Duration::from_millis(10)).await;
 
     let book_id_2 = repository
-        .record_book_opened("/path/to/read.epub", "file", "Read Book", 100, None)
+        .record_book_opened("/path/to/read.epub", ItemType::File, "Read Book", 100, None)
         .await
         .unwrap();
 
@@ -225,15 +237,15 @@ async fn test_recently_read_books() {
     let repository = SqliteBookRepository::new(pool.clone());
 
     let b1 = repository
-        .register_book("/path/1", "file", "B1", 100, None)
+        .register_book("/path/1", ItemType::File, "B1", 100, None)
         .await
         .unwrap();
     let b2 = repository
-        .register_book("/path/2", "file", "B2", 100, None)
+        .register_book("/path/2", ItemType::File, "B2", 100, None)
         .await
         .unwrap();
     let _b3 = repository
-        .register_book("/path/3", "file", "B3", 100, None)
+        .register_book("/path/3", ItemType::File, "B3", 100, None)
         .await
         .unwrap();
 
@@ -277,7 +289,7 @@ async fn test_update_reading_progress_defaults_null_last_opened_at() {
     let repository = SqliteBookRepository::new(pool.clone());
 
     let book_id = repository
-        .register_book("/path/to/book.epub", "file", "My Book", 100, None)
+        .register_book("/path/to/book.epub", ItemType::File, "My Book", 100, None)
         .await
         .unwrap();
 
@@ -310,7 +322,7 @@ async fn test_recently_read_books_negative_limit_returns_empty() {
     let repository = SqliteBookRepository::new(pool.clone());
 
     let book_id = repository
-        .register_book("/path/1", "file", "B1", 100, None)
+        .register_book("/path/1", ItemType::File, "B1", 100, None)
         .await
         .unwrap();
     repository
@@ -334,11 +346,11 @@ async fn test_all_books_with_state() {
     let repository = SqliteBookRepository::new(pool.clone());
 
     repository
-        .register_book("/path/1", "file", "B1", 100, None)
+        .register_book("/path/1", ItemType::File, "B1", 100, None)
         .await
         .unwrap();
     repository
-        .register_book("/path/2", "file", "B2", 100, None)
+        .register_book("/path/2", ItemType::File, "B2", 100, None)
         .await
         .unwrap();
 
@@ -355,11 +367,11 @@ async fn test_filtering_by_bookshelf_tag_series() {
     let series_repo = SqliteSeriesRepository::new(pool.clone());
 
     let b1 = repository
-        .register_book("/path/1", "file", "B1", 100, None)
+        .register_book("/path/1", ItemType::File, "B1", 100, None)
         .await
         .unwrap();
     let b2 = repository
-        .register_book("/path/2", "file", "B2", 100, None)
+        .register_book("/path/2", ItemType::File, "B2", 100, None)
         .await
         .unwrap();
 
@@ -403,7 +415,7 @@ async fn test_clear_all_reading_history() {
     let repository = SqliteBookRepository::new(pool.clone());
 
     let b1 = repository
-        .register_book("/path/1", "file", "B1", 100, None)
+        .register_book("/path/1", ItemType::File, "B1", 100, None)
         .await
         .unwrap();
     let now = chrono::Utc::now().naive_utc();
@@ -434,7 +446,7 @@ async fn test_book_tags() {
     let tag_repo = SqliteTagRepository::new(pool.clone());
 
     let book_id = repository
-        .register_book("/path/to/book.epub", "file", "My Book", 100, None)
+        .register_book("/path/to/book.epub", ItemType::File, "My Book", 100, None)
         .await
         .unwrap();
 
@@ -476,7 +488,7 @@ async fn test_delete_book() {
     let tag_repo = SqliteTagRepository::new(pool.clone());
 
     let book_id = repository
-        .register_book("/path/to/book.epub", "file", "My Book", 100, None)
+        .register_book("/path/to/book.epub", ItemType::File, "My Book", 100, None)
         .await
         .unwrap();
 
@@ -528,7 +540,7 @@ async fn spread_state_round_trips_and_survives_clearing_history() {
     let repository = SqliteBookRepository::new(pool.clone());
 
     let book_id = repository
-        .register_book("/path/to/comic.cbz", "file", "Comic", 4, None)
+        .register_book("/path/to/comic.cbz", ItemType::File, "Comic", 4, None)
         .await
         .unwrap();
 

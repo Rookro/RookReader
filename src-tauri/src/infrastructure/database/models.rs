@@ -2,6 +2,7 @@ use chrono::NaiveDateTime;
 use sqlx::FromRow;
 
 use crate::domain::book::entity::{Book, BookWithState, ReadBook};
+use crate::error::{Error, Result};
 
 /// A row of `books`, as the database stores it.
 #[derive(Debug, FromRow)]
@@ -16,18 +17,20 @@ pub struct BookRow {
     pub thumbnail_path: Option<String>,
 }
 
-impl From<BookRow> for Book {
-    fn from(r: BookRow) -> Self {
-        Book {
+impl TryFrom<BookRow> for Book {
+    type Error = Error;
+
+    fn try_from(r: BookRow) -> Result<Self> {
+        Ok(Book {
             id: r.id,
             file_path: r.file_path,
-            item_type: r.item_type,
+            item_type: r.item_type.parse()?,
             display_name: r.display_name,
             total_pages: r.total_pages,
             series_id: r.series_id,
             series_order: r.series_order,
             thumbnail_path: r.thumbnail_path,
-        }
+        })
     }
 }
 
@@ -46,12 +49,14 @@ pub struct ReadBookRow {
     pub last_opened_at: NaiveDateTime,
 }
 
-impl From<ReadBookRow> for ReadBook {
-    fn from(r: ReadBookRow) -> Self {
-        ReadBook {
+impl TryFrom<ReadBookRow> for ReadBook {
+    type Error = Error;
+
+    fn try_from(r: ReadBookRow) -> Result<Self> {
+        Ok(ReadBook {
             id: r.id,
             file_path: r.file_path,
-            item_type: r.item_type,
+            item_type: r.item_type.parse()?,
             display_name: r.display_name,
             total_pages: r.total_pages,
             series_id: r.series_id,
@@ -59,7 +64,7 @@ impl From<ReadBookRow> for ReadBook {
             thumbnail_path: r.thumbnail_path,
             last_read_page_index: r.last_read_page_index,
             last_opened_at: r.last_opened_at,
-        }
+        })
     }
 }
 
@@ -114,12 +119,14 @@ pub struct BookWithStateRow {
     pub tag_ids_str: Option<String>,
 }
 
-impl From<BookWithStateRow> for BookWithState {
-    fn from(r: BookWithStateRow) -> Self {
-        BookWithState {
+impl TryFrom<BookWithStateRow> for BookWithState {
+    type Error = Error;
+
+    fn try_from(r: BookWithStateRow) -> Result<Self> {
+        Ok(BookWithState {
             id: r.id,
             file_path: r.file_path,
-            item_type: r.item_type,
+            item_type: r.item_type.parse()?,
             display_name: r.display_name,
             total_pages: r.total_pages,
             series_id: r.series_id,
@@ -137,7 +144,7 @@ impl From<BookWithStateRow> for BookWithState {
                 .as_deref()
                 .map(parse_tag_ids)
                 .unwrap_or_default(),
-        }
+        })
     }
 }
 
