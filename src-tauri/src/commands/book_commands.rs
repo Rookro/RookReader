@@ -5,6 +5,9 @@ use tokio::sync::RwLock;
 use tauri::Emitter;
 use tauri::State;
 
+use crate::commands::library_events::{
+    BOOKS_CHANGED_EVENT, READING_HISTORY_CHANGED_EVENT, READING_PROGRESS_CHANGED_EVENT,
+};
 use crate::container::factory::{create_container, ContainerConfig};
 use crate::container::traits::Container;
 use crate::domain::book::entity::{
@@ -17,11 +20,6 @@ use crate::domain::tag::repository::TagRepository;
 use crate::error::{Error, Result};
 use crate::page::pipeline::Pipeline;
 use crate::state::app_state::AppState;
-
-/// Event emitted when a book's reading progress changes (a page turn). It carries the
-/// updated `ReadingState` so the frontend can patch the affected book in place, instead
-/// of the coarse `history-changed` event that triggers a full-collection refetch.
-const READING_PROGRESS_CHANGED_EVENT: &str = "reading-progress-changed";
 
 /// Retrieves a book by its unique ID.
 ///
@@ -150,7 +148,7 @@ pub async fn register_book<R: tauri::Runtime>(
         )
         .await?;
 
-    app.emit("history-changed", ())?;
+    app.emit(BOOKS_CHANGED_EVENT, ())?;
 
     Ok(book_id)
 }
@@ -206,7 +204,8 @@ pub async fn record_book_opened<R: tauri::Runtime>(
         )
         .await?;
 
-    app.emit("history-changed", ())?;
+    app.emit(BOOKS_CHANGED_EVENT, ())?;
+    app.emit(READING_HISTORY_CHANGED_EVENT, ())?;
 
     Ok(book_id)
 }
@@ -232,7 +231,8 @@ pub async fn clear_reading_history<R: tauri::Runtime>(
 ) -> Result<()> {
     log::debug!("Clear reading history of {:?}", book_id);
     repo.clear_reading_history(book_id).await?;
-    app.emit("history-changed", ())?;
+    app.emit(BOOKS_CHANGED_EVENT, ())?;
+    app.emit(READING_HISTORY_CHANGED_EVENT, ())?;
     Ok(())
 }
 
@@ -255,7 +255,8 @@ pub async fn clear_all_reading_history<R: tauri::Runtime>(
 ) -> Result<()> {
     log::debug!("Clear all reading history");
     repo.clear_all_reading_history().await?;
-    app.emit("history-changed", ())?;
+    app.emit(BOOKS_CHANGED_EVENT, ())?;
+    app.emit(READING_HISTORY_CHANGED_EVENT, ())?;
     Ok(())
 }
 
@@ -540,7 +541,7 @@ pub async fn update_book_tags<R: tauri::Runtime>(
         tag_ids
     );
     repo.attach_tags_to_book(book_id, &tag_ids).await?;
-    app.emit("history-changed", ())?;
+    app.emit(BOOKS_CHANGED_EVENT, ())?;
     Ok(())
 }
 
@@ -571,7 +572,8 @@ pub async fn delete_book<R: tauri::Runtime>(
     if let Some(path) = thumbnail_path {
         remove_thumbnail(path).await;
     }
-    app.emit("history-changed", ())?;
+    app.emit(BOOKS_CHANGED_EVENT, ())?;
+    app.emit(READING_HISTORY_CHANGED_EVENT, ())?;
     Ok(())
 }
 
@@ -616,7 +618,7 @@ pub async fn update_book_series<R: tauri::Runtime>(
         series_id
     );
     repo.assign_book_to_series(book_id, series_id).await?;
-    app.emit("history-changed", ())?;
+    app.emit(BOOKS_CHANGED_EVENT, ())?;
     Ok(())
 }
 
@@ -639,7 +641,7 @@ pub async fn update_series_orders<R: tauri::Runtime>(
 ) -> Result<()> {
     log::debug!("Update series orders for books: {:?}", book_ids);
     repo.update_book_orders_in_series(book_ids).await?;
-    app.emit("history-changed", ())?;
+    app.emit(BOOKS_CHANGED_EVENT, ())?;
     Ok(())
 }
 
@@ -774,6 +776,7 @@ async fn generate_and_save_thumbnail<R: tauri::Runtime>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::commands::library_events::test_support::record_events;
     use crate::domain::book::repository::MockBookRepository;
     use crate::domain::bookshelf::repository::MockBookshelfRepository;
     use crate::domain::series::repository::MockSeriesRepository;
@@ -896,9 +899,14 @@ mod tests {
         let app = tauri::test::mock_app();
         app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
         let repo = app.state::<Arc<dyn BookRepository>>();
+        let events = record_events(app.handle());
 
         let result = delete_book(1, repo, app.handle().clone()).await;
         assert!(result.is_ok());
+        assert_eq!(
+            *events.lock().unwrap(),
+            [BOOKS_CHANGED_EVENT, READING_HISTORY_CHANGED_EVENT]
+        );
         assert!(!thumbnail.exists(), "the thumbnail must go with the book");
     }
 
@@ -947,9 +955,11 @@ mod tests {
         let app = tauri::test::mock_app();
         app.manage(Arc::new(mock_repo) as Arc<dyn SeriesRepository>);
         let repo = app.state::<Arc<dyn SeriesRepository>>();
+        let events = record_events(app.handle());
 
         let result = update_book_series(1, Some(10), repo, app.handle().clone()).await;
         assert!(result.is_ok());
+        assert_eq!(*events.lock().unwrap(), [BOOKS_CHANGED_EVENT]);
     }
 
     #[tokio::test]
@@ -964,9 +974,33 @@ mod tests {
         let app = tauri::test::mock_app();
         app.manage(Arc::new(mock_repo) as Arc<dyn SeriesRepository>);
         let repo = app.state::<Arc<dyn SeriesRepository>>();
+        let events = record_events(app.handle());
 
         let result = update_series_orders(vec![1, 2, 3], repo, app.handle().clone()).await;
         assert!(result.is_ok());
+        assert_eq!(*events.lock().unwrap(), [BOOKS_CHANGED_EVENT]);
+    }
+
+    #[tokio::test]
+    async fn test_update_book_tags() {
+        let mut mock_repo = MockTagRepository::new();
+        mock_repo
+            .expect_attach_tags_to_book()
+            .with(
+                mockall::predicate::eq(1),
+                mockall::predicate::eq(vec![2, 3]),
+            )
+            .times(1)
+            .returning(|_, _| Ok(()));
+
+        let app = tauri::test::mock_app();
+        app.manage(Arc::new(mock_repo) as Arc<dyn TagRepository>);
+        let repo = app.state::<Arc<dyn TagRepository>>();
+        let events = record_events(app.handle());
+
+        let result = update_book_tags(1, vec![2, 3], repo, app.handle().clone()).await;
+        assert!(result.is_ok());
+        assert_eq!(*events.lock().unwrap(), [BOOKS_CHANGED_EVENT]);
     }
 
     #[tokio::test]
@@ -981,9 +1015,14 @@ mod tests {
         let app = tauri::test::mock_app();
         app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
         let repo = app.state::<Arc<dyn BookRepository>>();
+        let events = record_events(app.handle());
 
         let result = clear_reading_history(1, repo, app.handle().clone()).await;
         assert!(result.is_ok());
+        assert_eq!(
+            *events.lock().unwrap(),
+            [BOOKS_CHANGED_EVENT, READING_HISTORY_CHANGED_EVENT]
+        );
     }
 
     #[tokio::test]
@@ -1044,9 +1083,14 @@ mod tests {
         let app = tauri::test::mock_app();
         app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
         let repo = app.state::<Arc<dyn BookRepository>>();
+        let events = record_events(app.handle());
 
         let result = clear_all_reading_history(repo, app.handle().clone()).await;
         assert!(result.is_ok());
+        assert_eq!(
+            *events.lock().unwrap(),
+            [BOOKS_CHANGED_EVENT, READING_HISTORY_CHANGED_EVENT]
+        );
     }
 
     #[tokio::test]
@@ -1212,6 +1256,7 @@ mod tests {
         app.manage(RwLock::new(AppState::default()));
         let repo = app.state::<Arc<dyn BookRepository>>();
         let state = app.state::<RwLock<AppState>>();
+        let events = record_events(app.handle());
 
         let result = register_book(
             "path".to_string(),
@@ -1224,6 +1269,7 @@ mod tests {
         )
         .await;
         assert!(result.is_ok());
+        assert_eq!(*events.lock().unwrap(), [BOOKS_CHANGED_EVENT]);
         assert_eq!(result.unwrap(), 1);
     }
 
@@ -1247,6 +1293,7 @@ mod tests {
         app.manage(RwLock::new(AppState::default()));
         let repo = app.state::<Arc<dyn BookRepository>>();
         let state = app.state::<RwLock<AppState>>();
+        let events = record_events(app.handle());
 
         let result = record_book_opened(
             "path".to_string(),
@@ -1259,6 +1306,10 @@ mod tests {
         )
         .await;
         assert!(result.is_ok());
+        assert_eq!(
+            *events.lock().unwrap(),
+            [BOOKS_CHANGED_EVENT, READING_HISTORY_CHANGED_EVENT]
+        );
         assert_eq!(result.unwrap(), 1);
     }
 

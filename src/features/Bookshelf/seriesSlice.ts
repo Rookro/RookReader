@@ -65,7 +65,8 @@ export const addSeries = createAppAsyncThunk(
 );
 
 /**
- * Ungroups a series; the backend's `history-changed` refetch removes it from the grid.
+ * Ungroups a series; the backend's `series-changed` and `books-changed` refetches remove it
+ * from the grid.
  *
  * @param id - The ID of the series to remove.
  * @returns A thunk that resolves when the series is removed.

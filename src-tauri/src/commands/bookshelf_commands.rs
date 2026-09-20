@@ -2,6 +2,7 @@ use std::sync::Arc;
 use tauri::Emitter;
 use tauri::State;
 
+use crate::commands::library_events::{BOOKSHELVES_CHANGED_EVENT, BOOKS_CHANGED_EVENT};
 use crate::domain::bookshelf::entity::Bookshelf;
 use crate::domain::bookshelf::repository::BookshelfRepository;
 use crate::error::Result;
@@ -32,7 +33,7 @@ pub async fn create_bookshelf<R: tauri::Runtime>(
 ) -> Result<Bookshelf> {
     log::debug!("Create bookshelf. (name:{}, icon_id:{})", name, icon_id);
     let shelf = repo.create(&name, &icon_id).await?;
-    app.emit("history-changed", ())?;
+    app.emit(BOOKSHELVES_CHANGED_EVENT, ())?;
     Ok(shelf)
 }
 
@@ -85,7 +86,7 @@ pub async fn add_book_to_bookshelf<R: tauri::Runtime>(
         book_id
     );
     repo.add_book_to_bookshelf(bookshelf_id, book_id).await?;
-    app.emit("history-changed", ())?;
+    app.emit(BOOKS_CHANGED_EVENT, ())?;
     Ok(())
 }
 
@@ -115,7 +116,7 @@ pub async fn remove_book_from_bookshelf<R: tauri::Runtime>(
     );
     repo.remove_book_from_bookshelf(bookshelf_id, book_id)
         .await?;
-    app.emit("history-changed", ())?;
+    app.emit(BOOKS_CHANGED_EVENT, ())?;
     Ok(())
 }
 
@@ -138,13 +139,14 @@ pub async fn delete_bookshelf<R: tauri::Runtime>(
 ) -> Result<()> {
     log::debug!("Delete bookshelf. (id:{})", id);
     repo.delete(id).await?;
-    app.emit("history-changed", ())?;
+    app.emit(BOOKSHELVES_CHANGED_EVENT, ())?;
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::commands::library_events::test_support::record_events;
     use crate::domain::bookshelf::repository::MockBookshelfRepository;
     use crate::error::ErrorCode;
     use tauri::Manager;
@@ -171,6 +173,7 @@ mod tests {
         let app = tauri::test::mock_app();
         app.manage(Arc::new(mock_repo) as Arc<dyn BookshelfRepository>);
         let state = app.state::<Arc<dyn BookshelfRepository>>();
+        let events = record_events(app.handle());
 
         let result = create_bookshelf(
             "shelf1".to_string(),
@@ -180,6 +183,7 @@ mod tests {
         )
         .await;
         assert!(result.is_ok());
+        assert_eq!(*events.lock().unwrap(), [BOOKSHELVES_CHANGED_EVENT]);
         let shelf = result.unwrap();
         assert_eq!(shelf.id, 1);
         assert_eq!(shelf.name, "shelf1");
@@ -234,9 +238,11 @@ mod tests {
         let app = tauri::test::mock_app();
         app.manage(Arc::new(mock_repo) as Arc<dyn BookshelfRepository>);
         let state = app.state::<Arc<dyn BookshelfRepository>>();
+        let events = record_events(app.handle());
 
         let result = add_book_to_bookshelf(1, 2, state, app.handle().clone()).await;
         assert!(result.is_ok());
+        assert_eq!(*events.lock().unwrap(), [BOOKS_CHANGED_EVENT]);
     }
 
     #[tokio::test]
@@ -251,9 +257,11 @@ mod tests {
         let app = tauri::test::mock_app();
         app.manage(Arc::new(mock_repo) as Arc<dyn BookshelfRepository>);
         let state = app.state::<Arc<dyn BookshelfRepository>>();
+        let events = record_events(app.handle());
 
         let result = remove_book_from_bookshelf(1, 2, state, app.handle().clone()).await;
         assert!(result.is_ok());
+        assert_eq!(*events.lock().unwrap(), [BOOKS_CHANGED_EVENT]);
     }
 
     #[tokio::test]
@@ -268,9 +276,11 @@ mod tests {
         let app = tauri::test::mock_app();
         app.manage(Arc::new(mock_repo) as Arc<dyn BookshelfRepository>);
         let state = app.state::<Arc<dyn BookshelfRepository>>();
+        let events = record_events(app.handle());
 
         let result = delete_bookshelf(1, state, app.handle().clone()).await;
         assert!(result.is_ok());
+        assert_eq!(*events.lock().unwrap(), [BOOKSHELVES_CHANGED_EVENT]);
     }
 
     #[tokio::test]

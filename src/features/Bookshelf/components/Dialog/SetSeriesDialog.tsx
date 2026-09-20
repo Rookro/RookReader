@@ -73,7 +73,7 @@ export default function SetSeriesDialog({
     }
     const result = await dispatch(updateBooksSeries({ bookIds, seriesId: selectedSeriesId }));
     // On failure the slice error is shown by GlobalErrorListener and the backend's
-    // `history-changed` refetch reflects any partial success; stay open for retry.
+    // `books-changed` refetch reflects any partial success; stay open for retry.
     if (updateBooksSeries.fulfilled.match(result)) {
       onClose();
     }

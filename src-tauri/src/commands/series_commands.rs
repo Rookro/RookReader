@@ -2,6 +2,7 @@ use std::sync::Arc;
 use tauri::Emitter;
 use tauri::State;
 
+use crate::commands::library_events::{BOOKS_CHANGED_EVENT, SERIES_CHANGED_EVENT};
 use crate::domain::series::entity::Series;
 use crate::domain::series::repository::SeriesRepository;
 use crate::error::Result;
@@ -30,7 +31,7 @@ pub async fn create_series<R: tauri::Runtime>(
 ) -> Result<i64> {
     log::debug!("Create series. (name:{})", name);
     let series_id = repo.create(&name).await?;
-    app.emit("history-changed", ())?;
+    app.emit(SERIES_CHANGED_EVENT, ())?;
     Ok(series_id)
 }
 
@@ -74,13 +75,15 @@ pub async fn delete_series<R: tauri::Runtime>(
 ) -> Result<()> {
     log::debug!("Delete series. (id:{})", id);
     repo.delete(id).await?;
-    app.emit("history-changed", ())?;
+    app.emit(SERIES_CHANGED_EVENT, ())?;
+    app.emit(BOOKS_CHANGED_EVENT, ())?;
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::commands::library_events::test_support::record_events;
     use crate::domain::series::repository::MockSeriesRepository;
     use crate::error::ErrorCode;
     use tauri::Manager;
@@ -97,9 +100,11 @@ mod tests {
         let app = tauri::test::mock_app();
         app.manage(Arc::new(mock_repo) as Arc<dyn SeriesRepository>);
         let state = app.state::<Arc<dyn SeriesRepository>>();
+        let events = record_events(app.handle());
 
         let result = create_series("New Series".to_string(), state, app.handle().clone()).await;
         assert!(result.is_ok());
+        assert_eq!(*events.lock().unwrap(), [SERIES_CHANGED_EVENT]);
         assert_eq!(result.unwrap(), 1);
     }
 
@@ -150,9 +155,14 @@ mod tests {
         let app = tauri::test::mock_app();
         app.manage(Arc::new(mock_repo) as Arc<dyn SeriesRepository>);
         let state = app.state::<Arc<dyn SeriesRepository>>();
+        let events = record_events(app.handle());
 
         let result = delete_series(1, state, app.handle().clone()).await;
         assert!(result.is_ok());
+        assert_eq!(
+            *events.lock().unwrap(),
+            [SERIES_CHANGED_EVENT, BOOKS_CHANGED_EVENT]
+        );
     }
 
     #[tokio::test]

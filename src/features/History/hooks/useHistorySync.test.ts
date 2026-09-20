@@ -107,37 +107,47 @@ describe("useHistorySync", () => {
     expect(mockDispatch).toHaveBeenCalledWith(fetchBooksInSelectedBookshelf(2));
   });
 
-  it("re-fetches everything when 'history-changed' event is received", () => {
-    let eventHandler: () => void = () => {};
+  /**
+   * Renders the hook and returns a function that fires the handler registered for an event.
+   */
+  const renderAndCaptureHandlers = () => {
+    const handlers = new Map<string, () => void>();
     vi.mocked(useTauriEvent).mockImplementation((name, handler) => {
-      if (name === "history-changed") {
-        eventHandler = handler as () => void;
-      }
+      handlers.set(name, handler as () => void);
     });
-
     renderHook(() => useHistorySync());
     vi.clearAllMocks();
+    return (name: string) => {
+      const handler = handlers.get(name);
+      if (!handler) {
+        throw new Error(`No handler registered for '${name}'`);
+      }
+      handler();
+    };
+  };
 
-    // Simulate event
-    eventHandler();
+  it.each([
+    ["bookshelves-changed", () => fetchBookshelves()],
+    ["tags-changed", () => fetchTags()],
+    ["series-changed", () => fetchSeries()],
+    ["books-changed", () => fetchBooksInSelectedBookshelf(mockSelectedBookshelfId)],
+    ["reading-history-changed", () => fetchRecentlyReadBooks()],
+  ])("refetches only the list named by '%s'", (name, expected) => {
+    const fire = renderAndCaptureHandlers();
 
-    expect(mockDispatch).toHaveBeenCalledWith(fetchRecentlyReadBooks());
-    expect(mockDispatch).toHaveBeenCalledWith(fetchBookshelves());
-    expect(mockDispatch).toHaveBeenCalledWith(fetchTags());
-    expect(mockDispatch).toHaveBeenCalledWith(fetchSeries());
-    expect(mockDispatch).toHaveBeenCalledWith(
-      fetchBooksInSelectedBookshelf(mockSelectedBookshelfId),
-    );
+    fire(name);
+
+    expect(mockDispatch).toHaveBeenCalledTimes(1);
+    expect(mockDispatch).toHaveBeenCalledWith(expected());
   });
 
-  it("does not fetch history if recordReadingHistory is false", () => {
-    let eventHandler: () => void = () => {};
-    vi.mocked(useTauriEvent).mockImplementation((name, handler) => {
-      if (name === "history-changed") {
-        eventHandler = handler as () => void;
-      }
-    });
+  it("does not listen to the retired 'history-changed' event", () => {
+    const fire = renderAndCaptureHandlers();
 
+    expect(() => fire("history-changed")).toThrow();
+  });
+
+  it("does not fetch history on 'reading-history-changed' if recordReadingHistory is false", () => {
     vi.mocked(useAppSelector).mockImplementation((selector) => {
       const state = {
         bookCollection: {
@@ -151,17 +161,11 @@ describe("useHistorySync", () => {
       };
       return selector(state as unknown as RootState);
     });
+    const fire = renderAndCaptureHandlers();
 
-    renderHook(() => useHistorySync());
-    vi.clearAllMocks();
+    fire("reading-history-changed");
 
-    // Simulate event
-    eventHandler();
-
-    expect(mockDispatch).not.toHaveBeenCalledWith(fetchRecentlyReadBooks());
-    expect(mockDispatch).toHaveBeenCalledWith(
-      fetchBooksInSelectedBookshelf(mockSelectedBookshelfId),
-    );
+    expect(mockDispatch).not.toHaveBeenCalled();
   });
 
   it("patches the store in place on 'reading-progress-changed' without refetching", () => {

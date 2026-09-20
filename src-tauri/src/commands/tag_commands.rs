@@ -2,6 +2,7 @@ use std::sync::Arc;
 use tauri::Emitter;
 use tauri::State;
 
+use crate::commands::library_events::{BOOKS_CHANGED_EVENT, TAGS_CHANGED_EVENT};
 use crate::domain::tag::entity::Tag;
 use crate::domain::tag::repository::TagRepository;
 use crate::error::Result;
@@ -32,7 +33,7 @@ pub async fn create_tag<R: tauri::Runtime>(
 ) -> Result<Tag> {
     log::debug!("Create tag. (name:{}, color_code:{})", name, color_code);
     let tag = repo.create(&name, &color_code).await?;
-    app.emit("history-changed", ())?;
+    app.emit(TAGS_CHANGED_EVENT, ())?;
     Ok(tag)
 }
 
@@ -76,13 +77,15 @@ pub async fn delete_tag<R: tauri::Runtime>(
 ) -> Result<()> {
     log::debug!("Delete tag. (id:{})", id);
     repo.delete(id).await?;
-    app.emit("history-changed", ())?;
+    app.emit(TAGS_CHANGED_EVENT, ())?;
+    app.emit(BOOKS_CHANGED_EVENT, ())?;
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::commands::library_events::test_support::record_events;
     use crate::domain::tag::repository::MockTagRepository;
     use crate::error::ErrorCode;
     use tauri::Manager;
@@ -108,6 +111,7 @@ mod tests {
         let app = tauri::test::mock_app();
         app.manage(Arc::new(mock_repo) as Arc<dyn TagRepository>);
         let state = app.state::<Arc<dyn TagRepository>>();
+        let events = record_events(app.handle());
 
         let result = create_tag(
             "tag1".to_string(),
@@ -117,6 +121,7 @@ mod tests {
         )
         .await;
         assert!(result.is_ok());
+        assert_eq!(*events.lock().unwrap(), [TAGS_CHANGED_EVENT]);
         let tag = result.unwrap();
         assert_eq!(tag.id, 1);
         assert_eq!(tag.name, "tag1");
@@ -164,9 +169,14 @@ mod tests {
         let app = tauri::test::mock_app();
         app.manage(Arc::new(mock_repo) as Arc<dyn TagRepository>);
         let state = app.state::<Arc<dyn TagRepository>>();
+        let events = record_events(app.handle());
 
         let result = delete_tag(1, state, app.handle().clone()).await;
         assert!(result.is_ok());
+        assert_eq!(
+            *events.lock().unwrap(),
+            [TAGS_CHANGED_EVENT, BOOKS_CHANGED_EVENT]
+        );
     }
 
     #[tokio::test]
