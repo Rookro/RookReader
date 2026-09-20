@@ -5,7 +5,6 @@ use image::{
     AnimationDecoder, ImageFormat, ImageReader,
 };
 use serde::{Deserialize, Serialize};
-use tauri::ipc::Response;
 
 use super::avif;
 
@@ -81,7 +80,7 @@ pub fn is_animated(data: &[u8]) -> Result<bool, image::ImageError> {
 }
 
 /// Represents image data and its dimensions.
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub struct Image {
     /// The raw binary data of the image file.
     pub data: Vec<u8>,
@@ -142,21 +141,6 @@ impl Image {
             || lowercase_name.ends_with(".jfif")
             || lowercase_name.ends_with(".png")
             || lowercase_name.ends_with(".webp")
-    }
-
-    /// Converts the image into a Tauri IPC `Response` with a custom binary format.
-    ///
-    /// The format is: `[Width (4 bytes, big-endian)][Height (4 bytes, big-endian)][Image Data...]`.
-    ///
-    /// # Returns
-    ///
-    /// A `tauri::ipc::Response` containing the serialized image data.
-    pub fn to_ipc_response(&self) -> Response {
-        let mut response_data = Vec::with_capacity(8 + self.data.len());
-        response_data.extend_from_slice(&self.width.to_be_bytes());
-        response_data.extend_from_slice(&self.height.to_be_bytes());
-        response_data.extend_from_slice(&self.data);
-        Response::new(response_data)
     }
 }
 
@@ -411,31 +395,5 @@ pub(crate) mod tests {
 
         let result = Image::new(empty_data);
         assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_image_to_ipc_response() {
-        use tauri::ipc::{InvokeResponseBody::Raw, IpcResponse};
-
-        let image = Image {
-            data: vec![0xAA, 0xBB, 0xCC],
-            width: 800,
-            height: 600,
-        };
-
-        let response = image.to_ipc_response();
-        let body = match response.body().unwrap() {
-            Raw(bytes) => bytes.clone(),
-            _ => panic!("Unexpected response body type"),
-        };
-
-        // Verify header: width (4 bytes) + height (4 bytes)
-        let actual_width = u32::from_be_bytes([body[0], body[1], body[2], body[3]]);
-        let actual_height = u32::from_be_bytes([body[4], body[5], body[6], body[7]]);
-        assert_eq!(actual_width, 800);
-        assert_eq!(actual_height, 600);
-
-        // Verify data payload
-        assert_eq!(&body[8..], &[0xAA, 0xBB, 0xCC]);
     }
 }

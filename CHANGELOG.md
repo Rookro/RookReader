@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Fixed a page that failed while being loaded in the background showing a generic error instead of the reason, and a page interrupted by switching books being reported as a failure. (#332)
 * Fixed the app pausing every other action while a folder on slow storage (a NAS, a sleeping disk) was being listed. (#333)
 * Deleting a book from the library now also deletes its thumbnail image. (#335)
+* Fixed the next page of the PDF being read taking longer to appear right after that PDF was added to a bookshelf. (#336)
 
 ## [2.5.0] - 2026-09-06
 

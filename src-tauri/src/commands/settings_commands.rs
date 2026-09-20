@@ -69,9 +69,9 @@ pub async fn get_settings(provider: tauri::State<'_, SettingsFileProvider>) -> R
 /// or a persistence/emit error.
 #[tauri::command]
 #[specta::specta]
-pub async fn set_settings(
-    app: AppHandle,
-    webview: WebviewWindow,
+pub async fn set_settings<R: tauri::Runtime>(
+    app: AppHandle<R>,
+    webview: WebviewWindow<R>,
     patch: SettingsPatch,
     state: tauri::State<'_, RwLock<AppState>>,
     lock: tauri::State<'_, SettingsFileLock>,

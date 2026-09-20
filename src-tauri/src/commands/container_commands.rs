@@ -1,4 +1,4 @@
-use tokio::sync::{Mutex, RwLock};
+use tokio::sync::RwLock;
 
 use serde::{Deserialize, Serialize};
 use tauri::ipc::Response;
@@ -6,19 +6,12 @@ use tauri::ipc::Response;
 use crate::{
     container::factory::create_container,
     error::{Error, Result},
-    image::types::ImageDimensions,
+    image::types::{Image, ImageDimensions},
     page::{pipeline::Fit, service::Priority},
     perf,
     perf::Span,
     state::{app_state::AppState, container_state::ContainerState},
 };
-
-/// Serializes container opens so the most recently started one is left installed.
-///
-/// The heavy build still runs without holding the state write lock (so image fetches
-/// aren't blocked); this only orders the opens themselves, preventing a slower earlier
-/// open from installing after a newer one.
-static OPEN_CONTAINER_LOCK: Mutex<()> = Mutex::const_new(());
 
 /// The error every command raises when the book it names is not the book that is open.
 ///
@@ -29,6 +22,25 @@ fn stale(path: &str, what: &str) -> Error {
     Error::BookChanged(format!(
         "Container changed while requesting {what} (requested {path})"
     ))
+}
+
+/// Frames a page for the binary IPC response the reader decodes.
+///
+/// The layout is `[width (4 bytes, big-endian)][height (4 bytes, big-endian)][image bytes]`.
+///
+/// # Arguments
+///
+/// * `image` - The page to send.
+///
+/// # Returns
+///
+/// The framed response.
+fn image_response(image: &Image) -> Response {
+    let mut body = Vec::with_capacity(8 + image.data.len());
+    body.extend_from_slice(&image.width.to_be_bytes());
+    body.extend_from_slice(&image.height.to_be_bytes());
+    body.extend_from_slice(&image.data);
+    Response::new(body)
 }
 
 /// The result of getting entries in a container.
@@ -122,10 +134,9 @@ pub async fn get_entries_in_container(
 ) -> Result<EntriesResult> {
     log::debug!("Get the entries in {}", path);
 
-    // Serialize opens so a slower earlier open can't install after a newer one and
-    // leave the wrong book's images loaded.
     let span = Span::start();
-    let _open_guard = OPEN_CONTAINER_LOCK.lock().await;
+    let open_lock = state.read().await.container_state.open_lock.clone();
+    let _open_guard = open_lock.lock().await;
 
     // Snapshot the (cheap-to-clone) settings and cache handle under a brief read lock,
     // then run the heavy build on a blocking thread so it never stalls the async runtime
@@ -368,7 +379,7 @@ pub async fn get_image(
     // queued preload and scan job and waits only on the page each worker is already on.
     let image = service.page(entry_name, Priority::Foreground).await?;
 
-    Ok(image.to_ipc_response())
+    Ok(image_response(&image))
 }
 
 /// Retrieves an image from the currently open container at its full size.
@@ -409,7 +420,7 @@ pub async fn get_image_full(
 
     let image = service.page_full(entry_name).await?;
 
-    Ok(image.to_ipc_response())
+    Ok(image_response(&image))
 }
 
 /// Retrieves a preview version of an image from the container.
@@ -455,7 +466,7 @@ pub async fn get_image_preview(
         return Ok(Response::new(Vec::new()));
     };
 
-    Ok(image.to_ipc_response())
+    Ok(image_response(&image))
 }
 
 #[cfg(test)]
@@ -1001,7 +1012,7 @@ mod tests {
             Raw(bytes) => bytes,
             _ => panic!("Unexpected response body type"),
         };
-        // `to_ipc_response` frames the bytes behind a width/height header, so the reader's
+        // `image_response` frames the bytes behind a width/height header, so the reader's
         // own bytes are what follows it.
         assert!(body.ends_with(DUMMY_PNG_DATA));
     }
@@ -1030,5 +1041,28 @@ mod tests {
         };
         // An empty response is the wire form of "no preview"; the frontend stops asking.
         assert!(body.is_empty());
+    }
+
+    #[test]
+    fn image_response_frames_width_and_height_before_the_bytes() {
+        let image = Image {
+            data: vec![0xAA, 0xBB, 0xCC],
+            width: 800,
+            height: 600,
+        };
+
+        let body = match image_response(&image).body().unwrap() {
+            Raw(bytes) => bytes,
+            _ => panic!("Unexpected response body type"),
+        };
+        assert_eq!(
+            u32::from_be_bytes([body[0], body[1], body[2], body[3]]),
+            800
+        );
+        assert_eq!(
+            u32::from_be_bytes([body[4], body[5], body[6], body[7]]),
+            600
+        );
+        assert_eq!(&body[8..], &[0xAA, 0xBB, 0xCC]);
     }
 }

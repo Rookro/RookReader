@@ -36,7 +36,7 @@ mod perfbench;
 pub fn specta_builder() -> Builder<tauri::Wry> {
     Builder::<tauri::Wry>::new().commands(collect_commands![
         commands::settings_commands::get_settings,
-        commands::settings_commands::set_settings,
+        commands::settings_commands::set_settings::<tauri::Wry>,
         commands::container_commands::request_preload_around,
         commands::container_commands::get_entries_in_container,
         commands::container_commands::count_pages_in_container,

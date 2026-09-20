@@ -105,7 +105,9 @@ impl Drop for PdfContainer {
     /// Every other format holds its handles only while the book is open, and PDF must not
     /// be the exception. The worker's cache is bound at two documents, so without this a
     /// closed book's parsed structures and file handle stay resident until two *other*
-    /// PDFs displace them.
+    /// PDFs displace them. The worker counts containers per path, so a second container
+    /// over the open book — the page count a bookshelf registration asks for — going away
+    /// does not close the document the reader is still on.
     fn drop(&mut self) {
         self.worker.release(&self.path);
     }
@@ -142,6 +144,7 @@ impl PdfContainer {
         let entries = (0..worker.page_count(path)?)
             .map(|index| format!("{index:0>4}"))
             .collect();
+        worker.retain(path);
 
         Ok(Self {
             path: path.to_string(),
@@ -553,5 +556,38 @@ trailer << /Size 5 /Root 1 0 R >>
             !worker.open_documents().unwrap().contains(&held),
             "a closed book must not stay open in the worker"
         );
+    }
+
+    #[test]
+    fn counting_the_open_book_does_not_close_its_document() {
+        let _guard = pdf_test_guard();
+        let dir = tempdir().unwrap();
+        let (filepath, open) = container_for(dir.path(), "open.pdf", SINGLE_PAGE_PDF_DATA);
+        let held = filepath.to_string_lossy().to_string();
+        let worker = crate::container::pdf_worker::worker(&None);
+
+        let mut reader = open.open_reader().unwrap();
+        reader.read_page("0000").unwrap();
+
+        // Registering the book being read into a bookshelf counts its pages through a
+        // container of its own, built and dropped while the reader is still on the book.
+        let counter = PdfContainer::new(
+            &held,
+            PdfRenderConfig::default(),
+            Some(get_pdfium_lib_path()),
+        )
+        .unwrap();
+        assert_eq!(counter.get_entries().len(), 1);
+        drop(counter);
+
+        assert!(
+            worker.open_documents().unwrap().contains(&held),
+            "a page count of the open book must not close its document"
+        );
+
+        // The last container is what closes it.
+        drop(reader);
+        drop(open);
+        assert!(!worker.open_documents().unwrap().contains(&held));
     }
 }
