@@ -34,7 +34,6 @@ pub async fn create_bookshelf<R: tauri::Runtime>(
     log::debug!("Create bookshelf. (name:{}, icon_id:{})", name, icon_id);
     let shelf = repo.create(&name, &icon_id).await?;
     app.emit(BOOKSHELVES_CHANGED_EVENT, ())?;
-    app.emit("history-changed", ())?;
     Ok(shelf)
 }
 
@@ -88,7 +87,6 @@ pub async fn add_book_to_bookshelf<R: tauri::Runtime>(
     );
     repo.add_book_to_bookshelf(bookshelf_id, book_id).await?;
     app.emit(BOOKS_CHANGED_EVENT, ())?;
-    app.emit("history-changed", ())?;
     Ok(())
 }
 
@@ -119,7 +117,6 @@ pub async fn remove_book_from_bookshelf<R: tauri::Runtime>(
     repo.remove_book_from_bookshelf(bookshelf_id, book_id)
         .await?;
     app.emit(BOOKS_CHANGED_EVENT, ())?;
-    app.emit("history-changed", ())?;
     Ok(())
 }
 
@@ -143,7 +140,6 @@ pub async fn delete_bookshelf<R: tauri::Runtime>(
     log::debug!("Delete bookshelf. (id:{})", id);
     repo.delete(id).await?;
     app.emit(BOOKSHELVES_CHANGED_EVENT, ())?;
-    app.emit("history-changed", ())?;
     Ok(())
 }
 

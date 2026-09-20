@@ -34,7 +34,6 @@ pub async fn create_tag<R: tauri::Runtime>(
     log::debug!("Create tag. (name:{}, color_code:{})", name, color_code);
     let tag = repo.create(&name, &color_code).await?;
     app.emit(TAGS_CHANGED_EVENT, ())?;
-    app.emit("history-changed", ())?;
     Ok(tag)
 }
 
@@ -80,7 +79,6 @@ pub async fn delete_tag<R: tauri::Runtime>(
     repo.delete(id).await?;
     app.emit(TAGS_CHANGED_EVENT, ())?;
     app.emit(BOOKS_CHANGED_EVENT, ())?;
-    app.emit("history-changed", ())?;
     Ok(())
 }
 

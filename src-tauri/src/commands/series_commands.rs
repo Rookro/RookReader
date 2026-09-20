@@ -32,7 +32,6 @@ pub async fn create_series<R: tauri::Runtime>(
     log::debug!("Create series. (name:{})", name);
     let series_id = repo.create(&name).await?;
     app.emit(SERIES_CHANGED_EVENT, ())?;
-    app.emit("history-changed", ())?;
     Ok(series_id)
 }
 
@@ -78,7 +77,6 @@ pub async fn delete_series<R: tauri::Runtime>(
     repo.delete(id).await?;
     app.emit(SERIES_CHANGED_EVENT, ())?;
     app.emit(BOOKS_CHANGED_EVENT, ())?;
-    app.emit("history-changed", ())?;
     Ok(())
 }
 
