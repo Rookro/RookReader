@@ -10,6 +10,7 @@
 //! only live together as locals of one function. Here they are exactly that.
 
 use std::{
+    collections::HashMap,
     sync::{mpsc, Arc, Mutex, OnceLock},
     thread,
 };
@@ -74,9 +75,14 @@ enum Request {
         config: Arc<PdfRenderConfig>,
         reply: mpsc::Sender<Result<Image>>,
     },
-    /// Closes a document the caller has finished with. Without it the worker holds a
-    /// closed book's parsed structures and its file handle until two *other* PDFs displace
-    /// it, so a reader who opens one large PDF and moves on keeps paying for it.
+    /// Counts one more container over the document, so a `Release` from another
+    /// container of the same path — a page count of the book being read — does not
+    /// close it.
+    Retain { path: String },
+    /// Drops one holder of a document, and closes it with the last. Without it the worker
+    /// holds a closed book's parsed structures and its file handle until two *other*
+    /// PDFs displace it, so a reader who opens one large PDF and moves on keeps paying
+    /// for it.
     Release { path: String },
     /// Reports which documents are currently open, so a test can observe a release.
     #[cfg(test)]
@@ -144,6 +150,18 @@ impl Worker {
         })
     }
 
+    /// Tells the worker one more container needs this document.
+    ///
+    /// Best-effort, like [`Worker::release`]: a failed send means the worker is gone and
+    /// the next request reports that.
+    pub(crate) fn retain(&self, path: &str) {
+        if let Ok(tx) = self.tx.lock() {
+            let _ = tx.send(Request::Retain {
+                path: path.to_string(),
+            });
+        }
+    }
+
     /// Tells the worker nothing needs this document any more.
     ///
     /// Best-effort: a caller that is going away cannot do anything about a dead worker,
@@ -195,11 +213,22 @@ fn run(rx: mpsc::Receiver<Request>, library_path: Option<String>) {
 
     // Declared after `pdfium` so it is dropped before it: every document borrows it.
     let mut docs: Vec<(String, PdfDocument<'_>)> = Vec::new();
+    // How many containers hold each path open; a document closes with its last one.
+    let mut holders: HashMap<String, usize> = HashMap::new();
 
     while let Ok(request) = rx.recv() {
         match request {
+            Request::Retain { path } => {
+                *holders.entry(path).or_insert(0) += 1;
+            }
             Request::Release { path } => {
-                docs.retain(|(open, _)| open != &path);
+                let remaining = holders.get(&path).map_or(0, |n| n.saturating_sub(1));
+                if remaining == 0 {
+                    holders.remove(&path);
+                    docs.retain(|(open, _)| open != &path);
+                } else {
+                    holders.insert(path, remaining);
+                }
             }
             #[cfg(test)]
             Request::OpenDocuments { reply } => {
