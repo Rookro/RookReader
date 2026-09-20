@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use pdfium_render::prelude::PdfRenderConfig;
+use tokio::sync::Mutex;
 
 use crate::{
     container::factory::{create_container, ContainerConfig},
@@ -79,6 +80,12 @@ pub struct ContainerState {
     /// not a setting the user chose, and it has to outlive a book switch: the next book
     /// must open at the size the current one is being read at.
     pub display_size: Option<Fit>,
+    /// Serializes container opens so the most recently started one is left installed.
+    ///
+    /// The heavy build runs without the state lock so page fetches are not blocked; this
+    /// only orders the opens themselves, so a slower earlier open cannot install after a
+    /// newer one. Shared, because the guard outlives the read lock it is taken under.
+    pub open_lock: Arc<Mutex<()>>,
 }
 
 impl Default for ContainerState {
@@ -91,6 +98,7 @@ impl Default for ContainerState {
             service: None,
             image_cache,
             display_size: None,
+            open_lock: Arc::new(Mutex::new(())),
         }
     }
 }

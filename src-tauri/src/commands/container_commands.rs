@@ -1,4 +1,4 @@
-use tokio::sync::{Mutex, RwLock};
+use tokio::sync::RwLock;
 
 use serde::{Deserialize, Serialize};
 use tauri::ipc::Response;
@@ -12,13 +12,6 @@ use crate::{
     perf::Span,
     state::{app_state::AppState, container_state::ContainerState},
 };
-
-/// Serializes container opens so the most recently started one is left installed.
-///
-/// The heavy build still runs without holding the state write lock (so image fetches
-/// aren't blocked); this only orders the opens themselves, preventing a slower earlier
-/// open from installing after a newer one.
-static OPEN_CONTAINER_LOCK: Mutex<()> = Mutex::const_new(());
 
 /// The error every command raises when the book it names is not the book that is open.
 ///
@@ -122,10 +115,9 @@ pub async fn get_entries_in_container(
 ) -> Result<EntriesResult> {
     log::debug!("Get the entries in {}", path);
 
-    // Serialize opens so a slower earlier open can't install after a newer one and
-    // leave the wrong book's images loaded.
     let span = Span::start();
-    let _open_guard = OPEN_CONTAINER_LOCK.lock().await;
+    let open_lock = state.read().await.container_state.open_lock.clone();
+    let _open_guard = open_lock.lock().await;
 
     // Snapshot the (cheap-to-clone) settings and cache handle under a brief read lock,
     // then run the heavy build on a blocking thread so it never stalls the async runtime
