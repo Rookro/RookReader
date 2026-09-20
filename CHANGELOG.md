@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * AVIF pages are now supported in archives, folders and EPUBs. (#329)
   * Animated AVIF is not supported yet.
 
+### Changed
+
+* Changes in the bookshelf view now refresh only the list that changed. Creating or deleting a bookshelf, tag or series, or opening a book, no longer reloads every list. (#337)
+
 ### Fixed
 
 * Fixed moiré on screentoned pages by rendering pages at the displayed size instead of letting the browser shrink them. (#324)

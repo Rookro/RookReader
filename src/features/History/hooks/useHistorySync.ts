@@ -11,9 +11,9 @@ import { fetchRecentlyReadBooks } from "../slice";
 /**
  * A custom hook to synchronize history and bookshelf data across the application.
  *
- * This hook performs the initial data load and listens for backend events: 'history-changed'
- * triggers a full refresh of the reading history and bookshelf contents, while the finer
- * 'reading-progress-changed' (a page turn) patches only the affected book in place.
+ * This hook performs the initial data load and listens for the backend's change events. Each
+ * '*-changed' event names one list, and only that list is refetched; the finer
+ * 'reading-progress-changed' (a page turn) patches the affected book in place instead.
  */
 export const useHistorySync = () => {
   const dispatch = useAppDispatch();
@@ -35,19 +35,26 @@ export const useHistorySync = () => {
     dispatch(fetchBooksInSelectedBookshelf(selectedBookshelfId));
   }, [dispatch, selectedBookshelfId]);
 
-  // Listen for history changes and refresh relevant data
-  useTauriEvent("history-changed", () => {
+  useTauriEvent("bookshelves-changed", () => {
+    dispatch(fetchBookshelves());
+  });
+  useTauriEvent("tags-changed", () => {
+    dispatch(fetchTags());
+  });
+  useTauriEvent("series-changed", () => {
+    dispatch(fetchSeries());
+  });
+  useTauriEvent("books-changed", () => {
+    dispatch(fetchBooksInSelectedBookshelf(selectedBookshelfId));
+  });
+  useTauriEvent("reading-history-changed", () => {
     if (recordReadingHistory) {
       dispatch(fetchRecentlyReadBooks());
     }
-    dispatch(fetchBookshelves());
-    dispatch(fetchTags());
-    dispatch(fetchSeries());
-    dispatch(fetchBooksInSelectedBookshelf(selectedBookshelfId));
   });
 
   // A page turn only changes reading progress; patch the affected book in place
-  // instead of refetching the whole library (unlike the coarse 'history-changed').
+  // instead of refetching a list.
   useTauriEvent<ReadingState>("reading-progress-changed", (event) => {
     dispatch(readingProgressChanged(event.payload));
   });
