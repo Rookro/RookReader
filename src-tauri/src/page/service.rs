@@ -112,6 +112,11 @@ impl Job {
     fn key(&self) -> (Priority, (usize, u8)) {
         (self.priority, self.order)
     }
+
+    /// Takes the reply out, leaving the job with nobody to answer.
+    fn take_reply(&mut self) -> Reply {
+        std::mem::replace(&mut self.reply, Reply::None)
+    }
 }
 
 // `PartialEq`, `Eq`, `PartialOrd` and `Ord` are all written out by hand against the same
@@ -857,11 +862,17 @@ fn worker(shared: Arc<Shared>, container: Arc<dyn Container>) {
     let mut reader: Option<Box<dyn PageReader>> = None;
 
     loop {
-        let Some(job) = next_job(&shared) else { return };
+        let Some(mut job) = next_job(&shared) else {
+            return;
+        };
         let _slot = PreloadSlot(job.priority.is_preload().then_some(&*shared));
         // Armed for the length of this job: whatever ends it — a delivery, an early
         // return, an unwind out of the decoder — the callers attached to this entry are
         // let go rather than left waiting on a read that is no longer running.
+        //
+        // Declared after `job`, so on an unwind it is dropped first: `in_flight` is
+        // cleared before the job's own reply is. The other way round, a request made
+        // between the two would attach to a read nobody is performing.
         let mut delivery = Delivery {
             shared: &shared,
             entry: job.reads_the_page().then(|| (job.entry.clone(), job.fit)),
@@ -873,7 +884,7 @@ fn worker(shared: Arc<Shared>, container: Arc<dyn Container>) {
         // channel — a spurious failure on what is in fact a cache hit.
         if job.reads_the_page() {
             if let Some(image) = shared.cached(&job.entry, job.fit) {
-                deliver_page(&shared, job, Ok(image));
+                deliver_page(&shared, &mut job, Ok(image));
                 delivery.done();
                 continue;
             }
@@ -885,7 +896,7 @@ fn worker(shared: Arc<Shared>, container: Arc<dyn Container>) {
             match container.open_reader() {
                 Ok(opened) => reader = Some(opened),
                 Err(e) => {
-                    deliver_error(&shared, job, &e);
+                    deliver_error(&shared, &mut job, &e);
                     delivery.done();
                     // The handle will not appear on a retry, so leave rather than fail
                     // every remaining job one at a time. Whatever is still queued is
@@ -899,7 +910,7 @@ fn worker(shared: Arc<Shared>, container: Arc<dyn Container>) {
             return;
         };
 
-        run(&shared, reader.as_mut(), job);
+        run(&shared, reader.as_mut(), &mut job);
         delivery.done();
     }
 }
@@ -984,17 +995,24 @@ impl Drop for PreloadSlot<'_> {
 }
 
 /// Runs one job and answers everyone waiting on it.
-fn run(shared: &Shared, reader: &mut dyn PageReader, job: Job) {
-    match job.reply {
+///
+/// The job is borrowed rather than moved, and its reply taken only once the read is
+/// over: moved in, the reply would be dropped by an unwind out of the read before the
+/// worker's `Delivery` guard runs, and the caller would be answered while `in_flight`
+/// still names the page.
+fn run(shared: &Shared, reader: &mut dyn PageReader, job: &mut Job) {
+    match &job.reply {
         Reply::Dimensions(index, tx) => {
-            let _ = tx.send((index, reader.page_dimensions(&job.entry)));
+            let _ = tx.send((*index, reader.page_dimensions(&job.entry)));
         }
-        Reply::Preview(tx) => {
+        Reply::Preview(_) => {
             let pipeline = shared.pipeline();
             let preview = reader
                 .read_preview(&job.entry)
                 .and_then(|bytes| bytes.map(|bytes| pipeline.preview(bytes)).transpose());
-            let _ = tx.send(preview);
+            if let Reply::Preview(tx) = job.take_reply() {
+                let _ = tx.send(preview);
+            }
         }
         Reply::Page(_) | Reply::None => {
             // The fit comes from the job, not from the pipeline as it stands now: a
@@ -1012,7 +1030,7 @@ fn run(shared: &Shared, reader: &mut dyn PageReader, job: Job) {
 }
 
 /// Sends a page result to the job's own caller and to everyone who attached to it.
-fn deliver_page(shared: &Shared, job: Job, result: Result<Arc<Image>>) {
+fn deliver_page(shared: &Shared, job: &mut Job, result: Result<Arc<Image>>) {
     let waiting = shared
         .lock()
         .in_flight
@@ -1022,23 +1040,25 @@ fn deliver_page(shared: &Shared, job: Job, result: Result<Arc<Image>>) {
     for tx in waiting {
         let _ = tx.send(result.clone());
     }
-    if let Reply::Page(tx) = job.reply {
+    if let Reply::Page(tx) = job.take_reply() {
         let _ = tx.send(result);
     }
 }
 
 /// Fails one job, and anything attached to it, without having read anything.
-fn deliver_error(shared: &Shared, job: Job, error: &Error) {
-    match job.reply {
+fn deliver_error(shared: &Shared, job: &mut Job, error: &Error) {
+    if job.reads_the_page() {
+        deliver_page(shared, job, Err(error.clone()));
+        return;
+    }
+    match job.take_reply() {
         Reply::Dimensions(index, tx) => {
             let _ = tx.send((index, Err(error.clone())));
         }
         Reply::Preview(tx) => {
             let _ = tx.send(Err(error.clone()));
         }
-        Reply::Page(_) | Reply::None => {
-            deliver_page(shared, job, Err(error.clone()));
-        }
+        Reply::Page(_) | Reply::None => {}
     }
 }
 
