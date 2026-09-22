@@ -139,15 +139,12 @@ export function mockSettingsCommands(base: AppSettings = defaultSettings) {
 
 const theme = createTheme();
 
-export function renderWithProviders(
-  ui: ReactElement,
-  {
-    preloadedState = {},
-    store = createTestStore(preloadedState),
-    ...renderOptions
-  }: ExtendedRenderOptions = {},
-) {
-  function Wrapper({ children }: { children: React.ReactNode }): ReactElement {
+/** The providers every component test renders under, for `render` and `renderHook` alike. */
+export function createTestWrapper({
+  preloadedState = {},
+  store = createTestStore(preloadedState),
+}: Pick<ExtendedRenderOptions, "preloadedState" | "store"> = {}) {
+  return function Wrapper({ children }: { children: React.ReactNode }): ReactElement {
     return (
       <Provider store={store}>
         <ThemeProvider theme={theme}>
@@ -157,6 +154,16 @@ export function renderWithProviders(
         </ThemeProvider>
       </Provider>
     );
-  }
-  return { store, ...render(ui, { wrapper: Wrapper, ...renderOptions }) };
+  };
+}
+
+export function renderWithProviders(
+  ui: ReactElement,
+  {
+    preloadedState = {},
+    store = createTestStore(preloadedState),
+    ...renderOptions
+  }: ExtendedRenderOptions = {},
+) {
+  return { store, ...render(ui, { wrapper: createTestWrapper({ store }), ...renderOptions }) };
 }

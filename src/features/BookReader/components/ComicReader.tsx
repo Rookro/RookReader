@@ -8,6 +8,7 @@ import { useDisplaySize } from "../hooks/useDisplaySize";
 import { useFullSizePages } from "../hooks/useFullSizePages";
 import { useLoupe } from "../hooks/useLoupe";
 import { usePageNavigation } from "../hooks/usePageNavigation";
+import { useReaderKeydown } from "../hooks/useReaderKeydown";
 import { useReadingDirection } from "../hooks/useReadingDirection";
 import { useViewerController } from "../hooks/useViewerController";
 import type { ViewerSettings } from "../utils/ImageUtils";
@@ -143,12 +144,7 @@ export default function ComicReader() {
     settings.direction,
   );
 
-  useEffect(() => {
-    window.addEventListener("keydown", handleKeydown);
-    return () => {
-      window.removeEventListener("keydown", handleKeydown);
-    };
-  }, [handleKeydown]);
+  useReaderKeydown(handleKeydown);
 
   const spinnerOverlay = showSpinner ? (
     <Box
