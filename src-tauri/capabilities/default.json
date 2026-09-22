@@ -27,14 +27,6 @@
       ]
     },
     {
-      "identifier": "fs:allow-write-file",
-      "allow": [
-        {
-          "path": "$TEMP/**"
-        }
-      ]
-    },
-    {
       "identifier": "fs:allow-watch",
       "allow": [
         {
