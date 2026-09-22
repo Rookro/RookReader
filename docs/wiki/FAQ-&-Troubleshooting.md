@@ -3,7 +3,7 @@
 ## Frequently Asked Questions
 
 ### Where is my data (database and settings) saved?
-RookReader stores its application data — the SQLite database (`rook-reader.db`: collections, tags, series, bookmarks and reading history), the settings file, and the thumbnail cache — in your operating system's standard application data directory:
+RookReader stores its application data — the SQLite database (`rook-reader.db`, with its `-wal` and `-shm` companions while the app runs: collections, tags, series, bookmarks and reading history), the settings file, and the thumbnail cache — in your operating system's standard application data directory:
 - **Windows**: `C:\Users\<YourUser>\AppData\Roaming\io.github.rookro.rookreader`
 - **Linux**: `~/.local/share/io.github.rookro.rookreader` (or `$XDG_DATA_HOME/io.github.rookro.rookreader`)
 

@@ -2,7 +2,7 @@ use chrono::Local;
 use log::debug;
 use sqlx::{
     migrate,
-    sqlite::{SqliteConnectOptions, SqlitePoolOptions},
+    sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions},
     SqlitePool,
 };
 use std::{fs, path::PathBuf, str::FromStr, sync::Arc};
@@ -283,7 +283,12 @@ fn setup_database(app: &App) -> error::Result<()> {
     };
     let db_path = app_data_dir_path.join(db_filename);
     let db_url = format!("sqlite:{}", db_path.display());
-    let options = SqliteConnectOptions::from_str(&db_url)?.create_if_missing(true);
+    // WAL lets a page-turn write land while a list is being read, and the busy timeout
+    // makes a second writer wait for the first instead of failing with SQLITE_BUSY.
+    let options = SqliteConnectOptions::from_str(&db_url)?
+        .create_if_missing(true)
+        .journal_mode(SqliteJournalMode::Wal)
+        .busy_timeout(std::time::Duration::from_secs(5));
     log::debug!("Database file path: {:?}", options.get_filename());
 
     let pool = tauri::async_runtime::block_on(async {

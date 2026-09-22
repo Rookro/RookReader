@@ -125,3 +125,4 @@ Besides the implicit indexes SQLite creates for primary keys and `UNIQUE` column
 | --- | --- |
 | `idx_reading_state_last_opened_at` | `reading_state (last_opened_at DESC)` |
 | `idx_bookmarks_book_id` | `bookmarks (book_id)` |
+| `idx_books_series_id` | `books (series_id)` |

@@ -351,54 +351,16 @@ impl BookRepository for SqliteBookRepository {
     }
 
     async fn delete_book(&self, id: i64) -> Result<()> {
-        let mut tx = self.pool.begin().await?;
-
-        sqlx::query!(
-            r#"
-            DELETE FROM reading_state WHERE book_id = ?
-            "#,
-            id
-        )
-        .execute(&mut *tx)
-        .await?;
-
-        sqlx::query!(
-            r#"
-            DELETE FROM book_tags WHERE book_id = ?
-            "#,
-            id
-        )
-        .execute(&mut *tx)
-        .await?;
-
-        sqlx::query!(
-            r#"
-            DELETE FROM bookshelf_items WHERE book_id = ?
-            "#,
-            id
-        )
-        .execute(&mut *tx)
-        .await?;
-
-        sqlx::query!(
-            r#"
-            DELETE FROM bookmarks WHERE book_id = ?
-            "#,
-            id
-        )
-        .execute(&mut *tx)
-        .await?;
-
+        // reading_state, book_tags, bookshelf_items and bookmarks all declare
+        // ON DELETE CASCADE, and sqlx enables foreign keys on every connection.
         sqlx::query!(
             r#"
             DELETE FROM books WHERE id = ?
             "#,
             id
         )
-        .execute(&mut *tx)
+        .execute(&self.pool)
         .await?;
-
-        tx.commit().await?;
 
         Ok(())
     }
