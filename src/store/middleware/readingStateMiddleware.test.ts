@@ -2,13 +2,23 @@ import type { Dispatch, MiddlewareAPI, UnknownAction } from "@reduxjs/toolkit";
 import { error } from "@tauri-apps/plugin-log";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as bookCommands from "../../bindings/BookCommands";
-import { readingStateMiddleware } from "./readingStateMiddleware";
+import { createReadingStateMiddleware } from "./readingStateMiddleware";
 
-const run = (
-  store: { getState: ReturnType<typeof vi.fn>; dispatch: ReturnType<typeof vi.fn> },
+type FakeStore = { getState: ReturnType<typeof vi.fn>; dispatch: ReturnType<typeof vi.fn> };
+
+/** Runs `action` through `instance`; `flush` writes what it left pending. */
+const runWith = (
+  { middleware, flush }: ReturnType<typeof createReadingStateMiddleware>,
+  store: FakeStore,
   next: Dispatch<UnknownAction>,
   action: unknown,
-) => readingStateMiddleware(store as MiddlewareAPI)(next as (action: unknown) => unknown)(action);
+) => ({
+  result: middleware(store as MiddlewareAPI)(next as (action: unknown) => unknown)(action),
+  flush,
+});
+
+const run = (store: FakeStore, next: Dispatch<UnknownAction>, action: unknown) =>
+  runWith(createReadingStateMiddleware(), store, next, action).result;
 
 const stateFor = (
   book: unknown,
@@ -68,11 +78,12 @@ describe("readingStateMiddleware", () => {
 
   // Verify that two rapid same-book writes coalesce into a single write with the last args.
   it("should coalesce rapid same-book writes into the last one", async () => {
+    const instance = createReadingStateMiddleware();
     store.getState.mockImplementation(() => stateFor({ id: 1, last_opened_at: "now" }, true, 10));
-    run(store, next, { type: "read/setImageIndex", payload: 10 });
+    runWith(instance, store, next, { type: "read/setImageIndex", payload: 10 });
 
     store.getState.mockImplementation(() => stateFor({ id: 1, last_opened_at: "now" }, true, 20));
-    run(store, next, { type: "read/setImageIndex", payload: 20 });
+    runWith(instance, store, next, { type: "read/setImageIndex", payload: 20 });
 
     await vi.advanceTimersByTimeAsync(500);
 
@@ -88,12 +99,13 @@ describe("readingStateMiddleware", () => {
   // Verify that switching books flushes the previous book's pending write immediately
   // with its own args, so a book switch never discards the previous position.
   it("should flush the previous book's write immediately when the book changes", async () => {
+    const instance = createReadingStateMiddleware();
     store.getState.mockImplementation(() => stateFor({ id: 1, last_opened_at: "a" }, true, 10));
-    run(store, next, { type: "read/setImageIndex", payload: 10 });
+    runWith(instance, store, next, { type: "read/setImageIndex", payload: 10 });
 
     // Switch to book 2 within the debounce window: book 1 must be flushed now.
     store.getState.mockImplementation(() => stateFor({ id: 2, last_opened_at: "b" }, true, 3));
-    run(store, next, { type: "read/setImageIndex", payload: 3 });
+    runWith(instance, store, next, { type: "read/setImageIndex", payload: 3 });
 
     expect(bookCommands.updateReadingProgress).toHaveBeenCalledTimes(1);
     expect(bookCommands.updateReadingProgress).toHaveBeenCalledWith({
@@ -112,6 +124,43 @@ describe("readingStateMiddleware", () => {
       cfi: null,
       last_opened_at: "b",
     });
+  });
+
+  it("flush writes the pending update before the timer fires, and only once", async () => {
+    const { flush } = runWith(createReadingStateMiddleware(), store, next, {
+      type: "read/setImageIndex",
+      payload: 10,
+    });
+
+    await flush();
+    expect(bookCommands.updateReadingProgress).toHaveBeenCalledTimes(1);
+    expect(bookCommands.updateReadingProgress).toHaveBeenCalledWith({
+      book_id: 1,
+      last_read_page_index: 10,
+      cfi: null,
+      last_opened_at: "now",
+    });
+
+    await vi.advanceTimersByTimeAsync(500);
+    expect(bookCommands.updateReadingProgress).toHaveBeenCalledTimes(1);
+  });
+
+  it("flush resolves at once when nothing is pending", async () => {
+    const { flush } = createReadingStateMiddleware();
+    await flush();
+    expect(bookCommands.updateReadingProgress).not.toHaveBeenCalled();
+  });
+
+  it("keeps each instance's pending write to itself", async () => {
+    const first = createReadingStateMiddleware();
+    const second = createReadingStateMiddleware();
+    runWith(first, store, next, { type: "read/setImageIndex", payload: 10 });
+
+    await second.flush();
+    expect(bookCommands.updateReadingProgress).not.toHaveBeenCalled();
+
+    await first.flush();
+    expect(bookCommands.updateReadingProgress).toHaveBeenCalledTimes(1);
   });
 
   // Verify that reading state is not saved if history is disabled

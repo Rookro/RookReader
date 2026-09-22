@@ -7,42 +7,53 @@ import type { RootState } from "../store";
 
 type PendingUpdate = { state: ReadingState; shouldRecord: () => boolean };
 
-let pending: PendingUpdate | null = null;
-let timer: ReturnType<typeof setTimeout> | null = null;
+/** How long page turns are coalesced before the position is written. */
+const DEBOUNCE_MS = 500;
 
-const flush = () => {
-  if (timer) {
-    clearTimeout(timer);
-    timer = null;
-  }
-  const update = pending;
-  pending = null;
-  // Re-check at fire time: the user may have disabled history during the window.
-  if (!update?.shouldRecord()) {
-    return;
-  }
-  updateReadingProgress(update.state).catch((e) => {
-    error(
-      `ReadingState update failed (${update.state.book_id}:${update.state.last_read_page_index}): ${e}`,
-    );
-  });
-};
+/**
+ * Builds the middleware that persists the reading position, debounced per store.
+ *
+ * A factory rather than module state, so every store — the app's, and each test's — owns
+ * its own pending write and timer.
+ *
+ * @returns The middleware, and `flush`, which writes whatever is still pending.
+ */
+export const createReadingStateMiddleware = () => {
+  let pending: PendingUpdate | null = null;
+  let timer: ReturnType<typeof setTimeout> | null = null;
 
-const queueReadingStateUpdate = (update: PendingUpdate) => {
-  // Flush immediately when the pending write belongs to a different book, so a
-  // book switch never silently replaces the previous book's final position.
-  if (pending && pending.state.book_id !== update.state.book_id) {
-    flush();
-  }
-  pending = update;
-  if (timer) {
-    clearTimeout(timer);
-  }
-  timer = setTimeout(flush, 500);
-};
+  const flush = (): Promise<void> => {
+    if (timer) {
+      clearTimeout(timer);
+      timer = null;
+    }
+    const update = pending;
+    pending = null;
+    // Re-check at fire time: the user may have disabled history during the window.
+    if (!update?.shouldRecord()) {
+      return Promise.resolve();
+    }
+    return updateReadingProgress(update.state).catch((e) => {
+      error(
+        `ReadingState update failed (${update.state.book_id}:${update.state.last_read_page_index}): ${e}`,
+      );
+    });
+  };
 
-export const readingStateMiddleware: Middleware<object, RootState> =
-  (store) => (next) => (action: unknown) => {
+  const queue = (update: PendingUpdate) => {
+    // Flush immediately when the pending write belongs to a different book, so a
+    // book switch never silently replaces the previous book's final position.
+    if (pending && pending.state.book_id !== update.state.book_id) {
+      void flush();
+    }
+    pending = update;
+    if (timer) {
+      clearTimeout(timer);
+    }
+    timer = setTimeout(() => void flush(), DEBOUNCE_MS);
+  };
+
+  const middleware: Middleware<object, RootState> = (store) => (next) => (action: unknown) => {
     const result = next(action);
 
     if (typeof action !== "object" || action === null || !("type" in action)) {
@@ -56,7 +67,7 @@ export const readingStateMiddleware: Middleware<object, RootState> =
           const { history, historyIndex, index, cfi, book } = state.read.containerFile;
 
           if (history[historyIndex] && index > -1 && book?.last_opened_at) {
-            queueReadingStateUpdate({
+            queue({
               state: {
                 book_id: book.id,
                 last_read_page_index: index,
@@ -74,3 +85,6 @@ export const readingStateMiddleware: Middleware<object, RootState> =
 
     return result;
   };
+
+  return { middleware, flush };
+};

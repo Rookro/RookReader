@@ -94,10 +94,12 @@ export function createBasePreloadedState(): RootState {
 }
 
 export function createTestStore(preloadedState?: Partial<RootState>) {
-  return configureStore({
+  const store = configureStore({
     reducer: rootReducer,
     preloadedState,
   });
+  // Tests build the store without the reading-state middleware; the flush is a no-op.
+  return Object.assign(store, { flushReadingState: () => Promise.resolve() });
 }
 
 /** Recursively merges `patch` into a clone of `base` (mirrors the backend deep-merge). */
