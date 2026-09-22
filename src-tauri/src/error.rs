@@ -35,6 +35,10 @@ pub enum Error {
     /// book, and is never registered in the library or the reading history.
     #[error("Empty Container Error: {0}")]
     EmptyContainer(String),
+    /// A page refused before it was read because its stored size exceeds
+    /// [`MAX_PAGE_BYTES`](crate::container::traits::MAX_PAGE_BYTES).
+    #[error("Page Too Large Error: {0}")]
+    PageTooLarge(String),
     /// An error originating from the `pdfium_render` library.
     #[error("PDFium Error: {0}")]
     Pdfium(Arc<PdfiumError>),
@@ -185,6 +189,7 @@ impl ErrorCode {
             ErrorCode::UnsupportedContainer => 10001,
             ErrorCode::EntryNotFound => 10002,
             ErrorCode::EmptyContainer => 10003,
+            ErrorCode::PageTooLarge => 10004,
             ErrorCode::Pdfium => 10101,
             ErrorCode::PdfUnavailable => 10102,
             ErrorCode::Unrar => 10301,
@@ -329,6 +334,13 @@ mod tests {
         let value = serde_json::to_value(Error::BookClosed("closed".to_string())).unwrap();
         assert_eq!(value["code"], 60002);
         assert_eq!(value["message"], "Book Closed Error: closed");
+    }
+
+    #[test]
+    fn serializes_page_too_large_with_its_own_code() {
+        let value = serde_json::to_value(Error::PageTooLarge("big".to_string())).unwrap();
+        assert_eq!(value["code"], 10004);
+        assert_eq!(value["message"], "Page Too Large Error: big");
     }
 
     #[test]

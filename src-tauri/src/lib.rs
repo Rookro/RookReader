@@ -274,6 +274,7 @@ mod error_codes_export {
             "bookChanged: 60001",
             "bookClosed: 60002",
             "zipBomb: 10402",
+            "pageTooLarge: 10004",
             "epubArchive: 10502",
             "rayonThreadPool: 30201",
             "settingsValidation: 50002",

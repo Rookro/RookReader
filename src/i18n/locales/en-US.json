@@ -412,6 +412,7 @@
       "book-changed": "A different book was opened.",
       "book-closed": "The book was closed before the page finished loading.",
       "zip-bomb": "The archive's page sizes do not match its contents, so it was not read.",
+      "page-too-large": "A page is too large to load.",
       "io": "Reading or writing the file failed.",
       "invalid-path": "The path is not valid.",
       "database": "Saving data failed.",

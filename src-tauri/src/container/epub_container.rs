@@ -1,5 +1,6 @@
 use std::{
     collections::HashMap,
+    io::Write,
     path::{Path, PathBuf},
     sync::{Arc, OnceLock},
 };
@@ -8,7 +9,7 @@ use rbook::Epub;
 use scraper::{Html, Selector};
 
 use crate::{
-    container::traits::{Container, PageReader},
+    container::traits::{Container, PageReader, MAX_PAGE_BYTES},
     error::{Error, Result},
 };
 
@@ -122,7 +123,49 @@ fn read_resource_bytes(epub: &Epub, entry: &str) -> Result<Vec<u8>> {
         )));
     };
 
-    Ok(resource.read_bytes()?)
+    // rbook does not expose an entry's declared size, so the cap is enforced on the way
+    // out: the copy stops at the first write that would pass it.
+    let mut sink = BoundedSink::new(MAX_PAGE_BYTES);
+    let copied = resource.copy_bytes(&mut sink);
+    if sink.exceeded {
+        return Err(Error::PageTooLarge(format!(
+            "EPUB resource {entry} exceeds the {MAX_PAGE_BYTES} byte limit"
+        )));
+    }
+    copied?;
+    Ok(sink.bytes)
+}
+
+/// A `Vec` that refuses to grow past its limit, recording that it was asked to.
+struct BoundedSink {
+    bytes: Vec<u8>,
+    limit: u64,
+    exceeded: bool,
+}
+
+impl BoundedSink {
+    fn new(limit: u64) -> Self {
+        Self {
+            bytes: Vec::new(),
+            limit,
+            exceeded: false,
+        }
+    }
+}
+
+impl Write for BoundedSink {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        if self.bytes.len() as u64 + buf.len() as u64 > self.limit {
+            self.exceeded = true;
+            return Err(std::io::Error::other("page exceeds the size limit"));
+        }
+        self.bytes.extend_from_slice(buf);
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
 }
 
 /// Returns the thread-safe CSS selector for images within EPUB content.
@@ -261,7 +304,7 @@ fn select_resource_id<S: AsRef<str>>(images: &[(S, S)], target_path: &Path) -> O
 
 #[cfg(test)]
 mod tests {
-    use std::{fs::File, io::Write, path};
+    use std::{fs::File, path};
 
     use tempfile::tempdir;
     use zip::{write::FileOptions, ZipWriter};
@@ -598,6 +641,24 @@ mod tests {
             .as_deref(),
             Some("id-ch2")
         );
+    }
+
+    #[test]
+    fn bounded_sink_takes_bytes_within_its_limit() {
+        let mut sink = BoundedSink::new(4);
+        sink.write_all(b"abcd").unwrap();
+        assert_eq!(sink.bytes, b"abcd");
+        assert!(!sink.exceeded);
+    }
+
+    #[test]
+    fn bounded_sink_refuses_the_write_that_passes_its_limit() {
+        let mut sink = BoundedSink::new(4);
+        sink.write_all(b"abc").unwrap();
+        assert!(sink.write_all(b"de").is_err());
+        assert!(sink.exceeded);
+        // Nothing past the limit was kept.
+        assert_eq!(sink.bytes, b"abc");
     }
 
     #[test]
