@@ -7,7 +7,9 @@ import { useAppStore } from "../store/store";
  * Writes the pending reading position before the window closes.
  *
  * Tauri destroys the window only after the close-requested handler resolves, so awaiting
- * the write here is what makes the last page turn survive a close.
+ * the write here is what makes the last page turn survive a close. Once a handler is
+ * registered the window is destroyed from here, which needs `core:window:allow-destroy`
+ * in the capability; without it the close button does nothing.
  */
 export const useFlushReadingStateOnClose = () => {
   const store = useAppStore();

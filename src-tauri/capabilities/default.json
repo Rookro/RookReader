@@ -55,6 +55,7 @@
     "log:default",
     "os:default",
     "core:webview:allow-create-webview-window",
+    "core:window:allow-destroy",
     "core:app:allow-set-app-theme",
     "dialog:default",
     "process:default"
