@@ -97,14 +97,17 @@ fn list_entries(dir_path: &str) -> Result<Vec<u8>> {
                 continue;
             }
         };
-        let file_type = match entry.file_type() {
-            Ok(file_type) => file_type,
+        // `fs::metadata` follows a symbolic link, so a linked folder or book is listed as
+        // what it points at; `DirEntry::file_type` would report the link itself.
+        let metadata = match std::fs::metadata(entry.path()) {
+            Ok(metadata) => metadata,
             Err(e) => {
-                log::warn!("skipping entry '{file_name}': failed to read file type: {e}");
+                log::warn!("skipping entry '{file_name}': failed to read metadata: {e}");
                 continue;
             }
         };
-        let last_modified = match entry.metadata().and_then(|m| m.modified()) {
+        let file_type = metadata.file_type();
+        let last_modified = match metadata.modified() {
             Ok(modified) => modified,
             Err(e) => {
                 log::warn!("skipping entry '{file_name}': failed to read metadata: {e}");
@@ -316,6 +319,31 @@ mod tests {
         assert!(entries
             .iter()
             .any(|e| e.name == "archive.zip" && !e.is_directory));
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn symlinks_are_listed_as_what_they_point_at() {
+        let temp_dir = TempDir::new().unwrap();
+        let target_dir = temp_dir.path().join("real-folder");
+        fs::create_dir(&target_dir).unwrap();
+        let target_zip = temp_dir.path().join("real.zip");
+        fs::File::create(&target_zip).unwrap();
+        std::os::unix::fs::symlink(&target_dir, temp_dir.path().join("linked-folder")).unwrap();
+        std::os::unix::fs::symlink(&target_zip, temp_dir.path().join("linked.zip")).unwrap();
+
+        let result = get_entries_in_dir(temp_dir.path().to_string_lossy().as_ref())
+            .await
+            .unwrap();
+        let bytes = get_bytes_from_response(result);
+        let entries = parse_entries(&bytes);
+
+        assert!(entries
+            .iter()
+            .any(|e| e.name == "linked-folder" && e.is_directory));
+        assert!(entries
+            .iter()
+            .any(|e| e.name == "linked.zip" && !e.is_directory));
     }
 
     /// Builds a ZIP with the given entry names and one dummy byte each.
