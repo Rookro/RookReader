@@ -1,155 +1,89 @@
-# RookReader AI Agent Instructions
+# RookReader Agent Guide
 
-This document provides foundational mandates, project context, and workflows for AI agents when assisting with the **RookReader** project. These instructions take absolute precedence.
+RookReader is a cross-platform e-book reader for comics and novels (zip/cbz, rar/cbr, pdf, epub), built around Japanese right-to-left, vertical-writing reading.
 
-## 1. Project Context
+- **Frontend** (`src/`): React 19, TypeScript, Vite 8, MUI, Redux Toolkit; Vitest for unit tests, WebdriverIO for E2E.
+- **Backend** (`src-tauri/src/`): Rust, Tauri v2, SQLite via sqlx, tokio.
 
-- **Project Name:** RookReader
-- **Description:** A modern, fast, cross-platform e-book reader (comic/novel viewer) supporting zip, rar, cbz, cbr, pdf, and epub formats. Specialized for Japanese vertical writing (right-to-left).
-- **Tech Stack:**
-  - **Frontend:** React (v19), TypeScript, Vite (v8), Material UI (MUI), Redux Toolkit.
-  - **Backend:** Rust, Tauri (v2), SQLite (sqlx).
-  - **Testing:** Vitest (Frontend unit tests), WebdriverIO (E2E).
-  - **Validation:** Application settings are validated in Rust (serde for shape/enums + `garde` for value bounds); their TypeScript types are generated from Rust by `tauri-specta` (`src/bindings/bindings.ts`). Zod is used for other frontend schema/input validation (e.g. domain entities).
-- **Architecture:**
-  - Frontend code resides in `src/`.
-    - `src/features/`: Feature-scoped UI components.
-    - `src/hooks/`: Custom React hooks.
-    - `src/bindings/`: Tauri API wrappers and backend communication.
-    - `src/store/`: Global state management with Redux Toolkit.
-  - Components are primarily functional React components with hooks.
-  - Backend code resides in `src-tauri/src/`.
-    - `src-tauri/src/commands/`: Tauri commands exposed to the frontend.
-    - `src-tauri/src/infrastructure/database/`: SQLite database operations via sqlx.
-    - `src-tauri/src/container/`: File system access and parsing logic for zip, rar, pdf, and epub formats.
-  - State management is handled by Redux Toolkit for complex global state, and React hooks for local state.
-- **Coding Standards:**
-  - **TypeScript:** Strict type checking (`npx tsc --noEmit`). Do not use the `any` type. Adhere to Biome rules (`npm run check`). Use functional components and hooks. **NEVER use `console.log` or other `console` methods for logging; use the Tauri logger plugin (`@tauri-apps/plugin-log`) instead.**
-  - **Rust:** Adhere to `cargo clippy` and `cargo fmt` standards. Error handling should be explicit (using `Result` and `thiserror` where appropriate). **NEVER use `.unwrap()` or `.expect()` in production code; always handle errors explicitly.** Asynchronous programming using `tokio` and `async-trait`. **NEVER use `println!` or similar macros for logging; use the `log` crate (Tauri logger) instead.**
-  - **Documentation Comments:**
-    - **Language:** All comments and documentation must be written in English.
-    - **TypeScript:** Use TSDoc format (`/** ... */`) for exported functions, interfaces, types, and React component props.
-    - **Rust:** Use standard Rustdoc (`///` or `//!`). For public functions, module definitions, and Tauri commands, explicitly document parameters and return types using `# Arguments`, `# Returns`, and `# Errors` sections.
-  - **Tauri Commands:** Ensure Tauri commands (`#[tauri::command]` + `#[specta::specta]`) are registered in `src-tauri/src/lib.rs`'s `specta_builder()`; their TypeScript types and `invoke` wrappers are generated into `src/bindings/bindings.ts` by `tauri-specta`, and `src/bindings/*Commands.ts` are thin wrappers delegating to the generated `commands.*` (narrowed `domain/*` types are kept as the frontend contract via `as` casts). For frontend integrations requiring system access, **must strictly use official Tauri v2 plugins** (e.g., `@tauri-apps/plugin-fs`, `@tauri-apps/plugin-dialog`) rather than legacy core APIs.
+The directory layout is documented in `docs/wiki/Developer-Guide.md`; check it (or the tree) rather than assuming where code lives.
 
-## 2. Workflows & Commands
+## Commands
 
-- **Development Server:**
-  - `npm run dev` (Runs Tauri app in dev mode, includes license generation).
-- **Checking type:**
-  - `npx tsc --noEmit`
-- **Linting & Formatting:**
-  - `npm run check` (biome check)
-  - `npm run check:fix` (Automated linting and formatting fixes via biome)
-  - `cargo clippy --manifest-path src-tauri/Cargo.toml` (Rust linting)
-  - `cargo fmt --manifest-path src-tauri/Cargo.toml` (Rust formatting)
-- **Testing:**
-  - `npm run test` (Runs Frontend tests via Vitest and Rust tests via cargo).
-  - `npm run test:frontend` (Runs only Frontend tests via Vitest).
-  - `npm run test:frontend:coverage` (Runs frontend test coverage).
-  - `npm run test:backend` (Runs only Rust tests via cargo).
-  - `npm run test:e2e` (Runs WebdriverIO E2E tests).
-- **Documentation:**
-  - `npm run check:wiki` (Checks that `docs/wiki/*.md` only references existing repository paths and npm scripts, and that the settings reference in `docs/wiki/User-Guide.md` matches `src/i18n/locales/en-US.json` and `src/features/Settings/defaultSettings.json`).
-- **Database Migrations (sqlx):**
-  Run the following commands within the `src-tauri/` directory:
-  - `sqlx migrate add -r <name>`: Creates a new migration file (`<timestamp>_<name>.up.sql` and `<timestamp>_<name>.down.sql`).
-  - `cargo sqlx prepare`: Generates the `query-*.json` files required for OFFLINE builds. Ensure this is run after any schema or query changes.
+| Purpose | Command |
+| --- | --- |
+| Run the app | `npm run tauri dev` (`npm run dev` starts only the Vite frontend) |
+| Type check | `npx tsc --noEmit` |
+| Lint + format TS | `npm run check` (`npm run check:fix` to apply fixes) |
+| Lint Rust | `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings` |
+| Format Rust | `cargo fmt --manifest-path src-tauri/Cargo.toml` |
+| Tests | `npm run test` (frontend + backend), `npm run test:frontend`, `npm run test:frontend:coverage`, `npm run test:backend`, `npm run test:e2e` |
+| Regenerate bindings | `npm run gen:bindings` (`npm run gen:bindings:check` fails on drift) |
+| Check wiki | `npm run check:wiki` |
+| Database (in `src-tauri/`) | `sqlx migrate add -r <name>` for a new migration; `cargo sqlx prepare` after any schema or query change |
 
-## 3. Core Mandates for AI Agents
+Before reporting a change as done, run what CI runs for the parts you touched: clippy (with `-D warnings`), `cargo fmt`, and `test:backend` for Rust; `tsc`, `check`, and `test:frontend` for TypeScript; `gen:bindings` when commands, their types, or error codes changed, keeping the regenerated files in the change (CI's `gen:bindings:check` fails on drift); `check:wiki` when a wiki page changed. CI builds with `SQLX_OFFLINE=true`, so a query or schema change without `cargo sqlx prepare` compiles locally but fails in CI.
 
-1.  **Understand the Architecture:** When adding a new feature that touches both frontend and backend, ensure you:
-    - Create or update the Rust core logic (e.g., in `src-tauri/src/infrastructure/database/` or `src-tauri/src/container/`).
-    - Create or update the Tauri command in `src-tauri/src/commands/`.
-    - Register the command in `src-tauri/src/lib.rs`: specta-compatible commands go in `specta_builder()` (`collect_commands!`); binary commands returning a raw `tauri::ipc::Response` are instead added to the small separate `generate_handler!` and routed by command name.
-    - Regenerate the TypeScript bindings (`npm run gen:bindings`, which writes the `tauri-specta`-generated
-      `src/bindings/bindings.ts`), then add/update the thin wrapper in `src/bindings/*Commands.ts` that
-      delegates to the generated `commands.*` (binary `tauri::ipc::Response` commands keep a raw `invoke`).
-    - Integrate the binding into the React frontend (e.g., Redux thunk or custom hook).
-2.  **State Management:** Prefer Redux Toolkit (`createAsyncThunk`, `createSlice`) for global application state (like reading history, bookshelf contents). Use local React state (`useState`, `useReducer`) for component-specific UI state.
-3.  **Error Handling:** Surface backend errors clearly to the frontend. Use the custom `CommandError` structure defined in `src/types/Error.ts`. The numeric `ErrorCode` values are the **single source of truth in Rust** (`ErrorCode::code()` in `src-tauri/src/error.rs`): `npm run gen:bindings` generates `src/bindings/errorCodes.ts` from the Rust variants (camelCase keys), and `gen:bindings:check` fails CI on drift. `src/types/Error.ts` re-exports those codes and adds the frontend-only `unknown` sentinel — **never hand-edit the codes**; add a variant + `code()` arm in Rust and regenerate.
-4.  **Localization (i18n):** The project uses `react-i18next`. New user-facing strings should be added to the localization files in `src/i18n/locales/`.
-5.  **Styling:** Use Material UI (MUI) components and the `sx` prop for styling. Ensure UI is responsive and follows the established theme (`src/hooks/useAppTheme.ts`).
-6.  **Validation:** After making changes, always verify correctness using `cargo clippy` for Rust, and `npx tsc --noEmit` and `npm run check` for TypeScript.
-7.  **Documentation (Wiki):** The GitHub Wiki is generated from `docs/wiki/` (synced on every push to `main`). Update the relevant page **in the same PR** whenever a change touches something a page describes:
-    - `docs/wiki/User-Guide.md` — user-visible behaviour: supported formats, File Navigator / toolbar / side-pane controls, keyboard and mouse controls, page display (direction, spread, loupe), continuous reading, bookmarks, bookshelf / collections / tags / series, reading history, EPUB, and **every settings tab and item** (names from `src/i18n/locales/en-US.json`, defaults from `src/features/Settings/defaultSettings.json`, bounds from `src/features/Settings/settingsBounds.json`).
-    - `docs/wiki/FAQ-&-Troubleshooting.md` — data and log locations (`src-tauri/src/setup.rs`), logging behaviour, Linux packaging and window-state behaviour.
-    - `docs/wiki/Developer-Guide.md` — directory layout (`src/`, `src-tauri/src/`), the Tauri command / `tauri-specta` bindings workflow, error codes, npm scripts (`package.json`), CI checks (`.github/workflows/`), prerequisites and branching (`CONTRIBUTING.md`), database schema (`docs/database/er_diagram.md`).
-    - `docs/wiki/Home.md` — the one-paragraph feature summary and supported formats.
-    A `CHANGELOG.md` entry under **Added** or **Changed** almost always needs a wiki update; check the pages when writing the entry. Run `npm run check:wiki` after editing a page. Validate changed Mermaid diagrams before committing.
+## Conventions
 
-## 4. Security & Safety
+**TypeScript**
+- No `any`.
+- Log with `@tauri-apps/plugin-log`, not `console.*`, so messages reach the app's log file.
+- Global state (reading history, bookshelf, …) lives in Redux Toolkit slices and `createAsyncThunk`; component-only UI state uses `useState` / `useReducer`.
+- Style with MUI components and the `sx` prop, following the theme in `src/hooks/useAppTheme.ts`.
+- User-facing strings go through `react-i18next`; add every new key to both `src/i18n/locales/en-US.json` and `ja-JP.json`.
+- Frontend system access uses official Tauri v2 plugins (`@tauri-apps/plugin-fs`, `@tauri-apps/plugin-dialog`, …), not the legacy core APIs.
+- TSDoc (`/** … */`) on exported functions, interfaces, types, and component props.
 
-- Do not expose raw file system paths unnecessarily. Use Tauri's fs/path APIs where appropriate. Maintain strict capability scopes when using Tauri file system plugins to enforce secure boundaries.
-- Prevent SQL injection by using parameterized queries with `sqlx::query!`.
-- Ensure robust input validation between the frontend and backend boundaries. Application **settings** are validated in **Rust** (serde + `garde`) with `tauri-specta`-generated TypeScript types; use **Zod** for other frontend-side schema/input validation.
-- Never log sensitive user data or full file contents in production logs.
+**Rust**
+- No `.unwrap()` / `.expect()` outside tests; return a `Result` (errors via `thiserror`) so failures reach the frontend as a `CommandError` instead of a panic.
+- Log with the `log` crate macros, not `println!` / `eprintln!`.
+- SQL uses the `sqlx::query!` / `query_as!` macros: parameterized and checked at compile time.
+- Async code runs on tokio; repository traits use `async-trait`.
+- Rustdoc (`///`, `//!`); public functions, modules, and Tauri commands document `# Arguments`, `# Returns`, and `# Errors`.
 
-## 5. Behavioral Guidelines
+Write all code comments and documentation in English.
 
-These guidelines aim to reduce common LLM coding mistakes. They bias toward caution over speed. For trivial tasks, use judgment.
+## Tauri commands and bindings
 
-### 5.1 Think Before Coding
+`src/bindings/bindings.ts` and `src/bindings/errorCodes.ts` are generated from Rust by `tauri-specta`; do not edit them by hand. To add or change a command:
 
-**Don't assume. Don't hide confusion. Surface tradeoffs.**
+1. Put the logic in Rust (`src-tauri/src/domain/`, `infrastructure/database/`, `container/`, …).
+2. Expose it from `src-tauri/src/commands/` with `#[tauri::command]` + `#[specta::specta]`.
+3. Register it in `specta_builder()`'s `collect_commands!` in `src-tauri/src/lib.rs`. Commands returning a raw `tauri::ipc::Response` (binary payloads) go in the separate `generate_handler!` there instead and keep a raw `invoke` on the frontend.
+4. Run `npm run gen:bindings`.
+5. Add or update the thin wrapper in `src/bindings/*Commands.ts` that delegates to the generated `commands.*`, casting to the narrower `src/domain/*` types with `as` where needed.
+6. Call the wrapper from a Redux thunk or a hook.
 
-Before implementing:
+**Error codes** are defined only in Rust (`ErrorCode::code()` in `src-tauri/src/error.rs`). To add one, add the variant and its `code()` arm, then regenerate. The frontend uses `CommandError` from `src/types/Error.ts`, which re-exports the generated codes plus a frontend-only `unknown`.
 
-- State your assumptions explicitly. If uncertain, ask.
-- If multiple interpretations exist, present them - don't pick silently.
-- If a simpler approach exists, say so. Push back when warranted.
-- If something is unclear, stop. Name what's confusing. Ask.
+**Validation:** application settings are validated in Rust (serde for shape and enums, `garde` for bounds) and their TypeScript types are generated. Other frontend input, such as domain entities, is validated with Zod.
 
-### 5.2 Simplicity First
+## Security
 
-**Minimum code that solves the problem. Nothing speculative.**
+- Don't expose raw file system paths unnecessarily; use Tauri's fs/path APIs where appropriate, and keep file system plugin capability scopes as narrow as the feature needs.
+- Validate input at the frontend/backend boundary (see Validation above).
+- Never log sensitive user data or full file contents.
 
-- No features beyond what was asked.
-- No abstractions for single-use code.
-- No "flexibility" or "configurability" that wasn't requested.
-- No error handling for impossible scenarios.
-- If you write 200 lines and it could be 50, rewrite it.
+## Documentation
 
-Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
+The GitHub Wiki is synced from `docs/wiki/` on every push to `main`. When a change affects what a page describes, update the page in the same PR:
 
-### 5.3 Surgical Changes
+- `User-Guide.md`: user-visible behaviour (formats, File Navigator / toolbar / side-pane controls, keyboard and mouse, page display (direction, spread, loupe), continuous reading, bookmarks, bookshelf / collections / tags / series, reading history, EPUB) and every settings tab and item. Names come from `src/i18n/locales/en-US.json`, defaults from `src/features/Settings/defaultSettings.json`, bounds from `src/features/Settings/settingsBounds.json`.
+- `FAQ-&-Troubleshooting.md`: data and log locations (`src-tauri/src/setup.rs`), logging, Linux packaging, window state.
+- `Developer-Guide.md`: directory layout (`src/`, `src-tauri/src/`), the command/bindings workflow, error codes, npm scripts (`package.json`), CI (`.github/workflows/`), prerequisites and branching (`CONTRIBUTING.md`), database schema (`docs/database/er_diagram.md`).
+- `Home.md`: the feature summary and supported formats.
 
-**Touch only what you must. Clean up only your own mess.**
+A `CHANGELOG.md` entry under **Added** or **Changed** usually means a wiki page needs updating too. Validate any Mermaid diagram you change.
 
-When editing existing code:
+## Git
 
-- Don't "improve" adjacent code, comments, or formatting.
-- Don't refactor things that aren't broken.
-- Match existing style, even if you'd do it differently.
-- If you notice unrelated dead code, mention it - don't delete it.
+The repo uses Git Flow: branch from `develop` and open PRs against `develop`. `main` holds released versions only.
 
-When your changes create orphans:
+## Working style
 
-- Remove imports/variables/functions that YOUR changes made unused.
-- Don't remove pre-existing dead code unless asked.
+These guard against common agent mistakes; use judgment on trivial tasks.
 
-The test: Every changed line should trace directly to the user's request.
-
-### 5.4 Goal-Driven Execution
-
-**Define success criteria. Loop until verified.**
-
-Transform tasks into verifiable goals:
-
-- "Add validation" → "Write tests for invalid inputs, then make them pass"
-- "Fix the bug" → "Write a test that reproduces it, then make it pass"
-- "Refactor X" → "Ensure tests pass before and after"
-
-For multi-step tasks, state a brief plan:
-
-```
-1. [Step] → verify: [check]
-2. [Step] → verify: [check]
-3. [Step] → verify: [check]
-```
-
-Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
-
----
-
-**These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
+- **Scope:** Keep the diff to what the task needs; every changed line should trace to the request. Don't refactor, reformat, or re-comment adjacent code. Mention unrelated problems (including dead code) instead of fixing them, and remove only what your own change made unused.
+- **Simplicity:** Write the minimum code that solves the problem: no speculative features, options, or single-use abstractions, and no error handling for states that cannot occur. If a simpler approach than the one requested exists, say so. Match the surrounding code's style.
+- **Ambiguity:** Don't assume. If anything is unclear, stop, name what is unclear, and ask before implementing; a direction picked on your own is what later forces a redo. When a request has several reasonable readings, present them with their tradeoffs instead of picking one silently, and state any assumptions you do make explicitly.
+- **Verification:** Turn the task into a checkable goal before starting: for a bug fix, a test that fails without the fix; for a refactor, tests that pass before and after. For multi-step work, give a short plan with a check for each step, and keep going until the checks pass.
