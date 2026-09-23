@@ -158,6 +158,27 @@ pub trait PageReader {
     fn read_preview(&mut self, _entry: &str) -> Result<Option<Vec<u8>>> {
         Ok(None)
     }
+
+    /// Reads the encoded bytes of a bookshelf cover for the page, if the format can
+    /// produce one *more cheaply* than [`PageReader::read_page`].
+    ///
+    /// The counterpart of [`PageReader::read_preview`] at the size the bookshelf shows:
+    /// `None` — the default — sends the caller to a full read that it shrinks itself.
+    ///
+    /// # Arguments
+    ///
+    /// * `entry` - The entry name to make a cover from.
+    ///
+    /// # Returns
+    ///
+    /// `Ok(Some(bytes))` when the format has a cheaper path, `Ok(None)` when it does not.
+    ///
+    /// # Errors
+    ///
+    /// Returns an `Err` if the entry exists but its cover cannot be produced.
+    fn read_cover(&mut self, _entry: &str) -> Result<Option<Vec<u8>>> {
+        Ok(None)
+    }
 }
 
 impl dyn Container {

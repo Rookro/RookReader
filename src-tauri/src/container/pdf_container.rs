@@ -7,7 +7,10 @@ use crate::{
         traits::{Container, PageReader},
     },
     error::Result,
-    image::types::ImageDimensions,
+    image::{
+        thumbnail::{COVER, PREVIEW},
+        types::ImageDimensions,
+    },
 };
 
 /// An implementation of the `Container` trait for reading content from PDF files.
@@ -27,6 +30,8 @@ pub struct PdfContainer {
     render_config: Arc<PdfRenderConfig>,
     /// The configuration used for rendering smaller thumbnail images.
     thumbnail_render_config: Arc<PdfRenderConfig>,
+    /// The configuration used for rendering bookshelf covers.
+    cover_render_config: Arc<PdfRenderConfig>,
     /// The one worker that owns the library.
     worker: &'static Worker,
 }
@@ -49,6 +54,7 @@ impl Container for PdfContainer {
             path: self.path.clone(),
             render_config: self.render_config.clone(),
             thumbnail_render_config: self.thumbnail_render_config.clone(),
+            cover_render_config: self.cover_render_config.clone(),
             worker: self.worker,
         }))
     }
@@ -64,6 +70,7 @@ struct PdfReader {
     path: String,
     render_config: Arc<PdfRenderConfig>,
     thumbnail_render_config: Arc<PdfRenderConfig>,
+    cover_render_config: Arc<PdfRenderConfig>,
     worker: &'static Worker,
 }
 
@@ -86,6 +93,20 @@ impl PageReader for PdfReader {
                     &self.path,
                     parse_index(entry)?,
                     self.thumbnail_render_config.clone(),
+                    PREVIEW,
+                )?
+                .data,
+        ))
+    }
+
+    fn read_cover(&mut self, entry: &str) -> Result<Option<Vec<u8>>> {
+        Ok(Some(
+            self.worker
+                .render_thumbnail(
+                    &self.path,
+                    parse_index(entry)?,
+                    self.cover_render_config.clone(),
+                    COVER,
                 )?
                 .data,
         ))
@@ -152,12 +173,16 @@ impl PdfContainer {
             render_config: Arc::new(render_config),
             thumbnail_render_config: Arc::new(
                 PdfRenderConfig::default()
-                    .set_target_height(crate::image::thumbnail::THUMBNAIL_SIZE as i32)
+                    .set_target_height(PREVIEW.max_size as i32)
                     .rotate(PdfPageRenderRotation::None, false)
                     .use_print_quality(false)
                     .set_image_smoothing(false)
                     .render_annotations(false)
                     .render_form_data(false),
+            ),
+            // A page's own config, only smaller: a cover should look like the page.
+            cover_render_config: Arc::new(
+                PdfRenderConfig::default().set_target_height(COVER.max_size as i32),
             ),
             worker,
         })
@@ -196,7 +221,7 @@ mod tests {
 
     // A minimal 1-page landscape PDF (MediaBox wider than tall). A height-capped
     // thumbnail render of this page exceeds the width cap, so it only stays within
-    // THUMBNAIL_SIZE if create_thumbnail shrinks both dimensions.
+    // PREVIEW.max_size if create_thumbnail shrinks both dimensions.
     const LANDSCAPE_PAGE_PDF_DATA: &[u8] = b"%PDF-1.4\n1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n2 0 obj << /Type /Pages /Count 1 /Kids [ 3 0 R ] >> endobj\n3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 792 612] >> endobj\nxref\n0 4\n0000000000 65535 f\n0000000009 00000 n\n0000000057 00000 n\n0000000107 00000 n\ntrailer << /Size 4 /Root 1 0 R >> startxref\n157\n%%EOF\n";
 
     // Create a dummy PDF file for testing.
@@ -347,13 +372,43 @@ trailer << /Size 5 /Root 1 0 R >>
             .expect("read_preview failed")
             .expect("PDF must offer a preview");
         let measured = crate::image::types::read_dimensions(&preview).unwrap();
-        assert!(measured.width <= crate::image::thumbnail::THUMBNAIL_SIZE);
-        assert!(measured.height <= crate::image::thumbnail::THUMBNAIL_SIZE);
+        assert!(measured.width <= PREVIEW.max_size);
+        assert!(measured.height <= PREVIEW.max_size);
         assert!(preview.len() < page.len());
 
         assert!(reader.read_page("9999").is_err());
         // Only one `Pdfium` may be alive in the process at a time.
         assert_eq!(container.max_readers(), 1);
+    }
+
+    #[test]
+    fn pdf_reader_reads_a_cover_at_cover_size() {
+        let _guard = pdf_test_guard();
+        let dir = tempdir().unwrap();
+        let (_, portrait) = container_for(dir.path(), "portrait.pdf", SINGLE_PAGE_PDF_DATA);
+        let (_, landscape) = container_for(dir.path(), "landscape.pdf", LANDSCAPE_PAGE_PDF_DATA);
+
+        // Rendered straight to the cover size, so the long edge is exactly the cap.
+        let cover = portrait
+            .open_reader()
+            .unwrap()
+            .read_cover("0000")
+            .unwrap()
+            .expect("PDF must offer a cover");
+        let measured = crate::image::types::read_dimensions(&cover).unwrap();
+        assert_eq!(measured.height, COVER.max_size);
+        assert!(measured.width < COVER.max_size);
+
+        // The render config caps the height only; the width is capped when encoding.
+        let cover = landscape
+            .open_reader()
+            .unwrap()
+            .read_cover("0000")
+            .unwrap()
+            .expect("PDF must offer a cover");
+        let measured = crate::image::types::read_dimensions(&cover).unwrap();
+        assert_eq!(measured.width, COVER.max_size);
+        assert!(measured.height < COVER.max_size);
     }
 
     #[test]
@@ -400,8 +455,8 @@ trailer << /Size 5 /Root 1 0 R >>
         )
         .unwrap();
 
-        // A landscape page rendered at target_height=THUMBNAIL_SIZE would be wider than
-        // THUMBNAIL_SIZE; the preview must cap the width too (C4/C6).
+        // A landscape page rendered at target_height=PREVIEW.max_size would be wider than
+        // PREVIEW.max_size; the preview must cap the width too (C4/C6).
         let preview = container
             .open_reader()
             .unwrap()
@@ -409,8 +464,8 @@ trailer << /Size 5 /Root 1 0 R >>
             .unwrap()
             .expect("PDF offers a preview");
         let measured = crate::image::types::read_dimensions(&preview).unwrap();
-        assert!(measured.width <= crate::image::thumbnail::THUMBNAIL_SIZE);
-        assert!(measured.height <= crate::image::thumbnail::THUMBNAIL_SIZE);
+        assert!(measured.width <= PREVIEW.max_size);
+        assert!(measured.height <= PREVIEW.max_size);
     }
 
     #[test]

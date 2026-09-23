@@ -683,8 +683,22 @@ async fn resolve_thumbnail<R: tauri::Runtime>(
 
 /// The file name a book's thumbnail is stored under.
 ///
-/// FNV-1a over the path, so the name is the same on every Rust release: `DefaultHasher`
-/// makes no such promise, and a change to it would orphan every thumbnail on disk.
+/// `v2` marks covers made at the current size. A book that still has only the
+/// [`legacy_thumbnail_file_name`] misses here, so the next open makes a new cover.
+///
+/// # Arguments
+///
+/// * `file_path` - The book's path, which is unique in the library.
+///
+/// # Returns
+///
+/// `thumbnail_v2_<16 hex digits>.jpg`.
+fn thumbnail_file_name(file_path: &str) -> String {
+    format!("thumbnail_v2_{:016x}.jpg", path_hash(file_path))
+}
+
+/// The file name a book's thumbnail had before `v2`, kept so the old file can be removed
+/// once a new cover replaces it.
 ///
 /// # Arguments
 ///
@@ -693,13 +707,20 @@ async fn resolve_thumbnail<R: tauri::Runtime>(
 /// # Returns
 ///
 /// `thumbnail_<16 hex digits>.jpg`.
-fn thumbnail_file_name(file_path: &str) -> String {
+fn legacy_thumbnail_file_name(file_path: &str) -> String {
+    format!("thumbnail_{:016x}.jpg", path_hash(file_path))
+}
+
+/// Hashes a book's path for its thumbnail file name.
+///
+/// FNV-1a, so the name is the same on every Rust release: `DefaultHasher` makes no such
+/// promise, and a change to it would orphan every thumbnail on disk.
+fn path_hash(file_path: &str) -> u64 {
     const OFFSET_BASIS: u64 = 0xcbf2_9ce4_8422_2325;
     const PRIME: u64 = 0x0000_0100_0000_01b3;
-    let hash = file_path.bytes().fold(OFFSET_BASIS, |hash, byte| {
+    file_path.bytes().fold(OFFSET_BASIS, |hash, byte| {
         (hash ^ u64::from(byte)).wrapping_mul(PRIME)
-    });
-    format!("thumbnail_{hash:016x}.jpg")
+    })
 }
 
 /// Helper function to generate and save a thumbnail for a given file path.
@@ -707,6 +728,8 @@ fn thumbnail_file_name(file_path: &str) -> String {
 /// If a thumbnail corresponding to the hash of the `file_path` already exists
 /// in the app's thumbnail directory, the container parsing and image extraction
 /// are skipped, and the existing thumbnail path is returned.
+/// When a new thumbnail is written, the one an earlier version saved for the same book
+/// (see [`legacy_thumbnail_file_name`]) is removed.
 ///
 /// # Arguments
 ///
@@ -749,18 +772,29 @@ async fn generate_and_save_thumbnail<R: tauri::Runtime>(
 
         let first_image_entry = container.get_entries().first();
         if let Some(entry) = first_image_entry {
-            // Ask the reader for a preview first. For PDF that renders a
-            // thumbnail-sized page through the one worker that owns the library, instead
+            // Ask the reader for a cover first. For PDF that renders a
+            // cover-sized page through the one worker that owns the library, instead
             // of binding a second `Pdfium` beside the one an open book is already using.
             // Every other format has no cheaper path, so its page is read in full and
             // shrunk here.
             let mut reader = container.open_reader()?;
-            match reader.read_preview(entry)? {
+            match reader.read_cover(entry)? {
                 Some(bytes) => write_atomically(&thumbnail_path, &bytes)?,
                 None => {
                     let page = reader.read_page(entry)?;
                     write_atomically(&thumbnail_path, &Pipeline::thumbnail(&page)?.data)?;
                 }
+            }
+
+            // Best effort: a leftover only costs disk space, and the new cover is saved.
+            let legacy_path = thumbnails_dir.join(legacy_thumbnail_file_name(&file_path));
+            match fs::remove_file(&legacy_path) {
+                Ok(()) => {}
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+                Err(e) => log::warn!(
+                    "Could not remove a legacy thumbnail {}: {e}",
+                    legacy_path.display()
+                ),
             }
 
             Ok(Some(thumbnail_path.to_string_lossy().to_string()))
@@ -1361,12 +1395,50 @@ mod tests {
 
     #[test]
     fn thumbnail_file_name_is_fnv1a_of_the_path() {
-        assert_eq!(thumbnail_file_name(""), "thumbnail_cbf29ce484222325.jpg");
-        assert_eq!(thumbnail_file_name("a"), "thumbnail_af63dc4c8601ec8c.jpg");
+        assert_eq!(thumbnail_file_name(""), "thumbnail_v2_cbf29ce484222325.jpg");
+        assert_eq!(
+            thumbnail_file_name("a"),
+            "thumbnail_v2_af63dc4c8601ec8c.jpg"
+        );
         assert_eq!(
             thumbnail_file_name("foobar"),
+            "thumbnail_v2_85944171f73967e8.jpg"
+        );
+    }
+
+    #[test]
+    fn legacy_thumbnail_file_name_is_the_pre_v2_name() {
+        // What earlier versions wrote; it must keep resolving so the file can be removed.
+        assert_eq!(
+            legacy_thumbnail_file_name("foobar"),
             "thumbnail_85944171f73967e8.jpg"
         );
+    }
+
+    #[tokio::test]
+    async fn test_generate_and_save_thumbnail_replaces_the_legacy_thumbnail() {
+        let app = tauri::test::mock_app();
+        // A folder of images is a book, read without any fixture archive.
+        let book = tempfile::tempdir().unwrap();
+        image::DynamicImage::ImageRgb8(image::RgbImage::new(1200, 1800))
+            .save(book.path().join("001.png"))
+            .unwrap();
+        let file_path = book.path().to_string_lossy().to_string();
+
+        let thumbnails_dir = crate::setup::app_data_dir(&app).unwrap().join("thumbnails");
+        std::fs::create_dir_all(&thumbnails_dir).unwrap();
+        let legacy = thumbnails_dir.join(legacy_thumbnail_file_name(&file_path));
+        std::fs::write(&legacy, "a thumbnail from an earlier version").unwrap();
+
+        let path = generate_and_save_thumbnail(app.app_handle().clone(), file_path, None, None)
+            .await
+            .unwrap()
+            .expect("a folder of images has a thumbnail");
+
+        assert!(!legacy.exists());
+        let size = crate::image::types::read_dimensions(&std::fs::read(&path).unwrap()).unwrap();
+        assert_eq!(size.height, crate::image::thumbnail::COVER.max_size);
+        std::fs::remove_file(path).unwrap();
     }
 
     #[tokio::test]
