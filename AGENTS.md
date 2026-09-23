@@ -19,9 +19,11 @@ The directory layout is documented in `docs/wiki/Developer-Guide.md`; check it (
 | Tests | `npm run test` (frontend + backend), `npm run test:frontend`, `npm run test:frontend:coverage`, `npm run test:backend`, `npm run test:e2e` |
 | Regenerate bindings | `npm run gen:bindings` (`npm run gen:bindings:check` fails on drift) |
 | Check wiki | `npm run check:wiki` |
-| Database (in `src-tauri/`) | `sqlx migrate add -r <name>` for a new migration; `cargo sqlx prepare` after any schema or query change |
+| Database (in `src-tauri/`) | `cargo sqlx database setup` once; `cargo sqlx migrate add -r <name>` for a new migration, then `cargo sqlx migrate run`; `cargo sqlx prepare` after any schema or query change |
 
-Before reporting a change as done, run what CI runs for the parts you touched: clippy (with `-D warnings`), `cargo fmt`, and `test:backend` for Rust; `tsc`, `check`, and `test:frontend` for TypeScript; `gen:bindings` when commands, their types, or error codes changed, keeping the regenerated files in the change (CI's `gen:bindings:check` fails on drift); `check:wiki` when a wiki page changed. CI builds with `SQLX_OFFLINE=true`, so a query or schema change without `cargo sqlx prepare` compiles locally but fails in CI.
+Before reporting a change as done, run what CI runs for the parts you touched: clippy (with `-D warnings`), `cargo fmt`, and `test:backend` for Rust; `tsc`, `check`, and `test:frontend` for TypeScript; `gen:bindings` when commands, their types, or error codes changed, keeping the regenerated files in the change (CI's `gen:bindings:check` fails on drift); `check:wiki` when a wiki page changed.
+
+Locally, the `sqlx` macros check queries against `src-tauri/rook-reader.db` (`DATABASE_URL` in `src-tauri/.env`), so apply new migrations (your own or pulled ones) with `migrate run` before building. CI builds with `SQLX_OFFLINE=true` from the `.sqlx/` cache instead, so a query or schema change without `cargo sqlx prepare` and the updated `.sqlx/` in the change compiles locally but fails in CI.
 
 ## Conventions
 
@@ -41,6 +43,11 @@ Before reporting a change as done, run what CI runs for the parts you touched: c
 - Async code runs on tokio; repository traits use `async-trait`.
 - Rustdoc (`///`, `//!`); public functions, modules, and Tauri commands document `# Arguments`, `# Returns`, and `# Errors`.
 
+**Tests**
+- Frontend tests sit next to the code as `*.test.ts(x)`; render with `renderWithProviders` from `src/test/utils.tsx` and build data with `src/test/factories.ts`.
+- `src/test/mocks/bindings.ts` mocks every `src/bindings/*Commands.ts` module for all tests; when you add a wrapper function, add it there too, or tests that reach it fail.
+- Rust unit tests go in a `#[cfg(test)]` module in the same file; repository tests in `src-tauri/tests/` use `common::setup_db()` (in-memory SQLite with the migrations applied).
+
 Write all code comments and documentation in English.
 
 ## Tauri commands and bindings
@@ -57,6 +64,8 @@ Write all code comments and documentation in English.
 **Error codes** are defined only in Rust (`ErrorCode::code()` in `src-tauri/src/error.rs`). To add one, add the variant and its `code()` arm, then regenerate. The frontend uses `CommandError` from `src/types/Error.ts`, which re-exports the generated codes plus a frontend-only `unknown`.
 
 **Validation:** application settings are validated in Rust (serde for shape and enums, `garde` for bounds) and their TypeScript types are generated. Other frontend input, such as domain entities, is validated with Zod.
+
+**Settings:** the model, defaults, and bounds live in `src-tauri/src/settings/`. The frontend keeps copies in `src/features/Settings/defaultSettings.json` and `settingsBounds.json`, and Rust tests (`test_defaults_agree_with_frontend_json`, `test_bounds_agree_with_frontend_json`) fail when they drift. Adding or changing a setting therefore also means updating both JSON files, the i18n keys, and the settings reference in `docs/wiki/User-Guide.md` (`check:wiki` checks its names and defaults against the code), and regenerating the bindings.
 
 ## Security
 
@@ -75,9 +84,13 @@ The GitHub Wiki is synced from `docs/wiki/` on every push to `main`. When a chan
 
 A `CHANGELOG.md` entry under **Added** or **Changed** usually means a wiki page needs updating too. Validate any Mermaid diagram you change.
 
+The changelog and README are bilingual: update `docs/ja_JP/CHANGELOG.md` and `docs/ja_JP/README.md` together with their English originals. Changelog entries follow Keep a Changelog, describe the outcome for the user rather than the implementation, and end with ` (#<PR number>)`.
+
 ## Git
 
-The repo uses Git Flow: branch from `develop` and open PRs against `develop`. `main` holds released versions only.
+The repo uses Git Flow: branch from `develop` as `feature/<short-description>` or `bugfix/<short-description>`, and open PRs against `develop`. `main` holds released versions only.
+
+Commit messages follow Conventional Commits: `type(scope): summary`, e.g. `fix(reader): …`, `feat(commands): …`, `docs: …`. PR titles are plain sentences without a type prefix, e.g. `Split the history-changed event into one event per library list`; the merge commit uses the title and appends ` (#<PR number>)`.
 
 ## Working style
 
