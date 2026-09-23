@@ -23,7 +23,7 @@ use crate::{
     image::{
         avif,
         resizer::{shrink_to_fit, ResizeFilter},
-        thumbnail::generate_thumbnail,
+        thumbnail::{generate_thumbnail, PREVIEW},
         types::{is_animated, Image},
     },
 };
@@ -144,7 +144,7 @@ impl Pipeline {
     ///
     /// Returns an `Err` if the bytes are not a supported image, or the resize fails.
     pub fn thumbnail(bytes: &[u8]) -> Result<Arc<Image>> {
-        generate_thumbnail(bytes)
+        generate_thumbnail(bytes, &PREVIEW)
     }
 
     /// Resizes into `fit` and writes the result as PNG.
@@ -481,7 +481,7 @@ mod tests {
             .unwrap();
 
         let thumbnail = Pipeline::thumbnail(&buffer).unwrap();
-        assert!(thumbnail.width <= crate::image::thumbnail::THUMBNAIL_SIZE);
-        assert!(thumbnail.height <= crate::image::thumbnail::THUMBNAIL_SIZE);
+        assert!(thumbnail.width <= PREVIEW.max_size);
+        assert!(thumbnail.height <= PREVIEW.max_size);
     }
 }

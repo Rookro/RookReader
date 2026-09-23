@@ -21,8 +21,7 @@ use pdfium_render::prelude::{PdfDocument, PdfRenderConfig, Pdfium};
 use crate::{
     error::{Error, Result},
     image::{
-        resizer::{shrink_to_fit, ResizeFilter},
-        thumbnail::THUMBNAIL_SIZE,
+        thumbnail::{encode_thumbnail, ThumbnailSpec},
         types::{Image, ImageDimensions},
     },
     perf,
@@ -73,6 +72,7 @@ enum Request {
         path: String,
         index: u16,
         config: Arc<PdfRenderConfig>,
+        spec: ThumbnailSpec,
         reply: mpsc::Sender<Result<Image>>,
     },
     /// Counts one more container over the document, so a `Release` from another
@@ -135,17 +135,20 @@ impl Worker {
         })
     }
 
-    /// Renders one page at thumbnail size, or returns the thumbnail the document carries.
+    /// Renders one page at `spec`'s size, or returns the thumbnail the document carries,
+    /// shrunk and encoded to `spec`.
     pub(crate) fn render_thumbnail(
         &self,
         path: &str,
         index: u16,
         config: Arc<PdfRenderConfig>,
+        spec: ThumbnailSpec,
     ) -> Result<Image> {
         self.ask(|reply| Request::Preview {
             path: path.to_string(),
             index,
             config,
+            spec,
             reply,
         })
     }
@@ -282,10 +285,11 @@ fn run(rx: mpsc::Receiver<Request>, library_path: Option<String>) {
                 path,
                 index,
                 config,
+                spec,
                 reply,
             } => {
                 let result = document(&pdfium, &mut docs, &path)
-                    .and_then(|doc| render_thumbnail(doc, &config, index));
+                    .and_then(|doc| render_thumbnail(doc, &config, index, &spec));
                 let _ = reply.send(result);
             }
         }
@@ -350,7 +354,7 @@ fn page_size(pdf: &PdfDocument, index: u16) -> Result<ImageDimensions> {
     })
 }
 
-/// Renders a PDF page to a thumbnail-sized JPEG.
+/// Renders a PDF page to a JPEG thumbnail shaped by `spec`.
 ///
 /// PDF is the one format where this is *cheaper* than reading the page: pdfium renders
 /// straight to the smaller size, or hands back a thumbnail the document already carries,
@@ -359,26 +363,17 @@ fn render_thumbnail(
     pdf: &PdfDocument,
     render_config: &PdfRenderConfig,
     index: u16,
+    spec: &ThumbnailSpec,
 ) -> Result<Image> {
     let page = pdf.pages().get(index.into()).map_err(Error::from)?;
     let img = match page.embedded_thumbnail() {
         Ok(thumbnail) => thumbnail.as_image(),
         Err(_) => page.render_with_config(render_config)?.as_image(),
     }?;
-    // Cap both dimensions to the thumbnail contract: embedded thumbnails have no
+    // Cap both dimensions to the spec: embedded thumbnails have no
     // spec-mandated size, and the render config constrains height only (a landscape
     // page still exceeds the width cap). Other containers already uphold this.
-    let img = shrink_to_fit(&img, THUMBNAIL_SIZE, THUMBNAIL_SIZE, ResizeFilter::Bilinear)?;
-
-    let mut buffer = Vec::new();
-    // Use a lower quality for thumbnails to make them smaller and faster to encode.
-    JpegEncoder::new_with_quality(&mut buffer, 10).encode_image(&img)?;
-
-    Ok(Image {
-        data: buffer,
-        width: img.width(),
-        height: img.height(),
-    })
+    encode_thumbnail(&img, spec)
 }
 
 /// Binds the `pdfium` library. The only call site is [`run`], on the worker thread.
