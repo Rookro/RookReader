@@ -290,11 +290,11 @@ fn scan(
         .collect()
 }
 
-/// A page's thumbnail, the way a bookshelf entry gets one: the format's own preview when
+/// A page's thumbnail, the way a bookshelf entry gets one: the format's own cover when
 /// it has a cheaper path to one, and a full read shrunk here when it does not.
 fn thumbnail(container: &Arc<dyn Container>, entry: &str) -> Vec<u8> {
     let mut reader = container.open_reader().expect("open reader");
-    match reader.read_preview(entry).expect("preview") {
+    match reader.read_cover(entry).expect("cover") {
         Some(bytes) => bytes,
         None => Pipeline::thumbnail(&reader.read_page(entry).expect("read page"))
             .expect("shrink page")

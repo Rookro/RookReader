@@ -7,7 +7,10 @@ use crate::{
         traits::{Container, PageReader},
     },
     error::Result,
-    image::{thumbnail::PREVIEW, types::ImageDimensions},
+    image::{
+        thumbnail::{COVER, PREVIEW},
+        types::ImageDimensions,
+    },
 };
 
 /// An implementation of the `Container` trait for reading content from PDF files.
@@ -27,6 +30,8 @@ pub struct PdfContainer {
     render_config: Arc<PdfRenderConfig>,
     /// The configuration used for rendering smaller thumbnail images.
     thumbnail_render_config: Arc<PdfRenderConfig>,
+    /// The configuration used for rendering bookshelf covers.
+    cover_render_config: Arc<PdfRenderConfig>,
     /// The one worker that owns the library.
     worker: &'static Worker,
 }
@@ -49,6 +54,7 @@ impl Container for PdfContainer {
             path: self.path.clone(),
             render_config: self.render_config.clone(),
             thumbnail_render_config: self.thumbnail_render_config.clone(),
+            cover_render_config: self.cover_render_config.clone(),
             worker: self.worker,
         }))
     }
@@ -64,6 +70,7 @@ struct PdfReader {
     path: String,
     render_config: Arc<PdfRenderConfig>,
     thumbnail_render_config: Arc<PdfRenderConfig>,
+    cover_render_config: Arc<PdfRenderConfig>,
     worker: &'static Worker,
 }
 
@@ -87,6 +94,19 @@ impl PageReader for PdfReader {
                     parse_index(entry)?,
                     self.thumbnail_render_config.clone(),
                     PREVIEW,
+                )?
+                .data,
+        ))
+    }
+
+    fn read_cover(&mut self, entry: &str) -> Result<Option<Vec<u8>>> {
+        Ok(Some(
+            self.worker
+                .render_thumbnail(
+                    &self.path,
+                    parse_index(entry)?,
+                    self.cover_render_config.clone(),
+                    COVER,
                 )?
                 .data,
         ))
@@ -159,6 +179,10 @@ impl PdfContainer {
                     .set_image_smoothing(false)
                     .render_annotations(false)
                     .render_form_data(false),
+            ),
+            // A page's own config, only smaller: a cover should look like the page.
+            cover_render_config: Arc::new(
+                PdfRenderConfig::default().set_target_height(COVER.max_size as i32),
             ),
             worker,
         })
@@ -355,6 +379,36 @@ trailer << /Size 5 /Root 1 0 R >>
         assert!(reader.read_page("9999").is_err());
         // Only one `Pdfium` may be alive in the process at a time.
         assert_eq!(container.max_readers(), 1);
+    }
+
+    #[test]
+    fn pdf_reader_reads_a_cover_at_cover_size() {
+        let _guard = pdf_test_guard();
+        let dir = tempdir().unwrap();
+        let (_, portrait) = container_for(dir.path(), "portrait.pdf", SINGLE_PAGE_PDF_DATA);
+        let (_, landscape) = container_for(dir.path(), "landscape.pdf", LANDSCAPE_PAGE_PDF_DATA);
+
+        // Rendered straight to the cover size, so the long edge is exactly the cap.
+        let cover = portrait
+            .open_reader()
+            .unwrap()
+            .read_cover("0000")
+            .unwrap()
+            .expect("PDF must offer a cover");
+        let measured = crate::image::types::read_dimensions(&cover).unwrap();
+        assert_eq!(measured.height, COVER.max_size);
+        assert!(measured.width < COVER.max_size);
+
+        // The render config caps the height only; the width is capped when encoding.
+        let cover = landscape
+            .open_reader()
+            .unwrap()
+            .read_cover("0000")
+            .unwrap()
+            .expect("PDF must offer a cover");
+        let measured = crate::image::types::read_dimensions(&cover).unwrap();
+        assert_eq!(measured.width, COVER.max_size);
+        assert!(measured.height < COVER.max_size);
     }
 
     #[test]

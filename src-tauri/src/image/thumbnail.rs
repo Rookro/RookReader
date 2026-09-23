@@ -20,6 +20,9 @@ pub struct ThumbnailSpec {
     pub quality: u8,
     /// The filter the source is shrunk with.
     pub filter: ResizeFilter,
+    /// The long edge, in pixels, a PDF's embedded thumbnail needs before it is used in
+    /// place of a render. `0` accepts any.
+    pub min_embedded_size: u32,
 }
 
 /// The reader's stand-in while a PDF page renders: quick to make, not meant to be looked at.
@@ -27,6 +30,17 @@ pub const PREVIEW: ThumbnailSpec = ThumbnailSpec {
     max_size: 300,
     quality: 10,
     filter: ResizeFilter::Bilinear,
+    min_embedded_size: 0,
+};
+
+/// A bookshelf cover. The large grid size shows a cover in about 208×300 CSS px, which
+/// is 600 device px tall at 200% display scaling.
+pub const COVER: ThumbnailSpec = ThumbnailSpec {
+    max_size: 600,
+    quality: 80,
+    filter: ResizeFilter::Lanczos3,
+    // Embedded thumbnails are usually far smaller, and an upscaled one looks coarse.
+    min_embedded_size: 600,
 };
 
 /// Generates a JPEG thumbnail from raw image data.

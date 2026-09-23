@@ -749,13 +749,13 @@ async fn generate_and_save_thumbnail<R: tauri::Runtime>(
 
         let first_image_entry = container.get_entries().first();
         if let Some(entry) = first_image_entry {
-            // Ask the reader for a preview first. For PDF that renders a
-            // thumbnail-sized page through the one worker that owns the library, instead
+            // Ask the reader for a cover first. For PDF that renders a
+            // cover-sized page through the one worker that owns the library, instead
             // of binding a second `Pdfium` beside the one an open book is already using.
             // Every other format has no cheaper path, so its page is read in full and
             // shrunk here.
             let mut reader = container.open_reader()?;
-            match reader.read_preview(entry)? {
+            match reader.read_cover(entry)? {
                 Some(bytes) => write_atomically(&thumbnail_path, &bytes)?,
                 None => {
                     let page = reader.read_page(entry)?;

@@ -23,7 +23,7 @@ use crate::{
     image::{
         avif,
         resizer::{shrink_to_fit, ResizeFilter},
-        thumbnail::{generate_thumbnail, PREVIEW},
+        thumbnail::{generate_thumbnail, COVER},
         types::{is_animated, Image},
     },
 };
@@ -133,8 +133,7 @@ impl Pipeline {
         Ok(Arc::new(Image::new(bytes)?))
     }
 
-    /// Shrinks a full page to the thumbnail contract, for a format with no preview of
-    /// its own.
+    /// Shrinks a full page to a bookshelf cover, for a format with no cover of its own.
     ///
     /// Associated rather than a method: a thumbnail's size is fixed by what displays it,
     /// so unlike [`Pipeline::page`] it owes nothing to the book's display settings. It
@@ -144,7 +143,7 @@ impl Pipeline {
     ///
     /// Returns an `Err` if the bytes are not a supported image, or the resize fails.
     pub fn thumbnail(bytes: &[u8]) -> Result<Arc<Image>> {
-        generate_thumbnail(bytes, &PREVIEW)
+        generate_thumbnail(bytes, &COVER)
     }
 
     /// Resizes into `fit` and writes the result as PNG.
@@ -481,7 +480,7 @@ mod tests {
             .unwrap();
 
         let thumbnail = Pipeline::thumbnail(&buffer).unwrap();
-        assert!(thumbnail.width <= PREVIEW.max_size);
-        assert!(thumbnail.height <= PREVIEW.max_size);
+        assert_eq!(thumbnail.width, COVER.max_size);
+        assert!(thumbnail.height <= COVER.max_size);
     }
 }

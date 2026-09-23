@@ -366,10 +366,17 @@ fn render_thumbnail(
     spec: &ThumbnailSpec,
 ) -> Result<Image> {
     let page = pdf.pages().get(index.into()).map_err(Error::from)?;
-    let img = match page.embedded_thumbnail() {
-        Ok(thumbnail) => thumbnail.as_image(),
-        Err(_) => page.render_with_config(render_config)?.as_image(),
-    }?;
+    // An embedded thumbnail smaller than the spec asks for would be upscaled on screen,
+    // so the page is rendered instead.
+    let embedded = page
+        .embedded_thumbnail()
+        .and_then(|thumbnail| thumbnail.as_image())
+        .ok()
+        .filter(|img| img.width().max(img.height()) >= spec.min_embedded_size);
+    let img = match embedded {
+        Some(img) => img,
+        None => page.render_with_config(render_config)?.as_image()?,
+    };
     // Cap both dimensions to the spec: embedded thumbnails have no
     // spec-mandated size, and the render config constrains height only (a landscape
     // page still exceeds the width cap). Other containers already uphold this.
