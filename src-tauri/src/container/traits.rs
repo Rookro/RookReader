@@ -1,5 +1,5 @@
 use crate::{
-    error::Result,
+    error::{Error, Result},
     image::types::{read_dimensions, ImageDimensions},
 };
 
@@ -10,6 +10,30 @@ use mockall::{automock, predicate::*};
 /// [`Container::is_supported_format`] and the factory's dispatch must both derive from
 /// this list; a `factory.rs` test cross-checks that they stay in sync.
 pub const SUPPORTED_EXTENSIONS: [&str; 6] = ["pdf", "rar", "zip", "epub", "cbz", "cbr"];
+
+/// The most bytes a single page may occupy once decoded from its archive. An entry declaring
+/// more is refused before it is read, so a lying header cannot drive an unbounded allocation.
+pub const MAX_PAGE_BYTES: u64 = 1024 * 1024 * 1024;
+
+/// Refuses a page whose stored size exceeds [`MAX_PAGE_BYTES`], before any of it is read.
+///
+/// # Arguments
+///
+/// * `format` - The container format, for the message (`"ZIP"`, `"RAR"`).
+/// * `entry` - The entry name, for the message.
+/// * `size` - The size the archive declares for the entry.
+///
+/// # Errors
+///
+/// Returns [`Error::PageTooLarge`] when `size` exceeds the cap.
+pub fn check_page_size(format: &str, entry: &str, size: u64) -> Result<()> {
+    if size > MAX_PAGE_BYTES {
+        return Err(Error::PageTooLarge(format!(
+            "{format} entry {entry} declares {size} bytes, exceeding the {MAX_PAGE_BYTES} byte limit"
+        )));
+    }
+    Ok(())
+}
 
 /// A book's identity and structure: what its pages are called, and how to open a reader
 /// over them.
@@ -191,6 +215,20 @@ mod tests {
             <dyn Container>::is_supported_format(filename),
             "Failed for filename: {}",
             filename
+        );
+    }
+
+    #[test]
+    fn a_page_at_the_cap_is_accepted() {
+        assert!(check_page_size("ZIP", "p.png", MAX_PAGE_BYTES).is_ok());
+    }
+
+    #[test]
+    fn a_page_over_the_cap_is_refused_before_it_is_read() {
+        let err = check_page_size("RAR", "p.png", MAX_PAGE_BYTES + 1).unwrap_err();
+        assert!(
+            matches!(err, Error::PageTooLarge(_)),
+            "unexpected error: {err}"
         );
     }
 }

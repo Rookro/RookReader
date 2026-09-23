@@ -1,16 +1,9 @@
 use serde_json::Value;
 use std::fs;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicU64, Ordering};
 use tauri::{AppHandle, Manager};
 
-use crate::error::Result;
-
-/// Process-wide counter making each settings write use a distinct temp filename, so
-/// two concurrent `save_all_settings` calls never stage through the same
-/// `…settings.json.tmp` and race on the rename (one writer renames the temp away,
-/// the other then fails to rename a file that no longer exists).
-static TMP_COUNTER: AtomicU64 = AtomicU64::new(0);
+use crate::{error::Result, infrastructure::atomic_file::write_atomically};
 
 /// Trait for settings storage to enable testing and abstract the storage mechanism.
 pub trait SettingsStoreProvider {
@@ -66,17 +59,6 @@ impl SettingsFileProvider {
             home_dir,
         })
     }
-
-    /// Builds a temp path next to the settings file that is unique to this write.
-    ///
-    /// The name embeds the process id and a monotonically increasing counter so
-    /// that concurrent `save_all_settings` calls never stage through the same file
-    /// and therefore never race on the final rename.
-    fn unique_tmp_path(&self) -> PathBuf {
-        let n = TMP_COUNTER.fetch_add(1, Ordering::Relaxed);
-        self.path
-            .with_extension(format!("json.tmp.{}.{}", std::process::id(), n))
-    }
 }
 
 impl SettingsStoreProvider for SettingsFileProvider {
@@ -100,18 +82,7 @@ impl SettingsStoreProvider for SettingsFileProvider {
 
     fn save_all_settings(&self, settings: Value) -> Result<()> {
         let json = serde_json::to_string_pretty(&settings)?;
-        // Write atomically: write to a per-write unique temp file then rename over
-        // the target. The rename keeps a crash mid-write from leaving a truncated
-        // settings file; the unique temp name keeps two concurrent writers from
-        // colliding on a shared staging path (see `unique_tmp_path`).
-        let tmp_path = self.unique_tmp_path();
-        fs::write(&tmp_path, json)?;
-        if let Err(e) = fs::rename(&tmp_path, &self.path) {
-            // Best-effort cleanup so a failed write does not leave a stray temp file.
-            let _ = fs::remove_file(&tmp_path);
-            return Err(e.into());
-        }
-        Ok(())
+        Ok(write_atomically(&self.path, json.as_bytes())?)
     }
 
     fn default_home_dir(&self) -> String {
@@ -245,20 +216,6 @@ mod tests {
         let _: AppSettings = serde_json::from_str(&contents).unwrap();
         // No leftover temp file remains after the atomic rename.
         assert!(!has_temp_file(dir.path()));
-    }
-
-    #[test]
-    fn file_provider_unique_tmp_path_differs_and_sits_beside_target() {
-        let dir = tempfile::tempdir().unwrap();
-        let target = dir.path().join("settings.json");
-        let provider = provider_at(target.clone());
-
-        let a = provider.unique_tmp_path();
-        let b = provider.unique_tmp_path();
-
-        assert_ne!(a, b, "consecutive temp paths must be distinct");
-        assert_eq!(a.parent(), target.parent());
-        assert_eq!(b.parent(), target.parent());
     }
 
     #[test]

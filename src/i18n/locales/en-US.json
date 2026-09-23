@@ -332,7 +332,7 @@
       },
       "pdf": {
         "title": "PDF rendering height (px)",
-        "description": "The height PDF pages are rendered at, in pixels, before being resized to fit the reader area.\nA reader area taller than this shows the page upscaled, so raise it for a large or high-resolution display. Lowering it makes PDFs faster to open."
+        "description": "The height PDF pages are rendered at, in pixels, before being resized to fit the reader area.\nA reader area taller than this shows the page upscaled, so raise it for a large or high-resolution display. Lowering it makes PDFs faster to open.\nTakes effect the next time a book is opened."
       },
       "cache": {
         "preload-page-count": {
@@ -341,7 +341,7 @@
         },
         "page-reader-count": {
           "title": "Page reader threads",
-          "description": "How many threads may read pages at once. 0 lets the app choose.\nA ceiling, not a demand: formats that allow only one reader, such as solid RAR, EPUB and PDF, stay at one.\nLower this for books on a network drive, where the readers compete for one link rather than for cores."
+          "description": "How many threads may read pages at once. 0 lets the app choose.\nA ceiling, not a demand: formats that allow only one reader, such as solid RAR, EPUB and PDF, stay at one.\nLower this for books on a network drive, where the readers compete for one link rather than for cores.\nTakes effect the next time a book is opened."
         },
         "image-cache-size": {
           "title": "Image cache size (MiB)",
@@ -412,6 +412,7 @@
       "book-changed": "A different book was opened.",
       "book-closed": "The book was closed before the page finished loading.",
       "zip-bomb": "The archive's page sizes do not match its contents, so it was not read.",
+      "page-too-large": "A page is too large to load.",
       "io": "Reading or writing the file failed.",
       "invalid-path": "The path is not valid.",
       "database": "Saving data failed.",

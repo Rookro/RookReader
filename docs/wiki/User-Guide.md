@@ -189,9 +189,9 @@ Pages may be PNG, JPEG, GIF, APNG, WebP or AVIF (still images; AVIF image sequen
 - **Show preview while loading**: display a low-resolution thumbnail until the full page is ready.
 - **Maximum image height (px)**: an additional cap on page height. A page taller than this is shrunk to it even when the reader area is taller; `0` lets the reader area alone decide.
 - **Resizing method**: the resampling algorithm, from Nearest Neighbor (fastest) to Lanczos 3 (best quality, the default).
-- **PDF rendering height (px)**: the height PDF pages are rasterized at before being fitted to the reader area (default 2000). Raise it for large or high-resolution displays; lower it to open PDFs faster.
+- **PDF rendering height (px)**: the height PDF pages are rasterized at before being fitted to the reader area (default 2000). Raise it for large or high-resolution displays; lower it to open PDFs faster. Takes effect the next time a book is opened.
 - **Preload page count**: pages loaded ahead in each direction (default 10).
-- **Page reader threads**: how many threads may read pages at once; `0` lets the app choose. Formats that allow only one reader (solid RAR, EPUB, PDF) stay at one regardless. Lower it for books on a network drive.
+- **Page reader threads**: how many threads may read pages at once; `0` lets the app choose. Formats that allow only one reader (solid RAR, EPUB, PDF) stay at one regardless. Lower it for books on a network drive. Takes effect the next time a book is opened.
 - **Image cache size (MiB)**: the in-memory page cache (default 1024). Resized pages are kept uncompressed, so lower this if memory use is a concern; changing it clears the cache.
 
 ### Developer

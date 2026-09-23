@@ -9,9 +9,12 @@ import { type RootState, useAppDispatch, useAppSelector } from "../../../store/s
 import { ErrorCode } from "../../../types/Error";
 import { setEntries, setNovelDirection, setNovelLocation } from "../slice";
 import { useNovelReader } from "./useNovelReader";
+import { useReaderKeydown } from "./useReaderKeydown";
 
 // Mocks
 vi.mock("../../../store/store");
+// The gate needs the real store; here the key press is handed straight to the handler.
+vi.mock("./useReaderKeydown");
 vi.mock("../../../hooks/useAppTheme");
 vi.mock("@tauri-apps/plugin-fs");
 vi.mock("@tauri-apps/plugin-log");
@@ -492,12 +495,21 @@ describe("useNovelReader", () => {
 
     const viewElement = result.current.viewerRef.current?.querySelector("foliate-view") as MockView;
 
-    window.dispatchEvent(new KeyboardEvent("keydown", { key: forwardKey }));
+    const calls = vi.mocked(useReaderKeydown).mock.calls;
+    const pressKey = (key: string) =>
+      calls[calls.length - 1][0](new KeyboardEvent("keydown", { key }));
+
+    pressKey(forwardKey);
     expect(viewElement.next).toHaveBeenCalledTimes(1);
     expect(viewElement.prev).not.toHaveBeenCalled();
 
-    window.dispatchEvent(new KeyboardEvent("keydown", { key: backKey }));
+    pressKey(backKey);
     expect(viewElement.prev).toHaveBeenCalledTimes(1);
+  });
+
+  it("listens for keys through the reader gate", () => {
+    setupHook();
+    expect(vi.mocked(useReaderKeydown)).toHaveBeenCalledWith(expect.any(Function));
   });
 
   it("should handle navigation failures and log errors", async () => {

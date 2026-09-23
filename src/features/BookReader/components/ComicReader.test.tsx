@@ -60,6 +60,30 @@ describe("ComicReader", () => {
     });
   });
 
+  describe("keyboard", () => {
+    it("hands a key press to the page navigation while the reader view is active", () => {
+      const preloadedState = createBasePreloadedState();
+      preloadedState.view.activeView = "reader";
+      renderWithProviders(<ComicReader />, { preloadedState });
+
+      fireEvent.keyDown(document.body, { key: "ArrowLeft" });
+
+      const { handleKeydown } = vi.mocked(pageNavigation.usePageNavigation).mock.results[0].value;
+      expect(handleKeydown).toHaveBeenCalledTimes(1);
+    });
+
+    it("ignores a key press while the bookshelf view is active", () => {
+      const preloadedState = createBasePreloadedState();
+      preloadedState.view.activeView = "bookshelf";
+      renderWithProviders(<ComicReader />, { preloadedState });
+
+      fireEvent.keyDown(document.body, { key: "ArrowLeft" });
+
+      const { handleKeydown } = vi.mocked(pageNavigation.usePageNavigation).mock.results[0].value;
+      expect(handleKeydown).not.toHaveBeenCalled();
+    });
+  });
+
   it("measures the reader area before the first page arrives", () => {
     const observed: Element[] = [];
     vi.stubGlobal(

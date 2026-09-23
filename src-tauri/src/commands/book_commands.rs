@@ -18,6 +18,7 @@ use crate::domain::bookshelf::repository::BookshelfRepository;
 use crate::domain::series::repository::SeriesRepository;
 use crate::domain::tag::repository::TagRepository;
 use crate::error::{Error, Result};
+use crate::infrastructure::atomic_file::write_atomically;
 use crate::page::pipeline::Pipeline;
 use crate::state::app_state::AppState;
 
@@ -755,10 +756,10 @@ async fn generate_and_save_thumbnail<R: tauri::Runtime>(
             // shrunk here.
             let mut reader = container.open_reader()?;
             match reader.read_preview(entry)? {
-                Some(bytes) => fs::write(&thumbnail_path, &bytes)?,
+                Some(bytes) => write_atomically(&thumbnail_path, &bytes)?,
                 None => {
                     let page = reader.read_page(entry)?;
-                    fs::write(&thumbnail_path, &Pipeline::thumbnail(&page)?.data)?;
+                    write_atomically(&thumbnail_path, &Pipeline::thumbnail(&page)?.data)?;
                 }
             }
 

@@ -5,6 +5,7 @@ import { Image } from "../../../types/Image";
 import {
   buildUnitChain,
   buildUnitLayout,
+  createBlobUrl,
   createImageCacheItem,
   detectCoverPresence,
   fetchImageBlob,
@@ -38,6 +39,19 @@ describe("ImageUtils", () => {
     it("url should return previewUrl if fullUrl is missing", () => {
       const item = new ImageCacheItem(100, 100, "preview", undefined);
       expect(item.url).toBe("preview");
+    });
+  });
+
+  describe("createBlobUrl", () => {
+    it("hands the blob the page bytes without the header", () => {
+      const buffer = new ArrayBuffer(11);
+      new Uint8Array(buffer).set([1, 2, 3], 8);
+      const image = new Image(buffer);
+
+      createBlobUrl(image);
+
+      const blob = vi.mocked(global.URL.createObjectURL).mock.calls[0][0] as Blob;
+      expect(blob.size).toBe(3);
     });
   });
 

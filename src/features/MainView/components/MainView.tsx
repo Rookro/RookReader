@@ -1,5 +1,6 @@
 import { Box, type SxProps, type Theme } from "@mui/material";
 import { useEffect } from "react";
+import { useFlushReadingStateOnClose } from "../../../hooks/useFlushReadingStateOnClose";
 import { useAppSelector } from "../../../store/store";
 import BookReader from "../../BookReader/components/BookReader";
 import Bookshelf from "../../Bookshelf/components/Bookshelf";
@@ -24,6 +25,7 @@ export interface MainContentProps {
 export default function MainContent({ sx }: MainContentProps) {
   useSettingsChange();
   useHistorySync();
+  useFlushReadingStateOnClose();
   const activeView = useAppSelector((state) => state.view.activeView);
   const checkUpdateOnStartup = useAppSelector(
     (state) => state.settings.startup.checkUpdateOnStartup,

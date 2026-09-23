@@ -10,6 +10,7 @@ import { useAppDispatch, useAppSelector } from "../../../store/store";
 import { CommandError, ErrorCode } from "../../../types/Error";
 import { setEntries, setNovelDirection, setNovelLocation } from "../slice";
 import { usePageNavigation } from "./usePageNavigation";
+import { useReaderKeydown } from "./useReaderKeydown";
 import { useReadingDirection } from "./useReadingDirection";
 
 /**
@@ -354,15 +355,7 @@ export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
     }
   }, [cfi, index]);
 
-  useEffect(() => {
-    // Note: handleKeydown needs to be wrapped or the dependency array updated,
-    // but window.addEventListener uses the function directly.
-    // If handleKeydown changes, the listener gets updated correctly.
-    window.addEventListener("keydown", handleKeydown);
-    return () => {
-      window.removeEventListener("keydown", handleKeydown);
-    };
-  }, [handleKeydown]);
+  useReaderKeydown(handleKeydown);
 
   return { viewerRef, loadError };
 };

@@ -153,6 +153,16 @@ impl ContainerState {
         }
     }
 
+    /// Hands the open book the height cap and resize filter the settings hold now.
+    pub fn apply_rendering(&self) {
+        if let Some(service) = self.service.as_ref() {
+            service.set_rendering(
+                self.settings.max_image_height.max(0) as u32,
+                self.settings.image_resampling_method,
+            );
+        }
+    }
+
     /// Closes any open book and drops its service.
     pub fn clear(&mut self) {
         if let Some(service) = self.service.take() {
@@ -566,6 +576,25 @@ mod tests {
         }));
 
         let page = service
+            .page_blocking("p001.png", crate::page::service::Priority::Foreground)
+            .expect("read the page");
+        assert_eq!((page.width, page.height), (2, 1));
+    }
+
+    #[test]
+    fn applying_a_height_cap_re_renders_the_open_book() {
+        let (_dir, path) = one_page_book();
+        let mut state = ContainerState::default();
+        let service = ContainerState::build_with(&state.settings, &state.image_cache, None, &path)
+            .expect("building a valid directory container should succeed");
+        state.install(service);
+
+        state.settings.max_image_height = 1;
+        state.apply_rendering();
+
+        let page = state
+            .service_for(&path)
+            .expect("the book is open")
             .page_blocking("p001.png", crate::page::service::Priority::Foreground)
             .expect("read the page");
         assert_eq!((page.width, page.height), (2, 1));

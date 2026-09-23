@@ -163,7 +163,8 @@ export const fetchImagePreviewBlob = async (
  * @returns The blob URL.
  */
 export const createBlobUrl = (image: Image): string => {
-  const blob = new Blob([new Uint8Array(image.data)]);
+  // `data` is already a view past the header; the blob copies it once, so no second copy here.
+  const blob = new Blob([image.data]);
   return URL.createObjectURL(blob);
 };
 

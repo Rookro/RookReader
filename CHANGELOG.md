@@ -33,6 +33,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Fixed the app pausing every other action while a folder on slow storage (a NAS, a sleeping disk) was being listed. (#333)
 * Deleting a book from the library now also deletes its thumbnail image. (#335)
 * Fixed the next page of the PDF being read taking longer to appear right after that PDF was added to a bookshelf. (#336)
+* Fixed several reader and library issues. (#339)
+  * Arrow keys and the loupe key no longer act on the reader while the bookshelf is shown or while typing in a text field.
+  * The last page turned is now saved when the app is closed right after turning it.
+  * Changing the maximum image height or the resizing method now applies to the book that is open; the PDF rendering height and page reader threads settings say they apply to the next book opened.
+  * A RAR or EPUB page larger than 1 GiB is refused instead of being loaded into memory.
+  * Thumbnails are written atomically, so an interrupted write can no longer leave a broken thumbnail behind.
+  * Photos stored on their side are now measured upright, so they pair into spreads as they are shown.
+  * Symbolic links to folders and books now appear in the file navigator.
+  * Two changes to the library at the same time now wait for each other instead of one failing.
 
 ## [2.5.0] - 2026-09-06
 

@@ -2,7 +2,8 @@ use std::io::Cursor;
 
 use image::{
     codecs::{gif::GifDecoder, png::PngDecoder, webp::WebPDecoder},
-    AnimationDecoder, ImageFormat, ImageReader,
+    metadata::Orientation,
+    AnimationDecoder, ImageDecoder, ImageFormat, ImageReader,
 };
 use serde::{Deserialize, Serialize};
 
@@ -25,6 +26,10 @@ pub struct ImageDimensions {
 
 /// Reads an image's dimensions from its header, without decoding the pixel data.
 ///
+/// The size is the one the viewer shows: a page stored on its side and turned upright by
+/// its orientation tag has its width and height swapped here, so the pairing decided from
+/// these numbers matches the page on screen.
+///
 /// # Arguments
 ///
 /// * `data` - The encoded bytes of an image file.
@@ -42,10 +47,29 @@ pub fn read_dimensions(data: &[u8]) -> Result<ImageDimensions, image::ImageError
     // `image`'s AVIF decoder decodes the whole picture to learn its size; the container
     // states it up front.
     if image_reader.format() == Some(ImageFormat::Avif) {
-        return avif::read_dimensions(data);
+        let stored = avif::read_dimensions(data)?;
+        return Ok(oriented(stored, avif::orientation(data)?));
     }
-    let (width, height) = image_reader.into_dimensions()?;
-    Ok(ImageDimensions { width, height })
+    // The decoder is built, not run: this reads the header (and the EXIF block, when
+    // there is one) and allocates nothing for pixels.
+    let mut decoder = image_reader.into_decoder()?;
+    let (width, height) = decoder.dimensions();
+    let orientation = decoder.orientation()?;
+    Ok(oriented(ImageDimensions { width, height }, orientation))
+}
+
+/// The stored size as it will be displayed once `orientation` has been applied.
+fn oriented(stored: ImageDimensions, orientation: Orientation) -> ImageDimensions {
+    match orientation {
+        Orientation::Rotate90
+        | Orientation::Rotate270
+        | Orientation::Rotate90FlipH
+        | Orientation::Rotate270FlipH => ImageDimensions {
+            width: stored.height,
+            height: stored.width,
+        },
+        _ => stored,
+    }
 }
 
 /// Whether an encoded image carries more than one frame.
@@ -191,6 +215,36 @@ pub(crate) mod tests {
         let mut buffer = Vec::new();
         DynamicImage::ImageRgb8(RgbImage::new(4, 2))
             .write_to(&mut Cursor::new(&mut buffer), ImageFormat::Png)
+            .unwrap();
+        buffer
+    }
+
+    /// A minimal little-endian EXIF block whose only entry is the Orientation tag.
+    fn exif_orientation(value: u16) -> Vec<u8> {
+        let mut exif = Vec::new();
+        exif.extend_from_slice(b"II*\0"); // TIFF header, little endian
+        exif.extend_from_slice(&8u32.to_le_bytes()); // IFD0 offset
+        exif.extend_from_slice(&1u16.to_le_bytes()); // one entry
+        exif.extend_from_slice(&0x0112u16.to_le_bytes()); // Orientation
+        exif.extend_from_slice(&3u16.to_le_bytes()); // SHORT
+        exif.extend_from_slice(&1u32.to_le_bytes()); // count
+        exif.extend_from_slice(&value.to_le_bytes());
+        exif.extend_from_slice(&0u16.to_le_bytes()); // padding to 4 bytes
+        exif.extend_from_slice(&0u32.to_le_bytes()); // next IFD: none
+        exif
+    }
+
+    /// A 4x2 JPEG tagged with the given EXIF orientation.
+    fn tagged_jpeg(orientation: u16) -> Vec<u8> {
+        use image::ImageEncoder;
+
+        let mut buffer = Vec::new();
+        let mut encoder = image::codecs::jpeg::JpegEncoder::new(&mut buffer);
+        encoder
+            .set_exif_metadata(exif_orientation(orientation))
+            .unwrap();
+        encoder
+            .encode_image(&DynamicImage::ImageRgb8(RgbImage::new(4, 2)))
             .unwrap();
         buffer
     }
@@ -358,6 +412,36 @@ pub(crate) mod tests {
             }
         );
         assert!(image::load_from_memory(&corrupt_idat).is_err());
+    }
+
+    #[rstest]
+    #[case::rotate_90(6, (2, 4))]
+    #[case::rotate_270(8, (2, 4))]
+    #[case::rotate_90_flip(5, (2, 4))]
+    #[case::rotate_270_flip(7, (2, 4))]
+    #[case::rotate_180(3, (4, 2))]
+    #[case::flip_horizontal(2, (4, 2))]
+    #[case::upright(1, (4, 2))]
+    fn a_tagged_jpeg_is_measured_as_displayed(
+        #[case] orientation: u16,
+        #[case] expected: (u32, u32),
+    ) {
+        let dims = read_dimensions(&tagged_jpeg(orientation)).unwrap();
+        assert_eq!((dims.width, dims.height), expected);
+    }
+
+    #[test]
+    fn an_untagged_png_keeps_its_stored_size() {
+        let dims = read_dimensions(&still_png()).unwrap();
+        assert_eq!((dims.width, dims.height), (4, 2));
+    }
+
+    #[test]
+    fn a_rotated_avif_is_measured_as_displayed() {
+        // `ispe` says 8x4; `irot` 1 turns it upright to 4x8.
+        let data = crate::image::avif::tests::transformed_avif(&[(b"irot", &[1u8][..])]);
+        let dims = read_dimensions(&data).unwrap();
+        assert_eq!((dims.width, dims.height), (4, 8));
     }
 
     #[test]

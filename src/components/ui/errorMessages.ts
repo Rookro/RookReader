@@ -44,6 +44,7 @@ const REASON_KEY_BY_CODE = {
   [ErrorCode.unsupportedContainer]: "error-message.reason.unsupported-format",
   [ErrorCode.entryNotFound]: "error-message.reason.entry-not-found",
   [ErrorCode.emptyContainer]: "error-message.reason.empty-container",
+  [ErrorCode.pageTooLarge]: "error-message.reason.page-too-large",
   [ErrorCode.pdfium]: "error-message.reason.damaged",
   [ErrorCode.pdfUnavailable]: "error-message.reason.pdf-unavailable",
   [ErrorCode.image]: "error-message.reason.damaged",

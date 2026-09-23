@@ -16,7 +16,7 @@ use std::{collections::HashMap, sync::Arc};
 use crate::{
     container::{
         archive_path,
-        traits::{Container, PageReader},
+        traits::{check_page_size, Container, PageReader},
     },
     error::{Error, Result},
     image::types::Image,
@@ -115,6 +115,8 @@ impl RarReader {
                 self.walked += 1;
             }
             if filename == wanted {
+                // Refused with the cursor left at this header; the next read reopens.
+                check_page_size("RAR", wanted, at_file.entry().unpacked_size)?;
                 let (data, rest) = at_file.read()?;
                 self.cursor = Some(rest);
                 return Ok(Some(data));

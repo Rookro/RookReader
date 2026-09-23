@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
+import { useReaderKeydown } from "./useReaderKeydown";
 
 export function useLoupe(toggleKey?: string) {
   const [isLoupeEnabled, setIsLoupeEnabled] = useState(false);
@@ -72,21 +73,18 @@ export function useLoupe(toggleKey?: string) {
     [toggleKey],
   );
 
-  useEffect(() => {
-    if (!toggleKey) {
-      return;
-    }
-
-    const parts = toggleKey.split("+");
-    const keyComboLast = parts[parts.length - 1];
-    const keyComboKey = keyComboLast === "Space" ? " " : keyComboLast.toLowerCase();
-
-    const needsCtrl = parts.includes("Ctrl");
-    const needsAlt = parts.includes("Alt");
-    const needsShift = parts.includes("Shift");
-    const needsMeta = parts.includes("Meta");
-
-    const handleKeyDown = (e: KeyboardEvent) => {
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      if (!toggleKey) {
+        return;
+      }
+      const parts = toggleKey.split("+");
+      const keyComboLast = parts[parts.length - 1];
+      const keyComboKey = keyComboLast === "Space" ? " " : keyComboLast.toLowerCase();
+      const needsCtrl = parts.includes("Ctrl");
+      const needsAlt = parts.includes("Alt");
+      const needsShift = parts.includes("Shift");
+      const needsMeta = parts.includes("Meta");
       if (
         e.key.toLowerCase() === keyComboKey &&
         e.ctrlKey === needsCtrl &&
@@ -96,10 +94,10 @@ export function useLoupe(toggleKey?: string) {
       ) {
         setIsLoupeEnabled((prev) => !prev);
       }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [toggleKey]);
+    },
+    [toggleKey],
+  );
+  useReaderKeydown(handleKeyDown);
 
   return {
     isLoupeEnabled,

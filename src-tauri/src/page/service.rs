@@ -17,7 +17,10 @@ use tokio::sync::oneshot;
 use crate::{
     container::traits::{Container, PageReader},
     error::{Error, Result},
-    image::types::{Image, ImageDimensions},
+    image::{
+        resizer::ResizeFilter,
+        types::{Image, ImageDimensions},
+    },
     page::{
         cache::{Cache, CacheKey},
         pipeline::{Fit, Pipeline},
@@ -469,6 +472,20 @@ impl PageService {
         }
         pipeline.display = size;
         true
+    }
+
+    /// Applies the reader's height cap and resize filter to every page read from now on.
+    ///
+    /// The cache is keyed by the box a page was fitted into and not by these, so the
+    /// caller empties it.
+    pub fn set_rendering(&self, max_image_height: u32, resize_method: ResizeFilter) {
+        let mut pipeline = self
+            .shared
+            .pipeline
+            .write()
+            .unwrap_or_else(|e| e.into_inner());
+        pipeline.max_image_height = max_image_height;
+        pipeline.resize_method = resize_method;
     }
 
     /// Reads one page into `fit`, waiting for it, and records the wait.

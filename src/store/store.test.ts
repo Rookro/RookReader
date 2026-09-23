@@ -7,7 +7,10 @@ vi.mock("./middleware/loggerMiddleware", () => ({
   loggerMiddleware: (() => (next) => (action) => next(action)) as Middleware,
 }));
 vi.mock("./middleware/readingStateMiddleware", () => ({
-  readingStateMiddleware: (() => (next) => (action) => next(action)) as Middleware,
+  createReadingStateMiddleware: () => ({
+    middleware: (() => (next) => (action) => next(action)) as Middleware,
+    flush: () => Promise.resolve(),
+  }),
 }));
 
 describe("Store", () => {
@@ -36,6 +39,10 @@ describe("Store", () => {
     expect(store.getState().view.activeView).toBe("bookshelf");
     // Verify that other properties maintain their default values
     expect(store.getState().settings.general.log.level).toBe("info");
+  });
+
+  it("exposes the reading-state flush for the close handler", () => {
+    expect(typeof createStore().flushReadingState).toBe("function");
   });
 
   it("should have thunk middleware applied", async () => {

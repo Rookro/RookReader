@@ -8,6 +8,7 @@ export const ErrorCode = {
   unsupportedContainer: 10001,
   entryNotFound: 10002,
   emptyContainer: 10003,
+  pageTooLarge: 10004,
   pdfium: 10101,
   pdfUnavailable: 10102,
   image: 80001,
