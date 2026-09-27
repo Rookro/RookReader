@@ -12,6 +12,7 @@ import { useBookSelection } from "../hooks/useBookSelection";
 import { useBookshelfDialogs } from "../hooks/useBookshelfDialogs";
 import { useGridKeyboardNavigation } from "../hooks/useGridKeyboardNavigation";
 import { useReadingBookIndex } from "../hooks/useReadingBookIndex";
+import { useRevealReadingBook } from "../hooks/useRevealReadingBook";
 import { useScrollToReadingBook } from "../hooks/useScrollToReadingBook";
 import { selectGridItems } from "../selectors";
 import { setSelectedSeriesId } from "../seriesSlice";
@@ -139,6 +140,7 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
   // width so the wheel scrolls everywhere, including the empty side strips.
   const horizontalOffset = Math.max((gridWidth - columnWidth * columnCount) / 2, 0);
 
+  useRevealReadingBook();
   const readingBookIndex = useReadingBookIndex(readingBook, filteredSortedItems);
   useScrollToReadingBook({
     grid,

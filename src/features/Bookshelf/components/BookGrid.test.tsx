@@ -6,6 +6,7 @@ import { createMockBookWithState, createMockSeries } from "../../../test/factori
 import { useBookSelection } from "../hooks/useBookSelection";
 import { useBookshelfDialogs } from "../hooks/useBookshelfDialogs";
 import { useReadingBookIndex } from "../hooks/useReadingBookIndex";
+import { useRevealReadingBook } from "../hooks/useRevealReadingBook";
 import BookGrid from "./BookGrid";
 import { BookSelectionContext } from "./BookSelectionContext";
 import { useBookshelfActions } from "./BookshelfActionsContext";
@@ -15,6 +16,7 @@ vi.mock("../../../store/store");
 vi.mock("../hooks/useBookSelection");
 vi.mock("../hooks/useBookshelfDialogs");
 vi.mock("../hooks/useReadingBookIndex");
+vi.mock("../hooks/useRevealReadingBook");
 vi.mock("../../../hooks/useResizeObserver");
 vi.mock("../slice", async (importOriginal) => {
   return await importOriginal<typeof import("../slice")>();
@@ -1024,5 +1026,15 @@ describe("BookGrid", () => {
       readingBook,
       expect.arrayContaining([expect.objectContaining({ data: readingBook })]),
     );
+  });
+
+  it("moves to the level that holds the reading book", () => {
+    render(
+      <BookSelectionContext.Provider value={mockSelectionValue}>
+        <BookGrid />
+      </BookSelectionContext.Provider>,
+    );
+
+    expect(useRevealReadingBook).toHaveBeenCalled();
   });
 });
