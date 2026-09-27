@@ -130,6 +130,33 @@ describe("BookshelfToolbar", () => {
     expect(screen.getByText("Selected Series")).toBeInTheDocument();
   });
 
+  it("should render breadcrumbs in the row of the edit order button, below the search box", () => {
+    const preloadedState = createBasePreloadedState();
+    preloadedState.series = {
+      series: [{ id: 1, name: "Selected Series", created_at: "2026-03-01T15:30:00" }],
+      selectedId: 1,
+      books: [],
+      status: "idle",
+      error: null,
+    };
+
+    renderWithProviders(navigationBar, { preloadedState });
+
+    const breadcrumbRow = screen
+      .getByRole("navigation", { name: "breadcrumb" })
+      .closest(".MuiToolbar-root");
+    const editOrderRow = screen
+      .getByRole("button", { name: i18n.t("bookshelf.series.edit-order.title") })
+      .closest(".MuiToolbar-root");
+    const searchRow = screen
+      .getByPlaceholderText(i18n.t("bookshelf.search-placeholder"))
+      .closest(".MuiToolbar-root");
+
+    expect(breadcrumbRow).not.toBeNull();
+    expect(breadcrumbRow).toBe(editOrderRow);
+    expect(breadcrumbRow).not.toBe(searchRow);
+  });
+
   it("should clear selected series when 'Bookshelf' link is clicked", async () => {
     const preloadedState = createBasePreloadedState();
     preloadedState.series = {
