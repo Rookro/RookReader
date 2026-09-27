@@ -107,45 +107,6 @@ export default function BookshelfToolbar() {
   return (
     <Stack>
       <Toolbar variant="dense" disableGutters sx={{ minHeight: "40px" }}>
-        {selectedSeriesId !== null && (
-          <Breadcrumbs
-            aria-label="breadcrumb"
-            sx={{
-              marginLeft: "16px",
-              "& .MuiBreadcrumbs-ol": {
-                flexWrap: "nowrap",
-              },
-            }}
-          >
-            <Link
-              underline="hover"
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                cursor: "pointer",
-                color: "inherit",
-                whiteSpace: "nowrap",
-              }}
-              onClick={handleBackToBookshelf}
-            >
-              <Home sx={{ marginRight: "4px" }} fontSize="small" />
-              {t("bookshelf.title")}
-            </Link>
-            <Typography
-              color="text.primary"
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                maxWidth: "200px",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {selectedSeries?.name ?? "..."}
-            </Typography>
-          </Breadcrumbs>
-        )}
         <OutlinedInput
           type="search"
           size="small"
@@ -176,6 +137,41 @@ export default function BookshelfToolbar() {
         </Tooltip>
       </Toolbar>
       <Toolbar variant="dense" disableGutters sx={{ paddingBottom: 1, justifyContent: "flex-end" }}>
+        {selectedSeriesId !== null && (
+          <Breadcrumbs
+            aria-label="breadcrumb"
+            sx={{
+              flex: 1,
+              minWidth: 0,
+              marginLeft: "16px",
+              marginRight: 1,
+              "& .MuiBreadcrumbs-ol": {
+                flexWrap: "nowrap",
+              },
+              "& .MuiBreadcrumbs-li:last-of-type": {
+                minWidth: 0,
+              },
+            }}
+          >
+            <Link
+              underline="hover"
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                cursor: "pointer",
+                color: "inherit",
+                whiteSpace: "nowrap",
+              }}
+              onClick={handleBackToBookshelf}
+            >
+              <Home sx={{ marginRight: "4px" }} fontSize="small" />
+              {t("bookshelf.title")}
+            </Link>
+            <Typography color="text.primary" noWrap>
+              {selectedSeries?.name ?? "..."}
+            </Typography>
+          </Breadcrumbs>
+        )}
         {selectedSeriesId === null && (
           <>
             <Typography variant="body2" sx={{ alignContent: "center" }}>
