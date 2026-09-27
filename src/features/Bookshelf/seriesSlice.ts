@@ -6,7 +6,7 @@ import type { Series } from "../../domain/series/schema";
 import { handleThunkError } from "../../store/thunkErrorHandler";
 import { createAppAsyncThunk } from "../../types/CustomAsyncThunk";
 import type { ErrorCode } from "../../types/Error";
-import { fetchBooksInSelectedBookshelf } from "./slice";
+import { fetchBooksInSelectedBookshelf, setSelectedBookshelf } from "./slice";
 
 /**
  * Updates the order of books within a series and refetches the bookshelf to reflect the changes.
@@ -134,6 +134,10 @@ const seriesSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
+      // A series is a level inside the chosen collection, so a new collection starts at its top.
+      .addCase(setSelectedBookshelf, (state) => {
+        state.selectedId = null;
+      })
       .addCase(fetchSeries.pending, (state) => {
         state.status = "loading";
         state.error = null;

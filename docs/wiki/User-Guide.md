@@ -131,7 +131,7 @@ Press **Move to Bookshelf** in the reader's top app bar to open the **Bookshelve
 
 ### Series
 
-Group the volumes of the same title into a **series** with **Set series** (create a new series or pick an existing one). A series appears as a single stacked cover on the bookshelf; open it to see its volumes, and use **Edit Series Order** (in the top bar while the series is open, or by right-clicking its cover) to drag the volumes into reading order. Opening a series volume from the bookshelf lets *Auto-open Adjacent Book* follow the correct volume order, regardless of file names. Right-click the cover and choose **Ungroup series** (after a confirmation) to show the books individually again without deleting them.
+Group the volumes of the same title into a **series** with **Set series** (create a new series or pick an existing one). A series appears as a single stacked cover on the bookshelf; open it to see its volumes, and use **Edit Series Order** (in the top bar while the series is open, or by right-clicking its cover) to drag the volumes into reading order. Opening a series volume from the bookshelf lets *Auto-open Adjacent Book* follow the correct volume order, regardless of file names. Right-click the cover and choose **Ungroup series** (after a confirmation) to show the books individually again without deleting them. Choosing a collection in the left pane, even the one already shown, or deleting the collection you are in closes the open series and returns to the top of the bookshelf. Choosing a tag keeps the series open and shows only its volumes that carry the tag.
 
 ## Tagging System
 

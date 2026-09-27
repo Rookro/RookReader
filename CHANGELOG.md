@@ -45,6 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * Photos stored on their side are now measured upright, so they pair into spreads as they are shown.
   * Symbolic links to folders and books now appear in the file navigator.
   * Two changes to the library at the same time now wait for each other instead of one failing.
+* Fixed the bookshelf showing an empty page when you switch to a collection that doesn't contain the series you had open. Choosing a collection, or deleting the one you are in, now closes the series and returns to the top of the bookshelf. (#355)
 
 ## [2.5.0] - 2026-09-06
 

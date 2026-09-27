@@ -5,7 +5,7 @@ import { createMockBookWithState, createMockSeries } from "../../../test/factori
 import { createBasePreloadedState, createTestStore, createTestWrapper } from "../../../test/utils";
 import { setActiveView } from "../../MainView/slice";
 import { setSelectedSeriesId } from "../seriesSlice";
-import { fetchBooksInSelectedBookshelf } from "../slice";
+import { fetchBooksInSelectedBookshelf, setSelectedBookshelf } from "../slice";
 import { useRevealReadingBook } from "./useRevealReadingBook";
 
 describe("useRevealReadingBook", () => {
@@ -128,5 +128,19 @@ describe("useRevealReadingBook", () => {
       store.dispatch(setActiveView("bookshelf"));
     });
     expect(store.getState().series.selectedId).toBe(10);
+  });
+
+  it("does not reopen the series after the collection is switched", () => {
+    const store = setup();
+    expect(store.getState().series.selectedId).toBe(10);
+
+    act(() => {
+      store.dispatch(setSelectedBookshelf(2));
+    });
+    act(() => {
+      store.dispatch(fetchBooksInSelectedBookshelf.fulfilled([volume1, volume2], "request-id", 2));
+    });
+
+    expect(store.getState().series.selectedId).toBeNull();
   });
 });
