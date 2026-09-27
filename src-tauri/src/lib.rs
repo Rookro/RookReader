@@ -127,7 +127,7 @@ pub fn run() {
         commands::directory_commands::get_entries_in_dir,
     ] as fn(tauri::ipc::Invoke<tauri::Wry>) -> bool;
 
-    let result = tauri::Builder::default()
+    let app = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(
             tauri_plugin_window_state::Builder::new()
@@ -159,10 +159,14 @@ pub fn run() {
                 specta_handler(invoke)
             }
         })
-        .run(tauri::generate_context!());
+        .build(tauri::generate_context!());
 
-    match result {
-        Ok(()) => {}
+    match app {
+        Ok(app) => app.run(|app_handle, event| {
+            if let tauri::RunEvent::Exit = event {
+                setup::teardown(app_handle);
+            }
+        }),
         Err(e) => log::error!(
             "Error has occurred while running tauri application. Error: {}",
             e
