@@ -186,16 +186,20 @@ export const addBookToBookshelf = createAppAsyncThunk(
 );
 
 /**
- * Deletes a bookshelf and refetches all bookshelves.
+ * Deletes a bookshelf and refetches all bookshelves. Deleting the selected bookshelf
+ * selects "All Books".
  *
  * @param id - The ID of the bookshelf to delete.
  * @returns A thunk that resolves when the bookshelf is deleted.
  */
 export const removeBookshelf = createAppAsyncThunk(
   "bookCollection/removeBookshelf",
-  async (id: number, { rejectWithValue }) => {
+  async (id: number, { rejectWithValue, dispatch, getState }) => {
     try {
       await deleteBookshelf(id);
+      if (getState().bookCollection.selectedId === id) {
+        dispatch(setSelectedBookshelf(null));
+      }
       return id;
     } catch (e) {
       return handleThunkError(e, `Failed to remove bookshelf(id: ${id}).`, rejectWithValue);
@@ -328,11 +332,6 @@ const bookCollectionSlice = createSlice({
       .addCase(removeBookshelf.pending, (state) => {
         state.status = "loading";
         state.error = null;
-      })
-      .addCase(removeBookshelf.fulfilled, (state, action) => {
-        if (state.selectedId === action.payload) {
-          state.selectedId = null;
-        }
       })
       .addCase(removeBookshelf.rejected, (state, action) => {
         state.status = "failed";

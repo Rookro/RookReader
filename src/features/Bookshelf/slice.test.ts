@@ -10,7 +10,7 @@ import type { Series } from "../../domain/series/schema";
 import type { Tag } from "../../domain/tag/schema";
 import { readingProgressChanged } from "../../store/actions";
 import { createMockBookshelf, createMockBookWithState, createMockTag } from "../../test/factories";
-import { type AppStore, createTestStore } from "../../test/utils";
+import { type AppStore, createBasePreloadedState, createTestStore } from "../../test/utils";
 import { CommandError, ErrorCode } from "../../types/Error";
 import seriesReducer, {
   addSeries,
@@ -764,6 +764,61 @@ describe("SeriesReducer", () => {
     stateWithError.error = { code: ErrorCode.other };
     const nextState = seriesReducer(stateWithError, clearSeriesError());
     expect(nextState.error).toBeNull();
+  });
+
+  // Verify that choosing a collection, even the one already shown, closes the open series
+  it.each([
+    [2, 5],
+    [5, 5],
+    [null, 5],
+  ])("setSelectedBookshelf(%s) from %s should close the open series", (next, current) => {
+    const state = createBasePreloadedState();
+    state.bookCollection.selectedId = current;
+    state.series.selectedId = 10;
+    store = createTestStore(state);
+
+    store.dispatch(setSelectedBookshelf(next));
+
+    expect(store.getState().series.selectedId).toBeNull();
+  });
+
+  // Verify that a tag is a filter inside the series, not a new place
+  it("setSelectedTag should keep the open series", () => {
+    const state = createBasePreloadedState();
+    state.series.selectedId = 10;
+    store = createTestStore(state);
+
+    store.dispatch(setSelectedTag(3));
+
+    expect(store.getState().series.selectedId).toBe(10);
+  });
+
+  // Verify that deleting the selected collection closes the open series along with it
+  it("removeBookshelf of the selected collection should close the open series", async () => {
+    const state = createBasePreloadedState();
+    state.bookCollection.selectedId = 1;
+    state.series.selectedId = 10;
+    store = createTestStore(state);
+    vi.mocked(BookshelfCommand.deleteBookshelf).mockResolvedValue(undefined);
+
+    await store.dispatch(removeBookshelf(1));
+
+    expect(store.getState().bookCollection.selectedId).toBeNull();
+    expect(store.getState().series.selectedId).toBeNull();
+  });
+
+  // Verify that deleting another collection leaves the open series alone
+  it("removeBookshelf of another collection should keep the open series", async () => {
+    const state = createBasePreloadedState();
+    state.bookCollection.selectedId = 2;
+    state.series.selectedId = 10;
+    store = createTestStore(state);
+    vi.mocked(BookshelfCommand.deleteBookshelf).mockResolvedValue(undefined);
+
+    await store.dispatch(removeBookshelf(1));
+
+    expect(store.getState().bookCollection.selectedId).toBe(2);
+    expect(store.getState().series.selectedId).toBe(10);
   });
 
   describe("Series Thunks", () => {
