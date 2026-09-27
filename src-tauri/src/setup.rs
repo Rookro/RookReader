@@ -315,10 +315,13 @@ async fn connect_database(db_path: &Path) -> error::Result<SqlitePool> {
     let db_url = format!("sqlite:{}", db_path.display());
     // WAL lets a page-turn write land while a list is being read, and the busy timeout
     // makes a second writer wait for the first instead of failing with SQLITE_BUSY.
+    // `PRAGMA optimize` on close keeps the query planner's statistics current; 400 is the
+    // analysis limit SQLite recommends.
     let options = SqliteConnectOptions::from_str(&db_url)?
         .create_if_missing(true)
         .journal_mode(SqliteJournalMode::Wal)
-        .busy_timeout(std::time::Duration::from_secs(5));
+        .busy_timeout(std::time::Duration::from_secs(5))
+        .optimize_on_close(true, 400);
     log::debug!("Database file path: {:?}", options.get_filename());
 
     let pool = SqlitePoolOptions::new().connect_with(options).await?;
