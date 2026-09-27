@@ -55,7 +55,7 @@ export default function UpdaterConfirmDialog({
         }}
       >
         <UpdateIcon color="primary" />
-        <Typography variant="h6" fontWeight="bold">
+        <Typography variant="h6" sx={{ fontWeight: "bold" }}>
           {t("updater.dialog-title")}
         </Typography>
       </DialogTitle>

@@ -56,7 +56,7 @@ export const defaultSettings: AppSettings = {
     rendering: {
       enableThumbnailPreview: true,
       maxImageHeight: 0,
-      imageResamplingMethod: "bilinear",
+      imageResamplingMethod: "lanczos3",
       pdfRenderResolutionHeight: 2000,
     },
     autoOpenAdjacentBook: "ask",

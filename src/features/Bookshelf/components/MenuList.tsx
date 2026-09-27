@@ -14,7 +14,6 @@ import {
   ListItemIcon,
   ListItemText,
   ListSubheader,
-  Menu,
   MenuItem,
   Stack,
   Tooltip,
@@ -23,6 +22,7 @@ import {
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import ConfirmDialog from "../../../components/ui/ConfirmDialog";
+import ContextMenu from "../../../components/ui/ContextMenu/ContextMenu";
 import { useAppDispatch, useAppSelector } from "../../../store/store";
 import { setActiveView } from "../../MainView/slice";
 import { removeBookshelf, setSelectedBookshelf } from "../slice";
@@ -83,16 +83,7 @@ export default function MenuList({ onClickAddBookshelf, onClickAddBookTag }: Men
   const handleContextMenu = useCallback(
     (event: React.MouseEvent, type: "bookshelf" | "tag", id: number) => {
       event.preventDefault();
-      setContextMenu((contextMenu) =>
-        contextMenu === null
-          ? {
-              mouseX: event.clientX,
-              mouseY: event.clientY,
-              type,
-              id,
-            }
-          : null,
-      );
+      setContextMenu({ mouseX: event.clientX, mouseY: event.clientY, type, id });
     },
     [],
   );
@@ -251,26 +242,14 @@ export default function MenuList({ onClickAddBookshelf, onClickAddBookTag }: Men
           ))}
         </List>
       </Box>
-      <Menu
-        open={contextMenu !== null}
-        onClose={handleClose}
-        onContextMenu={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          handleClose();
-        }}
-        anchorReference="anchorPosition"
-        anchorPosition={
-          contextMenu !== null ? { top: contextMenu.mouseY, left: contextMenu.mouseX } : undefined
-        }
-      >
+      <ContextMenu anchor={contextMenu} onClose={handleClose}>
         <MenuItem dense onClick={handleDeleteRequested}>
           <ListItemIcon>
             <Delete color="error" />
           </ListItemIcon>
           <ListItemText>{t("bookshelf.delete")}</ListItemText>
         </MenuItem>
-      </Menu>
+      </ContextMenu>
       <ConfirmDialog
         open={pendingDelete !== null}
         title={t(

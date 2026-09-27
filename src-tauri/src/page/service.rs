@@ -12,13 +12,18 @@ use std::{
     thread,
 };
 
+use tokio::sync::oneshot;
+
 use crate::{
     container::traits::{Container, PageReader},
     error::{Error, Result},
-    image::types::{Image, ImageDimensions},
+    image::{
+        resizer::ResizeFilter,
+        types::{Image, ImageDimensions},
+    },
     page::{
         cache::{Cache, CacheKey},
-        pipeline::Pipeline,
+        pipeline::{Fit, Pipeline},
     },
     perf,
     perf::Span,
@@ -49,15 +54,37 @@ impl Priority {
     }
 }
 
+/// One page read's identity: the entry, and the box it is being rendered into.
+type ReadKey = (String, Fit);
+
+/// Everyone waiting on a single page read.
+type Waiters = Vec<oneshot::Sender<Result<Arc<Image>>>>;
+
+/// The answer to one preview request, and the caller's end of it.
+type PreviewReply = oneshot::Sender<Result<Option<Arc<Image>>>>;
+type PreviewRx = oneshot::Receiver<Result<Option<Arc<Image>>>>;
+
 /// Where a finished job's result goes.
 enum Reply {
-    Page(mpsc::Sender<Result<Arc<Image>>>),
+    Page(oneshot::Sender<Result<Arc<Image>>>),
     /// One sender shared by a whole scan. The index rides along because replies arrive in
     /// completion order and [`PageService::dimensions`] has to return them in entry order.
     Dimensions(usize, mpsc::Sender<(usize, Result<ImageDimensions>)>),
-    Preview(mpsc::Sender<Result<Option<Arc<Image>>>>),
+    Preview(PreviewReply),
     /// Preload: the result only has to reach the cache.
     None,
+}
+
+/// A page read after it has been enqueued: answered from the cache, or waiting on a worker.
+enum Fetch {
+    Cached(Arc<Image>),
+    Queued {
+        rx: oneshot::Receiver<Result<Arc<Image>>>,
+        /// What the wait is spent on, `"read"` or `"inflight"`, for the perf record.
+        source: &'static str,
+        /// How many jobs were queued ahead of it.
+        queued: usize,
+    },
 }
 
 /// One page of work.
@@ -68,6 +95,12 @@ struct Job {
     /// render is what puts something on screen early.
     order: (usize, u8),
     entry: String,
+    /// The box this page is to be rendered into, taken when the job was made.
+    ///
+    /// Carried rather than read from the pipeline at run time so a viewport change
+    /// mid-read cannot store the old pixels under the new key. Unused by the jobs that
+    /// do not read a page.
+    fit: Fit,
     reply: Reply,
 }
 
@@ -81,6 +114,11 @@ impl Job {
     /// The key both `Ord` and `Eq` are written against.
     fn key(&self) -> (Priority, (usize, u8)) {
         (self.priority, self.order)
+    }
+
+    /// Takes the reply out, leaving the job with nobody to answer.
+    fn take_reply(&mut self) -> Reply {
+        std::mem::replace(&mut self.reply, Reply::None)
     }
 }
 
@@ -122,7 +160,10 @@ struct Queue {
     /// Entries a worker is currently reading, and the callers waiting on each. A request
     /// for a page another worker has already picked up attaches here instead of reading
     /// it a second time.
-    in_flight: HashMap<String, Vec<mpsc::Sender<Result<Arc<Image>>>>>,
+    ///
+    /// Keyed by entry *and* fit: the same page at two different boxes is two different
+    /// reads, and joining them would hand one caller the other's pixels.
+    in_flight: HashMap<ReadKey, Waiters>,
     /// How many workers are inside a preload job right now.
     ///
     /// Preload may not take the last [`Shared::reserve`] workers, so a page the reader
@@ -149,7 +190,9 @@ struct Shared {
     queue: Mutex<Queue>,
     wake: Condvar,
     cache: RwLock<Cache>,
-    pipeline: Pipeline,
+    /// Locked because the viewport it holds changes while the book is open: the reader
+    /// resizes its window, and the next page has to be rendered for the new one.
+    pipeline: RwLock<Pipeline>,
     /// How many reader threads this book has.
     workers: usize,
     /// How many of them preload may never occupy.
@@ -172,31 +215,38 @@ impl Shared {
         self.queue.lock().unwrap_or_else(|e| e.into_inner())
     }
 
-    fn key(&self, entry: &str) -> CacheKey {
+    /// The decode settings as they stand right now. `Pipeline` is `Copy`, so the lock is
+    /// released before anything is read or resized.
+    fn pipeline(&self) -> Pipeline {
+        *self.pipeline.read().unwrap_or_else(|e| e.into_inner())
+    }
+
+    fn key(&self, entry: &str, fit: Fit) -> CacheKey {
         CacheKey {
             book_id: self.book_id.clone(),
             entry: entry.to_string(),
+            fit,
         }
     }
 
-    fn cached(&self, entry: &str) -> Option<Arc<Image>> {
+    fn cached(&self, entry: &str, fit: Fit) -> Option<Arc<Image>> {
         self.cache
             .read()
             .unwrap_or_else(|e| e.into_inner())
-            .get(&self.key(entry))
+            .get(&self.key(entry, fit))
     }
 
-    fn store(&self, entry: &str, image: Arc<Image>) {
+    fn store(&self, entry: &str, fit: Fit, image: Arc<Image>) {
         self.cache
             .read()
             .unwrap_or_else(|e| e.into_inner())
-            .insert(self.key(entry), image);
+            .insert(self.key(entry, fit), image);
     }
 }
 
 /// The error every blocked caller gets once its book is closed.
 fn closed() -> Error {
-    Error::Other("The book was closed while a page was being read".to_string())
+    Error::BookClosed("The book was closed while a page was being read".to_string())
 }
 
 /// Owns every reader thread for one open book, plus the queue feeding them.
@@ -278,7 +328,7 @@ impl PageService {
             }),
             wake: Condvar::new(),
             cache: RwLock::new(cache),
-            pipeline,
+            pipeline: RwLock::new(pipeline),
             workers,
             reserve: min(2, workers.saturating_sub(1)),
         });
@@ -339,37 +389,141 @@ impl PageService {
         *self.shared.cache.write().unwrap_or_else(|e| e.into_inner()) = cache;
     }
 
-    /// Reads one page, waiting for it.
+    /// Reads one page, rendered for the viewport the frontend last reported.
     ///
-    /// Cache first; only a miss reaches the queue. Blocking, so callers stay on
-    /// `spawn_blocking` exactly as they do today.
+    /// # Arguments
+    ///
+    /// * `entry` - The entry name, as listed by the container.
+    /// * `priority` - The job class the read is queued in.
+    ///
+    /// # Returns
+    ///
+    /// The page, fitted to the viewport.
     ///
     /// # Errors
     ///
     /// Returns an `Err` if the entry is not part of this book, the book is closed while
     /// the page is being read, or the page cannot be read or decoded.
-    pub fn page(&self, entry: &str, priority: Priority) -> Result<Arc<Image>> {
+    pub async fn page(&self, entry: &str, priority: Priority) -> Result<Arc<Image>> {
+        self.fetch(entry, priority, self.shared.pipeline().fit())
+            .await
+    }
+
+    /// Reads one page at its full size, for the loupe.
+    ///
+    /// The loupe draws the page magnified, so a page fitted to the viewport is exactly
+    /// the wrong one: what it would show is an upscale of what is already on screen.
+    ///
+    /// # Errors
+    ///
+    /// As [`PageService::page`].
+    pub async fn page_full(&self, entry: &str) -> Result<Arc<Image>> {
+        self.fetch(
+            entry,
+            Priority::Foreground,
+            self.shared.pipeline().full_fit(),
+        )
+        .await
+    }
+
+    /// [`PageService::page`] for a test running on a plain thread.
+    #[cfg(test)]
+    pub fn page_blocking(&self, entry: &str, priority: Priority) -> Result<Arc<Image>> {
+        match self.enqueue(entry, priority, self.shared.pipeline().fit())? {
+            Fetch::Cached(image) => Ok(image),
+            Fetch::Queued { rx, .. } => rx.blocking_recv().unwrap_or_else(|_| Err(closed())),
+        }
+    }
+
+    /// [`PageService::page_full`] for a test running on a plain thread.
+    #[cfg(test)]
+    pub fn page_full_blocking(&self, entry: &str) -> Result<Arc<Image>> {
+        match self.enqueue(
+            entry,
+            Priority::Foreground,
+            self.shared.pipeline().full_fit(),
+        )? {
+            Fetch::Cached(image) => Ok(image),
+            Fetch::Queued { rx, .. } => rx.blocking_recv().unwrap_or_else(|_| Err(closed())),
+        }
+    }
+
+    /// [`PageService::preview`] for a test running on a plain thread.
+    #[cfg(test)]
+    pub fn preview_blocking(&self, entry: &str) -> Result<Option<Arc<Image>>> {
+        match self.enqueue_preview(entry)? {
+            Some(rx) => rx.blocking_recv().unwrap_or_else(|_| Err(closed())),
+            None => Ok(None),
+        }
+    }
+
+    /// Reports the reader's viewport in device pixels, and says whether it changed.
+    ///
+    /// Pages already read stay in the cache under their own fit; nothing is invalidated,
+    /// because a window that goes back to a size it has been is served from it.
+    pub fn set_display_size(&self, size: Option<Fit>) -> bool {
+        let mut pipeline = self
+            .shared
+            .pipeline
+            .write()
+            .unwrap_or_else(|e| e.into_inner());
+        if pipeline.display == size {
+            return false;
+        }
+        pipeline.display = size;
+        true
+    }
+
+    /// Applies the reader's height cap and resize filter to every page read from now on.
+    ///
+    /// The cache is keyed by the box a page was fitted into and not by these, so the
+    /// caller empties it.
+    pub fn set_rendering(&self, max_image_height: u32, resize_method: ResizeFilter) {
+        let mut pipeline = self
+            .shared
+            .pipeline
+            .write()
+            .unwrap_or_else(|e| e.into_inner());
+        pipeline.max_image_height = max_image_height;
+        pipeline.resize_method = resize_method;
+    }
+
+    /// Reads one page into `fit`, waiting for it, and records the wait.
+    async fn fetch(&self, entry: &str, priority: Priority, fit: Fit) -> Result<Arc<Image>> {
         let span = Span::start();
-        if let Some(image) = self.shared.cached(entry) {
-            perf!(
-                span,
-                "page",
-                "entry={entry} prio={priority:?} source=cache queued=0"
-            );
-            return Ok(image);
+        let (page, source, queued) = match self.enqueue(entry, priority, fit)? {
+            Fetch::Cached(image) => (Ok(image), "cache", 0),
+            Fetch::Queued { rx, source, queued } => {
+                (rx.await.unwrap_or_else(|_| Err(closed())), source, queued)
+            }
+        };
+        // What the wait was spent on, which is what makes the duration readable: a page
+        // already being read is joined rather than read again.
+        perf!(
+            span,
+            "page",
+            "entry={entry} prio={priority:?} source={source} queued={queued}"
+        );
+        page
+    }
+
+    /// Queues one page read into `fit`, or answers it from the cache.
+    ///
+    /// Cache first; only a miss reaches the queue.
+    fn enqueue(&self, entry: &str, priority: Priority, fit: Fit) -> Result<Fetch> {
+        if let Some(image) = self.shared.cached(entry, fit) {
+            return Ok(Fetch::Cached(image));
         }
 
         let index = self.index_of(entry)?;
-        let (tx, rx) = mpsc::channel();
-        // What the wait is spent on, which is what makes the duration readable: a page
-        // already being read is joined rather than read again.
+        let (tx, rx) = oneshot::channel();
         let (source, queued) = {
             let mut queue = self.shared.lock();
             if queue.closed {
                 return Err(closed());
             }
             let queued = queue.jobs.len() + queue.preload.len();
-            match queue.in_flight.entry(entry.to_string()) {
+            match queue.in_flight.entry((entry.to_string(), fit)) {
                 // A worker already has this page open; wait on its result rather than
                 // reading the same bytes twice.
                 Entry::Occupied(mut waiting) => {
@@ -381,6 +535,7 @@ impl PageService {
                         priority,
                         order: (index, 1),
                         entry: entry.to_string(),
+                        fit,
                         reply: Reply::Page(tx),
                     });
                     ("read", queued)
@@ -388,14 +543,7 @@ impl PageService {
             }
         };
         self.shared.wake.notify_one();
-
-        let page = rx.recv().map_err(|_| closed())?;
-        perf!(
-            span,
-            "page",
-            "entry={entry} prio={priority:?} source={source} queued={queued}"
-        );
-        page
+        Ok(Fetch::Queued { rx, source, queued })
     }
 
     /// Reads a small stand-in for one page, if its format has a cheaper path to one.
@@ -411,30 +559,13 @@ impl PageService {
     ///
     /// Returns an `Err` if the entry is not part of this book, the book is closed, or the
     /// preview cannot be produced.
-    pub fn preview(&self, entry: &str) -> Result<Option<Arc<Image>>> {
+    pub async fn preview(&self, entry: &str) -> Result<Option<Arc<Image>>> {
         let span = Span::start();
-        if self.shared.cached(entry).is_some() {
+        let Some(rx) = self.enqueue_preview(entry)? else {
             perf!(span, "preview", "entry={entry} source=cached-page");
             return Ok(None);
-        }
-
-        let index = self.index_of(entry)?;
-        let (tx, rx) = mpsc::channel();
-        {
-            let mut queue = self.shared.lock();
-            if queue.closed {
-                return Err(closed());
-            }
-            queue.jobs.push(Job {
-                priority: Priority::Foreground,
-                order: (index, 0),
-                entry: entry.to_string(),
-                reply: Reply::Preview(tx),
-            });
-        }
-        self.shared.wake.notify_one();
-
-        let preview = rx.recv().map_err(|_| closed())?;
+        };
+        let preview = rx.await.unwrap_or_else(|_| Err(closed()));
         let source = match &preview {
             Ok(Some(_)) => "render",
             // Every format but PDF: a preview costs the page's own read and decode, so
@@ -444,6 +575,41 @@ impl PageService {
         };
         perf!(span, "preview", "entry={entry} source={source}");
         preview
+    }
+
+    /// Queues one preview, ordered before the same entry's page.
+    ///
+    /// # Returns
+    ///
+    /// `None` when the full page is already cached and no preview is needed.
+    fn enqueue_preview(&self, entry: &str) -> Result<Option<PreviewRx>> {
+        if self
+            .shared
+            .cached(entry, self.shared.pipeline().fit())
+            .is_some()
+        {
+            return Ok(None);
+        }
+
+        let index = self.index_of(entry)?;
+        let (tx, rx) = oneshot::channel();
+        {
+            let mut queue = self.shared.lock();
+            if queue.closed {
+                return Err(closed());
+            }
+            queue.jobs.push(Job {
+                priority: Priority::Foreground,
+                order: (index, 0),
+                entry: entry.to_string(),
+                // A preview is passed through at whatever size its format rendered it,
+                // so no box bounds it.
+                fit: Fit::UNBOUNDED,
+                reply: Reply::Preview(tx),
+            });
+        }
+        self.shared.wake.notify_one();
+        Ok(Some(rx))
     }
 
     /// Enqueues the window around `center`, skipping entries already cached.
@@ -485,6 +651,10 @@ impl PageService {
         let (ahead_len, behind_len) = (ahead.len(), behind.len());
         let mut cached = 0usize;
 
+        // Read once, so a whole window is preloaded into one box even if the reader is
+        // resizing the window while it is queued.
+        let fit = self.shared.pipeline().fit();
+
         let mut queue = self.shared.lock();
         if queue.closed {
             return Ok(());
@@ -498,7 +668,7 @@ impl PageService {
         ] {
             for index in range {
                 let entry = &entries[index];
-                if self.shared.cached(entry).is_some() {
+                if self.shared.cached(entry, fit).is_some() {
                     cached += 1;
                     continue;
                 }
@@ -506,6 +676,7 @@ impl PageService {
                     priority,
                     order: (index, 1),
                     entry: entry.clone(),
+                    fit,
                     reply: Reply::None,
                 });
             }
@@ -549,6 +720,8 @@ impl PageService {
                     priority: Priority::Scan,
                     order: (index, 1),
                     entry: entry.clone(),
+                    // A scan measures the stored page's header and never renders it.
+                    fit: Fit::UNBOUNDED,
                     reply: Reply::Dimensions(index, tx.clone()),
                 });
             }
@@ -597,8 +770,11 @@ impl PageService {
     }
 
     /// Reads one page straight from the cache, without queuing anything.
+    ///
+    /// At the current viewport: a page cached for a window the reader has since resized
+    /// is not the page they would be shown.
     pub fn cached(&self, entry: &str) -> Option<Arc<Image>> {
-        self.shared.cached(entry)
+        self.shared.cached(entry, self.shared.pipeline().fit())
     }
 
     /// Drops every queued job, closes the queue and lets the workers exit.
@@ -675,8 +851,8 @@ impl Drop for WorkerLife<'_> {
 /// and every later request for that page would attach to a read nobody is performing.
 struct Delivery<'a> {
     shared: &'a Shared,
-    /// The entry still owed an answer, taken once one has been given.
-    entry: Option<String>,
+    /// The read still owed an answer, taken once one has been given.
+    entry: Option<ReadKey>,
 }
 
 impl Delivery<'_> {
@@ -688,12 +864,12 @@ impl Delivery<'_> {
 
 impl Drop for Delivery<'_> {
     fn drop(&mut self) {
-        let Some(entry) = self.entry.take() else {
+        let Some(key) = self.entry.take() else {
             return;
         };
         // Dropping the senders is what wakes a blocked `recv`; there is no result to
         // send, because whatever was going to produce one is gone.
-        self.shared.lock().in_flight.remove(&entry);
+        self.shared.lock().in_flight.remove(&key);
     }
 }
 
@@ -703,14 +879,20 @@ fn worker(shared: Arc<Shared>, container: Arc<dyn Container>) {
     let mut reader: Option<Box<dyn PageReader>> = None;
 
     loop {
-        let Some(job) = next_job(&shared) else { return };
+        let Some(mut job) = next_job(&shared) else {
+            return;
+        };
         let _slot = PreloadSlot(job.priority.is_preload().then_some(&*shared));
         // Armed for the length of this job: whatever ends it — a delivery, an early
         // return, an unwind out of the decoder — the callers attached to this entry are
         // let go rather than left waiting on a read that is no longer running.
+        //
+        // Declared after `job`, so on an unwind it is dropped first: `in_flight` is
+        // cleared before the job's own reply is. The other way round, a request made
+        // between the two would attach to a read nobody is performing.
         let mut delivery = Delivery {
             shared: &shared,
-            entry: job.reads_the_page().then(|| job.entry.clone()),
+            entry: job.reads_the_page().then(|| (job.entry.clone(), job.fit)),
         };
 
         // Another worker may have cached this page between the enqueue and this pop.
@@ -718,8 +900,8 @@ fn worker(shared: Arc<Shared>, container: Arc<dyn Container>) {
         // `job.reply` with it, and a caller blocked in `page()` would see a closed
         // channel — a spurious failure on what is in fact a cache hit.
         if job.reads_the_page() {
-            if let Some(image) = shared.cached(&job.entry) {
-                deliver_page(&shared, &job, Ok(image));
+            if let Some(image) = shared.cached(&job.entry, job.fit) {
+                deliver_page(&shared, &mut job, Ok(image));
                 delivery.done();
                 continue;
             }
@@ -731,13 +913,12 @@ fn worker(shared: Arc<Shared>, container: Arc<dyn Container>) {
             match container.open_reader() {
                 Ok(opened) => reader = Some(opened),
                 Err(e) => {
-                    let message = e.to_string();
-                    deliver_error(&shared, &job, &message);
+                    deliver_error(&shared, &mut job, &e);
                     delivery.done();
                     // The handle will not appear on a retry, so leave rather than fail
                     // every remaining job one at a time. Whatever is still queued is
                     // failed by `worker_left` once the last reader has gone.
-                    log::error!("Failed to open a page reader: {message}");
+                    log::error!("Failed to open a page reader: {e}");
                     return;
                 }
             }
@@ -746,7 +927,7 @@ fn worker(shared: Arc<Shared>, container: Arc<dyn Container>) {
             return;
         };
 
-        run(&shared, reader.as_mut(), job);
+        run(&shared, reader.as_mut(), &mut job);
         delivery.done();
     }
 }
@@ -785,7 +966,7 @@ fn next_job(shared: &Shared) -> Option<Job> {
                 };
                 let job = heap.pop().expect("a job was just peeked");
                 if job.reads_the_page() {
-                    match queue.in_flight.entry(job.entry.clone()) {
+                    match queue.in_flight.entry((job.entry.clone(), job.fit)) {
                         // Two callers asked for the same page before either was picked
                         // up. Wait on the one that is running instead of reading the
                         // bytes twice.
@@ -831,77 +1012,70 @@ impl Drop for PreloadSlot<'_> {
 }
 
 /// Runs one job and answers everyone waiting on it.
-fn run(shared: &Shared, reader: &mut dyn PageReader, job: Job) {
+///
+/// The job is borrowed rather than moved, and its reply taken only once the read is
+/// over: moved in, the reply would be dropped by an unwind out of the read before the
+/// worker's `Delivery` guard runs, and the caller would be answered while `in_flight`
+/// still names the page.
+fn run(shared: &Shared, reader: &mut dyn PageReader, job: &mut Job) {
     match &job.reply {
         Reply::Dimensions(index, tx) => {
             let _ = tx.send((*index, reader.page_dimensions(&job.entry)));
         }
-        Reply::Preview(tx) => {
-            let preview = reader.read_preview(&job.entry).and_then(|bytes| {
-                bytes
-                    .map(|bytes| shared.pipeline.preview(bytes))
-                    .transpose()
-            });
-            let _ = tx.send(preview);
+        Reply::Preview(_) => {
+            let pipeline = shared.pipeline();
+            let preview = reader
+                .read_preview(&job.entry)
+                .and_then(|bytes| bytes.map(|bytes| pipeline.preview(bytes)).transpose());
+            if let Reply::Preview(tx) = job.take_reply() {
+                let _ = tx.send(preview);
+            }
         }
         Reply::Page(_) | Reply::None => {
+            // The fit comes from the job, not from the pipeline as it stands now: a
+            // viewport change mid-read must not store the old pixels under the new key.
+            let pipeline = shared.pipeline();
             let page = reader
                 .read_page(&job.entry)
-                .and_then(|bytes| shared.pipeline.page(bytes));
+                .and_then(|bytes| pipeline.page(bytes, job.fit));
             if let Ok(image) = &page {
-                shared.store(&job.entry, image.clone());
+                shared.store(&job.entry, job.fit, image.clone());
             }
-            deliver_page(shared, &job, page);
+            deliver_page(shared, job, page);
         }
     }
 }
 
 /// Sends a page result to the job's own caller and to everyone who attached to it.
-///
-/// `Error` is not `Clone` — several of its variants wrap foreign error types that are not
-/// — so a failure shared by more than one caller is re-rendered as its message. Which
-/// page failed is reported either way; only the exact variant is lost, and only for the
-/// second and later callers waiting on a single read.
-fn deliver_page(shared: &Shared, job: &Job, result: Result<Arc<Image>>) {
+fn deliver_page(shared: &Shared, job: &mut Job, result: Result<Arc<Image>>) {
     let waiting = shared
         .lock()
         .in_flight
-        .remove(&job.entry)
+        .remove(&(job.entry.clone(), job.fit))
         .unwrap_or_default();
 
-    match result {
-        Ok(image) => {
-            if let Reply::Page(tx) = &job.reply {
-                let _ = tx.send(Ok(image.clone()));
-            }
-            for tx in waiting {
-                let _ = tx.send(Ok(image.clone()));
-            }
-        }
-        Err(e) => {
-            let message = e.to_string();
-            if let Reply::Page(tx) = &job.reply {
-                let _ = tx.send(Err(e));
-            }
-            for tx in waiting {
-                let _ = tx.send(Err(Error::Other(message.clone())));
-            }
-        }
+    for tx in waiting {
+        let _ = tx.send(result.clone());
+    }
+    if let Reply::Page(tx) = job.take_reply() {
+        let _ = tx.send(result);
     }
 }
 
 /// Fails one job, and anything attached to it, without having read anything.
-fn deliver_error(shared: &Shared, job: &Job, message: &str) {
-    match &job.reply {
+fn deliver_error(shared: &Shared, job: &mut Job, error: &Error) {
+    if job.reads_the_page() {
+        deliver_page(shared, job, Err(error.clone()));
+        return;
+    }
+    match job.take_reply() {
         Reply::Dimensions(index, tx) => {
-            let _ = tx.send((*index, Err(Error::Other(message.to_string()))));
+            let _ = tx.send((index, Err(error.clone())));
         }
         Reply::Preview(tx) => {
-            let _ = tx.send(Err(Error::Other(message.to_string())));
+            let _ = tx.send(Err(error.clone()));
         }
-        Reply::Page(_) | Reply::None => {
-            deliver_page(shared, job, Err(Error::Other(message.to_string())));
-        }
+        Reply::Page(_) | Reply::None => {}
     }
 }
 
@@ -938,6 +1112,7 @@ mod tests {
 
     fn pipeline() -> Pipeline {
         Pipeline {
+            display: None,
             max_image_height: 0,
             resize_method: ResizeFilter::Bilinear,
         }
@@ -995,7 +1170,12 @@ mod tests {
     }
 
     fn reading(service: &PageService, entry: &str) -> bool {
-        service.shared.lock().in_flight.contains_key(entry)
+        let fit = service.shared.pipeline().fit();
+        service
+            .shared
+            .lock()
+            .in_flight
+            .contains_key(&(entry.to_string(), fit))
     }
 
     /// Waits until `check` holds, or fails after a second.
@@ -1068,7 +1248,7 @@ mod tests {
         let foreground = {
             let service = service.clone();
             let wanted = wanted.clone();
-            thread::spawn(move || service.page(&wanted, Priority::Foreground))
+            thread::spawn(move || service.page_blocking(&wanted, Priority::Foreground))
         };
         // Seven scan jobs are left in the queue; the eighth is the foreground request,
         // and waiting for it to arrive is what makes the pop below decide this test.
@@ -1239,7 +1419,7 @@ mod tests {
             let service = service.clone();
             let served = served.clone();
             thread::spawn(move || {
-                let page = service.page(&wanted, Priority::Foreground);
+                let page = service.page_blocking(&wanted, Priority::Foreground);
                 served.fetch_add(1, Ordering::SeqCst);
                 page
             })
@@ -1338,7 +1518,7 @@ mod tests {
             .map(|name| {
                 let (service, answered, name) = (service.clone(), answered.clone(), name.clone());
                 thread::spawn(move || {
-                    let page = service.page(&name, Priority::Foreground);
+                    let page = service.page_blocking(&name, Priority::Foreground);
                     answered.fetch_add(1, Ordering::SeqCst);
                     page
                 })
@@ -1390,7 +1570,9 @@ mod tests {
         ));
 
         assert!(
-            service.page(&doomed, Priority::Foreground).is_err(),
+            service
+                .page_blocking(&doomed, Priority::Foreground)
+                .is_err(),
             "the caller whose worker died must be told"
         );
 
@@ -1400,7 +1582,7 @@ mod tests {
         let again = {
             let (service, served, doomed) = (service.clone(), served.clone(), doomed.clone());
             thread::spawn(move || {
-                let page = service.page(&doomed, Priority::Foreground);
+                let page = service.page_blocking(&doomed, Priority::Foreground);
                 served.fetch_add(1, Ordering::SeqCst);
                 page
             })
@@ -1419,7 +1601,9 @@ mod tests {
         let service = service(recording_container(names.clone(), 0, log));
 
         assert_eq!(service.workers(), 0);
-        assert!(service.page(&names[0], Priority::Foreground).is_err());
+        assert!(service
+            .page_blocking(&names[0], Priority::Foreground)
+            .is_err());
         assert!(service.dimensions().is_err());
     }
 
@@ -1513,7 +1697,7 @@ mod tests {
         let first = {
             let service = service.clone();
             let wanted = wanted.clone();
-            thread::spawn(move || service.page(&wanted, Priority::Foreground))
+            thread::spawn(move || service.page_blocking(&wanted, Priority::Foreground))
         };
         // Only once the page is genuinely being read does the second caller have anything
         // to join; before that it would simply queue a job of its own.
@@ -1522,7 +1706,7 @@ mod tests {
         let second = {
             let service = service.clone();
             let wanted = wanted.clone();
-            thread::spawn(move || service.page(&wanted, Priority::Foreground))
+            thread::spawn(move || service.page_blocking(&wanted, Priority::Foreground))
         };
 
         for caller in [first, second] {
@@ -1533,6 +1717,52 @@ mod tests {
             1,
             "the second caller must attach to the read in flight, not start another"
         );
+    }
+
+    #[test]
+    fn a_caller_that_joined_a_failing_read_gets_the_same_error() {
+        let names = entries(1);
+        let mut container = MockContainer::new();
+        container.expect_get_entries().return_const(names.clone());
+        container.expect_max_readers().return_const(usize::MAX);
+        container.expect_open_reader().returning(|| {
+            let mut reader = MockPageReader::new();
+            reader.expect_read_page().returning(|_| {
+                thread::sleep(Duration::from_millis(80));
+                Err(Error::PathNotFound("the page is gone".to_string()))
+            });
+            Ok(Box::new(reader) as Box<dyn PageReader>)
+        });
+
+        let service = Arc::new(PageService::new(
+            "book".to_string(),
+            Arc::new(container),
+            pipeline(),
+            mini_moka::sync::Cache::new(1000),
+            0,
+        ));
+
+        let wanted = names[0].clone();
+        let first = {
+            let service = service.clone();
+            let wanted = wanted.clone();
+            thread::spawn(move || service.page_blocking(&wanted, Priority::Foreground))
+        };
+        eventually("the first read to start", || reading(&service, &wanted));
+        let second = {
+            let service = service.clone();
+            let wanted = wanted.clone();
+            thread::spawn(move || service.page_blocking(&wanted, Priority::Foreground))
+        };
+
+        for caller in [first, second] {
+            // The variant is what the frontend maps to a message, so the second caller
+            // must see the same one as the first, not a re-rendering of its text.
+            assert!(matches!(
+                caller.join().unwrap(),
+                Err(Error::PathNotFound(_))
+            ));
+        }
     }
 
     #[test]
@@ -1578,7 +1808,7 @@ mod tests {
             .map(|entry| {
                 let service = service.clone();
                 let entry = entry.clone();
-                thread::spawn(move || service.page(&entry, Priority::Foreground))
+                thread::spawn(move || service.page_blocking(&entry, Priority::Foreground))
             })
             .collect();
         eventually("both workers to park", || {
@@ -1589,7 +1819,7 @@ mod tests {
             .map(|_| {
                 let service = service.clone();
                 let wanted = names[2].clone();
-                thread::spawn(move || service.page(&wanted, Priority::Foreground))
+                thread::spawn(move || service.page_blocking(&wanted, Priority::Foreground))
             })
             .collect();
         // Both requests are queued now; neither worker can have popped one, because both
@@ -1657,7 +1887,10 @@ mod tests {
         );
 
         // And a later request is refused rather than queued against dead workers.
-        assert!(service.page(&names[0], Priority::Foreground).is_err());
+        assert!(matches!(
+            service.page_blocking(&names[0], Priority::Foreground),
+            Err(Error::BookClosed(_))
+        ));
     }
 
     #[test]
@@ -1680,12 +1913,109 @@ mod tests {
         });
 
         let service = service(container);
-        let first = service.page(&names[0], Priority::Foreground).unwrap();
-        let second = service.page(&names[0], Priority::Foreground).unwrap();
+        let first = service
+            .page_blocking(&names[0], Priority::Foreground)
+            .unwrap();
+        let second = service
+            .page_blocking(&names[0], Priority::Foreground)
+            .unwrap();
 
         assert_eq!(first.data, second.data);
         assert_eq!(reads.load(Ordering::SeqCst), 1, "the second call hit cache");
         assert!(service.cached(&names[0]).is_some());
+    }
+
+    /// One book, one entry, and a reader that counts how often the bytes are read.
+    fn counting_service(names: &[String], reads: Arc<AtomicUsize>) -> PageService {
+        let mut container = MockContainer::new();
+        container.expect_get_entries().return_const(names.to_vec());
+        container.expect_max_readers().return_const(usize::MAX);
+        container.expect_open_reader().returning(move || {
+            let reads = reads.clone();
+            let mut reader = MockPageReader::new();
+            reader.expect_read_page().returning(move |_| {
+                reads.fetch_add(1, Ordering::SeqCst);
+                Ok(page_bytes())
+            });
+            Ok(Box::new(reader) as Box<dyn PageReader>)
+        });
+        service(container)
+    }
+
+    #[test]
+    fn a_page_is_cached_once_per_viewport() {
+        let names = entries(1);
+        let reads = Arc::new(AtomicUsize::new(0));
+        let service = counting_service(&names, reads.clone());
+
+        assert!(service.set_display_size(Some(Fit {
+            width: 2,
+            height: 2
+        })));
+        let small = service
+            .page_blocking(&names[0], Priority::Foreground)
+            .unwrap();
+        assert_eq!((small.width, small.height), (2, 1));
+
+        // The reader resized the window. The page cached for the old one is not the page
+        // they would be shown, so it must not be served for the new one.
+        assert!(service.set_display_size(Some(Fit {
+            width: 4,
+            height: 4
+        })));
+        assert!(
+            service.cached(&names[0]).is_none(),
+            "the fit is part of the cache key"
+        );
+        let large = service
+            .page_blocking(&names[0], Priority::Foreground)
+            .unwrap();
+        assert_eq!((large.width, large.height), (4, 2));
+        assert_eq!(reads.load(Ordering::SeqCst), 2);
+
+        // Both are kept, so going back to a size the window has been is a cache hit.
+        assert!(service.set_display_size(Some(Fit {
+            width: 2,
+            height: 2
+        })));
+        assert!(service.cached(&names[0]).is_some());
+        assert_eq!(reads.load(Ordering::SeqCst), 2);
+    }
+
+    #[test]
+    fn reporting_the_same_viewport_twice_changes_nothing() {
+        let names = entries(1);
+        let service = counting_service(&names, Arc::new(AtomicUsize::new(0)));
+        let size = Some(Fit {
+            width: 2,
+            height: 2,
+        });
+
+        assert!(service.set_display_size(size));
+        // The frontend reports on every resize, and the viewer drops its rendered pages
+        // whenever this says the size moved.
+        assert!(!service.set_display_size(size));
+    }
+
+    #[test]
+    fn the_loupe_reads_a_page_the_viewport_does_not_bound() {
+        let names = entries(1);
+        let reads = Arc::new(AtomicUsize::new(0));
+        let service = counting_service(&names, reads.clone());
+        service.set_display_size(Some(Fit {
+            width: 2,
+            height: 2,
+        }));
+
+        let displayed = service
+            .page_blocking(&names[0], Priority::Foreground)
+            .unwrap();
+        let magnified = service.page_full_blocking(&names[0]).unwrap();
+
+        // Magnifying the fitted page would only upscale what is already on screen.
+        assert_eq!((displayed.width, displayed.height), (2, 1));
+        assert_eq!((magnified.width, magnified.height), (4, 2));
+        assert_eq!(reads.load(Ordering::SeqCst), 2, "two different reads");
     }
 
     #[test]
@@ -1696,8 +2026,10 @@ mod tests {
 
         // A book with no entries starts no workers at all, so a job for one would never
         // be popped; the entry lookup is what keeps a caller from blocking forever.
-        assert!(service.page("absent.png", Priority::Foreground).is_err());
-        assert!(service.preview("absent.png").is_err());
+        assert!(service
+            .page_blocking("absent.png", Priority::Foreground)
+            .is_err());
+        assert!(service.preview_blocking("absent.png").is_err());
     }
 
     #[test]
@@ -1760,15 +2092,16 @@ mod tests {
         assert!(lines[0].contains(" pages=40 failed=0 ms="), "{}", lines[0]);
     }
 
-    #[test]
-    fn a_page_record_says_which_of_the_three_it_was() {
+    #[tokio::test]
+    async fn a_page_record_says_which_of_the_three_it_was() {
         let recording = crate::perf::capture::record();
         let names = entries(2);
         let log = Arc::new(Mutex::new(Vec::new()));
         let service = service(recording_container(names.clone(), 1, log));
 
-        service.page(&names[0], Priority::Foreground).unwrap();
-        service.page(&names[0], Priority::Foreground).unwrap();
+        // The record is written by the async read, which is what the commands use.
+        service.page(&names[0], Priority::Foreground).await.unwrap();
+        service.page(&names[0], Priority::Foreground).await.unwrap();
 
         // A duration is unreadable without this: the second call is fast because it never
         // left the cache, not because the archive got quicker.
@@ -1794,6 +2127,8 @@ mod tests {
 
         assert_eq!(service.dimensions().unwrap(), Vec::new());
         service.request_preload_around(0, 5, 0).unwrap();
-        assert!(service.page("anything", Priority::Foreground).is_err());
+        assert!(service
+            .page_blocking("anything", Priority::Foreground)
+            .is_err());
     }
 }

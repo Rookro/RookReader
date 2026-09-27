@@ -9,6 +9,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.0] - 2026-09-27
+
+### Added
+
+* AVIF pages are now supported in archives, folders and EPUBs. (#329)
+  * Animated AVIF is not supported yet.
+
+### Changed
+
+* Changes in the bookshelf view now refresh only the list that changed. Creating or deleting a bookshelf, tag or series, or opening a book, no longer reloads every list. (#337)
+* Bookshelf covers are sharper, so they no longer look coarse at the Large grid size. Covers made by earlier versions are replaced the next time each book is opened. (#342)
+* While a series is open on the bookshelf, the breadcrumb (Bookshelf › series name) now appears below the search box next to Edit Series Order, and long series names use the full width of that row before being shortened. (#352)
+* Opening the bookshelf now shows the book you are reading even when it belongs to a series: the bookshelf opens that series, or closes a series left open when the book is not in one. (#354)
+
+### Fixed
+
+* Fixed moiré on screentoned pages by rendering pages at the displayed size instead of letting the browser shrink them. (#324)
+  * The loupe now magnifies the full-size page.
+  * Resized pages are no longer re-compressed as JPEG, which uses more memory. Lower the image cache size in Settings → Rendering & Performance if needed.
+  * The default resizing method for new installs is now Lanczos3. Existing settings are unchanged.
+* Fixed the bookshelf search box not opening the right-click menu, so text can be cut, copied, and pasted there like in the reader's path box. (#325)
+* Fixed pages larger than the reader area losing their animation, EXIF orientation and colour profile when shrunk. (#328)
+  * Animated GIF, APNG and WebP pages are no longer resized, so every frame plays.
+  * Photos stored on their side are now shown upright, and a page with an embedded ICC profile keeps its colours.
+* Fixed a book opened while the window was being resized showing its pages at the previous window size until the next resize. (#331)
+* Fixed a page that failed while being loaded in the background showing a generic error instead of the reason, and a page interrupted by switching books being reported as a failure. (#332)
+* Fixed the app pausing every other action while a folder on slow storage (a NAS, a sleeping disk) was being listed. (#333)
+* Deleting a book from the library now also deletes its thumbnail image. (#335)
+* Fixed the next page of the PDF being read taking longer to appear right after that PDF was added to a bookshelf. (#336)
+* Fixed several reader and library issues. (#339)
+  * Arrow keys and the loupe key no longer act on the reader while the bookshelf is shown or while typing in a text field.
+  * The last page turned is now saved when the app is closed right after turning it.
+  * Changing the maximum image height or the resizing method now applies to the book that is open; the PDF rendering height and page reader threads settings say they apply to the next book opened.
+  * A RAR or EPUB page larger than 1 GiB is refused instead of being loaded into memory.
+  * Thumbnails are written atomically, so an interrupted write can no longer leave a broken thumbnail behind.
+  * Photos stored on their side are now measured upright, so they pair into spreads as they are shown.
+  * Symbolic links to folders and books now appear in the file navigator.
+  * Two changes to the library at the same time now wait for each other instead of one failing.
+* Fixed the bookshelf showing an empty page when you switch to a collection that doesn't contain the series you had open. Choosing a collection, or deleting the one you are in, now closes the series and returns to the top of the bookshelf. (#355)
+* Fixed the database's `-wal` and `-shm` files being left in the data folder after quitting. RookReader now closes its database on exit, so only `rook-reader.db` remains. (#358)
+
 ## [2.5.0] - 2026-09-06
 
 ### Added
@@ -550,7 +591,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Add an automatic two-page spread display feature (#4)
 * Add a page navigation feature using the mouse wheel up/down (#5)
 
-[unreleased]: https://github.com/Rookro/RookReader/compare/v2.5.0...HEAD
+[unreleased]: https://github.com/Rookro/RookReader/compare/v2.6.0...HEAD
+[2.6.0]: https://github.com/Rookro/RookReader/compare/v2.5.0...v2.6.0
 [2.5.0]: https://github.com/Rookro/RookReader/compare/v2.4.0...v2.5.0
 [2.4.0]: https://github.com/Rookro/RookReader/compare/v2.3.1...v2.4.0
 [2.3.1]: https://github.com/Rookro/RookReader/compare/v2.3.0...v2.3.1

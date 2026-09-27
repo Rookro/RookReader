@@ -43,7 +43,7 @@ export default function AdjacentBookConfirmDialog({
               i18nKey="book-reader.adjacent-book.confirm.message"
               values={{ title: title ?? "" }}
               components={{
-                bold: <Box component="span" fontWeight="bold" color="text.primary" />,
+                bold: <Box component="span" sx={{ fontWeight: "bold", color: "text.primary" }} />,
               }}
             />
           </Box>

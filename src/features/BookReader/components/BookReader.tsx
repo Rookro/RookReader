@@ -5,7 +5,7 @@ import PhotoLibrary from "@mui/icons-material/PhotoLibrary";
 import { Box, CircularProgress, Stack, type SxProps, type Theme } from "@mui/material";
 import { createSelector } from "@reduxjs/toolkit";
 import { Allotment } from "allotment";
-import { type JSX, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getRecentlyReadBooks } from "../../../bindings/BookCommands";
 import { useDragDropEvent } from "../../../hooks/useDragDropEvent";
@@ -13,15 +13,16 @@ import { usePaneSizes } from "../../../hooks/usePaneSizes";
 import { type RootState, useAppDispatch, useAppSelector } from "../../../store/store";
 import SidePanels from "../../SidePane/components/SidePanels";
 import SideTabs from "../../SidePane/components/SideTabs";
-import { openContainerFile, setContainerFilePath, setOpenOrigin } from "../slice";
+import type { SideTab } from "../../SidePane/types";
+import { openBook, openContainerFile } from "../slice";
 import BookmarkViewer from "./BookmarkViewer/BookmarkViewer";
 import ComicReader from "./ComicReader";
 import ControlSlider from "./ControlSlider";
 import FileNavigator from "./FileNavigator/FileNavigator";
 import HistoryViewer from "./HistoryViewer/HistoryViewer";
 import ImageEntriesViewer from "./ImageEntriesViewer/ImageEntriesViewer";
-import NavigationBar from "./NavigationBar";
 import NovelReader from "./NovelReader";
+import ReaderToolbar from "./ReaderToolbar";
 
 const selectBookReaderState = createSelector(
   [
@@ -100,7 +101,7 @@ export default function BookReader({ sx }: BookReaderProps) {
 
   // The labels double as the tabs' accessible names and tooltips, so they reuse the
   // same titles the panels show in their headers.
-  const tabs: { label: string; icon: JSX.Element; panel: JSX.Element }[] = useMemo(() => {
+  const tabs: SideTab[] = useMemo(() => {
     const tabs = [
       {
         label: t("book-reader.file-navigator.title"),
@@ -143,8 +144,7 @@ export default function BookReader({ sx }: BookReaderProps) {
         const recentBooks = await getRecentlyReadBooks();
         const latestEntry = recentBooks.length > 0 ? recentBooks[0] : null;
         if (latestEntry) {
-          dispatch(setOpenOrigin({ kind: "startup" }));
-          dispatch(setContainerFilePath(latestEntry.file_path));
+          dispatch(openBook({ path: latestEntry.file_path, origin: { kind: "startup" } }));
         }
       }
 
@@ -163,8 +163,7 @@ export default function BookReader({ sx }: BookReaderProps) {
 
   useEffect(() => {
     if (droppedFile && droppedFile.length > 0) {
-      dispatch(setOpenOrigin({ kind: "dragDrop" }));
-      dispatch(setContainerFilePath(droppedFile));
+      dispatch(openBook({ path: droppedFile, origin: { kind: "dragDrop" } }));
       // Reset so dropping the same path again re-triggers this effect
       // (a same-value setState bails out and would silently ignore the drop).
       setDroppedFile(undefined);
@@ -177,7 +176,7 @@ export default function BookReader({ sx }: BookReaderProps) {
       sx={{ width: "100%", height: "100%", ...sx }}
       data-testid="book-reader"
     >
-      <NavigationBar />
+      <ReaderToolbar />
       <Stack direction="row" sx={{ width: "100%", height: "100%" }}>
         <SideTabs tabs={tabs} index={tabIndex} isHidden={isHidden} />
         <Box sx={{ flex: 1 }}>

@@ -2,11 +2,16 @@ use chrono::Local;
 use log::debug;
 use sqlx::{
     migrate,
-    sqlite::{SqliteConnectOptions, SqlitePoolOptions},
+    sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions},
     SqlitePool,
 };
-use std::{fs, path::PathBuf, str::FromStr, sync::Arc};
-use tauri::{App, Manager, Runtime, Theme};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+    str::FromStr,
+    sync::Arc,
+};
+use tauri::{App, AppHandle, Manager, Runtime, Theme};
 use tauri_plugin_log::{RotationStrategy, Target, TargetKind};
 use tokio::sync::RwLock;
 
@@ -16,7 +21,7 @@ use crate::{
         bookshelf::repository::BookshelfRepository, series::repository::SeriesRepository,
         tag::repository::TagRepository,
     },
-    error::{self, Error},
+    error,
     infrastructure::database::{
         book_repository::SqliteBookRepository, bookmark_repository::SqliteBookmarkRepository,
         bookshelf_repository::SqliteBookshelfRepository, series_repository::SqliteSeriesRepository,
@@ -152,16 +157,17 @@ pub fn setup_container_settings(app: &App, settings: &AppSettings) -> error::Res
 /// Applies the reader/rendering settings to the container runtime state.
 ///
 /// This copies the persisted reader/rendering values into `ContainerState::settings`.
-/// Only the **image cache capacity** is applied to the currently-open container live:
-/// when it changes, the cache is rebuilt (which evicts every cached image) and handed to
-/// the open `ImageLoader`.
+/// The **image cache capacity** is applied to the currently-open container live: when
+/// it changes, the cache is rebuilt (which evicts every cached image) and handed to the
+/// open `PageService`. `max_image_height` and `image_resampling_method` are pushed into
+/// the open book too. `pdf_render_resolution_height`, `page_reader_count` and
+/// `auto_descend_single_folder` decide how a container is built, so they take effect at
+/// the next open.
 ///
-/// The other values (`max_image_height`, `image_resampling_method`,
-/// `pdf_render_resolution_height`, `enable_preview`, `auto_descend_single_folder`) are
-/// stored for the **next**
-/// `ContainerState::open_container` call: the already-open `ImageLoader` captured its
-/// resize height/method at construction, so changing them does not re-render the book
-/// currently on screen — it takes effect when a container is next opened.
+/// The values that change what a page's pixels are also empty the image cache. It
+/// outlives a book and its key says nothing about the filter or the height cap, so
+/// without that, reopening the same book would serve pages rendered with the settings
+/// the user just changed away from.
 ///
 /// # Arguments
 ///
@@ -170,10 +176,15 @@ pub fn setup_container_settings(app: &App, settings: &AppSettings) -> error::Res
 pub fn apply_reader_settings_to_container(state: &mut AppState, settings: &AppSettings) {
     let new_cache_size_mib = settings.reader.comic.cache.image_cache_size_mib;
     let container_settings = &mut state.container_state.settings;
-    // Capture the previous capacity before overwriting it.
+    // Capture the previous values before overwriting them.
     let cache_size_changed = container_settings.image_cache_size_mib != new_cache_size_mib;
+    let rendering_changed = container_settings.max_image_height
+        != settings.reader.rendering.max_image_height
+        || container_settings.image_resampling_method
+            != settings.reader.rendering.image_resampling_method.into()
+        || container_settings.pdf_render_resolution_height
+            != settings.reader.rendering.pdf_render_resolution_height;
 
-    container_settings.enable_preview = settings.reader.rendering.enable_thumbnail_preview;
     container_settings.max_image_height = settings.reader.rendering.max_image_height;
     container_settings.image_cache_size_mib = new_cache_size_mib;
     container_settings.page_reader_count = settings.reader.comic.cache.page_reader_count;
@@ -187,6 +198,11 @@ pub fn apply_reader_settings_to_container(state: &mut AppState, settings: &AppSe
         state
             .container_state
             .update_image_cache_size(new_cache_size_mib);
+    } else if rendering_changed {
+        state.container_state.image_cache.invalidate_all();
+    }
+    if rendering_changed {
+        state.container_state.apply_rendering();
     }
 }
 
@@ -271,15 +287,9 @@ fn setup_database(app: &App) -> error::Result<()> {
         "rook-reader.db"
     };
     let db_path = app_data_dir_path.join(db_filename);
-    let db_url = format!("sqlite:{}", db_path.display());
-    let options = SqliteConnectOptions::from_str(&db_url)?.create_if_missing(true);
-    log::debug!("Database file path: {:?}", options.get_filename());
-
-    let pool = tauri::async_runtime::block_on(async {
-        let pool = SqlitePoolOptions::new().connect_with(options).await?;
-        migrate!("./migrations").run(&pool).await?;
-        Ok::<SqlitePool, Error>(pool)
-    })?;
+    let pool = tauri::async_runtime::block_on(connect_database(&db_path))?;
+    // Kept as state so `teardown` can close it when the app exits.
+    app.manage(pool.clone());
 
     let book_repository: Arc<dyn BookRepository> =
         Arc::new(SqliteBookRepository::new(pool.clone()));
@@ -300,6 +310,40 @@ fn setup_database(app: &App) -> error::Result<()> {
     Ok(())
 }
 
+/// Helper function to open the database at `db_path` and apply pending migrations.
+async fn connect_database(db_path: &Path) -> error::Result<SqlitePool> {
+    let db_url = format!("sqlite:{}", db_path.display());
+    // WAL lets a page-turn write land while a list is being read, and the busy timeout
+    // makes a second writer wait for the first instead of failing with SQLITE_BUSY.
+    // `PRAGMA optimize` on close keeps the query planner's statistics current; 400 is the
+    // analysis limit SQLite recommends.
+    let options = SqliteConnectOptions::from_str(&db_url)?
+        .create_if_missing(true)
+        .journal_mode(SqliteJournalMode::Wal)
+        .busy_timeout(std::time::Duration::from_secs(5))
+        .optimize_on_close(true, 400);
+    log::debug!("Database file path: {:?}", options.get_filename());
+
+    let pool = SqlitePoolOptions::new().connect_with(options).await?;
+    migrate!("./migrations").run(&pool).await?;
+    Ok(pool)
+}
+
+/// Closes the database pool before the process exits.
+///
+/// Tauri ends the process with `std::process::exit`, which skips destructors. Unless the
+/// pool is closed here, SQLite never checkpoints the WAL and the `-wal` / `-shm` files
+/// stay next to the database.
+///
+/// # Arguments
+///
+/// * `app` - The handle of the exiting app.
+pub fn teardown<R: Runtime>(app: &AppHandle<R>) {
+    if let Some(pool) = app.try_state::<SqlitePool>() {
+        tauri::async_runtime::block_on(pool.close());
+    }
+}
+
 /// Helper function to locate the directory containing bundled dynamic libraries.
 fn get_libs_dir(app: &App) -> error::Result<String> {
     let libs_dir = app.path().resource_dir()?.join("libs");
@@ -317,7 +361,6 @@ mod tests {
     fn test_apply_reader_settings_to_container() {
         let mut state = AppState::default();
         let mut settings = AppSettings::default();
-        settings.reader.rendering.enable_thumbnail_preview = false;
         settings.reader.rendering.max_image_height = 1234;
         settings.reader.rendering.pdf_render_resolution_height = 1500;
         settings.reader.rendering.image_resampling_method = ImageResamplingMethod::Lanczos3;
@@ -327,7 +370,6 @@ mod tests {
         apply_reader_settings_to_container(&mut state, &settings);
 
         let container_settings = &state.container_state.settings;
-        assert!(!container_settings.enable_preview);
         assert_eq!(container_settings.max_image_height, 1234);
         assert_eq!(container_settings.pdf_render_resolution_height, 1500);
         assert_eq!(
@@ -336,6 +378,141 @@ mod tests {
         );
         assert_eq!(container_settings.image_cache_size_mib, 2048);
         assert_eq!(container_settings.page_reader_count, 3);
+    }
+
+    #[test]
+    fn changing_the_height_cap_re_renders_the_open_book() {
+        use crate::{page::service::Priority, state::container_state::ContainerState};
+
+        // A directory container holding one 4x2 page.
+        let dir = tempfile::tempdir().expect("tempdir");
+        let mut page = Vec::new();
+        image::DynamicImage::ImageRgb8(image::RgbImage::new(4, 2))
+            .write_to(
+                &mut std::io::Cursor::new(&mut page),
+                image::ImageFormat::Png,
+            )
+            .expect("encode the page fixture");
+        std::fs::write(dir.path().join("p001.png"), page).expect("write the page fixture");
+        let path = dir.path().to_string_lossy().to_string();
+
+        let mut state = AppState::default();
+        let service = ContainerState::build_with(
+            &state.container_state.settings,
+            &state.container_state.image_cache,
+            None,
+            &path,
+        )
+        .expect("building a valid directory container should succeed");
+        state.container_state.install(service);
+
+        let mut settings = AppSettings::default();
+        settings.reader.rendering.max_image_height = 1;
+        apply_reader_settings_to_container(&mut state, &settings);
+
+        let page = state
+            .container_state
+            .service_for(&path)
+            .expect("the book is open")
+            .page_blocking("p001.png", Priority::Foreground)
+            .expect("read the page");
+        assert_eq!((page.width, page.height), (2, 1));
+    }
+
+    #[test]
+    fn changing_a_rendering_setting_empties_the_image_cache() {
+        use crate::page::{cache::CacheKey, pipeline::Fit};
+        use std::sync::Arc;
+
+        let mut state = AppState::default();
+        let key = CacheKey {
+            book_id: "book".to_string(),
+            entry: "p001.png".to_string(),
+            fit: Fit::UNBOUNDED,
+        };
+        let cached = Arc::new(crate::image::types::Image {
+            data: vec![1, 2, 3],
+            width: 1,
+            height: 1,
+        });
+        state
+            .container_state
+            .image_cache
+            .insert(key.clone(), cached);
+        assert!(state.container_state.image_cache.get(&key).is_some());
+
+        let mut settings = AppSettings::default();
+        settings.reader.rendering.image_resampling_method = ImageResamplingMethod::Nearest;
+        // The cache size is left alone, so nothing else would clear it.
+        apply_reader_settings_to_container(&mut state, &settings);
+
+        // The cache outlives a book. Without this, reopening the same book would serve
+        // pages rendered with the filter the user just changed away from.
+        assert!(state.container_state.image_cache.get(&key).is_none());
+    }
+
+    #[test]
+    fn re_applying_the_same_settings_keeps_the_image_cache() {
+        use crate::page::{cache::CacheKey, pipeline::Fit};
+        use std::sync::Arc;
+
+        let mut state = AppState::default();
+        let settings = AppSettings::default();
+        apply_reader_settings_to_container(&mut state, &settings);
+
+        let key = CacheKey {
+            book_id: "book".to_string(),
+            entry: "p001.png".to_string(),
+            fit: Fit::UNBOUNDED,
+        };
+        state.container_state.image_cache.insert(
+            key.clone(),
+            Arc::new(crate::image::types::Image {
+                data: vec![1, 2, 3],
+                width: 1,
+                height: 1,
+            }),
+        );
+
+        // Settings are re-applied on every save, most of which change nothing about how
+        // a page is rendered.
+        apply_reader_settings_to_container(&mut state, &settings);
+        assert!(state.container_state.image_cache.get(&key).is_some());
+    }
+
+    // A plain #[test]: `teardown` blocks on Tauri's runtime, which panics inside another one.
+    #[test]
+    fn teardown_closes_the_pool_and_removes_the_wal_files() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let db_path = dir.path().join("rook-reader-test.db");
+        let wal = dir.path().join("rook-reader-test.db-wal");
+        let shm = dir.path().join("rook-reader-test.db-shm");
+
+        let pool = tauri::async_runtime::block_on(connect_database(&db_path))
+            .expect("open the test database");
+        // The migrations wrote through the WAL, so both files exist while the pool is open.
+        assert!(
+            wal.exists(),
+            "the -wal file should exist while the pool is open"
+        );
+        assert!(
+            shm.exists(),
+            "the -shm file should exist while the pool is open"
+        );
+
+        let app = tauri::test::mock_app();
+        app.manage(pool);
+        teardown(app.handle());
+
+        // Closing the last connection checkpoints the WAL and deletes both files.
+        assert!(
+            !wal.exists(),
+            "the -wal file should be removed after teardown"
+        );
+        assert!(
+            !shm.exists(),
+            "the -shm file should be removed after teardown"
+        );
     }
 
     #[cfg(any(debug_assertions, feature = "e2e-test"))]

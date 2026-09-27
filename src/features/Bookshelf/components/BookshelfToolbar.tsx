@@ -28,18 +28,20 @@ import { useAppDispatch, useAppSelector } from "../../../store/store";
 import type { SortOrder } from "../../../types/AppSettings";
 import { openSettingsWindow } from "../../../utils/WindowOpener";
 import { updateSettings } from "../../Settings/slice";
-import { setEditSeriesOrderDialogState, setSelectedSeriesId } from "../seriesSlice";
+import { setSelectedSeriesId } from "../seriesSlice";
 import { addBookToBookshelf, setSearchText } from "../slice";
+import { useBookshelfActions } from "./BookshelfActionsContext";
 import BookAdditionToBookshelfDialog from "./Dialog/BookAdditionToBookshelfDialog";
 
-/** Navigation bar for the bookshelf component */
-export default function NavigationBar() {
+/** Toolbar of the bookshelf: search, sort, add books, and the series breadcrumb */
+export default function BookshelfToolbar() {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const bookshelfSettings = useAppSelector((state) => state.settings.bookshelf);
   const searchText = useAppSelector((state) => state.bookCollection.searchText);
   const bookshelfId = useAppSelector((state) => state.bookCollection.selectedId);
   const { selectedId: selectedSeriesId, series } = useAppSelector((state) => state.series);
+  const { openEditSeriesOrderDialog } = useBookshelfActions();
 
   const selectedSeries = useMemo(() => {
     return series.find((s) => s.id === selectedSeriesId);
@@ -85,9 +87,9 @@ export default function NavigationBar() {
 
   const handleEditOrderClicked = useCallback(() => {
     if (selectedSeriesId !== null) {
-      dispatch(setEditSeriesOrderDialogState({ isOpen: true, seriesId: selectedSeriesId }));
+      openEditSeriesOrderDialog(selectedSeriesId);
     }
-  }, [dispatch, selectedSeriesId]);
+  }, [openEditSeriesOrderDialog, selectedSeriesId]);
 
   const handleAddBooks = useCallback(
     (paths: string[]) => {
@@ -98,48 +100,13 @@ export default function NavigationBar() {
     [dispatch, bookshelfId],
   );
 
+  const handleContextMenu = useCallback((e: React.MouseEvent<HTMLElement>) => {
+    e.stopPropagation();
+  }, []);
+
   return (
     <Stack>
       <Toolbar variant="dense" disableGutters sx={{ minHeight: "40px" }}>
-        {selectedSeriesId !== null && (
-          <Breadcrumbs
-            aria-label="breadcrumb"
-            sx={{
-              marginLeft: "16px",
-              "& .MuiBreadcrumbs-ol": {
-                flexWrap: "nowrap",
-              },
-            }}
-          >
-            <Link
-              underline="hover"
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                cursor: "pointer",
-                color: "inherit",
-                whiteSpace: "nowrap",
-              }}
-              onClick={handleBackToBookshelf}
-            >
-              <Home sx={{ marginRight: "4px" }} fontSize="small" />
-              {t("bookshelf.title")}
-            </Link>
-            <Typography
-              color="text.primary"
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                maxWidth: "200px",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {selectedSeries?.name ?? "..."}
-            </Typography>
-          </Breadcrumbs>
-        )}
         <OutlinedInput
           type="search"
           size="small"
@@ -161,6 +128,7 @@ export default function NavigationBar() {
             </InputAdornment>
           }
           onChange={handleSearchTextChanged}
+          onContextMenu={handleContextMenu}
         />
         <Tooltip title={t("common.settings")}>
           <IconButton onClick={handleSettingsClicked} aria-label="settings">
@@ -169,6 +137,41 @@ export default function NavigationBar() {
         </Tooltip>
       </Toolbar>
       <Toolbar variant="dense" disableGutters sx={{ paddingBottom: 1, justifyContent: "flex-end" }}>
+        {selectedSeriesId !== null && (
+          <Breadcrumbs
+            aria-label="breadcrumb"
+            sx={{
+              flex: 1,
+              minWidth: 0,
+              marginLeft: "16px",
+              marginRight: 1,
+              "& .MuiBreadcrumbs-ol": {
+                flexWrap: "nowrap",
+              },
+              "& .MuiBreadcrumbs-li:last-of-type": {
+                minWidth: 0,
+              },
+            }}
+          >
+            <Link
+              underline="hover"
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                cursor: "pointer",
+                color: "inherit",
+                whiteSpace: "nowrap",
+              }}
+              onClick={handleBackToBookshelf}
+            >
+              <Home sx={{ marginRight: "4px" }} fontSize="small" />
+              {t("bookshelf.title")}
+            </Link>
+            <Typography color="text.primary" noWrap>
+              {selectedSeries?.name ?? "..."}
+            </Typography>
+          </Breadcrumbs>
+        )}
         {selectedSeriesId === null && (
           <>
             <Typography variant="body2" sx={{ alignContent: "center" }}>
@@ -230,7 +233,7 @@ export default function NavigationBar() {
         )}
       </Toolbar>
       <BookAdditionToBookshelfDialog
-        openDialog={isAddBookDialogOpen}
+        open={isAddBookDialogOpen}
         onClose={() => setIsAddBookDialogOpen(false)}
         onAddBooks={handleAddBooks}
       />

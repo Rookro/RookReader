@@ -1,5 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createBasePreloadedState, createTestWrapper } from "../../../test/utils";
 import { useLoupe } from "./useLoupe";
 
 describe("useLoupe", () => {
@@ -12,14 +13,14 @@ describe("useLoupe", () => {
   });
 
   it("should initialize with default state", () => {
-    const { result } = renderHook(() => useLoupe("l"));
+    const { result } = renderHook(() => useLoupe("l"), { wrapper: createTestWrapper() });
     expect(result.current.isLoupeEnabled).toBe(false);
     expect(result.current.loupePos).toEqual({ x: 0, y: 0 });
     expect(result.current.containerRef.current).toBe(null);
   });
 
   it("should toggle loupe state manually", () => {
-    const { result } = renderHook(() => useLoupe("l"));
+    const { result } = renderHook(() => useLoupe("l"), { wrapper: createTestWrapper() });
     expect(result.current.isLoupeEnabled).toBe(false);
 
     act(() => {
@@ -34,7 +35,7 @@ describe("useLoupe", () => {
   });
 
   it("should toggle loupe on valid keyboard shortcut", () => {
-    const { result } = renderHook(() => useLoupe("l"));
+    const { result } = renderHook(() => useLoupe("l"), { wrapper: createTestWrapper() });
     expect(result.current.isLoupeEnabled).toBe(false);
 
     act(() => {
@@ -51,7 +52,7 @@ describe("useLoupe", () => {
   });
 
   it("should handle complex keyboard shortcut", () => {
-    const { result } = renderHook(() => useLoupe("Ctrl+Shift+L"));
+    const { result } = renderHook(() => useLoupe("Ctrl+Shift+L"), { wrapper: createTestWrapper() });
 
     act(() => {
       const event = new KeyboardEvent("keydown", {
@@ -79,7 +80,7 @@ describe("useLoupe", () => {
   });
 
   it("should handle Space key shortcut", () => {
-    const { result } = renderHook(() => useLoupe("Space"));
+    const { result } = renderHook(() => useLoupe("Space"), { wrapper: createTestWrapper() });
 
     act(() => {
       const event = new KeyboardEvent("keydown", {
@@ -94,8 +95,21 @@ describe("useLoupe", () => {
     expect(result.current.isLoupeEnabled).toBe(true);
   });
 
+  it("ignores the shortcut while the bookshelf view is active", () => {
+    const preloadedState = createBasePreloadedState();
+    preloadedState.view.activeView = "bookshelf";
+    const { result } = renderHook(() => useLoupe("l"), {
+      wrapper: createTestWrapper({ preloadedState }),
+    });
+
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "l" }));
+    });
+    expect(result.current.isLoupeEnabled).toBe(false);
+  });
+
   it("should NOT close loupe with Escape key", () => {
-    const { result } = renderHook(() => useLoupe("l"));
+    const { result } = renderHook(() => useLoupe("l"), { wrapper: createTestWrapper() });
 
     act(() => {
       // Open first
@@ -120,7 +134,7 @@ describe("useLoupe", () => {
   });
 
   it("should update loupe position on mouse move if enabled", () => {
-    const { result } = renderHook(() => useLoupe("l"));
+    const { result } = renderHook(() => useLoupe("l"), { wrapper: createTestWrapper() });
 
     // Create a mock ref element with getBoundingClientRect
     const mockElement = document.createElement("div");
@@ -154,7 +168,7 @@ describe("useLoupe", () => {
   });
 
   it("should not update loupe position on mouse move if disabled", () => {
-    const { result } = renderHook(() => useLoupe("l"));
+    const { result } = renderHook(() => useLoupe("l"), { wrapper: createTestWrapper() });
 
     const mockElement = document.createElement("div");
     mockElement.getBoundingClientRect = () => ({
@@ -179,7 +193,9 @@ describe("useLoupe", () => {
   });
 
   it("should handle mouse down shortcut to toggle and call preventDefault", () => {
-    const { result } = renderHook(() => useLoupe("Ctrl+MouseMiddle"));
+    const { result } = renderHook(() => useLoupe("Ctrl+MouseMiddle"), {
+      wrapper: createTestWrapper(),
+    });
 
     const mockElement = document.createElement("div");
     mockElement.getBoundingClientRect = () => ({
@@ -216,7 +232,7 @@ describe("useLoupe", () => {
   });
 
   it("should do nothing on mouse down if toggleKey is missing", () => {
-    const { result } = renderHook(() => useLoupe(undefined));
+    const { result } = renderHook(() => useLoupe(undefined), { wrapper: createTestWrapper() });
 
     act(() => {
       const mockEvent = {

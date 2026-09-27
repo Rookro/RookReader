@@ -1,7 +1,12 @@
 import type { BookWithState } from "../../../domain/book/schema";
+import type { Series } from "../../../domain/series/schema";
 import type { SortOrder } from "../../../types/AppSettings";
 import { andSearchBy } from "../../../utils/SearchUtils";
-import type { GridItem } from "../components/BookGridCell";
+
+/** Represents an item that can be displayed in the book grid. */
+export type GridItem =
+  | { type: "book"; data: BookWithState }
+  | { type: "series"; data: Series; books: BookWithState[] };
 
 /**
  * Filters an array of BookWithState objects to find entries whose 'display_name' property contains ALL specified keywords (AND search).
@@ -131,4 +136,94 @@ export const sortByGridItem = (a: GridItem, b: GridItem, sortOrder: SortOrder) =
     case "date_desc":
       return valB.date.localeCompare(valA.date) || valB.id - valA.id;
   }
+};
+
+/** The inputs that decide what the book grid shows. */
+export interface GridItemsParams {
+  /** The books of the selected bookshelf. */
+  books: BookWithState[];
+  /** Every series, to group books by. */
+  allSeries: Series[];
+  /** The selected tag, or null for no tag filter. */
+  tagId: number | null;
+  /** The series being drilled into, or null for the main bookshelf. */
+  selectedSeriesId: number | null;
+  /** The search box text. */
+  searchText: string;
+  /** The sort order of the main bookshelf. */
+  sortOrder: SortOrder;
+}
+
+/**
+ * Builds the grid items: books grouped into series, filtered by tag and search text, sorted.
+ *
+ * In drill-down mode (a series is selected) only that series' books are shown, in series
+ * order. Otherwise books are grouped by series before searching, so a series matches by
+ * its own name rather than by its volumes' names.
+ *
+ * @param params - The inputs that decide what the grid shows.
+ * @returns The items in display order.
+ */
+export const buildGridItems = ({
+  books,
+  allSeries,
+  tagId,
+  selectedSeriesId,
+  searchText,
+  sortOrder,
+}: GridItemsParams): GridItem[] => {
+  // Filter books based on selected tag
+  const taggedBooks = tagId === null ? books : books.filter((book) => book.tag_ids.includes(tagId));
+
+  // Drill-down mode logic: if a series is selected, show only books in that series
+  if (selectedSeriesId !== null) {
+    return andSearch(taggedBooks, searchText)
+      .filter((book) => book.series_id === selectedSeriesId)
+      .sort(sortBySeriesOrder)
+      .map((book) => ({ type: "book" as const, data: book }));
+  }
+
+  // Main Bookshelf logic: Group books by series_id BEFORE searching
+  const seriesMap = new Map<number, BookWithState[]>();
+  const standaloneBooks: BookWithState[] = [];
+
+  taggedBooks.forEach((book) => {
+    if (book.series_id !== null) {
+      if (!seriesMap.has(book.series_id)) {
+        seriesMap.set(book.series_id, []);
+      }
+      seriesMap.get(book.series_id)?.push(book);
+    } else {
+      standaloneBooks.push(book);
+    }
+  });
+
+  const groupedItems: GridItem[] = [];
+
+  // Index series by id once, instead of an O(S) find per grouped series (O(S²)).
+  const seriesById = new Map(allSeries.map((s) => [s.id, s]));
+
+  // Add series items
+  seriesMap.forEach((booksInSeries, id) => {
+    const seriesObj = seriesById.get(id);
+    if (seriesObj) {
+      groupedItems.push({ type: "series", data: seriesObj, books: booksInSeries });
+    } else {
+      // Fallback for missing series data
+      booksInSeries.forEach((book) => {
+        standaloneBooks.push(book);
+      });
+    }
+  });
+
+  // Add standalone book items
+  standaloneBooks.forEach((book) => {
+    groupedItems.push({ type: "book", data: book });
+  });
+
+  // Perform search on the grouped items (Search by Series name or Standalone Book name)
+  const searchedItems = andSearchGridItems(groupedItems, searchText);
+
+  // Sort the final list
+  return searchedItems.sort((a, b) => sortByGridItem(a, b, sortOrder));
 };

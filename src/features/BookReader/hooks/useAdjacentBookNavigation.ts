@@ -3,7 +3,7 @@ import { useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNotification } from "../../../components/ui/Notification/NotificationContext";
 import { type RootState, useAppDispatch, useAppSelector } from "../../../store/store";
-import { setContainerFilePath, setOpenOrigin, setPendingInitialPosition } from "../slice";
+import { openBook, setPendingInitialPosition } from "../slice";
 import {
   type AdjacentBook,
   type Direction,
@@ -32,19 +32,24 @@ export const useAdjacentBookNavigation = () => {
   const fileNavigatorSortOrder = useAppSelector(
     (s: RootState) => s.settings.fileNavigator.sortOrder,
   );
-  const containerFile = useAppSelector((s: RootState) => s.read.containerFile);
+  // Only what resolving a neighbour needs, each selected on its own: selecting the whole
+  // `containerFile` re-rendered the reader, and rebuilt every callback below, on each page turn.
+  const currentPath = useAppSelector(
+    (s: RootState) => s.read.containerFile.history[s.read.containerFile.historyIndex] ?? "",
+  );
+  const book = useAppSelector((s: RootState) => s.read.containerFile.book);
+  const origin = useAppSelector((s: RootState) => s.read.containerFile.origin);
 
   const isResolving = useRef(false);
   const [pending, setPending] = useState<PendingAdjacentBook | null>(null);
 
-  const openBook = useCallback(
+  const openAdjacentBook = useCallback(
     (book: AdjacentBook, direction: Direction) => {
       // Land on a natural entry point of the adjacent book: the first page when moving
       // forward, the last page when moving backward.
       dispatch(setPendingInitialPosition(direction === "next" ? "first" : "last"));
       // Preserve the current origin so the series/bookshelf/directory chain continues.
-      dispatch(setOpenOrigin(containerFile.origin));
-      dispatch(setContainerFilePath(book.filePath));
+      dispatch(openBook({ path: book.filePath, origin }));
       showNotification(
         t(
           direction === "next"
@@ -55,7 +60,7 @@ export const useAdjacentBookNavigation = () => {
         "info",
       );
     },
-    [dispatch, containerFile.origin, showNotification, t],
+    [dispatch, origin, showNotification, t],
   );
 
   const trigger = useCallback(
@@ -65,15 +70,14 @@ export const useAdjacentBookNavigation = () => {
       }
       isResolving.current = true;
       try {
-        const currentPath = containerFile.history[containerFile.historyIndex] ?? "";
-        const book = await resolveAdjacentBook(
-          containerFile.book,
+        const adjacent = await resolveAdjacentBook(
+          book,
           currentPath,
-          containerFile.origin,
+          origin,
           direction,
           fileNavigatorSortOrder,
         );
-        if (!book) {
+        if (!adjacent) {
           showNotification(
             t(
               direction === "next"
@@ -85,9 +89,9 @@ export const useAdjacentBookNavigation = () => {
           return;
         }
         if (mode === "ask") {
-          setPending({ book, direction });
+          setPending({ book: adjacent, direction });
         } else {
-          openBook(book, direction);
+          openAdjacentBook(adjacent, direction);
         }
       } catch (e) {
         error(`Failed to open the adjacent book: ${String(e)}`);
@@ -96,7 +100,17 @@ export const useAdjacentBookNavigation = () => {
         isResolving.current = false;
       }
     },
-    [mode, pending, containerFile, fileNavigatorSortOrder, showNotification, t, openBook],
+    [
+      mode,
+      pending,
+      book,
+      currentPath,
+      origin,
+      fileNavigatorSortOrder,
+      showNotification,
+      t,
+      openAdjacentBook,
+    ],
   );
 
   const onForwardBoundary = useCallback(() => {
@@ -109,10 +123,10 @@ export const useAdjacentBookNavigation = () => {
 
   const confirmPending = useCallback(() => {
     if (pending) {
-      openBook(pending.book, pending.direction);
+      openAdjacentBook(pending.book, pending.direction);
     }
     setPending(null);
-  }, [pending, openBook]);
+  }, [pending, openAdjacentBook]);
 
   const cancelPending = useCallback(() => {
     setPending(null);

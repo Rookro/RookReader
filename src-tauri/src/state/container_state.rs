@@ -1,11 +1,16 @@
 use std::sync::Arc;
 
 use pdfium_render::prelude::PdfRenderConfig;
+use tokio::sync::Mutex;
 
 use crate::{
     container::factory::{create_container, ContainerConfig},
     error::Result,
-    page::{cache::Cache, pipeline::Pipeline, service::PageService},
+    page::{
+        cache::Cache,
+        pipeline::{Fit, Pipeline},
+        service::PageService,
+    },
     state::container_settings::ContainerSettings,
 };
 
@@ -32,10 +37,13 @@ fn build_image_cache(size_mib: u64) -> Cache {
 
 /// The height pdfium is asked to render a PDF page at.
 ///
-/// Never larger than the page will be displayed. Formats that render their own pages used
-/// to be exempted from the generic resize instead, which left pdfium producing a page the
-/// pipeline then decoded and shrank again; this replaces that exemption, and pdfium
-/// renders the right size to begin with.
+/// The pipeline now shrinks this again, on purpose: rendering above the viewport and
+/// resampling down is supersampling, and it is what makes a PDF's own halftones come out
+/// clean. What this bound is for is the *cost* of the render, not the resize — pdfium
+/// rasterising a 10000 px page nobody asked for.
+///
+/// It is also the ceiling on how sharp a PDF can be: a reader on a display taller than
+/// this in device pixels raises Settings -> Rendering & Performance -> PDF rendering height.
 ///
 /// # Arguments
 ///
@@ -66,6 +74,18 @@ pub struct ContainerState {
     service: Option<Arc<PageService>>,
     /// Global image cache shared across all containers.
     pub image_cache: Cache,
+    /// The reader's viewport in device pixels, or `None` until the frontend reports one.
+    ///
+    /// Here rather than in [`ContainerSettings`] because it is a property of the window,
+    /// not a setting the user chose, and it has to outlive a book switch: the next book
+    /// must open at the size the current one is being read at.
+    pub display_size: Option<Fit>,
+    /// Serializes container opens so the most recently started one is left installed.
+    ///
+    /// The heavy build runs without the state lock so page fetches are not blocked; this
+    /// only orders the opens themselves, so a slower earlier open cannot install after a
+    /// newer one. Shared, because the guard outlives the read lock it is taken under.
+    pub open_lock: Arc<Mutex<()>>,
 }
 
 impl Default for ContainerState {
@@ -77,6 +97,8 @@ impl Default for ContainerState {
             settings,
             service: None,
             image_cache,
+            display_size: None,
+            open_lock: Arc::new(Mutex::new(())),
         }
     }
 }
@@ -99,6 +121,15 @@ impl ContainerState {
             .cloned()
     }
 
+    /// The open book's service, whatever book that is.
+    ///
+    /// Unlike [`ContainerState::service_for`] this asks no question about which book:
+    /// the viewport belongs to the window, so reporting it is one of the few things
+    /// that is right for whichever book happens to be open.
+    pub fn current_service(&self) -> Option<Arc<PageService>> {
+        self.service.clone()
+    }
+
     /// Whether any book is open.
     ///
     /// Test-only on purpose: production code always asks about a *specific* book, through
@@ -119,6 +150,16 @@ impl ContainerState {
 
         if let Some(service) = self.service.as_ref() {
             service.set_cache(self.image_cache.clone());
+        }
+    }
+
+    /// Hands the open book the height cap and resize filter the settings hold now.
+    pub fn apply_rendering(&self) {
+        if let Some(service) = self.service.as_ref() {
+            service.set_rendering(
+                self.settings.max_image_height.max(0) as u32,
+                self.settings.image_resampling_method,
+            );
         }
     }
 
@@ -169,6 +210,7 @@ impl ContainerState {
     ///
     /// * `settings` - The container settings snapshot to build with.
     /// * `image_cache` - The shared image cache handle.
+    /// * `display_size` - The reader's viewport in device pixels, if it has reported one.
     /// * `path` - The file system path to the container to build.
     ///
     /// # Returns
@@ -182,12 +224,14 @@ impl ContainerState {
     pub fn build_with(
         settings: &ContainerSettings,
         image_cache: &Cache,
+        display_size: Option<Fit>,
         path: &str,
     ) -> Result<PageService> {
         Ok(PageService::new(
             path.to_string(),
             create_container(path, Self::container_config(settings))?,
             Pipeline {
+                display: display_size,
                 max_image_height: settings.max_image_height as u32,
                 resize_method: settings.image_resampling_method,
             },
@@ -198,11 +242,16 @@ impl ContainerState {
 
     /// Installs a previously built service, closing and replacing any open one.
     ///
+    /// The service is brought up to date with the viewport and the cache the state holds
+    /// *now*: it was built from a snapshot, and both may have changed while the build ran.
+    ///
     /// # Arguments
     ///
     /// * `service` - The service to install.
     pub fn install(&mut self, service: PageService) {
         self.clear();
+        service.set_display_size(self.display_size);
+        service.set_cache(self.image_cache.clone());
         self.service = Some(Arc::new(service));
     }
 }
@@ -251,6 +300,7 @@ mod tests {
         let result = ContainerState::build_with(
             &state.settings,
             &state.image_cache,
+            None,
             file.to_string_lossy().as_ref(),
         );
 
@@ -271,6 +321,7 @@ mod tests {
         let result = ContainerState::build_with(
             &state.settings,
             &state.image_cache,
+            None,
             missing.to_string_lossy().as_ref(),
         );
 
@@ -300,7 +351,7 @@ mod tests {
 
         // Build a valid directory container and install it.
         let path = dir.path().to_string_lossy().to_string();
-        let service = ContainerState::build_with(&state.settings, &state.image_cache, &path)
+        let service = ContainerState::build_with(&state.settings, &state.image_cache, None, &path)
             .expect("building a valid directory container should succeed");
         state.install(service);
         assert!(state.service_for(&path).is_some());
@@ -348,6 +399,7 @@ mod tests {
             let result = ContainerState::build_with(
                 &state.settings,
                 &state.image_cache,
+                None,
                 file_path.to_string_lossy().as_ref(),
             );
 
@@ -378,6 +430,7 @@ mod tests {
             let result = ContainerState::build_with(
                 &state.settings,
                 &state.image_cache,
+                None,
                 file_path.to_string_lossy().as_ref(),
             );
 
@@ -401,16 +454,24 @@ mod tests {
         state.settings.pdfium_library_path = Some(get_pdfium_lib_path());
 
         // Test uppercase extension
-        let result =
-            ContainerState::build_with(&state.settings, &state.image_cache, "/path/to/file.ZIP");
+        let result = ContainerState::build_with(
+            &state.settings,
+            &state.image_cache,
+            None,
+            "/path/to/file.ZIP",
+        );
         if let Err(err) = result {
             // Should not be "Unsupported" error, meaning it recognized ZIP
             assert!(!err.to_string().contains("Unsupported Container Type"));
         }
 
         // Test mixed case
-        let result =
-            ContainerState::build_with(&state.settings, &state.image_cache, "/path/to/file.Pdf");
+        let result = ContainerState::build_with(
+            &state.settings,
+            &state.image_cache,
+            None,
+            "/path/to/file.Pdf",
+        );
         if let Err(err) = result {
             assert!(!err.to_string().contains("Unsupported Container Type"));
         }
@@ -420,7 +481,8 @@ mod tests {
     fn test_container_error_fields() {
         let state = ContainerState::default();
         let test_path = "/test/path/file.unknown".to_string();
-        let result = ContainerState::build_with(&state.settings, &state.image_cache, &test_path);
+        let result =
+            ContainerState::build_with(&state.settings, &state.image_cache, None, &test_path);
 
         let Err(err) = result else {
             panic!("expected an error for an unknown extension");
@@ -437,6 +499,7 @@ mod tests {
         let key = CacheKey {
             book_id: "book".to_string(),
             entry: "p1.png".to_string(),
+            fit: crate::page::pipeline::Fit::UNBOUNDED,
         };
         let image = Arc::new(Image {
             data: vec![1, 2, 3],
@@ -454,5 +517,136 @@ mod tests {
         // Both a small and a large cache should build without panicking.
         let _small = build_image_cache(1);
         let _large = build_image_cache(4096);
+    }
+
+    /// A directory container holding one 4x2 page, and the path to it.
+    fn one_page_book() -> (tempfile::TempDir, String) {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let mut page = Vec::new();
+        image::DynamicImage::ImageRgb8(image::RgbImage::new(4, 2))
+            .write_to(
+                &mut std::io::Cursor::new(&mut page),
+                image::ImageFormat::Png,
+            )
+            .expect("encode the page fixture");
+        std::fs::write(dir.path().join("p001.png"), page).expect("write the page fixture");
+
+        let path = dir.path().to_string_lossy().to_string();
+        (dir, path)
+    }
+
+    #[test]
+    fn a_book_opens_at_the_size_already_reported() {
+        let (_dir, path) = one_page_book();
+        // The viewport belongs to the window, so a book opened after it was measured
+        // must not have to wait for the frontend to report it again.
+        let state = ContainerState {
+            display_size: Some(Fit {
+                width: 2,
+                height: 2,
+            }),
+            ..ContainerState::default()
+        };
+        let service = ContainerState::build_with(
+            &state.settings,
+            &state.image_cache,
+            state.display_size,
+            &path,
+        )
+        .expect("building a valid directory container should succeed");
+
+        let page = service
+            .page_blocking("p001.png", crate::page::service::Priority::Foreground)
+            .expect("read the page");
+        assert_eq!((page.width, page.height), (2, 1));
+    }
+
+    #[test]
+    fn reporting_a_size_re_renders_the_open_book() {
+        let (_dir, path) = one_page_book();
+        let mut state = ContainerState::default();
+        let service = ContainerState::build_with(&state.settings, &state.image_cache, None, &path)
+            .expect("building a valid directory container should succeed");
+        state.install(service);
+
+        let service = state.current_service().expect("a book is open");
+        service.set_display_size(Some(Fit {
+            width: 2,
+            height: 2,
+        }));
+
+        let page = service
+            .page_blocking("p001.png", crate::page::service::Priority::Foreground)
+            .expect("read the page");
+        assert_eq!((page.width, page.height), (2, 1));
+    }
+
+    #[test]
+    fn applying_a_height_cap_re_renders_the_open_book() {
+        let (_dir, path) = one_page_book();
+        let mut state = ContainerState::default();
+        let service = ContainerState::build_with(&state.settings, &state.image_cache, None, &path)
+            .expect("building a valid directory container should succeed");
+        state.install(service);
+
+        state.settings.max_image_height = 1;
+        state.apply_rendering();
+
+        let page = state
+            .service_for(&path)
+            .expect("the book is open")
+            .page_blocking("p001.png", crate::page::service::Priority::Foreground)
+            .expect("read the page");
+        assert_eq!((page.width, page.height), (2, 1));
+    }
+
+    #[test]
+    fn installing_applies_the_size_reported_while_the_book_was_built() {
+        let (_dir, path) = one_page_book();
+        let mut state = ContainerState::default();
+        // Built from a snapshot taken before the viewport was reported.
+        let service = ContainerState::build_with(&state.settings, &state.image_cache, None, &path)
+            .expect("building a valid directory container should succeed");
+        state.display_size = Some(Fit {
+            width: 2,
+            height: 2,
+        });
+        state.install(service);
+
+        let page = state
+            .service_for(&path)
+            .expect("the book is open")
+            .page_blocking("p001.png", crate::page::service::Priority::Foreground)
+            .expect("read the page");
+        assert_eq!((page.width, page.height), (2, 1));
+    }
+
+    #[test]
+    fn installing_hands_the_book_the_cache_the_state_holds_now() {
+        use crate::page::cache::CacheKey;
+
+        let (_dir, path) = one_page_book();
+        let mut state = ContainerState::default();
+        // Built against the cache the state held at the time...
+        let service = ContainerState::build_with(&state.settings, &state.image_cache, None, &path)
+            .expect("building a valid directory container should succeed");
+        // ...which is then replaced before the install.
+        state.update_image_cache_size(64);
+        state.install(service);
+
+        state
+            .service_for(&path)
+            .expect("the book is open")
+            .page_blocking("p001.png", crate::page::service::Priority::Foreground)
+            .expect("read the page");
+        let key = CacheKey {
+            book_id: path.clone(),
+            entry: "p001.png".to_string(),
+            fit: Fit::UNBOUNDED,
+        };
+        assert!(
+            state.image_cache.get(&key).is_some(),
+            "the page must land in the cache the state reads, not the one it discarded"
+        );
     }
 }

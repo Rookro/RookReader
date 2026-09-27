@@ -1,10 +1,14 @@
 import { createContext, useContext } from "react";
 import type { BookWithState } from "../../../domain/book/schema";
-import type { BookshelfDialogType } from "../hooks/useBookshelfDialogs";
+import type { BookDialogType } from "../hooks/useBookshelfDialogs";
 
 export interface BookshelfActions {
   /** Opens a specific dialog for a set of books */
-  openDialog: (type: BookshelfDialogType, books: BookWithState[]) => void;
+  openDialog: (type: BookDialogType, books: BookWithState[]) => void;
+  /** Opens the Edit Series Order dialog for a series */
+  openEditSeriesOrderDialog: (seriesId: number) => void;
+  /** Returns the currently selected books, in display order */
+  getSelectedBooks: () => BookWithState[];
 }
 
 export const BookshelfActionsContext = createContext<BookshelfActions | null>(null);

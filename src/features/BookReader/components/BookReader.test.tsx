@@ -15,7 +15,7 @@ vi.mock("../../SidePane/components/SidePanels", () => ({
   default: () => <div data-testid="side-panels" />,
 }));
 vi.mock("./ControlSlider", () => ({ default: () => <div data-testid="control-slider" /> }));
-vi.mock("./NavigationBar", () => ({ default: () => <div data-testid="navigation-bar" /> }));
+vi.mock("./ReaderToolbar", () => ({ default: () => <div data-testid="reader-toolbar" /> }));
 vi.mock("./FileNavigator/FileNavigator", () => ({ default: () => <div /> }));
 vi.mock("./ImageEntriesViewer/ImageEntriesViewer", () => ({ default: () => <div /> }));
 vi.mock("./HistoryViewer/HistoryViewer", () => ({ default: () => <div /> }));
@@ -31,8 +31,7 @@ vi.mock("../slice", async () => {
   return {
     ...actual,
     openContainerFile: vi.fn(() => ({ type: "read/openContainerFile" })),
-    setContainerFilePath: vi.fn((p: string) => ({ type: "read/setContainerFilePath", payload: p })),
-    setOpenOrigin: vi.fn((p: unknown) => ({ type: "read/setOpenOrigin", payload: p })),
+    openBook: vi.fn((p: unknown) => ({ type: "read/openBook", payload: p })),
   };
 });
 
@@ -52,7 +51,7 @@ describe("BookReader", () => {
 
   it("should render main sub-components", async () => {
     renderWithProviders(<BookReader />, { preloadedState: createBasePreloadedState() });
-    await waitFor(() => expect(screen.getByTestId("navigation-bar")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId("reader-toolbar")).toBeInTheDocument());
     expect(screen.getByTestId("control-slider")).toBeInTheDocument();
   });
 
@@ -85,9 +84,11 @@ describe("BookReader", () => {
 
     renderWithProviders(<BookReader />, { preloadedState: state });
     await waitFor(() =>
-      expect(readRed.setContainerFilePath).toHaveBeenCalledWith("/last/book.zip"),
+      expect(readRed.openBook).toHaveBeenCalledWith({
+        path: "/last/book.zip",
+        origin: { kind: "startup" },
+      }),
     );
-    expect(readRed.setOpenOrigin).toHaveBeenCalledWith({ kind: "startup" });
   });
 
   it("should handle empty history during startup restoration", async () => {
@@ -98,7 +99,7 @@ describe("BookReader", () => {
 
     renderWithProviders(<BookReader />, { preloadedState: state });
     await waitFor(() => expect(bookCmds.getRecentlyReadBooks).toHaveBeenCalled());
-    expect(readRed.setContainerFilePath).not.toHaveBeenCalled();
+    expect(readRed.openBook).not.toHaveBeenCalled();
   });
 
   it("should update container when a file is dropped", async () => {
@@ -113,8 +114,10 @@ describe("BookReader", () => {
       dropHandler?.(["/dropped/file.zip"]);
     });
     await waitFor(() => {
-      expect(readRed.setOpenOrigin).toHaveBeenCalledWith({ kind: "dragDrop" });
-      expect(readRed.setContainerFilePath).toHaveBeenCalledWith("/dropped/file.zip");
+      expect(readRed.openBook).toHaveBeenCalledWith({
+        path: "/dropped/file.zip",
+        origin: { kind: "dragDrop" },
+      });
     });
   });
 
@@ -132,7 +135,9 @@ describe("BookReader", () => {
       dropHandler?.(["/same/file.zip"]);
     });
     await waitFor(() => {
-      expect(readRed.setContainerFilePath).toHaveBeenCalledWith("/same/file.zip");
+      expect(readRed.openBook).toHaveBeenCalledWith(
+        expect.objectContaining({ path: "/same/file.zip" }),
+      );
     });
 
     act(() => {
@@ -140,8 +145,8 @@ describe("BookReader", () => {
     });
     await waitFor(() => {
       const sameFileCalls = vi
-        .mocked(readRed.setContainerFilePath)
-        .mock.calls.filter((c) => c[0] === "/same/file.zip");
+        .mocked(readRed.openBook)
+        .mock.calls.filter((c) => (c[0] as { path: string }).path === "/same/file.zip");
       expect(sameFileCalls).toHaveLength(2);
     });
   });

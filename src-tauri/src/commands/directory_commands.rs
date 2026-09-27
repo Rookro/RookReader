@@ -3,7 +3,7 @@ use std::path::Path;
 use tauri::ipc::Response;
 
 use crate::container::{archive_listing, archive_path, traits::Container};
-use crate::error::Result;
+use crate::error::{Error, Result};
 
 /// Reads the contents of a directory and returns a list of its entries.
 ///
@@ -42,7 +42,30 @@ use crate::error::Result;
 #[tauri::command()]
 pub async fn get_entries_in_dir(dir_path: &str) -> Result<Response> {
     log::debug!("Get the directory entries in {}", dir_path);
+    let dir_path = dir_path.to_string();
+    // On a blocking thread: a folder on a NAS or a spun-down disk must not stall every
+    // other IPC call while it is read.
+    let buffer = tauri::async_runtime::spawn_blocking(move || list_entries(&dir_path))
+        .await
+        .map_err(|e| Error::Other(format!("Spawn blocking failed: {e}")))??;
+    Ok(Response::new(buffer))
+}
 
+/// Lists the sub-folders and supported books directly inside `dir_path`, encoded as
+/// [`push_entry`] writes them.
+///
+/// # Arguments
+///
+/// * `dir_path` - A directory, an archive file, or a folder inside an archive.
+///
+/// # Returns
+///
+/// The encoded entries.
+///
+/// # Errors
+///
+/// Returns an `Err` if the directory or archive cannot be read.
+fn list_entries(dir_path: &str) -> Result<Vec<u8>> {
     // Browsing inside an archive: either a folder within it, or the archive file itself
     // (its root). Real filesystem paths are matched first by `archive_path::resolve`.
     if let Some(location) = archive_path::resolve(dir_path) {
@@ -74,14 +97,17 @@ pub async fn get_entries_in_dir(dir_path: &str) -> Result<Response> {
                 continue;
             }
         };
-        let file_type = match entry.file_type() {
-            Ok(file_type) => file_type,
+        // `fs::metadata` follows a symbolic link, so a linked folder or book is listed as
+        // what it points at; `DirEntry::file_type` would report the link itself.
+        let metadata = match std::fs::metadata(entry.path()) {
+            Ok(metadata) => metadata,
             Err(e) => {
-                log::warn!("skipping entry '{file_name}': failed to read file type: {e}");
+                log::warn!("skipping entry '{file_name}': failed to read metadata: {e}");
                 continue;
             }
         };
-        let last_modified = match entry.metadata().and_then(|m| m.modified()) {
+        let file_type = metadata.file_type();
+        let last_modified = match metadata.modified() {
             Ok(modified) => modified,
             Err(e) => {
                 log::warn!("skipping entry '{file_name}': failed to read metadata: {e}");
@@ -104,7 +130,7 @@ pub async fn get_entries_in_dir(dir_path: &str) -> Result<Response> {
             );
         }
     }
-    Ok(Response::new(buffer))
+    Ok(buffer)
 }
 
 /// Encodes an archive's child folders in the same binary record format as the
@@ -120,12 +146,12 @@ pub async fn get_entries_in_dir(dir_path: &str) -> Result<Response> {
 ///
 /// # Returns
 ///
-/// A `tauri::ipc::Response` holding the encoded folder rows.
+/// The encoded folder rows.
 ///
 /// # Errors
 ///
 /// Returns an `Err` if the archive cannot be read.
-fn list_archive_dirs(archive: &Path, inner_dir: &str) -> Result<Response> {
+fn list_archive_dirs(archive: &Path, inner_dir: &str) -> Result<Vec<u8>> {
     let last_modified_timestamp_ms = archive
         .metadata()
         .and_then(|metadata| metadata.modified())
@@ -141,7 +167,7 @@ fn list_archive_dirs(archive: &Path, inner_dir: &str) -> Result<Response> {
     for name in archive_listing::list_child_dirs(archive, inner_dir)? {
         push_entry(&mut buffer, true, &name, last_modified_timestamp_ms);
     }
-    Ok(Response::new(buffer))
+    Ok(buffer)
 }
 
 /// Appends one entry record to the binary listing buffer.
@@ -293,6 +319,31 @@ mod tests {
         assert!(entries
             .iter()
             .any(|e| e.name == "archive.zip" && !e.is_directory));
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn symlinks_are_listed_as_what_they_point_at() {
+        let temp_dir = TempDir::new().unwrap();
+        let target_dir = temp_dir.path().join("real-folder");
+        fs::create_dir(&target_dir).unwrap();
+        let target_zip = temp_dir.path().join("real.zip");
+        fs::File::create(&target_zip).unwrap();
+        std::os::unix::fs::symlink(&target_dir, temp_dir.path().join("linked-folder")).unwrap();
+        std::os::unix::fs::symlink(&target_zip, temp_dir.path().join("linked.zip")).unwrap();
+
+        let result = get_entries_in_dir(temp_dir.path().to_string_lossy().as_ref())
+            .await
+            .unwrap();
+        let bytes = get_bytes_from_response(result);
+        let entries = parse_entries(&bytes);
+
+        assert!(entries
+            .iter()
+            .any(|e| e.name == "linked-folder" && e.is_directory));
+        assert!(entries
+            .iter()
+            .any(|e| e.name == "linked.zip" && !e.is_directory));
     }
 
     /// Builds a ZIP with the given entry names and one dummy byte each.

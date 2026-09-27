@@ -9,15 +9,27 @@ import {
 } from "../../../test/utils";
 import { openSettingsWindow } from "../../../utils/WindowOpener";
 import { setSettings } from "../../Settings/slice";
-import NavigationBar from "./NavigationBar";
+import { BookshelfActionsContext } from "./BookshelfActionsContext";
+import BookshelfToolbar from "./BookshelfToolbar";
 
 // Mock WindowOpener
 vi.mock("../../../utils/WindowOpener", () => ({
   openSettingsWindow: vi.fn(),
 }));
 
-describe("NavigationBar", () => {
+describe("BookshelfToolbar", () => {
   const user = userEvent.setup();
+  const mockActions = {
+    openDialog: vi.fn(),
+    openEditSeriesOrderDialog: vi.fn(),
+    getSelectedBooks: vi.fn(() => []),
+  };
+  // The toolbar opens grid-hosted dialogs through the actions context.
+  const navigationBar = (
+    <BookshelfActionsContext.Provider value={mockActions}>
+      <BookshelfToolbar />
+    </BookshelfActionsContext.Provider>
+  );
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -26,7 +38,7 @@ describe("NavigationBar", () => {
 
   // Verify that the search input field is displayed and state is updated based on input
   it("should render search input and handle text changes", async () => {
-    const { store } = renderWithProviders(<NavigationBar />);
+    const { store } = renderWithProviders(navigationBar);
 
     // Search by localized placeholder text
     const searchInput = screen.getByPlaceholderText(i18n.t("bookshelf.search-placeholder"));
@@ -41,7 +53,7 @@ describe("NavigationBar", () => {
     const preloadedState = createBasePreloadedState();
     preloadedState.bookCollection.searchText = "initial search";
 
-    renderWithProviders(<NavigationBar />, { preloadedState });
+    renderWithProviders(navigationBar, { preloadedState });
 
     const searchInput = screen.getByPlaceholderText(
       i18n.t("bookshelf.search-placeholder"),
@@ -49,9 +61,22 @@ describe("NavigationBar", () => {
     expect(searchInput.value).toBe("initial search");
   });
 
+  // The app suppresses the native context menu at `document`; the search field must stop the
+  // event before it gets there so the browser's edit menu can open.
+  it("should stop context menu propagation on the search input", () => {
+    renderWithProviders(navigationBar);
+
+    const event = new MouseEvent("contextmenu", { bubbles: true, cancelable: true });
+    const stopPropagationSpy = vi.spyOn(event, "stopPropagation");
+
+    screen.getByPlaceholderText(i18n.t("bookshelf.search-placeholder")).dispatchEvent(event);
+
+    expect(stopPropagationSpy).toHaveBeenCalled();
+  });
+
   // Verify that the sort order selection change is correctly reflected in the state
   it("should handle sort order change", async () => {
-    const { store } = renderWithProviders(<NavigationBar />);
+    const { store } = renderWithProviders(navigationBar);
 
     // Initially should be name_asc (default)
     expect(store.getState().settings.bookshelf.sortOrder).toBe("name_asc");
@@ -68,7 +93,7 @@ describe("NavigationBar", () => {
 
   // Verify that the settings window is opened when the settings button is clicked
   it("should open settings window when button is clicked", async () => {
-    renderWithProviders(<NavigationBar />);
+    renderWithProviders(navigationBar);
 
     const settingsButton = screen.getByRole("button", {
       name: /settings/i,
@@ -80,7 +105,7 @@ describe("NavigationBar", () => {
 
   // Verify that the book addition dialog is displayed when the add button is clicked
   it("should open add book dialog when add button is clicked", async () => {
-    renderWithProviders(<NavigationBar />);
+    renderWithProviders(navigationBar);
 
     const addButton = screen.getByText(i18n.t("bookshelf.add-books"));
     await user.click(addButton);
@@ -95,16 +120,41 @@ describe("NavigationBar", () => {
       series: [{ id: 1, name: "Selected Series", created_at: "2026-03-01T15:30:00" }],
       selectedId: 1,
       books: [],
-      isEditSeriesOrderDialogOpen: false,
-      editSeriesOrderTargetId: null,
       status: "idle",
       error: null,
     };
 
-    renderWithProviders(<NavigationBar />, { preloadedState });
+    renderWithProviders(navigationBar, { preloadedState });
 
     expect(screen.getByText(i18n.t("bookshelf.title"))).toBeInTheDocument();
     expect(screen.getByText("Selected Series")).toBeInTheDocument();
+  });
+
+  it("should render breadcrumbs in the row of the edit order button, below the search box", () => {
+    const preloadedState = createBasePreloadedState();
+    preloadedState.series = {
+      series: [{ id: 1, name: "Selected Series", created_at: "2026-03-01T15:30:00" }],
+      selectedId: 1,
+      books: [],
+      status: "idle",
+      error: null,
+    };
+
+    renderWithProviders(navigationBar, { preloadedState });
+
+    const breadcrumbRow = screen
+      .getByRole("navigation", { name: "breadcrumb" })
+      .closest(".MuiToolbar-root");
+    const editOrderRow = screen
+      .getByRole("button", { name: i18n.t("bookshelf.series.edit-order.title") })
+      .closest(".MuiToolbar-root");
+    const searchRow = screen
+      .getByPlaceholderText(i18n.t("bookshelf.search-placeholder"))
+      .closest(".MuiToolbar-root");
+
+    expect(breadcrumbRow).not.toBeNull();
+    expect(breadcrumbRow).toBe(editOrderRow);
+    expect(breadcrumbRow).not.toBe(searchRow);
   });
 
   it("should clear selected series when 'Bookshelf' link is clicked", async () => {
@@ -113,13 +163,11 @@ describe("NavigationBar", () => {
       series: [{ id: 1, name: "Selected Series", created_at: "2026-03-01T15:30:00" }],
       selectedId: 1,
       books: [],
-      isEditSeriesOrderDialogOpen: false,
-      editSeriesOrderTargetId: null,
       status: "idle",
       error: null,
     };
 
-    const { store } = renderWithProviders(<NavigationBar />, { preloadedState });
+    const { store } = renderWithProviders(navigationBar, { preloadedState });
 
     const bookshelfLink = screen.getByText(i18n.t("bookshelf.title"));
     await user.click(bookshelfLink);
@@ -133,13 +181,11 @@ describe("NavigationBar", () => {
       series: [{ id: 1, name: "Selected Series", created_at: "2026-03-01T15:30:00" }],
       selectedId: 1,
       books: [],
-      isEditSeriesOrderDialogOpen: false,
-      editSeriesOrderTargetId: null,
       status: "idle",
       error: null,
     };
 
-    renderWithProviders(<NavigationBar />, { preloadedState });
+    renderWithProviders(navigationBar, { preloadedState });
 
     expect(screen.queryByText(i18n.t("bookshelf.sort.title"))).not.toBeInTheDocument();
     expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
@@ -152,31 +198,28 @@ describe("NavigationBar", () => {
       series: [{ id: 1, name: "Selected Series", created_at: "2026-03-01T15:30:00" }],
       selectedId: 1,
       books: [],
-      isEditSeriesOrderDialogOpen: false,
-      editSeriesOrderTargetId: null,
       status: "idle",
       error: null,
     };
 
-    const { store } = renderWithProviders(<NavigationBar />, { preloadedState });
+    renderWithProviders(navigationBar, { preloadedState });
 
     const editOrderButton = screen.getByText(i18n.t("bookshelf.series.edit-order.title"));
     await user.click(editOrderButton);
 
-    expect(store.getState().series.isEditSeriesOrderDialogOpen).toBe(true);
-    expect(store.getState().series.editSeriesOrderTargetId).toBe(1);
+    expect(mockActions.openEditSeriesOrderDialog).toHaveBeenCalledWith(1);
   });
   it("should reflect the stored sort order rather than only its initial value", () => {
     const preloadedState = createBasePreloadedState();
     preloadedState.settings.bookshelf.sortOrder = "date_desc";
 
-    renderWithProviders(<NavigationBar />, { preloadedState });
+    renderWithProviders(navigationBar, { preloadedState });
 
     expect(screen.getByRole("combobox")).toHaveTextContent(i18n.t("bookshelf.sort.date-desc"));
   });
 
   it("should follow the store when the sort order changes elsewhere", async () => {
-    const { store } = renderWithProviders(<NavigationBar />, {
+    const { store } = renderWithProviders(navigationBar, {
       preloadedState: createBasePreloadedState(),
     });
     expect(screen.getByRole("combobox")).toHaveTextContent(i18n.t("bookshelf.sort.name-asc"));

@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { createMockBookWithState, createMockSeries } from "../../../test/factories";
-import type { GridItem } from "../components/BookGridCell";
-import { andSearch, sortBy, sortByGridItem, sortBySeriesOrder } from "./BookshelfUtils";
+import {
+  andSearch,
+  buildGridItems,
+  type GridItem,
+  type GridItemsParams,
+  sortBy,
+  sortByGridItem,
+  sortBySeriesOrder,
+} from "./BookshelfUtils";
 
 describe("BookshelfUtils", () => {
   const mockBooks = [
@@ -172,6 +179,96 @@ describe("BookshelfUtils", () => {
         expect(sortByGridItem(gridSeries1, gridSeries3, "date_asc")).toBeLessThan(0); // 1 - 3
         expect(sortByGridItem(gridSeries1, gridSeries3, "date_desc")).toBeGreaterThan(0); // 3 - 1
       });
+    });
+  });
+
+  describe("buildGridItems", () => {
+    const seriesA = createMockSeries({ id: 10, name: "Series A", created_at: "2023-01-01" });
+    const vol2 = createMockBookWithState({
+      id: 1,
+      display_name: "Vol 2",
+      series_id: 10,
+      series_order: 2,
+      tag_ids: [1],
+    });
+    const vol1 = createMockBookWithState({
+      id: 2,
+      display_name: "Vol 1",
+      series_id: 10,
+      series_order: 1,
+      tag_ids: [],
+    });
+    const orphan = createMockBookWithState({
+      id: 3,
+      display_name: "Orphan",
+      series_id: 99,
+      tag_ids: [],
+    });
+    const standalone = createMockBookWithState({
+      id: 4,
+      display_name: "Standalone",
+      series_id: null,
+      tag_ids: [1],
+    });
+
+    const params: GridItemsParams = {
+      books: [vol2, orphan, standalone, vol1],
+      allSeries: [seriesA],
+      tagId: null,
+      selectedSeriesId: null,
+      searchText: "",
+      sortOrder: "name_asc",
+    };
+
+    const names = (items: GridItem[]) =>
+      items.map((item) => (item.type === "series" ? item.data.name : item.data.display_name));
+
+    it("groups books by series and lists them with the standalone books, sorted", () => {
+      const items = buildGridItems(params);
+
+      expect(names(items)).toEqual(["Orphan", "Series A", "Standalone"]);
+      const series = items.find((item) => item.type === "series");
+      expect(series?.type === "series" && series.books).toEqual([vol2, vol1]);
+    });
+
+    it("shows a book as standalone when its series is unknown", () => {
+      const items = buildGridItems(params);
+      expect(
+        items.find((item) => item.type === "book" && item.data.id === orphan.id),
+      ).toBeDefined();
+    });
+
+    it("lists only the selected series' books in series order when drilling down", () => {
+      const items = buildGridItems({ ...params, selectedSeriesId: 10 });
+      expect(names(items)).toEqual(["Vol 1", "Vol 2"]);
+      expect(items.every((item) => item.type === "book")).toBe(true);
+    });
+
+    it("filters by tag before grouping", () => {
+      const items = buildGridItems({ ...params, tagId: 1 });
+
+      // Vol 1 has no tag, so the series only carries Vol 2.
+      expect(names(items)).toEqual(["Series A", "Standalone"]);
+      const series = items.find((item) => item.type === "series");
+      expect(series?.type === "series" && series.books).toEqual([vol2]);
+    });
+
+    it("searches series by name rather than by volume name", () => {
+      expect(names(buildGridItems({ ...params, searchText: "series" }))).toEqual(["Series A"]);
+      expect(names(buildGridItems({ ...params, searchText: "vol" }))).toEqual([]);
+    });
+
+    it("searches volumes by name when drilling down", () => {
+      const items = buildGridItems({ ...params, selectedSeriesId: 10, searchText: "vol 2" });
+      expect(names(items)).toEqual(["Vol 2"]);
+    });
+
+    it("honours the sort order", () => {
+      expect(names(buildGridItems({ ...params, sortOrder: "name_desc" }))).toEqual([
+        "Standalone",
+        "Series A",
+        "Orphan",
+      ]);
     });
   });
 });

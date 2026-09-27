@@ -39,7 +39,7 @@ describe("EditSeriesOrderDialog", () => {
       createMockBookWithState({ id: 2, display_name: "Book 2", thumbnail_path: null }),
     ];
     renderWithProviders(
-      <EditSeriesOrderDialog openDialog={true} books={booksWithDetails} onClose={vi.fn()} />,
+      <EditSeriesOrderDialog open={true} books={booksWithDetails} onClose={vi.fn()} />,
     );
 
     expect(screen.getByText("Edit Series Order")).toBeInTheDocument();
@@ -62,16 +62,14 @@ describe("EditSeriesOrderDialog", () => {
   });
 
   it("should not render when closed", () => {
-    renderWithProviders(
-      <EditSeriesOrderDialog openDialog={false} books={mockBooks} onClose={vi.fn()} />,
-    );
+    renderWithProviders(<EditSeriesOrderDialog open={false} books={mockBooks} onClose={vi.fn()} />);
     expect(screen.queryByText("Edit Series Order")).not.toBeInTheDocument();
   });
 
   it("should call onClose when cancel button is clicked", async () => {
     const handleClose = vi.fn();
     renderWithProviders(
-      <EditSeriesOrderDialog openDialog={true} books={mockBooks} onClose={handleClose} />,
+      <EditSeriesOrderDialog open={true} books={mockBooks} onClose={handleClose} />,
     );
 
     const cancelButton = screen.getByRole("button", { name: "Cancel" });
@@ -82,7 +80,7 @@ describe("EditSeriesOrderDialog", () => {
   it("should dispatch updateSeriesOrdersThunk with correct IDs when save is clicked", async () => {
     const handleClose = vi.fn();
     renderWithProviders(
-      <EditSeriesOrderDialog openDialog={true} books={mockBooks} onClose={handleClose} />,
+      <EditSeriesOrderDialog open={true} books={mockBooks} onClose={handleClose} />,
     );
 
     const okButton = screen.getByRole("button", { name: "OK" });

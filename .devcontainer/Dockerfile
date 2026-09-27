@@ -25,7 +25,12 @@ RUN apt-get update && apt-get install -y \
     language-pack-ja \
     locales \
     patchelf \
-    xvfb
+    xvfb \
+    nasm \
+    zip \
+    unzip \
+    pkg-config \
+    python3
 
 # Generate Japanse locale.
 RUN locale-gen ja_JP.UTF-8
@@ -35,6 +40,11 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     apt-get install -y nodejs
 
 USER vscode
+
+# vcpkg builds the static libdav1d the `image` crate links for AVIF pages (see CONTRIBUTING.md).
+RUN git clone --depth 1 https://github.com/microsoft/vcpkg "$HOME/vcpkg" && \
+    "$HOME/vcpkg/bootstrap-vcpkg.sh" -disableMetrics
+ENV PATH="/home/vscode/vcpkg:${PATH}"
 
 # Setup Japanse ennvironment.
 RUN echo "export LANG=ja_JP.UTF-8" >> ~/.bashrc &&\

@@ -44,7 +44,17 @@ jobs:
         if: matrix.platform == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf xvfb
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf xvfb nasm
+
+      - name: Cache vcpkg binaries
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.os == 'Windows' && '~\AppData\Local\vcpkg\archives' || '~/.cache/vcpkg/archives' }}
+          key: vcpkg-${{ runner.os }}-${{ hashFiles('src-tauri/vcpkg.json', 'src-tauri/triplets/**') }}
+
+      - name: Build libdav1d with vcpkg
+        working-directory: src-tauri
+        run: vcpkg install --triplet rookreader-static
 
       - name: Install frontend dependencies
         run: npm ci
@@ -85,3 +95,38 @@ jobs:
           releaseBody: ${{ steps.generate-release-body.outputs.RELEASE_BODY }}
           releaseDraft: true
           prerelease: false
+
+  sync-wiki:
+    needs: publish-release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout application repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Checkout wiki repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ github.repository }}.wiki
+          path: wiki
+          # The token is needed for the push below; GITHUB_TOKEN may write the wiki of this repository.
+          persist-credentials: true
+
+      - name: Copy docs/wiki into the wiki checkout
+        run: rsync -a --delete --exclude .git docs/wiki/ wiki/
+
+      - name: Commit and push
+        working-directory: wiki
+        run: |
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Wiki already up to date."
+            exit 0
+          fi
+          git -c user.name=github-actions[bot] \
+              -c user.email=41898282+github-actions[bot]@users.noreply.github.com \
+              commit -m "docs(wiki): sync from ${GITHUB_SHA}"
+          git push

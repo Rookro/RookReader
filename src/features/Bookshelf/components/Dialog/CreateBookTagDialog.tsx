@@ -21,7 +21,7 @@ import { getReadableTextColor } from "../../../../utils/ColorUtils";
 /** Props for the CreateTagDialog component */
 export interface CreateTagDialogProps {
   /** Whether the dialog is open or closed. */
-  openDialog: boolean;
+  open: boolean;
   /** Callback to create a book tag. */
   onCreate: (name: string, color_code: string) => void;
   /** Callback to close the dialog. */
@@ -29,7 +29,7 @@ export interface CreateTagDialogProps {
 }
 
 /** Dialog for creating a book tag */
-export default function CreateTagDialog({ openDialog, onCreate, onClose }: CreateTagDialogProps) {
+export default function CreateTagDialog({ open, onCreate, onClose }: CreateTagDialogProps) {
   const { t } = useTranslation();
   const [tagName, setTagName] = useState("");
   const [selectedColorIndex, setSelectedColorIndex] = useState(0);
@@ -50,7 +50,7 @@ export default function CreateTagDialog({ openDialog, onCreate, onClose }: Creat
   const isCreateEnabled = tagName.trim().length > 0;
 
   return (
-    <Dialog open={openDialog} onClose={handleClose}>
+    <Dialog open={open} onClose={handleClose}>
       <DialogTitle>{t("bookshelf.tag.creation.title")}</DialogTitle>
       <Tooltip title={t("common.close")}>
         <IconButton

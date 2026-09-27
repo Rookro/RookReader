@@ -23,11 +23,11 @@ mod perfbench;
 
 /// Builds the `tauri-specta` command registry used to export the TypeScript bindings.
 ///
-/// This intentionally excludes the three binary commands (`get_image`,
-/// `get_image_preview`, `get_entries_in_dir`) that return a raw
+/// This intentionally excludes the four binary commands (`get_image`,
+/// `get_image_full`, `get_image_preview`, `get_entries_in_dir`) that return a raw
 /// `tauri::ipc::Response`: that type has no `specta::Type`, and the frontend keeps
 /// hand-written wrappers for them. At runtime [`run`] serves every command listed
-/// here through this builder's invoke handler and routes only those three binary
+/// here through this builder's invoke handler and routes only those four binary
 /// commands to a small separate `tauri::generate_handler!`.
 ///
 /// # Returns
@@ -36,11 +36,12 @@ mod perfbench;
 pub fn specta_builder() -> Builder<tauri::Wry> {
     Builder::<tauri::Wry>::new().commands(collect_commands![
         commands::settings_commands::get_settings,
-        commands::settings_commands::set_settings,
+        commands::settings_commands::set_settings::<tauri::Wry>,
         commands::container_commands::request_preload_around,
         commands::container_commands::get_entries_in_container,
         commands::container_commands::count_pages_in_container,
         commands::container_commands::get_image_dimensions,
+        commands::container_commands::set_display_size,
         commands::font_commands::get_fonts,
         commands::book_commands::get_book_tags,
         commands::book_commands::update_book_tags::<tauri::Wry>,
@@ -113,14 +114,20 @@ pub fn run() {
     // hand-written handler and are routed to it by command name; everything else
     // falls through to the generated handler above. Keep this list in sync with the
     // `generate_handler!` invocation below — both are the single, small binary set.
-    const BINARY_COMMANDS: [&str; 3] = ["get_image", "get_image_preview", "get_entries_in_dir"];
+    const BINARY_COMMANDS: [&str; 4] = [
+        "get_image",
+        "get_image_full",
+        "get_image_preview",
+        "get_entries_in_dir",
+    ];
     let binary_handler = tauri::generate_handler![
         commands::container_commands::get_image,
+        commands::container_commands::get_image_full,
         commands::container_commands::get_image_preview,
         commands::directory_commands::get_entries_in_dir,
     ] as fn(tauri::ipc::Invoke<tauri::Wry>) -> bool;
 
-    let result = tauri::Builder::default()
+    let app = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(
             tauri_plugin_window_state::Builder::new()
@@ -152,10 +159,14 @@ pub fn run() {
                 specta_handler(invoke)
             }
         })
-        .run(tauri::generate_context!());
+        .build(tauri::generate_context!());
 
-    match result {
-        Ok(()) => {}
+    match app {
+        Ok(app) => app.run(|app_handle, event| {
+            if let tauri::RunEvent::Exit = event {
+                setup::teardown(app_handle);
+            }
+        }),
         Err(e) => log::error!(
             "Error has occurred while running tauri application. Error: {}",
             e
@@ -265,6 +276,9 @@ mod error_codes_export {
             "pathNotFound: 20102",
             "pdfUnavailable: 10102",
             "bookChanged: 60001",
+            "bookClosed: 60002",
+            "zipBomb: 10402",
+            "pageTooLarge: 10004",
             "epubArchive: 10502",
             "rayonThreadPool: 30201",
             "settingsValidation: 50002",
@@ -281,7 +295,7 @@ mod error_codes_export {
 
 #[cfg(test)]
 mod tests {
-    use crate::domain::book::entity::{Book, BookWithState};
+    use crate::domain::book::entity::{Book, BookWithState, ItemType};
     use crate::domain::series::entity::Series;
     use crate::domain::tag::entity::Tag;
     use crate::settings::AppSettings;
@@ -308,7 +322,7 @@ mod tests {
         let book = Book {
             id: 1,
             file_path: "p".into(),
-            item_type: "file".into(),
+            item_type: ItemType::File,
             display_name: "n".into(),
             total_pages: 3,
             series_id: None,
@@ -322,11 +336,11 @@ mod tests {
     }
 
     #[test]
-    fn book_with_state_omits_skipped_field_and_round_trips() {
+    fn book_with_state_round_trips() {
         let book = BookWithState {
             id: 1,
             file_path: "p".into(),
-            item_type: "file".into(),
+            item_type: ItemType::File,
             display_name: "n".into(),
             total_pages: 3,
             series_id: None,
@@ -339,12 +353,9 @@ mod tests {
             last_read_page_index: Some(2),
             last_opened_at: None,
             cfi: None,
-            tag_ids_str: Some("1,2".into()),
             tag_ids: vec![1, 2],
         };
         let value = serde_json::to_value(&book).unwrap();
-        // `tag_ids_str` is `#[serde(skip)]` and must not appear on the wire.
-        assert!(value.get("tag_ids_str").is_none());
         assert!(value.get("tag_ids").is_some());
         let back: BookWithState = serde_json::from_value(value.clone()).unwrap();
         assert_eq!(serde_json::to_value(&back).unwrap(), value);

@@ -10,6 +10,11 @@ fn main() {
         std::process::exit(1);
     }
 
+    if let Err(e) = copy_dav1d_license() {
+        eprintln!("Failed to copy the dav1d license: {}", e);
+        std::process::exit(1);
+    }
+
     if let Err(e) = tauri_build::try_build(
         tauri_build::Attributes::new()
             .windows_attributes(WindowsAttributes::new_without_app_manifest()),
@@ -55,6 +60,39 @@ fn embed_manifest_for_tests() {
     );
     // Turn linker warnings into errors.
     println!("cargo:rustc-link-arg=/WX");
+}
+
+/// Copies the copyright file of the vcpkg-built libdav1d next to the PDFium licenses, so
+/// the bundle can pick it up like theirs (see `bundle.resources` in `tauri.conf.json`).
+///
+/// dav1d is linked statically, so its BSD-2-Clause notice must ship with the binary. The
+/// file is vcpkg's, written by `vcpkg install --triplet rookreader-static`, rather than a
+/// copy kept in the repository, so it always matches the dav1d that was actually built.
+fn copy_dav1d_license() -> Result<(), Box<dyn std::error::Error>> {
+    let manifest_dir = Path::new(&env::var("CARGO_MANIFEST_DIR")?).to_path_buf();
+    let source = manifest_dir
+        .join("vcpkg_installed")
+        .join("rookreader-static")
+        .join("share")
+        .join("dav1d")
+        .join("copyright");
+    let out_dir = manifest_dir
+        .join("target")
+        .join("dependencies")
+        .join("dav1d");
+
+    println!("cargo:rerun-if-changed={}", source.display());
+    if !source.exists() {
+        return Err(format!(
+            "{} not found; run `vcpkg install --triplet rookreader-static` in src-tauri (see CONTRIBUTING.md)",
+            source.display()
+        )
+        .into());
+    }
+
+    std::fs::create_dir_all(&out_dir)?;
+    std::fs::copy(&source, out_dir.join("copyright"))?;
+    Ok(())
 }
 
 // The PDFium version.

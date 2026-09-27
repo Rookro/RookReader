@@ -10,6 +10,7 @@
 //! only live together as locals of one function. Here they are exactly that.
 
 use std::{
+    collections::HashMap,
     sync::{mpsc, Arc, Mutex, OnceLock},
     thread,
 };
@@ -20,8 +21,7 @@ use pdfium_render::prelude::{PdfDocument, PdfRenderConfig, Pdfium};
 use crate::{
     error::{Error, Result},
     image::{
-        resizer::{shrink_to_fit, ResizeFilter},
-        thumbnail::THUMBNAIL_SIZE,
+        thumbnail::{encode_thumbnail, ThumbnailSpec},
         types::{Image, ImageDimensions},
     },
     perf,
@@ -72,11 +72,17 @@ enum Request {
         path: String,
         index: u16,
         config: Arc<PdfRenderConfig>,
+        spec: ThumbnailSpec,
         reply: mpsc::Sender<Result<Image>>,
     },
-    /// Closes a document the caller has finished with. Without it the worker holds a
-    /// closed book's parsed structures and its file handle until two *other* PDFs displace
-    /// it, so a reader who opens one large PDF and moves on keeps paying for it.
+    /// Counts one more container over the document, so a `Release` from another
+    /// container of the same path — a page count of the book being read — does not
+    /// close it.
+    Retain { path: String },
+    /// Drops one holder of a document, and closes it with the last. Without it the worker
+    /// holds a closed book's parsed structures and its file handle until two *other*
+    /// PDFs displace it, so a reader who opens one large PDF and moves on keeps paying
+    /// for it.
     Release { path: String },
     /// Reports which documents are currently open, so a test can observe a release.
     #[cfg(test)]
@@ -129,19 +135,34 @@ impl Worker {
         })
     }
 
-    /// Renders one page at thumbnail size, or returns the thumbnail the document carries.
+    /// Renders one page at `spec`'s size, or returns the thumbnail the document carries,
+    /// shrunk and encoded to `spec`.
     pub(crate) fn render_thumbnail(
         &self,
         path: &str,
         index: u16,
         config: Arc<PdfRenderConfig>,
+        spec: ThumbnailSpec,
     ) -> Result<Image> {
         self.ask(|reply| Request::Preview {
             path: path.to_string(),
             index,
             config,
+            spec,
             reply,
         })
+    }
+
+    /// Tells the worker one more container needs this document.
+    ///
+    /// Best-effort, like [`Worker::release`]: a failed send means the worker is gone and
+    /// the next request reports that.
+    pub(crate) fn retain(&self, path: &str) {
+        if let Ok(tx) = self.tx.lock() {
+            let _ = tx.send(Request::Retain {
+                path: path.to_string(),
+            });
+        }
     }
 
     /// Tells the worker nothing needs this document any more.
@@ -195,11 +216,22 @@ fn run(rx: mpsc::Receiver<Request>, library_path: Option<String>) {
 
     // Declared after `pdfium` so it is dropped before it: every document borrows it.
     let mut docs: Vec<(String, PdfDocument<'_>)> = Vec::new();
+    // How many containers hold each path open; a document closes with its last one.
+    let mut holders: HashMap<String, usize> = HashMap::new();
 
     while let Ok(request) = rx.recv() {
         match request {
+            Request::Retain { path } => {
+                *holders.entry(path).or_insert(0) += 1;
+            }
             Request::Release { path } => {
-                docs.retain(|(open, _)| open != &path);
+                let remaining = holders.get(&path).map_or(0, |n| n.saturating_sub(1));
+                if remaining == 0 {
+                    holders.remove(&path);
+                    docs.retain(|(open, _)| open != &path);
+                } else {
+                    holders.insert(path, remaining);
+                }
             }
             #[cfg(test)]
             Request::OpenDocuments { reply } => {
@@ -253,10 +285,11 @@ fn run(rx: mpsc::Receiver<Request>, library_path: Option<String>) {
                 path,
                 index,
                 config,
+                spec,
                 reply,
             } => {
                 let result = document(&pdfium, &mut docs, &path)
-                    .and_then(|doc| render_thumbnail(doc, &config, index));
+                    .and_then(|doc| render_thumbnail(doc, &config, index, &spec));
                 let _ = reply.send(result);
             }
         }
@@ -321,7 +354,7 @@ fn page_size(pdf: &PdfDocument, index: u16) -> Result<ImageDimensions> {
     })
 }
 
-/// Renders a PDF page to a thumbnail-sized JPEG.
+/// Renders a PDF page to a JPEG thumbnail shaped by `spec`.
 ///
 /// PDF is the one format where this is *cheaper* than reading the page: pdfium renders
 /// straight to the smaller size, or hands back a thumbnail the document already carries,
@@ -330,26 +363,24 @@ fn render_thumbnail(
     pdf: &PdfDocument,
     render_config: &PdfRenderConfig,
     index: u16,
+    spec: &ThumbnailSpec,
 ) -> Result<Image> {
     let page = pdf.pages().get(index.into()).map_err(Error::from)?;
-    let img = match page.embedded_thumbnail() {
-        Ok(thumbnail) => thumbnail.as_image(),
-        Err(_) => page.render_with_config(render_config)?.as_image(),
-    }?;
-    // Cap both dimensions to the thumbnail contract: embedded thumbnails have no
+    // An embedded thumbnail smaller than the spec asks for would be upscaled on screen,
+    // so the page is rendered instead.
+    let embedded = page
+        .embedded_thumbnail()
+        .and_then(|thumbnail| thumbnail.as_image())
+        .ok()
+        .filter(|img| img.width().max(img.height()) >= spec.min_embedded_size);
+    let img = match embedded {
+        Some(img) => img,
+        None => page.render_with_config(render_config)?.as_image()?,
+    };
+    // Cap both dimensions to the spec: embedded thumbnails have no
     // spec-mandated size, and the render config constrains height only (a landscape
     // page still exceeds the width cap). Other containers already uphold this.
-    let img = shrink_to_fit(&img, THUMBNAIL_SIZE, THUMBNAIL_SIZE, ResizeFilter::Bilinear)?;
-
-    let mut buffer = Vec::new();
-    // Use a lower quality for thumbnails to make them smaller and faster to encode.
-    JpegEncoder::new_with_quality(&mut buffer, 10).encode_image(&img)?;
-
-    Ok(Image {
-        data: buffer,
-        width: img.width(),
-        height: img.height(),
-    })
+    encode_thumbnail(&img, spec)
 }
 
 /// Binds the `pdfium` library. The only call site is [`run`], on the worker thread.

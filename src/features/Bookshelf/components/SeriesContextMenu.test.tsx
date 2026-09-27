@@ -14,6 +14,8 @@ describe("SeriesContextMenu", () => {
 
   const mockActions = {
     openDialog: vi.fn(),
+    openEditSeriesOrderDialog: vi.fn(),
+    getSelectedBooks: vi.fn(() => []),
   };
 
   const defaultProps: SeriesContextMenuProps = {
@@ -41,14 +43,12 @@ describe("SeriesContextMenu", () => {
     expect(screen.getByText(/Edit Series Order/i)).toBeInTheDocument();
   });
 
-  it("should call setEditSeriesOrderDialogState and onClose when Edit Order is clicked", async () => {
-    const { store } = renderSeriesContextMenu();
+  it("should open the edit-order dialog for this series and close when Edit Order is clicked", async () => {
+    renderSeriesContextMenu();
 
     await user.click(screen.getByText(/Edit Series Order/i));
 
-    const state = store.getState().series;
-    expect(state.isEditSeriesOrderDialogOpen).toBe(true);
-    expect(state.editSeriesOrderTargetId).toBe(mockSeries.id);
+    expect(mockActions.openEditSeriesOrderDialog).toHaveBeenCalledWith(mockSeries.id);
     expect(defaultProps.onClose).toHaveBeenCalled();
   });
 
@@ -81,10 +81,10 @@ describe("SeriesContextMenu", () => {
     expect(screen.queryByText(/Ungroup Series/i)).not.toBeInTheDocument();
   });
 
-  it("should handle deleteSeries error", async () => {
+  it("should record a deleteSeries failure in the series slice", async () => {
     vi.mocked(SeriesCommand.deleteSeries).mockRejectedValue(new Error("Delete failed"));
 
-    renderSeriesContextMenu();
+    const { store } = renderSeriesContextMenu();
 
     await user.click(screen.getByText(/Ungroup Series/i));
     await user.click(screen.getByRole("button", { name: /Ungroup series/i }));
@@ -93,6 +93,7 @@ describe("SeriesContextMenu", () => {
     await waitFor(() =>
       expect(error).toHaveBeenCalledWith(expect.stringContaining("Failed to remove series")),
     );
+    expect(store.getState().series.error).not.toBeNull();
   });
 
   it("should prevent default and stop propagation on context menu event", async () => {

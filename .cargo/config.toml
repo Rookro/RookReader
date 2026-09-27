@@ -2,3 +2,11 @@
 # workaround needed to prevent `STATUS_ENTRYPOINT_NOT_FOUND` error in tests
 # see https://github.com/tauri-apps/tauri/pull/4383#issuecomment-1212221864
 __TAURI_WORKSPACE__ = "true"
+
+# libdav1d, which the `image` crate's `avif-native` feature links for AVIF pages. dav1d-sys is
+# told where the static library is instead of asking pkg-config: the one `vcpkg install`
+# (see CONTRIBUTING.md) puts at this path on both Windows (dav1d.lib) and Linux (libdav1d.a).
+SYSTEM_DEPS_DAV1D_NO_PKG_CONFIG = "1"
+SYSTEM_DEPS_DAV1D_LIB = "dav1d"
+SYSTEM_DEPS_DAV1D_LINK = "static"
+SYSTEM_DEPS_DAV1D_SEARCH_NATIVE = { value = "src-tauri/vcpkg_installed/rookreader-static/lib", relative = true }

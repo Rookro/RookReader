@@ -7,6 +7,13 @@ import { type ReactNode, type RefObject, useEffect, useState } from "react";
 export interface LoupeProps {
   /** The content to be magnified. Typically the images or text being viewed. */
   children: ReactNode;
+  /**
+   * What the lens shows, when it is not simply `children` magnified.
+   *
+   * The reader draws its pages at the size they are displayed at, so scaling those under
+   * the lens would add no detail. This is where the same pages go at their full size.
+   */
+  magnified?: ReactNode;
   /** Whether the loupe magnifier is currently active and visible. */
   isLoupeEnabled: boolean;
   /** The current position of the loupe relative to the container. */
@@ -27,6 +34,7 @@ export interface LoupeProps {
  */
 export default function Loupe({
   children,
+  magnified,
   isLoupeEnabled,
   loupePos,
   containerRef,
@@ -105,7 +113,7 @@ export default function Loupe({
             transform: `scale(${zoom})`,
           }}
         >
-          {children}
+          {magnified ?? children}
         </Box>
       </Box>
     </Box>

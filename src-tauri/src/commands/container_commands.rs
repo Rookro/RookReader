@@ -1,4 +1,4 @@
-use tokio::sync::{Mutex, RwLock};
+use tokio::sync::RwLock;
 
 use serde::{Deserialize, Serialize};
 use tauri::ipc::Response;
@@ -6,19 +6,12 @@ use tauri::ipc::Response;
 use crate::{
     container::factory::create_container,
     error::{Error, Result},
-    image::types::ImageDimensions,
-    page::service::Priority,
+    image::types::{Image, ImageDimensions},
+    page::{pipeline::Fit, service::Priority},
     perf,
     perf::Span,
     state::{app_state::AppState, container_state::ContainerState},
 };
-
-/// Serializes container opens so the most recently started one is left installed.
-///
-/// The heavy build still runs without holding the state write lock (so image fetches
-/// aren't blocked); this only orders the opens themselves, preventing a slower earlier
-/// open from installing after a newer one.
-static OPEN_CONTAINER_LOCK: Mutex<()> = Mutex::const_new(());
 
 /// The error every command raises when the book it names is not the book that is open.
 ///
@@ -29,6 +22,25 @@ fn stale(path: &str, what: &str) -> Error {
     Error::BookChanged(format!(
         "Container changed while requesting {what} (requested {path})"
     ))
+}
+
+/// Frames a page for the binary IPC response the reader decodes.
+///
+/// The layout is `[width (4 bytes, big-endian)][height (4 bytes, big-endian)][image bytes]`.
+///
+/// # Arguments
+///
+/// * `image` - The page to send.
+///
+/// # Returns
+///
+/// The framed response.
+fn image_response(image: &Image) -> Response {
+    let mut body = Vec::with_capacity(8 + image.data.len());
+    body.extend_from_slice(&image.width.to_be_bytes());
+    body.extend_from_slice(&image.height.to_be_bytes());
+    body.extend_from_slice(&image.data);
+    Response::new(body)
 }
 
 /// The result of getting entries in a container.
@@ -122,24 +134,24 @@ pub async fn get_entries_in_container(
 ) -> Result<EntriesResult> {
     log::debug!("Get the entries in {}", path);
 
-    // Serialize opens so a slower earlier open can't install after a newer one and
-    // leave the wrong book's images loaded.
     let span = Span::start();
-    let _open_guard = OPEN_CONTAINER_LOCK.lock().await;
+    let open_lock = state.read().await.container_state.open_lock.clone();
+    let _open_guard = open_lock.lock().await;
 
     // Snapshot the (cheap-to-clone) settings and cache handle under a brief read lock,
     // then run the heavy build on a blocking thread so it never stalls the async runtime
     // (image fetches, IPC) while opening a large book on slow storage.
-    let (settings, image_cache) = {
+    let (settings, image_cache, display_size) = {
         let state_lock = state.read().await;
         (
             state_lock.container_state.settings.clone(),
             state_lock.container_state.image_cache.clone(),
+            state_lock.container_state.display_size,
         )
     };
     let path_owned = path.to_string();
     let built = tauri::async_runtime::spawn_blocking(move || {
-        ContainerState::build_with(&settings, &image_cache, &path_owned)
+        ContainerState::build_with(&settings, &image_cache, display_size, &path_owned)
     })
     .await
     .map_err(|e| Error::Other(format!("Spawn blocking failed: {e}")))
@@ -241,6 +253,46 @@ pub async fn request_preload_around(
     Ok(())
 }
 
+/// Reports the size of the reader's viewport, in device pixels.
+///
+/// Pages are rendered to fit it so the viewer can draw them without scaling: the
+/// browser's own downscale is a 2x2 bilinear tap below a 2x reduction, which is what
+/// puts moiré on a screentoned page.
+///
+/// Recorded whether or not a book is open, because the size belongs to the window: the
+/// next book has to open at the size the reader is already reading at.
+///
+/// # Arguments
+///
+/// * `width` - The viewport width in device pixels. `0` means "not measured yet".
+/// * `height` - The viewport height in device pixels.
+/// * `state` - A `tauri::State` holding the application's global `AppState`.
+///
+/// # Returns
+///
+/// `Ok(())` once the size is recorded.
+///
+/// # Errors
+///
+/// Never returns an `Err`; the `Result` keeps the command's shape with its neighbours.
+#[tauri::command()]
+#[specta::specta]
+pub async fn set_display_size(
+    width: u32,
+    height: u32,
+    state: tauri::State<'_, RwLock<AppState>>,
+) -> Result<()> {
+    log::debug!("The reader draws a page at {}x{} device px", width, height);
+
+    let size = (width > 0 && height > 0).then_some(Fit { width, height });
+    let mut state_lock = state.write().await;
+    state_lock.container_state.display_size = size;
+    if let Some(service) = state_lock.container_state.current_service() {
+        service.set_display_size(size);
+    }
+    Ok(())
+}
+
 /// Retrieves the pixel dimensions of every entry in the currently open container.
 ///
 /// The viewer needs the orientation of every page to decide where two-page spreads
@@ -323,15 +375,52 @@ pub async fn get_image(
     }
     .ok_or_else(|| stale(path, entry_name))?;
 
-    let entry = entry_name.to_string();
     // Foreground: this page is what the reader is waiting to see, so it outranks every
     // queued preload and scan job and waits only on the page each worker is already on.
-    let image =
-        tauri::async_runtime::spawn_blocking(move || service.page(&entry, Priority::Foreground))
-            .await
-            .map_err(|e| Error::Other(format!("Spawn blocking failed: {e}")))??;
+    let image = service.page(entry_name, Priority::Foreground).await?;
 
-    Ok(image.to_ipc_response())
+    Ok(image_response(&image))
+}
+
+/// Retrieves an image from the currently open container at its full size.
+///
+/// What the loupe shows. A page fitted to the viewport is exactly the wrong one there:
+/// the loupe draws it magnified, so what it would show is an upscale of what is already
+/// on screen.
+///
+/// # Arguments
+///
+/// * `path` - The path of the container the caller believes is open.
+/// * `entry_name` - The name of the image entry to retrieve (e.g., "image1.png").
+/// * `state` - A `tauri::State` holding the application's global `AppState`.
+///
+/// # Returns
+///
+/// A `Result` which is `Ok` with a `tauri::ipc::Response`, in the same binary format
+/// [`get_image`] answers with: `[Width (4 bytes)][Height (4 bytes)][Image Data...]`.
+///
+/// # Errors
+///
+/// This function will return an `Err` if:
+/// * The book it names is not the book that is open.
+/// * The requested image entry cannot be found or decoded.
+#[tauri::command]
+pub async fn get_image_full(
+    path: &str,
+    entry_name: &str,
+    state: tauri::State<'_, RwLock<AppState>>,
+) -> Result<Response> {
+    log::debug!("Get the full-size binary of {} in {}", entry_name, path);
+
+    let service = {
+        let state_lock = state.read().await;
+        state_lock.container_state.service_for(path)
+    }
+    .ok_or_else(|| stale(path, entry_name))?;
+
+    let image = service.page_full(entry_name).await?;
+
+    Ok(image_response(&image))
 }
 
 /// Retrieves a preview version of an image from the container.
@@ -370,17 +459,14 @@ pub async fn get_image_preview(
     }
     .ok_or_else(|| stale(path, entry_name))?;
 
-    let entry = entry_name.to_string();
-    let preview = tauri::async_runtime::spawn_blocking(move || service.preview(&entry))
-        .await
-        .map_err(|e| Error::Other(format!("Spawn blocking failed: {e}")))??;
+    let preview = service.preview(entry_name).await?;
 
     let Some(image) = preview else {
         // Return an empty response if preview skipped.
         return Ok(Response::new(Vec::new()));
     };
 
-    Ok(image.to_ipc_response())
+    Ok(image_response(&image))
 }
 
 #[cfg(test)]
@@ -455,6 +541,7 @@ mod tests {
             book_id.to_string(),
             Arc::new(container),
             Pipeline {
+                display: None,
                 max_image_height: 2000,
                 resize_method: ResizeFilter::Bilinear,
             },
@@ -796,6 +883,94 @@ mod tests {
         assert!(result.is_err());
     }
 
+    /// The page size `get_image` answered with.
+    fn page_size(response: tauri::ipc::Response) -> (u32, u32) {
+        let body = match response.body().unwrap() {
+            Raw(bytes) => bytes,
+            _ => panic!("Unexpected response body type"),
+        };
+        (
+            u32::from_be_bytes([body[0], body[1], body[2], body[3]]),
+            u32::from_be_bytes([body[4], body[5], body[6], body[7]]),
+        )
+    }
+
+    #[tokio::test]
+    async fn the_loupe_reads_the_page_at_its_full_size() {
+        let app = tauri::test::mock_app();
+        manage_service(&app, "dummy_book_id", page_container(&["test1.png"]));
+        set_display_size(400, 300, app.state()).await.unwrap();
+
+        let displayed = get_image("dummy_book_id", "test1.png", app.state())
+            .await
+            .expect("read the displayed page");
+        let magnified = get_image_full("dummy_book_id", "test1.png", app.state())
+            .await
+            .expect("read the full-size page");
+
+        // Magnifying the fitted page would only upscale what is already on screen.
+        assert_eq!(page_size(displayed), (400, 300));
+        assert_eq!(page_size(magnified), (800, 600));
+    }
+
+    #[tokio::test]
+    async fn a_stale_path_is_refused_a_full_size_page() {
+        let app = tauri::test::mock_app();
+        manage_service(&app, "current_book_id", page_container(&["test1.png"]));
+
+        // The loupe is held open across a book switch as readily as any other request.
+        let result = get_image_full("stale_book_id", "test1.png", app.state()).await;
+        assert!(matches!(result, Err(Error::BookChanged(_))));
+    }
+
+    #[tokio::test]
+    async fn reporting_the_viewport_fits_the_open_book_to_it() {
+        let app = tauri::test::mock_app();
+        manage_service(&app, "dummy_book_id", page_container(&["test1.png"]));
+
+        // The mock page is 800x600, and the reader is drawing into a quarter of that.
+        set_display_size(400, 300, app.state()).await.unwrap();
+
+        let response = get_image("dummy_book_id", "test1.png", app.state())
+            .await
+            .expect("read the page");
+        assert_eq!(page_size(response), (400, 300));
+    }
+
+    #[tokio::test]
+    async fn a_viewport_of_zero_unbounds_the_page() {
+        let app = tauri::test::mock_app();
+        manage_service(&app, "dummy_book_id", page_container(&["test1.png"]));
+        set_display_size(400, 300, app.state()).await.unwrap();
+
+        // What the frontend reports before it has measured anything. The page must come
+        // back whole rather than fitted into a zero-sized box.
+        set_display_size(0, 0, app.state()).await.unwrap();
+        let response = get_image("dummy_book_id", "test1.png", app.state())
+            .await
+            .expect("read the page");
+        assert_eq!(page_size(response), (800, 600));
+    }
+
+    #[tokio::test]
+    async fn the_viewport_is_recorded_with_no_book_open() {
+        let app = tauri::test::mock_app();
+        app.manage(RwLock::new(AppState::default()));
+
+        // The window is measured before a book is opened, and the size has to survive
+        // until one is: it belongs to the window, not to the book.
+        set_display_size(400, 300, app.state()).await.unwrap();
+
+        let state: tauri::State<'_, RwLock<AppState>> = app.state();
+        assert_eq!(
+            state.read().await.container_state.display_size,
+            Some(Fit {
+                width: 400,
+                height: 300
+            })
+        );
+    }
+
     #[tokio::test]
     async fn test_request_preload_around() {
         let app = tauri::test::mock_app();
@@ -837,7 +1012,7 @@ mod tests {
             Raw(bytes) => bytes,
             _ => panic!("Unexpected response body type"),
         };
-        // `to_ipc_response` frames the bytes behind a width/height header, so the reader's
+        // `image_response` frames the bytes behind a width/height header, so the reader's
         // own bytes are what follows it.
         assert!(body.ends_with(DUMMY_PNG_DATA));
     }
@@ -866,5 +1041,28 @@ mod tests {
         };
         // An empty response is the wire form of "no preview"; the frontend stops asking.
         assert!(body.is_empty());
+    }
+
+    #[test]
+    fn image_response_frames_width_and_height_before_the_bytes() {
+        let image = Image {
+            data: vec![0xAA, 0xBB, 0xCC],
+            width: 800,
+            height: 600,
+        };
+
+        let body = match image_response(&image).body().unwrap() {
+            Raw(bytes) => bytes,
+            _ => panic!("Unexpected response body type"),
+        };
+        assert_eq!(
+            u32::from_be_bytes([body[0], body[1], body[2], body[3]]),
+            800
+        );
+        assert_eq!(
+            u32::from_be_bytes([body[4], body[5], body[6], body[7]]),
+            600
+        );
+        assert_eq!(&body[8..], &[0xAA, 0xBB, 0xCC]);
     }
 }

@@ -9,7 +9,7 @@ describe("CreateBookshelfDialog", () => {
   const user = userEvent.setup();
 
   const defaultProps = {
-    openDialog: true,
+    open: true,
     onCreate: vi.fn(),
     onClose: vi.fn(),
   };

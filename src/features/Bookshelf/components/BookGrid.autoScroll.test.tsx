@@ -10,7 +10,7 @@ import BookGrid from "./BookGrid";
 import { BookSelectionContext } from "./BookSelectionContext";
 
 // This suite focuses on the auto-scroll latch. Unlike BookGrid.test.tsx it uses the
-// REAL useReadingBookSelection so the reading-book index actually resolves, and mocks
+// REAL useReadingBookIndex so the reading-book index actually resolves, and mocks
 // react-window so grid.scrollToCell can be observed.
 
 const mockScrollToCell = vi.fn();
@@ -55,7 +55,7 @@ vi.mock("react-window", () => ({
 }));
 
 // Child components that are irrelevant to this suite.
-vi.mock("./NavigationBar", () => ({ default: () => <div data-testid="navigation-bar" /> }));
+vi.mock("./BookshelfToolbar", () => ({ default: () => <div data-testid="bookshelf-toolbar" /> }));
 vi.mock("./GridSizeControl", () => ({ default: () => <div data-testid="grid-size-control" /> }));
 vi.mock("./FloatingActionBar", () => ({
   default: () => <div data-testid="floating-action-bar" />,
@@ -93,8 +93,6 @@ describe("BookGrid auto-scroll latch", () => {
     series: {
       series: [],
       selectedId: null,
-      isEditSeriesOrderDialogOpen: false,
-      editSeriesOrderTargetId: null,
     },
     read: { containerFile: { book: null as unknown } },
     view: { activeView: "bookshelf" },

@@ -156,6 +156,31 @@ export const commands = {
 	 */
 	getImageDimensions: (path: string) => typedError<ImageDimensions[], CommandError>(__TAURI_INVOKE("get_image_dimensions", { path })),
 	/**
+	 *  Reports the size of the reader's viewport, in device pixels.
+	 * 
+	 *  Pages are rendered to fit it so the viewer can draw them without scaling: the
+	 *  browser's own downscale is a 2x2 bilinear tap below a 2x reduction, which is what
+	 *  puts moiré on a screentoned page.
+	 * 
+	 *  Recorded whether or not a book is open, because the size belongs to the window: the
+	 *  next book has to open at the size the reader is already reading at.
+	 * 
+	 *  # Arguments
+	 * 
+	 *  * `width` - The viewport width in device pixels. `0` means "not measured yet".
+	 *  * `height` - The viewport height in device pixels.
+	 *  * `state` - A `tauri::State` holding the application's global `AppState`.
+	 * 
+	 *  # Returns
+	 * 
+	 *  `Ok(())` once the size is recorded.
+	 * 
+	 *  # Errors
+	 * 
+	 *  Never returns an `Err`; the `Result` keeps the command's shape with its neighbours.
+	 */
+	setDisplaySize: (width: number, height: number) => typedError<null, CommandError>(__TAURI_INVOKE("set_display_size", { width, height })),
+	/**
 	 *  Retrieves a list of all font families installed on the system.
 	 * 
 	 *  This function queries the system's font source to get a list of all available
@@ -224,8 +249,8 @@ export const commands = {
 	id: number,
 	/**  The unique file path or directory path of the book. */
 	file_path: string,
-	/**  The type of the item ('file' or 'directory'). */
-	item_type: string,
+	/**  What the path points at. */
+	item_type: ItemType,
 	/**  The display name of the book. */
 	display_name: string,
 	/**  The total number of pages in the book. */
@@ -260,8 +285,8 @@ export const commands = {
 	id: number,
 	/**  The unique file path or directory path of the book. */
 	file_path: string,
-	/**  The type of the item ('file' or 'directory'). */
-	item_type: string,
+	/**  What the path points at. */
+	item_type: ItemType,
 	/**  The display name of the book. */
 	display_name: string,
 	/**  The total number of pages in the book. */
@@ -297,8 +322,8 @@ export const commands = {
 	id: number,
 	/**  The unique file path or directory path of the book. */
 	file_path: string,
-	/**  The type of the item ('file' or 'directory'). */
-	item_type: string,
+	/**  What the path points at. */
+	item_type: ItemType,
 	/**  The display name of the book. */
 	display_name: string,
 	/**  The total number of pages in the book. */
@@ -329,14 +354,14 @@ export const commands = {
 	 */
 	landscape_bits: string | null,
 	/**
-	 *  The page direction this book opens with, `"rtl"` or `"ltr"`.
+	 *  The page direction this book opens with.
 	 * 
 	 *  Seeded from the reader's default the first time the book is opened, then
 	 *  overwritten whenever the direction is flipped in the navigation bar. `None` until
 	 *  the book has been opened once, and always `None` for novels, whose direction is
 	 *  the EPUB's own and cannot be overridden.
 	 */
-	reading_direction: string | null,
+	reading_direction: Direction | null,
 	/**  The last read page index, if the book has been opened. */
 	last_read_page_index: number | null,
 	/**  The timestamp when the book was last opened, if any. */
@@ -352,7 +377,7 @@ export const commands = {
 	 *  # Arguments
 	 * 
 	 *  * `file_path` - The unique file or directory path.
-	 *  * `item_type` - The type of the item ('file' or 'directory').
+	 *  * `item_type` - What the path points at.
 	 *  * `display_name` - The display name of the book.
 	 *  * `total_pages` - The total number of pages.
 	 *  * `repo` - The managed book repository state.
@@ -368,14 +393,14 @@ export const commands = {
 	 *  This function will return an `Err` if the underlying repository operation fails
 	 *  (e.g., due to a database error, connection issue, or query execution failure).
 	 */
-	registerBook: (filePath: string, itemType: string, displayName: string, totalPages: number) => typedError<number, CommandError>(__TAURI_INVOKE("register_book", { filePath, itemType, displayName, totalPages })),
+	registerBook: (filePath: string, itemType: ItemType, displayName: string, totalPages: number) => typedError<number, CommandError>(__TAURI_INVOKE("register_book", { filePath, itemType, displayName, totalPages })),
 	/**
 	 *  Records the event of a book being opened, updating its last opened time.
 	 * 
 	 *  # Arguments
 	 * 
 	 *  * `file_path` - The unique file or directory path.
-	 *  * `item_type` - The type of the item ('file' or 'directory').
+	 *  * `item_type` - What the path points at.
 	 *  * `display_name` - The display name of the book.
 	 *  * `total_pages` - The total number of pages.
 	 *  * `repo` - The managed book repository state.
@@ -391,9 +416,9 @@ export const commands = {
 	 *  This function will return an `Err` if the underlying repository operation fails
 	 *  (e.g., due to a database error, connection issue, or query execution failure).
 	 */
-	recordBookOpened: (filePath: string, itemType: string, displayName: string, totalPages: number) => typedError<number, CommandError>(__TAURI_INVOKE("record_book_opened", { filePath, itemType, displayName, totalPages })),
+	recordBookOpened: (filePath: string, itemType: ItemType, displayName: string, totalPages: number) => typedError<number, CommandError>(__TAURI_INVOKE("record_book_opened", { filePath, itemType, displayName, totalPages })),
 	/**
-	 *  Deletes a book by its unique ID.
+	 *  Deletes a book by its unique ID, along with its thumbnail file.
 	 * 
 	 *  # Arguments
 	 * 
@@ -463,14 +488,14 @@ export const commands = {
 	 *  # Arguments
 	 * 
 	 *  * `book_id` - The book to update.
-	 *  * `reading_direction` - `"rtl"` or `"ltr"`.
+	 *  * `reading_direction` - The direction the book's pages are turned in.
 	 *  * `repo` - The managed book repository state.
 	 * 
 	 *  # Errors
 	 * 
 	 *  Returns an `Err` if the underlying repository operation fails.
 	 */
-	updateReadingDirection: (bookId: number, readingDirection: string) => typedError<null, CommandError>(__TAURI_INVOKE("update_reading_direction", { bookId, readingDirection })),
+	updateReadingDirection: (bookId: number, readingDirection: Direction) => typedError<null, CommandError>(__TAURI_INVOKE("update_reading_direction", { bookId, readingDirection })),
 	/**
 	 *  Records how a book's pages are shaped, so it need not be measured again.
 	 * 
@@ -932,8 +957,8 @@ export type Book = {
 	id: number,
 	/**  The unique file path or directory path of the book. */
 	file_path: string,
-	/**  The type of the item ('file' or 'directory'). */
-	item_type: string,
+	/**  What the path points at. */
+	item_type: ItemType,
 	/**  The display name of the book. */
 	display_name: string,
 	/**  The total number of pages in the book. */
@@ -955,8 +980,8 @@ export type BookWithState = {
 	id: number,
 	/**  The unique file path or directory path of the book. */
 	file_path: string,
-	/**  The type of the item ('file' or 'directory'). */
-	item_type: string,
+	/**  What the path points at. */
+	item_type: ItemType,
 	/**  The display name of the book. */
 	display_name: string,
 	/**  The total number of pages in the book. */
@@ -987,14 +1012,14 @@ export type BookWithState = {
 	 */
 	landscape_bits: string | null,
 	/**
-	 *  The page direction this book opens with, `"rtl"` or `"ltr"`.
+	 *  The page direction this book opens with.
 	 * 
 	 *  Seeded from the reader's default the first time the book is opened, then
 	 *  overwritten whenever the direction is flipped in the navigation bar. `None` until
 	 *  the book has been opened once, and always `None` for novels, whose direction is
 	 *  the EPUB's own and cannot be overridden.
 	 */
-	reading_direction: string | null,
+	reading_direction: Direction | null,
 	/**  The last read page index, if the book has been opened. */
 	last_read_page_index: number | null,
 	/**  The timestamp when the book was last opened, if any. */
@@ -1099,7 +1124,7 @@ export type ContainerSummary = {
 	is_directory: boolean,
 };
 
-/**  Represents the direction in which content should be read. */
+/**  The direction a comic's pages are turned in. */
 export type Direction = 
 /**  Right-to-Left (e.g., traditional Japanese manga). */
 "rtl" | 
@@ -1178,7 +1203,12 @@ export type ImageResamplingMethod_Deserialize =
 "catmullRom" | 
 /**  Mitchell-Netravali Filter */
 "mitchellNetravali" | 
-/**  Lanczos with window 3 */
+/**
+ *  Lanczos with window 3
+ * 
+ *  The default: a page is now rendered at the size it is displayed at, so the one
+ *  resample it gets is worth a wide kernel.
+ */
 "lanczos3";
 
 /**  Represents the algorithm used for resampling images. */
@@ -1195,7 +1225,12 @@ export type ImageResamplingMethod_Serialize =
 "catmullRom" | 
 /**  Mitchell-Netravali Filter */
 "mitchellNetravali" | 
-/**  Lanczos with window 3 */
+/**
+ *  Lanczos with window 3
+ * 
+ *  The default: a page is now rendered at the size it is displayed at, so the one
+ *  resample it gets is worth a wide kernel.
+ */
 "lanczos3";
 
 /**  Represents the initial view shown when the app starts. */
@@ -1204,6 +1239,13 @@ export type InitialView =
 "reader" | 
 /**  Opens the bookshelf / library interface. */
 "bookshelf";
+
+/**  What a book's path points at. */
+export type ItemType = 
+/**  An archive, PDF or EPUB file. */
+"file" | 
+/**  A folder of pages. */
+"directory";
 
 /**  Settings related to the application's layout. */
 export type LayoutSettings = {
@@ -1244,8 +1286,8 @@ export type ReadBook = {
 	id: number,
 	/**  The unique file path or directory path of the book. */
 	file_path: string,
-	/**  The type of the item ('file' or 'directory'). */
-	item_type: string,
+	/**  What the path points at. */
+	item_type: ItemType,
 	/**  The display name of the book. */
 	display_name: string,
 	/**  The total number of pages in the book. */

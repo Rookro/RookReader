@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { CommandError, ErrorCode } from "./Error";
 import { Image } from "./Image";
 
 describe("Image", () => {
@@ -33,5 +34,19 @@ describe("Image", () => {
 
     // Verify the underlying buffer is the exact same reference
     expect(image.data.buffer).toBe(buffer);
+  });
+
+  it("accepts a payload that is only the header", () => {
+    const image = new Image(new ArrayBuffer(8));
+    expect(image.data.length).toBe(0);
+  });
+
+  it("rejects a payload too short to hold the header as an image error", () => {
+    expect(() => new Image(new ArrayBuffer(7))).toThrow(CommandError);
+    try {
+      new Image(new ArrayBuffer(7));
+    } catch (e) {
+      expect((e as CommandError).code).toBe(ErrorCode.image);
+    }
   });
 });

@@ -62,7 +62,7 @@ export default function FloatingActionBar({
           color: "primary.contrastText",
         }}
       >
-        <Typography variant="body2" fontWeight="bold">
+        <Typography variant="body2" sx={{ fontWeight: "bold" }}>
           {t("bookshelf.selection.count", { count: selectionCount })}
         </Typography>
         <Divider orientation="vertical" flexItem sx={{ borderColor: "primary.contrastText" }} />

@@ -30,6 +30,12 @@ describe("formatErrorMessage", () => {
     );
   });
 
+  it("names the reason for a page over the size limit", () => {
+    expect(format("en-US", "load-page", ErrorCode.pageTooLarge)).toMatch(
+      / A page is too large to load\.$/,
+    );
+  });
+
   it("falls back to the code number for an internal failure", () => {
     expect(format("ja-JP", "bookshelf", ErrorCode.other)).toBe(
       "本棚の操作でエラーが発生しました。(エラーコード: 90001)",

@@ -2,7 +2,11 @@ import { error, warn } from "@tauri-apps/plugin-log";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { updatePageLayout } from "../../../bindings/BookCommands";
 import type { BookWithState } from "../../../bindings/bindings";
-import { getImageDimensions, requestPreloadAround } from "../../../bindings/ContainerCommands";
+import {
+  getImageDimensions,
+  requestPreloadAround,
+  setDisplaySize,
+} from "../../../bindings/ContainerCommands";
 import type { AppDispatch } from "../../../store/store";
 import { createCommandError, type ErrorCode } from "../../../types/Error";
 import type { Image } from "../../../types/Image";
@@ -23,6 +27,7 @@ import {
   type ViewerSettings,
   type ViewLayout,
 } from "../utils/ImageUtils";
+import type { DisplaySize } from "./useDisplaySize";
 
 /**
  * How long the viewer holds the loading state waiting to be told how the book pairs.
@@ -128,6 +133,14 @@ export interface ViewerControllerOptions {
   isSpreadShifted: boolean;
   /** Viewer settings. */
   settings: ViewerSettings;
+  /**
+   * How large the reader draws a page, in device pixels.
+   *
+   * Pages are rendered to fit it, so nothing is loaded until it has been measured and
+   * the backend has been told: a page fetched before that would arrive at its stored
+   * size and be fetched again at the right one.
+   */
+  displaySize: DisplaySize;
   /** Dispatch function from Redux. */
   dispatch: AppDispatch;
   /**
@@ -159,6 +172,7 @@ export const useViewerController = ({
   index,
   isSpreadShifted,
   settings,
+  displaySize,
   dispatch,
   book,
   onForwardBoundary,
@@ -186,6 +200,11 @@ export const useViewerController = ({
   // every image format the answer is no — and asking again for every page turn buys
   // nothing but a round trip. One wasted request per book settles it.
   const previewUnsupportedRef = useRef(false);
+  // The viewport the backend has answered for, and the gate on loading anything.
+  //
+  // Not `displaySize` itself: the report is a round trip, and a page asked for before it
+  // lands is rendered for whatever viewport the backend still had.
+  const [reportedSize, setReportedSize] = useState<DisplaySize | null>(null);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: update the cache whenever containerPath changes.
   useEffect(() => {
@@ -381,8 +400,50 @@ export const useViewerController = ({
     shownRef.current = false;
   }, [containerPath, index]);
 
+  // Report the viewport, and release the load effect below once the backend has it.
+  useEffect(() => {
+    if (displaySize.width === 0 || displaySize.height === 0) {
+      return;
+    }
+    let cancelled = false;
+    setDisplaySize(displaySize.width, displaySize.height)
+      .then(() => {
+        if (cancelled) {
+          return;
+        }
+        // The cached blob URLs are pages rendered for the previous viewport. Nothing
+        // reloads them: the backend keys a page by the box it was fitted into, so they
+        // would simply never be asked for again.
+        revokeCacheUrls(cacheRef.current);
+        cacheRef.current.clear();
+      })
+      .catch((e) => {
+        // The backend still has whatever viewport it was last told, and a page rendered
+        // for that beats no page at all, so the load is released either way — with the
+        // cache kept, because it matches what the backend would serve.
+        warn(`Failed to report the display size: ${String(e)}`);
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setReportedSize(displaySize);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [displaySize]);
+
   // Loads the missing images and updates the layout.
   useEffect(() => {
+    // Nothing is asked for until the backend has answered for the viewport: a page
+    // fetched before that is rendered for the previous one and fetched again. The
+    // reader is waiting on that round trip as much as on the page itself.
+    if (!reportedSize) {
+      setIsImageLoading(true);
+      return;
+    }
+
     const updateLayout = async () => {
       // Cancels previous request.
       abortControllerRef.current?.abort();
@@ -547,11 +608,16 @@ export const useViewerController = ({
       abortControllerRef.current?.abort();
       abortControllerRef.current = null;
     };
-  }, [containerPath, index, entries, settings, currentUnit, pairing, chain]);
+  }, [containerPath, index, entries, settings, currentUnit, pairing, chain, reportedSize]);
 
   // Request preloading around the current index in the backend.
+  //
+  // Gated on the viewport like the load effect, and re-run when it changes: a preload
+  // issued before the backend has the viewport fills the cache with pages rendered for
+  // the previous one, and the backend drops the preload jobs still queued for a
+  // viewport the reader has left only when it is asked to preload for the new one.
   useEffect(() => {
-    if (entries.length > 0) {
+    if (entries.length > 0 && reportedSize) {
       // The same pages the layout effect above loads, named so the backend leaves them
       // to the foreground requests already on their way.
       const callerPages = settings.isTwoPagedView && index + 1 < entries.length ? 2 : 1;
@@ -561,7 +627,14 @@ export const useViewerController = ({
         },
       );
     }
-  }, [containerPath, index, settings.preloadPageCount, settings.isTwoPagedView, entries.length]);
+  }, [
+    containerPath,
+    index,
+    settings.preloadPageCount,
+    settings.isTwoPagedView,
+    entries.length,
+    reportedSize,
+  ]);
 
   // Evict cached pages outside a window around the current index so long sessions
   // don't retain every visited page's blob URLs (unbounded renderer memory). The

@@ -10,7 +10,7 @@ import {
   type RootState,
   testI18n,
 } from "../../../test/utils";
-import { setContainerFilePath, setOpenOrigin, setPendingInitialPosition } from "../slice";
+import { openBook, setPendingInitialPosition } from "../slice";
 import { resolveAdjacentBook } from "../utils/AdjacentBookResolver";
 import { useAdjacentBookNavigation } from "./useAdjacentBookNavigation";
 
@@ -79,8 +79,9 @@ describe("useAdjacentBookNavigation", () => {
       "next",
       "name_asc",
     );
-    expect(dispatchSpy).toHaveBeenCalledWith(setOpenOrigin({ kind: "fileNavigator" }));
-    expect(dispatchSpy).toHaveBeenCalledWith(setContainerFilePath("/dir/book2.zip"));
+    expect(dispatchSpy).toHaveBeenCalledWith(
+      openBook({ path: "/dir/book2.zip", origin: { kind: "fileNavigator" } }),
+    );
     // Next book opens on its first page.
     expect(dispatchSpy).toHaveBeenCalledWith(setPendingInitialPosition("first"));
     expect(dispatchSpy).not.toHaveBeenCalledWith(setPendingInitialPosition("last"));
@@ -96,7 +97,9 @@ describe("useAdjacentBookNavigation", () => {
     });
 
     expect(dispatchSpy).toHaveBeenCalledWith(setPendingInitialPosition("last"));
-    expect(dispatchSpy).toHaveBeenCalledWith(setContainerFilePath("/dir/book0.zip"));
+    expect(dispatchSpy).toHaveBeenCalledWith(
+      openBook({ path: "/dir/book0.zip", origin: { kind: "fileNavigator" } }),
+    );
     expect(showNotification).toHaveBeenCalledWith(expect.stringContaining("Book 0"), "info");
   });
 
@@ -109,7 +112,7 @@ describe("useAdjacentBookNavigation", () => {
     });
 
     expect(showNotification).toHaveBeenCalledWith("No next book found.", "info");
-    expect(dispatchSpy).not.toHaveBeenCalledWith(setContainerFilePath("/dir/book2.zip"));
+    expect(dispatchSpy).not.toHaveBeenCalledWith(expect.objectContaining({ type: openBook.type }));
   });
 
   it("shows an error toast when resolution fails", async () => {
@@ -121,7 +124,7 @@ describe("useAdjacentBookNavigation", () => {
     });
 
     expect(showNotification).toHaveBeenCalledWith("Failed to open the adjacent book.", "error");
-    expect(dispatchSpy).not.toHaveBeenCalledWith(setContainerFilePath("/dir/book2.zip"));
+    expect(dispatchSpy).not.toHaveBeenCalledWith(expect.objectContaining({ type: openBook.type }));
   });
 
   it("asks for confirmation in 'ask' mode before opening", async () => {
@@ -137,14 +140,16 @@ describe("useAdjacentBookNavigation", () => {
       book: { filePath: "/dir/book2.zip", displayName: "Book 2" },
       direction: "next",
     });
-    expect(dispatchSpy).not.toHaveBeenCalledWith(setContainerFilePath("/dir/book2.zip"));
+    expect(dispatchSpy).not.toHaveBeenCalledWith(expect.objectContaining({ type: openBook.type }));
 
     // Confirming opens the book.
     act(() => {
       result.current.confirmPending();
     });
 
-    expect(dispatchSpy).toHaveBeenCalledWith(setContainerFilePath("/dir/book2.zip"));
+    expect(dispatchSpy).toHaveBeenCalledWith(
+      openBook({ path: "/dir/book2.zip", origin: { kind: "fileNavigator" } }),
+    );
     expect(result.current.pending).toBeNull();
   });
 
@@ -160,7 +165,7 @@ describe("useAdjacentBookNavigation", () => {
     });
 
     expect(result.current.pending).toBeNull();
-    expect(dispatchSpy).not.toHaveBeenCalledWith(setContainerFilePath("/dir/book2.zip"));
+    expect(dispatchSpy).not.toHaveBeenCalledWith(expect.objectContaining({ type: openBook.type }));
   });
 
   it("guards against concurrent triggers while resolving", async () => {

@@ -1,5 +1,5 @@
 import { debug } from "@tauri-apps/plugin-log";
-import { getImage, getImagePreview } from "../../../bindings/ContainerCommands";
+import { getImage, getImageFull, getImagePreview } from "../../../bindings/ContainerCommands";
 import type { ErrorCode } from "../../../types/Error";
 import { Image } from "../../../types/Image";
 
@@ -107,6 +107,28 @@ export const fetchImageBlob = async (
 };
 
 /**
+ * Fetches a page at its full size, for the loupe.
+ *
+ * The pair of {@link fetchImageBlob}: that one asks for the page fitted to the reader's
+ * viewport, this one for the page whole.
+ *
+ * @param containerPath The path of the container file.
+ * @param entryName The name of the entry to fetch.
+ * @returns The fetched image, or undefined when there was nothing to ask for.
+ * @throws {CommandError} When the backend could not produce the image.
+ */
+export const fetchImageFullBlob = async (
+  containerPath: string,
+  entryName: string,
+): Promise<Image | undefined> => {
+  if (!containerPath || !entryName || containerPath.length === 0 || entryName.length === 0) {
+    return undefined;
+  }
+  const response = await getImageFull(containerPath, entryName);
+  return new Image(response);
+};
+
+/**
  * Fetches an image preview blob from the backend.
  *
  * The backend distinguishes "no preview was made" (an empty response) from "the request
@@ -141,7 +163,8 @@ export const fetchImagePreviewBlob = async (
  * @returns The blob URL.
  */
 export const createBlobUrl = (image: Image): string => {
-  const blob = new Blob([new Uint8Array(image.data)]);
+  // `data` is already a view past the header; the blob copies it once, so no second copy here.
+  const blob = new Blob([image.data]);
   return URL.createObjectURL(blob);
 };
 

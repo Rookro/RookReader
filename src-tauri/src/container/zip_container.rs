@@ -10,24 +10,14 @@ use zip::{read::ZipArchiveMetadata, ZipArchive};
 use crate::{
     container::{
         archive_path,
-        traits::{Container, PageReader},
+        traits::{check_page_size, Container, PageReader, MAX_PAGE_BYTES},
     },
     error::{Error, Result},
-    image::types::{read_dimensions, Image, ImageDimensions},
+    image::types::{read_dimensions, Image, ImageDimensions, HEADER_PROBE_BYTES},
 };
 
-/// Absolute ceiling for a single page's preallocation, and the largest declared
-/// uncompressed size [`read_entry_checked`] will attempt to read. An entry declaring
-/// more than this is rejected outright instead of being decompressed, so a lying
-/// header cannot drive an unbounded read.
-const MAX_PREALLOC_BYTES: u64 = 1024 * 1024 * 1024;
-
-/// Bytes of a decompressed entry [`ZipReader::page_dimensions`] reads before giving up
-/// and falling back to a full read. A PNG `IHDR` sits in the first 33 bytes and a JPEG
-/// `SOF` marker within the first few KiB, so this bound is generous even for a page
-/// carrying a large EXIF block — and it turns a 200-page scan from a full inflate of the
-/// archive into a header probe.
-const HEADER_PROBE_BYTES: u64 = 64 * 1024;
+// `MAX_PAGE_BYTES` is both the preallocation ceiling and the largest declared size
+// `read_entry_checked` will attempt to read.
 
 /// Compression ratio we trust when anchoring the preallocation on the compressed
 /// size. This path only reads image entries (PNG/JPEG/WebP), which are already
@@ -43,7 +33,7 @@ const MAX_COMPRESSION_RATIO: u64 = 4;
 /// directory, so a crafted entry can claim a huge size and force an instant
 /// `Vec::with_capacity` abort. We anchor instead on the *compressed* size — bounded
 /// by bytes that actually exist in the archive — allowing up to `MAX_COMPRESSION_RATIO`
-/// times that size, and never reserve more than `MAX_PREALLOC_BYTES`. Legitimate (already
+/// times that size, and never reserve more than `MAX_PAGE_BYTES`. Legitimate (already
 /// poorly-compressible) image pages still preallocate exactly once, avoiding the
 /// repeated reallocation a flat cap would cause for large files.
 ///
@@ -55,11 +45,11 @@ const MAX_COMPRESSION_RATIO: u64 = 4;
 /// # Returns
 ///
 /// The number of bytes to pre-reserve: `declared_size`, capped to
-/// `MAX_COMPRESSION_RATIO * compressed_size` and to `MAX_PREALLOC_BYTES`.
+/// `MAX_COMPRESSION_RATIO * compressed_size` and to `MAX_PAGE_BYTES`.
 fn prealloc_capacity(declared_size: u64, compressed_size: u64) -> usize {
     let ceiling = compressed_size
         .saturating_mul(MAX_COMPRESSION_RATIO)
-        .min(MAX_PREALLOC_BYTES);
+        .min(MAX_PAGE_BYTES);
     declared_size.min(ceiling) as usize
 }
 
@@ -95,7 +85,7 @@ fn read_within_declared<R: Read>(
     let mut buf = Vec::with_capacity(capacity);
     reader.take(declared + 1).read_to_end(&mut buf)?;
     if buf.len() as u64 > declared {
-        return Err(crate::error::Error::Other(format!(
+        return Err(Error::ZipBomb(format!(
             "ZIP entry {entry} exceeds its declared size; possible zip bomb"
         )));
     }
@@ -104,7 +94,7 @@ fn read_within_declared<R: Read>(
 
 /// Reads one archive entry's bytes with the decompressed size bounded.
 ///
-/// Rejects an entry whose declared size exceeds [`MAX_PREALLOC_BYTES`] before reading,
+/// Rejects an entry whose declared size exceeds [`MAX_PAGE_BYTES`] before reading,
 /// then reads through [`read_within_declared`] so a bomb cannot grow the buffer unbounded.
 ///
 /// # Arguments
@@ -119,7 +109,7 @@ fn read_within_declared<R: Read>(
 ///
 /// # Errors
 ///
-/// Returns an error if the entry declares more than [`MAX_PREALLOC_BYTES`], exceeds its
+/// Returns an error if the entry declares more than [`MAX_PAGE_BYTES`], exceeds its
 /// declared size while reading, or cannot be read.
 fn read_entry_checked<R: Read + Seek>(
     archive: &mut ZipArchive<R>,
@@ -128,11 +118,7 @@ fn read_entry_checked<R: Read + Seek>(
 ) -> Result<Vec<u8>> {
     let mut file = archive.by_index(index)?;
     let declared = file.size();
-    if declared > MAX_PREALLOC_BYTES {
-        return Err(crate::error::Error::Other(format!(
-            "ZIP entry {entry} declares {declared} bytes, exceeding the {MAX_PREALLOC_BYTES} byte limit"
-        )));
-    }
+    check_page_size("ZIP", entry, declared)?;
     let capacity = prealloc_capacity(declared, file.compressed_size());
     read_within_declared(&mut file, declared, capacity, entry)
 }
@@ -612,7 +598,7 @@ mod tests {
         // The absolute ceiling bounds even a large compressed entry.
         assert_eq!(
             prealloc_capacity(u64::MAX, u64::MAX),
-            MAX_PREALLOC_BYTES as usize
+            MAX_PAGE_BYTES as usize
         );
     }
 
@@ -632,10 +618,7 @@ mod tests {
         // to declared + 1 and the entry is rejected instead of growing unbounded.
         let data = vec![0u8; 100];
         let err = read_within_declared(data.as_slice(), 10, 10, "bomb.png").unwrap_err();
-        assert!(
-            err.to_string().contains("possible zip bomb"),
-            "unexpected error: {err}"
-        );
+        assert!(matches!(err, Error::ZipBomb(_)), "unexpected error: {err}");
     }
 
     #[test]

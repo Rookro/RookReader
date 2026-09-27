@@ -23,13 +23,13 @@ import { updateSeriesOrdersThunk } from "../../seriesSlice";
 import SortableBookItem from "./SortableBookItem";
 
 export interface EditSeriesOrderDialogProps {
-  openDialog: boolean;
+  open: boolean;
   books: BookWithState[];
   onClose: () => void;
 }
 
 export default function EditSeriesOrderDialog({
-  openDialog,
+  open,
   books,
   onClose,
 }: EditSeriesOrderDialogProps) {
@@ -39,10 +39,10 @@ export default function EditSeriesOrderDialog({
   const [orderedBooks, setOrderedBooks] = useState<BookWithState[]>([]);
 
   useEffect(() => {
-    if (openDialog) {
+    if (open) {
       setOrderedBooks([...books]);
     }
-  }, [openDialog, books]);
+  }, [open, books]);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -70,7 +70,7 @@ export default function EditSeriesOrderDialog({
   };
 
   return (
-    <Dialog open={openDialog} onClose={onClose} slotProps={{ paper: { sx: { minWidth: "40%" } } }}>
+    <Dialog open={open} onClose={onClose} slotProps={{ paper: { sx: { minWidth: "40%" } } }}>
       <DialogTitle>{t("bookshelf.series.edit-order.title")}</DialogTitle>
       <DialogContent sx={{ padding: 1, overflowX: "hidden" }}>
         <DndContext

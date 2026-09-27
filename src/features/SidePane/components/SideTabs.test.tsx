@@ -62,6 +62,22 @@ describe("SideTabs", () => {
     );
     expect(resetCalls).toHaveLength(1);
   });
+  it("should move the pane on the click, before the settings round-trip resolves", async () => {
+    // A backend that never answers: only the optimistic update can change the store.
+    mockTauri.invoke.mockImplementation((command: string) =>
+      command === "set_settings" ? new Promise(() => {}) : Promise.resolve(undefined),
+    );
+    const { store } = renderWithProviders(<SideTabs tabs={mockTabs} index={0} isHidden={true} />);
+
+    await user.click(screen.getByLabelText("Tab 2"));
+
+    expect(store.getState().settings.layout.sidePane).toEqual({ isHidden: false, tabIndex: 1 });
+    // The change is still persisted.
+    expect(mockTauri.invoke).toHaveBeenCalledWith("set_settings", {
+      patch: { layout: { sidePane: { isHidden: false, tabIndex: 1 } } },
+    });
+  });
+
   it("should describe each tab with a tooltip", async () => {
     renderWithProviders(<SideTabs tabs={mockTabs} index={0} isHidden={false} />);
     await user.hover(screen.getByLabelText("Tab 1"));

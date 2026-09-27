@@ -3,6 +3,7 @@ import { convertFileSrc } from "@tauri-apps/api/core";
 import { useMemo, useState } from "react";
 import dummy_thumbnail from "../../../assets/dummy_thumbnail.svg";
 import AutoScrollTypography from "../../../components/ui/AutoScrollTypography/AutoScrollTypography";
+import { useContextMenuAnchor } from "../../../components/ui/ContextMenu/useContextMenuAnchor";
 import type { BookWithState } from "../../../domain/book/schema";
 import type { Series } from "../../../domain/series/schema";
 import SeriesContextMenu from "./SeriesContextMenu";
@@ -34,7 +35,7 @@ export default function SeriesCard({
   style,
   isFocused,
 }: SeriesCardProps) {
-  const [menuAnchor, setMenuAnchor] = useState<{ mouseX: number; mouseY: number } | null>(null);
+  const { anchor: menuAnchor, open: handleContextMenu, close: closeMenu } = useContextMenuAnchor();
   const [imageErrors, setImageErrors] = useState<Record<number, boolean>>({});
 
   // Sort books by series_order to ensure the first volume is on top if possible
@@ -47,12 +48,6 @@ export default function SeriesCard({
 
   const handleCardClick = () => {
     onClick(series.id);
-  };
-
-  const handleContextMenu = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setMenuAnchor({ mouseX: e.clientX, mouseY: e.clientY });
   };
 
   const handleImageError = (bookId: number) => {
@@ -163,7 +158,7 @@ export default function SeriesCard({
           </CardActionArea>
         </Card>
       </Tooltip>
-      <SeriesContextMenu series={series} anchor={menuAnchor} onClose={() => setMenuAnchor(null)} />
+      <SeriesContextMenu series={series} anchor={menuAnchor} onClose={closeMenu} />
     </Box>
   );
 }

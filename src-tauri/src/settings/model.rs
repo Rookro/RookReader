@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 
 use super::validation::finite_f64;
 
+pub use crate::domain::book::entity::Direction;
+
 /// General application settings.
 #[derive(Debug, Clone, Serialize, Deserialize, Validate, specta::Type)]
 #[serde(rename_all = "camelCase", default)]
@@ -436,17 +438,6 @@ pub enum SortOrder {
     DateDesc,
 }
 
-/// Represents the direction in which content should be read.
-#[derive(Debug, Clone, Serialize, Deserialize, Default, specta::Type)]
-#[serde(rename_all = "snake_case")]
-pub enum Direction {
-    /// Right-to-Left (e.g., traditional Japanese manga).
-    #[default]
-    Rtl,
-    /// Left-to-Right (e.g., western comics).
-    Ltr,
-}
-
 /// Behavior when paging past the last/first page of a book.
 #[derive(Debug, Clone, Serialize, Deserialize, Default, specta::Type)]
 #[serde(rename_all = "snake_case")]
@@ -470,7 +461,6 @@ pub enum ImageResamplingMethod {
     #[serde(alias = "gaussian")]
     Box,
     /// Bilinear Filter (formerly Triangle)
-    #[default]
     #[serde(alias = "triangle")]
     Bilinear,
     /// Hamming Filter
@@ -480,6 +470,10 @@ pub enum ImageResamplingMethod {
     /// Mitchell-Netravali Filter
     MitchellNetravali,
     /// Lanczos with window 3
+    ///
+    /// The default: a page is now rendered at the size it is displayed at, so the one
+    /// resample it gets is worth a wide kernel.
+    #[default]
     Lanczos3,
 }
 

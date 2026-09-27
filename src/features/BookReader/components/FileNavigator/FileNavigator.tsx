@@ -11,12 +11,7 @@ import { isNavigableArchiveName } from "../../../../utils/ArchivePathUtils";
 import SidePanelHeader from "../../../SidePane/components/SidePanelHeader";
 import { useDirectoryWatcher } from "../../hooks/useDirectoryWatcher";
 import { useFileSelection } from "../../hooks/useFileSelection";
-import {
-  setContainerFilePath,
-  setOpenOrigin,
-  setSearchText,
-  updateExploreBasePath,
-} from "../../slice";
+import { openBook, setSearchText, updateExploreBasePath } from "../../slice";
 import { andSearch, sortBy } from "../../utils/FileNavigatorUtils";
 import { ItemRow } from "./ItemRow";
 import NavBar from "./NavBar";
@@ -137,8 +132,7 @@ export default function FileListViewer() {
   const handleListItemClicked = useCallback(
     async (_e: React.MouseEvent<HTMLDivElement>, entry: DirEntry, index: number) => {
       const path = await join(history[historyIndex], entry.name);
-      dispatch(setOpenOrigin({ kind: "fileNavigator" }));
-      dispatch(setContainerFilePath(path));
+      dispatch(openBook({ path, origin: { kind: "fileNavigator" } }));
       setSelectedIndex(index);
     },
     [dispatch, history, historyIndex],

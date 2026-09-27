@@ -61,7 +61,6 @@ describe("BookGridCell", () => {
     enableAutoScroll: false,
     onBookClick: mockOnBookClick,
     onSeriesClick: mockOnSeriesClick,
-    allBooks: [],
     horizontalOffset: 0,
     ariaAttributes: {
       "aria-colindex": 1,
@@ -343,12 +342,6 @@ describe("BookGridCell", () => {
     it("returns false if the item at the current index changes", () => {
       const otherProps = { ...props, items: [item2] };
       expect(areEqual(props, otherProps)).toBe(false);
-    });
-
-    it("returns false if allBooks changes", () => {
-      expect(areEqual(props, { ...props, allBooks: [createMockBookWithState({ id: 3 })] })).toBe(
-        false,
-      );
     });
 
     it("returns false if style.top changes", () => {

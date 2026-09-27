@@ -1,55 +1,124 @@
-//! Turning a page's stored bytes into the image the viewer receives.
+//! Turning a page's stored bytes into the image the viewer receives, at the size it is
+//! displayed at.
 //!
-//! This is the only place that decodes. A [`PageReader`](crate::container::traits::PageReader)
-//! yields bytes and [`PageService`](super::service::PageService) decides *when* they are
-//! read; what the pixels end up being is decided here, and nowhere else.
+//! This is the only place that decodes, and the only place that resamples. A
+//! [`PageReader`](crate::container::traits::PageReader) yields bytes and
+//! [`PageService`](super::service::PageService) decides *when* they are read; what the
+//! pixels end up being is decided here, and nowhere else.
+//!
+//! That the resample happens here at all is the point. Left to the browser, a page is
+//! scaled by a 2x2 bilinear tap below a 2x reduction — under the Nyquist limit for a
+//! screentone, which is moiré. A page fitted to the viewer's own box arrives at 1:1 and
+//! the browser scales nothing.
 
 use std::{io::Cursor, sync::Arc};
 
-use image::{codecs::jpeg::JpegEncoder, ImageFormat, ImageReader};
+use image::{
+    codecs::png::PngEncoder, DynamicImage, ImageDecoder, ImageEncoder, ImageError, ImageFormat,
+    ImageReader, Limits,
+};
 
 use crate::{
     error::Result,
     image::{
+        avif,
         resizer::{shrink_to_fit, ResizeFilter},
-        thumbnail::generate_thumbnail,
-        types::Image,
+        thumbnail::{generate_thumbnail, COVER},
+        types::{is_animated, Image},
     },
 };
+
+/// The box a page is fitted into, in pixels. `u32::MAX` on an axis means nothing bounds it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Fit {
+    /// The widest the page may come out.
+    pub width: u32,
+    /// The tallest the page may come out.
+    pub height: u32,
+}
+
+impl Fit {
+    /// The box of a viewer that has not said how large it draws a page.
+    pub const UNBOUNDED: Fit = Fit {
+        width: u32::MAX,
+        height: u32::MAX,
+    };
+
+    /// Whether an image of this size is already inside the box.
+    fn holds(self, width: u32, height: u32) -> bool {
+        width <= self.width && height <= self.height
+    }
+}
 
 /// How a page's encoded bytes become the image the viewer receives.
 ///
 /// A value rather than a pair of arguments threaded through the scheduler: the scheduler
-/// has no opinion about pixels, and a later change — rendering at the display size, say —
-/// belongs here rather than in the queue.
+/// has no opinion about pixels, and rendering at the display size belongs here rather
+/// than in the queue.
 #[derive(Clone, Copy, Debug)]
 pub struct Pipeline {
-    /// The height past which a page is shrunk. `0` leaves every page at its stored size.
+    /// The reader's viewport in device pixels, once the frontend has reported one.
+    ///
+    /// A page fitted to it is drawn without scaling, and the browser's own downscale — a
+    /// 2x2 bilinear tap below a 2x reduction — is what puts moiré on a screentoned page.
+    pub display: Option<Fit>,
+    /// The height past which a page is shrunk whatever the viewport is. `0` is no limit.
     pub max_image_height: u32,
     /// The filter used when a page is shrunk.
     pub resize_method: ResizeFilter,
 }
 
 impl Pipeline {
-    /// Prepares one page for display: decode, shrink past `max_image_height`, re-encode.
+    /// The box a page is fitted into for normal display.
+    pub fn fit(&self) -> Fit {
+        let display = self.display.unwrap_or(Fit::UNBOUNDED);
+        Fit {
+            width: display.width,
+            height: self.capped(display.height),
+        }
+    }
+
+    /// The box a page is fitted into when the viewer magnifies it.
     ///
-    /// A page already within the height is passed through untouched, which for the shipped
-    /// default (`max_image_height = 0`) is every page — the bytes reach the viewer exactly
-    /// as the archive stored them.
+    /// The loupe draws the page past 1:1, so the viewport does not bound it. The reader's
+    /// own height cap still does.
+    pub fn full_fit(&self) -> Fit {
+        Fit {
+            width: u32::MAX,
+            height: self.capped(u32::MAX),
+        }
+    }
+
+    /// `height`, brought down to `max_image_height` when one is set.
+    fn capped(&self, height: u32) -> u32 {
+        if self.max_image_height == 0 {
+            height
+        } else {
+            height.min(self.max_image_height)
+        }
+    }
+
+    /// Prepares one page for display: decode, fit into `fit`, re-encode.
+    ///
+    /// A page already inside the box is passed through untouched — no decode, no encode —
+    /// so the bytes reach the viewer exactly as the archive stored them. So is an animated
+    /// page whatever its size: a resample keeps one frame, and the browser scaling an
+    /// animation is the lesser loss.
     ///
     /// # Arguments
     ///
     /// * `bytes` - The page's encoded bytes, as the reader delivered them.
+    /// * `fit` - The box to render into, from [`Pipeline::fit`] or [`Pipeline::full_fit`].
     ///
     /// # Errors
     ///
     /// Returns an `Err` if the bytes are not a supported image, or the resize fails.
-    pub fn page(&self, bytes: Vec<u8>) -> Result<Arc<Image>> {
+    pub fn page(&self, bytes: Vec<u8>, fit: Fit) -> Result<Arc<Image>> {
         let image = Image::new(bytes)?;
-        if self.max_image_height == 0 || image.height <= self.max_image_height {
+        if fit.holds(image.width, image.height) || is_animated(&image.data)? {
             return Ok(Arc::new(image));
         }
-        self.shrink(&image.data, self.max_image_height)
+        self.shrink(&image.data, fit)
     }
 
     /// Wraps a preview the format produced at a size of its own choosing.
@@ -64,8 +133,7 @@ impl Pipeline {
         Ok(Arc::new(Image::new(bytes)?))
     }
 
-    /// Shrinks a full page to the thumbnail contract, for a format with no preview of
-    /// its own.
+    /// Shrinks a full page to a bookshelf cover, for a format with no cover of its own.
     ///
     /// Associated rather than a method: a thumbnail's size is fixed by what displays it,
     /// so unlike [`Pipeline::page`] it owes nothing to the book's display settings. It
@@ -75,28 +143,48 @@ impl Pipeline {
     ///
     /// Returns an `Err` if the bytes are not a supported image, or the resize fails.
     pub fn thumbnail(bytes: &[u8]) -> Result<Arc<Image>> {
-        generate_thumbnail(bytes)
+        generate_thumbnail(bytes, &COVER)
     }
 
-    /// Decodes, shrinks to `height`, and re-encodes.
+    /// Resizes into `fit` and writes the result as PNG.
     ///
-    /// Images with an alpha channel are re-encoded as PNG to preserve transparency;
-    /// opaque images are re-encoded as JPEG (quality 80) to minimize transferred bytes.
-    fn shrink(&self, data: &[u8], height: u32) -> Result<Arc<Image>> {
-        let dyn_image = ImageReader::new(Cursor::new(data))
-            .with_guessed_format()?
-            .decode()?;
+    /// The orientation — EXIF, or an AVIF's `irot`/`imir` — is applied to the pixels
+    /// first. The PNG written here carries no EXIF, so the browser has nothing to rotate
+    /// a second time. The ICC profile, if there is one, is copied across so the colours
+    /// are read the way the source meant.
+    ///
+    /// Lossless, because the page is now drawn at 1:1 and a re-encode's artifacts would
+    /// be shown at full size rather than blurred away by the browser's downscale. PNG is
+    /// also the cheapest of the candidates a browser reads: `image`'s JPEG encoder is
+    /// scalar pure Rust and takes 27-42 ms a page against PNG's 4-10 ms, and on line art
+    /// it comes out larger as well.
+    fn shrink(&self, data: &[u8], fit: Fit) -> Result<Arc<Image>> {
+        let reader = ImageReader::new(Cursor::new(data)).with_guessed_format()?;
+        let format = reader.format();
+        let mut decoder = reader.into_decoder()?;
+        // What `ImageReader::decode` checks before allocating the pixel buffer.
+        Limits::default().reserve(decoder.total_bytes())?;
+        // `image`'s AVIF decoder reports no orientation; the container's own boxes do.
+        let orientation = if format == Some(ImageFormat::Avif) {
+            avif::orientation(data)?
+        } else {
+            decoder.orientation()?
+        };
+        let icc_profile = decoder.icc_profile()?;
+        let mut dyn_image = DynamicImage::from_decoder(decoder)?;
+        dyn_image.apply_orientation(orientation);
 
         // Use SIMD accelerated resizing.
-        // max_width is u32::MAX to scale based entirely on height.
-        let scaled_image = shrink_to_fit(&dyn_image, u32::MAX, height, self.resize_method)?;
+        let scaled_image = shrink_to_fit(&dyn_image, fit.width, fit.height, self.resize_method)?;
 
         let mut buffer = Vec::new();
-        if scaled_image.color().has_alpha() {
-            scaled_image.write_to(&mut Cursor::new(&mut buffer), ImageFormat::Png)?;
-        } else {
-            JpegEncoder::new_with_quality(&mut buffer, 80).encode_image(&scaled_image)?;
+        let mut encoder = PngEncoder::new(&mut buffer);
+        if let Some(profile) = icc_profile {
+            encoder
+                .set_icc_profile(profile)
+                .map_err(ImageError::Unsupported)?;
         }
+        scaled_image.write_with_encoder(encoder)?;
 
         Ok(Arc::new(Image {
             data: buffer,
@@ -110,10 +198,19 @@ impl Pipeline {
 mod tests {
     use super::*;
 
-    /// A 4x2 opaque PNG, wide enough that a height cap has something to shrink.
+    /// A 4x2 opaque PNG of four saturated columns, so a resize is visible and a lossy
+    /// re-encode of the result cannot come back unchanged.
     fn opaque_png() -> Vec<u8> {
+        let mut source = image::RgbImage::new(4, 2);
+        let columns = [[255u8, 0, 0], [0, 255, 0], [0, 0, 255], [255, 255, 255]];
+        for (x, colour) in columns.iter().enumerate() {
+            for y in 0..2 {
+                source.put_pixel(x as u32, y, image::Rgb(*colour));
+            }
+        }
+
         let mut buffer = Vec::new();
-        image::DynamicImage::ImageRgb8(image::RgbImage::new(4, 2))
+        image::DynamicImage::ImageRgb8(source)
             .write_to(&mut Cursor::new(&mut buffer), ImageFormat::Png)
             .expect("failed to encode the fixture");
         buffer
@@ -128,66 +225,241 @@ mod tests {
         buffer
     }
 
+    fn decode(data: &[u8]) -> image::DynamicImage {
+        ImageReader::new(Cursor::new(data))
+            .with_guessed_format()
+            .unwrap()
+            .decode()
+            .unwrap()
+    }
+
+    /// A pipeline with a height cap and no viewport, which is what shipped before pages
+    /// were rendered at the display size.
     fn pipeline(max_image_height: u32) -> Pipeline {
         Pipeline {
+            display: None,
             max_image_height,
             resize_method: ResizeFilter::Bilinear,
         }
     }
 
-    #[test]
-    fn page_passes_bytes_through_when_no_height_is_set() {
-        let bytes = opaque_png();
-        let image = pipeline(0).page(bytes.clone()).unwrap();
+    /// A pipeline that renders into `width` x `height`, with no height cap.
+    fn displaying(width: u32, height: u32) -> Pipeline {
+        Pipeline {
+            display: Some(Fit { width, height }),
+            max_image_height: 0,
+            resize_method: ResizeFilter::Bilinear,
+        }
+    }
 
-        // The shipped default is 0, and on that path a page must reach the viewer exactly
-        // as the archive stored it.
+    #[test]
+    fn an_unbounded_fit_passes_bytes_through() {
+        let bytes = opaque_png();
+        let pipeline = pipeline(0);
+        assert_eq!(pipeline.fit(), Fit::UNBOUNDED);
+
+        // The shipped default before this change, and still the path a page takes before
+        // the viewer has reported a viewport: the bytes reach it as the archive stored
+        // them.
+        let image = pipeline.page(bytes.clone(), pipeline.fit()).unwrap();
         assert_eq!(image.data, bytes);
         assert_eq!((image.width, image.height), (4, 2));
     }
 
     #[test]
-    fn page_passes_bytes_through_when_already_short_enough() {
+    fn page_passes_bytes_through_when_already_inside_the_box() {
         let bytes = opaque_png();
-        let image = pipeline(100).page(bytes.clone()).unwrap();
+        let pipeline = displaying(100, 100);
+        let image = pipeline.page(bytes.clone(), pipeline.fit()).unwrap();
         assert_eq!(image.data, bytes);
     }
 
     #[test]
-    fn page_shrinks_to_the_height_cap() {
-        let image = pipeline(1).page(opaque_png()).unwrap();
-        assert_eq!(image.height, 1);
-        assert_eq!(image.width, 2);
+    fn an_animated_page_passes_through_even_outside_the_box() {
+        let bytes = crate::image::types::tests::animated_gif();
+        let pipeline = displaying(2, 100);
+
+        // The still fixture of the same size is shrunk by this box (see
+        // `page_shrinks_to_the_display_box`); the animation is not, or it would lose
+        // every frame but the first.
+        let image = pipeline.page(bytes.clone(), pipeline.fit()).unwrap();
+        assert_eq!(image.data, bytes);
+        assert_eq!((image.width, image.height), (4, 2));
     }
 
     #[test]
-    fn shrinking_keeps_alpha_as_png() {
-        let image = pipeline(1).page(alpha_png()).unwrap();
+    fn an_avif_page_shrinks_like_any_other() {
+        let pipeline = displaying(2, 100);
+        let image = pipeline
+            .page(crate::image::avif::tests::avif(), pipeline.fit())
+            .unwrap();
+        assert_eq!((image.width, image.height), (2, 1));
+        assert_eq!(image::guess_format(&image.data).unwrap(), ImageFormat::Png);
+    }
 
-        // Re-encoding a transparent page as JPEG would replace its transparency with
-        // black, so the format has to follow the pixels rather than a fixed choice.
+    #[test]
+    fn page_shrinks_to_the_display_box() {
+        let pipeline = displaying(2, 100);
+        let image = pipeline.page(opaque_png(), pipeline.fit()).unwrap();
+
+        // Width-bound: the box is narrower than the page but taller, and the aspect
+        // ratio is kept. Only a `Fit` that carries both axes can express this.
+        assert_eq!((image.width, image.height), (2, 1));
+    }
+
+    #[test]
+    fn page_shrinks_to_the_height_cap() {
+        let pipeline = pipeline(1);
+        let image = pipeline.page(opaque_png(), pipeline.fit()).unwrap();
+        assert_eq!((image.width, image.height), (2, 1));
+    }
+
+    #[test]
+    fn the_height_cap_still_wins_inside_a_larger_box() {
+        let pipeline = Pipeline {
+            display: Some(Fit {
+                width: 100,
+                height: 100,
+            }),
+            max_image_height: 1,
+            resize_method: ResizeFilter::Bilinear,
+        };
+
+        // The viewport would hold the page whole; the setting is what the user asked for.
+        assert_eq!(
+            pipeline.fit(),
+            Fit {
+                width: 100,
+                height: 1
+            }
+        );
+        let image = pipeline.page(opaque_png(), pipeline.fit()).unwrap();
+        assert_eq!(image.height, 1);
+    }
+
+    #[test]
+    fn full_fit_ignores_the_box_but_honours_the_height_cap() {
+        let uncapped = displaying(2, 2);
+        assert_eq!(uncapped.full_fit(), Fit::UNBOUNDED);
+        let image = uncapped.page(opaque_png(), uncapped.full_fit()).unwrap();
+        assert_eq!((image.width, image.height), (4, 2));
+
+        let capped = Pipeline {
+            display: Some(Fit {
+                width: 2,
+                height: 2,
+            }),
+            max_image_height: 1,
+            resize_method: ResizeFilter::Bilinear,
+        };
+        assert_eq!(
+            capped.full_fit(),
+            Fit {
+                width: u32::MAX,
+                height: 1
+            }
+        );
+    }
+
+    #[test]
+    fn a_shrunk_page_is_a_lossless_png() {
+        let bytes = opaque_png();
+        let pipeline = displaying(2, 100);
+        let image = pipeline.page(bytes.clone(), pipeline.fit()).unwrap();
+
         assert_eq!(
             image::guess_format(&image.data).unwrap(),
             ImageFormat::Png,
-            "a page with an alpha channel must stay PNG"
+            "the page is drawn at 1:1, so a re-encode's artifacts would be shown at full size"
         );
-        assert!(ImageReader::new(Cursor::new(&image.data))
-            .with_guessed_format()
-            .unwrap()
-            .decode()
-            .unwrap()
-            .color()
-            .has_alpha());
+
+        // The bytes the viewer receives must decode back to the resize's own output,
+        // pixel for pixel. This is the assertion the old JPEG encoder fails.
+        let expected = shrink_to_fit(&decode(&bytes), 2, 100, ResizeFilter::Bilinear).unwrap();
+        assert_eq!(decode(&image.data).to_rgb8(), expected.to_rgb8());
+    }
+
+    /// A minimal big-endian EXIF block whose only entry is Orientation = 6 (rotate 90° CW).
+    const EXIF_ROTATE_90: [u8; 26] = [
+        0x4D, 0x4D, 0x00, 0x2A, // "MM", 42
+        0x00, 0x00, 0x00, 0x08, // offset of the first IFD
+        0x00, 0x01, // one entry
+        0x01, 0x12, 0x00, 0x03, // tag 0x0112 Orientation, type SHORT
+        0x00, 0x00, 0x00, 0x01, // count 1
+        0x00, 0x06, 0x00, 0x00, // value 6, padding
+        0x00, 0x00, 0x00, 0x00, // no next IFD
+    ];
+
+    /// `opaque_png` with an eXIf chunk that says the page is stored on its side.
+    fn rotated_png() -> Vec<u8> {
+        let mut buffer = Vec::new();
+        let mut encoder = image::codecs::png::PngEncoder::new(&mut buffer);
+        encoder.set_exif_metadata(EXIF_ROTATE_90.to_vec()).unwrap();
+        decode(&opaque_png()).write_with_encoder(encoder).unwrap();
+        buffer
     }
 
     #[test]
-    fn shrinking_encodes_an_opaque_page_as_jpeg() {
-        let image = pipeline(1).page(opaque_png()).unwrap();
+    fn shrinking_applies_the_exif_orientation() {
+        // The header says 4x2, so a 1-wide box shrinks it. Upright the page is 2x4, and
+        // 2x4 into 1x100 is 1x2; unrotated it would have come out 1x1.
+        let pipeline = displaying(1, 100);
+        let image = pipeline.page(rotated_png(), pipeline.fit()).unwrap();
+        assert_eq!((image.width, image.height), (1, 2));
+
+        // Nothing is left for the browser to rotate again.
+        let mut decoder =
+            image::codecs::png::PngDecoder::new(Cursor::new(&image.data[..])).unwrap();
         assert_eq!(
-            image::guess_format(&image.data).unwrap(),
-            ImageFormat::Jpeg,
-            "an opaque page costs fewer bytes as JPEG"
+            decoder.orientation().unwrap(),
+            image::metadata::Orientation::NoTransforms
         );
+    }
+
+    #[test]
+    fn shrinking_applies_the_avif_rotation() {
+        // `ispe` says 8x4, so a 1-wide box shrinks it. `irot` 1 turns it upright to 4x8,
+        // and 4x8 into 1x100 is 1x2; unrotated it would have come out 1x1.
+        let bytes = crate::image::avif::tests::transformed_avif(&[(b"irot", &[1u8][..])]);
+        let pipeline = displaying(1, 100);
+        let image = pipeline.page(bytes, pipeline.fit()).unwrap();
+        assert_eq!((image.width, image.height), (1, 2));
+    }
+
+    /// `opaque_png` tagged with a (dummy) ICC profile. `png` stores the bytes verbatim.
+    fn profiled_png() -> Vec<u8> {
+        let mut buffer = Vec::new();
+        let mut encoder = PngEncoder::new(&mut buffer);
+        encoder
+            .set_icc_profile(b"not a real profile".to_vec())
+            .unwrap();
+        decode(&opaque_png()).write_with_encoder(encoder).unwrap();
+        buffer
+    }
+
+    #[test]
+    fn shrinking_keeps_the_icc_profile() {
+        let pipeline = displaying(2, 100);
+        let image = pipeline.page(profiled_png(), pipeline.fit()).unwrap();
+        assert_eq!((image.width, image.height), (2, 1));
+
+        let mut decoder =
+            image::codecs::png::PngDecoder::new(Cursor::new(&image.data[..])).unwrap();
+        assert_eq!(
+            decoder.icc_profile().unwrap().as_deref(),
+            Some(&b"not a real profile"[..])
+        );
+    }
+
+    #[test]
+    fn shrinking_keeps_alpha() {
+        let pipeline = pipeline(1);
+        let image = pipeline.page(alpha_png(), pipeline.fit()).unwrap();
+
+        // Transparency survived the format change that made every page PNG; before it,
+        // this was the one page that escaped being re-encoded as JPEG.
+        assert_eq!(image::guess_format(&image.data).unwrap(), ImageFormat::Png);
+        assert!(decode(&image.data).color().has_alpha());
     }
 
     #[test]
@@ -208,7 +480,7 @@ mod tests {
             .unwrap();
 
         let thumbnail = Pipeline::thumbnail(&buffer).unwrap();
-        assert!(thumbnail.width <= crate::image::thumbnail::THUMBNAIL_SIZE);
-        assert!(thumbnail.height <= crate::image::thumbnail::THUMBNAIL_SIZE);
+        assert_eq!(thumbnail.width, COVER.max_size);
+        assert!(thumbnail.height <= COVER.max_size);
     }
 }

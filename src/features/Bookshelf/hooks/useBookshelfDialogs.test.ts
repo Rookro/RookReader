@@ -47,8 +47,9 @@ describe("useBookshelfDialogs", () => {
     const { result } = renderHook(() => useBookshelfDialogs());
 
     expect(result.current.dialogType).toBeNull();
-    expect(result.current.selectedBookIds).toEqual([]);
-    expect(result.current.selectedBooks).toEqual([]);
+    expect(result.current.dialogBookIds).toEqual([]);
+    expect(result.current.dialogBooks).toEqual([]);
+    expect(result.current.editSeriesOrderSeriesId).toBeNull();
   });
 
   it("should open a dialog with selected books", () => {
@@ -59,8 +60,20 @@ describe("useBookshelfDialogs", () => {
     });
 
     expect(result.current.dialogType).toBe("add-to-bookshelf");
-    expect(result.current.selectedBookIds).toEqual([1, 2]);
-    expect(result.current.selectedBooks).toEqual(mockBooks);
+    expect(result.current.dialogBookIds).toEqual([1, 2]);
+    expect(result.current.dialogBooks).toEqual(mockBooks);
+  });
+
+  it("should open the edit-order dialog for a series", () => {
+    const { result } = renderHook(() => useBookshelfDialogs());
+
+    act(() => {
+      result.current.openEditSeriesOrderDialog(7);
+    });
+
+    expect(result.current.dialogType).toBe("edit-series-order");
+    expect(result.current.editSeriesOrderSeriesId).toBe(7);
+    expect(result.current.dialogBooks).toEqual([]);
   });
 
   it("should close the dialog but keep the selected data", () => {
@@ -76,24 +89,8 @@ describe("useBookshelfDialogs", () => {
 
     expect(result.current.dialogType).toBeNull();
     // closeDialog only resets the type to null to allow for closing animations
-    expect(result.current.selectedBookIds).toEqual([1, 2]);
-    expect(result.current.selectedBooks).toEqual(mockBooks);
-  });
-
-  it("should clear all dialog data", () => {
-    const { result } = renderHook(() => useBookshelfDialogs());
-
-    act(() => {
-      result.current.openDialog("set-tags", mockBooks);
-    });
-
-    act(() => {
-      result.current.clearDialogData();
-    });
-
-    expect(result.current.dialogType).toBeNull();
-    expect(result.current.selectedBookIds).toEqual([]);
-    expect(result.current.selectedBooks).toEqual([]);
+    expect(result.current.dialogBookIds).toEqual([1, 2]);
+    expect(result.current.dialogBooks).toEqual(mockBooks);
   });
 
   it("should update state when opening a different dialog", () => {
@@ -104,14 +101,14 @@ describe("useBookshelfDialogs", () => {
     });
 
     expect(result.current.dialogType).toBe("add-to-bookshelf");
-    expect(result.current.selectedBookIds).toEqual([1]);
+    expect(result.current.dialogBookIds).toEqual([1]);
 
     act(() => {
       result.current.openDialog("set-series", [mockBooks[1]]);
     });
 
     expect(result.current.dialogType).toBe("set-series");
-    expect(result.current.selectedBookIds).toEqual([2]);
-    expect(result.current.selectedBooks).toEqual([mockBooks[1]]);
+    expect(result.current.dialogBookIds).toEqual([2]);
+    expect(result.current.dialogBooks).toEqual([mockBooks[1]]);
   });
 });

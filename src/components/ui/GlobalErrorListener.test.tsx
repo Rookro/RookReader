@@ -178,4 +178,22 @@ describe("GlobalErrorListener", () => {
       expect(store.getState().tag.error).toBeNull();
     });
   });
+
+  it("should trigger notification and clear error when series has error", async () => {
+    const preloadedState = createBasePreloadedState();
+    preloadedState.series.error = { code: ErrorCode.other };
+
+    const { store } = renderWithProviders(<GlobalErrorListener />, { preloadedState });
+
+    await waitFor(() => {
+      expect(showNotificationMock).toHaveBeenCalledWith(
+        "Series operation failed. (Error code: 90001)",
+        "error",
+      );
+    });
+
+    await waitFor(() => {
+      expect(store.getState().series.error).toBeNull();
+    });
+  });
 });

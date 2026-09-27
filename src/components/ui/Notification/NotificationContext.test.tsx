@@ -51,9 +51,9 @@ describe("NotificationContext", () => {
     // Verify notification message
     expect(screen.getByText("Hello World")).toBeInTheDocument();
 
-    // Verify Alert severity class (MUI adds 'MuiAlert-filledSuccess' or similar)
+    // Verify Alert variant and severity classes
     const alert = screen.getByRole("alert");
-    expect(alert).toHaveClass("MuiAlert-filledSuccess");
+    expect(alert).toHaveClass("MuiAlert-filled", "MuiAlert-colorSuccess");
   });
 
   it("should close notification when close button is clicked", async () => {

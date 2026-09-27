@@ -1,20 +1,21 @@
 import LinkOff from "@mui/icons-material/LinkOff";
 import Sort from "@mui/icons-material/Sort";
-import { ListItemIcon, ListItemText, Menu, MenuItem } from "@mui/material";
-import { error } from "@tauri-apps/plugin-log";
+import { ListItemIcon, ListItemText, MenuItem } from "@mui/material";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { deleteSeries } from "../../../bindings/SeriesCommands";
 import ConfirmDialog from "../../../components/ui/ConfirmDialog";
+import ContextMenu from "../../../components/ui/ContextMenu/ContextMenu";
+import type { ContextMenuAnchor } from "../../../components/ui/ContextMenu/useContextMenuAnchor";
 import type { Series } from "../../../domain/series/schema";
 import { useAppDispatch } from "../../../store/store";
-import { setEditSeriesOrderDialogState } from "../seriesSlice";
+import { removeSeries } from "../seriesSlice";
+import { useBookshelfActions } from "./BookshelfActionsContext";
 
 export interface SeriesContextMenuProps {
   /** The series associated with this menu */
   series: Series;
   /** Context menu anchor position */
-  anchor: { mouseX: number; mouseY: number } | null;
+  anchor: ContextMenuAnchor | null;
   /** Callback to close the menu */
   onClose: () => void;
 }
@@ -26,6 +27,7 @@ export interface SeriesContextMenuProps {
 export default function SeriesContextMenu({ series, anchor, onClose }: SeriesContextMenuProps) {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
+  const { openEditSeriesOrderDialog } = useBookshelfActions();
 
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
@@ -35,33 +37,19 @@ export default function SeriesContextMenu({ series, anchor, onClose }: SeriesCon
     onClose();
   };
 
-  const handleRemoveSeriesConfirmed = async () => {
+  const handleRemoveSeriesConfirmed = () => {
     setIsConfirmOpen(false);
-    try {
-      await deleteSeries(series.id);
-    } catch (e) {
-      error(`Failed to remove series: ${e}`);
-    }
+    dispatch(removeSeries(series.id));
   };
 
   const handleEditOrder = () => {
-    dispatch(setEditSeriesOrderDialogState({ isOpen: true, seriesId: series.id }));
+    openEditSeriesOrderDialog(series.id);
     onClose();
   };
 
   return (
     <>
-      <Menu
-        open={anchor !== null}
-        onClose={onClose}
-        onContextMenu={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          onClose();
-        }}
-        anchorReference="anchorPosition"
-        anchorPosition={anchor !== null ? { top: anchor.mouseY, left: anchor.mouseX } : undefined}
-      >
+      <ContextMenu anchor={anchor} onClose={onClose}>
         <MenuItem dense onClick={handleEditOrder}>
           <ListItemIcon>
             <Sort />
@@ -74,7 +62,7 @@ export default function SeriesContextMenu({ series, anchor, onClose }: SeriesCon
           </ListItemIcon>
           <ListItemText>{t("bookshelf.series.ungroup-series")}</ListItemText>
         </MenuItem>
-      </Menu>
+      </ContextMenu>
       <ConfirmDialog
         open={isConfirmOpen}
         title={t("bookshelf.series.ungroup-confirm.title")}

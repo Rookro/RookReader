@@ -1,3 +1,4 @@
+use rookreader_lib::domain::book::entity::ItemType;
 use rookreader_lib::domain::book::repository::BookRepository;
 use rookreader_lib::domain::tag::repository::TagRepository;
 use rookreader_lib::error::Error;
@@ -35,7 +36,7 @@ async fn test_create_duplicate_tag() {
     let err = repository.create("Action", "#0000ff").await.unwrap_err();
 
     // Error should be a database constraint error due to UNIQUE constraint
-    assert!(matches!(err, Error::Database(sqlx::Error::Database(_))));
+    assert!(matches!(&err, Error::Database(e) if matches!(**e, sqlx::Error::Database(_))));
 }
 
 #[tokio::test]
@@ -45,7 +46,7 @@ async fn test_attach_tags_tolerates_duplicate_ids() {
     let books = SqliteBookRepository::new(pool.clone());
 
     let book_id = books
-        .register_book("/path/to/book", "file", "Book", 1, None)
+        .register_book("/path/to/book", ItemType::File, "Book", 1, None)
         .await
         .unwrap();
     let t = tags.create("Action", "#ff0000").await.unwrap();
@@ -70,7 +71,7 @@ async fn test_attach_tags_skips_nonexistent_id() {
     let books = SqliteBookRepository::new(pool.clone());
 
     let book_id = books
-        .register_book("/path/to/book", "file", "Book", 1, None)
+        .register_book("/path/to/book", ItemType::File, "Book", 1, None)
         .await
         .unwrap();
     let t = tags.create("Action", "#ff0000").await.unwrap();

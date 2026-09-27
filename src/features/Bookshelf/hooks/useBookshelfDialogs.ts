@@ -1,59 +1,49 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type { BookWithState } from "../../../domain/book/schema";
 
-/** Types of dialogs available in the bookshelf */
-export type BookshelfDialogType =
-  | "add-to-bookshelf"
-  | "set-tags"
-  | "set-series"
-  | "delete-books"
-  | null;
+/** Dialogs that act on a set of books. */
+export type BookDialogType = "add-to-bookshelf" | "set-tags" | "set-series" | "delete-books";
 
-/** State for managing bookshelf dialogs */
+/** Every dialog hosted by the book grid. */
+export type BookshelfDialogType = BookDialogType | "edit-series-order" | null;
+
 interface BookshelfDialogState {
   type: BookshelfDialogType;
-  selectedBookIds: number[];
-  selectedBooks: BookWithState[];
+  /** Target books of a book dialog; kept after close so the closing animation has content. */
+  books: BookWithState[];
+  /** Target series of the edit-order dialog. */
+  seriesId: number | null;
 }
 
-/**
- * Hook for managing the state of multiple dialogs in the bookshelf.
- */
+/** Owns which bookshelf dialog is open and what it targets. */
 export function useBookshelfDialogs() {
-  const [dialogState, setDialogState] = useState<BookshelfDialogState>({
+  const [state, setState] = useState<BookshelfDialogState>({
     type: null,
-    selectedBookIds: [],
-    selectedBooks: [],
+    books: [],
+    seriesId: null,
   });
 
-  const openDialog = useCallback((type: BookshelfDialogType, books: BookWithState[]) => {
-    setDialogState({
-      type,
-      selectedBookIds: books.map((b) => b.id),
-      selectedBooks: books,
-    });
+  const openDialog = useCallback((type: BookDialogType, books: BookWithState[]) => {
+    setState({ type, books, seriesId: null });
+  }, []);
+
+  const openEditSeriesOrderDialog = useCallback((seriesId: number) => {
+    setState({ type: "edit-series-order", books: [], seriesId });
   }, []);
 
   const closeDialog = useCallback(() => {
-    setDialogState((prev) => ({ ...prev, type: null }));
+    setState((prev) => ({ ...prev, type: null }));
   }, []);
 
-  // Specifically for clearing data after close animations if needed,
-  // but usually resetting type to null is enough for "open" prop.
-  const clearDialogData = useCallback(() => {
-    setDialogState({
-      type: null,
-      selectedBookIds: [],
-      selectedBooks: [],
-    });
-  }, []);
+  const dialogBookIds = useMemo(() => state.books.map((b) => b.id), [state.books]);
 
   return {
-    dialogType: dialogState.type,
-    selectedBookIds: dialogState.selectedBookIds,
-    selectedBooks: dialogState.selectedBooks,
+    dialogType: state.type,
+    dialogBooks: state.books,
+    dialogBookIds,
+    editSeriesOrderSeriesId: state.seriesId,
     openDialog,
+    openEditSeriesOrderDialog,
     closeDialog,
-    clearDialogData,
   };
 }

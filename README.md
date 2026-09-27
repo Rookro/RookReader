@@ -27,6 +27,12 @@ It supports image sequences (such as comics and magazines) contained in a direct
   * cbr (a RAR comic archive)
   * pdf
   * epub (Note: The novel reading function is an experimental feature.)
+* **Supported image formats** (pages inside archives and folders):
+  * png / apng
+  * jpeg
+  * gif
+  * webp
+  * avif
 * **Bookshelf Management:** Organize your library with multiple bookshelves and custom icons.
 * **Tagging System:** Categorize books using custom tags for easier navigation.
 * **Modern UI/UX:** An intuitive and easy-to-use interface built with React + TypeScript.

@@ -40,9 +40,14 @@ export default function ThirdParty() {
         <Typography variant="subtitle2" sx={{ marginBottom: 1, fontWeight: "bold" }}>
           {t("settings.about.third-party-licenses.bundled")}
         </Typography>
-        <Button variant="outlined" onClick={() => openLicense("pdfium/")}>
-          {t("settings.about.third-party-licenses.pdfium")}
-        </Button>
+        <Box sx={{ display: "flex", gap: "10px" }}>
+          <Button variant="outlined" onClick={() => openLicense("pdfium/")}>
+            {t("settings.about.third-party-licenses.pdfium")}
+          </Button>
+          <Button variant="outlined" onClick={() => openLicense("dav1d/")}>
+            {t("settings.about.third-party-licenses.dav1d")}
+          </Button>
+        </Box>
       </Box>
     </Box>
   );
