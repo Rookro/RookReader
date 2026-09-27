@@ -127,7 +127,7 @@ Press **Move to Bookshelf** in the reader's top app bar to open the **Bookshelve
 - **Right-click a book** for the same actions on a single book.
 - **Keyboard**: the arrow keys move the focus through the grid, **Home** / **End** jump to the first / last item, and **Enter** or **Space** opens the focused book or series.
 - **Delete a collection or tag** by right-clicking it in the left pane and choosing **Delete**. A confirmation dialog is shown first; deleting a collection keeps its books in your library.
-- The book you are currently reading is marked **Reading** and the bookshelf scrolls to it when opened.
+- The book you are currently reading is marked **Reading** and the bookshelf scrolls to it when opened. If the book belongs to a series, the bookshelf opens that series first; if it doesn't, a series left open is closed. This only happens when the book is shown in the current collection, tag and search, and only once each time you open the bookshelf, so going back with the breadcrumb stays put until you return to the reader.
 
 ### Series
 
