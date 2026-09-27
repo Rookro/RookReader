@@ -60,7 +60,7 @@ export default function BookDeleteDialog({ open, books, onClose }: BookDeleteDia
                   bookshelfName,
                 }}
                 components={{
-                  bold: <Box component="span" fontWeight="bold" color="text.primary" />,
+                  bold: <Box component="span" sx={{ fontWeight: "bold", color: "text.primary" }} />,
                 }}
               />
             ) : (
@@ -71,7 +71,7 @@ export default function BookDeleteDialog({ open, books, onClose }: BookDeleteDia
                   bookshelfName,
                 }}
                 components={{
-                  bold: <Box component="span" fontWeight="bold" color="text.primary" />,
+                  bold: <Box component="span" sx={{ fontWeight: "bold", color: "text.primary" }} />,
                 }}
               />
             )}

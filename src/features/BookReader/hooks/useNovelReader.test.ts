@@ -405,36 +405,42 @@ describe("useNovelReader", () => {
     it.each([
       ["rtl", "vertical-rl"],
       ["ltr", "horizontal-tb"],
-    ] as const)("should take the declared %s direction for the whole book, before any section renders", async (declared, sectionWritingMode) => {
-      const viewElement = await loadBook({
-        ...undeclaredBook,
-        dir: declared,
-      } as Book);
+    ] as const)(
+      "should take the declared %s direction for the whole book, before any section renders",
+      async (declared, sectionWritingMode) => {
+        const viewElement = await loadBook({
+          ...undeclaredBook,
+          dir: declared,
+        } as Book);
 
-      expect(mockDispatch).toHaveBeenCalledWith(setNovelDirection(declared));
-      mockDispatch.mockClear();
+        expect(mockDispatch).toHaveBeenCalledWith(setNovelDirection(declared));
+        mockDispatch.mockClear();
 
-      // A section written the other way round must not overrule the book.
-      viewElement.dispatchEvent(
-        new CustomEvent("load", { detail: { doc: sectionDoc(sectionWritingMode) } }),
-      );
-      expect(mockDispatch).not.toHaveBeenCalledWith(setNovelDirection("rtl"));
-      expect(mockDispatch).not.toHaveBeenCalledWith(setNovelDirection("ltr"));
-    });
+        // A section written the other way round must not overrule the book.
+        viewElement.dispatchEvent(
+          new CustomEvent("load", { detail: { doc: sectionDoc(sectionWritingMode) } }),
+        );
+        expect(mockDispatch).not.toHaveBeenCalledWith(setNovelDirection("rtl"));
+        expect(mockDispatch).not.toHaveBeenCalledWith(setNovelDirection("ltr"));
+      },
+    );
 
     it.each([
       ["vertical-rl", "rtl"],
       ["vertical-lr", "ltr"],
       ["horizontal-tb", "ltr"],
-    ] as const)("should fall back to the %s writing mode when the book declares no direction", async (writingMode, expected) => {
-      const viewElement = await loadBook(undeclaredBook);
+    ] as const)(
+      "should fall back to the %s writing mode when the book declares no direction",
+      async (writingMode, expected) => {
+        const viewElement = await loadBook(undeclaredBook);
 
-      viewElement.dispatchEvent(
-        new CustomEvent("load", { detail: { doc: sectionDoc(writingMode) } }),
-      );
+        viewElement.dispatchEvent(
+          new CustomEvent("load", { detail: { doc: sectionDoc(writingMode) } }),
+        );
 
-      expect(mockDispatch).toHaveBeenCalledWith(setNovelDirection(expected));
-    });
+        expect(mockDispatch).toHaveBeenCalledWith(setNovelDirection(expected));
+      },
+    );
 
     // The case this exists for: a vertical novel whose table of contents is horizontal.
     it("should keep a vertical book right-to-left once its body text has been seen", async () => {
@@ -464,48 +470,55 @@ describe("useNovelReader", () => {
   it.each([
     ["rtl", "ArrowLeft", "ArrowRight"],
     ["ltr", "ArrowRight", "ArrowLeft"],
-  ])("should turn pages by the detected %s direction, ignoring the comic setting", async (direction, forwardKey, backKey) => {
-    vi.mocked(useAppSelector).mockImplementation(<T>(selector: (state: RootState) => T): T => {
-      const state = {
-        ...defaultState,
-        read: { containerFile: { index: 0, cfi: null, isNovel: true, novelDirection: direction } },
-        settings: {
-          ...defaultState.settings,
-          reader: {
-            ...defaultState.settings.reader,
-            // The opposite comic setting must not reach the novel.
-            comic: { readingDirection: direction === "rtl" ? "ltr" : "rtl" },
+  ])(
+    "should turn pages by the detected %s direction, ignoring the comic setting",
+    async (direction, forwardKey, backKey) => {
+      vi.mocked(useAppSelector).mockImplementation(<T>(selector: (state: RootState) => T): T => {
+        const state = {
+          ...defaultState,
+          read: {
+            containerFile: { index: 0, cfi: null, isNovel: true, novelDirection: direction },
           },
-        },
-      };
-      return selector(state as RootState);
-    });
+          settings: {
+            ...defaultState.settings,
+            reader: {
+              ...defaultState.settings.reader,
+              // The opposite comic setting must not reach the novel.
+              comic: { readingDirection: direction === "rtl" ? "ltr" : "rtl" },
+            },
+          },
+        };
+        return selector(state as RootState);
+      });
 
-    const mockBook = { sections: [], toc: [], destroy: vi.fn() } as Book;
-    vi.mocked(makeBook).mockResolvedValue(mockBook);
+      const mockBook = { sections: [], toc: [], destroy: vi.fn() } as Book;
+      vi.mocked(makeBook).mockResolvedValue(mockBook);
 
-    const { result } = setupHook();
+      const { result } = setupHook();
 
-    await waitFor(() => {
+      await waitFor(() => {
+        const viewElement = result.current.viewerRef.current?.querySelector(
+          "foliate-view",
+        ) as MockView;
+        expect(viewElement).not.toBeNull();
+      });
+
       const viewElement = result.current.viewerRef.current?.querySelector(
         "foliate-view",
       ) as MockView;
-      expect(viewElement).not.toBeNull();
-    });
 
-    const viewElement = result.current.viewerRef.current?.querySelector("foliate-view") as MockView;
+      const calls = vi.mocked(useReaderKeydown).mock.calls;
+      const pressKey = (key: string) =>
+        calls[calls.length - 1][0](new KeyboardEvent("keydown", { key }));
 
-    const calls = vi.mocked(useReaderKeydown).mock.calls;
-    const pressKey = (key: string) =>
-      calls[calls.length - 1][0](new KeyboardEvent("keydown", { key }));
+      pressKey(forwardKey);
+      expect(viewElement.next).toHaveBeenCalledTimes(1);
+      expect(viewElement.prev).not.toHaveBeenCalled();
 
-    pressKey(forwardKey);
-    expect(viewElement.next).toHaveBeenCalledTimes(1);
-    expect(viewElement.prev).not.toHaveBeenCalled();
-
-    pressKey(backKey);
-    expect(viewElement.prev).toHaveBeenCalledTimes(1);
-  });
+      pressKey(backKey);
+      expect(viewElement.prev).toHaveBeenCalledTimes(1);
+    },
+  );
 
   it("listens for keys through the reader gate", () => {
     setupHook();

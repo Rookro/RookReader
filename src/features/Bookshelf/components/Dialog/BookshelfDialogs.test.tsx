@@ -84,16 +84,14 @@ describe("BookshelfDialogs", () => {
     }
   });
 
-  it.each([
-    "add-to-bookshelf",
-    "set-tags",
-    "set-series",
-    "delete-books",
-  ] as const)("opens only the %s dialog", (type) => {
-    renderDialogs({ dialogType: type, dialogBooks: [vol1], dialogBookIds: [1] });
-    expect(screen.getByTestId(type)).toBeInTheDocument();
-    expect(screen.queryByTestId("edit-series-order")).not.toBeInTheDocument();
-  });
+  it.each(["add-to-bookshelf", "set-tags", "set-series", "delete-books"] as const)(
+    "opens only the %s dialog",
+    (type) => {
+      renderDialogs({ dialogType: type, dialogBooks: [vol1], dialogBookIds: [1] });
+      expect(screen.getByTestId(type)).toBeInTheDocument();
+      expect(screen.queryByTestId("edit-series-order")).not.toBeInTheDocument();
+    },
+  );
 
   it("closes a book dialog through onBookDialogClose", () => {
     const onBookDialogClose = vi.fn();

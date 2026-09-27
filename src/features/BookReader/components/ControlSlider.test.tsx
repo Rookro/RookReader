@@ -51,15 +51,18 @@ describe("ControlSlider", () => {
   it.each([
     ["rtl", /muirtl-/],
     ["ltr", /muiltr-/],
-  ])("should render the slider %s for a novel, ignoring the comic setting", (direction, expected) => {
-    const preloadedState = createBasePreloadedState();
-    preloadedState.read.containerFile.entries = ["1.jpg", "2.jpg"];
-    preloadedState.read.containerFile.isNovel = true;
-    preloadedState.read.containerFile.novelDirection = direction as "rtl" | "ltr";
-    preloadedState.settings.reader.comic.readingDirection = direction === "rtl" ? "ltr" : "rtl";
+  ])(
+    "should render the slider %s for a novel, ignoring the comic setting",
+    (direction, expected) => {
+      const preloadedState = createBasePreloadedState();
+      preloadedState.read.containerFile.entries = ["1.jpg", "2.jpg"];
+      preloadedState.read.containerFile.isNovel = true;
+      preloadedState.read.containerFile.novelDirection = direction as "rtl" | "ltr";
+      preloadedState.settings.reader.comic.readingDirection = direction === "rtl" ? "ltr" : "rtl";
 
-    renderWithProviders(<ControlSlider />, { preloadedState });
+      renderWithProviders(<ControlSlider />, { preloadedState });
 
-    expect(screen.getByTestId("control-slider").className).toMatch(expected);
-  });
+      expect(screen.getByTestId("control-slider").className).toMatch(expected);
+    },
+  );
 });

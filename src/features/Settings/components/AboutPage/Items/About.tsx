@@ -63,7 +63,7 @@ export default function About() {
   }, [checkForUpdates]);
 
   return (
-    <Stack direction="row" spacing={2} alignItems="center">
+    <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
       <Box component="img" src={appIcon} sx={{ width: "100px" }} />
       <Stack direction="column" spacing={1}>
         <Typography variant="h3">{appName}</Typography>
@@ -87,7 +87,7 @@ export default function About() {
           onClick={handleLinkClick}
           sx={{ width: "fit-content" }}
         >
-          <Stack direction="row" spacing={0.5} alignItems="center" sx={{ marginBottom: 1 }}>
+          <Stack direction="row" spacing={0.5} sx={{ alignItems: "center", marginBottom: 1 }}>
             <GitHub fontSize="small" />
             <Typography variant="body1">{t("settings.about.project-page")}</Typography>
           </Stack>

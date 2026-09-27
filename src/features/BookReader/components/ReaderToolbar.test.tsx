@@ -357,17 +357,20 @@ describe("ReaderToolbar", () => {
     it.each([
       ["rtl", "ltr", "ReadingDirection-rtl"],
       ["ltr", "rtl", "ReadingDirection-ltr"],
-    ])("should show the detected %s direction and disable the button", (novelDirection, comicDirection, testId) => {
-      const preloadedState = createBasePreloadedState();
-      preloadedState.read.containerFile.isNovel = true;
-      preloadedState.read.containerFile.novelDirection = novelDirection as "rtl" | "ltr";
-      preloadedState.read.containerFile.readingDirection = comicDirection as "rtl" | "ltr";
+    ])(
+      "should show the detected %s direction and disable the button",
+      (novelDirection, comicDirection, testId) => {
+        const preloadedState = createBasePreloadedState();
+        preloadedState.read.containerFile.isNovel = true;
+        preloadedState.read.containerFile.novelDirection = novelDirection as "rtl" | "ltr";
+        preloadedState.read.containerFile.readingDirection = comicDirection as "rtl" | "ltr";
 
-      renderWithProviders(<ReaderToolbar />, { preloadedState });
+        renderWithProviders(<ReaderToolbar />, { preloadedState });
 
-      expect(screen.getByTestId(testId)).toBeInTheDocument();
-      expect(screen.getByLabelText("toggle-direction")).toBeDisabled();
-    });
+        expect(screen.getByTestId(testId)).toBeInTheDocument();
+        expect(screen.getByLabelText("toggle-direction")).toBeDisabled();
+      },
+    );
 
     it("should fall back to rtl before the novel's writing mode is detected", () => {
       const preloadedState = createBasePreloadedState();
