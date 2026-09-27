@@ -5,8 +5,13 @@ use sqlx::{
     sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions},
     SqlitePool,
 };
-use std::{fs, path::PathBuf, str::FromStr, sync::Arc};
-use tauri::{App, Manager, Runtime, Theme};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+    str::FromStr,
+    sync::Arc,
+};
+use tauri::{App, AppHandle, Manager, Runtime, Theme};
 use tauri_plugin_log::{RotationStrategy, Target, TargetKind};
 use tokio::sync::RwLock;
 
@@ -16,7 +21,7 @@ use crate::{
         bookshelf::repository::BookshelfRepository, series::repository::SeriesRepository,
         tag::repository::TagRepository,
     },
-    error::{self, Error},
+    error,
     infrastructure::database::{
         book_repository::SqliteBookRepository, bookmark_repository::SqliteBookmarkRepository,
         bookshelf_repository::SqliteBookshelfRepository, series_repository::SqliteSeriesRepository,
@@ -282,20 +287,9 @@ fn setup_database(app: &App) -> error::Result<()> {
         "rook-reader.db"
     };
     let db_path = app_data_dir_path.join(db_filename);
-    let db_url = format!("sqlite:{}", db_path.display());
-    // WAL lets a page-turn write land while a list is being read, and the busy timeout
-    // makes a second writer wait for the first instead of failing with SQLITE_BUSY.
-    let options = SqliteConnectOptions::from_str(&db_url)?
-        .create_if_missing(true)
-        .journal_mode(SqliteJournalMode::Wal)
-        .busy_timeout(std::time::Duration::from_secs(5));
-    log::debug!("Database file path: {:?}", options.get_filename());
-
-    let pool = tauri::async_runtime::block_on(async {
-        let pool = SqlitePoolOptions::new().connect_with(options).await?;
-        migrate!("./migrations").run(&pool).await?;
-        Ok::<SqlitePool, Error>(pool)
-    })?;
+    let pool = tauri::async_runtime::block_on(connect_database(&db_path))?;
+    // Kept as state so `teardown` can close it when the app exits.
+    app.manage(pool.clone());
 
     let book_repository: Arc<dyn BookRepository> =
         Arc::new(SqliteBookRepository::new(pool.clone()));
@@ -314,6 +308,40 @@ fn setup_database(app: &App) -> error::Result<()> {
     app.manage(bookmark_repository);
 
     Ok(())
+}
+
+/// Helper function to open the database at `db_path` and apply pending migrations.
+async fn connect_database(db_path: &Path) -> error::Result<SqlitePool> {
+    let db_url = format!("sqlite:{}", db_path.display());
+    // WAL lets a page-turn write land while a list is being read, and the busy timeout
+    // makes a second writer wait for the first instead of failing with SQLITE_BUSY.
+    // `PRAGMA optimize` on close keeps the query planner's statistics current; 400 is the
+    // analysis limit SQLite recommends.
+    let options = SqliteConnectOptions::from_str(&db_url)?
+        .create_if_missing(true)
+        .journal_mode(SqliteJournalMode::Wal)
+        .busy_timeout(std::time::Duration::from_secs(5))
+        .optimize_on_close(true, 400);
+    log::debug!("Database file path: {:?}", options.get_filename());
+
+    let pool = SqlitePoolOptions::new().connect_with(options).await?;
+    migrate!("./migrations").run(&pool).await?;
+    Ok(pool)
+}
+
+/// Closes the database pool before the process exits.
+///
+/// Tauri ends the process with `std::process::exit`, which skips destructors. Unless the
+/// pool is closed here, SQLite never checkpoints the WAL and the `-wal` / `-shm` files
+/// stay next to the database.
+///
+/// # Arguments
+///
+/// * `app` - The handle of the exiting app.
+pub fn teardown<R: Runtime>(app: &AppHandle<R>) {
+    if let Some(pool) = app.try_state::<SqlitePool>() {
+        tauri::async_runtime::block_on(pool.close());
+    }
 }
 
 /// Helper function to locate the directory containing bundled dynamic libraries.
@@ -450,6 +478,41 @@ mod tests {
         // a page is rendered.
         apply_reader_settings_to_container(&mut state, &settings);
         assert!(state.container_state.image_cache.get(&key).is_some());
+    }
+
+    // A plain #[test]: `teardown` blocks on Tauri's runtime, which panics inside another one.
+    #[test]
+    fn teardown_closes_the_pool_and_removes_the_wal_files() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let db_path = dir.path().join("rook-reader-test.db");
+        let wal = dir.path().join("rook-reader-test.db-wal");
+        let shm = dir.path().join("rook-reader-test.db-shm");
+
+        let pool = tauri::async_runtime::block_on(connect_database(&db_path))
+            .expect("open the test database");
+        // The migrations wrote through the WAL, so both files exist while the pool is open.
+        assert!(
+            wal.exists(),
+            "the -wal file should exist while the pool is open"
+        );
+        assert!(
+            shm.exists(),
+            "the -shm file should exist while the pool is open"
+        );
+
+        let app = tauri::test::mock_app();
+        app.manage(pool);
+        teardown(app.handle());
+
+        // Closing the last connection checkpoints the WAL and deletes both files.
+        assert!(
+            !wal.exists(),
+            "the -wal file should be removed after teardown"
+        );
+        assert!(
+            !shm.exists(),
+            "the -shm file should be removed after teardown"
+        );
     }
 
     #[cfg(any(debug_assertions, feature = "e2e-test"))]

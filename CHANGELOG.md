@@ -46,6 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * Symbolic links to folders and books now appear in the file navigator.
   * Two changes to the library at the same time now wait for each other instead of one failing.
 * Fixed the bookshelf showing an empty page when you switch to a collection that doesn't contain the series you had open. Choosing a collection, or deleting the one you are in, now closes the series and returns to the top of the bookshelf. (#355)
+* Fixed the database's `-wal` and `-shm` files being left in the data folder after quitting. RookReader now closes its database on exit, so only `rook-reader.db` remains. (#358)
 
 ## [2.5.0] - 2026-09-06
 
