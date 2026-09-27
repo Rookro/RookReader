@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Changes in the bookshelf view now refresh only the list that changed. Creating or deleting a bookshelf, tag or series, or opening a book, no longer reloads every list. (#337)
 * Bookshelf covers are sharper, so they no longer look coarse at the Large grid size. Covers made by earlier versions are replaced the next time each book is opened. (#342)
+* While a series is open on the bookshelf, the breadcrumb (Bookshelf › series name) now appears below the search box next to Edit Series Order, and long series names use the full width of that row before being shortened. (#352)
 
 ### Fixed
 
