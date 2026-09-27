@@ -29,7 +29,7 @@ export default function GridSizeControl({ value, onChange }: GridSizeControlProp
         zIndex: 10,
       }}
     >
-      <Stack direction="row" spacing={2} alignItems="center" sx={{ width: "100%" }}>
+      <Stack direction="row" spacing={2} sx={{ alignItems: "center", width: "100%" }}>
         <ZoomOut />
         <Slider
           aria-label={t("bookshelf.grid-size-change")}

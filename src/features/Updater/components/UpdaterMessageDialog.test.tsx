@@ -73,7 +73,7 @@ describe("UpdaterMessageDialog", () => {
       />,
     );
 
-    expect(screen.getByTestId("ErrorOutlineIcon")).toBeInTheDocument();
+    expect(screen.getByTestId("ErrorOutlinedIcon")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /copy/i })).toBeInTheDocument();
   });
 

@@ -14,41 +14,41 @@ const renderDirection = (state: RootState) => {
 };
 
 describe("useReadingDirection", () => {
-  it.each([
-    "rtl",
-    "ltr",
-  ] as const)("should follow the book's own direction (%s) for a comic", (direction) => {
-    const state = createBasePreloadedState();
-    state.read.containerFile.isNovel = false;
-    state.read.containerFile.readingDirection = direction;
-    state.settings.reader.comic.readingDirection = direction === "rtl" ? "ltr" : "rtl";
+  it.each(["rtl", "ltr"] as const)(
+    "should follow the book's own direction (%s) for a comic",
+    (direction) => {
+      const state = createBasePreloadedState();
+      state.read.containerFile.isNovel = false;
+      state.read.containerFile.readingDirection = direction;
+      state.settings.reader.comic.readingDirection = direction === "rtl" ? "ltr" : "rtl";
 
-    expect(renderDirection(state).current).toBe(direction);
-  });
+      expect(renderDirection(state).current).toBe(direction);
+    },
+  );
 
-  it.each([
-    "rtl",
-    "ltr",
-  ] as const)("should fall back to the default (%s) while no book is loaded", (direction) => {
-    const state = createBasePreloadedState();
-    state.read.containerFile.isNovel = false;
-    state.read.containerFile.readingDirection = null;
-    state.settings.reader.comic.readingDirection = direction;
+  it.each(["rtl", "ltr"] as const)(
+    "should fall back to the default (%s) while no book is loaded",
+    (direction) => {
+      const state = createBasePreloadedState();
+      state.read.containerFile.isNovel = false;
+      state.read.containerFile.readingDirection = null;
+      state.settings.reader.comic.readingDirection = direction;
 
-    expect(renderDirection(state).current).toBe(direction);
-  });
+      expect(renderDirection(state).current).toBe(direction);
+    },
+  );
 
-  it.each([
-    "rtl",
-    "ltr",
-  ] as const)("should follow the novel's detected direction (%s) over the comic setting", (direction) => {
-    const state = createBasePreloadedState();
-    state.read.containerFile.isNovel = true;
-    state.read.containerFile.novelDirection = direction;
-    state.settings.reader.comic.readingDirection = direction === "rtl" ? "ltr" : "rtl";
+  it.each(["rtl", "ltr"] as const)(
+    "should follow the novel's detected direction (%s) over the comic setting",
+    (direction) => {
+      const state = createBasePreloadedState();
+      state.read.containerFile.isNovel = true;
+      state.read.containerFile.novelDirection = direction;
+      state.settings.reader.comic.readingDirection = direction === "rtl" ? "ltr" : "rtl";
 
-    expect(renderDirection(state).current).toBe(direction);
-  });
+      expect(renderDirection(state).current).toBe(direction);
+    },
+  );
 
   it("should fall back for a novel whose writing mode is not detected yet", () => {
     const state = createBasePreloadedState();

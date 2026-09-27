@@ -24,7 +24,6 @@ export default function UpdaterProgressDialog({
   return (
     <Dialog
       open={isUpdating}
-      disableEscapeKeyDown
       slotProps={{
         paper: {
           sx: {
@@ -45,7 +44,7 @@ export default function UpdaterProgressDialog({
         }}
       >
         <CloudDownloadOutlined color="primary" />
-        <Typography variant="h6" component="span" fontWeight="bold">
+        <Typography variant="h6" component="span" sx={{ fontWeight: "bold" }}>
           {/* The status already names the current phase (downloading, then installing),
               so drive the title from it rather than always claiming to install. */}
           {updateStatus || t("updater.installing")}

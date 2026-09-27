@@ -1,4 +1,4 @@
-import DeleteOutline from "@mui/icons-material/DeleteOutline";
+import DeleteOutlined from "@mui/icons-material/DeleteOutlined";
 import InsertDriveFileOutlined from "@mui/icons-material/InsertDriveFileOutlined";
 import {
   Box,
@@ -153,7 +153,7 @@ export default function BookAdditionToBookshelfDialog({
                         onClick={() => handleRemoveFile(path)}
                         aria-label="delete"
                       >
-                        <DeleteOutline fontSize="small" />
+                        <DeleteOutlined fontSize="small" />
                       </IconButton>
                     }
                   >

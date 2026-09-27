@@ -1,6 +1,6 @@
 import Check from "@mui/icons-material/Check";
 import ContentCopy from "@mui/icons-material/ContentCopy";
-import ErrorOutline from "@mui/icons-material/ErrorOutline";
+import ErrorOutlined from "@mui/icons-material/ErrorOutlined";
 import InfoOutlined from "@mui/icons-material/InfoOutlined";
 import {
   Box,
@@ -80,7 +80,7 @@ export default function UpdaterMessageDialog({
           color: isError ? "error.main" : "text.primary",
         }}
       >
-        {isError ? <ErrorOutline color="error" /> : <InfoOutlined color="primary" />}
+        {isError ? <ErrorOutlined color="error" /> : <InfoOutlined color="primary" />}
         <Typography variant="h6">{title}</Typography>
       </DialogTitle>
 
