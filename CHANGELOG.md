@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+* Fixed the bundled third-party licenses missing some notices. (#359)
+  * The licenses of the RAR extraction code, the Noto Serif JP font and, on Windows, the WebView2 loader are now included.
+  * Components that the app does not include are no longer listed.
+
 ## [2.6.0] - 2026-09-27
 
 ### Added
