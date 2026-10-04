@@ -71,7 +71,15 @@ jobs:
         run: npm run check:wiki
 
       - name: Generate third-party licenses
-        run: npm run licenses
+        shell: bash
+        run: |
+          npm run licenses 2>&1 | tee "$RUNNER_TEMP/licenses.log"
+          # cargo-about only warns when a clarified file is missing or its checksum
+          # no longer matches, and drops that crate's clarified notices.
+          if grep -q "failed to validate all files specified in clarification" "$RUNNER_TEMP/licenses.log"; then
+            echo "::error file=src-tauri/about.toml::A clarification in about.toml no longer matches its crate; review the license text and update the checksum."
+            exit 1
+          fi
 
       - name: Run cargo fmt
         working-directory: src-tauri
