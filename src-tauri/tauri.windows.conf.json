@@ -12,7 +12,8 @@
             }
         },
         "resources": {
-            "target/dependencies/pdfium/bin": "libs"
+            "target/dependencies/pdfium/bin": "libs",
+            "licenses/webview2/LICENSE.txt": "licenses/webview2/LICENSE.txt"
         }
     }
 }
