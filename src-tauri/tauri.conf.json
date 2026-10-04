@@ -39,6 +39,7 @@
       "target/dependencies/pdfium/LICENSE": "licenses/pdfium/LICENSE",
       "target/dependencies/pdfium/licenses/**/*": "licenses/pdfium/",
       "target/dependencies/dav1d/copyright": "licenses/dav1d/copyright",
+      "../src/assets/fonts/OFL_Noto_Serif_JP.txt": "licenses/fonts/OFL_Noto_Serif_JP.txt",
       "target/dependencies/licenses/frontend-licenses.txt": "licenses/frontend-licenses.txt",
       "target/dependencies/licenses/backend-licenses.html": "licenses/backend-licenses.html"
     },
