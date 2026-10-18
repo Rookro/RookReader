@@ -150,6 +150,7 @@ RookReader opens EPUB files in a dedicated text reader. You can adjust the **fon
 - **Page direction** is taken from the book itself: the page progression direction it declares, or — when it declares none — the writing mode of its body text (vertically written books turn right-to-left, horizontally written ones left-to-right). The direction toggle in the top app bar is disabled for novels and only shows the detected direction; the page slider follows it too.
 - **Bookmarks** and **reading history** return you to the exact position in the text.
 - If the file has been moved, deleted or cannot be read, the reader says so instead of showing an empty page.
+- Scripts inside an EPUB are never run, so interactive content in a book does not work.
 
 > [!WARNING]
 > EPUB support is currently **experimental**. Complex formatting or custom styling may not render perfectly yet.
