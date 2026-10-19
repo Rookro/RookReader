@@ -114,16 +114,18 @@ pub fn run() {
     // hand-written handler and are routed to it by command name; everything else
     // falls through to the generated handler above. Keep this list in sync with the
     // `generate_handler!` invocation below — both are the single, small binary set.
-    const BINARY_COMMANDS: [&str; 4] = [
+    const BINARY_COMMANDS: [&str; 5] = [
         "get_image",
         "get_image_full",
         "get_image_preview",
+        "read_novel_file",
         "get_entries_in_dir",
     ];
     let binary_handler = tauri::generate_handler![
         commands::container_commands::get_image,
         commands::container_commands::get_image_full,
         commands::container_commands::get_image_preview,
+        commands::container_commands::read_novel_file,
         commands::directory_commands::get_entries_in_dir,
     ] as fn(tauri::ipc::Invoke<tauri::Wry>) -> bool;
 
