@@ -675,6 +675,38 @@ describe("BookGrid", () => {
     expect(mockClearSelection).toHaveBeenCalledTimes(clearsOnMount + 1);
   });
 
+  // A selection made in one view would act on books the user can no longer see
+  it.each([
+    ["collection", { bookCollection: { ...defaultState.bookCollection, selectedId: 2 } }],
+    ["tag", { tag: { ...defaultState.tag, selectedId: 3 } }],
+    ["series", { series: { ...defaultState.series, selectedId: 4 } }],
+    ["search", { bookCollection: { ...defaultState.bookCollection, searchText: "x" } }],
+  ])("clears the selection when the %s changes", (_, change) => {
+    const { rerender } = render(
+      <BookSelectionContext.Provider value={mockSelectionValue}>
+        <BookGrid />
+      </BookSelectionContext.Provider>,
+    );
+    const clearsOnMount = mockClearSelection.mock.calls.length;
+
+    rerender(
+      <BookSelectionContext.Provider value={mockSelectionValue}>
+        <BookGrid />
+      </BookSelectionContext.Provider>,
+    );
+    expect(mockClearSelection).toHaveBeenCalledTimes(clearsOnMount);
+
+    vi.mocked(useAppSelector).mockImplementation(<T,>(selector: (state: RootState) => T): T => {
+      return selector({ ...defaultState, ...change } as unknown as RootState);
+    });
+    rerender(
+      <BookSelectionContext.Provider value={mockSelectionValue}>
+        <BookGrid />
+      </BookSelectionContext.Provider>,
+    );
+    expect(mockClearSelection).toHaveBeenCalledTimes(clearsOnMount + 1);
+  });
+
   it("triggers series drill-down on focused series item via Enter key", () => {
     const series = createMockSeries({ id: 10, name: "Test Series" });
     const book = createMockBookWithState({ id: 1, series_id: 10 });

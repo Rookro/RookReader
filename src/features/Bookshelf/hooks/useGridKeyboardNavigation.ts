@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import type { GridImperativeAPI } from "react-window";
 import type { BookWithState } from "../../../domain/book/schema";
 import type { GridItem } from "../utils/BookshelfUtils";
 
@@ -8,6 +9,8 @@ export interface GridKeyboardNavigationOptions {
   items: GridItem[];
   /** The number of columns, which is how far ArrowUp/ArrowDown move. */
   columnCount: number;
+  /** The virtualized grid, scrolled to keep the focused cell in view; null until mounted. */
+  grid: GridImperativeAPI | null;
   /** Called when Enter or Space is pressed on a focused book. */
   onBookActivate: (book: BookWithState, e: React.KeyboardEvent) => void;
   /** Called when Enter or Space is pressed on a focused series. */
@@ -24,6 +27,7 @@ export interface GridKeyboardNavigationOptions {
 export function useGridKeyboardNavigation({
   items,
   columnCount,
+  grid,
   onBookActivate,
   onSeriesActivate,
 }: GridKeyboardNavigationOptions) {
@@ -70,8 +74,14 @@ export function useGridKeyboardNavigation({
 
       e.preventDefault();
       setFocusedIndex(nextIndex);
+      grid?.scrollToCell({
+        rowIndex: Math.floor(nextIndex / columnCount),
+        columnIndex: nextIndex % columnCount,
+        rowAlign: "smart",
+        columnAlign: "smart",
+      });
     },
-    [focusedIndex, items, columnCount, onBookActivate, onSeriesActivate],
+    [focusedIndex, items, columnCount, grid, onBookActivate, onSeriesActivate],
   );
 
   return { focusedIndex, handleKeyDown };

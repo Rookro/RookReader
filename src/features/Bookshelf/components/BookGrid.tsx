@@ -119,11 +119,17 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
     clearSelection();
   }, [closeDialog, clearSelection]);
 
+  const isBookshelfActive = activeView === "bookshelf";
+  const bookshelfId = useAppSelector((state) => state.bookCollection.selectedId);
+  const tagId = useAppSelector((state) => state.tag.selectedId);
+  const seriesId = useAppSelector((state) => state.series.selectedId);
+  // A selection made in one view would act on books the user can no longer see.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: clear whenever the shown books change.
   useEffect(() => {
-    if (activeView === "bookshelf") {
+    if (isBookshelfActive) {
       clearSelection();
     }
-  }, [activeView, clearSelection]);
+  }, [isBookshelfActive, bookshelfId, tagId, seriesId, searchText, clearSelection]);
 
   const handleBookClick = useCallback(
     (book: BookWithState, e: React.MouseEvent | React.KeyboardEvent) => {
@@ -173,6 +179,7 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
   const { focusedIndex, handleKeyDown } = useGridKeyboardNavigation({
     items: filteredSortedItems,
     columnCount,
+    grid,
     onBookActivate: handleBookClick,
     onSeriesActivate: handleSeriesClick,
   });

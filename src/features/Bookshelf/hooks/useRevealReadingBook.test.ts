@@ -26,6 +26,7 @@ describe("useRevealReadingBook", () => {
     tagId = null,
     searchText = "",
     readerLoading = false,
+    booksRefreshing = false,
   }: {
     readingBook?: BookWithState | null;
     books?: BookWithState[];
@@ -35,6 +36,7 @@ describe("useRevealReadingBook", () => {
     tagId?: number | null;
     searchText?: string;
     readerLoading?: boolean;
+    booksRefreshing?: boolean;
   } = {}) => {
     const state = createBasePreloadedState();
     state.view.activeView = activeView;
@@ -44,6 +46,9 @@ describe("useRevealReadingBook", () => {
     state.read.containerFile.isLoading = readerLoading;
     state.bookCollection.books = books;
     state.bookCollection.status = booksStatus;
+    state.bookCollection.isRefreshing = booksRefreshing;
+    // The request a test's fulfilled action answers.
+    state.bookCollection.booksRequestId = "request-id";
     state.bookCollection.searchText = searchText;
     state.series.series = [series, otherSeries];
     state.series.status = "succeeded";
@@ -119,6 +124,21 @@ describe("useRevealReadingBook", () => {
           "r",
           "/s/v2.zip",
         ),
+      );
+    });
+
+    expect(store.getState().series.selectedId).toBe(10);
+  });
+
+  // A refetch in place keeps the old list on screen; deciding on it could miss the book
+  it("waits while the books are being refetched, then reveals", () => {
+    const store = setup({ booksRefreshing: true });
+
+    expect(store.getState().series.selectedId).toBeNull();
+
+    act(() => {
+      store.dispatch(
+        fetchBooksInSelectedBookshelf.fulfilled([volume1, volume2], "request-id", null),
       );
     });
 
