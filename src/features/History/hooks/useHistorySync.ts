@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import type { ReadingState } from "../../../domain/book/schema";
 import { useTauriEvent } from "../../../hooks/useTauriEvent";
 import { readingProgressChanged } from "../../../store/actions";
@@ -29,6 +29,15 @@ export const useHistorySync = () => {
     dispatch(fetchSeries());
     dispatch(fetchRecentlyReadBooks());
   }, [dispatch]);
+
+  // History events are ignored while recording is off, so catch up when it comes back on.
+  const wasRecordingRef = useRef(recordReadingHistory);
+  useEffect(() => {
+    if (recordReadingHistory && !wasRecordingRef.current) {
+      dispatch(fetchRecentlyReadBooks());
+    }
+    wasRecordingRef.current = recordReadingHistory;
+  }, [dispatch, recordReadingHistory]);
 
   // Load books when selected bookshelf changes
   useEffect(() => {
