@@ -93,6 +93,32 @@ describe("FileNavigator", () => {
     });
   });
 
+  // Moving to a folder already starts its listing; the history effect must not list it again
+  it("does not list a folder whose listing is already in flight", () => {
+    const preloadedState = createBasePreloadedState();
+    preloadedState.read.explorer.history = ["/a"];
+    preloadedState.read.explorer.historyIndex = 0;
+    preloadedState.read.explorer.pendingPath = "/a";
+
+    renderWithProviders(<FileNavigator />, { preloadedState });
+
+    expect(ReadReducer.updateExploreBasePath).not.toHaveBeenCalled();
+  });
+
+  // Back and Forward only move the history, so the effect is what lists the folder
+  it("lists the current folder when nothing is loading it", () => {
+    const preloadedState = createBasePreloadedState();
+    preloadedState.read.explorer.history = ["/a"];
+    preloadedState.read.explorer.historyIndex = 0;
+
+    renderWithProviders(<FileNavigator />, { preloadedState });
+
+    expect(ReadReducer.updateExploreBasePath).toHaveBeenCalledWith({
+      dirPath: "/a",
+      forceUpdate: true,
+    });
+  });
+
   it("should dispatch updateExploreBasePath when a directory is double-clicked", async () => {
     const entries: DirEntry[] = [{ name: "folder", is_directory: true, last_modified: 0 }];
     const preloadedState = createBasePreloadedState();

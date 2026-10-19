@@ -60,6 +60,7 @@ export function createBasePreloadedState(): RootState {
         error: null,
         bookRecordError: null,
         origin: null,
+        originHistory: [],
         pendingInitialPosition: null,
       },
       explorer: {
@@ -69,6 +70,8 @@ export function createBasePreloadedState(): RootState {
         searchText: "",
         isLoading: false,
         error: null,
+        requestId: null,
+        pendingPath: null,
       },
     },
     bookCollection: {

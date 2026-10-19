@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { BookWithState } from "../../../domain/book/schema";
 import { createMockBookWithState, createMockSeries } from "../../../test/factories";
 import { createBasePreloadedState, createTestStore, createTestWrapper } from "../../../test/utils";
+import { openContainerFile } from "../../BookReader/slice";
 import { setActiveView } from "../../MainView/slice";
 import { setSelectedSeriesId } from "../seriesSlice";
 import { fetchBooksInSelectedBookshelf, setSelectedBookshelf } from "../slice";
@@ -24,6 +25,7 @@ describe("useRevealReadingBook", () => {
     selectedSeriesId = null,
     tagId = null,
     searchText = "",
+    readerLoading = false,
   }: {
     readingBook?: BookWithState | null;
     books?: BookWithState[];
@@ -32,10 +34,14 @@ describe("useRevealReadingBook", () => {
     selectedSeriesId?: number | null;
     tagId?: number | null;
     searchText?: string;
+    readerLoading?: boolean;
   } = {}) => {
     const state = createBasePreloadedState();
     state.view.activeView = activeView;
     state.read.containerFile.book = readingBook;
+    state.read.containerFile.history = ["/s/v2.zip"];
+    state.read.containerFile.historyIndex = 0;
+    state.read.containerFile.isLoading = readerLoading;
     state.bookCollection.books = books;
     state.bookCollection.status = booksStatus;
     state.bookCollection.searchText = searchText;
@@ -91,6 +97,32 @@ describe("useRevealReadingBook", () => {
 
     expect(store.getState().series.selectedId).toBeNull();
     expect(store.getState().bookCollection.searchText).toBe("Standalone");
+  });
+
+  // The reader forgets its book while the next one opens; deciding then would miss it
+  it("waits while the reader is opening a book", () => {
+    const store = setup({ readerLoading: true });
+
+    expect(store.getState().series.selectedId).toBeNull();
+
+    act(() => {
+      store.dispatch(
+        openContainerFile.fulfilled(
+          {
+            entries: ["p1"],
+            isDirectory: false,
+            isNovel: false,
+            book: volume2,
+            readingDirection: "rtl",
+            bookRecordError: null,
+          },
+          "r",
+          "/s/v2.zip",
+        ),
+      );
+    });
+
+    expect(store.getState().series.selectedId).toBe(10);
   });
 
   it("does nothing while the reader view is shown", () => {

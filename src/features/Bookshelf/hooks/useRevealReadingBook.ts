@@ -15,6 +15,7 @@ export function useRevealReadingBook(): void {
   const dispatch = useAppDispatch();
   const activeView = useAppSelector((state) => state.view.activeView);
   const readingBook = useAppSelector((state) => state.read.containerFile.book);
+  const isReaderLoading = useAppSelector((state) => state.read.containerFile.isLoading);
   const books = useAppSelector((state) => state.bookCollection.books);
   const booksStatus = useAppSelector((state) => state.bookCollection.status);
   const searchText = useAppSelector((state) => state.bookCollection.searchText);
@@ -37,7 +38,8 @@ export function useRevealReadingBook(): void {
     }
     // Deciding on a list that is still loading would miss the book or its series.
     const isLoading = (status: string) => status === "idle" || status === "loading";
-    if (isLoading(booksStatus) || isLoading(seriesStatus)) {
+    // The reader forgets its book while the next one opens.
+    if (isLoading(booksStatus) || isLoading(seriesStatus) || isReaderLoading) {
       return;
     }
     hasRevealedRef.current = true;
@@ -76,6 +78,7 @@ export function useRevealReadingBook(): void {
     readingBook,
     books,
     booksStatus,
+    isReaderLoading,
     searchText,
     allSeries,
     seriesStatus,

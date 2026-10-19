@@ -5,7 +5,12 @@ import { debug, error } from "@tauri-apps/plugin-log";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { List, type RowComponentProps, useListCallbackRef } from "react-window";
-import { type RootState, useAppDispatch, useAppSelector } from "../../../../store/store";
+import {
+  type RootState,
+  useAppDispatch,
+  useAppSelector,
+  useAppStore,
+} from "../../../../store/store";
 import type { DirEntry } from "../../../../types/DirEntry";
 import { isNavigableArchiveName } from "../../../../utils/ArchivePathUtils";
 import SidePanelHeader from "../../../SidePane/components/SidePanelHeader";
@@ -80,6 +85,7 @@ export default function FileListViewer() {
     fileHistoryIndex,
   } = useAppSelector(selectFileNavigatorState);
   const dispatch = useAppDispatch();
+  const store = useAppStore();
 
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [list, setList] = useListCallbackRef(null);
@@ -93,17 +99,24 @@ export default function FileListViewer() {
       .sort((a, b) => sortBy(a, b, fileNavigatorSettings.sortOrder));
   }, [entries, fileNavigatorSettings.sortOrder, searchText]);
 
-  const updateEntriesCallback = useCallback(() => {
+  const refreshEntries = useCallback(() => {
     if (history[historyIndex]) {
       dispatch(updateExploreBasePath({ dirPath: history[historyIndex], forceUpdate: true }));
     }
   }, [history, historyIndex, dispatch]);
 
+  // Back and Forward only move the history, so this lists the folder they land on. A move
+  // into a folder already lists it; read without subscribing, so that listing settling
+  // does not run this again.
   useEffect(() => {
-    updateEntriesCallback();
-  }, [updateEntriesCallback]);
+    const { pendingPath } = store.getState().read.explorer;
+    if (pendingPath !== null && pendingPath === history[historyIndex]) {
+      return;
+    }
+    refreshEntries();
+  }, [refreshEntries, store, history, historyIndex]);
 
-  useDirectoryWatcher(history[historyIndex], updateEntriesCallback);
+  useDirectoryWatcher(history[historyIndex], refreshEntries);
   useFileSelection(fileHistory, fileHistoryIndex, filteredSortedEntries, setSelectedIndex);
 
   // Scroll to make the selected item visible

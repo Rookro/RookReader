@@ -38,14 +38,24 @@ const selectBookGridState = createSelector(
     (state: RootState) => state.tag.tags,
     (state: RootState) => state.read.containerFile.book,
     (state: RootState) => state.view.activeView,
+    (state: RootState) => state.read.containerFile.isLoading,
   ],
-  (bookshelfSettings, searchText, status, availableTags, readingBook, activeView) => ({
+  (
     bookshelfSettings,
     searchText,
     status,
     availableTags,
     readingBook,
     activeView,
+    isReaderLoading,
+  ) => ({
+    bookshelfSettings,
+    searchText,
+    status,
+    availableTags,
+    readingBook,
+    activeView,
+    isReaderLoading,
   }),
 );
 
@@ -61,8 +71,15 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
   const dispatch = useAppDispatch();
   const { selectedBookIds, clearSelection, handleSelectionClick } = useBookSelection();
 
-  const { bookshelfSettings, searchText, status, availableTags, readingBook, activeView } =
-    useAppSelector(selectBookGridState);
+  const {
+    bookshelfSettings,
+    searchText,
+    status,
+    availableTags,
+    readingBook,
+    activeView,
+    isReaderLoading,
+  } = useAppSelector(selectBookGridState);
   const filteredSortedItems = useAppSelector(selectGridItems);
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -150,6 +167,7 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
     columnCount,
     gridWidth,
     activeView,
+    isReaderLoading,
   });
 
   const { focusedIndex, handleKeyDown } = useGridKeyboardNavigation({

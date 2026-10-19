@@ -20,6 +20,7 @@ describe("useScrollToReadingBook", () => {
     columnCount: 2,
     gridWidth: 500,
     activeView: "bookshelf",
+    isReaderLoading: false,
   });
 
   const setup = (overrides: Partial<ScrollToReadingBookOptions> = {}) =>
@@ -70,6 +71,17 @@ describe("useScrollToReadingBook", () => {
     rerender({ ...baseOptions(), activeView: "bookshelf" });
     vi.runAllTimers();
     expect(scrollToCell).toHaveBeenCalledTimes(2);
+  });
+
+  // The reader has no book while the next one opens; giving up then would never scroll to it
+  it("waits while the reader is opening a book", () => {
+    const { rerender } = setup({ readingBook: null, readingBookIndex: -1, isReaderLoading: true });
+    vi.runAllTimers();
+    expect(scrollToCell).not.toHaveBeenCalled();
+
+    rerender(baseOptions());
+    vi.runAllTimers();
+    expect(scrollToCell).toHaveBeenCalledTimes(1);
   });
 
   it("waits for the container to be measured before scrolling", () => {
