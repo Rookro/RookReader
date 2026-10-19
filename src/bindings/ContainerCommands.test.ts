@@ -100,6 +100,17 @@ describe("ContainerCommands", () => {
     await expect(ContainerCommands.getImagePreview("path", "e")).rejects.toThrow(CommandError);
   });
 
+  it("readNovelFile should call invoke", async () => {
+    vi.mocked(invoke).mockResolvedValue(new ArrayBuffer(0));
+    await ContainerCommands.readNovelFile("novel.epub");
+    expect(invoke).toHaveBeenCalledWith("read_novel_file", { path: "novel.epub" });
+  });
+
+  it("readNovelFile should throw CommandError on failure", async () => {
+    vi.mocked(invoke).mockRejectedValue(new Error("fail"));
+    await expect(ContainerCommands.readNovelFile("novel.epub")).rejects.toThrow(CommandError);
+  });
+
   it("should map structured error to CommandError", async () => {
     const structuredError = { code: 10001, message: "Unsupported container" };
     vi.mocked(invoke).mockRejectedValue(structuredError);

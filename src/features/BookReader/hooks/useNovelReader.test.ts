@@ -1,12 +1,12 @@
 ﻿import type { Theme } from "@mui/material";
-import { exists, readFile } from "@tauri-apps/plugin-fs";
 import { renderHook, waitFor } from "@testing-library/react";
 import { Paginator } from "foliate-js/paginator.js";
 import { type Book, makeBook, type View } from "foliate-js/view.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { readNovelFile } from "../../../bindings/ContainerCommands";
 import { useAppTheme } from "../../../hooks/useAppTheme";
 import { type RootState, useAppDispatch, useAppSelector } from "../../../store/store";
-import { ErrorCode } from "../../../types/Error";
+import { CommandError, ErrorCode } from "../../../types/Error";
 import { setEntries, setNovelDirection, setNovelLocation } from "../slice";
 import { blockSectionScripts } from "../utils/epubContentPolicy";
 import { useNovelReader } from "./useNovelReader";
@@ -17,7 +17,6 @@ vi.mock("../../../store/store");
 // The gate needs the real store; here the key press is handed straight to the handler.
 vi.mock("./useReaderKeydown");
 vi.mock("../../../hooks/useAppTheme");
-vi.mock("@tauri-apps/plugin-fs");
 vi.mock("@tauri-apps/plugin-log");
 vi.mock("foliate-js/view.js", () => ({
   makeBook: vi.fn(),
@@ -115,9 +114,7 @@ describe("useNovelReader", () => {
     vi.mocked(useAppSelector).mockImplementation(<T>(selector: (state: RootState) => T): T => {
       return selector(defaultState as RootState);
     });
-    vi.mocked(readFile).mockResolvedValue(new Uint8Array([1, 2, 3]));
-    // The module is automocked, so without this every case would see "the file is gone".
-    vi.mocked(exists).mockResolvedValue(true);
+    vi.mocked(readNovelFile).mockResolvedValue(new ArrayBuffer(3));
   });
 
   afterEach(() => {
@@ -150,7 +147,7 @@ describe("useNovelReader", () => {
     const { result } = setupHook();
 
     await waitFor(() => {
-      expect(readFile).toHaveBeenCalledWith("test.epub");
+      expect(readNovelFile).toHaveBeenCalledWith("test.epub");
       expect(makeBook).toHaveBeenCalled();
       expect(mockDispatch).toHaveBeenCalledWith(setEntries(["Chapter 1", "sec2"]));
     });
@@ -196,7 +193,7 @@ describe("useNovelReader", () => {
     setupHook("test.epub");
 
     await waitFor(() => {
-      expect(readFile).not.toHaveBeenCalled();
+      expect(readNovelFile).not.toHaveBeenCalled();
       expect(makeBook).not.toHaveBeenCalled();
     });
   });
@@ -694,7 +691,7 @@ describe("useNovelReader", () => {
     setupHook();
 
     await waitFor(() => {
-      expect(readFile).toHaveBeenCalled();
+      expect(readNovelFile).toHaveBeenCalled();
     });
     expect(mockDispatch).not.toHaveBeenCalledWith(setEntries(expect.anything()));
   });
@@ -898,7 +895,7 @@ describe("useNovelReader", () => {
 
   it("should log an error if loading the book fails", async () => {
     const { error } = await import("@tauri-apps/plugin-log");
-    vi.mocked(readFile).mockRejectedValue(new Error("File read error"));
+    vi.mocked(readNovelFile).mockRejectedValue(new Error("File read error"));
 
     setupHook("error.epub");
 
@@ -911,8 +908,7 @@ describe("useNovelReader", () => {
 
   // Verify that a novel whose file is gone says so, rather than leaving an empty viewer
   it("reports a missing EPUB as not found", async () => {
-    vi.mocked(readFile).mockRejectedValue(new Error("File read error"));
-    vi.mocked(exists).mockResolvedValue(false);
+    vi.mocked(readNovelFile).mockRejectedValue(new CommandError(ErrorCode.pathNotFound, "gone"));
 
     const { result } = setupHook("gone.epub");
 
@@ -923,7 +919,7 @@ describe("useNovelReader", () => {
 
   // Verify that a file which is still there is reported as a read failure, not as missing
   it("reports an unreadable EPUB as an I/O failure", async () => {
-    vi.mocked(readFile).mockRejectedValue(new Error("File read error"));
+    vi.mocked(readNovelFile).mockRejectedValue(new CommandError(ErrorCode.io, "File read error"));
 
     const { result } = setupHook("locked.epub");
 

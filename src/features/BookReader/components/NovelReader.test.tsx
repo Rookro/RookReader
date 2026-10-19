@@ -1,10 +1,11 @@
-import * as fs from "@tauri-apps/plugin-fs";
 import { act, screen, waitFor } from "@testing-library/react";
 import { makeBook } from "foliate-js/view.js";
 import type { Mock } from "vitest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { readNovelFile } from "../../../bindings/ContainerCommands";
 import { mockLog } from "../../../test/mocks/tauri";
 import { createBasePreloadedState, renderWithProviders } from "../../../test/utils";
+import { CommandError, ErrorCode } from "../../../types/Error";
 import * as pageNav from "../hooks/usePageNavigation";
 import * as ReadReducer from "../slice";
 import NovelReader from "./NovelReader";
@@ -68,7 +69,7 @@ describe("BookReader/NovelReader", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(fs.readFile).mockResolvedValue(new Uint8Array([1, 2, 3]));
+    vi.mocked(readNovelFile).mockResolvedValue(new ArrayBuffer(3));
     vi.mocked(makeBook).mockResolvedValue(mockBook);
 
     mockView = {
@@ -103,7 +104,7 @@ describe("BookReader/NovelReader", () => {
     renderWithProviders(<NovelReader filePath={mockFilePath} />, {
       preloadedState: defaultPreloadedState,
     });
-    expect(fs.readFile).toHaveBeenCalledWith(mockFilePath);
+    expect(readNovelFile).toHaveBeenCalledWith(mockFilePath);
     await waitFor(() => expect(mockView.open).toHaveBeenCalledWith(mockBook));
     expect(screen.getByText("Beta")).toBeTruthy();
   });
@@ -126,8 +127,8 @@ describe("BookReader/NovelReader", () => {
     await waitFor(() => expect(ReadReducer.setEntries).toHaveBeenCalledWith(["Chapter 1"]));
   });
 
-  it("should log error when readFile fails", async () => {
-    vi.mocked(fs.readFile).mockRejectedValue(new Error("Disk error"));
+  it("should log error when reading the novel fails", async () => {
+    vi.mocked(readNovelFile).mockRejectedValue(new Error("Disk error"));
     renderWithProviders(<NovelReader filePath={mockFilePath} />, {
       preloadedState: defaultPreloadedState,
     });
@@ -140,8 +141,9 @@ describe("BookReader/NovelReader", () => {
 
   // Verify the reader is told why the text is missing, instead of facing an empty page
   it("shows why the book's text could not be loaded", async () => {
-    vi.mocked(fs.readFile).mockRejectedValue(new Error("File read error"));
-    vi.mocked(fs.exists).mockResolvedValue(false);
+    vi.mocked(readNovelFile).mockRejectedValue(
+      new CommandError(ErrorCode.pathNotFound, "File read error"),
+    );
 
     renderWithProviders(<NovelReader filePath={mockFilePath} />, {
       preloadedState: defaultPreloadedState,
