@@ -100,6 +100,8 @@ const byPosition = (a: Bookmark, b: Bookmark) =>
 const bookmarkSlice = createSlice({
   name: "bookmark",
   initialState: {
+    /** The book `bookmarks` belongs to, or null when no list is loaded. */
+    bookId: null as number | null,
     bookmarks: [] as Bookmark[],
     status: "idle" as "idle" | "loading" | "succeeded" | "failed",
     error: null as { code: ErrorCode; message?: string } | null,
@@ -113,29 +115,54 @@ const bookmarkSlice = createSlice({
     clearBookmarkError: (state) => {
       state.error = null;
     },
+    /**
+     * Forgets the loaded list, for when no book is open.
+     *
+     * @param state - The current Redux state slice.
+     */
+    clearBookmarks: (state) => {
+      state.bookId = null;
+      state.bookmarks = [];
+      state.status = "idle";
+      state.error = null;
+    },
   },
   extraReducers: (builder) => {
     builder
-      .addCase(fetchBookmarks.pending, (state) => {
+      .addCase(fetchBookmarks.pending, (state, action) => {
+        if (action.meta.arg !== state.bookId) {
+          state.bookId = action.meta.arg;
+          state.bookmarks = [];
+        }
         state.status = "loading";
         state.error = null;
       })
       .addCase(fetchBookmarks.fulfilled, (state, action) => {
+        // A late answer for a book that is no longer open.
+        if (action.meta.arg !== state.bookId) {
+          return;
+        }
         state.status = "succeeded";
         state.bookmarks = action.payload;
         state.error = null;
       })
       .addCase(fetchBookmarks.rejected, (state, action) => {
+        if (action.meta.arg !== state.bookId) {
+          return;
+        }
         state.status = "failed";
         state.bookmarks = [];
         state.error = action.payload ?? null;
       })
       .addCase(addBookmark.fulfilled, (state, action) => {
+        if (action.payload.book_id !== state.bookId) {
+          return;
+        }
         state.bookmarks = [...state.bookmarks, action.payload].sort(byPosition);
         state.error = null;
       })
+      // A failed edit leaves the loaded list as it was: `status` describes the fetch.
       .addCase(addBookmark.rejected, (state, action) => {
-        state.status = "failed";
         state.error = action.payload ?? null;
       })
       .addCase(removeBookmark.fulfilled, (state, action) => {
@@ -143,7 +170,6 @@ const bookmarkSlice = createSlice({
         state.error = null;
       })
       .addCase(removeBookmark.rejected, (state, action) => {
-        state.status = "failed";
         state.error = action.payload ?? null;
       })
       .addCase(updateBookmarkName.fulfilled, (state, action) => {
@@ -154,11 +180,10 @@ const bookmarkSlice = createSlice({
         state.error = null;
       })
       .addCase(updateBookmarkName.rejected, (state, action) => {
-        state.status = "failed";
         state.error = action.payload ?? null;
       });
   },
 });
 
-export const { clearBookmarkError } = bookmarkSlice.actions;
+export const { clearBookmarkError, clearBookmarks } = bookmarkSlice.actions;
 export default bookmarkSlice.reducer;

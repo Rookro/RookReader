@@ -14,6 +14,7 @@ import { type RootState, useAppDispatch, useAppSelector } from "../../../store/s
 import SidePanels from "../../SidePane/components/SidePanels";
 import SideTabs from "../../SidePane/components/SideTabs";
 import type { SideTab } from "../../SidePane/types";
+import { useBookmarkSync } from "../hooks/useBookmarkSync";
 import { openBook, openContainerFile } from "../slice";
 import BookmarkViewer from "./BookmarkViewer/BookmarkViewer";
 import ComicReader from "./ComicReader";
@@ -58,6 +59,7 @@ export interface BookReaderProps {
  */
 export default function BookReader({ sx }: BookReaderProps) {
   const { t } = useTranslation();
+  useBookmarkSync();
   const initialized = useRef(false);
   const {
     activeView,

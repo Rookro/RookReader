@@ -10,12 +10,12 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Bookmark } from "../../../../domain/bookmark/schema";
 import { useAppDispatch, useAppSelector } from "../../../../store/store";
 import SidePanelHeader from "../../../SidePane/components/SidePanelHeader";
-import { fetchBookmarks, removeBookmark, updateBookmarkName } from "../../bookmarkSlice";
+import { removeBookmark, updateBookmarkName } from "../../bookmarkSlice";
 import { setImageIndex, setNovelLocation } from "../../slice";
 import { ItemRow } from "./ItemRow";
 
@@ -25,17 +25,10 @@ import { ItemRow } from "./ItemRow";
 export default function BookmarkViewer() {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
-  const bookId = useAppSelector((state) => state.read.containerFile.book?.id);
   const isNovel = useAppSelector((state) => state.read.containerFile.isNovel);
   const bookmarks = useAppSelector((state) => state.bookmark.bookmarks);
   const [renameTarget, setRenameTarget] = useState<Bookmark | null>(null);
   const [renameText, setRenameText] = useState("");
-
-  useEffect(() => {
-    if (bookId !== undefined) {
-      dispatch(fetchBookmarks(bookId));
-    }
-  }, [dispatch, bookId]);
 
   const handleJump = useCallback(
     (bookmark: Bookmark) => {
