@@ -870,6 +870,8 @@ describe("useNovelReader", () => {
     const mockBook = {
       sections: [],
       toc: [],
+      // A declared direction: the unmounted reader must not hand it to the next book.
+      dir: "rtl",
       destroy: vi.fn(),
     } as unknown as Book;
 
@@ -894,6 +896,7 @@ describe("useNovelReader", () => {
     await waitFor(() => {
       expect(mockBook.destroy).toHaveBeenCalled();
     });
+    expect(mockDispatch).not.toHaveBeenCalledWith(setNovelDirection("rtl"));
   });
 
   it("should log an error if loading the book fails", async () => {
