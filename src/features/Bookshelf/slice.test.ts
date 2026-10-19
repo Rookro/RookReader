@@ -707,14 +707,19 @@ describe("TagReducer", () => {
       expect(state.error?.code).toBe(ErrorCode.database);
     });
 
-    it("updateBooksTags should replace the tag set of every book", async () => {
+    it("updateBooksTags should save each book's own tag set", async () => {
       vi.mocked(BookCommands.updateBookTags).mockResolvedValue();
 
-      const result = await store.dispatch(updateBooksTags({ bookIds: [1, 2], tagIds: [7] }));
+      const result = await store.dispatch(
+        updateBooksTags([
+          { bookId: 1, tagIds: [7] },
+          { bookId: 2, tagIds: [3, 7] },
+        ]),
+      );
 
       expect(updateBooksTags.fulfilled.match(result)).toBe(true);
       expect(BookCommands.updateBookTags).toHaveBeenCalledWith(1, [7]);
-      expect(BookCommands.updateBookTags).toHaveBeenCalledWith(2, [7]);
+      expect(BookCommands.updateBookTags).toHaveBeenCalledWith(2, [3, 7]);
     });
 
     it("updateBooksTags should set only the error on failure", async () => {
@@ -722,7 +727,7 @@ describe("TagReducer", () => {
         new CommandError(ErrorCode.database, "db fail"),
       );
 
-      await store.dispatch(updateBooksTags({ bookIds: [1], tagIds: [7] }));
+      await store.dispatch(updateBooksTags([{ bookId: 1, tagIds: [7] }]));
 
       const state = store.getState().tag;
       expect(state.status).toBe("idle");
@@ -830,14 +835,14 @@ describe("SeriesReducer", () => {
       expect(BookCommands.updateSeriesOrders).toHaveBeenCalledWith([1, 2, 3]);
     });
 
-    it("updateSeriesOrdersThunk should refetch the bookshelf after a successful update", async () => {
+    // The backend's books-changed event refreshes the bookshelf; a second fetch is waste
+    it("updateSeriesOrdersThunk leaves the refetch to the books-changed event", async () => {
       vi.mocked(BookCommands.updateSeriesOrders).mockResolvedValue(undefined);
-      vi.mocked(BookCommands.getAllBooksWithState).mockResolvedValue([]);
 
       await store.dispatch(updateSeriesOrdersThunk([1, 2, 3]));
 
-      // selectedId is null in the initial store, so the refetch hits getAllBooksWithState.
-      expect(BookCommands.getAllBooksWithState).toHaveBeenCalled();
+      expect(BookCommands.getAllBooksWithState).not.toHaveBeenCalled();
+      expect(BookCommands.getBooksWithStateByBookshelfId).not.toHaveBeenCalled();
     });
 
     it("updateSeriesOrdersThunk should handle generic failure", async () => {

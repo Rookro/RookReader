@@ -61,18 +61,16 @@ export const removeTag = createAppAsyncThunk(
 );
 
 /**
- * Replaces the tag set of every given book.
+ * Saves a new tag set for each given book.
  *
- * @param params - The parameters for the update.
- * @param params.bookIds - The books to update.
- * @param params.tagIds - The complete new tag set for each book.
+ * @param updates - Each book with its complete new tag set.
  * @returns A thunk that resolves when every book is updated.
  */
 export const updateBooksTags = createAppAsyncThunk(
   "tag/updateBooksTags",
-  async ({ bookIds, tagIds }: { bookIds: number[]; tagIds: number[] }, { rejectWithValue }) => {
+  async (updates: { bookId: number; tagIds: number[] }[], { rejectWithValue }) => {
     try {
-      await Promise.all(bookIds.map((id) => updateBookTags(id, tagIds)));
+      await Promise.all(updates.map(({ bookId, tagIds }) => updateBookTags(bookId, tagIds)));
     } catch (e) {
       return handleThunkError(e, "Failed to update book tags.", rejectWithValue);
     }
