@@ -1,6 +1,12 @@
 import type React from "react";
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import type { ViewerSettings } from "../utils/ImageUtils";
+
+/**
+ * How long without wheel events ends a wheel gesture, in milliseconds. A gesture turns one
+ * page, so a touchpad swipe, which sends a burst of events, does not skip pages.
+ */
+export const WHEEL_GESTURE_GAP_MS = 100;
 
 /**
  * Hooks for page navigation (forward/backward) based on user interactions.
@@ -30,8 +36,16 @@ export const usePageNavigation = (
     [onMoveBack],
   );
 
+  const lastWheelAtRef = useRef<number | null>(null);
+
   const handleWheeled = useCallback(
     (e: React.WheelEvent<HTMLDivElement> | WheelEvent) => {
+      const now = Date.now();
+      const last = lastWheelAtRef.current;
+      lastWheelAtRef.current = now;
+      if (last !== null && now - last < WHEEL_GESTURE_GAP_MS) {
+        return;
+      }
       if ("deltaY" in e && e.deltaY < 0) {
         onMoveBack();
       } else if ("deltaY" in e && e.deltaY > 0) {

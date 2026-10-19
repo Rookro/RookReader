@@ -1,6 +1,6 @@
 import { renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { usePageNavigation } from "./usePageNavigation";
+import { usePageNavigation, WHEEL_GESTURE_GAP_MS } from "./usePageNavigation";
 
 describe("usePageNavigation", () => {
   const onMoveForward = vi.fn();
@@ -24,6 +24,21 @@ describe("usePageNavigation", () => {
     result.current.handleContextMenu(mockEvent);
     expect(onMoveBack).toHaveBeenCalled();
     expect(mockEvent.preventDefault).toHaveBeenCalled();
+  });
+
+  // A touchpad swipe sends a burst of wheel events; it must turn one page, not dozens
+  it("turns one page for a burst of wheel events", () => {
+    vi.useFakeTimers();
+    const { result } = renderHook(() => usePageNavigation(onMoveForward, onMoveBack, "ltr"));
+    for (let i = 0; i < 20; i++) {
+      result.current.handleWheeled({ deltaY: 4 } as WheelEvent);
+      vi.advanceTimersByTime(16);
+    }
+    expect(onMoveForward).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(WHEEL_GESTURE_GAP_MS);
+    result.current.handleWheeled({ deltaY: 4 } as WheelEvent);
+    expect(onMoveForward).toHaveBeenCalledTimes(2);
+    vi.useRealTimers();
   });
 
   // Verify that onMoveForward is called when mouse wheel is scrolled down
