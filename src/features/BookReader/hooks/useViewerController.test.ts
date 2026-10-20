@@ -177,6 +177,7 @@ describe("useViewerController", () => {
         isSpreadShifted: false,
         settings: { ...mockSettings, enablePreview: true },
         dispatch: mockDispatch,
+        hasPreviews: true,
       }),
     );
 
@@ -202,6 +203,7 @@ describe("useViewerController", () => {
           isSpreadShifted: false,
           settings: mockSettings,
           dispatch: mockDispatch,
+          hasPreviews: true,
         }),
       { initialProps: { path: "path1" } },
     );
@@ -231,6 +233,7 @@ describe("useViewerController", () => {
         isSpreadShifted: false,
         settings: mockSettings,
         dispatch: mockDispatch,
+        hasPreviews: true,
       }),
     );
 
@@ -264,6 +267,7 @@ describe("useViewerController", () => {
           isSpreadShifted: false,
           settings: mockSettings,
           dispatch: mockDispatch,
+          hasPreviews: true,
         }),
       { initialProps: { index: 0 } },
     );
@@ -311,6 +315,7 @@ describe("useViewerController", () => {
         isSpreadShifted: false,
         settings: mockSettings,
         dispatch: mockDispatch,
+        hasPreviews: true,
       }),
     );
 
@@ -337,6 +342,7 @@ describe("useViewerController", () => {
         isSpreadShifted: false,
         settings: { ...mockSettings, isTwoPagedView: true },
         dispatch: mockDispatch,
+        hasPreviews: true,
       }),
     );
 
@@ -357,6 +363,7 @@ describe("useViewerController", () => {
         isSpreadShifted: false,
         settings: mockSettings,
         dispatch: mockDispatch,
+        hasPreviews: true,
       }),
     );
 
@@ -381,6 +388,7 @@ describe("useViewerController", () => {
           isSpreadShifted: false,
           settings: mockSettings,
           dispatch: mockDispatch,
+          hasPreviews: true,
         }),
       { initialProps: { index: 0 } },
     );
@@ -414,6 +422,7 @@ describe("useViewerController", () => {
           isSpreadShifted: false,
           settings: mockSettings,
           dispatch: mockDispatch,
+          hasPreviews: true,
         }),
       );
 
@@ -438,6 +447,7 @@ describe("useViewerController", () => {
           isSpreadShifted: false,
           settings: mockSettings,
           dispatch: mockDispatch,
+          hasPreviews: true,
         }),
       );
 
@@ -460,6 +470,7 @@ describe("useViewerController", () => {
           isSpreadShifted: false,
           settings: mockSettings,
           dispatch: mockDispatch,
+          hasPreviews: true,
         }),
       );
       result.current.moveForward();
@@ -480,6 +491,7 @@ describe("useViewerController", () => {
           isSpreadShifted: false,
           settings: mockSettings,
           dispatch: mockDispatch,
+          hasPreviews: true,
           onForwardBoundary,
         }),
       );
@@ -506,6 +518,7 @@ describe("useViewerController", () => {
           isSpreadShifted: false,
           settings: mockSettings,
           dispatch: mockDispatch,
+          hasPreviews: true,
         }),
       );
 
@@ -528,6 +541,7 @@ describe("useViewerController", () => {
           isSpreadShifted: false,
           settings: mockSettings,
           dispatch: mockDispatch,
+          hasPreviews: true,
         }),
       );
 
@@ -546,6 +560,7 @@ describe("useViewerController", () => {
           isSpreadShifted: false,
           settings: mockSettings,
           dispatch: mockDispatch,
+          hasPreviews: true,
         }),
       );
       result.current.moveBack();
@@ -564,6 +579,7 @@ describe("useViewerController", () => {
           isSpreadShifted: false,
           settings: mockSettings,
           dispatch: mockDispatch,
+          hasPreviews: true,
           onForwardBoundary: undefined,
           onBackwardBoundary,
         }),
@@ -589,6 +605,7 @@ describe("useViewerController", () => {
           isSpreadShifted: false,
           settings: mockSettings,
           dispatch: mockDispatch,
+          hasPreviews: true,
         }),
       );
 
@@ -612,6 +629,7 @@ describe("useViewerController", () => {
           isSpreadShifted: false,
           settings: mockSettings,
           dispatch: mockDispatch,
+          hasPreviews: true,
         }),
       );
 
@@ -644,6 +662,7 @@ describe("useViewerController", () => {
             isSpreadShifted: false,
             settings: mockSettings,
             dispatch: mockDispatch,
+            hasPreviews: true,
           }),
         { initialProps: { index: 0 } },
       );
@@ -676,6 +695,7 @@ describe("useViewerController", () => {
           isSpreadShifted: false,
           settings: { ...mockSettings, enablePreview: true },
           dispatch: mockDispatch,
+          hasPreviews: true,
         }),
       );
 
@@ -709,6 +729,7 @@ describe("useViewerController", () => {
           isSpreadShifted: false,
           settings: twoPagedSettings,
           dispatch: mockDispatch,
+          hasPreviews: true,
         }),
       );
 
@@ -737,6 +758,7 @@ describe("useViewerController", () => {
           isSpreadShifted: false,
           settings: twoPagedSettings,
           dispatch: mockDispatch,
+          hasPreviews: true,
         }),
       );
 
@@ -776,6 +798,7 @@ describe("useViewerController", () => {
           isSpreadShifted: false,
           settings: twoPagedSettings,
           dispatch: mockDispatch,
+          hasPreviews: true,
         }),
       );
 
@@ -803,6 +826,7 @@ describe("useViewerController", () => {
           isSpreadShifted: false,
           settings: twoPagedSettings,
           dispatch: mockDispatch,
+          hasPreviews: true,
         }),
       );
 
@@ -835,6 +859,7 @@ describe("useViewerController", () => {
           isSpreadShifted: false,
           settings: twoPagedSettings,
           dispatch: mockDispatch,
+          hasPreviews: true,
         }),
       );
 
@@ -874,6 +899,7 @@ describe("useViewerController", () => {
           isSpreadShifted: false,
           settings: twoPagedSettings,
           dispatch: mockDispatch,
+          hasPreviews: true,
         }),
       );
 
@@ -905,6 +931,7 @@ describe("useViewerController", () => {
           isSpreadShifted: false,
           settings: twoPagedSettings,
           dispatch: mockDispatch,
+          hasPreviews: true,
         }),
       );
 
@@ -973,6 +1000,7 @@ describe("useViewerController", () => {
           isSpreadShifted: false,
           settings: twoPagedSettings,
           dispatch: mockDispatch,
+          hasPreviews: true,
         }),
       );
 
@@ -996,6 +1024,7 @@ describe("useViewerController", () => {
           isSpreadShifted: false,
           settings: twoPagedSettings,
           dispatch: mockDispatch,
+          hasPreviews: true,
         }),
       );
 
@@ -1019,6 +1048,7 @@ describe("useViewerController", () => {
           isSpreadShifted: false,
           settings: twoPagedSettings,
           dispatch: mockDispatch,
+          hasPreviews: true,
         }),
       );
 
@@ -1045,6 +1075,7 @@ describe("useViewerController", () => {
           isSpreadShifted: true,
           settings: twoPagedSettings,
           dispatch: mockDispatch,
+          hasPreviews: true,
         }),
       );
 
@@ -1066,6 +1097,7 @@ describe("useViewerController", () => {
           isSpreadShifted: false,
           settings: twoPagedSettings,
           dispatch: mockDispatch,
+          hasPreviews: true,
         }),
       );
 
@@ -1091,6 +1123,7 @@ describe("useViewerController", () => {
           isSpreadShifted: true,
           settings: twoPagedSettings,
           dispatch: mockDispatch,
+          hasPreviews: true,
         }),
       );
 
@@ -1118,6 +1151,7 @@ describe("useViewerController", () => {
             isSpreadShifted: false,
             settings: twoPagedSettings,
             dispatch: mockDispatch,
+            hasPreviews: true,
           }),
         { initialProps: { index: 0 } },
       );
@@ -1144,6 +1178,7 @@ describe("useViewerController", () => {
             isSpreadShifted: false,
             settings: twoPagedSettings,
             dispatch: mockDispatch,
+            hasPreviews: true,
           }),
         { initialProps: { index: 0 } },
       );
@@ -1170,6 +1205,7 @@ describe("useViewerController", () => {
             isSpreadShifted: false,
             settings: twoPagedSettings,
             dispatch: mockDispatch,
+            hasPreviews: true,
           }),
         { initialProps: { index: 0 } },
       );
@@ -1200,6 +1236,7 @@ describe("useViewerController", () => {
             isSpreadShifted: false,
             settings: twoPagedSettings,
             dispatch: mockDispatch,
+            hasPreviews: true,
           }),
         );
 
@@ -1258,6 +1295,7 @@ describe("useViewerController", () => {
             isSpreadShifted: false,
             settings: twoPaged,
             dispatch: mockDispatch,
+            hasPreviews: true,
           }),
         );
         await waitFor(() => expect(mockedBuildUnitChain).toHaveBeenCalled());
@@ -1280,6 +1318,7 @@ describe("useViewerController", () => {
           isSpreadShifted: false,
           settings: twoPaged,
           dispatch: mockDispatch,
+          hasPreviews: true,
           book,
         }),
       );
@@ -1302,6 +1341,7 @@ describe("useViewerController", () => {
           isSpreadShifted: false,
           settings: twoPaged,
           dispatch: mockDispatch,
+          hasPreviews: true,
           book,
         }),
       );
@@ -1328,6 +1368,7 @@ describe("useViewerController", () => {
             isSpreadShifted: false,
             settings: twoPaged,
             dispatch: mockDispatch,
+            hasPreviews: true,
             book,
           }),
         { initialProps: { book } },
@@ -1357,6 +1398,7 @@ describe("useViewerController", () => {
           isSpreadShifted: false,
           settings: twoPaged,
           dispatch: mockDispatch,
+          hasPreviews: true,
         }),
       );
 
@@ -1381,6 +1423,7 @@ describe("useViewerController", () => {
           isSpreadShifted: shifted,
           settings,
           dispatch: mockDispatch,
+          hasPreviews: true,
         }),
       );
       await act(async () => {
@@ -1467,6 +1510,7 @@ describe("useViewerController", () => {
             isSpreadShifted: false,
             settings: twoPaged,
             dispatch: mockDispatch,
+            hasPreviews: true,
           }),
         );
 
@@ -1499,6 +1543,7 @@ describe("useViewerController", () => {
             isSpreadShifted: false,
             settings: twoPaged,
             dispatch: mockDispatch,
+            hasPreviews: true,
           }),
         );
 
@@ -1538,6 +1583,7 @@ describe("useViewerController", () => {
             isSpreadShifted: false,
             settings: twoPaged,
             dispatch: mockDispatch,
+            hasPreviews: true,
           }),
         );
 
@@ -1587,6 +1633,7 @@ describe("useViewerController", () => {
             isSpreadShifted: false,
             settings: { ...twoPaged, enablePreview: true },
             dispatch: mockDispatch,
+            hasPreviews: true,
           }),
         );
 
@@ -1673,6 +1720,7 @@ describe("useViewerController", () => {
             isSpreadShifted: false,
             settings: twoPaged,
             dispatch: mockDispatch,
+            hasPreviews: true,
           }),
         );
 
@@ -1718,6 +1766,7 @@ describe("useViewerController", () => {
             isSpreadShifted: false,
             settings: twoPaged,
             dispatch: mockDispatch,
+            hasPreviews: true,
             book: createMockBookWithState({ landscape_bits: null }),
           }),
         );
@@ -1752,6 +1801,7 @@ describe("useViewerController", () => {
           isSpreadShifted: false,
           settings: twoPaged,
           dispatch: mockDispatch,
+          hasPreviews: true,
         }),
       );
 
@@ -1783,6 +1833,7 @@ describe("useViewerController", () => {
           isSpreadShifted: false,
           settings: settingsWithPreview,
           dispatch: mockDispatch,
+          hasPreviews: true,
         }),
       );
 
@@ -1825,6 +1876,7 @@ describe("useViewerController", () => {
           isSpreadShifted: false,
           settings: settingsWithPreview,
           dispatch: mockDispatch,
+          hasPreviews: true,
         }),
       );
 
@@ -1873,6 +1925,7 @@ describe("useViewerController", () => {
           isSpreadShifted: false,
           settings: settingsWithPreview,
           dispatch: mockDispatch,
+          hasPreviews: true,
         }),
       );
 
@@ -1889,11 +1942,34 @@ describe("useViewerController", () => {
       });
     });
 
-    // Only PDF can build a preview more cheaply than the page it stands in for. Every
-    // other container answers "no preview", and one such answer must settle it for the
-    // whole book rather than costing a wasted round trip on every page turn.
-    it("stops requesting previews after the container declines one", async () => {
-      const settingsWithPreview = { ...mockSettings, enablePreview: true };
+    // Only PDF can build a preview more cheaply than the page it stands in for; the open
+    // says so, and any other book is not asked at all.
+    it("does not ask for previews when the book has none", async () => {
+      mockedFetchImageBlob.mockResolvedValue({} as Image);
+      mockedCreateImageCacheItem.mockReturnValue({
+        fullUrl: "f",
+        url: "f",
+      } as ImageUtils.ImageCacheItem);
+
+      renderHook(() =>
+        useViewerController({
+          containerPath: "path",
+          displaySize: VIEWPORT,
+          entries: mockEntries,
+          index: 0,
+          isSpreadShifted: false,
+          settings: { ...mockSettings, enablePreview: true },
+          dispatch: mockDispatch,
+          hasPreviews: false,
+        }),
+      );
+
+      await waitFor(() => expect(mockedFetchImageBlob).toHaveBeenCalled());
+      expect(ImageUtils.fetchImagePreviewBlob).not.toHaveBeenCalled();
+    });
+
+    // An empty answer means the page was already cached, not that the book has no previews
+    it("keeps asking for previews after an empty preview answer", async () => {
       mockedFetchImageBlob.mockResolvedValue({} as Image);
       vi.mocked(ImageUtils.fetchImagePreviewBlob).mockResolvedValue(null);
       mockedCreateImageCacheItem.mockReturnValue({
@@ -1909,8 +1985,9 @@ describe("useViewerController", () => {
             entries: mockEntries,
             index,
             isSpreadShifted: false,
-            settings: settingsWithPreview,
+            settings: { ...mockSettings, enablePreview: true },
             dispatch: mockDispatch,
+            hasPreviews: true,
           }),
         { initialProps: { index: 0 } },
       );
@@ -1918,13 +1995,13 @@ describe("useViewerController", () => {
       await waitFor(() => expect(ImageUtils.fetchImagePreviewBlob).toHaveBeenCalled());
       const afterFirstPage = vi.mocked(ImageUtils.fetchImagePreviewBlob).mock.calls.length;
 
-      rerender({ index: 1 });
-      await waitFor(() => expect(mockedFetchImageBlob).toHaveBeenCalledWith("path", "p2.jpg"));
-      await act(async () => {
-        await new Promise(process.nextTick);
-      });
-
-      expect(vi.mocked(ImageUtils.fetchImagePreviewBlob).mock.calls.length).toBe(afterFirstPage);
+      rerender({ index: 2 });
+      await waitFor(() =>
+        expect(ImageUtils.fetchImagePreviewBlob).toHaveBeenCalledWith("path", "p3.jpg"),
+      );
+      expect(vi.mocked(ImageUtils.fetchImagePreviewBlob).mock.calls.length).toBeGreaterThan(
+        afterFirstPage,
+      );
     });
 
     // A failed request says nothing about the container, so it must not disable previews.
@@ -1949,6 +2026,7 @@ describe("useViewerController", () => {
             isSpreadShifted: false,
             settings: settingsWithPreview,
             dispatch: mockDispatch,
+            hasPreviews: true,
           }),
         { initialProps: { index: 0 } },
       );
@@ -1960,41 +2038,6 @@ describe("useViewerController", () => {
       await waitFor(() =>
         expect(vi.mocked(ImageUtils.fetchImagePreviewBlob).mock.calls.length).toBeGreaterThan(
           afterFirstPage,
-        ),
-      );
-    });
-
-    // The answer describes one container, so opening another book has to ask again.
-    it("asks again after switching containers", async () => {
-      const settingsWithPreview = { ...mockSettings, enablePreview: true };
-      mockedFetchImageBlob.mockResolvedValue({} as Image);
-      vi.mocked(ImageUtils.fetchImagePreviewBlob).mockResolvedValue(null);
-      mockedCreateImageCacheItem.mockReturnValue({
-        fullUrl: "f",
-        url: "f",
-      } as ImageUtils.ImageCacheItem);
-
-      const { rerender } = renderHook(
-        ({ path }: { path: string }) =>
-          useViewerController({
-            containerPath: path,
-            displaySize: VIEWPORT,
-            entries: mockEntries,
-            index: 0,
-            isSpreadShifted: false,
-            settings: settingsWithPreview,
-            dispatch: mockDispatch,
-          }),
-        { initialProps: { path: "path" } },
-      );
-
-      await waitFor(() => expect(ImageUtils.fetchImagePreviewBlob).toHaveBeenCalled());
-      const afterFirstBook = vi.mocked(ImageUtils.fetchImagePreviewBlob).mock.calls.length;
-
-      rerender({ path: "other" });
-      await waitFor(() =>
-        expect(vi.mocked(ImageUtils.fetchImagePreviewBlob).mock.calls.length).toBeGreaterThan(
-          afterFirstBook,
         ),
       );
     });
@@ -2013,6 +2056,7 @@ describe("useViewerController", () => {
           isSpreadShifted: false,
           settings,
           dispatch: mockDispatch,
+          hasPreviews: true,
         }),
       );
 
@@ -2061,6 +2105,7 @@ describe("useViewerController", () => {
             isSpreadShifted: false,
             settings: mockSettings,
             dispatch: mockDispatch,
+            hasPreviews: true,
           }),
         { initialProps: { size: displaySize } },
       );

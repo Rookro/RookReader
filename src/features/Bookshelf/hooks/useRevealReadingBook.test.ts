@@ -117,6 +117,7 @@ describe("useRevealReadingBook", () => {
             entries: ["p1"],
             isDirectory: false,
             isNovel: false,
+            hasPreviews: false,
             book: volume2,
             readingDirection: "rtl",
             bookRecordError: null,

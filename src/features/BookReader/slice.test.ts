@@ -480,6 +480,7 @@ describe("ReadReducer", () => {
           is_directory: false,
           entries: ["p1", "p2"],
           is_novel: false,
+          has_previews: false,
         });
         vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(1);
         vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
@@ -496,12 +497,38 @@ describe("ReadReducer", () => {
         expect(state.containerFile.isSpreadShifted).toBe(false);
       });
 
+      // The viewer asks for previews only when the open book says it has them
+      it("keeps whether the open book has previews, and forgets it on the next open", async () => {
+        vi.mocked(ContainerCommands.getEntriesInContainer).mockResolvedValueOnce({
+          is_directory: false,
+          entries: ["0000"],
+          is_novel: false,
+          has_previews: true,
+        });
+        vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(1);
+        vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(
+          createMockBookWithState({ id: 1 }),
+        );
+
+        store.dispatch(setContainerFilePath("path/to/book.pdf"));
+        await store.dispatch(openContainerFile("path/to/book.pdf"));
+        expect(store.getState().read.containerFile.hasPreviews).toBe(true);
+
+        vi.mocked(ContainerCommands.getEntriesInContainer).mockReturnValueOnce(
+          new Promise(() => {}),
+        );
+        store.dispatch(setContainerFilePath("path/to/other.zip"));
+        void store.dispatch(openContainerFile("path/to/other.zip"));
+        expect(store.getState().read.containerFile.hasPreviews).toBe(false);
+      });
+
       // Verify that a book which opened stays on screen when the library cannot record it
       it("keeps the pages when recording the opened book fails", async () => {
         vi.mocked(ContainerCommands.getEntriesInContainer).mockResolvedValue({
           is_directory: false,
           entries: ["p1", "p2"],
           is_novel: false,
+          has_previews: false,
         });
         vi.mocked(BookCommands.recordBookOpened).mockRejectedValue(
           new CommandError(ErrorCode.database, "database is locked"),
@@ -532,6 +559,7 @@ describe("ReadReducer", () => {
           is_directory: false,
           entries: ["p1", "p2", "p3", "p4", "p5", "p6"],
           is_novel: false,
+          has_previews: false,
         });
         vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(1);
         vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
@@ -555,6 +583,7 @@ describe("ReadReducer", () => {
           is_directory: false,
           entries: ["p1", "p2"],
           is_novel: false,
+          has_previews: false,
         });
         vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(7);
         vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
@@ -575,6 +604,7 @@ describe("ReadReducer", () => {
           is_directory: false,
           entries: ["p1", "p2"],
           is_novel: false,
+          has_previews: false,
         });
         vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(7);
         vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
@@ -594,6 +624,7 @@ describe("ReadReducer", () => {
           is_directory: false,
           entries: ["p1", "p2"],
           is_novel: false,
+          has_previews: false,
         });
         vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(1);
         vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(null);
@@ -615,6 +646,7 @@ describe("ReadReducer", () => {
           is_directory: false,
           entries: ["p1", "p2"],
           is_novel: false,
+          has_previews: false,
         });
         vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(7);
         vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
@@ -634,6 +666,7 @@ describe("ReadReducer", () => {
           is_directory: false,
           entries: ["p1", "p2"],
           is_novel: false,
+          has_previews: false,
         });
         vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(7);
         vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
@@ -653,6 +686,7 @@ describe("ReadReducer", () => {
           is_directory: false,
           entries: ["Chapter 1"],
           is_novel: true,
+          has_previews: false,
         });
         vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(7);
         vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
@@ -672,6 +706,7 @@ describe("ReadReducer", () => {
           is_directory: false,
           entries: ["p1", "p2"],
           is_novel: false,
+          has_previews: false,
         });
         vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(7);
         vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
@@ -694,6 +729,7 @@ describe("ReadReducer", () => {
           is_directory: false,
           entries: ["001.png"],
           is_novel: false,
+          has_previews: false,
         });
         vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(1);
         vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(
@@ -716,6 +752,7 @@ describe("ReadReducer", () => {
           is_directory: false,
           entries: ["p1", "p2", "p3"],
           is_novel: false,
+          has_previews: false,
         });
         vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(1);
         vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
@@ -738,6 +775,7 @@ describe("ReadReducer", () => {
           is_directory: false,
           entries: ["p1", "p2", "p3"],
           is_novel: false,
+          has_previews: false,
         });
         vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(1);
         vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
@@ -760,6 +798,7 @@ describe("ReadReducer", () => {
           is_directory: false,
           entries: ["p1", "p2", "p3"],
           is_novel: false,
+          has_previews: false,
         });
         vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(1);
         vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
@@ -784,6 +823,7 @@ describe("ReadReducer", () => {
           is_directory: false,
           entries: ["s1", "s2", "s3", "s4"],
           is_novel: true,
+          has_previews: false,
         });
         vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(1);
         vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
@@ -808,6 +848,7 @@ describe("ReadReducer", () => {
           is_directory: false,
           entries: ["p1", "p2"],
           is_novel: false,
+          has_previews: false,
         });
         vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(1);
         vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
@@ -830,6 +871,7 @@ describe("ReadReducer", () => {
           is_directory: false,
           entries: ["s1", "s2", "s3"],
           is_novel: true,
+          has_previews: false,
         });
         vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(1);
         vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
@@ -850,6 +892,7 @@ describe("ReadReducer", () => {
           is_directory: false,
           entries: ["p1", "p2"],
           is_novel: true,
+          has_previews: false,
         });
         vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(1);
         vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
@@ -888,6 +931,7 @@ describe("ReadReducer", () => {
             entries: ["o1", "o2", "o3"],
             isDirectory: false,
             isNovel: false,
+            hasPreviews: false,
             book: createMockBookWithState({ id: 1 }),
             readingDirection: "rtl",
             bookRecordError: null,
@@ -1141,6 +1185,7 @@ describe("ReadReducer", () => {
           is_directory: true,
           entries: ["p1", "p2"],
           is_novel: true,
+          has_previews: false,
         });
         vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(1);
         vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);

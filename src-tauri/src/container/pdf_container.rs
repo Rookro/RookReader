@@ -49,6 +49,10 @@ impl Container for PdfContainer {
         1
     }
 
+    fn has_previews(&self) -> bool {
+        true
+    }
+
     fn open_reader(&self) -> Result<Box<dyn PageReader>> {
         Ok(Box::new(PdfReader {
             path: self.path.clone(),
@@ -304,6 +308,22 @@ trailer << /Size 5 /Root 1 0 R >>
 
         assert_eq!(container.entries.len(), 1);
         assert_eq!(container.entries[0], "0000");
+    }
+
+    #[test]
+    fn test_pdf_has_previews() {
+        let _guard = pdf_test_guard();
+        let dir = tempdir().unwrap();
+        let pdf_path = create_dummy_pdf(dir.path(), "test.pdf");
+
+        let container = PdfContainer::new(
+            pdf_path.to_string_lossy().as_ref(),
+            PdfRenderConfig::default(),
+            Some(get_pdfium_lib_path()),
+        )
+        .unwrap();
+
+        assert!(container.has_previews());
     }
 
     #[test]

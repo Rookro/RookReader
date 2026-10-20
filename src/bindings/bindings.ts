@@ -1139,6 +1139,8 @@ export type EntriesResult = {
 	is_directory: boolean,
 	/**  Whether the container is an EPUB novel. */
 	is_novel: boolean,
+	/**  Whether `get_image_preview` can send a page more cheaply than `get_image`. */
+	has_previews: boolean,
 };
 
 /**  Settings for the file navigator. */
