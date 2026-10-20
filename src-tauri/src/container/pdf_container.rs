@@ -435,7 +435,10 @@ trailer << /Size 5 /Root 1 0 R >>
         let page = container.open_reader().unwrap().read_page("0000").unwrap();
 
         let measured = crate::image::types::read_dimensions(&page).unwrap();
-        assert!(measured.width <= PDF_MAX_RENDER_WIDTH as u32, "{measured:?}");
+        assert!(
+            measured.width <= PDF_MAX_RENDER_WIDTH as u32,
+            "{measured:?}"
+        );
     }
 
     #[test]

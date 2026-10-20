@@ -162,8 +162,13 @@ impl Pipeline {
         let reader = ImageReader::new(Cursor::new(data)).with_guessed_format()?;
         let format = reader.format();
         let mut decoder = reader.into_decoder()?;
-        // What `ImageReader::decode` checks before allocating the pixel buffer.
-        Limits::default().reserve(decoder.total_bytes())?;
+        // What `ImageReader::decode` checks before allocating the pixel buffer. A page
+        // too large to decode is still a page: the viewer gets it as stored.
+        let decoded_bytes = decoder.total_bytes();
+        if Limits::default().reserve(decoded_bytes).is_err() {
+            log::warn!("A page of {decoded_bytes} decoded bytes is over the decode limit; showing it unresized");
+            return Ok(Arc::new(Image::new(data.to_vec())?));
+        }
         // `image`'s AVIF decoder reports no orientation; the container's own boxes do.
         let orientation = if format == Some(ImageFormat::Avif) {
             avif::orientation(data)?
@@ -250,6 +255,43 @@ mod tests {
             max_image_height: 0,
             resize_method: ResizeFilter::Bilinear,
         }
+    }
+
+    /// A PNG header declaring 20000 x 20000 RGBA8 (1.6 GB decoded) with no pixel data.
+    fn oversized_png() -> Vec<u8> {
+        fn chunk(out: &mut Vec<u8>, kind: &[u8], data: &[u8]) {
+            out.extend_from_slice(&(data.len() as u32).to_be_bytes());
+            let body = [kind, data].concat();
+            out.extend_from_slice(&body);
+            out.extend_from_slice(&crc32fast::hash(&body).to_be_bytes());
+        }
+        let mut ihdr = Vec::new();
+        ihdr.extend_from_slice(&20000u32.to_be_bytes());
+        ihdr.extend_from_slice(&20000u32.to_be_bytes());
+        ihdr.extend_from_slice(&[8, 6, 0, 0, 0]);
+        let mut png = vec![0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a];
+        chunk(&mut png, b"IHDR", &ihdr);
+        chunk(&mut png, b"IDAT", &[]);
+        chunk(&mut png, b"IEND", &[]);
+        png
+    }
+
+    #[test]
+    fn a_page_over_the_decode_limit_is_shown_unresized() {
+        let bytes = oversized_png();
+
+        let page = displaying(800, 600)
+            .page(
+                bytes.clone(),
+                Fit {
+                    width: 800,
+                    height: 600,
+                },
+            )
+            .unwrap();
+
+        assert_eq!(page.width, 20000);
+        assert_eq!(page.data, bytes);
     }
 
     #[test]

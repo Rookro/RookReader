@@ -5157,6 +5157,7 @@ version = "2.6.0"
 dependencies = [
  "async-trait",
  "chrono",
+ "crc32fast",
  "encoding_rs",
  "fast_image_resize",
  "flate2",
