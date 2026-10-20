@@ -247,8 +247,9 @@ impl ContainerState {
 
     /// Installs a previously built service, closing and replacing any open one.
     ///
-    /// The service is brought up to date with the viewport and the cache the state holds
-    /// *now*: it was built from a snapshot, and both may have changed while the build ran.
+    /// The service is brought up to date with the viewport, the cache and the rendering
+    /// settings the state holds *now*: it was built from a snapshot, and any of them may
+    /// have changed while the build ran.
     ///
     /// # Arguments
     ///
@@ -258,6 +259,7 @@ impl ContainerState {
         service.set_display_size(self.display_size);
         service.set_cache(self.image_cache.clone());
         self.service = Some(Arc::new(service));
+        self.apply_rendering();
     }
 }
 
@@ -280,6 +282,57 @@ mod tests {
         };
 
         lib_path.to_string_lossy().to_string()
+    }
+
+    #[test]
+    fn install_applies_the_current_rendering_settings() {
+        use crate::{
+            container::traits::{MockContainer, MockPageReader, PageReader},
+            page::service::Priority,
+        };
+
+        let mut page = Vec::new();
+        image::DynamicImage::ImageRgb8(image::RgbImage::new(800, 600))
+            .write_to(
+                &mut std::io::Cursor::new(&mut page),
+                image::ImageFormat::Png,
+            )
+            .unwrap();
+        let mut container = MockContainer::new();
+        container
+            .expect_get_entries()
+            .return_const(vec!["p1.png".to_string()]);
+        container.expect_max_readers().return_const(usize::MAX);
+        container.expect_open_reader().returning(move || {
+            let page = page.clone();
+            let mut reader = MockPageReader::new();
+            reader
+                .expect_read_page()
+                .returning(move |_| Ok(page.clone()));
+            Ok(Box::new(reader) as Box<dyn PageReader>)
+        });
+        let mut state = ContainerState::default();
+        state.settings.max_image_height = 100;
+
+        // Built from an older snapshot, as an open that raced a settings change is.
+        state.install(PageService::new(
+            "book".to_string(),
+            Arc::new(container),
+            Pipeline {
+                display: None,
+                max_image_height: 2000,
+                resize_method: state.settings.image_resampling_method,
+            },
+            mini_moka::sync::Cache::new(100),
+            1,
+        ));
+        let service = state.service_for("book").unwrap();
+        let image = service
+            .page_blocking("p1.png", Priority::Foreground)
+            .unwrap();
+        service.close();
+
+        assert_eq!(image.height, 100);
     }
 
     #[test]
