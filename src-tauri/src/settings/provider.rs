@@ -369,4 +369,19 @@ mod tests {
         );
         let _: AppSettings = serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
     }
+
+    #[test]
+    fn startup_runs_on_defaults_when_the_heal_cannot_be_saved() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("settings.json");
+        fs::write(&path, "bad{").unwrap();
+        let blocker = dir.path().join("settings.json.broken");
+        fs::create_dir(&blocker).unwrap();
+        fs::write(blocker.join("child"), b"").unwrap();
+
+        let loaded = AppSettings::load_and_persist_normalized(&provider_at(path.clone())).unwrap();
+
+        assert!(matches!(loaded.general.theme, AppTheme::System));
+        assert_eq!(fs::read_to_string(&path).unwrap(), "bad{");
+    }
 }
