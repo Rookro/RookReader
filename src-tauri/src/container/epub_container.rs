@@ -197,10 +197,12 @@ fn create_image_order_map(epub: &Epub) -> Option<HashMap<String, usize>> {
 
     // Collected once. This is consulted for every `<img>` in every chapter, so rebuilding
     // it from the manifest per lookup made opening a book quadratic in its image count.
+    // Hrefs are compared decoded: rbook percent-encodes them, while a chapter's `src` may
+    // spell a non-ASCII name either way.
     let images: Vec<(String, String)> = epub
         .manifest()
         .images()
-        .map(|image| (image.id().to_string(), image.href().as_str().to_string()))
+        .map(|image| (image.id().to_string(), image.href().decode().into_owned()))
         .collect();
 
     let mut reader = epub.reader();
@@ -209,8 +211,8 @@ fn create_image_order_map(epub: &Epub) -> Option<HashMap<String, usize>> {
         // Resolve against the chapter's href (a real path), not its id (an opaque
         // identifier): rbook already resolves manifest hrefs to absolute paths, so
         // both the chapter dir and the manifest image hrefs share one path domain.
-        let chapter_href = entry.href();
-        let chapter_dir = Path::new(chapter_href.as_str())
+        let chapter_href = entry.href().decode();
+        let chapter_dir = Path::new(chapter_href.as_ref())
             .parent()
             .unwrap_or(Path::new(""))
             .to_path_buf();
@@ -227,7 +229,9 @@ fn create_image_order_map(epub: &Epub) -> Option<HashMap<String, usize>> {
                 .or_else(|| element.value().attr("href"));
 
             if let Some(src) = src_attr {
-                let resolved_path = normalize_path(&chapter_dir.join(src));
+                let path = src.split(['#', '?']).next().unwrap_or_default();
+                let path = percent_encoding::percent_decode_str(path).decode_utf8_lossy();
+                let resolved_path = normalize_path(&chapter_dir.join(path.as_ref()));
                 if let Some(resource_id) = select_resource_id(&images, &resolved_path) {
                     map.entry(resource_id).or_insert_with(|| {
                         let order = current_order;
@@ -446,6 +450,69 @@ mod tests {
         assert_eq!(container.entries.len(), 2);
         assert_eq!(container.entries[0], "image1");
         assert_eq!(container.entries[1], "cover");
+    }
+
+    /// Opens an EPUB whose first chapter shows `images/画像01.png` through `src` and whose
+    /// second shows `images/page02.png`, and returns its page order.
+    fn entries_with_a_japanese_image_name(src: &str) -> Vec<String> {
+        let dir = tempdir().expect("failed to create tempdir");
+        let opf = r#"<?xml version="1.0" encoding="UTF-8"?>
+            <package xmlns="http://www.idpf.org/2007/opf" version="2.0" unique-identifier="bookid">
+            <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+                <dc:title>Test Book</dc:title>
+                <dc:identifier id="bookid">urn:uuid:12345</dc:identifier>
+                <dc:language>ja</dc:language>
+            </metadata>
+            <manifest>
+                <item id="c1" href="text/c1.xhtml" media-type="application/xhtml+xml"/>
+                <item id="c2" href="text/c2.xhtml" media-type="application/xhtml+xml"/>
+                <item id="img1" href="images/画像01.png" media-type="image/png"/>
+                <item id="img2" href="images/page02.png" media-type="image/png"/>
+            </manifest>
+            <spine>
+                <itemref idref="c1"/>
+                <itemref idref="c2"/>
+            </spine>
+            </package>"#;
+        let chapter = |src: &str| {
+            format!(
+                r#"<?xml version="1.0" encoding="UTF-8"?>
+                <html xmlns="http://www.w3.org/1999/xhtml"><body><img src="{src}" /></body></html>"#
+            )
+        };
+        let c1 = chapter(src);
+        let c2 = chapter("../images/page02.png");
+        let epub_path = create_dummy_epub(
+            dir.path(),
+            "ja.epub",
+            &[
+                ("mimetype", b"application/epub+zip"),
+                ("META-INF/container.xml", CONTAINER_XML.as_bytes()),
+                ("OEBPS/content.opf", opf.as_bytes()),
+                ("OEBPS/text/c1.xhtml", c1.as_bytes()),
+                ("OEBPS/text/c2.xhtml", c2.as_bytes()),
+                ("OEBPS/images/画像01.png", DUMMY_PNG_DATA),
+                ("OEBPS/images/page02.png", DUMMY_PNG_DATA),
+            ],
+        );
+        EpubContainer::new(epub_path.to_string_lossy().as_ref())
+            .expect("failed to create EpubContainer")
+            .entries
+    }
+
+    #[test]
+    fn test_spine_order_with_non_ascii_image_names() {
+        for src in [
+            "../images/画像01.png",
+            "../images/%E7%94%BB%E5%83%8F01.png",
+            "../images/画像01.png#page",
+        ] {
+            assert_eq!(
+                entries_with_a_japanese_image_name(src),
+                vec!["img1".to_string(), "img2".to_string()],
+                "src = {src}"
+            );
+        }
     }
 
     #[test]

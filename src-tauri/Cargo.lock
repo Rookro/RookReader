@@ -5168,6 +5168,7 @@ dependencies = [
  "mockall",
  "natord",
  "pdfium-render",
+ "percent-encoding",
  "png 0.18.1",
  "rayon",
  "rbook",
