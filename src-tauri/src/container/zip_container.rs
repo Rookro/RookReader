@@ -123,6 +123,38 @@ fn read_entry_checked<R: Read + Seek>(
     read_within_declared(&mut file, declared, capacity, entry)
 }
 
+/// Lists the index and raw name of every entry that can be read without a password.
+///
+/// Reads only the central directory. An encrypted entry, or one whose header cannot be
+/// read, is left out with a warning, so one such file does not keep the rest of the
+/// archive from opening.
+///
+/// # Arguments
+///
+/// * `archive` - The opened archive.
+///
+/// # Returns
+///
+/// The `(index, raw name)` pairs of the readable entries, in archive order.
+pub(crate) fn readable_raw_names<R: Read + Seek>(
+    archive: &mut ZipArchive<R>,
+) -> Vec<(usize, Vec<u8>)> {
+    let mut names = Vec::with_capacity(archive.len());
+    for index in 0..archive.len() {
+        match archive.by_index_raw(index) {
+            Ok(file) if file.encrypted() => {
+                log::warn!(
+                    "Skipping encrypted ZIP entry {}",
+                    decode_entry_name(file.name_raw())
+                );
+            }
+            Ok(file) => names.push((index, file.name_raw().to_vec())),
+            Err(e) => log::warn!("Skipping unreadable ZIP entry #{index}: {e}"),
+        }
+    }
+    names
+}
+
 /// Decodes a raw ZIP entry name as UTF-8, falling back to Shift-JIS for archives
 /// produced by legacy Japanese tooling.
 ///
@@ -294,13 +326,7 @@ impl ZipContainer {
         let file = File::open(path)?;
         let mut archive = ZipArchive::new(file)?;
 
-        let len = archive.len();
-        let mut raw_names: Vec<(usize, Vec<u8>)> = Vec::with_capacity(len);
-        for i in 0..len {
-            let file = archive.by_index(i)?;
-            raw_names.push((i, file.name_raw().to_vec()));
-        }
-
+        let raw_names = readable_raw_names(&mut archive);
         let (entries, name_to_index) = collect_entries(raw_names.into_iter(), inner_dir);
         // The archive opened for listing is dropped with this function: its central
         // directory is all that is kept, and every reader opens its own handle over it.
@@ -344,6 +370,27 @@ mod tests {
         }
         zip.finish().expect("failed to finish zip file");
         zip_filepath
+    }
+
+    #[test]
+    fn test_new_skips_encrypted_entries() {
+        let dir = tempdir().unwrap();
+        let zip_path = dir.path().join("locked.zip");
+        let mut zip = ZipWriter::new(File::create(&zip_path).unwrap());
+        let locked = zip::write::SimpleFileOptions::default()
+            .with_aes_encryption(zip::AesMode::Aes256, "pw");
+        zip.start_file("p1.png", FileOptions::<()>::default())
+            .unwrap();
+        zip.write_all(DUMMY_PNG_DATA).unwrap();
+        zip.start_file("p2.png", locked).unwrap();
+        zip.write_all(DUMMY_PNG_DATA).unwrap();
+        zip.start_file("notes/readme.txt", locked).unwrap();
+        zip.write_all(b"secret").unwrap();
+        zip.finish().unwrap();
+
+        let container = ZipContainer::new(zip_path.to_str().unwrap(), "").unwrap();
+
+        assert_eq!(container.get_entries(), &vec!["p1.png".to_string()]);
     }
 
     // A valid 1x1 transparent PNG

@@ -7,7 +7,10 @@
 use std::{collections::HashSet, fs::File, path::Path};
 
 use crate::{
-    container::{archive_path, zip_container::decode_entry_name},
+    container::{
+        archive_path,
+        zip_container::{decode_entry_name, readable_raw_names},
+    },
     error::{Error, Result},
     image::types::Image,
 };
@@ -128,14 +131,10 @@ fn read_image_entry_names(archive: &Path) -> Result<Vec<String>> {
 /// Reads the ZIP central directory, decoding names the same way `ZipContainer` does.
 fn read_zip_entry_names(archive: &Path) -> Result<Vec<String>> {
     let mut zip = zip::ZipArchive::new(File::open(archive)?)?;
-    let mut names = Vec::with_capacity(zip.len());
-    for index in 0..zip.len() {
-        let file = zip.by_index(index)?;
-        names.push(archive_path::normalize_entry(&decode_entry_name(
-            file.name_raw(),
-        )));
-    }
-    Ok(names)
+    Ok(readable_raw_names(&mut zip)
+        .into_iter()
+        .map(|(_, raw)| archive_path::normalize_entry(&decode_entry_name(&raw)))
+        .collect())
 }
 
 /// Reads a RAR listing without extracting anything.
@@ -225,6 +224,26 @@ mod tests {
         assert_eq!(
             vec!["ch1".to_string()],
             list_child_dirs(&zip, "").expect("lists")
+        );
+    }
+
+    #[test]
+    fn skips_encrypted_entries() {
+        let dir = tempdir().expect("tempdir");
+        let zip_path = dir.path().join("locked.zip");
+        let mut zip = ZipWriter::new(File::create(&zip_path).expect("create zip"));
+        let locked = zip::write::SimpleFileOptions::default()
+            .with_aes_encryption(zip::AesMode::Aes256, "pw");
+        zip.start_file("ch1/001.png", FileOptions::<()>::default())
+            .expect("start entry");
+        zip.write_all(&[0u8]).expect("write entry");
+        zip.start_file("ch2/001.png", locked).expect("start entry");
+        zip.write_all(&[0u8]).expect("write entry");
+        zip.finish().expect("finish zip");
+
+        assert_eq!(
+            vec!["ch1".to_string()],
+            list_child_dirs(&zip_path, "").expect("lists")
         );
     }
 
