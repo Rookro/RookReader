@@ -1,4 +1,4 @@
-use pdfium_render::prelude::{PdfPageRenderRotation, PdfRenderConfig};
+use pdfium_render::prelude::{PdfPageIndex, PdfPageRenderRotation, PdfRenderConfig};
 use std::sync::Arc;
 
 use crate::{
@@ -194,7 +194,7 @@ impl PdfContainer {
 }
 
 /// Parses an entry name back into the page index it encodes.
-fn parse_index(entry: &str) -> Result<u16> {
+fn parse_index(entry: &str) -> Result<PdfPageIndex> {
     Ok(entry.parse()?)
 }
 
@@ -308,6 +308,11 @@ trailer << /Size 5 /Root 1 0 R >>
 
         assert_eq!(container.entries.len(), 1);
         assert_eq!(container.entries[0], "0000");
+    }
+
+    #[test]
+    fn test_parse_index_beyond_u16() {
+        assert_eq!(parse_index("70000").map(i64::from).ok(), Some(70000));
     }
 
     #[test]

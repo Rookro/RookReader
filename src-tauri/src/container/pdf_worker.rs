@@ -16,7 +16,7 @@ use std::{
 };
 
 use image::codecs::jpeg::JpegEncoder;
-use pdfium_render::prelude::{PdfDocument, PdfRenderConfig, Pdfium};
+use pdfium_render::prelude::{PdfDocument, PdfPageIndex, PdfRenderConfig, Pdfium};
 
 use crate::{
     error::{Error, Result},
@@ -59,18 +59,18 @@ enum Request {
     },
     Page {
         path: String,
-        index: u16,
+        index: PdfPageIndex,
         config: Arc<PdfRenderConfig>,
         reply: mpsc::Sender<Result<Image>>,
     },
     Dimensions {
         path: String,
-        index: u16,
+        index: PdfPageIndex,
         reply: mpsc::Sender<Result<ImageDimensions>>,
     },
     Preview {
         path: String,
-        index: u16,
+        index: PdfPageIndex,
         config: Arc<PdfRenderConfig>,
         spec: ThumbnailSpec,
         reply: mpsc::Sender<Result<Image>>,
@@ -96,10 +96,14 @@ impl Worker {
     /// there ends it and every later request reports [`unavailable`] rather than hanging.
     fn start(library_path: Option<String>) -> Self {
         let (tx, rx) = mpsc::channel();
-        thread::Builder::new()
+        // A thread that never started drops the receiver, so every request reports
+        // `unavailable` as it does after a failed bind.
+        if let Err(e) = thread::Builder::new()
             .name("pdfium-worker".to_string())
             .spawn(move || run(rx, library_path))
-            .expect("failed to spawn the pdfium worker thread");
+        {
+            log::error!("Could not start the pdfium worker thread: {e}");
+        }
         Self { tx: Mutex::new(tx) }
     }
 
@@ -115,7 +119,7 @@ impl Worker {
     pub(crate) fn render_page(
         &self,
         path: &str,
-        index: u16,
+        index: PdfPageIndex,
         config: Arc<PdfRenderConfig>,
     ) -> Result<Image> {
         self.ask(|reply| Request::Page {
@@ -127,7 +131,11 @@ impl Worker {
     }
 
     /// One page's size, read from the page itself rather than from a render.
-    pub(crate) fn page_dimensions(&self, path: &str, index: u16) -> Result<ImageDimensions> {
+    pub(crate) fn page_dimensions(
+        &self,
+        path: &str,
+        index: PdfPageIndex,
+    ) -> Result<ImageDimensions> {
         self.ask(|reply| Request::Dimensions {
             path: path.to_string(),
             index,
@@ -140,7 +148,7 @@ impl Worker {
     pub(crate) fn render_thumbnail(
         &self,
         path: &str,
-        index: u16,
+        index: PdfPageIndex,
         config: Arc<PdfRenderConfig>,
         spec: ThumbnailSpec,
     ) -> Result<Image> {
@@ -326,8 +334,12 @@ fn document<'p, 'd>(
 }
 
 /// Renders a PDF page to a JPEG using a specific config.
-fn render_page(pdf: &PdfDocument, render_config: &PdfRenderConfig, index: u16) -> Result<Image> {
-    let page = pdf.pages().get(index.into()).map_err(Error::from)?;
+fn render_page(
+    pdf: &PdfDocument,
+    render_config: &PdfRenderConfig,
+    index: PdfPageIndex,
+) -> Result<Image> {
+    let page = pdf.pages().get(index).map_err(Error::from)?;
     let img = page.render_with_config(render_config)?.as_image()?;
 
     let mut buffer = Vec::new();
@@ -345,8 +357,8 @@ fn render_page(pdf: &PdfDocument, render_config: &PdfRenderConfig, index: u16) -
 /// The page is not rendered: rendering scales the page to the configured target height
 /// while preserving its aspect ratio, so the points already carry the orientation and
 /// ratio the caller needs.
-fn page_size(pdf: &PdfDocument, index: u16) -> Result<ImageDimensions> {
-    let page = pdf.pages().get(index.into()).map_err(Error::from)?;
+fn page_size(pdf: &PdfDocument, index: PdfPageIndex) -> Result<ImageDimensions> {
+    let page = pdf.pages().get(index).map_err(Error::from)?;
 
     Ok(ImageDimensions {
         width: page.width().value.round().max(1.0) as u32,
@@ -362,10 +374,10 @@ fn page_size(pdf: &PdfDocument, index: u16) -> Result<ImageDimensions> {
 fn render_thumbnail(
     pdf: &PdfDocument,
     render_config: &PdfRenderConfig,
-    index: u16,
+    index: PdfPageIndex,
     spec: &ThumbnailSpec,
 ) -> Result<Image> {
-    let page = pdf.pages().get(index.into()).map_err(Error::from)?;
+    let page = pdf.pages().get(index).map_err(Error::from)?;
     // An embedded thumbnail smaller than the spec asks for would be upscaled on screen,
     // so the page is rendered instead.
     let embedded = page
@@ -390,6 +402,9 @@ fn get_pdfium(library_path: &Option<String>) -> Result<Pdfium> {
         let bindings = Pdfium::bind_to_library(lib_name)?;
         Ok(Pdfium::new(bindings))
     } else {
-        Ok(Pdfium::default())
+        // What `Pdfium::default` tries, without its panic when neither is found.
+        let bindings = Pdfium::bind_to_library(Pdfium::pdfium_platform_library_name_at_path("./"))
+            .or_else(|_| Pdfium::bind_to_system_library())?;
+        Ok(Pdfium::new(bindings))
     }
 }
