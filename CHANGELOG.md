@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * The bookshelf keeps its scroll position while it refreshes, and keyboard focus scrolls the grid.
   * The volume being dragged is highlighted.
   * The reading history refreshes when recording is turned back on.
+* Fixed all settings being lost without a trace when the settings file was damaged, for example by a typo or a power loss. The damaged file is now kept as rook-reader_settings.json.broken. (#365)
 
 ### Security
 
