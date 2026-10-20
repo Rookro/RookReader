@@ -1,6 +1,6 @@
 use serde_json::Value;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager};
 
 use crate::{error::Result, infrastructure::atomic_file::write_atomically};
@@ -12,10 +12,21 @@ pub trait SettingsStoreProvider {
     /// A missing store reads as an empty object (defaults); any other read failure is an
     /// `Err` so callers can distinguish "no settings yet" from "could not read settings".
     fn get_all_settings(&self) -> Result<Value>;
-    /// Saves all settings to the store.
+    /// Saves all settings to the store, which may first move an unparsable store aside.
     fn save_all_settings(&self, settings: Value) -> Result<()>;
     /// Retrieves the default home directory dynamically based on the OS.
     fn default_home_dir(&self) -> String;
+}
+
+/// Appended to the settings file's name to keep a copy that is not valid JSON.
+const BROKEN_SUFFIX: &str = ".broken";
+
+/// Returns where an unparsable settings file at `path` is kept (`settings.json` →
+/// `settings.json.broken`).
+fn broken_path(path: &Path) -> PathBuf {
+    let mut name = path.file_name().unwrap_or_default().to_os_string();
+    name.push(BROKEN_SUFFIX);
+    path.with_file_name(name)
 }
 
 /// `SettingsStoreProvider` backed by a plain JSON file in the app data directory.
@@ -59,11 +70,36 @@ impl SettingsFileProvider {
             home_dir,
         })
     }
+
+    /// Renames the settings file to its `.broken` name when it exists but is not valid
+    /// JSON, so the save that follows does not destroy it.
+    ///
+    /// # Errors
+    ///
+    /// Returns an `Err` if the file cannot be read (other than not existing) or renamed;
+    /// the save must then not overwrite it.
+    fn set_aside_if_unparsable(&self) -> Result<()> {
+        let contents = match fs::read(&self.path) {
+            Ok(contents) => contents,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+            Err(e) => return Err(e.into()),
+        };
+        if serde_json::from_slice::<Value>(&contents).is_ok() {
+            return Ok(());
+        }
+        let backup = broken_path(&self.path);
+        fs::rename(&self.path, &backup)?;
+        log::warn!(
+            "Settings file was not valid JSON; kept it as {} and wrote a fresh one",
+            backup.display()
+        );
+        Ok(())
+    }
 }
 
 impl SettingsStoreProvider for SettingsFileProvider {
     fn get_all_settings(&self) -> Result<Value> {
-        let contents = match fs::read_to_string(&self.path) {
+        let contents = match fs::read(&self.path) {
             Ok(contents) => contents,
             // Missing file (e.g. first launch) → start from defaults.
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(serde_json::json!({})),
@@ -71,9 +107,10 @@ impl SettingsStoreProvider for SettingsFileProvider {
             // file: a later save would overwrite the user's real settings with defaults.
             Err(e) => return Err(e.into()),
         };
-        Ok(serde_json::from_str(&contents).unwrap_or_else(|e| {
+        Ok(serde_json::from_slice(&contents).unwrap_or_else(|e| {
             log::warn!(
-                "Failed to parse settings file, using defaults. Error: {}",
+                "Failed to parse settings file, using defaults; it is kept as {} on the next save. Error: {}",
+                broken_path(&self.path).display(),
                 e
             );
             serde_json::json!({})
@@ -82,6 +119,7 @@ impl SettingsStoreProvider for SettingsFileProvider {
 
     fn save_all_settings(&self, settings: Value) -> Result<()> {
         let json = serde_json::to_string_pretty(&settings)?;
+        self.set_aside_if_unparsable()?;
         Ok(write_atomically(&self.path, json.as_bytes())?)
     }
 
@@ -244,5 +282,91 @@ mod tests {
         let contents = fs::read_to_string(&path).unwrap();
         let _: AppSettings = serde_json::from_str(&contents).unwrap();
         assert!(!has_temp_file(dir.path()));
+    }
+
+    #[test]
+    fn startup_keeps_an_unparsable_file_before_writing_defaults() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("settings.json");
+        fs::write(&path, "{ \"general\": { \"theme\": \"dark\", } }").unwrap();
+
+        AppSettings::load_and_persist_normalized(&provider_at(path.clone())).unwrap();
+
+        assert_eq!(
+            fs::read_to_string(dir.path().join("settings.json.broken")).unwrap(),
+            "{ \"general\": { \"theme\": \"dark\", } }"
+        );
+        let _: AppSettings = serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
+    }
+
+    #[test]
+    fn an_empty_file_is_kept_too() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("settings.json");
+        fs::write(&path, "").unwrap();
+        AppSettings::load_and_persist_normalized(&provider_at(path)).unwrap();
+        assert!(dir.path().join("settings.json.broken").exists());
+    }
+
+    #[test]
+    fn saving_over_a_valid_file_keeps_no_backup() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("settings.json");
+        let provider = provider_at(path);
+        AppSettings::default().save(&provider).unwrap();
+        AppSettings::default().save(&provider).unwrap();
+        assert!(!dir.path().join("settings.json.broken").exists());
+    }
+
+    #[test]
+    fn first_launch_keeps_no_backup() {
+        let dir = tempfile::tempdir().unwrap();
+        AppSettings::load_and_persist_normalized(&provider_at(dir.path().join("settings.json")))
+            .unwrap();
+        assert!(!dir.path().join("settings.json.broken").exists());
+    }
+
+    #[test]
+    fn a_later_corruption_replaces_the_older_backup() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("settings.json");
+        fs::write(dir.path().join("settings.json.broken"), "old").unwrap();
+        fs::write(&path, "new{").unwrap();
+        AppSettings::load_and_persist_normalized(&provider_at(path)).unwrap();
+        assert_eq!(
+            fs::read_to_string(dir.path().join("settings.json.broken")).unwrap(),
+            "new{"
+        );
+    }
+
+    #[test]
+    fn a_failed_backup_leaves_the_file_untouched() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("settings.json");
+        fs::write(&path, "bad{").unwrap();
+        // A non-empty directory in the backup's place makes the rename fail on every platform.
+        let blocker = dir.path().join("settings.json.broken");
+        fs::create_dir(&blocker).unwrap();
+        fs::write(blocker.join("child"), b"").unwrap();
+
+        assert!(AppSettings::default()
+            .save(&provider_at(path.clone()))
+            .is_err());
+        assert_eq!(fs::read_to_string(&path).unwrap(), "bad{");
+    }
+
+    #[test]
+    fn a_file_that_is_not_utf8_is_kept_too() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("settings.json");
+        fs::write(&path, b"\xff{}").unwrap();
+
+        AppSettings::load_and_persist_normalized(&provider_at(path.clone())).unwrap();
+
+        assert_eq!(
+            fs::read(dir.path().join("settings.json.broken")).unwrap(),
+            b"\xff{}"
+        );
+        let _: AppSettings = serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
     }
 }
