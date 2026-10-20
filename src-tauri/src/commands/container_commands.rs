@@ -84,7 +84,8 @@ pub struct ContainerSummary {
 /// # Errors
 ///
 /// Returns an `Err` if the path has no supported extension, or the container cannot be
-/// opened (e.g. it does not exist or is corrupt).
+/// opened (e.g. it does not exist or is corrupt). Returns `EmptyContainer` when it holds
+/// no readable pages, the same rule `get_entries_in_container` applies.
 #[tauri::command()]
 #[specta::specta]
 pub async fn count_pages_in_container(
@@ -99,6 +100,9 @@ pub async fn count_pages_in_container(
     // directory is heavy, and a bookshelf registers books while pages are being fetched.
     tauri::async_runtime::spawn_blocking(move || {
         let container = create_container(&path_owned, ContainerState::container_config(&settings))?;
+        if !container.is_novel() && container.get_entries().is_empty() {
+            return Err(Error::EmptyContainer(path_owned));
+        }
         Ok(ContainerSummary {
             total_pages: container.get_entries().len(),
             is_directory: container.is_directory(),
@@ -654,6 +658,30 @@ mod tests {
             panic!("expected an empty-container error");
         };
         assert!(err.to_string().contains("Empty Container Error"));
+    }
+
+    #[tokio::test]
+    async fn test_count_pages_rejects_a_container_without_pages() {
+        use std::io::Write;
+        use zip::write::{FileOptions, ZipWriter};
+
+        let dir = tempfile::tempdir().expect("tempdir");
+        let zip_path = dir.path().join("multi.zip");
+        let mut zip = ZipWriter::new(std::fs::File::create(&zip_path).expect("create zip"));
+        for name in ["Vol1/p1.png", "Vol2/p1.png"] {
+            zip.start_file(name, FileOptions::<()>::default())
+                .expect("start entry");
+            zip.write_all(&[0u8]).expect("write entry");
+        }
+        zip.finish().expect("finish zip");
+
+        let app = tauri::test::mock_app();
+        app.manage(RwLock::new(AppState::default()));
+
+        let result =
+            count_pages_in_container(zip_path.to_string_lossy().as_ref(), app.state()).await;
+
+        assert!(matches!(result, Err(Error::EmptyContainer(_))));
     }
 
     #[tokio::test]
