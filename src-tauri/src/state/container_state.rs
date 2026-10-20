@@ -14,6 +14,10 @@ use crate::{
     state::container_settings::ContainerSettings,
 };
 
+/// The widest a PDF page is rendered, in pixels: pdfium scales a page to fit both this
+/// and the target height, so a very wide page keeps its aspect ratio at a smaller size.
+pub const PDF_MAX_RENDER_WIDTH: i32 = 16384;
+
 /// Builds an image cache whose total weight is capped at `size_mib` mebibytes.
 ///
 /// Each entry's weight is its encoded byte length, so the cache evicts based on the
@@ -190,7 +194,8 @@ impl ContainerState {
     pub fn container_config(settings: &ContainerSettings) -> ContainerConfig {
         ContainerConfig {
             pdf_render_config: PdfRenderConfig::default()
-                .set_target_height(pdf_render_height(settings)),
+                .set_target_height(pdf_render_height(settings))
+                .set_maximum_width(PDF_MAX_RENDER_WIDTH),
             pdfium_library_path: settings.pdfium_library_path.clone(),
             auto_descend_single_folder: settings.auto_descend_single_folder,
         }
