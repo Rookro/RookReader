@@ -127,7 +127,8 @@ export const commands = {
 	 *  # Errors
 	 * 
 	 *  Returns an `Err` if the path has no supported extension, or the container cannot be
-	 *  opened (e.g. it does not exist or is corrupt).
+	 *  opened (e.g. it does not exist or is corrupt). Returns `EmptyContainer` when it holds
+	 *  no readable pages, the same rule `get_entries_in_container` applies.
 	 */
 	countPagesInContainer: (path: string) => typedError<ContainerSummary, CommandError>(__TAURI_INVOKE("count_pages_in_container", { path })),
 	/**
