@@ -18,7 +18,18 @@
       }
     ],
     "security": {
-      "csp": null,
+      "csp": {
+        "default-src": "'self'",
+        "script-src": "'self'",
+        "style-src": "'self' 'unsafe-inline' blob:",
+        "img-src": "'self' blob: data: asset: http://asset.localhost",
+        "font-src": "'self' blob: data:",
+        "media-src": "'self' blob:",
+        "frame-src": "blob:",
+        "connect-src": "'self' ipc: http://ipc.localhost",
+        "object-src": "'none'",
+        "base-uri": "'none'"
+      },
       "assetProtocol": {
         "enable": true,
         "scope": ["$APPDATA/thumbnails/**"]

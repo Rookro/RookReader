@@ -9,6 +9,7 @@ import { useAppTheme } from "../../../hooks/useAppTheme";
 import { useAppDispatch, useAppSelector } from "../../../store/store";
 import { CommandError, ErrorCode } from "../../../types/Error";
 import { setEntries, setNovelDirection, setNovelLocation } from "../slice";
+import { blockSectionScripts } from "../utils/epubContentPolicy";
 import { usePageNavigation } from "./usePageNavigation";
 import { useReaderKeydown } from "./useReaderKeydown";
 import { useReadingDirection } from "./useReadingDirection";
@@ -212,6 +213,7 @@ export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
 
       const file = new File([binaryData], filePath, { type: "application/epub+zip" });
       const book = await makeBook(file);
+      blockSectionScripts(book);
       bookRef.current = book;
 
       // The spine's page-progression-direction states how the whole book pages, so it

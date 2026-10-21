@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="book-id">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <dc:identifier id="book-id">urn:uuid:9b1f6a52-3f0e-4c1a-9d7e-5e2f8a1c0b77</dc:identifier>
+    <dc:title>Scripted EPUB</dc:title>
+    <dc:language>en</dc:language>
+    <meta property="dcterms:modified">2026-10-19T00:00:00Z</meta>
+  </metadata>
+  <manifest>
+    <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
+    <item id="chapter" href="chapter.xhtml" media-type="application/xhtml+xml" properties="scripted"/>
+    <!-- Declared as text so foliate-js's filter on JavaScript media types does not drop it. -->
+    <item id="evil" href="evil.txt" media-type="text/plain"/>
+    <item id="drawing" href="drawing.svg" media-type="image/svg+xml"/>
+    <item id="pic" href="pic.png" media-type="image/png"/>
+    <item id="style" href="style.css" media-type="text/css"/>
+    <!-- Added from src/assets/fonts by packEpub, so the fixture does not carry a copy. -->
+    <item id="font" href="font.woff2" media-type="font/woff2"/>
+  </manifest>
+  <spine>
+    <itemref idref="chapter"/>
+  </spine>
+</package>

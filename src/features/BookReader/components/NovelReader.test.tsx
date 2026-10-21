@@ -25,6 +25,7 @@ const mockBook = {
     return null;
   }),
   destroy: vi.fn(),
+  transformTarget: new EventTarget(),
 } as unknown as Book;
 
 const mockPageNavHandlers = {

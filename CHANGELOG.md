@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * The licenses of the RAR extraction code, the Noto Serif JP font and, on Windows, the WebView2 loader are now included.
   * Components that the app does not include are no longer listed.
 
+### Security
+
+* Scripts inside EPUB files no longer run, so an EPUB cannot access your files or the app. (#361)
+
 ## [2.6.0] - 2026-09-27
 
 ### Added

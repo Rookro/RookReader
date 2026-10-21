@@ -8,6 +8,7 @@ import { useAppTheme } from "../../../hooks/useAppTheme";
 import { type RootState, useAppDispatch, useAppSelector } from "../../../store/store";
 import { ErrorCode } from "../../../types/Error";
 import { setEntries, setNovelDirection, setNovelLocation } from "../slice";
+import { blockSectionScripts } from "../utils/epubContentPolicy";
 import { useNovelReader } from "./useNovelReader";
 import { useReaderKeydown } from "./useReaderKeydown";
 
@@ -20,6 +21,10 @@ vi.mock("@tauri-apps/plugin-fs");
 vi.mock("@tauri-apps/plugin-log");
 vi.mock("foliate-js/view.js", () => ({
   makeBook: vi.fn(),
+}));
+// The policy itself is tested in epubContentPolicy.test.ts; here only its wiring is.
+vi.mock("../utils/epubContentPolicy", () => ({
+  blockSectionScripts: vi.fn(),
 }));
 vi.mock("foliate-js/paginator.js", () => {
   class Paginator {
@@ -156,6 +161,23 @@ describe("useNovelReader", () => {
     expect(viewElement).not.toBeNull();
     expect(viewElement.open).toHaveBeenCalledWith(mockBook);
     expect(viewElement.init).toHaveBeenCalled();
+  });
+
+  // Verify that a book's sections are made script-free before the view renders any of them
+  it("blocks scripts in the opened book before the view opens it", async () => {
+    const mockBook = { sections: [], toc: [], destroy: vi.fn() } as Book;
+    vi.mocked(makeBook).mockResolvedValue(mockBook);
+
+    const { result } = setupHook();
+
+    await waitFor(() => {
+      expect(blockSectionScripts).toHaveBeenCalledWith(mockBook);
+    });
+    const viewElement = result.current.viewerRef.current?.querySelector("foliate-view") as MockView;
+    await waitFor(() => expect(viewElement.open).toHaveBeenCalled());
+    expect(vi.mocked(blockSectionScripts).mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(viewElement.open).mock.invocationCallOrder[0],
+    );
   });
 
   it("should not load when the container is not a novel (per is_novel state)", async () => {

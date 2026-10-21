@@ -1,0 +1,1 @@
+parent.document.documentElement.setAttribute("data-epub-script", "external");
