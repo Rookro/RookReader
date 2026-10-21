@@ -80,6 +80,8 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
         commands::bookmark_commands::rename_bookmark,
         commands::bookmark_commands::delete_bookmark,
         commands::updater_commands::is_updater_supported,
+        commands::updater_commands::claim_update_prompt,
+        commands::updater_commands::release_update_prompt,
     ])
 }
 
@@ -143,6 +145,9 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(RwLock::new(state::app_state::AppState::default()))
         .manage(settings::SettingsFileLock::default())
+        .manage(commands::updater_commands::UpdatePromptLock::default())
+        .on_window_event(commands::updater_commands::release_update_prompt_on_destroy)
+        .on_page_load(commands::updater_commands::release_update_prompt_on_reload)
         .setup(|app| {
             if let Err(e) = setup::setup(app) {
                 app.dialog()

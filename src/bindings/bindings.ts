@@ -892,6 +892,28 @@ export const commands = {
 	 *  - Linux: Supported only if running as an AppImage (checked via `APPIMAGE` environment variable).
 	 */
 	isUpdaterSupported: () => __TAURI_INVOKE<boolean>("is_updater_supported"),
+	/**
+	 *  Claims the update dialog for the calling window.
+	 * 
+	 *  # Arguments
+	 * 
+	 *  * `window` - The calling window (Tauri-injected; omitted from the TS signature).
+	 *  * `lock` - The managed update prompt lock.
+	 * 
+	 *  # Returns
+	 * 
+	 *  `true` if the calling window may show the dialog, `false` if another window shows it.
+	 */
+	claimUpdatePrompt: () => __TAURI_INVOKE<boolean>("claim_update_prompt"),
+	/**
+	 *  Releases the update dialog if the calling window holds it.
+	 * 
+	 *  # Arguments
+	 * 
+	 *  * `window` - The calling window (Tauri-injected; omitted from the TS signature).
+	 *  * `lock` - The managed update prompt lock.
+	 */
+	releaseUpdatePrompt: () => __TAURI_INVOKE<void>("release_update_prompt"),
 };
 
 /* Types */
