@@ -469,6 +469,48 @@ pub async fn get_image_preview(
     Ok(image_response(&image))
 }
 
+/// Reads the EPUB file of the novel that is open, for the novel reader to render.
+///
+/// Serves only the open novel, so the webview needs no file system read permission and
+/// a page cannot use this to read anything else.
+///
+/// # Arguments
+///
+/// * `path` - The path of the novel the caller believes is open.
+/// * `state` - The application state, holding the open book.
+///
+/// # Returns
+///
+/// A `tauri::ipc::Response` whose body is the file's bytes, unframed.
+///
+/// # Errors
+///
+/// * [`Error::BookChanged`] if `path` is not the open book or the open book is not a novel.
+/// * [`Error::PathNotFound`] if the file no longer exists.
+/// * [`Error::Io`] if it cannot be read.
+#[tauri::command()]
+pub async fn read_novel_file(
+    path: &str,
+    state: tauri::State<'_, RwLock<AppState>>,
+) -> Result<Response> {
+    log::debug!("Read the novel file {}", path);
+    let is_open_novel = {
+        let state_lock = state.read().await;
+        state_lock.container_state.service_for(path)
+    }
+    .is_some_and(|service| service.container().is_novel());
+    if !is_open_novel {
+        return Err(stale(path, "the novel file"));
+    }
+
+    let path_owned = path.to_string();
+    // On a blocking thread: an EPUB can be large, and other IPC calls must not wait on it.
+    let bytes = tauri::async_runtime::spawn_blocking(move || std::fs::read(path_owned))
+        .await
+        .map_err(|e| Error::Other(format!("Spawn blocking failed: {e}")))??;
+    Ok(Response::new(bytes))
+}
+
 #[cfg(test)]
 mod tests {
     use mockall::predicate::eq;
@@ -1064,5 +1106,64 @@ mod tests {
             600
         );
         assert_eq!(&body[8..], &[0xAA, 0xBB, 0xCC]);
+    }
+
+    /// A novel container as `manage_service` needs it: no pages, one reader at most.
+    fn novel_container(is_novel: bool) -> MockContainer {
+        let mut container = MockContainer::new();
+        container
+            .expect_get_entries()
+            .return_const(Vec::<String>::new());
+        container.expect_max_readers().return_const(usize::MAX);
+        container.expect_is_novel().return_const(is_novel);
+        container
+    }
+
+    #[tokio::test]
+    async fn test_read_novel_file_returns_the_open_novel() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("novel.epub");
+        std::fs::write(&path, b"epub-bytes").unwrap();
+        let path = path.to_string_lossy().to_string();
+        let app = tauri::test::mock_app();
+        manage_service(&app, &path, novel_container(true));
+
+        let response = read_novel_file(&path, app.state()).await.unwrap();
+
+        let body = match response.body().unwrap() {
+            Raw(bytes) => bytes,
+            _ => panic!("Unexpected response body type"),
+        };
+        assert_eq!(body.as_slice(), b"epub-bytes");
+    }
+
+    #[tokio::test]
+    async fn test_read_novel_file_refuses_a_book_that_is_not_open() {
+        let app = tauri::test::mock_app();
+        manage_service(&app, "open.epub", novel_container(true));
+
+        let result = read_novel_file("other.epub", app.state()).await;
+
+        assert!(matches!(result, Err(Error::BookChanged(_))));
+    }
+
+    #[tokio::test]
+    async fn test_read_novel_file_refuses_a_comic() {
+        let app = tauri::test::mock_app();
+        manage_service(&app, "comic.cbz", novel_container(false));
+
+        let result = read_novel_file("comic.cbz", app.state()).await;
+
+        assert!(matches!(result, Err(Error::BookChanged(_))));
+    }
+
+    #[tokio::test]
+    async fn test_read_novel_file_reports_a_deleted_file_as_not_found() {
+        let app = tauri::test::mock_app();
+        manage_service(&app, "/no/such/novel.epub", novel_container(true));
+
+        let result = read_novel_file("/no/such/novel.epub", app.state()).await;
+
+        assert!(matches!(result, Err(Error::PathNotFound(_))));
     }
 }

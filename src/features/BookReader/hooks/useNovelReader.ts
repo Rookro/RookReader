@@ -1,10 +1,10 @@
-import { exists, readFile } from "@tauri-apps/plugin-fs";
 import { error } from "@tauri-apps/plugin-log";
 import type { TOCItem } from "foliate-js/epub.js";
 import { Paginator } from "foliate-js/paginator.js";
 import { type Book, makeBook, type View, type ViewLocation } from "foliate-js/view.js";
 import { useCallback, useEffect, useRef, useState } from "react";
 import BundledNotoSerifJP from "../../../assets/fonts/NotoSerifJP-VariableFont_wght.woff2";
+import { readNovelFile } from "../../../bindings/ContainerCommands";
 import { useAppTheme } from "../../../hooks/useAppTheme";
 import { useAppDispatch, useAppSelector } from "../../../store/store";
 import { CommandError, ErrorCode } from "../../../types/Error";
@@ -189,23 +189,8 @@ export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
         return;
       }
 
-      let binaryData: Awaited<ReturnType<typeof readFile>>;
-      try {
-        binaryData = await readFile(filePath);
-      } catch (ex) {
-        // "The book is gone" is the one read failure the reader can act on, and the OS
-        // message is localized, so ask the filesystem rather than match on its text.
-        let code: ErrorCode = ErrorCode.io;
-        try {
-          if (!(await exists(filePath))) {
-            code = ErrorCode.pathNotFound;
-          }
-        } catch {
-          // The check failing says nothing about the file; keep the I/O code.
-        }
-        // Re-thrown with the original message so the log line below is unchanged.
-        throw new CommandError(code, ex instanceof Error ? ex.message : String(ex));
-      }
+      // The backend reports a missing file as pathNotFound and any other failure as io.
+      const binaryData = await readNovelFile(filePath);
 
       if (!isMounted) {
         return;

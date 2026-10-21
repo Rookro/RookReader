@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 * Scripts inside EPUB files no longer run, so an EPUB cannot access your files or the app. (#361)
+* As an extra safeguard against malicious books, the app window can no longer read arbitrary files on your computer; EPUB files are now read by the app itself. (#362)
 
 ## [2.6.0] - 2026-09-27
 

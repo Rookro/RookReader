@@ -50,6 +50,7 @@ vi.mock("../../bindings/ContainerCommands", () => ({
   getImage: vi.fn(() => Promise.resolve(new ArrayBuffer(0))),
   getImageFull: vi.fn(() => Promise.resolve(new ArrayBuffer(0))),
   getImagePreview: vi.fn(() => Promise.resolve(new ArrayBuffer(0))),
+  readNovelFile: vi.fn(() => Promise.resolve(new ArrayBuffer(0))),
 }));
 
 vi.mock("../../bindings/DirectoryCommands", () => ({
