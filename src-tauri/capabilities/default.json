@@ -48,6 +48,8 @@
     "os:default",
     "core:webview:allow-create-webview-window",
     "core:window:allow-destroy",
+    "core:window:allow-set-focus",
+    "core:window:allow-unminimize",
     "core:app:allow-set-app-theme",
     "dialog:default",
     "process:default"

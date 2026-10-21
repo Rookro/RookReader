@@ -156,7 +156,7 @@ export default function ReaderToolbar() {
   const handleSettingsClicked = useCallback(
     async (_e: React.MouseEvent<HTMLButtonElement>) => {
       debug("handleSettingsClicked");
-      openSettingsWindow(t("common.settings"));
+      await openSettingsWindow(t("common.settings"));
     },
     [t],
   );
