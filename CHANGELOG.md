@@ -39,6 +39,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * EPUB comics with non-English image names now show their pages in order.
   * Very large or very wide pages now show.
   * A book opened while settings change now uses the current settings.
+* Fixed a slowdown with large libraries and several settings and update dialog issues. (#367)
+  * Actions are no longer prepared for the log at the default log level, which slowed the app down with large libraries.
+  * Links in the update dialog now open in the browser instead of inside the app window with no way back.
+  * The update dialog now opens in only one window.
+  * Settings that fail to save in the main window now show a message.
+  * The Settings button now brings a minimised settings window back.
+  * Clearing the loupe radius now saves the default 200 instead of 150.
 
 ### Security
 
