@@ -248,22 +248,26 @@ export default function ComicReader() {
 
   // One root whether or not a page is on screen: the reader area has to be measured
   // before the first page is asked for, and a second root would leave the size observer
-  // watching the node React swapped out.
+  // watching the node React swapped out. The dialog sits beside that root: it renders
+  // through a portal, but React events bubble along the component tree, so inside the
+  // root its clicks and wheel would turn the page behind it.
   return (
-    <Box
-      tabIndex={0}
-      {...navigationHandlers}
-      onMouseMove={handleMouseMove}
-      onMouseDown={handleMouseDown}
-      ref={containerRef}
-      data-testid="comic-reader-area"
-      sx={{
-        width: "100%",
-        height: "100%",
-      }}
-    >
-      {pages()}
+    <>
+      <Box
+        tabIndex={0}
+        {...navigationHandlers}
+        onMouseMove={handleMouseMove}
+        onMouseDown={handleMouseDown}
+        ref={containerRef}
+        data-testid="comic-reader-area"
+        sx={{
+          width: "100%",
+          height: "100%",
+        }}
+      >
+        {pages()}
+      </Box>
       {confirmDialog}
-    </Box>
+    </>
   );
 }

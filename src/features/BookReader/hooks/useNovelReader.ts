@@ -198,6 +198,11 @@ export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
 
       const file = new File([binaryData], filePath, { type: "application/epub+zip" });
       const book = await makeBook(file);
+      // Unmounted while parsing: this book's direction belongs to no reader any more.
+      if (!isMounted) {
+        book.destroy?.();
+        return;
+      }
       blockSectionScripts(book);
       bookRef.current = book;
 
@@ -206,11 +211,6 @@ export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
       if (book.dir === "rtl" || book.dir === "ltr") {
         contextRef.current.dispatch(setNovelDirection(book.dir));
         isDirectionSettledRef.current = true;
-      }
-
-      if (!isMounted) {
-        book.destroy?.();
-        return;
       }
 
       if (book.sections) {

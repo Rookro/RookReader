@@ -61,6 +61,8 @@ The reader is made up of four areas:
 | **Next Page** | Left-click (image area) or Scroll Down | `Left Arrow` or `Right Arrow` |
 | **Previous Page** | Right-click (image area) or Scroll Up | `Right Arrow` or `Left Arrow` |
 
+One scroll gesture turns one page: wheel movement that continues without a pause of about 0.1 s, such as a touchpad swipe, counts as a single gesture. While a dialog is open, keys, clicks and the wheel on it do not turn the page behind it.
+
 > [!NOTE]
 > The behavior of the `Left Arrow` and `Right Arrow` keys adapts automatically based on the reading direction (Right-to-Left vs. Left-to-Right) selected via the toggle button in the top app bar. For Japanese vertical reading (Right-to-Left), the Left Arrow goes to the Next Page, and the Right Arrow goes to the Previous Page.
 

@@ -21,7 +21,8 @@ export const isTextEntryTarget = (target: EventTarget | null): boolean => {
  *
  * The reader stays mounted behind the bookshelf, so a plain window listener would turn
  * pages while the user navigates the bookshelf grid. The listener is attached only while
- * the reader view is active, and a press typed into a field is never delivered.
+ * the reader view is active, and a press typed into a field, or made inside a dialog, is
+ * never delivered.
  *
  * @param handler - Called with each key press meant for the reader.
  */
@@ -33,7 +34,10 @@ export const useReaderKeydown = (handler: (e: KeyboardEvent) => void) => {
       return;
     }
     const onKeyDown = (e: KeyboardEvent) => {
-      if (isTextEntryTarget(e.target)) {
+      if (
+        isTextEntryTarget(e.target) ||
+        (e.target as Element | null)?.closest?.('[role="dialog"]')
+      ) {
         return;
       }
       handler(e);
