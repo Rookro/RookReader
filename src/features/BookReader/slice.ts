@@ -114,6 +114,7 @@ export const openContainerFile = createAppAsyncThunk(
         entries: entriesResult.entries,
         isDirectory: entriesResult.is_directory,
         isNovel: isEpubNovel,
+        hasPreviews: entriesResult.has_previews,
         book: book,
         readingDirection,
         bookRecordError,
@@ -259,6 +260,8 @@ const initialState = {
     readingDirection: null as Direction | null,
     cfi: null as string | null,
     isNovel: false,
+    /** Whether the open book can send a page's preview more cheaply than the page. */
+    hasPreviews: false,
     /**
      * Page-turn direction of the open novel, decided for the book as a whole: its
      * declared page progression direction, or else the writing mode of its body text.
@@ -568,6 +571,7 @@ export const readSlice = createSlice({
         state.containerFile.readingDirection = null;
         state.containerFile.cfi = null;
         state.containerFile.novelDirection = null;
+        state.containerFile.hasPreviews = false;
         state.containerFile.error = null;
         state.containerFile.bookRecordError = null;
       })
@@ -583,6 +587,7 @@ export const readSlice = createSlice({
           state.containerFile.entries = action.payload.entries;
         }
         state.containerFile.isDirectory = action.payload.isDirectory;
+        state.containerFile.hasPreviews = action.payload.hasPreviews;
         state.containerFile.isLoading = false;
         state.containerFile.book = action.payload.book;
         if (state.containerFile.pendingInitialPosition === "last") {
@@ -636,6 +641,7 @@ export const readSlice = createSlice({
         state.containerFile.book = null;
         state.containerFile.isDirectory = false;
         state.containerFile.isNovel = false;
+        state.containerFile.hasPreviews = false;
         state.containerFile.novelDirection = null;
         state.containerFile.error = action.payload ?? null;
       });

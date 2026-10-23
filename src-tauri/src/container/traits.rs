@@ -65,6 +65,12 @@ pub trait Container: Send + Sync + 'static {
         false
     }
 
+    /// Returns whether [`PageReader::read_preview`] can produce a page more cheaply than
+    /// [`PageReader::read_page`].
+    fn has_previews(&self) -> bool {
+        false
+    }
+
     /// How many readers may usefully exist at once.
     ///
     /// `1` means the backend is exclusive (only one handle may be open) or sequential

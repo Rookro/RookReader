@@ -32,6 +32,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * The volume being dragged is highlighted.
   * The reading history refreshes when recording is turned back on.
 * Fixed all settings being lost without a trace when the settings file was damaged, for example by a typo or a power loss. The damaged file is now kept as rook-reader_settings.json.broken. (#365)
+* Fixed several issues with opening and showing books. (#366)
+  * PDF previews no longer stop for the rest of a book.
+  * Folders without pages are no longer added to the bookshelf as empty books.
+  * ZIP files with an encrypted or damaged file inside now open.
+  * EPUB comics with non-English image names now show their pages in order.
+  * Very large or very wide pages now show.
+  * A book opened while settings change now uses the current settings.
 
 ### Security
 

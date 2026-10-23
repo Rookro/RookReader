@@ -133,6 +133,8 @@ export interface ViewerControllerOptions {
   isSpreadShifted: boolean;
   /** Viewer settings. */
   settings: ViewerSettings;
+  /** Whether the open book can send a page's preview more cheaply than the page. */
+  hasPreviews: boolean;
   /**
    * How large the reader draws a page, in device pixels.
    *
@@ -172,6 +174,7 @@ export const useViewerController = ({
   index,
   isSpreadShifted,
   settings,
+  hasPreviews,
   displaySize,
   dispatch,
   book,
@@ -195,11 +198,6 @@ export const useViewerController = ({
   // The book whose measurement has already been written back, so a re-render cannot
   // write it twice.
   const savedLayoutRef = useRef<string | null>(null);
-  // Set once this book answers a preview request with "no preview". Only a container that
-  // can build a small image more cheaply than the page itself has one to give, so for
-  // every image format the answer is no — and asking again for every page turn buys
-  // nothing but a round trip. One wasted request per book settles it.
-  const previewUnsupportedRef = useRef(false);
   // The viewport the backend has answered for, and the gate on loading anything.
   //
   // Not `displaySize` itself: the report is a round trip, and a page asked for before it
@@ -210,7 +208,6 @@ export const useViewerController = ({
   useEffect(() => {
     revokeCacheUrls(cacheRef.current);
     cacheRef.current.clear();
-    previewUnsupportedRef.current = false;
     setLoadedLandscape(new Map());
     abortControllerRef.current?.abort();
   }, [containerPath]);
@@ -519,11 +516,6 @@ export const useViewerController = ({
           }
           return;
         }
-        // Null is the backend declining, not a failure: only that answer is evidence
-        // about the container.
-        if (isPreview && img === null && !controller.signal.aborted) {
-          previewUnsupportedRef.current = true;
-        }
         if (img && !controller.signal.aborted) {
           const newItem = createImageCacheItem(img, isPreview);
           // A full page's own dimensions are the one thing the viewer can know about an
@@ -561,7 +553,7 @@ export const useViewerController = ({
       setIsImageLoading(true);
 
       const missingPreviewPaths =
-        settings.enablePreview && !previewUnsupportedRef.current
+        settings.enablePreview && hasPreviews
           ? pathsToLoad.filter((p) => !cache.get(p)?.previewUrl)
           : [];
 
@@ -608,7 +600,17 @@ export const useViewerController = ({
       abortControllerRef.current?.abort();
       abortControllerRef.current = null;
     };
-  }, [containerPath, index, entries, settings, currentUnit, pairing, chain, reportedSize]);
+  }, [
+    containerPath,
+    index,
+    entries,
+    settings,
+    hasPreviews,
+    currentUnit,
+    pairing,
+    chain,
+    reportedSize,
+  ]);
 
   // Request preloading around the current index in the backend.
   //

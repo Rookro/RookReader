@@ -52,6 +52,7 @@ export function createBasePreloadedState(): RootState {
         isSpreadDisplayed: false,
         readingDirection: null,
         isNovel: false,
+        hasPreviews: false,
         novelDirection: null,
         isLoading: false,
         isDirectory: false,

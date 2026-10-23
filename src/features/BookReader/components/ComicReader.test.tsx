@@ -115,6 +115,16 @@ describe("ComicReader", () => {
     );
   });
 
+  it("tells the controller whether the open book has previews", () => {
+    const preloadedState = createBasePreloadedState();
+    preloadedState.read.containerFile.hasPreviews = true;
+    renderWithProviders(<ComicReader />, { preloadedState });
+
+    expect(vi.mocked(viewerController.useViewerController)).toHaveBeenCalledWith(
+      expect.objectContaining({ hasPreviews: true }),
+    );
+  });
+
   describe("the loupe", () => {
     /** The open loupe, over a spread of `p1.jpg` and `p2.jpg`. */
     const openOverASpread = (fullSize: Map<string, string>) => {

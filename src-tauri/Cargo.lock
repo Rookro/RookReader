@@ -5157,6 +5157,7 @@ version = "2.6.0"
 dependencies = [
  "async-trait",
  "chrono",
+ "crc32fast",
  "encoding_rs",
  "fast_image_resize",
  "flate2",
@@ -5168,6 +5169,7 @@ dependencies = [
  "mockall",
  "natord",
  "pdfium-render",
+ "percent-encoding",
  "png 0.18.1",
  "rayon",
  "rbook",

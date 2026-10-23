@@ -21,6 +21,7 @@ use crate::error::{Error, Result};
 use crate::infrastructure::atomic_file::write_atomically;
 use crate::page::pipeline::Pipeline;
 use crate::state::app_state::AppState;
+use crate::state::container_state::ContainerState;
 
 /// Retrieves a book by its unique ID.
 ///
@@ -646,7 +647,7 @@ pub async fn update_series_orders<R: tauri::Runtime>(
     Ok(())
 }
 
-/// Reads the current app state to extract the pdfium library path and, if available,
+/// Reads the current app state to extract the container settings and, if available,
 /// the currently loaded container for the given `file_path`. Then generates and saves
 /// a thumbnail, returning its path or `None` on failure.
 async fn resolve_thumbnail<R: tauri::Runtime>(
@@ -654,13 +655,9 @@ async fn resolve_thumbnail<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
     file_path: &str,
 ) -> Option<String> {
-    let (pdfium_path, container) = {
+    let (config, container) = {
         let state_lock = state.read().await;
-        let pdfium_path = state_lock
-            .container_state
-            .settings
-            .pdfium_library_path
-            .clone();
+        let config = ContainerState::container_config(&state_lock.container_state.settings);
 
         // Reuse the open book's own container when this thumbnail is for that book, so a
         // PDF does not get a second handle opened beside the one being read. One lookup
@@ -670,10 +667,10 @@ async fn resolve_thumbnail<R: tauri::Runtime>(
             .service_for(file_path)
             .map(|service| service.container());
 
-        (pdfium_path, container)
+        (config, container)
     };
 
-    generate_and_save_thumbnail(app.clone(), file_path.to_string(), pdfium_path, container)
+    generate_and_save_thumbnail(app.clone(), file_path.to_string(), config, container)
         .await
         .unwrap_or_else(|e| {
             log::warn!("Thumbnail of {} generation failed: {}", file_path, e);
@@ -735,7 +732,8 @@ fn path_hash(file_path: &str) -> u64 {
 ///
 /// * `app` - The Tauri AppHandle for resolving app data directories.
 /// * `file_path` - The unique file or directory path of the book.
-/// * `pdfium_path` - Optional path to the pdfium library.
+/// * `config` - The container options of the current settings, used when `container`
+///   is `None`.
 /// * `container` - An optional pre-loaded container to avoid re-opening the file.
 ///
 /// # Returns
@@ -745,7 +743,7 @@ fn path_hash(file_path: &str) -> u64 {
 async fn generate_and_save_thumbnail<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
     file_path: String,
-    pdfium_path: Option<String>,
+    config: ContainerConfig,
     container: Option<Arc<dyn Container>>,
 ) -> Result<Option<String>> {
     tauri::async_runtime::spawn_blocking(move || {
@@ -763,10 +761,6 @@ async fn generate_and_save_thumbnail<R: tauri::Runtime>(
         let container: Arc<dyn Container> = if let Some(c) = container {
             c
         } else {
-            let config = ContainerConfig {
-                pdfium_library_path: pdfium_path,
-                ..ContainerConfig::default()
-            };
             create_container(&file_path, config)?
         };
 
@@ -1430,14 +1424,67 @@ mod tests {
         let legacy = thumbnails_dir.join(legacy_thumbnail_file_name(&file_path));
         std::fs::write(&legacy, "a thumbnail from an earlier version").unwrap();
 
-        let path = generate_and_save_thumbnail(app.app_handle().clone(), file_path, None, None)
-            .await
-            .unwrap()
-            .expect("a folder of images has a thumbnail");
+        let path = generate_and_save_thumbnail(
+            app.app_handle().clone(),
+            file_path,
+            ContainerConfig::default(),
+            None,
+        )
+        .await
+        .unwrap()
+        .expect("a folder of images has a thumbnail");
 
         assert!(!legacy.exists());
         let size = crate::image::types::read_dimensions(&std::fs::read(&path).unwrap()).unwrap();
         assert_eq!(size.height, crate::image::thumbnail::COVER.max_size);
+        std::fs::remove_file(path).unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_generate_and_save_thumbnail_follows_the_folder_setting() {
+        use std::io::Write;
+        use zip::write::{FileOptions, ZipWriter};
+
+        let app = tauri::test::mock_app();
+        let dir = tempfile::tempdir().unwrap();
+        let zip_path = dir.path().join("nested.zip");
+        let mut page = Vec::new();
+        image::DynamicImage::ImageRgb8(image::RgbImage::new(4, 4))
+            .write_to(
+                &mut std::io::Cursor::new(&mut page),
+                image::ImageFormat::Png,
+            )
+            .unwrap();
+        let mut zip = ZipWriter::new(std::fs::File::create(&zip_path).unwrap());
+        zip.start_file("Vol1/p1.png", FileOptions::<()>::default())
+            .unwrap();
+        zip.write_all(&page).unwrap();
+        zip.finish().unwrap();
+        let file_path = zip_path.to_string_lossy().to_string();
+
+        let at_the_root = ContainerConfig {
+            auto_descend_single_folder: false,
+            ..ContainerConfig::default()
+        };
+        let none = generate_and_save_thumbnail(
+            app.app_handle().clone(),
+            file_path.clone(),
+            at_the_root,
+            None,
+        )
+        .await
+        .unwrap();
+        let descended = generate_and_save_thumbnail(
+            app.app_handle().clone(),
+            file_path,
+            ContainerConfig::default(),
+            None,
+        )
+        .await
+        .unwrap();
+
+        assert!(none.is_none());
+        let path = descended.expect("the folder's page makes a cover");
         std::fs::remove_file(path).unwrap();
     }
 
@@ -1455,8 +1502,13 @@ mod tests {
 
         // Calling it with a fake file path. If it didn't skip, it would return an error
         // because the fake zip file does not exist.
-        let result =
-            generate_and_save_thumbnail(app.app_handle().clone(), file_path, None, None).await;
+        let result = generate_and_save_thumbnail(
+            app.app_handle().clone(),
+            file_path,
+            ContainerConfig::default(),
+            None,
+        )
+        .await;
 
         assert!(result.is_ok());
         let path_opt = result.unwrap();

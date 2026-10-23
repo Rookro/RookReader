@@ -34,6 +34,8 @@ Each folder inside a zip/cbz/rar/cbr archive is treated as a **book of its own**
 - **Open the folder inside an archive automatically** (Settings → Reader, on by default): when an archive holds no pages of its own and wraps them in a single folder (`comic.zip` → `Comic/`), that folder is opened in one click. Nested single folders are followed all the way down.
 - A folder or archive with **no readable pages** is not recorded as a book. The message "The book contains no readable pages." is shown and the File Navigator moves into it so you can pick a folder inside.
 
+Password-protected files inside a zip/cbz archive are skipped: the rest of the archive opens without them.
+
 ### Reader Layout
 
 The reader is made up of four areas:
@@ -188,7 +190,7 @@ The file list's **sort order** (Name↑/↓, Date↑/↓) is chosen in the File 
 - **Reading history**: record the books you read and your position in them.
 
 ### Rendering & Performance
-Pages may be PNG, JPEG, GIF, APNG, WebP or AVIF (still images; AVIF image sequences are not supported). They are always rendered at the size they are displayed at, which keeps screentones free of moiré. Animated pages (GIF, APNG, WebP) are the exception: they are never resized, so every frame plays.
+Pages may be PNG, JPEG, GIF, APNG, WebP or AVIF (still images; AVIF image sequences are not supported). They are always rendered at the size they are displayed at, which keeps screentones free of moiré. Animated pages (GIF, APNG, WebP) are the exception: they are never resized, so every frame plays. A page too large to resize in memory (such as 20000 × 20000 pixels) is also shown at its own size.
 - **Show preview while loading**: display a low-resolution thumbnail until the full page is ready.
 - **Maximum image height (px)**: an additional cap on page height. A page taller than this is shrunk to it even when the reader area is taller; `0` lets the reader area alone decide.
 - **Resizing method**: the resampling algorithm, from Nearest Neighbor (fastest) to Lanczos 3 (best quality, the default).

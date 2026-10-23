@@ -52,6 +52,8 @@ pub struct EntriesResult {
     is_directory: bool,
     /// Whether the container is an EPUB novel.
     is_novel: bool,
+    /// Whether `get_image_preview` can send a page more cheaply than `get_image`.
+    has_previews: bool,
 }
 
 /// What a caller that only registers a book needs to know about it.
@@ -82,7 +84,8 @@ pub struct ContainerSummary {
 /// # Errors
 ///
 /// Returns an `Err` if the path has no supported extension, or the container cannot be
-/// opened (e.g. it does not exist or is corrupt).
+/// opened (e.g. it does not exist or is corrupt). Returns `EmptyContainer` when it holds
+/// no readable pages, the same rule `get_entries_in_container` applies.
 #[tauri::command()]
 #[specta::specta]
 pub async fn count_pages_in_container(
@@ -97,6 +100,9 @@ pub async fn count_pages_in_container(
     // directory is heavy, and a bookshelf registers books while pages are being fetched.
     tauri::async_runtime::spawn_blocking(move || {
         let container = create_container(&path_owned, ContainerState::container_config(&settings))?;
+        if !container.is_novel() && container.get_entries().is_empty() {
+            return Err(Error::EmptyContainer(path_owned));
+        }
         Ok(ContainerSummary {
             total_pages: container.get_entries().len(),
             is_directory: container.is_directory(),
@@ -170,6 +176,7 @@ pub async fn get_entries_in_container(
     let entries = container.get_entries().clone();
     let is_directory = container.is_directory();
     let is_novel = container.is_novel();
+    let has_previews = container.has_previews();
 
     // A container with no readable pages is not a book. Failing here keeps it out of the
     // library and the history, since the frontend only records a book after this returns.
@@ -201,6 +208,7 @@ pub async fn get_entries_in_container(
         entries,
         is_directory,
         is_novel,
+        has_previews,
     })
 }
 
@@ -427,7 +435,7 @@ pub async fn get_image_full(
 ///
 /// This function fetches a smaller, preview version of an image entry. If a preview is
 /// successfully generated, it is returned in the same binary format as `get_image`.
-/// If the preview is skipped (e.g., it's already cached), an empty response is returned.
+/// An empty response means no preview is needed or possible right now.
 ///
 /// # Arguments
 ///
@@ -438,7 +446,7 @@ pub async fn get_image_full(
 /// # Returns
 ///
 /// A `Result` which is `Ok` with a `tauri::ipc::Response`. The response body may contain
-/// image data or be empty if the preview generation was skipped.
+/// image data or be empty when no preview is needed or possible right now.
 ///
 /// # Errors
 ///
@@ -462,7 +470,7 @@ pub async fn get_image_preview(
     let preview = service.preview(entry_name).await?;
 
     let Some(image) = preview else {
-        // Return an empty response if preview skipped.
+        // Nothing to send now (the page is cached, or the book has no previews).
         return Ok(Response::new(Vec::new()));
     };
 
@@ -653,6 +661,30 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_count_pages_rejects_a_container_without_pages() {
+        use std::io::Write;
+        use zip::write::{FileOptions, ZipWriter};
+
+        let dir = tempfile::tempdir().expect("tempdir");
+        let zip_path = dir.path().join("multi.zip");
+        let mut zip = ZipWriter::new(std::fs::File::create(&zip_path).expect("create zip"));
+        for name in ["Vol1/p1.png", "Vol2/p1.png"] {
+            zip.start_file(name, FileOptions::<()>::default())
+                .expect("start entry");
+            zip.write_all(&[0u8]).expect("write entry");
+        }
+        zip.finish().expect("finish zip");
+
+        let app = tauri::test::mock_app();
+        app.manage(RwLock::new(AppState::default()));
+
+        let result =
+            count_pages_in_container(zip_path.to_string_lossy().as_ref(), app.state()).await;
+
+        assert!(matches!(result, Err(Error::EmptyContainer(_))));
+    }
+
+    #[tokio::test]
     async fn test_get_entries_in_container() {
         let dir = tempfile::tempdir().unwrap();
         let rar_path = create_dummy_rar(dir.path(), "dummy.rar");
@@ -764,6 +796,7 @@ mod tests {
 
         let entries_result = result.expect("a valid non-novel open should succeed");
         assert!(!entries_result.is_novel);
+        assert!(!entries_result.has_previews);
         assert_eq!(3, entries_result.entries.len());
 
         let binding = app.state::<RwLock<AppState>>();

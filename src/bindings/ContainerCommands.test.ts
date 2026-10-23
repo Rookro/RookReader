@@ -15,6 +15,7 @@ describe("ContainerCommands", () => {
       entries: ["1.jpg"],
       is_directory: false,
       is_novel: false,
+      has_previews: false,
     });
     await ContainerCommands.getEntriesInContainer("path");
     expect(invoke).toHaveBeenCalledWith("get_entries_in_container", {
