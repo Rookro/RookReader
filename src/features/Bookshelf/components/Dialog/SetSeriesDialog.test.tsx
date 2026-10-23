@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as BookCommands from "../../../../bindings/BookCommands";
 import * as SeriesCommand from "../../../../bindings/SeriesCommands";
 import type { Series } from "../../../../domain/series/schema";
+import { createMockBookWithState } from "../../../../test/factories";
 import { renderWithProviders } from "../../../../test/utils";
 import SetSeriesDialog, { type SetSeriesDialogProps } from "./SetSeriesDialog";
 
@@ -18,13 +19,64 @@ describe("SetSeriesDialog", () => {
 
   const defaultProps: SetSeriesDialogProps = {
     open: true,
-    bookIds: [101, 102],
+    books: [
+      createMockBookWithState({ id: 101, series_id: null }),
+      createMockBookWithState({ id: 102, series_id: null }),
+    ],
     availableSeries: mockSeries,
     onClose: vi.fn(),
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  /** The radio of a list row, by the row's label. */
+  const radioOf = (label: string) =>
+    screen
+      .getByText(label)
+      .closest("[class*=MuiListItem-root]")
+      ?.querySelector("input") as HTMLInputElement;
+
+  // Confirming the dialog unchanged must keep the book in its series
+  it("starts from the series of a single book", () => {
+    renderWithProviders(
+      <SetSeriesDialog
+        {...defaultProps}
+        books={[createMockBookWithState({ id: 1, series_id: 2 })]}
+      />,
+    );
+    expect(radioOf("Series B")).toBeChecked();
+  });
+
+  it("starts from the series the selected books share", () => {
+    renderWithProviders(
+      <SetSeriesDialog
+        {...defaultProps}
+        books={[
+          createMockBookWithState({ id: 1, series_id: 1 }),
+          createMockBookWithState({ id: 2, series_id: 1 }),
+        ]}
+      />,
+    );
+    expect(radioOf("Series A")).toBeChecked();
+  });
+
+  // Books in different series have no common choice to keep, so one must be made
+  it("preselects nothing and disables OK when the books are in different series", () => {
+    renderWithProviders(
+      <SetSeriesDialog
+        {...defaultProps}
+        books={[
+          createMockBookWithState({ id: 1, series_id: 1 }),
+          createMockBookWithState({ id: 2, series_id: 2 }),
+        ]}
+      />,
+    );
+    for (const radio of screen.getAllByRole("radio")) {
+      expect(radio).not.toBeChecked();
+    }
+    expect(screen.getByRole("button", { name: /ok/i })).toBeDisabled();
   });
 
   it("should render series list", () => {
@@ -139,7 +191,7 @@ describe("SetSeriesDialog", () => {
   });
 
   it("should close dialog if bookIds is empty on save", async () => {
-    renderWithProviders(<SetSeriesDialog {...defaultProps} bookIds={[]} />);
+    renderWithProviders(<SetSeriesDialog {...defaultProps} books={[]} />);
 
     await user.click(screen.getByRole("button", { name: /ok/i }));
 

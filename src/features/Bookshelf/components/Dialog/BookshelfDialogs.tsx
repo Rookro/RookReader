@@ -1,8 +1,6 @@
-import { useMemo } from "react";
 import type { BookWithState } from "../../../../domain/book/schema";
 import { useAppSelector } from "../../../../store/store";
 import type { BookshelfDialogType } from "../../hooks/useBookshelfDialogs";
-import { sortBySeriesOrder } from "../../utils/BookshelfUtils";
 import AddBooksToBookshelvesDialog from "./AddBooksToBookshelvesDialog";
 import BookDeleteDialog from "./BookDeleteDialog";
 import EditSeriesOrderDialog from "./EditSeriesOrderDialog";
@@ -34,15 +32,9 @@ export default function BookshelfDialogs({
   onBookDialogClose,
   onEditSeriesOrderClose,
 }: BookshelfDialogsProps) {
-  const books = useAppSelector((state) => state.bookCollection.books);
   const availableBookshelves = useAppSelector((state) => state.bookCollection.bookshelves);
   const availableTags = useAppSelector((state) => state.tag.tags);
   const availableSeries = useAppSelector((state) => state.series.series);
-
-  const editSeriesOrderBooks = useMemo(() => {
-    if (editSeriesOrderSeriesId === null) return [];
-    return books.filter((b) => b.series_id === editSeriesOrderSeriesId).sort(sortBySeriesOrder);
-  }, [books, editSeriesOrderSeriesId]);
 
   return (
     <>
@@ -60,7 +52,7 @@ export default function BookshelfDialogs({
       />
       <SetSeriesDialog
         open={dialogType === "set-series"}
-        bookIds={dialogBookIds}
+        books={dialogBooks}
         availableSeries={availableSeries}
         onClose={onBookDialogClose}
       />
@@ -71,7 +63,7 @@ export default function BookshelfDialogs({
       />
       <EditSeriesOrderDialog
         open={dialogType === "edit-series-order"}
-        books={editSeriesOrderBooks}
+        seriesId={editSeriesOrderSeriesId}
         onClose={onEditSeriesOrderClose}
       />
     </>

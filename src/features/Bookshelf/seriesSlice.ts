@@ -6,22 +6,21 @@ import type { Series } from "../../domain/series/schema";
 import { handleThunkError } from "../../store/thunkErrorHandler";
 import { createAppAsyncThunk } from "../../types/CustomAsyncThunk";
 import type { ErrorCode } from "../../types/Error";
-import { fetchBooksInSelectedBookshelf, setSelectedBookshelf } from "./slice";
+import { setSelectedBookshelf } from "./slice";
 
 /**
- * Updates the order of books within a series and refetches the bookshelf to reflect the changes.
+ * Updates the order of books within a series.
+ *
+ * The backend's `books-changed` event refreshes the bookshelf, so this does not refetch.
  *
  * @param bookIds - The array of book IDs in the desired new order.
  * @returns A thunk that resolves when the update is successful.
  */
 export const updateSeriesOrdersThunk = createAppAsyncThunk(
   "series/updateSeriesOrdersThunk",
-  async (bookIds: number[], { rejectWithValue, dispatch, getState }) => {
+  async (bookIds: number[], { rejectWithValue }) => {
     try {
       await updateSeriesOrders(bookIds);
-      // Honor the documented contract: refetch so the new order is reflected.
-      const selectedBookshelfId = getState().bookCollection.selectedId;
-      await dispatch(fetchBooksInSelectedBookshelf(selectedBookshelfId));
     } catch (e) {
       return handleThunkError(e, "Failed to update series orders.", rejectWithValue);
     }
@@ -45,8 +44,7 @@ export const fetchSeries = createAppAsyncThunk(
 );
 
 /**
- * Creates a series and refetches the list so the caller can select the new id at once
- * (the same in-thunk refetch `updateSeriesOrdersThunk` does).
+ * Creates a series and refetches the list so the caller can select the new id at once.
  *
  * @param name - The name of the new series.
  * @returns A thunk that resolves to the new series id.

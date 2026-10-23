@@ -87,6 +87,7 @@ describe("SetBookTagsDialog", () => {
     );
 
     await waitFor(() => expect(screen.getByText("Tag 1")).toBeInTheDocument());
+    await user.click(screen.getAllByRole("checkbox")[0]);
     await user.click(screen.getByRole("button", { name: /ok/i }));
 
     await waitFor(() => {
@@ -104,6 +105,7 @@ describe("SetBookTagsDialog", () => {
     );
 
     await waitFor(() => expect(screen.getByText("Tag 1")).toBeInTheDocument());
+    await user.click(screen.getAllByRole("checkbox")[0]);
     await user.click(screen.getByRole("button", { name: /ok/i }));
 
     // The slice error is what GlobalErrorListener turns into the notification;
@@ -154,6 +156,72 @@ describe("SetBookTagsDialog", () => {
 
     // Book 2's fetch failed: the checkboxes reset instead of keeping book 1's tag.
     await waitFor(() => expect(screen.getAllByRole("checkbox")[0]).not.toBeChecked());
+  });
+
+  // Tagging several books must keep each book's other tags
+  it("shows tags on some of the books as partly checked and keeps them on save", async () => {
+    const tags: Tag[] = [...mockTags, { id: 3, name: "Tag 3", color_code: "#0000ff" }];
+    vi.mocked(BookCommands.getBookTags).mockImplementation(async (bookId: number) =>
+      bookId === 10 ? [1, 2] : [1],
+    );
+    vi.mocked(BookCommands.updateBookTags).mockResolvedValue();
+    const onClose = vi.fn();
+
+    renderWithProviders(
+      <SetBookTagsDialog open={true} bookIds={[10, 11]} availableTags={tags} onClose={onClose} />,
+    );
+
+    await waitFor(() => expect(screen.getAllByRole("checkbox")[0]).toBeChecked());
+    const checkboxes = screen.getAllByRole("checkbox");
+    expect(checkboxes[1]).toHaveAttribute("data-indeterminate", "true");
+    expect(checkboxes[2]).not.toBeChecked();
+
+    await user.click(checkboxes[2]);
+    await user.click(screen.getByRole("button", { name: /ok/i }));
+
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(BookCommands.updateBookTags).toHaveBeenCalledWith(10, [1, 2, 3]);
+    expect(BookCommands.updateBookTags).toHaveBeenCalledWith(11, [1, 3]);
+  });
+
+  it("closes without saving when nothing changed", async () => {
+    vi.mocked(BookCommands.getBookTags).mockResolvedValue([1]);
+    const onClose = vi.fn();
+
+    renderWithProviders(
+      <SetBookTagsDialog
+        open={true}
+        bookIds={[10, 11]}
+        availableTags={mockTags}
+        onClose={onClose}
+      />,
+    );
+
+    await waitFor(() => expect(screen.getAllByRole("checkbox")[0]).toBeChecked());
+    await user.click(screen.getByRole("button", { name: /ok/i }));
+
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(BookCommands.updateBookTags).not.toHaveBeenCalled();
+  });
+
+  // Saving after a failed read would overwrite tags the dialog never saw
+  it("disables OK when the books' tags could not be read", async () => {
+    vi.mocked(BookCommands.getBookTags).mockRejectedValue(new Error("boom"));
+
+    renderWithProviders(
+      <SetBookTagsDialog
+        open={true}
+        bookIds={[10, 11]}
+        availableTags={mockTags}
+        onClose={vi.fn()}
+      />,
+    );
+
+    // Disabled while loading too, so check it once the failure has been handled.
+    await waitFor(() =>
+      expect(logError).toHaveBeenCalledWith(expect.stringContaining("Failed to fetch book tags")),
+    );
+    expect(screen.getByRole("button", { name: /ok/i })).toBeDisabled();
   });
 
   it("should do nothing if handleSave is called while bookIds is empty", async () => {

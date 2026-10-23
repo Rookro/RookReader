@@ -22,6 +22,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * One scroll gesture, such as a touchpad swipe or a fast spin of the mouse wheel, now turns one page.
   * Choosing the current chapter no longer loses the exact position.
   * Keys, clicks and the wheel on a dialog no longer turn pages behind it.
+* Fixed several bookshelf issues. (#364)
+  * Setting tags on several books no longer removes their other tags.
+  * Confirming Set series no longer removes the book from its series.
+  * Editing a series' order inside a collection no longer gives volumes duplicate numbers.
+  * Re-adding a book to its own series no longer moves it to the end.
+  * Selection now clears when you switch collection, tag, series or search, and a click no longer opens a book while others are selected.
+  * The bookshelf keeps its scroll position while it refreshes, and keyboard focus scrolls the grid.
+  * The volume being dragged is highlighted.
+  * The reading history refreshes when recording is turned back on.
 
 ### Security
 

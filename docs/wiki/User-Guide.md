@@ -125,7 +125,7 @@ Press **Move to Bookshelf** in the reader's top app bar to open the **Bookshelve
 - **Create a collection**: press **New collection** next to the *Collections* heading and give it a name and a custom icon.
 - **Add books**: press **Add books** in the top bar, then **drag and drop** files and folders from your computer onto the dialog or press **Select files**. Added books appear in the current collection (or in *All Books*).
 - **Sort and search**: type in the search box to filter by title (right-click the box for cut/copy/paste), and choose **Sort by** Name (A→Z / Z→A) or Date (Oldest / Newest first). **Change grid size** switches between small, medium and large covers.
-- **Select several books**: **Ctrl/Cmd+click** toggles a book, **Shift+click** selects a range. The action bar that appears lets you **Add to collections**, **Set series**, **Set tags** or **Remove books** for the whole selection at once.
+- **Select several books**: **Ctrl/Cmd+click** toggles a book, **Shift+click** selects a range. The action bar that appears lets you **Add to collections**, **Set series**, **Set tags** or **Remove books** for the whole selection at once. Switching collection, tag, series or search clears the selection.
 - **Right-click a book** for the same actions on a single book.
 - **Keyboard**: the arrow keys move the focus through the grid, **Home** / **End** jump to the first / last item, and **Enter** or **Space** opens the focused book or series.
 - **Delete a collection or tag** by right-clicking it in the left pane and choosing **Delete**. A confirmation dialog is shown first; deleting a collection keeps its books in your library.
@@ -133,12 +133,12 @@ Press **Move to Bookshelf** in the reader's top app bar to open the **Bookshelve
 
 ### Series
 
-Group the volumes of the same title into a **series** with **Set series** (create a new series or pick an existing one). A series appears as a single stacked cover on the bookshelf; open it to see its volumes, and use **Edit Series Order** (in the top bar while the series is open, or by right-clicking its cover) to drag the volumes into reading order. Opening a series volume from the bookshelf lets *Auto-open Adjacent Book* follow the correct volume order, regardless of file names. Right-click the cover and choose **Ungroup series** (after a confirmation) to show the books individually again without deleting them. Choosing a collection in the left pane, even the one already shown, or deleting the collection you are in closes the open series and returns to the top of the bookshelf. Choosing a tag keeps the series open and shows only its volumes that carry the tag.
+Group the volumes of the same title into a **series** with **Set series** (create a new series or pick an existing one). A series appears as a single stacked cover on the bookshelf; open it to see its volumes, and use **Edit Series Order** (in the top bar while the series is open, or by right-clicking its cover) to drag the volumes into reading order. It lists every volume of the series, including volumes that are not in the collection shown. Opening a series volume from the bookshelf lets *Auto-open Adjacent Book* follow the correct volume order, regardless of file names. Right-click the cover and choose **Ungroup series** (after a confirmation) to show the books individually again without deleting them. Choosing a collection in the left pane, even the one already shown, or deleting the collection you are in closes the open series and returns to the top of the bookshelf. Choosing a tag keeps the series open and shows only its volumes that carry the tag.
 
 ## Tagging System
 
 Categorize your collection using tags.
-- Press **New tag** next to the *Tags* heading to create a tag with a name and a color, then assign tags to books with **Set tags** (right-click a book, or select several books first).
+- Press **New tag** next to the *Tags* heading to create a tag with a name and a color, then assign tags to books with **Set tags** (right-click a book, or select several books first). With several books selected, a tag that only some of them have is shown as partly checked; leave it that way to keep it as it is on each book.
 - Click a tag in the left pane to show only the books carrying it, which makes large collections easy to navigate.
 
 ## Reading History & Resume

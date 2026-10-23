@@ -108,7 +108,9 @@ export function areEqual(
     prevProps.enableAutoScroll !== nextProps.enableAutoScroll ||
     prevProps.focusedIndex !== nextProps.focusedIndex ||
     prevProps.readingBookIndex !== nextProps.readingBookIndex ||
-    prevProps.horizontalOffset !== nextProps.horizontalOffset
+    prevProps.horizontalOffset !== nextProps.horizontalOffset ||
+    prevProps.onBookClick !== nextProps.onBookClick ||
+    prevProps.onSeriesClick !== nextProps.onSeriesClick
   ) {
     return false;
   }

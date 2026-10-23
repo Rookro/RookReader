@@ -24,16 +24,16 @@ vi.mock("./BookDeleteDialog", () => ({
 vi.mock("./EditSeriesOrderDialog", () => ({
   default: ({
     open,
-    books,
+    seriesId,
     onClose,
   }: {
     open: boolean;
-    books: { display_name: string }[];
+    seriesId: number | null;
     onClose: () => void;
   }) =>
     open ? (
       <button type="button" data-testid="edit-series-order" onClick={onClose}>
-        {books.map((b) => b.display_name).join(",")}
+        {String(seriesId)}
       </button>
     ) : null,
 }));
@@ -101,7 +101,8 @@ describe("BookshelfDialogs", () => {
     expect(onBookDialogClose).toHaveBeenCalled();
   });
 
-  it("gives the edit-order dialog the series' books in series order", () => {
+  // The dialog loads the whole series itself; it only needs to know which one
+  it("gives the edit-order dialog the series to edit", () => {
     const onEditSeriesOrderClose = vi.fn();
     renderDialogs({
       dialogType: "edit-series-order",
@@ -110,7 +111,7 @@ describe("BookshelfDialogs", () => {
     });
 
     const dialog = screen.getByTestId("edit-series-order");
-    expect(dialog.textContent).toBe("Vol 1,Vol 2");
+    expect(dialog.textContent).toBe("10");
 
     dialog.click();
     expect(onEditSeriesOrderClose).toHaveBeenCalled();

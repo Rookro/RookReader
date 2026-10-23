@@ -70,6 +70,28 @@ describe("useHistorySync", () => {
     });
   });
 
+  // Changes while recording was off were ignored, so turning it on must catch up
+  it("refetches the history when recording is turned back on", () => {
+    let record = false;
+    vi.mocked(useAppSelector).mockImplementation((selector) =>
+      selector({
+        bookCollection: { selectedId: mockSelectedBookshelfId },
+        settings: { history: { recordReadingHistory: record } },
+      } as unknown as RootState),
+    );
+    const { rerender } = renderHook(() => useHistorySync());
+    const historyFetches = () =>
+      mockDispatch.mock.calls.filter(([action]) => action.type === "fetchRecentlyReadBooks").length;
+    const onMount = historyFetches();
+
+    rerender();
+    expect(historyFetches()).toBe(onMount);
+
+    record = true;
+    rerender();
+    expect(historyFetches()).toBe(onMount + 1);
+  });
+
   it("performs initial data load on mount", () => {
     renderHook(() => useHistorySync());
 

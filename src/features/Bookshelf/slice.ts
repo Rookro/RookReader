@@ -214,6 +214,12 @@ const bookCollectionSlice = createSlice({
     bookshelves: [] as Bookshelf[],
     selectedId: null as number | null,
     books: [] as BookWithState[],
+    /** The shelf `books` holds, or null before the first load. */
+    booksShelf: null as { id: number | null } | null,
+    /** The latest books request; only its answer may replace `books`. */
+    booksRequestId: null as string | null,
+    /** Whether the shelf on screen is being refetched in place. */
+    isRefreshing: false,
     status: "idle" as "idle" | "loading" | "succeeded" | "failed",
     error: null as { code: ErrorCode; message?: string } | null,
   },
@@ -258,88 +264,66 @@ const bookCollectionSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      .addCase(addBookshelf.pending, (state) => {
-        state.status = "loading";
-        state.error = null;
-      })
-      .addCase(addBookshelf.fulfilled, (state) => {
-        state.status = "succeeded";
-        state.error = null;
-      })
+      // Mutations record only their error: `status` describes the books on screen, and
+      // flipping it to "loading" would blank the grid and lose its scroll position.
       .addCase(addBookshelf.rejected, (state, action) => {
-        state.status = "failed";
         state.error = action.payload ?? null;
       })
-      .addCase(fetchBookshelves.pending, (state) => {
-        state.status = "loading";
-        state.error = null;
+      .addCase(deleteBookFromCollection.rejected, (state, action) => {
+        state.error = action.payload ?? null;
       })
+      .addCase(addBookToBookshelf.rejected, (state, action) => {
+        state.error = action.payload ?? null;
+      })
+      .addCase(removeBookshelf.rejected, (state, action) => {
+        state.error = action.payload ?? null;
+      })
+      .addCase(addBooksToBookshelves.rejected, (state, action) => {
+        state.error = action.payload ?? null;
+      })
+      // The bookshelf list is not the grid's books either.
       .addCase(fetchBookshelves.fulfilled, (state, action) => {
-        state.status = "succeeded";
         state.bookshelves = action.payload;
-        state.error = null;
       })
       .addCase(fetchBookshelves.rejected, (state, action) => {
-        state.status = "failed";
         state.bookshelves = [];
         state.error = action.payload ?? null;
       })
-      .addCase(fetchBooksInSelectedBookshelf.pending, (state) => {
-        state.status = "loading";
+      .addCase(fetchBooksInSelectedBookshelf.pending, (state, action) => {
+        state.booksRequestId = action.meta.requestId;
+        // Another shelf shows a spinner; the same shelf refreshes in place.
+        if (state.booksShelf === null || state.booksShelf.id !== action.meta.arg) {
+          state.status = "loading";
+        } else {
+          state.isRefreshing = true;
+        }
         state.error = null;
       })
       .addCase(fetchBooksInSelectedBookshelf.fulfilled, (state, action) => {
-        // Ignore stale responses for a shelf the user has already navigated away from.
-        if (action.meta.arg !== state.selectedId) {
+        // Ignore a response superseded by a newer request, or for a shelf the user left.
+        if (
+          action.meta.requestId !== state.booksRequestId ||
+          action.meta.arg !== state.selectedId
+        ) {
           return;
         }
         state.status = "succeeded";
+        state.isRefreshing = false;
         state.books = action.payload;
+        state.booksShelf = { id: action.meta.arg };
         state.error = null;
       })
       .addCase(fetchBooksInSelectedBookshelf.rejected, (state, action) => {
-        if (action.meta.arg !== state.selectedId) {
+        if (
+          action.meta.requestId !== state.booksRequestId ||
+          action.meta.arg !== state.selectedId
+        ) {
           return;
         }
         state.status = "failed";
+        state.isRefreshing = false;
         state.books = [];
-        state.error = action.payload ?? null;
-      })
-      .addCase(deleteBookFromCollection.pending, (state) => {
-        state.status = "loading";
-        state.error = null;
-      })
-      .addCase(deleteBookFromCollection.fulfilled, (state) => {
-        state.status = "succeeded";
-        state.error = null;
-      })
-      .addCase(deleteBookFromCollection.rejected, (state, action) => {
-        state.status = "failed";
-        state.error = action.payload ?? null;
-      })
-      .addCase(addBookToBookshelf.pending, (state) => {
-        state.status = "loading";
-        state.error = null;
-      })
-      .addCase(addBookToBookshelf.fulfilled, (state) => {
-        state.status = "succeeded";
-        state.error = null;
-      })
-      .addCase(addBookToBookshelf.rejected, (state, action) => {
-        state.status = "failed";
-        state.error = action.payload ?? null;
-      })
-      .addCase(removeBookshelf.pending, (state) => {
-        state.status = "loading";
-        state.error = null;
-      })
-      .addCase(removeBookshelf.rejected, (state, action) => {
-        state.status = "failed";
-        state.error = action.payload ?? null;
-      })
-      // Only the error: a mutation must not flip `status` to "loading", which would
-      // blank the grid behind the open dialog.
-      .addCase(addBooksToBookshelves.rejected, (state, action) => {
+        state.booksShelf = null;
         state.error = action.payload ?? null;
       })
       .addCase(readingProgressChanged, (state, action) => {
