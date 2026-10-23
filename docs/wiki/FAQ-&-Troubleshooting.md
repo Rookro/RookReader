@@ -7,6 +7,9 @@ RookReader stores its application data — the SQLite database (`rook-reader.db`
 - **Windows**: `C:\Users\<YourUser>\AppData\Roaming\io.github.rookro.rookreader`
 - **Linux**: `~/.local/share/io.github.rookro.rookreader` (or `$XDG_DATA_HOME/io.github.rookro.rookreader`)
 
+### My settings were reset after editing the settings file
+If the settings file (`rook-reader_settings.json`) is not valid JSON, RookReader starts with the default settings and keeps the damaged file next to it as `rook-reader_settings.json.broken`. To get your settings back, close RookReader, delete the new `rook-reader_settings.json`, then fix the damaged file and rename it back to that name (or copy your values from it into the new file instead). Only the most recent damaged file is kept.
+
 ### The EPUB novel reading feature is not displaying correctly.
 The EPUB support is currently an **experimental feature**. Complex formatting, custom CSS, or certain text alignments might not render perfectly yet. We are actively working on improving the EPUB parser and rendering engine.
 
