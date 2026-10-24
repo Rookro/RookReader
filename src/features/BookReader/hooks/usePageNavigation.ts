@@ -1,12 +1,7 @@
 import type React from "react";
-import { useCallback, useRef } from "react";
+import { useCallback } from "react";
 import type { ViewerSettings } from "../utils/ImageUtils";
-
-/**
- * How long without wheel events ends a wheel gesture, in milliseconds. A gesture turns one
- * page, so a touchpad swipe, which sends a burst of events, does not skip pages.
- */
-export const WHEEL_GESTURE_GAP_MS = 100;
+import { toWheelSample, wheelGesture } from "../utils/wheelGesture";
 
 /** How a page move may behave. */
 export interface PageMoveOptions {
@@ -22,8 +17,8 @@ export type PageMove = (options?: PageMoveOptions) => boolean;
 /**
  * Hooks for page navigation (forward/backward) based on user interactions.
  *
- * @param onMoveForward Move forward action.
- * @param onMoveBack Move back action.
+ * @param onMoveForward Moves forward; see {@link PageMove}.
+ * @param onMoveBack Moves back; see {@link PageMove}.
  * @param direction Direction of the viewer.
  * @returns Handlers for click, context menu, wheel, and keydown events.
  */
@@ -47,21 +42,11 @@ export const usePageNavigation = (
     [onMoveBack],
   );
 
-  const lastWheelAtRef = useRef<number | null>(null);
-
   const handleWheeled = useCallback(
     (e: React.WheelEvent<HTMLDivElement> | WheelEvent) => {
-      const now = Date.now();
-      const last = lastWheelAtRef.current;
-      lastWheelAtRef.current = now;
-      if (last !== null && now - last < WHEEL_GESTURE_GAP_MS) {
-        return;
-      }
-      if ("deltaY" in e && e.deltaY < 0) {
-        onMoveBack();
-      } else if ("deltaY" in e && e.deltaY > 0) {
-        onMoveForward();
-      }
+      wheelGesture.handle(toWheelSample(e), (sign, steps, crossBook) =>
+        (sign > 0 ? onMoveForward : onMoveBack)({ steps, crossBook }),
+      );
     },
     [onMoveBack, onMoveForward],
   );
