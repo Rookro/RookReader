@@ -14,12 +14,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Fixed the bundled third-party licenses missing some notices. (#359)
   * The licenses of the RAR extraction code, the Noto Serif JP font and, on Windows, the WebView2 loader are now included.
   * Components that the app does not include are no longer listed.
-* Fixed several reader issues. (#363)
+* Fixed several reader issues. (#363, #368)
   * The bookmark button no longer removes another book's bookmark or adds duplicates.
   * A slow folder no longer shows its contents under another folder or gets listed twice.
   * A book opened from the bookshelf no longer keeps using the bookshelf for "next book" after another path is opened.
   * Switching novels quickly no longer applies the previous novel's page direction.
-  * One scroll gesture, such as a touchpad swipe or a fast spin of the mouse wheel, now turns one page.
+  * Each notch of the mouse wheel turns one page, even when you spin it quickly, and a touchpad turns one page for each notch's worth of scrolling instead of one for every small movement.
+  * A scroll that reaches the first or last page stops there; scroll again after a short pause to go on to the adjacent book.
   * Choosing the current chapter no longer loses the exact position.
   * Keys, clicks and the wheel on a dialog no longer turn pages behind it.
 * Fixed several bookshelf issues. (#364)

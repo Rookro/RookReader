@@ -14,7 +14,7 @@ import * as perfLog from "../../../utils/perf";
 import { setImageIndex, setSpreadDisplayed } from "../slice";
 import * as ImageUtils from "../utils/ImageUtils";
 import type { DisplaySize } from "./useDisplaySize";
-import { useViewerController } from "./useViewerController";
+import { useViewerController, type ViewerControllerOptions } from "./useViewerController";
 
 /**
  * A viewport the reader has already measured.
@@ -150,6 +150,21 @@ describe("useViewerController", () => {
       expect.objectContaining({ type: setImageIndex.type }),
     );
   };
+
+  const renderMoves = (index: number, extra: Partial<ViewerControllerOptions> = {}) =>
+    renderHook(() =>
+      useViewerController({
+        containerPath: "path",
+        displaySize: VIEWPORT,
+        entries: mockEntries,
+        index,
+        isSpreadShifted: false,
+        settings: mockSettings,
+        dispatch: mockDispatch,
+        hasPreviews: true,
+        ...extra,
+      }),
+    );
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -430,7 +445,7 @@ describe("useViewerController", () => {
         expect(result.current.isImageLoading).toBe(false);
       });
 
-      result.current.moveForward();
+      expect(result.current.moveForward()).toBe(true);
       expect(mockDispatch).toHaveBeenCalledWith(setImageIndex(1));
     });
 
@@ -473,7 +488,7 @@ describe("useViewerController", () => {
           hasPreviews: true,
         }),
       );
-      result.current.moveForward();
+      expect(result.current.moveForward()).toBe(false);
       expectNoPageMove();
     });
 
@@ -502,6 +517,31 @@ describe("useViewerController", () => {
       expectNoPageMove();
       expect(onForwardBoundary).toHaveBeenCalledTimes(1);
     });
+
+    it("moves several pages in one call", () => {
+      const { result } = renderMoves(0);
+      expect(result.current.moveForward({ steps: 2 })).toBe(true);
+      expect(mockDispatch).toHaveBeenCalledWith(setImageIndex(2));
+      expect(mockDispatch).not.toHaveBeenCalledWith(setImageIndex(1));
+    });
+
+    it("stops on the last page without crossing books when steps run out", () => {
+      const onForwardBoundary = vi.fn();
+      const { result } = renderMoves(0, { onForwardBoundary });
+      expect(result.current.moveForward({ steps: 5 })).toBe(false);
+      expect(mockDispatch).toHaveBeenCalledWith(setImageIndex(2));
+      expect(onForwardBoundary).not.toHaveBeenCalled();
+    });
+
+    it("stays on the last page when asked not to cross books", () => {
+      const onForwardBoundary = vi.fn();
+      const { result } = renderMoves(2, { onForwardBoundary });
+      expect(result.current.moveForward({ crossBook: false })).toBe(false);
+      expectNoPageMove();
+      expect(onForwardBoundary).not.toHaveBeenCalled();
+      expect(result.current.moveForward()).toBe(false);
+      expect(onForwardBoundary).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe("moveBack", () => {
@@ -526,7 +566,7 @@ describe("useViewerController", () => {
         expect(result.current.isImageLoading).toBe(false);
       });
 
-      result.current.moveBack();
+      expect(result.current.moveBack()).toBe(true);
       expect(mockDispatch).toHaveBeenCalledWith(setImageIndex(0));
     });
 
@@ -563,7 +603,7 @@ describe("useViewerController", () => {
           hasPreviews: true,
         }),
       );
-      result.current.moveBack();
+      expect(result.current.moveBack()).toBe(false);
       expectNoPageMove();
     });
 
@@ -588,6 +628,29 @@ describe("useViewerController", () => {
       result.current.moveBack();
       expectNoPageMove();
       expect(onBackwardBoundary).toHaveBeenCalledTimes(1);
+    });
+
+    it("moves several pages back in one call", () => {
+      const { result } = renderMoves(2);
+      expect(result.current.moveBack({ steps: 2 })).toBe(true);
+      expect(mockDispatch).toHaveBeenCalledWith(setImageIndex(0));
+      expect(mockDispatch).not.toHaveBeenCalledWith(setImageIndex(1));
+    });
+
+    it("stops on the first page without crossing books when steps run out", () => {
+      const onBackwardBoundary = vi.fn();
+      const { result } = renderMoves(2, { onBackwardBoundary });
+      expect(result.current.moveBack({ steps: 5 })).toBe(false);
+      expect(mockDispatch).toHaveBeenCalledWith(setImageIndex(0));
+      expect(onBackwardBoundary).not.toHaveBeenCalled();
+    });
+
+    it("stays on the first page when asked not to cross books", () => {
+      const onBackwardBoundary = vi.fn();
+      const { result } = renderMoves(0, { onBackwardBoundary });
+      expect(result.current.moveBack({ crossBook: false })).toBe(false);
+      expectNoPageMove();
+      expect(onBackwardBoundary).not.toHaveBeenCalled();
     });
   });
 
@@ -965,6 +1028,19 @@ describe("useViewerController", () => {
         units,
       });
     };
+
+    it("steps by units and stops on the last one in spread view", async () => {
+      // {0} {1,2}
+      mockChain({ 0: 1, 1: 2 });
+      const onForwardBoundary = vi.fn();
+      const { result } = renderMoves(0, { settings: twoPagedSettings, onForwardBoundary });
+      // A layout appears only once the pairing is known.
+      await waitFor(() => expect(result.current.displayedLayout).not.toBeNull());
+      expect(result.current.moveForward({ steps: 3 })).toBe(false);
+      expect(mockDispatch).toHaveBeenCalledWith(setImageIndex(1));
+      expect(mockDispatch).not.toHaveBeenCalledWith(setImageIndex(2));
+      expect(onForwardBoundary).not.toHaveBeenCalled();
+    });
 
     /** The landscape flags the scan below reports, in entry order. */
     const MEASURED = [false, true, false];

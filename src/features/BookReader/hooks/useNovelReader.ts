@@ -2,6 +2,7 @@ import { error } from "@tauri-apps/plugin-log";
 import type { TOCItem } from "foliate-js/epub.js";
 import { Paginator } from "foliate-js/paginator.js";
 import { type Book, makeBook, type View, type ViewLocation } from "foliate-js/view.js";
+import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import BundledNotoSerifJP from "../../../assets/fonts/NotoSerifJP-VariableFont_wght.woff2";
 import { readNovelFile } from "../../../bindings/ContainerCommands";
@@ -10,6 +11,7 @@ import { useAppDispatch, useAppSelector } from "../../../store/store";
 import { CommandError, ErrorCode } from "../../../types/Error";
 import { setEntries, setNovelDirection, setNovelLocation } from "../slice";
 import { blockSectionScripts } from "../utils/epubContentPolicy";
+import { holdWheelGesture } from "../utils/wheelGesture";
 import { usePageNavigation } from "./usePageNavigation";
 import { useReaderKeydown } from "./useReaderKeydown";
 import { useReadingDirection } from "./useReadingDirection";
@@ -64,7 +66,7 @@ export interface UseNovelReaderOptions {
  * Handles loading EPUB files, setting up the view, applying themes, and handling navigation.
  *
  * @param options - Configuration options including the file path.
- * @returns An object containing the viewer reference.
+ * @returns The viewer reference, the viewer's wheel handler, and the load error.
  */
 export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
   const theme = useAppTheme();
@@ -89,12 +91,15 @@ export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
   const fontSize = useAppSelector((state) => state.settings.reader.novel.fontSize);
   const dispatch = useAppDispatch();
 
-  const onMoveForward = useCallback(() => {
+  // The novel reader has no adjacent-book hand-off, so its moves always count as moved.
+  const onMoveForward = useCallback((): boolean => {
     viewRef.current?.next();
+    return true;
   }, []);
 
-  const onMoveBack = useCallback(() => {
+  const onMoveBack = useCallback((): boolean => {
     viewRef.current?.prev();
+    return true;
   }, []);
 
   const applyThemeToView = useCallback(
@@ -344,5 +349,13 @@ export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
 
   useReaderKeydown(handleKeydown);
 
-  return { viewerRef, loadError };
+  // Until a section is shown no iframe takes the wheel, so the viewer continues the gesture;
+  // afterwards wheel events here come from the margins around the iframe and do nothing.
+  const handleViewerWheel = useCallback((e: React.WheelEvent) => {
+    if (!viewRef.current?.lastLocation) {
+      holdWheelGesture(e);
+    }
+  }, []);
+
+  return { viewerRef, handleViewerWheel, loadError };
 };

@@ -1,10 +1,11 @@
 import { error } from "@tauri-apps/plugin-log";
-import { act, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import * as bookCmds from "../../../bindings/BookCommands";
 import * as dragDrop from "../../../hooks/useDragDropEvent";
 import { createBasePreloadedState, renderWithProviders } from "../../../test/utils";
 import * as readRed from "../slice";
+import { wheelGesture } from "../utils/wheelGesture";
 import BookReader from "./BookReader";
 
 // Module-level mocks to bypass lazy loading
@@ -61,6 +62,23 @@ describe("BookReader", () => {
 
     renderWithProviders(<BookReader />, { preloadedState });
     expect(screen.getByRole("progressbar")).toBeInTheDocument();
+  });
+
+  // A book usually loads for longer than a gesture's pause, so the spinner has to continue
+  // the gesture that opened it, or the rest of a spin would turn pages in the new book.
+  it("continues a wheel gesture over the loading spinner", () => {
+    const hold = vi.spyOn(wheelGesture, "hold");
+    onTestFinished(() => {
+      hold.mockRestore();
+      wheelGesture.reset();
+    });
+    const preloadedState = createBasePreloadedState();
+    preloadedState.read.containerFile.isLoading = true;
+    renderWithProviders(<BookReader />, { preloadedState });
+
+    fireEvent.wheel(screen.getByRole("progressbar"), { deltaY: 100 });
+
+    expect(hold).toHaveBeenCalledTimes(1);
   });
 
   it("should restore last container on startup if enabled", async () => {

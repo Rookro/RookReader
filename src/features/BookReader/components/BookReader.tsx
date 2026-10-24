@@ -16,6 +16,7 @@ import SideTabs from "../../SidePane/components/SideTabs";
 import type { SideTab } from "../../SidePane/types";
 import { useBookmarkSync } from "../hooks/useBookmarkSync";
 import { openBook, openContainerFile } from "../slice";
+import { holdWheelGesture } from "../utils/wheelGesture";
 import BookmarkViewer from "./BookmarkViewer/BookmarkViewer";
 import ComicReader from "./ComicReader";
 import ControlSlider from "./ControlSlider";
@@ -199,7 +200,10 @@ export default function BookReader({ sx }: BookReaderProps) {
                 }}
               >
                 {isLoading ? (
+                  // Continues a wheel gesture while the book loads, so the rest of a spin
+                  // does not turn pages in the new book.
                   <Box
+                    onWheel={holdWheelGesture}
                     sx={{
                       width: "100%",
                       height: "100%",

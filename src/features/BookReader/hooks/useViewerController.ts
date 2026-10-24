@@ -28,6 +28,7 @@ import {
   type ViewLayout,
 } from "../utils/ImageUtils";
 import type { DisplaySize } from "./useDisplaySize";
+import type { PageMove, PageMoveOptions } from "./usePageNavigation";
 
 /**
  * How long the viewer holds the loading state waiting to be told how the book pairs.
@@ -115,10 +116,10 @@ export interface ViewerController {
   displayedLayout: ViewLayout | null;
   /** Is loading a image. */
   isImageLoading: boolean;
-  /** Move forward action. */
-  moveForward: () => void;
-  /** Move backward action. */
-  moveBack: () => void;
+  /** Moves forward by displayed units; returns false when it stopped short. */
+  moveForward: PageMove;
+  /** Moves back by displayed units; returns false when it stopped short. */
+  moveBack: PageMove;
 }
 
 /** What {@link useViewerController} needs to drive the viewer. */
@@ -670,55 +671,75 @@ export const useViewerController = ({
     [dispatch],
   );
 
-  const moveForward = useCallback(() => {
-    if (entries.length === 0) {
-      return;
-    }
+  // The index one displayed unit after `i`, or null past the last page. Derive the
+  // increment from the unit at `i`, not the lagging displayedLayout, which would desync
+  // spread pairs / skip pages. The unit is the one being displayed, so a step never lands
+  // on a page the reader has just seen, and a unit chain covers every index contiguously,
+  // so it never skips one either.
+  const nextIndexFrom = useCallback(
+    (i: number): number | null => {
+      const next = i + (pairing?.units.get(i) ?? SINGLE_UNIT).nextIndexIncrement;
+      return next < entries.length ? next : null;
+    },
+    [pairing, entries.length],
+  );
 
-    // Derive the increment from the current index's unit, not the lagging
-    // displayedLayout, which would desync spread pairs / skip pages. The unit is the one
-    // being displayed, so a step never lands on a page the reader has just seen, and a
-    // unit chain covers every index contiguously, so it never skips one either.
-    const increment = currentUnit().nextIndexIncrement;
-    const nextIndex = index + increment;
-
-    if (nextIndex < entries.length) {
-      goTo(nextIndex);
-    } else {
-      // Already at the last page: hand off to the adjacent-book handler.
-      onForwardBoundary?.();
-    }
-  }, [index, entries, goTo, currentUnit, onForwardBoundary]);
-
-  const moveBack = useCallback(() => {
-    if (entries.length === 0) {
-      return;
-    }
-
-    if (index === 0) {
-      // Already at the first page: hand off to the adjacent-book handler.
-      onBackwardBoundary?.();
-      return;
-    }
-
-    if (!settings.isTwoPagedView) {
-      goTo(index - 1);
-      return;
-    }
-
-    // The preceding unit is simply the last boundary before the current index — of the
-    // same pairing the viewer is displaying, so back and forward stay in step.
-    if (pairing) {
-      const previous = pairing.starts.filter((start) => start < index).at(-1);
-      if (previous !== undefined) {
-        goTo(previous);
-        return;
+  // The index one displayed unit before `i`, or null on the first page. The preceding unit
+  // is the last boundary before `i` of the pairing the viewer is displaying, so back and
+  // forward stay in step; without a pairing every unit is a single page.
+  const previousIndexFrom = useCallback(
+    (i: number): number | null => {
+      if (i === 0) {
+        return null;
       }
-    }
+      if (!settings.isTwoPagedView) {
+        return i - 1;
+      }
+      return pairing?.starts.filter((start) => start < i).at(-1) ?? i - 1;
+    },
+    [settings.isTwoPagedView, pairing],
+  );
 
-    // Without a pairing every unit is a single page, so one step back is the answer.
-    goTo(index - 1);
-  }, [index, entries.length, settings, goTo, pairing, onBackwardBoundary]);
+  const walk = useCallback(
+    (
+      step: (i: number) => number | null,
+      boundary: (() => void) | undefined,
+      options?: PageMoveOptions,
+    ): boolean => {
+      if (entries.length === 0) {
+        return false;
+      }
+      const steps = options?.steps ?? 1;
+      let at = index;
+      let moved = 0;
+      while (moved < steps) {
+        const next = step(at);
+        if (next === null) {
+          break;
+        }
+        at = next;
+        moved++;
+      }
+      if (moved > 0) {
+        goTo(at);
+      } else if (options?.crossBook !== false) {
+        // Already at the first or last page: hand off to the adjacent-book handler.
+        boundary?.();
+      }
+      return moved === steps;
+    },
+    [entries.length, index, goTo],
+  );
+
+  const moveForward = useCallback(
+    (options?: PageMoveOptions) => walk(nextIndexFrom, onForwardBoundary, options),
+    [walk, nextIndexFrom, onForwardBoundary],
+  );
+
+  const moveBack = useCallback(
+    (options?: PageMoveOptions) => walk(previousIndexFrom, onBackwardBoundary, options),
+    [walk, previousIndexFrom, onBackwardBoundary],
+  );
 
   return {
     displayedLayout,
