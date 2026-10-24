@@ -63,7 +63,7 @@ The reader is made up of four areas:
 | **Next Page** | Left-click (image area) or Scroll Down | `Left Arrow` or `Right Arrow` |
 | **Previous Page** | Right-click (image area) or Scroll Up | `Right Arrow` or `Left Arrow` |
 
-One scroll gesture turns one page: wheel movement that continues without a pause of about 0.1 s, such as a touchpad swipe, counts as a single gesture. While a dialog is open, keys, clicks and the wheel on it do not turn the page behind it.
+Each notch of the mouse wheel turns one page, even when you spin it quickly. A touchpad turns one page for each notch's worth of scrolling within one swipe (a swipe ends after a pause of about 0.1 s), so a light swipe shorter than that turns nothing, and mostly sideways movement turns nothing. In novels pages turn at most about ten times a second, so a fast spin or a flick turns fewer pages. A scroll that reaches the first or last page stops there. While a dialog is open, keys, clicks and the wheel on it do not turn the page behind it.
 
 > [!NOTE]
 > The behavior of the `Left Arrow` and `Right Arrow` keys adapts automatically based on the reading direction (Right-to-Left vs. Left-to-Right) selected via the toggle button in the top app bar. For Japanese vertical reading (Right-to-Left), the Left Arrow goes to the Next Page, and the Right Arrow goes to the Previous Page.
@@ -101,7 +101,7 @@ Choose a mode under **Settings → Reader → Auto-open Adjacent Book**:
 | **Ask before opening** | Show a confirmation dialog before opening the adjacent book. *(Default)* |
 | **Auto-open** | Open the adjacent book immediately. |
 
-- Turning the page forward on the **last page** opens the next book on its **first page**; turning back on the **first page** opens the previous book on its **last page**. This works with clicks, the scroll wheel, and the arrow keys. A short notification appears while the book is opening.
+- Turning the page forward on the **last page** opens the next book on its **first page**; turning back on the **first page** opens the previous book on its **last page**. This works with clicks, the scroll wheel, and the arrow keys; a scroll that reaches the first or last page stops there, and scrolling again after a short pause goes on to the adjacent book. A short notification appears while the book is opening.
 - **Which book is opened next?** It depends on how the current book was opened:
   - **From a Bookshelf**: If the book belongs to a registered **series**, the next/previous **volume** in the series is opened. Otherwise, the next/previous book in the bookshelf's current **sort order** is used.
   - **From the File Navigator, History, drag & drop, or restored on startup**: The next/previous item in the **same folder** is opened (image folders are included), following the File Navigator's current sort order. When the current book is a folder inside an archive, the next/previous folder **inside that archive** is used.
