@@ -8,6 +8,17 @@ import type { ViewerSettings } from "../utils/ImageUtils";
  */
 export const WHEEL_GESTURE_GAP_MS = 100;
 
+/** How a page move may behave. */
+export interface PageMoveOptions {
+  /** How many pages (displayed units) to move. Defaults to 1. */
+  steps?: number;
+  /** Whether a move at the first or last page may go on to the adjacent book. Defaults to true. */
+  crossBook?: boolean;
+}
+
+/** Moves pages; returns false when it stopped short of `steps` (boundary, hand-off, nothing loaded). */
+export type PageMove = (options?: PageMoveOptions) => boolean;
+
 /**
  * Hooks for page navigation (forward/backward) based on user interactions.
  *
@@ -17,8 +28,8 @@ export const WHEEL_GESTURE_GAP_MS = 100;
  * @returns Handlers for click, context menu, wheel, and keydown events.
  */
 export const usePageNavigation = (
-  onMoveForward: () => void,
-  onMoveBack: () => void,
+  onMoveForward: PageMove,
+  onMoveBack: PageMove,
   direction: ViewerSettings["direction"],
 ) => {
   const handleClicked = useCallback(

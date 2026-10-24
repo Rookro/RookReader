@@ -89,12 +89,15 @@ export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
   const fontSize = useAppSelector((state) => state.settings.reader.novel.fontSize);
   const dispatch = useAppDispatch();
 
-  const onMoveForward = useCallback(() => {
+  // The novel reader has no adjacent-book hand-off, so its moves always count as moved.
+  const onMoveForward = useCallback((): boolean => {
     viewRef.current?.next();
+    return true;
   }, []);
 
-  const onMoveBack = useCallback(() => {
+  const onMoveBack = useCallback((): boolean => {
     viewRef.current?.prev();
+    return true;
   }, []);
 
   const applyThemeToView = useCallback(
