@@ -9,6 +9,8 @@
 
 ## [Unreleased]
 
+## [2.6.1] - 2026-10-24
+
 ### Changed
 
 * 依存関係を更新 (#369)
@@ -639,7 +641,8 @@
 * 自動見開き表示機能の追加 (#4)
 * ホイールの上下によるページ送り機能を追加 (#5)
 
-[unreleased]: https://github.com/Rookro/RookReader/compare/v2.6.0...HEAD
+[unreleased]: https://github.com/Rookro/RookReader/compare/v2.6.1...HEAD
+[2.6.1]: https://github.com/Rookro/RookReader/compare/v2.6.0...v2.6.1
 [2.6.0]: https://github.com/Rookro/RookReader/compare/v2.5.0...v2.6.0
 [2.5.0]: https://github.com/Rookro/RookReader/compare/v2.4.0...v2.5.0
 [2.4.0]: https://github.com/Rookro/RookReader/compare/v2.3.1...v2.4.0
