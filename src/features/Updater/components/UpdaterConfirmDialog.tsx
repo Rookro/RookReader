@@ -12,6 +12,7 @@ import {
 import type { Update } from "@tauri-apps/plugin-updater";
 import { useTranslation } from "react-i18next";
 import ReactMarkdown from "react-markdown";
+import ExternalLink from "./ExternalLink";
 
 export interface UpdaterConfirmDialogProps {
   open: boolean;
@@ -89,7 +90,7 @@ export default function UpdaterConfirmDialog({
                 },
               }}
             >
-              <ReactMarkdown>{update.body}</ReactMarkdown>
+              <ReactMarkdown components={{ a: ExternalLink }}>{update.body}</ReactMarkdown>
             </Box>
           </Box>
         )}

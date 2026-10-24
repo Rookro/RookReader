@@ -86,6 +86,25 @@ describe("LoupeSettingsItem", () => {
     });
   });
 
+  it("saves the default radius when the radius field is cleared", async () => {
+    const preloadedState = createBasePreloadedState();
+    preloadedState.settings.reader.comic.loupe = { zoom: 2.0, radius: 250, toggleKey: "l" };
+
+    renderWithProviders(<LoupeSettingsItem />, { preloadedState });
+
+    const textboxes = await screen.findAllByRole("textbox");
+    const radiusInput = textboxes.filter((el) => el.getAttribute("inputmode") === "numeric")[1];
+
+    await user.clear(radiusInput);
+    radiusInput.blur();
+
+    await waitFor(() => {
+      expect(mockTauri.invoke).toHaveBeenCalledWith("set_settings", {
+        patch: { reader: { comic: { loupe: { radius: 200 } } } },
+      });
+    });
+  });
+
   it("should update store when key combo is pressed", async () => {
     const preloadedState = createBasePreloadedState();
     preloadedState.settings.reader.comic.loupe = { zoom: 2.0, radius: 150, toggleKey: "l" };

@@ -72,3 +72,9 @@ vi.mock("../../bindings/TagCommands", () => ({
   getAllTags: vi.fn(() => Promise.resolve([])),
   deleteTag: vi.fn(() => Promise.resolve([])),
 }));
+
+vi.mock("../../bindings/UpdaterCommands", () => ({
+  isUpdaterSupported: vi.fn(() => Promise.resolve(true)),
+  claimUpdatePrompt: vi.fn(() => Promise.resolve(true)),
+  releaseUpdatePrompt: vi.fn(() => Promise.resolve()),
+}));

@@ -1,13 +1,14 @@
 import type { MiddlewareAPI } from "@reduxjs/toolkit";
 import { debug, trace } from "@tauri-apps/plugin-log";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { LogLevel } from "../../bindings/bindings";
 import { loggerMiddleware } from "./loggerMiddleware";
 
 describe("loggerMiddleware", () => {
-  const mockStore = {
-    getState: vi.fn(() => ({ state: "mock" })),
-    dispatch: vi.fn(),
-  } as MiddlewareAPI;
+  const stateAt = (level: LogLevel) => ({ settings: { general: { log: { level } } } });
+  const storeAt = (level: LogLevel) =>
+    ({ getState: vi.fn(() => stateAt(level)), dispatch: vi.fn() }) as unknown as MiddlewareAPI;
+  const mockStore = storeAt("trace");
 
   const mockNext = vi.fn((action: unknown) => action);
 
@@ -25,7 +26,7 @@ describe("loggerMiddleware", () => {
     );
     expect(mockNext).toHaveBeenCalledWith(action);
     expect(trace).toHaveBeenCalledWith(
-      `[loggerMiddleware] next state: ${JSON.stringify({ state: "mock" })}`,
+      `[loggerMiddleware] next state: ${JSON.stringify(stateAt("trace"))}`,
     );
   });
 
@@ -38,10 +39,10 @@ describe("loggerMiddleware", () => {
     loggerMiddleware(mockStore)(mockNext)(action);
 
     expect(debug).toHaveBeenCalledWith(
-      "Dispatching action. type:LARGE_ACTION}, payload: Large Object(Suppressed)",
+      "Dispatching action. type:LARGE_ACTION, payload: Large Object(Suppressed)",
     );
     expect(trace).toHaveBeenCalledWith(
-      `Dispatching action. type:LARGE_ACTION}, payload:${JSON.stringify(largePayload)}`,
+      `Dispatching action. type:LARGE_ACTION, payload:${JSON.stringify(largePayload)}`,
     );
   });
 
@@ -58,7 +59,7 @@ describe("loggerMiddleware", () => {
     loggerMiddleware(mockStore)(mockNext)(action);
 
     expect(debug).toHaveBeenCalledWith(
-      "Dispatching action. type:NESTED_LARGE_ACTION}, payload: Large Object(Suppressed)",
+      "Dispatching action. type:NESTED_LARGE_ACTION, payload: Large Object(Suppressed)",
     );
   });
 
@@ -71,7 +72,7 @@ describe("loggerMiddleware", () => {
     loggerMiddleware(mockStore)(mockNext)(action);
 
     expect(debug).toHaveBeenCalledWith(
-      "Dispatching action. type:MANY_KEYS_ACTION}, payload: Large Object(Suppressed)",
+      "Dispatching action. type:MANY_KEYS_ACTION, payload: Large Object(Suppressed)",
     );
   });
 
@@ -99,5 +100,50 @@ describe("loggerMiddleware", () => {
     expect(debug).toHaveBeenCalledWith(
       `Dispatching action. unknown type(${JSON.stringify(action)})`,
     );
+  });
+
+  it("logs nothing at info", () => {
+    const stringify = vi.spyOn(JSON, "stringify");
+    loggerMiddleware(storeAt("info"))(mockNext)({ type: "A", payload: { small: 1 } });
+    expect(debug).not.toHaveBeenCalled();
+    expect(trace).not.toHaveBeenCalled();
+    expect(stringify).not.toHaveBeenCalled();
+    expect(mockNext).toHaveBeenCalled();
+    stringify.mockRestore();
+  });
+
+  it("logs the action but not the state at debug", () => {
+    loggerMiddleware(storeAt("debug"))(mockNext)({ type: "A", payload: { small: 1 } });
+    expect(debug).toHaveBeenCalledWith('Dispatching action. type:A, payload:{"small":1}');
+    expect(trace).not.toHaveBeenCalled();
+  });
+
+  it("dumps the state at trace", () => {
+    loggerMiddleware(storeAt("trace"))(mockNext)({ type: "A", payload: { small: 1 } });
+    expect(trace).toHaveBeenCalledWith(expect.stringContaining("[loggerMiddleware] next state:"));
+  });
+
+  it("has no stray brace in the large-payload message", () => {
+    const payload = { items: Array.from({ length: 11 }, (_, i) => i) };
+    loggerMiddleware(storeAt("trace"))(mockNext)({ type: "A", payload });
+    expect(debug).toHaveBeenCalledWith(
+      "Dispatching action. type:A, payload: Large Object(Suppressed)",
+    );
+  });
+
+  it("follows a log level changed after the store was created", () => {
+    let level: LogLevel = "info";
+    const store = {
+      getState: () => stateAt(level),
+      dispatch: vi.fn(),
+    } as unknown as MiddlewareAPI;
+    const dispatch = loggerMiddleware(store)(mockNext);
+
+    dispatch({ type: "A", payload: 1 });
+    expect(debug).not.toHaveBeenCalled();
+
+    level = "debug";
+    dispatch({ type: "A", payload: 1 });
+    expect(debug).toHaveBeenCalledWith("Dispatching action. type:A, payload:1");
   });
 });

@@ -1,12 +1,17 @@
 import { debug, error } from "@tauri-apps/plugin-log";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { check, type Update } from "@tauri-apps/plugin-updater";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { isUpdaterSupported } from "../../../bindings/UpdaterCommands";
+import {
+  claimUpdatePrompt,
+  isUpdaterSupported,
+  releaseUpdatePrompt,
+} from "../../../bindings/UpdaterCommands";
 
 /**
- * Global lock to prevent the update dialog from being displayed twice.
+ * Lock to prevent the update dialog from being displayed twice in this window; the
+ * backend's update prompt lock keeps the other window from showing it too.
  */
 let isCheckingGlobal = false;
 
@@ -38,13 +43,23 @@ export function useUpdater() {
     setMessageDialogOpen(false);
   }, []);
 
+  const holdsPromptRef = useRef(false);
+  const releasePrompt = useCallback(() => {
+    if (!holdsPromptRef.current) {
+      return;
+    }
+    holdsPromptRef.current = false;
+    releaseUpdatePrompt().catch((e) => error(`Failed to release the update dialog: ${e}`));
+  }, []);
+
   // Safety net: if the hook unmounts while the global check lock is held (e.g. the
   // confirm dialog was still open), release it so future update checks aren't blocked.
   useEffect(() => {
     return () => {
       isCheckingGlobal = false;
+      releasePrompt();
     };
-  }, []);
+  }, [releasePrompt]);
 
   const checkForUpdates = useCallback(
     async (manualCheck: boolean = false) => {
@@ -78,6 +93,16 @@ export function useUpdater() {
           return;
         }
 
+        if (!(await claimUpdatePrompt())) {
+          debug("Skipping the update dialog because the other window shows it.");
+          if (manualCheck) {
+            showMessage(t("updater.dialog-title"), t("updater.already-open"));
+          }
+          isCheckingGlobal = false;
+          return;
+        }
+        holdsPromptRef.current = true;
+
         setCurrentUpdate(update);
         setConfirmDialogOpen(true);
       } catch (e) {
@@ -99,6 +124,7 @@ export function useUpdater() {
     setConfirmDialogOpen(false);
     if (!currentUpdate) {
       isCheckingGlobal = false;
+      releasePrompt();
       return;
     }
 
@@ -134,6 +160,7 @@ export function useUpdater() {
       await relaunch();
     } catch (e) {
       error(`Failed to install update: ${e}`);
+      releasePrompt();
       showMessage(
         t("updater.dialog-error-title"),
         t("updater.installing-error", { error: String(e) }),
@@ -145,13 +172,14 @@ export function useUpdater() {
       setUpdateStatus("");
       isCheckingGlobal = false;
     }
-  }, [t, showMessage, currentUpdate]);
+  }, [t, showMessage, currentUpdate, releasePrompt]);
 
   const handleCancelUpdate = useCallback(() => {
     debug("User cancelled update");
     setConfirmDialogOpen(false);
     isCheckingGlobal = false;
-  }, []);
+    releasePrompt();
+  }, [releasePrompt]);
 
   return {
     checkForUpdates,

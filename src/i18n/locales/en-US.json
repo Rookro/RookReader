@@ -427,6 +427,7 @@
   },
   "updater": {
     "not-available": "Your application is up to date.",
+    "already-open": "The update dialog is already open in the other window.",
     "downloading": "Downloading…",
     "installing": "Installing…",
     "restart": "The application will automatically restart to apply the update.",
