@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+* Updated the dependencies. (#369)
+
 ### Fixed
 
 * Fixed the bundled third-party licenses missing some notices. (#359)

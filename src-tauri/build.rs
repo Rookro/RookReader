@@ -97,7 +97,7 @@ fn copy_dav1d_license() -> Result<(), Box<dyn std::error::Error>> {
 
 // The PDFium version.
 // https://github.com/bblanchon/pdfium-binaries/releases
-const PDFIUM_VERSION: &str = "chromium/8035";
+const PDFIUM_VERSION: &str = "chromium/8111";
 
 /// Gets the PDFium filename to download based on the build target OS and architecture.
 fn get_pdfium_filename() -> Result<String, Box<dyn std::error::Error>> {
