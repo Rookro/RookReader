@@ -19,6 +19,12 @@ import { getBookTags } from "../../../../bindings/BookCommands";
 import type { Tag } from "../../../../domain/tag/schema";
 import { useAppDispatch } from "../../../../store/store";
 import { updateBooksTags } from "../../tagSlice";
+import {
+  applyTagStates,
+  initialTagStates,
+  nextTagState,
+  type TagCheckState,
+} from "../../utils/tagSelection";
 
 /** Props for the SetBookTagsDialog component */
 export interface SetBookTagsDialogProps {
@@ -41,54 +47,74 @@ export default function SetBookTagsDialog({
 }: SetBookTagsDialogProps) {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
-  const [selectedTagIds, setSelectedTagIds] = useState<Set<number>>(new Set());
+  // Each book's tags as loaded, or null while loading or after a failed read: saving
+  // without them would overwrite tags the dialog never saw.
+  const [bookTags, setBookTags] = useState<Map<number, number[]> | null>(null);
+  const [initialStates, setInitialStates] = useState<Map<number, TagCheckState>>(new Map());
+  const [states, setStates] = useState<Map<number, TagCheckState>>(new Map());
 
+  // The tag list only seeds the states; a tag created while the dialog is open starts
+  // unchecked rather than reloading every book's tags.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reload only when the books change.
   useEffect(() => {
-    if (open && bookIds.length === 1) {
-      let stale = false;
-      getBookTags(bookIds[0])
-        .then((tagIds) => {
-          if (!stale) setSelectedTagIds(new Set(tagIds));
-        })
-        .catch((e) => {
-          logError(`Failed to fetch book tags: ${e}`);
-          // Never keep a previous session's checkboxes: saving those would
-          // silently overwrite this book's tags.
-          if (!stale) setSelectedTagIds(new Set());
-        });
-      return () => {
-        // Ignore a late response after the dialog reopened for another book.
-        stale = true;
-      };
+    if (!open) {
+      return;
     }
-    if (open && bookIds.length > 1) {
-      // Start with no tags selected when modifying multiple books.
-      setSelectedTagIds(new Set());
+    setBookTags(null);
+    setInitialStates(new Map());
+    setStates(new Map());
+    if (bookIds.length === 0) {
+      return;
     }
+    let stale = false;
+    Promise.all(bookIds.map((bookId) => getBookTags(bookId)))
+      .then((tagIdsPerBook) => {
+        if (stale) return;
+        const initial = initialTagStates(
+          tagIdsPerBook,
+          availableTags.map((tag) => tag.id),
+        );
+        setBookTags(new Map(bookIds.map((bookId, i) => [bookId, tagIdsPerBook[i]])));
+        setInitialStates(initial);
+        setStates(initial);
+      })
+      .catch((e) => {
+        logError(`Failed to fetch book tags: ${e}`);
+      });
+    return () => {
+      // Ignore a late response after the dialog reopened for other books.
+      stale = true;
+    };
   }, [open, bookIds]);
+
+  const stateOf = useCallback((tagId: number) => states.get(tagId) ?? "unchecked", [states]);
 
   const handleToggle = useCallback(
     (tagId: number) => {
-      const newSelected = new Set(selectedTagIds);
-      if (newSelected.has(tagId)) {
-        newSelected.delete(tagId);
-      } else {
-        newSelected.add(tagId);
-      }
-      setSelectedTagIds(newSelected);
+      setStates((current) =>
+        new Map(current).set(
+          tagId,
+          nextTagState(current.get(tagId) ?? "unchecked", initialStates.get(tagId) ?? "unchecked"),
+        ),
+      );
     },
-    [selectedTagIds],
+    [initialStates],
   );
 
   const handleSave = useCallback(async () => {
-    if (bookIds.length === 0) return;
-    const result = await dispatch(updateBooksTags({ bookIds, tagIds: Array.from(selectedTagIds) }));
+    if (bookIds.length === 0 || bookTags === null) return;
+    const updates = applyTagStates(bookTags, states);
+    if (updates.length === 0) {
+      onClose();
+      return;
+    }
+    const result = await dispatch(updateBooksTags(updates));
     // On failure the slice error is shown by GlobalErrorListener and the backend's
     // `books-changed` refetch reflects any partial success; stay open for retry.
     if (updateBooksTags.fulfilled.match(result)) {
       onClose();
     }
-  }, [bookIds, selectedTagIds, dispatch, onClose]);
+  }, [bookIds, bookTags, states, dispatch, onClose]);
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth>
@@ -113,7 +139,8 @@ export default function SetBookTagsDialog({
                   <Checkbox
                     edge="end"
                     onChange={() => handleToggle(tag.id)}
-                    checked={selectedTagIds.has(tag.id)}
+                    checked={stateOf(tag.id) === "checked"}
+                    indeterminate={stateOf(tag.id) === "mixed"}
                   />
                 </ListItem>
               );
@@ -130,7 +157,11 @@ export default function SetBookTagsDialog({
         <Button onClick={onClose} sx={{ color: "text.secondary" }}>
           {t("bookshelf.tag.set.cancel-button")}
         </Button>
-        <Button variant="contained" onClick={handleSave}>
+        <Button
+          variant="contained"
+          onClick={handleSave}
+          disabled={bookIds.length > 0 && bookTags === null}
+        >
           {t("bookshelf.tag.set.ok-button")}
         </Button>
       </DialogActions>

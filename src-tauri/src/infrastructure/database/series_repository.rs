@@ -86,21 +86,25 @@ impl SeriesRepository for SqliteSeriesRepository {
     }
 
     async fn assign_book_to_series(&self, book_id: i64, series_id: Option<i64>) -> Result<()> {
-        // Append at the end of the target series; clearing the series also clears the
-        // order so it cannot resurface when the book later joins another series.
+        // Append at the end of the target series, but keep the place of a book that is
+        // already in it; clearing the series also clears the order so it cannot resurface
+        // when the book later joins another series. Every SET expression reads the row's
+        // old values, so `series_id IS ?` compares against the series before the update.
         sqlx::query!(
             r#"
             UPDATE books
-            SET series_id = ?,
-                series_order = CASE
+            SET series_order = CASE
                     WHEN ? IS NULL THEN NULL
+                    WHEN series_id IS ? AND series_order IS NOT NULL THEN series_order
                     ELSE (
                         SELECT COALESCE(MAX(b2.series_order), 0) + 1
                         FROM books b2 WHERE b2.series_id = ?
                     )
-                END
+                END,
+                series_id = ?
             WHERE id = ?
             "#,
+            series_id,
             series_id,
             series_id,
             series_id,
@@ -138,6 +142,21 @@ impl SeriesRepository for SqliteSeriesRepository {
     }
 
     async fn delete(&self, id: i64) -> Result<()> {
+        let mut tx = self.pool.begin().await?;
+
+        // The foreign key's ON DELETE SET NULL clears series_id but not the volume
+        // number, which a book without a series must not keep.
+        sqlx::query!(
+            r#"
+            UPDATE books
+            SET series_order = NULL
+            WHERE series_id = ?
+            "#,
+            id
+        )
+        .execute(&mut *tx)
+        .await?;
+
         sqlx::query!(
             r#"
             DELETE FROM series
@@ -145,8 +164,10 @@ impl SeriesRepository for SqliteSeriesRepository {
             "#,
             id
         )
-        .execute(&self.pool)
+        .execute(&mut *tx)
         .await?;
+
+        tx.commit().await?;
 
         Ok(())
     }

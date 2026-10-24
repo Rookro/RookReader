@@ -1,6 +1,6 @@
 [package]
 name = "rook-reader"
-version = "2.6.0"
+version = "2.6.1"
 description = "Comic Reader"
 authors = ["Rookro"]
 edition = "2021"
@@ -28,16 +28,16 @@ flate2 = "1.1.10"
 reqwest = { version = "0.13.5", features = ["blocking"] }
 tar = "0.4.46"
 tauri-build = { version = "2", features = [] }
-zip = "8.6.0"
+zip = "9.0.5"
 
 [dependencies]
-tauri = { version = "2", features = ["protocol-asset", "test"] }
+tauri = { version = "2", features = ["protocol-asset"] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_path_to_error = "0.1"
 tauri-plugin-fs = { version = "2", features = ["watch"] }
-zip = "8.6.0"
+zip = "9.0.5"
 tauri-plugin-log = "2"
 log = "0.4"
 # `avif-native` decodes AVIF through libdav1d, built by vcpkg; see CONTRIBUTING.md.
@@ -53,19 +53,20 @@ pdfium-render = "0.9.4"
 rayon = "1.12.0"
 thiserror = "2.0.21"
 mini-moka = { version = "0.10", features = ["sync"] }
-rbook = "0.7.10"
-scraper = "0.27.0"
+rbook = "0.7.12"
+scraper = "0.29.0"
+percent-encoding = "2"
 font-kit = "0.14.3"
 strum = "0.28.0"
 strum_macros = "0.28.0"
 sqlx = { version = "0.9.0", features = ["sqlite", "runtime-tokio", "chrono"] }
 async-trait = "0.1.92"
 tauri-plugin-process = "2"
-tokio = { version = "1.53.1", features = ["sync"] }
+tokio = { version = "1.54.1", features = ["sync"] }
 garde = { version = "0.23", features = ["derive"] }
-specta = { version = "=2.0.0-rc.25", features = ["derive", "chrono", "serde_json", "function"] }
-specta-typescript = "=0.0.12"
-tauri-specta = { version = "=2.0.0-rc.25", features = ["derive", "typescript"] }
+specta = { version = "=2.0.0-rc.26", features = ["derive", "chrono", "serde_json", "function"] }
+specta-typescript = "=0.0.13"
+tauri-specta = { version = "=2.0.0-rc.26", features = ["derive", "typescript"] }
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-updater = "2"
@@ -77,8 +78,10 @@ tauri-plugin-wdio = { version = "1", optional = true }
 tauri-plugin-wdio-webdriver = { version = "1", optional = true }
 
 [dev-dependencies]
+crc32fast = "1"
 mockall = "0.15.0"
 png = "0.18"
-rstest = "0.26.1"
+rstest = "0.28.0"
+tauri = { version = "2", features = ["test"] }
 tempfile = "3.27.0"
-tokio = { version = "1.53.1", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1.54.1", features = ["macros", "rt-multi-thread"] }

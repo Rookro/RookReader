@@ -10,6 +10,7 @@ import {
   mockSettingsCommands,
   renderWithProviders,
 } from "../../../test/utils";
+import { ErrorCode } from "../../../types/Error";
 import * as SettingsReducer from "../../Settings/slice";
 import ReaderToolbar from "./ReaderToolbar";
 
@@ -245,11 +246,53 @@ describe("ReaderToolbar", () => {
       preloadedState.read.containerFile.cfi = options?.cfi ?? null;
       preloadedState.read.containerFile.isNovel = options?.isNovel ?? false;
       preloadedState.read.containerFile.entries = options?.entries ?? ["p1", "p2", "p3", "p4"];
+      // The open book's (empty) list, as useBookmarkSync leaves it once loaded.
+      preloadedState.bookmark = { bookId: 42, bookmarks: [], status: "succeeded", error: null };
       return preloadedState;
     };
 
     it("should be disabled while no book is open", () => {
       renderWithProviders(<ReaderToolbar />);
+
+      expect(screen.getByLabelText("toggle-bookmark")).toBeDisabled();
+    });
+
+    // A list loaded for another book must not make this page look bookmarked
+    it("does not show another book's bookmark on the same page", () => {
+      const preloadedState = stateWithOpenBook({ index: 3 });
+      preloadedState.bookmark = {
+        bookId: 7,
+        bookmarks: [createMockBookmark({ id: 1, book_id: 7, page_index: 3 })],
+        status: "succeeded",
+        error: null,
+      };
+
+      renderWithProviders(<ReaderToolbar />, { preloadedState });
+
+      expect(screen.getByLabelText("toggle-bookmark")).toBeDisabled();
+      expect(screen.getByTestId("BookmarkBorderIcon")).toBeInTheDocument();
+    });
+
+    // Without the list the page cannot be known to be unbookmarked; a click could duplicate
+    it("is disabled when the open book's bookmarks failed to load", () => {
+      const preloadedState = stateWithOpenBook();
+      preloadedState.bookmark = {
+        bookId: 42,
+        bookmarks: [],
+        status: "failed",
+        error: { code: ErrorCode.other },
+      };
+
+      renderWithProviders(<ReaderToolbar />, { preloadedState });
+
+      expect(screen.getByLabelText("toggle-bookmark")).toBeDisabled();
+    });
+
+    it("is disabled while the open book's bookmarks are loading", () => {
+      const preloadedState = stateWithOpenBook();
+      preloadedState.bookmark = { bookId: 42, bookmarks: [], status: "loading", error: null };
+
+      renderWithProviders(<ReaderToolbar />, { preloadedState });
 
       expect(screen.getByLabelText("toggle-bookmark")).toBeDisabled();
     });

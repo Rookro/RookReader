@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <script>parent.document.documentElement.setAttribute("data-epub-script", "before-head")</script>
+  <head>
+    <title>Chapter</title>
+    <link rel="stylesheet" type="text/css" href="style.css"/>
+    <script>parent.document.documentElement.setAttribute("data-epub-script", "inline")</script>
+    <style>
+      @font-face { font-family: "EmbeddedTest"; src: url("font.woff2") format("woff2"); }
+      p { font-family: "EmbeddedTest", serif; }
+    </style>
+  </head>
+  <body>
+    <p>SCRIPT-TEST-CHAPTER</p>
+    <img id="embedded-image" src="pic.png" alt="embedded"/>
+    <details open="open" ontoggle="parent.document.documentElement.setAttribute('data-epub-script', 'handler')"><summary>s</summary></details>
+    <script src="evil.txt"></script>
+    <iframe src="drawing.svg" width="10" height="10"></iframe>
+  </body>
+</html>

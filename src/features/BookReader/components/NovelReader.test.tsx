@@ -1,12 +1,14 @@
-import * as fs from "@tauri-apps/plugin-fs";
-import { act, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { makeBook } from "foliate-js/view.js";
 import type { Mock } from "vitest";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
+import { readNovelFile } from "../../../bindings/ContainerCommands";
 import { mockLog } from "../../../test/mocks/tauri";
 import { createBasePreloadedState, renderWithProviders } from "../../../test/utils";
+import { CommandError, ErrorCode } from "../../../types/Error";
 import * as pageNav from "../hooks/usePageNavigation";
 import * as ReadReducer from "../slice";
+import { wheelGesture } from "../utils/wheelGesture";
 import NovelReader from "./NovelReader";
 
 // Mock foliate-js/view.js
@@ -25,6 +27,7 @@ const mockBook = {
     return null;
   }),
   destroy: vi.fn(),
+  transformTarget: new EventTarget(),
 } as unknown as Book;
 
 const mockPageNavHandlers = {
@@ -63,11 +66,20 @@ describe("BookReader/NovelReader", () => {
   };
 
   let mockView: Partial<View> & { [key: string]: unknown };
+
+  const spyOnHold = () => {
+    const hold = vi.spyOn(wheelGesture, "hold");
+    onTestFinished(() => {
+      hold.mockRestore();
+      wheelGesture.reset();
+    });
+    return hold;
+  };
   const originalCreateElement = document.createElement;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(fs.readFile).mockResolvedValue(new Uint8Array([1, 2, 3]));
+    vi.mocked(readNovelFile).mockResolvedValue(new ArrayBuffer(3));
     vi.mocked(makeBook).mockResolvedValue(mockBook);
 
     mockView = {
@@ -102,9 +114,54 @@ describe("BookReader/NovelReader", () => {
     renderWithProviders(<NovelReader filePath={mockFilePath} />, {
       preloadedState: defaultPreloadedState,
     });
-    expect(fs.readFile).toHaveBeenCalledWith(mockFilePath);
+    expect(readNovelFile).toHaveBeenCalledWith(mockFilePath);
     await waitFor(() => expect(mockView.open).toHaveBeenCalledWith(mockBook));
     expect(screen.getByText("Beta")).toBeTruthy();
+  });
+
+  // Until foliate-js adds the book's iframe, wheel events land on the empty viewer.
+  it("continues a wheel gesture over the viewer while the book loads", async () => {
+    const hold = spyOnHold();
+    renderWithProviders(<NovelReader filePath={mockFilePath} />, {
+      preloadedState: defaultPreloadedState,
+    });
+
+    fireEvent.wheel(screen.getByTestId("novel-viewer"), { deltaY: 100 });
+
+    expect(hold).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(mockView.open).toHaveBeenCalled());
+  });
+
+  // foliate-js shows the first section only after the book and its font load.
+  it("continues a wheel gesture over the book until a section is shown", async () => {
+    const hold = spyOnHold();
+    mockView.lastLocation = undefined;
+    mockView.init = vi.fn(() => new Promise<void>(() => {}));
+    renderWithProviders(<NovelReader filePath={mockFilePath} />, {
+      preloadedState: defaultPreloadedState,
+    });
+    await waitFor(() => expect(mockView.init).toHaveBeenCalled());
+
+    const view = screen.getByTestId("novel-viewer").querySelector("foliate-view");
+    expect(view).not.toBeNull();
+    fireEvent.wheel(view as Element, { deltaY: 100 });
+
+    expect(hold).toHaveBeenCalledTimes(1);
+  });
+
+  // The book's margins are outside its iframe; a notch there must not stop the gesture.
+  it("leaves wheel events over the book's margins alone once a section is shown", async () => {
+    const hold = spyOnHold();
+    renderWithProviders(<NovelReader filePath={mockFilePath} />, {
+      preloadedState: defaultPreloadedState,
+    });
+    await waitFor(() => expect(mockView.init).toHaveBeenCalled());
+
+    const view = screen.getByTestId("novel-viewer").querySelector("foliate-view");
+    expect(view).not.toBeNull();
+    fireEvent.wheel(view as Element, { deltaY: 100 });
+
+    expect(hold).not.toHaveBeenCalled();
   });
 
   it("should handle cleanup when filePath changes", async () => {
@@ -125,8 +182,8 @@ describe("BookReader/NovelReader", () => {
     await waitFor(() => expect(ReadReducer.setEntries).toHaveBeenCalledWith(["Chapter 1"]));
   });
 
-  it("should log error when readFile fails", async () => {
-    vi.mocked(fs.readFile).mockRejectedValue(new Error("Disk error"));
+  it("should log error when reading the novel fails", async () => {
+    vi.mocked(readNovelFile).mockRejectedValue(new Error("Disk error"));
     renderWithProviders(<NovelReader filePath={mockFilePath} />, {
       preloadedState: defaultPreloadedState,
     });
@@ -139,8 +196,9 @@ describe("BookReader/NovelReader", () => {
 
   // Verify the reader is told why the text is missing, instead of facing an empty page
   it("shows why the book's text could not be loaded", async () => {
-    vi.mocked(fs.readFile).mockRejectedValue(new Error("File read error"));
-    vi.mocked(fs.exists).mockResolvedValue(false);
+    vi.mocked(readNovelFile).mockRejectedValue(
+      new CommandError(ErrorCode.pathNotFound, "File read error"),
+    );
 
     renderWithProviders(<NovelReader filePath={mockFilePath} />, {
       preloadedState: defaultPreloadedState,

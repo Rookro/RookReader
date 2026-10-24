@@ -1,5 +1,6 @@
 import type { Middleware } from "@reduxjs/toolkit";
 import { debug, trace } from "@tauri-apps/plugin-log";
+import type { RootState } from "../store";
 
 /**
  * Determines if the given data is likely too large to be logged.
@@ -34,10 +35,19 @@ function isLikelyTooLargeStrict(data: unknown): boolean {
 }
 
 export const loggerMiddleware: Middleware = (store) => (next) => (action: unknown) => {
+  // Each log call is an IPC round trip, so skip the logging entirely below `debug`.
+  const level = (store.getState() as RootState).settings.general.log.level;
+  if (level !== "debug" && level !== "trace") {
+    return next(action);
+  }
+  const traceOn = level === "trace";
+
   if (typeof action === "object" && action !== null && "type" in action && "payload" in action) {
     if (isLikelyTooLargeStrict(action.payload)) {
-      debug(`Dispatching action. type:${action.type}}, payload: Large Object(Suppressed)`);
-      trace(`Dispatching action. type:${action.type}}, payload:${JSON.stringify(action.payload)}`);
+      debug(`Dispatching action. type:${action.type}, payload: Large Object(Suppressed)`);
+      if (traceOn) {
+        trace(`Dispatching action. type:${action.type}, payload:${JSON.stringify(action.payload)}`);
+      }
     } else {
       debug(`Dispatching action. type:${action.type}, payload:${JSON.stringify(action.payload)}`);
     }
@@ -46,7 +56,9 @@ export const loggerMiddleware: Middleware = (store) => (next) => (action: unknow
   }
 
   const result = next(action);
-  trace(`[loggerMiddleware] next state: ${JSON.stringify(store.getState())}`);
+  if (traceOn) {
+    trace(`[loggerMiddleware] next state: ${JSON.stringify(store.getState())}`);
+  }
 
   return result;
 };

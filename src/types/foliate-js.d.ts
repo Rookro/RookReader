@@ -149,8 +149,8 @@ declare module "foliate-js/epub.js" {
     /** The resources parsed from the EPUB package document. */
     resources: Resources | undefined;
 
-    /** Target transformer function (optional). */
-    transformTarget?: unknown;
+    /** Where the loader offers each resource (`data` events) before creating its blob URL. */
+    transformTarget?: EventTarget;
 
     /** List of sections (spine items) in the EPUB. */
     sections:
@@ -854,6 +854,8 @@ declare module "foliate-js/view.js" {
     getCover?: () => Promise<Blob | null>;
     /** Destroys the book instance, freeing resources. */
     destroy?: () => void;
+    /** Where the loader offers each resource (`data` events) before creating its blob URL. */
+    transformTarget?: EventTarget;
     [key: string]: unknown;
   }
 

@@ -131,3 +131,20 @@ export const getImagePreview = async (path: string, entryName: string): Promise<
     throw createCommandError(error);
   }
 };
+
+/**
+ * Reads the EPUB file of the open novel.
+ *
+ * The backend serves only the novel that is open, so the webview needs no permission to
+ * read files itself.
+ *
+ * @param path The path of the open novel.
+ * @returns A promise that resolves to the file's bytes.
+ */
+export const readNovelFile = async (path: string): Promise<ArrayBuffer> => {
+  try {
+    return await invoke("read_novel_file", { path });
+  } catch (error) {
+    throw createCommandError(error);
+  }
+};

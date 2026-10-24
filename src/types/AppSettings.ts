@@ -6,30 +6,26 @@
  * those generated types under stable names and keeps the runtime const arrays the UI needs
  * (specta exports *types*, not *values*).
  *
- * Two rc.25 wrinkles are smoothed over here:
- * - Some settings types split into `_Serialize | _Deserialize` (because `ImageResamplingMethod`
- *   has serde aliases). Commands return the `_Serialize` variant, so those are aliased to it.
- * - The container `#[serde(default)]` makes every generated field **optional**. But the backend
- *   always returns a fully-populated settings object (serialization emits every field), so the
- *   data is complete at runtime. We therefore wrap the object types in {@link DeepRequired} to
- *   recover the required-field shape the UI relies on (matching the pre-rc.25 generated types).
+ * Each settings type is generated as `_Serialize | _Deserialize`; the `_Deserialize` variant
+ * has every field optional because of the container `#[serde(default)]`. Commands return the
+ * fully-populated `_Serialize` variant, so these names alias it, wrapped in {@link DeepRequired}.
  */
 import type {
   AppSettings_Serialize,
-  BookshelfSettings as BookshelfSettingsGen,
-  ComicCacheSettings as ComicCacheSettingsGen,
-  ComicSettings as ComicSettingsGen,
-  FileNavigatorSettings as FileNavigatorSettingsGen,
-  GeneralSettings as GeneralSettingsGen,
-  HistorySettings as HistorySettingsGen,
-  LayoutSettings as LayoutSettingsGen,
-  LogSettings as LogSettingsGen,
-  LoupeSettings as LoupeSettingsGen,
-  NovelSettings as NovelSettingsGen,
+  BookshelfSettings_Serialize as BookshelfSettingsGen,
+  ComicCacheSettings_Serialize as ComicCacheSettingsGen,
+  ComicSettings_Serialize as ComicSettingsGen,
+  FileNavigatorSettings_Serialize as FileNavigatorSettingsGen,
+  GeneralSettings_Serialize as GeneralSettingsGen,
+  HistorySettings_Serialize as HistorySettingsGen,
+  LayoutSettings_Serialize as LayoutSettingsGen,
+  LogSettings_Serialize as LogSettingsGen,
+  LoupeSettings_Serialize as LoupeSettingsGen,
+  NovelSettings_Serialize as NovelSettingsGen,
   ReaderSettings_Serialize,
   RenderingSettings_Serialize,
-  SidePaneSettings as SidePaneSettingsGen,
-  StartupSettings as StartupSettingsGen,
+  SidePaneSettings_Serialize as SidePaneSettingsGen,
+  StartupSettings_Serialize as StartupSettingsGen,
 } from "../bindings/bindings";
 
 /**

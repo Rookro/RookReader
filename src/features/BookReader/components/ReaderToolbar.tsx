@@ -42,6 +42,8 @@ export default function ReaderToolbar() {
   const entries = useAppSelector((state) => state.read.containerFile.entries);
   const isSpreadShifted = useAppSelector((state) => state.read.containerFile.isSpreadShifted);
   const bookmarks = useAppSelector((state) => state.bookmark.bookmarks);
+  const bookmarksBookId = useAppSelector((state) => state.bookmark.bookId);
+  const bookmarkStatus = useAppSelector((state) => state.bookmark.status);
   const dispatch = useAppDispatch();
 
   const currentPath = history[historyIndex] ?? "";
@@ -49,15 +51,22 @@ export default function ReaderToolbar() {
   // A novel reports its own direction and cannot be switched; comics follow the setting.
   const isRtl = useReadingDirection() === "rtl";
 
+  // Acting on a list that belongs to another book, or has not loaded, would remove the
+  // wrong book's bookmark or add a duplicate.
+  const isBookmarkListReady =
+    book !== null && bookmarksBookId === book.id && bookmarkStatus === "succeeded";
+
   // A novel position is identified by its CFI, a comic position by its page index.
   const currentBookmark = useMemo(
     () =>
-      bookmarks.find((bookmark) =>
-        isNovel
-          ? cfi !== null && bookmark.cfi === cfi
-          : bookmark.cfi === null && bookmark.page_index === index,
-      ),
-    [bookmarks, isNovel, cfi, index],
+      isBookmarkListReady
+        ? bookmarks.find((bookmark) =>
+            isNovel
+              ? cfi !== null && bookmark.cfi === cfi
+              : bookmark.cfi === null && bookmark.page_index === index,
+          )
+        : undefined,
+    [isBookmarkListReady, bookmarks, isNovel, cfi, index],
   );
 
   const formAction = useCallback(
@@ -147,7 +156,7 @@ export default function ReaderToolbar() {
   const handleSettingsClicked = useCallback(
     async (_e: React.MouseEvent<HTMLButtonElement>) => {
       debug("handleSettingsClicked");
-      openSettingsWindow(t("common.settings"));
+      await openSettingsWindow(t("common.settings"));
     },
     [t],
   );
@@ -206,7 +215,7 @@ export default function ReaderToolbar() {
         <span>
           <IconButton
             onClick={handleToggleBookmarkClicked}
-            disabled={!book}
+            disabled={!isBookmarkListReady}
             aria-label="toggle-bookmark"
           >
             {currentBookmark ? <Bookmark /> : <BookmarkBorder />}

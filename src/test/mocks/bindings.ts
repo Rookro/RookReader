@@ -41,7 +41,7 @@ vi.mock("../../bindings/BookshelfCommands", () => ({
 
 vi.mock("../../bindings/ContainerCommands", () => ({
   getEntriesInContainer: vi.fn(() =>
-    Promise.resolve({ entries: [], is_directory: false, is_novel: false }),
+    Promise.resolve({ entries: [], is_directory: false, is_novel: false, has_previews: false }),
   ),
   countPagesInContainer: vi.fn(() => Promise.resolve({ total_pages: 0, is_directory: false })),
   requestPreloadAround: vi.fn(() => Promise.resolve()),
@@ -50,6 +50,7 @@ vi.mock("../../bindings/ContainerCommands", () => ({
   getImage: vi.fn(() => Promise.resolve(new ArrayBuffer(0))),
   getImageFull: vi.fn(() => Promise.resolve(new ArrayBuffer(0))),
   getImagePreview: vi.fn(() => Promise.resolve(new ArrayBuffer(0))),
+  readNovelFile: vi.fn(() => Promise.resolve(new ArrayBuffer(0))),
 }));
 
 vi.mock("../../bindings/DirectoryCommands", () => ({
@@ -70,4 +71,10 @@ vi.mock("../../bindings/TagCommands", () => ({
   createTag: vi.fn(() => Promise.resolve([])),
   getAllTags: vi.fn(() => Promise.resolve([])),
   deleteTag: vi.fn(() => Promise.resolve([])),
+}));
+
+vi.mock("../../bindings/UpdaterCommands", () => ({
+  isUpdaterSupported: vi.fn(() => Promise.resolve(true)),
+  claimUpdatePrompt: vi.fn(() => Promise.resolve(true)),
+  releaseUpdatePrompt: vi.fn(() => Promise.resolve()),
 }));

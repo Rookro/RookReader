@@ -20,6 +20,8 @@ export interface ScrollToReadingBookOptions {
   gridWidth: number;
   /** The view currently on screen. */
   activeView: "reader" | "bookshelf";
+  /** Whether the reader is opening a book, during which it has no reading book. */
+  isReaderLoading: boolean;
 }
 
 /**
@@ -38,6 +40,7 @@ export function useScrollToReadingBook({
   columnCount,
   gridWidth,
   activeView,
+  isReaderLoading,
 }: ScrollToReadingBookOptions): void {
   const hasAutoScrolledRef = useRef(false);
 
@@ -50,7 +53,13 @@ export function useScrollToReadingBook({
 
   // Scroll to make the selected item visible
   useEffect(() => {
-    if (items.length === 0 || !grid || activeView !== "bookshelf" || hasAutoScrolledRef.current) {
+    if (
+      items.length === 0 ||
+      !grid ||
+      activeView !== "bookshelf" ||
+      hasAutoScrolledRef.current ||
+      isReaderLoading
+    ) {
       return;
     }
 
@@ -93,5 +102,14 @@ export function useScrollToReadingBook({
     return () => {
       clearTimeout(timerId);
     };
-  }, [readingBookIndex, readingBook, items, grid, columnCount, activeView, gridWidth]);
+  }, [
+    readingBookIndex,
+    readingBook,
+    items,
+    grid,
+    columnCount,
+    activeView,
+    gridWidth,
+    isReaderLoading,
+  ]);
 }

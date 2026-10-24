@@ -1,5 +1,7 @@
+import { error } from "@tauri-apps/plugin-log";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import type { Update } from "@tauri-apps/plugin-updater";
-import { screen } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../../../test/utils";
@@ -13,6 +15,16 @@ describe("UpdaterConfirmDialog", () => {
     body: "This is a release note.\n- Feature A\n- Fix B",
     downloadAndInstall: vi.fn(),
   } as unknown as Update;
+
+  const renderDialog = ({ body }: { body: string }) =>
+    renderWithProviders(
+      <UpdaterConfirmDialog
+        open
+        update={{ ...mockUpdate, body } as Update}
+        onConfirm={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    );
 
   it("should not render when open is false", () => {
     renderWithProviders(
@@ -84,5 +96,33 @@ describe("UpdaterConfirmDialog", () => {
     // "No" is the first button in the actions list
     await user.click(noButtons[0]);
     expect(handleCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens release-note links in the browser", async () => {
+    const user = userEvent.setup();
+    renderDialog({ body: "See [the release](https://github.com/Rookro/RookReader/releases)." });
+    await user.click(screen.getByRole("link", { name: "the release" }));
+    expect(openUrl).toHaveBeenCalledWith("https://github.com/Rookro/RookReader/releases");
+  });
+
+  it("opens mailto links in the mail app", async () => {
+    const user = userEvent.setup();
+    renderDialog({ body: "[mail](mailto:a@example.com)" });
+    await user.click(screen.getByRole("link", { name: "mail" }));
+    expect(openUrl).toHaveBeenCalledWith("mailto:a@example.com");
+  });
+
+  it("does not turn a relative link into a link", () => {
+    renderDialog({ body: "[local](../CHANGELOG.md)" });
+    expect(screen.queryByRole("link", { name: "local" })).toBeNull();
+    expect(screen.getByText("local")).toBeInTheDocument();
+  });
+
+  it("logs a failure to open a link and keeps the window where it is", async () => {
+    vi.mocked(openUrl).mockRejectedValueOnce(new Error("denied"));
+    renderDialog({ body: "[x](https://example.com)" });
+    // `fireEvent` returns false when the handler prevented the default navigation.
+    expect(fireEvent.click(screen.getByRole("link", { name: "x" }))).toBe(false);
+    await waitFor(() => expect(error).toHaveBeenCalledWith(expect.stringContaining("denied")));
   });
 });

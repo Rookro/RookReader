@@ -34,6 +34,8 @@ Each folder inside a zip/cbz/rar/cbr archive is treated as a **book of its own**
 - **Open the folder inside an archive automatically** (Settings → Reader, on by default): when an archive holds no pages of its own and wraps them in a single folder (`comic.zip` → `Comic/`), that folder is opened in one click. Nested single folders are followed all the way down.
 - A folder or archive with **no readable pages** is not recorded as a book. The message "The book contains no readable pages." is shown and the File Navigator moves into it so you can pick a folder inside.
 
+Password-protected files inside a zip/cbz archive are skipped: the rest of the archive opens without them.
+
 ### Reader Layout
 
 The reader is made up of four areas:
@@ -60,6 +62,8 @@ The reader is made up of four areas:
 | :--- | :--- | :--- |
 | **Next Page** | Left-click (image area) or Scroll Down | `Left Arrow` or `Right Arrow` |
 | **Previous Page** | Right-click (image area) or Scroll Up | `Right Arrow` or `Left Arrow` |
+
+Each notch of the mouse wheel turns one page, even when you spin it quickly. A touchpad turns one page for each notch's worth of scrolling within one swipe (a swipe ends after a pause of about 0.1 s), so a light swipe shorter than that turns nothing, and mostly sideways movement turns nothing. In novels pages turn at most about ten times a second, so a fast spin or a flick turns fewer pages. A scroll that reaches the first or last page stops there. While a dialog is open, keys, clicks and the wheel on it do not turn the page behind it.
 
 > [!NOTE]
 > The behavior of the `Left Arrow` and `Right Arrow` keys adapts automatically based on the reading direction (Right-to-Left vs. Left-to-Right) selected via the toggle button in the top app bar. For Japanese vertical reading (Right-to-Left), the Left Arrow goes to the Next Page, and the Right Arrow goes to the Previous Page.
@@ -97,7 +101,7 @@ Choose a mode under **Settings → Reader → Auto-open Adjacent Book**:
 | **Ask before opening** | Show a confirmation dialog before opening the adjacent book. *(Default)* |
 | **Auto-open** | Open the adjacent book immediately. |
 
-- Turning the page forward on the **last page** opens the next book on its **first page**; turning back on the **first page** opens the previous book on its **last page**. This works with clicks, the scroll wheel, and the arrow keys. A short notification appears while the book is opening.
+- Turning the page forward on the **last page** opens the next book on its **first page**; turning back on the **first page** opens the previous book on its **last page**. This works with clicks, the scroll wheel, and the arrow keys; a scroll that reaches the first or last page stops there, and scrolling again after a short pause goes on to the adjacent book. A short notification appears while the book is opening.
 - **Which book is opened next?** It depends on how the current book was opened:
   - **From a Bookshelf**: If the book belongs to a registered **series**, the next/previous **volume** in the series is opened. Otherwise, the next/previous book in the bookshelf's current **sort order** is used.
   - **From the File Navigator, History, drag & drop, or restored on startup**: The next/previous item in the **same folder** is opened (image folders are included), following the File Navigator's current sort order. When the current book is a folder inside an archive, the next/previous folder **inside that archive** is used.
@@ -123,7 +127,7 @@ Press **Move to Bookshelf** in the reader's top app bar to open the **Bookshelve
 - **Create a collection**: press **New collection** next to the *Collections* heading and give it a name and a custom icon.
 - **Add books**: press **Add books** in the top bar, then **drag and drop** files and folders from your computer onto the dialog or press **Select files**. Added books appear in the current collection (or in *All Books*).
 - **Sort and search**: type in the search box to filter by title (right-click the box for cut/copy/paste), and choose **Sort by** Name (A→Z / Z→A) or Date (Oldest / Newest first). **Change grid size** switches between small, medium and large covers.
-- **Select several books**: **Ctrl/Cmd+click** toggles a book, **Shift+click** selects a range. The action bar that appears lets you **Add to collections**, **Set series**, **Set tags** or **Remove books** for the whole selection at once.
+- **Select several books**: **Ctrl/Cmd+click** toggles a book, **Shift+click** selects a range. The action bar that appears lets you **Add to collections**, **Set series**, **Set tags** or **Remove books** for the whole selection at once. Switching collection, tag, series or search clears the selection.
 - **Right-click a book** for the same actions on a single book.
 - **Keyboard**: the arrow keys move the focus through the grid, **Home** / **End** jump to the first / last item, and **Enter** or **Space** opens the focused book or series.
 - **Delete a collection or tag** by right-clicking it in the left pane and choosing **Delete**. A confirmation dialog is shown first; deleting a collection keeps its books in your library.
@@ -131,12 +135,12 @@ Press **Move to Bookshelf** in the reader's top app bar to open the **Bookshelve
 
 ### Series
 
-Group the volumes of the same title into a **series** with **Set series** (create a new series or pick an existing one). A series appears as a single stacked cover on the bookshelf; open it to see its volumes, and use **Edit Series Order** (in the top bar while the series is open, or by right-clicking its cover) to drag the volumes into reading order. Opening a series volume from the bookshelf lets *Auto-open Adjacent Book* follow the correct volume order, regardless of file names. Right-click the cover and choose **Ungroup series** (after a confirmation) to show the books individually again without deleting them. Choosing a collection in the left pane, even the one already shown, or deleting the collection you are in closes the open series and returns to the top of the bookshelf. Choosing a tag keeps the series open and shows only its volumes that carry the tag.
+Group the volumes of the same title into a **series** with **Set series** (create a new series or pick an existing one). A series appears as a single stacked cover on the bookshelf; open it to see its volumes, and use **Edit Series Order** (in the top bar while the series is open, or by right-clicking its cover) to drag the volumes into reading order. It lists every volume of the series, including volumes that are not in the collection shown. Opening a series volume from the bookshelf lets *Auto-open Adjacent Book* follow the correct volume order, regardless of file names. Right-click the cover and choose **Ungroup series** (after a confirmation) to show the books individually again without deleting them. Choosing a collection in the left pane, even the one already shown, or deleting the collection you are in closes the open series and returns to the top of the bookshelf. Choosing a tag keeps the series open and shows only its volumes that carry the tag.
 
 ## Tagging System
 
 Categorize your collection using tags.
-- Press **New tag** next to the *Tags* heading to create a tag with a name and a color, then assign tags to books with **Set tags** (right-click a book, or select several books first).
+- Press **New tag** next to the *Tags* heading to create a tag with a name and a color, then assign tags to books with **Set tags** (right-click a book, or select several books first). With several books selected, a tag that only some of them have is shown as partly checked; leave it that way to keep it as it is on each book.
 - Click a tag in the left pane to show only the books carrying it, which makes large collections easy to navigate.
 
 ## Reading History & Resume
@@ -150,6 +154,7 @@ RookReader opens EPUB files in a dedicated text reader. You can adjust the **fon
 - **Page direction** is taken from the book itself: the page progression direction it declares, or — when it declares none — the writing mode of its body text (vertically written books turn right-to-left, horizontally written ones left-to-right). The direction toggle in the top app bar is disabled for novels and only shows the detected direction; the page slider follows it too.
 - **Bookmarks** and **reading history** return you to the exact position in the text.
 - If the file has been moved, deleted or cannot be read, the reader says so instead of showing an empty page.
+- Scripts inside an EPUB are never run, so interactive content in a book does not work.
 
 > [!WARNING]
 > EPUB support is currently **experimental**. Complex formatting or custom styling may not render perfectly yet.
@@ -185,7 +190,7 @@ The file list's **sort order** (Name↑/↓, Date↑/↓) is chosen in the File 
 - **Reading history**: record the books you read and your position in them.
 
 ### Rendering & Performance
-Pages may be PNG, JPEG, GIF, APNG, WebP or AVIF (still images; AVIF image sequences are not supported). They are always rendered at the size they are displayed at, which keeps screentones free of moiré. Animated pages (GIF, APNG, WebP) are the exception: they are never resized, so every frame plays.
+Pages may be PNG, JPEG, GIF, APNG, WebP or AVIF (still images; AVIF image sequences are not supported). They are always rendered at the size they are displayed at, which keeps screentones free of moiré. Animated pages (GIF, APNG, WebP) are the exception: they are never resized, so every frame plays. A page too large to resize in memory (such as 20000 × 20000 pixels) is also shown at its own size.
 - **Show preview while loading**: display a low-resolution thumbnail until the full page is ready.
 - **Maximum image height (px)**: an additional cap on page height. A page taller than this is shrunk to it even when the reader area is taller; `0` lets the reader area alone decide.
 - **Resizing method**: the resampling algorithm, from Nearest Neighbor (fastest) to Lanczos 3 (best quality, the default).

@@ -262,3 +262,61 @@ async fn test_move_book_between_series_has_no_order_collision() {
     assert_eq!(book_q.series_order, Some(2));
     assert_eq!(book_x.series_order, Some(3));
 }
+
+#[tokio::test]
+async fn test_reassigning_the_same_series_keeps_the_order() {
+    let pool = setup_db().await;
+    let series_repo = SqliteSeriesRepository::new(pool.clone());
+    let book_repo = SqliteBookRepository::new(pool.clone());
+    let series_id = series_repo.create("Series").await.unwrap();
+    let b1 = book_repo
+        .register_book("path/1", ItemType::File, "Book 1", 100, None)
+        .await
+        .unwrap();
+    let b2 = book_repo
+        .register_book("path/2", ItemType::File, "Book 2", 100, None)
+        .await
+        .unwrap();
+    series_repo
+        .assign_book_to_series(b1, Some(series_id))
+        .await
+        .unwrap();
+    series_repo
+        .assign_book_to_series(b2, Some(series_id))
+        .await
+        .unwrap();
+
+    // Confirming the series dialog unchanged must not move volume 1 to the end.
+    series_repo
+        .assign_book_to_series(b1, Some(series_id))
+        .await
+        .unwrap();
+
+    let book1 = book_repo.get_by_id(b1).await.unwrap().unwrap();
+    let book2 = book_repo.get_by_id(b2).await.unwrap().unwrap();
+    assert_eq!(book1.series_order, Some(1));
+    assert_eq!(book2.series_order, Some(2));
+}
+
+#[tokio::test]
+async fn test_delete_series_clears_the_books_order() {
+    let pool = setup_db().await;
+    let series_repo = SqliteSeriesRepository::new(pool.clone());
+    let book_repo = SqliteBookRepository::new(pool.clone());
+    let series_id = series_repo.create("Series").await.unwrap();
+    let b1 = book_repo
+        .register_book("path/1", ItemType::File, "Book 1", 100, None)
+        .await
+        .unwrap();
+    series_repo
+        .assign_book_to_series(b1, Some(series_id))
+        .await
+        .unwrap();
+
+    series_repo.delete(series_id).await.unwrap();
+
+    // A book without a series has no volume number, as unassigning leaves it.
+    let book = book_repo.get_by_id(b1).await.unwrap().unwrap();
+    assert_eq!(book.series_id, None);
+    assert_eq!(book.series_order, None);
+}

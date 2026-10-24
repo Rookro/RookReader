@@ -114,6 +114,7 @@ export const openContainerFile = createAppAsyncThunk(
         entries: entriesResult.entries,
         isDirectory: entriesResult.is_directory,
         isNovel: isEpubNovel,
+        hasPreviews: entriesResult.has_previews,
         book: book,
         readingDirection,
         bookRecordError,
@@ -147,24 +148,17 @@ export const openContainerFile = createAppAsyncThunk(
  * @param args - The arguments for updating the explore base path.
  * @param args.dirPath - The absolute directory path to explore.
  * @param args.forceUpdate - If true, forces a fetch even if the path is already the current one.
- * @returns A thunk that resolves to the directory path and its entries, or undefined if no update is needed.
+ * @returns A thunk that resolves to the directory path and its entries. When the folder is
+ * already shown and `forceUpdate` is not set, nothing is dispatched.
  */
 export const updateExploreBasePath = createAppAsyncThunk(
   "read/updateExploreBasePath",
-  async (
-    args: { dirPath: string; forceUpdate?: boolean },
-    { dispatch, getState, rejectWithValue },
-  ) => {
-    const { dirPath, forceUpdate } = args;
+  async (args: { dirPath: string; forceUpdate?: boolean }, { dispatch, rejectWithValue }) => {
+    const { dirPath } = args;
     if (!dirPath || dirPath.length === 0) {
       const errorMessage = "Failed to updateExploreBasePath. Error: Directory path is empty.";
       error(errorMessage);
       return rejectWithValue({ code: ErrorCode.path, message: errorMessage });
-    }
-
-    const state = getState();
-    if (!forceUpdate && state.read.explorer.history[state.read.explorer.historyIndex] === dirPath) {
-      return undefined;
     }
 
     dispatch(setIsDirEntriesLoading(true));
@@ -176,6 +170,15 @@ export const updateExploreBasePath = createAppAsyncThunk(
     } catch (e) {
       return handleThunkError(e, `Failed to getEntriesInDir(${dirPath}).`, rejectWithValue);
     }
+  },
+  {
+    // Already showing this folder: dispatch nothing, so no request supersedes one in flight.
+    condition: ({ dirPath, forceUpdate }, { getState }) => {
+      const { explorer } = getState().read;
+      return (
+        Boolean(forceUpdate) || !dirPath || explorer.history[explorer.historyIndex] !== dirPath
+      );
+    },
   },
 );
 
@@ -257,6 +260,8 @@ const initialState = {
     readingDirection: null as Direction | null,
     cfi: null as string | null,
     isNovel: false,
+    /** Whether the open book can send a page's preview more cheaply than the page. */
+    hasPreviews: false,
     /**
      * Page-turn direction of the open novel, decided for the book as a whole: its
      * declared page progression direction, or else the writing mode of its body text.
@@ -273,6 +278,8 @@ const initialState = {
     bookRecordError: null as { code: ErrorCode; message?: string } | null,
     /** Where the current book was opened from (used to resolve the adjacent book). */
     origin: null as OpenOrigin | null,
+    /** Where each book in `history` was opened from, index-aligned with it. */
+    originHistory: [] as (OpenOrigin | null)[],
     /**
      * Overrides the start page of the next opened container, used by adjacent-book
      * navigation: "first" lands on page 1 (next book), "last" lands on the last page
@@ -287,19 +294,34 @@ const initialState = {
     searchText: "",
     isLoading: false,
     error: null as { code: ErrorCode; message?: string } | null,
+    /** The latest listing request; only its answer may change the explorer. */
+    requestId: null as string | null,
+    /** The folder that request lists, until it settles. */
+    pendingPath: null as string | null,
   },
 };
 
 type ContainerFileState = typeof initialState.containerFile;
 
-/** Applies a new container path: pushes history and resets the per-book view state. */
-const openContainerPath = (containerFile: ContainerFileState, path: string) => {
+/**
+ * Applies a new container path: pushes history, records where the book was opened from,
+ * and resets the per-book view state.
+ */
+const openContainerPath = (
+  containerFile: ContainerFileState,
+  path: string,
+  origin: OpenOrigin | null,
+) => {
+  containerFile.origin = origin;
+  const kept = containerFile.historyIndex + 1;
   if (!pushHistory(containerFile, path)) {
+    containerFile.originHistory[containerFile.historyIndex] = origin;
     // No-op open (same path): drop any pending initial position so it can't
     // leak into a later, unrelated open.
     containerFile.pendingInitialPosition = null;
     return;
   }
+  containerFile.originHistory = [...containerFile.originHistory.slice(0, kept), origin];
   containerFile.index = 0;
   containerFile.isSpreadShifted = false;
   containerFile.isSpreadDisplayed = false;
@@ -318,7 +340,7 @@ export const readSlice = createSlice({
      * @param action - Payload containing the container file path.
      */
     setContainerFilePath: (state, action: PayloadAction<string>) => {
-      openContainerPath(state.containerFile, action.payload);
+      openContainerPath(state.containerFile, action.payload, null);
     },
     /**
      * Opens a book from a known origin. The origin is recorded first so the adjacent-book
@@ -328,8 +350,7 @@ export const readSlice = createSlice({
      * @param action - Payload containing the container file path and where it was opened from.
      */
     openBook: (state, action: PayloadAction<{ path: string; origin: OpenOrigin | null }>) => {
-      state.containerFile.origin = action.payload.origin;
-      openContainerPath(state.containerFile, action.payload.path);
+      openContainerPath(state.containerFile, action.payload.path, action.payload.origin);
     },
     /**
      * Sets the pending initial position for the next opened container.
@@ -349,6 +370,10 @@ export const readSlice = createSlice({
      * @param action - Payload containing the new image index.
      */
     setImageIndex: (state, action: PayloadAction<number>) => {
+      // The same section again: a novel stays at its exact position (CFI).
+      if (action.payload === state.containerFile.index) {
+        return;
+      }
       state.containerFile.index = action.payload;
       state.containerFile.cfi = null;
     },
@@ -409,6 +434,8 @@ export const readSlice = createSlice({
      */
     goBackContainerHistory: (state) => {
       if (goBackHistory(state.containerFile)) {
+        state.containerFile.origin =
+          state.containerFile.originHistory[state.containerFile.historyIndex] ?? null;
         state.containerFile.isLoading = true;
       }
     },
@@ -419,6 +446,8 @@ export const readSlice = createSlice({
      */
     goForwardContainerHistory: (state) => {
       if (goForwardHistory(state.containerFile)) {
+        state.containerFile.origin =
+          state.containerFile.originHistory[state.containerFile.historyIndex] ?? null;
         state.containerFile.isLoading = true;
       }
     },
@@ -502,30 +531,38 @@ export const readSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      .addCase(updateExploreBasePath.pending, (state) => {
+      .addCase(updateExploreBasePath.pending, (state, action) => {
+        state.explorer.requestId = action.meta.requestId;
+        state.explorer.pendingPath = action.meta.arg.dirPath;
         state.explorer.error = null;
       })
-      .addCase(
-        updateExploreBasePath.fulfilled,
-        (state, action: PayloadAction<{ path: string; entries: DirEntry[] } | undefined>) => {
-          // Update the state only if the current path matches the payload,
-          // as the user might have navigated away before the previous load finished (race condition).
-          if (
-            action.payload &&
-            state.explorer.history[state.explorer.historyIndex] === action.payload.path
-          ) {
-            state.explorer.entries = action.payload.entries;
-          }
-          state.explorer.isLoading = false;
-          state.explorer.error = null;
-        },
-      )
+      .addCase(updateExploreBasePath.fulfilled, (state, action) => {
+        // A listing superseded by a newer request, possibly of the same folder.
+        if (action.meta.requestId !== state.explorer.requestId) {
+          return;
+        }
+        state.explorer.pendingPath = null;
+        // Update the entries only if the current path matches the payload,
+        // as the user might have navigated away before the load finished.
+        if (state.explorer.history[state.explorer.historyIndex] === action.payload.path) {
+          state.explorer.entries = action.payload.entries;
+        }
+        state.explorer.isLoading = false;
+        state.explorer.error = null;
+      })
       .addCase(updateExploreBasePath.rejected, (state, action) => {
+        if (action.meta.requestId !== state.explorer.requestId) {
+          return;
+        }
+        state.explorer.pendingPath = null;
         state.explorer.entries = [];
         state.explorer.isLoading = false;
         state.explorer.error = action.payload ?? null;
       })
       .addCase(openContainerFile.pending, (state) => {
+        // Until the next book's record arrives, progress and bookmarks have no book to
+        // go to; keeping the previous one would hand them to it.
+        state.containerFile.book = null;
         state.containerFile.entries = [];
         state.containerFile.isLoading = true;
         state.containerFile.index = 0;
@@ -534,6 +571,7 @@ export const readSlice = createSlice({
         state.containerFile.readingDirection = null;
         state.containerFile.cfi = null;
         state.containerFile.novelDirection = null;
+        state.containerFile.hasPreviews = false;
         state.containerFile.error = null;
         state.containerFile.bookRecordError = null;
       })
@@ -549,6 +587,7 @@ export const readSlice = createSlice({
           state.containerFile.entries = action.payload.entries;
         }
         state.containerFile.isDirectory = action.payload.isDirectory;
+        state.containerFile.hasPreviews = action.payload.hasPreviews;
         state.containerFile.isLoading = false;
         state.containerFile.book = action.payload.book;
         if (state.containerFile.pendingInitialPosition === "last") {
@@ -602,6 +641,7 @@ export const readSlice = createSlice({
         state.containerFile.book = null;
         state.containerFile.isDirectory = false;
         state.containerFile.isNovel = false;
+        state.containerFile.hasPreviews = false;
         state.containerFile.novelDirection = null;
         state.containerFile.error = action.payload ?? null;
       });

@@ -83,7 +83,14 @@ vi.mock("@tauri-apps/api/window", () => ({
 }));
 
 vi.mock("@tauri-apps/api/webviewWindow", () => ({
-  WebviewWindow: vi.fn(),
+  WebviewWindow: Object.assign(
+    vi.fn(
+      class {
+        once = vi.fn(() => Promise.resolve(() => {}));
+      },
+    ),
+    { getByLabel: vi.fn(() => Promise.resolve(null)) },
+  ),
 }));
 
 vi.mock("@tauri-apps/plugin-fs", () => mockFs);

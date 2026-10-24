@@ -15,6 +15,7 @@ describe("ContainerCommands", () => {
       entries: ["1.jpg"],
       is_directory: false,
       is_novel: false,
+      has_previews: false,
     });
     await ContainerCommands.getEntriesInContainer("path");
     expect(invoke).toHaveBeenCalledWith("get_entries_in_container", {
@@ -98,6 +99,17 @@ describe("ContainerCommands", () => {
   it("getImagePreview should throw CommandError on failure", async () => {
     vi.mocked(invoke).mockRejectedValue(new Error("fail"));
     await expect(ContainerCommands.getImagePreview("path", "e")).rejects.toThrow(CommandError);
+  });
+
+  it("readNovelFile should call invoke", async () => {
+    vi.mocked(invoke).mockResolvedValue(new ArrayBuffer(0));
+    await ContainerCommands.readNovelFile("novel.epub");
+    expect(invoke).toHaveBeenCalledWith("read_novel_file", { path: "novel.epub" });
+  });
+
+  it("readNovelFile should throw CommandError on failure", async () => {
+    vi.mocked(invoke).mockRejectedValue(new Error("fail"));
+    await expect(ContainerCommands.readNovelFile("novel.epub")).rejects.toThrow(CommandError);
   });
 
   it("should map structured error to CommandError", async () => {

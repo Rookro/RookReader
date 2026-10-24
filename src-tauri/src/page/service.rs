@@ -642,7 +642,10 @@ impl PageService {
         }
 
         let start = center.saturating_sub(buffer);
-        let end = (center + buffer + 1).min(entries.len());
+        let end = center
+            .saturating_add(buffer)
+            .saturating_add(1)
+            .min(entries.len());
         let first_ahead = center.saturating_add(caller_pages).min(entries.len());
         let ahead = first_ahead..end.max(first_ahead);
         let behind = start..center.min(entries.len());
@@ -1293,6 +1296,15 @@ mod tests {
                 names[4].clone(),
             ]
         );
+    }
+
+    #[test]
+    fn a_huge_preload_buffer_does_not_overflow() {
+        let log = Arc::new(Mutex::new(Vec::new()));
+        let service = service(recording_container(entries(3), 1, log));
+
+        assert!(service.request_preload_around(0, usize::MAX, 0).is_ok());
+        service.close();
     }
 
     #[test]

@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "RookReader",
-  "version": "2.6.0",
+  "version": "2.6.1",
   "identifier": "io.github.rookro.rookreader",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -18,7 +18,18 @@
       }
     ],
     "security": {
-      "csp": null,
+      "csp": {
+        "default-src": "'self'",
+        "script-src": "'self'",
+        "style-src": "'self' 'unsafe-inline' blob:",
+        "img-src": "'self' blob: data: asset: http://asset.localhost",
+        "font-src": "'self' blob: data:",
+        "media-src": "'self' blob:",
+        "frame-src": "blob:",
+        "connect-src": "'self' ipc: http://ipc.localhost",
+        "object-src": "'none'",
+        "base-uri": "'none'"
+      },
       "assetProtocol": {
         "enable": true,
         "scope": ["$APPDATA/thumbnails/**"]
@@ -39,6 +50,7 @@
       "target/dependencies/pdfium/LICENSE": "licenses/pdfium/LICENSE",
       "target/dependencies/pdfium/licenses/**/*": "licenses/pdfium/",
       "target/dependencies/dav1d/copyright": "licenses/dav1d/copyright",
+      "../src/assets/fonts/OFL_Noto_Serif_JP.txt": "licenses/fonts/OFL_Noto_Serif_JP.txt",
       "target/dependencies/licenses/frontend-licenses.txt": "licenses/frontend-licenses.txt",
       "target/dependencies/licenses/backend-licenses.html": "licenses/backend-licenses.html"
     },

@@ -9,6 +9,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.1] - 2026-10-24
+
+### Changed
+
+* Updated the dependencies. (#369)
+
+### Fixed
+
+* Fixed the bundled third-party licenses missing some notices. (#359)
+  * The licenses of the RAR extraction code, the Noto Serif JP font and, on Windows, the WebView2 loader are now included.
+  * Components that the app does not include are no longer listed.
+* Fixed several reader issues. (#363, #368)
+  * The bookmark button no longer removes another book's bookmark or adds duplicates.
+  * A slow folder no longer shows its contents under another folder or gets listed twice.
+  * A book opened from the bookshelf no longer keeps using the bookshelf for "next book" after another path is opened.
+  * Switching novels quickly no longer applies the previous novel's page direction.
+  * Each notch of the mouse wheel turns one page, even when you spin it quickly, and a touchpad turns one page for each notch's worth of scrolling instead of one for every small movement.
+  * A scroll that reaches the first or last page stops there; scroll again after a short pause to go on to the adjacent book.
+  * Choosing the current chapter no longer loses the exact position.
+  * Keys, clicks and the wheel on a dialog no longer turn pages behind it.
+* Fixed several bookshelf issues. (#364)
+  * Setting tags on several books no longer removes their other tags.
+  * Confirming Set series no longer removes the book from its series.
+  * Editing a series' order inside a collection no longer gives volumes duplicate numbers.
+  * Re-adding a book to its own series no longer moves it to the end.
+  * Selection now clears when you switch collection, tag, series or search, and a click no longer opens a book while others are selected.
+  * The bookshelf keeps its scroll position while it refreshes, and keyboard focus scrolls the grid.
+  * The volume being dragged is highlighted.
+  * The reading history refreshes when recording is turned back on.
+* Fixed all settings being lost without a trace when the settings file was damaged, for example by a typo or a power loss. The damaged file is now kept as rook-reader_settings.json.broken. (#365)
+* Fixed several issues with opening and showing books. (#366)
+  * PDF previews no longer stop for the rest of a book.
+  * Folders without pages are no longer added to the bookshelf as empty books.
+  * ZIP files with an encrypted or damaged file inside now open.
+  * EPUB comics with non-English image names now show their pages in order.
+  * Very large or very wide pages now show.
+  * A book opened while settings change now uses the current settings.
+* Fixed a slowdown with large libraries and several settings and update dialog issues. (#367)
+  * Actions are no longer prepared for the log at the default log level, which slowed the app down with large libraries.
+  * Links in the update dialog now open in the browser instead of inside the app window with no way back.
+  * The update dialog now opens in only one window.
+  * Settings that fail to save in the main window now show a message.
+  * The Settings button now brings a minimised settings window back.
+  * Clearing the loupe radius now saves the default 200 instead of 150.
+
+### Security
+
+* Scripts inside EPUB files no longer run, so an EPUB cannot access your files or the app. (#361)
+* As an extra safeguard against malicious books, the app window can no longer read arbitrary files on your computer; EPUB files are now read by the app itself. (#362)
+
 ## [2.6.0] - 2026-09-27
 
 ### Added
@@ -591,7 +641,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Add an automatic two-page spread display feature (#4)
 * Add a page navigation feature using the mouse wheel up/down (#5)
 
-[unreleased]: https://github.com/Rookro/RookReader/compare/v2.6.0...HEAD
+[unreleased]: https://github.com/Rookro/RookReader/compare/v2.6.1...HEAD
+[2.6.1]: https://github.com/Rookro/RookReader/compare/v2.6.0...v2.6.1
 [2.6.0]: https://github.com/Rookro/RookReader/compare/v2.5.0...v2.6.0
 [2.5.0]: https://github.com/Rookro/RookReader/compare/v2.4.0...v2.5.0
 [2.4.0]: https://github.com/Rookro/RookReader/compare/v2.3.1...v2.4.0

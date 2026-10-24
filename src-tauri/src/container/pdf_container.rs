@@ -1,4 +1,4 @@
-use pdfium_render::prelude::{PdfPageRenderRotation, PdfRenderConfig};
+use pdfium_render::prelude::{PdfPageIndex, PdfPageRenderRotation, PdfRenderConfig};
 use std::sync::Arc;
 
 use crate::{
@@ -47,6 +47,10 @@ impl Container for PdfContainer {
 
     fn max_readers(&self) -> usize {
         1
+    }
+
+    fn has_previews(&self) -> bool {
+        true
     }
 
     fn open_reader(&self) -> Result<Box<dyn PageReader>> {
@@ -190,7 +194,7 @@ impl PdfContainer {
 }
 
 /// Parses an entry name back into the page index it encodes.
-fn parse_index(entry: &str) -> Result<u16> {
+fn parse_index(entry: &str) -> Result<PdfPageIndex> {
     Ok(entry.parse()?)
 }
 
@@ -307,6 +311,27 @@ trailer << /Size 5 /Root 1 0 R >>
     }
 
     #[test]
+    fn test_parse_index_beyond_u16() {
+        assert_eq!(parse_index("70000").map(i64::from).ok(), Some(70000));
+    }
+
+    #[test]
+    fn test_pdf_has_previews() {
+        let _guard = pdf_test_guard();
+        let dir = tempdir().unwrap();
+        let pdf_path = create_dummy_pdf(dir.path(), "test.pdf");
+
+        let container = PdfContainer::new(
+            pdf_path.to_string_lossy().as_ref(),
+            PdfRenderConfig::default(),
+            Some(get_pdfium_lib_path()),
+        )
+        .unwrap();
+
+        assert!(container.has_previews());
+    }
+
+    #[test]
     fn test_new_non_existent_pdf() {
         let _guard = pdf_test_guard();
         let non_existent_path = String::from("/non/existent/file.pdf");
@@ -379,6 +404,41 @@ trailer << /Size 5 /Root 1 0 R >>
         assert!(reader.read_page("9999").is_err());
         // Only one `Pdfium` may be alive in the process at a time.
         assert_eq!(container.max_readers(), 1);
+    }
+
+    #[test]
+    fn test_wide_page_respects_max_render_width() {
+        use crate::state::{
+            container_settings::ContainerSettings,
+            container_state::{ContainerState, PDF_MAX_RENDER_WIDTH},
+        };
+
+        let _guard = pdf_test_guard();
+        let dir = tempdir().unwrap();
+        // 100:1; at a 200 px render height the page would be 20000 px wide.
+        let pdf = String::from_utf8_lossy(SINGLE_PAGE_PDF_DATA)
+            .replace("/MediaBox [0 0 612 792]", "/MediaBox [0 0 10000 100]");
+        let path = dir.path().join("wide.pdf");
+        std::fs::write(&path, pdf).unwrap();
+        let settings = ContainerSettings {
+            pdf_render_resolution_height: 200,
+            max_image_height: 0,
+            ..ContainerSettings::default()
+        };
+
+        let container = PdfContainer::new(
+            path.to_string_lossy().as_ref(),
+            ContainerState::container_config(&settings).pdf_render_config,
+            Some(get_pdfium_lib_path()),
+        )
+        .unwrap();
+        let page = container.open_reader().unwrap().read_page("0000").unwrap();
+
+        let measured = crate::image::types::read_dimensions(&page).unwrap();
+        assert!(
+            measured.width <= PDF_MAX_RENDER_WIDTH as u32,
+            "{measured:?}"
+        );
     }
 
     #[test]

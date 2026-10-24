@@ -58,6 +58,7 @@ const selectComicReaderState = createSelector(
     entries: containerFile.entries,
     index: containerFile.index,
     isSpreadShifted: containerFile.isSpreadShifted,
+    hasPreviews: containerFile.hasPreviews,
     book: containerFile.book,
     readerSettings,
   }),
@@ -68,8 +69,16 @@ const selectComicReaderState = createSelector(
  */
 export default function ComicReader() {
   const dispatch = useAppDispatch();
-  const { history, historyIndex, entries, index, isSpreadShifted, book, readerSettings } =
-    useAppSelector(selectComicReaderState);
+  const {
+    history,
+    historyIndex,
+    entries,
+    index,
+    isSpreadShifted,
+    hasPreviews,
+    book,
+    readerSettings,
+  } = useAppSelector(selectComicReaderState);
 
   const containerPath = history[historyIndex];
 
@@ -106,6 +115,7 @@ export default function ComicReader() {
     index,
     isSpreadShifted,
     settings,
+    hasPreviews,
     displaySize,
     dispatch,
     book,
@@ -248,22 +258,26 @@ export default function ComicReader() {
 
   // One root whether or not a page is on screen: the reader area has to be measured
   // before the first page is asked for, and a second root would leave the size observer
-  // watching the node React swapped out.
+  // watching the node React swapped out. The dialog sits beside that root: it renders
+  // through a portal, but React events bubble along the component tree, so inside the
+  // root its clicks and wheel would turn the page behind it.
   return (
-    <Box
-      tabIndex={0}
-      {...navigationHandlers}
-      onMouseMove={handleMouseMove}
-      onMouseDown={handleMouseDown}
-      ref={containerRef}
-      data-testid="comic-reader-area"
-      sx={{
-        width: "100%",
-        height: "100%",
-      }}
-    >
-      {pages()}
+    <>
+      <Box
+        tabIndex={0}
+        {...navigationHandlers}
+        onMouseMove={handleMouseMove}
+        onMouseDown={handleMouseDown}
+        ref={containerRef}
+        data-testid="comic-reader-area"
+        sx={{
+          width: "100%",
+          height: "100%",
+        }}
+      >
+        {pages()}
+      </Box>
       {confirmDialog}
-    </Box>
+    </>
   );
 }

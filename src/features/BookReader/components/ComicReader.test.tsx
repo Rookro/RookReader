@@ -115,6 +115,16 @@ describe("ComicReader", () => {
     );
   });
 
+  it("tells the controller whether the open book has previews", () => {
+    const preloadedState = createBasePreloadedState();
+    preloadedState.read.containerFile.hasPreviews = true;
+    renderWithProviders(<ComicReader />, { preloadedState });
+
+    expect(vi.mocked(viewerController.useViewerController)).toHaveBeenCalledWith(
+      expect.objectContaining({ hasPreviews: true }),
+    );
+  });
+
   describe("the loupe", () => {
     /** The open loupe, over a spread of `p1.jpg` and `p2.jpg`. */
     const openOverASpread = (fullSize: Map<string, string>) => {
@@ -406,5 +416,32 @@ describe("ComicReader", () => {
 
     await user.click(readerArea);
     expect(handleClicked).toHaveBeenCalled();
+  });
+
+  // Right-click or scroll on the "open next book?" dialog must not turn the page behind it
+  it("does not turn pages for clicks and wheel on the adjacent-book dialog", async () => {
+    const handleContextMenu = vi.fn();
+    const handleWheeled = vi.fn();
+    vi.mocked(pageNavigation.usePageNavigation).mockReturnValue({
+      handleClicked: vi.fn(),
+      handleContextMenu,
+      handleWheeled,
+      handleKeydown: vi.fn(),
+    });
+    vi.mocked(adjacentBookNavigation.useAdjacentBookNavigation).mockReturnValue({
+      onForwardBoundary: vi.fn(),
+      onBackwardBoundary: vi.fn(),
+      pending: { book: { filePath: "/b/next.zip", displayName: "Next" }, direction: "next" },
+      confirmPending: vi.fn(),
+      cancelPending: vi.fn(),
+    });
+    renderWithProviders(<ComicReader />, { preloadedState: createBasePreloadedState() });
+
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.contextMenu(dialog);
+    fireEvent.wheel(dialog, { deltaY: 10 });
+
+    expect(handleContextMenu).not.toHaveBeenCalled();
+    expect(handleWheeled).not.toHaveBeenCalled();
   });
 });

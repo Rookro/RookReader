@@ -2,7 +2,11 @@ import { relaunch } from "@tauri-apps/plugin-process";
 import { check, type Update } from "@tauri-apps/plugin-updater";
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { isUpdaterSupported } from "../../../bindings/UpdaterCommands";
+import {
+  claimUpdatePrompt,
+  isUpdaterSupported,
+  releaseUpdatePrompt,
+} from "../../../bindings/UpdaterCommands";
 import { useUpdater } from "./useUpdater";
 
 vi.mock("@tauri-apps/plugin-updater", () => ({
@@ -15,6 +19,8 @@ vi.mock("@tauri-apps/plugin-process", () => ({
 
 vi.mock("../../../bindings/UpdaterCommands", () => ({
   isUpdaterSupported: vi.fn(),
+  claimUpdatePrompt: vi.fn(),
+  releaseUpdatePrompt: vi.fn(),
 }));
 
 vi.mock("react-i18next", () => ({
@@ -28,6 +34,8 @@ describe("useUpdater", () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     vi.mocked(isUpdaterSupported).mockResolvedValue(true);
+    vi.mocked(claimUpdatePrompt).mockResolvedValue(true);
+    vi.mocked(releaseUpdatePrompt).mockResolvedValue();
     // we need to reset the global state to allow multiple act checks
     const { result } = renderHook(() => useUpdater());
     await act(async () => {
@@ -395,5 +403,100 @@ describe("useUpdater", () => {
 
     expect(result.current.updateProgress).toBe(0);
     expect(relaunch).toHaveBeenCalled();
+  });
+
+  describe("one update dialog across windows", () => {
+    const update = {
+      version: "2.0.0",
+      body: "Release notes",
+      downloadAndInstall: vi.fn(),
+    } as unknown as Update;
+
+    beforeEach(() => {
+      vi.mocked(check).mockResolvedValue(update);
+      vi.mocked(releaseUpdatePrompt).mockClear();
+    });
+
+    it("says the dialog is open elsewhere on a manual check", async () => {
+      vi.mocked(claimUpdatePrompt).mockResolvedValue(false);
+      const { result } = renderHook(() => useUpdater());
+
+      await act(async () => {
+        await result.current.checkForUpdates(true);
+      });
+
+      expect(result.current.confirmDialogOpen).toBe(false);
+      expect(result.current.messageDialogOpen).toBe(true);
+      expect(result.current.messageDialogText).toBe("updater.already-open");
+    });
+
+    it("stays silent on a startup check and lets a later check run", async () => {
+      vi.mocked(claimUpdatePrompt).mockResolvedValue(false);
+      const { result } = renderHook(() => useUpdater());
+
+      await act(async () => {
+        await result.current.checkForUpdates(false);
+      });
+      expect(result.current.confirmDialogOpen).toBe(false);
+      expect(result.current.messageDialogOpen).toBe(false);
+
+      vi.mocked(claimUpdatePrompt).mockResolvedValue(true);
+      await act(async () => {
+        await result.current.checkForUpdates(false);
+      });
+      expect(result.current.confirmDialogOpen).toBe(true);
+    });
+
+    it("releases the dialog when it is cancelled", async () => {
+      const { result } = renderHook(() => useUpdater());
+      await act(async () => {
+        await result.current.checkForUpdates(true);
+      });
+      expect(result.current.confirmDialogOpen).toBe(true);
+      expect(releaseUpdatePrompt).not.toHaveBeenCalled();
+
+      await act(async () => {
+        result.current.handleCancelUpdate();
+      });
+
+      expect(releaseUpdatePrompt).toHaveBeenCalledTimes(1);
+    });
+
+    it("releases the dialog when the install fails", async () => {
+      vi.mocked(update.downloadAndInstall).mockRejectedValueOnce(new Error("offline"));
+      const { result } = renderHook(() => useUpdater());
+      await act(async () => {
+        await result.current.checkForUpdates(true);
+      });
+
+      await act(async () => {
+        await result.current.handleConfirmUpdate();
+      });
+
+      expect(releaseUpdatePrompt).toHaveBeenCalledTimes(1);
+    });
+
+    it("releases the dialog when the window unmounts it while open", async () => {
+      const { result, unmount } = renderHook(() => useUpdater());
+      await act(async () => {
+        await result.current.checkForUpdates(true);
+      });
+
+      unmount();
+
+      expect(releaseUpdatePrompt).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not release a dialog it never claimed", async () => {
+      vi.mocked(check).mockResolvedValue(null);
+      const { result, unmount } = renderHook(() => useUpdater());
+      await act(async () => {
+        await result.current.checkForUpdates(true);
+      });
+
+      unmount();
+
+      expect(releaseUpdatePrompt).not.toHaveBeenCalled();
+    });
   });
 });

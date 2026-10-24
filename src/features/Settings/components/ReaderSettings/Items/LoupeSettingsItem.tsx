@@ -5,11 +5,13 @@ import { useTranslation } from "react-i18next";
 import { useAppDispatch, useAppSelector } from "../../../../../store/store";
 import { useSettingsFieldError } from "../../../hooks/useSettingsFieldError";
 import { SETTINGS_BOUNDS } from "../../../settingsBounds";
+import { defaultSettings } from "../../../settingsStore";
 import { updateSettings } from "../../../slice";
 import NumberSpinnerSettingItem from "../../ui/NumberSpinnerSettingItem";
 
 const zoomBounds = SETTINGS_BOUNDS["reader.comic.loupe.zoom"];
 const radiusBounds = SETTINGS_BOUNDS["reader.comic.loupe.radius"];
+const defaultLoupe = defaultSettings.reader.comic.loupe;
 
 /**
  * Loupe setting component.
@@ -144,7 +146,7 @@ export default function LoupeSettingsItem() {
 
   const handleZoomChange = useCallback(
     async (value: number | null) => {
-      const val = value ?? 2;
+      const val = value ?? defaultLoupe.zoom;
       // The backend validates the bound and surfaces an inline violation on rejection.
       await commitZoom({ key: "reader", value: { comic: { loupe: { zoom: val } } } });
     },
@@ -153,7 +155,7 @@ export default function LoupeSettingsItem() {
 
   const handleRadiusChange = useCallback(
     async (value: number | null) => {
-      const val = value ?? 150;
+      const val = value ?? defaultLoupe.radius;
       await commitRadius({ key: "reader", value: { comic: { loupe: { radius: val } } } });
     },
     [commitRadius],
@@ -230,7 +232,7 @@ export default function LoupeSettingsItem() {
         primaryText={t("settings.reader.loupe.zoom")}
         secondaryText={t("settings.reader.loupe.zoom-description")}
         secondaryTextSx={{ whiteSpace: "pre-wrap" }}
-        defaultValue={readerSettings.comic.loupe?.zoom ?? 2}
+        defaultValue={readerSettings.comic.loupe?.zoom ?? defaultLoupe.zoom}
         min={zoomBounds.min}
         max={zoomBounds.max}
         step={0.1}
@@ -245,7 +247,7 @@ export default function LoupeSettingsItem() {
         primaryText={t("settings.reader.loupe.radius")}
         secondaryText={t("settings.reader.loupe.radius-description")}
         secondaryTextSx={{ whiteSpace: "pre-wrap" }}
-        defaultValue={readerSettings.comic.loupe?.radius ?? 150}
+        defaultValue={readerSettings.comic.loupe?.radius ?? defaultLoupe.radius}
         min={radiusBounds.min}
         max={radiusBounds.max}
         step={10}

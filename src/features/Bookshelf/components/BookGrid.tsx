@@ -38,14 +38,24 @@ const selectBookGridState = createSelector(
     (state: RootState) => state.tag.tags,
     (state: RootState) => state.read.containerFile.book,
     (state: RootState) => state.view.activeView,
+    (state: RootState) => state.read.containerFile.isLoading,
   ],
-  (bookshelfSettings, searchText, status, availableTags, readingBook, activeView) => ({
+  (
     bookshelfSettings,
     searchText,
     status,
     availableTags,
     readingBook,
     activeView,
+    isReaderLoading,
+  ) => ({
+    bookshelfSettings,
+    searchText,
+    status,
+    availableTags,
+    readingBook,
+    activeView,
+    isReaderLoading,
   }),
 );
 
@@ -61,8 +71,15 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
   const dispatch = useAppDispatch();
   const { selectedBookIds, clearSelection, handleSelectionClick } = useBookSelection();
 
-  const { bookshelfSettings, searchText, status, availableTags, readingBook, activeView } =
-    useAppSelector(selectBookGridState);
+  const {
+    bookshelfSettings,
+    searchText,
+    status,
+    availableTags,
+    readingBook,
+    activeView,
+    isReaderLoading,
+  } = useAppSelector(selectBookGridState);
   const filteredSortedItems = useAppSelector(selectGridItems);
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -102,11 +119,17 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
     clearSelection();
   }, [closeDialog, clearSelection]);
 
+  const isBookshelfActive = activeView === "bookshelf";
+  const bookshelfId = useAppSelector((state) => state.bookCollection.selectedId);
+  const tagId = useAppSelector((state) => state.tag.selectedId);
+  const seriesId = useAppSelector((state) => state.series.selectedId);
+  // A selection made in one view would act on books the user can no longer see.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: clear whenever the shown books change.
   useEffect(() => {
-    if (activeView === "bookshelf") {
+    if (isBookshelfActive) {
       clearSelection();
     }
-  }, [activeView, clearSelection]);
+  }, [isBookshelfActive, bookshelfId, tagId, seriesId, searchText, clearSelection]);
 
   const handleBookClick = useCallback(
     (book: BookWithState, e: React.MouseEvent | React.KeyboardEvent) => {
@@ -150,11 +173,13 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
     columnCount,
     gridWidth,
     activeView,
+    isReaderLoading,
   });
 
   const { focusedIndex, handleKeyDown } = useGridKeyboardNavigation({
     items: filteredSortedItems,
     columnCount,
+    grid,
     onBookActivate: handleBookClick,
     onSeriesActivate: handleSeriesClick,
   });

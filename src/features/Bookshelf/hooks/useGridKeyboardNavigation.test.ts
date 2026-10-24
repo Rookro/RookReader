@@ -1,4 +1,5 @@
 import { act, renderHook } from "@testing-library/react";
+import type { GridImperativeAPI } from "react-window";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createMockBookWithState, createMockSeries } from "../../../test/factories";
 import type { GridItem } from "../utils/BookshelfUtils";
@@ -18,7 +19,14 @@ describe("useGridKeyboardNavigation", () => {
 
   const setup = (overrides: Partial<Parameters<typeof useGridKeyboardNavigation>[0]> = {}) =>
     renderHook((props) => useGridKeyboardNavigation(props), {
-      initialProps: { items, columnCount: 2, onBookActivate, onSeriesActivate, ...overrides },
+      initialProps: {
+        items,
+        columnCount: 2,
+        grid: null,
+        onBookActivate,
+        onSeriesActivate,
+        ...overrides,
+      },
     });
 
   const press = (result: ReturnType<typeof setup>["result"], key: string) => {
@@ -31,6 +39,29 @@ describe("useGridKeyboardNavigation", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  // Focus moving onto a cell outside the viewport must bring that cell into view
+  it("scrolls the grid to the focused cell", () => {
+    const scrollToCell = vi.fn();
+    const { result } = setup({ grid: { scrollToCell } as unknown as GridImperativeAPI });
+
+    press(result, "ArrowDown");
+    press(result, "ArrowDown");
+    expect(scrollToCell).toHaveBeenLastCalledWith({
+      rowIndex: 1,
+      columnIndex: 0,
+      rowAlign: "smart",
+      columnAlign: "smart",
+    });
+
+    press(result, "End");
+    expect(scrollToCell).toHaveBeenLastCalledWith({
+      rowIndex: 2,
+      columnIndex: 0,
+      rowAlign: "smart",
+      columnAlign: "smart",
+    });
   });
 
   it("starts with nothing focused", () => {
@@ -107,7 +138,13 @@ describe("useGridKeyboardNavigation", () => {
     press(result, "End");
     expect(result.current.focusedIndex).toBe(4);
 
-    rerender({ items: items.slice(0, 2), columnCount: 2, onBookActivate, onSeriesActivate });
+    rerender({
+      items: items.slice(0, 2),
+      columnCount: 2,
+      grid: null,
+      onBookActivate,
+      onSeriesActivate,
+    });
     expect(result.current.focusedIndex).toBe(-1);
 
     // Enter on the dropped focus must not activate anything.

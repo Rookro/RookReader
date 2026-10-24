@@ -427,6 +427,7 @@
   },
   "updater": {
     "not-available": "最新バージョンです。",
+    "already-open": "アップデートのダイアログは別のウィンドウで表示中です。",
     "downloading": "ダウンロード中…",
     "installing": "インストール中…",
     "restart": "自動的に再起動して更新を適用します。",

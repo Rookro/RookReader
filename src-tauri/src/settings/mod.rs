@@ -128,7 +128,8 @@ impl AppSettings {
     ///
     /// # Errors
     ///
-    /// Returns an `Err` if serialization or the provider write fails.
+    /// Returns an `Err` if serialization fails. A failed write is logged and the
+    /// normalized settings are still returned, leaving the file as it was.
     pub fn load_and_persist_normalized<P: SettingsStoreProvider>(provider: &P) -> Result<Self> {
         let raw = match provider.get_all_settings() {
             Ok(raw) => raw,
@@ -147,7 +148,12 @@ impl AppSettings {
         };
         let config = Self::normalize(raw.clone(), provider.default_home_dir());
         if serde_json::to_value(&config)? != raw {
-            config.save(provider)?;
+            // Healing the file is optional: the normalized settings work from memory.
+            if let Err(e) = config.save(provider) {
+                log::error!(
+                    "Could not save the repaired settings; running without persisting: {e}"
+                );
+            }
         }
         Ok(config)
     }

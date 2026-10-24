@@ -25,7 +25,7 @@ export const commands = {
 	 * 
 	 *  Returns an `Err` if the settings cannot be loaded.
 	 */
-	getSettings: () => typedError<AppSettings_Serialize, CommandError>(__TAURI_INVOKE("get_settings")),
+	getSettings: () => typedError<AppSettings_Serialize, CommandError_Serialize>(__TAURI_INVOKE("get_settings")),
 	/**
 	 *  Applies a partial settings change and returns the full merged settings.
 	 * 
@@ -58,7 +58,7 @@ export const commands = {
 	 *  Returns `Error::Settings` if the merged result is invalid (e.g. out of range),
 	 *  or a persistence/emit error.
 	 */
-	setSettings: (patch: SettingsPatch) => typedError<AppSettings_Serialize, CommandError>(__TAURI_INVOKE("set_settings", { patch })),
+	setSettings: (patch: SettingsPatch) => typedError<AppSettings_Serialize, CommandError_Serialize>(__TAURI_INVOKE("set_settings", { patch })),
 	/**
 	 *  Requests preloading of images around a specific index.
 	 * 
@@ -83,7 +83,7 @@ export const commands = {
 	 *  frontend calls this on every page turn, so it is exactly the request most likely to
 	 *  race a book switch.
 	 */
-	requestPreloadAround: (path: string, index: number, bufferSize: number | null, callerPages: number | null) => typedError<null, CommandError>(__TAURI_INVOKE("request_preload_around", { path, index, bufferSize, callerPages })),
+	requestPreloadAround: (path: string, index: number, bufferSize: number | null, callerPages: number | null) => typedError<null, CommandError_Serialize>(__TAURI_INVOKE("request_preload_around", { path, index, bufferSize, callerPages })),
 	/**
 	 *  Opens a container file (e.g., ZIP, RAR) and retrieves a list of its contents.
 	 * 
@@ -106,7 +106,7 @@ export const commands = {
 	 *  * The container file cannot be opened (e.g., it does not exist or is corrupt).
 	 *  * The `container` within the application state is unexpectedly missing.
 	 */
-	getEntriesInContainer: (path: string) => typedError<EntriesResult, CommandError>(__TAURI_INVOKE("get_entries_in_container", { path })),
+	getEntriesInContainer: (path: string) => typedError<EntriesResult, CommandError_Serialize>(__TAURI_INVOKE("get_entries_in_container", { path })),
 	/**
 	 *  Counts a container's pages without opening it for reading.
 	 * 
@@ -127,9 +127,10 @@ export const commands = {
 	 *  # Errors
 	 * 
 	 *  Returns an `Err` if the path has no supported extension, or the container cannot be
-	 *  opened (e.g. it does not exist or is corrupt).
+	 *  opened (e.g. it does not exist or is corrupt). Returns `EmptyContainer` when it holds
+	 *  no readable pages, the same rule `get_entries_in_container` applies.
 	 */
-	countPagesInContainer: (path: string) => typedError<ContainerSummary, CommandError>(__TAURI_INVOKE("count_pages_in_container", { path })),
+	countPagesInContainer: (path: string) => typedError<ContainerSummary, CommandError_Serialize>(__TAURI_INVOKE("count_pages_in_container", { path })),
 	/**
 	 *  Retrieves the pixel dimensions of every entry in the currently open container.
 	 * 
@@ -154,7 +155,7 @@ export const commands = {
 	 *  * `path` does not match the open container (the book was switched meanwhile).
 	 *  * An entry cannot be read or is not a supported image.
 	 */
-	getImageDimensions: (path: string) => typedError<ImageDimensions[], CommandError>(__TAURI_INVOKE("get_image_dimensions", { path })),
+	getImageDimensions: (path: string) => typedError<ImageDimensions[], CommandError_Serialize>(__TAURI_INVOKE("get_image_dimensions", { path })),
 	/**
 	 *  Reports the size of the reader's viewport, in device pixels.
 	 * 
@@ -179,7 +180,7 @@ export const commands = {
 	 * 
 	 *  Never returns an `Err`; the `Result` keeps the command's shape with its neighbours.
 	 */
-	setDisplaySize: (width: number, height: number) => typedError<null, CommandError>(__TAURI_INVOKE("set_display_size", { width, height })),
+	setDisplaySize: (width: number, height: number) => typedError<null, CommandError_Serialize>(__TAURI_INVOKE("set_display_size", { width, height })),
 	/**
 	 *  Retrieves a list of all font families installed on the system.
 	 * 
@@ -210,7 +211,7 @@ export const commands = {
 	 *  This function will return an `Err` if the underlying repository operation fails
 	 *  (e.g., due to a database error, connection issue, or query execution failure).
 	 */
-	getBookTags: (bookId: number) => typedError<number[], CommandError>(__TAURI_INVOKE("get_book_tags", { bookId })),
+	getBookTags: (bookId: number) => typedError<number[], CommandError_Serialize>(__TAURI_INVOKE("get_book_tags", { bookId })),
 	/**
 	 *  Updates the tags associated with a specific book.
 	 * 
@@ -225,7 +226,7 @@ export const commands = {
 	 *  This function will return an `Err` if the underlying repository operation fails
 	 *  (e.g., due to a database error, connection issue, or query execution failure).
 	 */
-	updateBookTags: (bookId: number, tagIds: number[]) => typedError<null, CommandError>(__TAURI_INVOKE("update_book_tags", { bookId, tagIds })),
+	updateBookTags: (bookId: number, tagIds: number[]) => typedError<null, CommandError_Serialize>(__TAURI_INVOKE("update_book_tags", { bookId, tagIds })),
 	/**
 	 *  Retrieves a book by its unique ID.
 	 * 
@@ -244,24 +245,7 @@ export const commands = {
 	 *  This function will return an `Err` if the underlying repository operation fails
 	 *  (e.g., due to a database error, connection issue, or query execution failure).
 	 */
-	getBook: (id: number) => typedError<{
-	/**  The unique identifier for the book. */
-	id: number,
-	/**  The unique file path or directory path of the book. */
-	file_path: string,
-	/**  What the path points at. */
-	item_type: ItemType,
-	/**  The display name of the book. */
-	display_name: string,
-	/**  The total number of pages in the book. */
-	total_pages: number,
-	/**  The optional identifier of the series this book belongs to. */
-	series_id: number | null,
-	/**  The optional order index of the book within its series. */
-	series_order: number | null,
-	/**  The optional file path to the thumbnail image of the book. */
-	thumbnail_path: string | null,
-} | null, CommandError>(__TAURI_INVOKE("get_book", { id })),
+	getBook: (id: number) => typedError<Book_Serialize | null, CommandError_Serialize>(__TAURI_INVOKE("get_book", { id })),
 	/**
 	 *  Retrieves a book by its unique file path.
 	 * 
@@ -280,24 +264,7 @@ export const commands = {
 	 *  This function will return an `Err` if the underlying repository operation fails
 	 *  (e.g., due to a database error, connection issue, or query execution failure).
 	 */
-	getBookByPath: (filePath: string) => typedError<{
-	/**  The unique identifier for the book. */
-	id: number,
-	/**  The unique file path or directory path of the book. */
-	file_path: string,
-	/**  What the path points at. */
-	item_type: ItemType,
-	/**  The display name of the book. */
-	display_name: string,
-	/**  The total number of pages in the book. */
-	total_pages: number,
-	/**  The optional identifier of the series this book belongs to. */
-	series_id: number | null,
-	/**  The optional order index of the book within its series. */
-	series_order: number | null,
-	/**  The optional file path to the thumbnail image of the book. */
-	thumbnail_path: string | null,
-} | null, CommandError>(__TAURI_INVOKE("get_book_by_path", { filePath })),
+	getBookByPath: (filePath: string) => typedError<Book_Serialize | null, CommandError_Serialize>(__TAURI_INVOKE("get_book_by_path", { filePath })),
 	/**
 	 *  Retrieves a book along with its reading state by its unique ID.
 	 * 
@@ -317,60 +284,7 @@ export const commands = {
 	 *  This function will return an `Err` if the underlying repository operation fails
 	 *  (e.g., due to a database error, connection issue, or query execution failure).
 	 */
-	getBookWithStateById: (id: number) => typedError<{
-	/**  The unique identifier for the book. */
-	id: number,
-	/**  The unique file path or directory path of the book. */
-	file_path: string,
-	/**  What the path points at. */
-	item_type: ItemType,
-	/**  The display name of the book. */
-	display_name: string,
-	/**  The total number of pages in the book. */
-	total_pages: number,
-	/**  The optional identifier of the series this book belongs to. */
-	series_id: number | null,
-	/**  The optional order index of the book within its series. */
-	series_order: number | null,
-	/**  The optional file path to the thumbnail image of the book. */
-	thumbnail_path: string | null,
-	/**  The timestamp when the book was created (registered). */
-	created_at: string | null,
-	/**
-	 *  Whether the reader has shifted this book's spreads by one page.
-	 * 
-	 *  Beside `total_pages` rather than in the reading state: it is a correction to how
-	 *  the book is laid out, and turning reading history off — or clearing it — must not
-	 *  discard it.
-	 */
-	is_spread_shifted: boolean,
-	/**
-	 *  One `'0'`/`'1'` per page in entry order, `'1'` where the page is wider than it is
-	 *  tall. `None` until the book has been measured once.
-	 * 
-	 *  A landscape page is one physical spread, so it always starts on an even page:
-	 *  that is what settles where two-page spreads begin, and 200 bytes is the whole
-	 *  measurement for a 200-page book.
-	 */
-	landscape_bits: string | null,
-	/**
-	 *  The page direction this book opens with.
-	 * 
-	 *  Seeded from the reader's default the first time the book is opened, then
-	 *  overwritten whenever the direction is flipped in the navigation bar. `None` until
-	 *  the book has been opened once, and always `None` for novels, whose direction is
-	 *  the EPUB's own and cannot be overridden.
-	 */
-	reading_direction: Direction | null,
-	/**  The last read page index, if the book has been opened. */
-	last_read_page_index: number | null,
-	/**  The timestamp when the book was last opened, if any. */
-	last_opened_at: string | null,
-	/**  The last EPUB reading position (CFI), if any. `None` for comics. */
-	cfi: string | null,
-	/**  List of tag IDs associated with this book. */
-	tag_ids?: number[],
-} | null, CommandError>(__TAURI_INVOKE("get_book_with_state_by_id", { id })),
+	getBookWithStateById: (id: number) => typedError<BookWithState_Serialize | null, CommandError_Serialize>(__TAURI_INVOKE("get_book_with_state_by_id", { id })),
 	/**
 	 *  Registers a book or returns its ID if it already exists, without updating reading state.
 	 * 
@@ -393,7 +307,7 @@ export const commands = {
 	 *  This function will return an `Err` if the underlying repository operation fails
 	 *  (e.g., due to a database error, connection issue, or query execution failure).
 	 */
-	registerBook: (filePath: string, itemType: ItemType, displayName: string, totalPages: number) => typedError<number, CommandError>(__TAURI_INVOKE("register_book", { filePath, itemType, displayName, totalPages })),
+	registerBook: (filePath: string, itemType: ItemType, displayName: string, totalPages: number) => typedError<number, CommandError_Serialize>(__TAURI_INVOKE("register_book", { filePath, itemType, displayName, totalPages })),
 	/**
 	 *  Records the event of a book being opened, updating its last opened time.
 	 * 
@@ -416,7 +330,7 @@ export const commands = {
 	 *  This function will return an `Err` if the underlying repository operation fails
 	 *  (e.g., due to a database error, connection issue, or query execution failure).
 	 */
-	recordBookOpened: (filePath: string, itemType: ItemType, displayName: string, totalPages: number) => typedError<number, CommandError>(__TAURI_INVOKE("record_book_opened", { filePath, itemType, displayName, totalPages })),
+	recordBookOpened: (filePath: string, itemType: ItemType, displayName: string, totalPages: number) => typedError<number, CommandError_Serialize>(__TAURI_INVOKE("record_book_opened", { filePath, itemType, displayName, totalPages })),
 	/**
 	 *  Deletes a book by its unique ID, along with its thumbnail file.
 	 * 
@@ -430,7 +344,7 @@ export const commands = {
 	 * 
 	 *  This function will return an `Err` if the underlying repository operation fails.
 	 */
-	deleteBook: (id: number) => typedError<null, CommandError>(__TAURI_INVOKE("delete_book", { id })),
+	deleteBook: (id: number) => typedError<null, CommandError_Serialize>(__TAURI_INVOKE("delete_book", { id })),
 	/**
 	 *  Clears the reading history for a specific book.
 	 * 
@@ -445,7 +359,7 @@ export const commands = {
 	 *  This function will return an `Err` if the underlying repository operation fails
 	 *  (e.g., due to a database error, connection issue, or query execution failure).
 	 */
-	clearReadingHistory: (bookId: number) => typedError<null, CommandError>(__TAURI_INVOKE("clear_reading_history", { bookId })),
+	clearReadingHistory: (bookId: number) => typedError<null, CommandError_Serialize>(__TAURI_INVOKE("clear_reading_history", { bookId })),
 	/**
 	 *  Clears the reading history for all books in the library.
 	 * 
@@ -459,7 +373,7 @@ export const commands = {
 	 *  This function will return an `Err` if the underlying repository operation fails
 	 *  (e.g., due to a database error, connection issue, or query execution failure).
 	 */
-	clearAllReadingHistory: () => typedError<null, CommandError>(__TAURI_INVOKE("clear_all_reading_history")),
+	clearAllReadingHistory: () => typedError<null, CommandError_Serialize>(__TAURI_INVOKE("clear_all_reading_history")),
 	/**
 	 *  Records the reader's correction to how a book pairs into spreads.
 	 * 
@@ -477,7 +391,7 @@ export const commands = {
 	 * 
 	 *  Returns an `Err` if the underlying repository operation fails.
 	 */
-	updateSpreadShift: (bookId: number, isSpreadShifted: boolean) => typedError<null, CommandError>(__TAURI_INVOKE("update_spread_shift", { bookId, isSpreadShifted })),
+	updateSpreadShift: (bookId: number, isSpreadShifted: boolean) => typedError<null, CommandError_Serialize>(__TAURI_INVOKE("update_spread_shift", { bookId, isSpreadShifted })),
 	/**
 	 *  Records the page direction a book opens with.
 	 * 
@@ -495,7 +409,7 @@ export const commands = {
 	 * 
 	 *  Returns an `Err` if the underlying repository operation fails.
 	 */
-	updateReadingDirection: (bookId: number, readingDirection: Direction) => typedError<null, CommandError>(__TAURI_INVOKE("update_reading_direction", { bookId, readingDirection })),
+	updateReadingDirection: (bookId: number, readingDirection: Direction) => typedError<null, CommandError_Serialize>(__TAURI_INVOKE("update_reading_direction", { bookId, readingDirection })),
 	/**
 	 *  Records how a book's pages are shaped, so it need not be measured again.
 	 * 
@@ -510,7 +424,7 @@ export const commands = {
 	 * 
 	 *  Returns an `Err` if the underlying repository operation fails.
 	 */
-	updatePageLayout: (bookId: number, landscapeBits: string) => typedError<null, CommandError>(__TAURI_INVOKE("update_page_layout", { bookId, landscapeBits })),
+	updatePageLayout: (bookId: number, landscapeBits: string) => typedError<null, CommandError_Serialize>(__TAURI_INVOKE("update_page_layout", { bookId, landscapeBits })),
 	/**
 	 *  Retrieves recently read books, ordered by the most recently opened.
 	 * 
@@ -528,7 +442,7 @@ export const commands = {
 	 *  This function will return an `Err` if the underlying repository operation fails
 	 *  (e.g., due to a database error, connection issue, or query execution failure).
 	 */
-	getRecentlyReadBooks: (limit: number | null) => typedError<ReadBook[], CommandError>(__TAURI_INVOKE("get_recently_read_books", { limit })),
+	getRecentlyReadBooks: (limit: number | null) => typedError<ReadBook_Serialize[], CommandError_Serialize>(__TAURI_INVOKE("get_recently_read_books", { limit })),
 	/**
 	 *  Updates the reading progress/state for a book.
 	 * 
@@ -543,7 +457,7 @@ export const commands = {
 	 *  This function will return an `Err` if the underlying repository operation fails
 	 *  (e.g., due to a database error, connection issue, or query execution failure).
 	 */
-	updateReadingProgress: (stateData: ReadingState) => typedError<null, CommandError>(__TAURI_INVOKE("update_reading_progress", { stateData })),
+	updateReadingProgress: (stateData: ReadingState_Deserialize) => typedError<null, CommandError_Serialize>(__TAURI_INVOKE("update_reading_progress", { stateData })),
 	/**
 	 *  Retrieves all books, including their reading states.
 	 * 
@@ -560,7 +474,7 @@ export const commands = {
 	 *  This function will return an `Err` if the underlying repository operation fails
 	 *  (e.g., due to a database error, connection issue, or query execution failure).
 	 */
-	getAllBooksWithState: () => typedError<BookWithState[], CommandError>(__TAURI_INVOKE("get_all_books_with_state")),
+	getAllBooksWithState: () => typedError<BookWithState_Serialize[], CommandError_Serialize>(__TAURI_INVOKE("get_all_books_with_state")),
 	/**
 	 *  Retrieves all books contained within a specific bookshelf, including their reading states.
 	 * 
@@ -578,7 +492,7 @@ export const commands = {
 	 *  This function will return an `Err` if the underlying repository operation fails
 	 *  (e.g., due to a database error, connection issue, or query execution failure).
 	 */
-	getBooksWithStateByBookshelfId: (bookshelfId: number) => typedError<BookWithState[], CommandError>(__TAURI_INVOKE("get_books_with_state_by_bookshelf_id", { bookshelfId })),
+	getBooksWithStateByBookshelfId: (bookshelfId: number) => typedError<BookWithState_Serialize[], CommandError_Serialize>(__TAURI_INVOKE("get_books_with_state_by_bookshelf_id", { bookshelfId })),
 	/**
 	 *  Retrieves all books associated with a specific tag, including their reading states.
 	 * 
@@ -596,7 +510,7 @@ export const commands = {
 	 *  This function will return an `Err` if the underlying repository operation fails
 	 *  (e.g., due to a database error, connection issue, or query execution failure).
 	 */
-	getBooksWithStateByTagId: (tagId: number) => typedError<BookWithState[], CommandError>(__TAURI_INVOKE("get_books_with_state_by_tag_id", { tagId })),
+	getBooksWithStateByTagId: (tagId: number) => typedError<BookWithState_Serialize[], CommandError_Serialize>(__TAURI_INVOKE("get_books_with_state_by_tag_id", { tagId })),
 	/**
 	 *  Retrieves all books belonging to a specific series, including their reading states.
 	 * 
@@ -614,7 +528,7 @@ export const commands = {
 	 *  This function will return an `Err` if the underlying repository operation fails
 	 *  (e.g., due to a database error, connection issue, or query execution failure).
 	 */
-	getBooksWithStateBySeriesId: (seriesId: number) => typedError<BookWithState[], CommandError>(__TAURI_INVOKE("get_books_with_state_by_series_id", { seriesId })),
+	getBooksWithStateBySeriesId: (seriesId: number) => typedError<BookWithState_Serialize[], CommandError_Serialize>(__TAURI_INVOKE("get_books_with_state_by_series_id", { seriesId })),
 	/**
 	 *  Updates the series associated with a specific book.
 	 * 
@@ -628,7 +542,7 @@ export const commands = {
 	 * 
 	 *  This function will return an `Err` if the underlying repository operation fails.
 	 */
-	updateBookSeries: (bookId: number, seriesId: number | null) => typedError<null, CommandError>(__TAURI_INVOKE("update_book_series", { bookId, seriesId })),
+	updateBookSeries: (bookId: number, seriesId: number | null) => typedError<null, CommandError_Serialize>(__TAURI_INVOKE("update_book_series", { bookId, seriesId })),
 	/**
 	 *  Updates the `series_order` for a given list of book IDs.
 	 * 
@@ -641,7 +555,7 @@ export const commands = {
 	 * 
 	 *  This function will return an `Err` if the underlying repository operation fails.
 	 */
-	updateSeriesOrders: (bookIds: number[]) => typedError<null, CommandError>(__TAURI_INVOKE("update_series_orders", { bookIds })),
+	updateSeriesOrders: (bookIds: number[]) => typedError<null, CommandError_Serialize>(__TAURI_INVOKE("update_series_orders", { bookIds })),
 	/**
 	 *  Creates a new bookshelf and returns its complete entity.
 	 * 
@@ -660,7 +574,7 @@ export const commands = {
 	 *  This function will return an `Err` if the underlying repository operation fails
 	 *  (e.g., due to a database error, connection issue, or query execution failure).
 	 */
-	createBookshelf: (name: string, iconId: string) => typedError<Bookshelf, CommandError>(__TAURI_INVOKE("create_bookshelf", { name, iconId })),
+	createBookshelf: (name: string, iconId: string) => typedError<Bookshelf_Serialize, CommandError_Serialize>(__TAURI_INVOKE("create_bookshelf", { name, iconId })),
 	/**
 	 *  Retrieves all bookshelves from the database.
 	 * 
@@ -677,7 +591,7 @@ export const commands = {
 	 *  This function will return an `Err` if the underlying repository operation fails
 	 *  (e.g., due to a database error, connection issue, or query execution failure).
 	 */
-	getAllBookshelves: () => typedError<Bookshelf[], CommandError>(__TAURI_INVOKE("get_all_bookshelves")),
+	getAllBookshelves: () => typedError<Bookshelf_Serialize[], CommandError_Serialize>(__TAURI_INVOKE("get_all_bookshelves")),
 	/**
 	 *  Adds a book to a specific bookshelf.
 	 * 
@@ -692,7 +606,7 @@ export const commands = {
 	 *  This function will return an `Err` if the underlying repository operation fails
 	 *  (e.g., due to a database error, connection issue, or query execution failure).
 	 */
-	addBookToBookshelf: (bookshelfId: number, bookId: number) => typedError<null, CommandError>(__TAURI_INVOKE("add_book_to_bookshelf", { bookshelfId, bookId })),
+	addBookToBookshelf: (bookshelfId: number, bookId: number) => typedError<null, CommandError_Serialize>(__TAURI_INVOKE("add_book_to_bookshelf", { bookshelfId, bookId })),
 	/**
 	 *  Removes a book from a specific bookshelf.
 	 * 
@@ -706,7 +620,7 @@ export const commands = {
 	 * 
 	 *  This function will return an `Err` if the underlying repository operation fails.
 	 */
-	removeBookFromBookshelf: (bookshelfId: number, bookId: number) => typedError<null, CommandError>(__TAURI_INVOKE("remove_book_from_bookshelf", { bookshelfId, bookId })),
+	removeBookFromBookshelf: (bookshelfId: number, bookId: number) => typedError<null, CommandError_Serialize>(__TAURI_INVOKE("remove_book_from_bookshelf", { bookshelfId, bookId })),
 	/**
 	 *  Deletes a bookshelf from the database.
 	 * 
@@ -719,7 +633,7 @@ export const commands = {
 	 * 
 	 *  This function will return an `Err` if the underlying repository operation fails.
 	 */
-	deleteBookshelf: (id: number) => typedError<null, CommandError>(__TAURI_INVOKE("delete_bookshelf", { id })),
+	deleteBookshelf: (id: number) => typedError<null, CommandError_Serialize>(__TAURI_INVOKE("delete_bookshelf", { id })),
 	/**
 	 *  Creates a new series.
 	 * 
@@ -737,7 +651,7 @@ export const commands = {
 	 *  This function will return an `Err` if the underlying repository operation fails
 	 *  (e.g., due to a database error, connection issue, or query execution failure).
 	 */
-	createSeries: (name: string) => typedError<number, CommandError>(__TAURI_INVOKE("create_series", { name })),
+	createSeries: (name: string) => typedError<number, CommandError_Serialize>(__TAURI_INVOKE("create_series", { name })),
 	/**
 	 *  Retrieves all series from the database.
 	 * 
@@ -754,7 +668,7 @@ export const commands = {
 	 *  This function will return an `Err` if the underlying repository operation fails
 	 *  (e.g., due to a database error, connection issue, or query execution failure).
 	 */
-	getAllSeries: () => typedError<Series[], CommandError>(__TAURI_INVOKE("get_all_series")),
+	getAllSeries: () => typedError<Series[], CommandError_Serialize>(__TAURI_INVOKE("get_all_series")),
 	/**
 	 *  Deletes a series by its ID.
 	 * 
@@ -767,7 +681,7 @@ export const commands = {
 	 * 
 	 *  This function will return an `Err` if the underlying repository operation fails.
 	 */
-	deleteSeries: (id: number) => typedError<null, CommandError>(__TAURI_INVOKE("delete_series", { id })),
+	deleteSeries: (id: number) => typedError<null, CommandError_Serialize>(__TAURI_INVOKE("delete_series", { id })),
 	/**
 	 *  Creates a new tag and returns its complete entity.
 	 * 
@@ -786,7 +700,7 @@ export const commands = {
 	 *  This function will return an `Err` if the underlying repository operation fails
 	 *  (e.g., due to a database error, connection issue, or query execution failure).
 	 */
-	createTag: (name: string, colorCode: string) => typedError<Tag, CommandError>(__TAURI_INVOKE("create_tag", { name, colorCode })),
+	createTag: (name: string, colorCode: string) => typedError<Tag, CommandError_Serialize>(__TAURI_INVOKE("create_tag", { name, colorCode })),
 	/**
 	 *  Retrieves all tags from the database.
 	 * 
@@ -803,7 +717,7 @@ export const commands = {
 	 *  This function will return an `Err` if the underlying repository operation fails
 	 *  (e.g., due to a database error, connection issue, or query execution failure).
 	 */
-	getAllTags: () => typedError<Tag[], CommandError>(__TAURI_INVOKE("get_all_tags")),
+	getAllTags: () => typedError<Tag[], CommandError_Serialize>(__TAURI_INVOKE("get_all_tags")),
 	/**
 	 *  Deletes a tag from the database.
 	 * 
@@ -816,7 +730,7 @@ export const commands = {
 	 * 
 	 *  This function will return an `Err` if the underlying repository operation fails.
 	 */
-	deleteTag: (id: number) => typedError<null, CommandError>(__TAURI_INVOKE("delete_tag", { id })),
+	deleteTag: (id: number) => typedError<null, CommandError_Serialize>(__TAURI_INVOKE("delete_tag", { id })),
 	/**
 	 *  Creates a bookmark for a book and returns its complete entity.
 	 * 
@@ -837,7 +751,7 @@ export const commands = {
 	 *  This function will return an `Err` if the underlying repository operation fails
 	 *  (e.g., due to a database error, connection issue, or query execution failure).
 	 */
-	createBookmark: (bookId: number, name: string, pageIndex: number, cfi: string | null) => typedError<Bookmark, CommandError>(__TAURI_INVOKE("create_bookmark", { bookId, name, pageIndex, cfi })),
+	createBookmark: (bookId: number, name: string, pageIndex: number, cfi: string | null) => typedError<Bookmark_Serialize, CommandError_Serialize>(__TAURI_INVOKE("create_bookmark", { bookId, name, pageIndex, cfi })),
 	/**
 	 *  Retrieves all bookmarks of a book, ordered by their position in the book.
 	 * 
@@ -854,7 +768,7 @@ export const commands = {
 	 * 
 	 *  This function will return an `Err` if the underlying repository operation fails.
 	 */
-	getBookmarksByBookId: (bookId: number) => typedError<Bookmark[], CommandError>(__TAURI_INVOKE("get_bookmarks_by_book_id", { bookId })),
+	getBookmarksByBookId: (bookId: number) => typedError<Bookmark_Serialize[], CommandError_Serialize>(__TAURI_INVOKE("get_bookmarks_by_book_id", { bookId })),
 	/**
 	 *  Renames an existing bookmark.
 	 * 
@@ -868,7 +782,7 @@ export const commands = {
 	 * 
 	 *  This function will return an `Err` if the underlying repository operation fails.
 	 */
-	renameBookmark: (id: number, name: string) => typedError<null, CommandError>(__TAURI_INVOKE("rename_bookmark", { id, name })),
+	renameBookmark: (id: number, name: string) => typedError<null, CommandError_Serialize>(__TAURI_INVOKE("rename_bookmark", { id, name })),
 	/**
 	 *  Deletes a bookmark from the database.
 	 * 
@@ -881,7 +795,7 @@ export const commands = {
 	 * 
 	 *  This function will return an `Err` if the underlying repository operation fails.
 	 */
-	deleteBookmark: (id: number) => typedError<null, CommandError>(__TAURI_INVOKE("delete_bookmark", { id })),
+	deleteBookmark: (id: number) => typedError<null, CommandError_Serialize>(__TAURI_INVOKE("delete_bookmark", { id })),
 	/**
 	 *  Checks if the auto-updater is supported on the current platform/environment.
 	 * 
@@ -891,6 +805,28 @@ export const commands = {
 	 *  - Linux: Supported only if running as an AppImage (checked via `APPIMAGE` environment variable).
 	 */
 	isUpdaterSupported: () => __TAURI_INVOKE<boolean>("is_updater_supported"),
+	/**
+	 *  Claims the update dialog for the calling window.
+	 * 
+	 *  # Arguments
+	 * 
+	 *  * `window` - The calling window (Tauri-injected; omitted from the TS signature).
+	 *  * `lock` - The managed update prompt lock.
+	 * 
+	 *  # Returns
+	 * 
+	 *  `true` if the calling window may show the dialog, `false` if another window shows it.
+	 */
+	claimUpdatePrompt: () => __TAURI_INVOKE<boolean>("claim_update_prompt"),
+	/**
+	 *  Releases the update dialog if the calling window holds it.
+	 * 
+	 *  # Arguments
+	 * 
+	 *  * `window` - The calling window (Tauri-injected; omitted from the TS signature).
+	 *  * `lock` - The managed update prompt lock.
+	 */
+	releaseUpdatePrompt: () => __TAURI_INVOKE<void>("release_update_prompt"),
 };
 
 /* Types */
@@ -900,37 +836,37 @@ export type AppSettings = AppSettings_Serialize | AppSettings_Deserialize;
 /**  Represents the root configuration of the application settings. */
 export type AppSettings_Deserialize = {
 	/**  General application settings, including theming and fonts. */
-	general?: GeneralSettings,
+	general?: GeneralSettings_Deserialize,
 	/**  Settings related to the application's startup behavior. */
-	startup?: StartupSettings,
+	startup?: StartupSettings_Deserialize,
 	/**  Settings specific to the bookshelf (library) view. */
-	bookshelf?: BookshelfSettings,
+	bookshelf?: BookshelfSettings_Deserialize,
 	/**  Settings for the file navigator and directory management. */
-	fileNavigator?: FileNavigatorSettings,
+	fileNavigator?: FileNavigatorSettings_Deserialize,
 	/**  Settings for reading content (both comics and novels). */
 	reader?: ReaderSettings_Deserialize,
 	/**  Settings related to user history and tracking. */
-	history?: HistorySettings,
+	history?: HistorySettings_Deserialize,
 	/**  Settings related to the application's layout. */
-	layout?: LayoutSettings,
+	layout?: LayoutSettings_Deserialize,
 };
 
 /**  Represents the root configuration of the application settings. */
 export type AppSettings_Serialize = {
 	/**  General application settings, including theming and fonts. */
-	general: GeneralSettings,
+	general: GeneralSettings_Serialize,
 	/**  Settings related to the application's startup behavior. */
-	startup: StartupSettings,
+	startup: StartupSettings_Serialize,
 	/**  Settings specific to the bookshelf (library) view. */
-	bookshelf: BookshelfSettings,
+	bookshelf: BookshelfSettings_Serialize,
 	/**  Settings for the file navigator and directory management. */
-	fileNavigator: FileNavigatorSettings,
+	fileNavigator: FileNavigatorSettings_Serialize,
 	/**  Settings for reading content (both comics and novels). */
 	reader: ReaderSettings_Serialize,
 	/**  Settings related to user history and tracking. */
-	history: HistorySettings,
+	history: HistorySettings_Serialize,
 	/**  Settings related to the application's layout. */
-	layout: LayoutSettings,
+	layout: LayoutSettings_Serialize,
 };
 
 /**  Represents the application's visual theme. */
@@ -952,7 +888,19 @@ export type AutoOpenAdjacentBookMode =
 "auto";
 
 /**  Represents a book entity in the database. */
-export type Book = {
+export type Book = Book_Serialize | Book_Deserialize;
+
+/**
+ *  Represents a book along with its optional reading state.
+ *  Useful for displaying book details whether it has been read or not.
+ */
+export type BookWithState = BookWithState_Serialize | BookWithState_Deserialize;
+
+/**
+ *  Represents a book along with its optional reading state.
+ *  Useful for displaying book details whether it has been read or not.
+ */
+export type BookWithState_Deserialize = {
 	/**  The unique identifier for the book. */
 	id: number,
 	/**  The unique file path or directory path of the book. */
@@ -964,18 +912,54 @@ export type Book = {
 	/**  The total number of pages in the book. */
 	total_pages: number,
 	/**  The optional identifier of the series this book belongs to. */
-	series_id: number | null,
+	series_id?: number | null,
 	/**  The optional order index of the book within its series. */
-	series_order: number | null,
+	series_order?: number | null,
 	/**  The optional file path to the thumbnail image of the book. */
-	thumbnail_path: string | null,
+	thumbnail_path?: string | null,
+	/**  The timestamp when the book was created (registered). */
+	created_at?: string | null,
+	/**
+	 *  Whether the reader has shifted this book's spreads by one page.
+	 * 
+	 *  Beside `total_pages` rather than in the reading state: it is a correction to how
+	 *  the book is laid out, and turning reading history off — or clearing it — must not
+	 *  discard it.
+	 */
+	is_spread_shifted: boolean,
+	/**
+	 *  One `'0'`/`'1'` per page in entry order, `'1'` where the page is wider than it is
+	 *  tall. `None` until the book has been measured once.
+	 * 
+	 *  A landscape page is one physical spread, so it always starts on an even page:
+	 *  that is what settles where two-page spreads begin, and 200 bytes is the whole
+	 *  measurement for a 200-page book.
+	 */
+	landscape_bits?: string | null,
+	/**
+	 *  The page direction this book opens with.
+	 * 
+	 *  Seeded from the reader's default the first time the book is opened, then
+	 *  overwritten whenever the direction is flipped in the navigation bar. `None` until
+	 *  the book has been opened once, and always `None` for novels, whose direction is
+	 *  the EPUB's own and cannot be overridden.
+	 */
+	reading_direction?: Direction | null,
+	/**  The last read page index, if the book has been opened. */
+	last_read_page_index?: number | null,
+	/**  The timestamp when the book was last opened, if any. */
+	last_opened_at?: string | null,
+	/**  The last EPUB reading position (CFI), if any. `None` for comics. */
+	cfi?: string | null,
+	/**  List of tag IDs associated with this book. */
+	tag_ids?: number[],
 };
 
 /**
  *  Represents a book along with its optional reading state.
  *  Useful for displaying book details whether it has been read or not.
  */
-export type BookWithState = {
+export type BookWithState_Serialize = {
 	/**  The unique identifier for the book. */
 	id: number,
 	/**  The unique file path or directory path of the book. */
@@ -1027,11 +1011,70 @@ export type BookWithState = {
 	/**  The last EPUB reading position (CFI), if any. `None` for comics. */
 	cfi: string | null,
 	/**  List of tag IDs associated with this book. */
-	tag_ids?: number[],
+	tag_ids: number[],
+};
+
+/**  Represents a book entity in the database. */
+export type Book_Deserialize = {
+	/**  The unique identifier for the book. */
+	id: number,
+	/**  The unique file path or directory path of the book. */
+	file_path: string,
+	/**  What the path points at. */
+	item_type: ItemType,
+	/**  The display name of the book. */
+	display_name: string,
+	/**  The total number of pages in the book. */
+	total_pages: number,
+	/**  The optional identifier of the series this book belongs to. */
+	series_id?: number | null,
+	/**  The optional order index of the book within its series. */
+	series_order?: number | null,
+	/**  The optional file path to the thumbnail image of the book. */
+	thumbnail_path?: string | null,
+};
+
+/**  Represents a book entity in the database. */
+export type Book_Serialize = {
+	/**  The unique identifier for the book. */
+	id: number,
+	/**  The unique file path or directory path of the book. */
+	file_path: string,
+	/**  What the path points at. */
+	item_type: ItemType,
+	/**  The display name of the book. */
+	display_name: string,
+	/**  The total number of pages in the book. */
+	total_pages: number,
+	/**  The optional identifier of the series this book belongs to. */
+	series_id: number | null,
+	/**  The optional order index of the book within its series. */
+	series_order: number | null,
+	/**  The optional file path to the thumbnail image of the book. */
+	thumbnail_path: string | null,
 };
 
 /**  Represents a saved reading position (bookmark) within a book. */
-export type Bookmark = {
+export type Bookmark = Bookmark_Serialize | Bookmark_Deserialize;
+
+/**  Represents a saved reading position (bookmark) within a book. */
+export type Bookmark_Deserialize = {
+	/**  The unique identifier for the bookmark. */
+	id: number,
+	/**  The identifier of the book this bookmark belongs to. */
+	book_id: number,
+	/**  The display name of the bookmark. */
+	name: string,
+	/**  The bookmarked page index: the comic page, or the EPUB spine section index. */
+	page_index: number,
+	/**  The bookmarked position within an EPUB section (CFI). `None` for comics. */
+	cfi?: string | null,
+	/**  The timestamp when the bookmark was created. */
+	created_at: string,
+};
+
+/**  Represents a saved reading position (bookmark) within a book. */
+export type Bookmark_Serialize = {
 	/**  The unique identifier for the bookmark. */
 	id: number,
 	/**  The identifier of the book this bookmark belongs to. */
@@ -1047,7 +1090,45 @@ export type Bookmark = {
 };
 
 /**  Represents a bookshelf entity used to organize books. */
-export type Bookshelf = {
+export type Bookshelf = Bookshelf_Serialize | Bookshelf_Deserialize;
+
+/**  Settings specific to the bookshelf view. */
+export type BookshelfSettings = BookshelfSettings_Serialize | BookshelfSettings_Deserialize;
+
+/**  Settings specific to the bookshelf view. */
+export type BookshelfSettings_Deserialize = {
+	/**  The criteria used to sort items in the bookshelf. */
+	sortOrder?: SortOrder,
+	/**  The number of size to display in the bookshelf grid (index into a small/medium/large table). */
+	gridSize?: number,
+	/**  Whether to enable automatic horizontal scrolling for overflowing text. */
+	enableAutoScroll?: boolean,
+};
+
+/**  Settings specific to the bookshelf view. */
+export type BookshelfSettings_Serialize = {
+	/**  The criteria used to sort items in the bookshelf. */
+	sortOrder: SortOrder,
+	/**  The number of size to display in the bookshelf grid (index into a small/medium/large table). */
+	gridSize: number,
+	/**  Whether to enable automatic horizontal scrolling for overflowing text. */
+	enableAutoScroll: boolean,
+};
+
+/**  Represents a bookshelf entity used to organize books. */
+export type Bookshelf_Deserialize = {
+	/**  The unique identifier for the bookshelf. */
+	id: number,
+	/**  The display name of the bookshelf. */
+	name: string,
+	/**  The string identifier for the UI icon (e.g., "folder"). */
+	icon_id: string,
+	/**  The timestamp when the bookshelf was created. */
+	created_at?: string | null,
+};
+
+/**  Represents a bookshelf entity used to organize books. */
+export type Bookshelf_Serialize = {
 	/**  The unique identifier for the bookshelf. */
 	id: number,
 	/**  The display name of the bookshelf. */
@@ -1058,18 +1139,11 @@ export type Bookshelf = {
 	created_at: string | null,
 };
 
-/**  Settings specific to the bookshelf view. */
-export type BookshelfSettings = {
-	/**  The criteria used to sort items in the bookshelf. */
-	sortOrder?: SortOrder,
-	/**  The number of size to display in the bookshelf grid (index into a small/medium/large table). */
-	gridSize?: number,
-	/**  Whether to enable automatic horizontal scrolling for overflowing text. */
-	enableAutoScroll?: boolean,
-};
+/**  Configuration for image caching and preloading. */
+export type ComicCacheSettings = ComicCacheSettings_Serialize | ComicCacheSettings_Deserialize;
 
 /**  Configuration for image caching and preloading. */
-export type ComicCacheSettings = {
+export type ComicCacheSettings_Deserialize = {
 	/**  The number of pages to preload in each direction (forward and backward). */
 	preloadPageCount?: number,
 	/**  The maximum size of the image memory cache in MiB. */
@@ -1085,8 +1159,28 @@ export type ComicCacheSettings = {
 	pageReaderCount?: number,
 };
 
+/**  Configuration for image caching and preloading. */
+export type ComicCacheSettings_Serialize = {
+	/**  The number of pages to preload in each direction (forward and backward). */
+	preloadPageCount: number,
+	/**  The maximum size of the image memory cache in MiB. */
+	imageCacheSizeMib: number,
+	/**
+	 *  How many threads may read pages at once (`0` = pick one from the machine).
+	 * 
+	 *  A ceiling, not a demand: a format that admits only one reader — a solid RAR, an
+	 *  EPUB, a PDF — stays at one however high this goes. Worth lowering where the
+	 *  pages come over a network, since there the readers compete for one link rather
+	 *  than for cores, and each read gets slower as more of them run.
+	 */
+	pageReaderCount: number,
+};
+
 /**  Configuration specific to reading comics (image-based content). */
-export type ComicSettings = {
+export type ComicSettings = ComicSettings_Serialize | ComicSettings_Deserialize;
+
+/**  Configuration specific to reading comics (image-based content). */
+export type ComicSettings_Deserialize = {
 	/**  The reading direction (e.g., Right-to-Left for Japanese manga). */
 	readingDirection?: Direction,
 	/**  Whether to display pages side-by-side (two-page spread). */
@@ -1094,9 +1188,23 @@ export type ComicSettings = {
 	/**  Whether to force the first page (cover) to display as a single page in spread mode. */
 	showCoverAsSinglePage?: boolean,
 	/**  Configuration for the Loupe (Magnifier) feature. */
-	loupe?: LoupeSettings,
+	loupe?: LoupeSettings_Deserialize,
 	/**  Configuration for image caching and preloading. */
-	cache?: ComicCacheSettings,
+	cache?: ComicCacheSettings_Deserialize,
+};
+
+/**  Configuration specific to reading comics (image-based content). */
+export type ComicSettings_Serialize = {
+	/**  The reading direction (e.g., Right-to-Left for Japanese manga). */
+	readingDirection: Direction,
+	/**  Whether to display pages side-by-side (two-page spread). */
+	enableSpread: boolean,
+	/**  Whether to force the first page (cover) to display as a single page in spread mode. */
+	showCoverAsSinglePage: boolean,
+	/**  Configuration for the Loupe (Magnifier) feature. */
+	loupe: LoupeSettings_Serialize,
+	/**  Configuration for image caching and preloading. */
+	cache: ComicCacheSettings_Serialize,
 };
 
 /**
@@ -1107,7 +1215,34 @@ export type ComicSettings = {
  *  wraps foreign error types that cannot derive `specta::Type`. The exported TS type
  *  takes this struct's name, `CommandError`.
  */
-export type CommandError = {
+export type CommandError = CommandError_Serialize | CommandError_Deserialize;
+
+/**
+ *  The serialized shape of [`Error`] exposed to the frontend (`{ code, message }`).
+ * 
+ *  This mirrors the custom `Serialize` implementation above and exists solely to
+ *  provide a `specta::Type` definition for `Error`, since the `Error` enum itself
+ *  wraps foreign error types that cannot derive `specta::Type`. The exported TS type
+ *  takes this struct's name, `CommandError`.
+ */
+export type CommandError_Deserialize = {
+	/**  The stable, programmatic error code. */
+	code: number,
+	/**  The human-readable error message. */
+	message: string,
+	/**  Per-field validation details, present only for `SettingsValidation` errors. */
+	details?: SettingsValidationViolation[] | null,
+};
+
+/**
+ *  The serialized shape of [`Error`] exposed to the frontend (`{ code, message }`).
+ * 
+ *  This mirrors the custom `Serialize` implementation above and exists solely to
+ *  provide a `specta::Type` definition for `Error`, since the `Error` enum itself
+ *  wraps foreign error types that cannot derive `specta::Type`. The exported TS type
+ *  takes this struct's name, `CommandError`.
+ */
+export type CommandError_Serialize = {
 	/**  The stable, programmatic error code. */
 	code: number,
 	/**  The human-readable error message. */
@@ -1139,10 +1274,15 @@ export type EntriesResult = {
 	is_directory: boolean,
 	/**  Whether the container is an EPUB novel. */
 	is_novel: boolean,
+	/**  Whether `get_image_preview` can send a page more cheaply than `get_image`. */
+	has_previews: boolean,
 };
 
 /**  Settings for the file navigator. */
-export type FileNavigatorSettings = {
+export type FileNavigatorSettings = FileNavigatorSettings_Serialize | FileNavigatorSettings_Deserialize;
+
+/**  Settings for the file navigator. */
+export type FileNavigatorSettings_Deserialize = {
 	/**  The default directory opened when clicking the Home button. */
 	homeDirectory?: string,
 	/**  The criteria used to sort files and directories. */
@@ -1151,14 +1291,27 @@ export type FileNavigatorSettings = {
 	watchDirectoryChanges?: boolean,
 };
 
+/**  Settings for the file navigator. */
+export type FileNavigatorSettings_Serialize = {
+	/**  The default directory opened when clicking the Home button. */
+	homeDirectory: string,
+	/**  The criteria used to sort files and directories. */
+	sortOrder: SortOrder,
+	/**  Whether to automatically watch the current directory for file changes. */
+	watchDirectoryChanges: boolean,
+};
+
 /**  General application settings. */
-export type GeneralSettings = {
+export type GeneralSettings = GeneralSettings_Serialize | GeneralSettings_Deserialize;
+
+/**  General application settings. */
+export type GeneralSettings_Deserialize = {
 	/**  The application's color theme. */
 	theme?: AppTheme,
 	/**  The font family used for the application's UI. */
 	appFontFamily?: string,
 	/**  Configuration for application logging. */
-	log?: LogSettings,
+	log?: LogSettings_Deserialize,
 	/**
 	 *  A flexible map for toggling or configuring experimental features.
 	 * 
@@ -1168,10 +1321,36 @@ export type GeneralSettings = {
 	experimentalFeatures?: { [key in string]: unknown },
 };
 
+/**  General application settings. */
+export type GeneralSettings_Serialize = {
+	/**  The application's color theme. */
+	theme: AppTheme,
+	/**  The font family used for the application's UI. */
+	appFontFamily: string,
+	/**  Configuration for application logging. */
+	log: LogSettings_Serialize,
+	/**
+	 *  A flexible map for toggling or configuring experimental features.
+	 * 
+	 *  Exported to TypeScript with `unknown` values: `serde_json::Value` is an inline,
+	 *  recursive type the exporter cannot expand, and experimental flags are arbitrary.
+	 */
+	experimentalFeatures: { [key in string]: unknown },
+};
+
 /**  Settings related to tracking user history. */
-export type HistorySettings = {
+export type HistorySettings = HistorySettings_Serialize | HistorySettings_Deserialize;
+
+/**  Settings related to tracking user history. */
+export type HistorySettings_Deserialize = {
 	/**  Whether to record the user's reading history and progress. */
 	recordReadingHistory?: boolean,
+};
+
+/**  Settings related to tracking user history. */
+export type HistorySettings_Serialize = {
+	/**  Whether to record the user's reading history and progress. */
+	recordReadingHistory: boolean,
 };
 
 /**  The pixel dimensions of a single image, without its data. */
@@ -1248,22 +1427,43 @@ export type ItemType =
 "directory";
 
 /**  Settings related to the application's layout. */
-export type LayoutSettings = {
+export type LayoutSettings = LayoutSettings_Serialize | LayoutSettings_Deserialize;
+
+/**  Settings related to the application's layout. */
+export type LayoutSettings_Deserialize = {
 	/**  Settings for the side pane (tabs and visibility). */
-	sidePane?: SidePaneSettings,
+	sidePane?: SidePaneSettings_Deserialize,
+};
+
+/**  Settings related to the application's layout. */
+export type LayoutSettings_Serialize = {
+	/**  Settings for the side pane (tabs and visibility). */
+	sidePane: SidePaneSettings_Serialize,
 };
 
 /**  Represents the severity level for application logs. */
 export type LogLevel = "trace" | "debug" | "info" | "warn" | "error";
 
 /**  Configuration for application logging. */
-export type LogSettings = {
+export type LogSettings = LogSettings_Serialize | LogSettings_Deserialize;
+
+/**  Configuration for application logging. */
+export type LogSettings_Deserialize = {
 	/**  The minimum severity level to log. */
 	level?: LogLevel,
 };
 
+/**  Configuration for application logging. */
+export type LogSettings_Serialize = {
+	/**  The minimum severity level to log. */
+	level: LogLevel,
+};
+
 /**  Configuration for the Loupe (Magnifier) feature. */
-export type LoupeSettings = {
+export type LoupeSettings = LoupeSettings_Serialize | LoupeSettings_Deserialize;
+
+/**  Configuration for the Loupe (Magnifier) feature. */
+export type LoupeSettings_Deserialize = {
 	/**  The magnification zoom level of the loupe (`1.0` = no magnification). */
 	zoom?: number | null,
 	/**  The radius (size) of the loupe. */
@@ -1272,16 +1472,67 @@ export type LoupeSettings = {
 	toggleKey?: string,
 };
 
+/**  Configuration for the Loupe (Magnifier) feature. */
+export type LoupeSettings_Serialize = {
+	/**  The magnification zoom level of the loupe (`1.0` = no magnification). */
+	zoom: number | null,
+	/**  The radius (size) of the loupe. */
+	radius: number | null,
+	/**  The keyboard shortcut key to toggle the loupe. */
+	toggleKey: string,
+};
+
 /**  Configuration specific to reading novels (text-based content). */
-export type NovelSettings = {
+export type NovelSettings = NovelSettings_Serialize | NovelSettings_Deserialize;
+
+/**  Configuration specific to reading novels (text-based content). */
+export type NovelSettings_Deserialize = {
 	/**  The font family used for rendering the text. */
 	fontFamily?: string,
 	/**  The size of the font used for rendering the text. Fractional sizes are allowed. */
 	fontSize?: number | null,
 };
 
+/**  Configuration specific to reading novels (text-based content). */
+export type NovelSettings_Serialize = {
+	/**  The font family used for rendering the text. */
+	fontFamily: string,
+	/**  The size of the font used for rendering the text. Fractional sizes are allowed. */
+	fontSize: number | null,
+};
+
 /**  Represents a book along with its reading state, specifically for books that have been opened. */
-export type ReadBook = {
+export type ReadBook = ReadBook_Serialize | ReadBook_Deserialize;
+
+/**  Represents a book along with its reading state, specifically for books that have been opened. */
+export type ReadBook_Deserialize = {
+	/**  The unique identifier for the book. */
+	id: number,
+	/**  The unique file path or directory path of the book. */
+	file_path: string,
+	/**  What the path points at. */
+	item_type: ItemType,
+	/**  The display name of the book. */
+	display_name: string,
+	/**  The total number of pages in the book. */
+	total_pages: number,
+	/**  The optional identifier of the series this book belongs to. */
+	series_id?: number | null,
+	/**  The optional order index of the book within its series. */
+	series_order?: number | null,
+	/**  The optional file path to the thumbnail image of the book. */
+	thumbnail_path?: string | null,
+	/**  The last read page index. */
+	last_read_page_index: number,
+	/**
+	 *  The timestamp when the book was last opened.
+	 *  This is guaranteed to be present (not null) for read books.
+	 */
+	last_opened_at: string,
+};
+
+/**  Represents a book along with its reading state, specifically for books that have been opened. */
+export type ReadBook_Serialize = {
 	/**  The unique identifier for the book. */
 	id: number,
 	/**  The unique file path or directory path of the book. */
@@ -1313,9 +1564,9 @@ export type ReaderSettings = ReaderSettings_Serialize | ReaderSettings_Deseriali
 /**  Settings for the reading experience. */
 export type ReaderSettings_Deserialize = {
 	/**  Configuration specific to reading comics/manga (images). */
-	comic?: ComicSettings,
+	comic?: ComicSettings_Deserialize,
 	/**  Configuration specific to reading novels (text). */
-	novel?: NovelSettings,
+	novel?: NovelSettings_Deserialize,
 	/**  Configuration for how pages and previews are rendered. */
 	rendering?: RenderingSettings_Deserialize,
 	/**  Behavior when paging past the last/first page of a book (auto-open adjacent book). */
@@ -1334,9 +1585,9 @@ export type ReaderSettings_Deserialize = {
 /**  Settings for the reading experience. */
 export type ReaderSettings_Serialize = {
 	/**  Configuration specific to reading comics/manga (images). */
-	comic: ComicSettings,
+	comic: ComicSettings_Serialize,
 	/**  Configuration specific to reading novels (text). */
-	novel: NovelSettings,
+	novel: NovelSettings_Serialize,
 	/**  Configuration for how pages and previews are rendered. */
 	rendering: RenderingSettings_Serialize,
 	/**  Behavior when paging past the last/first page of a book (auto-open adjacent book). */
@@ -1353,7 +1604,22 @@ export type ReaderSettings_Serialize = {
 };
 
 /**  Represents the reading state of a specific book. */
-export type ReadingState = {
+export type ReadingState = ReadingState_Serialize | ReadingState_Deserialize;
+
+/**  Represents the reading state of a specific book. */
+export type ReadingState_Deserialize = {
+	/**  The unique identifier for the associated book. */
+	book_id: number,
+	/**  The last read page index. */
+	last_read_page_index: number,
+	/**  The last EPUB reading position (CFI). `None` for comics. */
+	cfi?: string | null,
+	/**  The timestamp when the book was last opened. */
+	last_opened_at?: string | null,
+};
+
+/**  Represents the reading state of a specific book. */
+export type ReadingState_Serialize = {
 	/**  The unique identifier for the associated book. */
 	book_id: number,
 	/**  The last read page index. */
@@ -1453,11 +1719,22 @@ export type SettingsValidationViolation = {
 };
 
 /**  Settings for the side pane. */
-export type SidePaneSettings = {
+export type SidePaneSettings = SidePaneSettings_Serialize | SidePaneSettings_Deserialize;
+
+/**  Settings for the side pane. */
+export type SidePaneSettings_Deserialize = {
 	/**  Whether the side pane is hidden. */
 	isHidden?: boolean,
 	/**  The index of the active tab in the side pane. */
 	tabIndex?: number,
+};
+
+/**  Settings for the side pane. */
+export type SidePaneSettings_Serialize = {
+	/**  Whether the side pane is hidden. */
+	isHidden: boolean,
+	/**  The index of the active tab in the side pane. */
+	tabIndex: number,
 };
 
 /**  Represents the criteria used for sorting items. */
@@ -1472,13 +1749,26 @@ export type SortOrder =
 "date_desc";
 
 /**  Settings related to the application's startup behavior. */
-export type StartupSettings = {
+export type StartupSettings = StartupSettings_Serialize | StartupSettings_Deserialize;
+
+/**  Settings related to the application's startup behavior. */
+export type StartupSettings_Deserialize = {
 	/**  The initial view presented to the user upon launch. */
 	initialView?: InitialView,
 	/**  Whether to automatically restore the last opened book/container on startup. */
 	restoreLastBook?: boolean,
 	/**  Whether to automatically check for updates on startup. */
 	checkUpdateOnStartup?: boolean,
+};
+
+/**  Settings related to the application's startup behavior. */
+export type StartupSettings_Serialize = {
+	/**  The initial view presented to the user upon launch. */
+	initialView: InitialView,
+	/**  Whether to automatically restore the last opened book/container on startup. */
+	restoreLastBook: boolean,
+	/**  Whether to automatically check for updates on startup. */
+	checkUpdateOnStartup: boolean,
 };
 
 /**  Represents a tag entity used to categorize books. */

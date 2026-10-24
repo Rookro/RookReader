@@ -5,7 +5,7 @@ import { useAppDispatch, useAppSelector } from "../../../store/store";
 import { clearSettingsError } from "../errorSlice";
 
 /**
- * A headless component (mounted in the settings window) that turns a rejected
+ * A headless component (mounted in both windows) that turns a rejected
  * `updateSettings` into a user-facing notification, then clears the stored error.
  *
  * @remarks

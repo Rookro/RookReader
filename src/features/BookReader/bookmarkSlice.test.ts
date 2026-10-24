@@ -1,11 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as BookmarkCommands from "../../bindings/BookmarkCommands";
+import type { Bookmark } from "../../domain/bookmark/schema";
 import { createMockBookmark } from "../../test/factories";
 import { type AppStore, createTestStore } from "../../test/utils";
 import { CommandError, ErrorCode } from "../../types/Error";
 import bookmarkReducer, {
   addBookmark,
   clearBookmarkError,
+  clearBookmarks,
   fetchBookmarks,
   removeBookmark,
   updateBookmarkName,
@@ -15,8 +17,9 @@ describe("BookmarkReducer", () => {
   let store: AppStore;
 
   const initialState = {
-    bookmarks: [],
-    status: "idle" as const,
+    bookId: null as number | null,
+    bookmarks: [] as Bookmark[],
+    status: "idle" as "idle" | "loading" | "succeeded" | "failed",
     error: null as { code: ErrorCode; message?: string } | null,
   };
 
@@ -40,9 +43,7 @@ describe("BookmarkReducer", () => {
 
   describe("fetchBookmarks", () => {
     it("should mark the state as loading while fetching", () => {
-      const nextState = bookmarkReducer(initialState, {
-        type: fetchBookmarks.pending.type,
-      });
+      const nextState = bookmarkReducer(initialState, fetchBookmarks.pending("r", 1));
       expect(nextState.status).toBe("loading");
       expect(nextState.error).toBeNull();
     });
@@ -74,9 +75,64 @@ describe("BookmarkReducer", () => {
       expect(state.status).toBe("failed");
       expect(state.error?.code).toBe(ErrorCode.other);
     });
+
+    // A slow fetch for the previous book must not land in the next book's list
+    it("drops a list fetched for a book that is no longer open", () => {
+      let state = bookmarkReducer(initialState, fetchBookmarks.pending("r1", 1));
+      state = bookmarkReducer(state, fetchBookmarks.pending("r2", 2));
+      state = bookmarkReducer(
+        state,
+        fetchBookmarks.fulfilled([createMockBookmark({ id: 9, book_id: 1 })], "r1", 1),
+      );
+      expect(state.bookId).toBe(2);
+      expect(state.bookmarks).toEqual([]);
+      expect(state.status).toBe("loading");
+    });
+
+    it("empties the list when another book's fetch starts", () => {
+      const loaded = {
+        ...initialState,
+        bookId: 1,
+        bookmarks: [createMockBookmark({ book_id: 1 })],
+        status: "succeeded" as const,
+      };
+      expect(bookmarkReducer(loaded, fetchBookmarks.pending("r2", 2)).bookmarks).toEqual([]);
+    });
+
+    it("ignores a failure for a book that is no longer open", () => {
+      let state = bookmarkReducer(initialState, fetchBookmarks.pending("r1", 1));
+      state = bookmarkReducer(state, fetchBookmarks.pending("r2", 2));
+      state = bookmarkReducer(
+        state,
+        fetchBookmarks.rejected(null, "r1", 1, { code: ErrorCode.other }),
+      );
+      expect(state.error).toBeNull();
+      expect(state.status).toBe("loading");
+    });
+  });
+
+  // Closing a book (or a failed open) must not leave its bookmarks on screen
+  it("clearBookmarks forgets the book and its list", () => {
+    const loaded = {
+      ...initialState,
+      bookId: 1,
+      bookmarks: [createMockBookmark({ book_id: 1 })],
+      status: "succeeded" as const,
+    };
+    expect(bookmarkReducer(loaded, clearBookmarks())).toEqual(initialState);
   });
 
   describe("addBookmark", () => {
+    it("does not add another book's new bookmark to the list", () => {
+      const loaded = { ...initialState, bookId: 2, status: "succeeded" as const };
+      const created = createMockBookmark({ id: 5, book_id: 1 });
+      const state = bookmarkReducer(
+        loaded,
+        addBookmark.fulfilled(created, "r", { bookId: 1, name: "n", pageIndex: 0, cfi: null }),
+      );
+      expect(state.bookmarks).toEqual([]);
+    });
+
     // The list must stay in the backend's order so a newly added bookmark does not
     // appear at the end of the panel regardless of where it points.
     it("should insert the new bookmark in position order", async () => {
@@ -105,6 +161,7 @@ describe("BookmarkReducer", () => {
     it("should break ties on created_at and then id", () => {
       const state = {
         ...initialState,
+        bookId: 1,
         bookmarks: [
           createMockBookmark({ id: 5, page_index: 2, created_at: "2026-03-01T10:00:00" }),
         ],
@@ -126,7 +183,8 @@ describe("BookmarkReducer", () => {
       await store.dispatch(addBookmark({ bookId: 1, name: "P1", pageIndex: 0, cfi: null }));
 
       const state = store.getState().bookmark;
-      expect(state.status).toBe("failed");
+      // A failed edit says nothing about the loaded list, which stays usable.
+      expect(state.status).toBe("idle");
       expect(state.error?.code).toBe(ErrorCode.other);
     });
   });
@@ -155,7 +213,8 @@ describe("BookmarkReducer", () => {
       await store.dispatch(removeBookmark(1));
 
       const state = store.getState().bookmark;
-      expect(state.status).toBe("failed");
+      // A failed edit says nothing about the loaded list, which stays usable.
+      expect(state.status).toBe("idle");
       expect(state.error?.code).toBe(ErrorCode.other);
     });
   });
@@ -195,7 +254,8 @@ describe("BookmarkReducer", () => {
       await store.dispatch(updateBookmarkName({ id: 1, name: "x" }));
 
       const state = store.getState().bookmark;
-      expect(state.status).toBe("failed");
+      // A failed edit says nothing about the loaded list, which stays usable.
+      expect(state.status).toBe("idle");
       expect(state.error?.code).toBe(ErrorCode.other);
     });
   });

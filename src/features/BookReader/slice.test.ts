@@ -2,8 +2,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as BookCommands from "../../bindings/BookCommands";
 import * as ContainerCommands from "../../bindings/ContainerCommands";
 import * as DirectoryCommands from "../../bindings/DirectoryCommands";
-import { createMockBookWithState } from "../../test/factories";
-import { type AppStore, createTestStore, type RootState } from "../../test/utils";
+import { createMockBookWithState, createMockDirEntry } from "../../test/factories";
+import {
+  type AppStore,
+  createBasePreloadedState,
+  createTestStore,
+  type RootState,
+} from "../../test/utils";
 import type { DirEntry } from "../../types/DirEntry";
 import { CommandError, ErrorCode } from "../../types/Error";
 import readReducer, {
@@ -30,6 +35,7 @@ import readReducer, {
   toggleSpreadShift,
   updateExploreBasePath,
 } from "./slice";
+import type { OpenOrigin } from "./types/OpenOrigin";
 
 describe("ReadReducer", () => {
   let store: AppStore;
@@ -46,6 +52,48 @@ describe("ReadReducer", () => {
     });
 
     // Verify that image index is set correctly and CFI is cleared
+    describe("origin per history entry", () => {
+      const shelf: OpenOrigin = { kind: "bookshelf", bookshelfId: 5, sortOrder: "name_asc" };
+
+      // A typed path has no shelf behind it, so "next book" must not search the shelf
+      it("typing a path drops the previous book's origin", () => {
+        let state = readReducer(undefined, openBook({ path: "/s/v1.zip", origin: shelf }));
+        state = readReducer(state, setContainerFilePath("/other/x.zip"));
+        expect(state.containerFile.origin).toBeNull();
+      });
+
+      it("back and forward restore each entry's origin", () => {
+        let state = readReducer(undefined, openBook({ path: "/s/v1.zip", origin: shelf }));
+        state = readReducer(
+          state,
+          openBook({ path: "/d/a.zip", origin: { kind: "fileNavigator" } }),
+        );
+        state = readReducer(state, goBackContainerHistory());
+        expect(state.containerFile.origin).toEqual(shelf);
+        state = readReducer(state, goForwardContainerHistory());
+        expect(state.containerFile.origin).toEqual({ kind: "fileNavigator" });
+      });
+
+      it("a new open after going back drops the forward origins", () => {
+        let state = readReducer(undefined, openBook({ path: "/a", origin: shelf }));
+        state = readReducer(state, openBook({ path: "/b", origin: null }));
+        state = readReducer(state, goBackContainerHistory());
+        state = readReducer(state, openBook({ path: "/c", origin: { kind: "history" } }));
+        expect(state.containerFile.originHistory).toEqual([shelf, { kind: "history" }]);
+      });
+    });
+
+    // Choosing the section the novel is already in must keep the exact position
+    it("keeps the CFI when setImageIndex names the current section", () => {
+      const initialState = {
+        containerFile: { isNovel: true, index: 3, cfi: "epubcfi(/6/8!/4/2)" },
+      } as RootState["read"];
+      expect(readReducer(initialState, setImageIndex(3)).containerFile.cfi).toBe(
+        "epubcfi(/6/8!/4/2)",
+      );
+      expect(readReducer(initialState, setImageIndex(4)).containerFile.cfi).toBeNull();
+    });
+
     it("should handle setImageIndex", () => {
       const initialState = {
         containerFile: { index: 0, cfi: "old-cfi" },
@@ -76,7 +124,12 @@ describe("ReadReducer", () => {
     // Verify that opening another book never leaves a stale spread flag behind
     it("should clear the displayed-spread flag on setContainerFilePath", () => {
       const initialState = {
-        containerFile: { history: [], historyIndex: -1, isSpreadDisplayed: true },
+        containerFile: {
+          originHistory: [] as OpenOrigin[],
+          history: [],
+          historyIndex: -1,
+          isSpreadDisplayed: true,
+        },
       } as unknown as RootState["read"];
       const state = readReducer(initialState, setContainerFilePath("/books/a.zip"));
       expect(state.containerFile.isSpreadDisplayed).toBe(false);
@@ -94,7 +147,12 @@ describe("ReadReducer", () => {
     // Verify that container file path is set and history is updated
     it("should handle setContainerFilePath and update history", () => {
       const initialState = {
-        containerFile: { history: ["old"], historyIndex: 0, index: 5 },
+        containerFile: {
+          originHistory: [] as OpenOrigin[],
+          history: ["old"],
+          historyIndex: 0,
+          index: 5,
+        },
       } as RootState["read"];
       const state = readReducer(initialState, setContainerFilePath("new"));
       expect(state.containerFile.history).toEqual(["old", "new"]);
@@ -105,7 +163,13 @@ describe("ReadReducer", () => {
     // Verify that opening another book drops the previous book's shifted pairing
     it("should reset the shifted flag in setContainerFilePath", () => {
       const initialState = {
-        containerFile: { history: ["old"], historyIndex: 0, index: 5, isSpreadShifted: true },
+        containerFile: {
+          originHistory: [] as OpenOrigin[],
+          history: ["old"],
+          historyIndex: 0,
+          index: 5,
+          isSpreadShifted: true,
+        },
       } as RootState["read"];
       const state = readReducer(initialState, setContainerFilePath("new"));
       expect(state.containerFile.isSpreadShifted).toBe(false);
@@ -114,7 +178,7 @@ describe("ReadReducer", () => {
     // Verify that history is not updated when setContainerFilePath is called with current path
     it("should not update history if setContainerFilePath is called with current path", () => {
       const initialState = {
-        containerFile: { history: ["current"], historyIndex: 0 },
+        containerFile: { originHistory: [] as OpenOrigin[], history: ["current"], historyIndex: 0 },
       } as RootState["read"];
       const state = readReducer(initialState, setContainerFilePath("current"));
       expect(state.containerFile.history).toHaveLength(1);
@@ -123,7 +187,12 @@ describe("ReadReducer", () => {
     // Verify that a no-op open (same path) clears any pending initial position
     it("should clear pendingInitialPosition on a no-op setContainerFilePath", () => {
       const initialState = {
-        containerFile: { history: ["current"], historyIndex: 0, pendingInitialPosition: "last" },
+        containerFile: {
+          originHistory: [] as OpenOrigin[],
+          history: ["current"],
+          historyIndex: 0,
+          pendingInitialPosition: "last",
+        },
       } as RootState["read"];
       const state = readReducer(initialState, setContainerFilePath("current"));
       expect(state.containerFile.history).toHaveLength(1);
@@ -133,7 +202,11 @@ describe("ReadReducer", () => {
     // Verify that subsequent history is sliced when a new path is set while in the middle of history
     it("should slice history in setContainerFilePath when index is not at the end", () => {
       const initialState = {
-        containerFile: { history: ["p1", "p2", "p3"], historyIndex: 1 },
+        containerFile: {
+          originHistory: [] as OpenOrigin[],
+          history: ["p1", "p2", "p3"],
+          historyIndex: 1,
+        },
       } as RootState["read"];
       const state = readReducer(initialState, setContainerFilePath("new"));
       expect(state.containerFile.history).toEqual(["p1", "p2", "new"]);
@@ -172,7 +245,11 @@ describe("ReadReducer", () => {
     // Verify that container and explorer history navigation (back/forward) works correctly
     it("should handle history navigation", () => {
       const initialState = {
-        containerFile: { history: ["p1", "p2", "p3"], historyIndex: 1 },
+        containerFile: {
+          originHistory: [] as OpenOrigin[],
+          history: ["p1", "p2", "p3"],
+          historyIndex: 1,
+        },
         explorer: { history: ["d1", "d2", "d3"], historyIndex: 1 },
       } as RootState["read"];
 
@@ -246,6 +323,7 @@ describe("ReadReducer", () => {
       const initialState = {
         containerFile: {
           history: ["old"],
+          originHistory: [null],
           historyIndex: 0,
           index: 5,
           isSpreadShifted: true,
@@ -286,6 +364,7 @@ describe("ReadReducer", () => {
       const initialState = {
         containerFile: {
           history: ["current"],
+          originHistory: [{ kind: "history" }],
           historyIndex: 0,
           index: 7,
           isLoading: false,
@@ -348,6 +427,15 @@ describe("ReadReducer", () => {
       expect(state.containerFile.novelDirection).toBeNull();
     });
 
+    // The previous book must not receive the next book's progress or bookmarks while it opens
+    it("should forget the previous book when an open starts", () => {
+      const state = readReducer(
+        { containerFile: { book: createMockBookWithState({ id: 1 }) } } as RootState["read"],
+        openContainerFile.pending("requestId", "/b.zip"),
+      );
+      expect(state.containerFile.book).toBeNull();
+    });
+
     // Verify that a failed open leaves no direction behind, like the other book state
     it("should clear novelDirection when opening fails", () => {
       const initialState = {
@@ -392,6 +480,7 @@ describe("ReadReducer", () => {
           is_directory: false,
           entries: ["p1", "p2"],
           is_novel: false,
+          has_previews: false,
         });
         vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(1);
         vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
@@ -408,12 +497,38 @@ describe("ReadReducer", () => {
         expect(state.containerFile.isSpreadShifted).toBe(false);
       });
 
+      // The viewer asks for previews only when the open book says it has them
+      it("keeps whether the open book has previews, and forgets it on the next open", async () => {
+        vi.mocked(ContainerCommands.getEntriesInContainer).mockResolvedValueOnce({
+          is_directory: false,
+          entries: ["0000"],
+          is_novel: false,
+          has_previews: true,
+        });
+        vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(1);
+        vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(
+          createMockBookWithState({ id: 1 }),
+        );
+
+        store.dispatch(setContainerFilePath("path/to/book.pdf"));
+        await store.dispatch(openContainerFile("path/to/book.pdf"));
+        expect(store.getState().read.containerFile.hasPreviews).toBe(true);
+
+        vi.mocked(ContainerCommands.getEntriesInContainer).mockReturnValueOnce(
+          new Promise(() => {}),
+        );
+        store.dispatch(setContainerFilePath("path/to/other.zip"));
+        void store.dispatch(openContainerFile("path/to/other.zip"));
+        expect(store.getState().read.containerFile.hasPreviews).toBe(false);
+      });
+
       // Verify that a book which opened stays on screen when the library cannot record it
       it("keeps the pages when recording the opened book fails", async () => {
         vi.mocked(ContainerCommands.getEntriesInContainer).mockResolvedValue({
           is_directory: false,
           entries: ["p1", "p2"],
           is_novel: false,
+          has_previews: false,
         });
         vi.mocked(BookCommands.recordBookOpened).mockRejectedValue(
           new CommandError(ErrorCode.database, "database is locked"),
@@ -444,6 +559,7 @@ describe("ReadReducer", () => {
           is_directory: false,
           entries: ["p1", "p2", "p3", "p4", "p5", "p6"],
           is_novel: false,
+          has_previews: false,
         });
         vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(1);
         vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
@@ -467,6 +583,7 @@ describe("ReadReducer", () => {
           is_directory: false,
           entries: ["p1", "p2"],
           is_novel: false,
+          has_previews: false,
         });
         vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(7);
         vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
@@ -487,6 +604,7 @@ describe("ReadReducer", () => {
           is_directory: false,
           entries: ["p1", "p2"],
           is_novel: false,
+          has_previews: false,
         });
         vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(7);
         vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
@@ -506,6 +624,7 @@ describe("ReadReducer", () => {
           is_directory: false,
           entries: ["p1", "p2"],
           is_novel: false,
+          has_previews: false,
         });
         vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(1);
         vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(null);
@@ -527,6 +646,7 @@ describe("ReadReducer", () => {
           is_directory: false,
           entries: ["p1", "p2"],
           is_novel: false,
+          has_previews: false,
         });
         vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(7);
         vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
@@ -546,6 +666,7 @@ describe("ReadReducer", () => {
           is_directory: false,
           entries: ["p1", "p2"],
           is_novel: false,
+          has_previews: false,
         });
         vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(7);
         vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
@@ -565,6 +686,7 @@ describe("ReadReducer", () => {
           is_directory: false,
           entries: ["Chapter 1"],
           is_novel: true,
+          has_previews: false,
         });
         vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(7);
         vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
@@ -584,6 +706,7 @@ describe("ReadReducer", () => {
           is_directory: false,
           entries: ["p1", "p2"],
           is_novel: false,
+          has_previews: false,
         });
         vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(7);
         vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
@@ -606,6 +729,7 @@ describe("ReadReducer", () => {
           is_directory: false,
           entries: ["001.png"],
           is_novel: false,
+          has_previews: false,
         });
         vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(1);
         vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(
@@ -628,6 +752,7 @@ describe("ReadReducer", () => {
           is_directory: false,
           entries: ["p1", "p2", "p3"],
           is_novel: false,
+          has_previews: false,
         });
         vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(1);
         vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
@@ -650,6 +775,7 @@ describe("ReadReducer", () => {
           is_directory: false,
           entries: ["p1", "p2", "p3"],
           is_novel: false,
+          has_previews: false,
         });
         vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(1);
         vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
@@ -672,6 +798,7 @@ describe("ReadReducer", () => {
           is_directory: false,
           entries: ["p1", "p2", "p3"],
           is_novel: false,
+          has_previews: false,
         });
         vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(1);
         vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
@@ -696,6 +823,7 @@ describe("ReadReducer", () => {
           is_directory: false,
           entries: ["s1", "s2", "s3", "s4"],
           is_novel: true,
+          has_previews: false,
         });
         vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(1);
         vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
@@ -720,6 +848,7 @@ describe("ReadReducer", () => {
           is_directory: false,
           entries: ["p1", "p2"],
           is_novel: false,
+          has_previews: false,
         });
         vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(1);
         vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
@@ -742,6 +871,7 @@ describe("ReadReducer", () => {
           is_directory: false,
           entries: ["s1", "s2", "s3"],
           is_novel: true,
+          has_previews: false,
         });
         vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(1);
         vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
@@ -762,6 +892,7 @@ describe("ReadReducer", () => {
           is_directory: false,
           entries: ["p1", "p2"],
           is_novel: true,
+          has_previews: false,
         });
         vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(1);
         vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
@@ -800,6 +931,7 @@ describe("ReadReducer", () => {
             entries: ["o1", "o2", "o3"],
             isDirectory: false,
             isNovel: false,
+            hasPreviews: false,
             book: createMockBookWithState({ id: 1 }),
             readingDirection: "rtl",
             bookRecordError: null,
@@ -836,6 +968,75 @@ describe("ReadReducer", () => {
         const state = store.getState().read;
         expect(state.containerFile.error?.code).toBe(ErrorCode.other);
         expect(state.containerFile.error?.message).toContain("cmd failed");
+      });
+    });
+
+    describe("updateExploreBasePath staleness", () => {
+      const explorerAt = (path: string, requestId: string) => {
+        const state = structuredClone(readReducer(undefined, { type: "unknown" }));
+        state.explorer.history = [path];
+        state.explorer.historyIndex = 0;
+        state.explorer.entries = [createMockDirEntry({ name: "kept" })];
+        state.explorer.isLoading = true;
+        state.explorer.requestId = requestId;
+        return state;
+      };
+
+      // A failing folder followed by a good one: the late failure must not clear the good one
+      it("ignores a failure of a superseded listing", () => {
+        const state = readReducer(
+          explorerAt("/good", "r2"),
+          updateExploreBasePath.rejected(null, "r1", { dirPath: "/bad" }, { code: ErrorCode.io }),
+        );
+        expect(state.explorer.entries).toHaveLength(1);
+        expect(state.explorer.error).toBeNull();
+        expect(state.explorer.isLoading).toBe(true);
+      });
+
+      it("ignores a superseded listing of the same folder", () => {
+        const state = readReducer(
+          explorerAt("/a", "r2"),
+          updateExploreBasePath.fulfilled({ path: "/a", entries: [] }, "r1", {
+            dirPath: "/a",
+            forceUpdate: true,
+          }),
+        );
+        expect(state.explorer.entries).toHaveLength(1);
+        expect(state.explorer.isLoading).toBe(true);
+      });
+
+      it("tracks the folder of the latest listing until it settles", () => {
+        let state = readReducer(
+          undefined,
+          updateExploreBasePath.pending("r1", { dirPath: "/a", forceUpdate: true }),
+        );
+        expect(state.explorer.pendingPath).toBe("/a");
+        state = readReducer(
+          state,
+          updateExploreBasePath.pending("r2", { dirPath: "/b", forceUpdate: true }),
+        );
+        state = readReducer(
+          state,
+          updateExploreBasePath.fulfilled({ path: "/a", entries: [] }, "r1", { dirPath: "/a" }),
+        );
+        expect(state.explorer.pendingPath).toBe("/b");
+        state = readReducer(
+          state,
+          updateExploreBasePath.rejected(null, "r2", { dirPath: "/b" }, { code: ErrorCode.io }),
+        );
+        expect(state.explorer.pendingPath).toBeNull();
+      });
+
+      it("dispatches nothing when the folder is already shown", async () => {
+        const preloaded = createBasePreloadedState();
+        preloaded.read.explorer.history = ["/a"];
+        preloaded.read.explorer.historyIndex = 0;
+        store = createTestStore(preloaded);
+
+        await store.dispatch(updateExploreBasePath({ dirPath: "/a" }));
+
+        expect(DirectoryCommands.getEntriesInDir).not.toHaveBeenCalled();
+        expect(store.getState().read.explorer.requestId).toBeNull();
       });
     });
 
@@ -984,6 +1185,7 @@ describe("ReadReducer", () => {
           is_directory: true,
           entries: ["p1", "p2"],
           is_novel: true,
+          has_previews: false,
         });
         vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(1);
         vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);

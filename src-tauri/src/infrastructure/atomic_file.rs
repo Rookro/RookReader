@@ -21,8 +21,8 @@ fn staging_path(target: &Path) -> PathBuf {
 
 /// Writes `bytes` to `target` through a temporary file next to it, then renames it over.
 ///
-/// A crash mid-write leaves the target untouched, and two concurrent writers of the same
-/// target each rename their own file, so the last rename wins whole.
+/// A crash or power loss mid-write leaves the target untouched, and two concurrent writers
+/// of the same target each rename their own file, so the last rename wins whole.
 ///
 /// # Arguments
 ///
@@ -31,16 +31,30 @@ fn staging_path(target: &Path) -> PathBuf {
 ///
 /// # Errors
 ///
-/// Returns the I/O error of the write or the rename; a failed rename removes the
+/// Returns the I/O error of the write or the rename; a failed write or rename removes the
 /// temporary file first.
 pub fn write_atomically(target: &Path, bytes: &[u8]) -> io::Result<()> {
     let tmp = staging_path(target);
-    fs::write(&tmp, bytes)?;
-    if let Err(e) = fs::rename(&tmp, target) {
+    if let Err(e) = write_and_sync(&tmp, bytes).and_then(|()| fs::rename(&tmp, target)) {
         let _ = fs::remove_file(&tmp);
         return Err(e);
     }
+    // The new contents are already in place; failing to persist the rename itself is
+    // worth a warning, not an error the caller would read as "not written".
+    // Windows cannot open a directory this way, and NTFS journals the rename.
+    #[cfg(unix)]
+    if let Some(dir) = target.parent() {
+        if let Err(e) = fs::File::open(dir).and_then(|dir| dir.sync_all()) {
+            log::warn!("Could not flush the directory of {}: {e}", target.display());
+        }
+    }
     Ok(())
+}
+
+fn write_and_sync(path: &Path, bytes: &[u8]) -> io::Result<()> {
+    let mut file = fs::File::create(path)?;
+    io::Write::write_all(&mut file, bytes)?;
+    file.sync_all()
 }
 
 #[cfg(test)]

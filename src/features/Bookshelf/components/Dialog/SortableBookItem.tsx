@@ -20,7 +20,6 @@ export default function SortableBookItem({ book, index }: SortableBookItemProps)
     transform: CSS.Transform.toString(transform),
     transition,
     zIndex: isDragging ? 1 : 0,
-    backgroundColor: isDragging ? "action.hover" : "background.paper",
     opacity: isDragging ? 0.8 : 1,
   };
 
@@ -29,6 +28,8 @@ export default function SortableBookItem({ book, index }: SortableBookItemProps)
       ref={setNodeRef}
       style={style}
       sx={{
+        // Theme tokens resolve only in sx, not in the inline style above.
+        bgcolor: isDragging ? "action.hover" : "background.paper",
         border: "1px solid",
         borderColor: "divider",
         borderRadius: 1,

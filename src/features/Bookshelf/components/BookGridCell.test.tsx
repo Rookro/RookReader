@@ -311,6 +311,15 @@ describe("BookGridCell", () => {
       expect(areEqual(props, props)).toBe(true);
     });
 
+    // A cell kept on a stale handler acts on the selection it was rendered with
+    it("returns false when onBookClick changes", () => {
+      expect(areEqual(props, { ...props, onBookClick: vi.fn() })).toBe(false);
+    });
+
+    it("returns false when onSeriesClick changes", () => {
+      expect(areEqual(props, { ...props, onSeriesClick: vi.fn() })).toBe(false);
+    });
+
     it("returns false if columnIndex changes", () => {
       expect(areEqual(props, { ...props, columnIndex: 1 })).toBe(false);
     });

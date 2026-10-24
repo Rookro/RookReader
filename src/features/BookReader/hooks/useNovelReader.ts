@@ -1,14 +1,17 @@
-import { exists, readFile } from "@tauri-apps/plugin-fs";
 import { error } from "@tauri-apps/plugin-log";
 import type { TOCItem } from "foliate-js/epub.js";
 import { Paginator } from "foliate-js/paginator.js";
 import { type Book, makeBook, type View, type ViewLocation } from "foliate-js/view.js";
+import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import BundledNotoSerifJP from "../../../assets/fonts/NotoSerifJP-VariableFont_wght.woff2";
+import { readNovelFile } from "../../../bindings/ContainerCommands";
 import { useAppTheme } from "../../../hooks/useAppTheme";
 import { useAppDispatch, useAppSelector } from "../../../store/store";
 import { CommandError, ErrorCode } from "../../../types/Error";
 import { setEntries, setNovelDirection, setNovelLocation } from "../slice";
+import { blockSectionScripts } from "../utils/epubContentPolicy";
+import { holdWheelGesture } from "../utils/wheelGesture";
 import { usePageNavigation } from "./usePageNavigation";
 import { useReaderKeydown } from "./useReaderKeydown";
 import { useReadingDirection } from "./useReadingDirection";
@@ -63,7 +66,7 @@ export interface UseNovelReaderOptions {
  * Handles loading EPUB files, setting up the view, applying themes, and handling navigation.
  *
  * @param options - Configuration options including the file path.
- * @returns An object containing the viewer reference.
+ * @returns The viewer reference, the viewer's wheel handler, and the load error.
  */
 export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
   const theme = useAppTheme();
@@ -88,12 +91,15 @@ export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
   const fontSize = useAppSelector((state) => state.settings.reader.novel.fontSize);
   const dispatch = useAppDispatch();
 
-  const onMoveForward = useCallback(() => {
+  // The novel reader has no adjacent-book hand-off, so its moves always count as moved.
+  const onMoveForward = useCallback((): boolean => {
     viewRef.current?.next();
+    return true;
   }, []);
 
-  const onMoveBack = useCallback(() => {
+  const onMoveBack = useCallback((): boolean => {
     viewRef.current?.prev();
+    return true;
   }, []);
 
   const applyThemeToView = useCallback(
@@ -188,23 +194,8 @@ export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
         return;
       }
 
-      let binaryData: Awaited<ReturnType<typeof readFile>>;
-      try {
-        binaryData = await readFile(filePath);
-      } catch (ex) {
-        // "The book is gone" is the one read failure the reader can act on, and the OS
-        // message is localized, so ask the filesystem rather than match on its text.
-        let code: ErrorCode = ErrorCode.io;
-        try {
-          if (!(await exists(filePath))) {
-            code = ErrorCode.pathNotFound;
-          }
-        } catch {
-          // The check failing says nothing about the file; keep the I/O code.
-        }
-        // Re-thrown with the original message so the log line below is unchanged.
-        throw new CommandError(code, ex instanceof Error ? ex.message : String(ex));
-      }
+      // The backend reports a missing file as pathNotFound and any other failure as io.
+      const binaryData = await readNovelFile(filePath);
 
       if (!isMounted) {
         return;
@@ -212,6 +203,12 @@ export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
 
       const file = new File([binaryData], filePath, { type: "application/epub+zip" });
       const book = await makeBook(file);
+      // Unmounted while parsing: this book's direction belongs to no reader any more.
+      if (!isMounted) {
+        book.destroy?.();
+        return;
+      }
+      blockSectionScripts(book);
       bookRef.current = book;
 
       // The spine's page-progression-direction states how the whole book pages, so it
@@ -219,11 +216,6 @@ export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
       if (book.dir === "rtl" || book.dir === "ltr") {
         contextRef.current.dispatch(setNovelDirection(book.dir));
         isDirectionSettledRef.current = true;
-      }
-
-      if (!isMounted) {
-        book.destroy?.();
-        return;
       }
 
       if (book.sections) {
@@ -357,5 +349,13 @@ export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
 
   useReaderKeydown(handleKeydown);
 
-  return { viewerRef, loadError };
+  // Until a section is shown no iframe takes the wheel, so the viewer continues the gesture;
+  // afterwards wheel events here come from the margins around the iframe and do nothing.
+  const handleViewerWheel = useCallback((e: React.WheelEvent) => {
+    if (!viewRef.current?.lastLocation) {
+      holdWheelGesture(e);
+    }
+  }, []);
+
+  return { viewerRef, handleViewerWheel, loadError };
 };

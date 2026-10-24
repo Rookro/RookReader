@@ -16,6 +16,7 @@ import {
 } from "@mui/material";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import type { BookWithState } from "../../../../domain/book/schema";
 import type { Series } from "../../../../domain/series/schema";
 import { useAppDispatch } from "../../../../store/store";
 import { addSeries, updateBooksSeries } from "../../seriesSlice";
@@ -24,8 +25,8 @@ import { addSeries, updateBooksSeries } from "../../seriesSlice";
 export interface SetSeriesDialogProps {
   /** Whether the dialog is open or closed. */
   open: boolean;
-  /** The IDs of the books to update. */
-  bookIds: number[];
+  /** The books to update. */
+  books: BookWithState[];
   /** The available series to choose from. */
   availableSeries: Series[];
   /** Callback to close the dialog. */
@@ -35,21 +36,27 @@ export interface SetSeriesDialogProps {
 /** Dialog for setting a series for one or more books */
 export default function SetSeriesDialog({
   open,
-  bookIds,
+  books,
   availableSeries,
   onClose,
 }: SetSeriesDialogProps) {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
-  const [selectedSeriesId, setSelectedSeriesId] = useState<number | null>(null);
+  // `null` is "No series"; `undefined` is no choice yet, when the books are in different
+  // series and there is no common one to keep.
+  const [selectedSeriesId, setSelectedSeriesId] = useState<number | null | undefined>(null);
   const [searchText, setSearchText] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [newSeriesName, setNewSeriesName] = useState("");
 
-  // Reset state when dialog opens
+  // Reset state when dialog opens, starting from the series the books are already in.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: seed only when the dialog opens.
   useEffect(() => {
     if (open) {
-      setSelectedSeriesId(null);
+      const seriesIds = new Set(books.map((book) => book.series_id));
+      setSelectedSeriesId(
+        seriesIds.size > 1 ? undefined : (seriesIds.values().next().value ?? null),
+      );
       setSearchText("");
       setIsCreating(false);
       setNewSeriesName("");
@@ -67,17 +74,19 @@ export default function SetSeriesDialog({
   }, []);
 
   const handleSave = useCallback(async () => {
-    if (bookIds.length === 0) {
+    if (books.length === 0) {
       onClose();
       return;
     }
+    if (selectedSeriesId === undefined) return;
+    const bookIds = books.map((book) => book.id);
     const result = await dispatch(updateBooksSeries({ bookIds, seriesId: selectedSeriesId }));
     // On failure the slice error is shown by GlobalErrorListener and the backend's
     // `books-changed` refetch reflects any partial success; stay open for retry.
     if (updateBooksSeries.fulfilled.match(result)) {
       onClose();
     }
-  }, [bookIds, selectedSeriesId, dispatch, onClose]);
+  }, [books, selectedSeriesId, dispatch, onClose]);
 
   const handleCreateSeries = useCallback(async () => {
     if (!newSeriesName.trim()) return;
@@ -190,7 +199,7 @@ export default function SetSeriesDialog({
         <Button onClick={onClose} sx={{ color: "text.secondary" }}>
           {t("bookshelf.collection.cancel-button")}
         </Button>
-        <Button variant="contained" onClick={handleSave}>
+        <Button variant="contained" onClick={handleSave} disabled={selectedSeriesId === undefined}>
           {t("bookshelf.collection.ok-button")}
         </Button>
       </DialogActions>

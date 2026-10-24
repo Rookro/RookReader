@@ -80,6 +80,8 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
         commands::bookmark_commands::rename_bookmark,
         commands::bookmark_commands::delete_bookmark,
         commands::updater_commands::is_updater_supported,
+        commands::updater_commands::claim_update_prompt,
+        commands::updater_commands::release_update_prompt,
     ])
 }
 
@@ -114,16 +116,18 @@ pub fn run() {
     // hand-written handler and are routed to it by command name; everything else
     // falls through to the generated handler above. Keep this list in sync with the
     // `generate_handler!` invocation below — both are the single, small binary set.
-    const BINARY_COMMANDS: [&str; 4] = [
+    const BINARY_COMMANDS: [&str; 5] = [
         "get_image",
         "get_image_full",
         "get_image_preview",
+        "read_novel_file",
         "get_entries_in_dir",
     ];
     let binary_handler = tauri::generate_handler![
         commands::container_commands::get_image,
         commands::container_commands::get_image_full,
         commands::container_commands::get_image_preview,
+        commands::container_commands::read_novel_file,
         commands::directory_commands::get_entries_in_dir,
     ] as fn(tauri::ipc::Invoke<tauri::Wry>) -> bool;
 
@@ -141,6 +145,9 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(RwLock::new(state::app_state::AppState::default()))
         .manage(settings::SettingsFileLock::default())
+        .manage(commands::updater_commands::UpdatePromptLock::default())
+        .on_window_event(commands::updater_commands::release_update_prompt_on_destroy)
+        .on_page_load(commands::updater_commands::release_update_prompt_on_reload)
         .setup(|app| {
             if let Err(e) = setup::setup(app) {
                 app.dialog()

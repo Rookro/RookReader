@@ -52,7 +52,7 @@ export default function BookshelfToolbar() {
   const handleSettingsClicked = useCallback(
     async (_e: React.MouseEvent<HTMLButtonElement>) => {
       debug("Settings button clicked in bookshelf.");
-      openSettingsWindow(t("common.settings"));
+      await openSettingsWindow(t("common.settings"));
     },
     [t],
   );

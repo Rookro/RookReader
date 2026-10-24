@@ -33,6 +33,19 @@ describe("useReaderKeydown", () => {
     input.remove();
   });
 
+  // A key pressed in a dialog belongs to the dialog, not to the page behind it
+  it("ignores a key press inside a dialog", () => {
+    const handler = renderWithView("reader");
+    const dialog = document.createElement("div");
+    dialog.setAttribute("role", "dialog");
+    const button = document.createElement("button");
+    dialog.appendChild(button);
+    document.body.appendChild(dialog);
+    fireEvent.keyDown(button, { key: "ArrowLeft" });
+    expect(handler).not.toHaveBeenCalled();
+    dialog.remove();
+  });
+
   it("stops listening once the hook unmounts", () => {
     const handler = vi.fn();
     const { unmount } = renderHook(() => useReaderKeydown(handler), {

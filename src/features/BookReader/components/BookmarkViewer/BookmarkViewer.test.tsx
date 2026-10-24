@@ -14,35 +14,36 @@ import BookmarkViewer from "./BookmarkViewer";
 describe("BookmarkViewer", () => {
   const user = userEvent.setup();
 
+  let loadedBookmarks: Bookmark[] = [];
+
   beforeEach(() => {
     vi.clearAllMocks();
     mockSettingsCommands();
+    loadedBookmarks = [];
   });
 
-  /** Builds a state with a book open, optionally as a novel. */
+  /** Builds a state with a book open, optionally as a novel, and its loaded bookmarks. */
   const stateWithOpenBook = (isNovel = false) => {
     const preloadedState = createBasePreloadedState();
     preloadedState.read.containerFile.book = createMockBookWithState({ id: 42 });
     preloadedState.read.containerFile.isNovel = isNovel;
+    preloadedState.bookmark = {
+      bookId: 42,
+      bookmarks: loadedBookmarks,
+      status: "succeeded",
+      error: null,
+    };
     return preloadedState;
   };
 
-  /** Makes the on-mount fetch resolve with `bookmarks`, as the backend would. */
+  /** The list `useBookmarkSync` would have loaded for the open book. */
   const givenBookmarks = (bookmarks: Bookmark[]) => {
-    vi.mocked(BookmarkCommands.getBookmarksByBookId).mockResolvedValue(bookmarks);
+    loadedBookmarks = bookmarks;
   };
 
-  it("should fetch the bookmarks of the open book on mount", async () => {
-    givenBookmarks([]);
+  // Loading the list is useBookmarkSync's job, so the panel shows whatever is loaded
+  it("does not fetch bookmarks itself", () => {
     renderWithProviders(<BookmarkViewer />, { preloadedState: stateWithOpenBook() });
-
-    await waitFor(() => {
-      expect(BookmarkCommands.getBookmarksByBookId).toHaveBeenCalledWith(42);
-    });
-  });
-
-  it("should not fetch when no book is open", () => {
-    renderWithProviders(<BookmarkViewer />);
 
     expect(BookmarkCommands.getBookmarksByBookId).not.toHaveBeenCalled();
   });
