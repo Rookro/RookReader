@@ -18,7 +18,7 @@ export interface NovelReaderProps {
  * in future releases.
  */
 export default function NovelReader({ filePath }: NovelReaderProps) {
-  const { viewerRef, loadError } = useNovelReader({ filePath });
+  const { viewerRef, handleViewerWheel, loadError } = useNovelReader({ filePath });
 
   return (
     <Badge
@@ -37,7 +37,13 @@ export default function NovelReader({ filePath }: NovelReaderProps) {
         },
       }}
     >
-      <Box component="div" ref={viewerRef} sx={{ width: "100%", height: "100%" }} />
+      <Box
+        component="div"
+        ref={viewerRef}
+        data-testid="novel-viewer"
+        onWheel={handleViewerWheel}
+        sx={{ width: "100%", height: "100%" }}
+      />
       {loadError ? <ReaderErrorOverlay context="load-novel" code={loadError.code} /> : null}
     </Badge>
   );

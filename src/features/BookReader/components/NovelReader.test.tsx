@@ -1,13 +1,14 @@
-import { act, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { makeBook } from "foliate-js/view.js";
 import type { Mock } from "vitest";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { readNovelFile } from "../../../bindings/ContainerCommands";
 import { mockLog } from "../../../test/mocks/tauri";
 import { createBasePreloadedState, renderWithProviders } from "../../../test/utils";
 import { CommandError, ErrorCode } from "../../../types/Error";
 import * as pageNav from "../hooks/usePageNavigation";
 import * as ReadReducer from "../slice";
+import { wheelGesture } from "../utils/wheelGesture";
 import NovelReader from "./NovelReader";
 
 // Mock foliate-js/view.js
@@ -65,6 +66,15 @@ describe("BookReader/NovelReader", () => {
   };
 
   let mockView: Partial<View> & { [key: string]: unknown };
+
+  const spyOnHold = () => {
+    const hold = vi.spyOn(wheelGesture, "hold");
+    onTestFinished(() => {
+      hold.mockRestore();
+      wheelGesture.reset();
+    });
+    return hold;
+  };
   const originalCreateElement = document.createElement;
 
   beforeEach(() => {
@@ -107,6 +117,51 @@ describe("BookReader/NovelReader", () => {
     expect(readNovelFile).toHaveBeenCalledWith(mockFilePath);
     await waitFor(() => expect(mockView.open).toHaveBeenCalledWith(mockBook));
     expect(screen.getByText("Beta")).toBeTruthy();
+  });
+
+  // Until foliate-js adds the book's iframe, wheel events land on the empty viewer.
+  it("continues a wheel gesture over the viewer while the book loads", async () => {
+    const hold = spyOnHold();
+    renderWithProviders(<NovelReader filePath={mockFilePath} />, {
+      preloadedState: defaultPreloadedState,
+    });
+
+    fireEvent.wheel(screen.getByTestId("novel-viewer"), { deltaY: 100 });
+
+    expect(hold).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(mockView.open).toHaveBeenCalled());
+  });
+
+  // foliate-js shows the first section only after the book and its font load.
+  it("continues a wheel gesture over the book until a section is shown", async () => {
+    const hold = spyOnHold();
+    mockView.lastLocation = undefined;
+    mockView.init = vi.fn(() => new Promise<void>(() => {}));
+    renderWithProviders(<NovelReader filePath={mockFilePath} />, {
+      preloadedState: defaultPreloadedState,
+    });
+    await waitFor(() => expect(mockView.init).toHaveBeenCalled());
+
+    const view = screen.getByTestId("novel-viewer").querySelector("foliate-view");
+    expect(view).not.toBeNull();
+    fireEvent.wheel(view as Element, { deltaY: 100 });
+
+    expect(hold).toHaveBeenCalledTimes(1);
+  });
+
+  // The book's margins are outside its iframe; a notch there must not stop the gesture.
+  it("leaves wheel events over the book's margins alone once a section is shown", async () => {
+    const hold = spyOnHold();
+    renderWithProviders(<NovelReader filePath={mockFilePath} />, {
+      preloadedState: defaultPreloadedState,
+    });
+    await waitFor(() => expect(mockView.init).toHaveBeenCalled());
+
+    const view = screen.getByTestId("novel-viewer").querySelector("foliate-view");
+    expect(view).not.toBeNull();
+    fireEvent.wheel(view as Element, { deltaY: 100 });
+
+    expect(hold).not.toHaveBeenCalled();
   });
 
   it("should handle cleanup when filePath changes", async () => {
