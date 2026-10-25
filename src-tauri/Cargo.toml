@@ -77,6 +77,10 @@ tauri-plugin-window-state = "2"
 tauri-plugin-wdio = { version = "1", optional = true }
 tauri-plugin-wdio-webdriver = { version = "1", optional = true }
 
+[target.'cfg(target_os = "linux")'.dependencies]
+# Reads a window's content size for `window_size`; the version tauri itself uses.
+gtk = "0.18"
+
 [dev-dependencies]
 crc32fast = "1"
 mockall = "0.15.0"

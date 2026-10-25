@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+* Fixed the window size not being restored on Linux; the windows no longer grow on every launch either. (#373)
+
 ## [2.6.1] - 2026-10-24
 
 ### Changed
