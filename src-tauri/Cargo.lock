@@ -5144,6 +5144,7 @@ dependencies = [
  "flate2",
  "font-kit",
  "garde",
+ "gtk",
  "image",
  "log",
  "mini-moka",

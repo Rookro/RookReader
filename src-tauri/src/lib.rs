@@ -15,6 +15,8 @@ pub mod perf;
 mod settings;
 mod setup;
 mod state;
+#[cfg(target_os = "linux")]
+mod window_size;
 
 /// Loading benchmarks. Never run by a plain `cargo test`; invoke them by name, e.g.
 /// `cargo test --release --lib perfbench_report -- --ignored --nocapture --test-threads=1`.
@@ -87,12 +89,12 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
 
 /// Returns the window state that `tauri-plugin-window-state` saves and restores.
 ///
-/// The size is excluded on Linux. Under Wayland the size GTK reports for a window is a
-/// few pixels larger than the size the window was created with, so saving and restoring
-/// it makes every window creep larger on each launch
-/// (<https://github.com/Rookro/RookReader/issues/140>). The plugin gates saving and
-/// restoring on the same flags, so dropping `SIZE` stops both. Every other flag is kept,
-/// so the position, the maximized state and full screen still restore.
+/// The size is excluded on Linux. There the plugin saves a size that includes the
+/// client-side decorations but restores it as the content size, so every window grows
+/// on each launch (<https://github.com/Rookro/RookReader/issues/140>). The plugin gates
+/// saving and restoring on the same flags, so dropping `SIZE` stops both, and
+/// [`window_size`] saves the size instead. Every other flag is kept, so the position,
+/// the maximized state and full screen still restore.
 ///
 /// # Returns
 ///
@@ -131,13 +133,17 @@ pub fn run() {
         commands::directory_commands::get_entries_in_dir,
     ] as fn(tauri::ipc::Invoke<tauri::Wry>) -> bool;
 
-    let app = tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(
             tauri_plugin_window_state::Builder::new()
                 .with_state_flags(window_state_flags())
                 .build(),
-        )
+        );
+    // Saves the window size on Linux in place of the window-state plugin.
+    #[cfg(target_os = "linux")]
+    let builder = builder.plugin(window_size::init());
+    let app = builder
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
@@ -403,8 +409,8 @@ mod window_state_flags_tests {
     use super::window_state_flags;
     use tauri_plugin_window_state::StateFlags;
 
-    /// The window size is tracked everywhere except Linux, where restoring it makes
-    /// windows creep larger under Wayland (#140).
+    /// The plugin tracks the window size everywhere except Linux, where restoring it
+    /// makes windows grow on each launch and `window_size` tracks it instead (#140).
     #[test]
     fn size_is_tracked_everywhere_but_linux() {
         assert_eq!(
