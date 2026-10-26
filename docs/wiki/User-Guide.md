@@ -125,7 +125,7 @@ Save any number of positions in a book and jump back to them later.
 Press **Move to Bookshelf** in the reader's top app bar to open the **Bookshelves** view, where your library is organized into **collections** and **tags**. The left pane lists them; **All Books** shows every registered book. Press **Return to reader** to go back.
 
 - **Create a collection**: press **New collection** next to the *Collections* heading and give it a name and a custom icon.
-- **Choose a book's collections** with **Set collections** (right-click a book, or select several books first). The collections the book is already in are checked; uncheck one to take the book out of it. With several books selected, a collection that only some of them are in is shown as partly checked; leave it that way to keep it as it is on each book.
+- **Choose a book's collections** with **Set collections** (right-click a book, or select several books first). The collections the book is already in are checked; uncheck one to take the book out of it. With several books selected, a collection that only some of them are in is shown as partly checked; leave it that way to keep it as it is on each book. Press **New collection** below the list to create a collection without leaving the dialog; it is checked, so **OK** adds the books to it.
 - **Add books**: press **Add books** in the top bar, then **drag and drop** files and folders from your computer onto the dialog or press **Select files**. Added books appear in the current collection (or in *All Books*).
 - **Sort and search**: type in the search box to filter by title (right-click the box for cut/copy/paste), and choose **Sort by** Name (A→Z / Z→A) or Date (Oldest / Newest first). **Change grid size** switches between small, medium and large covers.
 - **Select several books**: **Ctrl/Cmd+click** toggles a book, **Shift+click** selects a range. The action bar that appears lets you **Set collections**, **Set series**, **Set tags** or **Remove books** for the whole selection at once. Switching collection, tag, series or search clears the selection.
@@ -141,7 +141,7 @@ Group the volumes of the same title into a **series** with **Set series** (creat
 ## Tagging System
 
 Categorize your collection using tags.
-- Press **New tag** next to the *Tags* heading to create a tag with a name and a color, then assign tags to books with **Set tags** (right-click a book, or select several books first). With several books selected, a tag that only some of them have is shown as partly checked; leave it that way to keep it as it is on each book.
+- Press **New tag** next to the *Tags* heading to create a tag with a name and a color, then assign tags to books with **Set tags** (right-click a book, or select several books first). With several books selected, a tag that only some of them have is shown as partly checked; leave it that way to keep it as it is on each book. Press **New tag** below the list to create a tag without leaving the dialog; it is checked, so **OK** adds it to the books.
 - Click a tag in the left pane to show only the books carrying it, which makes large collections easy to navigate.
 
 ## Reading History & Resume
