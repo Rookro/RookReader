@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+* The collection dialog now works like the tag dialog and is renamed **Set collections**. (#375)
+  * The collections a book is already in are checked; unchecking one takes the book out of it.
+  * With several books selected, a collection that only some of them are in is shown as partly checked and left as it is on each book.
+
 ### Fixed
 
 * Fixed the window size not being restored on Linux; the windows no longer grow on every launch either. (#373)

@@ -125,9 +125,10 @@ Save any number of positions in a book and jump back to them later.
 Press **Move to Bookshelf** in the reader's top app bar to open the **Bookshelves** view, where your library is organized into **collections** and **tags**. The left pane lists them; **All Books** shows every registered book. Press **Return to reader** to go back.
 
 - **Create a collection**: press **New collection** next to the *Collections* heading and give it a name and a custom icon.
+- **Choose a book's collections** with **Set collections** (right-click a book, or select several books first). The collections the book is already in are checked; uncheck one to take the book out of it. With several books selected, a collection that only some of them are in is shown as partly checked; leave it that way to keep it as it is on each book.
 - **Add books**: press **Add books** in the top bar, then **drag and drop** files and folders from your computer onto the dialog or press **Select files**. Added books appear in the current collection (or in *All Books*).
 - **Sort and search**: type in the search box to filter by title (right-click the box for cut/copy/paste), and choose **Sort by** Name (A→Z / Z→A) or Date (Oldest / Newest first). **Change grid size** switches between small, medium and large covers.
-- **Select several books**: **Ctrl/Cmd+click** toggles a book, **Shift+click** selects a range. The action bar that appears lets you **Add to collections**, **Set series**, **Set tags** or **Remove books** for the whole selection at once. Switching collection, tag, series or search clears the selection.
+- **Select several books**: **Ctrl/Cmd+click** toggles a book, **Shift+click** selects a range. The action bar that appears lets you **Set collections**, **Set series**, **Set tags** or **Remove books** for the whole selection at once. Switching collection, tag, series or search clears the selection.
 - **Right-click a book** for the same actions on a single book.
 - **Keyboard**: the arrow keys move the focus through the grid, **Home** / **End** jump to the first / last item, and **Enter** or **Space** opens the focused book or series.
 - **Delete a collection or tag** by right-clicking it in the left pane and choosing **Delete**. A confirmation dialog is shown first; deleting a collection keeps its books in your library.
