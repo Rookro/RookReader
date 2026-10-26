@@ -1,3 +1,4 @@
+import Add from "@mui/icons-material/Add";
 import LocalOffer from "@mui/icons-material/LocalOffer";
 import {
   Box,
@@ -12,13 +13,14 @@ import {
   ListItemIcon,
   ListItemText,
 } from "@mui/material";
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getBookTags } from "../../../../bindings/BookCommands";
 import type { Tag } from "../../../../domain/tag/schema";
 import { useAppDispatch } from "../../../../store/store";
 import { useBookCheckStates } from "../../hooks/useBookCheckStates";
-import { updateBooksTags } from "../../tagSlice";
+import { addTag, updateBooksTags } from "../../tagSlice";
+import CreateBookTagDialog from "./CreateBookTagDialog";
 
 /** Props for the SetBookTagsDialog component */
 export interface SetBookTagsDialogProps {
@@ -48,6 +50,13 @@ export default function SetBookTagsDialog({
     load: getBookTags,
     loadErrorMessage: "Failed to fetch book tags",
   });
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  // The books of the open session, or null while closed, so that a creation finishing in
+  // a later session does not check its item there.
+  const sessionRef = useRef<number[] | null>(null);
+  useEffect(() => {
+    sessionRef.current = open ? bookIds : null;
+  }, [open, bookIds]);
 
   const handleSave = useCallback(async () => {
     if (bookIds.length === 0 || changes === null) return;
@@ -64,6 +73,17 @@ export default function SetBookTagsDialog({
       onClose();
     }
   }, [bookIds, changes, dispatch, onClose]);
+
+  const handleCreate = useCallback(
+    async (name: string, color_code: string) => {
+      const result = await dispatch(addTag({ name, color_code }));
+      // The `tags-changed` refetch may list the tag only later; checking it now still saves it.
+      if (addTag.fulfilled.match(result) && sessionRef.current === bookIds) {
+        toggle(result.payload.id);
+      }
+    },
+    [bookIds, dispatch, toggle],
+  );
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth>
@@ -101,6 +121,15 @@ export default function SetBookTagsDialog({
             )}
           </List>
         </Box>
+        <Button
+          startIcon={<Add />}
+          fullWidth
+          onClick={() => setIsCreateDialogOpen(true)}
+          disabled={bookIds.length > 0 && changes === null}
+          sx={{ mt: 2, justifyContent: "flex-start", color: "text.secondary" }}
+        >
+          {t("bookshelf.tag.create")}
+        </Button>
       </DialogContent>
       <DialogActions sx={{ paddingBottom: 3, paddingRight: 3 }}>
         <Button onClick={onClose} sx={{ color: "text.secondary" }}>
@@ -114,6 +143,11 @@ export default function SetBookTagsDialog({
           {t("bookshelf.tag.set.ok-button")}
         </Button>
       </DialogActions>
+      <CreateBookTagDialog
+        open={isCreateDialogOpen}
+        onCreate={handleCreate}
+        onClose={() => setIsCreateDialogOpen(false)}
+      />
     </Dialog>
   );
 }
