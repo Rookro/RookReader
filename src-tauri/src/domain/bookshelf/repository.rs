@@ -74,6 +74,34 @@ pub trait BookshelfRepository: Send + Sync {
     /// Returns an `Err` if the database execution fails.
     async fn remove_book_from_bookshelf(&self, bookshelf_id: i64, book_id: i64) -> Result<()>;
 
+    /// Retrieves the IDs of the bookshelves that contain a book.
+    ///
+    /// # Arguments
+    ///
+    /// * `book_id` - The ID of the book.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing the bookshelf IDs.
+    ///
+    /// # Errors
+    ///
+    /// Returns an `Err` if the database query fails.
+    async fn get_bookshelves_for_book(&self, book_id: i64) -> Result<Vec<i64>>;
+
+    /// Replaces the bookshelves that contain a book with the given ones.
+    ///
+    /// # Arguments
+    ///
+    /// * `book_id` - The ID of the book.
+    /// * `bookshelf_ids` - The IDs of the bookshelves that should contain the book.
+    ///   Duplicated and nonexistent IDs are skipped.
+    ///
+    /// # Errors
+    ///
+    /// Returns an `Err` if the database execution fails.
+    async fn set_bookshelves_for_book(&self, book_id: i64, bookshelf_ids: &[i64]) -> Result<()>;
+
     /// Deletes a bookshelf from the database.
     ///
     /// # Arguments

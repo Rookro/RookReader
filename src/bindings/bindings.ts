@@ -622,6 +622,37 @@ export const commands = {
 	 */
 	removeBookFromBookshelf: (bookshelfId: number, bookId: number) => typedError<null, CommandError_Serialize>(__TAURI_INVOKE("remove_book_from_bookshelf", { bookshelfId, bookId })),
 	/**
+	 *  Retrieves the IDs of the bookshelves that contain a book.
+	 * 
+	 *  # Arguments
+	 * 
+	 *  * `book_id` - The ID of the book.
+	 *  * `repo` - The managed bookshelf repository state.
+	 * 
+	 *  # Returns
+	 * 
+	 *  A `Result` containing the bookshelf IDs.
+	 * 
+	 *  # Errors
+	 * 
+	 *  This function will return an `Err` if the underlying repository operation fails.
+	 */
+	getBookshelvesForBook: (bookId: number) => typedError<number[], CommandError_Serialize>(__TAURI_INVOKE("get_bookshelves_for_book", { bookId })),
+	/**
+	 *  Replaces the bookshelves that contain a book with the given ones.
+	 * 
+	 *  # Arguments
+	 * 
+	 *  * `book_id` - The ID of the book.
+	 *  * `bookshelf_ids` - The IDs of the bookshelves that should contain the book.
+	 *  * `repo` - The managed bookshelf repository state.
+	 * 
+	 *  # Errors
+	 * 
+	 *  This function will return an `Err` if the underlying repository operation fails.
+	 */
+	setBookshelvesForBook: (bookId: number, bookshelfIds: number[]) => typedError<null, CommandError_Serialize>(__TAURI_INVOKE("set_bookshelves_for_book", { bookId, bookshelfIds })),
+	/**
 	 *  Deletes a bookshelf from the database.
 	 * 
 	 *  # Arguments

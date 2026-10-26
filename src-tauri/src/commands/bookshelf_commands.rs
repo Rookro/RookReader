@@ -120,6 +120,60 @@ pub async fn remove_book_from_bookshelf<R: tauri::Runtime>(
     Ok(())
 }
 
+/// Retrieves the IDs of the bookshelves that contain a book.
+///
+/// # Arguments
+///
+/// * `book_id` - The ID of the book.
+/// * `repo` - The managed bookshelf repository state.
+///
+/// # Returns
+///
+/// A `Result` containing the bookshelf IDs.
+///
+/// # Errors
+///
+/// This function will return an `Err` if the underlying repository operation fails.
+#[tauri::command]
+#[specta::specta]
+pub async fn get_bookshelves_for_book(
+    book_id: i64,
+    repo: State<'_, Arc<dyn BookshelfRepository>>,
+) -> Result<Vec<i64>> {
+    log::debug!("Get bookshelves for book. (book_id:{})", book_id);
+    repo.get_bookshelves_for_book(book_id).await
+}
+
+/// Replaces the bookshelves that contain a book with the given ones.
+///
+/// # Arguments
+///
+/// * `book_id` - The ID of the book.
+/// * `bookshelf_ids` - The IDs of the bookshelves that should contain the book.
+/// * `repo` - The managed bookshelf repository state.
+///
+/// # Errors
+///
+/// This function will return an `Err` if the underlying repository operation fails.
+#[tauri::command]
+#[specta::specta]
+pub async fn set_bookshelves_for_book<R: tauri::Runtime>(
+    book_id: i64,
+    bookshelf_ids: Vec<i64>,
+    repo: State<'_, Arc<dyn BookshelfRepository>>,
+    app: tauri::AppHandle<R>,
+) -> Result<()> {
+    log::debug!(
+        "Set bookshelves for book. (book_id:{}, bookshelf_ids:{:?})",
+        book_id,
+        bookshelf_ids
+    );
+    repo.set_bookshelves_for_book(book_id, &bookshelf_ids)
+        .await?;
+    app.emit(BOOKS_CHANGED_EVENT, ())?;
+    Ok(())
+}
+
 /// Deletes a bookshelf from the database.
 ///
 /// # Arguments
@@ -260,6 +314,42 @@ mod tests {
         let events = record_events(app.handle());
 
         let result = remove_book_from_bookshelf(1, 2, state, app.handle().clone()).await;
+        assert!(result.is_ok());
+        assert_eq!(*events.lock().unwrap(), [BOOKS_CHANGED_EVENT]);
+    }
+
+    #[tokio::test]
+    async fn test_get_bookshelves_for_book() {
+        let mut mock_repo = MockBookshelfRepository::new();
+        mock_repo
+            .expect_get_bookshelves_for_book()
+            .with(mockall::predicate::eq(1))
+            .times(1)
+            .returning(|_| Ok(vec![2, 3]));
+
+        let app = tauri::test::mock_app();
+        app.manage(Arc::new(mock_repo) as Arc<dyn BookshelfRepository>);
+        let state = app.state::<Arc<dyn BookshelfRepository>>();
+
+        let result = get_bookshelves_for_book(1, state).await;
+        assert_eq!(result.unwrap(), vec![2, 3]);
+    }
+
+    #[tokio::test]
+    async fn test_set_bookshelves_for_book() {
+        let mut mock_repo = MockBookshelfRepository::new();
+        mock_repo
+            .expect_set_bookshelves_for_book()
+            .withf(|book_id, bookshelf_ids| *book_id == 1 && bookshelf_ids == [2, 3])
+            .times(1)
+            .returning(|_, _| Ok(()));
+
+        let app = tauri::test::mock_app();
+        app.manage(Arc::new(mock_repo) as Arc<dyn BookshelfRepository>);
+        let state = app.state::<Arc<dyn BookshelfRepository>>();
+        let events = record_events(app.handle());
+
+        let result = set_bookshelves_for_book(1, vec![2, 3], state, app.handle().clone()).await;
         assert!(result.is_ok());
         assert_eq!(*events.lock().unwrap(), [BOOKS_CHANGED_EVENT]);
     }

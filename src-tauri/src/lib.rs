@@ -70,6 +70,8 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
         commands::bookshelf_commands::get_all_bookshelves,
         commands::bookshelf_commands::add_book_to_bookshelf::<tauri::Wry>,
         commands::bookshelf_commands::remove_book_from_bookshelf::<tauri::Wry>,
+        commands::bookshelf_commands::get_bookshelves_for_book,
+        commands::bookshelf_commands::set_bookshelves_for_book::<tauri::Wry>,
         commands::bookshelf_commands::delete_bookshelf::<tauri::Wry>,
         commands::series_commands::create_series::<tauri::Wry>,
         commands::series_commands::get_all_series,

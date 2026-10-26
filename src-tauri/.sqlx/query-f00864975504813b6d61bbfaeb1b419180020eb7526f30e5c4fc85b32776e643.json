@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            DELETE FROM bookshelf_items\n            WHERE book_id = ? AND bookshelf_id NOT IN (SELECT value FROM json_each(?))\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "f00864975504813b6d61bbfaeb1b419180020eb7526f30e5c4fc85b32776e643"
+}

@@ -1,4 +1,7 @@
+use rookreader_lib::domain::book::entity::ItemType;
+use rookreader_lib::domain::book::repository::BookRepository;
 use rookreader_lib::domain::bookshelf::repository::BookshelfRepository;
+use rookreader_lib::infrastructure::database::book_repository::SqliteBookRepository;
 use rookreader_lib::infrastructure::database::bookshelf_repository::SqliteBookshelfRepository;
 use sqlx::Row;
 
@@ -96,4 +99,124 @@ async fn test_add_and_remove_book_from_bookshelf() {
     .await
     .unwrap();
     assert_eq!(count, 0);
+}
+
+#[tokio::test]
+async fn test_set_bookshelves_for_book_replaces_existing() {
+    let pool = setup_db().await;
+    let shelves = SqliteBookshelfRepository::new(pool.clone());
+    let books = SqliteBookRepository::new(pool.clone());
+
+    let book_id = books
+        .register_book("/path/to/book", ItemType::File, "Book", 1, None)
+        .await
+        .unwrap();
+    let other_id = books
+        .register_book("/path/to/other", ItemType::File, "Other", 1, None)
+        .await
+        .unwrap();
+    let a = shelves.create("A", "star").await.unwrap();
+    let b = shelves.create("B", "star").await.unwrap();
+    let c = shelves.create("C", "star").await.unwrap();
+    shelves.add_book_to_bookshelf(a.id, book_id).await.unwrap();
+    shelves.add_book_to_bookshelf(b.id, book_id).await.unwrap();
+    shelves.add_book_to_bookshelf(a.id, other_id).await.unwrap();
+
+    shelves
+        .set_bookshelves_for_book(book_id, &[b.id, c.id])
+        .await
+        .unwrap();
+
+    let mut set = shelves.get_bookshelves_for_book(book_id).await.unwrap();
+    set.sort_unstable();
+    assert_eq!(set, vec![b.id, c.id]);
+    // Another book's membership is left alone.
+    assert_eq!(
+        shelves.get_bookshelves_for_book(other_id).await.unwrap(),
+        vec![a.id]
+    );
+}
+
+#[tokio::test]
+async fn test_set_bookshelves_for_book_skips_duplicate_and_nonexistent_ids() {
+    let pool = setup_db().await;
+    let shelves = SqliteBookshelfRepository::new(pool.clone());
+    let books = SqliteBookRepository::new(pool.clone());
+
+    let book_id = books
+        .register_book("/path/to/book", ItemType::File, "Book", 1, None)
+        .await
+        .unwrap();
+    let a = shelves.create("A", "star").await.unwrap();
+
+    let nonexistent_id = 9999;
+    shelves
+        .set_bookshelves_for_book(book_id, &[a.id, a.id, nonexistent_id])
+        .await
+        .unwrap();
+
+    assert_eq!(
+        shelves.get_bookshelves_for_book(book_id).await.unwrap(),
+        vec![a.id]
+    );
+}
+
+#[tokio::test]
+async fn test_set_bookshelves_for_book_with_empty_list_removes_all() {
+    let pool = setup_db().await;
+    let shelves = SqliteBookshelfRepository::new(pool.clone());
+    let books = SqliteBookRepository::new(pool.clone());
+
+    let book_id = books
+        .register_book("/path/to/book", ItemType::File, "Book", 1, None)
+        .await
+        .unwrap();
+    let a = shelves.create("A", "star").await.unwrap();
+    shelves.add_book_to_bookshelf(a.id, book_id).await.unwrap();
+
+    shelves
+        .set_bookshelves_for_book(book_id, &[])
+        .await
+        .unwrap();
+
+    assert!(shelves
+        .get_bookshelves_for_book(book_id)
+        .await
+        .unwrap()
+        .is_empty());
+}
+
+#[tokio::test]
+async fn test_set_bookshelves_for_book_keeps_added_at_of_kept_bookshelf() {
+    let pool = setup_db().await;
+    let shelves = SqliteBookshelfRepository::new(pool.clone());
+    let books = SqliteBookRepository::new(pool.clone());
+
+    let book_id = books
+        .register_book("/path/to/book", ItemType::File, "Book", 1, None)
+        .await
+        .unwrap();
+    let a = shelves.create("A", "star").await.unwrap();
+    let b = shelves.create("B", "star").await.unwrap();
+    shelves.add_book_to_bookshelf(a.id, book_id).await.unwrap();
+    sqlx::query("UPDATE bookshelf_items SET added_at = '2000-01-01 00:00:00'")
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    shelves
+        .set_bookshelves_for_book(book_id, &[a.id, b.id])
+        .await
+        .unwrap();
+
+    // A bookshelf the book stays in keeps when the book was added to it.
+    let added_at: String = sqlx::query_scalar(
+        "SELECT added_at FROM bookshelf_items WHERE bookshelf_id = ? AND book_id = ?",
+    )
+    .bind(a.id)
+    .bind(book_id)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(added_at, "2000-01-01 00:00:00");
 }
