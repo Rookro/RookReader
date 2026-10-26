@@ -1,9 +1,9 @@
 import type { BookWithState } from "../../../../domain/book/schema";
 import { useAppSelector } from "../../../../store/store";
 import type { BookshelfDialogType } from "../../hooks/useBookshelfDialogs";
-import AddBooksToBookshelvesDialog from "./AddBooksToBookshelvesDialog";
 import BookDeleteDialog from "./BookDeleteDialog";
 import EditSeriesOrderDialog from "./EditSeriesOrderDialog";
+import SetBookshelvesDialog from "./SetBookshelvesDialog";
 import SetBookTagsDialog from "./SetBookTagsDialog";
 import SetSeriesDialog from "./SetSeriesDialog";
 
@@ -38,8 +38,8 @@ export default function BookshelfDialogs({
 
   return (
     <>
-      <AddBooksToBookshelvesDialog
-        open={dialogType === "add-to-bookshelf"}
+      <SetBookshelvesDialog
+        open={dialogType === "set-bookshelves"}
         bookIds={dialogBookIds}
         availableBookshelves={availableBookshelves}
         onClose={onBookDialogClose}

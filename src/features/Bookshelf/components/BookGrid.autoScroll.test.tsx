@@ -60,7 +60,7 @@ vi.mock("./GridSizeControl", () => ({ default: () => <div data-testid="grid-size
 vi.mock("./FloatingActionBar", () => ({
   default: () => <div data-testid="floating-action-bar" />,
 }));
-vi.mock("./Dialog/AddBooksToBookshelvesDialog", () => ({ default: () => null }));
+vi.mock("./Dialog/SetBookshelvesDialog", () => ({ default: () => null }));
 vi.mock("./Dialog/SetBookTagsDialog", () => ({ default: () => null }));
 vi.mock("./Dialog/SetSeriesDialog", () => ({ default: () => null }));
 vi.mock("./Dialog/BookDeleteDialog", () => ({ default: () => null }));

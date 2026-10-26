@@ -87,7 +87,7 @@
       "title": "コレクション",
       "create": "コレクションを作成",
       "all-books": "すべての本",
-      "add-books-title": "コレクションに追加",
+      "set-title": "コレクションを設定",
       "no-collections-available": "利用可能なコレクションがありません。",
       "ok-button": "決定",
       "cancel-button": "キャンセル",

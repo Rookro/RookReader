@@ -49,6 +49,29 @@ export async function removeBookFromBookshelf(bookshelfId: number, bookId: numbe
 }
 
 /**
+ * Retrieves the IDs of the bookshelves that contain a book.
+ *
+ * @param bookId - The unique identifier of the book.
+ * @returns A promise that resolves to an array of bookshelf IDs.
+ * @throws {CommandError} If the Tauri command fails.
+ */
+export async function getBookshelvesForBook(bookId: number): Promise<number[]> {
+  return await runCommand(commands.getBookshelvesForBook(bookId));
+}
+
+/**
+ * Replaces the bookshelves that contain a book with the given ones.
+ *
+ * @param bookId - The unique identifier of the book.
+ * @param bookshelfIds - The IDs of the bookshelves that should contain the book.
+ * @returns A promise that resolves when the update is successful.
+ * @throws {CommandError} If the Tauri command fails.
+ */
+export async function setBookshelvesForBook(bookId: number, bookshelfIds: number[]): Promise<void> {
+  await runCommand(commands.setBookshelvesForBook(bookId, bookshelfIds));
+}
+
+/**
  * Deletes a bookshelf from the database.
  *
  * @param id - The unique identifier of the bookshelf to delete.

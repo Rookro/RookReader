@@ -11,8 +11,8 @@ interface FloatingActionBarProps {
   selectionCount: number;
   /** Callback to clear selection */
   onClear: () => void;
-  /** Callback to open add to bookshelf dialog */
-  onAddToBookshelf: () => void;
+  /** Callback to open bookshelves dialog */
+  onSetBookshelves: () => void;
   /** Callback to open series dialog */
   onSetSeries: () => void;
   /** Callback to open tags dialog */
@@ -27,7 +27,7 @@ interface FloatingActionBarProps {
 export default function FloatingActionBar({
   selectionCount,
   onClear,
-  onAddToBookshelf,
+  onSetBookshelves,
   onSetTags,
   onSetSeries,
   onDelete,
@@ -70,9 +70,9 @@ export default function FloatingActionBar({
           size="small"
           color="inherit"
           startIcon={<LibraryBooks />}
-          onClick={onAddToBookshelf}
+          onClick={onSetBookshelves}
         >
-          {t("bookshelf.collection.add-books-title")}
+          {t("bookshelf.collection.set-title")}
         </Button>
         <Button
           size="small"

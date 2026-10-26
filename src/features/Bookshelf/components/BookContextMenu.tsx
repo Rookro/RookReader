@@ -35,14 +35,14 @@ export default function BookContextMenu({ book, anchor, onClose }: BookContextMe
       <MenuItem
         dense
         onClick={() => {
-          openDialog("add-to-bookshelf", getTargetBooks());
+          openDialog("set-bookshelves", getTargetBooks());
           onClose();
         }}
       >
         <ListItemIcon>
           <LibraryBooks sx={{ color: "text.secondary" }} />
         </ListItemIcon>
-        <ListItemText>{t("bookshelf.collection.add-books-title")}</ListItemText>
+        <ListItemText>{t("bookshelf.collection.set-title")}</ListItemText>
       </MenuItem>
       <MenuItem
         dense
