@@ -15,8 +15,7 @@ import {
   setBookshelvesForBook,
 } from "../../bindings/BookshelfCommands";
 import { countPagesInContainer } from "../../bindings/ContainerCommands";
-import type { BookWithState } from "../../domain/book/schema";
-import type { Bookshelf } from "../../domain/bookshelf/schema";
+import type { Bookshelf, BookWithState } from "../../domain/entities";
 import { readingProgressChanged } from "../../store/actions";
 import { handleThunkError } from "../../store/thunkErrorHandler";
 import { createAppAsyncThunk } from "../../types/CustomAsyncThunk";

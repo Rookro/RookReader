@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import type { BookWithState } from "../../../domain/book/schema";
+import type { BookWithState } from "../../../domain/entities";
 
 /** Dialogs that act on a set of books. */
 export type BookDialogType = "set-bookshelves" | "set-tags" | "set-series" | "delete-books";

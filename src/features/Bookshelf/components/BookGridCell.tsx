@@ -1,7 +1,6 @@
 import { memo } from "react";
 import type { CellComponentProps } from "react-window";
-import type { BookWithState } from "../../../domain/book/schema";
-import type { Tag } from "../../../domain/tag/schema";
+import type { BookWithState, Tag } from "../../../domain/entities";
 import type { GridItem } from "../utils/BookshelfUtils";
 import BookCard from "./BookCard";
 import SeriesCard from "./SeriesCard";

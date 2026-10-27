@@ -3,7 +3,7 @@ import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as BookshelfCommand from "../../../../bindings/BookshelfCommands";
-import type { Bookshelf } from "../../../../domain/bookshelf/schema";
+import type { Bookshelf } from "../../../../domain/entities";
 import { createMockBookshelf } from "../../../../test/factories";
 import { renderWithProviders } from "../../../../test/utils";
 import SetBookshelvesDialog from "./SetBookshelvesDialog";

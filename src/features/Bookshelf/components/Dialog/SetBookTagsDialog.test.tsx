@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as BookCommands from "../../../../bindings/BookCommands";
 import * as TagCommands from "../../../../bindings/TagCommands";
-import type { Tag } from "../../../../domain/tag/schema";
+import type { Tag } from "../../../../domain/entities";
 import { createMockTag } from "../../../../test/factories";
 import { renderWithProviders } from "../../../../test/utils";
 import SetBookTagsDialog from "./SetBookTagsDialog";

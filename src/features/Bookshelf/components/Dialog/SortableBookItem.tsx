@@ -4,7 +4,7 @@ import DragIndicator from "@mui/icons-material/DragIndicator";
 import { Avatar, Box, IconButton, ListItem, ListItemAvatar, ListItemText } from "@mui/material";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import dummy_thumbnail from "../../../../assets/dummy_thumbnail.svg";
-import type { BookWithState } from "../../../../domain/book/schema";
+import type { BookWithState } from "../../../../domain/entities";
 
 export interface SortableBookItemProps {
   book: BookWithState;

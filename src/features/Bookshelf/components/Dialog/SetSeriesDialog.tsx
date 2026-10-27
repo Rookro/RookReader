@@ -16,8 +16,7 @@ import {
 } from "@mui/material";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { BookWithState } from "../../../../domain/book/schema";
-import type { Series } from "../../../../domain/series/schema";
+import type { BookWithState, Series } from "../../../../domain/entities";
 import { useAppDispatch } from "../../../../store/store";
 import { addSeries, updateBooksSeries } from "../../seriesSlice";
 

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { GridImperativeAPI } from "react-window";
-import type { BookWithState } from "../../../domain/book/schema";
+import type { BookWithState } from "../../../domain/entities";
 import type { GridItem } from "../utils/BookshelfUtils";
 
 /** Options for {@link useGridKeyboardNavigation}. */

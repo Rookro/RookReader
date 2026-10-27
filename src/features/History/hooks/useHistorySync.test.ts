@@ -1,7 +1,7 @@
 import type { Event } from "@tauri-apps/api/event";
 import { renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { ReadingState } from "../../../domain/book/schema";
+import type { ReadingState } from "../../../domain/entities";
 import { useTauriEvent } from "../../../hooks/useTauriEvent";
 import { readingProgressChanged } from "../../../store/actions";
 import { type RootState, useAppDispatch, useAppSelector } from "../../../store/store";

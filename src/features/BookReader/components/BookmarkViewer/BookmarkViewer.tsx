@@ -12,7 +12,7 @@ import {
 } from "@mui/material";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { Bookmark } from "../../../../domain/bookmark/schema";
+import type { Bookmark } from "../../../../domain/entities";
 import { useAppDispatch, useAppSelector } from "../../../../store/store";
 import SidePanelHeader from "../../../SidePane/components/SidePanelHeader";
 import { removeBookmark, updateBookmarkName } from "../../bookmarkSlice";

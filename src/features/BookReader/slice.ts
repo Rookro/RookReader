@@ -9,7 +9,7 @@ import {
 } from "../../bindings/BookCommands";
 import { getEntriesInContainer, requestPreloadAround } from "../../bindings/ContainerCommands";
 import { getEntriesInDir as getEntriesInDirFromBackend } from "../../bindings/DirectoryCommands";
-import type { BookWithState } from "../../domain/book/schema";
+import type { BookWithState } from "../../domain/entities";
 import { handleThunkError } from "../../store/thunkErrorHandler";
 import type { Direction } from "../../types/AppSettings";
 import { createAppAsyncThunk } from "../../types/CustomAsyncThunk";

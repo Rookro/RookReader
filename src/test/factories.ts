@@ -1,8 +1,4 @@
-import type { BookWithState, ReadBook } from "../domain/book/schema";
-import type { Bookmark } from "../domain/bookmark/schema";
-import type { Bookshelf } from "../domain/bookshelf/schema";
-import type { Series } from "../domain/series/schema";
-import type { Tag } from "../domain/tag/schema";
+import type { Bookmark, Bookshelf, BookWithState, ReadBook, Series, Tag } from "../domain/entities";
 import type { DirEntry } from "../types/DirEntry";
 
 /**

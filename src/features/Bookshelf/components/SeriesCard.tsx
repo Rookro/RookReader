@@ -4,8 +4,7 @@ import { useMemo, useState } from "react";
 import dummy_thumbnail from "../../../assets/dummy_thumbnail.svg";
 import AutoScrollTypography from "../../../components/ui/AutoScrollTypography/AutoScrollTypography";
 import { useContextMenuAnchor } from "../../../components/ui/ContextMenu/useContextMenuAnchor";
-import type { BookWithState } from "../../../domain/book/schema";
-import type { Series } from "../../../domain/series/schema";
+import type { BookWithState, Series } from "../../../domain/entities";
 import SeriesContextMenu from "./SeriesContextMenu";
 
 export interface SeriesCardProps {

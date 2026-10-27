@@ -1,11 +1,7 @@
-import type { Book, BookWithState, ReadBook, ReadingState } from "../domain/book/schema";
+import type { Book, BookWithState, ItemType, ReadBook, ReadingState } from "../domain/entities";
 import type { Direction } from "../types/AppSettings";
 import { commands } from "./bindings";
 import { runCommand } from "./result";
-
-// The hand-written domain types (e.g. `Book.item_type` narrowed to "file" | "directory") are kept as
-// the frontend-facing contract; the generated types are wider (Rust `String`). The `as` casts below
-// bridge that intentional narrowing — the runtime shapes are identical.
 
 /**
  * Retrieves a book by its database ID.
@@ -15,7 +11,7 @@ import { runCommand } from "./result";
  * @throws {CommandError} If the Tauri command fails.
  */
 export async function getBook(id: number): Promise<Book | null> {
-  return (await runCommand(commands.getBook(id))) as Book | null;
+  return await runCommand(commands.getBook(id));
 }
 
 /**
@@ -37,7 +33,7 @@ export async function deleteBook(id: number): Promise<void> {
  * @throws {CommandError} If the Tauri command fails.
  */
 export async function getBookByPath(file_path: string): Promise<Book | null> {
-  return (await runCommand(commands.getBookByPath(file_path))) as Book | null;
+  return await runCommand(commands.getBookByPath(file_path));
 }
 
 /**
@@ -48,7 +44,7 @@ export async function getBookByPath(file_path: string): Promise<Book | null> {
  * @throws {CommandError} If the Tauri command fails.
  */
 export async function getBookWithStateById(id: number): Promise<BookWithState | null> {
-  return (await runCommand(commands.getBookWithStateById(id))) as BookWithState | null;
+  return await runCommand(commands.getBookWithStateById(id));
 }
 
 /**
@@ -58,7 +54,7 @@ export async function getBookWithStateById(id: number): Promise<BookWithState | 
  * @throws {CommandError} If the Tauri command fails.
  */
 export async function getAllBooksWithState(): Promise<BookWithState[]> {
-  return (await runCommand(commands.getAllBooksWithState())) as BookWithState[];
+  return await runCommand(commands.getAllBooksWithState());
 }
 
 /**
@@ -74,7 +70,7 @@ export async function getAllBooksWithState(): Promise<BookWithState[]> {
  */
 export async function registerBook(params: {
   filePath: string;
-  itemType: "file" | "directory";
+  itemType: ItemType;
   displayName: string;
   totalPages: number;
 }) {
@@ -96,7 +92,7 @@ export async function registerBook(params: {
  */
 export async function recordBookOpened(params: {
   filePath: string;
-  itemType: "file" | "directory";
+  itemType: ItemType;
   displayName: string;
   totalPages: number;
 }) {
@@ -196,7 +192,7 @@ export async function clearAllReadingHistory(): Promise<void> {
  */
 export async function getRecentlyReadBooks(): Promise<ReadBook[]> {
   // `limit` is an `Option<i64>` on the backend; `null` requests the default limit.
-  return (await runCommand(commands.getRecentlyReadBooks(null))) as ReadBook[];
+  return await runCommand(commands.getRecentlyReadBooks(null));
 }
 
 /**
@@ -209,9 +205,7 @@ export async function getRecentlyReadBooks(): Promise<ReadBook[]> {
 export async function getBooksWithStateByBookshelfId(
   bookshelfId: number,
 ): Promise<BookWithState[]> {
-  return (await runCommand(
-    commands.getBooksWithStateByBookshelfId(bookshelfId),
-  )) as BookWithState[];
+  return await runCommand(commands.getBooksWithStateByBookshelfId(bookshelfId));
 }
 
 /**
@@ -222,7 +216,7 @@ export async function getBooksWithStateByBookshelfId(
  * @throws {CommandError} If the Tauri command fails.
  */
 export async function getBooksWithStateByTagId(tagId: number): Promise<BookWithState[]> {
-  return (await runCommand(commands.getBooksWithStateByTagId(tagId))) as BookWithState[];
+  return await runCommand(commands.getBooksWithStateByTagId(tagId));
 }
 
 /**
@@ -233,7 +227,7 @@ export async function getBooksWithStateByTagId(tagId: number): Promise<BookWithS
  * @throws {CommandError} If the Tauri command fails.
  */
 export async function getBooksWithStateBySeriesId(seriesId: number): Promise<BookWithState[]> {
-  return (await runCommand(commands.getBooksWithStateBySeriesId(seriesId))) as BookWithState[];
+  return await runCommand(commands.getBooksWithStateBySeriesId(seriesId));
 }
 
 /**

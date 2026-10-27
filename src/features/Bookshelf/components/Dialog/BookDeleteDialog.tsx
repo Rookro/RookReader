@@ -9,7 +9,7 @@ import {
 } from "@mui/material";
 import { useCallback } from "react";
 import { Trans, useTranslation } from "react-i18next";
-import type { BookWithState } from "../../../../domain/book/schema";
+import type { BookWithState } from "../../../../domain/entities";
 import { useAppDispatch, useAppSelector } from "../../../../store/store";
 import { deleteBookFromCollection } from "../../slice";
 

@@ -4,7 +4,7 @@ import {
   clearReadingHistory,
   getRecentlyReadBooks,
 } from "../../bindings/BookCommands";
-import type { ReadBook } from "../../domain/book/schema";
+import type { ReadBook } from "../../domain/entities";
 import { readingProgressChanged } from "../../store/actions";
 import { handleThunkError } from "../../store/thunkErrorHandler";
 import { createAppAsyncThunk } from "../../types/CustomAsyncThunk";

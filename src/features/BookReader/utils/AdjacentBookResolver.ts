@@ -5,7 +5,7 @@ import {
   getBooksWithStateBySeriesId,
 } from "../../../bindings/BookCommands";
 import { getEntriesInDir } from "../../../bindings/DirectoryCommands";
-import type { BookWithState } from "../../../domain/book/schema";
+import type { BookWithState } from "../../../domain/entities";
 import type { SortOrder } from "../../../types/AppSettings";
 import { convertEntriesInDir } from "../../../utils/DirEntryUtils";
 import { sortBy as sortBooks, sortBySeriesOrder } from "../../Bookshelf/utils/BookshelfUtils";

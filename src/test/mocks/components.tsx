@@ -1,6 +1,6 @@
 import React, { type ComponentType, type JSX, type ReactNode } from "react";
 import { vi } from "vitest";
-import type { Book } from "../../domain/book/schema";
+import type { Book } from "../../domain/entities";
 
 /** Mock for scrollToRow function */
 export const mockScrollToRow = vi.fn();

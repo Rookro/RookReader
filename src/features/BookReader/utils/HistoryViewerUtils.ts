@@ -1,4 +1,4 @@
-import type { ReadBook } from "../../../domain/book/schema";
+import type { ReadBook } from "../../../domain/entities";
 import { andSearchBy } from "../../../utils/SearchUtils";
 
 /**

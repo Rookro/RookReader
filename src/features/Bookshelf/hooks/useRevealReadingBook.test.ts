@@ -1,6 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import type { BookWithState } from "../../../domain/book/schema";
+import type { BookWithState } from "../../../domain/entities";
 import { createMockBookWithState, createMockSeries } from "../../../test/factories";
 import { createBasePreloadedState, createTestStore, createTestWrapper } from "../../../test/utils";
 import { openContainerFile } from "../../BookReader/slice";
