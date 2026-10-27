@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+* **Set tags** and **Set collections** can create a new tag or collection without leaving the dialog. (#376)
+  * The new tag or collection is checked, so pressing **OK** adds it to every selected book.
+
 ### Changed
 
 * The collection dialog now works like the tag dialog and is renamed **Set collections**. (#375)

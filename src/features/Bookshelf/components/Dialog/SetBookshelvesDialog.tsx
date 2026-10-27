@@ -1,3 +1,4 @@
+import Add from "@mui/icons-material/Add";
 import LibraryBooks from "@mui/icons-material/LibraryBooks";
 import {
   Box,
@@ -12,14 +13,15 @@ import {
   ListItemIcon,
   ListItemText,
 } from "@mui/material";
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getBookshelvesForBook } from "../../../../bindings/BookshelfCommands";
 import type { Bookshelf } from "../../../../domain/bookshelf/schema";
 import { useAppDispatch } from "../../../../store/store";
 import { useBookCheckStates } from "../../hooks/useBookCheckStates";
-import { setBookshelvesForBooks } from "../../slice";
+import { addBookshelf, setBookshelvesForBooks } from "../../slice";
 import { BookShelfIcons } from "../BookshelfIcons";
+import { CreateBookshelfDialog } from "./CreateBookshelfDialog";
 
 /** Props for the SetBookshelvesDialog component */
 export interface SetBookshelvesDialogProps {
@@ -49,6 +51,13 @@ export default function SetBookshelvesDialog({
     load: getBookshelvesForBook,
     loadErrorMessage: "Failed to fetch bookshelves for books",
   });
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  // The books of the open session, or null while closed, so that a creation finishing in
+  // a later session does not check its item there.
+  const sessionRef = useRef<number[] | null>(null);
+  useEffect(() => {
+    sessionRef.current = open ? bookIds : null;
+  }, [open, bookIds]);
 
   const handleSave = useCallback(async () => {
     if (bookIds.length === 0 || changes?.length === 0) {
@@ -65,6 +74,17 @@ export default function SetBookshelvesDialog({
       onClose();
     }
   }, [bookIds, changes, dispatch, onClose]);
+
+  const handleCreate = useCallback(
+    async (name: string, icon_id: string) => {
+      const result = await dispatch(addBookshelf({ name, icon_id }));
+      // The `bookshelves-changed` refetch may list it only later; checking it now still saves it.
+      if (addBookshelf.fulfilled.match(result) && sessionRef.current === bookIds) {
+        toggle(result.payload.id);
+      }
+    },
+    [bookIds, dispatch, toggle],
+  );
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth>
@@ -110,6 +130,15 @@ export default function SetBookshelvesDialog({
             )}
           </List>
         </Box>
+        <Button
+          startIcon={<Add />}
+          fullWidth
+          onClick={() => setIsCreateDialogOpen(true)}
+          disabled={bookIds.length > 0 && changes === null}
+          sx={{ mt: 2, justifyContent: "flex-start", color: "text.secondary" }}
+        >
+          {t("bookshelf.collection.create")}
+        </Button>
       </DialogContent>
       <DialogActions sx={{ paddingBottom: 3, paddingRight: 3 }}>
         <Button onClick={onClose} sx={{ color: "text.secondary" }}>
@@ -123,6 +152,11 @@ export default function SetBookshelvesDialog({
           {t("bookshelf.collection.ok-button")}
         </Button>
       </DialogActions>
+      <CreateBookshelfDialog
+        open={isCreateDialogOpen}
+        onCreate={handleCreate}
+        onClose={() => setIsCreateDialogOpen(false)}
+      />
     </Dialog>
   );
 }
