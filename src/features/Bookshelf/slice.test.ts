@@ -23,7 +23,6 @@ import seriesReducer, {
 } from "./seriesSlice";
 import bookCollectionReducer, {
   addBookshelf,
-  addBooksToBookshelves,
   addBookToBookshelf,
   bookshelfAdded,
   clearBookshelfError,
@@ -31,6 +30,7 @@ import bookCollectionReducer, {
   fetchBookshelves,
   fetchBooksInSelectedBookshelf,
   removeBookshelf,
+  setBookshelvesForBooks,
   setSearchText,
   setSelectedBookshelf,
 } from "./slice";
@@ -587,25 +587,28 @@ describe("BookCollectionReducer", () => {
         expect(state.error?.code).toBe(ErrorCode.io);
       });
 
-      it("addBooksToBookshelves should add every book to every bookshelf", async () => {
-        vi.mocked(BookshelfCommand.addBookToBookshelf).mockResolvedValue();
+      it("setBookshelvesForBooks should save each book's bookshelves", async () => {
+        vi.mocked(BookshelfCommand.setBookshelvesForBook).mockResolvedValue();
 
         const result = await store.dispatch(
-          addBooksToBookshelves({ bookIds: [1, 2], bookshelfIds: [10, 20] }),
+          setBookshelvesForBooks([
+            { bookId: 1, bookshelfIds: [10, 20] },
+            { bookId: 2, bookshelfIds: [] },
+          ]),
         );
 
-        expect(addBooksToBookshelves.fulfilled.match(result)).toBe(true);
-        expect(BookshelfCommand.addBookToBookshelf).toHaveBeenCalledTimes(4);
-        expect(BookshelfCommand.addBookToBookshelf).toHaveBeenCalledWith(10, 1);
-        expect(BookshelfCommand.addBookToBookshelf).toHaveBeenCalledWith(20, 2);
+        expect(setBookshelvesForBooks.fulfilled.match(result)).toBe(true);
+        expect(BookshelfCommand.setBookshelvesForBook).toHaveBeenCalledTimes(2);
+        expect(BookshelfCommand.setBookshelvesForBook).toHaveBeenCalledWith(1, [10, 20]);
+        expect(BookshelfCommand.setBookshelvesForBook).toHaveBeenCalledWith(2, []);
       });
 
-      it("addBooksToBookshelves should set only the error on failure", async () => {
-        vi.mocked(BookshelfCommand.addBookToBookshelf).mockRejectedValue(
+      it("setBookshelvesForBooks should set only the error on failure", async () => {
+        vi.mocked(BookshelfCommand.setBookshelvesForBook).mockRejectedValue(
           new CommandError(ErrorCode.database, "db fail"),
         );
 
-        await store.dispatch(addBooksToBookshelves({ bookIds: [1], bookshelfIds: [10] }));
+        await store.dispatch(setBookshelvesForBooks([{ bookId: 1, bookshelfIds: [10] }]));
 
         const state = store.getState().bookCollection;
         // A mutation never flips the grid into its loading state.

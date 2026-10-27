@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            SELECT bookshelf_id FROM bookshelf_items WHERE book_id = ?\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "bookshelf_id",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "bookshelf_items",
+            "name": "bookshelf_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "30662499781edbcb5e25e96ea2987ec934421527e545c4c0474fb8b982caca4f"
+}

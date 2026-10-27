@@ -51,7 +51,7 @@ describe("BookContextMenu", () => {
   it("should render menu items when anchor is provided", () => {
     renderBookContextMenu();
 
-    expect(screen.getByText(/Add to Collection/i)).toBeInTheDocument();
+    expect(screen.getByText(/Set collections/i)).toBeInTheDocument();
     expect(screen.getByText(/Set Series/i)).toBeInTheDocument();
     expect(screen.getByText(/Set tags/i)).toBeInTheDocument();
     expect(screen.getByText(/Remove book/i)).toBeInTheDocument();
@@ -60,8 +60,8 @@ describe("BookContextMenu", () => {
   it("should act on a single book when no books are selected", async () => {
     renderBookContextMenu(defaultProps, []);
 
-    await user.click(screen.getByText(/Add to Collection/i));
-    expect(mockActions.openDialog).toHaveBeenCalledWith("add-to-bookshelf", [mockBook1]);
+    await user.click(screen.getByText(/Set collections/i));
+    expect(mockActions.openDialog).toHaveBeenCalledWith("set-bookshelves", [mockBook1]);
     expect(defaultProps.onClose).toHaveBeenCalled();
   });
 
@@ -92,7 +92,7 @@ describe("BookContextMenu", () => {
 
   it("should not render menu when anchor is null", () => {
     renderBookContextMenu({ ...defaultProps, anchor: null });
-    expect(screen.queryByText(/Add to Collection/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Set collections/i)).not.toBeInTheDocument();
   });
 
   it("should handle context menu event on the menu itself by closing it", async () => {

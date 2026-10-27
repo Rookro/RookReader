@@ -12,6 +12,7 @@ import {
   deleteBookshelf,
   getAllBookshelves,
   removeBookFromBookshelf,
+  setBookshelvesForBook,
 } from "../../bindings/BookshelfCommands";
 import { countPagesInContainer } from "../../bindings/ContainerCommands";
 import type { BookWithState } from "../../domain/book/schema";
@@ -115,27 +116,20 @@ export const deleteBookFromCollection = createAppAsyncThunk(
 );
 
 /**
- * Adds every given book to every given bookshelf.
+ * Saves a new bookshelf set for each given book.
  *
- * @param params - The parameters for the addition.
- * @param params.bookIds - The books to add.
- * @param params.bookshelfIds - The bookshelves to add each book to.
- * @returns A thunk that resolves when every addition is done.
+ * @param updates - Each book with the complete set of bookshelves that should contain it.
+ * @returns A thunk that resolves when every book is updated.
  */
-export const addBooksToBookshelves = createAppAsyncThunk(
-  "bookCollection/addBooksToBookshelves",
-  async (
-    { bookIds, bookshelfIds }: { bookIds: number[]; bookshelfIds: number[] },
-    { rejectWithValue },
-  ) => {
+export const setBookshelvesForBooks = createAppAsyncThunk(
+  "bookCollection/setBookshelvesForBooks",
+  async (updates: { bookId: number; bookshelfIds: number[] }[], { rejectWithValue }) => {
     try {
       await Promise.all(
-        bookIds.flatMap((bookId) =>
-          bookshelfIds.map((bookshelfId) => addBookToBookshelfCommand(bookshelfId, bookId)),
-        ),
+        updates.map(({ bookId, bookshelfIds }) => setBookshelvesForBook(bookId, bookshelfIds)),
       );
     } catch (e) {
-      return handleThunkError(e, "Failed to add books to bookshelves.", rejectWithValue);
+      return handleThunkError(e, "Failed to set bookshelves for books.", rejectWithValue);
     }
   },
 );
@@ -278,7 +272,7 @@ const bookCollectionSlice = createSlice({
       .addCase(removeBookshelf.rejected, (state, action) => {
         state.error = action.payload ?? null;
       })
-      .addCase(addBooksToBookshelves.rejected, (state, action) => {
+      .addCase(setBookshelvesForBooks.rejected, (state, action) => {
         state.error = action.payload ?? null;
       })
       // The bookshelf list is not the grid's books either.

@@ -310,7 +310,7 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
         <FloatingActionBar
           selectionCount={selectedBookIds.size}
           onClear={clearSelection}
-          onAddToBookshelf={() => openDialog("add-to-bookshelf", getSelectedBooks())}
+          onSetBookshelves={() => openDialog("set-bookshelves", getSelectedBooks())}
           onSetTags={() => openDialog("set-tags", getSelectedBooks())}
           onSetSeries={() => openDialog("set-series", getSelectedBooks())}
           onDelete={() => openDialog("delete-books", getSelectedBooks())}

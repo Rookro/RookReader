@@ -47,7 +47,7 @@ vi.mock("./BookshelfToolbar", () => ({
         <button
           type="button"
           data-testid="context-open-dialog"
-          onClick={() => openDialog("add-to-bookshelf", [])}
+          onClick={() => openDialog("set-bookshelves", [])}
         >
           Context Open
         </button>
@@ -68,14 +68,14 @@ vi.mock("./FloatingActionBar", () => ({
   default: ({
     selectionCount,
     onClear,
-    onAddToBookshelf,
+    onSetBookshelves,
     onSetTags,
     onSetSeries,
     onDelete,
   }: {
     selectionCount: number;
     onClear: () => void;
-    onAddToBookshelf: () => void;
+    onSetBookshelves: () => void;
     onSetTags: () => void;
     onSetSeries: () => void;
     onDelete: () => void;
@@ -85,7 +85,7 @@ vi.mock("./FloatingActionBar", () => ({
       <button type="button" onClick={onClear}>
         Clear
       </button>
-      <button type="button" onClick={onAddToBookshelf}>
+      <button type="button" onClick={onSetBookshelves}>
         Add to Bookshelf
       </button>
       <button type="button" onClick={onSetTags}>
@@ -448,7 +448,7 @@ describe("BookGrid", () => {
     expect(mockClearSelection).toHaveBeenCalled();
 
     fireEvent.click(screen.getByText("Add to Bookshelf"));
-    expect(mockOpenDialog).toHaveBeenCalledWith("add-to-bookshelf", [book]);
+    expect(mockOpenDialog).toHaveBeenCalledWith("set-bookshelves", [book]);
 
     fireEvent.click(screen.getByText("Set Tags"));
     expect(mockOpenDialog).toHaveBeenCalledWith("set-tags", [book]);
@@ -751,7 +751,7 @@ describe("BookGrid", () => {
     );
 
     fireEvent.click(screen.getByTestId("context-open-dialog"));
-    expect(mockOpenDialog).toHaveBeenCalledWith("add-to-bookshelf", []);
+    expect(mockOpenDialog).toHaveBeenCalledWith("set-bookshelves", []);
   });
 
   it("filters books by tag", () => {

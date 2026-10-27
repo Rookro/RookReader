@@ -12,18 +12,20 @@ import {
   ListItemIcon,
   ListItemText,
 } from "@mui/material";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
+import { getBookshelvesForBook } from "../../../../bindings/BookshelfCommands";
 import type { Bookshelf } from "../../../../domain/bookshelf/schema";
 import { useAppDispatch } from "../../../../store/store";
-import { addBooksToBookshelves } from "../../slice";
+import { useBookCheckStates } from "../../hooks/useBookCheckStates";
+import { setBookshelvesForBooks } from "../../slice";
 import { BookShelfIcons } from "../BookshelfIcons";
 
-/** Props for the AddBooksToBookshelvesDialog component */
-export interface AddBooksToBookshelvesDialogProps {
+/** Props for the SetBookshelvesDialog component */
+export interface SetBookshelvesDialogProps {
   /** Whether the dialog is open or closed. */
   open: boolean;
-  /** The IDs of the books to add. */
+  /** The IDs of the books whose bookshelves are being set. */
   bookIds: number[];
   /** The available bookshelves to choose from. */
   availableBookshelves: Bookshelf[];
@@ -31,55 +33,42 @@ export interface AddBooksToBookshelvesDialogProps {
   onClose: () => void;
 }
 
-/** Dialog for adding books to one or more bookshelves */
-export default function AddBooksToBookshelvesDialog({
+/** Dialog for setting the bookshelves that contain books */
+export default function SetBookshelvesDialog({
   open,
   bookIds,
   availableBookshelves,
   onClose,
-}: AddBooksToBookshelvesDialogProps) {
+}: SetBookshelvesDialogProps) {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
-  const [selectedBookshelfIds, setSelectedBookshelfIds] = useState<Set<number>>(new Set());
-
-  // Always reset selection when dialog opens
-  useEffect(() => {
-    if (open) {
-      setSelectedBookshelfIds(new Set());
-    }
-  }, [open]);
-
-  const handleToggle = useCallback(
-    (bookshelfId: number) => {
-      const newSelected = new Set(selectedBookshelfIds);
-      if (newSelected.has(bookshelfId)) {
-        newSelected.delete(bookshelfId);
-      } else {
-        newSelected.add(bookshelfId);
-      }
-      setSelectedBookshelfIds(newSelected);
-    },
-    [selectedBookshelfIds],
-  );
+  const { stateOf, toggle, changes } = useBookCheckStates({
+    open,
+    bookIds,
+    ids: availableBookshelves.map((bookshelf) => bookshelf.id),
+    load: getBookshelvesForBook,
+    loadErrorMessage: "Failed to fetch bookshelves for books",
+  });
 
   const handleSave = useCallback(async () => {
-    if (bookIds.length === 0 || selectedBookshelfIds.size === 0) {
+    if (bookIds.length === 0 || changes?.length === 0) {
       onClose();
       return;
     }
+    if (changes === null) return;
     const result = await dispatch(
-      addBooksToBookshelves({ bookIds, bookshelfIds: Array.from(selectedBookshelfIds) }),
+      setBookshelvesForBooks(changes.map(({ bookId, ids }) => ({ bookId, bookshelfIds: ids }))),
     );
     // On failure the slice error is shown by GlobalErrorListener and the backend's
     // `books-changed` refetch reflects any partial success; stay open for retry.
-    if (addBooksToBookshelves.fulfilled.match(result)) {
+    if (setBookshelvesForBooks.fulfilled.match(result)) {
       onClose();
     }
-  }, [bookIds, selectedBookshelfIds, dispatch, onClose]);
+  }, [bookIds, changes, dispatch, onClose]);
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth>
-      <DialogTitle>{t("bookshelf.collection.add-books-title")}</DialogTitle>
+      <DialogTitle>{t("bookshelf.collection.set-title")}</DialogTitle>
       <DialogContent>
         <Box
           sx={{
@@ -107,8 +96,9 @@ export default function AddBooksToBookshelvesDialog({
                   />
                   <Checkbox
                     edge="end"
-                    onChange={() => handleToggle(bookshelf.id)}
-                    checked={selectedBookshelfIds.has(bookshelf.id)}
+                    onChange={() => toggle(bookshelf.id)}
+                    checked={stateOf(bookshelf.id) === "checked"}
+                    indeterminate={stateOf(bookshelf.id) === "mixed"}
                   />
                 </ListItem>
               );
@@ -125,7 +115,11 @@ export default function AddBooksToBookshelvesDialog({
         <Button onClick={onClose} sx={{ color: "text.secondary" }}>
           {t("bookshelf.collection.cancel-button")}
         </Button>
-        <Button variant="contained" onClick={handleSave} disabled={selectedBookshelfIds.size === 0}>
+        <Button
+          variant="contained"
+          onClick={handleSave}
+          disabled={bookIds.length > 0 && changes === null}
+        >
           {t("bookshelf.collection.ok-button")}
         </Button>
       </DialogActions>

@@ -9,7 +9,7 @@ describe("FloatingActionBar", () => {
   const defaultProps = {
     selectionCount: 2,
     onClear: vi.fn(),
-    onAddToBookshelf: vi.fn(),
+    onSetBookshelves: vi.fn(),
     onSetSeries: vi.fn(),
     onSetTags: vi.fn(),
     onDelete: vi.fn(),
@@ -19,7 +19,7 @@ describe("FloatingActionBar", () => {
     renderWithProviders(<FloatingActionBar {...defaultProps} />);
 
     expect(screen.getByText(/2 selected/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Add to Collection/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Set collections/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Set series/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Set tags/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Remove book/i })).toBeInTheDocument();
@@ -28,8 +28,8 @@ describe("FloatingActionBar", () => {
   it("should call callbacks when buttons are clicked", async () => {
     renderWithProviders(<FloatingActionBar {...defaultProps} />);
 
-    await user.click(screen.getByRole("button", { name: /Add to Collection/i }));
-    expect(defaultProps.onAddToBookshelf).toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: /Set collections/i }));
+    expect(defaultProps.onSetBookshelves).toHaveBeenCalled();
 
     await user.click(screen.getByRole("button", { name: /Set series/i }));
     expect(defaultProps.onSetSeries).toHaveBeenCalled();

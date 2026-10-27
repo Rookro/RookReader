@@ -117,6 +117,54 @@ impl BookshelfRepository for SqliteBookshelfRepository {
         Ok(())
     }
 
+    async fn get_bookshelves_for_book(&self, book_id: i64) -> Result<Vec<i64>> {
+        let records = sqlx::query!(
+            r#"
+            SELECT bookshelf_id FROM bookshelf_items WHERE book_id = ?
+            "#,
+            book_id
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(records.into_iter().map(|r| r.bookshelf_id).collect())
+    }
+
+    async fn set_bookshelves_for_book(&self, book_id: i64, bookshelf_ids: &[i64]) -> Result<()> {
+        let bookshelf_ids_json = serde_json::to_string(bookshelf_ids)?;
+        let mut tx = self.pool.begin().await?;
+
+        // Kept rows stay as they are, keeping when the book was added to the bookshelf.
+        sqlx::query!(
+            r#"
+            DELETE FROM bookshelf_items
+            WHERE book_id = ? AND bookshelf_id NOT IN (SELECT value FROM json_each(?))
+            "#,
+            book_id,
+            bookshelf_ids_json
+        )
+        .execute(&mut *tx)
+        .await?;
+
+        // The JOIN skips a stale bookshelf_id instead of raising a FOREIGN KEY error, which
+        // OR IGNORE does not suppress; OR IGNORE skips the kept rows.
+        sqlx::query!(
+            r#"
+            INSERT OR IGNORE INTO bookshelf_items (bookshelf_id, book_id)
+            SELECT b.id, ?
+            FROM bookshelves b
+            WHERE b.id IN (SELECT value FROM json_each(?))
+            "#,
+            book_id,
+            bookshelf_ids_json
+        )
+        .execute(&mut *tx)
+        .await?;
+
+        tx.commit().await?;
+        Ok(())
+    }
+
     async fn delete(&self, id: i64) -> Result<()> {
         sqlx::query!(
             r#"

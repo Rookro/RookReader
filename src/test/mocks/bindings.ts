@@ -36,6 +36,8 @@ vi.mock("../../bindings/BookshelfCommands", () => ({
   getAllBookshelves: vi.fn(() => Promise.resolve([])),
   addBookToBookshelf: vi.fn(() => Promise.resolve([])),
   removeBookFromBookshelf: vi.fn(() => Promise.resolve([])),
+  getBookshelvesForBook: vi.fn(() => Promise.resolve([])),
+  setBookshelvesForBook: vi.fn(() => Promise.resolve()),
   deleteBookshelf: vi.fn(() => Promise.resolve([])),
 }));
 

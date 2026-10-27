@@ -99,7 +99,7 @@ describe("BookCard", () => {
     await user.pointer({ keys: "[MouseRight]", target: actionArea });
 
     // Verify context menu items are rendered
-    expect(await screen.findByText(/Add to Collection/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Set collections/i)).toBeInTheDocument();
   });
 
   it("acts on the whole selection from the context menu when this book is selected", async () => {
@@ -134,8 +134,8 @@ describe("BookCard", () => {
 
     // The action applies to the whole selection, taken from the actions context
     // rather than from a list drilled through every card.
-    await user.click(await screen.findByText(/Add to Collection/i));
-    expect(openDialog).toHaveBeenCalledWith("add-to-bookshelf", [bookA, bookB]);
+    await user.click(await screen.findByText(/Set collections/i));
+    expect(openDialog).toHaveBeenCalledWith("set-bookshelves", [bookA, bookB]);
   });
 
   it("should display a checkmark when selected", () => {
