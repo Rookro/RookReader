@@ -27,7 +27,10 @@ export type BookWithState = BookWithState_Serialize;
 /** A book that has been opened, with its reading state. */
 export type ReadBook = ReadBook_Serialize;
 
-/** Where the reader is in a book. `last_opened_at` is null when the update does not change it. */
+/**
+ * Where the reader is in a book. A null `last_opened_at` leaves it to the backend, which
+ * records the current time.
+ */
 export type ReadingState = ReadingState_Serialize;
 
 /** A named position in a book. */

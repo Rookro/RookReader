@@ -114,7 +114,7 @@ describe("BookCollectionReducer", () => {
     expect(nextState.books[1].last_opened_at).toBe("2026-07-04T10:00:00");
   });
 
-  // A progress update without a timestamp keeps the stored one, as the backend does.
+  // A progress update without a timestamp does not blank the listed one.
   it("should keep last_opened_at when readingProgressChanged carries none", () => {
     const state = {
       ...bookCollectionInitialState,
