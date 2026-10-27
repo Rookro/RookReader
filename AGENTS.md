@@ -58,12 +58,12 @@ Write all code comments and documentation in English.
 2. Expose it from `src-tauri/src/commands/` with `#[tauri::command]` + `#[specta::specta]`.
 3. Register it in `specta_builder()`'s `collect_commands!` in `src-tauri/src/lib.rs`. Commands returning a raw `tauri::ipc::Response` (binary payloads) go in the separate `generate_handler!` there instead and keep a raw `invoke` on the frontend.
 4. Run `npm run gen:bindings`.
-5. Add or update the thin wrapper in `src/bindings/*Commands.ts` that delegates to the generated `commands.*`, casting to the narrower `src/domain/*` types with `as` where needed.
+5. Add or update the thin wrapper in `src/bindings/*Commands.ts` that delegates to the generated `commands.*`. Entity results already have their generated types; when a new entity is added, alias its `_Serialize` type in `src/domain/entities.ts`.
 6. Call the wrapper from a Redux thunk or a hook.
 
 **Error codes** are defined only in Rust (`ErrorCode::code()` in `src-tauri/src/error.rs`). To add one, add the variant and its `code()` arm, then regenerate. The frontend uses `CommandError` from `src/types/Error.ts`, which re-exports the generated codes plus a frontend-only `unknown`.
 
-**Validation:** application settings are validated in Rust (serde for shape and enums, `garde` for bounds) and their TypeScript types are generated. Other frontend input, such as domain entities, is validated with Zod.
+**Validation:** application settings are validated in Rust (serde for shape and enums, `garde` for bounds) and their TypeScript types are generated. Entities returned by commands and events come from our own backend and are typed by the generated bindings, so they are not validated at runtime; validate only genuinely external input (for example values read back from `localStorage`) where it is read.
 
 **Settings:** the model, defaults, and bounds live in `src-tauri/src/settings/`. The frontend keeps copies in `src/features/Settings/defaultSettings.json` and `settingsBounds.json`, and Rust tests (`test_defaults_agree_with_frontend_json`, `test_bounds_agree_with_frontend_json`) fail when they drift. Adding or changing a setting therefore also means updating both JSON files, the i18n keys, and the settings reference in `docs/wiki/User-Guide.md` (`check:wiki` checks its names and defaults against the code), and regenerating the bindings.
 
