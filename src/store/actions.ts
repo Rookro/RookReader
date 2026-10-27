@@ -1,5 +1,5 @@
 import { createAction } from "@reduxjs/toolkit";
-import type { ReadingState } from "../domain/book/schema";
+import type { ReadingState } from "../domain/entities";
 
 /**
  * Dispatched when the backend reports a reading-progress update for a book
