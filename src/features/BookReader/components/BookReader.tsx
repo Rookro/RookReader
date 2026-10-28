@@ -15,7 +15,7 @@ import SidePanels from "../../SidePane/components/SidePanels";
 import SideTabs from "../../SidePane/components/SideTabs";
 import type { SideTab } from "../../SidePane/types";
 import { useBookmarkSync } from "../hooks/useBookmarkSync";
-import { openBook, openContainerFile } from "../slice";
+import { openBook } from "../slice";
 import { holdWheelGesture } from "../utils/wheelGesture";
 import BookmarkViewer from "./BookmarkViewer/BookmarkViewer";
 import ComicReader from "./ComicReader";
@@ -157,12 +157,6 @@ export default function BookReader({ sx }: BookReaderProps) {
   }, [dispatch, historySettings.recordReadingHistory, startupSettings.restoreLastBook]);
 
   const containerPath = history[historyIndex];
-
-  useEffect(() => {
-    if (containerPath) {
-      dispatch(openContainerFile(containerPath));
-    }
-  }, [containerPath, dispatch]);
 
   useEffect(() => {
     if (droppedFile && droppedFile.length > 0) {

@@ -218,26 +218,17 @@ const initialState = {
 /** The reader's state: the open book, its pages and position, and the book history. */
 export type ReaderState = typeof initialState;
 
-/**
- * Applies a new container path: pushes history, records where the book was opened from,
- * and resets the per-book view state.
- */
-const openContainerPath = (state: ReaderState, path: string, origin: OpenOrigin | null) => {
-  state.origin = origin;
-  const kept = state.historyIndex + 1;
-  if (!pushHistory(state, path)) {
-    state.originHistory[state.historyIndex] = origin;
-    // No-op open (same path): drop any pending initial position so it can't
-    // leak into a later, unrelated open.
-    state.pendingInitialPosition = null;
-    return;
-  }
-  state.originHistory = [...state.originHistory.slice(0, kept), origin];
+/** Clears what the reader shows of a book, before the next one loads or after one fails to. */
+const resetBookView = (state: ReaderState) => {
+  state.book = null;
+  state.entries = [];
   state.index = 0;
   state.isSpreadShifted = false;
   state.isSpreadDisplayed = false;
   state.readingDirection = null;
-  state.isLoading = true;
+  state.cfi = null;
+  state.novelDirection = null;
+  state.hasPreviews = false;
 };
 
 export const readerSlice = createSlice({
@@ -245,34 +236,34 @@ export const readerSlice = createSlice({
   initialState,
   reducers: {
     /**
-     * Sets the path of the container file being read and updates history.
+     * Moves the book history to a newly opened path and records where it was opened from.
+     * Loading the book is left to {@link openBook}.
      *
      * @param state - The current Redux state slice.
-     * @param action - Payload containing the container file path.
+     * @param action - Payload containing the path, its origin, and the page to start on.
      */
-    setContainerFilePath: (state, action: PayloadAction<string>) => {
-      openContainerPath(state, action.payload, null);
-    },
-    /**
-     * Opens a book from a known origin. The origin is recorded first so the adjacent-book
-     * resolver sees it together with the path.
-     *
-     * @param state - The current Redux state slice.
-     * @param action - Payload containing the container file path and where it was opened from.
-     */
-    openBook: (state, action: PayloadAction<{ path: string; origin: OpenOrigin | null }>) => {
-      openContainerPath(state, action.payload.path, action.payload.origin);
-    },
-    /**
-     * Sets the pending initial position for the next opened container.
-     * "first" starts on page 1, "last" starts on the last page; null uses the
-     * last-read position.
-     *
-     * @param state - The current Redux state slice.
-     * @param action - Payload containing the pending position, or null to clear it.
-     */
-    setPendingInitialPosition: (state, action: PayloadAction<"first" | "last" | null>) => {
-      state.pendingInitialPosition = action.payload;
+    bookPathOpened: (
+      state,
+      action: PayloadAction<{
+        path: string;
+        origin: OpenOrigin | null;
+        initialPosition?: "first" | "last";
+      }>,
+    ) => {
+      const { path, origin, initialPosition } = action.payload;
+      state.origin = origin;
+      const kept = state.historyIndex + 1;
+      if (!pushHistory(state, path)) {
+        state.originHistory[state.historyIndex] = origin;
+        // No-op open (same path): drop any pending initial position so it can't
+        // leak into a later, unrelated open.
+        state.pendingInitialPosition = null;
+        return;
+      }
+      state.originHistory = [...state.originHistory.slice(0, kept), origin];
+      if (initialPosition) {
+        state.pendingInitialPosition = initialPosition;
+      }
     },
     /**
      * Sets the current image index within a container file.
@@ -317,25 +308,25 @@ export const readerSlice = createSlice({
       state.isSpreadDisplayed = action.payload;
     },
     /**
-     * Navigates backwards in the container file history.
+     * Moves one book back in the history. Loading it is left to
+     * {@link goBackContainerHistory}.
      *
      * @param state - The current Redux state slice.
      */
-    goBackContainerHistory: (state) => {
+    historyMovedBack: (state) => {
       if (goBackHistory(state)) {
         state.origin = state.originHistory[state.historyIndex] ?? null;
-        state.isLoading = true;
       }
     },
     /**
-     * Navigates forwards in the container file history.
+     * Moves one book forward in the history. Loading it is left to
+     * {@link goForwardContainerHistory}.
      *
      * @param state - The current Redux state slice.
      */
-    goForwardContainerHistory: (state) => {
+    historyMovedForward: (state) => {
       if (goForwardHistory(state)) {
         state.origin = state.originHistory[state.historyIndex] ?? null;
-        state.isLoading = true;
       }
     },
     /**
@@ -388,16 +379,8 @@ export const readerSlice = createSlice({
       .addCase(openContainerFile.pending, (state) => {
         // Until the next book's record arrives, progress and bookmarks have no book to
         // go to; keeping the previous one would hand them to it.
-        state.book = null;
-        state.entries = [];
+        resetBookView(state);
         state.isLoading = true;
-        state.index = 0;
-        state.isSpreadShifted = false;
-        state.isSpreadDisplayed = false;
-        state.readingDirection = null;
-        state.cfi = null;
-        state.novelDirection = null;
-        state.hasPreviews = false;
         state.error = null;
         state.bookRecordError = null;
       })
@@ -451,37 +434,27 @@ export const readerSlice = createSlice({
         if (state.history[state.historyIndex] !== action.meta.arg) {
           return;
         }
-        state.entries = [];
-        state.isLoading = false;
-        state.index = 0;
-        state.isSpreadShifted = false;
-        state.isSpreadDisplayed = false;
-        state.readingDirection = null;
-        state.cfi = null;
-        state.pendingInitialPosition = null;
         // Drop every trace of the previously opened book. The reader is now at the path
         // that failed to open, showing no pages, instead of still showing the old book's
         // title, type and reading state.
-        state.book = null;
+        resetBookView(state);
+        state.isLoading = false;
+        state.pendingInitialPosition = null;
         state.isDirectory = false;
         state.isNovel = false;
-        state.hasPreviews = false;
-        state.novelDirection = null;
         state.error = action.payload ?? null;
       });
   },
 });
 
 export const {
-  setContainerFilePath,
-  openBook,
-  setPendingInitialPosition,
+  bookPathOpened,
+  historyMovedBack,
+  historyMovedForward,
   setImageIndex,
   setSpreadShifted,
   setReadingDirection,
   setSpreadDisplayed,
-  goBackContainerHistory,
-  goForwardContainerHistory,
   setEntries,
   setNovelLocation,
   setNovelDirection,
@@ -489,3 +462,66 @@ export const {
   clearBookRecordError,
 } = readerSlice.actions;
 export default readerSlice.reducer;
+
+/**
+ * Opens a book: moves the history to it and, unless it is already the open book, loads it.
+ *
+ * @param args - The book to open.
+ * @param args.path - The absolute path of the container file or directory.
+ * @param args.origin - Where the book was opened from, or null for a typed path.
+ * @param args.initialPosition - "first" or "last" to start on that page instead of the
+ * last-read one.
+ * @returns A thunk that resolves once the book has loaded, or at once if it was already open.
+ */
+export const openBook = createAppAsyncThunk(
+  "reader/openBook",
+  async (
+    {
+      path,
+      origin,
+      initialPosition,
+    }: { path: string; origin: OpenOrigin | null; initialPosition?: "first" | "last" },
+    { dispatch, getState },
+  ) => {
+    const { history, historyIndex } = getState().reader;
+    const isAlreadyOpen = history[historyIndex] === path;
+    dispatch(bookPathOpened({ path, origin, initialPosition }));
+    if (!isAlreadyOpen) {
+      await dispatch(openContainerFile(path));
+    }
+  },
+);
+
+/**
+ * Moves one book back in the history and loads it.
+ *
+ * @returns A thunk that resolves once the book has loaded, or at once at the first book.
+ */
+export const goBackContainerHistory = createAppAsyncThunk(
+  "reader/goBackContainerHistory",
+  async (_: undefined, { dispatch, getState }) => {
+    const before = getState().reader.historyIndex;
+    dispatch(historyMovedBack());
+    const { history, historyIndex } = getState().reader;
+    if (historyIndex !== before) {
+      await dispatch(openContainerFile(history[historyIndex]));
+    }
+  },
+);
+
+/**
+ * Moves one book forward in the history and loads it.
+ *
+ * @returns A thunk that resolves once the book has loaded, or at once at the last book.
+ */
+export const goForwardContainerHistory = createAppAsyncThunk(
+  "reader/goForwardContainerHistory",
+  async (_: undefined, { dispatch, getState }) => {
+    const before = getState().reader.historyIndex;
+    dispatch(historyMovedForward());
+    const { history, historyIndex } = getState().reader;
+    if (historyIndex !== before) {
+      await dispatch(openContainerFile(history[historyIndex]));
+    }
+  },
+);

@@ -31,7 +31,6 @@ vi.mock("../slice", async () => {
   const actual = await vi.importActual("../slice");
   return {
     ...actual,
-    openContainerFile: vi.fn(() => ({ type: "reader/openContainerFile" })),
     openBook: vi.fn((p: unknown) => ({ type: "reader/openBook", payload: p })),
   };
 });

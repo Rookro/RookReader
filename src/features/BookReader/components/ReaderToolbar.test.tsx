@@ -181,10 +181,13 @@ describe("ReaderToolbar", () => {
     expect(SettingsReducer.updateSettings).not.toHaveBeenCalled();
   });
 
-  it("should dispatch setContainerFilePath when path input is submitted", async () => {
+  // A typed path has no shelf or folder behind it, so it must not keep the previous origin
+  it("should open the submitted path with no origin", async () => {
     const preloadedState = createBasePreloadedState();
     preloadedState.reader.history = ["/path/old"];
+    preloadedState.reader.originHistory = [{ kind: "fileNavigator" }];
     preloadedState.reader.historyIndex = 0;
+    preloadedState.reader.origin = { kind: "fileNavigator" };
 
     const { store } = renderWithProviders(<ReaderToolbar />, { preloadedState });
 
@@ -192,7 +195,9 @@ describe("ReaderToolbar", () => {
     await user.clear(input);
     await user.type(input, "/path/new{enter}");
 
-    expect(store.getState().reader.history).toContain("/path/new");
+    const { history, historyIndex, origin } = store.getState().reader;
+    expect(history[historyIndex]).toBe("/path/new");
+    expect(origin).toBeNull();
   });
 
   it("should trigger form submission on blur", async () => {

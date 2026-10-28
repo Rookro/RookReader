@@ -6,17 +6,19 @@ import { createMockBookWithState } from "../../test/factories";
 import { type AppStore, createTestStore, type RootState } from "../../test/utils";
 import { CommandError, ErrorCode } from "../../types/Error";
 import readerReducer, {
+  bookPathOpened,
   clearContainerFileError,
   goBackContainerHistory,
   goForwardContainerHistory,
+  historyMovedBack,
+  historyMovedForward,
   openBook,
   openContainerFile,
-  setContainerFilePath,
   setEntries,
   setImageIndex,
   setNovelDirection,
   setNovelLocation,
-  setPendingInitialPosition,
+  setReadingDirection,
   setSpreadDisplayed,
   setSpreadShifted,
   toggleReadingDirection,
@@ -44,28 +46,28 @@ describe("ReaderReducer", () => {
 
       // A typed path has no shelf behind it, so "next book" must not search the shelf
       it("typing a path drops the previous book's origin", () => {
-        let state = readerReducer(undefined, openBook({ path: "/s/v1.zip", origin: shelf }));
-        state = readerReducer(state, setContainerFilePath("/other/x.zip"));
+        let state = readerReducer(undefined, bookPathOpened({ path: "/s/v1.zip", origin: shelf }));
+        state = readerReducer(state, bookPathOpened({ path: "/other/x.zip", origin: null }));
         expect(state.origin).toBeNull();
       });
 
       it("back and forward restore each entry's origin", () => {
-        let state = readerReducer(undefined, openBook({ path: "/s/v1.zip", origin: shelf }));
+        let state = readerReducer(undefined, bookPathOpened({ path: "/s/v1.zip", origin: shelf }));
         state = readerReducer(
           state,
-          openBook({ path: "/d/a.zip", origin: { kind: "fileNavigator" } }),
+          bookPathOpened({ path: "/d/a.zip", origin: { kind: "fileNavigator" } }),
         );
-        state = readerReducer(state, goBackContainerHistory());
+        state = readerReducer(state, historyMovedBack());
         expect(state.origin).toEqual(shelf);
-        state = readerReducer(state, goForwardContainerHistory());
+        state = readerReducer(state, historyMovedForward());
         expect(state.origin).toEqual({ kind: "fileNavigator" });
       });
 
       it("a new open after going back drops the forward origins", () => {
-        let state = readerReducer(undefined, openBook({ path: "/a", origin: shelf }));
-        state = readerReducer(state, openBook({ path: "/b", origin: null }));
-        state = readerReducer(state, goBackContainerHistory());
-        state = readerReducer(state, openBook({ path: "/c", origin: { kind: "history" } }));
+        let state = readerReducer(undefined, bookPathOpened({ path: "/a", origin: shelf }));
+        state = readerReducer(state, bookPathOpened({ path: "/b", origin: null }));
+        state = readerReducer(state, historyMovedBack());
+        state = readerReducer(state, bookPathOpened({ path: "/c", origin: { kind: "history" } }));
         expect(state.originHistory).toEqual([shelf, { kind: "history" }]);
       });
     });
@@ -103,14 +105,12 @@ describe("ReaderReducer", () => {
     });
 
     // Verify that opening another book never leaves a stale spread flag behind
-    it("should clear the displayed-spread flag on setContainerFilePath", () => {
-      const initialState = {
-        originHistory: [] as OpenOrigin[],
-        history: [],
-        historyIndex: -1,
-        isSpreadDisplayed: true,
-      } as unknown as RootState["reader"];
-      const state = readerReducer(initialState, setContainerFilePath("/books/a.zip"));
+    it("should clear the displayed-spread flag when a book starts opening", () => {
+      const initialState = { isSpreadDisplayed: true } as RootState["reader"];
+      const state = readerReducer(
+        initialState,
+        openContainerFile.pending("requestId", "/books/a.zip"),
+      );
       expect(state.isSpreadDisplayed).toBe(false);
     });
 
@@ -121,65 +121,57 @@ describe("ReaderReducer", () => {
       expect(state.isSpreadShifted).toBe(true);
     });
 
-    // Verify that container file path is set and history is updated
-    it("should handle setContainerFilePath and update history", () => {
+    // Verify that a new path is added to the history
+    it("should handle bookPathOpened and update history", () => {
       const initialState = {
         originHistory: [] as OpenOrigin[],
         history: ["old"],
         historyIndex: 0,
-        index: 5,
       } as RootState["reader"];
-      const state = readerReducer(initialState, setContainerFilePath("new"));
+      const state = readerReducer(initialState, bookPathOpened({ path: "new", origin: null }));
       expect(state.history).toEqual(["old", "new"]);
       expect(state.historyIndex).toBe(1);
-      expect(state.index).toBe(0);
     });
 
     // Verify that opening another book drops the previous book's shifted pairing
-    it("should reset the shifted flag in setContainerFilePath", () => {
-      const initialState = {
-        originHistory: [] as OpenOrigin[],
-        history: ["old"],
-        historyIndex: 0,
-        index: 5,
-        isSpreadShifted: true,
-      } as RootState["reader"];
-      const state = readerReducer(initialState, setContainerFilePath("new"));
+    it("should reset the shifted flag when a book starts opening", () => {
+      const initialState = { isSpreadShifted: true } as RootState["reader"];
+      const state = readerReducer(initialState, openContainerFile.pending("requestId", "new"));
       expect(state.isSpreadShifted).toBe(false);
     });
 
-    // Verify that history is not updated when setContainerFilePath is called with current path
-    it("should not update history if setContainerFilePath is called with current path", () => {
+    // Verify that history is not updated when bookPathOpened is called with current path
+    it("should not update history if bookPathOpened is called with current path", () => {
       const initialState = {
         originHistory: [] as OpenOrigin[],
         history: ["current"],
         historyIndex: 0,
       } as RootState["reader"];
-      const state = readerReducer(initialState, setContainerFilePath("current"));
+      const state = readerReducer(initialState, bookPathOpened({ path: "current", origin: null }));
       expect(state.history).toHaveLength(1);
     });
 
     // Verify that a no-op open (same path) clears any pending initial position
-    it("should clear pendingInitialPosition on a no-op setContainerFilePath", () => {
+    it("should clear pendingInitialPosition on a no-op bookPathOpened", () => {
       const initialState = {
         originHistory: [] as OpenOrigin[],
         history: ["current"],
         historyIndex: 0,
         pendingInitialPosition: "last",
       } as RootState["reader"];
-      const state = readerReducer(initialState, setContainerFilePath("current"));
+      const state = readerReducer(initialState, bookPathOpened({ path: "current", origin: null }));
       expect(state.history).toHaveLength(1);
       expect(state.pendingInitialPosition).toBeNull();
     });
 
     // Verify that subsequent history is sliced when a new path is set while in the middle of history
-    it("should slice history in setContainerFilePath when index is not at the end", () => {
+    it("should slice history in bookPathOpened when index is not at the end", () => {
       const initialState = {
         originHistory: [] as OpenOrigin[],
         history: ["p1", "p2", "p3"],
         historyIndex: 1,
       } as RootState["reader"];
-      const state = readerReducer(initialState, setContainerFilePath("new"));
+      const state = readerReducer(initialState, bookPathOpened({ path: "new", origin: null }));
       expect(state.history).toEqual(["p1", "p2", "new"]);
       expect(state.historyIndex).toBe(2);
     });
@@ -192,14 +184,14 @@ describe("ReaderReducer", () => {
         historyIndex: 1,
       } as RootState["reader"];
 
-      let state = readerReducer(initialState, goBackContainerHistory());
+      let state = readerReducer(initialState, historyMovedBack());
       expect(state.historyIndex).toBe(0);
-      state = readerReducer(state, goBackContainerHistory()); // Should not go below 0
+      state = readerReducer(state, historyMovedBack()); // Should not go below 0
       expect(state.historyIndex).toBe(0);
 
-      state = readerReducer(initialState, goForwardContainerHistory());
+      state = readerReducer(initialState, historyMovedForward());
       expect(state.historyIndex).toBe(2);
-      state = readerReducer(state, goForwardContainerHistory()); // Should not go beyond length - 1
+      state = readerReducer(state, historyMovedForward()); // Should not go beyond length - 1
       expect(state.historyIndex).toBe(2);
     });
 
@@ -225,24 +217,19 @@ describe("ReaderReducer", () => {
       expect(state.novelDirection).toBe("rtl");
     });
 
-    // Verify that openBook records the origin and opens the path in one step
-    it("should handle openBook", () => {
+    // Verify that bookPathOpened records the origin together with the path
+    it("should record the origin with bookPathOpened", () => {
       const initialState = {
         history: ["old"],
         originHistory: [null],
         historyIndex: 0,
-        index: 5,
-        isSpreadShifted: true,
-        isSpreadDisplayed: true,
-        readingDirection: "ltr",
-        isLoading: false,
         origin: null,
         pendingInitialPosition: null,
       } as RootState["reader"];
 
       const state = readerReducer(
         initialState,
-        openBook({
+        bookPathOpened({
           path: "new",
           origin: { kind: "bookshelf", collectionId: 3, sortOrder: "name_asc" },
         }),
@@ -252,20 +239,14 @@ describe("ReaderReducer", () => {
         collectionId: 3,
         sortOrder: "name_asc",
       });
-      // The path is applied exactly like setContainerFilePath.
       expect(state.history).toEqual(["old", "new"]);
       expect(state.historyIndex).toBe(1);
-      expect(state.index).toBe(0);
-      expect(state.isSpreadShifted).toBe(false);
-      expect(state.isSpreadDisplayed).toBe(false);
-      expect(state.readingDirection).toBeNull();
-      expect(state.isLoading).toBe(true);
 
-      const cleared = readerReducer(state, openBook({ path: "other", origin: null }));
+      const cleared = readerReducer(state, bookPathOpened({ path: "other", origin: null }));
       expect(cleared.origin).toBeNull();
     });
 
-    it("should record the origin but keep the view on a no-op openBook", () => {
+    it("should record the origin but keep the view on a no-op bookPathOpened", () => {
       const initialState = {
         history: ["current"],
         originHistory: [{ kind: "history" }],
@@ -278,7 +259,7 @@ describe("ReaderReducer", () => {
 
       const state = readerReducer(
         initialState,
-        openBook({ path: "current", origin: { kind: "dragDrop" } }),
+        bookPathOpened({ path: "current", origin: { kind: "dragDrop" } }),
       );
       expect(state.origin).toEqual({ kind: "dragDrop" });
       expect(state.history).toEqual(["current"]);
@@ -288,15 +269,23 @@ describe("ReaderReducer", () => {
       expect(state.pendingInitialPosition).toBeNull();
     });
 
-    // Verify that the pending initial position is set and cleared correctly
-    it("should handle setPendingInitialPosition", () => {
-      const initialState = { pendingInitialPosition: null } as RootState["reader"];
+    // Verify that an open sets the pending initial position only when it names one
+    it("should set pendingInitialPosition only when bookPathOpened names one", () => {
+      const initialState = {
+        originHistory: [] as OpenOrigin[],
+        history: [] as string[],
+        historyIndex: -1,
+        pendingInitialPosition: null,
+      } as RootState["reader"];
 
-      const state = readerReducer(initialState, setPendingInitialPosition("last"));
+      const state = readerReducer(
+        initialState,
+        bookPathOpened({ path: "a", origin: null, initialPosition: "last" }),
+      );
       expect(state.pendingInitialPosition).toBe("last");
 
-      const cleared = readerReducer(state, setPendingInitialPosition(null));
-      expect(cleared.pendingInitialPosition).toBeNull();
+      const kept = readerReducer(state, bookPathOpened({ path: "b", origin: null }));
+      expect(kept.pendingInitialPosition).toBe("last");
     });
 
     // Verify that the container error state is cleared correctly
@@ -374,7 +363,7 @@ describe("ReaderReducer", () => {
         });
         vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(mockBook);
 
-        store.dispatch(setContainerFilePath("path/to/book.zip"));
+        store.dispatch(bookPathOpened({ path: "path/to/book.zip", origin: null }));
         await store.dispatch(openContainerFile("path/to/book.zip"));
 
         expect(BookCommands.recordBookOpened).toHaveBeenCalledWith("path/to/book.zip");
@@ -399,12 +388,12 @@ describe("ReaderReducer", () => {
           createMockBookWithState({ id: 1 }),
         );
 
-        store.dispatch(setContainerFilePath("path/to/book.pdf"));
+        store.dispatch(bookPathOpened({ path: "path/to/book.pdf", origin: null }));
         await store.dispatch(openContainerFile("path/to/book.pdf"));
         expect(store.getState().reader.hasPreviews).toBe(true);
 
         vi.mocked(ContainerCommands.openContainer).mockReturnValueOnce(new Promise(() => {}));
-        store.dispatch(setContainerFilePath("path/to/other.zip"));
+        store.dispatch(bookPathOpened({ path: "path/to/other.zip", origin: null }));
         void store.dispatch(openContainerFile("path/to/other.zip"));
         expect(store.getState().reader.hasPreviews).toBe(false);
       });
@@ -421,7 +410,7 @@ describe("ReaderReducer", () => {
           new CommandError(ErrorCode.database, "database is locked"),
         );
 
-        store.dispatch(setContainerFilePath("path/to/book.zip"));
+        store.dispatch(bookPathOpened({ path: "path/to/book.zip", origin: null }));
         const result = await store.dispatch(openContainerFile("path/to/book.zip"));
 
         // It used to reject, which emptied the reader and claimed the book itself
@@ -473,7 +462,7 @@ describe("ReaderReducer", () => {
         });
         vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(mockBook);
 
-        store.dispatch(setContainerFilePath("path/to/book.zip"));
+        store.dispatch(bookPathOpened({ path: "path/to/book.zip", origin: null }));
         await store.dispatch(openContainerFile("path/to/book.zip"));
 
         // It used to be inferred from whether the restored page happened to be a spread
@@ -493,7 +482,7 @@ describe("ReaderReducer", () => {
         });
         vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(mockBook);
 
-        store.dispatch(setContainerFilePath("path/to/book.zip"));
+        store.dispatch(bookPathOpened({ path: "path/to/book.zip", origin: null }));
         await store.dispatch(openContainerFile("path/to/book.zip"));
 
         await store.dispatch(toggleSpreadShift());
@@ -512,7 +501,7 @@ describe("ReaderReducer", () => {
         });
         vi.mocked(BookCommands.recordBookOpened).mockRejectedValue(new Error("not recorded"));
 
-        store.dispatch(setContainerFilePath("path/to/book.zip"));
+        store.dispatch(bookPathOpened({ path: "path/to/book.zip", origin: null }));
         await store.dispatch(openContainerFile("path/to/book.zip"));
 
         await store.dispatch(toggleSpreadShift());
@@ -534,7 +523,7 @@ describe("ReaderReducer", () => {
         });
         vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(mockBook);
 
-        store.dispatch(setContainerFilePath("path/to/book.zip"));
+        store.dispatch(bookPathOpened({ path: "path/to/book.zip", origin: null }));
         await store.dispatch(openContainerFile("path/to/book.zip"));
 
         expect(store.getState().reader.readingDirection).toBeNull();
@@ -553,7 +542,7 @@ describe("ReaderReducer", () => {
         });
         vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(mockBook);
 
-        store.dispatch(setContainerFilePath("path/to/book.zip"));
+        store.dispatch(bookPathOpened({ path: "path/to/book.zip", origin: null }));
         await store.dispatch(openContainerFile("path/to/book.zip"));
 
         expect(store.getState().reader.readingDirection).toBe("ltr");
@@ -572,7 +561,7 @@ describe("ReaderReducer", () => {
         });
         vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(mockBook);
 
-        store.dispatch(setContainerFilePath("path/to/book.epub"));
+        store.dispatch(bookPathOpened({ path: "path/to/book.epub", origin: null }));
         await store.dispatch(openContainerFile("path/to/book.epub"));
 
         expect(store.getState().reader.readingDirection).toBeNull();
@@ -591,7 +580,7 @@ describe("ReaderReducer", () => {
         });
         vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(mockBook);
 
-        store.dispatch(setContainerFilePath("path/to/book.zip"));
+        store.dispatch(bookPathOpened({ path: "path/to/book.zip", origin: null }));
         await store.dispatch(openContainerFile("path/to/book.zip"));
 
         await store.dispatch(toggleReadingDirection());
@@ -614,8 +603,9 @@ describe("ReaderReducer", () => {
         });
         vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(mockBook);
 
-        store.dispatch(setContainerFilePath("path/to/book.zip"));
-        store.dispatch(setPendingInitialPosition("last"));
+        store.dispatch(
+          bookPathOpened({ path: "path/to/book.zip", origin: null, initialPosition: "last" }),
+        );
         await store.dispatch(openContainerFile("path/to/book.zip"));
 
         const state = store.getState().reader;
@@ -636,8 +626,9 @@ describe("ReaderReducer", () => {
         });
         vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(mockBook);
 
-        store.dispatch(setContainerFilePath("path/to/book.zip"));
-        store.dispatch(setPendingInitialPosition("first"));
+        store.dispatch(
+          bookPathOpened({ path: "path/to/book.zip", origin: null, initialPosition: "first" }),
+        );
         await store.dispatch(openContainerFile("path/to/book.zip"));
 
         const state = store.getState().reader;
@@ -658,7 +649,7 @@ describe("ReaderReducer", () => {
         });
         vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(mockBook);
 
-        store.dispatch(setContainerFilePath("path/to/book.zip"));
+        store.dispatch(bookPathOpened({ path: "path/to/book.zip", origin: null }));
         await store.dispatch(openContainerFile("path/to/book.zip"));
 
         const state = store.getState().reader;
@@ -682,7 +673,7 @@ describe("ReaderReducer", () => {
         });
         vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(mockBook);
 
-        store.dispatch(setContainerFilePath("path.epub"));
+        store.dispatch(bookPathOpened({ path: "path.epub", origin: null }));
         await store.dispatch(openContainerFile("path.epub"));
 
         const state = store.getState().reader;
@@ -706,7 +697,7 @@ describe("ReaderReducer", () => {
         });
         vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(mockBook);
 
-        store.dispatch(setContainerFilePath("path/to/book.zip"));
+        store.dispatch(bookPathOpened({ path: "path/to/book.zip", origin: null }));
         await store.dispatch(openContainerFile("path/to/book.zip"));
 
         expect(store.getState().reader.cfi).toBeNull();
@@ -728,8 +719,9 @@ describe("ReaderReducer", () => {
         });
         vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(mockBook);
 
-        store.dispatch(setContainerFilePath("path.epub"));
-        store.dispatch(setPendingInitialPosition("first"));
+        store.dispatch(
+          bookPathOpened({ path: "path.epub", origin: null, initialPosition: "first" }),
+        );
         await store.dispatch(openContainerFile("path.epub"));
 
         const state = store.getState().reader;
@@ -748,7 +740,7 @@ describe("ReaderReducer", () => {
         });
         vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(mockBook);
 
-        store.dispatch(setContainerFilePath("path.epub"));
+        store.dispatch(bookPathOpened({ path: "path.epub", origin: null }));
         await store.dispatch(openContainerFile("path.epub"));
 
         const state = store.getState().reader;
@@ -798,7 +790,7 @@ describe("ReaderReducer", () => {
 
       // Verify error handling when path is empty
       it("should handle error when path is empty", async () => {
-        store.dispatch(setContainerFilePath(""));
+        store.dispatch(bookPathOpened({ path: "", origin: null }));
         await store.dispatch(openContainerFile(""));
 
         const state = store.getState().reader;
@@ -811,7 +803,7 @@ describe("ReaderReducer", () => {
         const mockError = new CommandError(ErrorCode.other, "cmd failed");
         vi.mocked(ContainerCommands.openContainer).mockRejectedValue(mockError);
 
-        store.dispatch(setContainerFilePath("fail.zip"));
+        store.dispatch(bookPathOpened({ path: "fail.zip", origin: null }));
         await store.dispatch(openContainerFile("fail.zip"));
 
         const state = store.getState().reader;
@@ -826,7 +818,7 @@ describe("ReaderReducer", () => {
         const testError = "open failed";
         vi.mocked(ContainerCommands.openContainer).mockRejectedValue(testError);
 
-        store.dispatch(setContainerFilePath("fail.zip"));
+        store.dispatch(bookPathOpened({ path: "fail.zip", origin: null }));
         await store.dispatch(openContainerFile("fail.zip"));
 
         const state = store.getState().reader;
@@ -853,7 +845,7 @@ describe("ReaderReducer", () => {
         );
         vi.mocked(DirectoryCommands.getEntriesInDir).mockResolvedValue(buffer);
 
-        store.dispatch(setContainerFilePath("multi.zip"));
+        store.dispatch(bookPathOpened({ path: "multi.zip", origin: null }));
         await store.dispatch(openContainerFile("multi.zip"));
 
         const { fileNavigator, reader } = store.getState();
@@ -871,7 +863,7 @@ describe("ReaderReducer", () => {
         );
 
         // `stale.zip` is no longer the head of the container history.
-        store.dispatch(setContainerFilePath("current.zip"));
+        store.dispatch(bookPathOpened({ path: "current.zip", origin: null }));
         await store.dispatch(openContainerFile("stale.zip"));
 
         expect(DirectoryCommands.getEntriesInDir).not.toHaveBeenCalled();
@@ -883,7 +875,7 @@ describe("ReaderReducer", () => {
           new CommandError(ErrorCode.zip, "Zip Error: corrupt"),
         );
 
-        store.dispatch(setContainerFilePath("broken.zip"));
+        store.dispatch(bookPathOpened({ path: "broken.zip", origin: null }));
         await store.dispatch(openContainerFile("broken.zip"));
 
         expect(DirectoryCommands.getEntriesInDir).not.toHaveBeenCalled();
@@ -901,12 +893,12 @@ describe("ReaderReducer", () => {
         });
         vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(mockBook);
 
-        store.dispatch(setContainerFilePath("good.zip"));
+        store.dispatch(bookPathOpened({ path: "good.zip", origin: null }));
         await store.dispatch(openContainerFile("good.zip"));
         expect(store.getState().reader.book).not.toBeNull();
 
         vi.mocked(ContainerCommands.openContainer).mockRejectedValue("boom");
-        store.dispatch(setContainerFilePath("fail.zip"));
+        store.dispatch(bookPathOpened({ path: "fail.zip", origin: null }));
         await store.dispatch(openContainerFile("fail.zip"));
 
         const state = store.getState().reader;
@@ -920,11 +912,129 @@ describe("ReaderReducer", () => {
       it("should clear pendingInitialPosition when opening fails", async () => {
         vi.mocked(ContainerCommands.openContainer).mockRejectedValue("boom");
 
-        store.dispatch(setContainerFilePath("fail.zip"));
-        store.dispatch(setPendingInitialPosition("last"));
+        store.dispatch(bookPathOpened({ path: "fail.zip", origin: null, initialPosition: "last" }));
         await store.dispatch(openContainerFile("fail.zip"));
 
         expect(store.getState().reader.pendingInitialPosition).toBeNull();
+      });
+    });
+
+    describe("opening a book", () => {
+      const pages = (count: number) => ({
+        is_directory: false,
+        entries: Array.from({ length: count }, (_, i) => `p${i + 1}`),
+        is_novel: false,
+        has_previews: false,
+      });
+
+      beforeEach(() => {
+        vi.mocked(ContainerCommands.openContainer).mockResolvedValue(pages(5));
+        vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(
+          createMockBookWithState({ id: 1, last_read_page_index: 0 }),
+        );
+      });
+
+      it("openBook loads the book it opens", async () => {
+        await store.dispatch(openBook({ path: "/a.zip", origin: { kind: "fileNavigator" } }));
+
+        expect(ContainerCommands.openContainer).toHaveBeenCalledTimes(1);
+        expect(ContainerCommands.openContainer).toHaveBeenCalledWith("/a.zip");
+        const state = store.getState().reader;
+        expect(state.history).toEqual(["/a.zip"]);
+        expect(state.origin).toEqual({ kind: "fileNavigator" });
+        expect(state.isLoading).toBe(false);
+      });
+
+      it("openBook of the open path loads nothing", async () => {
+        await store.dispatch(openBook({ path: "/a.zip", origin: null }));
+        store.dispatch(setImageIndex(3));
+
+        await store.dispatch(openBook({ path: "/a.zip", origin: null }));
+
+        expect(ContainerCommands.openContainer).toHaveBeenCalledTimes(1);
+        expect(store.getState().reader.index).toBe(3);
+      });
+
+      it('openBook with initialPosition "last" lands on the last page', async () => {
+        await store.dispatch(openBook({ path: "/a.zip", origin: null, initialPosition: "last" }));
+
+        const state = store.getState().reader;
+        expect(state.index).toBe(4);
+        expect(state.pendingInitialPosition).toBeNull();
+      });
+
+      it("goBackContainerHistory loads the previous book", async () => {
+        await store.dispatch(openBook({ path: "/a.zip", origin: null }));
+        await store.dispatch(openBook({ path: "/b.zip", origin: null }));
+
+        await store.dispatch(goBackContainerHistory());
+
+        expect(ContainerCommands.openContainer).toHaveBeenCalledTimes(3);
+        expect(ContainerCommands.openContainer).toHaveBeenLastCalledWith("/a.zip");
+        const state = store.getState().reader;
+        expect(state.history[state.historyIndex]).toBe("/a.zip");
+        expect(state.isLoading).toBe(false);
+      });
+
+      it("goForwardContainerHistory loads the next book", async () => {
+        await store.dispatch(openBook({ path: "/a.zip", origin: null }));
+        await store.dispatch(openBook({ path: "/b.zip", origin: null }));
+        await store.dispatch(goBackContainerHistory());
+
+        await store.dispatch(goForwardContainerHistory());
+
+        expect(ContainerCommands.openContainer).toHaveBeenCalledTimes(4);
+        expect(ContainerCommands.openContainer).toHaveBeenLastCalledWith("/b.zip");
+        const state = store.getState().reader;
+        expect(state.history[state.historyIndex]).toBe("/b.zip");
+        expect(state.isLoading).toBe(false);
+      });
+
+      it("goBackContainerHistory at the first book loads nothing", async () => {
+        await store.dispatch(openBook({ path: "/a.zip", origin: null }));
+
+        await store.dispatch(goBackContainerHistory());
+
+        expect(ContainerCommands.openContainer).toHaveBeenCalledTimes(1);
+      });
+
+      it("an adjacent open overtaken by another open keeps its initial position", async () => {
+        vi.mocked(ContainerCommands.openContainer).mockReturnValueOnce(new Promise(() => {}));
+        void store.dispatch(
+          openBook({ path: "/b.zip", origin: { kind: "history" }, initialPosition: "last" }),
+        );
+
+        await store.dispatch(openBook({ path: "/c.zip", origin: { kind: "fileNavigator" } }));
+
+        expect(store.getState().reader.index).toBe(4);
+      });
+
+      it("a new book starts from a clean view", async () => {
+        vi.mocked(ContainerCommands.openContainer).mockResolvedValueOnce({
+          ...pages(5),
+          has_previews: true,
+        });
+        await store.dispatch(openBook({ path: "/a.zip", origin: null }));
+        store.dispatch(setNovelLocation({ index: 2, cfi: "epubcfi(/6/2)" }));
+        store.dispatch(setSpreadShifted(true));
+        store.dispatch(setSpreadDisplayed(true));
+        store.dispatch(setReadingDirection("ltr"));
+        store.dispatch(setNovelDirection("rtl"));
+
+        vi.mocked(ContainerCommands.openContainer).mockReturnValueOnce(new Promise(() => {}));
+        void store.dispatch(openBook({ path: "/b.zip", origin: null }));
+
+        const state = store.getState().reader;
+        expect(state.isLoading).toBe(true);
+        expect(state.book).toBeNull();
+        expect(state.entries).toEqual([]);
+        expect(state.index).toBe(0);
+        expect(state.isSpreadShifted).toBe(false);
+        expect(state.isSpreadDisplayed).toBe(false);
+        expect(state.readingDirection).toBeNull();
+        expect(state.cfi).toBeNull();
+        expect(state.novelDirection).toBeNull();
+        expect(state.hasPreviews).toBe(false);
       });
     });
   });

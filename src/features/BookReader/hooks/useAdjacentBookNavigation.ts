@@ -3,7 +3,7 @@ import { useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNotification } from "../../../components/ui/Notification/NotificationContext";
 import { type RootState, useAppDispatch, useAppSelector } from "../../../store/store";
-import { openBook, setPendingInitialPosition } from "../slice";
+import { openBook } from "../slice";
 import {
   type AdjacentBook,
   type Direction,
@@ -46,10 +46,15 @@ export const useAdjacentBookNavigation = () => {
   const openAdjacentBook = useCallback(
     (book: AdjacentBook, direction: Direction) => {
       // Land on a natural entry point of the adjacent book: the first page when moving
-      // forward, the last page when moving backward.
-      dispatch(setPendingInitialPosition(direction === "next" ? "first" : "last"));
-      // Preserve the current origin so the series/bookshelf/directory chain continues.
-      dispatch(openBook({ path: book.filePath, origin }));
+      // forward, the last page when moving backward. Preserve the current origin so the
+      // series/bookshelf/directory chain continues.
+      dispatch(
+        openBook({
+          path: book.filePath,
+          origin,
+          initialPosition: direction === "next" ? "first" : "last",
+        }),
+      );
       showNotification(
         t(
           direction === "next"

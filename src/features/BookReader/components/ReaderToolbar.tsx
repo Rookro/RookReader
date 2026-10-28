@@ -22,7 +22,7 @@ import { useReadingDirection } from "../hooks/useReadingDirection";
 import {
   goBackContainerHistory,
   goForwardContainerHistory,
-  setContainerFilePath,
+  openBook,
   toggleReadingDirection,
   toggleSpreadShift,
 } from "../slice";
@@ -74,7 +74,7 @@ export default function ReaderToolbar() {
       const inputPath = formData.get("path")?.toString();
 
       if (inputPath && inputPath !== currentPath) {
-        dispatch(setContainerFilePath(inputPath));
+        dispatch(openBook({ path: inputPath, origin: null }));
       }
     },
     [dispatch, currentPath],
