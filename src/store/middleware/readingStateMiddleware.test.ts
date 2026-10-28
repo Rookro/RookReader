@@ -2,6 +2,7 @@ import type { Dispatch, MiddlewareAPI, UnknownAction } from "@reduxjs/toolkit";
 import { error } from "@tauri-apps/plugin-log";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as bookCommands from "../../bindings/BookCommands";
+import { setImageIndex, setNovelLocation } from "../../features/BookReader/slice";
 import { createReadingStateMiddleware } from "./readingStateMiddleware";
 
 type FakeStore = { getState: ReturnType<typeof vi.fn>; dispatch: ReturnType<typeof vi.fn> };
@@ -27,14 +28,12 @@ const stateFor = (
   cfi: string | null = null,
 ) => ({
   settings: { history: { recordReadingHistory } },
-  read: {
-    containerFile: {
-      history: ["path1"],
-      historyIndex: 0,
-      index,
-      cfi,
-      book,
-    },
+  reader: {
+    history: ["path1"],
+    historyIndex: 0,
+    index,
+    cfi,
+    book,
   },
 });
 
@@ -61,8 +60,8 @@ describe("readingStateMiddleware", () => {
   });
 
   // Verify that reading state is saved to the DB only after the debounce window elapses.
-  it("should call updateReadingProgress after the debounce window when read/setImageIndex is dispatched", async () => {
-    const action = { type: "read/setImageIndex", payload: 10 };
+  it("should call updateReadingProgress after the debounce window when setImageIndex is dispatched", async () => {
+    const action = setImageIndex(10);
     run(store, next, action);
 
     expect(bookCommands.updateReadingProgress).not.toHaveBeenCalled();
@@ -80,10 +79,10 @@ describe("readingStateMiddleware", () => {
   it("should coalesce rapid same-book writes into the last one", async () => {
     const instance = createReadingStateMiddleware();
     store.getState.mockImplementation(() => stateFor({ id: 1, last_opened_at: "now" }, true, 10));
-    runWith(instance, store, next, { type: "read/setImageIndex", payload: 10 });
+    runWith(instance, store, next, setImageIndex(10));
 
     store.getState.mockImplementation(() => stateFor({ id: 1, last_opened_at: "now" }, true, 20));
-    runWith(instance, store, next, { type: "read/setImageIndex", payload: 20 });
+    runWith(instance, store, next, setImageIndex(20));
 
     await vi.advanceTimersByTimeAsync(500);
 
@@ -101,11 +100,11 @@ describe("readingStateMiddleware", () => {
   it("should flush the previous book's write immediately when the book changes", async () => {
     const instance = createReadingStateMiddleware();
     store.getState.mockImplementation(() => stateFor({ id: 1, last_opened_at: "a" }, true, 10));
-    runWith(instance, store, next, { type: "read/setImageIndex", payload: 10 });
+    runWith(instance, store, next, setImageIndex(10));
 
     // Switch to book 2 within the debounce window: book 1 must be flushed now.
     store.getState.mockImplementation(() => stateFor({ id: 2, last_opened_at: "b" }, true, 3));
-    runWith(instance, store, next, { type: "read/setImageIndex", payload: 3 });
+    runWith(instance, store, next, setImageIndex(3));
 
     expect(bookCommands.updateReadingProgress).toHaveBeenCalledTimes(1);
     expect(bookCommands.updateReadingProgress).toHaveBeenCalledWith({
@@ -127,10 +126,7 @@ describe("readingStateMiddleware", () => {
   });
 
   it("flush writes the pending update before the timer fires, and only once", async () => {
-    const { flush } = runWith(createReadingStateMiddleware(), store, next, {
-      type: "read/setImageIndex",
-      payload: 10,
-    });
+    const { flush } = runWith(createReadingStateMiddleware(), store, next, setImageIndex(10));
 
     await flush();
     expect(bookCommands.updateReadingProgress).toHaveBeenCalledTimes(1);
@@ -154,7 +150,7 @@ describe("readingStateMiddleware", () => {
   it("keeps each instance's pending write to itself", async () => {
     const first = createReadingStateMiddleware();
     const second = createReadingStateMiddleware();
-    runWith(first, store, next, { type: "read/setImageIndex", payload: 10 });
+    runWith(first, store, next, setImageIndex(10));
 
     await second.flush();
     expect(bookCommands.updateReadingProgress).not.toHaveBeenCalled();
@@ -169,10 +165,10 @@ describe("readingStateMiddleware", () => {
       settings: {
         history: { recordReadingHistory: false },
       },
-      read: { containerFile: {} },
+      reader: {},
     });
 
-    run(store, next, { type: "read/setImageIndex", payload: 10 });
+    run(store, next, setImageIndex(10));
     await vi.advanceTimersByTimeAsync(500);
 
     expect(bookCommands.updateReadingProgress).not.toHaveBeenCalled();
@@ -182,7 +178,7 @@ describe("readingStateMiddleware", () => {
   it("should not call updateReadingProgress if book is null", async () => {
     store.getState.mockReturnValue(stateFor(null));
 
-    run(store, next, { type: "read/setImageIndex", payload: 10 });
+    run(store, next, setImageIndex(10));
     await vi.advanceTimersByTimeAsync(500);
 
     expect(bookCommands.updateReadingProgress).not.toHaveBeenCalled();
@@ -194,28 +190,25 @@ describe("readingStateMiddleware", () => {
     const enabledState = stateFor({ id: 1, last_opened_at: "now" });
     const disabledState = {
       settings: { history: { recordReadingHistory: false } },
-      read: { containerFile: {} },
+      reader: {},
     };
     // Enabled when the write is scheduled (outer guard), disabled by the time the
     // debounced function fires and re-checks via the predicate.
     store.getState.mockReturnValueOnce(enabledState).mockReturnValue(disabledState);
 
-    run(store, next, { type: "read/setImageIndex", payload: 10 });
+    run(store, next, setImageIndex(10));
     await vi.advanceTimersByTimeAsync(500);
 
     expect(bookCommands.updateReadingProgress).not.toHaveBeenCalled();
   });
 
-  // Verify that reading state is saved to the DB when read/setNovelLocation action (for novels) is dispatched
-  it("should call updateReadingProgress with the CFI when read/setNovelLocation is dispatched", async () => {
+  // Verify that reading state is saved to the DB when setNovelLocation action (for novels) is dispatched
+  it("should call updateReadingProgress with the CFI when setNovelLocation is dispatched", async () => {
     store.getState.mockReturnValue(
       stateFor({ id: 1, last_opened_at: "now" }, true, 5, "epubcfi(/6/8!/4/2/1:0)"),
     );
 
-    run(store, next, {
-      type: "read/setNovelLocation",
-      payload: { index: 5, cfi: "epubcfi(/6/8!/4/2/1:0)" },
-    });
+    run(store, next, setNovelLocation({ index: 5, cfi: "epubcfi(/6/8!/4/2/1:0)" }));
     await vi.advanceTimersByTimeAsync(500);
 
     expect(bookCommands.updateReadingProgress).toHaveBeenCalledWith({
@@ -230,7 +223,7 @@ describe("readingStateMiddleware", () => {
   it("should normalize an empty-string CFI to null before persisting", async () => {
     store.getState.mockReturnValue(stateFor({ id: 1, last_opened_at: "now" }, true, 5, ""));
 
-    run(store, next, { type: "read/setNovelLocation", payload: { index: 5, cfi: "" } });
+    run(store, next, setNovelLocation({ index: 5, cfi: "" }));
     await vi.advanceTimersByTimeAsync(500);
 
     expect(bookCommands.updateReadingProgress).toHaveBeenCalledWith({
@@ -245,7 +238,7 @@ describe("readingStateMiddleware", () => {
   it("should handle updateReadingProgress error", async () => {
     vi.mocked(bookCommands.updateReadingProgress).mockRejectedValue(new Error("Database error"));
 
-    run(store, next, { type: "read/setImageIndex", payload: 10 });
+    run(store, next, setImageIndex(10));
     await vi.advanceTimersByTimeAsync(500);
 
     expect(error).toHaveBeenCalledWith(expect.stringContaining("ReadingState update failed"));

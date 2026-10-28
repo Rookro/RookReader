@@ -14,9 +14,10 @@ import {
 import type { DirEntry } from "../../../../types/DirEntry";
 import { isNavigableArchiveName } from "../../../../utils/ArchivePathUtils";
 import SidePanelHeader from "../../../SidePane/components/SidePanelHeader";
+import { setSearchText, updateExploreBasePath } from "../../fileNavigatorSlice";
 import { useDirectoryWatcher } from "../../hooks/useDirectoryWatcher";
 import { useFileSelection } from "../../hooks/useFileSelection";
-import { openBook, setSearchText, updateExploreBasePath } from "../../slice";
+import { openBook } from "../../slice";
 import { andSearch, sortBy } from "../../utils/FileNavigatorUtils";
 import { ItemRow } from "./ItemRow";
 import NavBar from "./NavBar";
@@ -24,8 +25,8 @@ import NavBar from "./NavBar";
 const selectFileNavigatorState = createSelector(
   [
     (state: RootState) => state.settings.fileNavigator,
-    (state: RootState) => state.read.explorer,
-    (state: RootState) => state.read.containerFile,
+    (state: RootState) => state.fileNavigator,
+    (state: RootState) => state.reader,
   ],
   (fileNavigatorSettings, explorer, containerFile) => ({
     fileNavigatorSettings,
@@ -109,7 +110,7 @@ export default function FileListViewer() {
   // into a folder already lists it; read without subscribing, so that listing settling
   // does not run this again.
   useEffect(() => {
-    const { pendingPath } = store.getState().read.explorer;
+    const { pendingPath } = store.getState().fileNavigator;
     if (pendingPath !== null && pendingPath === history[historyIndex]) {
       return;
     }

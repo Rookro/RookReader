@@ -40,10 +40,10 @@ describe("useRevealReadingBook", () => {
   } = {}) => {
     const state = createBasePreloadedState();
     state.view.activeView = activeView;
-    state.read.containerFile.book = readingBook;
-    state.read.containerFile.history = ["/s/v2.zip"];
-    state.read.containerFile.historyIndex = 0;
-    state.read.containerFile.isLoading = readerLoading;
+    state.reader.book = readingBook;
+    state.reader.history = ["/s/v2.zip"];
+    state.reader.historyIndex = 0;
+    state.reader.isLoading = readerLoading;
     state.collection.books = books;
     state.collection.status = booksStatus;
     state.collection.isRefreshing = booksRefreshing;

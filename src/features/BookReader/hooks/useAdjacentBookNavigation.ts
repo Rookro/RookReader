@@ -35,10 +35,10 @@ export const useAdjacentBookNavigation = () => {
   // Only what resolving a neighbour needs, each selected on its own: selecting the whole
   // `containerFile` re-rendered the reader, and rebuilt every callback below, on each page turn.
   const currentPath = useAppSelector(
-    (s: RootState) => s.read.containerFile.history[s.read.containerFile.historyIndex] ?? "",
+    (s: RootState) => s.reader.history[s.reader.historyIndex] ?? "",
   );
-  const book = useAppSelector((s: RootState) => s.read.containerFile.book);
-  const origin = useAppSelector((s: RootState) => s.read.containerFile.origin);
+  const book = useAppSelector((s: RootState) => s.reader.book);
+  const origin = useAppSelector((s: RootState) => s.reader.origin);
 
   const isResolving = useRef(false);
   const [pending, setPending] = useState<PendingAdjacentBook | null>(null);

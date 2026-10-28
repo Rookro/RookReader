@@ -131,7 +131,7 @@ vi.mock("../../BookReader/slice", async () => {
   const actual = await vi.importActual("../../BookReader/slice");
   return {
     ...actual,
-    openBook: vi.fn((payload: unknown) => ({ type: "read/openBook", payload })),
+    openBook: vi.fn((payload: unknown) => ({ type: "reader/openBook", payload })),
   };
 });
 

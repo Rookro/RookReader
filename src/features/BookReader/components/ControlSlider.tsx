@@ -16,8 +16,8 @@ import { setImageIndex } from "../slice";
  */
 export default function ControlSlider() {
   const { t } = useTranslation();
-  const entries = useAppSelector((state) => state.read.containerFile.entries);
-  const index = useAppSelector((state) => state.read.containerFile.index);
+  const entries = useAppSelector((state) => state.reader.entries);
+  const index = useAppSelector((state) => state.reader.index);
   const dispatch = useAppDispatch();
   const appTheme = useAppTheme();
   // Follows the novel's detected writing mode, or the comic setting.

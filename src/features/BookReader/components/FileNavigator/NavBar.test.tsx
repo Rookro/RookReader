@@ -4,12 +4,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createBasePreloadedState, renderWithProviders } from "../../../../test/utils";
 import * as SettingsReducer from "../../../Settings/slice";
 import { setSettings } from "../../../Settings/slice";
-import * as ReadReducer from "../../slice";
+import * as FileNavigatorSlice from "../../fileNavigatorSlice";
 import NavBar from "./NavBar";
 
 // Mock actions to track calls
-vi.mock("../../slice", async () => {
-  const actual = await vi.importActual("../../slice");
+vi.mock("../../fileNavigatorSlice", async () => {
+  const actual = await vi.importActual("../../fileNavigatorSlice");
   return {
     ...actual,
     updateExploreBasePath: vi.fn((payload) => ({
@@ -51,8 +51,8 @@ describe("FileNavigator/NavBar", () => {
   const user = userEvent.setup();
 
   const defaultPreloadedState = createBasePreloadedState();
-  defaultPreloadedState.read.explorer.history = ["/home/user/books"];
-  defaultPreloadedState.read.explorer.historyIndex = 0;
+  defaultPreloadedState.fileNavigator.history = ["/home/user/books"];
+  defaultPreloadedState.fileNavigator.historyIndex = 0;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -73,7 +73,7 @@ describe("FileNavigator/NavBar", () => {
     await user.type(pathInput, "/new/path");
     await user.tab(); // Blur trigger
 
-    expect(ReadReducer.updateExploreBasePath).toHaveBeenCalledWith({ dirPath: "/new/path" });
+    expect(FileNavigatorSlice.updateExploreBasePath).toHaveBeenCalledWith({ dirPath: "/new/path" });
   });
 
   it("should dispatch updateExploreBasePath with home dir when home button is clicked", async () => {
@@ -86,21 +86,23 @@ describe("FileNavigator/NavBar", () => {
     await user.click(homeButton);
 
     await waitFor(() => {
-      expect(ReadReducer.updateExploreBasePath).toHaveBeenCalledWith({ dirPath: "/home/user" });
+      expect(FileNavigatorSlice.updateExploreBasePath).toHaveBeenCalledWith({
+        dirPath: "/home/user",
+      });
     });
   });
 
   it("should dispatch goBackExplorerHistory when back button is clicked", async () => {
     const preloadedState = structuredClone(defaultPreloadedState);
-    preloadedState.read.explorer.history = ["/", "/home"];
-    preloadedState.read.explorer.historyIndex = 1;
+    preloadedState.fileNavigator.history = ["/", "/home"];
+    preloadedState.fileNavigator.historyIndex = 1;
 
     renderWithProviders(<NavBar />, { preloadedState });
 
     const backButton = screen.getByLabelText("back");
     await user.click(backButton);
 
-    expect(ReadReducer.goBackExplorerHistory).toHaveBeenCalled();
+    expect(FileNavigatorSlice.goBackExplorerHistory).toHaveBeenCalled();
   });
 
   it("should dispatch updateExploreBasePath with parent dir when up button is clicked", async () => {
@@ -110,7 +112,9 @@ describe("FileNavigator/NavBar", () => {
     await user.click(upButton);
 
     await waitFor(() => {
-      expect(ReadReducer.updateExploreBasePath).toHaveBeenCalledWith({ dirPath: "/home/user" });
+      expect(FileNavigatorSlice.updateExploreBasePath).toHaveBeenCalledWith({
+        dirPath: "/home/user",
+      });
     });
   });
 
@@ -120,7 +124,7 @@ describe("FileNavigator/NavBar", () => {
     const refreshButton = screen.getByLabelText("refresh");
     await user.click(refreshButton);
 
-    expect(ReadReducer.updateExploreBasePath).toHaveBeenCalledWith({
+    expect(FileNavigatorSlice.updateExploreBasePath).toHaveBeenCalledWith({
       dirPath: "/home/user/books",
       forceUpdate: true,
     });
@@ -133,7 +137,7 @@ describe("FileNavigator/NavBar", () => {
     // Use fireEvent.change for atomic update
     fireEvent.change(searchInput, { target: { value: "manga" } });
 
-    expect(ReadReducer.setSearchText).toHaveBeenCalledWith("manga");
+    expect(FileNavigatorSlice.setSearchText).toHaveBeenCalledWith("manga");
   });
 
   it("should dispatch setSortOrder and update settings when sort order changes", async () => {
@@ -171,15 +175,15 @@ describe("FileNavigator/NavBar", () => {
 
   it("should dispatch goForwardExplorerHistory when forward button is clicked", async () => {
     const preloadedState = structuredClone(defaultPreloadedState);
-    preloadedState.read.explorer.history = ["/", "/home"];
-    preloadedState.read.explorer.historyIndex = 0;
+    preloadedState.fileNavigator.history = ["/", "/home"];
+    preloadedState.fileNavigator.historyIndex = 0;
 
     renderWithProviders(<NavBar />, { preloadedState });
 
     const forwardButton = screen.getByLabelText("forward");
     await user.click(forwardButton);
 
-    expect(ReadReducer.goForwardExplorerHistory).toHaveBeenCalled();
+    expect(FileNavigatorSlice.goForwardExplorerHistory).toHaveBeenCalled();
   });
 
   it("should use homeDir if settingsStore home-directory is missing", async () => {
@@ -195,7 +199,9 @@ describe("FileNavigator/NavBar", () => {
     await user.click(homeButton);
 
     await waitFor(() => {
-      expect(ReadReducer.updateExploreBasePath).toHaveBeenCalledWith({ dirPath: "/system/home" });
+      expect(FileNavigatorSlice.updateExploreBasePath).toHaveBeenCalledWith({
+        dirPath: "/system/home",
+      });
     });
   });
 
@@ -232,8 +238,8 @@ describe("FileNavigator/NavBar", () => {
       // Sit in the middle of the history so both back and forward stay enabled;
       // a disabled button has pointer-events: none and cannot be hovered.
       const preloadedState = createBasePreloadedState();
-      preloadedState.read.explorer.history = ["/a", "/b", "/c"];
-      preloadedState.read.explorer.historyIndex = 1;
+      preloadedState.fileNavigator.history = ["/a", "/b", "/c"];
+      preloadedState.fileNavigator.historyIndex = 1;
 
       renderWithProviders(<NavBar />, { preloadedState });
       await user.hover(screen.getByLabelText(ariaLabel));
@@ -244,8 +250,8 @@ describe("FileNavigator/NavBar", () => {
   describe("sort order", () => {
     it("should reflect the stored sort order rather than only its initial value", () => {
       const preloadedState = createBasePreloadedState();
-      preloadedState.read.explorer.history = ["/home/user/books"];
-      preloadedState.read.explorer.historyIndex = 0;
+      preloadedState.fileNavigator.history = ["/home/user/books"];
+      preloadedState.fileNavigator.historyIndex = 0;
       preloadedState.settings.fileNavigator.sortOrder = "date_desc";
 
       renderWithProviders(<NavBar />, { preloadedState });
@@ -255,8 +261,8 @@ describe("FileNavigator/NavBar", () => {
 
     it("should follow the store when the sort order changes elsewhere", async () => {
       const preloadedState = createBasePreloadedState();
-      preloadedState.read.explorer.history = ["/home/user/books"];
-      preloadedState.read.explorer.historyIndex = 0;
+      preloadedState.fileNavigator.history = ["/home/user/books"];
+      preloadedState.fileNavigator.historyIndex = 0;
 
       const { store } = renderWithProviders(<NavBar />, { preloadedState });
       expect(screen.getByRole("combobox")).toHaveTextContent("Name↑");
@@ -277,8 +283,8 @@ describe("FileNavigator/NavBar", () => {
 
     it("should keep the sort control reachable regardless of the pane width", () => {
       const preloadedState = createBasePreloadedState();
-      preloadedState.read.explorer.history = ["/home/user/books"];
-      preloadedState.read.explorer.historyIndex = 0;
+      preloadedState.fileNavigator.history = ["/home/user/books"];
+      preloadedState.fileNavigator.historyIndex = 0;
 
       renderWithProviders(<NavBar />, { preloadedState });
 

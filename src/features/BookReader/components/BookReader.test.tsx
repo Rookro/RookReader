@@ -31,8 +31,8 @@ vi.mock("../slice", async () => {
   const actual = await vi.importActual("../slice");
   return {
     ...actual,
-    openContainerFile: vi.fn(() => ({ type: "read/openContainerFile" })),
-    openBook: vi.fn((p: unknown) => ({ type: "read/openBook", payload: p })),
+    openContainerFile: vi.fn(() => ({ type: "reader/openContainerFile" })),
+    openBook: vi.fn((p: unknown) => ({ type: "reader/openBook", payload: p })),
   };
 });
 
@@ -58,7 +58,7 @@ describe("BookReader", () => {
 
   it("should show CircularProgress when loading", async () => {
     const preloadedState = createBasePreloadedState();
-    preloadedState.read.containerFile.isLoading = true;
+    preloadedState.reader.isLoading = true;
 
     renderWithProviders(<BookReader />, { preloadedState });
     expect(screen.getByRole("progressbar")).toBeInTheDocument();
@@ -73,7 +73,7 @@ describe("BookReader", () => {
       wheelGesture.reset();
     });
     const preloadedState = createBasePreloadedState();
-    preloadedState.read.containerFile.isLoading = true;
+    preloadedState.reader.isLoading = true;
     renderWithProviders(<BookReader />, { preloadedState });
 
     fireEvent.wheel(screen.getByRole("progressbar"), { deltaY: 100 });

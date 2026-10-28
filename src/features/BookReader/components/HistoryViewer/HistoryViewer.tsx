@@ -47,8 +47,8 @@ function Row({
  */
 export default function HistoryViewer() {
   const { t } = useTranslation();
-  const history = useAppSelector((state) => state.read.containerFile.history);
-  const historyIndex = useAppSelector((state) => state.read.containerFile.historyIndex);
+  const history = useAppSelector((state) => state.reader.history);
+  const historyIndex = useAppSelector((state) => state.reader.historyIndex);
   const recentlyReadBooks = useAppSelector((state) => state.history.recentlyReadBooks);
   const [searchText, setSearchText] = useState("");
   const [list, setList] = useListCallbackRef(null);

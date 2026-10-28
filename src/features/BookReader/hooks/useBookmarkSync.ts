@@ -11,7 +11,7 @@ import { clearBookmarks, fetchBookmarks } from "../bookmarkSlice";
  */
 export function useBookmarkSync(): void {
   const dispatch = useAppDispatch();
-  const bookId = useAppSelector((state) => state.read.containerFile.book?.id);
+  const bookId = useAppSelector((state) => state.reader.book?.id);
 
   useEffect(() => {
     if (bookId !== undefined) {

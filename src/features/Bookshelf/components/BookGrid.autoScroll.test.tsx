@@ -94,14 +94,14 @@ describe("BookGrid auto-scroll latch", () => {
       series: [],
       selectedId: null,
     },
-    read: { containerFile: { book: null as unknown } },
+    reader: { book: null as unknown },
     view: { activeView: "bookshelf" },
   };
 
   const makeState = (books: unknown[], readingBook: unknown) => ({
     ...baseState,
     collection: { ...baseState.collection, books },
-    read: { containerFile: { book: readingBook } },
+    reader: { book: readingBook },
   });
 
   beforeEach(() => {

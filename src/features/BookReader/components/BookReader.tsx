@@ -30,7 +30,7 @@ const selectBookReaderState = createSelector(
   [
     (state: RootState) => state.view.activeView,
     (state: RootState) => state.settings.layout.sidePane,
-    (state: RootState) => state.read.containerFile,
+    (state: RootState) => state.reader,
     (state: RootState) => state.settings.history,
     (state: RootState) => state.settings.startup,
   ],

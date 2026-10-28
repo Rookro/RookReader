@@ -29,9 +29,9 @@ const mockedResolve = vi.mocked(resolveAdjacentBook);
 const buildState = (mode: "off" | "ask" | "auto"): RootState => {
   const state = createBasePreloadedState();
   state.settings.reader.autoOpenAdjacentBook = mode;
-  state.read.containerFile.history = ["/dir/book1.zip"];
-  state.read.containerFile.historyIndex = 0;
-  state.read.containerFile.origin = { kind: "fileNavigator" };
+  state.reader.history = ["/dir/book1.zip"];
+  state.reader.historyIndex = 0;
+  state.reader.origin = { kind: "fileNavigator" };
   return state;
 };
 

@@ -27,7 +27,7 @@ vi.mock("../../slice", async () => {
   const actual = await vi.importActual("../../slice");
   return {
     ...actual,
-    openBook: vi.fn((payload: unknown) => ({ type: "read/openBook", payload })),
+    openBook: vi.fn((payload: unknown) => ({ type: "reader/openBook", payload })),
   };
 });
 
@@ -117,8 +117,8 @@ describe("HistoryViewer", () => {
       createMockReadBook({ file_path: "/path/1", display_name: "B1" }),
       createMockReadBook({ file_path: "/path/2", display_name: "B2" }),
     ];
-    preloadedState.read.containerFile.history = ["/path/2"];
-    preloadedState.read.containerFile.historyIndex = 0;
+    preloadedState.reader.history = ["/path/2"];
+    preloadedState.reader.historyIndex = 0;
 
     renderWithProviders(<HistoryViewer />, { preloadedState });
 
@@ -136,8 +136,8 @@ describe("HistoryViewer", () => {
 
     const preloadedState = createBasePreloadedState();
     preloadedState.history.recentlyReadBooks = [createMockReadBook({ file_path: "/path/2" })];
-    preloadedState.read.containerFile.history = ["/path/2"];
-    preloadedState.read.containerFile.historyIndex = 0;
+    preloadedState.reader.history = ["/path/2"];
+    preloadedState.reader.historyIndex = 0;
 
     mockScrollToRow.mockImplementationOnce(() => {
       throw new Error("Scroll error");

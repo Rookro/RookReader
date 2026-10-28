@@ -7,14 +7,12 @@ import {
   updateSpreadShift,
 } from "../../bindings/BookCommands";
 import { openContainer, requestPreloadAround } from "../../bindings/ContainerCommands";
-import { getEntriesInDir as getEntriesInDirFromBackend } from "../../bindings/DirectoryCommands";
 import type { BookWithState } from "../../domain/entities";
 import { handleThunkError } from "../../store/thunkErrorHandler";
 import type { Direction } from "../../types/AppSettings";
 import { createAppAsyncThunk } from "../../types/CustomAsyncThunk";
-import type { DirEntry } from "../../types/DirEntry";
 import { CommandError, createCommandError, ErrorCode } from "../../types/Error";
-import { convertEntriesInDir } from "../../utils/DirEntryUtils";
+import { updateExploreBasePath } from "./fileNavigatorSlice";
 import type { OpenOrigin } from "./types/OpenOrigin";
 import { goBackHistory, goForwardHistory, pushHistory } from "./utils/navigationHistory";
 
@@ -25,7 +23,7 @@ import { goBackHistory, goForwardHistory, pushHistory } from "./utils/navigation
  * @returns A thunk that resolves to an object containing entries, directory status, novel status, and book state.
  */
 export const openContainerFile = createAppAsyncThunk(
-  "read/openContainerFile",
+  "reader/openContainerFile",
   async (path: string, { dispatch, rejectWithValue, getState }) => {
     if (!path || path.length === 0) {
       const errorMessage = "Failed to openContainerFile. Error: Container path is empty.";
@@ -99,7 +97,7 @@ export const openContainerFile = createAppAsyncThunk(
       //
       // Guarded like the fulfilled/rejected reducers: a slow failure must not drag the
       // navigator away from a book the user opened in the meantime.
-      const { history, historyIndex } = getState().read.containerFile;
+      const { history, historyIndex } = getState().reader;
       if (
         history[historyIndex] === path &&
         e instanceof CommandError &&
@@ -113,46 +111,6 @@ export const openContainerFile = createAppAsyncThunk(
 );
 
 /**
- * Updates the base path for the file explorer and fetches its contents.
- *
- * @param args - The arguments for updating the explore base path.
- * @param args.dirPath - The absolute directory path to explore.
- * @param args.forceUpdate - If true, forces a fetch even if the path is already the current one.
- * @returns A thunk that resolves to the directory path and its entries. When the folder is
- * already shown and `forceUpdate` is not set, nothing is dispatched.
- */
-export const updateExploreBasePath = createAppAsyncThunk(
-  "read/updateExploreBasePath",
-  async (args: { dirPath: string; forceUpdate?: boolean }, { dispatch, rejectWithValue }) => {
-    const { dirPath } = args;
-    if (!dirPath || dirPath.length === 0) {
-      const errorMessage = "Failed to updateExploreBasePath. Error: Directory path is empty.";
-      error(errorMessage);
-      return rejectWithValue({ code: ErrorCode.path, message: errorMessage });
-    }
-
-    dispatch(setIsDirEntriesLoading(true));
-    dispatch(setExploreBasePath(dirPath));
-    try {
-      const buffer = await getEntriesInDirFromBackend(dirPath);
-      const entries = convertEntriesInDir(buffer);
-      return { path: dirPath, entries: entries };
-    } catch (e) {
-      return handleThunkError(e, `Failed to getEntriesInDir(${dirPath}).`, rejectWithValue);
-    }
-  },
-  {
-    // Already showing this folder: dispatch nothing, so no request supersedes one in flight.
-    condition: ({ dirPath, forceUpdate }, { getState }) => {
-      const { explorer } = getState().read;
-      return (
-        Boolean(forceUpdate) || !dirPath || explorer.history[explorer.historyIndex] !== dirPath
-      );
-    },
-  },
-);
-
-/**
  * Flips this book's spread pairing and remembers it.
  *
  * Written straight through rather than debounced with the reading progress: it changes on
@@ -162,9 +120,9 @@ export const updateExploreBasePath = createAppAsyncThunk(
  * @returns A thunk that flips the flag and persists it against the open book.
  */
 export const toggleSpreadShift = createAppAsyncThunk(
-  "read/toggleSpreadShift",
+  "reader/toggleSpreadShift",
   async (_: undefined, { getState, dispatch }) => {
-    const { isSpreadShifted, book } = getState().read.containerFile;
+    const { isSpreadShifted, book } = getState().reader;
     const next = !isSpreadShifted;
     dispatch(setSpreadShifted(next));
     if (book) {
@@ -189,10 +147,10 @@ export const toggleSpreadShift = createAppAsyncThunk(
  * @returns A thunk that flips the direction and persists it against the open book.
  */
 export const toggleReadingDirection = createAppAsyncThunk(
-  "read/toggleReadingDirection",
+  "reader/toggleReadingDirection",
   async (_: undefined, { getState, dispatch }) => {
     const state = getState();
-    const { readingDirection, book } = state.read.containerFile;
+    const { readingDirection, book } = state.reader;
     const current = readingDirection ?? state.settings.reader.comic.readingDirection;
     const next: Direction = current === "rtl" ? "ltr" : "rtl";
     dispatch(setReadingDirection(next));
@@ -208,99 +166,82 @@ export const toggleReadingDirection = createAppAsyncThunk(
 );
 
 const initialState = {
-  containerFile: {
-    history: [] as string[],
-    historyIndex: -1,
-    isDirectory: false,
-    entries: [] as string[],
-    book: null as BookWithState | null,
-    index: 0,
-    /**
-     * Whether this book's spread pairing is shifted by one relative to the app's
-     * cover setting, to line up an archive whose pages are offset.
-     */
-    isSpreadShifted: false,
-    /** Whether the reader is currently showing two pages side by side. */
-    isSpreadDisplayed: false,
-    /**
-     * Page-turn direction of the open comic, restored with the book and seeded from
-     * `reader.comic.readingDirection` the first time the book is opened. Null while no
-     * book is loaded, and for novels, which report their own direction.
-     */
-    readingDirection: null as Direction | null,
-    cfi: null as string | null,
-    isNovel: false,
-    /** Whether the open book can send a page's preview more cheaply than the page. */
-    hasPreviews: false,
-    /**
-     * Page-turn direction of the open novel, decided for the book as a whole: its
-     * declared page progression direction, or else the writing mode of its body text.
-     * Null until the book reports one, and always null for comics, which follow the
-     * user's setting.
-     */
-    novelDirection: null as Direction | null,
-    isLoading: false,
-    error: null as { code: ErrorCode; message?: string } | null,
-    /**
-     * Why remembering the opened book in the library failed, if it did. Kept apart
-     * from `error`: the book itself is on screen, only its history entry is missing.
-     */
-    bookRecordError: null as { code: ErrorCode; message?: string } | null,
-    /** Where the current book was opened from (used to resolve the adjacent book). */
-    origin: null as OpenOrigin | null,
-    /** Where each book in `history` was opened from, index-aligned with it. */
-    originHistory: [] as (OpenOrigin | null)[],
-    /**
-     * Overrides the start page of the next opened container, used by adjacent-book
-     * navigation: "first" lands on page 1 (next book), "last" lands on the last page
-     * (previous book). When null, the last-read position is used.
-     */
-    pendingInitialPosition: null as "first" | "last" | null,
-  },
-  explorer: {
-    history: [] as string[],
-    historyIndex: -1,
-    entries: [] as DirEntry[],
-    searchText: "",
-    isLoading: false,
-    error: null as { code: ErrorCode; message?: string } | null,
-    /** The latest listing request; only its answer may change the explorer. */
-    requestId: null as string | null,
-    /** The folder that request lists, until it settles. */
-    pendingPath: null as string | null,
-  },
+  history: [] as string[],
+  historyIndex: -1,
+  isDirectory: false,
+  entries: [] as string[],
+  book: null as BookWithState | null,
+  index: 0,
+  /**
+   * Whether this book's spread pairing is shifted by one relative to the app's
+   * cover setting, to line up an archive whose pages are offset.
+   */
+  isSpreadShifted: false,
+  /** Whether the reader is currently showing two pages side by side. */
+  isSpreadDisplayed: false,
+  /**
+   * Page-turn direction of the open comic, restored with the book and seeded from
+   * `reader.comic.readingDirection` the first time the book is opened. Null while no
+   * book is loaded, and for novels, which report their own direction.
+   */
+  readingDirection: null as Direction | null,
+  cfi: null as string | null,
+  isNovel: false,
+  /** Whether the open book can send a page's preview more cheaply than the page. */
+  hasPreviews: false,
+  /**
+   * Page-turn direction of the open novel, decided for the book as a whole: its
+   * declared page progression direction, or else the writing mode of its body text.
+   * Null until the book reports one, and always null for comics, which follow the
+   * user's setting.
+   */
+  novelDirection: null as Direction | null,
+  isLoading: false,
+  error: null as { code: ErrorCode; message?: string } | null,
+  /**
+   * Why remembering the opened book in the library failed, if it did. Kept apart
+   * from `error`: the book itself is on screen, only its history entry is missing.
+   */
+  bookRecordError: null as { code: ErrorCode; message?: string } | null,
+  /** Where the current book was opened from (used to resolve the adjacent book). */
+  origin: null as OpenOrigin | null,
+  /** Where each book in `history` was opened from, index-aligned with it. */
+  originHistory: [] as (OpenOrigin | null)[],
+  /**
+   * Overrides the start page of the next opened container, used by adjacent-book
+   * navigation: "first" lands on page 1 (next book), "last" lands on the last page
+   * (previous book). When null, the last-read position is used.
+   */
+  pendingInitialPosition: null as "first" | "last" | null,
 };
 
-type ContainerFileState = typeof initialState.containerFile;
+/** The reader's state: the open book, its pages and position, and the book history. */
+export type ReaderState = typeof initialState;
 
 /**
  * Applies a new container path: pushes history, records where the book was opened from,
  * and resets the per-book view state.
  */
-const openContainerPath = (
-  containerFile: ContainerFileState,
-  path: string,
-  origin: OpenOrigin | null,
-) => {
-  containerFile.origin = origin;
-  const kept = containerFile.historyIndex + 1;
-  if (!pushHistory(containerFile, path)) {
-    containerFile.originHistory[containerFile.historyIndex] = origin;
+const openContainerPath = (state: ReaderState, path: string, origin: OpenOrigin | null) => {
+  state.origin = origin;
+  const kept = state.historyIndex + 1;
+  if (!pushHistory(state, path)) {
+    state.originHistory[state.historyIndex] = origin;
     // No-op open (same path): drop any pending initial position so it can't
     // leak into a later, unrelated open.
-    containerFile.pendingInitialPosition = null;
+    state.pendingInitialPosition = null;
     return;
   }
-  containerFile.originHistory = [...containerFile.originHistory.slice(0, kept), origin];
-  containerFile.index = 0;
-  containerFile.isSpreadShifted = false;
-  containerFile.isSpreadDisplayed = false;
-  containerFile.readingDirection = null;
-  containerFile.isLoading = true;
+  state.originHistory = [...state.originHistory.slice(0, kept), origin];
+  state.index = 0;
+  state.isSpreadShifted = false;
+  state.isSpreadDisplayed = false;
+  state.readingDirection = null;
+  state.isLoading = true;
 };
 
-export const readSlice = createSlice({
-  name: "read",
+export const readerSlice = createSlice({
+  name: "reader",
   initialState,
   reducers: {
     /**
@@ -310,7 +251,7 @@ export const readSlice = createSlice({
      * @param action - Payload containing the container file path.
      */
     setContainerFilePath: (state, action: PayloadAction<string>) => {
-      openContainerPath(state.containerFile, action.payload, null);
+      openContainerPath(state, action.payload, null);
     },
     /**
      * Opens a book from a known origin. The origin is recorded first so the adjacent-book
@@ -320,7 +261,7 @@ export const readSlice = createSlice({
      * @param action - Payload containing the container file path and where it was opened from.
      */
     openBook: (state, action: PayloadAction<{ path: string; origin: OpenOrigin | null }>) => {
-      openContainerPath(state.containerFile, action.payload.path, action.payload.origin);
+      openContainerPath(state, action.payload.path, action.payload.origin);
     },
     /**
      * Sets the pending initial position for the next opened container.
@@ -331,7 +272,7 @@ export const readSlice = createSlice({
      * @param action - Payload containing the pending position, or null to clear it.
      */
     setPendingInitialPosition: (state, action: PayloadAction<"first" | "last" | null>) => {
-      state.containerFile.pendingInitialPosition = action.payload;
+      state.pendingInitialPosition = action.payload;
     },
     /**
      * Sets the current image index within a container file.
@@ -341,11 +282,11 @@ export const readSlice = createSlice({
      */
     setImageIndex: (state, action: PayloadAction<number>) => {
       // The same section again: a novel stays at its exact position (CFI).
-      if (action.payload === state.containerFile.index) {
+      if (action.payload === state.index) {
         return;
       }
-      state.containerFile.index = action.payload;
-      state.containerFile.cfi = null;
+      state.index = action.payload;
+      state.cfi = null;
     },
     /**
      * Shifts this book's spread pairing by one, or restores the natural pairing.
@@ -354,7 +295,7 @@ export const readSlice = createSlice({
      * @param action - Payload containing whether the pairing is shifted.
      */
     setSpreadShifted: (state, action: PayloadAction<boolean>) => {
-      state.containerFile.isSpreadShifted = action.payload;
+      state.isSpreadShifted = action.payload;
     },
     /**
      * Sets the page direction of the open book.
@@ -363,7 +304,7 @@ export const readSlice = createSlice({
      * @param action - Payload containing the direction, or null to fall back to the default.
      */
     setReadingDirection: (state, action: PayloadAction<Direction | null>) => {
-      state.containerFile.readingDirection = action.payload;
+      state.readingDirection = action.payload;
     },
     /**
      * Records whether the reader is currently showing a two-page spread, so the page
@@ -373,29 +314,7 @@ export const readSlice = createSlice({
      * @param action - Payload containing whether two pages are on screen.
      */
     setSpreadDisplayed: (state, action: PayloadAction<boolean>) => {
-      state.containerFile.isSpreadDisplayed = action.payload;
-    },
-    /**
-     * Sets the base path for the file explorer and updates history.
-     *
-     * @param state - The current Redux state slice.
-     * @param action - Payload containing the directory path.
-     */
-    setExploreBasePath: (state, action: PayloadAction<string>) => {
-      if (!pushHistory(state.explorer, action.payload)) {
-        return;
-      }
-      state.explorer.searchText = "";
-      state.explorer.isLoading = true;
-    },
-    /**
-     * Sets the search text within the file explorer.
-     *
-     * @param state - The current Redux state slice.
-     * @param action - Payload containing the search text.
-     */
-    setSearchText: (state, action: PayloadAction<string>) => {
-      state.explorer.searchText = action.payload;
+      state.isSpreadDisplayed = action.payload;
     },
     /**
      * Navigates backwards in the container file history.
@@ -403,10 +322,9 @@ export const readSlice = createSlice({
      * @param state - The current Redux state slice.
      */
     goBackContainerHistory: (state) => {
-      if (goBackHistory(state.containerFile)) {
-        state.containerFile.origin =
-          state.containerFile.originHistory[state.containerFile.historyIndex] ?? null;
-        state.containerFile.isLoading = true;
+      if (goBackHistory(state)) {
+        state.origin = state.originHistory[state.historyIndex] ?? null;
+        state.isLoading = true;
       }
     },
     /**
@@ -415,36 +333,10 @@ export const readSlice = createSlice({
      * @param state - The current Redux state slice.
      */
     goForwardContainerHistory: (state) => {
-      if (goForwardHistory(state.containerFile)) {
-        state.containerFile.origin =
-          state.containerFile.originHistory[state.containerFile.historyIndex] ?? null;
-        state.containerFile.isLoading = true;
+      if (goForwardHistory(state)) {
+        state.origin = state.originHistory[state.historyIndex] ?? null;
+        state.isLoading = true;
       }
-    },
-    /**
-     * Navigates backwards in the file explorer history.
-     *
-     * @param state - The current Redux state slice.
-     */
-    goBackExplorerHistory: (state) => {
-      goBackHistory(state.explorer);
-    },
-    /**
-     * Navigates forwards in the file explorer history.
-     *
-     * @param state - The current Redux state slice.
-     */
-    goForwardExplorerHistory: (state) => {
-      goForwardHistory(state.explorer);
-    },
-    /**
-     * Sets the loading state for directory entries.
-     *
-     * @param state - The current Redux state slice.
-     * @param action - Payload containing the loading state.
-     */
-    setIsDirEntriesLoading: (state, action: PayloadAction<boolean>) => {
-      state.explorer.isLoading = action.payload;
     },
     /**
      * Sets the list of entries within the current container file.
@@ -453,7 +345,7 @@ export const readSlice = createSlice({
      * @param action - Payload containing an array of entry strings.
      */
     setEntries: (state, action: PayloadAction<string[]>) => {
-      state.containerFile.entries = action.payload;
+      state.entries = action.payload;
     },
     /**
      * Sets the reading location within a novel (EPUB).
@@ -462,8 +354,8 @@ export const readSlice = createSlice({
      * @param action - Payload containing the chapter index and CFI string.
      */
     setNovelLocation: (state, action: PayloadAction<{ index: number; cfi: string }>) => {
-      state.containerFile.index = action.payload.index;
-      state.containerFile.cfi = action.payload.cfi;
+      state.index = action.payload.index;
+      state.cfi = action.payload.cfi;
     },
     /**
      * Records the page-turn direction detected from the open novel's writing mode.
@@ -472,7 +364,7 @@ export const readSlice = createSlice({
      * @param action - Payload containing the detected direction.
      */
     setNovelDirection: (state, action: PayloadAction<Direction>) => {
-      state.containerFile.novelDirection = action.payload;
+      state.novelDirection = action.payload;
     },
     /**
      * Clears any error associated with the container file state.
@@ -480,7 +372,7 @@ export const readSlice = createSlice({
      * @param state - The current Redux state slice.
      */
     clearContainerFileError: (state) => {
-      state.containerFile.error = null;
+      state.error = null;
     },
     /**
      * Clears the error left by a failed attempt to record the opened book.
@@ -488,132 +380,94 @@ export const readSlice = createSlice({
      * @param state - The current Redux state slice.
      */
     clearBookRecordError: (state) => {
-      state.containerFile.bookRecordError = null;
-    },
-    /**
-     * Clears any error associated with the file explorer state.
-     *
-     * @param state - The current Redux state slice.
-     */
-    clearExplorerError: (state) => {
-      state.explorer.error = null;
+      state.bookRecordError = null;
     },
   },
   extraReducers: (builder) => {
     builder
-      .addCase(updateExploreBasePath.pending, (state, action) => {
-        state.explorer.requestId = action.meta.requestId;
-        state.explorer.pendingPath = action.meta.arg.dirPath;
-        state.explorer.error = null;
-      })
-      .addCase(updateExploreBasePath.fulfilled, (state, action) => {
-        // A listing superseded by a newer request, possibly of the same folder.
-        if (action.meta.requestId !== state.explorer.requestId) {
-          return;
-        }
-        state.explorer.pendingPath = null;
-        // Update the entries only if the current path matches the payload,
-        // as the user might have navigated away before the load finished.
-        if (state.explorer.history[state.explorer.historyIndex] === action.payload.path) {
-          state.explorer.entries = action.payload.entries;
-        }
-        state.explorer.isLoading = false;
-        state.explorer.error = null;
-      })
-      .addCase(updateExploreBasePath.rejected, (state, action) => {
-        if (action.meta.requestId !== state.explorer.requestId) {
-          return;
-        }
-        state.explorer.pendingPath = null;
-        state.explorer.entries = [];
-        state.explorer.isLoading = false;
-        state.explorer.error = action.payload ?? null;
-      })
       .addCase(openContainerFile.pending, (state) => {
         // Until the next book's record arrives, progress and bookmarks have no book to
         // go to; keeping the previous one would hand them to it.
-        state.containerFile.book = null;
-        state.containerFile.entries = [];
-        state.containerFile.isLoading = true;
-        state.containerFile.index = 0;
-        state.containerFile.isSpreadShifted = false;
-        state.containerFile.isSpreadDisplayed = false;
-        state.containerFile.readingDirection = null;
-        state.containerFile.cfi = null;
-        state.containerFile.novelDirection = null;
-        state.containerFile.hasPreviews = false;
-        state.containerFile.error = null;
-        state.containerFile.bookRecordError = null;
+        state.book = null;
+        state.entries = [];
+        state.isLoading = true;
+        state.index = 0;
+        state.isSpreadShifted = false;
+        state.isSpreadDisplayed = false;
+        state.readingDirection = null;
+        state.cfi = null;
+        state.novelDirection = null;
+        state.hasPreviews = false;
+        state.error = null;
+        state.bookRecordError = null;
       })
       .addCase(openContainerFile.fulfilled, (state, action) => {
         // Ignore stale responses: the user may have opened another book before this
         // load finished (mirrors updateExploreBasePath.fulfilled's guard). Without
         // this, a slow earlier open overwrites the newer book's state and progress
         // is then persisted against the wrong book.
-        if (state.containerFile.history[state.containerFile.historyIndex] !== action.meta.arg) {
+        if (state.history[state.historyIndex] !== action.meta.arg) {
           return;
         }
         if (action.payload.entries) {
-          state.containerFile.entries = action.payload.entries;
+          state.entries = action.payload.entries;
         }
-        state.containerFile.isDirectory = action.payload.isDirectory;
-        state.containerFile.hasPreviews = action.payload.hasPreviews;
-        state.containerFile.isLoading = false;
-        state.containerFile.book = action.payload.book;
-        if (state.containerFile.pendingInitialPosition === "last") {
+        state.isDirectory = action.payload.isDirectory;
+        state.hasPreviews = action.payload.hasPreviews;
+        state.isLoading = false;
+        state.book = action.payload.book;
+        if (state.pendingInitialPosition === "last") {
           const total = action.payload.entries?.length ?? 0;
-          state.containerFile.index = Math.max(0, total - 1);
-          state.containerFile.cfi = null;
-        } else if (state.containerFile.pendingInitialPosition === "first") {
-          state.containerFile.index = 0;
-          state.containerFile.cfi = null;
+          state.index = Math.max(0, total - 1);
+          state.cfi = null;
+        } else if (state.pendingInitialPosition === "first") {
+          state.index = 0;
+          state.cfi = null;
         } else {
           // Clamp the restored index so a stale last_read_page_index past the
           // current page count never strands the viewer on a blank page.
-          const total = state.containerFile.entries.length;
+          const total = state.entries.length;
           const restored = action.payload.book?.last_read_page_index ?? 0;
-          state.containerFile.index = total > 0 ? Math.min(Math.max(0, restored), total - 1) : 0;
+          state.index = total > 0 ? Math.min(Math.max(0, restored), total - 1) : 0;
           // Novels resume at the persisted CFI; NovelReader passes it to
           // view.init({ lastLocation }) on mount. Comics never carry a CFI.
-          state.containerFile.cfi = action.payload.isNovel
-            ? (action.payload.book?.cfi ?? null)
-            : null;
+          state.cfi = action.payload.isNovel ? (action.payload.book?.cfi ?? null) : null;
         }
         // The reader's own correction to how this book pairs, restored with the book. It
         // used to be inferred from whether the restored page happened to be a spread
         // boundary, which made where they stopped reading decide how the book pairs.
-        state.containerFile.isSpreadShifted = action.payload.book?.is_spread_shifted ?? false;
-        state.containerFile.readingDirection = action.payload.readingDirection;
-        state.containerFile.pendingInitialPosition = null;
-        state.containerFile.error = null;
-        state.containerFile.bookRecordError = action.payload.bookRecordError;
+        state.isSpreadShifted = action.payload.book?.is_spread_shifted ?? false;
+        state.readingDirection = action.payload.readingDirection;
+        state.pendingInitialPosition = null;
+        state.error = null;
+        state.bookRecordError = action.payload.bookRecordError;
         if (action.payload.isNovel !== undefined) {
-          state.containerFile.isNovel = action.payload.isNovel;
+          state.isNovel = action.payload.isNovel;
         }
       })
       .addCase(openContainerFile.rejected, (state, action) => {
         // Same staleness guard as fulfilled: a stale rejection must not clobber the
         // newer book's freshly loaded state.
-        if (state.containerFile.history[state.containerFile.historyIndex] !== action.meta.arg) {
+        if (state.history[state.historyIndex] !== action.meta.arg) {
           return;
         }
-        state.containerFile.entries = [];
-        state.containerFile.isLoading = false;
-        state.containerFile.index = 0;
-        state.containerFile.isSpreadShifted = false;
-        state.containerFile.isSpreadDisplayed = false;
-        state.containerFile.readingDirection = null;
-        state.containerFile.cfi = null;
-        state.containerFile.pendingInitialPosition = null;
+        state.entries = [];
+        state.isLoading = false;
+        state.index = 0;
+        state.isSpreadShifted = false;
+        state.isSpreadDisplayed = false;
+        state.readingDirection = null;
+        state.cfi = null;
+        state.pendingInitialPosition = null;
         // Drop every trace of the previously opened book. The reader is now at the path
         // that failed to open, showing no pages, instead of still showing the old book's
         // title, type and reading state.
-        state.containerFile.book = null;
-        state.containerFile.isDirectory = false;
-        state.containerFile.isNovel = false;
-        state.containerFile.hasPreviews = false;
-        state.containerFile.novelDirection = null;
-        state.containerFile.error = action.payload ?? null;
+        state.book = null;
+        state.isDirectory = false;
+        state.isNovel = false;
+        state.hasPreviews = false;
+        state.novelDirection = null;
+        state.error = action.payload ?? null;
       });
   },
 });
@@ -626,18 +480,12 @@ export const {
   setSpreadShifted,
   setReadingDirection,
   setSpreadDisplayed,
-  setExploreBasePath,
-  setSearchText,
   goBackContainerHistory,
   goForwardContainerHistory,
-  goBackExplorerHistory,
-  goForwardExplorerHistory,
-  setIsDirEntriesLoading,
   setEntries,
   setNovelLocation,
   setNovelDirection,
   clearContainerFileError,
   clearBookRecordError,
-  clearExplorerError,
-} = readSlice.actions;
-export default readSlice.reducer;
+} = readerSlice.actions;
+export default readerSlice.reducer;

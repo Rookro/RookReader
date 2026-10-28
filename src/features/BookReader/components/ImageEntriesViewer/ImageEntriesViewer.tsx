@@ -48,9 +48,9 @@ function Row({
  */
 export default function ImageEntriesViewer() {
   const { t } = useTranslation();
-  const entries = useAppSelector((state) => state.read.containerFile.entries);
-  const index = useAppSelector((state) => state.read.containerFile.index);
-  const isSpreadDisplayed = useAppSelector((state) => state.read.containerFile.isSpreadDisplayed);
+  const entries = useAppSelector((state) => state.reader.entries);
+  const index = useAppSelector((state) => state.reader.index);
+  const isSpreadDisplayed = useAppSelector((state) => state.reader.isSpreadDisplayed);
   const dispatch = useAppDispatch();
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [list, setList] = useListCallbackRef(null);

@@ -25,7 +25,7 @@ import { ItemRow } from "./ItemRow";
 export default function BookmarkViewer() {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
-  const isNovel = useAppSelector((state) => state.read.containerFile.isNovel);
+  const isNovel = useAppSelector((state) => state.reader.isNovel);
   const bookmarks = useAppSelector((state) => state.bookmark.bookmarks);
   const [renameTarget, setRenameTarget] = useState<Bookmark | null>(null);
   const [renameText, setRenameText] = useState("");

@@ -51,7 +51,7 @@ const renderPage = (page: PageSlot, alt: string, width: string, objectPosition: 
 };
 
 const selectComicReaderState = createSelector(
-  [(state: RootState) => state.read.containerFile, (state: RootState) => state.settings.reader],
+  [(state: RootState) => state.reader, (state: RootState) => state.settings.reader],
   (containerFile, readerSettings) => ({
     history: containerFile.history,
     historyIndex: containerFile.historyIndex,

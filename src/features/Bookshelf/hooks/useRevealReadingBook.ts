@@ -14,8 +14,8 @@ import { buildGridItems } from "../utils/BookshelfUtils";
 export function useRevealReadingBook(): void {
   const dispatch = useAppDispatch();
   const activeView = useAppSelector((state) => state.view.activeView);
-  const readingBook = useAppSelector((state) => state.read.containerFile.book);
-  const isReaderLoading = useAppSelector((state) => state.read.containerFile.isLoading);
+  const readingBook = useAppSelector((state) => state.reader.book);
+  const isReaderLoading = useAppSelector((state) => state.reader.isLoading);
   const books = useAppSelector((state) => state.collection.books);
   const booksStatus = useAppSelector((state) => state.collection.status);
   const isBooksRefreshing = useAppSelector((state) => state.collection.isRefreshing);
