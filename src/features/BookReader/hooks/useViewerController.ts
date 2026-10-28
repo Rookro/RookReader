@@ -1,12 +1,7 @@
 import { error, warn } from "@tauri-apps/plugin-log";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { updatePageLayout } from "../../../bindings/BookCommands";
 import type { BookWithState } from "../../../bindings/bindings";
-import {
-  getImageDimensions,
-  requestPreloadAround,
-  setDisplaySize,
-} from "../../../bindings/ContainerCommands";
+import { requestPreloadAround, setDisplaySize } from "../../../bindings/ContainerCommands";
 import type { AppDispatch } from "../../../store/store";
 import { createCommandError, type ErrorCode } from "../../../types/Error";
 import type { Image } from "../../../types/Image";
@@ -34,6 +29,7 @@ import {
   walkUnits,
 } from "../utils/spreadPairing";
 import type { DisplaySize } from "./useDisplaySize";
+import { useLandscapeScan } from "./useLandscapeScan";
 import type { PageMove, PageMoveOptions } from "./usePageNavigation";
 
 /**
@@ -138,19 +134,12 @@ export const useViewerController = ({
   const [isImageLoading, setIsImageLoading] = useState(false);
   const [layoutState, setLayoutState] = useState<{ layout: ViewLayout; path: string } | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const [scannedLandscape, setScannedLandscape] = useState<{
-    path: string;
-    landscape: boolean[];
-  } | null>(null);
   // Set once the viewer has waited CHAIN_WAIT_CAP_MS for a chain that has not arrived.
   const [chainWaitElapsed, setChainWaitElapsed] = useState(false);
   // The shape of the pages the viewer has loaded, which is all it knows about a book the
   // measurement has not described yet. Recorded only while that is the case, so a
   // measured book — every book after its first open — never pays for it.
   const [loadedLandscape, setLoadedLandscape] = useState<ReadonlyMap<string, boolean>>(new Map());
-  // The book whose measurement has already been written back, so a re-render cannot
-  // write it twice.
-  const savedLayoutRef = useRef<string | null>(null);
   // The viewport the backend has answered for, and the gate on loading anything.
   //
   // Not `displaySize` itself: the report is a round trip, and a page asked for before it
@@ -174,62 +163,7 @@ export const useViewerController = ({
     };
   }, []);
 
-  // The book as already measured, when the stored bits describe *this* book. Bits of a
-  // different length belong to a book whose pages have changed since.
-  const cachedLandscape = useMemo(() => {
-    const bits = book?.landscape_bits;
-    return bits && bits.length === entries.length ? Array.from(bits, (bit) => bit === "1") : null;
-  }, [book, entries.length]);
-
-  // Measure the book, unless it already carries its measurement. Skipping the scan for a
-  // known book is what takes a full re-measure off every reopen.
-  useEffect(() => {
-    setScannedLandscape(null);
-    if (!containerPath || entries.length === 0 || cachedLandscape) {
-      if (cachedLandscape) {
-        // The measurement arrived with the book, so there is no scan to wait for. This
-        // is the line that says a reopen cost nothing.
-        perf("chain", `source=cached pages=${cachedLandscape.length}`, 0);
-      }
-      return;
-    }
-
-    let cancelled = false;
-    const started = perfStart();
-    getImageDimensions(containerPath)
-      .then((dims) => {
-        if (!cancelled) {
-          perf("chain", `source=scanned pages=${dims.length}`, perfSince(started) ?? 0);
-          setScannedLandscape({
-            path: containerPath,
-            landscape: dims.map((page) => page.width > page.height),
-          });
-        }
-      })
-      .catch((e) => {
-        warn(`Failed to scan image dimensions: ${String(e)}`);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [containerPath, entries.length, cachedLandscape]);
-
-  // One value, two origins. A scan belonging to another book, or reporting a different
-  // page count, is ignored: it cannot describe this one.
-  const landscape = useMemo(() => {
-    if (cachedLandscape) {
-      return cachedLandscape;
-    }
-    if (
-      !scannedLandscape ||
-      scannedLandscape.path !== containerPath ||
-      scannedLandscape.landscape.length !== entries.length
-    ) {
-      return null;
-    }
-    return scannedLandscape.landscape;
-  }, [cachedLandscape, scannedLandscape, containerPath, entries.length]);
+  const landscape = useLandscapeScan({ containerPath, pageCount: entries.length, book });
 
   const chain = useMemo(() => {
     if (!landscape) {
@@ -273,27 +207,6 @@ export const useViewerController = ({
     () => chain ?? (chainWaitElapsed ? assumedChain : null),
     [chain, chainWaitElapsed, assumedChain],
   );
-
-  // Remember the measurement so this book never has to be scanned again. Only a fully
-  // successful scan is written back: a page that failed once, and so measured as 0x0,
-  // must not fix the book's pairing forever.
-  useEffect(() => {
-    const id = book?.id;
-    if (
-      id === undefined ||
-      !scannedLandscape ||
-      scannedLandscape.path !== containerPath ||
-      scannedLandscape.landscape.length !== entries.length ||
-      savedLayoutRef.current === containerPath
-    ) {
-      return;
-    }
-    savedLayoutRef.current = containerPath;
-    const bits = scannedLandscape.landscape.map((bit) => (bit ? "1" : "0")).join("");
-    updatePageLayout(id, bits).catch((e: unknown) => {
-      warn(`Failed to store the page layout: ${String(e)}`);
-    });
-  }, [book, scannedLandscape, containerPath, entries.length]);
 
   // Hold the loading state until the book's pairing is known, then give up. Only a book
   // being measured for the first time can reach the cap.
