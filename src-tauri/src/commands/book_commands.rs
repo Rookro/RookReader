@@ -1326,6 +1326,27 @@ mod tests {
         folder.to_string_lossy().into_owned()
     }
 
+    /// Removes, on drop, the thumbnail a command under test saves for `file_path`: the
+    /// mock app's data folder is the real one, not a temporary directory.
+    struct ThumbnailCleanup(std::path::PathBuf);
+
+    impl ThumbnailCleanup {
+        fn new(app: &tauri::App<tauri::test::MockRuntime>, file_path: &str) -> Self {
+            Self(
+                crate::setup::app_data_dir(app)
+                    .unwrap()
+                    .join("thumbnails")
+                    .join(thumbnail_file_name(file_path)),
+            )
+        }
+    }
+
+    impl Drop for ThumbnailCleanup {
+        fn drop(&mut self) {
+            let _ = fs::remove_file(&self.0);
+        }
+    }
+
     #[tokio::test]
     async fn register_book_describes_the_book_itself() {
         let dir = tempfile::tempdir().unwrap();
@@ -1345,6 +1366,7 @@ mod tests {
             .returning(|_, _, _, _, _| Ok(1));
 
         let app = tauri::test::mock_app();
+        let _thumbnail = ThumbnailCleanup::new(&app, &path);
         app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
         app.manage(RwLock::new(AppState::default()));
         let events = record_events(app.handle());
@@ -1403,6 +1425,7 @@ mod tests {
             .returning(|_, _, _, _, _| Ok(2));
 
         let app = tauri::test::mock_app();
+        let _thumbnail = ThumbnailCleanup::new(&app, &other);
         app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
         app.manage(RwLock::new(AppState::default()));
         crate::commands::container_commands::open_container(&open, app.state())
@@ -1501,6 +1524,7 @@ mod tests {
             .returning(move |_| Ok(Some(stored.clone())));
 
         let app = tauri::test::mock_app();
+        let _thumbnail = ThumbnailCleanup::new(&app, &path);
         manage_for_recording(&app, dir.path(), mock_repo);
         let events = record_events(app.handle());
 
@@ -1538,6 +1562,7 @@ mod tests {
             .returning(|_, _| Ok(()));
 
         let app = tauri::test::mock_app();
+        let _thumbnail = ThumbnailCleanup::new(&app, &path);
         manage_for_recording(&app, dir.path(), mock_repo);
 
         let book = record_book_opened(
@@ -1561,6 +1586,7 @@ mod tests {
         mock_repo.expect_update_reading_direction().times(0);
 
         let app = tauri::test::mock_app();
+        let _thumbnail = ThumbnailCleanup::new(&app, &path);
         manage_for_recording(&app, dir.path(), mock_repo);
 
         let book = record_book_opened(
@@ -1637,6 +1663,7 @@ mod tests {
             .returning(|_, _| Err(Error::Other("database is locked".to_string())));
 
         let app = tauri::test::mock_app();
+        let _thumbnail = ThumbnailCleanup::new(&app, &path);
         manage_for_recording(&app, dir.path(), mock_repo);
 
         let book = record_book_opened(
@@ -1660,6 +1687,7 @@ mod tests {
         mock_repo.expect_update_reading_direction().times(0);
 
         let app = tauri::test::mock_app();
+        let _thumbnail = ThumbnailCleanup::new(&app, &path);
         // A directory where the settings file should be cannot be read as one.
         let unreadable = dir.path().join("unreadable.json");
         fs::create_dir(&unreadable).unwrap();
