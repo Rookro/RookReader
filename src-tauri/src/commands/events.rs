@@ -122,7 +122,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn event_names_are_unchanged() {
+    fn event_names_are_pinned() {
         assert_eq!(CollectionsChanged::NAME, "collections-changed");
         assert_eq!(TagsChanged::NAME, "tags-changed");
         assert_eq!(SeriesChanged::NAME, "series-changed");

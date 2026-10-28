@@ -135,7 +135,7 @@ export const setCollectionsForBooks = createAppAsyncThunk(
  * If the book is a container (like a ZIP or EPUB), it evaluates its contents first.
  *
  * @param params - The parameters for adding a book.
- * @param params.collectionId - The ID of the collection to add the book to, or null if adding to the general collection.
+ * @param params.collectionId - The ID of the collection to add the book to, or null to add it to the library only.
  * @param params.bookPath - The absolute file path to the book or directory.
  * @returns A thunk that resolves to the updated list of books for the current view.
  */
