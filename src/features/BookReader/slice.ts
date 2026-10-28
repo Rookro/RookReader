@@ -2,6 +2,7 @@ import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import { dirname } from "@tauri-apps/api/path";
 import { debug, error, info } from "@tauri-apps/plugin-log";
 import {
+  getRecentlyReadBooks,
   recordBookOpened,
   updateReadingDirection,
   updateSpreadShift,
@@ -522,6 +523,31 @@ export const goForwardContainerHistory = createAppAsyncThunk(
     const { history, historyIndex } = getState().reader;
     if (historyIndex !== before) {
       await dispatch(openContainerFile(history[historyIndex]));
+    }
+  },
+);
+
+/**
+ * Opens the most recently read book, when reading history is recorded and the startup
+ * setting asks for it.
+ *
+ * @returns A thunk that resolves once the book has loaded, or at once when there is none
+ * to restore.
+ */
+export const restoreLastBook = createAppAsyncThunk(
+  "reader/restoreLastBook",
+  async (_: undefined, { dispatch, getState }) => {
+    const { history, startup } = getState().settings;
+    if (!history.recordReadingHistory || !startup.restoreLastBook) {
+      return;
+    }
+    try {
+      const [latest] = await getRecentlyReadBooks();
+      if (latest) {
+        await dispatch(openBook({ path: latest.file_path, origin: { kind: "startup" } }));
+      }
+    } catch (e) {
+      error(`Failed to restore the last book: ${String(e)}`);
     }
   },
 );

@@ -80,43 +80,14 @@ describe("BookReader", () => {
     expect(hold).toHaveBeenCalledTimes(1);
   });
 
-  it("should restore last container on startup if enabled", async () => {
+  it("dispatches restoreLastBook on mount", async () => {
     const state = createBasePreloadedState();
     state.settings.startup.restoreLastBook = true;
-
-    vi.mocked(bookCmds.getRecentlyReadBooks).mockResolvedValue([
-      {
-        id: 1,
-        file_path: "/last/book.zip",
-        display_name: "Last Book",
-        total_pages: 100,
-        item_type: "file",
-        last_read_page_index: 0,
-        series_id: null,
-        series_order: null,
-        thumbnail_path: null,
-        last_opened_at: "",
-      },
-    ]);
-
-    renderWithProviders(<BookReader />, { preloadedState: state });
-    await waitFor(() =>
-      expect(readRed.openBook).toHaveBeenCalledWith({
-        path: "/last/book.zip",
-        origin: { kind: "startup" },
-      }),
-    );
-  });
-
-  it("should handle empty history during startup restoration", async () => {
-    const state = createBasePreloadedState();
-    state.settings.startup.restoreLastBook = true;
-
     vi.mocked(bookCmds.getRecentlyReadBooks).mockResolvedValue([]);
 
     renderWithProviders(<BookReader />, { preloadedState: state });
-    await waitFor(() => expect(bookCmds.getRecentlyReadBooks).toHaveBeenCalled());
-    expect(readRed.openBook).not.toHaveBeenCalled();
+
+    await waitFor(() => expect(bookCmds.getRecentlyReadBooks).toHaveBeenCalledTimes(1));
   });
 
   it("should update container when a file is dropped", async () => {
@@ -146,8 +117,7 @@ describe("BookReader", () => {
       vi.mocked(dragDrop.useDragDropEvent).mock.calls[0][0] as { onDrop: (paths: string[]) => void }
     ).onDrop;
 
-    // Drop the same path twice: the effect must re-trigger both times (the dropped
-    // path is reset after each dispatch), rather than a same-value setState bailing out.
+    // Drop the same path twice: each drop opens it, even though the second is a no-op.
     act(() => {
       dropHandler?.(["/same/file.zip"]);
     });

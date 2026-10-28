@@ -5,9 +5,8 @@ import PhotoLibrary from "@mui/icons-material/PhotoLibrary";
 import { Box, CircularProgress, Stack, type SxProps, type Theme } from "@mui/material";
 import { createSelector } from "@reduxjs/toolkit";
 import { Allotment } from "allotment";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { getRecentlyReadBooks } from "../../../bindings/BookCommands";
 import { useDragDropEvent } from "../../../hooks/useDragDropEvent";
 import { usePaneSizes } from "../../../hooks/usePaneSizes";
 import { type RootState, useAppDispatch, useAppSelector } from "../../../store/store";
@@ -15,7 +14,7 @@ import SidePanels from "../../SidePane/components/SidePanels";
 import SideTabs from "../../SidePane/components/SideTabs";
 import type { SideTab } from "../../SidePane/types";
 import { useBookmarkSync } from "../hooks/useBookmarkSync";
-import { openBook } from "../slice";
+import { openBook, restoreLastBook } from "../slice";
 import { holdWheelGesture } from "../utils/wheelGesture";
 import BookmarkViewer from "./BookmarkViewer/BookmarkViewer";
 import ComicReader from "./ComicReader";
@@ -32,9 +31,8 @@ const selectBookReaderState = createSelector(
     (state: RootState) => state.settings.layout.sidePane,
     (state: RootState) => state.reader,
     (state: RootState) => state.settings.history,
-    (state: RootState) => state.settings.startup,
   ],
-  (activeView, sidePane, containerFile, historySettings, startupSettings) => ({
+  (activeView, sidePane, containerFile, historySettings) => ({
     activeView,
     isHidden: sidePane.isHidden,
     tabIndex: sidePane.tabIndex,
@@ -43,7 +41,6 @@ const selectBookReaderState = createSelector(
     isNovel: containerFile.isNovel,
     isLoading: containerFile.isLoading,
     historySettings,
-    startupSettings,
   }),
 );
 
@@ -61,7 +58,6 @@ export interface BookReaderProps {
 export default function BookReader({ sx }: BookReaderProps) {
   const { t } = useTranslation();
   useBookmarkSync();
-  const initialized = useRef(false);
   const {
     activeView,
     isHidden,
@@ -71,11 +67,8 @@ export default function BookReader({ sx }: BookReaderProps) {
     isNovel,
     isLoading,
     historySettings,
-    startupSettings,
   } = useAppSelector(selectBookReaderState);
   const dispatch = useAppDispatch();
-
-  const [droppedFile, setDroppedFile] = useState<string | undefined>(undefined);
 
   const { paneSizes, setPaneSizes } = usePaneSizes("book-reader-left-pane-sizes");
 
@@ -94,11 +87,11 @@ export default function BookReader({ sx }: BookReaderProps) {
     (paths: string[]) => {
       if (activeView === "reader") {
         if (paths && paths.length > 0) {
-          setDroppedFile(paths[0]);
+          dispatch(openBook({ path: paths[0], origin: { kind: "dragDrop" } }));
         }
       }
     },
-    [activeView],
+    [activeView, dispatch],
   );
   useDragDropEvent({ onDrop: handleDropped });
 
@@ -136,36 +129,10 @@ export default function BookReader({ sx }: BookReaderProps) {
   }, [historySettings.recordReadingHistory, t]);
 
   useEffect(() => {
-    if (initialized.current) {
-      return;
-    }
-
-    const init = async () => {
-      const historyEnabled = historySettings.recordReadingHistory;
-      const restoreLastContainer = startupSettings.restoreLastBook;
-      if (historyEnabled && restoreLastContainer) {
-        const recentBooks = await getRecentlyReadBooks();
-        const latestEntry = recentBooks.length > 0 ? recentBooks[0] : null;
-        if (latestEntry) {
-          dispatch(openBook({ path: latestEntry.file_path, origin: { kind: "startup" } }));
-        }
-      }
-
-      initialized.current = true;
-    };
-    init();
-  }, [dispatch, historySettings.recordReadingHistory, startupSettings.restoreLastBook]);
+    dispatch(restoreLastBook());
+  }, [dispatch]);
 
   const containerPath = history[historyIndex];
-
-  useEffect(() => {
-    if (droppedFile && droppedFile.length > 0) {
-      dispatch(openBook({ path: droppedFile, origin: { kind: "dragDrop" } }));
-      // Reset so dropping the same path again re-triggers this effect
-      // (a same-value setState bails out and would silently ignore the drop).
-      setDroppedFile(undefined);
-    }
-  }, [droppedFile, dispatch]);
 
   return (
     <Stack

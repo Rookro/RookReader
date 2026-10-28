@@ -2,8 +2,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as BookCommands from "../../bindings/BookCommands";
 import * as ContainerCommands from "../../bindings/ContainerCommands";
 import * as DirectoryCommands from "../../bindings/DirectoryCommands";
-import { createMockBookWithState } from "../../test/factories";
-import { type AppStore, createTestStore, type RootState } from "../../test/utils";
+import { createMockBookWithState, createMockReadBook } from "../../test/factories";
+import {
+  type AppStore,
+  createBasePreloadedState,
+  createTestStore,
+  type RootState,
+} from "../../test/utils";
 import { CommandError, ErrorCode } from "../../types/Error";
 import readerReducer, {
   bookPathOpened,
@@ -14,6 +19,7 @@ import readerReducer, {
   historyMovedForward,
   openBook,
   openContainerFile,
+  restoreLastBook,
   setEntries,
   setImageIndex,
   setNovelDirection,
@@ -1035,6 +1041,63 @@ describe("ReaderReducer", () => {
         expect(state.cfi).toBeNull();
         expect(state.novelDirection).toBeNull();
         expect(state.hasPreviews).toBe(false);
+      });
+    });
+
+    describe("restoring the last book", () => {
+      const storeWith = (recordReadingHistory: boolean, restoreLastBook: boolean) => {
+        const preloaded = createBasePreloadedState();
+        preloaded.settings.history.recordReadingHistory = recordReadingHistory;
+        preloaded.settings.startup.restoreLastBook = restoreLastBook;
+        return createTestStore(preloaded);
+      };
+
+      beforeEach(() => {
+        vi.mocked(ContainerCommands.openContainer).mockResolvedValue({
+          is_directory: false,
+          entries: ["p1"],
+          is_novel: false,
+          has_previews: false,
+        });
+      });
+
+      it("restoreLastBook opens the newest book when history and restore are on", async () => {
+        vi.mocked(BookCommands.getRecentlyReadBooks).mockResolvedValue([
+          createMockReadBook({ file_path: "/last/book.zip" }),
+          createMockReadBook({ file_path: "/older/book.zip" }),
+        ]);
+        store = storeWith(true, true);
+
+        await store.dispatch(restoreLastBook());
+
+        const state = store.getState().reader;
+        expect(state.history).toEqual(["/last/book.zip"]);
+        expect(state.origin).toEqual({ kind: "startup" });
+        expect(ContainerCommands.openContainer).toHaveBeenCalledWith("/last/book.zip");
+      });
+
+      it("restoreLastBook opens nothing when restore or history recording is off", async () => {
+        for (const [recordReadingHistory, restore] of [
+          [false, true],
+          [true, false],
+        ]) {
+          store = storeWith(recordReadingHistory, restore);
+
+          await store.dispatch(restoreLastBook());
+
+          expect(BookCommands.getRecentlyReadBooks).not.toHaveBeenCalled();
+          expect(store.getState().reader.history).toEqual([]);
+        }
+      });
+
+      it("restoreLastBook opens nothing when no book was read", async () => {
+        vi.mocked(BookCommands.getRecentlyReadBooks).mockResolvedValue([]);
+        store = storeWith(true, true);
+
+        await store.dispatch(restoreLastBook());
+
+        expect(BookCommands.getRecentlyReadBooks).toHaveBeenCalledTimes(1);
+        expect(store.getState().reader.history).toEqual([]);
       });
     });
   });
