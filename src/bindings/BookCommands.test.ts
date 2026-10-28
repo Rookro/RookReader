@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createMockBookWithState } from "../test/factories";
 import { CommandError } from "../types/Error";
 import * as BookCommands from "./BookCommands";
 
@@ -83,32 +84,16 @@ describe("BookCommands", () => {
   });
 
   it("recordBookOpened should call invoke", async () => {
-    vi.mocked(invoke).mockResolvedValue(20);
-    const params = {
-      filePath: "p2",
-      itemType: "directory" as const,
-      displayName: "d2",
-      totalPages: 0,
-    };
-    const result = await BookCommands.recordBookOpened(params);
-    expect(invoke).toHaveBeenCalledWith("record_book_opened", {
-      filePath: "p2",
-      itemType: "directory",
-      displayName: "d2",
-      totalPages: 0,
-    });
-    expect(result).toBe(20);
+    const book = createMockBookWithState({ id: 20, file_path: "p2" });
+    vi.mocked(invoke).mockResolvedValue(book);
+    const result = await BookCommands.recordBookOpened("p2");
+    expect(invoke).toHaveBeenCalledWith("record_book_opened", { filePath: "p2" });
+    expect(result).toEqual(book);
   });
 
   it("recordBookOpened should throw CommandError on failure", async () => {
     vi.mocked(invoke).mockRejectedValue(mockError);
-    const params = {
-      filePath: "p2",
-      itemType: "directory" as const,
-      displayName: "d2",
-      totalPages: 0,
-    };
-    await expect(BookCommands.recordBookOpened(params)).rejects.toThrow(CommandError);
+    await expect(BookCommands.recordBookOpened("p2")).rejects.toThrow(CommandError);
   });
 
   it("getBookTags should call invoke", async () => {

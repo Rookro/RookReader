@@ -286,26 +286,29 @@ export const commands = {
 	/**
 	 *  Records the event of a book being opened, updating its last opened time.
 	 * 
+	 *  The book's item type, display name, and page count are read from its container. A
+	 *  comic opened for the first time gets the reader's default page direction, which is
+	 *  stored with it.
+	 * 
 	 *  # Arguments
 	 * 
 	 *  * `file_path` - The unique file or directory path.
-	 *  * `item_type` - What the path points at.
-	 *  * `display_name` - The display name of the book.
-	 *  * `total_pages` - The total number of pages.
 	 *  * `repo` - The managed book repository state.
 	 *  * `app` - The Tauri AppHandle.
 	 *  * `state` - The managed app state.
+	 *  * `provider` - The settings file the default page direction is read from.
 	 * 
 	 *  # Returns
 	 * 
-	 *  A `Result` containing the ID of the book.
+	 *  A `Result` containing the book with its reading state.
 	 * 
 	 *  # Errors
 	 * 
-	 *  This function will return an `Err` if the underlying repository operation fails
-	 *  (e.g., due to a database error, connection issue, or query execution failure).
+	 *  Returns an `Err` if the container cannot be opened, `EmptyContainer` when it holds no
+	 *  readable pages, or an `Err` if recording or reading back the book fails. Failing to
+	 *  read the default direction or to store it is logged, not returned.
 	 */
-	recordBookOpened: (filePath: string, itemType: ItemType, displayName: string, totalPages: number) => typedError<number, CommandError_Serialize>(__TAURI_INVOKE("record_book_opened", { filePath, itemType, displayName, totalPages })),
+	recordBookOpened: (filePath: string) => typedError<BookWithState_Serialize, CommandError_Serialize>(__TAURI_INVOKE("record_book_opened", { filePath })),
 	/**
 	 *  Deletes a book by its unique ID, along with its thumbnail file.
 	 * 

@@ -21,6 +21,7 @@ use crate::domain::tag::repository::TagRepository;
 use crate::error::{Error, Result};
 use crate::infrastructure::atomic_file::write_atomically;
 use crate::page::pipeline::Pipeline;
+use crate::settings::{AppSettings, SettingsFileProvider};
 use crate::state::app_state::AppState;
 use crate::state::container_state::ContainerState;
 
@@ -150,60 +151,87 @@ pub async fn register_book<R: tauri::Runtime>(
 
 /// Records the event of a book being opened, updating its last opened time.
 ///
+/// The book's item type, display name, and page count are read from its container. A
+/// comic opened for the first time gets the reader's default page direction, which is
+/// stored with it.
+///
 /// # Arguments
 ///
 /// * `file_path` - The unique file or directory path.
-/// * `item_type` - What the path points at.
-/// * `display_name` - The display name of the book.
-/// * `total_pages` - The total number of pages.
 /// * `repo` - The managed book repository state.
 /// * `app` - The Tauri AppHandle.
 /// * `state` - The managed app state.
+/// * `provider` - The settings file the default page direction is read from.
 ///
 /// # Returns
 ///
-/// A `Result` containing the ID of the book.
+/// A `Result` containing the book with its reading state.
 ///
 /// # Errors
 ///
-/// This function will return an `Err` if the underlying repository operation fails
-/// (e.g., due to a database error, connection issue, or query execution failure).
+/// Returns an `Err` if the container cannot be opened, `EmptyContainer` when it holds no
+/// readable pages, or an `Err` if recording or reading back the book fails. Failing to
+/// read the default direction or to store it is logged, not returned.
 #[tauri::command]
 #[specta::specta]
 pub async fn record_book_opened<R: tauri::Runtime>(
     file_path: String,
-    item_type: ItemType,
-    display_name: String,
-    total_pages: i64,
     repo: State<'_, Arc<dyn BookRepository>>,
     app: tauri::AppHandle<R>,
     state: State<'_, RwLock<AppState>>,
-) -> Result<i64> {
-    log::debug!(
-        "Record book opened: (file_path: {}, item_type: {:?}, display_name: {}, total_pages: {})",
-        file_path,
-        item_type,
-        display_name,
-        total_pages
-    );
+    provider: State<'_, SettingsFileProvider>,
+) -> Result<BookWithState> {
+    log::debug!("Record book opened: {}", file_path);
 
     let (container, config) = book_container(&state, &file_path).await?;
+    let facts = describe(&file_path, container.as_ref())?;
     let thumbnail_path = resolve_thumbnail(&app, &file_path, config, container).await;
 
     let book_id = repo
         .record_book_opened(
             &file_path,
-            item_type,
-            &display_name,
-            total_pages,
+            facts.item_type,
+            &facts.display_name,
+            facts.total_pages,
             thumbnail_path,
         )
         .await?;
+    let mut book = repo
+        .get_book_with_state_by_id(book_id)
+        .await?
+        .ok_or_else(|| Error::Other(format!("Book {book_id} vanished after it was recorded")))?;
+
+    // A novel's direction is the EPUB's own and cannot be overridden.
+    if !facts.is_novel && book.reading_direction.is_none() {
+        if let Some(direction) = default_reading_direction(&provider).await {
+            if let Err(e) = repo.update_reading_direction(book_id, direction).await {
+                log::warn!("Could not store the reading direction of book {book_id}: {e}");
+            }
+            book.reading_direction = Some(direction);
+        }
+    }
 
     app.emit(BOOKS_CHANGED_EVENT, ())?;
     app.emit(READING_HISTORY_CHANGED_EVENT, ())?;
 
-    Ok(book_id)
+    Ok(book)
+}
+
+/// The page direction a comic opens with when it has none of its own, or `None` (logged)
+/// when the settings cannot be read.
+async fn default_reading_direction(provider: &SettingsFileProvider) -> Option<Direction> {
+    let provider = provider.clone();
+    let loaded = tauri::async_runtime::spawn_blocking(move || AppSettings::load(&provider))
+        .await
+        .map_err(|e| Error::Other(format!("Spawn blocking failed: {e}")))
+        .and_then(|result| result);
+    match loaded {
+        Ok(settings) => Some(settings.reader.comic.reading_direction),
+        Err(e) => {
+            log::warn!("Could not read the default reading direction: {e}");
+            None
+        }
+    }
 }
 
 /// Clears the reading history for a specific book.
@@ -1394,46 +1422,263 @@ mod tests {
         );
     }
 
+    /// The book `record_book_opened` reads back after recording it, as id 7.
+    fn stored_book(file_path: &str, reading_direction: Option<Direction>) -> BookWithState {
+        BookWithState {
+            id: 7,
+            file_path: file_path.to_string(),
+            item_type: ItemType::Directory,
+            display_name: "name".to_string(),
+            total_pages: 2,
+            series_id: None,
+            series_order: None,
+            thumbnail_path: None,
+            created_at: None,
+            is_spread_shifted: false,
+            landscape_bits: None,
+            reading_direction,
+            last_read_page_index: Some(0),
+            last_opened_at: None,
+            cfi: None,
+            tag_ids: vec![],
+        }
+    }
+
+    /// A repository that records any book as id 7 and reads back [`stored_book`].
+    fn recording_repo(file_path: &str, reading_direction: Option<Direction>) -> MockBookRepository {
+        let mut mock_repo = MockBookRepository::new();
+        mock_repo
+            .expect_record_book_opened()
+            .returning(|_, _, _, _, _| Ok(7));
+        let stored = stored_book(file_path, reading_direction);
+        mock_repo
+            .expect_get_book_with_state_by_id()
+            .with(mockall::predicate::eq(7))
+            .returning(move |_| Ok(Some(stored.clone())));
+        mock_repo
+    }
+
+    /// Manages `mock_repo`, an empty app state, and a settings file in `dir` whose comic
+    /// reading direction is `ltr`.
+    fn manage_for_recording(
+        app: &tauri::App<tauri::test::MockRuntime>,
+        dir: &std::path::Path,
+        mock_repo: MockBookRepository,
+    ) {
+        use crate::settings::SettingsStoreProvider;
+
+        let provider = SettingsFileProvider::at_path(dir.join("settings.json"));
+        provider
+            .save_all_settings(serde_json::json!({
+                "reader": { "comic": { "readingDirection": "ltr" } }
+            }))
+            .unwrap();
+        app.manage(provider);
+        app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
+        app.manage(RwLock::new(AppState::default()));
+    }
+
     #[tokio::test]
-    async fn test_record_book_opened() {
+    async fn record_book_opened_describes_the_book_and_returns_it() {
         let dir = tempfile::tempdir().unwrap();
-        let path = png_folder(dir.path(), "name", 1);
+        let path = png_folder(dir.path(), "My Book", 2);
+
         let mut mock_repo = MockBookRepository::new();
         mock_repo
             .expect_record_book_opened()
             .with(
                 mockall::predicate::eq(path.clone()),
-                mockall::predicate::eq(ItemType::File),
-                mockall::predicate::eq("name"),
-                mockall::predicate::eq(10),
+                mockall::predicate::eq(ItemType::Directory),
+                mockall::predicate::eq("My Book"),
+                mockall::predicate::eq(2),
                 mockall::predicate::always(),
             )
             .times(1)
-            .returning(|_, _, _, _, _| Ok(1));
+            .returning(|_, _, _, _, _| Ok(7));
+        let stored = stored_book(&path, Some(Direction::Rtl));
+        mock_repo
+            .expect_get_book_with_state_by_id()
+            .with(mockall::predicate::eq(7))
+            .returning(move |_| Ok(Some(stored.clone())));
 
         let app = tauri::test::mock_app();
-        app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
-        app.manage(RwLock::new(AppState::default()));
-        let repo = app.state::<Arc<dyn BookRepository>>();
-        let state = app.state::<RwLock<AppState>>();
+        manage_for_recording(&app, dir.path(), mock_repo);
         let events = record_events(app.handle());
 
-        let result = record_book_opened(
-            path,
-            ItemType::File,
-            "name".to_string(),
-            10,
-            repo,
+        let book = record_book_opened(
+            path.clone(),
+            app.state(),
             app.handle().clone(),
-            state,
+            app.state(),
+            app.state(),
         )
-        .await;
-        assert!(result.is_ok());
+        .await
+        .unwrap();
+
+        assert_eq!(book.id, 7);
+        assert_eq!(book.file_path, path);
+        assert_eq!(book.reading_direction, Some(Direction::Rtl));
         assert_eq!(
             *events.lock().unwrap(),
             [BOOKS_CHANGED_EVENT, READING_HISTORY_CHANGED_EVENT]
         );
-        assert_eq!(result.unwrap(), 1);
+    }
+
+    #[tokio::test]
+    async fn record_book_opened_seeds_the_default_direction() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = png_folder(dir.path(), "Comic", 2);
+        let mut mock_repo = recording_repo(&path, None);
+        mock_repo
+            .expect_update_reading_direction()
+            .with(
+                mockall::predicate::eq(7),
+                mockall::predicate::eq(Direction::Ltr),
+            )
+            .times(1)
+            .returning(|_, _| Ok(()));
+
+        let app = tauri::test::mock_app();
+        manage_for_recording(&app, dir.path(), mock_repo);
+
+        let book = record_book_opened(
+            path,
+            app.state(),
+            app.handle().clone(),
+            app.state(),
+            app.state(),
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(book.reading_direction, Some(Direction::Ltr));
+    }
+
+    #[tokio::test]
+    async fn record_book_opened_keeps_a_stored_direction() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = png_folder(dir.path(), "Comic", 2);
+        let mut mock_repo = recording_repo(&path, Some(Direction::Rtl));
+        mock_repo.expect_update_reading_direction().times(0);
+
+        let app = tauri::test::mock_app();
+        manage_for_recording(&app, dir.path(), mock_repo);
+
+        let book = record_book_opened(
+            path,
+            app.state(),
+            app.handle().clone(),
+            app.state(),
+            app.state(),
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(book.reading_direction, Some(Direction::Rtl));
+    }
+
+    #[tokio::test]
+    async fn record_book_opened_leaves_a_novel_direction_unset() {
+        use crate::container::traits::MockContainer;
+        use crate::image::resizer::ResizeFilter;
+        use crate::page::service::PageService;
+
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("novel.epub").to_string_lossy().into_owned();
+        let mut mock_repo = recording_repo(&path, None);
+        mock_repo.expect_update_reading_direction().times(0);
+
+        let mut container = MockContainer::new();
+        container
+            .expect_get_entries()
+            .return_const(Vec::<String>::new());
+        container.expect_is_directory().return_const(false);
+        container.expect_is_novel().return_const(true);
+        container.expect_max_readers().return_const(usize::MAX);
+
+        let app = tauri::test::mock_app();
+        manage_for_recording(&app, dir.path(), mock_repo);
+        app.state::<RwLock<AppState>>()
+            .write()
+            .await
+            .container_state
+            .install(PageService::new(
+                path.clone(),
+                Arc::new(container),
+                Pipeline {
+                    display: None,
+                    max_image_height: 2000,
+                    resize_method: ResizeFilter::Bilinear,
+                },
+                mini_moka::sync::Cache::new(100),
+                0,
+            ));
+
+        let book = record_book_opened(
+            path,
+            app.state(),
+            app.handle().clone(),
+            app.state(),
+            app.state(),
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(book.reading_direction, None);
+    }
+
+    #[tokio::test]
+    async fn record_book_opened_keeps_the_seeded_direction_when_storing_it_fails() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = png_folder(dir.path(), "Comic", 2);
+        let mut mock_repo = recording_repo(&path, None);
+        mock_repo
+            .expect_update_reading_direction()
+            .times(1)
+            .returning(|_, _| Err(Error::Other("database is locked".to_string())));
+
+        let app = tauri::test::mock_app();
+        manage_for_recording(&app, dir.path(), mock_repo);
+
+        let book = record_book_opened(
+            path,
+            app.state(),
+            app.handle().clone(),
+            app.state(),
+            app.state(),
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(book.reading_direction, Some(Direction::Ltr));
+    }
+
+    #[tokio::test]
+    async fn record_book_opened_skips_seeding_when_settings_cannot_be_read() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = png_folder(dir.path(), "Comic", 2);
+        let mut mock_repo = recording_repo(&path, None);
+        mock_repo.expect_update_reading_direction().times(0);
+
+        let app = tauri::test::mock_app();
+        // A directory where the settings file should be cannot be read as one.
+        let unreadable = dir.path().join("unreadable.json");
+        fs::create_dir(&unreadable).unwrap();
+        app.manage(SettingsFileProvider::at_path(unreadable));
+        app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
+        app.manage(RwLock::new(AppState::default()));
+
+        let book = record_book_opened(
+            path,
+            app.state(),
+            app.handle().clone(),
+            app.state(),
+            app.state(),
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(book.reading_direction, None);
     }
 
     #[tokio::test]

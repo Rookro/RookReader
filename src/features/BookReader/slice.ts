@@ -1,8 +1,7 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
-import { basename, dirname } from "@tauri-apps/api/path";
+import { dirname } from "@tauri-apps/api/path";
 import { debug, error, info } from "@tauri-apps/plugin-log";
 import {
-  getBookWithStateById,
   recordBookOpened,
   updateReadingDirection,
   updateSpreadShift,
@@ -15,7 +14,6 @@ import type { Direction } from "../../types/AppSettings";
 import { createAppAsyncThunk } from "../../types/CustomAsyncThunk";
 import type { DirEntry } from "../../types/DirEntry";
 import { CommandError, createCommandError, ErrorCode } from "../../types/Error";
-import { isInsideArchive } from "../../utils/ArchivePathUtils";
 import { convertEntriesInDir } from "../../utils/DirEntryUtils";
 import type { OpenOrigin } from "./types/OpenOrigin";
 import { goBackHistory, goForwardHistory, pushHistory } from "./utils/navigationHistory";
@@ -36,10 +34,9 @@ export const openContainerFile = createAppAsyncThunk(
     }
     info(`Open container file: ${path}`);
     try {
-      const [entriesResult, dirPath, fileName] = await Promise.all([
+      const [entriesResult, dirPath] = await Promise.all([
         getEntriesInContainer(path),
         dirname(path),
-        basename(path),
       ]);
 
       const isEpubNovel = entriesResult.is_novel;
@@ -54,11 +51,7 @@ export const openContainerFile = createAppAsyncThunk(
 
       dispatch(updateExploreBasePath({ dirPath }));
 
-      // A folder inside an archive is a folder to the user, even though its container
-      // is not a filesystem directory, so the library records it as one.
-      const itemType = entriesResult.is_directory || isInsideArchive(path) ? "directory" : "file";
-
-      debug(`Update container history: ${path}, ${itemType}`);
+      debug(`Update container history: ${path}`);
       // The container is already open here. Failing to remember it in the library is
       // worth telling the user about, but it is not "the book could not be opened":
       // reporting it that way threw the entries away and left the reader empty on a
@@ -66,36 +59,16 @@ export const openContainerFile = createAppAsyncThunk(
       let book: BookWithState | null = null;
       let bookRecordError: { code: ErrorCode; message?: string } | null = null;
       try {
-        const bookId = await recordBookOpened({
-          filePath: path,
-          itemType,
-          totalPages: entriesResult.entries.length,
-          displayName: fileName,
-        });
-        book = await getBookWithStateById(bookId);
+        book = await recordBookOpened(path);
       } catch (e) {
         const commandError = createCommandError(e);
         error(`Failed to record the opened book(${path}). Error: ${commandError.message}`);
         bookRecordError = { code: commandError.code, message: commandError.message };
       }
 
-      // A comic carries its own page direction. The first time a book is opened it is
-      // seeded from the default setting, so changing that default later leaves books the
-      // reader has already met alone. Novels are excluded: their direction is the EPUB's
-      // own and cannot be overridden.
-      let readingDirection: Direction | null = null;
-      if (!isEpubNovel && book) {
-        readingDirection =
-          book.reading_direction ?? getState().settings.reader.comic.readingDirection;
-        if (book.reading_direction === null) {
-          try {
-            await updateReadingDirection(book.id, readingDirection);
-          } catch (e) {
-            // The direction still applies to this session; only remembering it failed.
-            error(`Failed to store the initial reading direction: ${String(e)}`);
-          }
-        }
-      }
+      // The backend gives a comic opened for the first time the default direction.
+      // Novels are excluded: their direction is the EPUB's own and cannot be overridden.
+      const readingDirection = isEpubNovel ? null : (book?.reading_direction ?? null);
 
       if (!isEpubNovel) {
         const state = getState();
