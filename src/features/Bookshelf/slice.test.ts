@@ -424,73 +424,34 @@ describe("BookCollectionReducer", () => {
 
       // Verify that book is added to bookshelf and status is updated
       it("addBookToBookshelf should add a book", async () => {
-        vi.mocked(ContainerCommands.countPagesInContainer).mockResolvedValue({
-          is_directory: false,
-          total_pages: 1,
-        });
         vi.mocked(BookCommands.registerBook).mockResolvedValue(10);
 
         await store.dispatch(addBookToBookshelf({ bookshelfId: 1, bookPath: "path/to/book.zip" }));
 
         const state = store.getState().bookCollection;
         expect(state.status).toBe("idle");
-        expect(BookCommands.registerBook).toHaveBeenCalled();
+        expect(BookCommands.registerBook).toHaveBeenCalledWith("path/to/book.zip");
+        expect(BookshelfCommand.addBookToBookshelf).toHaveBeenCalledWith(1, 10);
+        // Opening would install the book, which closes the reader threads of the book on
+        // screen. Registering must never do that.
+        expect(ContainerCommands.getEntriesInContainer).not.toHaveBeenCalled();
       });
 
       // Verify that adding a book with no bookshelf ID (null) only registers it
       it("addBookToBookshelf with bookshelfId: null should register book", async () => {
-        vi.mocked(ContainerCommands.countPagesInContainer).mockResolvedValue({
-          is_directory: false,
-          total_pages: 1,
-        });
         vi.mocked(BookCommands.registerBook).mockResolvedValue(10);
 
         await store.dispatch(addBookToBookshelf({ bookshelfId: null, bookPath: "path" }));
 
         const state = store.getState().bookCollection;
         expect(state.status).toBe("idle");
-        expect(BookCommands.registerBook).toHaveBeenCalled();
-      });
-
-      // Verify handling of EPUB novel format when adding a book
-      it("addBookToBookshelf for EPUB novel", async () => {
-        vi.mocked(ContainerCommands.countPagesInContainer).mockResolvedValue({
-          is_directory: false,
-          total_pages: 0,
-        });
-        vi.mocked(BookCommands.registerBook).mockResolvedValue(10);
-        vi.mocked(BookCommands.getAllBooksWithState).mockResolvedValue([]);
-
-        await store.dispatch(addBookToBookshelf({ bookshelfId: null, bookPath: "path.epub" }));
-
-        expect(ContainerCommands.countPagesInContainer).toHaveBeenCalledWith("path.epub");
-        // Opening would install the book, which closes the reader threads of the book on
-        // screen. Registering must never do that.
-        expect(ContainerCommands.getEntriesInContainer).not.toHaveBeenCalled();
-        expect(BookCommands.registerBook).toHaveBeenCalledWith(
-          expect.objectContaining({ totalPages: 0 }),
-        );
-      });
-
-      // Verify handling of directory format when adding a book
-      it("addBookToBookshelf for directory", async () => {
-        vi.mocked(ContainerCommands.countPagesInContainer).mockResolvedValue({
-          is_directory: true,
-          total_pages: 1,
-        });
-        vi.mocked(BookCommands.registerBook).mockResolvedValue(10);
-        vi.mocked(BookCommands.getAllBooksWithState).mockResolvedValue([]);
-
-        await store.dispatch(addBookToBookshelf({ bookshelfId: null, bookPath: "dir" }));
-
-        expect(BookCommands.registerBook).toHaveBeenCalledWith(
-          expect.objectContaining({ itemType: "directory" }),
-        );
+        expect(BookCommands.registerBook).toHaveBeenCalledWith("path");
+        expect(BookshelfCommand.addBookToBookshelf).not.toHaveBeenCalled();
       });
 
       // Verify error handling when book addition fails
       it("addBookToBookshelf should handle generic failure", async () => {
-        vi.mocked(ContainerCommands.countPagesInContainer).mockRejectedValue(new Error());
+        vi.mocked(BookCommands.registerBook).mockRejectedValue(new Error());
 
         await store.dispatch(addBookToBookshelf({ bookshelfId: 1, bookPath: "path" }));
 
@@ -502,7 +463,7 @@ describe("BookCollectionReducer", () => {
       // Verify CommandError handling when book addition fails
       it("addBookToBookshelf should handle CommandError", async () => {
         const mockError = new CommandError(ErrorCode.io, "io fail");
-        vi.mocked(ContainerCommands.countPagesInContainer).mockRejectedValue(mockError);
+        vi.mocked(BookCommands.registerBook).mockRejectedValue(mockError);
 
         await store.dispatch(addBookToBookshelf({ bookshelfId: 1, bookPath: "path" }));
 

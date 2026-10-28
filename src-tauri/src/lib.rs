@@ -41,7 +41,6 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
         commands::settings_commands::set_settings::<tauri::Wry>,
         commands::container_commands::request_preload_around,
         commands::container_commands::get_entries_in_container,
-        commands::container_commands::count_pages_in_container,
         commands::container_commands::get_image_dimensions,
         commands::container_commands::set_display_size,
         commands::font_commands::get_fonts,

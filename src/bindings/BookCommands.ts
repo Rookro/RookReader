@@ -58,25 +58,16 @@ export async function getAllBooksWithState(): Promise<BookWithState[]> {
 }
 
 /**
- * Registers a book or returns its ID if it already exists.
+ * Registers a book or returns its ID if it already exists. The backend reads the book's
+ * type, name, and page count from its container.
  *
- * @param params - The parameters for registering the book.
- * @param params.filePath - The absolute path of the book file or directory.
- * @param params.itemType - The type of the item ("file" or "directory").
- * @param params.displayName - The display name of the book.
- * @param params.totalPages - The total number of pages in the book.
+ * @param filePath - The absolute path of the book file or directory.
  * @returns A promise that resolves to the ID of the registered book.
- * @throws {CommandError} If the Tauri command fails.
+ * @throws {CommandError} If the Tauri command fails, including when the book has no
+ *   readable pages.
  */
-export async function registerBook(params: {
-  filePath: string;
-  itemType: ItemType;
-  displayName: string;
-  totalPages: number;
-}) {
-  return await runCommand(
-    commands.registerBook(params.filePath, params.itemType, params.displayName, params.totalPages),
-  );
+export async function registerBook(filePath: string): Promise<number> {
+  return await runCommand(commands.registerBook(filePath));
 }
 
 /**

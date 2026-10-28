@@ -1,5 +1,4 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
-import { basename } from "@tauri-apps/api/path";
 import {
   deleteBook,
   getAllBooksWithState,
@@ -14,13 +13,11 @@ import {
   removeBookFromBookshelf,
   setBookshelvesForBook,
 } from "../../bindings/BookshelfCommands";
-import { countPagesInContainer } from "../../bindings/ContainerCommands";
 import type { Bookshelf, BookWithState } from "../../domain/entities";
 import { readingProgressChanged } from "../../store/actions";
 import { handleThunkError } from "../../store/thunkErrorHandler";
 import { createAppAsyncThunk } from "../../types/CustomAsyncThunk";
 import type { ErrorCode } from "../../types/Error";
-import { isInsideArchive } from "../../utils/ArchivePathUtils";
 
 /**
  * Creates a new bookshelf and adds it to the database.
@@ -149,21 +146,7 @@ export const addBookToBookshelf = createAppAsyncThunk(
     { rejectWithValue },
   ) => {
     try {
-      // Counting only. Opening the container here would install it as the open book and
-      // stop the reader threads of the book actually on screen.
-      const [summary, fileName] = await Promise.all([
-        countPagesInContainer(bookPath),
-        basename(bookPath),
-      ]);
-
-      const bookId = await registerBook({
-        filePath: bookPath,
-        // A folder inside an archive is a folder to the user; same derivation as in
-        // the reader's openContainerFile.
-        itemType: summary.is_directory || isInsideArchive(bookPath) ? "directory" : "file",
-        totalPages: summary.total_pages,
-        displayName: fileName,
-      });
+      const bookId = await registerBook(bookPath);
 
       if (bookshelfId !== null) {
         await addBookToBookshelfCommand(bookshelfId, bookId);

@@ -108,30 +108,6 @@ export const commands = {
 	 */
 	getEntriesInContainer: (path: string) => typedError<EntriesResult, CommandError_Serialize>(__TAURI_INVOKE("get_entries_in_container", { path })),
 	/**
-	 *  Counts a container's pages without opening it for reading.
-	 * 
-	 *  Separate from [`get_entries_in_container`], which *installs* the book it opens and so
-	 *  closes the reader threads of the book already open. A caller that only wants to
-	 *  register a book must not do that to the book on screen, so nothing is installed here
-	 *  and no reader thread is started: the container is built, counted, and dropped.
-	 * 
-	 *  # Arguments
-	 * 
-	 *  * `path` - The file path to the container to count.
-	 *  * `state` - A `tauri::State` holding the application's global `AppState`.
-	 * 
-	 *  # Returns
-	 * 
-	 *  The container's page count, and whether it is a directory.
-	 * 
-	 *  # Errors
-	 * 
-	 *  Returns an `Err` if the path has no supported extension, or the container cannot be
-	 *  opened (e.g. it does not exist or is corrupt). Returns `EmptyContainer` when it holds
-	 *  no readable pages, the same rule `get_entries_in_container` applies.
-	 */
-	countPagesInContainer: (path: string) => typedError<ContainerSummary, CommandError_Serialize>(__TAURI_INVOKE("count_pages_in_container", { path })),
-	/**
 	 *  Retrieves the pixel dimensions of every entry in the currently open container.
 	 * 
 	 *  The viewer needs the orientation of every page to decide where two-page spreads
@@ -288,12 +264,11 @@ export const commands = {
 	/**
 	 *  Registers a book or returns its ID if it already exists, without updating reading state.
 	 * 
+	 *  The book's item type, display name, and page count are read from its container.
+	 * 
 	 *  # Arguments
 	 * 
 	 *  * `file_path` - The unique file or directory path.
-	 *  * `item_type` - What the path points at.
-	 *  * `display_name` - The display name of the book.
-	 *  * `total_pages` - The total number of pages.
 	 *  * `repo` - The managed book repository state.
 	 *  * `app` - The Tauri AppHandle.
 	 *  * `state` - The managed app state.
@@ -304,10 +279,10 @@ export const commands = {
 	 * 
 	 *  # Errors
 	 * 
-	 *  This function will return an `Err` if the underlying repository operation fails
-	 *  (e.g., due to a database error, connection issue, or query execution failure).
+	 *  Returns an `Err` if the container cannot be opened, `EmptyContainer` when it holds no
+	 *  readable pages, or an `Err` if the repository operation fails.
 	 */
-	registerBook: (filePath: string, itemType: ItemType, displayName: string, totalPages: number) => typedError<number, CommandError_Serialize>(__TAURI_INVOKE("register_book", { filePath, itemType, displayName, totalPages })),
+	registerBook: (filePath: string) => typedError<number, CommandError_Serialize>(__TAURI_INVOKE("register_book", { filePath })),
 	/**
 	 *  Records the event of a book being opened, updating its last opened time.
 	 * 
@@ -1280,14 +1255,6 @@ export type CommandError_Serialize = {
 	message: string,
 	/**  Per-field validation details, present only for `SettingsValidation` errors. */
 	details: SettingsValidationViolation[] | null,
-};
-
-/**  What a caller that only registers a book needs to know about it. */
-export type ContainerSummary = {
-	/**  How many pages the container holds. */
-	total_pages: number,
-	/**  Whether the container is a directory. */
-	is_directory: boolean,
 };
 
 /**  The direction a comic's pages are turned in. */

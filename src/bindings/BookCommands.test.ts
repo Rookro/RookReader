@@ -72,21 +72,14 @@ describe("BookCommands", () => {
 
   it("registerBook should call invoke", async () => {
     vi.mocked(invoke).mockResolvedValue(10);
-    const params = { filePath: "p", itemType: "file" as const, displayName: "d", totalPages: 100 };
-    const result = await BookCommands.registerBook(params);
-    expect(invoke).toHaveBeenCalledWith("register_book", {
-      filePath: "p",
-      itemType: "file",
-      displayName: "d",
-      totalPages: 100,
-    });
+    const result = await BookCommands.registerBook("p");
+    expect(invoke).toHaveBeenCalledWith("register_book", { filePath: "p" });
     expect(result).toBe(10);
   });
 
   it("registerBook should throw CommandError on failure", async () => {
     vi.mocked(invoke).mockRejectedValue(mockError);
-    const params = { filePath: "p", itemType: "file" as const, displayName: "d", totalPages: 100 };
-    await expect(BookCommands.registerBook(params)).rejects.toThrow(CommandError);
+    await expect(BookCommands.registerBook("p")).rejects.toThrow(CommandError);
   });
 
   it("recordBookOpened should call invoke", async () => {
