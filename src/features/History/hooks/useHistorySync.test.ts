@@ -1,8 +1,9 @@
 import type { Event } from "@tauri-apps/api/event";
 import { renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { events } from "../../../bindings/bindings";
 import type { ReadingState } from "../../../domain/entities";
-import { useTauriEvent } from "../../../hooks/useTauriEvent";
+import { type TauriEvent, useTauriEvent } from "../../../hooks/useTauriEvent";
 import { readingProgressChanged } from "../../../store/actions";
 import { type RootState, useAppDispatch, useAppSelector } from "../../../store/store";
 import { fetchSeries } from "../../Bookshelf/seriesSlice";
@@ -133,43 +134,53 @@ describe("useHistorySync", () => {
    * Renders the hook and returns a function that fires the handler registered for an event.
    */
   const renderAndCaptureHandlers = () => {
-    const handlers = new Map<string, () => void>();
-    vi.mocked(useTauriEvent).mockImplementation((name, handler) => {
-      handlers.set(name, handler as () => void);
+    const handlers = new Map<TauriEvent<unknown>, () => void>();
+    vi.mocked(useTauriEvent).mockImplementation((event, handler) => {
+      handlers.set(event, handler as () => void);
     });
     renderHook(() => useHistorySync());
     vi.clearAllMocks();
-    return (name: string) => {
-      const handler = handlers.get(name);
+    return (key: keyof typeof events) => {
+      const handler = handlers.get(events[key]);
       if (!handler) {
-        throw new Error(`No handler registered for '${name}'`);
+        throw new Error(`No handler registered for '${key}'`);
       }
       handler();
     };
   };
 
   it.each([
-    ["bookshelves-changed", () => fetchBookshelves()],
-    ["tags-changed", () => fetchTags()],
-    ["series-changed", () => fetchSeries()],
-    ["books-changed", () => fetchBooksInSelectedBookshelf(mockSelectedBookshelfId)],
-    ["reading-history-changed", () => fetchRecentlyReadBooks()],
-  ])("refetches only the list named by '%s'", (name, expected) => {
+    ["bookshelvesChanged", () => fetchBookshelves()],
+    ["tagsChanged", () => fetchTags()],
+    ["seriesChanged", () => fetchSeries()],
+    ["booksChanged", () => fetchBooksInSelectedBookshelf(mockSelectedBookshelfId)],
+    ["readingHistoryChanged", () => fetchRecentlyReadBooks()],
+  ] as const)("refetches only the list named by '%s'", (key, expected) => {
     const fire = renderAndCaptureHandlers();
 
-    fire(name);
+    fire(key);
 
     expect(mockDispatch).toHaveBeenCalledTimes(1);
     expect(mockDispatch).toHaveBeenCalledWith(expected());
   });
 
-  it("does not listen to the retired 'history-changed' event", () => {
-    const fire = renderAndCaptureHandlers();
+  it("listens to exactly the six library events", () => {
+    renderHook(() => useHistorySync());
 
-    expect(() => fire("history-changed")).toThrow();
+    const listened = new Set(vi.mocked(useTauriEvent).mock.calls.map(([event]) => event));
+    expect(listened).toEqual(
+      new Set([
+        events.bookshelvesChanged,
+        events.tagsChanged,
+        events.seriesChanged,
+        events.booksChanged,
+        events.readingHistoryChanged,
+        events.readingProgressChanged,
+      ]),
+    );
   });
 
-  it("does not fetch history on 'reading-history-changed' if recordReadingHistory is false", () => {
+  it("does not fetch history on readingHistoryChanged if recordReadingHistory is false", () => {
     vi.mocked(useAppSelector).mockImplementation((selector) => {
       const state = {
         bookCollection: {
@@ -185,15 +196,15 @@ describe("useHistorySync", () => {
     });
     const fire = renderAndCaptureHandlers();
 
-    fire("reading-history-changed");
+    fire("readingHistoryChanged");
 
     expect(mockDispatch).not.toHaveBeenCalled();
   });
 
-  it("patches the store in place on 'reading-progress-changed' without refetching", () => {
+  it("patches the store in place on readingProgressChanged without refetching", () => {
     let eventHandler: (event: Event<ReadingState>) => void = () => {};
-    vi.mocked(useTauriEvent).mockImplementation((name, handler) => {
-      if (name === "reading-progress-changed") {
+    vi.mocked(useTauriEvent).mockImplementation((event, handler) => {
+      if (event === events.readingProgressChanged) {
         eventHandler = handler as (event: Event<ReadingState>) => void;
       }
     });

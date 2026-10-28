@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import type { ReadingState } from "../../../domain/entities";
+import { events } from "../../../bindings/bindings";
 import { useTauriEvent } from "../../../hooks/useTauriEvent";
 import { readingProgressChanged } from "../../../store/actions";
 import { useAppDispatch, useAppSelector } from "../../../store/store";
@@ -44,19 +44,19 @@ export const useHistorySync = () => {
     dispatch(fetchBooksInSelectedBookshelf(selectedBookshelfId));
   }, [dispatch, selectedBookshelfId]);
 
-  useTauriEvent("bookshelves-changed", () => {
+  useTauriEvent(events.bookshelvesChanged, () => {
     dispatch(fetchBookshelves());
   });
-  useTauriEvent("tags-changed", () => {
+  useTauriEvent(events.tagsChanged, () => {
     dispatch(fetchTags());
   });
-  useTauriEvent("series-changed", () => {
+  useTauriEvent(events.seriesChanged, () => {
     dispatch(fetchSeries());
   });
-  useTauriEvent("books-changed", () => {
+  useTauriEvent(events.booksChanged, () => {
     dispatch(fetchBooksInSelectedBookshelf(selectedBookshelfId));
   });
-  useTauriEvent("reading-history-changed", () => {
+  useTauriEvent(events.readingHistoryChanged, () => {
     if (recordReadingHistory) {
       dispatch(fetchRecentlyReadBooks());
     }
@@ -64,7 +64,7 @@ export const useHistorySync = () => {
 
   // A page turn only changes reading progress; patch the affected book in place
   // instead of refetching a list.
-  useTauriEvent<ReadingState>("reading-progress-changed", (event) => {
+  useTauriEvent(events.readingProgressChanged, (event) => {
     dispatch(readingProgressChanged(event.payload));
   });
 };
