@@ -14,10 +14,8 @@ import { perf, perfSince, perfStart } from "../../../utils/perf";
 import { setImageIndex, setSpreadDisplayed } from "../slice";
 import {
   buildSinglePageLayout,
-  buildUnitChain,
   buildUnitLayout,
   createImageCacheItem,
-  detectCoverPresence,
   fetchImageBlob,
   fetchImagePreviewBlob,
   type ImageCacheItem,
@@ -27,6 +25,14 @@ import {
   type ViewerSettings,
   type ViewLayout,
 } from "../utils/ImageUtils";
+import {
+  assumedChainFrom,
+  chainFrom,
+  containingUnitStart,
+  nextUnitStart,
+  previousUnitStart,
+  walkUnits,
+} from "../utils/spreadPairing";
 import type { DisplaySize } from "./useDisplaySize";
 import type { PageMove, PageMoveOptions } from "./usePageNavigation";
 
@@ -44,60 +50,6 @@ import type { PageMove, PageMoveOptions } from "./usePageNavigation";
  * of every book that has a landscape page.
  */
 const CHAIN_WAIT_CAP_MS = 1000;
-
-/**
- * Builds a book's unit chain from its measured pages and the reader's correction.
- *
- * The archive's own landscape pages prove whether it carries the cover, so they outrank
- * `isFirstPageSingleView`, which is only a default for archives that offer no proof. The
- * reader's toggle outranks both, so the button always changes the chain — including when
- * a landscape page would otherwise decide it.
- *
- * @param landscape Whether each page is wider than it is tall, in entry order.
- * @param settings The viewer settings.
- * @param isSpreadShifted The reader's persisted correction for this book.
- * @returns The chain covering every page.
- */
-const chainFrom = (landscape: boolean[], settings: ViewerSettings, isSpreadShifted: boolean) => {
-  const base = detectCoverPresence(landscape) ?? settings.isFirstPageSingleView;
-  return buildUnitChain(landscape, settings, isSpreadShifted ? !base : base);
-};
-
-/**
- * Builds the chain to use while the book has not been measured, from whatever pages the
- * viewer has already loaded.
- *
- * Two tiers of evidence, taken separately because only one of them survives partial
- * knowledge:
- *
- * - **Whether a page pairs** is read from the pages actually loaded. A landscape image is
- *   one physical spread, so it never shares a screen — a fact about that page alone, true
- *   no matter what the rest of the book turns out to be.
- * - **Where spreads begin** comes from `isFirstPageSingleView` only, never from
- *   [`detectCoverPresence`]. Detection counts the pages before a landscape image to fix
- *   the parity, so a single unloaded landscape page earlier in the book flips its answer;
- *   on partial knowledge it is not evidence, it is a coin flip.
- *
- * Unloaded pages are taken for portrait, which is what the whole fallback assumes, and the
- * chain sharpens as the reader reads. A displayed unit is always decided with its own
- * pages known, because a layout is only published once its images are cached.
- *
- * @param entries The list of entry names.
- * @param landscapeByEntry What the viewer has measured so far, by entry name.
- * @param settings The viewer settings.
- * @param isSpreadShifted The reader's persisted correction for this book.
- * @returns The chain covering every page.
- */
-const assumedChainFrom = (
-  entries: string[],
-  landscapeByEntry: ReadonlyMap<string, boolean>,
-  settings: ViewerSettings,
-  isSpreadShifted: boolean,
-) => {
-  const landscape = entries.map((entry) => landscapeByEntry.get(entry) ?? false);
-  const base = settings.isFirstPageSingleView;
-  return buildUnitChain(landscape, settings, isSpreadShifted ? !base : base);
-};
 
 /**
  * Revokes every object URL held by the cache entries.
@@ -365,11 +317,9 @@ export const useViewerController = ({
     if (!pairing) {
       return;
     }
-    if (!pairing.units.has(index)) {
-      const start = pairing.starts.filter((s) => s < index).at(-1);
-      if (start !== undefined) {
-        dispatch(setImageIndex(start));
-      }
+    const start = containingUnitStart(pairing, index);
+    if (start !== null) {
+      dispatch(setImageIndex(start));
     }
   }, [pairing, index, dispatch]);
 
@@ -677,10 +627,7 @@ export const useViewerController = ({
   // on a page the reader has just seen, and a unit chain covers every index contiguously,
   // so it never skips one either.
   const nextIndexFrom = useCallback(
-    (i: number): number | null => {
-      const next = i + (pairing?.units.get(i) ?? SINGLE_UNIT).nextIndexIncrement;
-      return next < entries.length ? next : null;
-    },
+    (i: number): number | null => nextUnitStart(pairing, i, entries.length),
     [pairing, entries.length],
   );
 
@@ -688,15 +635,7 @@ export const useViewerController = ({
   // is the last boundary before `i` of the pairing the viewer is displaying, so back and
   // forward stay in step; without a pairing every unit is a single page.
   const previousIndexFrom = useCallback(
-    (i: number): number | null => {
-      if (i === 0) {
-        return null;
-      }
-      if (!settings.isTwoPagedView) {
-        return i - 1;
-      }
-      return pairing?.starts.filter((start) => start < i).at(-1) ?? i - 1;
-    },
+    (i: number): number | null => previousUnitStart(pairing, i, settings.isTwoPagedView),
     [settings.isTwoPagedView, pairing],
   );
 
@@ -710,16 +649,7 @@ export const useViewerController = ({
         return false;
       }
       const steps = options?.steps ?? 1;
-      let at = index;
-      let moved = 0;
-      while (moved < steps) {
-        const next = step(at);
-        if (next === null) {
-          break;
-        }
-        at = next;
-        moved++;
-      }
+      const { at, moved } = walkUnits(index, steps, step);
       if (moved > 0) {
         goTo(at);
       } else if (options?.crossBook !== false) {
