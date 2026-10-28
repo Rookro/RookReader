@@ -158,7 +158,9 @@ describe("BookCommands", () => {
   it("getBooksWithStateByBookshelfId should call invoke", async () => {
     vi.mocked(invoke).mockResolvedValue([]);
     await BookCommands.getBooksWithStateByBookshelfId(1);
-    expect(invoke).toHaveBeenCalledWith("get_books_with_state_by_bookshelf_id", { bookshelfId: 1 });
+    expect(invoke).toHaveBeenCalledWith("get_books_with_state_by_collection_id", {
+      collectionId: 1,
+    });
   });
 
   it("getBooksWithStateByBookshelfId should throw CommandError on failure", async () => {

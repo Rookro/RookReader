@@ -11,7 +11,7 @@ import { runCommand } from "./result";
  * @throws {CommandError} If the Tauri command fails.
  */
 export async function createBookshelf(name: string, iconId: string): Promise<Bookshelf> {
-  return await runCommand(commands.createBookshelf(name, iconId));
+  return await runCommand(commands.createCollection(name, iconId));
 }
 
 /**
@@ -21,7 +21,7 @@ export async function createBookshelf(name: string, iconId: string): Promise<Boo
  * @throws {CommandError} If the Tauri command fails.
  */
 export async function getAllBookshelves(): Promise<Bookshelf[]> {
-  return await runCommand(commands.getAllBookshelves());
+  return await runCommand(commands.getAllCollections());
 }
 
 /**
@@ -33,7 +33,7 @@ export async function getAllBookshelves(): Promise<Bookshelf[]> {
  * @throws {CommandError} If the Tauri command fails.
  */
 export async function addBookToBookshelf(bookshelfId: number, bookId: number): Promise<void> {
-  await runCommand(commands.addBookToBookshelf(bookshelfId, bookId));
+  await runCommand(commands.addBookToCollection(bookshelfId, bookId));
 }
 
 /**
@@ -45,7 +45,7 @@ export async function addBookToBookshelf(bookshelfId: number, bookId: number): P
  * @throws {CommandError} If the Tauri command fails.
  */
 export async function removeBookFromBookshelf(bookshelfId: number, bookId: number): Promise<void> {
-  await runCommand(commands.removeBookFromBookshelf(bookshelfId, bookId));
+  await runCommand(commands.removeBookFromCollection(bookshelfId, bookId));
 }
 
 /**
@@ -56,7 +56,7 @@ export async function removeBookFromBookshelf(bookshelfId: number, bookId: numbe
  * @throws {CommandError} If the Tauri command fails.
  */
 export async function getBookshelvesForBook(bookId: number): Promise<number[]> {
-  return await runCommand(commands.getBookshelvesForBook(bookId));
+  return await runCommand(commands.getCollectionsForBook(bookId));
 }
 
 /**
@@ -68,7 +68,7 @@ export async function getBookshelvesForBook(bookId: number): Promise<number[]> {
  * @throws {CommandError} If the Tauri command fails.
  */
 export async function setBookshelvesForBook(bookId: number, bookshelfIds: number[]): Promise<void> {
-  await runCommand(commands.setBookshelvesForBook(bookId, bookshelfIds));
+  await runCommand(commands.setCollectionsForBook(bookId, bookshelfIds));
 }
 
 /**
@@ -79,5 +79,5 @@ export async function setBookshelvesForBook(bookId: number, bookshelfIds: number
  * @throws {CommandError} If the Tauri command fails.
  */
 export async function deleteBookshelf(id: number): Promise<void> {
-  await runCommand(commands.deleteBookshelf(id));
+  await runCommand(commands.deleteCollection(id));
 }

@@ -150,7 +150,7 @@ describe("useHistorySync", () => {
   };
 
   it.each([
-    ["bookshelvesChanged", () => fetchBookshelves()],
+    ["collectionsChanged", () => fetchBookshelves()],
     ["tagsChanged", () => fetchTags()],
     ["seriesChanged", () => fetchSeries()],
     ["booksChanged", () => fetchBooksInSelectedBookshelf(mockSelectedBookshelfId)],
@@ -170,7 +170,7 @@ describe("useHistorySync", () => {
     const listened = new Set(vi.mocked(useTauriEvent).mock.calls.map(([event]) => event));
     expect(listened).toEqual(
       new Set([
-        events.bookshelvesChanged,
+        events.collectionsChanged,
         events.tagsChanged,
         events.seriesChanged,
         events.booksChanged,

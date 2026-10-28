@@ -1,5 +1,5 @@
-use rookreader_lib::domain::bookshelf::repository::BookshelfRepository;
-use rookreader_lib::infrastructure::database::bookshelf_repository::SqliteBookshelfRepository;
+use rookreader_lib::domain::collection::repository::CollectionRepository;
+use rookreader_lib::infrastructure::database::collection_repository::SqliteCollectionRepository;
 use sqlx::sqlite::SqlitePoolOptions;
 use sqlx::SqlitePool;
 
@@ -44,7 +44,7 @@ async fn existing_collections_keep_their_books_after_the_rename() {
 
     sqlx::migrate!().run(&pool).await.unwrap();
 
-    let repository = SqliteBookshelfRepository::new(pool.clone());
+    let repository = SqliteCollectionRepository::new(pool.clone());
     let collections = repository.get_all().await.unwrap();
     assert_eq!(
         collections
@@ -54,7 +54,7 @@ async fn existing_collections_keep_their_books_after_the_rename() {
         [(5, "Favorites", "star"), (9, "Manga", "book")]
     );
     let mut books: Vec<i64> = repository
-        .get_books_by_bookshelf(5)
+        .get_books_by_collection(5)
         .await
         .unwrap()
         .iter()
@@ -62,7 +62,7 @@ async fn existing_collections_keep_their_books_after_the_rename() {
         .collect();
     books.sort();
     assert_eq!(books, [1, 2]);
-    let mut memberships = repository.get_bookshelves_for_book(2).await.unwrap();
+    let mut memberships = repository.get_collections_for_book(2).await.unwrap();
     memberships.sort();
     assert_eq!(memberships, [5, 9]);
     // AUTOINCREMENT's sequence followed the rename, so a new id never reuses an old one.

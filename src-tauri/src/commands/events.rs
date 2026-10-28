@@ -13,9 +13,9 @@ use tauri_specta::Event;
 
 use crate::{domain::book::entity::ReadingState, settings::AppSettings};
 
-/// A bookshelf was created or deleted.
+/// A collection was created or deleted.
 #[derive(Serialize, specta::Type, Event)]
-pub(crate) struct BookshelvesChanged;
+pub(crate) struct CollectionsChanged;
 
 /// A tag was created or deleted.
 #[derive(Serialize, specta::Type, Event)]
@@ -25,8 +25,8 @@ pub(crate) struct TagsChanged;
 #[derive(Serialize, specta::Type, Event)]
 pub(crate) struct SeriesChanged;
 
-/// A book was registered or deleted, or its bookshelves, tags, series or reading state
-/// changed, so the book list of any bookshelf may differ.
+/// A book was registered or deleted, or its collections, tags, series or reading state
+/// changed, so the book list of any collection may differ.
 #[derive(Serialize, specta::Type, Event)]
 pub(crate) struct BooksChanged;
 
@@ -102,7 +102,7 @@ pub(crate) mod test_support {
     ) -> Arc<Mutex<Vec<String>>> {
         let recorded = Arc::new(Mutex::new(Vec::new()));
         for name in [
-            BookshelvesChanged::NAME,
+            CollectionsChanged::NAME,
             TagsChanged::NAME,
             SeriesChanged::NAME,
             BooksChanged::NAME,
@@ -123,7 +123,7 @@ mod tests {
 
     #[test]
     fn event_names_are_unchanged() {
-        assert_eq!(BookshelvesChanged::NAME, "bookshelves-changed");
+        assert_eq!(CollectionsChanged::NAME, "collections-changed");
         assert_eq!(TagsChanged::NAME, "tags-changed");
         assert_eq!(SeriesChanged::NAME, "series-changed");
         assert_eq!(BooksChanged::NAME, "books-changed");
@@ -136,7 +136,7 @@ mod tests {
     #[test]
     fn event_payloads_serialize_as_before() {
         for unit in [
-            serde_json::to_value(&BookshelvesChanged),
+            serde_json::to_value(&CollectionsChanged),
             serde_json::to_value(&TagsChanged),
             serde_json::to_value(&SeriesChanged),
             serde_json::to_value(&BooksChanged),

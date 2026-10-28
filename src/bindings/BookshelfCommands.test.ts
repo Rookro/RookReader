@@ -15,7 +15,7 @@ describe("BookshelfCommand", () => {
   it("getAllBookshelves should call invoke", async () => {
     vi.mocked(invoke).mockResolvedValue([]);
     await BookshelfCommand.getAllBookshelves();
-    expect(invoke).toHaveBeenCalledWith("get_all_bookshelves");
+    expect(invoke).toHaveBeenCalledWith("get_all_collections");
   });
 
   it("getAllBookshelves should throw CommandError on failure", async () => {
@@ -26,7 +26,7 @@ describe("BookshelfCommand", () => {
   it("createBookshelf should call invoke", async () => {
     vi.mocked(invoke).mockResolvedValue({ id: 1, name: "Shelf" });
     await BookshelfCommand.createBookshelf("Shelf", "icon");
-    expect(invoke).toHaveBeenCalledWith("create_bookshelf", { name: "Shelf", iconId: "icon" });
+    expect(invoke).toHaveBeenCalledWith("create_collection", { name: "Shelf", iconId: "icon" });
   });
 
   it("createBookshelf should throw CommandError on failure", async () => {
@@ -37,7 +37,7 @@ describe("BookshelfCommand", () => {
   it("addBookToBookshelf should call invoke", async () => {
     vi.mocked(invoke).mockResolvedValue(undefined);
     await BookshelfCommand.addBookToBookshelf(1, 2);
-    expect(invoke).toHaveBeenCalledWith("add_book_to_bookshelf", { bookshelfId: 1, bookId: 2 });
+    expect(invoke).toHaveBeenCalledWith("add_book_to_collection", { collectionId: 1, bookId: 2 });
   });
 
   it("addBookToBookshelf should throw CommandError on failure", async () => {
@@ -48,8 +48,8 @@ describe("BookshelfCommand", () => {
   it("removeBookFromBookshelf should call invoke", async () => {
     vi.mocked(invoke).mockResolvedValue(undefined);
     await BookshelfCommand.removeBookFromBookshelf(1, 2);
-    expect(invoke).toHaveBeenCalledWith("remove_book_from_bookshelf", {
-      bookshelfId: 1,
+    expect(invoke).toHaveBeenCalledWith("remove_book_from_collection", {
+      collectionId: 1,
       bookId: 2,
     });
   });
@@ -62,7 +62,7 @@ describe("BookshelfCommand", () => {
   it("getBookshelvesForBook should call invoke", async () => {
     vi.mocked(invoke).mockResolvedValue([2, 3]);
     await expect(BookshelfCommand.getBookshelvesForBook(1)).resolves.toEqual([2, 3]);
-    expect(invoke).toHaveBeenCalledWith("get_bookshelves_for_book", { bookId: 1 });
+    expect(invoke).toHaveBeenCalledWith("get_collections_for_book", { bookId: 1 });
   });
 
   it("getBookshelvesForBook should throw CommandError on failure", async () => {
@@ -73,9 +73,9 @@ describe("BookshelfCommand", () => {
   it("setBookshelvesForBook should call invoke", async () => {
     vi.mocked(invoke).mockResolvedValue(undefined);
     await BookshelfCommand.setBookshelvesForBook(1, [2, 3]);
-    expect(invoke).toHaveBeenCalledWith("set_bookshelves_for_book", {
+    expect(invoke).toHaveBeenCalledWith("set_collections_for_book", {
       bookId: 1,
-      bookshelfIds: [2, 3],
+      collectionIds: [2, 3],
     });
   });
 
@@ -87,7 +87,7 @@ describe("BookshelfCommand", () => {
   it("deleteBookshelf should call invoke", async () => {
     vi.mocked(invoke).mockResolvedValue(undefined);
     await BookshelfCommand.deleteBookshelf(1);
-    expect(invoke).toHaveBeenCalledWith("delete_bookshelf", { id: 1 });
+    expect(invoke).toHaveBeenCalledWith("delete_collection", { id: 1 });
   });
 
   it("deleteBookshelf should throw CommandError on failure", async () => {

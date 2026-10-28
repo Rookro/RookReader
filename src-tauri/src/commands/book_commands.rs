@@ -10,7 +10,7 @@ use crate::container::factory::{create_container, ContainerConfig};
 use crate::container::traits::Container;
 use crate::domain::book::entity::{Book, BookWithState, Direction, ReadBook, ReadingState};
 use crate::domain::book::repository::BookRepository;
-use crate::domain::bookshelf::repository::BookshelfRepository;
+use crate::domain::collection::repository::CollectionRepository;
 use crate::domain::series::repository::SeriesRepository;
 use crate::domain::tag::repository::TagRepository;
 use crate::error::{Error, Result};
@@ -407,11 +407,11 @@ pub async fn get_all_books_with_state(
     repo.get_all_books_with_state().await
 }
 
-/// Retrieves all books contained within a specific bookshelf, including their reading states.
+/// Retrieves all books contained within a specific collection, including their reading states.
 ///
 /// # Arguments
 ///
-/// * `bookshelf_id` - The ID of the bookshelf.
+/// * `collection_id` - The ID of the collection.
 /// * `repo` - The managed book repository state.
 ///
 /// # Returns
@@ -424,12 +424,15 @@ pub async fn get_all_books_with_state(
 /// (e.g., due to a database error, connection issue, or query execution failure).
 #[tauri::command]
 #[specta::specta]
-pub async fn get_books_with_state_by_bookshelf_id(
-    bookshelf_id: i64,
-    repo: State<'_, Arc<dyn BookshelfRepository>>,
+pub async fn get_books_with_state_by_collection_id(
+    collection_id: i64,
+    repo: State<'_, Arc<dyn CollectionRepository>>,
 ) -> Result<Vec<BookWithState>> {
-    log::debug!("Get books with state by bookshelf id({:?}).", bookshelf_id);
-    repo.get_books_by_bookshelf(bookshelf_id).await
+    log::debug!(
+        "Get books with state by collection id({:?}).",
+        collection_id
+    );
+    repo.get_books_by_collection(collection_id).await
 }
 
 /// Retrieves all books associated with a specific tag, including their reading states.
@@ -816,7 +819,7 @@ mod tests {
     use crate::commands::events::test_support::record_events;
     use crate::domain::book::entity::ItemType;
     use crate::domain::book::repository::MockBookRepository;
-    use crate::domain::bookshelf::repository::MockBookshelfRepository;
+    use crate::domain::collection::repository::MockCollectionRepository;
     use crate::domain::series::repository::MockSeriesRepository;
     use crate::domain::tag::repository::MockTagRepository;
     use crate::error::ErrorCode;
@@ -1186,19 +1189,19 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_get_books_with_state_by_bookshelf_id() {
-        let mut mock_repo = MockBookshelfRepository::new();
+    async fn test_get_books_with_state_by_collection_id() {
+        let mut mock_repo = MockCollectionRepository::new();
         mock_repo
-            .expect_get_books_by_bookshelf()
+            .expect_get_books_by_collection()
             .with(mockall::predicate::eq(1))
             .times(1)
             .returning(|_| Ok(vec![]));
 
         let app = tauri::test::mock_app();
-        app.manage(Arc::new(mock_repo) as Arc<dyn BookshelfRepository>);
-        let state = app.state::<Arc<dyn BookshelfRepository>>();
+        app.manage(Arc::new(mock_repo) as Arc<dyn CollectionRepository>);
+        let state = app.state::<Arc<dyn CollectionRepository>>();
 
-        let result = get_books_with_state_by_bookshelf_id(1, state).await;
+        let result = get_books_with_state_by_collection_id(1, state).await;
         assert!(result.is_ok());
     }
 

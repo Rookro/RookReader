@@ -44,7 +44,7 @@ export const useHistorySync = () => {
     dispatch(fetchBooksInSelectedBookshelf(selectedBookshelfId));
   }, [dispatch, selectedBookshelfId]);
 
-  useTauriEvent(events.bookshelvesChanged, () => {
+  useTauriEvent(events.collectionsChanged, () => {
     dispatch(fetchBookshelves());
   });
   useTauriEvent(events.tagsChanged, () => {

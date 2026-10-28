@@ -171,7 +171,7 @@ export async function getRecentlyReadBooks(): Promise<ReadBook[]> {
 export async function getBooksWithStateByBookshelfId(
   bookshelfId: number,
 ): Promise<BookWithState[]> {
-  return await runCommand(commands.getBooksWithStateByBookshelfId(bookshelfId));
+  return await runCommand(commands.getBooksWithStateByCollectionId(bookshelfId));
 }
 
 /**
