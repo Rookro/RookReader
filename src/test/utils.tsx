@@ -75,11 +75,11 @@ export function createBasePreloadedState(): RootState {
         pendingPath: null,
       },
     },
-    bookCollection: {
-      bookshelves: [],
+    collection: {
+      collections: [],
       selectedId: null,
       books: [],
-      booksShelf: null,
+      booksCollection: null,
       booksRequestId: null,
       isRefreshing: false,
       status: "idle",

@@ -37,4 +37,4 @@ export type ReadingState = ReadingState_Serialize;
 export type Bookmark = Bookmark_Serialize;
 
 /** A user-made collection of books. */
-export type Bookshelf = Collection_Serialize;
+export type Collection = Collection_Serialize;

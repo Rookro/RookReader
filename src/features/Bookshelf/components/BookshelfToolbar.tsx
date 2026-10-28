@@ -38,8 +38,8 @@ export default function BookshelfToolbar() {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const bookshelfSettings = useAppSelector((state) => state.settings.bookshelf);
-  const searchText = useAppSelector((state) => state.bookCollection.searchText);
-  const bookshelfId = useAppSelector((state) => state.bookCollection.selectedId);
+  const searchText = useAppSelector((state) => state.collection.searchText);
+  const collectionId = useAppSelector((state) => state.collection.selectedId);
   const { selectedId: selectedSeriesId, series } = useAppSelector((state) => state.series);
   const { openEditSeriesOrderDialog } = useBookshelfActions();
 
@@ -94,10 +94,10 @@ export default function BookshelfToolbar() {
   const handleAddBooks = useCallback(
     (paths: string[]) => {
       paths.forEach((bookPath) => {
-        dispatch(addBookToBookshelf({ bookshelfId, bookPath }));
+        dispatch(addBookToBookshelf({ collectionId, bookPath }));
       });
     },
-    [dispatch, bookshelfId],
+    [dispatch, collectionId],
   );
 
   const handleContextMenu = useCallback((e: React.MouseEvent<HTMLElement>) => {

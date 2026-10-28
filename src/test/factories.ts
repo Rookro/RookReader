@@ -1,4 +1,11 @@
-import type { Bookmark, Bookshelf, BookWithState, ReadBook, Series, Tag } from "../domain/entities";
+import type {
+  Bookmark,
+  BookWithState,
+  Collection,
+  ReadBook,
+  Series,
+  Tag,
+} from "../domain/entities";
 import type { DirEntry } from "../types/DirEntry";
 
 /**
@@ -42,11 +49,11 @@ export const createMockReadBook = (overrides?: Partial<ReadBook>): ReadBook => (
 });
 
 /**
- * Creates a mock Bookshelf object for testing.
+ * Creates a mock Collection object for testing.
  */
-export const createMockBookshelf = (overrides?: Partial<Bookshelf>): Bookshelf => ({
+export const createMockCollection = (overrides?: Partial<Collection>): Collection => ({
   id: 1,
-  name: "Mock Bookshelf",
+  name: "Mock Collection",
   icon_id: "folder",
   created_at: "2026-03-18T12:00:00Z",
   ...overrides,

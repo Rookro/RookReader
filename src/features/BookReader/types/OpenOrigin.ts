@@ -9,7 +9,7 @@ import type { SortOrder } from "../../../types/AppSettings";
  */
 export type OpenOrigin =
   | { kind: "fileNavigator" }
-  | { kind: "bookshelf"; bookshelfId: number | null; sortOrder: SortOrder }
+  | { kind: "bookshelf"; collectionId: number | null; sortOrder: SortOrder }
   | { kind: "history" }
   | { kind: "dragDrop" }
   | { kind: "startup" };

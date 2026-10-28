@@ -5,7 +5,7 @@ import {
   clearExplorerError,
 } from "../../features/BookReader/slice";
 import { clearSeriesError } from "../../features/Bookshelf/seriesSlice";
-import { clearBookshelfError } from "../../features/Bookshelf/slice";
+import { clearCollectionError } from "../../features/Bookshelf/slice";
 import { clearTagError } from "../../features/Bookshelf/tagSlice";
 import { clearHistoryError } from "../../features/History/slice";
 import { useAppDispatch, useAppSelector } from "../../store/store";
@@ -41,7 +41,7 @@ export default function GlobalErrorListener() {
   const bookRecordError = useAppSelector((state) => state.read.containerFile.bookRecordError);
   const explorerError = useAppSelector((state) => state.read.explorer.error);
   const historyError = useAppSelector((state) => state.history.error);
-  const bookshelfError = useAppSelector((state) => state.bookCollection.error);
+  const collectionError = useAppSelector((state) => state.collection.error);
   const tagsError = useAppSelector((state) => state.tag.error);
   const seriesError = useAppSelector((state) => state.series.error);
 
@@ -66,9 +66,9 @@ export default function GlobalErrorListener() {
       dispatch(clearHistoryError());
     }
 
-    if (bookshelfError) {
-      showNotification(errorMessage("bookshelf", bookshelfError.code), "error");
-      dispatch(clearBookshelfError());
+    if (collectionError) {
+      showNotification(errorMessage("bookshelf", collectionError.code), "error");
+      dispatch(clearCollectionError());
     }
 
     if (tagsError) {
@@ -88,7 +88,7 @@ export default function GlobalErrorListener() {
     bookRecordError,
     explorerError,
     historyError,
-    bookshelfError,
+    collectionError,
     tagsError,
     seriesError,
   ]);

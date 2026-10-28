@@ -33,8 +33,8 @@ const GRID_SIZES = [
 const selectBookGridState = createSelector(
   [
     (state: RootState) => state.settings.bookshelf,
-    (state: RootState) => state.bookCollection.searchText,
-    (state: RootState) => state.bookCollection.status,
+    (state: RootState) => state.collection.searchText,
+    (state: RootState) => state.collection.status,
     (state: RootState) => state.tag.tags,
     (state: RootState) => state.read.containerFile.book,
     (state: RootState) => state.view.activeView,
@@ -120,7 +120,7 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
   }, [closeDialog, clearSelection]);
 
   const isBookshelfActive = activeView === "bookshelf";
-  const bookshelfId = useAppSelector((state) => state.bookCollection.selectedId);
+  const collectionId = useAppSelector((state) => state.collection.selectedId);
   const tagId = useAppSelector((state) => state.tag.selectedId);
   const seriesId = useAppSelector((state) => state.series.selectedId);
   // A selection made in one view would act on books the user can no longer see.
@@ -129,7 +129,7 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
     if (isBookshelfActive) {
       clearSelection();
     }
-  }, [isBookshelfActive, bookshelfId, tagId, seriesId, searchText, clearSelection]);
+  }, [isBookshelfActive, collectionId, tagId, seriesId, searchText, clearSelection]);
 
   const handleBookClick = useCallback(
     (book: BookWithState, e: React.MouseEvent | React.KeyboardEvent) => {
@@ -310,7 +310,7 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
         <FloatingActionBar
           selectionCount={selectedBookIds.size}
           onClear={clearSelection}
-          onSetBookshelves={() => openDialog("set-bookshelves", getSelectedBooks())}
+          onSetCollections={() => openDialog("set-collections", getSelectedBooks())}
           onSetTags={() => openDialog("set-tags", getSelectedBooks())}
           onSetSeries={() => openDialog("set-series", getSelectedBooks())}
           onDelete={() => openDialog("delete-books", getSelectedBooks())}

@@ -22,7 +22,7 @@ describe("Store", () => {
     expect(state).toHaveProperty("read");
     expect(state).toHaveProperty("view");
     expect(state).toHaveProperty("history");
-    expect(state).toHaveProperty("bookCollection");
+    expect(state).toHaveProperty("collection");
     expect(state).toHaveProperty("settings");
   });
 

@@ -60,7 +60,7 @@ vi.mock("./GridSizeControl", () => ({ default: () => <div data-testid="grid-size
 vi.mock("./FloatingActionBar", () => ({
   default: () => <div data-testid="floating-action-bar" />,
 }));
-vi.mock("./Dialog/SetBookshelvesDialog", () => ({ default: () => null }));
+vi.mock("./Dialog/SetCollectionsDialog", () => ({ default: () => null }));
 vi.mock("./Dialog/SetBookTagsDialog", () => ({ default: () => null }));
 vi.mock("./Dialog/SetSeriesDialog", () => ({ default: () => null }));
 vi.mock("./Dialog/BookDeleteDialog", () => ({ default: () => null }));
@@ -81,10 +81,10 @@ describe("BookGrid auto-scroll latch", () => {
       bookshelf: { gridSize: 1, sortOrder: "name_asc", enableAutoScroll: true },
       general: { appFontFamily: "sans-serif" },
     },
-    bookCollection: {
+    collection: {
       searchText: "",
       books: [] as unknown[],
-      bookshelves: [],
+      collections: [],
       selectedId: 1,
       status: "idle",
       error: null,
@@ -100,7 +100,7 @@ describe("BookGrid auto-scroll latch", () => {
 
   const makeState = (books: unknown[], readingBook: unknown) => ({
     ...baseState,
-    bookCollection: { ...baseState.bookCollection, books },
+    collection: { ...baseState.collection, books },
     read: { containerFile: { book: readingBook } },
   });
 

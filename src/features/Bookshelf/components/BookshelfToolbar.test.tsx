@@ -46,12 +46,12 @@ describe("BookshelfToolbar", () => {
 
     await user.type(searchInput, "test query");
 
-    expect(store.getState().bookCollection.searchText).toBe("test query");
+    expect(store.getState().collection.searchText).toBe("test query");
   });
 
   it("should reflect searchText from state", () => {
     const preloadedState = createBasePreloadedState();
-    preloadedState.bookCollection.searchText = "initial search";
+    preloadedState.collection.searchText = "initial search";
 
     renderWithProviders(navigationBar, { preloadedState });
 

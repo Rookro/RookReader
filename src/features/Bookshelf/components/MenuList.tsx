@@ -25,36 +25,36 @@ import ConfirmDialog from "../../../components/ui/ConfirmDialog";
 import ContextMenu from "../../../components/ui/ContextMenu/ContextMenu";
 import { useAppDispatch, useAppSelector } from "../../../store/store";
 import { setActiveView } from "../../MainView/slice";
-import { removeBookshelf, setSelectedBookshelf } from "../slice";
+import { removeCollection, setSelectedCollection } from "../slice";
 import { removeTag, setSelectedTag } from "../tagSlice";
-import { BookShelfIcons } from "./BookshelfIcons";
+import { CollectionIcons } from "./CollectionIcons";
 
 /** Props for the MenuList of bookshelf component */
 export interface MenuListProps {
-  /** Callback for clicking the menu item to add a bookshelf */
-  onClickAddBookshelf: () => void;
+  /** Callback for clicking the menu item to add a collection */
+  onClickAddCollection: () => void;
   /** Callback for clicking the menu item to add a book tag */
   onClickAddBookTag: () => void;
 }
 
 /** Menu list of bookshelf component */
-export default function MenuList({ onClickAddBookshelf, onClickAddBookTag }: MenuListProps) {
+export default function MenuList({ onClickAddCollection, onClickAddBookTag }: MenuListProps) {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
-  const bookshelves = useAppSelector((state) => state.bookCollection.bookshelves);
-  const selectedBookshelfId = useAppSelector((state) => state.bookCollection.selectedId);
+  const collections = useAppSelector((state) => state.collection.collections);
+  const selectedCollectionId = useAppSelector((state) => state.collection.selectedId);
   const tags = useAppSelector((state) => state.tag.tags);
   const selectedTagId = useAppSelector((state) => state.tag.selectedId);
 
   const [contextMenu, setContextMenu] = useState<{
     mouseX: number;
     mouseY: number;
-    type: "bookshelf" | "tag";
+    type: "collection" | "tag";
     id: number;
   } | null>(null);
 
   const [pendingDelete, setPendingDelete] = useState<{
-    type: "bookshelf" | "tag";
+    type: "collection" | "tag";
     id: number;
     name: string;
   } | null>(null);
@@ -66,9 +66,9 @@ export default function MenuList({ onClickAddBookshelf, onClickAddBookTag }: Men
     [dispatch],
   );
 
-  const handleBookshelfClicked = useCallback(
+  const handleCollectionClicked = useCallback(
     (id: number | null) => {
-      dispatch(setSelectedBookshelf(id));
+      dispatch(setSelectedCollection(id));
     },
     [dispatch],
   );
@@ -81,7 +81,7 @@ export default function MenuList({ onClickAddBookshelf, onClickAddBookTag }: Men
   );
 
   const handleContextMenu = useCallback(
-    (event: React.MouseEvent, type: "bookshelf" | "tag", id: number) => {
+    (event: React.MouseEvent, type: "collection" | "tag", id: number) => {
       event.preventDefault();
       setContextMenu({ mouseX: event.clientX, mouseY: event.clientY, type, id });
     },
@@ -95,7 +95,7 @@ export default function MenuList({ onClickAddBookshelf, onClickAddBookTag }: Men
   // Deleting a collection or a tag is not undoable, so confirm before dispatching.
   const handleDeleteRequested = () => {
     if (contextMenu) {
-      const items = contextMenu.type === "bookshelf" ? bookshelves : tags;
+      const items = contextMenu.type === "collection" ? collections : tags;
       const name = items.find((item) => item.id === contextMenu.id)?.name ?? "";
       setPendingDelete({ type: contextMenu.type, id: contextMenu.id, name });
     }
@@ -103,8 +103,8 @@ export default function MenuList({ onClickAddBookshelf, onClickAddBookTag }: Men
   };
 
   const handleDeleteConfirmed = () => {
-    if (pendingDelete?.type === "bookshelf") {
-      dispatch(removeBookshelf(pendingDelete.id));
+    if (pendingDelete?.type === "collection") {
+      dispatch(removeCollection(pendingDelete.id));
     } else if (pendingDelete?.type === "tag") {
       dispatch(removeTag(pendingDelete.id));
     }
@@ -153,7 +153,7 @@ export default function MenuList({ onClickAddBookshelf, onClickAddBookTag }: Men
                 <IconButton
                   edge="end"
                   size="small"
-                  onClick={onClickAddBookshelf}
+                  onClick={onClickAddCollection}
                   aria-label="add-bookshelf"
                   sx={{ color: "text.secondary" }}
                 >
@@ -167,8 +167,8 @@ export default function MenuList({ onClickAddBookshelf, onClickAddBookTag }: Men
           <Tooltip title={t("bookshelf.collection.all-books")} followCursor placement="right-start">
             <ListItem disablePadding>
               <ListItemButton
-                selected={selectedBookshelfId === null}
-                onClick={() => handleBookshelfClicked(null)}
+                selected={selectedCollectionId === null}
+                onClick={() => handleCollectionClicked(null)}
               >
                 <ListItemIcon sx={{ minWidth: "auto", marginRight: "12px" }}>
                   <MenuBook />
@@ -177,16 +177,16 @@ export default function MenuList({ onClickAddBookshelf, onClickAddBookTag }: Men
               </ListItemButton>
             </ListItem>
           </Tooltip>
-          {bookshelves.map((item) => (
+          {collections.map((item) => (
             <Tooltip key={item.id} title={item.name} followCursor placement="right-start">
               <ListItem disablePadding key={item.id}>
                 <ListItemButton
-                  selected={selectedBookshelfId === item.id}
-                  onClick={() => handleBookshelfClicked(item.id)}
-                  onContextMenu={(e) => handleContextMenu(e, "bookshelf", item.id)}
+                  selected={selectedCollectionId === item.id}
+                  onClick={() => handleCollectionClicked(item.id)}
+                  onContextMenu={(e) => handleContextMenu(e, "collection", item.id)}
                 >
                   <ListItemIcon sx={{ minWidth: "auto", marginRight: "12px" }}>
-                    {BookShelfIcons.find((icon) => icon.key === item.icon_id)?.icon ?? (
+                    {CollectionIcons.find((icon) => icon.key === item.icon_id)?.icon ?? (
                       <FolderOutlined />
                     )}
                   </ListItemIcon>

@@ -15,41 +15,41 @@ import {
 } from "@mui/material";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getBookshelvesForBook } from "../../../../bindings/BookshelfCommands";
-import type { Bookshelf } from "../../../../domain/entities";
+import { getCollectionsForBook } from "../../../../bindings/CollectionCommands";
+import type { Collection } from "../../../../domain/entities";
 import { useAppDispatch } from "../../../../store/store";
 import { useBookCheckStates } from "../../hooks/useBookCheckStates";
-import { addBookshelf, setBookshelvesForBooks } from "../../slice";
-import { BookShelfIcons } from "../BookshelfIcons";
-import { CreateBookshelfDialog } from "./CreateBookshelfDialog";
+import { addCollection, setCollectionsForBooks } from "../../slice";
+import { CollectionIcons } from "../CollectionIcons";
+import { CreateCollectionDialog } from "./CreateCollectionDialog";
 
-/** Props for the SetBookshelvesDialog component */
-export interface SetBookshelvesDialogProps {
+/** Props for the SetCollectionsDialog component */
+export interface SetCollectionsDialogProps {
   /** Whether the dialog is open or closed. */
   open: boolean;
-  /** The IDs of the books whose bookshelves are being set. */
+  /** The IDs of the books whose collections are being set. */
   bookIds: number[];
-  /** The available bookshelves to choose from. */
-  availableBookshelves: Bookshelf[];
+  /** The available collections to choose from. */
+  availableCollections: Collection[];
   /** Callback to close the dialog. */
   onClose: () => void;
 }
 
-/** Dialog for setting the bookshelves that contain books */
-export default function SetBookshelvesDialog({
+/** Dialog for setting the collections that contain books */
+export default function SetCollectionsDialog({
   open,
   bookIds,
-  availableBookshelves,
+  availableCollections,
   onClose,
-}: SetBookshelvesDialogProps) {
+}: SetCollectionsDialogProps) {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const { stateOf, toggle, changes } = useBookCheckStates({
     open,
     bookIds,
-    ids: availableBookshelves.map((bookshelf) => bookshelf.id),
-    load: getBookshelvesForBook,
-    loadErrorMessage: "Failed to fetch bookshelves for books",
+    ids: availableCollections.map((collection) => collection.id),
+    load: getCollectionsForBook,
+    loadErrorMessage: "Failed to fetch collections for books",
   });
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   // The books of the open session, or null while closed, so that a creation finishing in
@@ -66,20 +66,20 @@ export default function SetBookshelvesDialog({
     }
     if (changes === null) return;
     const result = await dispatch(
-      setBookshelvesForBooks(changes.map(({ bookId, ids }) => ({ bookId, bookshelfIds: ids }))),
+      setCollectionsForBooks(changes.map(({ bookId, ids }) => ({ bookId, collectionIds: ids }))),
     );
     // On failure the slice error is shown by GlobalErrorListener and the backend's
     // `books-changed` refetch reflects any partial success; stay open for retry.
-    if (setBookshelvesForBooks.fulfilled.match(result)) {
+    if (setCollectionsForBooks.fulfilled.match(result)) {
       onClose();
     }
   }, [bookIds, changes, dispatch, onClose]);
 
   const handleCreate = useCallback(
     async (name: string, icon_id: string) => {
-      const result = await dispatch(addBookshelf({ name, icon_id }));
-      // The `bookshelves-changed` refetch may list it only later; checking it now still saves it.
-      if (addBookshelf.fulfilled.match(result) && sessionRef.current === bookIds) {
+      const result = await dispatch(addCollection({ name, icon_id }));
+      // The `collections-changed` refetch may list it only later; checking it now still saves it.
+      if (addCollection.fulfilled.match(result) && sessionRef.current === bookIds) {
         toggle(result.payload.id);
       }
     },
@@ -99,31 +99,31 @@ export default function SetBookshelvesDialog({
           }}
         >
           <List disablePadding>
-            {availableBookshelves.map((bookshelf) => {
-              const icon = BookShelfIcons.find((i) => i.key === bookshelf.icon_id)?.icon ?? (
+            {availableCollections.map((collection) => {
+              const icon = CollectionIcons.find((i) => i.key === collection.icon_id)?.icon ?? (
                 <LibraryBooks color="action" />
               );
               return (
-                <ListItem key={bookshelf.id} disablePadding>
+                <ListItem key={collection.id} disablePadding>
                   <ListItemIcon
                     sx={{ minWidth: "auto", marginRight: "12px", color: "text.secondary" }}
                   >
                     {icon}
                   </ListItemIcon>
                   <ListItemText
-                    id={`checkbox-bookshelf-list-label-${bookshelf.id}`}
-                    primary={bookshelf.name}
+                    id={`checkbox-collection-list-label-${collection.id}`}
+                    primary={collection.name}
                   />
                   <Checkbox
                     edge="end"
-                    onChange={() => toggle(bookshelf.id)}
-                    checked={stateOf(bookshelf.id) === "checked"}
-                    indeterminate={stateOf(bookshelf.id) === "mixed"}
+                    onChange={() => toggle(collection.id)}
+                    checked={stateOf(collection.id) === "checked"}
+                    indeterminate={stateOf(collection.id) === "mixed"}
                   />
                 </ListItem>
               );
             })}
-            {availableBookshelves.length === 0 && (
+            {availableCollections.length === 0 && (
               <ListItem>
                 <ListItemText primary={t("bookshelf.collection.no-collections-available")} />
               </ListItem>
@@ -152,7 +152,7 @@ export default function SetBookshelvesDialog({
           {t("bookshelf.collection.ok-button")}
         </Button>
       </DialogActions>
-      <CreateBookshelfDialog
+      <CreateCollectionDialog
         open={isCreateDialogOpen}
         onCreate={handleCreate}
         onClose={() => setIsCreateDialogOpen(false)}

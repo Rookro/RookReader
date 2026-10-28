@@ -3,9 +3,9 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import i18n from "../../../../i18n/config";
 import { renderWithProviders } from "../../../../test/utils";
-import { CreateBookshelfDialog } from "./CreateBookshelfDialog";
+import { CreateCollectionDialog } from "./CreateCollectionDialog";
 
-describe("CreateBookshelfDialog", () => {
+describe("CreateCollectionDialog", () => {
   const user = userEvent.setup();
 
   const defaultProps = {
@@ -16,7 +16,7 @@ describe("CreateBookshelfDialog", () => {
 
   // Verify that title and name input field are displayed correctly when the dialog is open
   it("should render correctly when open", () => {
-    renderWithProviders(<CreateBookshelfDialog {...defaultProps} />);
+    renderWithProviders(<CreateCollectionDialog {...defaultProps} />);
 
     expect(screen.getByText(i18n.t("bookshelf.collection.creation.title"))).toBeInTheDocument();
     expect(
@@ -26,7 +26,7 @@ describe("CreateBookshelfDialog", () => {
 
   // Verify that the create button is enabled only when a name is entered
   it("should enable create button only when name is entered", async () => {
-    renderWithProviders(<CreateBookshelfDialog {...defaultProps} />);
+    renderWithProviders(<CreateCollectionDialog {...defaultProps} />);
 
     const createButton = screen.getByText(i18n.t("bookshelf.collection.creation.creation-button"));
     expect(createButton).toBeDisabled();
@@ -42,7 +42,7 @@ describe("CreateBookshelfDialog", () => {
   // Verify that onCreate is called with the entered name and icon info when the create button is clicked
   it("should call onCreate with name and icon when create button is clicked", async () => {
     const onCreate = vi.fn();
-    renderWithProviders(<CreateBookshelfDialog {...defaultProps} onCreate={onCreate} />);
+    renderWithProviders(<CreateCollectionDialog {...defaultProps} onCreate={onCreate} />);
 
     const nameInput = screen.getByLabelText(
       i18n.t("bookshelf.collection.creation.name-placeholder"),
@@ -58,7 +58,7 @@ describe("CreateBookshelfDialog", () => {
   // Verify that onClose is called when the cancel button is clicked
   it("should call onClose when cancel button is clicked", async () => {
     const onClose = vi.fn();
-    renderWithProviders(<CreateBookshelfDialog {...defaultProps} onClose={onClose} />);
+    renderWithProviders(<CreateCollectionDialog {...defaultProps} onClose={onClose} />);
 
     const cancelButton = screen.getByText(i18n.t("bookshelf.collection.creation.cancel-button"));
     await user.click(cancelButton);

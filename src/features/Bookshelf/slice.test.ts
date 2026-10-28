@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as BookCommands from "../../bindings/BookCommands";
-import * as BookshelfCommand from "../../bindings/BookshelfCommands";
+import * as CollectionCommands from "../../bindings/CollectionCommands";
 import * as ContainerCommands from "../../bindings/ContainerCommands";
 import * as SeriesCommand from "../../bindings/SeriesCommands";
 import * as TagCommands from "../../bindings/TagCommands";
-import type { Bookshelf, BookWithState, Series, Tag } from "../../domain/entities";
+import type { BookWithState, Collection, Series, Tag } from "../../domain/entities";
 import { readingProgressChanged } from "../../store/actions";
-import { createMockBookshelf, createMockBookWithState, createMockTag } from "../../test/factories";
+import { createMockBookWithState, createMockCollection, createMockTag } from "../../test/factories";
 import { type AppStore, createBasePreloadedState, createTestStore } from "../../test/utils";
 import { CommandError, ErrorCode } from "../../types/Error";
 import seriesReducer, {
@@ -18,18 +18,18 @@ import seriesReducer, {
   updateBooksSeries,
   updateSeriesOrdersThunk,
 } from "./seriesSlice";
-import bookCollectionReducer, {
-  addBookshelf,
+import collectionReducer, {
   addBookToBookshelf,
-  bookshelfAdded,
-  clearBookshelfError,
+  addCollection,
+  clearCollectionError,
+  collectionAdded,
   deleteBookFromCollection,
-  fetchBookshelves,
-  fetchBooksInSelectedBookshelf,
-  removeBookshelf,
-  setBookshelvesForBooks,
+  fetchBooksInSelectedCollection,
+  fetchCollections,
+  removeCollection,
+  setCollectionsForBooks,
   setSearchText,
-  setSelectedBookshelf,
+  setSelectedCollection,
 } from "./slice";
 import tagReducer, {
   addTag,
@@ -40,15 +40,15 @@ import tagReducer, {
   updateBooksTags,
 } from "./tagSlice";
 
-describe("BookCollectionReducer", () => {
+describe("CollectionReducer", () => {
   let store: AppStore;
 
-  const bookCollectionInitialState = {
+  const collectionInitialState = {
     searchText: "",
-    bookshelves: [] as Bookshelf[],
+    collections: [] as Collection[],
     selectedId: null as number | null,
     books: [] as BookWithState[],
-    booksShelf: null as { id: number | null } | null,
+    booksCollection: null as { id: number | null } | null,
     booksRequestId: null as string | null,
     isRefreshing: false,
     status: "idle" as "idle" | "loading" | "succeeded" | "failed",
@@ -62,45 +62,40 @@ describe("BookCollectionReducer", () => {
 
   // Verify that initial state is set correctly
   it("should handle initial state", () => {
-    expect(bookCollectionReducer(undefined, { type: "unknown" })).toEqual(
-      bookCollectionInitialState,
-    );
+    expect(collectionReducer(undefined, { type: "unknown" })).toEqual(collectionInitialState);
   });
 
   // Verify that search text is set correctly
   it("should handle setSearchText", () => {
-    const nextState = bookCollectionReducer(bookCollectionInitialState, setSearchText("query"));
+    const nextState = collectionReducer(collectionInitialState, setSearchText("query"));
     expect(nextState.searchText).toBe("query");
   });
 
-  // Verify that state is updated when a bookshelf is added
-  it("should handle bookshelfAdded", () => {
-    const newBookshelf = createMockBookshelf({ id: 1, name: "New" });
-    const nextState = bookCollectionReducer(
-      bookCollectionInitialState,
-      bookshelfAdded(newBookshelf),
-    );
-    expect(nextState.bookshelves).toContainEqual(newBookshelf);
+  // Verify that state is updated when a collection is added
+  it("should handle collectionAdded", () => {
+    const newCollection = createMockCollection({ id: 1, name: "New" });
+    const nextState = collectionReducer(collectionInitialState, collectionAdded(newCollection));
+    expect(nextState.collections).toContainEqual(newCollection);
   });
 
-  // Verify that bookshelf error state is cleared correctly
-  it("should handle clearBookshelfError", () => {
-    const stateWithError = structuredClone(bookCollectionInitialState);
+  // Verify that collection error state is cleared correctly
+  it("should handle clearCollectionError", () => {
+    const stateWithError = structuredClone(collectionInitialState);
     stateWithError.error = { code: ErrorCode.other };
-    const nextState = bookCollectionReducer(stateWithError, clearBookshelfError());
+    const nextState = collectionReducer(stateWithError, clearCollectionError());
     expect(nextState.error).toBeNull();
   });
 
   // Verify that readingProgressChanged patches the matching book in place.
   it("should patch the matching book on readingProgressChanged", () => {
     const state = {
-      ...bookCollectionInitialState,
+      ...collectionInitialState,
       books: [
         createMockBookWithState({ id: 1, last_read_page_index: 0 }),
         createMockBookWithState({ id: 2, last_read_page_index: 5 }),
       ],
     };
-    const nextState = bookCollectionReducer(
+    const nextState = collectionReducer(
       state,
       readingProgressChanged({
         book_id: 2,
@@ -117,7 +112,7 @@ describe("BookCollectionReducer", () => {
   // A progress update without a timestamp does not blank the listed one.
   it("should keep last_opened_at when readingProgressChanged carries none", () => {
     const state = {
-      ...bookCollectionInitialState,
+      ...collectionInitialState,
       books: [
         createMockBookWithState({
           id: 1,
@@ -126,7 +121,7 @@ describe("BookCollectionReducer", () => {
         }),
       ],
     };
-    const nextState = bookCollectionReducer(
+    const nextState = collectionReducer(
       state,
       readingProgressChanged({
         book_id: 1,
@@ -142,10 +137,10 @@ describe("BookCollectionReducer", () => {
   // Verify that readingProgressChanged for an unknown book id is a no-op.
   it("should ignore readingProgressChanged for an unknown book id", () => {
     const state = {
-      ...bookCollectionInitialState,
+      ...collectionInitialState,
       books: [createMockBookWithState({ id: 1, last_read_page_index: 3 })],
     };
-    const nextState = bookCollectionReducer(
+    const nextState = collectionReducer(
       state,
       readingProgressChanged({
         book_id: 999,
@@ -158,17 +153,17 @@ describe("BookCollectionReducer", () => {
   });
 
   describe("grid stays mounted while books reload", () => {
-    const initial = bookCollectionReducer(undefined, { type: "unknown" });
+    const initial = collectionReducer(undefined, { type: "unknown" });
 
     // Scrolling deep into a shelf and tagging a book must not reset the grid to the top
     it("keeps the grid when the same shelf refetches", () => {
       const loaded = {
         ...initial,
         selectedId: 1,
-        booksShelf: { id: 1 },
+        booksCollection: { id: 1 },
         status: "succeeded" as const,
       };
-      const state = bookCollectionReducer(loaded, fetchBooksInSelectedBookshelf.pending("r2", 1));
+      const state = collectionReducer(loaded, fetchBooksInSelectedCollection.pending("r2", 1));
       expect(state.status).toBe("succeeded");
       expect(state.isRefreshing).toBe(true);
     });
@@ -177,21 +172,21 @@ describe("BookCollectionReducer", () => {
       const loaded = {
         ...initial,
         selectedId: 2,
-        booksShelf: { id: 1 },
+        booksCollection: { id: 1 },
         status: "succeeded" as const,
       };
       expect(
-        bookCollectionReducer(loaded, fetchBooksInSelectedBookshelf.pending("r2", 2)).status,
+        collectionReducer(loaded, fetchBooksInSelectedCollection.pending("r2", 2)).status,
       ).toBe("loading");
     });
 
     it("drops an older response for the same shelf", () => {
-      let state: typeof initial = { ...initial, selectedId: 1, booksShelf: { id: 1 } };
-      state = bookCollectionReducer(state, fetchBooksInSelectedBookshelf.pending("r1", 1));
-      state = bookCollectionReducer(state, fetchBooksInSelectedBookshelf.pending("r2", 1));
-      state = bookCollectionReducer(
+      let state: typeof initial = { ...initial, selectedId: 1, booksCollection: { id: 1 } };
+      state = collectionReducer(state, fetchBooksInSelectedCollection.pending("r1", 1));
+      state = collectionReducer(state, fetchBooksInSelectedCollection.pending("r2", 1));
+      state = collectionReducer(
         state,
-        fetchBooksInSelectedBookshelf.fulfilled([createMockBookWithState({ id: 9 })], "r1", 1),
+        fetchBooksInSelectedCollection.fulfilled([createMockBookWithState({ id: 9 })], "r1", 1),
       );
       expect(state.books).toEqual(initial.books);
       expect(state.isRefreshing).toBe(true);
@@ -199,214 +194,214 @@ describe("BookCollectionReducer", () => {
 
     // A failed load holds no shelf's books, so the next load of any shelf shows the spinner
     it("forgets which shelf it holds after a failed load", () => {
-      let state: typeof initial = { ...initial, selectedId: 1, booksShelf: { id: 1 } };
-      state = bookCollectionReducer(state, fetchBooksInSelectedBookshelf.pending("r1", 1));
-      state = bookCollectionReducer(
+      let state: typeof initial = { ...initial, selectedId: 1, booksCollection: { id: 1 } };
+      state = collectionReducer(state, fetchBooksInSelectedCollection.pending("r1", 1));
+      state = collectionReducer(
         state,
-        fetchBooksInSelectedBookshelf.rejected(null, "r1", 1, { code: ErrorCode.database }),
+        fetchBooksInSelectedCollection.rejected(null, "r1", 1, { code: ErrorCode.database }),
       );
-      expect(state.booksShelf).toBeNull();
-      expect(
-        bookCollectionReducer(state, fetchBooksInSelectedBookshelf.pending("r2", 1)).status,
-      ).toBe("loading");
+      expect(state.booksCollection).toBeNull();
+      expect(collectionReducer(state, fetchBooksInSelectedCollection.pending("r2", 1)).status).toBe(
+        "loading",
+      );
     });
 
     it.each([
-      ["addBookshelf", addBookshelf.pending("r", { name: "n", icon_id: "i" })],
+      ["addCollection", addCollection.pending("r", { name: "n", icon_id: "i" })],
       [
         "deleteBookFromCollection",
-        deleteBookFromCollection.pending("r", { bookId: 1, bookshelfId: null }),
+        deleteBookFromCollection.pending("r", { bookId: 1, collectionId: null }),
       ],
       [
         "addBookToBookshelf",
-        addBookToBookshelf.pending("r", { bookshelfId: 1, bookPath: "/b.zip" }),
+        addBookToBookshelf.pending("r", { collectionId: 1, bookPath: "/b.zip" }),
       ],
-      ["removeBookshelf", removeBookshelf.pending("r", 1)],
-      ["fetchBookshelves", fetchBookshelves.pending("r")],
+      ["removeCollection", removeCollection.pending("r", 1)],
+      ["fetchCollections", fetchCollections.pending("r")],
     ])("%s does not blank the grid", (_, action) => {
       const loaded = { ...initial, status: "succeeded" as const };
-      expect(bookCollectionReducer(loaded, action).status).toBe("succeeded");
+      expect(collectionReducer(loaded, action).status).toBe("succeeded");
     });
   });
 
   describe("Async Thunk Integration Tests", () => {
     // Verify state update when rejected actions have undefined payload
     it("should handle rejected actions with undefined payload", () => {
-      const action = { type: addBookshelf.rejected.type, payload: undefined };
-      const nextState = bookCollectionReducer(bookCollectionInitialState, action);
+      const action = { type: addCollection.rejected.type, payload: undefined };
+      const nextState = collectionReducer(collectionInitialState, action);
       expect(nextState.status).toBe("idle");
       expect(nextState.error).toBeNull();
     });
 
-    describe("Bookshelf Thunks", () => {
-      // Verify that bookshelf list is updated on success
-      it("fetchBookshelves should update state with fetched bookshelves on success", async () => {
-        const mockBookshelves = [createMockBookshelf({ id: 1, name: "BS1" })];
-        vi.mocked(BookshelfCommand.getAllBookshelves).mockResolvedValue(mockBookshelves);
+    describe("Collection Thunks", () => {
+      // Verify that collection list is updated on success
+      it("fetchCollections should update state with fetched collections on success", async () => {
+        const mockCollections = [createMockCollection({ id: 1, name: "BS1" })];
+        vi.mocked(CollectionCommands.getAllCollections).mockResolvedValue(mockCollections);
 
-        await store.dispatch(fetchBookshelves());
+        await store.dispatch(fetchCollections());
 
-        const state = store.getState().bookCollection;
+        const state = store.getState().collection;
         expect(state.status).toBe("idle");
       });
 
-      // Verify handling of CommandError when fetching bookshelves
-      it("fetchBookshelves should handle CommandError", async () => {
+      // Verify handling of CommandError when fetching collections
+      it("fetchCollections should handle CommandError", async () => {
         const mockError = new CommandError(ErrorCode.io, "failed");
-        vi.mocked(BookshelfCommand.getAllBookshelves).mockRejectedValue(mockError);
+        vi.mocked(CollectionCommands.getAllCollections).mockRejectedValue(mockError);
 
-        await store.dispatch(fetchBookshelves());
+        await store.dispatch(fetchCollections());
 
-        const state = store.getState().bookCollection;
+        const state = store.getState().collection;
         expect(state.status).toBe("idle");
         expect(state.error?.code).toBe(ErrorCode.io);
       });
 
-      // Verify error handling when bookshelf fetching fails
-      it("fetchBookshelves should handle generic Error and clear bookshelves", async () => {
+      // Verify error handling when collection fetching fails
+      it("fetchCollections should handle generic Error and clear collections", async () => {
         const mockError = new Error("failed");
-        vi.mocked(BookshelfCommand.getAllBookshelves).mockRejectedValue(mockError);
+        vi.mocked(CollectionCommands.getAllCollections).mockRejectedValue(mockError);
 
         // Pre-fill state to verify clearing
         const preloadedState = {
-          bookCollection: {
-            ...bookCollectionInitialState,
-            bookshelves: [createMockBookshelf()],
+          collection: {
+            ...collectionInitialState,
+            collections: [createMockCollection()],
           },
         };
         store = createTestStore(preloadedState);
 
-        await store.dispatch(fetchBookshelves());
+        await store.dispatch(fetchCollections());
 
-        const state = store.getState().bookCollection;
+        const state = store.getState().collection;
         expect(state.status).toBe("idle");
         expect(state.error?.code).toBe(ErrorCode.other);
-        expect(state.bookshelves).toEqual([]);
+        expect(state.collections).toEqual([]);
       });
 
-      // Verify state update on successful bookshelf creation
-      it("addBookshelf should leave the grid status alone on success", async () => {
-        const mockBookshelf = createMockBookshelf({ id: 1, name: "New BS" });
-        vi.mocked(BookshelfCommand.createBookshelf).mockResolvedValue(mockBookshelf);
+      // Verify state update on successful collection creation
+      it("addCollection should leave the grid status alone on success", async () => {
+        const mockCollection = createMockCollection({ id: 1, name: "New BS" });
+        vi.mocked(CollectionCommands.createCollection).mockResolvedValue(mockCollection);
 
-        await store.dispatch(addBookshelf({ name: "New BS", icon_id: "folder" }));
+        await store.dispatch(addCollection({ name: "New BS", icon_id: "folder" }));
 
-        const state = store.getState().bookCollection;
+        const state = store.getState().collection;
         expect(state.status).toBe("idle");
       });
 
-      // Verify handling of CommandError during bookshelf creation
-      it("addBookshelf should handle CommandError", async () => {
+      // Verify handling of CommandError during collection creation
+      it("addCollection should handle CommandError", async () => {
         const mockError = new CommandError(ErrorCode.io, "io error");
-        vi.mocked(BookshelfCommand.createBookshelf).mockRejectedValue(mockError);
+        vi.mocked(CollectionCommands.createCollection).mockRejectedValue(mockError);
 
-        await store.dispatch(addBookshelf({ name: "Existing BS", icon_id: "folder" }));
+        await store.dispatch(addCollection({ name: "Existing BS", icon_id: "folder" }));
 
-        const state = store.getState().bookCollection;
+        const state = store.getState().collection;
         expect(state.status).toBe("idle");
         expect(state.error?.code).toBe(ErrorCode.io);
       });
 
-      // Verify handling of generic Error during bookshelf creation
-      it("addBookshelf should handle generic Error", async () => {
+      // Verify handling of generic Error during collection creation
+      it("addCollection should handle generic Error", async () => {
         const mockError = new Error("unknown error");
-        vi.mocked(BookshelfCommand.createBookshelf).mockRejectedValue(mockError);
+        vi.mocked(CollectionCommands.createCollection).mockRejectedValue(mockError);
 
-        await store.dispatch(addBookshelf({ name: "Error BS", icon_id: "folder" }));
+        await store.dispatch(addCollection({ name: "Error BS", icon_id: "folder" }));
 
-        const state = store.getState().bookCollection;
+        const state = store.getState().collection;
         expect(state.status).toBe("idle");
         expect(state.error?.code).toBe(ErrorCode.other);
       });
 
-      // Verify error handling when bookshelf removal fails with no payload
-      // Verify error handling when bookshelf removal fails with no payload
-      it("removeBookshelf should handle failure with no payload", async () => {
-        vi.mocked(BookshelfCommand.deleteBookshelf).mockImplementation(() => {
+      // Verify error handling when collection removal fails with no payload
+      // Verify error handling when collection removal fails with no payload
+      it("removeCollection should handle failure with no payload", async () => {
+        vi.mocked(CollectionCommands.deleteCollection).mockImplementation(() => {
           throw new Error("fail");
         });
 
-        await store.dispatch(removeBookshelf(1));
+        await store.dispatch(removeCollection(1));
 
-        const state = store.getState().bookCollection;
+        const state = store.getState().collection;
         expect(state.status).toBe("idle");
         expect(state.error).toBeDefined();
       });
 
-      // Verify that selectedId is reset if the selected bookshelf is deleted
-      it("removeBookshelf should update selectedId if deleted", async () => {
+      // Verify that selectedId is reset if the selected collection is deleted
+      it("removeCollection should update selectedId if deleted", async () => {
         const preloadedState = {
-          bookCollection: structuredClone(bookCollectionInitialState),
+          collection: structuredClone(collectionInitialState),
         };
-        preloadedState.bookCollection.selectedId = 1;
+        preloadedState.collection.selectedId = 1;
 
         store = createTestStore(preloadedState);
-        vi.mocked(BookshelfCommand.deleteBookshelf).mockResolvedValue(undefined);
-        vi.mocked(BookshelfCommand.getAllBookshelves).mockResolvedValue([]);
+        vi.mocked(CollectionCommands.deleteCollection).mockResolvedValue(undefined);
+        vi.mocked(CollectionCommands.getAllCollections).mockResolvedValue([]);
 
-        await store.dispatch(removeBookshelf(1));
+        await store.dispatch(removeCollection(1));
 
-        const state = store.getState().bookCollection;
+        const state = store.getState().collection;
         expect(state.selectedId).toBeNull();
       });
 
-      // Verify that selectedId is maintained if a different bookshelf is deleted
-      it("removeBookshelf should not change selectedId if different ID deleted", async () => {
+      // Verify that selectedId is maintained if a different collection is deleted
+      it("removeCollection should not change selectedId if different ID deleted", async () => {
         const preloadedState = {
-          bookCollection: structuredClone(bookCollectionInitialState),
+          collection: structuredClone(collectionInitialState),
         };
-        preloadedState.bookCollection.selectedId = 2;
+        preloadedState.collection.selectedId = 2;
 
         store = createTestStore(preloadedState);
-        vi.mocked(BookshelfCommand.deleteBookshelf).mockResolvedValue(undefined);
+        vi.mocked(CollectionCommands.deleteCollection).mockResolvedValue(undefined);
 
-        await store.dispatch(removeBookshelf(1));
+        await store.dispatch(removeCollection(1));
 
-        const state = store.getState().bookCollection;
+        const state = store.getState().collection;
         expect(state.selectedId).toBe(2);
       });
 
-      // Verify error handling when bookshelf removal fails
-      it("removeBookshelf should handle generic failure", async () => {
-        vi.mocked(BookshelfCommand.deleteBookshelf).mockRejectedValue(new Error());
+      // Verify error handling when collection removal fails
+      it("removeCollection should handle generic failure", async () => {
+        vi.mocked(CollectionCommands.deleteCollection).mockRejectedValue(new Error());
 
-        await store.dispatch(removeBookshelf(1));
+        await store.dispatch(removeCollection(1));
 
-        const state = store.getState().bookCollection;
+        const state = store.getState().collection;
         expect(state.status).toBe("idle");
         expect(state.error?.code).toBe(ErrorCode.other);
       });
 
-      // Verify CommandError handling when bookshelf removal fails
-      it("removeBookshelf should handle CommandError", async () => {
+      // Verify CommandError handling when collection removal fails
+      it("removeCollection should handle CommandError", async () => {
         const mockError = new CommandError(ErrorCode.database, "db fail");
-        vi.mocked(BookshelfCommand.deleteBookshelf).mockRejectedValue(mockError);
+        vi.mocked(CollectionCommands.deleteCollection).mockRejectedValue(mockError);
 
-        await store.dispatch(removeBookshelf(1));
+        await store.dispatch(removeCollection(1));
 
-        const state = store.getState().bookCollection;
+        const state = store.getState().collection;
         expect(state.status).toBe("idle");
         expect(state.error?.code).toBe(ErrorCode.database);
       });
 
-      // Verify that selecting a bookshelf updates selectedId (the fetch is driven
+      // Verify that selecting a collection updates selectedId (the fetch is driven
       // separately by the useHistorySync effect that watches selectedId).
-      it("setSelectedBookshelf should update selectedId", () => {
-        const selected = bookCollectionReducer(bookCollectionInitialState, setSelectedBookshelf(3));
+      it("setSelectedCollection should update selectedId", () => {
+        const selected = collectionReducer(collectionInitialState, setSelectedCollection(3));
         expect(selected.selectedId).toBe(3);
 
-        const cleared = bookCollectionReducer(selected, setSelectedBookshelf(null));
+        const cleared = collectionReducer(selected, setSelectedCollection(null));
         expect(cleared.selectedId).toBeNull();
       });
 
       // Verify that a stale fetch response for a shelf the user already left is ignored.
-      it("fetchBooksInSelectedBookshelf ignores a stale response for a superseded shelf", async () => {
+      it("fetchBooksInSelectedCollection ignores a stale response for a superseded shelf", async () => {
         const currentBooks = [createMockBookWithState({ id: 1, display_name: "current" })];
         const staleBooks = [createMockBookWithState({ id: 99, display_name: "stale" })];
         // The user is now on shelf 2 with its books already loaded.
         const preloadedState = {
-          bookCollection: {
-            ...bookCollectionInitialState,
+          collection: {
+            ...collectionInitialState,
             selectedId: 2,
             books: currentBooks,
           },
@@ -414,48 +409,48 @@ describe("BookCollectionReducer", () => {
         store = createTestStore(preloadedState);
 
         // A slow fetch for the previous shelf (1) finally resolves.
-        vi.mocked(BookCommands.getBooksWithStateByBookshelfId).mockResolvedValue(staleBooks);
-        await store.dispatch(fetchBooksInSelectedBookshelf(1));
+        vi.mocked(BookCommands.getBooksWithStateByCollectionId).mockResolvedValue(staleBooks);
+        await store.dispatch(fetchBooksInSelectedCollection(1));
 
         // Shelf 2's books are preserved, not overwritten by the stale shelf-1 response.
-        const state = store.getState().bookCollection;
+        const state = store.getState().collection;
         expect(state.books).toEqual(currentBooks);
       });
 
-      // Verify that book is added to bookshelf and status is updated
+      // Verify that book is added to collection and status is updated
       it("addBookToBookshelf should add a book", async () => {
         vi.mocked(BookCommands.registerBook).mockResolvedValue(10);
 
-        await store.dispatch(addBookToBookshelf({ bookshelfId: 1, bookPath: "path/to/book.zip" }));
+        await store.dispatch(addBookToBookshelf({ collectionId: 1, bookPath: "path/to/book.zip" }));
 
-        const state = store.getState().bookCollection;
+        const state = store.getState().collection;
         expect(state.status).toBe("idle");
         expect(BookCommands.registerBook).toHaveBeenCalledWith("path/to/book.zip");
-        expect(BookshelfCommand.addBookToBookshelf).toHaveBeenCalledWith(1, 10);
+        expect(CollectionCommands.addBookToCollection).toHaveBeenCalledWith(1, 10);
         // Opening would install the book, which closes the reader threads of the book on
         // screen. Registering must never do that.
         expect(ContainerCommands.openContainer).not.toHaveBeenCalled();
       });
 
-      // Verify that adding a book with no bookshelf ID (null) only registers it
-      it("addBookToBookshelf with bookshelfId: null should register book", async () => {
+      // Verify that adding a book with no collection ID (null) only registers it
+      it("addBookToBookshelf with collectionId: null should register book", async () => {
         vi.mocked(BookCommands.registerBook).mockResolvedValue(10);
 
-        await store.dispatch(addBookToBookshelf({ bookshelfId: null, bookPath: "path" }));
+        await store.dispatch(addBookToBookshelf({ collectionId: null, bookPath: "path" }));
 
-        const state = store.getState().bookCollection;
+        const state = store.getState().collection;
         expect(state.status).toBe("idle");
         expect(BookCommands.registerBook).toHaveBeenCalledWith("path");
-        expect(BookshelfCommand.addBookToBookshelf).not.toHaveBeenCalled();
+        expect(CollectionCommands.addBookToCollection).not.toHaveBeenCalled();
       });
 
       // Verify error handling when book addition fails
       it("addBookToBookshelf should handle generic failure", async () => {
         vi.mocked(BookCommands.registerBook).mockRejectedValue(new Error());
 
-        await store.dispatch(addBookToBookshelf({ bookshelfId: 1, bookPath: "path" }));
+        await store.dispatch(addBookToBookshelf({ collectionId: 1, bookPath: "path" }));
 
-        const state = store.getState().bookCollection;
+        const state = store.getState().collection;
         expect(state.status).toBe("idle");
         expect(state.error?.code).toBe(ErrorCode.other);
       });
@@ -465,28 +460,28 @@ describe("BookCollectionReducer", () => {
         const mockError = new CommandError(ErrorCode.io, "io fail");
         vi.mocked(BookCommands.registerBook).mockRejectedValue(mockError);
 
-        await store.dispatch(addBookToBookshelf({ bookshelfId: 1, bookPath: "path" }));
+        await store.dispatch(addBookToBookshelf({ collectionId: 1, bookPath: "path" }));
 
-        const state = store.getState().bookCollection;
+        const state = store.getState().collection;
         expect(state.status).toBe("idle");
         expect(state.error?.code).toBe(ErrorCode.io);
       });
 
       // Verify state update when removing a book from the collection
       it("deleteBookFromCollection should remove the book", async () => {
-        vi.mocked(BookshelfCommand.removeBookFromBookshelf).mockResolvedValue(undefined);
+        vi.mocked(CollectionCommands.removeBookFromCollection).mockResolvedValue(undefined);
 
-        await store.dispatch(deleteBookFromCollection({ bookId: 10, bookshelfId: 1 }));
+        await store.dispatch(deleteBookFromCollection({ bookId: 10, collectionId: 1 }));
 
-        const state = store.getState().bookCollection;
+        const state = store.getState().collection;
         expect(state.status).toBe("idle");
       });
 
-      // Verify that book is deleted from DB when removed with no bookshelf ID (null)
-      it("deleteBookFromCollection with bookshelfId: null should delete book from DB", async () => {
+      // Verify that book is deleted from DB when removed with no collection ID (null)
+      it("deleteBookFromCollection with collectionId: null should delete book from DB", async () => {
         vi.mocked(BookCommands.deleteBook).mockResolvedValue(undefined);
 
-        await store.dispatch(deleteBookFromCollection({ bookId: 10, bookshelfId: null }));
+        await store.dispatch(deleteBookFromCollection({ bookId: 10, collectionId: null }));
 
         expect(BookCommands.deleteBook).toHaveBeenCalledWith(10);
       });
@@ -495,9 +490,9 @@ describe("BookCollectionReducer", () => {
       it("deleteBookFromCollection should handle generic failure", async () => {
         vi.mocked(BookCommands.deleteBook).mockRejectedValue(new Error());
 
-        await store.dispatch(deleteBookFromCollection({ bookId: 10, bookshelfId: null }));
+        await store.dispatch(deleteBookFromCollection({ bookId: 10, collectionId: null }));
 
-        const state = store.getState().bookCollection;
+        const state = store.getState().collection;
         expect(state.status).toBe("idle");
         expect(state.error?.code).toBe(ErrorCode.other);
       });
@@ -507,93 +502,93 @@ describe("BookCollectionReducer", () => {
         const mockError = new CommandError(ErrorCode.database, "db error");
         vi.mocked(BookCommands.deleteBook).mockRejectedValue(mockError);
 
-        await store.dispatch(deleteBookFromCollection({ bookId: 10, bookshelfId: null }));
+        await store.dispatch(deleteBookFromCollection({ bookId: 10, collectionId: null }));
 
-        const state = store.getState().bookCollection;
+        const state = store.getState().collection;
         expect(state.status).toBe("idle");
         expect(state.error?.code).toBe(ErrorCode.database);
       });
 
-      // Verify state update on successful fetching of books in selected bookshelf
-      it("fetchBooksInSelectedBookshelf should update state correctly", async () => {
+      // Verify state update on successful fetching of books in selected collection
+      it("fetchBooksInSelectedCollection should update state correctly", async () => {
         const mockBooks = [createMockBookWithState({ id: 1, file_path: "b1.zip" })];
-        vi.mocked(BookCommands.getBooksWithStateByBookshelfId).mockResolvedValue(mockBooks);
+        vi.mocked(BookCommands.getBooksWithStateByCollectionId).mockResolvedValue(mockBooks);
 
         // The response only applies when its arg matches the current selection.
-        store.dispatch(setSelectedBookshelf(1));
-        await store.dispatch(fetchBooksInSelectedBookshelf(1));
+        store.dispatch(setSelectedCollection(1));
+        await store.dispatch(fetchBooksInSelectedCollection(1));
 
-        const state = store.getState().bookCollection;
+        const state = store.getState().collection;
         expect(state.books).toEqual(mockBooks);
       });
 
-      // Verify that all books are fetched when fetchBooksInSelectedBookshelf is called with null
-      it("fetchBooksInSelectedBookshelf(null) should fetch all books", async () => {
+      // Verify that all books are fetched when fetchBooksInSelectedCollection is called with null
+      it("fetchBooksInSelectedCollection(null) should fetch all books", async () => {
         const mockBooks = [createMockBookWithState({ id: 1 })];
         vi.mocked(BookCommands.getAllBooksWithState).mockResolvedValue(mockBooks);
 
-        await store.dispatch(fetchBooksInSelectedBookshelf(null));
+        await store.dispatch(fetchBooksInSelectedCollection(null));
 
-        const state = store.getState().bookCollection;
+        const state = store.getState().collection;
         expect(state.books).toEqual(mockBooks);
       });
 
-      // Verify error handling when book fetching in selected bookshelf fails
-      it("fetchBooksInSelectedBookshelf should handle generic failure and clear books", async () => {
+      // Verify error handling when book fetching in selected collection fails
+      it("fetchBooksInSelectedCollection should handle generic failure and clear books", async () => {
         vi.mocked(BookCommands.getAllBooksWithState).mockRejectedValue(new Error());
 
         // Pre-fill state to verify clearing
         const preloadedState = {
-          bookCollection: {
-            ...bookCollectionInitialState,
+          collection: {
+            ...collectionInitialState,
             books: [createMockBookWithState()],
           },
         };
         store = createTestStore(preloadedState);
 
-        await store.dispatch(fetchBooksInSelectedBookshelf(null));
+        await store.dispatch(fetchBooksInSelectedCollection(null));
 
-        const state = store.getState().bookCollection;
+        const state = store.getState().collection;
         expect(state.status).toBe("failed");
         expect(state.books).toEqual([]);
       });
 
-      // Verify CommandError handling when book fetching in selected bookshelf fails
-      it("fetchBooksInSelectedBookshelf should handle CommandError", async () => {
+      // Verify CommandError handling when book fetching in selected collection fails
+      it("fetchBooksInSelectedCollection should handle CommandError", async () => {
         const mockError = new CommandError(ErrorCode.io, "io fail");
         vi.mocked(BookCommands.getAllBooksWithState).mockRejectedValue(mockError);
 
-        await store.dispatch(fetchBooksInSelectedBookshelf(null));
+        await store.dispatch(fetchBooksInSelectedCollection(null));
 
-        const state = store.getState().bookCollection;
+        const state = store.getState().collection;
         expect(state.status).toBe("failed");
         expect(state.error?.code).toBe(ErrorCode.io);
       });
 
-      it("setBookshelvesForBooks should save each book's bookshelves", async () => {
-        vi.mocked(BookshelfCommand.setBookshelvesForBook).mockResolvedValue();
+      it("setCollectionsForBooks should save each book's collections", async () => {
+        vi.mocked(CollectionCommands.setCollectionsForBook).mockResolvedValue();
 
         const result = await store.dispatch(
-          setBookshelvesForBooks([
-            { bookId: 1, bookshelfIds: [10, 20] },
-            { bookId: 2, bookshelfIds: [] },
+          setCollectionsForBooks([
+            { bookId: 1, collectionIds: [10, 20] },
+            { bookId: 2, collectionIds: [] },
           ]),
         );
 
-        expect(setBookshelvesForBooks.fulfilled.match(result)).toBe(true);
-        expect(BookshelfCommand.setBookshelvesForBook).toHaveBeenCalledTimes(2);
-        expect(BookshelfCommand.setBookshelvesForBook).toHaveBeenCalledWith(1, [10, 20]);
-        expect(BookshelfCommand.setBookshelvesForBook).toHaveBeenCalledWith(2, []);
+        expect(setCollectionsForBooks.fulfilled.match(result)).toBe(true);
+        expect(CollectionCommands.setCollectionsForBook).toHaveBeenCalledTimes(2);
+        expect(CollectionCommands.setCollectionsForBook).toHaveBeenCalledWith(1, [10, 20]);
+        expect(CollectionCommands.setCollectionsForBook).toHaveBeenCalledWith(2, []);
       });
 
-      it("setBookshelvesForBooks should set only the error on failure", async () => {
-        vi.mocked(BookshelfCommand.setBookshelvesForBook).mockRejectedValue(
+      it("setCollectionsForBooks should set only the error on failure", async () => {
+        vi.mocked(CollectionCommands.setCollectionsForBook).mockRejectedValue(
           new CommandError(ErrorCode.database, "db fail"),
         );
 
-        await store.dispatch(setBookshelvesForBooks([{ bookId: 1, bookshelfIds: [10] }]));
+        await store.dispatch(setCollectionsForBooks([{ bookId: 1, collectionIds: [10] }]));
 
-        const state = store.getState().bookCollection;
+        const state = store.getState().collection;
         // A mutation never flips the grid into its loading state.
         expect(state.status).toBe("idle");
         expect(state.error?.code).toBe(ErrorCode.database);
@@ -837,13 +832,13 @@ describe("SeriesReducer", () => {
     [2, 5],
     [5, 5],
     [null, 5],
-  ])("setSelectedBookshelf(%s) from %s should close the open series", (next, current) => {
+  ])("setSelectedCollection(%s) from %s should close the open series", (next, current) => {
     const state = createBasePreloadedState();
-    state.bookCollection.selectedId = current;
+    state.collection.selectedId = current;
     state.series.selectedId = 10;
     store = createTestStore(state);
 
-    store.dispatch(setSelectedBookshelf(next));
+    store.dispatch(setSelectedCollection(next));
 
     expect(store.getState().series.selectedId).toBeNull();
   });
@@ -860,30 +855,30 @@ describe("SeriesReducer", () => {
   });
 
   // Verify that deleting the selected collection closes the open series along with it
-  it("removeBookshelf of the selected collection should close the open series", async () => {
+  it("removeCollection of the selected collection should close the open series", async () => {
     const state = createBasePreloadedState();
-    state.bookCollection.selectedId = 1;
+    state.collection.selectedId = 1;
     state.series.selectedId = 10;
     store = createTestStore(state);
-    vi.mocked(BookshelfCommand.deleteBookshelf).mockResolvedValue(undefined);
+    vi.mocked(CollectionCommands.deleteCollection).mockResolvedValue(undefined);
 
-    await store.dispatch(removeBookshelf(1));
+    await store.dispatch(removeCollection(1));
 
-    expect(store.getState().bookCollection.selectedId).toBeNull();
+    expect(store.getState().collection.selectedId).toBeNull();
     expect(store.getState().series.selectedId).toBeNull();
   });
 
   // Verify that deleting another collection leaves the open series alone
-  it("removeBookshelf of another collection should keep the open series", async () => {
+  it("removeCollection of another collection should keep the open series", async () => {
     const state = createBasePreloadedState();
-    state.bookCollection.selectedId = 2;
+    state.collection.selectedId = 2;
     state.series.selectedId = 10;
     store = createTestStore(state);
-    vi.mocked(BookshelfCommand.deleteBookshelf).mockResolvedValue(undefined);
+    vi.mocked(CollectionCommands.deleteCollection).mockResolvedValue(undefined);
 
-    await store.dispatch(removeBookshelf(1));
+    await store.dispatch(removeCollection(1));
 
-    expect(store.getState().bookCollection.selectedId).toBe(2);
+    expect(store.getState().collection.selectedId).toBe(2);
     expect(store.getState().series.selectedId).toBe(10);
   });
 
@@ -903,7 +898,7 @@ describe("SeriesReducer", () => {
       await store.dispatch(updateSeriesOrdersThunk([1, 2, 3]));
 
       expect(BookCommands.getAllBooksWithState).not.toHaveBeenCalled();
-      expect(BookCommands.getBooksWithStateByBookshelfId).not.toHaveBeenCalled();
+      expect(BookCommands.getBooksWithStateByCollectionId).not.toHaveBeenCalled();
     });
 
     it("updateSeriesOrdersThunk should handle generic failure", async () => {

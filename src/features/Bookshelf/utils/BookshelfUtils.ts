@@ -139,7 +139,7 @@ export const sortByGridItem = (a: GridItem, b: GridItem, sortOrder: SortOrder) =
 
 /** The inputs that decide what the book grid shows. */
 export interface GridItemsParams {
-  /** The books of the selected bookshelf. */
+  /** The books of the selected collection. */
   books: BookWithState[];
   /** Every series, to group books by. */
   allSeries: Series[];

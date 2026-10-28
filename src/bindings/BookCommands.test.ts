@@ -155,17 +155,17 @@ describe("BookCommands", () => {
     await expect(BookCommands.getRecentlyReadBooks()).rejects.toThrow(CommandError);
   });
 
-  it("getBooksWithStateByBookshelfId should call invoke", async () => {
+  it("getBooksWithStateByCollectionId should call invoke", async () => {
     vi.mocked(invoke).mockResolvedValue([]);
-    await BookCommands.getBooksWithStateByBookshelfId(1);
+    await BookCommands.getBooksWithStateByCollectionId(1);
     expect(invoke).toHaveBeenCalledWith("get_books_with_state_by_collection_id", {
       collectionId: 1,
     });
   });
 
-  it("getBooksWithStateByBookshelfId should throw CommandError on failure", async () => {
+  it("getBooksWithStateByCollectionId should throw CommandError on failure", async () => {
     vi.mocked(invoke).mockRejectedValue(mockError);
-    await expect(BookCommands.getBooksWithStateByBookshelfId(1)).rejects.toThrow(CommandError);
+    await expect(BookCommands.getBooksWithStateByCollectionId(1)).rejects.toThrow(CommandError);
   });
 
   it("getBooksWithStateByTagId should call invoke", async () => {

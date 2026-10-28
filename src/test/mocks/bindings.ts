@@ -18,7 +18,7 @@ vi.mock("../../bindings/BookCommands", () => ({
   clearReadingHistory: vi.fn(() => Promise.resolve([])),
   clearAllReadingHistory: vi.fn(() => Promise.resolve([])),
   getRecentlyReadBooks: vi.fn(() => Promise.resolve([])),
-  getBooksWithStateByBookshelfId: vi.fn(() => Promise.resolve([])),
+  getBooksWithStateByCollectionId: vi.fn(() => Promise.resolve([])),
   getBooksWithStateByTagId: vi.fn(() => Promise.resolve([])),
   getBooksWithStateBySeriesId: vi.fn(() => Promise.resolve([])),
 }));
@@ -30,14 +30,14 @@ vi.mock("../../bindings/BookmarkCommands", () => ({
   deleteBookmark: vi.fn(() => Promise.resolve([])),
 }));
 
-vi.mock("../../bindings/BookshelfCommands", () => ({
-  createBookshelf: vi.fn(() => Promise.resolve([])),
-  getAllBookshelves: vi.fn(() => Promise.resolve([])),
-  addBookToBookshelf: vi.fn(() => Promise.resolve([])),
-  removeBookFromBookshelf: vi.fn(() => Promise.resolve([])),
-  getBookshelvesForBook: vi.fn(() => Promise.resolve([])),
-  setBookshelvesForBook: vi.fn(() => Promise.resolve()),
-  deleteBookshelf: vi.fn(() => Promise.resolve([])),
+vi.mock("../../bindings/CollectionCommands", () => ({
+  createCollection: vi.fn(() => Promise.resolve([])),
+  getAllCollections: vi.fn(() => Promise.resolve([])),
+  addBookToCollection: vi.fn(() => Promise.resolve([])),
+  removeBookFromCollection: vi.fn(() => Promise.resolve([])),
+  getCollectionsForBook: vi.fn(() => Promise.resolve([])),
+  setCollectionsForBook: vi.fn(() => Promise.resolve()),
+  deleteCollection: vi.fn(() => Promise.resolve([])),
 }));
 
 vi.mock("../../bindings/ContainerCommands", () => ({

@@ -7,7 +7,7 @@ import i18n from "../../../../i18n/config";
 import { createMockBookWithState } from "../../../../test/factories";
 import { createBasePreloadedState, renderWithProviders } from "../../../../test/utils";
 import * as seriesSlice from "../../seriesSlice";
-import { fetchBooksInSelectedBookshelf } from "../../slice";
+import { fetchBooksInSelectedCollection } from "../../slice";
 import EditSeriesOrderDialog from "./EditSeriesOrderDialog";
 
 // Mock the seriesSlice module to intercept thunk calls
@@ -76,7 +76,7 @@ describe("EditSeriesOrderDialog", () => {
   it("lists the whole series, not only the volumes in the open collection", async () => {
     vi.mocked(BookCommands.getBooksWithStateBySeriesId).mockResolvedValue(volumes);
     const preloadedState = createBasePreloadedState();
-    preloadedState.bookCollection.books = volumes.slice(3);
+    preloadedState.collection.books = volumes.slice(3);
 
     renderWithProviders(<EditSeriesOrderDialog open={true} seriesId={9} onClose={vi.fn()} />, {
       preloadedState,
@@ -108,7 +108,7 @@ describe("EditSeriesOrderDialog", () => {
 
     vi.mocked(BookCommands.getAllBooksWithState).mockResolvedValue([volumes[0]]);
     await act(async () => {
-      await store.dispatch(fetchBooksInSelectedBookshelf(null));
+      await store.dispatch(fetchBooksInSelectedCollection(null));
     });
 
     await waitFor(() => expect(screen.getByText("Book 3")).toBeInTheDocument());

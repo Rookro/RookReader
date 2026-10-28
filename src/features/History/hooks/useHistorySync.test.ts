@@ -7,7 +7,7 @@ import { type TauriEvent, useTauriEvent } from "../../../hooks/useTauriEvent";
 import { readingProgressChanged } from "../../../store/actions";
 import { type RootState, useAppDispatch, useAppSelector } from "../../../store/store";
 import { fetchSeries } from "../../Bookshelf/seriesSlice";
-import { fetchBookshelves, fetchBooksInSelectedBookshelf } from "../../Bookshelf/slice";
+import { fetchBooksInSelectedCollection, fetchCollections } from "../../Bookshelf/slice";
 import { fetchTags } from "../../Bookshelf/tagSlice";
 import { fetchRecentlyReadBooks } from "../slice";
 import { useHistorySync } from "./useHistorySync";
@@ -19,9 +19,9 @@ vi.mock("../../Bookshelf/slice", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../Bookshelf/slice")>();
   return {
     ...actual,
-    fetchBookshelves: vi.fn(() => ({ type: "fetchBookshelves" })),
-    fetchBooksInSelectedBookshelf: vi.fn((id: number) => ({
-      type: "fetchBooksInSelectedBookshelf",
+    fetchCollections: vi.fn(() => ({ type: "fetchCollections" })),
+    fetchBooksInSelectedCollection: vi.fn((id: number) => ({
+      type: "fetchBooksInSelectedCollection",
       payload: id,
     })),
   };
@@ -50,7 +50,7 @@ vi.mock("../slice", async (importOriginal) => {
 
 describe("useHistorySync", () => {
   const mockDispatch = vi.fn();
-  const mockSelectedBookshelfId = 1;
+  const mockSelectedCollectionId = 1;
   const mockRecordReadingHistory = true;
 
   beforeEach(() => {
@@ -58,8 +58,8 @@ describe("useHistorySync", () => {
     vi.mocked(useAppDispatch).mockReturnValue(mockDispatch);
     vi.mocked(useAppSelector).mockImplementation((selector) => {
       const state = {
-        bookCollection: {
-          selectedId: mockSelectedBookshelfId,
+        collection: {
+          selectedId: mockSelectedCollectionId,
         },
         settings: {
           history: {
@@ -76,7 +76,7 @@ describe("useHistorySync", () => {
     let record = false;
     vi.mocked(useAppSelector).mockImplementation((selector) =>
       selector({
-        bookCollection: { selectedId: mockSelectedBookshelfId },
+        collection: { selectedId: mockSelectedCollectionId },
         settings: { history: { recordReadingHistory: record } },
       } as unknown as RootState),
     );
@@ -96,20 +96,20 @@ describe("useHistorySync", () => {
   it("performs initial data load on mount", () => {
     renderHook(() => useHistorySync());
 
-    expect(mockDispatch).toHaveBeenCalledWith(fetchBookshelves());
+    expect(mockDispatch).toHaveBeenCalledWith(fetchCollections());
     expect(mockDispatch).toHaveBeenCalledWith(fetchTags());
     expect(mockDispatch).toHaveBeenCalledWith(fetchSeries());
     expect(mockDispatch).toHaveBeenCalledWith(fetchRecentlyReadBooks());
     expect(mockDispatch).toHaveBeenCalledWith(
-      fetchBooksInSelectedBookshelf(mockSelectedBookshelfId),
+      fetchBooksInSelectedCollection(mockSelectedCollectionId),
     );
   });
 
-  it("re-fetches books when selectedBookshelfId changes", () => {
+  it("re-fetches books when selectedCollectionId changes", () => {
     let currentId = 1;
     vi.mocked(useAppSelector).mockImplementation((selector) => {
       const state = {
-        bookCollection: {
+        collection: {
           selectedId: currentId,
         },
         settings: {
@@ -122,12 +122,12 @@ describe("useHistorySync", () => {
     });
 
     const { rerender } = renderHook(() => useHistorySync());
-    expect(mockDispatch).toHaveBeenCalledWith(fetchBooksInSelectedBookshelf(1));
+    expect(mockDispatch).toHaveBeenCalledWith(fetchBooksInSelectedCollection(1));
 
     currentId = 2;
     rerender();
 
-    expect(mockDispatch).toHaveBeenCalledWith(fetchBooksInSelectedBookshelf(2));
+    expect(mockDispatch).toHaveBeenCalledWith(fetchBooksInSelectedCollection(2));
   });
 
   /**
@@ -150,10 +150,10 @@ describe("useHistorySync", () => {
   };
 
   it.each([
-    ["collectionsChanged", () => fetchBookshelves()],
+    ["collectionsChanged", () => fetchCollections()],
     ["tagsChanged", () => fetchTags()],
     ["seriesChanged", () => fetchSeries()],
-    ["booksChanged", () => fetchBooksInSelectedBookshelf(mockSelectedBookshelfId)],
+    ["booksChanged", () => fetchBooksInSelectedCollection(mockSelectedCollectionId)],
     ["readingHistoryChanged", () => fetchRecentlyReadBooks()],
   ] as const)("refetches only the list named by '%s'", (key, expected) => {
     const fire = renderAndCaptureHandlers();
@@ -183,8 +183,8 @@ describe("useHistorySync", () => {
   it("does not fetch history on readingHistoryChanged if recordReadingHistory is false", () => {
     vi.mocked(useAppSelector).mockImplementation((selector) => {
       const state = {
-        bookCollection: {
-          selectedId: mockSelectedBookshelfId,
+        collection: {
+          selectedId: mockSelectedCollectionId,
         },
         settings: {
           history: {
@@ -224,7 +224,7 @@ describe("useHistorySync", () => {
     expect(mockDispatch).toHaveBeenCalledWith(readingProgressChanged(payload));
     // No IPC refetch thunks are dispatched for a page turn.
     expect(mockDispatch).not.toHaveBeenCalledWith(fetchRecentlyReadBooks());
-    expect(mockDispatch).not.toHaveBeenCalledWith(fetchBookshelves());
+    expect(mockDispatch).not.toHaveBeenCalledWith(fetchCollections());
     expect(mockDispatch).not.toHaveBeenCalledWith(fetchTags());
     expect(mockDispatch).not.toHaveBeenCalledWith(fetchSeries());
   });

@@ -5,7 +5,7 @@ import type { BookWithState, Series } from "../../domain/entities";
 import { handleThunkError } from "../../store/thunkErrorHandler";
 import { createAppAsyncThunk } from "../../types/CustomAsyncThunk";
 import type { ErrorCode } from "../../types/Error";
-import { setSelectedBookshelf } from "./slice";
+import { setSelectedCollection } from "./slice";
 
 /**
  * Updates the order of books within a series.
@@ -132,7 +132,7 @@ const seriesSlice = createSlice({
   extraReducers: (builder) => {
     builder
       // A series is a level inside the chosen collection, so a new collection starts at its top.
-      .addCase(setSelectedBookshelf, (state) => {
+      .addCase(setSelectedCollection, (state) => {
         state.selectedId = null;
       })
       .addCase(fetchSeries.pending, (state) => {

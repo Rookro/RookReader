@@ -26,8 +26,8 @@ import Style from "@mui/icons-material/Style";
 import ViewList from "@mui/icons-material/ViewList";
 import ViewModule from "@mui/icons-material/ViewModule";
 
-/** Icons for the bookshelf */
-export const BookShelfIcons = [
+/** Icons for the collection */
+export const CollectionIcons = [
   { key: "book", icon: <Book /> },
   { key: "menu-book", icon: <MenuBook /> },
   { key: "auto-stories", icon: <AutoStories /> },

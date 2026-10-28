@@ -14,26 +14,26 @@ import {
 } from "@mui/material";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { BookShelfIcons } from "../BookshelfIcons";
+import { CollectionIcons } from "../CollectionIcons";
 
-/** Props for the CreateBookshelfDialog component */
-export interface CreateBookshelfDialogProps {
+/** Props for the CreateCollectionDialog component */
+export interface CreateCollectionDialogProps {
   /** Whether the dialog is open or closed. */
   open: boolean;
-  /** Callback to create a bookshelf. */
+  /** Callback to create a collection. */
   onCreate: (name: string, icon_id: string) => void;
   /** Callback to close the dialog. */
   onClose: () => void;
 }
 
-/** Dialog for creating a bookshelf */
-export function CreateBookshelfDialog({ open, onCreate, onClose }: CreateBookshelfDialogProps) {
+/** Dialog for creating a collection */
+export function CreateCollectionDialog({ open, onCreate, onClose }: CreateCollectionDialogProps) {
   const { t } = useTranslation();
   const [name, setName] = useState("");
   const [selectedIconIndex, setSelectedIconIndex] = useState(0);
 
   const handleCreate = useCallback(() => {
-    onCreate(name, BookShelfIcons[selectedIconIndex].key);
+    onCreate(name, CollectionIcons[selectedIconIndex].key);
     setName("");
     setSelectedIconIndex(0);
     onClose();
@@ -85,7 +85,7 @@ export function CreateBookshelfDialog({ open, onCreate, onClose }: CreateBookshe
           }}
         >
           <Grid container spacing={1}>
-            {BookShelfIcons.map(({ key, icon }, index) => {
+            {CollectionIcons.map(({ key, icon }, index) => {
               const isSelected = selectedIconIndex === index;
               return (
                 <Grid key={key}>

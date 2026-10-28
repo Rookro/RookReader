@@ -56,10 +56,10 @@ describe("useBookshelfDialogs", () => {
     const { result } = renderHook(() => useBookshelfDialogs());
 
     act(() => {
-      result.current.openDialog("set-bookshelves", mockBooks);
+      result.current.openDialog("set-collections", mockBooks);
     });
 
-    expect(result.current.dialogType).toBe("set-bookshelves");
+    expect(result.current.dialogType).toBe("set-collections");
     expect(result.current.dialogBookIds).toEqual([1, 2]);
     expect(result.current.dialogBooks).toEqual(mockBooks);
   });
@@ -97,10 +97,10 @@ describe("useBookshelfDialogs", () => {
     const { result } = renderHook(() => useBookshelfDialogs());
 
     act(() => {
-      result.current.openDialog("set-bookshelves", [mockBooks[0]]);
+      result.current.openDialog("set-collections", [mockBooks[0]]);
     });
 
-    expect(result.current.dialogType).toBe("set-bookshelves");
+    expect(result.current.dialogType).toBe("set-collections");
     expect(result.current.dialogBookIds).toEqual([1]);
 
     act(() => {

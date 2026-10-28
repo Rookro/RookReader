@@ -135,7 +135,7 @@ describe("BookCard", () => {
     // The action applies to the whole selection, taken from the actions context
     // rather than from a list drilled through every card.
     await user.click(await screen.findByText(/Set collections/i));
-    expect(openDialog).toHaveBeenCalledWith("set-bookshelves", [bookA, bookB]);
+    expect(openDialog).toHaveBeenCalledWith("set-collections", [bookA, bookB]);
   });
 
   it("should display a checkmark when selected", () => {

@@ -4,7 +4,7 @@ import { useTauriEvent } from "../../../hooks/useTauriEvent";
 import { readingProgressChanged } from "../../../store/actions";
 import { useAppDispatch, useAppSelector } from "../../../store/store";
 import { fetchSeries } from "../../Bookshelf/seriesSlice";
-import { fetchBookshelves, fetchBooksInSelectedBookshelf } from "../../Bookshelf/slice";
+import { fetchBooksInSelectedCollection, fetchCollections } from "../../Bookshelf/slice";
 import { fetchTags } from "../../Bookshelf/tagSlice";
 import { fetchRecentlyReadBooks } from "../slice";
 
@@ -17,14 +17,14 @@ import { fetchRecentlyReadBooks } from "../slice";
  */
 export const useHistorySync = () => {
   const dispatch = useAppDispatch();
-  const selectedBookshelfId = useAppSelector((state) => state.bookCollection.selectedId);
+  const selectedCollectionId = useAppSelector((state) => state.collection.selectedId);
   const recordReadingHistory = useAppSelector(
     (state) => state.settings.history.recordReadingHistory,
   );
 
   // Initial load of metadata
   useEffect(() => {
-    dispatch(fetchBookshelves());
+    dispatch(fetchCollections());
     dispatch(fetchTags());
     dispatch(fetchSeries());
     dispatch(fetchRecentlyReadBooks());
@@ -39,13 +39,13 @@ export const useHistorySync = () => {
     wasRecordingRef.current = recordReadingHistory;
   }, [dispatch, recordReadingHistory]);
 
-  // Load books when selected bookshelf changes
+  // Load books when selected collection changes
   useEffect(() => {
-    dispatch(fetchBooksInSelectedBookshelf(selectedBookshelfId));
-  }, [dispatch, selectedBookshelfId]);
+    dispatch(fetchBooksInSelectedCollection(selectedCollectionId));
+  }, [dispatch, selectedCollectionId]);
 
   useTauriEvent(events.collectionsChanged, () => {
-    dispatch(fetchBookshelves());
+    dispatch(fetchCollections());
   });
   useTauriEvent(events.tagsChanged, () => {
     dispatch(fetchTags());
@@ -54,7 +54,7 @@ export const useHistorySync = () => {
     dispatch(fetchSeries());
   });
   useTauriEvent(events.booksChanged, () => {
-    dispatch(fetchBooksInSelectedBookshelf(selectedBookshelfId));
+    dispatch(fetchBooksInSelectedCollection(selectedCollectionId));
   });
   useTauriEvent(events.readingHistoryChanged, () => {
     if (recordReadingHistory) {
