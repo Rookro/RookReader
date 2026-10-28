@@ -271,6 +271,65 @@ describe("useViewerController", () => {
     expect(result.current.displayedLayout).toBeNull();
   });
 
+  // Verify a page that lands just as the reader moves on is not shown over the page they
+  // moved to
+  it("never shows a page the reader has already left", async () => {
+    const measured = createMockBookWithState({ landscape_bits: "000" });
+    const images = new Map(mockEntries.map((entry) => [entry, { entry } as unknown as Image]));
+    mockedCreateImageCacheItem.mockImplementation(
+      (img) =>
+        ({
+          fullUrl: `blob:${[...images].find(([, image]) => image === img)?.[0]}`,
+          width: 100,
+          height: 200,
+        }) as ImageUtils.ImageCacheItem,
+    );
+    let releaseFirst: () => void = () => {};
+    mockedFetchImageBlob.mockImplementation((_path, entry) =>
+      entry === "p1.jpg"
+        ? new Promise<Image>((resolve) => {
+            releaseFirst = () => resolve(images.get(entry) as Image);
+          })
+        : Promise.resolve(images.get(entry)),
+    );
+
+    const { result, rerender } = renderHook(
+      ({ index }: { index: number }) =>
+        useViewerController({
+          containerPath: "path",
+          displaySize: VIEWPORT,
+          entries: mockEntries,
+          index,
+          isSpreadShifted: false,
+          settings: mockSettings,
+          dispatch: mockDispatch,
+          hasPreviews: false,
+          book: measured,
+        }),
+      { initialProps: { index: 1 } },
+    );
+    await waitFor(() =>
+      expect(result.current.displayedLayout?.firstImage?.fullUrl).toBe("blob:p2.jpg"),
+    );
+    rerender({ index: 0 });
+    await act(async () => {
+      await new Promise(process.nextTick);
+    });
+
+    // The first page lands, and in the same tick the reader moves back to the second.
+    releaseFirst();
+    queueMicrotask(() => {
+      rerender({ index: 1 });
+    });
+    // Let the microtasks run outside act, as they do in the app.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await act(async () => {
+      await new Promise(process.nextTick);
+    });
+
+    expect(result.current.displayedLayout?.firstImage?.fullUrl).toBe("blob:p2.jpg");
+  });
+
   // Verify that remaining object URLs are revoked when the hook unmounts
   it("should revoke object URLs on unmount", async () => {
     mockedFetchImageBlob.mockResolvedValue({} as Image);

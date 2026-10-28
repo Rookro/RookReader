@@ -164,10 +164,12 @@ export const usePageLoader = ({
           isPreview,
           controller.signal,
         );
+        // The load settled a microtask ago, and a render in between may have moved the
+        // reader on; a run it aborted must not publish over the new one.
         if (result.status === "failed") {
           // A preview is answered by the full image that follows it, so only the page
           // itself failing is worth putting on screen.
-          if (!isPreview) {
+          if (!isPreview && !controller.signal.aborted) {
             failures.set(path, result.code);
             publishLayout();
           }
@@ -177,7 +179,9 @@ export const usePageLoader = ({
           if (!isPreview && !chain) {
             recordLoadedPage(path, result.isLandscape);
           }
-          publishLayout();
+          if (!controller.signal.aborted) {
+            publishLayout();
+          }
         }
       };
 
