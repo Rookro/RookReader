@@ -231,6 +231,46 @@ describe("useViewerController", () => {
     expect(global.URL.revokeObjectURL).toHaveBeenCalledWith("blob:preview");
   });
 
+  // Verify the next book's first page is fetched rather than taken from the previous
+  // book's cache. A measured book keeps a pairing across the switch, so a stale entry
+  // would reach the layout.
+  it("never shows the previous book's page after a switch", async () => {
+    const measured = createMockBookWithState({ landscape_bits: "000" });
+    mockedFetchImageBlob.mockResolvedValue({} as Image);
+    mockedCreateImageCacheItem.mockReturnValue({
+      fullUrl: "blob:old",
+      url: "blob:old",
+      width: 100,
+      height: 200,
+    } as ImageUtils.ImageCacheItem);
+
+    const { result, rerender } = renderHook(
+      ({ path }: { path: string }) =>
+        useViewerController({
+          containerPath: path,
+          displaySize: VIEWPORT,
+          entries: mockEntries,
+          index: 0,
+          isSpreadShifted: false,
+          settings: mockSettings,
+          dispatch: mockDispatch,
+          hasPreviews: true,
+          book: measured,
+        }),
+      { initialProps: { path: "path1" } },
+    );
+    await waitFor(() => expect(result.current.displayedLayout).not.toBeNull());
+
+    mockedFetchImageBlob.mockReturnValue(new Promise(() => {}));
+    rerender({ path: "path2" });
+    await act(async () => {
+      await new Promise(process.nextTick);
+    });
+
+    expect(mockedFetchImageBlob).toHaveBeenCalledWith("path2", "p1.jpg");
+    expect(result.current.displayedLayout).toBeNull();
+  });
+
   // Verify that remaining object URLs are revoked when the hook unmounts
   it("should revoke object URLs on unmount", async () => {
     mockedFetchImageBlob.mockResolvedValue({} as Image);

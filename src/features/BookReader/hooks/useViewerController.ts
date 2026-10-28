@@ -1,7 +1,7 @@
 import { error, warn } from "@tauri-apps/plugin-log";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { BookWithState } from "../../../bindings/bindings";
-import { requestPreloadAround, setDisplaySize } from "../../../bindings/ContainerCommands";
+import { requestPreloadAround } from "../../../bindings/ContainerCommands";
 import type { AppDispatch } from "../../../store/store";
 import { createCommandError, type ErrorCode } from "../../../types/Error";
 import type { Image } from "../../../types/Image";
@@ -13,8 +13,6 @@ import {
   createImageCacheItem,
   fetchImageBlob,
   fetchImagePreviewBlob,
-  type ImageCacheItem,
-  revokeCacheItemUrls,
   SINGLE_UNIT,
   type UnitDecision,
   type ViewerSettings,
@@ -22,18 +20,10 @@ import {
 } from "../utils/ImageUtils";
 import type { DisplaySize } from "./useDisplaySize";
 import { useLandscapeScan } from "./useLandscapeScan";
+import { usePageCache } from "./usePageCache";
 import type { PageMove } from "./usePageNavigation";
 import { useSpreadNavigation } from "./useSpreadNavigation";
 import { useSpreadPairing } from "./useSpreadPairing";
-
-/**
- * Revokes every object URL held by the cache entries.
- *
- * @param cache - The image cache whose `previewUrl`/`fullUrl` object URLs should be revoked.
- */
-const revokeCacheUrls = (cache: Map<string, ImageCacheItem>) => {
-  cache.forEach(revokeCacheItemUrls);
-};
 
 /**
  * ViewerController hook return type.
@@ -109,31 +99,16 @@ export const useViewerController = ({
   onForwardBoundary,
   onBackwardBoundary,
 }: ViewerControllerOptions): ViewerController => {
-  const cacheRef = useRef<Map<string, ImageCacheItem>>(new Map());
+  const { cache, reportedSize } = usePageCache({
+    containerPath,
+    entries,
+    index,
+    preloadPageCount: settings.preloadPageCount,
+    displaySize,
+  });
   const [isImageLoading, setIsImageLoading] = useState(false);
   const [layoutState, setLayoutState] = useState<{ layout: ViewLayout; path: string } | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
-  // The viewport the backend has answered for, and the gate on loading anything.
-  //
-  // Not `displaySize` itself: the report is a round trip, and a page asked for before it
-  // lands is rendered for whatever viewport the backend still had.
-  const [reportedSize, setReportedSize] = useState<DisplaySize | null>(null);
-
-  // biome-ignore lint/correctness/useExhaustiveDependencies: update the cache whenever containerPath changes.
-  useEffect(() => {
-    revokeCacheUrls(cacheRef.current);
-    cacheRef.current.clear();
-    abortControllerRef.current?.abort();
-  }, [containerPath]);
-
-  // Revoke any remaining object URLs when the component unmounts.
-  useEffect(() => {
-    const cache = cacheRef.current;
-    return () => {
-      revokeCacheUrls(cache);
-      cache.clear();
-    };
-  }, []);
 
   const landscape = useLandscapeScan({ containerPath, pageCount: entries.length, book });
   const { chain, pairing, recordLoadedPage } = useSpreadPairing({
@@ -171,40 +146,6 @@ export const useViewerController = ({
     shownRef.current = false;
   }, [containerPath, index]);
 
-  // Report the viewport, and release the load effect below once the backend has it.
-  useEffect(() => {
-    if (displaySize.width === 0 || displaySize.height === 0) {
-      return;
-    }
-    let cancelled = false;
-    setDisplaySize(displaySize.width, displaySize.height)
-      .then(() => {
-        if (cancelled) {
-          return;
-        }
-        // The cached blob URLs are pages rendered for the previous viewport. Nothing
-        // reloads them: the backend keys a page by the box it was fitted into, so they
-        // would simply never be asked for again.
-        revokeCacheUrls(cacheRef.current);
-        cacheRef.current.clear();
-      })
-      .catch((e) => {
-        // The backend still has whatever viewport it was last told, and a page rendered
-        // for that beats no page at all, so the load is released either way — with the
-        // cache kept, because it matches what the backend would serve.
-        warn(`Failed to report the display size: ${String(e)}`);
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setReportedSize(displaySize);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [displaySize]);
-
   // Loads the missing images and updates the layout.
   useEffect(() => {
     // Nothing is asked for until the backend has answered for the viewport: a page
@@ -225,8 +166,6 @@ export const useViewerController = ({
       if (settings.isTwoPagedView && index + 1 < entries.length) {
         pathsToLoad.push(entries[index + 1]);
       }
-
-      const cache = cacheRef.current;
 
       /** Reports the first page shown since the reader asked for this one. */
       const reportDisplayed = () => {
@@ -383,6 +322,7 @@ export const useViewerController = ({
     chain,
     reportedSize,
     recordLoadedPage,
+    cache,
   ]);
 
   // Request preloading around the current index in the backend.
@@ -410,21 +350,6 @@ export const useViewerController = ({
     entries.length,
     reportedSize,
   ]);
-
-  // Evict cached pages outside a window around the current index so long sessions
-  // don't retain every visited page's blob URLs (unbounded renderer memory). The
-  // window always contains the current spread (index, index + 1) and the backend
-  // preload range, so backtrack re-fetches hit the backend LRU cache.
-  useEffect(() => {
-    const radius = Math.max(settings.preloadPageCount, 5);
-    const keep = new Set(entries.slice(Math.max(0, index - radius), index + radius + 1));
-    for (const [key, item] of cacheRef.current) {
-      if (!keep.has(key)) {
-        revokeCacheItemUrls(item);
-        cacheRef.current.delete(key);
-      }
-    }
-  }, [index, entries, settings.preloadPageCount]);
 
   const displayedLayout = layoutState?.path === containerPath ? layoutState?.layout : null;
 
