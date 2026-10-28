@@ -519,7 +519,7 @@ async fn test_delete_book() {
     let tags = tag_repo.get_tags_for_book(book_id).await.unwrap();
     assert!(tags.is_empty());
 
-    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM bookshelf_items WHERE book_id = ?")
+    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM collection_items WHERE book_id = ?")
         .bind(book_id)
         .fetch_one(&pool)
         .await

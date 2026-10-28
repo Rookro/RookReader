@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n            INSERT INTO bookshelves (name, icon_id)\n            VALUES (?, ?)\n            RETURNING id, name, icon_id, created_at\n            ",
+  "query": "\n            INSERT INTO collections (name, icon_id)\n            VALUES (?, ?)\n            RETURNING id, name, icon_id, created_at\n            ",
   "describe": {
     "columns": [
       {
@@ -9,7 +9,7 @@
         "type_info": "Integer",
         "origin": {
           "Table": {
-            "table": "bookshelves",
+            "table": "collections",
             "name": "id"
           }
         }
@@ -20,7 +20,7 @@
         "type_info": "Text",
         "origin": {
           "Table": {
-            "table": "bookshelves",
+            "table": "collections",
             "name": "name"
           }
         }
@@ -31,7 +31,7 @@
         "type_info": "Text",
         "origin": {
           "Table": {
-            "table": "bookshelves",
+            "table": "collections",
             "name": "icon_id"
           }
         }
@@ -42,7 +42,7 @@
         "type_info": "Datetime",
         "origin": {
           "Table": {
-            "table": "bookshelves",
+            "table": "collections",
             "name": "created_at"
           }
         }
@@ -58,5 +58,5 @@
       false
     ]
   },
-  "hash": "8efb385f236ad23234cfe219f95ef2a89723e8af3fb057f15debafabeb7169d6"
+  "hash": "acd8a36e842bbe95d92fea1429f57509577d46a2926e785e855e48290307e8cf"
 }

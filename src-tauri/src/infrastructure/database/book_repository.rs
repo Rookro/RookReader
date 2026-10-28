@@ -351,7 +351,7 @@ impl BookRepository for SqliteBookRepository {
     }
 
     async fn delete_book(&self, id: i64) -> Result<()> {
-        // reading_state, book_tags, bookshelf_items and bookmarks all declare
+        // reading_state, book_tags, collection_items and bookmarks all declare
         // ON DELETE CASCADE, and sqlx enables foreign keys on every connection.
         sqlx::query!(
             r#"

@@ -34,7 +34,7 @@ impl BookshelfRepository for SqliteBookshelfRepository {
         let bookshelf = sqlx::query_as!(
             Bookshelf,
             r#"
-            INSERT INTO bookshelves (name, icon_id)
+            INSERT INTO collections (name, icon_id)
             VALUES (?, ?)
             RETURNING id, name, icon_id, created_at
             "#,
@@ -52,7 +52,7 @@ impl BookshelfRepository for SqliteBookshelfRepository {
             Bookshelf,
             r#"
             SELECT id, name, icon_id, created_at
-            FROM bookshelves
+            FROM collections
             ORDER BY id ASC
             "#
         )
@@ -73,9 +73,9 @@ impl BookshelfRepository for SqliteBookshelfRepository {
                 v.cfi as "cfi?: String",
                 v.tag_ids_str as "tag_ids_str?: String"
             FROM book_with_state_view v
-            INNER JOIN bookshelf_items bi ON v.id = bi.book_id
-            WHERE bi.bookshelf_id = ?
-            ORDER BY bi.added_at DESC
+            INNER JOIN collection_items ci ON v.id = ci.book_id
+            WHERE ci.collection_id = ?
+            ORDER BY ci.added_at DESC
             "#,
             bookshelf_id
         )
@@ -90,7 +90,7 @@ impl BookshelfRepository for SqliteBookshelfRepository {
     async fn add_book_to_bookshelf(&self, bookshelf_id: i64, book_id: i64) -> Result<()> {
         sqlx::query!(
             r#"
-            INSERT OR IGNORE INTO bookshelf_items (bookshelf_id, book_id)
+            INSERT OR IGNORE INTO collection_items (collection_id, book_id)
             VALUES (?, ?)
             "#,
             bookshelf_id,
@@ -105,8 +105,8 @@ impl BookshelfRepository for SqliteBookshelfRepository {
     async fn remove_book_from_bookshelf(&self, bookshelf_id: i64, book_id: i64) -> Result<()> {
         sqlx::query!(
             r#"
-            DELETE FROM bookshelf_items
-            WHERE bookshelf_id = ? AND book_id = ?
+            DELETE FROM collection_items
+            WHERE collection_id = ? AND book_id = ?
             "#,
             bookshelf_id,
             book_id
@@ -120,14 +120,14 @@ impl BookshelfRepository for SqliteBookshelfRepository {
     async fn get_bookshelves_for_book(&self, book_id: i64) -> Result<Vec<i64>> {
         let records = sqlx::query!(
             r#"
-            SELECT bookshelf_id FROM bookshelf_items WHERE book_id = ?
+            SELECT collection_id FROM collection_items WHERE book_id = ?
             "#,
             book_id
         )
         .fetch_all(&self.pool)
         .await?;
 
-        Ok(records.into_iter().map(|r| r.bookshelf_id).collect())
+        Ok(records.into_iter().map(|r| r.collection_id).collect())
     }
 
     async fn set_bookshelves_for_book(&self, book_id: i64, bookshelf_ids: &[i64]) -> Result<()> {
@@ -137,8 +137,8 @@ impl BookshelfRepository for SqliteBookshelfRepository {
         // Kept rows stay as they are, keeping when the book was added to the bookshelf.
         sqlx::query!(
             r#"
-            DELETE FROM bookshelf_items
-            WHERE book_id = ? AND bookshelf_id NOT IN (SELECT value FROM json_each(?))
+            DELETE FROM collection_items
+            WHERE book_id = ? AND collection_id NOT IN (SELECT value FROM json_each(?))
             "#,
             book_id,
             bookshelf_ids_json
@@ -146,14 +146,14 @@ impl BookshelfRepository for SqliteBookshelfRepository {
         .execute(&mut *tx)
         .await?;
 
-        // The JOIN skips a stale bookshelf_id instead of raising a FOREIGN KEY error, which
+        // The JOIN skips a stale collection_id instead of raising a FOREIGN KEY error, which
         // OR IGNORE does not suppress; OR IGNORE skips the kept rows.
         sqlx::query!(
             r#"
-            INSERT OR IGNORE INTO bookshelf_items (bookshelf_id, book_id)
-            SELECT b.id, ?
-            FROM bookshelves b
-            WHERE b.id IN (SELECT value FROM json_each(?))
+            INSERT OR IGNORE INTO collection_items (collection_id, book_id)
+            SELECT c.id, ?
+            FROM collections c
+            WHERE c.id IN (SELECT value FROM json_each(?))
             "#,
             book_id,
             bookshelf_ids_json
@@ -168,7 +168,7 @@ impl BookshelfRepository for SqliteBookshelfRepository {
     async fn delete(&self, id: i64) -> Result<()> {
         sqlx::query!(
             r#"
-            DELETE FROM bookshelves
+            DELETE FROM collections
             WHERE id = ?
             "#,
             id

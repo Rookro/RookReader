@@ -74,7 +74,7 @@ async fn test_add_and_remove_book_from_bookshelf() {
 
     // Verify it was added
     let count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM bookshelf_items WHERE bookshelf_id = ? AND book_id = ?",
+        "SELECT COUNT(*) FROM collection_items WHERE collection_id = ? AND book_id = ?",
     )
     .bind(bs.id)
     .bind(book_id)
@@ -91,7 +91,7 @@ async fn test_add_and_remove_book_from_bookshelf() {
 
     // Verify it was removed
     let count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM bookshelf_items WHERE bookshelf_id = ? AND book_id = ?",
+        "SELECT COUNT(*) FROM collection_items WHERE collection_id = ? AND book_id = ?",
     )
     .bind(bs.id)
     .bind(book_id)
@@ -199,7 +199,7 @@ async fn test_set_bookshelves_for_book_keeps_added_at_of_kept_bookshelf() {
     let a = shelves.create("A", "star").await.unwrap();
     let b = shelves.create("B", "star").await.unwrap();
     shelves.add_book_to_bookshelf(a.id, book_id).await.unwrap();
-    sqlx::query("UPDATE bookshelf_items SET added_at = '2000-01-01 00:00:00'")
+    sqlx::query("UPDATE collection_items SET added_at = '2000-01-01 00:00:00'")
         .execute(&pool)
         .await
         .unwrap();
@@ -211,7 +211,7 @@ async fn test_set_bookshelves_for_book_keeps_added_at_of_kept_bookshelf() {
 
     // A bookshelf the book stays in keeps when the book was added to it.
     let added_at: String = sqlx::query_scalar(
-        "SELECT added_at FROM bookshelf_items WHERE bookshelf_id = ? AND book_id = ?",
+        "SELECT added_at FROM collection_items WHERE collection_id = ? AND book_id = ?",
     )
     .bind(a.id)
     .bind(book_id)

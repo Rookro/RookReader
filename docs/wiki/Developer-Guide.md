@@ -101,7 +101,7 @@ These pages are sourced from [`docs/wiki/`](https://github.com/Rookro/RookReader
 ## Database Migrations & Setup
 
 RookReader uses `sqlx` for compile-time checked SQLite queries. The `sqlx-cli` tool is required for managing migrations.
-The current schema (books, series, bookshelves, bookshelf_items, tags, book_tags, reading_state, bookmarks, and the `book_with_state_view` view) is documented as an ER diagram in [`docs/database/er_diagram.md`](https://github.com/Rookro/RookReader/blob/main/docs/database/er_diagram.md).
+The current schema (books, series, collections, collection_items, tags, book_tags, reading_state, bookmarks, and the `book_with_state_view` view) is documented as an ER diagram in [`docs/database/er_diagram.md`](https://github.com/Rookro/RookReader/blob/main/docs/database/er_diagram.md).
 
 ### Modifying the Database Schema
 
