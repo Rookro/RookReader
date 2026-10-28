@@ -79,7 +79,7 @@ pub async fn open_container(
     path: &str,
     state: tauri::State<'_, RwLock<AppState>>,
 ) -> Result<EntriesResult> {
-    log::debug!("Get the entries in {}", path);
+    log::debug!("Open container: {}", path);
 
     let span = Span::start();
     let open_lock = state.read().await.container_state.open_lock.clone();
