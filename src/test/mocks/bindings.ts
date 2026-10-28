@@ -4,7 +4,6 @@ vi.mock("../../bindings/BookCommands", () => ({
   getBook: vi.fn(() => Promise.resolve([])),
   deleteBook: vi.fn(() => Promise.resolve([])),
   getBookByPath: vi.fn(() => Promise.resolve([])),
-  getBookWithStateById: vi.fn(() => Promise.resolve([])),
   getAllBooksWithState: vi.fn(() => Promise.resolve([])),
   registerBook: vi.fn(() => Promise.resolve(0)),
   recordBookOpened: vi.fn(() => Promise.resolve(null)),

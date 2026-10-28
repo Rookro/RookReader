@@ -49,17 +49,6 @@ describe("BookCommands", () => {
     await expect(BookCommands.getBookByPath("p")).rejects.toThrow(CommandError);
   });
 
-  it("getBookWithStateById should call invoke", async () => {
-    vi.mocked(invoke).mockResolvedValue(null);
-    await BookCommands.getBookWithStateById(1);
-    expect(invoke).toHaveBeenCalledWith("get_book_with_state_by_id", { id: 1 });
-  });
-
-  it("getBookWithStateById should throw CommandError on failure", async () => {
-    vi.mocked(invoke).mockRejectedValue(mockError);
-    await expect(BookCommands.getBookWithStateById(1)).rejects.toThrow(CommandError);
-  });
-
   it("getAllBooksWithState should call invoke", async () => {
     vi.mocked(invoke).mockResolvedValue([]);
     await BookCommands.getAllBooksWithState();

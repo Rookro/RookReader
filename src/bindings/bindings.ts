@@ -240,26 +240,6 @@ export const commands = {
 	 */
 	getBookByPath: (filePath: string) => typedError<Book_Serialize | null, CommandError_Serialize>(__TAURI_INVOKE("get_book_by_path", { filePath })),
 	/**
-	 *  Retrieves a book along with its reading state by its unique ID.
-	 * 
-	 *  # Arguments
-	 * 
-	 *  * `id` - The unique identifier of the book.
-	 *  * `repo` - The managed book repository state.
-	 * 
-	 *  # Returns
-	 * 
-	 *  A `Result` which is `Ok` containing an `Option<BookWithState>`.
-	 *  It evaluates to `Some(BookWithState)` if a matching book is found,
-	 *  or `None` if no such book exists in the repository.
-	 * 
-	 *  # Errors
-	 * 
-	 *  This function will return an `Err` if the underlying repository operation fails
-	 *  (e.g., due to a database error, connection issue, or query execution failure).
-	 */
-	getBookWithStateById: (id: number) => typedError<BookWithState_Serialize | null, CommandError_Serialize>(__TAURI_INVOKE("get_book_with_state_by_id", { id })),
-	/**
 	 *  Registers a book or returns its ID if it already exists, without updating reading state.
 	 * 
 	 *  The book's item type, display name, and page count are read from its container.

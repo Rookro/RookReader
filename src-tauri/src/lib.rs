@@ -48,7 +48,6 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
         commands::book_commands::update_book_tags::<tauri::Wry>,
         commands::book_commands::get_book,
         commands::book_commands::get_book_by_path,
-        commands::book_commands::get_book_with_state_by_id,
         commands::book_commands::register_book::<tauri::Wry>,
         commands::book_commands::record_book_opened::<tauri::Wry>,
         commands::book_commands::delete_book::<tauri::Wry>,

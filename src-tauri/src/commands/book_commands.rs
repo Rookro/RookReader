@@ -72,33 +72,6 @@ pub async fn get_book_by_path(
     repo.get_by_path(&file_path).await
 }
 
-/// Retrieves a book along with its reading state by its unique ID.
-///
-/// # Arguments
-///
-/// * `id` - The unique identifier of the book.
-/// * `repo` - The managed book repository state.
-///
-/// # Returns
-///
-/// A `Result` which is `Ok` containing an `Option<BookWithState>`.
-/// It evaluates to `Some(BookWithState)` if a matching book is found,
-/// or `None` if no such book exists in the repository.
-///
-/// # Errors
-///
-/// This function will return an `Err` if the underlying repository operation fails
-/// (e.g., due to a database error, connection issue, or query execution failure).
-#[tauri::command]
-#[specta::specta]
-pub async fn get_book_with_state_by_id(
-    id: i64,
-    repo: State<'_, Arc<dyn BookRepository>>,
-) -> Result<Option<BookWithState>> {
-    log::debug!("Get book with state by id({}).", id);
-    repo.get_book_with_state_by_id(id).await
-}
-
 /// Registers a book or returns its ID if it already exists, without updating reading state.
 ///
 /// The book's item type, display name, and page count are read from its container.
@@ -1179,45 +1152,6 @@ mod tests {
         let tags = result.unwrap();
         assert_eq!(tags.len(), 3);
         assert_eq!(tags, vec![1, 2, 3]);
-    }
-
-    #[tokio::test]
-    async fn test_get_book_with_state_by_id() {
-        let mut mock_repo = MockBookRepository::new();
-        mock_repo
-            .expect_get_book_with_state_by_id()
-            .with(mockall::predicate::eq(1))
-            .times(1)
-            .returning(|id| {
-                Ok(Some(BookWithState {
-                    id,
-                    file_path: "path".to_string(),
-                    item_type: ItemType::File,
-                    display_name: "name".to_string(),
-                    total_pages: 10,
-                    series_id: None,
-                    series_order: None,
-                    thumbnail_path: None,
-                    created_at: None,
-                    is_spread_shifted: false,
-                    landscape_bits: None,
-                    reading_direction: None,
-                    last_read_page_index: Some(5),
-                    last_opened_at: None,
-                    cfi: None,
-                    tag_ids: vec![],
-                }))
-            });
-
-        let app = tauri::test::mock_app();
-        app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
-        let state = app.state::<Arc<dyn BookRepository>>();
-
-        let result = get_book_with_state_by_id(1, state).await;
-        assert!(result.is_ok());
-        let book = result.unwrap();
-        assert!(book.is_some());
-        assert_eq!(book.unwrap().last_read_page_index, Some(5));
     }
 
     #[tokio::test]

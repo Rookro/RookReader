@@ -37,17 +37,6 @@ export async function getBookByPath(file_path: string): Promise<Book | null> {
 }
 
 /**
- * Retrieves a book along with its reading state by its ID.
- *
- * @param id - The unique identifier of the book.
- * @returns A promise that resolves to the BookWithState object if found, or null otherwise.
- * @throws {CommandError} If the Tauri command fails.
- */
-export async function getBookWithStateById(id: number): Promise<BookWithState | null> {
-  return await runCommand(commands.getBookWithStateById(id));
-}
-
-/**
  * Retrieves all books along with their reading states from the database.
  *
  * @returns A promise that resolves to an array of BookWithState objects.
