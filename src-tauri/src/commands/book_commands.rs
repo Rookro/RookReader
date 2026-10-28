@@ -11,9 +11,7 @@ use crate::commands::library_events::{
 use crate::container::describe::describe;
 use crate::container::factory::{create_container, ContainerConfig};
 use crate::container::traits::Container;
-use crate::domain::book::entity::{
-    Book, BookWithState, Direction, ItemType, ReadBook, ReadingState,
-};
+use crate::domain::book::entity::{Book, BookWithState, Direction, ReadBook, ReadingState};
 use crate::domain::book::repository::BookRepository;
 use crate::domain::bookshelf::repository::BookshelfRepository;
 use crate::domain::series::repository::SeriesRepository;
@@ -846,6 +844,7 @@ async fn generate_and_save_thumbnail<R: tauri::Runtime>(
 mod tests {
     use super::*;
     use crate::commands::library_events::test_support::record_events;
+    use crate::domain::book::entity::ItemType;
     use crate::domain::book::repository::MockBookRepository;
     use crate::domain::bookshelf::repository::MockBookshelfRepository;
     use crate::domain::series::repository::MockSeriesRepository;
@@ -1406,7 +1405,7 @@ mod tests {
         let app = tauri::test::mock_app();
         app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
         app.manage(RwLock::new(AppState::default()));
-        crate::commands::container_commands::get_entries_in_container(&open, app.state())
+        crate::commands::container_commands::open_container(&open, app.state())
             .await
             .unwrap();
 

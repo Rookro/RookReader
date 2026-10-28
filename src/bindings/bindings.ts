@@ -85,10 +85,8 @@ export const commands = {
 	 */
 	requestPreloadAround: (path: string, index: number, bufferSize: number | null, callerPages: number | null) => typedError<null, CommandError_Serialize>(__TAURI_INVOKE("request_preload_around", { path, index, bufferSize, callerPages })),
 	/**
-	 *  Opens a container file (e.g., ZIP, RAR) and retrieves a list of its contents.
-	 * 
-	 *  This function opens the container specified by the `path` and reads the list of file entries
-	 *  within it.
+	 *  Opens a book as the open book: builds its container, installs its page service in
+	 *  place of the previous book's, and lists its entries.
 	 * 
 	 *  # Arguments
 	 * 
@@ -106,7 +104,7 @@ export const commands = {
 	 *  * The container file cannot be opened (e.g., it does not exist or is corrupt).
 	 *  * The `container` within the application state is unexpectedly missing.
 	 */
-	getEntriesInContainer: (path: string) => typedError<EntriesResult, CommandError_Serialize>(__TAURI_INVOKE("get_entries_in_container", { path })),
+	openContainer: (path: string) => typedError<EntriesResult, CommandError_Serialize>(__TAURI_INVOKE("open_container", { path })),
 	/**
 	 *  Retrieves the pixel dimensions of every entry in the currently open container.
 	 * 
@@ -122,7 +120,7 @@ export const commands = {
 	 *  # Returns
 	 * 
 	 *  A `Result` which is `Ok` with one `ImageDimensions` per entry, in the same order as
-	 *  `get_entries_in_container` returned them.
+	 *  `open_container` returned them.
 	 * 
 	 *  # Errors
 	 * 

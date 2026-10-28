@@ -434,7 +434,7 @@ describe("BookCollectionReducer", () => {
         expect(BookshelfCommand.addBookToBookshelf).toHaveBeenCalledWith(1, 10);
         // Opening would install the book, which closes the reader threads of the book on
         // screen. Registering must never do that.
-        expect(ContainerCommands.getEntriesInContainer).not.toHaveBeenCalled();
+        expect(ContainerCommands.openContainer).not.toHaveBeenCalled();
       });
 
       // Verify that adding a book with no bookshelf ID (null) only registers it

@@ -55,10 +55,8 @@ pub struct EntriesResult {
     has_previews: bool,
 }
 
-/// Opens a container file (e.g., ZIP, RAR) and retrieves a list of its contents.
-///
-/// This function opens the container specified by the `path` and reads the list of file entries
-/// within it.
+/// Opens a book as the open book: builds its container, installs its page service in
+/// place of the previous book's, and lists its entries.
 ///
 /// # Arguments
 ///
@@ -77,7 +75,7 @@ pub struct EntriesResult {
 /// * The `container` within the application state is unexpectedly missing.
 #[tauri::command()]
 #[specta::specta]
-pub async fn get_entries_in_container(
+pub async fn open_container(
     path: &str,
     state: tauri::State<'_, RwLock<AppState>>,
 ) -> Result<EntriesResult> {
@@ -258,7 +256,7 @@ pub async fn set_display_size(
 /// # Returns
 ///
 /// A `Result` which is `Ok` with one `ImageDimensions` per entry, in the same order as
-/// `get_entries_in_container` returned them.
+/// `open_container` returned them.
 ///
 /// # Errors
 ///
@@ -576,7 +574,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_get_entries_in_container_rejects_a_container_without_pages() {
+    async fn test_open_container_rejects_a_container_without_pages() {
         use std::io::Write;
         use zip::write::{FileOptions, ZipWriter};
 
@@ -594,8 +592,7 @@ mod tests {
         let app = tauri::test::mock_app();
         app.manage(RwLock::new(AppState::default()));
 
-        let result =
-            get_entries_in_container(zip_path.to_string_lossy().as_ref(), app.state()).await;
+        let result = open_container(zip_path.to_string_lossy().as_ref(), app.state()).await;
 
         let Err(err) = result else {
             panic!("expected an empty-container error");
@@ -604,7 +601,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_get_entries_in_container() {
+    async fn test_open_container() {
         let dir = tempfile::tempdir().unwrap();
         let rar_path = create_dummy_rar(dir.path(), "dummy.rar");
         let expected_entries = [
@@ -616,8 +613,7 @@ mod tests {
         let app = tauri::test::mock_app();
         app.manage(RwLock::new(AppState::default()));
 
-        let result =
-            get_entries_in_container(rar_path.to_string_lossy().as_ref(), app.state()).await;
+        let result = open_container(rar_path.to_string_lossy().as_ref(), app.state()).await;
 
         assert!(result.is_ok());
 
@@ -630,17 +626,17 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_get_entries_in_container_empty_container() {
+    async fn test_open_container_empty_container() {
         let app = tauri::test::mock_app();
         app.manage(RwLock::new(AppState::default()));
 
-        let result = get_entries_in_container("non_existent_path", app.state()).await;
+        let result = open_container("non_existent_path", app.state()).await;
 
         assert!(result.is_err());
     }
 
     #[tokio::test]
-    async fn test_get_entries_in_container_clears_state_on_failure() {
+    async fn test_open_container_clears_state_on_failure() {
         let dir = tempfile::tempdir().unwrap();
         let rar_path = create_dummy_rar(dir.path(), "dummy.rar");
 
@@ -648,7 +644,7 @@ mod tests {
         app.manage(RwLock::new(AppState::default()));
 
         // Open a valid container first; state now holds the book's service.
-        get_entries_in_container(rar_path.to_string_lossy().as_ref(), app.state())
+        open_container(rar_path.to_string_lossy().as_ref(), app.state())
             .await
             .expect("opening a valid container should succeed");
         {
@@ -659,7 +655,7 @@ mod tests {
 
         // A subsequent failed open must clear the previous service so we never serve
         // images from the old book.
-        let result = get_entries_in_container("non_existent_path", app.state()).await;
+        let result = open_container("non_existent_path", app.state()).await;
         assert!(result.is_err());
         {
             let binding = app.state::<RwLock<AppState>>();
@@ -669,7 +665,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_get_entries_in_container_installs_the_service_without_asking_for_a_page() {
+    async fn test_open_container_installs_the_service_without_asking_for_a_page() {
         // Opening a book lists it and starts its readers; what to read is the viewer's
         // decision, made once it knows where the reader is resuming. This command cannot
         // know that, so it must queue nothing.
@@ -680,7 +676,7 @@ mod tests {
         let app = tauri::test::mock_app();
         app.manage(RwLock::new(AppState::default()));
 
-        let result = get_entries_in_container(&path, app.state()).await;
+        let result = open_container(&path, app.state()).await;
 
         let entries_result = result.expect("a valid non-novel open should succeed");
         assert!(!entries_result.is_novel);

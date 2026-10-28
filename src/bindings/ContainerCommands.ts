@@ -4,13 +4,13 @@ import { commands, type ImageDimensions } from "./bindings";
 import { runCommand } from "./result";
 
 /**
- * Opens a container file and fetches its entries from the backend.
+ * Opens a book as the open book, replacing the previous one, and fetches its entries.
  *
  * @param path The path of the container file.
  * @returns A promise that resolves to an object containing entries, directory status, and novel status.
  */
-export const getEntriesInContainer = async (path: string) => {
-  return await runCommand(commands.getEntriesInContainer(path));
+export const openContainer = async (path: string) => {
+  return await runCommand(commands.openContainer(path));
 };
 
 /**

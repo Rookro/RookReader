@@ -42,7 +42,7 @@ vi.mock("../../bindings/BookshelfCommands", () => ({
 }));
 
 vi.mock("../../bindings/ContainerCommands", () => ({
-  getEntriesInContainer: vi.fn(() =>
+  openContainer: vi.fn(() =>
     Promise.resolve({ entries: [], is_directory: false, is_novel: false, has_previews: false }),
   ),
   requestPreloadAround: vi.fn(() => Promise.resolve()),

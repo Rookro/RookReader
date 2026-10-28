@@ -6,7 +6,7 @@ import {
   updateReadingDirection,
   updateSpreadShift,
 } from "../../bindings/BookCommands";
-import { getEntriesInContainer, requestPreloadAround } from "../../bindings/ContainerCommands";
+import { openContainer, requestPreloadAround } from "../../bindings/ContainerCommands";
 import { getEntriesInDir as getEntriesInDirFromBackend } from "../../bindings/DirectoryCommands";
 import type { BookWithState } from "../../domain/entities";
 import { handleThunkError } from "../../store/thunkErrorHandler";
@@ -34,10 +34,7 @@ export const openContainerFile = createAppAsyncThunk(
     }
     info(`Open container file: ${path}`);
     try {
-      const [entriesResult, dirPath] = await Promise.all([
-        getEntriesInContainer(path),
-        dirname(path),
-      ]);
+      const [entriesResult, dirPath] = await Promise.all([openContainer(path), dirname(path)]);
 
       const isEpubNovel = entriesResult.is_novel;
 
