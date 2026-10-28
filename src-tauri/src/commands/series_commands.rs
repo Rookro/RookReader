@@ -1,8 +1,7 @@
 use std::sync::Arc;
-use tauri::Emitter;
 use tauri::State;
 
-use crate::commands::library_events::{BOOKS_CHANGED_EVENT, SERIES_CHANGED_EVENT};
+use crate::commands::events::{emit, BooksChanged, SeriesChanged};
 use crate::domain::series::entity::Series;
 use crate::domain::series::repository::SeriesRepository;
 use crate::error::Result;
@@ -31,7 +30,7 @@ pub async fn create_series<R: tauri::Runtime>(
 ) -> Result<i64> {
     log::debug!("Create series. (name:{})", name);
     let series_id = repo.create(&name).await?;
-    app.emit(SERIES_CHANGED_EVENT, ())?;
+    emit(&app, &SeriesChanged)?;
     Ok(series_id)
 }
 
@@ -75,18 +74,19 @@ pub async fn delete_series<R: tauri::Runtime>(
 ) -> Result<()> {
     log::debug!("Delete series. (id:{})", id);
     repo.delete(id).await?;
-    app.emit(SERIES_CHANGED_EVENT, ())?;
-    app.emit(BOOKS_CHANGED_EVENT, ())?;
+    emit(&app, &SeriesChanged)?;
+    emit(&app, &BooksChanged)?;
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::commands::library_events::test_support::record_events;
+    use crate::commands::events::test_support::record_events;
     use crate::domain::series::repository::MockSeriesRepository;
     use crate::error::ErrorCode;
     use tauri::Manager;
+    use tauri_specta::Event;
 
     #[tokio::test]
     async fn test_create_series() {
@@ -104,7 +104,7 @@ mod tests {
 
         let result = create_series("New Series".to_string(), state, app.handle().clone()).await;
         assert!(result.is_ok());
-        assert_eq!(*events.lock().unwrap(), [SERIES_CHANGED_EVENT]);
+        assert_eq!(*events.lock().unwrap(), [SeriesChanged::NAME]);
         assert_eq!(result.unwrap(), 1);
     }
 
@@ -161,7 +161,7 @@ mod tests {
         assert!(result.is_ok());
         assert_eq!(
             *events.lock().unwrap(),
-            [SERIES_CHANGED_EVENT, BOOKS_CHANGED_EVENT]
+            [SeriesChanged::NAME, BooksChanged::NAME]
         );
     }
 

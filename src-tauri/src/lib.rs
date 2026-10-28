@@ -2,7 +2,7 @@ use tokio::sync::RwLock;
 
 use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
 use tauri_plugin_window_state::StateFlags;
-use tauri_specta::{collect_commands, Builder};
+use tauri_specta::{collect_commands, collect_events, Builder};
 
 mod commands;
 mod container;
@@ -23,7 +23,9 @@ mod window_size;
 #[cfg(test)]
 mod perfbench;
 
-/// Builds the `tauri-specta` command registry used to export the TypeScript bindings.
+/// Builds the `tauri-specta` command and event registry used to export the TypeScript
+/// bindings. Every event the app sends is registered here, so its name and payload are
+/// generated too.
 ///
 /// This intentionally excludes the four binary commands (`get_image`,
 /// `get_image_full`, `get_image_preview`, `get_entries_in_dir`) that return a raw
@@ -34,57 +36,69 @@ mod perfbench;
 ///
 /// # Returns
 ///
-/// A `tauri_specta::Builder` configured with every specta-compatible command.
+/// A `tauri_specta::Builder` configured with every specta-compatible command and every
+/// event.
 pub fn specta_builder() -> Builder<tauri::Wry> {
-    Builder::<tauri::Wry>::new().commands(collect_commands![
-        commands::settings_commands::get_settings,
-        commands::settings_commands::set_settings::<tauri::Wry>,
-        commands::container_commands::request_preload_around,
-        commands::container_commands::open_container,
-        commands::container_commands::get_image_dimensions,
-        commands::container_commands::set_display_size,
-        commands::font_commands::get_fonts,
-        commands::book_commands::get_book_tags,
-        commands::book_commands::update_book_tags::<tauri::Wry>,
-        commands::book_commands::get_book,
-        commands::book_commands::get_book_by_path,
-        commands::book_commands::register_book::<tauri::Wry>,
-        commands::book_commands::record_book_opened::<tauri::Wry>,
-        commands::book_commands::delete_book::<tauri::Wry>,
-        commands::book_commands::clear_reading_history::<tauri::Wry>,
-        commands::book_commands::clear_all_reading_history::<tauri::Wry>,
-        commands::book_commands::update_spread_shift,
-        commands::book_commands::update_reading_direction,
-        commands::book_commands::update_page_layout,
-        commands::book_commands::get_recently_read_books,
-        commands::book_commands::update_reading_progress::<tauri::Wry>,
-        commands::book_commands::get_all_books_with_state,
-        commands::book_commands::get_books_with_state_by_bookshelf_id,
-        commands::book_commands::get_books_with_state_by_tag_id,
-        commands::book_commands::get_books_with_state_by_series_id,
-        commands::book_commands::update_book_series::<tauri::Wry>,
-        commands::book_commands::update_series_orders::<tauri::Wry>,
-        commands::bookshelf_commands::create_bookshelf::<tauri::Wry>,
-        commands::bookshelf_commands::get_all_bookshelves,
-        commands::bookshelf_commands::add_book_to_bookshelf::<tauri::Wry>,
-        commands::bookshelf_commands::remove_book_from_bookshelf::<tauri::Wry>,
-        commands::bookshelf_commands::get_bookshelves_for_book,
-        commands::bookshelf_commands::set_bookshelves_for_book::<tauri::Wry>,
-        commands::bookshelf_commands::delete_bookshelf::<tauri::Wry>,
-        commands::series_commands::create_series::<tauri::Wry>,
-        commands::series_commands::get_all_series,
-        commands::series_commands::delete_series::<tauri::Wry>,
-        commands::tag_commands::create_tag::<tauri::Wry>,
-        commands::tag_commands::get_all_tags,
-        commands::tag_commands::delete_tag::<tauri::Wry>,
-        commands::bookmark_commands::create_bookmark,
-        commands::bookmark_commands::get_bookmarks_by_book_id,
-        commands::bookmark_commands::rename_bookmark,
-        commands::bookmark_commands::delete_bookmark,
-        commands::updater_commands::is_updater_supported,
-        commands::updater_commands::claim_update_prompt,
-        commands::updater_commands::release_update_prompt,
-    ])
+    Builder::<tauri::Wry>::new()
+        .commands(collect_commands![
+            commands::settings_commands::get_settings,
+            commands::settings_commands::set_settings::<tauri::Wry>,
+            commands::container_commands::request_preload_around,
+            commands::container_commands::open_container,
+            commands::container_commands::get_image_dimensions,
+            commands::container_commands::set_display_size,
+            commands::font_commands::get_fonts,
+            commands::book_commands::get_book_tags,
+            commands::book_commands::update_book_tags::<tauri::Wry>,
+            commands::book_commands::get_book,
+            commands::book_commands::get_book_by_path,
+            commands::book_commands::register_book::<tauri::Wry>,
+            commands::book_commands::record_book_opened::<tauri::Wry>,
+            commands::book_commands::delete_book::<tauri::Wry>,
+            commands::book_commands::clear_reading_history::<tauri::Wry>,
+            commands::book_commands::clear_all_reading_history::<tauri::Wry>,
+            commands::book_commands::update_spread_shift,
+            commands::book_commands::update_reading_direction,
+            commands::book_commands::update_page_layout,
+            commands::book_commands::get_recently_read_books,
+            commands::book_commands::update_reading_progress::<tauri::Wry>,
+            commands::book_commands::get_all_books_with_state,
+            commands::book_commands::get_books_with_state_by_bookshelf_id,
+            commands::book_commands::get_books_with_state_by_tag_id,
+            commands::book_commands::get_books_with_state_by_series_id,
+            commands::book_commands::update_book_series::<tauri::Wry>,
+            commands::book_commands::update_series_orders::<tauri::Wry>,
+            commands::bookshelf_commands::create_bookshelf::<tauri::Wry>,
+            commands::bookshelf_commands::get_all_bookshelves,
+            commands::bookshelf_commands::add_book_to_bookshelf::<tauri::Wry>,
+            commands::bookshelf_commands::remove_book_from_bookshelf::<tauri::Wry>,
+            commands::bookshelf_commands::get_bookshelves_for_book,
+            commands::bookshelf_commands::set_bookshelves_for_book::<tauri::Wry>,
+            commands::bookshelf_commands::delete_bookshelf::<tauri::Wry>,
+            commands::series_commands::create_series::<tauri::Wry>,
+            commands::series_commands::get_all_series,
+            commands::series_commands::delete_series::<tauri::Wry>,
+            commands::tag_commands::create_tag::<tauri::Wry>,
+            commands::tag_commands::get_all_tags,
+            commands::tag_commands::delete_tag::<tauri::Wry>,
+            commands::bookmark_commands::create_bookmark,
+            commands::bookmark_commands::get_bookmarks_by_book_id,
+            commands::bookmark_commands::rename_bookmark,
+            commands::bookmark_commands::delete_bookmark,
+            commands::updater_commands::is_updater_supported,
+            commands::updater_commands::claim_update_prompt,
+            commands::updater_commands::release_update_prompt,
+        ])
+        .events(collect_events![
+            commands::events::BookshelvesChanged,
+            commands::events::TagsChanged,
+            commands::events::SeriesChanged,
+            commands::events::BooksChanged,
+            commands::events::ReadingHistoryChanged,
+            commands::events::ReadingProgressChanged,
+            commands::events::SettingsChanged,
+            commands::events::LocaleChanged,
+        ])
 }
 
 /// Returns the window state that `tauri-plugin-window-state` saves and restores.
@@ -203,9 +217,9 @@ mod bindings_export {
             // loss; our IDs stay well within `Number.MAX_SAFE_INTEGER`.
             .dangerously_cast_bigints_to_number()
             .export(
-                // The generated file contains internal helpers (`TAURI_CHANNEL`,
-                // `__makeEvents__`) that are unused here; `@ts-nocheck` silences strict
-                // unused-symbol errors while keeping the exported types usable at call sites.
+                // The generated file contains internal helpers (`TAURI_CHANNEL`) that are
+                // unused here; `@ts-nocheck` silences strict unused-symbol errors while
+                // keeping the exported types usable at call sites.
                 Typescript::default().header("// @ts-nocheck\n"),
                 "../src/bindings/bindings.ts",
             )
@@ -226,6 +240,9 @@ mod bindings_export {
             "register_book",
             "export type AppSettings",
             "export type BookWithState",
+            "export const events",
+            "books-changed",
+            "locale-changed",
             // Structured settings-validation error shape surfaced to the frontend.
             "SettingsValidationViolation",
             "ViolationKind",
