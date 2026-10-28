@@ -6,7 +6,7 @@ import type { AppDispatch } from "../../../store/store";
 import { createCommandError, type ErrorCode } from "../../../types/Error";
 import type { Image } from "../../../types/Image";
 import { perf, perfSince, perfStart } from "../../../utils/perf";
-import { setImageIndex, setSpreadDisplayed } from "../slice";
+import { setSpreadDisplayed } from "../slice";
 import {
   buildSinglePageLayout,
   buildUnitLayout,
@@ -20,10 +20,10 @@ import {
   type ViewerSettings,
   type ViewLayout,
 } from "../utils/ImageUtils";
-import { nextUnitStart, previousUnitStart, walkUnits } from "../utils/spreadPairing";
 import type { DisplaySize } from "./useDisplaySize";
 import { useLandscapeScan } from "./useLandscapeScan";
-import type { PageMove, PageMoveOptions } from "./usePageNavigation";
+import type { PageMove } from "./usePageNavigation";
+import { useSpreadNavigation } from "./useSpreadNavigation";
 import { useSpreadPairing } from "./useSpreadPairing";
 
 /**
@@ -436,62 +436,15 @@ export const useViewerController = ({
     dispatch(setSpreadDisplayed(isSpreadDisplayed));
   }, [isSpreadDisplayed, dispatch]);
 
-  const goTo = useCallback(
-    (nextIndex: number) => {
-      dispatch(setImageIndex(nextIndex));
-    },
-    [dispatch],
-  );
-
-  // The index one displayed unit after `i`, or null past the last page. Derive the
-  // increment from the unit at `i`, not the lagging displayedLayout, which would desync
-  // spread pairs / skip pages. The unit is the one being displayed, so a step never lands
-  // on a page the reader has just seen, and a unit chain covers every index contiguously,
-  // so it never skips one either.
-  const nextIndexFrom = useCallback(
-    (i: number): number | null => nextUnitStart(pairing, i, entries.length),
-    [pairing, entries.length],
-  );
-
-  // The index one displayed unit before `i`, or null on the first page. The preceding unit
-  // is the last boundary before `i` of the pairing the viewer is displaying, so back and
-  // forward stay in step; without a pairing every unit is a single page.
-  const previousIndexFrom = useCallback(
-    (i: number): number | null => previousUnitStart(pairing, i, settings.isTwoPagedView),
-    [settings.isTwoPagedView, pairing],
-  );
-
-  const walk = useCallback(
-    (
-      step: (i: number) => number | null,
-      boundary: (() => void) | undefined,
-      options?: PageMoveOptions,
-    ): boolean => {
-      if (entries.length === 0) {
-        return false;
-      }
-      const steps = options?.steps ?? 1;
-      const { at, moved } = walkUnits(index, steps, step);
-      if (moved > 0) {
-        goTo(at);
-      } else if (options?.crossBook !== false) {
-        // Already at the first or last page: hand off to the adjacent-book handler.
-        boundary?.();
-      }
-      return moved === steps;
-    },
-    [entries.length, index, goTo],
-  );
-
-  const moveForward = useCallback(
-    (options?: PageMoveOptions) => walk(nextIndexFrom, onForwardBoundary, options),
-    [walk, nextIndexFrom, onForwardBoundary],
-  );
-
-  const moveBack = useCallback(
-    (options?: PageMoveOptions) => walk(previousIndexFrom, onBackwardBoundary, options),
-    [walk, previousIndexFrom, onBackwardBoundary],
-  );
+  const { moveForward, moveBack } = useSpreadNavigation({
+    pairing,
+    pageCount: entries.length,
+    index,
+    isTwoPagedView: settings.isTwoPagedView,
+    dispatch,
+    onForwardBoundary,
+    onBackwardBoundary,
+  });
 
   return {
     displayedLayout,
