@@ -1487,6 +1487,47 @@ describe("useViewerController", () => {
       expect(result.current.isImageLoading).toBe(true);
     });
 
+    // Verify recording a loaded page's shape does not restart the loads still in flight
+    it("loads each page of a spread once while the book is being measured", async () => {
+      vi.useFakeTimers();
+      try {
+        vi.mocked(getImageDimensions).mockReturnValue(new Promise(() => {}));
+        let releaseSecond: () => void = () => {};
+        const second = new Promise<Image>((resolve) => {
+          releaseSecond = () => resolve({} as Image);
+        });
+        mockedFetchImageBlob.mockImplementation((_path, entry) =>
+          entry === "p2.jpg" ? second : Promise.resolve({} as Image),
+        );
+
+        renderHook(() =>
+          useViewerController({
+            containerPath: "path",
+            displaySize: VIEWPORT,
+            entries: mockEntries,
+            index: 0,
+            isSpreadShifted: false,
+            settings: twoPaged,
+            dispatch: mockDispatch,
+            hasPreviews: true,
+          }),
+        );
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(0);
+        });
+        expect(mockedCreateImageCacheItem).toHaveBeenCalledTimes(1);
+
+        await act(async () => {
+          releaseSecond();
+          await vi.advanceTimersByTimeAsync(0);
+        });
+        expect(mockedCreateImageCacheItem).toHaveBeenCalledTimes(2);
+        expect(mockedFetchImageBlob).toHaveBeenCalledTimes(2);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     /** Renders with a never-landing scan and lets the wait cap elapse. */
     const afterTheWaitCap = async (settings: ImageUtils.ViewerSettings, shifted = false) => {
       vi.mocked(getImageDimensions).mockReturnValue(new Promise(() => {}));
