@@ -67,7 +67,7 @@ Write all code comments and documentation in English.
 
 **Validation:** application settings are validated in Rust (serde for shape and enums, `garde` for bounds) and their TypeScript types are generated. Entities returned by commands and events come from our own backend and are typed by the generated bindings, so they are not validated at runtime; validate only genuinely external input (for example values read back from `localStorage`) where it is read.
 
-**Settings:** the model, defaults, and bounds live in `src-tauri/src/settings/`. The frontend keeps copies in `src/features/Settings/defaultSettings.json` and `settingsBounds.json`, and Rust tests (`test_defaults_agree_with_frontend_json`, `test_bounds_agree_with_frontend_json`) fail when they drift. Adding or changing a setting therefore also means updating both JSON files, the i18n keys, and the settings reference in `docs/wiki/User-Guide.md` (`check:wiki` checks its names and defaults against the code), and regenerating the bindings.
+**Settings:** the model, defaults, and bounds live in `src-tauri/src/settings/`; `npm run gen:bindings` writes the defaults and bounds into `src/bindings/bindings.ts` as `DEFAULT_SETTINGS` and `SETTINGS_BOUNDS`. Adding or changing a setting therefore also means updating the i18n keys and the settings reference in `docs/wiki/User-Guide.md` (`check:wiki` checks its names and defaults against the code), and regenerating the bindings.
 
 ## Security
 
@@ -79,7 +79,7 @@ Write all code comments and documentation in English.
 
 The GitHub Wiki is synced from `docs/wiki/` on every push to `main`. When a change affects what a page describes, update the page in the same PR:
 
-- `User-Guide.md`: user-visible behaviour (formats, File Navigator / toolbar / side-pane controls, keyboard and mouse, page display (direction, spread, loupe), continuous reading, bookmarks, bookshelf / collections / tags / series, reading history, EPUB) and every settings tab and item. Names come from `src/i18n/locales/en-US.json`, defaults from `src/features/Settings/defaultSettings.json`, bounds from `src/features/Settings/settingsBounds.json`.
+- `User-Guide.md`: user-visible behaviour (formats, File Navigator / toolbar / side-pane controls, keyboard and mouse, page display (direction, spread, loupe), continuous reading, bookmarks, bookshelf / collections / tags / series, reading history, EPUB) and every settings tab and item. Names come from `src/i18n/locales/en-US.json`, defaults from `DEFAULT_SETTINGS` and bounds from `SETTINGS_BOUNDS` (both in `src/bindings/bindings.ts`).
 - `FAQ-&-Troubleshooting.md`: data and log locations (`src-tauri/src/setup.rs`), logging, Linux packaging, window state.
 - `Developer-Guide.md`: directory layout (`src/`, `src-tauri/src/`), the command/bindings workflow, error codes, npm scripts (`package.json`), CI (`.github/workflows/`), prerequisites and branching (`CONTRIBUTING.md`), database schema (`docs/database/er_diagram.md`).
 - `Home.md`: the feature summary and supported formats.

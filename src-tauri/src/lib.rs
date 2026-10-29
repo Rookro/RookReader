@@ -222,6 +222,9 @@ mod bindings_export {
             .semantic_types(
                 specta_typescript::semantic::Configuration::empty().enable_lossless_floats(),
             )
+            // The frontend reads the defaults and bounds from these instead of keeping copies.
+            .constant("DEFAULT_SETTINGS", crate::settings::AppSettings::default())
+            .constant("SETTINGS_BOUNDS", crate::settings::bounds_by_path())
             .export(
                 // The generated file contains internal helpers (`TAURI_CHANNEL`) that are
                 // unused here; `@ts-nocheck` silences strict unused-symbol errors while
@@ -247,6 +250,8 @@ mod bindings_export {
             "export type AppSettings",
             "export type BookWithState",
             "export const events",
+            "export const DEFAULT_SETTINGS",
+            "export const SETTINGS_BOUNDS",
             "createCollection",
             "collections-changed",
             "books-changed",

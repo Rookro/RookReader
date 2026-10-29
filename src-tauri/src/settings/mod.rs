@@ -17,6 +17,8 @@ use serde_json::Value;
 use crate::error::{Error, Result};
 use patch::json_deep_merge;
 use validation::{collect_violations, json_leaf, set_json_leaf, snake_to_camel_case};
+#[cfg(test)]
+pub(crate) use validation::bounds_by_path;
 
 /// A single settings field that failed validation, structured so the frontend can
 /// render a localized, actionable message ("out of range" vs "must be a whole number")
@@ -566,24 +568,6 @@ mod tests {
         let provider = RecordingProvider::new(json!({ "general": { "theme": "dark" } }));
         AppSettings::load_and_persist_normalized(&provider).unwrap();
         assert_eq!(provider.save_count(), 1);
-    }
-
-    #[test]
-    fn test_defaults_agree_with_frontend_json() {
-        // The frontend's defaultSettings fixture must equal the backend defaults (with the
-        // dynamic home directory neutralized to ""), so the two hardcoded default copies
-        // cannot drift.
-        let mut cfg = AppSettings::normalize(json!({}), "/dummy/home".to_string());
-        cfg.file_navigator.home_directory = PathBuf::from("");
-        let backend = serde_json::to_value(&cfg).unwrap();
-
-        let fixture: Value = serde_json::from_str(include_str!(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../src/features/Settings/defaultSettings.json"
-        )))
-        .unwrap();
-
-        assert_eq!(backend, fixture);
     }
 
     #[test]

@@ -11,9 +11,15 @@ const root = process.cwd();
 const wikiDir = path.join(root, "docs", "wiki");
 const pkg = JSON.parse(readFileSync(path.join(root, "package.json"), "utf-8"));
 const enUs = JSON.parse(readFileSync(path.join(root, "src/i18n/locales/en-US.json"), "utf-8"));
-const defaults = JSON.parse(
-  readFileSync(path.join(root, "src/features/Settings/defaultSettings.json"), "utf-8"),
-);
+// Read as text: importing `bindings.ts` would pull it into the composite node project,
+// which the root tsconfig references, and break the root type check.
+const bindings = readFileSync(path.join(root, "src/bindings/bindings.ts"), "utf-8");
+const defaultsJson = /^export const DEFAULT_SETTINGS = (.*) as const;$/m.exec(bindings)?.[1];
+if (defaultsJson === undefined) {
+  console.error("[Error] DEFAULT_SETTINGS not found in src/bindings/bindings.ts.");
+  process.exit(1);
+}
+const defaults = JSON.parse(defaultsJson);
 const scripts = new Set(Object.keys(pkg.scripts ?? {}));
 
 let total = 0;
