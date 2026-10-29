@@ -57,7 +57,7 @@ export const commands = {
 	 *  # Errors
 	 * 
 	 *  Returns `Error::Settings` if the merged result is invalid (e.g. out of range),
-	 *  or a persistence/emit error.
+	 *  or a persistence error.
 	 */
 	setSettings: (patch: SettingsPatch) => typedError<AppSettings_Serialize, CommandError_Serialize>(__TAURI_INVOKE("set_settings", { patch })),
 	/**

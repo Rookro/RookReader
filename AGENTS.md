@@ -63,7 +63,7 @@ Write all code comments and documentation in English.
 
 **Error codes** are defined only in Rust (`ErrorCode::code()` in `src-tauri/src/error.rs`). To add one, add the variant and its `code()` arm, then regenerate. The frontend uses `CommandError` from `src/types/Error.ts`, which re-exports the generated codes plus a frontend-only `unknown`.
 
-**Events** are types in `src-tauri/src/commands/events.rs`, registered in `specta_builder()`'s `collect_events!`, so their names and payloads are generated too. Rust sends them with `events::emit` / `emit_to`, never the derived `Event::emit` (it panics because the app does not mount events). The frontend listens with `useTauriEvent(events.x, …)` and emits with `events.x.emit(…)`; no event name is written as a string.
+**Events** are types in `src-tauri/src/commands/events.rs`, registered in `specta_builder()`'s `collect_events!`, so their names and payloads are generated too. Rust sends them with `events::emit` / `emit_to`, which log a failed send rather than return it, since the change they announce is already saved, never the derived `Event::emit` (it panics because the app does not mount events). The frontend listens with `useTauriEvent(events.x, …)` and emits with `events.x.emit(…)`; no event name is written as a string.
 
 **Validation:** application settings are validated in Rust (serde for shape and enums, `garde` for bounds) and their TypeScript types are generated. Entities returned by commands and events come from our own backend and are typed by the generated bindings, so they are not validated at runtime; validate only genuinely external input (for example values read back from `localStorage`) where it is read.
 

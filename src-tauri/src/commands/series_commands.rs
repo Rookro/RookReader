@@ -30,7 +30,7 @@ pub async fn create_series<R: tauri::Runtime>(
 ) -> Result<i64> {
     log::debug!("Create series. (name:{})", name);
     let series_id = repo.create(&name).await?;
-    emit(&app, &SeriesChanged)?;
+    emit(&app, &SeriesChanged);
     Ok(series_id)
 }
 
@@ -74,8 +74,8 @@ pub async fn delete_series<R: tauri::Runtime>(
 ) -> Result<()> {
     log::debug!("Delete series. (id:{})", id);
     repo.delete(id).await?;
-    emit(&app, &SeriesChanged)?;
-    emit(&app, &BooksChanged)?;
+    emit(&app, &SeriesChanged);
+    emit(&app, &BooksChanged);
     Ok(())
 }
 

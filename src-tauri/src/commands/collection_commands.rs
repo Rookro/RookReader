@@ -32,7 +32,7 @@ pub async fn create_collection<R: tauri::Runtime>(
 ) -> Result<Collection> {
     log::debug!("Create collection. (name:{}, icon_id:{})", name, icon_id);
     let collection = repo.create(&name, &icon_id).await?;
-    emit(&app, &CollectionsChanged)?;
+    emit(&app, &CollectionsChanged);
     Ok(collection)
 }
 
@@ -85,7 +85,7 @@ pub async fn add_book_to_collection<R: tauri::Runtime>(
         book_id
     );
     repo.add_book_to_collection(collection_id, book_id).await?;
-    emit(&app, &BooksChanged)?;
+    emit(&app, &BooksChanged);
     Ok(())
 }
 
@@ -115,7 +115,7 @@ pub async fn remove_book_from_collection<R: tauri::Runtime>(
     );
     repo.remove_book_from_collection(collection_id, book_id)
         .await?;
-    emit(&app, &BooksChanged)?;
+    emit(&app, &BooksChanged);
     Ok(())
 }
 
@@ -169,7 +169,7 @@ pub async fn set_collections_for_book<R: tauri::Runtime>(
     );
     repo.set_collections_for_book(book_id, &collection_ids)
         .await?;
-    emit(&app, &BooksChanged)?;
+    emit(&app, &BooksChanged);
     Ok(())
 }
 
@@ -192,7 +192,7 @@ pub async fn delete_collection<R: tauri::Runtime>(
 ) -> Result<()> {
     log::debug!("Delete collection. (id:{})", id);
     repo.delete(id).await?;
-    emit(&app, &CollectionsChanged)?;
+    emit(&app, &CollectionsChanged);
     Ok(())
 }
 

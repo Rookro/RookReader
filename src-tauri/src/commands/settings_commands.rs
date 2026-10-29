@@ -1,5 +1,4 @@
 use tauri::{AppHandle, Manager, WebviewWindow};
-use tauri_specta::Event;
 use tokio::sync::RwLock;
 
 use crate::{
@@ -64,7 +63,7 @@ pub async fn get_settings(provider: tauri::State<'_, SettingsFileProvider>) -> R
 /// # Errors
 ///
 /// Returns `Error::Settings` if the merged result is invalid (e.g. out of range),
-/// or a persistence/emit error.
+/// or a persistence error.
 #[tauri::command]
 #[specta::specta]
 pub async fn set_settings<R: tauri::Runtime>(
@@ -94,14 +93,8 @@ pub async fn set_settings<R: tauri::Runtime>(
     let all_labels: Vec<String> = app.webview_windows().into_keys().collect();
     let event = SettingsChanged(settings.clone());
     for label in settings_change_targets(all_labels, &caller_label) {
-        // The settings are already persisted and applied; a failed emit to one window
-        // must not abort delivery to the others, so log and continue.
-        if let Err(e) = emit_to(&app, label.as_str(), &event) {
-            log::warn!(
-                "Failed to emit {} to window '{label}': {e}",
-                SettingsChanged::NAME
-            );
-        }
+        // One window at a time, so a failed send to one does not stop delivery to the others.
+        emit_to(&app, label.as_str(), &event);
     }
 
     Ok(settings)

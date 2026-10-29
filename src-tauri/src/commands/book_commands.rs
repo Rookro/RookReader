@@ -113,7 +113,7 @@ pub async fn register_book<R: tauri::Runtime>(
         )
         .await?;
 
-    emit(&app, &BooksChanged)?;
+    emit(&app, &BooksChanged);
 
     Ok(book_id)
 }
@@ -180,8 +180,8 @@ pub async fn record_book_opened<R: tauri::Runtime>(
         }
     }
 
-    emit(&app, &BooksChanged)?;
-    emit(&app, &ReadingHistoryChanged)?;
+    emit(&app, &BooksChanged);
+    emit(&app, &ReadingHistoryChanged);
 
     Ok(book)
 }
@@ -221,8 +221,8 @@ pub async fn clear_reading_history<R: tauri::Runtime>(
 ) -> Result<()> {
     log::debug!("Clear reading history of {:?}", book_id);
     repo.clear_reading_history(book_id).await?;
-    emit(&app, &BooksChanged)?;
-    emit(&app, &ReadingHistoryChanged)?;
+    emit(&app, &BooksChanged);
+    emit(&app, &ReadingHistoryChanged);
     Ok(())
 }
 
@@ -245,8 +245,8 @@ pub async fn clear_all_reading_history<R: tauri::Runtime>(
 ) -> Result<()> {
     log::debug!("Clear all reading history");
     repo.clear_all_reading_history().await?;
-    emit(&app, &BooksChanged)?;
-    emit(&app, &ReadingHistoryChanged)?;
+    emit(&app, &BooksChanged);
+    emit(&app, &ReadingHistoryChanged);
     Ok(())
 }
 
@@ -271,7 +271,7 @@ pub async fn update_reading_progress<R: tauri::Runtime>(
 ) -> Result<()> {
     log::debug!("Update reading progress: {:?}", state_data);
     repo.update_reading_progress(&state_data).await?;
-    emit(&app, &ReadingProgressChanged(state_data))?;
+    emit(&app, &ReadingProgressChanged(state_data));
     Ok(())
 }
 
@@ -534,7 +534,7 @@ pub async fn update_book_tags<R: tauri::Runtime>(
         tag_ids
     );
     repo.attach_tags_to_book(book_id, &tag_ids).await?;
-    emit(&app, &BooksChanged)?;
+    emit(&app, &BooksChanged);
     Ok(())
 }
 
@@ -565,8 +565,8 @@ pub async fn delete_book<R: tauri::Runtime>(
     if let Some(path) = thumbnail_path {
         remove_thumbnail(path).await;
     }
-    emit(&app, &BooksChanged)?;
-    emit(&app, &ReadingHistoryChanged)?;
+    emit(&app, &BooksChanged);
+    emit(&app, &ReadingHistoryChanged);
     Ok(())
 }
 
@@ -611,7 +611,7 @@ pub async fn update_book_series<R: tauri::Runtime>(
         series_id
     );
     repo.assign_book_to_series(book_id, series_id).await?;
-    emit(&app, &BooksChanged)?;
+    emit(&app, &BooksChanged);
     Ok(())
 }
 
@@ -634,7 +634,7 @@ pub async fn update_series_orders<R: tauri::Runtime>(
 ) -> Result<()> {
     log::debug!("Update series orders for books: {:?}", book_ids);
     repo.update_book_orders_in_series(book_ids).await?;
-    emit(&app, &BooksChanged)?;
+    emit(&app, &BooksChanged);
     Ok(())
 }
 

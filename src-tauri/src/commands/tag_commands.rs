@@ -32,7 +32,7 @@ pub async fn create_tag<R: tauri::Runtime>(
 ) -> Result<Tag> {
     log::debug!("Create tag. (name:{}, color_code:{})", name, color_code);
     let tag = repo.create(&name, &color_code).await?;
-    emit(&app, &TagsChanged)?;
+    emit(&app, &TagsChanged);
     Ok(tag)
 }
 
@@ -76,8 +76,8 @@ pub async fn delete_tag<R: tauri::Runtime>(
 ) -> Result<()> {
     log::debug!("Delete tag. (id:{})", id);
     repo.delete(id).await?;
-    emit(&app, &TagsChanged)?;
-    emit(&app, &BooksChanged)?;
+    emit(&app, &TagsChanged);
+    emit(&app, &BooksChanged);
     Ok(())
 }
 

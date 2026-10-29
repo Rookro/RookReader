@@ -5,7 +5,8 @@
 //! `specta_builder()`, which generates its name and payload into the TypeScript bindings.
 //!
 //! Send them with [`emit`] or [`emit_to`]: the derived `Event::emit` panics on an app
-//! whose events were never mounted, and this app never mounts them.
+//! whose events were never mounted, and this app never mounts them. Both log a failed send
+//! rather than return it, because the change an event announces is already saved.
 
 use serde::{Deserialize, Serialize};
 use tauri::{Emitter, Runtime};
@@ -54,38 +55,36 @@ pub(crate) struct LocaleChanged {
 
 /// Emits `event` to every window under its generated name.
 ///
+/// The change an event announces is already saved, so a failed send is logged rather than
+/// returned: the caller must not report a saved change as failed.
+///
 /// # Arguments
 ///
 /// * `app` - The app (or any emitter) to emit through.
 /// * `event` - The event to emit.
-///
-/// # Errors
-///
-/// Returns an `Err` if Tauri fails to serialize or deliver the event.
-pub(crate) fn emit<R: Runtime, E: Event + Serialize>(
-    app: &impl Emitter<R>,
-    event: &E,
-) -> tauri::Result<()> {
-    app.emit(E::NAME, event)
+pub(crate) fn emit<R: Runtime, E: Event + Serialize>(app: &impl Emitter<R>, event: &E) {
+    if let Err(e) = app.emit(E::NAME, event) {
+        log::warn!("Failed to emit {}: {e}", E::NAME);
+    }
 }
 
 /// Emits `event` under its generated name to the window labelled `target` only.
+///
+/// Like [`emit`], a failed send is logged rather than returned.
 ///
 /// # Arguments
 ///
 /// * `app` - The app (or any emitter) to emit through.
 /// * `target` - The label of the window to deliver to.
 /// * `event` - The event to emit.
-///
-/// # Errors
-///
-/// Returns an `Err` if Tauri fails to serialize or deliver the event.
 pub(crate) fn emit_to<R: Runtime, E: Event + Serialize>(
     app: &impl Emitter<R>,
     target: &str,
     event: &E,
-) -> tauri::Result<()> {
-    app.emit_to(target, E::NAME, event)
+) {
+    if let Err(e) = app.emit_to(target, E::NAME, event) {
+        log::warn!("Failed to emit {} to window '{target}': {e}", E::NAME);
+    }
 }
 
 #[cfg(test)]
@@ -120,6 +119,29 @@ pub(crate) mod test_support {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// An event Tauri cannot serialize, so sending it always fails.
+    #[derive(specta::Type, Event)]
+    struct Unsendable;
+
+    impl Serialize for Unsendable {
+        fn serialize<S: serde::Serializer>(&self, _: S) -> Result<S::Ok, S::Error> {
+            Err(serde::ser::Error::custom("cannot be sent"))
+        }
+    }
+
+    #[test]
+    fn a_failed_send_is_logged_not_returned() {
+        let app = tauri::test::mock_app();
+        assert!(
+            app.handle().emit(Unsendable::NAME, &Unsendable).is_err(),
+            "the fixture must fail to send"
+        );
+
+        // The change an event announces is already saved; the caller must not be told it failed.
+        let () = emit(app.handle(), &Unsendable);
+        let () = emit_to(app.handle(), "main", &Unsendable);
+    }
 
     #[test]
     fn event_names_are_pinned() {
