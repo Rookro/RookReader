@@ -4,6 +4,7 @@ use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
 use tauri_plugin_window_state::StateFlags;
 use tauri_specta::{collect_commands, collect_events, Builder};
 
+mod blocking;
 mod commands;
 mod container;
 pub mod domain;

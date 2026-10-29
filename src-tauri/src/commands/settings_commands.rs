@@ -3,8 +3,9 @@ use tauri_specta::Event;
 use tokio::sync::RwLock;
 
 use crate::{
+    blocking::run_blocking,
     commands::events::{emit_to, SettingsChanged},
-    error::{Error, Result},
+    error::Result,
     settings::{AppSettings, SettingsFileLock, SettingsFileProvider, SettingsPatch},
     setup,
     state::app_state::AppState,
@@ -31,9 +32,7 @@ use crate::{
 #[specta::specta]
 pub async fn get_settings(provider: tauri::State<'_, SettingsFileProvider>) -> Result<AppSettings> {
     let provider = provider.inner().clone();
-    tauri::async_runtime::spawn_blocking(move || AppSettings::load(&provider))
-        .await
-        .map_err(|e| Error::Other(format!("Spawn blocking failed: {e}")))?
+    run_blocking(move || AppSettings::load(&provider)).await
 }
 
 /// Applies a partial settings change and returns the full merged settings.
@@ -83,9 +82,7 @@ pub async fn set_settings<R: tauri::Runtime>(
 
     let settings = {
         let provider = provider.inner().clone();
-        tauri::async_runtime::spawn_blocking(move || AppSettings::apply_patch(&provider, patch))
-            .await
-            .map_err(|e| Error::Other(format!("Spawn blocking failed: {e}")))??
+        run_blocking(move || AppSettings::apply_patch(&provider, patch)).await?
     };
 
     {

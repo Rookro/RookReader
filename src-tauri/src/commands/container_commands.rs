@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use tauri::ipc::Response;
 
 use crate::{
+    blocking::run_blocking,
     error::{Error, Result},
     image::types::{Image, ImageDimensions},
     page::{pipeline::Fit, service::Priority},
@@ -97,12 +98,10 @@ pub async fn open_container(
         )
     };
     let path_owned = path.to_string();
-    let built = tauri::async_runtime::spawn_blocking(move || {
+    let built = run_blocking(move || {
         ContainerState::build_with(&settings, &image_cache, display_size, &path_owned)
     })
-    .await
-    .map_err(|e| Error::Other(format!("Spawn blocking failed: {e}")))
-    .and_then(|result| result);
+    .await;
     let service = match built {
         Ok(service) => service,
         Err(e) => {
@@ -282,9 +281,7 @@ pub async fn get_image_dimensions(
 
     // One `Scan` job per page rather than one pass over the archive, so a page turn
     // during the scan is served at the next job instead of after all of them.
-    tauri::async_runtime::spawn_blocking(move || service.dimensions())
-        .await
-        .map_err(|e| Error::Other(format!("Spawn blocking failed: {e}")))?
+    run_blocking(move || service.dimensions()).await
 }
 
 /// Retrieves an image from the currently open container.
@@ -454,9 +451,7 @@ pub async fn read_novel_file(
 
     let path_owned = path.to_string();
     // On a blocking thread: an EPUB can be large, and other IPC calls must not wait on it.
-    let bytes = tauri::async_runtime::spawn_blocking(move || std::fs::read(path_owned))
-        .await
-        .map_err(|e| Error::Other(format!("Spawn blocking failed: {e}")))??;
+    let bytes = run_blocking(move || std::fs::read(path_owned)).await?;
     Ok(Response::new(bytes))
 }
 

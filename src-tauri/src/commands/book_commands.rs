@@ -4,6 +4,7 @@ use tokio::sync::RwLock;
 
 use tauri::State;
 
+use crate::blocking::run_blocking;
 use crate::commands::events::{emit, BooksChanged, ReadingHistoryChanged, ReadingProgressChanged};
 use crate::container::describe::describe;
 use crate::container::factory::{create_container, ContainerConfig};
@@ -189,10 +190,7 @@ pub async fn record_book_opened<R: tauri::Runtime>(
 /// when the settings cannot be read.
 async fn default_reading_direction(provider: &SettingsFileProvider) -> Option<Direction> {
     let provider = provider.clone();
-    let loaded = tauri::async_runtime::spawn_blocking(move || AppSettings::load(&provider))
-        .await
-        .map_err(|e| Error::Other(format!("Spawn blocking failed: {e}")))
-        .and_then(|result| result);
+    let loaded = run_blocking(move || AppSettings::load(&provider)).await;
     match loaded {
         Ok(settings) => Some(settings.reader.comic.reading_direction),
         Err(e) => {
@@ -665,11 +663,10 @@ async fn book_container(
     }
 
     let path_owned = path.to_string();
-    let container = tauri::async_runtime::spawn_blocking(move || {
+    let container = run_blocking(move || {
         create_container(&path_owned, ContainerState::container_config(&settings))
     })
-    .await
-    .map_err(|e| Error::Other(format!("Spawn blocking failed: {e}")))??;
+    .await?;
     Ok((container, config))
 }
 
@@ -757,7 +754,7 @@ async fn generate_and_save_thumbnail<R: tauri::Runtime>(
     config: ContainerConfig,
     container: Option<Arc<dyn Container>>,
 ) -> Result<Option<String>> {
-    tauri::async_runtime::spawn_blocking(move || {
+    run_blocking(move || -> Result<Option<String>> {
         let thumbnails_dir = crate::setup::app_data_dir(&app)?.join("thumbnails");
         if !thumbnails_dir.exists() {
             fs::create_dir_all(&thumbnails_dir)?;
@@ -810,7 +807,6 @@ async fn generate_and_save_thumbnail<R: tauri::Runtime>(
         }
     })
     .await
-    .map_err(|e| Error::Other(format!("Spawn blocking failed: {}", e)))?
 }
 
 #[cfg(test)]
