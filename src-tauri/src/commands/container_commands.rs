@@ -8,8 +8,6 @@ use crate::{
     error::{Error, Result},
     image::types::{Image, ImageDimensions},
     page::{pipeline::Fit, service::Priority},
-    perf,
-    perf::Span,
     state::{app_state::AppState, container_state::ContainerState},
 };
 
@@ -73,7 +71,7 @@ pub struct EntriesResult {
 ///
 /// This function will return an `Err` if:
 /// * The container file cannot be opened (e.g., it does not exist or is corrupt).
-/// * The `container` within the application state is unexpectedly missing.
+/// * The container holds no readable pages (EPUB novels excepted).
 #[tauri::command()]
 #[specta::specta]
 pub async fn open_container(
@@ -82,73 +80,12 @@ pub async fn open_container(
 ) -> Result<EntriesResult> {
     log::debug!("Open container: {}", path);
 
-    let span = Span::start();
-    let open_lock = state.read().await.container_state.open_lock.clone();
-    let _open_guard = open_lock.lock().await;
-
-    // Snapshot the (cheap-to-clone) settings and cache handle under a brief read lock,
-    // then run the heavy build on a blocking thread so it never stalls the async runtime
-    // (image fetches, IPC) while opening a large book on slow storage.
-    let (settings, image_cache, display_size) = {
-        let state_lock = state.read().await;
-        (
-            state_lock.container_state.settings.clone(),
-            state_lock.container_state.image_cache.clone(),
-            state_lock.container_state.display_size,
-        )
-    };
-    let path_owned = path.to_string();
-    let built = run_blocking(move || {
-        ContainerState::build_with(&settings, &image_cache, display_size, &path_owned)
-    })
-    .await;
-    let service = match built {
-        Ok(service) => service,
-        Err(e) => {
-            // Clear stale state so a failed open doesn't keep serving the previous book.
-            state.write().await.container_state.clear();
-            return Err(e);
-        }
-    };
-
-    let container = service.container();
-    let workers = service.workers();
-    let entries = container.get_entries().clone();
-    let is_directory = container.is_directory();
-    let is_novel = container.is_novel();
-    let has_previews = container.has_previews();
-
-    // A container with no readable pages is not a book. Failing here keeps it out of the
-    // library and the history, since the frontend only records a book after this returns.
-    // EPUB novels are exempt: their text has no image entries.
-    if !is_novel && entries.is_empty() {
-        log::info!("Refusing to open {path}: no readable pages");
-        state.write().await.container_state.clear();
-        return Err(Error::EmptyContainer(path.to_string()));
-    }
-
-    {
-        let mut state_lock = state.write().await;
-        state_lock.container_state.install(service);
-    }
-
-    // The whole open: the container build, and the reader pool it started.
-    let pages = entries.len();
-    let format = std::path::Path::new(path)
-        .extension()
-        .and_then(|extension| extension.to_str())
-        .unwrap_or("dir");
-    perf!(
-        span,
-        "open",
-        "format={format} pages={pages} workers={workers} novel={is_novel}"
-    );
-
+    let container = ContainerState::open(&state, path).await?;
     Ok(EntriesResult {
-        entries,
-        is_directory,
-        is_novel,
-        has_previews,
+        entries: container.get_entries().clone(),
+        is_directory: container.is_directory(),
+        is_novel: container.is_novel(),
+        has_previews: container.has_previews(),
     })
 }
 
@@ -593,6 +530,34 @@ mod tests {
             panic!("expected an empty-container error");
         };
         assert!(err.to_string().contains("Empty Container Error"));
+    }
+
+    #[tokio::test]
+    async fn opening_a_container_without_pages_closes_the_open_book() {
+        use std::io::Write;
+        use zip::write::{FileOptions, ZipWriter};
+
+        let dir = tempfile::tempdir().unwrap();
+        let rar_path = create_dummy_rar(dir.path(), "dummy.rar");
+        let zip_path = dir.path().join("multi.zip");
+        let mut zip = ZipWriter::new(std::fs::File::create(&zip_path).unwrap());
+        for name in ["ch1/001.png", "ch2/001.png"] {
+            zip.start_file(name, FileOptions::<()>::default()).unwrap();
+            zip.write_all(&[0u8]).unwrap();
+        }
+        zip.finish().unwrap();
+
+        let app = tauri::test::mock_app();
+        app.manage(RwLock::new(AppState::default()));
+        open_container(rar_path.to_string_lossy().as_ref(), app.state())
+            .await
+            .unwrap();
+
+        let result = open_container(zip_path.to_string_lossy().as_ref(), app.state()).await;
+
+        assert!(matches!(result, Err(Error::EmptyContainer(_))));
+        let binding = app.state::<RwLock<AppState>>();
+        assert!(!binding.read().await.container_state.is_open());
     }
 
     #[tokio::test]

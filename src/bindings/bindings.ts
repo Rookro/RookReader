@@ -103,7 +103,7 @@ export const commands = {
 	 * 
 	 *  This function will return an `Err` if:
 	 *  * The container file cannot be opened (e.g., it does not exist or is corrupt).
-	 *  * The `container` within the application state is unexpectedly missing.
+	 *  * The container holds no readable pages (EPUB novels excepted).
 	 */
 	openContainer: (path: string) => typedError<EntriesResult, CommandError_Serialize>(__TAURI_INVOKE("open_container", { path })),
 	/**

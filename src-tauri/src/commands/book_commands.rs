@@ -6,8 +6,6 @@ use tauri::State;
 use crate::blocking::run_blocking;
 use crate::commands::events::{emit, BooksChanged, ReadingHistoryChanged, ReadingProgressChanged};
 use crate::container::describe::describe;
-use crate::container::factory::create_container;
-use crate::container::traits::Container;
 use crate::domain::book::entity::{Book, BookWithState, Direction, ReadBook, ReadingState};
 use crate::domain::book::repository::BookRepository;
 use crate::domain::collection::repository::CollectionRepository;
@@ -97,7 +95,7 @@ pub async fn register_book<R: tauri::Runtime>(
 ) -> Result<i64> {
     log::debug!("Register the book: {}", file_path);
 
-    let container = book_container(&state, &file_path).await?;
+    let container = ContainerState::container_for(&state, &file_path).await?;
     let description = describe(&file_path, container.as_ref())?;
     let thumbnail_path = thumbnails::cover_for(&app, &file_path, container).await;
 
@@ -150,7 +148,7 @@ pub async fn record_book_opened<R: tauri::Runtime>(
 ) -> Result<BookWithState> {
     log::debug!("Record book opened: {}", file_path);
 
-    let container = book_container(&state, &file_path).await?;
+    let container = ContainerState::container_for(&state, &file_path).await?;
     let description = describe(&file_path, container.as_ref())?;
     let thumbnail_path = thumbnails::cover_for(&app, &file_path, container).await;
 
@@ -618,37 +616,6 @@ pub async fn update_series_orders<R: tauri::Runtime>(
     repo.update_book_orders_in_series(book_ids).await?;
     emit(&app, &BooksChanged);
     Ok(())
-}
-
-/// The container of the book at `path`.
-///
-/// When `path` is the open book, its own container is reused, so a PDF does not get a
-/// second handle opened beside the one being read. Otherwise one is built on a blocking
-/// thread and never installed, so the open book keeps its reader threads.
-async fn book_container(
-    state: &State<'_, RwLock<AppState>>,
-    path: &str,
-) -> Result<Arc<dyn Container>> {
-    let (settings, open) = {
-        let state_lock = state.read().await;
-        (
-            state_lock.container_state.settings.clone(),
-            state_lock
-                .container_state
-                .service_for(path)
-                .map(|service| service.container()),
-        )
-    };
-    if let Some(container) = open {
-        return Ok(container);
-    }
-
-    let path_owned = path.to_string();
-    let container = run_blocking(move || {
-        create_container(&path_owned, ContainerState::container_config(&settings))
-    })
-    .await?;
-    Ok(container)
 }
 
 #[cfg(test)]
