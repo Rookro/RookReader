@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import { getFonts } from "../../../../../bindings/FontCommands";
 import { useAppDispatch, useAppSelector } from "../../../../../store/store";
 import { useNumberSettingField } from "../../../hooks/useNumberSettingField";
+import { defaultSettings } from "../../../settingsStore";
 import { updateSettings } from "../../../slice";
 import AutocompleteSettingItem from "../../ui/AutocompleteSettingItem";
 import NumberSpinnerSettingItem from "../../ui/NumberSpinnerSettingItem";
@@ -74,7 +75,9 @@ export default function FontSettings() {
         primaryText={t("settings.reader.font-size.title")}
         step={0.5}
         onValueCommitted={(value) => {
-          debug(`Font size of novel reader changed: ${value ?? "default"}`);
+          debug(
+            `Font size of novel reader changed: ${value ?? defaultSettings.reader.novel.fontSize}`,
+          );
           fontSize.onValueCommitted(value);
         }}
         inputSx={{ minWidth: "200px" }}
