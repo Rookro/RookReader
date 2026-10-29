@@ -71,7 +71,7 @@ export const commands = {
 	 *  * `path` - The path of the container the caller believes is open.
 	 *  * `index` - The current page index around which to preload.
 	 *  * `buffer_size` - Optional. How many pages to preload in each direction.
-	 *    Defaults to 10 if `None` is provided.
+	 *    Defaults to the preload page count setting's default if `None` is provided.
 	 *  * `caller_pages` - How many pages from `index` the caller is fetching itself. Those
 	 *    are left out of the window: preloading a page the viewer is already requesting at
 	 *    foreground priority only lets a background job reach it first, and the foreground

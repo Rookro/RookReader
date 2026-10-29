@@ -8,6 +8,7 @@ use crate::{
     error::{Error, Result},
     image::types::{Image, ImageDimensions},
     page::{pipeline::Fit, service::Priority},
+    settings::ComicCacheSettings,
     state::{app_state::AppState, container_state::ContainerState},
 };
 
@@ -89,6 +90,11 @@ pub async fn open_container(
     })
 }
 
+/// The preload page count setting's default, as a page count.
+fn default_buffer_size() -> usize {
+    usize::try_from(ComicCacheSettings::default().preload_page_count).unwrap_or_default()
+}
+
 /// Requests preloading of images around a specific index.
 ///
 /// This command can be called as the user navigates through a book to update
@@ -99,7 +105,7 @@ pub async fn open_container(
 /// * `path` - The path of the container the caller believes is open.
 /// * `index` - The current page index around which to preload.
 /// * `buffer_size` - Optional. How many pages to preload in each direction.
-///   Defaults to 10 if `None` is provided.
+///   Defaults to the preload page count setting's default if `None` is provided.
 /// * `caller_pages` - How many pages from `index` the caller is fetching itself. Those
 ///   are left out of the window: preloading a page the viewer is already requesting at
 ///   foreground priority only lets a background job reach it first, and the foreground
@@ -127,7 +133,7 @@ pub async fn request_preload_around(
     );
     let state_lock = state.read().await;
 
-    let buffer_size = buffer_size.unwrap_or(10);
+    let buffer_size = buffer_size.unwrap_or_else(default_buffer_size);
 
     let service = state_lock
         .container_state
@@ -888,6 +894,12 @@ mod tests {
                 height: 300
             })
         );
+    }
+
+    #[test]
+    fn default_buffer_size_is_the_preload_default() {
+        let expected = usize::try_from(ComicCacheSettings::default().preload_page_count).unwrap();
+        assert_eq!(default_buffer_size(), expected);
     }
 
     #[tokio::test]

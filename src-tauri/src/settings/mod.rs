@@ -16,9 +16,9 @@ use serde_json::Value;
 
 use crate::error::{Error, Result};
 use patch::json_deep_merge;
-use validation::{collect_violations, json_leaf, set_json_leaf, snake_to_camel_case};
 #[cfg(test)]
 pub(crate) use validation::bounds_by_path;
+use validation::{collect_violations, json_leaf, set_json_leaf, snake_to_camel_case};
 
 /// A single settings field that failed validation, structured so the frontend can
 /// render a localized, actionable message ("out of range" vs "must be a whole number")
