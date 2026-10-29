@@ -45,8 +45,8 @@ export function violationMessage(t: TFunction, violation: SettingsValidationViol
     case "outOfRange":
       return t("error-message.settings.out-of-range", {
         field,
-        min: violation.min ?? "",
-        max: violation.max ?? "",
+        min: violation.min,
+        max: violation.max,
       });
     case "notInteger":
       return t("error-message.settings.not-integer", { field });

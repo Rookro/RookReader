@@ -217,6 +217,11 @@ mod bindings_export {
             // specta-typescript forbids large integers by default to avoid precision
             // loss; our IDs stay well within `Number.MAX_SAFE_INTEGER`.
             .dangerously_cast_bigints_to_number()
+            // Every exported `f64` is finite (`finite_f64` guards the settings; bounds are
+            // constants), so none is ever sent as `null`.
+            .semantic_types(
+                specta_typescript::semantic::Configuration::empty().enable_lossless_floats(),
+            )
             .export(
                 // The generated file contains internal helpers (`TAURI_CHANNEL`) that are
                 // unused here; `@ts-nocheck` silences strict unused-symbol errors while
@@ -250,6 +255,11 @@ mod bindings_export {
             "SettingsValidationViolation",
             "ViolationKind",
             "details",
+            // `finite_f64` keeps these finite, so they are generated as `number`.
+            "zoom: number,",
+            "radius: number,",
+            "fontSize: number,",
+            "min: number,",
         ] {
             assert!(generated.contains(needle), "bindings.ts missing `{needle}`");
         }

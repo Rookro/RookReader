@@ -9,9 +9,7 @@ import { runCommand } from "./result";
  * @throws {CommandError} If the Tauri command fails.
  */
 export async function getSettings(): Promise<AppSettings> {
-  // The backend always returns a complete settings object; the generated type marks
-  // fields optional (container serde default), so assert the required-field shape.
-  return (await runCommand(commands.getSettings())) as AppSettings;
+  return await runCommand(commands.getSettings());
 }
 
 /**
@@ -22,5 +20,5 @@ export async function getSettings(): Promise<AppSettings> {
  * @throws {CommandError} If validation or persistence fails.
  */
 export async function setSettings(patch: SettingsPatch): Promise<AppSettings> {
-  return (await runCommand(commands.setSettings(patch))) as AppSettings;
+  return await runCommand(commands.setSettings(patch));
 }

@@ -1475,9 +1475,9 @@ export type LoupeSettings = LoupeSettings_Serialize | LoupeSettings_Deserialize;
 /**  Configuration for the Loupe (Magnifier) feature. */
 export type LoupeSettings_Deserialize = {
 	/**  The magnification zoom level of the loupe (`1.0` = no magnification). */
-	zoom?: number | null,
+	zoom?: number,
 	/**  The radius (size) of the loupe. */
-	radius?: number | null,
+	radius?: number,
 	/**  The keyboard shortcut key to toggle the loupe. */
 	toggleKey?: string,
 };
@@ -1485,9 +1485,9 @@ export type LoupeSettings_Deserialize = {
 /**  Configuration for the Loupe (Magnifier) feature. */
 export type LoupeSettings_Serialize = {
 	/**  The magnification zoom level of the loupe (`1.0` = no magnification). */
-	zoom: number | null,
+	zoom: number,
 	/**  The radius (size) of the loupe. */
-	radius: number | null,
+	radius: number,
 	/**  The keyboard shortcut key to toggle the loupe. */
 	toggleKey: string,
 };
@@ -1500,7 +1500,7 @@ export type NovelSettings_Deserialize = {
 	/**  The font family used for rendering the text. */
 	fontFamily?: string,
 	/**  The size of the font used for rendering the text. Fractional sizes are allowed. */
-	fontSize?: number | null,
+	fontSize?: number,
 };
 
 /**  Configuration specific to reading novels (text-based content). */
@@ -1508,7 +1508,7 @@ export type NovelSettings_Serialize = {
 	/**  The font family used for rendering the text. */
 	fontFamily: string,
 	/**  The size of the font used for rendering the text. Fractional sizes are allowed. */
-	fontSize: number | null,
+	fontSize: number,
 };
 
 /**  Represents a book along with its reading state, specifically for books that have been opened. */
@@ -1765,9 +1765,9 @@ export type SettingsValidationViolation = {
 	/**  What is wrong with the value. */
 	kind: ViolationKind,
 	/**  The inclusive minimum valid value (always populated so the UI can show the range). */
-	min: number | null,
+	min: number,
 	/**  The inclusive maximum valid value. */
-	max: number | null,
+	max: number,
 };
 
 /**  Settings for the side pane. */
