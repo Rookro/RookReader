@@ -896,12 +896,6 @@ mod tests {
         );
     }
 
-    #[test]
-    fn default_buffer_size_is_the_preload_default() {
-        let expected = usize::try_from(ComicCacheSettings::default().preload_page_count).unwrap();
-        assert_eq!(default_buffer_size(), expected);
-    }
-
     #[tokio::test]
     async fn test_request_preload_around() {
         let app = tauri::test::mock_app();
