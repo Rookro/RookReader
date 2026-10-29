@@ -50,7 +50,7 @@ async fn test_create_duplicate_series() {
 }
 
 #[tokio::test]
-async fn test_assign_book_to_series() {
+async fn test_set_series_for_book() {
     let pool = setup_db().await;
     let series_repo = SqliteSeriesRepository::new(pool.clone());
     let book_repo = SqliteBookRepository::new(pool.clone());
@@ -113,7 +113,7 @@ async fn test_delete_series() {
 }
 
 #[tokio::test]
-async fn test_update_book_orders_in_series() {
+async fn test_set_series_order() {
     let pool = setup_db().await;
     let series_repo = SqliteSeriesRepository::new(pool.clone());
     let book_repo = SqliteBookRepository::new(pool.clone());

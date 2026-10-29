@@ -40,7 +40,7 @@ async fn test_create_duplicate_tag() {
 }
 
 #[tokio::test]
-async fn test_attach_tags_tolerates_duplicate_ids() {
+async fn test_set_tags_for_book_tolerates_duplicate_ids() {
     let pool = setup_db().await;
     let tags = SqliteTagRepository::new(pool.clone());
     let books = SqliteBookRepository::new(pool.clone());
@@ -65,7 +65,7 @@ async fn test_attach_tags_tolerates_duplicate_ids() {
 }
 
 #[tokio::test]
-async fn test_attach_tags_skips_nonexistent_id() {
+async fn test_set_tags_for_book_skips_nonexistent_id() {
     let pool = setup_db().await;
     let tags = SqliteTagRepository::new(pool.clone());
     let books = SqliteBookRepository::new(pool.clone());
