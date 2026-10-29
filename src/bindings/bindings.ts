@@ -632,14 +632,14 @@ export const commands = {
 	 * 
 	 *  # Returns
 	 * 
-	 *  A `Result` containing the ID of the newly created series.
+	 *  A `Result` containing the newly created `Series` entity.
 	 * 
 	 *  # Errors
 	 * 
 	 *  This function will return an `Err` if the underlying repository operation fails
 	 *  (e.g., due to a database error, connection issue, or query execution failure).
 	 */
-	createSeries: (name: string) => typedError<number, CommandError_Serialize>(__TAURI_INVOKE("create_series", { name })),
+	createSeries: (name: string) => typedError<Series, CommandError_Serialize>(__TAURI_INVOKE("create_series", { name })),
 	/**
 	 *  Retrieves all series from the database.
 	 * 

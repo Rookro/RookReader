@@ -30,20 +30,20 @@ impl SqliteSeriesRepository {
 
 #[async_trait]
 impl SeriesRepository for SqliteSeriesRepository {
-    async fn create(&self, name: &str) -> Result<i64> {
-        let id = sqlx::query!(
+    async fn create(&self, name: &str) -> Result<Series> {
+        let series = sqlx::query_as!(
+            Series,
             r#"
             INSERT INTO series (name)
             VALUES (?)
-            RETURNING id
+            RETURNING id, name, created_at
             "#,
             name
         )
         .fetch_one(&self.pool)
-        .await?
-        .id;
+        .await?;
 
-        Ok(id)
+        Ok(series)
     }
 
     async fn get_all(&self) -> Result<Vec<Series>> {
@@ -85,7 +85,7 @@ impl SeriesRepository for SqliteSeriesRepository {
         Ok(books)
     }
 
-    async fn assign_book_to_series(&self, book_id: i64, series_id: Option<i64>) -> Result<()> {
+    async fn set_series_for_book(&self, book_id: i64, series_id: Option<i64>) -> Result<()> {
         // Append at the end of the target series, but keep the place of a book that is
         // already in it; clearing the series also clears the order so it cannot resurface
         // when the book later joins another series. Every SET expression reads the row's
@@ -116,7 +116,7 @@ impl SeriesRepository for SqliteSeriesRepository {
         Ok(())
     }
 
-    async fn update_book_orders_in_series(&self, book_ids: Vec<i64>) -> Result<()> {
+    async fn set_series_order(&self, book_ids: Vec<i64>) -> Result<()> {
         let mut tx = self.pool.begin().await?;
 
         // Apply every order in one statement. json_each's `key` is the 0-based array index,
@@ -191,7 +191,7 @@ mod tests {
         let pool = setup_db().await;
         let repo = SqliteSeriesRepository::new(pool);
 
-        let id = repo.create("Test Series").await.unwrap();
+        let id = repo.create("Test Series").await.unwrap().id;
         let all = repo.get_all().await.unwrap();
 
         assert_eq!(all.len(), 1);
@@ -205,19 +205,19 @@ mod tests {
         let repo = SqliteSeriesRepository::new(pool.clone());
         let book_repo = SqliteBookRepository::new(pool);
 
-        let series_id = repo.create("Series").await.unwrap();
+        let series_id = repo.create("Series").await.unwrap().id;
         let book_id = book_repo
-            .register_book("path", ItemType::File, "Book", 10, None)
+            .register("path", ItemType::File, "Book", 10, None)
             .await
             .unwrap();
 
-        repo.assign_book_to_series(book_id, Some(series_id))
+        repo.set_series_for_book(book_id, Some(series_id))
             .await
             .unwrap();
         let book = book_repo.get_by_id(book_id).await.unwrap().unwrap();
         assert_eq!(book.series_id, Some(series_id));
 
-        repo.assign_book_to_series(book_id, None).await.unwrap();
+        repo.set_series_for_book(book_id, None).await.unwrap();
         let book = book_repo.get_by_id(book_id).await.unwrap().unwrap();
         assert_eq!(book.series_id, None);
     }
@@ -229,17 +229,15 @@ mod tests {
         let book_repo = SqliteBookRepository::new(pool);
 
         let b1 = book_repo
-            .register_book("p1", ItemType::File, "B1", 10, None)
+            .register("p1", ItemType::File, "B1", 10, None)
             .await
             .unwrap();
         let b2 = book_repo
-            .register_book("p2", ItemType::File, "B2", 10, None)
+            .register("p2", ItemType::File, "B2", 10, None)
             .await
             .unwrap();
 
-        repo.update_book_orders_in_series(vec![b2, b1])
-            .await
-            .unwrap();
+        repo.set_series_order(vec![b2, b1]).await.unwrap();
 
         let book2 = book_repo.get_by_id(b2).await.unwrap().unwrap();
         let book1 = book_repo.get_by_id(b1).await.unwrap().unwrap();
@@ -253,7 +251,7 @@ mod tests {
         let pool = setup_db().await;
         let repo = SqliteSeriesRepository::new(pool);
 
-        let id = repo.create("To Delete").await.unwrap();
+        let id = repo.create("To Delete").await.unwrap().id;
         repo.delete(id).await.unwrap();
 
         let all = repo.get_all().await.unwrap();

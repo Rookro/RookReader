@@ -13,13 +13,14 @@ describe("SeriesCommand", () => {
   const mockError = { code: 123, message: "Fail" };
 
   describe("createSeries", () => {
-    it("should call invoke with correct arguments and return the ID", async () => {
-      vi.mocked(invoke).mockResolvedValue(1);
+    it("should call invoke with correct arguments and return the new series", async () => {
+      const created = { id: 1, name: "Test Series", created_at: "2026-03-01T15:30:00" };
+      vi.mocked(invoke).mockResolvedValue(created);
 
       const result = await SeriesCommand.createSeries("Test Series");
 
       expect(invoke).toHaveBeenCalledWith("create_series", { name: "Test Series" });
-      expect(result).toBe(1);
+      expect(result).toEqual(created);
     });
 
     it("should throw CommandError on failure", async () => {

@@ -46,14 +46,14 @@ async fn test_attach_tags_tolerates_duplicate_ids() {
     let books = SqliteBookRepository::new(pool.clone());
 
     let book_id = books
-        .register_book("/path/to/book", ItemType::File, "Book", 1, None)
+        .register("/path/to/book", ItemType::File, "Book", 1, None)
         .await
         .unwrap();
     let t = tags.create("Action", "#ff0000").await.unwrap();
     let u = tags.create("Comedy", "#00ff00").await.unwrap();
 
     // A duplicated tag id in the request must not abort the update.
-    tags.attach_tags_to_book(book_id, &[t.id, t.id, u.id])
+    tags.set_tags_for_book(book_id, &[t.id, t.id, u.id])
         .await
         .unwrap();
 
@@ -71,14 +71,14 @@ async fn test_attach_tags_skips_nonexistent_id() {
     let books = SqliteBookRepository::new(pool.clone());
 
     let book_id = books
-        .register_book("/path/to/book", ItemType::File, "Book", 1, None)
+        .register("/path/to/book", ItemType::File, "Book", 1, None)
         .await
         .unwrap();
     let t = tags.create("Action", "#ff0000").await.unwrap();
 
     // A stale/non-existent tag id must be skipped, not abort the whole update.
     let nonexistent_id = 9999;
-    tags.attach_tags_to_book(book_id, &[t.id, nonexistent_id])
+    tags.set_tags_for_book(book_id, &[t.id, nonexistent_id])
         .await
         .unwrap();
 

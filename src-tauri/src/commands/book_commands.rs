@@ -100,7 +100,7 @@ pub async fn register_book<R: tauri::Runtime>(
     let thumbnail_path = thumbnails::cover_for(&app, &file_path, container).await;
 
     let book_id = repo
-        .register_book(
+        .register(
             &file_path,
             description.item_type,
             &description.display_name,
@@ -153,7 +153,7 @@ pub async fn record_book_opened<R: tauri::Runtime>(
     let thumbnail_path = thumbnails::cover_for(&app, &file_path, container).await;
 
     let book_id = repo
-        .record_book_opened(
+        .record_opened(
             &file_path,
             description.item_type,
             &description.display_name,
@@ -529,7 +529,7 @@ pub async fn update_book_tags<R: tauri::Runtime>(
         book_id,
         tag_ids
     );
-    repo.attach_tags_to_book(book_id, &tag_ids).await?;
+    repo.set_tags_for_book(book_id, &tag_ids).await?;
     emit(&app, &BooksChanged);
     Ok(())
 }
@@ -557,7 +557,7 @@ pub async fn delete_book<R: tauri::Runtime>(
         .get_by_id(id)
         .await?
         .and_then(|book| book.thumbnail_path);
-    repo.delete_book(id).await?;
+    repo.delete(id).await?;
     if let Some(path) = thumbnail_path {
         thumbnails::remove(path).await;
     }
@@ -590,7 +590,7 @@ pub async fn update_book_series<R: tauri::Runtime>(
         book_id,
         series_id
     );
-    repo.assign_book_to_series(book_id, series_id).await?;
+    repo.set_series_for_book(book_id, series_id).await?;
     emit(&app, &BooksChanged);
     Ok(())
 }
@@ -613,7 +613,7 @@ pub async fn update_series_orders<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
 ) -> Result<()> {
     log::debug!("Update series orders for books: {:?}", book_ids);
-    repo.update_book_orders_in_series(book_ids).await?;
+    repo.set_series_order(book_ids).await?;
     emit(&app, &BooksChanged);
     Ok(())
 }
@@ -740,7 +740,7 @@ mod tests {
                 }))
             });
         mock_repo
-            .expect_delete_book()
+            .expect_delete()
             .with(mockall::predicate::eq(1))
             .times(1)
             .returning(|_| Ok(()));
@@ -779,7 +779,7 @@ mod tests {
                 }))
             });
         mock_repo
-            .expect_delete_book()
+            .expect_delete()
             .with(mockall::predicate::eq(1))
             .times(1)
             .returning(|_| Ok(()));
@@ -796,7 +796,7 @@ mod tests {
     async fn test_update_book_series() {
         let mut mock_repo = MockSeriesRepository::new();
         mock_repo
-            .expect_assign_book_to_series()
+            .expect_set_series_for_book()
             .with(mockall::predicate::eq(1), mockall::predicate::eq(Some(10)))
             .times(1)
             .returning(|_, _| Ok(()));
@@ -815,7 +815,7 @@ mod tests {
     async fn test_update_series_orders() {
         let mut mock_repo = MockSeriesRepository::new();
         mock_repo
-            .expect_update_book_orders_in_series()
+            .expect_set_series_order()
             .with(mockall::predicate::eq(vec![1, 2, 3]))
             .times(1)
             .returning(|_| Ok(()));
@@ -834,7 +834,7 @@ mod tests {
     async fn test_update_book_tags() {
         let mut mock_repo = MockTagRepository::new();
         mock_repo
-            .expect_attach_tags_to_book()
+            .expect_set_tags_for_book()
             .with(
                 mockall::predicate::eq(1),
                 mockall::predicate::eq(vec![2, 3]),
@@ -1096,7 +1096,7 @@ mod tests {
 
         let mut mock_repo = MockBookRepository::new();
         mock_repo
-            .expect_register_book()
+            .expect_register()
             .with(
                 mockall::predicate::eq(path.clone()),
                 mockall::predicate::eq(ItemType::Directory),
@@ -1134,7 +1134,7 @@ mod tests {
         zip.finish().unwrap();
 
         let mut mock_repo = MockBookRepository::new();
-        mock_repo.expect_register_book().times(0);
+        mock_repo.expect_register().times(0);
 
         let app = tauri::test::mock_app();
         app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
@@ -1162,9 +1162,7 @@ mod tests {
         let other = png_folder(dir.path(), "Other", 1);
 
         let mut mock_repo = MockBookRepository::new();
-        mock_repo
-            .expect_register_book()
-            .returning(|_, _, _, _, _| Ok(2));
+        mock_repo.expect_register().returning(|_, _, _, _, _| Ok(2));
 
         let app = tauri::test::mock_app();
         let _thumbnail = ThumbnailCleanup::new(&app, &other);
@@ -1212,7 +1210,7 @@ mod tests {
     fn recording_repo(file_path: &str, reading_direction: Option<Direction>) -> MockBookRepository {
         let mut mock_repo = MockBookRepository::new();
         mock_repo
-            .expect_record_book_opened()
+            .expect_record_opened()
             .returning(|_, _, _, _, _| Ok(7));
         let stored = stored_book(file_path, reading_direction);
         mock_repo
@@ -1249,7 +1247,7 @@ mod tests {
 
         let mut mock_repo = MockBookRepository::new();
         mock_repo
-            .expect_record_book_opened()
+            .expect_record_opened()
             .with(
                 mockall::predicate::eq(path.clone()),
                 mockall::predicate::eq(ItemType::Directory),
@@ -1480,7 +1478,7 @@ mod tests {
             .times(1)
             .returning(|_| Ok(None));
         mock_repo
-            .expect_delete_book()
+            .expect_delete()
             .with(mockall::predicate::eq(1))
             .times(1)
             .returning(|_| Err(sqlx::Error::PoolTimedOut.into()));

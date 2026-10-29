@@ -15,7 +15,7 @@ use crate::error::Result;
 ///
 /// # Returns
 ///
-/// A `Result` containing the ID of the newly created series.
+/// A `Result` containing the newly created `Series` entity.
 ///
 /// # Errors
 ///
@@ -27,11 +27,11 @@ pub async fn create_series<R: tauri::Runtime>(
     name: String,
     repo: State<'_, Arc<dyn SeriesRepository>>,
     app: tauri::AppHandle<R>,
-) -> Result<i64> {
+) -> Result<Series> {
     log::debug!("Create series. (name:{})", name);
-    let series_id = repo.create(&name).await?;
+    let series = repo.create(&name).await?;
     emit(&app, &SeriesChanged);
-    Ok(series_id)
+    Ok(series)
 }
 
 /// Retrieves all series from the database.
@@ -91,11 +91,18 @@ mod tests {
     #[tokio::test]
     async fn test_create_series() {
         let mut mock_repo = MockSeriesRepository::new();
+        let now = chrono::Utc::now().naive_utc();
         mock_repo
             .expect_create()
             .with(mockall::predicate::eq("New Series"))
             .times(1)
-            .returning(|_| Ok(1));
+            .returning(move |name| {
+                Ok(Series {
+                    id: 1,
+                    name: name.to_string(),
+                    created_at: now,
+                })
+            });
 
         let app = tauri::test::mock_app();
         app.manage(Arc::new(mock_repo) as Arc<dyn SeriesRepository>);
@@ -105,7 +112,9 @@ mod tests {
         let result = create_series("New Series".to_string(), state, app.handle().clone()).await;
         assert!(result.is_ok());
         assert_eq!(*events.lock().unwrap(), [SeriesChanged::NAME]);
-        assert_eq!(result.unwrap(), 1);
+        let series = result.unwrap();
+        assert_eq!(series.id, 1);
+        assert_eq!(series.name, "New Series");
     }
 
     #[tokio::test]

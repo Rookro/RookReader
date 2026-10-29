@@ -49,7 +49,7 @@ pub trait TagRepository: Send + Sync {
     /// # Errors
     ///
     /// Returns an `Err` if the database execution fails.
-    async fn attach_tags_to_book(&self, book_id: i64, tag_ids: &[i64]) -> Result<()>;
+    async fn set_tags_for_book(&self, book_id: i64, tag_ids: &[i64]) -> Result<()>;
 
     /// Retrieves the IDs of all tags associated with a specific book.
     ///

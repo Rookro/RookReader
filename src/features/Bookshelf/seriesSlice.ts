@@ -52,9 +52,9 @@ export const addSeries = createAppAsyncThunk(
   "series/addSeries",
   async (name: string, { rejectWithValue, dispatch }) => {
     try {
-      const id = await createSeries(name);
+      const series = await createSeries(name);
       await dispatch(fetchSeries());
-      return id;
+      return series.id;
     } catch (e) {
       return handleThunkError(e, `Failed to add series(name: ${name}).`, rejectWithValue);
     }

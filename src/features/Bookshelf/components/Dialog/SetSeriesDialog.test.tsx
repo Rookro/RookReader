@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as BookCommands from "../../../../bindings/BookCommands";
 import * as SeriesCommand from "../../../../bindings/SeriesCommands";
 import type { Series } from "../../../../domain/entities";
-import { createMockBookWithState } from "../../../../test/factories";
+import { createMockBookWithState, createMockSeries } from "../../../../test/factories";
 import { renderWithProviders } from "../../../../test/utils";
 import SetSeriesDialog, { type SetSeriesDialogProps } from "./SetSeriesDialog";
 
@@ -123,7 +123,7 @@ describe("SetSeriesDialog", () => {
   });
 
   it("should create a new series, refetch the list, and select it", async () => {
-    vi.mocked(SeriesCommand.createSeries).mockResolvedValue(3);
+    vi.mocked(SeriesCommand.createSeries).mockResolvedValue(createMockSeries({ id: 3 }));
     vi.mocked(SeriesCommand.getAllSeries).mockResolvedValue([
       ...mockSeries,
       { id: 3, name: "New Series", created_at: "2026-03-01T15:30:00" },
@@ -212,7 +212,7 @@ describe("SetSeriesDialog", () => {
   });
 
   it("should create series when Enter key is pressed", async () => {
-    vi.mocked(SeriesCommand.createSeries).mockResolvedValue(3);
+    vi.mocked(SeriesCommand.createSeries).mockResolvedValue(createMockSeries({ id: 3 }));
     renderWithProviders(<SetSeriesDialog {...defaultProps} />);
 
     await user.click(screen.getByText(/Create new series/i));

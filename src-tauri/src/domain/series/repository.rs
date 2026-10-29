@@ -16,12 +16,12 @@ pub trait SeriesRepository: Send + Sync {
     ///
     /// # Returns
     ///
-    /// A `Result` containing the ID of the newly created series.
+    /// A `Result` containing the newly created `Series` entity.
     ///
     /// # Errors
     ///
     /// Returns an `Err` if the database insertion fails (e.g., UNIQUE constraint violation).
-    async fn create(&self, name: &str) -> Result<i64>;
+    async fn create(&self, name: &str) -> Result<Series>;
 
     /// Retrieves all series from the database.
     ///
@@ -63,7 +63,7 @@ pub trait SeriesRepository: Send + Sync {
     /// # Errors
     ///
     /// Returns an `Err` if the database execution fails.
-    async fn assign_book_to_series(&self, book_id: i64, series_id: Option<i64>) -> Result<()>;
+    async fn set_series_for_book(&self, book_id: i64, series_id: Option<i64>) -> Result<()>;
 
     /// Updates the `series_order` for a given list of book IDs.
     /// The order is determined by the index of the book ID in the list (1-based).
@@ -79,7 +79,7 @@ pub trait SeriesRepository: Send + Sync {
     /// # Errors
     ///
     /// Returns an `Err` if the database execution fails.
-    async fn update_book_orders_in_series(&self, book_ids: Vec<i64>) -> Result<()>;
+    async fn set_series_order(&self, book_ids: Vec<i64>) -> Result<()>;
 
     /// Deletes a series by its ID.
     /// Books associated with this series will have their series_id set to NULL due to FK constraints.

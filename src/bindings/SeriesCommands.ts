@@ -1,3 +1,4 @@
+import type { Series } from "../domain/entities";
 import { commands } from "./bindings";
 import { runCommand } from "./result";
 
@@ -5,10 +6,10 @@ import { runCommand } from "./result";
  * Creates a new series in the database.
  *
  * @param name - The name of the new series.
- * @returns A promise that resolves to the ID of the newly created series.
+ * @returns A promise that resolves to the newly created series.
  * @throws {CommandError} If the Tauri command fails.
  */
-export async function createSeries(name: string) {
+export async function createSeries(name: string): Promise<Series> {
   return await runCommand(commands.createSeries(name));
 }
 

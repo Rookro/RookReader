@@ -910,7 +910,7 @@ describe("SeriesReducer", () => {
 
     it("addSeries should create the series, refetch the list, and return the new id", async () => {
       const created: Series = { id: 3, name: "New", created_at: "2026-03-01T15:30:00" };
-      vi.mocked(SeriesCommand.createSeries).mockResolvedValue(3);
+      vi.mocked(SeriesCommand.createSeries).mockResolvedValue(created);
       vi.mocked(SeriesCommand.getAllSeries).mockResolvedValue([created]);
 
       const result = await store.dispatch(addSeries("New"));
