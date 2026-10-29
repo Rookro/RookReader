@@ -2,7 +2,6 @@ import { error as logError } from "@tauri-apps/plugin-log";
 import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import * as BookCommands from "../../../../bindings/BookCommands";
 import * as TagCommands from "../../../../bindings/TagCommands";
 import type { Tag } from "../../../../domain/entities";
 import { createMockTag } from "../../../../test/factories";
@@ -23,13 +22,13 @@ describe("SetBookTagsDialog", () => {
   });
 
   it("should fetch current tags on open", async () => {
-    vi.mocked(BookCommands.getBookTags).mockResolvedValue([1]);
+    vi.mocked(TagCommands.getTagsForBook).mockResolvedValue([1]);
 
     renderWithProviders(
       <SetBookTagsDialog open={true} bookIds={[123]} availableTags={mockTags} onClose={vi.fn()} />,
     );
 
-    expect(BookCommands.getBookTags).toHaveBeenCalledWith(123);
+    expect(TagCommands.getTagsForBook).toHaveBeenCalledWith(123);
 
     await waitFor(() => {
       const checkboxes = screen.getAllByRole("checkbox");
@@ -38,9 +37,9 @@ describe("SetBookTagsDialog", () => {
     });
   });
 
-  it("should toggle selections and call updateBookTags on OK", async () => {
-    vi.mocked(BookCommands.getBookTags).mockResolvedValue([]);
-    vi.mocked(BookCommands.updateBookTags).mockResolvedValue();
+  it("should toggle selections and call setTagsForBook on OK", async () => {
+    vi.mocked(TagCommands.getTagsForBook).mockResolvedValue([]);
+    vi.mocked(TagCommands.setTagsForBook).mockResolvedValue();
     const onClose = vi.fn();
 
     renderWithProviders(
@@ -56,7 +55,7 @@ describe("SetBookTagsDialog", () => {
     await user.click(screen.getByRole("button", { name: /ok/i }));
 
     await waitFor(() => {
-      expect(BookCommands.updateBookTags).toHaveBeenCalledWith(123, [2]);
+      expect(TagCommands.setTagsForBook).toHaveBeenCalledWith(123, [2]);
       expect(onClose).toHaveBeenCalled();
     });
   });
@@ -69,7 +68,7 @@ describe("SetBookTagsDialog", () => {
   });
 
   it("should log error if fetchBookTags fails", async () => {
-    vi.mocked(BookCommands.getBookTags).mockRejectedValue(new Error("Fetch failed"));
+    vi.mocked(TagCommands.getTagsForBook).mockRejectedValue(new Error("Fetch failed"));
 
     renderWithProviders(
       <SetBookTagsDialog open={true} bookIds={[123]} availableTags={mockTags} onClose={vi.fn()} />,
@@ -80,9 +79,9 @@ describe("SetBookTagsDialog", () => {
     });
   });
 
-  it("should log error if updateBookTags fails", async () => {
-    vi.mocked(BookCommands.getBookTags).mockResolvedValue([]);
-    vi.mocked(BookCommands.updateBookTags).mockRejectedValue(new Error("Update failed"));
+  it("should log error if setTagsForBook fails", async () => {
+    vi.mocked(TagCommands.getTagsForBook).mockResolvedValue([]);
+    vi.mocked(TagCommands.setTagsForBook).mockRejectedValue(new Error("Update failed"));
 
     renderWithProviders(
       <SetBookTagsDialog open={true} bookIds={[123]} availableTags={mockTags} onClose={vi.fn()} />,
@@ -98,8 +97,8 @@ describe("SetBookTagsDialog", () => {
   });
 
   it("records a save failure in the tag slice and keeps the dialog open", async () => {
-    vi.mocked(BookCommands.getBookTags).mockResolvedValue([]);
-    vi.mocked(BookCommands.updateBookTags).mockRejectedValue(new Error("Update failed"));
+    vi.mocked(TagCommands.getTagsForBook).mockResolvedValue([]);
+    vi.mocked(TagCommands.setTagsForBook).mockRejectedValue(new Error("Update failed"));
     const onClose = vi.fn();
 
     const { store } = renderWithProviders(
@@ -121,7 +120,7 @@ describe("SetBookTagsDialog", () => {
     const aPromise = new Promise<number[]>((res) => {
       resolveA = res;
     });
-    vi.mocked(BookCommands.getBookTags)
+    vi.mocked(TagCommands.getTagsForBook)
       .mockReturnValueOnce(aPromise) // book 1: slow
       .mockResolvedValueOnce([]); // book 2: fast, no tags
 
@@ -133,7 +132,7 @@ describe("SetBookTagsDialog", () => {
     rerender(
       <SetBookTagsDialog open={true} bookIds={[2]} availableTags={mockTags} onClose={vi.fn()} />,
     );
-    await waitFor(() => expect(BookCommands.getBookTags).toHaveBeenCalledWith(2));
+    await waitFor(() => expect(TagCommands.getTagsForBook).toHaveBeenCalledWith(2));
 
     // Book 1's fetch resolves late with tag 1 selected: it must not be applied.
     resolveA([1]);
@@ -143,7 +142,7 @@ describe("SetBookTagsDialog", () => {
   });
 
   it("clears the prior selection when a reopened fetch fails", async () => {
-    vi.mocked(BookCommands.getBookTags)
+    vi.mocked(TagCommands.getTagsForBook)
       .mockResolvedValueOnce([1]) // book 1: tag 1 selected
       .mockRejectedValueOnce(new Error("boom")); // book 2: fetch fails
 
@@ -163,10 +162,10 @@ describe("SetBookTagsDialog", () => {
   // Tagging several books must keep each book's other tags
   it("shows tags on some of the books as partly checked and keeps them on save", async () => {
     const tags: Tag[] = [...mockTags, { id: 3, name: "Tag 3", color_code: "#0000ff" }];
-    vi.mocked(BookCommands.getBookTags).mockImplementation(async (bookId: number) =>
+    vi.mocked(TagCommands.getTagsForBook).mockImplementation(async (bookId: number) =>
       bookId === 10 ? [1, 2] : [1],
     );
-    vi.mocked(BookCommands.updateBookTags).mockResolvedValue();
+    vi.mocked(TagCommands.setTagsForBook).mockResolvedValue();
     const onClose = vi.fn();
 
     renderWithProviders(
@@ -182,12 +181,12 @@ describe("SetBookTagsDialog", () => {
     await user.click(screen.getByRole("button", { name: /ok/i }));
 
     await waitFor(() => expect(onClose).toHaveBeenCalled());
-    expect(BookCommands.updateBookTags).toHaveBeenCalledWith(10, [1, 2, 3]);
-    expect(BookCommands.updateBookTags).toHaveBeenCalledWith(11, [1, 3]);
+    expect(TagCommands.setTagsForBook).toHaveBeenCalledWith(10, [1, 2, 3]);
+    expect(TagCommands.setTagsForBook).toHaveBeenCalledWith(11, [1, 3]);
   });
 
   it("closes without saving when nothing changed", async () => {
-    vi.mocked(BookCommands.getBookTags).mockResolvedValue([1]);
+    vi.mocked(TagCommands.getTagsForBook).mockResolvedValue([1]);
     const onClose = vi.fn();
 
     renderWithProviders(
@@ -203,12 +202,12 @@ describe("SetBookTagsDialog", () => {
     await user.click(screen.getByRole("button", { name: /ok/i }));
 
     await waitFor(() => expect(onClose).toHaveBeenCalled());
-    expect(BookCommands.updateBookTags).not.toHaveBeenCalled();
+    expect(TagCommands.setTagsForBook).not.toHaveBeenCalled();
   });
 
   // Saving after a failed read would overwrite tags the dialog never saw
   it("disables OK when the books' tags could not be read", async () => {
-    vi.mocked(BookCommands.getBookTags).mockRejectedValue(new Error("boom"));
+    vi.mocked(TagCommands.getTagsForBook).mockRejectedValue(new Error("boom"));
 
     renderWithProviders(
       <SetBookTagsDialog
@@ -227,7 +226,7 @@ describe("SetBookTagsDialog", () => {
   });
 
   it("should do nothing if handleSave is called while bookIds is empty", async () => {
-    vi.mocked(BookCommands.updateBookTags).mockResolvedValue();
+    vi.mocked(TagCommands.setTagsForBook).mockResolvedValue();
     const onClose = vi.fn();
 
     renderWithProviders(
@@ -236,7 +235,7 @@ describe("SetBookTagsDialog", () => {
 
     // ok button is still there but logic should return early
     await user.click(screen.getByRole("button", { name: /ok/i }));
-    expect(BookCommands.updateBookTags).not.toHaveBeenCalled();
+    expect(TagCommands.setTagsForBook).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
   });
 
@@ -257,7 +256,7 @@ describe("SetBookTagsDialog", () => {
     };
 
     it("opens the create-tag dialog from the create button", async () => {
-      vi.mocked(BookCommands.getBookTags).mockResolvedValue([]);
+      vi.mocked(TagCommands.getTagsForBook).mockResolvedValue([]);
       renderWithProviders(
         <SetBookTagsDialog open={true} bookIds={[10]} availableTags={mockTags} onClose={vi.fn()} />,
       );
@@ -270,7 +269,7 @@ describe("SetBookTagsDialog", () => {
     // A tag checked before the load finishes would be reset by it
     it("disables the create button until the books' tags are loaded", async () => {
       let resolveLoad: (ids: number[]) => void = () => {};
-      vi.mocked(BookCommands.getBookTags).mockReturnValue(
+      vi.mocked(TagCommands.getTagsForBook).mockReturnValue(
         new Promise((resolve) => {
           resolveLoad = resolve;
         }),
@@ -286,9 +285,9 @@ describe("SetBookTagsDialog", () => {
     });
 
     it("adds the created tag to every book when OK is pressed before the list refresh", async () => {
-      vi.mocked(BookCommands.getBookTags).mockResolvedValue([]);
+      vi.mocked(TagCommands.getTagsForBook).mockResolvedValue([]);
       vi.mocked(TagCommands.createTag).mockResolvedValue(newTag);
-      vi.mocked(BookCommands.updateBookTags).mockResolvedValue();
+      vi.mocked(TagCommands.setTagsForBook).mockResolvedValue();
       const onClose = vi.fn();
 
       renderWithProviders(
@@ -304,8 +303,8 @@ describe("SetBookTagsDialog", () => {
       await user.click(screen.getByRole("button", { name: /ok/i }));
 
       await waitFor(() => expect(onClose).toHaveBeenCalled());
-      expect(BookCommands.updateBookTags).toHaveBeenCalledWith(10, [3]);
-      expect(BookCommands.updateBookTags).toHaveBeenCalledWith(11, [3]);
+      expect(TagCommands.setTagsForBook).toHaveBeenCalledWith(10, [3]);
+      expect(TagCommands.setTagsForBook).toHaveBeenCalledWith(11, [3]);
     });
 
     it("ignores a creation that finishes after the dialog reopened for other books", async () => {
@@ -315,7 +314,7 @@ describe("SetBookTagsDialog", () => {
           resolveCreate = resolve;
         }),
       );
-      vi.mocked(BookCommands.getBookTags).mockResolvedValue([]);
+      vi.mocked(TagCommands.getTagsForBook).mockResolvedValue([]);
       const onClose = vi.fn();
       const otherBookIds = [20];
 
@@ -341,7 +340,7 @@ describe("SetBookTagsDialog", () => {
           onClose={onClose}
         />,
       );
-      await waitFor(() => expect(BookCommands.getBookTags).toHaveBeenCalledWith(20));
+      await waitFor(() => expect(TagCommands.getTagsForBook).toHaveBeenCalledWith(20));
       await waitFor(() => expect(screen.getByRole("button", { name: /ok/i })).toBeEnabled());
       await act(async () => resolveCreate(newTag));
       rerender(
@@ -356,11 +355,11 @@ describe("SetBookTagsDialog", () => {
       expect(screen.getAllByRole("checkbox")[2]).not.toBeChecked();
       await user.click(screen.getByRole("button", { name: /ok/i }));
       await waitFor(() => expect(onClose).toHaveBeenCalled());
-      expect(BookCommands.updateBookTags).not.toHaveBeenCalled();
+      expect(TagCommands.setTagsForBook).not.toHaveBeenCalled();
     });
 
     it("closes only the create-tag dialog on Escape or a backdrop click", async () => {
-      vi.mocked(BookCommands.getBookTags).mockResolvedValue([]);
+      vi.mocked(TagCommands.getTagsForBook).mockResolvedValue([]);
       const onClose = vi.fn();
 
       renderWithProviders(
@@ -384,11 +383,11 @@ describe("SetBookTagsDialog", () => {
     it("checks the created tag and adds it to every book on OK", async () => {
       // Stable like the app's `dialogBookIds`; a new array would reload the check states.
       const bookIds = [10, 11];
-      vi.mocked(BookCommands.getBookTags).mockImplementation(async (bookId: number) =>
+      vi.mocked(TagCommands.getTagsForBook).mockImplementation(async (bookId: number) =>
         bookId === 10 ? [1] : [],
       );
       vi.mocked(TagCommands.createTag).mockResolvedValue(newTag);
-      vi.mocked(BookCommands.updateBookTags).mockResolvedValue();
+      vi.mocked(TagCommands.setTagsForBook).mockResolvedValue();
       const onClose = vi.fn();
 
       const { rerender } = renderWithProviders(
@@ -420,12 +419,12 @@ describe("SetBookTagsDialog", () => {
       await user.click(screen.getByRole("button", { name: /ok/i }));
 
       await waitFor(() => expect(onClose).toHaveBeenCalled());
-      expect(BookCommands.updateBookTags).toHaveBeenCalledWith(10, [1, 3]);
-      expect(BookCommands.updateBookTags).toHaveBeenCalledWith(11, [3]);
+      expect(TagCommands.setTagsForBook).toHaveBeenCalledWith(10, [1, 3]);
+      expect(TagCommands.setTagsForBook).toHaveBeenCalledWith(11, [3]);
     });
 
     it("changes nothing when the create-tag dialog is cancelled", async () => {
-      vi.mocked(BookCommands.getBookTags).mockResolvedValue([]);
+      vi.mocked(TagCommands.getTagsForBook).mockResolvedValue([]);
       const onClose = vi.fn();
 
       renderWithProviders(
@@ -441,11 +440,11 @@ describe("SetBookTagsDialog", () => {
       expect(TagCommands.createTag).not.toHaveBeenCalled();
       await user.click(screen.getByRole("button", { name: /ok/i }));
       await waitFor(() => expect(onClose).toHaveBeenCalled());
-      expect(BookCommands.updateBookTags).not.toHaveBeenCalled();
+      expect(TagCommands.setTagsForBook).not.toHaveBeenCalled();
     });
 
     it("records a failed creation in the tag slice and checks nothing", async () => {
-      vi.mocked(BookCommands.getBookTags).mockResolvedValue([]);
+      vi.mocked(TagCommands.getTagsForBook).mockResolvedValue([]);
       vi.mocked(TagCommands.createTag).mockRejectedValue(new Error("Duplicate"));
       const onClose = vi.fn();
 
@@ -459,7 +458,7 @@ describe("SetBookTagsDialog", () => {
       await waitFor(() => expect(store.getState().tag.error).not.toBeNull());
       await user.click(screen.getByRole("button", { name: /ok/i }));
       await waitFor(() => expect(onClose).toHaveBeenCalled());
-      expect(BookCommands.updateBookTags).not.toHaveBeenCalled();
+      expect(TagCommands.setTagsForBook).not.toHaveBeenCalled();
     });
 
     it("shows the create button when there are no tags", () => {
@@ -473,8 +472,8 @@ describe("SetBookTagsDialog", () => {
   });
 
   it("should untoggle an already selected tag", async () => {
-    vi.mocked(BookCommands.getBookTags).mockResolvedValue([1]);
-    vi.mocked(BookCommands.updateBookTags).mockResolvedValue();
+    vi.mocked(TagCommands.getTagsForBook).mockResolvedValue([1]);
+    vi.mocked(TagCommands.setTagsForBook).mockResolvedValue();
 
     renderWithProviders(
       <SetBookTagsDialog open={true} bookIds={[123]} availableTags={mockTags} onClose={vi.fn()} />,
@@ -491,7 +490,7 @@ describe("SetBookTagsDialog", () => {
     await user.click(screen.getByRole("button", { name: /ok/i }));
 
     await waitFor(() => {
-      expect(BookCommands.updateBookTags).toHaveBeenCalledWith(123, []);
+      expect(TagCommands.setTagsForBook).toHaveBeenCalledWith(123, []);
     });
   });
 });

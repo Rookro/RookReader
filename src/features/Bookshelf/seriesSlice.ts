@@ -1,6 +1,11 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
-import { updateBookSeries, updateSeriesOrders } from "../../bindings/BookCommands";
-import { createSeries, deleteSeries, getAllSeries } from "../../bindings/SeriesCommands";
+import {
+  createSeries,
+  deleteSeries,
+  getAllSeries,
+  setSeriesForBook,
+  setSeriesOrder,
+} from "../../bindings/SeriesCommands";
 import type { BookWithState, Series } from "../../domain/entities";
 import { handleThunkError } from "../../store/thunkErrorHandler";
 import { createAppAsyncThunk } from "../../types/CustomAsyncThunk";
@@ -19,7 +24,7 @@ export const updateSeriesOrdersThunk = createAppAsyncThunk(
   "series/updateSeriesOrdersThunk",
   async (bookIds: number[], { rejectWithValue }) => {
     try {
-      await updateSeriesOrders(bookIds);
+      await setSeriesOrder(bookIds);
     } catch (e) {
       return handleThunkError(e, "Failed to update series orders.", rejectWithValue);
     }
@@ -94,7 +99,7 @@ export const updateBooksSeries = createAppAsyncThunk(
     { rejectWithValue },
   ) => {
     try {
-      await Promise.all(bookIds.map((id) => updateBookSeries(id, seriesId)));
+      await Promise.all(bookIds.map((id) => setSeriesForBook(id, seriesId)));
     } catch (e) {
       return handleThunkError(e, "Failed to update book series.", rejectWithValue);
     }

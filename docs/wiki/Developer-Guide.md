@@ -57,7 +57,7 @@ graph TD
 
 ### Backend Details
 
-- **Tauri Commands:** The entry points for the frontend (`src-tauri/src/commands/`): `book`, `bookmark`, `collection`, `container`, `directory`, `font`, `series`, `settings`, `tag` and `updater` commands act as controllers. Every command carries `#[tauri::command]` + `#[specta::specta]` and is registered in `specta_builder()` in `src-tauri/src/lib.rs`.
+- **Tauri Commands:** The entry points for the frontend (`src-tauri/src/commands/`): `book`, `bookmark`, `collection`, `container`, `directory`, `font`, `series`, `settings`, `tag` and `updater` commands act as controllers. A command lives with the aggregate it reads or changes; one that wraps a single repository method has that method's name. Every command carries `#[tauri::command]` + `#[specta::specta]` and is registered in `specta_builder()` in `src-tauri/src/lib.rs`.
 - **Domain:** `src-tauri/src/domain/` holds the domain models (book, bookmark, collection, series, tag) shared by commands and repositories.
 - **Repository Pattern:** All database queries are isolated in `src-tauri/src/infrastructure/database/` (`book_repository`, `bookmark_repository`, `collection_repository`, `series_repository`, `tag_repository`, `models`). This abstracts the compile-time-checked `sqlx` SQLite queries away from the command logic. Rows (`models.rs`) are converted into the plain domain entities, which know nothing about SQL. Repository methods are named `create` (returns the new entity), `get_by_id`, `get_all` and `delete`, plus verbs specific to the aggregate (`register`, `set_tags_for_book`, …).
 - **Thumbnails:** the cover thumbnails stored beside the database are named, written and removed by `src-tauri/src/infrastructure/thumbnails.rs`.

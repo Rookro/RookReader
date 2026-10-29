@@ -94,4 +94,17 @@ describe("CollectionCommands", () => {
     vi.mocked(invoke).mockRejectedValue(mockError);
     await expect(CollectionCommands.deleteCollection(1)).rejects.toThrow(CommandError);
   });
+
+  it("getBooksByCollection should call invoke", async () => {
+    vi.mocked(invoke).mockResolvedValue([]);
+    await CollectionCommands.getBooksByCollection(1);
+    expect(invoke).toHaveBeenCalledWith("get_books_by_collection", {
+      collectionId: 1,
+    });
+  });
+
+  it("getBooksByCollection should throw CommandError on failure", async () => {
+    vi.mocked(invoke).mockRejectedValue(mockError);
+    await expect(CollectionCommands.getBooksByCollection(1)).rejects.toThrow(CommandError);
+  });
 });

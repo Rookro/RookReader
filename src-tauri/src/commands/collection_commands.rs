@@ -2,6 +2,7 @@ use std::sync::Arc;
 use tauri::State;
 
 use crate::commands::events::{emit, BooksChanged, CollectionsChanged};
+use crate::domain::book::entity::BookWithState;
 use crate::domain::collection::entity::Collection;
 use crate::domain::collection::repository::CollectionRepository;
 use crate::error::Result;
@@ -194,6 +195,34 @@ pub async fn delete_collection<R: tauri::Runtime>(
     repo.delete(id).await?;
     emit(&app, &CollectionsChanged);
     Ok(())
+}
+
+/// Retrieves all books contained within a specific collection, including their reading states.
+///
+/// # Arguments
+///
+/// * `collection_id` - The ID of the collection.
+/// * `repo` - The managed book repository state.
+///
+/// # Returns
+///
+/// A `Result` containing a vector of `BookWithState` entities.
+///
+/// # Errors
+///
+/// This function will return an `Err` if the underlying repository operation fails
+/// (e.g., due to a database error, connection issue, or query execution failure).
+#[tauri::command]
+#[specta::specta]
+pub async fn get_books_by_collection(
+    collection_id: i64,
+    repo: State<'_, Arc<dyn CollectionRepository>>,
+) -> Result<Vec<BookWithState>> {
+    log::debug!(
+        "Get books with state by collection id({:?}).",
+        collection_id
+    );
+    repo.get_books_by_collection(collection_id).await
 }
 
 #[cfg(test)]
@@ -419,5 +448,22 @@ mod tests {
         let e = result.unwrap_err();
         let error_code: ErrorCode = (&e).into();
         assert_eq!(error_code.code(), 70001);
+    }
+
+    #[tokio::test]
+    async fn test_get_books_by_collection() {
+        let mut mock_repo = MockCollectionRepository::new();
+        mock_repo
+            .expect_get_books_by_collection()
+            .with(mockall::predicate::eq(1))
+            .times(1)
+            .returning(|_| Ok(vec![]));
+
+        let app = tauri::test::mock_app();
+        app.manage(Arc::new(mock_repo) as Arc<dyn CollectionRepository>);
+        let state = app.state::<Arc<dyn CollectionRepository>>();
+
+        let result = get_books_by_collection(1, state).await;
+        assert!(result.is_ok());
     }
 }

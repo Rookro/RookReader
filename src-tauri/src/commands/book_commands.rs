@@ -8,9 +8,6 @@ use crate::commands::events::{emit, BooksChanged, ReadingHistoryChanged, Reading
 use crate::container::describe::describe;
 use crate::domain::book::entity::{Book, BookWithState, Direction, ReadBook, ReadingState};
 use crate::domain::book::repository::BookRepository;
-use crate::domain::collection::repository::CollectionRepository;
-use crate::domain::series::repository::SeriesRepository;
-use crate::domain::tag::repository::TagRepository;
 use crate::error::{Error, Result};
 use crate::infrastructure::thumbnails;
 use crate::settings::{AppSettings, SettingsFileProvider};
@@ -401,139 +398,6 @@ pub async fn get_all_books_with_state(
     repo.get_all_books_with_state().await
 }
 
-/// Retrieves all books contained within a specific collection, including their reading states.
-///
-/// # Arguments
-///
-/// * `collection_id` - The ID of the collection.
-/// * `repo` - The managed book repository state.
-///
-/// # Returns
-///
-/// A `Result` containing a vector of `BookWithState` entities.
-///
-/// # Errors
-///
-/// This function will return an `Err` if the underlying repository operation fails
-/// (e.g., due to a database error, connection issue, or query execution failure).
-#[tauri::command]
-#[specta::specta]
-pub async fn get_books_with_state_by_collection_id(
-    collection_id: i64,
-    repo: State<'_, Arc<dyn CollectionRepository>>,
-) -> Result<Vec<BookWithState>> {
-    log::debug!(
-        "Get books with state by collection id({:?}).",
-        collection_id
-    );
-    repo.get_books_by_collection(collection_id).await
-}
-
-/// Retrieves all books associated with a specific tag, including their reading states.
-///
-/// # Arguments
-///
-/// * `tag_id` - The unique identifier of the tag to filter by.
-/// * `repo` - The managed tag repository state.
-///
-/// # Returns
-///
-/// A `Result` containing a vector of `BookWithState` entities.
-///
-/// # Errors
-///
-/// This function will return an `Err` if the underlying repository operation fails
-/// (e.g., due to a database error, connection issue, or query execution failure).
-#[tauri::command]
-#[specta::specta]
-pub async fn get_books_with_state_by_tag_id(
-    tag_id: i64,
-    repo: State<'_, Arc<dyn TagRepository>>,
-) -> Result<Vec<BookWithState>> {
-    log::debug!("Get books with state by tag id({:?}).", tag_id);
-    repo.get_books_by_tag(tag_id).await
-}
-
-/// Retrieves all books belonging to a specific series, including their reading states.
-///
-/// # Arguments
-///
-/// * `series_id` - The unique identifier of the series to filter by.
-/// * `repo` - The managed book repository state.
-///
-/// # Returns
-///
-/// A `Result` containing a vector of `BookWithState` entities.
-///
-/// # Errors
-///
-/// This function will return an `Err` if the underlying repository operation fails
-/// (e.g., due to a database error, connection issue, or query execution failure).
-#[tauri::command]
-#[specta::specta]
-pub async fn get_books_with_state_by_series_id(
-    series_id: i64,
-    repo: State<'_, Arc<dyn SeriesRepository>>,
-) -> Result<Vec<BookWithState>> {
-    log::debug!("Get books with state by series id({:?}).", series_id);
-    repo.get_books_by_series(series_id).await
-}
-
-/// Retrieves the IDs of all tags associated with a specific book.
-///
-/// # Arguments
-///
-/// * `book_id` - The unique identifier of the book.
-/// * `repo` - The managed tag repository state.
-///
-/// # Returns
-///
-/// A `Result` containing a vector of tag IDs.
-///
-/// # Errors
-///
-/// This function will return an `Err` if the underlying repository operation fails
-/// (e.g., due to a database error, connection issue, or query execution failure).
-#[tauri::command]
-#[specta::specta]
-pub async fn get_book_tags(
-    book_id: i64,
-    repo: State<'_, Arc<dyn TagRepository>>,
-) -> Result<Vec<i64>> {
-    log::debug!("Get book tags of {:?}.", book_id);
-    repo.get_tags_for_book(book_id).await
-}
-
-/// Updates the tags associated with a specific book.
-///
-/// # Arguments
-///
-/// * `book_id` - The unique identifier of the book.
-/// * `tag_ids` - A list of tag IDs to associate with the book.
-/// * `repo` - The managed book repository state.
-///
-/// # Errors
-///
-/// This function will return an `Err` if the underlying repository operation fails
-/// (e.g., due to a database error, connection issue, or query execution failure).
-#[tauri::command]
-#[specta::specta]
-pub async fn update_book_tags<R: tauri::Runtime>(
-    book_id: i64,
-    tag_ids: Vec<i64>,
-    repo: State<'_, Arc<dyn TagRepository>>,
-    app: tauri::AppHandle<R>,
-) -> Result<()> {
-    log::debug!(
-        "Update book tags. (book id:{:?}, tag ids:{:?})",
-        book_id,
-        tag_ids
-    );
-    repo.set_tags_for_book(book_id, &tag_ids).await?;
-    emit(&app, &BooksChanged);
-    Ok(())
-}
-
 /// Deletes a book by its unique ID, along with its thumbnail file.
 ///
 /// # Arguments
@@ -566,58 +430,6 @@ pub async fn delete_book<R: tauri::Runtime>(
     Ok(())
 }
 
-/// Updates the series associated with a specific book.
-///
-/// # Arguments
-///
-/// * `book_id` - The unique identifier of the book.
-/// * `series_id` - The unique identifier of the series to associate with the book, or `None` to remove.
-/// * `repo` - The managed series repository state.
-///
-/// # Errors
-///
-/// This function will return an `Err` if the underlying repository operation fails.
-#[tauri::command]
-#[specta::specta]
-pub async fn update_book_series<R: tauri::Runtime>(
-    book_id: i64,
-    series_id: Option<i64>,
-    repo: State<'_, Arc<dyn SeriesRepository>>,
-    app: tauri::AppHandle<R>,
-) -> Result<()> {
-    log::debug!(
-        "Update book series. (book id:{:?}, series id:{:?})",
-        book_id,
-        series_id
-    );
-    repo.set_series_for_book(book_id, series_id).await?;
-    emit(&app, &BooksChanged);
-    Ok(())
-}
-
-/// Updates the `series_order` for a given list of book IDs.
-///
-/// # Arguments
-///
-/// * `book_ids` - A list of book IDs in the desired order.
-/// * `repo` - The managed series repository state.
-///
-/// # Errors
-///
-/// This function will return an `Err` if the underlying repository operation fails.
-#[tauri::command]
-#[specta::specta]
-pub async fn update_series_orders<R: tauri::Runtime>(
-    book_ids: Vec<i64>,
-    repo: State<'_, Arc<dyn SeriesRepository>>,
-    app: tauri::AppHandle<R>,
-) -> Result<()> {
-    log::debug!("Update series orders for books: {:?}", book_ids);
-    repo.set_series_order(book_ids).await?;
-    emit(&app, &BooksChanged);
-    Ok(())
-}
-
 #[cfg(test)]
 mod tests {
     use std::fs;
@@ -626,9 +438,6 @@ mod tests {
     use crate::commands::events::test_support::record_events;
     use crate::domain::book::entity::ItemType;
     use crate::domain::book::repository::MockBookRepository;
-    use crate::domain::collection::repository::MockCollectionRepository;
-    use crate::domain::series::repository::MockSeriesRepository;
-    use crate::domain::tag::repository::MockTagRepository;
     use crate::error::ErrorCode;
     use tauri::Manager;
     use tauri_specta::Event;
@@ -793,66 +602,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_update_book_series() {
-        let mut mock_repo = MockSeriesRepository::new();
-        mock_repo
-            .expect_set_series_for_book()
-            .with(mockall::predicate::eq(1), mockall::predicate::eq(Some(10)))
-            .times(1)
-            .returning(|_, _| Ok(()));
-
-        let app = tauri::test::mock_app();
-        app.manage(Arc::new(mock_repo) as Arc<dyn SeriesRepository>);
-        let repo = app.state::<Arc<dyn SeriesRepository>>();
-        let events = record_events(app.handle());
-
-        let result = update_book_series(1, Some(10), repo, app.handle().clone()).await;
-        assert!(result.is_ok());
-        assert_eq!(*events.lock().unwrap(), [BooksChanged::NAME]);
-    }
-
-    #[tokio::test]
-    async fn test_update_series_orders() {
-        let mut mock_repo = MockSeriesRepository::new();
-        mock_repo
-            .expect_set_series_order()
-            .with(mockall::predicate::eq(vec![1, 2, 3]))
-            .times(1)
-            .returning(|_| Ok(()));
-
-        let app = tauri::test::mock_app();
-        app.manage(Arc::new(mock_repo) as Arc<dyn SeriesRepository>);
-        let repo = app.state::<Arc<dyn SeriesRepository>>();
-        let events = record_events(app.handle());
-
-        let result = update_series_orders(vec![1, 2, 3], repo, app.handle().clone()).await;
-        assert!(result.is_ok());
-        assert_eq!(*events.lock().unwrap(), [BooksChanged::NAME]);
-    }
-
-    #[tokio::test]
-    async fn test_update_book_tags() {
-        let mut mock_repo = MockTagRepository::new();
-        mock_repo
-            .expect_set_tags_for_book()
-            .with(
-                mockall::predicate::eq(1),
-                mockall::predicate::eq(vec![2, 3]),
-            )
-            .times(1)
-            .returning(|_, _| Ok(()));
-
-        let app = tauri::test::mock_app();
-        app.manage(Arc::new(mock_repo) as Arc<dyn TagRepository>);
-        let repo = app.state::<Arc<dyn TagRepository>>();
-        let events = record_events(app.handle());
-
-        let result = update_book_tags(1, vec![2, 3], repo, app.handle().clone()).await;
-        assert!(result.is_ok());
-        assert_eq!(*events.lock().unwrap(), [BooksChanged::NAME]);
-    }
-
-    #[tokio::test]
     async fn test_clear_reading_history() {
         let mut mock_repo = MockBookRepository::new();
         mock_repo
@@ -943,26 +692,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_get_book_tags() {
-        let mut mock_repo = MockTagRepository::new();
-        mock_repo
-            .expect_get_tags_for_book()
-            .with(mockall::predicate::eq(1))
-            .times(1)
-            .returning(|_| Ok(vec![1, 2, 3]));
-
-        let app = tauri::test::mock_app();
-        app.manage(Arc::new(mock_repo) as Arc<dyn TagRepository>);
-        let state = app.state::<Arc<dyn TagRepository>>();
-
-        let result = get_book_tags(1, state).await;
-        assert!(result.is_ok());
-        let tags = result.unwrap();
-        assert_eq!(tags.len(), 3);
-        assert_eq!(tags, vec![1, 2, 3]);
-    }
-
-    #[tokio::test]
     async fn test_get_recently_read_books() {
         let mut mock_repo = MockBookRepository::new();
         mock_repo
@@ -992,57 +721,6 @@ mod tests {
         let state = app.state::<Arc<dyn BookRepository>>();
 
         let result = get_all_books_with_state(state).await;
-        assert!(result.is_ok());
-    }
-
-    #[tokio::test]
-    async fn test_get_books_with_state_by_collection_id() {
-        let mut mock_repo = MockCollectionRepository::new();
-        mock_repo
-            .expect_get_books_by_collection()
-            .with(mockall::predicate::eq(1))
-            .times(1)
-            .returning(|_| Ok(vec![]));
-
-        let app = tauri::test::mock_app();
-        app.manage(Arc::new(mock_repo) as Arc<dyn CollectionRepository>);
-        let state = app.state::<Arc<dyn CollectionRepository>>();
-
-        let result = get_books_with_state_by_collection_id(1, state).await;
-        assert!(result.is_ok());
-    }
-
-    #[tokio::test]
-    async fn test_get_books_with_state_by_tag_id() {
-        let mut mock_repo = MockTagRepository::new();
-        mock_repo
-            .expect_get_books_by_tag()
-            .with(mockall::predicate::eq(1))
-            .times(1)
-            .returning(|_| Ok(vec![]));
-
-        let app = tauri::test::mock_app();
-        app.manage(Arc::new(mock_repo) as Arc<dyn TagRepository>);
-        let state = app.state::<Arc<dyn TagRepository>>();
-
-        let result = get_books_with_state_by_tag_id(1, state).await;
-        assert!(result.is_ok());
-    }
-
-    #[tokio::test]
-    async fn test_get_books_with_state_by_series_id() {
-        let mut mock_repo = MockSeriesRepository::new();
-        mock_repo
-            .expect_get_books_by_series()
-            .with(mockall::predicate::eq(1))
-            .times(1)
-            .returning(|_| Ok(vec![]));
-
-        let app = tauri::test::mock_app();
-        app.manage(Arc::new(mock_repo) as Arc<dyn SeriesRepository>);
-        let state = app.state::<Arc<dyn SeriesRepository>>();
-
-        let result = get_books_with_state_by_series_id(1, state).await;
         assert!(result.is_ok());
     }
 

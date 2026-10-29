@@ -73,52 +73,6 @@ export async function recordBookOpened(filePath: string): Promise<BookWithState>
 }
 
 /**
- * Retrieves the list of tag IDs associated with a specific book.
- *
- * @param bookId - The unique identifier of the book.
- * @returns A promise that resolves to an array of tag IDs.
- * @throws {CommandError} If the Tauri command fails.
- */
-export async function getBookTags(bookId: number) {
-  return await runCommand(commands.getBookTags(bookId));
-}
-
-/**
- * Updates the tags associated with a specific book.
- *
- * @param bookId - The unique identifier of the book.
- * @param tagIds - An array of tag IDs to associate with the book.
- * @returns A promise that resolves when the update is successful.
- * @throws {CommandError} If the Tauri command fails.
- */
-export async function updateBookTags(bookId: number, tagIds: number[]): Promise<void> {
-  await runCommand(commands.updateBookTags(bookId, tagIds));
-}
-
-/**
- * Updates the series associated with a specific book.
- *
- * @param bookId - The unique identifier of the book.
- * @param seriesId - The unique identifier of the series to associate with the book, or null to remove.
- * @returns A promise that resolves when the update is successful.
- * @throws {CommandError} If the Tauri command fails.
- */
-export async function updateBookSeries(bookId: number, seriesId: number | null): Promise<void> {
-  await runCommand(commands.updateBookSeries(bookId, seriesId));
-}
-
-/**
- * Updates the order of books within a series.
- *
- * @param bookIds - An array of book IDs representing the new order.
- * @returns A promise that resolves when the update is successful.
- * @throws {CommandError} If the Tauri command fails.
- */
-export async function updateSeriesOrders(bookIds: number[]): Promise<void> {
-  await runCommand(commands.updateSeriesOrders(bookIds));
-}
-
-/**
  * Updates the reading progress/state of a book.
  *
  * @param stateData - The reading state data to update.
@@ -159,41 +113,6 @@ export async function clearAllReadingHistory(): Promise<void> {
 export async function getRecentlyReadBooks(): Promise<ReadBook[]> {
   // `limit` is an `Option<i64>` on the backend; `null` requests the default limit.
   return await runCommand(commands.getRecentlyReadBooks(null));
-}
-
-/**
- * Retrieves all books along with their reading states that belong to a specific collection.
- *
- * @param collectionId - The unique identifier of the collection.
- * @returns A promise that resolves to an array of BookWithState objects.
- * @throws {CommandError} If the Tauri command fails.
- */
-export async function getBooksWithStateByCollectionId(
-  collectionId: number,
-): Promise<BookWithState[]> {
-  return await runCommand(commands.getBooksWithStateByCollectionId(collectionId));
-}
-
-/**
- * Retrieves all books along with their reading states that are associated with a specific tag.
- *
- * @param tagId - The unique identifier of the tag.
- * @returns A promise that resolves to an array of BookWithState objects.
- * @throws {CommandError} If the Tauri command fails.
- */
-export async function getBooksWithStateByTagId(tagId: number): Promise<BookWithState[]> {
-  return await runCommand(commands.getBooksWithStateByTagId(tagId));
-}
-
-/**
- * Retrieves all books along with their reading states that belong to a specific series.
- *
- * @param seriesId - The unique identifier of the series.
- * @returns A promise that resolves to an array of BookWithState objects.
- * @throws {CommandError} If the Tauri command fails.
- */
-export async function getBooksWithStateBySeriesId(seriesId: number): Promise<BookWithState[]> {
-  return await runCommand(commands.getBooksWithStateBySeriesId(seriesId));
 }
 
 /**

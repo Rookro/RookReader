@@ -85,29 +85,6 @@ describe("BookCommands", () => {
     await expect(BookCommands.recordBookOpened("p2")).rejects.toThrow(CommandError);
   });
 
-  it("getBookTags should call invoke", async () => {
-    vi.mocked(invoke).mockResolvedValue([1, 2, 3]);
-    const result = await BookCommands.getBookTags(1);
-    expect(invoke).toHaveBeenCalledWith("get_book_tags", { bookId: 1 });
-    expect(result).toEqual([1, 2, 3]);
-  });
-
-  it("getBookTags should throw CommandError on failure", async () => {
-    vi.mocked(invoke).mockRejectedValue(mockError);
-    await expect(BookCommands.getBookTags(1)).rejects.toThrow(CommandError);
-  });
-
-  it("updateBookTags should call invoke", async () => {
-    vi.mocked(invoke).mockResolvedValue(undefined);
-    await BookCommands.updateBookTags(1, [1, 2]);
-    expect(invoke).toHaveBeenCalledWith("update_book_tags", { bookId: 1, tagIds: [1, 2] });
-  });
-
-  it("updateBookTags should throw CommandError on failure", async () => {
-    vi.mocked(invoke).mockRejectedValue(mockError);
-    await expect(BookCommands.updateBookTags(1, [1])).rejects.toThrow(CommandError);
-  });
-
   it("updateReadingProgress should call invoke", async () => {
     vi.mocked(invoke).mockResolvedValue(undefined);
     const state = { book_id: 1, last_read_page_index: 5, cfi: null, last_opened_at: "now" };
@@ -153,63 +130,6 @@ describe("BookCommands", () => {
   it("getRecentlyReadBooks should throw CommandError on failure", async () => {
     vi.mocked(invoke).mockRejectedValue(mockError);
     await expect(BookCommands.getRecentlyReadBooks()).rejects.toThrow(CommandError);
-  });
-
-  it("getBooksWithStateByCollectionId should call invoke", async () => {
-    vi.mocked(invoke).mockResolvedValue([]);
-    await BookCommands.getBooksWithStateByCollectionId(1);
-    expect(invoke).toHaveBeenCalledWith("get_books_with_state_by_collection_id", {
-      collectionId: 1,
-    });
-  });
-
-  it("getBooksWithStateByCollectionId should throw CommandError on failure", async () => {
-    vi.mocked(invoke).mockRejectedValue(mockError);
-    await expect(BookCommands.getBooksWithStateByCollectionId(1)).rejects.toThrow(CommandError);
-  });
-
-  it("getBooksWithStateByTagId should call invoke", async () => {
-    vi.mocked(invoke).mockResolvedValue([]);
-    await BookCommands.getBooksWithStateByTagId(2);
-    expect(invoke).toHaveBeenCalledWith("get_books_with_state_by_tag_id", { tagId: 2 });
-  });
-
-  it("getBooksWithStateByTagId should throw CommandError on failure", async () => {
-    vi.mocked(invoke).mockRejectedValue(mockError);
-    await expect(BookCommands.getBooksWithStateByTagId(1)).rejects.toThrow(CommandError);
-  });
-
-  it("getBooksWithStateBySeriesId should call invoke", async () => {
-    vi.mocked(invoke).mockResolvedValue([]);
-    await BookCommands.getBooksWithStateBySeriesId(3);
-    expect(invoke).toHaveBeenCalledWith("get_books_with_state_by_series_id", { seriesId: 3 });
-  });
-
-  it("getBooksWithStateBySeriesId should throw CommandError on failure", async () => {
-    vi.mocked(invoke).mockRejectedValue(mockError);
-    await expect(BookCommands.getBooksWithStateBySeriesId(1)).rejects.toThrow(CommandError);
-  });
-
-  it("updateBookSeries should call invoke", async () => {
-    vi.mocked(invoke).mockResolvedValue(undefined);
-    await BookCommands.updateBookSeries(1, 10);
-    expect(invoke).toHaveBeenCalledWith("update_book_series", { bookId: 1, seriesId: 10 });
-  });
-
-  it("updateBookSeries should throw CommandError on failure", async () => {
-    vi.mocked(invoke).mockRejectedValue(mockError);
-    await expect(BookCommands.updateBookSeries(1, 10)).rejects.toThrow(CommandError);
-  });
-
-  it("updateSeriesOrders should call invoke", async () => {
-    vi.mocked(invoke).mockResolvedValue(undefined);
-    await BookCommands.updateSeriesOrders([1, 2, 3]);
-    expect(invoke).toHaveBeenCalledWith("update_series_orders", { bookIds: [1, 2, 3] });
-  });
-
-  it("updateSeriesOrders should throw CommandError on failure", async () => {
-    vi.mocked(invoke).mockRejectedValue(mockError);
-    await expect(BookCommands.updateSeriesOrders([1, 2, 3])).rejects.toThrow(CommandError);
   });
 
   it("updateReadingDirection should call invoke", async () => {

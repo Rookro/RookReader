@@ -2,6 +2,7 @@ use std::sync::Arc;
 use tauri::State;
 
 use crate::commands::events::{emit, BooksChanged, TagsChanged};
+use crate::domain::book::entity::BookWithState;
 use crate::domain::tag::entity::Tag;
 use crate::domain::tag::repository::TagRepository;
 use crate::error::Result;
@@ -79,6 +80,86 @@ pub async fn delete_tag<R: tauri::Runtime>(
     emit(&app, &TagsChanged);
     emit(&app, &BooksChanged);
     Ok(())
+}
+
+/// Retrieves the IDs of all tags associated with a specific book.
+///
+/// # Arguments
+///
+/// * `book_id` - The unique identifier of the book.
+/// * `repo` - The managed tag repository state.
+///
+/// # Returns
+///
+/// A `Result` containing a vector of tag IDs.
+///
+/// # Errors
+///
+/// This function will return an `Err` if the underlying repository operation fails
+/// (e.g., due to a database error, connection issue, or query execution failure).
+#[tauri::command]
+#[specta::specta]
+pub async fn get_tags_for_book(
+    book_id: i64,
+    repo: State<'_, Arc<dyn TagRepository>>,
+) -> Result<Vec<i64>> {
+    log::debug!("Get book tags of {:?}.", book_id);
+    repo.get_tags_for_book(book_id).await
+}
+
+/// Updates the tags associated with a specific book.
+///
+/// # Arguments
+///
+/// * `book_id` - The unique identifier of the book.
+/// * `tag_ids` - A list of tag IDs to associate with the book.
+/// * `repo` - The managed book repository state.
+///
+/// # Errors
+///
+/// This function will return an `Err` if the underlying repository operation fails
+/// (e.g., due to a database error, connection issue, or query execution failure).
+#[tauri::command]
+#[specta::specta]
+pub async fn set_tags_for_book<R: tauri::Runtime>(
+    book_id: i64,
+    tag_ids: Vec<i64>,
+    repo: State<'_, Arc<dyn TagRepository>>,
+    app: tauri::AppHandle<R>,
+) -> Result<()> {
+    log::debug!(
+        "Update book tags. (book id:{:?}, tag ids:{:?})",
+        book_id,
+        tag_ids
+    );
+    repo.set_tags_for_book(book_id, &tag_ids).await?;
+    emit(&app, &BooksChanged);
+    Ok(())
+}
+
+/// Retrieves all books associated with a specific tag, including their reading states.
+///
+/// # Arguments
+///
+/// * `tag_id` - The unique identifier of the tag to filter by.
+/// * `repo` - The managed tag repository state.
+///
+/// # Returns
+///
+/// A `Result` containing a vector of `BookWithState` entities.
+///
+/// # Errors
+///
+/// This function will return an `Err` if the underlying repository operation fails
+/// (e.g., due to a database error, connection issue, or query execution failure).
+#[tauri::command]
+#[specta::specta]
+pub async fn get_books_by_tag(
+    tag_id: i64,
+    repo: State<'_, Arc<dyn TagRepository>>,
+) -> Result<Vec<BookWithState>> {
+    log::debug!("Get books with state by tag id({:?}).", tag_id);
+    repo.get_books_by_tag(tag_id).await
 }
 
 #[cfg(test)]
@@ -201,5 +282,64 @@ mod tests {
         let e = result.unwrap_err();
         let error_code: ErrorCode = (&e).into();
         assert_eq!(error_code.code(), 70001);
+    }
+
+    #[tokio::test]
+    async fn test_get_tags_for_book() {
+        let mut mock_repo = MockTagRepository::new();
+        mock_repo
+            .expect_get_tags_for_book()
+            .with(mockall::predicate::eq(1))
+            .times(1)
+            .returning(|_| Ok(vec![1, 2, 3]));
+
+        let app = tauri::test::mock_app();
+        app.manage(Arc::new(mock_repo) as Arc<dyn TagRepository>);
+        let state = app.state::<Arc<dyn TagRepository>>();
+
+        let result = get_tags_for_book(1, state).await;
+        assert!(result.is_ok());
+        let tags = result.unwrap();
+        assert_eq!(tags.len(), 3);
+        assert_eq!(tags, vec![1, 2, 3]);
+    }
+
+    #[tokio::test]
+    async fn test_set_tags_for_book() {
+        let mut mock_repo = MockTagRepository::new();
+        mock_repo
+            .expect_set_tags_for_book()
+            .with(
+                mockall::predicate::eq(1),
+                mockall::predicate::eq(vec![2, 3]),
+            )
+            .times(1)
+            .returning(|_, _| Ok(()));
+
+        let app = tauri::test::mock_app();
+        app.manage(Arc::new(mock_repo) as Arc<dyn TagRepository>);
+        let repo = app.state::<Arc<dyn TagRepository>>();
+        let events = record_events(app.handle());
+
+        let result = set_tags_for_book(1, vec![2, 3], repo, app.handle().clone()).await;
+        assert!(result.is_ok());
+        assert_eq!(*events.lock().unwrap(), [BooksChanged::NAME]);
+    }
+
+    #[tokio::test]
+    async fn test_get_books_by_tag() {
+        let mut mock_repo = MockTagRepository::new();
+        mock_repo
+            .expect_get_books_by_tag()
+            .with(mockall::predicate::eq(1))
+            .times(1)
+            .returning(|_| Ok(vec![]));
+
+        let app = tauri::test::mock_app();
+        app.manage(Arc::new(mock_repo) as Arc<dyn TagRepository>);
+        let state = app.state::<Arc<dyn TagRepository>>();
+
+        let result = get_books_by_tag(1, state).await;
+        assert!(result.is_ok());
     }
 }

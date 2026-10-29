@@ -170,39 +170,6 @@ export const commands = {
 	 */
 	getFonts: () => __TAURI_INVOKE<string[]>("get_fonts"),
 	/**
-	 *  Retrieves the IDs of all tags associated with a specific book.
-	 * 
-	 *  # Arguments
-	 * 
-	 *  * `book_id` - The unique identifier of the book.
-	 *  * `repo` - The managed tag repository state.
-	 * 
-	 *  # Returns
-	 * 
-	 *  A `Result` containing a vector of tag IDs.
-	 * 
-	 *  # Errors
-	 * 
-	 *  This function will return an `Err` if the underlying repository operation fails
-	 *  (e.g., due to a database error, connection issue, or query execution failure).
-	 */
-	getBookTags: (bookId: number) => typedError<number[], CommandError_Serialize>(__TAURI_INVOKE("get_book_tags", { bookId })),
-	/**
-	 *  Updates the tags associated with a specific book.
-	 * 
-	 *  # Arguments
-	 * 
-	 *  * `book_id` - The unique identifier of the book.
-	 *  * `tag_ids` - A list of tag IDs to associate with the book.
-	 *  * `repo` - The managed book repository state.
-	 * 
-	 *  # Errors
-	 * 
-	 *  This function will return an `Err` if the underlying repository operation fails
-	 *  (e.g., due to a database error, connection issue, or query execution failure).
-	 */
-	updateBookTags: (bookId: number, tagIds: number[]) => typedError<null, CommandError_Serialize>(__TAURI_INVOKE("update_book_tags", { bookId, tagIds })),
-	/**
 	 *  Retrieves a book by its unique ID.
 	 * 
 	 *  # Arguments
@@ -433,87 +400,6 @@ export const commands = {
 	 */
 	getAllBooksWithState: () => typedError<BookWithState_Serialize[], CommandError_Serialize>(__TAURI_INVOKE("get_all_books_with_state")),
 	/**
-	 *  Retrieves all books contained within a specific collection, including their reading states.
-	 * 
-	 *  # Arguments
-	 * 
-	 *  * `collection_id` - The ID of the collection.
-	 *  * `repo` - The managed book repository state.
-	 * 
-	 *  # Returns
-	 * 
-	 *  A `Result` containing a vector of `BookWithState` entities.
-	 * 
-	 *  # Errors
-	 * 
-	 *  This function will return an `Err` if the underlying repository operation fails
-	 *  (e.g., due to a database error, connection issue, or query execution failure).
-	 */
-	getBooksWithStateByCollectionId: (collectionId: number) => typedError<BookWithState_Serialize[], CommandError_Serialize>(__TAURI_INVOKE("get_books_with_state_by_collection_id", { collectionId })),
-	/**
-	 *  Retrieves all books associated with a specific tag, including their reading states.
-	 * 
-	 *  # Arguments
-	 * 
-	 *  * `tag_id` - The unique identifier of the tag to filter by.
-	 *  * `repo` - The managed tag repository state.
-	 * 
-	 *  # Returns
-	 * 
-	 *  A `Result` containing a vector of `BookWithState` entities.
-	 * 
-	 *  # Errors
-	 * 
-	 *  This function will return an `Err` if the underlying repository operation fails
-	 *  (e.g., due to a database error, connection issue, or query execution failure).
-	 */
-	getBooksWithStateByTagId: (tagId: number) => typedError<BookWithState_Serialize[], CommandError_Serialize>(__TAURI_INVOKE("get_books_with_state_by_tag_id", { tagId })),
-	/**
-	 *  Retrieves all books belonging to a specific series, including their reading states.
-	 * 
-	 *  # Arguments
-	 * 
-	 *  * `series_id` - The unique identifier of the series to filter by.
-	 *  * `repo` - The managed book repository state.
-	 * 
-	 *  # Returns
-	 * 
-	 *  A `Result` containing a vector of `BookWithState` entities.
-	 * 
-	 *  # Errors
-	 * 
-	 *  This function will return an `Err` if the underlying repository operation fails
-	 *  (e.g., due to a database error, connection issue, or query execution failure).
-	 */
-	getBooksWithStateBySeriesId: (seriesId: number) => typedError<BookWithState_Serialize[], CommandError_Serialize>(__TAURI_INVOKE("get_books_with_state_by_series_id", { seriesId })),
-	/**
-	 *  Updates the series associated with a specific book.
-	 * 
-	 *  # Arguments
-	 * 
-	 *  * `book_id` - The unique identifier of the book.
-	 *  * `series_id` - The unique identifier of the series to associate with the book, or `None` to remove.
-	 *  * `repo` - The managed series repository state.
-	 * 
-	 *  # Errors
-	 * 
-	 *  This function will return an `Err` if the underlying repository operation fails.
-	 */
-	updateBookSeries: (bookId: number, seriesId: number | null) => typedError<null, CommandError_Serialize>(__TAURI_INVOKE("update_book_series", { bookId, seriesId })),
-	/**
-	 *  Updates the `series_order` for a given list of book IDs.
-	 * 
-	 *  # Arguments
-	 * 
-	 *  * `book_ids` - A list of book IDs in the desired order.
-	 *  * `repo` - The managed series repository state.
-	 * 
-	 *  # Errors
-	 * 
-	 *  This function will return an `Err` if the underlying repository operation fails.
-	 */
-	updateSeriesOrders: (bookIds: number[]) => typedError<null, CommandError_Serialize>(__TAURI_INVOKE("update_series_orders", { bookIds })),
-	/**
 	 *  Creates a new collection and returns its complete entity.
 	 * 
 	 *  # Arguments
@@ -623,6 +509,24 @@ export const commands = {
 	 */
 	deleteCollection: (id: number) => typedError<null, CommandError_Serialize>(__TAURI_INVOKE("delete_collection", { id })),
 	/**
+	 *  Retrieves all books contained within a specific collection, including their reading states.
+	 * 
+	 *  # Arguments
+	 * 
+	 *  * `collection_id` - The ID of the collection.
+	 *  * `repo` - The managed book repository state.
+	 * 
+	 *  # Returns
+	 * 
+	 *  A `Result` containing a vector of `BookWithState` entities.
+	 * 
+	 *  # Errors
+	 * 
+	 *  This function will return an `Err` if the underlying repository operation fails
+	 *  (e.g., due to a database error, connection issue, or query execution failure).
+	 */
+	getBooksByCollection: (collectionId: number) => typedError<BookWithState_Serialize[], CommandError_Serialize>(__TAURI_INVOKE("get_books_by_collection", { collectionId })),
+	/**
 	 *  Creates a new series.
 	 * 
 	 *  # Arguments
@@ -670,6 +574,51 @@ export const commands = {
 	 *  This function will return an `Err` if the underlying repository operation fails.
 	 */
 	deleteSeries: (id: number) => typedError<null, CommandError_Serialize>(__TAURI_INVOKE("delete_series", { id })),
+	/**
+	 *  Retrieves all books belonging to a specific series, including their reading states.
+	 * 
+	 *  # Arguments
+	 * 
+	 *  * `series_id` - The unique identifier of the series to filter by.
+	 *  * `repo` - The managed book repository state.
+	 * 
+	 *  # Returns
+	 * 
+	 *  A `Result` containing a vector of `BookWithState` entities.
+	 * 
+	 *  # Errors
+	 * 
+	 *  This function will return an `Err` if the underlying repository operation fails
+	 *  (e.g., due to a database error, connection issue, or query execution failure).
+	 */
+	getBooksBySeries: (seriesId: number) => typedError<BookWithState_Serialize[], CommandError_Serialize>(__TAURI_INVOKE("get_books_by_series", { seriesId })),
+	/**
+	 *  Updates the series associated with a specific book.
+	 * 
+	 *  # Arguments
+	 * 
+	 *  * `book_id` - The unique identifier of the book.
+	 *  * `series_id` - The unique identifier of the series to associate with the book, or `None` to remove.
+	 *  * `repo` - The managed series repository state.
+	 * 
+	 *  # Errors
+	 * 
+	 *  This function will return an `Err` if the underlying repository operation fails.
+	 */
+	setSeriesForBook: (bookId: number, seriesId: number | null) => typedError<null, CommandError_Serialize>(__TAURI_INVOKE("set_series_for_book", { bookId, seriesId })),
+	/**
+	 *  Updates the `series_order` for a given list of book IDs.
+	 * 
+	 *  # Arguments
+	 * 
+	 *  * `book_ids` - A list of book IDs in the desired order.
+	 *  * `repo` - The managed series repository state.
+	 * 
+	 *  # Errors
+	 * 
+	 *  This function will return an `Err` if the underlying repository operation fails.
+	 */
+	setSeriesOrder: (bookIds: number[]) => typedError<null, CommandError_Serialize>(__TAURI_INVOKE("set_series_order", { bookIds })),
 	/**
 	 *  Creates a new tag and returns its complete entity.
 	 * 
@@ -719,6 +668,57 @@ export const commands = {
 	 *  This function will return an `Err` if the underlying repository operation fails.
 	 */
 	deleteTag: (id: number) => typedError<null, CommandError_Serialize>(__TAURI_INVOKE("delete_tag", { id })),
+	/**
+	 *  Retrieves the IDs of all tags associated with a specific book.
+	 * 
+	 *  # Arguments
+	 * 
+	 *  * `book_id` - The unique identifier of the book.
+	 *  * `repo` - The managed tag repository state.
+	 * 
+	 *  # Returns
+	 * 
+	 *  A `Result` containing a vector of tag IDs.
+	 * 
+	 *  # Errors
+	 * 
+	 *  This function will return an `Err` if the underlying repository operation fails
+	 *  (e.g., due to a database error, connection issue, or query execution failure).
+	 */
+	getTagsForBook: (bookId: number) => typedError<number[], CommandError_Serialize>(__TAURI_INVOKE("get_tags_for_book", { bookId })),
+	/**
+	 *  Updates the tags associated with a specific book.
+	 * 
+	 *  # Arguments
+	 * 
+	 *  * `book_id` - The unique identifier of the book.
+	 *  * `tag_ids` - A list of tag IDs to associate with the book.
+	 *  * `repo` - The managed book repository state.
+	 * 
+	 *  # Errors
+	 * 
+	 *  This function will return an `Err` if the underlying repository operation fails
+	 *  (e.g., due to a database error, connection issue, or query execution failure).
+	 */
+	setTagsForBook: (bookId: number, tagIds: number[]) => typedError<null, CommandError_Serialize>(__TAURI_INVOKE("set_tags_for_book", { bookId, tagIds })),
+	/**
+	 *  Retrieves all books associated with a specific tag, including their reading states.
+	 * 
+	 *  # Arguments
+	 * 
+	 *  * `tag_id` - The unique identifier of the tag to filter by.
+	 *  * `repo` - The managed tag repository state.
+	 * 
+	 *  # Returns
+	 * 
+	 *  A `Result` containing a vector of `BookWithState` entities.
+	 * 
+	 *  # Errors
+	 * 
+	 *  This function will return an `Err` if the underlying repository operation fails
+	 *  (e.g., due to a database error, connection issue, or query execution failure).
+	 */
+	getBooksByTag: (tagId: number) => typedError<BookWithState_Serialize[], CommandError_Serialize>(__TAURI_INVOKE("get_books_by_tag", { tagId })),
 	/**
 	 *  Creates a bookmark for a book and returns its complete entity.
 	 * 

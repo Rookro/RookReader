@@ -1,15 +1,11 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
-import {
-  deleteBook,
-  getAllBooksWithState,
-  getBooksWithStateByCollectionId,
-  registerBook,
-} from "../../bindings/BookCommands";
+import { deleteBook, getAllBooksWithState, registerBook } from "../../bindings/BookCommands";
 import {
   addBookToCollection,
   createCollection,
   deleteCollection,
   getAllCollections,
+  getBooksByCollection,
   removeBookFromCollection,
   setCollectionsForBook,
 } from "../../bindings/CollectionCommands";
@@ -72,7 +68,7 @@ export const fetchBooksInSelectedCollection = createAppAsyncThunk(
       if (collectionId === null) {
         return await getAllBooksWithState();
       }
-      return await getBooksWithStateByCollectionId(collectionId);
+      return await getBooksByCollection(collectionId);
     } catch (e) {
       return handleThunkError(
         e,
