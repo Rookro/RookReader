@@ -56,7 +56,7 @@ Write all code comments and documentation in English.
 
 1. Put the logic in Rust (`src-tauri/src/domain/`, `infrastructure/database/`, `container/`, …).
 2. Expose it from `src-tauri/src/commands/` with `#[tauri::command]` + `#[specta::specta]`.
-3. Register it in `specta_builder()`'s `collect_commands!` in `src-tauri/src/lib.rs`. Commands returning a raw `tauri::ipc::Response` (binary payloads) go in the separate `generate_handler!` there instead and keep a raw `invoke` on the frontend.
+3. Register it in `specta_builder()`'s `collect_commands!` in `src-tauri/src/lib.rs`. Commands returning a raw `tauri::ipc::Response` (binary payloads) go in the separate `generate_handler!` there instead and are called on the frontend through `runBinaryCommand` in `src/bindings/result.ts`.
 4. Run `npm run gen:bindings`.
 5. Add or update the thin wrapper in `src/bindings/*Commands.ts` that delegates to the generated `commands.*`. Entity results already have their generated types; when a new entity is added, alias its `_Serialize` type in `src/domain/entities.ts`.
 6. Call the wrapper from a Redux thunk or a hook.
