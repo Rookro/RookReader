@@ -3,6 +3,7 @@ import * as BookmarkCommands from "../../bindings/BookmarkCommands";
 import type { Bookmark } from "../../domain/entities";
 import { createMockBookmark } from "../../test/factories";
 import { type AppStore, createTestStore } from "../../test/utils";
+import type { ThunkRejectValue } from "../../types/CustomAsyncThunk";
 import { CommandError, ErrorCode } from "../../types/Error";
 import bookmarkReducer, {
   addBookmark,
@@ -20,7 +21,7 @@ describe("BookmarkReducer", () => {
     bookId: null as number | null,
     bookmarks: [] as Bookmark[],
     status: "idle" as "idle" | "loading" | "succeeded" | "failed",
-    error: null as { code: ErrorCode; message?: string } | null,
+    error: null as ThunkRejectValue | null,
   };
 
   beforeEach(() => {

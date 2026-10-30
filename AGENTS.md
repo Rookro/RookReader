@@ -30,7 +30,7 @@ Locally, the `sqlx` macros check queries against `src-tauri/rook-reader.db` (`DA
 **TypeScript**
 - No `any`.
 - Log with `@tauri-apps/plugin-log`, not `console.*`, so messages reach the app's log file.
-- Global state (reading history, bookshelf, …) lives in Redux Toolkit slices and `createAsyncThunk`; component-only UI state uses `useState` / `useReducer`.
+- Global state (reading history, bookshelf, …) lives in Redux Toolkit slices, and thunks that call commands are built with `createCommandThunk` (`src/types/CustomAsyncThunk.ts`); component-only UI state uses `useState` / `useReducer`.
 - Style with MUI components and the `sx` prop, following the theme in `src/hooks/useAppTheme.ts`.
 - User-facing strings go through `react-i18next`; add every new key to both `src/i18n/locales/en-US.json` and `ja-JP.json`.
 - Frontend system access uses official Tauri v2 plugins (`@tauri-apps/plugin-fs`, `@tauri-apps/plugin-dialog`, …), not the legacy core APIs.

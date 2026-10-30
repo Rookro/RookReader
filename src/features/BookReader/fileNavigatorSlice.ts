@@ -2,7 +2,7 @@ import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import { error } from "@tauri-apps/plugin-log";
 import { getEntriesInDir as getEntriesInDirFromBackend } from "../../bindings/DirectoryCommands";
 import { handleThunkError } from "../../store/thunkErrorHandler";
-import { createAppAsyncThunk } from "../../types/CustomAsyncThunk";
+import { createAppAsyncThunk, type ThunkRejectValue } from "../../types/CustomAsyncThunk";
 import type { DirEntry } from "../../types/DirEntry";
 import { ErrorCode } from "../../types/Error";
 import { convertEntriesInDir } from "../../utils/DirEntryUtils";
@@ -56,7 +56,7 @@ const initialState = {
   entries: [] as DirEntry[],
   searchText: "",
   isLoading: false,
-  error: null as { code: ErrorCode; message?: string } | null,
+  error: null as ThunkRejectValue | null,
   /** The latest listing request; only its answer may change the explorer. */
   requestId: null as string | null,
   /** The folder that request lists, until it settles. */

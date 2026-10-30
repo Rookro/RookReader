@@ -11,9 +11,8 @@ import {
 } from "../../bindings/CollectionCommands";
 import type { BookWithState, Collection } from "../../domain/entities";
 import { readingProgressChanged } from "../../store/actions";
-import { handleThunkError } from "../../store/thunkErrorHandler";
-import { createAppAsyncThunk } from "../../types/CustomAsyncThunk";
-import type { ErrorCode } from "../../types/Error";
+import { recordThunkError } from "../../store/thunkErrorHandler";
+import { createCommandThunk, type ThunkRejectValue } from "../../types/CustomAsyncThunk";
 
 /**
  * Creates a new collection and adds it to the database.
@@ -23,19 +22,10 @@ import type { ErrorCode } from "../../types/Error";
  * @param params.icon_id - The string identifier for the UI icon associated with the collection.
  * @returns A thunk that resolves to the newly created Collection object.
  */
-export const addCollection = createAppAsyncThunk(
+export const addCollection = createCommandThunk(
   "collection/addCollection",
-  async ({ name, icon_id }: { name: string; icon_id: string }, { rejectWithValue }) => {
-    try {
-      return await createCollection(name, icon_id);
-    } catch (e) {
-      return handleThunkError(
-        e,
-        `Failed to add collection(name: ${name}, icon_id: ${icon_id}).`,
-        rejectWithValue,
-      );
-    }
-  },
+  ({ name, icon_id }: { name: string; icon_id: string }) => createCollection(name, icon_id),
+  ({ name, icon_id }) => `Failed to add collection(name: ${name}, icon_id: ${icon_id}).`,
 );
 
 /**
@@ -43,15 +33,10 @@ export const addCollection = createAppAsyncThunk(
  *
  * @returns A thunk that resolves to an array of all Collection objects.
  */
-export const fetchCollections = createAppAsyncThunk(
+export const fetchCollections = createCommandThunk(
   "collection/fetchCollections",
-  async (_, { rejectWithValue }) => {
-    try {
-      return await getAllCollections();
-    } catch (e) {
-      return handleThunkError(e, "Failed to fetch all available collections.", rejectWithValue);
-    }
-  },
+  () => getAllCollections(),
+  () => "Failed to fetch all available collections.",
 );
 
 /**
@@ -61,22 +46,15 @@ export const fetchCollections = createAppAsyncThunk(
  * @param collectionId - The ID of the collection to fetch books for, or null for all books.
  * @returns A thunk that resolves to an array of BookWithState objects.
  */
-export const fetchBooksInSelectedCollection = createAppAsyncThunk(
+export const fetchBooksInSelectedCollection = createCommandThunk(
   "collection/fetchBooksInSelectedCollection",
-  async (collectionId: number | null, { rejectWithValue }) => {
-    try {
-      if (collectionId === null) {
-        return await getAllBooksWithState();
-      }
-      return await getBooksByCollection(collectionId);
-    } catch (e) {
-      return handleThunkError(
-        e,
-        `Failed to fetch books in the collection of collectionId: ${collectionId}.`,
-        rejectWithValue,
-      );
+  async (collectionId: number | null) => {
+    if (collectionId === null) {
+      return await getAllBooksWithState();
     }
+    return await getBooksByCollection(collectionId);
   },
+  (collectionId) => `Failed to fetch books in the collection of collectionId: ${collectionId}.`,
 );
 
 /**
@@ -89,22 +67,16 @@ export const fetchBooksInSelectedCollection = createAppAsyncThunk(
  * @param params.collectionId - The ID of the collection to remove the book from, or null to delete the book entirely.
  * @returns A thunk that resolves to the updated list of books for the current view.
  */
-export const deleteBookFromCollection = createAppAsyncThunk(
+export const deleteBookFromCollection = createCommandThunk(
   "collection/deleteBookFromCollection",
-  async (
-    { bookId, collectionId }: { bookId: number; collectionId: number | null },
-    { rejectWithValue },
-  ) => {
-    try {
-      if (collectionId !== null) {
-        await removeBookFromCollection(collectionId, bookId);
-      } else {
-        await deleteBook(bookId);
-      }
-    } catch (e) {
-      return handleThunkError(e, `Failed to delete book with bookId: ${bookId}.`, rejectWithValue);
+  async ({ bookId, collectionId }: { bookId: number; collectionId: number | null }) => {
+    if (collectionId !== null) {
+      await removeBookFromCollection(collectionId, bookId);
+    } else {
+      await deleteBook(bookId);
     }
   },
+  ({ bookId }) => `Failed to delete book with bookId: ${bookId}.`,
 );
 
 /**
@@ -113,17 +85,14 @@ export const deleteBookFromCollection = createAppAsyncThunk(
  * @param updates - Each book with the complete set of collections that should contain it.
  * @returns A thunk that resolves when every book is updated.
  */
-export const setCollectionsForBooks = createAppAsyncThunk(
+export const setCollectionsForBooks = createCommandThunk(
   "collection/setCollectionsForBooks",
-  async (updates: { bookId: number; collectionIds: number[] }[], { rejectWithValue }) => {
-    try {
-      await Promise.all(
-        updates.map(({ bookId, collectionIds }) => setCollectionsForBook(bookId, collectionIds)),
-      );
-    } catch (e) {
-      return handleThunkError(e, "Failed to set collections for books.", rejectWithValue);
-    }
+  async (updates: { bookId: number; collectionIds: number[] }[]) => {
+    await Promise.all(
+      updates.map(({ bookId, collectionIds }) => setCollectionsForBook(bookId, collectionIds)),
+    );
   },
+  () => "Failed to set collections for books.",
 );
 
 /**
@@ -135,26 +104,17 @@ export const setCollectionsForBooks = createAppAsyncThunk(
  * @param params.bookPath - The absolute file path to the book or directory.
  * @returns A thunk that resolves to the updated list of books for the current view.
  */
-export const addBookToBookshelf = createAppAsyncThunk(
+export const addBookToBookshelf = createCommandThunk(
   "collection/addBookToBookshelf",
-  async (
-    { collectionId, bookPath }: { collectionId: number | null; bookPath: string },
-    { rejectWithValue },
-  ) => {
-    try {
-      const bookId = await registerBook(bookPath);
+  async ({ collectionId, bookPath }: { collectionId: number | null; bookPath: string }) => {
+    const bookId = await registerBook(bookPath);
 
-      if (collectionId !== null) {
-        await addBookToCollection(collectionId, bookId);
-      }
-    } catch (e) {
-      return handleThunkError(
-        e,
-        `Failed to add book(path: ${bookPath}) to collection of collectionId: ${collectionId}.`,
-        rejectWithValue,
-      );
+    if (collectionId !== null) {
+      await addBookToCollection(collectionId, bookId);
     }
   },
+  ({ collectionId, bookPath }) =>
+    `Failed to add book(path: ${bookPath}) to collection of collectionId: ${collectionId}.`,
 );
 
 /**
@@ -164,19 +124,16 @@ export const addBookToBookshelf = createAppAsyncThunk(
  * @param id - The ID of the collection to delete.
  * @returns A thunk that resolves when the collection is deleted.
  */
-export const removeCollection = createAppAsyncThunk(
+export const removeCollection = createCommandThunk(
   "collection/removeCollection",
-  async (id: number, { rejectWithValue, dispatch, getState }) => {
-    try {
-      await deleteCollection(id);
-      if (getState().collection.selectedId === id) {
-        dispatch(setSelectedCollection(null));
-      }
-      return id;
-    } catch (e) {
-      return handleThunkError(e, `Failed to remove collection(id: ${id}).`, rejectWithValue);
+  async (id: number, { dispatch, getState }) => {
+    await deleteCollection(id);
+    if (getState().collection.selectedId === id) {
+      dispatch(setSelectedCollection(null));
     }
+    return id;
   },
+  (id) => `Failed to remove collection(id: ${id}).`,
 );
 
 const collectionSlice = createSlice({
@@ -193,7 +150,7 @@ const collectionSlice = createSlice({
     /** Whether the collection on screen is being refetched in place. */
     isRefreshing: false,
     status: "idle" as "idle" | "loading" | "succeeded" | "failed",
-    error: null as { code: ErrorCode; message?: string } | null,
+    error: null as ThunkRejectValue | null,
   },
   reducers: {
     /**
@@ -238,21 +195,11 @@ const collectionSlice = createSlice({
     builder
       // Mutations record only their error: `status` describes the books on screen, and
       // flipping it to "loading" would blank the grid and lose its scroll position.
-      .addCase(addCollection.rejected, (state, action) => {
-        state.error = action.payload ?? null;
-      })
-      .addCase(deleteBookFromCollection.rejected, (state, action) => {
-        state.error = action.payload ?? null;
-      })
-      .addCase(addBookToBookshelf.rejected, (state, action) => {
-        state.error = action.payload ?? null;
-      })
-      .addCase(removeCollection.rejected, (state, action) => {
-        state.error = action.payload ?? null;
-      })
-      .addCase(setCollectionsForBooks.rejected, (state, action) => {
-        state.error = action.payload ?? null;
-      })
+      .addCase(addCollection.rejected, recordThunkError)
+      .addCase(deleteBookFromCollection.rejected, recordThunkError)
+      .addCase(addBookToBookshelf.rejected, recordThunkError)
+      .addCase(removeCollection.rejected, recordThunkError)
+      .addCase(setCollectionsForBooks.rejected, recordThunkError)
       // The collection list is not the grid's books either.
       .addCase(fetchCollections.fulfilled, (state, action) => {
         state.collections = action.payload;
