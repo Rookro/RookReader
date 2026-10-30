@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import fixture from "../test/fixtures/binaryPayloads.json";
 import { CommandError, ErrorCode } from "./Error";
 import { Image } from "./Image";
 
@@ -48,5 +49,12 @@ describe("Image", () => {
     } catch (e) {
       expect((e as CommandError).code).toBe(ErrorCode.image);
     }
+  });
+
+  it("reads the shared fixture's image payload", () => {
+    const image = new Image(Uint8Array.from(fixture.image.bytes).buffer);
+    expect(image.width).toBe(fixture.image.width);
+    expect(image.height).toBe(fixture.image.height);
+    expect(Array.from(image.data)).toEqual(fixture.image.data);
   });
 });

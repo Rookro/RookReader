@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import fixture from "../test/fixtures/binaryPayloads.json";
 import { convertEntriesInDir } from "./DirEntryUtils";
 
 describe("DirEntryUtils", () => {
@@ -69,5 +70,11 @@ describe("DirEntryUtils", () => {
     // it will likely return an empty string for name if offset is out of bounds
     // Let's verify it doesn't crash the app.
     expect(() => convertEntriesInDir(buffer.buffer)).not.toThrow();
+  });
+
+  it("reads the shared fixture's directory entries", () => {
+    expect(convertEntriesInDir(Uint8Array.from(fixture.dirEntries.bytes).buffer)).toEqual(
+      fixture.dirEntries.entries,
+    );
   });
 });
