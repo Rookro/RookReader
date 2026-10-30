@@ -385,7 +385,7 @@ describe("CollectionReducer", () => {
       });
 
       // Verify that selecting a collection updates selectedId (the fetch is driven
-      // separately by the useHistorySync effect that watches selectedId).
+      // separately by the useLibrarySync effect that watches selectedId).
       it("setSelectedCollection should update selectedId", () => {
         const selected = collectionReducer(collectionInitialState, setSelectedCollection(3));
         expect(selected.selectedId).toBe(3);

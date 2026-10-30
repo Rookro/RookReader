@@ -216,7 +216,7 @@ const collectionSlice = createSlice({
     },
     /**
      * Selects a collection (or null for "all books"). The actual book fetch is
-     * driven by the `useHistorySync` effect that watches `selectedId`; keeping this
+     * driven by the `useLibrarySync` effect that watches `selectedId`; keeping this
      * a plain reducer avoids duplicating the fetch logic in a thunk.
      *
      * @param state - The current Redux state slice.

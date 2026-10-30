@@ -5,8 +5,8 @@ import { getEntriesInDir } from "../../../bindings/DirectoryCommands";
 import { getBooksBySeries } from "../../../bindings/SeriesCommands";
 import type { BookWithState } from "../../../domain/entities";
 import type { SortOrder } from "../../../types/AppSettings";
+import { sortBooks, sortBySeriesOrder } from "../../../utils/BookSortUtils";
 import { convertEntriesInDir } from "../../../utils/DirEntryUtils";
-import { sortBy as sortBooks, sortBySeriesOrder } from "../../Bookshelf/utils/BookshelfUtils";
 import type { OpenOrigin } from "../types/OpenOrigin";
 import { sortBy as sortDirEntries } from "./FileNavigatorUtils";
 

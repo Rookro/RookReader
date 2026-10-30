@@ -4,12 +4,12 @@ import { useFlushReadingStateOnClose } from "../../../hooks/useFlushReadingState
 import { useAppSelector } from "../../../store/store";
 import BookReader from "../../BookReader/components/BookReader";
 import Bookshelf from "../../Bookshelf/components/Bookshelf";
-import { useHistorySync } from "../../History/hooks/useHistorySync";
 import { useSettingsChange } from "../../Settings/hooks/useSettingsChange";
 import UpdaterConfirmDialog from "../../Updater/components/UpdaterConfirmDialog";
 import UpdaterMessageDialog from "../../Updater/components/UpdaterMessageDialog";
 import UpdaterProgressDialog from "../../Updater/components/UpdaterProgressDialog";
 import { useUpdater } from "../../Updater/hooks/useUpdater";
+import { useLibrarySync } from "../hooks/useLibrarySync";
 
 /**
  * Props for the main content component
@@ -24,7 +24,7 @@ export interface MainContentProps {
  */
 export default function MainContent({ sx }: MainContentProps) {
   useSettingsChange();
-  useHistorySync();
+  useLibrarySync();
   useFlushReadingStateOnClose();
   const activeView = useAppSelector((state) => state.view.activeView);
   const checkUpdateOnStartup = useAppSelector(

@@ -9,8 +9,8 @@ import { type RootState, useAppDispatch, useAppSelector } from "../../../store/s
 import { fetchSeries } from "../../Bookshelf/seriesSlice";
 import { fetchBooksInSelectedCollection, fetchCollections } from "../../Bookshelf/slice";
 import { fetchTags } from "../../Bookshelf/tagSlice";
-import { fetchRecentlyReadBooks } from "../slice";
-import { useHistorySync } from "./useHistorySync";
+import { fetchRecentlyReadBooks } from "../../History/slice";
+import { useLibrarySync } from "./useLibrarySync";
 
 // Mocks
 vi.mock("../../../hooks/useTauriEvent");
@@ -40,15 +40,15 @@ vi.mock("../../Bookshelf/tagSlice", async (importOriginal) => {
     fetchTags: vi.fn(() => ({ type: "fetchTags" })),
   };
 });
-vi.mock("../slice", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../slice")>();
+vi.mock("../../History/slice", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../History/slice")>();
   return {
     ...actual,
     fetchRecentlyReadBooks: vi.fn(() => ({ type: "fetchRecentlyReadBooks" })),
   };
 });
 
-describe("useHistorySync", () => {
+describe("useLibrarySync", () => {
   const mockDispatch = vi.fn();
   const mockSelectedCollectionId = 1;
   const mockRecordReadingHistory = true;
@@ -80,7 +80,7 @@ describe("useHistorySync", () => {
         settings: { history: { recordReadingHistory: record } },
       } as unknown as RootState),
     );
-    const { rerender } = renderHook(() => useHistorySync());
+    const { rerender } = renderHook(() => useLibrarySync());
     const historyFetches = () =>
       mockDispatch.mock.calls.filter(([action]) => action.type === "fetchRecentlyReadBooks").length;
     const onMount = historyFetches();
@@ -94,7 +94,7 @@ describe("useHistorySync", () => {
   });
 
   it("performs initial data load on mount", () => {
-    renderHook(() => useHistorySync());
+    renderHook(() => useLibrarySync());
 
     expect(mockDispatch).toHaveBeenCalledWith(fetchCollections());
     expect(mockDispatch).toHaveBeenCalledWith(fetchTags());
@@ -121,7 +121,7 @@ describe("useHistorySync", () => {
       return selector(state as unknown as RootState);
     });
 
-    const { rerender } = renderHook(() => useHistorySync());
+    const { rerender } = renderHook(() => useLibrarySync());
     expect(mockDispatch).toHaveBeenCalledWith(fetchBooksInSelectedCollection(1));
 
     currentId = 2;
@@ -138,7 +138,7 @@ describe("useHistorySync", () => {
     vi.mocked(useTauriEvent).mockImplementation((event, handler) => {
       handlers.set(event, handler as () => void);
     });
-    renderHook(() => useHistorySync());
+    renderHook(() => useLibrarySync());
     vi.clearAllMocks();
     return (key: keyof typeof events) => {
       const handler = handlers.get(events[key]);
@@ -165,7 +165,7 @@ describe("useHistorySync", () => {
   });
 
   it("listens to exactly the six library events", () => {
-    renderHook(() => useHistorySync());
+    renderHook(() => useLibrarySync());
 
     const listened = new Set(vi.mocked(useTauriEvent).mock.calls.map(([event]) => event));
     expect(listened).toEqual(
@@ -209,7 +209,7 @@ describe("useHistorySync", () => {
       }
     });
 
-    renderHook(() => useHistorySync());
+    renderHook(() => useLibrarySync());
     vi.clearAllMocks();
 
     const payload: ReadingState = {
