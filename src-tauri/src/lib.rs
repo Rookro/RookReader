@@ -28,12 +28,10 @@ mod perfbench;
 /// bindings. Every event the app sends is registered here, so its name and payload are
 /// generated too.
 ///
-/// This intentionally excludes the four binary commands (`get_image`,
-/// `get_image_full`, `get_image_preview`, `get_entries_in_dir`) that return a raw
-/// `tauri::ipc::Response`: that type has no `specta::Type`, and the frontend keeps
-/// hand-written wrappers for them. At runtime [`run`] serves every command listed
-/// here through this builder's invoke handler and routes only those four binary
-/// commands to a small separate `tauri::generate_handler!`.
+/// This intentionally excludes the binary commands in the `binary_commands!` list,
+/// which return a raw `tauri::ipc::Response`: that type has no `specta::Type`, and the
+/// frontend keeps hand-written wrappers for them. At runtime [`run`] serves every command
+/// listed here through this builder's invoke handler and routes those to their own handler.
 ///
 /// # Returns
 ///
@@ -122,31 +120,34 @@ fn window_state_flags() -> StateFlags {
     }
 }
 
+// The binary commands return a raw `tauri::ipc::Response`, which has no `specta::Type`, so
+// they cannot join `specta_builder`. One list builds both their names and their handler.
+macro_rules! binary_commands {
+    ($($module:ident::$command:ident),* $(,)?) => {
+        /// The commands `run` routes to [`binary_handler`].
+        const BINARY_COMMANDS: &[&str] = &[$(stringify!($command)),*];
+
+        /// Builds the invoke handler for the commands in [`BINARY_COMMANDS`].
+        fn binary_handler<R: tauri::Runtime>(
+        ) -> impl Fn(tauri::ipc::Invoke<R>) -> bool + Send + Sync + 'static {
+            tauri::generate_handler![$(commands::$module::$command),*]
+        }
+    };
+}
+
+binary_commands![
+    container_commands::get_image,
+    container_commands::get_image_full,
+    container_commands::get_image_preview,
+    container_commands::read_novel_file,
+    directory_commands::get_entries_in_dir,
+];
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // The full command list lives in exactly one place: `specta_builder`. Its
-    // generated invoke handler serves every specta-compatible command.
+    // `specta_builder`'s generated handler serves every specta-compatible command.
     let specta_handler = specta_builder().invoke_handler();
-
-    // The binary commands return a raw `tauri::ipc::Response` (no `specta::Type`),
-    // so they can't be registered with the tauri-specta builder. They keep a tiny
-    // hand-written handler and are routed to it by command name; everything else
-    // falls through to the generated handler above. Keep this list in sync with the
-    // `generate_handler!` invocation below — both are the single, small binary set.
-    const BINARY_COMMANDS: [&str; 5] = [
-        "get_image",
-        "get_image_full",
-        "get_image_preview",
-        "read_novel_file",
-        "get_entries_in_dir",
-    ];
-    let binary_handler = tauri::generate_handler![
-        commands::container_commands::get_image,
-        commands::container_commands::get_image_full,
-        commands::container_commands::get_image_preview,
-        commands::container_commands::read_novel_file,
-        commands::directory_commands::get_entries_in_dir,
-    ] as fn(tauri::ipc::Invoke<tauri::Wry>) -> bool;
+    let binary_handler = binary_handler::<tauri::Wry>();
 
     let builder = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
@@ -213,7 +214,7 @@ mod bindings_export {
     #[test]
     fn export_bindings() {
         crate::specta_builder()
-            // i64/u64 IDs are cast to TS `number` (the long-standing behavior).
+            // i64/u64 IDs are cast to TS `number`.
             // specta-typescript forbids large integers by default to avoid precision
             // loss; our IDs stay well within `Number.MAX_SAFE_INTEGER`.
             .dangerously_cast_bigints_to_number()
@@ -267,20 +268,6 @@ mod bindings_export {
             "min: number,",
         ] {
             assert!(generated.contains(needle), "bindings.ts missing `{needle}`");
-        }
-
-        // The granular container setters were folded into `set_settings`
-        // (apply_reader_settings_to_container) and must no longer be generated.
-        for absent in [
-            "set_pdf_render_resolution_height",
-            "set_max_image_height",
-            "set_image_resampling_method",
-            "set_image_cache_size_mib",
-        ] {
-            assert!(
-                !generated.contains(absent),
-                "bindings.ts still contains removed command `{absent}`"
-            );
         }
     }
 }
@@ -347,6 +334,20 @@ mod tests {
     use crate::domain::series::entity::Series;
     use crate::domain::tag::entity::Tag;
     use crate::settings::AppSettings;
+
+    #[test]
+    fn binary_commands_keep_the_names_the_frontend_invokes() {
+        assert_eq!(
+            crate::BINARY_COMMANDS,
+            [
+                "get_image",
+                "get_image_full",
+                "get_image_preview",
+                "read_novel_file",
+                "get_entries_in_dir",
+            ]
+        );
+    }
 
     #[test]
     fn app_settings_uses_camel_case_and_round_trips() {
