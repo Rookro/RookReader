@@ -1,5 +1,6 @@
 import type { TFunction } from "i18next";
 import type { SettingsValidationViolation } from "../../bindings/bindings";
+import type { SettingsBoundKey } from "./settingsBounds";
 
 /**
  * Maps a backend violation `path` to the field's existing i18n title key, reused as the
@@ -15,7 +16,7 @@ const FIELD_LABEL_KEY = {
   "reader.novel.fontSize": "settings.reader.font-size.title",
   "reader.comic.loupe.zoom": "settings.reader.loupe.zoom",
   "reader.comic.loupe.radius": "settings.reader.loupe.radius",
-} as const;
+} as const satisfies Partial<Record<SettingsBoundKey, string>>;
 
 /** A settings field path that has an inline validation message. */
 export type SettingsFieldPath = keyof typeof FIELD_LABEL_KEY;
@@ -45,8 +46,8 @@ export function violationMessage(t: TFunction, violation: SettingsValidationViol
     case "outOfRange":
       return t("error-message.settings.out-of-range", {
         field,
-        min: violation.min ?? "",
-        max: violation.max ?? "",
+        min: violation.min,
+        max: violation.max,
       });
     case "notInteger":
       return t("error-message.settings.not-integer", { field });

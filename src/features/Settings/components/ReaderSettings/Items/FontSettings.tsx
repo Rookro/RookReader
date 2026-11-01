@@ -6,13 +6,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getFonts } from "../../../../../bindings/FontCommands";
 import { useAppDispatch, useAppSelector } from "../../../../../store/store";
-import { useSettingsFieldError } from "../../../hooks/useSettingsFieldError";
-import { SETTINGS_BOUNDS } from "../../../settingsBounds";
+import { useNumberSettingField } from "../../../hooks/useNumberSettingField";
+import { defaultSettings } from "../../../settingsStore";
 import { updateSettings } from "../../../slice";
 import AutocompleteSettingItem from "../../ui/AutocompleteSettingItem";
 import NumberSpinnerSettingItem from "../../ui/NumberSpinnerSettingItem";
-
-const fontSizeBounds = SETTINGS_BOUNDS["reader.novel.fontSize"];
 
 const defaultFont = "default-font";
 
@@ -24,11 +22,7 @@ export default function FontSettings() {
   const dispatch = useAppDispatch();
   const readerSettings = useAppSelector((state) => state.settings.reader);
   const [fonts, setFonts] = useState<string[]>([]);
-  const {
-    error: fontSizeError,
-    helperText: fontSizeHelperText,
-    commit: commitFontSize,
-  } = useSettingsFieldError("reader.novel.fontSize", readerSettings.novel.fontSize);
+  const fontSize = useNumberSettingField("reader.novel.fontSize");
 
   const handleFontChanged = useCallback(
     async (value: string) => {
@@ -36,15 +30,6 @@ export default function FontSettings() {
       await dispatch(updateSettings({ key: "reader", value: { novel: { fontFamily: value } } }));
     },
     [dispatch],
-  );
-
-  const handleFontSizeChanged = useCallback(
-    async (value: number | null) => {
-      const fontSize = value ?? 16;
-      debug(`Font size of novel reader changed: ${fontSize}`);
-      await commitFontSize({ key: "reader", value: { novel: { fontSize } } });
-    },
-    [commitFontSize],
   );
 
   useEffect(() => {
@@ -85,15 +70,16 @@ export default function FontSettings() {
         noOptionsText={t("settings.ui.autocomplete.no-options")}
       />
       <NumberSpinnerSettingItem
+        {...fontSize}
         icon={<FormatSize />}
         primaryText={t("settings.reader.font-size.title")}
-        defaultValue={readerSettings.novel.fontSize}
-        min={fontSizeBounds.min}
-        max={fontSizeBounds.max}
         step={0.5}
-        error={fontSizeError}
-        helperText={fontSizeHelperText}
-        onValueCommitted={handleFontSizeChanged}
+        onValueCommitted={(value) => {
+          debug(
+            `Font size of novel reader changed: ${value ?? defaultSettings.reader.novel.fontSize}`,
+          );
+          fontSize.onValueCommitted(value);
+        }}
         inputSx={{ minWidth: "200px" }}
         unit="px"
       />

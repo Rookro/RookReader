@@ -9,7 +9,6 @@ import {
 import { useTauriEvent } from "../../../hooks/useTauriEvent";
 import i18n from "../../../i18n/config";
 import { useAppDispatch } from "../../../store/store";
-import type { AppSettings } from "../../../types/AppSettings";
 import { setPerfLogging } from "../../../utils/perf";
 import { setSettings } from "../slice";
 
@@ -27,8 +26,7 @@ export const useSettingsChange = () => {
   const handleSettingsChanged = useCallback<EventCallback<SettingsChanged_Serialize>>(
     (event) => {
       debug("Received settings-changed event");
-      // The backend always sends the complete settings, as `getSettings` returns them.
-      const settings = event.payload as AppSettings;
+      const settings = event.payload;
       // The perf flag is this window's own module state, and the records that read it —
       // the reader's `display` and `chain` spans — are written in the window that did not
       // make the change. The backend leaves the caller out of this broadcast, so for

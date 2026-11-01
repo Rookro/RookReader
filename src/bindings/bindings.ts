@@ -71,7 +71,7 @@ export const commands = {
 	 *  * `path` - The path of the container the caller believes is open.
 	 *  * `index` - The current page index around which to preload.
 	 *  * `buffer_size` - Optional. How many pages to preload in each direction.
-	 *    Defaults to 10 if `None` is provided.
+	 *    Defaults to the preload page count setting's default if `None` is provided.
 	 *  * `caller_pages` - How many pages from `index` the caller is fetching itself. Those
 	 *    are left out of the window: preloading a page the viewer is already requesting at
 	 *    foreground priority only lets a background job reach it first, and the foreground
@@ -829,6 +829,11 @@ export const events = {
 	tagsChanged: makeEvent<TagsChanged, TagsChanged>("tags-changed"),
 };
 
+/* Constants */
+export const DEFAULT_SETTINGS = {"bookshelf":{"enableAutoScroll":true,"gridSize":1,"sortOrder":"name_asc"},"fileNavigator":{"homeDirectory":"","sortOrder":"name_asc","watchDirectoryChanges":false},"general":{"appFontFamily":"Inter, Avenir, Helvetica, Arial, sans-serif","experimentalFeatures":{},"log":{"level":"info"},"theme":"system"},"history":{"recordReadingHistory":true},"layout":{"sidePane":{"isHidden":false,"tabIndex":0}},"reader":{"autoDescendSingleFolder":true,"autoOpenAdjacentBook":"ask","comic":{"cache":{"imageCacheSizeMib":1024,"pageReaderCount":0,"preloadPageCount":10},"enableSpread":true,"loupe":{"radius":200.0,"toggleKey":"MouseMiddle","zoom":2.0},"readingDirection":"rtl","showCoverAsSinglePage":true},"novel":{"fontFamily":"default-font","fontSize":16.0},"rendering":{"enableThumbnailPreview":true,"imageResamplingMethod":"lanczos3","maxImageHeight":0,"pdfRenderResolutionHeight":2000}},"startup":{"checkUpdateOnStartup":true,"initialView":"reader","restoreLastBook":true}} as const;
+
+export const SETTINGS_BOUNDS = {"bookshelf.gridSize":{"integer":true,"max":2.0,"min":0.0},"layout.sidePane.tabIndex":{"integer":true,"max":100.0,"min":0.0},"reader.comic.cache.imageCacheSizeMib":{"integer":true,"max":65536.0,"min":1.0},"reader.comic.cache.pageReaderCount":{"integer":true,"max":64.0,"min":0.0},"reader.comic.cache.preloadPageCount":{"integer":true,"max":10000.0,"min":0.0},"reader.comic.loupe.radius":{"integer":false,"max":5000.0,"min":50.0},"reader.comic.loupe.zoom":{"integer":false,"max":100.0,"min":1.0},"reader.novel.fontSize":{"integer":false,"max":200.0,"min":1.0},"reader.rendering.maxImageHeight":{"integer":true,"max":65535.0,"min":0.0},"reader.rendering.pdfRenderResolutionHeight":{"integer":true,"max":20000.0,"min":1.0}} as const;
+
 /* Types */
 /**  Represents the root configuration of the application settings. */
 export type AppSettings = AppSettings_Serialize | AppSettings_Deserialize;
@@ -1475,9 +1480,9 @@ export type LoupeSettings = LoupeSettings_Serialize | LoupeSettings_Deserialize;
 /**  Configuration for the Loupe (Magnifier) feature. */
 export type LoupeSettings_Deserialize = {
 	/**  The magnification zoom level of the loupe (`1.0` = no magnification). */
-	zoom?: number | null,
+	zoom?: number,
 	/**  The radius (size) of the loupe. */
-	radius?: number | null,
+	radius?: number,
 	/**  The keyboard shortcut key to toggle the loupe. */
 	toggleKey?: string,
 };
@@ -1485,9 +1490,9 @@ export type LoupeSettings_Deserialize = {
 /**  Configuration for the Loupe (Magnifier) feature. */
 export type LoupeSettings_Serialize = {
 	/**  The magnification zoom level of the loupe (`1.0` = no magnification). */
-	zoom: number | null,
+	zoom: number,
 	/**  The radius (size) of the loupe. */
-	radius: number | null,
+	radius: number,
 	/**  The keyboard shortcut key to toggle the loupe. */
 	toggleKey: string,
 };
@@ -1500,7 +1505,7 @@ export type NovelSettings_Deserialize = {
 	/**  The font family used for rendering the text. */
 	fontFamily?: string,
 	/**  The size of the font used for rendering the text. Fractional sizes are allowed. */
-	fontSize?: number | null,
+	fontSize?: number,
 };
 
 /**  Configuration specific to reading novels (text-based content). */
@@ -1508,7 +1513,7 @@ export type NovelSettings_Serialize = {
 	/**  The font family used for rendering the text. */
 	fontFamily: string,
 	/**  The size of the font used for rendering the text. Fractional sizes are allowed. */
-	fontSize: number | null,
+	fontSize: number,
 };
 
 /**  Represents a book along with its reading state, specifically for books that have been opened. */
@@ -1765,9 +1770,9 @@ export type SettingsValidationViolation = {
 	/**  What is wrong with the value. */
 	kind: ViolationKind,
 	/**  The inclusive minimum valid value (always populated so the UI can show the range). */
-	min: number | null,
+	min: number,
 	/**  The inclusive maximum valid value. */
-	max: number | null,
+	max: number,
 };
 
 /**  Settings for the side pane. */
