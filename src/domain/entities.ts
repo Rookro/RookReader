@@ -16,7 +16,7 @@ import type {
   ReadingState_Serialize,
 } from "../bindings/bindings";
 
-export type { ItemType, Series, Tag } from "../bindings/bindings";
+export type { Series, Tag } from "../bindings/bindings";
 
 /** A book in the library. */
 export type Book = Book_Serialize;

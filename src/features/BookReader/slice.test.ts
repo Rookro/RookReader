@@ -476,18 +476,18 @@ describe("ReadReducer", () => {
       it("should open container and update state on success", async () => {
         const mockBook = createMockBookWithState({ id: 1, last_read_page_index: 1 });
 
-        vi.mocked(ContainerCommands.getEntriesInContainer).mockResolvedValue({
+        vi.mocked(ContainerCommands.openContainer).mockResolvedValue({
           is_directory: false,
           entries: ["p1", "p2"],
           is_novel: false,
           has_previews: false,
         });
-        vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(1);
-        vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
+        vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(mockBook);
 
         store.dispatch(setContainerFilePath("path/to/book.zip"));
         await store.dispatch(openContainerFile("path/to/book.zip"));
 
+        expect(BookCommands.recordBookOpened).toHaveBeenCalledWith("path/to/book.zip");
         const state = store.getState().read;
         expect(state.containerFile.isLoading).toBe(false);
         expect(state.containerFile.book).toEqual(mockBook);
@@ -499,14 +499,13 @@ describe("ReadReducer", () => {
 
       // The viewer asks for previews only when the open book says it has them
       it("keeps whether the open book has previews, and forgets it on the next open", async () => {
-        vi.mocked(ContainerCommands.getEntriesInContainer).mockResolvedValueOnce({
+        vi.mocked(ContainerCommands.openContainer).mockResolvedValueOnce({
           is_directory: false,
           entries: ["0000"],
           is_novel: false,
           has_previews: true,
         });
-        vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(1);
-        vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(
+        vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(
           createMockBookWithState({ id: 1 }),
         );
 
@@ -514,9 +513,7 @@ describe("ReadReducer", () => {
         await store.dispatch(openContainerFile("path/to/book.pdf"));
         expect(store.getState().read.containerFile.hasPreviews).toBe(true);
 
-        vi.mocked(ContainerCommands.getEntriesInContainer).mockReturnValueOnce(
-          new Promise(() => {}),
-        );
+        vi.mocked(ContainerCommands.openContainer).mockReturnValueOnce(new Promise(() => {}));
         store.dispatch(setContainerFilePath("path/to/other.zip"));
         void store.dispatch(openContainerFile("path/to/other.zip"));
         expect(store.getState().read.containerFile.hasPreviews).toBe(false);
@@ -524,7 +521,7 @@ describe("ReadReducer", () => {
 
       // Verify that a book which opened stays on screen when the library cannot record it
       it("keeps the pages when recording the opened book fails", async () => {
-        vi.mocked(ContainerCommands.getEntriesInContainer).mockResolvedValue({
+        vi.mocked(ContainerCommands.openContainer).mockResolvedValue({
           is_directory: false,
           entries: ["p1", "p2"],
           is_novel: false,
@@ -555,14 +552,13 @@ describe("ReadReducer", () => {
       it("leaves the pages the viewer will load out of the opening window", async () => {
         const mockBook = createMockBookWithState({ id: 1, last_read_page_index: 4 });
 
-        vi.mocked(ContainerCommands.getEntriesInContainer).mockResolvedValue({
+        vi.mocked(ContainerCommands.openContainer).mockResolvedValue({
           is_directory: false,
           entries: ["p1", "p2", "p3", "p4", "p5", "p6"],
           is_novel: false,
           has_previews: false,
         });
-        vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(1);
-        vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
+        vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(mockBook);
 
         await store.dispatch(openContainerFile("path/to/book.zip"));
 
@@ -579,14 +575,13 @@ describe("ReadReducer", () => {
       it("restores the spread shift from the book", async () => {
         const mockBook = createMockBookWithState({ id: 7, is_spread_shifted: true });
 
-        vi.mocked(ContainerCommands.getEntriesInContainer).mockResolvedValue({
+        vi.mocked(ContainerCommands.openContainer).mockResolvedValue({
           is_directory: false,
           entries: ["p1", "p2"],
           is_novel: false,
           has_previews: false,
         });
-        vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(7);
-        vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
+        vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(mockBook);
 
         store.dispatch(setContainerFilePath("path/to/book.zip"));
         await store.dispatch(openContainerFile("path/to/book.zip"));
@@ -600,14 +595,13 @@ describe("ReadReducer", () => {
       it("toggleSpreadShift flips the flag and stores it against the book", async () => {
         const mockBook = createMockBookWithState({ id: 7, is_spread_shifted: false });
 
-        vi.mocked(ContainerCommands.getEntriesInContainer).mockResolvedValue({
+        vi.mocked(ContainerCommands.openContainer).mockResolvedValue({
           is_directory: false,
           entries: ["p1", "p2"],
           is_novel: false,
           has_previews: false,
         });
-        vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(7);
-        vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
+        vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(mockBook);
 
         store.dispatch(setContainerFilePath("path/to/book.zip"));
         await store.dispatch(openContainerFile("path/to/book.zip"));
@@ -620,14 +614,13 @@ describe("ReadReducer", () => {
 
       // Verify a book that could not be recorded still pairs as the reader asked
       it("toggleSpreadShift still applies when there is no book to store it against", async () => {
-        vi.mocked(ContainerCommands.getEntriesInContainer).mockResolvedValue({
+        vi.mocked(ContainerCommands.openContainer).mockResolvedValue({
           is_directory: false,
           entries: ["p1", "p2"],
           is_novel: false,
           has_previews: false,
         });
-        vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(1);
-        vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(null);
+        vi.mocked(BookCommands.recordBookOpened).mockRejectedValue(new Error("not recorded"));
 
         store.dispatch(setContainerFilePath("path/to/book.zip"));
         await store.dispatch(openContainerFile("path/to/book.zip"));
@@ -638,38 +631,37 @@ describe("ReadReducer", () => {
         expect(BookCommands.updateSpreadShift).not.toHaveBeenCalled();
       });
 
-      // Verify a book met for the first time takes, and keeps, the reader's default
-      it("seeds the reading direction from the default when the book has none", async () => {
+      // The backend seeds a new comic's direction; when it recorded none (the settings
+      // could not be read), the reader falls back to its default without storing one.
+      it("leaves the direction to the reader's default when the backend recorded none", async () => {
         const mockBook = createMockBookWithState({ id: 7, reading_direction: null });
 
-        vi.mocked(ContainerCommands.getEntriesInContainer).mockResolvedValue({
+        vi.mocked(ContainerCommands.openContainer).mockResolvedValue({
           is_directory: false,
           entries: ["p1", "p2"],
           is_novel: false,
           has_previews: false,
         });
-        vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(7);
-        vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
+        vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(mockBook);
 
         store.dispatch(setContainerFilePath("path/to/book.zip"));
         await store.dispatch(openContainerFile("path/to/book.zip"));
 
-        expect(store.getState().read.containerFile.readingDirection).toBe("rtl");
-        expect(BookCommands.updateReadingDirection).toHaveBeenCalledWith(7, "rtl");
+        expect(store.getState().read.containerFile.readingDirection).toBeNull();
+        expect(BookCommands.updateReadingDirection).not.toHaveBeenCalled();
       });
 
-      // Verify the stored direction wins, so changing the default leaves it alone
-      it("restores the stored reading direction without rewriting it", async () => {
+      // Verify the direction comes from the book, not the default, and is not rewritten
+      it("uses the direction the backend recorded for the book", async () => {
         const mockBook = createMockBookWithState({ id: 7, reading_direction: "ltr" });
 
-        vi.mocked(ContainerCommands.getEntriesInContainer).mockResolvedValue({
+        vi.mocked(ContainerCommands.openContainer).mockResolvedValue({
           is_directory: false,
           entries: ["p1", "p2"],
           is_novel: false,
           has_previews: false,
         });
-        vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(7);
-        vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
+        vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(mockBook);
 
         store.dispatch(setContainerFilePath("path/to/book.zip"));
         await store.dispatch(openContainerFile("path/to/book.zip"));
@@ -680,16 +672,15 @@ describe("ReadReducer", () => {
 
       // A novel's direction is the EPUB's own, so nothing is seeded against it
       it("leaves a novel's reading direction unset", async () => {
-        const mockBook = createMockBookWithState({ id: 7, reading_direction: null });
+        const mockBook = createMockBookWithState({ id: 7, reading_direction: "rtl" });
 
-        vi.mocked(ContainerCommands.getEntriesInContainer).mockResolvedValue({
+        vi.mocked(ContainerCommands.openContainer).mockResolvedValue({
           is_directory: false,
           entries: ["Chapter 1"],
           is_novel: true,
           has_previews: false,
         });
-        vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(7);
-        vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
+        vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(mockBook);
 
         store.dispatch(setContainerFilePath("path/to/book.epub"));
         await store.dispatch(openContainerFile("path/to/book.epub"));
@@ -702,14 +693,13 @@ describe("ReadReducer", () => {
       it("toggleReadingDirection flips the direction and stores it against the book", async () => {
         const mockBook = createMockBookWithState({ id: 7, reading_direction: "rtl" });
 
-        vi.mocked(ContainerCommands.getEntriesInContainer).mockResolvedValue({
+        vi.mocked(ContainerCommands.openContainer).mockResolvedValue({
           is_directory: false,
           entries: ["p1", "p2"],
           is_novel: false,
           has_previews: false,
         });
-        vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(7);
-        vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
+        vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(mockBook);
 
         store.dispatch(setContainerFilePath("path/to/book.zip"));
         await store.dispatch(openContainerFile("path/to/book.zip"));
@@ -722,40 +712,17 @@ describe("ReadReducer", () => {
         expect(store.getState().settings.reader.comic.readingDirection).toBe("rtl");
       });
 
-      // A folder inside an archive is stored as a folder, so the History tab shows it
-      // with a folder icon like any other folder of pages.
-      it("should record a folder inside an archive as a directory", async () => {
-        vi.mocked(ContainerCommands.getEntriesInContainer).mockResolvedValue({
-          is_directory: false,
-          entries: ["001.png"],
-          is_novel: false,
-          has_previews: false,
-        });
-        vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(1);
-        vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(
-          createMockBookWithState({ id: 1 }),
-        );
-
-        store.dispatch(setContainerFilePath("/books/comic.zip/ch1"));
-        await store.dispatch(openContainerFile("/books/comic.zip/ch1"));
-
-        expect(BookCommands.recordBookOpened).toHaveBeenCalledWith(
-          expect.objectContaining({ itemType: "directory" }),
-        );
-      });
-
       // Verify that the container opens on its last page when pendingInitialPosition is "last"
       it("should open on the last page when pendingInitialPosition is 'last'", async () => {
         const mockBook = createMockBookWithState({ id: 1, last_read_page_index: 5 });
 
-        vi.mocked(ContainerCommands.getEntriesInContainer).mockResolvedValue({
+        vi.mocked(ContainerCommands.openContainer).mockResolvedValue({
           is_directory: false,
           entries: ["p1", "p2", "p3"],
           is_novel: false,
           has_previews: false,
         });
-        vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(1);
-        vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
+        vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(mockBook);
 
         store.dispatch(setContainerFilePath("path/to/book.zip"));
         store.dispatch(setPendingInitialPosition("last"));
@@ -771,14 +738,13 @@ describe("ReadReducer", () => {
       it("should open on the first page when pendingInitialPosition is 'first'", async () => {
         const mockBook = createMockBookWithState({ id: 1, last_read_page_index: 5 });
 
-        vi.mocked(ContainerCommands.getEntriesInContainer).mockResolvedValue({
+        vi.mocked(ContainerCommands.openContainer).mockResolvedValue({
           is_directory: false,
           entries: ["p1", "p2", "p3"],
           is_novel: false,
           has_previews: false,
         });
-        vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(1);
-        vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
+        vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(mockBook);
 
         store.dispatch(setContainerFilePath("path/to/book.zip"));
         store.dispatch(setPendingInitialPosition("first"));
@@ -794,14 +760,13 @@ describe("ReadReducer", () => {
       it("should clamp a restored index past the page count to the last page", async () => {
         const mockBook = createMockBookWithState({ id: 1, last_read_page_index: 10 });
 
-        vi.mocked(ContainerCommands.getEntriesInContainer).mockResolvedValue({
+        vi.mocked(ContainerCommands.openContainer).mockResolvedValue({
           is_directory: false,
           entries: ["p1", "p2", "p3"],
           is_novel: false,
           has_previews: false,
         });
-        vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(1);
-        vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
+        vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(mockBook);
 
         store.dispatch(setContainerFilePath("path/to/book.zip"));
         await store.dispatch(openContainerFile("path/to/book.zip"));
@@ -819,14 +784,13 @@ describe("ReadReducer", () => {
           cfi: "epubcfi(/6/8!/4/2/1:0)",
         });
 
-        vi.mocked(ContainerCommands.getEntriesInContainer).mockResolvedValue({
+        vi.mocked(ContainerCommands.openContainer).mockResolvedValue({
           is_directory: false,
           entries: ["s1", "s2", "s3", "s4"],
           is_novel: true,
           has_previews: false,
         });
-        vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(1);
-        vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
+        vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(mockBook);
 
         store.dispatch(setContainerFilePath("path.epub"));
         await store.dispatch(openContainerFile("path.epub"));
@@ -844,14 +808,13 @@ describe("ReadReducer", () => {
           cfi: "epubcfi(/6/8!/4/2/1:0)",
         });
 
-        vi.mocked(ContainerCommands.getEntriesInContainer).mockResolvedValue({
+        vi.mocked(ContainerCommands.openContainer).mockResolvedValue({
           is_directory: false,
           entries: ["p1", "p2"],
           is_novel: false,
           has_previews: false,
         });
-        vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(1);
-        vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
+        vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(mockBook);
 
         store.dispatch(setContainerFilePath("path/to/book.zip"));
         await store.dispatch(openContainerFile("path/to/book.zip"));
@@ -867,14 +830,13 @@ describe("ReadReducer", () => {
           cfi: "epubcfi(/6/8!/4/2/1:0)",
         });
 
-        vi.mocked(ContainerCommands.getEntriesInContainer).mockResolvedValue({
+        vi.mocked(ContainerCommands.openContainer).mockResolvedValue({
           is_directory: false,
           entries: ["s1", "s2", "s3"],
           is_novel: true,
           has_previews: false,
         });
-        vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(1);
-        vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
+        vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(mockBook);
 
         store.dispatch(setContainerFilePath("path.epub"));
         store.dispatch(setPendingInitialPosition("first"));
@@ -888,21 +850,20 @@ describe("ReadReducer", () => {
       // Verify handling of EPUB novel format
       it("should handle EPUB novel", async () => {
         const mockBook = createMockBookWithState({ id: 1, last_read_page_index: 0 });
-        vi.mocked(ContainerCommands.getEntriesInContainer).mockResolvedValue({
+        vi.mocked(ContainerCommands.openContainer).mockResolvedValue({
           is_directory: false,
           entries: ["p1", "p2"],
           is_novel: true,
           has_previews: false,
         });
-        vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(1);
-        vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
+        vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(mockBook);
 
         store.dispatch(setContainerFilePath("path.epub"));
         await store.dispatch(openContainerFile("path.epub"));
 
         const state = store.getState().read;
         expect(state.containerFile.isNovel).toBe(true);
-        expect(ContainerCommands.getEntriesInContainer).toHaveBeenCalled();
+        expect(ContainerCommands.openContainer).toHaveBeenCalled();
       });
 
       // Verify that a stale fulfilled response (for a book the user already navigated
@@ -960,7 +921,7 @@ describe("ReadReducer", () => {
       // Verify handling of CommandError during opening
       it("should handle CommandError during open", async () => {
         const mockError = new CommandError(ErrorCode.other, "cmd failed");
-        vi.mocked(ContainerCommands.getEntriesInContainer).mockRejectedValue(mockError);
+        vi.mocked(ContainerCommands.openContainer).mockRejectedValue(mockError);
 
         store.dispatch(setContainerFilePath("fail.zip"));
         await store.dispatch(openContainerFile("fail.zip"));
@@ -1112,7 +1073,7 @@ describe("ReadReducer", () => {
       // Verify handling of generic error during container open
       it("should handle generic error during container open", async () => {
         const testError = "open failed";
-        vi.mocked(ContainerCommands.getEntriesInContainer).mockRejectedValue(testError);
+        vi.mocked(ContainerCommands.openContainer).mockRejectedValue(testError);
 
         store.dispatch(setContainerFilePath("fail.zip"));
         await store.dispatch(openContainerFile("fail.zip"));
@@ -1136,7 +1097,7 @@ describe("ReadReducer", () => {
         new Uint8Array(buffer).set(nameBuffer, 5);
         view.setBigUint64(5 + nameBuffer.byteLength, BigInt(0));
 
-        vi.mocked(ContainerCommands.getEntriesInContainer).mockRejectedValue(
+        vi.mocked(ContainerCommands.openContainer).mockRejectedValue(
           new CommandError(ErrorCode.emptyContainer, "Empty Container Error: multi.zip"),
         );
         vi.mocked(DirectoryCommands.getEntriesInDir).mockResolvedValue(buffer);
@@ -1154,7 +1115,7 @@ describe("ReadReducer", () => {
 
       // A slow failure must not drag the navigator away from a book opened after it.
       it("should not move the file navigator when another book was opened meanwhile", async () => {
-        vi.mocked(ContainerCommands.getEntriesInContainer).mockRejectedValue(
+        vi.mocked(ContainerCommands.openContainer).mockRejectedValue(
           new CommandError(ErrorCode.emptyContainer, "Empty Container Error: stale.zip"),
         );
 
@@ -1167,7 +1128,7 @@ describe("ReadReducer", () => {
 
       // Other failures leave the navigator alone: there is no path worth entering.
       it("should not move the file navigator for a failure other than an empty container", async () => {
-        vi.mocked(ContainerCommands.getEntriesInContainer).mockRejectedValue(
+        vi.mocked(ContainerCommands.openContainer).mockRejectedValue(
           new CommandError(ErrorCode.zip, "Zip Error: corrupt"),
         );
 
@@ -1181,20 +1142,19 @@ describe("ReadReducer", () => {
       // on screen.
       it("should clear the previously opened book when opening fails", async () => {
         const mockBook = createMockBookWithState({ id: 1, last_read_page_index: 1 });
-        vi.mocked(ContainerCommands.getEntriesInContainer).mockResolvedValue({
+        vi.mocked(ContainerCommands.openContainer).mockResolvedValue({
           is_directory: true,
           entries: ["p1", "p2"],
           is_novel: true,
           has_previews: false,
         });
-        vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(1);
-        vi.mocked(BookCommands.getBookWithStateById).mockResolvedValue(mockBook);
+        vi.mocked(BookCommands.recordBookOpened).mockResolvedValue(mockBook);
 
         store.dispatch(setContainerFilePath("good.zip"));
         await store.dispatch(openContainerFile("good.zip"));
         expect(store.getState().read.containerFile.book).not.toBeNull();
 
-        vi.mocked(ContainerCommands.getEntriesInContainer).mockRejectedValue("boom");
+        vi.mocked(ContainerCommands.openContainer).mockRejectedValue("boom");
         store.dispatch(setContainerFilePath("fail.zip"));
         await store.dispatch(openContainerFile("fail.zip"));
 
@@ -1207,7 +1167,7 @@ describe("ReadReducer", () => {
       // Verify that a failed open clears a pending "last page" position so it does not
       // leak into the next opened container.
       it("should clear pendingInitialPosition when opening fails", async () => {
-        vi.mocked(ContainerCommands.getEntriesInContainer).mockRejectedValue("boom");
+        vi.mocked(ContainerCommands.openContainer).mockRejectedValue("boom");
 
         store.dispatch(setContainerFilePath("fail.zip"));
         store.dispatch(setPendingInitialPosition("last"));

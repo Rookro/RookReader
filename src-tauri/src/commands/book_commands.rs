@@ -8,11 +8,10 @@ use tauri::State;
 use crate::commands::library_events::{
     BOOKS_CHANGED_EVENT, READING_HISTORY_CHANGED_EVENT, READING_PROGRESS_CHANGED_EVENT,
 };
+use crate::container::describe::describe;
 use crate::container::factory::{create_container, ContainerConfig};
 use crate::container::traits::Container;
-use crate::domain::book::entity::{
-    Book, BookWithState, Direction, ItemType, ReadBook, ReadingState,
-};
+use crate::domain::book::entity::{Book, BookWithState, Direction, ReadBook, ReadingState};
 use crate::domain::book::repository::BookRepository;
 use crate::domain::bookshelf::repository::BookshelfRepository;
 use crate::domain::series::repository::SeriesRepository;
@@ -20,6 +19,7 @@ use crate::domain::tag::repository::TagRepository;
 use crate::error::{Error, Result};
 use crate::infrastructure::atomic_file::write_atomically;
 use crate::page::pipeline::Pipeline;
+use crate::settings::{AppSettings, SettingsFileProvider};
 use crate::state::app_state::AppState;
 use crate::state::container_state::ContainerState;
 
@@ -72,41 +72,13 @@ pub async fn get_book_by_path(
     repo.get_by_path(&file_path).await
 }
 
-/// Retrieves a book along with its reading state by its unique ID.
-///
-/// # Arguments
-///
-/// * `id` - The unique identifier of the book.
-/// * `repo` - The managed book repository state.
-///
-/// # Returns
-///
-/// A `Result` which is `Ok` containing an `Option<BookWithState>`.
-/// It evaluates to `Some(BookWithState)` if a matching book is found,
-/// or `None` if no such book exists in the repository.
-///
-/// # Errors
-///
-/// This function will return an `Err` if the underlying repository operation fails
-/// (e.g., due to a database error, connection issue, or query execution failure).
-#[tauri::command]
-#[specta::specta]
-pub async fn get_book_with_state_by_id(
-    id: i64,
-    repo: State<'_, Arc<dyn BookRepository>>,
-) -> Result<Option<BookWithState>> {
-    log::debug!("Get book with state by id({}).", id);
-    repo.get_book_with_state_by_id(id).await
-}
-
 /// Registers a book or returns its ID if it already exists, without updating reading state.
+///
+/// The book's item type, display name, and page count are read from its container.
 ///
 /// # Arguments
 ///
 /// * `file_path` - The unique file or directory path.
-/// * `item_type` - What the path points at.
-/// * `display_name` - The display name of the book.
-/// * `total_pages` - The total number of pages.
 /// * `repo` - The managed book repository state.
 /// * `app` - The Tauri AppHandle.
 /// * `state` - The managed app state.
@@ -117,35 +89,28 @@ pub async fn get_book_with_state_by_id(
 ///
 /// # Errors
 ///
-/// This function will return an `Err` if the underlying repository operation fails
-/// (e.g., due to a database error, connection issue, or query execution failure).
+/// Returns an `Err` if the container cannot be opened, `EmptyContainer` when it holds no
+/// readable pages, or an `Err` if the repository operation fails.
 #[tauri::command]
 #[specta::specta]
 pub async fn register_book<R: tauri::Runtime>(
     file_path: String,
-    item_type: ItemType,
-    display_name: String,
-    total_pages: i64,
     repo: State<'_, Arc<dyn BookRepository>>,
     app: tauri::AppHandle<R>,
     state: State<'_, RwLock<AppState>>,
 ) -> Result<i64> {
-    log::debug!(
-        "Register the book: (file_path: {}, item_type: {:?}, display_name: {}, total_pages: {})",
-        file_path,
-        item_type,
-        display_name,
-        total_pages
-    );
+    log::debug!("Register the book: {}", file_path);
 
-    let thumbnail_path = resolve_thumbnail(&state, &app, &file_path).await;
+    let (container, config) = book_container(&state, &file_path).await?;
+    let description = describe(&file_path, container.as_ref())?;
+    let thumbnail_path = resolve_thumbnail(&app, &file_path, config, container).await;
 
     let book_id = repo
         .register_book(
             &file_path,
-            item_type,
-            &display_name,
-            total_pages,
+            description.item_type,
+            &description.display_name,
+            description.total_pages,
             thumbnail_path,
         )
         .await?;
@@ -157,59 +122,87 @@ pub async fn register_book<R: tauri::Runtime>(
 
 /// Records the event of a book being opened, updating its last opened time.
 ///
+/// The book's item type, display name, and page count are read from its container. A
+/// comic opened for the first time gets the reader's default page direction, which is
+/// stored with it.
+///
 /// # Arguments
 ///
 /// * `file_path` - The unique file or directory path.
-/// * `item_type` - What the path points at.
-/// * `display_name` - The display name of the book.
-/// * `total_pages` - The total number of pages.
 /// * `repo` - The managed book repository state.
 /// * `app` - The Tauri AppHandle.
 /// * `state` - The managed app state.
+/// * `provider` - The settings file the default page direction is read from.
 ///
 /// # Returns
 ///
-/// A `Result` containing the ID of the book.
+/// A `Result` containing the book with its reading state.
 ///
 /// # Errors
 ///
-/// This function will return an `Err` if the underlying repository operation fails
-/// (e.g., due to a database error, connection issue, or query execution failure).
+/// Returns an `Err` if the container cannot be opened, `EmptyContainer` when it holds no
+/// readable pages, or an `Err` if recording or reading back the book fails. Failing to
+/// read the default direction or to store it is logged, not returned.
 #[tauri::command]
 #[specta::specta]
 pub async fn record_book_opened<R: tauri::Runtime>(
     file_path: String,
-    item_type: ItemType,
-    display_name: String,
-    total_pages: i64,
     repo: State<'_, Arc<dyn BookRepository>>,
     app: tauri::AppHandle<R>,
     state: State<'_, RwLock<AppState>>,
-) -> Result<i64> {
-    log::debug!(
-        "Record book opened: (file_path: {}, item_type: {:?}, display_name: {}, total_pages: {})",
-        file_path,
-        item_type,
-        display_name,
-        total_pages
-    );
+    provider: State<'_, SettingsFileProvider>,
+) -> Result<BookWithState> {
+    log::debug!("Record book opened: {}", file_path);
 
-    let thumbnail_path = resolve_thumbnail(&state, &app, &file_path).await;
+    let (container, config) = book_container(&state, &file_path).await?;
+    let description = describe(&file_path, container.as_ref())?;
+    let thumbnail_path = resolve_thumbnail(&app, &file_path, config, container).await;
 
     let book_id = repo
         .record_book_opened(
             &file_path,
-            item_type,
-            &display_name,
-            total_pages,
+            description.item_type,
+            &description.display_name,
+            description.total_pages,
             thumbnail_path,
         )
         .await?;
+    let mut book = repo
+        .get_book_with_state_by_id(book_id)
+        .await?
+        .ok_or_else(|| Error::Other(format!("Book {book_id} vanished after it was recorded")))?;
+
+    // A novel's direction is the EPUB's own and cannot be overridden.
+    if !description.is_novel && book.reading_direction.is_none() {
+        if let Some(direction) = default_reading_direction(&provider).await {
+            if let Err(e) = repo.update_reading_direction(book_id, direction).await {
+                log::warn!("Could not store the reading direction of book {book_id}: {e}");
+            }
+            book.reading_direction = Some(direction);
+        }
+    }
 
     app.emit(BOOKS_CHANGED_EVENT, ())?;
     app.emit(READING_HISTORY_CHANGED_EVENT, ())?;
 
-    Ok(book_id)
+    Ok(book)
+}
+
+/// The page direction a comic opens with when it has none of its own, or `None` (logged)
+/// when the settings cannot be read.
+async fn default_reading_direction(provider: &SettingsFileProvider) -> Option<Direction> {
+    let provider = provider.clone();
+    let loaded = tauri::async_runtime::spawn_blocking(move || AppSettings::load(&provider))
+        .await
+        .map_err(|e| Error::Other(format!("Spawn blocking failed: {e}")))
+        .and_then(|result| result);
+    match loaded {
+        Ok(settings) => Some(settings.reader.comic.reading_direction),
+        Err(e) => {
+            log::warn!("Could not read the default reading direction: {e}");
+            None
+        }
+    }
 }
 
 /// Clears the reading history for a specific book.
@@ -647,30 +640,48 @@ pub async fn update_series_orders<R: tauri::Runtime>(
     Ok(())
 }
 
-/// Reads the current app state to extract the container settings and, if available,
-/// the currently loaded container for the given `file_path`. Then generates and saves
-/// a thumbnail, returning its path or `None` on failure.
-async fn resolve_thumbnail<R: tauri::Runtime>(
+/// The container of the book at `path` and the options it was built with.
+///
+/// When `path` is the open book, its own container is reused, so a PDF does not get a
+/// second handle opened beside the one being read. Otherwise one is built on a blocking
+/// thread and never installed, so the open book keeps its reader threads.
+async fn book_container(
     state: &State<'_, RwLock<AppState>>,
+    path: &str,
+) -> Result<(Arc<dyn Container>, ContainerConfig)> {
+    let (settings, open) = {
+        let state_lock = state.read().await;
+        (
+            state_lock.container_state.settings.clone(),
+            state_lock
+                .container_state
+                .service_for(path)
+                .map(|service| service.container()),
+        )
+    };
+    let config = ContainerState::container_config(&settings);
+    if let Some(container) = open {
+        return Ok((container, config));
+    }
+
+    let path_owned = path.to_string();
+    let container = tauri::async_runtime::spawn_blocking(move || {
+        create_container(&path_owned, ContainerState::container_config(&settings))
+    })
+    .await
+    .map_err(|e| Error::Other(format!("Spawn blocking failed: {e}")))??;
+    Ok((container, config))
+}
+
+/// Generates (or finds) the thumbnail of `file_path` from `container`, returning its path
+/// or `None` on failure.
+async fn resolve_thumbnail<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
     file_path: &str,
+    config: ContainerConfig,
+    container: Arc<dyn Container>,
 ) -> Option<String> {
-    let (config, container) = {
-        let state_lock = state.read().await;
-        let config = ContainerState::container_config(&state_lock.container_state.settings);
-
-        // Reuse the open book's own container when this thumbnail is for that book, so a
-        // PDF does not get a second handle opened beside the one being read. One lookup
-        // establishes both "a book is open" and "it is this book".
-        let container = state_lock
-            .container_state
-            .service_for(file_path)
-            .map(|service| service.container());
-
-        (config, container)
-    };
-
-    generate_and_save_thumbnail(app.clone(), file_path.to_string(), config, container)
+    generate_and_save_thumbnail(app.clone(), file_path.to_string(), config, Some(container))
         .await
         .unwrap_or_else(|e| {
             log::warn!("Thumbnail of {} generation failed: {}", file_path, e);
@@ -806,6 +817,7 @@ async fn generate_and_save_thumbnail<R: tauri::Runtime>(
 mod tests {
     use super::*;
     use crate::commands::library_events::test_support::record_events;
+    use crate::domain::book::entity::ItemType;
     use crate::domain::book::repository::MockBookRepository;
     use crate::domain::bookshelf::repository::MockBookshelfRepository;
     use crate::domain::series::repository::MockSeriesRepository;
@@ -1143,45 +1155,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_get_book_with_state_by_id() {
-        let mut mock_repo = MockBookRepository::new();
-        mock_repo
-            .expect_get_book_with_state_by_id()
-            .with(mockall::predicate::eq(1))
-            .times(1)
-            .returning(|id| {
-                Ok(Some(BookWithState {
-                    id,
-                    file_path: "path".to_string(),
-                    item_type: ItemType::File,
-                    display_name: "name".to_string(),
-                    total_pages: 10,
-                    series_id: None,
-                    series_order: None,
-                    thumbnail_path: None,
-                    created_at: None,
-                    is_spread_shifted: false,
-                    landscape_bits: None,
-                    reading_direction: None,
-                    last_read_page_index: Some(5),
-                    last_opened_at: None,
-                    cfi: None,
-                    tag_ids: vec![],
-                }))
-            });
-
-        let app = tauri::test::mock_app();
-        app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
-        let state = app.state::<Arc<dyn BookRepository>>();
-
-        let result = get_book_with_state_by_id(1, state).await;
-        assert!(result.is_ok());
-        let book = result.unwrap();
-        assert!(book.is_some());
-        assert_eq!(book.unwrap().last_read_page_index, Some(5));
-    }
-
-    #[tokio::test]
     async fn test_get_recently_read_books() {
         let mut mock_repo = MockBookRepository::new();
         mock_repo
@@ -1265,81 +1238,408 @@ mod tests {
         assert!(result.is_ok());
     }
 
+    /// A 4x4 PNG page.
+    fn png_page() -> Vec<u8> {
+        let mut page = Vec::new();
+        image::DynamicImage::ImageRgb8(image::RgbImage::new(4, 4))
+            .write_to(
+                &mut std::io::Cursor::new(&mut page),
+                image::ImageFormat::Png,
+            )
+            .unwrap();
+        page
+    }
+
+    /// The folder `dir/name` holding `pages` PNG pages.
+    fn png_folder(dir: &std::path::Path, name: &str, pages: usize) -> String {
+        let folder = dir.join(name);
+        fs::create_dir(&folder).unwrap();
+        for i in 1..=pages {
+            fs::write(folder.join(format!("p{i}.png")), png_page()).unwrap();
+        }
+        folder.to_string_lossy().into_owned()
+    }
+
+    /// Removes, on drop, the thumbnail a command under test saves for `file_path`: the
+    /// mock app's data folder is the real one, not a temporary directory.
+    struct ThumbnailCleanup(std::path::PathBuf);
+
+    impl ThumbnailCleanup {
+        fn new(app: &tauri::App<tauri::test::MockRuntime>, file_path: &str) -> Self {
+            Self(
+                crate::setup::app_data_dir(app)
+                    .unwrap()
+                    .join("thumbnails")
+                    .join(thumbnail_file_name(file_path)),
+            )
+        }
+    }
+
+    impl Drop for ThumbnailCleanup {
+        fn drop(&mut self) {
+            let _ = fs::remove_file(&self.0);
+        }
+    }
+
     #[tokio::test]
-    async fn test_register_book() {
+    async fn register_book_describes_the_book_itself() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = png_folder(dir.path(), "My Book", 2);
+
         let mut mock_repo = MockBookRepository::new();
         mock_repo
             .expect_register_book()
             .with(
-                mockall::predicate::eq("path"),
-                mockall::predicate::eq(ItemType::File),
-                mockall::predicate::eq("name"),
-                mockall::predicate::eq(10),
+                mockall::predicate::eq(path.clone()),
+                mockall::predicate::eq(ItemType::Directory),
+                mockall::predicate::eq("My Book"),
+                mockall::predicate::eq(2),
                 mockall::predicate::always(),
             )
             .times(1)
             .returning(|_, _, _, _, _| Ok(1));
 
         let app = tauri::test::mock_app();
+        let _thumbnail = ThumbnailCleanup::new(&app, &path);
         app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
         app.manage(RwLock::new(AppState::default()));
-        let repo = app.state::<Arc<dyn BookRepository>>();
-        let state = app.state::<RwLock<AppState>>();
         let events = record_events(app.handle());
 
-        let result = register_book(
-            "path".to_string(),
-            ItemType::File,
-            "name".to_string(),
-            10,
-            repo,
-            app.handle().clone(),
-            state,
-        )
-        .await;
-        assert!(result.is_ok());
-        assert_eq!(*events.lock().unwrap(), [BOOKS_CHANGED_EVENT]);
+        let result = register_book(path, app.state(), app.handle().clone(), app.state()).await;
+
         assert_eq!(result.unwrap(), 1);
+        assert_eq!(*events.lock().unwrap(), [BOOKS_CHANGED_EVENT]);
     }
 
     #[tokio::test]
-    async fn test_record_book_opened() {
+    async fn register_book_refuses_a_container_without_pages() {
+        use std::io::Write;
+        use zip::write::{FileOptions, ZipWriter};
+
+        let dir = tempfile::tempdir().unwrap();
+        let zip_path = dir.path().join("multi.zip");
+        let mut zip = ZipWriter::new(fs::File::create(&zip_path).unwrap());
+        for name in ["Vol1/p1.png", "Vol2/p1.png"] {
+            zip.start_file(name, FileOptions::<()>::default()).unwrap();
+            zip.write_all(&png_page()).unwrap();
+        }
+        zip.finish().unwrap();
+
+        let mut mock_repo = MockBookRepository::new();
+        mock_repo.expect_register_book().times(0);
+
+        let app = tauri::test::mock_app();
+        app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
+        app.manage(RwLock::new(AppState::default()));
+        let events = record_events(app.handle());
+
+        let result = register_book(
+            zip_path.to_string_lossy().into_owned(),
+            app.state(),
+            app.handle().clone(),
+            app.state(),
+        )
+        .await;
+
+        assert!(matches!(result, Err(Error::EmptyContainer(_))));
+        assert!(events.lock().unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn registering_a_book_leaves_the_open_book_alone() {
+        // Opening installs what it opens, which closes the reader threads of whatever was
+        // open before; registering must not.
+        let dir = tempfile::tempdir().unwrap();
+        let open = png_folder(dir.path(), "Open", 1);
+        let other = png_folder(dir.path(), "Other", 1);
+
+        let mut mock_repo = MockBookRepository::new();
+        mock_repo
+            .expect_register_book()
+            .returning(|_, _, _, _, _| Ok(2));
+
+        let app = tauri::test::mock_app();
+        let _thumbnail = ThumbnailCleanup::new(&app, &other);
+        app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
+        app.manage(RwLock::new(AppState::default()));
+        crate::commands::container_commands::open_container(&open, app.state())
+            .await
+            .unwrap();
+
+        register_book(other, app.state(), app.handle().clone(), app.state())
+            .await
+            .unwrap();
+
+        let binding = app.state::<RwLock<AppState>>();
+        let guard = binding.read().await;
+        assert!(
+            guard.container_state.service_for(&open).is_some(),
+            "registering another book closed the one being read"
+        );
+    }
+
+    /// The book `record_book_opened` reads back after recording it, as id 7.
+    fn stored_book(file_path: &str, reading_direction: Option<Direction>) -> BookWithState {
+        BookWithState {
+            id: 7,
+            file_path: file_path.to_string(),
+            item_type: ItemType::Directory,
+            display_name: "name".to_string(),
+            total_pages: 2,
+            series_id: None,
+            series_order: None,
+            thumbnail_path: None,
+            created_at: None,
+            is_spread_shifted: false,
+            landscape_bits: None,
+            reading_direction,
+            last_read_page_index: Some(0),
+            last_opened_at: None,
+            cfi: None,
+            tag_ids: vec![],
+        }
+    }
+
+    /// A repository that records any book as id 7 and reads back [`stored_book`].
+    fn recording_repo(file_path: &str, reading_direction: Option<Direction>) -> MockBookRepository {
+        let mut mock_repo = MockBookRepository::new();
+        mock_repo
+            .expect_record_book_opened()
+            .returning(|_, _, _, _, _| Ok(7));
+        let stored = stored_book(file_path, reading_direction);
+        mock_repo
+            .expect_get_book_with_state_by_id()
+            .with(mockall::predicate::eq(7))
+            .returning(move |_| Ok(Some(stored.clone())));
+        mock_repo
+    }
+
+    /// Manages `mock_repo`, an empty app state, and a settings file in `dir` whose comic
+    /// reading direction is `ltr`.
+    fn manage_for_recording(
+        app: &tauri::App<tauri::test::MockRuntime>,
+        dir: &std::path::Path,
+        mock_repo: MockBookRepository,
+    ) {
+        use crate::settings::SettingsStoreProvider;
+
+        let provider = SettingsFileProvider::at_path(dir.join("settings.json"));
+        provider
+            .save_all_settings(serde_json::json!({
+                "reader": { "comic": { "readingDirection": "ltr" } }
+            }))
+            .unwrap();
+        app.manage(provider);
+        app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
+        app.manage(RwLock::new(AppState::default()));
+    }
+
+    #[tokio::test]
+    async fn record_book_opened_describes_the_book_and_returns_it() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = png_folder(dir.path(), "My Book", 2);
+
         let mut mock_repo = MockBookRepository::new();
         mock_repo
             .expect_record_book_opened()
             .with(
-                mockall::predicate::eq("path"),
-                mockall::predicate::eq(ItemType::File),
-                mockall::predicate::eq("name"),
-                mockall::predicate::eq(10),
+                mockall::predicate::eq(path.clone()),
+                mockall::predicate::eq(ItemType::Directory),
+                mockall::predicate::eq("My Book"),
+                mockall::predicate::eq(2),
                 mockall::predicate::always(),
             )
             .times(1)
-            .returning(|_, _, _, _, _| Ok(1));
+            .returning(|_, _, _, _, _| Ok(7));
+        let stored = stored_book(&path, Some(Direction::Rtl));
+        mock_repo
+            .expect_get_book_with_state_by_id()
+            .with(mockall::predicate::eq(7))
+            .returning(move |_| Ok(Some(stored.clone())));
 
         let app = tauri::test::mock_app();
-        app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
-        app.manage(RwLock::new(AppState::default()));
-        let repo = app.state::<Arc<dyn BookRepository>>();
-        let state = app.state::<RwLock<AppState>>();
+        let _thumbnail = ThumbnailCleanup::new(&app, &path);
+        manage_for_recording(&app, dir.path(), mock_repo);
         let events = record_events(app.handle());
 
-        let result = record_book_opened(
-            "path".to_string(),
-            ItemType::File,
-            "name".to_string(),
-            10,
-            repo,
+        let book = record_book_opened(
+            path.clone(),
+            app.state(),
             app.handle().clone(),
-            state,
+            app.state(),
+            app.state(),
         )
-        .await;
-        assert!(result.is_ok());
+        .await
+        .unwrap();
+
+        assert_eq!(book.id, 7);
+        assert_eq!(book.file_path, path);
+        assert_eq!(book.reading_direction, Some(Direction::Rtl));
         assert_eq!(
             *events.lock().unwrap(),
             [BOOKS_CHANGED_EVENT, READING_HISTORY_CHANGED_EVENT]
         );
-        assert_eq!(result.unwrap(), 1);
+    }
+
+    #[tokio::test]
+    async fn record_book_opened_seeds_the_default_direction() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = png_folder(dir.path(), "Comic", 2);
+        let mut mock_repo = recording_repo(&path, None);
+        mock_repo
+            .expect_update_reading_direction()
+            .with(
+                mockall::predicate::eq(7),
+                mockall::predicate::eq(Direction::Ltr),
+            )
+            .times(1)
+            .returning(|_, _| Ok(()));
+
+        let app = tauri::test::mock_app();
+        let _thumbnail = ThumbnailCleanup::new(&app, &path);
+        manage_for_recording(&app, dir.path(), mock_repo);
+
+        let book = record_book_opened(
+            path,
+            app.state(),
+            app.handle().clone(),
+            app.state(),
+            app.state(),
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(book.reading_direction, Some(Direction::Ltr));
+    }
+
+    #[tokio::test]
+    async fn record_book_opened_keeps_a_stored_direction() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = png_folder(dir.path(), "Comic", 2);
+        let mut mock_repo = recording_repo(&path, Some(Direction::Rtl));
+        mock_repo.expect_update_reading_direction().times(0);
+
+        let app = tauri::test::mock_app();
+        let _thumbnail = ThumbnailCleanup::new(&app, &path);
+        manage_for_recording(&app, dir.path(), mock_repo);
+
+        let book = record_book_opened(
+            path,
+            app.state(),
+            app.handle().clone(),
+            app.state(),
+            app.state(),
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(book.reading_direction, Some(Direction::Rtl));
+    }
+
+    #[tokio::test]
+    async fn record_book_opened_leaves_a_novel_direction_unset() {
+        use crate::container::traits::MockContainer;
+        use crate::image::resizer::ResizeFilter;
+        use crate::page::service::PageService;
+
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("novel.epub").to_string_lossy().into_owned();
+        let mut mock_repo = recording_repo(&path, None);
+        mock_repo.expect_update_reading_direction().times(0);
+
+        let mut container = MockContainer::new();
+        container
+            .expect_get_entries()
+            .return_const(Vec::<String>::new());
+        container.expect_is_directory().return_const(false);
+        container.expect_is_novel().return_const(true);
+        container.expect_max_readers().return_const(usize::MAX);
+
+        let app = tauri::test::mock_app();
+        manage_for_recording(&app, dir.path(), mock_repo);
+        app.state::<RwLock<AppState>>()
+            .write()
+            .await
+            .container_state
+            .install(PageService::new(
+                path.clone(),
+                Arc::new(container),
+                Pipeline {
+                    display: None,
+                    max_image_height: 2000,
+                    resize_method: ResizeFilter::Bilinear,
+                },
+                mini_moka::sync::Cache::new(100),
+                0,
+            ));
+
+        let book = record_book_opened(
+            path,
+            app.state(),
+            app.handle().clone(),
+            app.state(),
+            app.state(),
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(book.reading_direction, None);
+    }
+
+    #[tokio::test]
+    async fn record_book_opened_keeps_the_seeded_direction_when_storing_it_fails() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = png_folder(dir.path(), "Comic", 2);
+        let mut mock_repo = recording_repo(&path, None);
+        mock_repo
+            .expect_update_reading_direction()
+            .times(1)
+            .returning(|_, _| Err(Error::Other("database is locked".to_string())));
+
+        let app = tauri::test::mock_app();
+        let _thumbnail = ThumbnailCleanup::new(&app, &path);
+        manage_for_recording(&app, dir.path(), mock_repo);
+
+        let book = record_book_opened(
+            path,
+            app.state(),
+            app.handle().clone(),
+            app.state(),
+            app.state(),
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(book.reading_direction, Some(Direction::Ltr));
+    }
+
+    #[tokio::test]
+    async fn record_book_opened_skips_seeding_when_settings_cannot_be_read() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = png_folder(dir.path(), "Comic", 2);
+        let mut mock_repo = recording_repo(&path, None);
+        mock_repo.expect_update_reading_direction().times(0);
+
+        let app = tauri::test::mock_app();
+        let _thumbnail = ThumbnailCleanup::new(&app, &path);
+        // A directory where the settings file should be cannot be read as one.
+        let unreadable = dir.path().join("unreadable.json");
+        fs::create_dir(&unreadable).unwrap();
+        app.manage(SettingsFileProvider::at_path(unreadable));
+        app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
+        app.manage(RwLock::new(AppState::default()));
+
+        let book = record_book_opened(
+            path,
+            app.state(),
+            app.handle().clone(),
+            app.state(),
+            app.state(),
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(book.reading_direction, None);
     }
 
     #[tokio::test]

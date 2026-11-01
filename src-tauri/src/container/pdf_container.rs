@@ -684,8 +684,8 @@ trailer << /Size 5 /Root 1 0 R >>
         let mut reader = open.open_reader().unwrap();
         reader.read_page("0000").unwrap();
 
-        // Registering the book being read into a bookshelf counts its pages through a
-        // container of its own, built and dropped while the reader is still on the book.
+        // Registering a book builds a container of its own when its path does not match the
+        // open book's, and drops it while the reader is still on the book.
         let counter = PdfContainer::new(
             &held,
             PdfRenderConfig::default(),

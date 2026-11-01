@@ -4,10 +4,9 @@ vi.mock("../../bindings/BookCommands", () => ({
   getBook: vi.fn(() => Promise.resolve([])),
   deleteBook: vi.fn(() => Promise.resolve([])),
   getBookByPath: vi.fn(() => Promise.resolve([])),
-  getBookWithStateById: vi.fn(() => Promise.resolve([])),
   getAllBooksWithState: vi.fn(() => Promise.resolve([])),
-  registerBook: vi.fn(() => Promise.resolve([])),
-  recordBookOpened: vi.fn(() => Promise.resolve([])),
+  registerBook: vi.fn(() => Promise.resolve(0)),
+  recordBookOpened: vi.fn(() => Promise.resolve(null)),
   getBookTags: vi.fn(() => Promise.resolve([])),
   updateBookTags: vi.fn(() => Promise.resolve([])),
   updateBookSeries: vi.fn(() => Promise.resolve([])),
@@ -42,10 +41,9 @@ vi.mock("../../bindings/BookshelfCommands", () => ({
 }));
 
 vi.mock("../../bindings/ContainerCommands", () => ({
-  getEntriesInContainer: vi.fn(() =>
+  openContainer: vi.fn(() =>
     Promise.resolve({ entries: [], is_directory: false, is_novel: false, has_previews: false }),
   ),
-  countPagesInContainer: vi.fn(() => Promise.resolve({ total_pages: 0, is_directory: false })),
   requestPreloadAround: vi.fn(() => Promise.resolve()),
   getImageDimensions: vi.fn(() => Promise.resolve([])),
   setDisplaySize: vi.fn(() => Promise.resolve()),

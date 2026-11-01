@@ -1,4 +1,4 @@
-import type { Book, BookWithState, ItemType, ReadBook, ReadingState } from "../domain/entities";
+import type { Book, BookWithState, ReadBook, ReadingState } from "../domain/entities";
 import type { Direction } from "../types/AppSettings";
 import { commands } from "./bindings";
 import { runCommand } from "./result";
@@ -37,17 +37,6 @@ export async function getBookByPath(file_path: string): Promise<Book | null> {
 }
 
 /**
- * Retrieves a book along with its reading state by its ID.
- *
- * @param id - The unique identifier of the book.
- * @returns A promise that resolves to the BookWithState object if found, or null otherwise.
- * @throws {CommandError} If the Tauri command fails.
- */
-export async function getBookWithStateById(id: number): Promise<BookWithState | null> {
-  return await runCommand(commands.getBookWithStateById(id));
-}
-
-/**
  * Retrieves all books along with their reading states from the database.
  *
  * @returns A promise that resolves to an array of BookWithState objects.
@@ -58,52 +47,29 @@ export async function getAllBooksWithState(): Promise<BookWithState[]> {
 }
 
 /**
- * Registers a book or returns its ID if it already exists.
+ * Registers a book or returns its ID if it already exists. The backend reads the book's
+ * type, name, and page count from its container.
  *
- * @param params - The parameters for registering the book.
- * @param params.filePath - The absolute path of the book file or directory.
- * @param params.itemType - The type of the item ("file" or "directory").
- * @param params.displayName - The display name of the book.
- * @param params.totalPages - The total number of pages in the book.
+ * @param filePath - The absolute path of the book file or directory.
  * @returns A promise that resolves to the ID of the registered book.
- * @throws {CommandError} If the Tauri command fails.
+ * @throws {CommandError} If the Tauri command fails, including when the book has no
+ *   readable pages.
  */
-export async function registerBook(params: {
-  filePath: string;
-  itemType: ItemType;
-  displayName: string;
-  totalPages: number;
-}) {
-  return await runCommand(
-    commands.registerBook(params.filePath, params.itemType, params.displayName, params.totalPages),
-  );
+export async function registerBook(filePath: string): Promise<number> {
+  return await runCommand(commands.registerBook(filePath));
 }
 
 /**
- * Records the event of a book being opened, or updates its last opened time.
+ * Records the event of a book being opened, or updates its last opened time. The backend
+ * reads the book's type, name, and page count from its container, and gives a comic
+ * opened for the first time the default page direction.
  *
- * @param params - The parameters for the book being opened.
- * @param params.filePath - The absolute path of the book file or directory.
- * @param params.itemType - The type of the item ("file" or "directory").
- * @param params.displayName - The display name of the book.
- * @param params.totalPages - The total number of pages in the book.
- * @returns A promise that resolves to the ID of the book.
+ * @param filePath - The absolute path of the book file or directory.
+ * @returns A promise that resolves to the book with its reading state.
  * @throws {CommandError} If the Tauri command fails.
  */
-export async function recordBookOpened(params: {
-  filePath: string;
-  itemType: ItemType;
-  displayName: string;
-  totalPages: number;
-}) {
-  return await runCommand(
-    commands.recordBookOpened(
-      params.filePath,
-      params.itemType,
-      params.displayName,
-      params.totalPages,
-    ),
-  );
+export async function recordBookOpened(filePath: string): Promise<BookWithState> {
+  return await runCommand(commands.recordBookOpened(filePath));
 }
 
 /**

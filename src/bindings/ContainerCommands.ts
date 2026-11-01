@@ -4,27 +4,13 @@ import { commands, type ImageDimensions } from "./bindings";
 import { runCommand } from "./result";
 
 /**
- * Opens a container file and fetches its entries from the backend.
+ * Opens a book as the open book, replacing the previous one, and fetches its entries.
  *
  * @param path The path of the container file.
  * @returns A promise that resolves to an object containing entries, directory status, and novel status.
  */
-export const getEntriesInContainer = async (path: string) => {
-  return await runCommand(commands.getEntriesInContainer(path));
-};
-
-/**
- * Counts a container's pages without opening it for reading.
- *
- * Distinct from {@link getEntriesInContainer}, which installs the book it opens and so
- * closes the reader threads of the book already on screen. Use this wherever a book is
- * only being registered.
- *
- * @param path The path of the container file.
- * @returns A promise resolving to the page count and whether the path is a directory.
- */
-export const countPagesInContainer = async (path: string) => {
-  return await runCommand(commands.countPagesInContainer(path));
+export const openContainer = async (path: string) => {
+  return await runCommand(commands.openContainer(path));
 };
 
 /**
