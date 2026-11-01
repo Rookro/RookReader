@@ -102,15 +102,15 @@ pub async fn register_book<R: tauri::Runtime>(
     log::debug!("Register the book: {}", file_path);
 
     let (container, config) = book_container(&state, &file_path).await?;
-    let facts = describe(&file_path, container.as_ref())?;
+    let description = describe(&file_path, container.as_ref())?;
     let thumbnail_path = resolve_thumbnail(&app, &file_path, config, container).await;
 
     let book_id = repo
         .register_book(
             &file_path,
-            facts.item_type,
-            &facts.display_name,
-            facts.total_pages,
+            description.item_type,
+            &description.display_name,
+            description.total_pages,
             thumbnail_path,
         )
         .await?;
@@ -155,15 +155,15 @@ pub async fn record_book_opened<R: tauri::Runtime>(
     log::debug!("Record book opened: {}", file_path);
 
     let (container, config) = book_container(&state, &file_path).await?;
-    let facts = describe(&file_path, container.as_ref())?;
+    let description = describe(&file_path, container.as_ref())?;
     let thumbnail_path = resolve_thumbnail(&app, &file_path, config, container).await;
 
     let book_id = repo
         .record_book_opened(
             &file_path,
-            facts.item_type,
-            &facts.display_name,
-            facts.total_pages,
+            description.item_type,
+            &description.display_name,
+            description.total_pages,
             thumbnail_path,
         )
         .await?;
@@ -173,7 +173,7 @@ pub async fn record_book_opened<R: tauri::Runtime>(
         .ok_or_else(|| Error::Other(format!("Book {book_id} vanished after it was recorded")))?;
 
     // A novel's direction is the EPUB's own and cannot be overridden.
-    if !facts.is_novel && book.reading_direction.is_none() {
+    if !description.is_novel && book.reading_direction.is_none() {
         if let Some(direction) = default_reading_direction(&provider).await {
             if let Err(e) = repo.update_reading_direction(book_id, direction).await {
                 log::warn!("Could not store the reading direction of book {book_id}: {e}");

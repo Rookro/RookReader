@@ -1,4 +1,4 @@
-//! What the library records about a book, derived from its opened container.
+//! Describes a book from its opened container.
 
 use std::path::Path;
 
@@ -7,9 +7,10 @@ use crate::container::traits::Container;
 use crate::domain::book::entity::ItemType;
 use crate::error::{Error, Result};
 
-/// What the library records about a book, derived from its opened container.
+/// A book as its opened container describes it: what the library records about it, and
+/// whether it is a novel.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct BookFacts {
+pub struct BookDescription {
     /// A folder of pages (including a folder inside an archive), or a single file.
     pub item_type: ItemType,
     /// The last component of the book's path.
@@ -35,7 +36,7 @@ pub struct BookFacts {
 ///
 /// Returns `EmptyContainer` when the container holds no readable pages. EPUB novels are
 /// exempt: their text has no image entries.
-pub fn describe(path: &str, container: &dyn Container) -> Result<BookFacts> {
+pub fn describe(path: &str, container: &dyn Container) -> Result<BookDescription> {
     let is_novel = container.is_novel();
     let total_pages = container.get_entries().len();
     if !is_novel && total_pages == 0 {
@@ -52,7 +53,7 @@ pub fn describe(path: &str, container: &dyn Container) -> Result<BookFacts> {
         |name| name.to_string_lossy().into_owned(),
     );
 
-    Ok(BookFacts {
+    Ok(BookDescription {
         item_type,
         display_name,
         total_pages: total_pages as i64,
@@ -83,11 +84,11 @@ mod tests {
         let path = dir.path().join("My Book");
         std::fs::create_dir(&path).unwrap();
 
-        let facts = describe(&path.to_string_lossy(), &container(2, true, false)).unwrap();
+        let description = describe(&path.to_string_lossy(), &container(2, true, false)).unwrap();
 
         assert_eq!(
-            facts,
-            BookFacts {
+            description,
+            BookDescription {
                 item_type: ItemType::Directory,
                 display_name: "My Book".to_string(),
                 total_pages: 2,
@@ -102,11 +103,11 @@ mod tests {
         let path = dir.path().join("comic.zip");
         std::fs::write(&path, b"").unwrap();
 
-        let facts = describe(&path.to_string_lossy(), &container(3, false, false)).unwrap();
+        let description = describe(&path.to_string_lossy(), &container(3, false, false)).unwrap();
 
-        assert_eq!(facts.item_type, ItemType::File);
-        assert_eq!(facts.display_name, "comic.zip");
-        assert_eq!(facts.total_pages, 3);
+        assert_eq!(description.item_type, ItemType::File);
+        assert_eq!(description.display_name, "comic.zip");
+        assert_eq!(description.total_pages, 3);
     }
 
     #[test]
@@ -123,10 +124,10 @@ mod tests {
         zip.finish().unwrap();
         let path = zip_path.join("Vol1");
 
-        let facts = describe(&path.to_string_lossy(), &container(1, false, false)).unwrap();
+        let description = describe(&path.to_string_lossy(), &container(1, false, false)).unwrap();
 
-        assert_eq!(facts.item_type, ItemType::Directory);
-        assert_eq!(facts.display_name, "Vol1");
+        assert_eq!(description.item_type, ItemType::Directory);
+        assert_eq!(description.display_name, "Vol1");
     }
 
     #[test]
@@ -137,10 +138,10 @@ mod tests {
         let path = folder.join("book.pdf");
         std::fs::write(&path, b"").unwrap();
 
-        let facts = describe(&path.to_string_lossy(), &container(1, false, false)).unwrap();
+        let description = describe(&path.to_string_lossy(), &container(1, false, false)).unwrap();
 
-        assert_eq!(facts.item_type, ItemType::File);
-        assert_eq!(facts.display_name, "book.pdf");
+        assert_eq!(description.item_type, ItemType::File);
+        assert_eq!(description.display_name, "book.pdf");
     }
 
     #[test]
@@ -152,9 +153,9 @@ mod tests {
 
     #[test]
     fn a_novel_without_image_entries_is_a_book() {
-        let facts = describe("/books/novel.epub", &container(0, false, true)).unwrap();
+        let description = describe("/books/novel.epub", &container(0, false, true)).unwrap();
 
-        assert_eq!(facts.total_pages, 0);
-        assert!(facts.is_novel);
+        assert_eq!(description.total_pages, 0);
+        assert!(description.is_novel);
     }
 }
