@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            INSERT OR IGNORE INTO collection_items (collection_id, book_id)\n            SELECT c.id, ?\n            FROM collections c\n            WHERE c.id IN (SELECT value FROM json_each(?))\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "5877cb05c787b9521788645a69589ef2a310913b1106e7ecf48ceedaa98e7183"
+}

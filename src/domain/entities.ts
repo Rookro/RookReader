@@ -10,8 +10,8 @@
 import type {
   Book_Serialize,
   Bookmark_Serialize,
-  Bookshelf_Serialize,
   BookWithState_Serialize,
+  Collection_Serialize,
   ReadBook_Serialize,
   ReadingState_Serialize,
 } from "../bindings/bindings";
@@ -37,4 +37,4 @@ export type ReadingState = ReadingState_Serialize;
 export type Bookmark = Bookmark_Serialize;
 
 /** A user-made collection of books. */
-export type Bookshelf = Bookshelf_Serialize;
+export type Collection = Collection_Serialize;

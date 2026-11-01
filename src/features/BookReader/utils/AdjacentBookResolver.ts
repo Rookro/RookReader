@@ -1,7 +1,7 @@
 import { basename, dirname, join } from "@tauri-apps/api/path";
 import {
   getAllBooksWithState,
-  getBooksWithStateByBookshelfId,
+  getBooksWithStateByCollectionId,
   getBooksWithStateBySeriesId,
 } from "../../../bindings/BookCommands";
 import { getEntriesInDir } from "../../../bindings/DirectoryCommands";
@@ -62,9 +62,9 @@ const adjacentInBookshelf = async (
   dir: Direction,
 ): Promise<AdjacentBook | null> => {
   const books =
-    origin.bookshelfId === null
+    origin.collectionId === null
       ? await getAllBooksWithState()
-      : await getBooksWithStateByBookshelfId(origin.bookshelfId);
+      : await getBooksWithStateByCollectionId(origin.collectionId);
   const sorted = [...books].sort((a, b) => sortBooks(a, b, origin.sortOrder));
   const idx = sorted.findIndex((b) => b.file_path === currentPath);
   const target = pickAdjacent(sorted, idx, dir);

@@ -61,7 +61,7 @@ describe("BookContextMenu", () => {
     renderBookContextMenu(defaultProps, []);
 
     await user.click(screen.getByText(/Set collections/i));
-    expect(mockActions.openDialog).toHaveBeenCalledWith("set-bookshelves", [mockBook1]);
+    expect(mockActions.openDialog).toHaveBeenCalledWith("set-collections", [mockBook1]);
     expect(defaultProps.onClose).toHaveBeenCalled();
   });
 

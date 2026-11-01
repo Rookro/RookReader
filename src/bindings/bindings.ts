@@ -433,11 +433,11 @@ export const commands = {
 	 */
 	getAllBooksWithState: () => typedError<BookWithState_Serialize[], CommandError_Serialize>(__TAURI_INVOKE("get_all_books_with_state")),
 	/**
-	 *  Retrieves all books contained within a specific bookshelf, including their reading states.
+	 *  Retrieves all books contained within a specific collection, including their reading states.
 	 * 
 	 *  # Arguments
 	 * 
-	 *  * `bookshelf_id` - The ID of the bookshelf.
+	 *  * `collection_id` - The ID of the collection.
 	 *  * `repo` - The managed book repository state.
 	 * 
 	 *  # Returns
@@ -449,7 +449,7 @@ export const commands = {
 	 *  This function will return an `Err` if the underlying repository operation fails
 	 *  (e.g., due to a database error, connection issue, or query execution failure).
 	 */
-	getBooksWithStateByBookshelfId: (bookshelfId: number) => typedError<BookWithState_Serialize[], CommandError_Serialize>(__TAURI_INVOKE("get_books_with_state_by_bookshelf_id", { bookshelfId })),
+	getBooksWithStateByCollectionId: (collectionId: number) => typedError<BookWithState_Serialize[], CommandError_Serialize>(__TAURI_INVOKE("get_books_with_state_by_collection_id", { collectionId })),
 	/**
 	 *  Retrieves all books associated with a specific tag, including their reading states.
 	 * 
@@ -514,114 +514,114 @@ export const commands = {
 	 */
 	updateSeriesOrders: (bookIds: number[]) => typedError<null, CommandError_Serialize>(__TAURI_INVOKE("update_series_orders", { bookIds })),
 	/**
-	 *  Creates a new bookshelf and returns its complete entity.
+	 *  Creates a new collection and returns its complete entity.
 	 * 
 	 *  # Arguments
 	 * 
-	 *  * `name` - The name of the new bookshelf.
+	 *  * `name` - The name of the new collection.
 	 *  * `icon_id` - The string identifier for the UI icon.
-	 *  * `repo` - The managed bookshelf repository state.
+	 *  * `repo` - The managed collection repository state.
 	 * 
 	 *  # Returns
 	 * 
-	 *  A `Result` containing the newly created `Bookshelf` entity.
+	 *  A `Result` containing the newly created `Collection` entity.
 	 * 
 	 *  # Errors
 	 * 
 	 *  This function will return an `Err` if the underlying repository operation fails
 	 *  (e.g., due to a database error, connection issue, or query execution failure).
 	 */
-	createBookshelf: (name: string, iconId: string) => typedError<Bookshelf_Serialize, CommandError_Serialize>(__TAURI_INVOKE("create_bookshelf", { name, iconId })),
+	createCollection: (name: string, iconId: string) => typedError<Collection_Serialize, CommandError_Serialize>(__TAURI_INVOKE("create_collection", { name, iconId })),
 	/**
-	 *  Retrieves all bookshelves from the database.
+	 *  Retrieves all collections from the database.
 	 * 
 	 *  # Arguments
 	 * 
-	 *  * `repo` - The managed bookshelf repository state.
+	 *  * `repo` - The managed collection repository state.
 	 * 
 	 *  # Returns
 	 * 
-	 *  A `Result` containing a vector of `Bookshelf` entities.
+	 *  A `Result` containing a vector of `Collection` entities.
 	 * 
 	 *  # Errors
 	 * 
 	 *  This function will return an `Err` if the underlying repository operation fails
 	 *  (e.g., due to a database error, connection issue, or query execution failure).
 	 */
-	getAllBookshelves: () => typedError<Bookshelf_Serialize[], CommandError_Serialize>(__TAURI_INVOKE("get_all_bookshelves")),
+	getAllCollections: () => typedError<Collection_Serialize[], CommandError_Serialize>(__TAURI_INVOKE("get_all_collections")),
 	/**
-	 *  Adds a book to a specific bookshelf.
+	 *  Adds a book to a specific collection.
 	 * 
 	 *  # Arguments
 	 * 
-	 *  * `bookshelf_id` - The ID of the bookshelf.
+	 *  * `collection_id` - The ID of the collection.
 	 *  * `book_id` - The ID of the book to add.
-	 *  * `repo` - The managed bookshelf repository state.
+	 *  * `repo` - The managed collection repository state.
 	 * 
 	 *  # Errors
 	 * 
 	 *  This function will return an `Err` if the underlying repository operation fails
 	 *  (e.g., due to a database error, connection issue, or query execution failure).
 	 */
-	addBookToBookshelf: (bookshelfId: number, bookId: number) => typedError<null, CommandError_Serialize>(__TAURI_INVOKE("add_book_to_bookshelf", { bookshelfId, bookId })),
+	addBookToCollection: (collectionId: number, bookId: number) => typedError<null, CommandError_Serialize>(__TAURI_INVOKE("add_book_to_collection", { collectionId, bookId })),
 	/**
-	 *  Removes a book from a specific bookshelf.
+	 *  Removes a book from a specific collection.
 	 * 
 	 *  # Arguments
 	 * 
-	 *  * `bookshelf_id` - The ID of the bookshelf.
+	 *  * `collection_id` - The ID of the collection.
 	 *  * `book_id` - The ID of the book to remove.
-	 *  * `repo` - The managed bookshelf repository state.
+	 *  * `repo` - The managed collection repository state.
 	 * 
 	 *  # Errors
 	 * 
 	 *  This function will return an `Err` if the underlying repository operation fails.
 	 */
-	removeBookFromBookshelf: (bookshelfId: number, bookId: number) => typedError<null, CommandError_Serialize>(__TAURI_INVOKE("remove_book_from_bookshelf", { bookshelfId, bookId })),
+	removeBookFromCollection: (collectionId: number, bookId: number) => typedError<null, CommandError_Serialize>(__TAURI_INVOKE("remove_book_from_collection", { collectionId, bookId })),
 	/**
-	 *  Retrieves the IDs of the bookshelves that contain a book.
+	 *  Retrieves the IDs of the collections that contain a book.
 	 * 
 	 *  # Arguments
 	 * 
 	 *  * `book_id` - The ID of the book.
-	 *  * `repo` - The managed bookshelf repository state.
+	 *  * `repo` - The managed collection repository state.
 	 * 
 	 *  # Returns
 	 * 
-	 *  A `Result` containing the bookshelf IDs.
+	 *  A `Result` containing the collection IDs.
 	 * 
 	 *  # Errors
 	 * 
 	 *  This function will return an `Err` if the underlying repository operation fails.
 	 */
-	getBookshelvesForBook: (bookId: number) => typedError<number[], CommandError_Serialize>(__TAURI_INVOKE("get_bookshelves_for_book", { bookId })),
+	getCollectionsForBook: (bookId: number) => typedError<number[], CommandError_Serialize>(__TAURI_INVOKE("get_collections_for_book", { bookId })),
 	/**
-	 *  Replaces the bookshelves that contain a book with the given ones.
+	 *  Replaces the collections that contain a book with the given ones.
 	 * 
 	 *  # Arguments
 	 * 
 	 *  * `book_id` - The ID of the book.
-	 *  * `bookshelf_ids` - The IDs of the bookshelves that should contain the book.
-	 *  * `repo` - The managed bookshelf repository state.
+	 *  * `collection_ids` - The IDs of the collections that should contain the book.
+	 *  * `repo` - The managed collection repository state.
 	 * 
 	 *  # Errors
 	 * 
 	 *  This function will return an `Err` if the underlying repository operation fails.
 	 */
-	setBookshelvesForBook: (bookId: number, bookshelfIds: number[]) => typedError<null, CommandError_Serialize>(__TAURI_INVOKE("set_bookshelves_for_book", { bookId, bookshelfIds })),
+	setCollectionsForBook: (bookId: number, collectionIds: number[]) => typedError<null, CommandError_Serialize>(__TAURI_INVOKE("set_collections_for_book", { bookId, collectionIds })),
 	/**
-	 *  Deletes a bookshelf from the database.
+	 *  Deletes a collection from the database.
 	 * 
 	 *  # Arguments
 	 * 
-	 *  * `id` - The ID of the bookshelf to delete.
-	 *  * `repo` - The managed bookshelf repository state.
+	 *  * `id` - The ID of the collection to delete.
+	 *  * `repo` - The managed collection repository state.
 	 * 
 	 *  # Errors
 	 * 
 	 *  This function will return an `Err` if the underlying repository operation fails.
 	 */
-	deleteBookshelf: (id: number) => typedError<null, CommandError_Serialize>(__TAURI_INVOKE("delete_bookshelf", { id })),
+	deleteCollection: (id: number) => typedError<null, CommandError_Serialize>(__TAURI_INVOKE("delete_collection", { id })),
 	/**
 	 *  Creates a new series.
 	 * 
@@ -820,7 +820,7 @@ export const commands = {
 /** Events */
 export const events = {
 	booksChanged: makeEvent<BooksChanged, BooksChanged>("books-changed"),
-	bookshelvesChanged: makeEvent<BookshelvesChanged, BookshelvesChanged>("bookshelves-changed"),
+	collectionsChanged: makeEvent<CollectionsChanged, CollectionsChanged>("collections-changed"),
 	localeChanged: makeEvent<LocaleChanged, LocaleChanged>("locale-changed"),
 	readingHistoryChanged: makeEvent<ReadingHistoryChanged, ReadingHistoryChanged>("reading-history-changed"),
 	readingProgressChanged: makeEvent<ReadingProgressChanged_Serialize, ReadingProgressChanged_Deserialize>("reading-progress-changed"),
@@ -1090,13 +1090,10 @@ export type Bookmark_Serialize = {
 };
 
 /**
- *  A book was registered or deleted, or its bookshelves, tags, series or reading state
- *  changed, so the book list of any bookshelf may differ.
+ *  A book was registered or deleted, or its collections, tags, series or reading state
+ *  changed, so the book list of any collection may differ.
  */
 export type BooksChanged = null;
-
-/**  Represents a bookshelf entity used to organize books. */
-export type Bookshelf = Bookshelf_Serialize | Bookshelf_Deserialize;
 
 /**  Settings specific to the bookshelf view. */
 export type BookshelfSettings = BookshelfSettings_Serialize | BookshelfSettings_Deserialize;
@@ -1121,32 +1118,35 @@ export type BookshelfSettings_Serialize = {
 	enableAutoScroll: boolean,
 };
 
-/**  Represents a bookshelf entity used to organize books. */
-export type Bookshelf_Deserialize = {
-	/**  The unique identifier for the bookshelf. */
+/**  Represents a collection entity used to organize books. */
+export type Collection = Collection_Serialize | Collection_Deserialize;
+
+/**  Represents a collection entity used to organize books. */
+export type Collection_Deserialize = {
+	/**  The unique identifier for the collection. */
 	id: number,
-	/**  The display name of the bookshelf. */
+	/**  The display name of the collection. */
 	name: string,
 	/**  The string identifier for the UI icon (e.g., "folder"). */
 	icon_id: string,
-	/**  The timestamp when the bookshelf was created. */
+	/**  The timestamp when the collection was created. */
 	created_at?: string | null,
 };
 
-/**  Represents a bookshelf entity used to organize books. */
-export type Bookshelf_Serialize = {
-	/**  The unique identifier for the bookshelf. */
+/**  Represents a collection entity used to organize books. */
+export type Collection_Serialize = {
+	/**  The unique identifier for the collection. */
 	id: number,
-	/**  The display name of the bookshelf. */
+	/**  The display name of the collection. */
 	name: string,
 	/**  The string identifier for the UI icon (e.g., "folder"). */
 	icon_id: string,
-	/**  The timestamp when the bookshelf was created. */
+	/**  The timestamp when the collection was created. */
 	created_at: string | null,
 };
 
-/**  A bookshelf was created or deleted. */
-export type BookshelvesChanged = null;
+/**  A collection was created or deleted. */
+export type CollectionsChanged = null;
 
 /**  Configuration for image caching and preloading. */
 export type ComicCacheSettings = ComicCacheSettings_Serialize | ComicCacheSettings_Deserialize;

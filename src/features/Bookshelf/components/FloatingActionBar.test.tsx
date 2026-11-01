@@ -9,7 +9,7 @@ describe("FloatingActionBar", () => {
   const defaultProps = {
     selectionCount: 2,
     onClear: vi.fn(),
-    onSetBookshelves: vi.fn(),
+    onSetCollections: vi.fn(),
     onSetSeries: vi.fn(),
     onSetTags: vi.fn(),
     onDelete: vi.fn(),
@@ -29,7 +29,7 @@ describe("FloatingActionBar", () => {
     renderWithProviders(<FloatingActionBar {...defaultProps} />);
 
     await user.click(screen.getByRole("button", { name: /Set collections/i }));
-    expect(defaultProps.onSetBookshelves).toHaveBeenCalled();
+    expect(defaultProps.onSetCollections).toHaveBeenCalled();
 
     await user.click(screen.getByRole("button", { name: /Set series/i }));
     expect(defaultProps.onSetSeries).toHaveBeenCalled();

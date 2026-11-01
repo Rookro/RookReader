@@ -2,8 +2,8 @@
 erDiagram
     series ||--o{ books : "contains"
     books ||--o| reading_state : "has state"
-    bookshelves ||--o{ bookshelf_items : "contains"
-    books ||--o{ bookshelf_items : "placed in"
+    collections ||--o{ collection_items : "contains"
+    books ||--o{ collection_items : "placed in"
     books ||--o{ book_tags : "has tags"
     tags ||--o{ book_tags : "is assigned to"
     books ||--o{ bookmarks : "has bookmarks"
@@ -38,15 +38,15 @@ erDiagram
         TEXT cfi "nullable; EPUB CFI, NULL for comics"
     }
 
-    bookshelves {
+    collections {
         INTEGER id PK "AUTOINCREMENT"
         TEXT name UK "NOT NULL"
         TEXT icon_id "NOT NULL"
         DATETIME created_at "NOT NULL; default CURRENT_TIMESTAMP"
     }
 
-    bookshelf_items {
-        INTEGER bookshelf_id PK, FK "bookshelves.id; ON DELETE CASCADE"
+    collection_items {
+        INTEGER collection_id PK, FK "collections.id; ON DELETE CASCADE"
         INTEGER book_id PK, FK "books.id; ON DELETE CASCADE"
         DATETIME added_at "NOT NULL; default CURRENT_TIMESTAMP"
     }

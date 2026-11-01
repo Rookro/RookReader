@@ -53,7 +53,7 @@ describe("ReadReducer", () => {
 
     // Verify that image index is set correctly and CFI is cleared
     describe("origin per history entry", () => {
-      const shelf: OpenOrigin = { kind: "bookshelf", bookshelfId: 5, sortOrder: "name_asc" };
+      const shelf: OpenOrigin = { kind: "bookshelf", collectionId: 5, sortOrder: "name_asc" };
 
       // A typed path has no shelf behind it, so "next book" must not search the shelf
       it("typing a path drops the previous book's origin", () => {
@@ -339,12 +339,12 @@ describe("ReadReducer", () => {
         initialState,
         openBook({
           path: "new",
-          origin: { kind: "bookshelf", bookshelfId: 3, sortOrder: "name_asc" },
+          origin: { kind: "bookshelf", collectionId: 3, sortOrder: "name_asc" },
         }),
       );
       expect(state.containerFile.origin).toEqual({
         kind: "bookshelf",
-        bookshelfId: 3,
+        collectionId: 3,
         sortOrder: "name_asc",
       });
       // The path is applied exactly like setContainerFilePath.

@@ -162,16 +162,16 @@ export async function getRecentlyReadBooks(): Promise<ReadBook[]> {
 }
 
 /**
- * Retrieves all books along with their reading states that belong to a specific bookshelf.
+ * Retrieves all books along with their reading states that belong to a specific collection.
  *
- * @param bookshelfId - The unique identifier of the bookshelf.
+ * @param collectionId - The unique identifier of the collection.
  * @returns A promise that resolves to an array of BookWithState objects.
  * @throws {CommandError} If the Tauri command fails.
  */
-export async function getBooksWithStateByBookshelfId(
-  bookshelfId: number,
+export async function getBooksWithStateByCollectionId(
+  collectionId: number,
 ): Promise<BookWithState[]> {
-  return await runCommand(commands.getBooksWithStateByBookshelfId(bookshelfId));
+  return await runCommand(commands.getBooksWithStateByCollectionId(collectionId));
 }
 
 /**

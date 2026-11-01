@@ -49,17 +49,17 @@ graph TD
 
 - **Feature-Sliced layout:** each feature lives under `src/features/<Feature>/` (`BookReader`, `Bookshelf`, `History`, `MainView`, `Settings`, `SidePane`, `Updater`) with its own `components/`, `hooks/` and Redux `slice.ts`. Generic, feature-independent hooks (`useAppTheme`, `useDragDropEvent`, `usePaneSizes`, `useResizeObserver`, `useTauriEvent`) live in `src/hooks/`.
 - **UI Components:** Built functionally using React and composed heavily of **Material UI (MUI)** components. We utilize MUI's `sx` prop and theming system (`src/hooks/useAppTheme.ts`) for responsive and consistent styling. Icons are imported by path (`@mui/icons-material/<Icon>`) so only the icons in use are bundled.
-- **State Management:** Global state is managed via **Redux Toolkit**. `src/store/store.ts` builds the store, `src/store/rootReducer.ts` combines the feature slices (`read`, `bookmark`, `view`, `history`, `bookCollection`, `tag`, `series`, `settings`, `settingsError`), and `src/store/middleware/` holds the `loggerMiddleware` and the `readingStateMiddleware` that persists reading progress asynchronously. Component-specific UI state relies on standard React hooks (`useState`, `useReducer`).
+- **State Management:** Global state is managed via **Redux Toolkit**. `src/store/store.ts` builds the store, `src/store/rootReducer.ts` combines the feature slices (`read`, `bookmark`, `view`, `history`, `collection`, `tag`, `series`, `settings`, `settingsError`), and `src/store/middleware/` holds the `loggerMiddleware` and the `readingStateMiddleware` that persists reading progress asynchronously. Component-specific UI state relies on standard React hooks (`useState`, `useReducer`).
 - **Bindings (generated):** `src/bindings/bindings.ts` (command wrappers, events, and the TypeScript types of every Rust type they use, including the settings model) and `src/bindings/errorCodes.ts` are **generated** from Rust by `tauri-specta` via `npm run gen:bindings` — never edit them by hand. `src/bindings/*Commands.ts` are thin wrappers that delegate to the generated `commands.*`, unwrap the `{ status, data | error }` result with `runCommand` (`src/bindings/result.ts`, which throws a `CommandError`) and return the generated types; `src/domain/entities.ts` gives the entities their plain names; binary commands that return a raw `tauri::ipc::Response` keep a direct `invoke`.
-- **Domain & validation:** `src/domain/entities.ts` names the library entities (book, bookmark, bookshelf, series, tag) after their generated `_Serialize` types; they come from our own backend and are not validated at runtime. Application **settings** are validated in Rust (see below); the frontend consumes the generated types and the backend's field errors (`src/features/Settings/settingsFieldErrors.ts`, bounds mirrored in `settingsBounds.json`).
+- **Domain & validation:** `src/domain/entities.ts` names the library entities (book, bookmark, collection, series, tag) after their generated `_Serialize` types; they come from our own backend and are not validated at runtime. Application **settings** are validated in Rust (see below); the frontend consumes the generated types and the backend's field errors (`src/features/Settings/settingsFieldErrors.ts`, bounds mirrored in `settingsBounds.json`).
 - **Errors:** the numeric `ErrorCode` values are owned by Rust (`ErrorCode::code()` in `src-tauri/src/error.rs`); `src/types/Error.ts` re-exports the generated codes and adds the frontend-only `unknown` sentinel.
 - **i18n:** `react-i18next` with `src/i18n/locales/en-US.json` and `ja-JP.json`.
 
 ### Backend Details
 
-- **Tauri Commands:** The entry points for the frontend (`src-tauri/src/commands/`): `book`, `bookmark`, `bookshelf`, `container`, `directory`, `font`, `series`, `settings`, `tag` and `updater` commands act as controllers. Every command carries `#[tauri::command]` + `#[specta::specta]` and is registered in `specta_builder()` in `src-tauri/src/lib.rs`.
-- **Domain:** `src-tauri/src/domain/` holds the domain models (book, bookmark, bookshelf, series, tag) shared by commands and repositories.
-- **Repository Pattern:** All database queries are isolated in `src-tauri/src/infrastructure/database/` (`book_repository`, `bookmark_repository`, `bookshelf_repository`, `series_repository`, `tag_repository`, `models`). This abstracts the compile-time-checked `sqlx` SQLite queries away from the command logic. Rows (`models.rs`) are converted into the plain domain entities, which know nothing about SQL.
+- **Tauri Commands:** The entry points for the frontend (`src-tauri/src/commands/`): `book`, `bookmark`, `collection`, `container`, `directory`, `font`, `series`, `settings`, `tag` and `updater` commands act as controllers. Every command carries `#[tauri::command]` + `#[specta::specta]` and is registered in `specta_builder()` in `src-tauri/src/lib.rs`.
+- **Domain:** `src-tauri/src/domain/` holds the domain models (book, bookmark, collection, series, tag) shared by commands and repositories.
+- **Repository Pattern:** All database queries are isolated in `src-tauri/src/infrastructure/database/` (`book_repository`, `bookmark_repository`, `collection_repository`, `series_repository`, `tag_repository`, `models`). This abstracts the compile-time-checked `sqlx` SQLite queries away from the command logic. Rows (`models.rs`) are converted into the plain domain entities, which know nothing about SQL.
 - **Containers:** File parsing logic is separated into `src-tauri/src/container/`: `zip_container` (zip/cbz), `rar_container` (rar/cbr), `pdf_container` + `pdf_worker` (a single process-wide PDFium worker), `epub_container`, `directory_container`, plus `archive_listing`/`archive_path` for browsing and addressing folders inside an archive. `factory.rs` picks the container from the file extension.
 - **Page service & pipeline:** when a book is opened, the command creates its container through `factory.rs` and hands it to a `PageService` (`src-tauri/src/page/service.rs`), which owns the container for the life of the book. The service schedules page reads on its worker threads (`container.open_reader()` → `read_page()`), the `Pipeline` (`page/pipeline.rs` with `src-tauri/src/image/` `resizer`/`thumbnail`) decodes and resizes the bytes to the viewer's display size, and `page/cache.rs` keeps the results. Containers are the only layer that touches the file system or PDFium; the pipeline only sees bytes. `src-tauri/src/state/` holds the shared application/container state.
 - **Settings:** `src-tauri/src/settings/` is the source of truth for the settings model (`model.rs`), its validation (`serde` for shape, `garde` for bounds — see `validation.rs`), patching (`patch.rs`) and file persistence (`provider.rs`).
@@ -70,6 +70,13 @@ graph TD
 - **Frontend:** React 19, TypeScript, Vite 8, Material UI (MUI), Redux Toolkit, react-i18next, foliate-js (EPUB rendering).
 - **Backend:** Rust, Tauri (v2), SQLite (sqlx), garde (settings validation), pdfium-render (bundled PDFium).
 - **Tooling:** tauri-specta (generated bindings), Biome (lint/format), Vitest (frontend unit tests), WebdriverIO (E2E), cargo-about (license files).
+
+## Glossary
+
+- **Bookshelf** — the library feature and view (`src/features/Bookshelf/`, the `bookshelf` settings tab, `InitialView` `"bookshelf"`, `OpenOrigin` `kind: "bookshelf"`).
+- **Collection** — a user-made group of books inside the bookshelf (`collections` / `collection_items` tables, `collection_commands`, the `collection` slice). The UI may call it a bookshelf.
+- **Tag** — a colored label on books; a book can carry several.
+- **Series** — the volumes of one title, ordered by `series_order`; shown as one stacked cover.
 
 ## Development Environment Setup
 
@@ -101,7 +108,7 @@ These pages are sourced from [`docs/wiki/`](https://github.com/Rookro/RookReader
 ## Database Migrations & Setup
 
 RookReader uses `sqlx` for compile-time checked SQLite queries. The `sqlx-cli` tool is required for managing migrations.
-The current schema (books, series, bookshelves, bookshelf_items, tags, book_tags, reading_state, bookmarks, and the `book_with_state_view` view) is documented as an ER diagram in [`docs/database/er_diagram.md`](https://github.com/Rookro/RookReader/blob/main/docs/database/er_diagram.md).
+The current schema (books, series, collections, collection_items, tags, book_tags, reading_state, bookmarks, and the `book_with_state_view` view) is documented as an ER diagram in [`docs/database/er_diagram.md`](https://github.com/Rookro/RookReader/blob/main/docs/database/er_diagram.md).
 
 ### Modifying the Database Schema
 

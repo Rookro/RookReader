@@ -1,19 +1,19 @@
 use rookreader_lib::domain::book::entity::ItemType;
 use rookreader_lib::domain::book::repository::BookRepository;
-use rookreader_lib::domain::bookshelf::repository::BookshelfRepository;
+use rookreader_lib::domain::collection::repository::CollectionRepository;
 use rookreader_lib::infrastructure::database::book_repository::SqliteBookRepository;
-use rookreader_lib::infrastructure::database::bookshelf_repository::SqliteBookshelfRepository;
+use rookreader_lib::infrastructure::database::collection_repository::SqliteCollectionRepository;
 use sqlx::Row;
 
 mod common;
 use common::setup_db;
 
 #[tokio::test]
-async fn test_create_and_get_all_bookshelves() {
+async fn test_create_and_get_all_collections() {
     let pool = setup_db().await;
-    let repository = SqliteBookshelfRepository::new(pool.clone());
+    let repository = SqliteCollectionRepository::new(pool.clone());
 
-    // Create bookshelves
+    // Create collections
     let bs1 = repository.create("Favorites", "star").await.unwrap();
     assert_eq!(bs1.name, "Favorites");
     assert_eq!(bs1.icon_id, "star");
@@ -23,34 +23,34 @@ async fn test_create_and_get_all_bookshelves() {
     assert_eq!(bs2.name, "To Read");
     assert_eq!(bs2.icon_id, "book");
 
-    // Get all bookshelves
-    let bookshelves = repository.get_all().await.unwrap();
-    assert_eq!(bookshelves.len(), 2);
-    assert_eq!(bookshelves[0].name, "Favorites");
-    assert_eq!(bookshelves[1].name, "To Read");
+    // Get all collections
+    let collections = repository.get_all().await.unwrap();
+    assert_eq!(collections.len(), 2);
+    assert_eq!(collections[0].name, "Favorites");
+    assert_eq!(collections[1].name, "To Read");
 }
 
 #[tokio::test]
-async fn test_delete_bookshelf() {
+async fn test_delete_collection() {
     let pool = setup_db().await;
-    let repository = SqliteBookshelfRepository::new(pool.clone());
+    let repository = SqliteCollectionRepository::new(pool.clone());
 
     let bs1 = repository.create("Favorites", "star").await.unwrap();
     repository.create("To Read", "book").await.unwrap();
 
     repository.delete(bs1.id).await.unwrap();
 
-    let bookshelves = repository.get_all().await.unwrap();
-    assert_eq!(bookshelves.len(), 1);
-    assert_eq!(bookshelves[0].name, "To Read");
+    let collections = repository.get_all().await.unwrap();
+    assert_eq!(collections.len(), 1);
+    assert_eq!(collections[0].name, "To Read");
 }
 
 #[tokio::test]
-async fn test_add_and_remove_book_from_bookshelf() {
+async fn test_add_and_remove_book_from_collection() {
     let pool = setup_db().await;
-    let repository = SqliteBookshelfRepository::new(pool.clone());
+    let repository = SqliteCollectionRepository::new(pool.clone());
 
-    // Create a bookshelf
+    // Create a collection
     let bs = repository.create("Favorites", "star").await.unwrap();
 
     // Directly insert a book since we need an existing book ID for foreign keys
@@ -66,15 +66,15 @@ async fn test_add_and_remove_book_from_bookshelf() {
     .unwrap();
     let book_id: i64 = row.get(0);
 
-    // Add book to bookshelf
+    // Add book to collection
     repository
-        .add_book_to_bookshelf(bs.id, book_id)
+        .add_book_to_collection(bs.id, book_id)
         .await
         .unwrap();
 
     // Verify it was added
     let count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM bookshelf_items WHERE bookshelf_id = ? AND book_id = ?",
+        "SELECT COUNT(*) FROM collection_items WHERE collection_id = ? AND book_id = ?",
     )
     .bind(bs.id)
     .bind(book_id)
@@ -83,15 +83,15 @@ async fn test_add_and_remove_book_from_bookshelf() {
     .unwrap();
     assert_eq!(count, 1);
 
-    // Remove book from bookshelf
+    // Remove book from collection
     repository
-        .remove_book_from_bookshelf(bs.id, book_id)
+        .remove_book_from_collection(bs.id, book_id)
         .await
         .unwrap();
 
     // Verify it was removed
     let count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM bookshelf_items WHERE bookshelf_id = ? AND book_id = ?",
+        "SELECT COUNT(*) FROM collection_items WHERE collection_id = ? AND book_id = ?",
     )
     .bind(bs.id)
     .bind(book_id)
@@ -102,9 +102,9 @@ async fn test_add_and_remove_book_from_bookshelf() {
 }
 
 #[tokio::test]
-async fn test_set_bookshelves_for_book_replaces_existing() {
+async fn test_set_collections_for_book_replaces_existing() {
     let pool = setup_db().await;
-    let shelves = SqliteBookshelfRepository::new(pool.clone());
+    let shelves = SqliteCollectionRepository::new(pool.clone());
     let books = SqliteBookRepository::new(pool.clone());
 
     let book_id = books
@@ -118,29 +118,32 @@ async fn test_set_bookshelves_for_book_replaces_existing() {
     let a = shelves.create("A", "star").await.unwrap();
     let b = shelves.create("B", "star").await.unwrap();
     let c = shelves.create("C", "star").await.unwrap();
-    shelves.add_book_to_bookshelf(a.id, book_id).await.unwrap();
-    shelves.add_book_to_bookshelf(b.id, book_id).await.unwrap();
-    shelves.add_book_to_bookshelf(a.id, other_id).await.unwrap();
-
+    shelves.add_book_to_collection(a.id, book_id).await.unwrap();
+    shelves.add_book_to_collection(b.id, book_id).await.unwrap();
     shelves
-        .set_bookshelves_for_book(book_id, &[b.id, c.id])
+        .add_book_to_collection(a.id, other_id)
         .await
         .unwrap();
 
-    let mut set = shelves.get_bookshelves_for_book(book_id).await.unwrap();
+    shelves
+        .set_collections_for_book(book_id, &[b.id, c.id])
+        .await
+        .unwrap();
+
+    let mut set = shelves.get_collections_for_book(book_id).await.unwrap();
     set.sort_unstable();
     assert_eq!(set, vec![b.id, c.id]);
     // Another book's membership is left alone.
     assert_eq!(
-        shelves.get_bookshelves_for_book(other_id).await.unwrap(),
+        shelves.get_collections_for_book(other_id).await.unwrap(),
         vec![a.id]
     );
 }
 
 #[tokio::test]
-async fn test_set_bookshelves_for_book_skips_duplicate_and_nonexistent_ids() {
+async fn test_set_collections_for_book_skips_duplicate_and_nonexistent_ids() {
     let pool = setup_db().await;
-    let shelves = SqliteBookshelfRepository::new(pool.clone());
+    let shelves = SqliteCollectionRepository::new(pool.clone());
     let books = SqliteBookRepository::new(pool.clone());
 
     let book_id = books
@@ -151,20 +154,20 @@ async fn test_set_bookshelves_for_book_skips_duplicate_and_nonexistent_ids() {
 
     let nonexistent_id = 9999;
     shelves
-        .set_bookshelves_for_book(book_id, &[a.id, a.id, nonexistent_id])
+        .set_collections_for_book(book_id, &[a.id, a.id, nonexistent_id])
         .await
         .unwrap();
 
     assert_eq!(
-        shelves.get_bookshelves_for_book(book_id).await.unwrap(),
+        shelves.get_collections_for_book(book_id).await.unwrap(),
         vec![a.id]
     );
 }
 
 #[tokio::test]
-async fn test_set_bookshelves_for_book_with_empty_list_removes_all() {
+async fn test_set_collections_for_book_with_empty_list_removes_all() {
     let pool = setup_db().await;
-    let shelves = SqliteBookshelfRepository::new(pool.clone());
+    let shelves = SqliteCollectionRepository::new(pool.clone());
     let books = SqliteBookRepository::new(pool.clone());
 
     let book_id = books
@@ -172,24 +175,24 @@ async fn test_set_bookshelves_for_book_with_empty_list_removes_all() {
         .await
         .unwrap();
     let a = shelves.create("A", "star").await.unwrap();
-    shelves.add_book_to_bookshelf(a.id, book_id).await.unwrap();
+    shelves.add_book_to_collection(a.id, book_id).await.unwrap();
 
     shelves
-        .set_bookshelves_for_book(book_id, &[])
+        .set_collections_for_book(book_id, &[])
         .await
         .unwrap();
 
     assert!(shelves
-        .get_bookshelves_for_book(book_id)
+        .get_collections_for_book(book_id)
         .await
         .unwrap()
         .is_empty());
 }
 
 #[tokio::test]
-async fn test_set_bookshelves_for_book_keeps_added_at_of_kept_bookshelf() {
+async fn test_set_collections_for_book_keeps_added_at_of_kept_collection() {
     let pool = setup_db().await;
-    let shelves = SqliteBookshelfRepository::new(pool.clone());
+    let shelves = SqliteCollectionRepository::new(pool.clone());
     let books = SqliteBookRepository::new(pool.clone());
 
     let book_id = books
@@ -198,20 +201,20 @@ async fn test_set_bookshelves_for_book_keeps_added_at_of_kept_bookshelf() {
         .unwrap();
     let a = shelves.create("A", "star").await.unwrap();
     let b = shelves.create("B", "star").await.unwrap();
-    shelves.add_book_to_bookshelf(a.id, book_id).await.unwrap();
-    sqlx::query("UPDATE bookshelf_items SET added_at = '2000-01-01 00:00:00'")
+    shelves.add_book_to_collection(a.id, book_id).await.unwrap();
+    sqlx::query("UPDATE collection_items SET added_at = '2000-01-01 00:00:00'")
         .execute(&pool)
         .await
         .unwrap();
 
     shelves
-        .set_bookshelves_for_book(book_id, &[a.id, b.id])
+        .set_collections_for_book(book_id, &[a.id, b.id])
         .await
         .unwrap();
 
-    // A bookshelf the book stays in keeps when the book was added to it.
+    // A collection the book stays in keeps when the book was added to it.
     let added_at: String = sqlx::query_scalar(
-        "SELECT added_at FROM bookshelf_items WHERE bookshelf_id = ? AND book_id = ?",
+        "SELECT added_at FROM collection_items WHERE collection_id = ? AND book_id = ?",
     )
     .bind(a.id)
     .bind(book_id)

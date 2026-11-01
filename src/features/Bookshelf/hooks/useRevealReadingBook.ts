@@ -16,10 +16,10 @@ export function useRevealReadingBook(): void {
   const activeView = useAppSelector((state) => state.view.activeView);
   const readingBook = useAppSelector((state) => state.read.containerFile.book);
   const isReaderLoading = useAppSelector((state) => state.read.containerFile.isLoading);
-  const books = useAppSelector((state) => state.bookCollection.books);
-  const booksStatus = useAppSelector((state) => state.bookCollection.status);
-  const isBooksRefreshing = useAppSelector((state) => state.bookCollection.isRefreshing);
-  const searchText = useAppSelector((state) => state.bookCollection.searchText);
+  const books = useAppSelector((state) => state.collection.books);
+  const booksStatus = useAppSelector((state) => state.collection.status);
+  const isBooksRefreshing = useAppSelector((state) => state.collection.isRefreshing);
+  const searchText = useAppSelector((state) => state.collection.searchText);
   const allSeries = useAppSelector((state) => state.series.series);
   const seriesStatus = useAppSelector((state) => state.series.status);
   const selectedSeriesId = useAppSelector((state) => state.series.selectedId);

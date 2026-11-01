@@ -1,10 +1,10 @@
 use rookreader_lib::domain::book::entity::{ItemType, ReadingState};
 use rookreader_lib::domain::book::repository::BookRepository;
-use rookreader_lib::domain::bookshelf::repository::BookshelfRepository;
+use rookreader_lib::domain::collection::repository::CollectionRepository;
 use rookreader_lib::domain::series::repository::SeriesRepository;
 use rookreader_lib::domain::tag::repository::TagRepository;
 use rookreader_lib::infrastructure::database::book_repository::SqliteBookRepository;
-use rookreader_lib::infrastructure::database::bookshelf_repository::SqliteBookshelfRepository;
+use rookreader_lib::infrastructure::database::collection_repository::SqliteCollectionRepository;
 use rookreader_lib::infrastructure::database::series_repository::SqliteSeriesRepository;
 use rookreader_lib::infrastructure::database::tag_repository::SqliteTagRepository;
 
@@ -359,10 +359,10 @@ async fn test_all_books_with_state() {
 }
 
 #[tokio::test]
-async fn test_filtering_by_bookshelf_tag_series() {
+async fn test_filtering_by_collection_tag_series() {
     let pool = setup_db().await;
     let repository = SqliteBookRepository::new(pool.clone());
-    let bookshelf_repo = SqliteBookshelfRepository::new(pool.clone());
+    let collection_repo = SqliteCollectionRepository::new(pool.clone());
     let tag_repo = SqliteTagRepository::new(pool.clone());
     let series_repo = SqliteSeriesRepository::new(pool.clone());
 
@@ -375,19 +375,19 @@ async fn test_filtering_by_bookshelf_tag_series() {
         .await
         .unwrap();
 
-    // Bookshelf
-    let shelf = bookshelf_repo.create("Shelf", "icon").await.unwrap();
-    bookshelf_repo
-        .add_book_to_bookshelf(shelf.id, b1)
+    // Collection
+    let collection = collection_repo.create("Shelf", "icon").await.unwrap();
+    collection_repo
+        .add_book_to_collection(collection.id, b1)
         .await
         .unwrap();
 
-    let shelf_books = bookshelf_repo
-        .get_books_by_bookshelf(shelf.id)
+    let collection_books = collection_repo
+        .get_books_by_collection(collection.id)
         .await
         .unwrap();
-    assert_eq!(shelf_books.len(), 1);
-    assert_eq!(shelf_books[0].id, b1);
+    assert_eq!(collection_books.len(), 1);
+    assert_eq!(collection_books[0].id, b1);
 
     // Tag
     let tag = tag_repo.create("Tag", "#000").await.unwrap();
@@ -484,7 +484,7 @@ async fn test_book_tags() {
 async fn test_delete_book() {
     let pool = setup_db().await;
     let repository = SqliteBookRepository::new(pool.clone());
-    let bs_repo = SqliteBookshelfRepository::new(pool.clone());
+    let bs_repo = SqliteCollectionRepository::new(pool.clone());
     let tag_repo = SqliteTagRepository::new(pool.clone());
 
     let book_id = repository
@@ -498,8 +498,11 @@ async fn test_delete_book() {
         .await
         .unwrap();
 
-    let bs = bs_repo.create("Bookshelf", "icon").await.unwrap();
-    bs_repo.add_book_to_bookshelf(bs.id, book_id).await.unwrap();
+    let bs = bs_repo.create("Collection", "icon").await.unwrap();
+    bs_repo
+        .add_book_to_collection(bs.id, book_id)
+        .await
+        .unwrap();
 
     repository
         .update_reading_progress(&ReadingState {
@@ -519,7 +522,7 @@ async fn test_delete_book() {
     let tags = tag_repo.get_tags_for_book(book_id).await.unwrap();
     assert!(tags.is_empty());
 
-    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM bookshelf_items WHERE book_id = ?")
+    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM collection_items WHERE book_id = ?")
         .bind(book_id)
         .fetch_one(&pool)
         .await

@@ -35,7 +35,7 @@ export default function BookContextMenu({ book, anchor, onClose }: BookContextMe
       <MenuItem
         dense
         onClick={() => {
-          openDialog("set-bookshelves", getTargetBooks());
+          openDialog("set-collections", getTargetBooks());
           onClose();
         }}
       >

@@ -2,16 +2,16 @@ import { error as logError } from "@tauri-apps/plugin-log";
 import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import * as BookshelfCommand from "../../../../bindings/BookshelfCommands";
-import type { Bookshelf } from "../../../../domain/entities";
-import { createMockBookshelf } from "../../../../test/factories";
+import * as CollectionCommands from "../../../../bindings/CollectionCommands";
+import type { Collection } from "../../../../domain/entities";
+import { createMockCollection } from "../../../../test/factories";
 import { renderWithProviders } from "../../../../test/utils";
-import SetBookshelvesDialog from "./SetBookshelvesDialog";
+import SetCollectionsDialog from "./SetCollectionsDialog";
 
-describe("SetBookshelvesDialog", () => {
+describe("SetCollectionsDialog", () => {
   const user = userEvent.setup();
 
-  const mockBookshelves: Bookshelf[] = [
+  const mockCollections: Collection[] = [
     { id: 1, name: "Shelf 1", icon_id: "library_books", created_at: "2026-03-01T10:00:00" },
     { id: 2, name: "Shelf 2", icon_id: "library_books", created_at: "2026-03-01T11:00:00" },
     { id: 3, name: "Shelf 3", icon_id: "library_books", created_at: "2026-03-01T12:00:00" },
@@ -21,34 +21,34 @@ describe("SetBookshelvesDialog", () => {
     vi.clearAllMocks();
   });
 
-  it("checks the bookshelves the book is already in", async () => {
-    vi.mocked(BookshelfCommand.getBookshelvesForBook).mockResolvedValue([1]);
+  it("checks the collections the book is already in", async () => {
+    vi.mocked(CollectionCommands.getCollectionsForBook).mockResolvedValue([1]);
 
     renderWithProviders(
-      <SetBookshelvesDialog
+      <SetCollectionsDialog
         open={true}
         bookIds={[123]}
-        availableBookshelves={mockBookshelves}
+        availableCollections={mockCollections}
         onClose={vi.fn()}
       />,
     );
 
     expect(screen.getByText("Set collections")).toBeInTheDocument();
-    expect(BookshelfCommand.getBookshelvesForBook).toHaveBeenCalledWith(123);
+    expect(CollectionCommands.getCollectionsForBook).toHaveBeenCalledWith(123);
     await waitFor(() => expect(screen.getAllByRole("checkbox")[0]).toBeChecked());
     expect(screen.getAllByRole("checkbox")[1]).not.toBeChecked();
   });
 
-  it("removes the book from a bookshelf that is unchecked", async () => {
-    vi.mocked(BookshelfCommand.getBookshelvesForBook).mockResolvedValue([1, 2]);
-    vi.mocked(BookshelfCommand.setBookshelvesForBook).mockResolvedValue();
+  it("removes the book from a collection that is unchecked", async () => {
+    vi.mocked(CollectionCommands.getCollectionsForBook).mockResolvedValue([1, 2]);
+    vi.mocked(CollectionCommands.setCollectionsForBook).mockResolvedValue();
     const onClose = vi.fn();
 
     renderWithProviders(
-      <SetBookshelvesDialog
+      <SetCollectionsDialog
         open={true}
         bookIds={[123]}
-        availableBookshelves={mockBookshelves}
+        availableCollections={mockCollections}
         onClose={onClose}
       />,
     );
@@ -58,22 +58,22 @@ describe("SetBookshelvesDialog", () => {
     await user.click(screen.getByRole("button", { name: /ok|決定/i }));
 
     await waitFor(() => expect(onClose).toHaveBeenCalled());
-    expect(BookshelfCommand.setBookshelvesForBook).toHaveBeenCalledWith(123, [2]);
+    expect(CollectionCommands.setCollectionsForBook).toHaveBeenCalledWith(123, [2]);
   });
 
   // Setting the collections of several books must keep each book's other collections
-  it("shows bookshelves holding some of the books as partly checked and keeps them on save", async () => {
-    vi.mocked(BookshelfCommand.getBookshelvesForBook).mockImplementation(async (bookId: number) =>
-      bookId === 10 ? [1, 2] : [1],
+  it("shows collections holding some of the books as partly checked and keeps them on save", async () => {
+    vi.mocked(CollectionCommands.getCollectionsForBook).mockImplementation(
+      async (bookId: number) => (bookId === 10 ? [1, 2] : [1]),
     );
-    vi.mocked(BookshelfCommand.setBookshelvesForBook).mockResolvedValue();
+    vi.mocked(CollectionCommands.setCollectionsForBook).mockResolvedValue();
     const onClose = vi.fn();
 
     renderWithProviders(
-      <SetBookshelvesDialog
+      <SetCollectionsDialog
         open={true}
         bookIds={[10, 11]}
-        availableBookshelves={mockBookshelves}
+        availableCollections={mockCollections}
         onClose={onClose}
       />,
     );
@@ -87,19 +87,19 @@ describe("SetBookshelvesDialog", () => {
     await user.click(screen.getByRole("button", { name: /ok|決定/i }));
 
     await waitFor(() => expect(onClose).toHaveBeenCalled());
-    expect(BookshelfCommand.setBookshelvesForBook).toHaveBeenCalledWith(10, [1, 2, 3]);
-    expect(BookshelfCommand.setBookshelvesForBook).toHaveBeenCalledWith(11, [1, 3]);
+    expect(CollectionCommands.setCollectionsForBook).toHaveBeenCalledWith(10, [1, 2, 3]);
+    expect(CollectionCommands.setCollectionsForBook).toHaveBeenCalledWith(11, [1, 3]);
   });
 
   it("closes without saving when nothing changed", async () => {
-    vi.mocked(BookshelfCommand.getBookshelvesForBook).mockResolvedValue([1]);
+    vi.mocked(CollectionCommands.getCollectionsForBook).mockResolvedValue([1]);
     const onClose = vi.fn();
 
     renderWithProviders(
-      <SetBookshelvesDialog
+      <SetCollectionsDialog
         open={true}
         bookIds={[10, 11]}
-        availableBookshelves={mockBookshelves}
+        availableCollections={mockCollections}
         onClose={onClose}
       />,
     );
@@ -108,52 +108,52 @@ describe("SetBookshelvesDialog", () => {
     await user.click(screen.getByRole("button", { name: /ok|決定/i }));
 
     await waitFor(() => expect(onClose).toHaveBeenCalled());
-    expect(BookshelfCommand.setBookshelvesForBook).not.toHaveBeenCalled();
+    expect(CollectionCommands.setCollectionsForBook).not.toHaveBeenCalled();
   });
 
   // Saving after a failed read would remove the books from collections the dialog never saw
-  it("disables OK when the books' bookshelves could not be read", async () => {
-    vi.mocked(BookshelfCommand.getBookshelvesForBook).mockRejectedValue(new Error("boom"));
+  it("disables OK when the books' collections could not be read", async () => {
+    vi.mocked(CollectionCommands.getCollectionsForBook).mockRejectedValue(new Error("boom"));
 
     renderWithProviders(
-      <SetBookshelvesDialog
+      <SetCollectionsDialog
         open={true}
         bookIds={[10]}
-        availableBookshelves={mockBookshelves}
+        availableCollections={mockCollections}
         onClose={vi.fn()}
       />,
     );
 
     await waitFor(() =>
       expect(logError).toHaveBeenCalledWith(
-        expect.stringContaining("Failed to fetch bookshelves for books"),
+        expect.stringContaining("Failed to fetch collections for books"),
       ),
     );
     expect(screen.getByRole("button", { name: /ok|決定/i })).toBeDisabled();
   });
 
-  it("should show 'no collections available' message when availableBookshelves is empty", () => {
+  it("should show 'no collections available' message when availableCollections is empty", () => {
     renderWithProviders(
-      <SetBookshelvesDialog
+      <SetCollectionsDialog
         open={true}
         bookIds={[123]}
-        availableBookshelves={[]}
+        availableCollections={[]}
         onClose={vi.fn()}
       />,
     );
     expect(screen.getByText(/No collections available/i)).toBeInTheDocument();
   });
 
-  it("records a save failure in the bookshelf slice and keeps the dialog open", async () => {
-    vi.mocked(BookshelfCommand.getBookshelvesForBook).mockResolvedValue([]);
-    vi.mocked(BookshelfCommand.setBookshelvesForBook).mockRejectedValue(new Error("Set failed"));
+  it("records a save failure in the collection slice and keeps the dialog open", async () => {
+    vi.mocked(CollectionCommands.getCollectionsForBook).mockResolvedValue([]);
+    vi.mocked(CollectionCommands.setCollectionsForBook).mockRejectedValue(new Error("Set failed"));
     const onClose = vi.fn();
 
     const { store } = renderWithProviders(
-      <SetBookshelvesDialog
+      <SetCollectionsDialog
         open={true}
         bookIds={[123]}
-        availableBookshelves={mockBookshelves}
+        availableCollections={mockCollections}
         onClose={onClose}
       />,
     );
@@ -166,15 +166,15 @@ describe("SetBookshelvesDialog", () => {
 
     // The slice error is what GlobalErrorListener turns into the notification;
     // the dialog stays open for retry.
-    await waitFor(() => expect(store.getState().bookCollection.error).not.toBeNull());
+    await waitFor(() => expect(store.getState().collection.error).not.toBeNull());
     expect(logError).toHaveBeenCalledWith(
-      expect.stringContaining("Failed to set bookshelves for books"),
+      expect.stringContaining("Failed to set collections for books"),
     );
     expect(onClose).not.toHaveBeenCalled();
   });
 
   describe("creating a collection", () => {
-    const newBookshelf = createMockBookshelf({ id: 4, name: "New Shelf", icon_id: "book" });
+    const newCollection = createMockCollection({ id: 4, name: "New Shelf", icon_id: "book" });
 
     // The button stays disabled until the books' collections are loaded.
     const clickNewCollection = async () => {
@@ -184,7 +184,7 @@ describe("SetBookshelvesDialog", () => {
       await user.click(screen.getByRole("button", { name: "New collection" }));
     };
 
-    const createBookshelfFromDialog = async () => {
+    const createCollectionFromDialog = async () => {
       await clickNewCollection();
       await user.type(screen.getByLabelText("Collection name"), "New Shelf");
       await user.click(screen.getByRole("button", { name: "Create" }));
@@ -194,12 +194,12 @@ describe("SetBookshelvesDialog", () => {
     };
 
     it("opens the create-collection dialog from the create button", async () => {
-      vi.mocked(BookshelfCommand.getBookshelvesForBook).mockResolvedValue([]);
+      vi.mocked(CollectionCommands.getCollectionsForBook).mockResolvedValue([]);
       renderWithProviders(
-        <SetBookshelvesDialog
+        <SetCollectionsDialog
           open={true}
           bookIds={[10]}
-          availableBookshelves={mockBookshelves}
+          availableCollections={mockCollections}
           onClose={vi.fn()}
         />,
       );
@@ -212,17 +212,17 @@ describe("SetBookshelvesDialog", () => {
     // A collection checked before the load finishes would be reset by it
     it("disables the create button until the books' collections are loaded", async () => {
       let resolveLoad: (ids: number[]) => void = () => {};
-      vi.mocked(BookshelfCommand.getBookshelvesForBook).mockReturnValue(
+      vi.mocked(CollectionCommands.getCollectionsForBook).mockReturnValue(
         new Promise((resolve) => {
           resolveLoad = resolve;
         }),
       );
 
       renderWithProviders(
-        <SetBookshelvesDialog
+        <SetCollectionsDialog
           open={true}
           bookIds={[10]}
-          availableBookshelves={mockBookshelves}
+          availableCollections={mockCollections}
           onClose={vi.fn()}
         />,
       );
@@ -233,74 +233,76 @@ describe("SetBookshelvesDialog", () => {
     });
 
     it("adds every book to the created collection when OK is pressed before the list refresh", async () => {
-      vi.mocked(BookshelfCommand.getBookshelvesForBook).mockResolvedValue([]);
-      vi.mocked(BookshelfCommand.createBookshelf).mockResolvedValue(newBookshelf);
-      vi.mocked(BookshelfCommand.setBookshelvesForBook).mockResolvedValue();
+      vi.mocked(CollectionCommands.getCollectionsForBook).mockResolvedValue([]);
+      vi.mocked(CollectionCommands.createCollection).mockResolvedValue(newCollection);
+      vi.mocked(CollectionCommands.setCollectionsForBook).mockResolvedValue();
       const onClose = vi.fn();
 
       renderWithProviders(
-        <SetBookshelvesDialog
+        <SetCollectionsDialog
           open={true}
           bookIds={[10, 11]}
-          availableBookshelves={mockBookshelves}
+          availableCollections={mockCollections}
           onClose={onClose}
         />,
       );
 
-      await createBookshelfFromDialog();
+      await createCollectionFromDialog();
       await user.click(screen.getByRole("button", { name: /ok|決定/i }));
 
       await waitFor(() => expect(onClose).toHaveBeenCalled());
-      expect(BookshelfCommand.setBookshelvesForBook).toHaveBeenCalledWith(10, [4]);
-      expect(BookshelfCommand.setBookshelvesForBook).toHaveBeenCalledWith(11, [4]);
+      expect(CollectionCommands.setCollectionsForBook).toHaveBeenCalledWith(10, [4]);
+      expect(CollectionCommands.setCollectionsForBook).toHaveBeenCalledWith(11, [4]);
     });
 
     it("ignores a creation that finishes after the dialog reopened for other books", async () => {
-      let resolveCreate: (bookshelf: Bookshelf) => void = () => {};
-      vi.mocked(BookshelfCommand.createBookshelf).mockReturnValue(
+      let resolveCreate: (collection: Collection) => void = () => {};
+      vi.mocked(CollectionCommands.createCollection).mockReturnValue(
         new Promise((resolve) => {
           resolveCreate = resolve;
         }),
       );
-      vi.mocked(BookshelfCommand.getBookshelvesForBook).mockResolvedValue([]);
+      vi.mocked(CollectionCommands.getCollectionsForBook).mockResolvedValue([]);
       const onClose = vi.fn();
       const otherBookIds = [20];
 
       const { rerender } = renderWithProviders(
-        <SetBookshelvesDialog
+        <SetCollectionsDialog
           open={true}
           bookIds={[10]}
-          availableBookshelves={mockBookshelves}
+          availableCollections={mockCollections}
           onClose={onClose}
         />,
       );
-      await createBookshelfFromDialog();
+      await createCollectionFromDialog();
 
       // Cancel and reopen for another book while the creation is still pending.
       rerender(
-        <SetBookshelvesDialog
+        <SetCollectionsDialog
           open={false}
           bookIds={[10]}
-          availableBookshelves={mockBookshelves}
+          availableCollections={mockCollections}
           onClose={onClose}
         />,
       );
       rerender(
-        <SetBookshelvesDialog
+        <SetCollectionsDialog
           open={true}
           bookIds={otherBookIds}
-          availableBookshelves={mockBookshelves}
+          availableCollections={mockCollections}
           onClose={onClose}
         />,
       );
-      await waitFor(() => expect(BookshelfCommand.getBookshelvesForBook).toHaveBeenCalledWith(20));
+      await waitFor(() =>
+        expect(CollectionCommands.getCollectionsForBook).toHaveBeenCalledWith(20),
+      );
       await waitFor(() => expect(screen.getByRole("button", { name: /ok|決定/i })).toBeEnabled());
-      await act(async () => resolveCreate(newBookshelf));
+      await act(async () => resolveCreate(newCollection));
       rerender(
-        <SetBookshelvesDialog
+        <SetCollectionsDialog
           open={true}
           bookIds={otherBookIds}
-          availableBookshelves={[...mockBookshelves, newBookshelf]}
+          availableCollections={[...mockCollections, newCollection]}
           onClose={onClose}
         />,
       );
@@ -308,18 +310,18 @@ describe("SetBookshelvesDialog", () => {
       expect(screen.getAllByRole("checkbox")[3]).not.toBeChecked();
       await user.click(screen.getByRole("button", { name: /ok|決定/i }));
       await waitFor(() => expect(onClose).toHaveBeenCalled());
-      expect(BookshelfCommand.setBookshelvesForBook).not.toHaveBeenCalled();
+      expect(CollectionCommands.setCollectionsForBook).not.toHaveBeenCalled();
     });
 
     it("closes only the create-collection dialog on Escape or a backdrop click", async () => {
-      vi.mocked(BookshelfCommand.getBookshelvesForBook).mockResolvedValue([]);
+      vi.mocked(CollectionCommands.getCollectionsForBook).mockResolvedValue([]);
       const onClose = vi.fn();
 
       renderWithProviders(
-        <SetBookshelvesDialog
+        <SetCollectionsDialog
           open={true}
           bookIds={[10]}
-          availableBookshelves={mockBookshelves}
+          availableCollections={mockCollections}
           onClose={onClose}
         />,
       );
@@ -345,18 +347,18 @@ describe("SetBookshelvesDialog", () => {
     it("checks the created collection and adds every book to it on OK", async () => {
       // Stable like the app's `dialogBookIds`; a new array would reload the check states.
       const bookIds = [10, 11];
-      vi.mocked(BookshelfCommand.getBookshelvesForBook).mockImplementation(
+      vi.mocked(CollectionCommands.getCollectionsForBook).mockImplementation(
         async (bookId: number) => (bookId === 10 ? [1] : []),
       );
-      vi.mocked(BookshelfCommand.createBookshelf).mockResolvedValue(newBookshelf);
-      vi.mocked(BookshelfCommand.setBookshelvesForBook).mockResolvedValue();
+      vi.mocked(CollectionCommands.createCollection).mockResolvedValue(newCollection);
+      vi.mocked(CollectionCommands.setCollectionsForBook).mockResolvedValue();
       const onClose = vi.fn();
 
       const { rerender } = renderWithProviders(
-        <SetBookshelvesDialog
+        <SetCollectionsDialog
           open={true}
           bookIds={bookIds}
-          availableBookshelves={mockBookshelves}
+          availableCollections={mockCollections}
           onClose={onClose}
         />,
       );
@@ -364,15 +366,15 @@ describe("SetBookshelvesDialog", () => {
         expect(screen.getAllByRole("checkbox")[0]).toHaveAttribute("data-indeterminate", "true"),
       );
 
-      await createBookshelfFromDialog();
-      expect(BookshelfCommand.createBookshelf).toHaveBeenCalledWith("New Shelf", "book");
+      await createCollectionFromDialog();
+      expect(CollectionCommands.createCollection).toHaveBeenCalledWith("New Shelf", "book");
 
-      // The backend's `bookshelves-changed` refetch brings the new collection into the list.
+      // The backend's `collections-changed` refetch brings the new collection into the list.
       rerender(
-        <SetBookshelvesDialog
+        <SetCollectionsDialog
           open={true}
           bookIds={bookIds}
-          availableBookshelves={[...mockBookshelves, newBookshelf]}
+          availableCollections={[...mockCollections, newCollection]}
           onClose={onClose}
         />,
       );
@@ -381,19 +383,19 @@ describe("SetBookshelvesDialog", () => {
       await user.click(screen.getByRole("button", { name: /ok|決定/i }));
 
       await waitFor(() => expect(onClose).toHaveBeenCalled());
-      expect(BookshelfCommand.setBookshelvesForBook).toHaveBeenCalledWith(10, [1, 4]);
-      expect(BookshelfCommand.setBookshelvesForBook).toHaveBeenCalledWith(11, [4]);
+      expect(CollectionCommands.setCollectionsForBook).toHaveBeenCalledWith(10, [1, 4]);
+      expect(CollectionCommands.setCollectionsForBook).toHaveBeenCalledWith(11, [4]);
     });
 
     it("changes nothing when the create-collection dialog is cancelled", async () => {
-      vi.mocked(BookshelfCommand.getBookshelvesForBook).mockResolvedValue([]);
+      vi.mocked(CollectionCommands.getCollectionsForBook).mockResolvedValue([]);
       const onClose = vi.fn();
 
       renderWithProviders(
-        <SetBookshelvesDialog
+        <SetCollectionsDialog
           open={true}
           bookIds={[10]}
-          availableBookshelves={mockBookshelves}
+          availableCollections={mockCollections}
           onClose={onClose}
         />,
       );
@@ -408,22 +410,22 @@ describe("SetBookshelvesDialog", () => {
         expect(screen.queryByText("Create a Collection")).not.toBeInTheDocument(),
       );
 
-      expect(BookshelfCommand.createBookshelf).not.toHaveBeenCalled();
+      expect(CollectionCommands.createCollection).not.toHaveBeenCalled();
       await user.click(screen.getByRole("button", { name: /ok|決定/i }));
       await waitFor(() => expect(onClose).toHaveBeenCalled());
-      expect(BookshelfCommand.setBookshelvesForBook).not.toHaveBeenCalled();
+      expect(CollectionCommands.setCollectionsForBook).not.toHaveBeenCalled();
     });
 
-    it("records a failed creation in the bookshelf slice and checks nothing", async () => {
-      vi.mocked(BookshelfCommand.getBookshelvesForBook).mockResolvedValue([]);
-      vi.mocked(BookshelfCommand.createBookshelf).mockRejectedValue(new Error("Duplicate"));
+    it("records a failed creation in the collection slice and checks nothing", async () => {
+      vi.mocked(CollectionCommands.getCollectionsForBook).mockResolvedValue([]);
+      vi.mocked(CollectionCommands.createCollection).mockRejectedValue(new Error("Duplicate"));
       const onClose = vi.fn();
 
       const { store } = renderWithProviders(
-        <SetBookshelvesDialog
+        <SetCollectionsDialog
           open={true}
           bookIds={[10]}
-          availableBookshelves={mockBookshelves}
+          availableCollections={mockCollections}
           onClose={onClose}
         />,
       );
@@ -431,20 +433,20 @@ describe("SetBookshelvesDialog", () => {
         expect(screen.getByRole("button", { name: /ok|決定/i })).not.toBeDisabled(),
       );
 
-      await createBookshelfFromDialog();
+      await createCollectionFromDialog();
 
-      await waitFor(() => expect(store.getState().bookCollection.error).not.toBeNull());
+      await waitFor(() => expect(store.getState().collection.error).not.toBeNull());
       await user.click(screen.getByRole("button", { name: /ok|決定/i }));
       await waitFor(() => expect(onClose).toHaveBeenCalled());
-      expect(BookshelfCommand.setBookshelvesForBook).not.toHaveBeenCalled();
+      expect(CollectionCommands.setCollectionsForBook).not.toHaveBeenCalled();
     });
 
     it("shows the create button when there are no collections", () => {
       renderWithProviders(
-        <SetBookshelvesDialog
+        <SetCollectionsDialog
           open={true}
           bookIds={[10]}
-          availableBookshelves={[]}
+          availableCollections={[]}
           onClose={vi.fn()}
         />,
       );
@@ -458,17 +460,17 @@ describe("SetBookshelvesDialog", () => {
     const onClose = vi.fn();
 
     renderWithProviders(
-      <SetBookshelvesDialog
+      <SetCollectionsDialog
         open={true}
         bookIds={[]}
-        availableBookshelves={mockBookshelves}
+        availableCollections={mockCollections}
         onClose={onClose}
       />,
     );
 
     await user.click(screen.getByRole("button", { name: /ok|決定/i }));
 
-    expect(BookshelfCommand.setBookshelvesForBook).not.toHaveBeenCalled();
+    expect(CollectionCommands.setCollectionsForBook).not.toHaveBeenCalled();
     expect(onClose).toHaveBeenCalled();
   });
 });

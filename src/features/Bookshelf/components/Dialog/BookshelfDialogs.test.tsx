@@ -4,8 +4,8 @@ import { createMockBookWithState, createMockSeries } from "../../../../test/fact
 import { createBasePreloadedState, renderWithProviders } from "../../../../test/utils";
 import BookshelfDialogs, { type BookshelfDialogsProps } from "./BookshelfDialogs";
 
-vi.mock("./SetBookshelvesDialog", () => ({
-  default: ({ open }: { open: boolean }) => (open ? <div data-testid="set-bookshelves" /> : null),
+vi.mock("./SetCollectionsDialog", () => ({
+  default: ({ open }: { open: boolean }) => (open ? <div data-testid="set-collections" /> : null),
 }));
 vi.mock("./SetBookTagsDialog", () => ({
   default: ({ open }: { open: boolean }) => (open ? <div data-testid="set-tags" /> : null),
@@ -64,7 +64,7 @@ describe("BookshelfDialogs", () => {
 
   const renderDialogs = (props: Partial<BookshelfDialogsProps>) => {
     const preloadedState = createBasePreloadedState();
-    preloadedState.bookCollection.books = [vol2, other, vol1];
+    preloadedState.collection.books = [vol2, other, vol1];
     preloadedState.series.series = [createMockSeries({ id: 10 }), createMockSeries({ id: 11 })];
     return renderWithProviders(<BookshelfDialogs {...defaultProps} {...props} />, {
       preloadedState,
@@ -74,7 +74,7 @@ describe("BookshelfDialogs", () => {
   it("renders no dialog when none is open", () => {
     renderDialogs({});
     for (const id of [
-      "set-bookshelves",
+      "set-collections",
       "set-tags",
       "set-series",
       "delete-books",
@@ -84,7 +84,7 @@ describe("BookshelfDialogs", () => {
     }
   });
 
-  it.each(["set-bookshelves", "set-tags", "set-series", "delete-books"] as const)(
+  it.each(["set-collections", "set-tags", "set-series", "delete-books"] as const)(
     "opens only the %s dialog",
     (type) => {
       renderDialogs({ dialogType: type, dialogBooks: [vol1], dialogBookIds: [1] });
