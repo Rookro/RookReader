@@ -117,7 +117,7 @@ describe("ComicReader", () => {
 
   it("tells the controller whether the open book has previews", () => {
     const preloadedState = createBasePreloadedState();
-    preloadedState.read.containerFile.hasPreviews = true;
+    preloadedState.reader.hasPreviews = true;
     renderWithProviders(<ComicReader />, { preloadedState });
 
     expect(vi.mocked(viewerController.useViewerController)).toHaveBeenCalledWith(
@@ -151,9 +151,9 @@ describe("ComicReader", () => {
 
       const preloadedState = createBasePreloadedState();
       preloadedState.settings.reader.comic.enableSpread = true;
-      preloadedState.read.containerFile.entries = ["p1.jpg", "p2.jpg"];
-      preloadedState.read.containerFile.history = ["book.zip"];
-      preloadedState.read.containerFile.historyIndex = 0;
+      preloadedState.reader.entries = ["p1.jpg", "p2.jpg"];
+      preloadedState.reader.history = ["book.zip"];
+      preloadedState.reader.historyIndex = 0;
       renderWithProviders(<ComicReader />, { preloadedState });
     };
 

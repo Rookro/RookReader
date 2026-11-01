@@ -82,9 +82,9 @@ export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
    * vertical novel) only fills in until the body text is reached.
    */
   const isDirectionSettledRef = useRef(false);
-  const index = useAppSelector((state) => state.read.containerFile.index);
-  const cfi = useAppSelector((state) => state.read.containerFile.cfi);
-  const isNovel = useAppSelector((state) => state.read.containerFile.isNovel);
+  const index = useAppSelector((state) => state.reader.index);
+  const cfi = useAppSelector((state) => state.reader.cfi);
+  const isNovel = useAppSelector((state) => state.reader.isNovel);
   // A novel pages in the direction its own writing mode dictates, not the comic setting.
   const readingDirection = useReadingDirection();
   const fontFamily = useAppSelector((state) => state.settings.reader.novel.fontFamily);

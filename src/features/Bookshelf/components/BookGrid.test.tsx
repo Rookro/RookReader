@@ -163,10 +163,8 @@ describe("BookGrid", () => {
       series: [],
       selectedId: null,
     },
-    read: {
-      containerFile: {
-        book: null,
-      },
+    reader: {
+      book: null,
     },
     view: {
       activeView: "bookshelf",
@@ -1033,10 +1031,8 @@ describe("BookGrid", () => {
     const readingBook = createMockBookWithState({ id: 5, display_name: "Reading Book" });
     const state = {
       ...defaultState,
-      read: {
-        containerFile: {
-          book: readingBook,
-        },
+      reader: {
+        book: readingBook,
       },
       collection: {
         ...defaultState.collection,

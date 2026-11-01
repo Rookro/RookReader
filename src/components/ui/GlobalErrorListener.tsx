@@ -1,9 +1,6 @@
 import { useEffect } from "react";
-import {
-  clearBookRecordError,
-  clearContainerFileError,
-  clearExplorerError,
-} from "../../features/BookReader/slice";
+import { clearExplorerError } from "../../features/BookReader/fileNavigatorSlice";
+import { clearBookRecordError, clearContainerFileError } from "../../features/BookReader/slice";
 import { clearSeriesError } from "../../features/Bookshelf/seriesSlice";
 import { clearCollectionError } from "../../features/Bookshelf/slice";
 import { clearTagError } from "../../features/Bookshelf/tagSlice";
@@ -37,9 +34,9 @@ export default function GlobalErrorListener() {
   const { showNotification } = useNotification();
   const dispatch = useAppDispatch();
 
-  const containerFileError = useAppSelector((state) => state.read.containerFile.error);
-  const bookRecordError = useAppSelector((state) => state.read.containerFile.bookRecordError);
-  const explorerError = useAppSelector((state) => state.read.explorer.error);
+  const containerFileError = useAppSelector((state) => state.reader.error);
+  const bookRecordError = useAppSelector((state) => state.reader.bookRecordError);
+  const explorerError = useAppSelector((state) => state.fileNavigator.error);
   const historyError = useAppSelector((state) => state.history.error);
   const collectionError = useAppSelector((state) => state.collection.error);
   const tagsError = useAppSelector((state) => state.tag.error);

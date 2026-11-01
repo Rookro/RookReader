@@ -12,7 +12,7 @@ describe("useBookmarkSync", () => {
 
   it("fetches the bookmarks of the open book", async () => {
     const state = createBasePreloadedState();
-    state.read.containerFile.book = createMockBookWithState({ id: 42 });
+    state.reader.book = createMockBookWithState({ id: 42 });
     const store = createTestStore(state);
 
     renderHook(() => useBookmarkSync(), { wrapper: createTestWrapper({ store }) });

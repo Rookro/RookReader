@@ -34,25 +34,25 @@ describe("ReaderToolbar", () => {
 
   it("should dispatch goBackContainerHistory when back button is clicked", async () => {
     const preloadedState = createBasePreloadedState();
-    preloadedState.read.containerFile.history = ["/path/1", "/path/2"];
-    preloadedState.read.containerFile.historyIndex = 1;
-    preloadedState.read.containerFile.entries = [];
-    preloadedState.read.containerFile.index = 0;
+    preloadedState.reader.history = ["/path/1", "/path/2"];
+    preloadedState.reader.historyIndex = 1;
+    preloadedState.reader.entries = [];
+    preloadedState.reader.index = 0;
 
     const { store } = renderWithProviders(<ReaderToolbar />, { preloadedState });
 
     const backButton = screen.getByLabelText("back");
     await user.click(backButton);
 
-    expect(store.getState().read.containerFile.historyIndex).toBe(0);
+    expect(store.getState().reader.historyIndex).toBe(0);
   });
 
   it("should disable back button if historyIndex <= 0", () => {
     const preloadedState = createBasePreloadedState();
-    preloadedState.read.containerFile.history = ["/path/1"];
-    preloadedState.read.containerFile.historyIndex = 0;
-    preloadedState.read.containerFile.entries = [];
-    preloadedState.read.containerFile.index = 0;
+    preloadedState.reader.history = ["/path/1"];
+    preloadedState.reader.historyIndex = 0;
+    preloadedState.reader.entries = [];
+    preloadedState.reader.index = 0;
 
     renderWithProviders(<ReaderToolbar />, { preloadedState });
 
@@ -81,35 +81,35 @@ describe("ReaderToolbar", () => {
     const preloadedState = createBasePreloadedState();
     preloadedState.view.activeView = "reader" as const;
     preloadedState.settings.reader.comic.enableSpread = true;
-    preloadedState.read.containerFile.entries = ["p1", "p2", "p3", "p4"];
-    preloadedState.read.containerFile.index = 2;
+    preloadedState.reader.entries = ["p1", "p2", "p3", "p4"];
+    preloadedState.reader.index = 2;
 
     const { store } = renderWithProviders(<ReaderToolbar />, { preloadedState });
 
     await user.click(screen.getByLabelText("shift-spread"));
 
-    expect(store.getState().read.containerFile.isSpreadShifted).toBe(true);
+    expect(store.getState().reader.isSpreadShifted).toBe(true);
   });
 
   it("should reset the spread pairing when it is already shifted", async () => {
     const preloadedState = createBasePreloadedState();
     preloadedState.view.activeView = "reader" as const;
     preloadedState.settings.reader.comic.enableSpread = true;
-    preloadedState.read.containerFile.entries = ["p1", "p2", "p3"];
-    preloadedState.read.containerFile.isSpreadShifted = true;
+    preloadedState.reader.entries = ["p1", "p2", "p3"];
+    preloadedState.reader.isSpreadShifted = true;
 
     const { store } = renderWithProviders(<ReaderToolbar />, { preloadedState });
 
     await user.click(screen.getByLabelText("shift-spread"));
 
-    expect(store.getState().read.containerFile.isSpreadShifted).toBe(false);
+    expect(store.getState().reader.isSpreadShifted).toBe(false);
   });
 
   it("should disable the shift-spread button when spread mode is off", () => {
     const preloadedState = createBasePreloadedState();
     preloadedState.view.activeView = "reader" as const;
     preloadedState.settings.reader.comic.enableSpread = false;
-    preloadedState.read.containerFile.entries = ["p1", "p2", "p3"];
+    preloadedState.reader.entries = ["p1", "p2", "p3"];
 
     renderWithProviders(<ReaderToolbar />, { preloadedState });
 
@@ -119,8 +119,8 @@ describe("ReaderToolbar", () => {
   it("should toggle direction when button is clicked", async () => {
     const preloadedState = createBasePreloadedState();
     preloadedState.view.activeView = "reader" as const;
-    preloadedState.read.containerFile.book = createMockBookWithState({ id: 7 });
-    preloadedState.read.containerFile.readingDirection = "ltr" as const;
+    preloadedState.reader.book = createMockBookWithState({ id: 7 });
+    preloadedState.reader.readingDirection = "ltr" as const;
 
     const { store } = renderWithProviders(<ReaderToolbar />, { preloadedState });
 
@@ -130,32 +130,32 @@ describe("ReaderToolbar", () => {
     await waitFor(() => {
       expect(BookCommands.updateReadingDirection).toHaveBeenCalledWith(7, "rtl");
     });
-    expect(store.getState().read.containerFile.readingDirection).toBe("rtl");
+    expect(store.getState().reader.readingDirection).toBe("rtl");
     // The direction belongs to the book; the default that seeds new books stays put.
     expect(SettingsReducer.updateSettings).not.toHaveBeenCalled();
   });
 
   it("should dispatch goForwardContainerHistory when forward button is clicked", async () => {
     const preloadedState = createBasePreloadedState();
-    preloadedState.read.containerFile.history = ["/path/1", "/path/2"];
-    preloadedState.read.containerFile.historyIndex = 0;
-    preloadedState.read.containerFile.entries = [];
-    preloadedState.read.containerFile.index = 0;
+    preloadedState.reader.history = ["/path/1", "/path/2"];
+    preloadedState.reader.historyIndex = 0;
+    preloadedState.reader.entries = [];
+    preloadedState.reader.index = 0;
 
     const { store } = renderWithProviders(<ReaderToolbar />, { preloadedState });
 
     const forwardButton = screen.getByLabelText("forward");
     await user.click(forwardButton);
 
-    expect(store.getState().read.containerFile.historyIndex).toBe(1);
+    expect(store.getState().reader.historyIndex).toBe(1);
   });
 
   it("should disable forward button if historyIndex is at the end", () => {
     const preloadedState = createBasePreloadedState();
-    preloadedState.read.containerFile.history = ["/path/1"];
-    preloadedState.read.containerFile.historyIndex = 0;
-    preloadedState.read.containerFile.entries = [];
-    preloadedState.read.containerFile.index = 0;
+    preloadedState.reader.history = ["/path/1"];
+    preloadedState.reader.historyIndex = 0;
+    preloadedState.reader.entries = [];
+    preloadedState.reader.index = 0;
 
     renderWithProviders(<ReaderToolbar />, { preloadedState });
 
@@ -166,8 +166,8 @@ describe("ReaderToolbar", () => {
   it("should toggle direction from rtl to ltr when button is clicked", async () => {
     const preloadedState = createBasePreloadedState();
     preloadedState.view.activeView = "reader" as const;
-    preloadedState.read.containerFile.book = createMockBookWithState({ id: 7 });
-    preloadedState.read.containerFile.readingDirection = "rtl" as const;
+    preloadedState.reader.book = createMockBookWithState({ id: 7 });
+    preloadedState.reader.readingDirection = "rtl" as const;
 
     const { store } = renderWithProviders(<ReaderToolbar />, { preloadedState });
 
@@ -177,14 +177,17 @@ describe("ReaderToolbar", () => {
     await waitFor(() => {
       expect(BookCommands.updateReadingDirection).toHaveBeenCalledWith(7, "ltr");
     });
-    expect(store.getState().read.containerFile.readingDirection).toBe("ltr");
+    expect(store.getState().reader.readingDirection).toBe("ltr");
     expect(SettingsReducer.updateSettings).not.toHaveBeenCalled();
   });
 
-  it("should dispatch setContainerFilePath when path input is submitted", async () => {
+  // A typed path has no shelf or folder behind it, so it must not keep the previous origin
+  it("should open the submitted path with no origin", async () => {
     const preloadedState = createBasePreloadedState();
-    preloadedState.read.containerFile.history = ["/path/old"];
-    preloadedState.read.containerFile.historyIndex = 0;
+    preloadedState.reader.history = ["/path/old"];
+    preloadedState.reader.originHistory = [{ kind: "fileNavigator" }];
+    preloadedState.reader.historyIndex = 0;
+    preloadedState.reader.origin = { kind: "fileNavigator" };
 
     const { store } = renderWithProviders(<ReaderToolbar />, { preloadedState });
 
@@ -192,13 +195,15 @@ describe("ReaderToolbar", () => {
     await user.clear(input);
     await user.type(input, "/path/new{enter}");
 
-    expect(store.getState().read.containerFile.history).toContain("/path/new");
+    const { history, historyIndex, origin } = store.getState().reader;
+    expect(history[historyIndex]).toBe("/path/new");
+    expect(origin).toBeNull();
   });
 
   it("should trigger form submission on blur", async () => {
     const preloadedState = createBasePreloadedState();
-    preloadedState.read.containerFile.history = ["/path/old"];
-    preloadedState.read.containerFile.historyIndex = 0;
+    preloadedState.reader.history = ["/path/old"];
+    preloadedState.reader.historyIndex = 0;
 
     const { store } = renderWithProviders(<ReaderToolbar />, { preloadedState });
 
@@ -207,7 +212,7 @@ describe("ReaderToolbar", () => {
     await user.type(input, "/path/blur");
     await user.tab(); // Trigger blur
 
-    expect(store.getState().read.containerFile.history).toContain("/path/blur");
+    expect(store.getState().reader.history).toContain("/path/blur");
   });
 
   it("should prevent context menu propagation on input", () => {
@@ -239,13 +244,13 @@ describe("ReaderToolbar", () => {
       entries?: string[];
     }) => {
       const preloadedState = createBasePreloadedState();
-      preloadedState.read.containerFile.history = ["/path/book.zip"];
-      preloadedState.read.containerFile.historyIndex = 0;
-      preloadedState.read.containerFile.book = createMockBookWithState({ id: 42 });
-      preloadedState.read.containerFile.index = options?.index ?? 3;
-      preloadedState.read.containerFile.cfi = options?.cfi ?? null;
-      preloadedState.read.containerFile.isNovel = options?.isNovel ?? false;
-      preloadedState.read.containerFile.entries = options?.entries ?? ["p1", "p2", "p3", "p4"];
+      preloadedState.reader.history = ["/path/book.zip"];
+      preloadedState.reader.historyIndex = 0;
+      preloadedState.reader.book = createMockBookWithState({ id: 42 });
+      preloadedState.reader.index = options?.index ?? 3;
+      preloadedState.reader.cfi = options?.cfi ?? null;
+      preloadedState.reader.isNovel = options?.isNovel ?? false;
+      preloadedState.reader.entries = options?.entries ?? ["p1", "p2", "p3", "p4"];
       // The open book's (empty) list, as useBookmarkSync leaves it once loaded.
       preloadedState.bookmark = { bookId: 42, bookmarks: [], status: "succeeded", error: null };
       return preloadedState;
@@ -386,7 +391,7 @@ describe("ReaderToolbar", () => {
       ["ltr", "ReadingDirection-ltr"],
     ])("should show the %s reading-direction icon", (direction, testId) => {
       const preloadedState = createBasePreloadedState();
-      preloadedState.read.containerFile.readingDirection = direction as "rtl" | "ltr";
+      preloadedState.reader.readingDirection = direction as "rtl" | "ltr";
 
       renderWithProviders(<ReaderToolbar />, { preloadedState });
 
@@ -404,9 +409,9 @@ describe("ReaderToolbar", () => {
       "should show the detected %s direction and disable the button",
       (novelDirection, comicDirection, testId) => {
         const preloadedState = createBasePreloadedState();
-        preloadedState.read.containerFile.isNovel = true;
-        preloadedState.read.containerFile.novelDirection = novelDirection as "rtl" | "ltr";
-        preloadedState.read.containerFile.readingDirection = comicDirection as "rtl" | "ltr";
+        preloadedState.reader.isNovel = true;
+        preloadedState.reader.novelDirection = novelDirection as "rtl" | "ltr";
+        preloadedState.reader.readingDirection = comicDirection as "rtl" | "ltr";
 
         renderWithProviders(<ReaderToolbar />, { preloadedState });
 
@@ -417,8 +422,8 @@ describe("ReaderToolbar", () => {
 
     it("should fall back to rtl before the novel's writing mode is detected", () => {
       const preloadedState = createBasePreloadedState();
-      preloadedState.read.containerFile.isNovel = true;
-      preloadedState.read.containerFile.novelDirection = null;
+      preloadedState.reader.isNovel = true;
+      preloadedState.reader.novelDirection = null;
       preloadedState.settings.reader.comic.readingDirection = "ltr";
 
       renderWithProviders(<ReaderToolbar />, { preloadedState });
@@ -428,10 +433,10 @@ describe("ReaderToolbar", () => {
 
     it("should not change the stored direction when the disabled button is clicked", () => {
       const preloadedState = createBasePreloadedState();
-      preloadedState.read.containerFile.isNovel = true;
-      preloadedState.read.containerFile.novelDirection = "rtl";
-      preloadedState.read.containerFile.book = createMockBookWithState({ id: 7 });
-      preloadedState.read.containerFile.readingDirection = "ltr";
+      preloadedState.reader.isNovel = true;
+      preloadedState.reader.novelDirection = "rtl";
+      preloadedState.reader.book = createMockBookWithState({ id: 7 });
+      preloadedState.reader.readingDirection = "ltr";
 
       const { store } = renderWithProviders(<ReaderToolbar />, { preloadedState });
 
@@ -440,7 +445,7 @@ describe("ReaderToolbar", () => {
       fireEvent.click(screen.getByLabelText("toggle-direction"));
 
       expect(BookCommands.updateReadingDirection).not.toHaveBeenCalled();
-      expect(store.getState().read.containerFile.readingDirection).toBe("ltr");
+      expect(store.getState().reader.readingDirection).toBe("ltr");
     });
   });
 
@@ -450,7 +455,7 @@ describe("ReaderToolbar", () => {
       ["ltr", "Switch to right-to-left"],
     ])("should offer the opposite direction when reading %s", async (direction, tooltip) => {
       const preloadedState = createBasePreloadedState();
-      preloadedState.read.containerFile.readingDirection = direction as "rtl" | "ltr";
+      preloadedState.reader.readingDirection = direction as "rtl" | "ltr";
 
       renderWithProviders(<ReaderToolbar />, { preloadedState });
       await user.hover(screen.getByLabelText("toggle-direction"));
@@ -467,8 +472,8 @@ describe("ReaderToolbar", () => {
       // Sit in the middle of the history so both back and forward stay enabled;
       // a disabled button has pointer-events: none and cannot be hovered.
       const preloadedState = createBasePreloadedState();
-      preloadedState.read.containerFile.history = ["/path/1", "/path/2", "/path/3"];
-      preloadedState.read.containerFile.historyIndex = 1;
+      preloadedState.reader.history = ["/path/1", "/path/2", "/path/3"];
+      preloadedState.reader.historyIndex = 1;
 
       renderWithProviders(<ReaderToolbar />, { preloadedState });
       await user.hover(screen.getByLabelText(ariaLabel));

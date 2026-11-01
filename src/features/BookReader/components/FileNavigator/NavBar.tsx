@@ -28,17 +28,17 @@ import {
   goForwardExplorerHistory,
   setSearchText,
   updateExploreBasePath,
-} from "../../slice";
+} from "../../fileNavigatorSlice";
 
 /**
  * Navigation bar component for File navigator component.
  */
 export default function NavBar() {
   const { t } = useTranslation();
-  const history = useAppSelector((state) => state.read.explorer.history);
-  const historyIndex = useAppSelector((state) => state.read.explorer.historyIndex);
-  const searchText = useAppSelector((state) => state.read.explorer.searchText);
-  const entries = useAppSelector((state) => state.read.explorer.entries);
+  const history = useAppSelector((state) => state.fileNavigator.history);
+  const historyIndex = useAppSelector((state) => state.fileNavigator.historyIndex);
+  const searchText = useAppSelector((state) => state.fileNavigator.searchText);
+  const entries = useAppSelector((state) => state.fileNavigator.entries);
   const fileNavigatorSettings = useAppSelector((state) => state.settings.fileNavigator);
   const dispatch = useAppDispatch();
 

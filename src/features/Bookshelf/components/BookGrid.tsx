@@ -36,9 +36,9 @@ const selectBookGridState = createSelector(
     (state: RootState) => state.collection.searchText,
     (state: RootState) => state.collection.status,
     (state: RootState) => state.tag.tags,
-    (state: RootState) => state.read.containerFile.book,
+    (state: RootState) => state.reader.book,
     (state: RootState) => state.view.activeView,
-    (state: RootState) => state.read.containerFile.isLoading,
+    (state: RootState) => state.reader.isLoading,
   ],
   (
     bookshelfSettings,

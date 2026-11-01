@@ -86,13 +86,11 @@ describe("useNovelReader", () => {
   } as Theme;
 
   const defaultState = {
-    read: {
-      containerFile: {
-        index: 0,
-        cfi: null as string | null,
-        isNovel: true,
-        novelDirection: null as "ltr" | "rtl" | null,
-      },
+    reader: {
+      index: 0,
+      cfi: null as string | null,
+      isNovel: true,
+      novelDirection: null as "ltr" | "rtl" | null,
     },
     settings: {
       reader: {
@@ -183,9 +181,7 @@ describe("useNovelReader", () => {
     vi.mocked(useAppSelector).mockImplementation(<T>(selector: (state: RootState) => T): T => {
       const nonNovelState = {
         ...defaultState,
-        read: {
-          containerFile: { ...defaultState.read.containerFile, isNovel: false },
-        },
+        reader: { ...defaultState.reader, isNovel: false },
       };
       return selector(nonNovelState as RootState);
     });
@@ -495,9 +491,7 @@ describe("useNovelReader", () => {
       vi.mocked(useAppSelector).mockImplementation(<T>(selector: (state: RootState) => T): T => {
         const state = {
           ...defaultState,
-          read: {
-            containerFile: { index: 0, cfi: null, isNovel: true, novelDirection: direction },
-          },
+          reader: { index: 0, cfi: null, isNovel: true, novelDirection: direction },
           settings: {
             ...defaultState.settings,
             reader: {
@@ -558,7 +552,7 @@ describe("useNovelReader", () => {
         vi.mocked(useAppSelector).mockImplementation(<T>(selector: (state: RootState) => T): T => {
           return selector({
             ...defaultState,
-            read: { containerFile: { index: 0, cfi, isNovel: true } },
+            reader: { index: 0, cfi, isNovel: true },
           } as RootState);
         });
         return useNovelReader({ filePath });
@@ -599,7 +593,7 @@ describe("useNovelReader", () => {
         vi.mocked(useAppSelector).mockImplementation(<T>(selector: (state: RootState) => T): T => {
           return selector({
             ...defaultState,
-            read: { containerFile: { index, cfi: null, isNovel: true } },
+            reader: { index, cfi: null, isNovel: true },
           } as RootState);
         });
         return useNovelReader({ filePath });
@@ -800,7 +794,7 @@ describe("useNovelReader", () => {
     vi.mocked(useAppSelector).mockImplementation(<T>(selector: (state: RootState) => T): T => {
       const state = {
         ...defaultState,
-        read: { containerFile: { index: 5, cfi: "saved-cfi", isNovel: true } },
+        reader: { index: 5, cfi: "saved-cfi", isNovel: true },
       };
       return selector(state as RootState);
     });
@@ -828,7 +822,7 @@ describe("useNovelReader", () => {
         vi.mocked(useAppSelector).mockImplementation(<T>(selector: (state: RootState) => T): T => {
           return selector({
             ...defaultState,
-            read: { containerFile: { index, cfi, isNovel: true } },
+            reader: { index, cfi, isNovel: true },
           } as RootState);
         });
         return useNovelReader({ filePath });
@@ -951,7 +945,7 @@ describe("useNovelReader", () => {
         vi.mocked(useAppSelector).mockImplementation(<T>(selector: (state: RootState) => T): T => {
           return selector({
             ...defaultState,
-            read: { containerFile: { index, cfi: null, isNovel: true } },
+            reader: { index, cfi: null, isNovel: true },
           } as RootState);
         });
         return useNovelReader({ filePath });

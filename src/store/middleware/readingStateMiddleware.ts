@@ -64,7 +64,7 @@ export const createReadingStateMiddleware = () => {
       case setNovelLocation.type: {
         const state = store.getState();
         if (state.settings.history.recordReadingHistory) {
-          const { history, historyIndex, index, cfi, book } = state.read.containerFile;
+          const { history, historyIndex, index, cfi, book } = state.reader;
 
           if (history[historyIndex] && index > -1 && book?.last_opened_at) {
             queue({

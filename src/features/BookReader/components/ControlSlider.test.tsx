@@ -6,10 +6,10 @@ import ControlSlider from "./ControlSlider";
 describe("ControlSlider", () => {
   it("should render correct index and total entries", () => {
     const preloadedState = createBasePreloadedState();
-    preloadedState.read.containerFile.entries = ["image1.jpg", "image2.jpg", "image3.jpg"];
-    preloadedState.read.containerFile.index = 1;
-    preloadedState.read.containerFile.history = [];
-    preloadedState.read.containerFile.historyIndex = -1;
+    preloadedState.reader.entries = ["image1.jpg", "image2.jpg", "image3.jpg"];
+    preloadedState.reader.index = 1;
+    preloadedState.reader.history = [];
+    preloadedState.reader.historyIndex = -1;
 
     renderWithProviders(<ControlSlider />, { preloadedState });
 
@@ -18,10 +18,10 @@ describe("ControlSlider", () => {
 
   it("should display 0/0 and disable slider when entries are empty", () => {
     const preloadedState = createBasePreloadedState();
-    preloadedState.read.containerFile.entries = [];
-    preloadedState.read.containerFile.index = 0;
-    preloadedState.read.containerFile.history = [];
-    preloadedState.read.containerFile.historyIndex = -1;
+    preloadedState.reader.entries = [];
+    preloadedState.reader.index = 0;
+    preloadedState.reader.history = [];
+    preloadedState.reader.historyIndex = -1;
 
     renderWithProviders(<ControlSlider />, { preloadedState });
 
@@ -33,17 +33,17 @@ describe("ControlSlider", () => {
 
   it("should dispatch setImageIndex when slider value changes", async () => {
     const preloadedState = createBasePreloadedState();
-    preloadedState.read.containerFile.entries = ["1.jpg", "2.jpg", "3.jpg"];
-    preloadedState.read.containerFile.index = 0;
-    preloadedState.read.containerFile.history = [];
-    preloadedState.read.containerFile.historyIndex = -1;
+    preloadedState.reader.entries = ["1.jpg", "2.jpg", "3.jpg"];
+    preloadedState.reader.index = 0;
+    preloadedState.reader.history = [];
+    preloadedState.reader.historyIndex = -1;
 
     const { store } = renderWithProviders(<ControlSlider />, { preloadedState });
 
     const slider = screen.getByRole("slider");
     fireEvent.change(slider, { target: { value: 2 } });
 
-    expect(store.getState().read.containerFile.index).toBe(2);
+    expect(store.getState().reader.index).toBe(2);
   });
 
   // The emotion cache key ("muirtl"/"muiltr") prefixes every class name it emits, so the
@@ -55,9 +55,9 @@ describe("ControlSlider", () => {
     "should render the slider %s for a novel, ignoring the comic setting",
     (direction, expected) => {
       const preloadedState = createBasePreloadedState();
-      preloadedState.read.containerFile.entries = ["1.jpg", "2.jpg"];
-      preloadedState.read.containerFile.isNovel = true;
-      preloadedState.read.containerFile.novelDirection = direction as "rtl" | "ltr";
+      preloadedState.reader.entries = ["1.jpg", "2.jpg"];
+      preloadedState.reader.isNovel = true;
+      preloadedState.reader.novelDirection = direction as "rtl" | "ltr";
       preloadedState.settings.reader.comic.readingDirection = direction === "rtl" ? "ltr" : "rtl";
 
       renderWithProviders(<ControlSlider />, { preloadedState });
