@@ -231,6 +231,105 @@ describe("useViewerController", () => {
     expect(global.URL.revokeObjectURL).toHaveBeenCalledWith("blob:preview");
   });
 
+  // Verify the next book's first page is fetched rather than taken from the previous
+  // book's cache. A measured book keeps a pairing across the switch, so a stale entry
+  // would reach the layout.
+  it("never shows the previous book's page after a switch", async () => {
+    const measured = createMockBookWithState({ landscape_bits: "000" });
+    mockedFetchImageBlob.mockResolvedValue({} as Image);
+    mockedCreateImageCacheItem.mockReturnValue({
+      fullUrl: "blob:old",
+      url: "blob:old",
+      width: 100,
+      height: 200,
+    } as ImageUtils.ImageCacheItem);
+
+    const { result, rerender } = renderHook(
+      ({ path }: { path: string }) =>
+        useViewerController({
+          containerPath: path,
+          displaySize: VIEWPORT,
+          entries: mockEntries,
+          index: 0,
+          isSpreadShifted: false,
+          settings: mockSettings,
+          dispatch: mockDispatch,
+          hasPreviews: true,
+          book: measured,
+        }),
+      { initialProps: { path: "path1" } },
+    );
+    await waitFor(() => expect(result.current.displayedLayout).not.toBeNull());
+
+    mockedFetchImageBlob.mockReturnValue(new Promise(() => {}));
+    rerender({ path: "path2" });
+    await act(async () => {
+      await new Promise(process.nextTick);
+    });
+
+    expect(mockedFetchImageBlob).toHaveBeenCalledWith("path2", "p1.jpg");
+    expect(result.current.displayedLayout).toBeNull();
+  });
+
+  // Verify a page that lands just as the reader moves on is not shown over the page they
+  // moved to
+  it("never shows a page the reader has already left", async () => {
+    const measured = createMockBookWithState({ landscape_bits: "000" });
+    const images = new Map(mockEntries.map((entry) => [entry, { entry } as unknown as Image]));
+    mockedCreateImageCacheItem.mockImplementation(
+      (img) =>
+        ({
+          fullUrl: `blob:${[...images].find(([, image]) => image === img)?.[0]}`,
+          width: 100,
+          height: 200,
+        }) as ImageUtils.ImageCacheItem,
+    );
+    let releaseFirst: () => void = () => {};
+    mockedFetchImageBlob.mockImplementation((_path, entry) =>
+      entry === "p1.jpg"
+        ? new Promise<Image>((resolve) => {
+            releaseFirst = () => resolve(images.get(entry) as Image);
+          })
+        : Promise.resolve(images.get(entry)),
+    );
+
+    const { result, rerender } = renderHook(
+      ({ index }: { index: number }) =>
+        useViewerController({
+          containerPath: "path",
+          displaySize: VIEWPORT,
+          entries: mockEntries,
+          index,
+          isSpreadShifted: false,
+          settings: mockSettings,
+          dispatch: mockDispatch,
+          hasPreviews: false,
+          book: measured,
+        }),
+      { initialProps: { index: 1 } },
+    );
+    await waitFor(() =>
+      expect(result.current.displayedLayout?.firstImage?.fullUrl).toBe("blob:p2.jpg"),
+    );
+    rerender({ index: 0 });
+    await act(async () => {
+      await new Promise(process.nextTick);
+    });
+
+    // The first page lands, and in the same tick the reader moves back to the second.
+    releaseFirst();
+    queueMicrotask(() => {
+      rerender({ index: 1 });
+    });
+    // Let the microtasks run outside act, as they do in the app.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await act(async () => {
+      await new Promise(process.nextTick);
+    });
+
+    expect(result.current.displayedLayout?.firstImage?.fullUrl).toBe("blob:p2.jpg");
+  });
+
   // Verify that remaining object URLs are revoked when the hook unmounts
   it("should revoke object URLs on unmount", async () => {
     mockedFetchImageBlob.mockResolvedValue({} as Image);
@@ -1485,6 +1584,47 @@ describe("useViewerController", () => {
       // The pages are loaded; only the decision about how to show them is missing.
       expect(result.current.displayedLayout).toBeNull();
       expect(result.current.isImageLoading).toBe(true);
+    });
+
+    // Verify recording a loaded page's shape does not restart the loads still in flight
+    it("loads each page of a spread once while the book is being measured", async () => {
+      vi.useFakeTimers();
+      try {
+        vi.mocked(getImageDimensions).mockReturnValue(new Promise(() => {}));
+        let releaseSecond: () => void = () => {};
+        const second = new Promise<Image>((resolve) => {
+          releaseSecond = () => resolve({} as Image);
+        });
+        mockedFetchImageBlob.mockImplementation((_path, entry) =>
+          entry === "p2.jpg" ? second : Promise.resolve({} as Image),
+        );
+
+        renderHook(() =>
+          useViewerController({
+            containerPath: "path",
+            displaySize: VIEWPORT,
+            entries: mockEntries,
+            index: 0,
+            isSpreadShifted: false,
+            settings: twoPaged,
+            dispatch: mockDispatch,
+            hasPreviews: true,
+          }),
+        );
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(0);
+        });
+        expect(mockedCreateImageCacheItem).toHaveBeenCalledTimes(1);
+
+        await act(async () => {
+          releaseSecond();
+          await vi.advanceTimersByTimeAsync(0);
+        });
+        expect(mockedCreateImageCacheItem).toHaveBeenCalledTimes(2);
+        expect(mockedFetchImageBlob).toHaveBeenCalledTimes(2);
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     /** Renders with a never-landing scan and lets the wait cap elapse. */
