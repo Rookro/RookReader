@@ -1,6 +1,5 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
-import { updateBookTags } from "../../bindings/BookCommands";
-import { createTag, deleteTag, getAllTags } from "../../bindings/TagCommands";
+import { createTag, deleteTag, getAllTags, setTagsForBook } from "../../bindings/TagCommands";
 import type { Tag } from "../../domain/entities";
 import { handleThunkError } from "../../store/thunkErrorHandler";
 import { createAppAsyncThunk } from "../../types/CustomAsyncThunk";
@@ -70,7 +69,7 @@ export const updateBooksTags = createAppAsyncThunk(
   "tag/updateBooksTags",
   async (updates: { bookId: number; tagIds: number[] }[], { rejectWithValue }) => {
     try {
-      await Promise.all(updates.map(({ bookId, tagIds }) => updateBookTags(bookId, tagIds)));
+      await Promise.all(updates.map(({ bookId, tagIds }) => setTagsForBook(bookId, tagIds)));
     } catch (e) {
       return handleThunkError(e, "Failed to update book tags.", rejectWithValue);
     }

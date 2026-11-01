@@ -409,7 +409,7 @@ describe("CollectionReducer", () => {
         store = createTestStore(preloadedState);
 
         // A slow fetch for the previous shelf (1) finally resolves.
-        vi.mocked(BookCommands.getBooksWithStateByCollectionId).mockResolvedValue(staleBooks);
+        vi.mocked(CollectionCommands.getBooksByCollection).mockResolvedValue(staleBooks);
         await store.dispatch(fetchBooksInSelectedCollection(1));
 
         // Shelf 2's books are preserved, not overwritten by the stale shelf-1 response.
@@ -512,7 +512,7 @@ describe("CollectionReducer", () => {
       // Verify state update on successful fetching of books in selected collection
       it("fetchBooksInSelectedCollection should update state correctly", async () => {
         const mockBooks = [createMockBookWithState({ id: 1, file_path: "b1.zip" })];
-        vi.mocked(BookCommands.getBooksWithStateByCollectionId).mockResolvedValue(mockBooks);
+        vi.mocked(CollectionCommands.getBooksByCollection).mockResolvedValue(mockBooks);
 
         // The response only applies when its arg matches the current selection.
         store.dispatch(setSelectedCollection(1));
@@ -764,7 +764,7 @@ describe("TagReducer", () => {
     });
 
     it("updateBooksTags should save each book's own tag set", async () => {
-      vi.mocked(BookCommands.updateBookTags).mockResolvedValue();
+      vi.mocked(TagCommands.setTagsForBook).mockResolvedValue();
 
       const result = await store.dispatch(
         updateBooksTags([
@@ -774,12 +774,12 @@ describe("TagReducer", () => {
       );
 
       expect(updateBooksTags.fulfilled.match(result)).toBe(true);
-      expect(BookCommands.updateBookTags).toHaveBeenCalledWith(1, [7]);
-      expect(BookCommands.updateBookTags).toHaveBeenCalledWith(2, [3, 7]);
+      expect(TagCommands.setTagsForBook).toHaveBeenCalledWith(1, [7]);
+      expect(TagCommands.setTagsForBook).toHaveBeenCalledWith(2, [3, 7]);
     });
 
     it("updateBooksTags should set only the error on failure", async () => {
-      vi.mocked(BookCommands.updateBookTags).mockRejectedValue(
+      vi.mocked(TagCommands.setTagsForBook).mockRejectedValue(
         new CommandError(ErrorCode.database, "db fail"),
       );
 
@@ -884,25 +884,25 @@ describe("SeriesReducer", () => {
 
   describe("Series Thunks", () => {
     it("updateSeriesOrdersThunk should update order", async () => {
-      vi.mocked(BookCommands.updateSeriesOrders).mockResolvedValue(undefined);
+      vi.mocked(SeriesCommand.setSeriesOrder).mockResolvedValue(undefined);
 
       await store.dispatch(updateSeriesOrdersThunk([1, 2, 3]));
 
-      expect(BookCommands.updateSeriesOrders).toHaveBeenCalledWith([1, 2, 3]);
+      expect(SeriesCommand.setSeriesOrder).toHaveBeenCalledWith([1, 2, 3]);
     });
 
     // The backend's books-changed event refreshes the bookshelf; a second fetch is waste
     it("updateSeriesOrdersThunk leaves the refetch to the books-changed event", async () => {
-      vi.mocked(BookCommands.updateSeriesOrders).mockResolvedValue(undefined);
+      vi.mocked(SeriesCommand.setSeriesOrder).mockResolvedValue(undefined);
 
       await store.dispatch(updateSeriesOrdersThunk([1, 2, 3]));
 
       expect(BookCommands.getAllBooksWithState).not.toHaveBeenCalled();
-      expect(BookCommands.getBooksWithStateByCollectionId).not.toHaveBeenCalled();
+      expect(CollectionCommands.getBooksByCollection).not.toHaveBeenCalled();
     });
 
     it("updateSeriesOrdersThunk should handle generic failure", async () => {
-      vi.mocked(BookCommands.updateSeriesOrders).mockRejectedValue(new Error());
+      vi.mocked(SeriesCommand.setSeriesOrder).mockRejectedValue(new Error());
 
       const result = await store.dispatch(updateSeriesOrdersThunk([1, 2, 3]));
       expect(result.payload).toMatchObject({ code: ErrorCode.other });
@@ -910,7 +910,7 @@ describe("SeriesReducer", () => {
 
     it("addSeries should create the series, refetch the list, and return the new id", async () => {
       const created: Series = { id: 3, name: "New", created_at: "2026-03-01T15:30:00" };
-      vi.mocked(SeriesCommand.createSeries).mockResolvedValue(3);
+      vi.mocked(SeriesCommand.createSeries).mockResolvedValue(created);
       vi.mocked(SeriesCommand.getAllSeries).mockResolvedValue([created]);
 
       const result = await store.dispatch(addSeries("New"));
@@ -953,17 +953,17 @@ describe("SeriesReducer", () => {
     });
 
     it("updateBooksSeries should assign the series to every book", async () => {
-      vi.mocked(BookCommands.updateBookSeries).mockResolvedValue();
+      vi.mocked(SeriesCommand.setSeriesForBook).mockResolvedValue();
 
       const result = await store.dispatch(updateBooksSeries({ bookIds: [1, 2], seriesId: null }));
 
       expect(updateBooksSeries.fulfilled.match(result)).toBe(true);
-      expect(BookCommands.updateBookSeries).toHaveBeenCalledWith(1, null);
-      expect(BookCommands.updateBookSeries).toHaveBeenCalledWith(2, null);
+      expect(SeriesCommand.setSeriesForBook).toHaveBeenCalledWith(1, null);
+      expect(SeriesCommand.setSeriesForBook).toHaveBeenCalledWith(2, null);
     });
 
     it("updateBooksSeries should set only the error on failure", async () => {
-      vi.mocked(BookCommands.updateBookSeries).mockRejectedValue(
+      vi.mocked(SeriesCommand.setSeriesForBook).mockRejectedValue(
         new CommandError(ErrorCode.database, "db fail"),
       );
 

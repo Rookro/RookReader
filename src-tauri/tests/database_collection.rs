@@ -108,11 +108,11 @@ async fn test_set_collections_for_book_replaces_existing() {
     let books = SqliteBookRepository::new(pool.clone());
 
     let book_id = books
-        .register_book("/path/to/book", ItemType::File, "Book", 1, None)
+        .register("/path/to/book", ItemType::File, "Book", 1, None)
         .await
         .unwrap();
     let other_id = books
-        .register_book("/path/to/other", ItemType::File, "Other", 1, None)
+        .register("/path/to/other", ItemType::File, "Other", 1, None)
         .await
         .unwrap();
     let a = shelves.create("A", "star").await.unwrap();
@@ -147,7 +147,7 @@ async fn test_set_collections_for_book_skips_duplicate_and_nonexistent_ids() {
     let books = SqliteBookRepository::new(pool.clone());
 
     let book_id = books
-        .register_book("/path/to/book", ItemType::File, "Book", 1, None)
+        .register("/path/to/book", ItemType::File, "Book", 1, None)
         .await
         .unwrap();
     let a = shelves.create("A", "star").await.unwrap();
@@ -171,7 +171,7 @@ async fn test_set_collections_for_book_with_empty_list_removes_all() {
     let books = SqliteBookRepository::new(pool.clone());
 
     let book_id = books
-        .register_book("/path/to/book", ItemType::File, "Book", 1, None)
+        .register("/path/to/book", ItemType::File, "Book", 1, None)
         .await
         .unwrap();
     let a = shelves.create("A", "star").await.unwrap();
@@ -196,7 +196,7 @@ async fn test_set_collections_for_book_keeps_added_at_of_kept_collection() {
     let books = SqliteBookRepository::new(pool.clone());
 
     let book_id = books
-        .register_book("/path/to/book", ItemType::File, "Book", 1, None)
+        .register("/path/to/book", ItemType::File, "Book", 1, None)
         .await
         .unwrap();
     let a = shelves.create("A", "star").await.unwrap();

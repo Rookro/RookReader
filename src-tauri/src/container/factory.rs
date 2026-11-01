@@ -35,10 +35,6 @@ impl Default for ContainerConfig {
 
 /// Creates a `Container` from a file path based on its type (directory or file extension).
 ///
-/// This function consolidates container creation logic that was previously duplicated
-/// across `ContainerState::open_container`, `book_commands::generate_and_save_thumbnail`,
-/// and `container_commands::determine_epub_novel`.
-///
 /// # Arguments
 ///
 /// * `path` - The file system path to the container.

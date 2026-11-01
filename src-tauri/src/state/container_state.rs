@@ -1,17 +1,23 @@
 use std::sync::Arc;
 
 use pdfium_render::prelude::PdfRenderConfig;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, RwLock};
 
 use crate::{
-    container::factory::{create_container, ContainerConfig},
-    error::Result,
+    blocking::run_blocking,
+    container::{
+        factory::{create_container, ContainerConfig},
+        traits::Container,
+    },
+    error::{Error, Result},
     page::{
         cache::Cache,
         pipeline::{Fit, Pipeline},
         service::PageService,
     },
-    state::container_settings::ContainerSettings,
+    perf,
+    perf::Span,
+    state::{app_state::AppState, container_settings::ContainerSettings},
 };
 
 /// The widest a PDF page is rendered, in pixels: pdfium scales a page to fit both this
@@ -89,7 +95,7 @@ pub struct ContainerState {
     /// The heavy build runs without the state lock so page fetches are not blocked; this
     /// only orders the opens themselves, so a slower earlier open cannot install after a
     /// newer one. Shared, because the guard outlives the read lock it is taken under.
-    pub open_lock: Arc<Mutex<()>>,
+    open_lock: Arc<Mutex<()>>,
 }
 
 impl Default for ContainerState {
@@ -260,6 +266,126 @@ impl ContainerState {
         service.set_cache(self.image_cache.clone());
         self.service = Some(Arc::new(service));
         self.apply_rendering();
+    }
+
+    /// Opens a book as the open book: builds its container and installs its page service
+    /// in place of the previous book's.
+    ///
+    /// Takes the whole app state rather than `&mut self` because the build runs with the
+    /// state unlocked; `open_lock` orders the opens instead.
+    ///
+    /// # Arguments
+    ///
+    /// * `state` - The application state holding this container state.
+    /// * `path` - The file system path to the book to open.
+    ///
+    /// # Returns
+    ///
+    /// The container of the book now open.
+    ///
+    /// # Errors
+    ///
+    /// Returns an `Err` if the container cannot be built (e.g. the file does not exist or
+    /// is corrupt), or `EmptyContainer` when it holds no readable pages. Either way the
+    /// previous book is closed.
+    pub async fn open(state: &RwLock<AppState>, path: &str) -> Result<Arc<dyn Container>> {
+        let span = Span::start();
+        let open_lock = state.read().await.container_state.open_lock.clone();
+        let _open_guard = open_lock.lock().await;
+
+        // Snapshot the (cheap-to-clone) settings and cache handle under a brief read lock,
+        // then run the heavy build on a blocking thread so it never stalls the async runtime
+        // (image fetches, IPC) while opening a large book on slow storage.
+        let (settings, image_cache, display_size) = {
+            let state_lock = state.read().await;
+            (
+                state_lock.container_state.settings.clone(),
+                state_lock.container_state.image_cache.clone(),
+                state_lock.container_state.display_size,
+            )
+        };
+        let path_owned = path.to_string();
+        let built = run_blocking(move || {
+            Self::build_with(&settings, &image_cache, display_size, &path_owned)
+        })
+        .await;
+        let service = match built {
+            Ok(service) => service,
+            Err(e) => {
+                // Clear stale state so a failed open doesn't keep serving the previous book.
+                state.write().await.container_state.clear();
+                return Err(e);
+            }
+        };
+
+        let container = service.container();
+        let workers = service.workers();
+        let pages = container.get_entries().len();
+        let is_novel = container.is_novel();
+
+        // A container with no readable pages is not a book. Failing here keeps it out of the
+        // library and the history, since the frontend only records a book after this returns.
+        // EPUB novels are exempt: their text has no image entries.
+        if !is_novel && pages == 0 {
+            log::info!("Refusing to open {path}: no readable pages");
+            state.write().await.container_state.clear();
+            return Err(Error::EmptyContainer(path.to_string()));
+        }
+
+        {
+            let mut state_lock = state.write().await;
+            state_lock.container_state.install(service);
+        }
+
+        // The whole open: the container build, and the reader pool it started.
+        let format = std::path::Path::new(path)
+            .extension()
+            .and_then(|extension| extension.to_str())
+            .unwrap_or("dir");
+        perf!(
+            span,
+            "open",
+            "format={format} pages={pages} workers={workers} novel={is_novel}"
+        );
+
+        Ok(container)
+    }
+
+    /// The container of the book at `path`.
+    ///
+    /// When `path` is the open book, its own container is reused, so a PDF does not get a
+    /// second handle opened beside the one being read. Otherwise one is built on a blocking
+    /// thread and never installed, so the open book keeps its reader threads.
+    ///
+    /// # Arguments
+    ///
+    /// * `state` - The application state holding this container state.
+    /// * `path` - The file system path to the book.
+    ///
+    /// # Returns
+    ///
+    /// The book's container.
+    ///
+    /// # Errors
+    ///
+    /// Returns an `Err` if the container has to be built and cannot be.
+    pub async fn container_for(state: &RwLock<AppState>, path: &str) -> Result<Arc<dyn Container>> {
+        let (settings, open) = {
+            let state_lock = state.read().await;
+            (
+                state_lock.container_state.settings.clone(),
+                state_lock
+                    .container_state
+                    .service_for(path)
+                    .map(|service| service.container()),
+            )
+        };
+        if let Some(container) = open {
+            return Ok(container);
+        }
+
+        let path_owned = path.to_string();
+        run_blocking(move || create_container(&path_owned, Self::container_config(&settings))).await
     }
 }
 

@@ -71,7 +71,7 @@ pub trait BookRepository: Send + Sync {
     /// # Errors
     ///
     /// Returns an `Err` if the database transaction fails.
-    async fn register_book(
+    async fn register(
         &self,
         file_path: &str,
         item_type: ItemType,
@@ -101,7 +101,7 @@ pub trait BookRepository: Send + Sync {
     /// # Errors
     ///
     /// Returns an `Err` if the database transaction fails.
-    async fn record_book_opened(
+    async fn record_opened(
         &self,
         file_path: &str,
         item_type: ItemType,
@@ -241,5 +241,5 @@ pub trait BookRepository: Send + Sync {
     /// # Errors
     ///
     /// Returns an `Err` if a database operation fails.
-    async fn delete_book(&self, id: i64) -> Result<()>;
+    async fn delete(&self, id: i64) -> Result<()>;
 }

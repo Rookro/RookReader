@@ -11,7 +11,7 @@ use common::setup_db;
 /// Registers a book and returns its id, so each test starts from a valid foreign key.
 async fn setup_book(pool: &sqlx::SqlitePool, path: &str) -> i64 {
     SqliteBookRepository::new(pool.clone())
-        .register_book(path, ItemType::File, "My Book", 100, None)
+        .register(path, ItemType::File, "My Book", 100, None)
         .await
         .unwrap()
 }
@@ -99,7 +99,7 @@ async fn test_delete_book_removes_bookmarks() {
     repository.create(book_id, "Page 1", 0, None).await.unwrap();
     repository.create(book_id, "Page 9", 8, None).await.unwrap();
 
-    books.delete_book(book_id).await.unwrap();
+    books.delete(book_id).await.unwrap();
 
     let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM bookmarks WHERE book_id = ?")
         .bind(book_id)

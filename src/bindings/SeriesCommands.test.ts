@@ -13,13 +13,14 @@ describe("SeriesCommand", () => {
   const mockError = { code: 123, message: "Fail" };
 
   describe("createSeries", () => {
-    it("should call invoke with correct arguments and return the ID", async () => {
-      vi.mocked(invoke).mockResolvedValue(1);
+    it("should call invoke with correct arguments and return the new series", async () => {
+      const created = { id: 1, name: "Test Series", created_at: "2026-03-01T15:30:00" };
+      vi.mocked(invoke).mockResolvedValue(created);
 
       const result = await SeriesCommand.createSeries("Test Series");
 
       expect(invoke).toHaveBeenCalledWith("create_series", { name: "Test Series" });
-      expect(result).toBe(1);
+      expect(result).toEqual(created);
     });
 
     it("should throw CommandError on failure", async () => {
@@ -64,5 +65,38 @@ describe("SeriesCommand", () => {
 
       await expect(SeriesCommand.deleteSeries(1)).rejects.toThrow(CommandError);
     });
+  });
+
+  it("getBooksBySeries should call invoke", async () => {
+    vi.mocked(invoke).mockResolvedValue([]);
+    await SeriesCommand.getBooksBySeries(3);
+    expect(invoke).toHaveBeenCalledWith("get_books_by_series", { seriesId: 3 });
+  });
+
+  it("getBooksBySeries should throw CommandError on failure", async () => {
+    vi.mocked(invoke).mockRejectedValue(mockError);
+    await expect(SeriesCommand.getBooksBySeries(1)).rejects.toThrow(CommandError);
+  });
+
+  it("setSeriesForBook should call invoke", async () => {
+    vi.mocked(invoke).mockResolvedValue(undefined);
+    await SeriesCommand.setSeriesForBook(1, 10);
+    expect(invoke).toHaveBeenCalledWith("set_series_for_book", { bookId: 1, seriesId: 10 });
+  });
+
+  it("setSeriesForBook should throw CommandError on failure", async () => {
+    vi.mocked(invoke).mockRejectedValue(mockError);
+    await expect(SeriesCommand.setSeriesForBook(1, 10)).rejects.toThrow(CommandError);
+  });
+
+  it("setSeriesOrder should call invoke", async () => {
+    vi.mocked(invoke).mockResolvedValue(undefined);
+    await SeriesCommand.setSeriesOrder([1, 2, 3]);
+    expect(invoke).toHaveBeenCalledWith("set_series_order", { bookIds: [1, 2, 3] });
+  });
+
+  it("setSeriesOrder should throw CommandError on failure", async () => {
+    vi.mocked(invoke).mockRejectedValue(mockError);
+    await expect(SeriesCommand.setSeriesOrder([1, 2, 3])).rejects.toThrow(CommandError);
   });
 });

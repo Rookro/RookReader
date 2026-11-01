@@ -1,4 +1,4 @@
-import type { Collection } from "../domain/entities";
+import type { BookWithState, Collection } from "../domain/entities";
 import { commands } from "./bindings";
 import { runCommand } from "./result";
 
@@ -86,4 +86,15 @@ export async function setCollectionsForBook(
  */
 export async function deleteCollection(id: number): Promise<void> {
   await runCommand(commands.deleteCollection(id));
+}
+
+/**
+ * Retrieves all books along with their reading states that belong to a specific collection.
+ *
+ * @param collectionId - The unique identifier of the collection.
+ * @returns A promise that resolves to an array of BookWithState objects.
+ * @throws {CommandError} If the Tauri command fails.
+ */
+export async function getBooksByCollection(collectionId: number): Promise<BookWithState[]> {
+  return await runCommand(commands.getBooksByCollection(collectionId));
 }
