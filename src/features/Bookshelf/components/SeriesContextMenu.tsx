@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 import ConfirmDialog from "../../../components/ui/ConfirmDialog";
 import ContextMenu from "../../../components/ui/ContextMenu/ContextMenu";
 import type { ContextMenuAnchor } from "../../../components/ui/ContextMenu/useContextMenuAnchor";
-import type { Series } from "../../../domain/series/schema";
+import type { Series } from "../../../domain/entities";
 import { useAppDispatch } from "../../../store/store";
 import { removeSeries } from "../seriesSlice";
 import { useBookshelfActions } from "./BookshelfActionsContext";

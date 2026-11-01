@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import type { ReadingState } from "../../../domain/book/schema";
+import type { ReadingState } from "../../../domain/entities";
 import { useTauriEvent } from "../../../hooks/useTauriEvent";
 import { readingProgressChanged } from "../../../store/actions";
 import { useAppDispatch, useAppSelector } from "../../../store/store";

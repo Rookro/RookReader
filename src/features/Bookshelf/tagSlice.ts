@@ -1,7 +1,7 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import { updateBookTags } from "../../bindings/BookCommands";
 import { createTag, deleteTag, getAllTags } from "../../bindings/TagCommands";
-import type { Tag } from "../../domain/tag/schema";
+import type { Tag } from "../../domain/entities";
 import { handleThunkError } from "../../store/thunkErrorHandler";
 import { createAppAsyncThunk } from "../../types/CustomAsyncThunk";
 import type { ErrorCode } from "../../types/Error";

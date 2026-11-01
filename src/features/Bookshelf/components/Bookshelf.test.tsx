@@ -3,7 +3,7 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { JSX } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { BookWithState } from "../../../domain/book/schema";
+import type { BookWithState } from "../../../domain/entities";
 import { createMockBookWithState } from "../../../test/factories";
 import { createBasePreloadedState, renderWithProviders } from "../../../test/utils";
 import * as ReadReducer from "../../BookReader/slice";

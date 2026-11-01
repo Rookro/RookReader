@@ -1,7 +1,7 @@
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import type { BookWithState } from "../../../domain/book/schema";
+import type { BookWithState } from "../../../domain/entities";
 import { createMockBookWithState } from "../../../test/factories";
 import { renderWithProviders } from "../../../test/utils";
 import BookContextMenu, { type BookContextMenuProps } from "./BookContextMenu";

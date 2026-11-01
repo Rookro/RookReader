@@ -61,6 +61,31 @@ describe("HistoryReducer", () => {
     expect(nextState.recentlyReadBooks[1].last_opened_at).toBe("2026-07-04T10:00:00");
   });
 
+  // A progress update without a timestamp does not blank the listed one.
+  it("should keep last_opened_at when readingProgressChanged carries none", () => {
+    const state = {
+      ...initialState,
+      recentlyReadBooks: [
+        createMockReadBook({
+          id: 1,
+          last_read_page_index: 0,
+          last_opened_at: "2026-07-01T09:00:00",
+        }),
+      ],
+    };
+    const nextState = historyReducer(
+      state,
+      readingProgressChanged({
+        book_id: 1,
+        last_read_page_index: 4,
+        cfi: null,
+        last_opened_at: null,
+      }),
+    );
+    expect(nextState.recentlyReadBooks[0].last_read_page_index).toBe(4);
+    expect(nextState.recentlyReadBooks[0].last_opened_at).toBe("2026-07-01T09:00:00");
+  });
+
   // Verify that readingProgressChanged for an unknown book id is a no-op.
   it("should ignore readingProgressChanged for an unknown book id", () => {
     const state = {

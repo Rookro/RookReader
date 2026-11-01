@@ -4,7 +4,7 @@ import {
   clearReadingHistory,
   getRecentlyReadBooks,
 } from "../../bindings/BookCommands";
-import type { ReadBook } from "../../domain/book/schema";
+import type { ReadBook } from "../../domain/entities";
 import { readingProgressChanged } from "../../store/actions";
 import { handleThunkError } from "../../store/thunkErrorHandler";
 import { createAppAsyncThunk } from "../../types/CustomAsyncThunk";
@@ -123,7 +123,7 @@ const historySlice = createSlice({
         const book = state.recentlyReadBooks.find((b) => b.id === action.payload.book_id);
         if (book) {
           book.last_read_page_index = action.payload.last_read_page_index;
-          book.last_opened_at = action.payload.last_opened_at;
+          book.last_opened_at = action.payload.last_opened_at ?? book.last_opened_at;
         }
       });
   },

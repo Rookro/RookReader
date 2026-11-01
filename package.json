@@ -60,8 +60,7 @@
     "react-router": "^8.4.0",
     "react-window": "^2.4.1",
     "redux": "^5.0.1",
-    "stylis": "^4.4.0",
-    "zod": "^4.6.7"
+    "stylis": "^4.4.0"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",

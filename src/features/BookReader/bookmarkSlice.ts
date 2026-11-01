@@ -5,7 +5,7 @@ import {
   getBookmarksByBookId,
   renameBookmark,
 } from "../../bindings/BookmarkCommands";
-import type { Bookmark } from "../../domain/bookmark/schema";
+import type { Bookmark } from "../../domain/entities";
 import { handleThunkError } from "../../store/thunkErrorHandler";
 import { createAppAsyncThunk } from "../../types/CustomAsyncThunk";
 import type { ErrorCode } from "../../types/Error";

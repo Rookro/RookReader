@@ -16,7 +16,7 @@ import {
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getBookTags } from "../../../../bindings/BookCommands";
-import type { Tag } from "../../../../domain/tag/schema";
+import type { Tag } from "../../../../domain/entities";
 import { useAppDispatch } from "../../../../store/store";
 import { useBookCheckStates } from "../../hooks/useBookCheckStates";
 import { addTag, updateBooksTags } from "../../tagSlice";

@@ -1,7 +1,7 @@
 import type { Middleware } from "@reduxjs/toolkit";
 import { error } from "@tauri-apps/plugin-log";
 import { updateReadingProgress } from "../../bindings/BookCommands";
-import type { ReadingState } from "../../domain/book/schema";
+import type { ReadingState } from "../../domain/entities";
 import { setImageIndex, setNovelLocation } from "../../features/BookReader/slice";
 import type { RootState } from "../store";
 

@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import type { BookWithState } from "../../../domain/book/schema";
+import type { BookWithState } from "../../../domain/entities";
 import type { GridItem } from "../components/BookGridCell";
 
 /**

@@ -16,7 +16,7 @@ import {
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getBookshelvesForBook } from "../../../../bindings/BookshelfCommands";
-import type { Bookshelf } from "../../../../domain/bookshelf/schema";
+import type { Bookshelf } from "../../../../domain/entities";
 import { useAppDispatch } from "../../../../store/store";
 import { useBookCheckStates } from "../../hooks/useBookCheckStates";
 import { addBookshelf, setBookshelvesForBooks } from "../../slice";

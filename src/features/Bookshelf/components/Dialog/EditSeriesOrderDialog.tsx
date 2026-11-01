@@ -19,7 +19,7 @@ import { error as logError } from "@tauri-apps/plugin-log";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getBooksWithStateBySeriesId } from "../../../../bindings/BookCommands";
-import type { BookWithState } from "../../../../domain/book/schema";
+import type { BookWithState } from "../../../../domain/entities";
 import { useAppDispatch } from "../../../../store/store";
 import { updateSeriesOrdersThunk } from "../../seriesSlice";
 import { sortBySeriesOrder } from "../../utils/BookshelfUtils";

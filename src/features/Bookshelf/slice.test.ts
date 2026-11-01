@@ -4,10 +4,7 @@ import * as BookshelfCommand from "../../bindings/BookshelfCommands";
 import * as ContainerCommands from "../../bindings/ContainerCommands";
 import * as SeriesCommand from "../../bindings/SeriesCommands";
 import * as TagCommands from "../../bindings/TagCommands";
-import type { BookWithState } from "../../domain/book/schema";
-import type { Bookshelf } from "../../domain/bookshelf/schema";
-import type { Series } from "../../domain/series/schema";
-import type { Tag } from "../../domain/tag/schema";
+import type { Bookshelf, BookWithState, Series, Tag } from "../../domain/entities";
 import { readingProgressChanged } from "../../store/actions";
 import { createMockBookshelf, createMockBookWithState, createMockTag } from "../../test/factories";
 import { type AppStore, createBasePreloadedState, createTestStore } from "../../test/utils";
@@ -115,6 +112,31 @@ describe("BookCollectionReducer", () => {
     expect(nextState.books[0].last_read_page_index).toBe(0);
     expect(nextState.books[1].last_read_page_index).toBe(9);
     expect(nextState.books[1].last_opened_at).toBe("2026-07-04T10:00:00");
+  });
+
+  // A progress update without a timestamp does not blank the listed one.
+  it("should keep last_opened_at when readingProgressChanged carries none", () => {
+    const state = {
+      ...bookCollectionInitialState,
+      books: [
+        createMockBookWithState({
+          id: 1,
+          last_read_page_index: 0,
+          last_opened_at: "2026-07-01T09:00:00",
+        }),
+      ],
+    };
+    const nextState = bookCollectionReducer(
+      state,
+      readingProgressChanged({
+        book_id: 1,
+        last_read_page_index: 4,
+        cfi: null,
+        last_opened_at: null,
+      }),
+    );
+    expect(nextState.books[0].last_read_page_index).toBe(4);
+    expect(nextState.books[0].last_opened_at).toBe("2026-07-01T09:00:00");
   });
 
   // Verify that readingProgressChanged for an unknown book id is a no-op.

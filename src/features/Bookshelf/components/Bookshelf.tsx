@@ -1,7 +1,7 @@
 import { Box, type SxProps, type Theme } from "@mui/material";
 import { Allotment } from "allotment";
 import { useCallback, useState } from "react";
-import type { Book } from "../../../domain/book/schema";
+import type { Book } from "../../../domain/entities";
 import { usePaneSizes } from "../../../hooks/usePaneSizes";
 import { useAppDispatch, useAppSelector } from "../../../store/store";
 import { openBook } from "../../BookReader/slice";

@@ -1,5 +1,4 @@
-import type { BookWithState } from "../../../domain/book/schema";
-import type { Series } from "../../../domain/series/schema";
+import type { BookWithState, Series } from "../../../domain/entities";
 import type { SortOrder } from "../../../types/AppSettings";
 import { andSearchBy } from "../../../utils/SearchUtils";
 

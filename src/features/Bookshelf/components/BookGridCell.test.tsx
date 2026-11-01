@@ -3,7 +3,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import type { CellComponentProps } from "react-window";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import dummy_thumbnail from "../../../assets/dummy_thumbnail.svg";
-import type { Tag } from "../../../domain/tag/schema";
+import type { Tag } from "../../../domain/entities";
 import { createMockBookWithState, createMockSeries, createMockTag } from "../../../test/factories";
 import { useBookSelection } from "../hooks/useBookSelection";
 import BookGridCell, { areEqual, type BookGridCellProps, type GridItem } from "./BookGridCell";

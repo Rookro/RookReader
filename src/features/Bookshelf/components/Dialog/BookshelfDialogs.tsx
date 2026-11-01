@@ -1,4 +1,4 @@
-import type { BookWithState } from "../../../../domain/book/schema";
+import type { BookWithState } from "../../../../domain/entities";
 import { useAppSelector } from "../../../../store/store";
 import type { BookshelfDialogType } from "../../hooks/useBookshelfDialogs";
 import BookDeleteDialog from "./BookDeleteDialog";

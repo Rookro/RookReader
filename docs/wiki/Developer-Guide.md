@@ -12,14 +12,14 @@ graph TD
         UI["Feature components<br/>features/*/components"]
         Hooks["Hooks<br/>features/*/hooks · hooks/"]
         Store["Redux Toolkit store<br/>store/ (slices, middleware)"]
-        Domain["Domain schemas (Zod)<br/>domain/"]
+        Domain["Domain types (generated aliases)<br/>domain/"]
         Bindings["Tauri bindings (generated)<br/>bindings/"]
 
         UI --> Hooks
         UI <--> Store
         Hooks --> Bindings
         Store --> Bindings
-        Domain -.->|types| Bindings
+        Bindings -.->|types| Domain
     end
 
     Bindings <====>|"Tauri IPC"| Commands
@@ -50,8 +50,8 @@ graph TD
 - **Feature-Sliced layout:** each feature lives under `src/features/<Feature>/` (`BookReader`, `Bookshelf`, `History`, `MainView`, `Settings`, `SidePane`, `Updater`) with its own `components/`, `hooks/` and Redux `slice.ts`. Generic, feature-independent hooks (`useAppTheme`, `useDragDropEvent`, `usePaneSizes`, `useResizeObserver`, `useTauriEvent`) live in `src/hooks/`.
 - **UI Components:** Built functionally using React and composed heavily of **Material UI (MUI)** components. We utilize MUI's `sx` prop and theming system (`src/hooks/useAppTheme.ts`) for responsive and consistent styling. Icons are imported by path (`@mui/icons-material/<Icon>`) so only the icons in use are bundled.
 - **State Management:** Global state is managed via **Redux Toolkit**. `src/store/store.ts` builds the store, `src/store/rootReducer.ts` combines the feature slices (`read`, `bookmark`, `view`, `history`, `bookCollection`, `tag`, `series`, `settings`, `settingsError`), and `src/store/middleware/` holds the `loggerMiddleware` and the `readingStateMiddleware` that persists reading progress asynchronously. Component-specific UI state relies on standard React hooks (`useState`, `useReducer`).
-- **Bindings (generated):** `src/bindings/bindings.ts` (command wrappers and the TypeScript types of every Rust type they use, including the settings model) and `src/bindings/errorCodes.ts` are **generated** from Rust by `tauri-specta` via `npm run gen:bindings` — never edit them by hand. `src/bindings/*Commands.ts` are thin wrappers that delegate to the generated `commands.*`, unwrap the `{ status, data | error }` result with `runCommand` (`src/bindings/result.ts`, which throws a `CommandError`) and narrow the results to the `src/domain/` types; binary commands that return a raw `tauri::ipc::Response` keep a direct `invoke`.
-- **Domain & validation:** `src/domain/` holds Zod schemas for the entities (book, bookmark, bookshelf, series, tag). Application **settings** are validated in Rust (see below); the frontend consumes the generated types and the backend's field errors (`src/features/Settings/settingsFieldErrors.ts`, bounds mirrored in `settingsBounds.json`).
+- **Bindings (generated):** `src/bindings/bindings.ts` (command wrappers and the TypeScript types of every Rust type they use, including the settings model) and `src/bindings/errorCodes.ts` are **generated** from Rust by `tauri-specta` via `npm run gen:bindings` — never edit them by hand. `src/bindings/*Commands.ts` are thin wrappers that delegate to the generated `commands.*`, unwrap the `{ status, data | error }` result with `runCommand` (`src/bindings/result.ts`, which throws a `CommandError`) and return the generated types; `src/domain/entities.ts` gives the entities their plain names; binary commands that return a raw `tauri::ipc::Response` keep a direct `invoke`.
+- **Domain & validation:** `src/domain/entities.ts` names the library entities (book, bookmark, bookshelf, series, tag) after their generated `_Serialize` types; they come from our own backend and are not validated at runtime. Application **settings** are validated in Rust (see below); the frontend consumes the generated types and the backend's field errors (`src/features/Settings/settingsFieldErrors.ts`, bounds mirrored in `settingsBounds.json`).
 - **Errors:** the numeric `ErrorCode` values are owned by Rust (`ErrorCode::code()` in `src-tauri/src/error.rs`); `src/types/Error.ts` re-exports the generated codes and adds the frontend-only `unknown` sentinel.
 - **i18n:** `react-i18next` with `src/i18n/locales/en-US.json` and `ja-JP.json`.
 
@@ -67,7 +67,7 @@ graph TD
 
 ### Key Technologies
 
-- **Frontend:** React 19, TypeScript, Vite 8, Material UI (MUI), Redux Toolkit, Zod, react-i18next, foliate-js (EPUB rendering).
+- **Frontend:** React 19, TypeScript, Vite 8, Material UI (MUI), Redux Toolkit, react-i18next, foliate-js (EPUB rendering).
 - **Backend:** Rust, Tauri (v2), SQLite (sqlx), garde (settings validation), pdfium-render (bundled PDFium).
 - **Tooling:** tauri-specta (generated bindings), Biome (lint/format), Vitest (frontend unit tests), WebdriverIO (E2E), cargo-about (license files).
 
@@ -157,7 +157,7 @@ sequenceDiagram
 
 1. **Rust Logic**: Add or update the domain model in `src-tauri/src/domain/`, repository logic in `src-tauri/src/infrastructure/database/` (Repository pattern), or container logic in `src-tauri/src/container/`. Handle errors explicitly with `Result` — never `.unwrap()`/`.expect()` in production code — and log with the `log` crate, not `println!`.
 1. **Tauri Command**: Create a command in `src-tauri/src/commands/` annotated with `#[tauri::command]` **and** `#[specta::specta]`, documented with `# Arguments` / `# Returns` / `# Errors`. Register it in `src-tauri/src/lib.rs` inside `specta_builder()`'s `collect_commands![...]`. Only commands that return a raw `tauri::ipc::Response` (binary payloads) go into the small separate `generate_handler!` instead.
-1. **TypeScript Binding**: Run `npm run gen:bindings` (it runs the `export_bindings` / `export_error_codes` tests in `src-tauri/src/lib.rs`). This regenerates `src/bindings/bindings.ts` (and `errorCodes.ts`) from Rust — do not edit them by hand. Then add or extend the thin wrapper in the matching `src/bindings/*Commands.ts` (e.g. `BookCommands.ts`) that delegates to the generated `commands.myCommand` and narrows the result to the `src/domain/` type. Commit the regenerated files; CI runs `npm run gen:bindings:check` and fails on drift.
+1. **TypeScript Binding**: Run `npm run gen:bindings` (it runs the `export_bindings` / `export_error_codes` tests in `src-tauri/src/lib.rs`). This regenerates `src/bindings/bindings.ts` (and `errorCodes.ts`) from Rust — do not edit them by hand. Then add or extend the thin wrapper in the matching `src/bindings/*Commands.ts` (e.g. `BookCommands.ts`) that delegates to the generated `commands.myCommand` (alias any new entity's `_Serialize` type in `src/domain/entities.ts`). Commit the regenerated files; CI runs `npm run gen:bindings:check` and fails on drift.
 1. **New error codes**: add a variant to the `Error` enum in `src-tauri/src/error.rs` (its `ErrorCode` discriminant is derived automatically), give it a `code()` arm with a stable number, and regenerate; never hand-edit `src/bindings/errorCodes.ts`.
 1. **React Integration**: Use the wrapper in a Redux thunk (`createAsyncThunk` in the feature's `slice.ts`) or a custom hook under `src/features/<Feature>/hooks/`. Add user-facing strings to `src/i18n/locales/en-US.json` and `ja-JP.json`, and log through `@tauri-apps/plugin-log` rather than `console`.
 

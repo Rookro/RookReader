@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as BookmarkCommands from "../../bindings/BookmarkCommands";
-import type { Bookmark } from "../../domain/bookmark/schema";
+import type { Bookmark } from "../../domain/entities";
 import { createMockBookmark } from "../../test/factories";
 import { type AppStore, createTestStore } from "../../test/utils";
 import { CommandError, ErrorCode } from "../../types/Error";

@@ -12,7 +12,7 @@ import { type CSSProperties, memo, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import ContextMenu from "../../../../components/ui/ContextMenu/ContextMenu";
 import { useContextMenuAnchor } from "../../../../components/ui/ContextMenu/useContextMenuAnchor";
-import type { ReadBook } from "../../../../domain/book/schema";
+import type { ReadBook } from "../../../../domain/entities";
 import { useAppDispatch } from "../../../../store/store";
 import { clearHistory } from "../../../History/slice";
 

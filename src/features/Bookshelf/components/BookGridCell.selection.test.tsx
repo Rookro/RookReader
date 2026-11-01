@@ -1,8 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { useCallback } from "react";
 import { describe, expect, it, vi } from "vitest";
-import type { BookWithState } from "../../../domain/book/schema";
-import type { Tag } from "../../../domain/tag/schema";
+import type { BookWithState, Tag } from "../../../domain/entities";
 import { createMockBookWithState } from "../../../test/factories";
 import { useBookSelection } from "../hooks/useBookSelection";
 import BookGridCell from "./BookGridCell";

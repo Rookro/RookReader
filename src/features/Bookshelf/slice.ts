@@ -15,8 +15,7 @@ import {
   setBookshelvesForBook,
 } from "../../bindings/BookshelfCommands";
 import { countPagesInContainer } from "../../bindings/ContainerCommands";
-import type { BookWithState } from "../../domain/book/schema";
-import type { Bookshelf } from "../../domain/bookshelf/schema";
+import type { Bookshelf, BookWithState } from "../../domain/entities";
 import { readingProgressChanged } from "../../store/actions";
 import { handleThunkError } from "../../store/thunkErrorHandler";
 import { createAppAsyncThunk } from "../../types/CustomAsyncThunk";
@@ -326,7 +325,7 @@ const bookCollectionSlice = createSlice({
         const book = state.books.find((b) => b.id === action.payload.book_id);
         if (book) {
           book.last_read_page_index = action.payload.last_read_page_index;
-          book.last_opened_at = action.payload.last_opened_at;
+          book.last_opened_at = action.payload.last_opened_at ?? book.last_opened_at;
         }
       });
   },

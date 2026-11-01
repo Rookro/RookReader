@@ -1,4 +1,4 @@
-import type { Bookshelf } from "../domain/bookshelf/schema";
+import type { Bookshelf } from "../domain/entities";
 import { commands } from "./bindings";
 import { runCommand } from "./result";
 
@@ -11,7 +11,7 @@ import { runCommand } from "./result";
  * @throws {CommandError} If the Tauri command fails.
  */
 export async function createBookshelf(name: string, iconId: string): Promise<Bookshelf> {
-  return (await runCommand(commands.createBookshelf(name, iconId))) as Bookshelf;
+  return await runCommand(commands.createBookshelf(name, iconId));
 }
 
 /**
@@ -21,7 +21,7 @@ export async function createBookshelf(name: string, iconId: string): Promise<Boo
  * @throws {CommandError} If the Tauri command fails.
  */
 export async function getAllBookshelves(): Promise<Bookshelf[]> {
-  return (await runCommand(commands.getAllBookshelves())) as Bookshelf[];
+  return await runCommand(commands.getAllBookshelves());
 }
 
 /**
