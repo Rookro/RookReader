@@ -1,15 +1,14 @@
-use tauri::{AppHandle, Emitter, Manager, WebviewWindow};
+use tauri::{AppHandle, Manager, WebviewWindow};
+use tauri_specta::Event;
 use tokio::sync::RwLock;
 
 use crate::{
+    commands::events::{emit_to, SettingsChanged},
     error::{Error, Result},
     settings::{AppSettings, SettingsFileLock, SettingsFileProvider, SettingsPatch},
     setup,
     state::app_state::AppState,
 };
-
-/// The event name broadcast to windows when settings change.
-const SETTINGS_CHANGED_EVENT: &str = "settings-changed";
 
 /// Reads the current application settings.
 ///
@@ -96,11 +95,15 @@ pub async fn set_settings<R: tauri::Runtime>(
 
     let caller_label = webview.label().to_string();
     let all_labels: Vec<String> = app.webview_windows().into_keys().collect();
+    let event = SettingsChanged(settings.clone());
     for label in settings_change_targets(all_labels, &caller_label) {
         // The settings are already persisted and applied; a failed emit to one window
         // must not abort delivery to the others, so log and continue.
-        if let Err(e) = app.emit_to(label.as_str(), SETTINGS_CHANGED_EVENT, &settings) {
-            log::warn!("Failed to emit {SETTINGS_CHANGED_EVENT} to window '{label}': {e}");
+        if let Err(e) = emit_to(&app, label.as_str(), &event) {
+            log::warn!(
+                "Failed to emit {} to window '{label}': {e}",
+                SettingsChanged::NAME
+            );
         }
     }
 

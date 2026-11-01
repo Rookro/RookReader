@@ -2,12 +2,9 @@ use std::fs;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use tauri::Emitter;
 use tauri::State;
 
-use crate::commands::library_events::{
-    BOOKS_CHANGED_EVENT, READING_HISTORY_CHANGED_EVENT, READING_PROGRESS_CHANGED_EVENT,
-};
+use crate::commands::events::{emit, BooksChanged, ReadingHistoryChanged, ReadingProgressChanged};
 use crate::container::describe::describe;
 use crate::container::factory::{create_container, ContainerConfig};
 use crate::container::traits::Container;
@@ -115,7 +112,7 @@ pub async fn register_book<R: tauri::Runtime>(
         )
         .await?;
 
-    app.emit(BOOKS_CHANGED_EVENT, ())?;
+    emit(&app, &BooksChanged)?;
 
     Ok(book_id)
 }
@@ -182,8 +179,8 @@ pub async fn record_book_opened<R: tauri::Runtime>(
         }
     }
 
-    app.emit(BOOKS_CHANGED_EVENT, ())?;
-    app.emit(READING_HISTORY_CHANGED_EVENT, ())?;
+    emit(&app, &BooksChanged)?;
+    emit(&app, &ReadingHistoryChanged)?;
 
     Ok(book)
 }
@@ -226,8 +223,8 @@ pub async fn clear_reading_history<R: tauri::Runtime>(
 ) -> Result<()> {
     log::debug!("Clear reading history of {:?}", book_id);
     repo.clear_reading_history(book_id).await?;
-    app.emit(BOOKS_CHANGED_EVENT, ())?;
-    app.emit(READING_HISTORY_CHANGED_EVENT, ())?;
+    emit(&app, &BooksChanged)?;
+    emit(&app, &ReadingHistoryChanged)?;
     Ok(())
 }
 
@@ -250,8 +247,8 @@ pub async fn clear_all_reading_history<R: tauri::Runtime>(
 ) -> Result<()> {
     log::debug!("Clear all reading history");
     repo.clear_all_reading_history().await?;
-    app.emit(BOOKS_CHANGED_EVENT, ())?;
-    app.emit(READING_HISTORY_CHANGED_EVENT, ())?;
+    emit(&app, &BooksChanged)?;
+    emit(&app, &ReadingHistoryChanged)?;
     Ok(())
 }
 
@@ -276,7 +273,7 @@ pub async fn update_reading_progress<R: tauri::Runtime>(
 ) -> Result<()> {
     log::debug!("Update reading progress: {:?}", state_data);
     repo.update_reading_progress(&state_data).await?;
-    app.emit(READING_PROGRESS_CHANGED_EVENT, &state_data)?;
+    emit(&app, &ReadingProgressChanged(state_data))?;
     Ok(())
 }
 
@@ -536,7 +533,7 @@ pub async fn update_book_tags<R: tauri::Runtime>(
         tag_ids
     );
     repo.attach_tags_to_book(book_id, &tag_ids).await?;
-    app.emit(BOOKS_CHANGED_EVENT, ())?;
+    emit(&app, &BooksChanged)?;
     Ok(())
 }
 
@@ -567,8 +564,8 @@ pub async fn delete_book<R: tauri::Runtime>(
     if let Some(path) = thumbnail_path {
         remove_thumbnail(path).await;
     }
-    app.emit(BOOKS_CHANGED_EVENT, ())?;
-    app.emit(READING_HISTORY_CHANGED_EVENT, ())?;
+    emit(&app, &BooksChanged)?;
+    emit(&app, &ReadingHistoryChanged)?;
     Ok(())
 }
 
@@ -613,7 +610,7 @@ pub async fn update_book_series<R: tauri::Runtime>(
         series_id
     );
     repo.assign_book_to_series(book_id, series_id).await?;
-    app.emit(BOOKS_CHANGED_EVENT, ())?;
+    emit(&app, &BooksChanged)?;
     Ok(())
 }
 
@@ -636,7 +633,7 @@ pub async fn update_series_orders<R: tauri::Runtime>(
 ) -> Result<()> {
     log::debug!("Update series orders for books: {:?}", book_ids);
     repo.update_book_orders_in_series(book_ids).await?;
-    app.emit(BOOKS_CHANGED_EVENT, ())?;
+    emit(&app, &BooksChanged)?;
     Ok(())
 }
 
@@ -816,7 +813,7 @@ async fn generate_and_save_thumbnail<R: tauri::Runtime>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::commands::library_events::test_support::record_events;
+    use crate::commands::events::test_support::record_events;
     use crate::domain::book::entity::ItemType;
     use crate::domain::book::repository::MockBookRepository;
     use crate::domain::bookshelf::repository::MockBookshelfRepository;
@@ -824,6 +821,7 @@ mod tests {
     use crate::domain::tag::repository::MockTagRepository;
     use crate::error::ErrorCode;
     use tauri::Manager;
+    use tauri_specta::Event;
 
     #[tokio::test]
     async fn test_get_book() {
@@ -946,7 +944,7 @@ mod tests {
         assert!(result.is_ok());
         assert_eq!(
             *events.lock().unwrap(),
-            [BOOKS_CHANGED_EVENT, READING_HISTORY_CHANGED_EVENT]
+            [BooksChanged::NAME, ReadingHistoryChanged::NAME]
         );
         assert!(!thumbnail.exists(), "the thumbnail must go with the book");
     }
@@ -1000,7 +998,7 @@ mod tests {
 
         let result = update_book_series(1, Some(10), repo, app.handle().clone()).await;
         assert!(result.is_ok());
-        assert_eq!(*events.lock().unwrap(), [BOOKS_CHANGED_EVENT]);
+        assert_eq!(*events.lock().unwrap(), [BooksChanged::NAME]);
     }
 
     #[tokio::test]
@@ -1019,7 +1017,7 @@ mod tests {
 
         let result = update_series_orders(vec![1, 2, 3], repo, app.handle().clone()).await;
         assert!(result.is_ok());
-        assert_eq!(*events.lock().unwrap(), [BOOKS_CHANGED_EVENT]);
+        assert_eq!(*events.lock().unwrap(), [BooksChanged::NAME]);
     }
 
     #[tokio::test]
@@ -1041,7 +1039,7 @@ mod tests {
 
         let result = update_book_tags(1, vec![2, 3], repo, app.handle().clone()).await;
         assert!(result.is_ok());
-        assert_eq!(*events.lock().unwrap(), [BOOKS_CHANGED_EVENT]);
+        assert_eq!(*events.lock().unwrap(), [BooksChanged::NAME]);
     }
 
     #[tokio::test]
@@ -1062,7 +1060,7 @@ mod tests {
         assert!(result.is_ok());
         assert_eq!(
             *events.lock().unwrap(),
-            [BOOKS_CHANGED_EVENT, READING_HISTORY_CHANGED_EVENT]
+            [BooksChanged::NAME, ReadingHistoryChanged::NAME]
         );
     }
 
@@ -1130,7 +1128,7 @@ mod tests {
         assert!(result.is_ok());
         assert_eq!(
             *events.lock().unwrap(),
-            [BOOKS_CHANGED_EVENT, READING_HISTORY_CHANGED_EVENT]
+            [BooksChanged::NAME, ReadingHistoryChanged::NAME]
         );
     }
 
@@ -1308,7 +1306,7 @@ mod tests {
         let result = register_book(path, app.state(), app.handle().clone(), app.state()).await;
 
         assert_eq!(result.unwrap(), 1);
-        assert_eq!(*events.lock().unwrap(), [BOOKS_CHANGED_EVENT]);
+        assert_eq!(*events.lock().unwrap(), [BooksChanged::NAME]);
     }
 
     #[tokio::test]
@@ -1477,7 +1475,7 @@ mod tests {
         assert_eq!(book.reading_direction, Some(Direction::Rtl));
         assert_eq!(
             *events.lock().unwrap(),
-            [BOOKS_CHANGED_EVENT, READING_HISTORY_CHANGED_EVENT]
+            [BooksChanged::NAME, ReadingHistoryChanged::NAME]
         );
     }
 

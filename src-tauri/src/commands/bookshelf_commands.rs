@@ -1,8 +1,7 @@
 use std::sync::Arc;
-use tauri::Emitter;
 use tauri::State;
 
-use crate::commands::library_events::{BOOKSHELVES_CHANGED_EVENT, BOOKS_CHANGED_EVENT};
+use crate::commands::events::{emit, BooksChanged, BookshelvesChanged};
 use crate::domain::bookshelf::entity::Bookshelf;
 use crate::domain::bookshelf::repository::BookshelfRepository;
 use crate::error::Result;
@@ -33,7 +32,7 @@ pub async fn create_bookshelf<R: tauri::Runtime>(
 ) -> Result<Bookshelf> {
     log::debug!("Create bookshelf. (name:{}, icon_id:{})", name, icon_id);
     let shelf = repo.create(&name, &icon_id).await?;
-    app.emit(BOOKSHELVES_CHANGED_EVENT, ())?;
+    emit(&app, &BookshelvesChanged)?;
     Ok(shelf)
 }
 
@@ -86,7 +85,7 @@ pub async fn add_book_to_bookshelf<R: tauri::Runtime>(
         book_id
     );
     repo.add_book_to_bookshelf(bookshelf_id, book_id).await?;
-    app.emit(BOOKS_CHANGED_EVENT, ())?;
+    emit(&app, &BooksChanged)?;
     Ok(())
 }
 
@@ -116,7 +115,7 @@ pub async fn remove_book_from_bookshelf<R: tauri::Runtime>(
     );
     repo.remove_book_from_bookshelf(bookshelf_id, book_id)
         .await?;
-    app.emit(BOOKS_CHANGED_EVENT, ())?;
+    emit(&app, &BooksChanged)?;
     Ok(())
 }
 
@@ -170,7 +169,7 @@ pub async fn set_bookshelves_for_book<R: tauri::Runtime>(
     );
     repo.set_bookshelves_for_book(book_id, &bookshelf_ids)
         .await?;
-    app.emit(BOOKS_CHANGED_EVENT, ())?;
+    emit(&app, &BooksChanged)?;
     Ok(())
 }
 
@@ -193,17 +192,18 @@ pub async fn delete_bookshelf<R: tauri::Runtime>(
 ) -> Result<()> {
     log::debug!("Delete bookshelf. (id:{})", id);
     repo.delete(id).await?;
-    app.emit(BOOKSHELVES_CHANGED_EVENT, ())?;
+    emit(&app, &BookshelvesChanged)?;
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::commands::library_events::test_support::record_events;
+    use crate::commands::events::test_support::record_events;
     use crate::domain::bookshelf::repository::MockBookshelfRepository;
     use crate::error::ErrorCode;
     use tauri::Manager;
+    use tauri_specta::Event;
 
     #[tokio::test]
     async fn test_create_bookshelf() {
@@ -237,7 +237,7 @@ mod tests {
         )
         .await;
         assert!(result.is_ok());
-        assert_eq!(*events.lock().unwrap(), [BOOKSHELVES_CHANGED_EVENT]);
+        assert_eq!(*events.lock().unwrap(), [BookshelvesChanged::NAME]);
         let shelf = result.unwrap();
         assert_eq!(shelf.id, 1);
         assert_eq!(shelf.name, "shelf1");
@@ -296,7 +296,7 @@ mod tests {
 
         let result = add_book_to_bookshelf(1, 2, state, app.handle().clone()).await;
         assert!(result.is_ok());
-        assert_eq!(*events.lock().unwrap(), [BOOKS_CHANGED_EVENT]);
+        assert_eq!(*events.lock().unwrap(), [BooksChanged::NAME]);
     }
 
     #[tokio::test]
@@ -315,7 +315,7 @@ mod tests {
 
         let result = remove_book_from_bookshelf(1, 2, state, app.handle().clone()).await;
         assert!(result.is_ok());
-        assert_eq!(*events.lock().unwrap(), [BOOKS_CHANGED_EVENT]);
+        assert_eq!(*events.lock().unwrap(), [BooksChanged::NAME]);
     }
 
     #[tokio::test]
@@ -351,7 +351,7 @@ mod tests {
 
         let result = set_bookshelves_for_book(1, vec![2, 3], state, app.handle().clone()).await;
         assert!(result.is_ok());
-        assert_eq!(*events.lock().unwrap(), [BOOKS_CHANGED_EVENT]);
+        assert_eq!(*events.lock().unwrap(), [BooksChanged::NAME]);
     }
 
     #[tokio::test]
@@ -370,7 +370,7 @@ mod tests {
 
         let result = delete_bookshelf(1, state, app.handle().clone()).await;
         assert!(result.is_ok());
-        assert_eq!(*events.lock().unwrap(), [BOOKSHELVES_CHANGED_EVENT]);
+        assert_eq!(*events.lock().unwrap(), [BookshelvesChanged::NAME]);
     }
 
     #[tokio::test]
