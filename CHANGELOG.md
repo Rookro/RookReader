@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * The collections a book is already in are checked; unchecking one takes the book out of it.
   * With several books selected, a collection that only some of them are in is shown as partly checked and left as it is on each book.
 * Clearing **PDF rendering height (px)** now restores its default, like the other number settings. (#384)
+* Updated the dependencies, including the bundled PDFium engine that renders PDF pages. (#386)
 
 ### Fixed
 
