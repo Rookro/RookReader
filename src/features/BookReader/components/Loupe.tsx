@@ -20,10 +20,10 @@ export interface LoupeProps {
   loupePos: { x: number; y: number };
   /** A React ref pointing to the container element over which the loupe moves. */
   containerRef: RefObject<HTMLDivElement | null>;
-  /** The magnification factor (zoom level). Defaults to 2. */
-  zoom?: number;
-  /** The radius of the circular loupe lens in pixels. Defaults to 200. */
-  radius?: number;
+  /** The magnification factor (zoom level). */
+  zoom: number;
+  /** The radius of the circular loupe lens in pixels. */
+  radius: number;
 }
 
 /**
@@ -38,8 +38,8 @@ export default function Loupe({
   isLoupeEnabled,
   loupePos,
   containerRef,
-  zoom = 2,
-  radius = 200,
+  zoom,
+  radius,
 }: LoupeProps) {
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
 

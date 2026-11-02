@@ -1,9 +1,8 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import { createTag, deleteTag, getAllTags, setTagsForBook } from "../../bindings/TagCommands";
 import type { Tag } from "../../domain/entities";
-import { handleThunkError } from "../../store/thunkErrorHandler";
-import { createAppAsyncThunk } from "../../types/CustomAsyncThunk";
-import type { ErrorCode } from "../../types/Error";
+import { recordThunkError } from "../../store/thunkErrorHandler";
+import { createCommandThunk, type ThunkRejectValue } from "../../types/CustomAsyncThunk";
 
 /**
  * Creates a new tag and adds it to the database.
@@ -13,19 +12,10 @@ import type { ErrorCode } from "../../types/Error";
  * @param params.color_code - The hex color code associated with the tag.
  * @returns A thunk that resolves to the newly created Tag object.
  */
-export const addTag = createAppAsyncThunk(
+export const addTag = createCommandThunk(
   "tag/addTag",
-  async ({ name, color_code }: { name: string; color_code: string }, { rejectWithValue }) => {
-    try {
-      return await createTag(name, color_code);
-    } catch (e) {
-      return handleThunkError(
-        e,
-        `Failed to add tag(name: ${name}, color_code: ${color_code}).`,
-        rejectWithValue,
-      );
-    }
-  },
+  ({ name, color_code }: { name: string; color_code: string }) => createTag(name, color_code),
+  ({ name, color_code }) => `Failed to add tag(name: ${name}, color_code: ${color_code}).`,
 );
 
 /**
@@ -33,13 +23,11 @@ export const addTag = createAppAsyncThunk(
  *
  * @returns A thunk that resolves to an array of all Tag objects.
  */
-export const fetchTags = createAppAsyncThunk("tag/fetchTags", async (_, { rejectWithValue }) => {
-  try {
-    return await getAllTags();
-  } catch (e) {
-    return handleThunkError(e, "Failed to fetch all available tags.", rejectWithValue);
-  }
-});
+export const fetchTags = createCommandThunk(
+  "tag/fetchTags",
+  () => getAllTags(),
+  () => "Failed to fetch all available tags.",
+);
 
 /**
  * Deletes a tag and refetches all tags.
@@ -47,16 +35,13 @@ export const fetchTags = createAppAsyncThunk("tag/fetchTags", async (_, { reject
  * @param id - The ID of the tag to delete.
  * @returns A thunk that resolves when the tag is deleted.
  */
-export const removeTag = createAppAsyncThunk(
+export const removeTag = createCommandThunk(
   "tag/removeTag",
-  async (id: number, { rejectWithValue }) => {
-    try {
-      await deleteTag(id);
-      return id;
-    } catch (e) {
-      return handleThunkError(e, `Failed to remove tag(id: ${id}).`, rejectWithValue);
-    }
+  async (id: number) => {
+    await deleteTag(id);
+    return id;
   },
+  (id) => `Failed to remove tag(id: ${id}).`,
 );
 
 /**
@@ -65,15 +50,12 @@ export const removeTag = createAppAsyncThunk(
  * @param updates - Each book with its complete new tag set.
  * @returns A thunk that resolves when every book is updated.
  */
-export const updateBooksTags = createAppAsyncThunk(
+export const updateBooksTags = createCommandThunk(
   "tag/updateBooksTags",
-  async (updates: { bookId: number; tagIds: number[] }[], { rejectWithValue }) => {
-    try {
-      await Promise.all(updates.map(({ bookId, tagIds }) => setTagsForBook(bookId, tagIds)));
-    } catch (e) {
-      return handleThunkError(e, "Failed to update book tags.", rejectWithValue);
-    }
+  async (updates: { bookId: number; tagIds: number[] }[]) => {
+    await Promise.all(updates.map(({ bookId, tagIds }) => setTagsForBook(bookId, tagIds)));
   },
+  () => "Failed to update book tags.",
 );
 
 const tagSlice = createSlice({
@@ -82,7 +64,7 @@ const tagSlice = createSlice({
     tags: [] as Tag[],
     selectedId: null as number | null,
     status: "idle" as "idle" | "loading" | "succeeded" | "failed",
-    error: null as { code: ErrorCode; message?: string } | null,
+    error: null as ThunkRejectValue | null,
   },
   reducers: {
     /**
@@ -146,9 +128,7 @@ const tagSlice = createSlice({
       })
       // Only the error: a mutation must not flip `status` to "loading", which would
       // blank the grid behind the open dialog.
-      .addCase(updateBooksTags.rejected, (state, action) => {
-        state.error = action.payload ?? null;
-      });
+      .addCase(updateBooksTags.rejected, recordThunkError);
   },
 });
 

@@ -105,7 +105,7 @@ export default function ComicReader() {
     useAdjacentBookNavigation();
 
   const { isLoupeEnabled, loupePos, containerRef, handleMouseMove, handleMouseDown } = useLoupe(
-    readerSettings.comic.loupe?.toggleKey,
+    readerSettings.comic.loupe.toggleKey,
   );
   const displaySize = useDisplaySize(containerRef);
 
@@ -241,8 +241,8 @@ export default function ComicReader() {
         isLoupeEnabled={isLoupeEnabled}
         loupePos={loupePos}
         containerRef={containerRef}
-        zoom={loupeSettings?.zoom}
-        radius={loupeSettings?.radius}
+        zoom={loupeSettings.zoom}
+        radius={loupeSettings.radius}
         magnified={
           // A page whose full-size copy has not arrived falls back to the displayed one:
           // softer under the lens, never blank.

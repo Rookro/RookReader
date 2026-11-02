@@ -21,8 +21,8 @@ import { useTranslation } from "react-i18next";
 import { getBooksBySeries } from "../../../../bindings/SeriesCommands";
 import type { BookWithState } from "../../../../domain/entities";
 import { useAppDispatch } from "../../../../store/store";
+import { sortBySeriesOrder } from "../../../../utils/BookSortUtils";
 import { updateSeriesOrdersThunk } from "../../seriesSlice";
-import { sortBySeriesOrder } from "../../utils/BookshelfUtils";
 import SortableBookItem from "./SortableBookItem";
 
 /** Props for the EditSeriesOrderDialog component. */

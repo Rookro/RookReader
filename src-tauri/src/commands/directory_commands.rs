@@ -480,4 +480,27 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn push_entry_matches_the_shared_fixture() {
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../src/test/fixtures/binaryPayloads.json"
+        )))
+        .unwrap();
+        let dir_entries = &fixture["dirEntries"];
+        let expected: Vec<u8> = serde_json::from_value(dir_entries["bytes"].clone()).unwrap();
+
+        let mut buffer = Vec::new();
+        for entry in dir_entries["entries"].as_array().unwrap() {
+            push_entry(
+                &mut buffer,
+                entry["is_directory"].as_bool().unwrap(),
+                entry["name"].as_str().unwrap(),
+                entry["last_modified"].as_u64().unwrap(),
+            );
+        }
+
+        assert_eq!(buffer, expected);
+    }
 }

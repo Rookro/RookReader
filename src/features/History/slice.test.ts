@@ -3,6 +3,7 @@ import * as BookCommands from "../../bindings/BookCommands";
 import { readingProgressChanged } from "../../store/actions";
 import { createMockReadBook } from "../../test/factories";
 import { type AppStore, createTestStore } from "../../test/utils";
+import type { ThunkRejectValue } from "../../types/CustomAsyncThunk";
 import { ErrorCode } from "../../types/Error";
 import historyReducer, {
   clearAllHistory,
@@ -17,7 +18,7 @@ describe("HistoryReducer", () => {
   const initialState = {
     recentlyReadBooks: [],
     status: "idle" as const,
-    error: null as { code: ErrorCode; message?: string } | null,
+    error: null as ThunkRejectValue | null,
   };
 
   beforeEach(() => {

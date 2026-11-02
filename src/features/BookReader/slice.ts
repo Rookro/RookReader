@@ -11,7 +11,7 @@ import { openContainer, requestPreloadAround } from "../../bindings/ContainerCom
 import type { BookWithState } from "../../domain/entities";
 import { handleThunkError } from "../../store/thunkErrorHandler";
 import type { Direction } from "../../types/AppSettings";
-import { createAppAsyncThunk } from "../../types/CustomAsyncThunk";
+import { createAppAsyncThunk, type ThunkRejectValue } from "../../types/CustomAsyncThunk";
 import { CommandError, createCommandError, ErrorCode } from "../../types/Error";
 import { updateExploreBasePath } from "./fileNavigatorSlice";
 import type { OpenOrigin } from "./types/OpenOrigin";
@@ -49,9 +49,8 @@ export const openContainerFile = createAppAsyncThunk(
 
       debug(`Update container history: ${path}`);
       // The container is already open here. Failing to remember it in the library is
-      // worth telling the user about, but it is not "the book could not be opened":
-      // reporting it that way threw the entries away and left the reader empty on a
-      // book that had in fact opened.
+      // worth telling the user about, but it is not "the book could not be opened", so it
+      // is reported apart and the entries are kept.
       let book: BookWithState | null = null;
       let bookRecordError: { code: ErrorCode; message?: string } | null = null;
       try {
@@ -198,7 +197,7 @@ const initialState = {
    */
   novelDirection: null as Direction | null,
   isLoading: false,
-  error: null as { code: ErrorCode; message?: string } | null,
+  error: null as ThunkRejectValue | null,
   /**
    * Why remembering the opened book in the library failed, if it did. Kept apart
    * from `error`: the book itself is on screen, only its history entry is missing.
@@ -417,9 +416,9 @@ export const readerSlice = createSlice({
           // view.init({ lastLocation }) on mount. Comics never carry a CFI.
           state.cfi = action.payload.isNovel ? (action.payload.book?.cfi ?? null) : null;
         }
-        // The reader's own correction to how this book pairs, restored with the book. It
-        // used to be inferred from whether the restored page happened to be a spread
-        // boundary, which made where they stopped reading decide how the book pairs.
+        // The reader's own correction to how this book pairs, restored with the book rather
+        // than inferred from the restored page, so where they stopped reading does not
+        // decide the pairing.
         state.isSpreadShifted = action.payload.book?.is_spread_shifted ?? false;
         state.readingDirection = action.payload.readingDirection;
         state.pendingInitialPosition = null;

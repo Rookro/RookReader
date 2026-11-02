@@ -8,6 +8,7 @@ import type { BookWithState, Collection, Series, Tag } from "../../domain/entiti
 import { readingProgressChanged } from "../../store/actions";
 import { createMockBookWithState, createMockCollection, createMockTag } from "../../test/factories";
 import { type AppStore, createBasePreloadedState, createTestStore } from "../../test/utils";
+import type { ThunkRejectValue } from "../../types/CustomAsyncThunk";
 import { CommandError, ErrorCode } from "../../types/Error";
 import seriesReducer, {
   addSeries,
@@ -52,7 +53,7 @@ describe("CollectionReducer", () => {
     booksRequestId: null as string | null,
     isRefreshing: false,
     status: "idle" as "idle" | "loading" | "succeeded" | "failed",
-    error: null as { code: ErrorCode; message?: string } | null,
+    error: null as ThunkRejectValue | null,
   };
 
   beforeEach(() => {
@@ -385,7 +386,7 @@ describe("CollectionReducer", () => {
       });
 
       // Verify that selecting a collection updates selectedId (the fetch is driven
-      // separately by the useHistorySync effect that watches selectedId).
+      // separately by the useLibrarySync effect that watches selectedId).
       it("setSelectedCollection should update selectedId", () => {
         const selected = collectionReducer(collectionInitialState, setSelectedCollection(3));
         expect(selected.selectedId).toBe(3);
@@ -604,7 +605,7 @@ describe("TagReducer", () => {
     tags: [] as Tag[],
     selectedId: null as number | null,
     status: "idle" as const,
-    error: null as { code: ErrorCode; message?: string } | null,
+    error: null as ThunkRejectValue | null,
   };
 
   beforeEach(() => {
@@ -800,7 +801,7 @@ describe("SeriesReducer", () => {
     selectedId: null as number | null,
     books: [] as BookWithState[],
     status: "idle" as const,
-    error: null as { code: ErrorCode; message?: string } | null,
+    error: null as ThunkRejectValue | null,
   };
 
   beforeEach(() => {

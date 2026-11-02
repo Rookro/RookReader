@@ -6,16 +6,17 @@ import { useAppDispatch, useAppSelector } from "../../../store/store";
 import { fetchSeries } from "../../Bookshelf/seriesSlice";
 import { fetchBooksInSelectedCollection, fetchCollections } from "../../Bookshelf/slice";
 import { fetchTags } from "../../Bookshelf/tagSlice";
-import { fetchRecentlyReadBooks } from "../slice";
+import { fetchRecentlyReadBooks } from "../../History/slice";
 
 /**
- * A custom hook to synchronize history and bookshelf data across the application.
+ * Loads the library (collections, tags, series, the selected collection's books and the reading
+ * history) and keeps it in step with the backend's change events.
  *
  * This hook performs the initial data load and listens for the backend's change events. Each
  * '*-changed' event names one list, and only that list is refetched; the finer
  * 'reading-progress-changed' (a page turn) patches the affected book in place instead.
  */
-export const useHistorySync = () => {
+export const useLibrarySync = () => {
   const dispatch = useAppDispatch();
   const selectedCollectionId = useAppSelector((state) => state.collection.selectedId);
   const recordReadingHistory = useAppSelector(

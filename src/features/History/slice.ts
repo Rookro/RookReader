@@ -6,24 +6,17 @@ import {
 } from "../../bindings/BookCommands";
 import type { ReadBook } from "../../domain/entities";
 import { readingProgressChanged } from "../../store/actions";
-import { handleThunkError } from "../../store/thunkErrorHandler";
-import { createAppAsyncThunk } from "../../types/CustomAsyncThunk";
-import type { ErrorCode } from "../../types/Error";
+import { createCommandThunk, type ThunkRejectValue } from "../../types/CustomAsyncThunk";
 
 /**
  * Fetches the list of recently read books from the database.
  *
  * @returns A thunk that resolves to an array of ReadBook objects.
  */
-export const fetchRecentlyReadBooks = createAppAsyncThunk(
+export const fetchRecentlyReadBooks = createCommandThunk(
   "history/fetchRecentlyReadBooks",
-  async (_, { rejectWithValue }) => {
-    try {
-      return await getRecentlyReadBooks();
-    } catch (e) {
-      return handleThunkError(e, "Failed to fetch recently read books.", rejectWithValue);
-    }
-  },
+  () => getRecentlyReadBooks(),
+  () => "Failed to fetch recently read books.",
 );
 
 /**
@@ -32,15 +25,12 @@ export const fetchRecentlyReadBooks = createAppAsyncThunk(
  * @param bookId - The ID of the book whose history should be cleared.
  * @returns A thunk that resolves to the updated list of recently read books.
  */
-export const clearHistory = createAppAsyncThunk(
+export const clearHistory = createCommandThunk(
   "history/clearHistory",
-  async (bookId: number, { rejectWithValue }) => {
-    try {
-      await clearReadingHistory(bookId);
-    } catch (e) {
-      return handleThunkError(e, `Failed to clear history of ${bookId}.`, rejectWithValue);
-    }
+  async (bookId: number) => {
+    await clearReadingHistory(bookId);
   },
+  (bookId) => `Failed to clear history of ${bookId}.`,
 );
 
 /**
@@ -48,15 +38,12 @@ export const clearHistory = createAppAsyncThunk(
  *
  * @returns A thunk that resolves when the history is successfully cleared.
  */
-export const clearAllHistory = createAppAsyncThunk(
+export const clearAllHistory = createCommandThunk(
   "history/clearAllHistory",
-  async (_, { rejectWithValue }) => {
-    try {
-      await clearAllReadingHistory();
-    } catch (e) {
-      return handleThunkError(e, "Failed to clear all history.", rejectWithValue);
-    }
+  async () => {
+    await clearAllReadingHistory();
   },
+  () => "Failed to clear all history.",
 );
 
 const historySlice = createSlice({
@@ -64,7 +51,7 @@ const historySlice = createSlice({
   initialState: {
     recentlyReadBooks: [] as ReadBook[],
     status: "idle" as "idle" | "loading" | "succeeded" | "failed",
-    error: null as { code: ErrorCode; message?: string } | null,
+    error: null as ThunkRejectValue | null,
   },
   reducers: {
     /**

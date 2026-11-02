@@ -969,26 +969,27 @@ mod tests {
     }
 
     #[test]
-    fn image_response_frames_width_and_height_before_the_bytes() {
-        let image = Image {
-            data: vec![0xAA, 0xBB, 0xCC],
-            width: 800,
-            height: 600,
-        };
+    fn image_response_matches_the_shared_fixture() {
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../src/test/fixtures/binaryPayloads.json"
+        )))
+        .unwrap();
+        let image = &fixture["image"];
+        let data: Vec<u8> = serde_json::from_value(image["data"].clone()).unwrap();
+        let expected: Vec<u8> = serde_json::from_value(image["bytes"].clone()).unwrap();
 
-        let body = match image_response(&image).body().unwrap() {
+        let response = image_response(&Image {
+            data,
+            width: image["width"].as_u64().unwrap() as u32,
+            height: image["height"].as_u64().unwrap() as u32,
+        });
+
+        let body = match response.body().unwrap() {
             Raw(bytes) => bytes,
             _ => panic!("Unexpected response body type"),
         };
-        assert_eq!(
-            u32::from_be_bytes([body[0], body[1], body[2], body[3]]),
-            800
-        );
-        assert_eq!(
-            u32::from_be_bytes([body[4], body[5], body[6], body[7]]),
-            600
-        );
-        assert_eq!(&body[8..], &[0xAA, 0xBB, 0xCC]);
+        assert_eq!(body, expected);
     }
 
     /// A novel container as `manage_service` needs it: no pages, one reader at most.

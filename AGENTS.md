@@ -30,7 +30,7 @@ Locally, the `sqlx` macros check queries against `src-tauri/rook-reader.db` (`DA
 **TypeScript**
 - No `any`.
 - Log with `@tauri-apps/plugin-log`, not `console.*`, so messages reach the app's log file.
-- Global state (reading history, bookshelf, …) lives in Redux Toolkit slices and `createAsyncThunk`; component-only UI state uses `useState` / `useReducer`.
+- Global state (reading history, bookshelf, …) lives in Redux Toolkit slices, and thunks that call commands are built with `createCommandThunk` (`src/types/CustomAsyncThunk.ts`); component-only UI state uses `useState` / `useReducer`.
 - Style with MUI components and the `sx` prop, following the theme in `src/hooks/useAppTheme.ts`.
 - User-facing strings go through `react-i18next`; add every new key to both `src/i18n/locales/en-US.json` and `ja-JP.json`.
 - Frontend system access uses official Tauri v2 plugins (`@tauri-apps/plugin-fs`, `@tauri-apps/plugin-dialog`, …), not the legacy core APIs.
@@ -56,7 +56,7 @@ Write all code comments and documentation in English.
 
 1. Put the logic in Rust (`src-tauri/src/domain/`, `infrastructure/database/`, `container/`, …).
 2. Expose it from `src-tauri/src/commands/` with `#[tauri::command]` + `#[specta::specta]`.
-3. Register it in `specta_builder()`'s `collect_commands!` in `src-tauri/src/lib.rs`. Commands returning a raw `tauri::ipc::Response` (binary payloads) go in the separate `generate_handler!` there instead and keep a raw `invoke` on the frontend.
+3. Register it in `specta_builder()`'s `collect_commands!` in `src-tauri/src/lib.rs`. Commands returning a raw `tauri::ipc::Response` (binary payloads) go in the `binary_commands!` list there instead and are called on the frontend through `runBinaryCommand` in `src/bindings/result.ts`.
 4. Run `npm run gen:bindings`.
 5. Add or update the thin wrapper in `src/bindings/*Commands.ts` that delegates to the generated `commands.*`. Entity results already have their generated types; when a new entity is added, alias its `_Serialize` type in `src/domain/entities.ts`.
 6. Call the wrapper from a Redux thunk or a hook.
