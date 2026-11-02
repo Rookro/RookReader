@@ -8,6 +8,15 @@ import BookCard from "./BookCard";
 import { BookSelectionProvider } from "./BookSelectionContext";
 import { BookshelfActionsContext } from "./BookshelfActionsContext";
 
+function SelectionSeeder() {
+  const { setSelection } = useBookSelection();
+  return (
+    <button type="button" onClick={() => setSelection(new Set([1, 2]))}>
+      seed-selection
+    </button>
+  );
+}
+
 describe("BookCard", () => {
   const user = userEvent.setup();
 
@@ -108,21 +117,12 @@ describe("BookCard", () => {
     const openDialog = vi.fn();
     const getSelectedBooks = vi.fn(() => [bookA, bookB]);
 
-    const Seeder = () => {
-      const { setSelection } = useBookSelection();
-      return (
-        <button type="button" onClick={() => setSelection(new Set([1, 2]))}>
-          seed-selection
-        </button>
-      );
-    };
-
     renderWithProviders(
       <BookshelfActionsContext.Provider
         value={{ openDialog, openEditSeriesOrderDialog: vi.fn(), getSelectedBooks }}
       >
         <BookSelectionProvider>
-          <Seeder />
+          <SelectionSeeder />
           <BookCard {...defaultProps} book={bookA} />
         </BookSelectionProvider>
       </BookshelfActionsContext.Provider>,

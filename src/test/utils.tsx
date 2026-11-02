@@ -151,6 +151,7 @@ export function createTestWrapper({
   preloadedState = {},
   store = createTestStore(preloadedState),
 }: Pick<ExtendedRenderOptions, "preloadedState" | "store"> = {}) {
+  // biome-ignore lint/correctness/noComponentHookFactories: the wrapper closes over the per-test store
   return function Wrapper({ children }: { children: React.ReactNode }): ReactElement {
     return (
       <Provider store={store}>
