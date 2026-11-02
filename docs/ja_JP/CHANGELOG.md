@@ -9,6 +9,8 @@
 
 ## [Unreleased]
 
+## [2.7.0] - 2026-11-02
+
 ### Added
 
 * 「タグを設定」と「コレクションを設定」のダイアログから、新しいタグやコレクションを作成できるように変更 (#376)
@@ -658,7 +660,8 @@
 * 自動見開き表示機能の追加 (#4)
 * ホイールの上下によるページ送り機能を追加 (#5)
 
-[unreleased]: https://github.com/Rookro/RookReader/compare/v2.6.1...HEAD
+[unreleased]: https://github.com/Rookro/RookReader/compare/v2.7.0...HEAD
+[2.7.0]: https://github.com/Rookro/RookReader/compare/v2.6.1...v2.7.0
 [2.6.1]: https://github.com/Rookro/RookReader/compare/v2.6.0...v2.6.1
 [2.6.0]: https://github.com/Rookro/RookReader/compare/v2.5.0...v2.6.0
 [2.5.0]: https://github.com/Rookro/RookReader/compare/v2.4.0...v2.5.0
