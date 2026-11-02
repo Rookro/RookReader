@@ -18,11 +18,11 @@ import { Button, Dialog, DialogActions, DialogContent, DialogTitle, List } from 
 import { error as logError } from "@tauri-apps/plugin-log";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getBooksWithStateBySeriesId } from "../../../../bindings/BookCommands";
-import type { BookWithState } from "../../../../domain/book/schema";
+import { getBooksBySeries } from "../../../../bindings/SeriesCommands";
+import type { BookWithState } from "../../../../domain/entities";
 import { useAppDispatch } from "../../../../store/store";
+import { sortBySeriesOrder } from "../../../../utils/BookSortUtils";
 import { updateSeriesOrdersThunk } from "../../seriesSlice";
-import { sortBySeriesOrder } from "../../utils/BookshelfUtils";
 import SortableBookItem from "./SortableBookItem";
 
 /** Props for the EditSeriesOrderDialog component. */
@@ -60,7 +60,7 @@ export default function EditSeriesOrderDialog({
     }
     setOrderedBooks(null);
     let stale = false;
-    getBooksWithStateBySeriesId(seriesId)
+    getBooksBySeries(seriesId)
       .then((books) => {
         if (!stale) setOrderedBooks([...books].sort(sortBySeriesOrder));
       })

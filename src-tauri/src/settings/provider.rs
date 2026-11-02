@@ -71,6 +71,16 @@ impl SettingsFileProvider {
         })
     }
 
+    /// Builds a provider for the file at `path`, bypassing `new`, which needs a running
+    /// Tauri app to resolve the data directory.
+    #[cfg(test)]
+    pub(crate) fn at_path(path: PathBuf) -> Self {
+        Self {
+            path,
+            home_dir: "/mock/home".to_string(),
+        }
+    }
+
     /// Renames the settings file to its `.broken` name when it exists but is not valid
     /// JSON, so the save that follows does not destroy it.
     ///
@@ -145,13 +155,8 @@ mod tests {
     use super::*;
     use crate::settings::{AppSettings, AppTheme, InitialView};
 
-    /// Builds a `SettingsFileProvider` pointing at the given path (bypasses
-    /// `new`, which needs a running Tauri app to resolve the data directory).
     fn provider_at(path: PathBuf) -> SettingsFileProvider {
-        SettingsFileProvider {
-            path,
-            home_dir: "/mock/home".to_string(),
-        }
+        SettingsFileProvider::at_path(path)
     }
 
     /// Returns true if a staging temp file (`*.json.tmp.*`) remains in `dir`.

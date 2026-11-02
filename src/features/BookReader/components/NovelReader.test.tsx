@@ -45,9 +45,9 @@ vi.mock("../slice", async () => {
   const actual = await vi.importActual("../slice");
   return {
     ...actual,
-    setEntries: vi.fn((payload: string[]) => ({ type: "read/setEntries", payload })),
+    setEntries: vi.fn((payload: string[]) => ({ type: "reader/setEntries", payload })),
     setNovelLocation: vi.fn((payload: { index: number; cfi: string }) => ({
-      type: "read/setNovelLocation",
+      type: "reader/setNovelLocation",
       payload,
     })),
   };
@@ -56,8 +56,8 @@ vi.mock("../slice", async () => {
 describe("BookReader/NovelReader", () => {
   const mockFilePath = "/path/to/novel.epub";
   const defaultPreloadedState = createBasePreloadedState();
-  defaultPreloadedState.read.containerFile = {
-    ...defaultPreloadedState.read.containerFile,
+  defaultPreloadedState.reader = {
+    ...defaultPreloadedState.reader,
     history: [mockFilePath],
     historyIndex: 0,
     index: 0,
@@ -232,10 +232,7 @@ describe("BookReader/NovelReader", () => {
   it("should display specific cfi if provided in state", async () => {
     const cfiState = {
       ...defaultPreloadedState,
-      read: {
-        ...defaultPreloadedState.read,
-        containerFile: { ...defaultPreloadedState.read.containerFile, cfi: "epubcfi(target)" },
-      },
+      reader: { ...defaultPreloadedState.reader, cfi: "epubcfi(target)" },
     };
 
     renderWithProviders(<NovelReader filePath={mockFilePath} />, { preloadedState: cfiState });

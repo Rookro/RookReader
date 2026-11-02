@@ -1,14 +1,12 @@
 import { basename, dirname, join } from "@tauri-apps/api/path";
-import {
-  getAllBooksWithState,
-  getBooksWithStateByBookshelfId,
-  getBooksWithStateBySeriesId,
-} from "../../../bindings/BookCommands";
+import { getAllBooksWithState } from "../../../bindings/BookCommands";
+import { getBooksByCollection } from "../../../bindings/CollectionCommands";
 import { getEntriesInDir } from "../../../bindings/DirectoryCommands";
-import type { BookWithState } from "../../../domain/book/schema";
+import { getBooksBySeries } from "../../../bindings/SeriesCommands";
+import type { BookWithState } from "../../../domain/entities";
 import type { SortOrder } from "../../../types/AppSettings";
+import { sortBooks, sortBySeriesOrder } from "../../../utils/BookSortUtils";
 import { convertEntriesInDir } from "../../../utils/DirEntryUtils";
-import { sortBy as sortBooks, sortBySeriesOrder } from "../../Bookshelf/utils/BookshelfUtils";
 import type { OpenOrigin } from "../types/OpenOrigin";
 import { sortBy as sortDirEntries } from "./FileNavigatorUtils";
 
@@ -46,7 +44,7 @@ const adjacentInSeries = async (
   if (book.series_id == null) {
     return null;
   }
-  const books = [...(await getBooksWithStateBySeriesId(book.series_id))].sort(sortBySeriesOrder);
+  const books = [...(await getBooksBySeries(book.series_id))].sort(sortBySeriesOrder);
   const idx = books.findIndex((b) => b.id === book.id);
   const target = pickAdjacent(books, idx, dir);
   return target ? { filePath: target.file_path, displayName: target.display_name } : null;
@@ -62,9 +60,9 @@ const adjacentInBookshelf = async (
   dir: Direction,
 ): Promise<AdjacentBook | null> => {
   const books =
-    origin.bookshelfId === null
+    origin.collectionId === null
       ? await getAllBooksWithState()
-      : await getBooksWithStateByBookshelfId(origin.bookshelfId);
+      : await getBooksByCollection(origin.collectionId);
   const sorted = [...books].sort((a, b) => sortBooks(a, b, origin.sortOrder));
   const idx = sorted.findIndex((b) => b.file_path === currentPath);
   const target = pickAdjacent(sorted, idx, dir);

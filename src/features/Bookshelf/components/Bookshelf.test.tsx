@@ -3,12 +3,12 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { JSX } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { BookWithState } from "../../../domain/book/schema";
+import type { BookWithState } from "../../../domain/entities";
 import { createMockBookWithState } from "../../../test/factories";
 import { createBasePreloadedState, renderWithProviders } from "../../../test/utils";
 import * as ReadReducer from "../../BookReader/slice";
 import * as ViewReducer from "../../MainView/slice";
-import * as BookCollectionReducer from "../slice";
+import * as CollectionReducer from "../slice";
 import * as TagReducer from "../tagSlice";
 import Bookshelf from "./Bookshelf";
 
@@ -33,14 +33,14 @@ vi.mock("./BookGrid", () => {
 
 vi.mock("./MenuList", () => {
   const MenuList = ({
-    onClickAddBookshelf,
+    onClickAddCollection,
     onClickAddBookTag,
   }: {
-    onClickAddBookshelf: () => void;
+    onClickAddCollection: () => void;
     onClickAddBookTag: () => void;
   }): JSX.Element => (
     <div data-testid="menu-list">
-      <button type="button" data-testid="add-shelf-btn" onClick={onClickAddBookshelf}>
+      <button type="button" data-testid="add-shelf-btn" onClick={onClickAddCollection}>
         Add Shelf
       </button>
       <button type="button" data-testid="add-tag-btn" onClick={onClickAddBookTag}>
@@ -52,8 +52,8 @@ vi.mock("./MenuList", () => {
   return { default: MenuList };
 });
 
-vi.mock("./Dialog/CreateBookshelfDialog", () => {
-  const CreateBookshelfDialog = ({
+vi.mock("./Dialog/CreateCollectionDialog", () => {
+  const CreateCollectionDialog = ({
     open,
     onCreate,
   }: {
@@ -61,7 +61,7 @@ vi.mock("./Dialog/CreateBookshelfDialog", () => {
     onCreate: (name: string, icon_id: string) => void;
   }): JSX.Element | null =>
     open ? (
-      <div data-testid="create-bookshelf-dialog">
+      <div data-testid="create-collection-dialog">
         <button
           type="button"
           data-testid="confirm-create-shelf"
@@ -71,8 +71,8 @@ vi.mock("./Dialog/CreateBookshelfDialog", () => {
         </button>
       </div>
     ) : null;
-  CreateBookshelfDialog.displayName = "CreateBookshelfDialog";
-  return { CreateBookshelfDialog };
+  CreateCollectionDialog.displayName = "CreateCollectionDialog";
+  return { CreateCollectionDialog };
 });
 
 vi.mock("./Dialog/CreateBookTagDialog", () => {
@@ -107,12 +107,12 @@ vi.mock("../slice", async () => {
   const actual = await vi.importActual("../slice");
   return {
     ...actual,
-    addBookshelf: vi.fn((payload: { name: string; icon_id: string }) => ({
-      type: "bookCollection/addBookshelf",
+    addCollection: vi.fn((payload: { name: string; icon_id: string }) => ({
+      type: "collection/addCollection",
       payload,
     })),
-    setGridSize: vi.fn((payload: number) => ({ type: "bookCollection/setGridSize", payload })),
-    setSortOrder: vi.fn((payload: string) => ({ type: "bookCollection/setSortOrder", payload })),
+    setGridSize: vi.fn((payload: number) => ({ type: "collection/setGridSize", payload })),
+    setSortOrder: vi.fn((payload: string) => ({ type: "collection/setSortOrder", payload })),
   };
 });
 
@@ -131,7 +131,7 @@ vi.mock("../../BookReader/slice", async () => {
   const actual = await vi.importActual("../../BookReader/slice");
   return {
     ...actual,
-    openBook: vi.fn((payload: unknown) => ({ type: "read/openBook", payload })),
+    openBook: vi.fn((payload: unknown) => ({ type: "reader/openBook", payload })),
   };
 });
 
@@ -174,14 +174,14 @@ describe("Bookshelf", () => {
     expect(screen.getByTestId("book-grid")).toBeInTheDocument();
   });
 
-  it("should open create bookshelf dialog and dispatch addBookshelf", async () => {
+  it("should open create collection dialog and dispatch addCollection", async () => {
     renderWithProviders(<Bookshelf />, { preloadedState: defaultPreloadedState });
 
     await user.click(screen.getByTestId("add-shelf-btn"));
-    expect(screen.getByTestId("create-bookshelf-dialog")).toBeInTheDocument();
+    expect(screen.getByTestId("create-collection-dialog")).toBeInTheDocument();
 
     await user.click(screen.getByTestId("confirm-create-shelf"));
-    expect(BookCollectionReducer.addBookshelf).toHaveBeenCalledWith({
+    expect(CollectionReducer.addCollection).toHaveBeenCalledWith({
       name: "New Shelf",
       icon_id: "icon-1",
     });
@@ -207,7 +207,7 @@ describe("Bookshelf", () => {
 
     expect(ReadReducer.openBook).toHaveBeenCalledWith({
       path: "/test/book.zip",
-      origin: { kind: "bookshelf", bookshelfId: null, sortOrder: "date_desc" },
+      origin: { kind: "bookshelf", collectionId: null, sortOrder: "date_desc" },
     });
     expect(ViewReducer.setActiveView).toHaveBeenCalledWith("reader");
   });

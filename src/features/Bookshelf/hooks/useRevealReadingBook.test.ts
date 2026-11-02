@@ -1,12 +1,12 @@
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import type { BookWithState } from "../../../domain/book/schema";
+import type { BookWithState } from "../../../domain/entities";
 import { createMockBookWithState, createMockSeries } from "../../../test/factories";
 import { createBasePreloadedState, createTestStore, createTestWrapper } from "../../../test/utils";
 import { openContainerFile } from "../../BookReader/slice";
 import { setActiveView } from "../../MainView/slice";
 import { setSelectedSeriesId } from "../seriesSlice";
-import { fetchBooksInSelectedBookshelf, setSelectedBookshelf } from "../slice";
+import { fetchBooksInSelectedCollection, setSelectedCollection } from "../slice";
 import { useRevealReadingBook } from "./useRevealReadingBook";
 
 describe("useRevealReadingBook", () => {
@@ -40,16 +40,16 @@ describe("useRevealReadingBook", () => {
   } = {}) => {
     const state = createBasePreloadedState();
     state.view.activeView = activeView;
-    state.read.containerFile.book = readingBook;
-    state.read.containerFile.history = ["/s/v2.zip"];
-    state.read.containerFile.historyIndex = 0;
-    state.read.containerFile.isLoading = readerLoading;
-    state.bookCollection.books = books;
-    state.bookCollection.status = booksStatus;
-    state.bookCollection.isRefreshing = booksRefreshing;
+    state.reader.book = readingBook;
+    state.reader.history = ["/s/v2.zip"];
+    state.reader.historyIndex = 0;
+    state.reader.isLoading = readerLoading;
+    state.collection.books = books;
+    state.collection.status = booksStatus;
+    state.collection.isRefreshing = booksRefreshing;
     // The request a test's fulfilled action answers.
-    state.bookCollection.booksRequestId = "request-id";
-    state.bookCollection.searchText = searchText;
+    state.collection.booksRequestId = "request-id";
+    state.collection.searchText = searchText;
     state.series.series = [series, otherSeries];
     state.series.status = "succeeded";
     state.series.selectedId = selectedSeriesId;
@@ -69,7 +69,7 @@ describe("useRevealReadingBook", () => {
     const store = setup({ searchText: "Saga" });
 
     expect(store.getState().series.selectedId).toBe(10);
-    expect(store.getState().bookCollection.searchText).toBe("");
+    expect(store.getState().collection.searchText).toBe("");
   });
 
   it("switches from another open series to the reading book's series", () => {
@@ -82,7 +82,7 @@ describe("useRevealReadingBook", () => {
     const store = setup({ readingBook: standalone, selectedSeriesId: 20, searchText: "Stand" });
 
     expect(store.getState().series.selectedId).toBeNull();
-    expect(store.getState().bookCollection.searchText).toBe("Stand");
+    expect(store.getState().collection.searchText).toBe("Stand");
   });
 
   it("leaves the bookshelf alone when the reading book is not in the collection", () => {
@@ -101,7 +101,7 @@ describe("useRevealReadingBook", () => {
     const store = setup({ searchText: "Standalone" });
 
     expect(store.getState().series.selectedId).toBeNull();
-    expect(store.getState().bookCollection.searchText).toBe("Standalone");
+    expect(store.getState().collection.searchText).toBe("Standalone");
   });
 
   // The reader forgets its book while the next one opens; deciding then would miss it
@@ -139,7 +139,7 @@ describe("useRevealReadingBook", () => {
 
     act(() => {
       store.dispatch(
-        fetchBooksInSelectedBookshelf.fulfilled([volume1, volume2], "request-id", null),
+        fetchBooksInSelectedCollection.fulfilled([volume1, volume2], "request-id", null),
       );
     });
 
@@ -158,7 +158,7 @@ describe("useRevealReadingBook", () => {
 
     act(() => {
       store.dispatch(
-        fetchBooksInSelectedBookshelf.fulfilled([volume1, volume2], "request-id", null),
+        fetchBooksInSelectedCollection.fulfilled([volume1, volume2], "request-id", null),
       );
     });
 
@@ -188,10 +188,10 @@ describe("useRevealReadingBook", () => {
     expect(store.getState().series.selectedId).toBe(10);
 
     act(() => {
-      store.dispatch(setSelectedBookshelf(2));
+      store.dispatch(setSelectedCollection(2));
     });
     act(() => {
-      store.dispatch(fetchBooksInSelectedBookshelf.fulfilled([volume1, volume2], "request-id", 2));
+      store.dispatch(fetchBooksInSelectedCollection.fulfilled([volume1, volume2], "request-id", 2));
     });
 
     expect(store.getState().series.selectedId).toBeNull();

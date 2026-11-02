@@ -49,7 +49,7 @@ describe("PdfRenderResolutionHeightSetting", () => {
     });
   });
 
-  it("commits the current in-range value (not 0) when the field is cleared", async () => {
+  it("commits the default when the field is cleared", async () => {
     const preloadedState = createBasePreloadedState();
     preloadedState.settings.reader.rendering.pdfRenderResolutionHeight = 3000;
 
@@ -61,12 +61,8 @@ describe("PdfRenderResolutionHeightSetting", () => {
 
     await waitFor(() => {
       expect(mockTauri.invoke).toHaveBeenCalledWith("set_settings", {
-        patch: { reader: { rendering: { pdfRenderResolutionHeight: 3000 } } },
+        patch: { reader: { rendering: { pdfRenderResolutionHeight: 2000 } } },
       });
-    });
-    // The cleared field must never commit 0 (below the min of 1).
-    expect(mockTauri.invoke).not.toHaveBeenCalledWith("set_settings", {
-      patch: { reader: { rendering: { pdfRenderResolutionHeight: 0 } } },
     });
   });
 

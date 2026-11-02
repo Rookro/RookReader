@@ -1,10 +1,9 @@
+import { type InvokeArgs, invoke } from "@tauri-apps/api/core";
 import { createCommandError } from "../types/Error";
 
 /**
- * The result union returned by the generated `commands.*` wrappers.
- *
- * `tauri-specta` (rc.25) no longer exports a `Result` type alias from `bindings.ts`;
- * its `typedError` helper returns this shape, so we mirror it here.
+ * The result union the generated `commands.*` wrappers return; `bindings.ts` does not export a
+ * name for it.
  */
 export type Result<T, E> = { status: "ok"; data: T } | { status: "error"; error: E };
 
@@ -40,4 +39,21 @@ export async function runCommand<T>(call: Promise<Result<T, unknown>>): Promise<
     throw createCommandError(error);
   }
   return getDataOrThrow(result);
+}
+
+/**
+ * Invokes a command that returns a raw `tauri::ipc::Response`, which has no generated
+ * `commands.*`, normalizing every failure into a `CommandError`.
+ *
+ * @param command - The command's name.
+ * @param args - The command's arguments.
+ * @returns The command's bytes.
+ * @throws CommandError on any failure.
+ */
+export async function runBinaryCommand(command: string, args: InvokeArgs): Promise<ArrayBuffer> {
+  try {
+    return await invoke<ArrayBuffer>(command, args);
+  } catch (error) {
+    throw createCommandError(error);
+  }
 }

@@ -47,7 +47,7 @@ vi.mock("./BookshelfToolbar", () => ({
         <button
           type="button"
           data-testid="context-open-dialog"
-          onClick={() => openDialog("add-to-bookshelf", [])}
+          onClick={() => openDialog("set-collections", [])}
         >
           Context Open
         </button>
@@ -68,14 +68,14 @@ vi.mock("./FloatingActionBar", () => ({
   default: ({
     selectionCount,
     onClear,
-    onAddToBookshelf,
+    onSetCollections,
     onSetTags,
     onSetSeries,
     onDelete,
   }: {
     selectionCount: number;
     onClear: () => void;
-    onAddToBookshelf: () => void;
+    onSetCollections: () => void;
     onSetTags: () => void;
     onSetSeries: () => void;
     onDelete: () => void;
@@ -85,7 +85,7 @@ vi.mock("./FloatingActionBar", () => ({
       <button type="button" onClick={onClear}>
         Clear
       </button>
-      <button type="button" onClick={onAddToBookshelf}>
+      <button type="button" onClick={onSetCollections}>
         Add to Bookshelf
       </button>
       <button type="button" onClick={onSetTags}>
@@ -147,10 +147,10 @@ describe("BookGrid", () => {
         appFontFamily: "sans-serif",
       },
     },
-    bookCollection: {
+    collection: {
       searchText: "",
       books: [],
-      bookshelves: [],
+      collections: [],
       selectedId: 1,
       status: "idle",
       error: null,
@@ -163,10 +163,8 @@ describe("BookGrid", () => {
       series: [],
       selectedId: null,
     },
-    read: {
-      containerFile: {
-        book: null,
-      },
+    reader: {
+      book: null,
     },
     view: {
       activeView: "bookshelf",
@@ -214,8 +212,8 @@ describe("BookGrid", () => {
     vi.mocked(useAppSelector).mockImplementation(<T,>(selector: (state: RootState) => T): T => {
       return selector({
         ...defaultState,
-        bookCollection: {
-          ...defaultState.bookCollection,
+        collection: {
+          ...defaultState.collection,
           status: "loading",
         },
       } as unknown as RootState);
@@ -270,8 +268,8 @@ describe("BookGrid", () => {
     vi.mocked(useAppSelector).mockImplementation(<T,>(selector: (state: RootState) => T): T => {
       return selector({
         ...defaultState,
-        bookCollection: {
-          ...defaultState.bookCollection,
+        collection: {
+          ...defaultState.collection,
           books: [book, seriesBook],
         },
         series: { ...defaultState.series, series: [series] },
@@ -295,8 +293,8 @@ describe("BookGrid", () => {
     vi.mocked(useAppSelector).mockImplementation(<T,>(selector: (state: RootState) => T): T => {
       return selector({
         ...defaultState,
-        bookCollection: {
-          ...defaultState.bookCollection,
+        collection: {
+          ...defaultState.collection,
           searchText: "app",
           books: [book1, book2],
         },
@@ -317,8 +315,8 @@ describe("BookGrid", () => {
     vi.mocked(useAppSelector).mockImplementation(<T,>(selector: (state: RootState) => T): T => {
       return selector({
         ...defaultState,
-        bookCollection: {
-          ...defaultState.bookCollection,
+        collection: {
+          ...defaultState.collection,
           searchText: "nothing",
           books: [],
         },
@@ -361,8 +359,8 @@ describe("BookGrid", () => {
     vi.mocked(useAppSelector).mockImplementation(<T,>(selector: (state: RootState) => T): T => {
       return selector({
         ...defaultState,
-        bookCollection: {
-          ...defaultState.bookCollection,
+        collection: {
+          ...defaultState.collection,
           books: [seriesBook],
         },
         series: { ...defaultState.series, series: [series] },
@@ -383,7 +381,7 @@ describe("BookGrid", () => {
     );
     expect(mockDispatch).toHaveBeenCalledWith(
       expect.objectContaining({
-        type: "bookCollection/setSearchText",
+        type: "collection/setSearchText",
         payload: "",
       }),
     );
@@ -395,8 +393,8 @@ describe("BookGrid", () => {
     vi.mocked(useAppSelector).mockImplementation(<T,>(selector: (state: RootState) => T): T => {
       return selector({
         ...defaultState,
-        bookCollection: {
-          ...defaultState.bookCollection,
+        collection: {
+          ...defaultState.collection,
           books: [book],
         },
       } as unknown as RootState);
@@ -427,8 +425,8 @@ describe("BookGrid", () => {
     vi.mocked(useAppSelector).mockImplementation(<T,>(selector: (state: RootState) => T): T => {
       return selector({
         ...defaultState,
-        bookCollection: {
-          ...defaultState.bookCollection,
+        collection: {
+          ...defaultState.collection,
           books: [book],
         },
       } as unknown as RootState);
@@ -448,7 +446,7 @@ describe("BookGrid", () => {
     expect(mockClearSelection).toHaveBeenCalled();
 
     fireEvent.click(screen.getByText("Add to Bookshelf"));
-    expect(mockOpenDialog).toHaveBeenCalledWith("add-to-bookshelf", [book]);
+    expect(mockOpenDialog).toHaveBeenCalledWith("set-collections", [book]);
 
     fireEvent.click(screen.getByText("Set Tags"));
     expect(mockOpenDialog).toHaveBeenCalledWith("set-tags", [book]);
@@ -467,8 +465,8 @@ describe("BookGrid", () => {
 
     const state = {
       ...defaultState,
-      bookCollection: {
-        ...defaultState.bookCollection,
+      collection: {
+        ...defaultState.collection,
         books: [book1, book2],
       },
       series: { ...defaultState.series, series: [series] },
@@ -501,8 +499,8 @@ describe("BookGrid", () => {
     const book = createMockBookWithState({ id: 1, display_name: "Test Book" });
     const state = {
       ...defaultState,
-      bookCollection: {
-        ...defaultState.bookCollection,
+      collection: {
+        ...defaultState.collection,
         books: [book],
       },
     };
@@ -536,8 +534,8 @@ describe("BookGrid", () => {
     const onBookSelect = vi.fn();
     const state = {
       ...defaultState,
-      bookCollection: {
-        ...defaultState.bookCollection,
+      collection: {
+        ...defaultState.collection,
         books: [book],
       },
     };
@@ -566,8 +564,8 @@ describe("BookGrid", () => {
     const book2 = createMockBookWithState({ id: 2, display_name: "B" });
     const state = {
       ...defaultState,
-      bookCollection: {
-        ...defaultState.bookCollection,
+      collection: {
+        ...defaultState.collection,
         books: [book1, book2],
       },
     };
@@ -618,8 +616,8 @@ describe("BookGrid", () => {
     const book2 = createMockBookWithState({ id: 2, display_name: "A" });
     const state = {
       ...defaultState,
-      bookCollection: {
-        ...defaultState.bookCollection,
+      collection: {
+        ...defaultState.collection,
         books: [book1, book2],
       },
     };
@@ -677,10 +675,10 @@ describe("BookGrid", () => {
 
   // A selection made in one view would act on books the user can no longer see
   it.each([
-    ["collection", { bookCollection: { ...defaultState.bookCollection, selectedId: 2 } }],
+    ["collection", { collection: { ...defaultState.collection, selectedId: 2 } }],
     ["tag", { tag: { ...defaultState.tag, selectedId: 3 } }],
     ["series", { series: { ...defaultState.series, selectedId: 4 } }],
-    ["search", { bookCollection: { ...defaultState.bookCollection, searchText: "x" } }],
+    ["search", { collection: { ...defaultState.collection, searchText: "x" } }],
   ])("clears the selection when the %s changes", (_, change) => {
     const { rerender } = render(
       <BookSelectionContext.Provider value={mockSelectionValue}>
@@ -712,8 +710,8 @@ describe("BookGrid", () => {
     const book = createMockBookWithState({ id: 1, series_id: 10 });
     const state = {
       ...defaultState,
-      bookCollection: {
-        ...defaultState.bookCollection,
+      collection: {
+        ...defaultState.collection,
         books: [book],
       },
       series: { ...defaultState.series, series: [series] },
@@ -751,7 +749,7 @@ describe("BookGrid", () => {
     );
 
     fireEvent.click(screen.getByTestId("context-open-dialog"));
-    expect(mockOpenDialog).toHaveBeenCalledWith("add-to-bookshelf", []);
+    expect(mockOpenDialog).toHaveBeenCalledWith("set-collections", []);
   });
 
   it("filters books by tag", () => {
@@ -761,8 +759,8 @@ describe("BookGrid", () => {
     vi.mocked(useAppSelector).mockImplementation(<T,>(selector: (state: RootState) => T): T => {
       return selector({
         ...defaultState,
-        bookCollection: {
-          ...defaultState.bookCollection,
+        collection: {
+          ...defaultState.collection,
           books: [book1, book2],
         },
         tag: { ...defaultState.tag, selectedId: 5 },
@@ -785,8 +783,8 @@ describe("BookGrid", () => {
     vi.mocked(useAppSelector).mockImplementation(<T,>(selector: (state: RootState) => T): T => {
       return selector({
         ...defaultState,
-        bookCollection: {
-          ...defaultState.bookCollection,
+        collection: {
+          ...defaultState.collection,
           books: [book],
         },
         series: { ...defaultState.series, series: [] }, // Missing series 99
@@ -814,8 +812,8 @@ describe("BookGrid", () => {
     vi.mocked(useAppSelector).mockImplementation(<T,>(selector: (state: RootState) => T): T => {
       return selector({
         ...defaultState,
-        bookCollection: {
-          ...defaultState.bookCollection,
+        collection: {
+          ...defaultState.collection,
           books: [seriesBook, standaloneBook],
         },
         series: { ...defaultState.series, series: [series], selectedId: 10 },
@@ -844,8 +842,8 @@ describe("BookGrid", () => {
     vi.mocked(useAppSelector).mockImplementation(<T,>(selector: (state: RootState) => T): T => {
       return selector({
         ...defaultState,
-        bookCollection: {
-          ...defaultState.bookCollection,
+        collection: {
+          ...defaultState.collection,
           books: [book1, book2, book3, book4],
         },
       } as unknown as RootState);
@@ -925,8 +923,8 @@ describe("BookGrid", () => {
     vi.mocked(useAppSelector).mockImplementation(<T,>(selector: (state: RootState) => T): T => {
       return selector({
         ...defaultState,
-        bookCollection: {
-          ...defaultState.bookCollection,
+        collection: {
+          ...defaultState.collection,
           books: [bookC, bookB, bookA],
         },
         series: { ...defaultState.series, series: [series], selectedId: 10 },
@@ -962,8 +960,8 @@ describe("BookGrid", () => {
     vi.mocked(useAppSelector).mockImplementation(<T,>(selector: (state: RootState) => T): T => {
       return selector({
         ...defaultState,
-        bookCollection: {
-          ...defaultState.bookCollection,
+        collection: {
+          ...defaultState.collection,
           books: [book1, book2],
         },
         series: { ...defaultState.series, series: [series] },
@@ -985,8 +983,8 @@ describe("BookGrid", () => {
 
     let currentState = {
       ...defaultState,
-      bookCollection: {
-        ...defaultState.bookCollection,
+      collection: {
+        ...defaultState.collection,
         books: [book1, book2],
       },
     };
@@ -1011,8 +1009,8 @@ describe("BookGrid", () => {
     // (index 1) is now out of range.
     currentState = {
       ...currentState,
-      bookCollection: {
-        ...currentState.bookCollection,
+      collection: {
+        ...currentState.collection,
         searchText: "app",
       },
     };
@@ -1033,13 +1031,11 @@ describe("BookGrid", () => {
     const readingBook = createMockBookWithState({ id: 5, display_name: "Reading Book" });
     const state = {
       ...defaultState,
-      read: {
-        containerFile: {
-          book: readingBook,
-        },
+      reader: {
+        book: readingBook,
       },
-      bookCollection: {
-        ...defaultState.bookCollection,
+      collection: {
+        ...defaultState.collection,
         books: [readingBook],
       },
     };

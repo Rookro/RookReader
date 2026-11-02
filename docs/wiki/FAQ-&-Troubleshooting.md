@@ -37,5 +37,5 @@ Logs are written both to the terminal (when started from one) and to rotating lo
   - **Windows**: `C:\Users\<YourUser>\AppData\Local\io.github.rookro.rookreader\logs`
   - **Linux**: `~/.local/share/io.github.rookro.rookreader/logs` (or `$XDG_DATA_HOME/io.github.rookro.rookreader/logs`)
 
-### The window position is restored but not its size (Linux)
-This is intentional. Under Wayland, restoring the size made the window grow a few pixels on every launch, so on Linux the main and settings windows always open at their default size; the position, the maximized state and full screen are still restored.
+### Where are the window sizes saved? (Linux)
+On Linux, RookReader saves the size of the main and settings windows in `~/.local/share/io.github.rookro.rookreader/window-size.json` (or `$XDG_DATA_HOME/io.github.rookro.rookreader/window-size.json`). If the file is missing or damaged, the windows open at their default size. To reset the sizes, close RookReader and delete `window-size.json`.

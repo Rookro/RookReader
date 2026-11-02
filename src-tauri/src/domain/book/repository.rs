@@ -71,7 +71,7 @@ pub trait BookRepository: Send + Sync {
     /// # Errors
     ///
     /// Returns an `Err` if the database transaction fails.
-    async fn register_book(
+    async fn register(
         &self,
         file_path: &str,
         item_type: ItemType,
@@ -82,7 +82,7 @@ pub trait BookRepository: Send + Sync {
 
     /// Records the event of a book being opened, updating its last opened time.
     ///
-    /// If the book is new, it is inserted into the `books` table with no tags or bookshelves,
+    /// If the book is new, it is inserted into the `books` table with no tags or collections,
     /// and a new `reading_state` is created with `last_read_page_index` set to 0.
     /// If the book already exists, only the `last_opened_at` timestamp in `reading_state` is updated.
     ///
@@ -101,7 +101,7 @@ pub trait BookRepository: Send + Sync {
     /// # Errors
     ///
     /// Returns an `Err` if the database transaction fails.
-    async fn record_book_opened(
+    async fn record_opened(
         &self,
         file_path: &str,
         item_type: ItemType,
@@ -241,5 +241,5 @@ pub trait BookRepository: Send + Sync {
     /// # Errors
     ///
     /// Returns an `Err` if a database operation fails.
-    async fn delete_book(&self, id: i64) -> Result<()>;
+    async fn delete(&self, id: i64) -> Result<()>;
 }

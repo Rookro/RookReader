@@ -22,7 +22,7 @@ import { useReadingDirection } from "../hooks/useReadingDirection";
 import {
   goBackContainerHistory,
   goForwardContainerHistory,
-  setContainerFilePath,
+  openBook,
   toggleReadingDirection,
   toggleSpreadShift,
 } from "../slice";
@@ -33,14 +33,14 @@ import {
 export default function ReaderToolbar() {
   const { t } = useTranslation();
   const readerSettings = useAppSelector((state) => state.settings.reader);
-  const history = useAppSelector((state) => state.read.containerFile.history);
-  const historyIndex = useAppSelector((state) => state.read.containerFile.historyIndex);
-  const book = useAppSelector((state) => state.read.containerFile.book);
-  const index = useAppSelector((state) => state.read.containerFile.index);
-  const cfi = useAppSelector((state) => state.read.containerFile.cfi);
-  const isNovel = useAppSelector((state) => state.read.containerFile.isNovel);
-  const entries = useAppSelector((state) => state.read.containerFile.entries);
-  const isSpreadShifted = useAppSelector((state) => state.read.containerFile.isSpreadShifted);
+  const history = useAppSelector((state) => state.reader.history);
+  const historyIndex = useAppSelector((state) => state.reader.historyIndex);
+  const book = useAppSelector((state) => state.reader.book);
+  const index = useAppSelector((state) => state.reader.index);
+  const cfi = useAppSelector((state) => state.reader.cfi);
+  const isNovel = useAppSelector((state) => state.reader.isNovel);
+  const entries = useAppSelector((state) => state.reader.entries);
+  const isSpreadShifted = useAppSelector((state) => state.reader.isSpreadShifted);
   const bookmarks = useAppSelector((state) => state.bookmark.bookmarks);
   const bookmarksBookId = useAppSelector((state) => state.bookmark.bookId);
   const bookmarkStatus = useAppSelector((state) => state.bookmark.status);
@@ -74,7 +74,7 @@ export default function ReaderToolbar() {
       const inputPath = formData.get("path")?.toString();
 
       if (inputPath && inputPath !== currentPath) {
-        dispatch(setContainerFilePath(inputPath));
+        dispatch(openBook({ path: inputPath, origin: null }));
       }
     },
     [dispatch, currentPath],

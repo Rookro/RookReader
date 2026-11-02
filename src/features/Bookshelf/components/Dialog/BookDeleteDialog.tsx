@@ -9,7 +9,7 @@ import {
 } from "@mui/material";
 import { useCallback } from "react";
 import { Trans, useTranslation } from "react-i18next";
-import type { BookWithState } from "../../../../domain/book/schema";
+import type { BookWithState } from "../../../../domain/entities";
 import { useAppDispatch, useAppSelector } from "../../../../store/store";
 import { deleteBookFromCollection } from "../../slice";
 
@@ -23,26 +23,26 @@ export interface BookDeleteDialogProps {
   onClose: () => void;
 }
 
-/** Dialog for deleting books from a bookshelf. */
+/** Dialog for deleting books from a collection, or from the library when none is selected. */
 export default function BookDeleteDialog({ open, books, onClose }: BookDeleteDialogProps) {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
-  const bookshelves = useAppSelector((state) => state.bookCollection.bookshelves);
-  const selectedId = useAppSelector((state) => state.bookCollection.selectedId);
+  const collections = useAppSelector((state) => state.collection.collections);
+  const selectedId = useAppSelector((state) => state.collection.selectedId);
 
   const handleDelete = useCallback(async () => {
     if (books.length > 0) {
       await Promise.all(
         books.map((b) =>
-          dispatch(deleteBookFromCollection({ bookId: b.id, bookshelfId: selectedId })),
+          dispatch(deleteBookFromCollection({ bookId: b.id, collectionId: selectedId })),
         ),
       );
     }
     onClose();
   }, [books, dispatch, onClose, selectedId]);
 
-  const bookshelfName =
-    bookshelves.find((shelf) => shelf.id === selectedId)?.name ??
+  const collectionName =
+    collections.find((collection) => collection.id === selectedId)?.name ??
     t("bookshelf.collection.all-books");
 
   return (
@@ -57,7 +57,7 @@ export default function BookDeleteDialog({ open, books, onClose }: BookDeleteDia
                 i18nKey="bookshelf.book-deletion.description"
                 values={{
                   bookName: books[0].display_name,
-                  bookshelfName,
+                  collectionName,
                 }}
                 components={{
                   bold: <Box component="span" sx={{ fontWeight: "bold", color: "text.primary" }} />,
@@ -68,7 +68,7 @@ export default function BookDeleteDialog({ open, books, onClose }: BookDeleteDia
                 i18nKey="bookshelf.book-deletion.description-multiple"
                 values={{
                   count: books.length,
-                  bookshelfName,
+                  collectionName,
                 }}
                 components={{
                   bold: <Box component="span" sx={{ fontWeight: "bold", color: "text.primary" }} />,

@@ -18,19 +18,19 @@ use tokio::sync::RwLock;
 use crate::{
     domain::{
         book::repository::BookRepository, bookmark::repository::BookmarkRepository,
-        bookshelf::repository::BookshelfRepository, series::repository::SeriesRepository,
+        collection::repository::CollectionRepository, series::repository::SeriesRepository,
         tag::repository::TagRepository,
     },
     error,
     infrastructure::database::{
         book_repository::SqliteBookRepository, bookmark_repository::SqliteBookmarkRepository,
-        bookshelf_repository::SqliteBookshelfRepository, series_repository::SqliteSeriesRepository,
-        tag_repository::SqliteTagRepository,
+        collection_repository::SqliteCollectionRepository,
+        series_repository::SqliteSeriesRepository, tag_repository::SqliteTagRepository,
     },
     settings::{
         AppSettings, AppTheme, LogLevel, LogSettings, SettingsFileProvider, SettingsStoreProvider,
     },
-    state::app_state::AppState,
+    state::{app_state::AppState, container_settings::ContainerSettings},
 };
 
 /// Reads a non-empty `ROOKREADER_DATA_DIR` override into a path, if present.
@@ -174,25 +174,17 @@ pub fn setup_container_settings(app: &App, settings: &AppSettings) -> error::Res
 /// * `state` - The mutable application state to update.
 /// * `settings` - The settings whose reader values should be applied.
 pub fn apply_reader_settings_to_container(state: &mut AppState, settings: &AppSettings) {
-    let new_cache_size_mib = settings.reader.comic.cache.image_cache_size_mib;
-    let container_settings = &mut state.container_state.settings;
-    // Capture the previous values before overwriting them.
-    let cache_size_changed = container_settings.image_cache_size_mib != new_cache_size_mib;
-    let rendering_changed = container_settings.max_image_height
-        != settings.reader.rendering.max_image_height
-        || container_settings.image_resampling_method
-            != settings.reader.rendering.image_resampling_method.into()
-        || container_settings.pdf_render_resolution_height
-            != settings.reader.rendering.pdf_render_resolution_height;
-
-    container_settings.max_image_height = settings.reader.rendering.max_image_height;
-    container_settings.image_cache_size_mib = new_cache_size_mib;
-    container_settings.page_reader_count = settings.reader.comic.cache.page_reader_count;
-    container_settings.pdf_render_resolution_height =
-        settings.reader.rendering.pdf_render_resolution_height;
-    container_settings.image_resampling_method =
-        settings.reader.rendering.image_resampling_method.into();
-    container_settings.auto_descend_single_folder = settings.reader.auto_descend_single_folder;
+    let old = &state.container_state.settings;
+    let new = ContainerSettings {
+        pdfium_library_path: old.pdfium_library_path.clone(),
+        ..ContainerSettings::from(settings)
+    };
+    let new_cache_size_mib = new.image_cache_size_mib;
+    let cache_size_changed = old.image_cache_size_mib != new_cache_size_mib;
+    let rendering_changed = old.max_image_height != new.max_image_height
+        || old.image_resampling_method != new.image_resampling_method
+        || old.pdf_render_resolution_height != new.pdf_render_resolution_height;
+    state.container_state.settings = new;
 
     if cache_size_changed {
         state
@@ -293,8 +285,8 @@ fn setup_database(app: &App) -> error::Result<()> {
 
     let book_repository: Arc<dyn BookRepository> =
         Arc::new(SqliteBookRepository::new(pool.clone()));
-    let bookshelf_repository: Arc<dyn BookshelfRepository> =
-        Arc::new(SqliteBookshelfRepository::new(pool.clone()));
+    let collection_repository: Arc<dyn CollectionRepository> =
+        Arc::new(SqliteCollectionRepository::new(pool.clone()));
     let tag_repository: Arc<dyn TagRepository> = Arc::new(SqliteTagRepository::new(pool.clone()));
     let series_repository: Arc<dyn SeriesRepository> =
         Arc::new(SqliteSeriesRepository::new(pool.clone()));
@@ -302,7 +294,7 @@ fn setup_database(app: &App) -> error::Result<()> {
         Arc::new(SqliteBookmarkRepository::new(pool.clone()));
 
     app.manage(book_repository);
-    app.manage(bookshelf_repository);
+    app.manage(collection_repository);
     app.manage(tag_repository);
     app.manage(series_repository);
     app.manage(bookmark_repository);
@@ -356,6 +348,23 @@ mod tests {
     use super::*;
     use crate::image::resizer::ResizeFilter;
     use crate::settings::ImageResamplingMethod;
+
+    #[test]
+    fn applying_settings_keeps_the_pdfium_path() {
+        let mut state = AppState::default();
+        state.container_state.settings.pdfium_library_path = Some("/libs".to_string());
+
+        apply_reader_settings_to_container(&mut state, &AppSettings::default());
+
+        assert_eq!(
+            state
+                .container_state
+                .settings
+                .pdfium_library_path
+                .as_deref(),
+            Some("/libs")
+        );
+    }
 
     #[test]
     fn test_apply_reader_settings_to_container() {

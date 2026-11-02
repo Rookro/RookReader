@@ -19,10 +19,11 @@ describe("Store", () => {
     const state = store.getState();
 
     // Verify that all reducers are correctly combined
-    expect(state).toHaveProperty("read");
+    expect(state).toHaveProperty("reader");
+    expect(state).toHaveProperty("fileNavigator");
     expect(state).toHaveProperty("view");
     expect(state).toHaveProperty("history");
-    expect(state).toHaveProperty("bookCollection");
+    expect(state).toHaveProperty("collection");
     expect(state).toHaveProperty("settings");
   });
 

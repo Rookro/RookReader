@@ -1,10 +1,14 @@
+import type { EventCallback } from "@tauri-apps/api/event";
 import { debug } from "@tauri-apps/plugin-log";
 import { useCallback } from "react";
+import {
+  events,
+  type LocaleChanged,
+  type SettingsChanged_Serialize,
+} from "../../../bindings/bindings";
 import { useTauriEvent } from "../../../hooks/useTauriEvent";
 import i18n from "../../../i18n/config";
 import { useAppDispatch } from "../../../store/store";
-import type { AppSettings } from "../../../types/AppSettings";
-import type { LocaleChangedEvent } from "../../../types/LocaleChangedEvent";
 import { setPerfLogging } from "../../../utils/perf";
 import { setSettings } from "../slice";
 
@@ -19,24 +23,25 @@ import { setSettings } from "../slice";
 export const useSettingsChange = () => {
   const dispatch = useAppDispatch();
 
-  const handleSettingsChanged = useCallback(
-    (event: { payload: AppSettings }) => {
+  const handleSettingsChanged = useCallback<EventCallback<SettingsChanged_Serialize>>(
+    (event) => {
       debug("Received settings-changed event");
+      const settings = event.payload;
       // The perf flag is this window's own module state, and the records that read it —
       // the reader's `display` and `chain` spans — are written in the window that did not
       // make the change. The backend leaves the caller out of this broadcast, so for
       // every other window this event is the only thing that reaches it.
-      setPerfLogging(event.payload.general.log.level);
-      dispatch(setSettings(event.payload));
+      setPerfLogging(settings.general.log.level);
+      dispatch(setSettings(settings));
     },
     [dispatch],
   );
 
-  const handleLocaleChanged = useCallback((event: { payload: LocaleChangedEvent }) => {
+  const handleLocaleChanged = useCallback<EventCallback<LocaleChanged>>((event) => {
     debug(`Received locale-changed event: ${event.payload.language}`);
     i18n.changeLanguage(event.payload.language);
   }, []);
 
-  useTauriEvent<AppSettings>("settings-changed", handleSettingsChanged);
-  useTauriEvent<LocaleChangedEvent>("locale-changed", handleLocaleChanged);
+  useTauriEvent(events.settingsChanged, handleSettingsChanged);
+  useTauriEvent(events.localeChanged, handleLocaleChanged);
 };

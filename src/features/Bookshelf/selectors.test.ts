@@ -18,7 +18,7 @@ describe("selectGridItems", () => {
 
   const stateWithBooks = () => {
     const state = createBasePreloadedState();
-    state.bookCollection.books = [volume, standalone];
+    state.collection.books = [volume, standalone];
     state.series.series = [series];
     return state;
   };

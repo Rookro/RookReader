@@ -9,6 +9,25 @@
 
 ## [Unreleased]
 
+## [2.7.0] - 2026-11-02
+
+### Added
+
+* 「タグを設定」と「コレクションを設定」のダイアログから、新しいタグやコレクションを作成できるように変更 (#376)
+  * 作成したタグやコレクションにはチェックが付き、決定を押すと選んだすべての本に追加される
+
+### Changed
+
+* コレクションのダイアログをタグのダイアログと同じ動作にし、名前を「コレクションを設定」に変更 (#375)
+  * 本がすでに入っているコレクションにはチェックが付き、チェックを外すとそのコレクションから外れる
+  * 複数の本を選んだときは、一部の本だけが入っているコレクションを部分チェックで表示し、各本の状態をそのまま残す
+* 「PDF 描画時の高さ (px)」の欄を空にすると、他の数値の設定と同じく既定値に戻るように変更 (#384)
+* 依存関係を更新。PDF の描画に使う PDFium エンジンも更新 (#386)
+
+### Fixed
+
+* Linux でもウィンドウサイズを復元するように修正。起動のたびにウィンドウが大きくなることはなくなった (#373)
+
 ## [2.6.1] - 2026-10-24
 
 ### Changed
@@ -641,7 +660,8 @@
 * 自動見開き表示機能の追加 (#4)
 * ホイールの上下によるページ送り機能を追加 (#5)
 
-[unreleased]: https://github.com/Rookro/RookReader/compare/v2.6.1...HEAD
+[unreleased]: https://github.com/Rookro/RookReader/compare/v2.7.0...HEAD
+[2.7.0]: https://github.com/Rookro/RookReader/compare/v2.6.1...v2.7.0
 [2.6.1]: https://github.com/Rookro/RookReader/compare/v2.6.0...v2.6.1
 [2.6.0]: https://github.com/Rookro/RookReader/compare/v2.5.0...v2.6.0
 [2.5.0]: https://github.com/Rookro/RookReader/compare/v2.4.0...v2.5.0

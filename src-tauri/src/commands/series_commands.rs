@@ -1,8 +1,8 @@
 use std::sync::Arc;
-use tauri::Emitter;
 use tauri::State;
 
-use crate::commands::library_events::{BOOKS_CHANGED_EVENT, SERIES_CHANGED_EVENT};
+use crate::commands::events::{emit, BooksChanged, SeriesChanged};
+use crate::domain::book::entity::BookWithState;
 use crate::domain::series::entity::Series;
 use crate::domain::series::repository::SeriesRepository;
 use crate::error::Result;
@@ -16,7 +16,7 @@ use crate::error::Result;
 ///
 /// # Returns
 ///
-/// A `Result` containing the ID of the newly created series.
+/// A `Result` containing the newly created `Series` entity.
 ///
 /// # Errors
 ///
@@ -28,11 +28,11 @@ pub async fn create_series<R: tauri::Runtime>(
     name: String,
     repo: State<'_, Arc<dyn SeriesRepository>>,
     app: tauri::AppHandle<R>,
-) -> Result<i64> {
+) -> Result<Series> {
     log::debug!("Create series. (name:{})", name);
-    let series_id = repo.create(&name).await?;
-    app.emit(SERIES_CHANGED_EVENT, ())?;
-    Ok(series_id)
+    let series = repo.create(&name).await?;
+    emit(&app, &SeriesChanged);
+    Ok(series)
 }
 
 /// Retrieves all series from the database.
@@ -75,27 +75,112 @@ pub async fn delete_series<R: tauri::Runtime>(
 ) -> Result<()> {
     log::debug!("Delete series. (id:{})", id);
     repo.delete(id).await?;
-    app.emit(SERIES_CHANGED_EVENT, ())?;
-    app.emit(BOOKS_CHANGED_EVENT, ())?;
+    emit(&app, &SeriesChanged);
+    emit(&app, &BooksChanged);
+    Ok(())
+}
+
+/// Retrieves all books belonging to a specific series, including their reading states.
+///
+/// # Arguments
+///
+/// * `series_id` - The unique identifier of the series to filter by.
+/// * `repo` - The managed book repository state.
+///
+/// # Returns
+///
+/// A `Result` containing a vector of `BookWithState` entities.
+///
+/// # Errors
+///
+/// This function will return an `Err` if the underlying repository operation fails
+/// (e.g., due to a database error, connection issue, or query execution failure).
+#[tauri::command]
+#[specta::specta]
+pub async fn get_books_by_series(
+    series_id: i64,
+    repo: State<'_, Arc<dyn SeriesRepository>>,
+) -> Result<Vec<BookWithState>> {
+    log::debug!("Get books with state by series id({:?}).", series_id);
+    repo.get_books_by_series(series_id).await
+}
+
+/// Updates the series associated with a specific book.
+///
+/// # Arguments
+///
+/// * `book_id` - The unique identifier of the book.
+/// * `series_id` - The unique identifier of the series to associate with the book, or `None` to remove.
+/// * `repo` - The managed series repository state.
+///
+/// # Errors
+///
+/// This function will return an `Err` if the underlying repository operation fails.
+#[tauri::command]
+#[specta::specta]
+pub async fn set_series_for_book<R: tauri::Runtime>(
+    book_id: i64,
+    series_id: Option<i64>,
+    repo: State<'_, Arc<dyn SeriesRepository>>,
+    app: tauri::AppHandle<R>,
+) -> Result<()> {
+    log::debug!(
+        "Update book series. (book id:{:?}, series id:{:?})",
+        book_id,
+        series_id
+    );
+    repo.set_series_for_book(book_id, series_id).await?;
+    emit(&app, &BooksChanged);
+    Ok(())
+}
+
+/// Updates the `series_order` for a given list of book IDs.
+///
+/// # Arguments
+///
+/// * `book_ids` - A list of book IDs in the desired order.
+/// * `repo` - The managed series repository state.
+///
+/// # Errors
+///
+/// This function will return an `Err` if the underlying repository operation fails.
+#[tauri::command]
+#[specta::specta]
+pub async fn set_series_order<R: tauri::Runtime>(
+    book_ids: Vec<i64>,
+    repo: State<'_, Arc<dyn SeriesRepository>>,
+    app: tauri::AppHandle<R>,
+) -> Result<()> {
+    log::debug!("Update series orders for books: {:?}", book_ids);
+    repo.set_series_order(book_ids).await?;
+    emit(&app, &BooksChanged);
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::commands::library_events::test_support::record_events;
+    use crate::commands::events::test_support::record_events;
     use crate::domain::series::repository::MockSeriesRepository;
     use crate::error::ErrorCode;
     use tauri::Manager;
+    use tauri_specta::Event;
 
     #[tokio::test]
     async fn test_create_series() {
         let mut mock_repo = MockSeriesRepository::new();
+        let now = chrono::Utc::now().naive_utc();
         mock_repo
             .expect_create()
             .with(mockall::predicate::eq("New Series"))
             .times(1)
-            .returning(|_| Ok(1));
+            .returning(move |name| {
+                Ok(Series {
+                    id: 1,
+                    name: name.to_string(),
+                    created_at: now,
+                })
+            });
 
         let app = tauri::test::mock_app();
         app.manage(Arc::new(mock_repo) as Arc<dyn SeriesRepository>);
@@ -104,8 +189,10 @@ mod tests {
 
         let result = create_series("New Series".to_string(), state, app.handle().clone()).await;
         assert!(result.is_ok());
-        assert_eq!(*events.lock().unwrap(), [SERIES_CHANGED_EVENT]);
-        assert_eq!(result.unwrap(), 1);
+        assert_eq!(*events.lock().unwrap(), [SeriesChanged::NAME]);
+        let series = result.unwrap();
+        assert_eq!(series.id, 1);
+        assert_eq!(series.name, "New Series");
     }
 
     #[tokio::test]
@@ -161,7 +248,7 @@ mod tests {
         assert!(result.is_ok());
         assert_eq!(
             *events.lock().unwrap(),
-            [SERIES_CHANGED_EVENT, BOOKS_CHANGED_EVENT]
+            [SeriesChanged::NAME, BooksChanged::NAME]
         );
     }
 
@@ -182,5 +269,60 @@ mod tests {
             let error_code: ErrorCode = (&e).into();
             assert_eq!(error_code.code(), 70001);
         }
+    }
+
+    #[tokio::test]
+    async fn test_get_books_by_series() {
+        let mut mock_repo = MockSeriesRepository::new();
+        mock_repo
+            .expect_get_books_by_series()
+            .with(mockall::predicate::eq(1))
+            .times(1)
+            .returning(|_| Ok(vec![]));
+
+        let app = tauri::test::mock_app();
+        app.manage(Arc::new(mock_repo) as Arc<dyn SeriesRepository>);
+        let state = app.state::<Arc<dyn SeriesRepository>>();
+
+        let result = get_books_by_series(1, state).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_set_series_for_book() {
+        let mut mock_repo = MockSeriesRepository::new();
+        mock_repo
+            .expect_set_series_for_book()
+            .with(mockall::predicate::eq(1), mockall::predicate::eq(Some(10)))
+            .times(1)
+            .returning(|_, _| Ok(()));
+
+        let app = tauri::test::mock_app();
+        app.manage(Arc::new(mock_repo) as Arc<dyn SeriesRepository>);
+        let repo = app.state::<Arc<dyn SeriesRepository>>();
+        let events = record_events(app.handle());
+
+        let result = set_series_for_book(1, Some(10), repo, app.handle().clone()).await;
+        assert!(result.is_ok());
+        assert_eq!(*events.lock().unwrap(), [BooksChanged::NAME]);
+    }
+
+    #[tokio::test]
+    async fn test_set_series_order() {
+        let mut mock_repo = MockSeriesRepository::new();
+        mock_repo
+            .expect_set_series_order()
+            .with(mockall::predicate::eq(vec![1, 2, 3]))
+            .times(1)
+            .returning(|_| Ok(()));
+
+        let app = tauri::test::mock_app();
+        app.manage(Arc::new(mock_repo) as Arc<dyn SeriesRepository>);
+        let repo = app.state::<Arc<dyn SeriesRepository>>();
+        let events = record_events(app.handle());
+
+        let result = set_series_order(vec![1, 2, 3], repo, app.handle().clone()).await;
+        assert!(result.is_ok());
+        assert_eq!(*events.lock().unwrap(), [BooksChanged::NAME]);
     }
 }

@@ -1,5 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
-import { createCommandError } from "../types/Error";
+import { runBinaryCommand } from "./result";
 
 /**
  * Fetches directory entries from the backend.
@@ -7,10 +6,6 @@ import { createCommandError } from "../types/Error";
  * @param dirPath The path of the directory.
  * @returns A promise that resolves to the data of directory entries.
  */
-export const getEntriesInDir = async (dirPath: string): Promise<ArrayBuffer> => {
-  try {
-    return await invoke<ArrayBuffer>("get_entries_in_dir", { dirPath });
-  } catch (error) {
-    throw createCommandError(error);
-  }
-};
+export async function getEntriesInDir(dirPath: string): Promise<ArrayBuffer> {
+  return runBinaryCommand("get_entries_in_dir", { dirPath });
+}

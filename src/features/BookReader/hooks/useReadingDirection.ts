@@ -19,9 +19,9 @@ export const NOVEL_FALLBACK_DIRECTION: Direction = "rtl";
  * @returns The effective reading direction.
  */
 export const useReadingDirection = (): Direction => {
-  const isNovel = useAppSelector((state) => state.read.containerFile.isNovel);
-  const novelDirection = useAppSelector((state) => state.read.containerFile.novelDirection);
-  const bookDirection = useAppSelector((state) => state.read.containerFile.readingDirection);
+  const isNovel = useAppSelector((state) => state.reader.isNovel);
+  const novelDirection = useAppSelector((state) => state.reader.novelDirection);
+  const bookDirection = useAppSelector((state) => state.reader.readingDirection);
   const defaultDirection = useAppSelector((state) => state.settings.reader.comic.readingDirection);
 
   return isNovel

@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import type { Book } from "../../../domain/book/schema";
+import type { Book } from "../../../domain/entities";
 
 /**
  * Locates the open book within a history list.

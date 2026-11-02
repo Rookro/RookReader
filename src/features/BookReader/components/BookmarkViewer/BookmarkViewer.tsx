@@ -12,7 +12,7 @@ import {
 } from "@mui/material";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { Bookmark } from "../../../../domain/bookmark/schema";
+import type { Bookmark } from "../../../../domain/entities";
 import { useAppDispatch, useAppSelector } from "../../../../store/store";
 import SidePanelHeader from "../../../SidePane/components/SidePanelHeader";
 import { removeBookmark, updateBookmarkName } from "../../bookmarkSlice";
@@ -25,7 +25,7 @@ import { ItemRow } from "./ItemRow";
 export default function BookmarkViewer() {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
-  const isNovel = useAppSelector((state) => state.read.containerFile.isNovel);
+  const isNovel = useAppSelector((state) => state.reader.isNovel);
   const bookmarks = useAppSelector((state) => state.bookmark.bookmarks);
   const [renameTarget, setRenameTarget] = useState<Bookmark | null>(null);
   const [renameText, setRenameText] = useState("");

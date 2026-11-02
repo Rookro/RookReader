@@ -8,6 +8,15 @@ import BookCard from "./BookCard";
 import { BookSelectionProvider } from "./BookSelectionContext";
 import { BookshelfActionsContext } from "./BookshelfActionsContext";
 
+function SelectionSeeder() {
+  const { setSelection } = useBookSelection();
+  return (
+    <button type="button" onClick={() => setSelection(new Set([1, 2]))}>
+      seed-selection
+    </button>
+  );
+}
+
 describe("BookCard", () => {
   const user = userEvent.setup();
 
@@ -99,7 +108,7 @@ describe("BookCard", () => {
     await user.pointer({ keys: "[MouseRight]", target: actionArea });
 
     // Verify context menu items are rendered
-    expect(await screen.findByText(/Add to Collection/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Set collections/i)).toBeInTheDocument();
   });
 
   it("acts on the whole selection from the context menu when this book is selected", async () => {
@@ -108,21 +117,12 @@ describe("BookCard", () => {
     const openDialog = vi.fn();
     const getSelectedBooks = vi.fn(() => [bookA, bookB]);
 
-    const Seeder = () => {
-      const { setSelection } = useBookSelection();
-      return (
-        <button type="button" onClick={() => setSelection(new Set([1, 2]))}>
-          seed-selection
-        </button>
-      );
-    };
-
     renderWithProviders(
       <BookshelfActionsContext.Provider
         value={{ openDialog, openEditSeriesOrderDialog: vi.fn(), getSelectedBooks }}
       >
         <BookSelectionProvider>
-          <Seeder />
+          <SelectionSeeder />
           <BookCard {...defaultProps} book={bookA} />
         </BookSelectionProvider>
       </BookshelfActionsContext.Provider>,
@@ -134,8 +134,8 @@ describe("BookCard", () => {
 
     // The action applies to the whole selection, taken from the actions context
     // rather than from a list drilled through every card.
-    await user.click(await screen.findByText(/Add to Collection/i));
-    expect(openDialog).toHaveBeenCalledWith("add-to-bookshelf", [bookA, bookB]);
+    await user.click(await screen.findByText(/Set collections/i));
+    expect(openDialog).toHaveBeenCalledWith("set-collections", [bookA, bookB]);
   });
 
   it("should display a checkmark when selected", () => {

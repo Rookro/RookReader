@@ -21,7 +21,13 @@ describe("Loupe", () => {
 
   it("should render children only once when loupe is disabled", () => {
     render(
-      <Loupe isLoupeEnabled={false} loupePos={{ x: 10, y: 10 }} containerRef={mockContainerRef}>
+      <Loupe
+        isLoupeEnabled={false}
+        loupePos={{ x: 10, y: 10 }}
+        containerRef={mockContainerRef}
+        zoom={2}
+        radius={200}
+      >
         <div data-testid="child-element">Child Content</div>
       </Loupe>,
     );
@@ -35,6 +41,8 @@ describe("Loupe", () => {
         isLoupeEnabled={true}
         loupePos={{ x: 10, y: 10 }}
         containerRef={mockContainerRef}
+        zoom={2}
+        radius={200}
         magnified={<div data-testid="full-size">Full Size</div>}
       >
         <div data-testid="child-element">Child Content</div>
@@ -49,7 +57,13 @@ describe("Loupe", () => {
 
   it("magnifies the children when there is nothing better to show", () => {
     render(
-      <Loupe isLoupeEnabled={true} loupePos={{ x: 10, y: 10 }} containerRef={mockContainerRef}>
+      <Loupe
+        isLoupeEnabled={true}
+        loupePos={{ x: 10, y: 10 }}
+        containerRef={mockContainerRef}
+        zoom={2}
+        radius={200}
+      >
         <div data-testid="child-element">Child Content</div>
       </Loupe>,
     );

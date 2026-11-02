@@ -16,16 +16,3 @@ export const isNavigableArchiveName = (name: string): boolean => {
   const lower = name.toLowerCase();
   return NAVIGABLE_ARCHIVE_EXTENSIONS.some((ext) => lower.endsWith(`.${ext}`));
 };
-
-/**
- * Determines whether a path points *inside* an archive rather than at a real filesystem
- * location. The archive file itself does not count as "inside".
- *
- * @param path - The absolute path to test.
- * @returns True when some ancestor segment is a browsable archive.
- */
-export const isInsideArchive = (path: string): boolean =>
-  path
-    .split(/[\\/]/)
-    .slice(0, -1)
-    .some((segment) => isNavigableArchiveName(segment));

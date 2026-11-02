@@ -5,10 +5,9 @@ import {
   getBookmarksByBookId,
   renameBookmark,
 } from "../../bindings/BookmarkCommands";
-import type { Bookmark } from "../../domain/bookmark/schema";
-import { handleThunkError } from "../../store/thunkErrorHandler";
-import { createAppAsyncThunk } from "../../types/CustomAsyncThunk";
-import type { ErrorCode } from "../../types/Error";
+import type { Bookmark } from "../../domain/entities";
+import { recordThunkError } from "../../store/thunkErrorHandler";
+import { createCommandThunk, type ThunkRejectValue } from "../../types/CustomAsyncThunk";
 
 /**
  * Fetches all bookmarks of a book.
@@ -16,15 +15,10 @@ import type { ErrorCode } from "../../types/Error";
  * @param bookId - The ID of the book whose bookmarks to fetch.
  * @returns A thunk that resolves to the book's bookmarks.
  */
-export const fetchBookmarks = createAppAsyncThunk(
+export const fetchBookmarks = createCommandThunk(
   "bookmark/fetchBookmarks",
-  async (bookId: number, { rejectWithValue }) => {
-    try {
-      return await getBookmarksByBookId(bookId);
-    } catch (e) {
-      return handleThunkError(e, `Failed to fetch bookmarks(bookId: ${bookId}).`, rejectWithValue);
-    }
-  },
+  (bookId: number) => getBookmarksByBookId(bookId),
+  (bookId) => `Failed to fetch bookmarks(bookId: ${bookId}).`,
 );
 
 /**
@@ -37,22 +31,11 @@ export const fetchBookmarks = createAppAsyncThunk(
  * @param params.cfi - The position within an EPUB section, or null for comics.
  * @returns A thunk that resolves to the newly created Bookmark object.
  */
-export const addBookmark = createAppAsyncThunk(
+export const addBookmark = createCommandThunk(
   "bookmark/addBookmark",
-  async (
-    params: { bookId: number; name: string; pageIndex: number; cfi: string | null },
-    { rejectWithValue },
-  ) => {
-    try {
-      return await createBookmark(params);
-    } catch (e) {
-      return handleThunkError(
-        e,
-        `Failed to add bookmark(bookId: ${params.bookId}, pageIndex: ${params.pageIndex}).`,
-        rejectWithValue,
-      );
-    }
-  },
+  (params: { bookId: number; name: string; pageIndex: number; cfi: string | null }) =>
+    createBookmark(params),
+  (params) => `Failed to add bookmark(bookId: ${params.bookId}, pageIndex: ${params.pageIndex}).`,
 );
 
 /**
@@ -61,16 +44,13 @@ export const addBookmark = createAppAsyncThunk(
  * @param id - The ID of the bookmark to remove.
  * @returns A thunk that resolves to the removed bookmark's ID.
  */
-export const removeBookmark = createAppAsyncThunk(
+export const removeBookmark = createCommandThunk(
   "bookmark/removeBookmark",
-  async (id: number, { rejectWithValue }) => {
-    try {
-      await deleteBookmark(id);
-      return id;
-    } catch (e) {
-      return handleThunkError(e, `Failed to remove bookmark(id: ${id}).`, rejectWithValue);
-    }
+  async (id: number) => {
+    await deleteBookmark(id);
+    return id;
   },
+  (id) => `Failed to remove bookmark(id: ${id}).`,
 );
 
 /**
@@ -81,16 +61,13 @@ export const removeBookmark = createAppAsyncThunk(
  * @param params.name - The new display name.
  * @returns A thunk that resolves to the renamed bookmark's ID and new name.
  */
-export const updateBookmarkName = createAppAsyncThunk(
+export const updateBookmarkName = createCommandThunk(
   "bookmark/renameBookmark",
-  async (params: { id: number; name: string }, { rejectWithValue }) => {
-    try {
-      await renameBookmark(params.id, params.name);
-      return params;
-    } catch (e) {
-      return handleThunkError(e, `Failed to rename bookmark(id: ${params.id}).`, rejectWithValue);
-    }
+  async (params: { id: number; name: string }) => {
+    await renameBookmark(params.id, params.name);
+    return params;
   },
+  (params) => `Failed to rename bookmark(id: ${params.id}).`,
 );
 
 /** Orders bookmarks by their position in the book, mirroring the backend's ordering. */
@@ -104,7 +81,7 @@ const bookmarkSlice = createSlice({
     bookId: null as number | null,
     bookmarks: [] as Bookmark[],
     status: "idle" as "idle" | "loading" | "succeeded" | "failed",
-    error: null as { code: ErrorCode; message?: string } | null,
+    error: null as ThunkRejectValue | null,
   },
   reducers: {
     /**
@@ -162,16 +139,12 @@ const bookmarkSlice = createSlice({
         state.error = null;
       })
       // A failed edit leaves the loaded list as it was: `status` describes the fetch.
-      .addCase(addBookmark.rejected, (state, action) => {
-        state.error = action.payload ?? null;
-      })
+      .addCase(addBookmark.rejected, recordThunkError)
       .addCase(removeBookmark.fulfilled, (state, action) => {
         state.bookmarks = state.bookmarks.filter((bookmark) => bookmark.id !== action.payload);
         state.error = null;
       })
-      .addCase(removeBookmark.rejected, (state, action) => {
-        state.error = action.payload ?? null;
-      })
+      .addCase(removeBookmark.rejected, recordThunkError)
       .addCase(updateBookmarkName.fulfilled, (state, action) => {
         const target = state.bookmarks.find((bookmark) => bookmark.id === action.payload.id);
         if (target) {
@@ -179,9 +152,7 @@ const bookmarkSlice = createSlice({
         }
         state.error = null;
       })
-      .addCase(updateBookmarkName.rejected, (state, action) => {
-        state.error = action.payload ?? null;
-      });
+      .addCase(updateBookmarkName.rejected, recordThunkError);
   },
 });
 

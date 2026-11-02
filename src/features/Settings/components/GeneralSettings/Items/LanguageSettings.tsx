@@ -1,10 +1,9 @@
 import Language from "@mui/icons-material/Language";
 import { MenuItem, type SelectChangeEvent } from "@mui/material";
-import { emit } from "@tauri-apps/api/event";
 import { debug } from "@tauri-apps/plugin-log";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { LocaleChangedEvent } from "../../../../../types/LocaleChangedEvent";
+import { events } from "../../../../../bindings/bindings";
 import SelectSettingItem from "../../ui/SelectSettingItem";
 
 /**
@@ -18,9 +17,7 @@ export default function LanguageSetting() {
     async (e: SelectChangeEvent) => {
       setLanguage(e.target.value as string);
       i18n.changeLanguage(e.target.value as string).then(() => {
-        emit<LocaleChangedEvent>("locale-changed", {
-          language: e.target.value as string,
-        });
+        events.localeChanged.emit({ language: e.target.value as string });
         debug(`Language changed: ${e.target.value}`);
       });
     },

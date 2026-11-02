@@ -2,13 +2,13 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import i18n from "../../../../i18n/config";
-import { createMockBookshelf, createMockBookWithState } from "../../../../test/factories";
+import { createMockBookWithState, createMockCollection } from "../../../../test/factories";
 import { createBasePreloadedState, renderWithProviders } from "../../../../test/utils";
-import * as BookCollectionReducer from "../../slice";
+import * as CollectionReducer from "../../slice";
 import BookDeleteDialog from "./BookDeleteDialog";
 
 vi.mock("../../slice", async (importOriginal) => {
-  const actual = await importOriginal<typeof BookCollectionReducer>();
+  const actual = await importOriginal<typeof CollectionReducer>();
   return {
     ...actual,
     deleteBookFromCollection: vi.fn(() => ({ type: "mock/deleteBook" })),
@@ -51,9 +51,9 @@ describe("BookDeleteDialog", () => {
     await user.click(deleteButton);
 
     await waitFor(() => {
-      expect(BookCollectionReducer.deleteBookFromCollection).toHaveBeenCalledWith({
+      expect(CollectionReducer.deleteBookFromCollection).toHaveBeenCalledWith({
         bookId: mockBook.id,
-        bookshelfId: null,
+        collectionId: null,
       });
       expect(onClose).toHaveBeenCalled();
     });
@@ -70,14 +70,14 @@ describe("BookDeleteDialog", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  // Verify that the bookshelf name is correctly displayed when a bookshelf is selected
-  it("should handle bookshelfName fallback when bookshelf is selected", () => {
+  // Verify that the collection name is correctly displayed when a collection is selected
+  it("should handle collectionName fallback when collection is selected", () => {
     const preloadedState = createBasePreloadedState();
-    preloadedState.bookCollection.bookshelves = [createMockBookshelf({ id: 1, name: "Shelf 1" })];
-    preloadedState.bookCollection.selectedId = 1;
-    preloadedState.bookCollection.books = [];
-    preloadedState.bookCollection.status = "idle";
-    preloadedState.bookCollection.error = null;
+    preloadedState.collection.collections = [createMockCollection({ id: 1, name: "Shelf 1" })];
+    preloadedState.collection.selectedId = 1;
+    preloadedState.collection.books = [];
+    preloadedState.collection.status = "idle";
+    preloadedState.collection.error = null;
 
     renderWithProviders(<BookDeleteDialog {...defaultProps} />, { preloadedState });
     expect(screen.getByText(/Shelf 1/)).toBeInTheDocument();
@@ -92,7 +92,7 @@ describe("BookDeleteDialog", () => {
     await user.click(deleteButton);
 
     await waitFor(() => {
-      expect(BookCollectionReducer.deleteBookFromCollection).not.toHaveBeenCalled();
+      expect(CollectionReducer.deleteBookFromCollection).not.toHaveBeenCalled();
       expect(onClose).toHaveBeenCalled();
     });
   });

@@ -1,5 +1,6 @@
 import { renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { events } from "../../../bindings/bindings";
 import { useTauriEvent } from "../../../hooks/useTauriEvent";
 import i18n from "../../../i18n/config";
 import { useAppDispatch } from "../../../store/store";
@@ -38,10 +39,10 @@ describe("useSettingsChange", () => {
     vi.mocked(useAppDispatch).mockReturnValue(mockDispatch);
   });
 
-  it("should register listeners for 'settings-changed' and 'locale-changed'", () => {
+  it("should register listeners for the settings and locale events", () => {
     renderHook(() => useSettingsChange());
-    expect(useTauriEvent).toHaveBeenCalledWith("settings-changed", expect.any(Function));
-    expect(useTauriEvent).toHaveBeenCalledWith("locale-changed", expect.any(Function));
+    expect(useTauriEvent).toHaveBeenCalledWith(events.settingsChanged, expect.any(Function));
+    expect(useTauriEvent).toHaveBeenCalledWith(events.localeChanged, expect.any(Function));
   });
 
   it("should dispatch setSettings with the settings-changed payload", () => {
@@ -51,7 +52,7 @@ describe("useSettingsChange", () => {
     renderHook(() => useSettingsChange());
     const settingsHandler = vi
       .mocked(useTauriEvent)
-      .mock.calls.find(([name]) => name === "settings-changed")?.[1];
+      .mock.calls.find(([event]) => event === events.settingsChanged)?.[1];
     settingsHandler?.({ event: "settings-changed", id: 1, payload });
 
     expect(setSettings).toHaveBeenCalledWith(payload);
@@ -67,7 +68,7 @@ describe("useSettingsChange", () => {
     renderHook(() => useSettingsChange());
     const settingsHandler = vi
       .mocked(useTauriEvent)
-      .mock.calls.find(([name]) => name === "settings-changed")?.[1];
+      .mock.calls.find(([event]) => event === events.settingsChanged)?.[1];
 
     const debugLevel = structuredClone(defaultSettings);
     debugLevel.general.log.level = "debug";
@@ -84,7 +85,7 @@ describe("useSettingsChange", () => {
     renderHook(() => useSettingsChange());
     const localeHandler = vi
       .mocked(useTauriEvent)
-      .mock.calls.find(([name]) => name === "locale-changed")?.[1];
+      .mock.calls.find(([event]) => event === events.localeChanged)?.[1];
     localeHandler?.({ event: "locale-changed", id: 1, payload: { language: "ja" } });
 
     expect(i18n.changeLanguage).toHaveBeenCalledWith("ja");

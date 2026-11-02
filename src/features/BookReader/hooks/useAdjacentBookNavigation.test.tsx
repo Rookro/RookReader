@@ -10,7 +10,7 @@ import {
   type RootState,
   testI18n,
 } from "../../../test/utils";
-import { openBook, setPendingInitialPosition } from "../slice";
+import { openBook } from "../slice";
 import { resolveAdjacentBook } from "../utils/AdjacentBookResolver";
 import { useAdjacentBookNavigation } from "./useAdjacentBookNavigation";
 
@@ -19,6 +19,14 @@ const { showNotification } = vi.hoisted(() => ({ showNotification: vi.fn() }));
 vi.mock("../../../components/ui/Notification/NotificationContext", () => ({
   useNotification: () => ({ showNotification }),
 }));
+
+vi.mock("../slice", async () => {
+  const actual = await vi.importActual("../slice");
+  return {
+    ...actual,
+    openBook: vi.fn((payload: unknown) => ({ type: "reader/openBook", payload })),
+  };
+});
 
 vi.mock("../utils/AdjacentBookResolver", () => ({
   resolveAdjacentBook: vi.fn(),
@@ -29,9 +37,9 @@ const mockedResolve = vi.mocked(resolveAdjacentBook);
 const buildState = (mode: "off" | "ask" | "auto"): RootState => {
   const state = createBasePreloadedState();
   state.settings.reader.autoOpenAdjacentBook = mode;
-  state.read.containerFile.history = ["/dir/book1.zip"];
-  state.read.containerFile.historyIndex = 0;
-  state.read.containerFile.origin = { kind: "fileNavigator" };
+  state.reader.history = ["/dir/book1.zip"];
+  state.reader.historyIndex = 0;
+  state.reader.origin = { kind: "fileNavigator" };
   return state;
 };
 
@@ -66,7 +74,7 @@ describe("useAdjacentBookNavigation", () => {
 
   it("auto-opens the next book and shows a toast", async () => {
     mockedResolve.mockResolvedValue({ filePath: "/dir/book2.zip", displayName: "Book 2" });
-    const { result, dispatchSpy } = renderTrigger(buildState("auto"));
+    const { result } = renderTrigger(buildState("auto"));
 
     await act(async () => {
       result.current.onForwardBoundary();
@@ -79,57 +87,58 @@ describe("useAdjacentBookNavigation", () => {
       "next",
       "name_asc",
     );
-    expect(dispatchSpy).toHaveBeenCalledWith(
-      openBook({ path: "/dir/book2.zip", origin: { kind: "fileNavigator" } }),
-    );
     // Next book opens on its first page.
-    expect(dispatchSpy).toHaveBeenCalledWith(setPendingInitialPosition("first"));
-    expect(dispatchSpy).not.toHaveBeenCalledWith(setPendingInitialPosition("last"));
+    expect(openBook).toHaveBeenCalledWith({
+      path: "/dir/book2.zip",
+      origin: { kind: "fileNavigator" },
+      initialPosition: "first",
+    });
     expect(showNotification).toHaveBeenCalledWith(expect.stringContaining("Book 2"), "info");
   });
 
   it("opens the previous book on its last page", async () => {
     mockedResolve.mockResolvedValue({ filePath: "/dir/book0.zip", displayName: "Book 0" });
-    const { result, dispatchSpy } = renderTrigger(buildState("auto"));
+    const { result } = renderTrigger(buildState("auto"));
 
     await act(async () => {
       result.current.onBackwardBoundary();
     });
 
-    expect(dispatchSpy).toHaveBeenCalledWith(setPendingInitialPosition("last"));
-    expect(dispatchSpy).toHaveBeenCalledWith(
-      openBook({ path: "/dir/book0.zip", origin: { kind: "fileNavigator" } }),
-    );
+    expect(openBook).toHaveBeenCalledWith({
+      path: "/dir/book0.zip",
+      origin: { kind: "fileNavigator" },
+      initialPosition: "last",
+    });
     expect(showNotification).toHaveBeenCalledWith(expect.stringContaining("Book 0"), "info");
   });
 
   it("shows a 'no next book' toast when none is found", async () => {
     mockedResolve.mockResolvedValue(null);
-    const { result, dispatchSpy } = renderTrigger(buildState("auto"));
+    const { result } = renderTrigger(buildState("auto"));
 
     await act(async () => {
       result.current.onForwardBoundary();
     });
 
     expect(showNotification).toHaveBeenCalledWith("No next book found.", "info");
-    expect(dispatchSpy).not.toHaveBeenCalledWith(expect.objectContaining({ type: openBook.type }));
+    expect(openBook).not.toHaveBeenCalled();
   });
 
   it("shows an error toast when resolution fails", async () => {
     mockedResolve.mockRejectedValue(new Error("backend boom"));
-    const { result, dispatchSpy } = renderTrigger(buildState("auto"));
+    const { result } = renderTrigger(buildState("auto"));
 
     await act(async () => {
       result.current.onForwardBoundary();
     });
 
     expect(showNotification).toHaveBeenCalledWith("Failed to open the adjacent book.", "error");
-    expect(dispatchSpy).not.toHaveBeenCalledWith(expect.objectContaining({ type: openBook.type }));
+    expect(openBook).not.toHaveBeenCalled();
   });
 
   it("asks for confirmation in 'ask' mode before opening", async () => {
     mockedResolve.mockResolvedValue({ filePath: "/dir/book2.zip", displayName: "Book 2" });
-    const { result, dispatchSpy } = renderTrigger(buildState("ask"));
+    const { result } = renderTrigger(buildState("ask"));
 
     await act(async () => {
       result.current.onForwardBoundary();
@@ -140,22 +149,24 @@ describe("useAdjacentBookNavigation", () => {
       book: { filePath: "/dir/book2.zip", displayName: "Book 2" },
       direction: "next",
     });
-    expect(dispatchSpy).not.toHaveBeenCalledWith(expect.objectContaining({ type: openBook.type }));
+    expect(openBook).not.toHaveBeenCalled();
 
     // Confirming opens the book.
     act(() => {
       result.current.confirmPending();
     });
 
-    expect(dispatchSpy).toHaveBeenCalledWith(
-      openBook({ path: "/dir/book2.zip", origin: { kind: "fileNavigator" } }),
-    );
+    expect(openBook).toHaveBeenCalledWith({
+      path: "/dir/book2.zip",
+      origin: { kind: "fileNavigator" },
+      initialPosition: "first",
+    });
     expect(result.current.pending).toBeNull();
   });
 
   it("cancels a pending confirmation without opening", async () => {
     mockedResolve.mockResolvedValue({ filePath: "/dir/book2.zip", displayName: "Book 2" });
-    const { result, dispatchSpy } = renderTrigger(buildState("ask"));
+    const { result } = renderTrigger(buildState("ask"));
 
     await act(async () => {
       result.current.onForwardBoundary();
@@ -165,7 +176,7 @@ describe("useAdjacentBookNavigation", () => {
     });
 
     expect(result.current.pending).toBeNull();
-    expect(dispatchSpy).not.toHaveBeenCalledWith(expect.objectContaining({ type: openBook.type }));
+    expect(openBook).not.toHaveBeenCalled();
   });
 
   it("guards against concurrent triggers while resolving", async () => {

@@ -2,8 +2,9 @@ use std::fs::read_dir;
 use std::path::Path;
 use tauri::ipc::Response;
 
+use crate::blocking::run_blocking;
 use crate::container::{archive_listing, archive_path, traits::Container};
-use crate::error::{Error, Result};
+use crate::error::Result;
 
 /// Reads the contents of a directory and returns a list of its entries.
 ///
@@ -45,9 +46,7 @@ pub async fn get_entries_in_dir(dir_path: &str) -> Result<Response> {
     let dir_path = dir_path.to_string();
     // On a blocking thread: a folder on a NAS or a spun-down disk must not stall every
     // other IPC call while it is read.
-    let buffer = tauri::async_runtime::spawn_blocking(move || list_entries(&dir_path))
-        .await
-        .map_err(|e| Error::Other(format!("Spawn blocking failed: {e}")))??;
+    let buffer = run_blocking(move || list_entries(&dir_path)).await?;
     Ok(Response::new(buffer))
 }
 
@@ -480,5 +479,28 @@ mod tests {
                 "last_modified should be in RFC 3339 format"
             );
         }
+    }
+
+    #[test]
+    fn push_entry_matches_the_shared_fixture() {
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../src/test/fixtures/binaryPayloads.json"
+        )))
+        .unwrap();
+        let dir_entries = &fixture["dirEntries"];
+        let expected: Vec<u8> = serde_json::from_value(dir_entries["bytes"].clone()).unwrap();
+
+        let mut buffer = Vec::new();
+        for entry in dir_entries["entries"].as_array().unwrap() {
+            push_entry(
+                &mut buffer,
+                entry["is_directory"].as_bool().unwrap(),
+                entry["name"].as_str().unwrap(),
+                entry["last_modified"].as_u64().unwrap(),
+            );
+        }
+
+        assert_eq!(buffer, expected);
     }
 }

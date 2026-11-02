@@ -62,7 +62,7 @@ impl TagRepository for SqliteTagRepository {
         Ok(tags)
     }
 
-    async fn attach_tags_to_book(&self, book_id: i64, tag_ids: &[i64]) -> Result<()> {
+    async fn set_tags_for_book(&self, book_id: i64, tag_ids: &[i64]) -> Result<()> {
         let mut tx = self.pool.begin().await?;
 
         sqlx::query!(

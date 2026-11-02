@@ -3,7 +3,7 @@ import { useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNotification } from "../../../components/ui/Notification/NotificationContext";
 import { type RootState, useAppDispatch, useAppSelector } from "../../../store/store";
-import { openBook, setPendingInitialPosition } from "../slice";
+import { openBook } from "../slice";
 import {
   type AdjacentBook,
   type Direction,
@@ -35,10 +35,10 @@ export const useAdjacentBookNavigation = () => {
   // Only what resolving a neighbour needs, each selected on its own: selecting the whole
   // `containerFile` re-rendered the reader, and rebuilt every callback below, on each page turn.
   const currentPath = useAppSelector(
-    (s: RootState) => s.read.containerFile.history[s.read.containerFile.historyIndex] ?? "",
+    (s: RootState) => s.reader.history[s.reader.historyIndex] ?? "",
   );
-  const book = useAppSelector((s: RootState) => s.read.containerFile.book);
-  const origin = useAppSelector((s: RootState) => s.read.containerFile.origin);
+  const book = useAppSelector((s: RootState) => s.reader.book);
+  const origin = useAppSelector((s: RootState) => s.reader.origin);
 
   const isResolving = useRef(false);
   const [pending, setPending] = useState<PendingAdjacentBook | null>(null);
@@ -46,10 +46,15 @@ export const useAdjacentBookNavigation = () => {
   const openAdjacentBook = useCallback(
     (book: AdjacentBook, direction: Direction) => {
       // Land on a natural entry point of the adjacent book: the first page when moving
-      // forward, the last page when moving backward.
-      dispatch(setPendingInitialPosition(direction === "next" ? "first" : "last"));
-      // Preserve the current origin so the series/bookshelf/directory chain continues.
-      dispatch(openBook({ path: book.filePath, origin }));
+      // forward, the last page when moving backward. Preserve the current origin so the
+      // series/bookshelf/directory chain continues.
+      dispatch(
+        openBook({
+          path: book.filePath,
+          origin,
+          initialPosition: direction === "next" ? "first" : "last",
+        }),
+      );
       showNotification(
         t(
           direction === "next"

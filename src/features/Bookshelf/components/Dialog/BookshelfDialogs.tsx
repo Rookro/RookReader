@@ -1,10 +1,10 @@
-import type { BookWithState } from "../../../../domain/book/schema";
+import type { BookWithState } from "../../../../domain/entities";
 import { useAppSelector } from "../../../../store/store";
 import type { BookshelfDialogType } from "../../hooks/useBookshelfDialogs";
-import AddBooksToBookshelvesDialog from "./AddBooksToBookshelvesDialog";
 import BookDeleteDialog from "./BookDeleteDialog";
 import EditSeriesOrderDialog from "./EditSeriesOrderDialog";
 import SetBookTagsDialog from "./SetBookTagsDialog";
+import SetCollectionsDialog from "./SetCollectionsDialog";
 import SetSeriesDialog from "./SetSeriesDialog";
 
 /** Props for the BookshelfDialogs component. */
@@ -32,16 +32,16 @@ export default function BookshelfDialogs({
   onBookDialogClose,
   onEditSeriesOrderClose,
 }: BookshelfDialogsProps) {
-  const availableBookshelves = useAppSelector((state) => state.bookCollection.bookshelves);
+  const availableCollections = useAppSelector((state) => state.collection.collections);
   const availableTags = useAppSelector((state) => state.tag.tags);
   const availableSeries = useAppSelector((state) => state.series.series);
 
   return (
     <>
-      <AddBooksToBookshelvesDialog
-        open={dialogType === "add-to-bookshelf"}
+      <SetCollectionsDialog
+        open={dialogType === "set-collections"}
         bookIds={dialogBookIds}
-        availableBookshelves={availableBookshelves}
+        availableCollections={availableCollections}
         onClose={onBookDialogClose}
       />
       <SetBookTagsDialog

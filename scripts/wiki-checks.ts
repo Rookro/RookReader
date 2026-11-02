@@ -86,7 +86,7 @@ export function getByPath(value: unknown, dotted: string): unknown {
   }, value);
 }
 
-/** Wiki item labels whose "(default N)" is compared with `defaultSettings.json`. */
+/** Wiki item labels whose "(default N)" is compared with `DEFAULT_SETTINGS`. */
 export const DEFAULT_PATHS: Record<string, string> = {
   "Maximum image height (px)": "reader.rendering.maxImageHeight",
   "PDF rendering height (px)": "reader.rendering.pdfRenderResolutionHeight",
@@ -100,11 +100,11 @@ export const DEFAULT_PATHS: Record<string, string> = {
  *
  * Every `### Tab` heading must be a `settings.<tab>.tab-name` value, every `- **Label**` list item
  * must be a string under `settings` in `en-US.json`, and every `(default N)` on an item listed in
- * {@link DEFAULT_PATHS} must equal the value in `defaultSettings.json`.
+ * {@link DEFAULT_PATHS} must equal the value in `DEFAULT_SETTINGS`.
  *
  * @param markdown - The User Guide content.
  * @param enUs - The parsed `src/i18n/locales/en-US.json`.
- * @param defaults - The parsed `src/features/Settings/defaultSettings.json`.
+ * @param defaults - The setting defaults (`DEFAULT_SETTINGS` in `src/bindings/bindings.ts`).
  * @returns The findings (empty when the section is consistent).
  */
 export function checkSettingsSection(

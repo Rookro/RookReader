@@ -2,7 +2,7 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as BookmarkCommands from "../../../../bindings/BookmarkCommands";
-import type { Bookmark } from "../../../../domain/bookmark/schema";
+import type { Bookmark } from "../../../../domain/entities";
 import { createMockBookmark, createMockBookWithState } from "../../../../test/factories";
 import {
   createBasePreloadedState,
@@ -25,8 +25,8 @@ describe("BookmarkViewer", () => {
   /** Builds a state with a book open, optionally as a novel, and its loaded bookmarks. */
   const stateWithOpenBook = (isNovel = false) => {
     const preloadedState = createBasePreloadedState();
-    preloadedState.read.containerFile.book = createMockBookWithState({ id: 42 });
-    preloadedState.read.containerFile.isNovel = isNovel;
+    preloadedState.reader.book = createMockBookWithState({ id: 42 });
+    preloadedState.reader.isNovel = isNovel;
     preloadedState.bookmark = {
       bookId: 42,
       bookmarks: loadedBookmarks,
@@ -77,8 +77,8 @@ describe("BookmarkViewer", () => {
     });
     await user.click(await screen.findByText("The duel"));
 
-    expect(store.getState().read.containerFile.index).toBe(11);
-    expect(store.getState().read.containerFile.cfi).toBeNull();
+    expect(store.getState().reader.index).toBe(11);
+    expect(store.getState().reader.cfi).toBeNull();
   });
 
   it("should jump to the CFI when a novel bookmark is clicked", async () => {
@@ -96,7 +96,7 @@ describe("BookmarkViewer", () => {
     });
     await user.click(await screen.findByText("Chapter 2"));
 
-    const containerFile = store.getState().read.containerFile;
+    const containerFile = store.getState().reader;
     expect(containerFile.index).toBe(3);
     expect(containerFile.cfi).toBe("epubcfi(/6/8!/4/2/1:0)");
   });

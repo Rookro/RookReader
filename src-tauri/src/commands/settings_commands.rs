@@ -1,15 +1,14 @@
-use tauri::{AppHandle, Emitter, Manager, WebviewWindow};
+use tauri::{AppHandle, Manager, WebviewWindow};
 use tokio::sync::RwLock;
 
 use crate::{
-    error::{Error, Result},
+    blocking::run_blocking,
+    commands::events::{emit_to, SettingsChanged},
+    error::Result,
     settings::{AppSettings, SettingsFileLock, SettingsFileProvider, SettingsPatch},
     setup,
     state::app_state::AppState,
 };
-
-/// The event name broadcast to windows when settings change.
-const SETTINGS_CHANGED_EVENT: &str = "settings-changed";
 
 /// Reads the current application settings.
 ///
@@ -32,9 +31,7 @@ const SETTINGS_CHANGED_EVENT: &str = "settings-changed";
 #[specta::specta]
 pub async fn get_settings(provider: tauri::State<'_, SettingsFileProvider>) -> Result<AppSettings> {
     let provider = provider.inner().clone();
-    tauri::async_runtime::spawn_blocking(move || AppSettings::load(&provider))
-        .await
-        .map_err(|e| Error::Other(format!("Spawn blocking failed: {e}")))?
+    run_blocking(move || AppSettings::load(&provider)).await
 }
 
 /// Applies a partial settings change and returns the full merged settings.
@@ -66,7 +63,7 @@ pub async fn get_settings(provider: tauri::State<'_, SettingsFileProvider>) -> R
 /// # Errors
 ///
 /// Returns `Error::Settings` if the merged result is invalid (e.g. out of range),
-/// or a persistence/emit error.
+/// or a persistence error.
 #[tauri::command]
 #[specta::specta]
 pub async fn set_settings<R: tauri::Runtime>(
@@ -84,9 +81,7 @@ pub async fn set_settings<R: tauri::Runtime>(
 
     let settings = {
         let provider = provider.inner().clone();
-        tauri::async_runtime::spawn_blocking(move || AppSettings::apply_patch(&provider, patch))
-            .await
-            .map_err(|e| Error::Other(format!("Spawn blocking failed: {e}")))??
+        run_blocking(move || AppSettings::apply_patch(&provider, patch)).await?
     };
 
     {
@@ -96,12 +91,10 @@ pub async fn set_settings<R: tauri::Runtime>(
 
     let caller_label = webview.label().to_string();
     let all_labels: Vec<String> = app.webview_windows().into_keys().collect();
+    let event = SettingsChanged(settings.clone());
     for label in settings_change_targets(all_labels, &caller_label) {
-        // The settings are already persisted and applied; a failed emit to one window
-        // must not abort delivery to the others, so log and continue.
-        if let Err(e) = app.emit_to(label.as_str(), SETTINGS_CHANGED_EVENT, &settings) {
-            log::warn!("Failed to emit {SETTINGS_CHANGED_EVENT} to window '{label}': {e}");
-        }
+        // One window at a time, so a failed send to one does not stop delivery to the others.
+        emit_to(&app, label.as_str(), &event);
     }
 
     Ok(settings)

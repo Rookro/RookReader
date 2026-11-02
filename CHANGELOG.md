@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.7.0] - 2026-11-02
+
+### Added
+
+* **Set tags** and **Set collections** can create a new tag or collection without leaving the dialog. (#376)
+  * The new tag or collection is checked, so pressing **OK** adds it to every selected book.
+
+### Changed
+
+* The collection dialog now works like the tag dialog and is renamed **Set collections**. (#375)
+  * The collections a book is already in are checked; unchecking one takes the book out of it.
+  * With several books selected, a collection that only some of them are in is shown as partly checked and left as it is on each book.
+* Clearing **PDF rendering height (px)** now restores its default, like the other number settings. (#384)
+* Updated the dependencies, including the bundled PDFium engine that renders PDF pages. (#386)
+
+### Fixed
+
+* Fixed the window size not being restored on Linux; the windows no longer grow on every launch either. (#373)
+
 ## [2.6.1] - 2026-10-24
 
 ### Changed
@@ -641,7 +660,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Add an automatic two-page spread display feature (#4)
 * Add a page navigation feature using the mouse wheel up/down (#5)
 
-[unreleased]: https://github.com/Rookro/RookReader/compare/v2.6.1...HEAD
+[unreleased]: https://github.com/Rookro/RookReader/compare/v2.7.0...HEAD
+[2.7.0]: https://github.com/Rookro/RookReader/compare/v2.6.1...v2.7.0
 [2.6.1]: https://github.com/Rookro/RookReader/compare/v2.6.0...v2.6.1
 [2.6.0]: https://github.com/Rookro/RookReader/compare/v2.5.0...v2.6.0
 [2.5.0]: https://github.com/Rookro/RookReader/compare/v2.4.0...v2.5.0

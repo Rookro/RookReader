@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { mockScrollToRow } from "../../../../test/mocks/components";
 import { createBasePreloadedState, renderWithProviders } from "../../../../test/utils";
 import type { DirEntry } from "../../../../types/DirEntry";
+import * as FileNavigatorSlice from "../../fileNavigatorSlice";
 import { useFileSelection } from "../../hooks/useFileSelection";
 import * as ReadReducer from "../../slice";
 import FileNavigator from "./FileNavigator";
@@ -32,8 +33,14 @@ vi.mock("../../slice", async () => {
   const actual = await vi.importActual("../../slice");
   return {
     ...actual,
+    openBook: vi.fn((payload: unknown) => ({ type: "reader/openBook", payload })),
+  };
+});
+vi.mock("../../fileNavigatorSlice", async () => {
+  const actual = await vi.importActual("../../fileNavigatorSlice");
+  return {
+    ...actual,
     updateExploreBasePath: vi.fn(() => ({ type: "explorer/updateExploreBasePath" })),
-    openBook: vi.fn((payload: unknown) => ({ type: "read/openBook", payload })),
     setSearchText: vi.fn((payload: string) => ({ type: "explorer/setSearchText", payload })),
   };
 });
@@ -53,7 +60,7 @@ describe("FileNavigator", () => {
 
   it("should show CircularProgress when loading", () => {
     const preloadedState = createBasePreloadedState();
-    preloadedState.read.explorer.isLoading = true;
+    preloadedState.fileNavigator.isLoading = true;
 
     renderWithProviders(<FileNavigator />, { preloadedState });
     expect(screen.getByRole("progressbar")).toBeInTheDocument();
@@ -66,8 +73,8 @@ describe("FileNavigator", () => {
 
   it("should show 'no search results' when search does not match any entry", async () => {
     const preloadedState = createBasePreloadedState();
-    preloadedState.read.explorer.searchText = "Banana";
-    preloadedState.read.explorer.entries = [
+    preloadedState.fileNavigator.searchText = "Banana";
+    preloadedState.fileNavigator.entries = [
       { name: "Apple", is_directory: false, last_modified: 0 },
     ];
 
@@ -78,7 +85,7 @@ describe("FileNavigator", () => {
   it("should dispatch openBook when a file is clicked", async () => {
     const entries: DirEntry[] = [{ name: "book.zip", is_directory: false, last_modified: 0 }];
     const preloadedState = createBasePreloadedState();
-    preloadedState.read.explorer.entries = entries;
+    preloadedState.fileNavigator.entries = entries;
 
     renderWithProviders(<FileNavigator />, { preloadedState });
 
@@ -96,24 +103,24 @@ describe("FileNavigator", () => {
   // Moving to a folder already starts its listing; the history effect must not list it again
   it("does not list a folder whose listing is already in flight", () => {
     const preloadedState = createBasePreloadedState();
-    preloadedState.read.explorer.history = ["/a"];
-    preloadedState.read.explorer.historyIndex = 0;
-    preloadedState.read.explorer.pendingPath = "/a";
+    preloadedState.fileNavigator.history = ["/a"];
+    preloadedState.fileNavigator.historyIndex = 0;
+    preloadedState.fileNavigator.pendingPath = "/a";
 
     renderWithProviders(<FileNavigator />, { preloadedState });
 
-    expect(ReadReducer.updateExploreBasePath).not.toHaveBeenCalled();
+    expect(FileNavigatorSlice.updateExploreBasePath).not.toHaveBeenCalled();
   });
 
   // Back and Forward only move the history, so the effect is what lists the folder
   it("lists the current folder when nothing is loading it", () => {
     const preloadedState = createBasePreloadedState();
-    preloadedState.read.explorer.history = ["/a"];
-    preloadedState.read.explorer.historyIndex = 0;
+    preloadedState.fileNavigator.history = ["/a"];
+    preloadedState.fileNavigator.historyIndex = 0;
 
     renderWithProviders(<FileNavigator />, { preloadedState });
 
-    expect(ReadReducer.updateExploreBasePath).toHaveBeenCalledWith({
+    expect(FileNavigatorSlice.updateExploreBasePath).toHaveBeenCalledWith({
       dirPath: "/a",
       forceUpdate: true,
     });
@@ -122,7 +129,7 @@ describe("FileNavigator", () => {
   it("should dispatch updateExploreBasePath when a directory is double-clicked", async () => {
     const entries: DirEntry[] = [{ name: "folder", is_directory: true, last_modified: 0 }];
     const preloadedState = createBasePreloadedState();
-    preloadedState.read.explorer.entries = entries;
+    preloadedState.fileNavigator.entries = entries;
 
     renderWithProviders(<FileNavigator />, { preloadedState });
 
@@ -130,7 +137,7 @@ describe("FileNavigator", () => {
     await user.dblClick(rowButton);
 
     await waitFor(() => {
-      expect(ReadReducer.updateExploreBasePath).toHaveBeenCalled();
+      expect(FileNavigatorSlice.updateExploreBasePath).toHaveBeenCalled();
     });
   });
 
@@ -139,7 +146,7 @@ describe("FileNavigator", () => {
     // book; a single click still opens it.
     const entries: DirEntry[] = [{ name: "book.zip", is_directory: false, last_modified: 0 }];
     const preloadedState = createBasePreloadedState();
-    preloadedState.read.explorer.entries = entries;
+    preloadedState.fileNavigator.entries = entries;
 
     renderWithProviders(<FileNavigator />, { preloadedState });
 
@@ -147,7 +154,7 @@ describe("FileNavigator", () => {
     await user.dblClick(rowButton);
 
     await waitFor(() => {
-      expect(ReadReducer.updateExploreBasePath).toHaveBeenCalled();
+      expect(FileNavigatorSlice.updateExploreBasePath).toHaveBeenCalled();
     });
     expect(ReadReducer.openBook).not.toHaveBeenCalled();
   });
@@ -160,7 +167,7 @@ describe("FileNavigator", () => {
       { name: "folderB", is_directory: true, last_modified: 0 },
     ];
     const preloadedState = createBasePreloadedState();
-    preloadedState.read.explorer.entries = entries;
+    preloadedState.fileNavigator.entries = entries;
 
     renderWithProviders(<FileNavigator />, { preloadedState });
 
@@ -172,7 +179,7 @@ describe("FileNavigator", () => {
     fireEvent.click(rowB);
 
     // A click on a different row must not navigate into the directory.
-    expect(ReadReducer.updateExploreBasePath).not.toHaveBeenCalled();
+    expect(FileNavigatorSlice.updateExploreBasePath).not.toHaveBeenCalled();
 
     // The pending single-click resolves to selecting row B.
     await waitFor(() => {
@@ -180,14 +187,14 @@ describe("FileNavigator", () => {
         expect.objectContaining({ path: "/folderB" }),
       );
     });
-    expect(ReadReducer.updateExploreBasePath).not.toHaveBeenCalled();
+    expect(FileNavigatorSlice.updateExploreBasePath).not.toHaveBeenCalled();
   });
 
   it("should open the file when a file is double-clicked", async () => {
     // A PDF is a single document, not a browsable archive, so a double-click opens it.
     const entries: DirEntry[] = [{ name: "book.pdf", is_directory: false, last_modified: 0 }];
     const preloadedState = createBasePreloadedState();
-    preloadedState.read.explorer.entries = entries;
+    preloadedState.fileNavigator.entries = entries;
 
     renderWithProviders(<FileNavigator />, { preloadedState });
 
@@ -200,7 +207,7 @@ describe("FileNavigator", () => {
       );
     });
     // A file double-click must not be treated as a directory navigation.
-    expect(ReadReducer.updateExploreBasePath).not.toHaveBeenCalled();
+    expect(FileNavigatorSlice.updateExploreBasePath).not.toHaveBeenCalled();
   });
 
   it("should scroll to row when selectedIndex is set", async () => {
@@ -212,9 +219,9 @@ describe("FileNavigator", () => {
     );
 
     const preloadedState = createBasePreloadedState();
-    preloadedState.read.explorer.entries = entries;
-    preloadedState.read.containerFile.history = ["/book.zip"];
-    preloadedState.read.containerFile.historyIndex = 0;
+    preloadedState.fileNavigator.entries = entries;
+    preloadedState.reader.history = ["/book.zip"];
+    preloadedState.reader.historyIndex = 0;
 
     renderWithProviders(<FileNavigator />, { preloadedState });
 
@@ -236,9 +243,9 @@ describe("FileNavigator", () => {
     );
 
     const preloadedState = createBasePreloadedState();
-    preloadedState.read.explorer.entries = entries;
-    preloadedState.read.containerFile.history = ["/book.zip"];
-    preloadedState.read.containerFile.historyIndex = 0;
+    preloadedState.fileNavigator.entries = entries;
+    preloadedState.reader.history = ["/book.zip"];
+    preloadedState.reader.historyIndex = 0;
 
     mockScrollToRow.mockImplementation(() => {
       throw new Error("Scroll failed");

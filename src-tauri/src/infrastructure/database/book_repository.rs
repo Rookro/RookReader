@@ -100,7 +100,7 @@ impl BookRepository for SqliteBookRepository {
         Ok(book)
     }
 
-    async fn register_book(
+    async fn register(
         &self,
         file_path: &str,
         item_type: ItemType,
@@ -138,7 +138,7 @@ impl BookRepository for SqliteBookRepository {
         Ok(book_id)
     }
 
-    async fn record_book_opened(
+    async fn record_opened(
         &self,
         file_path: &str,
         item_type: ItemType,
@@ -350,8 +350,8 @@ impl BookRepository for SqliteBookRepository {
         Ok(books)
     }
 
-    async fn delete_book(&self, id: i64) -> Result<()> {
-        // reading_state, book_tags, bookshelf_items and bookmarks all declare
+    async fn delete(&self, id: i64) -> Result<()> {
+        // reading_state, book_tags, collection_items and bookmarks all declare
         // ON DELETE CASCADE, and sqlx enables foreign keys on every connection.
         sqlx::query!(
             r#"

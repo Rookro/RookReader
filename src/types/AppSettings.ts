@@ -4,11 +4,11 @@
  * The settings schema, defaults, and validation are owned by Rust; the TypeScript types
  * are generated into `src/bindings/bindings.ts` by `tauri-specta`. This module re-exports
  * those generated types under stable names and keeps the runtime const arrays the UI needs
- * (specta exports *types*, not *values*).
+ * (the UI's option lists are not generated).
  *
  * Each settings type is generated as `_Serialize | _Deserialize`; the `_Deserialize` variant
  * has every field optional because of the container `#[serde(default)]`. Commands return the
- * fully-populated `_Serialize` variant, so these names alias it, wrapped in {@link DeepRequired}.
+ * fully-populated `_Serialize` variant, so these names alias it.
  */
 import type {
   AppSettings_Serialize,
@@ -28,31 +28,21 @@ import type {
   StartupSettings_Serialize as StartupSettingsGen,
 } from "../bindings/bindings";
 
-/**
- * Recursively removes optionality and nullability.
- *
- * Sound for the settings tree because the backend always returns a complete object and no
- * settings field is legitimately null. Stripping `null` also fixes the float fields, which
- * specta types as `number | null` (serde serializes non-finite `f64` as JSON `null`) even
- * though the `finite_f64` validator guarantees they are always finite at runtime.
- */
-type DeepRequired<T> = T extends object ? { [K in keyof T]-?: DeepRequired<NonNullable<T[K]>> } : T;
-
-export type AppSettings = DeepRequired<AppSettings_Serialize>;
-export type ReaderSettings = DeepRequired<ReaderSettings_Serialize>;
-export type RenderingSettings = DeepRequired<RenderingSettings_Serialize>;
-export type GeneralSettings = DeepRequired<GeneralSettingsGen>;
-export type StartupSettings = DeepRequired<StartupSettingsGen>;
-export type BookshelfSettings = DeepRequired<BookshelfSettingsGen>;
-export type FileNavigatorSettings = DeepRequired<FileNavigatorSettingsGen>;
-export type ComicSettings = DeepRequired<ComicSettingsGen>;
-export type ComicCacheSettings = DeepRequired<ComicCacheSettingsGen>;
-export type LoupeSettings = DeepRequired<LoupeSettingsGen>;
-export type NovelSettings = DeepRequired<NovelSettingsGen>;
-export type HistorySettings = DeepRequired<HistorySettingsGen>;
-export type LayoutSettings = DeepRequired<LayoutSettingsGen>;
-export type SidePaneSettings = DeepRequired<SidePaneSettingsGen>;
-export type LogSettings = DeepRequired<LogSettingsGen>;
+export type AppSettings = AppSettings_Serialize;
+export type ReaderSettings = ReaderSettings_Serialize;
+export type RenderingSettings = RenderingSettings_Serialize;
+export type GeneralSettings = GeneralSettingsGen;
+export type StartupSettings = StartupSettingsGen;
+export type BookshelfSettings = BookshelfSettingsGen;
+export type FileNavigatorSettings = FileNavigatorSettingsGen;
+export type ComicSettings = ComicSettingsGen;
+export type ComicCacheSettings = ComicCacheSettingsGen;
+export type LoupeSettings = LoupeSettingsGen;
+export type NovelSettings = NovelSettingsGen;
+export type HistorySettings = HistorySettingsGen;
+export type LayoutSettings = LayoutSettingsGen;
+export type SidePaneSettings = SidePaneSettingsGen;
+export type LogSettings = LogSettingsGen;
 
 /** String-union enums (no optionality concern — re-exported directly). */
 export type {

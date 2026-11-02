@@ -3,6 +3,7 @@ import * as BookCommands from "../../bindings/BookCommands";
 import { readingProgressChanged } from "../../store/actions";
 import { createMockReadBook } from "../../test/factories";
 import { type AppStore, createTestStore } from "../../test/utils";
+import type { ThunkRejectValue } from "../../types/CustomAsyncThunk";
 import { ErrorCode } from "../../types/Error";
 import historyReducer, {
   clearAllHistory,
@@ -17,7 +18,7 @@ describe("HistoryReducer", () => {
   const initialState = {
     recentlyReadBooks: [],
     status: "idle" as const,
-    error: null as { code: ErrorCode; message?: string } | null,
+    error: null as ThunkRejectValue | null,
   };
 
   beforeEach(() => {
@@ -59,6 +60,31 @@ describe("HistoryReducer", () => {
     expect(nextState.recentlyReadBooks[0].last_read_page_index).toBe(0);
     expect(nextState.recentlyReadBooks[1].last_read_page_index).toBe(9);
     expect(nextState.recentlyReadBooks[1].last_opened_at).toBe("2026-07-04T10:00:00");
+  });
+
+  // A progress update without a timestamp does not blank the listed one.
+  it("should keep last_opened_at when readingProgressChanged carries none", () => {
+    const state = {
+      ...initialState,
+      recentlyReadBooks: [
+        createMockReadBook({
+          id: 1,
+          last_read_page_index: 0,
+          last_opened_at: "2026-07-01T09:00:00",
+        }),
+      ],
+    };
+    const nextState = historyReducer(
+      state,
+      readingProgressChanged({
+        book_id: 1,
+        last_read_page_index: 4,
+        cfi: null,
+        last_opened_at: null,
+      }),
+    );
+    expect(nextState.recentlyReadBooks[0].last_read_page_index).toBe(4);
+    expect(nextState.recentlyReadBooks[0].last_opened_at).toBe("2026-07-01T09:00:00");
   });
 
   // Verify that readingProgressChanged for an unknown book id is a no-op.

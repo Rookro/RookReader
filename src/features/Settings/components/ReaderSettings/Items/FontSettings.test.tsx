@@ -1,9 +1,14 @@
+import { debug } from "@tauri-apps/plugin-log";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getFonts } from "../../../../../bindings/FontCommands";
 import { mockTauri } from "../../../../../test/mocks/tauri";
-import { mockSettingsCommands, renderWithProviders } from "../../../../../test/utils";
+import {
+  createBasePreloadedState,
+  mockSettingsCommands,
+  renderWithProviders,
+} from "../../../../../test/utils";
 import FontSettings from "./FontSettings";
 
 describe("FontSettings", () => {
@@ -56,6 +61,20 @@ describe("FontSettings", () => {
       expect(mockTauri.invoke).toHaveBeenCalledWith("set_settings", {
         patch: { reader: { novel: { fontSize: 24 } } },
       });
+    });
+  });
+
+  it("logs the saved size when the font size field is cleared", async () => {
+    const preloadedState = createBasePreloadedState();
+    preloadedState.settings.reader.novel.fontSize = 20;
+    renderWithProviders(<FontSettings />, { preloadedState });
+
+    const input = screen.getByRole("textbox");
+    await user.clear(input);
+    await user.tab();
+
+    await waitFor(() => {
+      expect(debug).toHaveBeenCalledWith("Font size of novel reader changed: 16");
     });
   });
 });

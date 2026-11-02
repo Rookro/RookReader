@@ -1,6 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import type { BookWithState } from "../../../domain/book/schema";
+import type { BookWithState } from "../../../domain/entities";
 import { useBookshelfDialogs } from "./useBookshelfDialogs";
 
 describe("useBookshelfDialogs", () => {
@@ -56,10 +56,10 @@ describe("useBookshelfDialogs", () => {
     const { result } = renderHook(() => useBookshelfDialogs());
 
     act(() => {
-      result.current.openDialog("add-to-bookshelf", mockBooks);
+      result.current.openDialog("set-collections", mockBooks);
     });
 
-    expect(result.current.dialogType).toBe("add-to-bookshelf");
+    expect(result.current.dialogType).toBe("set-collections");
     expect(result.current.dialogBookIds).toEqual([1, 2]);
     expect(result.current.dialogBooks).toEqual(mockBooks);
   });
@@ -97,10 +97,10 @@ describe("useBookshelfDialogs", () => {
     const { result } = renderHook(() => useBookshelfDialogs());
 
     act(() => {
-      result.current.openDialog("add-to-bookshelf", [mockBooks[0]]);
+      result.current.openDialog("set-collections", [mockBooks[0]]);
     });
 
-    expect(result.current.dialogType).toBe("add-to-bookshelf");
+    expect(result.current.dialogType).toBe("set-collections");
     expect(result.current.dialogBookIds).toEqual([1]);
 
     act(() => {

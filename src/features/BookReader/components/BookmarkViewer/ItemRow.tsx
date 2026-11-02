@@ -3,7 +3,7 @@ import { memo, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import ContextMenu from "../../../../components/ui/ContextMenu/ContextMenu";
 import { useContextMenuAnchor } from "../../../../components/ui/ContextMenu/useContextMenuAnchor";
-import type { Bookmark } from "../../../../domain/bookmark/schema";
+import type { Bookmark } from "../../../../domain/entities";
 
 /**
  * Row component for the bookmark viewer.

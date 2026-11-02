@@ -24,7 +24,7 @@ describe("GlobalErrorListener", () => {
 
   it("should trigger notification and clear error when containerFile has error", async () => {
     const preloadedState = structuredClone(createBasePreloadedState());
-    preloadedState.read.containerFile.error = {
+    preloadedState.reader.error = {
       code: ErrorCode.unsupportedContainer,
     };
 
@@ -44,13 +44,13 @@ describe("GlobalErrorListener", () => {
 
     // Check if error is cleared in Redux
     await waitFor(() => {
-      expect(store.getState().read.containerFile.error).toBeNull();
+      expect(store.getState().reader.error).toBeNull();
     });
   });
 
   it("should trigger notification and clear error when the container has no pages", async () => {
     const preloadedState = structuredClone(createBasePreloadedState());
-    preloadedState.read.containerFile.error = {
+    preloadedState.reader.error = {
       code: ErrorCode.emptyContainer,
     };
 
@@ -65,13 +65,13 @@ describe("GlobalErrorListener", () => {
     });
 
     await waitFor(() => {
-      expect(store.getState().read.containerFile.error).toBeNull();
+      expect(store.getState().reader.error).toBeNull();
     });
   });
 
   it("should report a book whose file is gone as not found", async () => {
     const preloadedState = structuredClone(createBasePreloadedState());
-    preloadedState.read.containerFile.error = {
+    preloadedState.reader.error = {
       code: ErrorCode.pathNotFound,
     };
 
@@ -85,13 +85,13 @@ describe("GlobalErrorListener", () => {
     });
 
     await waitFor(() => {
-      expect(store.getState().read.containerFile.error).toBeNull();
+      expect(store.getState().reader.error).toBeNull();
     });
   });
 
   it("should report a failure to record the opened book on its own", async () => {
     const preloadedState = structuredClone(createBasePreloadedState());
-    preloadedState.read.containerFile.bookRecordError = { code: ErrorCode.database };
+    preloadedState.reader.bookRecordError = { code: ErrorCode.database };
 
     const { store } = renderWithProviders(<GlobalErrorListener />, { preloadedState });
 
@@ -103,13 +103,13 @@ describe("GlobalErrorListener", () => {
     });
 
     await waitFor(() => {
-      expect(store.getState().read.containerFile.bookRecordError).toBeNull();
+      expect(store.getState().reader.bookRecordError).toBeNull();
     });
   });
 
   it("should trigger notification and clear error when explorer has error", async () => {
     const preloadedState = createBasePreloadedState();
-    preloadedState.read.explorer.error = { code: ErrorCode.io };
+    preloadedState.fileNavigator.error = { code: ErrorCode.io };
 
     const { store } = renderWithProviders(<GlobalErrorListener />, { preloadedState });
 
@@ -121,7 +121,7 @@ describe("GlobalErrorListener", () => {
     });
 
     await waitFor(() => {
-      expect(store.getState().read.explorer.error).toBeNull();
+      expect(store.getState().fileNavigator.error).toBeNull();
     });
   });
 
@@ -143,9 +143,9 @@ describe("GlobalErrorListener", () => {
     });
   });
 
-  it("should trigger notification and clear error when bookshelf has error", async () => {
+  it("should trigger notification and clear error when collection has error", async () => {
     const preloadedState = createBasePreloadedState();
-    preloadedState.bookCollection.error = { code: ErrorCode.other };
+    preloadedState.collection.error = { code: ErrorCode.other };
 
     const { store } = renderWithProviders(<GlobalErrorListener />, { preloadedState });
 
@@ -157,7 +157,7 @@ describe("GlobalErrorListener", () => {
     });
 
     await waitFor(() => {
-      expect(store.getState().bookCollection.error).toBeNull();
+      expect(store.getState().collection.error).toBeNull();
     });
   });
 

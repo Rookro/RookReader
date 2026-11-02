@@ -3,11 +3,12 @@ import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as BookCommands from "../../../../bindings/BookCommands";
+import * as SeriesCommands from "../../../../bindings/SeriesCommands";
 import i18n from "../../../../i18n/config";
 import { createMockBookWithState } from "../../../../test/factories";
 import { createBasePreloadedState, renderWithProviders } from "../../../../test/utils";
 import * as seriesSlice from "../../seriesSlice";
-import { fetchBooksInSelectedBookshelf } from "../../slice";
+import { fetchBooksInSelectedCollection } from "../../slice";
 import EditSeriesOrderDialog from "./EditSeriesOrderDialog";
 
 // Mock the seriesSlice module to intercept thunk calls
@@ -28,11 +29,11 @@ describe("EditSeriesOrderDialog", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     i18n.changeLanguage("en-US");
-    vi.mocked(BookCommands.getBooksWithStateBySeriesId).mockResolvedValue(volumes.slice(0, 3));
+    vi.mocked(SeriesCommands.getBooksBySeries).mockResolvedValue(volumes.slice(0, 3));
   });
 
   it("should render correctly when open including book details", async () => {
-    vi.mocked(BookCommands.getBooksWithStateBySeriesId).mockResolvedValue([
+    vi.mocked(SeriesCommands.getBooksBySeries).mockResolvedValue([
       createMockBookWithState({
         id: 1,
         display_name: "Book 1",
@@ -74,9 +75,9 @@ describe("EditSeriesOrderDialog", () => {
 
   // Inside a collection only some volumes are on screen; renumbering those would collide
   it("lists the whole series, not only the volumes in the open collection", async () => {
-    vi.mocked(BookCommands.getBooksWithStateBySeriesId).mockResolvedValue(volumes);
+    vi.mocked(SeriesCommands.getBooksBySeries).mockResolvedValue(volumes);
     const preloadedState = createBasePreloadedState();
-    preloadedState.bookCollection.books = volumes.slice(3);
+    preloadedState.collection.books = volumes.slice(3);
 
     renderWithProviders(<EditSeriesOrderDialog open={true} seriesId={9} onClose={vi.fn()} />, {
       preloadedState,
@@ -84,11 +85,11 @@ describe("EditSeriesOrderDialog", () => {
 
     expect(await screen.findByText("Book 1")).toBeInTheDocument();
     expect(screen.getAllByText(/^# \d$/)).toHaveLength(5);
-    expect(BookCommands.getBooksWithStateBySeriesId).toHaveBeenCalledWith(9);
+    expect(SeriesCommands.getBooksBySeries).toHaveBeenCalledWith(9);
   });
 
   it("should dispatch updateSeriesOrdersThunk with every volume when save is clicked", async () => {
-    vi.mocked(BookCommands.getBooksWithStateBySeriesId).mockResolvedValue(volumes);
+    vi.mocked(SeriesCommands.getBooksBySeries).mockResolvedValue(volumes);
     const handleClose = vi.fn();
     renderWithProviders(<EditSeriesOrderDialog open={true} seriesId={9} onClose={handleClose} />);
 
@@ -108,16 +109,16 @@ describe("EditSeriesOrderDialog", () => {
 
     vi.mocked(BookCommands.getAllBooksWithState).mockResolvedValue([volumes[0]]);
     await act(async () => {
-      await store.dispatch(fetchBooksInSelectedBookshelf(null));
+      await store.dispatch(fetchBooksInSelectedCollection(null));
     });
 
     await waitFor(() => expect(screen.getByText("Book 3")).toBeInTheDocument());
-    expect(BookCommands.getBooksWithStateBySeriesId).toHaveBeenCalledTimes(1);
+    expect(SeriesCommands.getBooksBySeries).toHaveBeenCalledTimes(1);
   });
 
   // Saving after a failed read would renumber a series the dialog never saw
   it("disables OK when the series could not be loaded", async () => {
-    vi.mocked(BookCommands.getBooksWithStateBySeriesId).mockRejectedValue(new Error("boom"));
+    vi.mocked(SeriesCommands.getBooksBySeries).mockRejectedValue(new Error("boom"));
     renderWithProviders(<EditSeriesOrderDialog open={true} seriesId={9} onClose={vi.fn()} />);
 
     // Disabled while loading too, so check it once the failure has been handled.

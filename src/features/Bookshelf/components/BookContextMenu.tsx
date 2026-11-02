@@ -6,7 +6,7 @@ import { Divider, ListItemIcon, ListItemText, MenuItem } from "@mui/material";
 import { useTranslation } from "react-i18next";
 import ContextMenu from "../../../components/ui/ContextMenu/ContextMenu";
 import type { ContextMenuAnchor } from "../../../components/ui/ContextMenu/useContextMenuAnchor";
-import type { BookWithState } from "../../../domain/book/schema";
+import type { BookWithState } from "../../../domain/entities";
 import { useBookSelection } from "../hooks/useBookSelection";
 import { useBookshelfActions } from "./BookshelfActionsContext";
 
@@ -35,14 +35,14 @@ export default function BookContextMenu({ book, anchor, onClose }: BookContextMe
       <MenuItem
         dense
         onClick={() => {
-          openDialog("add-to-bookshelf", getTargetBooks());
+          openDialog("set-collections", getTargetBooks());
           onClose();
         }}
       >
         <ListItemIcon>
           <LibraryBooks sx={{ color: "text.secondary" }} />
         </ListItemIcon>
-        <ListItemText>{t("bookshelf.collection.add-books-title")}</ListItemText>
+        <ListItemText>{t("bookshelf.collection.set-title")}</ListItemText>
       </MenuItem>
       <MenuItem
         dense

@@ -13,8 +13,8 @@ async fn test_create_and_get_all_series() {
     let pool = setup_db().await;
     let repository = SqliteSeriesRepository::new(pool.clone());
 
-    let id1 = repository.create("Series A").await.unwrap();
-    let id2 = repository.create("Series B").await.unwrap();
+    let id1 = repository.create("Series A").await.unwrap().id;
+    let id2 = repository.create("Series B").await.unwrap().id;
 
     let series = repository.get_all().await.unwrap();
     assert_eq!(series.len(), 2);
@@ -24,6 +24,17 @@ async fn test_create_and_get_all_series() {
 
     assert_eq!(series[1].id, id2);
     assert_eq!(series[1].name, "Series B");
+}
+
+#[tokio::test]
+async fn create_returns_the_new_series() {
+    let pool = setup_db().await;
+    let repo = SqliteSeriesRepository::new(pool.clone());
+
+    let series = repo.create("Saga").await.unwrap();
+
+    assert_eq!(series.name, "Saga");
+    assert_eq!(repo.get_all().await.unwrap()[0].id, series.id);
 }
 
 #[tokio::test]
@@ -39,20 +50,20 @@ async fn test_create_duplicate_series() {
 }
 
 #[tokio::test]
-async fn test_assign_book_to_series() {
+async fn test_set_series_for_book() {
     let pool = setup_db().await;
     let series_repo = SqliteSeriesRepository::new(pool.clone());
     let book_repo = SqliteBookRepository::new(pool.clone());
 
-    let series_id = series_repo.create("Series X").await.unwrap();
+    let series_id = series_repo.create("Series X").await.unwrap().id;
     let book_id = book_repo
-        .register_book("path/x", ItemType::File, "Book X", 100, None)
+        .register("path/x", ItemType::File, "Book X", 100, None)
         .await
         .unwrap();
 
     // Assign
     series_repo
-        .assign_book_to_series(book_id, Some(series_id))
+        .set_series_for_book(book_id, Some(series_id))
         .await
         .unwrap();
     let book = book_repo.get_by_id(book_id).await.unwrap().unwrap();
@@ -60,7 +71,7 @@ async fn test_assign_book_to_series() {
 
     // Remove (assign None)
     series_repo
-        .assign_book_to_series(book_id, None)
+        .set_series_for_book(book_id, None)
         .await
         .unwrap();
     let book = book_repo.get_by_id(book_id).await.unwrap().unwrap();
@@ -73,15 +84,15 @@ async fn test_delete_series() {
     let series_repo = SqliteSeriesRepository::new(pool.clone());
     let book_repo = SqliteBookRepository::new(pool.clone());
 
-    let series_id = series_repo.create("Series A").await.unwrap();
+    let series_id = series_repo.create("Series A").await.unwrap().id;
 
     let book_id = book_repo
-        .register_book("path/to/book.zip", ItemType::File, "Book A", 100, None)
+        .register("path/to/book.zip", ItemType::File, "Book A", 100, None)
         .await
         .unwrap();
 
     series_repo
-        .assign_book_to_series(book_id, Some(series_id))
+        .set_series_for_book(book_id, Some(series_id))
         .await
         .unwrap();
 
@@ -102,43 +113,43 @@ async fn test_delete_series() {
 }
 
 #[tokio::test]
-async fn test_update_book_orders_in_series() {
+async fn test_set_series_order() {
     let pool = setup_db().await;
     let series_repo = SqliteSeriesRepository::new(pool.clone());
     let book_repo = SqliteBookRepository::new(pool.clone());
 
-    let series_id = series_repo.create("Ordered Series").await.unwrap();
+    let series_id = series_repo.create("Ordered Series").await.unwrap().id;
 
     let b1 = book_repo
-        .register_book("path/1", ItemType::File, "Book 1", 100, None)
+        .register("path/1", ItemType::File, "Book 1", 100, None)
         .await
         .unwrap();
     let b2 = book_repo
-        .register_book("path/2", ItemType::File, "Book 2", 100, None)
+        .register("path/2", ItemType::File, "Book 2", 100, None)
         .await
         .unwrap();
     let b3 = book_repo
-        .register_book("path/3", ItemType::File, "Book 3", 100, None)
+        .register("path/3", ItemType::File, "Book 3", 100, None)
         .await
         .unwrap();
 
     // Assign to series
     series_repo
-        .assign_book_to_series(b1, Some(series_id))
+        .set_series_for_book(b1, Some(series_id))
         .await
         .unwrap();
     series_repo
-        .assign_book_to_series(b2, Some(series_id))
+        .set_series_for_book(b2, Some(series_id))
         .await
         .unwrap();
     series_repo
-        .assign_book_to_series(b3, Some(series_id))
+        .set_series_for_book(b3, Some(series_id))
         .await
         .unwrap();
 
     // Initial order doesn't matter much for this test, let's set a specific one
     series_repo
-        .update_book_orders_in_series(vec![b3, b1, b2])
+        .set_series_order(vec![b3, b1, b2])
         .await
         .unwrap();
 
@@ -158,22 +169,22 @@ async fn test_assign_appends_at_end_of_series() {
     let series_repo = SqliteSeriesRepository::new(pool.clone());
     let book_repo = SqliteBookRepository::new(pool.clone());
 
-    let series_id = series_repo.create("Series").await.unwrap();
+    let series_id = series_repo.create("Series").await.unwrap().id;
     let b1 = book_repo
-        .register_book("path/1", ItemType::File, "Book 1", 100, None)
+        .register("path/1", ItemType::File, "Book 1", 100, None)
         .await
         .unwrap();
     let b2 = book_repo
-        .register_book("path/2", ItemType::File, "Book 2", 100, None)
+        .register("path/2", ItemType::File, "Book 2", 100, None)
         .await
         .unwrap();
 
     series_repo
-        .assign_book_to_series(b1, Some(series_id))
+        .set_series_for_book(b1, Some(series_id))
         .await
         .unwrap();
     series_repo
-        .assign_book_to_series(b2, Some(series_id))
+        .set_series_for_book(b2, Some(series_id))
         .await
         .unwrap();
 
@@ -190,14 +201,14 @@ async fn test_unassign_clears_series_order() {
     let series_repo = SqliteSeriesRepository::new(pool.clone());
     let book_repo = SqliteBookRepository::new(pool.clone());
 
-    let series_id = series_repo.create("Series").await.unwrap();
+    let series_id = series_repo.create("Series").await.unwrap().id;
     let book_id = book_repo
-        .register_book("path/x", ItemType::File, "Book X", 100, None)
+        .register("path/x", ItemType::File, "Book X", 100, None)
         .await
         .unwrap();
 
     series_repo
-        .assign_book_to_series(book_id, Some(series_id))
+        .set_series_for_book(book_id, Some(series_id))
         .await
         .unwrap();
     let book = book_repo.get_by_id(book_id).await.unwrap().unwrap();
@@ -205,7 +216,7 @@ async fn test_unassign_clears_series_order() {
 
     // Clearing the series also clears the order so it cannot resurface later.
     series_repo
-        .assign_book_to_series(book_id, None)
+        .set_series_for_book(book_id, None)
         .await
         .unwrap();
     let book = book_repo.get_by_id(book_id).await.unwrap().unwrap();
@@ -219,38 +230,38 @@ async fn test_move_book_between_series_has_no_order_collision() {
     let series_repo = SqliteSeriesRepository::new(pool.clone());
     let book_repo = SqliteBookRepository::new(pool.clone());
 
-    let series_a = series_repo.create("Series A").await.unwrap();
-    let series_b = series_repo.create("Series B").await.unwrap();
+    let series_a = series_repo.create("Series A").await.unwrap().id;
+    let series_b = series_repo.create("Series B").await.unwrap().id;
 
     // Series B already has two ordered books.
     let p = book_repo
-        .register_book("path/p", ItemType::File, "Book P", 100, None)
+        .register("path/p", ItemType::File, "Book P", 100, None)
         .await
         .unwrap();
     let q = book_repo
-        .register_book("path/q", ItemType::File, "Book Q", 100, None)
+        .register("path/q", ItemType::File, "Book Q", 100, None)
         .await
         .unwrap();
     series_repo
-        .assign_book_to_series(p, Some(series_b))
+        .set_series_for_book(p, Some(series_b))
         .await
         .unwrap();
     series_repo
-        .assign_book_to_series(q, Some(series_b))
+        .set_series_for_book(q, Some(series_b))
         .await
         .unwrap();
 
     // A book that starts in Series A (with a stale order) is moved into Series B.
     let x = book_repo
-        .register_book("path/x", ItemType::File, "Book X", 100, None)
+        .register("path/x", ItemType::File, "Book X", 100, None)
         .await
         .unwrap();
     series_repo
-        .assign_book_to_series(x, Some(series_a))
+        .set_series_for_book(x, Some(series_a))
         .await
         .unwrap();
     series_repo
-        .assign_book_to_series(x, Some(series_b))
+        .set_series_for_book(x, Some(series_b))
         .await
         .unwrap();
 
@@ -268,27 +279,27 @@ async fn test_reassigning_the_same_series_keeps_the_order() {
     let pool = setup_db().await;
     let series_repo = SqliteSeriesRepository::new(pool.clone());
     let book_repo = SqliteBookRepository::new(pool.clone());
-    let series_id = series_repo.create("Series").await.unwrap();
+    let series_id = series_repo.create("Series").await.unwrap().id;
     let b1 = book_repo
-        .register_book("path/1", ItemType::File, "Book 1", 100, None)
+        .register("path/1", ItemType::File, "Book 1", 100, None)
         .await
         .unwrap();
     let b2 = book_repo
-        .register_book("path/2", ItemType::File, "Book 2", 100, None)
+        .register("path/2", ItemType::File, "Book 2", 100, None)
         .await
         .unwrap();
     series_repo
-        .assign_book_to_series(b1, Some(series_id))
+        .set_series_for_book(b1, Some(series_id))
         .await
         .unwrap();
     series_repo
-        .assign_book_to_series(b2, Some(series_id))
+        .set_series_for_book(b2, Some(series_id))
         .await
         .unwrap();
 
     // Confirming the series dialog unchanged must not move volume 1 to the end.
     series_repo
-        .assign_book_to_series(b1, Some(series_id))
+        .set_series_for_book(b1, Some(series_id))
         .await
         .unwrap();
 
@@ -303,13 +314,13 @@ async fn test_delete_series_clears_the_books_order() {
     let pool = setup_db().await;
     let series_repo = SqliteSeriesRepository::new(pool.clone());
     let book_repo = SqliteBookRepository::new(pool.clone());
-    let series_id = series_repo.create("Series").await.unwrap();
+    let series_id = series_repo.create("Series").await.unwrap().id;
     let b1 = book_repo
-        .register_book("path/1", ItemType::File, "Book 1", 100, None)
+        .register("path/1", ItemType::File, "Book 1", 100, None)
         .await
         .unwrap();
     series_repo
-        .assign_book_to_series(b1, Some(series_id))
+        .set_series_for_book(b1, Some(series_id))
         .await
         .unwrap();
 

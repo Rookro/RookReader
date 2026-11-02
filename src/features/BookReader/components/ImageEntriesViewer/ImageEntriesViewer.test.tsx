@@ -17,7 +17,7 @@ vi.mock("../../slice", async () => {
   const actual = await vi.importActual("../../slice");
   return {
     ...actual,
-    setImageIndex: vi.fn((payload: number) => ({ type: "read/setImageIndex", payload })),
+    setImageIndex: vi.fn((payload: number) => ({ type: "reader/setImageIndex", payload })),
   };
 });
 
@@ -40,7 +40,7 @@ describe("ImageEntriesViewer", () => {
 
   it("should render list items when entries are present", () => {
     const preloadedState = createBasePreloadedState();
-    preloadedState.read.containerFile.entries = ["p1.jpg", "p2.jpg"];
+    preloadedState.reader.entries = ["p1.jpg", "p2.jpg"];
 
     renderWithProviders(<ImageEntriesViewer />, { preloadedState });
     expect(screen.getByText("p1.jpg")).toBeInTheDocument();
@@ -49,9 +49,9 @@ describe("ImageEntriesViewer", () => {
 
   it("should select only the current page when a single page is displayed", () => {
     const preloadedState = createBasePreloadedState();
-    preloadedState.read.containerFile.entries = ["p1.jpg", "p2.jpg", "p3.jpg"];
-    preloadedState.read.containerFile.index = 1;
-    preloadedState.read.containerFile.isSpreadDisplayed = false;
+    preloadedState.reader.entries = ["p1.jpg", "p2.jpg", "p3.jpg"];
+    preloadedState.reader.index = 1;
+    preloadedState.reader.isSpreadDisplayed = false;
 
     renderWithProviders(<ImageEntriesViewer />, { preloadedState });
 
@@ -63,9 +63,9 @@ describe("ImageEntriesViewer", () => {
 
   it("should select both displayed pages when a spread is displayed", () => {
     const preloadedState = createBasePreloadedState();
-    preloadedState.read.containerFile.entries = ["p1.jpg", "p2.jpg", "p3.jpg"];
-    preloadedState.read.containerFile.index = 1;
-    preloadedState.read.containerFile.isSpreadDisplayed = true;
+    preloadedState.reader.entries = ["p1.jpg", "p2.jpg", "p3.jpg"];
+    preloadedState.reader.index = 1;
+    preloadedState.reader.isSpreadDisplayed = true;
 
     renderWithProviders(<ImageEntriesViewer />, { preloadedState });
 
@@ -77,9 +77,9 @@ describe("ImageEntriesViewer", () => {
 
   it("should not select a page past the end of the list on the last spread", () => {
     const preloadedState = createBasePreloadedState();
-    preloadedState.read.containerFile.entries = ["p1.jpg", "p2.jpg"];
-    preloadedState.read.containerFile.index = 1;
-    preloadedState.read.containerFile.isSpreadDisplayed = true;
+    preloadedState.reader.entries = ["p1.jpg", "p2.jpg"];
+    preloadedState.reader.index = 1;
+    preloadedState.reader.isSpreadDisplayed = true;
 
     renderWithProviders(<ImageEntriesViewer />, { preloadedState });
 
@@ -90,7 +90,7 @@ describe("ImageEntriesViewer", () => {
 
   it("should dispatch setImageIndex when an item is clicked", async () => {
     const preloadedState = createBasePreloadedState();
-    preloadedState.read.containerFile.entries = ["p1.jpg", "p2.jpg"];
+    preloadedState.reader.entries = ["p1.jpg", "p2.jpg"];
 
     renderWithProviders(<ImageEntriesViewer />, { preloadedState });
 
@@ -103,8 +103,8 @@ describe("ImageEntriesViewer", () => {
 
   it("should scroll to row when index changes", async () => {
     const preloadedState = createBasePreloadedState();
-    preloadedState.read.containerFile.entries = ["p1.jpg", "p2.jpg", "p3.jpg"];
-    preloadedState.read.containerFile.index = 2;
+    preloadedState.reader.entries = ["p1.jpg", "p2.jpg", "p3.jpg"];
+    preloadedState.reader.index = 2;
 
     renderWithProviders(<ImageEntriesViewer />, { preloadedState });
 
@@ -119,8 +119,8 @@ describe("ImageEntriesViewer", () => {
 
   it("should log error if scrollToRow fails", async () => {
     const preloadedState = createBasePreloadedState();
-    preloadedState.read.containerFile.entries = ["p1.jpg"];
-    preloadedState.read.containerFile.index = 0;
+    preloadedState.reader.entries = ["p1.jpg"];
+    preloadedState.reader.index = 0;
 
     mockScrollToRow.mockImplementationOnce(() => {
       throw new Error("Scroll failed");

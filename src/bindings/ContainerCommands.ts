@@ -1,31 +1,15 @@
-import { invoke } from "@tauri-apps/api/core";
-import { createCommandError } from "../types/Error";
 import { commands, type ImageDimensions } from "./bindings";
-import { runCommand } from "./result";
+import { runBinaryCommand, runCommand } from "./result";
 
 /**
- * Opens a container file and fetches its entries from the backend.
+ * Opens a book as the open book, replacing the previous one, and fetches its entries.
  *
  * @param path The path of the container file.
  * @returns A promise that resolves to an object containing entries, directory status, and novel status.
  */
-export const getEntriesInContainer = async (path: string) => {
-  return await runCommand(commands.getEntriesInContainer(path));
-};
-
-/**
- * Counts a container's pages without opening it for reading.
- *
- * Distinct from {@link getEntriesInContainer}, which installs the book it opens and so
- * closes the reader threads of the book already on screen. Use this wherever a book is
- * only being registered.
- *
- * @param path The path of the container file.
- * @returns A promise resolving to the page count and whether the path is a directory.
- */
-export const countPagesInContainer = async (path: string) => {
-  return await runCommand(commands.countPagesInContainer(path));
-};
+export async function openContainer(path: string) {
+  return await runCommand(commands.openContainer(path));
+}
 
 /**
  * Requests preloading of images around a specific index in the backend.
@@ -41,16 +25,16 @@ export const countPagesInContainer = async (path: string) => {
  *   request then waits on that job instead of being served.
  * @returns A promise that resolves when the request is submitted.
  */
-export const requestPreloadAround = async (
+export async function requestPreloadAround(
   path: string,
   index: number,
   bufferSize: number | undefined = undefined,
   callerPages: number | undefined = undefined,
-): Promise<void> => {
+): Promise<void> {
   await runCommand(
     commands.requestPreloadAround(path, index, bufferSize ?? null, callerPages ?? null),
   );
-};
+}
 
 /**
  * Fetches the pixel dimensions of every entry in the opened container.
@@ -58,9 +42,9 @@ export const requestPreloadAround = async (
  * @param path The path of the container file.
  * @returns A promise that resolves to one dimensions record per entry, in entry order.
  */
-export const getImageDimensions = async (path: string): Promise<ImageDimensions[]> => {
+export async function getImageDimensions(path: string): Promise<ImageDimensions[]> {
   return await runCommand(commands.getImageDimensions(path));
-};
+}
 
 /**
  * Tells the backend how large the reader draws a page, in device pixels.
@@ -75,14 +59,11 @@ export const getImageDimensions = async (path: string): Promise<ImageDimensions[
  * @param height The reader viewport's height in device pixels.
  * @returns A promise that resolves once the backend has the size.
  */
-export const setDisplaySize = async (width: number, height: number): Promise<void> => {
+export async function setDisplaySize(width: number, height: number): Promise<void> {
   await runCommand(commands.setDisplaySize(width, height));
-};
+}
 
-// NOTE: `getImage` / `getImageFull` / `getImagePreview` return a raw binary
-// `tauri::ipc::Response` from the backend, which has no `specta::Type` and is not part of the
-// generated `commands`. They keep a hand-written `invoke` wrapper that receives the custom
-// `[width][height][data]` binary payload.
+// The binary commands return a raw `tauri::ipc::Response`, which is not in the generated `commands`.
 
 /**
  * Fetches an image from a container in the backend.
@@ -91,13 +72,9 @@ export const setDisplaySize = async (width: number, height: number): Promise<voi
  * @param entryName The name of the image entry.
  * @returns A promise that resolves to the image data as an ArrayBuffer.
  */
-export const getImage = async (path: string, entryName: string): Promise<ArrayBuffer> => {
-  try {
-    return await invoke("get_image", { path, entryName });
-  } catch (error) {
-    throw createCommandError(error);
-  }
-};
+export async function getImage(path: string, entryName: string): Promise<ArrayBuffer> {
+  return runBinaryCommand("get_image", { path, entryName });
+}
 
 /**
  * Fetches a page at its full size, for the loupe.
@@ -109,13 +86,9 @@ export const getImage = async (path: string, entryName: string): Promise<ArrayBu
  * @param entryName The name of the image entry.
  * @returns A promise that resolves to the image data as an ArrayBuffer.
  */
-export const getImageFull = async (path: string, entryName: string): Promise<ArrayBuffer> => {
-  try {
-    return await invoke("get_image_full", { path, entryName });
-  } catch (error) {
-    throw createCommandError(error);
-  }
-};
+export async function getImageFull(path: string, entryName: string): Promise<ArrayBuffer> {
+  return runBinaryCommand("get_image_full", { path, entryName });
+}
 
 /**
  * Fetches an image preview from a container in the backend.
@@ -124,13 +97,9 @@ export const getImageFull = async (path: string, entryName: string): Promise<Arr
  * @param entryName The name of the image entry.
  * @returns A promise that resolves to the image data as an ArrayBuffer.
  */
-export const getImagePreview = async (path: string, entryName: string): Promise<ArrayBuffer> => {
-  try {
-    return await invoke("get_image_preview", { path, entryName });
-  } catch (error) {
-    throw createCommandError(error);
-  }
-};
+export async function getImagePreview(path: string, entryName: string): Promise<ArrayBuffer> {
+  return runBinaryCommand("get_image_preview", { path, entryName });
+}
 
 /**
  * Reads the EPUB file of the open novel.
@@ -141,10 +110,6 @@ export const getImagePreview = async (path: string, entryName: string): Promise<
  * @param path The path of the open novel.
  * @returns A promise that resolves to the file's bytes.
  */
-export const readNovelFile = async (path: string): Promise<ArrayBuffer> => {
-  try {
-    return await invoke("read_novel_file", { path });
-  } catch (error) {
-    throw createCommandError(error);
-  }
-};
+export async function readNovelFile(path: string): Promise<ArrayBuffer> {
+  return runBinaryCommand("read_novel_file", { path });
+}

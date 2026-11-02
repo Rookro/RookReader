@@ -2,8 +2,9 @@ use tokio::sync::RwLock;
 
 use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
 use tauri_plugin_window_state::StateFlags;
-use tauri_specta::{collect_commands, Builder};
+use tauri_specta::{collect_commands, collect_events, Builder};
 
+mod blocking;
 mod commands;
 mod container;
 pub mod domain;
@@ -15,84 +16,98 @@ pub mod perf;
 mod settings;
 mod setup;
 mod state;
+#[cfg(target_os = "linux")]
+mod window_size;
 
 /// Loading benchmarks. Never run by a plain `cargo test`; invoke them by name, e.g.
 /// `cargo test --release --lib perfbench_report -- --ignored --nocapture --test-threads=1`.
 #[cfg(test)]
 mod perfbench;
 
-/// Builds the `tauri-specta` command registry used to export the TypeScript bindings.
+/// Builds the `tauri-specta` command and event registry used to export the TypeScript
+/// bindings. Every event the app sends is registered here, so its name and payload are
+/// generated too.
 ///
-/// This intentionally excludes the four binary commands (`get_image`,
-/// `get_image_full`, `get_image_preview`, `get_entries_in_dir`) that return a raw
-/// `tauri::ipc::Response`: that type has no `specta::Type`, and the frontend keeps
-/// hand-written wrappers for them. At runtime [`run`] serves every command listed
-/// here through this builder's invoke handler and routes only those four binary
-/// commands to a small separate `tauri::generate_handler!`.
+/// This intentionally excludes the binary commands in the `binary_commands!` list,
+/// which return a raw `tauri::ipc::Response`: that type has no `specta::Type`, and the
+/// frontend keeps hand-written wrappers for them. At runtime [`run`] serves every command
+/// listed here through this builder's invoke handler and routes those to their own handler.
 ///
 /// # Returns
 ///
-/// A `tauri_specta::Builder` configured with every specta-compatible command.
+/// A `tauri_specta::Builder` configured with every specta-compatible command and every
+/// event.
 pub fn specta_builder() -> Builder<tauri::Wry> {
-    Builder::<tauri::Wry>::new().commands(collect_commands![
-        commands::settings_commands::get_settings,
-        commands::settings_commands::set_settings::<tauri::Wry>,
-        commands::container_commands::request_preload_around,
-        commands::container_commands::get_entries_in_container,
-        commands::container_commands::count_pages_in_container,
-        commands::container_commands::get_image_dimensions,
-        commands::container_commands::set_display_size,
-        commands::font_commands::get_fonts,
-        commands::book_commands::get_book_tags,
-        commands::book_commands::update_book_tags::<tauri::Wry>,
-        commands::book_commands::get_book,
-        commands::book_commands::get_book_by_path,
-        commands::book_commands::get_book_with_state_by_id,
-        commands::book_commands::register_book::<tauri::Wry>,
-        commands::book_commands::record_book_opened::<tauri::Wry>,
-        commands::book_commands::delete_book::<tauri::Wry>,
-        commands::book_commands::clear_reading_history::<tauri::Wry>,
-        commands::book_commands::clear_all_reading_history::<tauri::Wry>,
-        commands::book_commands::update_spread_shift,
-        commands::book_commands::update_reading_direction,
-        commands::book_commands::update_page_layout,
-        commands::book_commands::get_recently_read_books,
-        commands::book_commands::update_reading_progress::<tauri::Wry>,
-        commands::book_commands::get_all_books_with_state,
-        commands::book_commands::get_books_with_state_by_bookshelf_id,
-        commands::book_commands::get_books_with_state_by_tag_id,
-        commands::book_commands::get_books_with_state_by_series_id,
-        commands::book_commands::update_book_series::<tauri::Wry>,
-        commands::book_commands::update_series_orders::<tauri::Wry>,
-        commands::bookshelf_commands::create_bookshelf::<tauri::Wry>,
-        commands::bookshelf_commands::get_all_bookshelves,
-        commands::bookshelf_commands::add_book_to_bookshelf::<tauri::Wry>,
-        commands::bookshelf_commands::remove_book_from_bookshelf::<tauri::Wry>,
-        commands::bookshelf_commands::delete_bookshelf::<tauri::Wry>,
-        commands::series_commands::create_series::<tauri::Wry>,
-        commands::series_commands::get_all_series,
-        commands::series_commands::delete_series::<tauri::Wry>,
-        commands::tag_commands::create_tag::<tauri::Wry>,
-        commands::tag_commands::get_all_tags,
-        commands::tag_commands::delete_tag::<tauri::Wry>,
-        commands::bookmark_commands::create_bookmark,
-        commands::bookmark_commands::get_bookmarks_by_book_id,
-        commands::bookmark_commands::rename_bookmark,
-        commands::bookmark_commands::delete_bookmark,
-        commands::updater_commands::is_updater_supported,
-        commands::updater_commands::claim_update_prompt,
-        commands::updater_commands::release_update_prompt,
-    ])
+    Builder::<tauri::Wry>::new()
+        .commands(collect_commands![
+            commands::settings_commands::get_settings,
+            commands::settings_commands::set_settings::<tauri::Wry>,
+            commands::container_commands::request_preload_around,
+            commands::container_commands::open_container,
+            commands::container_commands::get_image_dimensions,
+            commands::container_commands::set_display_size,
+            commands::font_commands::get_fonts,
+            commands::book_commands::get_book,
+            commands::book_commands::get_book_by_path,
+            commands::book_commands::register_book::<tauri::Wry>,
+            commands::book_commands::record_book_opened::<tauri::Wry>,
+            commands::book_commands::delete_book::<tauri::Wry>,
+            commands::book_commands::clear_reading_history::<tauri::Wry>,
+            commands::book_commands::clear_all_reading_history::<tauri::Wry>,
+            commands::book_commands::update_spread_shift,
+            commands::book_commands::update_reading_direction,
+            commands::book_commands::update_page_layout,
+            commands::book_commands::get_recently_read_books,
+            commands::book_commands::update_reading_progress::<tauri::Wry>,
+            commands::book_commands::get_all_books_with_state,
+            commands::collection_commands::create_collection::<tauri::Wry>,
+            commands::collection_commands::get_all_collections,
+            commands::collection_commands::add_book_to_collection::<tauri::Wry>,
+            commands::collection_commands::remove_book_from_collection::<tauri::Wry>,
+            commands::collection_commands::get_collections_for_book,
+            commands::collection_commands::set_collections_for_book::<tauri::Wry>,
+            commands::collection_commands::delete_collection::<tauri::Wry>,
+            commands::collection_commands::get_books_by_collection,
+            commands::series_commands::create_series::<tauri::Wry>,
+            commands::series_commands::get_all_series,
+            commands::series_commands::delete_series::<tauri::Wry>,
+            commands::series_commands::get_books_by_series,
+            commands::series_commands::set_series_for_book::<tauri::Wry>,
+            commands::series_commands::set_series_order::<tauri::Wry>,
+            commands::tag_commands::create_tag::<tauri::Wry>,
+            commands::tag_commands::get_all_tags,
+            commands::tag_commands::delete_tag::<tauri::Wry>,
+            commands::tag_commands::get_tags_for_book,
+            commands::tag_commands::set_tags_for_book::<tauri::Wry>,
+            commands::tag_commands::get_books_by_tag,
+            commands::bookmark_commands::create_bookmark,
+            commands::bookmark_commands::get_bookmarks_by_book_id,
+            commands::bookmark_commands::rename_bookmark,
+            commands::bookmark_commands::delete_bookmark,
+            commands::updater_commands::is_updater_supported,
+            commands::updater_commands::claim_update_prompt,
+            commands::updater_commands::release_update_prompt,
+        ])
+        .events(collect_events![
+            commands::events::CollectionsChanged,
+            commands::events::TagsChanged,
+            commands::events::SeriesChanged,
+            commands::events::BooksChanged,
+            commands::events::ReadingHistoryChanged,
+            commands::events::ReadingProgressChanged,
+            commands::events::SettingsChanged,
+            commands::events::LocaleChanged,
+        ])
 }
 
 /// Returns the window state that `tauri-plugin-window-state` saves and restores.
 ///
-/// The size is excluded on Linux. Under Wayland the size GTK reports for a window is a
-/// few pixels larger than the size the window was created with, so saving and restoring
-/// it makes every window creep larger on each launch
-/// (<https://github.com/Rookro/RookReader/issues/140>). The plugin gates saving and
-/// restoring on the same flags, so dropping `SIZE` stops both. Every other flag is kept,
-/// so the position, the maximized state and full screen still restore.
+/// The size is excluded on Linux. There the plugin saves a size that includes the
+/// client-side decorations but restores it as the content size, so every window grows
+/// on each launch (<https://github.com/Rookro/RookReader/issues/140>). The plugin gates
+/// saving and restoring on the same flags, so dropping `SIZE` stops both, and
+/// [`window_size`] saves the size instead. Every other flag is kept, so the position,
+/// the maximized state and full screen still restore.
 ///
 /// # Returns
 ///
@@ -105,39 +120,46 @@ fn window_state_flags() -> StateFlags {
     }
 }
 
+// The binary commands return a raw `tauri::ipc::Response`, which has no `specta::Type`, so
+// they cannot join `specta_builder`. One list builds both their names and their handler.
+macro_rules! binary_commands {
+    ($($module:ident::$command:ident),* $(,)?) => {
+        /// The commands `run` routes to [`binary_handler`].
+        const BINARY_COMMANDS: &[&str] = &[$(stringify!($command)),*];
+
+        /// Builds the invoke handler for the commands in [`BINARY_COMMANDS`].
+        fn binary_handler<R: tauri::Runtime>(
+        ) -> impl Fn(tauri::ipc::Invoke<R>) -> bool + Send + Sync + 'static {
+            tauri::generate_handler![$(commands::$module::$command),*]
+        }
+    };
+}
+
+binary_commands![
+    container_commands::get_image,
+    container_commands::get_image_full,
+    container_commands::get_image_preview,
+    container_commands::read_novel_file,
+    directory_commands::get_entries_in_dir,
+];
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // The full command list lives in exactly one place: `specta_builder`. Its
-    // generated invoke handler serves every specta-compatible command.
+    // `specta_builder`'s generated handler serves every specta-compatible command.
     let specta_handler = specta_builder().invoke_handler();
+    let binary_handler = binary_handler::<tauri::Wry>();
 
-    // The binary commands return a raw `tauri::ipc::Response` (no `specta::Type`),
-    // so they can't be registered with the tauri-specta builder. They keep a tiny
-    // hand-written handler and are routed to it by command name; everything else
-    // falls through to the generated handler above. Keep this list in sync with the
-    // `generate_handler!` invocation below — both are the single, small binary set.
-    const BINARY_COMMANDS: [&str; 5] = [
-        "get_image",
-        "get_image_full",
-        "get_image_preview",
-        "read_novel_file",
-        "get_entries_in_dir",
-    ];
-    let binary_handler = tauri::generate_handler![
-        commands::container_commands::get_image,
-        commands::container_commands::get_image_full,
-        commands::container_commands::get_image_preview,
-        commands::container_commands::read_novel_file,
-        commands::directory_commands::get_entries_in_dir,
-    ] as fn(tauri::ipc::Invoke<tauri::Wry>) -> bool;
-
-    let app = tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(
             tauri_plugin_window_state::Builder::new()
                 .with_state_flags(window_state_flags())
                 .build(),
-        )
+        );
+    // Saves the window size on Linux in place of the window-state plugin.
+    #[cfg(target_os = "linux")]
+    let builder = builder.plugin(window_size::init());
+    let app = builder
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
@@ -192,14 +214,22 @@ mod bindings_export {
     #[test]
     fn export_bindings() {
         crate::specta_builder()
-            // i64/u64 IDs are cast to TS `number` (the long-standing behavior).
+            // i64/u64 IDs are cast to TS `number`.
             // specta-typescript forbids large integers by default to avoid precision
             // loss; our IDs stay well within `Number.MAX_SAFE_INTEGER`.
             .dangerously_cast_bigints_to_number()
+            // Every exported `f64` is finite (`finite_f64` guards the settings; bounds are
+            // constants), so none is ever sent as `null`.
+            .semantic_types(
+                specta_typescript::semantic::Configuration::empty().enable_lossless_floats(),
+            )
+            // The frontend reads the defaults and bounds from these instead of keeping copies.
+            .constant("DEFAULT_SETTINGS", crate::settings::AppSettings::default())
+            .constant("SETTINGS_BOUNDS", crate::settings::bounds_by_path())
             .export(
-                // The generated file contains internal helpers (`TAURI_CHANNEL`,
-                // `__makeEvents__`) that are unused here; `@ts-nocheck` silences strict
-                // unused-symbol errors while keeping the exported types usable at call sites.
+                // The generated file contains internal helpers (`TAURI_CHANNEL`) that are
+                // unused here; `@ts-nocheck` silences strict unused-symbol errors while
+                // keeping the exported types usable at call sites.
                 Typescript::default().header("// @ts-nocheck\n"),
                 "../src/bindings/bindings.ts",
             )
@@ -220,26 +250,24 @@ mod bindings_export {
             "register_book",
             "export type AppSettings",
             "export type BookWithState",
+            "export const events",
+            "export const DEFAULT_SETTINGS",
+            "export const SETTINGS_BOUNDS",
+            "createCollection",
+            "collections-changed",
+            "books-changed",
+            "locale-changed",
             // Structured settings-validation error shape surfaced to the frontend.
             "SettingsValidationViolation",
             "ViolationKind",
             "details",
+            // `finite_f64` keeps these finite, so they are generated as `number`.
+            "zoom: number,",
+            "radius: number,",
+            "fontSize: number,",
+            "min: number,",
         ] {
             assert!(generated.contains(needle), "bindings.ts missing `{needle}`");
-        }
-
-        // The granular container setters were folded into `set_settings`
-        // (apply_reader_settings_to_container) and must no longer be generated.
-        for absent in [
-            "set_pdf_render_resolution_height",
-            "set_max_image_height",
-            "set_image_resampling_method",
-            "set_image_cache_size_mib",
-        ] {
-            assert!(
-                !generated.contains(absent),
-                "bindings.ts still contains removed command `{absent}`"
-            );
         }
     }
 }
@@ -306,6 +334,20 @@ mod tests {
     use crate::domain::series::entity::Series;
     use crate::domain::tag::entity::Tag;
     use crate::settings::AppSettings;
+
+    #[test]
+    fn binary_commands_keep_the_names_the_frontend_invokes() {
+        assert_eq!(
+            crate::BINARY_COMMANDS,
+            [
+                "get_image",
+                "get_image_full",
+                "get_image_preview",
+                "read_novel_file",
+                "get_entries_in_dir",
+            ]
+        );
+    }
 
     #[test]
     fn app_settings_uses_camel_case_and_round_trips() {
@@ -403,8 +445,8 @@ mod window_state_flags_tests {
     use super::window_state_flags;
     use tauri_plugin_window_state::StateFlags;
 
-    /// The window size is tracked everywhere except Linux, where restoring it makes
-    /// windows creep larger under Wayland (#140).
+    /// The plugin tracks the window size everywhere except Linux, where restoring it
+    /// makes windows grow on each launch and `window_size` tracks it instead (#140).
     #[test]
     fn size_is_tracked_everywhere_but_linux() {
         assert_eq!(

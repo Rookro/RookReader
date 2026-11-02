@@ -1,17 +1,17 @@
 import { Box, type SxProps, type Theme } from "@mui/material";
 import { Allotment } from "allotment";
 import { useCallback, useState } from "react";
-import type { Book } from "../../../domain/book/schema";
+import type { Book } from "../../../domain/entities";
 import { usePaneSizes } from "../../../hooks/usePaneSizes";
 import { useAppDispatch, useAppSelector } from "../../../store/store";
 import { openBook } from "../../BookReader/slice";
 import { setActiveView } from "../../MainView/slice";
-import { addBookshelf } from "../slice";
+import { addCollection } from "../slice";
 import { addTag } from "../tagSlice";
 import BookGrid from "./BookGrid";
 import { BookSelectionProvider } from "./BookSelectionContext";
-import { CreateBookshelfDialog } from "./Dialog/CreateBookshelfDialog";
 import CreateBookTagDialog from "./Dialog/CreateBookTagDialog";
+import { CreateCollectionDialog } from "./Dialog/CreateCollectionDialog";
 import MenuList from "./MenuList";
 
 /**
@@ -25,13 +25,19 @@ export interface BookshelfProps {
 /** Bookshelf component */
 export default function Bookshelf({ sx }: BookshelfProps) {
   const dispatch = useAppDispatch();
-  const selectedBookshelfId = useAppSelector((state) => state.bookCollection.selectedId);
+  const selectedCollectionId = useAppSelector((state) => state.collection.selectedId);
   const bookshelfSortOrder = useAppSelector((state) => state.settings.bookshelf.sortOrder);
-  const [isBookshelfDialogOpen, setIsBookshelfDialogOpen] = useState(false);
+  const [isCreateCollectionDialogOpen, setIsCreateCollectionDialogOpen] = useState(false);
   const [isBookTagDialogOpen, setIsBookTagDialogOpen] = useState(false);
 
-  const handleOpenCreateBookshelfDialog = useCallback(() => setIsBookshelfDialogOpen(true), []);
-  const handleCloseCreateBookshelfDialog = useCallback(() => setIsBookshelfDialogOpen(false), []);
+  const handleOpenCreateCollectionDialog = useCallback(
+    () => setIsCreateCollectionDialogOpen(true),
+    [],
+  );
+  const handleCloseCreateCollectionDialog = useCallback(
+    () => setIsCreateCollectionDialogOpen(false),
+    [],
+  );
 
   const handleOpenCreateBookTagDialog = useCallback(() => setIsBookTagDialogOpen(true), []);
   const handleCloseCreateBookTagDialog = useCallback(() => setIsBookTagDialogOpen(false), []);
@@ -45,19 +51,19 @@ export default function Bookshelf({ sx }: BookshelfProps) {
           path: book.file_path,
           origin: {
             kind: "bookshelf",
-            bookshelfId: selectedBookshelfId,
+            collectionId: selectedCollectionId,
             sortOrder: bookshelfSortOrder,
           },
         }),
       );
       dispatch(setActiveView("reader"));
     },
-    [dispatch, selectedBookshelfId, bookshelfSortOrder],
+    [dispatch, selectedCollectionId, bookshelfSortOrder],
   );
 
-  const handleCreateBookshelf = useCallback(
+  const handleCreateCollection = useCallback(
     (name: string, icon_id: string) => {
-      dispatch(addBookshelf({ name, icon_id }));
+      dispatch(addCollection({ name, icon_id }));
     },
     [dispatch],
   );
@@ -74,7 +80,7 @@ export default function Bookshelf({ sx }: BookshelfProps) {
       <Allotment defaultSizes={paneSizes} proportionalLayout={false} onChange={setPaneSizes}>
         <Allotment.Pane preferredSize={200} minSize={200}>
           <MenuList
-            onClickAddBookshelf={handleOpenCreateBookshelfDialog}
+            onClickAddCollection={handleOpenCreateCollectionDialog}
             onClickAddBookTag={handleOpenCreateBookTagDialog}
           />
         </Allotment.Pane>
@@ -92,10 +98,10 @@ export default function Bookshelf({ sx }: BookshelfProps) {
           </Box>
         </Allotment.Pane>
       </Allotment>
-      <CreateBookshelfDialog
-        open={isBookshelfDialogOpen}
-        onClose={handleCloseCreateBookshelfDialog}
-        onCreate={handleCreateBookshelf}
+      <CreateCollectionDialog
+        open={isCreateCollectionDialogOpen}
+        onClose={handleCloseCreateCollectionDialog}
+        onCreate={handleCreateCollection}
       />
       <CreateBookTagDialog
         open={isBookTagDialogOpen}

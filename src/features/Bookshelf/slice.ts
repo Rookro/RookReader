@@ -1,237 +1,166 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
-import { basename } from "@tauri-apps/api/path";
+import { deleteBook, getAllBooksWithState, registerBook } from "../../bindings/BookCommands";
 import {
-  deleteBook,
-  getAllBooksWithState,
-  getBooksWithStateByBookshelfId,
-  registerBook,
-} from "../../bindings/BookCommands";
-import {
-  addBookToBookshelf as addBookToBookshelfCommand,
-  createBookshelf,
-  deleteBookshelf,
-  getAllBookshelves,
-  removeBookFromBookshelf,
-} from "../../bindings/BookshelfCommands";
-import { countPagesInContainer } from "../../bindings/ContainerCommands";
-import type { BookWithState } from "../../domain/book/schema";
-import type { Bookshelf } from "../../domain/bookshelf/schema";
+  addBookToCollection,
+  createCollection,
+  deleteCollection,
+  getAllCollections,
+  getBooksByCollection,
+  removeBookFromCollection,
+  setCollectionsForBook,
+} from "../../bindings/CollectionCommands";
+import type { BookWithState, Collection } from "../../domain/entities";
 import { readingProgressChanged } from "../../store/actions";
-import { handleThunkError } from "../../store/thunkErrorHandler";
-import { createAppAsyncThunk } from "../../types/CustomAsyncThunk";
-import type { ErrorCode } from "../../types/Error";
-import { isInsideArchive } from "../../utils/ArchivePathUtils";
+import { recordThunkError } from "../../store/thunkErrorHandler";
+import { createCommandThunk, type ThunkRejectValue } from "../../types/CustomAsyncThunk";
 
 /**
- * Creates a new bookshelf and adds it to the database.
+ * Creates a new collection and adds it to the database.
  *
- * @param params - The parameters for creating a bookshelf.
- * @param params.name - The name of the new bookshelf.
- * @param params.icon_id - The string identifier for the UI icon associated with the bookshelf.
- * @returns A thunk that resolves to the newly created Bookshelf object.
+ * @param params - The parameters for creating a collection.
+ * @param params.name - The name of the new collection.
+ * @param params.icon_id - The string identifier for the UI icon associated with the collection.
+ * @returns A thunk that resolves to the newly created Collection object.
  */
-export const addBookshelf = createAppAsyncThunk(
-  "bookCollection/addBookshelf",
-  async ({ name, icon_id }: { name: string; icon_id: string }, { rejectWithValue }) => {
-    try {
-      return await createBookshelf(name, icon_id);
-    } catch (e) {
-      return handleThunkError(
-        e,
-        `Failed to add bookshelf(name: ${name}, icon_id: ${icon_id}).`,
-        rejectWithValue,
-      );
-    }
-  },
+export const addCollection = createCommandThunk(
+  "collection/addCollection",
+  ({ name, icon_id }: { name: string; icon_id: string }) => createCollection(name, icon_id),
+  ({ name, icon_id }) => `Failed to add collection(name: ${name}, icon_id: ${icon_id}).`,
 );
 
 /**
- * Fetches all available bookshelves from the database.
+ * Fetches all available collections from the database.
  *
- * @returns A thunk that resolves to an array of all Bookshelf objects.
+ * @returns A thunk that resolves to an array of all Collection objects.
  */
-export const fetchBookshelves = createAppAsyncThunk(
-  "bookCollection/fetchBookshelves",
-  async (_, { rejectWithValue }) => {
-    try {
-      return await getAllBookshelves();
-    } catch (e) {
-      return handleThunkError(e, "Failed to fetch all available bookshelves.", rejectWithValue);
-    }
-  },
+export const fetchCollections = createCommandThunk(
+  "collection/fetchCollections",
+  () => getAllCollections(),
+  () => "Failed to fetch all available collections.",
 );
 
 /**
- * Fetches books associated with a specific bookshelf ID.
+ * Fetches books associated with a specific collection ID.
  * If the ID is null, fetches all books in the database.
  *
- * @param bookshelfId - The ID of the bookshelf to fetch books for, or null for all books.
+ * @param collectionId - The ID of the collection to fetch books for, or null for all books.
  * @returns A thunk that resolves to an array of BookWithState objects.
  */
-export const fetchBooksInSelectedBookshelf = createAppAsyncThunk(
-  "bookCollection/fetchBooksInSelectedBookshelf",
-  async (bookshelfId: number | null, { rejectWithValue }) => {
-    try {
-      if (bookshelfId === null) {
-        return await getAllBooksWithState();
-      }
-      return await getBooksWithStateByBookshelfId(bookshelfId);
-    } catch (e) {
-      return handleThunkError(
-        e,
-        `Failed to fetch books in the bookshelf of bookshelfId: ${bookshelfId}.`,
-        rejectWithValue,
-      );
+export const fetchBooksInSelectedCollection = createCommandThunk(
+  "collection/fetchBooksInSelectedCollection",
+  async (collectionId: number | null) => {
+    if (collectionId === null) {
+      return await getAllBooksWithState();
     }
+    return await getBooksByCollection(collectionId);
   },
+  (collectionId) => `Failed to fetch books in the collection of collectionId: ${collectionId}.`,
 );
 
 /**
- * Deletes a book from a specific bookshelf or completely from the database.
- * If a bookshelfId is provided, the book is only removed from that bookshelf.
- * If bookshelfId is null, the book is completely deleted from the database.
+ * Deletes a book from a specific collection or completely from the database.
+ * If a collectionId is provided, the book is only removed from that collection.
+ * If collectionId is null, the book is completely deleted from the database.
  *
  * @param params - The parameters for deletion.
  * @param params.bookId - The ID of the book to delete/remove.
- * @param params.bookshelfId - The ID of the bookshelf to remove the book from, or null to delete the book entirely.
+ * @param params.collectionId - The ID of the collection to remove the book from, or null to delete the book entirely.
  * @returns A thunk that resolves to the updated list of books for the current view.
  */
-export const deleteBookFromCollection = createAppAsyncThunk(
-  "bookCollection/deleteBookFromCollection",
-  async (
-    { bookId, bookshelfId }: { bookId: number; bookshelfId: number | null },
-    { rejectWithValue },
-  ) => {
-    try {
-      if (bookshelfId !== null) {
-        await removeBookFromBookshelf(bookshelfId, bookId);
-      } else {
-        await deleteBook(bookId);
-      }
-    } catch (e) {
-      return handleThunkError(e, `Failed to delete book with bookId: ${bookId}.`, rejectWithValue);
+export const deleteBookFromCollection = createCommandThunk(
+  "collection/deleteBookFromCollection",
+  async ({ bookId, collectionId }: { bookId: number; collectionId: number | null }) => {
+    if (collectionId !== null) {
+      await removeBookFromCollection(collectionId, bookId);
+    } else {
+      await deleteBook(bookId);
     }
   },
+  ({ bookId }) => `Failed to delete book with bookId: ${bookId}.`,
 );
 
 /**
- * Adds every given book to every given bookshelf.
+ * Saves a new collection set for each given book.
  *
- * @param params - The parameters for the addition.
- * @param params.bookIds - The books to add.
- * @param params.bookshelfIds - The bookshelves to add each book to.
- * @returns A thunk that resolves when every addition is done.
+ * @param updates - Each book with the complete set of collections that should contain it.
+ * @returns A thunk that resolves when every book is updated.
  */
-export const addBooksToBookshelves = createAppAsyncThunk(
-  "bookCollection/addBooksToBookshelves",
-  async (
-    { bookIds, bookshelfIds }: { bookIds: number[]; bookshelfIds: number[] },
-    { rejectWithValue },
-  ) => {
-    try {
-      await Promise.all(
-        bookIds.flatMap((bookId) =>
-          bookshelfIds.map((bookshelfId) => addBookToBookshelfCommand(bookshelfId, bookId)),
-        ),
-      );
-    } catch (e) {
-      return handleThunkError(e, "Failed to add books to bookshelves.", rejectWithValue);
-    }
+export const setCollectionsForBooks = createCommandThunk(
+  "collection/setCollectionsForBooks",
+  async (updates: { bookId: number; collectionIds: number[] }[]) => {
+    await Promise.all(
+      updates.map(({ bookId, collectionIds }) => setCollectionsForBook(bookId, collectionIds)),
+    );
   },
+  () => "Failed to set collections for books.",
 );
 
 /**
- * Adds a new book to the database and optionally to a specific bookshelf.
+ * Adds a new book to the database and optionally to a specific collection.
  * If the book is a container (like a ZIP or EPUB), it evaluates its contents first.
  *
  * @param params - The parameters for adding a book.
- * @param params.bookshelfId - The ID of the bookshelf to add the book to, or null if adding to the general collection.
+ * @param params.collectionId - The ID of the collection to add the book to, or null to add it to the library only.
  * @param params.bookPath - The absolute file path to the book or directory.
  * @returns A thunk that resolves to the updated list of books for the current view.
  */
-export const addBookToBookshelf = createAppAsyncThunk(
-  "bookCollection/addBookToBookshelf",
-  async (
-    { bookshelfId, bookPath }: { bookshelfId: number | null; bookPath: string },
-    { rejectWithValue },
-  ) => {
-    try {
-      // Counting only. Opening the container here would install it as the open book and
-      // stop the reader threads of the book actually on screen.
-      const [summary, fileName] = await Promise.all([
-        countPagesInContainer(bookPath),
-        basename(bookPath),
-      ]);
+export const addBookToBookshelf = createCommandThunk(
+  "collection/addBookToBookshelf",
+  async ({ collectionId, bookPath }: { collectionId: number | null; bookPath: string }) => {
+    const bookId = await registerBook(bookPath);
 
-      const bookId = await registerBook({
-        filePath: bookPath,
-        // A folder inside an archive is a folder to the user; same derivation as in
-        // the reader's openContainerFile.
-        itemType: summary.is_directory || isInsideArchive(bookPath) ? "directory" : "file",
-        totalPages: summary.total_pages,
-        displayName: fileName,
-      });
-
-      if (bookshelfId !== null) {
-        await addBookToBookshelfCommand(bookshelfId, bookId);
-      }
-    } catch (e) {
-      return handleThunkError(
-        e,
-        `Failed to add book(path: ${bookPath}) to bookshelf of bookshelfId: ${bookshelfId}.`,
-        rejectWithValue,
-      );
+    if (collectionId !== null) {
+      await addBookToCollection(collectionId, bookId);
     }
   },
+  ({ collectionId, bookPath }) =>
+    `Failed to add book(path: ${bookPath}) to collection of collectionId: ${collectionId}.`,
 );
 
 /**
- * Deletes a bookshelf and refetches all bookshelves. Deleting the selected bookshelf
+ * Deletes a collection and refetches all collections. Deleting the selected collection
  * selects "All Books".
  *
- * @param id - The ID of the bookshelf to delete.
- * @returns A thunk that resolves when the bookshelf is deleted.
+ * @param id - The ID of the collection to delete.
+ * @returns A thunk that resolves when the collection is deleted.
  */
-export const removeBookshelf = createAppAsyncThunk(
-  "bookCollection/removeBookshelf",
-  async (id: number, { rejectWithValue, dispatch, getState }) => {
-    try {
-      await deleteBookshelf(id);
-      if (getState().bookCollection.selectedId === id) {
-        dispatch(setSelectedBookshelf(null));
-      }
-      return id;
-    } catch (e) {
-      return handleThunkError(e, `Failed to remove bookshelf(id: ${id}).`, rejectWithValue);
+export const removeCollection = createCommandThunk(
+  "collection/removeCollection",
+  async (id: number, { dispatch, getState }) => {
+    await deleteCollection(id);
+    if (getState().collection.selectedId === id) {
+      dispatch(setSelectedCollection(null));
     }
+    return id;
   },
+  (id) => `Failed to remove collection(id: ${id}).`,
 );
 
-const bookCollectionSlice = createSlice({
-  name: "bookCollection",
+const collectionSlice = createSlice({
+  name: "collection",
   initialState: {
     searchText: "",
-    bookshelves: [] as Bookshelf[],
+    collections: [] as Collection[],
     selectedId: null as number | null,
     books: [] as BookWithState[],
-    /** The shelf `books` holds, or null before the first load. */
-    booksShelf: null as { id: number | null } | null,
+    /** The collection `books` holds (id null for all books), or null before the first load. */
+    booksCollection: null as { id: number | null } | null,
     /** The latest books request; only its answer may replace `books`. */
     booksRequestId: null as string | null,
-    /** Whether the shelf on screen is being refetched in place. */
+    /** Whether the collection on screen is being refetched in place. */
     isRefreshing: false,
     status: "idle" as "idle" | "loading" | "succeeded" | "failed",
-    error: null as { code: ErrorCode; message?: string } | null,
+    error: null as ThunkRejectValue | null,
   },
   reducers: {
     /**
-     * Optimistically adds a newly created bookshelf to the state.
+     * Optimistically adds a newly created collection to the state.
      *
      * @param state - The current Redux state slice.
-     * @param action - Payload containing the new Bookshelf object.
+     * @param action - Payload containing the new Collection object.
      */
-    bookshelfAdded(state, action: PayloadAction<Bookshelf>) {
-      state.bookshelves.push(action.payload);
+    collectionAdded(state, action: PayloadAction<Collection>) {
+      state.collections.push(action.payload);
     },
     /**
      * Sets the search text for the bookshelf view.
@@ -243,22 +172,22 @@ const bookCollectionSlice = createSlice({
       state.searchText = action.payload;
     },
     /**
-     * Selects a bookshelf (or null for "all books"). The actual book fetch is
-     * driven by the `useHistorySync` effect that watches `selectedId`; keeping this
+     * Selects a collection (or null for "all books"). The actual book fetch is
+     * driven by the `useLibrarySync` effect that watches `selectedId`; keeping this
      * a plain reducer avoids duplicating the fetch logic in a thunk.
      *
      * @param state - The current Redux state slice.
-     * @param action - Payload containing the bookshelf ID to select, or null for all books.
+     * @param action - Payload containing the collection ID to select, or null for all books.
      */
-    setSelectedBookshelf(state, action: PayloadAction<number | null>) {
+    setSelectedCollection(state, action: PayloadAction<number | null>) {
       state.selectedId = action.payload;
     },
     /**
-     * Clears any error associated with the bookshelf state.
+     * Clears any error associated with the collection state.
      *
      * @param state - The current Redux state slice.
      */
-    clearBookshelfError: (state) => {
+    clearCollectionError: (state) => {
       state.error = null;
     },
   },
@@ -266,41 +195,31 @@ const bookCollectionSlice = createSlice({
     builder
       // Mutations record only their error: `status` describes the books on screen, and
       // flipping it to "loading" would blank the grid and lose its scroll position.
-      .addCase(addBookshelf.rejected, (state, action) => {
+      .addCase(addCollection.rejected, recordThunkError)
+      .addCase(deleteBookFromCollection.rejected, recordThunkError)
+      .addCase(addBookToBookshelf.rejected, recordThunkError)
+      .addCase(removeCollection.rejected, recordThunkError)
+      .addCase(setCollectionsForBooks.rejected, recordThunkError)
+      // The collection list is not the grid's books either.
+      .addCase(fetchCollections.fulfilled, (state, action) => {
+        state.collections = action.payload;
+      })
+      .addCase(fetchCollections.rejected, (state, action) => {
+        state.collections = [];
         state.error = action.payload ?? null;
       })
-      .addCase(deleteBookFromCollection.rejected, (state, action) => {
-        state.error = action.payload ?? null;
-      })
-      .addCase(addBookToBookshelf.rejected, (state, action) => {
-        state.error = action.payload ?? null;
-      })
-      .addCase(removeBookshelf.rejected, (state, action) => {
-        state.error = action.payload ?? null;
-      })
-      .addCase(addBooksToBookshelves.rejected, (state, action) => {
-        state.error = action.payload ?? null;
-      })
-      // The bookshelf list is not the grid's books either.
-      .addCase(fetchBookshelves.fulfilled, (state, action) => {
-        state.bookshelves = action.payload;
-      })
-      .addCase(fetchBookshelves.rejected, (state, action) => {
-        state.bookshelves = [];
-        state.error = action.payload ?? null;
-      })
-      .addCase(fetchBooksInSelectedBookshelf.pending, (state, action) => {
+      .addCase(fetchBooksInSelectedCollection.pending, (state, action) => {
         state.booksRequestId = action.meta.requestId;
-        // Another shelf shows a spinner; the same shelf refreshes in place.
-        if (state.booksShelf === null || state.booksShelf.id !== action.meta.arg) {
+        // Another collection shows a spinner; the same collection refreshes in place.
+        if (state.booksCollection === null || state.booksCollection.id !== action.meta.arg) {
           state.status = "loading";
         } else {
           state.isRefreshing = true;
         }
         state.error = null;
       })
-      .addCase(fetchBooksInSelectedBookshelf.fulfilled, (state, action) => {
-        // Ignore a response superseded by a newer request, or for a shelf the user left.
+      .addCase(fetchBooksInSelectedCollection.fulfilled, (state, action) => {
+        // Ignore a response superseded by a newer request, or for a collection the user left.
         if (
           action.meta.requestId !== state.booksRequestId ||
           action.meta.arg !== state.selectedId
@@ -310,10 +229,10 @@ const bookCollectionSlice = createSlice({
         state.status = "succeeded";
         state.isRefreshing = false;
         state.books = action.payload;
-        state.booksShelf = { id: action.meta.arg };
+        state.booksCollection = { id: action.meta.arg };
         state.error = null;
       })
-      .addCase(fetchBooksInSelectedBookshelf.rejected, (state, action) => {
+      .addCase(fetchBooksInSelectedCollection.rejected, (state, action) => {
         if (
           action.meta.requestId !== state.booksRequestId ||
           action.meta.arg !== state.selectedId
@@ -323,7 +242,7 @@ const bookCollectionSlice = createSlice({
         state.status = "failed";
         state.isRefreshing = false;
         state.books = [];
-        state.booksShelf = null;
+        state.booksCollection = null;
         state.error = action.payload ?? null;
       })
       .addCase(readingProgressChanged, (state, action) => {
@@ -332,12 +251,12 @@ const bookCollectionSlice = createSlice({
         const book = state.books.find((b) => b.id === action.payload.book_id);
         if (book) {
           book.last_read_page_index = action.payload.last_read_page_index;
-          book.last_opened_at = action.payload.last_opened_at;
+          book.last_opened_at = action.payload.last_opened_at ?? book.last_opened_at;
         }
       });
   },
 });
 
-export const { bookshelfAdded, setSearchText, setSelectedBookshelf, clearBookshelfError } =
-  bookCollectionSlice.actions;
-export default bookCollectionSlice.reducer;
+export const { collectionAdded, setSearchText, setSelectedCollection, clearCollectionError } =
+  collectionSlice.actions;
+export default collectionSlice.reducer;

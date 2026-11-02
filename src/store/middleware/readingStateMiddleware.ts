@@ -1,7 +1,7 @@
 import type { Middleware } from "@reduxjs/toolkit";
 import { error } from "@tauri-apps/plugin-log";
 import { updateReadingProgress } from "../../bindings/BookCommands";
-import type { ReadingState } from "../../domain/book/schema";
+import type { ReadingState } from "../../domain/entities";
 import { setImageIndex, setNovelLocation } from "../../features/BookReader/slice";
 import type { RootState } from "../store";
 
@@ -64,7 +64,7 @@ export const createReadingStateMiddleware = () => {
       case setNovelLocation.type: {
         const state = store.getState();
         if (state.settings.history.recordReadingHistory) {
-          const { history, historyIndex, index, cfi, book } = state.read.containerFile;
+          const { history, historyIndex, index, cfi, book } = state.reader;
 
           if (history[historyIndex] && index > -1 && book?.last_opened_at) {
             queue({

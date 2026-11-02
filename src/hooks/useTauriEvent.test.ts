@@ -1,6 +1,7 @@
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { events } from "../bindings/bindings";
 import { useTauriEvent } from "./useTauriEvent";
 
 describe("useTauriEvent", () => {
@@ -14,10 +15,10 @@ describe("useTauriEvent", () => {
     vi.mocked(listen).mockResolvedValue(mockUnlisten);
     const handler = vi.fn();
 
-    const { unmount } = renderHook(() => useTauriEvent("test-event", handler));
+    const { unmount } = renderHook(() => useTauriEvent(events.booksChanged, handler));
 
     await waitFor(() => {
-      expect(listen).toHaveBeenCalledWith("test-event", expect.any(Function));
+      expect(listen).toHaveBeenCalledWith("books-changed", expect.any(Function));
     });
 
     unmount();
@@ -33,7 +34,7 @@ describe("useTauriEvent", () => {
     });
 
     const handler = vi.fn();
-    renderHook(() => useTauriEvent("test-event", handler));
+    renderHook(() => useTauriEvent(events.booksChanged, handler));
 
     await waitFor(() => expect(listen).toHaveBeenCalled());
 
@@ -48,7 +49,7 @@ describe("useTauriEvent", () => {
     const handler1 = vi.fn();
     const handler2 = vi.fn();
 
-    const { rerender } = renderHook(({ handler }) => useTauriEvent("test-event", handler), {
+    const { rerender } = renderHook(({ handler }) => useTauriEvent(events.booksChanged, handler), {
       initialProps: { handler: handler1 },
     });
 
@@ -70,7 +71,7 @@ describe("useTauriEvent", () => {
         }),
     );
 
-    const { unmount } = renderHook(() => useTauriEvent("test-event", vi.fn()));
+    const { unmount } = renderHook(() => useTauriEvent(events.booksChanged, vi.fn()));
 
     unmount();
     resolveListen(mockUnlisten);

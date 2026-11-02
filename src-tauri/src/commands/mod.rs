@@ -1,10 +1,10 @@
 pub mod book_commands;
 pub mod bookmark_commands;
-pub mod bookshelf_commands;
+pub mod collection_commands;
 pub mod container_commands;
 pub mod directory_commands;
+pub mod events;
 pub mod font_commands;
-pub mod library_events;
 pub mod series_commands;
 pub mod settings_commands;
 pub mod tag_commands;

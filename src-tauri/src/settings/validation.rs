@@ -125,6 +125,26 @@ pub(super) fn collect_violations(merged_json: &Value) -> Vec<SettingsValidationV
     violations
 }
 
+/// The bounds table keyed by path, for the generated `SETTINGS_BOUNDS` the frontend reads.
+///
+/// # Returns
+///
+/// One `{ "integer", "min", "max" }` entry per [`FIELD_BOUNDS`] row, keyed by its path.
+#[cfg(test)]
+pub(crate) fn bounds_by_path() -> serde_json::Map<String, Value> {
+    FIELD_BOUNDS
+        .iter()
+        .map(|bound| {
+            let entry = serde_json::json!({
+                "integer": bound.integer,
+                "min": bound.min,
+                "max": bound.max,
+            });
+            (bound.path.to_string(), entry)
+        })
+        .collect()
+}
+
 /// `garde` custom validator rejecting non-finite floats.
 ///
 /// `garde`'s `range` validator does not reject `NaN` (all comparisons against `NaN`
@@ -329,31 +349,13 @@ mod tests {
     }
 
     #[test]
-    fn test_bounds_agree_with_frontend_json() {
-        // The frontend consumes settingsBounds.json as its single source of validation
-        // bounds; this asserts that file stays byte-for-byte in sync with FIELD_BOUNDS, so
-        // the two copies cannot drift.
-        let json = include_str!(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../src/features/Settings/settingsBounds.json"
-        ));
-        let parsed: serde_json::Value = serde_json::from_str(json).unwrap();
-        let obj = parsed.as_object().unwrap();
-
-        assert_eq!(obj.len(), FIELD_BOUNDS.len(), "entry count drifted");
-        for bound in FIELD_BOUNDS {
-            let entry = obj
-                .get(bound.path)
-                .unwrap_or_else(|| panic!("missing bound for {}", bound.path));
-            assert_eq!(
-                entry["integer"].as_bool().unwrap(),
-                bound.integer,
-                "{}",
-                bound.path
-            );
-            assert_eq!(entry["min"].as_f64().unwrap(), bound.min, "{}", bound.path);
-            assert_eq!(entry["max"].as_f64().unwrap(), bound.max, "{}", bound.path);
-        }
+    fn bounds_by_path_lists_every_bound() {
+        let bounds = bounds_by_path();
+        assert_eq!(bounds.len(), FIELD_BOUNDS.len());
+        assert_eq!(
+            bounds["reader.comic.cache.imageCacheSizeMib"],
+            json!({ "integer": true, "min": 1.0, "max": 65536.0 })
+        );
     }
 
     #[test]

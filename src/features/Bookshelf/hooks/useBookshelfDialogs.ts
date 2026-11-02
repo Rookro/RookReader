@@ -1,8 +1,8 @@
 import { useCallback, useMemo, useState } from "react";
-import type { BookWithState } from "../../../domain/book/schema";
+import type { BookWithState } from "../../../domain/entities";
 
 /** Dialogs that act on a set of books. */
-export type BookDialogType = "add-to-bookshelf" | "set-tags" | "set-series" | "delete-books";
+export type BookDialogType = "set-collections" | "set-tags" | "set-series" | "delete-books";
 
 /** Every dialog hosted by the book grid. */
 export type BookshelfDialogType = BookDialogType | "edit-series-order" | null;

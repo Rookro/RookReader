@@ -6,10 +6,10 @@ import { commands } from "./bindings";
  *
  * @returns A promise that resolves to an array of font names.
  */
-export const getFonts = async (): Promise<string[]> => {
+export async function getFonts(): Promise<string[]> {
   try {
     return await commands.getFonts();
   } catch (error) {
     throw createCommandError(error);
   }
-};
+}

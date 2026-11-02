@@ -4,7 +4,7 @@ import { debug, error } from "@tauri-apps/plugin-log";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { List, type RowComponentProps, useListCallbackRef } from "react-window";
-import type { ReadBook } from "../../../../domain/book/schema";
+import type { ReadBook } from "../../../../domain/entities";
 import { useAppDispatch, useAppSelector } from "../../../../store/store";
 import SidePanelHeader from "../../../SidePane/components/SidePanelHeader";
 import { useHistoryIndex } from "../../hooks/useHistoryIndex";
@@ -47,8 +47,8 @@ function Row({
  */
 export default function HistoryViewer() {
   const { t } = useTranslation();
-  const history = useAppSelector((state) => state.read.containerFile.history);
-  const historyIndex = useAppSelector((state) => state.read.containerFile.historyIndex);
+  const history = useAppSelector((state) => state.reader.history);
+  const historyIndex = useAppSelector((state) => state.reader.historyIndex);
   const recentlyReadBooks = useAppSelector((state) => state.history.recentlyReadBooks);
   const [searchText, setSearchText] = useState("");
   const [list, setList] = useListCallbackRef(null);

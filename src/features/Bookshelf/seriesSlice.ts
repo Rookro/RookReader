@@ -1,12 +1,15 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
-import { updateBookSeries, updateSeriesOrders } from "../../bindings/BookCommands";
-import { createSeries, deleteSeries, getAllSeries } from "../../bindings/SeriesCommands";
-import type { BookWithState } from "../../domain/book/schema";
-import type { Series } from "../../domain/series/schema";
-import { handleThunkError } from "../../store/thunkErrorHandler";
-import { createAppAsyncThunk } from "../../types/CustomAsyncThunk";
-import type { ErrorCode } from "../../types/Error";
-import { setSelectedBookshelf } from "./slice";
+import {
+  createSeries,
+  deleteSeries,
+  getAllSeries,
+  setSeriesForBook,
+  setSeriesOrder,
+} from "../../bindings/SeriesCommands";
+import type { BookWithState, Series } from "../../domain/entities";
+import { recordThunkError } from "../../store/thunkErrorHandler";
+import { createCommandThunk, type ThunkRejectValue } from "../../types/CustomAsyncThunk";
+import { setSelectedCollection } from "./slice";
 
 /**
  * Updates the order of books within a series.
@@ -16,15 +19,12 @@ import { setSelectedBookshelf } from "./slice";
  * @param bookIds - The array of book IDs in the desired new order.
  * @returns A thunk that resolves when the update is successful.
  */
-export const updateSeriesOrdersThunk = createAppAsyncThunk(
+export const updateSeriesOrdersThunk = createCommandThunk(
   "series/updateSeriesOrdersThunk",
-  async (bookIds: number[], { rejectWithValue }) => {
-    try {
-      await updateSeriesOrders(bookIds);
-    } catch (e) {
-      return handleThunkError(e, "Failed to update series orders.", rejectWithValue);
-    }
+  async (bookIds: number[]) => {
+    await setSeriesOrder(bookIds);
   },
+  () => "Failed to update series orders.",
 );
 
 /**
@@ -32,15 +32,10 @@ export const updateSeriesOrdersThunk = createAppAsyncThunk(
  *
  * @returns A thunk that resolves to an array of all Series objects.
  */
-export const fetchSeries = createAppAsyncThunk(
+export const fetchSeries = createCommandThunk(
   "series/fetchSeries",
-  async (_, { rejectWithValue }) => {
-    try {
-      return await getAllSeries();
-    } catch (e) {
-      return handleThunkError(e, "Failed to fetch all available series.", rejectWithValue);
-    }
-  },
+  () => getAllSeries(),
+  () => "Failed to fetch all available series.",
 );
 
 /**
@@ -49,17 +44,14 @@ export const fetchSeries = createAppAsyncThunk(
  * @param name - The name of the new series.
  * @returns A thunk that resolves to the new series id.
  */
-export const addSeries = createAppAsyncThunk(
+export const addSeries = createCommandThunk(
   "series/addSeries",
-  async (name: string, { rejectWithValue, dispatch }) => {
-    try {
-      const id = await createSeries(name);
-      await dispatch(fetchSeries());
-      return id;
-    } catch (e) {
-      return handleThunkError(e, `Failed to add series(name: ${name}).`, rejectWithValue);
-    }
+  async (name: string, { dispatch }) => {
+    const series = await createSeries(name);
+    await dispatch(fetchSeries());
+    return series.id;
   },
+  (name) => `Failed to add series(name: ${name}).`,
 );
 
 /**
@@ -69,15 +61,12 @@ export const addSeries = createAppAsyncThunk(
  * @param id - The ID of the series to remove.
  * @returns A thunk that resolves when the series is removed.
  */
-export const removeSeries = createAppAsyncThunk(
+export const removeSeries = createCommandThunk(
   "series/removeSeries",
-  async (id: number, { rejectWithValue }) => {
-    try {
-      await deleteSeries(id);
-    } catch (e) {
-      return handleThunkError(e, `Failed to remove series(id: ${id}).`, rejectWithValue);
-    }
+  async (id: number) => {
+    await deleteSeries(id);
   },
+  (id) => `Failed to remove series(id: ${id}).`,
 );
 
 /**
@@ -88,18 +77,12 @@ export const removeSeries = createAppAsyncThunk(
  * @param params.seriesId - The series to assign, or null to detach the books from any series.
  * @returns A thunk that resolves when every book is updated.
  */
-export const updateBooksSeries = createAppAsyncThunk(
+export const updateBooksSeries = createCommandThunk(
   "series/updateBooksSeries",
-  async (
-    { bookIds, seriesId }: { bookIds: number[]; seriesId: number | null },
-    { rejectWithValue },
-  ) => {
-    try {
-      await Promise.all(bookIds.map((id) => updateBookSeries(id, seriesId)));
-    } catch (e) {
-      return handleThunkError(e, "Failed to update book series.", rejectWithValue);
-    }
+  async ({ bookIds, seriesId }: { bookIds: number[]; seriesId: number | null }) => {
+    await Promise.all(bookIds.map((id) => setSeriesForBook(id, seriesId)));
   },
+  () => "Failed to update book series.",
 );
 
 const seriesSlice = createSlice({
@@ -109,7 +92,7 @@ const seriesSlice = createSlice({
     selectedId: null as number | null,
     books: [] as BookWithState[],
     status: "idle" as "idle" | "loading" | "succeeded" | "failed",
-    error: null as { code: ErrorCode; message?: string } | null,
+    error: null as ThunkRejectValue | null,
   },
   reducers: {
     /**
@@ -133,7 +116,7 @@ const seriesSlice = createSlice({
   extraReducers: (builder) => {
     builder
       // A series is a level inside the chosen collection, so a new collection starts at its top.
-      .addCase(setSelectedBookshelf, (state) => {
+      .addCase(setSelectedCollection, (state) => {
         state.selectedId = null;
       })
       .addCase(fetchSeries.pending, (state) => {
@@ -152,15 +135,9 @@ const seriesSlice = createSlice({
       })
       // Only the error: a mutation must not flip `status` to "loading", which would
       // blank the grid behind the open dialog.
-      .addCase(addSeries.rejected, (state, action) => {
-        state.error = action.payload ?? null;
-      })
-      .addCase(removeSeries.rejected, (state, action) => {
-        state.error = action.payload ?? null;
-      })
-      .addCase(updateBooksSeries.rejected, (state, action) => {
-        state.error = action.payload ?? null;
-      });
+      .addCase(addSeries.rejected, recordThunkError)
+      .addCase(removeSeries.rejected, recordThunkError)
+      .addCase(updateBooksSeries.rejected, recordThunkError);
   },
 });
 

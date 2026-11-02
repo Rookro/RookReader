@@ -1,5 +1,5 @@
 import { createContext, useContext } from "react";
-import type { BookWithState } from "../../../domain/book/schema";
+import type { BookWithState } from "../../../domain/entities";
 import type { BookDialogType } from "../hooks/useBookshelfDialogs";
 
 export interface BookshelfActions {
