@@ -593,3 +593,64 @@ async fn spread_state_round_trips_and_survives_clearing_history() {
     assert!(book.is_spread_shifted, "the shift is not reading history");
     assert_eq!(book.landscape_bits.as_deref(), Some("0100"));
 }
+
+#[tokio::test]
+async fn register_writes_no_reading_state() {
+    let pool = setup_db().await;
+    let repository = SqliteBookRepository::new(pool.clone());
+
+    let book_id = repository
+        .register("/path/to/book.zip", ItemType::File, "Book", 10, None)
+        .await
+        .unwrap();
+
+    let book = repository
+        .get_book_with_state_by_id(book_id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(book.last_opened_at.is_none());
+    assert!(book.last_read_page_index.is_none());
+    assert!(repository
+        .get_recently_read_books(None)
+        .await
+        .unwrap()
+        .is_empty());
+}
+
+#[tokio::test]
+async fn register_keeps_an_existing_reading_state() {
+    let pool = setup_db().await;
+    let repository = SqliteBookRepository::new(pool.clone());
+    let book_id = repository
+        .record_opened("/path/to/book.zip", ItemType::File, "Book", 10, None)
+        .await
+        .unwrap();
+    repository
+        .update_reading_progress(&ReadingState {
+            book_id,
+            last_read_page_index: 4,
+            cfi: None,
+            last_opened_at: None,
+        })
+        .await
+        .unwrap();
+    let before = repository
+        .get_book_with_state_by_id(book_id)
+        .await
+        .unwrap()
+        .unwrap();
+
+    repository
+        .register("/path/to/book.zip", ItemType::File, "Book", 10, None)
+        .await
+        .unwrap();
+
+    let after = repository
+        .get_book_with_state_by_id(book_id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(after.last_read_page_index, Some(4));
+    assert_eq!(after.last_opened_at, before.last_opened_at);
+}
