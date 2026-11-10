@@ -184,6 +184,21 @@ describe("readingStateMiddleware", () => {
     expect(bookCommands.updateReadingProgress).not.toHaveBeenCalled();
   });
 
+  // History turned on while the book was open: it has a library record but no reading state.
+  it("saves the position of a book that has no reading state yet", async () => {
+    store.getState.mockReturnValue(stateFor({ id: 1, last_opened_at: null }, true, 3));
+
+    run(store, next, setImageIndex(3));
+    await vi.advanceTimersByTimeAsync(500);
+
+    expect(bookCommands.updateReadingProgress).toHaveBeenCalledWith({
+      book_id: 1,
+      last_read_page_index: 3,
+      cfi: null,
+      last_opened_at: null,
+    });
+  });
+
   // Verify that the fire-time re-check skips the write when history is disabled
   // after the write was scheduled (within the debounce window).
   it("should not persist if recordReadingHistory is disabled before the write fires", async () => {

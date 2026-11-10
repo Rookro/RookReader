@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { events } from "../../../bindings/bindings";
 import { useTauriEvent } from "../../../hooks/useTauriEvent";
 import { readingProgressChanged } from "../../../store/actions";
-import { useAppDispatch, useAppSelector } from "../../../store/store";
+import { useAppDispatch, useAppSelector, useAppStore } from "../../../store/store";
 import { fetchSeries } from "../../Bookshelf/seriesSlice";
 import { fetchBooksInSelectedCollection, fetchCollections } from "../../Bookshelf/slice";
 import { fetchTags } from "../../Bookshelf/tagSlice";
@@ -18,6 +18,7 @@ import { fetchRecentlyReadBooks } from "../../History/slice";
  */
 export const useLibrarySync = () => {
   const dispatch = useAppDispatch();
+  const store = useAppStore();
   const selectedCollectionId = useAppSelector((state) => state.collection.selectedId);
   const recordReadingHistory = useAppSelector(
     (state) => state.settings.history.recordReadingHistory,
@@ -67,5 +68,12 @@ export const useLibrarySync = () => {
   // instead of refetching a list.
   useTauriEvent(events.readingProgressChanged, (event) => {
     dispatch(readingProgressChanged(event.payload));
+    // A book first read after history was turned back on is not in the list yet.
+    const isListed = store
+      .getState()
+      .history.recentlyReadBooks.some((book) => book.id === event.payload.book_id);
+    if (recordReadingHistory && !isListed) {
+      dispatch(fetchRecentlyReadBooks());
+    }
   });
 };

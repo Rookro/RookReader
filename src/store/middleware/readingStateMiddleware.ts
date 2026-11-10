@@ -66,7 +66,7 @@ export const createReadingStateMiddleware = () => {
         if (state.settings.history.recordReadingHistory) {
           const { history, historyIndex, index, cfi, book } = state.reader;
 
-          if (history[historyIndex] && index > -1 && book?.last_opened_at) {
+          if (history[historyIndex] && index > -1 && book) {
             queue({
               state: {
                 book_id: book.id,
