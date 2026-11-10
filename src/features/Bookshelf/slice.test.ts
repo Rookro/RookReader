@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as BookCommands from "../../bindings/BookCommands";
 import * as CollectionCommands from "../../bindings/CollectionCommands";
-import * as ContainerCommands from "../../bindings/ContainerCommands";
 import * as SeriesCommand from "../../bindings/SeriesCommands";
 import * as TagCommands from "../../bindings/TagCommands";
 import type { BookWithState, Collection, Series, Tag } from "../../domain/entities";
@@ -430,7 +429,7 @@ describe("CollectionReducer", () => {
         expect(CollectionCommands.addBookToCollection).toHaveBeenCalledWith(1, 10);
         // Opening would install the book, which closes the reader threads of the book on
         // screen. Registering must never do that.
-        expect(ContainerCommands.openContainer).not.toHaveBeenCalled();
+        expect(BookCommands.openBook).not.toHaveBeenCalled();
       });
 
       // Verify that adding a book with no collection ID (null) only registers it

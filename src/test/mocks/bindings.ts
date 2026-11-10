@@ -6,7 +6,16 @@ vi.mock("../../bindings/BookCommands", () => ({
   getBookByPath: vi.fn(() => Promise.resolve([])),
   getAllBooksWithState: vi.fn(() => Promise.resolve([])),
   registerBook: vi.fn(() => Promise.resolve(0)),
-  recordBookOpened: vi.fn(() => Promise.resolve(null)),
+  openBook: vi.fn(() =>
+    Promise.resolve({
+      entries: [],
+      is_directory: false,
+      is_novel: false,
+      has_previews: false,
+      book: null,
+      record_error: null,
+    }),
+  ),
   updateReadingProgress: vi.fn(() => Promise.resolve([])),
   updateSpreadShift: vi.fn(() => Promise.resolve()),
   updatePageLayout: vi.fn(() => Promise.resolve()),
@@ -35,9 +44,6 @@ vi.mock("../../bindings/CollectionCommands", () => ({
 }));
 
 vi.mock("../../bindings/ContainerCommands", () => ({
-  openContainer: vi.fn(() =>
-    Promise.resolve({ entries: [], is_directory: false, is_novel: false, has_previews: false }),
-  ),
   requestPreloadAround: vi.fn(() => Promise.resolve()),
   getImageDimensions: vi.fn(() => Promise.resolve([])),
   setDisplaySize: vi.fn(() => Promise.resolve()),

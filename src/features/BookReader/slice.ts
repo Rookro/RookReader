@@ -3,11 +3,11 @@ import { dirname } from "@tauri-apps/api/path";
 import { debug, error, info } from "@tauri-apps/plugin-log";
 import {
   getRecentlyReadBooks,
-  recordBookOpened,
+  openBook as openBookInBackend,
   updateReadingDirection,
   updateSpreadShift,
 } from "../../bindings/BookCommands";
-import { openContainer, requestPreloadAround } from "../../bindings/ContainerCommands";
+import { requestPreloadAround } from "../../bindings/ContainerCommands";
 import type { BookWithState } from "../../domain/entities";
 import { handleThunkError } from "../../store/thunkErrorHandler";
 import type { Direction } from "../../types/AppSettings";
@@ -33,13 +33,13 @@ export const openContainerFile = createAppAsyncThunk(
     }
     info(`Open container file: ${path}`);
     try {
-      const [entriesResult, dirPath] = await Promise.all([openContainer(path), dirname(path)]);
+      const [opened, dirPath] = await Promise.all([openBookInBackend(path), dirname(path)]);
 
-      const isEpubNovel = entriesResult.is_novel;
+      const isEpubNovel = opened.is_novel;
 
       if (!isEpubNovel) {
         debug(
-          `openContainerFile: Retrieved ${entriesResult.entries.length} entries. (Container is directory: ${entriesResult.is_directory})`,
+          `openContainerFile: Retrieved ${opened.entries.length} entries. (Container is directory: ${opened.is_directory})`,
         );
       } else {
         debug(`openContainerFile: Epub Novel is opened.`);
@@ -47,18 +47,14 @@ export const openContainerFile = createAppAsyncThunk(
 
       dispatch(updateExploreBasePath({ dirPath }));
 
-      debug(`Update container history: ${path}`);
-      // The container is already open here. Failing to remember it in the library is
-      // worth telling the user about, but it is not "the book could not be opened", so it
-      // is reported apart and the entries are kept.
-      let book: BookWithState | null = null;
+      // The book is open either way. Failing to remember it in the library is worth telling
+      // the user about, but it is not "the book could not be opened", so it is reported apart.
+      const book = opened.book;
       let bookRecordError: { code: ErrorCode; message?: string } | null = null;
-      try {
-        book = await recordBookOpened(path);
-      } catch (e) {
-        const commandError = createCommandError(e);
-        error(`Failed to record the opened book(${path}). Error: ${commandError.message}`);
-        bookRecordError = { code: commandError.code, message: commandError.message };
+      if (opened.record_error) {
+        const recordError = createCommandError(opened.record_error);
+        error(`Failed to record the opened book(${path}). Error: ${recordError.message}`);
+        bookRecordError = { code: recordError.code, message: recordError.message };
       }
 
       // The backend gives a comic opened for the first time the default direction.
@@ -79,10 +75,10 @@ export const openContainerFile = createAppAsyncThunk(
       }
 
       return {
-        entries: entriesResult.entries,
-        isDirectory: entriesResult.is_directory,
+        entries: opened.entries,
+        isDirectory: opened.is_directory,
         isNovel: isEpubNovel,
-        hasPreviews: entriesResult.has_previews,
+        hasPreviews: opened.has_previews,
         book: book,
         readingDirection,
         bookRecordError,

@@ -10,19 +10,6 @@ describe("ContainerCommands", () => {
     vi.clearAllMocks();
   });
 
-  it("openContainer should call invoke", async () => {
-    vi.mocked(invoke).mockResolvedValue({
-      entries: ["1.jpg"],
-      is_directory: false,
-      is_novel: false,
-      has_previews: false,
-    });
-    await ContainerCommands.openContainer("path");
-    expect(invoke).toHaveBeenCalledWith("open_container", {
-      path: "path",
-    });
-  });
-
   it("requestPreloadAround should call invoke", async () => {
     await ContainerCommands.requestPreloadAround("path", 5, 10, 2);
     expect(invoke).toHaveBeenCalledWith("request_preload_around", {
@@ -67,11 +54,6 @@ describe("ContainerCommands", () => {
     expect(invoke).toHaveBeenCalledWith("get_image_preview", { path: "path", entryName: "entry" });
   });
 
-  it("should throw CommandError on failure", async () => {
-    vi.mocked(invoke).mockRejectedValue(new Error("fail"));
-    await expect(ContainerCommands.openContainer("path")).rejects.toThrow(CommandError);
-  });
-
   it("requestPreloadAround should throw CommandError on failure", async () => {
     vi.mocked(invoke).mockRejectedValue(new Error("fail"));
     await expect(ContainerCommands.requestPreloadAround("path", 0)).rejects.toThrow(CommandError);
@@ -96,32 +78,5 @@ describe("ContainerCommands", () => {
   it("readNovelFile should throw CommandError on failure", async () => {
     vi.mocked(invoke).mockRejectedValue(new Error("fail"));
     await expect(ContainerCommands.readNovelFile("novel.epub")).rejects.toThrow(CommandError);
-  });
-
-  it("should map structured error to CommandError", async () => {
-    const structuredError = { code: 10001, message: "Unsupported container" };
-    vi.mocked(invoke).mockRejectedValue(structuredError);
-
-    try {
-      await ContainerCommands.openContainer("path");
-    } catch (error) {
-      expect(error).toBeInstanceOf(CommandError);
-      const commandError = error as CommandError;
-      expect(commandError.code).toBe(10001);
-      expect(commandError.message).toBe("Unsupported container");
-    }
-  });
-
-  it("should handle unknown error objects", async () => {
-    vi.mocked(invoke).mockRejectedValue("string error");
-
-    try {
-      await ContainerCommands.openContainer("path");
-    } catch (error) {
-      expect(error).toBeInstanceOf(CommandError);
-      const commandError = error as CommandError;
-      expect(commandError.code).toBe(90000); // UNKNOWN_ERROR
-      expect(commandError.message).toContain("string error");
-    }
   });
 });

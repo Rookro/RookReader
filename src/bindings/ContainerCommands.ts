@@ -2,16 +2,6 @@ import { commands, type ImageDimensions } from "./bindings";
 import { runBinaryCommand, runCommand } from "./result";
 
 /**
- * Opens a book as the open book, replacing the previous one, and fetches its entries.
- *
- * @param path The path of the container file.
- * @returns A promise that resolves to an object containing entries, directory status, and novel status.
- */
-export async function openContainer(path: string) {
-  return await runCommand(commands.openContainer(path));
-}
-
-/**
  * Requests preloading of images around a specific index in the backend.
  *
  * @param path The path of the container the caller believes is open. The backend rejects
