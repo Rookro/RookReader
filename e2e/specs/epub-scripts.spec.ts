@@ -36,6 +36,11 @@ describe("RookReader E2E Tests - EPUB scripts", () => {
       const violations: string[] = [];
       Object.assign(window, { cspViolations: violations });
       document.addEventListener("securitypolicyviolation", (e) => {
+        // WebView2 156+ reports the on* attributes DOMParser parses from the book as
+        // violations of this document. Nothing runs, and the app uses no inline handlers.
+        if (e.violatedDirective === "script-src-attr") {
+          return;
+        }
         violations.push(`${e.violatedDirective} ${e.blockedURI}`);
       });
     });
