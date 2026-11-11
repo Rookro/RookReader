@@ -12,7 +12,6 @@ use crate::domain::book::repository::BookRepository;
 use crate::error::{Error, Result};
 use crate::infrastructure::thumbnails;
 use crate::settings::{AppSettings, CurrentSettings};
-use crate::state::app_state::AppState;
 use crate::state::container_state::ContainerState;
 
 /// Registers a book or returns its ID if it already exists, without updating reading state.
@@ -24,7 +23,7 @@ use crate::state::container_state::ContainerState;
 /// * `file_path` - The unique file or directory path.
 /// * `repo` - The managed book repository state.
 /// * `app` - The Tauri AppHandle.
-/// * `state` - The managed app state.
+/// * `state` - The managed container state.
 ///
 /// # Returns
 ///
@@ -40,7 +39,7 @@ pub async fn register_book<R: tauri::Runtime>(
     file_path: String,
     repo: State<'_, Arc<dyn BookRepository>>,
     app: tauri::AppHandle<R>,
-    state: State<'_, RwLock<AppState>>,
+    state: State<'_, RwLock<ContainerState>>,
 ) -> Result<i64> {
     log::debug!("Register the book: {}", file_path);
 
@@ -91,7 +90,7 @@ pub struct OpenedBook {
 /// * `path` - The file or directory path of the book.
 /// * `repo` - The managed book repository state.
 /// * `app` - The Tauri AppHandle.
-/// * `state` - The managed app state.
+/// * `state` - The managed container state.
 /// * `settings` - The current settings the history setting and default direction are read from.
 ///
 /// # Returns
@@ -110,7 +109,7 @@ pub async fn open_book<R: tauri::Runtime>(
     path: String,
     repo: State<'_, Arc<dyn BookRepository>>,
     app: tauri::AppHandle<R>,
-    state: State<'_, RwLock<AppState>>,
+    state: State<'_, RwLock<ContainerState>>,
     settings: State<'_, CurrentSettings>,
 ) -> Result<OpenedBook> {
     log::debug!("Open book: {path}");
@@ -721,7 +720,7 @@ mod tests {
         let app = tauri::test::mock_app();
         let _thumbnail = ThumbnailCleanup::new(&app, &path);
         app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
-        app.manage(RwLock::new(AppState::default()));
+        app.manage(RwLock::new(ContainerState::default()));
         let events = record_events(app.handle());
 
         let result = register_book(path, app.state(), app.handle().clone(), app.state()).await;
@@ -749,7 +748,7 @@ mod tests {
 
         let app = tauri::test::mock_app();
         app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
-        app.manage(RwLock::new(AppState::default()));
+        app.manage(RwLock::new(ContainerState::default()));
         let events = record_events(app.handle());
 
         let result = register_book(
@@ -778,8 +777,8 @@ mod tests {
         let app = tauri::test::mock_app();
         let _thumbnail = ThumbnailCleanup::new(&app, &other);
         app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
-        app.manage(RwLock::new(AppState::default()));
-        ContainerState::open(&app.state::<RwLock<AppState>>(), &open)
+        app.manage(RwLock::new(ContainerState::default()));
+        ContainerState::open(&app.state::<RwLock<ContainerState>>(), &open)
             .await
             .unwrap();
 
@@ -787,10 +786,10 @@ mod tests {
             .await
             .unwrap();
 
-        let binding = app.state::<RwLock<AppState>>();
+        let binding = app.state::<RwLock<ContainerState>>();
         let guard = binding.read().await;
         assert!(
-            guard.container_state.service_for(&open).is_some(),
+            guard.service_for(&open).is_some(),
             "registering another book closed the one being read"
         );
     }
@@ -831,7 +830,7 @@ mod tests {
         mock_repo
     }
 
-    /// Manages `mock_repo`, an empty app state and `settings` as the current settings.
+    /// Manages `mock_repo`, an empty container state and `settings` as the current settings.
     fn manage_for_opening(
         app: &tauri::App<tauri::test::MockRuntime>,
         mock_repo: MockBookRepository,
@@ -839,7 +838,7 @@ mod tests {
     ) {
         app.manage(CurrentSettings::new(settings));
         app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
-        app.manage(RwLock::new(AppState::default()));
+        app.manage(RwLock::new(ContainerState::default()));
     }
 
     /// Settings whose default comic direction is `ltr`, with history on.

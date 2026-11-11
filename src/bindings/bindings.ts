@@ -74,7 +74,7 @@ export const commands = {
 	 *    are left out of the window: preloading a page the viewer is already requesting at
 	 *    foreground priority only lets a background job reach it first, and the foreground
 	 *    request then waits on that job instead of being served.
-	 *  * `state` - A `tauri::State` holding the application's global `AppState`.
+	 *  * `state` - The managed container state.
 	 * 
 	 *  # Errors
 	 * 
@@ -93,7 +93,7 @@ export const commands = {
 	 *  # Arguments
 	 * 
 	 *  * `path` - The path of the container the caller believes is open.
-	 *  * `state` - A `tauri::State` holding the application's global `AppState`.
+	 *  * `state` - The managed container state.
 	 * 
 	 *  # Returns
 	 * 
@@ -122,7 +122,7 @@ export const commands = {
 	 * 
 	 *  * `width` - The viewport width in device pixels. `0` means "not measured yet".
 	 *  * `height` - The viewport height in device pixels.
-	 *  * `state` - A `tauri::State` holding the application's global `AppState`.
+	 *  * `state` - The managed container state.
 	 * 
 	 *  # Returns
 	 * 
@@ -156,7 +156,7 @@ export const commands = {
 	 *  * `file_path` - The unique file or directory path.
 	 *  * `repo` - The managed book repository state.
 	 *  * `app` - The Tauri AppHandle.
-	 *  * `state` - The managed app state.
+	 *  * `state` - The managed container state.
 	 * 
 	 *  # Returns
 	 * 
@@ -180,7 +180,7 @@ export const commands = {
 	 *  * `path` - The file or directory path of the book.
 	 *  * `repo` - The managed book repository state.
 	 *  * `app` - The Tauri AppHandle.
-	 *  * `state` - The managed app state.
+	 *  * `state` - The managed container state.
 	 *  * `settings` - The current settings the history setting and default direction are read from.
 	 * 
 	 *  # Returns

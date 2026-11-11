@@ -162,7 +162,9 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .manage(RwLock::new(state::app_state::AppState::default()))
+        .manage(RwLock::new(
+            state::container_state::ContainerState::default(),
+        ))
         .manage(commands::updater_commands::UpdatePromptLock::default())
         .on_window_event(commands::updater_commands::release_update_prompt_on_destroy)
         .on_page_load(commands::updater_commands::release_update_prompt_on_reload)
