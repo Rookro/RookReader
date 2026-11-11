@@ -244,7 +244,7 @@ describe("useLibrarySync", () => {
 
     expect(mockDispatch).toHaveBeenCalledTimes(1);
     expect(mockDispatch).toHaveBeenCalledWith(readingProgressChanged(payload));
-    // No IPC refetch thunks are dispatched for a page turn.
+    // No refetch thunk is dispatched for a page turn of a book the history already lists.
     expect(mockDispatch).not.toHaveBeenCalledWith(fetchRecentlyReadBooks());
     expect(mockDispatch).not.toHaveBeenCalledWith(fetchCollections());
     expect(mockDispatch).not.toHaveBeenCalledWith(fetchTags());

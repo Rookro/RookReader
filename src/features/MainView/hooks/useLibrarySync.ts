@@ -14,7 +14,8 @@ import { fetchRecentlyReadBooks } from "../../History/slice";
  *
  * This hook performs the initial data load and listens for the backend's change events. Each
  * '*-changed' event names one list, and only that list is refetched; the finer
- * 'reading-progress-changed' (a page turn) patches the affected book in place instead.
+ * 'reading-progress-changed' (a page turn) patches the affected book in place, and refetches the
+ * history only when that book is not listed yet.
  */
 export const useLibrarySync = () => {
   const dispatch = useAppDispatch();
@@ -64,8 +65,8 @@ export const useLibrarySync = () => {
     }
   });
 
-  // A page turn only changes reading progress; patch the affected book in place
-  // instead of refetching a list.
+  // A page turn patches the affected book in place; the history is refetched only
+  // when the book is not listed yet.
   useTauriEvent(events.readingProgressChanged, (event) => {
     dispatch(readingProgressChanged(event.payload));
     // A book first read after history was turned back on is not in the list yet.

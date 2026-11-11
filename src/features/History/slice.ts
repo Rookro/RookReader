@@ -105,8 +105,8 @@ const historySlice = createSlice({
         state.error = action.payload ?? null;
       })
       .addCase(readingProgressChanged, (state, action) => {
-        // A page turn cannot change list membership or order (last_opened_at is only
-        // set when a book is opened), so patch the matching entry in place.
+        // Patch a book already in the list; one not listed yet is added by the
+        // history refetch, not here.
         const book = state.recentlyReadBooks.find((b) => b.id === action.payload.book_id);
         if (book) {
           book.last_read_page_index = action.payload.last_read_page_index;
