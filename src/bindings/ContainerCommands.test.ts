@@ -32,43 +32,10 @@ describe("ContainerCommands", () => {
     await expect(ContainerCommands.getImageDimensions("path")).rejects.toThrow(CommandError);
   });
 
-  it("getImage should call invoke", async () => {
-    vi.mocked(invoke).mockResolvedValue(new ArrayBuffer(0));
-    await ContainerCommands.getImage("path", "entry");
-    expect(invoke).toHaveBeenCalledWith("get_image", { path: "path", entryName: "entry" });
-  });
-
-  it("getImagePreview should call invoke", async () => {
-    vi.mocked(invoke).mockResolvedValue(new ArrayBuffer(0));
-    await ContainerCommands.getImagePreview("path", "entry");
-    expect(invoke).toHaveBeenCalledWith("get_image_preview", { path: "path", entryName: "entry" });
-  });
-
   it("requestPreloadAround should throw CommandError on failure", async () => {
     vi.mocked(invoke).mockRejectedValue(new Error("fail"));
     await expect(ContainerCommands.requestPreloadAround("path", 0, 10, 0)).rejects.toThrow(
       CommandError,
     );
-  });
-
-  it("getImage should throw CommandError on failure", async () => {
-    vi.mocked(invoke).mockRejectedValue(new Error("fail"));
-    await expect(ContainerCommands.getImage("path", "e")).rejects.toThrow(CommandError);
-  });
-
-  it("getImagePreview should throw CommandError on failure", async () => {
-    vi.mocked(invoke).mockRejectedValue(new Error("fail"));
-    await expect(ContainerCommands.getImagePreview("path", "e")).rejects.toThrow(CommandError);
-  });
-
-  it("readNovelFile should call invoke", async () => {
-    vi.mocked(invoke).mockResolvedValue(new ArrayBuffer(0));
-    await ContainerCommands.readNovelFile("novel.epub");
-    expect(invoke).toHaveBeenCalledWith("read_novel_file", { path: "novel.epub" });
-  });
-
-  it("readNovelFile should throw CommandError on failure", async () => {
-    vi.mocked(invoke).mockRejectedValue(new Error("fail"));
-    await expect(ContainerCommands.readNovelFile("novel.epub")).rejects.toThrow(CommandError);
   });
 });

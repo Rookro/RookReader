@@ -81,3 +81,38 @@ vi.mock("../../bindings/UpdaterCommands", () => ({
   claimUpdatePrompt: vi.fn(() => Promise.resolve(true)),
   releaseUpdatePrompt: vi.fn(() => Promise.resolve()),
 }));
+
+vi.mock("../../bindings/api", async () => {
+  const { commands } =
+    await vi.importActual<typeof import("../../bindings/bindings")>("../../bindings/bindings");
+  // What a command resolves to when an empty list does not suit.
+  const defaultResults: Record<string, unknown> = {
+    registerBook: 0,
+    openBook: {
+      entries: [],
+      is_directory: false,
+      is_novel: false,
+      has_previews: false,
+      book: null,
+      record_error: null,
+    },
+    getFonts: ["Arial", "Times New Roman"],
+    isUpdaterSupported: true,
+    claimUpdatePrompt: true,
+  };
+  const api = Object.fromEntries(
+    Object.keys(commands).map((name) => [
+      name,
+      vi.fn(() => Promise.resolve(defaultResults[name] ?? [])),
+    ]),
+  );
+  return { api };
+});
+
+vi.mock("../../bindings/binaryCommands", () => ({
+  getImage: vi.fn(() => Promise.resolve(new ArrayBuffer(0))),
+  getImageFull: vi.fn(() => Promise.resolve(new ArrayBuffer(0))),
+  getImagePreview: vi.fn(() => Promise.resolve(new ArrayBuffer(0))),
+  readNovelFile: vi.fn(() => Promise.resolve(new ArrayBuffer(0))),
+  getEntriesInDir: vi.fn(() => Promise.resolve([])),
+}));
