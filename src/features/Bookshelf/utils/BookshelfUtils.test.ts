@@ -99,12 +99,12 @@ describe("BookshelfUtils", () => {
       });
 
       it("should sort books by their real createdAt (date_asc)", () => {
-        // book1 createdAt "2023-11-01" is older than book2 "2023-12-01".
+        // book1 createdAt 2023-11-01 is older than book2 2023-12-01.
         expect(sortByGridItem(gridBook1, gridBook2, "date_asc")).toBeLessThan(0);
       });
 
       it("should interleave books and series by real createdAt, not by type", () => {
-        // book1 createdAt "2023-11-01" is newer than series1 "2023-01-01", so the
+        // book1 createdAt 2023-11-01 is newer than series1 2023-01-01, so the
         // older series comes first in date_asc and the newer book first in date_desc.
         expect(sortByGridItem(gridBook1, gridSeries1, "date_asc")).toBeGreaterThan(0);
         expect(sortByGridItem(gridBook1, gridSeries1, "date_desc")).toBeLessThan(0);
