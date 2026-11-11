@@ -171,7 +171,7 @@ pub async fn get_image_dimensions(
 ///
 /// # Arguments
 ///
-/// * `path` - The path of the container, used primarily for logging purposes.
+/// * `path` - The path of the container the caller believes is open.
 /// * `entry_name` - The name of the image entry to retrieve (e.g., "image1.png").
 /// * `state` - The managed container state.
 ///
@@ -183,7 +183,7 @@ pub async fn get_image_dimensions(
 /// # Errors
 ///
 /// This function will return an `Err` if:
-/// * The `image_loader` within the application state is unexpectedly missing.
+/// * The book it names is not the book that is open.
 /// * The requested image entry cannot be found or decoded.
 #[tauri::command]
 pub async fn get_image(
@@ -257,7 +257,7 @@ pub async fn get_image_full(
 ///
 /// # Arguments
 ///
-/// * `path` - The path of the container, used primarily for logging purposes.
+/// * `path` - The path of the container the caller believes is open.
 /// * `entry_name` - The name of the image entry for which to generate a preview.
 /// * `state` - The managed container state.
 ///
@@ -269,7 +269,7 @@ pub async fn get_image_full(
 /// # Errors
 ///
 /// This function will return an `Err` if:
-/// * The `image_loader` within the application state is unexpectedly missing.
+/// * The book it names is not the book that is open.
 /// * The preview image cannot be retrieved or generated.
 #[tauri::command]
 pub async fn get_image_preview(

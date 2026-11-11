@@ -27,11 +27,12 @@ export const commands = {
 	 *  Applies a partial settings change and returns the full merged settings.
 	 * 
 	 *  The `patch` carries only the changed leaves of a single category. The backend
-	 *  deep-merges it into the current settings (or, if start-up could not read the settings
-	 *  file, into the file read again), validates the merged whole, persists it,
-	 *  applies the reader/rendering values to the live container runtime, returns the
-	 *  full merged settings to the caller, and broadcasts a `settings-changed` event to
-	 *  every window **except the caller** so other windows re-hydrate.
+	 *  deep-merges it into the current settings (or, while the session still runs on the
+	 *  fallback because start-up could not read the settings file, into the file read again),
+	 *  validates the merged whole, persists it, applies the reader/rendering values to the
+	 *  live container runtime, returns the full merged settings to the caller, and broadcasts
+	 *  a `settings-changed` event to every window **except the caller** so other windows
+	 *  re-hydrate.
 	 * 
 	 *  The caller is excluded from the emit because it already adopts the change from this
 	 *  command's return value (the `updateSettings` thunk replaces its slice with it); it

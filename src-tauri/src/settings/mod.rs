@@ -53,9 +53,9 @@ pub enum ViolationKind {
     NotANumber,
 }
 
-/// The settings while the app runs. `set_settings` holds its write lock across the save,
-/// the runtime apply and the broadcast, so two changes cannot be saved A, B and then
-/// applied B, A.
+/// The settings while the app runs. `set_settings` holds its write lock across the
+/// re-read of an unread file, the save, the runtime apply and the broadcast, so two
+/// changes cannot be saved A, B and then applied B, A.
 pub type CurrentSettings = tokio::sync::RwLock<AppSettings>;
 
 /// Set while the session runs on the fallback because the settings file could not be read
@@ -81,7 +81,8 @@ impl SettingsUnread {
     ///
     /// # Returns
     ///
-    /// `true` until a change has been saved over the re-read file.
+    /// `true` from a start-up that could not read the settings file until a change has
+    /// been saved over the re-read file; `false` otherwise.
     pub fn is_set(&self) -> bool {
         self.0.load(Ordering::SeqCst)
     }

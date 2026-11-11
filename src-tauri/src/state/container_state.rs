@@ -369,7 +369,7 @@ impl ContainerState {
         // A container with no readable pages is not a book. Failing here keeps it out of the
         // library and the history, since the frontend only records a book after this returns.
         // EPUB novels are exempt: their text has no image entries.
-        if !is_novel && pages == 0 {
+        if container.is_empty_book() {
             log::info!("Refusing to open {path}: no readable pages");
             state.write().await.clear();
             return Err(Error::EmptyContainer(path.to_string()));
@@ -994,7 +994,7 @@ mod tests {
     }
 
     #[test]
-    fn test_apply_reader_settings_to_container() {
+    fn apply_settings_copies_the_reader_settings() {
         use crate::{image::resizer::ResizeFilter, settings::ImageResamplingMethod};
 
         let mut state = ContainerState::default();
@@ -1022,17 +1022,7 @@ mod tests {
     fn changing_the_height_cap_re_renders_the_open_book() {
         use crate::page::service::Priority;
 
-        // A directory container holding one 4x2 page.
-        let dir = tempfile::tempdir().expect("tempdir");
-        let mut page = Vec::new();
-        image::DynamicImage::ImageRgb8(image::RgbImage::new(4, 2))
-            .write_to(
-                &mut std::io::Cursor::new(&mut page),
-                image::ImageFormat::Png,
-            )
-            .expect("encode the page fixture");
-        std::fs::write(dir.path().join("p001.png"), page).expect("write the page fixture");
-        let path = dir.path().to_string_lossy().to_string();
+        let (_dir, path) = one_page_book();
 
         let mut state = ContainerState::default();
         let service = ContainerState::build_with(&state.settings, &state.image_cache, None, &path)

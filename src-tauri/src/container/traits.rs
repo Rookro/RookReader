@@ -206,6 +206,12 @@ impl dyn Container {
             .iter()
             .any(|ext| lowercase_name.ends_with(&format!(".{ext}")))
     }
+
+    /// Whether the container holds no readable pages. An EPUB novel never does: its text
+    /// has no image entries.
+    pub fn is_empty_book(&self) -> bool {
+        !self.is_novel() && self.get_entries().is_empty()
+    }
 }
 
 #[cfg(test)]
@@ -257,5 +263,32 @@ mod tests {
             matches!(err, Error::PageTooLarge(_)),
             "unexpected error: {err}"
         );
+    }
+
+    #[test]
+    fn a_book_without_pages_is_empty_unless_it_is_a_novel() {
+        let mut comic = MockContainer::new();
+        comic
+            .expect_get_entries()
+            .return_const(Vec::<String>::new());
+        comic.expect_is_novel().return_const(false);
+        let comic: &dyn Container = &comic;
+        assert!(comic.is_empty_book());
+
+        let mut novel = MockContainer::new();
+        novel
+            .expect_get_entries()
+            .return_const(Vec::<String>::new());
+        novel.expect_is_novel().return_const(true);
+        let novel: &dyn Container = &novel;
+        assert!(!novel.is_empty_book());
+
+        let mut filled = MockContainer::new();
+        filled
+            .expect_get_entries()
+            .return_const(vec!["p1".to_string()]);
+        filled.expect_is_novel().return_const(false);
+        let filled: &dyn Container = &filled;
+        assert!(!filled.is_empty_book());
     }
 }

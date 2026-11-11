@@ -212,9 +212,9 @@ mod bindings_export {
     #[test]
     fn export_bindings() {
         crate::specta_builder()
-            // i64/u64 IDs are cast to TS `number`.
-            // specta-typescript forbids large integers by default to avoid precision
-            // loss; our IDs stay well within `Number.MAX_SAFE_INTEGER`.
+            // Every i64/u64/usize (IDs, counts, page indexes, series positions, sizes) is cast to
+            // TS `number`. specta-typescript forbids large integers by default to avoid precision
+            // loss; all of these stay well within `Number.MAX_SAFE_INTEGER`.
             .dangerously_cast_bigints_to_number()
             // Every exported `f64` is finite (`finite_f64` guards the settings; bounds are
             // constants), so none is ever sent as `null`.
