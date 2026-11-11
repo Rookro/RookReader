@@ -1,8 +1,6 @@
 import { basename, dirname, join } from "@tauri-apps/api/path";
-import { getAllBooksWithState } from "../../../bindings/BookCommands";
-import { getBooksByCollection } from "../../../bindings/CollectionCommands";
-import { getEntriesInDir } from "../../../bindings/DirectoryCommands";
-import { getBooksBySeries } from "../../../bindings/SeriesCommands";
+import { api } from "../../../bindings/api";
+import { getEntriesInDir } from "../../../bindings/binaryCommands";
 import type { BookWithState } from "../../../domain/entities";
 import type { SortOrder } from "../../../types/AppSettings";
 import { sortBooks, sortBySeriesOrder } from "../../../utils/BookSortUtils";
@@ -44,7 +42,7 @@ const adjacentInSeries = async (
   if (book.series_id == null) {
     return null;
   }
-  const books = [...(await getBooksBySeries(book.series_id))].sort(sortBySeriesOrder);
+  const books = [...(await api.getBooksBySeries(book.series_id))].sort(sortBySeriesOrder);
   const idx = books.findIndex((b) => b.id === book.id);
   const target = pickAdjacent(books, idx, dir);
   return target ? { filePath: target.file_path, displayName: target.display_name } : null;
@@ -61,8 +59,8 @@ const adjacentInBookshelf = async (
 ): Promise<AdjacentBook | null> => {
   const books =
     origin.collectionId === null
-      ? await getAllBooksWithState()
-      : await getBooksByCollection(origin.collectionId);
+      ? await api.getAllBooksWithState()
+      : await api.getBooksByCollection(origin.collectionId);
   const sorted = [...books].sort((a, b) => sortBooks(a, b, origin.sortOrder));
   const idx = sorted.findIndex((b) => b.file_path === currentPath);
   const target = pickAdjacent(sorted, idx, dir);

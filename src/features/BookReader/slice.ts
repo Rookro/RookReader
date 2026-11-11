@@ -1,13 +1,7 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import { dirname } from "@tauri-apps/api/path";
 import { debug, error, info } from "@tauri-apps/plugin-log";
-import {
-  getRecentlyReadBooks,
-  openBook as openBookInBackend,
-  updateReadingDirection,
-  updateSpreadShift,
-} from "../../bindings/BookCommands";
-import { requestPreloadAround } from "../../bindings/ContainerCommands";
+import { api } from "../../bindings/api";
 import type { BookWithState } from "../../domain/entities";
 import { handleThunkError } from "../../store/thunkErrorHandler";
 import type { Direction } from "../../types/AppSettings";
@@ -33,7 +27,7 @@ export const openContainerFile = createAppAsyncThunk(
     }
     info(`Open container file: ${path}`);
     try {
-      const [opened, dirPath] = await Promise.all([openBookInBackend(path), dirname(path)]);
+      const [opened, dirPath] = await Promise.all([api.openBook(path), dirname(path)]);
 
       const isEpubNovel = opened.is_novel;
 
@@ -69,7 +63,7 @@ export const openContainerFile = createAppAsyncThunk(
         // priority; leave those pages to it rather than have this window reach them
         // first and make the reader wait on a background job.
         const callerPages = state.settings.reader.comic.enableSpread ? 2 : 1;
-        requestPreloadAround(path, startIndex, preloadPageCount, callerPages).catch((e) => {
+        api.requestPreloadAround(path, startIndex, preloadPageCount, callerPages).catch((e) => {
           error(`Failed to request preload: ${String(e)}`);
         });
       }
@@ -123,7 +117,7 @@ export const toggleSpreadShift = createAppAsyncThunk(
     dispatch(setSpreadShifted(next));
     if (book) {
       try {
-        await updateSpreadShift(book.id, next);
+        await api.updateSpreadShift(book.id, next);
       } catch (e) {
         // The flag still applies to this session; only remembering it failed.
         error(`Failed to store the spread shift: ${String(e)}`);
@@ -152,7 +146,7 @@ export const toggleReadingDirection = createAppAsyncThunk(
     dispatch(setReadingDirection(next));
     if (book) {
       try {
-        await updateReadingDirection(book.id, next);
+        await api.updateReadingDirection(book.id, next);
       } catch (e) {
         // The direction still applies to this session; only remembering it failed.
         error(`Failed to store the reading direction: ${String(e)}`);
@@ -537,7 +531,7 @@ export const restoreLastBook = createAppAsyncThunk(
       return;
     }
     try {
-      const [latest] = await getRecentlyReadBooks();
+      const [latest] = await api.getRecentlyReadBooks(null);
       if (latest) {
         await dispatch(openBook({ path: latest.file_path, origin: { kind: "startup" } }));
       }

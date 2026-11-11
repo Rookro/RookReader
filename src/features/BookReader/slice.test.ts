@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import * as BookCommands from "../../bindings/BookCommands";
-import * as ContainerCommands from "../../bindings/ContainerCommands";
-import * as DirectoryCommands from "../../bindings/DirectoryCommands";
+import { api } from "../../bindings/api";
+import * as binaryCommands from "../../bindings/binaryCommands";
 import { createMockBookWithState, createMockReadBook } from "../../test/factories";
 import {
   type AppStore,
@@ -32,7 +31,7 @@ import readerReducer, {
 } from "./slice";
 import type { OpenOrigin } from "./types/OpenOrigin";
 
-type Opened = Awaited<ReturnType<typeof BookCommands.openBook>>;
+type Opened = Awaited<ReturnType<typeof api.openBook>>;
 
 /** An `open_book` result: an empty comic that was recorded without a book row. */
 const opened = (overrides: Partial<Opened> = {}): Opened => ({
@@ -374,14 +373,14 @@ describe("ReaderReducer", () => {
       it("should open container and update state on success", async () => {
         const mockBook = createMockBookWithState({ id: 1, last_read_page_index: 1 });
 
-        vi.mocked(BookCommands.openBook).mockResolvedValue(
+        vi.mocked(api.openBook).mockResolvedValue(
           opened({ entries: ["p1", "p2"], book: mockBook }),
         );
 
         store.dispatch(bookPathOpened({ path: "path/to/book.zip", origin: null }));
         await store.dispatch(openContainerFile("path/to/book.zip"));
 
-        expect(BookCommands.openBook).toHaveBeenCalledWith("path/to/book.zip");
+        expect(api.openBook).toHaveBeenCalledWith("path/to/book.zip");
         const state = store.getState().reader;
         expect(state.isLoading).toBe(false);
         expect(state.book).toEqual(mockBook);
@@ -393,7 +392,7 @@ describe("ReaderReducer", () => {
 
       // The viewer asks for previews only when the open book says it has them
       it("keeps whether the open book has previews, and forgets it on the next open", async () => {
-        vi.mocked(BookCommands.openBook).mockResolvedValueOnce(
+        vi.mocked(api.openBook).mockResolvedValueOnce(
           opened({
             entries: ["0000"],
             has_previews: true,
@@ -405,7 +404,7 @@ describe("ReaderReducer", () => {
         await store.dispatch(openContainerFile("path/to/book.pdf"));
         expect(store.getState().reader.hasPreviews).toBe(true);
 
-        vi.mocked(BookCommands.openBook).mockReturnValueOnce(new Promise(() => {}));
+        vi.mocked(api.openBook).mockReturnValueOnce(new Promise(() => {}));
         store.dispatch(bookPathOpened({ path: "path/to/other.zip", origin: null }));
         void store.dispatch(openContainerFile("path/to/other.zip"));
         expect(store.getState().reader.hasPreviews).toBe(false);
@@ -413,7 +412,7 @@ describe("ReaderReducer", () => {
 
       // Verify that a book which opened stays on screen when the library cannot record it
       it("keeps the pages when recording the opened book fails", async () => {
-        vi.mocked(BookCommands.openBook).mockResolvedValue(
+        vi.mocked(api.openBook).mockResolvedValue(
           opened({
             entries: ["p1", "p2"],
             record_error: {
@@ -445,14 +444,14 @@ describe("ReaderReducer", () => {
       it("leaves the pages the viewer will load out of the opening window", async () => {
         const mockBook = createMockBookWithState({ id: 1, last_read_page_index: 4 });
 
-        vi.mocked(BookCommands.openBook).mockResolvedValue(
+        vi.mocked(api.openBook).mockResolvedValue(
           opened({ entries: ["p1", "p2", "p3", "p4", "p5", "p6"], book: mockBook }),
         );
 
         await store.dispatch(openContainerFile("path/to/book.zip"));
 
         // The test store's default reader shows spreads, so the viewer will ask for two.
-        expect(ContainerCommands.requestPreloadAround).toHaveBeenCalledWith(
+        expect(api.requestPreloadAround).toHaveBeenCalledWith(
           "path/to/book.zip",
           4,
           store.getState().settings.reader.comic.cache.preloadPageCount,
@@ -464,7 +463,7 @@ describe("ReaderReducer", () => {
       it("restores the spread shift from the book", async () => {
         const mockBook = createMockBookWithState({ id: 7, is_spread_shifted: true });
 
-        vi.mocked(BookCommands.openBook).mockResolvedValue(
+        vi.mocked(api.openBook).mockResolvedValue(
           opened({ entries: ["p1", "p2"], book: mockBook }),
         );
 
@@ -480,7 +479,7 @@ describe("ReaderReducer", () => {
       it("toggleSpreadShift flips the flag and stores it against the book", async () => {
         const mockBook = createMockBookWithState({ id: 7, is_spread_shifted: false });
 
-        vi.mocked(BookCommands.openBook).mockResolvedValue(
+        vi.mocked(api.openBook).mockResolvedValue(
           opened({ entries: ["p1", "p2"], book: mockBook }),
         );
 
@@ -490,12 +489,12 @@ describe("ReaderReducer", () => {
         await store.dispatch(toggleSpreadShift());
 
         expect(store.getState().reader.isSpreadShifted).toBe(true);
-        expect(BookCommands.updateSpreadShift).toHaveBeenCalledWith(7, true);
+        expect(api.updateSpreadShift).toHaveBeenCalledWith(7, true);
       });
 
       // Verify a book that could not be recorded still pairs as the reader asked
       it("toggleSpreadShift still applies when there is no book to store it against", async () => {
-        vi.mocked(BookCommands.openBook).mockResolvedValue(
+        vi.mocked(api.openBook).mockResolvedValue(
           opened({
             entries: ["p1", "p2"],
             record_error: { code: ErrorCode.database, message: "not recorded", details: null },
@@ -508,7 +507,7 @@ describe("ReaderReducer", () => {
         await store.dispatch(toggleSpreadShift());
 
         expect(store.getState().reader.isSpreadShifted).toBe(true);
-        expect(BookCommands.updateSpreadShift).not.toHaveBeenCalled();
+        expect(api.updateSpreadShift).not.toHaveBeenCalled();
       });
 
       // The backend seeds a new comic's direction; when it recorded none (the settings
@@ -516,7 +515,7 @@ describe("ReaderReducer", () => {
       it("leaves the direction to the reader's default when the backend recorded none", async () => {
         const mockBook = createMockBookWithState({ id: 7, reading_direction: null });
 
-        vi.mocked(BookCommands.openBook).mockResolvedValue(
+        vi.mocked(api.openBook).mockResolvedValue(
           opened({ entries: ["p1", "p2"], book: mockBook }),
         );
 
@@ -524,14 +523,14 @@ describe("ReaderReducer", () => {
         await store.dispatch(openContainerFile("path/to/book.zip"));
 
         expect(store.getState().reader.readingDirection).toBeNull();
-        expect(BookCommands.updateReadingDirection).not.toHaveBeenCalled();
+        expect(api.updateReadingDirection).not.toHaveBeenCalled();
       });
 
       // Verify the direction comes from the book, not the default, and is not rewritten
       it("uses the direction the backend recorded for the book", async () => {
         const mockBook = createMockBookWithState({ id: 7, reading_direction: "ltr" });
 
-        vi.mocked(BookCommands.openBook).mockResolvedValue(
+        vi.mocked(api.openBook).mockResolvedValue(
           opened({ entries: ["p1", "p2"], book: mockBook }),
         );
 
@@ -539,14 +538,14 @@ describe("ReaderReducer", () => {
         await store.dispatch(openContainerFile("path/to/book.zip"));
 
         expect(store.getState().reader.readingDirection).toBe("ltr");
-        expect(BookCommands.updateReadingDirection).not.toHaveBeenCalled();
+        expect(api.updateReadingDirection).not.toHaveBeenCalled();
       });
 
       // A novel's direction is the EPUB's own, so nothing is seeded against it
       it("leaves a novel's reading direction unset", async () => {
         const mockBook = createMockBookWithState({ id: 7, reading_direction: "rtl" });
 
-        vi.mocked(BookCommands.openBook).mockResolvedValue(
+        vi.mocked(api.openBook).mockResolvedValue(
           opened({ entries: ["Chapter 1"], is_novel: true, book: mockBook }),
         );
 
@@ -554,14 +553,14 @@ describe("ReaderReducer", () => {
         await store.dispatch(openContainerFile("path/to/book.epub"));
 
         expect(store.getState().reader.readingDirection).toBeNull();
-        expect(BookCommands.updateReadingDirection).not.toHaveBeenCalled();
+        expect(api.updateReadingDirection).not.toHaveBeenCalled();
       });
 
       // Verify the toggle both applies and persists, against the book alone
       it("toggleReadingDirection flips the direction and stores it against the book", async () => {
         const mockBook = createMockBookWithState({ id: 7, reading_direction: "rtl" });
 
-        vi.mocked(BookCommands.openBook).mockResolvedValue(
+        vi.mocked(api.openBook).mockResolvedValue(
           opened({ entries: ["p1", "p2"], book: mockBook }),
         );
 
@@ -571,7 +570,7 @@ describe("ReaderReducer", () => {
         await store.dispatch(toggleReadingDirection());
 
         expect(store.getState().reader.readingDirection).toBe("ltr");
-        expect(BookCommands.updateReadingDirection).toHaveBeenCalledWith(7, "ltr");
+        expect(api.updateReadingDirection).toHaveBeenCalledWith(7, "ltr");
         // The default is the seed for new books only; flipping one book must not move it.
         expect(store.getState().settings.reader.comic.readingDirection).toBe("rtl");
       });
@@ -580,7 +579,7 @@ describe("ReaderReducer", () => {
       it("should open on the last page when pendingInitialPosition is 'last'", async () => {
         const mockBook = createMockBookWithState({ id: 1, last_read_page_index: 5 });
 
-        vi.mocked(BookCommands.openBook).mockResolvedValue(
+        vi.mocked(api.openBook).mockResolvedValue(
           opened({ entries: ["p1", "p2", "p3"], book: mockBook }),
         );
 
@@ -599,7 +598,7 @@ describe("ReaderReducer", () => {
       it("should open on the first page when pendingInitialPosition is 'first'", async () => {
         const mockBook = createMockBookWithState({ id: 1, last_read_page_index: 5 });
 
-        vi.mocked(BookCommands.openBook).mockResolvedValue(
+        vi.mocked(api.openBook).mockResolvedValue(
           opened({ entries: ["p1", "p2", "p3"], book: mockBook }),
         );
 
@@ -618,7 +617,7 @@ describe("ReaderReducer", () => {
       it("should clamp a restored index past the page count to the last page", async () => {
         const mockBook = createMockBookWithState({ id: 1, last_read_page_index: 10 });
 
-        vi.mocked(BookCommands.openBook).mockResolvedValue(
+        vi.mocked(api.openBook).mockResolvedValue(
           opened({ entries: ["p1", "p2", "p3"], book: mockBook }),
         );
 
@@ -638,7 +637,7 @@ describe("ReaderReducer", () => {
           cfi: "epubcfi(/6/8!/4/2/1:0)",
         });
 
-        vi.mocked(BookCommands.openBook).mockResolvedValue(
+        vi.mocked(api.openBook).mockResolvedValue(
           opened({ entries: ["s1", "s2", "s3", "s4"], is_novel: true, book: mockBook }),
         );
 
@@ -658,7 +657,7 @@ describe("ReaderReducer", () => {
           cfi: "epubcfi(/6/8!/4/2/1:0)",
         });
 
-        vi.mocked(BookCommands.openBook).mockResolvedValue(
+        vi.mocked(api.openBook).mockResolvedValue(
           opened({ entries: ["p1", "p2"], book: mockBook }),
         );
 
@@ -676,7 +675,7 @@ describe("ReaderReducer", () => {
           cfi: "epubcfi(/6/8!/4/2/1:0)",
         });
 
-        vi.mocked(BookCommands.openBook).mockResolvedValue(
+        vi.mocked(api.openBook).mockResolvedValue(
           opened({ entries: ["s1", "s2", "s3"], is_novel: true, book: mockBook }),
         );
 
@@ -693,7 +692,7 @@ describe("ReaderReducer", () => {
       // Verify handling of EPUB novel format
       it("should handle EPUB novel", async () => {
         const mockBook = createMockBookWithState({ id: 1, last_read_page_index: 0 });
-        vi.mocked(BookCommands.openBook).mockResolvedValue(
+        vi.mocked(api.openBook).mockResolvedValue(
           opened({ entries: ["p1", "p2"], is_novel: true, book: mockBook }),
         );
 
@@ -702,7 +701,7 @@ describe("ReaderReducer", () => {
 
         const state = store.getState().reader;
         expect(state.isNovel).toBe(true);
-        expect(BookCommands.openBook).toHaveBeenCalled();
+        expect(api.openBook).toHaveBeenCalled();
       });
 
       // Verify that a stale fulfilled response (for a book the user already navigated
@@ -758,7 +757,7 @@ describe("ReaderReducer", () => {
       // Verify handling of CommandError during opening
       it("should handle CommandError during open", async () => {
         const mockError = new CommandError(ErrorCode.other, "cmd failed");
-        vi.mocked(BookCommands.openBook).mockRejectedValue(mockError);
+        vi.mocked(api.openBook).mockRejectedValue(mockError);
 
         store.dispatch(bookPathOpened({ path: "fail.zip", origin: null }));
         await store.dispatch(openContainerFile("fail.zip"));
@@ -773,7 +772,7 @@ describe("ReaderReducer", () => {
       // Verify handling of generic error during container open
       it("should handle generic error during container open", async () => {
         const testError = "open failed";
-        vi.mocked(BookCommands.openBook).mockRejectedValue(testError);
+        vi.mocked(api.openBook).mockRejectedValue(testError);
 
         store.dispatch(bookPathOpened({ path: "fail.zip", origin: null }));
         await store.dispatch(openContainerFile("fail.zip"));
@@ -797,10 +796,10 @@ describe("ReaderReducer", () => {
         new Uint8Array(buffer).set(nameBuffer, 5);
         view.setBigUint64(5 + nameBuffer.byteLength, BigInt(0));
 
-        vi.mocked(BookCommands.openBook).mockRejectedValue(
+        vi.mocked(api.openBook).mockRejectedValue(
           new CommandError(ErrorCode.emptyContainer, "Empty Container Error: multi.zip"),
         );
-        vi.mocked(DirectoryCommands.getEntriesInDir).mockResolvedValue(buffer);
+        vi.mocked(binaryCommands.getEntriesInDir).mockResolvedValue(buffer);
 
         store.dispatch(bookPathOpened({ path: "multi.zip", origin: null }));
         await store.dispatch(openContainerFile("multi.zip"));
@@ -815,7 +814,7 @@ describe("ReaderReducer", () => {
 
       // A slow failure must not drag the navigator away from a book opened after it.
       it("should not move the file navigator when another book was opened meanwhile", async () => {
-        vi.mocked(BookCommands.openBook).mockRejectedValue(
+        vi.mocked(api.openBook).mockRejectedValue(
           new CommandError(ErrorCode.emptyContainer, "Empty Container Error: stale.zip"),
         );
 
@@ -823,26 +822,26 @@ describe("ReaderReducer", () => {
         store.dispatch(bookPathOpened({ path: "current.zip", origin: null }));
         await store.dispatch(openContainerFile("stale.zip"));
 
-        expect(DirectoryCommands.getEntriesInDir).not.toHaveBeenCalled();
+        expect(binaryCommands.getEntriesInDir).not.toHaveBeenCalled();
       });
 
       // Other failures leave the navigator alone: there is no path worth entering.
       it("should not move the file navigator for a failure other than an empty container", async () => {
-        vi.mocked(BookCommands.openBook).mockRejectedValue(
+        vi.mocked(api.openBook).mockRejectedValue(
           new CommandError(ErrorCode.zip, "Zip Error: corrupt"),
         );
 
         store.dispatch(bookPathOpened({ path: "broken.zip", origin: null }));
         await store.dispatch(openContainerFile("broken.zip"));
 
-        expect(DirectoryCommands.getEntriesInDir).not.toHaveBeenCalled();
+        expect(binaryCommands.getEntriesInDir).not.toHaveBeenCalled();
       });
 
       // A failed open must not leave the previous book's title, type or reading state
       // on screen.
       it("should clear the previously opened book when opening fails", async () => {
         const mockBook = createMockBookWithState({ id: 1, last_read_page_index: 1 });
-        vi.mocked(BookCommands.openBook).mockResolvedValue(
+        vi.mocked(api.openBook).mockResolvedValue(
           opened({ entries: ["p1", "p2"], is_directory: true, is_novel: true, book: mockBook }),
         );
 
@@ -850,7 +849,7 @@ describe("ReaderReducer", () => {
         await store.dispatch(openContainerFile("good.zip"));
         expect(store.getState().reader.book).not.toBeNull();
 
-        vi.mocked(BookCommands.openBook).mockRejectedValue("boom");
+        vi.mocked(api.openBook).mockRejectedValue("boom");
         store.dispatch(bookPathOpened({ path: "fail.zip", origin: null }));
         await store.dispatch(openContainerFile("fail.zip"));
 
@@ -863,7 +862,7 @@ describe("ReaderReducer", () => {
       // Verify that a failed open clears a pending "last page" position so it does not
       // leak into the next opened container.
       it("should clear pendingInitialPosition when opening fails", async () => {
-        vi.mocked(BookCommands.openBook).mockRejectedValue("boom");
+        vi.mocked(api.openBook).mockRejectedValue("boom");
 
         store.dispatch(bookPathOpened({ path: "fail.zip", origin: null, initialPosition: "last" }));
         await store.dispatch(openContainerFile("fail.zip"));
@@ -880,14 +879,14 @@ describe("ReaderReducer", () => {
         });
 
       beforeEach(() => {
-        vi.mocked(BookCommands.openBook).mockResolvedValue(pages(5));
+        vi.mocked(api.openBook).mockResolvedValue(pages(5));
       });
 
       it("openBook loads the book it opens", async () => {
         await store.dispatch(openBook({ path: "/a.zip", origin: { kind: "fileNavigator" } }));
 
-        expect(BookCommands.openBook).toHaveBeenCalledTimes(1);
-        expect(BookCommands.openBook).toHaveBeenCalledWith("/a.zip");
+        expect(api.openBook).toHaveBeenCalledTimes(1);
+        expect(api.openBook).toHaveBeenCalledWith("/a.zip");
         const state = store.getState().reader;
         expect(state.history).toEqual(["/a.zip"]);
         expect(state.origin).toEqual({ kind: "fileNavigator" });
@@ -900,7 +899,7 @@ describe("ReaderReducer", () => {
 
         await store.dispatch(openBook({ path: "/a.zip", origin: null }));
 
-        expect(BookCommands.openBook).toHaveBeenCalledTimes(1);
+        expect(api.openBook).toHaveBeenCalledTimes(1);
         expect(store.getState().reader.index).toBe(3);
       });
 
@@ -918,8 +917,8 @@ describe("ReaderReducer", () => {
 
         await store.dispatch(goBackContainerHistory());
 
-        expect(BookCommands.openBook).toHaveBeenCalledTimes(3);
-        expect(BookCommands.openBook).toHaveBeenLastCalledWith("/a.zip");
+        expect(api.openBook).toHaveBeenCalledTimes(3);
+        expect(api.openBook).toHaveBeenLastCalledWith("/a.zip");
         const state = store.getState().reader;
         expect(state.history[state.historyIndex]).toBe("/a.zip");
         expect(state.isLoading).toBe(false);
@@ -932,8 +931,8 @@ describe("ReaderReducer", () => {
 
         await store.dispatch(goForwardContainerHistory());
 
-        expect(BookCommands.openBook).toHaveBeenCalledTimes(4);
-        expect(BookCommands.openBook).toHaveBeenLastCalledWith("/b.zip");
+        expect(api.openBook).toHaveBeenCalledTimes(4);
+        expect(api.openBook).toHaveBeenLastCalledWith("/b.zip");
         const state = store.getState().reader;
         expect(state.history[state.historyIndex]).toBe("/b.zip");
         expect(state.isLoading).toBe(false);
@@ -944,11 +943,11 @@ describe("ReaderReducer", () => {
 
         await store.dispatch(goBackContainerHistory());
 
-        expect(BookCommands.openBook).toHaveBeenCalledTimes(1);
+        expect(api.openBook).toHaveBeenCalledTimes(1);
       });
 
       it("an adjacent open overtaken by another open keeps its initial position", async () => {
-        vi.mocked(BookCommands.openBook).mockReturnValueOnce(new Promise(() => {}));
+        vi.mocked(api.openBook).mockReturnValueOnce(new Promise(() => {}));
         void store.dispatch(
           openBook({ path: "/b.zip", origin: { kind: "history" }, initialPosition: "last" }),
         );
@@ -959,7 +958,7 @@ describe("ReaderReducer", () => {
       });
 
       it("a new book starts from a clean view", async () => {
-        vi.mocked(BookCommands.openBook).mockResolvedValueOnce({
+        vi.mocked(api.openBook).mockResolvedValueOnce({
           ...pages(5),
           has_previews: true,
         });
@@ -970,7 +969,7 @@ describe("ReaderReducer", () => {
         store.dispatch(setReadingDirection("ltr"));
         store.dispatch(setNovelDirection("rtl"));
 
-        vi.mocked(BookCommands.openBook).mockReturnValueOnce(new Promise(() => {}));
+        vi.mocked(api.openBook).mockReturnValueOnce(new Promise(() => {}));
         void store.dispatch(openBook({ path: "/b.zip", origin: null }));
 
         const state = store.getState().reader;
@@ -996,11 +995,11 @@ describe("ReaderReducer", () => {
       };
 
       beforeEach(() => {
-        vi.mocked(BookCommands.openBook).mockResolvedValue(opened({ entries: ["p1"] }));
+        vi.mocked(api.openBook).mockResolvedValue(opened({ entries: ["p1"] }));
       });
 
       it("restoreLastBook opens the newest book when history and restore are on", async () => {
-        vi.mocked(BookCommands.getRecentlyReadBooks).mockResolvedValue([
+        vi.mocked(api.getRecentlyReadBooks).mockResolvedValue([
           createMockReadBook({ file_path: "/last/book.zip" }),
           createMockReadBook({ file_path: "/older/book.zip" }),
         ]);
@@ -1011,7 +1010,7 @@ describe("ReaderReducer", () => {
         const state = store.getState().reader;
         expect(state.history).toEqual(["/last/book.zip"]);
         expect(state.origin).toEqual({ kind: "startup" });
-        expect(BookCommands.openBook).toHaveBeenCalledWith("/last/book.zip");
+        expect(api.openBook).toHaveBeenCalledWith("/last/book.zip");
       });
 
       it("restoreLastBook opens nothing when restore or history recording is off", async () => {
@@ -1023,18 +1022,18 @@ describe("ReaderReducer", () => {
 
           await store.dispatch(restoreLastBook());
 
-          expect(BookCommands.getRecentlyReadBooks).not.toHaveBeenCalled();
+          expect(api.getRecentlyReadBooks).not.toHaveBeenCalled();
           expect(store.getState().reader.history).toEqual([]);
         }
       });
 
       it("restoreLastBook opens nothing when no book was read", async () => {
-        vi.mocked(BookCommands.getRecentlyReadBooks).mockResolvedValue([]);
+        vi.mocked(api.getRecentlyReadBooks).mockResolvedValue([]);
         store = storeWith(true, true);
 
         await store.dispatch(restoreLastBook());
 
-        expect(BookCommands.getRecentlyReadBooks).toHaveBeenCalledTimes(1);
+        expect(api.getRecentlyReadBooks).toHaveBeenCalledTimes(1);
         expect(store.getState().reader.history).toEqual([]);
       });
     });

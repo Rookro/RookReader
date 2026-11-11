@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import * as BookmarkCommands from "../../bindings/BookmarkCommands";
+import { api } from "../../bindings/api";
 import type { Bookmark } from "../../domain/entities";
 import { createMockBookmark } from "../../test/factories";
 import { type AppStore, createTestStore } from "../../test/utils";
@@ -54,18 +54,18 @@ describe("BookmarkReducer", () => {
         createMockBookmark({ id: 1, page_index: 0 }),
         createMockBookmark({ id: 2, page_index: 4 }),
       ];
-      vi.mocked(BookmarkCommands.getBookmarksByBookId).mockResolvedValue(bookmarks);
+      vi.mocked(api.getBookmarksByBookId).mockResolvedValue(bookmarks);
 
       await store.dispatch(fetchBookmarks(1));
 
       const state = store.getState().bookmark;
-      expect(BookmarkCommands.getBookmarksByBookId).toHaveBeenCalledWith(1);
+      expect(api.getBookmarksByBookId).toHaveBeenCalledWith(1);
       expect(state.bookmarks).toEqual(bookmarks);
       expect(state.status).toBe("succeeded");
     });
 
     it("should clear the bookmarks and record the error on failure", async () => {
-      vi.mocked(BookmarkCommands.getBookmarksByBookId).mockRejectedValue(
+      vi.mocked(api.getBookmarksByBookId).mockRejectedValue(
         new CommandError(ErrorCode.other, "fetch failed"),
       );
 
@@ -141,21 +141,16 @@ describe("BookmarkReducer", () => {
         createMockBookmark({ id: 1, page_index: 0 }),
         createMockBookmark({ id: 2, page_index: 9 }),
       ];
-      vi.mocked(BookmarkCommands.getBookmarksByBookId).mockResolvedValue(existing);
+      vi.mocked(api.getBookmarksByBookId).mockResolvedValue(existing);
       await store.dispatch(fetchBookmarks(1));
 
       const added = createMockBookmark({ id: 3, page_index: 4, name: "Chapter 2" });
-      vi.mocked(BookmarkCommands.createBookmark).mockResolvedValue(added);
+      vi.mocked(api.createBookmark).mockResolvedValue(added);
 
       await store.dispatch(addBookmark({ bookId: 1, name: "Chapter 2", pageIndex: 4, cfi: null }));
 
       const state = store.getState().bookmark;
-      expect(BookmarkCommands.createBookmark).toHaveBeenCalledWith({
-        bookId: 1,
-        name: "Chapter 2",
-        pageIndex: 4,
-        cfi: null,
-      });
+      expect(api.createBookmark).toHaveBeenCalledWith(1, "Chapter 2", 4, null);
       expect(state.bookmarks.map((bookmark) => bookmark.id)).toEqual([1, 3, 2]);
     });
 
@@ -177,7 +172,7 @@ describe("BookmarkReducer", () => {
     });
 
     it("should record the error on failure", async () => {
-      vi.mocked(BookmarkCommands.createBookmark).mockRejectedValue(
+      vi.mocked(api.createBookmark).mockRejectedValue(
         new CommandError(ErrorCode.other, "add failed"),
       );
 
@@ -196,18 +191,18 @@ describe("BookmarkReducer", () => {
         createMockBookmark({ id: 1, page_index: 0 }),
         createMockBookmark({ id: 2, page_index: 4 }),
       ];
-      vi.mocked(BookmarkCommands.getBookmarksByBookId).mockResolvedValue(existing);
+      vi.mocked(api.getBookmarksByBookId).mockResolvedValue(existing);
       await store.dispatch(fetchBookmarks(1));
 
       await store.dispatch(removeBookmark(1));
 
       const state = store.getState().bookmark;
-      expect(BookmarkCommands.deleteBookmark).toHaveBeenCalledWith(1);
+      expect(api.deleteBookmark).toHaveBeenCalledWith(1);
       expect(state.bookmarks.map((bookmark) => bookmark.id)).toEqual([2]);
     });
 
     it("should record the error on failure", async () => {
-      vi.mocked(BookmarkCommands.deleteBookmark).mockRejectedValue(
+      vi.mocked(api.deleteBookmark).mockRejectedValue(
         new CommandError(ErrorCode.other, "remove failed"),
       );
 
@@ -223,13 +218,13 @@ describe("BookmarkReducer", () => {
   describe("updateBookmarkName", () => {
     it("should rename the matching bookmark", async () => {
       const existing = [createMockBookmark({ id: 1, name: "Page 1" })];
-      vi.mocked(BookmarkCommands.getBookmarksByBookId).mockResolvedValue(existing);
+      vi.mocked(api.getBookmarksByBookId).mockResolvedValue(existing);
       await store.dispatch(fetchBookmarks(1));
 
       await store.dispatch(updateBookmarkName({ id: 1, name: "The duel" }));
 
       const state = store.getState().bookmark;
-      expect(BookmarkCommands.renameBookmark).toHaveBeenCalledWith(1, "The duel");
+      expect(api.renameBookmark).toHaveBeenCalledWith(1, "The duel");
       expect(state.bookmarks[0].name).toBe("The duel");
     });
 
@@ -248,7 +243,7 @@ describe("BookmarkReducer", () => {
     });
 
     it("should record the error on failure", async () => {
-      vi.mocked(BookmarkCommands.renameBookmark).mockRejectedValue(
+      vi.mocked(api.renameBookmark).mockRejectedValue(
         new CommandError(ErrorCode.other, "rename failed"),
       );
 

@@ -2,7 +2,7 @@ import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { makeBook } from "foliate-js/view.js";
 import type { Mock } from "vitest";
 import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
-import { readNovelFile } from "../../../bindings/ContainerCommands";
+import { readNovelFile } from "../../../bindings/binaryCommands";
 import { mockLog } from "../../../test/mocks/tauri";
 import { createBasePreloadedState, renderWithProviders } from "../../../test/utils";
 import { CommandError, ErrorCode } from "../../../types/Error";

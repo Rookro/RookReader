@@ -1,10 +1,5 @@
 import { createSlice } from "@reduxjs/toolkit";
-import {
-  createBookmark,
-  deleteBookmark,
-  getBookmarksByBookId,
-  renameBookmark,
-} from "../../bindings/BookmarkCommands";
+import { api } from "../../bindings/api";
 import type { Bookmark } from "../../domain/entities";
 import { recordThunkError } from "../../store/thunkErrorHandler";
 import { createCommandThunk, type ThunkRejectValue } from "../../types/CustomAsyncThunk";
@@ -17,7 +12,7 @@ import { createCommandThunk, type ThunkRejectValue } from "../../types/CustomAsy
  */
 export const fetchBookmarks = createCommandThunk(
   "bookmark/fetchBookmarks",
-  (bookId: number) => getBookmarksByBookId(bookId),
+  (bookId: number) => api.getBookmarksByBookId(bookId),
   (bookId) => `Failed to fetch bookmarks(bookId: ${bookId}).`,
 );
 
@@ -34,7 +29,7 @@ export const fetchBookmarks = createCommandThunk(
 export const addBookmark = createCommandThunk(
   "bookmark/addBookmark",
   (params: { bookId: number; name: string; pageIndex: number; cfi: string | null }) =>
-    createBookmark(params),
+    api.createBookmark(params.bookId, params.name, params.pageIndex, params.cfi),
   (params) => `Failed to add bookmark(bookId: ${params.bookId}, pageIndex: ${params.pageIndex}).`,
 );
 
@@ -47,7 +42,7 @@ export const addBookmark = createCommandThunk(
 export const removeBookmark = createCommandThunk(
   "bookmark/removeBookmark",
   async (id: number) => {
-    await deleteBookmark(id);
+    await api.deleteBookmark(id);
     return id;
   },
   (id) => `Failed to remove bookmark(id: ${id}).`,
@@ -64,7 +59,7 @@ export const removeBookmark = createCommandThunk(
 export const updateBookmarkName = createCommandThunk(
   "bookmark/renameBookmark",
   async (params: { id: number; name: string }) => {
-    await renameBookmark(params.id, params.name);
+    await api.renameBookmark(params.id, params.name);
     return params;
   },
   (params) => `Failed to rename bookmark(id: ${params.id}).`,

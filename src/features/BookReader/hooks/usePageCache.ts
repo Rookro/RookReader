@@ -1,6 +1,6 @@
 import { warn } from "@tauri-apps/plugin-log";
 import { useEffect, useRef, useState } from "react";
-import { setDisplaySize } from "../../../bindings/ContainerCommands";
+import { api } from "../../../bindings/api";
 import { type ImageCacheItem, revokeCacheItemUrls } from "../utils/ImageUtils";
 import type { DisplaySize } from "./useDisplaySize";
 
@@ -78,7 +78,8 @@ export const usePageCache = ({
       return;
     }
     let cancelled = false;
-    setDisplaySize(displaySize.width, displaySize.height)
+    api
+      .setDisplaySize(displaySize.width, displaySize.height)
       .then(() => {
         if (cancelled) {
           return;

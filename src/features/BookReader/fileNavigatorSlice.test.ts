@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import * as DirectoryCommands from "../../bindings/DirectoryCommands";
+import * as binaryCommands from "../../bindings/binaryCommands";
 import { createMockDirEntry } from "../../test/factories";
 import {
   type AppStore,
@@ -171,7 +171,7 @@ describe("FileNavigatorReducer", () => {
 
         await store.dispatch(updateExploreBasePath({ dirPath: "/a" }));
 
-        expect(DirectoryCommands.getEntriesInDir).not.toHaveBeenCalled();
+        expect(binaryCommands.getEntriesInDir).not.toHaveBeenCalled();
         expect(store.getState().fileNavigator.requestId).toBeNull();
       });
     });
@@ -190,7 +190,7 @@ describe("FileNavigatorReducer", () => {
         new Uint8Array(buffer).set(nameBuffer, 5); // name data
         view.setBigUint64(5 + nameBuffer.byteLength, BigInt(0)); // last_modified = 0
 
-        vi.mocked(DirectoryCommands.getEntriesInDir).mockResolvedValue(buffer);
+        vi.mocked(binaryCommands.getEntriesInDir).mockResolvedValue(buffer);
 
         await store.dispatch(updateExploreBasePath({ dirPath: "/test/dir", forceUpdate: true }));
 
@@ -221,7 +221,7 @@ describe("FileNavigatorReducer", () => {
       // Verify handling of CommandError during explorer update
       it("should handle CommandError during explorer update", async () => {
         const mockError = new CommandError(ErrorCode.other, "dir failed");
-        vi.mocked(DirectoryCommands.getEntriesInDir).mockRejectedValue(mockError);
+        vi.mocked(binaryCommands.getEntriesInDir).mockRejectedValue(mockError);
 
         await store.dispatch(updateExploreBasePath({ dirPath: "/error/dir", forceUpdate: true }));
 
@@ -233,7 +233,7 @@ describe("FileNavigatorReducer", () => {
       // Verify handling of generic error during entry conversion
       it("should handle generic error during entry conversion", async () => {
         const testError = "read failed";
-        vi.mocked(DirectoryCommands.getEntriesInDir).mockRejectedValue(testError);
+        vi.mocked(binaryCommands.getEntriesInDir).mockRejectedValue(testError);
 
         await store.dispatch(updateExploreBasePath({ dirPath: "/error/dir", forceUpdate: true }));
 

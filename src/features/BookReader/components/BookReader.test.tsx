@@ -1,7 +1,7 @@
 import { error } from "@tauri-apps/plugin-log";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
-import * as bookCmds from "../../../bindings/BookCommands";
+import { api } from "../../../bindings/api";
 import * as dragDrop from "../../../hooks/useDragDropEvent";
 import { createBasePreloadedState, renderWithProviders } from "../../../test/utils";
 import * as readRed from "../slice";
@@ -32,14 +32,6 @@ vi.mock("../slice", async () => {
   return {
     ...actual,
     openBook: vi.fn((p: unknown) => ({ type: "reader/openBook", payload: p })),
-  };
-});
-
-vi.mock("../../../bindings/ContainerCommands", async () => {
-  const actual = await vi.importActual("../../../bindings/ContainerCommands");
-  return {
-    ...actual,
-    setPdfRenderingHeight: vi.fn(() => Promise.resolve()),
   };
 });
 
@@ -83,11 +75,11 @@ describe("BookReader", () => {
   it("dispatches restoreLastBook on mount", async () => {
     const state = createBasePreloadedState();
     state.settings.startup.restoreLastBook = true;
-    vi.mocked(bookCmds.getRecentlyReadBooks).mockResolvedValue([]);
+    vi.mocked(api.getRecentlyReadBooks).mockResolvedValue([]);
 
     renderWithProviders(<BookReader />, { preloadedState: state });
 
-    await waitFor(() => expect(bookCmds.getRecentlyReadBooks).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(api.getRecentlyReadBooks).toHaveBeenCalledTimes(1));
   });
 
   it("should update container when a file is dropped", async () => {
