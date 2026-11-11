@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { api } from "../../bindings/api";
 import * as binaryCommands from "../../bindings/binaryCommands";
-import { createMockBookWithState, createMockReadBook } from "../../test/factories";
+import { createMockBookWithState } from "../../test/factories";
 import {
   type AppStore,
   createBasePreloadedState,
@@ -1038,8 +1038,8 @@ describe("ReaderReducer", () => {
 
       it("restoreLastBook opens the newest book when history and restore are on", async () => {
         vi.mocked(api.getRecentlyReadBooks).mockResolvedValue([
-          createMockReadBook({ file_path: "/last/book.zip" }),
-          createMockReadBook({ file_path: "/older/book.zip" }),
+          createMockBookWithState({ file_path: "/last/book.zip" }),
+          createMockBookWithState({ file_path: "/older/book.zip" }),
         ]);
         store = storeWith(true, true);
 

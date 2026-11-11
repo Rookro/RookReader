@@ -513,7 +513,7 @@ export const restoreLastBook = createAppAsyncThunk(
       return;
     }
     try {
-      const [latest] = await api.getRecentlyReadBooks(null);
+      const [latest] = await api.getRecentlyReadBooks();
       if (latest) {
         await dispatch(openBook({ path: latest.file_path, origin: { kind: "startup" } }));
       }

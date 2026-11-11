@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { api } from "../../bindings/api";
 import { readingProgressChanged } from "../../store/actions";
-import { createMockReadBook } from "../../test/factories";
+import { createMockBookWithState } from "../../test/factories";
 import { type AppStore, createTestStore } from "../../test/utils";
 import { ErrorCode } from "../../types/Error";
 import historyReducer, { clearAllHistory, clearHistory, fetchRecentlyReadBooks } from "./slice";
@@ -29,8 +29,8 @@ describe("HistoryReducer", () => {
     const state = {
       ...initialState,
       recentlyReadBooks: [
-        createMockReadBook({ id: 1, last_read_page_index: 0 }),
-        createMockReadBook({ id: 2, last_read_page_index: 5 }),
+        createMockBookWithState({ id: 1, last_read_page_index: 0 }),
+        createMockBookWithState({ id: 2, last_read_page_index: 5 }),
       ],
     };
     const nextState = historyReducer(
@@ -52,7 +52,7 @@ describe("HistoryReducer", () => {
     const state = {
       ...initialState,
       recentlyReadBooks: [
-        createMockReadBook({
+        createMockBookWithState({
           id: 1,
           last_read_page_index: 0,
           last_opened_at: "2026-07-01T09:00:00",
@@ -76,7 +76,7 @@ describe("HistoryReducer", () => {
   it("should ignore readingProgressChanged for an unknown book id", () => {
     const state = {
       ...initialState,
-      recentlyReadBooks: [createMockReadBook({ id: 1, last_read_page_index: 3 })],
+      recentlyReadBooks: [createMockBookWithState({ id: 1, last_read_page_index: 3 })],
     };
     const nextState = historyReducer(
       state,
@@ -91,7 +91,7 @@ describe("HistoryReducer", () => {
   });
 
   describe("Async Thunk Integration Tests", () => {
-    const mockReadBook = createMockReadBook({
+    const mockReadBook = createMockBookWithState({
       id: 1,
       display_name: "Book 1",
       file_path: "p1",
@@ -103,7 +103,7 @@ describe("HistoryReducer", () => {
 
       await store.dispatch(fetchRecentlyReadBooks());
 
-      expect(api.getRecentlyReadBooks).toHaveBeenCalledWith(null);
+      expect(api.getRecentlyReadBooks).toHaveBeenCalledWith();
       const state = store.getState().history;
       expect(state.status).toBe("succeeded");
       expect(state.recentlyReadBooks).toEqual([mockReadBook]);

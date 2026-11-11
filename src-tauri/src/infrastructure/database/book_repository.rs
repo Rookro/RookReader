@@ -1,12 +1,10 @@
 use async_trait::async_trait;
 use sqlx::SqlitePool;
 
-use crate::domain::book::entity::{
-    Book, BookWithState, Direction, ItemType, ReadBook, ReadingState,
-};
+use crate::domain::book::entity::{Book, BookWithState, Direction, ItemType, ReadingState};
 use crate::domain::book::repository::BookRepository;
 use crate::error::Result;
-use crate::infrastructure::database::models::{BookRow, BookWithStateRow, ReadBookRow};
+use crate::infrastructure::database::models::{BookRow, BookWithStateRow};
 
 /// SQLite implementation of the `BookRepository`.
 pub struct SqliteBookRepository {
@@ -250,53 +248,26 @@ impl BookRepository for SqliteBookRepository {
         Ok(())
     }
 
-    async fn get_recently_read_books(&self, limit: Option<i64>) -> Result<Vec<ReadBook>> {
-        let books = match limit {
-            Some(limit) => {
-                // SQLite treats a negative LIMIT as unlimited; clamp so the contract
-                // ("at most N") holds even for a negative input.
-                let limit = limit.max(0);
-                sqlx::query_as!(
-                    ReadBookRow,
-                    r#"
-                    SELECT
-                        b.id, b.file_path, b.item_type, b.display_name, b.total_pages,
-                        b.series_id, b.series_order, b.thumbnail_path, r.last_read_page_index,
-                        r.last_opened_at as "last_opened_at!"
-                    FROM books b
-                    INNER JOIN reading_state r ON b.id = r.book_id
-                    WHERE r.last_opened_at IS NOT NULL
-                    ORDER BY r.last_opened_at DESC
-                    LIMIT ?
-                    "#,
-                    limit
-                )
-                .fetch_all(&self.pool)
-                .await?
-                .into_iter()
-                .map(ReadBook::try_from)
-                .collect::<Result<Vec<_>>>()?
-            }
-            None => sqlx::query_as!(
-                ReadBookRow,
-                r#"
-                    SELECT
-                        b.id, b.file_path, b.item_type, b.display_name, b.total_pages,
-                        b.series_id, b.series_order, b.thumbnail_path, r.last_read_page_index,
-                        r.last_opened_at as "last_opened_at!"
-                    FROM books b
-                    INNER JOIN reading_state r ON b.id = r.book_id
-                    WHERE r.last_opened_at IS NOT NULL
-                    ORDER BY r.last_opened_at DESC
-                    "#
-            )
-            .fetch_all(&self.pool)
-            .await?
-            .into_iter()
-            .map(ReadBook::try_from)
-            .collect::<Result<Vec<_>>>()?,
-        };
-
+    async fn get_recently_read_books(&self) -> Result<Vec<BookWithState>> {
+        let books = sqlx::query_as!(
+            BookWithStateRow,
+            r#"
+            SELECT
+                id, file_path, item_type, display_name, total_pages, series_id, series_order,
+                thumbnail_path, created_at, is_spread_shifted, landscape_bits, reading_direction,
+                last_read_page_index, last_opened_at,
+                cfi as "cfi?: String",
+                tag_ids_str as "tag_ids_str?: String"
+            FROM book_with_state_view
+            WHERE last_opened_at IS NOT NULL
+            ORDER BY last_opened_at DESC
+            "#
+        )
+        .fetch_all(&self.pool)
+        .await?
+        .into_iter()
+        .map(BookWithState::try_from)
+        .collect::<Result<Vec<_>>>()?;
         Ok(books)
     }
 

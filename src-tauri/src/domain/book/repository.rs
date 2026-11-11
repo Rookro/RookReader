@@ -1,7 +1,7 @@
 use crate::error::Result;
 use async_trait::async_trait;
 
-use super::entity::{Book, BookWithState, Direction, ItemType, ReadBook, ReadingState};
+use super::entity::{Book, BookWithState, Direction, ItemType, ReadingState};
 
 /// Defines the data access operations for the `Book` aggregate.
 #[cfg_attr(test, mockall::automock)]
@@ -189,18 +189,14 @@ pub trait BookRepository: Send + Sync {
 
     /// Retrieves books that have been opened, ordered by the last opened time in descending order.
     ///
-    /// # Arguments
-    ///
-    /// * `limit` - The maximum number of books to return.
-    ///
     /// # Returns
     ///
-    /// A `Result` containing a vector of `ReadBook` entities.
+    /// A `Result` containing a vector of `BookWithState` entities.
     ///
     /// # Errors
     ///
     /// Returns an `Err` if the database query fails.
-    async fn get_recently_read_books(&self, limit: Option<i64>) -> Result<Vec<ReadBook>>;
+    async fn get_recently_read_books(&self) -> Result<Vec<BookWithState>>;
 
     /// Retrieves all books along with their reading state.
     ///

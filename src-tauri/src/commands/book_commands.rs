@@ -7,7 +7,7 @@ use tauri::State;
 use crate::commands::events::{emit, BooksChanged, ReadingHistoryChanged, ReadingProgressChanged};
 use crate::container::describe::describe;
 use crate::container::traits::Container;
-use crate::domain::book::entity::{BookWithState, Direction, ReadBook, ReadingState};
+use crate::domain::book::entity::{BookWithState, Direction, ReadingState};
 use crate::domain::book::repository::BookRepository;
 use crate::error::{Error, Result};
 use crate::infrastructure::thumbnails;
@@ -358,12 +358,11 @@ pub async fn update_page_layout(
 ///
 /// # Arguments
 ///
-/// * `limit` - The maximum number of books to retrieve.
 /// * `repo` - The managed book repository state.
 ///
 /// # Returns
 ///
-/// A `Result` containing a vector of `ReadBook` entities.
+/// A `Result` containing a vector of `BookWithState` entities.
 ///
 /// # Errors
 ///
@@ -372,11 +371,10 @@ pub async fn update_page_layout(
 #[tauri::command]
 #[specta::specta]
 pub async fn get_recently_read_books(
-    limit: Option<i64>,
     repo: State<'_, Arc<dyn BookRepository>>,
-) -> Result<Vec<ReadBook>> {
-    log::debug!("Get recently read books(limit: {:?}).", limit);
-    repo.get_recently_read_books(limit).await
+) -> Result<Vec<BookWithState>> {
+    log::debug!("Get recently read books.");
+    repo.get_recently_read_books().await
 }
 
 /// Retrieves all books, including their reading states.
@@ -618,15 +616,14 @@ mod tests {
         let mut mock_repo = MockBookRepository::new();
         mock_repo
             .expect_get_recently_read_books()
-            .with(mockall::predicate::eq(Some(5)))
             .times(1)
-            .returning(|_| Ok(vec![]));
+            .returning(|| Ok(vec![]));
 
         let app = tauri::test::mock_app();
         app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
         let state = app.state::<Arc<dyn BookRepository>>();
 
-        let result = get_recently_read_books(Some(5), state).await;
+        let result = get_recently_read_books(state).await;
         assert!(result.is_ok());
     }
 

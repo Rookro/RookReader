@@ -11,7 +11,6 @@ import type {
   Bookmark_Serialize,
   BookWithState_Serialize,
   Collection_Serialize,
-  ReadBook_Serialize,
   ReadingState_Serialize,
 } from "../bindings/bindings";
 
@@ -19,9 +18,6 @@ export type { Series, Tag } from "../bindings/bindings";
 
 /** A book together with its reading state, which is null until the book is opened. */
 export type BookWithState = BookWithState_Serialize;
-
-/** A book that has been opened, with its reading state. */
-export type ReadBook = ReadBook_Serialize;
 
 /**
  * Where the reader is in a book. A null `last_opened_at` leaves it to the backend, which

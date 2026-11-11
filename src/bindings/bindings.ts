@@ -294,19 +294,18 @@ export const commands = {
 	 * 
 	 *  # Arguments
 	 * 
-	 *  * `limit` - The maximum number of books to retrieve.
 	 *  * `repo` - The managed book repository state.
 	 * 
 	 *  # Returns
 	 * 
-	 *  A `Result` containing a vector of `ReadBook` entities.
+	 *  A `Result` containing a vector of `BookWithState` entities.
 	 * 
 	 *  # Errors
 	 * 
 	 *  This function will return an `Err` if the underlying repository operation fails
 	 *  (e.g., due to a database error, connection issue, or query execution failure).
 	 */
-	getRecentlyReadBooks: (limit: number | null) => typedError<ReadBook_Serialize[], CommandError_Serialize>(__TAURI_INVOKE("get_recently_read_books", { limit })),
+	getRecentlyReadBooks: () => typedError<BookWithState_Serialize[], CommandError_Serialize>(__TAURI_INVOKE("get_recently_read_books")),
 	/**
 	 *  Updates the reading progress/state for a book.
 	 * 
@@ -1416,63 +1415,6 @@ export type OpenedBook_Serialize = {
 	book: BookWithState_Serialize | null,
 	/**  Why the book could not be recorded, when it could not. */
 	record_error: CommandError_Serialize | null,
-};
-
-/**  Represents a book along with its reading state, specifically for books that have been opened. */
-export type ReadBook = ReadBook_Serialize | ReadBook_Deserialize;
-
-/**  Represents a book along with its reading state, specifically for books that have been opened. */
-export type ReadBook_Deserialize = {
-	/**  The unique identifier for the book. */
-	id: number,
-	/**  The unique file path or directory path of the book. */
-	file_path: string,
-	/**  What the path points at. */
-	item_type: ItemType,
-	/**  The display name of the book. */
-	display_name: string,
-	/**  The total number of pages in the book. */
-	total_pages: number,
-	/**  The optional identifier of the series this book belongs to. */
-	series_id?: number | null,
-	/**  The optional order index of the book within its series. */
-	series_order?: number | null,
-	/**  The optional file path to the thumbnail image of the book. */
-	thumbnail_path?: string | null,
-	/**  The last read page index. */
-	last_read_page_index: number,
-	/**
-	 *  The timestamp when the book was last opened.
-	 *  This is guaranteed to be present (not null) for read books.
-	 */
-	last_opened_at: string,
-};
-
-/**  Represents a book along with its reading state, specifically for books that have been opened. */
-export type ReadBook_Serialize = {
-	/**  The unique identifier for the book. */
-	id: number,
-	/**  The unique file path or directory path of the book. */
-	file_path: string,
-	/**  What the path points at. */
-	item_type: ItemType,
-	/**  The display name of the book. */
-	display_name: string,
-	/**  The total number of pages in the book. */
-	total_pages: number,
-	/**  The optional identifier of the series this book belongs to. */
-	series_id: number | null,
-	/**  The optional order index of the book within its series. */
-	series_order: number | null,
-	/**  The optional file path to the thumbnail image of the book. */
-	thumbnail_path: string | null,
-	/**  The last read page index. */
-	last_read_page_index: number,
-	/**
-	 *  The timestamp when the book was last opened.
-	 *  This is guaranteed to be present (not null) for read books.
-	 */
-	last_opened_at: string,
 };
 
 /**  Settings for the reading experience. */
