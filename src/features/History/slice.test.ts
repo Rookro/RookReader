@@ -91,7 +91,7 @@ describe("HistoryReducer", () => {
   });
 
   describe("Async Thunk Integration Tests", () => {
-    const mockReadBook = createMockBookWithState({
+    const mockBook = createMockBookWithState({
       id: 1,
       display_name: "Book 1",
       file_path: "p1",
@@ -99,14 +99,14 @@ describe("HistoryReducer", () => {
 
     // Verify that state is updated correctly on successful fetching of recently read books
     it("fetchRecentlyReadBooks should update state on success", async () => {
-      vi.mocked(api.getRecentlyReadBooks).mockResolvedValue([mockReadBook]);
+      vi.mocked(api.getRecentlyReadBooks).mockResolvedValue([mockBook]);
 
       await store.dispatch(fetchRecentlyReadBooks());
 
       expect(api.getRecentlyReadBooks).toHaveBeenCalledWith();
       const state = store.getState().history;
       expect(state.status).toBe("succeeded");
-      expect(state.recentlyReadBooks).toEqual([mockReadBook]);
+      expect(state.recentlyReadBooks).toEqual([mockBook]);
     });
 
     // Verify that book history removal is successful

@@ -498,7 +498,7 @@ mod tests {
         let provider = MockProvider {
             mock_json: json!({
                 "reader": {
-                    "rendering": { "maxImageHeight": -1, "pdfRenderResolutionHeight": 1500 },
+                    "rendering": { "maxImageHeight": 1500, "pdfRenderResolutionHeight": -1 },
                     "comic": { "cache": { "pageReaderCount": -3 } }
                 }
             }),
@@ -506,10 +506,17 @@ mod tests {
 
         let settings = AppSettings::load(&provider).unwrap();
 
-        assert_eq!(settings.reader.rendering.max_image_height, 0);
+        // The default is not 0, so clamping the value would not pass.
+        assert_eq!(
+            settings.reader.rendering.pdf_render_resolution_height,
+            AppSettings::default()
+                .reader
+                .rendering
+                .pdf_render_resolution_height
+        );
         assert_eq!(settings.reader.comic.cache.page_reader_count, 0);
         // The valid sibling survives.
-        assert_eq!(settings.reader.rendering.pdf_render_resolution_height, 1500);
+        assert_eq!(settings.reader.rendering.max_image_height, 1500);
     }
 
     // ---- deserialize_tolerant (field-level healing) ----

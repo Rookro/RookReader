@@ -166,8 +166,8 @@ pub async fn get_image_dimensions(
 
 /// Retrieves an image from the currently open container.
 ///
-/// This function fetches the binary data for a specified image entry from the container
-/// that is currently loaded in the application state.
+/// This function fetches the binary data for a specified image entry from the book that
+/// is open.
 ///
 /// # Arguments
 ///
@@ -303,7 +303,7 @@ pub async fn get_image_preview(
 /// # Arguments
 ///
 /// * `path` - The path of the novel the caller believes is open.
-/// * `state` - The application state, holding the open book.
+/// * `state` - The managed container state.
 ///
 /// # Returns
 ///

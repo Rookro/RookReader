@@ -209,6 +209,10 @@ impl dyn Container {
 
     /// Whether the container holds no readable pages. An EPUB novel never does: its text
     /// has no image entries.
+    ///
+    /// # Returns
+    ///
+    /// `true` when the container is not a novel and has no entries.
     pub fn is_empty_book(&self) -> bool {
         !self.is_novel() && self.get_entries().is_empty()
     }
