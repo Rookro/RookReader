@@ -1,4 +1,3 @@
-import type { BookWithState } from "../domain/entities";
 import { commands } from "./bindings";
 import { runCommand } from "./result";
 
@@ -57,15 +56,4 @@ export async function getTagsForBook(bookId: number) {
  */
 export async function setTagsForBook(bookId: number, tagIds: number[]): Promise<void> {
   await runCommand(commands.setTagsForBook(bookId, tagIds));
-}
-
-/**
- * Retrieves all books along with their reading states that are associated with a specific tag.
- *
- * @param tagId - The unique identifier of the tag.
- * @returns A promise that resolves to an array of BookWithState objects.
- * @throws {CommandError} If the Tauri command fails.
- */
-export async function getBooksByTag(tagId: number): Promise<BookWithState[]> {
-  return await runCommand(commands.getBooksByTag(tagId));
 }

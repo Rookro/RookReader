@@ -22,21 +22,6 @@ pub trait BookRepository: Send + Sync {
     /// Returns an `Err` if a database operation fails.
     async fn get_by_id(&self, id: i64) -> Result<Option<Book>>;
 
-    /// Retrieves a book by its unique file path.
-    ///
-    /// # Arguments
-    ///
-    /// * `file_path` - The unique file or directory path of the book.
-    ///
-    /// # Returns
-    ///
-    /// A `Result` containing an `Option<Book>`. Returns `Some(Book)` if found, or `None` if not.
-    ///
-    /// # Errors
-    ///
-    /// Returns an `Err` if a database operation fails.
-    async fn get_by_path(&self, file_path: &str) -> Result<Option<Book>>;
-
     /// Retrieves a book along with its reading state by its unique ID.
     ///
     /// The reading state fields will be `None` if the book has never been opened.

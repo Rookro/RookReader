@@ -1,9 +1,7 @@
 import { vi } from "vitest";
 
 vi.mock("../../bindings/BookCommands", () => ({
-  getBook: vi.fn(() => Promise.resolve([])),
   deleteBook: vi.fn(() => Promise.resolve([])),
-  getBookByPath: vi.fn(() => Promise.resolve([])),
   getAllBooksWithState: vi.fn(() => Promise.resolve([])),
   registerBook: vi.fn(() => Promise.resolve(0)),
   openBook: vi.fn(() =>
@@ -76,7 +74,6 @@ vi.mock("../../bindings/TagCommands", () => ({
   deleteTag: vi.fn(() => Promise.resolve([])),
   getTagsForBook: vi.fn(() => Promise.resolve([])),
   setTagsForBook: vi.fn(() => Promise.resolve([])),
-  getBooksByTag: vi.fn(() => Promise.resolve([])),
 }));
 
 vi.mock("../../bindings/UpdaterCommands", () => ({

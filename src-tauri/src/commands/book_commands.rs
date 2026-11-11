@@ -7,62 +7,13 @@ use tauri::State;
 use crate::commands::events::{emit, BooksChanged, ReadingHistoryChanged, ReadingProgressChanged};
 use crate::container::describe::describe;
 use crate::container::traits::Container;
-use crate::domain::book::entity::{Book, BookWithState, Direction, ReadBook, ReadingState};
+use crate::domain::book::entity::{BookWithState, Direction, ReadBook, ReadingState};
 use crate::domain::book::repository::BookRepository;
 use crate::error::{Error, Result};
 use crate::infrastructure::thumbnails;
 use crate::settings::{AppSettings, CurrentSettings};
 use crate::state::app_state::AppState;
 use crate::state::container_state::ContainerState;
-
-/// Retrieves a book by its unique ID.
-///
-/// # Arguments
-///
-/// * `id` - The unique identifier of the book.
-/// * `repo` - The managed book repository state.
-///
-/// # Returns
-///
-/// A `Result` which is `Ok` containing an `Option<Book>`.
-/// It evaluates to `Some(Book)` if a matching book is found, or `None` if no such book exists.
-///
-/// # Errors
-///
-/// This function will return an `Err` if the underlying repository operation fails
-/// (e.g., due to a database error, connection issue, or query execution failure).
-#[tauri::command]
-#[specta::specta]
-pub async fn get_book(id: i64, repo: State<'_, Arc<dyn BookRepository>>) -> Result<Option<Book>> {
-    log::debug!("Get book by id({}).", id);
-    repo.get_by_id(id).await
-}
-
-/// Retrieves a book by its unique file path.
-///
-/// # Arguments
-///
-/// * `file_path` - The unique file or directory path.
-/// * `repo` - The managed book repository state.
-///
-/// # Returns
-///
-/// A `Result` which is `Ok` containing an `Option<Book>`.
-/// It evaluates to `Some(Book)` if a matching book is found, or `None` if no such book exists.
-///
-/// # Errors
-///
-/// This function will return an `Err` if the underlying repository operation fails
-/// (e.g., due to a database error, connection issue, or query execution failure).
-#[tauri::command]
-#[specta::specta]
-pub async fn get_book_by_path(
-    file_path: String,
-    repo: State<'_, Arc<dyn BookRepository>>,
-) -> Result<Option<Book>> {
-    log::debug!("Get book by path({}).", file_path);
-    repo.get_by_path(&file_path).await
-}
 
 /// Registers a book or returns its ID if it already exists, without updating reading state.
 ///
@@ -489,93 +440,11 @@ mod tests {
 
     use super::*;
     use crate::commands::events::test_support::record_events;
-    use crate::domain::book::entity::ItemType;
+    use crate::domain::book::entity::{Book, ItemType};
     use crate::domain::book::repository::MockBookRepository;
     use crate::error::ErrorCode;
     use tauri::Manager;
     use tauri_specta::Event;
-
-    #[tokio::test]
-    async fn test_get_book() {
-        let mut mock_repo = MockBookRepository::new();
-        mock_repo
-            .expect_get_by_id()
-            .with(mockall::predicate::eq(1))
-            .times(1)
-            .returning(|id| {
-                Ok(Some(Book {
-                    id,
-                    file_path: "path".to_string(),
-                    item_type: ItemType::File,
-                    display_name: "name".to_string(),
-                    total_pages: 10,
-                    series_id: None,
-                    series_order: None,
-                    thumbnail_path: None,
-                }))
-            });
-
-        let app = tauri::test::mock_app();
-        app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
-        let state = app.state::<Arc<dyn BookRepository>>();
-
-        let result = get_book(1, state).await;
-        assert!(result.is_ok());
-        let book = result.unwrap();
-        assert!(book.is_some());
-        {
-            let book = book.unwrap();
-            assert_eq!(book.id, 1);
-            assert_eq!(book.file_path, "path");
-            assert_eq!(book.item_type, ItemType::File);
-            assert_eq!(book.display_name, "name");
-            assert_eq!(book.total_pages, 10);
-            assert!(book.series_id.is_none());
-            assert!(book.series_order.is_none());
-            assert!(book.thumbnail_path.is_none());
-        }
-    }
-
-    #[tokio::test]
-    async fn test_get_book_by_path() {
-        let mut mock_repo = MockBookRepository::new();
-        mock_repo
-            .expect_get_by_path()
-            .with(mockall::predicate::eq("fake_path"))
-            .times(1)
-            .returning(|path| {
-                Ok(Some(Book {
-                    id: 1,
-                    file_path: path.to_string(),
-                    item_type: ItemType::File,
-                    display_name: "name".to_string(),
-                    total_pages: 10,
-                    series_id: None,
-                    series_order: None,
-                    thumbnail_path: None,
-                }))
-            });
-
-        let app = tauri::test::mock_app();
-        app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
-        let state = app.state::<Arc<dyn BookRepository>>();
-
-        let result = get_book_by_path("fake_path".to_string(), state).await;
-        assert!(result.is_ok());
-        let book = result.unwrap();
-        assert!(book.is_some());
-        {
-            let book = book.unwrap();
-            assert_eq!(book.id, 1);
-            assert_eq!(book.file_path, "fake_path");
-            assert_eq!(book.item_type, ItemType::File);
-            assert_eq!(book.display_name, "name");
-            assert_eq!(book.total_pages, 10);
-            assert!(book.series_id.is_none());
-            assert!(book.series_order.is_none());
-            assert!(book.thumbnail_path.is_none());
-        }
-    }
 
     #[tokio::test]
     async fn test_delete_book() {
@@ -1271,26 +1140,6 @@ mod tests {
         .await;
 
         assert!(matches!(result, Err(Error::PathNotFound(_))));
-    }
-
-    #[tokio::test]
-    async fn test_get_book_error() {
-        let mut mock_repo = MockBookRepository::new();
-        mock_repo
-            .expect_get_by_id()
-            .with(mockall::predicate::eq(1))
-            .times(1)
-            .returning(|_| Err(sqlx::Error::RowNotFound.into()));
-
-        let app = tauri::test::mock_app();
-        app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
-        let state = app.state::<Arc<dyn BookRepository>>();
-
-        let result = get_book(1, state).await;
-        assert!(result.is_err());
-        let e = result.unwrap_err();
-        let error_code: ErrorCode = (&e).into();
-        assert_eq!(error_code.code(), 70001);
     }
 
     #[tokio::test]

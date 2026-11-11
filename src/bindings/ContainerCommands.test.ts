@@ -20,16 +20,6 @@ describe("ContainerCommands", () => {
     });
   });
 
-  it("requestPreloadAround should call invoke with null optionals by default", async () => {
-    await ContainerCommands.requestPreloadAround("path", 5);
-    expect(invoke).toHaveBeenCalledWith("request_preload_around", {
-      path: "path",
-      index: 5,
-      bufferSize: null,
-      callerPages: null,
-    });
-  });
-
   it("getImageDimensions should call invoke", async () => {
     vi.mocked(invoke).mockResolvedValue([{ width: 100, height: 200 }]);
     const dimensions = await ContainerCommands.getImageDimensions("path");
@@ -56,7 +46,9 @@ describe("ContainerCommands", () => {
 
   it("requestPreloadAround should throw CommandError on failure", async () => {
     vi.mocked(invoke).mockRejectedValue(new Error("fail"));
-    await expect(ContainerCommands.requestPreloadAround("path", 0)).rejects.toThrow(CommandError);
+    await expect(ContainerCommands.requestPreloadAround("path", 0, 10, 0)).rejects.toThrow(
+      CommandError,
+    );
   });
 
   it("getImage should throw CommandError on failure", async () => {

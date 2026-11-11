@@ -12,20 +12,6 @@ describe("BookCommands", () => {
 
   const mockError = { code: 123, message: "Fail" };
 
-  it("getBook should call invoke with correct arguments", async () => {
-    const mockBook = { id: 1, display_name: "Test" };
-    vi.mocked(invoke).mockResolvedValue(mockBook);
-
-    const result = await BookCommands.getBook(1);
-    expect(invoke).toHaveBeenCalledWith("get_book", { id: 1 });
-    expect(result).toEqual(mockBook);
-  });
-
-  it("getBook should throw CommandError on failure", async () => {
-    vi.mocked(invoke).mockRejectedValue(mockError);
-    await expect(BookCommands.getBook(1)).rejects.toThrow(CommandError);
-  });
-
   it("deleteBook should call invoke", async () => {
     vi.mocked(invoke).mockResolvedValue(undefined);
     await BookCommands.deleteBook(1);
@@ -35,17 +21,6 @@ describe("BookCommands", () => {
   it("deleteBook should throw CommandError on failure", async () => {
     vi.mocked(invoke).mockRejectedValue(mockError);
     await expect(BookCommands.deleteBook(1)).rejects.toThrow(CommandError);
-  });
-
-  it("getBookByPath should call invoke", async () => {
-    vi.mocked(invoke).mockResolvedValue(null);
-    await BookCommands.getBookByPath("/path/to/book");
-    expect(invoke).toHaveBeenCalledWith("get_book_by_path", { filePath: "/path/to/book" });
-  });
-
-  it("getBookByPath should throw CommandError on failure", async () => {
-    vi.mocked(invoke).mockRejectedValue(mockError);
-    await expect(BookCommands.getBookByPath("p")).rejects.toThrow(CommandError);
   });
 
   it("getAllBooksWithState should call invoke", async () => {
@@ -148,7 +123,7 @@ describe("BookCommands", () => {
     vi.mocked(invoke).mockRejectedValue(strangeError);
 
     try {
-      await BookCommands.getBook(1);
+      await BookCommands.deleteBook(1);
     } catch (error) {
       expect(error).toBeInstanceOf(CommandError);
       const cmdError = error as CommandError;

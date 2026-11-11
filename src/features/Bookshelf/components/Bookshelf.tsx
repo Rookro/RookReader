@@ -1,7 +1,7 @@
 import { Box, type SxProps, type Theme } from "@mui/material";
 import { Allotment } from "allotment";
 import { useCallback, useState } from "react";
-import type { Book } from "../../../domain/entities";
+import type { BookWithState } from "../../../domain/entities";
 import { usePaneSizes } from "../../../hooks/usePaneSizes";
 import { useAppDispatch, useAppSelector } from "../../../store/store";
 import { openBook } from "../../BookReader/slice";
@@ -45,7 +45,7 @@ export default function Bookshelf({ sx }: BookshelfProps) {
   const { paneSizes, setPaneSizes } = usePaneSizes("bookshelf-left-pane-sizes");
 
   const handleBookSelected = useCallback(
-    (book: Book) => {
+    (book: BookWithState) => {
       dispatch(
         openBook({
           path: book.file_path,

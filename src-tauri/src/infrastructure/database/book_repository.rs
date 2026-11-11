@@ -49,34 +49,6 @@ impl BookRepository for SqliteBookRepository {
         Ok(book)
     }
 
-    async fn get_by_path(&self, file_path: &str) -> Result<Option<Book>> {
-        let book = sqlx::query_as!(
-            BookRow,
-            r#"
-            SELECT
-                id,
-                file_path,
-                item_type,
-                display_name,
-                total_pages,
-                series_id,
-                series_order,
-                thumbnail_path
-            FROM
-                books
-            WHERE
-                file_path = ?
-            "#,
-            file_path
-        )
-        .fetch_optional(&self.pool)
-        .await?
-        .map(Book::try_from)
-        .transpose()?;
-
-        Ok(book)
-    }
-
     async fn get_book_with_state_by_id(&self, id: i64) -> Result<Option<BookWithState>> {
         let book = sqlx::query_as!(
             BookWithStateRow,

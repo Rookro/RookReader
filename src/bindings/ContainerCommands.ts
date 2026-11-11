@@ -18,12 +18,10 @@ import { runBinaryCommand, runCommand } from "./result";
 export async function requestPreloadAround(
   path: string,
   index: number,
-  bufferSize: number | undefined = undefined,
-  callerPages: number | undefined = undefined,
+  bufferSize: number,
+  callerPages: number,
 ): Promise<void> {
-  await runCommand(
-    commands.requestPreloadAround(path, index, bufferSize ?? null, callerPages ?? null),
-  );
+  await runCommand(commands.requestPreloadAround(path, index, bufferSize, callerPages));
 }
 
 /**

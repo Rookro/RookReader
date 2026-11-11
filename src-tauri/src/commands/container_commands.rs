@@ -7,7 +7,6 @@ use crate::{
     error::{Error, Result},
     image::types::{Image, ImageDimensions},
     page::{pipeline::Fit, service::Priority},
-    settings::ComicCacheSettings,
     state::app_state::AppState,
 };
 
@@ -41,11 +40,6 @@ fn image_response(image: &Image) -> Response {
     Response::new(body)
 }
 
-/// The preload page count setting's default, as a page count.
-fn default_buffer_size() -> usize {
-    usize::try_from(ComicCacheSettings::default().preload_page_count).unwrap_or_default()
-}
-
 /// Requests preloading of images around a specific index.
 ///
 /// This command can be called as the user navigates through a book to update
@@ -55,8 +49,7 @@ fn default_buffer_size() -> usize {
 ///
 /// * `path` - The path of the container the caller believes is open.
 /// * `index` - The current page index around which to preload.
-/// * `buffer_size` - Optional. How many pages to preload in each direction.
-///   Defaults to the preload page count setting's default if `None` is provided.
+/// * `buffer_size` - How many pages to preload in each direction.
 /// * `caller_pages` - How many pages from `index` the caller is fetching itself. Those
 ///   are left out of the window: preloading a page the viewer is already requesting at
 ///   foreground priority only lets a background job reach it first, and the foreground
@@ -73,25 +66,19 @@ fn default_buffer_size() -> usize {
 pub async fn request_preload_around(
     path: &str,
     index: usize,
-    buffer_size: Option<usize>,
-    caller_pages: Option<usize>,
+    buffer_size: usize,
+    caller_pages: usize,
     state: tauri::State<'_, RwLock<AppState>>,
 ) -> Result<()> {
-    log::debug!(
-        "Request preload around index {}, buffer_size: {:?}",
-        index,
-        buffer_size
-    );
+    log::debug!("Request preload around index {index}, buffer_size: {buffer_size}");
     let state_lock = state.read().await;
-
-    let buffer_size = buffer_size.unwrap_or_else(default_buffer_size);
 
     let service = state_lock
         .container_state
         .service_for(path)
         .ok_or_else(|| stale(path, "preloading"))?;
 
-    service.request_preload_around(index, buffer_size, caller_pages.unwrap_or(0))?;
+    service.request_preload_around(index, buffer_size, caller_pages)?;
     Ok(())
 }
 
@@ -676,12 +663,12 @@ mod tests {
         let app = tauri::test::mock_app();
         manage_service(&app, "dummy_book_id", page_container(&["test1.png"]));
 
-        let result = request_preload_around("dummy_book_id", 0, Some(5), None, app.state()).await;
+        let result = request_preload_around("dummy_book_id", 0, 5, 0, app.state()).await;
         assert!(result.is_ok());
 
         // Preloading is subject to the same check as every other request: the frontend
         // issues it on every page turn, so it is the one most likely to race a switch.
-        let stale = request_preload_around("stale_book_id", 0, Some(5), None, app.state()).await;
+        let stale = request_preload_around("stale_book_id", 0, 5, 0, app.state()).await;
         assert!(matches!(stale, Err(Error::BookChanged(_))));
     }
 

@@ -69,15 +69,4 @@ describe("TagCommands", () => {
     vi.mocked(invoke).mockRejectedValue(mockError);
     await expect(TagCommands.setTagsForBook(1, [1])).rejects.toThrow(CommandError);
   });
-
-  it("getBooksByTag should call invoke", async () => {
-    vi.mocked(invoke).mockResolvedValue([]);
-    await TagCommands.getBooksByTag(2);
-    expect(invoke).toHaveBeenCalledWith("get_books_by_tag", { tagId: 2 });
-  });
-
-  it("getBooksByTag should throw CommandError on failure", async () => {
-    vi.mocked(invoke).mockRejectedValue(mockError);
-    await expect(TagCommands.getBooksByTag(1)).rejects.toThrow(CommandError);
-  });
 });

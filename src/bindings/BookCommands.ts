@@ -1,18 +1,7 @@
-import type { Book, BookWithState, ReadBook, ReadingState } from "../domain/entities";
+import type { BookWithState, ReadBook, ReadingState } from "../domain/entities";
 import type { Direction } from "../types/AppSettings";
 import { commands } from "./bindings";
 import { runCommand } from "./result";
-
-/**
- * Retrieves a book by its database ID.
- *
- * @param id - The unique identifier of the book.
- * @returns A promise that resolves to the Book object if found, or null otherwise.
- * @throws {CommandError} If the Tauri command fails.
- */
-export async function getBook(id: number): Promise<Book | null> {
-  return await runCommand(commands.getBook(id));
-}
 
 /**
  * Deletes a book from the database by its ID.
@@ -23,17 +12,6 @@ export async function getBook(id: number): Promise<Book | null> {
  */
 export async function deleteBook(id: number): Promise<void> {
   await runCommand(commands.deleteBook(id));
-}
-
-/**
- * Retrieves a book by its file path.
- *
- * @param file_path - The absolute path of the book file or directory.
- * @returns A promise that resolves to the Book object if found, or null otherwise.
- * @throws {CommandError} If the Tauri command fails.
- */
-export async function getBookByPath(file_path: string): Promise<Book | null> {
-  return await runCommand(commands.getBookByPath(file_path));
 }
 
 /**
