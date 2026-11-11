@@ -1,1 +1,0 @@
-export { getEntriesInDir } from "./binaryCommands";
