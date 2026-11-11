@@ -11,7 +11,7 @@ import SeriesContextMenu, { type SeriesContextMenuProps } from "./SeriesContextM
 
 describe("SeriesContextMenu", () => {
   const user = userEvent.setup();
-  const mockSeries: Series = { id: 1, name: "Test Series", created_at: "2026-03-01T15:30:00" };
+  const mockSeries: Series = { id: 1, name: "Test Series", createdAt: "2026-03-01T15:30:00Z" };
 
   const mockActions = {
     openDialog: vi.fn(),

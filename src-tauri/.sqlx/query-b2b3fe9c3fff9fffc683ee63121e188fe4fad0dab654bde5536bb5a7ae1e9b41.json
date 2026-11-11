@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n            SELECT id, name, icon_id, created_at\n            FROM collections\n            ORDER BY id ASC\n            ",
+  "query": "\n            INSERT INTO series (name)\n            VALUES (?)\n            RETURNING id, name, created_at as \"created_at: chrono::DateTime<chrono::Utc>\"\n            ",
   "describe": {
     "columns": [
       {
@@ -9,7 +9,7 @@
         "type_info": "Integer",
         "origin": {
           "Table": {
-            "table": "collections",
+            "table": "series",
             "name": "id"
           }
         }
@@ -20,43 +20,31 @@
         "type_info": "Text",
         "origin": {
           "Table": {
-            "table": "collections",
+            "table": "series",
             "name": "name"
           }
         }
       },
       {
-        "name": "icon_id",
+        "name": "created_at: chrono::DateTime<chrono::Utc>",
         "ordinal": 2,
-        "type_info": "Text",
-        "origin": {
-          "Table": {
-            "table": "collections",
-            "name": "icon_id"
-          }
-        }
-      },
-      {
-        "name": "created_at",
-        "ordinal": 3,
         "type_info": "Datetime",
         "origin": {
           "Table": {
-            "table": "collections",
+            "table": "series",
             "name": "created_at"
           }
         }
       }
     ],
     "parameters": {
-      "Right": 0
+      "Right": 1
     },
     "nullable": [
-      false,
       false,
       false,
       false
     ]
   },
-  "hash": "4d17d4c6421371d2a0d44c8db62a152af6d24543249dfce3f9e345f257135856"
+  "hash": "b2b3fe9c3fff9fffc683ee63121e188fe4fad0dab654bde5536bb5a7ae1e9b41"
 }

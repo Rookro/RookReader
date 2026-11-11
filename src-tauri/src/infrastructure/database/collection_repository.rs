@@ -36,7 +36,7 @@ impl CollectionRepository for SqliteCollectionRepository {
             r#"
             INSERT INTO collections (name, icon_id)
             VALUES (?, ?)
-            RETURNING id, name, icon_id, created_at
+            RETURNING id, name, icon_id, created_at as "created_at: chrono::DateTime<chrono::Utc>"
             "#,
             name,
             icon_id
@@ -51,7 +51,7 @@ impl CollectionRepository for SqliteCollectionRepository {
         let collections = sqlx::query_as!(
             Collection,
             r#"
-            SELECT id, name, icon_id, created_at
+            SELECT id, name, icon_id, created_at as "created_at: chrono::DateTime<chrono::Utc>"
             FROM collections
             ORDER BY id ASC
             "#

@@ -187,7 +187,7 @@ export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
       bookRef.current = null;
       isDirectionSettledRef.current = false;
 
-      // Defensive check: route on the backend's is_novel contract, not the extension,
+      // Defensive check: route on the backend's isNovel contract, not the extension,
       // so this guard cannot disagree with the slice's routing decision.
       if (!isNovel) {
         error(`Attempted to load non-novel file in NovelReader: ${filePath}`);

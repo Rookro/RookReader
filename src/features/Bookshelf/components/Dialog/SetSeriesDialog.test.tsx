@@ -13,15 +13,15 @@ describe("SetSeriesDialog", () => {
   const user = userEvent.setup();
 
   const mockSeries: Series[] = [
-    { id: 1, name: "Series A", created_at: "2026-03-01T15:30:00" },
-    { id: 2, name: "Series B", created_at: "2026-03-01T15:30:00" },
+    { id: 1, name: "Series A", createdAt: "2026-03-01T15:30:00Z" },
+    { id: 2, name: "Series B", createdAt: "2026-03-01T15:30:00Z" },
   ];
 
   const defaultProps: SetSeriesDialogProps = {
     open: true,
     books: [
-      createMockBookWithState({ id: 101, series_id: null }),
-      createMockBookWithState({ id: 102, series_id: null }),
+      createMockBookWithState({ id: 101, seriesId: null }),
+      createMockBookWithState({ id: 102, seriesId: null }),
     ],
     availableSeries: mockSeries,
     onClose: vi.fn(),
@@ -43,7 +43,7 @@ describe("SetSeriesDialog", () => {
     renderWithProviders(
       <SetSeriesDialog
         {...defaultProps}
-        books={[createMockBookWithState({ id: 1, series_id: 2 })]}
+        books={[createMockBookWithState({ id: 1, seriesId: 2 })]}
       />,
     );
     expect(radioOf("Series B")).toBeChecked();
@@ -54,8 +54,8 @@ describe("SetSeriesDialog", () => {
       <SetSeriesDialog
         {...defaultProps}
         books={[
-          createMockBookWithState({ id: 1, series_id: 1 }),
-          createMockBookWithState({ id: 2, series_id: 1 }),
+          createMockBookWithState({ id: 1, seriesId: 1 }),
+          createMockBookWithState({ id: 2, seriesId: 1 }),
         ]}
       />,
     );
@@ -68,8 +68,8 @@ describe("SetSeriesDialog", () => {
       <SetSeriesDialog
         {...defaultProps}
         books={[
-          createMockBookWithState({ id: 1, series_id: 1 }),
-          createMockBookWithState({ id: 2, series_id: 2 }),
+          createMockBookWithState({ id: 1, seriesId: 1 }),
+          createMockBookWithState({ id: 2, seriesId: 2 }),
         ]}
       />,
     );
@@ -126,7 +126,7 @@ describe("SetSeriesDialog", () => {
     vi.mocked(api.createSeries).mockResolvedValue(createMockSeries({ id: 3 }));
     vi.mocked(api.getAllSeries).mockResolvedValue([
       ...mockSeries,
-      { id: 3, name: "New Series", created_at: "2026-03-01T15:30:00" },
+      { id: 3, name: "New Series", createdAt: "2026-03-01T15:30:00Z" },
     ]);
     vi.mocked(api.setSeriesForBook).mockResolvedValue(null);
 

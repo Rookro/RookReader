@@ -17,7 +17,7 @@ describe("api", () => {
   });
 
   it("returns a command's data", async () => {
-    const tags = [{ id: 1, name: "fantasy", color_code: "#ff0000" }];
+    const tags = [{ id: 1, name: "fantasy", colorCode: "#ff0000" }];
     vi.mocked(invoke).mockResolvedValue(tags);
 
     await expect(api.getAllTags()).resolves.toEqual(tags);

@@ -98,7 +98,7 @@ impl TryFrom<BookWithStateRow> for BookWithState {
             series_id: r.series_id,
             series_order: r.series_order,
             thumbnail_path: r.thumbnail_path,
-            created_at: r.created_at,
+            created_at: r.created_at.map(|t| t.and_utc()),
             is_spread_shifted: r.is_spread_shifted,
             landscape_bits: r.landscape_bits,
             reading_direction: r
@@ -107,7 +107,7 @@ impl TryFrom<BookWithStateRow> for BookWithState {
                 .map(str::parse::<Direction>)
                 .transpose()?,
             last_read_page_index: r.last_read_page_index,
-            last_opened_at: r.last_opened_at,
+            last_opened_at: r.last_opened_at.map(|t| t.and_utc()),
             cfi: r.cfi,
             tag_ids: r
                 .tag_ids_str

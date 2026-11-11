@@ -67,7 +67,7 @@ export const updateBookmarkName = createCommandThunk(
 
 /** Orders bookmarks by their position in the book, mirroring the backend's ordering. */
 const byPosition = (a: Bookmark, b: Bookmark) =>
-  a.page_index - b.page_index || a.created_at.localeCompare(b.created_at) || a.id - b.id;
+  a.pageIndex - b.pageIndex || a.createdAt.localeCompare(b.createdAt) || a.id - b.id;
 
 const bookmarkSlice = createSlice({
   name: "bookmark",
@@ -114,7 +114,7 @@ const bookmarkSlice = createSlice({
         state.bookmarks = [];
       })
       .addCase(addBookmark.fulfilled, (state, action) => {
-        if (action.payload.book_id !== state.bookId) {
+        if (action.payload.bookId !== state.bookId) {
           return;
         }
         state.bookmarks = [...state.bookmarks, action.payload].sort(byPosition);

@@ -13,9 +13,9 @@ describe("SetCollectionsDialog", () => {
   const user = userEvent.setup();
 
   const mockCollections: Collection[] = [
-    { id: 1, name: "Shelf 1", icon_id: "library_books", created_at: "2026-03-01T10:00:00" },
-    { id: 2, name: "Shelf 2", icon_id: "library_books", created_at: "2026-03-01T11:00:00" },
-    { id: 3, name: "Shelf 3", icon_id: "library_books", created_at: "2026-03-01T12:00:00" },
+    { id: 1, name: "Shelf 1", iconId: "library_books", createdAt: "2026-03-01T10:00:00Z" },
+    { id: 2, name: "Shelf 2", iconId: "library_books", createdAt: "2026-03-01T11:00:00Z" },
+    { id: 3, name: "Shelf 3", iconId: "library_books", createdAt: "2026-03-01T12:00:00Z" },
   ];
 
   beforeEach(() => {
@@ -178,7 +178,7 @@ describe("SetCollectionsDialog", () => {
   });
 
   describe("creating a collection", () => {
-    const newCollection = createMockCollection({ id: 4, name: "New Shelf", icon_id: "book" });
+    const newCollection = createMockCollection({ id: 4, name: "New Shelf", iconId: "book" });
 
     // The button stays disabled until the books' collections are loaded.
     const clickNewCollection = async () => {

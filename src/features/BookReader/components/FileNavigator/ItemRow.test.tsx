@@ -10,12 +10,12 @@ describe("FileNavigator/ItemRow", () => {
 
   const mockFile = createMockDirEntry({
     name: "test-file.zip",
-    is_directory: false,
+    isDirectory: false,
   });
 
   const mockDir = createMockDirEntry({
     name: "test-folder",
-    is_directory: true,
+    isDirectory: true,
   });
 
   it("should render entry name correctly", () => {

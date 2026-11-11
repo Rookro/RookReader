@@ -39,7 +39,7 @@ export const ItemRow = memo(function ItemRow({
           sx={{ padding: "4px 8px" }}
         >
           <ListItemText primary={entry.name} slotProps={{ primary: { noWrap: true } }} />
-          {entry.is_directory && <FolderOutlined fontSize="small" />}
+          {entry.isDirectory && <FolderOutlined fontSize="small" />}
         </ListItemButton>
       </ListItem>
     </Tooltip>

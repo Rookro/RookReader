@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { useHistoryIndex } from "./useHistoryIndex";
 
 describe("useHistoryIndex", () => {
-  const mockEntries = [{ file_path: "p1" }, { file_path: "p2" }, { file_path: "p3" }];
+  const mockEntries = [{ filePath: "p1" }, { filePath: "p2" }, { filePath: "p3" }];
 
   it("should return the index of the entry matching the path", () => {
     const { result } = renderHook(() => useHistoryIndex("p2", mockEntries));

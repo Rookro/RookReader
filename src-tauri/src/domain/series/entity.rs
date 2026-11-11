@@ -1,13 +1,14 @@
-use chrono::NaiveDateTime;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 /// Represents a series entity that groups multiple books together.
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
 pub struct Series {
     /// The unique identifier for the series.
     pub id: i64,
     /// The unique name of the series.
     pub name: String,
     /// The timestamp when the series was created.
-    pub created_at: NaiveDateTime,
+    pub created_at: DateTime<Utc>,
 }

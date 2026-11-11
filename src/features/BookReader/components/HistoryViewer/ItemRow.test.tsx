@@ -11,15 +11,15 @@ describe("HistoryViewer/ItemRow", () => {
 
   const mockBook = createMockBookWithState({
     id: 1,
-    file_path: "/path/to/book.zip",
-    display_name: "Test Book",
+    filePath: "/path/to/book.zip",
+    displayName: "Test Book",
   });
 
   const mockDir = createMockBookWithState({
     id: 2,
-    file_path: "/path/to/folder",
-    display_name: "Test Folder",
-    item_type: "directory",
+    filePath: "/path/to/folder",
+    displayName: "Test Folder",
+    itemType: "directory",
   });
 
   const preloadedState = createBasePreloadedState();
@@ -105,8 +105,8 @@ describe("HistoryViewer/ItemRow", () => {
     it("should format the stored UTC timestamp for the active locale", async () => {
       const entry = createMockBookWithState({
         id: 3,
-        display_name: "Dated Book",
-        last_opened_at: "2026-08-24T12:34:56",
+        displayName: "Dated Book",
+        lastOpenedAt: "2026-08-24T12:34:56Z",
       });
       const expected = new Date("2026-08-24T12:34:56Z").toLocaleString("en-US");
 
@@ -121,8 +121,8 @@ describe("HistoryViewer/ItemRow", () => {
     it("should fall back to the raw value when the timestamp cannot be parsed", async () => {
       const entry = createMockBookWithState({
         id: 4,
-        display_name: "Broken Book",
-        last_opened_at: "not-a-date",
+        displayName: "Broken Book",
+        lastOpenedAt: "not-a-date",
       });
 
       renderWithProviders(<ItemRow entry={entry} index={0} selected={false} />, {

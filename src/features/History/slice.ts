@@ -84,10 +84,10 @@ const historySlice = createSlice({
       .addCase(readingProgressChanged, (state, action) => {
         // Patch a book already in the list; one not listed yet is added by the
         // history refetch, not here.
-        const book = state.recentlyReadBooks.find((b) => b.id === action.payload.book_id);
+        const book = state.recentlyReadBooks.find((b) => b.id === action.payload.bookId);
         if (book) {
-          book.last_read_page_index = action.payload.last_read_page_index;
-          book.last_opened_at = action.payload.last_opened_at ?? book.last_opened_at;
+          book.lastReadPageIndex = action.payload.lastReadPageIndex;
+          book.lastOpenedAt = action.payload.lastOpenedAt ?? book.lastOpenedAt;
         }
       });
   },

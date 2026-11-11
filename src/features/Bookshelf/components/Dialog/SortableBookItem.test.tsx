@@ -23,7 +23,7 @@ describe("SortableBookItem", () => {
   it("highlights the volume being dragged", () => {
     vi.mocked(useSortable).mockReturnValue(sortable(true));
     renderWithProviders(
-      <SortableBookItem book={createMockBookWithState({ display_name: "Vol 1" })} index={0} />,
+      <SortableBookItem book={createMockBookWithState({ displayName: "Vol 1" })} index={0} />,
     );
 
     expect(screen.getByRole("listitem")).toHaveStyle({

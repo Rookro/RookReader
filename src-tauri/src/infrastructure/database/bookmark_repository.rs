@@ -44,7 +44,7 @@ impl BookmarkRepository for SqliteBookmarkRepository {
             r#"
             INSERT INTO bookmarks (book_id, name, page_index, cfi)
             VALUES (?, ?, ?, ?)
-            RETURNING id AS "id!", book_id, name, page_index, cfi, created_at
+            RETURNING id AS "id!", book_id, name, page_index, cfi, created_at AS "created_at: chrono::DateTime<chrono::Utc>"
             "#,
             book_id,
             name,
@@ -61,7 +61,7 @@ impl BookmarkRepository for SqliteBookmarkRepository {
         let bookmarks = sqlx::query_as!(
             Bookmark,
             r#"
-            SELECT id, book_id, name, page_index, cfi, created_at
+            SELECT id, book_id, name, page_index, cfi, created_at as "created_at: chrono::DateTime<chrono::Utc>"
             FROM bookmarks
             WHERE book_id = ?
             ORDER BY page_index ASC, created_at ASC, id ASC

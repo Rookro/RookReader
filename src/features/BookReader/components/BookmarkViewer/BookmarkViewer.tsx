@@ -35,9 +35,9 @@ export default function BookmarkViewer() {
       // A novel bookmark carries a CFI pinning the exact position; a comic bookmark
       // only has a page index.
       if (isNovel && bookmark.cfi) {
-        dispatch(setNovelLocation({ index: bookmark.page_index, cfi: bookmark.cfi }));
+        dispatch(setNovelLocation({ index: bookmark.pageIndex, cfi: bookmark.cfi }));
       } else {
-        dispatch(setImageIndex(bookmark.page_index));
+        dispatch(setImageIndex(bookmark.pageIndex));
       }
     },
     [dispatch, isNovel],

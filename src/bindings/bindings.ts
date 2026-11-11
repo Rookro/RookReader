@@ -830,21 +830,21 @@ export type BookWithState_Deserialize = {
 	/**  The unique identifier for the book. */
 	id: number,
 	/**  The unique file path or directory path of the book. */
-	file_path: string,
+	filePath: string,
 	/**  What the path points at. */
-	item_type: ItemType,
+	itemType: ItemType,
 	/**  The display name of the book. */
-	display_name: string,
+	displayName: string,
 	/**  The total number of pages in the book. */
-	total_pages: number,
+	totalPages: number,
 	/**  The optional identifier of the series this book belongs to. */
-	series_id?: number | null,
+	seriesId?: number | null,
 	/**  The optional order index of the book within its series. */
-	series_order?: number | null,
+	seriesOrder?: number | null,
 	/**  The optional file path to the thumbnail image of the book. */
-	thumbnail_path?: string | null,
+	thumbnailPath?: string | null,
 	/**  The timestamp when the book was created (registered). */
-	created_at?: string | null,
+	createdAt?: string | null,
 	/**
 	 *  Whether the reader has shifted this book's spreads by one page.
 	 * 
@@ -852,7 +852,7 @@ export type BookWithState_Deserialize = {
 	 *  the book is laid out, and turning reading history off — or clearing it — must not
 	 *  discard it.
 	 */
-	is_spread_shifted: boolean,
+	isSpreadShifted: boolean,
 	/**
 	 *  One `'0'`/`'1'` per page in entry order, `'1'` where the page is wider than it is
 	 *  tall. `None` until the book has been measured once.
@@ -861,7 +861,7 @@ export type BookWithState_Deserialize = {
 	 *  that is what settles where two-page spreads begin, and 200 bytes is the whole
 	 *  measurement for a 200-page book.
 	 */
-	landscape_bits?: string | null,
+	landscapeBits?: string | null,
 	/**
 	 *  The page direction this book opens with.
 	 * 
@@ -870,15 +870,15 @@ export type BookWithState_Deserialize = {
 	 *  the book has been opened once, and always `None` for novels, whose direction is
 	 *  the EPUB's own and cannot be overridden.
 	 */
-	reading_direction?: Direction | null,
+	readingDirection?: Direction | null,
 	/**  The last read page index, if the book has been opened. */
-	last_read_page_index?: number | null,
+	lastReadPageIndex?: number | null,
 	/**  The timestamp when the book was last opened, if any. */
-	last_opened_at?: string | null,
+	lastOpenedAt?: string | null,
 	/**  The last EPUB reading position (CFI), if any. `None` for comics. */
 	cfi?: string | null,
 	/**  List of tag IDs associated with this book. */
-	tag_ids?: number[],
+	tagIds?: number[],
 };
 
 /**
@@ -889,21 +889,21 @@ export type BookWithState_Serialize = {
 	/**  The unique identifier for the book. */
 	id: number,
 	/**  The unique file path or directory path of the book. */
-	file_path: string,
+	filePath: string,
 	/**  What the path points at. */
-	item_type: ItemType,
+	itemType: ItemType,
 	/**  The display name of the book. */
-	display_name: string,
+	displayName: string,
 	/**  The total number of pages in the book. */
-	total_pages: number,
+	totalPages: number,
 	/**  The optional identifier of the series this book belongs to. */
-	series_id: number | null,
+	seriesId: number | null,
 	/**  The optional order index of the book within its series. */
-	series_order: number | null,
+	seriesOrder: number | null,
 	/**  The optional file path to the thumbnail image of the book. */
-	thumbnail_path: string | null,
+	thumbnailPath: string | null,
 	/**  The timestamp when the book was created (registered). */
-	created_at: string | null,
+	createdAt: string | null,
 	/**
 	 *  Whether the reader has shifted this book's spreads by one page.
 	 * 
@@ -911,7 +911,7 @@ export type BookWithState_Serialize = {
 	 *  the book is laid out, and turning reading history off — or clearing it — must not
 	 *  discard it.
 	 */
-	is_spread_shifted: boolean,
+	isSpreadShifted: boolean,
 	/**
 	 *  One `'0'`/`'1'` per page in entry order, `'1'` where the page is wider than it is
 	 *  tall. `None` until the book has been measured once.
@@ -920,7 +920,7 @@ export type BookWithState_Serialize = {
 	 *  that is what settles where two-page spreads begin, and 200 bytes is the whole
 	 *  measurement for a 200-page book.
 	 */
-	landscape_bits: string | null,
+	landscapeBits: string | null,
 	/**
 	 *  The page direction this book opens with.
 	 * 
@@ -929,15 +929,15 @@ export type BookWithState_Serialize = {
 	 *  the book has been opened once, and always `None` for novels, whose direction is
 	 *  the EPUB's own and cannot be overridden.
 	 */
-	reading_direction: Direction | null,
+	readingDirection: Direction | null,
 	/**  The last read page index, if the book has been opened. */
-	last_read_page_index: number | null,
+	lastReadPageIndex: number | null,
 	/**  The timestamp when the book was last opened, if any. */
-	last_opened_at: string | null,
+	lastOpenedAt: string | null,
 	/**  The last EPUB reading position (CFI), if any. `None` for comics. */
 	cfi: string | null,
 	/**  List of tag IDs associated with this book. */
-	tag_ids: number[],
+	tagIds: number[],
 };
 
 /**  Represents a saved reading position (bookmark) within a book. */
@@ -948,15 +948,15 @@ export type Bookmark_Deserialize = {
 	/**  The unique identifier for the bookmark. */
 	id: number,
 	/**  The identifier of the book this bookmark belongs to. */
-	book_id: number,
+	bookId: number,
 	/**  The display name of the bookmark. */
 	name: string,
 	/**  The bookmarked page index: the comic page, or the EPUB spine section index. */
-	page_index: number,
+	pageIndex: number,
 	/**  The bookmarked position within an EPUB section (CFI). `None` for comics. */
 	cfi?: string | null,
 	/**  The timestamp when the bookmark was created. */
-	created_at: string,
+	createdAt: string,
 };
 
 /**  Represents a saved reading position (bookmark) within a book. */
@@ -964,15 +964,15 @@ export type Bookmark_Serialize = {
 	/**  The unique identifier for the bookmark. */
 	id: number,
 	/**  The identifier of the book this bookmark belongs to. */
-	book_id: number,
+	bookId: number,
 	/**  The display name of the bookmark. */
 	name: string,
 	/**  The bookmarked page index: the comic page, or the EPUB spine section index. */
-	page_index: number,
+	pageIndex: number,
 	/**  The bookmarked position within an EPUB section (CFI). `None` for comics. */
 	cfi: string | null,
 	/**  The timestamp when the bookmark was created. */
-	created_at: string,
+	createdAt: string,
 };
 
 /**
@@ -1014,9 +1014,9 @@ export type Collection_Deserialize = {
 	/**  The display name of the collection. */
 	name: string,
 	/**  The string identifier for the UI icon (e.g., "folder"). */
-	icon_id: string,
+	iconId: string,
 	/**  The timestamp when the collection was created. */
-	created_at?: string | null,
+	createdAt?: string | null,
 };
 
 /**  Represents a collection entity used to organize books. */
@@ -1026,9 +1026,9 @@ export type Collection_Serialize = {
 	/**  The display name of the collection. */
 	name: string,
 	/**  The string identifier for the UI icon (e.g., "folder"). */
-	icon_id: string,
+	iconId: string,
 	/**  The timestamp when the collection was created. */
-	created_at: string | null,
+	createdAt: string | null,
 };
 
 /**  A collection was created or deleted. */
@@ -1393,15 +1393,15 @@ export type OpenedBook_Deserialize = {
 	/**  The entry names in the book. */
 	entries: string[],
 	/**  Whether the book is a directory. */
-	is_directory: boolean,
+	isDirectory: boolean,
 	/**  Whether the book is an EPUB novel. */
-	is_novel: boolean,
+	isNovel: boolean,
 	/**  Whether `get_image_preview` can send a page more cheaply than `get_image`. */
-	has_previews: boolean,
+	hasPreviews: boolean,
 	/**  The book's library record, or `None` when it could not be recorded. */
 	book?: BookWithState_Deserialize | null,
 	/**  Why the book could not be recorded, when it could not. */
-	record_error?: CommandError_Deserialize | null,
+	recordError?: CommandError_Deserialize | null,
 };
 
 /**  What `open_book` returns: the open book's pages and its library record. */
@@ -1409,15 +1409,15 @@ export type OpenedBook_Serialize = {
 	/**  The entry names in the book. */
 	entries: string[],
 	/**  Whether the book is a directory. */
-	is_directory: boolean,
+	isDirectory: boolean,
 	/**  Whether the book is an EPUB novel. */
-	is_novel: boolean,
+	isNovel: boolean,
 	/**  Whether `get_image_preview` can send a page more cheaply than `get_image`. */
-	has_previews: boolean,
+	hasPreviews: boolean,
 	/**  The book's library record, or `None` when it could not be recorded. */
 	book: BookWithState_Serialize | null,
 	/**  Why the book could not be recorded, when it could not. */
-	record_error: CommandError_Serialize | null,
+	recordError: CommandError_Serialize | null,
 };
 
 /**  Settings for the reading experience. */
@@ -1492,25 +1492,25 @@ export type ReadingState = ReadingState_Serialize | ReadingState_Deserialize;
 /**  Represents the reading state of a specific book. */
 export type ReadingState_Deserialize = {
 	/**  The unique identifier for the associated book. */
-	book_id: number,
+	bookId: number,
 	/**  The last read page index. */
-	last_read_page_index: number,
+	lastReadPageIndex: number,
 	/**  The last EPUB reading position (CFI). `None` for comics. */
 	cfi?: string | null,
 	/**  The timestamp when the book was last opened. */
-	last_opened_at?: string | null,
+	lastOpenedAt?: string | null,
 };
 
 /**  Represents the reading state of a specific book. */
 export type ReadingState_Serialize = {
 	/**  The unique identifier for the associated book. */
-	book_id: number,
+	bookId: number,
 	/**  The last read page index. */
-	last_read_page_index: number,
+	lastReadPageIndex: number,
 	/**  The last EPUB reading position (CFI). `None` for comics. */
 	cfi: string | null,
 	/**  The timestamp when the book was last opened. */
-	last_opened_at: string | null,
+	lastOpenedAt: string | null,
 };
 
 /**  Configuration for image and document rendering. */
@@ -1547,7 +1547,7 @@ export type Series = {
 	/**  The unique name of the series. */
 	name: string,
 	/**  The timestamp when the series was created. */
-	created_at: string,
+	createdAt: string,
 };
 
 /**  A series was created or deleted. */
@@ -1682,7 +1682,7 @@ export type Tag = {
 	/**  The unique name of the tag. */
 	name: string,
 	/**  The color code of the tag (e.g., "#FF0000" for red). */
-	color_code: string,
+	colorCode: string,
 };
 
 /**  A tag was created or deleted. */

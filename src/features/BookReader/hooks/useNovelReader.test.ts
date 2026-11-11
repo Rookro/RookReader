@@ -175,8 +175,8 @@ describe("useNovelReader", () => {
     );
   });
 
-  it("should not load when the container is not a novel (per is_novel state)", async () => {
-    // Gate on the backend's is_novel contract, not the extension: even a .epub path
+  it("should not load when the container is not a novel (per isNovel state)", async () => {
+    // Gate on the backend's isNovel contract, not the extension: even a .epub path
     // is skipped when the slice says the container is not a novel.
     vi.mocked(useAppSelector).mockImplementation(<T>(selector: (state: RootState) => T): T => {
       const nonNovelState = {

@@ -13,8 +13,8 @@ describe("SetBookTagsDialog", () => {
   const user = userEvent.setup();
 
   const mockTags: Tag[] = [
-    { id: 1, name: "Tag 1", color_code: "#ff0000" },
-    { id: 2, name: "Tag 2", color_code: "#00ff00" },
+    { id: 1, name: "Tag 1", colorCode: "#ff0000" },
+    { id: 2, name: "Tag 2", colorCode: "#00ff00" },
   ];
 
   beforeEach(() => {
@@ -164,7 +164,7 @@ describe("SetBookTagsDialog", () => {
 
   // Tagging several books must keep each book's other tags
   it("shows tags on some of the books as partly checked and keeps them on save", async () => {
-    const tags: Tag[] = [...mockTags, { id: 3, name: "Tag 3", color_code: "#0000ff" }];
+    const tags: Tag[] = [...mockTags, { id: 3, name: "Tag 3", colorCode: "#0000ff" }];
     vi.mocked(api.getTagsForBook).mockImplementation(async (bookId: number) =>
       bookId === 10 ? [1, 2] : [1],
     );
@@ -243,7 +243,7 @@ describe("SetBookTagsDialog", () => {
   });
 
   describe("creating a tag", () => {
-    const newTag = createMockTag({ id: 3, name: "New Tag", color_code: "#F44336" });
+    const newTag = createMockTag({ id: 3, name: "New Tag", colorCode: "#F44336" });
 
     // The button stays disabled until the books' tags are loaded.
     const clickNewTag = async () => {

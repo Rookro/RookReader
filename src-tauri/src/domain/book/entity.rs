@@ -1,4 +1,4 @@
-use chrono::NaiveDateTime;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use strum_macros::{EnumString, IntoStaticStr};
 
@@ -50,6 +50,7 @@ pub enum Direction {
 
 /// Represents a book entity in the database.
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
 pub struct Book {
     /// The unique identifier for the book.
     pub id: i64,
@@ -71,6 +72,7 @@ pub struct Book {
 
 /// Represents the reading state of a specific book.
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
 pub struct ReadingState {
     /// The unique identifier for the associated book.
     pub book_id: i64,
@@ -79,12 +81,13 @@ pub struct ReadingState {
     /// The last EPUB reading position (CFI). `None` for comics.
     pub cfi: Option<String>,
     /// The timestamp when the book was last opened.
-    pub last_opened_at: Option<NaiveDateTime>,
+    pub last_opened_at: Option<DateTime<Utc>>,
 }
 
 /// Represents a book along with its optional reading state.
 /// Useful for displaying book details whether it has been read or not.
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
 pub struct BookWithState {
     /// The unique identifier for the book.
     pub id: i64,
@@ -103,7 +106,7 @@ pub struct BookWithState {
     /// The optional file path to the thumbnail image of the book.
     pub thumbnail_path: Option<String>,
     /// The timestamp when the book was created (registered).
-    pub created_at: Option<NaiveDateTime>,
+    pub created_at: Option<DateTime<Utc>>,
     /// Whether the reader has shifted this book's spreads by one page.
     ///
     /// Beside `total_pages` rather than in the reading state: it is a correction to how
@@ -127,7 +130,7 @@ pub struct BookWithState {
     /// The last read page index, if the book has been opened.
     pub last_read_page_index: Option<i64>,
     /// The timestamp when the book was last opened, if any.
-    pub last_opened_at: Option<NaiveDateTime>,
+    pub last_opened_at: Option<DateTime<Utc>>,
     /// The last EPUB reading position (CFI), if any. `None` for comics.
     pub cfi: Option<String>,
     /// List of tag IDs associated with this book.

@@ -32,20 +32,20 @@ const pickAdjacent = <T>(sorted: T[], currentIdx: number, dir: Direction): T | n
 };
 
 /**
- * Resolves the adjacent book within the current book's series, ordered by series_order.
+ * Resolves the adjacent book within the current book's series, ordered by seriesOrder.
  * Series order is authoritative: at a series boundary this returns null.
  */
 const adjacentInSeries = async (
   book: BookWithState,
   dir: Direction,
 ): Promise<AdjacentBook | null> => {
-  if (book.series_id == null) {
+  if (book.seriesId == null) {
     return null;
   }
-  const books = [...(await api.getBooksBySeries(book.series_id))].sort(sortBySeriesOrder);
+  const books = [...(await api.getBooksBySeries(book.seriesId))].sort(sortBySeriesOrder);
   const idx = books.findIndex((b) => b.id === book.id);
   const target = pickAdjacent(books, idx, dir);
-  return target ? { filePath: target.file_path, displayName: target.display_name } : null;
+  return target ? { filePath: target.filePath, displayName: target.displayName } : null;
 };
 
 /**
@@ -62,9 +62,9 @@ const adjacentInBookshelf = async (
       ? await api.getAllBooksWithState()
       : await api.getBooksByCollection(origin.collectionId);
   const sorted = [...books].sort((a, b) => sortBooks(a, b, origin.sortOrder));
-  const idx = sorted.findIndex((b) => b.file_path === currentPath);
+  const idx = sorted.findIndex((b) => b.filePath === currentPath);
   const target = pickAdjacent(sorted, idx, dir);
-  return target ? { filePath: target.file_path, displayName: target.display_name } : null;
+  return target ? { filePath: target.filePath, displayName: target.displayName } : null;
 };
 
 /**
@@ -122,7 +122,7 @@ export const resolveAdjacentBook = async (
 
   // Series is prioritized only when the book was opened from the Bookshelf.
   if (origin?.kind === "bookshelf") {
-    if (book?.series_id != null) {
+    if (book?.seriesId != null) {
       return adjacentInSeries(book, dir);
     }
     return adjacentInBookshelf(origin, currentPath, dir);

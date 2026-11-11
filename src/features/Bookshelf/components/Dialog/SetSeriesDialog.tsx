@@ -52,7 +52,7 @@ export default function SetSeriesDialog({
   // biome-ignore lint/correctness/useExhaustiveDependencies: seed only when the dialog opens.
   useEffect(() => {
     if (open) {
-      const seriesIds = new Set(books.map((book) => book.series_id));
+      const seriesIds = new Set(books.map((book) => book.seriesId));
       setSelectedSeriesId(
         seriesIds.size > 1 ? undefined : (seriesIds.values().next().value ?? null),
       );

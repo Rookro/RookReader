@@ -6,10 +6,10 @@ describe("DirEntryUtils", () => {
   // Verify that binary data (ArrayBuffer) is correctly converted to directory/file information (DirEntry) objects
   it("should convert ArrayBuffer to DirEntry objects", () => {
     // Mock data based on the description:
-    // is_directory: 1 byte
+    // isDirectory: 1 byte
     // nameLen: 4 bytes
     // name: nameLen bytes
-    // last_modified: 8 bytes
+    // lastModified: 8 bytes
 
     const name1 = "dir1";
     const name2 = "file1.txt";
@@ -45,14 +45,14 @@ describe("DirEntryUtils", () => {
 
     expect(result).toHaveLength(2);
     expect(result[0]).toEqual({
-      is_directory: true,
+      isDirectory: true,
       name: "dir1",
-      last_modified: 1000,
+      lastModified: 1000,
     });
     expect(result[1]).toEqual({
-      is_directory: false,
+      isDirectory: false,
       name: "file1.txt",
-      last_modified: 2000,
+      lastModified: 2000,
     });
   });
 
@@ -64,7 +64,7 @@ describe("DirEntryUtils", () => {
 
   // Verify that a malformed buffer (e.g., incomplete data) is handled gracefully without crashing
   it("should handle malformed buffer gracefully (incomplete data)", () => {
-    const buffer = new Uint8Array([1, 0, 0, 0, 10]); // is_directory=1, nameLen=10, but no name data
+    const buffer = new Uint8Array([1, 0, 0, 0, 10]); // isDirectory=1, nameLen=10, but no name data
     // This might throw or return partial data depending on implementation.
     // Given the current code uses subarray and decoder,
     // it will likely return an empty string for name if offset is out of bounds

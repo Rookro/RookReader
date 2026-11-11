@@ -72,7 +72,7 @@ export const useLibrarySync = () => {
     // A book first read after history was turned back on is not in the list yet.
     const isListed = store
       .getState()
-      .history.recentlyReadBooks.some((book) => book.id === event.payload.book_id);
+      .history.recentlyReadBooks.some((book) => book.id === event.payload.bookId);
     if (recordReadingHistory && !isListed) {
       dispatch(fetchRecentlyReadBooks());
     }

@@ -48,7 +48,7 @@ vi.mock("../../../components/ui/AutoScrollTypography/AutoScrollTypography", () =
 describe("BookGridCell", () => {
   const mockOnBookClick = vi.fn();
   const mockOnSeriesClick = vi.fn();
-  const mockTags: Tag[] = [createMockTag({ id: 1, name: "Tag 1", color_code: "#ff0000" })];
+  const mockTags: Tag[] = [createMockTag({ id: 1, name: "Tag 1", colorCode: "#ff0000" })];
 
   const defaultProps: CellComponentProps<BookGridCellProps> = {
     columnIndex: 0,
@@ -81,7 +81,7 @@ describe("BookGridCell", () => {
   });
 
   it("renders a BookCard when the item type is book", () => {
-    const book = createMockBookWithState({ id: 101, display_name: "Test Book" });
+    const book = createMockBookWithState({ id: 101, displayName: "Test Book" });
     const items: GridItem[] = [{ type: "book", data: book }];
 
     render(<BookGridCell {...defaultProps} items={items} />);
@@ -104,7 +104,7 @@ describe("BookGridCell", () => {
   });
 
   it("handles book click correctly", () => {
-    const book = createMockBookWithState({ id: 101, display_name: "Test Book" });
+    const book = createMockBookWithState({ id: 101, displayName: "Test Book" });
     const items: GridItem[] = [{ type: "book", data: book }];
 
     render(<BookGridCell {...defaultProps} items={items} />);
@@ -126,8 +126,8 @@ describe("BookGridCell", () => {
   it("renders book tags correctly", () => {
     const book = createMockBookWithState({
       id: 101,
-      display_name: "Test Book",
-      tag_ids: [1],
+      displayName: "Test Book",
+      tagIds: [1],
     });
     const items: GridItem[] = [{ type: "book", data: book }];
 
@@ -137,7 +137,7 @@ describe("BookGridCell", () => {
   });
 
   it("displays selection indicator when book is selected", () => {
-    const book = createMockBookWithState({ id: 101, display_name: "Test Book" });
+    const book = createMockBookWithState({ id: 101, displayName: "Test Book" });
     const items: GridItem[] = [{ type: "book", data: book }];
 
     vi.mocked(useBookSelection).mockReturnValue({
@@ -154,7 +154,7 @@ describe("BookGridCell", () => {
   });
 
   it("displays reading indicator when index matches readingBookIndex", () => {
-    const book = createMockBookWithState({ id: 101, display_name: "Test Book" });
+    const book = createMockBookWithState({ id: 101, displayName: "Test Book" });
     const items: GridItem[] = [{ type: "book", data: book }];
 
     render(<BookGridCell {...defaultProps} items={items} readingBookIndex={0} />);
@@ -162,12 +162,12 @@ describe("BookGridCell", () => {
     expect(screen.getByTestId("MenuBookIcon")).toBeInTheDocument();
   });
 
-  it("shows progress bar based on last_read_page_index", () => {
+  it("shows progress bar based on lastReadPageIndex", () => {
     const book = createMockBookWithState({
       id: 101,
-      display_name: "Test Book",
-      total_pages: 100,
-      last_read_page_index: 49, // 50th page, so 50%
+      displayName: "Test Book",
+      totalPages: 100,
+      lastReadPageIndex: 49, // 50th page, so 50%
     });
     const items: GridItem[] = [{ type: "book", data: book }];
 
@@ -177,12 +177,12 @@ describe("BookGridCell", () => {
     expect(progress).toHaveAttribute("aria-valuenow", "50");
   });
 
-  it("shows progress bar as 0 when total_pages is 0", () => {
+  it("shows progress bar as 0 when totalPages is 0", () => {
     const book = createMockBookWithState({
       id: 101,
-      display_name: "Test Book",
-      total_pages: 0,
-      last_read_page_index: 49,
+      displayName: "Test Book",
+      totalPages: 0,
+      lastReadPageIndex: 49,
     });
     const items: GridItem[] = [{ type: "book", data: book }];
 
@@ -192,12 +192,12 @@ describe("BookGridCell", () => {
     expect(progress).toHaveAttribute("aria-valuenow", "0");
   });
 
-  it("shows progress bar as 0 when last_read_page_index is undefined", () => {
+  it("shows progress bar as 0 when lastReadPageIndex is undefined", () => {
     const book = createMockBookWithState({
       id: 101,
-      display_name: "Test Book",
-      total_pages: 100,
-      last_read_page_index: undefined,
+      displayName: "Test Book",
+      totalPages: 100,
+      lastReadPageIndex: undefined,
     });
     const items: GridItem[] = [{ type: "book", data: book }];
 
@@ -218,7 +218,7 @@ describe("BookGridCell", () => {
   });
 
   it("opens book context menu on right click and can be closed", () => {
-    const book = createMockBookWithState({ id: 101, display_name: "Test Book" });
+    const book = createMockBookWithState({ id: 101, displayName: "Test Book" });
     const items: GridItem[] = [{ type: "book", data: book }];
 
     render(<BookGridCell {...defaultProps} items={items} />);
@@ -247,11 +247,11 @@ describe("BookGridCell", () => {
     expect(menu).not.toBeInTheDocument();
   });
 
-  it("uses dummy thumbnail when book thumbnail_path is missing", () => {
+  it("uses dummy thumbnail when book thumbnailPath is missing", () => {
     const book = createMockBookWithState({
       id: 101,
-      display_name: "Test Book",
-      thumbnail_path: "",
+      displayName: "Test Book",
+      thumbnailPath: "",
     });
     const items: GridItem[] = [{ type: "book", data: book }];
 
@@ -264,8 +264,8 @@ describe("BookGridCell", () => {
   it("switches to dummy thumbnail on image load error in BookCard", () => {
     const book = createMockBookWithState({
       id: 101,
-      display_name: "Test Book",
-      thumbnail_path: "valid.jpg",
+      displayName: "Test Book",
+      thumbnailPath: "valid.jpg",
     });
     const items: GridItem[] = [{ type: "book", data: book }];
 
@@ -283,8 +283,8 @@ describe("BookGridCell", () => {
     const series = createMockSeries({ id: 201, name: "Test Series" });
     const book = createMockBookWithState({
       id: 101,
-      display_name: "Book 1",
-      thumbnail_path: "valid.jpg",
+      displayName: "Book 1",
+      thumbnailPath: "valid.jpg",
     });
     const items: GridItem[] = [{ type: "series", data: series, books: [book] }];
 

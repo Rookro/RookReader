@@ -120,8 +120,8 @@ describe("BookGrid auto-scroll latch", () => {
   });
 
   it("scrolls to the reading book once its index resolves after books finish loading", async () => {
-    const otherBook = createMockBookWithState({ id: 1, display_name: "Other" });
-    const readingBook = createMockBookWithState({ id: 5, display_name: "Reading" });
+    const otherBook = createMockBookWithState({ id: 1, displayName: "Other" });
+    const readingBook = createMockBookWithState({ id: 5, displayName: "Reading" });
 
     // Initially the reading book is not yet in the loaded list (index -1) but a
     // reading book exists, so the latch must stay off.
@@ -156,8 +156,8 @@ describe("BookGrid auto-scroll latch", () => {
   });
 
   it("does not scroll (or latch) until the grid width is measured", async () => {
-    const otherBook = createMockBookWithState({ id: 1, display_name: "Other" });
-    const readingBook = createMockBookWithState({ id: 5, display_name: "Reading" });
+    const otherBook = createMockBookWithState({ id: 1, displayName: "Other" });
+    const readingBook = createMockBookWithState({ id: 5, displayName: "Reading" });
 
     const state = makeState([otherBook, readingBook], readingBook);
     vi.mocked(useAppSelector).mockImplementation(
@@ -192,7 +192,7 @@ describe("BookGrid auto-scroll latch", () => {
   });
 
   it("does not scroll when there is genuinely no reading book", async () => {
-    const book = createMockBookWithState({ id: 1, display_name: "Only" });
+    const book = createMockBookWithState({ id: 1, displayName: "Only" });
     const state = makeState([book], null);
     vi.mocked(useAppSelector).mockImplementation(
       <T,>(selector: (s: RootState) => T): T => selector(state as unknown as RootState),

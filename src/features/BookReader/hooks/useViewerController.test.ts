@@ -230,7 +230,7 @@ describe("useViewerController", () => {
   // book's cache. A measured book keeps a pairing across the switch, so a stale entry
   // would reach the layout.
   it("never shows the previous book's page after a switch", async () => {
-    const measured = createMockBookWithState({ landscape_bits: "000" });
+    const measured = createMockBookWithState({ landscapeBits: "000" });
     mockedFetchImageBlob.mockResolvedValue({} as Image);
     mockedCreateImageCacheItem.mockReturnValue({
       fullUrl: "blob:old",
@@ -269,7 +269,7 @@ describe("useViewerController", () => {
   // Verify a page that lands just as the reader moves on is not shown over the page they
   // moved to
   it("never shows a page the reader has already left", async () => {
-    const measured = createMockBookWithState({ landscape_bits: "000" });
+    const measured = createMockBookWithState({ landscapeBits: "000" });
     const images = new Map(mockEntries.map((entry) => [entry, { entry } as unknown as Image]));
     mockedCreateImageCacheItem.mockImplementation(
       (img) =>
@@ -1477,7 +1477,7 @@ describe("useViewerController", () => {
 
     // Verify a measured book needs no scan at all
     it("uses the stored measurement instead of scanning", async () => {
-      const book = createMockBookWithState({ landscape_bits: "010" });
+      const book = createMockBookWithState({ landscapeBits: "010" });
 
       const { result } = renderHook(() =>
         useViewerController({
@@ -1500,7 +1500,7 @@ describe("useViewerController", () => {
 
     // Verify bits that cannot describe this book are re-measured rather than trusted
     it("re-measures when the stored bits do not fit the book", async () => {
-      const book = createMockBookWithState({ landscape_bits: "01" });
+      const book = createMockBookWithState({ landscapeBits: "01" });
 
       renderHook(() =>
         useViewerController({
@@ -1521,7 +1521,7 @@ describe("useViewerController", () => {
 
     // Verify a fresh measurement is stored, once, so the next open needs no scan
     it("writes a completed scan back exactly once", async () => {
-      const book = createMockBookWithState({ landscape_bits: null });
+      const book = createMockBookWithState({ landscapeBits: null });
       vi.mocked(api.getImageDimensions).mockResolvedValue([
         { width: 100, height: 200 },
         { width: 200, height: 100 },
@@ -1978,7 +1978,7 @@ describe("useViewerController", () => {
             settings: twoPaged,
             dispatch: mockDispatch,
             hasPreviews: true,
-            book: createMockBookWithState({ landscape_bits: null }),
+            book: createMockBookWithState({ landscapeBits: null }),
           }),
         );
 

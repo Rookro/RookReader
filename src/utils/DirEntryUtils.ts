@@ -4,10 +4,10 @@ import type { DirEntry } from "../types/DirEntry";
  * Converts directory entry data from an ArrayBuffer into an array of DirEntry objects.
  * The ArrayBuffer is expected to be a serialized sequence of directory entries.
  * Each entry is encoded with the following structure:
- * - is_directory: 1 byte (1 for directory, 0 for file)
+ * - isDirectory: 1 byte (1 for directory, 0 for file)
  * - nameLen: 4 bytes (length of the name string)
  * - name: nameLen bytes (UTF-8 encoded name string)
- * - last_modified: 8 bytes (Unix timestamp as a 64-bit integer)
+ * - lastModified: 8 bytes (Unix timestamp as a 64-bit integer)
  *
  * @param entriesData - The ArrayBuffer containing the serialized directory entry data.
  * @returns A promise that resolves to an array of DirEntry objects.
@@ -21,8 +21,8 @@ export const convertEntriesInDir = (entriesData: ArrayBuffer) => {
   let offset = 0;
 
   while (offset + 5 <= buffer.length) {
-    // is_directory (1 byte)
-    const is_directory = view.getUint8(offset) === 1;
+    // isDirectory (1 byte)
+    const isDirectory = view.getUint8(offset) === 1;
     offset += 1;
 
     // name (nameLen: 4 bytes + name data)
@@ -36,16 +36,16 @@ export const convertEntriesInDir = (entriesData: ArrayBuffer) => {
     const name = decoder.decode(buffer.subarray(offset, offset + nameLen));
     offset += nameLen;
 
-    // last_modified (8 bytes)
+    // lastModified (8 bytes)
     if (offset + 8 > buffer.length) {
       break;
     }
     const timestamp = view.getBigUint64(offset);
     // Carry the raw timestamp (ms); formatting/sorting is left to the consumer.
-    const last_modified = Number(timestamp);
+    const lastModified = Number(timestamp);
     offset += 8;
 
-    entries.push({ is_directory, name, last_modified });
+    entries.push({ isDirectory, name, lastModified });
   }
   return entries;
 };

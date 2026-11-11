@@ -20,7 +20,7 @@ describe("BookDeleteDialog", () => {
 
   const mockBook = createMockBookWithState({
     id: 1,
-    display_name: "Test Book",
+    displayName: "Test Book",
   });
 
   const defaultProps = {

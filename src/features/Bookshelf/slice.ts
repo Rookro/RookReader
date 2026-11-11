@@ -9,13 +9,13 @@ import { createCommandThunk } from "../../types/CustomAsyncThunk";
  *
  * @param params - The parameters for creating a collection.
  * @param params.name - The name of the new collection.
- * @param params.icon_id - The string identifier for the UI icon associated with the collection.
+ * @param params.iconId - The string identifier for the UI icon associated with the collection.
  * @returns A thunk that resolves to the newly created Collection object.
  */
 export const addCollection = createCommandThunk(
   "collection/addCollection",
-  ({ name, icon_id }: { name: string; icon_id: string }) => api.createCollection(name, icon_id),
-  ({ name, icon_id }) => `Failed to add collection(name: ${name}, icon_id: ${icon_id}).`,
+  ({ name, iconId }: { name: string; iconId: string }) => api.createCollection(name, iconId),
+  ({ name, iconId }) => `Failed to add collection(name: ${name}, iconId: ${iconId}).`,
 );
 
 /**
@@ -221,10 +221,10 @@ const collectionSlice = createSlice({
       })
       .addCase(readingProgressChanged, (state, action) => {
         // Patch the book if it is in this collection; a page turn never adds one to it.
-        const book = state.books.find((b) => b.id === action.payload.book_id);
+        const book = state.books.find((b) => b.id === action.payload.bookId);
         if (book) {
-          book.last_read_page_index = action.payload.last_read_page_index;
-          book.last_opened_at = action.payload.last_opened_at ?? book.last_opened_at;
+          book.lastReadPageIndex = action.payload.lastReadPageIndex;
+          book.lastOpenedAt = action.payload.lastOpenedAt ?? book.lastOpenedAt;
         }
       });
   },

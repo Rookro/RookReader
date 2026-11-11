@@ -20,7 +20,7 @@ vi.mock("./BookGrid", () => {
         type="button"
         data-testid="select-book-btn"
         onClick={() =>
-          onBookSelect(createMockBookWithState({ id: 123, file_path: "/test/book.zip" }))
+          onBookSelect(createMockBookWithState({ id: 123, filePath: "/test/book.zip" }))
         }
       >
         Select Book
@@ -58,7 +58,7 @@ vi.mock("./Dialog/CreateCollectionDialog", () => {
     onCreate,
   }: {
     open: boolean;
-    onCreate: (name: string, icon_id: string) => void;
+    onCreate: (name: string, iconId: string) => void;
   }): JSX.Element | null =>
     open ? (
       <div data-testid="create-collection-dialog">
@@ -81,7 +81,7 @@ vi.mock("./Dialog/CreateBookTagDialog", () => {
     onCreate,
   }: {
     open: boolean;
-    onCreate: (name: string, color_code: string) => void;
+    onCreate: (name: string, colorCode: string) => void;
   }): JSX.Element | null =>
     open ? (
       <div data-testid="create-book-tag-dialog">
@@ -107,7 +107,7 @@ vi.mock("../slice", async () => {
   const actual = await vi.importActual("../slice");
   return {
     ...actual,
-    addCollection: vi.fn((payload: { name: string; icon_id: string }) => ({
+    addCollection: vi.fn((payload: { name: string; iconId: string }) => ({
       type: "collection/addCollection",
       payload,
     })),
@@ -120,7 +120,7 @@ vi.mock("../tagSlice", async () => {
   const actual = await vi.importActual("../tagSlice");
   return {
     ...actual,
-    addTag: vi.fn((payload: { name: string; color_code: string }) => ({
+    addTag: vi.fn((payload: { name: string; colorCode: string }) => ({
       type: "tag/addTag",
       payload,
     })),
@@ -183,7 +183,7 @@ describe("Bookshelf", () => {
     await user.click(screen.getByTestId("confirm-create-shelf"));
     expect(CollectionReducer.addCollection).toHaveBeenCalledWith({
       name: "New Shelf",
-      icon_id: "icon-1",
+      iconId: "icon-1",
     });
   });
 
@@ -196,7 +196,7 @@ describe("Bookshelf", () => {
     await user.click(screen.getByTestId("confirm-create-tag"));
     expect(TagReducer.addTag).toHaveBeenCalledWith({
       name: "New Tag",
-      color_code: "#ff0000",
+      colorCode: "#ff0000",
     });
   });
 

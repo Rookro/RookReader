@@ -296,7 +296,7 @@ async fn update_reading_progress_keeps_when_the_book_was_opened() {
     assert_eq!(state.last_read_page_index, 7);
     assert_eq!(state.cfi.as_deref(), Some("epubcfi(/6/8!/4/2/1:0)"));
     assert_eq!(
-        state.last_opened_at.unwrap().to_string(),
+        state.last_opened_at.unwrap().naive_utc().to_string(),
         "2020-01-01 00:00:00"
     );
 }

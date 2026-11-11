@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n            INSERT INTO bookmarks (book_id, name, page_index, cfi)\n            VALUES (?, ?, ?, ?)\n            RETURNING id AS \"id!\", book_id, name, page_index, cfi, created_at\n            ",
+  "query": "\n            INSERT INTO bookmarks (book_id, name, page_index, cfi)\n            VALUES (?, ?, ?, ?)\n            RETURNING id AS \"id!\", book_id, name, page_index, cfi, created_at AS \"created_at: chrono::DateTime<chrono::Utc>\"\n            ",
   "describe": {
     "columns": [
       {
@@ -59,7 +59,7 @@
         }
       },
       {
-        "name": "created_at",
+        "name": "created_at: chrono::DateTime<chrono::Utc>",
         "ordinal": 5,
         "type_info": "Datetime",
         "origin": {
@@ -82,5 +82,5 @@
       false
     ]
   },
-  "hash": "3fe91c0c2271726e700942944d469bcb935f094ef7a4cc4210b951e49f24c678"
+  "hash": "20ff66c6ec40e3a55bd1e8a6ffdd3e89ec8915fa1c99d66d42763925afc3bd9a"
 }

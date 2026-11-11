@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n            SELECT id, name, created_at\n            FROM series\n            ORDER BY id ASC\n            ",
+  "query": "\n            SELECT id, name, icon_id, created_at as \"created_at: chrono::DateTime<chrono::Utc>\"\n            FROM collections\n            ORDER BY id ASC\n            ",
   "describe": {
     "columns": [
       {
@@ -9,7 +9,7 @@
         "type_info": "Integer",
         "origin": {
           "Table": {
-            "table": "series",
+            "table": "collections",
             "name": "id"
           }
         }
@@ -20,18 +20,29 @@
         "type_info": "Text",
         "origin": {
           "Table": {
-            "table": "series",
+            "table": "collections",
             "name": "name"
           }
         }
       },
       {
-        "name": "created_at",
+        "name": "icon_id",
         "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "collections",
+            "name": "icon_id"
+          }
+        }
+      },
+      {
+        "name": "created_at: chrono::DateTime<chrono::Utc>",
+        "ordinal": 3,
         "type_info": "Datetime",
         "origin": {
           "Table": {
-            "table": "series",
+            "table": "collections",
             "name": "created_at"
           }
         }
@@ -43,8 +54,9 @@
     "nullable": [
       false,
       false,
+      false,
       false
     ]
   },
-  "hash": "2e44d98170f2c005996c7f7b68808872ff6b162e543dd95c7c511c2b1c076285"
+  "hash": "a938683c8e4800032dc3500e2c2837872827b9c4d7c73ca4a9a90743ea698634"
 }

@@ -35,11 +35,11 @@ type Opened = Awaited<ReturnType<typeof api.openBook>>;
 /** An `open_book` result: an empty comic that was recorded without a book row. */
 const opened = (overrides: Partial<Opened> = {}): Opened => ({
   entries: [],
-  is_directory: false,
-  is_novel: false,
-  has_previews: false,
+  isDirectory: false,
+  isNovel: false,
+  hasPreviews: false,
   book: null,
-  record_error: null,
+  recordError: null,
   ...overrides,
 });
 
@@ -345,7 +345,7 @@ describe("ReaderReducer", () => {
     describe("openContainerFile thunk", () => {
       // Verify that container is opened and state is updated on success
       it("should open container and update state on success", async () => {
-        const mockBook = createMockBookWithState({ id: 1, last_read_page_index: 1 });
+        const mockBook = createMockBookWithState({ id: 1, lastReadPageIndex: 1 });
 
         vi.mocked(api.openBook).mockResolvedValue(
           opened({ entries: ["p1", "p2"], book: mockBook }),
@@ -369,7 +369,7 @@ describe("ReaderReducer", () => {
         vi.mocked(api.openBook).mockResolvedValueOnce(
           opened({
             entries: ["0000"],
-            has_previews: true,
+            hasPreviews: true,
             book: createMockBookWithState({ id: 1 }),
           }),
         );
@@ -389,7 +389,7 @@ describe("ReaderReducer", () => {
         vi.mocked(api.openBook).mockResolvedValue(
           opened({
             entries: ["p1", "p2"],
-            record_error: {
+            recordError: {
               code: ErrorCode.database,
               message: "database is locked",
               details: null,
@@ -411,7 +411,7 @@ describe("ReaderReducer", () => {
       // The open-time window is the one that races the viewer's first request: it must
       // leave the pages the viewer is about to ask for to the viewer.
       it("leaves the pages the viewer will load out of the opening window", async () => {
-        const mockBook = createMockBookWithState({ id: 1, last_read_page_index: 4 });
+        const mockBook = createMockBookWithState({ id: 1, lastReadPageIndex: 4 });
 
         vi.mocked(api.openBook).mockResolvedValue(
           opened({ entries: ["p1", "p2", "p3", "p4", "p5", "p6"], book: mockBook }),
@@ -430,7 +430,7 @@ describe("ReaderReducer", () => {
 
       // Verify the reader's own correction comes back with the book
       it("restores the spread shift from the book", async () => {
-        const mockBook = createMockBookWithState({ id: 7, is_spread_shifted: true });
+        const mockBook = createMockBookWithState({ id: 7, isSpreadShifted: true });
 
         vi.mocked(api.openBook).mockResolvedValue(
           opened({ entries: ["p1", "p2"], book: mockBook }),
@@ -446,7 +446,7 @@ describe("ReaderReducer", () => {
 
       // Verify the toggle both applies and persists
       it("toggleSpreadShift flips the flag and stores it against the book", async () => {
-        const mockBook = createMockBookWithState({ id: 7, is_spread_shifted: false });
+        const mockBook = createMockBookWithState({ id: 7, isSpreadShifted: false });
 
         vi.mocked(api.openBook).mockResolvedValue(
           opened({ entries: ["p1", "p2"], book: mockBook }),
@@ -466,7 +466,7 @@ describe("ReaderReducer", () => {
         vi.mocked(api.openBook).mockResolvedValue(
           opened({
             entries: ["p1", "p2"],
-            record_error: { code: ErrorCode.database, message: "not recorded", details: null },
+            recordError: { code: ErrorCode.database, message: "not recorded", details: null },
           }),
         );
 
@@ -482,7 +482,7 @@ describe("ReaderReducer", () => {
       // The backend seeds a new comic's direction; when it recorded none (the settings
       // could not be read), the reader falls back to its default without storing one.
       it("leaves the direction to the reader's default when the backend recorded none", async () => {
-        const mockBook = createMockBookWithState({ id: 7, reading_direction: null });
+        const mockBook = createMockBookWithState({ id: 7, readingDirection: null });
 
         vi.mocked(api.openBook).mockResolvedValue(
           opened({ entries: ["p1", "p2"], book: mockBook }),
@@ -497,7 +497,7 @@ describe("ReaderReducer", () => {
 
       // Verify the direction comes from the book, not the default, and is not rewritten
       it("uses the direction the backend recorded for the book", async () => {
-        const mockBook = createMockBookWithState({ id: 7, reading_direction: "ltr" });
+        const mockBook = createMockBookWithState({ id: 7, readingDirection: "ltr" });
 
         vi.mocked(api.openBook).mockResolvedValue(
           opened({ entries: ["p1", "p2"], book: mockBook }),
@@ -512,10 +512,10 @@ describe("ReaderReducer", () => {
 
       // A novel's direction is the EPUB's own, so nothing is seeded against it
       it("leaves a novel's reading direction unset", async () => {
-        const mockBook = createMockBookWithState({ id: 7, reading_direction: "rtl" });
+        const mockBook = createMockBookWithState({ id: 7, readingDirection: "rtl" });
 
         vi.mocked(api.openBook).mockResolvedValue(
-          opened({ entries: ["Chapter 1"], is_novel: true, book: mockBook }),
+          opened({ entries: ["Chapter 1"], isNovel: true, book: mockBook }),
         );
 
         store.dispatch(bookPathOpened({ path: "path/to/book.epub", origin: null }));
@@ -527,7 +527,7 @@ describe("ReaderReducer", () => {
 
       // Verify the toggle both applies and persists, against the book alone
       it("toggleReadingDirection flips the direction and stores it against the book", async () => {
-        const mockBook = createMockBookWithState({ id: 7, reading_direction: "rtl" });
+        const mockBook = createMockBookWithState({ id: 7, readingDirection: "rtl" });
 
         vi.mocked(api.openBook).mockResolvedValue(
           opened({ entries: ["p1", "p2"], book: mockBook }),
@@ -546,7 +546,7 @@ describe("ReaderReducer", () => {
 
       // Verify that the container opens on its last page when pendingInitialPosition is "last"
       it("should open on the last page when pendingInitialPosition is 'last'", async () => {
-        const mockBook = createMockBookWithState({ id: 1, last_read_page_index: 5 });
+        const mockBook = createMockBookWithState({ id: 1, lastReadPageIndex: 5 });
 
         vi.mocked(api.openBook).mockResolvedValue(
           opened({ entries: ["p1", "p2", "p3"], book: mockBook }),
@@ -558,14 +558,14 @@ describe("ReaderReducer", () => {
         await store.dispatch(openContainerFile("path/to/book.zip"));
 
         const state = store.getState().reader;
-        // Last page index (entries.length - 1), not last_read_page_index.
+        // Last page index (entries.length - 1), not lastReadPageIndex.
         expect(state.index).toBe(2);
         expect(state.pendingInitialPosition).toBeNull();
       });
 
       // Verify that the container opens on its first page when pendingInitialPosition is "first"
       it("should open on the first page when pendingInitialPosition is 'first'", async () => {
-        const mockBook = createMockBookWithState({ id: 1, last_read_page_index: 5 });
+        const mockBook = createMockBookWithState({ id: 1, lastReadPageIndex: 5 });
 
         vi.mocked(api.openBook).mockResolvedValue(
           opened({ entries: ["p1", "p2", "p3"], book: mockBook }),
@@ -577,14 +577,14 @@ describe("ReaderReducer", () => {
         await store.dispatch(openContainerFile("path/to/book.zip"));
 
         const state = store.getState().reader;
-        // First page (index 0), not last_read_page_index.
+        // First page (index 0), not lastReadPageIndex.
         expect(state.index).toBe(0);
         expect(state.pendingInitialPosition).toBeNull();
       });
 
-      // Verify that a stale last_read_page_index past the page count is clamped to the last page
+      // Verify that a stale lastReadPageIndex past the page count is clamped to the last page
       it("should clamp a restored index past the page count to the last page", async () => {
-        const mockBook = createMockBookWithState({ id: 1, last_read_page_index: 10 });
+        const mockBook = createMockBookWithState({ id: 1, lastReadPageIndex: 10 });
 
         vi.mocked(api.openBook).mockResolvedValue(
           opened({ entries: ["p1", "p2", "p3"], book: mockBook }),
@@ -602,12 +602,12 @@ describe("ReaderReducer", () => {
       it("should restore the persisted CFI when opening an EPUB novel", async () => {
         const mockBook = createMockBookWithState({
           id: 1,
-          last_read_page_index: 3,
+          lastReadPageIndex: 3,
           cfi: "epubcfi(/6/8!/4/2/1:0)",
         });
 
         vi.mocked(api.openBook).mockResolvedValue(
-          opened({ entries: ["s1", "s2", "s3", "s4"], is_novel: true, book: mockBook }),
+          opened({ entries: ["s1", "s2", "s3", "s4"], isNovel: true, book: mockBook }),
         );
 
         store.dispatch(bookPathOpened({ path: "path.epub", origin: null }));
@@ -622,7 +622,7 @@ describe("ReaderReducer", () => {
       it("should keep cfi null when opening a comic", async () => {
         const mockBook = createMockBookWithState({
           id: 1,
-          last_read_page_index: 1,
+          lastReadPageIndex: 1,
           cfi: "epubcfi(/6/8!/4/2/1:0)",
         });
 
@@ -640,12 +640,12 @@ describe("ReaderReducer", () => {
       it("should not restore the CFI when pendingInitialPosition is set", async () => {
         const mockBook = createMockBookWithState({
           id: 1,
-          last_read_page_index: 3,
+          lastReadPageIndex: 3,
           cfi: "epubcfi(/6/8!/4/2/1:0)",
         });
 
         vi.mocked(api.openBook).mockResolvedValue(
-          opened({ entries: ["s1", "s2", "s3"], is_novel: true, book: mockBook }),
+          opened({ entries: ["s1", "s2", "s3"], isNovel: true, book: mockBook }),
         );
 
         store.dispatch(
@@ -660,9 +660,9 @@ describe("ReaderReducer", () => {
 
       // Verify handling of EPUB novel format
       it("should handle EPUB novel", async () => {
-        const mockBook = createMockBookWithState({ id: 1, last_read_page_index: 0 });
+        const mockBook = createMockBookWithState({ id: 1, lastReadPageIndex: 0 });
         vi.mocked(api.openBook).mockResolvedValue(
-          opened({ entries: ["p1", "p2"], is_novel: true, book: mockBook }),
+          opened({ entries: ["p1", "p2"], isNovel: true, book: mockBook }),
         );
 
         store.dispatch(bookPathOpened({ path: "path.epub", origin: null }));
@@ -762,7 +762,7 @@ describe("ReaderReducer", () => {
         const nameBuffer = new TextEncoder().encode(name);
         const buffer = new ArrayBuffer(1 + 4 + nameBuffer.byteLength + 8);
         const view = new DataView(buffer);
-        view.setUint8(0, 1); // is_directory = true
+        view.setUint8(0, 1); // isDirectory = true
         view.setUint32(1, nameBuffer.byteLength);
         new Uint8Array(buffer).set(nameBuffer, 5);
         view.setBigUint64(5 + nameBuffer.byteLength, BigInt(0));
@@ -811,9 +811,9 @@ describe("ReaderReducer", () => {
       // A failed open must not leave the previous book's title, type or reading state
       // on screen.
       it("should clear the previously opened book when opening fails", async () => {
-        const mockBook = createMockBookWithState({ id: 1, last_read_page_index: 1 });
+        const mockBook = createMockBookWithState({ id: 1, lastReadPageIndex: 1 });
         vi.mocked(api.openBook).mockResolvedValue(
-          opened({ entries: ["p1", "p2"], is_directory: true, is_novel: true, book: mockBook }),
+          opened({ entries: ["p1", "p2"], isDirectory: true, isNovel: true, book: mockBook }),
         );
 
         store.dispatch(bookPathOpened({ path: "good.zip", origin: null }));
@@ -873,7 +873,7 @@ describe("ReaderReducer", () => {
         vi.mocked(api.openBook).mockResolvedValue(
           opened({
             entries: ["p1"],
-            record_error: { code: ErrorCode.database, message: "locked", details: null },
+            recordError: { code: ErrorCode.database, message: "locked", details: null },
           }),
         );
         store.dispatch(bookPathOpened({ path: "/books/a.zip", origin: null }));
@@ -900,7 +900,7 @@ describe("ReaderReducer", () => {
         finishOpen(
           opened({
             entries: ["p1"],
-            record_error: { code: ErrorCode.database, message: "locked", details: null },
+            recordError: { code: ErrorCode.database, message: "locked", details: null },
           }),
         );
         await first;
@@ -913,7 +913,7 @@ describe("ReaderReducer", () => {
       const pages = (count: number) =>
         opened({
           entries: Array.from({ length: count }, (_, i) => `p${i + 1}`),
-          book: createMockBookWithState({ id: 1, last_read_page_index: 0 }),
+          book: createMockBookWithState({ id: 1, lastReadPageIndex: 0 }),
         });
 
       beforeEach(() => {
@@ -998,7 +998,7 @@ describe("ReaderReducer", () => {
       it("a new book starts from a clean view", async () => {
         vi.mocked(api.openBook).mockResolvedValueOnce({
           ...pages(5),
-          has_previews: true,
+          hasPreviews: true,
         });
         await store.dispatch(openBook({ path: "/a.zip", origin: null }));
         store.dispatch(setNovelLocation({ index: 2, cfi: "epubcfi(/6/2)" }));
@@ -1038,8 +1038,8 @@ describe("ReaderReducer", () => {
 
       it("restoreLastBook opens the newest book when history and restore are on", async () => {
         vi.mocked(api.getRecentlyReadBooks).mockResolvedValue([
-          createMockBookWithState({ file_path: "/last/book.zip" }),
-          createMockBookWithState({ file_path: "/older/book.zip" }),
+          createMockBookWithState({ filePath: "/last/book.zip" }),
+          createMockBookWithState({ filePath: "/older/book.zip" }),
         ]);
         store = storeWith(true, true);
 

@@ -21,7 +21,7 @@ export interface CreateCollectionDialogProps {
   /** Whether the dialog is open or closed. */
   open: boolean;
   /** Callback to create a collection. */
-  onCreate: (name: string, icon_id: string) => void;
+  onCreate: (name: string, iconId: string) => void;
   /** Callback to close the dialog. */
   onClose: () => void;
 }

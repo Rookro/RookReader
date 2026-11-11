@@ -46,7 +46,7 @@ export default function SortableBookItem({ book, index }: SortableBookItemProps)
       <ListItemAvatar>
         <Avatar
           variant="rounded"
-          src={book?.thumbnail_path ? convertFileSrc(book.thumbnail_path) : dummy_thumbnail}
+          src={book?.thumbnailPath ? convertFileSrc(book.thumbnailPath) : dummy_thumbnail}
           sx={{
             width: 60,
             height: 80,
@@ -56,11 +56,11 @@ export default function SortableBookItem({ book, index }: SortableBookItemProps)
             },
           }}
         >
-          {!book.thumbnail_path && book.display_name.charAt(0)}
+          {!book.thumbnailPath && book.displayName.charAt(0)}
         </Avatar>
       </ListItemAvatar>
       <ListItemText
-        primary={book.display_name}
+        primary={book.displayName}
         secondary={`# ${index + 1}`}
         slotProps={{
           primary: {

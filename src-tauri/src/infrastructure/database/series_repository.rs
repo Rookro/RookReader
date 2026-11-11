@@ -36,7 +36,7 @@ impl SeriesRepository for SqliteSeriesRepository {
             r#"
             INSERT INTO series (name)
             VALUES (?)
-            RETURNING id, name, created_at
+            RETURNING id, name, created_at as "created_at: chrono::DateTime<chrono::Utc>"
             "#,
             name
         )
@@ -50,7 +50,7 @@ impl SeriesRepository for SqliteSeriesRepository {
         let series_list = sqlx::query_as!(
             Series,
             r#"
-            SELECT id, name, created_at
+            SELECT id, name, created_at as "created_at: chrono::DateTime<chrono::Utc>"
             FROM series
             ORDER BY id ASC
             "#

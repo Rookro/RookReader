@@ -186,7 +186,7 @@ export default function MenuList({ onClickAddCollection, onClickAddBookTag }: Me
                   onContextMenu={(e) => handleContextMenu(e, "collection", item.id)}
                 >
                   <ListItemIcon sx={{ minWidth: "auto", marginRight: "12px" }}>
-                    {CollectionIcons.find((icon) => icon.key === item.icon_id)?.icon ?? (
+                    {CollectionIcons.find((icon) => icon.key === item.iconId)?.icon ?? (
                       <FolderOutlined />
                     )}
                   </ListItemIcon>
@@ -233,7 +233,7 @@ export default function MenuList({ onClickAddCollection, onClickAddBookTag }: Me
                   onContextMenu={(e) => handleContextMenu(e, "tag", item.id)}
                 >
                   <ListItemIcon sx={{ minWidth: "auto", marginRight: "12px" }}>
-                    <LocalOffer sx={{ color: item.color_code }} />
+                    <LocalOffer sx={{ color: item.colorCode }} />
                   </ListItemIcon>
                   <ListItemText primary={item.name} slotProps={{ primary: { noWrap: true } }} />
                 </ListItemButton>

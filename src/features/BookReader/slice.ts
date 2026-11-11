@@ -39,11 +39,11 @@ export const openContainerFile = createAppAsyncThunk(
     try {
       const [opened, dirPath] = await Promise.all([api.openBook(path), dirname(path)]);
 
-      const isEpubNovel = opened.is_novel;
+      const isEpubNovel = opened.isNovel;
 
       if (!isEpubNovel) {
         debug(
-          `openContainerFile: Retrieved ${opened.entries.length} entries. (Container is directory: ${opened.is_directory})`,
+          `openContainerFile: Retrieved ${opened.entries.length} entries. (Container is directory: ${opened.isDirectory})`,
         );
       } else {
         debug(`openContainerFile: Epub Novel is opened.`);
@@ -54,8 +54,8 @@ export const openContainerFile = createAppAsyncThunk(
       // The book is open either way. Failing to remember it in the library is worth telling
       // the user about, but it is not "the book could not be opened", so it is reported apart.
       const book = opened.book;
-      if (opened.record_error) {
-        const recordError = createCommandError(opened.record_error);
+      if (opened.recordError) {
+        const recordError = createCommandError(opened.recordError);
         error(`Failed to record the opened book(${path}). Error: ${recordError.message}`);
         if (!isSuperseded()) {
           dispatch(errorReported({ context: "record-book", code: recordError.code }));
@@ -64,12 +64,12 @@ export const openContainerFile = createAppAsyncThunk(
 
       // The backend gives a comic opened for the first time the default direction.
       // Novels are excluded: their direction is the EPUB's own and cannot be overridden.
-      const readingDirection = isEpubNovel ? null : (book?.reading_direction ?? null);
+      const readingDirection = isEpubNovel ? null : (book?.readingDirection ?? null);
 
       if (!isEpubNovel) {
         const state = getState();
         const preloadPageCount = state.settings.reader.comic.cache.preloadPageCount;
-        const startIndex = book?.last_read_page_index ?? 0;
+        const startIndex = book?.lastReadPageIndex ?? 0;
         // The viewer mounts moments from now and asks for its own unit at foreground
         // priority; leave those pages to it rather than have this window reach them
         // first and make the reader wait on a background job.
@@ -81,9 +81,9 @@ export const openContainerFile = createAppAsyncThunk(
 
       return {
         entries: opened.entries,
-        isDirectory: opened.is_directory,
+        isDirectory: opened.isDirectory,
         isNovel: isEpubNovel,
-        hasPreviews: opened.has_previews,
+        hasPreviews: opened.hasPreviews,
         book: book,
         readingDirection,
       };
@@ -384,10 +384,10 @@ export const readerSlice = createSlice({
           state.index = 0;
           state.cfi = null;
         } else {
-          // Clamp the restored index so a stale last_read_page_index past the
+          // Clamp the restored index so a stale lastReadPageIndex past the
           // current page count never strands the viewer on a blank page.
           const total = state.entries.length;
-          const restored = action.payload.book?.last_read_page_index ?? 0;
+          const restored = action.payload.book?.lastReadPageIndex ?? 0;
           state.index = total > 0 ? Math.min(Math.max(0, restored), total - 1) : 0;
           // Novels resume at the persisted CFI; NovelReader passes it to
           // view.init({ lastLocation }) on mount. Comics never carry a CFI.
@@ -396,7 +396,7 @@ export const readerSlice = createSlice({
         // The reader's own correction to how this book pairs, restored with the book rather
         // than inferred from the restored page, so where they stopped reading does not
         // decide the pairing.
-        state.isSpreadShifted = action.payload.book?.is_spread_shifted ?? false;
+        state.isSpreadShifted = action.payload.book?.isSpreadShifted ?? false;
         state.readingDirection = action.payload.readingDirection;
         state.pendingInitialPosition = null;
         if (action.payload.isNovel !== undefined) {
@@ -515,7 +515,7 @@ export const restoreLastBook = createAppAsyncThunk(
     try {
       const [latest] = await api.getRecentlyReadBooks();
       if (latest) {
-        await dispatch(openBook({ path: latest.file_path, origin: { kind: "startup" } }));
+        await dispatch(openBook({ path: latest.filePath, origin: { kind: "startup" } }));
       }
     } catch (e) {
       error(`Failed to restore the last book: ${String(e)}`);

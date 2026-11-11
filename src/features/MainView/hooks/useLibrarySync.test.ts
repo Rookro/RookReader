@@ -70,7 +70,7 @@ describe("useLibrarySync", () => {
     renderHook(() => useLibrarySync());
     vi.clearAllMocks();
     eventHandler({
-      payload: { book_id: bookId, last_read_page_index: 1, cfi: null, last_opened_at: null },
+      payload: { bookId, lastReadPageIndex: 1, cfi: null, lastOpenedAt: null },
     } as Event<ReadingState>);
   };
 
@@ -235,10 +235,10 @@ describe("useLibrarySync", () => {
     vi.clearAllMocks();
 
     const payload: ReadingState = {
-      book_id: 42,
-      last_read_page_index: 7,
+      bookId: 42,
+      lastReadPageIndex: 7,
       cfi: null,
-      last_opened_at: "2026-03-01T15:30:00",
+      lastOpenedAt: "2026-03-01T15:30:00Z",
     };
     eventHandler({ payload } as Event<ReadingState>);
 
