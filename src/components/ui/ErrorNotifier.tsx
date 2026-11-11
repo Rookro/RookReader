@@ -1,0 +1,29 @@
+import { useEffect } from "react";
+import { errorsShown } from "../../store/errorNotificationSlice";
+import { useAppDispatch, useAppSelector } from "../../store/store";
+import { useNotification } from "./Notification/NotificationContext";
+import { useErrorMessage } from "./useErrorMessage";
+
+/**
+ * Shows the errors the store has collected (`errorNotification`) as notifications, then
+ * empties the queue. Renders nothing.
+ *
+ * Errors collected together are shown as one notification, one message per line.
+ */
+export default function ErrorNotifier() {
+  const errorMessage = useErrorMessage();
+  const { showNotification } = useNotification();
+  const dispatch = useAppDispatch();
+  const pending = useAppSelector((state) => state.errorNotification.pending);
+
+  useEffect(() => {
+    if (pending.length === 0) {
+      return;
+    }
+    const messages = pending.map(({ context, code }) => errorMessage(context, code));
+    showNotification([...new Set(messages)].join("\n"), "error");
+    dispatch(errorsShown());
+  }, [pending, errorMessage, showNotification, dispatch]);
+
+  return null;
+}

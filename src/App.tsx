@@ -1,8 +1,7 @@
 import { CssBaseline, ThemeProvider } from "@mui/material";
-import GlobalErrorListener from "./components/ui/GlobalErrorListener";
+import ErrorNotifier from "./components/ui/ErrorNotifier";
 import NotificationProvider from "./components/ui/Notification/NotificationContext";
 import MainView from "./features/MainView/components/MainView";
-import SettingsErrorListener from "./features/Settings/components/SettingsErrorListener";
 import { useAppTheme } from "./hooks/useAppTheme";
 
 export default function App() {
@@ -12,8 +11,7 @@ export default function App() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <NotificationProvider>
-        <GlobalErrorListener />
-        <SettingsErrorListener />
+        <ErrorNotifier />
         <MainView
           sx={{
             width: "100vw",

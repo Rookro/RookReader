@@ -11,7 +11,6 @@ import {
 import { CommandError, ErrorCode } from "../../types/Error";
 import readerReducer, {
   bookPathOpened,
-  clearContainerFileError,
   goBackContainerHistory,
   goForwardContainerHistory,
   historyMovedBack,
@@ -305,14 +304,6 @@ describe("ReaderReducer", () => {
       const kept = readerReducer(state, bookPathOpened({ path: "b", origin: null }));
       expect(kept.pendingInitialPosition).toBe("last");
     });
-
-    // Verify that the container error state is cleared correctly
-    it("should handle clear errors", () => {
-      const initialState = { error: { code: ErrorCode.other } } as RootState["reader"];
-
-      const state = readerReducer(initialState, clearContainerFileError());
-      expect(state.error).toBeNull();
-    });
   });
 
   describe("Async Thunk Integration Tests", () => {
@@ -349,23 +340,6 @@ describe("ReaderReducer", () => {
         openContainerFile.rejected(new Error(), "requestId", "arg", undefined),
       );
       expect(state.novelDirection).toBeNull();
-    });
-
-    // Verify error handling for rejected actions with undefined payload
-    it("should handle rejected actions with undefined payload", () => {
-      const mockState = {
-        // History head matches the rejected action's meta.arg ("arg") so the
-        // staleness guard lets the rejection through.
-        error: null,
-        history: ["arg"],
-        historyIndex: 0,
-      } as RootState["reader"];
-
-      const state = readerReducer(
-        mockState,
-        openContainerFile.rejected(new Error(), "requestId", "arg", undefined),
-      );
-      expect(state.error).toBeNull();
     });
 
     describe("openContainerFile thunk", () => {
@@ -432,11 +406,6 @@ describe("ReaderReducer", () => {
         const state = store.getState().reader;
         expect(state.entries).toEqual(["p1", "p2"]);
         expect(state.book).toBeNull();
-        expect(state.error).toBeNull();
-        expect(state.bookRecordError).toEqual({
-          code: ErrorCode.database,
-          message: "database is locked",
-        });
       });
 
       // The open-time window is the one that races the viewer's first request: it must
@@ -718,7 +687,6 @@ describe("ReaderReducer", () => {
           isDirectory: false,
           isLoading: false,
           cfi: null,
-          error: null,
           pendingInitialPosition: null,
         } as unknown as RootState["reader"];
 
@@ -731,7 +699,6 @@ describe("ReaderReducer", () => {
             hasPreviews: false,
             book: createMockBookWithState({ id: 1 }),
             readingDirection: "rtl",
-            bookRecordError: null,
           },
           "requestId",
           "old.zip",
@@ -751,7 +718,9 @@ describe("ReaderReducer", () => {
 
         const state = store.getState().reader;
         expect(state.isLoading).toBe(false);
-        expect(state.error?.code).toBe(ErrorCode.path);
+        expect(store.getState().errorNotification.pending).toEqual([
+          { context: "open-container", code: ErrorCode.path },
+        ]);
       });
 
       // Verify handling of CommandError during opening
@@ -762,9 +731,9 @@ describe("ReaderReducer", () => {
         store.dispatch(bookPathOpened({ path: "fail.zip", origin: null }));
         await store.dispatch(openContainerFile("fail.zip"));
 
-        const state = store.getState().reader;
-        expect(state.error?.code).toBe(ErrorCode.other);
-        expect(state.error?.message).toContain("cmd failed");
+        expect(store.getState().errorNotification.pending).toEqual([
+          { context: "open-container", code: ErrorCode.other },
+        ]);
       });
     });
 
@@ -779,7 +748,9 @@ describe("ReaderReducer", () => {
 
         const state = store.getState().reader;
         expect(state.isLoading).toBe(false);
-        expect(state.error?.message).toContain(testError);
+        expect(store.getState().errorNotification.pending).toEqual([
+          { context: "open-container", code: ErrorCode.other },
+        ]);
       });
 
       // Dropping an archive whose pages all live in sub-folders must not strand the
@@ -868,6 +839,73 @@ describe("ReaderReducer", () => {
         await store.dispatch(openContainerFile("fail.zip"));
 
         expect(store.getState().reader.pendingInitialPosition).toBeNull();
+      });
+
+      it("a superseded open fails silently", async () => {
+        let failOpen: (reason: unknown) => void = () => {};
+        vi.mocked(api.openBook).mockReturnValueOnce(
+          new Promise((_, reject) => {
+            failOpen = reject;
+          }),
+        );
+        store.dispatch(bookPathOpened({ path: "a.zip", origin: null }));
+        const first = store.dispatch(openContainerFile("a.zip"));
+        store.dispatch(bookPathOpened({ path: "b.zip", origin: null }));
+
+        failOpen(new CommandError(ErrorCode.pathNotFound, "gone"));
+        await first;
+
+        expect(store.getState().errorNotification.pending).toEqual([]);
+      });
+
+      it("reports a failed open of the current book", async () => {
+        vi.mocked(api.openBook).mockRejectedValue(new CommandError(ErrorCode.pathNotFound, "gone"));
+        store.dispatch(bookPathOpened({ path: "a.zip", origin: null }));
+
+        await store.dispatch(openContainerFile("a.zip"));
+
+        expect(store.getState().errorNotification.pending).toEqual([
+          { context: "open-container", code: ErrorCode.pathNotFound },
+        ]);
+      });
+
+      it("reports a book that opened but could not be recorded", async () => {
+        vi.mocked(api.openBook).mockResolvedValue(
+          opened({
+            entries: ["p1"],
+            record_error: { code: ErrorCode.database, message: "locked", details: null },
+          }),
+        );
+        store.dispatch(bookPathOpened({ path: "/books/a.zip", origin: null }));
+
+        await store.dispatch(openContainerFile("/books/a.zip"));
+
+        expect(store.getState().reader.entries).toEqual(["p1"]);
+        expect(store.getState().errorNotification.pending).toEqual([
+          { context: "record-book", code: ErrorCode.database },
+        ]);
+      });
+
+      it("a superseded open's record failure is silent", async () => {
+        let finishOpen: (value: Opened) => void = () => {};
+        vi.mocked(api.openBook).mockReturnValueOnce(
+          new Promise((resolve) => {
+            finishOpen = resolve;
+          }),
+        );
+        store.dispatch(bookPathOpened({ path: "/books/a.zip", origin: null }));
+        const first = store.dispatch(openContainerFile("/books/a.zip"));
+        store.dispatch(bookPathOpened({ path: "/books/b.zip", origin: null }));
+
+        finishOpen(
+          opened({
+            entries: ["p1"],
+            record_error: { code: ErrorCode.database, message: "locked", details: null },
+          }),
+        );
+        await first;
+
+        expect(store.getState().errorNotification.pending).toEqual([]);
       });
     });
 

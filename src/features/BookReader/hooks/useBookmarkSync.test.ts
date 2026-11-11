@@ -26,7 +26,6 @@ describe("useBookmarkSync", () => {
       bookId: 7,
       bookmarks: [createMockBookmark({ book_id: 7 })],
       status: "succeeded",
-      error: null,
     };
     const store = createTestStore(state);
 

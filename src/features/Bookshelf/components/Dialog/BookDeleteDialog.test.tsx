@@ -77,7 +77,6 @@ describe("BookDeleteDialog", () => {
     preloadedState.collection.selectedId = 1;
     preloadedState.collection.books = [];
     preloadedState.collection.status = "idle";
-    preloadedState.collection.error = null;
 
     renderWithProviders(<BookDeleteDialog {...defaultProps} />, { preloadedState });
     expect(screen.getByText(/Shelf 1/)).toBeInTheDocument();

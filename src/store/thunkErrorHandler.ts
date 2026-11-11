@@ -35,16 +35,3 @@ export function handleThunkError<R>(
   }
   return rejectWithValue(value);
 }
-
-/**
- * Stores a thunk rejection's payload as the slice's error, for rejected cases that do nothing else.
- *
- * @param state - The slice state.
- * @param action - The rejected action.
- */
-export function recordThunkError(
-  state: { error: ThunkRejectValue | null },
-  action: { payload?: ThunkRejectValue },
-): void {
-  state.error = action.payload ?? null;
-}

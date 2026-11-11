@@ -7,7 +7,6 @@ import CollectionReducer from "../features/Bookshelf/slice";
 import TagReducer from "../features/Bookshelf/tagSlice";
 import HistoryReducer from "../features/History/slice";
 import ViewReducer from "../features/MainView/slice";
-import SettingsErrorReducer from "../features/Settings/errorSlice";
 import SettingsReducer from "../features/Settings/slice";
 import ErrorNotificationReducer from "./errorNotificationSlice";
 
@@ -21,6 +20,5 @@ export const rootReducer = combineReducers({
   tag: TagReducer,
   series: SeriesReducer,
   settings: SettingsReducer,
-  settingsError: SettingsErrorReducer,
   errorNotification: ErrorNotificationReducer,
 });

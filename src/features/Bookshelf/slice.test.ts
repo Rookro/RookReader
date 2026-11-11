@@ -4,11 +4,9 @@ import type { BookWithState, Collection, Series, Tag } from "../../domain/entiti
 import { readingProgressChanged } from "../../store/actions";
 import { createMockBookWithState, createMockCollection, createMockTag } from "../../test/factories";
 import { type AppStore, createBasePreloadedState, createTestStore } from "../../test/utils";
-import type { ThunkRejectValue } from "../../types/CustomAsyncThunk";
 import { CommandError, ErrorCode } from "../../types/Error";
 import seriesReducer, {
   addSeries,
-  clearSeriesError,
   fetchSeries,
   removeSeries,
   setSelectedSeriesId,
@@ -18,7 +16,6 @@ import seriesReducer, {
 import collectionReducer, {
   addBookToBookshelf,
   addCollection,
-  clearCollectionError,
   collectionAdded,
   deleteBookFromCollection,
   fetchBooksInSelectedCollection,
@@ -30,7 +27,6 @@ import collectionReducer, {
 } from "./slice";
 import tagReducer, {
   addTag,
-  clearTagError,
   fetchTags,
   removeTag,
   setSelectedTag,
@@ -49,7 +45,6 @@ describe("CollectionReducer", () => {
     booksRequestId: null as string | null,
     isRefreshing: false,
     status: "idle" as "idle" | "loading" | "succeeded" | "failed",
-    error: null as ThunkRejectValue | null,
   };
 
   beforeEach(() => {
@@ -73,14 +68,6 @@ describe("CollectionReducer", () => {
     const newCollection = createMockCollection({ id: 1, name: "New" });
     const nextState = collectionReducer(collectionInitialState, collectionAdded(newCollection));
     expect(nextState.collections).toContainEqual(newCollection);
-  });
-
-  // Verify that collection error state is cleared correctly
-  it("should handle clearCollectionError", () => {
-    const stateWithError = structuredClone(collectionInitialState);
-    stateWithError.error = { code: ErrorCode.other };
-    const nextState = collectionReducer(stateWithError, clearCollectionError());
-    expect(nextState.error).toBeNull();
   });
 
   // Verify that readingProgressChanged patches the matching book in place.
@@ -227,7 +214,6 @@ describe("CollectionReducer", () => {
       const action = { type: addCollection.rejected.type, payload: undefined };
       const nextState = collectionReducer(collectionInitialState, action);
       expect(nextState.status).toBe("idle");
-      expect(nextState.error).toBeNull();
     });
 
     describe("Collection Thunks", () => {
@@ -251,7 +237,9 @@ describe("CollectionReducer", () => {
 
         const state = store.getState().collection;
         expect(state.status).toBe("idle");
-        expect(state.error?.code).toBe(ErrorCode.io);
+        expect(store.getState().errorNotification.pending).toEqual([
+          { context: "bookshelf", code: ErrorCode.io },
+        ]);
       });
 
       // Verify error handling when collection fetching fails
@@ -272,7 +260,9 @@ describe("CollectionReducer", () => {
 
         const state = store.getState().collection;
         expect(state.status).toBe("idle");
-        expect(state.error?.code).toBe(ErrorCode.other);
+        expect(store.getState().errorNotification.pending).toEqual([
+          { context: "bookshelf", code: ErrorCode.other },
+        ]);
         expect(state.collections).toEqual([]);
       });
 
@@ -296,7 +286,9 @@ describe("CollectionReducer", () => {
 
         const state = store.getState().collection;
         expect(state.status).toBe("idle");
-        expect(state.error?.code).toBe(ErrorCode.io);
+        expect(store.getState().errorNotification.pending).toEqual([
+          { context: "bookshelf", code: ErrorCode.io },
+        ]);
       });
 
       // Verify handling of generic Error during collection creation
@@ -308,7 +300,9 @@ describe("CollectionReducer", () => {
 
         const state = store.getState().collection;
         expect(state.status).toBe("idle");
-        expect(state.error?.code).toBe(ErrorCode.other);
+        expect(store.getState().errorNotification.pending).toEqual([
+          { context: "bookshelf", code: ErrorCode.other },
+        ]);
       });
 
       // Verify error handling when collection removal fails with no payload
@@ -322,7 +316,9 @@ describe("CollectionReducer", () => {
 
         const state = store.getState().collection;
         expect(state.status).toBe("idle");
-        expect(state.error).toBeDefined();
+        expect(store.getState().errorNotification.pending).toEqual([
+          { context: "bookshelf", code: ErrorCode.other },
+        ]);
       });
 
       // Verify that selectedId is reset if the selected collection is deleted
@@ -366,7 +362,9 @@ describe("CollectionReducer", () => {
 
         const state = store.getState().collection;
         expect(state.status).toBe("idle");
-        expect(state.error?.code).toBe(ErrorCode.other);
+        expect(store.getState().errorNotification.pending).toEqual([
+          { context: "bookshelf", code: ErrorCode.other },
+        ]);
       });
 
       // Verify CommandError handling when collection removal fails
@@ -378,7 +376,9 @@ describe("CollectionReducer", () => {
 
         const state = store.getState().collection;
         expect(state.status).toBe("idle");
-        expect(state.error?.code).toBe(ErrorCode.database);
+        expect(store.getState().errorNotification.pending).toEqual([
+          { context: "bookshelf", code: ErrorCode.database },
+        ]);
       });
 
       // Verify that selecting a collection updates selectedId (the fetch is driven
@@ -449,7 +449,9 @@ describe("CollectionReducer", () => {
 
         const state = store.getState().collection;
         expect(state.status).toBe("idle");
-        expect(state.error?.code).toBe(ErrorCode.other);
+        expect(store.getState().errorNotification.pending).toEqual([
+          { context: "bookshelf", code: ErrorCode.other },
+        ]);
       });
 
       // Verify CommandError handling when book addition fails
@@ -461,7 +463,9 @@ describe("CollectionReducer", () => {
 
         const state = store.getState().collection;
         expect(state.status).toBe("idle");
-        expect(state.error?.code).toBe(ErrorCode.io);
+        expect(store.getState().errorNotification.pending).toEqual([
+          { context: "bookshelf", code: ErrorCode.io },
+        ]);
       });
 
       // Verify state update when removing a book from the collection
@@ -491,7 +495,9 @@ describe("CollectionReducer", () => {
 
         const state = store.getState().collection;
         expect(state.status).toBe("idle");
-        expect(state.error?.code).toBe(ErrorCode.other);
+        expect(store.getState().errorNotification.pending).toEqual([
+          { context: "bookshelf", code: ErrorCode.other },
+        ]);
       });
 
       // Verify CommandError handling when book deletion fails
@@ -503,7 +509,9 @@ describe("CollectionReducer", () => {
 
         const state = store.getState().collection;
         expect(state.status).toBe("idle");
-        expect(state.error?.code).toBe(ErrorCode.database);
+        expect(store.getState().errorNotification.pending).toEqual([
+          { context: "bookshelf", code: ErrorCode.database },
+        ]);
       });
 
       // Verify state update on successful fetching of books in selected collection
@@ -559,7 +567,46 @@ describe("CollectionReducer", () => {
 
         const state = store.getState().collection;
         expect(state.status).toBe("failed");
-        expect(state.error?.code).toBe(ErrorCode.io);
+        expect(store.getState().errorNotification.pending).toEqual([
+          { context: "bookshelf", code: ErrorCode.io },
+        ]);
+      });
+
+      it("a superseded book fetch fails silently", async () => {
+        let failFetch: (reason: unknown) => void = () => {};
+        vi.mocked(api.getAllBooksWithState)
+          .mockReturnValueOnce(
+            new Promise((_, reject) => {
+              failFetch = reject;
+            }),
+          )
+          .mockResolvedValueOnce([]);
+        const first = store.dispatch(fetchBooksInSelectedCollection(null));
+        await store.dispatch(fetchBooksInSelectedCollection(null));
+
+        failFetch(new CommandError(ErrorCode.database, "locked"));
+        await first;
+
+        expect(store.getState().errorNotification.pending).toEqual([]);
+      });
+
+      // Selecting another collection starts no request, so only the selection tells.
+      it("a book fetch for a collection the user left fails silently", async () => {
+        let failFetch: (reason: unknown) => void = () => {};
+        vi.mocked(api.getBooksByCollection).mockReturnValueOnce(
+          new Promise((_, reject) => {
+            failFetch = reject;
+          }),
+        );
+        store.dispatch(setSelectedCollection(1));
+        const first = store.dispatch(fetchBooksInSelectedCollection(1));
+        store.dispatch(setSelectedCollection(2));
+
+        failFetch(new CommandError(ErrorCode.database, "locked"));
+        await first;
+
+        expect(store.getState().collection.booksRequestId).toBe(first.requestId);
+        expect(store.getState().errorNotification.pending).toEqual([]);
       });
 
       it("setCollectionsForBooks should save each book's collections", async () => {
@@ -578,7 +625,7 @@ describe("CollectionReducer", () => {
         expect(api.setCollectionsForBook).toHaveBeenCalledWith(2, []);
       });
 
-      it("setCollectionsForBooks should set only the error on failure", async () => {
+      it("setCollectionsForBooks should report a failure without touching status", async () => {
         vi.mocked(api.setCollectionsForBook).mockRejectedValue(
           new CommandError(ErrorCode.database, "db fail"),
         );
@@ -588,7 +635,9 @@ describe("CollectionReducer", () => {
         const state = store.getState().collection;
         // A mutation never flips the grid into its loading state.
         expect(state.status).toBe("idle");
-        expect(state.error?.code).toBe(ErrorCode.database);
+        expect(store.getState().errorNotification.pending).toEqual([
+          { context: "bookshelf", code: ErrorCode.database },
+        ]);
       });
     });
   });
@@ -601,7 +650,6 @@ describe("TagReducer", () => {
     tags: [] as Tag[],
     selectedId: null as number | null,
     status: "idle" as const,
-    error: null as ThunkRejectValue | null,
   };
 
   beforeEach(() => {
@@ -618,16 +666,6 @@ describe("TagReducer", () => {
   it("should handle setSelectedTag", () => {
     const nextState = tagReducer(tagInitialState, setSelectedTag(1));
     expect(nextState.selectedId).toBe(1);
-  });
-
-  // Verify that tag error state is cleared correctly
-  it("should handle clearTagError", () => {
-    const stateWithError = {
-      ...tagInitialState,
-      error: { code: ErrorCode.other },
-    };
-    const nextState = tagReducer(stateWithError, clearTagError());
-    expect(nextState.error).toBeNull();
   });
 
   describe("Tag Thunks", () => {
@@ -669,7 +707,9 @@ describe("TagReducer", () => {
 
       const state = store.getState().tag;
       expect(state.status).toBe("failed");
-      expect(state.error?.code).toBe(ErrorCode.database);
+      expect(store.getState().errorNotification.pending).toEqual([
+        { context: "tag", code: ErrorCode.database },
+      ]);
     });
 
     // Verify state update on successful tag creation
@@ -691,7 +731,9 @@ describe("TagReducer", () => {
 
       const state = store.getState().tag;
       expect(state.status).toBe("failed");
-      expect(state.error?.code).toBe(ErrorCode.other);
+      expect(store.getState().errorNotification.pending).toEqual([
+        { context: "tag", code: ErrorCode.other },
+      ]);
     });
 
     // Verify CommandError handling when tag creation fails
@@ -703,7 +745,9 @@ describe("TagReducer", () => {
 
       const state = store.getState().tag;
       expect(state.status).toBe("failed");
-      expect(state.error?.code).toBe(ErrorCode.io);
+      expect(store.getState().errorNotification.pending).toEqual([
+        { context: "tag", code: ErrorCode.io },
+      ]);
     });
 
     // Verify that selectedId is reset if the selected tag is deleted
@@ -745,7 +789,9 @@ describe("TagReducer", () => {
 
       const state = store.getState().tag;
       expect(state.status).toBe("failed");
-      expect(state.error?.code).toBe(ErrorCode.other);
+      expect(store.getState().errorNotification.pending).toEqual([
+        { context: "tag", code: ErrorCode.other },
+      ]);
     });
 
     // Verify CommandError handling when tag removal fails
@@ -757,7 +803,9 @@ describe("TagReducer", () => {
 
       const state = store.getState().tag;
       expect(state.status).toBe("failed");
-      expect(state.error?.code).toBe(ErrorCode.database);
+      expect(store.getState().errorNotification.pending).toEqual([
+        { context: "tag", code: ErrorCode.database },
+      ]);
     });
 
     it("updateBooksTags should save each book's own tag set", async () => {
@@ -775,7 +823,7 @@ describe("TagReducer", () => {
       expect(api.setTagsForBook).toHaveBeenCalledWith(2, [3, 7]);
     });
 
-    it("updateBooksTags should set only the error on failure", async () => {
+    it("updateBooksTags should report a failure without touching status", async () => {
       vi.mocked(api.setTagsForBook).mockRejectedValue(
         new CommandError(ErrorCode.database, "db fail"),
       );
@@ -784,7 +832,9 @@ describe("TagReducer", () => {
 
       const state = store.getState().tag;
       expect(state.status).toBe("idle");
-      expect(state.error?.code).toBe(ErrorCode.database);
+      expect(store.getState().errorNotification.pending).toEqual([
+        { context: "tag", code: ErrorCode.database },
+      ]);
     });
   });
 });
@@ -797,7 +847,6 @@ describe("SeriesReducer", () => {
     selectedId: null as number | null,
     books: [] as BookWithState[],
     status: "idle" as const,
-    error: null as ThunkRejectValue | null,
   };
 
   beforeEach(() => {
@@ -814,14 +863,6 @@ describe("SeriesReducer", () => {
   it("should handle setSelectedSeriesId", () => {
     const nextState = seriesReducer(seriesInitialState, setSelectedSeriesId(1));
     expect(nextState.selectedId).toBe(1);
-  });
-
-  // Verify that series error state is cleared correctly
-  it("should handle clearSeriesError", () => {
-    const stateWithError = structuredClone(seriesInitialState);
-    stateWithError.error = { code: ErrorCode.other };
-    const nextState = seriesReducer(stateWithError, clearSeriesError());
-    expect(nextState.error).toBeNull();
   });
 
   // Verify that choosing a collection, even the one already shown, closes the open series
@@ -905,6 +946,18 @@ describe("SeriesReducer", () => {
       expect(result.payload).toMatchObject({ code: ErrorCode.other });
     });
 
+    it("reports a failed series reorder", async () => {
+      vi.mocked(api.setSeriesOrder).mockRejectedValue(
+        new CommandError(ErrorCode.database, "locked"),
+      );
+
+      await store.dispatch(updateSeriesOrdersThunk([1, 2]));
+
+      expect(store.getState().errorNotification.pending).toEqual([
+        { context: "series", code: ErrorCode.database },
+      ]);
+    });
+
     it("addSeries should create the series, refetch the list, and return the new id", async () => {
       const created: Series = { id: 3, name: "New", created_at: "2026-03-01T15:30:00" };
       vi.mocked(api.createSeries).mockResolvedValue(created);
@@ -917,7 +970,7 @@ describe("SeriesReducer", () => {
       expect(store.getState().series.series).toEqual([created]);
     });
 
-    it("addSeries should set only the error on failure", async () => {
+    it("addSeries should report a failure without touching status", async () => {
       vi.mocked(api.createSeries).mockRejectedValue(
         new CommandError(ErrorCode.database, "db fail"),
       );
@@ -926,7 +979,9 @@ describe("SeriesReducer", () => {
 
       const state = store.getState().series;
       expect(state.status).toBe("idle");
-      expect(state.error?.code).toBe(ErrorCode.database);
+      expect(store.getState().errorNotification.pending).toEqual([
+        { context: "series", code: ErrorCode.database },
+      ]);
       expect(api.getAllSeries).not.toHaveBeenCalled();
     });
 
@@ -939,14 +994,16 @@ describe("SeriesReducer", () => {
       expect(api.deleteSeries).toHaveBeenCalledWith(5);
     });
 
-    it("removeSeries should set only the error on failure", async () => {
+    it("removeSeries should report a failure without touching status", async () => {
       vi.mocked(api.deleteSeries).mockRejectedValue(new Error());
 
       await store.dispatch(removeSeries(5));
 
       const state = store.getState().series;
       expect(state.status).toBe("idle");
-      expect(state.error?.code).toBe(ErrorCode.other);
+      expect(store.getState().errorNotification.pending).toEqual([
+        { context: "series", code: ErrorCode.other },
+      ]);
     });
 
     it("updateBooksSeries should assign the series to every book", async () => {
@@ -959,7 +1016,7 @@ describe("SeriesReducer", () => {
       expect(api.setSeriesForBook).toHaveBeenCalledWith(2, null);
     });
 
-    it("updateBooksSeries should set only the error on failure", async () => {
+    it("updateBooksSeries should report a failure without touching status", async () => {
       vi.mocked(api.setSeriesForBook).mockRejectedValue(
         new CommandError(ErrorCode.database, "db fail"),
       );
@@ -968,7 +1025,9 @@ describe("SeriesReducer", () => {
 
       const state = store.getState().series;
       expect(state.status).toBe("idle");
-      expect(state.error?.code).toBe(ErrorCode.database);
+      expect(store.getState().errorNotification.pending).toEqual([
+        { context: "series", code: ErrorCode.database },
+      ]);
     });
 
     // Verify state update on successful series fetching
@@ -1012,7 +1071,9 @@ describe("SeriesReducer", () => {
 
       const state = store.getState().series;
       expect(state.status).toBe("failed");
-      expect(state.error?.code).toBe(ErrorCode.database);
+      expect(store.getState().errorNotification.pending).toEqual([
+        { context: "series", code: ErrorCode.database },
+      ]);
     });
   });
 });

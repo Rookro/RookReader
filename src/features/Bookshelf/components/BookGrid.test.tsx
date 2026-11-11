@@ -153,7 +153,6 @@ describe("BookGrid", () => {
       collections: [],
       selectedId: 1,
       status: "idle",
-      error: null,
     },
     tag: {
       selectedId: null,

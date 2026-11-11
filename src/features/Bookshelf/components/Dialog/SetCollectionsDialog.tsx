@@ -68,7 +68,7 @@ export default function SetCollectionsDialog({
     const result = await dispatch(
       setCollectionsForBooks(changes.map(({ bookId, ids }) => ({ bookId, collectionIds: ids }))),
     );
-    // On failure the slice error is shown by GlobalErrorListener and the backend's
+    // On failure ErrorNotifier shows the error and the backend's
     // `books-changed` refetch reflects any partial success; stay open for retry.
     if (setCollectionsForBooks.fulfilled.match(result)) {
       onClose();

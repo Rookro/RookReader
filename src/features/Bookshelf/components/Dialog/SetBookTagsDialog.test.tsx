@@ -6,6 +6,7 @@ import { api } from "../../../../bindings/api";
 import type { Tag } from "../../../../domain/entities";
 import { createMockTag } from "../../../../test/factories";
 import { renderWithProviders } from "../../../../test/utils";
+import { ErrorCode } from "../../../../types/Error";
 import SetBookTagsDialog from "./SetBookTagsDialog";
 
 describe("SetBookTagsDialog", () => {
@@ -95,7 +96,7 @@ describe("SetBookTagsDialog", () => {
     });
   });
 
-  it("records a save failure in the tag slice and keeps the dialog open", async () => {
+  it("reports a save failure and keeps the dialog open", async () => {
     vi.mocked(api.getTagsForBook).mockResolvedValue([]);
     vi.mocked(api.setTagsForBook).mockRejectedValue(new Error("Update failed"));
     const onClose = vi.fn();
@@ -108,9 +109,12 @@ describe("SetBookTagsDialog", () => {
     await user.click(screen.getAllByRole("checkbox")[0]);
     await user.click(screen.getByRole("button", { name: /ok/i }));
 
-    // The slice error is what GlobalErrorListener turns into the notification;
-    // the dialog stays open for retry.
-    await waitFor(() => expect(store.getState().tag.error).not.toBeNull());
+    // The queued error becomes the notification; the dialog stays open for retry.
+    await waitFor(() =>
+      expect(store.getState().errorNotification.pending).toEqual([
+        { context: "tag", code: ErrorCode.other },
+      ]),
+    );
     expect(onClose).not.toHaveBeenCalled();
   });
 
@@ -442,7 +446,7 @@ describe("SetBookTagsDialog", () => {
       expect(api.setTagsForBook).not.toHaveBeenCalled();
     });
 
-    it("records a failed creation in the tag slice and checks nothing", async () => {
+    it("reports a failed creation and checks nothing", async () => {
       vi.mocked(api.getTagsForBook).mockResolvedValue([]);
       vi.mocked(api.createTag).mockRejectedValue(new Error("Duplicate"));
       const onClose = vi.fn();
@@ -454,7 +458,11 @@ describe("SetBookTagsDialog", () => {
 
       await createTagFromDialog();
 
-      await waitFor(() => expect(store.getState().tag.error).not.toBeNull());
+      await waitFor(() =>
+        expect(store.getState().errorNotification.pending).toEqual([
+          { context: "tag", code: ErrorCode.other },
+        ]),
+      );
       await user.click(screen.getByRole("button", { name: /ok/i }));
       await waitFor(() => expect(onClose).toHaveBeenCalled());
       expect(api.setTagsForBook).not.toHaveBeenCalled();

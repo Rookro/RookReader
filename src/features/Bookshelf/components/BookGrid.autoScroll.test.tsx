@@ -87,7 +87,6 @@ describe("BookGrid auto-scroll latch", () => {
       collections: [],
       selectedId: 1,
       status: "idle",
-      error: null,
     },
     tag: { selectedId: null, tags: [] },
     series: {

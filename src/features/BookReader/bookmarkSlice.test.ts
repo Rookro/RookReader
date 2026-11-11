@@ -3,11 +3,9 @@ import { api } from "../../bindings/api";
 import type { Bookmark } from "../../domain/entities";
 import { createMockBookmark } from "../../test/factories";
 import { type AppStore, createTestStore } from "../../test/utils";
-import type { ThunkRejectValue } from "../../types/CustomAsyncThunk";
 import { CommandError, ErrorCode } from "../../types/Error";
 import bookmarkReducer, {
   addBookmark,
-  clearBookmarkError,
   clearBookmarks,
   fetchBookmarks,
   removeBookmark,
@@ -21,7 +19,6 @@ describe("BookmarkReducer", () => {
     bookId: null as number | null,
     bookmarks: [] as Bookmark[],
     status: "idle" as "idle" | "loading" | "succeeded" | "failed",
-    error: null as ThunkRejectValue | null,
   };
 
   beforeEach(() => {
@@ -34,19 +31,10 @@ describe("BookmarkReducer", () => {
     expect(bookmarkReducer(undefined, { type: "unknown" })).toEqual(initialState);
   });
 
-  // Verify that the bookmark error state is cleared correctly
-  it("should handle clearBookmarkError", () => {
-    const stateWithError = structuredClone(initialState);
-    stateWithError.error = { code: ErrorCode.other, message: "test error" };
-    const nextState = bookmarkReducer(stateWithError, clearBookmarkError());
-    expect(nextState.error).toBeNull();
-  });
-
   describe("fetchBookmarks", () => {
     it("should mark the state as loading while fetching", () => {
       const nextState = bookmarkReducer(initialState, fetchBookmarks.pending("r", 1));
       expect(nextState.status).toBe("loading");
-      expect(nextState.error).toBeNull();
     });
 
     it("should replace the bookmarks on success", async () => {
@@ -64,7 +52,7 @@ describe("BookmarkReducer", () => {
       expect(state.status).toBe("succeeded");
     });
 
-    it("should clear the bookmarks and record the error on failure", async () => {
+    it("should clear the bookmarks and report the failure", async () => {
       vi.mocked(api.getBookmarksByBookId).mockRejectedValue(
         new CommandError(ErrorCode.other, "fetch failed"),
       );
@@ -74,7 +62,9 @@ describe("BookmarkReducer", () => {
       const state = store.getState().bookmark;
       expect(state.bookmarks).toEqual([]);
       expect(state.status).toBe("failed");
-      expect(state.error?.code).toBe(ErrorCode.other);
+      expect(store.getState().errorNotification.pending).toEqual([
+        { context: "bookmark", code: ErrorCode.other },
+      ]);
     });
 
     // A slow fetch for the previous book must not land in the next book's list
@@ -107,8 +97,25 @@ describe("BookmarkReducer", () => {
         state,
         fetchBookmarks.rejected(null, "r1", 1, { code: ErrorCode.other }),
       );
-      expect(state.error).toBeNull();
       expect(state.status).toBe("loading");
+    });
+
+    it("a superseded bookmark fetch fails silently", async () => {
+      let failFetch: (reason: unknown) => void = () => {};
+      vi.mocked(api.getBookmarksByBookId)
+        .mockReturnValueOnce(
+          new Promise((_, reject) => {
+            failFetch = reject;
+          }),
+        )
+        .mockResolvedValueOnce([]);
+      const first = store.dispatch(fetchBookmarks(1));
+      await store.dispatch(fetchBookmarks(2));
+
+      failFetch(new CommandError(ErrorCode.database, "locked"));
+      await first;
+
+      expect(store.getState().errorNotification.pending).toEqual([]);
     });
   });
 
@@ -171,7 +178,7 @@ describe("BookmarkReducer", () => {
       expect(nextState.bookmarks.map((bookmark) => bookmark.id)).toEqual([4, 5]);
     });
 
-    it("should record the error on failure", async () => {
+    it("should report the failure", async () => {
       vi.mocked(api.createBookmark).mockRejectedValue(
         new CommandError(ErrorCode.other, "add failed"),
       );
@@ -181,7 +188,9 @@ describe("BookmarkReducer", () => {
       const state = store.getState().bookmark;
       // A failed edit says nothing about the loaded list, which stays usable.
       expect(state.status).toBe("idle");
-      expect(state.error?.code).toBe(ErrorCode.other);
+      expect(store.getState().errorNotification.pending).toEqual([
+        { context: "bookmark", code: ErrorCode.other },
+      ]);
     });
   });
 
@@ -201,7 +210,19 @@ describe("BookmarkReducer", () => {
       expect(state.bookmarks.map((bookmark) => bookmark.id)).toEqual([2]);
     });
 
-    it("should record the error on failure", async () => {
+    it("reports a failed bookmark operation", async () => {
+      vi.mocked(api.deleteBookmark).mockRejectedValue(
+        new CommandError(ErrorCode.database, "locked"),
+      );
+
+      await store.dispatch(removeBookmark(1));
+
+      expect(store.getState().errorNotification.pending).toEqual([
+        { context: "bookmark", code: ErrorCode.database },
+      ]);
+    });
+
+    it("should report the failure", async () => {
       vi.mocked(api.deleteBookmark).mockRejectedValue(
         new CommandError(ErrorCode.other, "remove failed"),
       );
@@ -211,7 +232,9 @@ describe("BookmarkReducer", () => {
       const state = store.getState().bookmark;
       // A failed edit says nothing about the loaded list, which stays usable.
       expect(state.status).toBe("idle");
-      expect(state.error?.code).toBe(ErrorCode.other);
+      expect(store.getState().errorNotification.pending).toEqual([
+        { context: "bookmark", code: ErrorCode.other },
+      ]);
     });
   });
 
@@ -242,7 +265,7 @@ describe("BookmarkReducer", () => {
       expect(nextState.bookmarks[0].name).toBe("Page 1");
     });
 
-    it("should record the error on failure", async () => {
+    it("should report the failure", async () => {
       vi.mocked(api.renameBookmark).mockRejectedValue(
         new CommandError(ErrorCode.other, "rename failed"),
       );
@@ -252,7 +275,9 @@ describe("BookmarkReducer", () => {
       const state = store.getState().bookmark;
       // A failed edit says nothing about the loaded list, which stays usable.
       expect(state.status).toBe("idle");
-      expect(state.error?.code).toBe(ErrorCode.other);
+      expect(store.getState().errorNotification.pending).toEqual([
+        { context: "bookmark", code: ErrorCode.other },
+      ]);
     });
   });
 });

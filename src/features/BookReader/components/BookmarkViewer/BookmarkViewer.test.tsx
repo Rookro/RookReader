@@ -31,7 +31,6 @@ describe("BookmarkViewer", () => {
       bookId: 42,
       bookmarks: loadedBookmarks,
       status: "succeeded",
-      error: null,
     };
     return preloadedState;
   };

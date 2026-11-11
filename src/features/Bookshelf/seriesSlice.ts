@@ -1,8 +1,7 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import { api } from "../../bindings/api";
 import type { BookWithState, Series } from "../../domain/entities";
-import { recordThunkError } from "../../store/thunkErrorHandler";
-import { createCommandThunk, type ThunkRejectValue } from "../../types/CustomAsyncThunk";
+import { createCommandThunk } from "../../types/CustomAsyncThunk";
 import { setSelectedCollection } from "./slice";
 
 /**
@@ -86,7 +85,6 @@ const seriesSlice = createSlice({
     selectedId: null as number | null,
     books: [] as BookWithState[],
     status: "idle" as "idle" | "loading" | "succeeded" | "failed",
-    error: null as ThunkRejectValue | null,
   },
   reducers: {
     /**
@@ -98,14 +96,6 @@ const seriesSlice = createSlice({
     setSelectedSeriesId(state, action: PayloadAction<number | null>) {
       state.selectedId = action.payload;
     },
-    /**
-     * Clears any error associated with the series state.
-     *
-     * @param state - The current Redux state slice.
-     */
-    clearSeriesError: (state) => {
-      state.error = null;
-    },
   },
   extraReducers: (builder) => {
     builder
@@ -115,25 +105,17 @@ const seriesSlice = createSlice({
       })
       .addCase(fetchSeries.pending, (state) => {
         state.status = "loading";
-        state.error = null;
       })
       .addCase(fetchSeries.fulfilled, (state, action) => {
         state.status = "succeeded";
         state.series = action.payload;
-        state.error = null;
       })
-      .addCase(fetchSeries.rejected, (state, action) => {
+      .addCase(fetchSeries.rejected, (state) => {
         state.status = "failed";
         state.series = [];
-        state.error = action.payload ?? null;
-      })
-      // Only the error: a mutation must not flip `status` to "loading", which would
-      // blank the grid behind the open dialog.
-      .addCase(addSeries.rejected, recordThunkError)
-      .addCase(removeSeries.rejected, recordThunkError)
-      .addCase(updateBooksSeries.rejected, recordThunkError);
+      });
   },
 });
 
-export const { setSelectedSeriesId, clearSeriesError } = seriesSlice.actions;
+export const { setSelectedSeriesId } = seriesSlice.actions;
 export default seriesSlice.reducer;

@@ -1,7 +1,7 @@
 import { error } from "@tauri-apps/plugin-log";
 import { describe, expect, it, vi } from "vitest";
 import { CommandError, ErrorCode } from "../types/Error";
-import { handleThunkError, recordThunkError } from "./thunkErrorHandler";
+import { handleThunkError } from "./thunkErrorHandler";
 
 // Mock Tauri logger plugin
 vi.mock("@tauri-apps/plugin-log", () => ({
@@ -85,19 +85,5 @@ describe("handleThunkError", () => {
       (value) => value,
     );
     expect(result).not.toHaveProperty("superseded");
-  });
-});
-
-describe("recordThunkError", () => {
-  it("stores the rejection's payload as the error", () => {
-    const state = { error: null };
-    recordThunkError(state, { payload: { code: ErrorCode.other, message: "m" } });
-    expect(state.error).toEqual({ code: ErrorCode.other, message: "m" });
-  });
-
-  it("clears the error when the rejection has no payload", () => {
-    const state = { error: { code: ErrorCode.other } };
-    recordThunkError(state, {});
-    expect(state.error).toBeNull();
   });
 });

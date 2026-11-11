@@ -6,6 +6,7 @@ import { api } from "../../../../bindings/api";
 import type { Collection } from "../../../../domain/entities";
 import { createMockCollection } from "../../../../test/factories";
 import { renderWithProviders } from "../../../../test/utils";
+import { ErrorCode } from "../../../../types/Error";
 import SetCollectionsDialog from "./SetCollectionsDialog";
 
 describe("SetCollectionsDialog", () => {
@@ -164,9 +165,12 @@ describe("SetCollectionsDialog", () => {
     await user.click(screen.getAllByRole("checkbox")[0]);
     await user.click(screen.getByRole("button", { name: /ok|決定/i }));
 
-    // The slice error is what GlobalErrorListener turns into the notification;
-    // the dialog stays open for retry.
-    await waitFor(() => expect(store.getState().collection.error).not.toBeNull());
+    // The queued error becomes the notification; the dialog stays open for retry.
+    await waitFor(() =>
+      expect(store.getState().errorNotification.pending).toEqual([
+        { context: "bookshelf", code: ErrorCode.other },
+      ]),
+    );
     expect(logError).toHaveBeenCalledWith(
       expect.stringContaining("Failed to set collections for books"),
     );
@@ -433,7 +437,11 @@ describe("SetCollectionsDialog", () => {
 
       await createCollectionFromDialog();
 
-      await waitFor(() => expect(store.getState().collection.error).not.toBeNull());
+      await waitFor(() =>
+        expect(store.getState().errorNotification.pending).toEqual([
+          { context: "bookshelf", code: ErrorCode.other },
+        ]),
+      );
       await user.click(screen.getByRole("button", { name: /ok|決定/i }));
       await waitFor(() => expect(onClose).toHaveBeenCalled());
       expect(api.setCollectionsForBook).not.toHaveBeenCalled();
