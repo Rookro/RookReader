@@ -35,7 +35,7 @@ const errorNotificationSlice = createSlice({
     builder.addMatcher(isRejectedWithValue, (state, action) => {
       const context = CONTEXT_BY_SLICE[action.type.split("/")[0]];
       const value = action.payload as ThunkRejectValue;
-      // Field violations are shown beside their field.
+      // Not shown: an unmapped slice, a superseded request, field violations (shown beside their field).
       if (!context || value.superseded || value.details?.length) {
         return;
       }

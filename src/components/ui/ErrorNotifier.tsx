@@ -8,7 +8,9 @@ import { useErrorMessage } from "./useErrorMessage";
  * Shows the errors the store has collected (`errorNotification`) as notifications, then
  * empties the queue. Renders nothing.
  *
- * Errors collected together are shown as one notification, one message per line.
+ * Errors that are in the queue together are shown as one notification, each distinct
+ * message on its own line. An error queued later gets its own notification, which
+ * replaces the one on screen.
  */
 export default function ErrorNotifier() {
   const errorMessage = useErrorMessage();

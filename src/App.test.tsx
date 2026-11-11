@@ -23,7 +23,7 @@ describe("App", () => {
     await waitFor(() => expect(store.getState().errorNotification.pending).toEqual([]));
   });
 
-  it("shows both of two errors reported in one tick", async () => {
+  it("shows errors queued together as one notification", async () => {
     const { store } = renderWithProviders(<App />);
 
     act(() => {

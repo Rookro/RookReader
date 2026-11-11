@@ -210,18 +210,6 @@ describe("BookmarkReducer", () => {
       expect(state.bookmarks.map((bookmark) => bookmark.id)).toEqual([2]);
     });
 
-    it("reports a failed bookmark operation", async () => {
-      vi.mocked(api.deleteBookmark).mockRejectedValue(
-        new CommandError(ErrorCode.database, "locked"),
-      );
-
-      await store.dispatch(removeBookmark(1));
-
-      expect(store.getState().errorNotification.pending).toEqual([
-        { context: "bookmark", code: ErrorCode.database },
-      ]);
-    });
-
     it("should report the failure", async () => {
       vi.mocked(api.deleteBookmark).mockRejectedValue(
         new CommandError(ErrorCode.other, "remove failed"),
