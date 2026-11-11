@@ -3,7 +3,7 @@ import { Box } from "@mui/material";
 import { debug } from "@tauri-apps/plugin-log";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getFonts } from "../../../../../bindings/FontCommands";
+import { api } from "../../../../../bindings/api";
 import { useAppDispatch, useAppSelector } from "../../../../../store/store";
 import { updateSettings } from "../../../slice";
 import AutocompleteSettingItem from "../../ui/AutocompleteSettingItem";
@@ -30,7 +30,7 @@ export default function AppFontFamilySetting() {
   useEffect(() => {
     const initFonts = async () => {
       try {
-        const fonts = await getFonts();
+        const fonts = await api.getFonts();
         setFonts(fonts);
       } catch (error) {
         // Fallback is implicitly handled by the empty 'fonts' state

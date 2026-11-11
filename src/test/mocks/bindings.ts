@@ -85,6 +85,10 @@ vi.mock("../../bindings/UpdaterCommands", () => ({
 vi.mock("../../bindings/api", async () => {
   const { commands } =
     await vi.importActual<typeof import("../../bindings/bindings")>("../../bindings/bindings");
+  const { api: actualApi } =
+    await vi.importActual<typeof import("../../bindings/api")>("../../bindings/api");
+  // Settings tests fake the backend at `invoke` (`mockSettingsCommands`), so these reach it.
+  const passThrough = new Set<string>(["getSettings", "setSettings"]);
   // What a command resolves to when an empty list does not suit.
   const defaultResults: Record<string, unknown> = {
     registerBook: 0,
@@ -103,7 +107,9 @@ vi.mock("../../bindings/api", async () => {
   const api = Object.fromEntries(
     Object.keys(commands).map((name) => [
       name,
-      vi.fn(() => Promise.resolve(defaultResults[name] ?? [])),
+      passThrough.has(name)
+        ? vi.fn((actualApi as unknown as Record<string, () => Promise<unknown>>)[name])
+        : vi.fn(() => Promise.resolve(defaultResults[name] ?? [])),
     ]),
   );
   return { api };

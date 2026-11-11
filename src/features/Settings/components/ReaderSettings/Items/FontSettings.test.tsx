@@ -2,7 +2,7 @@ import { debug } from "@tauri-apps/plugin-log";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { getFonts } from "../../../../../bindings/FontCommands";
+import { api } from "../../../../../bindings/api";
 import { mockTauri } from "../../../../../test/mocks/tauri";
 import {
   createBasePreloadedState,
@@ -17,7 +17,7 @@ describe("FontSettings", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockSettingsCommands();
-    vi.mocked(getFonts).mockResolvedValue(["Arial", "Times New Roman"]);
+    vi.mocked(api.getFonts).mockResolvedValue(["Arial", "Times New Roman"]);
   });
 
   it("should load initial font settings from store", async () => {

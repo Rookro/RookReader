@@ -1,12 +1,11 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import * as BookCommands from "../../../../bindings/BookCommands";
+import { api } from "../../../../bindings/api";
 import { createMockReadBook } from "../../../../test/factories";
 import { createBasePreloadedState, renderWithProviders } from "../../../../test/utils";
 import { ItemRow } from "./ItemRow";
 
-// Mock BookCommands
 describe("HistoryViewer/ItemRow", () => {
   const user = userEvent.setup();
 
@@ -100,7 +99,7 @@ describe("HistoryViewer/ItemRow", () => {
     await user.click(removeButton);
 
     await waitFor(() => {
-      expect(BookCommands.clearReadingHistory).toHaveBeenCalledWith(mockBook.id);
+      expect(api.clearReadingHistory).toHaveBeenCalledWith(mockBook.id);
     });
   });
   describe("last opened tooltip", () => {

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import * as BookCommands from "../../bindings/BookCommands";
+import { api } from "../../bindings/api";
 import { readingProgressChanged } from "../../store/actions";
 import { createMockReadBook } from "../../test/factories";
 import { type AppStore, createTestStore } from "../../test/utils";
@@ -114,7 +114,7 @@ describe("HistoryReducer", () => {
 
     // Verify that state is updated correctly on successful fetching of recently read books
     it("fetchRecentlyReadBooks should update state on success", async () => {
-      vi.mocked(BookCommands.getRecentlyReadBooks).mockResolvedValue([mockReadBook]);
+      vi.mocked(api.getRecentlyReadBooks).mockResolvedValue([mockReadBook]);
 
       await store.dispatch(fetchRecentlyReadBooks());
 
@@ -125,18 +125,18 @@ describe("HistoryReducer", () => {
 
     // Verify that book history removal is successful
     it("clearHistory should update status on success", async () => {
-      vi.mocked(BookCommands.clearReadingHistory).mockResolvedValue(undefined);
+      vi.mocked(api.clearReadingHistory).mockResolvedValue(null);
 
       await store.dispatch(clearHistory(1));
 
       const state = store.getState().history;
       expect(state.status).toBe("succeeded");
-      expect(BookCommands.clearReadingHistory).toHaveBeenCalledWith(1);
+      expect(api.clearReadingHistory).toHaveBeenCalledWith(1);
     });
 
     // Verify that clearing all history is successful
     it("clearAllHistory should update status on success", async () => {
-      vi.mocked(BookCommands.clearAllReadingHistory).mockResolvedValue(undefined);
+      vi.mocked(api.clearAllReadingHistory).mockResolvedValue(null);
 
       await store.dispatch(clearAllHistory());
 
@@ -157,7 +157,7 @@ describe("HistoryReducer", () => {
       it("fetchRecentlyReadBooks should handle CommandError", async () => {
         const { CommandError } = await import("../../types/Error");
         const mockError = new CommandError(ErrorCode.io, "io error");
-        vi.mocked(BookCommands.getRecentlyReadBooks).mockRejectedValue(mockError);
+        vi.mocked(api.getRecentlyReadBooks).mockRejectedValue(mockError);
 
         await store.dispatch(fetchRecentlyReadBooks());
 
@@ -171,7 +171,7 @@ describe("HistoryReducer", () => {
       it("clearHistory should handle CommandError", async () => {
         const { CommandError } = await import("../../types/Error");
         const mockError = new CommandError(ErrorCode.io, "io error");
-        vi.mocked(BookCommands.clearReadingHistory).mockRejectedValue(mockError);
+        vi.mocked(api.clearReadingHistory).mockRejectedValue(mockError);
 
         await store.dispatch(clearHistory(1));
 
@@ -185,7 +185,7 @@ describe("HistoryReducer", () => {
       it("clearAllHistory should handle CommandError", async () => {
         const { CommandError } = await import("../../types/Error");
         const mockError = new CommandError(ErrorCode.io, "io error");
-        vi.mocked(BookCommands.clearAllReadingHistory).mockRejectedValue(mockError);
+        vi.mocked(api.clearAllReadingHistory).mockRejectedValue(mockError);
 
         await store.dispatch(clearAllHistory());
 
@@ -198,7 +198,7 @@ describe("HistoryReducer", () => {
       // Verify that failed status and error message are set on fetch error
       it("fetchRecentlyReadBooks should set failed status and error message on error", async () => {
         const testError = "fetch failed";
-        vi.mocked(BookCommands.getRecentlyReadBooks).mockRejectedValue(testError);
+        vi.mocked(api.getRecentlyReadBooks).mockRejectedValue(testError);
 
         await store.dispatch(fetchRecentlyReadBooks());
 
@@ -210,7 +210,7 @@ describe("HistoryReducer", () => {
       // Verify that failed status and error message are set on clear error
       it("clearHistory should set failed status and error message on error", async () => {
         const testError = "clear failed";
-        vi.mocked(BookCommands.clearReadingHistory).mockRejectedValue(testError);
+        vi.mocked(api.clearReadingHistory).mockRejectedValue(testError);
 
         await store.dispatch(clearHistory(1));
 
@@ -222,7 +222,7 @@ describe("HistoryReducer", () => {
       // Verify that failed status and error message are set on clear all error
       it("clearAllHistory should set failed status and error message on error", async () => {
         const testError = "clear all failed";
-        vi.mocked(BookCommands.clearAllReadingHistory).mockRejectedValue(testError);
+        vi.mocked(api.clearAllReadingHistory).mockRejectedValue(testError);
 
         await store.dispatch(clearAllHistory());
 

@@ -1,5 +1,5 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
-import { createTag, deleteTag, getAllTags, setTagsForBook } from "../../bindings/TagCommands";
+import { api } from "../../bindings/api";
 import type { Tag } from "../../domain/entities";
 import { recordThunkError } from "../../store/thunkErrorHandler";
 import { createCommandThunk, type ThunkRejectValue } from "../../types/CustomAsyncThunk";
@@ -14,7 +14,7 @@ import { createCommandThunk, type ThunkRejectValue } from "../../types/CustomAsy
  */
 export const addTag = createCommandThunk(
   "tag/addTag",
-  ({ name, color_code }: { name: string; color_code: string }) => createTag(name, color_code),
+  ({ name, color_code }: { name: string; color_code: string }) => api.createTag(name, color_code),
   ({ name, color_code }) => `Failed to add tag(name: ${name}, color_code: ${color_code}).`,
 );
 
@@ -25,7 +25,7 @@ export const addTag = createCommandThunk(
  */
 export const fetchTags = createCommandThunk(
   "tag/fetchTags",
-  () => getAllTags(),
+  () => api.getAllTags(),
   () => "Failed to fetch all available tags.",
 );
 
@@ -38,7 +38,7 @@ export const fetchTags = createCommandThunk(
 export const removeTag = createCommandThunk(
   "tag/removeTag",
   async (id: number) => {
-    await deleteTag(id);
+    await api.deleteTag(id);
     return id;
   },
   (id) => `Failed to remove tag(id: ${id}).`,
@@ -53,7 +53,7 @@ export const removeTag = createCommandThunk(
 export const updateBooksTags = createCommandThunk(
   "tag/updateBooksTags",
   async (updates: { bookId: number; tagIds: number[] }[]) => {
-    await Promise.all(updates.map(({ bookId, tagIds }) => setTagsForBook(bookId, tagIds)));
+    await Promise.all(updates.map(({ bookId, tagIds }) => api.setTagsForBook(bookId, tagIds)));
   },
   () => "Failed to update book tags.",
 );

@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { getFonts } from "../../../../../bindings/FontCommands";
+import { api } from "../../../../../bindings/api";
 import { mockTauri } from "../../../../../test/mocks/tauri";
 import {
   createBasePreloadedState,
@@ -16,7 +16,7 @@ describe("AppFontFamilySetting", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockSettingsCommands();
-    vi.mocked(getFonts).mockResolvedValue(["Arial", "Times New Roman"]);
+    vi.mocked(api.getFonts).mockResolvedValue(["Arial", "Times New Roman"]);
   });
 
   it("should render and load initial font from state", async () => {
@@ -53,7 +53,7 @@ describe("AppFontFamilySetting", () => {
   });
 
   it("should handle font list retrieval failure by falling back to default", async () => {
-    vi.mocked(getFonts).mockRejectedValue(new Error("Failed to fetch fonts"));
+    vi.mocked(api.getFonts).mockRejectedValue(new Error("Failed to fetch fonts"));
 
     const preloadedState = createBasePreloadedState();
     const defaultFont = "Inter, Avenir, Helvetica, Arial, sans-serif";

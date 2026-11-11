@@ -1,6 +1,6 @@
 import { error } from "@tauri-apps/plugin-log";
+import { api } from "../../bindings/api";
 import { DEFAULT_SETTINGS } from "../../bindings/bindings";
-import { getSettings } from "../../bindings/SettingsCommands";
 import type { AppSettings } from "../../types/AppSettings";
 
 /**
@@ -19,7 +19,7 @@ export const defaultSettings: AppSettings = DEFAULT_SETTINGS;
  */
 export const loadAllSettings = async (): Promise<AppSettings> => {
   try {
-    return await getSettings();
+    return await api.getSettings();
   } catch (e) {
     error(`Failed to load settings from backend; using defaults: ${e}`);
     return defaultSettings;

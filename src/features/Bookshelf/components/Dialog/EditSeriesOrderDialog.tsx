@@ -18,7 +18,7 @@ import { Button, Dialog, DialogActions, DialogContent, DialogTitle, List } from 
 import { error as logError } from "@tauri-apps/plugin-log";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getBooksBySeries } from "../../../../bindings/SeriesCommands";
+import { api } from "../../../../bindings/api";
 import type { BookWithState } from "../../../../domain/entities";
 import { useAppDispatch } from "../../../../store/store";
 import { sortBySeriesOrder } from "../../../../utils/BookSortUtils";
@@ -60,7 +60,8 @@ export default function EditSeriesOrderDialog({
     }
     setOrderedBooks(null);
     let stale = false;
-    getBooksBySeries(seriesId)
+    api
+      .getBooksBySeries(seriesId)
       .then((books) => {
         if (!stale) setOrderedBooks([...books].sort(sortBySeriesOrder));
       })

@@ -2,7 +2,7 @@ import { error } from "@tauri-apps/plugin-log";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import * as SeriesCommand from "../../../bindings/SeriesCommands";
+import { api } from "../../../bindings/api";
 import type { Series } from "../../../domain/entities";
 import { renderWithProviders } from "../../../test/utils";
 import { BookshelfActionsContext } from "./BookshelfActionsContext";
@@ -53,16 +53,16 @@ describe("SeriesContextMenu", () => {
   });
 
   it("should call deleteSeries and onClose once the ungroup is confirmed", async () => {
-    vi.mocked(SeriesCommand.deleteSeries).mockResolvedValue();
+    vi.mocked(api.deleteSeries).mockResolvedValue(null);
     renderSeriesContextMenu();
 
     await user.click(screen.getByText(/Ungroup Series/i));
     expect(defaultProps.onClose).toHaveBeenCalled();
-    expect(SeriesCommand.deleteSeries).not.toHaveBeenCalled();
+    expect(api.deleteSeries).not.toHaveBeenCalled();
 
     await user.click(screen.getByRole("button", { name: /Ungroup series/i }));
 
-    expect(SeriesCommand.deleteSeries).toHaveBeenCalledWith(mockSeries.id);
+    expect(api.deleteSeries).toHaveBeenCalledWith(mockSeries.id);
   });
 
   it("should not ungroup when the confirmation is cancelled", async () => {
@@ -73,7 +73,7 @@ describe("SeriesContextMenu", () => {
 
     await user.click(screen.getByRole("button", { name: "Cancel" }));
 
-    expect(SeriesCommand.deleteSeries).not.toHaveBeenCalled();
+    expect(api.deleteSeries).not.toHaveBeenCalled();
   });
 
   it("should not render menu when anchor is null", () => {
@@ -82,14 +82,14 @@ describe("SeriesContextMenu", () => {
   });
 
   it("should record a deleteSeries failure in the series slice", async () => {
-    vi.mocked(SeriesCommand.deleteSeries).mockRejectedValue(new Error("Delete failed"));
+    vi.mocked(api.deleteSeries).mockRejectedValue(new Error("Delete failed"));
 
     const { store } = renderSeriesContextMenu();
 
     await user.click(screen.getByText(/Ungroup Series/i));
     await user.click(screen.getByRole("button", { name: /Ungroup series/i }));
 
-    expect(SeriesCommand.deleteSeries).toHaveBeenCalledWith(mockSeries.id);
+    expect(api.deleteSeries).toHaveBeenCalledWith(mockSeries.id);
     await waitFor(() =>
       expect(error).toHaveBeenCalledWith(expect.stringContaining("Failed to remove series")),
     );

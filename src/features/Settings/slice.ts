@@ -1,7 +1,7 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import { error } from "@tauri-apps/plugin-log";
+import { api } from "../../bindings/api";
 import type { SettingsPatch } from "../../bindings/bindings";
-import { setSettings as persistSettings } from "../../bindings/SettingsCommands";
 import type { AppSettings } from "../../types/AppSettings";
 import { createAppAsyncThunk } from "../../types/CustomAsyncThunk";
 import { CommandError, ErrorCode } from "../../types/Error";
@@ -39,7 +39,7 @@ export const updateSettings = createAppAsyncThunk(
   async ({ key, value }: UpdateSettingsPayload, { dispatch, rejectWithValue }) => {
     const patch = { [key]: value } as unknown as SettingsPatch;
     try {
-      const merged = await persistSettings(patch);
+      const merged = await api.setSettings(patch);
       // For this window only. The backend leaves the caller out of the `settings-changed`
       // broadcast, so `useSettingsChange` never sees the change this window made.
       setPerfLogging(merged.general.log.level);
