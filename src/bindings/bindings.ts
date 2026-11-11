@@ -8,23 +8,19 @@ import * as __TAURI_EVENT from "@tauri-apps/api/event";
 /** Commands */
 export const commands = {
 	/**
-	 *  Reads the current application settings.
-	 * 
-	 *  This is a **pure read**: it loads and normalizes the stored settings without
-	 *  acquiring the file lock or writing back. A file hand-edited to an out-of-range
-	 *  value is repaired in memory here and healed on disk at the next startup or write.
+	 *  Returns the settings the app is running with.
 	 * 
 	 *  # Arguments
 	 * 
-	 *  * `provider` - The managed settings file provider backing the settings store.
+	 *  * `settings` - The current settings.
 	 * 
 	 *  # Returns
 	 * 
-	 *  The normalized, valid [`AppSettings`].
+	 *  The current [`AppSettings`].
 	 * 
 	 *  # Errors
 	 * 
-	 *  Returns an `Err` if the settings cannot be loaded.
+	 *  Never fails; the `Result` keeps the command's shape.
 	 */
 	getSettings: () => typedError<AppSettings_Serialize, CommandError_Serialize>(__TAURI_INVOKE("get_settings")),
 	/**
@@ -47,7 +43,7 @@ export const commands = {
 	 *    a Tauri-injected argument that `tauri-specta` omits from the TS signature).
 	 *  * `patch` - The single-category partial change to apply.
 	 *  * `state` - The application's runtime state.
-	 *  * `lock` - The settings file lock serializing the read-modify-write.
+	 *  * `settings` - The current settings, replaced by the merged ones once they are saved.
 	 *  * `provider` - The managed settings file provider backing the settings store.
 	 * 
 	 *  # Returns

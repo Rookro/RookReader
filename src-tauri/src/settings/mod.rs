@@ -5,7 +5,7 @@ mod validation;
 
 pub use model::*;
 pub use patch::SettingsPatch;
-pub use provider::{SettingsFileLock, SettingsFileProvider, SettingsStoreProvider};
+pub use provider::{SettingsFileProvider, SettingsStoreProvider};
 
 use std::fmt;
 use std::path::PathBuf;
@@ -51,6 +51,11 @@ pub enum ViolationKind {
     /// The value is missing, not a number, or non-finite.
     NotANumber,
 }
+
+/// The settings while the app runs. `set_settings` holds its write lock across the save,
+/// the runtime apply and the broadcast, so two changes cannot be saved A, B and then
+/// applied B, A.
+pub type CurrentSettings = tokio::sync::RwLock<AppSettings>;
 
 /// Represents the root configuration of the application settings.
 #[derive(Debug, Clone, Serialize, Deserialize, Default, Validate, specta::Type)]
@@ -160,51 +165,33 @@ impl AppSettings {
         Ok(config)
     }
 
-    /// Read-modify-write: deep-merges `patch` into the current settings, validates the
-    /// merged whole, persists it, and returns it.
-    ///
-    /// This is **not** self-synchronizing: the caller must hold the `SettingsFileLock`
-    /// across this call and any dependent runtime apply/broadcast, so two concurrent
-    /// writers cannot persist A,B but then apply/announce B,A. Out-of-range merged
-    /// results are rejected **without** persisting (repair is only applied when *loading*
-    /// a pre-existing file, never on writes).
+    /// These settings with `patch` deep-merged in, validated as a whole. Writes nothing.
     ///
     /// # Arguments
     ///
-    /// * `provider` - The storage backend.
     /// * `patch` - The single-category partial change to apply.
     ///
     /// # Returns
     ///
-    /// The full merged settings on success.
+    /// The merged settings.
     ///
     /// # Errors
     ///
-    /// Returns `Error::Settings` if the patch produces an undeserializable or
-    /// out-of-range result, or a serialization/write error from the provider.
-    pub fn apply_patch<P: SettingsStoreProvider>(
-        provider: &P,
-        patch: SettingsPatch,
-    ) -> Result<Self> {
-        // load() normalizes + repairs, so the merge base is always valid.
-        let current = Self::load(provider)?;
-        let mut merged_json = serde_json::to_value(&current)?;
+    /// Returns `Error::SettingsValidation` with one violation per field that is out of range
+    /// or of the wrong kind, or `Error::Settings` if the merged document is invalid otherwise.
+    pub fn patched(&self, patch: SettingsPatch) -> Result<Self> {
+        let mut merged_json = serde_json::to_value(self)?;
         json_deep_merge(&mut merged_json, patch.into_object());
-        // Produce structured, field-specific violations (kind + valid bounds) for the UI
-        // before deserializing, so a decimal in an integer field is reported as a
-        // `NotInteger` with its path rather than an opaque serde error.
         let violations = collect_violations(&merged_json);
         if !violations.is_empty() {
             return Err(Error::SettingsValidation(violations));
         }
         let merged: Self = serde_json::from_value(merged_json)
             .map_err(|e| Error::Settings(format!("Invalid settings patch: {e}")))?;
-        // `garde` stays the authoritative gate: anything `collect_violations` missed
-        // (e.g. a non-numeric constraint) still cannot be persisted.
+        // `garde` stays the authoritative gate for anything `collect_violations` missed.
         merged
             .validate()
             .map_err(|r| Error::Settings(format!("Settings validation failed: {r}")))?;
-        merged.save(provider)?;
         Ok(merged)
     }
 
@@ -329,7 +316,7 @@ mod tests {
     use std::sync::Mutex;
 
     /// A full, valid document with a non-empty home directory, so `normalize` makes no
-    /// changes (a stable baseline for the persist-on-change and apply-patch tests).
+    /// changes (a stable baseline for the persist-on-change tests).
     fn default_doc_with_home() -> Value {
         let mut settings = AppSettings::default();
         settings.file_navigator.home_directory = PathBuf::from("/mock/home");
@@ -628,58 +615,62 @@ mod tests {
         );
     }
 
-    // ---- apply_patch ----
+    // ---- patched ----
 
     #[test]
-    fn test_apply_patch_preserves_same_category_siblings() {
-        let provider = RecordingProvider::new(default_doc_with_home());
-        let patch = SettingsPatch::Reader(json!({ "rendering": { "maxImageHeight": 500 } }));
-
-        let merged = AppSettings::apply_patch(&provider, patch).unwrap();
-
-        assert_eq!(merged.reader.rendering.max_image_height, 500);
-        // Sibling leaf of the same coarse category is preserved.
-        assert!(merged.reader.comic.enable_spread);
-        assert_eq!(provider.save_count(), 1);
+    fn patched_preserves_same_category_siblings() {
+        let patch = SettingsPatch::Reader(json!({ "rendering": { "maxImageHeight": 1234 } }));
+        let merged = AppSettings::default().patched(patch).unwrap();
+        assert_eq!(merged.reader.rendering.max_image_height, 1234);
+        assert_eq!(
+            merged.reader.rendering.pdf_render_resolution_height,
+            AppSettings::default()
+                .reader
+                .rendering
+                .pdf_render_resolution_height
+        );
     }
 
     #[test]
-    fn test_apply_patch_rejects_out_of_range_without_persisting() {
-        let provider = RecordingProvider::new(default_doc_with_home());
+    fn patched_rejects_an_out_of_range_change() {
+        let patch = SettingsPatch::Reader(json!({ "rendering": { "maxImageHeight": 70000 } }));
+        assert!(matches!(
+            AppSettings::default().patched(patch),
+            Err(Error::SettingsValidation(_))
+        ));
+    }
+
+    #[test]
+    fn patched_changes_accumulate() {
+        let first = AppSettings::default()
+            .patched(SettingsPatch::History(
+                json!({ "recordReadingHistory": false }),
+            ))
+            .unwrap();
+        let second = first
+            .patched(SettingsPatch::Bookshelf(json!({ "gridSize": 2 })))
+            .unwrap();
+        assert!(!second.history.record_reading_history);
+        assert_eq!(second.bookshelf.grid_size, 2);
+    }
+
+    #[test]
+    fn patched_leaves_the_original_alone() {
+        let original = AppSettings::default();
+        original
+            .patched(SettingsPatch::History(
+                json!({ "recordReadingHistory": false }),
+            ))
+            .unwrap();
+        assert!(original.history.record_reading_history);
+    }
+
+    #[test]
+    fn patched_returns_structured_validation_errors() {
         let patch = SettingsPatch::Reader(json!({ "rendering": { "maxImageHeight": 70000 } }));
 
-        let result = AppSettings::apply_patch(&provider, patch);
-
-        assert!(result.is_err());
-        assert_eq!(provider.save_count(), 0);
-    }
-
-    #[test]
-    fn test_apply_patch_sequential_accumulates() {
-        let provider = RecordingProvider::new(default_doc_with_home());
-
-        AppSettings::apply_patch(
-            &provider,
-            SettingsPatch::Reader(json!({ "rendering": { "maxImageHeight": 500 } })),
-        )
-        .unwrap();
-        let merged = AppSettings::apply_patch(
-            &provider,
-            SettingsPatch::Bookshelf(json!({ "gridSize": 2 })),
-        )
-        .unwrap();
-
-        // The second read-modify-write sees the first write's result.
-        assert_eq!(merged.reader.rendering.max_image_height, 500);
-        assert_eq!(merged.bookshelf.grid_size, 2);
-    }
-
-    #[test]
-    fn test_apply_patch_returns_structured_validation_error() {
-        let provider = RecordingProvider::new(default_doc_with_home());
-        let patch = SettingsPatch::Reader(json!({ "rendering": { "maxImageHeight": 70000 } }));
-
-        let err = AppSettings::apply_patch(&provider, patch)
+        let err = AppSettings::default()
+            .patched(patch)
             .expect_err("out-of-range patch should be rejected");
 
         match err {
@@ -692,6 +683,5 @@ mod tests {
             }
             other => panic!("expected SettingsValidation, got {other:?}"),
         }
-        assert_eq!(provider.save_count(), 0);
     }
 }
