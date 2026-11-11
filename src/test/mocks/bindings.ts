@@ -1,4 +1,5 @@
 import { vi } from "vitest";
+import type { Api } from "../../bindings/api";
 
 vi.mock("../../bindings/api", async () => {
   const { commands } =
@@ -9,26 +10,27 @@ vi.mock("../../bindings/api", async () => {
   // Settings tests fake the backend at `invoke` (`mockSettingsCommands`), so these reach it.
   const passThrough = new Set<string>(["getSettings", "setSettings"]);
   // What a command resolves to when an empty list does not suit.
-  const defaultResults: Record<string, unknown> = {
-    registerBook: 0,
-    openBook: {
+  const defaultResults = {
+    registerBook: () => 0,
+    openBook: () => ({
       entries: [],
       is_directory: false,
       is_novel: false,
       has_previews: false,
       book: null,
       record_error: null,
-    },
-    getFonts: ["Arial", "Times New Roman"],
-    isUpdaterSupported: true,
-    claimUpdatePrompt: true,
-  };
+    }),
+    getFonts: () => ["Arial", "Times New Roman"],
+    isUpdaterSupported: () => true,
+    claimUpdatePrompt: () => true,
+  } satisfies { [K in keyof Api]?: () => Awaited<ReturnType<Api[K]>> };
+  const defaults: Partial<Record<string, () => unknown>> = defaultResults;
   const api = Object.fromEntries(
     Object.keys(commands).map((name) => [
       name,
       passThrough.has(name)
         ? vi.fn(actual[name])
-        : vi.fn(() => Promise.resolve(defaultResults[name] ?? [])),
+        : vi.fn(() => Promise.resolve(defaults[name]?.() ?? [])),
     ]),
   );
   return { api };
@@ -39,5 +41,5 @@ vi.mock("../../bindings/binaryCommands", () => ({
   getImageFull: vi.fn(() => Promise.resolve(new ArrayBuffer(0))),
   getImagePreview: vi.fn(() => Promise.resolve(new ArrayBuffer(0))),
   readNovelFile: vi.fn(() => Promise.resolve(new ArrayBuffer(0))),
-  getEntriesInDir: vi.fn(() => Promise.resolve([])),
+  getEntriesInDir: vi.fn(() => Promise.resolve(new ArrayBuffer(0))),
 }));

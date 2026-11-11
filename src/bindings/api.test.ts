@@ -45,6 +45,17 @@ describe("api", () => {
     await expect(api.deleteTag(7)).rejects.toMatchObject({ code: ErrorCode.unknown });
   });
 
+  it("throws a CommandError when Tauri rejects with a string", async () => {
+    vi.mocked(invoke).mockRejectedValue("command get_all_tags not found");
+
+    const failure = api.getAllTags();
+    await expect(failure).rejects.toBeInstanceOf(CommandError);
+    await expect(failure).rejects.toMatchObject({
+      code: ErrorCode.unknown,
+      message: expect.stringContaining("command get_all_tags not found"),
+    });
+  });
+
   it("passes through a command that returns no Result", async () => {
     vi.mocked(invoke).mockResolvedValue(true);
 

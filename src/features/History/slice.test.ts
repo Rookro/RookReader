@@ -118,6 +118,7 @@ describe("HistoryReducer", () => {
 
       await store.dispatch(fetchRecentlyReadBooks());
 
+      expect(api.getRecentlyReadBooks).toHaveBeenCalledWith(null);
       const state = store.getState().history;
       expect(state.status).toBe("succeeded");
       expect(state.recentlyReadBooks).toEqual([mockReadBook]);

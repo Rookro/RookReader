@@ -8,7 +8,6 @@ import { createMockTag } from "../../../../test/factories";
 import { renderWithProviders } from "../../../../test/utils";
 import SetBookTagsDialog from "./SetBookTagsDialog";
 
-// Mock BookCommands
 describe("SetBookTagsDialog", () => {
   const user = userEvent.setup();
 

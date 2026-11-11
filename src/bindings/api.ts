@@ -29,8 +29,8 @@ async function run(call: Promise<unknown>): Promise<unknown> {
   try {
     value = await call;
   } catch (error) {
-    // The generated `typedError` rethrows `Error` instances (an IPC failure) instead of
-    // returning them in the result.
+    // The generated `typedError` rethrows `Error` instances (an IPC failure), and a command
+    // that returns no `Result` fails only here.
     throw createCommandError(error);
   }
   return isResult(value) ? getDataOrThrow(value) : value;
