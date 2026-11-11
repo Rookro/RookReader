@@ -27,6 +27,44 @@ impl SqliteBookRepository {
     }
 }
 
+/// Inserts the book at `file_path`, or refreshes what was read from its container when it
+/// is already registered. `created_at` is set only on insert.
+async fn upsert_book<'e, E>(
+    executor: E,
+    file_path: &str,
+    item_type: ItemType,
+    display_name: &str,
+    total_pages: i64,
+    thumbnail_path: Option<String>,
+    now: chrono::NaiveDateTime,
+) -> Result<i64>
+where
+    E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+{
+    let item_type: &str = item_type.into();
+    let book_id = sqlx::query!(
+        r#"
+        INSERT INTO books (file_path, item_type, display_name, total_pages, thumbnail_path, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(file_path) DO UPDATE SET
+            display_name = excluded.display_name,
+            total_pages = excluded.total_pages,
+            thumbnail_path = excluded.thumbnail_path
+        RETURNING id
+        "#,
+        file_path,
+        item_type,
+        display_name,
+        total_pages,
+        thumbnail_path,
+        now
+    )
+    .fetch_one(executor)
+    .await?
+    .id;
+    Ok(book_id)
+}
+
 #[async_trait]
 impl BookRepository for SqliteBookRepository {
     async fn get_by_id(&self, id: i64) -> Result<Option<Book>> {
@@ -78,34 +116,16 @@ impl BookRepository for SqliteBookRepository {
         total_pages: i64,
         thumbnail_path: Option<String>,
     ) -> Result<i64> {
-        let item_type: &str = item_type.into();
-        // Stamp created_at on insert; it is intentionally absent from the ON CONFLICT
-        // clause so re-registering an existing book preserves its original timestamp.
-        let now = chrono::Utc::now().naive_utc();
-        let book_id = sqlx::query!(
-            r#"
-            INSERT INTO books (file_path, item_type, display_name, total_pages, thumbnail_path, created_at)
-            VALUES (?, ?, ?, ?, ?, ?)
-            ON CONFLICT(file_path) DO UPDATE SET
-                -- Refresh the path-derived metadata so re-registering an existing book
-                -- reflects updated page counts and renamed display names.
-                display_name = excluded.display_name,
-                total_pages = excluded.total_pages,
-                thumbnail_path = excluded.thumbnail_path
-            RETURNING id
-            "#,
+        upsert_book(
+            &self.pool,
             file_path,
             item_type,
             display_name,
             total_pages,
             thumbnail_path,
-            now
+            chrono::Utc::now().naive_utc(),
         )
-        .fetch_one(&self.pool)
-        .await?
-        .id;
-
-        Ok(book_id)
+        .await
     }
 
     async fn record_opened(
@@ -116,32 +136,18 @@ impl BookRepository for SqliteBookRepository {
         total_pages: i64,
         thumbnail_path: Option<String>,
     ) -> Result<i64> {
-        let item_type: &str = item_type.into();
         let mut tx = self.pool.begin().await?;
         let now = chrono::Utc::now().naive_utc();
-        let book_id = sqlx::query!(
-            r#"
-            INSERT INTO books (file_path, item_type, display_name, total_pages, thumbnail_path, created_at)
-            VALUES (?, ?, ?, ?, ?, ?)
-            ON CONFLICT(file_path) DO UPDATE SET
-                -- Refresh the path-derived metadata so re-opening an existing book
-                -- reflects updated page counts and renamed display names.
-                -- created_at is intentionally left untouched to preserve the original.
-                display_name = excluded.display_name,
-                total_pages = excluded.total_pages,
-                thumbnail_path = excluded.thumbnail_path
-            RETURNING id
-            "#,
+        let book_id = upsert_book(
+            &mut *tx,
             file_path,
             item_type,
             display_name,
             total_pages,
             thumbnail_path,
-            now
+            now,
         )
-        .fetch_one(&mut *tx)
-        .await?
-        .id;
+        .await?;
 
         sqlx::query!(
             r#"
