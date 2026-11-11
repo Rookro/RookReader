@@ -6,7 +6,6 @@ use crate::{
     commands::events::{emit_to, SettingsChanged},
     error::Result,
     settings::{AppSettings, SettingsFileLock, SettingsFileProvider, SettingsPatch},
-    setup,
     state::app_state::AppState,
 };
 
@@ -84,10 +83,11 @@ pub async fn set_settings<R: tauri::Runtime>(
         run_blocking(move || AppSettings::apply_patch(&provider, patch)).await?
     };
 
-    {
-        let mut locked_state = state.write().await;
-        setup::apply_reader_settings_to_container(&mut locked_state, &settings);
-    }
+    state
+        .write()
+        .await
+        .container_state
+        .apply_settings(&settings);
 
     let caller_label = webview.label().to_string();
     let all_labels: Vec<String> = app.webview_windows().into_keys().collect();

@@ -26,7 +26,7 @@ use crate::{
     settings::{
         AppSettings, AppTheme, LogLevel, LogSettings, SettingsFileProvider, SettingsStoreProvider,
     },
-    state::{app_state::AppState, container_settings::ContainerSettings},
+    state::app_state::AppState,
 };
 
 /// Returns the settings store filename for the current build profile.
@@ -113,53 +113,9 @@ pub fn setup_container_settings(app: &App, settings: &AppSettings) -> error::Res
     let mut locked_state = state.blocking_write();
 
     locked_state.container_state.settings.pdfium_library_path = Some(get_libs_dir(app)?);
-    apply_reader_settings_to_container(&mut locked_state, settings);
+    locked_state.container_state.apply_settings(settings);
 
     Ok(())
-}
-
-/// Applies the reader/rendering settings to the container runtime state.
-///
-/// This copies the persisted reader/rendering values into `ContainerState::settings`.
-/// The **image cache capacity** is applied to the currently-open container live: when
-/// it changes, the cache is rebuilt (which evicts every cached image) and handed to the
-/// open `PageService`. `max_image_height` and `image_resampling_method` are pushed into
-/// the open book too. `pdf_render_resolution_height`, `page_reader_count` and
-/// `auto_descend_single_folder` decide how a container is built, so they take effect at
-/// the next open.
-///
-/// The values that change what a page's pixels are also empty the image cache. It
-/// outlives a book and its key says nothing about the filter or the height cap, so
-/// without that, reopening the same book would serve pages rendered with the settings
-/// the user just changed away from.
-///
-/// # Arguments
-///
-/// * `state` - The mutable application state to update.
-/// * `settings` - The settings whose reader values should be applied.
-pub fn apply_reader_settings_to_container(state: &mut AppState, settings: &AppSettings) {
-    let old = &state.container_state.settings;
-    let new = ContainerSettings {
-        pdfium_library_path: old.pdfium_library_path.clone(),
-        ..ContainerSettings::from(settings)
-    };
-    let new_cache_size_mib = new.image_cache_size_mib;
-    let cache_size_changed = old.image_cache_size_mib != new_cache_size_mib;
-    let rendering_changed = old.max_image_height != new.max_image_height
-        || old.image_resampling_method != new.image_resampling_method
-        || old.pdf_render_resolution_height != new.pdf_render_resolution_height;
-    state.container_state.settings = new;
-
-    if cache_size_changed {
-        state
-            .container_state
-            .update_image_cache_size(new_cache_size_mib);
-    } else if rendering_changed {
-        state.container_state.image_cache.invalidate_all();
-    }
-    if rendering_changed {
-        state.container_state.apply_rendering();
-    }
 }
 
 /// Initializes the application's logging system using `tauri-plugin-log`.
@@ -310,148 +266,6 @@ fn get_libs_dir(app: &App) -> error::Result<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::image::resizer::ResizeFilter;
-    use crate::settings::ImageResamplingMethod;
-
-    #[test]
-    fn applying_settings_keeps_the_pdfium_path() {
-        let mut state = AppState::default();
-        state.container_state.settings.pdfium_library_path = Some("/libs".to_string());
-
-        apply_reader_settings_to_container(&mut state, &AppSettings::default());
-
-        assert_eq!(
-            state
-                .container_state
-                .settings
-                .pdfium_library_path
-                .as_deref(),
-            Some("/libs")
-        );
-    }
-
-    #[test]
-    fn test_apply_reader_settings_to_container() {
-        let mut state = AppState::default();
-        let mut settings = AppSettings::default();
-        settings.reader.rendering.max_image_height = 1234;
-        settings.reader.rendering.pdf_render_resolution_height = 1500;
-        settings.reader.rendering.image_resampling_method = ImageResamplingMethod::Lanczos3;
-        settings.reader.comic.cache.image_cache_size_mib = 2048;
-        settings.reader.comic.cache.page_reader_count = 3;
-
-        apply_reader_settings_to_container(&mut state, &settings);
-
-        let container_settings = &state.container_state.settings;
-        assert_eq!(container_settings.max_image_height, 1234);
-        assert_eq!(container_settings.pdf_render_resolution_height, 1500);
-        assert_eq!(
-            container_settings.image_resampling_method,
-            ResizeFilter::Lanczos3
-        );
-        assert_eq!(container_settings.image_cache_size_mib, 2048);
-        assert_eq!(container_settings.page_reader_count, 3);
-    }
-
-    #[test]
-    fn changing_the_height_cap_re_renders_the_open_book() {
-        use crate::{page::service::Priority, state::container_state::ContainerState};
-
-        // A directory container holding one 4x2 page.
-        let dir = tempfile::tempdir().expect("tempdir");
-        let mut page = Vec::new();
-        image::DynamicImage::ImageRgb8(image::RgbImage::new(4, 2))
-            .write_to(
-                &mut std::io::Cursor::new(&mut page),
-                image::ImageFormat::Png,
-            )
-            .expect("encode the page fixture");
-        std::fs::write(dir.path().join("p001.png"), page).expect("write the page fixture");
-        let path = dir.path().to_string_lossy().to_string();
-
-        let mut state = AppState::default();
-        let service = ContainerState::build_with(
-            &state.container_state.settings,
-            &state.container_state.image_cache,
-            None,
-            &path,
-        )
-        .expect("building a valid directory container should succeed");
-        state.container_state.install(service);
-
-        let mut settings = AppSettings::default();
-        settings.reader.rendering.max_image_height = 1;
-        apply_reader_settings_to_container(&mut state, &settings);
-
-        let page = state
-            .container_state
-            .service_for(&path)
-            .expect("the book is open")
-            .page_blocking("p001.png", Priority::Foreground)
-            .expect("read the page");
-        assert_eq!((page.width, page.height), (2, 1));
-    }
-
-    #[test]
-    fn changing_a_rendering_setting_empties_the_image_cache() {
-        use crate::page::{cache::CacheKey, pipeline::Fit};
-        use std::sync::Arc;
-
-        let mut state = AppState::default();
-        let key = CacheKey {
-            book_id: "book".to_string(),
-            entry: "p001.png".to_string(),
-            fit: Fit::UNBOUNDED,
-        };
-        let cached = Arc::new(crate::image::types::Image {
-            data: vec![1, 2, 3],
-            width: 1,
-            height: 1,
-        });
-        state
-            .container_state
-            .image_cache
-            .insert(key.clone(), cached);
-        assert!(state.container_state.image_cache.get(&key).is_some());
-
-        let mut settings = AppSettings::default();
-        settings.reader.rendering.image_resampling_method = ImageResamplingMethod::Nearest;
-        // The cache size is left alone, so nothing else would clear it.
-        apply_reader_settings_to_container(&mut state, &settings);
-
-        // The cache outlives a book. Without this, reopening the same book would serve
-        // pages rendered with the filter the user just changed away from.
-        assert!(state.container_state.image_cache.get(&key).is_none());
-    }
-
-    #[test]
-    fn re_applying_the_same_settings_keeps_the_image_cache() {
-        use crate::page::{cache::CacheKey, pipeline::Fit};
-        use std::sync::Arc;
-
-        let mut state = AppState::default();
-        let settings = AppSettings::default();
-        apply_reader_settings_to_container(&mut state, &settings);
-
-        let key = CacheKey {
-            book_id: "book".to_string(),
-            entry: "p001.png".to_string(),
-            fit: Fit::UNBOUNDED,
-        };
-        state.container_state.image_cache.insert(
-            key.clone(),
-            Arc::new(crate::image::types::Image {
-                data: vec![1, 2, 3],
-                width: 1,
-                height: 1,
-            }),
-        );
-
-        // Settings are re-applied on every save, most of which change nothing about how
-        // a page is rendered.
-        apply_reader_settings_to_container(&mut state, &settings);
-        assert!(state.container_state.image_cache.get(&key).is_some());
-    }
 
     // A plain #[test]: `teardown` blocks on Tauri's runtime, which panics inside another one.
     #[test]
