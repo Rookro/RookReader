@@ -91,6 +91,9 @@ impl AppSettings {
     /// defaults on parse failure), fills the dynamic home directory, and repairs any
     /// out-of-range fields in memory. It never writes back.
     ///
+    /// The app reads the file only at start-up; this read-back is what the tests use to check
+    /// what `save` wrote.
+    ///
     /// # Arguments
     ///
     /// * `provider` - The storage backend to read from.
@@ -103,6 +106,7 @@ impl AppSettings {
     ///
     /// Returns an `Err` if the provider fails to read the store (other than a missing
     /// file, which reads as defaults).
+    #[cfg(test)]
     pub fn load<P: SettingsStoreProvider>(provider: &P) -> Result<Self> {
         Ok(Self::normalize(
             provider.get_all_settings()?,
@@ -127,7 +131,8 @@ impl AppSettings {
     /// changed the stored document.
     ///
     /// This is the single place a "read" may write, and is intended to be called once
-    /// at startup so a stale or out-of-range file is healed on disk.
+    /// at startup so a stale or out-of-range file is healed on disk. An unreadable file is
+    /// left alone and the session runs on defaults with reading history off.
     ///
     /// # Arguments
     ///
@@ -145,12 +150,13 @@ impl AppSettings {
             // defaults and leave the file untouched so it can recover on the next launch.
             Err(e) => {
                 log::error!(
-                    "Settings file unreadable; running with defaults without persisting: {e}"
+                    "Settings file unreadable; running with defaults and reading history off, without persisting: {e}"
                 );
-                return Ok(Self::normalize(
-                    serde_json::json!({}),
-                    provider.default_home_dir(),
-                ));
+                let mut settings =
+                    Self::normalize(serde_json::json!({}), provider.default_home_dir());
+                // The reader may have turned history off; the default would turn it back on.
+                settings.history.record_reading_history = false;
+                return Ok(settings);
             }
         };
         let config = Self::normalize(raw.clone(), provider.default_home_dir());
@@ -597,6 +603,17 @@ mod tests {
         assert!(matches!(settings.general.theme, AppTheme::System));
         // ...and must never persist, which would clobber the real file with defaults.
         assert_eq!(provider.saves.load(Ordering::SeqCst), 0);
+    }
+
+    #[test]
+    fn an_unreadable_file_turns_reading_history_off_for_the_session() {
+        let provider = FailingReadProvider {
+            saves: AtomicUsize::new(0),
+        };
+
+        let settings = AppSettings::load_and_persist_normalized(&provider).unwrap();
+
+        assert!(!settings.history.record_reading_history);
     }
 
     #[test]

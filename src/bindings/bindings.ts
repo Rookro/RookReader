@@ -217,7 +217,7 @@ export const commands = {
 	 *  * `repo` - The managed book repository state.
 	 *  * `app` - The Tauri AppHandle.
 	 *  * `state` - The managed app state.
-	 *  * `provider` - The settings file the history setting and default direction are read from.
+	 *  * `settings` - The current settings the history setting and default direction are read from.
 	 * 
 	 *  # Returns
 	 * 

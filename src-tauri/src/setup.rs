@@ -86,8 +86,8 @@ pub fn setup(app: &App) -> error::Result<()> {
     setup_container_settings(app, &settings)?;
     app.manage(RwLock::new(settings.clone()));
 
-    // Provide the settings file provider as managed state so `set_settings` and
-    // `open_book` reuse this single instance instead of reconstructing one (and
+    // Provide the settings file provider as managed state so `set_settings`
+    // reuses this single instance instead of reconstructing one (and
     // re-running `create_dir_all` / home-dir resolution) on every invocation.
     app.manage(provider);
 
