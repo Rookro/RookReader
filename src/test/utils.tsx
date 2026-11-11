@@ -95,6 +95,7 @@ export function createBasePreloadedState(): RootState {
     },
     history: { recentlyReadBooks: [], status: "idle", error: null },
     settingsError: { error: null },
+    errorNotification: { pending: [] },
   };
 }
 

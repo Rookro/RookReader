@@ -41,4 +41,24 @@ describe("createCommandThunk", () => {
     });
     expect(error).toHaveBeenCalledWith("Failed to load(id: 7). Error: DB fail");
   });
+
+  it("marks the rejection superseded when isSuperseded says so", async () => {
+    const isSuperseded = vi.fn(() => true);
+    const load = createCommandThunk(
+      "test/load",
+      async (_id: number) => {
+        throw new CommandError(ErrorCode.io, "gone");
+      },
+      () => "Failed.",
+      isSuperseded,
+    );
+    const action = await load(7)(vi.fn(), vi.fn(), undefined);
+    expect(load.rejected.match(action)).toBe(true);
+    expect(action.payload).toStrictEqual({
+      code: ErrorCode.io,
+      message: "Failed. Error: gone",
+      superseded: true,
+    });
+    expect(isSuperseded).toHaveBeenCalledWith(7, expect.anything());
+  });
 });

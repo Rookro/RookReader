@@ -400,6 +400,7 @@
       "bookshelf": "Bookshelf operation failed.",
       "tag": "Tag operation failed.",
       "series": "Series operation failed.",
+      "bookmark": "Bookmark operation failed.",
       "settings-save": "Failed to save settings."
     },
     "reason": {

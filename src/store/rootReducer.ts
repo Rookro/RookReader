@@ -9,6 +9,7 @@ import HistoryReducer from "../features/History/slice";
 import ViewReducer from "../features/MainView/slice";
 import SettingsErrorReducer from "../features/Settings/errorSlice";
 import SettingsReducer from "../features/Settings/slice";
+import ErrorNotificationReducer from "./errorNotificationSlice";
 
 export const rootReducer = combineReducers({
   reader: ReaderReducer,
@@ -21,4 +22,5 @@ export const rootReducer = combineReducers({
   series: SeriesReducer,
   settings: SettingsReducer,
   settingsError: SettingsErrorReducer,
+  errorNotification: ErrorNotificationReducer,
 });

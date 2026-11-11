@@ -63,6 +63,29 @@ describe("handleThunkError", () => {
       details,
     });
   });
+
+  it("marks a superseded failure", () => {
+    const result = handleThunkError(
+      new CommandError(ErrorCode.io, "gone"),
+      "Explore",
+      (value) => value,
+      true,
+    );
+    expect(result).toStrictEqual({
+      code: ErrorCode.io,
+      message: "Explore Error: gone",
+      superseded: true,
+    });
+  });
+
+  it("leaves the superseded key out by default", () => {
+    const result = handleThunkError(
+      new CommandError(ErrorCode.io, "gone"),
+      "Explore",
+      (value) => value,
+    );
+    expect(result).not.toHaveProperty("superseded");
+  });
 });
 
 describe("recordThunkError", () => {

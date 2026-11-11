@@ -1,21 +1,8 @@
 import type { TFunction } from "i18next";
 import { ErrorCode } from "../../types/Error";
+import type { ErrorContext } from "../../types/ErrorContext";
 
-/**
- * The operation a failure happened in. It decides the headline of the notification;
- * the {@link ErrorCode} decides the reason appended to it.
- */
-export type ErrorContext =
-  | "open-container"
-  | "record-book"
-  | "load-page"
-  | "load-novel"
-  | "explorer"
-  | "history"
-  | "bookshelf"
-  | "tag"
-  | "series"
-  | "settings-save";
+export type { ErrorContext };
 
 /** The headline shown for each operation. */
 const HEADLINE_KEY_BY_CONTEXT = {
@@ -28,6 +15,7 @@ const HEADLINE_KEY_BY_CONTEXT = {
   bookshelf: "error-message.headline.bookshelf",
   tag: "error-message.headline.tag",
   series: "error-message.headline.series",
+  bookmark: "error-message.headline.bookmark",
   "settings-save": "error-message.headline.settings-save",
 } as const satisfies Record<ErrorContext, string>;
 
