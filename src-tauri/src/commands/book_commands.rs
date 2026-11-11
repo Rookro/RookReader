@@ -1235,6 +1235,56 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn open_book_seeds_the_default_direction_while_history_is_off() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = png_folder(dir.path(), "Comic", 2);
+        let mut mock_repo = MockBookRepository::new();
+        mock_repo.expect_record_opened().times(0);
+        mock_repo
+            .expect_register()
+            .times(1)
+            .returning(|_, _, _, _, _| Ok(7));
+        let stored = stored_book(&path, None);
+        mock_repo
+            .expect_get_book_with_state_by_id()
+            .returning(move |_| Ok(Some(stored.clone())));
+        mock_repo
+            .expect_update_reading_direction()
+            .with(
+                mockall::predicate::eq(7),
+                mockall::predicate::eq(Direction::Ltr),
+            )
+            .times(1)
+            .returning(|_, _| Ok(()));
+
+        let app = tauri::test::mock_app();
+        let _thumbnail = ThumbnailCleanup::new(&app, &path);
+        manage_for_opening(
+            &app,
+            dir.path(),
+            mock_repo,
+            serde_json::json!({
+                "history": { "recordReadingHistory": false },
+                "reader": { "comic": { "readingDirection": "ltr" } }
+            }),
+        );
+        let events = record_events(app.handle());
+
+        let opened = open_book(
+            path,
+            app.state(),
+            app.handle().clone(),
+            app.state(),
+            app.state(),
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(opened.book.unwrap().reading_direction, Some(Direction::Ltr));
+        assert_eq!(*events.lock().unwrap(), [BooksChanged::NAME]);
+    }
+
+    #[tokio::test]
     async fn open_book_keeps_the_pages_when_recording_fails() {
         let dir = tempfile::tempdir().unwrap();
         let path = png_folder(dir.path(), "Comic", 2);
