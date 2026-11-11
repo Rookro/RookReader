@@ -64,13 +64,15 @@ fn build_image_cache(size_mib: u64) -> Cache {
 ///
 /// The render height, capped by `max_image_height` unless that is 0 (no limit).
 fn pdf_render_height(settings: &ContainerSettings) -> i32 {
-    if settings.max_image_height > 0 {
+    let height = if settings.max_image_height > 0 {
         settings
             .pdf_render_resolution_height
             .min(settings.max_image_height)
     } else {
         settings.pdf_render_resolution_height
-    }
+    };
+    // pdfium takes an `i32`; the setting's upper bound is far below it.
+    i32::try_from(height).unwrap_or(i32::MAX)
 }
 
 /// Holds the state related to the currently open container (e.g., a file or directory).
@@ -168,7 +170,7 @@ impl ContainerState {
     pub fn apply_rendering(&self) {
         if let Some(service) = self.service.as_ref() {
             service.set_rendering(
-                self.settings.max_image_height.max(0) as u32,
+                self.settings.max_image_height,
                 self.settings.image_resampling_method,
             );
         }
@@ -284,11 +286,11 @@ impl ContainerState {
             create_container(path, Self::container_config(settings))?,
             Pipeline {
                 display: display_size,
-                max_image_height: settings.max_image_height as u32,
+                max_image_height: settings.max_image_height,
                 resize_method: settings.image_resampling_method,
             },
             image_cache.clone(),
-            settings.page_reader_count.max(0) as usize,
+            settings.page_reader_count as usize,
         ))
     }
 

@@ -9,16 +9,16 @@ use crate::settings::AppSettings;
 pub struct ContainerSettings {
     /// The maximum height in pixels for displayed images. Images exceeding this will be resized.
     /// A value of 0 implies no height limit.
-    pub max_image_height: i32,
+    pub max_image_height: u32,
     /// The algorithm to use when resampling images (e.g., `ResizeFilter::Bilinear`).
     pub image_resampling_method: ResizeFilter,
     /// The target height in pixels when rendering a page from a PDF document as an image.
-    pub pdf_render_resolution_height: i32,
+    pub pdf_render_resolution_height: u32,
     /// The maximum size of the image memory cache in MiB.
     pub image_cache_size_mib: u64,
     /// How many threads may read pages at once (`0` = pick one from the machine).
     /// Capped by the container's own `max_readers`.
-    pub page_reader_count: i32,
+    pub page_reader_count: u32,
     /// An optional path to the PDFium library, required for rendering PDF files.
     /// If `None`, the application may not be able to open PDF files.
     pub pdfium_library_path: Option<String>,
