@@ -233,25 +233,29 @@ impl BookRepository for SqliteBookRepository {
         Ok(())
     }
 
-    async fn update_reading_progress(&self, state: &ReadingState) -> Result<()> {
-        sqlx::query!(
+    async fn update_reading_progress(
+        &self,
+        book_id: i64,
+        page_index: i64,
+        cfi: Option<String>,
+    ) -> Result<ReadingState> {
+        let state = sqlx::query_as!(
+            ReadingState,
             r#"
             INSERT INTO reading_state (book_id, last_read_page_index, cfi, last_opened_at)
-            VALUES (?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP))
+            VALUES (?, ?, ?, CURRENT_TIMESTAMP)
             ON CONFLICT(book_id) DO UPDATE SET
                 last_read_page_index = excluded.last_read_page_index,
-                cfi = excluded.cfi,
-                last_opened_at = COALESCE(excluded.last_opened_at, reading_state.last_opened_at)
+                cfi = excluded.cfi
+            RETURNING book_id, last_read_page_index, cfi, last_opened_at
             "#,
-            state.book_id,
-            state.last_read_page_index,
-            state.cfi,
-            state.last_opened_at
+            book_id,
+            page_index,
+            cfi
         )
-        .execute(&self.pool)
+        .fetch_one(&self.pool)
         .await?;
-
-        Ok(())
+        Ok(state)
     }
 
     async fn get_recently_read_books(&self) -> Result<Vec<BookWithState>> {

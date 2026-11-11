@@ -1,11 +1,15 @@
 import type { Middleware } from "@reduxjs/toolkit";
 import { error } from "@tauri-apps/plugin-log";
 import { api } from "../../bindings/api";
-import type { ReadingState } from "../../domain/entities";
 import { setImageIndex, setNovelLocation } from "../../features/BookReader/slice";
 import type { RootState } from "../store";
 
-type PendingUpdate = { state: ReadingState; shouldRecord: () => boolean };
+type PendingUpdate = {
+  bookId: number;
+  pageIndex: number;
+  cfi: string | null;
+  shouldRecord: () => boolean;
+};
 
 /** How long page turns are coalesced before the position is written. */
 const DEBOUNCE_MS = 500;
@@ -33,12 +37,10 @@ export const createReadingStateMiddleware = () => {
     if (!update?.shouldRecord()) {
       return Promise.resolve();
     }
-    return api.updateReadingProgress(update.state).then(
+    return api.updateReadingProgress(update.bookId, update.pageIndex, update.cfi).then(
       () => undefined,
       (e) => {
-        error(
-          `ReadingState update failed (${update.state.book_id}:${update.state.last_read_page_index}): ${e}`,
-        );
+        error(`ReadingState update failed (${update.bookId}:${update.pageIndex}): ${e}`);
       },
     );
   };
@@ -46,7 +48,7 @@ export const createReadingStateMiddleware = () => {
   const queue = (update: PendingUpdate) => {
     // Flush immediately when the pending write belongs to a different book, so a
     // book switch never silently replaces the previous book's final position.
-    if (pending && pending.state.book_id !== update.state.book_id) {
+    if (pending && pending.bookId !== update.bookId) {
       void flush();
     }
     pending = update;
@@ -71,13 +73,10 @@ export const createReadingStateMiddleware = () => {
 
           if (history[historyIndex] && index > -1 && book) {
             queue({
-              state: {
-                book_id: book.id,
-                last_read_page_index: index,
-                // foliate-js occasionally emits an empty CFI; store null instead of "".
-                cfi: cfi || null,
-                last_opened_at: book.last_opened_at,
-              },
+              bookId: book.id,
+              pageIndex: index,
+              // foliate-js occasionally emits an empty CFI; store null instead of "".
+              cfi: cfi || null,
               shouldRecord: () => store.getState().settings.history.recordReadingHistory,
             });
           }

@@ -307,11 +307,13 @@ export const commands = {
 	 */
 	getRecentlyReadBooks: () => typedError<BookWithState_Serialize[], CommandError_Serialize>(__TAURI_INVOKE("get_recently_read_books")),
 	/**
-	 *  Updates the reading progress/state for a book.
+	 *  Saves where the reader is in a book and announces it.
 	 * 
 	 *  # Arguments
 	 * 
-	 *  * `state_data` - The `ReadingState` object sent from the frontend.
+	 *  * `book_id` - The book being read.
+	 *  * `page_index` - The page the reader is on.
+	 *  * `cfi` - The EPUB position, `None` for comics.
 	 *  * `repo` - The managed book repository state.
 	 *  * `app` - The Tauri AppHandle.
 	 * 
@@ -320,7 +322,7 @@ export const commands = {
 	 *  This function will return an `Err` if the underlying repository operation fails
 	 *  (e.g., due to a database error, connection issue, or query execution failure).
 	 */
-	updateReadingProgress: (stateData: ReadingState_Deserialize) => typedError<null, CommandError_Serialize>(__TAURI_INVOKE("update_reading_progress", { stateData })),
+	updateReadingProgress: (bookId: number, pageIndex: number, cfi: string | null) => typedError<null, CommandError_Serialize>(__TAURI_INVOKE("update_reading_progress", { bookId, pageIndex, cfi })),
 	/**
 	 *  Retrieves all books, including their reading states.
 	 * 

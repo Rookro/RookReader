@@ -67,12 +67,7 @@ describe("readingStateMiddleware", () => {
     expect(api.updateReadingProgress).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(500);
 
-    expect(api.updateReadingProgress).toHaveBeenCalledWith({
-      book_id: 1,
-      last_read_page_index: 10,
-      cfi: null,
-      last_opened_at: "now",
-    });
+    expect(api.updateReadingProgress).toHaveBeenCalledWith(1, 10, null);
   });
 
   // Verify that two rapid same-book writes coalesce into a single write with the last args.
@@ -87,12 +82,7 @@ describe("readingStateMiddleware", () => {
     await vi.advanceTimersByTimeAsync(500);
 
     expect(api.updateReadingProgress).toHaveBeenCalledTimes(1);
-    expect(api.updateReadingProgress).toHaveBeenCalledWith({
-      book_id: 1,
-      last_read_page_index: 20,
-      cfi: null,
-      last_opened_at: "now",
-    });
+    expect(api.updateReadingProgress).toHaveBeenCalledWith(1, 20, null);
   });
 
   // Verify that switching books flushes the previous book's pending write immediately
@@ -107,22 +97,12 @@ describe("readingStateMiddleware", () => {
     runWith(instance, store, next, setImageIndex(3));
 
     expect(api.updateReadingProgress).toHaveBeenCalledTimes(1);
-    expect(api.updateReadingProgress).toHaveBeenCalledWith({
-      book_id: 1,
-      last_read_page_index: 10,
-      cfi: null,
-      last_opened_at: "a",
-    });
+    expect(api.updateReadingProgress).toHaveBeenCalledWith(1, 10, null);
 
     // Book 2 still fires later on its own debounce.
     await vi.advanceTimersByTimeAsync(500);
     expect(api.updateReadingProgress).toHaveBeenCalledTimes(2);
-    expect(api.updateReadingProgress).toHaveBeenLastCalledWith({
-      book_id: 2,
-      last_read_page_index: 3,
-      cfi: null,
-      last_opened_at: "b",
-    });
+    expect(api.updateReadingProgress).toHaveBeenLastCalledWith(2, 3, null);
   });
 
   it("flush writes the pending update before the timer fires, and only once", async () => {
@@ -130,12 +110,7 @@ describe("readingStateMiddleware", () => {
 
     await flush();
     expect(api.updateReadingProgress).toHaveBeenCalledTimes(1);
-    expect(api.updateReadingProgress).toHaveBeenCalledWith({
-      book_id: 1,
-      last_read_page_index: 10,
-      cfi: null,
-      last_opened_at: "now",
-    });
+    expect(api.updateReadingProgress).toHaveBeenCalledWith(1, 10, null);
 
     await vi.advanceTimersByTimeAsync(500);
     expect(api.updateReadingProgress).toHaveBeenCalledTimes(1);
@@ -191,12 +166,7 @@ describe("readingStateMiddleware", () => {
     run(store, next, setImageIndex(3));
     await vi.advanceTimersByTimeAsync(500);
 
-    expect(api.updateReadingProgress).toHaveBeenCalledWith({
-      book_id: 1,
-      last_read_page_index: 3,
-      cfi: null,
-      last_opened_at: null,
-    });
+    expect(api.updateReadingProgress).toHaveBeenCalledWith(1, 3, null);
   });
 
   // Verify that the fire-time re-check skips the write when history is disabled
@@ -226,12 +196,7 @@ describe("readingStateMiddleware", () => {
     run(store, next, setNovelLocation({ index: 5, cfi: "epubcfi(/6/8!/4/2/1:0)" }));
     await vi.advanceTimersByTimeAsync(500);
 
-    expect(api.updateReadingProgress).toHaveBeenCalledWith({
-      book_id: 1,
-      last_read_page_index: 5,
-      cfi: "epubcfi(/6/8!/4/2/1:0)",
-      last_opened_at: "now",
-    });
+    expect(api.updateReadingProgress).toHaveBeenCalledWith(1, 5, "epubcfi(/6/8!/4/2/1:0)");
   });
 
   // Verify that an empty CFI (occasionally emitted by foliate-js) is stored as null, never "".
@@ -241,12 +206,7 @@ describe("readingStateMiddleware", () => {
     run(store, next, setNovelLocation({ index: 5, cfi: "" }));
     await vi.advanceTimersByTimeAsync(500);
 
-    expect(api.updateReadingProgress).toHaveBeenCalledWith({
-      book_id: 1,
-      last_read_page_index: 5,
-      cfi: null,
-      last_opened_at: "now",
-    });
+    expect(api.updateReadingProgress).toHaveBeenCalledWith(1, 5, null);
   });
 
   // Verify that an error log is output if saving the reading state fails

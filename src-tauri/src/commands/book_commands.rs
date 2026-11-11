@@ -7,7 +7,7 @@ use tauri::State;
 use crate::commands::events::{emit, BooksChanged, ReadingHistoryChanged, ReadingProgressChanged};
 use crate::container::describe::describe;
 use crate::container::traits::Container;
-use crate::domain::book::entity::{BookWithState, Direction, ReadingState};
+use crate::domain::book::entity::{BookWithState, Direction};
 use crate::domain::book::repository::BookRepository;
 use crate::error::{Error, Result};
 use crate::infrastructure::thumbnails;
@@ -247,11 +247,13 @@ pub async fn clear_all_reading_history<R: tauri::Runtime>(
     Ok(())
 }
 
-/// Updates the reading progress/state for a book.
+/// Saves where the reader is in a book and announces it.
 ///
 /// # Arguments
 ///
-/// * `state_data` - The `ReadingState` object sent from the frontend.
+/// * `book_id` - The book being read.
+/// * `page_index` - The page the reader is on.
+/// * `cfi` - The EPUB position, `None` for comics.
 /// * `repo` - The managed book repository state.
 /// * `app` - The Tauri AppHandle.
 ///
@@ -262,13 +264,17 @@ pub async fn clear_all_reading_history<R: tauri::Runtime>(
 #[tauri::command]
 #[specta::specta]
 pub async fn update_reading_progress<R: tauri::Runtime>(
-    state_data: ReadingState,
+    book_id: i64,
+    page_index: i64,
+    cfi: Option<String>,
     repo: State<'_, Arc<dyn BookRepository>>,
     app: tauri::AppHandle<R>,
 ) -> Result<()> {
-    log::debug!("Update reading progress: {:?}", state_data);
-    repo.update_reading_progress(&state_data).await?;
-    emit(&app, &ReadingProgressChanged(state_data));
+    log::debug!("Update reading progress of book {book_id}: page {page_index}");
+    let state = repo
+        .update_reading_progress(book_id, page_index, cfi)
+        .await?;
+    emit(&app, &ReadingProgressChanged(state));
     Ok(())
 }
 
@@ -438,7 +444,7 @@ mod tests {
 
     use super::*;
     use crate::commands::events::test_support::record_events;
-    use crate::domain::book::entity::{Book, ItemType};
+    use crate::domain::book::entity::{Book, ItemType, ReadingState};
     use crate::domain::book::repository::MockBookRepository;
     use crate::error::ErrorCode;
     use tauri::Manager;
@@ -548,25 +554,33 @@ mod tests {
         let mut mock_repo = MockBookRepository::new();
         mock_repo
             .expect_update_reading_progress()
-            .withf(|state: &ReadingState| {
-                state.book_id == 1
-                    && state.last_read_page_index == 7
-                    && state.cfi.as_deref() == Some("epubcfi(/6/8!/4/2/1:0)")
+            .withf(|book_id, page_index, cfi| {
+                *book_id == 1
+                    && *page_index == 7
+                    && cfi.as_deref() == Some("epubcfi(/6/8!/4/2/1:0)")
             })
             .times(1)
-            .returning(|_| Ok(()));
+            .returning(|book_id, last_read_page_index, cfi| {
+                Ok(ReadingState {
+                    book_id,
+                    last_read_page_index,
+                    cfi,
+                    last_opened_at: None,
+                })
+            });
 
         let app = tauri::test::mock_app();
         app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
         let repo = app.state::<Arc<dyn BookRepository>>();
 
-        let state_data = ReadingState {
-            book_id: 1,
-            last_read_page_index: 7,
-            cfi: Some("epubcfi(/6/8!/4/2/1:0)".to_string()),
-            last_opened_at: None,
-        };
-        let result = update_reading_progress(state_data, repo, app.handle().clone()).await;
+        let result = update_reading_progress(
+            1,
+            7,
+            Some("epubcfi(/6/8!/4/2/1:0)".to_string()),
+            repo,
+            app.handle().clone(),
+        )
+        .await;
         assert!(result.is_ok());
     }
 

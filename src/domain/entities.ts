@@ -19,10 +19,7 @@ export type { Series, Tag } from "../bindings/bindings";
 /** A book together with its reading state, which is null until the book is opened. */
 export type BookWithState = BookWithState_Serialize;
 
-/**
- * Where the reader is in a book. A null `last_opened_at` leaves it to the backend, which
- * records the current time.
- */
+/** Where the reader is in a book, as the backend reports it after a page turn. */
 export type ReadingState = ReadingState_Serialize;
 
 /** A named position in a book. */

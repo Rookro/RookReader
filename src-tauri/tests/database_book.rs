@@ -1,4 +1,4 @@
-use rookreader_lib::domain::book::entity::{ItemType, ReadingState};
+use rookreader_lib::domain::book::entity::ItemType;
 use rookreader_lib::domain::book::repository::BookRepository;
 use rookreader_lib::domain::collection::repository::CollectionRepository;
 use rookreader_lib::domain::series::repository::SeriesRepository;
@@ -100,13 +100,10 @@ async fn test_reading_state() {
     assert!(book_with_state.last_read_page_index.is_none());
     assert!(book_with_state.cfi.is_none());
 
-    let state = ReadingState {
-        book_id,
-        last_read_page_index: 50,
-        cfi: None,
-        last_opened_at: Some(chrono::Utc::now().naive_utc()),
-    };
-    repository.update_reading_progress(&state).await.unwrap();
+    repository
+        .update_reading_progress(book_id, 50, None)
+        .await
+        .unwrap();
 
     let book_with_state = repository
         .get_book_with_state_by_id(book_id)
@@ -144,12 +141,7 @@ async fn test_reading_state_cfi_roundtrip_and_preservation() {
 
     // Persist a CFI and read it back through the view.
     repository
-        .update_reading_progress(&ReadingState {
-            book_id,
-            last_read_page_index: 3,
-            cfi: Some("epubcfi(/6/8!/4/2/1:0)".to_string()),
-            last_opened_at: Some(chrono::Utc::now().naive_utc()),
-        })
+        .update_reading_progress(book_id, 3, Some("epubcfi(/6/8!/4/2/1:0)".to_string()))
         .await
         .unwrap();
     let book = repository
@@ -262,36 +254,51 @@ async fn recently_read_books_lists_only_opened_books_newest_first() {
 }
 
 #[tokio::test]
-async fn test_update_reading_progress_defaults_null_last_opened_at() {
+async fn update_reading_progress_creates_the_reading_state() {
     let pool = setup_db().await;
     let repository = SqliteBookRepository::new(pool.clone());
-
     let book_id = repository
-        .register("/path/to/book.epub", ItemType::File, "My Book", 100, None)
+        .register("/book.zip", ItemType::File, "Book", 10, None)
         .await
         .unwrap();
 
-    // last_opened_at = None must not write NULL (which would exclude the book from
-    // recent lists); it defaults to the current timestamp.
-    repository
-        .update_reading_progress(&ReadingState {
-            book_id,
-            last_read_page_index: 5,
-            cfi: None,
-            last_opened_at: None,
-        })
+    let state = repository
+        .update_reading_progress(book_id, 3, None)
         .await
         .unwrap();
 
-    let book_with_state = repository
-        .get_book_with_state_by_id(book_id)
-        .await
-        .unwrap()
-        .unwrap();
-    assert!(book_with_state.last_opened_at.is_some());
+    assert_eq!(state.book_id, book_id);
+    assert_eq!(state.last_read_page_index, 3);
+    assert!(state.last_opened_at.is_some());
+}
 
-    let recent = repository.get_recently_read_books().await.unwrap();
-    assert!(recent.iter().any(|b| b.id == book_id));
+#[tokio::test]
+async fn update_reading_progress_keeps_when_the_book_was_opened() {
+    let pool = setup_db().await;
+    let repository = SqliteBookRepository::new(pool.clone());
+    let book_id = repository
+        .record_opened("/book.zip", ItemType::File, "Book", 10, None)
+        .await
+        .unwrap();
+    sqlx::query(
+        "UPDATE reading_state SET last_opened_at = '2020-01-01 00:00:00' WHERE book_id = ?",
+    )
+    .bind(book_id)
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    let state = repository
+        .update_reading_progress(book_id, 7, Some("epubcfi(/6/8!/4/2/1:0)".to_string()))
+        .await
+        .unwrap();
+
+    assert_eq!(state.last_read_page_index, 7);
+    assert_eq!(state.cfi.as_deref(), Some("epubcfi(/6/8!/4/2/1:0)"));
+    assert_eq!(
+        state.last_opened_at.unwrap().to_string(),
+        "2020-01-01 00:00:00"
+    );
 }
 
 #[tokio::test]
@@ -363,15 +370,9 @@ async fn test_clear_all_reading_history() {
         .register("/path/1", ItemType::File, "B1", 100, None)
         .await
         .unwrap();
-    let now = chrono::Utc::now().naive_utc();
 
     repository
-        .update_reading_progress(&ReadingState {
-            book_id: b1,
-            last_read_page_index: 10,
-            cfi: None,
-            last_opened_at: Some(now),
-        })
+        .update_reading_progress(b1, 10, None)
         .await
         .unwrap();
 
@@ -447,12 +448,7 @@ async fn test_delete() {
         .unwrap();
 
     repository
-        .update_reading_progress(&ReadingState {
-            book_id,
-            last_read_page_index: 10,
-            cfi: None,
-            last_opened_at: Some(chrono::Utc::now().naive_utc()),
-        })
+        .update_reading_progress(book_id, 10, None)
         .await
         .unwrap();
 
@@ -516,12 +512,7 @@ async fn spread_state_round_trips_and_survives_clearing_history() {
     // precisely so that clearing history — or turning it off — cannot discard how the
     // reader corrected the book's pairing.
     repository
-        .update_reading_progress(&ReadingState {
-            book_id,
-            last_read_page_index: 2,
-            last_opened_at: None,
-            cfi: None,
-        })
+        .update_reading_progress(book_id, 2, None)
         .await
         .unwrap();
     repository.clear_reading_history(book_id).await.unwrap();
@@ -572,12 +563,7 @@ async fn register_keeps_an_existing_reading_state() {
         .await
         .unwrap();
     repository
-        .update_reading_progress(&ReadingState {
-            book_id,
-            last_read_page_index: 4,
-            cfi: None,
-            last_opened_at: None,
-        })
+        .update_reading_progress(book_id, 4, None)
         .await
         .unwrap();
     let before = repository

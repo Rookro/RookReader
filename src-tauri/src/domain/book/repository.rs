@@ -131,16 +131,24 @@ pub trait BookRepository: Send + Sync {
     ///
     /// # Arguments
     ///
-    /// * `state` - The `ReadingState` to update.
+    /// * `book_id` - The book being read.
+    /// * `page_index` - The page the reader is on.
+    /// * `cfi` - The EPUB position, `None` for comics.
     ///
     /// # Returns
     ///
-    /// A `Result` indicating the success of the operation.
+    /// The stored reading state. `last_opened_at` is when the book was opened, or now when
+    /// this call created the state.
     ///
     /// # Errors
     ///
     /// Returns an `Err` if the database execution fails.
-    async fn update_reading_progress(&self, state: &ReadingState) -> Result<()>;
+    async fn update_reading_progress(
+        &self,
+        book_id: i64,
+        page_index: i64,
+        cfi: Option<String>,
+    ) -> Result<ReadingState>;
 
     /// Records the reader's correction to how a book pairs into spreads.
     ///
