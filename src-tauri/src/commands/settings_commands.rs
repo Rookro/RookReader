@@ -5,7 +5,7 @@ use crate::{
     blocking::run_blocking,
     commands::events::{emit_to, SettingsChanged},
     error::Result,
-    settings::{AppSettings, CurrentSettings, SettingsFileProvider, SettingsPatch},
+    settings::{AppSettings, CurrentSettings, SettingsFileProvider, SettingsPatch, SettingsUnread},
     state::app_state::AppState,
 };
 
@@ -31,7 +31,8 @@ pub async fn get_settings(settings: tauri::State<'_, CurrentSettings>) -> Result
 /// Applies a partial settings change and returns the full merged settings.
 ///
 /// The `patch` carries only the changed leaves of a single category. The backend
-/// deep-merges it into the current settings, validates the merged whole, persists it,
+/// deep-merges it into the current settings (or, if start-up could not read the settings
+/// file, into the file read again), validates the merged whole, persists it,
 /// applies the reader/rendering values to the live container runtime, returns the
 /// full merged settings to the caller, and broadcasts a `settings-changed` event to
 /// every window **except the caller** so other windows re-hydrate.
@@ -48,6 +49,7 @@ pub async fn get_settings(settings: tauri::State<'_, CurrentSettings>) -> Result
 /// * `patch` - The single-category partial change to apply.
 /// * `state` - The application's runtime state.
 /// * `settings` - The current settings, replaced by the merged ones once they are saved.
+/// * `unread` - Set while the session runs on the fallback from an unreadable settings file.
 /// * `provider` - The managed settings file provider backing the settings store.
 ///
 /// # Returns
@@ -56,8 +58,9 @@ pub async fn get_settings(settings: tauri::State<'_, CurrentSettings>) -> Result
 ///
 /// # Errors
 ///
-/// Returns `Error::Settings` if the merged result is invalid (e.g. out of range),
-/// or a persistence error.
+/// Returns `Error::SettingsValidation` with one violation per out-of-range or mistyped field,
+/// `Error::Settings` if the merged document is invalid otherwise, or an error if the settings
+/// file cannot be read again or saved.
 #[tauri::command]
 #[specta::specta]
 pub async fn set_settings<R: tauri::Runtime>(
@@ -66,10 +69,11 @@ pub async fn set_settings<R: tauri::Runtime>(
     patch: SettingsPatch,
     state: tauri::State<'_, RwLock<AppState>>,
     settings: tauri::State<'_, CurrentSettings>,
+    unread: tauri::State<'_, SettingsUnread>,
     provider: tauri::State<'_, SettingsFileProvider>,
 ) -> Result<AppSettings> {
     let caller_label = webview.label().to_string();
-    change_settings(&settings, &provider, &state, patch, |merged| {
+    change_settings(&settings, &unread, &provider, &state, patch, |merged| {
         let all_labels: Vec<String> = app.webview_windows().into_keys().collect();
         let event = SettingsChanged(merged.clone());
         for label in settings_change_targets(all_labels, &caller_label) {
@@ -83,23 +87,36 @@ pub async fn set_settings<R: tauri::Runtime>(
 /// Applies `patch` to the current settings: validates the merged whole, saves it, adopts
 /// it, applies it to the container state, and announces it.
 ///
+/// While `unread` is set, the patch goes onto the settings file read again instead of onto
+/// the fallback in memory; if the file still cannot be read, nothing changes. The marker is
+/// cleared once the merged settings are saved and adopted.
+///
 /// The settings write lock is held to the end, so two changes cannot be saved A, B and
 /// then applied or announced B, A. Lock order is settings -> app state.
 async fn change_settings(
     current: &CurrentSettings,
+    unread: &SettingsUnread,
     provider: &SettingsFileProvider,
     state: &RwLock<AppState>,
     patch: SettingsPatch,
     announce: impl FnOnce(&AppSettings),
 ) -> Result<AppSettings> {
     let mut current = current.write().await;
-    let merged = current.patched(patch)?;
+    let merged = if unread.is_set() {
+        let provider = provider.clone();
+        run_blocking(move || AppSettings::load(&provider))
+            .await?
+            .patched(patch)?
+    } else {
+        current.patched(patch)?
+    };
     {
         let provider = provider.clone();
         let to_save = merged.clone();
         run_blocking(move || to_save.save(&provider)).await?;
     }
     *current = merged.clone();
+    unread.clear();
     state.write().await.container_state.apply_settings(&merged);
     announce(&merged);
     Ok(merged)
@@ -133,6 +150,7 @@ mod tests {
 
     use super::*;
     use crate::error::Error;
+    use crate::settings::SettingsStoreProvider;
 
     /// A settings file in `dir`, the default settings as the current ones, and an empty state.
     fn fixture(dir: &std::path::Path) -> (SettingsFileProvider, CurrentSettings, RwLock<AppState>) {
@@ -143,15 +161,35 @@ mod tests {
         )
     }
 
+    /// What a session runs on when start-up could not read the settings file.
+    fn fallback() -> CurrentSettings {
+        let mut settings = AppSettings::default();
+        settings.history.record_reading_history = false;
+        RwLock::new(settings)
+    }
+
     #[tokio::test]
     async fn a_change_is_saved_and_becomes_the_current_settings() {
         let dir = tempfile::tempdir().unwrap();
         let (provider, current, state) = fixture(dir.path());
+        let announced = std::sync::Mutex::new(Vec::new());
         let patch = SettingsPatch::History(json!({ "recordReadingHistory": false }));
 
-        let merged = change_settings(&current, &provider, &state, patch, |_| {})
-            .await
-            .unwrap();
+        let merged = change_settings(
+            &current,
+            &SettingsUnread::default(),
+            &provider,
+            &state,
+            patch,
+            |merged| {
+                announced
+                    .lock()
+                    .unwrap()
+                    .push(merged.history.record_reading_history);
+            },
+        )
+        .await
+        .unwrap();
 
         assert!(!merged.history.record_reading_history);
         assert!(!current.read().await.history.record_reading_history);
@@ -161,6 +199,63 @@ mod tests {
                 .history
                 .record_reading_history
         );
+        assert_eq!(*announced.lock().unwrap(), vec![false]);
+    }
+
+    #[tokio::test]
+    async fn a_change_after_an_unread_start_lands_on_the_file_not_on_the_fallback() {
+        let dir = tempfile::tempdir().unwrap();
+        let (provider, _, state) = fixture(dir.path());
+        provider
+            .save_all_settings(json!({ "bookshelf": { "gridSize": 2 } }))
+            .unwrap();
+        let current = fallback();
+        let unread = SettingsUnread::new(true);
+        let announced = AtomicUsize::new(0);
+        let patch = SettingsPatch::Reader(json!({ "rendering": { "maxImageHeight": 1234 } }));
+
+        let merged = change_settings(&current, &unread, &provider, &state, patch, |_| {
+            announced.fetch_add(1, Ordering::SeqCst);
+        })
+        .await
+        .unwrap();
+
+        let saved = AppSettings::load(&provider).unwrap();
+        for settings in [&merged, &*current.read().await, &saved] {
+            assert_eq!(settings.bookshelf.grid_size, 2);
+            assert!(settings.history.record_reading_history);
+            assert_eq!(settings.reader.rendering.max_image_height, 1234);
+        }
+        assert!(!unread.is_set());
+        assert_eq!(announced.load(Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test]
+    async fn a_change_fails_while_the_file_is_still_unreadable() {
+        let dir = tempfile::tempdir().unwrap();
+        let (provider, _, state) = fixture(dir.path());
+        let settings_path = dir.path().join("settings.json");
+        std::fs::create_dir(&settings_path).unwrap();
+        let current = fallback();
+        let unread = SettingsUnread::new(true);
+        let announced = AtomicUsize::new(0);
+        let patch = SettingsPatch::Reader(json!({ "rendering": { "maxImageHeight": 1234 } }));
+
+        let result = change_settings(&current, &unread, &provider, &state, patch, |_| {
+            announced.fetch_add(1, Ordering::SeqCst);
+        })
+        .await;
+
+        assert!(result.is_err());
+        let current = current.read().await;
+        assert!(!current.history.record_reading_history);
+        assert_eq!(
+            current.bookshelf.grid_size,
+            AppSettings::default().bookshelf.grid_size
+        );
+        assert!(unread.is_set());
+        assert_eq!(announced.load(Ordering::SeqCst), 0);
+        assert!(settings_path.is_dir());
     }
 
     #[tokio::test]
@@ -169,7 +264,15 @@ mod tests {
         let (provider, current, state) = fixture(dir.path());
         let patch = SettingsPatch::Reader(json!({ "rendering": { "maxImageHeight": 70000 } }));
 
-        let result = change_settings(&current, &provider, &state, patch, |_| {}).await;
+        let result = change_settings(
+            &current,
+            &SettingsUnread::default(),
+            &provider,
+            &state,
+            patch,
+            |_| {},
+        )
+        .await;
 
         assert!(matches!(result, Err(Error::SettingsValidation(_))));
         assert_eq!(current.read().await.reader.rendering.max_image_height, 0);
@@ -188,9 +291,16 @@ mod tests {
         let announced = AtomicUsize::new(0);
         let patch = SettingsPatch::History(json!({ "recordReadingHistory": false }));
 
-        let result = change_settings(&current, &provider, &state, patch, |_| {
-            announced.fetch_add(1, Ordering::SeqCst);
-        })
+        let result = change_settings(
+            &current,
+            &SettingsUnread::default(),
+            &provider,
+            &state,
+            patch,
+            |_| {
+                announced.fetch_add(1, Ordering::SeqCst);
+            },
+        )
         .await;
 
         assert!(result.is_err());
@@ -204,9 +314,16 @@ mod tests {
         let (provider, current, state) = fixture(dir.path());
         let patch = SettingsPatch::Reader(json!({ "rendering": { "maxImageHeight": 1234 } }));
 
-        change_settings(&current, &provider, &state, patch, |_| {})
-            .await
-            .unwrap();
+        change_settings(
+            &current,
+            &SettingsUnread::default(),
+            &provider,
+            &state,
+            patch,
+            |_| {},
+        )
+        .await
+        .unwrap();
 
         assert_eq!(
             state.read().await.container_state.settings.max_image_height,

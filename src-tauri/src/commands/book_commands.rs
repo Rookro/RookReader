@@ -957,7 +957,7 @@ mod tests {
         mock_repo: MockBookRepository,
         settings: AppSettings,
     ) {
-        app.manage(RwLock::new(settings));
+        app.manage(CurrentSettings::new(settings));
         app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
         app.manage(RwLock::new(AppState::default()));
     }

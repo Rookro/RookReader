@@ -9,6 +9,7 @@ pub use provider::{SettingsFileProvider, SettingsStoreProvider};
 
 use std::fmt;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use garde::Validate;
 use serde::{Deserialize, Serialize};
@@ -57,6 +58,40 @@ pub enum ViolationKind {
 /// applied B, A.
 pub type CurrentSettings = tokio::sync::RwLock<AppSettings>;
 
+/// Set while the session runs on the fallback because the settings file could not be read
+/// at start-up. The next change reads the file again instead of saving over it.
+#[derive(Default)]
+pub struct SettingsUnread(AtomicBool);
+
+impl SettingsUnread {
+    /// Creates the marker.
+    ///
+    /// # Arguments
+    ///
+    /// * `unread` - Whether the session runs on the fallback.
+    ///
+    /// # Returns
+    ///
+    /// The marker, set when `unread` is true.
+    pub fn new(unread: bool) -> Self {
+        Self(AtomicBool::new(unread))
+    }
+
+    /// Returns whether the session still runs on the fallback.
+    ///
+    /// # Returns
+    ///
+    /// `true` until a change has been saved over the re-read file.
+    pub fn is_set(&self) -> bool {
+        self.0.load(Ordering::SeqCst)
+    }
+
+    /// Records that the settings file has been read and saved again.
+    pub fn clear(&self) {
+        self.0.store(false, Ordering::SeqCst);
+    }
+}
+
 /// Represents the root configuration of the application settings.
 #[derive(Debug, Clone, Serialize, Deserialize, Default, Validate, specta::Type)]
 #[serde(rename_all = "camelCase", default)]
@@ -91,8 +126,7 @@ impl AppSettings {
     /// defaults on parse failure), fills the dynamic home directory, and repairs any
     /// out-of-range fields in memory. It never writes back.
     ///
-    /// The app reads the file only at start-up; this read-back is what the tests use to check
-    /// what `save` wrote.
+    /// The app uses it to read the file again after a start-up read failed.
     ///
     /// # Arguments
     ///
@@ -106,7 +140,6 @@ impl AppSettings {
     ///
     /// Returns an `Err` if the provider fails to read the store (other than a missing
     /// file, which reads as defaults).
-    #[cfg(test)]
     pub fn load<P: SettingsStoreProvider>(provider: &P) -> Result<Self> {
         Ok(Self::normalize(
             provider.get_all_settings()?,
@@ -132,22 +165,29 @@ impl AppSettings {
     ///
     /// This is the single place a "read" may write, and is intended to be called once
     /// at startup so a stale or out-of-range file is healed on disk. An unreadable file is
-    /// left alone and the session runs on defaults with reading history off.
+    /// left alone and the session runs on a fallback, the defaults with reading history off,
+    /// with the returned marker set so the next change reads the file again.
     ///
     /// # Arguments
     ///
     /// * `provider` - The storage backend.
     ///
+    /// # Returns
+    ///
+    /// The settings to run with, and a marker that is set when they are the fallback.
+    ///
     /// # Errors
     ///
     /// Returns an `Err` if serialization fails. A failed write is logged and the
     /// normalized settings are still returned, leaving the file as it was.
-    pub fn load_and_persist_normalized<P: SettingsStoreProvider>(provider: &P) -> Result<Self> {
+    pub fn load_and_persist_normalized<P: SettingsStoreProvider>(
+        provider: &P,
+    ) -> Result<(Self, SettingsUnread)> {
         let raw = match provider.get_all_settings() {
             Ok(raw) => raw,
             // An unreadable file (share lock, permissions) must not be healed: writing
             // defaults back would clobber the user's real settings. Run with in-memory
-            // defaults and leave the file untouched so it can recover on the next launch.
+            // defaults and leave the file untouched so it can recover on the next change.
             Err(e) => {
                 log::error!(
                     "Settings file unreadable; running with defaults and reading history off, without persisting: {e}"
@@ -156,7 +196,7 @@ impl AppSettings {
                     Self::normalize(serde_json::json!({}), provider.default_home_dir());
                 // The reader may have turned history off; the default would turn it back on.
                 settings.history.record_reading_history = false;
-                return Ok(settings);
+                return Ok((settings, SettingsUnread::new(true)));
             }
         };
         let config = Self::normalize(raw.clone(), provider.default_home_dir());
@@ -168,7 +208,7 @@ impl AppSettings {
                 );
             }
         }
-        Ok(config)
+        Ok((config, SettingsUnread::default()))
     }
 
     /// These settings with `patch` deep-merged in, validated as a whole. Writes nothing.
@@ -597,12 +637,13 @@ mod tests {
             saves: AtomicUsize::new(0),
         };
 
-        let settings = AppSettings::load_and_persist_normalized(&provider).unwrap();
+        let (settings, unread) = AppSettings::load_and_persist_normalized(&provider).unwrap();
 
         // Runs with in-memory defaults...
         assert!(matches!(settings.general.theme, AppTheme::System));
         // ...and must never persist, which would clobber the real file with defaults.
         assert_eq!(provider.saves.load(Ordering::SeqCst), 0);
+        assert!(unread.is_set());
     }
 
     #[test]
@@ -611,7 +652,7 @@ mod tests {
             saves: AtomicUsize::new(0),
         };
 
-        let settings = AppSettings::load_and_persist_normalized(&provider).unwrap();
+        let (settings, _) = AppSettings::load_and_persist_normalized(&provider).unwrap();
 
         assert!(!settings.history.record_reading_history);
     }

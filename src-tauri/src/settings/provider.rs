@@ -372,7 +372,8 @@ mod tests {
         fs::create_dir(&blocker).unwrap();
         fs::write(blocker.join("child"), b"").unwrap();
 
-        let loaded = AppSettings::load_and_persist_normalized(&provider_at(path.clone())).unwrap();
+        let (loaded, _) =
+            AppSettings::load_and_persist_normalized(&provider_at(path.clone())).unwrap();
 
         assert!(matches!(loaded.general.theme, AppTheme::System));
         assert_eq!(fs::read_to_string(&path).unwrap(), "bad{");

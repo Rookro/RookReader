@@ -24,7 +24,8 @@ use crate::{
     },
     paths::app_data_dir,
     settings::{
-        AppSettings, AppTheme, LogLevel, LogSettings, SettingsFileProvider, SettingsStoreProvider,
+        AppSettings, AppTheme, CurrentSettings, LogLevel, LogSettings, SettingsFileProvider,
+        SettingsStoreProvider,
     },
     state::app_state::AppState,
 };
@@ -78,13 +79,14 @@ pub fn setup(app: &App) -> error::Result<()> {
         handle.add_capability(include_str!("../runtime-capabilities/wdio-webdriver.json"))?;
     }
 
-    let settings = AppSettings::load_and_persist_normalized(&provider)?;
+    let (settings, unread) = AppSettings::load_and_persist_normalized(&provider)?;
 
     set_theme(app, &settings.general.theme);
     setup_database(app)?;
 
     setup_container_settings(app, &settings)?;
-    app.manage(RwLock::new(settings.clone()));
+    app.manage(CurrentSettings::new(settings.clone()));
+    app.manage(unread);
 
     // Provide the settings file provider as managed state so `set_settings`
     // reuses this single instance instead of reconstructing one (and
