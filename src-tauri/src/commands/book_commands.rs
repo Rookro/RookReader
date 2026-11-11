@@ -824,7 +824,7 @@ mod tests {
     impl ThumbnailCleanup {
         fn new(app: &tauri::App<tauri::test::MockRuntime>, file_path: &str) -> Self {
             Self(
-                crate::setup::app_data_dir(app)
+                crate::paths::app_data_dir(app)
                     .unwrap()
                     .join("thumbnails")
                     .join(thumbnails::file_name(file_path)),

@@ -141,7 +141,7 @@ pub async fn cover_for<R: Runtime, M: Manager<R>>(
     file_path: &str,
     container: Arc<dyn Container>,
 ) -> Option<String> {
-    let made = match crate::setup::app_data_dir(app) {
+    let made = match crate::paths::app_data_dir(app) {
         Ok(data_dir) => {
             let dir = data_dir.join("thumbnails");
             let path = file_path.to_string();
