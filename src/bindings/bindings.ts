@@ -61,6 +61,20 @@ export const commands = {
 	 */
 	setSettings: (patch: SettingsPatch) => typedError<AppSettings_Serialize, CommandError_Serialize>(__TAURI_INVOKE("set_settings", { patch })),
 	/**
+	 *  Tells whether the session runs on the fallback settings because start-up could not read
+	 *  the settings file.
+	 * 
+	 *  # Arguments
+	 * 
+	 *  * `unread` - Set while the session runs on the fallback.
+	 * 
+	 *  # Returns
+	 * 
+	 *  `true` from a start-up that could not read the settings file until a change has been
+	 *  saved over the re-read file; `false` otherwise.
+	 */
+	isSettingsUnread: () => __TAURI_INVOKE<boolean>("is_settings_unread"),
+	/**
 	 *  Requests preloading of images around a specific index.
 	 * 
 	 *  This command can be called as the user navigates through a book to update
