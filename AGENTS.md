@@ -45,7 +45,7 @@ Locally, the `sqlx` macros check queries against `src-tauri/rook-reader.db` (`DA
 
 **Tests**
 - Frontend tests sit next to the code as `*.test.ts(x)`; render with `renderWithProviders` from `src/test/utils.tsx` and build data with `src/test/factories.ts`.
-- `src/test/mocks/bindings.ts` mocks `api` for all tests from the generated command list, so a new command is mocked without touching it (it resolves to `[]`; add it to `defaultResults` there when that does not suit). `getSettings` and `setSettings` are not stubbed: they run the real adapter, because settings tests fake the backend at `invoke` with `mockSettingsCommands` (`src/test/utils.tsx`). The binary commands in `src/bindings/binaryCommands.ts` are mocked by name in the same file.
+- `src/test/mocks/bindings.ts` mocks `api` for all tests from the generated command list, so a new command is mocked without touching it (it resolves to `[]`; add it to `defaultResults` there when that does not suit). `getSettings` and `setSettings` are not stubbed: they run the real adapter, because settings tests fake the backend at `invoke` with `mockSettingsCommands` (`src/test/utils.tsx`). The binary commands in `src/bindings/binaryApi.ts` are mocked by name in the same file.
 - Rust unit tests go in a `#[cfg(test)]` module in the same file; repository tests in `src-tauri/tests/` use `common::setup_db()` (in-memory SQLite with the migrations applied).
 
 Write all code comments and documentation in English.
@@ -56,7 +56,7 @@ Write all code comments and documentation in English.
 
 1. Put the logic in Rust (`src-tauri/src/domain/`, `infrastructure/database/`, `container/`, …).
 2. Expose it from `src-tauri/src/commands/` with `#[tauri::command]` + `#[specta::specta]`.
-3. Register it in `specta_builder()`'s `collect_commands!` in `src-tauri/src/lib.rs`. Commands returning a raw `tauri::ipc::Response` (binary payloads) go in the `binary_commands!` list there instead, and get a hand-written function in `src/bindings/binaryCommands.ts` that calls `runBinaryCommand` (`src/bindings/result.ts`).
+3. Register it in `specta_builder()`'s `collect_commands!` in `src-tauri/src/lib.rs`. Commands returning a raw `tauri::ipc::Response` (binary payloads) go in the `binary_commands!` list there instead, and get a hand-written function in `src/bindings/binaryApi.ts` that calls `runBinaryCommand` (`src/bindings/result.ts`).
 4. Run `npm run gen:bindings`.
 5. Call it as `api.myCommand(…)` (`src/bindings/api.ts`) from a Redux thunk or a hook: `api` holds every generated command, returns its data and throws a `CommandError`. When a new entity is added, alias its `_Serialize` type in `src/domain/entities.ts`.
 

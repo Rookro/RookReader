@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { api } from "../../bindings/api";
-import * as binaryCommands from "../../bindings/binaryCommands";
+import * as binaryApi from "../../bindings/binaryApi";
 import { createMockBookWithState } from "../../test/factories";
 import {
   type AppStore,
@@ -767,7 +767,7 @@ describe("ReaderReducer", () => {
         vi.mocked(api.openBook).mockRejectedValue(
           new CommandError(ErrorCode.emptyContainer, "Empty Container Error: multi.zip"),
         );
-        vi.mocked(binaryCommands.getEntriesInDir).mockResolvedValue(buffer);
+        vi.mocked(binaryApi.getEntriesInDir).mockResolvedValue(buffer);
 
         store.dispatch(bookPathOpened({ path: "multi.zip", origin: null }));
         await store.dispatch(loadBook("multi.zip"));
@@ -790,7 +790,7 @@ describe("ReaderReducer", () => {
         store.dispatch(bookPathOpened({ path: "current.zip", origin: null }));
         await store.dispatch(loadBook("stale.zip"));
 
-        expect(binaryCommands.getEntriesInDir).not.toHaveBeenCalled();
+        expect(binaryApi.getEntriesInDir).not.toHaveBeenCalled();
       });
 
       // Other failures leave the navigator alone: there is no path worth entering.
@@ -802,7 +802,7 @@ describe("ReaderReducer", () => {
         store.dispatch(bookPathOpened({ path: "broken.zip", origin: null }));
         await store.dispatch(loadBook("broken.zip"));
 
-        expect(binaryCommands.getEntriesInDir).not.toHaveBeenCalled();
+        expect(binaryApi.getEntriesInDir).not.toHaveBeenCalled();
       });
 
       // A failed open must not leave the previous book's title, type or reading state

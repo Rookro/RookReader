@@ -1,6 +1,6 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import { error } from "@tauri-apps/plugin-log";
-import { getEntriesInDir as getEntriesInDirFromBackend } from "../../bindings/binaryCommands";
+import { getEntriesInDir as getEntriesInDirFromBackend } from "../../bindings/binaryApi";
 import { createAppAsyncThunk } from "../../store/createCommandThunk";
 import { handleThunkError } from "../../store/thunkErrorHandler";
 import type { DirEntry } from "../../types/DirEntry";

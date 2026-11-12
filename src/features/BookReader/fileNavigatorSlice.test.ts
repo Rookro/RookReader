@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import * as binaryCommands from "../../bindings/binaryCommands";
+import * as binaryApi from "../../bindings/binaryApi";
 import { createMockDirEntry } from "../../test/factories";
 import {
   type AppStore,
@@ -150,13 +150,13 @@ describe("FileNavigatorReducer", () => {
 
         await store.dispatch(loadDirectory({ dirPath: "/a" }));
 
-        expect(binaryCommands.getEntriesInDir).not.toHaveBeenCalled();
+        expect(binaryApi.getEntriesInDir).not.toHaveBeenCalled();
         expect(store.getState().fileNavigator.requestId).toBeNull();
       });
 
       it("a superseded listing fails silently", async () => {
         let failListing: (reason: unknown) => void = () => {};
-        vi.mocked(binaryCommands.getEntriesInDir)
+        vi.mocked(binaryApi.getEntriesInDir)
           .mockReturnValueOnce(
             new Promise((_, reject) => {
               failListing = reject;
@@ -187,7 +187,7 @@ describe("FileNavigatorReducer", () => {
         new Uint8Array(buffer).set(nameBuffer, 5); // name data
         view.setBigUint64(5 + nameBuffer.byteLength, BigInt(0)); // lastModified = 0
 
-        vi.mocked(binaryCommands.getEntriesInDir).mockResolvedValue(buffer);
+        vi.mocked(binaryApi.getEntriesInDir).mockResolvedValue(buffer);
 
         await store.dispatch(loadDirectory({ dirPath: "/test/dir", forceUpdate: true }));
 
@@ -219,7 +219,7 @@ describe("FileNavigatorReducer", () => {
       // Verify handling of CommandError during File Navigator update
       it("should handle CommandError during File Navigator update", async () => {
         const mockError = new CommandError(ErrorCode.other, "dir failed");
-        vi.mocked(binaryCommands.getEntriesInDir).mockRejectedValue(mockError);
+        vi.mocked(binaryApi.getEntriesInDir).mockRejectedValue(mockError);
 
         await store.dispatch(loadDirectory({ dirPath: "/error/dir", forceUpdate: true }));
 
@@ -231,7 +231,7 @@ describe("FileNavigatorReducer", () => {
       // Verify handling of generic error during entry conversion
       it("should handle generic error during entry conversion", async () => {
         const testError = "read failed";
-        vi.mocked(binaryCommands.getEntriesInDir).mockRejectedValue(testError);
+        vi.mocked(binaryApi.getEntriesInDir).mockRejectedValue(testError);
 
         await store.dispatch(loadDirectory({ dirPath: "/error/dir", forceUpdate: true }));
 

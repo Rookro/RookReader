@@ -37,7 +37,7 @@ vi.mock("../../bindings/api", async () => {
   return { api };
 });
 
-vi.mock("../../bindings/binaryCommands", () => ({
+vi.mock("../../bindings/binaryApi", () => ({
   getImage: vi.fn(() => Promise.resolve(new ArrayBuffer(0))),
   getImageFull: vi.fn(() => Promise.resolve(new ArrayBuffer(0))),
   getImagePreview: vi.fn(() => Promise.resolve(new ArrayBuffer(0))),
