@@ -32,7 +32,7 @@ function Row({
   return (
     <ItemRow
       {...others}
-      key={entry.displayName}
+      key={entry.id}
       entry={entry}
       index={index}
       selected={selectedIndex === index}

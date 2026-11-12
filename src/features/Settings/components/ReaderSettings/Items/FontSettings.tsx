@@ -34,8 +34,13 @@ export default function FontSettings() {
 
   useEffect(() => {
     const initFonts = async () => {
-      const fonts = await api.getFonts();
-      setFonts(fonts);
+      try {
+        const fonts = await api.getFonts();
+        setFonts(fonts);
+      } catch (error) {
+        // The list stays empty; the current font stays selectable.
+        debug(`Failed to fetch fonts for settings: ${error}`);
+      }
     };
     initFonts();
   }, []);
