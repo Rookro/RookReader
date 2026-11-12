@@ -13,7 +13,8 @@ import type { OpenOrigin } from "./types/OpenOrigin";
 import { goBackHistory, goForwardHistory, pushHistory } from "./utils/navigationHistory";
 
 /**
- * Opens a container file or directory, retrieves its contents, and updates the reading history.
+ * Loads a container file or directory as the open book: retrieves its contents and updates
+ * the reading history.
  *
  * @param path - The absolute file path to the container or directory.
  * @returns A thunk that resolves to an object containing entries, directory status, novel status, and book state.
@@ -35,7 +36,7 @@ export const loadBook = createAppAsyncThunk(
         ...(isSuperseded() && { superseded: true as const }),
       });
     }
-    info(`Open container file: ${path}`);
+    info(`Loading the book: ${path}`);
     try {
       const [opened, dirPath] = await Promise.all([api.openBook(path), dirname(path)]);
 

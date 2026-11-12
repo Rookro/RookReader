@@ -27,7 +27,7 @@ describe("FileNavigatorReducer", () => {
   });
 
   describe("reducers", () => {
-    // Verify that File Navigator base path is set and history is updated
+    // Verify that the opened directory is added to the history
     it("should handle directoryPathOpened and update history", () => {
       const initialState = { history: ["/old"], historyIndex: 0 } as RootState["fileNavigator"];
       const state = fileNavigatorReducer(initialState, directoryPathOpened("/new"));
@@ -88,7 +88,7 @@ describe("FileNavigatorReducer", () => {
 
   describe("Async Thunk Integration Tests", () => {
     describe("loadDirectory staleness", () => {
-      const explorerAt = (path: string, requestId: string) => {
+      const navigatorAt = (path: string, requestId: string) => {
         const state = structuredClone(fileNavigatorReducer(undefined, { type: "unknown" }));
         state.history = [path];
         state.historyIndex = 0;
@@ -101,7 +101,7 @@ describe("FileNavigatorReducer", () => {
       // A failing folder followed by a good one: the late failure must not clear the good one
       it("ignores a failure of a superseded listing", () => {
         const state = fileNavigatorReducer(
-          explorerAt("/good", "r2"),
+          navigatorAt("/good", "r2"),
           loadDirectory.rejected(null, "r1", { dirPath: "/bad" }, { code: ErrorCode.io }),
         );
         expect(state.entries).toHaveLength(1);
@@ -110,7 +110,7 @@ describe("FileNavigatorReducer", () => {
 
       it("ignores a superseded listing of the same folder", () => {
         const state = fileNavigatorReducer(
-          explorerAt("/a", "r2"),
+          navigatorAt("/a", "r2"),
           loadDirectory.fulfilled({ path: "/a", entries: [] }, "r1", {
             dirPath: "/a",
             forceUpdate: true,

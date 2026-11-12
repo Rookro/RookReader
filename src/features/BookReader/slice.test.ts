@@ -190,7 +190,7 @@ describe("ReaderReducer", () => {
       expect(state.historyIndex).toBe(2);
     });
 
-    // Verify that container history navigation (back/forward) works correctly
+    // Verify that book history navigation (back/forward) works correctly
     it("should handle history navigation", () => {
       const initialState = {
         originHistory: [] as OpenOrigin[],
@@ -786,7 +786,7 @@ describe("ReaderReducer", () => {
           new CommandError(ErrorCode.emptyContainer, "Empty Container Error: stale.zip"),
         );
 
-        // `stale.zip` is no longer the head of the container history.
+        // `stale.zip` is no longer the head of the book history.
         store.dispatch(bookPathOpened({ path: "current.zip", origin: null }));
         await store.dispatch(loadBook("stale.zip"));
 

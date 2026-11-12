@@ -9,10 +9,10 @@ import { convertEntriesInDir } from "../../utils/DirEntryUtils";
 import { goBackHistory, goForwardHistory, pushHistory } from "./utils/navigationHistory";
 
 /**
- * Updates the base path for the File Navigator and fetches its contents.
+ * Moves the File Navigator to a directory and lists its entries.
  *
- * @param args - The arguments for updating the base path.
- * @param args.dirPath - The absolute directory path to explore.
+ * @param args - The arguments for loading the directory.
+ * @param args.dirPath - The absolute path of the directory to load.
  * @param args.forceUpdate - If true, forces a fetch even if the path is already the current one.
  * @returns A thunk that resolves to the directory path and its entries. When the folder is
  * already shown and `forceUpdate` is not set, nothing is dispatched.
@@ -83,7 +83,7 @@ export const fileNavigatorSlice = createSlice({
   initialState,
   reducers: {
     /**
-     * Sets the base path for the File Navigator and updates history.
+     * Moves the File Navigator to a directory and adds it to the history.
      *
      * @param state - The current Redux state slice.
      * @param action - Payload containing the directory path.
