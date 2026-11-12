@@ -2,8 +2,6 @@ import type { TFunction } from "i18next";
 import { ErrorCode } from "../../types/Error";
 import type { ErrorContext } from "../../types/ErrorContext";
 
-export type { ErrorContext };
-
 /** The headline shown for each operation. */
 const HEADLINE_KEY_BY_CONTEXT = {
   "open-container": "error-message.headline.open-container",
