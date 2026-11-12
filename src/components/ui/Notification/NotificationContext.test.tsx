@@ -187,6 +187,50 @@ describe("NotificationContext", () => {
       });
 
       expect(screen.getByText("Stay")).toBeInTheDocument();
+
+      fireEvent.click(screen.getByLabelText(/close/i));
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+
+      expect(screen.queryByText("Stay")).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("closes a notification on Escape", async () => {
+    renderWithProviders(
+      <NotificationProvider>
+        <TestComponent message="Escape Me" />
+      </NotificationProvider>,
+    );
+
+    await user.click(screen.getByRole("button"));
+    await user.keyboard("{Escape}");
+
+    await waitFor(() => {
+      expect(screen.queryByText("Escape Me")).not.toBeInTheDocument();
+    });
+  });
+
+  it("does not close a persistent notification on Escape", () => {
+    vi.useFakeTimers();
+    try {
+      renderWithProviders(
+        <NotificationProvider>
+          <PersistentNotification />
+        </NotificationProvider>,
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: "show" }));
+      fireEvent.keyDown(document, { key: "Escape" });
+      // Past the exit transition it would start.
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+
+      expect(screen.getByText("Stay")).toBeInTheDocument();
     } finally {
       vi.useRealTimers();
     }

@@ -21,13 +21,16 @@ interface QueuedNotification {
   id: number;
   message: string;
   severity: AlertColor;
-  /** Stays until it is closed instead of closing by itself. */
+  /** Closes only with its close button: not by itself, not on Escape. */
   persist: boolean;
 }
 
 /** How a notification is shown. */
 export interface NotificationOptions {
-  /** Keep the notification on screen until it is closed. Defaults to false. */
+  /**
+   * Keep the notification on screen until its close button is pressed: it does not close by
+   * itself or on Escape. Defaults to false.
+   */
   persist?: boolean;
 }
 
@@ -111,6 +114,10 @@ export default function NotificationProvider({ children }: NotificationProviderP
   const handleClose = useCallback(
     (_e: SyntheticEvent | Event, reason?: SnackbarCloseReason) => {
       if (reason === "clickaway" || !current) {
+        return;
+      }
+      // A persistent notification closes only with its close button.
+      if (current.persist && reason === "escapeKeyDown") {
         return;
       }
       setClosingId(current.id);
