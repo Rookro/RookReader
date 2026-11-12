@@ -1,5 +1,5 @@
 import type { AlertColor } from "@mui/material";
-import { renderHook, screen } from "@testing-library/react";
+import { act, fireEvent, renderHook, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../../../test/utils";
@@ -12,6 +12,21 @@ const TestComponent = ({ message, severity }: { message: string; severity?: Aler
     <button type="button" onClick={() => showNotification(message, severity)}>
       Show Notification
     </button>
+  );
+};
+
+// Two buttons, each queueing its own notification.
+const TwoNotifications = () => {
+  const { showNotification } = useNotification();
+  return (
+    <>
+      <button type="button" onClick={() => showNotification("First")}>
+        first
+      </button>
+      <button type="button" onClick={() => showNotification("Second", "error")}>
+        second
+      </button>
+    </>
   );
 };
 
@@ -77,8 +92,70 @@ describe("NotificationContext", () => {
 
     // For MUI Snackbar, we can check if the element has been removed or is no longer visible
     // Depending on transition setup, it might take a moment.
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(screen.queryByText("Close Me")).not.toBeInTheDocument();
+    });
+  });
+
+  it("shows a later notification after the one on screen is closed", async () => {
+    renderWithProviders(
+      <NotificationProvider>
+        <TwoNotifications />
+      </NotificationProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "first" }));
+    await user.click(screen.getByRole("button", { name: "second" }));
+    expect(screen.getByText("First")).toBeInTheDocument();
+    expect(screen.queryByText("Second")).not.toBeInTheDocument();
+
+    await user.click(screen.getByLabelText(/close/i));
+
+    expect(await screen.findByText("Second")).toBeInTheDocument();
+    expect(screen.queryByText("First")).not.toBeInTheDocument();
+  });
+
+  it("shows a later notification after the one on screen times out", () => {
+    vi.useFakeTimers();
+    try {
+      renderWithProviders(
+        <NotificationProvider>
+          <TwoNotifications />
+        </NotificationProvider>,
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: "first" }));
+      fireEvent.click(screen.getByRole("button", { name: "second" }));
+      expect(screen.getByText("First")).toBeInTheDocument();
+
+      // The auto-hide delay, then the exit transition.
+      act(() => {
+        vi.advanceTimersByTime(5000);
+      });
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+
+      expect(screen.queryByText("First")).not.toBeInTheDocument();
+      expect(screen.getByText("Second")).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not queue a notification that is already on screen", async () => {
+    renderWithProviders(
+      <NotificationProvider>
+        <TwoNotifications />
+      </NotificationProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "first" }));
+    await user.click(screen.getByRole("button", { name: "first" }));
+    await user.click(screen.getByLabelText(/close/i));
+
+    await waitFor(() => {
+      expect(screen.queryByText("First")).not.toBeInTheDocument();
     });
   });
 });
