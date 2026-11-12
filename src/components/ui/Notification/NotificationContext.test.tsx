@@ -158,4 +158,45 @@ describe("NotificationContext", () => {
       expect(screen.queryByText("First")).not.toBeInTheDocument();
     });
   });
+
+  it("does not queue a notification that is already waiting", async () => {
+    renderWithProviders(
+      <NotificationProvider>
+        <TwoNotifications />
+      </NotificationProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "first" }));
+    await user.click(screen.getByRole("button", { name: "second" }));
+    await user.click(screen.getByRole("button", { name: "second" }));
+    await user.click(screen.getByLabelText(/close/i));
+    expect(await screen.findByText("Second")).toBeInTheDocument();
+
+    await user.click(screen.getByLabelText(/close/i));
+
+    await waitFor(() => {
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+  });
+
+  it("queues the same message with another severity", async () => {
+    renderWithProviders(
+      <NotificationProvider>
+        <TestComponent message="Same" severity="info" />
+        <TestComponent message="Same" severity="error" />
+      </NotificationProvider>,
+    );
+
+    const [showInfo, showError] = screen.getAllByRole("button");
+    await user.click(showInfo);
+    await user.click(showError);
+    expect(screen.getByRole("alert")).toHaveClass("MuiAlert-colorInfo");
+
+    await user.click(screen.getByLabelText(/close/i));
+
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toHaveClass("MuiAlert-colorError");
+    });
+    expect(screen.getByText("Same")).toBeInTheDocument();
+  });
 });
