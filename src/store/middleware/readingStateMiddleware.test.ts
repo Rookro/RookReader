@@ -214,7 +214,9 @@ describe("readingStateMiddleware", () => {
     run(store, next, setImageIndex(10));
     await vi.advanceTimersByTimeAsync(500);
 
-    expect(error).toHaveBeenCalledWith(expect.stringContaining("ReadingState update failed"));
+    expect(error).toHaveBeenCalledWith(
+      expect.stringContaining("Failed to update the reading progress"),
+    );
   });
 
   // Verify that the middleware ignores non-object actions (e.g., strings) and passes them to the next handler
