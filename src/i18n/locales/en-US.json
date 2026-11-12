@@ -393,7 +393,7 @@
   "error-message": {
     "headline": {
       "open-container": "Failed to open book.",
-      "record-book": "Failed to record the reading history.",
+      "record-book": "Failed to save the book's information.",
       "load-page": "Failed to load the page.",
       "load-novel": "Failed to load the book's text.",
       "explorer": "Failed to load folder contents.",

@@ -393,7 +393,7 @@
   "error-message": {
     "headline": {
       "open-container": "本が開けませんでした。",
-      "record-book": "読書履歴の記録に失敗しました。",
+      "record-book": "本の情報の保存に失敗しました。",
       "load-page": "ページを読み込めませんでした。",
       "load-novel": "本文を読み込めませんでした。",
       "explorer": "フォルダーの中身が読み込めませんでした。",

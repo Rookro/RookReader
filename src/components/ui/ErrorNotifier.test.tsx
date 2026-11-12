@@ -103,7 +103,7 @@ describe("ErrorNotifier", () => {
     [
       "record-book",
       ErrorCode.database,
-      "Failed to record the reading history. Saving data failed.",
+      "Failed to save the book's information. Saving data failed.",
     ],
     [
       "explorer",
