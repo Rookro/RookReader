@@ -1,10 +1,11 @@
 import { error } from "@tauri-apps/plugin-log";
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createMockBookWithState } from "../../../../test/factories";
 import { mockScrollToRow } from "../../../../test/mocks/components";
 import { createBasePreloadedState, renderWithProviders } from "../../../../test/utils";
+import { fetchRecentlyReadBooks } from "../../../History/slice";
 import { useHistoryIndex } from "../../hooks/useHistoryIndex";
 import * as ReadReducer from "../../slice";
 import HistoryViewer from "./HistoryViewer";
@@ -148,6 +149,28 @@ describe("HistoryViewer", () => {
     await waitFor(() => {
       expect(error).toHaveBeenCalledWith(expect.stringContaining("Failed to scroll to row 0"));
     });
+  });
+
+  it("closes a row's context menu when a different book with the same name takes its place", async () => {
+    const preloadedState = createBasePreloadedState();
+    preloadedState.history.recentlyReadBooks = [
+      createMockBookWithState({ id: 1, filePath: "/a/Vol 1.cbz", displayName: "Vol 1.cbz" }),
+    ];
+
+    const { store } = renderWithProviders(<HistoryViewer />, { preloadedState });
+    await user.pointer({ keys: "[MouseRight]", target: screen.getByText("Vol 1.cbz") });
+    expect(screen.getByText("Remove history")).toBeInTheDocument();
+
+    act(() => {
+      store.dispatch(
+        fetchRecentlyReadBooks.fulfilled(
+          [createMockBookWithState({ id: 2, filePath: "/b/Vol 1.cbz", displayName: "Vol 1.cbz" })],
+          "r1",
+        ),
+      );
+    });
+
+    expect(screen.queryByText("Remove history")).not.toBeInTheDocument();
   });
 
   it("should prevent context menu propagation", async () => {
