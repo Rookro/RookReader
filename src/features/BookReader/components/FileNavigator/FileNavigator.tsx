@@ -14,7 +14,7 @@ import {
 import type { DirEntry } from "../../../../types/DirEntry";
 import { isNavigableArchiveName } from "../../../../utils/ArchivePathUtils";
 import SidePanelHeader from "../../../SidePane/components/SidePanelHeader";
-import { setSearchText, updateExploreBasePath } from "../../fileNavigatorSlice";
+import { loadDirectory, setSearchText } from "../../fileNavigatorSlice";
 import { useDirectoryWatcher } from "../../hooks/useDirectoryWatcher";
 import { useFileSelection } from "../../hooks/useFileSelection";
 import { openBook } from "../../slice";
@@ -28,15 +28,15 @@ const selectFileNavigatorState = createSelector(
     (state: RootState) => state.fileNavigator,
     (state: RootState) => state.reader,
   ],
-  (fileNavigatorSettings, explorer, containerFile) => ({
+  (fileNavigatorSettings, fileNavigator, reader) => ({
     fileNavigatorSettings,
-    history: explorer.history,
-    historyIndex: explorer.historyIndex,
-    entries: explorer.entries,
-    searchText: explorer.searchText,
-    isLoading: explorer.isLoading,
-    fileHistory: containerFile.history,
-    fileHistoryIndex: containerFile.historyIndex,
+    history: fileNavigator.history,
+    historyIndex: fileNavigator.historyIndex,
+    entries: fileNavigator.entries,
+    searchText: fileNavigator.searchText,
+    isLoading: fileNavigator.isLoading,
+    fileHistory: reader.history,
+    fileHistoryIndex: reader.historyIndex,
   }),
 );
 
@@ -102,7 +102,7 @@ export default function FileListViewer() {
 
   const refreshEntries = useCallback(() => {
     if (history[historyIndex]) {
-      dispatch(updateExploreBasePath({ dirPath: history[historyIndex], forceUpdate: true }));
+      dispatch(loadDirectory({ dirPath: history[historyIndex], forceUpdate: true }));
     }
   }, [history, historyIndex, dispatch]);
 
@@ -159,7 +159,7 @@ export default function FileListViewer() {
       if (entry.isDirectory || isNavigableArchiveName(entry.name)) {
         const path = await join(history[historyIndex], entry.name);
         dispatch(setSearchText(""));
-        dispatch(updateExploreBasePath({ dirPath: path }));
+        dispatch(loadDirectory({ dirPath: path }));
       } else {
         // Double-clicking a file opens it: the single-click timer was cancelled by
         // the wrapper, so without this the file would never open.

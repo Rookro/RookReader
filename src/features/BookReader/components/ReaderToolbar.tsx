@@ -20,8 +20,8 @@ import { updateSettings } from "../../Settings/slice";
 import { addBookmark, removeBookmark } from "../bookmarkSlice";
 import { useReadingDirection } from "../hooks/useReadingDirection";
 import {
-  goBackContainerHistory,
-  goForwardContainerHistory,
+  goBackBookHistory,
+  goForwardBookHistory,
   openBook,
   toggleReadingDirection,
   toggleSpreadShift,
@@ -116,14 +116,14 @@ export default function ReaderToolbar() {
 
   const handleBackClicked = useCallback(
     (_e: React.MouseEvent<HTMLButtonElement>) => {
-      dispatch(goBackContainerHistory());
+      dispatch(goBackBookHistory());
     },
     [dispatch],
   );
 
   const handleForwardClicked = useCallback(
     (_e: React.MouseEvent<HTMLButtonElement>) => {
-      dispatch(goForwardContainerHistory());
+      dispatch(goForwardBookHistory());
     },
     [dispatch],
   );

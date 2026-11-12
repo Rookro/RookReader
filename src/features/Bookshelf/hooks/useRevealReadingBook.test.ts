@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { BookWithState } from "../../../domain/entities";
 import { createMockBookWithState, createMockSeries } from "../../../test/factories";
 import { createBasePreloadedState, createTestStore, createTestWrapper } from "../../../test/utils";
-import { openContainerFile } from "../../BookReader/slice";
+import { loadBook } from "../../BookReader/slice";
 import { setActiveView } from "../../MainView/slice";
 import { setSelectedSeriesId } from "../seriesSlice";
 import { fetchBooksInSelectedCollection, setSelectedCollection } from "../slice";
@@ -112,7 +112,7 @@ describe("useRevealReadingBook", () => {
 
     act(() => {
       store.dispatch(
-        openContainerFile.fulfilled(
+        loadBook.fulfilled(
           {
             entries: ["p1"],
             isDirectory: false,

@@ -10,12 +10,12 @@ import {
 import type { DirEntry } from "../../types/DirEntry";
 import { CommandError, ErrorCode } from "../../types/Error";
 import fileNavigatorReducer, {
-  goBackExplorerHistory,
-  goForwardExplorerHistory,
-  setExploreBasePath,
+  directoryPathOpened,
+  goBackNavigatorHistory,
+  goForwardNavigatorHistory,
+  loadDirectory,
   setIsDirEntriesLoading,
   setSearchText,
-  updateExploreBasePath,
 } from "./fileNavigatorSlice";
 
 describe("FileNavigatorReducer", () => {
@@ -27,52 +27,52 @@ describe("FileNavigatorReducer", () => {
   });
 
   describe("reducers", () => {
-    // Verify that explorer base path is set and history is updated
-    it("should handle setExploreBasePath and update history", () => {
+    // Verify that File Navigator base path is set and history is updated
+    it("should handle directoryPathOpened and update history", () => {
       const initialState = { history: ["/old"], historyIndex: 0 } as RootState["fileNavigator"];
-      const state = fileNavigatorReducer(initialState, setExploreBasePath("/new"));
+      const state = fileNavigatorReducer(initialState, directoryPathOpened("/new"));
       expect(state.history).toEqual(["/old", "/new"]);
       expect(state.historyIndex).toBe(1);
     });
 
-    // Verify that history is not updated when setExploreBasePath is called with current path
-    it("should not update history if setExploreBasePath is called with current path", () => {
+    // Verify that history is not updated when directoryPathOpened is called with current path
+    it("should not update history if directoryPathOpened is called with current path", () => {
       const initialState = { history: ["/current"], historyIndex: 0 } as RootState["fileNavigator"];
-      const state = fileNavigatorReducer(initialState, setExploreBasePath("/current"));
+      const state = fileNavigatorReducer(initialState, directoryPathOpened("/current"));
       expect(state.history).toHaveLength(1);
     });
 
-    // Verify that subsequent history is sliced when a new explorer path is set while in the middle of history
-    it("should slice history in setExploreBasePath when index is not at the end", () => {
+    // Verify that subsequent history is sliced when a new navigator path is set while in the middle of history
+    it("should slice history in directoryPathOpened when index is not at the end", () => {
       const initialState = {
         history: ["/d1", "/d2", "/d3"],
         historyIndex: 1,
       } as RootState["fileNavigator"];
-      const state = fileNavigatorReducer(initialState, setExploreBasePath("/new"));
+      const state = fileNavigatorReducer(initialState, directoryPathOpened("/new"));
       expect(state.history).toEqual(["/d1", "/d2", "/new"]);
       expect(state.historyIndex).toBe(2);
     });
 
-    // Verify that explorer history navigation (back/forward) works correctly
+    // Verify that File Navigator history navigation (back/forward) works correctly
     it("should handle history navigation", () => {
       const initialState = {
         history: ["d1", "d2", "d3"],
         historyIndex: 1,
       } as RootState["fileNavigator"];
 
-      let state = fileNavigatorReducer(initialState, goBackExplorerHistory());
+      let state = fileNavigatorReducer(initialState, goBackNavigatorHistory());
       expect(state.historyIndex).toBe(0);
-      state = fileNavigatorReducer(state, goBackExplorerHistory());
+      state = fileNavigatorReducer(state, goBackNavigatorHistory());
       expect(state.historyIndex).toBe(0);
 
-      state = fileNavigatorReducer(initialState, goForwardExplorerHistory());
+      state = fileNavigatorReducer(initialState, goForwardNavigatorHistory());
       expect(state.historyIndex).toBe(2);
-      state = fileNavigatorReducer(state, goForwardExplorerHistory());
+      state = fileNavigatorReducer(state, goForwardNavigatorHistory());
       expect(state.historyIndex).toBe(2);
     });
 
-    // Verify that explorer state (search text, loading flag) is updated correctly
-    it("should handle explorer state (searchText, loading)", () => {
+    // Verify that File Navigator state (search text, loading flag) is updated correctly
+    it("should handle File Navigator state (searchText, loading)", () => {
       const initialState = {
         searchText: "",
         isLoading: false,
@@ -87,7 +87,7 @@ describe("FileNavigatorReducer", () => {
   });
 
   describe("Async Thunk Integration Tests", () => {
-    describe("updateExploreBasePath staleness", () => {
+    describe("loadDirectory staleness", () => {
       const explorerAt = (path: string, requestId: string) => {
         const state = structuredClone(fileNavigatorReducer(undefined, { type: "unknown" }));
         state.history = [path];
@@ -102,7 +102,7 @@ describe("FileNavigatorReducer", () => {
       it("ignores a failure of a superseded listing", () => {
         const state = fileNavigatorReducer(
           explorerAt("/good", "r2"),
-          updateExploreBasePath.rejected(null, "r1", { dirPath: "/bad" }, { code: ErrorCode.io }),
+          loadDirectory.rejected(null, "r1", { dirPath: "/bad" }, { code: ErrorCode.io }),
         );
         expect(state.entries).toHaveLength(1);
         expect(state.isLoading).toBe(true);
@@ -111,7 +111,7 @@ describe("FileNavigatorReducer", () => {
       it("ignores a superseded listing of the same folder", () => {
         const state = fileNavigatorReducer(
           explorerAt("/a", "r2"),
-          updateExploreBasePath.fulfilled({ path: "/a", entries: [] }, "r1", {
+          loadDirectory.fulfilled({ path: "/a", entries: [] }, "r1", {
             dirPath: "/a",
             forceUpdate: true,
           }),
@@ -123,21 +123,21 @@ describe("FileNavigatorReducer", () => {
       it("tracks the folder of the latest listing until it settles", () => {
         let state = fileNavigatorReducer(
           undefined,
-          updateExploreBasePath.pending("r1", { dirPath: "/a", forceUpdate: true }),
+          loadDirectory.pending("r1", { dirPath: "/a", forceUpdate: true }),
         );
         expect(state.pendingPath).toBe("/a");
         state = fileNavigatorReducer(
           state,
-          updateExploreBasePath.pending("r2", { dirPath: "/b", forceUpdate: true }),
+          loadDirectory.pending("r2", { dirPath: "/b", forceUpdate: true }),
         );
         state = fileNavigatorReducer(
           state,
-          updateExploreBasePath.fulfilled({ path: "/a", entries: [] }, "r1", { dirPath: "/a" }),
+          loadDirectory.fulfilled({ path: "/a", entries: [] }, "r1", { dirPath: "/a" }),
         );
         expect(state.pendingPath).toBe("/b");
         state = fileNavigatorReducer(
           state,
-          updateExploreBasePath.rejected(null, "r2", { dirPath: "/b" }, { code: ErrorCode.io }),
+          loadDirectory.rejected(null, "r2", { dirPath: "/b" }, { code: ErrorCode.io }),
         );
         expect(state.pendingPath).toBeNull();
       });
@@ -148,7 +148,7 @@ describe("FileNavigatorReducer", () => {
         preloaded.fileNavigator.historyIndex = 0;
         store = createTestStore(preloaded);
 
-        await store.dispatch(updateExploreBasePath({ dirPath: "/a" }));
+        await store.dispatch(loadDirectory({ dirPath: "/a" }));
 
         expect(binaryCommands.getEntriesInDir).not.toHaveBeenCalled();
         expect(store.getState().fileNavigator.requestId).toBeNull();
@@ -163,8 +163,8 @@ describe("FileNavigatorReducer", () => {
             }),
           )
           .mockResolvedValueOnce(new ArrayBuffer(0));
-        const first = store.dispatch(updateExploreBasePath({ dirPath: "/a" }));
-        await store.dispatch(updateExploreBasePath({ dirPath: "/b" }));
+        const first = store.dispatch(loadDirectory({ dirPath: "/a" }));
+        await store.dispatch(loadDirectory({ dirPath: "/b" }));
 
         failListing(new CommandError(ErrorCode.io, "unreadable"));
         expect((await first).payload).toMatchObject({ code: ErrorCode.io, superseded: true });
@@ -173,7 +173,7 @@ describe("FileNavigatorReducer", () => {
       });
     });
 
-    describe("updateExploreBasePath thunk", () => {
+    describe("loadDirectory thunk", () => {
       // Verify that directory entries are updated and added to history
       it("should update entries for directory", async () => {
         // Construct binary data matching convertEntriesInDir's expectation
@@ -189,7 +189,7 @@ describe("FileNavigatorReducer", () => {
 
         vi.mocked(binaryCommands.getEntriesInDir).mockResolvedValue(buffer);
 
-        await store.dispatch(updateExploreBasePath({ dirPath: "/test/dir", forceUpdate: true }));
+        await store.dispatch(loadDirectory({ dirPath: "/test/dir", forceUpdate: true }));
 
         const state = store.getState().fileNavigator;
         expect(state.entries[0].name).toBe("file.jpg");
@@ -203,25 +203,25 @@ describe("FileNavigatorReducer", () => {
         } as RootState;
         store = createTestStore(preloadedState);
 
-        const result = await store.dispatch(updateExploreBasePath({ dirPath: "/current" }));
+        const result = await store.dispatch(loadDirectory({ dirPath: "/current" }));
         expect(result.payload).toBeUndefined();
       });
 
       // Verify error handling when directory path is empty
       it("should handle error when directory path is empty", async () => {
-        await store.dispatch(updateExploreBasePath({ dirPath: "" }));
+        await store.dispatch(loadDirectory({ dirPath: "" }));
 
         expect(store.getState().errorNotification.pending).toEqual([
           { context: "explorer", code: ErrorCode.path },
         ]);
       });
 
-      // Verify handling of CommandError during explorer update
-      it("should handle CommandError during explorer update", async () => {
+      // Verify handling of CommandError during File Navigator update
+      it("should handle CommandError during File Navigator update", async () => {
         const mockError = new CommandError(ErrorCode.other, "dir failed");
         vi.mocked(binaryCommands.getEntriesInDir).mockRejectedValue(mockError);
 
-        await store.dispatch(updateExploreBasePath({ dirPath: "/error/dir", forceUpdate: true }));
+        await store.dispatch(loadDirectory({ dirPath: "/error/dir", forceUpdate: true }));
 
         expect(store.getState().errorNotification.pending).toEqual([
           { context: "explorer", code: ErrorCode.other },
@@ -233,7 +233,7 @@ describe("FileNavigatorReducer", () => {
         const testError = "read failed";
         vi.mocked(binaryCommands.getEntriesInDir).mockRejectedValue(testError);
 
-        await store.dispatch(updateExploreBasePath({ dirPath: "/error/dir", forceUpdate: true }));
+        await store.dispatch(loadDirectory({ dirPath: "/error/dir", forceUpdate: true }));
 
         expect(store.getState().errorNotification.pending).toEqual([
           { context: "explorer", code: ErrorCode.other },

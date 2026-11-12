@@ -40,8 +40,8 @@ vi.mock("../../fileNavigatorSlice", async () => {
   const actual = await vi.importActual("../../fileNavigatorSlice");
   return {
     ...actual,
-    updateExploreBasePath: vi.fn(() => ({ type: "explorer/updateExploreBasePath" })),
-    setSearchText: vi.fn((payload: string) => ({ type: "explorer/setSearchText", payload })),
+    loadDirectory: vi.fn(() => ({ type: "fileNavigator/loadDirectory" })),
+    setSearchText: vi.fn((payload: string) => ({ type: "fileNavigator/setSearchText", payload })),
   };
 });
 
@@ -107,7 +107,7 @@ describe("FileNavigator", () => {
 
     renderWithProviders(<FileNavigator />, { preloadedState });
 
-    expect(FileNavigatorSlice.updateExploreBasePath).not.toHaveBeenCalled();
+    expect(FileNavigatorSlice.loadDirectory).not.toHaveBeenCalled();
   });
 
   // Back and Forward only move the history, so the effect is what lists the folder
@@ -118,13 +118,13 @@ describe("FileNavigator", () => {
 
     renderWithProviders(<FileNavigator />, { preloadedState });
 
-    expect(FileNavigatorSlice.updateExploreBasePath).toHaveBeenCalledWith({
+    expect(FileNavigatorSlice.loadDirectory).toHaveBeenCalledWith({
       dirPath: "/a",
       forceUpdate: true,
     });
   });
 
-  it("should dispatch updateExploreBasePath when a directory is double-clicked", async () => {
+  it("should dispatch loadDirectory when a directory is double-clicked", async () => {
     const entries: DirEntry[] = [{ name: "folder", isDirectory: true, lastModified: 0 }];
     const preloadedState = createBasePreloadedState();
     preloadedState.fileNavigator.entries = entries;
@@ -135,11 +135,11 @@ describe("FileNavigator", () => {
     await user.dblClick(rowButton);
 
     await waitFor(() => {
-      expect(FileNavigatorSlice.updateExploreBasePath).toHaveBeenCalled();
+      expect(FileNavigatorSlice.loadDirectory).toHaveBeenCalled();
     });
   });
 
-  it("should dispatch updateExploreBasePath when a browsable archive is double-clicked", async () => {
+  it("should dispatch loadDirectory when a browsable archive is double-clicked", async () => {
     // Double-clicking a .zip steps into it like a folder rather than opening it as a
     // book; a single click still opens it.
     const entries: DirEntry[] = [{ name: "book.zip", isDirectory: false, lastModified: 0 }];
@@ -152,7 +152,7 @@ describe("FileNavigator", () => {
     await user.dblClick(rowButton);
 
     await waitFor(() => {
-      expect(FileNavigatorSlice.updateExploreBasePath).toHaveBeenCalled();
+      expect(FileNavigatorSlice.loadDirectory).toHaveBeenCalled();
     });
     expect(ReadReducer.openBook).not.toHaveBeenCalled();
   });
@@ -177,7 +177,7 @@ describe("FileNavigator", () => {
     fireEvent.click(rowB);
 
     // A click on a different row must not navigate into the directory.
-    expect(FileNavigatorSlice.updateExploreBasePath).not.toHaveBeenCalled();
+    expect(FileNavigatorSlice.loadDirectory).not.toHaveBeenCalled();
 
     // The pending single-click resolves to selecting row B.
     await waitFor(() => {
@@ -185,7 +185,7 @@ describe("FileNavigator", () => {
         expect.objectContaining({ path: "/folderB" }),
       );
     });
-    expect(FileNavigatorSlice.updateExploreBasePath).not.toHaveBeenCalled();
+    expect(FileNavigatorSlice.loadDirectory).not.toHaveBeenCalled();
   });
 
   it("should open the file when a file is double-clicked", async () => {
@@ -205,7 +205,7 @@ describe("FileNavigator", () => {
       );
     });
     // A file double-click must not be treated as a directory navigation.
-    expect(FileNavigatorSlice.updateExploreBasePath).not.toHaveBeenCalled();
+    expect(FileNavigatorSlice.loadDirectory).not.toHaveBeenCalled();
   });
 
   it("should scroll to row when selectedIndex is set", async () => {

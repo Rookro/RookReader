@@ -95,9 +95,9 @@ describe("BookmarkViewer", () => {
     });
     await user.click(await screen.findByText("Chapter 2"));
 
-    const containerFile = store.getState().reader;
-    expect(containerFile.index).toBe(3);
-    expect(containerFile.cfi).toBe("epubcfi(/6/8!/4/2/1:0)");
+    const reader = store.getState().reader;
+    expect(reader.index).toBe(3);
+    expect(reader.cfi).toBe("epubcfi(/6/8!/4/2/1:0)");
   });
 
   it("should remove a bookmark from the context menu", async () => {

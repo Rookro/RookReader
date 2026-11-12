@@ -33,7 +33,7 @@ export const useAdjacentBookNavigation = () => {
     (s: RootState) => s.settings.fileNavigator.sortOrder,
   );
   // Only what resolving a neighbour needs, each selected on its own: selecting the whole
-  // `containerFile` re-rendered the reader, and rebuilt every callback below, on each page turn.
+  // `reader` re-rendered the reader, and rebuilt every callback below, on each page turn.
   const currentPath = useAppSelector(
     (s: RootState) => s.reader.history[s.reader.historyIndex] ?? "",
   );
