@@ -8,15 +8,16 @@ const createdAtMs = (createdAt: string | null | undefined) => {
 };
 
 /**
- * Compares two creation timestamps as instants, oldest first.
+ * Compares two creation timestamps as instants, to the millisecond, oldest first.
  *
  * The backend sends whole seconds for some rows and fractional seconds for others
- * (`…05Z`, `…05.5Z`), which do not order as strings.
+ * (`…05Z`, `…05.5Z`), which do not order as strings. A missing or unparseable timestamp
+ * counts as the oldest.
  *
  * @param a - The first timestamp (RFC 3339), if any.
  * @param b - The second timestamp (RFC 3339), if any.
  * @returns A negative number when `a` is older, a positive one when it is newer, zero when
- * both are the same instant.
+ * both fall in the same millisecond.
  */
 export const compareCreatedAt = (a: string | null | undefined, b: string | null | undefined) =>
   createdAtMs(a) - createdAtMs(b);

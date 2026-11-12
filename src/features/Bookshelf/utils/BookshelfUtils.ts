@@ -60,8 +60,7 @@ export const sortByGridItem = (a: GridItem, b: GridItem, sortOrder: SortOrder) =
     }
     return {
       name: item.data.displayName,
-      // Both series and standalone books carry a real `createdAt`, so they
-      // interleave by actual creation date.
+      // Series and standalone books interleave by creation date.
       date: item.data.createdAt,
       id: item.data.id,
     };
