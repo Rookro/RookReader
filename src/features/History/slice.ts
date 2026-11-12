@@ -2,7 +2,7 @@ import { createSlice } from "@reduxjs/toolkit";
 import { api } from "../../bindings/api";
 import type { BookWithState } from "../../domain/entities";
 import { readingProgressChanged } from "../../store/actions";
-import { createCommandThunk } from "../../types/CustomAsyncThunk";
+import { createCommandThunk } from "../../store/createCommandThunk";
 
 /**
  * Fetches the list of recently read books from the database.

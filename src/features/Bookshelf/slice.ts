@@ -2,7 +2,7 @@ import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import { api } from "../../bindings/api";
 import type { BookWithState, Collection } from "../../domain/entities";
 import { readingProgressChanged } from "../../store/actions";
-import { createCommandThunk } from "../../types/CustomAsyncThunk";
+import { createCommandThunk } from "../../store/createCommandThunk";
 
 /**
  * Creates a new collection and adds it to the database.

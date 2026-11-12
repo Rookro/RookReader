@@ -1,6 +1,6 @@
 import { error } from "@tauri-apps/plugin-log";
-import type { ThunkRejectValue } from "../types/CustomAsyncThunk";
 import { CommandError, ErrorCode } from "../types/Error";
+import type { ThunkRejectValue } from "./createCommandThunk";
 
 /**
  * Handles errors caught in async thunks by logging the error and returning

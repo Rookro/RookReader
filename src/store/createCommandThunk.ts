@@ -1,8 +1,8 @@
 import { createAsyncThunk, type GetThunkAPI } from "@reduxjs/toolkit";
 import type { SettingsValidationViolation } from "../bindings/bindings";
-import type { AppDispatch, RootState } from "../store/store";
-import { handleThunkError } from "../store/thunkErrorHandler";
-import type { ErrorCode } from "./Error";
+import type { ErrorCode } from "../types/Error";
+import type { AppDispatch, RootState } from "./store";
+import { handleThunkError } from "./thunkErrorHandler";
 
 /** The value an app thunk rejects with. */
 export type ThunkRejectValue = {
