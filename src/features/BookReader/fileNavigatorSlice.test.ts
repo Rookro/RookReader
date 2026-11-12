@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as binaryApi from "../../bindings/binaryApi";
+import type { DirEntry } from "../../domain/entities";
 import { createMockDirEntry } from "../../test/factories";
 import {
   type AppStore,
@@ -7,7 +8,6 @@ import {
   createTestStore,
   type RootState,
 } from "../../test/utils";
-import type { DirEntry } from "../../types/DirEntry";
 import { CommandError, ErrorCode } from "../../types/Error";
 import fileNavigatorReducer, {
   directoryPathOpened,

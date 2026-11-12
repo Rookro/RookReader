@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { DirEntry } from "../../../types/DirEntry";
+import type { DirEntry } from "../../../domain/entities";
 import { andSearch, sortBy } from "./FileNavigatorUtils";
 
 describe("FileNavigatorUtils", () => {

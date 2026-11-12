@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { api } from "../../../bindings/api";
+import type { DirEntry } from "../../../domain/entities";
 import { createMockBookWithState } from "../../../test/factories";
-import type { DirEntry } from "../../../types/DirEntry";
 import * as DirEntryUtils from "../../../utils/DirEntryUtils";
 import type { OpenOrigin } from "../types/OpenOrigin";
 import { resolveAdjacentBook } from "./AdjacentBookResolver";

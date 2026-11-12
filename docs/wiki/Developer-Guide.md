@@ -12,7 +12,7 @@ graph TD
         UI["Feature components<br/>features/*/components"]
         Hooks["Hooks<br/>features/*/hooks · hooks/"]
         Store["Redux Toolkit store<br/>store/ (slices, middleware)"]
-        Domain["Domain types (generated aliases)<br/>domain/"]
+        Domain["Domain types<br/>domain/"]
         Bindings["Tauri bindings (generated)<br/>bindings/"]
 
         UI --> Hooks
