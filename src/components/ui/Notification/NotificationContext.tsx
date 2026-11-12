@@ -21,6 +21,14 @@ interface QueuedNotification {
   id: number;
   message: string;
   severity: AlertColor;
+  /** Stays until it is closed instead of closing by itself. */
+  persist: boolean;
+}
+
+/** How a notification is shown. */
+export interface NotificationOptions {
+  /** Keep the notification on screen until it is closed. Defaults to false. */
+  persist?: boolean;
 }
 
 /**
@@ -33,7 +41,7 @@ interface NotificationContextType {
    * information notifications requested before it: the one on screen closes and those
    * waiting are dropped.
    */
-  showNotification: (message: string, severity?: AlertColor) => void;
+  showNotification: (message: string, severity?: AlertColor, options?: NotificationOptions) => void;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
@@ -76,18 +84,22 @@ export default function NotificationProvider({ children }: NotificationProviderP
 
   const current = queue[0];
 
-  const showNotification = useCallback((message: string, severity: AlertColor = "info") => {
-    const id = nextId.current++;
-    setQueue((queued) => {
-      if (queued.some((n) => n.message === message && n.severity === severity)) {
-        return queued;
-      }
-      // The one on screen stays so that it can leave through its exit transition.
-      const kept =
-        severity === "error" ? queued.filter((n, i) => i === 0 || n.severity !== "info") : queued;
-      return [...kept, { id, message, severity }];
-    });
-  }, []);
+  const showNotification = useCallback(
+    (message: string, severity: AlertColor = "info", options?: NotificationOptions) => {
+      const id = nextId.current++;
+      const persist = options?.persist ?? false;
+      setQueue((queued) => {
+        if (queued.some((n) => n.message === message && n.severity === severity)) {
+          return queued;
+        }
+        // The one on screen stays so that it can leave through its exit transition.
+        const kept =
+          severity === "error" ? queued.filter((n, i) => i === 0 || n.severity !== "info") : queued;
+        return [...kept, { id, message, severity, persist }];
+      });
+    },
+    [],
+  );
 
   // An information notification on screen with an error waiting was requested before it.
   useEffect(() => {
@@ -118,7 +130,7 @@ export default function NotificationProvider({ children }: NotificationProviderP
         <Snackbar
           key={current.id}
           open={current.id !== closingId}
-          autoHideDuration={AUTO_HIDE_MS}
+          autoHideDuration={current.persist ? null : AUTO_HIDE_MS}
           onClose={handleClose}
           slotProps={{ transition: { onExited: handleExited } }}
           anchorOrigin={{ vertical: "bottom", horizontal: "center" }}

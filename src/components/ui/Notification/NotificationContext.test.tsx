@@ -46,6 +46,15 @@ const InfoThenError = () => {
   );
 };
 
+const PersistentNotification = () => {
+  const { showNotification } = useNotification();
+  return (
+    <button type="button" onClick={() => showNotification("Stay", "warning", { persist: true })}>
+      show
+    </button>
+  );
+};
+
 describe("NotificationContext", () => {
   const user = userEvent.setup();
 
@@ -154,6 +163,30 @@ describe("NotificationContext", () => {
 
       expect(screen.queryByText("First")).not.toBeInTheDocument();
       expect(screen.getByText("Second")).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps a persistent notification until it is closed", () => {
+    vi.useFakeTimers();
+    try {
+      renderWithProviders(
+        <NotificationProvider>
+          <PersistentNotification />
+        </NotificationProvider>,
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: "show" }));
+      // Well past the auto-hide delay, then the exit transition.
+      act(() => {
+        vi.advanceTimersByTime(60_000);
+      });
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+
+      expect(screen.getByText("Stay")).toBeInTheDocument();
     } finally {
       vi.useRealTimers();
     }
