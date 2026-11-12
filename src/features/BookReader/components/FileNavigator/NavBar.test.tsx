@@ -17,7 +17,6 @@ vi.mock("../../fileNavigatorSlice", async () => {
       payload,
     })),
     setSearchText: vi.fn((payload) => ({ type: "fileNavigator/setSearchText", payload })),
-    setSortOrder: vi.fn((payload) => ({ type: "fileNavigator/setSortOrder", payload })),
     goBackNavigatorHistory: vi.fn(() => ({ type: "fileNavigator/goBack" })),
     goForwardNavigatorHistory: vi.fn(() => ({ type: "fileNavigator/goForward" })),
   };
@@ -140,7 +139,7 @@ describe("FileNavigator/NavBar", () => {
     expect(FileNavigatorSlice.setSearchText).toHaveBeenCalledWith("manga");
   });
 
-  it("should dispatch setSortOrder and update settings when sort order changes", async () => {
+  it("should update the settings when the sort order changes", async () => {
     renderWithProviders(<NavBar />, { preloadedState: defaultPreloadedState });
 
     // Trigger ResizeObserver callback manually
