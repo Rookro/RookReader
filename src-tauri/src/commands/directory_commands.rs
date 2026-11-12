@@ -526,7 +526,7 @@ mod tests {
             let parsed = DateTime::from_timestamp_millis(entry.last_modified);
             assert!(
                 parsed.is_some(),
-                "last_modified should be in RFC 3339 format"
+                "last_modified should be milliseconds since the UNIX epoch"
             );
         }
     }
