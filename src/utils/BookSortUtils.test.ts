@@ -38,6 +38,21 @@ describe("BookSortUtils", () => {
       expect(sortBooks(x, y, "date_asc")).toBeLessThan(0);
       expect(sortBooks(x, y, "date_desc")).toBeGreaterThan(0);
     });
+
+    it("should order a whole second before a later fraction of the same second", () => {
+      // The ids point the other way, so only the instants can give this order.
+      const whole = createMockBookWithState({ id: 2, createdAt: "2023-11-01T00:00:05Z" });
+      const fraction = createMockBookWithState({ id: 1, createdAt: "2023-11-01T00:00:05.500Z" });
+      expect(sortBooks(whole, fraction, "date_asc")).toBeLessThan(0);
+      expect(sortBooks(whole, fraction, "date_desc")).toBeGreaterThan(0);
+    });
+
+    it("should treat a missing createdAt as the oldest", () => {
+      const undated = createMockBookWithState({ id: 2, createdAt: null });
+      const dated = createMockBookWithState({ id: 1, createdAt: "2023-11-01T00:00:00Z" });
+      expect(sortBooks(undated, dated, "date_asc")).toBeLessThan(0);
+      expect(sortBooks(undated, dated, "date_desc")).toBeGreaterThan(0);
+    });
   });
 
   describe("sortBySeriesOrder", () => {

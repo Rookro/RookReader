@@ -1,6 +1,6 @@
 import type { BookWithState, Series } from "../../../domain/entities";
 import type { SortOrder } from "../../../types/AppSettings";
-import { sortBySeriesOrder } from "../../../utils/BookSortUtils";
+import { compareCreatedAt, sortBySeriesOrder } from "../../../utils/BookSortUtils";
 import { andSearchBy } from "../../../utils/SearchUtils";
 
 /** Represents an item that can be displayed in the book grid. */
@@ -60,9 +60,9 @@ export const sortByGridItem = (a: GridItem, b: GridItem, sortOrder: SortOrder) =
     }
     return {
       name: item.data.displayName,
-      // Both series and standalone books carry a real ISO `createdAt`, so they
-      // interleave by actual creation date. Fall back to an empty string when absent.
-      date: item.data.createdAt ?? "",
+      // Both series and standalone books carry a real `createdAt`, so they
+      // interleave by actual creation date.
+      date: item.data.createdAt,
       id: item.data.id,
     };
   };
@@ -76,9 +76,9 @@ export const sortByGridItem = (a: GridItem, b: GridItem, sortOrder: SortOrder) =
     case "name_desc":
       return valB.name.localeCompare(valA.name);
     case "date_asc":
-      return valA.date.localeCompare(valB.date) || valA.id - valB.id;
+      return compareCreatedAt(valA.date, valB.date) || valA.id - valB.id;
     case "date_desc":
-      return valB.date.localeCompare(valA.date) || valB.id - valA.id;
+      return compareCreatedAt(valB.date, valA.date) || valB.id - valA.id;
   }
 };
 
