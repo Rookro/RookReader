@@ -72,6 +72,23 @@ describe("HistoryReducer", () => {
     expect(nextState.recentlyReadBooks[0].lastOpenedAt).toBe("2026-07-01T09:00:00Z");
   });
 
+  it("should patch the matching book's position on readingProgressChanged", () => {
+    const state = {
+      ...initialState,
+      recentlyReadBooks: [createMockBookWithState({ id: 2, cfi: null })],
+    };
+    const nextState = historyReducer(
+      state,
+      readingProgressChanged({
+        bookId: 2,
+        lastReadPageIndex: 3,
+        cfi: "epubcfi(/6/8!/4/2/1:0)",
+        lastOpenedAt: null,
+      }),
+    );
+    expect(nextState.recentlyReadBooks[0].cfi).toBe("epubcfi(/6/8!/4/2/1:0)");
+  });
+
   // Verify that readingProgressChanged for an unknown book id is a no-op.
   it("should ignore readingProgressChanged for an unknown book id", () => {
     const state = {
