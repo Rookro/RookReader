@@ -55,7 +55,7 @@ Write all code comments and documentation in English.
 `src/bindings/bindings.ts` and `src/bindings/errorCodes.ts` are generated from Rust by `tauri-specta`; do not edit them by hand. To add or change a command:
 
 1. Put the logic in Rust (`src-tauri/src/domain/`, `infrastructure/database/`, `container/`, …).
-2. Expose it from `src-tauri/src/commands/` with `#[tauri::command]` + `#[specta::specta]`.
+2. Expose it from `src-tauri/src/commands/` with `#[tauri::command]` + `#[specta::specta]`. Give a struct the command returns `specta::Type` and `#[serde(rename_all = "camelCase")]`, and send a timestamp from the database as `DateTime<Utc>`.
 3. Register it in `specta_builder()`'s `collect_commands!` in `src-tauri/src/lib.rs`. Commands returning a raw `tauri::ipc::Response` (binary payloads) go in the `binary_commands!` list there instead, and get a hand-written function in `src/bindings/binaryApi.ts` that calls `runBinaryCommand` (`src/bindings/result.ts`).
 4. Run `npm run gen:bindings`.
 5. Call it as `api.myCommand(…)` (`src/bindings/api.ts`) from a Redux thunk or a hook: `api` holds every generated command, returns its data and throws a `CommandError`. When a new entity is added, alias its `_Serialize` type in `src/domain/entities.ts`.
