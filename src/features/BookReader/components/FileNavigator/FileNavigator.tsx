@@ -156,7 +156,7 @@ export default function FileListViewer() {
     async (e: React.MouseEvent<HTMLDivElement>, entry: DirEntry, index: number) => {
       // A browsable archive is entered like a folder; a single click still opens it
       // as a book, so nothing is lost by not opening it here.
-      if (entry.is_directory || isNavigableArchiveName(entry.name)) {
+      if (entry.isDirectory || isNavigableArchiveName(entry.name)) {
         const path = await join(history[historyIndex], entry.name);
         dispatch(setSearchText(""));
         dispatch(updateExploreBasePath({ dirPath: path }));

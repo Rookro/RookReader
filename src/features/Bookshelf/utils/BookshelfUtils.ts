@@ -9,27 +9,27 @@ export type GridItem =
   | { type: "series"; data: Series; books: BookWithState[] };
 
 /**
- * Filters an array of BookWithState objects to find entries whose 'display_name' property contains ALL specified keywords (AND search).
+ * Filters an array of BookWithState objects to find entries whose 'displayName' property contains ALL specified keywords (AND search).
  * Keywords are derived from the user's input string, separated by whitespace (including full-width spaces).
  *
  * The search is case-insensitive.
  *
  * @param entries - The array of BookWithState objects to be searched.
  * @param query - The user's input string containing one or more space-separated keywords.
- * @returns A new array containing only the BookWithState objects whose 'display_name' property matches all provided keywords.
+ * @returns A new array containing only the BookWithState objects whose 'displayName' property matches all provided keywords.
  * Returns the original array if the query is empty or contains only whitespace.
  *
  * @example
- * const entries = [{ display_name: "test_dir", ... }, { display_name: "test_file", ... }];
- * andSearch(entries, "test file"); // Returns [{ display_name: "test_file", ... }]
+ * const entries = [{ displayName: "test_dir", ... }, { displayName: "test_file", ... }];
+ * andSearch(entries, "test file"); // Returns [{ displayName: "test_file", ... }]
  * andSearch(entries, "example"); // Returns []
  */
 export const andSearch = (entries: BookWithState[], query: string) =>
-  andSearchBy(entries, query, (entry) => entry.display_name);
+  andSearchBy(entries, query, (entry) => entry.displayName);
 
 /**
  * Filters an array of GridItem objects based on their names.
- * For 'book' items, it checks 'display_name'.
+ * For 'book' items, it checks 'displayName'.
  * For 'series' items, it checks the series 'name'.
  *
  * @param items - The array of GridItem objects to be searched.
@@ -38,7 +38,7 @@ export const andSearch = (entries: BookWithState[], query: string) =>
  */
 export const andSearchGridItems = (items: GridItem[], query: string) =>
   andSearchBy(items, query, (item) =>
-    item.type === "series" ? item.data.name : item.data.display_name,
+    item.type === "series" ? item.data.name : item.data.displayName,
   );
 
 /**
@@ -54,15 +54,15 @@ export const sortByGridItem = (a: GridItem, b: GridItem, sortOrder: SortOrder) =
     if (item.type === "series") {
       return {
         name: item.data.name,
-        date: item.data.created_at,
+        date: item.data.createdAt,
         id: item.data.id,
       };
     }
     return {
-      name: item.data.display_name,
-      // Both series and standalone books carry a real ISO `created_at`, so they
+      name: item.data.displayName,
+      // Both series and standalone books carry a real ISO `createdAt`, so they
       // interleave by actual creation date. Fall back to an empty string when absent.
-      date: item.data.created_at ?? "",
+      date: item.data.createdAt ?? "",
       id: item.data.id,
     };
   };
@@ -117,26 +117,26 @@ export const buildGridItems = ({
   sortOrder,
 }: GridItemsParams): GridItem[] => {
   // Filter books based on selected tag
-  const taggedBooks = tagId === null ? books : books.filter((book) => book.tag_ids.includes(tagId));
+  const taggedBooks = tagId === null ? books : books.filter((book) => book.tagIds.includes(tagId));
 
   // Drill-down mode logic: if a series is selected, show only books in that series
   if (selectedSeriesId !== null) {
     return andSearch(taggedBooks, searchText)
-      .filter((book) => book.series_id === selectedSeriesId)
+      .filter((book) => book.seriesId === selectedSeriesId)
       .sort(sortBySeriesOrder)
       .map((book) => ({ type: "book" as const, data: book }));
   }
 
-  // Main Bookshelf logic: Group books by series_id BEFORE searching
+  // Main Bookshelf logic: Group books by seriesId BEFORE searching
   const seriesMap = new Map<number, BookWithState[]>();
   const standaloneBooks: BookWithState[] = [];
 
   taggedBooks.forEach((book) => {
-    if (book.series_id !== null) {
-      if (!seriesMap.has(book.series_id)) {
-        seriesMap.set(book.series_id, []);
+    if (book.seriesId !== null) {
+      if (!seriesMap.has(book.seriesId)) {
+        seriesMap.set(book.seriesId, []);
       }
-      seriesMap.get(book.series_id)?.push(book);
+      seriesMap.get(book.seriesId)?.push(book);
     } else {
       standaloneBooks.push(book);
     }

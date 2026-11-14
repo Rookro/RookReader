@@ -10,9 +10,9 @@ import { BookshelfActionsContext } from "./BookshelfActionsContext";
 
 describe("BookContextMenu", () => {
   const user = userEvent.setup();
-  const mockBook1 = createMockBookWithState({ id: 1, display_name: "Book 1" });
-  const mockBook2 = createMockBookWithState({ id: 2, display_name: "Book 2" });
-  const mockBook3 = createMockBookWithState({ id: 3, display_name: "Book 3" });
+  const mockBook1 = createMockBookWithState({ id: 1, displayName: "Book 1" });
+  const mockBook2 = createMockBookWithState({ id: 2, displayName: "Book 2" });
+  const mockBook3 = createMockBookWithState({ id: 3, displayName: "Book 3" });
 
   const mockActions = {
     openDialog: vi.fn(),

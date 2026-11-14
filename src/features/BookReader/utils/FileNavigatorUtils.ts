@@ -45,8 +45,8 @@ export const sortBy = (a: DirEntry, b: DirEntry, sortOrder: SortOrder) => {
     case "name_desc":
       return b.name.localeCompare(a.name);
     case "date_asc":
-      return a.last_modified - b.last_modified;
+      return a.lastModified - b.lastModified;
     case "date_desc":
-      return b.last_modified - a.last_modified;
+      return b.lastModified - a.lastModified;
   }
 };

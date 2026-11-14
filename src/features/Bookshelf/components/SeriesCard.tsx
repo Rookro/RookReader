@@ -37,9 +37,9 @@ export default function SeriesCard({
   const { anchor: menuAnchor, open: handleContextMenu, close: closeMenu } = useContextMenuAnchor();
   const [imageErrors, setImageErrors] = useState<Record<number, boolean>>({});
 
-  // Sort books by series_order to ensure the first volume is on top if possible
+  // Sort books by seriesOrder to ensure the first volume is on top if possible
   const sortedBooks = useMemo(() => {
-    return [...books].sort((a, b) => (a.series_order ?? 0) - (b.series_order ?? 0));
+    return [...books].sort((a, b) => (a.seriesOrder ?? 0) - (b.seriesOrder ?? 0));
   }, [books]);
 
   // Use the first few books for the stack effect
@@ -101,8 +101,8 @@ export default function SeriesCard({
                 {/* Stack effect (max 3 books) */}
                 {stackBooks.map((book, index) => {
                   const imageSrc =
-                    !imageErrors[book.id] && book.thumbnail_path
-                      ? convertFileSrc(book.thumbnail_path)
+                    !imageErrors[book.id] && book.thumbnailPath
+                      ? convertFileSrc(book.thumbnailPath)
                       : dummy_thumbnail;
 
                   // index 0: Top cover, index 2: Bottom-most
@@ -133,7 +133,7 @@ export default function SeriesCard({
                       <CardMedia
                         component="img"
                         image={imageSrc}
-                        alt={book.display_name}
+                        alt={book.displayName}
                         onError={() => handleImageError(book.id)}
                         sx={{
                           width: "100%",

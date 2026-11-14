@@ -64,6 +64,7 @@ pub async fn register_book<R: tauri::Runtime>(
 
 /// What `open_book` returns: the open book's pages and its library record.
 #[derive(Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
 pub struct OpenedBook {
     /// The entry names in the book.
     pub entries: Vec<String>,

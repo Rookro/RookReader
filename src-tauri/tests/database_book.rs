@@ -296,9 +296,43 @@ async fn update_reading_progress_keeps_when_the_book_was_opened() {
     assert_eq!(state.last_read_page_index, 7);
     assert_eq!(state.cfi.as_deref(), Some("epubcfi(/6/8!/4/2/1:0)"));
     assert_eq!(
-        state.last_opened_at.unwrap().to_string(),
+        state.last_opened_at.unwrap().naive_utc().to_string(),
         "2020-01-01 00:00:00"
     );
+}
+
+#[tokio::test]
+async fn update_reading_progress_reads_fractional_seconds_as_utc() {
+    let pool = setup_db().await;
+    let repository = SqliteBookRepository::new(pool.clone());
+    let book_id = repository
+        .record_opened("/book.zip", ItemType::File, "Book", 10, None)
+        .await
+        .unwrap();
+    sqlx::query(
+        "UPDATE reading_state SET last_opened_at = '2020-01-02 03:04:05.123456' WHERE book_id = ?",
+    )
+    .bind(book_id)
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    let state = repository
+        .update_reading_progress(book_id, 1, None)
+        .await
+        .unwrap();
+    let listed = repository
+        .get_book_with_state_by_id(book_id)
+        .await
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(
+        state.last_opened_at.unwrap().to_rfc3339(),
+        "2020-01-02T03:04:05.123456+00:00"
+    );
+    // The progress event and the History list must carry the same instant.
+    assert_eq!(state.last_opened_at, listed.last_opened_at);
 }
 
 #[tokio::test]

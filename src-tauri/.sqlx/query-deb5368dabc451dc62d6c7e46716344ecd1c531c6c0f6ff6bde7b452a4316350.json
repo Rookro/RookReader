@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n            INSERT INTO reading_state (book_id, last_read_page_index, cfi, last_opened_at)\n            VALUES (?, ?, ?, CURRENT_TIMESTAMP)\n            ON CONFLICT(book_id) DO UPDATE SET\n                last_read_page_index = excluded.last_read_page_index,\n                cfi = excluded.cfi\n            RETURNING book_id, last_read_page_index, cfi, last_opened_at\n            ",
+  "query": "\n            INSERT INTO reading_state (book_id, last_read_page_index, cfi, last_opened_at)\n            VALUES (?, ?, ?, CURRENT_TIMESTAMP)\n            ON CONFLICT(book_id) DO UPDATE SET\n                last_read_page_index = excluded.last_read_page_index,\n                cfi = excluded.cfi\n            RETURNING book_id, last_read_page_index, cfi, last_opened_at as \"last_opened_at: chrono::DateTime<chrono::Utc>\"\n            ",
   "describe": {
     "columns": [
       {
@@ -37,7 +37,7 @@
         }
       },
       {
-        "name": "last_opened_at",
+        "name": "last_opened_at: chrono::DateTime<chrono::Utc>",
         "ordinal": 3,
         "type_info": "Datetime",
         "origin": {
@@ -58,5 +58,5 @@
       true
     ]
   },
-  "hash": "d6a2a389b112f8e9a882bdd9fa016bb1b88978946c5afadf417e99c8d573f1ba"
+  "hash": "deb5368dabc451dc62d6c7e46716344ecd1c531c6c0f6ff6bde7b452a4316350"
 }

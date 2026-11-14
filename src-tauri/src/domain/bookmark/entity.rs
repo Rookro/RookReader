@@ -1,8 +1,9 @@
-use chrono::NaiveDateTime;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 /// Represents a saved reading position (bookmark) within a book.
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
 pub struct Bookmark {
     /// The unique identifier for the bookmark.
     pub id: i64,
@@ -15,5 +16,5 @@ pub struct Bookmark {
     /// The bookmarked position within an EPUB section (CFI). `None` for comics.
     pub cfi: Option<String>,
     /// The timestamp when the bookmark was created.
-    pub created_at: NaiveDateTime,
+    pub created_at: DateTime<Utc>,
 }

@@ -7,8 +7,8 @@
   },
   "dirEntries": {
     "entries": [
-      { "is_directory": true, "name": "漫画", "last_modified": 1700000000000 },
-      { "is_directory": false, "name": "a.zip", "last_modified": 0 }
+      { "isDirectory": true, "name": "漫画", "lastModified": 1700000000000 },
+      { "isDirectory": false, "name": "a.zip", "lastModified": 0 }
     ],
     "bytes": [
       1, 0, 0, 0, 6, 230, 188, 171, 231, 148, 187, 0, 0, 1, 139, 207, 229, 104, 0, 0, 0, 0, 0, 5,

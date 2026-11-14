@@ -22,7 +22,7 @@ vi.mock("../../seriesSlice", async (importOriginal) => {
 describe("EditSeriesOrderDialog", () => {
   const user = userEvent.setup();
   const volumes = [1, 2, 3, 4, 5].map((n) =>
-    createMockBookWithState({ id: n, display_name: `Book ${n}`, series_id: 9, series_order: n }),
+    createMockBookWithState({ id: n, displayName: `Book ${n}`, seriesId: 9, seriesOrder: n }),
   );
 
   beforeEach(() => {
@@ -35,15 +35,15 @@ describe("EditSeriesOrderDialog", () => {
     vi.mocked(api.getBooksBySeries).mockResolvedValue([
       createMockBookWithState({
         id: 1,
-        display_name: "Book 1",
-        thumbnail_path: "path/to/thumb.jpg",
-        series_order: 1,
+        displayName: "Book 1",
+        thumbnailPath: "path/to/thumb.jpg",
+        seriesOrder: 1,
       }),
       createMockBookWithState({
         id: 2,
-        display_name: "Book 2",
-        thumbnail_path: null,
-        series_order: 2,
+        displayName: "Book 2",
+        thumbnailPath: null,
+        seriesOrder: 2,
       }),
     ]);
     renderWithProviders(<EditSeriesOrderDialog open={true} seriesId={9} onClose={vi.fn()} />);

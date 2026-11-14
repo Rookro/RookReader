@@ -38,7 +38,7 @@ export const useLandscapeScan = ({
   // The book as already measured, when the stored bits describe *this* book. Bits of a
   // different length belong to a book whose pages have changed since.
   const cachedLandscape = useMemo(() => {
-    const bits = book?.landscape_bits;
+    const bits = book?.landscapeBits;
     return bits && bits.length === pageCount ? Array.from(bits, (bit) => bit === "1") : null;
   }, [book, pageCount]);
 

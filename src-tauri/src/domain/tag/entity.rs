@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 
 /// Represents a tag entity used to categorize books.
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
 pub struct Tag {
     /// The unique identifier for the tag.
     pub id: i64,

@@ -24,7 +24,7 @@ describe("useBookmarkSync", () => {
     const state = createBasePreloadedState();
     state.bookmark = {
       bookId: 7,
-      bookmarks: [createMockBookmark({ book_id: 7 })],
+      bookmarks: [createMockBookmark({ bookId: 7 })],
       status: "succeeded",
     };
     const store = createTestStore(state);

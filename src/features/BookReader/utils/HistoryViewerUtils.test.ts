@@ -4,10 +4,10 @@ import { andSearch } from "./HistoryViewerUtils";
 
 describe("HistoryViewerUtils", () => {
   const mockEntries: BookWithState[] = [
-    { id: 1, display_name: "Test Book One", path: "/path/1" } as unknown as BookWithState,
-    { id: 2, display_name: "Another Book", path: "/path/2" } as unknown as BookWithState,
-    { id: 3, display_name: "Test Document", path: "/path/3" } as unknown as BookWithState,
-    { id: 4, display_name: "Mixed CASE Book", path: "/path/4" } as unknown as BookWithState,
+    { id: 1, displayName: "Test Book One", path: "/path/1" } as unknown as BookWithState,
+    { id: 2, displayName: "Another Book", path: "/path/2" } as unknown as BookWithState,
+    { id: 3, displayName: "Test Document", path: "/path/3" } as unknown as BookWithState,
+    { id: 4, displayName: "Mixed CASE Book", path: "/path/4" } as unknown as BookWithState,
   ];
 
   describe("andSearch", () => {

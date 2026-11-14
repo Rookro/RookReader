@@ -365,7 +365,7 @@ mod tests {
     }
 
     #[test]
-    fn book_round_trips_with_snake_case_keys() {
+    fn book_serializes_with_camel_case_keys() {
         let book = Book {
             id: 1,
             file_path: "p".into(),
@@ -377,7 +377,8 @@ mod tests {
             thumbnail_path: None,
         };
         let value = serde_json::to_value(&book).unwrap();
-        assert!(value.get("file_path").is_some());
+        assert!(value.get("filePath").is_some());
+        assert!(value.get("file_path").is_none());
         let back: Book = serde_json::from_value(value.clone()).unwrap();
         assert_eq!(serde_json::to_value(&back).unwrap(), value);
     }
@@ -403,7 +404,7 @@ mod tests {
             tag_ids: vec![1, 2],
         };
         let value = serde_json::to_value(&book).unwrap();
-        assert!(value.get("tag_ids").is_some());
+        assert!(value.get("tagIds").is_some());
         let back: BookWithState = serde_json::from_value(value.clone()).unwrap();
         assert_eq!(serde_json::to_value(&back).unwrap(), value);
     }
@@ -416,23 +417,25 @@ mod tests {
             color_code: "#FF0000".into(),
         };
         let value = serde_json::to_value(&tag).unwrap();
+        assert!(value.get("colorCode").is_some());
         let back: Tag = serde_json::from_value(value.clone()).unwrap();
         assert_eq!(serde_json::to_value(&back).unwrap(), value);
     }
 
     #[test]
-    fn series_round_trips_with_datetime() {
+    fn series_serializes_its_timestamp_as_utc() {
         let created_at = chrono::NaiveDate::from_ymd_opt(2020, 1, 2)
             .unwrap()
             .and_hms_opt(3, 4, 5)
-            .unwrap();
+            .unwrap()
+            .and_utc();
         let series = Series {
             id: 9,
             name: "saga".into(),
             created_at,
         };
         let value = serde_json::to_value(&series).unwrap();
-        assert!(value.get("created_at").is_some());
+        assert_eq!(value["createdAt"], "2020-01-02T03:04:05Z");
         let back: Series = serde_json::from_value(value.clone()).unwrap();
         assert_eq!(serde_json::to_value(&back).unwrap(), value);
     }

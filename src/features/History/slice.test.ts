@@ -29,72 +29,72 @@ describe("HistoryReducer", () => {
     const state = {
       ...initialState,
       recentlyReadBooks: [
-        createMockBookWithState({ id: 1, last_read_page_index: 0 }),
-        createMockBookWithState({ id: 2, last_read_page_index: 5 }),
+        createMockBookWithState({ id: 1, lastReadPageIndex: 0 }),
+        createMockBookWithState({ id: 2, lastReadPageIndex: 5 }),
       ],
     };
     const nextState = historyReducer(
       state,
       readingProgressChanged({
-        book_id: 2,
-        last_read_page_index: 9,
+        bookId: 2,
+        lastReadPageIndex: 9,
         cfi: null,
-        last_opened_at: "2026-07-04T10:00:00",
+        lastOpenedAt: "2026-07-04T10:00:00Z",
       }),
     );
-    expect(nextState.recentlyReadBooks[0].last_read_page_index).toBe(0);
-    expect(nextState.recentlyReadBooks[1].last_read_page_index).toBe(9);
-    expect(nextState.recentlyReadBooks[1].last_opened_at).toBe("2026-07-04T10:00:00");
+    expect(nextState.recentlyReadBooks[0].lastReadPageIndex).toBe(0);
+    expect(nextState.recentlyReadBooks[1].lastReadPageIndex).toBe(9);
+    expect(nextState.recentlyReadBooks[1].lastOpenedAt).toBe("2026-07-04T10:00:00Z");
   });
 
   // A progress update without a timestamp does not blank the listed one.
-  it("should keep last_opened_at when readingProgressChanged carries none", () => {
+  it("should keep lastOpenedAt when readingProgressChanged carries none", () => {
     const state = {
       ...initialState,
       recentlyReadBooks: [
         createMockBookWithState({
           id: 1,
-          last_read_page_index: 0,
-          last_opened_at: "2026-07-01T09:00:00",
+          lastReadPageIndex: 0,
+          lastOpenedAt: "2026-07-01T09:00:00Z",
         }),
       ],
     };
     const nextState = historyReducer(
       state,
       readingProgressChanged({
-        book_id: 1,
-        last_read_page_index: 4,
+        bookId: 1,
+        lastReadPageIndex: 4,
         cfi: null,
-        last_opened_at: null,
+        lastOpenedAt: null,
       }),
     );
-    expect(nextState.recentlyReadBooks[0].last_read_page_index).toBe(4);
-    expect(nextState.recentlyReadBooks[0].last_opened_at).toBe("2026-07-01T09:00:00");
+    expect(nextState.recentlyReadBooks[0].lastReadPageIndex).toBe(4);
+    expect(nextState.recentlyReadBooks[0].lastOpenedAt).toBe("2026-07-01T09:00:00Z");
   });
 
   // Verify that readingProgressChanged for an unknown book id is a no-op.
   it("should ignore readingProgressChanged for an unknown book id", () => {
     const state = {
       ...initialState,
-      recentlyReadBooks: [createMockBookWithState({ id: 1, last_read_page_index: 3 })],
+      recentlyReadBooks: [createMockBookWithState({ id: 1, lastReadPageIndex: 3 })],
     };
     const nextState = historyReducer(
       state,
       readingProgressChanged({
-        book_id: 999,
-        last_read_page_index: 42,
+        bookId: 999,
+        lastReadPageIndex: 42,
         cfi: null,
-        last_opened_at: "2026-07-04T10:00:00",
+        lastOpenedAt: "2026-07-04T10:00:00Z",
       }),
     );
-    expect(nextState.recentlyReadBooks[0].last_read_page_index).toBe(3);
+    expect(nextState.recentlyReadBooks[0].lastReadPageIndex).toBe(3);
   });
 
   describe("Async Thunk Integration Tests", () => {
     const mockBook = createMockBookWithState({
       id: 1,
-      display_name: "Book 1",
-      file_path: "p1",
+      displayName: "Book 1",
+      filePath: "p1",
     });
 
     // Verify that state is updated correctly on successful fetching of recently read books

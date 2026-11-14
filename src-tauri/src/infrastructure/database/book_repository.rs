@@ -247,7 +247,7 @@ impl BookRepository for SqliteBookRepository {
             ON CONFLICT(book_id) DO UPDATE SET
                 last_read_page_index = excluded.last_read_page_index,
                 cfi = excluded.cfi
-            RETURNING book_id, last_read_page_index, cfi, last_opened_at
+            RETURNING book_id, last_read_page_index, cfi, last_opened_at as "last_opened_at: chrono::DateTime<chrono::Utc>"
             "#,
             book_id,
             page_index,

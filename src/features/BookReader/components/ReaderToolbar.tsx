@@ -63,7 +63,7 @@ export default function ReaderToolbar() {
         ? bookmarks.find((bookmark) =>
             isNovel
               ? cfi !== null && bookmark.cfi === cfi
-              : bookmark.cfi === null && bookmark.page_index === index,
+              : bookmark.cfi === null && bookmark.pageIndex === index,
           )
         : undefined,
     [isBookmarkListReady, bookmarks, isNovel, cfi, index],

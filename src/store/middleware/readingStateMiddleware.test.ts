@@ -48,7 +48,7 @@ describe("readingStateMiddleware", () => {
     vi.clearAllMocks();
     vi.useFakeTimers();
     store = {
-      getState: vi.fn(() => stateFor({ id: 1, last_opened_at: "now" })),
+      getState: vi.fn(() => stateFor({ id: 1, lastOpenedAt: "now" })),
       dispatch: vi.fn(),
     };
     next = vi.fn((action: UnknownAction) => action) as Dispatch<UnknownAction>;
@@ -73,10 +73,10 @@ describe("readingStateMiddleware", () => {
   // Verify that two rapid same-book writes coalesce into a single write with the last args.
   it("should coalesce rapid same-book writes into the last one", async () => {
     const instance = createReadingStateMiddleware();
-    store.getState.mockImplementation(() => stateFor({ id: 1, last_opened_at: "now" }, true, 10));
+    store.getState.mockImplementation(() => stateFor({ id: 1, lastOpenedAt: "now" }, true, 10));
     runWith(instance, store, next, setImageIndex(10));
 
-    store.getState.mockImplementation(() => stateFor({ id: 1, last_opened_at: "now" }, true, 20));
+    store.getState.mockImplementation(() => stateFor({ id: 1, lastOpenedAt: "now" }, true, 20));
     runWith(instance, store, next, setImageIndex(20));
 
     await vi.advanceTimersByTimeAsync(500);
@@ -89,11 +89,11 @@ describe("readingStateMiddleware", () => {
   // with its own args, so a book switch never discards the previous position.
   it("should flush the previous book's write immediately when the book changes", async () => {
     const instance = createReadingStateMiddleware();
-    store.getState.mockImplementation(() => stateFor({ id: 1, last_opened_at: "a" }, true, 10));
+    store.getState.mockImplementation(() => stateFor({ id: 1, lastOpenedAt: "a" }, true, 10));
     runWith(instance, store, next, setImageIndex(10));
 
     // Switch to book 2 within the debounce window: book 1 must be flushed now.
-    store.getState.mockImplementation(() => stateFor({ id: 2, last_opened_at: "b" }, true, 3));
+    store.getState.mockImplementation(() => stateFor({ id: 2, lastOpenedAt: "b" }, true, 3));
     runWith(instance, store, next, setImageIndex(3));
 
     expect(api.updateReadingProgress).toHaveBeenCalledTimes(1);
@@ -161,7 +161,7 @@ describe("readingStateMiddleware", () => {
 
   // History turned on while the book was open: it has a library record but no reading state.
   it("saves the position of a book that has no reading state yet", async () => {
-    store.getState.mockReturnValue(stateFor({ id: 1, last_opened_at: null }, true, 3));
+    store.getState.mockReturnValue(stateFor({ id: 1, lastOpenedAt: null }, true, 3));
 
     run(store, next, setImageIndex(3));
     await vi.advanceTimersByTimeAsync(500);
@@ -172,7 +172,7 @@ describe("readingStateMiddleware", () => {
   // Verify that the fire-time re-check skips the write when history is disabled
   // after the write was scheduled (within the debounce window).
   it("should not persist if recordReadingHistory is disabled before the write fires", async () => {
-    const enabledState = stateFor({ id: 1, last_opened_at: "now" });
+    const enabledState = stateFor({ id: 1, lastOpenedAt: "now" });
     const disabledState = {
       settings: { history: { recordReadingHistory: false } },
       reader: {},
@@ -190,7 +190,7 @@ describe("readingStateMiddleware", () => {
   // Verify that reading state is saved to the DB when setNovelLocation action (for novels) is dispatched
   it("should call updateReadingProgress with the CFI when setNovelLocation is dispatched", async () => {
     store.getState.mockReturnValue(
-      stateFor({ id: 1, last_opened_at: "now" }, true, 5, "epubcfi(/6/8!/4/2/1:0)"),
+      stateFor({ id: 1, lastOpenedAt: "now" }, true, 5, "epubcfi(/6/8!/4/2/1:0)"),
     );
 
     run(store, next, setNovelLocation({ index: 5, cfi: "epubcfi(/6/8!/4/2/1:0)" }));
@@ -201,7 +201,7 @@ describe("readingStateMiddleware", () => {
 
   // Verify that an empty CFI (occasionally emitted by foliate-js) is stored as null, never "".
   it("should normalize an empty-string CFI to null before persisting", async () => {
-    store.getState.mockReturnValue(stateFor({ id: 1, last_opened_at: "now" }, true, 5, ""));
+    store.getState.mockReturnValue(stateFor({ id: 1, lastOpenedAt: "now" }, true, 5, ""));
 
     run(store, next, setNovelLocation({ index: 5, cfi: "" }));
     await vi.advanceTimersByTimeAsync(500);

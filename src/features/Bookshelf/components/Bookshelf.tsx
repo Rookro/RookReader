@@ -48,7 +48,7 @@ export default function Bookshelf({ sx }: BookshelfProps) {
     (book: BookWithState) => {
       dispatch(
         openBook({
-          path: book.file_path,
+          path: book.filePath,
           origin: {
             kind: "bookshelf",
             collectionId: selectedCollectionId,
@@ -62,15 +62,15 @@ export default function Bookshelf({ sx }: BookshelfProps) {
   );
 
   const handleCreateCollection = useCallback(
-    (name: string, icon_id: string) => {
-      dispatch(addCollection({ name, icon_id }));
+    (name: string, iconId: string) => {
+      dispatch(addCollection({ name, iconId }));
     },
     [dispatch],
   );
 
   const handleCreateBookTag = useCallback(
-    (name: string, color_code: string) => {
-      dispatch(addTag({ name, color_code }));
+    (name: string, colorCode: string) => {
+      dispatch(addTag({ name, colorCode }));
     },
     [dispatch],
   );

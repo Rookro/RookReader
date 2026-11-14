@@ -39,8 +39,8 @@ describe("BookmarkReducer", () => {
 
     it("should replace the bookmarks on success", async () => {
       const bookmarks = [
-        createMockBookmark({ id: 1, page_index: 0 }),
-        createMockBookmark({ id: 2, page_index: 4 }),
+        createMockBookmark({ id: 1, pageIndex: 0 }),
+        createMockBookmark({ id: 2, pageIndex: 4 }),
       ];
       vi.mocked(api.getBookmarksByBookId).mockResolvedValue(bookmarks);
 
@@ -73,7 +73,7 @@ describe("BookmarkReducer", () => {
       state = bookmarkReducer(state, fetchBookmarks.pending("r2", 2));
       state = bookmarkReducer(
         state,
-        fetchBookmarks.fulfilled([createMockBookmark({ id: 9, book_id: 1 })], "r1", 1),
+        fetchBookmarks.fulfilled([createMockBookmark({ id: 9, bookId: 1 })], "r1", 1),
       );
       expect(state.bookId).toBe(2);
       expect(state.bookmarks).toEqual([]);
@@ -84,7 +84,7 @@ describe("BookmarkReducer", () => {
       const loaded = {
         ...initialState,
         bookId: 1,
-        bookmarks: [createMockBookmark({ book_id: 1 })],
+        bookmarks: [createMockBookmark({ bookId: 1 })],
         status: "succeeded" as const,
       };
       expect(bookmarkReducer(loaded, fetchBookmarks.pending("r2", 2)).bookmarks).toEqual([]);
@@ -124,7 +124,7 @@ describe("BookmarkReducer", () => {
     const loaded = {
       ...initialState,
       bookId: 1,
-      bookmarks: [createMockBookmark({ book_id: 1 })],
+      bookmarks: [createMockBookmark({ bookId: 1 })],
       status: "succeeded" as const,
     };
     expect(bookmarkReducer(loaded, clearBookmarks())).toEqual(initialState);
@@ -133,7 +133,7 @@ describe("BookmarkReducer", () => {
   describe("addBookmark", () => {
     it("does not add another book's new bookmark to the list", () => {
       const loaded = { ...initialState, bookId: 2, status: "succeeded" as const };
-      const created = createMockBookmark({ id: 5, book_id: 1 });
+      const created = createMockBookmark({ id: 5, bookId: 1 });
       const state = bookmarkReducer(
         loaded,
         addBookmark.fulfilled(created, "r", { bookId: 1, name: "n", pageIndex: 0, cfi: null }),
@@ -145,13 +145,13 @@ describe("BookmarkReducer", () => {
     // appear at the end of the panel regardless of where it points.
     it("should insert the new bookmark in position order", async () => {
       const existing = [
-        createMockBookmark({ id: 1, page_index: 0 }),
-        createMockBookmark({ id: 2, page_index: 9 }),
+        createMockBookmark({ id: 1, pageIndex: 0 }),
+        createMockBookmark({ id: 2, pageIndex: 9 }),
       ];
       vi.mocked(api.getBookmarksByBookId).mockResolvedValue(existing);
       await store.dispatch(fetchBookmarks(1));
 
-      const added = createMockBookmark({ id: 3, page_index: 4, name: "Chapter 2" });
+      const added = createMockBookmark({ id: 3, pageIndex: 4, name: "Chapter 2" });
       vi.mocked(api.createBookmark).mockResolvedValue(added);
 
       await store.dispatch(addBookmark({ bookId: 1, name: "Chapter 2", pageIndex: 4, cfi: null }));
@@ -161,18 +161,16 @@ describe("BookmarkReducer", () => {
       expect(state.bookmarks.map((bookmark) => bookmark.id)).toEqual([1, 3, 2]);
     });
 
-    it("should break ties on created_at and then id", () => {
+    it("should break ties on createdAt and then id", () => {
       const state = {
         ...initialState,
         bookId: 1,
-        bookmarks: [
-          createMockBookmark({ id: 5, page_index: 2, created_at: "2026-03-01T10:00:00" }),
-        ],
+        bookmarks: [createMockBookmark({ id: 5, pageIndex: 2, createdAt: "2026-03-01T10:00:00Z" })],
       };
 
       const nextState = bookmarkReducer(state, {
         type: addBookmark.fulfilled.type,
-        payload: createMockBookmark({ id: 4, page_index: 2, created_at: "2026-03-01T09:00:00" }),
+        payload: createMockBookmark({ id: 4, pageIndex: 2, createdAt: "2026-03-01T09:00:00Z" }),
       });
 
       expect(nextState.bookmarks.map((bookmark) => bookmark.id)).toEqual([4, 5]);
@@ -197,8 +195,8 @@ describe("BookmarkReducer", () => {
   describe("removeBookmark", () => {
     it("should remove only the matching bookmark", async () => {
       const existing = [
-        createMockBookmark({ id: 1, page_index: 0 }),
-        createMockBookmark({ id: 2, page_index: 4 }),
+        createMockBookmark({ id: 1, pageIndex: 0 }),
+        createMockBookmark({ id: 2, pageIndex: 4 }),
       ];
       vi.mocked(api.getBookmarksByBookId).mockResolvedValue(existing);
       await store.dispatch(fetchBookmarks(1));

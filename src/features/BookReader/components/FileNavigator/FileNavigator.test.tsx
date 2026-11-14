@@ -74,16 +74,14 @@ describe("FileNavigator", () => {
   it("should show 'no search results' when search does not match any entry", async () => {
     const preloadedState = createBasePreloadedState();
     preloadedState.fileNavigator.searchText = "Banana";
-    preloadedState.fileNavigator.entries = [
-      { name: "Apple", is_directory: false, last_modified: 0 },
-    ];
+    preloadedState.fileNavigator.entries = [{ name: "Apple", isDirectory: false, lastModified: 0 }];
 
     renderWithProviders(<FileNavigator />, { preloadedState });
     expect(screen.getByText(/No results for "Banana"/i)).toBeInTheDocument();
   });
 
   it("should dispatch openBook when a file is clicked", async () => {
-    const entries: DirEntry[] = [{ name: "book.zip", is_directory: false, last_modified: 0 }];
+    const entries: DirEntry[] = [{ name: "book.zip", isDirectory: false, lastModified: 0 }];
     const preloadedState = createBasePreloadedState();
     preloadedState.fileNavigator.entries = entries;
 
@@ -127,7 +125,7 @@ describe("FileNavigator", () => {
   });
 
   it("should dispatch updateExploreBasePath when a directory is double-clicked", async () => {
-    const entries: DirEntry[] = [{ name: "folder", is_directory: true, last_modified: 0 }];
+    const entries: DirEntry[] = [{ name: "folder", isDirectory: true, lastModified: 0 }];
     const preloadedState = createBasePreloadedState();
     preloadedState.fileNavigator.entries = entries;
 
@@ -144,7 +142,7 @@ describe("FileNavigator", () => {
   it("should dispatch updateExploreBasePath when a browsable archive is double-clicked", async () => {
     // Double-clicking a .zip steps into it like a folder rather than opening it as a
     // book; a single click still opens it.
-    const entries: DirEntry[] = [{ name: "book.zip", is_directory: false, last_modified: 0 }];
+    const entries: DirEntry[] = [{ name: "book.zip", isDirectory: false, lastModified: 0 }];
     const preloadedState = createBasePreloadedState();
     preloadedState.fileNavigator.entries = entries;
 
@@ -163,8 +161,8 @@ describe("FileNavigator", () => {
     // Single-clicking row A then row B within the double-click interval must not be
     // misread as a double-click on B; B is selected and no directory navigation occurs.
     const entries: DirEntry[] = [
-      { name: "folderA", is_directory: true, last_modified: 0 },
-      { name: "folderB", is_directory: true, last_modified: 0 },
+      { name: "folderA", isDirectory: true, lastModified: 0 },
+      { name: "folderB", isDirectory: true, lastModified: 0 },
     ];
     const preloadedState = createBasePreloadedState();
     preloadedState.fileNavigator.entries = entries;
@@ -192,7 +190,7 @@ describe("FileNavigator", () => {
 
   it("should open the file when a file is double-clicked", async () => {
     // A PDF is a single document, not a browsable archive, so a double-click opens it.
-    const entries: DirEntry[] = [{ name: "book.pdf", is_directory: false, last_modified: 0 }];
+    const entries: DirEntry[] = [{ name: "book.pdf", isDirectory: false, lastModified: 0 }];
     const preloadedState = createBasePreloadedState();
     preloadedState.fileNavigator.entries = entries;
 
@@ -211,7 +209,7 @@ describe("FileNavigator", () => {
   });
 
   it("should scroll to row when selectedIndex is set", async () => {
-    const entries: DirEntry[] = [{ name: "book.zip", is_directory: false, last_modified: 0 }];
+    const entries: DirEntry[] = [{ name: "book.zip", isDirectory: false, lastModified: 0 }];
     vi.mocked(useFileSelection).mockImplementationOnce(
       (_fileHistory, _fileHistoryIndex, _entries, callback) => {
         callback(0);
@@ -235,7 +233,7 @@ describe("FileNavigator", () => {
   });
 
   it("should log error if scrollToRow fails", async () => {
-    const entries: DirEntry[] = [{ name: "book.zip", is_directory: false, last_modified: 0 }];
+    const entries: DirEntry[] = [{ name: "book.zip", isDirectory: false, lastModified: 0 }];
     vi.mocked(useFileSelection).mockImplementationOnce(
       (_fileHistory, _fileHistoryIndex, _entries, callback) => {
         callback(0);

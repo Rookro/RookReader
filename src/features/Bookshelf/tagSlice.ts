@@ -8,13 +8,13 @@ import { createCommandThunk } from "../../types/CustomAsyncThunk";
  *
  * @param params - The parameters for creating a tag.
  * @param params.name - The name of the new tag.
- * @param params.color_code - The hex color code associated with the tag.
+ * @param params.colorCode - The hex color code associated with the tag.
  * @returns A thunk that resolves to the newly created Tag object.
  */
 export const addTag = createCommandThunk(
   "tag/addTag",
-  ({ name, color_code }: { name: string; color_code: string }) => api.createTag(name, color_code),
-  ({ name, color_code }) => `Failed to add tag(name: ${name}, color_code: ${color_code}).`,
+  ({ name, colorCode }: { name: string; colorCode: string }) => api.createTag(name, colorCode),
+  ({ name, colorCode }) => `Failed to add tag(name: ${name}, colorCode: ${colorCode}).`,
 );
 
 /**

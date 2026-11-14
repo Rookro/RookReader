@@ -32,7 +32,7 @@ function Row({
   return (
     <ItemRow
       {...others}
-      key={entry.display_name}
+      key={entry.displayName}
       entry={entry}
       index={index}
       selected={selectedIndex === index}
@@ -87,7 +87,7 @@ export default function HistoryViewer() {
 
   const handleListItemClicked = useCallback(
     async (_e: React.MouseEvent<HTMLElement>, entry: BookWithState, _index: number) => {
-      dispatch(openBook({ path: entry.file_path, origin: { kind: "history" } }));
+      dispatch(openBook({ path: entry.filePath, origin: { kind: "history" } }));
     },
     [dispatch],
   );

@@ -265,7 +265,7 @@ describe("ReaderToolbar", () => {
       const preloadedState = stateWithOpenBook({ index: 3 });
       preloadedState.bookmark = {
         bookId: 7,
-        bookmarks: [createMockBookmark({ id: 1, book_id: 7, page_index: 3 })],
+        bookmarks: [createMockBookmark({ id: 1, bookId: 7, pageIndex: 3 })],
         status: "succeeded",
       };
 
@@ -301,7 +301,7 @@ describe("ReaderToolbar", () => {
     it("should add a bookmark named after the page number for a comic", async () => {
       const preloadedState = stateWithOpenBook();
       vi.mocked(api.createBookmark).mockResolvedValue(
-        createMockBookmark({ id: 1, book_id: 42, page_index: 3 }),
+        createMockBookmark({ id: 1, bookId: 42, pageIndex: 3 }),
       );
 
       renderWithProviders(<ReaderToolbar />, { preloadedState });
@@ -320,7 +320,7 @@ describe("ReaderToolbar", () => {
         entries: ["Chapter 1", "Chapter 2"],
       });
       vi.mocked(api.createBookmark).mockResolvedValue(
-        createMockBookmark({ id: 1, book_id: 42, page_index: 1 }),
+        createMockBookmark({ id: 1, bookId: 42, pageIndex: 1 }),
       );
 
       renderWithProviders(<ReaderToolbar />, { preloadedState });
@@ -339,7 +339,7 @@ describe("ReaderToolbar", () => {
     it("should remove the bookmark when the current position is already bookmarked", async () => {
       const preloadedState = stateWithOpenBook();
       preloadedState.bookmark.bookmarks = [
-        createMockBookmark({ id: 7, book_id: 42, page_index: 3, cfi: null }),
+        createMockBookmark({ id: 7, bookId: 42, pageIndex: 3, cfi: null }),
       ];
 
       renderWithProviders(<ReaderToolbar />, { preloadedState });
@@ -360,10 +360,10 @@ describe("ReaderToolbar", () => {
       });
       // Same section, different position: this is not the current bookmark.
       preloadedState.bookmark.bookmarks = [
-        createMockBookmark({ id: 7, book_id: 42, page_index: 1, cfi: "epubcfi(/6/8!/4/2/9:0)" }),
+        createMockBookmark({ id: 7, bookId: 42, pageIndex: 1, cfi: "epubcfi(/6/8!/4/2/9:0)" }),
       ];
       vi.mocked(api.createBookmark).mockResolvedValue(
-        createMockBookmark({ id: 8, book_id: 42, page_index: 1 }),
+        createMockBookmark({ id: 8, bookId: 42, pageIndex: 1 }),
       );
 
       renderWithProviders(<ReaderToolbar />, { preloadedState });

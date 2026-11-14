@@ -12,10 +12,10 @@ import { useRevealReadingBook } from "./useRevealReadingBook";
 describe("useRevealReadingBook", () => {
   const series = createMockSeries({ id: 10, name: "Saga" });
   const otherSeries = createMockSeries({ id: 20, name: "Other Saga" });
-  const volume1 = createMockBookWithState({ id: 1, display_name: "Saga 1", series_id: 10 });
-  const volume2 = createMockBookWithState({ id: 2, display_name: "Saga 2", series_id: 10 });
-  const otherVolume = createMockBookWithState({ id: 3, display_name: "Other 1", series_id: 20 });
-  const standalone = createMockBookWithState({ id: 4, display_name: "Standalone" });
+  const volume1 = createMockBookWithState({ id: 1, displayName: "Saga 1", seriesId: 10 });
+  const volume2 = createMockBookWithState({ id: 2, displayName: "Saga 2", seriesId: 10 });
+  const otherVolume = createMockBookWithState({ id: 3, displayName: "Other 1", seriesId: 20 });
+  const standalone = createMockBookWithState({ id: 4, displayName: "Standalone" });
 
   const setup = ({
     readingBook = volume2,

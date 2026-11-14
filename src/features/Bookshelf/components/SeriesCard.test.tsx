@@ -12,12 +12,12 @@ describe("SeriesCard", () => {
   const mockSeries = {
     id: 1,
     name: "Test Series",
-    created_at: "2026-03-01T15:30:00",
+    createdAt: "2026-03-01T15:30:00Z",
   };
 
   const mockBooks = [
-    createMockBookWithState({ id: 101, display_name: "Book 1", series_id: 1, series_order: 1 }),
-    createMockBookWithState({ id: 102, display_name: "Book 2", series_id: 1, series_order: 2 }),
+    createMockBookWithState({ id: 101, displayName: "Book 1", seriesId: 1, seriesOrder: 1 }),
+    createMockBookWithState({ id: 102, displayName: "Book 2", seriesId: 1, seriesOrder: 2 }),
   ];
 
   const mockActions = {

@@ -75,8 +75,8 @@ export default function SetBookTagsDialog({
   }, [bookIds, changes, dispatch, onClose]);
 
   const handleCreate = useCallback(
-    async (name: string, color_code: string) => {
-      const result = await dispatch(addTag({ name, color_code }));
+    async (name: string, colorCode: string) => {
+      const result = await dispatch(addTag({ name, colorCode }));
       // The `tags-changed` refetch may list the tag only later; checking it now still saves it.
       if (addTag.fulfilled.match(result) && sessionRef.current === bookIds) {
         toggle(result.payload.id);
@@ -102,7 +102,7 @@ export default function SetBookTagsDialog({
               return (
                 <ListItem key={tag.id} disablePadding>
                   <ListItemIcon sx={{ minWidth: "auto", marginRight: "12px" }}>
-                    <LocalOffer sx={{ color: tag.color_code }} />
+                    <LocalOffer sx={{ color: tag.colorCode }} />
                   </ListItemIcon>
                   <ListItemText id={`checkbox-tag-list-label-${tag.id}`} primary={tag.name} />
                   <Checkbox

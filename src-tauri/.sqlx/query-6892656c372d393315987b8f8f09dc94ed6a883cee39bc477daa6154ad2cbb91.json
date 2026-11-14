@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n            SELECT id, book_id, name, page_index, cfi, created_at\n            FROM bookmarks\n            WHERE book_id = ?\n            ORDER BY page_index ASC, created_at ASC, id ASC\n            ",
+  "query": "\n            SELECT id, book_id, name, page_index, cfi, created_at as \"created_at: chrono::DateTime<chrono::Utc>\"\n            FROM bookmarks\n            WHERE book_id = ?\n            ORDER BY page_index ASC, created_at ASC, id ASC\n            ",
   "describe": {
     "columns": [
       {
@@ -59,7 +59,7 @@
         }
       },
       {
-        "name": "created_at",
+        "name": "created_at: chrono::DateTime<chrono::Utc>",
         "ordinal": 5,
         "type_info": "Datetime",
         "origin": {
@@ -82,5 +82,5 @@
       false
     ]
   },
-  "hash": "ae2f9895860b8dccf201e65b01e3123242f0fed7362b3684442a7e6319f42e12"
+  "hash": "6892656c372d393315987b8f8f09dc94ed6a883cee39bc477daa6154ad2cbb91"
 }

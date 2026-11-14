@@ -75,65 +75,65 @@ describe("CollectionReducer", () => {
     const state = {
       ...collectionInitialState,
       books: [
-        createMockBookWithState({ id: 1, last_read_page_index: 0 }),
-        createMockBookWithState({ id: 2, last_read_page_index: 5 }),
+        createMockBookWithState({ id: 1, lastReadPageIndex: 0 }),
+        createMockBookWithState({ id: 2, lastReadPageIndex: 5 }),
       ],
     };
     const nextState = collectionReducer(
       state,
       readingProgressChanged({
-        book_id: 2,
-        last_read_page_index: 9,
+        bookId: 2,
+        lastReadPageIndex: 9,
         cfi: null,
-        last_opened_at: "2026-07-04T10:00:00",
+        lastOpenedAt: "2026-07-04T10:00:00Z",
       }),
     );
-    expect(nextState.books[0].last_read_page_index).toBe(0);
-    expect(nextState.books[1].last_read_page_index).toBe(9);
-    expect(nextState.books[1].last_opened_at).toBe("2026-07-04T10:00:00");
+    expect(nextState.books[0].lastReadPageIndex).toBe(0);
+    expect(nextState.books[1].lastReadPageIndex).toBe(9);
+    expect(nextState.books[1].lastOpenedAt).toBe("2026-07-04T10:00:00Z");
   });
 
   // A progress update without a timestamp does not blank the listed one.
-  it("should keep last_opened_at when readingProgressChanged carries none", () => {
+  it("should keep lastOpenedAt when readingProgressChanged carries none", () => {
     const state = {
       ...collectionInitialState,
       books: [
         createMockBookWithState({
           id: 1,
-          last_read_page_index: 0,
-          last_opened_at: "2026-07-01T09:00:00",
+          lastReadPageIndex: 0,
+          lastOpenedAt: "2026-07-01T09:00:00Z",
         }),
       ],
     };
     const nextState = collectionReducer(
       state,
       readingProgressChanged({
-        book_id: 1,
-        last_read_page_index: 4,
+        bookId: 1,
+        lastReadPageIndex: 4,
         cfi: null,
-        last_opened_at: null,
+        lastOpenedAt: null,
       }),
     );
-    expect(nextState.books[0].last_read_page_index).toBe(4);
-    expect(nextState.books[0].last_opened_at).toBe("2026-07-01T09:00:00");
+    expect(nextState.books[0].lastReadPageIndex).toBe(4);
+    expect(nextState.books[0].lastOpenedAt).toBe("2026-07-01T09:00:00Z");
   });
 
   // Verify that readingProgressChanged for an unknown book id is a no-op.
   it("should ignore readingProgressChanged for an unknown book id", () => {
     const state = {
       ...collectionInitialState,
-      books: [createMockBookWithState({ id: 1, last_read_page_index: 3 })],
+      books: [createMockBookWithState({ id: 1, lastReadPageIndex: 3 })],
     };
     const nextState = collectionReducer(
       state,
       readingProgressChanged({
-        book_id: 999,
-        last_read_page_index: 42,
+        bookId: 999,
+        lastReadPageIndex: 42,
         cfi: null,
-        last_opened_at: "2026-07-04T10:00:00",
+        lastOpenedAt: "2026-07-04T10:00:00Z",
       }),
     );
-    expect(nextState.books[0].last_read_page_index).toBe(3);
+    expect(nextState.books[0].lastReadPageIndex).toBe(3);
   });
 
   describe("grid stays mounted while books reload", () => {
@@ -191,7 +191,7 @@ describe("CollectionReducer", () => {
     });
 
     it.each([
-      ["addCollection", addCollection.pending("r", { name: "n", icon_id: "i" })],
+      ["addCollection", addCollection.pending("r", { name: "n", iconId: "i" })],
       [
         "deleteBookFromCollection",
         deleteBookFromCollection.pending("r", { bookId: 1, collectionId: null }),
@@ -271,7 +271,7 @@ describe("CollectionReducer", () => {
         const mockCollection = createMockCollection({ id: 1, name: "New BS" });
         vi.mocked(api.createCollection).mockResolvedValue(mockCollection);
 
-        await store.dispatch(addCollection({ name: "New BS", icon_id: "folder" }));
+        await store.dispatch(addCollection({ name: "New BS", iconId: "folder" }));
 
         const state = store.getState().collection;
         expect(state.status).toBe("idle");
@@ -282,7 +282,7 @@ describe("CollectionReducer", () => {
         const mockError = new CommandError(ErrorCode.io, "io error");
         vi.mocked(api.createCollection).mockRejectedValue(mockError);
 
-        await store.dispatch(addCollection({ name: "Existing BS", icon_id: "folder" }));
+        await store.dispatch(addCollection({ name: "Existing BS", iconId: "folder" }));
 
         const state = store.getState().collection;
         expect(state.status).toBe("idle");
@@ -296,7 +296,7 @@ describe("CollectionReducer", () => {
         const mockError = new Error("unknown error");
         vi.mocked(api.createCollection).mockRejectedValue(mockError);
 
-        await store.dispatch(addCollection({ name: "Error BS", icon_id: "folder" }));
+        await store.dispatch(addCollection({ name: "Error BS", iconId: "folder" }));
 
         const state = store.getState().collection;
         expect(state.status).toBe("idle");
@@ -393,8 +393,8 @@ describe("CollectionReducer", () => {
 
       // Verify that a stale fetch response for a shelf the user already left is ignored.
       it("fetchBooksInSelectedCollection ignores a stale response for a superseded shelf", async () => {
-        const currentBooks = [createMockBookWithState({ id: 1, display_name: "current" })];
-        const staleBooks = [createMockBookWithState({ id: 99, display_name: "stale" })];
+        const currentBooks = [createMockBookWithState({ id: 1, displayName: "current" })];
+        const staleBooks = [createMockBookWithState({ id: 99, displayName: "stale" })];
         // The user is now on shelf 2 with its books already loaded.
         const preloadedState = {
           collection: {
@@ -516,7 +516,7 @@ describe("CollectionReducer", () => {
 
       // Verify state update on successful fetching of books in selected collection
       it("fetchBooksInSelectedCollection should update state correctly", async () => {
-        const mockBooks = [createMockBookWithState({ id: 1, file_path: "b1.zip" })];
+        const mockBooks = [createMockBookWithState({ id: 1, filePath: "b1.zip" })];
         vi.mocked(api.getBooksByCollection).mockResolvedValue(mockBooks);
 
         // The response only applies when its arg matches the current selection.
@@ -717,7 +717,7 @@ describe("TagReducer", () => {
       const mockTag = createMockTag({ id: 1, name: "New Tag" });
       vi.mocked(api.createTag).mockResolvedValue(mockTag);
 
-      await store.dispatch(addTag({ name: "New Tag", color_code: "#00ff00" }));
+      await store.dispatch(addTag({ name: "New Tag", colorCode: "#00ff00" }));
 
       const state = store.getState().tag;
       expect(state.status).toBe("succeeded");
@@ -727,7 +727,7 @@ describe("TagReducer", () => {
     it("addTag should handle generic failure", async () => {
       vi.mocked(api.createTag).mockRejectedValue(new Error());
 
-      await store.dispatch(addTag({ name: "New Tag", color_code: "#00ff00" }));
+      await store.dispatch(addTag({ name: "New Tag", colorCode: "#00ff00" }));
 
       const state = store.getState().tag;
       expect(state.status).toBe("failed");
@@ -741,7 +741,7 @@ describe("TagReducer", () => {
       const mockError = new CommandError(ErrorCode.io, "io fail");
       vi.mocked(api.createTag).mockRejectedValue(mockError);
 
-      await store.dispatch(addTag({ name: "New Tag", color_code: "#00ff00" }));
+      await store.dispatch(addTag({ name: "New Tag", colorCode: "#00ff00" }));
 
       const state = store.getState().tag;
       expect(state.status).toBe("failed");
@@ -959,7 +959,7 @@ describe("SeriesReducer", () => {
     });
 
     it("addSeries should create the series, refetch the list, and return the new id", async () => {
-      const created: Series = { id: 3, name: "New", created_at: "2026-03-01T15:30:00" };
+      const created: Series = { id: 3, name: "New", createdAt: "2026-03-01T15:30:00Z" };
       vi.mocked(api.createSeries).mockResolvedValue(created);
       vi.mocked(api.getAllSeries).mockResolvedValue([created]);
 
@@ -1032,7 +1032,7 @@ describe("SeriesReducer", () => {
 
     // Verify state update on successful series fetching
     it("fetchSeries should update state with fetched series on success", async () => {
-      const mockSeries: Series[] = [{ id: 1, name: "Series 1", created_at: "2026-03-01T15:30:00" }];
+      const mockSeries: Series[] = [{ id: 1, name: "Series 1", createdAt: "2026-03-01T15:30:00Z" }];
       vi.mocked(api.getAllSeries).mockResolvedValue(mockSeries);
 
       await store.dispatch(fetchSeries());
@@ -1050,7 +1050,7 @@ describe("SeriesReducer", () => {
       const preloadedState = {
         series: {
           ...seriesInitialState,
-          series: [{ id: 1, name: "S1", created_at: "" }],
+          series: [{ id: 1, name: "S1", createdAt: "" }],
         },
       };
       store = createTestStore(preloadedState);

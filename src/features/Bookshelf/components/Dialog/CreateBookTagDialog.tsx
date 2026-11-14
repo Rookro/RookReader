@@ -23,7 +23,7 @@ export interface CreateTagDialogProps {
   /** Whether the dialog is open or closed. */
   open: boolean;
   /** Callback to create a book tag. */
-  onCreate: (name: string, color_code: string) => void;
+  onCreate: (name: string, colorCode: string) => void;
   /** Callback to close the dialog. */
   onClose: () => void;
 }

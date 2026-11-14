@@ -38,6 +38,25 @@ async fn create_returns_the_new_series() {
 }
 
 #[tokio::test]
+async fn timestamps_stored_by_sqlite_are_read_as_utc() {
+    let pool = setup_db().await;
+    let repository = SqliteSeriesRepository::new(pool.clone());
+    let created = repository.create("Saga").await.unwrap();
+    sqlx::query("UPDATE series SET created_at = '2020-01-02 03:04:05' WHERE id = ?")
+        .bind(created.id)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    let series = repository.get_all().await.unwrap();
+
+    assert_eq!(
+        series[0].created_at.to_rfc3339(),
+        "2020-01-02T03:04:05+00:00"
+    );
+}
+
+#[tokio::test]
 async fn test_create_duplicate_series() {
     let pool = setup_db().await;
     let repository = SqliteSeriesRepository::new(pool.clone());

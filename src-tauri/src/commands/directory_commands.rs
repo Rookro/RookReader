@@ -545,9 +545,9 @@ mod tests {
         for entry in dir_entries["entries"].as_array().unwrap() {
             push_entry(
                 &mut buffer,
-                entry["is_directory"].as_bool().unwrap(),
+                entry["isDirectory"].as_bool().unwrap(),
                 entry["name"].as_str().unwrap(),
-                entry["last_modified"].as_u64().unwrap(),
+                entry["lastModified"].as_u64().unwrap(),
             );
         }
 

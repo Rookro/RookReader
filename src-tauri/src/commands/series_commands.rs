@@ -169,7 +169,7 @@ mod tests {
     #[tokio::test]
     async fn test_create_series() {
         let mut mock_repo = MockSeriesRepository::new();
-        let now = chrono::Utc::now().naive_utc();
+        let now = chrono::Utc::now();
         mock_repo
             .expect_create()
             .with(mockall::predicate::eq("New Series"))
@@ -198,7 +198,7 @@ mod tests {
     #[tokio::test]
     async fn test_get_all_series() {
         let mut mock_repo = MockSeriesRepository::new();
-        let now = chrono::Utc::now().naive_utc();
+        let now = chrono::Utc::now();
         mock_repo.expect_get_all().times(1).returning(move || {
             Ok(vec![
                 Series {

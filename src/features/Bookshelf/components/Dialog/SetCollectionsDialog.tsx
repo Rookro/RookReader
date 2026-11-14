@@ -76,8 +76,8 @@ export default function SetCollectionsDialog({
   }, [bookIds, changes, dispatch, onClose]);
 
   const handleCreate = useCallback(
-    async (name: string, icon_id: string) => {
-      const result = await dispatch(addCollection({ name, icon_id }));
+    async (name: string, iconId: string) => {
+      const result = await dispatch(addCollection({ name, iconId }));
       // The `collections-changed` refetch may list it only later; checking it now still saves it.
       if (addCollection.fulfilled.match(result) && sessionRef.current === bookIds) {
         toggle(result.payload.id);
@@ -100,7 +100,7 @@ export default function SetCollectionsDialog({
         >
           <List disablePadding>
             {availableCollections.map((collection) => {
-              const icon = CollectionIcons.find((i) => i.key === collection.icon_id)?.icon ?? (
+              const icon = CollectionIcons.find((i) => i.key === collection.iconId)?.icon ?? (
                 <LibraryBooks color="action" />
               );
               return (

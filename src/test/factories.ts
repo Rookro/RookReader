@@ -6,21 +6,21 @@ import type { DirEntry } from "../types/DirEntry";
  */
 export const createMockBookWithState = (overrides?: Partial<BookWithState>): BookWithState => ({
   id: 1,
-  display_name: "Mock Book",
-  file_path: "/path/to/mock-book.zip",
-  item_type: "file",
-  total_pages: 100,
-  created_at: "2026-03-01T15:30:00",
-  is_spread_shifted: false,
-  landscape_bits: null,
-  reading_direction: null,
-  last_read_page_index: 0,
-  last_opened_at: "2026-03-18T12:00:00Z",
+  displayName: "Mock Book",
+  filePath: "/path/to/mock-book.zip",
+  itemType: "file",
+  totalPages: 100,
+  createdAt: "2026-03-01T15:30:00Z",
+  isSpreadShifted: false,
+  landscapeBits: null,
+  readingDirection: null,
+  lastReadPageIndex: 0,
+  lastOpenedAt: "2026-03-18T12:00:00Z",
   cfi: null,
-  series_id: null,
-  series_order: null,
-  thumbnail_path: null,
-  tag_ids: [],
+  seriesId: null,
+  seriesOrder: null,
+  thumbnailPath: null,
+  tagIds: [],
   ...overrides,
 });
 
@@ -30,8 +30,8 @@ export const createMockBookWithState = (overrides?: Partial<BookWithState>): Boo
 export const createMockCollection = (overrides?: Partial<Collection>): Collection => ({
   id: 1,
   name: "Mock Collection",
-  icon_id: "folder",
-  created_at: "2026-03-18T12:00:00Z",
+  iconId: "folder",
+  createdAt: "2026-03-18T12:00:00Z",
   ...overrides,
 });
 
@@ -40,11 +40,11 @@ export const createMockCollection = (overrides?: Partial<Collection>): Collectio
  */
 export const createMockBookmark = (overrides?: Partial<Bookmark>): Bookmark => ({
   id: 1,
-  book_id: 1,
+  bookId: 1,
   name: "Mock Bookmark",
-  page_index: 0,
+  pageIndex: 0,
   cfi: null,
-  created_at: "2026-03-01T15:30:00",
+  createdAt: "2026-03-01T15:30:00Z",
   ...overrides,
 });
 
@@ -54,7 +54,7 @@ export const createMockBookmark = (overrides?: Partial<Bookmark>): Bookmark => (
 export const createMockTag = (overrides?: Partial<Tag>): Tag => ({
   id: 1,
   name: "Mock Tag",
-  color_code: "#ff0000",
+  colorCode: "#ff0000",
   ...overrides,
 });
 
@@ -64,7 +64,7 @@ export const createMockTag = (overrides?: Partial<Tag>): Tag => ({
 export const createMockSeries = (overrides?: Partial<Series>): Series => ({
   id: 1,
   name: "Mock Series",
-  created_at: "2026-03-01T15:30:00",
+  createdAt: "2026-03-01T15:30:00Z",
   ...overrides,
 });
 
@@ -73,7 +73,7 @@ export const createMockSeries = (overrides?: Partial<Series>): Series => ({
  */
 export const createMockDirEntry = (overrides?: Partial<DirEntry>): DirEntry => ({
   name: "mock-entry.zip",
-  is_directory: false,
-  last_modified: Date.parse("2026-03-18T12:00:00Z"),
+  isDirectory: false,
+  lastModified: Date.parse("2026-03-18T12:00:00Z"),
   ...overrides,
 });

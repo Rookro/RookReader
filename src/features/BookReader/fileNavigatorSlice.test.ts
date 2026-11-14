@@ -182,10 +182,10 @@ describe("FileNavigatorReducer", () => {
         const buffer = new ArrayBuffer(1 + 4 + nameBuffer.byteLength + 8);
         const view = new DataView(buffer);
 
-        view.setUint8(0, 0); // is_directory = false
+        view.setUint8(0, 0); // isDirectory = false
         view.setUint32(1, nameBuffer.byteLength); // name length
         new Uint8Array(buffer).set(nameBuffer, 5); // name data
-        view.setBigUint64(5 + nameBuffer.byteLength, BigInt(0)); // last_modified = 0
+        view.setBigUint64(5 + nameBuffer.byteLength, BigInt(0)); // lastModified = 0
 
         vi.mocked(binaryCommands.getEntriesInDir).mockResolvedValue(buffer);
 
