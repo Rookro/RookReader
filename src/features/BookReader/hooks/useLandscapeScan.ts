@@ -1,8 +1,7 @@
 import { warn } from "@tauri-apps/plugin-log";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { updatePageLayout } from "../../../bindings/BookCommands";
+import { api } from "../../../bindings/api";
 import type { BookWithState } from "../../../bindings/bindings";
-import { getImageDimensions } from "../../../bindings/ContainerCommands";
 import { perf, perfSince, perfStart } from "../../../utils/perf";
 
 /** What {@link useLandscapeScan} needs to know about the open book. */
@@ -58,7 +57,8 @@ export const useLandscapeScan = ({
 
     let cancelled = false;
     const started = perfStart();
-    getImageDimensions(containerPath)
+    api
+      .getImageDimensions(containerPath)
       .then((dims) => {
         if (!cancelled) {
           perf("chain", `source=scanned pages=${dims.length}`, perfSince(started) ?? 0);
@@ -109,7 +109,7 @@ export const useLandscapeScan = ({
     }
     savedLayoutRef.current = containerPath;
     const bits = scannedLandscape.landscape.map((bit) => (bit ? "1" : "0")).join("");
-    updatePageLayout(id, bits).catch((e: unknown) => {
+    api.updatePageLayout(id, bits).catch((e: unknown) => {
       warn(`Failed to store the page layout: ${String(e)}`);
     });
   }, [book, scannedLandscape, containerPath, pageCount]);

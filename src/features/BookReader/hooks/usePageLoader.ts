@@ -1,6 +1,6 @@
 import { warn } from "@tauri-apps/plugin-log";
 import { useEffect, useRef, useState } from "react";
-import { requestPreloadAround } from "../../../bindings/ContainerCommands";
+import { api } from "../../../bindings/api";
 import type { ErrorCode } from "../../../types/Error";
 import { perf, perfSince, perfStart } from "../../../utils/perf";
 import {
@@ -266,11 +266,11 @@ export const usePageLoader = ({
       // The same pages the layout effect above loads, named so the backend leaves them
       // to the foreground requests already on their way.
       const callerPages = settings.isTwoPagedView && index + 1 < entries.length ? 2 : 1;
-      requestPreloadAround(containerPath, index, settings.preloadPageCount, callerPages).catch(
-        (e) => {
+      api
+        .requestPreloadAround(containerPath, index, settings.preloadPageCount, callerPages)
+        .catch((e) => {
           warn(`Failed to request preload: ${String(e)}`);
-        },
-      );
+        });
     }
   }, [
     containerPath,

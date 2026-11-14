@@ -1,9 +1,5 @@
 import { createSlice } from "@reduxjs/toolkit";
-import {
-  clearAllReadingHistory,
-  clearReadingHistory,
-  getRecentlyReadBooks,
-} from "../../bindings/BookCommands";
+import { api } from "../../bindings/api";
 import type { ReadBook } from "../../domain/entities";
 import { readingProgressChanged } from "../../store/actions";
 import { createCommandThunk, type ThunkRejectValue } from "../../types/CustomAsyncThunk";
@@ -15,7 +11,7 @@ import { createCommandThunk, type ThunkRejectValue } from "../../types/CustomAsy
  */
 export const fetchRecentlyReadBooks = createCommandThunk(
   "history/fetchRecentlyReadBooks",
-  () => getRecentlyReadBooks(),
+  () => api.getRecentlyReadBooks(null),
   () => "Failed to fetch recently read books.",
 );
 
@@ -28,7 +24,7 @@ export const fetchRecentlyReadBooks = createCommandThunk(
 export const clearHistory = createCommandThunk(
   "history/clearHistory",
   async (bookId: number) => {
-    await clearReadingHistory(bookId);
+    await api.clearReadingHistory(bookId);
   },
   (bookId) => `Failed to clear history of ${bookId}.`,
 );
@@ -41,7 +37,7 @@ export const clearHistory = createCommandThunk(
 export const clearAllHistory = createCommandThunk(
   "history/clearAllHistory",
   async () => {
-    await clearAllReadingHistory();
+    await api.clearAllReadingHistory();
   },
   () => "Failed to clear all history.",
 );

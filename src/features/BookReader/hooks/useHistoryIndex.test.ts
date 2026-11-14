@@ -1,14 +1,9 @@
 import { renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import type { Book } from "../../../domain/entities";
 import { useHistoryIndex } from "./useHistoryIndex";
 
 describe("useHistoryIndex", () => {
-  const mockEntries: Book[] = [
-    { file_path: "p1" } as Book,
-    { file_path: "p2" } as Book,
-    { file_path: "p3" } as Book,
-  ];
+  const mockEntries = [{ file_path: "p1" }, { file_path: "p2" }, { file_path: "p3" }];
 
   it("should return the index of the entry matching the path", () => {
     const { result } = renderHook(() => useHistoryIndex("p2", mockEntries));

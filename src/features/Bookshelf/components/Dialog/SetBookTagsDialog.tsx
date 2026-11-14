@@ -15,7 +15,7 @@ import {
 } from "@mui/material";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getTagsForBook } from "../../../../bindings/TagCommands";
+import { api } from "../../../../bindings/api";
 import type { Tag } from "../../../../domain/entities";
 import { useAppDispatch } from "../../../../store/store";
 import { useBookCheckStates } from "../../hooks/useBookCheckStates";
@@ -47,7 +47,7 @@ export default function SetBookTagsDialog({
     open,
     bookIds,
     ids: availableTags.map((tag) => tag.id),
-    load: getTagsForBook,
+    load: api.getTagsForBook,
     loadErrorMessage: "Failed to fetch book tags",
   });
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);

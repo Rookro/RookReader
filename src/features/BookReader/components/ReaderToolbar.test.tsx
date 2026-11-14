@@ -2,8 +2,7 @@ import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import * as BookCommands from "../../../bindings/BookCommands";
-import * as BookmarkCommands from "../../../bindings/BookmarkCommands";
+import { api } from "../../../bindings/api";
 import { createMockBookmark, createMockBookWithState } from "../../../test/factories";
 import {
   createBasePreloadedState,
@@ -128,7 +127,7 @@ describe("ReaderToolbar", () => {
     await user.click(directionButton);
 
     await waitFor(() => {
-      expect(BookCommands.updateReadingDirection).toHaveBeenCalledWith(7, "rtl");
+      expect(api.updateReadingDirection).toHaveBeenCalledWith(7, "rtl");
     });
     expect(store.getState().reader.readingDirection).toBe("rtl");
     // The direction belongs to the book; the default that seeds new books stays put.
@@ -175,7 +174,7 @@ describe("ReaderToolbar", () => {
     await user.click(directionButton);
 
     await waitFor(() => {
-      expect(BookCommands.updateReadingDirection).toHaveBeenCalledWith(7, "ltr");
+      expect(api.updateReadingDirection).toHaveBeenCalledWith(7, "ltr");
     });
     expect(store.getState().reader.readingDirection).toBe("ltr");
     expect(SettingsReducer.updateSettings).not.toHaveBeenCalled();
@@ -304,7 +303,7 @@ describe("ReaderToolbar", () => {
 
     it("should add a bookmark named after the page number for a comic", async () => {
       const preloadedState = stateWithOpenBook();
-      vi.mocked(BookmarkCommands.createBookmark).mockResolvedValue(
+      vi.mocked(api.createBookmark).mockResolvedValue(
         createMockBookmark({ id: 1, book_id: 42, page_index: 3 }),
       );
 
@@ -312,12 +311,7 @@ describe("ReaderToolbar", () => {
       await user.click(screen.getByLabelText("toggle-bookmark"));
 
       await waitFor(() => {
-        expect(BookmarkCommands.createBookmark).toHaveBeenCalledWith({
-          bookId: 42,
-          name: "Page 4",
-          pageIndex: 3,
-          cfi: null,
-        });
+        expect(api.createBookmark).toHaveBeenCalledWith(42, "Page 4", 3, null);
       });
     });
 
@@ -328,7 +322,7 @@ describe("ReaderToolbar", () => {
         isNovel: true,
         entries: ["Chapter 1", "Chapter 2"],
       });
-      vi.mocked(BookmarkCommands.createBookmark).mockResolvedValue(
+      vi.mocked(api.createBookmark).mockResolvedValue(
         createMockBookmark({ id: 1, book_id: 42, page_index: 1 }),
       );
 
@@ -336,12 +330,12 @@ describe("ReaderToolbar", () => {
       await user.click(screen.getByLabelText("toggle-bookmark"));
 
       await waitFor(() => {
-        expect(BookmarkCommands.createBookmark).toHaveBeenCalledWith({
-          bookId: 42,
-          name: "Chapter 2",
-          pageIndex: 1,
-          cfi: "epubcfi(/6/8!/4/2/1:0)",
-        });
+        expect(api.createBookmark).toHaveBeenCalledWith(
+          42,
+          "Chapter 2",
+          1,
+          "epubcfi(/6/8!/4/2/1:0)",
+        );
       });
     });
 
@@ -355,9 +349,9 @@ describe("ReaderToolbar", () => {
       await user.click(screen.getByLabelText("toggle-bookmark"));
 
       await waitFor(() => {
-        expect(BookmarkCommands.deleteBookmark).toHaveBeenCalledWith(7);
+        expect(api.deleteBookmark).toHaveBeenCalledWith(7);
       });
-      expect(BookmarkCommands.createBookmark).not.toHaveBeenCalled();
+      expect(api.createBookmark).not.toHaveBeenCalled();
     });
 
     it("should match a novel bookmark by CFI rather than page index", async () => {
@@ -371,7 +365,7 @@ describe("ReaderToolbar", () => {
       preloadedState.bookmark.bookmarks = [
         createMockBookmark({ id: 7, book_id: 42, page_index: 1, cfi: "epubcfi(/6/8!/4/2/9:0)" }),
       ];
-      vi.mocked(BookmarkCommands.createBookmark).mockResolvedValue(
+      vi.mocked(api.createBookmark).mockResolvedValue(
         createMockBookmark({ id: 8, book_id: 42, page_index: 1 }),
       );
 
@@ -379,9 +373,9 @@ describe("ReaderToolbar", () => {
       await user.click(screen.getByLabelText("toggle-bookmark"));
 
       await waitFor(() => {
-        expect(BookmarkCommands.createBookmark).toHaveBeenCalled();
+        expect(api.createBookmark).toHaveBeenCalled();
       });
-      expect(BookmarkCommands.deleteBookmark).not.toHaveBeenCalled();
+      expect(api.deleteBookmark).not.toHaveBeenCalled();
     });
   });
 
@@ -444,7 +438,7 @@ describe("ReaderToolbar", () => {
       // event directly to prove a disabled button still runs no handler.
       fireEvent.click(screen.getByLabelText("toggle-direction"));
 
-      expect(BookCommands.updateReadingDirection).not.toHaveBeenCalled();
+      expect(api.updateReadingDirection).not.toHaveBeenCalled();
       expect(store.getState().reader.readingDirection).toBe("ltr");
     });
   });

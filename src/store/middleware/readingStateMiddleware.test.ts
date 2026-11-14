@@ -1,7 +1,7 @@
 import type { Dispatch, MiddlewareAPI, UnknownAction } from "@reduxjs/toolkit";
 import { error } from "@tauri-apps/plugin-log";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import * as bookCommands from "../../bindings/BookCommands";
+import { api } from "../../bindings/api";
 import { setImageIndex, setNovelLocation } from "../../features/BookReader/slice";
 import { createReadingStateMiddleware } from "./readingStateMiddleware";
 
@@ -64,10 +64,10 @@ describe("readingStateMiddleware", () => {
     const action = setImageIndex(10);
     run(store, next, action);
 
-    expect(bookCommands.updateReadingProgress).not.toHaveBeenCalled();
+    expect(api.updateReadingProgress).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(500);
 
-    expect(bookCommands.updateReadingProgress).toHaveBeenCalledWith({
+    expect(api.updateReadingProgress).toHaveBeenCalledWith({
       book_id: 1,
       last_read_page_index: 10,
       cfi: null,
@@ -86,8 +86,8 @@ describe("readingStateMiddleware", () => {
 
     await vi.advanceTimersByTimeAsync(500);
 
-    expect(bookCommands.updateReadingProgress).toHaveBeenCalledTimes(1);
-    expect(bookCommands.updateReadingProgress).toHaveBeenCalledWith({
+    expect(api.updateReadingProgress).toHaveBeenCalledTimes(1);
+    expect(api.updateReadingProgress).toHaveBeenCalledWith({
       book_id: 1,
       last_read_page_index: 20,
       cfi: null,
@@ -106,8 +106,8 @@ describe("readingStateMiddleware", () => {
     store.getState.mockImplementation(() => stateFor({ id: 2, last_opened_at: "b" }, true, 3));
     runWith(instance, store, next, setImageIndex(3));
 
-    expect(bookCommands.updateReadingProgress).toHaveBeenCalledTimes(1);
-    expect(bookCommands.updateReadingProgress).toHaveBeenCalledWith({
+    expect(api.updateReadingProgress).toHaveBeenCalledTimes(1);
+    expect(api.updateReadingProgress).toHaveBeenCalledWith({
       book_id: 1,
       last_read_page_index: 10,
       cfi: null,
@@ -116,8 +116,8 @@ describe("readingStateMiddleware", () => {
 
     // Book 2 still fires later on its own debounce.
     await vi.advanceTimersByTimeAsync(500);
-    expect(bookCommands.updateReadingProgress).toHaveBeenCalledTimes(2);
-    expect(bookCommands.updateReadingProgress).toHaveBeenLastCalledWith({
+    expect(api.updateReadingProgress).toHaveBeenCalledTimes(2);
+    expect(api.updateReadingProgress).toHaveBeenLastCalledWith({
       book_id: 2,
       last_read_page_index: 3,
       cfi: null,
@@ -129,8 +129,8 @@ describe("readingStateMiddleware", () => {
     const { flush } = runWith(createReadingStateMiddleware(), store, next, setImageIndex(10));
 
     await flush();
-    expect(bookCommands.updateReadingProgress).toHaveBeenCalledTimes(1);
-    expect(bookCommands.updateReadingProgress).toHaveBeenCalledWith({
+    expect(api.updateReadingProgress).toHaveBeenCalledTimes(1);
+    expect(api.updateReadingProgress).toHaveBeenCalledWith({
       book_id: 1,
       last_read_page_index: 10,
       cfi: null,
@@ -138,13 +138,13 @@ describe("readingStateMiddleware", () => {
     });
 
     await vi.advanceTimersByTimeAsync(500);
-    expect(bookCommands.updateReadingProgress).toHaveBeenCalledTimes(1);
+    expect(api.updateReadingProgress).toHaveBeenCalledTimes(1);
   });
 
   it("flush resolves at once when nothing is pending", async () => {
     const { flush } = createReadingStateMiddleware();
     await flush();
-    expect(bookCommands.updateReadingProgress).not.toHaveBeenCalled();
+    expect(api.updateReadingProgress).not.toHaveBeenCalled();
   });
 
   it("keeps each instance's pending write to itself", async () => {
@@ -153,10 +153,10 @@ describe("readingStateMiddleware", () => {
     runWith(first, store, next, setImageIndex(10));
 
     await second.flush();
-    expect(bookCommands.updateReadingProgress).not.toHaveBeenCalled();
+    expect(api.updateReadingProgress).not.toHaveBeenCalled();
 
     await first.flush();
-    expect(bookCommands.updateReadingProgress).toHaveBeenCalledTimes(1);
+    expect(api.updateReadingProgress).toHaveBeenCalledTimes(1);
   });
 
   // Verify that reading state is not saved if history is disabled
@@ -171,7 +171,7 @@ describe("readingStateMiddleware", () => {
     run(store, next, setImageIndex(10));
     await vi.advanceTimersByTimeAsync(500);
 
-    expect(bookCommands.updateReadingProgress).not.toHaveBeenCalled();
+    expect(api.updateReadingProgress).not.toHaveBeenCalled();
   });
 
   // Verify that reading state is not saved if book is null
@@ -181,7 +181,7 @@ describe("readingStateMiddleware", () => {
     run(store, next, setImageIndex(10));
     await vi.advanceTimersByTimeAsync(500);
 
-    expect(bookCommands.updateReadingProgress).not.toHaveBeenCalled();
+    expect(api.updateReadingProgress).not.toHaveBeenCalled();
   });
 
   // History turned on while the book was open: it has a library record but no reading state.
@@ -191,7 +191,7 @@ describe("readingStateMiddleware", () => {
     run(store, next, setImageIndex(3));
     await vi.advanceTimersByTimeAsync(500);
 
-    expect(bookCommands.updateReadingProgress).toHaveBeenCalledWith({
+    expect(api.updateReadingProgress).toHaveBeenCalledWith({
       book_id: 1,
       last_read_page_index: 3,
       cfi: null,
@@ -214,7 +214,7 @@ describe("readingStateMiddleware", () => {
     run(store, next, setImageIndex(10));
     await vi.advanceTimersByTimeAsync(500);
 
-    expect(bookCommands.updateReadingProgress).not.toHaveBeenCalled();
+    expect(api.updateReadingProgress).not.toHaveBeenCalled();
   });
 
   // Verify that reading state is saved to the DB when setNovelLocation action (for novels) is dispatched
@@ -226,7 +226,7 @@ describe("readingStateMiddleware", () => {
     run(store, next, setNovelLocation({ index: 5, cfi: "epubcfi(/6/8!/4/2/1:0)" }));
     await vi.advanceTimersByTimeAsync(500);
 
-    expect(bookCommands.updateReadingProgress).toHaveBeenCalledWith({
+    expect(api.updateReadingProgress).toHaveBeenCalledWith({
       book_id: 1,
       last_read_page_index: 5,
       cfi: "epubcfi(/6/8!/4/2/1:0)",
@@ -241,7 +241,7 @@ describe("readingStateMiddleware", () => {
     run(store, next, setNovelLocation({ index: 5, cfi: "" }));
     await vi.advanceTimersByTimeAsync(500);
 
-    expect(bookCommands.updateReadingProgress).toHaveBeenCalledWith({
+    expect(api.updateReadingProgress).toHaveBeenCalledWith({
       book_id: 1,
       last_read_page_index: 5,
       cfi: null,
@@ -251,7 +251,7 @@ describe("readingStateMiddleware", () => {
 
   // Verify that an error log is output if saving the reading state fails
   it("should handle updateReadingProgress error", async () => {
-    vi.mocked(bookCommands.updateReadingProgress).mockRejectedValue(new Error("Database error"));
+    vi.mocked(api.updateReadingProgress).mockRejectedValue(new Error("Database error"));
 
     run(store, next, setImageIndex(10));
     await vi.advanceTimersByTimeAsync(500);
@@ -265,7 +265,7 @@ describe("readingStateMiddleware", () => {
 
     expect(result).toBe("STRING_ACTION");
     expect(next).toHaveBeenCalledWith("STRING_ACTION");
-    expect(bookCommands.updateReadingProgress).not.toHaveBeenCalled();
+    expect(api.updateReadingProgress).not.toHaveBeenCalled();
   });
 
   // Verify that the middleware ignores actions without a type property and passes them to the next handler
@@ -275,6 +275,6 @@ describe("readingStateMiddleware", () => {
 
     expect(result).toEqual({ noType: "here" });
     expect(next).toHaveBeenCalledWith(action);
-    expect(bookCommands.updateReadingProgress).not.toHaveBeenCalled();
+    expect(api.updateReadingProgress).not.toHaveBeenCalled();
   });
 });

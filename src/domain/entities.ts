@@ -8,7 +8,6 @@
  * validated at runtime.
  */
 import type {
-  Book_Serialize,
   Bookmark_Serialize,
   BookWithState_Serialize,
   Collection_Serialize,
@@ -17,9 +16,6 @@ import type {
 } from "../bindings/bindings";
 
 export type { Series, Tag } from "../bindings/bindings";
-
-/** A book in the library. */
-export type Book = Book_Serialize;
 
 /** A book together with its reading state, which is null until the book is opened. */
 export type BookWithState = BookWithState_Serialize;

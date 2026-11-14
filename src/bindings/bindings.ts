@@ -69,8 +69,7 @@ export const commands = {
 	 * 
 	 *  * `path` - The path of the container the caller believes is open.
 	 *  * `index` - The current page index around which to preload.
-	 *  * `buffer_size` - Optional. How many pages to preload in each direction.
-	 *    Defaults to the preload page count setting's default if `None` is provided.
+	 *  * `buffer_size` - How many pages to preload in each direction.
 	 *  * `caller_pages` - How many pages from `index` the caller is fetching itself. Those
 	 *    are left out of the window: preloading a page the viewer is already requesting at
 	 *    foreground priority only lets a background job reach it first, and the foreground
@@ -83,7 +82,7 @@ export const commands = {
 	 *  frontend calls this on every page turn, so it is exactly the request most likely to
 	 *  race a book switch.
 	 */
-	requestPreloadAround: (path: string, index: number, bufferSize: number | null, callerPages: number | null) => typedError<null, CommandError_Serialize>(__TAURI_INVOKE("request_preload_around", { path, index, bufferSize, callerPages })),
+	requestPreloadAround: (path: string, index: number, bufferSize: number, callerPages: number) => typedError<null, CommandError_Serialize>(__TAURI_INVOKE("request_preload_around", { path, index, bufferSize, callerPages })),
 	/**
 	 *  Retrieves the pixel dimensions of every entry in the currently open container.
 	 * 
@@ -147,44 +146,6 @@ export const commands = {
 	 *  it returns an empty vector.
 	 */
 	getFonts: () => __TAURI_INVOKE<string[]>("get_fonts"),
-	/**
-	 *  Retrieves a book by its unique ID.
-	 * 
-	 *  # Arguments
-	 * 
-	 *  * `id` - The unique identifier of the book.
-	 *  * `repo` - The managed book repository state.
-	 * 
-	 *  # Returns
-	 * 
-	 *  A `Result` which is `Ok` containing an `Option<Book>`.
-	 *  It evaluates to `Some(Book)` if a matching book is found, or `None` if no such book exists.
-	 * 
-	 *  # Errors
-	 * 
-	 *  This function will return an `Err` if the underlying repository operation fails
-	 *  (e.g., due to a database error, connection issue, or query execution failure).
-	 */
-	getBook: (id: number) => typedError<Book_Serialize | null, CommandError_Serialize>(__TAURI_INVOKE("get_book", { id })),
-	/**
-	 *  Retrieves a book by its unique file path.
-	 * 
-	 *  # Arguments
-	 * 
-	 *  * `file_path` - The unique file or directory path.
-	 *  * `repo` - The managed book repository state.
-	 * 
-	 *  # Returns
-	 * 
-	 *  A `Result` which is `Ok` containing an `Option<Book>`.
-	 *  It evaluates to `Some(Book)` if a matching book is found, or `None` if no such book exists.
-	 * 
-	 *  # Errors
-	 * 
-	 *  This function will return an `Err` if the underlying repository operation fails
-	 *  (e.g., due to a database error, connection issue, or query execution failure).
-	 */
-	getBookByPath: (filePath: string) => typedError<Book_Serialize | null, CommandError_Serialize>(__TAURI_INVOKE("get_book_by_path", { filePath })),
 	/**
 	 *  Registers a book or returns its ID if it already exists, without updating reading state.
 	 * 
@@ -681,24 +642,6 @@ export const commands = {
 	 */
 	setTagsForBook: (bookId: number, tagIds: number[]) => typedError<null, CommandError_Serialize>(__TAURI_INVOKE("set_tags_for_book", { bookId, tagIds })),
 	/**
-	 *  Retrieves all books associated with a specific tag, including their reading states.
-	 * 
-	 *  # Arguments
-	 * 
-	 *  * `tag_id` - The unique identifier of the tag to filter by.
-	 *  * `repo` - The managed tag repository state.
-	 * 
-	 *  # Returns
-	 * 
-	 *  A `Result` containing a vector of `BookWithState` entities.
-	 * 
-	 *  # Errors
-	 * 
-	 *  This function will return an `Err` if the underlying repository operation fails
-	 *  (e.g., due to a database error, connection issue, or query execution failure).
-	 */
-	getBooksByTag: (tagId: number) => typedError<BookWithState_Serialize[], CommandError_Serialize>(__TAURI_INVOKE("get_books_by_tag", { tagId })),
-	/**
 	 *  Creates a bookmark for a book and returns its complete entity.
 	 * 
 	 *  # Arguments
@@ -871,9 +814,6 @@ export type AutoOpenAdjacentBookMode =
 /**  Open the adjacent book automatically. */
 "auto";
 
-/**  Represents a book entity in the database. */
-export type Book = Book_Serialize | Book_Deserialize;
-
 /**
  *  Represents a book along with its optional reading state.
  *  Useful for displaying book details whether it has been read or not.
@@ -996,46 +936,6 @@ export type BookWithState_Serialize = {
 	cfi: string | null,
 	/**  List of tag IDs associated with this book. */
 	tag_ids: number[],
-};
-
-/**  Represents a book entity in the database. */
-export type Book_Deserialize = {
-	/**  The unique identifier for the book. */
-	id: number,
-	/**  The unique file path or directory path of the book. */
-	file_path: string,
-	/**  What the path points at. */
-	item_type: ItemType,
-	/**  The display name of the book. */
-	display_name: string,
-	/**  The total number of pages in the book. */
-	total_pages: number,
-	/**  The optional identifier of the series this book belongs to. */
-	series_id?: number | null,
-	/**  The optional order index of the book within its series. */
-	series_order?: number | null,
-	/**  The optional file path to the thumbnail image of the book. */
-	thumbnail_path?: string | null,
-};
-
-/**  Represents a book entity in the database. */
-export type Book_Serialize = {
-	/**  The unique identifier for the book. */
-	id: number,
-	/**  The unique file path or directory path of the book. */
-	file_path: string,
-	/**  What the path points at. */
-	item_type: ItemType,
-	/**  The display name of the book. */
-	display_name: string,
-	/**  The total number of pages in the book. */
-	total_pages: number,
-	/**  The optional identifier of the series this book belongs to. */
-	series_id: number | null,
-	/**  The optional order index of the book within its series. */
-	series_order: number | null,
-	/**  The optional file path to the thumbnail image of the book. */
-	thumbnail_path: string | null,
 };
 
 /**  Represents a saved reading position (bookmark) within a book. */

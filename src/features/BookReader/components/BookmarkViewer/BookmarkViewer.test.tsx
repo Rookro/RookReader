@@ -1,7 +1,7 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import * as BookmarkCommands from "../../../../bindings/BookmarkCommands";
+import { api } from "../../../../bindings/api";
 import type { Bookmark } from "../../../../domain/entities";
 import { createMockBookmark, createMockBookWithState } from "../../../../test/factories";
 import {
@@ -45,7 +45,7 @@ describe("BookmarkViewer", () => {
   it("does not fetch bookmarks itself", () => {
     renderWithProviders(<BookmarkViewer />, { preloadedState: stateWithOpenBook() });
 
-    expect(BookmarkCommands.getBookmarksByBookId).not.toHaveBeenCalled();
+    expect(api.getBookmarksByBookId).not.toHaveBeenCalled();
   });
 
   it("should show the empty state when the book has no bookmarks", async () => {
@@ -109,7 +109,7 @@ describe("BookmarkViewer", () => {
     await user.click(screen.getByRole("menuitem", { name: "Remove bookmark" }));
 
     await waitFor(() => {
-      expect(BookmarkCommands.deleteBookmark).toHaveBeenCalledWith(7);
+      expect(api.deleteBookmark).toHaveBeenCalledWith(7);
     });
   });
 
@@ -126,7 +126,7 @@ describe("BookmarkViewer", () => {
     await user.click(screen.getByRole("button", { name: "OK" }));
 
     await waitFor(() => {
-      expect(BookmarkCommands.renameBookmark).toHaveBeenCalledWith(7, "The duel");
+      expect(api.renameBookmark).toHaveBeenCalledWith(7, "The duel");
     });
   });
 
@@ -138,6 +138,6 @@ describe("BookmarkViewer", () => {
     await user.click(screen.getByRole("menuitem", { name: "Rename" }));
     await user.click(screen.getByRole("button", { name: "Cancel" }));
 
-    expect(BookmarkCommands.renameBookmark).not.toHaveBeenCalled();
+    expect(api.renameBookmark).not.toHaveBeenCalled();
   });
 });

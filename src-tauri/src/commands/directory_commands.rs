@@ -28,10 +28,10 @@ use crate::error::Result;
 ///
 /// # Errors
 ///
-/// This function will return an `Err` if:
-/// * The specified `dir_path` does not exist or cannot be read.
-/// * An entry's file name contains invalid UTF-8.
-/// * Filesystem metadata for an entry cannot be accessed.
+/// This function will return an `Err` if `dir_path` does not exist or cannot be read,
+/// or if it names an archive (or a folder inside one) whose listing cannot be read. A
+/// folder entry that cannot be read, whose name is not valid UTF-8, or whose metadata
+/// cannot be read is skipped with a warning in the log instead.
 ///
 /// # Note
 ///
@@ -293,6 +293,56 @@ mod tests {
         let entries = parse_entries(&bytes);
         // Unsupported files should be filtered out
         assert!(!entries.iter().any(|e| e.name == "test.txt"));
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn test_get_entries_in_dir_skips_a_non_unicode_name() {
+        use std::ffi::OsStr;
+        use std::os::unix::ffi::OsStrExt;
+
+        let temp_dir = TempDir::new().unwrap();
+        fs::File::create(temp_dir.path().join("valid.zip")).unwrap();
+        // A name with an invalid UTF-8 byte: into_string() rejects it.
+        let bad = OsStr::from_bytes(b"bad\xFF.zip");
+        fs::File::create(temp_dir.path().join(bad)).unwrap();
+
+        let result = get_entries_in_dir(temp_dir.path().to_string_lossy().as_ref())
+            .await
+            .unwrap();
+        let entries = parse_entries(&get_bytes_from_response(result));
+        assert_eq!(
+            vec!["valid.zip".to_string()],
+            entries.iter().map(|e| e.name.clone()).collect::<Vec<_>>()
+        );
+    }
+
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn test_get_entries_in_dir_skips_a_non_unicode_name() {
+        use std::ffi::OsString;
+        use std::os::windows::ffi::OsStringExt;
+
+        let temp_dir = TempDir::new().unwrap();
+        fs::File::create(temp_dir.path().join("valid.zip")).unwrap();
+        // "test<unpaired-surrogate>.zip": 0xD800 is an unpaired surrogate, so
+        // into_string() rejects the name.
+        let bad: OsString = OsString::from_wide(&[
+            0x0074, 0x0065, 0x0073, 0x0074, 0xD800, 0x002E, 0x007A, 0x0069, 0x0070,
+        ]);
+        if fs::File::create(temp_dir.path().join(&bad)).is_err() {
+            // Some filesystems reject unpaired surrogates outright; nothing to assert.
+            return;
+        }
+
+        let result = get_entries_in_dir(temp_dir.path().to_string_lossy().as_ref())
+            .await
+            .unwrap();
+        let entries = parse_entries(&get_bytes_from_response(result));
+        assert_eq!(
+            vec!["valid.zip".to_string()],
+            entries.iter().map(|e| e.name.clone()).collect::<Vec<_>>()
+        );
     }
 
     #[cfg(unix)]

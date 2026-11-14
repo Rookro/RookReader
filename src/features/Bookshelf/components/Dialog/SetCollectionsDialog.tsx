@@ -15,7 +15,7 @@ import {
 } from "@mui/material";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getCollectionsForBook } from "../../../../bindings/CollectionCommands";
+import { api } from "../../../../bindings/api";
 import type { Collection } from "../../../../domain/entities";
 import { useAppDispatch } from "../../../../store/store";
 import { useBookCheckStates } from "../../hooks/useBookCheckStates";
@@ -48,7 +48,7 @@ export default function SetCollectionsDialog({
     open,
     bookIds,
     ids: availableCollections.map((collection) => collection.id),
-    load: getCollectionsForBook,
+    load: api.getCollectionsForBook,
     loadErrorMessage: "Failed to fetch collections for books",
   });
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);

@@ -3,11 +3,7 @@ import { relaunch } from "@tauri-apps/plugin-process";
 import { check, type Update } from "@tauri-apps/plugin-updater";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  claimUpdatePrompt,
-  isUpdaterSupported,
-  releaseUpdatePrompt,
-} from "../../../bindings/UpdaterCommands";
+import { api } from "../../../bindings/api";
 
 /**
  * Lock to prevent the update dialog from being displayed twice in this window; the
@@ -49,7 +45,7 @@ export function useUpdater() {
       return;
     }
     holdsPromptRef.current = false;
-    releaseUpdatePrompt().catch((e) => error(`Failed to release the update dialog: ${e}`));
+    api.releaseUpdatePrompt().catch((e) => error(`Failed to release the update dialog: ${e}`));
   }, []);
 
   // Safety net: if the hook unmounts while the global check lock is held (e.g. the
@@ -70,7 +66,7 @@ export function useUpdater() {
       isCheckingGlobal = true;
 
       try {
-        const supported = await isUpdaterSupported();
+        const supported = await api.isUpdaterSupported();
         if (!supported) {
           if (manualCheck) {
             showMessage(t("updater.dialog-title"), t("updater.unsupported-platform"), false);
@@ -93,7 +89,7 @@ export function useUpdater() {
           return;
         }
 
-        if (!(await claimUpdatePrompt())) {
+        if (!(await api.claimUpdatePrompt())) {
           debug("Skipping the update dialog because the other window shows it.");
           if (manualCheck) {
             showMessage(t("updater.dialog-title"), t("updater.already-open"));

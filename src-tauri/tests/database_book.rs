@@ -39,11 +39,7 @@ async fn test_register_and_get_book() {
 
     assert_eq!(book_id, updated_book_id);
 
-    let book = repository
-        .get_by_path("/path/to/book.epub")
-        .await
-        .unwrap()
-        .unwrap();
+    let book = repository.get_by_id(book_id).await.unwrap().unwrap();
     assert_eq!(book.file_path, "/path/to/book.epub");
     // Re-registering refreshes display_name, total_pages, and thumbnail_path so a book
     // whose contents changed on disk is not stuck with stale metadata.
@@ -359,18 +355,17 @@ async fn test_all_books_with_state() {
 }
 
 #[tokio::test]
-async fn test_filtering_by_collection_tag_series() {
+async fn test_filtering_by_collection_series() {
     let pool = setup_db().await;
     let repository = SqliteBookRepository::new(pool.clone());
     let collection_repo = SqliteCollectionRepository::new(pool.clone());
-    let tag_repo = SqliteTagRepository::new(pool.clone());
     let series_repo = SqliteSeriesRepository::new(pool.clone());
 
     let b1 = repository
         .register("/path/1", ItemType::File, "B1", 100, None)
         .await
         .unwrap();
-    let b2 = repository
+    repository
         .register("/path/2", ItemType::File, "B2", 100, None)
         .await
         .unwrap();
@@ -388,14 +383,6 @@ async fn test_filtering_by_collection_tag_series() {
         .unwrap();
     assert_eq!(collection_books.len(), 1);
     assert_eq!(collection_books[0].id, b1);
-
-    // Tag
-    let tag = tag_repo.create("Tag", "#000").await.unwrap();
-    tag_repo.set_tags_for_book(b2, &[tag.id]).await.unwrap();
-
-    let tag_books = tag_repo.get_books_by_tag(tag.id).await.unwrap();
-    assert_eq!(tag_books.len(), 1);
-    assert_eq!(tag_books[0].id, b2);
 
     // Series
     let series_id = series_repo.create("Series").await.unwrap().id;

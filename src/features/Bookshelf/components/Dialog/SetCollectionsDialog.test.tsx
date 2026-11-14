@@ -2,7 +2,7 @@ import { error as logError } from "@tauri-apps/plugin-log";
 import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import * as CollectionCommands from "../../../../bindings/CollectionCommands";
+import { api } from "../../../../bindings/api";
 import type { Collection } from "../../../../domain/entities";
 import { createMockCollection } from "../../../../test/factories";
 import { renderWithProviders } from "../../../../test/utils";
@@ -22,7 +22,7 @@ describe("SetCollectionsDialog", () => {
   });
 
   it("checks the collections the book is already in", async () => {
-    vi.mocked(CollectionCommands.getCollectionsForBook).mockResolvedValue([1]);
+    vi.mocked(api.getCollectionsForBook).mockResolvedValue([1]);
 
     renderWithProviders(
       <SetCollectionsDialog
@@ -34,14 +34,14 @@ describe("SetCollectionsDialog", () => {
     );
 
     expect(screen.getByText("Set collections")).toBeInTheDocument();
-    expect(CollectionCommands.getCollectionsForBook).toHaveBeenCalledWith(123);
+    expect(api.getCollectionsForBook).toHaveBeenCalledWith(123);
     await waitFor(() => expect(screen.getAllByRole("checkbox")[0]).toBeChecked());
     expect(screen.getAllByRole("checkbox")[1]).not.toBeChecked();
   });
 
   it("removes the book from a collection that is unchecked", async () => {
-    vi.mocked(CollectionCommands.getCollectionsForBook).mockResolvedValue([1, 2]);
-    vi.mocked(CollectionCommands.setCollectionsForBook).mockResolvedValue();
+    vi.mocked(api.getCollectionsForBook).mockResolvedValue([1, 2]);
+    vi.mocked(api.setCollectionsForBook).mockResolvedValue(null);
     const onClose = vi.fn();
 
     renderWithProviders(
@@ -58,15 +58,15 @@ describe("SetCollectionsDialog", () => {
     await user.click(screen.getByRole("button", { name: /ok|決定/i }));
 
     await waitFor(() => expect(onClose).toHaveBeenCalled());
-    expect(CollectionCommands.setCollectionsForBook).toHaveBeenCalledWith(123, [2]);
+    expect(api.setCollectionsForBook).toHaveBeenCalledWith(123, [2]);
   });
 
   // Setting the collections of several books must keep each book's other collections
   it("shows collections holding some of the books as partly checked and keeps them on save", async () => {
-    vi.mocked(CollectionCommands.getCollectionsForBook).mockImplementation(
-      async (bookId: number) => (bookId === 10 ? [1, 2] : [1]),
+    vi.mocked(api.getCollectionsForBook).mockImplementation(async (bookId: number) =>
+      bookId === 10 ? [1, 2] : [1],
     );
-    vi.mocked(CollectionCommands.setCollectionsForBook).mockResolvedValue();
+    vi.mocked(api.setCollectionsForBook).mockResolvedValue(null);
     const onClose = vi.fn();
 
     renderWithProviders(
@@ -87,12 +87,12 @@ describe("SetCollectionsDialog", () => {
     await user.click(screen.getByRole("button", { name: /ok|決定/i }));
 
     await waitFor(() => expect(onClose).toHaveBeenCalled());
-    expect(CollectionCommands.setCollectionsForBook).toHaveBeenCalledWith(10, [1, 2, 3]);
-    expect(CollectionCommands.setCollectionsForBook).toHaveBeenCalledWith(11, [1, 3]);
+    expect(api.setCollectionsForBook).toHaveBeenCalledWith(10, [1, 2, 3]);
+    expect(api.setCollectionsForBook).toHaveBeenCalledWith(11, [1, 3]);
   });
 
   it("closes without saving when nothing changed", async () => {
-    vi.mocked(CollectionCommands.getCollectionsForBook).mockResolvedValue([1]);
+    vi.mocked(api.getCollectionsForBook).mockResolvedValue([1]);
     const onClose = vi.fn();
 
     renderWithProviders(
@@ -108,12 +108,12 @@ describe("SetCollectionsDialog", () => {
     await user.click(screen.getByRole("button", { name: /ok|決定/i }));
 
     await waitFor(() => expect(onClose).toHaveBeenCalled());
-    expect(CollectionCommands.setCollectionsForBook).not.toHaveBeenCalled();
+    expect(api.setCollectionsForBook).not.toHaveBeenCalled();
   });
 
   // Saving after a failed read would remove the books from collections the dialog never saw
   it("disables OK when the books' collections could not be read", async () => {
-    vi.mocked(CollectionCommands.getCollectionsForBook).mockRejectedValue(new Error("boom"));
+    vi.mocked(api.getCollectionsForBook).mockRejectedValue(new Error("boom"));
 
     renderWithProviders(
       <SetCollectionsDialog
@@ -145,8 +145,8 @@ describe("SetCollectionsDialog", () => {
   });
 
   it("records a save failure in the collection slice and keeps the dialog open", async () => {
-    vi.mocked(CollectionCommands.getCollectionsForBook).mockResolvedValue([]);
-    vi.mocked(CollectionCommands.setCollectionsForBook).mockRejectedValue(new Error("Set failed"));
+    vi.mocked(api.getCollectionsForBook).mockResolvedValue([]);
+    vi.mocked(api.setCollectionsForBook).mockRejectedValue(new Error("Set failed"));
     const onClose = vi.fn();
 
     const { store } = renderWithProviders(
@@ -194,7 +194,7 @@ describe("SetCollectionsDialog", () => {
     };
 
     it("opens the create-collection dialog from the create button", async () => {
-      vi.mocked(CollectionCommands.getCollectionsForBook).mockResolvedValue([]);
+      vi.mocked(api.getCollectionsForBook).mockResolvedValue([]);
       renderWithProviders(
         <SetCollectionsDialog
           open={true}
@@ -212,7 +212,7 @@ describe("SetCollectionsDialog", () => {
     // A collection checked before the load finishes would be reset by it
     it("disables the create button until the books' collections are loaded", async () => {
       let resolveLoad: (ids: number[]) => void = () => {};
-      vi.mocked(CollectionCommands.getCollectionsForBook).mockReturnValue(
+      vi.mocked(api.getCollectionsForBook).mockReturnValue(
         new Promise((resolve) => {
           resolveLoad = resolve;
         }),
@@ -233,9 +233,9 @@ describe("SetCollectionsDialog", () => {
     });
 
     it("adds every book to the created collection when OK is pressed before the list refresh", async () => {
-      vi.mocked(CollectionCommands.getCollectionsForBook).mockResolvedValue([]);
-      vi.mocked(CollectionCommands.createCollection).mockResolvedValue(newCollection);
-      vi.mocked(CollectionCommands.setCollectionsForBook).mockResolvedValue();
+      vi.mocked(api.getCollectionsForBook).mockResolvedValue([]);
+      vi.mocked(api.createCollection).mockResolvedValue(newCollection);
+      vi.mocked(api.setCollectionsForBook).mockResolvedValue(null);
       const onClose = vi.fn();
 
       renderWithProviders(
@@ -251,18 +251,18 @@ describe("SetCollectionsDialog", () => {
       await user.click(screen.getByRole("button", { name: /ok|決定/i }));
 
       await waitFor(() => expect(onClose).toHaveBeenCalled());
-      expect(CollectionCommands.setCollectionsForBook).toHaveBeenCalledWith(10, [4]);
-      expect(CollectionCommands.setCollectionsForBook).toHaveBeenCalledWith(11, [4]);
+      expect(api.setCollectionsForBook).toHaveBeenCalledWith(10, [4]);
+      expect(api.setCollectionsForBook).toHaveBeenCalledWith(11, [4]);
     });
 
     it("ignores a creation that finishes after the dialog reopened for other books", async () => {
       let resolveCreate: (collection: Collection) => void = () => {};
-      vi.mocked(CollectionCommands.createCollection).mockReturnValue(
+      vi.mocked(api.createCollection).mockReturnValue(
         new Promise((resolve) => {
           resolveCreate = resolve;
         }),
       );
-      vi.mocked(CollectionCommands.getCollectionsForBook).mockResolvedValue([]);
+      vi.mocked(api.getCollectionsForBook).mockResolvedValue([]);
       const onClose = vi.fn();
       const otherBookIds = [20];
 
@@ -293,9 +293,7 @@ describe("SetCollectionsDialog", () => {
           onClose={onClose}
         />,
       );
-      await waitFor(() =>
-        expect(CollectionCommands.getCollectionsForBook).toHaveBeenCalledWith(20),
-      );
+      await waitFor(() => expect(api.getCollectionsForBook).toHaveBeenCalledWith(20));
       await waitFor(() => expect(screen.getByRole("button", { name: /ok|決定/i })).toBeEnabled());
       await act(async () => resolveCreate(newCollection));
       rerender(
@@ -310,11 +308,11 @@ describe("SetCollectionsDialog", () => {
       expect(screen.getAllByRole("checkbox")[3]).not.toBeChecked();
       await user.click(screen.getByRole("button", { name: /ok|決定/i }));
       await waitFor(() => expect(onClose).toHaveBeenCalled());
-      expect(CollectionCommands.setCollectionsForBook).not.toHaveBeenCalled();
+      expect(api.setCollectionsForBook).not.toHaveBeenCalled();
     });
 
     it("closes only the create-collection dialog on Escape or a backdrop click", async () => {
-      vi.mocked(CollectionCommands.getCollectionsForBook).mockResolvedValue([]);
+      vi.mocked(api.getCollectionsForBook).mockResolvedValue([]);
       const onClose = vi.fn();
 
       renderWithProviders(
@@ -347,11 +345,11 @@ describe("SetCollectionsDialog", () => {
     it("checks the created collection and adds every book to it on OK", async () => {
       // Stable like the app's `dialogBookIds`; a new array would reload the check states.
       const bookIds = [10, 11];
-      vi.mocked(CollectionCommands.getCollectionsForBook).mockImplementation(
-        async (bookId: number) => (bookId === 10 ? [1] : []),
+      vi.mocked(api.getCollectionsForBook).mockImplementation(async (bookId: number) =>
+        bookId === 10 ? [1] : [],
       );
-      vi.mocked(CollectionCommands.createCollection).mockResolvedValue(newCollection);
-      vi.mocked(CollectionCommands.setCollectionsForBook).mockResolvedValue();
+      vi.mocked(api.createCollection).mockResolvedValue(newCollection);
+      vi.mocked(api.setCollectionsForBook).mockResolvedValue(null);
       const onClose = vi.fn();
 
       const { rerender } = renderWithProviders(
@@ -367,7 +365,7 @@ describe("SetCollectionsDialog", () => {
       );
 
       await createCollectionFromDialog();
-      expect(CollectionCommands.createCollection).toHaveBeenCalledWith("New Shelf", "book");
+      expect(api.createCollection).toHaveBeenCalledWith("New Shelf", "book");
 
       // The backend's `collections-changed` refetch brings the new collection into the list.
       rerender(
@@ -383,12 +381,12 @@ describe("SetCollectionsDialog", () => {
       await user.click(screen.getByRole("button", { name: /ok|決定/i }));
 
       await waitFor(() => expect(onClose).toHaveBeenCalled());
-      expect(CollectionCommands.setCollectionsForBook).toHaveBeenCalledWith(10, [1, 4]);
-      expect(CollectionCommands.setCollectionsForBook).toHaveBeenCalledWith(11, [4]);
+      expect(api.setCollectionsForBook).toHaveBeenCalledWith(10, [1, 4]);
+      expect(api.setCollectionsForBook).toHaveBeenCalledWith(11, [4]);
     });
 
     it("changes nothing when the create-collection dialog is cancelled", async () => {
-      vi.mocked(CollectionCommands.getCollectionsForBook).mockResolvedValue([]);
+      vi.mocked(api.getCollectionsForBook).mockResolvedValue([]);
       const onClose = vi.fn();
 
       renderWithProviders(
@@ -410,15 +408,15 @@ describe("SetCollectionsDialog", () => {
         expect(screen.queryByText("Create a Collection")).not.toBeInTheDocument(),
       );
 
-      expect(CollectionCommands.createCollection).not.toHaveBeenCalled();
+      expect(api.createCollection).not.toHaveBeenCalled();
       await user.click(screen.getByRole("button", { name: /ok|決定/i }));
       await waitFor(() => expect(onClose).toHaveBeenCalled());
-      expect(CollectionCommands.setCollectionsForBook).not.toHaveBeenCalled();
+      expect(api.setCollectionsForBook).not.toHaveBeenCalled();
     });
 
     it("records a failed creation in the collection slice and checks nothing", async () => {
-      vi.mocked(CollectionCommands.getCollectionsForBook).mockResolvedValue([]);
-      vi.mocked(CollectionCommands.createCollection).mockRejectedValue(new Error("Duplicate"));
+      vi.mocked(api.getCollectionsForBook).mockResolvedValue([]);
+      vi.mocked(api.createCollection).mockRejectedValue(new Error("Duplicate"));
       const onClose = vi.fn();
 
       const { store } = renderWithProviders(
@@ -438,7 +436,7 @@ describe("SetCollectionsDialog", () => {
       await waitFor(() => expect(store.getState().collection.error).not.toBeNull());
       await user.click(screen.getByRole("button", { name: /ok|決定/i }));
       await waitFor(() => expect(onClose).toHaveBeenCalled());
-      expect(CollectionCommands.setCollectionsForBook).not.toHaveBeenCalled();
+      expect(api.setCollectionsForBook).not.toHaveBeenCalled();
     });
 
     it("shows the create button when there are no collections", () => {
@@ -470,7 +468,7 @@ describe("SetCollectionsDialog", () => {
 
     await user.click(screen.getByRole("button", { name: /ok|決定/i }));
 
-    expect(CollectionCommands.setCollectionsForBook).not.toHaveBeenCalled();
+    expect(api.setCollectionsForBook).not.toHaveBeenCalled();
     expect(onClose).toHaveBeenCalled();
   });
 });

@@ -1,13 +1,18 @@
 import { vi } from "vitest";
+import type { Api } from "../../bindings/api";
 
-vi.mock("../../bindings/BookCommands", () => ({
-  getBook: vi.fn(() => Promise.resolve([])),
-  deleteBook: vi.fn(() => Promise.resolve([])),
-  getBookByPath: vi.fn(() => Promise.resolve([])),
-  getAllBooksWithState: vi.fn(() => Promise.resolve([])),
-  registerBook: vi.fn(() => Promise.resolve(0)),
-  openBook: vi.fn(() =>
-    Promise.resolve({
+vi.mock("../../bindings/api", async () => {
+  const { commands } =
+    await vi.importActual<typeof import("../../bindings/bindings")>("../../bindings/bindings");
+  const { api: actualApi } =
+    await vi.importActual<typeof import("../../bindings/api")>("../../bindings/api");
+  const actual = actualApi as unknown as Record<string, (...args: unknown[]) => Promise<unknown>>;
+  // Settings tests fake the backend at `invoke` (`mockSettingsCommands`), so these reach it.
+  const passThrough = new Set<string>(["getSettings", "setSettings"]);
+  // What a command resolves to when an empty list does not suit.
+  const defaultResults = {
+    registerBook: () => 0,
+    openBook: () => ({
       entries: [],
       is_directory: false,
       is_novel: false,
@@ -15,72 +20,26 @@ vi.mock("../../bindings/BookCommands", () => ({
       book: null,
       record_error: null,
     }),
-  ),
-  updateReadingProgress: vi.fn(() => Promise.resolve([])),
-  updateSpreadShift: vi.fn(() => Promise.resolve()),
-  updatePageLayout: vi.fn(() => Promise.resolve()),
-  updateReadingDirection: vi.fn(() => Promise.resolve()),
-  clearReadingHistory: vi.fn(() => Promise.resolve([])),
-  clearAllReadingHistory: vi.fn(() => Promise.resolve([])),
-  getRecentlyReadBooks: vi.fn(() => Promise.resolve([])),
-}));
+    getFonts: () => ["Arial", "Times New Roman"],
+    isUpdaterSupported: () => true,
+    claimUpdatePrompt: () => true,
+  } satisfies { [K in keyof Api]?: () => Awaited<ReturnType<Api[K]>> };
+  const defaults: Partial<Record<string, () => unknown>> = defaultResults;
+  const api = Object.fromEntries(
+    Object.keys(commands).map((name) => [
+      name,
+      passThrough.has(name)
+        ? vi.fn(actual[name])
+        : vi.fn(() => Promise.resolve(defaults[name]?.() ?? [])),
+    ]),
+  );
+  return { api };
+});
 
-vi.mock("../../bindings/BookmarkCommands", () => ({
-  createBookmark: vi.fn(() => Promise.resolve([])),
-  getBookmarksByBookId: vi.fn(() => Promise.resolve([])),
-  renameBookmark: vi.fn(() => Promise.resolve([])),
-  deleteBookmark: vi.fn(() => Promise.resolve([])),
-}));
-
-vi.mock("../../bindings/CollectionCommands", () => ({
-  createCollection: vi.fn(() => Promise.resolve([])),
-  getAllCollections: vi.fn(() => Promise.resolve([])),
-  addBookToCollection: vi.fn(() => Promise.resolve([])),
-  removeBookFromCollection: vi.fn(() => Promise.resolve([])),
-  getCollectionsForBook: vi.fn(() => Promise.resolve([])),
-  setCollectionsForBook: vi.fn(() => Promise.resolve()),
-  deleteCollection: vi.fn(() => Promise.resolve([])),
-  getBooksByCollection: vi.fn(() => Promise.resolve([])),
-}));
-
-vi.mock("../../bindings/ContainerCommands", () => ({
-  requestPreloadAround: vi.fn(() => Promise.resolve()),
-  getImageDimensions: vi.fn(() => Promise.resolve([])),
-  setDisplaySize: vi.fn(() => Promise.resolve()),
+vi.mock("../../bindings/binaryCommands", () => ({
   getImage: vi.fn(() => Promise.resolve(new ArrayBuffer(0))),
   getImageFull: vi.fn(() => Promise.resolve(new ArrayBuffer(0))),
   getImagePreview: vi.fn(() => Promise.resolve(new ArrayBuffer(0))),
   readNovelFile: vi.fn(() => Promise.resolve(new ArrayBuffer(0))),
-}));
-
-vi.mock("../../bindings/DirectoryCommands", () => ({
-  getEntriesInDir: vi.fn(() => Promise.resolve([])),
-}));
-
-vi.mock("../../bindings/FontCommands", () => ({
-  getFonts: vi.fn(() => Promise.resolve(["Arial", "Times New Roman"])),
-}));
-
-vi.mock("../../bindings/SeriesCommands", () => ({
-  createSeries: vi.fn(() => Promise.resolve([])),
-  getAllSeries: vi.fn(() => Promise.resolve([])),
-  deleteSeries: vi.fn(() => Promise.resolve([])),
-  getBooksBySeries: vi.fn(() => Promise.resolve([])),
-  setSeriesForBook: vi.fn(() => Promise.resolve([])),
-  setSeriesOrder: vi.fn(() => Promise.resolve([])),
-}));
-
-vi.mock("../../bindings/TagCommands", () => ({
-  createTag: vi.fn(() => Promise.resolve([])),
-  getAllTags: vi.fn(() => Promise.resolve([])),
-  deleteTag: vi.fn(() => Promise.resolve([])),
-  getTagsForBook: vi.fn(() => Promise.resolve([])),
-  setTagsForBook: vi.fn(() => Promise.resolve([])),
-  getBooksByTag: vi.fn(() => Promise.resolve([])),
-}));
-
-vi.mock("../../bindings/UpdaterCommands", () => ({
-  isUpdaterSupported: vi.fn(() => Promise.resolve(true)),
-  claimUpdatePrompt: vi.fn(() => Promise.resolve(true)),
-  releaseUpdatePrompt: vi.fn(() => Promise.resolve()),
+  getEntriesInDir: vi.fn(() => Promise.resolve(new ArrayBuffer(0))),
 }));

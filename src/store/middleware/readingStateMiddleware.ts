@@ -1,6 +1,6 @@
 import type { Middleware } from "@reduxjs/toolkit";
 import { error } from "@tauri-apps/plugin-log";
-import { updateReadingProgress } from "../../bindings/BookCommands";
+import { api } from "../../bindings/api";
 import type { ReadingState } from "../../domain/entities";
 import { setImageIndex, setNovelLocation } from "../../features/BookReader/slice";
 import type { RootState } from "../store";
@@ -33,11 +33,14 @@ export const createReadingStateMiddleware = () => {
     if (!update?.shouldRecord()) {
       return Promise.resolve();
     }
-    return updateReadingProgress(update.state).catch((e) => {
-      error(
-        `ReadingState update failed (${update.state.book_id}:${update.state.last_read_page_index}): ${e}`,
-      );
-    });
+    return api.updateReadingProgress(update.state).then(
+      () => undefined,
+      (e) => {
+        error(
+          `ReadingState update failed (${update.state.book_id}:${update.state.last_read_page_index}): ${e}`,
+        );
+      },
+    );
   };
 
   const queue = (update: PendingUpdate) => {
