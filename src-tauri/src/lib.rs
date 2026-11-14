@@ -12,6 +12,7 @@ pub mod error;
 pub mod image;
 pub mod infrastructure;
 pub mod page;
+mod paths;
 pub mod perf;
 mod settings;
 mod setup;
@@ -165,7 +166,6 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(RwLock::new(state::app_state::AppState::default()))
-        .manage(settings::SettingsFileLock::default())
         .manage(commands::updater_commands::UpdatePromptLock::default())
         .on_window_event(commands::updater_commands::release_update_prompt_on_destroy)
         .on_page_load(commands::updater_commands::release_update_prompt_on_reload)

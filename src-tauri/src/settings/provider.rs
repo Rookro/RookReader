@@ -58,7 +58,7 @@ impl SettingsFileProvider {
     ///
     /// Returns an `Err` if the app data directory cannot be resolved or created.
     pub fn new(app: &AppHandle, filename: &str) -> Result<Self> {
-        let dir = crate::setup::app_data_dir(app)?;
+        let dir = crate::paths::app_data_dir(app)?;
         fs::create_dir_all(&dir)?;
         let home_dir = app
             .path()
@@ -137,18 +137,6 @@ impl SettingsStoreProvider for SettingsFileProvider {
         self.home_dir.clone()
     }
 }
-
-/// Process-wide lock serializing the settings file's read-modify-write cycle **and** the
-/// dependent runtime apply/broadcast.
-///
-/// Managed by Tauri as application state. `set_settings` holds it across
-/// [`AppSettings::apply_patch`] (persist), the container-runtime apply, and the
-/// `settings-changed` broadcast, so two concurrent calls cannot persist A,B but then
-/// apply/announce B,A.
-///
-/// [`AppSettings::apply_patch`]: crate::settings::AppSettings::apply_patch
-#[derive(Default)]
-pub struct SettingsFileLock(pub tokio::sync::Mutex<()>);
 
 #[cfg(test)]
 mod tests {
@@ -384,7 +372,8 @@ mod tests {
         fs::create_dir(&blocker).unwrap();
         fs::write(blocker.join("child"), b"").unwrap();
 
-        let loaded = AppSettings::load_and_persist_normalized(&provider_at(path.clone())).unwrap();
+        let (loaded, _) =
+            AppSettings::load_and_persist_normalized(&provider_at(path.clone())).unwrap();
 
         assert!(matches!(loaded.general.theme, AppTheme::System));
         assert_eq!(fs::read_to_string(&path).unwrap(), "bad{");

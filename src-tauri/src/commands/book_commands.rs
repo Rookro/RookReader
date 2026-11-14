@@ -4,7 +4,6 @@ use tokio::sync::RwLock;
 use serde::Serialize;
 use tauri::State;
 
-use crate::blocking::run_blocking;
 use crate::commands::events::{emit, BooksChanged, ReadingHistoryChanged, ReadingProgressChanged};
 use crate::container::describe::describe;
 use crate::container::traits::Container;
@@ -12,7 +11,7 @@ use crate::domain::book::entity::{Book, BookWithState, Direction, ReadBook, Read
 use crate::domain::book::repository::BookRepository;
 use crate::error::{Error, Result};
 use crate::infrastructure::thumbnails;
-use crate::settings::{AppSettings, SettingsFileProvider};
+use crate::settings::{AppSettings, CurrentSettings};
 use crate::state::app_state::AppState;
 use crate::state::container_state::ContainerState;
 
@@ -142,7 +141,7 @@ pub struct OpenedBook {
 /// * `repo` - The managed book repository state.
 /// * `app` - The Tauri AppHandle.
 /// * `state` - The managed app state.
-/// * `provider` - The settings file the history setting and default direction are read from.
+/// * `settings` - The current settings the history setting and default direction are read from.
 ///
 /// # Returns
 ///
@@ -161,17 +160,18 @@ pub async fn open_book<R: tauri::Runtime>(
     repo: State<'_, Arc<dyn BookRepository>>,
     app: tauri::AppHandle<R>,
     state: State<'_, RwLock<AppState>>,
-    provider: State<'_, SettingsFileProvider>,
+    settings: State<'_, CurrentSettings>,
 ) -> Result<OpenedBook> {
     log::debug!("Open book: {path}");
 
     let container = ContainerState::open(&state, &path).await?;
+    let settings = settings.read().await.clone();
     let recorded = record_opened_book(
         &path,
         container.clone(),
         repo.inner().as_ref(),
         &app,
-        &provider,
+        &settings,
     )
     .await;
     // The pages are open either way; failing to remember the book is reported apart.
@@ -200,15 +200,11 @@ async fn record_opened_book<R: tauri::Runtime>(
     container: Arc<dyn Container>,
     repo: &dyn BookRepository,
     app: &tauri::AppHandle<R>,
-    provider: &SettingsFileProvider,
+    settings: &AppSettings,
 ) -> Result<BookWithState> {
     let description = describe(file_path, container.as_ref())?;
     let thumbnail_path = thumbnails::cover_for(app, file_path, container).await;
-    let settings = load_settings(provider).await;
-    // Unreadable settings must not put a book in a history the reader may have turned off.
-    let records_history = settings
-        .as_ref()
-        .is_some_and(|settings| settings.history.record_reading_history);
+    let records_history = settings.history.record_reading_history;
 
     let book_id = if records_history {
         repo.record_opened(
@@ -236,13 +232,11 @@ async fn record_opened_book<R: tauri::Runtime>(
 
     // A novel's direction is the EPUB's own and cannot be overridden.
     if !description.is_novel && book.reading_direction.is_none() {
-        if let Some(settings) = &settings {
-            let direction = settings.reader.comic.reading_direction;
-            if let Err(e) = repo.update_reading_direction(book_id, direction).await {
-                log::warn!("Could not store the reading direction of book {book_id}: {e}");
-            }
-            book.reading_direction = Some(direction);
+        let direction = settings.reader.comic.reading_direction;
+        if let Err(e) = repo.update_reading_direction(book_id, direction).await {
+            log::warn!("Could not store the reading direction of book {book_id}: {e}");
         }
+        book.reading_direction = Some(direction);
     }
 
     emit(app, &BooksChanged);
@@ -250,18 +244,6 @@ async fn record_opened_book<R: tauri::Runtime>(
         emit(app, &ReadingHistoryChanged);
     }
     Ok(book)
-}
-
-/// The current settings, or `None` (logged) when they cannot be read.
-async fn load_settings(provider: &SettingsFileProvider) -> Option<AppSettings> {
-    let provider = provider.clone();
-    match run_blocking(move || AppSettings::load(&provider)).await {
-        Ok(settings) => Some(settings),
-        Err(e) => {
-            log::warn!("Could not read the settings: {e}");
-            None
-        }
-    }
 }
 
 /// Clears the reading history for a specific book.
@@ -824,7 +806,7 @@ mod tests {
     impl ThumbnailCleanup {
         fn new(app: &tauri::App<tauri::test::MockRuntime>, file_path: &str) -> Self {
             Self(
-                crate::setup::app_data_dir(app)
+                crate::paths::app_data_dir(app)
                     .unwrap()
                     .join("thumbnails")
                     .join(thumbnails::file_name(file_path)),
@@ -969,25 +951,29 @@ mod tests {
         mock_repo
     }
 
-    /// Manages `mock_repo`, an empty app state, and a settings file in `dir` holding `settings`.
+    /// Manages `mock_repo`, an empty app state and `settings` as the current settings.
     fn manage_for_opening(
         app: &tauri::App<tauri::test::MockRuntime>,
-        dir: &std::path::Path,
         mock_repo: MockBookRepository,
-        settings: serde_json::Value,
+        settings: AppSettings,
     ) {
-        use crate::settings::SettingsStoreProvider;
-
-        let provider = SettingsFileProvider::at_path(dir.join("settings.json"));
-        provider.save_all_settings(settings).unwrap();
-        app.manage(provider);
+        app.manage(CurrentSettings::new(settings));
         app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
         app.manage(RwLock::new(AppState::default()));
     }
 
     /// Settings whose default comic direction is `ltr`, with history on.
-    fn ltr_settings() -> serde_json::Value {
-        serde_json::json!({ "reader": { "comic": { "readingDirection": "ltr" } } })
+    fn ltr_settings() -> AppSettings {
+        let mut settings = AppSettings::default();
+        settings.reader.comic.reading_direction = Direction::Ltr;
+        settings
+    }
+
+    /// The default settings with reading history off.
+    fn history_off_settings() -> AppSettings {
+        let mut settings = AppSettings::default();
+        settings.history.record_reading_history = false;
+        settings
     }
 
     #[tokio::test]
@@ -1015,7 +1001,7 @@ mod tests {
 
         let app = tauri::test::mock_app();
         let _thumbnail = ThumbnailCleanup::new(&app, &path);
-        manage_for_opening(&app, dir.path(), mock_repo, ltr_settings());
+        manage_for_opening(&app, mock_repo, ltr_settings());
         let events = record_events(app.handle());
 
         let opened = open_book(
@@ -1058,7 +1044,7 @@ mod tests {
 
         let app = tauri::test::mock_app();
         let _thumbnail = ThumbnailCleanup::new(&app, &path);
-        manage_for_opening(&app, dir.path(), mock_repo, ltr_settings());
+        manage_for_opening(&app, mock_repo, ltr_settings());
 
         let opened = open_book(
             path,
@@ -1082,7 +1068,7 @@ mod tests {
 
         let app = tauri::test::mock_app();
         let _thumbnail = ThumbnailCleanup::new(&app, &path);
-        manage_for_opening(&app, dir.path(), mock_repo, ltr_settings());
+        manage_for_opening(&app, mock_repo, ltr_settings());
 
         let opened = open_book(
             path,
@@ -1115,14 +1101,14 @@ mod tests {
         container.expect_max_readers().return_const(usize::MAX);
 
         let app = tauri::test::mock_app();
-        manage_for_opening(&app, dir.path(), mock_repo, ltr_settings());
+        manage_for_opening(&app, mock_repo, ltr_settings());
 
         let book = record_opened_book(
             &path,
             Arc::new(container),
             app.state::<Arc<dyn BookRepository>>().inner().as_ref(),
             app.handle(),
-            &app.state::<SettingsFileProvider>(),
+            &ltr_settings(),
         )
         .await
         .unwrap();
@@ -1142,7 +1128,7 @@ mod tests {
 
         let app = tauri::test::mock_app();
         let _thumbnail = ThumbnailCleanup::new(&app, &path);
-        manage_for_opening(&app, dir.path(), mock_repo, ltr_settings());
+        manage_for_opening(&app, mock_repo, ltr_settings());
 
         let opened = open_book(
             path,
@@ -1155,44 +1141,6 @@ mod tests {
         .unwrap();
 
         assert_eq!(opened.book.unwrap().reading_direction, Some(Direction::Ltr));
-    }
-
-    #[tokio::test]
-    async fn open_book_does_not_record_history_when_settings_cannot_be_read() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = png_folder(dir.path(), "Comic", 2);
-        let mut mock_repo = MockBookRepository::new();
-        mock_repo.expect_record_opened().times(0);
-        mock_repo
-            .expect_register()
-            .times(1)
-            .returning(|_, _, _, _, _| Ok(7));
-        let stored = stored_book(&path, None);
-        mock_repo
-            .expect_get_book_with_state_by_id()
-            .returning(move |_| Ok(Some(stored.clone())));
-        mock_repo.expect_update_reading_direction().times(0);
-
-        let app = tauri::test::mock_app();
-        let _thumbnail = ThumbnailCleanup::new(&app, &path);
-        // A directory where the settings file should be cannot be read as one.
-        let unreadable = dir.path().join("unreadable.json");
-        fs::create_dir(&unreadable).unwrap();
-        app.manage(SettingsFileProvider::at_path(unreadable));
-        app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
-        app.manage(RwLock::new(AppState::default()));
-
-        let opened = open_book(
-            path,
-            app.state(),
-            app.handle().clone(),
-            app.state(),
-            app.state(),
-        )
-        .await
-        .unwrap();
-
-        assert_eq!(opened.book.unwrap().reading_direction, None);
     }
 
     #[tokio::test]
@@ -1212,12 +1160,7 @@ mod tests {
 
         let app = tauri::test::mock_app();
         let _thumbnail = ThumbnailCleanup::new(&app, &path);
-        manage_for_opening(
-            &app,
-            dir.path(),
-            mock_repo,
-            serde_json::json!({ "history": { "recordReadingHistory": false } }),
-        );
+        manage_for_opening(&app, mock_repo, history_off_settings());
         let events = record_events(app.handle());
 
         let opened = open_book(
@@ -1259,15 +1202,9 @@ mod tests {
 
         let app = tauri::test::mock_app();
         let _thumbnail = ThumbnailCleanup::new(&app, &path);
-        manage_for_opening(
-            &app,
-            dir.path(),
-            mock_repo,
-            serde_json::json!({
-                "history": { "recordReadingHistory": false },
-                "reader": { "comic": { "readingDirection": "ltr" } }
-            }),
-        );
+        let mut settings = history_off_settings();
+        settings.reader.comic.reading_direction = Direction::Ltr;
+        manage_for_opening(&app, mock_repo, settings);
         let events = record_events(app.handle());
 
         let opened = open_book(
@@ -1295,7 +1232,7 @@ mod tests {
 
         let app = tauri::test::mock_app();
         let _thumbnail = ThumbnailCleanup::new(&app, &path);
-        manage_for_opening(&app, dir.path(), mock_repo, ltr_settings());
+        manage_for_opening(&app, mock_repo, ltr_settings());
         let events = record_events(app.handle());
 
         let opened = open_book(
@@ -1322,7 +1259,7 @@ mod tests {
         mock_repo.expect_register().times(0);
 
         let app = tauri::test::mock_app();
-        manage_for_opening(&app, dir.path(), mock_repo, ltr_settings());
+        manage_for_opening(&app, mock_repo, ltr_settings());
 
         let result = open_book(
             dir.path().join("gone.zip").to_string_lossy().into_owned(),

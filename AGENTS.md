@@ -80,7 +80,7 @@ Write all code comments and documentation in English.
 The GitHub Wiki is synced from `docs/wiki/` on every push to `main`. When a change affects what a page describes, update the page in the same PR:
 
 - `User-Guide.md`: user-visible behaviour (formats, File Navigator / toolbar / side-pane controls, keyboard and mouse, page display (direction, spread, loupe), continuous reading, bookmarks, bookshelf / collections / tags / series, reading history, EPUB) and every settings tab and item. Names come from `src/i18n/locales/en-US.json`, defaults from `DEFAULT_SETTINGS` and bounds from `SETTINGS_BOUNDS` (both in `src/bindings/bindings.ts`).
-- `FAQ-&-Troubleshooting.md`: data and log locations (`src-tauri/src/setup.rs`), logging, Linux packaging, window state.
+- `FAQ-&-Troubleshooting.md`: data and log locations (`src-tauri/src/paths.rs`, `src-tauri/src/setup.rs`), logging, Linux packaging, window state.
 - `Developer-Guide.md`: directory layout (`src/`, `src-tauri/src/`), the command/bindings workflow, error codes, npm scripts (`package.json`), CI (`.github/workflows/`), prerequisites and branching (`CONTRIBUTING.md`), database schema (`docs/database/er_diagram.md`).
 - `Home.md`: the feature summary and supported formats.
 

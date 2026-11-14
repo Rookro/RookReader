@@ -8,30 +8,27 @@ import * as __TAURI_EVENT from "@tauri-apps/api/event";
 /** Commands */
 export const commands = {
 	/**
-	 *  Reads the current application settings.
-	 * 
-	 *  This is a **pure read**: it loads and normalizes the stored settings without
-	 *  acquiring the file lock or writing back. A file hand-edited to an out-of-range
-	 *  value is repaired in memory here and healed on disk at the next startup or write.
+	 *  Returns the settings the app is running with.
 	 * 
 	 *  # Arguments
 	 * 
-	 *  * `provider` - The managed settings file provider backing the settings store.
+	 *  * `settings` - The current settings.
 	 * 
 	 *  # Returns
 	 * 
-	 *  The normalized, valid [`AppSettings`].
+	 *  The current [`AppSettings`].
 	 * 
 	 *  # Errors
 	 * 
-	 *  Returns an `Err` if the settings cannot be loaded.
+	 *  Never fails; the `Result` keeps the command's shape.
 	 */
 	getSettings: () => typedError<AppSettings_Serialize, CommandError_Serialize>(__TAURI_INVOKE("get_settings")),
 	/**
 	 *  Applies a partial settings change and returns the full merged settings.
 	 * 
 	 *  The `patch` carries only the changed leaves of a single category. The backend
-	 *  deep-merges it into the current settings, validates the merged whole, persists it,
+	 *  deep-merges it into the current settings (or, if start-up could not read the settings
+	 *  file, into the file read again), validates the merged whole, persists it,
 	 *  applies the reader/rendering values to the live container runtime, returns the
 	 *  full merged settings to the caller, and broadcasts a `settings-changed` event to
 	 *  every window **except the caller** so other windows re-hydrate.
@@ -47,7 +44,8 @@ export const commands = {
 	 *    a Tauri-injected argument that `tauri-specta` omits from the TS signature).
 	 *  * `patch` - The single-category partial change to apply.
 	 *  * `state` - The application's runtime state.
-	 *  * `lock` - The settings file lock serializing the read-modify-write.
+	 *  * `settings` - The current settings, replaced by the merged ones once they are saved.
+	 *  * `unread` - Set while the session runs on the fallback from an unreadable settings file.
 	 *  * `provider` - The managed settings file provider backing the settings store.
 	 * 
 	 *  # Returns
@@ -56,8 +54,9 @@ export const commands = {
 	 * 
 	 *  # Errors
 	 * 
-	 *  Returns `Error::Settings` if the merged result is invalid (e.g. out of range),
-	 *  or a persistence error.
+	 *  Returns `Error::SettingsValidation` with one violation per out-of-range or mistyped field,
+	 *  `Error::Settings` if the merged document is invalid otherwise, or an error if the settings
+	 *  file cannot be read again or saved.
 	 */
 	setSettings: (patch: SettingsPatch) => typedError<AppSettings_Serialize, CommandError_Serialize>(__TAURI_INVOKE("set_settings", { patch })),
 	/**
@@ -221,7 +220,7 @@ export const commands = {
 	 *  * `repo` - The managed book repository state.
 	 *  * `app` - The Tauri AppHandle.
 	 *  * `state` - The managed app state.
-	 *  * `provider` - The settings file the history setting and default direction are read from.
+	 *  * `settings` - The current settings the history setting and default direction are read from.
 	 * 
 	 *  # Returns
 	 * 

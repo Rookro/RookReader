@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+* The settings file is now read only when RookReader starts. Edit it while the app is closed; a change made while it is running is overwritten by the next setting you change. (#391)
+
 ### Fixed
 
 * Fixed books opened while **Reading history** is off appearing in the history once it is turned back on. (#390)
