@@ -7,10 +7,10 @@ import type { DirEntry } from "../types/DirEntry";
  * - isDirectory: 1 byte (1 for directory, 0 for file)
  * - nameLen: 4 bytes (length of the name string)
  * - name: nameLen bytes (UTF-8 encoded name string)
- * - lastModified: 8 bytes (Unix timestamp as a 64-bit integer)
+ * - lastModified: 8 bytes (milliseconds since the UNIX epoch, big-endian unsigned)
  *
  * @param entriesData - The ArrayBuffer containing the serialized directory entry data.
- * @returns A promise that resolves to an array of DirEntry objects.
+ * @returns The decoded entries; an incomplete entry at the end is dropped.
  */
 export const convertEntriesInDir = (entriesData: ArrayBuffer) => {
   const buffer = entriesData instanceof Uint8Array ? entriesData : new Uint8Array(entriesData);
