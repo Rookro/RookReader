@@ -10,7 +10,8 @@ import { useErrorMessage } from "./useErrorMessage";
  *
  * Errors that are in the queue together are shown as one notification, each distinct
  * message on its own line. An error queued later gets its own notification, shown after
- * those on screen or waiting, or dropped if one of them is an error with the same text.
+ * those on screen or waiting, except information notifications, which it removes, or
+ * dropped if one of them is an error with the same text.
  */
 export default function ErrorNotifier() {
   const errorMessage = useErrorMessage();

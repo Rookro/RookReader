@@ -7,6 +7,7 @@ import {
   type SyntheticEvent,
   useCallback,
   useContext,
+  useEffect,
   useRef,
   useState,
 } from "react";
@@ -28,7 +29,9 @@ interface QueuedNotification {
 interface NotificationContextType {
   /**
    * Queues a notification. Notifications are shown one at a time, in the order requested;
-   * a request that repeats a queued message and severity is dropped.
+   * a request that repeats a queued message and severity is dropped. An error removes the
+   * information notifications requested before it: the one on screen closes and those
+   * waiting are dropped.
    */
   showNotification: (message: string, severity?: AlertColor) => void;
 }
@@ -75,12 +78,23 @@ export default function NotificationProvider({ children }: NotificationProviderP
 
   const showNotification = useCallback((message: string, severity: AlertColor = "info") => {
     const id = nextId.current++;
-    setQueue((queued) =>
-      queued.some((n) => n.message === message && n.severity === severity)
-        ? queued
-        : [...queued, { id, message, severity }],
-    );
+    setQueue((queued) => {
+      if (queued.some((n) => n.message === message && n.severity === severity)) {
+        return queued;
+      }
+      // The one on screen stays so that it can leave through its exit transition.
+      const kept =
+        severity === "error" ? queued.filter((n, i) => i === 0 || n.severity !== "info") : queued;
+      return [...kept, { id, message, severity }];
+    });
   }, []);
+
+  // An information notification on screen with an error waiting was requested before it.
+  useEffect(() => {
+    if (current?.severity === "info" && queue.some((n) => n.severity === "error")) {
+      setClosingId(current.id);
+    }
+  }, [current, queue]);
 
   const handleClose = useCallback(
     (_e: SyntheticEvent | Event, reason?: SnackbarCloseReason) => {
