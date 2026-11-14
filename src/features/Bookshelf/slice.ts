@@ -246,8 +246,7 @@ const collectionSlice = createSlice({
         state.error = action.payload ?? null;
       })
       .addCase(readingProgressChanged, (state, action) => {
-        // A page turn cannot change list membership or order (last_opened_at is only
-        // set when a book is opened), so patch the matching entry in place.
+        // Patch the book if it is in this collection; a page turn never adds one to it.
         const book = state.books.find((b) => b.id === action.payload.book_id);
         if (book) {
           book.last_read_page_index = action.payload.last_read_page_index;

@@ -1,6 +1,5 @@
 use tokio::sync::RwLock;
 
-use serde::{Deserialize, Serialize};
 use tauri::ipc::Response;
 
 use crate::{
@@ -9,7 +8,7 @@ use crate::{
     image::types::{Image, ImageDimensions},
     page::{pipeline::Fit, service::Priority},
     settings::ComicCacheSettings,
-    state::{app_state::AppState, container_state::ContainerState},
+    state::app_state::AppState,
 };
 
 /// The error every command raises when the book it names is not the book that is open.
@@ -40,54 +39,6 @@ fn image_response(image: &Image) -> Response {
     body.extend_from_slice(&image.height.to_be_bytes());
     body.extend_from_slice(&image.data);
     Response::new(body)
-}
-
-/// The result of getting entries in a container.
-#[derive(Serialize, Deserialize, specta::Type)]
-pub struct EntriesResult {
-    /// The entry names in the container.
-    entries: Vec<String>,
-    /// Whether the container is a directory.
-    is_directory: bool,
-    /// Whether the container is an EPUB novel.
-    is_novel: bool,
-    /// Whether `get_image_preview` can send a page more cheaply than `get_image`.
-    has_previews: bool,
-}
-
-/// Opens a book as the open book: builds its container, installs its page service in
-/// place of the previous book's, and lists its entries.
-///
-/// # Arguments
-///
-/// * `path` - The file path to the container to open.
-/// * `state` - A `tauri::State` holding the application's global `AppState`.
-///
-/// # Returns
-///
-/// A `Result` which is `Ok` with an `EntriesResult` struct containing the list of entry
-/// names, a boolean indicating if the path is a directory, and a boolean indicating if it's a novel.
-///
-/// # Errors
-///
-/// This function will return an `Err` if:
-/// * The container file cannot be opened (e.g., it does not exist or is corrupt).
-/// * The container holds no readable pages (EPUB novels excepted).
-#[tauri::command()]
-#[specta::specta]
-pub async fn open_container(
-    path: &str,
-    state: tauri::State<'_, RwLock<AppState>>,
-) -> Result<EntriesResult> {
-    log::debug!("Open container: {}", path);
-
-    let container = ContainerState::open(&state, path).await?;
-    Ok(EntriesResult {
-        entries: container.get_entries().clone(),
-        is_directory: container.is_directory(),
-        is_novel: container.is_novel(),
-        has_previews: container.has_previews(),
-    })
 }
 
 /// The preload page count setting's default, as a page count.
@@ -198,7 +149,7 @@ pub async fn set_display_size(
 /// # Returns
 ///
 /// A `Result` which is `Ok` with one `ImageDimensions` per entry, in the same order as
-/// `open_container` returned them.
+/// `open_book` returned them.
 ///
 /// # Errors
 ///
@@ -403,7 +354,7 @@ mod tests {
     use mockall::predicate::eq;
 
     use super::*;
-    use std::{path, sync::Arc};
+    use std::sync::Arc;
     use tauri::{ipc::InvokeResponseBody::Raw, ipc::IpcResponse, Manager};
     use tokio::sync::RwLock;
 
@@ -489,182 +440,6 @@ mod tests {
         0x01, 0x00, 0x00, 0x05, 0x00, 0x01, 0x0D, 0x0A, 0x2D, 0xB4, 0x00, 0x00, 0x00, 0x00, 0x49,
         0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82,
     ];
-
-    // Since programmatically generating a RAR file is complicated,
-    // a dummy RAR file was created manually beforehand.
-    //
-    // This function copies that pre-existing RAR file to the path specified in the arguments.
-    fn create_dummy_rar(dir: &path::Path, filename: &str) -> path::PathBuf {
-        let dummy_rar_path = path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("tests")
-            .join("resources")
-            .join("test.rar");
-        if !dummy_rar_path.exists() {
-            panic!(
-                "Dummy RAR file not found at {}. Please create it manually as per instructions.",
-                dummy_rar_path.display()
-            );
-        }
-
-        let rar_filepath = dir.join(filename);
-        std::fs::copy(dummy_rar_path, &rar_filepath).unwrap();
-        rar_filepath
-    }
-
-    #[tokio::test]
-    async fn test_open_container_rejects_a_container_without_pages() {
-        use std::io::Write;
-        use zip::write::{FileOptions, ZipWriter};
-
-        let dir = tempfile::tempdir().expect("tempdir");
-        let zip_path = dir.path().join("multi.zip");
-        let mut zip = ZipWriter::new(std::fs::File::create(&zip_path).expect("create zip"));
-        // Two sub-folders, so auto-descend has nothing to pick and the root stays empty.
-        for name in ["ch1/001.png", "ch2/001.png"] {
-            zip.start_file(name, FileOptions::<()>::default())
-                .expect("start entry");
-            zip.write_all(&[0u8]).expect("write entry");
-        }
-        zip.finish().expect("finish zip");
-
-        let app = tauri::test::mock_app();
-        app.manage(RwLock::new(AppState::default()));
-
-        let result = open_container(zip_path.to_string_lossy().as_ref(), app.state()).await;
-
-        let Err(err) = result else {
-            panic!("expected an empty-container error");
-        };
-        assert!(err.to_string().contains("Empty Container Error"));
-    }
-
-    #[tokio::test]
-    async fn opening_a_container_without_pages_closes_the_open_book() {
-        use std::io::Write;
-        use zip::write::{FileOptions, ZipWriter};
-
-        let dir = tempfile::tempdir().unwrap();
-        let rar_path = create_dummy_rar(dir.path(), "dummy.rar");
-        let zip_path = dir.path().join("multi.zip");
-        let mut zip = ZipWriter::new(std::fs::File::create(&zip_path).unwrap());
-        for name in ["ch1/001.png", "ch2/001.png"] {
-            zip.start_file(name, FileOptions::<()>::default()).unwrap();
-            zip.write_all(&[0u8]).unwrap();
-        }
-        zip.finish().unwrap();
-
-        let app = tauri::test::mock_app();
-        app.manage(RwLock::new(AppState::default()));
-        open_container(rar_path.to_string_lossy().as_ref(), app.state())
-            .await
-            .unwrap();
-
-        let result = open_container(zip_path.to_string_lossy().as_ref(), app.state()).await;
-
-        assert!(matches!(result, Err(Error::EmptyContainer(_))));
-        let binding = app.state::<RwLock<AppState>>();
-        assert!(!binding.read().await.container_state.is_open());
-    }
-
-    #[tokio::test]
-    async fn test_open_container() {
-        let dir = tempfile::tempdir().unwrap();
-        let rar_path = create_dummy_rar(dir.path(), "dummy.rar");
-        let expected_entries = [
-            "image1.png".to_string(),
-            "image2.png".to_string(),
-            "image3.png".to_string(),
-        ];
-
-        let app = tauri::test::mock_app();
-        app.manage(RwLock::new(AppState::default()));
-
-        let result = open_container(rar_path.to_string_lossy().as_ref(), app.state()).await;
-
-        assert!(result.is_ok());
-
-        let actual_entries_result = result.unwrap();
-        assert_eq!(expected_entries.len(), actual_entries_result.entries.len());
-        assert_eq!(expected_entries[0], actual_entries_result.entries[0]);
-        assert_eq!(expected_entries[1], actual_entries_result.entries[1]);
-        assert_eq!(expected_entries[2], actual_entries_result.entries[2]);
-        assert!(!actual_entries_result.is_directory);
-    }
-
-    #[tokio::test]
-    async fn test_open_container_empty_container() {
-        let app = tauri::test::mock_app();
-        app.manage(RwLock::new(AppState::default()));
-
-        let result = open_container("non_existent_path", app.state()).await;
-
-        assert!(result.is_err());
-    }
-
-    #[tokio::test]
-    async fn test_open_container_clears_state_on_failure() {
-        let dir = tempfile::tempdir().unwrap();
-        let rar_path = create_dummy_rar(dir.path(), "dummy.rar");
-
-        let app = tauri::test::mock_app();
-        app.manage(RwLock::new(AppState::default()));
-
-        // Open a valid container first; state now holds the book's service.
-        open_container(rar_path.to_string_lossy().as_ref(), app.state())
-            .await
-            .expect("opening a valid container should succeed");
-        {
-            let binding = app.state::<RwLock<AppState>>();
-            let guard = binding.read().await;
-            assert!(guard.container_state.is_open());
-        }
-
-        // A subsequent failed open must clear the previous service so we never serve
-        // images from the old book.
-        let result = open_container("non_existent_path", app.state()).await;
-        assert!(result.is_err());
-        {
-            let binding = app.state::<RwLock<AppState>>();
-            let guard = binding.read().await;
-            assert!(!guard.container_state.is_open());
-        }
-    }
-
-    #[tokio::test]
-    async fn test_open_container_installs_the_service_without_asking_for_a_page() {
-        // Opening a book lists it and starts its readers; what to read is the viewer's
-        // decision, made once it knows where the reader is resuming. This command cannot
-        // know that, so it must queue nothing.
-        let dir = tempfile::tempdir().unwrap();
-        let rar_path = create_dummy_rar(dir.path(), "dummy.rar");
-        let path = rar_path.to_string_lossy().into_owned();
-
-        let app = tauri::test::mock_app();
-        app.manage(RwLock::new(AppState::default()));
-
-        let result = open_container(&path, app.state()).await;
-
-        let entries_result = result.expect("a valid non-novel open should succeed");
-        assert!(!entries_result.is_novel);
-        assert!(!entries_result.has_previews);
-        assert_eq!(3, entries_result.entries.len());
-
-        let binding = app.state::<RwLock<AppState>>();
-        let guard = binding.read().await;
-        assert!(guard.container_state.is_open());
-
-        let service = guard
-            .container_state
-            .service_for(&path)
-            .expect("the open book's service");
-        assert_eq!(service.pending(), 0, "the open queued work of its own");
-        for entry in &entries_result.entries {
-            assert!(
-                service.cached(entry).is_none(),
-                "the open read {entry} before anyone asked for it"
-            );
-        }
-    }
 
     #[tokio::test]
     async fn test_get_image_in_container() {

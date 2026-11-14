@@ -60,16 +60,16 @@ export async function registerBook(filePath: string): Promise<number> {
 }
 
 /**
- * Records the event of a book being opened, or updates its last opened time. The backend
- * reads the book's type, name, and page count from its container, and gives a comic
- * opened for the first time the default page direction.
+ * Opens a book as the open book, replacing the previous one, and records it in the
+ * library. The backend decides whether the open also goes into the reading history.
  *
- * @param filePath - The absolute path of the book file or directory.
- * @returns A promise that resolves to the book with its reading state.
- * @throws {CommandError} If the Tauri command fails.
+ * @param path - The absolute path of the book file or directory.
+ * @returns The book's entries and flags, its library record, and why recording failed
+ *   when it did.
+ * @throws {CommandError} If the book cannot be opened or holds no readable pages.
  */
-export async function recordBookOpened(filePath: string): Promise<BookWithState> {
-  return await runCommand(commands.recordBookOpened(filePath));
+export async function openBook(path: string) {
+  return await runCommand(commands.openBook(path));
 }
 
 /**

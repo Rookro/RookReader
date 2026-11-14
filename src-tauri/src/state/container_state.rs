@@ -833,4 +833,109 @@ mod tests {
             "the page must land in the cache the state reads, not the one it discarded"
         );
     }
+
+    /// Opens `path` on a fresh state and returns the state with the result.
+    async fn open_on_fresh_state(path: &str) -> (RwLock<AppState>, Result<Arc<dyn Container>>) {
+        let state = RwLock::new(AppState::default());
+        let result = ContainerState::open(&state, path).await;
+        (state, result)
+    }
+
+    /// A zip whose pages sit in two sub-folders, so auto-descend has nothing to pick and
+    /// the root holds no pages, and the path to it.
+    fn pageless_zip() -> (tempfile::TempDir, String) {
+        use std::io::Write;
+        use zip::write::{FileOptions, ZipWriter};
+
+        let dir = tempfile::tempdir().expect("tempdir");
+        let zip_path = dir.path().join("multi.zip");
+        let mut zip = ZipWriter::new(std::fs::File::create(&zip_path).expect("create zip"));
+        for name in ["ch1/001.png", "ch2/001.png"] {
+            zip.start_file(name, FileOptions::<()>::default())
+                .expect("start entry");
+            zip.write_all(&[0u8]).expect("write entry");
+        }
+        zip.finish().expect("finish zip");
+
+        let path = zip_path.to_string_lossy().to_string();
+        (dir, path)
+    }
+
+    #[tokio::test]
+    async fn open_lists_the_book() {
+        let (_dir, path) = one_page_book();
+
+        let (_state, result) = open_on_fresh_state(&path).await;
+
+        let container = result.expect("a valid directory should open");
+        assert_eq!(container.get_entries(), &["p001.png"]);
+        assert!(container.is_directory());
+    }
+
+    #[tokio::test]
+    async fn open_refuses_a_missing_path() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let missing = dir.path().join("gone.zip");
+
+        let (_state, result) = open_on_fresh_state(missing.to_string_lossy().as_ref()).await;
+
+        assert!(matches!(result, Err(Error::PathNotFound(_))));
+    }
+
+    #[tokio::test]
+    async fn open_refuses_a_book_without_pages() {
+        let (_dir, path) = pageless_zip();
+
+        let (_state, result) = open_on_fresh_state(&path).await;
+
+        assert!(matches!(result, Err(Error::EmptyContainer(_))));
+    }
+
+    #[tokio::test]
+    async fn opening_a_book_without_pages_closes_the_open_book() {
+        let (_book_dir, book) = one_page_book();
+        let (_zip_dir, zip) = pageless_zip();
+        let (state, opened) = open_on_fresh_state(&book).await;
+        opened.expect("a valid directory should open");
+
+        let result = ContainerState::open(&state, &zip).await;
+
+        assert!(matches!(result, Err(Error::EmptyContainer(_))));
+        assert!(!state.read().await.container_state.is_open());
+    }
+
+    #[tokio::test]
+    async fn a_failed_open_closes_the_open_book() {
+        let (dir, book) = one_page_book();
+        let (state, opened) = open_on_fresh_state(&book).await;
+        opened.expect("a valid directory should open");
+
+        // A failed open must not leave the previous book serving its pages.
+        let missing = dir.path().join("gone.zip");
+        let result = ContainerState::open(&state, missing.to_string_lossy().as_ref()).await;
+
+        assert!(result.is_err());
+        assert!(!state.read().await.container_state.is_open());
+    }
+
+    #[tokio::test]
+    async fn open_installs_the_service_without_asking_for_a_page() {
+        // What to read is the viewer's decision, made once it knows where the reader is
+        // resuming; opening cannot know that, so it must queue nothing.
+        let (_dir, path) = one_page_book();
+
+        let (state, result) = open_on_fresh_state(&path).await;
+
+        result.expect("a valid directory should open");
+        let guard = state.read().await;
+        let service = guard
+            .container_state
+            .service_for(&path)
+            .expect("the open book's service");
+        assert_eq!(service.pending(), 0, "the open queued work of its own");
+        assert!(
+            service.cached("p001.png").is_none(),
+            "the open read p001.png before anyone asked for it"
+        );
+    }
 }

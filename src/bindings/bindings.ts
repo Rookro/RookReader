@@ -86,27 +86,6 @@ export const commands = {
 	 */
 	requestPreloadAround: (path: string, index: number, bufferSize: number | null, callerPages: number | null) => typedError<null, CommandError_Serialize>(__TAURI_INVOKE("request_preload_around", { path, index, bufferSize, callerPages })),
 	/**
-	 *  Opens a book as the open book: builds its container, installs its page service in
-	 *  place of the previous book's, and lists its entries.
-	 * 
-	 *  # Arguments
-	 * 
-	 *  * `path` - The file path to the container to open.
-	 *  * `state` - A `tauri::State` holding the application's global `AppState`.
-	 * 
-	 *  # Returns
-	 * 
-	 *  A `Result` which is `Ok` with an `EntriesResult` struct containing the list of entry
-	 *  names, a boolean indicating if the path is a directory, and a boolean indicating if it's a novel.
-	 * 
-	 *  # Errors
-	 * 
-	 *  This function will return an `Err` if:
-	 *  * The container file cannot be opened (e.g., it does not exist or is corrupt).
-	 *  * The container holds no readable pages (EPUB novels excepted).
-	 */
-	openContainer: (path: string) => typedError<EntriesResult, CommandError_Serialize>(__TAURI_INVOKE("open_container", { path })),
-	/**
 	 *  Retrieves the pixel dimensions of every entry in the currently open container.
 	 * 
 	 *  The viewer needs the orientation of every page to decide where two-page spreads
@@ -121,7 +100,7 @@ export const commands = {
 	 *  # Returns
 	 * 
 	 *  A `Result` which is `Ok` with one `ImageDimensions` per entry, in the same order as
-	 *  `open_container` returned them.
+	 *  `open_book` returned them.
 	 * 
 	 *  # Errors
 	 * 
@@ -230,31 +209,32 @@ export const commands = {
 	 */
 	registerBook: (filePath: string) => typedError<number, CommandError_Serialize>(__TAURI_INVOKE("register_book", { filePath })),
 	/**
-	 *  Records the event of a book being opened, updating its last opened time.
+	 *  Opens a book as the open book and records it in the library, and in the reading history
+	 *  while that is on.
 	 * 
-	 *  The book's item type, display name, and page count are read from its container. A
-	 *  comic opened for the first time gets the reader's default page direction, which is
-	 *  stored with it.
+	 *  Its page service replaces the previous book's without reading a page. A comic without a
+	 *  stored direction gets the reader's default one.
 	 * 
 	 *  # Arguments
 	 * 
-	 *  * `file_path` - The unique file or directory path.
+	 *  * `path` - The file or directory path of the book.
 	 *  * `repo` - The managed book repository state.
 	 *  * `app` - The Tauri AppHandle.
 	 *  * `state` - The managed app state.
-	 *  * `provider` - The settings file the default page direction is read from.
+	 *  * `provider` - The settings file the history setting and default direction are read from.
 	 * 
 	 *  # Returns
 	 * 
-	 *  A `Result` containing the book with its reading state.
+	 *  The book's entries and its library record. When the book opens but cannot be recorded,
+	 *  `book` is `None` and `record_error` says why.
 	 * 
 	 *  # Errors
 	 * 
-	 *  Returns an `Err` if the container cannot be opened, `EmptyContainer` when it holds no
-	 *  readable pages, or an `Err` if recording or reading back the book fails. Failing to
-	 *  read the default direction or to store it is logged, not returned.
+	 *  Returns an `Err` if the container cannot be opened, or `EmptyContainer` when it holds no
+	 *  readable pages. A failure to record the book is returned in `record_error`, not as an
+	 *  `Err`.
 	 */
-	recordBookOpened: (filePath: string) => typedError<BookWithState_Serialize, CommandError_Serialize>(__TAURI_INVOKE("record_book_opened", { filePath })),
+	openBook: (path: string) => typedError<OpenedBook_Serialize, CommandError_Serialize>(__TAURI_INVOKE("open_book", { path })),
 	/**
 	 *  Deletes a book by its unique ID, along with its thumbnail file.
 	 * 
@@ -1272,18 +1252,6 @@ export type Direction =
 /**  Left-to-Right (e.g., western comics). */
 "ltr";
 
-/**  The result of getting entries in a container. */
-export type EntriesResult = {
-	/**  The entry names in the container. */
-	entries: string[],
-	/**  Whether the container is a directory. */
-	is_directory: boolean,
-	/**  Whether the container is an EPUB novel. */
-	is_novel: boolean,
-	/**  Whether `get_image_preview` can send a page more cheaply than `get_image`. */
-	has_previews: boolean,
-};
-
 /**  Settings for the file navigator. */
 export type FileNavigatorSettings = FileNavigatorSettings_Serialize | FileNavigatorSettings_Deserialize;
 
@@ -1514,6 +1482,41 @@ export type NovelSettings_Serialize = {
 	fontFamily: string,
 	/**  The size of the font used for rendering the text. Fractional sizes are allowed. */
 	fontSize: number,
+};
+
+/**  What `open_book` returns: the open book's pages and its library record. */
+export type OpenedBook = OpenedBook_Serialize | OpenedBook_Deserialize;
+
+/**  What `open_book` returns: the open book's pages and its library record. */
+export type OpenedBook_Deserialize = {
+	/**  The entry names in the book. */
+	entries: string[],
+	/**  Whether the book is a directory. */
+	is_directory: boolean,
+	/**  Whether the book is an EPUB novel. */
+	is_novel: boolean,
+	/**  Whether `get_image_preview` can send a page more cheaply than `get_image`. */
+	has_previews: boolean,
+	/**  The book's library record, or `None` when it could not be recorded. */
+	book?: BookWithState_Deserialize | null,
+	/**  Why the book could not be recorded, when it could not. */
+	record_error?: CommandError_Deserialize | null,
+};
+
+/**  What `open_book` returns: the open book's pages and its library record. */
+export type OpenedBook_Serialize = {
+	/**  The entry names in the book. */
+	entries: string[],
+	/**  Whether the book is a directory. */
+	is_directory: boolean,
+	/**  Whether the book is an EPUB novel. */
+	is_novel: boolean,
+	/**  Whether `get_image_preview` can send a page more cheaply than `get_image`. */
+	has_previews: boolean,
+	/**  The book's library record, or `None` when it could not be recorded. */
+	book: BookWithState_Serialize | null,
+	/**  Why the book could not be recorded, when it could not. */
+	record_error: CommandError_Serialize | null,
 };
 
 /**  Represents a book along with its reading state, specifically for books that have been opened. */

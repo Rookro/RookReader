@@ -188,7 +188,7 @@ The file list's **sort order** (Name↑/↓, Date↑/↓) is chosen in the File 
 - **Open the folder inside an archive automatically** — see *Folders inside archives*.
 - **Loupe**: toggle key, zoom level and radius — see *Magnifier (Loupe)*.
 - **Font family** and **Font size** (under *Novel*): the font used for EPUB novels.
-- **Reading history**: record the books you read and your position in them.
+- **Reading history**: record the books you read and your position in them. While it is off, the books you open are not added to the history.
 
 ### Rendering & Performance
 Pages may be PNG, JPEG, GIF, APNG, WebP or AVIF (still images; AVIF image sequences are not supported). They are always rendered at the size they are displayed at, which keeps screentones free of moiré. Animated pages (GIF, APNG, WebP) are the exception: they are never resized, so every frame plays. A page too large to resize in memory (such as 20000 × 20000 pixels) is also shown at its own size.
