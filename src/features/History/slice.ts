@@ -2,7 +2,7 @@ import { createSlice } from "@reduxjs/toolkit";
 import { api } from "../../bindings/api";
 import type { ReadBook } from "../../domain/entities";
 import { readingProgressChanged } from "../../store/actions";
-import { createCommandThunk, type ThunkRejectValue } from "../../types/CustomAsyncThunk";
+import { createCommandThunk } from "../../types/CustomAsyncThunk";
 
 /**
  * Fetches the list of recently read books from the database.
@@ -47,58 +47,39 @@ const historySlice = createSlice({
   initialState: {
     recentlyReadBooks: [] as ReadBook[],
     status: "idle" as "idle" | "loading" | "succeeded" | "failed",
-    error: null as ThunkRejectValue | null,
   },
-  reducers: {
-    /**
-     * Clears any error associated with the history state.
-     *
-     * @param state - The current Redux state slice.
-     */
-    clearHistoryError: (state) => {
-      state.error = null;
-    },
-  },
+  reducers: {},
   extraReducers: (builder) => {
     builder
       .addCase(fetchRecentlyReadBooks.pending, (state) => {
         state.status = "loading";
-        state.error = null;
       })
       .addCase(fetchRecentlyReadBooks.fulfilled, (state, action) => {
         state.status = "succeeded";
         state.recentlyReadBooks = action.payload;
-        state.error = null;
       })
-      .addCase(fetchRecentlyReadBooks.rejected, (state, action) => {
+      .addCase(fetchRecentlyReadBooks.rejected, (state) => {
         state.status = "failed";
         state.recentlyReadBooks = [];
-        state.error = action.payload ?? null;
       })
       .addCase(clearHistory.pending, (state) => {
         state.status = "loading";
-        state.error = null;
       })
       .addCase(clearHistory.fulfilled, (state) => {
         state.status = "succeeded";
-        state.error = null;
       })
-      .addCase(clearHistory.rejected, (state, action) => {
+      .addCase(clearHistory.rejected, (state) => {
         state.status = "failed";
-        state.error = action.payload ?? null;
       })
       .addCase(clearAllHistory.pending, (state) => {
         state.status = "loading";
-        state.error = null;
       })
       .addCase(clearAllHistory.fulfilled, (state) => {
         state.status = "succeeded";
         state.recentlyReadBooks = [];
-        state.error = null;
       })
-      .addCase(clearAllHistory.rejected, (state, action) => {
+      .addCase(clearAllHistory.rejected, (state) => {
         state.status = "failed";
-        state.error = action.payload ?? null;
       })
       .addCase(readingProgressChanged, (state, action) => {
         // Patch a book already in the list; one not listed yet is added by the
@@ -112,5 +93,4 @@ const historySlice = createSlice({
   },
 });
 
-export const { clearHistoryError } = historySlice.actions;
 export default historySlice.reducer;

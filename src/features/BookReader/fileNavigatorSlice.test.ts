@@ -10,7 +10,6 @@ import {
 import type { DirEntry } from "../../types/DirEntry";
 import { CommandError, ErrorCode } from "../../types/Error";
 import fileNavigatorReducer, {
-  clearExplorerError,
   goBackExplorerHistory,
   goForwardExplorerHistory,
   setExploreBasePath,
@@ -85,28 +84,9 @@ describe("FileNavigatorReducer", () => {
       state = fileNavigatorReducer(state, setIsDirEntriesLoading(true));
       expect(state.isLoading).toBe(true);
     });
-
-    // Verify that the explorer error state is cleared correctly
-    it("should handle clear errors", () => {
-      const initialState = { error: { code: ErrorCode.other } } as RootState["fileNavigator"];
-
-      const state = fileNavigatorReducer(initialState, clearExplorerError());
-      expect(state.error).toBeNull();
-    });
   });
 
   describe("Async Thunk Integration Tests", () => {
-    // Verify error handling for rejected actions with undefined payload
-    it("should handle rejected actions with undefined payload", () => {
-      const mockState = { error: null } as RootState["fileNavigator"];
-
-      const state = fileNavigatorReducer(
-        mockState,
-        updateExploreBasePath.rejected(new Error(), "requestId", { dirPath: "arg" }, undefined),
-      );
-      expect(state.error).toBeNull();
-    });
-
     describe("updateExploreBasePath staleness", () => {
       const explorerAt = (path: string, requestId: string) => {
         const state = structuredClone(fileNavigatorReducer(undefined, { type: "unknown" }));
@@ -125,7 +105,6 @@ describe("FileNavigatorReducer", () => {
           updateExploreBasePath.rejected(null, "r1", { dirPath: "/bad" }, { code: ErrorCode.io }),
         );
         expect(state.entries).toHaveLength(1);
-        expect(state.error).toBeNull();
         expect(state.isLoading).toBe(true);
       });
 
@@ -174,6 +153,24 @@ describe("FileNavigatorReducer", () => {
         expect(binaryCommands.getEntriesInDir).not.toHaveBeenCalled();
         expect(store.getState().fileNavigator.requestId).toBeNull();
       });
+
+      it("a superseded listing fails silently", async () => {
+        let failListing: (reason: unknown) => void = () => {};
+        vi.mocked(binaryCommands.getEntriesInDir)
+          .mockReturnValueOnce(
+            new Promise((_, reject) => {
+              failListing = reject;
+            }),
+          )
+          .mockResolvedValueOnce(new ArrayBuffer(0));
+        const first = store.dispatch(updateExploreBasePath({ dirPath: "/a" }));
+        await store.dispatch(updateExploreBasePath({ dirPath: "/b" }));
+
+        failListing(new CommandError(ErrorCode.io, "unreadable"));
+        expect((await first).payload).toMatchObject({ code: ErrorCode.io, superseded: true });
+
+        expect(store.getState().errorNotification.pending).toEqual([]);
+      });
     });
 
     describe("updateExploreBasePath thunk", () => {
@@ -214,8 +211,9 @@ describe("FileNavigatorReducer", () => {
       it("should handle error when directory path is empty", async () => {
         await store.dispatch(updateExploreBasePath({ dirPath: "" }));
 
-        const state = store.getState().fileNavigator;
-        expect(state.error?.code).toBe(ErrorCode.path);
+        expect(store.getState().errorNotification.pending).toEqual([
+          { context: "explorer", code: ErrorCode.path },
+        ]);
       });
 
       // Verify handling of CommandError during explorer update
@@ -225,9 +223,9 @@ describe("FileNavigatorReducer", () => {
 
         await store.dispatch(updateExploreBasePath({ dirPath: "/error/dir", forceUpdate: true }));
 
-        const state = store.getState().fileNavigator;
-        expect(state.error?.code).toBe(ErrorCode.other);
-        expect(state.error?.message).toContain("dir failed");
+        expect(store.getState().errorNotification.pending).toEqual([
+          { context: "explorer", code: ErrorCode.other },
+        ]);
       });
 
       // Verify handling of generic error during entry conversion
@@ -237,8 +235,9 @@ describe("FileNavigatorReducer", () => {
 
         await store.dispatch(updateExploreBasePath({ dirPath: "/error/dir", forceUpdate: true }));
 
-        const state = store.getState().fileNavigator;
-        expect(state.error?.message).toContain(testError);
+        expect(store.getState().errorNotification.pending).toEqual([
+          { context: "explorer", code: ErrorCode.other },
+        ]);
       });
     });
   });

@@ -36,6 +36,12 @@ describe("formatErrorMessage", () => {
     );
   });
 
+  it("heads a bookmark failure with the bookmark headline", () => {
+    expect(format("en-US", "bookmark", ErrorCode.database)).toBe(
+      "Bookmark operation failed. Saving data failed.",
+    );
+  });
+
   it("falls back to the code number for an internal failure", () => {
     expect(format("ja-JP", "bookshelf", ErrorCode.other)).toBe(
       "本棚の操作でエラーが発生しました。(エラーコード: 90001)",

@@ -121,7 +121,6 @@ describe("BookshelfToolbar", () => {
       selectedId: 1,
       books: [],
       status: "idle",
-      error: null,
     };
 
     renderWithProviders(navigationBar, { preloadedState });
@@ -137,7 +136,6 @@ describe("BookshelfToolbar", () => {
       selectedId: 1,
       books: [],
       status: "idle",
-      error: null,
     };
 
     renderWithProviders(navigationBar, { preloadedState });
@@ -164,7 +162,6 @@ describe("BookshelfToolbar", () => {
       selectedId: 1,
       books: [],
       status: "idle",
-      error: null,
     };
 
     const { store } = renderWithProviders(navigationBar, { preloadedState });
@@ -182,7 +179,6 @@ describe("BookshelfToolbar", () => {
       selectedId: 1,
       books: [],
       status: "idle",
-      error: null,
     };
 
     renderWithProviders(navigationBar, { preloadedState });
@@ -199,7 +195,6 @@ describe("BookshelfToolbar", () => {
       selectedId: 1,
       books: [],
       status: "idle",
-      error: null,
     };
 
     renderWithProviders(navigationBar, { preloadedState });

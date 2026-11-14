@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { api } from "../../../bindings/api";
 import type { Series } from "../../../domain/entities";
 import { renderWithProviders } from "../../../test/utils";
+import { ErrorCode } from "../../../types/Error";
 import { BookshelfActionsContext } from "./BookshelfActionsContext";
 import SeriesContextMenu, { type SeriesContextMenuProps } from "./SeriesContextMenu";
 
@@ -81,7 +82,7 @@ describe("SeriesContextMenu", () => {
     expect(screen.queryByText(/Ungroup Series/i)).not.toBeInTheDocument();
   });
 
-  it("should record a deleteSeries failure in the series slice", async () => {
+  it("should report a deleteSeries failure", async () => {
     vi.mocked(api.deleteSeries).mockRejectedValue(new Error("Delete failed"));
 
     const { store } = renderSeriesContextMenu();
@@ -93,7 +94,9 @@ describe("SeriesContextMenu", () => {
     await waitFor(() =>
       expect(error).toHaveBeenCalledWith(expect.stringContaining("Failed to remove series")),
     );
-    expect(store.getState().series.error).not.toBeNull();
+    expect(store.getState().errorNotification.pending).toEqual([
+      { context: "series", code: ErrorCode.other },
+    ]);
   });
 
   it("should prevent default and stop propagation on context menu event", async () => {

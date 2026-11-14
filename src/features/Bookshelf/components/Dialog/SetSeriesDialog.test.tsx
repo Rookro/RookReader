@@ -6,6 +6,7 @@ import { api } from "../../../../bindings/api";
 import type { Series } from "../../../../domain/entities";
 import { createMockBookWithState, createMockSeries } from "../../../../test/factories";
 import { renderWithProviders } from "../../../../test/utils";
+import { ErrorCode } from "../../../../types/Error";
 import SetSeriesDialog, { type SetSeriesDialogProps } from "./SetSeriesDialog";
 
 describe("SetSeriesDialog", () => {
@@ -160,7 +161,7 @@ describe("SetSeriesDialog", () => {
     });
   });
 
-  it("records a save failure in the series slice and keeps the dialog open", async () => {
+  it("reports a save failure and keeps the dialog open", async () => {
     vi.mocked(api.setSeriesForBook).mockRejectedValue(new Error("Update failed"));
     const onClose = vi.fn();
 
@@ -169,9 +170,12 @@ describe("SetSeriesDialog", () => {
     await user.click(screen.getByText("Series A"));
     await user.click(screen.getByRole("button", { name: /ok/i }));
 
-    // The slice error is what GlobalErrorListener turns into the notification;
-    // the dialog stays open for retry.
-    await waitFor(() => expect(store.getState().series.error).not.toBeNull());
+    // The queued error becomes the notification; the dialog stays open for retry.
+    await waitFor(() =>
+      expect(store.getState().errorNotification.pending).toEqual([
+        { context: "series", code: ErrorCode.other },
+      ]),
+    );
     expect(onClose).not.toHaveBeenCalled();
   });
 

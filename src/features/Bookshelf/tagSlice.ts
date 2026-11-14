@@ -1,8 +1,7 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import { api } from "../../bindings/api";
 import type { Tag } from "../../domain/entities";
-import { recordThunkError } from "../../store/thunkErrorHandler";
-import { createCommandThunk, type ThunkRejectValue } from "../../types/CustomAsyncThunk";
+import { createCommandThunk } from "../../types/CustomAsyncThunk";
 
 /**
  * Creates a new tag and adds it to the database.
@@ -64,7 +63,6 @@ const tagSlice = createSlice({
     tags: [] as Tag[],
     selectedId: null as number | null,
     status: "idle" as "idle" | "loading" | "succeeded" | "failed",
-    error: null as ThunkRejectValue | null,
   },
   reducers: {
     /**
@@ -76,61 +74,42 @@ const tagSlice = createSlice({
     setSelectedTag(state, action: PayloadAction<number | null>) {
       state.selectedId = action.payload;
     },
-    /**
-     * Clears any error associated with the tag state.
-     *
-     * @param state - The current Redux state slice.
-     */
-    clearTagError: (state) => {
-      state.error = null;
-    },
   },
   extraReducers: (builder) => {
     builder
       .addCase(addTag.pending, (state) => {
         state.status = "loading";
-        state.error = null;
       })
       .addCase(addTag.fulfilled, (state) => {
         state.status = "succeeded";
-        state.error = null;
       })
-      .addCase(addTag.rejected, (state, action) => {
+      .addCase(addTag.rejected, (state) => {
         state.status = "failed";
-        state.error = action.payload ?? null;
       })
       .addCase(fetchTags.pending, (state) => {
         state.status = "loading";
-        state.error = null;
       })
       .addCase(fetchTags.fulfilled, (state, action) => {
         state.status = "succeeded";
         state.tags = action.payload;
-        state.error = null;
       })
-      .addCase(fetchTags.rejected, (state, action) => {
+      .addCase(fetchTags.rejected, (state) => {
         state.status = "failed";
         state.tags = [];
-        state.error = action.payload ?? null;
       })
       .addCase(removeTag.pending, (state) => {
         state.status = "loading";
-        state.error = null;
       })
       .addCase(removeTag.fulfilled, (state, action) => {
         if (state.selectedId === action.payload) {
           state.selectedId = null;
         }
       })
-      .addCase(removeTag.rejected, (state, action) => {
+      .addCase(removeTag.rejected, (state) => {
         state.status = "failed";
-        state.error = action.payload ?? null;
-      })
-      // Only the error: a mutation must not flip `status` to "loading", which would
-      // blank the grid behind the open dialog.
-      .addCase(updateBooksTags.rejected, recordThunkError);
+      });
   },
 });
 
-export const { setSelectedTag, clearTagError } = tagSlice.actions;
+export const { setSelectedTag } = tagSlice.actions;
 export default tagSlice.reducer;

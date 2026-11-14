@@ -2,7 +2,7 @@ import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import { error } from "@tauri-apps/plugin-log";
 import { getEntriesInDir as getEntriesInDirFromBackend } from "../../bindings/binaryCommands";
 import { handleThunkError } from "../../store/thunkErrorHandler";
-import { createAppAsyncThunk, type ThunkRejectValue } from "../../types/CustomAsyncThunk";
+import { createAppAsyncThunk } from "../../types/CustomAsyncThunk";
 import type { DirEntry } from "../../types/DirEntry";
 import { ErrorCode } from "../../types/Error";
 import { convertEntriesInDir } from "../../utils/DirEntryUtils";
@@ -19,12 +19,20 @@ import { goBackHistory, goForwardHistory, pushHistory } from "./utils/navigation
  */
 export const updateExploreBasePath = createAppAsyncThunk(
   "fileNavigator/updateExploreBasePath",
-  async (args: { dirPath: string; forceUpdate?: boolean }, { dispatch, rejectWithValue }) => {
+  async (
+    args: { dirPath: string; forceUpdate?: boolean },
+    { dispatch, getState, rejectWithValue, requestId },
+  ) => {
     const { dirPath } = args;
+    const isSuperseded = () => getState().fileNavigator.requestId !== requestId;
     if (!dirPath || dirPath.length === 0) {
       const errorMessage = "Failed to updateExploreBasePath. Error: Directory path is empty.";
       error(errorMessage);
-      return rejectWithValue({ code: ErrorCode.path, message: errorMessage });
+      return rejectWithValue({
+        code: ErrorCode.path,
+        message: errorMessage,
+        ...(isSuperseded() && { superseded: true as const }),
+      });
     }
 
     dispatch(setIsDirEntriesLoading(true));
@@ -34,7 +42,12 @@ export const updateExploreBasePath = createAppAsyncThunk(
       const entries = convertEntriesInDir(buffer);
       return { path: dirPath, entries: entries };
     } catch (e) {
-      return handleThunkError(e, `Failed to getEntriesInDir(${dirPath}).`, rejectWithValue);
+      return handleThunkError(
+        e,
+        `Failed to getEntriesInDir(${dirPath}).`,
+        rejectWithValue,
+        isSuperseded(),
+      );
     }
   },
   {
@@ -56,7 +69,6 @@ const initialState = {
   entries: [] as DirEntry[],
   searchText: "",
   isLoading: false,
-  error: null as ThunkRejectValue | null,
   /** The latest listing request; only its answer may change the explorer. */
   requestId: null as string | null,
   /** The folder that request lists, until it settles. */
@@ -117,21 +129,12 @@ export const fileNavigatorSlice = createSlice({
     setIsDirEntriesLoading: (state, action: PayloadAction<boolean>) => {
       state.isLoading = action.payload;
     },
-    /**
-     * Clears any error associated with the file explorer state.
-     *
-     * @param state - The current Redux state slice.
-     */
-    clearExplorerError: (state) => {
-      state.error = null;
-    },
   },
   extraReducers: (builder) => {
     builder
       .addCase(updateExploreBasePath.pending, (state, action) => {
         state.requestId = action.meta.requestId;
         state.pendingPath = action.meta.arg.dirPath;
-        state.error = null;
       })
       .addCase(updateExploreBasePath.fulfilled, (state, action) => {
         // A listing superseded by a newer request, possibly of the same folder.
@@ -145,7 +148,6 @@ export const fileNavigatorSlice = createSlice({
           state.entries = action.payload.entries;
         }
         state.isLoading = false;
-        state.error = null;
       })
       .addCase(updateExploreBasePath.rejected, (state, action) => {
         if (action.meta.requestId !== state.requestId) {
@@ -154,7 +156,6 @@ export const fileNavigatorSlice = createSlice({
         state.pendingPath = null;
         state.entries = [];
         state.isLoading = false;
-        state.error = action.payload ?? null;
       });
   },
 });
@@ -165,6 +166,5 @@ export const {
   goBackExplorerHistory,
   goForwardExplorerHistory,
   setIsDirEntriesLoading,
-  clearExplorerError,
 } = fileNavigatorSlice.actions;
 export default fileNavigatorSlice.reducer;

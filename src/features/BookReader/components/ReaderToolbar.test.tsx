@@ -9,7 +9,6 @@ import {
   mockSettingsCommands,
   renderWithProviders,
 } from "../../../test/utils";
-import { ErrorCode } from "../../../types/Error";
 import * as SettingsReducer from "../../Settings/slice";
 import ReaderToolbar from "./ReaderToolbar";
 
@@ -251,7 +250,7 @@ describe("ReaderToolbar", () => {
       preloadedState.reader.isNovel = options?.isNovel ?? false;
       preloadedState.reader.entries = options?.entries ?? ["p1", "p2", "p3", "p4"];
       // The open book's (empty) list, as useBookmarkSync leaves it once loaded.
-      preloadedState.bookmark = { bookId: 42, bookmarks: [], status: "succeeded", error: null };
+      preloadedState.bookmark = { bookId: 42, bookmarks: [], status: "succeeded" };
       return preloadedState;
     };
 
@@ -268,7 +267,6 @@ describe("ReaderToolbar", () => {
         bookId: 7,
         bookmarks: [createMockBookmark({ id: 1, book_id: 7, page_index: 3 })],
         status: "succeeded",
-        error: null,
       };
 
       renderWithProviders(<ReaderToolbar />, { preloadedState });
@@ -284,7 +282,6 @@ describe("ReaderToolbar", () => {
         bookId: 42,
         bookmarks: [],
         status: "failed",
-        error: { code: ErrorCode.other },
       };
 
       renderWithProviders(<ReaderToolbar />, { preloadedState });
@@ -294,7 +291,7 @@ describe("ReaderToolbar", () => {
 
     it("is disabled while the open book's bookmarks are loading", () => {
       const preloadedState = stateWithOpenBook();
-      preloadedState.bookmark = { bookId: 42, bookmarks: [], status: "loading", error: null };
+      preloadedState.bookmark = { bookId: 42, bookmarks: [], status: "loading" };
 
       renderWithProviders(<ReaderToolbar />, { preloadedState });
 

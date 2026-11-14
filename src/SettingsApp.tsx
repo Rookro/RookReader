@@ -1,6 +1,6 @@
 import { Box, CssBaseline, ThemeProvider } from "@mui/material";
+import ErrorNotifier from "./components/ui/ErrorNotifier";
 import NotificationProvider from "./components/ui/Notification/NotificationContext";
-import SettingsErrorListener from "./features/Settings/components/SettingsErrorListener";
 import SettingsView from "./features/Settings/components/SettingsView";
 import { useSettingsChange } from "./features/Settings/hooks/useSettingsChange";
 import { useAppTheme } from "./hooks/useAppTheme";
@@ -15,7 +15,7 @@ export default function SettingsApp() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <NotificationProvider>
-        <SettingsErrorListener />
+        <ErrorNotifier />
         <Box
           sx={{
             width: "100vw",

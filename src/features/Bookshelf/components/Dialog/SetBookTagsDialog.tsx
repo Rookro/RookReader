@@ -67,7 +67,7 @@ export default function SetBookTagsDialog({
     const result = await dispatch(
       updateBooksTags(changes.map(({ bookId, ids }) => ({ bookId, tagIds: ids }))),
     );
-    // On failure the slice error is shown by GlobalErrorListener and the backend's
+    // On failure ErrorNotifier shows the error and the backend's
     // `books-changed` refetch reflects any partial success; stay open for retry.
     if (updateBooksTags.fulfilled.match(result)) {
       onClose();

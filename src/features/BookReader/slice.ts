@@ -3,9 +3,10 @@ import { dirname } from "@tauri-apps/api/path";
 import { debug, error, info } from "@tauri-apps/plugin-log";
 import { api } from "../../bindings/api";
 import type { BookWithState } from "../../domain/entities";
+import { errorReported } from "../../store/errorNotificationSlice";
 import { handleThunkError } from "../../store/thunkErrorHandler";
 import type { Direction } from "../../types/AppSettings";
-import { createAppAsyncThunk, type ThunkRejectValue } from "../../types/CustomAsyncThunk";
+import { createAppAsyncThunk } from "../../types/CustomAsyncThunk";
 import { CommandError, createCommandError, ErrorCode } from "../../types/Error";
 import { updateExploreBasePath } from "./fileNavigatorSlice";
 import type { OpenOrigin } from "./types/OpenOrigin";
@@ -20,10 +21,19 @@ import { goBackHistory, goForwardHistory, pushHistory } from "./utils/navigation
 export const openContainerFile = createAppAsyncThunk(
   "reader/openContainerFile",
   async (path: string, { dispatch, rejectWithValue, getState }) => {
+    // The reducers ignore an answer for a book that is no longer the current one.
+    const isSuperseded = () => {
+      const { history, historyIndex } = getState().reader;
+      return history[historyIndex] !== path;
+    };
     if (!path || path.length === 0) {
       const errorMessage = "Failed to openContainerFile. Error: Container path is empty.";
       error(errorMessage);
-      return rejectWithValue({ code: ErrorCode.path, message: errorMessage });
+      return rejectWithValue({
+        code: ErrorCode.path,
+        message: errorMessage,
+        ...(isSuperseded() && { superseded: true as const }),
+      });
     }
     info(`Open container file: ${path}`);
     try {
@@ -44,11 +54,12 @@ export const openContainerFile = createAppAsyncThunk(
       // The book is open either way. Failing to remember it in the library is worth telling
       // the user about, but it is not "the book could not be opened", so it is reported apart.
       const book = opened.book;
-      let bookRecordError: { code: ErrorCode; message?: string } | null = null;
       if (opened.record_error) {
         const recordError = createCommandError(opened.record_error);
         error(`Failed to record the opened book(${path}). Error: ${recordError.message}`);
-        bookRecordError = { code: recordError.code, message: recordError.message };
+        if (!isSuperseded()) {
+          dispatch(errorReported({ context: "record-book", code: recordError.code }));
+        }
       }
 
       // The backend gives a comic opened for the first time the default direction.
@@ -75,7 +86,6 @@ export const openContainerFile = createAppAsyncThunk(
         hasPreviews: opened.has_previews,
         book: book,
         readingDirection,
-        bookRecordError,
       };
     } catch (e) {
       // A container with no readable pages is not a book, but the path itself is real.
@@ -87,15 +97,16 @@ export const openContainerFile = createAppAsyncThunk(
       //
       // Guarded like the fulfilled/rejected reducers: a slow failure must not drag the
       // navigator away from a book the user opened in the meantime.
-      const { history, historyIndex } = getState().reader;
-      if (
-        history[historyIndex] === path &&
-        e instanceof CommandError &&
-        e.code === ErrorCode.emptyContainer
-      ) {
+      const superseded = isSuperseded();
+      if (!superseded && e instanceof CommandError && e.code === ErrorCode.emptyContainer) {
         dispatch(updateExploreBasePath({ dirPath: path }));
       }
-      return handleThunkError(e, `Failed to openContainerFile(${path}).`, rejectWithValue);
+      return handleThunkError(
+        e,
+        `Failed to openContainerFile(${path}).`,
+        rejectWithValue,
+        superseded,
+      );
     }
   },
 );
@@ -187,12 +198,6 @@ const initialState = {
    */
   novelDirection: null as Direction | null,
   isLoading: false,
-  error: null as ThunkRejectValue | null,
-  /**
-   * Why remembering the opened book in the library failed, if it did. Kept apart
-   * from `error`: the book itself is on screen, only its history entry is missing.
-   */
-  bookRecordError: null as { code: ErrorCode; message?: string } | null,
   /** Where the current book was opened from (used to resolve the adjacent book). */
   origin: null as OpenOrigin | null,
   /** Where each book in `history` was opened from, index-aligned with it. */
@@ -347,22 +352,6 @@ export const readerSlice = createSlice({
     setNovelDirection: (state, action: PayloadAction<Direction>) => {
       state.novelDirection = action.payload;
     },
-    /**
-     * Clears any error associated with the container file state.
-     *
-     * @param state - The current Redux state slice.
-     */
-    clearContainerFileError: (state) => {
-      state.error = null;
-    },
-    /**
-     * Clears the error left by a failed attempt to record the opened book.
-     *
-     * @param state - The current Redux state slice.
-     */
-    clearBookRecordError: (state) => {
-      state.bookRecordError = null;
-    },
   },
   extraReducers: (builder) => {
     builder
@@ -371,8 +360,6 @@ export const readerSlice = createSlice({
         // go to; keeping the previous one would hand them to it.
         resetBookView(state);
         state.isLoading = true;
-        state.error = null;
-        state.bookRecordError = null;
       })
       .addCase(openContainerFile.fulfilled, (state, action) => {
         // Ignore stale responses: the user may have opened another book before this
@@ -412,8 +399,6 @@ export const readerSlice = createSlice({
         state.isSpreadShifted = action.payload.book?.is_spread_shifted ?? false;
         state.readingDirection = action.payload.readingDirection;
         state.pendingInitialPosition = null;
-        state.error = null;
-        state.bookRecordError = action.payload.bookRecordError;
         if (action.payload.isNovel !== undefined) {
           state.isNovel = action.payload.isNovel;
         }
@@ -432,7 +417,6 @@ export const readerSlice = createSlice({
         state.pendingInitialPosition = null;
         state.isDirectory = false;
         state.isNovel = false;
-        state.error = action.payload ?? null;
       });
   },
 });
@@ -448,8 +432,6 @@ export const {
   setEntries,
   setNovelLocation,
   setNovelDirection,
-  clearContainerFileError,
-  clearBookRecordError,
 } = readerSlice.actions;
 export default readerSlice.reducer;
 

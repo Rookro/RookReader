@@ -2,8 +2,7 @@ import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import { api } from "../../bindings/api";
 import type { BookWithState, Collection } from "../../domain/entities";
 import { readingProgressChanged } from "../../store/actions";
-import { recordThunkError } from "../../store/thunkErrorHandler";
-import { createCommandThunk, type ThunkRejectValue } from "../../types/CustomAsyncThunk";
+import { createCommandThunk } from "../../types/CustomAsyncThunk";
 
 /**
  * Creates a new collection and adds it to the database.
@@ -46,6 +45,10 @@ export const fetchBooksInSelectedCollection = createCommandThunk(
     return await api.getBooksByCollection(collectionId);
   },
   (collectionId) => `Failed to fetch books in the collection of collectionId: ${collectionId}.`,
+  (collectionId, { getState, requestId }) => {
+    const { booksRequestId, selectedId } = getState().collection;
+    return booksRequestId !== requestId || selectedId !== collectionId;
+  },
 );
 
 /**
@@ -141,7 +144,6 @@ const collectionSlice = createSlice({
     /** Whether the collection on screen is being refetched in place. */
     isRefreshing: false,
     status: "idle" as "idle" | "loading" | "succeeded" | "failed",
-    error: null as ThunkRejectValue | null,
   },
   reducers: {
     /**
@@ -173,31 +175,15 @@ const collectionSlice = createSlice({
     setSelectedCollection(state, action: PayloadAction<number | null>) {
       state.selectedId = action.payload;
     },
-    /**
-     * Clears any error associated with the collection state.
-     *
-     * @param state - The current Redux state slice.
-     */
-    clearCollectionError: (state) => {
-      state.error = null;
-    },
   },
   extraReducers: (builder) => {
     builder
-      // Mutations record only their error: `status` describes the books on screen, and
-      // flipping it to "loading" would blank the grid and lose its scroll position.
-      .addCase(addCollection.rejected, recordThunkError)
-      .addCase(deleteBookFromCollection.rejected, recordThunkError)
-      .addCase(addBookToBookshelf.rejected, recordThunkError)
-      .addCase(removeCollection.rejected, recordThunkError)
-      .addCase(setCollectionsForBooks.rejected, recordThunkError)
-      // The collection list is not the grid's books either.
+      // The collection list is not the grid's books, so `status` is left alone.
       .addCase(fetchCollections.fulfilled, (state, action) => {
         state.collections = action.payload;
       })
-      .addCase(fetchCollections.rejected, (state, action) => {
+      .addCase(fetchCollections.rejected, (state) => {
         state.collections = [];
-        state.error = action.payload ?? null;
       })
       .addCase(fetchBooksInSelectedCollection.pending, (state, action) => {
         state.booksRequestId = action.meta.requestId;
@@ -207,7 +193,6 @@ const collectionSlice = createSlice({
         } else {
           state.isRefreshing = true;
         }
-        state.error = null;
       })
       .addCase(fetchBooksInSelectedCollection.fulfilled, (state, action) => {
         // Ignore a response superseded by a newer request, or for a collection the user left.
@@ -221,7 +206,6 @@ const collectionSlice = createSlice({
         state.isRefreshing = false;
         state.books = action.payload;
         state.booksCollection = { id: action.meta.arg };
-        state.error = null;
       })
       .addCase(fetchBooksInSelectedCollection.rejected, (state, action) => {
         if (
@@ -234,7 +218,6 @@ const collectionSlice = createSlice({
         state.isRefreshing = false;
         state.books = [];
         state.booksCollection = null;
-        state.error = action.payload ?? null;
       })
       .addCase(readingProgressChanged, (state, action) => {
         // Patch the book if it is in this collection; a page turn never adds one to it.
@@ -247,6 +230,5 @@ const collectionSlice = createSlice({
   },
 });
 
-export const { collectionAdded, setSearchText, setSelectedCollection, clearCollectionError } =
-  collectionSlice.actions;
+export const { collectionAdded, setSearchText, setSelectedCollection } = collectionSlice.actions;
 export default collectionSlice.reducer;

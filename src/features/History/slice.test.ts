@@ -3,14 +3,8 @@ import { api } from "../../bindings/api";
 import { readingProgressChanged } from "../../store/actions";
 import { createMockReadBook } from "../../test/factories";
 import { type AppStore, createTestStore } from "../../test/utils";
-import type { ThunkRejectValue } from "../../types/CustomAsyncThunk";
 import { ErrorCode } from "../../types/Error";
-import historyReducer, {
-  clearAllHistory,
-  clearHistory,
-  clearHistoryError,
-  fetchRecentlyReadBooks,
-} from "./slice";
+import historyReducer, { clearAllHistory, clearHistory, fetchRecentlyReadBooks } from "./slice";
 
 describe("HistoryReducer", () => {
   let store: AppStore;
@@ -18,7 +12,6 @@ describe("HistoryReducer", () => {
   const initialState = {
     recentlyReadBooks: [],
     status: "idle" as const,
-    error: null as ThunkRejectValue | null,
   };
 
   beforeEach(() => {
@@ -29,14 +22,6 @@ describe("HistoryReducer", () => {
   // Verify that initial state is returned correctly
   it("should return the initial state", () => {
     expect(historyReducer(undefined, { type: "unknown" })).toEqual(initialState);
-  });
-
-  // Verify that history related error state is cleared correctly
-  it("should handle clearHistoryError", () => {
-    const stateWithError = structuredClone(initialState);
-    stateWithError.error = { code: ErrorCode.other, message: "test error" };
-    const nextState = historyReducer(stateWithError, clearHistoryError());
-    expect(nextState.error).toBeNull();
   });
 
   // Verify that readingProgressChanged patches the matching book in place.
@@ -151,7 +136,6 @@ describe("HistoryReducer", () => {
         const action = { type: fetchRecentlyReadBooks.rejected.type, payload: undefined };
         const nextState = historyReducer(initialState, action);
         expect(nextState.status).toBe("failed");
-        expect(nextState.error).toBeNull();
       });
 
       // Verify handling of CommandError when fetching recently read books
@@ -164,8 +148,9 @@ describe("HistoryReducer", () => {
 
         const state = store.getState().history;
         expect(state.status).toBe("failed");
-        expect(state.error?.code).toBe(ErrorCode.io);
-        expect(state.error?.message).toContain("io error");
+        expect(store.getState().errorNotification.pending).toEqual([
+          { context: "history", code: ErrorCode.io },
+        ]);
       });
 
       // Verify handling of CommandError when clearing history
@@ -178,8 +163,9 @@ describe("HistoryReducer", () => {
 
         const state = store.getState().history;
         expect(state.status).toBe("failed");
-        expect(state.error?.code).toBe(ErrorCode.io);
-        expect(state.error?.message).toContain("io error");
+        expect(store.getState().errorNotification.pending).toEqual([
+          { context: "history", code: ErrorCode.io },
+        ]);
       });
 
       // Verify handling of CommandError when clearing all history
@@ -192,12 +178,13 @@ describe("HistoryReducer", () => {
 
         const state = store.getState().history;
         expect(state.status).toBe("failed");
-        expect(state.error?.code).toBe(ErrorCode.io);
-        expect(state.error?.message).toContain("io error");
+        expect(store.getState().errorNotification.pending).toEqual([
+          { context: "history", code: ErrorCode.io },
+        ]);
       });
 
-      // Verify that failed status and error message are set on fetch error
-      it("fetchRecentlyReadBooks should set failed status and error message on error", async () => {
+      // Verify that a fetch error sets failed status and queues the failure
+      it("fetchRecentlyReadBooks should set failed status and report the failure", async () => {
         const testError = "fetch failed";
         vi.mocked(api.getRecentlyReadBooks).mockRejectedValue(testError);
 
@@ -205,11 +192,13 @@ describe("HistoryReducer", () => {
 
         const state = store.getState().history;
         expect(state.status).toBe("failed");
-        expect(state.error?.message).toContain(testError);
+        expect(store.getState().errorNotification.pending).toEqual([
+          { context: "history", code: ErrorCode.other },
+        ]);
       });
 
-      // Verify that failed status and error message are set on clear error
-      it("clearHistory should set failed status and error message on error", async () => {
+      // Verify that a clear error sets failed status and queues the failure
+      it("clearHistory should set failed status and report the failure", async () => {
         const testError = "clear failed";
         vi.mocked(api.clearReadingHistory).mockRejectedValue(testError);
 
@@ -217,11 +206,13 @@ describe("HistoryReducer", () => {
 
         const state = store.getState().history;
         expect(state.status).toBe("failed");
-        expect(state.error?.message).toContain(testError);
+        expect(store.getState().errorNotification.pending).toEqual([
+          { context: "history", code: ErrorCode.other },
+        ]);
       });
 
-      // Verify that failed status and error message are set on clear all error
-      it("clearAllHistory should set failed status and error message on error", async () => {
+      // Verify that a clear-all error sets failed status and queues the failure
+      it("clearAllHistory should set failed status and report the failure", async () => {
         const testError = "clear all failed";
         vi.mocked(api.clearAllReadingHistory).mockRejectedValue(testError);
 
@@ -229,7 +220,9 @@ describe("HistoryReducer", () => {
 
         const state = store.getState().history;
         expect(state.status).toBe("failed");
-        expect(state.error?.message).toContain(testError);
+        expect(store.getState().errorNotification.pending).toEqual([
+          { context: "history", code: ErrorCode.other },
+        ]);
       });
     });
   });

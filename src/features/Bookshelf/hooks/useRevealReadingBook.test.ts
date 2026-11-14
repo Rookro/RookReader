@@ -120,7 +120,6 @@ describe("useRevealReadingBook", () => {
             hasPreviews: false,
             book: volume2,
             readingDirection: "rtl",
-            bookRecordError: null,
           },
           "r",
           "/s/v2.zip",

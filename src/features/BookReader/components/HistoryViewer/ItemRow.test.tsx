@@ -27,7 +27,6 @@ describe("HistoryViewer/ItemRow", () => {
     ...preloadedState.history,
     recentlyReadBooks: [mockBook, mockDir],
     status: "idle",
-    error: null,
   };
 
   beforeEach(() => {
