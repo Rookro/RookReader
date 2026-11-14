@@ -2,7 +2,7 @@ import { error } from "@tauri-apps/plugin-log";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createMockReadBook } from "../../../../test/factories";
+import { createMockBookWithState } from "../../../../test/factories";
 import { mockScrollToRow } from "../../../../test/mocks/components";
 import { createBasePreloadedState, renderWithProviders } from "../../../../test/utils";
 import { useHistoryIndex } from "../../hooks/useHistoryIndex";
@@ -53,8 +53,8 @@ describe("HistoryViewer", () => {
   it("should render list items when history entries are present", () => {
     const preloadedState = createBasePreloadedState();
     preloadedState.history.recentlyReadBooks = [
-      createMockReadBook({ id: 1, file_path: "/path/1", display_name: "Book 1" }),
-      createMockReadBook({ id: 2, file_path: "/path/2", display_name: "Book 2" }),
+      createMockBookWithState({ id: 1, file_path: "/path/1", display_name: "Book 1" }),
+      createMockBookWithState({ id: 2, file_path: "/path/2", display_name: "Book 2" }),
     ];
 
     renderWithProviders(<HistoryViewer />, { preloadedState });
@@ -65,7 +65,7 @@ describe("HistoryViewer", () => {
   it("should dispatch openBook when an item is clicked", async () => {
     const preloadedState = createBasePreloadedState();
     preloadedState.history.recentlyReadBooks = [
-      createMockReadBook({ id: 1, file_path: "/path/1", display_name: "Book 1" }),
+      createMockBookWithState({ id: 1, file_path: "/path/1", display_name: "Book 1" }),
     ];
 
     renderWithProviders(<HistoryViewer />, { preloadedState });
@@ -82,8 +82,8 @@ describe("HistoryViewer", () => {
   it("should filter results based on search input", async () => {
     const preloadedState = createBasePreloadedState();
     preloadedState.history.recentlyReadBooks = [
-      createMockReadBook({ id: 1, file_path: "/path/1", display_name: "Apple" }),
-      createMockReadBook({ id: 2, file_path: "/path/2", display_name: "Banana" }),
+      createMockBookWithState({ id: 1, file_path: "/path/1", display_name: "Apple" }),
+      createMockBookWithState({ id: 2, file_path: "/path/2", display_name: "Banana" }),
     ];
 
     renderWithProviders(<HistoryViewer />, { preloadedState });
@@ -98,7 +98,7 @@ describe("HistoryViewer", () => {
   it("should show 'no search results' when search does not match any entry", async () => {
     const preloadedState = createBasePreloadedState();
     preloadedState.history.recentlyReadBooks = [
-      createMockReadBook({ id: 1, file_path: "/path/1", display_name: "Apple" }),
+      createMockBookWithState({ id: 1, file_path: "/path/1", display_name: "Apple" }),
     ];
 
     renderWithProviders(<HistoryViewer />, { preloadedState });
@@ -114,8 +114,8 @@ describe("HistoryViewer", () => {
 
     const preloadedState = createBasePreloadedState();
     preloadedState.history.recentlyReadBooks = [
-      createMockReadBook({ file_path: "/path/1", display_name: "B1" }),
-      createMockReadBook({ file_path: "/path/2", display_name: "B2" }),
+      createMockBookWithState({ file_path: "/path/1", display_name: "B1" }),
+      createMockBookWithState({ file_path: "/path/2", display_name: "B2" }),
     ];
     preloadedState.reader.history = ["/path/2"];
     preloadedState.reader.historyIndex = 0;
@@ -135,7 +135,7 @@ describe("HistoryViewer", () => {
     vi.mocked(useHistoryIndex).mockReturnValue(0);
 
     const preloadedState = createBasePreloadedState();
-    preloadedState.history.recentlyReadBooks = [createMockReadBook({ file_path: "/path/2" })];
+    preloadedState.history.recentlyReadBooks = [createMockBookWithState({ file_path: "/path/2" })];
     preloadedState.reader.history = ["/path/2"];
     preloadedState.reader.historyIndex = 0;
 

@@ -6,7 +6,7 @@ use crate::{
     commands::events::{emit_to, SettingsChanged},
     error::Result,
     settings::{AppSettings, CurrentSettings, SettingsFileProvider, SettingsPatch, SettingsUnread},
-    state::app_state::AppState,
+    state::container_state::ContainerState,
 };
 
 /// Returns the settings the app is running with.
@@ -31,11 +31,12 @@ pub async fn get_settings(settings: tauri::State<'_, CurrentSettings>) -> Result
 /// Applies a partial settings change and returns the full merged settings.
 ///
 /// The `patch` carries only the changed leaves of a single category. The backend
-/// deep-merges it into the current settings (or, if start-up could not read the settings
-/// file, into the file read again), validates the merged whole, persists it,
-/// applies the reader/rendering values to the live container runtime, returns the
-/// full merged settings to the caller, and broadcasts a `settings-changed` event to
-/// every window **except the caller** so other windows re-hydrate.
+/// deep-merges it into the current settings (or, while the session still runs on the
+/// fallback because start-up could not read the settings file, into the file read again),
+/// validates the merged whole, persists it, applies the reader/rendering values to the
+/// live container runtime, returns the full merged settings to the caller, and broadcasts
+/// a `settings-changed` event to every window **except the caller** so other windows
+/// re-hydrate.
 ///
 /// The caller is excluded from the emit because it already adopts the change from this
 /// command's return value (the `updateSettings` thunk replaces its slice with it); it
@@ -67,7 +68,7 @@ pub async fn set_settings<R: tauri::Runtime>(
     app: AppHandle<R>,
     webview: WebviewWindow<R>,
     patch: SettingsPatch,
-    state: tauri::State<'_, RwLock<AppState>>,
+    state: tauri::State<'_, RwLock<ContainerState>>,
     settings: tauri::State<'_, CurrentSettings>,
     unread: tauri::State<'_, SettingsUnread>,
     provider: tauri::State<'_, SettingsFileProvider>,
@@ -92,12 +93,12 @@ pub async fn set_settings<R: tauri::Runtime>(
 /// cleared once the merged settings are saved and adopted.
 ///
 /// The settings write lock is held to the end, so two changes cannot be saved A, B and
-/// then applied or announced B, A. Lock order is settings -> app state.
+/// then applied or announced B, A. Lock order is settings -> container state.
 async fn change_settings(
     current: &CurrentSettings,
     unread: &SettingsUnread,
     provider: &SettingsFileProvider,
-    state: &RwLock<AppState>,
+    state: &RwLock<ContainerState>,
     patch: SettingsPatch,
     announce: impl FnOnce(&AppSettings),
 ) -> Result<AppSettings> {
@@ -117,7 +118,7 @@ async fn change_settings(
     }
     *current = merged.clone();
     unread.clear();
-    state.write().await.container_state.apply_settings(&merged);
+    state.write().await.apply_settings(&merged);
     announce(&merged);
     Ok(merged)
 }
@@ -153,11 +154,17 @@ mod tests {
     use crate::settings::SettingsStoreProvider;
 
     /// A settings file in `dir`, the default settings as the current ones, and an empty state.
-    fn fixture(dir: &std::path::Path) -> (SettingsFileProvider, CurrentSettings, RwLock<AppState>) {
+    fn fixture(
+        dir: &std::path::Path,
+    ) -> (
+        SettingsFileProvider,
+        CurrentSettings,
+        RwLock<ContainerState>,
+    ) {
         (
             SettingsFileProvider::at_path(dir.join("settings.json")),
             RwLock::new(AppSettings::default()),
-            RwLock::new(AppState::default()),
+            RwLock::new(ContainerState::default()),
         )
     }
 
@@ -287,7 +294,7 @@ mod tests {
         std::fs::write(&blocker, b"").unwrap();
         let provider = SettingsFileProvider::at_path(blocker.join("settings.json"));
         let current = RwLock::new(AppSettings::default());
-        let state = RwLock::new(AppState::default());
+        let state = RwLock::new(ContainerState::default());
         let announced = AtomicUsize::new(0);
         let patch = SettingsPatch::History(json!({ "recordReadingHistory": false }));
 
@@ -325,10 +332,7 @@ mod tests {
         .await
         .unwrap();
 
-        assert_eq!(
-            state.read().await.container_state.settings.max_image_height,
-            1234
-        );
+        assert_eq!(state.read().await.settings.max_image_height, 1234);
     }
 
     #[test]

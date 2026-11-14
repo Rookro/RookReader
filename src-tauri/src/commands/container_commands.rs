@@ -7,7 +7,7 @@ use crate::{
     error::{Error, Result},
     image::types::{Image, ImageDimensions},
     page::{pipeline::Fit, service::Priority},
-    state::app_state::AppState,
+    state::container_state::ContainerState,
 };
 
 /// The error every command raises when the book it names is not the book that is open.
@@ -54,7 +54,7 @@ fn image_response(image: &Image) -> Response {
 ///   are left out of the window: preloading a page the viewer is already requesting at
 ///   foreground priority only lets a background job reach it first, and the foreground
 ///   request then waits on that job instead of being served.
-/// * `state` - A `tauri::State` holding the application's global `AppState`.
+/// * `state` - The managed container state.
 ///
 /// # Errors
 ///
@@ -68,13 +68,12 @@ pub async fn request_preload_around(
     index: usize,
     buffer_size: usize,
     caller_pages: usize,
-    state: tauri::State<'_, RwLock<AppState>>,
+    state: tauri::State<'_, RwLock<ContainerState>>,
 ) -> Result<()> {
     log::debug!("Request preload around index {index}, buffer_size: {buffer_size}");
     let state_lock = state.read().await;
 
     let service = state_lock
-        .container_state
         .service_for(path)
         .ok_or_else(|| stale(path, "preloading"))?;
 
@@ -95,7 +94,7 @@ pub async fn request_preload_around(
 ///
 /// * `width` - The viewport width in device pixels. `0` means "not measured yet".
 /// * `height` - The viewport height in device pixels.
-/// * `state` - A `tauri::State` holding the application's global `AppState`.
+/// * `state` - The managed container state.
 ///
 /// # Returns
 ///
@@ -109,14 +108,14 @@ pub async fn request_preload_around(
 pub async fn set_display_size(
     width: u32,
     height: u32,
-    state: tauri::State<'_, RwLock<AppState>>,
+    state: tauri::State<'_, RwLock<ContainerState>>,
 ) -> Result<()> {
     log::debug!("The reader draws a page at {}x{} device px", width, height);
 
     let size = (width > 0 && height > 0).then_some(Fit { width, height });
     let mut state_lock = state.write().await;
-    state_lock.container_state.display_size = size;
-    if let Some(service) = state_lock.container_state.current_service() {
+    state_lock.display_size = size;
+    if let Some(service) = state_lock.current_service() {
         service.set_display_size(size);
     }
     Ok(())
@@ -131,7 +130,7 @@ pub async fn set_display_size(
 /// # Arguments
 ///
 /// * `path` - The path of the container the caller believes is open.
-/// * `state` - A `tauri::State` holding the application's global `AppState`.
+/// * `state` - The managed container state.
 ///
 /// # Returns
 ///
@@ -148,7 +147,7 @@ pub async fn set_display_size(
 #[specta::specta]
 pub async fn get_image_dimensions(
     path: &str,
-    state: tauri::State<'_, RwLock<AppState>>,
+    state: tauri::State<'_, RwLock<ContainerState>>,
 ) -> Result<Vec<ImageDimensions>> {
     log::debug!("Get the dimensions of every entry in {}", path);
 
@@ -156,7 +155,7 @@ pub async fn get_image_dimensions(
     // runs without blocking other state access.
     let service = {
         let state_lock = state.read().await;
-        state_lock.container_state.service_for(path)
+        state_lock.service_for(path)
     }
     .ok_or_else(|| stale(path, "dimensions"))?;
 
@@ -167,14 +166,14 @@ pub async fn get_image_dimensions(
 
 /// Retrieves an image from the currently open container.
 ///
-/// This function fetches the binary data for a specified image entry from the container
-/// that is currently loaded in the application state.
+/// This function fetches the binary data for a specified image entry from the book that
+/// is open.
 ///
 /// # Arguments
 ///
-/// * `path` - The path of the container, used primarily for logging purposes.
+/// * `path` - The path of the container the caller believes is open.
 /// * `entry_name` - The name of the image entry to retrieve (e.g., "image1.png").
-/// * `state` - A `tauri::State` holding the application's global `AppState`.
+/// * `state` - The managed container state.
 ///
 /// # Returns
 ///
@@ -184,13 +183,13 @@ pub async fn get_image_dimensions(
 /// # Errors
 ///
 /// This function will return an `Err` if:
-/// * The `image_loader` within the application state is unexpectedly missing.
+/// * The book it names is not the book that is open.
 /// * The requested image entry cannot be found or decoded.
 #[tauri::command]
 pub async fn get_image(
     path: &str,
     entry_name: &str,
-    state: tauri::State<'_, RwLock<AppState>>,
+    state: tauri::State<'_, RwLock<ContainerState>>,
 ) -> Result<Response> {
     log::debug!("Get the binary of {} in {}", entry_name, path);
 
@@ -198,7 +197,7 @@ pub async fn get_image(
     // decode below runs without blocking other state access.
     let service = {
         let state_lock = state.read().await;
-        state_lock.container_state.service_for(path)
+        state_lock.service_for(path)
     }
     .ok_or_else(|| stale(path, entry_name))?;
 
@@ -219,7 +218,7 @@ pub async fn get_image(
 ///
 /// * `path` - The path of the container the caller believes is open.
 /// * `entry_name` - The name of the image entry to retrieve (e.g., "image1.png").
-/// * `state` - A `tauri::State` holding the application's global `AppState`.
+/// * `state` - The managed container state.
 ///
 /// # Returns
 ///
@@ -235,13 +234,13 @@ pub async fn get_image(
 pub async fn get_image_full(
     path: &str,
     entry_name: &str,
-    state: tauri::State<'_, RwLock<AppState>>,
+    state: tauri::State<'_, RwLock<ContainerState>>,
 ) -> Result<Response> {
     log::debug!("Get the full-size binary of {} in {}", entry_name, path);
 
     let service = {
         let state_lock = state.read().await;
-        state_lock.container_state.service_for(path)
+        state_lock.service_for(path)
     }
     .ok_or_else(|| stale(path, entry_name))?;
 
@@ -258,9 +257,9 @@ pub async fn get_image_full(
 ///
 /// # Arguments
 ///
-/// * `path` - The path of the container, used primarily for logging purposes.
+/// * `path` - The path of the container the caller believes is open.
 /// * `entry_name` - The name of the image entry for which to generate a preview.
-/// * `state` - A `tauri::State` holding the application's global `AppState`.
+/// * `state` - The managed container state.
 ///
 /// # Returns
 ///
@@ -270,19 +269,19 @@ pub async fn get_image_full(
 /// # Errors
 ///
 /// This function will return an `Err` if:
-/// * The `image_loader` within the application state is unexpectedly missing.
+/// * The book it names is not the book that is open.
 /// * The preview image cannot be retrieved or generated.
 #[tauri::command]
 pub async fn get_image_preview(
     path: &str,
     entry_name: &str,
-    state: tauri::State<'_, RwLock<AppState>>,
+    state: tauri::State<'_, RwLock<ContainerState>>,
 ) -> Result<Response> {
     log::debug!("Get the preview binary of {} in {}", entry_name, path);
 
     let service = {
         let state_lock = state.read().await;
-        state_lock.container_state.service_for(path)
+        state_lock.service_for(path)
     }
     .ok_or_else(|| stale(path, entry_name))?;
 
@@ -304,7 +303,7 @@ pub async fn get_image_preview(
 /// # Arguments
 ///
 /// * `path` - The path of the novel the caller believes is open.
-/// * `state` - The application state, holding the open book.
+/// * `state` - The managed container state.
 ///
 /// # Returns
 ///
@@ -318,12 +317,12 @@ pub async fn get_image_preview(
 #[tauri::command()]
 pub async fn read_novel_file(
     path: &str,
-    state: tauri::State<'_, RwLock<AppState>>,
+    state: tauri::State<'_, RwLock<ContainerState>>,
 ) -> Result<Response> {
     log::debug!("Read the novel file {}", path);
     let is_open_novel = {
         let state_lock = state.read().await;
-        state_lock.container_state.service_for(path)
+        state_lock.service_for(path)
     }
     .is_some_and(|service| service.container().is_novel());
     if !is_open_novel {
@@ -349,7 +348,6 @@ mod tests {
         container::traits::{MockContainer, MockPageReader, PageReader},
         image::{resizer::ResizeFilter, types::Image},
         page::{pipeline::Pipeline, service::PageService},
-        state::container_state::ContainerState,
     };
 
     /// A real 800x600 PNG.
@@ -415,7 +413,7 @@ mod tests {
             mini_moka::sync::Cache::new(100),
             0,
         ));
-        app.manage(RwLock::new(AppState { container_state }));
+        app.manage(RwLock::new(container_state));
     }
 
     /// A valid 1x1 PNG. Previews travel as encoded bytes and are decoded by the loader,
@@ -483,7 +481,7 @@ mod tests {
         );
     }
 
-    /// Builds an app state around a two-page book whose pages differ in orientation.
+    /// Builds a container state around a two-page book whose pages differ in orientation.
     fn manage_mock_state(app: &tauri::App<tauri::test::MockRuntime>, book_id: &str) {
         let mut container = MockContainer::new();
         container
@@ -553,7 +551,7 @@ mod tests {
     #[tokio::test]
     async fn test_get_image_dimensions_empty_container() {
         let app = tauri::test::mock_app();
-        app.manage(RwLock::new(AppState::default()));
+        app.manage(RwLock::new(ContainerState::default()));
 
         let result = get_image_dimensions("non_existent_path", app.state()).await;
 
@@ -563,7 +561,7 @@ mod tests {
     #[tokio::test]
     async fn test_get_image_empty_container() {
         let app = tauri::test::mock_app();
-        app.manage(RwLock::new(AppState::default()));
+        app.manage(RwLock::new(ContainerState::default()));
 
         let result = get_image("non_existent_path", "image.png", app.state()).await;
 
@@ -642,15 +640,15 @@ mod tests {
     #[tokio::test]
     async fn the_viewport_is_recorded_with_no_book_open() {
         let app = tauri::test::mock_app();
-        app.manage(RwLock::new(AppState::default()));
+        app.manage(RwLock::new(ContainerState::default()));
 
         // The window is measured before a book is opened, and the size has to survive
         // until one is: it belongs to the window, not to the book.
         set_display_size(400, 300, app.state()).await.unwrap();
 
-        let state: tauri::State<'_, RwLock<AppState>> = app.state();
+        let state: tauri::State<'_, RwLock<ContainerState>> = app.state();
         assert_eq!(
-            state.read().await.container_state.display_size,
+            state.read().await.display_size,
             Some(Fit {
                 width: 400,
                 height: 300

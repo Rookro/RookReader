@@ -18,7 +18,7 @@ use crate::{
     perf,
     perf::Span,
     settings::AppSettings,
-    state::{app_state::AppState, container_settings::ContainerSettings},
+    state::container_settings::ContainerSettings,
 };
 
 /// The widest a PDF page is rendered, in pixels: pdfium scales a page to fit both this
@@ -64,13 +64,15 @@ fn build_image_cache(size_mib: u64) -> Cache {
 ///
 /// The render height, capped by `max_image_height` unless that is 0 (no limit).
 fn pdf_render_height(settings: &ContainerSettings) -> i32 {
-    if settings.max_image_height > 0 {
+    let height = if settings.max_image_height > 0 {
         settings
             .pdf_render_resolution_height
             .min(settings.max_image_height)
     } else {
         settings.pdf_render_resolution_height
-    }
+    };
+    // pdfium takes an `i32`; the setting's upper bound is far below it.
+    i32::try_from(height).unwrap_or(i32::MAX)
 }
 
 /// Holds the state related to the currently open container (e.g., a file or directory).
@@ -168,7 +170,7 @@ impl ContainerState {
     pub fn apply_rendering(&self) {
         if let Some(service) = self.service.as_ref() {
             service.set_rendering(
-                self.settings.max_image_height.max(0) as u32,
+                self.settings.max_image_height,
                 self.settings.image_resampling_method,
             );
         }
@@ -284,11 +286,11 @@ impl ContainerState {
             create_container(path, Self::container_config(settings))?,
             Pipeline {
                 display: display_size,
-                max_image_height: settings.max_image_height as u32,
+                max_image_height: settings.max_image_height,
                 resize_method: settings.image_resampling_method,
             },
             image_cache.clone(),
-            settings.page_reader_count.max(0) as usize,
+            settings.page_reader_count as usize,
         ))
     }
 
@@ -312,12 +314,12 @@ impl ContainerState {
     /// Opens a book as the open book: builds its container and installs its page service
     /// in place of the previous book's.
     ///
-    /// Takes the whole app state rather than `&mut self` because the build runs with the
+    /// Takes the managed lock rather than `&mut self` because the build runs with the
     /// state unlocked; `open_lock` orders the opens instead.
     ///
     /// # Arguments
     ///
-    /// * `state` - The application state holding this container state.
+    /// * `state` - The managed container state.
     /// * `path` - The file system path to the book to open.
     ///
     /// # Returns
@@ -329,9 +331,9 @@ impl ContainerState {
     /// Returns an `Err` if the container cannot be built (e.g. the file does not exist or
     /// is corrupt), or `EmptyContainer` when it holds no readable pages. Either way the
     /// previous book is closed.
-    pub async fn open(state: &RwLock<AppState>, path: &str) -> Result<Arc<dyn Container>> {
+    pub async fn open(state: &RwLock<ContainerState>, path: &str) -> Result<Arc<dyn Container>> {
         let span = Span::start();
-        let open_lock = state.read().await.container_state.open_lock.clone();
+        let open_lock = state.read().await.open_lock.clone();
         let _open_guard = open_lock.lock().await;
 
         // Snapshot the (cheap-to-clone) settings and cache handle under a brief read lock,
@@ -340,9 +342,9 @@ impl ContainerState {
         let (settings, image_cache, display_size) = {
             let state_lock = state.read().await;
             (
-                state_lock.container_state.settings.clone(),
-                state_lock.container_state.image_cache.clone(),
-                state_lock.container_state.display_size,
+                state_lock.settings.clone(),
+                state_lock.image_cache.clone(),
+                state_lock.display_size,
             )
         };
         let path_owned = path.to_string();
@@ -354,7 +356,7 @@ impl ContainerState {
             Ok(service) => service,
             Err(e) => {
                 // Clear stale state so a failed open doesn't keep serving the previous book.
-                state.write().await.container_state.clear();
+                state.write().await.clear();
                 return Err(e);
             }
         };
@@ -367,15 +369,15 @@ impl ContainerState {
         // A container with no readable pages is not a book. Failing here keeps it out of the
         // library and the history, since the frontend only records a book after this returns.
         // EPUB novels are exempt: their text has no image entries.
-        if !is_novel && pages == 0 {
+        if container.is_empty_book() {
             log::info!("Refusing to open {path}: no readable pages");
-            state.write().await.container_state.clear();
+            state.write().await.clear();
             return Err(Error::EmptyContainer(path.to_string()));
         }
 
         {
             let mut state_lock = state.write().await;
-            state_lock.container_state.install(service);
+            state_lock.install(service);
         }
 
         // The whole open: the container build, and the reader pool it started.
@@ -400,7 +402,7 @@ impl ContainerState {
     ///
     /// # Arguments
     ///
-    /// * `state` - The application state holding this container state.
+    /// * `state` - The managed container state.
     /// * `path` - The file system path to the book.
     ///
     /// # Returns
@@ -410,13 +412,15 @@ impl ContainerState {
     /// # Errors
     ///
     /// Returns an `Err` if the container has to be built and cannot be.
-    pub async fn container_for(state: &RwLock<AppState>, path: &str) -> Result<Arc<dyn Container>> {
+    pub async fn container_for(
+        state: &RwLock<ContainerState>,
+        path: &str,
+    ) -> Result<Arc<dyn Container>> {
         let (settings, open) = {
             let state_lock = state.read().await;
             (
-                state_lock.container_state.settings.clone(),
+                state_lock.settings.clone(),
                 state_lock
-                    .container_state
                     .service_for(path)
                     .map(|service| service.container()),
             )
@@ -876,8 +880,10 @@ mod tests {
     }
 
     /// Opens `path` on a fresh state and returns the state with the result.
-    async fn open_on_fresh_state(path: &str) -> (RwLock<AppState>, Result<Arc<dyn Container>>) {
-        let state = RwLock::new(AppState::default());
+    async fn open_on_fresh_state(
+        path: &str,
+    ) -> (RwLock<ContainerState>, Result<Arc<dyn Container>>) {
+        let state = RwLock::new(ContainerState::default());
         let result = ContainerState::open(&state, path).await;
         (state, result)
     }
@@ -942,7 +948,7 @@ mod tests {
         let result = ContainerState::open(&state, &zip).await;
 
         assert!(matches!(result, Err(Error::EmptyContainer(_))));
-        assert!(!state.read().await.container_state.is_open());
+        assert!(!state.read().await.is_open());
     }
 
     #[tokio::test]
@@ -956,7 +962,7 @@ mod tests {
         let result = ContainerState::open(&state, missing.to_string_lossy().as_ref()).await;
 
         assert!(result.is_err());
-        assert!(!state.read().await.container_state.is_open());
+        assert!(!state.read().await.is_open());
     }
 
     #[tokio::test]
@@ -969,10 +975,7 @@ mod tests {
 
         result.expect("a valid directory should open");
         let guard = state.read().await;
-        let service = guard
-            .container_state
-            .service_for(&path)
-            .expect("the open book's service");
+        let service = guard.service_for(&path).expect("the open book's service");
         assert_eq!(service.pending(), 0, "the open queued work of its own");
         assert!(
             service.cached("p001.png").is_none(),
@@ -982,28 +985,19 @@ mod tests {
 
     #[test]
     fn applying_settings_keeps_the_pdfium_path() {
-        let mut state = AppState::default();
-        state.container_state.settings.pdfium_library_path = Some("/libs".to_string());
+        let mut state = ContainerState::default();
+        state.settings.pdfium_library_path = Some("/libs".to_string());
 
-        state
-            .container_state
-            .apply_settings(&AppSettings::default());
+        state.apply_settings(&AppSettings::default());
 
-        assert_eq!(
-            state
-                .container_state
-                .settings
-                .pdfium_library_path
-                .as_deref(),
-            Some("/libs")
-        );
+        assert_eq!(state.settings.pdfium_library_path.as_deref(), Some("/libs"));
     }
 
     #[test]
-    fn test_apply_reader_settings_to_container() {
+    fn apply_settings_copies_the_reader_settings() {
         use crate::{image::resizer::ResizeFilter, settings::ImageResamplingMethod};
 
-        let mut state = AppState::default();
+        let mut state = ContainerState::default();
         let mut settings = AppSettings::default();
         settings.reader.rendering.max_image_height = 1234;
         settings.reader.rendering.pdf_render_resolution_height = 1500;
@@ -1011,9 +1005,9 @@ mod tests {
         settings.reader.comic.cache.image_cache_size_mib = 2048;
         settings.reader.comic.cache.page_reader_count = 3;
 
-        state.container_state.apply_settings(&settings);
+        state.apply_settings(&settings);
 
-        let container_settings = &state.container_state.settings;
+        let container_settings = &state.settings;
         assert_eq!(container_settings.max_image_height, 1234);
         assert_eq!(container_settings.pdf_render_resolution_height, 1500);
         assert_eq!(
@@ -1028,34 +1022,18 @@ mod tests {
     fn changing_the_height_cap_re_renders_the_open_book() {
         use crate::page::service::Priority;
 
-        // A directory container holding one 4x2 page.
-        let dir = tempfile::tempdir().expect("tempdir");
-        let mut page = Vec::new();
-        image::DynamicImage::ImageRgb8(image::RgbImage::new(4, 2))
-            .write_to(
-                &mut std::io::Cursor::new(&mut page),
-                image::ImageFormat::Png,
-            )
-            .expect("encode the page fixture");
-        std::fs::write(dir.path().join("p001.png"), page).expect("write the page fixture");
-        let path = dir.path().to_string_lossy().to_string();
+        let (_dir, path) = one_page_book();
 
-        let mut state = AppState::default();
-        let service = ContainerState::build_with(
-            &state.container_state.settings,
-            &state.container_state.image_cache,
-            None,
-            &path,
-        )
-        .expect("building a valid directory container should succeed");
-        state.container_state.install(service);
+        let mut state = ContainerState::default();
+        let service = ContainerState::build_with(&state.settings, &state.image_cache, None, &path)
+            .expect("building a valid directory container should succeed");
+        state.install(service);
 
         let mut settings = AppSettings::default();
         settings.reader.rendering.max_image_height = 1;
-        state.container_state.apply_settings(&settings);
+        state.apply_settings(&settings);
 
         let page = state
-            .container_state
             .service_for(&path)
             .expect("the book is open")
             .page_blocking("p001.png", Priority::Foreground)
@@ -1067,7 +1045,7 @@ mod tests {
     fn changing_a_rendering_setting_empties_the_image_cache() {
         use crate::{page::cache::CacheKey, settings::ImageResamplingMethod};
 
-        let mut state = AppState::default();
+        let mut state = ContainerState::default();
         let key = CacheKey {
             book_id: "book".to_string(),
             entry: "p001.png".to_string(),
@@ -1078,36 +1056,33 @@ mod tests {
             width: 1,
             height: 1,
         });
-        state
-            .container_state
-            .image_cache
-            .insert(key.clone(), cached);
-        assert!(state.container_state.image_cache.get(&key).is_some());
+        state.image_cache.insert(key.clone(), cached);
+        assert!(state.image_cache.get(&key).is_some());
 
         let mut settings = AppSettings::default();
         settings.reader.rendering.image_resampling_method = ImageResamplingMethod::Nearest;
         // The cache size is left alone, so nothing else would clear it.
-        state.container_state.apply_settings(&settings);
+        state.apply_settings(&settings);
 
         // The cache outlives a book. Without this, reopening the same book would serve
         // pages rendered with the filter the user just changed away from.
-        assert!(state.container_state.image_cache.get(&key).is_none());
+        assert!(state.image_cache.get(&key).is_none());
     }
 
     #[test]
     fn re_applying_the_same_settings_keeps_the_image_cache() {
         use crate::page::cache::CacheKey;
 
-        let mut state = AppState::default();
+        let mut state = ContainerState::default();
         let settings = AppSettings::default();
-        state.container_state.apply_settings(&settings);
+        state.apply_settings(&settings);
 
         let key = CacheKey {
             book_id: "book".to_string(),
             entry: "p001.png".to_string(),
             fit: Fit::UNBOUNDED,
         };
-        state.container_state.image_cache.insert(
+        state.image_cache.insert(
             key.clone(),
             Arc::new(crate::image::types::Image {
                 data: vec![1, 2, 3],
@@ -1118,7 +1093,7 @@ mod tests {
 
         // Settings are re-applied on every save, most of which change nothing about how
         // a page is rendered.
-        state.container_state.apply_settings(&settings);
-        assert!(state.container_state.image_cache.get(&key).is_some());
+        state.apply_settings(&settings);
+        assert!(state.image_cache.get(&key).is_some());
     }
 }

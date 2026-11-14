@@ -53,9 +53,9 @@ pub enum ViolationKind {
     NotANumber,
 }
 
-/// The settings while the app runs. `set_settings` holds its write lock across the save,
-/// the runtime apply and the broadcast, so two changes cannot be saved A, B and then
-/// applied B, A.
+/// The settings while the app runs. `set_settings` holds its write lock across the
+/// re-read of an unread file, the save, the runtime apply and the broadcast, so two
+/// changes cannot be saved A, B and then applied B, A.
 pub type CurrentSettings = tokio::sync::RwLock<AppSettings>;
 
 /// Set while the session runs on the fallback because the settings file could not be read
@@ -81,7 +81,8 @@ impl SettingsUnread {
     ///
     /// # Returns
     ///
-    /// `true` until a change has been saved over the re-read file.
+    /// `true` from a start-up that could not read the settings file until a change has
+    /// been saved over the re-read file; `false` otherwise.
     pub fn is_set(&self) -> bool {
         self.0.load(Ordering::SeqCst)
     }
@@ -492,6 +493,32 @@ mod tests {
         assert_eq!(settings.reader.rendering.pdf_render_resolution_height, 2000);
     }
 
+    #[test]
+    fn a_negative_value_for_an_unsigned_field_resets_to_its_default() {
+        let provider = MockProvider {
+            mock_json: json!({
+                "reader": {
+                    "rendering": { "maxImageHeight": 1500, "pdfRenderResolutionHeight": -1 },
+                    "comic": { "cache": { "pageReaderCount": -3 } }
+                }
+            }),
+        };
+
+        let settings = AppSettings::load(&provider).unwrap();
+
+        // The default is not 0, so clamping the value would not pass.
+        assert_eq!(
+            settings.reader.rendering.pdf_render_resolution_height,
+            AppSettings::default()
+                .reader
+                .rendering
+                .pdf_render_resolution_height
+        );
+        assert_eq!(settings.reader.comic.cache.page_reader_count, 0);
+        // The valid sibling survives.
+        assert_eq!(settings.reader.rendering.max_image_height, 1500);
+    }
+
     // ---- deserialize_tolerant (field-level healing) ----
 
     #[test]
@@ -525,7 +552,7 @@ mod tests {
         s.reader.comic.loupe.zoom = 999.0;
         s.reader.comic.loupe.radius = 0.0;
         s.reader.novel.font_size = 0.0;
-        s.reader.rendering.max_image_height = -1;
+        s.reader.rendering.max_image_height = 70000;
         s.reader.rendering.pdf_render_resolution_height = 0;
         s.layout.side_pane.tab_index = 9999;
 
@@ -551,7 +578,7 @@ mod tests {
         let mut s = AppSettings::default();
         s.reader.comic.loupe.toggle_key = "Alt+z".to_string();
         s.reader.comic.enable_spread = false;
-        s.reader.rendering.max_image_height = -1; // only this is invalid
+        s.reader.rendering.max_image_height = 70000; // only this is invalid
 
         s.repair_invalid_fields();
 

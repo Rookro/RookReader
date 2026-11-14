@@ -162,7 +162,9 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .manage(RwLock::new(state::app_state::AppState::default()))
+        .manage(RwLock::new(
+            state::container_state::ContainerState::default(),
+        ))
         .manage(commands::updater_commands::UpdatePromptLock::default())
         .on_window_event(commands::updater_commands::release_update_prompt_on_destroy)
         .on_page_load(commands::updater_commands::release_update_prompt_on_reload)
@@ -210,9 +212,9 @@ mod bindings_export {
     #[test]
     fn export_bindings() {
         crate::specta_builder()
-            // i64/u64 IDs are cast to TS `number`.
-            // specta-typescript forbids large integers by default to avoid precision
-            // loss; our IDs stay well within `Number.MAX_SAFE_INTEGER`.
+            // Every i64/u64/usize (IDs, counts, page indexes, series positions, sizes) is cast to
+            // TS `number`. specta-typescript forbids large integers by default to avoid precision
+            // loss; all of these stay well within `Number.MAX_SAFE_INTEGER`.
             .dangerously_cast_bigints_to_number()
             // Every exported `f64` is finite (`finite_f64` guards the settings; bounds are
             // constants), so none is ever sent as `null`.

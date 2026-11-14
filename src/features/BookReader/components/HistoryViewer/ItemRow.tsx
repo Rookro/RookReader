@@ -12,7 +12,7 @@ import { type CSSProperties, memo, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import ContextMenu from "../../../../components/ui/ContextMenu/ContextMenu";
 import { useContextMenuAnchor } from "../../../../components/ui/ContextMenu/useContextMenuAnchor";
-import type { ReadBook } from "../../../../domain/entities";
+import type { BookWithState } from "../../../../domain/entities";
 import { useAppDispatch } from "../../../../store/store";
 import { clearHistory } from "../../../History/slice";
 
@@ -32,10 +32,10 @@ export const ItemRow = memo(function ItemRow({
   onClick,
   style,
 }: {
-  entry: ReadBook;
+  entry: BookWithState;
   index: number;
   selected: boolean;
-  onClick?: (e: React.MouseEvent<HTMLElement>, entry: ReadBook, index: number) => void;
+  onClick?: (e: React.MouseEvent<HTMLElement>, entry: BookWithState, index: number) => void;
   style?: CSSProperties;
 }) {
   const { t, i18n } = useTranslation();
@@ -43,10 +43,12 @@ export const ItemRow = memo(function ItemRow({
   // The backend stores this as a naive UTC timestamp with no offset, so mark it as
   // UTC before formatting it for the active locale.
   const lastOpenedAt = useMemo(() => {
-    const parsed = new Date(`${entry.last_opened_at}Z`);
-    return Number.isNaN(parsed.getTime())
-      ? entry.last_opened_at
-      : parsed.toLocaleString(i18n.language);
+    const stored = entry.last_opened_at;
+    if (!stored) {
+      return "";
+    }
+    const parsed = new Date(`${stored}Z`);
+    return Number.isNaN(parsed.getTime()) ? stored : parsed.toLocaleString(i18n.language);
   }, [entry.last_opened_at, i18n.language]);
   const dispatch = useAppDispatch();
   const {
@@ -56,7 +58,7 @@ export const ItemRow = memo(function ItemRow({
   } = useContextMenuAnchor();
 
   const handleOpenClicked = useCallback(
-    (e: React.MouseEvent<HTMLElement>, entry: ReadBook, index: number) => {
+    (e: React.MouseEvent<HTMLElement>, entry: BookWithState, index: number) => {
       handleMenuClosed();
       onClick?.(e, entry, index);
     },
@@ -64,7 +66,7 @@ export const ItemRow = memo(function ItemRow({
   );
 
   const handleRemoveClicked = useCallback(
-    async (_e: React.MouseEvent<HTMLElement>, entry: ReadBook, _index: number) => {
+    async (_e: React.MouseEvent<HTMLElement>, entry: BookWithState, _index: number) => {
       handleMenuClosed();
       dispatch(clearHistory(entry.id));
     },

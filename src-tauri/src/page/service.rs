@@ -961,13 +961,12 @@ fn next_job(shared: &Shared) -> Option<Job> {
                 (Some(next), Some(ahead)) => may_preload && ahead > next,
             };
 
-            if take_preload || !queue.jobs.is_empty() {
-                let heap = if take_preload {
-                    &mut queue.preload
-                } else {
-                    &mut queue.jobs
-                };
-                let job = heap.pop().expect("a job was just peeked");
+            let next = if take_preload {
+                queue.preload.pop()
+            } else {
+                queue.jobs.pop()
+            };
+            if let Some(job) = next {
                 if job.reads_the_page() {
                     match queue.in_flight.entry((job.entry.clone(), job.fit)) {
                         // Two callers asked for the same page before either was picked

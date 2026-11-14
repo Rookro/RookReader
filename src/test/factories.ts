@@ -1,11 +1,4 @@
-import type {
-  Bookmark,
-  BookWithState,
-  Collection,
-  ReadBook,
-  Series,
-  Tag,
-} from "../domain/entities";
+import type { Bookmark, BookWithState, Collection, Series, Tag } from "../domain/entities";
 import type { DirEntry } from "../types/DirEntry";
 
 /**
@@ -28,23 +21,6 @@ export const createMockBookWithState = (overrides?: Partial<BookWithState>): Boo
   series_order: null,
   thumbnail_path: null,
   tag_ids: [],
-  ...overrides,
-});
-
-/**
- * Creates a mock ReadBook object for testing.
- */
-export const createMockReadBook = (overrides?: Partial<ReadBook>): ReadBook => ({
-  id: 1,
-  display_name: "Mock Read Book",
-  file_path: "/path/to/mock-read-book.zip",
-  item_type: "file",
-  total_pages: 100,
-  last_read_page_index: 0,
-  last_opened_at: "2026-03-18T12:00:00Z",
-  series_id: null,
-  series_order: null,
-  thumbnail_path: null,
   ...overrides,
 });
 

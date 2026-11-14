@@ -27,11 +27,12 @@ export const commands = {
 	 *  Applies a partial settings change and returns the full merged settings.
 	 * 
 	 *  The `patch` carries only the changed leaves of a single category. The backend
-	 *  deep-merges it into the current settings (or, if start-up could not read the settings
-	 *  file, into the file read again), validates the merged whole, persists it,
-	 *  applies the reader/rendering values to the live container runtime, returns the
-	 *  full merged settings to the caller, and broadcasts a `settings-changed` event to
-	 *  every window **except the caller** so other windows re-hydrate.
+	 *  deep-merges it into the current settings (or, while the session still runs on the
+	 *  fallback because start-up could not read the settings file, into the file read again),
+	 *  validates the merged whole, persists it, applies the reader/rendering values to the
+	 *  live container runtime, returns the full merged settings to the caller, and broadcasts
+	 *  a `settings-changed` event to every window **except the caller** so other windows
+	 *  re-hydrate.
 	 * 
 	 *  The caller is excluded from the emit because it already adopts the change from this
 	 *  command's return value (the `updateSettings` thunk replaces its slice with it); it
@@ -74,7 +75,7 @@ export const commands = {
 	 *    are left out of the window: preloading a page the viewer is already requesting at
 	 *    foreground priority only lets a background job reach it first, and the foreground
 	 *    request then waits on that job instead of being served.
-	 *  * `state` - A `tauri::State` holding the application's global `AppState`.
+	 *  * `state` - The managed container state.
 	 * 
 	 *  # Errors
 	 * 
@@ -93,7 +94,7 @@ export const commands = {
 	 *  # Arguments
 	 * 
 	 *  * `path` - The path of the container the caller believes is open.
-	 *  * `state` - A `tauri::State` holding the application's global `AppState`.
+	 *  * `state` - The managed container state.
 	 * 
 	 *  # Returns
 	 * 
@@ -122,7 +123,7 @@ export const commands = {
 	 * 
 	 *  * `width` - The viewport width in device pixels. `0` means "not measured yet".
 	 *  * `height` - The viewport height in device pixels.
-	 *  * `state` - A `tauri::State` holding the application's global `AppState`.
+	 *  * `state` - The managed container state.
 	 * 
 	 *  # Returns
 	 * 
@@ -156,7 +157,7 @@ export const commands = {
 	 *  * `file_path` - The unique file or directory path.
 	 *  * `repo` - The managed book repository state.
 	 *  * `app` - The Tauri AppHandle.
-	 *  * `state` - The managed app state.
+	 *  * `state` - The managed container state.
 	 * 
 	 *  # Returns
 	 * 
@@ -180,7 +181,7 @@ export const commands = {
 	 *  * `path` - The file or directory path of the book.
 	 *  * `repo` - The managed book repository state.
 	 *  * `app` - The Tauri AppHandle.
-	 *  * `state` - The managed app state.
+	 *  * `state` - The managed container state.
 	 *  * `settings` - The current settings the history setting and default direction are read from.
 	 * 
 	 *  # Returns
@@ -294,25 +295,26 @@ export const commands = {
 	 * 
 	 *  # Arguments
 	 * 
-	 *  * `limit` - The maximum number of books to retrieve.
 	 *  * `repo` - The managed book repository state.
 	 * 
 	 *  # Returns
 	 * 
-	 *  A `Result` containing a vector of `ReadBook` entities.
+	 *  A `Result` containing a vector of `BookWithState` entities.
 	 * 
 	 *  # Errors
 	 * 
 	 *  This function will return an `Err` if the underlying repository operation fails
 	 *  (e.g., due to a database error, connection issue, or query execution failure).
 	 */
-	getRecentlyReadBooks: (limit: number | null) => typedError<ReadBook_Serialize[], CommandError_Serialize>(__TAURI_INVOKE("get_recently_read_books", { limit })),
+	getRecentlyReadBooks: () => typedError<BookWithState_Serialize[], CommandError_Serialize>(__TAURI_INVOKE("get_recently_read_books")),
 	/**
-	 *  Updates the reading progress/state for a book.
+	 *  Saves where the reader is in a book and announces it.
 	 * 
 	 *  # Arguments
 	 * 
-	 *  * `state_data` - The `ReadingState` object sent from the frontend.
+	 *  * `book_id` - The book being read.
+	 *  * `page_index` - The page the reader is on.
+	 *  * `cfi` - The EPUB position, `None` for comics.
 	 *  * `repo` - The managed book repository state.
 	 *  * `app` - The Tauri AppHandle.
 	 * 
@@ -321,7 +323,7 @@ export const commands = {
 	 *  This function will return an `Err` if the underlying repository operation fails
 	 *  (e.g., due to a database error, connection issue, or query execution failure).
 	 */
-	updateReadingProgress: (stateData: ReadingState_Deserialize) => typedError<null, CommandError_Serialize>(__TAURI_INVOKE("update_reading_progress", { stateData })),
+	updateReadingProgress: (bookId: number, pageIndex: number, cfi: string | null) => typedError<null, CommandError_Serialize>(__TAURI_INVOKE("update_reading_progress", { bookId, pageIndex, cfi })),
 	/**
 	 *  Retrieves all books, including their reading states.
 	 * 
@@ -1416,63 +1418,6 @@ export type OpenedBook_Serialize = {
 	book: BookWithState_Serialize | null,
 	/**  Why the book could not be recorded, when it could not. */
 	record_error: CommandError_Serialize | null,
-};
-
-/**  Represents a book along with its reading state, specifically for books that have been opened. */
-export type ReadBook = ReadBook_Serialize | ReadBook_Deserialize;
-
-/**  Represents a book along with its reading state, specifically for books that have been opened. */
-export type ReadBook_Deserialize = {
-	/**  The unique identifier for the book. */
-	id: number,
-	/**  The unique file path or directory path of the book. */
-	file_path: string,
-	/**  What the path points at. */
-	item_type: ItemType,
-	/**  The display name of the book. */
-	display_name: string,
-	/**  The total number of pages in the book. */
-	total_pages: number,
-	/**  The optional identifier of the series this book belongs to. */
-	series_id?: number | null,
-	/**  The optional order index of the book within its series. */
-	series_order?: number | null,
-	/**  The optional file path to the thumbnail image of the book. */
-	thumbnail_path?: string | null,
-	/**  The last read page index. */
-	last_read_page_index: number,
-	/**
-	 *  The timestamp when the book was last opened.
-	 *  This is guaranteed to be present (not null) for read books.
-	 */
-	last_opened_at: string,
-};
-
-/**  Represents a book along with its reading state, specifically for books that have been opened. */
-export type ReadBook_Serialize = {
-	/**  The unique identifier for the book. */
-	id: number,
-	/**  The unique file path or directory path of the book. */
-	file_path: string,
-	/**  What the path points at. */
-	item_type: ItemType,
-	/**  The display name of the book. */
-	display_name: string,
-	/**  The total number of pages in the book. */
-	total_pages: number,
-	/**  The optional identifier of the series this book belongs to. */
-	series_id: number | null,
-	/**  The optional order index of the book within its series. */
-	series_order: number | null,
-	/**  The optional file path to the thumbnail image of the book. */
-	thumbnail_path: string | null,
-	/**  The last read page index. */
-	last_read_page_index: number,
-	/**
-	 *  The timestamp when the book was last opened.
-	 *  This is guaranteed to be present (not null) for read books.
-	 */
-	last_opened_at: string,
 };
 
 /**  Settings for the reading experience. */

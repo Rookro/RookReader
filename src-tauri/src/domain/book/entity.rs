@@ -82,32 +82,6 @@ pub struct ReadingState {
     pub last_opened_at: Option<NaiveDateTime>,
 }
 
-/// Represents a book along with its reading state, specifically for books that have been opened.
-#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
-pub struct ReadBook {
-    /// The unique identifier for the book.
-    pub id: i64,
-    /// The unique file path or directory path of the book.
-    pub file_path: String,
-    /// What the path points at.
-    pub item_type: ItemType,
-    /// The display name of the book.
-    pub display_name: String,
-    /// The total number of pages in the book.
-    pub total_pages: i64,
-    /// The optional identifier of the series this book belongs to.
-    pub series_id: Option<i64>,
-    /// The optional order index of the book within its series.
-    pub series_order: Option<i64>,
-    /// The optional file path to the thumbnail image of the book.
-    pub thumbnail_path: Option<String>,
-    /// The last read page index.
-    pub last_read_page_index: i64,
-    /// The timestamp when the book was last opened.
-    /// This is guaranteed to be present (not null) for read books.
-    pub last_opened_at: NaiveDateTime,
-}
-
 /// Represents a book along with its optional reading state.
 /// Useful for displaying book details whether it has been read or not.
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]

@@ -7,12 +7,11 @@ use tauri::State;
 use crate::commands::events::{emit, BooksChanged, ReadingHistoryChanged, ReadingProgressChanged};
 use crate::container::describe::describe;
 use crate::container::traits::Container;
-use crate::domain::book::entity::{BookWithState, Direction, ReadBook, ReadingState};
+use crate::domain::book::entity::{BookWithState, Direction};
 use crate::domain::book::repository::BookRepository;
 use crate::error::{Error, Result};
 use crate::infrastructure::thumbnails;
 use crate::settings::{AppSettings, CurrentSettings};
-use crate::state::app_state::AppState;
 use crate::state::container_state::ContainerState;
 
 /// Registers a book or returns its ID if it already exists, without updating reading state.
@@ -24,7 +23,7 @@ use crate::state::container_state::ContainerState;
 /// * `file_path` - The unique file or directory path.
 /// * `repo` - The managed book repository state.
 /// * `app` - The Tauri AppHandle.
-/// * `state` - The managed app state.
+/// * `state` - The managed container state.
 ///
 /// # Returns
 ///
@@ -40,7 +39,7 @@ pub async fn register_book<R: tauri::Runtime>(
     file_path: String,
     repo: State<'_, Arc<dyn BookRepository>>,
     app: tauri::AppHandle<R>,
-    state: State<'_, RwLock<AppState>>,
+    state: State<'_, RwLock<ContainerState>>,
 ) -> Result<i64> {
     log::debug!("Register the book: {}", file_path);
 
@@ -91,7 +90,7 @@ pub struct OpenedBook {
 /// * `path` - The file or directory path of the book.
 /// * `repo` - The managed book repository state.
 /// * `app` - The Tauri AppHandle.
-/// * `state` - The managed app state.
+/// * `state` - The managed container state.
 /// * `settings` - The current settings the history setting and default direction are read from.
 ///
 /// # Returns
@@ -110,7 +109,7 @@ pub async fn open_book<R: tauri::Runtime>(
     path: String,
     repo: State<'_, Arc<dyn BookRepository>>,
     app: tauri::AppHandle<R>,
-    state: State<'_, RwLock<AppState>>,
+    state: State<'_, RwLock<ContainerState>>,
     settings: State<'_, CurrentSettings>,
 ) -> Result<OpenedBook> {
     log::debug!("Open book: {path}");
@@ -247,11 +246,13 @@ pub async fn clear_all_reading_history<R: tauri::Runtime>(
     Ok(())
 }
 
-/// Updates the reading progress/state for a book.
+/// Saves where the reader is in a book and announces it.
 ///
 /// # Arguments
 ///
-/// * `state_data` - The `ReadingState` object sent from the frontend.
+/// * `book_id` - The book being read.
+/// * `page_index` - The page the reader is on.
+/// * `cfi` - The EPUB position, `None` for comics.
 /// * `repo` - The managed book repository state.
 /// * `app` - The Tauri AppHandle.
 ///
@@ -262,13 +263,17 @@ pub async fn clear_all_reading_history<R: tauri::Runtime>(
 #[tauri::command]
 #[specta::specta]
 pub async fn update_reading_progress<R: tauri::Runtime>(
-    state_data: ReadingState,
+    book_id: i64,
+    page_index: i64,
+    cfi: Option<String>,
     repo: State<'_, Arc<dyn BookRepository>>,
     app: tauri::AppHandle<R>,
 ) -> Result<()> {
-    log::debug!("Update reading progress: {:?}", state_data);
-    repo.update_reading_progress(&state_data).await?;
-    emit(&app, &ReadingProgressChanged(state_data));
+    log::debug!("Update reading progress of book {book_id}: page {page_index}");
+    let state = repo
+        .update_reading_progress(book_id, page_index, cfi)
+        .await?;
+    emit(&app, &ReadingProgressChanged(state));
     Ok(())
 }
 
@@ -358,12 +363,11 @@ pub async fn update_page_layout(
 ///
 /// # Arguments
 ///
-/// * `limit` - The maximum number of books to retrieve.
 /// * `repo` - The managed book repository state.
 ///
 /// # Returns
 ///
-/// A `Result` containing a vector of `ReadBook` entities.
+/// A `Result` containing a vector of `BookWithState` entities.
 ///
 /// # Errors
 ///
@@ -372,11 +376,10 @@ pub async fn update_page_layout(
 #[tauri::command]
 #[specta::specta]
 pub async fn get_recently_read_books(
-    limit: Option<i64>,
     repo: State<'_, Arc<dyn BookRepository>>,
-) -> Result<Vec<ReadBook>> {
-    log::debug!("Get recently read books(limit: {:?}).", limit);
-    repo.get_recently_read_books(limit).await
+) -> Result<Vec<BookWithState>> {
+    log::debug!("Get recently read books.");
+    repo.get_recently_read_books().await
 }
 
 /// Retrieves all books, including their reading states.
@@ -440,7 +443,7 @@ mod tests {
 
     use super::*;
     use crate::commands::events::test_support::record_events;
-    use crate::domain::book::entity::{Book, ItemType};
+    use crate::domain::book::entity::{Book, ItemType, ReadingState};
     use crate::domain::book::repository::MockBookRepository;
     use crate::error::ErrorCode;
     use tauri::Manager;
@@ -550,25 +553,33 @@ mod tests {
         let mut mock_repo = MockBookRepository::new();
         mock_repo
             .expect_update_reading_progress()
-            .withf(|state: &ReadingState| {
-                state.book_id == 1
-                    && state.last_read_page_index == 7
-                    && state.cfi.as_deref() == Some("epubcfi(/6/8!/4/2/1:0)")
+            .withf(|book_id, page_index, cfi| {
+                *book_id == 1
+                    && *page_index == 7
+                    && cfi.as_deref() == Some("epubcfi(/6/8!/4/2/1:0)")
             })
             .times(1)
-            .returning(|_| Ok(()));
+            .returning(|book_id, last_read_page_index, cfi| {
+                Ok(ReadingState {
+                    book_id,
+                    last_read_page_index,
+                    cfi,
+                    last_opened_at: None,
+                })
+            });
 
         let app = tauri::test::mock_app();
         app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
         let repo = app.state::<Arc<dyn BookRepository>>();
 
-        let state_data = ReadingState {
-            book_id: 1,
-            last_read_page_index: 7,
-            cfi: Some("epubcfi(/6/8!/4/2/1:0)".to_string()),
-            last_opened_at: None,
-        };
-        let result = update_reading_progress(state_data, repo, app.handle().clone()).await;
+        let result = update_reading_progress(
+            1,
+            7,
+            Some("epubcfi(/6/8!/4/2/1:0)".to_string()),
+            repo,
+            app.handle().clone(),
+        )
+        .await;
         assert!(result.is_ok());
     }
 
@@ -618,15 +629,14 @@ mod tests {
         let mut mock_repo = MockBookRepository::new();
         mock_repo
             .expect_get_recently_read_books()
-            .with(mockall::predicate::eq(Some(5)))
             .times(1)
-            .returning(|_| Ok(vec![]));
+            .returning(|| Ok(vec![]));
 
         let app = tauri::test::mock_app();
         app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
         let state = app.state::<Arc<dyn BookRepository>>();
 
-        let result = get_recently_read_books(Some(5), state).await;
+        let result = get_recently_read_books(state).await;
         assert!(result.is_ok());
     }
 
@@ -710,7 +720,7 @@ mod tests {
         let app = tauri::test::mock_app();
         let _thumbnail = ThumbnailCleanup::new(&app, &path);
         app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
-        app.manage(RwLock::new(AppState::default()));
+        app.manage(RwLock::new(ContainerState::default()));
         let events = record_events(app.handle());
 
         let result = register_book(path, app.state(), app.handle().clone(), app.state()).await;
@@ -738,7 +748,7 @@ mod tests {
 
         let app = tauri::test::mock_app();
         app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
-        app.manage(RwLock::new(AppState::default()));
+        app.manage(RwLock::new(ContainerState::default()));
         let events = record_events(app.handle());
 
         let result = register_book(
@@ -767,8 +777,8 @@ mod tests {
         let app = tauri::test::mock_app();
         let _thumbnail = ThumbnailCleanup::new(&app, &other);
         app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
-        app.manage(RwLock::new(AppState::default()));
-        ContainerState::open(&app.state::<RwLock<AppState>>(), &open)
+        app.manage(RwLock::new(ContainerState::default()));
+        ContainerState::open(&app.state::<RwLock<ContainerState>>(), &open)
             .await
             .unwrap();
 
@@ -776,10 +786,10 @@ mod tests {
             .await
             .unwrap();
 
-        let binding = app.state::<RwLock<AppState>>();
+        let binding = app.state::<RwLock<ContainerState>>();
         let guard = binding.read().await;
         assert!(
-            guard.container_state.service_for(&open).is_some(),
+            guard.service_for(&open).is_some(),
             "registering another book closed the one being read"
         );
     }
@@ -820,7 +830,7 @@ mod tests {
         mock_repo
     }
 
-    /// Manages `mock_repo`, an empty app state and `settings` as the current settings.
+    /// Manages `mock_repo`, an empty container state and `settings` as the current settings.
     fn manage_for_opening(
         app: &tauri::App<tauri::test::MockRuntime>,
         mock_repo: MockBookRepository,
@@ -828,7 +838,7 @@ mod tests {
     ) {
         app.manage(CurrentSettings::new(settings));
         app.manage(Arc::new(mock_repo) as Arc<dyn BookRepository>);
-        app.manage(RwLock::new(AppState::default()));
+        app.manage(RwLock::new(ContainerState::default()));
     }
 
     /// Settings whose default comic direction is `ltr`, with history on.

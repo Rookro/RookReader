@@ -1,17 +1,17 @@
 import { createSlice } from "@reduxjs/toolkit";
 import { api } from "../../bindings/api";
-import type { ReadBook } from "../../domain/entities";
+import type { BookWithState } from "../../domain/entities";
 import { readingProgressChanged } from "../../store/actions";
 import { createCommandThunk } from "../../types/CustomAsyncThunk";
 
 /**
  * Fetches the list of recently read books from the database.
  *
- * @returns A thunk that resolves to an array of ReadBook objects.
+ * @returns A thunk that resolves to an array of BookWithState objects.
  */
 export const fetchRecentlyReadBooks = createCommandThunk(
   "history/fetchRecentlyReadBooks",
-  () => api.getRecentlyReadBooks(null),
+  () => api.getRecentlyReadBooks(),
   () => "Failed to fetch recently read books.",
 );
 
@@ -45,7 +45,7 @@ export const clearAllHistory = createCommandThunk(
 const historySlice = createSlice({
   name: "history",
   initialState: {
-    recentlyReadBooks: [] as ReadBook[],
+    recentlyReadBooks: [] as BookWithState[],
     status: "idle" as "idle" | "loading" | "succeeded" | "failed",
   },
   reducers: {},

@@ -215,9 +215,9 @@ pub struct ComicCacheSettings {
     /// EPUB, a PDF — stays at one however high this goes. Worth lowering where the
     /// pages come over a network, since there the readers compete for one link rather
     /// than for cores, and each read gets slower as more of them run.
-    #[garde(range(min = 0, max = 64))]
+    #[garde(range(max = 64))]
     #[serde(default = "default_page_reader_count")]
-    pub page_reader_count: i32,
+    pub page_reader_count: u32,
 }
 
 impl Default for ComicCacheSettings {
@@ -234,7 +234,7 @@ fn default_preload_page_count() -> i32 {
     10
 }
 
-fn default_page_reader_count() -> i32 {
+fn default_page_reader_count() -> u32 {
     0
 }
 
@@ -322,29 +322,29 @@ pub struct RenderingSettings {
     #[serde(default = "default_true")]
     pub enable_thumbnail_preview: bool,
     /// The maximum allowed height for an image before it is scaled down (`0` = unlimited).
-    #[garde(range(min = 0, max = 65535))]
-    pub max_image_height: i32,
+    #[garde(range(max = 65535))]
+    pub max_image_height: u32,
     /// The algorithm used for resampling (resizing) images.
     #[garde(skip)]
     pub image_resampling_method: ImageResamplingMethod,
     /// The vertical resolution used when rasterizing PDF pages to images.
     #[garde(range(min = 1, max = 20000))]
     #[serde(default = "default_pdf_render_resolution_height")]
-    pub pdf_render_resolution_height: i32,
+    pub pdf_render_resolution_height: u32,
 }
 
 impl Default for RenderingSettings {
     fn default() -> Self {
         Self {
             enable_thumbnail_preview: default_true(),
-            max_image_height: i32::default(),
+            max_image_height: u32::default(),
             image_resampling_method: ImageResamplingMethod::default(),
             pdf_render_resolution_height: default_pdf_render_resolution_height(),
         }
     }
 }
 
-fn default_pdf_render_resolution_height() -> i32 {
+fn default_pdf_render_resolution_height() -> u32 {
     2000
 }
 
@@ -534,9 +534,8 @@ mod tests {
     #[rstest]
     #[case(0, true)]
     #[case(65535, true)]
-    #[case(-1, false)]
     #[case(65536, false)]
-    fn test_max_image_height_bounds(#[case] value: i32, #[case] valid: bool) {
+    fn test_max_image_height_bounds(#[case] value: u32, #[case] valid: bool) {
         let mut s = AppSettings::default();
         s.reader.rendering.max_image_height = value;
         assert_eq!(s.validate().is_ok(), valid, "max_image_height={value}");
@@ -547,7 +546,7 @@ mod tests {
     #[case(20000, true)]
     #[case(0, false)]
     #[case(20001, false)]
-    fn test_pdf_render_resolution_height_bounds(#[case] value: i32, #[case] valid: bool) {
+    fn test_pdf_render_resolution_height_bounds(#[case] value: u32, #[case] valid: bool) {
         let mut s = AppSettings::default();
         s.reader.rendering.pdf_render_resolution_height = value;
         assert_eq!(

@@ -27,7 +27,7 @@ use crate::{
         AppSettings, AppTheme, CurrentSettings, LogLevel, LogSettings, SettingsFileProvider,
         SettingsStoreProvider,
     },
-    state::app_state::AppState,
+    state::container_state::ContainerState,
 };
 
 /// Returns the settings store filename for the current build profile.
@@ -112,11 +112,11 @@ pub fn setup(app: &App) -> error::Result<()> {
 ///
 /// Returns an `Err` if locating the bundled libraries directory fails.
 pub fn setup_container_settings(app: &App, settings: &AppSettings) -> error::Result<()> {
-    let state: tauri::State<'_, RwLock<AppState>> = app.state();
+    let state: tauri::State<'_, RwLock<ContainerState>> = app.state();
     let mut locked_state = state.blocking_write();
 
-    locked_state.container_state.settings.pdfium_library_path = Some(get_libs_dir(app)?);
-    locked_state.container_state.apply_settings(settings);
+    locked_state.settings.pdfium_library_path = Some(get_libs_dir(app)?);
+    locked_state.apply_settings(settings);
 
     Ok(())
 }
