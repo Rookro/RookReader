@@ -28,10 +28,10 @@ use crate::error::Result;
 ///
 /// # Errors
 ///
-/// This function will return an `Err` if:
-/// * The specified `dir_path` does not exist or cannot be read.
-/// * An entry's file name contains invalid UTF-8.
-/// * Filesystem metadata for an entry cannot be accessed.
+/// This function will return an `Err` if `dir_path` does not exist or cannot be read,
+/// or if it names an archive (or a folder inside one) whose listing cannot be read. A
+/// folder entry that cannot be read, whose name is not valid UTF-8, or whose metadata
+/// cannot be read is skipped with a warning in the log instead.
 ///
 /// # Note
 ///
