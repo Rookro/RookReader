@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+* Fixed books opened while **Reading history** is off appearing in the history once it is turned back on. (#390)
+
 ## [2.7.0] - 2026-11-02
 
 ### Added
