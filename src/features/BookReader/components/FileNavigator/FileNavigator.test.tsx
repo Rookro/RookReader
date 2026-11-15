@@ -1,11 +1,13 @@
 import { error } from "@tauri-apps/plugin-log";
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { useEffect } from "react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { DirEntry } from "../../../../domain/entities";
 import { mockScrollToRow } from "../../../../test/mocks/components";
 import { createBasePreloadedState, renderWithProviders } from "../../../../test/utils";
-import type { DirEntry } from "../../../../types/DirEntry";
 import * as FileNavigatorSlice from "../../fileNavigatorSlice";
+import { useDirectoryWatcher } from "../../hooks/useDirectoryWatcher";
 import { useFileSelection } from "../../hooks/useFileSelection";
 import * as ReadReducer from "../../slice";
 import FileNavigator from "./FileNavigator";
@@ -40,8 +42,8 @@ vi.mock("../../fileNavigatorSlice", async () => {
   const actual = await vi.importActual("../../fileNavigatorSlice");
   return {
     ...actual,
-    updateExploreBasePath: vi.fn(() => ({ type: "explorer/updateExploreBasePath" })),
-    setSearchText: vi.fn((payload: string) => ({ type: "explorer/setSearchText", payload })),
+    loadDirectory: vi.fn(() => ({ type: "fileNavigator/loadDirectory" })),
+    setSearchText: vi.fn((payload: string) => ({ type: "fileNavigator/setSearchText", payload })),
   };
 });
 
@@ -74,16 +76,14 @@ describe("FileNavigator", () => {
   it("should show 'no search results' when search does not match any entry", async () => {
     const preloadedState = createBasePreloadedState();
     preloadedState.fileNavigator.searchText = "Banana";
-    preloadedState.fileNavigator.entries = [
-      { name: "Apple", is_directory: false, last_modified: 0 },
-    ];
+    preloadedState.fileNavigator.entries = [{ name: "Apple", isDirectory: false, lastModified: 0 }];
 
     renderWithProviders(<FileNavigator />, { preloadedState });
     expect(screen.getByText(/No results for "Banana"/i)).toBeInTheDocument();
   });
 
   it("should dispatch openBook when a file is clicked", async () => {
-    const entries: DirEntry[] = [{ name: "book.zip", is_directory: false, last_modified: 0 }];
+    const entries: DirEntry[] = [{ name: "book.zip", isDirectory: false, lastModified: 0 }];
     const preloadedState = createBasePreloadedState();
     preloadedState.fileNavigator.entries = entries;
 
@@ -100,6 +100,30 @@ describe("FileNavigator", () => {
     });
   });
 
+  it("reads the watched folder again in the background when it changes", () => {
+    const preloadedState = createBasePreloadedState();
+    preloadedState.fileNavigator.history = ["/a"];
+    preloadedState.fileNavigator.historyIndex = 0;
+    preloadedState.fileNavigator.pendingPath = "/a";
+
+    renderWithProviders(<FileNavigator />, { preloadedState });
+    const [watchedPath, onChange] = vi.mocked(useDirectoryWatcher).mock.calls.at(-1) ?? [];
+    expect(watchedPath).toBe("/a");
+
+    // The watcher waits for what the callback returns.
+    let result: unknown;
+    act(() => {
+      result = onChange?.();
+    });
+
+    expect(result).toEqual({ type: "fileNavigator/loadDirectory" });
+    expect(FileNavigatorSlice.loadDirectory).toHaveBeenCalledTimes(1);
+    expect(FileNavigatorSlice.loadDirectory).toHaveBeenCalledWith({
+      dirPath: "/a",
+      background: true,
+    });
+  });
+
   // Moving to a folder already starts its listing; the history effect must not list it again
   it("does not list a folder whose listing is already in flight", () => {
     const preloadedState = createBasePreloadedState();
@@ -109,7 +133,7 @@ describe("FileNavigator", () => {
 
     renderWithProviders(<FileNavigator />, { preloadedState });
 
-    expect(FileNavigatorSlice.updateExploreBasePath).not.toHaveBeenCalled();
+    expect(FileNavigatorSlice.loadDirectory).not.toHaveBeenCalled();
   });
 
   // Back and Forward only move the history, so the effect is what lists the folder
@@ -120,14 +144,14 @@ describe("FileNavigator", () => {
 
     renderWithProviders(<FileNavigator />, { preloadedState });
 
-    expect(FileNavigatorSlice.updateExploreBasePath).toHaveBeenCalledWith({
+    expect(FileNavigatorSlice.loadDirectory).toHaveBeenCalledWith({
       dirPath: "/a",
       forceUpdate: true,
     });
   });
 
-  it("should dispatch updateExploreBasePath when a directory is double-clicked", async () => {
-    const entries: DirEntry[] = [{ name: "folder", is_directory: true, last_modified: 0 }];
+  it("should dispatch loadDirectory when a directory is double-clicked", async () => {
+    const entries: DirEntry[] = [{ name: "folder", isDirectory: true, lastModified: 0 }];
     const preloadedState = createBasePreloadedState();
     preloadedState.fileNavigator.entries = entries;
 
@@ -137,14 +161,14 @@ describe("FileNavigator", () => {
     await user.dblClick(rowButton);
 
     await waitFor(() => {
-      expect(FileNavigatorSlice.updateExploreBasePath).toHaveBeenCalled();
+      expect(FileNavigatorSlice.loadDirectory).toHaveBeenCalled();
     });
   });
 
-  it("should dispatch updateExploreBasePath when a browsable archive is double-clicked", async () => {
+  it("should dispatch loadDirectory when a browsable archive is double-clicked", async () => {
     // Double-clicking a .zip steps into it like a folder rather than opening it as a
     // book; a single click still opens it.
-    const entries: DirEntry[] = [{ name: "book.zip", is_directory: false, last_modified: 0 }];
+    const entries: DirEntry[] = [{ name: "book.zip", isDirectory: false, lastModified: 0 }];
     const preloadedState = createBasePreloadedState();
     preloadedState.fileNavigator.entries = entries;
 
@@ -154,7 +178,7 @@ describe("FileNavigator", () => {
     await user.dblClick(rowButton);
 
     await waitFor(() => {
-      expect(FileNavigatorSlice.updateExploreBasePath).toHaveBeenCalled();
+      expect(FileNavigatorSlice.loadDirectory).toHaveBeenCalled();
     });
     expect(ReadReducer.openBook).not.toHaveBeenCalled();
   });
@@ -163,8 +187,8 @@ describe("FileNavigator", () => {
     // Single-clicking row A then row B within the double-click interval must not be
     // misread as a double-click on B; B is selected and no directory navigation occurs.
     const entries: DirEntry[] = [
-      { name: "folderA", is_directory: true, last_modified: 0 },
-      { name: "folderB", is_directory: true, last_modified: 0 },
+      { name: "folderA", isDirectory: true, lastModified: 0 },
+      { name: "folderB", isDirectory: true, lastModified: 0 },
     ];
     const preloadedState = createBasePreloadedState();
     preloadedState.fileNavigator.entries = entries;
@@ -179,7 +203,7 @@ describe("FileNavigator", () => {
     fireEvent.click(rowB);
 
     // A click on a different row must not navigate into the directory.
-    expect(FileNavigatorSlice.updateExploreBasePath).not.toHaveBeenCalled();
+    expect(FileNavigatorSlice.loadDirectory).not.toHaveBeenCalled();
 
     // The pending single-click resolves to selecting row B.
     await waitFor(() => {
@@ -187,12 +211,12 @@ describe("FileNavigator", () => {
         expect.objectContaining({ path: "/folderB" }),
       );
     });
-    expect(FileNavigatorSlice.updateExploreBasePath).not.toHaveBeenCalled();
+    expect(FileNavigatorSlice.loadDirectory).not.toHaveBeenCalled();
   });
 
   it("should open the file when a file is double-clicked", async () => {
     // A PDF is a single document, not a browsable archive, so a double-click opens it.
-    const entries: DirEntry[] = [{ name: "book.pdf", is_directory: false, last_modified: 0 }];
+    const entries: DirEntry[] = [{ name: "book.pdf", isDirectory: false, lastModified: 0 }];
     const preloadedState = createBasePreloadedState();
     preloadedState.fileNavigator.entries = entries;
 
@@ -207,14 +231,14 @@ describe("FileNavigator", () => {
       );
     });
     // A file double-click must not be treated as a directory navigation.
-    expect(FileNavigatorSlice.updateExploreBasePath).not.toHaveBeenCalled();
+    expect(FileNavigatorSlice.loadDirectory).not.toHaveBeenCalled();
   });
 
-  it("should scroll to row when selectedIndex is set", async () => {
-    const entries: DirEntry[] = [{ name: "book.zip", is_directory: false, last_modified: 0 }];
+  it("should scroll to the open book's row", async () => {
+    const entries: DirEntry[] = [{ name: "book.zip", isDirectory: false, lastModified: 0 }];
     vi.mocked(useFileSelection).mockImplementationOnce(
-      (_fileHistory, _fileHistoryIndex, _entries, callback) => {
-        callback(0);
+      (_fileHistory, _fileHistoryIndex, callback) => {
+        callback("book.zip");
       },
     );
 
@@ -235,10 +259,10 @@ describe("FileNavigator", () => {
   });
 
   it("should log error if scrollToRow fails", async () => {
-    const entries: DirEntry[] = [{ name: "book.zip", is_directory: false, last_modified: 0 }];
+    const entries: DirEntry[] = [{ name: "book.zip", isDirectory: false, lastModified: 0 }];
     vi.mocked(useFileSelection).mockImplementationOnce(
-      (_fileHistory, _fileHistoryIndex, _entries, callback) => {
-        callback(0);
+      (_fileHistory, _fileHistoryIndex, callback) => {
+        callback("book.zip");
       },
     );
 
@@ -247,7 +271,7 @@ describe("FileNavigator", () => {
     preloadedState.reader.history = ["/book.zip"];
     preloadedState.reader.historyIndex = 0;
 
-    mockScrollToRow.mockImplementation(() => {
+    mockScrollToRow.mockImplementationOnce(() => {
       throw new Error("Scroll failed");
     });
 
@@ -255,6 +279,109 @@ describe("FileNavigator", () => {
 
     await waitFor(() => {
       expect(error).toHaveBeenCalledWith(expect.stringContaining("Failed to scroll to row 0"));
+    });
+  });
+
+  describe("scrolling to the open book", () => {
+    const row = (name: string): DirEntry => ({ name, isDirectory: false, lastModified: 0 });
+
+    // Lists /dir with the open book book.zip selected, and waits for the first scroll.
+    const renderWithOpenBook = async (entries: DirEntry[]) => {
+      vi.mocked(useFileSelection).mockImplementation((_fileHistory, _fileHistoryIndex, select) => {
+        useEffect(() => select("book.zip"), [select]);
+      });
+      const preloadedState = createBasePreloadedState();
+      preloadedState.fileNavigator.history = ["/dir"];
+      preloadedState.fileNavigator.historyIndex = 0;
+      preloadedState.fileNavigator.pendingPath = "/dir";
+      preloadedState.fileNavigator.entries = entries;
+      preloadedState.reader.history = ["/dir/book.zip"];
+      preloadedState.reader.historyIndex = 0;
+
+      const rendered = renderWithProviders(<FileNavigator />, { preloadedState });
+      await waitFor(() => expect(mockScrollToRow).toHaveBeenCalledTimes(1));
+      mockScrollToRow.mockClear();
+      return rendered;
+    };
+
+    // What a finished background re-read of /dir puts into the store. `loadDirectory` is
+    // mocked in this file, so the action is written out; `requestId` matches the store's.
+    const reread = (entries: DirEntry[]) => ({
+      type: "fileNavigator/loadDirectory/fulfilled",
+      payload: { path: "/dir", entries },
+      meta: { requestId: null, arg: { dirPath: "/dir", background: true } },
+    });
+
+    // Lets the scroll effect's timer run out.
+    const settle = () => act(() => new Promise((resolve) => setTimeout(resolve, 50)));
+
+    afterEach(() => {
+      vi.mocked(useFileSelection).mockReset();
+    });
+
+    it("keeps the scroll position when a re-read moves the open book's row", async () => {
+      const { store } = await renderWithOpenBook([row("a.zip"), row("book.zip")]);
+
+      act(() => {
+        store.dispatch(reread([row("0.zip"), row("a.zip"), row("book.zip")]));
+      });
+      await settle();
+
+      expect(mockScrollToRow).not.toHaveBeenCalled();
+      // The selection follows the open book to its new row.
+      expect(screen.getByRole("button", { name: "book.zip" })).toHaveClass("Mui-selected");
+      expect(screen.getByRole("button", { name: "a.zip" })).not.toHaveClass("Mui-selected");
+    });
+
+    it("scrolls to the open book again when the search changes", async () => {
+      const { store } = await renderWithOpenBook([row("a.zip"), row("book.zip")]);
+
+      act(() => {
+        store.dispatch({ type: "fileNavigator/setSearchText", payload: "book" });
+      });
+
+      await waitFor(() => {
+        expect(mockScrollToRow).toHaveBeenCalledWith({
+          align: "smart",
+          behavior: "instant",
+          index: 0,
+        });
+      });
+    });
+
+    it("scrolls to the open book again when a search that hid it is cleared", async () => {
+      const { store } = await renderWithOpenBook([row("a.zip"), row("book.zip")]);
+      act(() => {
+        store.dispatch({ type: "fileNavigator/setSearchText", payload: "a" });
+      });
+      await settle();
+
+      act(() => {
+        store.dispatch({ type: "fileNavigator/setSearchText", payload: "" });
+      });
+
+      await waitFor(() => {
+        expect(mockScrollToRow).toHaveBeenCalledWith({
+          align: "smart",
+          behavior: "instant",
+          index: 1,
+        });
+      });
+    });
+
+    it("keeps the scroll position when a re-read brings the open book's row back", async () => {
+      const { store } = await renderWithOpenBook([row("a.zip"), row("book.zip")]);
+      act(() => {
+        store.dispatch(reread([row("a.zip")]));
+      });
+      await settle();
+
+      act(() => {
+        store.dispatch(reread([row("a.zip"), row("b.zip"), row("book.zip")]));
+      });
+      await settle();
+
+      expect(mockScrollToRow).not.toHaveBeenCalled();
     });
   });
 });

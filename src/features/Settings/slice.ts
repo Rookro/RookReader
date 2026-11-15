@@ -1,12 +1,11 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import { error } from "@tauri-apps/plugin-log";
+import { api } from "../../bindings/api";
 import type { SettingsPatch } from "../../bindings/bindings";
-import { setSettings as persistSettings } from "../../bindings/SettingsCommands";
+import { createAppAsyncThunk } from "../../store/createCommandThunk";
 import type { AppSettings } from "../../types/AppSettings";
-import { createAppAsyncThunk } from "../../types/CustomAsyncThunk";
 import { CommandError, ErrorCode } from "../../types/Error";
 import { setPerfLogging } from "../../utils/perf";
-import { setSettingsError } from "./errorSlice";
 import { defaultSettings } from "./settingsStore";
 
 type DepthLimit = [never, 0, 1, 2, 3, 4, 5];
@@ -36,10 +35,10 @@ export type UpdateSettingsPayload = {
  */
 export const updateSettings = createAppAsyncThunk(
   "settings/updateSettings",
-  async ({ key, value }: UpdateSettingsPayload, { dispatch, rejectWithValue }) => {
+  async ({ key, value }: UpdateSettingsPayload, { rejectWithValue }) => {
     const patch = { [key]: value } as unknown as SettingsPatch;
     try {
-      const merged = await persistSettings(patch);
+      const merged = await api.setSettings(patch);
       // For this window only. The backend leaves the caller out of the `settings-changed`
       // broadcast, so `useSettingsChange` never sees the change this window made.
       setPerfLogging(merged.general.log.level);
@@ -49,12 +48,7 @@ export const updateSettings = createAppAsyncThunk(
       const message = e instanceof CommandError ? e.message : String(e);
       const details = e instanceof CommandError ? e.details : undefined;
       error(`Failed to persist settings: ${message}`);
-      // Structured field violations are shown inline next to the offending field by the
-      // component (via the rejected payload's `details`). Only raise the centralized
-      // notification for generic (non-field) settings errors.
-      if (!details?.length) {
-        dispatch(setSettingsError({ code, message }));
-      }
+      // Field violations are shown beside their field, from this payload's `details`.
       return rejectWithValue({ code, message, details });
     }
   },

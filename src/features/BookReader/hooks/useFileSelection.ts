@@ -1,20 +1,18 @@
 import { basename } from "@tauri-apps/api/path";
 import { useEffect } from "react";
-import type { DirEntry } from "../../../types/DirEntry";
 
 /**
- * Custom hook to determine the selected index in a file list based on file history.
+ * Custom hook to find the name of the open book, which the file list selects.
  *
  * @param fileHistory The history of file paths.
  * @param fileHistoryIndex The current index in the file history.
- * @param entries The list of directory entries.
- * @param setSelectedIndex The function to set the selected index.
+ * @param setSelectedName The function to set the selected entry's name; `null` when no book
+ * is open.
  */
 export function useFileSelection(
   fileHistory: string[],
   fileHistoryIndex: number,
-  entries: DirEntry[],
-  setSelectedIndex: (index: number) => void,
+  setSelectedName: (name: string | null) => void,
 ) {
   useEffect(() => {
     let cancelled = false;
@@ -22,16 +20,15 @@ export function useFileSelection(
       const currentFile = fileHistory[fileHistoryIndex];
       if (!currentFile) {
         if (!cancelled) {
-          setSelectedIndex(-1);
+          setSelectedName(null);
         }
         return;
       }
 
       const fileName = await basename(currentFile);
-      const idx = entries.findIndex((entry) => entry.name === fileName);
 
       if (!cancelled) {
-        setSelectedIndex(idx);
+        setSelectedName(fileName);
       }
     };
 
@@ -40,5 +37,5 @@ export function useFileSelection(
     return () => {
       cancelled = true;
     };
-  }, [fileHistory, fileHistoryIndex, entries, setSelectedIndex]);
+  }, [fileHistory, fileHistoryIndex, setSelectedName]);
 }

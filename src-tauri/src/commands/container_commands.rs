@@ -1,6 +1,5 @@
 use tokio::sync::RwLock;
 
-use serde::{Deserialize, Serialize};
 use tauri::ipc::Response;
 
 use crate::{
@@ -8,8 +7,7 @@ use crate::{
     error::{Error, Result},
     image::types::{Image, ImageDimensions},
     page::{pipeline::Fit, service::Priority},
-    settings::ComicCacheSettings,
-    state::{app_state::AppState, container_state::ContainerState},
+    state::container_state::ContainerState,
 };
 
 /// The error every command raises when the book it names is not the book that is open.
@@ -42,59 +40,6 @@ fn image_response(image: &Image) -> Response {
     Response::new(body)
 }
 
-/// The result of getting entries in a container.
-#[derive(Serialize, Deserialize, specta::Type)]
-pub struct EntriesResult {
-    /// The entry names in the container.
-    entries: Vec<String>,
-    /// Whether the container is a directory.
-    is_directory: bool,
-    /// Whether the container is an EPUB novel.
-    is_novel: bool,
-    /// Whether `get_image_preview` can send a page more cheaply than `get_image`.
-    has_previews: bool,
-}
-
-/// Opens a book as the open book: builds its container, installs its page service in
-/// place of the previous book's, and lists its entries.
-///
-/// # Arguments
-///
-/// * `path` - The file path to the container to open.
-/// * `state` - A `tauri::State` holding the application's global `AppState`.
-///
-/// # Returns
-///
-/// A `Result` which is `Ok` with an `EntriesResult` struct containing the list of entry
-/// names, a boolean indicating if the path is a directory, and a boolean indicating if it's a novel.
-///
-/// # Errors
-///
-/// This function will return an `Err` if:
-/// * The container file cannot be opened (e.g., it does not exist or is corrupt).
-/// * The container holds no readable pages (EPUB novels excepted).
-#[tauri::command()]
-#[specta::specta]
-pub async fn open_container(
-    path: &str,
-    state: tauri::State<'_, RwLock<AppState>>,
-) -> Result<EntriesResult> {
-    log::debug!("Open container: {}", path);
-
-    let container = ContainerState::open(&state, path).await?;
-    Ok(EntriesResult {
-        entries: container.get_entries().clone(),
-        is_directory: container.is_directory(),
-        is_novel: container.is_novel(),
-        has_previews: container.has_previews(),
-    })
-}
-
-/// The preload page count setting's default, as a page count.
-fn default_buffer_size() -> usize {
-    usize::try_from(ComicCacheSettings::default().preload_page_count).unwrap_or_default()
-}
-
 /// Requests preloading of images around a specific index.
 ///
 /// This command can be called as the user navigates through a book to update
@@ -104,13 +49,12 @@ fn default_buffer_size() -> usize {
 ///
 /// * `path` - The path of the container the caller believes is open.
 /// * `index` - The current page index around which to preload.
-/// * `buffer_size` - Optional. How many pages to preload in each direction.
-///   Defaults to the preload page count setting's default if `None` is provided.
+/// * `buffer_size` - How many pages to preload in each direction.
 /// * `caller_pages` - How many pages from `index` the caller is fetching itself. Those
 ///   are left out of the window: preloading a page the viewer is already requesting at
 ///   foreground priority only lets a background job reach it first, and the foreground
 ///   request then waits on that job instead of being served.
-/// * `state` - A `tauri::State` holding the application's global `AppState`.
+/// * `state` - The managed container state.
 ///
 /// # Errors
 ///
@@ -122,25 +66,18 @@ fn default_buffer_size() -> usize {
 pub async fn request_preload_around(
     path: &str,
     index: usize,
-    buffer_size: Option<usize>,
-    caller_pages: Option<usize>,
-    state: tauri::State<'_, RwLock<AppState>>,
+    buffer_size: usize,
+    caller_pages: usize,
+    state: tauri::State<'_, RwLock<ContainerState>>,
 ) -> Result<()> {
-    log::debug!(
-        "Request preload around index {}, buffer_size: {:?}",
-        index,
-        buffer_size
-    );
+    log::debug!("Request preload around index {index}, buffer_size: {buffer_size}");
     let state_lock = state.read().await;
 
-    let buffer_size = buffer_size.unwrap_or_else(default_buffer_size);
-
     let service = state_lock
-        .container_state
         .service_for(path)
         .ok_or_else(|| stale(path, "preloading"))?;
 
-    service.request_preload_around(index, buffer_size, caller_pages.unwrap_or(0))?;
+    service.request_preload_around(index, buffer_size, caller_pages)?;
     Ok(())
 }
 
@@ -157,7 +94,7 @@ pub async fn request_preload_around(
 ///
 /// * `width` - The viewport width in device pixels. `0` means "not measured yet".
 /// * `height` - The viewport height in device pixels.
-/// * `state` - A `tauri::State` holding the application's global `AppState`.
+/// * `state` - The managed container state.
 ///
 /// # Returns
 ///
@@ -171,14 +108,14 @@ pub async fn request_preload_around(
 pub async fn set_display_size(
     width: u32,
     height: u32,
-    state: tauri::State<'_, RwLock<AppState>>,
+    state: tauri::State<'_, RwLock<ContainerState>>,
 ) -> Result<()> {
     log::debug!("The reader draws a page at {}x{} device px", width, height);
 
     let size = (width > 0 && height > 0).then_some(Fit { width, height });
     let mut state_lock = state.write().await;
-    state_lock.container_state.display_size = size;
-    if let Some(service) = state_lock.container_state.current_service() {
+    state_lock.display_size = size;
+    if let Some(service) = state_lock.current_service() {
         service.set_display_size(size);
     }
     Ok(())
@@ -193,12 +130,12 @@ pub async fn set_display_size(
 /// # Arguments
 ///
 /// * `path` - The path of the container the caller believes is open.
-/// * `state` - A `tauri::State` holding the application's global `AppState`.
+/// * `state` - The managed container state.
 ///
 /// # Returns
 ///
 /// A `Result` which is `Ok` with one `ImageDimensions` per entry, in the same order as
-/// `open_container` returned them.
+/// `open_book` returned them.
 ///
 /// # Errors
 ///
@@ -210,7 +147,7 @@ pub async fn set_display_size(
 #[specta::specta]
 pub async fn get_image_dimensions(
     path: &str,
-    state: tauri::State<'_, RwLock<AppState>>,
+    state: tauri::State<'_, RwLock<ContainerState>>,
 ) -> Result<Vec<ImageDimensions>> {
     log::debug!("Get the dimensions of every entry in {}", path);
 
@@ -218,7 +155,7 @@ pub async fn get_image_dimensions(
     // runs without blocking other state access.
     let service = {
         let state_lock = state.read().await;
-        state_lock.container_state.service_for(path)
+        state_lock.service_for(path)
     }
     .ok_or_else(|| stale(path, "dimensions"))?;
 
@@ -229,14 +166,14 @@ pub async fn get_image_dimensions(
 
 /// Retrieves an image from the currently open container.
 ///
-/// This function fetches the binary data for a specified image entry from the container
-/// that is currently loaded in the application state.
+/// This function fetches the binary data for a specified image entry from the book that
+/// is open.
 ///
 /// # Arguments
 ///
-/// * `path` - The path of the container, used primarily for logging purposes.
+/// * `path` - The path of the container the caller believes is open.
 /// * `entry_name` - The name of the image entry to retrieve (e.g., "image1.png").
-/// * `state` - A `tauri::State` holding the application's global `AppState`.
+/// * `state` - The managed container state.
 ///
 /// # Returns
 ///
@@ -246,13 +183,13 @@ pub async fn get_image_dimensions(
 /// # Errors
 ///
 /// This function will return an `Err` if:
-/// * The `image_loader` within the application state is unexpectedly missing.
+/// * The book it names is not the book that is open.
 /// * The requested image entry cannot be found or decoded.
 #[tauri::command]
 pub async fn get_image(
     path: &str,
     entry_name: &str,
-    state: tauri::State<'_, RwLock<AppState>>,
+    state: tauri::State<'_, RwLock<ContainerState>>,
 ) -> Result<Response> {
     log::debug!("Get the binary of {} in {}", entry_name, path);
 
@@ -260,7 +197,7 @@ pub async fn get_image(
     // decode below runs without blocking other state access.
     let service = {
         let state_lock = state.read().await;
-        state_lock.container_state.service_for(path)
+        state_lock.service_for(path)
     }
     .ok_or_else(|| stale(path, entry_name))?;
 
@@ -281,7 +218,7 @@ pub async fn get_image(
 ///
 /// * `path` - The path of the container the caller believes is open.
 /// * `entry_name` - The name of the image entry to retrieve (e.g., "image1.png").
-/// * `state` - A `tauri::State` holding the application's global `AppState`.
+/// * `state` - The managed container state.
 ///
 /// # Returns
 ///
@@ -297,13 +234,13 @@ pub async fn get_image(
 pub async fn get_image_full(
     path: &str,
     entry_name: &str,
-    state: tauri::State<'_, RwLock<AppState>>,
+    state: tauri::State<'_, RwLock<ContainerState>>,
 ) -> Result<Response> {
     log::debug!("Get the full-size binary of {} in {}", entry_name, path);
 
     let service = {
         let state_lock = state.read().await;
-        state_lock.container_state.service_for(path)
+        state_lock.service_for(path)
     }
     .ok_or_else(|| stale(path, entry_name))?;
 
@@ -320,9 +257,9 @@ pub async fn get_image_full(
 ///
 /// # Arguments
 ///
-/// * `path` - The path of the container, used primarily for logging purposes.
+/// * `path` - The path of the container the caller believes is open.
 /// * `entry_name` - The name of the image entry for which to generate a preview.
-/// * `state` - A `tauri::State` holding the application's global `AppState`.
+/// * `state` - The managed container state.
 ///
 /// # Returns
 ///
@@ -332,19 +269,19 @@ pub async fn get_image_full(
 /// # Errors
 ///
 /// This function will return an `Err` if:
-/// * The `image_loader` within the application state is unexpectedly missing.
+/// * The book it names is not the book that is open.
 /// * The preview image cannot be retrieved or generated.
 #[tauri::command]
 pub async fn get_image_preview(
     path: &str,
     entry_name: &str,
-    state: tauri::State<'_, RwLock<AppState>>,
+    state: tauri::State<'_, RwLock<ContainerState>>,
 ) -> Result<Response> {
     log::debug!("Get the preview binary of {} in {}", entry_name, path);
 
     let service = {
         let state_lock = state.read().await;
-        state_lock.container_state.service_for(path)
+        state_lock.service_for(path)
     }
     .ok_or_else(|| stale(path, entry_name))?;
 
@@ -366,7 +303,7 @@ pub async fn get_image_preview(
 /// # Arguments
 ///
 /// * `path` - The path of the novel the caller believes is open.
-/// * `state` - The application state, holding the open book.
+/// * `state` - The managed container state.
 ///
 /// # Returns
 ///
@@ -380,12 +317,12 @@ pub async fn get_image_preview(
 #[tauri::command()]
 pub async fn read_novel_file(
     path: &str,
-    state: tauri::State<'_, RwLock<AppState>>,
+    state: tauri::State<'_, RwLock<ContainerState>>,
 ) -> Result<Response> {
     log::debug!("Read the novel file {}", path);
     let is_open_novel = {
         let state_lock = state.read().await;
-        state_lock.container_state.service_for(path)
+        state_lock.service_for(path)
     }
     .is_some_and(|service| service.container().is_novel());
     if !is_open_novel {
@@ -403,15 +340,17 @@ mod tests {
     use mockall::predicate::eq;
 
     use super::*;
-    use std::{path, sync::Arc};
+    use std::sync::Arc;
     use tauri::{ipc::InvokeResponseBody::Raw, ipc::IpcResponse, Manager};
     use tokio::sync::RwLock;
 
     use crate::{
         container::traits::{MockContainer, MockPageReader, PageReader},
         image::{resizer::ResizeFilter, types::Image},
-        page::{pipeline::Pipeline, service::PageService},
-        state::container_state::ContainerState,
+        page::{
+            pipeline::Pipeline,
+            service::{close_if_stuck, PageService, StuckWatch},
+        },
     };
 
     /// A real 800x600 PNG.
@@ -460,11 +399,13 @@ mod tests {
     }
 
     /// Installs `container` as the open book under `book_id`.
+    ///
+    /// The returned watch closes the book if the test outlives the scheduler's test timeout.
     fn manage_service(
         app: &tauri::App<tauri::test::MockRuntime>,
         book_id: &str,
         container: MockContainer,
-    ) {
+    ) -> StuckWatch {
         let mut container_state = ContainerState::default();
         container_state.install(PageService::new(
             book_id.to_string(),
@@ -477,7 +418,9 @@ mod tests {
             mini_moka::sync::Cache::new(100),
             0,
         ));
-        app.manage(RwLock::new(AppState { container_state }));
+        let watch = close_if_stuck(&container_state.current_service().expect("a book is open"));
+        app.manage(RwLock::new(container_state));
+        watch
     }
 
     /// A valid 1x1 PNG. Previews travel as encoded bytes and are decoded by the loader,
@@ -490,186 +433,10 @@ mod tests {
         0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82,
     ];
 
-    // Since programmatically generating a RAR file is complicated,
-    // a dummy RAR file was created manually beforehand.
-    //
-    // This function copies that pre-existing RAR file to the path specified in the arguments.
-    fn create_dummy_rar(dir: &path::Path, filename: &str) -> path::PathBuf {
-        let dummy_rar_path = path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("tests")
-            .join("resources")
-            .join("test.rar");
-        if !dummy_rar_path.exists() {
-            panic!(
-                "Dummy RAR file not found at {}. Please create it manually as per instructions.",
-                dummy_rar_path.display()
-            );
-        }
-
-        let rar_filepath = dir.join(filename);
-        std::fs::copy(dummy_rar_path, &rar_filepath).unwrap();
-        rar_filepath
-    }
-
-    #[tokio::test]
-    async fn test_open_container_rejects_a_container_without_pages() {
-        use std::io::Write;
-        use zip::write::{FileOptions, ZipWriter};
-
-        let dir = tempfile::tempdir().expect("tempdir");
-        let zip_path = dir.path().join("multi.zip");
-        let mut zip = ZipWriter::new(std::fs::File::create(&zip_path).expect("create zip"));
-        // Two sub-folders, so auto-descend has nothing to pick and the root stays empty.
-        for name in ["ch1/001.png", "ch2/001.png"] {
-            zip.start_file(name, FileOptions::<()>::default())
-                .expect("start entry");
-            zip.write_all(&[0u8]).expect("write entry");
-        }
-        zip.finish().expect("finish zip");
-
-        let app = tauri::test::mock_app();
-        app.manage(RwLock::new(AppState::default()));
-
-        let result = open_container(zip_path.to_string_lossy().as_ref(), app.state()).await;
-
-        let Err(err) = result else {
-            panic!("expected an empty-container error");
-        };
-        assert!(err.to_string().contains("Empty Container Error"));
-    }
-
-    #[tokio::test]
-    async fn opening_a_container_without_pages_closes_the_open_book() {
-        use std::io::Write;
-        use zip::write::{FileOptions, ZipWriter};
-
-        let dir = tempfile::tempdir().unwrap();
-        let rar_path = create_dummy_rar(dir.path(), "dummy.rar");
-        let zip_path = dir.path().join("multi.zip");
-        let mut zip = ZipWriter::new(std::fs::File::create(&zip_path).unwrap());
-        for name in ["ch1/001.png", "ch2/001.png"] {
-            zip.start_file(name, FileOptions::<()>::default()).unwrap();
-            zip.write_all(&[0u8]).unwrap();
-        }
-        zip.finish().unwrap();
-
-        let app = tauri::test::mock_app();
-        app.manage(RwLock::new(AppState::default()));
-        open_container(rar_path.to_string_lossy().as_ref(), app.state())
-            .await
-            .unwrap();
-
-        let result = open_container(zip_path.to_string_lossy().as_ref(), app.state()).await;
-
-        assert!(matches!(result, Err(Error::EmptyContainer(_))));
-        let binding = app.state::<RwLock<AppState>>();
-        assert!(!binding.read().await.container_state.is_open());
-    }
-
-    #[tokio::test]
-    async fn test_open_container() {
-        let dir = tempfile::tempdir().unwrap();
-        let rar_path = create_dummy_rar(dir.path(), "dummy.rar");
-        let expected_entries = [
-            "image1.png".to_string(),
-            "image2.png".to_string(),
-            "image3.png".to_string(),
-        ];
-
-        let app = tauri::test::mock_app();
-        app.manage(RwLock::new(AppState::default()));
-
-        let result = open_container(rar_path.to_string_lossy().as_ref(), app.state()).await;
-
-        assert!(result.is_ok());
-
-        let actual_entries_result = result.unwrap();
-        assert_eq!(expected_entries.len(), actual_entries_result.entries.len());
-        assert_eq!(expected_entries[0], actual_entries_result.entries[0]);
-        assert_eq!(expected_entries[1], actual_entries_result.entries[1]);
-        assert_eq!(expected_entries[2], actual_entries_result.entries[2]);
-        assert!(!actual_entries_result.is_directory);
-    }
-
-    #[tokio::test]
-    async fn test_open_container_empty_container() {
-        let app = tauri::test::mock_app();
-        app.manage(RwLock::new(AppState::default()));
-
-        let result = open_container("non_existent_path", app.state()).await;
-
-        assert!(result.is_err());
-    }
-
-    #[tokio::test]
-    async fn test_open_container_clears_state_on_failure() {
-        let dir = tempfile::tempdir().unwrap();
-        let rar_path = create_dummy_rar(dir.path(), "dummy.rar");
-
-        let app = tauri::test::mock_app();
-        app.manage(RwLock::new(AppState::default()));
-
-        // Open a valid container first; state now holds the book's service.
-        open_container(rar_path.to_string_lossy().as_ref(), app.state())
-            .await
-            .expect("opening a valid container should succeed");
-        {
-            let binding = app.state::<RwLock<AppState>>();
-            let guard = binding.read().await;
-            assert!(guard.container_state.is_open());
-        }
-
-        // A subsequent failed open must clear the previous service so we never serve
-        // images from the old book.
-        let result = open_container("non_existent_path", app.state()).await;
-        assert!(result.is_err());
-        {
-            let binding = app.state::<RwLock<AppState>>();
-            let guard = binding.read().await;
-            assert!(!guard.container_state.is_open());
-        }
-    }
-
-    #[tokio::test]
-    async fn test_open_container_installs_the_service_without_asking_for_a_page() {
-        // Opening a book lists it and starts its readers; what to read is the viewer's
-        // decision, made once it knows where the reader is resuming. This command cannot
-        // know that, so it must queue nothing.
-        let dir = tempfile::tempdir().unwrap();
-        let rar_path = create_dummy_rar(dir.path(), "dummy.rar");
-        let path = rar_path.to_string_lossy().into_owned();
-
-        let app = tauri::test::mock_app();
-        app.manage(RwLock::new(AppState::default()));
-
-        let result = open_container(&path, app.state()).await;
-
-        let entries_result = result.expect("a valid non-novel open should succeed");
-        assert!(!entries_result.is_novel);
-        assert!(!entries_result.has_previews);
-        assert_eq!(3, entries_result.entries.len());
-
-        let binding = app.state::<RwLock<AppState>>();
-        let guard = binding.read().await;
-        assert!(guard.container_state.is_open());
-
-        let service = guard
-            .container_state
-            .service_for(&path)
-            .expect("the open book's service");
-        assert_eq!(service.pending(), 0, "the open queued work of its own");
-        for entry in &entries_result.entries {
-            assert!(
-                service.cached(entry).is_none(),
-                "the open read {entry} before anyone asked for it"
-            );
-        }
-    }
-
     #[tokio::test]
     async fn test_get_image_in_container() {
         let app = tauri::test::mock_app();
-        manage_service(
+        let _watch = manage_service(
             &app,
             "dummy_book_id",
             page_container(&["test1.png", "test2.png"]),
@@ -707,7 +474,7 @@ mod tests {
         // A request whose path does not match the installed loader's book_id raced a
         // book switch; it must be rejected (BookChanged), not served another book's page.
         let app = tauri::test::mock_app();
-        manage_service(&app, "current_book_id", page_container(&["test1.png"]));
+        let _watch = manage_service(&app, "current_book_id", page_container(&["test1.png"]));
 
         // Ask for a page in a *different* book than the one installed.
         let result = get_image("stale_book_id", "test1.png", app.state()).await;
@@ -721,8 +488,8 @@ mod tests {
         );
     }
 
-    /// Builds an app state around a two-page book whose pages differ in orientation.
-    fn manage_mock_state(app: &tauri::App<tauri::test::MockRuntime>, book_id: &str) {
+    /// Builds a container state around a two-page book whose pages differ in orientation.
+    fn manage_mock_state(app: &tauri::App<tauri::test::MockRuntime>, book_id: &str) -> StuckWatch {
         let mut container = MockContainer::new();
         container
             .expect_get_entries()
@@ -745,13 +512,13 @@ mod tests {
             });
             Ok(Box::new(reader) as Box<dyn PageReader>)
         });
-        manage_service(app, book_id, container);
+        manage_service(app, book_id, container)
     }
 
     #[tokio::test]
     async fn test_get_image_dimensions_returns_one_entry_per_page() {
         let app = tauri::test::mock_app();
-        manage_mock_state(&app, "dummy_book_id");
+        let _watch = manage_mock_state(&app, "dummy_book_id");
 
         let result = get_image_dimensions("dummy_book_id", app.state()).await;
 
@@ -775,7 +542,7 @@ mod tests {
         // Mirrors get_image: a request that raced a book switch must be rejected rather
         // than measured against another book's pages.
         let app = tauri::test::mock_app();
-        manage_mock_state(&app, "current_book_id");
+        let _watch = manage_mock_state(&app, "current_book_id");
 
         let result = get_image_dimensions("stale_book_id", app.state()).await;
 
@@ -791,7 +558,7 @@ mod tests {
     #[tokio::test]
     async fn test_get_image_dimensions_empty_container() {
         let app = tauri::test::mock_app();
-        app.manage(RwLock::new(AppState::default()));
+        app.manage(RwLock::new(ContainerState::default()));
 
         let result = get_image_dimensions("non_existent_path", app.state()).await;
 
@@ -801,7 +568,7 @@ mod tests {
     #[tokio::test]
     async fn test_get_image_empty_container() {
         let app = tauri::test::mock_app();
-        app.manage(RwLock::new(AppState::default()));
+        app.manage(RwLock::new(ContainerState::default()));
 
         let result = get_image("non_existent_path", "image.png", app.state()).await;
 
@@ -823,7 +590,7 @@ mod tests {
     #[tokio::test]
     async fn the_loupe_reads_the_page_at_its_full_size() {
         let app = tauri::test::mock_app();
-        manage_service(&app, "dummy_book_id", page_container(&["test1.png"]));
+        let _watch = manage_service(&app, "dummy_book_id", page_container(&["test1.png"]));
         set_display_size(400, 300, app.state()).await.unwrap();
 
         let displayed = get_image("dummy_book_id", "test1.png", app.state())
@@ -841,7 +608,7 @@ mod tests {
     #[tokio::test]
     async fn a_stale_path_is_refused_a_full_size_page() {
         let app = tauri::test::mock_app();
-        manage_service(&app, "current_book_id", page_container(&["test1.png"]));
+        let _watch = manage_service(&app, "current_book_id", page_container(&["test1.png"]));
 
         // The loupe is held open across a book switch as readily as any other request.
         let result = get_image_full("stale_book_id", "test1.png", app.state()).await;
@@ -851,7 +618,7 @@ mod tests {
     #[tokio::test]
     async fn reporting_the_viewport_fits_the_open_book_to_it() {
         let app = tauri::test::mock_app();
-        manage_service(&app, "dummy_book_id", page_container(&["test1.png"]));
+        let _watch = manage_service(&app, "dummy_book_id", page_container(&["test1.png"]));
 
         // The mock page is 800x600, and the reader is drawing into a quarter of that.
         set_display_size(400, 300, app.state()).await.unwrap();
@@ -865,7 +632,7 @@ mod tests {
     #[tokio::test]
     async fn a_viewport_of_zero_unbounds_the_page() {
         let app = tauri::test::mock_app();
-        manage_service(&app, "dummy_book_id", page_container(&["test1.png"]));
+        let _watch = manage_service(&app, "dummy_book_id", page_container(&["test1.png"]));
         set_display_size(400, 300, app.state()).await.unwrap();
 
         // What the frontend reports before it has measured anything. The page must come
@@ -880,15 +647,15 @@ mod tests {
     #[tokio::test]
     async fn the_viewport_is_recorded_with_no_book_open() {
         let app = tauri::test::mock_app();
-        app.manage(RwLock::new(AppState::default()));
+        app.manage(RwLock::new(ContainerState::default()));
 
         // The window is measured before a book is opened, and the size has to survive
         // until one is: it belongs to the window, not to the book.
         set_display_size(400, 300, app.state()).await.unwrap();
 
-        let state: tauri::State<'_, RwLock<AppState>> = app.state();
+        let state: tauri::State<'_, RwLock<ContainerState>> = app.state();
         assert_eq!(
-            state.read().await.container_state.display_size,
+            state.read().await.display_size,
             Some(Fit {
                 width: 400,
                 height: 300
@@ -899,14 +666,14 @@ mod tests {
     #[tokio::test]
     async fn test_request_preload_around() {
         let app = tauri::test::mock_app();
-        manage_service(&app, "dummy_book_id", page_container(&["test1.png"]));
+        let _watch = manage_service(&app, "dummy_book_id", page_container(&["test1.png"]));
 
-        let result = request_preload_around("dummy_book_id", 0, Some(5), None, app.state()).await;
+        let result = request_preload_around("dummy_book_id", 0, 5, 0, app.state()).await;
         assert!(result.is_ok());
 
         // Preloading is subject to the same check as every other request: the frontend
         // issues it on every page turn, so it is the one most likely to race a switch.
-        let stale = request_preload_around("stale_book_id", 0, Some(5), None, app.state()).await;
+        let stale = request_preload_around("stale_book_id", 0, 5, 0, app.state()).await;
         assert!(matches!(stale, Err(Error::BookChanged(_))));
     }
 
@@ -928,7 +695,7 @@ mod tests {
                 .returning(|_| Ok(Some(DUMMY_PNG_DATA.to_vec())));
             Ok(Box::new(reader) as Box<dyn PageReader>)
         });
-        manage_service(&app, "dummy_book_id", container);
+        let _watch = manage_service(&app, "dummy_book_id", container);
 
         let result = get_image_preview("dummy_book_id", "test1.png", app.state()).await;
         assert!(result.is_ok());
@@ -957,7 +724,7 @@ mod tests {
             reader.expect_read_preview().returning(|_| Ok(None));
             Ok(Box::new(reader) as Box<dyn PageReader>)
         });
-        manage_service(&app, "dummy_book_id", container);
+        let _watch = manage_service(&app, "dummy_book_id", container);
 
         let result = get_image_preview("dummy_book_id", "test1.png", app.state()).await;
         let body = match result.unwrap().body().unwrap() {
@@ -1010,7 +777,7 @@ mod tests {
         std::fs::write(&path, b"epub-bytes").unwrap();
         let path = path.to_string_lossy().to_string();
         let app = tauri::test::mock_app();
-        manage_service(&app, &path, novel_container(true));
+        let _watch = manage_service(&app, &path, novel_container(true));
 
         let response = read_novel_file(&path, app.state()).await.unwrap();
 
@@ -1024,7 +791,7 @@ mod tests {
     #[tokio::test]
     async fn test_read_novel_file_refuses_a_book_that_is_not_open() {
         let app = tauri::test::mock_app();
-        manage_service(&app, "open.epub", novel_container(true));
+        let _watch = manage_service(&app, "open.epub", novel_container(true));
 
         let result = read_novel_file("other.epub", app.state()).await;
 
@@ -1034,7 +801,7 @@ mod tests {
     #[tokio::test]
     async fn test_read_novel_file_refuses_a_comic() {
         let app = tauri::test::mock_app();
-        manage_service(&app, "comic.cbz", novel_container(false));
+        let _watch = manage_service(&app, "comic.cbz", novel_container(false));
 
         let result = read_novel_file("comic.cbz", app.state()).await;
 
@@ -1044,7 +811,7 @@ mod tests {
     #[tokio::test]
     async fn test_read_novel_file_reports_a_deleted_file_as_not_found() {
         let app = tauri::test::mock_app();
-        manage_service(&app, "/no/such/novel.epub", novel_container(true));
+        let _watch = manage_service(&app, "/no/such/novel.epub", novel_container(true));
 
         let result = read_novel_file("/no/such/novel.epub", app.state()).await;
 

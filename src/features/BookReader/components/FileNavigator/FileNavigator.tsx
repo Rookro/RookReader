@@ -5,16 +5,16 @@ import { debug, error } from "@tauri-apps/plugin-log";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { List, type RowComponentProps, useListCallbackRef } from "react-window";
+import type { DirEntry } from "../../../../domain/entities";
 import {
   type RootState,
   useAppDispatch,
   useAppSelector,
   useAppStore,
 } from "../../../../store/store";
-import type { DirEntry } from "../../../../types/DirEntry";
 import { isNavigableArchiveName } from "../../../../utils/ArchivePathUtils";
 import SidePanelHeader from "../../../SidePane/components/SidePanelHeader";
-import { setSearchText, updateExploreBasePath } from "../../fileNavigatorSlice";
+import { loadDirectory, setSearchText } from "../../fileNavigatorSlice";
 import { useDirectoryWatcher } from "../../hooks/useDirectoryWatcher";
 import { useFileSelection } from "../../hooks/useFileSelection";
 import { openBook } from "../../slice";
@@ -28,15 +28,15 @@ const selectFileNavigatorState = createSelector(
     (state: RootState) => state.fileNavigator,
     (state: RootState) => state.reader,
   ],
-  (fileNavigatorSettings, explorer, containerFile) => ({
+  (fileNavigatorSettings, fileNavigator, reader) => ({
     fileNavigatorSettings,
-    history: explorer.history,
-    historyIndex: explorer.historyIndex,
-    entries: explorer.entries,
-    searchText: explorer.searchText,
-    isLoading: explorer.isLoading,
-    fileHistory: containerFile.history,
-    fileHistoryIndex: containerFile.historyIndex,
+    history: fileNavigator.history,
+    historyIndex: fileNavigator.historyIndex,
+    entries: fileNavigator.entries,
+    searchText: fileNavigator.searchText,
+    isLoading: fileNavigator.isLoading,
+    fileHistory: reader.history,
+    fileHistoryIndex: reader.historyIndex,
   }),
 );
 
@@ -88,8 +88,11 @@ export default function FileListViewer() {
   const dispatch = useAppDispatch();
   const store = useAppStore();
 
-  const [selectedIndex, setSelectedIndex] = useState(-1);
+  // The open book's name; its row follows it when a re-read of the folder moves it.
+  const [selectedName, setSelectedName] = useState<string | null>(null);
   const [list, setList] = useListCallbackRef(null);
+  // What the list last scrolled for, or found the open book missing for; see the scroll effect.
+  const scrolledFor = useRef<string | null>(null);
   const clickTimer = useRef<number | null>(null);
   const pendingIndex = useRef<number | null>(null);
   const doubleClickIntervalMs = 200;
@@ -100,9 +103,17 @@ export default function FileListViewer() {
       .sort((a, b) => sortBy(a, b, fileNavigatorSettings.sortOrder));
   }, [entries, fileNavigatorSettings.sortOrder, searchText]);
 
+  const selectedIndex = useMemo(
+    () =>
+      selectedName === null
+        ? -1
+        : filteredSortedEntries.findIndex((entry) => entry.name === selectedName),
+    [filteredSortedEntries, selectedName],
+  );
+
   const refreshEntries = useCallback(() => {
     if (history[historyIndex]) {
-      dispatch(updateExploreBasePath({ dirPath: history[historyIndex], forceUpdate: true }));
+      dispatch(loadDirectory({ dirPath: history[historyIndex], forceUpdate: true }));
     }
   }, [history, historyIndex, dispatch]);
 
@@ -117,12 +128,39 @@ export default function FileListViewer() {
     refreshEntries();
   }, [refreshEntries, store, history, historyIndex]);
 
-  useDirectoryWatcher(history[historyIndex], refreshEntries);
-  useFileSelection(fileHistory, fileHistoryIndex, filteredSortedEntries, setSelectedIndex);
+  // What the watcher runs: the list stays on screen while the folder is read again.
+  const refreshInBackground = useCallback(() => {
+    const dirPath = history[historyIndex];
+    if (dirPath) {
+      return dispatch(loadDirectory({ dirPath, background: true }));
+    }
+  }, [history, historyIndex, dispatch]);
 
-  // Scroll to make the selected item visible
+  useDirectoryWatcher(history[historyIndex], refreshInBackground);
+  useFileSelection(fileHistory, fileHistoryIndex, setSelectedName);
+
+  const dirPath = history[historyIndex];
+  // Scroll to make the selected item visible when the list is shown, the open book changes,
+  // or the search or sort moves it. A background re-read of the folder moves rows too, but
+  // leaves the reader's scroll position alone.
   useEffect(() => {
-    if (selectedIndex === -1 || filteredSortedEntries.length === 0 || !list) {
+    if (!list) {
+      // The list was taken down (loading, nothing to show): scroll again once it is back.
+      scrolledFor.current = null;
+      return;
+    }
+    const scrollFor = JSON.stringify([
+      dirPath,
+      selectedName,
+      searchText,
+      fileNavigatorSettings.sortOrder,
+    ]);
+    if (selectedIndex === -1 || filteredSortedEntries.length === 0) {
+      // Recorded so that a search that hides the open book and is then cleared scrolls back.
+      scrolledFor.current = scrollFor;
+      return;
+    }
+    if (scrolledFor.current === scrollFor) {
       return;
     }
 
@@ -130,6 +168,7 @@ export default function FileListViewer() {
     // This ensures that the virtualized list (react-window) has finished
     // rendering and measuring item positions before attempting to scroll.
     const timerId = setTimeout(() => {
+      scrolledFor.current = scrollFor;
       try {
         debug(`Scrolling to row ${selectedIndex}.`);
         list.scrollToRow({ align: "smart", behavior: "instant", index: selectedIndex });
@@ -141,13 +180,21 @@ export default function FileListViewer() {
     return () => {
       clearTimeout(timerId);
     };
-  }, [selectedIndex, filteredSortedEntries.length, list]);
+  }, [
+    list,
+    selectedIndex,
+    filteredSortedEntries.length,
+    dirPath,
+    selectedName,
+    searchText,
+    fileNavigatorSettings.sortOrder,
+  ]);
 
   const handleListItemClicked = useCallback(
-    async (_e: React.MouseEvent<HTMLDivElement>, entry: DirEntry, index: number) => {
+    async (_e: React.MouseEvent<HTMLDivElement>, entry: DirEntry, _index: number) => {
       const path = await join(history[historyIndex], entry.name);
       dispatch(openBook({ path, origin: { kind: "fileNavigator" } }));
-      setSelectedIndex(index);
+      setSelectedName(entry.name);
     },
     [dispatch, history, historyIndex],
   );
@@ -156,10 +203,10 @@ export default function FileListViewer() {
     async (e: React.MouseEvent<HTMLDivElement>, entry: DirEntry, index: number) => {
       // A browsable archive is entered like a folder; a single click still opens it
       // as a book, so nothing is lost by not opening it here.
-      if (entry.is_directory || isNavigableArchiveName(entry.name)) {
+      if (entry.isDirectory || isNavigableArchiveName(entry.name)) {
         const path = await join(history[historyIndex], entry.name);
         dispatch(setSearchText(""));
-        dispatch(updateExploreBasePath({ dirPath: path }));
+        dispatch(loadDirectory({ dirPath: path }));
       } else {
         // Double-clicking a file opens it: the single-click timer was cancelled by
         // the wrapper, so without this the file would never open.

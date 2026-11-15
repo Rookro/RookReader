@@ -113,7 +113,7 @@ mod tests {
             name: name.to_string(),
             page_index,
             cfi,
-            created_at: chrono::Utc::now().naive_utc(),
+            created_at: chrono::Utc::now(),
         }
     }
 

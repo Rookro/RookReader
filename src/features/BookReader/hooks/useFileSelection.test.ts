@@ -4,31 +4,25 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useFileSelection } from "./useFileSelection";
 
 describe("useFileSelection", () => {
-  const setSelectedIndex = vi.fn();
-  const mockEntries = [
-    { name: "file1.zip", is_directory: false, last_modified: 0 },
-    { name: "file2.zip", is_directory: false, last_modified: 0 },
-  ];
+  const setSelectedName = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  // Verify that the selected index is set to -1 if there is no current file
-  it("should set selected index to -1 if no current file", async () => {
-    renderHook(() => useFileSelection([], 0, mockEntries, setSelectedIndex));
+  it("should select nothing if no book is open", async () => {
+    renderHook(() => useFileSelection([], 0, setSelectedName));
     await waitFor(() => {
-      expect(setSelectedIndex).toHaveBeenCalledWith(-1);
+      expect(setSelectedName).toHaveBeenCalledWith(null);
     });
   });
 
-  // Verify that the correct index is selected based on the file basename
-  it("should set correct index based on basename", async () => {
+  it("should select the open book by its file name", async () => {
     vi.mocked(basename).mockResolvedValue("file2.zip");
-    renderHook(() => useFileSelection(["/path/to/file2.zip"], 0, mockEntries, setSelectedIndex));
+    renderHook(() => useFileSelection(["/path/to/file2.zip"], 0, setSelectedName));
 
     await waitFor(() => {
-      expect(setSelectedIndex).toHaveBeenCalledWith(1);
+      expect(setSelectedName).toHaveBeenCalledWith("file2.zip");
     });
   });
 });

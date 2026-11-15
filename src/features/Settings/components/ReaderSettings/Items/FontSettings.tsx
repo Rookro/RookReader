@@ -4,7 +4,7 @@ import { Box } from "@mui/material";
 import { debug } from "@tauri-apps/plugin-log";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getFonts } from "../../../../../bindings/FontCommands";
+import { api } from "../../../../../bindings/api";
 import { useAppDispatch, useAppSelector } from "../../../../../store/store";
 import { useNumberSettingField } from "../../../hooks/useNumberSettingField";
 import { defaultSettings } from "../../../settingsStore";
@@ -34,8 +34,13 @@ export default function FontSettings() {
 
   useEffect(() => {
     const initFonts = async () => {
-      const fonts = await getFonts();
-      setFonts(fonts);
+      try {
+        const fonts = await api.getFonts();
+        setFonts(fonts);
+      } catch (error) {
+        // The list stays empty; the current font stays selectable.
+        debug(`Failed to fetch fonts for settings: ${error}`);
+      }
     };
     initFonts();
   }, []);

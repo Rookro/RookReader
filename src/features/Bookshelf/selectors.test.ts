@@ -8,12 +8,12 @@ import { setSelectedTag } from "./tagSlice";
 
 describe("selectGridItems", () => {
   const series = createMockSeries({ id: 10, name: "Series" });
-  const volume = createMockBookWithState({ id: 1, display_name: "Vol 1", series_id: 10 });
+  const volume = createMockBookWithState({ id: 1, displayName: "Vol 1", seriesId: 10 });
   const standalone = createMockBookWithState({
     id: 2,
-    display_name: "Standalone",
-    series_id: null,
-    tag_ids: [5],
+    displayName: "Standalone",
+    seriesId: null,
+    tagIds: [5],
   });
 
   const stateWithBooks = () => {

@@ -1,7 +1,7 @@
 import { error } from "@tauri-apps/plugin-log";
 import { describe, expect, it, vi } from "vitest";
 import { CommandError, ErrorCode } from "../types/Error";
-import { handleThunkError, recordThunkError } from "./thunkErrorHandler";
+import { handleThunkError } from "./thunkErrorHandler";
 
 // Mock Tauri logger plugin
 vi.mock("@tauri-apps/plugin-log", () => ({
@@ -63,18 +63,27 @@ describe("handleThunkError", () => {
       details,
     });
   });
-});
 
-describe("recordThunkError", () => {
-  it("stores the rejection's payload as the error", () => {
-    const state = { error: null };
-    recordThunkError(state, { payload: { code: ErrorCode.other, message: "m" } });
-    expect(state.error).toEqual({ code: ErrorCode.other, message: "m" });
+  it("marks a superseded failure", () => {
+    const result = handleThunkError(
+      new CommandError(ErrorCode.io, "gone"),
+      "Explore",
+      (value) => value,
+      true,
+    );
+    expect(result).toStrictEqual({
+      code: ErrorCode.io,
+      message: "Explore Error: gone",
+      superseded: true,
+    });
   });
 
-  it("clears the error when the rejection has no payload", () => {
-    const state = { error: { code: ErrorCode.other } };
-    recordThunkError(state, {});
-    expect(state.error).toBeNull();
+  it("leaves the superseded key out by default", () => {
+    const result = handleThunkError(
+      new CommandError(ErrorCode.io, "gone"),
+      "Explore",
+      (value) => value,
+    );
+    expect(result).not.toHaveProperty("superseded");
   });
 });

@@ -2,7 +2,6 @@ use std::sync::Arc;
 use tauri::State;
 
 use crate::commands::events::{emit, BooksChanged, TagsChanged};
-use crate::domain::book::entity::BookWithState;
 use crate::domain::tag::entity::Tag;
 use crate::domain::tag::repository::TagRepository;
 use crate::error::Result;
@@ -135,31 +134,6 @@ pub async fn set_tags_for_book<R: tauri::Runtime>(
     repo.set_tags_for_book(book_id, &tag_ids).await?;
     emit(&app, &BooksChanged);
     Ok(())
-}
-
-/// Retrieves all books associated with a specific tag, including their reading states.
-///
-/// # Arguments
-///
-/// * `tag_id` - The unique identifier of the tag to filter by.
-/// * `repo` - The managed tag repository state.
-///
-/// # Returns
-///
-/// A `Result` containing a vector of `BookWithState` entities.
-///
-/// # Errors
-///
-/// This function will return an `Err` if the underlying repository operation fails
-/// (e.g., due to a database error, connection issue, or query execution failure).
-#[tauri::command]
-#[specta::specta]
-pub async fn get_books_by_tag(
-    tag_id: i64,
-    repo: State<'_, Arc<dyn TagRepository>>,
-) -> Result<Vec<BookWithState>> {
-    log::debug!("Get books with state by tag id({:?}).", tag_id);
-    repo.get_books_by_tag(tag_id).await
 }
 
 #[cfg(test)]
@@ -324,22 +298,5 @@ mod tests {
         let result = set_tags_for_book(1, vec![2, 3], repo, app.handle().clone()).await;
         assert!(result.is_ok());
         assert_eq!(*events.lock().unwrap(), [BooksChanged::NAME]);
-    }
-
-    #[tokio::test]
-    async fn test_get_books_by_tag() {
-        let mut mock_repo = MockTagRepository::new();
-        mock_repo
-            .expect_get_books_by_tag()
-            .with(mockall::predicate::eq(1))
-            .times(1)
-            .returning(|_| Ok(vec![]));
-
-        let app = tauri::test::mock_app();
-        app.manage(Arc::new(mock_repo) as Arc<dyn TagRepository>);
-        let state = app.state::<Arc<dyn TagRepository>>();
-
-        let result = get_books_by_tag(1, state).await;
-        assert!(result.is_ok());
     }
 }

@@ -1,10 +1,10 @@
 import { configureStore } from "@reduxjs/toolkit";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import errorNotificationReducer from "../../store/errorNotificationSlice";
 import type { AppDispatch } from "../../store/store";
 import { mockTauri } from "../../test/mocks/tauri";
 import { mockSettingsCommands } from "../../test/utils";
 import { ErrorCode } from "../../types/Error";
-import settingsErrorReducer from "./errorSlice";
 import { defaultSettings } from "./settingsStore";
 import settingsReducer, { setSettings, setSidePane, updateSettings } from "./slice";
 
@@ -93,14 +93,16 @@ describe("SettingsReducer", () => {
         message: "Settings validation failed",
       });
       const store = configureStore({
-        reducer: { settings: settingsReducer, settingsError: settingsErrorReducer },
+        reducer: { settings: settingsReducer, errorNotification: errorNotificationReducer },
       });
 
       await (store.dispatch as AppDispatch)(
         updateSettings({ key: "general", value: { theme: "dark" } }),
       );
 
-      expect(store.getState().settingsError.error?.code).toBe(ErrorCode.settings);
+      expect(store.getState().errorNotification.pending).toEqual([
+        { context: "settings-save", code: ErrorCode.settings },
+      ]);
     });
 
     it("returns structured details and does NOT raise the centralized error for field violations", async () => {
@@ -118,7 +120,7 @@ describe("SettingsReducer", () => {
         details,
       });
       const store = configureStore({
-        reducer: { settings: settingsReducer, settingsError: settingsErrorReducer },
+        reducer: { settings: settingsReducer, errorNotification: errorNotificationReducer },
       });
 
       const result = await (store.dispatch as AppDispatch)(
@@ -131,7 +133,7 @@ describe("SettingsReducer", () => {
         expect(result.payload?.details).toEqual(details);
       }
       // ...and the centralized notification is suppressed (shown inline instead).
-      expect(store.getState().settingsError.error).toBeNull();
+      expect(store.getState().errorNotification.pending).toEqual([]);
     });
   });
 });

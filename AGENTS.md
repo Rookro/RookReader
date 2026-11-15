@@ -30,7 +30,7 @@ Locally, the `sqlx` macros check queries against `src-tauri/rook-reader.db` (`DA
 **TypeScript**
 - No `any`.
 - Log with `@tauri-apps/plugin-log`, not `console.*`, so messages reach the app's log file.
-- Global state (reading history, bookshelf, …) lives in Redux Toolkit slices, and thunks that call commands are built with `createCommandThunk` (`src/types/CustomAsyncThunk.ts`); component-only UI state uses `useState` / `useReducer`.
+- Global state (reading history, bookshelf, …) lives in Redux Toolkit slices, and thunks that call commands are built with `createCommandThunk` (`src/store/createCommandThunk.ts`); component-only UI state uses `useState` / `useReducer`.
 - Style with MUI components and the `sx` prop, following the theme in `src/hooks/useAppTheme.ts`.
 - User-facing strings go through `react-i18next`; add every new key to both `src/i18n/locales/en-US.json` and `ja-JP.json`.
 - Frontend system access uses official Tauri v2 plugins (`@tauri-apps/plugin-fs`, `@tauri-apps/plugin-dialog`, …), not the legacy core APIs.
@@ -45,7 +45,7 @@ Locally, the `sqlx` macros check queries against `src-tauri/rook-reader.db` (`DA
 
 **Tests**
 - Frontend tests sit next to the code as `*.test.ts(x)`; render with `renderWithProviders` from `src/test/utils.tsx` and build data with `src/test/factories.ts`.
-- `src/test/mocks/bindings.ts` mocks every `src/bindings/*Commands.ts` module for all tests; when you add a wrapper function, add it there too, or tests that reach it fail.
+- `src/test/mocks/bindings.ts` mocks `api` for all tests from the generated command list, so a new command is mocked without touching it (it resolves to `[]`; add it to `defaultResults` there when that does not suit). `getSettings` and `setSettings` are not stubbed: they run the real adapter, because settings tests fake the backend at `invoke` with `mockSettingsCommands` (`src/test/utils.tsx`). The binary commands in `src/bindings/binaryApi.ts` are mocked by name in the same file.
 - Rust unit tests go in a `#[cfg(test)]` module in the same file; repository tests in `src-tauri/tests/` use `common::setup_db()` (in-memory SQLite with the migrations applied).
 
 Write all code comments and documentation in English.
@@ -55,11 +55,10 @@ Write all code comments and documentation in English.
 `src/bindings/bindings.ts` and `src/bindings/errorCodes.ts` are generated from Rust by `tauri-specta`; do not edit them by hand. To add or change a command:
 
 1. Put the logic in Rust (`src-tauri/src/domain/`, `infrastructure/database/`, `container/`, …).
-2. Expose it from `src-tauri/src/commands/` with `#[tauri::command]` + `#[specta::specta]`.
-3. Register it in `specta_builder()`'s `collect_commands!` in `src-tauri/src/lib.rs`. Commands returning a raw `tauri::ipc::Response` (binary payloads) go in the `binary_commands!` list there instead and are called on the frontend through `runBinaryCommand` in `src/bindings/result.ts`.
+2. Expose it from `src-tauri/src/commands/` with `#[tauri::command]` + `#[specta::specta]`. Give a struct the command returns `specta::Type` and `#[serde(rename_all = "camelCase")]`, and send a timestamp from the database as `DateTime<Utc>`.
+3. Register it in `specta_builder()`'s `collect_commands!` in `src-tauri/src/lib.rs`. Commands returning a raw `tauri::ipc::Response` (binary payloads) go in the `binary_commands!` list there instead, and get a hand-written function in `src/bindings/binaryApi.ts` that calls `runBinaryCommand` (`src/bindings/result.ts`).
 4. Run `npm run gen:bindings`.
-5. Add or update the thin wrapper in `src/bindings/*Commands.ts` that delegates to the generated `commands.*`. Entity results already have their generated types; when a new entity is added, alias its `_Serialize` type in `src/domain/entities.ts`.
-6. Call the wrapper from a Redux thunk or a hook.
+5. Call it as `api.myCommand(…)` (`src/bindings/api.ts`) from a Redux thunk or a hook: `api` holds every generated command, returns its data and throws a `CommandError`. When a new entity is added, export it from `src/domain/entities.ts`, aliasing its `_Serialize` type when Specta generates one.
 
 **Error codes** are defined only in Rust (`ErrorCode::code()` in `src-tauri/src/error.rs`). To add one, add the variant and its `code()` arm, then regenerate. The frontend uses `CommandError` from `src/types/Error.ts`, which re-exports the generated codes plus a frontend-only `unknown`.
 
@@ -80,7 +79,7 @@ Write all code comments and documentation in English.
 The GitHub Wiki is synced from `docs/wiki/` on every push to `main`. When a change affects what a page describes, update the page in the same PR:
 
 - `User-Guide.md`: user-visible behaviour (formats, File Navigator / toolbar / side-pane controls, keyboard and mouse, page display (direction, spread, loupe), continuous reading, bookmarks, bookshelf / collections / tags / series, reading history, EPUB) and every settings tab and item. Names come from `src/i18n/locales/en-US.json`, defaults from `DEFAULT_SETTINGS` and bounds from `SETTINGS_BOUNDS` (both in `src/bindings/bindings.ts`).
-- `FAQ-&-Troubleshooting.md`: data and log locations (`src-tauri/src/setup.rs`), logging, Linux packaging, window state.
+- `FAQ-&-Troubleshooting.md`: data and log locations (`src-tauri/src/paths.rs`, `src-tauri/src/setup.rs`), logging, Linux packaging, window state.
 - `Developer-Guide.md`: directory layout (`src/`, `src-tauri/src/`), the command/bindings workflow, error codes, npm scripts (`package.json`), CI (`.github/workflows/`), prerequisites and branching (`CONTRIBUTING.md`), database schema (`docs/database/er_diagram.md`).
 - `Home.md`: the feature summary and supported formats.
 

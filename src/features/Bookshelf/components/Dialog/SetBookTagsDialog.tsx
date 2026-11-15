@@ -15,7 +15,7 @@ import {
 } from "@mui/material";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getTagsForBook } from "../../../../bindings/TagCommands";
+import { api } from "../../../../bindings/api";
 import type { Tag } from "../../../../domain/entities";
 import { useAppDispatch } from "../../../../store/store";
 import { useBookCheckStates } from "../../hooks/useBookCheckStates";
@@ -47,7 +47,7 @@ export default function SetBookTagsDialog({
     open,
     bookIds,
     ids: availableTags.map((tag) => tag.id),
-    load: getTagsForBook,
+    load: api.getTagsForBook,
     loadErrorMessage: "Failed to fetch book tags",
   });
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -67,7 +67,7 @@ export default function SetBookTagsDialog({
     const result = await dispatch(
       updateBooksTags(changes.map(({ bookId, ids }) => ({ bookId, tagIds: ids }))),
     );
-    // On failure the slice error is shown by GlobalErrorListener and the backend's
+    // On failure ErrorNotifier shows the error and the backend's
     // `books-changed` refetch reflects any partial success; stay open for retry.
     if (updateBooksTags.fulfilled.match(result)) {
       onClose();
@@ -75,8 +75,8 @@ export default function SetBookTagsDialog({
   }, [bookIds, changes, dispatch, onClose]);
 
   const handleCreate = useCallback(
-    async (name: string, color_code: string) => {
-      const result = await dispatch(addTag({ name, color_code }));
+    async (name: string, colorCode: string) => {
+      const result = await dispatch(addTag({ name, colorCode }));
       // The `tags-changed` refetch may list the tag only later; checking it now still saves it.
       if (addTag.fulfilled.match(result) && sessionRef.current === bookIds) {
         toggle(result.payload.id);
@@ -102,7 +102,7 @@ export default function SetBookTagsDialog({
               return (
                 <ListItem key={tag.id} disablePadding>
                   <ListItemIcon sx={{ minWidth: "auto", marginRight: "12px" }}>
-                    <LocalOffer sx={{ color: tag.color_code }} />
+                    <LocalOffer sx={{ color: tag.colorCode }} />
                   </ListItemIcon>
                   <ListItemText id={`checkbox-tag-list-label-${tag.id}`} primary={tag.name} />
                   <Checkbox

@@ -5,10 +5,11 @@ mod validation;
 
 pub use model::*;
 pub use patch::SettingsPatch;
-pub use provider::{SettingsFileLock, SettingsFileProvider, SettingsStoreProvider};
+pub use provider::{SettingsFileProvider, SettingsStoreProvider};
 
 use std::fmt;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use garde::Validate;
 use serde::{Deserialize, Serialize};
@@ -52,6 +53,46 @@ pub enum ViolationKind {
     NotANumber,
 }
 
+/// The settings while the app runs. `set_settings` holds its write lock across the
+/// re-read of an unread file, the save, the runtime apply and the broadcast, so two
+/// changes cannot be saved A, B and then applied B, A.
+pub type CurrentSettings = tokio::sync::RwLock<AppSettings>;
+
+/// Set while the session runs on the fallback because the settings file could not be read
+/// at start-up. The next change reads the file again instead of saving over it.
+#[derive(Default)]
+pub struct SettingsUnread(AtomicBool);
+
+impl SettingsUnread {
+    /// Creates the marker.
+    ///
+    /// # Arguments
+    ///
+    /// * `unread` - Whether the session runs on the fallback.
+    ///
+    /// # Returns
+    ///
+    /// The marker, set when `unread` is true.
+    pub fn new(unread: bool) -> Self {
+        Self(AtomicBool::new(unread))
+    }
+
+    /// Returns whether the session still runs on the fallback.
+    ///
+    /// # Returns
+    ///
+    /// `true` from a start-up that could not read the settings file until a change has
+    /// been saved over the re-read file; `false` otherwise.
+    pub fn is_set(&self) -> bool {
+        self.0.load(Ordering::SeqCst)
+    }
+
+    /// Records that the settings file has been read and saved again.
+    pub fn clear(&self) {
+        self.0.store(false, Ordering::SeqCst);
+    }
+}
+
 /// Represents the root configuration of the application settings.
 #[derive(Debug, Clone, Serialize, Deserialize, Default, Validate, specta::Type)]
 #[serde(rename_all = "camelCase", default)]
@@ -85,6 +126,8 @@ impl AppSettings {
     /// This is a **pure read**: it deserializes the stored value (falling back to
     /// defaults on parse failure), fills the dynamic home directory, and repairs any
     /// out-of-range fields in memory. It never writes back.
+    ///
+    /// The app uses it to read the file again after a start-up read failed.
     ///
     /// # Arguments
     ///
@@ -122,30 +165,39 @@ impl AppSettings {
     /// changed the stored document.
     ///
     /// This is the single place a "read" may write, and is intended to be called once
-    /// at startup so a stale or out-of-range file is healed on disk.
+    /// at startup so a stale or out-of-range file is healed on disk. An unreadable file is
+    /// left alone and the session runs on a fallback, the defaults with reading history off,
+    /// with the returned marker set so the next change reads the file again.
     ///
     /// # Arguments
     ///
     /// * `provider` - The storage backend.
     ///
+    /// # Returns
+    ///
+    /// The settings to run with, and a marker that is set when they are the fallback.
+    ///
     /// # Errors
     ///
     /// Returns an `Err` if serialization fails. A failed write is logged and the
     /// normalized settings are still returned, leaving the file as it was.
-    pub fn load_and_persist_normalized<P: SettingsStoreProvider>(provider: &P) -> Result<Self> {
+    pub fn load_and_persist_normalized<P: SettingsStoreProvider>(
+        provider: &P,
+    ) -> Result<(Self, SettingsUnread)> {
         let raw = match provider.get_all_settings() {
             Ok(raw) => raw,
             // An unreadable file (share lock, permissions) must not be healed: writing
             // defaults back would clobber the user's real settings. Run with in-memory
-            // defaults and leave the file untouched so it can recover on the next launch.
+            // defaults and leave the file untouched so it can recover on the next change.
             Err(e) => {
                 log::error!(
-                    "Settings file unreadable; running with defaults without persisting: {e}"
+                    "Settings file unreadable; running with defaults and reading history off, without persisting: {e}"
                 );
-                return Ok(Self::normalize(
-                    serde_json::json!({}),
-                    provider.default_home_dir(),
-                ));
+                let mut settings =
+                    Self::normalize(serde_json::json!({}), provider.default_home_dir());
+                // The reader may have turned history off; the default would turn it back on.
+                settings.history.record_reading_history = false;
+                return Ok((settings, SettingsUnread::new(true)));
             }
         };
         let config = Self::normalize(raw.clone(), provider.default_home_dir());
@@ -157,54 +209,36 @@ impl AppSettings {
                 );
             }
         }
-        Ok(config)
+        Ok((config, SettingsUnread::default()))
     }
 
-    /// Read-modify-write: deep-merges `patch` into the current settings, validates the
-    /// merged whole, persists it, and returns it.
-    ///
-    /// This is **not** self-synchronizing: the caller must hold the `SettingsFileLock`
-    /// across this call and any dependent runtime apply/broadcast, so two concurrent
-    /// writers cannot persist A,B but then apply/announce B,A. Out-of-range merged
-    /// results are rejected **without** persisting (repair is only applied when *loading*
-    /// a pre-existing file, never on writes).
+    /// These settings with `patch` deep-merged in, validated as a whole. Writes nothing.
     ///
     /// # Arguments
     ///
-    /// * `provider` - The storage backend.
     /// * `patch` - The single-category partial change to apply.
     ///
     /// # Returns
     ///
-    /// The full merged settings on success.
+    /// The merged settings.
     ///
     /// # Errors
     ///
-    /// Returns `Error::Settings` if the patch produces an undeserializable or
-    /// out-of-range result, or a serialization/write error from the provider.
-    pub fn apply_patch<P: SettingsStoreProvider>(
-        provider: &P,
-        patch: SettingsPatch,
-    ) -> Result<Self> {
-        // load() normalizes + repairs, so the merge base is always valid.
-        let current = Self::load(provider)?;
-        let mut merged_json = serde_json::to_value(&current)?;
+    /// Returns `Error::SettingsValidation` with one violation per field that is out of range
+    /// or of the wrong kind, or `Error::Settings` if the merged document is invalid otherwise.
+    pub fn patched(&self, patch: SettingsPatch) -> Result<Self> {
+        let mut merged_json = serde_json::to_value(self)?;
         json_deep_merge(&mut merged_json, patch.into_object());
-        // Produce structured, field-specific violations (kind + valid bounds) for the UI
-        // before deserializing, so a decimal in an integer field is reported as a
-        // `NotInteger` with its path rather than an opaque serde error.
         let violations = collect_violations(&merged_json);
         if !violations.is_empty() {
             return Err(Error::SettingsValidation(violations));
         }
         let merged: Self = serde_json::from_value(merged_json)
             .map_err(|e| Error::Settings(format!("Invalid settings patch: {e}")))?;
-        // `garde` stays the authoritative gate: anything `collect_violations` missed
-        // (e.g. a non-numeric constraint) still cannot be persisted.
+        // `garde` stays the authoritative gate for anything `collect_violations` missed.
         merged
             .validate()
             .map_err(|r| Error::Settings(format!("Settings validation failed: {r}")))?;
-        merged.save(provider)?;
         Ok(merged)
     }
 
@@ -329,7 +363,7 @@ mod tests {
     use std::sync::Mutex;
 
     /// A full, valid document with a non-empty home directory, so `normalize` makes no
-    /// changes (a stable baseline for the persist-on-change and apply-patch tests).
+    /// changes (a stable baseline for the persist-on-change tests).
     fn default_doc_with_home() -> Value {
         let mut settings = AppSettings::default();
         settings.file_navigator.home_directory = PathBuf::from("/mock/home");
@@ -459,6 +493,32 @@ mod tests {
         assert_eq!(settings.reader.rendering.pdf_render_resolution_height, 2000);
     }
 
+    #[test]
+    fn a_negative_value_for_an_unsigned_field_resets_to_its_default() {
+        let provider = MockProvider {
+            mock_json: json!({
+                "reader": {
+                    "rendering": { "maxImageHeight": 1500, "pdfRenderResolutionHeight": -1 },
+                    "comic": { "cache": { "pageReaderCount": -3 } }
+                }
+            }),
+        };
+
+        let settings = AppSettings::load(&provider).unwrap();
+
+        // The default is not 0, so clamping the value would not pass.
+        assert_eq!(
+            settings.reader.rendering.pdf_render_resolution_height,
+            AppSettings::default()
+                .reader
+                .rendering
+                .pdf_render_resolution_height
+        );
+        assert_eq!(settings.reader.comic.cache.page_reader_count, 0);
+        // The valid sibling survives.
+        assert_eq!(settings.reader.rendering.max_image_height, 1500);
+    }
+
     // ---- deserialize_tolerant (field-level healing) ----
 
     #[test]
@@ -492,7 +552,7 @@ mod tests {
         s.reader.comic.loupe.zoom = 999.0;
         s.reader.comic.loupe.radius = 0.0;
         s.reader.novel.font_size = 0.0;
-        s.reader.rendering.max_image_height = -1;
+        s.reader.rendering.max_image_height = 70000;
         s.reader.rendering.pdf_render_resolution_height = 0;
         s.layout.side_pane.tab_index = 9999;
 
@@ -518,7 +578,7 @@ mod tests {
         let mut s = AppSettings::default();
         s.reader.comic.loupe.toggle_key = "Alt+z".to_string();
         s.reader.comic.enable_spread = false;
-        s.reader.rendering.max_image_height = -1; // only this is invalid
+        s.reader.rendering.max_image_height = 70000; // only this is invalid
 
         s.repair_invalid_fields();
 
@@ -604,12 +664,24 @@ mod tests {
             saves: AtomicUsize::new(0),
         };
 
-        let settings = AppSettings::load_and_persist_normalized(&provider).unwrap();
+        let (settings, unread) = AppSettings::load_and_persist_normalized(&provider).unwrap();
 
         // Runs with in-memory defaults...
         assert!(matches!(settings.general.theme, AppTheme::System));
         // ...and must never persist, which would clobber the real file with defaults.
         assert_eq!(provider.saves.load(Ordering::SeqCst), 0);
+        assert!(unread.is_set());
+    }
+
+    #[test]
+    fn an_unreadable_file_turns_reading_history_off_for_the_session() {
+        let provider = FailingReadProvider {
+            saves: AtomicUsize::new(0),
+        };
+
+        let (settings, _) = AppSettings::load_and_persist_normalized(&provider).unwrap();
+
+        assert!(!settings.history.record_reading_history);
     }
 
     #[test]
@@ -628,58 +700,62 @@ mod tests {
         );
     }
 
-    // ---- apply_patch ----
+    // ---- patched ----
 
     #[test]
-    fn test_apply_patch_preserves_same_category_siblings() {
-        let provider = RecordingProvider::new(default_doc_with_home());
-        let patch = SettingsPatch::Reader(json!({ "rendering": { "maxImageHeight": 500 } }));
-
-        let merged = AppSettings::apply_patch(&provider, patch).unwrap();
-
-        assert_eq!(merged.reader.rendering.max_image_height, 500);
-        // Sibling leaf of the same coarse category is preserved.
-        assert!(merged.reader.comic.enable_spread);
-        assert_eq!(provider.save_count(), 1);
+    fn patched_preserves_same_category_siblings() {
+        let patch = SettingsPatch::Reader(json!({ "rendering": { "maxImageHeight": 1234 } }));
+        let merged = AppSettings::default().patched(patch).unwrap();
+        assert_eq!(merged.reader.rendering.max_image_height, 1234);
+        assert_eq!(
+            merged.reader.rendering.pdf_render_resolution_height,
+            AppSettings::default()
+                .reader
+                .rendering
+                .pdf_render_resolution_height
+        );
     }
 
     #[test]
-    fn test_apply_patch_rejects_out_of_range_without_persisting() {
-        let provider = RecordingProvider::new(default_doc_with_home());
+    fn patched_rejects_an_out_of_range_change() {
+        let patch = SettingsPatch::Reader(json!({ "rendering": { "maxImageHeight": 70000 } }));
+        assert!(matches!(
+            AppSettings::default().patched(patch),
+            Err(Error::SettingsValidation(_))
+        ));
+    }
+
+    #[test]
+    fn patched_changes_accumulate() {
+        let first = AppSettings::default()
+            .patched(SettingsPatch::History(
+                json!({ "recordReadingHistory": false }),
+            ))
+            .unwrap();
+        let second = first
+            .patched(SettingsPatch::Bookshelf(json!({ "gridSize": 2 })))
+            .unwrap();
+        assert!(!second.history.record_reading_history);
+        assert_eq!(second.bookshelf.grid_size, 2);
+    }
+
+    #[test]
+    fn patched_leaves_the_original_alone() {
+        let original = AppSettings::default();
+        original
+            .patched(SettingsPatch::History(
+                json!({ "recordReadingHistory": false }),
+            ))
+            .unwrap();
+        assert!(original.history.record_reading_history);
+    }
+
+    #[test]
+    fn patched_returns_structured_validation_errors() {
         let patch = SettingsPatch::Reader(json!({ "rendering": { "maxImageHeight": 70000 } }));
 
-        let result = AppSettings::apply_patch(&provider, patch);
-
-        assert!(result.is_err());
-        assert_eq!(provider.save_count(), 0);
-    }
-
-    #[test]
-    fn test_apply_patch_sequential_accumulates() {
-        let provider = RecordingProvider::new(default_doc_with_home());
-
-        AppSettings::apply_patch(
-            &provider,
-            SettingsPatch::Reader(json!({ "rendering": { "maxImageHeight": 500 } })),
-        )
-        .unwrap();
-        let merged = AppSettings::apply_patch(
-            &provider,
-            SettingsPatch::Bookshelf(json!({ "gridSize": 2 })),
-        )
-        .unwrap();
-
-        // The second read-modify-write sees the first write's result.
-        assert_eq!(merged.reader.rendering.max_image_height, 500);
-        assert_eq!(merged.bookshelf.grid_size, 2);
-    }
-
-    #[test]
-    fn test_apply_patch_returns_structured_validation_error() {
-        let provider = RecordingProvider::new(default_doc_with_home());
-        let patch = SettingsPatch::Reader(json!({ "rendering": { "maxImageHeight": 70000 } }));
-
-        let err = AppSettings::apply_patch(&provider, patch)
+        let err = AppSettings::default()
+            .patched(patch)
             .expect_err("out-of-range patch should be rejected");
 
         match err {
@@ -692,6 +768,5 @@ mod tests {
             }
             other => panic!("expected SettingsValidation, got {other:?}"),
         }
-        assert_eq!(provider.save_count(), 0);
     }
 }

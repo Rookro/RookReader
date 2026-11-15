@@ -2,11 +2,7 @@ import { relaunch } from "@tauri-apps/plugin-process";
 import { check, type Update } from "@tauri-apps/plugin-updater";
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  claimUpdatePrompt,
-  isUpdaterSupported,
-  releaseUpdatePrompt,
-} from "../../../bindings/UpdaterCommands";
+import { api } from "../../../bindings/api";
 import { useUpdater } from "./useUpdater";
 
 vi.mock("@tauri-apps/plugin-updater", () => ({
@@ -15,12 +11,6 @@ vi.mock("@tauri-apps/plugin-updater", () => ({
 
 vi.mock("@tauri-apps/plugin-process", () => ({
   relaunch: vi.fn(),
-}));
-
-vi.mock("../../../bindings/UpdaterCommands", () => ({
-  isUpdaterSupported: vi.fn(),
-  claimUpdatePrompt: vi.fn(),
-  releaseUpdatePrompt: vi.fn(),
 }));
 
 vi.mock("react-i18next", () => ({
@@ -33,9 +23,9 @@ vi.mock("react-i18next", () => ({
 describe("useUpdater", () => {
   beforeEach(async () => {
     vi.clearAllMocks();
-    vi.mocked(isUpdaterSupported).mockResolvedValue(true);
-    vi.mocked(claimUpdatePrompt).mockResolvedValue(true);
-    vi.mocked(releaseUpdatePrompt).mockResolvedValue();
+    vi.mocked(api.isUpdaterSupported).mockResolvedValue(true);
+    vi.mocked(api.claimUpdatePrompt).mockResolvedValue(true);
+    vi.mocked(api.releaseUpdatePrompt).mockResolvedValue();
     // we need to reset the global state to allow multiple act checks
     const { result } = renderHook(() => useUpdater());
     await act(async () => {
@@ -133,7 +123,7 @@ describe("useUpdater", () => {
 
   it("should handle error when isUpdaterSupported throws", async () => {
     const errorMsg = "Platform check failed";
-    vi.mocked(isUpdaterSupported).mockRejectedValue(new Error(errorMsg));
+    vi.mocked(api.isUpdaterSupported).mockRejectedValue(new Error(errorMsg));
 
     const { result } = renderHook(() => useUpdater());
 
@@ -167,7 +157,7 @@ describe("useUpdater", () => {
     });
 
     // Only one check should have been initiated
-    expect(isUpdaterSupported).toHaveBeenCalledTimes(1);
+    expect(api.isUpdaterSupported).toHaveBeenCalledTimes(1);
     expect(check).toHaveBeenCalledTimes(1);
 
     // Resolve first check
@@ -181,7 +171,7 @@ describe("useUpdater", () => {
       await result.current.checkForUpdates(true);
     });
 
-    expect(isUpdaterSupported).toHaveBeenCalledTimes(2);
+    expect(api.isUpdaterSupported).toHaveBeenCalledTimes(2);
     expect(check).toHaveBeenCalledTimes(2);
   });
 
@@ -221,7 +211,7 @@ describe("useUpdater", () => {
       await result.current.checkForUpdates(true);
     });
 
-    expect(isUpdaterSupported).toHaveBeenCalled();
+    expect(api.isUpdaterSupported).toHaveBeenCalled();
     expect(check).toHaveBeenCalled();
     expect(result.current.messageDialogOpen).toBe(true);
     expect(result.current.messageDialogText).toBe("updater.not-available");
@@ -236,13 +226,13 @@ describe("useUpdater", () => {
       await result.current.checkForUpdates(false);
     });
 
-    expect(isUpdaterSupported).toHaveBeenCalled();
+    expect(api.isUpdaterSupported).toHaveBeenCalled();
     expect(check).toHaveBeenCalled();
     expect(result.current.messageDialogOpen).toBe(false);
   });
 
   it("should handle unsupported platform (manual check)", async () => {
-    vi.mocked(isUpdaterSupported).mockResolvedValue(false);
+    vi.mocked(api.isUpdaterSupported).mockResolvedValue(false);
 
     const { result } = renderHook(() => useUpdater());
 
@@ -250,14 +240,14 @@ describe("useUpdater", () => {
       await result.current.checkForUpdates(true);
     });
 
-    expect(isUpdaterSupported).toHaveBeenCalled();
+    expect(api.isUpdaterSupported).toHaveBeenCalled();
     expect(check).not.toHaveBeenCalled();
     expect(result.current.messageDialogOpen).toBe(true);
     expect(result.current.messageDialogText).toBe("updater.unsupported-platform");
   });
 
   it("should handle unsupported platform (auto check)", async () => {
-    vi.mocked(isUpdaterSupported).mockResolvedValue(false);
+    vi.mocked(api.isUpdaterSupported).mockResolvedValue(false);
 
     const { result } = renderHook(() => useUpdater());
 
@@ -265,7 +255,7 @@ describe("useUpdater", () => {
       await result.current.checkForUpdates(false);
     });
 
-    expect(isUpdaterSupported).toHaveBeenCalled();
+    expect(api.isUpdaterSupported).toHaveBeenCalled();
     expect(check).not.toHaveBeenCalled();
     expect(result.current.messageDialogOpen).toBe(false);
   });
@@ -350,7 +340,7 @@ describe("useUpdater", () => {
   });
 
   it("should close message dialog", async () => {
-    vi.mocked(isUpdaterSupported).mockResolvedValue(false);
+    vi.mocked(api.isUpdaterSupported).mockResolvedValue(false);
     const { result } = renderHook(() => useUpdater());
 
     await act(async () => {
@@ -414,11 +404,11 @@ describe("useUpdater", () => {
 
     beforeEach(() => {
       vi.mocked(check).mockResolvedValue(update);
-      vi.mocked(releaseUpdatePrompt).mockClear();
+      vi.mocked(api.releaseUpdatePrompt).mockClear();
     });
 
     it("says the dialog is open elsewhere on a manual check", async () => {
-      vi.mocked(claimUpdatePrompt).mockResolvedValue(false);
+      vi.mocked(api.claimUpdatePrompt).mockResolvedValue(false);
       const { result } = renderHook(() => useUpdater());
 
       await act(async () => {
@@ -431,7 +421,7 @@ describe("useUpdater", () => {
     });
 
     it("stays silent on a startup check and lets a later check run", async () => {
-      vi.mocked(claimUpdatePrompt).mockResolvedValue(false);
+      vi.mocked(api.claimUpdatePrompt).mockResolvedValue(false);
       const { result } = renderHook(() => useUpdater());
 
       await act(async () => {
@@ -440,7 +430,7 @@ describe("useUpdater", () => {
       expect(result.current.confirmDialogOpen).toBe(false);
       expect(result.current.messageDialogOpen).toBe(false);
 
-      vi.mocked(claimUpdatePrompt).mockResolvedValue(true);
+      vi.mocked(api.claimUpdatePrompt).mockResolvedValue(true);
       await act(async () => {
         await result.current.checkForUpdates(false);
       });
@@ -453,13 +443,13 @@ describe("useUpdater", () => {
         await result.current.checkForUpdates(true);
       });
       expect(result.current.confirmDialogOpen).toBe(true);
-      expect(releaseUpdatePrompt).not.toHaveBeenCalled();
+      expect(api.releaseUpdatePrompt).not.toHaveBeenCalled();
 
       await act(async () => {
         result.current.handleCancelUpdate();
       });
 
-      expect(releaseUpdatePrompt).toHaveBeenCalledTimes(1);
+      expect(api.releaseUpdatePrompt).toHaveBeenCalledTimes(1);
     });
 
     it("releases the dialog when the install fails", async () => {
@@ -473,7 +463,7 @@ describe("useUpdater", () => {
         await result.current.handleConfirmUpdate();
       });
 
-      expect(releaseUpdatePrompt).toHaveBeenCalledTimes(1);
+      expect(api.releaseUpdatePrompt).toHaveBeenCalledTimes(1);
     });
 
     it("releases the dialog when the window unmounts it while open", async () => {
@@ -484,7 +474,7 @@ describe("useUpdater", () => {
 
       unmount();
 
-      expect(releaseUpdatePrompt).toHaveBeenCalledTimes(1);
+      expect(api.releaseUpdatePrompt).toHaveBeenCalledTimes(1);
     });
 
     it("does not release a dialog it never claimed", async () => {
@@ -496,7 +486,7 @@ describe("useUpdater", () => {
 
       unmount();
 
-      expect(releaseUpdatePrompt).not.toHaveBeenCalled();
+      expect(api.releaseUpdatePrompt).not.toHaveBeenCalled();
     });
   });
 });

@@ -1,7 +1,7 @@
 import { warn } from "@tauri-apps/plugin-log";
 import { renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { getImageFull } from "../../../bindings/ContainerCommands";
+import { getImageFull } from "../../../bindings/binaryApi";
 import { useFullSizePages } from "./useFullSizePages";
 
 /** A `[width][height][data]` payload, which is what the backend answers with. */

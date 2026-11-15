@@ -41,17 +41,17 @@ vi.mock("./EditSeriesOrderDialog", () => ({
 describe("BookshelfDialogs", () => {
   const vol1 = createMockBookWithState({
     id: 1,
-    display_name: "Vol 1",
-    series_id: 10,
-    series_order: 1,
+    displayName: "Vol 1",
+    seriesId: 10,
+    seriesOrder: 1,
   });
   const vol2 = createMockBookWithState({
     id: 2,
-    display_name: "Vol 2",
-    series_id: 10,
-    series_order: 2,
+    displayName: "Vol 2",
+    seriesId: 10,
+    seriesOrder: 2,
   });
-  const other = createMockBookWithState({ id: 3, display_name: "Other", series_id: 11 });
+  const other = createMockBookWithState({ id: 3, displayName: "Other", seriesId: 11 });
 
   const defaultProps: BookshelfDialogsProps = {
     dialogType: null,

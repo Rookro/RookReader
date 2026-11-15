@@ -62,17 +62,17 @@ export default function BookCard({
   const [imageError, setImageError] = useState(false);
 
   const imageSrc = useMemo(() => {
-    return !imageError && book?.thumbnail_path
-      ? convertFileSrc(book.thumbnail_path)
+    return !imageError && book?.thumbnailPath
+      ? convertFileSrc(book.thumbnailPath)
       : dummy_thumbnail;
-  }, [book?.thumbnail_path, imageError]);
+  }, [book?.thumbnailPath, imageError]);
 
   const bookTags = useMemo(() => {
-    if (!book?.tag_ids || !tags) {
+    if (!book?.tagIds || !tags) {
       return [];
     }
-    return tags.filter((tag) => book.tag_ids.includes(tag.id));
-  }, [book?.tag_ids, tags]);
+    return tags.filter((tag) => book.tagIds.includes(tag.id));
+  }, [book?.tagIds, tags]);
 
   const isSelected = selectedBookIds.has(book.id);
 
@@ -85,7 +85,7 @@ export default function BookCard({
       }}
       onContextMenu={handleContextMenu}
     >
-      <Tooltip title={book.display_name} followCursor placement="right-start">
+      <Tooltip title={book.displayName} followCursor placement="right-start">
         <Card
           sx={(theme) => ({
             width: "100%",
@@ -146,7 +146,7 @@ export default function BookCard({
                 <CardMedia
                   component="img"
                   image={imageSrc}
-                  alt={book.display_name}
+                  alt={book.displayName}
                   onError={() => setImageError(true)}
                   sx={{
                     position: "absolute",
@@ -177,8 +177,8 @@ export default function BookCard({
                         label={tag.name}
                         size={size}
                         sx={(theme) => ({
-                          backgroundColor: tag.color_code,
-                          color: getReadableTextColor(theme, tag.color_code),
+                          backgroundColor: tag.colorCode,
+                          color: getReadableTextColor(theme, tag.colorCode),
                           fontSize: "0.65rem",
                           height: "20px",
                         })}
@@ -190,15 +190,15 @@ export default function BookCard({
 
               <AutoScrollTypography
                 variant="body1"
-                text={book.display_name}
+                text={book.displayName}
                 enabled={enableAutoScroll}
                 sx={{ paddingTop: 1, paddingBottom: 1 }}
               />
               <LinearProgress
                 variant="determinate"
                 value={
-                  book.total_pages !== 0
-                    ? (((book.last_read_page_index ?? -1) + 1) / book.total_pages) * 100
+                  book.totalPages !== 0
+                    ? (((book.lastReadPageIndex ?? -1) + 1) / book.totalPages) * 100
                     : 0
                 }
                 sx={{

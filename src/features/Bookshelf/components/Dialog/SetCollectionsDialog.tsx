@@ -15,7 +15,7 @@ import {
 } from "@mui/material";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getCollectionsForBook } from "../../../../bindings/CollectionCommands";
+import { api } from "../../../../bindings/api";
 import type { Collection } from "../../../../domain/entities";
 import { useAppDispatch } from "../../../../store/store";
 import { useBookCheckStates } from "../../hooks/useBookCheckStates";
@@ -48,7 +48,7 @@ export default function SetCollectionsDialog({
     open,
     bookIds,
     ids: availableCollections.map((collection) => collection.id),
-    load: getCollectionsForBook,
+    load: api.getCollectionsForBook,
     loadErrorMessage: "Failed to fetch collections for books",
   });
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -68,7 +68,7 @@ export default function SetCollectionsDialog({
     const result = await dispatch(
       setCollectionsForBooks(changes.map(({ bookId, ids }) => ({ bookId, collectionIds: ids }))),
     );
-    // On failure the slice error is shown by GlobalErrorListener and the backend's
+    // On failure ErrorNotifier shows the error and the backend's
     // `books-changed` refetch reflects any partial success; stay open for retry.
     if (setCollectionsForBooks.fulfilled.match(result)) {
       onClose();
@@ -76,8 +76,8 @@ export default function SetCollectionsDialog({
   }, [bookIds, changes, dispatch, onClose]);
 
   const handleCreate = useCallback(
-    async (name: string, icon_id: string) => {
-      const result = await dispatch(addCollection({ name, icon_id }));
+    async (name: string, iconId: string) => {
+      const result = await dispatch(addCollection({ name, iconId }));
       // The `collections-changed` refetch may list it only later; checking it now still saves it.
       if (addCollection.fulfilled.match(result) && sessionRef.current === bookIds) {
         toggle(result.payload.id);
@@ -100,7 +100,7 @@ export default function SetCollectionsDialog({
         >
           <List disablePadding>
             {availableCollections.map((collection) => {
-              const icon = CollectionIcons.find((i) => i.key === collection.icon_id)?.icon ?? (
+              const icon = CollectionIcons.find((i) => i.key === collection.iconId)?.icon ?? (
                 <LibraryBooks color="action" />
               );
               return (

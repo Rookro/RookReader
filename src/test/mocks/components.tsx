@@ -1,6 +1,6 @@
 import React, { type ComponentType, type JSX, type ReactNode } from "react";
 import { vi } from "vitest";
-import type { Book } from "../../domain/entities";
+import type { BookWithState } from "../../domain/entities";
 
 /** Mock for scrollToRow function */
 export const mockScrollToRow = vi.fn();
@@ -30,7 +30,7 @@ vi.mock("react-window", () => ({
   }: {
     cellComponent: ComponentType<Record<string, unknown>>;
     cellProps: {
-      books?: Book[];
+      books?: BookWithState[];
       items?: { type: string; data: { id: number } }[];
       [key: string]: unknown;
     };

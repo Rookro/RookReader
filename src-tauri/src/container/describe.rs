@@ -39,7 +39,7 @@ pub struct BookDescription {
 pub fn describe(path: &str, container: &dyn Container) -> Result<BookDescription> {
     let is_novel = container.is_novel();
     let total_pages = container.get_entries().len();
-    if !is_novel && total_pages == 0 {
+    if container.is_empty_book() {
         return Err(Error::EmptyContainer(path.to_string()));
     }
 

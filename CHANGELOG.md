@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.7.1] - 2026-11-16
+
+### Changed
+
+* The settings file is now read only when RookReader starts. Edit it while the app is closed; a change made while it is running is overwritten by the next setting you change. If the file cannot be read at start-up, RookReader runs on the default settings with reading history off and tells you so. (#391, #398)
+* Notifications that appear close together are now shown one after another, instead of the newest replacing the others; an error no longer waits behind messages such as "Opening next book". (#397)
+
+### Fixed
+
+* Fixed books opened while **Reading history** is off appearing in the history once it is turned back on. (#390)
+* Fixed no error message being shown when a bookmark could not be loaded, added, renamed or removed, or a series order could not be saved. (#393)
+* Fixed a series created just after a book being listed before that book when sorting by date, and books and series with the same name or creation time not keeping a fixed order. (#399)
+* Fixed the error shown when an opened book could not be saved saying that the reading history could not be recorded, even while **Reading history** is off, and a History row's open menu acting on a different book with the same name after the list refreshed. (#400)
+* Fixed the window freezing for a moment when the File Navigator opened a folder with many files while **Watch folders and files for changes** is on. (#404)
+* Fixed the File Navigator's list being replaced by the loading indicator, and in large folders not updating until the changes stopped, while files in the folder kept changing with **Watch folders and files for changes** on. (#405)
+* Fixed the File Navigator's list scrolling back to the open book whenever files were added to or removed from the folder while **Watch folders and files for changes** is on. (#406)
+
 ## [2.7.0] - 2026-11-02
 
 ### Added
@@ -660,7 +677,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Add an automatic two-page spread display feature (#4)
 * Add a page navigation feature using the mouse wheel up/down (#5)
 
-[unreleased]: https://github.com/Rookro/RookReader/compare/v2.7.0...HEAD
+[unreleased]: https://github.com/Rookro/RookReader/compare/v2.7.1...HEAD
+[2.7.1]: https://github.com/Rookro/RookReader/compare/v2.7.0...v2.7.1
 [2.7.0]: https://github.com/Rookro/RookReader/compare/v2.6.1...v2.7.0
 [2.6.1]: https://github.com/Rookro/RookReader/compare/v2.6.0...v2.6.1
 [2.6.0]: https://github.com/Rookro/RookReader/compare/v2.5.0...v2.6.0

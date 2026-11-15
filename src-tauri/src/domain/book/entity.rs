@@ -1,4 +1,4 @@
-use chrono::NaiveDateTime;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use strum_macros::{EnumString, IntoStaticStr};
 
@@ -50,6 +50,7 @@ pub enum Direction {
 
 /// Represents a book entity in the database.
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
 pub struct Book {
     /// The unique identifier for the book.
     pub id: i64,
@@ -71,6 +72,7 @@ pub struct Book {
 
 /// Represents the reading state of a specific book.
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
 pub struct ReadingState {
     /// The unique identifier for the associated book.
     pub book_id: i64,
@@ -79,38 +81,13 @@ pub struct ReadingState {
     /// The last EPUB reading position (CFI). `None` for comics.
     pub cfi: Option<String>,
     /// The timestamp when the book was last opened.
-    pub last_opened_at: Option<NaiveDateTime>,
-}
-
-/// Represents a book along with its reading state, specifically for books that have been opened.
-#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
-pub struct ReadBook {
-    /// The unique identifier for the book.
-    pub id: i64,
-    /// The unique file path or directory path of the book.
-    pub file_path: String,
-    /// What the path points at.
-    pub item_type: ItemType,
-    /// The display name of the book.
-    pub display_name: String,
-    /// The total number of pages in the book.
-    pub total_pages: i64,
-    /// The optional identifier of the series this book belongs to.
-    pub series_id: Option<i64>,
-    /// The optional order index of the book within its series.
-    pub series_order: Option<i64>,
-    /// The optional file path to the thumbnail image of the book.
-    pub thumbnail_path: Option<String>,
-    /// The last read page index.
-    pub last_read_page_index: i64,
-    /// The timestamp when the book was last opened.
-    /// This is guaranteed to be present (not null) for read books.
-    pub last_opened_at: NaiveDateTime,
+    pub last_opened_at: Option<DateTime<Utc>>,
 }
 
 /// Represents a book along with its optional reading state.
 /// Useful for displaying book details whether it has been read or not.
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
 pub struct BookWithState {
     /// The unique identifier for the book.
     pub id: i64,
@@ -129,7 +106,7 @@ pub struct BookWithState {
     /// The optional file path to the thumbnail image of the book.
     pub thumbnail_path: Option<String>,
     /// The timestamp when the book was created (registered).
-    pub created_at: Option<NaiveDateTime>,
+    pub created_at: Option<DateTime<Utc>>,
     /// Whether the reader has shifted this book's spreads by one page.
     ///
     /// Beside `total_pages` rather than in the reading state: it is a correction to how
@@ -153,7 +130,7 @@ pub struct BookWithState {
     /// The last read page index, if the book has been opened.
     pub last_read_page_index: Option<i64>,
     /// The timestamp when the book was last opened, if any.
-    pub last_opened_at: Option<NaiveDateTime>,
+    pub last_opened_at: Option<DateTime<Utc>>,
     /// The last EPUB reading position (CFI), if any. `None` for comics.
     pub cfi: Option<String>,
     /// List of tag IDs associated with this book.

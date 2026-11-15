@@ -31,14 +31,17 @@ impl SqliteSeriesRepository {
 #[async_trait]
 impl SeriesRepository for SqliteSeriesRepository {
     async fn create(&self, name: &str) -> Result<Series> {
+        // Stamped here like books, since the column default has whole seconds only.
+        let created_at = chrono::Utc::now().naive_utc();
         let series = sqlx::query_as!(
             Series,
             r#"
-            INSERT INTO series (name)
-            VALUES (?)
-            RETURNING id, name, created_at
+            INSERT INTO series (name, created_at)
+            VALUES (?, ?)
+            RETURNING id, name, created_at as "created_at: chrono::DateTime<chrono::Utc>"
             "#,
-            name
+            name,
+            created_at
         )
         .fetch_one(&self.pool)
         .await?;
@@ -50,7 +53,7 @@ impl SeriesRepository for SqliteSeriesRepository {
         let series_list = sqlx::query_as!(
             Series,
             r#"
-            SELECT id, name, created_at
+            SELECT id, name, created_at as "created_at: chrono::DateTime<chrono::Utc>"
             FROM series
             ORDER BY id ASC
             "#

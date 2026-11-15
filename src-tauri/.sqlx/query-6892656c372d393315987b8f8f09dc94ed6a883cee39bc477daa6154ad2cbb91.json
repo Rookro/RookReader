@@ -1,0 +1,86 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            SELECT id, book_id, name, page_index, cfi, created_at as \"created_at: chrono::DateTime<chrono::Utc>\"\n            FROM bookmarks\n            WHERE book_id = ?\n            ORDER BY page_index ASC, created_at ASC, id ASC\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "bookmarks",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "book_id",
+        "ordinal": 1,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "bookmarks",
+            "name": "book_id"
+          }
+        }
+      },
+      {
+        "name": "name",
+        "ordinal": 2,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "bookmarks",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "name": "page_index",
+        "ordinal": 3,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "bookmarks",
+            "name": "page_index"
+          }
+        }
+      },
+      {
+        "name": "cfi",
+        "ordinal": 4,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "bookmarks",
+            "name": "cfi"
+          }
+        }
+      },
+      {
+        "name": "created_at: chrono::DateTime<chrono::Utc>",
+        "ordinal": 5,
+        "type_info": "Datetime",
+        "origin": {
+          "Table": {
+            "table": "bookmarks",
+            "name": "created_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "6892656c372d393315987b8f8f09dc94ed6a883cee39bc477daa6154ad2cbb91"
+}

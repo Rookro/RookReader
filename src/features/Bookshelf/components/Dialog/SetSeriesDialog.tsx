@@ -52,7 +52,7 @@ export default function SetSeriesDialog({
   // biome-ignore lint/correctness/useExhaustiveDependencies: seed only when the dialog opens.
   useEffect(() => {
     if (open) {
-      const seriesIds = new Set(books.map((book) => book.series_id));
+      const seriesIds = new Set(books.map((book) => book.seriesId));
       setSelectedSeriesId(
         seriesIds.size > 1 ? undefined : (seriesIds.values().next().value ?? null),
       );
@@ -80,7 +80,7 @@ export default function SetSeriesDialog({
     if (selectedSeriesId === undefined) return;
     const bookIds = books.map((book) => book.id);
     const result = await dispatch(updateBooksSeries({ bookIds, seriesId: selectedSeriesId }));
-    // On failure the slice error is shown by GlobalErrorListener and the backend's
+    // On failure ErrorNotifier shows the error and the backend's
     // `books-changed` refetch reflects any partial success; stay open for retry.
     if (updateBooksSeries.fulfilled.match(result)) {
       onClose();

@@ -5,7 +5,7 @@ import { events } from "../../../bindings/bindings";
 import type { ReadingState } from "../../../domain/entities";
 import { type TauriEvent, useTauriEvent } from "../../../hooks/useTauriEvent";
 import { readingProgressChanged } from "../../../store/actions";
-import { type RootState, useAppDispatch, useAppSelector } from "../../../store/store";
+import { type RootState, useAppDispatch, useAppSelector, useAppStore } from "../../../store/store";
 import { fetchSeries } from "../../Bookshelf/seriesSlice";
 import { fetchBooksInSelectedCollection, fetchCollections } from "../../Bookshelf/slice";
 import { fetchTags } from "../../Bookshelf/tagSlice";
@@ -53,9 +53,31 @@ describe("useLibrarySync", () => {
   const mockSelectedCollectionId = 1;
   const mockRecordReadingHistory = true;
 
+  /** A store whose history lists the books with these ids. */
+  const storeWithHistory = (ids: number[]) =>
+    ({
+      getState: () => ({ history: { recentlyReadBooks: ids.map((id) => ({ id })) } }),
+    }) as unknown as ReturnType<typeof useAppStore>;
+
+  /** Renders the hook and delivers a reading-progress event for `bookId`. */
+  const fireProgress = (bookId: number) => {
+    let eventHandler: (event: Event<ReadingState>) => void = () => {};
+    vi.mocked(useTauriEvent).mockImplementation((event, handler) => {
+      if (event === events.readingProgressChanged) {
+        eventHandler = handler as (event: Event<ReadingState>) => void;
+      }
+    });
+    renderHook(() => useLibrarySync());
+    vi.clearAllMocks();
+    eventHandler({
+      payload: { bookId, lastReadPageIndex: 1, cfi: null, lastOpenedAt: null },
+    } as Event<ReadingState>);
+  };
+
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(useAppDispatch).mockReturnValue(mockDispatch);
+    vi.mocked(useAppStore).mockReturnValue(storeWithHistory([42]));
     vi.mocked(useAppSelector).mockImplementation((selector) => {
       const state = {
         collection: {
@@ -213,19 +235,35 @@ describe("useLibrarySync", () => {
     vi.clearAllMocks();
 
     const payload: ReadingState = {
-      book_id: 42,
-      last_read_page_index: 7,
+      bookId: 42,
+      lastReadPageIndex: 7,
       cfi: null,
-      last_opened_at: "2026-03-01T15:30:00",
+      lastOpenedAt: "2026-03-01T15:30:00Z",
     };
     eventHandler({ payload } as Event<ReadingState>);
 
     expect(mockDispatch).toHaveBeenCalledTimes(1);
     expect(mockDispatch).toHaveBeenCalledWith(readingProgressChanged(payload));
-    // No IPC refetch thunks are dispatched for a page turn.
+    // No refetch thunk is dispatched for a page turn of a book the history already lists.
     expect(mockDispatch).not.toHaveBeenCalledWith(fetchRecentlyReadBooks());
     expect(mockDispatch).not.toHaveBeenCalledWith(fetchCollections());
     expect(mockDispatch).not.toHaveBeenCalledWith(fetchTags());
     expect(mockDispatch).not.toHaveBeenCalledWith(fetchSeries());
+  });
+
+  it("refetches the history when progress arrives for a book it does not list", () => {
+    vi.mocked(useAppStore).mockReturnValue(storeWithHistory([1]));
+
+    fireProgress(9);
+
+    expect(mockDispatch).toHaveBeenCalledWith(fetchRecentlyReadBooks());
+  });
+
+  it("does not refetch the history for a book it already lists", () => {
+    vi.mocked(useAppStore).mockReturnValue(storeWithHistory([9]));
+
+    fireProgress(9);
+
+    expect(mockDispatch).not.toHaveBeenCalledWith(fetchRecentlyReadBooks());
   });
 });

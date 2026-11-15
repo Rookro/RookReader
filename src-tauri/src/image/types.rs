@@ -17,6 +17,7 @@ pub const HEADER_PROBE_BYTES: u64 = 64 * 1024;
 
 /// The pixel dimensions of a single image, without its data.
 #[derive(Serialize, Deserialize, specta::Type, Clone, Copy, Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
 pub struct ImageDimensions {
     /// The width of the image in pixels.
     pub width: u32,

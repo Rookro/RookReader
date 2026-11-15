@@ -2,25 +2,26 @@ import { error as logError } from "@tauri-apps/plugin-log";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import * as SeriesCommand from "../../../../bindings/SeriesCommands";
+import { api } from "../../../../bindings/api";
 import type { Series } from "../../../../domain/entities";
 import { createMockBookWithState, createMockSeries } from "../../../../test/factories";
 import { renderWithProviders } from "../../../../test/utils";
+import { ErrorCode } from "../../../../types/Error";
 import SetSeriesDialog, { type SetSeriesDialogProps } from "./SetSeriesDialog";
 
 describe("SetSeriesDialog", () => {
   const user = userEvent.setup();
 
   const mockSeries: Series[] = [
-    { id: 1, name: "Series A", created_at: "2026-03-01T15:30:00" },
-    { id: 2, name: "Series B", created_at: "2026-03-01T15:30:00" },
+    { id: 1, name: "Series A", createdAt: "2026-03-01T15:30:00Z" },
+    { id: 2, name: "Series B", createdAt: "2026-03-01T15:30:00Z" },
   ];
 
   const defaultProps: SetSeriesDialogProps = {
     open: true,
     books: [
-      createMockBookWithState({ id: 101, series_id: null }),
-      createMockBookWithState({ id: 102, series_id: null }),
+      createMockBookWithState({ id: 101, seriesId: null }),
+      createMockBookWithState({ id: 102, seriesId: null }),
     ],
     availableSeries: mockSeries,
     onClose: vi.fn(),
@@ -42,7 +43,7 @@ describe("SetSeriesDialog", () => {
     renderWithProviders(
       <SetSeriesDialog
         {...defaultProps}
-        books={[createMockBookWithState({ id: 1, series_id: 2 })]}
+        books={[createMockBookWithState({ id: 1, seriesId: 2 })]}
       />,
     );
     expect(radioOf("Series B")).toBeChecked();
@@ -53,8 +54,8 @@ describe("SetSeriesDialog", () => {
       <SetSeriesDialog
         {...defaultProps}
         books={[
-          createMockBookWithState({ id: 1, series_id: 1 }),
-          createMockBookWithState({ id: 2, series_id: 1 }),
+          createMockBookWithState({ id: 1, seriesId: 1 }),
+          createMockBookWithState({ id: 2, seriesId: 1 }),
         ]}
       />,
     );
@@ -67,8 +68,8 @@ describe("SetSeriesDialog", () => {
       <SetSeriesDialog
         {...defaultProps}
         books={[
-          createMockBookWithState({ id: 1, series_id: 1 }),
-          createMockBookWithState({ id: 2, series_id: 2 }),
+          createMockBookWithState({ id: 1, seriesId: 1 }),
+          createMockBookWithState({ id: 2, seriesId: 2 }),
         ]}
       />,
     );
@@ -97,37 +98,37 @@ describe("SetSeriesDialog", () => {
   });
 
   it("should select a series and update on OK", async () => {
-    vi.mocked(SeriesCommand.setSeriesForBook).mockResolvedValue();
+    vi.mocked(api.setSeriesForBook).mockResolvedValue(null);
 
     renderWithProviders(<SetSeriesDialog {...defaultProps} />);
 
     await user.click(screen.getByText("Series B"));
     await user.click(screen.getByRole("button", { name: /ok/i }));
 
-    expect(SeriesCommand.setSeriesForBook).toHaveBeenCalledWith(101, 2);
-    expect(SeriesCommand.setSeriesForBook).toHaveBeenCalledWith(102, 2);
+    expect(api.setSeriesForBook).toHaveBeenCalledWith(101, 2);
+    expect(api.setSeriesForBook).toHaveBeenCalledWith(102, 2);
     expect(defaultProps.onClose).toHaveBeenCalled();
   });
 
   it("should clear series when 'No Series' is selected", async () => {
-    vi.mocked(SeriesCommand.setSeriesForBook).mockResolvedValue();
+    vi.mocked(api.setSeriesForBook).mockResolvedValue(null);
 
     renderWithProviders(<SetSeriesDialog {...defaultProps} />);
 
     await user.click(screen.getByText(/No Series/i));
     await user.click(screen.getByRole("button", { name: /ok/i }));
 
-    expect(SeriesCommand.setSeriesForBook).toHaveBeenCalledWith(101, null);
-    expect(SeriesCommand.setSeriesForBook).toHaveBeenCalledWith(102, null);
+    expect(api.setSeriesForBook).toHaveBeenCalledWith(101, null);
+    expect(api.setSeriesForBook).toHaveBeenCalledWith(102, null);
   });
 
   it("should create a new series, refetch the list, and select it", async () => {
-    vi.mocked(SeriesCommand.createSeries).mockResolvedValue(createMockSeries({ id: 3 }));
-    vi.mocked(SeriesCommand.getAllSeries).mockResolvedValue([
+    vi.mocked(api.createSeries).mockResolvedValue(createMockSeries({ id: 3 }));
+    vi.mocked(api.getAllSeries).mockResolvedValue([
       ...mockSeries,
-      { id: 3, name: "New Series", created_at: "2026-03-01T15:30:00" },
+      { id: 3, name: "New Series", createdAt: "2026-03-01T15:30:00Z" },
     ]);
-    vi.mocked(SeriesCommand.setSeriesForBook).mockResolvedValue();
+    vi.mocked(api.setSeriesForBook).mockResolvedValue(null);
 
     const { store } = renderWithProviders(<SetSeriesDialog {...defaultProps} />);
 
@@ -137,16 +138,16 @@ describe("SetSeriesDialog", () => {
     await user.type(nameInput, "New Series");
     await user.click(screen.getByText(/Create/i));
 
-    expect(SeriesCommand.createSeries).toHaveBeenCalledWith("New Series");
+    expect(api.createSeries).toHaveBeenCalledWith("New Series");
     await waitFor(() => expect(store.getState().series.series).toHaveLength(3));
 
     // The new series is the selected radio, so OK assigns it.
     await user.click(screen.getByRole("button", { name: /ok/i }));
-    expect(SeriesCommand.setSeriesForBook).toHaveBeenCalledWith(101, 3);
+    expect(api.setSeriesForBook).toHaveBeenCalledWith(101, 3);
   });
 
   it("should log error if update fails", async () => {
-    vi.mocked(SeriesCommand.setSeriesForBook).mockRejectedValue(new Error("Update failed"));
+    vi.mocked(api.setSeriesForBook).mockRejectedValue(new Error("Update failed"));
 
     renderWithProviders(<SetSeriesDialog {...defaultProps} />);
 
@@ -160,8 +161,8 @@ describe("SetSeriesDialog", () => {
     });
   });
 
-  it("records a save failure in the series slice and keeps the dialog open", async () => {
-    vi.mocked(SeriesCommand.setSeriesForBook).mockRejectedValue(new Error("Update failed"));
+  it("reports a save failure and keeps the dialog open", async () => {
+    vi.mocked(api.setSeriesForBook).mockRejectedValue(new Error("Update failed"));
     const onClose = vi.fn();
 
     const { store } = renderWithProviders(<SetSeriesDialog {...defaultProps} onClose={onClose} />);
@@ -169,14 +170,17 @@ describe("SetSeriesDialog", () => {
     await user.click(screen.getByText("Series A"));
     await user.click(screen.getByRole("button", { name: /ok/i }));
 
-    // The slice error is what GlobalErrorListener turns into the notification;
-    // the dialog stays open for retry.
-    await waitFor(() => expect(store.getState().series.error).not.toBeNull());
+    // The queued error becomes the notification; the dialog stays open for retry.
+    await waitFor(() =>
+      expect(store.getState().errorNotification.pending).toEqual([
+        { context: "series", code: ErrorCode.other },
+      ]),
+    );
     expect(onClose).not.toHaveBeenCalled();
   });
 
   it("should log error if create fails", async () => {
-    vi.mocked(SeriesCommand.createSeries).mockRejectedValue(new Error("Create failed"));
+    vi.mocked(api.createSeries).mockRejectedValue(new Error("Create failed"));
 
     renderWithProviders(<SetSeriesDialog {...defaultProps} />);
 
@@ -195,7 +199,7 @@ describe("SetSeriesDialog", () => {
     await user.click(screen.getByRole("button", { name: /ok/i }));
 
     expect(defaultProps.onClose).toHaveBeenCalled();
-    expect(SeriesCommand.setSeriesForBook).not.toHaveBeenCalled();
+    expect(api.setSeriesForBook).not.toHaveBeenCalled();
   });
 
   it("should not create series if name is empty", async () => {
@@ -207,18 +211,18 @@ describe("SetSeriesDialog", () => {
 
     const nameInput = screen.getByPlaceholderText(/Series name/i);
     await user.type(nameInput, "   {Enter}");
-    expect(SeriesCommand.createSeries).not.toHaveBeenCalled();
+    expect(api.createSeries).not.toHaveBeenCalled();
   });
 
   it("should create series when Enter key is pressed", async () => {
-    vi.mocked(SeriesCommand.createSeries).mockResolvedValue(createMockSeries({ id: 3 }));
+    vi.mocked(api.createSeries).mockResolvedValue(createMockSeries({ id: 3 }));
     renderWithProviders(<SetSeriesDialog {...defaultProps} />);
 
     await user.click(screen.getByText(/Create new series/i));
     const nameInput = screen.getByPlaceholderText(/Series name/i);
     await user.type(nameInput, "Enter Series{Enter}");
 
-    expect(SeriesCommand.createSeries).toHaveBeenCalledWith("Enter Series");
+    expect(api.createSeries).toHaveBeenCalledWith("Enter Series");
   });
 
   it("should cancel creation when Escape key is pressed", async () => {

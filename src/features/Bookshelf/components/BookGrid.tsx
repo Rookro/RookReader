@@ -3,7 +3,7 @@ import { createSelector } from "@reduxjs/toolkit";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Grid, useGridCallbackRef } from "react-window";
-import type { Book, BookWithState } from "../../../domain/entities";
+import type { BookWithState } from "../../../domain/entities";
 import { useAppTheme } from "../../../hooks/useAppTheme";
 import { useResizeObserver } from "../../../hooks/useResizeObserver";
 import { type RootState, useAppDispatch, useAppSelector } from "../../../store/store";
@@ -62,7 +62,7 @@ const selectBookGridState = createSelector(
 /** Props for the Book grid component */
 export interface BookGridProps {
   /** Callback for when a book is selected */
-  onBookSelect?: (book: Book) => void;
+  onBookSelect?: (book: BookWithState) => void;
 }
 
 /** Book grid component */

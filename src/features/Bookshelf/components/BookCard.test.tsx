@@ -22,16 +22,16 @@ describe("BookCard", () => {
 
   const mockBook = createMockBookWithState({
     id: 1,
-    display_name: "Test Book",
-    total_pages: 100,
-    last_read_page_index: 49, // Page 50
-    thumbnail_path: "thumbnail.jpg",
-    tag_ids: [1, 2],
+    displayName: "Test Book",
+    totalPages: 100,
+    lastReadPageIndex: 49, // Page 50
+    thumbnailPath: "thumbnail.jpg",
+    tagIds: [1, 2],
   });
 
   const mockTags = [
-    createMockTag({ id: 1, name: "Tag1", color_code: "#ff0000" }),
-    createMockTag({ id: 2, name: "Tag2", color_code: "#00ff00" }),
+    createMockTag({ id: 1, name: "Tag1", colorCode: "#ff0000" }),
+    createMockTag({ id: 2, name: "Tag2", colorCode: "#00ff00" }),
   ];
 
   const mockActions = {
@@ -78,10 +78,10 @@ describe("BookCard", () => {
     renderBookCard({
       ...defaultProps,
       tags: [
-        createMockTag({ id: 1, name: "Pale", color_code: "#FFEB3B" }),
-        createMockTag({ id: 2, name: "Dark", color_code: "#212121" }),
+        createMockTag({ id: 1, name: "Pale", colorCode: "#FFEB3B" }),
+        createMockTag({ id: 2, name: "Dark", colorCode: "#212121" }),
       ],
-      book: { ...mockBook, tag_ids: [1, 2] },
+      book: { ...mockBook, tagIds: [1, 2] },
     });
 
     const pale = getComputedStyle(screen.getByText("Pale"));
@@ -112,8 +112,8 @@ describe("BookCard", () => {
   });
 
   it("acts on the whole selection from the context menu when this book is selected", async () => {
-    const bookA = createMockBookWithState({ id: 1, display_name: "Book A", tag_ids: [] });
-    const bookB = createMockBookWithState({ id: 2, display_name: "Book B", tag_ids: [] });
+    const bookA = createMockBookWithState({ id: 1, displayName: "Book A", tagIds: [] });
+    const bookB = createMockBookWithState({ id: 2, displayName: "Book B", tagIds: [] });
     const openDialog = vi.fn();
     const getSelectedBooks = vi.fn(() => [bookA, bookB]);
 
@@ -153,10 +153,10 @@ describe("BookCard", () => {
     expect(image).toHaveAttribute("src", "asset://thumbnail.jpg");
   });
 
-  it("should render progress as 0 if total_pages is 0", () => {
+  it("should render progress as 0 if totalPages is 0", () => {
     const bookWithNoPages = createMockBookWithState({
       ...mockBook,
-      total_pages: 0,
+      totalPages: 0,
     });
     renderBookCard({ ...defaultProps, book: bookWithNoPages });
 
@@ -167,8 +167,8 @@ describe("BookCard", () => {
   it("should render non-zero progress when the first page (index 0) has been read", () => {
     const bookAtFirstPage = createMockBookWithState({
       ...mockBook,
-      total_pages: 10,
-      last_read_page_index: 0,
+      totalPages: 10,
+      lastReadPageIndex: 0,
     });
     renderBookCard({ ...defaultProps, book: bookAtFirstPage });
 
@@ -179,8 +179,8 @@ describe("BookCard", () => {
   it("should render progress as 0 when the book is unread (null index)", () => {
     const unreadBook = createMockBookWithState({
       ...mockBook,
-      total_pages: 10,
-      last_read_page_index: null,
+      totalPages: 10,
+      lastReadPageIndex: null,
     });
     renderBookCard({ ...defaultProps, book: unreadBook });
 

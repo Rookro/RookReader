@@ -1,7 +1,7 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import * as BookmarkCommands from "../../../../bindings/BookmarkCommands";
+import { api } from "../../../../bindings/api";
 import type { Bookmark } from "../../../../domain/entities";
 import { createMockBookmark, createMockBookWithState } from "../../../../test/factories";
 import {
@@ -31,7 +31,6 @@ describe("BookmarkViewer", () => {
       bookId: 42,
       bookmarks: loadedBookmarks,
       status: "succeeded",
-      error: null,
     };
     return preloadedState;
   };
@@ -45,7 +44,7 @@ describe("BookmarkViewer", () => {
   it("does not fetch bookmarks itself", () => {
     renderWithProviders(<BookmarkViewer />, { preloadedState: stateWithOpenBook() });
 
-    expect(BookmarkCommands.getBookmarksByBookId).not.toHaveBeenCalled();
+    expect(api.getBookmarksByBookId).not.toHaveBeenCalled();
   });
 
   it("should show the empty state when the book has no bookmarks", async () => {
@@ -57,8 +56,8 @@ describe("BookmarkViewer", () => {
 
   it("should list the bookmarks with their page numbers", async () => {
     givenBookmarks([
-      createMockBookmark({ id: 1, name: "Opening", page_index: 0 }),
-      createMockBookmark({ id: 2, name: "The duel", page_index: 11 }),
+      createMockBookmark({ id: 1, name: "Opening", pageIndex: 0 }),
+      createMockBookmark({ id: 2, name: "The duel", pageIndex: 11 }),
     ]);
 
     renderWithProviders(<BookmarkViewer />, { preloadedState: stateWithOpenBook() });
@@ -70,7 +69,7 @@ describe("BookmarkViewer", () => {
   });
 
   it("should jump to the page index when a comic bookmark is clicked", async () => {
-    givenBookmarks([createMockBookmark({ id: 1, name: "The duel", page_index: 11, cfi: null })]);
+    givenBookmarks([createMockBookmark({ id: 1, name: "The duel", pageIndex: 11, cfi: null })]);
 
     const { store } = renderWithProviders(<BookmarkViewer />, {
       preloadedState: stateWithOpenBook(),
@@ -86,7 +85,7 @@ describe("BookmarkViewer", () => {
       createMockBookmark({
         id: 1,
         name: "Chapter 2",
-        page_index: 3,
+        pageIndex: 3,
         cfi: "epubcfi(/6/8!/4/2/1:0)",
       }),
     ]);
@@ -96,25 +95,25 @@ describe("BookmarkViewer", () => {
     });
     await user.click(await screen.findByText("Chapter 2"));
 
-    const containerFile = store.getState().reader;
-    expect(containerFile.index).toBe(3);
-    expect(containerFile.cfi).toBe("epubcfi(/6/8!/4/2/1:0)");
+    const reader = store.getState().reader;
+    expect(reader.index).toBe(3);
+    expect(reader.cfi).toBe("epubcfi(/6/8!/4/2/1:0)");
   });
 
   it("should remove a bookmark from the context menu", async () => {
-    givenBookmarks([createMockBookmark({ id: 7, name: "The duel", page_index: 11 })]);
+    givenBookmarks([createMockBookmark({ id: 7, name: "The duel", pageIndex: 11 })]);
 
     renderWithProviders(<BookmarkViewer />, { preloadedState: stateWithOpenBook() });
     await user.pointer({ keys: "[MouseRight]", target: await screen.findByText("The duel") });
     await user.click(screen.getByRole("menuitem", { name: "Remove bookmark" }));
 
     await waitFor(() => {
-      expect(BookmarkCommands.deleteBookmark).toHaveBeenCalledWith(7);
+      expect(api.deleteBookmark).toHaveBeenCalledWith(7);
     });
   });
 
   it("should rename a bookmark from the context menu", async () => {
-    givenBookmarks([createMockBookmark({ id: 7, name: "Opening", page_index: 11 })]);
+    givenBookmarks([createMockBookmark({ id: 7, name: "Opening", pageIndex: 11 })]);
 
     renderWithProviders(<BookmarkViewer />, { preloadedState: stateWithOpenBook() });
     await user.pointer({ keys: "[MouseRight]", target: await screen.findByText("Opening") });
@@ -126,18 +125,18 @@ describe("BookmarkViewer", () => {
     await user.click(screen.getByRole("button", { name: "OK" }));
 
     await waitFor(() => {
-      expect(BookmarkCommands.renameBookmark).toHaveBeenCalledWith(7, "The duel");
+      expect(api.renameBookmark).toHaveBeenCalledWith(7, "The duel");
     });
   });
 
   it("should not rename when the dialog is cancelled", async () => {
-    givenBookmarks([createMockBookmark({ id: 7, name: "Opening", page_index: 11 })]);
+    givenBookmarks([createMockBookmark({ id: 7, name: "Opening", pageIndex: 11 })]);
 
     renderWithProviders(<BookmarkViewer />, { preloadedState: stateWithOpenBook() });
     await user.pointer({ keys: "[MouseRight]", target: await screen.findByText("Opening") });
     await user.click(screen.getByRole("menuitem", { name: "Rename" }));
     await user.click(screen.getByRole("button", { name: "Cancel" }));
 
-    expect(BookmarkCommands.renameBookmark).not.toHaveBeenCalled();
+    expect(api.renameBookmark).not.toHaveBeenCalled();
   });
 });

@@ -13,8 +13,8 @@ vi.mock("../../../components/ui/AutoScrollTypography/AutoScrollTypography", () =
   default: ({ text }: { text: string }) => <div>{text}</div>,
 }));
 
-const bookA = createMockBookWithState({ id: 1, display_name: "A" });
-const bookB = createMockBookWithState({ id: 2, display_name: "B" });
+const bookA = createMockBookWithState({ id: 1, displayName: "A" });
+const bookB = createMockBookWithState({ id: 2, displayName: "B" });
 const items = [
   { type: "book" as const, data: bookA },
   { type: "book" as const, data: bookB },

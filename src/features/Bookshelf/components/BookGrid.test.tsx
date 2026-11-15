@@ -153,7 +153,6 @@ describe("BookGrid", () => {
       collections: [],
       selectedId: 1,
       status: "idle",
-      error: null,
     },
     tag: {
       selectedId: null,
@@ -257,12 +256,12 @@ describe("BookGrid", () => {
   });
 
   it("renders books and series in the grid", () => {
-    const book = createMockBookWithState({ id: 1, display_name: "Standalone Book" });
+    const book = createMockBookWithState({ id: 1, displayName: "Standalone Book" });
     const series = createMockSeries({ id: 10, name: "Series Name" });
     const seriesBook = createMockBookWithState({
       id: 2,
-      display_name: "Series Book",
-      series_id: 10,
+      displayName: "Series Book",
+      seriesId: 10,
     });
 
     vi.mocked(useAppSelector).mockImplementation(<T,>(selector: (state: RootState) => T): T => {
@@ -287,8 +286,8 @@ describe("BookGrid", () => {
   });
 
   it("filters books by search text", () => {
-    const book1 = createMockBookWithState({ id: 1, display_name: "Apple" });
-    const book2 = createMockBookWithState({ id: 2, display_name: "Banana" });
+    const book1 = createMockBookWithState({ id: 1, displayName: "Apple" });
+    const book2 = createMockBookWithState({ id: 2, displayName: "Banana" });
 
     vi.mocked(useAppSelector).mockImplementation(<T,>(selector: (state: RootState) => T): T => {
       return selector({
@@ -352,8 +351,8 @@ describe("BookGrid", () => {
     const series = createMockSeries({ id: 10, name: "Series Name" });
     const seriesBook = createMockBookWithState({
       id: 2,
-      display_name: "Series Book",
-      series_id: 10,
+      displayName: "Series Book",
+      seriesId: 10,
     });
 
     vi.mocked(useAppSelector).mockImplementation(<T,>(selector: (state: RootState) => T): T => {
@@ -388,7 +387,7 @@ describe("BookGrid", () => {
   });
 
   it("calls handleSelectionClick when a book is clicked", () => {
-    const book = createMockBookWithState({ id: 1, display_name: "Test Book" });
+    const book = createMockBookWithState({ id: 1, displayName: "Test Book" });
 
     vi.mocked(useAppSelector).mockImplementation(<T,>(selector: (state: RootState) => T): T => {
       return selector({
@@ -416,7 +415,7 @@ describe("BookGrid", () => {
   });
 
   it("handles floating action bar actions", () => {
-    const book = createMockBookWithState({ id: 1, display_name: "Test Book" });
+    const book = createMockBookWithState({ id: 1, displayName: "Test Book" });
     const mockSelection = {
       ...mockSelectionValue,
       selectedBookIds: new Set([1]),
@@ -459,8 +458,8 @@ describe("BookGrid", () => {
   });
 
   it("handles keyboard navigation", () => {
-    const book1 = createMockBookWithState({ id: 1, display_name: "Book 1" });
-    const book2 = createMockBookWithState({ id: 2, display_name: "Book 2" });
+    const book1 = createMockBookWithState({ id: 1, displayName: "Book 1" });
+    const book2 = createMockBookWithState({ id: 2, displayName: "Book 2" });
     const series = createMockSeries({ id: 10, name: "Series" });
 
     const state = {
@@ -496,7 +495,7 @@ describe("BookGrid", () => {
   });
 
   it("triggers actions on focused items via Enter key", () => {
-    const book = createMockBookWithState({ id: 1, display_name: "Test Book" });
+    const book = createMockBookWithState({ id: 1, displayName: "Test Book" });
     const state = {
       ...defaultState,
       collection: {
@@ -530,7 +529,7 @@ describe("BookGrid", () => {
   });
 
   it("calls onBookSelect when a book is clicked and no items are selected", () => {
-    const book = createMockBookWithState({ id: 1, display_name: "Test Book" });
+    const book = createMockBookWithState({ id: 1, displayName: "Test Book" });
     const onBookSelect = vi.fn();
     const state = {
       ...defaultState,
@@ -560,8 +559,8 @@ describe("BookGrid", () => {
   });
 
   it("handles keyboard navigation boundary conditions and other keys", () => {
-    const book1 = createMockBookWithState({ id: 1, display_name: "A" });
-    const book2 = createMockBookWithState({ id: 2, display_name: "B" });
+    const book1 = createMockBookWithState({ id: 1, displayName: "A" });
+    const book2 = createMockBookWithState({ id: 2, displayName: "B" });
     const state = {
       ...defaultState,
       collection: {
@@ -612,8 +611,8 @@ describe("BookGrid", () => {
   });
 
   it("sorts multiple items", () => {
-    const book1 = createMockBookWithState({ id: 1, display_name: "B" });
-    const book2 = createMockBookWithState({ id: 2, display_name: "A" });
+    const book1 = createMockBookWithState({ id: 1, displayName: "B" });
+    const book2 = createMockBookWithState({ id: 2, displayName: "A" });
     const state = {
       ...defaultState,
       collection: {
@@ -707,7 +706,7 @@ describe("BookGrid", () => {
 
   it("triggers series drill-down on focused series item via Enter key", () => {
     const series = createMockSeries({ id: 10, name: "Test Series" });
-    const book = createMockBookWithState({ id: 1, series_id: 10 });
+    const book = createMockBookWithState({ id: 1, seriesId: 10 });
     const state = {
       ...defaultState,
       collection: {
@@ -753,8 +752,8 @@ describe("BookGrid", () => {
   });
 
   it("filters books by tag", () => {
-    const book1 = createMockBookWithState({ id: 1, display_name: "Tagged Book", tag_ids: [5] });
-    const book2 = createMockBookWithState({ id: 2, display_name: "Untagged Book" });
+    const book1 = createMockBookWithState({ id: 1, displayName: "Tagged Book", tagIds: [5] });
+    const book2 = createMockBookWithState({ id: 2, displayName: "Untagged Book" });
 
     vi.mocked(useAppSelector).mockImplementation(<T,>(selector: (state: RootState) => T): T => {
       return selector({
@@ -778,7 +777,7 @@ describe("BookGrid", () => {
   });
 
   it("falls back to standalone books when series data is missing", () => {
-    const book = createMockBookWithState({ id: 1, display_name: "Orphaned Book", series_id: 99 });
+    const book = createMockBookWithState({ id: 1, displayName: "Orphaned Book", seriesId: 99 });
 
     vi.mocked(useAppSelector).mockImplementation(<T,>(selector: (state: RootState) => T): T => {
       return selector({
@@ -804,10 +803,10 @@ describe("BookGrid", () => {
     const series = createMockSeries({ id: 10, name: "Series Name" });
     const seriesBook = createMockBookWithState({
       id: 2,
-      display_name: "Series Book",
-      series_id: 10,
+      displayName: "Series Book",
+      seriesId: 10,
     });
-    const standaloneBook = createMockBookWithState({ id: 1, display_name: "Standalone" });
+    const standaloneBook = createMockBookWithState({ id: 1, displayName: "Standalone" });
 
     vi.mocked(useAppSelector).mockImplementation(<T,>(selector: (state: RootState) => T): T => {
       return selector({
@@ -831,10 +830,10 @@ describe("BookGrid", () => {
   });
 
   it("covers all keyboard navigation branches", () => {
-    const book1 = createMockBookWithState({ id: 1, display_name: "A" });
-    const book2 = createMockBookWithState({ id: 2, display_name: "B" });
-    const book3 = createMockBookWithState({ id: 3, display_name: "C" });
-    const book4 = createMockBookWithState({ id: 4, display_name: "D" });
+    const book1 = createMockBookWithState({ id: 1, displayName: "A" });
+    const book2 = createMockBookWithState({ id: 2, displayName: "B" });
+    const book3 = createMockBookWithState({ id: 3, displayName: "C" });
+    const book4 = createMockBookWithState({ id: 4, displayName: "D" });
 
     // 400px / 190px = 2 columns
     vi.mocked(useResizeObserver).mockReturnValue(400);
@@ -899,25 +898,25 @@ describe("BookGrid", () => {
     fireEvent.keyDown(container, { key: "ArrowUp" }); // -> 0 (clamped)
   });
 
-  it("sorts books in drill-down mode by series_order", () => {
+  it("sorts books in drill-down mode by seriesOrder", () => {
     const series = createMockSeries({ id: 10, name: "Series" });
     const bookB = createMockBookWithState({
       id: 2,
-      display_name: "B",
-      series_id: 10,
-      series_order: 2,
+      displayName: "B",
+      seriesId: 10,
+      seriesOrder: 2,
     });
     const bookA = createMockBookWithState({
       id: 1,
-      display_name: "A",
-      series_id: 10,
-      series_order: 1,
+      displayName: "A",
+      seriesId: 10,
+      seriesOrder: 1,
     });
     const bookC = createMockBookWithState({
       id: 3,
-      display_name: "C",
-      series_id: 10,
-      series_order: null,
+      displayName: "C",
+      seriesId: 10,
+      seriesOrder: null,
     });
 
     vi.mocked(useAppSelector).mockImplementation(<T,>(selector: (state: RootState) => T): T => {
@@ -954,8 +953,8 @@ describe("BookGrid", () => {
 
   it("groups multiple books in the same series", () => {
     const series = createMockSeries({ id: 10, name: "Series" });
-    const book1 = createMockBookWithState({ id: 1, display_name: "Book 1", series_id: 10 });
-    const book2 = createMockBookWithState({ id: 2, display_name: "Book 2", series_id: 10 });
+    const book1 = createMockBookWithState({ id: 1, displayName: "Book 1", seriesId: 10 });
+    const book2 = createMockBookWithState({ id: 2, displayName: "Book 2", seriesId: 10 });
 
     vi.mocked(useAppSelector).mockImplementation(<T,>(selector: (state: RootState) => T): T => {
       return selector({
@@ -978,8 +977,8 @@ describe("BookGrid", () => {
   });
 
   it("does not activate a stale focus index after the list shrinks", () => {
-    const book1 = createMockBookWithState({ id: 1, display_name: "Apple" });
-    const book2 = createMockBookWithState({ id: 2, display_name: "Banana" });
+    const book1 = createMockBookWithState({ id: 1, displayName: "Apple" });
+    const book2 = createMockBookWithState({ id: 2, displayName: "Banana" });
 
     let currentState = {
       ...defaultState,
@@ -1028,7 +1027,7 @@ describe("BookGrid", () => {
   });
 
   it("calls useReadingBookIndex with the reading book from state", () => {
-    const readingBook = createMockBookWithState({ id: 5, display_name: "Reading Book" });
+    const readingBook = createMockBookWithState({ id: 5, displayName: "Reading Book" });
     const state = {
       ...defaultState,
       reader: {

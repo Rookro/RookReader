@@ -53,7 +53,7 @@ export const ItemRow = memo(function ItemRow({
           <ListItemText
             primary={bookmark.name}
             secondary={t("book-reader.bookmark-viewer.page-caption", {
-              page: bookmark.page_index + 1,
+              page: bookmark.pageIndex + 1,
             })}
             slotProps={{ primary: { noWrap: true }, secondary: { variant: "caption" } }}
           />

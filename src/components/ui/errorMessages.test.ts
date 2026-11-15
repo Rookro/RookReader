@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import i18n from "../../i18n/config";
 import { ErrorCode } from "../../types/Error";
-import { type ErrorContext, formatErrorMessage } from "./errorMessages";
+import type { ErrorContext } from "../../types/ErrorContext";
+import { formatErrorMessage } from "./errorMessages";
 
 /** Formats in `language` regardless of the language the app is currently set to. */
 const format = (language: string, context: ErrorContext, code: ErrorCode) =>
@@ -33,6 +34,12 @@ describe("formatErrorMessage", () => {
   it("names the reason for a page over the size limit", () => {
     expect(format("en-US", "load-page", ErrorCode.pageTooLarge)).toMatch(
       / A page is too large to load\.$/,
+    );
+  });
+
+  it("heads a bookmark failure with the bookmark headline", () => {
+    expect(format("en-US", "bookmark", ErrorCode.database)).toBe(
+      "Bookmark operation failed. Saving data failed.",
     );
   });
 

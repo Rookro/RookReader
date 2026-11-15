@@ -3,7 +3,7 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { Paginator } from "foliate-js/paginator.js";
 import { type Book, makeBook, type View } from "foliate-js/view.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { readNovelFile } from "../../../bindings/ContainerCommands";
+import { readNovelFile } from "../../../bindings/binaryApi";
 import { useAppTheme } from "../../../hooks/useAppTheme";
 import { type RootState, useAppDispatch, useAppSelector } from "../../../store/store";
 import { CommandError, ErrorCode } from "../../../types/Error";
@@ -175,8 +175,8 @@ describe("useNovelReader", () => {
     );
   });
 
-  it("should not load when the container is not a novel (per is_novel state)", async () => {
-    // Gate on the backend's is_novel contract, not the extension: even a .epub path
+  it("should not load when the container is not a novel (per isNovel state)", async () => {
+    // Gate on the backend's isNovel contract, not the extension: even a .epub path
     // is skipped when the slice says the container is not a novel.
     vi.mocked(useAppSelector).mockImplementation(<T>(selector: (state: RootState) => T): T => {
       const nonNovelState = {

@@ -8,33 +8,31 @@ import * as __TAURI_EVENT from "@tauri-apps/api/event";
 /** Commands */
 export const commands = {
 	/**
-	 *  Reads the current application settings.
-	 * 
-	 *  This is a **pure read**: it loads and normalizes the stored settings without
-	 *  acquiring the file lock or writing back. A file hand-edited to an out-of-range
-	 *  value is repaired in memory here and healed on disk at the next startup or write.
+	 *  Returns the settings the app is running with.
 	 * 
 	 *  # Arguments
 	 * 
-	 *  * `provider` - The managed settings file provider backing the settings store.
+	 *  * `settings` - The current settings.
 	 * 
 	 *  # Returns
 	 * 
-	 *  The normalized, valid [`AppSettings`].
+	 *  The current [`AppSettings`].
 	 * 
 	 *  # Errors
 	 * 
-	 *  Returns an `Err` if the settings cannot be loaded.
+	 *  Never fails; the `Result` keeps the command's shape.
 	 */
 	getSettings: () => typedError<AppSettings_Serialize, CommandError_Serialize>(__TAURI_INVOKE("get_settings")),
 	/**
 	 *  Applies a partial settings change and returns the full merged settings.
 	 * 
 	 *  The `patch` carries only the changed leaves of a single category. The backend
-	 *  deep-merges it into the current settings, validates the merged whole, persists it,
-	 *  applies the reader/rendering values to the live container runtime, returns the
-	 *  full merged settings to the caller, and broadcasts a `settings-changed` event to
-	 *  every window **except the caller** so other windows re-hydrate.
+	 *  deep-merges it into the current settings (or, while the session still runs on the
+	 *  fallback because start-up could not read the settings file, into the file read again),
+	 *  validates the merged whole, persists it, applies the reader/rendering values to the
+	 *  live container runtime, returns the full merged settings to the caller, and broadcasts
+	 *  a `settings-changed` event to every window **except the caller** so other windows
+	 *  re-hydrate.
 	 * 
 	 *  The caller is excluded from the emit because it already adopts the change from this
 	 *  command's return value (the `updateSettings` thunk replaces its slice with it); it
@@ -47,7 +45,8 @@ export const commands = {
 	 *    a Tauri-injected argument that `tauri-specta` omits from the TS signature).
 	 *  * `patch` - The single-category partial change to apply.
 	 *  * `state` - The application's runtime state.
-	 *  * `lock` - The settings file lock serializing the read-modify-write.
+	 *  * `settings` - The current settings, replaced by the merged ones once they are saved.
+	 *  * `unread` - Set while the session runs on the fallback from an unreadable settings file.
 	 *  * `provider` - The managed settings file provider backing the settings store.
 	 * 
 	 *  # Returns
@@ -56,10 +55,25 @@ export const commands = {
 	 * 
 	 *  # Errors
 	 * 
-	 *  Returns `Error::Settings` if the merged result is invalid (e.g. out of range),
-	 *  or a persistence error.
+	 *  Returns `Error::SettingsValidation` with one violation per out-of-range or mistyped field,
+	 *  `Error::Settings` if the merged document is invalid otherwise, or an error if the settings
+	 *  file cannot be read again or saved.
 	 */
 	setSettings: (patch: SettingsPatch) => typedError<AppSettings_Serialize, CommandError_Serialize>(__TAURI_INVOKE("set_settings", { patch })),
+	/**
+	 *  Tells whether the session runs on the fallback settings because start-up could not read
+	 *  the settings file.
+	 * 
+	 *  # Arguments
+	 * 
+	 *  * `unread` - Set while the session runs on the fallback.
+	 * 
+	 *  # Returns
+	 * 
+	 *  `true` from a start-up that could not read the settings file until a change has been
+	 *  saved over the re-read file; `false` otherwise.
+	 */
+	isSettingsUnread: () => __TAURI_INVOKE<boolean>("is_settings_unread"),
 	/**
 	 *  Requests preloading of images around a specific index.
 	 * 
@@ -70,13 +84,12 @@ export const commands = {
 	 * 
 	 *  * `path` - The path of the container the caller believes is open.
 	 *  * `index` - The current page index around which to preload.
-	 *  * `buffer_size` - Optional. How many pages to preload in each direction.
-	 *    Defaults to the preload page count setting's default if `None` is provided.
+	 *  * `buffer_size` - How many pages to preload in each direction.
 	 *  * `caller_pages` - How many pages from `index` the caller is fetching itself. Those
 	 *    are left out of the window: preloading a page the viewer is already requesting at
 	 *    foreground priority only lets a background job reach it first, and the foreground
 	 *    request then waits on that job instead of being served.
-	 *  * `state` - A `tauri::State` holding the application's global `AppState`.
+	 *  * `state` - The managed container state.
 	 * 
 	 *  # Errors
 	 * 
@@ -84,28 +97,7 @@ export const commands = {
 	 *  frontend calls this on every page turn, so it is exactly the request most likely to
 	 *  race a book switch.
 	 */
-	requestPreloadAround: (path: string, index: number, bufferSize: number | null, callerPages: number | null) => typedError<null, CommandError_Serialize>(__TAURI_INVOKE("request_preload_around", { path, index, bufferSize, callerPages })),
-	/**
-	 *  Opens a book as the open book: builds its container, installs its page service in
-	 *  place of the previous book's, and lists its entries.
-	 * 
-	 *  # Arguments
-	 * 
-	 *  * `path` - The file path to the container to open.
-	 *  * `state` - A `tauri::State` holding the application's global `AppState`.
-	 * 
-	 *  # Returns
-	 * 
-	 *  A `Result` which is `Ok` with an `EntriesResult` struct containing the list of entry
-	 *  names, a boolean indicating if the path is a directory, and a boolean indicating if it's a novel.
-	 * 
-	 *  # Errors
-	 * 
-	 *  This function will return an `Err` if:
-	 *  * The container file cannot be opened (e.g., it does not exist or is corrupt).
-	 *  * The container holds no readable pages (EPUB novels excepted).
-	 */
-	openContainer: (path: string) => typedError<EntriesResult, CommandError_Serialize>(__TAURI_INVOKE("open_container", { path })),
+	requestPreloadAround: (path: string, index: number, bufferSize: number, callerPages: number) => typedError<null, CommandError_Serialize>(__TAURI_INVOKE("request_preload_around", { path, index, bufferSize, callerPages })),
 	/**
 	 *  Retrieves the pixel dimensions of every entry in the currently open container.
 	 * 
@@ -116,12 +108,12 @@ export const commands = {
 	 *  # Arguments
 	 * 
 	 *  * `path` - The path of the container the caller believes is open.
-	 *  * `state` - A `tauri::State` holding the application's global `AppState`.
+	 *  * `state` - The managed container state.
 	 * 
 	 *  # Returns
 	 * 
 	 *  A `Result` which is `Ok` with one `ImageDimensions` per entry, in the same order as
-	 *  `open_container` returned them.
+	 *  `open_book` returned them.
 	 * 
 	 *  # Errors
 	 * 
@@ -145,7 +137,7 @@ export const commands = {
 	 * 
 	 *  * `width` - The viewport width in device pixels. `0` means "not measured yet".
 	 *  * `height` - The viewport height in device pixels.
-	 *  * `state` - A `tauri::State` holding the application's global `AppState`.
+	 *  * `state` - The managed container state.
 	 * 
 	 *  # Returns
 	 * 
@@ -170,44 +162,6 @@ export const commands = {
 	 */
 	getFonts: () => __TAURI_INVOKE<string[]>("get_fonts"),
 	/**
-	 *  Retrieves a book by its unique ID.
-	 * 
-	 *  # Arguments
-	 * 
-	 *  * `id` - The unique identifier of the book.
-	 *  * `repo` - The managed book repository state.
-	 * 
-	 *  # Returns
-	 * 
-	 *  A `Result` which is `Ok` containing an `Option<Book>`.
-	 *  It evaluates to `Some(Book)` if a matching book is found, or `None` if no such book exists.
-	 * 
-	 *  # Errors
-	 * 
-	 *  This function will return an `Err` if the underlying repository operation fails
-	 *  (e.g., due to a database error, connection issue, or query execution failure).
-	 */
-	getBook: (id: number) => typedError<Book_Serialize | null, CommandError_Serialize>(__TAURI_INVOKE("get_book", { id })),
-	/**
-	 *  Retrieves a book by its unique file path.
-	 * 
-	 *  # Arguments
-	 * 
-	 *  * `file_path` - The unique file or directory path.
-	 *  * `repo` - The managed book repository state.
-	 * 
-	 *  # Returns
-	 * 
-	 *  A `Result` which is `Ok` containing an `Option<Book>`.
-	 *  It evaluates to `Some(Book)` if a matching book is found, or `None` if no such book exists.
-	 * 
-	 *  # Errors
-	 * 
-	 *  This function will return an `Err` if the underlying repository operation fails
-	 *  (e.g., due to a database error, connection issue, or query execution failure).
-	 */
-	getBookByPath: (filePath: string) => typedError<Book_Serialize | null, CommandError_Serialize>(__TAURI_INVOKE("get_book_by_path", { filePath })),
-	/**
 	 *  Registers a book or returns its ID if it already exists, without updating reading state.
 	 * 
 	 *  The book's item type, display name, and page count are read from its container.
@@ -217,7 +171,7 @@ export const commands = {
 	 *  * `file_path` - The unique file or directory path.
 	 *  * `repo` - The managed book repository state.
 	 *  * `app` - The Tauri AppHandle.
-	 *  * `state` - The managed app state.
+	 *  * `state` - The managed container state.
 	 * 
 	 *  # Returns
 	 * 
@@ -230,31 +184,32 @@ export const commands = {
 	 */
 	registerBook: (filePath: string) => typedError<number, CommandError_Serialize>(__TAURI_INVOKE("register_book", { filePath })),
 	/**
-	 *  Records the event of a book being opened, updating its last opened time.
+	 *  Opens a book as the open book and records it in the library, and in the reading history
+	 *  while that is on.
 	 * 
-	 *  The book's item type, display name, and page count are read from its container. A
-	 *  comic opened for the first time gets the reader's default page direction, which is
-	 *  stored with it.
+	 *  Its page service replaces the previous book's without reading a page. A comic without a
+	 *  stored direction gets the reader's default one.
 	 * 
 	 *  # Arguments
 	 * 
-	 *  * `file_path` - The unique file or directory path.
+	 *  * `path` - The file or directory path of the book.
 	 *  * `repo` - The managed book repository state.
 	 *  * `app` - The Tauri AppHandle.
-	 *  * `state` - The managed app state.
-	 *  * `provider` - The settings file the default page direction is read from.
+	 *  * `state` - The managed container state.
+	 *  * `settings` - The current settings the history setting and default direction are read from.
 	 * 
 	 *  # Returns
 	 * 
-	 *  A `Result` containing the book with its reading state.
+	 *  The book's entries and its library record. When the book opens but cannot be recorded,
+	 *  `book` is `None` and `record_error` says why.
 	 * 
 	 *  # Errors
 	 * 
-	 *  Returns an `Err` if the container cannot be opened, `EmptyContainer` when it holds no
-	 *  readable pages, or an `Err` if recording or reading back the book fails. Failing to
-	 *  read the default direction or to store it is logged, not returned.
+	 *  Returns an `Err` if the container cannot be opened, or `EmptyContainer` when it holds no
+	 *  readable pages. A failure to record the book is returned in `record_error`, not as an
+	 *  `Err`.
 	 */
-	recordBookOpened: (filePath: string) => typedError<BookWithState_Serialize, CommandError_Serialize>(__TAURI_INVOKE("record_book_opened", { filePath })),
+	openBook: (path: string) => typedError<OpenedBook_Serialize, CommandError_Serialize>(__TAURI_INVOKE("open_book", { path })),
 	/**
 	 *  Deletes a book by its unique ID, along with its thumbnail file.
 	 * 
@@ -354,25 +309,26 @@ export const commands = {
 	 * 
 	 *  # Arguments
 	 * 
-	 *  * `limit` - The maximum number of books to retrieve.
 	 *  * `repo` - The managed book repository state.
 	 * 
 	 *  # Returns
 	 * 
-	 *  A `Result` containing a vector of `ReadBook` entities.
+	 *  A `Result` containing a vector of `BookWithState` entities.
 	 * 
 	 *  # Errors
 	 * 
 	 *  This function will return an `Err` if the underlying repository operation fails
 	 *  (e.g., due to a database error, connection issue, or query execution failure).
 	 */
-	getRecentlyReadBooks: (limit: number | null) => typedError<ReadBook_Serialize[], CommandError_Serialize>(__TAURI_INVOKE("get_recently_read_books", { limit })),
+	getRecentlyReadBooks: () => typedError<BookWithState_Serialize[], CommandError_Serialize>(__TAURI_INVOKE("get_recently_read_books")),
 	/**
-	 *  Updates the reading progress/state for a book.
+	 *  Saves where the reader is in a book and announces it.
 	 * 
 	 *  # Arguments
 	 * 
-	 *  * `state_data` - The `ReadingState` object sent from the frontend.
+	 *  * `book_id` - The book being read.
+	 *  * `page_index` - The page the reader is on.
+	 *  * `cfi` - The EPUB position, `None` for comics.
 	 *  * `repo` - The managed book repository state.
 	 *  * `app` - The Tauri AppHandle.
 	 * 
@@ -381,7 +337,7 @@ export const commands = {
 	 *  This function will return an `Err` if the underlying repository operation fails
 	 *  (e.g., due to a database error, connection issue, or query execution failure).
 	 */
-	updateReadingProgress: (stateData: ReadingState_Deserialize) => typedError<null, CommandError_Serialize>(__TAURI_INVOKE("update_reading_progress", { stateData })),
+	updateReadingProgress: (bookId: number, pageIndex: number, cfi: string | null) => typedError<null, CommandError_Serialize>(__TAURI_INVOKE("update_reading_progress", { bookId, pageIndex, cfi })),
 	/**
 	 *  Retrieves all books, including their reading states.
 	 * 
@@ -702,24 +658,6 @@ export const commands = {
 	 */
 	setTagsForBook: (bookId: number, tagIds: number[]) => typedError<null, CommandError_Serialize>(__TAURI_INVOKE("set_tags_for_book", { bookId, tagIds })),
 	/**
-	 *  Retrieves all books associated with a specific tag, including their reading states.
-	 * 
-	 *  # Arguments
-	 * 
-	 *  * `tag_id` - The unique identifier of the tag to filter by.
-	 *  * `repo` - The managed tag repository state.
-	 * 
-	 *  # Returns
-	 * 
-	 *  A `Result` containing a vector of `BookWithState` entities.
-	 * 
-	 *  # Errors
-	 * 
-	 *  This function will return an `Err` if the underlying repository operation fails
-	 *  (e.g., due to a database error, connection issue, or query execution failure).
-	 */
-	getBooksByTag: (tagId: number) => typedError<BookWithState_Serialize[], CommandError_Serialize>(__TAURI_INVOKE("get_books_by_tag", { tagId })),
-	/**
 	 *  Creates a bookmark for a book and returns its complete entity.
 	 * 
 	 *  # Arguments
@@ -892,9 +830,6 @@ export type AutoOpenAdjacentBookMode =
 /**  Open the adjacent book automatically. */
 "auto";
 
-/**  Represents a book entity in the database. */
-export type Book = Book_Serialize | Book_Deserialize;
-
 /**
  *  Represents a book along with its optional reading state.
  *  Useful for displaying book details whether it has been read or not.
@@ -909,21 +844,21 @@ export type BookWithState_Deserialize = {
 	/**  The unique identifier for the book. */
 	id: number,
 	/**  The unique file path or directory path of the book. */
-	file_path: string,
+	filePath: string,
 	/**  What the path points at. */
-	item_type: ItemType,
+	itemType: ItemType,
 	/**  The display name of the book. */
-	display_name: string,
+	displayName: string,
 	/**  The total number of pages in the book. */
-	total_pages: number,
+	totalPages: number,
 	/**  The optional identifier of the series this book belongs to. */
-	series_id?: number | null,
+	seriesId?: number | null,
 	/**  The optional order index of the book within its series. */
-	series_order?: number | null,
+	seriesOrder?: number | null,
 	/**  The optional file path to the thumbnail image of the book. */
-	thumbnail_path?: string | null,
+	thumbnailPath?: string | null,
 	/**  The timestamp when the book was created (registered). */
-	created_at?: string | null,
+	createdAt?: string | null,
 	/**
 	 *  Whether the reader has shifted this book's spreads by one page.
 	 * 
@@ -931,7 +866,7 @@ export type BookWithState_Deserialize = {
 	 *  the book is laid out, and turning reading history off — or clearing it — must not
 	 *  discard it.
 	 */
-	is_spread_shifted: boolean,
+	isSpreadShifted: boolean,
 	/**
 	 *  One `'0'`/`'1'` per page in entry order, `'1'` where the page is wider than it is
 	 *  tall. `None` until the book has been measured once.
@@ -940,7 +875,7 @@ export type BookWithState_Deserialize = {
 	 *  that is what settles where two-page spreads begin, and 200 bytes is the whole
 	 *  measurement for a 200-page book.
 	 */
-	landscape_bits?: string | null,
+	landscapeBits?: string | null,
 	/**
 	 *  The page direction this book opens with.
 	 * 
@@ -949,15 +884,15 @@ export type BookWithState_Deserialize = {
 	 *  the book has been opened once, and always `None` for novels, whose direction is
 	 *  the EPUB's own and cannot be overridden.
 	 */
-	reading_direction?: Direction | null,
+	readingDirection?: Direction | null,
 	/**  The last read page index, if the book has been opened. */
-	last_read_page_index?: number | null,
+	lastReadPageIndex?: number | null,
 	/**  The timestamp when the book was last opened, if any. */
-	last_opened_at?: string | null,
+	lastOpenedAt?: string | null,
 	/**  The last EPUB reading position (CFI), if any. `None` for comics. */
 	cfi?: string | null,
 	/**  List of tag IDs associated with this book. */
-	tag_ids?: number[],
+	tagIds?: number[],
 };
 
 /**
@@ -968,21 +903,21 @@ export type BookWithState_Serialize = {
 	/**  The unique identifier for the book. */
 	id: number,
 	/**  The unique file path or directory path of the book. */
-	file_path: string,
+	filePath: string,
 	/**  What the path points at. */
-	item_type: ItemType,
+	itemType: ItemType,
 	/**  The display name of the book. */
-	display_name: string,
+	displayName: string,
 	/**  The total number of pages in the book. */
-	total_pages: number,
+	totalPages: number,
 	/**  The optional identifier of the series this book belongs to. */
-	series_id: number | null,
+	seriesId: number | null,
 	/**  The optional order index of the book within its series. */
-	series_order: number | null,
+	seriesOrder: number | null,
 	/**  The optional file path to the thumbnail image of the book. */
-	thumbnail_path: string | null,
+	thumbnailPath: string | null,
 	/**  The timestamp when the book was created (registered). */
-	created_at: string | null,
+	createdAt: string | null,
 	/**
 	 *  Whether the reader has shifted this book's spreads by one page.
 	 * 
@@ -990,7 +925,7 @@ export type BookWithState_Serialize = {
 	 *  the book is laid out, and turning reading history off — or clearing it — must not
 	 *  discard it.
 	 */
-	is_spread_shifted: boolean,
+	isSpreadShifted: boolean,
 	/**
 	 *  One `'0'`/`'1'` per page in entry order, `'1'` where the page is wider than it is
 	 *  tall. `None` until the book has been measured once.
@@ -999,7 +934,7 @@ export type BookWithState_Serialize = {
 	 *  that is what settles where two-page spreads begin, and 200 bytes is the whole
 	 *  measurement for a 200-page book.
 	 */
-	landscape_bits: string | null,
+	landscapeBits: string | null,
 	/**
 	 *  The page direction this book opens with.
 	 * 
@@ -1008,55 +943,15 @@ export type BookWithState_Serialize = {
 	 *  the book has been opened once, and always `None` for novels, whose direction is
 	 *  the EPUB's own and cannot be overridden.
 	 */
-	reading_direction: Direction | null,
+	readingDirection: Direction | null,
 	/**  The last read page index, if the book has been opened. */
-	last_read_page_index: number | null,
+	lastReadPageIndex: number | null,
 	/**  The timestamp when the book was last opened, if any. */
-	last_opened_at: string | null,
+	lastOpenedAt: string | null,
 	/**  The last EPUB reading position (CFI), if any. `None` for comics. */
 	cfi: string | null,
 	/**  List of tag IDs associated with this book. */
-	tag_ids: number[],
-};
-
-/**  Represents a book entity in the database. */
-export type Book_Deserialize = {
-	/**  The unique identifier for the book. */
-	id: number,
-	/**  The unique file path or directory path of the book. */
-	file_path: string,
-	/**  What the path points at. */
-	item_type: ItemType,
-	/**  The display name of the book. */
-	display_name: string,
-	/**  The total number of pages in the book. */
-	total_pages: number,
-	/**  The optional identifier of the series this book belongs to. */
-	series_id?: number | null,
-	/**  The optional order index of the book within its series. */
-	series_order?: number | null,
-	/**  The optional file path to the thumbnail image of the book. */
-	thumbnail_path?: string | null,
-};
-
-/**  Represents a book entity in the database. */
-export type Book_Serialize = {
-	/**  The unique identifier for the book. */
-	id: number,
-	/**  The unique file path or directory path of the book. */
-	file_path: string,
-	/**  What the path points at. */
-	item_type: ItemType,
-	/**  The display name of the book. */
-	display_name: string,
-	/**  The total number of pages in the book. */
-	total_pages: number,
-	/**  The optional identifier of the series this book belongs to. */
-	series_id: number | null,
-	/**  The optional order index of the book within its series. */
-	series_order: number | null,
-	/**  The optional file path to the thumbnail image of the book. */
-	thumbnail_path: string | null,
+	tagIds: number[],
 };
 
 /**  Represents a saved reading position (bookmark) within a book. */
@@ -1067,15 +962,15 @@ export type Bookmark_Deserialize = {
 	/**  The unique identifier for the bookmark. */
 	id: number,
 	/**  The identifier of the book this bookmark belongs to. */
-	book_id: number,
+	bookId: number,
 	/**  The display name of the bookmark. */
 	name: string,
 	/**  The bookmarked page index: the comic page, or the EPUB spine section index. */
-	page_index: number,
+	pageIndex: number,
 	/**  The bookmarked position within an EPUB section (CFI). `None` for comics. */
 	cfi?: string | null,
 	/**  The timestamp when the bookmark was created. */
-	created_at: string,
+	createdAt: string,
 };
 
 /**  Represents a saved reading position (bookmark) within a book. */
@@ -1083,15 +978,15 @@ export type Bookmark_Serialize = {
 	/**  The unique identifier for the bookmark. */
 	id: number,
 	/**  The identifier of the book this bookmark belongs to. */
-	book_id: number,
+	bookId: number,
 	/**  The display name of the bookmark. */
 	name: string,
 	/**  The bookmarked page index: the comic page, or the EPUB spine section index. */
-	page_index: number,
+	pageIndex: number,
 	/**  The bookmarked position within an EPUB section (CFI). `None` for comics. */
 	cfi: string | null,
 	/**  The timestamp when the bookmark was created. */
-	created_at: string,
+	createdAt: string,
 };
 
 /**
@@ -1133,9 +1028,9 @@ export type Collection_Deserialize = {
 	/**  The display name of the collection. */
 	name: string,
 	/**  The string identifier for the UI icon (e.g., "folder"). */
-	icon_id: string,
+	iconId: string,
 	/**  The timestamp when the collection was created. */
-	created_at?: string | null,
+	createdAt?: string | null,
 };
 
 /**  Represents a collection entity used to organize books. */
@@ -1145,9 +1040,9 @@ export type Collection_Serialize = {
 	/**  The display name of the collection. */
 	name: string,
 	/**  The string identifier for the UI icon (e.g., "folder"). */
-	icon_id: string,
+	iconId: string,
 	/**  The timestamp when the collection was created. */
-	created_at: string | null,
+	createdAt: string | null,
 };
 
 /**  A collection was created or deleted. */
@@ -1271,18 +1166,6 @@ export type Direction =
 "rtl" | 
 /**  Left-to-Right (e.g., western comics). */
 "ltr";
-
-/**  The result of getting entries in a container. */
-export type EntriesResult = {
-	/**  The entry names in the container. */
-	entries: string[],
-	/**  Whether the container is a directory. */
-	is_directory: boolean,
-	/**  Whether the container is an EPUB novel. */
-	is_novel: boolean,
-	/**  Whether `get_image_preview` can send a page more cheaply than `get_image`. */
-	has_previews: boolean,
-};
 
 /**  Settings for the file navigator. */
 export type FileNavigatorSettings = FileNavigatorSettings_Serialize | FileNavigatorSettings_Deserialize;
@@ -1516,61 +1399,39 @@ export type NovelSettings_Serialize = {
 	fontSize: number,
 };
 
-/**  Represents a book along with its reading state, specifically for books that have been opened. */
-export type ReadBook = ReadBook_Serialize | ReadBook_Deserialize;
+/**  What `open_book` returns: the open book's pages and its library record. */
+export type OpenedBook = OpenedBook_Serialize | OpenedBook_Deserialize;
 
-/**  Represents a book along with its reading state, specifically for books that have been opened. */
-export type ReadBook_Deserialize = {
-	/**  The unique identifier for the book. */
-	id: number,
-	/**  The unique file path or directory path of the book. */
-	file_path: string,
-	/**  What the path points at. */
-	item_type: ItemType,
-	/**  The display name of the book. */
-	display_name: string,
-	/**  The total number of pages in the book. */
-	total_pages: number,
-	/**  The optional identifier of the series this book belongs to. */
-	series_id?: number | null,
-	/**  The optional order index of the book within its series. */
-	series_order?: number | null,
-	/**  The optional file path to the thumbnail image of the book. */
-	thumbnail_path?: string | null,
-	/**  The last read page index. */
-	last_read_page_index: number,
-	/**
-	 *  The timestamp when the book was last opened.
-	 *  This is guaranteed to be present (not null) for read books.
-	 */
-	last_opened_at: string,
+/**  What `open_book` returns: the open book's pages and its library record. */
+export type OpenedBook_Deserialize = {
+	/**  The entry names in the book. */
+	entries: string[],
+	/**  Whether the book is a directory. */
+	isDirectory: boolean,
+	/**  Whether the book is an EPUB novel. */
+	isNovel: boolean,
+	/**  Whether `get_image_preview` can send a page more cheaply than `get_image`. */
+	hasPreviews: boolean,
+	/**  The book's library record, or `None` when it could not be recorded. */
+	book?: BookWithState_Deserialize | null,
+	/**  Why the book could not be recorded, when it could not. */
+	recordError?: CommandError_Deserialize | null,
 };
 
-/**  Represents a book along with its reading state, specifically for books that have been opened. */
-export type ReadBook_Serialize = {
-	/**  The unique identifier for the book. */
-	id: number,
-	/**  The unique file path or directory path of the book. */
-	file_path: string,
-	/**  What the path points at. */
-	item_type: ItemType,
-	/**  The display name of the book. */
-	display_name: string,
-	/**  The total number of pages in the book. */
-	total_pages: number,
-	/**  The optional identifier of the series this book belongs to. */
-	series_id: number | null,
-	/**  The optional order index of the book within its series. */
-	series_order: number | null,
-	/**  The optional file path to the thumbnail image of the book. */
-	thumbnail_path: string | null,
-	/**  The last read page index. */
-	last_read_page_index: number,
-	/**
-	 *  The timestamp when the book was last opened.
-	 *  This is guaranteed to be present (not null) for read books.
-	 */
-	last_opened_at: string,
+/**  What `open_book` returns: the open book's pages and its library record. */
+export type OpenedBook_Serialize = {
+	/**  The entry names in the book. */
+	entries: string[],
+	/**  Whether the book is a directory. */
+	isDirectory: boolean,
+	/**  Whether the book is an EPUB novel. */
+	isNovel: boolean,
+	/**  Whether `get_image_preview` can send a page more cheaply than `get_image`. */
+	hasPreviews: boolean,
+	/**  The book's library record, or `None` when it could not be recorded. */
+	book: BookWithState_Serialize | null,
+	/**  Why the book could not be recorded, when it could not. */
+	recordError: CommandError_Serialize | null,
 };
 
 /**  Settings for the reading experience. */
@@ -1645,25 +1506,25 @@ export type ReadingState = ReadingState_Serialize | ReadingState_Deserialize;
 /**  Represents the reading state of a specific book. */
 export type ReadingState_Deserialize = {
 	/**  The unique identifier for the associated book. */
-	book_id: number,
+	bookId: number,
 	/**  The last read page index. */
-	last_read_page_index: number,
+	lastReadPageIndex: number,
 	/**  The last EPUB reading position (CFI). `None` for comics. */
 	cfi?: string | null,
 	/**  The timestamp when the book was last opened. */
-	last_opened_at?: string | null,
+	lastOpenedAt?: string | null,
 };
 
 /**  Represents the reading state of a specific book. */
 export type ReadingState_Serialize = {
 	/**  The unique identifier for the associated book. */
-	book_id: number,
+	bookId: number,
 	/**  The last read page index. */
-	last_read_page_index: number,
+	lastReadPageIndex: number,
 	/**  The last EPUB reading position (CFI). `None` for comics. */
 	cfi: string | null,
 	/**  The timestamp when the book was last opened. */
-	last_opened_at: string | null,
+	lastOpenedAt: string | null,
 };
 
 /**  Configuration for image and document rendering. */
@@ -1700,7 +1561,7 @@ export type Series = {
 	/**  The unique name of the series. */
 	name: string,
 	/**  The timestamp when the series was created. */
-	created_at: string,
+	createdAt: string,
 };
 
 /**  A series was created or deleted. */
@@ -1835,7 +1696,7 @@ export type Tag = {
 	/**  The unique name of the tag. */
 	name: string,
 	/**  The color code of the tag (e.g., "#FF0000" for red). */
-	color_code: string,
+	colorCode: string,
 };
 
 /**  A tag was created or deleted. */

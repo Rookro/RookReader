@@ -1,91 +1,90 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import { dirname } from "@tauri-apps/api/path";
 import { debug, error, info } from "@tauri-apps/plugin-log";
-import {
-  getRecentlyReadBooks,
-  recordBookOpened,
-  updateReadingDirection,
-  updateSpreadShift,
-} from "../../bindings/BookCommands";
-import { openContainer, requestPreloadAround } from "../../bindings/ContainerCommands";
+import { api } from "../../bindings/api";
 import type { BookWithState } from "../../domain/entities";
+import { createAppAsyncThunk } from "../../store/createCommandThunk";
+import { errorReported } from "../../store/errorNotificationSlice";
 import { handleThunkError } from "../../store/thunkErrorHandler";
 import type { Direction } from "../../types/AppSettings";
-import { createAppAsyncThunk, type ThunkRejectValue } from "../../types/CustomAsyncThunk";
 import { CommandError, createCommandError, ErrorCode } from "../../types/Error";
-import { updateExploreBasePath } from "./fileNavigatorSlice";
+import { loadDirectory } from "./fileNavigatorSlice";
 import type { OpenOrigin } from "./types/OpenOrigin";
 import { goBackHistory, goForwardHistory, pushHistory } from "./utils/navigationHistory";
 
 /**
- * Opens a container file or directory, retrieves its contents, and updates the reading history.
+ * Loads a container file or directory as the open book: retrieves its contents and updates
+ * the reading history.
  *
  * @param path - The absolute file path to the container or directory.
  * @returns A thunk that resolves to an object containing entries, directory status, novel status, and book state.
  */
-export const openContainerFile = createAppAsyncThunk(
-  "reader/openContainerFile",
+export const loadBook = createAppAsyncThunk(
+  "reader/loadBook",
   async (path: string, { dispatch, rejectWithValue, getState }) => {
+    // The reducers ignore an answer for a book that is no longer the current one.
+    const isSuperseded = () => {
+      const { history, historyIndex } = getState().reader;
+      return history[historyIndex] !== path;
+    };
     if (!path || path.length === 0) {
-      const errorMessage = "Failed to openContainerFile. Error: Container path is empty.";
+      const errorMessage = "Failed to load the book. Error: The path is empty.";
       error(errorMessage);
-      return rejectWithValue({ code: ErrorCode.path, message: errorMessage });
+      return rejectWithValue({
+        code: ErrorCode.path,
+        message: errorMessage,
+        ...(isSuperseded() && { superseded: true as const }),
+      });
     }
-    info(`Open container file: ${path}`);
+    info(`Loading the book: ${path}`);
     try {
-      const [entriesResult, dirPath] = await Promise.all([openContainer(path), dirname(path)]);
+      const [opened, dirPath] = await Promise.all([api.openBook(path), dirname(path)]);
 
-      const isEpubNovel = entriesResult.is_novel;
+      const isEpubNovel = opened.isNovel;
 
       if (!isEpubNovel) {
-        debug(
-          `openContainerFile: Retrieved ${entriesResult.entries.length} entries. (Container is directory: ${entriesResult.is_directory})`,
-        );
+        debug(`Loaded ${opened.entries.length} entries. (Directory: ${opened.isDirectory})`);
       } else {
-        debug(`openContainerFile: Epub Novel is opened.`);
+        debug(`Loaded an EPUB novel.`);
       }
 
-      dispatch(updateExploreBasePath({ dirPath }));
+      dispatch(loadDirectory({ dirPath }));
 
-      debug(`Update container history: ${path}`);
-      // The container is already open here. Failing to remember it in the library is
-      // worth telling the user about, but it is not "the book could not be opened", so it
-      // is reported apart and the entries are kept.
-      let book: BookWithState | null = null;
-      let bookRecordError: { code: ErrorCode; message?: string } | null = null;
-      try {
-        book = await recordBookOpened(path);
-      } catch (e) {
-        const commandError = createCommandError(e);
-        error(`Failed to record the opened book(${path}). Error: ${commandError.message}`);
-        bookRecordError = { code: commandError.code, message: commandError.message };
+      // The book is open either way. Failing to remember it in the library is worth telling
+      // the user about, but it is not "the book could not be opened", so it is reported apart.
+      const book = opened.book;
+      if (opened.recordError) {
+        const recordError = createCommandError(opened.recordError);
+        error(`Failed to record the opened book(${path}). Error: ${recordError.message}`);
+        if (!isSuperseded()) {
+          dispatch(errorReported({ context: "record-book", code: recordError.code }));
+        }
       }
 
       // The backend gives a comic opened for the first time the default direction.
       // Novels are excluded: their direction is the EPUB's own and cannot be overridden.
-      const readingDirection = isEpubNovel ? null : (book?.reading_direction ?? null);
+      const readingDirection = isEpubNovel ? null : (book?.readingDirection ?? null);
 
       if (!isEpubNovel) {
         const state = getState();
         const preloadPageCount = state.settings.reader.comic.cache.preloadPageCount;
-        const startIndex = book?.last_read_page_index ?? 0;
+        const startIndex = book?.lastReadPageIndex ?? 0;
         // The viewer mounts moments from now and asks for its own unit at foreground
         // priority; leave those pages to it rather than have this window reach them
         // first and make the reader wait on a background job.
         const callerPages = state.settings.reader.comic.enableSpread ? 2 : 1;
-        requestPreloadAround(path, startIndex, preloadPageCount, callerPages).catch((e) => {
+        api.requestPreloadAround(path, startIndex, preloadPageCount, callerPages).catch((e) => {
           error(`Failed to request preload: ${String(e)}`);
         });
       }
 
       return {
-        entries: entriesResult.entries,
-        isDirectory: entriesResult.is_directory,
+        entries: opened.entries,
+        isDirectory: opened.isDirectory,
         isNovel: isEpubNovel,
-        hasPreviews: entriesResult.has_previews,
+        hasPreviews: opened.hasPreviews,
         book: book,
         readingDirection,
-        bookRecordError,
       };
     } catch (e) {
       // A container with no readable pages is not a book, but the path itself is real.
@@ -97,15 +96,11 @@ export const openContainerFile = createAppAsyncThunk(
       //
       // Guarded like the fulfilled/rejected reducers: a slow failure must not drag the
       // navigator away from a book the user opened in the meantime.
-      const { history, historyIndex } = getState().reader;
-      if (
-        history[historyIndex] === path &&
-        e instanceof CommandError &&
-        e.code === ErrorCode.emptyContainer
-      ) {
-        dispatch(updateExploreBasePath({ dirPath: path }));
+      const superseded = isSuperseded();
+      if (!superseded && e instanceof CommandError && e.code === ErrorCode.emptyContainer) {
+        dispatch(loadDirectory({ dirPath: path }));
       }
-      return handleThunkError(e, `Failed to openContainerFile(${path}).`, rejectWithValue);
+      return handleThunkError(e, `Failed to load the book(${path}).`, rejectWithValue, superseded);
     }
   },
 );
@@ -127,7 +122,7 @@ export const toggleSpreadShift = createAppAsyncThunk(
     dispatch(setSpreadShifted(next));
     if (book) {
       try {
-        await updateSpreadShift(book.id, next);
+        await api.updateSpreadShift(book.id, next);
       } catch (e) {
         // The flag still applies to this session; only remembering it failed.
         error(`Failed to store the spread shift: ${String(e)}`);
@@ -156,7 +151,7 @@ export const toggleReadingDirection = createAppAsyncThunk(
     dispatch(setReadingDirection(next));
     if (book) {
       try {
-        await updateReadingDirection(book.id, next);
+        await api.updateReadingDirection(book.id, next);
       } catch (e) {
         // The direction still applies to this session; only remembering it failed.
         error(`Failed to store the reading direction: ${String(e)}`);
@@ -197,12 +192,6 @@ const initialState = {
    */
   novelDirection: null as Direction | null,
   isLoading: false,
-  error: null as ThunkRejectValue | null,
-  /**
-   * Why remembering the opened book in the library failed, if it did. Kept apart
-   * from `error`: the book itself is on screen, only its history entry is missing.
-   */
-  bookRecordError: null as { code: ErrorCode; message?: string } | null,
   /** Where the current book was opened from (used to resolve the adjacent book). */
   origin: null as OpenOrigin | null,
   /** Where each book in `history` was opened from, index-aligned with it. */
@@ -309,7 +298,7 @@ export const readerSlice = createSlice({
     },
     /**
      * Moves one book back in the history. Loading it is left to
-     * {@link goBackContainerHistory}.
+     * {@link goBackBookHistory}.
      *
      * @param state - The current Redux state slice.
      */
@@ -320,7 +309,7 @@ export const readerSlice = createSlice({
     },
     /**
      * Moves one book forward in the history. Loading it is left to
-     * {@link goForwardContainerHistory}.
+     * {@link goForwardBookHistory}.
      *
      * @param state - The current Redux state slice.
      */
@@ -357,36 +346,18 @@ export const readerSlice = createSlice({
     setNovelDirection: (state, action: PayloadAction<Direction>) => {
       state.novelDirection = action.payload;
     },
-    /**
-     * Clears any error associated with the container file state.
-     *
-     * @param state - The current Redux state slice.
-     */
-    clearContainerFileError: (state) => {
-      state.error = null;
-    },
-    /**
-     * Clears the error left by a failed attempt to record the opened book.
-     *
-     * @param state - The current Redux state slice.
-     */
-    clearBookRecordError: (state) => {
-      state.bookRecordError = null;
-    },
   },
   extraReducers: (builder) => {
     builder
-      .addCase(openContainerFile.pending, (state) => {
+      .addCase(loadBook.pending, (state) => {
         // Until the next book's record arrives, progress and bookmarks have no book to
         // go to; keeping the previous one would hand them to it.
         resetBookView(state);
         state.isLoading = true;
-        state.error = null;
-        state.bookRecordError = null;
       })
-      .addCase(openContainerFile.fulfilled, (state, action) => {
+      .addCase(loadBook.fulfilled, (state, action) => {
         // Ignore stale responses: the user may have opened another book before this
-        // load finished (mirrors updateExploreBasePath.fulfilled's guard). Without
+        // load finished (mirrors loadDirectory.fulfilled's guard). Without
         // this, a slow earlier open overwrites the newer book's state and progress
         // is then persisted against the wrong book.
         if (state.history[state.historyIndex] !== action.meta.arg) {
@@ -407,10 +378,10 @@ export const readerSlice = createSlice({
           state.index = 0;
           state.cfi = null;
         } else {
-          // Clamp the restored index so a stale last_read_page_index past the
+          // Clamp the restored index so a stale lastReadPageIndex past the
           // current page count never strands the viewer on a blank page.
           const total = state.entries.length;
-          const restored = action.payload.book?.last_read_page_index ?? 0;
+          const restored = action.payload.book?.lastReadPageIndex ?? 0;
           state.index = total > 0 ? Math.min(Math.max(0, restored), total - 1) : 0;
           // Novels resume at the persisted CFI; NovelReader passes it to
           // view.init({ lastLocation }) on mount. Comics never carry a CFI.
@@ -419,16 +390,14 @@ export const readerSlice = createSlice({
         // The reader's own correction to how this book pairs, restored with the book rather
         // than inferred from the restored page, so where they stopped reading does not
         // decide the pairing.
-        state.isSpreadShifted = action.payload.book?.is_spread_shifted ?? false;
+        state.isSpreadShifted = action.payload.book?.isSpreadShifted ?? false;
         state.readingDirection = action.payload.readingDirection;
         state.pendingInitialPosition = null;
-        state.error = null;
-        state.bookRecordError = action.payload.bookRecordError;
         if (action.payload.isNovel !== undefined) {
           state.isNovel = action.payload.isNovel;
         }
       })
-      .addCase(openContainerFile.rejected, (state, action) => {
+      .addCase(loadBook.rejected, (state, action) => {
         // Same staleness guard as fulfilled: a stale rejection must not clobber the
         // newer book's freshly loaded state.
         if (state.history[state.historyIndex] !== action.meta.arg) {
@@ -442,7 +411,6 @@ export const readerSlice = createSlice({
         state.pendingInitialPosition = null;
         state.isDirectory = false;
         state.isNovel = false;
-        state.error = action.payload ?? null;
       });
   },
 });
@@ -458,8 +426,6 @@ export const {
   setEntries,
   setNovelLocation,
   setNovelDirection,
-  clearContainerFileError,
-  clearBookRecordError,
 } = readerSlice.actions;
 export default readerSlice.reducer;
 
@@ -487,7 +453,7 @@ export const openBook = createAppAsyncThunk(
     const isAlreadyOpen = history[historyIndex] === path;
     dispatch(bookPathOpened({ path, origin, initialPosition }));
     if (!isAlreadyOpen) {
-      await dispatch(openContainerFile(path));
+      await dispatch(loadBook(path));
     }
   },
 );
@@ -497,14 +463,14 @@ export const openBook = createAppAsyncThunk(
  *
  * @returns A thunk that resolves once the book has loaded, or at once at the first book.
  */
-export const goBackContainerHistory = createAppAsyncThunk(
-  "reader/goBackContainerHistory",
+export const goBackBookHistory = createAppAsyncThunk(
+  "reader/goBackBookHistory",
   async (_: undefined, { dispatch, getState }) => {
     const before = getState().reader.historyIndex;
     dispatch(historyMovedBack());
     const { history, historyIndex } = getState().reader;
     if (historyIndex !== before) {
-      await dispatch(openContainerFile(history[historyIndex]));
+      await dispatch(loadBook(history[historyIndex]));
     }
   },
 );
@@ -514,14 +480,14 @@ export const goBackContainerHistory = createAppAsyncThunk(
  *
  * @returns A thunk that resolves once the book has loaded, or at once at the last book.
  */
-export const goForwardContainerHistory = createAppAsyncThunk(
-  "reader/goForwardContainerHistory",
+export const goForwardBookHistory = createAppAsyncThunk(
+  "reader/goForwardBookHistory",
   async (_: undefined, { dispatch, getState }) => {
     const before = getState().reader.historyIndex;
     dispatch(historyMovedForward());
     const { history, historyIndex } = getState().reader;
     if (historyIndex !== before) {
-      await dispatch(openContainerFile(history[historyIndex]));
+      await dispatch(loadBook(history[historyIndex]));
     }
   },
 );
@@ -541,9 +507,9 @@ export const restoreLastBook = createAppAsyncThunk(
       return;
     }
     try {
-      const [latest] = await getRecentlyReadBooks();
+      const [latest] = await api.getRecentlyReadBooks();
       if (latest) {
-        await dispatch(openBook({ path: latest.file_path, origin: { kind: "startup" } }));
+        await dispatch(openBook({ path: latest.filePath, origin: { kind: "startup" } }));
       }
     } catch (e) {
       error(`Failed to restore the last book: ${String(e)}`);

@@ -1,7 +1,7 @@
 import type { Dispatch, MiddlewareAPI, UnknownAction } from "@reduxjs/toolkit";
 import { error } from "@tauri-apps/plugin-log";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import * as bookCommands from "../../bindings/BookCommands";
+import { api } from "../../bindings/api";
 import { setImageIndex, setNovelLocation } from "../../features/BookReader/slice";
 import { createReadingStateMiddleware } from "./readingStateMiddleware";
 
@@ -48,7 +48,7 @@ describe("readingStateMiddleware", () => {
     vi.clearAllMocks();
     vi.useFakeTimers();
     store = {
-      getState: vi.fn(() => stateFor({ id: 1, last_opened_at: "now" })),
+      getState: vi.fn(() => stateFor({ id: 1 })),
       dispatch: vi.fn(),
     };
     next = vi.fn((action: UnknownAction) => action) as Dispatch<UnknownAction>;
@@ -64,87 +64,62 @@ describe("readingStateMiddleware", () => {
     const action = setImageIndex(10);
     run(store, next, action);
 
-    expect(bookCommands.updateReadingProgress).not.toHaveBeenCalled();
+    expect(api.updateReadingProgress).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(500);
 
-    expect(bookCommands.updateReadingProgress).toHaveBeenCalledWith({
-      book_id: 1,
-      last_read_page_index: 10,
-      cfi: null,
-      last_opened_at: "now",
-    });
+    expect(api.updateReadingProgress).toHaveBeenCalledWith(1, 10, null);
   });
 
   // Verify that two rapid same-book writes coalesce into a single write with the last args.
   it("should coalesce rapid same-book writes into the last one", async () => {
     const instance = createReadingStateMiddleware();
-    store.getState.mockImplementation(() => stateFor({ id: 1, last_opened_at: "now" }, true, 10));
+    store.getState.mockImplementation(() => stateFor({ id: 1 }, true, 10));
     runWith(instance, store, next, setImageIndex(10));
 
-    store.getState.mockImplementation(() => stateFor({ id: 1, last_opened_at: "now" }, true, 20));
+    store.getState.mockImplementation(() => stateFor({ id: 1 }, true, 20));
     runWith(instance, store, next, setImageIndex(20));
 
     await vi.advanceTimersByTimeAsync(500);
 
-    expect(bookCommands.updateReadingProgress).toHaveBeenCalledTimes(1);
-    expect(bookCommands.updateReadingProgress).toHaveBeenCalledWith({
-      book_id: 1,
-      last_read_page_index: 20,
-      cfi: null,
-      last_opened_at: "now",
-    });
+    expect(api.updateReadingProgress).toHaveBeenCalledTimes(1);
+    expect(api.updateReadingProgress).toHaveBeenCalledWith(1, 20, null);
   });
 
   // Verify that switching books flushes the previous book's pending write immediately
   // with its own args, so a book switch never discards the previous position.
   it("should flush the previous book's write immediately when the book changes", async () => {
     const instance = createReadingStateMiddleware();
-    store.getState.mockImplementation(() => stateFor({ id: 1, last_opened_at: "a" }, true, 10));
+    store.getState.mockImplementation(() => stateFor({ id: 1 }, true, 10));
     runWith(instance, store, next, setImageIndex(10));
 
     // Switch to book 2 within the debounce window: book 1 must be flushed now.
-    store.getState.mockImplementation(() => stateFor({ id: 2, last_opened_at: "b" }, true, 3));
+    store.getState.mockImplementation(() => stateFor({ id: 2 }, true, 3));
     runWith(instance, store, next, setImageIndex(3));
 
-    expect(bookCommands.updateReadingProgress).toHaveBeenCalledTimes(1);
-    expect(bookCommands.updateReadingProgress).toHaveBeenCalledWith({
-      book_id: 1,
-      last_read_page_index: 10,
-      cfi: null,
-      last_opened_at: "a",
-    });
+    expect(api.updateReadingProgress).toHaveBeenCalledTimes(1);
+    expect(api.updateReadingProgress).toHaveBeenCalledWith(1, 10, null);
 
     // Book 2 still fires later on its own debounce.
     await vi.advanceTimersByTimeAsync(500);
-    expect(bookCommands.updateReadingProgress).toHaveBeenCalledTimes(2);
-    expect(bookCommands.updateReadingProgress).toHaveBeenLastCalledWith({
-      book_id: 2,
-      last_read_page_index: 3,
-      cfi: null,
-      last_opened_at: "b",
-    });
+    expect(api.updateReadingProgress).toHaveBeenCalledTimes(2);
+    expect(api.updateReadingProgress).toHaveBeenLastCalledWith(2, 3, null);
   });
 
   it("flush writes the pending update before the timer fires, and only once", async () => {
     const { flush } = runWith(createReadingStateMiddleware(), store, next, setImageIndex(10));
 
     await flush();
-    expect(bookCommands.updateReadingProgress).toHaveBeenCalledTimes(1);
-    expect(bookCommands.updateReadingProgress).toHaveBeenCalledWith({
-      book_id: 1,
-      last_read_page_index: 10,
-      cfi: null,
-      last_opened_at: "now",
-    });
+    expect(api.updateReadingProgress).toHaveBeenCalledTimes(1);
+    expect(api.updateReadingProgress).toHaveBeenCalledWith(1, 10, null);
 
     await vi.advanceTimersByTimeAsync(500);
-    expect(bookCommands.updateReadingProgress).toHaveBeenCalledTimes(1);
+    expect(api.updateReadingProgress).toHaveBeenCalledTimes(1);
   });
 
   it("flush resolves at once when nothing is pending", async () => {
     const { flush } = createReadingStateMiddleware();
     await flush();
-    expect(bookCommands.updateReadingProgress).not.toHaveBeenCalled();
+    expect(api.updateReadingProgress).not.toHaveBeenCalled();
   });
 
   it("keeps each instance's pending write to itself", async () => {
@@ -153,10 +128,10 @@ describe("readingStateMiddleware", () => {
     runWith(first, store, next, setImageIndex(10));
 
     await second.flush();
-    expect(bookCommands.updateReadingProgress).not.toHaveBeenCalled();
+    expect(api.updateReadingProgress).not.toHaveBeenCalled();
 
     await first.flush();
-    expect(bookCommands.updateReadingProgress).toHaveBeenCalledTimes(1);
+    expect(api.updateReadingProgress).toHaveBeenCalledTimes(1);
   });
 
   // Verify that reading state is not saved if history is disabled
@@ -171,7 +146,7 @@ describe("readingStateMiddleware", () => {
     run(store, next, setImageIndex(10));
     await vi.advanceTimersByTimeAsync(500);
 
-    expect(bookCommands.updateReadingProgress).not.toHaveBeenCalled();
+    expect(api.updateReadingProgress).not.toHaveBeenCalled();
   });
 
   // Verify that reading state is not saved if book is null
@@ -181,13 +156,13 @@ describe("readingStateMiddleware", () => {
     run(store, next, setImageIndex(10));
     await vi.advanceTimersByTimeAsync(500);
 
-    expect(bookCommands.updateReadingProgress).not.toHaveBeenCalled();
+    expect(api.updateReadingProgress).not.toHaveBeenCalled();
   });
 
   // Verify that the fire-time re-check skips the write when history is disabled
   // after the write was scheduled (within the debounce window).
   it("should not persist if recordReadingHistory is disabled before the write fires", async () => {
-    const enabledState = stateFor({ id: 1, last_opened_at: "now" });
+    const enabledState = stateFor({ id: 1 });
     const disabledState = {
       settings: { history: { recordReadingHistory: false } },
       reader: {},
@@ -199,49 +174,39 @@ describe("readingStateMiddleware", () => {
     run(store, next, setImageIndex(10));
     await vi.advanceTimersByTimeAsync(500);
 
-    expect(bookCommands.updateReadingProgress).not.toHaveBeenCalled();
+    expect(api.updateReadingProgress).not.toHaveBeenCalled();
   });
 
   // Verify that reading state is saved to the DB when setNovelLocation action (for novels) is dispatched
   it("should call updateReadingProgress with the CFI when setNovelLocation is dispatched", async () => {
-    store.getState.mockReturnValue(
-      stateFor({ id: 1, last_opened_at: "now" }, true, 5, "epubcfi(/6/8!/4/2/1:0)"),
-    );
+    store.getState.mockReturnValue(stateFor({ id: 1 }, true, 5, "epubcfi(/6/8!/4/2/1:0)"));
 
     run(store, next, setNovelLocation({ index: 5, cfi: "epubcfi(/6/8!/4/2/1:0)" }));
     await vi.advanceTimersByTimeAsync(500);
 
-    expect(bookCommands.updateReadingProgress).toHaveBeenCalledWith({
-      book_id: 1,
-      last_read_page_index: 5,
-      cfi: "epubcfi(/6/8!/4/2/1:0)",
-      last_opened_at: "now",
-    });
+    expect(api.updateReadingProgress).toHaveBeenCalledWith(1, 5, "epubcfi(/6/8!/4/2/1:0)");
   });
 
   // Verify that an empty CFI (occasionally emitted by foliate-js) is stored as null, never "".
   it("should normalize an empty-string CFI to null before persisting", async () => {
-    store.getState.mockReturnValue(stateFor({ id: 1, last_opened_at: "now" }, true, 5, ""));
+    store.getState.mockReturnValue(stateFor({ id: 1 }, true, 5, ""));
 
     run(store, next, setNovelLocation({ index: 5, cfi: "" }));
     await vi.advanceTimersByTimeAsync(500);
 
-    expect(bookCommands.updateReadingProgress).toHaveBeenCalledWith({
-      book_id: 1,
-      last_read_page_index: 5,
-      cfi: null,
-      last_opened_at: "now",
-    });
+    expect(api.updateReadingProgress).toHaveBeenCalledWith(1, 5, null);
   });
 
   // Verify that an error log is output if saving the reading state fails
   it("should handle updateReadingProgress error", async () => {
-    vi.mocked(bookCommands.updateReadingProgress).mockRejectedValue(new Error("Database error"));
+    vi.mocked(api.updateReadingProgress).mockRejectedValue(new Error("Database error"));
 
     run(store, next, setImageIndex(10));
     await vi.advanceTimersByTimeAsync(500);
 
-    expect(error).toHaveBeenCalledWith(expect.stringContaining("ReadingState update failed"));
+    expect(error).toHaveBeenCalledWith(
+      expect.stringContaining("Failed to update the reading progress"),
+    );
   });
 
   // Verify that the middleware ignores non-object actions (e.g., strings) and passes them to the next handler
@@ -250,7 +215,7 @@ describe("readingStateMiddleware", () => {
 
     expect(result).toBe("STRING_ACTION");
     expect(next).toHaveBeenCalledWith("STRING_ACTION");
-    expect(bookCommands.updateReadingProgress).not.toHaveBeenCalled();
+    expect(api.updateReadingProgress).not.toHaveBeenCalled();
   });
 
   // Verify that the middleware ignores actions without a type property and passes them to the next handler
@@ -260,6 +225,6 @@ describe("readingStateMiddleware", () => {
 
     expect(result).toEqual({ noType: "here" });
     expect(next).toHaveBeenCalledWith(action);
-    expect(bookCommands.updateReadingProgress).not.toHaveBeenCalled();
+    expect(api.updateReadingProgress).not.toHaveBeenCalled();
   });
 });

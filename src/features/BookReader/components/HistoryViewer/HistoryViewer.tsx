@@ -4,7 +4,7 @@ import { debug, error } from "@tauri-apps/plugin-log";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { List, type RowComponentProps, useListCallbackRef } from "react-window";
-import type { ReadBook } from "../../../../domain/entities";
+import type { BookWithState } from "../../../../domain/entities";
 import { useAppDispatch, useAppSelector } from "../../../../store/store";
 import SidePanelHeader from "../../../SidePane/components/SidePanelHeader";
 import { useHistoryIndex } from "../../hooks/useHistoryIndex";
@@ -14,9 +14,9 @@ import { ItemRow } from "./ItemRow";
 
 /** Props for the row component. */
 interface RowProps {
-  entries: ReadBook[];
+  entries: BookWithState[];
   selectedIndex: number;
-  onClick: (e: React.MouseEvent<HTMLElement>, entry: ReadBook, index: number) => void;
+  onClick: (e: React.MouseEvent<HTMLElement>, entry: BookWithState, index: number) => void;
 }
 
 /** Row component for the history viewer. */
@@ -32,7 +32,7 @@ function Row({
   return (
     <ItemRow
       {...others}
-      key={entry.display_name}
+      key={entry.id}
       entry={entry}
       index={index}
       selected={selectedIndex === index}
@@ -86,8 +86,8 @@ export default function HistoryViewer() {
   }, [selectedIndex, filteredEntries.length, list]);
 
   const handleListItemClicked = useCallback(
-    async (_e: React.MouseEvent<HTMLElement>, entry: ReadBook, _index: number) => {
-      dispatch(openBook({ path: entry.file_path, origin: { kind: "history" } }));
+    async (_e: React.MouseEvent<HTMLElement>, entry: BookWithState, _index: number) => {
+      dispatch(openBook({ path: entry.filePath, origin: { kind: "history" } }));
     },
     [dispatch],
   );

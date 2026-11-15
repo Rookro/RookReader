@@ -1,11 +1,15 @@
 import type { Middleware } from "@reduxjs/toolkit";
 import { error } from "@tauri-apps/plugin-log";
-import { updateReadingProgress } from "../../bindings/BookCommands";
-import type { ReadingState } from "../../domain/entities";
+import { api } from "../../bindings/api";
 import { setImageIndex, setNovelLocation } from "../../features/BookReader/slice";
 import type { RootState } from "../store";
 
-type PendingUpdate = { state: ReadingState; shouldRecord: () => boolean };
+type PendingUpdate = {
+  bookId: number;
+  pageIndex: number;
+  cfi: string | null;
+  shouldRecord: () => boolean;
+};
 
 /** How long page turns are coalesced before the position is written. */
 const DEBOUNCE_MS = 500;
@@ -33,17 +37,20 @@ export const createReadingStateMiddleware = () => {
     if (!update?.shouldRecord()) {
       return Promise.resolve();
     }
-    return updateReadingProgress(update.state).catch((e) => {
-      error(
-        `ReadingState update failed (${update.state.book_id}:${update.state.last_read_page_index}): ${e}`,
-      );
-    });
+    return api.updateReadingProgress(update.bookId, update.pageIndex, update.cfi).then(
+      () => undefined,
+      (e) => {
+        error(
+          `Failed to update the reading progress (book ${update.bookId}, page ${update.pageIndex}): ${e}`,
+        );
+      },
+    );
   };
 
   const queue = (update: PendingUpdate) => {
     // Flush immediately when the pending write belongs to a different book, so a
     // book switch never silently replaces the previous book's final position.
-    if (pending && pending.state.book_id !== update.state.book_id) {
+    if (pending && pending.bookId !== update.bookId) {
       void flush();
     }
     pending = update;
@@ -66,15 +73,12 @@ export const createReadingStateMiddleware = () => {
         if (state.settings.history.recordReadingHistory) {
           const { history, historyIndex, index, cfi, book } = state.reader;
 
-          if (history[historyIndex] && index > -1 && book?.last_opened_at) {
+          if (history[historyIndex] && index > -1 && book) {
             queue({
-              state: {
-                book_id: book.id,
-                last_read_page_index: index,
-                // foliate-js occasionally emits an empty CFI; store null instead of "".
-                cfi: cfi || null,
-                last_opened_at: book.last_opened_at,
-              },
+              bookId: book.id,
+              pageIndex: index,
+              // foliate-js occasionally emits an empty CFI; store null instead of "".
+              cfi: cfi || null,
               shouldRecord: () => store.getState().settings.history.recordReadingHistory,
             });
           }

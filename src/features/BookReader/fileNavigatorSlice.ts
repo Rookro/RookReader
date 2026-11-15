@@ -1,51 +1,71 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import { error } from "@tauri-apps/plugin-log";
-import { getEntriesInDir as getEntriesInDirFromBackend } from "../../bindings/DirectoryCommands";
+import { getEntriesInDir as getEntriesInDirFromBackend } from "../../bindings/binaryApi";
+import type { DirEntry } from "../../domain/entities";
+import { createAppAsyncThunk } from "../../store/createCommandThunk";
 import { handleThunkError } from "../../store/thunkErrorHandler";
-import { createAppAsyncThunk, type ThunkRejectValue } from "../../types/CustomAsyncThunk";
-import type { DirEntry } from "../../types/DirEntry";
 import { ErrorCode } from "../../types/Error";
 import { convertEntriesInDir } from "../../utils/DirEntryUtils";
 import { goBackHistory, goForwardHistory, pushHistory } from "./utils/navigationHistory";
 
 /**
- * Updates the base path for the file explorer and fetches its contents.
+ * Moves the File Navigator to a directory and lists its entries, or reads the folder on
+ * screen again in the background.
  *
- * @param args - The arguments for updating the explore base path.
- * @param args.dirPath - The absolute directory path to explore.
+ * @param args - The arguments for loading the directory.
+ * @param args.dirPath - The absolute path of the directory to load.
  * @param args.forceUpdate - If true, forces a fetch even if the path is already the current one.
+ * @param args.background - If true, reads the folder on screen again and keeps its list
+ * shown meanwhile, instead of the loading indicator. Nothing is dispatched when `dirPath`
+ * is not the folder on screen.
  * @returns A thunk that resolves to the directory path and its entries. When the folder is
- * already shown and `forceUpdate` is not set, nothing is dispatched.
+ * already shown and neither `forceUpdate` nor `background` is set, nothing is dispatched.
  */
-export const updateExploreBasePath = createAppAsyncThunk(
-  "fileNavigator/updateExploreBasePath",
-  async (args: { dirPath: string; forceUpdate?: boolean }, { dispatch, rejectWithValue }) => {
+export const loadDirectory = createAppAsyncThunk(
+  "fileNavigator/loadDirectory",
+  async (
+    args: { dirPath: string; forceUpdate?: boolean; background?: boolean },
+    { dispatch, getState, rejectWithValue, requestId },
+  ) => {
     const { dirPath } = args;
+    const isSuperseded = () => getState().fileNavigator.requestId !== requestId;
     if (!dirPath || dirPath.length === 0) {
-      const errorMessage = "Failed to updateExploreBasePath. Error: Directory path is empty.";
+      const errorMessage = "Failed to load the directory. Error: The path is empty.";
       error(errorMessage);
-      return rejectWithValue({ code: ErrorCode.path, message: errorMessage });
+      return rejectWithValue({
+        code: ErrorCode.path,
+        message: errorMessage,
+        ...(isSuperseded() && { superseded: true as const }),
+      });
     }
 
-    dispatch(setIsDirEntriesLoading(true));
-    dispatch(setExploreBasePath(dirPath));
+    if (!args.background) {
+      dispatch(setIsDirEntriesLoading(true));
+      dispatch(directoryPathOpened(dirPath));
+    }
     try {
       const buffer = await getEntriesInDirFromBackend(dirPath);
       const entries = convertEntriesInDir(buffer);
       return { path: dirPath, entries: entries };
     } catch (e) {
-      return handleThunkError(e, `Failed to getEntriesInDir(${dirPath}).`, rejectWithValue);
+      return handleThunkError(
+        e,
+        `Failed to load the directory(${dirPath}).`,
+        rejectWithValue,
+        isSuperseded(),
+      );
     }
   },
   {
     // Already showing this folder: dispatch nothing, so no request supersedes one in flight.
-    condition: ({ dirPath, forceUpdate }, { getState }) => {
+    // A background read is the exception: its newer listing supersedes one in flight.
+    condition: ({ dirPath, forceUpdate, background }, { getState }) => {
       const { fileNavigator } = getState();
-      return (
-        Boolean(forceUpdate) ||
-        !dirPath ||
-        fileNavigator.history[fileNavigator.historyIndex] !== dirPath
-      );
+      const isShown = fileNavigator.history[fileNavigator.historyIndex] === dirPath;
+      if (background) {
+        return isShown;
+      }
+      return Boolean(forceUpdate) || !dirPath || !isShown;
     },
   },
 );
@@ -56,8 +76,7 @@ const initialState = {
   entries: [] as DirEntry[],
   searchText: "",
   isLoading: false,
-  error: null as ThunkRejectValue | null,
-  /** The latest listing request; only its answer may change the explorer. */
+  /** The latest listing request; only its answer may change the File Navigator. */
   requestId: null as string | null,
   /** The folder that request lists, until it settles. */
   pendingPath: null as string | null,
@@ -71,12 +90,12 @@ export const fileNavigatorSlice = createSlice({
   initialState,
   reducers: {
     /**
-     * Sets the base path for the file explorer and updates history.
+     * Moves the File Navigator to a directory and adds it to the history.
      *
      * @param state - The current Redux state slice.
      * @param action - Payload containing the directory path.
      */
-    setExploreBasePath: (state, action: PayloadAction<string>) => {
+    directoryPathOpened: (state, action: PayloadAction<string>) => {
       if (!pushHistory(state, action.payload)) {
         return;
       }
@@ -84,7 +103,7 @@ export const fileNavigatorSlice = createSlice({
       state.isLoading = true;
     },
     /**
-     * Sets the search text within the file explorer.
+     * Sets the search text within the File Navigator.
      *
      * @param state - The current Redux state slice.
      * @param action - Payload containing the search text.
@@ -93,19 +112,19 @@ export const fileNavigatorSlice = createSlice({
       state.searchText = action.payload;
     },
     /**
-     * Navigates backwards in the file explorer history.
+     * Navigates backwards in the File Navigator history.
      *
      * @param state - The current Redux state slice.
      */
-    goBackExplorerHistory: (state) => {
+    goBackNavigatorHistory: (state) => {
       goBackHistory(state);
     },
     /**
-     * Navigates forwards in the file explorer history.
+     * Navigates forwards in the File Navigator history.
      *
      * @param state - The current Redux state slice.
      */
-    goForwardExplorerHistory: (state) => {
+    goForwardNavigatorHistory: (state) => {
       goForwardHistory(state);
     },
     /**
@@ -117,23 +136,14 @@ export const fileNavigatorSlice = createSlice({
     setIsDirEntriesLoading: (state, action: PayloadAction<boolean>) => {
       state.isLoading = action.payload;
     },
-    /**
-     * Clears any error associated with the file explorer state.
-     *
-     * @param state - The current Redux state slice.
-     */
-    clearExplorerError: (state) => {
-      state.error = null;
-    },
   },
   extraReducers: (builder) => {
     builder
-      .addCase(updateExploreBasePath.pending, (state, action) => {
+      .addCase(loadDirectory.pending, (state, action) => {
         state.requestId = action.meta.requestId;
         state.pendingPath = action.meta.arg.dirPath;
-        state.error = null;
       })
-      .addCase(updateExploreBasePath.fulfilled, (state, action) => {
+      .addCase(loadDirectory.fulfilled, (state, action) => {
         // A listing superseded by a newer request, possibly of the same folder.
         if (action.meta.requestId !== state.requestId) {
           return;
@@ -145,26 +155,23 @@ export const fileNavigatorSlice = createSlice({
           state.entries = action.payload.entries;
         }
         state.isLoading = false;
-        state.error = null;
       })
-      .addCase(updateExploreBasePath.rejected, (state, action) => {
+      .addCase(loadDirectory.rejected, (state, action) => {
         if (action.meta.requestId !== state.requestId) {
           return;
         }
         state.pendingPath = null;
         state.entries = [];
         state.isLoading = false;
-        state.error = action.payload ?? null;
       });
   },
 });
 
 export const {
-  setExploreBasePath,
+  directoryPathOpened,
   setSearchText,
-  goBackExplorerHistory,
-  goForwardExplorerHistory,
+  goBackNavigatorHistory,
+  goForwardNavigatorHistory,
   setIsDirEntriesLoading,
-  clearExplorerError,
 } = fileNavigatorSlice.actions;
 export default fileNavigatorSlice.reducer;

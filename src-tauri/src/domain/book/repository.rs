@@ -1,7 +1,7 @@
 use crate::error::Result;
 use async_trait::async_trait;
 
-use super::entity::{Book, BookWithState, Direction, ItemType, ReadBook, ReadingState};
+use super::entity::{Book, BookWithState, Direction, ItemType, ReadingState};
 
 /// Defines the data access operations for the `Book` aggregate.
 #[cfg_attr(test, mockall::automock)]
@@ -21,21 +21,6 @@ pub trait BookRepository: Send + Sync {
     ///
     /// Returns an `Err` if a database operation fails.
     async fn get_by_id(&self, id: i64) -> Result<Option<Book>>;
-
-    /// Retrieves a book by its unique file path.
-    ///
-    /// # Arguments
-    ///
-    /// * `file_path` - The unique file or directory path of the book.
-    ///
-    /// # Returns
-    ///
-    /// A `Result` containing an `Option<Book>`. Returns `Some(Book)` if found, or `None` if not.
-    ///
-    /// # Errors
-    ///
-    /// Returns an `Err` if a database operation fails.
-    async fn get_by_path(&self, file_path: &str) -> Result<Option<Book>>;
 
     /// Retrieves a book along with its reading state by its unique ID.
     ///
@@ -146,16 +131,24 @@ pub trait BookRepository: Send + Sync {
     ///
     /// # Arguments
     ///
-    /// * `state` - The `ReadingState` to update.
+    /// * `book_id` - The book being read.
+    /// * `page_index` - The page the reader is on.
+    /// * `cfi` - The EPUB position, `None` for comics.
     ///
     /// # Returns
     ///
-    /// A `Result` indicating the success of the operation.
+    /// The stored reading state. `last_opened_at` is when the book was opened, or now when
+    /// this call created the state.
     ///
     /// # Errors
     ///
     /// Returns an `Err` if the database execution fails.
-    async fn update_reading_progress(&self, state: &ReadingState) -> Result<()>;
+    async fn update_reading_progress(
+        &self,
+        book_id: i64,
+        page_index: i64,
+        cfi: Option<String>,
+    ) -> Result<ReadingState>;
 
     /// Records the reader's correction to how a book pairs into spreads.
     ///
@@ -204,18 +197,14 @@ pub trait BookRepository: Send + Sync {
 
     /// Retrieves books that have been opened, ordered by the last opened time in descending order.
     ///
-    /// # Arguments
-    ///
-    /// * `limit` - The maximum number of books to return.
-    ///
     /// # Returns
     ///
-    /// A `Result` containing a vector of `ReadBook` entities.
+    /// A `Result` containing a vector of `BookWithState` entities.
     ///
     /// # Errors
     ///
     /// Returns an `Err` if the database query fails.
-    async fn get_recently_read_books(&self, limit: Option<i64>) -> Result<Vec<ReadBook>>;
+    async fn get_recently_read_books(&self) -> Result<Vec<BookWithState>>;
 
     /// Retrieves all books along with their reading state.
     ///

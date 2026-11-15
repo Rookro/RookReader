@@ -9,7 +9,7 @@
  * @returns A new array of items whose name matches every keyword.
  *
  * @example
- * andSearchBy(books, "test file", (b) => b.display_name);
+ * andSearchBy(books, "test file", (b) => b.displayName);
  */
 export const andSearchBy = <T>(items: T[], query: string, getName: (item: T) => string): T[] => {
   const keywords = query

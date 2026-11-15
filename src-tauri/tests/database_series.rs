@@ -38,6 +38,42 @@ async fn create_returns_the_new_series() {
 }
 
 #[tokio::test]
+async fn create_stamps_the_creation_time_with_sub_second_precision() {
+    let pool = setup_db().await;
+    let repo = SqliteSeriesRepository::new(pool.clone());
+
+    let before = chrono::Utc::now();
+    let series = repo.create("Saga").await.unwrap();
+    let after = chrono::Utc::now();
+
+    // A whole-second timestamp would fall before `before`.
+    assert!(
+        before <= series.created_at && series.created_at <= after,
+        "{before} <= {} <= {after}",
+        series.created_at
+    );
+}
+
+#[tokio::test]
+async fn timestamps_stored_by_sqlite_are_read_as_utc() {
+    let pool = setup_db().await;
+    let repository = SqliteSeriesRepository::new(pool.clone());
+    let created = repository.create("Saga").await.unwrap();
+    sqlx::query("UPDATE series SET created_at = '2020-01-02 03:04:05' WHERE id = ?")
+        .bind(created.id)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    let series = repository.get_all().await.unwrap();
+
+    assert_eq!(
+        series[0].created_at.to_rfc3339(),
+        "2020-01-02T03:04:05+00:00"
+    );
+}
+
+#[tokio::test]
 async fn test_create_duplicate_series() {
     let pool = setup_db().await;
     let repository = SqliteSeriesRepository::new(pool.clone());

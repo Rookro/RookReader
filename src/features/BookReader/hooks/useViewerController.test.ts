@@ -1,12 +1,7 @@
 import { warn } from "@tauri-apps/plugin-log";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { updatePageLayout } from "../../../bindings/BookCommands";
-import {
-  getImageDimensions,
-  requestPreloadAround,
-  setDisplaySize,
-} from "../../../bindings/ContainerCommands";
+import { api } from "../../../bindings/api";
 import { createMockBookWithState } from "../../../test/factories";
 import { CommandError, ErrorCode } from "../../../types/Error";
 import type { Image } from "../../../types/Image";
@@ -119,7 +114,7 @@ describe("useViewerController", () => {
 
   /** Makes the dimension scan report `count` portrait pages. */
   const mockScan = (count: number) => {
-    vi.mocked(getImageDimensions).mockResolvedValue(
+    vi.mocked(api.getImageDimensions).mockResolvedValue(
       Array.from({ length: count }, () => ({ width: 100, height: 200 })),
     );
   };
@@ -235,7 +230,7 @@ describe("useViewerController", () => {
   // book's cache. A measured book keeps a pairing across the switch, so a stale entry
   // would reach the layout.
   it("never shows the previous book's page after a switch", async () => {
-    const measured = createMockBookWithState({ landscape_bits: "000" });
+    const measured = createMockBookWithState({ landscapeBits: "000" });
     mockedFetchImageBlob.mockResolvedValue({} as Image);
     mockedCreateImageCacheItem.mockReturnValue({
       fullUrl: "blob:old",
@@ -274,7 +269,7 @@ describe("useViewerController", () => {
   // Verify a page that lands just as the reader moves on is not shown over the page they
   // moved to
   it("never shows a page the reader has already left", async () => {
-    const measured = createMockBookWithState({ landscape_bits: "000" });
+    const measured = createMockBookWithState({ landscapeBits: "000" });
     const images = new Map(mockEntries.map((entry) => [entry, { entry } as unknown as Image]));
     mockedCreateImageCacheItem.mockImplementation(
       (img) =>
@@ -909,7 +904,7 @@ describe("useViewerController", () => {
       mockedFetchImageBlob.mockResolvedValue({} as Image);
       // The book has not been measured, so the chain never lands and every unit is a
       // single page.
-      vi.mocked(getImageDimensions).mockReturnValue(new Promise(() => {}));
+      vi.mocked(api.getImageDimensions).mockReturnValue(new Promise(() => {}));
 
       const { result } = renderHook(() =>
         useViewerController({
@@ -1154,7 +1149,7 @@ describe("useViewerController", () => {
       } as ImageUtils.ImageCacheItem);
       // One landscape page, so an assertion can name the measured chain's call: the
       // assumed chain sees only the pages the viewer has loaded, never this.
-      vi.mocked(getImageDimensions).mockResolvedValue([
+      vi.mocked(api.getImageDimensions).mockResolvedValue([
         { width: 100, height: 200 },
         { width: 200, height: 100 },
         { width: 100, height: 200 },
@@ -1399,7 +1394,7 @@ describe("useViewerController", () => {
     // Verify a failed scan leaves the viewer on the fallback instead of breaking it
     it("keeps working when the scan fails", async () => {
       vi.useFakeTimers();
-      vi.mocked(getImageDimensions).mockRejectedValue(new Error("scan failed"));
+      vi.mocked(api.getImageDimensions).mockRejectedValue(new Error("scan failed"));
 
       try {
         const { result } = renderHook(() =>
@@ -1482,7 +1477,7 @@ describe("useViewerController", () => {
 
     // Verify a measured book needs no scan at all
     it("uses the stored measurement instead of scanning", async () => {
-      const book = createMockBookWithState({ landscape_bits: "010" });
+      const book = createMockBookWithState({ landscapeBits: "010" });
 
       const { result } = renderHook(() =>
         useViewerController({
@@ -1499,13 +1494,13 @@ describe("useViewerController", () => {
       );
 
       await waitFor(() => expect(result.current.isImageLoading).toBe(false));
-      expect(getImageDimensions).not.toHaveBeenCalled();
+      expect(api.getImageDimensions).not.toHaveBeenCalled();
       expect(mockedBuildUnitChain).toHaveBeenCalledWith([false, true, false], twoPaged, false);
     });
 
     // Verify bits that cannot describe this book are re-measured rather than trusted
     it("re-measures when the stored bits do not fit the book", async () => {
-      const book = createMockBookWithState({ landscape_bits: "01" });
+      const book = createMockBookWithState({ landscapeBits: "01" });
 
       renderHook(() =>
         useViewerController({
@@ -1521,13 +1516,13 @@ describe("useViewerController", () => {
         }),
       );
 
-      await waitFor(() => expect(getImageDimensions).toHaveBeenCalled());
+      await waitFor(() => expect(api.getImageDimensions).toHaveBeenCalled());
     });
 
     // Verify a fresh measurement is stored, once, so the next open needs no scan
     it("writes a completed scan back exactly once", async () => {
-      const book = createMockBookWithState({ landscape_bits: null });
-      vi.mocked(getImageDimensions).mockResolvedValue([
+      const book = createMockBookWithState({ landscapeBits: null });
+      vi.mocked(api.getImageDimensions).mockResolvedValue([
         { width: 100, height: 200 },
         { width: 200, height: 100 },
         { width: 100, height: 200 },
@@ -1549,7 +1544,7 @@ describe("useViewerController", () => {
         { initialProps: { book } },
       );
 
-      await waitFor(() => expect(updatePageLayout).toHaveBeenCalledWith(book.id, "010"));
+      await waitFor(() => expect(api.updatePageLayout).toHaveBeenCalledWith(book.id, "010"));
 
       // The same book arriving as a fresh object — a bookshelf refresh, say — must not
       // make the viewer store the measurement it has already stored.
@@ -1557,12 +1552,12 @@ describe("useViewerController", () => {
       await act(async () => {
         await new Promise(process.nextTick);
       });
-      expect(vi.mocked(updatePageLayout).mock.calls.length).toBe(1);
+      expect(vi.mocked(api.updatePageLayout).mock.calls.length).toBe(1);
     });
 
     // Verify the viewer shows nothing rather than a pairing it would have to correct
     it("publishes no layout while the book is still being measured", async () => {
-      vi.mocked(getImageDimensions).mockReturnValue(new Promise(() => {}));
+      vi.mocked(api.getImageDimensions).mockReturnValue(new Promise(() => {}));
 
       const { result } = renderHook(() =>
         useViewerController({
@@ -1590,7 +1585,7 @@ describe("useViewerController", () => {
     it("loads each page of a spread once while the book is being measured", async () => {
       vi.useFakeTimers();
       try {
-        vi.mocked(getImageDimensions).mockReturnValue(new Promise(() => {}));
+        vi.mocked(api.getImageDimensions).mockReturnValue(new Promise(() => {}));
         let releaseSecond: () => void = () => {};
         const second = new Promise<Image>((resolve) => {
           releaseSecond = () => resolve({} as Image);
@@ -1629,7 +1624,7 @@ describe("useViewerController", () => {
 
     /** Renders with a never-landing scan and lets the wait cap elapse. */
     const afterTheWaitCap = async (settings: ImageUtils.ViewerSettings, shifted = false) => {
-      vi.mocked(getImageDimensions).mockReturnValue(new Promise(() => {}));
+      vi.mocked(api.getImageDimensions).mockReturnValue(new Promise(() => {}));
       const { result } = renderHook(() =>
         useViewerController({
           containerPath: "path",
@@ -1715,7 +1710,7 @@ describe("useViewerController", () => {
         // page after it is 2. Stepping by one would show page 1 again, on the other
         // side of the screen, and the reader would re-read what they just read.
         mockedBuildUnitChain.mockImplementation(spreadPairs);
-        vi.mocked(getImageDimensions).mockReturnValue(new Promise(() => {}));
+        vi.mocked(api.getImageDimensions).mockReturnValue(new Promise(() => {}));
 
         const { result } = renderHook(() =>
           useViewerController({
@@ -1748,7 +1743,7 @@ describe("useViewerController", () => {
       vi.useFakeTimers();
       try {
         mockedBuildUnitChain.mockImplementation(spreadPairs);
-        vi.mocked(getImageDimensions).mockReturnValue(new Promise(() => {}));
+        vi.mocked(api.getImageDimensions).mockReturnValue(new Promise(() => {}));
 
         const { result } = renderHook(() =>
           useViewerController({
@@ -1788,7 +1783,7 @@ describe("useViewerController", () => {
           width: 200,
           height: 100,
         } as ImageUtils.ImageCacheItem);
-        vi.mocked(getImageDimensions).mockReturnValue(new Promise(() => {}));
+        vi.mocked(api.getImageDimensions).mockReturnValue(new Promise(() => {}));
 
         renderHook(() =>
           useViewerController({
@@ -1838,7 +1833,7 @@ describe("useViewerController", () => {
         } as ImageUtils.ImageCacheItem);
         vi.mocked(ImageUtils.fetchImagePreviewBlob).mockResolvedValue({} as Image);
         mockedFetchImageBlob.mockReturnValue(new Promise(() => {}));
-        vi.mocked(getImageDimensions).mockReturnValue(new Promise(() => {}));
+        vi.mocked(api.getImageDimensions).mockReturnValue(new Promise(() => {}));
 
         renderHook(() =>
           useViewerController({
@@ -1874,7 +1869,7 @@ describe("useViewerController", () => {
     it("takes an unloaded page for portrait", async () => {
       vi.useFakeTimers();
       try {
-        vi.mocked(getImageDimensions).mockReturnValue(new Promise(() => {}));
+        vi.mocked(api.getImageDimensions).mockReturnValue(new Promise(() => {}));
         // Nothing loads, so nothing is known.
         mockedFetchImageBlob.mockReturnValue(new Promise(() => {}));
 
@@ -1895,7 +1890,7 @@ describe("useViewerController", () => {
       vi.useFakeTimers();
       try {
         mockedDetectCoverPresence.mockReturnValue(!twoPaged.isFirstPageSingleView);
-        vi.mocked(getImageDimensions).mockReturnValue(new Promise(() => {}));
+        vi.mocked(api.getImageDimensions).mockReturnValue(new Promise(() => {}));
 
         await afterTheWaitCap(twoPaged);
 
@@ -1921,7 +1916,7 @@ describe("useViewerController", () => {
         // nothing, and once — triggered by the chain — that publishes. A span started in
         // the second run would report the render and miss the wait the reader sat through.
         let land: ((dims: { width: number; height: number }[]) => void) | undefined;
-        vi.mocked(getImageDimensions).mockReturnValue(
+        vi.mocked(api.getImageDimensions).mockReturnValue(
           new Promise((resolve) => {
             land = resolve;
           }),
@@ -1972,7 +1967,7 @@ describe("useViewerController", () => {
     it("never stores the assumed pairing as a measurement", async () => {
       vi.useFakeTimers();
       try {
-        vi.mocked(getImageDimensions).mockReturnValue(new Promise(() => {}));
+        vi.mocked(api.getImageDimensions).mockReturnValue(new Promise(() => {}));
         renderHook(() =>
           useViewerController({
             containerPath: "path",
@@ -1983,7 +1978,7 @@ describe("useViewerController", () => {
             settings: twoPaged,
             dispatch: mockDispatch,
             hasPreviews: true,
-            book: createMockBookWithState({ landscape_bits: null }),
+            book: createMockBookWithState({ landscapeBits: null }),
           }),
         );
 
@@ -1992,7 +1987,7 @@ describe("useViewerController", () => {
         });
 
         // It is a display decision, not something measured about the book.
-        expect(updatePageLayout).not.toHaveBeenCalled();
+        expect(api.updatePageLayout).not.toHaveBeenCalled();
       } finally {
         vi.useRealTimers();
       }
@@ -2279,13 +2274,13 @@ describe("useViewerController", () => {
     it("names one page in single-page view", async () => {
       renderAt(mockSettings, 0);
 
-      await waitFor(() => expect(requestPreloadAround).toHaveBeenCalledWith("path", 0, 10, 1));
+      await waitFor(() => expect(api.requestPreloadAround).toHaveBeenCalledWith("path", 0, 10, 1));
     });
 
     it("names both pages in spread view", async () => {
       renderAt({ ...mockSettings, isTwoPagedView: true }, 0);
 
-      await waitFor(() => expect(requestPreloadAround).toHaveBeenCalledWith("path", 0, 10, 2));
+      await waitFor(() => expect(api.requestPreloadAround).toHaveBeenCalledWith("path", 0, 10, 2));
     });
 
     // The last page has nothing beside it, so the viewer loads one page there whatever the
@@ -2294,7 +2289,12 @@ describe("useViewerController", () => {
       renderAt({ ...mockSettings, isTwoPagedView: true }, mockEntries.length - 1);
 
       await waitFor(() =>
-        expect(requestPreloadAround).toHaveBeenCalledWith("path", mockEntries.length - 1, 10, 1),
+        expect(api.requestPreloadAround).toHaveBeenCalledWith(
+          "path",
+          mockEntries.length - 1,
+          10,
+          1,
+        ),
       );
     });
   });
@@ -2331,20 +2331,20 @@ describe("useViewerController", () => {
 
       // A page fetched now would arrive at its stored size and be fetched again at the
       // right one, so the viewer waits instead.
-      await waitFor(() => expect(getImageDimensions).toHaveBeenCalled());
-      expect(setDisplaySize).not.toHaveBeenCalled();
+      await waitFor(() => expect(api.getImageDimensions).toHaveBeenCalled());
+      expect(api.setDisplaySize).not.toHaveBeenCalled();
       expect(ImageUtils.fetchImageBlob).not.toHaveBeenCalled();
-      expect(requestPreloadAround).not.toHaveBeenCalled();
+      expect(api.requestPreloadAround).not.toHaveBeenCalled();
     });
 
     it("waits for the backend to have the viewport before asking for a page", async () => {
       // Not merely called first: a page asked for while this is in flight is rendered
       // for whatever viewport the backend still had, and fetched again after.
       let acknowledge: () => void = () => {};
-      vi.mocked(setDisplaySize).mockReturnValueOnce(
+      vi.mocked(api.setDisplaySize).mockReturnValueOnce(
         new Promise((resolve) => {
           acknowledge = () => {
-            resolve();
+            resolve(null);
           };
         }),
       );
@@ -2352,7 +2352,7 @@ describe("useViewerController", () => {
       const { result } = renderAtSize(VIEWPORT);
 
       await waitFor(() =>
-        expect(setDisplaySize).toHaveBeenCalledWith(VIEWPORT.width, VIEWPORT.height),
+        expect(api.setDisplaySize).toHaveBeenCalledWith(VIEWPORT.width, VIEWPORT.height),
       );
       expect(ImageUtils.fetchImageBlob).not.toHaveBeenCalled();
       // And the reader is told it is waiting, because it is.
@@ -2366,10 +2366,10 @@ describe("useViewerController", () => {
 
     it("waits for the backend to have the viewport before asking it to preload", async () => {
       let acknowledge: () => void = () => {};
-      vi.mocked(setDisplaySize).mockReturnValueOnce(
+      vi.mocked(api.setDisplaySize).mockReturnValueOnce(
         new Promise((resolve) => {
           acknowledge = () => {
-            resolve();
+            resolve(null);
           };
         }),
       );
@@ -2379,14 +2379,14 @@ describe("useViewerController", () => {
       // A preload that lands first fills the cache with pages rendered for whatever
       // viewport the backend still had, and the next page turn misses on every one.
       await waitFor(() =>
-        expect(setDisplaySize).toHaveBeenCalledWith(VIEWPORT.width, VIEWPORT.height),
+        expect(api.setDisplaySize).toHaveBeenCalledWith(VIEWPORT.width, VIEWPORT.height),
       );
-      expect(requestPreloadAround).not.toHaveBeenCalled();
+      expect(api.requestPreloadAround).not.toHaveBeenCalled();
 
       act(() => {
         acknowledge();
       });
-      await waitFor(() => expect(requestPreloadAround).toHaveBeenCalledTimes(1));
+      await waitFor(() => expect(api.requestPreloadAround).toHaveBeenCalledTimes(1));
     });
 
     it("re-fetches the current page when the viewport changes", async () => {
@@ -2395,7 +2395,7 @@ describe("useViewerController", () => {
 
       rerender({ size: { width: 2048, height: 1536 } });
 
-      await waitFor(() => expect(setDisplaySize).toHaveBeenCalledWith(2048, 1536));
+      await waitFor(() => expect(api.setDisplaySize).toHaveBeenCalledWith(2048, 1536));
       // The cached blob URL is a page rendered for the old viewport: nothing would
       // reload it, because the backend keys a page by the box it was fitted into.
       await waitFor(() => expect(global.URL.revokeObjectURL).toHaveBeenCalledWith("blob:full"));
@@ -2404,13 +2404,13 @@ describe("useViewerController", () => {
 
     it("preloads again when the viewport changes", async () => {
       const { rerender } = renderAtSize(VIEWPORT);
-      await waitFor(() => expect(requestPreloadAround).toHaveBeenCalledTimes(1));
+      await waitFor(() => expect(api.requestPreloadAround).toHaveBeenCalledTimes(1));
 
       rerender({ size: { width: 2048, height: 1536 } });
 
       // The pages around this one are wanted at the new size too, and asking is also
       // what makes the backend drop the preload jobs still queued for the old one.
-      await waitFor(() => expect(requestPreloadAround).toHaveBeenCalledTimes(2));
+      await waitFor(() => expect(api.requestPreloadAround).toHaveBeenCalledTimes(2));
     });
 
     it("keeps the page when the viewport is re-rendered at the same size", async () => {
@@ -2419,12 +2419,12 @@ describe("useViewerController", () => {
 
       rerender({ size: VIEWPORT });
 
-      await waitFor(() => expect(setDisplaySize).toHaveBeenCalledTimes(1));
+      await waitFor(() => expect(api.setDisplaySize).toHaveBeenCalledTimes(1));
       expect(ImageUtils.fetchImageBlob).toHaveBeenCalledTimes(1);
     });
 
     it("still shows a page when the viewport cannot be reported", async () => {
-      vi.mocked(setDisplaySize).mockRejectedValueOnce(new Error("the book was closed"));
+      vi.mocked(api.setDisplaySize).mockRejectedValueOnce(new Error("the book was closed"));
       renderAtSize(VIEWPORT);
 
       // The backend still has whatever viewport it was last told, so a page rendered for

@@ -1,7 +1,7 @@
 use chrono::NaiveDateTime;
 use sqlx::FromRow;
 
-use crate::domain::book::entity::{Book, BookWithState, Direction, ReadBook};
+use crate::domain::book::entity::{Book, BookWithState, Direction};
 use crate::error::{Error, Result};
 
 /// A row of `books`, as the database stores it.
@@ -30,40 +30,6 @@ impl TryFrom<BookRow> for Book {
             series_id: r.series_id,
             series_order: r.series_order,
             thumbnail_path: r.thumbnail_path,
-        })
-    }
-}
-
-/// A `books` row joined with its `reading_state`, for the recently-read list.
-#[derive(Debug, FromRow)]
-pub struct ReadBookRow {
-    pub id: i64,
-    pub file_path: String,
-    pub item_type: String,
-    pub display_name: String,
-    pub total_pages: i64,
-    pub series_id: Option<i64>,
-    pub series_order: Option<i64>,
-    pub thumbnail_path: Option<String>,
-    pub last_read_page_index: i64,
-    pub last_opened_at: NaiveDateTime,
-}
-
-impl TryFrom<ReadBookRow> for ReadBook {
-    type Error = Error;
-
-    fn try_from(r: ReadBookRow) -> Result<Self> {
-        Ok(ReadBook {
-            id: r.id,
-            file_path: r.file_path,
-            item_type: r.item_type.parse()?,
-            display_name: r.display_name,
-            total_pages: r.total_pages,
-            series_id: r.series_id,
-            series_order: r.series_order,
-            thumbnail_path: r.thumbnail_path,
-            last_read_page_index: r.last_read_page_index,
-            last_opened_at: r.last_opened_at,
         })
     }
 }
@@ -132,7 +98,7 @@ impl TryFrom<BookWithStateRow> for BookWithState {
             series_id: r.series_id,
             series_order: r.series_order,
             thumbnail_path: r.thumbnail_path,
-            created_at: r.created_at,
+            created_at: r.created_at.map(|t| t.and_utc()),
             is_spread_shifted: r.is_spread_shifted,
             landscape_bits: r.landscape_bits,
             reading_direction: r
@@ -141,7 +107,7 @@ impl TryFrom<BookWithStateRow> for BookWithState {
                 .map(str::parse::<Direction>)
                 .transpose()?,
             last_read_page_index: r.last_read_page_index,
-            last_opened_at: r.last_opened_at,
+            last_opened_at: r.last_opened_at.map(|t| t.and_utc()),
             cfi: r.cfi,
             tag_ids: r
                 .tag_ids_str

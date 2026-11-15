@@ -35,8 +35,8 @@ vi.mock("../../MainView/slice", async () => {
 describe("MenuList", () => {
   const user = userEvent.setup();
 
-  const mockCollections = [{ id: 1, name: "Bookshelf 1", icon_id: "folder", created_at: "" }];
-  const mockTags = [{ id: 10, name: "Tag 1", color_code: "#ff0000" }];
+  const mockCollections = [{ id: 1, name: "Bookshelf 1", iconId: "folder", createdAt: "" }];
+  const mockTags = [{ id: 10, name: "Tag 1", colorCode: "#ff0000" }];
 
   const preloadedState = createBasePreloadedState();
   preloadedState.collection.collections = mockCollections;
@@ -66,10 +66,10 @@ describe("MenuList", () => {
     expect(store.getState().collection.selectedId).toBe(1);
   });
 
-  it("should show fallback icon for unknown icon_id", () => {
+  it("should show fallback icon for unknown iconId", () => {
     const stateWithUnknownIcon = createBasePreloadedState();
     stateWithUnknownIcon.collection.collections = [
-      { id: 2, name: "Unknown Icon", icon_id: "non-existent", created_at: "" },
+      { id: 2, name: "Unknown Icon", iconId: "non-existent", createdAt: "" },
     ];
     renderWithProviders(<MenuList {...defaultProps} />, { preloadedState: stateWithUnknownIcon });
     expect(screen.getByTestId("FolderOutlinedIcon")).toBeInTheDocument();

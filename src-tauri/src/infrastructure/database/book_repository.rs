@@ -1,12 +1,10 @@
 use async_trait::async_trait;
 use sqlx::SqlitePool;
 
-use crate::domain::book::entity::{
-    Book, BookWithState, Direction, ItemType, ReadBook, ReadingState,
-};
+use crate::domain::book::entity::{Book, BookWithState, Direction, ItemType, ReadingState};
 use crate::domain::book::repository::BookRepository;
 use crate::error::Result;
-use crate::infrastructure::database::models::{BookRow, BookWithStateRow, ReadBookRow};
+use crate::infrastructure::database::models::{BookRow, BookWithStateRow};
 
 /// SQLite implementation of the `BookRepository`.
 pub struct SqliteBookRepository {
@@ -29,6 +27,44 @@ impl SqliteBookRepository {
     }
 }
 
+/// Inserts the book at `file_path`, or refreshes what was read from its container when it
+/// is already registered. `created_at` is set only on insert.
+async fn upsert_book<'e, E>(
+    executor: E,
+    file_path: &str,
+    item_type: ItemType,
+    display_name: &str,
+    total_pages: i64,
+    thumbnail_path: Option<String>,
+    now: chrono::NaiveDateTime,
+) -> Result<i64>
+where
+    E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+{
+    let item_type: &str = item_type.into();
+    let book_id = sqlx::query!(
+        r#"
+        INSERT INTO books (file_path, item_type, display_name, total_pages, thumbnail_path, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(file_path) DO UPDATE SET
+            display_name = excluded.display_name,
+            total_pages = excluded.total_pages,
+            thumbnail_path = excluded.thumbnail_path
+        RETURNING id
+        "#,
+        file_path,
+        item_type,
+        display_name,
+        total_pages,
+        thumbnail_path,
+        now
+    )
+    .fetch_one(executor)
+    .await?
+    .id;
+    Ok(book_id)
+}
+
 #[async_trait]
 impl BookRepository for SqliteBookRepository {
     async fn get_by_id(&self, id: i64) -> Result<Option<Book>> {
@@ -40,34 +76,6 @@ impl BookRepository for SqliteBookRepository {
             WHERE id = ?
             "#,
             id
-        )
-        .fetch_optional(&self.pool)
-        .await?
-        .map(Book::try_from)
-        .transpose()?;
-
-        Ok(book)
-    }
-
-    async fn get_by_path(&self, file_path: &str) -> Result<Option<Book>> {
-        let book = sqlx::query_as!(
-            BookRow,
-            r#"
-            SELECT
-                id,
-                file_path,
-                item_type,
-                display_name,
-                total_pages,
-                series_id,
-                series_order,
-                thumbnail_path
-            FROM
-                books
-            WHERE
-                file_path = ?
-            "#,
-            file_path
         )
         .fetch_optional(&self.pool)
         .await?
@@ -108,34 +116,16 @@ impl BookRepository for SqliteBookRepository {
         total_pages: i64,
         thumbnail_path: Option<String>,
     ) -> Result<i64> {
-        let item_type: &str = item_type.into();
-        // Stamp created_at on insert; it is intentionally absent from the ON CONFLICT
-        // clause so re-registering an existing book preserves its original timestamp.
-        let now = chrono::Utc::now().naive_utc();
-        let book_id = sqlx::query!(
-            r#"
-            INSERT INTO books (file_path, item_type, display_name, total_pages, thumbnail_path, created_at)
-            VALUES (?, ?, ?, ?, ?, ?)
-            ON CONFLICT(file_path) DO UPDATE SET
-                -- Refresh the path-derived metadata so re-registering an existing book
-                -- reflects updated page counts and renamed display names.
-                display_name = excluded.display_name,
-                total_pages = excluded.total_pages,
-                thumbnail_path = excluded.thumbnail_path
-            RETURNING id
-            "#,
+        upsert_book(
+            &self.pool,
             file_path,
             item_type,
             display_name,
             total_pages,
             thumbnail_path,
-            now
+            chrono::Utc::now().naive_utc(),
         )
-        .fetch_one(&self.pool)
-        .await?
-        .id;
-
-        Ok(book_id)
+        .await
     }
 
     async fn record_opened(
@@ -146,32 +136,18 @@ impl BookRepository for SqliteBookRepository {
         total_pages: i64,
         thumbnail_path: Option<String>,
     ) -> Result<i64> {
-        let item_type: &str = item_type.into();
         let mut tx = self.pool.begin().await?;
         let now = chrono::Utc::now().naive_utc();
-        let book_id = sqlx::query!(
-            r#"
-            INSERT INTO books (file_path, item_type, display_name, total_pages, thumbnail_path, created_at)
-            VALUES (?, ?, ?, ?, ?, ?)
-            ON CONFLICT(file_path) DO UPDATE SET
-                -- Refresh the path-derived metadata so re-opening an existing book
-                -- reflects updated page counts and renamed display names.
-                -- created_at is intentionally left untouched to preserve the original.
-                display_name = excluded.display_name,
-                total_pages = excluded.total_pages,
-                thumbnail_path = excluded.thumbnail_path
-            RETURNING id
-            "#,
+        let book_id = upsert_book(
+            &mut *tx,
             file_path,
             item_type,
             display_name,
             total_pages,
             thumbnail_path,
-            now
+            now,
         )
-        .fetch_one(&mut *tx)
-        .await?
-        .id;
+        .await?;
 
         sqlx::query!(
             r#"
@@ -257,74 +233,51 @@ impl BookRepository for SqliteBookRepository {
         Ok(())
     }
 
-    async fn update_reading_progress(&self, state: &ReadingState) -> Result<()> {
-        sqlx::query!(
+    async fn update_reading_progress(
+        &self,
+        book_id: i64,
+        page_index: i64,
+        cfi: Option<String>,
+    ) -> Result<ReadingState> {
+        let state = sqlx::query_as!(
+            ReadingState,
             r#"
             INSERT INTO reading_state (book_id, last_read_page_index, cfi, last_opened_at)
-            VALUES (?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP))
+            VALUES (?, ?, ?, CURRENT_TIMESTAMP)
             ON CONFLICT(book_id) DO UPDATE SET
                 last_read_page_index = excluded.last_read_page_index,
-                cfi = excluded.cfi,
-                last_opened_at = COALESCE(excluded.last_opened_at, reading_state.last_opened_at)
+                cfi = excluded.cfi
+            RETURNING book_id, last_read_page_index, cfi, last_opened_at as "last_opened_at: chrono::DateTime<chrono::Utc>"
             "#,
-            state.book_id,
-            state.last_read_page_index,
-            state.cfi,
-            state.last_opened_at
+            book_id,
+            page_index,
+            cfi
         )
-        .execute(&self.pool)
+        .fetch_one(&self.pool)
         .await?;
-
-        Ok(())
+        Ok(state)
     }
 
-    async fn get_recently_read_books(&self, limit: Option<i64>) -> Result<Vec<ReadBook>> {
-        let books = match limit {
-            Some(limit) => {
-                // SQLite treats a negative LIMIT as unlimited; clamp so the contract
-                // ("at most N") holds even for a negative input.
-                let limit = limit.max(0);
-                sqlx::query_as!(
-                    ReadBookRow,
-                    r#"
-                    SELECT
-                        b.id, b.file_path, b.item_type, b.display_name, b.total_pages,
-                        b.series_id, b.series_order, b.thumbnail_path, r.last_read_page_index,
-                        r.last_opened_at as "last_opened_at!"
-                    FROM books b
-                    INNER JOIN reading_state r ON b.id = r.book_id
-                    WHERE r.last_opened_at IS NOT NULL
-                    ORDER BY r.last_opened_at DESC
-                    LIMIT ?
-                    "#,
-                    limit
-                )
-                .fetch_all(&self.pool)
-                .await?
-                .into_iter()
-                .map(ReadBook::try_from)
-                .collect::<Result<Vec<_>>>()?
-            }
-            None => sqlx::query_as!(
-                ReadBookRow,
-                r#"
-                    SELECT
-                        b.id, b.file_path, b.item_type, b.display_name, b.total_pages,
-                        b.series_id, b.series_order, b.thumbnail_path, r.last_read_page_index,
-                        r.last_opened_at as "last_opened_at!"
-                    FROM books b
-                    INNER JOIN reading_state r ON b.id = r.book_id
-                    WHERE r.last_opened_at IS NOT NULL
-                    ORDER BY r.last_opened_at DESC
-                    "#
-            )
-            .fetch_all(&self.pool)
-            .await?
-            .into_iter()
-            .map(ReadBook::try_from)
-            .collect::<Result<Vec<_>>>()?,
-        };
-
+    async fn get_recently_read_books(&self) -> Result<Vec<BookWithState>> {
+        let books = sqlx::query_as!(
+            BookWithStateRow,
+            r#"
+            SELECT
+                id, file_path, item_type, display_name, total_pages, series_id, series_order,
+                thumbnail_path, created_at, is_spread_shifted, landscape_bits, reading_direction,
+                last_read_page_index, last_opened_at,
+                cfi as "cfi?: String",
+                tag_ids_str as "tag_ids_str?: String"
+            FROM book_with_state_view
+            WHERE last_opened_at IS NOT NULL
+            ORDER BY last_opened_at DESC
+            "#
+        )
+        .fetch_all(&self.pool)
+        .await?
+        .into_iter()
+        .map(BookWithState::try_from)
+        .collect::<Result<Vec<_>>>()?;
         Ok(books)
     }
 

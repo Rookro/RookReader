@@ -5,7 +5,7 @@ import { type Book, makeBook, type View, type ViewLocation } from "foliate-js/vi
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import BundledNotoSerifJP from "../../../assets/fonts/NotoSerifJP-VariableFont_wght.woff2";
-import { readNovelFile } from "../../../bindings/ContainerCommands";
+import { readNovelFile } from "../../../bindings/binaryApi";
 import { useAppTheme } from "../../../hooks/useAppTheme";
 import { useAppDispatch, useAppSelector } from "../../../store/store";
 import { CommandError, ErrorCode } from "../../../types/Error";
@@ -187,7 +187,7 @@ export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
       bookRef.current = null;
       isDirectionSettledRef.current = false;
 
-      // Defensive check: route on the backend's is_novel contract, not the extension,
+      // Defensive check: route on the backend's isNovel contract, not the extension,
       // so this guard cannot disagree with the slice's routing decision.
       if (!isNovel) {
         error(`Attempted to load non-novel file in NovelReader: ${filePath}`);

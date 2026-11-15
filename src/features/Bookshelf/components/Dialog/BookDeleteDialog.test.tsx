@@ -20,7 +20,7 @@ describe("BookDeleteDialog", () => {
 
   const mockBook = createMockBookWithState({
     id: 1,
-    display_name: "Test Book",
+    displayName: "Test Book",
   });
 
   const defaultProps = {
@@ -77,7 +77,6 @@ describe("BookDeleteDialog", () => {
     preloadedState.collection.selectedId = 1;
     preloadedState.collection.books = [];
     preloadedState.collection.status = "idle";
-    preloadedState.collection.error = null;
 
     renderWithProviders(<BookDeleteDialog {...defaultProps} />, { preloadedState });
     expect(screen.getByText(/Shelf 1/)).toBeInTheDocument();

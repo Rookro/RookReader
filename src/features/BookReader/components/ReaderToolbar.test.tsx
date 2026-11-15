@@ -2,15 +2,13 @@ import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import * as BookCommands from "../../../bindings/BookCommands";
-import * as BookmarkCommands from "../../../bindings/BookmarkCommands";
+import { api } from "../../../bindings/api";
 import { createMockBookmark, createMockBookWithState } from "../../../test/factories";
 import {
   createBasePreloadedState,
   mockSettingsCommands,
   renderWithProviders,
 } from "../../../test/utils";
-import { ErrorCode } from "../../../types/Error";
 import * as SettingsReducer from "../../Settings/slice";
 import ReaderToolbar from "./ReaderToolbar";
 
@@ -32,7 +30,7 @@ describe("ReaderToolbar", () => {
     expect(store.getState().view.activeView).toBe("bookshelf");
   });
 
-  it("should dispatch goBackContainerHistory when back button is clicked", async () => {
+  it("should dispatch goBackBookHistory when back button is clicked", async () => {
     const preloadedState = createBasePreloadedState();
     preloadedState.reader.history = ["/path/1", "/path/2"];
     preloadedState.reader.historyIndex = 1;
@@ -128,14 +126,14 @@ describe("ReaderToolbar", () => {
     await user.click(directionButton);
 
     await waitFor(() => {
-      expect(BookCommands.updateReadingDirection).toHaveBeenCalledWith(7, "rtl");
+      expect(api.updateReadingDirection).toHaveBeenCalledWith(7, "rtl");
     });
     expect(store.getState().reader.readingDirection).toBe("rtl");
     // The direction belongs to the book; the default that seeds new books stays put.
     expect(SettingsReducer.updateSettings).not.toHaveBeenCalled();
   });
 
-  it("should dispatch goForwardContainerHistory when forward button is clicked", async () => {
+  it("should dispatch goForwardBookHistory when forward button is clicked", async () => {
     const preloadedState = createBasePreloadedState();
     preloadedState.reader.history = ["/path/1", "/path/2"];
     preloadedState.reader.historyIndex = 0;
@@ -175,7 +173,7 @@ describe("ReaderToolbar", () => {
     await user.click(directionButton);
 
     await waitFor(() => {
-      expect(BookCommands.updateReadingDirection).toHaveBeenCalledWith(7, "ltr");
+      expect(api.updateReadingDirection).toHaveBeenCalledWith(7, "ltr");
     });
     expect(store.getState().reader.readingDirection).toBe("ltr");
     expect(SettingsReducer.updateSettings).not.toHaveBeenCalled();
@@ -252,7 +250,7 @@ describe("ReaderToolbar", () => {
       preloadedState.reader.isNovel = options?.isNovel ?? false;
       preloadedState.reader.entries = options?.entries ?? ["p1", "p2", "p3", "p4"];
       // The open book's (empty) list, as useBookmarkSync leaves it once loaded.
-      preloadedState.bookmark = { bookId: 42, bookmarks: [], status: "succeeded", error: null };
+      preloadedState.bookmark = { bookId: 42, bookmarks: [], status: "succeeded" };
       return preloadedState;
     };
 
@@ -267,9 +265,8 @@ describe("ReaderToolbar", () => {
       const preloadedState = stateWithOpenBook({ index: 3 });
       preloadedState.bookmark = {
         bookId: 7,
-        bookmarks: [createMockBookmark({ id: 1, book_id: 7, page_index: 3 })],
+        bookmarks: [createMockBookmark({ id: 1, bookId: 7, pageIndex: 3 })],
         status: "succeeded",
-        error: null,
       };
 
       renderWithProviders(<ReaderToolbar />, { preloadedState });
@@ -285,7 +282,6 @@ describe("ReaderToolbar", () => {
         bookId: 42,
         bookmarks: [],
         status: "failed",
-        error: { code: ErrorCode.other },
       };
 
       renderWithProviders(<ReaderToolbar />, { preloadedState });
@@ -295,7 +291,7 @@ describe("ReaderToolbar", () => {
 
     it("is disabled while the open book's bookmarks are loading", () => {
       const preloadedState = stateWithOpenBook();
-      preloadedState.bookmark = { bookId: 42, bookmarks: [], status: "loading", error: null };
+      preloadedState.bookmark = { bookId: 42, bookmarks: [], status: "loading" };
 
       renderWithProviders(<ReaderToolbar />, { preloadedState });
 
@@ -304,20 +300,15 @@ describe("ReaderToolbar", () => {
 
     it("should add a bookmark named after the page number for a comic", async () => {
       const preloadedState = stateWithOpenBook();
-      vi.mocked(BookmarkCommands.createBookmark).mockResolvedValue(
-        createMockBookmark({ id: 1, book_id: 42, page_index: 3 }),
+      vi.mocked(api.createBookmark).mockResolvedValue(
+        createMockBookmark({ id: 1, bookId: 42, pageIndex: 3 }),
       );
 
       renderWithProviders(<ReaderToolbar />, { preloadedState });
       await user.click(screen.getByLabelText("toggle-bookmark"));
 
       await waitFor(() => {
-        expect(BookmarkCommands.createBookmark).toHaveBeenCalledWith({
-          bookId: 42,
-          name: "Page 4",
-          pageIndex: 3,
-          cfi: null,
-        });
+        expect(api.createBookmark).toHaveBeenCalledWith(42, "Page 4", 3, null);
       });
     });
 
@@ -328,36 +319,36 @@ describe("ReaderToolbar", () => {
         isNovel: true,
         entries: ["Chapter 1", "Chapter 2"],
       });
-      vi.mocked(BookmarkCommands.createBookmark).mockResolvedValue(
-        createMockBookmark({ id: 1, book_id: 42, page_index: 1 }),
+      vi.mocked(api.createBookmark).mockResolvedValue(
+        createMockBookmark({ id: 1, bookId: 42, pageIndex: 1 }),
       );
 
       renderWithProviders(<ReaderToolbar />, { preloadedState });
       await user.click(screen.getByLabelText("toggle-bookmark"));
 
       await waitFor(() => {
-        expect(BookmarkCommands.createBookmark).toHaveBeenCalledWith({
-          bookId: 42,
-          name: "Chapter 2",
-          pageIndex: 1,
-          cfi: "epubcfi(/6/8!/4/2/1:0)",
-        });
+        expect(api.createBookmark).toHaveBeenCalledWith(
+          42,
+          "Chapter 2",
+          1,
+          "epubcfi(/6/8!/4/2/1:0)",
+        );
       });
     });
 
     it("should remove the bookmark when the current position is already bookmarked", async () => {
       const preloadedState = stateWithOpenBook();
       preloadedState.bookmark.bookmarks = [
-        createMockBookmark({ id: 7, book_id: 42, page_index: 3, cfi: null }),
+        createMockBookmark({ id: 7, bookId: 42, pageIndex: 3, cfi: null }),
       ];
 
       renderWithProviders(<ReaderToolbar />, { preloadedState });
       await user.click(screen.getByLabelText("toggle-bookmark"));
 
       await waitFor(() => {
-        expect(BookmarkCommands.deleteBookmark).toHaveBeenCalledWith(7);
+        expect(api.deleteBookmark).toHaveBeenCalledWith(7);
       });
-      expect(BookmarkCommands.createBookmark).not.toHaveBeenCalled();
+      expect(api.createBookmark).not.toHaveBeenCalled();
     });
 
     it("should match a novel bookmark by CFI rather than page index", async () => {
@@ -369,19 +360,19 @@ describe("ReaderToolbar", () => {
       });
       // Same section, different position: this is not the current bookmark.
       preloadedState.bookmark.bookmarks = [
-        createMockBookmark({ id: 7, book_id: 42, page_index: 1, cfi: "epubcfi(/6/8!/4/2/9:0)" }),
+        createMockBookmark({ id: 7, bookId: 42, pageIndex: 1, cfi: "epubcfi(/6/8!/4/2/9:0)" }),
       ];
-      vi.mocked(BookmarkCommands.createBookmark).mockResolvedValue(
-        createMockBookmark({ id: 8, book_id: 42, page_index: 1 }),
+      vi.mocked(api.createBookmark).mockResolvedValue(
+        createMockBookmark({ id: 8, bookId: 42, pageIndex: 1 }),
       );
 
       renderWithProviders(<ReaderToolbar />, { preloadedState });
       await user.click(screen.getByLabelText("toggle-bookmark"));
 
       await waitFor(() => {
-        expect(BookmarkCommands.createBookmark).toHaveBeenCalled();
+        expect(api.createBookmark).toHaveBeenCalled();
       });
-      expect(BookmarkCommands.deleteBookmark).not.toHaveBeenCalled();
+      expect(api.deleteBookmark).not.toHaveBeenCalled();
     });
   });
 
@@ -444,7 +435,7 @@ describe("ReaderToolbar", () => {
       // event directly to prove a disabled button still runs no handler.
       fireEvent.click(screen.getByLabelText("toggle-direction"));
 
-      expect(BookCommands.updateReadingDirection).not.toHaveBeenCalled();
+      expect(api.updateReadingDirection).not.toHaveBeenCalled();
       expect(store.getState().reader.readingDirection).toBe("ltr");
     });
   });

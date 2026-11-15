@@ -1,9 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import * as BookCommands from "../../../bindings/BookCommands";
-import * as CollectionCommands from "../../../bindings/CollectionCommands";
-import * as SeriesCommands from "../../../bindings/SeriesCommands";
+import { api } from "../../../bindings/api";
+import type { DirEntry } from "../../../domain/entities";
 import { createMockBookWithState } from "../../../test/factories";
-import type { DirEntry } from "../../../types/DirEntry";
 import * as DirEntryUtils from "../../../utils/DirEntryUtils";
 import type { OpenOrigin } from "../types/OpenOrigin";
 import { resolveAdjacentBook } from "./AdjacentBookResolver";
@@ -16,8 +14,8 @@ vi.mock("../../../utils/DirEntryUtils", () => ({
 
 const dirEntry = (name: string, isDir = false): DirEntry => ({
   name,
-  is_directory: isDir,
-  last_modified: 0,
+  isDirectory: isDir,
+  lastModified: 0,
 });
 
 describe("resolveAdjacentBook", () => {
@@ -33,40 +31,40 @@ describe("resolveAdjacentBook", () => {
   describe("series priority (bookshelf origin only)", () => {
     const origin: OpenOrigin = { kind: "bookshelf", collectionId: 5, sortOrder: "name_asc" };
     const seriesBooks = [
-      createMockBookWithState({ id: 1, series_id: 10, series_order: 1, file_path: "/s/v1.zip" }),
-      createMockBookWithState({ id: 2, series_id: 10, series_order: 2, file_path: "/s/v2.zip" }),
+      createMockBookWithState({ id: 1, seriesId: 10, seriesOrder: 1, filePath: "/s/v1.zip" }),
+      createMockBookWithState({ id: 2, seriesId: 10, seriesOrder: 2, filePath: "/s/v2.zip" }),
       createMockBookWithState({
         id: 3,
-        series_id: 10,
-        series_order: 3,
-        file_path: "/s/v3.zip",
-        display_name: "Volume 3",
+        seriesId: 10,
+        seriesOrder: 3,
+        filePath: "/s/v3.zip",
+        displayName: "Volume 3",
       }),
     ];
 
     it("resolves the next volume by series order", async () => {
-      vi.mocked(SeriesCommands.getBooksBySeries).mockResolvedValue(seriesBooks);
+      vi.mocked(api.getBooksBySeries).mockResolvedValue(seriesBooks);
       const current = seriesBooks[1];
 
       const result = await resolveAdjacentBook(
         current,
-        current.file_path,
+        current.filePath,
         origin,
         "next",
         "name_asc",
       );
 
-      expect(SeriesCommands.getBooksBySeries).toHaveBeenCalledWith(10);
+      expect(api.getBooksBySeries).toHaveBeenCalledWith(10);
       expect(result).toEqual({ filePath: "/s/v3.zip", displayName: "Volume 3" });
     });
 
     it("resolves the previous volume by series order", async () => {
-      vi.mocked(SeriesCommands.getBooksBySeries).mockResolvedValue(seriesBooks);
+      vi.mocked(api.getBooksBySeries).mockResolvedValue(seriesBooks);
       const current = seriesBooks[1];
 
       const result = await resolveAdjacentBook(
         current,
-        current.file_path,
+        current.filePath,
         origin,
         "previous",
         "name_asc",
@@ -76,12 +74,12 @@ describe("resolveAdjacentBook", () => {
     });
 
     it("returns null at the series boundary (authoritative)", async () => {
-      vi.mocked(SeriesCommands.getBooksBySeries).mockResolvedValue(seriesBooks);
+      vi.mocked(api.getBooksBySeries).mockResolvedValue(seriesBooks);
       const current = seriesBooks[2]; // last volume
 
       const result = await resolveAdjacentBook(
         current,
-        current.file_path,
+        current.filePath,
         origin,
         "next",
         "name_asc",
@@ -91,43 +89,43 @@ describe("resolveAdjacentBook", () => {
     });
 
     it("prioritizes series over the bookshelf sort order", async () => {
-      vi.mocked(SeriesCommands.getBooksBySeries).mockResolvedValue(seriesBooks);
+      vi.mocked(api.getBooksBySeries).mockResolvedValue(seriesBooks);
       const current = seriesBooks[0];
 
       const result = await resolveAdjacentBook(
         current,
-        current.file_path,
+        current.filePath,
         origin,
         "next",
         "name_asc",
       );
 
       expect(result?.filePath).toBe("/s/v2.zip");
-      expect(CollectionCommands.getBooksByCollection).not.toHaveBeenCalled();
+      expect(api.getBooksByCollection).not.toHaveBeenCalled();
     });
   });
 
   describe("bookshelf context", () => {
     const origin: OpenOrigin = { kind: "bookshelf", collectionId: 5, sortOrder: "name_asc" };
     const shelfBooks = [
-      createMockBookWithState({ id: 1, display_name: "B", file_path: "/lib/b.zip" }),
-      createMockBookWithState({ id: 2, display_name: "A", file_path: "/lib/a.zip" }),
-      createMockBookWithState({ id: 3, display_name: "C", file_path: "/lib/c.zip" }),
+      createMockBookWithState({ id: 1, displayName: "B", filePath: "/lib/b.zip" }),
+      createMockBookWithState({ id: 2, displayName: "A", filePath: "/lib/a.zip" }),
+      createMockBookWithState({ id: 3, displayName: "C", filePath: "/lib/c.zip" }),
     ];
-    // A standalone book (series_id null) so the bookshelf branch is taken.
-    const current = createMockBookWithState({ id: 1, display_name: "B", file_path: "/lib/b.zip" });
+    // A standalone book (seriesId null) so the bookshelf branch is taken.
+    const current = createMockBookWithState({ id: 1, displayName: "B", filePath: "/lib/b.zip" });
 
     it("resolves the next book by bookshelf sort order", async () => {
-      vi.mocked(CollectionCommands.getBooksByCollection).mockResolvedValue(shelfBooks);
+      vi.mocked(api.getBooksByCollection).mockResolvedValue(shelfBooks);
 
       const result = await resolveAdjacentBook(current, "/lib/b.zip", origin, "next", "name_asc");
 
-      expect(CollectionCommands.getBooksByCollection).toHaveBeenCalledWith(5);
+      expect(api.getBooksByCollection).toHaveBeenCalledWith(5);
       expect(result).toEqual({ filePath: "/lib/c.zip", displayName: "C" });
     });
 
     it("resolves the previous book by bookshelf sort order", async () => {
-      vi.mocked(CollectionCommands.getBooksByCollection).mockResolvedValue(shelfBooks);
+      vi.mocked(api.getBooksByCollection).mockResolvedValue(shelfBooks);
 
       const result = await resolveAdjacentBook(
         current,
@@ -146,7 +144,7 @@ describe("resolveAdjacentBook", () => {
         collectionId: null,
         sortOrder: "name_asc",
       };
-      vi.mocked(BookCommands.getAllBooksWithState).mockResolvedValue(shelfBooks);
+      vi.mocked(api.getAllBooksWithState).mockResolvedValue(shelfBooks);
 
       const result = await resolveAdjacentBook(
         current,
@@ -156,12 +154,12 @@ describe("resolveAdjacentBook", () => {
         "name_asc",
       );
 
-      expect(BookCommands.getAllBooksWithState).toHaveBeenCalled();
+      expect(api.getAllBooksWithState).toHaveBeenCalled();
       expect(result?.filePath).toBe("/lib/c.zip");
     });
 
     it("returns null when the current book is not found in the shelf", async () => {
-      vi.mocked(CollectionCommands.getBooksByCollection).mockResolvedValue(shelfBooks);
+      vi.mocked(api.getBooksByCollection).mockResolvedValue(shelfBooks);
 
       const result = await resolveAdjacentBook(
         current,
@@ -178,7 +176,7 @@ describe("resolveAdjacentBook", () => {
   describe("directory fallback", () => {
     const origin: OpenOrigin = { kind: "fileNavigator" };
     // A standalone book so the directory branch is taken.
-    const current = createMockBookWithState({ series_id: null, file_path: "/dir/b.zip" });
+    const current = createMockBookWithState({ seriesId: null, filePath: "/dir/b.zip" });
 
     beforeEach(() => {
       // Unsorted. "vol3" is a directory book (DirectoryContainer) and must be a candidate.
@@ -219,7 +217,7 @@ describe("resolveAdjacentBook", () => {
     });
 
     it("resolves the next entry when the current book is itself a directory", async () => {
-      const dirBook = createMockBookWithState({ series_id: null, file_path: "/dir/a.zip" });
+      const dirBook = createMockBookWithState({ seriesId: null, filePath: "/dir/a.zip" });
       const result = await resolveAdjacentBook(
         dirBook,
         "/dir/vol3",
@@ -251,9 +249,9 @@ describe("resolveAdjacentBook", () => {
       // A book registered in a series, but opened from the File Navigator: it should
       // follow the directory order, NOT the series order.
       const seriesBook = createMockBookWithState({
-        series_id: 10,
-        series_order: 2,
-        file_path: "/dir/b.zip",
+        seriesId: 10,
+        seriesOrder: 2,
+        filePath: "/dir/b.zip",
       });
 
       const result = await resolveAdjacentBook(
@@ -265,7 +263,7 @@ describe("resolveAdjacentBook", () => {
       );
 
       expect(result).toEqual({ filePath: "/dir/c.zip", displayName: "c.zip" });
-      expect(SeriesCommands.getBooksBySeries).not.toHaveBeenCalled();
+      expect(api.getBooksBySeries).not.toHaveBeenCalled();
     });
   });
 });

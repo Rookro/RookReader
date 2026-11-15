@@ -1,11 +1,9 @@
 use async_trait::async_trait;
 use sqlx::SqlitePool;
 
-use crate::domain::book::entity::BookWithState;
 use crate::domain::tag::entity::Tag;
 use crate::domain::tag::repository::TagRepository;
 use crate::error::Result;
-use crate::infrastructure::database::models::BookWithStateRow;
 
 /// SQLite implementation of the `TagRepository`.
 pub struct SqliteTagRepository {
@@ -107,31 +105,6 @@ impl TagRepository for SqliteTagRepository {
 
         let tag_ids = records.into_iter().map(|r| r.tag_id).collect();
         Ok(tag_ids)
-    }
-
-    async fn get_books_by_tag(&self, tag_id: i64) -> Result<Vec<BookWithState>> {
-        let books = sqlx::query_as!(
-            BookWithStateRow,
-            r#"
-            SELECT
-                v.id, v.file_path, v.item_type, v.display_name, v.total_pages, v.series_id, v.series_order,
-                v.thumbnail_path, v.created_at, v.is_spread_shifted, v.landscape_bits, v.reading_direction,
-                v.last_read_page_index, v.last_opened_at,
-                v.cfi as "cfi?: String",
-                v.tag_ids_str as "tag_ids_str?: String"
-            FROM book_with_state_view v
-            INNER JOIN book_tags bt ON v.id = bt.book_id
-            WHERE bt.tag_id = ?
-            ORDER BY v.display_name ASC
-            "#,
-            tag_id
-        )
-        .fetch_all(&self.pool)
-        .await?
-        .into_iter()
-        .map(BookWithState::try_from)
-        .collect::<Result<Vec<_>>>()?;
-        Ok(books)
     }
 
     async fn delete(&self, id: i64) -> Result<()> {

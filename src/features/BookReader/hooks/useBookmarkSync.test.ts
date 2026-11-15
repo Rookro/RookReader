@@ -1,6 +1,6 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import * as BookmarkCommands from "../../../bindings/BookmarkCommands";
+import { api } from "../../../bindings/api";
 import { createMockBookmark, createMockBookWithState } from "../../../test/factories";
 import { createBasePreloadedState, createTestStore, createTestWrapper } from "../../../test/utils";
 import { useBookmarkSync } from "./useBookmarkSync";
@@ -17,16 +17,15 @@ describe("useBookmarkSync", () => {
 
     renderHook(() => useBookmarkSync(), { wrapper: createTestWrapper({ store }) });
 
-    await waitFor(() => expect(BookmarkCommands.getBookmarksByBookId).toHaveBeenCalledWith(42));
+    await waitFor(() => expect(api.getBookmarksByBookId).toHaveBeenCalledWith(42));
   });
 
   it("clears the list when no book is open", () => {
     const state = createBasePreloadedState();
     state.bookmark = {
       bookId: 7,
-      bookmarks: [createMockBookmark({ book_id: 7 })],
+      bookmarks: [createMockBookmark({ bookId: 7 })],
       status: "succeeded",
-      error: null,
     };
     const store = createTestStore(state);
 

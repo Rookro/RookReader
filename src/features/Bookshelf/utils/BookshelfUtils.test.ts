@@ -10,9 +10,9 @@ import {
 
 describe("BookshelfUtils", () => {
   const mockBooks = [
-    createMockBookWithState({ id: 1, display_name: "Apple Pie" }),
-    createMockBookWithState({ id: 2, display_name: "Banana Bread" }),
-    createMockBookWithState({ id: 3, display_name: "Apple Tart" }),
+    createMockBookWithState({ id: 1, displayName: "Apple Pie" }),
+    createMockBookWithState({ id: 2, displayName: "Banana Bread" }),
+    createMockBookWithState({ id: 3, displayName: "Apple Tart" }),
   ];
 
   describe("andSearch", () => {
@@ -27,20 +27,20 @@ describe("BookshelfUtils", () => {
     it("should filter by single keyword (case-insensitive)", () => {
       const result = andSearch(mockBooks, "apple");
       expect(result).toHaveLength(2);
-      expect(result.map((b) => b.display_name)).toContain("Apple Pie");
-      expect(result.map((b) => b.display_name)).toContain("Apple Tart");
+      expect(result.map((b) => b.displayName)).toContain("Apple Pie");
+      expect(result.map((b) => b.displayName)).toContain("Apple Tart");
     });
 
     it("should filter by multiple keywords (AND search)", () => {
       const result = andSearch(mockBooks, "apple pie");
       expect(result).toHaveLength(1);
-      expect(result[0].display_name).toBe("Apple Pie");
+      expect(result[0].displayName).toBe("Apple Pie");
     });
 
     it("should filter by multiple keywords with multiple spaces", () => {
       const result = andSearch(mockBooks, "apple   pie");
       expect(result).toHaveLength(1);
-      expect(result[0].display_name).toBe("Apple Pie");
+      expect(result[0].displayName).toBe("Apple Pie");
     });
 
     it("should return empty if no match", () => {
@@ -51,16 +51,24 @@ describe("BookshelfUtils", () => {
   describe("sortByGridItem", () => {
     const book1 = createMockBookWithState({
       id: 1,
-      display_name: "Book A",
-      created_at: "2023-11-01",
+      displayName: "Book A",
+      createdAt: "2023-11-01T00:00:00Z",
     });
     const book2 = createMockBookWithState({
       id: 2,
-      display_name: "Book B",
-      created_at: "2023-12-01",
+      displayName: "Book B",
+      createdAt: "2023-12-01T00:00:00Z",
     });
-    const series1 = createMockSeries({ id: 1, name: "Series A", created_at: "2023-01-01" });
-    const series2 = createMockSeries({ id: 2, name: "Series B", created_at: "2023-01-02" });
+    const series1 = createMockSeries({
+      id: 1,
+      name: "Series A",
+      createdAt: "2023-01-01T00:00:00Z",
+    });
+    const series2 = createMockSeries({
+      id: 2,
+      name: "Series B",
+      createdAt: "2023-01-02T00:00:00Z",
+    });
 
     const gridBook1: GridItem = { type: "book", data: book1 };
     const gridBook2: GridItem = { type: "book", data: book2 };
@@ -79,6 +87,40 @@ describe("BookshelfUtils", () => {
       it("should sort book and series by name_asc", () => {
         expect(sortByGridItem(gridBook1, gridSeries1, "name_asc")).toBeLessThan(0); // "Book A" vs "Series A"
       });
+
+      it("should fall back to id when book names are equal", () => {
+        const x: GridItem = {
+          type: "book",
+          data: createMockBookWithState({ id: 1, displayName: "Same" }),
+        };
+        const y: GridItem = {
+          type: "book",
+          data: createMockBookWithState({ id: 2, displayName: "Same" }),
+        };
+        expect(sortByGridItem(x, y, "name_asc")).toBeLessThan(0);
+        expect(sortByGridItem(x, y, "name_desc")).toBeGreaterThan(0);
+      });
+
+      // Both id orders, so neither direction can pass on the ids alone.
+      it.each([
+        [9, 1],
+        [1, 9],
+      ])(
+        "should put series %i before book %i of the same name in both directions",
+        (seriesId, bookId) => {
+          const series: GridItem = {
+            type: "series",
+            data: createMockSeries({ id: seriesId, name: "Same" }),
+            books: [],
+          };
+          const book: GridItem = {
+            type: "book",
+            data: createMockBookWithState({ id: bookId, displayName: "Same" }),
+          };
+          expect(sortByGridItem(series, book, "name_asc")).toBeLessThan(0);
+          expect(sortByGridItem(series, book, "name_desc")).toBeLessThan(0);
+        },
+      );
     });
 
     describe("date sorting", () => {
@@ -90,56 +132,97 @@ describe("BookshelfUtils", () => {
         expect(sortByGridItem(gridSeries1, gridSeries2, "date_desc")).toBeGreaterThan(0);
       });
 
-      it("should sort books by their real created_at (date_asc)", () => {
-        // book1 created_at "2023-11-01" is older than book2 "2023-12-01".
+      it("should sort books by their real createdAt (date_asc)", () => {
+        // book1 createdAt 2023-11-01 is older than book2 2023-12-01.
         expect(sortByGridItem(gridBook1, gridBook2, "date_asc")).toBeLessThan(0);
       });
 
-      it("should interleave books and series by real created_at, not by type", () => {
-        // book1 created_at "2023-11-01" is newer than series1 "2023-01-01", so the
+      it("should interleave books and series by real createdAt, not by type", () => {
+        // book1 createdAt 2023-11-01 is newer than series1 2023-01-01, so the
         // older series comes first in date_asc and the newer book first in date_desc.
         expect(sortByGridItem(gridBook1, gridSeries1, "date_asc")).toBeGreaterThan(0);
         expect(sortByGridItem(gridBook1, gridSeries1, "date_desc")).toBeLessThan(0);
       });
 
       it("should fall back to ID if dates are equal", () => {
-        const series3 = createMockSeries({ id: 3, name: "Series C", created_at: "2023-01-01" });
+        const series3 = createMockSeries({
+          id: 3,
+          name: "Series C",
+          createdAt: "2023-01-01T00:00:00Z",
+        });
         const gridSeries3: GridItem = { type: "series", data: series3, books: [] };
 
-        // gridSeries1 and gridSeries3 have same created_at
+        // gridSeries1 and gridSeries3 have same createdAt
         expect(sortByGridItem(gridSeries1, gridSeries3, "date_asc")).toBeLessThan(0); // 1 - 3
         expect(sortByGridItem(gridSeries1, gridSeries3, "date_desc")).toBeGreaterThan(0); // 3 - 1
       });
+
+      it("should order a series before a book created later in the same second", () => {
+        // The ids point the other way, so only the instants can give this order.
+        const series = createMockSeries({ id: 9, name: "S", createdAt: "2023-01-01T00:00:05Z" });
+        const book = createMockBookWithState({ id: 1, createdAt: "2023-01-01T00:00:05.500Z" });
+        const gridSeries: GridItem = { type: "series", data: series, books: [] };
+        const gridBook: GridItem = { type: "book", data: book };
+
+        expect(sortByGridItem(gridSeries, gridBook, "date_asc")).toBeLessThan(0);
+        expect(sortByGridItem(gridSeries, gridBook, "date_desc")).toBeGreaterThan(0);
+      });
+
+      // Both id orders, so neither direction can pass on the ids alone.
+      it.each([
+        [9, 1],
+        [1, 9],
+      ])(
+        "should put series %i before book %i of the same createdAt in both directions",
+        (seriesId, bookId) => {
+          const createdAt = "2023-01-01T00:00:05Z";
+          const series: GridItem = {
+            type: "series",
+            data: createMockSeries({ id: seriesId, name: "S", createdAt }),
+            books: [],
+          };
+          const book: GridItem = {
+            type: "book",
+            data: createMockBookWithState({ id: bookId, createdAt }),
+          };
+          expect(sortByGridItem(series, book, "date_asc")).toBeLessThan(0);
+          expect(sortByGridItem(series, book, "date_desc")).toBeLessThan(0);
+        },
+      );
     });
   });
 
   describe("buildGridItems", () => {
-    const seriesA = createMockSeries({ id: 10, name: "Series A", created_at: "2023-01-01" });
+    const seriesA = createMockSeries({
+      id: 10,
+      name: "Series A",
+      createdAt: "2023-01-01T00:00:00Z",
+    });
     const vol2 = createMockBookWithState({
       id: 1,
-      display_name: "Vol 2",
-      series_id: 10,
-      series_order: 2,
-      tag_ids: [1],
+      displayName: "Vol 2",
+      seriesId: 10,
+      seriesOrder: 2,
+      tagIds: [1],
     });
     const vol1 = createMockBookWithState({
       id: 2,
-      display_name: "Vol 1",
-      series_id: 10,
-      series_order: 1,
-      tag_ids: [],
+      displayName: "Vol 1",
+      seriesId: 10,
+      seriesOrder: 1,
+      tagIds: [],
     });
     const orphan = createMockBookWithState({
       id: 3,
-      display_name: "Orphan",
-      series_id: 99,
-      tag_ids: [],
+      displayName: "Orphan",
+      seriesId: 99,
+      tagIds: [],
     });
     const standalone = createMockBookWithState({
       id: 4,
-      display_name: "Standalone",
-      series_id: null,
-      tag_ids: [1],
+      displayName: "Standalone",
+      seriesId: null,
+      tagIds: [1],
     });
 
     const params: GridItemsParams = {
@@ -152,7 +235,7 @@ describe("BookshelfUtils", () => {
     };
 
     const names = (items: GridItem[]) =>
-      items.map((item) => (item.type === "series" ? item.data.name : item.data.display_name));
+      items.map((item) => (item.type === "series" ? item.data.name : item.data.displayName));
 
     it("groups books by series and lists them with the standalone books, sorted", () => {
       const items = buildGridItems(params);

@@ -1,31 +1,21 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
-import { deleteBook, getAllBooksWithState, registerBook } from "../../bindings/BookCommands";
-import {
-  addBookToCollection,
-  createCollection,
-  deleteCollection,
-  getAllCollections,
-  getBooksByCollection,
-  removeBookFromCollection,
-  setCollectionsForBook,
-} from "../../bindings/CollectionCommands";
+import { api } from "../../bindings/api";
 import type { BookWithState, Collection } from "../../domain/entities";
 import { readingProgressChanged } from "../../store/actions";
-import { recordThunkError } from "../../store/thunkErrorHandler";
-import { createCommandThunk, type ThunkRejectValue } from "../../types/CustomAsyncThunk";
+import { createCommandThunk } from "../../store/createCommandThunk";
 
 /**
  * Creates a new collection and adds it to the database.
  *
  * @param params - The parameters for creating a collection.
  * @param params.name - The name of the new collection.
- * @param params.icon_id - The string identifier for the UI icon associated with the collection.
+ * @param params.iconId - The string identifier for the UI icon associated with the collection.
  * @returns A thunk that resolves to the newly created Collection object.
  */
 export const addCollection = createCommandThunk(
   "collection/addCollection",
-  ({ name, icon_id }: { name: string; icon_id: string }) => createCollection(name, icon_id),
-  ({ name, icon_id }) => `Failed to add collection(name: ${name}, icon_id: ${icon_id}).`,
+  ({ name, iconId }: { name: string; iconId: string }) => api.createCollection(name, iconId),
+  ({ name, iconId }) => `Failed to add collection(name: ${name}, iconId: ${iconId}).`,
 );
 
 /**
@@ -35,7 +25,7 @@ export const addCollection = createCommandThunk(
  */
 export const fetchCollections = createCommandThunk(
   "collection/fetchCollections",
-  () => getAllCollections(),
+  () => api.getAllCollections(),
   () => "Failed to fetch all available collections.",
 );
 
@@ -50,11 +40,15 @@ export const fetchBooksInSelectedCollection = createCommandThunk(
   "collection/fetchBooksInSelectedCollection",
   async (collectionId: number | null) => {
     if (collectionId === null) {
-      return await getAllBooksWithState();
+      return await api.getAllBooksWithState();
     }
-    return await getBooksByCollection(collectionId);
+    return await api.getBooksByCollection(collectionId);
   },
   (collectionId) => `Failed to fetch books in the collection of collectionId: ${collectionId}.`,
+  (collectionId, { getState, requestId }) => {
+    const { booksRequestId, selectedId } = getState().collection;
+    return booksRequestId !== requestId || selectedId !== collectionId;
+  },
 );
 
 /**
@@ -71,9 +65,9 @@ export const deleteBookFromCollection = createCommandThunk(
   "collection/deleteBookFromCollection",
   async ({ bookId, collectionId }: { bookId: number; collectionId: number | null }) => {
     if (collectionId !== null) {
-      await removeBookFromCollection(collectionId, bookId);
+      await api.removeBookFromCollection(collectionId, bookId);
     } else {
-      await deleteBook(bookId);
+      await api.deleteBook(bookId);
     }
   },
   ({ bookId }) => `Failed to delete book with bookId: ${bookId}.`,
@@ -89,7 +83,7 @@ export const setCollectionsForBooks = createCommandThunk(
   "collection/setCollectionsForBooks",
   async (updates: { bookId: number; collectionIds: number[] }[]) => {
     await Promise.all(
-      updates.map(({ bookId, collectionIds }) => setCollectionsForBook(bookId, collectionIds)),
+      updates.map(({ bookId, collectionIds }) => api.setCollectionsForBook(bookId, collectionIds)),
     );
   },
   () => "Failed to set collections for books.",
@@ -107,10 +101,10 @@ export const setCollectionsForBooks = createCommandThunk(
 export const addBookToBookshelf = createCommandThunk(
   "collection/addBookToBookshelf",
   async ({ collectionId, bookPath }: { collectionId: number | null; bookPath: string }) => {
-    const bookId = await registerBook(bookPath);
+    const bookId = await api.registerBook(bookPath);
 
     if (collectionId !== null) {
-      await addBookToCollection(collectionId, bookId);
+      await api.addBookToCollection(collectionId, bookId);
     }
   },
   ({ collectionId, bookPath }) =>
@@ -127,7 +121,7 @@ export const addBookToBookshelf = createCommandThunk(
 export const removeCollection = createCommandThunk(
   "collection/removeCollection",
   async (id: number, { dispatch, getState }) => {
-    await deleteCollection(id);
+    await api.deleteCollection(id);
     if (getState().collection.selectedId === id) {
       dispatch(setSelectedCollection(null));
     }
@@ -150,7 +144,6 @@ const collectionSlice = createSlice({
     /** Whether the collection on screen is being refetched in place. */
     isRefreshing: false,
     status: "idle" as "idle" | "loading" | "succeeded" | "failed",
-    error: null as ThunkRejectValue | null,
   },
   reducers: {
     /**
@@ -182,31 +175,15 @@ const collectionSlice = createSlice({
     setSelectedCollection(state, action: PayloadAction<number | null>) {
       state.selectedId = action.payload;
     },
-    /**
-     * Clears any error associated with the collection state.
-     *
-     * @param state - The current Redux state slice.
-     */
-    clearCollectionError: (state) => {
-      state.error = null;
-    },
   },
   extraReducers: (builder) => {
     builder
-      // Mutations record only their error: `status` describes the books on screen, and
-      // flipping it to "loading" would blank the grid and lose its scroll position.
-      .addCase(addCollection.rejected, recordThunkError)
-      .addCase(deleteBookFromCollection.rejected, recordThunkError)
-      .addCase(addBookToBookshelf.rejected, recordThunkError)
-      .addCase(removeCollection.rejected, recordThunkError)
-      .addCase(setCollectionsForBooks.rejected, recordThunkError)
-      // The collection list is not the grid's books either.
+      // The collection list is not the grid's books, so `status` is left alone.
       .addCase(fetchCollections.fulfilled, (state, action) => {
         state.collections = action.payload;
       })
-      .addCase(fetchCollections.rejected, (state, action) => {
+      .addCase(fetchCollections.rejected, (state) => {
         state.collections = [];
-        state.error = action.payload ?? null;
       })
       .addCase(fetchBooksInSelectedCollection.pending, (state, action) => {
         state.booksRequestId = action.meta.requestId;
@@ -216,7 +193,6 @@ const collectionSlice = createSlice({
         } else {
           state.isRefreshing = true;
         }
-        state.error = null;
       })
       .addCase(fetchBooksInSelectedCollection.fulfilled, (state, action) => {
         // Ignore a response superseded by a newer request, or for a collection the user left.
@@ -230,7 +206,6 @@ const collectionSlice = createSlice({
         state.isRefreshing = false;
         state.books = action.payload;
         state.booksCollection = { id: action.meta.arg };
-        state.error = null;
       })
       .addCase(fetchBooksInSelectedCollection.rejected, (state, action) => {
         if (
@@ -243,20 +218,18 @@ const collectionSlice = createSlice({
         state.isRefreshing = false;
         state.books = [];
         state.booksCollection = null;
-        state.error = action.payload ?? null;
       })
       .addCase(readingProgressChanged, (state, action) => {
-        // A page turn cannot change list membership or order (last_opened_at is only
-        // set when a book is opened), so patch the matching entry in place.
-        const book = state.books.find((b) => b.id === action.payload.book_id);
+        // Patch the book if it is in this collection; a page turn never adds one to it.
+        const book = state.books.find((b) => b.id === action.payload.bookId);
         if (book) {
-          book.last_read_page_index = action.payload.last_read_page_index;
-          book.last_opened_at = action.payload.last_opened_at ?? book.last_opened_at;
+          book.lastReadPageIndex = action.payload.lastReadPageIndex;
+          book.cfi = action.payload.cfi;
+          book.lastOpenedAt = action.payload.lastOpenedAt ?? book.lastOpenedAt;
         }
       });
   },
 });
 
-export const { collectionAdded, setSearchText, setSelectedCollection, clearCollectionError } =
-  collectionSlice.actions;
+export const { collectionAdded, setSearchText, setSelectedCollection } = collectionSlice.actions;
 export default collectionSlice.reducer;

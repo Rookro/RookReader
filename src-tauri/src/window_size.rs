@@ -23,7 +23,7 @@ use tauri::{
     LogicalSize, Manager, RunEvent, Runtime, Window, WindowEvent,
 };
 
-use crate::{error::Result, infrastructure::atomic_file::write_atomically, setup};
+use crate::{error::Result, infrastructure::atomic_file::write_atomically, paths};
 
 /// The file in the app data directory that holds the saved sizes.
 const FILENAME: &str = "window-size.json";
@@ -62,7 +62,7 @@ struct SavedSizes {
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
     Builder::new("linux-window-size")
         .setup(|app, _api| {
-            let path = setup::app_data_dir(app)?.join(FILENAME);
+            let path = paths::app_data_dir(app)?.join(FILENAME);
             let sizes = Mutex::new(load(&path));
             app.manage(SavedSizes { path, sizes });
             Ok(())

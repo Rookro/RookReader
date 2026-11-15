@@ -1,7 +1,7 @@
 import FolderOutlined from "@mui/icons-material/FolderOutlined";
 import { ListItem, ListItemButton, ListItemText, Tooltip } from "@mui/material";
 import { type CSSProperties, memo } from "react";
-import type { DirEntry } from "../../../../types/DirEntry";
+import type { DirEntry } from "../../../../domain/entities";
 
 /**
  * Row component for the file navigator.
@@ -39,7 +39,7 @@ export const ItemRow = memo(function ItemRow({
           sx={{ padding: "4px 8px" }}
         >
           <ListItemText primary={entry.name} slotProps={{ primary: { noWrap: true } }} />
-          {entry.is_directory && <FolderOutlined fontSize="small" />}
+          {entry.isDirectory && <FolderOutlined fontSize="small" />}
         </ListItemButton>
       </ListItem>
     </Tooltip>

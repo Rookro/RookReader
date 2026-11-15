@@ -1,13 +1,7 @@
 import { createSlice } from "@reduxjs/toolkit";
-import {
-  createBookmark,
-  deleteBookmark,
-  getBookmarksByBookId,
-  renameBookmark,
-} from "../../bindings/BookmarkCommands";
+import { api } from "../../bindings/api";
 import type { Bookmark } from "../../domain/entities";
-import { recordThunkError } from "../../store/thunkErrorHandler";
-import { createCommandThunk, type ThunkRejectValue } from "../../types/CustomAsyncThunk";
+import { createCommandThunk } from "../../store/createCommandThunk";
 
 /**
  * Fetches all bookmarks of a book.
@@ -17,8 +11,9 @@ import { createCommandThunk, type ThunkRejectValue } from "../../types/CustomAsy
  */
 export const fetchBookmarks = createCommandThunk(
   "bookmark/fetchBookmarks",
-  (bookId: number) => getBookmarksByBookId(bookId),
+  (bookId: number) => api.getBookmarksByBookId(bookId),
   (bookId) => `Failed to fetch bookmarks(bookId: ${bookId}).`,
+  (bookId, { getState }) => getState().bookmark.bookId !== bookId,
 );
 
 /**
@@ -34,7 +29,7 @@ export const fetchBookmarks = createCommandThunk(
 export const addBookmark = createCommandThunk(
   "bookmark/addBookmark",
   (params: { bookId: number; name: string; pageIndex: number; cfi: string | null }) =>
-    createBookmark(params),
+    api.createBookmark(params.bookId, params.name, params.pageIndex, params.cfi),
   (params) => `Failed to add bookmark(bookId: ${params.bookId}, pageIndex: ${params.pageIndex}).`,
 );
 
@@ -47,7 +42,7 @@ export const addBookmark = createCommandThunk(
 export const removeBookmark = createCommandThunk(
   "bookmark/removeBookmark",
   async (id: number) => {
-    await deleteBookmark(id);
+    await api.deleteBookmark(id);
     return id;
   },
   (id) => `Failed to remove bookmark(id: ${id}).`,
@@ -64,7 +59,7 @@ export const removeBookmark = createCommandThunk(
 export const updateBookmarkName = createCommandThunk(
   "bookmark/renameBookmark",
   async (params: { id: number; name: string }) => {
-    await renameBookmark(params.id, params.name);
+    await api.renameBookmark(params.id, params.name);
     return params;
   },
   (params) => `Failed to rename bookmark(id: ${params.id}).`,
@@ -72,7 +67,7 @@ export const updateBookmarkName = createCommandThunk(
 
 /** Orders bookmarks by their position in the book, mirroring the backend's ordering. */
 const byPosition = (a: Bookmark, b: Bookmark) =>
-  a.page_index - b.page_index || a.created_at.localeCompare(b.created_at) || a.id - b.id;
+  a.pageIndex - b.pageIndex || a.createdAt.localeCompare(b.createdAt) || a.id - b.id;
 
 const bookmarkSlice = createSlice({
   name: "bookmark",
@@ -81,17 +76,8 @@ const bookmarkSlice = createSlice({
     bookId: null as number | null,
     bookmarks: [] as Bookmark[],
     status: "idle" as "idle" | "loading" | "succeeded" | "failed",
-    error: null as ThunkRejectValue | null,
   },
   reducers: {
-    /**
-     * Clears any error associated with the bookmark state.
-     *
-     * @param state - The current Redux state slice.
-     */
-    clearBookmarkError: (state) => {
-      state.error = null;
-    },
     /**
      * Forgets the loaded list, for when no book is open.
      *
@@ -101,7 +87,6 @@ const bookmarkSlice = createSlice({
       state.bookId = null;
       state.bookmarks = [];
       state.status = "idle";
-      state.error = null;
     },
   },
   extraReducers: (builder) => {
@@ -112,7 +97,6 @@ const bookmarkSlice = createSlice({
           state.bookmarks = [];
         }
         state.status = "loading";
-        state.error = null;
       })
       .addCase(fetchBookmarks.fulfilled, (state, action) => {
         // A late answer for a book that is no longer open.
@@ -121,7 +105,6 @@ const bookmarkSlice = createSlice({
         }
         state.status = "succeeded";
         state.bookmarks = action.payload;
-        state.error = null;
       })
       .addCase(fetchBookmarks.rejected, (state, action) => {
         if (action.meta.arg !== state.bookId) {
@@ -129,32 +112,24 @@ const bookmarkSlice = createSlice({
         }
         state.status = "failed";
         state.bookmarks = [];
-        state.error = action.payload ?? null;
       })
       .addCase(addBookmark.fulfilled, (state, action) => {
-        if (action.payload.book_id !== state.bookId) {
+        if (action.payload.bookId !== state.bookId) {
           return;
         }
         state.bookmarks = [...state.bookmarks, action.payload].sort(byPosition);
-        state.error = null;
       })
-      // A failed edit leaves the loaded list as it was: `status` describes the fetch.
-      .addCase(addBookmark.rejected, recordThunkError)
       .addCase(removeBookmark.fulfilled, (state, action) => {
         state.bookmarks = state.bookmarks.filter((bookmark) => bookmark.id !== action.payload);
-        state.error = null;
       })
-      .addCase(removeBookmark.rejected, recordThunkError)
       .addCase(updateBookmarkName.fulfilled, (state, action) => {
         const target = state.bookmarks.find((bookmark) => bookmark.id === action.payload.id);
         if (target) {
           target.name = action.payload.name;
         }
-        state.error = null;
-      })
-      .addCase(updateBookmarkName.rejected, recordThunkError);
+      });
   },
 });
 
-export const { clearBookmarkError, clearBookmarks } = bookmarkSlice.actions;
+export const { clearBookmarks } = bookmarkSlice.actions;
 export default bookmarkSlice.reducer;

@@ -387,12 +387,13 @@
         "pdfium": "PDFium license",
         "dav1d": "dav1d license"
       }
-    }
+    },
+    "file-unreadable": "The settings file could not be read when RookReader started, so it started with the default settings and with reading history off. Restart RookReader to try again."
   },
   "error-message": {
     "headline": {
       "open-container": "Failed to open book.",
-      "record-book": "Failed to record the reading history.",
+      "record-book": "Failed to save the book's information.",
       "load-page": "Failed to load the page.",
       "load-novel": "Failed to load the book's text.",
       "explorer": "Failed to load folder contents.",
@@ -400,6 +401,7 @@
       "bookshelf": "Bookshelf operation failed.",
       "tag": "Tag operation failed.",
       "series": "Series operation failed.",
+      "bookmark": "Bookmark operation failed.",
       "settings-save": "Failed to save settings."
     },
     "reason": {

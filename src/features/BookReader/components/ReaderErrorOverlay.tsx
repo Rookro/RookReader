@@ -1,7 +1,7 @@
 import { Alert, Box } from "@mui/material";
-import type { ErrorContext } from "../../../components/ui/errorMessages";
 import { useErrorMessage } from "../../../components/ui/useErrorMessage";
 import type { ErrorCode } from "../../../types/Error";
+import type { ErrorContext } from "../../../types/ErrorContext";
 
 /** Props for the ReaderErrorOverlay component. */
 export interface ReaderErrorOverlayProps {

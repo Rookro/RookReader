@@ -56,7 +56,7 @@ export default function BookDeleteDialog({ open, books, onClose }: BookDeleteDia
               <Trans
                 i18nKey="bookshelf.book-deletion.description"
                 values={{
-                  bookName: books[0].display_name,
+                  bookName: books[0].displayName,
                   collectionName,
                 }}
                 components={{

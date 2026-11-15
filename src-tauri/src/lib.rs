@@ -12,6 +12,7 @@ pub mod error;
 pub mod image;
 pub mod infrastructure;
 pub mod page;
+mod paths;
 pub mod perf;
 mod settings;
 mod setup;
@@ -42,15 +43,13 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
         .commands(collect_commands![
             commands::settings_commands::get_settings,
             commands::settings_commands::set_settings::<tauri::Wry>,
+            commands::settings_commands::is_settings_unread,
             commands::container_commands::request_preload_around,
-            commands::container_commands::open_container,
             commands::container_commands::get_image_dimensions,
             commands::container_commands::set_display_size,
             commands::font_commands::get_fonts,
-            commands::book_commands::get_book,
-            commands::book_commands::get_book_by_path,
             commands::book_commands::register_book::<tauri::Wry>,
-            commands::book_commands::record_book_opened::<tauri::Wry>,
+            commands::book_commands::open_book::<tauri::Wry>,
             commands::book_commands::delete_book::<tauri::Wry>,
             commands::book_commands::clear_reading_history::<tauri::Wry>,
             commands::book_commands::clear_all_reading_history::<tauri::Wry>,
@@ -79,7 +78,6 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
             commands::tag_commands::delete_tag::<tauri::Wry>,
             commands::tag_commands::get_tags_for_book,
             commands::tag_commands::set_tags_for_book::<tauri::Wry>,
-            commands::tag_commands::get_books_by_tag,
             commands::bookmark_commands::create_bookmark,
             commands::bookmark_commands::get_bookmarks_by_book_id,
             commands::bookmark_commands::rename_bookmark,
@@ -165,8 +163,9 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .manage(RwLock::new(state::app_state::AppState::default()))
-        .manage(settings::SettingsFileLock::default())
+        .manage(RwLock::new(
+            state::container_state::ContainerState::default(),
+        ))
         .manage(commands::updater_commands::UpdatePromptLock::default())
         .on_window_event(commands::updater_commands::release_update_prompt_on_destroy)
         .on_page_load(commands::updater_commands::release_update_prompt_on_reload)
@@ -214,9 +213,9 @@ mod bindings_export {
     #[test]
     fn export_bindings() {
         crate::specta_builder()
-            // i64/u64 IDs are cast to TS `number`.
-            // specta-typescript forbids large integers by default to avoid precision
-            // loss; our IDs stay well within `Number.MAX_SAFE_INTEGER`.
+            // Every i64/u64/usize (IDs, counts, page indexes, series positions, sizes) is cast to
+            // TS `number`. specta-typescript forbids large integers by default to avoid precision
+            // loss; all of these stay well within `Number.MAX_SAFE_INTEGER`.
             .dangerously_cast_bigints_to_number()
             // Every exported `f64` is finite (`finite_f64` guards the settings; bounds are
             // constants), so none is ever sent as `null`.
@@ -367,7 +366,7 @@ mod tests {
     }
 
     #[test]
-    fn book_round_trips_with_snake_case_keys() {
+    fn book_serializes_with_camel_case_keys() {
         let book = Book {
             id: 1,
             file_path: "p".into(),
@@ -379,7 +378,8 @@ mod tests {
             thumbnail_path: None,
         };
         let value = serde_json::to_value(&book).unwrap();
-        assert!(value.get("file_path").is_some());
+        assert!(value.get("filePath").is_some());
+        assert!(value.get("file_path").is_none());
         let back: Book = serde_json::from_value(value.clone()).unwrap();
         assert_eq!(serde_json::to_value(&back).unwrap(), value);
     }
@@ -405,7 +405,7 @@ mod tests {
             tag_ids: vec![1, 2],
         };
         let value = serde_json::to_value(&book).unwrap();
-        assert!(value.get("tag_ids").is_some());
+        assert!(value.get("tagIds").is_some());
         let back: BookWithState = serde_json::from_value(value.clone()).unwrap();
         assert_eq!(serde_json::to_value(&back).unwrap(), value);
     }
@@ -418,23 +418,25 @@ mod tests {
             color_code: "#FF0000".into(),
         };
         let value = serde_json::to_value(&tag).unwrap();
+        assert!(value.get("colorCode").is_some());
         let back: Tag = serde_json::from_value(value.clone()).unwrap();
         assert_eq!(serde_json::to_value(&back).unwrap(), value);
     }
 
     #[test]
-    fn series_round_trips_with_datetime() {
+    fn series_serializes_its_timestamp_as_utc() {
         let created_at = chrono::NaiveDate::from_ymd_opt(2020, 1, 2)
             .unwrap()
             .and_hms_opt(3, 4, 5)
-            .unwrap();
+            .unwrap()
+            .and_utc();
         let series = Series {
             id: 9,
             name: "saga".into(),
             created_at,
         };
         let value = serde_json::to_value(&series).unwrap();
-        assert!(value.get("created_at").is_some());
+        assert_eq!(value["createdAt"], "2020-01-02T03:04:05Z");
         let back: Series = serde_json::from_value(value.clone()).unwrap();
         assert_eq!(serde_json::to_value(&back).unwrap(), value);
     }

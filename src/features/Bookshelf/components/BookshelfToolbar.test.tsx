@@ -117,11 +117,10 @@ describe("BookshelfToolbar", () => {
   it("should render breadcrumbs when a series is selected", () => {
     const preloadedState = createBasePreloadedState();
     preloadedState.series = {
-      series: [{ id: 1, name: "Selected Series", created_at: "2026-03-01T15:30:00" }],
+      series: [{ id: 1, name: "Selected Series", createdAt: "2026-03-01T15:30:00Z" }],
       selectedId: 1,
       books: [],
       status: "idle",
-      error: null,
     };
 
     renderWithProviders(navigationBar, { preloadedState });
@@ -133,11 +132,10 @@ describe("BookshelfToolbar", () => {
   it("should render breadcrumbs in the row of the edit order button, below the search box", () => {
     const preloadedState = createBasePreloadedState();
     preloadedState.series = {
-      series: [{ id: 1, name: "Selected Series", created_at: "2026-03-01T15:30:00" }],
+      series: [{ id: 1, name: "Selected Series", createdAt: "2026-03-01T15:30:00Z" }],
       selectedId: 1,
       books: [],
       status: "idle",
-      error: null,
     };
 
     renderWithProviders(navigationBar, { preloadedState });
@@ -160,11 +158,10 @@ describe("BookshelfToolbar", () => {
   it("should clear selected series when 'Bookshelf' link is clicked", async () => {
     const preloadedState = createBasePreloadedState();
     preloadedState.series = {
-      series: [{ id: 1, name: "Selected Series", created_at: "2026-03-01T15:30:00" }],
+      series: [{ id: 1, name: "Selected Series", createdAt: "2026-03-01T15:30:00Z" }],
       selectedId: 1,
       books: [],
       status: "idle",
-      error: null,
     };
 
     const { store } = renderWithProviders(navigationBar, { preloadedState });
@@ -178,11 +175,10 @@ describe("BookshelfToolbar", () => {
   it("should hide sort controls and add button when a series is selected", () => {
     const preloadedState = createBasePreloadedState();
     preloadedState.series = {
-      series: [{ id: 1, name: "Selected Series", created_at: "2026-03-01T15:30:00" }],
+      series: [{ id: 1, name: "Selected Series", createdAt: "2026-03-01T15:30:00Z" }],
       selectedId: 1,
       books: [],
       status: "idle",
-      error: null,
     };
 
     renderWithProviders(navigationBar, { preloadedState });
@@ -195,11 +191,10 @@ describe("BookshelfToolbar", () => {
   it("should open edit series order dialog when 'Edit Order' button is clicked", async () => {
     const preloadedState = createBasePreloadedState();
     preloadedState.series = {
-      series: [{ id: 1, name: "Selected Series", created_at: "2026-03-01T15:30:00" }],
+      series: [{ id: 1, name: "Selected Series", createdAt: "2026-03-01T15:30:00Z" }],
       selectedId: 1,
       books: [],
       status: "idle",
-      error: null,
     };
 
     renderWithProviders(navigationBar, { preloadedState });
