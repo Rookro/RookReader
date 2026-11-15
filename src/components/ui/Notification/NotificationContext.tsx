@@ -7,13 +7,32 @@ import {
   type SyntheticEvent,
   useCallback,
   useContext,
+  useEffect,
+  useRef,
   useState,
 } from "react";
+
+/** How long a notification stays on screen before it closes by itself. */
+const AUTO_HIDE_MS = 5000;
+
+/** A notification on screen or waiting for its turn. */
+interface QueuedNotification {
+  /** Tells one notification from the next, so each gets its own snackbar and timer. */
+  id: number;
+  message: string;
+  severity: AlertColor;
+}
 
 /**
  * Interface defining the type of the notification context.
  */
 interface NotificationContextType {
+  /**
+   * Queues a notification. Notifications are shown one at a time, in the order requested;
+   * a request that repeats a queued message and severity is dropped. An error removes the
+   * information notifications requested before it: the one on screen closes and those
+   * waiting are dropped.
+   */
   showNotification: (message: string, severity?: AlertColor) => void;
 }
 
@@ -43,48 +62,78 @@ interface NotificationProviderProps {
 
 /**
  * A provider component that wraps the application (or a part of it) to enable global notifications.
- * It renders the `Snackbar` component at the root level.
+ * It renders the `Snackbar` component at the root level, one notification at a time.
  *
  * @param props The provider props.
  * @returns The provider component with the global Snackbar.
  */
 export default function NotificationProvider({ children }: NotificationProviderProps) {
-  const [open, setOpen] = useState(false);
-  const [message, setMessage] = useState("");
-  const [severity, setSeverity] = useState<AlertColor>("info");
+  // The first entry is on screen; the rest wait for it to leave.
+  const [queue, setQueue] = useState<QueuedNotification[]>([]);
+  // The notification that was told to close and is still leaving the screen.
+  const [closingId, setClosingId] = useState<number | null>(null);
+  const nextId = useRef(0);
 
-  const showNotification = useCallback((msg: string, type: AlertColor = "info") => {
-    setMessage(msg);
-    setSeverity(type);
-    setOpen(true);
+  const current = queue[0];
+
+  const showNotification = useCallback((message: string, severity: AlertColor = "info") => {
+    const id = nextId.current++;
+    setQueue((queued) => {
+      if (queued.some((n) => n.message === message && n.severity === severity)) {
+        return queued;
+      }
+      // The one on screen stays so that it can leave through its exit transition.
+      const kept =
+        severity === "error" ? queued.filter((n, i) => i === 0 || n.severity !== "info") : queued;
+      return [...kept, { id, message, severity }];
+    });
   }, []);
 
-  const handleClose = useCallback((_e: SyntheticEvent | Event, reason?: SnackbarCloseReason) => {
-    if (reason === "clickaway") {
-      return;
+  // An information notification on screen with an error waiting was requested before it.
+  useEffect(() => {
+    if (current?.severity === "info" && queue.some((n) => n.severity === "error")) {
+      setClosingId(current.id);
     }
-    setOpen(false);
+  }, [current, queue]);
+
+  const handleClose = useCallback(
+    (_e: SyntheticEvent | Event, reason?: SnackbarCloseReason) => {
+      if (reason === "clickaway" || !current) {
+        return;
+      }
+      setClosingId(current.id);
+    },
+    [current],
+  );
+
+  // The closed notification has left the screen; the next one takes its place.
+  const handleExited = useCallback(() => {
+    setQueue((queued) => queued.slice(1));
   }, []);
 
   return (
     <NotificationContext.Provider value={{ showNotification }}>
       {children}
-      <Snackbar
-        open={open}
-        autoHideDuration={5000}
-        onClose={handleClose}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-        sx={{ maxWidth: "50%" }}
-      >
-        <Alert
+      {current && (
+        <Snackbar
+          key={current.id}
+          open={current.id !== closingId}
+          autoHideDuration={AUTO_HIDE_MS}
           onClose={handleClose}
-          severity={severity}
-          variant="filled"
-          sx={{ width: "100%", overflowWrap: "anywhere", whiteSpace: "pre-wrap" }}
+          slotProps={{ transition: { onExited: handleExited } }}
+          anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+          sx={{ maxWidth: "50%" }}
         >
-          {message}
-        </Alert>
-      </Snackbar>
+          <Alert
+            onClose={handleClose}
+            severity={current.severity}
+            variant="filled"
+            sx={{ width: "100%", overflowWrap: "anywhere", whiteSpace: "pre-wrap" }}
+          >
+            {current.message}
+          </Alert>
+        </Snackbar>
+      )}
     </NotificationContext.Provider>
   );
 }

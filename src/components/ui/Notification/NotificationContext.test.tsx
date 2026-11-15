@@ -1,5 +1,5 @@
 import type { AlertColor } from "@mui/material";
-import { renderHook, screen } from "@testing-library/react";
+import { act, fireEvent, renderHook, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../../../test/utils";
@@ -11,6 +11,37 @@ const TestComponent = ({ message, severity }: { message: string; severity?: Aler
   return (
     <button type="button" onClick={() => showNotification(message, severity)}>
       Show Notification
+    </button>
+  );
+};
+
+// Two buttons, each queueing its own notification.
+const TwoNotifications = () => {
+  const { showNotification } = useNotification();
+  return (
+    <>
+      <button type="button" onClick={() => showNotification("First")}>
+        first
+      </button>
+      <button type="button" onClick={() => showNotification("Second", "warning")}>
+        second
+      </button>
+    </>
+  );
+};
+
+// One button queueing an information notification and an error together.
+const InfoThenError = () => {
+  const { showNotification } = useNotification();
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        showNotification("Info");
+        showNotification("Error", "error");
+      }}
+    >
+      both
     </button>
   );
 };
@@ -77,8 +108,305 @@ describe("NotificationContext", () => {
 
     // For MUI Snackbar, we can check if the element has been removed or is no longer visible
     // Depending on transition setup, it might take a moment.
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(screen.queryByText("Close Me")).not.toBeInTheDocument();
     });
+  });
+
+  it("shows a later notification after the one on screen is closed", async () => {
+    renderWithProviders(
+      <NotificationProvider>
+        <TwoNotifications />
+      </NotificationProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "first" }));
+    await user.click(screen.getByRole("button", { name: "second" }));
+    expect(screen.getByText("First")).toBeInTheDocument();
+    expect(screen.queryByText("Second")).not.toBeInTheDocument();
+
+    await user.click(screen.getByLabelText(/close/i));
+
+    expect(await screen.findByText("Second")).toBeInTheDocument();
+    expect(screen.queryByText("First")).not.toBeInTheDocument();
+  });
+
+  it("shows a later notification after the one on screen times out", () => {
+    vi.useFakeTimers();
+    try {
+      renderWithProviders(
+        <NotificationProvider>
+          <TwoNotifications />
+        </NotificationProvider>,
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: "first" }));
+      fireEvent.click(screen.getByRole("button", { name: "second" }));
+      expect(screen.getByText("First")).toBeInTheDocument();
+
+      // The auto-hide delay, then the exit transition.
+      act(() => {
+        vi.advanceTimersByTime(5000);
+      });
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+
+      expect(screen.queryByText("First")).not.toBeInTheDocument();
+      expect(screen.getByText("Second")).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not queue a notification that is already on screen", async () => {
+    renderWithProviders(
+      <NotificationProvider>
+        <TwoNotifications />
+      </NotificationProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "first" }));
+    await user.click(screen.getByRole("button", { name: "first" }));
+    await user.click(screen.getByLabelText(/close/i));
+
+    await waitFor(() => {
+      expect(screen.queryByText("First")).not.toBeInTheDocument();
+    });
+  });
+
+  it("does not queue a notification that is already waiting", async () => {
+    renderWithProviders(
+      <NotificationProvider>
+        <TwoNotifications />
+      </NotificationProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "first" }));
+    await user.click(screen.getByRole("button", { name: "second" }));
+    await user.click(screen.getByRole("button", { name: "second" }));
+    await user.click(screen.getByLabelText(/close/i));
+    expect(await screen.findByText("Second")).toBeInTheDocument();
+
+    await user.click(screen.getByLabelText(/close/i));
+
+    await waitFor(() => {
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+  });
+
+  it("queues the same message with another severity", async () => {
+    renderWithProviders(
+      <NotificationProvider>
+        <TestComponent message="Same" severity="info" />
+        <TestComponent message="Same" severity="warning" />
+      </NotificationProvider>,
+    );
+
+    const [showInfo, showWarning] = screen.getAllByRole("button");
+    await user.click(showInfo);
+    await user.click(showWarning);
+    expect(screen.getByRole("alert")).toHaveClass("MuiAlert-colorInfo");
+
+    await user.click(screen.getByLabelText(/close/i));
+
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toHaveClass("MuiAlert-colorWarning");
+    });
+    expect(screen.getByText("Same")).toBeInTheDocument();
+  });
+
+  it("closes an information notification on screen when an error is requested", () => {
+    vi.useFakeTimers();
+    try {
+      renderWithProviders(
+        <NotificationProvider>
+          <TestComponent message="Info" />
+          <TestComponent message="Error" severity="error" />
+        </NotificationProvider>,
+      );
+
+      const [showInfo, showError] = screen.getAllByRole("button");
+      fireEvent.click(showInfo);
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+      fireEvent.click(showError);
+      // Well short of the auto-hide delay: only the exit transition.
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+
+      expect(screen.queryByText("Info")).not.toBeInTheDocument();
+      expect(screen.getByText("Error")).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("drops the information notifications waiting when an error is requested", () => {
+    vi.useFakeTimers();
+    try {
+      renderWithProviders(
+        <NotificationProvider>
+          <TestComponent message="On screen" />
+          <TestComponent message="Waiting" />
+          <TestComponent message="Error" severity="error" />
+        </NotificationProvider>,
+      );
+
+      const [showOnScreen, showWaiting, showError] = screen.getAllByRole("button");
+      fireEvent.click(showOnScreen);
+      fireEvent.click(showWaiting);
+      fireEvent.click(showError);
+      // In small steps, so that the waiting one is caught even if it is shown only briefly.
+      for (let elapsed = 0; elapsed < 1000; elapsed += 50) {
+        act(() => {
+          vi.advanceTimersByTime(50);
+        });
+        expect(screen.queryByText("Waiting")).not.toBeInTheDocument();
+      }
+      expect(screen.queryByText("On screen")).not.toBeInTheDocument();
+      expect(screen.getByText("Error")).toBeInTheDocument();
+
+      fireEvent.click(screen.getByLabelText(/close/i));
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("drops an information notification waiting behind a warning when an error is requested", () => {
+    vi.useFakeTimers();
+    try {
+      renderWithProviders(
+        <NotificationProvider>
+          <TestComponent message="Warning" severity="warning" />
+          <TestComponent message="Waiting" />
+          <TestComponent message="Error" severity="error" />
+        </NotificationProvider>,
+      );
+
+      const [showWarning, showWaiting, showError] = screen.getAllByRole("button");
+      fireEvent.click(showWarning);
+      fireEvent.click(showWaiting);
+      fireEvent.click(showError);
+      act(() => {
+        vi.advanceTimersByTime(4900);
+      });
+      expect(screen.getByText("Warning")).toBeInTheDocument();
+
+      // In small steps through the warning's exit, to catch even a brief showing.
+      for (let elapsed = 0; elapsed < 1100; elapsed += 50) {
+        act(() => {
+          vi.advanceTimersByTime(50);
+        });
+        expect(screen.queryByText("Waiting")).not.toBeInTheDocument();
+      }
+      expect(screen.getByText("Error")).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("shows an error requested together with an information notification", () => {
+    vi.useFakeTimers();
+    try {
+      renderWithProviders(
+        <NotificationProvider>
+          <InfoThenError />
+        </NotificationProvider>,
+      );
+
+      fireEvent.click(screen.getByRole("button"));
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+      expect(screen.queryByText("Info")).not.toBeInTheDocument();
+      expect(screen.getByText("Error")).toBeInTheDocument();
+
+      fireEvent.click(screen.getByLabelText(/close/i));
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("shows an information notification requested after an error", async () => {
+    renderWithProviders(
+      <NotificationProvider>
+        <TestComponent message="Error" severity="error" />
+        <TestComponent message="Info" />
+      </NotificationProvider>,
+    );
+
+    const [showError, showInfo] = screen.getAllByRole("button");
+    await user.click(showError);
+    await user.click(showInfo);
+    expect(screen.getByText("Error")).toBeInTheDocument();
+
+    await user.click(screen.getByLabelText(/close/i));
+
+    expect(await screen.findByText("Info")).toBeInTheDocument();
+  });
+
+  it("keeps the information notifications waiting when an error is repeated", async () => {
+    renderWithProviders(
+      <NotificationProvider>
+        <TestComponent message="Error" severity="error" />
+        <TestComponent message="Info" />
+      </NotificationProvider>,
+    );
+
+    const [showError, showInfo] = screen.getAllByRole("button");
+    await user.click(showError);
+    await user.click(showInfo);
+    await user.click(showError);
+
+    await user.click(screen.getByLabelText(/close/i));
+
+    expect(await screen.findByText("Info")).toBeInTheDocument();
+  });
+
+  it("does not close a warning on screen when an error is requested", () => {
+    vi.useFakeTimers();
+    try {
+      renderWithProviders(
+        <NotificationProvider>
+          <TestComponent message="Warning" severity="warning" />
+          <TestComponent message="Error" severity="error" />
+        </NotificationProvider>,
+      );
+
+      const [showWarning, showError] = screen.getAllByRole("button");
+      fireEvent.click(showWarning);
+      fireEvent.click(showError);
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+      expect(screen.getByText("Warning")).toBeInTheDocument();
+      expect(screen.queryByText("Error")).not.toBeInTheDocument();
+
+      // The rest of the auto-hide delay, then the exit transition.
+      act(() => {
+        vi.advanceTimersByTime(4000);
+      });
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+
+      expect(screen.queryByText("Warning")).not.toBeInTheDocument();
+      expect(screen.getByText("Error")).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
