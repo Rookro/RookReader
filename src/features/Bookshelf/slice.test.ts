@@ -118,6 +118,23 @@ describe("CollectionReducer", () => {
     expect(nextState.books[0].lastOpenedAt).toBe("2026-07-01T09:00:00Z");
   });
 
+  it("should patch the matching book's position on readingProgressChanged", () => {
+    const state = {
+      ...collectionInitialState,
+      books: [createMockBookWithState({ id: 2, cfi: null })],
+    };
+    const nextState = collectionReducer(
+      state,
+      readingProgressChanged({
+        bookId: 2,
+        lastReadPageIndex: 3,
+        cfi: "epubcfi(/6/8!/4/2/1:0)",
+        lastOpenedAt: null,
+      }),
+    );
+    expect(nextState.books[0].cfi).toBe("epubcfi(/6/8!/4/2/1:0)");
+  });
+
   // Verify that readingProgressChanged for an unknown book id is a no-op.
   it("should ignore readingProgressChanged for an unknown book id", () => {
     const state = {

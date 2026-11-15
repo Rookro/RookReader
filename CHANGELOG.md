@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Fixed books opened while **Reading history** is off appearing in the history once it is turned back on. (#390)
 * Fixed no error message being shown when a bookmark could not be loaded, added, renamed or removed, or a series order could not be saved. (#393)
 * Fixed a series created just after a book being listed before that book when sorting by date, and books and series with the same name or creation time not keeping a fixed order. (#399)
+* Fixed the error shown when an opened book could not be saved saying that the reading history could not be recorded, even while **Reading history** is off, and a History row's open menu acting on a different book with the same name after the list refreshed. (#400)
 
 ## [2.7.0] - 2026-11-02
 

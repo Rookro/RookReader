@@ -224,6 +224,7 @@ const collectionSlice = createSlice({
         const book = state.books.find((b) => b.id === action.payload.bookId);
         if (book) {
           book.lastReadPageIndex = action.payload.lastReadPageIndex;
+          book.cfi = action.payload.cfi;
           book.lastOpenedAt = action.payload.lastOpenedAt ?? book.lastOpenedAt;
         }
       });

@@ -30,6 +30,17 @@ describe("FontSettings", () => {
     });
   });
 
+  it("should keep the default font when the font list cannot be loaded", async () => {
+    vi.mocked(api.getFonts).mockRejectedValue(new Error("no fonts"));
+
+    renderWithProviders(<FontSettings />);
+
+    await waitFor(() => {
+      expect(debug).toHaveBeenCalledWith(expect.stringContaining("Failed to fetch fonts"));
+    });
+    expect(screen.getByRole("combobox")).toHaveValue("Default");
+  });
+
   it("should update store and emit event when font is changed", async () => {
     renderWithProviders(<FontSettings />);
 
