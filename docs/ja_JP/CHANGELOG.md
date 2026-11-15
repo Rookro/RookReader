@@ -9,6 +9,8 @@
 
 ## [Unreleased]
 
+## [2.7.1] - 2026-11-16
+
 ### Changed
 
 * 設定ファイルを起動時にのみ読み込むように変更。ファイルを直接編集するときはアプリを終了してから行うこと（起動中の編集は、次に設定を変更したときに上書きされる）。起動時に読み込めなかったときは、既定の設定で読書履歴を記録せずに動作し、その旨を通知する (#391, #398)
@@ -675,7 +677,8 @@
 * 自動見開き表示機能の追加 (#4)
 * ホイールの上下によるページ送り機能を追加 (#5)
 
-[unreleased]: https://github.com/Rookro/RookReader/compare/v2.7.0...HEAD
+[unreleased]: https://github.com/Rookro/RookReader/compare/v2.7.1...HEAD
+[2.7.1]: https://github.com/Rookro/RookReader/compare/v2.7.0...v2.7.1
 [2.7.0]: https://github.com/Rookro/RookReader/compare/v2.6.1...v2.7.0
 [2.6.1]: https://github.com/Rookro/RookReader/compare/v2.6.0...v2.6.1
 [2.6.0]: https://github.com/Rookro/RookReader/compare/v2.5.0...v2.6.0
