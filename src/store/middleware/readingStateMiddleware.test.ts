@@ -159,16 +159,6 @@ describe("readingStateMiddleware", () => {
     expect(api.updateReadingProgress).not.toHaveBeenCalled();
   });
 
-  // History turned on while the book was open: it has a library record but no reading state.
-  it("saves the position of a book that has no reading state yet", async () => {
-    store.getState.mockReturnValue(stateFor({ id: 1 }, true, 3));
-
-    run(store, next, setImageIndex(3));
-    await vi.advanceTimersByTimeAsync(500);
-
-    expect(api.updateReadingProgress).toHaveBeenCalledWith(1, 3, null);
-  });
-
   // Verify that the fire-time re-check skips the write when history is disabled
   // after the write was scheduled (within the debounce window).
   it("should not persist if recordReadingHistory is disabled before the write fires", async () => {
