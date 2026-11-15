@@ -1706,8 +1706,8 @@ mod tests {
         );
 
         service.request_preload_around(0, 3, 0).unwrap();
-        // Only once the worker is parked inside the first window's first page is there a
-        // window to abandon.
+        // Wait until the worker has taken page 0, so the new window drops only pages 1 to 3;
+        // without this it may arrive first and drop the whole first window instead.
         eventually("the worker to park on its first page", || {
             parked.load(Ordering::SeqCst)
         });
