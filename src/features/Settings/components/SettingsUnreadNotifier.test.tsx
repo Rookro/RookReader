@@ -12,8 +12,8 @@ describe("SettingsUnreadNotifier", () => {
     renderWithProviders(<SettingsUnreadNotifier />);
 
     const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent("The settings file could not be read");
-    expect(alert).toHaveTextContent("not recording reading history");
+    expect(alert).toHaveTextContent("The settings file could not be read when RookReader started");
+    expect(alert).toHaveTextContent("reading history off");
     expect(alert).toHaveClass("MuiAlert-colorWarning");
   });
 

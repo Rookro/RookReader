@@ -388,7 +388,7 @@
         "dav1d": "dav1d license"
       }
     },
-    "file-unreadable": "The settings file could not be read, so RookReader is using the default settings and is not recording reading history. Restart RookReader to try again."
+    "file-unreadable": "The settings file could not be read when RookReader started, so it started with the default settings and with reading history off. Restart RookReader to try again."
   },
   "error-message": {
     "headline": {
