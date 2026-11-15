@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n            INSERT INTO series (name)\n            VALUES (?)\n            RETURNING id, name, created_at as \"created_at: chrono::DateTime<chrono::Utc>\"\n            ",
+  "query": "\n            INSERT INTO series (name, created_at)\n            VALUES (?, ?)\n            RETURNING id, name, created_at as \"created_at: chrono::DateTime<chrono::Utc>\"\n            ",
   "describe": {
     "columns": [
       {
@@ -38,7 +38,7 @@
       }
     ],
     "parameters": {
-      "Right": 1
+      "Right": 2
     },
     "nullable": [
       false,
@@ -46,5 +46,5 @@
       false
     ]
   },
-  "hash": "b2b3fe9c3fff9fffc683ee63121e188fe4fad0dab654bde5536bb5a7ae1e9b41"
+  "hash": "08974677051f229c164719de12d5b111f659f862af19ad049ebabce542fc3b06"
 }

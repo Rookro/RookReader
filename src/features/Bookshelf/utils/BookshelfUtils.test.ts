@@ -87,6 +87,40 @@ describe("BookshelfUtils", () => {
       it("should sort book and series by name_asc", () => {
         expect(sortByGridItem(gridBook1, gridSeries1, "name_asc")).toBeLessThan(0); // "Book A" vs "Series A"
       });
+
+      it("should fall back to id when book names are equal", () => {
+        const x: GridItem = {
+          type: "book",
+          data: createMockBookWithState({ id: 1, displayName: "Same" }),
+        };
+        const y: GridItem = {
+          type: "book",
+          data: createMockBookWithState({ id: 2, displayName: "Same" }),
+        };
+        expect(sortByGridItem(x, y, "name_asc")).toBeLessThan(0);
+        expect(sortByGridItem(x, y, "name_desc")).toBeGreaterThan(0);
+      });
+
+      // Both id orders, so neither direction can pass on the ids alone.
+      it.each([
+        [9, 1],
+        [1, 9],
+      ])(
+        "should put series %i before book %i of the same name in both directions",
+        (seriesId, bookId) => {
+          const series: GridItem = {
+            type: "series",
+            data: createMockSeries({ id: seriesId, name: "Same" }),
+            books: [],
+          };
+          const book: GridItem = {
+            type: "book",
+            data: createMockBookWithState({ id: bookId, displayName: "Same" }),
+          };
+          expect(sortByGridItem(series, book, "name_asc")).toBeLessThan(0);
+          expect(sortByGridItem(series, book, "name_desc")).toBeLessThan(0);
+        },
+      );
     });
 
     describe("date sorting", () => {
@@ -122,6 +156,39 @@ describe("BookshelfUtils", () => {
         expect(sortByGridItem(gridSeries1, gridSeries3, "date_asc")).toBeLessThan(0); // 1 - 3
         expect(sortByGridItem(gridSeries1, gridSeries3, "date_desc")).toBeGreaterThan(0); // 3 - 1
       });
+
+      it("should order a series before a book created later in the same second", () => {
+        // The ids point the other way, so only the instants can give this order.
+        const series = createMockSeries({ id: 9, name: "S", createdAt: "2023-01-01T00:00:05Z" });
+        const book = createMockBookWithState({ id: 1, createdAt: "2023-01-01T00:00:05.500Z" });
+        const gridSeries: GridItem = { type: "series", data: series, books: [] };
+        const gridBook: GridItem = { type: "book", data: book };
+
+        expect(sortByGridItem(gridSeries, gridBook, "date_asc")).toBeLessThan(0);
+        expect(sortByGridItem(gridSeries, gridBook, "date_desc")).toBeGreaterThan(0);
+      });
+
+      // Both id orders, so neither direction can pass on the ids alone.
+      it.each([
+        [9, 1],
+        [1, 9],
+      ])(
+        "should put series %i before book %i of the same createdAt in both directions",
+        (seriesId, bookId) => {
+          const createdAt = "2023-01-01T00:00:05Z";
+          const series: GridItem = {
+            type: "series",
+            data: createMockSeries({ id: seriesId, name: "S", createdAt }),
+            books: [],
+          };
+          const book: GridItem = {
+            type: "book",
+            data: createMockBookWithState({ id: bookId, createdAt }),
+          };
+          expect(sortByGridItem(series, book, "date_asc")).toBeLessThan(0);
+          expect(sortByGridItem(series, book, "date_desc")).toBeLessThan(0);
+        },
+      );
     });
   });
 
