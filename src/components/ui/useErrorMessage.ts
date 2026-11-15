@@ -1,7 +1,8 @@
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import type { ErrorCode } from "../../types/Error";
-import { type ErrorContext, formatErrorMessage } from "./errorMessages";
+import type { ErrorContext } from "../../types/ErrorContext";
+import { formatErrorMessage } from "./errorMessages";
 
 /**
  * Provides the notification text for a failed operation.

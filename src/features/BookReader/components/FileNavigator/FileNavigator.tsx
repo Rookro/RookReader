@@ -5,13 +5,13 @@ import { debug, error } from "@tauri-apps/plugin-log";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { List, type RowComponentProps, useListCallbackRef } from "react-window";
+import type { DirEntry } from "../../../../domain/entities";
 import {
   type RootState,
   useAppDispatch,
   useAppSelector,
   useAppStore,
 } from "../../../../store/store";
-import type { DirEntry } from "../../../../types/DirEntry";
 import { isNavigableArchiveName } from "../../../../utils/ArchivePathUtils";
 import SidePanelHeader from "../../../SidePane/components/SidePanelHeader";
 import { loadDirectory, setSearchText } from "../../fileNavigatorSlice";

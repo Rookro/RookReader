@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import i18n from "../../i18n/config";
 import { ErrorCode } from "../../types/Error";
-import { type ErrorContext, formatErrorMessage } from "./errorMessages";
+import type { ErrorContext } from "../../types/ErrorContext";
+import { formatErrorMessage } from "./errorMessages";
 
 /** Formats in `language` regardless of the language the app is currently set to. */
 const format = (language: string, context: ErrorContext, code: ErrorCode) =>

@@ -40,7 +40,9 @@ export const createReadingStateMiddleware = () => {
     return api.updateReadingProgress(update.bookId, update.pageIndex, update.cfi).then(
       () => undefined,
       (e) => {
-        error(`ReadingState update failed (${update.bookId}:${update.pageIndex}): ${e}`);
+        error(
+          `Failed to update the reading progress (book ${update.bookId}, page ${update.pageIndex}): ${e}`,
+        );
       },
     );
   };

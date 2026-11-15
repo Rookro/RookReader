@@ -1,5 +1,11 @@
-import type { Bookmark, BookWithState, Collection, Series, Tag } from "../domain/entities";
-import type { DirEntry } from "../types/DirEntry";
+import type {
+  Bookmark,
+  BookWithState,
+  Collection,
+  DirEntry,
+  Series,
+  Tag,
+} from "../domain/entities";
 
 /**
  * Creates a mock BookWithState object for testing.

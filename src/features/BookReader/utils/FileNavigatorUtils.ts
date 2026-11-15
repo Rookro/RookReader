@@ -1,5 +1,5 @@
+import type { DirEntry } from "../../../domain/entities";
 import type { SortOrder } from "../../../types/AppSettings";
-import type { DirEntry } from "../../../types/DirEntry";
 import { andSearchBy } from "../../../utils/SearchUtils";
 
 /**

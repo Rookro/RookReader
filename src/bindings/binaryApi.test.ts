@@ -1,67 +1,67 @@
 import { invoke } from "@tauri-apps/api/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CommandError } from "../types/Error";
-import * as binaryCommands from "./binaryCommands";
+import * as binaryApi from "./binaryApi";
 
-vi.unmock("./binaryCommands");
+vi.unmock("./binaryApi");
 
-describe("binaryCommands", () => {
+describe("binaryApi", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it("getImage should call invoke", async () => {
     vi.mocked(invoke).mockResolvedValue(new ArrayBuffer(0));
-    await binaryCommands.getImage("path", "entry");
+    await binaryApi.getImage("path", "entry");
     expect(invoke).toHaveBeenCalledWith("get_image", { path: "path", entryName: "entry" });
   });
 
   it("getImage should throw CommandError on failure", async () => {
     vi.mocked(invoke).mockRejectedValue(new Error("fail"));
-    await expect(binaryCommands.getImage("path", "e")).rejects.toThrow(CommandError);
+    await expect(binaryApi.getImage("path", "e")).rejects.toThrow(CommandError);
   });
 
   it("getImageFull should call invoke", async () => {
     vi.mocked(invoke).mockResolvedValue(new ArrayBuffer(0));
-    await binaryCommands.getImageFull("path", "entry");
+    await binaryApi.getImageFull("path", "entry");
     expect(invoke).toHaveBeenCalledWith("get_image_full", { path: "path", entryName: "entry" });
   });
 
   it("getImageFull should throw CommandError on failure", async () => {
     vi.mocked(invoke).mockRejectedValue(new Error("fail"));
-    await expect(binaryCommands.getImageFull("path", "e")).rejects.toThrow(CommandError);
+    await expect(binaryApi.getImageFull("path", "e")).rejects.toThrow(CommandError);
   });
 
   it("getImagePreview should call invoke", async () => {
     vi.mocked(invoke).mockResolvedValue(new ArrayBuffer(0));
-    await binaryCommands.getImagePreview("path", "entry");
+    await binaryApi.getImagePreview("path", "entry");
     expect(invoke).toHaveBeenCalledWith("get_image_preview", { path: "path", entryName: "entry" });
   });
 
   it("getImagePreview should throw CommandError on failure", async () => {
     vi.mocked(invoke).mockRejectedValue(new Error("fail"));
-    await expect(binaryCommands.getImagePreview("path", "e")).rejects.toThrow(CommandError);
+    await expect(binaryApi.getImagePreview("path", "e")).rejects.toThrow(CommandError);
   });
 
   it("readNovelFile should call invoke", async () => {
     vi.mocked(invoke).mockResolvedValue(new ArrayBuffer(0));
-    await binaryCommands.readNovelFile("novel.epub");
+    await binaryApi.readNovelFile("novel.epub");
     expect(invoke).toHaveBeenCalledWith("read_novel_file", { path: "novel.epub" });
   });
 
   it("readNovelFile should throw CommandError on failure", async () => {
     vi.mocked(invoke).mockRejectedValue(new Error("fail"));
-    await expect(binaryCommands.readNovelFile("novel.epub")).rejects.toThrow(CommandError);
+    await expect(binaryApi.readNovelFile("novel.epub")).rejects.toThrow(CommandError);
   });
 
   it("getEntriesInDir should call invoke", async () => {
     vi.mocked(invoke).mockResolvedValue(new ArrayBuffer(0));
-    await binaryCommands.getEntriesInDir("path");
+    await binaryApi.getEntriesInDir("path");
     expect(invoke).toHaveBeenCalledWith("get_entries_in_dir", { dirPath: "path" });
   });
 
   it("getEntriesInDir should throw CommandError on failure", async () => {
     vi.mocked(invoke).mockRejectedValue(new Error("fail"));
-    await expect(binaryCommands.getEntriesInDir("path")).rejects.toThrow(CommandError);
+    await expect(binaryApi.getEntriesInDir("path")).rejects.toThrow(CommandError);
   });
 });

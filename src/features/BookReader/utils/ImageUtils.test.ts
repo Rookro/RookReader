@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import * as binaryCommands from "../../../bindings/binaryCommands";
+import * as binaryApi from "../../../bindings/binaryApi";
 import { CommandError, ErrorCode } from "../../../types/Error";
 import { Image } from "../../../types/Image";
 import {
@@ -334,7 +334,7 @@ describe("ImageUtils", () => {
       view.setUint32(8, data.length);
       new Uint8Array(buffer).set(data, 12);
 
-      vi.mocked(binaryCommands.getImage).mockResolvedValue(buffer);
+      vi.mocked(binaryApi.getImage).mockResolvedValue(buffer);
       const result = await fetchImageBlob("path", "file");
       expect(result).toBeInstanceOf(Image);
       expect(result?.width).toBe(width);
@@ -342,7 +342,7 @@ describe("ImageUtils", () => {
 
     // Verify that a backend failure reaches the caller instead of being swallowed
     it("should reject when getImage fails", async () => {
-      vi.mocked(binaryCommands.getImage).mockRejectedValue(
+      vi.mocked(binaryApi.getImage).mockRejectedValue(
         new CommandError(ErrorCode.image, "fetch failed"),
       );
       await expect(fetchImageBlob("path", "file")).rejects.toBeInstanceOf(CommandError);
@@ -368,7 +368,7 @@ describe("ImageUtils", () => {
       view.setUint32(8, data.length);
       new Uint8Array(buffer).set(data, 12);
 
-      vi.mocked(binaryCommands.getImagePreview).mockResolvedValue(buffer);
+      vi.mocked(binaryApi.getImagePreview).mockResolvedValue(buffer);
       const result = await fetchImagePreviewBlob("path", "file");
       expect(result).toBeInstanceOf(Image);
       expect(result?.width).toBe(50);
@@ -378,14 +378,14 @@ describe("ImageUtils", () => {
     // a caller that stops asking after a decline must not also stop after a failure.
     it("should return null if response is empty (skip preview)", async () => {
       const buffer = new ArrayBuffer(0);
-      vi.mocked(binaryCommands.getImagePreview).mockResolvedValue(buffer);
+      vi.mocked(binaryApi.getImagePreview).mockResolvedValue(buffer);
       const result = await fetchImagePreviewBlob("path", "file");
       expect(result).toBeNull();
     });
 
     // Verify that a failed request is distinguishable from the backend declining a preview
     it("should reject when getImagePreview fails", async () => {
-      vi.mocked(binaryCommands.getImagePreview).mockRejectedValue(
+      vi.mocked(binaryApi.getImagePreview).mockRejectedValue(
         new CommandError(ErrorCode.image, "preview failed"),
       );
       await expect(fetchImagePreviewBlob("path", "file")).rejects.toBeInstanceOf(CommandError);

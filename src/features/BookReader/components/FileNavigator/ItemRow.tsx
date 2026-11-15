@@ -1,7 +1,7 @@
 import FolderOutlined from "@mui/icons-material/FolderOutlined";
 import { ListItem, ListItemButton, ListItemText, Tooltip } from "@mui/material";
 import { type CSSProperties, memo } from "react";
-import type { DirEntry } from "../../../../types/DirEntry";
+import type { DirEntry } from "../../../../domain/entities";
 
 /**
  * Row component for the file navigator.

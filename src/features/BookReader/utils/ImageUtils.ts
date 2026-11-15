@@ -1,5 +1,5 @@
 import { debug } from "@tauri-apps/plugin-log";
-import { getImage, getImageFull, getImagePreview } from "../../../bindings/binaryCommands";
+import { getImage, getImageFull, getImagePreview } from "../../../bindings/binaryApi";
 import type { ErrorCode } from "../../../types/Error";
 import { Image } from "../../../types/Image";
 

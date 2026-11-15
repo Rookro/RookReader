@@ -1,6 +1,6 @@
 import { basename } from "@tauri-apps/api/path";
 import { useEffect } from "react";
-import type { DirEntry } from "../../../types/DirEntry";
+import type { DirEntry } from "../../../domain/entities";
 
 /**
  * Custom hook to determine the selected index in a file list based on file history.

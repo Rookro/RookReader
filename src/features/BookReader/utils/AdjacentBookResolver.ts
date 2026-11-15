@@ -1,6 +1,6 @@
 import { basename, dirname, join } from "@tauri-apps/api/path";
 import { api } from "../../../bindings/api";
-import { getEntriesInDir } from "../../../bindings/binaryCommands";
+import { getEntriesInDir } from "../../../bindings/binaryApi";
 import type { BookWithState } from "../../../domain/entities";
 import type { SortOrder } from "../../../types/AppSettings";
 import { sortBooks, sortBySeriesOrder } from "../../../utils/BookSortUtils";

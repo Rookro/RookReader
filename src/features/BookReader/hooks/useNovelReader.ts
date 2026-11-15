@@ -5,7 +5,7 @@ import { type Book, makeBook, type View, type ViewLocation } from "foliate-js/vi
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import BundledNotoSerifJP from "../../../assets/fonts/NotoSerifJP-VariableFont_wght.woff2";
-import { readNovelFile } from "../../../bindings/binaryCommands";
+import { readNovelFile } from "../../../bindings/binaryApi";
 import { useAppTheme } from "../../../hooks/useAppTheme";
 import { useAppDispatch, useAppSelector } from "../../../store/store";
 import { CommandError, ErrorCode } from "../../../types/Error";

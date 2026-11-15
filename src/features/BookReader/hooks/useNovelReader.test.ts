@@ -3,7 +3,7 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { Paginator } from "foliate-js/paginator.js";
 import { type Book, makeBook, type View } from "foliate-js/view.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { readNovelFile } from "../../../bindings/binaryCommands";
+import { readNovelFile } from "../../../bindings/binaryApi";
 import { useAppTheme } from "../../../hooks/useAppTheme";
 import { type RootState, useAppDispatch, useAppSelector } from "../../../store/store";
 import { CommandError, ErrorCode } from "../../../types/Error";
