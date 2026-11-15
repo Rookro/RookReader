@@ -88,8 +88,11 @@ export default function FileListViewer() {
   const dispatch = useAppDispatch();
   const store = useAppStore();
 
-  const [selectedIndex, setSelectedIndex] = useState(-1);
+  // The open book's name; its row follows it when a re-read of the folder moves it.
+  const [selectedName, setSelectedName] = useState<string | null>(null);
   const [list, setList] = useListCallbackRef(null);
+  // What the list last scrolled for, or found the open book missing for; see the scroll effect.
+  const scrolledFor = useRef<string | null>(null);
   const clickTimer = useRef<number | null>(null);
   const pendingIndex = useRef<number | null>(null);
   const doubleClickIntervalMs = 200;
@@ -99,6 +102,14 @@ export default function FileListViewer() {
       .slice()
       .sort((a, b) => sortBy(a, b, fileNavigatorSettings.sortOrder));
   }, [entries, fileNavigatorSettings.sortOrder, searchText]);
+
+  const selectedIndex = useMemo(
+    () =>
+      selectedName === null
+        ? -1
+        : filteredSortedEntries.findIndex((entry) => entry.name === selectedName),
+    [filteredSortedEntries, selectedName],
+  );
 
   const refreshEntries = useCallback(() => {
     if (history[historyIndex]) {
@@ -126,11 +137,30 @@ export default function FileListViewer() {
   }, [history, historyIndex, dispatch]);
 
   useDirectoryWatcher(history[historyIndex], refreshInBackground);
-  useFileSelection(fileHistory, fileHistoryIndex, filteredSortedEntries, setSelectedIndex);
+  useFileSelection(fileHistory, fileHistoryIndex, setSelectedName);
 
-  // Scroll to make the selected item visible
+  const dirPath = history[historyIndex];
+  // Scroll to make the selected item visible when the list is shown, the open book changes,
+  // or the search or sort moves it. A background re-read of the folder moves rows too, but
+  // leaves the reader's scroll position alone.
   useEffect(() => {
-    if (selectedIndex === -1 || filteredSortedEntries.length === 0 || !list) {
+    if (!list) {
+      // The list was taken down (loading, nothing to show): scroll again once it is back.
+      scrolledFor.current = null;
+      return;
+    }
+    const scrollFor = JSON.stringify([
+      dirPath,
+      selectedName,
+      searchText,
+      fileNavigatorSettings.sortOrder,
+    ]);
+    if (selectedIndex === -1 || filteredSortedEntries.length === 0) {
+      // Recorded so that a search that hides the open book and is then cleared scrolls back.
+      scrolledFor.current = scrollFor;
+      return;
+    }
+    if (scrolledFor.current === scrollFor) {
       return;
     }
 
@@ -138,6 +168,7 @@ export default function FileListViewer() {
     // This ensures that the virtualized list (react-window) has finished
     // rendering and measuring item positions before attempting to scroll.
     const timerId = setTimeout(() => {
+      scrolledFor.current = scrollFor;
       try {
         debug(`Scrolling to row ${selectedIndex}.`);
         list.scrollToRow({ align: "smart", behavior: "instant", index: selectedIndex });
@@ -149,13 +180,21 @@ export default function FileListViewer() {
     return () => {
       clearTimeout(timerId);
     };
-  }, [selectedIndex, filteredSortedEntries.length, list]);
+  }, [
+    list,
+    selectedIndex,
+    filteredSortedEntries.length,
+    dirPath,
+    selectedName,
+    searchText,
+    fileNavigatorSettings.sortOrder,
+  ]);
 
   const handleListItemClicked = useCallback(
-    async (_e: React.MouseEvent<HTMLDivElement>, entry: DirEntry, index: number) => {
+    async (_e: React.MouseEvent<HTMLDivElement>, entry: DirEntry, _index: number) => {
       const path = await join(history[historyIndex], entry.name);
       dispatch(openBook({ path, origin: { kind: "fileNavigator" } }));
-      setSelectedIndex(index);
+      setSelectedName(entry.name);
     },
     [dispatch, history, historyIndex],
   );

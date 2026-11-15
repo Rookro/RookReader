@@ -1,7 +1,8 @@
 import { error } from "@tauri-apps/plugin-log";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { useEffect } from "react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DirEntry } from "../../../../domain/entities";
 import { mockScrollToRow } from "../../../../test/mocks/components";
 import { createBasePreloadedState, renderWithProviders } from "../../../../test/utils";
@@ -233,11 +234,11 @@ describe("FileNavigator", () => {
     expect(FileNavigatorSlice.loadDirectory).not.toHaveBeenCalled();
   });
 
-  it("should scroll to row when selectedIndex is set", async () => {
+  it("should scroll to the open book's row", async () => {
     const entries: DirEntry[] = [{ name: "book.zip", isDirectory: false, lastModified: 0 }];
     vi.mocked(useFileSelection).mockImplementationOnce(
-      (_fileHistory, _fileHistoryIndex, _entries, callback) => {
-        callback(0);
+      (_fileHistory, _fileHistoryIndex, callback) => {
+        callback("book.zip");
       },
     );
 
@@ -260,8 +261,8 @@ describe("FileNavigator", () => {
   it("should log error if scrollToRow fails", async () => {
     const entries: DirEntry[] = [{ name: "book.zip", isDirectory: false, lastModified: 0 }];
     vi.mocked(useFileSelection).mockImplementationOnce(
-      (_fileHistory, _fileHistoryIndex, _entries, callback) => {
-        callback(0);
+      (_fileHistory, _fileHistoryIndex, callback) => {
+        callback("book.zip");
       },
     );
 
@@ -270,7 +271,7 @@ describe("FileNavigator", () => {
     preloadedState.reader.history = ["/book.zip"];
     preloadedState.reader.historyIndex = 0;
 
-    mockScrollToRow.mockImplementation(() => {
+    mockScrollToRow.mockImplementationOnce(() => {
       throw new Error("Scroll failed");
     });
 
@@ -278,6 +279,109 @@ describe("FileNavigator", () => {
 
     await waitFor(() => {
       expect(error).toHaveBeenCalledWith(expect.stringContaining("Failed to scroll to row 0"));
+    });
+  });
+
+  describe("scrolling to the open book", () => {
+    const row = (name: string): DirEntry => ({ name, isDirectory: false, lastModified: 0 });
+
+    // Lists /dir with the open book book.zip selected, and waits for the first scroll.
+    const renderWithOpenBook = async (entries: DirEntry[]) => {
+      vi.mocked(useFileSelection).mockImplementation((_fileHistory, _fileHistoryIndex, select) => {
+        useEffect(() => select("book.zip"), [select]);
+      });
+      const preloadedState = createBasePreloadedState();
+      preloadedState.fileNavigator.history = ["/dir"];
+      preloadedState.fileNavigator.historyIndex = 0;
+      preloadedState.fileNavigator.pendingPath = "/dir";
+      preloadedState.fileNavigator.entries = entries;
+      preloadedState.reader.history = ["/dir/book.zip"];
+      preloadedState.reader.historyIndex = 0;
+
+      const rendered = renderWithProviders(<FileNavigator />, { preloadedState });
+      await waitFor(() => expect(mockScrollToRow).toHaveBeenCalledTimes(1));
+      mockScrollToRow.mockClear();
+      return rendered;
+    };
+
+    // What a finished background re-read of /dir puts into the store. `loadDirectory` is
+    // mocked in this file, so the action is written out; `requestId` matches the store's.
+    const reread = (entries: DirEntry[]) => ({
+      type: "fileNavigator/loadDirectory/fulfilled",
+      payload: { path: "/dir", entries },
+      meta: { requestId: null, arg: { dirPath: "/dir", background: true } },
+    });
+
+    // Lets the scroll effect's timer run out.
+    const settle = () => act(() => new Promise((resolve) => setTimeout(resolve, 50)));
+
+    afterEach(() => {
+      vi.mocked(useFileSelection).mockReset();
+    });
+
+    it("keeps the scroll position when a re-read moves the open book's row", async () => {
+      const { store } = await renderWithOpenBook([row("a.zip"), row("book.zip")]);
+
+      act(() => {
+        store.dispatch(reread([row("0.zip"), row("a.zip"), row("book.zip")]));
+      });
+      await settle();
+
+      expect(mockScrollToRow).not.toHaveBeenCalled();
+      // The selection follows the open book to its new row.
+      expect(screen.getByRole("button", { name: "book.zip" })).toHaveClass("Mui-selected");
+      expect(screen.getByRole("button", { name: "a.zip" })).not.toHaveClass("Mui-selected");
+    });
+
+    it("scrolls to the open book again when the search changes", async () => {
+      const { store } = await renderWithOpenBook([row("a.zip"), row("book.zip")]);
+
+      act(() => {
+        store.dispatch({ type: "fileNavigator/setSearchText", payload: "book" });
+      });
+
+      await waitFor(() => {
+        expect(mockScrollToRow).toHaveBeenCalledWith({
+          align: "smart",
+          behavior: "instant",
+          index: 0,
+        });
+      });
+    });
+
+    it("scrolls to the open book again when a search that hid it is cleared", async () => {
+      const { store } = await renderWithOpenBook([row("a.zip"), row("book.zip")]);
+      act(() => {
+        store.dispatch({ type: "fileNavigator/setSearchText", payload: "a" });
+      });
+      await settle();
+
+      act(() => {
+        store.dispatch({ type: "fileNavigator/setSearchText", payload: "" });
+      });
+
+      await waitFor(() => {
+        expect(mockScrollToRow).toHaveBeenCalledWith({
+          align: "smart",
+          behavior: "instant",
+          index: 1,
+        });
+      });
+    });
+
+    it("keeps the scroll position when a re-read brings the open book's row back", async () => {
+      const { store } = await renderWithOpenBook([row("a.zip"), row("book.zip")]);
+      act(() => {
+        store.dispatch(reread([row("a.zip")]));
+      });
+      await settle();
+
+      act(() => {
+        store.dispatch(reread([row("a.zip"), row("b.zip"), row("book.zip")]));
+      });
+      await settle();
+
+      expect(mockScrollToRow).not.toHaveBeenCalled();
     });
   });
 });
