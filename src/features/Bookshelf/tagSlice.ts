@@ -1,7 +1,7 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import { api } from "../../bindings/api";
 import type { Tag } from "../../domain/entities";
-import { createCommandThunk } from "../../types/CustomAsyncThunk";
+import { createCommandThunk } from "../../store/createCommandThunk";
 
 /**
  * Creates a new tag and adds it to the database.

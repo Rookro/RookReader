@@ -30,7 +30,7 @@ describe("ReaderToolbar", () => {
     expect(store.getState().view.activeView).toBe("bookshelf");
   });
 
-  it("should dispatch goBackContainerHistory when back button is clicked", async () => {
+  it("should dispatch goBackBookHistory when back button is clicked", async () => {
     const preloadedState = createBasePreloadedState();
     preloadedState.reader.history = ["/path/1", "/path/2"];
     preloadedState.reader.historyIndex = 1;
@@ -133,7 +133,7 @@ describe("ReaderToolbar", () => {
     expect(SettingsReducer.updateSettings).not.toHaveBeenCalled();
   });
 
-  it("should dispatch goForwardContainerHistory when forward button is clicked", async () => {
+  it("should dispatch goForwardBookHistory when forward button is clicked", async () => {
     const preloadedState = createBasePreloadedState();
     preloadedState.reader.history = ["/path/1", "/path/2"];
     preloadedState.reader.historyIndex = 0;

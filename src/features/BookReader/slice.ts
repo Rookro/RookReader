@@ -3,23 +3,24 @@ import { dirname } from "@tauri-apps/api/path";
 import { debug, error, info } from "@tauri-apps/plugin-log";
 import { api } from "../../bindings/api";
 import type { BookWithState } from "../../domain/entities";
+import { createAppAsyncThunk } from "../../store/createCommandThunk";
 import { errorReported } from "../../store/errorNotificationSlice";
 import { handleThunkError } from "../../store/thunkErrorHandler";
 import type { Direction } from "../../types/AppSettings";
-import { createAppAsyncThunk } from "../../types/CustomAsyncThunk";
 import { CommandError, createCommandError, ErrorCode } from "../../types/Error";
-import { updateExploreBasePath } from "./fileNavigatorSlice";
+import { loadDirectory } from "./fileNavigatorSlice";
 import type { OpenOrigin } from "./types/OpenOrigin";
 import { goBackHistory, goForwardHistory, pushHistory } from "./utils/navigationHistory";
 
 /**
- * Opens a container file or directory, retrieves its contents, and updates the reading history.
+ * Loads a container file or directory as the open book: retrieves its contents and updates
+ * the reading history.
  *
  * @param path - The absolute file path to the container or directory.
  * @returns A thunk that resolves to an object containing entries, directory status, novel status, and book state.
  */
-export const openContainerFile = createAppAsyncThunk(
-  "reader/openContainerFile",
+export const loadBook = createAppAsyncThunk(
+  "reader/loadBook",
   async (path: string, { dispatch, rejectWithValue, getState }) => {
     // The reducers ignore an answer for a book that is no longer the current one.
     const isSuperseded = () => {
@@ -27,7 +28,7 @@ export const openContainerFile = createAppAsyncThunk(
       return history[historyIndex] !== path;
     };
     if (!path || path.length === 0) {
-      const errorMessage = "Failed to openContainerFile. Error: Container path is empty.";
+      const errorMessage = "Failed to load the book. Error: The path is empty.";
       error(errorMessage);
       return rejectWithValue({
         code: ErrorCode.path,
@@ -35,21 +36,19 @@ export const openContainerFile = createAppAsyncThunk(
         ...(isSuperseded() && { superseded: true as const }),
       });
     }
-    info(`Open container file: ${path}`);
+    info(`Loading the book: ${path}`);
     try {
       const [opened, dirPath] = await Promise.all([api.openBook(path), dirname(path)]);
 
       const isEpubNovel = opened.isNovel;
 
       if (!isEpubNovel) {
-        debug(
-          `openContainerFile: Retrieved ${opened.entries.length} entries. (Container is directory: ${opened.isDirectory})`,
-        );
+        debug(`Loaded ${opened.entries.length} entries. (Directory: ${opened.isDirectory})`);
       } else {
-        debug(`openContainerFile: Epub Novel is opened.`);
+        debug(`Loaded an EPUB novel.`);
       }
 
-      dispatch(updateExploreBasePath({ dirPath }));
+      dispatch(loadDirectory({ dirPath }));
 
       // The book is open either way. Failing to remember it in the library is worth telling
       // the user about, but it is not "the book could not be opened", so it is reported apart.
@@ -99,14 +98,9 @@ export const openContainerFile = createAppAsyncThunk(
       // navigator away from a book the user opened in the meantime.
       const superseded = isSuperseded();
       if (!superseded && e instanceof CommandError && e.code === ErrorCode.emptyContainer) {
-        dispatch(updateExploreBasePath({ dirPath: path }));
+        dispatch(loadDirectory({ dirPath: path }));
       }
-      return handleThunkError(
-        e,
-        `Failed to openContainerFile(${path}).`,
-        rejectWithValue,
-        superseded,
-      );
+      return handleThunkError(e, `Failed to load the book(${path}).`, rejectWithValue, superseded);
     }
   },
 );
@@ -304,7 +298,7 @@ export const readerSlice = createSlice({
     },
     /**
      * Moves one book back in the history. Loading it is left to
-     * {@link goBackContainerHistory}.
+     * {@link goBackBookHistory}.
      *
      * @param state - The current Redux state slice.
      */
@@ -315,7 +309,7 @@ export const readerSlice = createSlice({
     },
     /**
      * Moves one book forward in the history. Loading it is left to
-     * {@link goForwardContainerHistory}.
+     * {@link goForwardBookHistory}.
      *
      * @param state - The current Redux state slice.
      */
@@ -355,15 +349,15 @@ export const readerSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      .addCase(openContainerFile.pending, (state) => {
+      .addCase(loadBook.pending, (state) => {
         // Until the next book's record arrives, progress and bookmarks have no book to
         // go to; keeping the previous one would hand them to it.
         resetBookView(state);
         state.isLoading = true;
       })
-      .addCase(openContainerFile.fulfilled, (state, action) => {
+      .addCase(loadBook.fulfilled, (state, action) => {
         // Ignore stale responses: the user may have opened another book before this
-        // load finished (mirrors updateExploreBasePath.fulfilled's guard). Without
+        // load finished (mirrors loadDirectory.fulfilled's guard). Without
         // this, a slow earlier open overwrites the newer book's state and progress
         // is then persisted against the wrong book.
         if (state.history[state.historyIndex] !== action.meta.arg) {
@@ -403,7 +397,7 @@ export const readerSlice = createSlice({
           state.isNovel = action.payload.isNovel;
         }
       })
-      .addCase(openContainerFile.rejected, (state, action) => {
+      .addCase(loadBook.rejected, (state, action) => {
         // Same staleness guard as fulfilled: a stale rejection must not clobber the
         // newer book's freshly loaded state.
         if (state.history[state.historyIndex] !== action.meta.arg) {
@@ -459,7 +453,7 @@ export const openBook = createAppAsyncThunk(
     const isAlreadyOpen = history[historyIndex] === path;
     dispatch(bookPathOpened({ path, origin, initialPosition }));
     if (!isAlreadyOpen) {
-      await dispatch(openContainerFile(path));
+      await dispatch(loadBook(path));
     }
   },
 );
@@ -469,14 +463,14 @@ export const openBook = createAppAsyncThunk(
  *
  * @returns A thunk that resolves once the book has loaded, or at once at the first book.
  */
-export const goBackContainerHistory = createAppAsyncThunk(
-  "reader/goBackContainerHistory",
+export const goBackBookHistory = createAppAsyncThunk(
+  "reader/goBackBookHistory",
   async (_: undefined, { dispatch, getState }) => {
     const before = getState().reader.historyIndex;
     dispatch(historyMovedBack());
     const { history, historyIndex } = getState().reader;
     if (historyIndex !== before) {
-      await dispatch(openContainerFile(history[historyIndex]));
+      await dispatch(loadBook(history[historyIndex]));
     }
   },
 );
@@ -486,14 +480,14 @@ export const goBackContainerHistory = createAppAsyncThunk(
  *
  * @returns A thunk that resolves once the book has loaded, or at once at the last book.
  */
-export const goForwardContainerHistory = createAppAsyncThunk(
-  "reader/goForwardContainerHistory",
+export const goForwardBookHistory = createAppAsyncThunk(
+  "reader/goForwardBookHistory",
   async (_: undefined, { dispatch, getState }) => {
     const before = getState().reader.historyIndex;
     dispatch(historyMovedForward());
     const { history, historyIndex } = getState().reader;
     if (historyIndex !== before) {
-      await dispatch(openContainerFile(history[historyIndex]));
+      await dispatch(loadBook(history[historyIndex]));
     }
   },
 );

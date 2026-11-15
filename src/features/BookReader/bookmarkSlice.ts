@@ -1,7 +1,7 @@
 import { createSlice } from "@reduxjs/toolkit";
 import { api } from "../../bindings/api";
 import type { Bookmark } from "../../domain/entities";
-import { createCommandThunk } from "../../types/CustomAsyncThunk";
+import { createCommandThunk } from "../../store/createCommandThunk";
 
 /**
  * Fetches all bookmarks of a book.

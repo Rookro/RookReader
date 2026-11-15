@@ -1,7 +1,7 @@
 import { createSlice, isRejectedWithValue, type PayloadAction } from "@reduxjs/toolkit";
-import type { ThunkRejectValue } from "../types/CustomAsyncThunk";
 import type { ErrorCode } from "../types/Error";
 import type { ErrorContext } from "../types/ErrorContext";
+import type { ThunkRejectValue } from "./createCommandThunk";
 
 /** An error waiting to be shown to the user. */
 export type ErrorNotification = { context: ErrorContext; code: ErrorCode };

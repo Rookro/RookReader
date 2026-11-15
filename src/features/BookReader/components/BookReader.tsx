@@ -32,14 +32,14 @@ const selectBookReaderState = createSelector(
     (state: RootState) => state.reader,
     (state: RootState) => state.settings.history,
   ],
-  (activeView, sidePane, containerFile, historySettings) => ({
+  (activeView, sidePane, reader, historySettings) => ({
     activeView,
     isHidden: sidePane.isHidden,
     tabIndex: sidePane.tabIndex,
-    history: containerFile.history,
-    historyIndex: containerFile.historyIndex,
-    isNovel: containerFile.isNovel,
-    isLoading: containerFile.isLoading,
+    history: reader.history,
+    historyIndex: reader.historyIndex,
+    isNovel: reader.isNovel,
+    isLoading: reader.isLoading,
     historySettings,
   }),
 );

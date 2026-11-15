@@ -52,14 +52,14 @@ const renderPage = (page: PageSlot, alt: string, width: string, objectPosition: 
 
 const selectComicReaderState = createSelector(
   [(state: RootState) => state.reader, (state: RootState) => state.settings.reader],
-  (containerFile, readerSettings) => ({
-    history: containerFile.history,
-    historyIndex: containerFile.historyIndex,
-    entries: containerFile.entries,
-    index: containerFile.index,
-    isSpreadShifted: containerFile.isSpreadShifted,
-    hasPreviews: containerFile.hasPreviews,
-    book: containerFile.book,
+  (reader, readerSettings) => ({
+    history: reader.history,
+    historyIndex: reader.historyIndex,
+    entries: reader.entries,
+    index: reader.index,
+    isSpreadShifted: reader.isSpreadShifted,
+    hasPreviews: reader.hasPreviews,
+    book: reader.book,
     readerSettings,
   }),
 );

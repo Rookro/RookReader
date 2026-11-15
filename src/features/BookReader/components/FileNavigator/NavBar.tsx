@@ -24,10 +24,10 @@ import { useAppDispatch, useAppSelector } from "../../../../store/store";
 import type { SortOrder } from "../../../../types/AppSettings";
 import { updateSettings } from "../../../Settings/slice";
 import {
-  goBackExplorerHistory,
-  goForwardExplorerHistory,
+  goBackNavigatorHistory,
+  goForwardNavigatorHistory,
+  loadDirectory,
   setSearchText,
-  updateExploreBasePath,
 } from "../../fileNavigatorSlice";
 
 /**
@@ -50,7 +50,7 @@ export default function NavBar() {
         dirPath = fileNavigatorSettings.homeDirectory || (await homeDir());
       }
       dispatch(setSearchText(""));
-      dispatch(updateExploreBasePath({ dirPath }));
+      dispatch(loadDirectory({ dirPath }));
     },
     [dispatch, fileNavigatorSettings.homeDirectory],
   );
@@ -68,7 +68,7 @@ export default function NavBar() {
 
       if (inputPath && inputPath !== currentPath) {
         dispatch(setSearchText(""));
-        dispatch(updateExploreBasePath({ dirPath: inputPath }));
+        dispatch(loadDirectory({ dirPath: inputPath }));
       }
     },
     [dispatch, currentPath],
@@ -89,7 +89,7 @@ export default function NavBar() {
     async (_e: React.MouseEvent<HTMLButtonElement>) => {
       try {
         const parentDir = await dirname(history[historyIndex]);
-        dispatch(updateExploreBasePath({ dirPath: parentDir }));
+        dispatch(loadDirectory({ dirPath: parentDir }));
       } catch (e) {
         warn(`Failed to get parent directory of ${history[historyIndex]}. Error: ${e}.`);
       }
@@ -99,7 +99,7 @@ export default function NavBar() {
 
   const handleRefleshClicked = useCallback(
     async (_e: React.MouseEvent<HTMLButtonElement>) => {
-      dispatch(updateExploreBasePath({ dirPath: history[historyIndex], forceUpdate: true }));
+      dispatch(loadDirectory({ dirPath: history[historyIndex], forceUpdate: true }));
     },
     [dispatch, history, historyIndex],
   );
@@ -113,14 +113,14 @@ export default function NavBar() {
 
   const handleBackClicked = useCallback(
     (_e: React.MouseEvent<HTMLButtonElement>) => {
-      dispatch(goBackExplorerHistory());
+      dispatch(goBackNavigatorHistory());
     },
     [dispatch],
   );
 
   const handleForwardClicked = useCallback(
     (_e: React.MouseEvent<HTMLButtonElement>) => {
-      dispatch(goForwardExplorerHistory());
+      dispatch(goForwardNavigatorHistory());
     },
     [dispatch],
   );

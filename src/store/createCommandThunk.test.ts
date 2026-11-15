@@ -1,7 +1,7 @@
 import { error } from "@tauri-apps/plugin-log";
 import { describe, expect, it, vi } from "vitest";
-import { createCommandThunk } from "./CustomAsyncThunk";
-import { CommandError, ErrorCode } from "./Error";
+import { CommandError, ErrorCode } from "../types/Error";
+import { createCommandThunk } from "./createCommandThunk";
 
 // Mock Tauri logger plugin
 vi.mock("@tauri-apps/plugin-log", () => ({

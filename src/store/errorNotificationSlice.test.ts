@@ -19,8 +19,8 @@ describe("errorNotificationSlice", () => {
   });
 
   it.each([
-    ["reader/openContainerFile", "open-container"],
-    ["fileNavigator/updateExploreBasePath", "explorer"],
+    ["reader/loadBook", "open-container"],
+    ["fileNavigator/loadDirectory", "explorer"],
     ["history/clearHistory", "history"],
     ["collection/addCollection", "bookshelf"],
     ["series/addSeries", "series"],
@@ -39,7 +39,7 @@ describe("errorNotificationSlice", () => {
   it("skips a superseded rejection", () => {
     const state = reducer(
       undefined,
-      rejected("fileNavigator/updateExploreBasePath", { code: ErrorCode.io, superseded: true }),
+      rejected("fileNavigator/loadDirectory", { code: ErrorCode.io, superseded: true }),
     );
     expect(state.pending).toEqual([]);
   });

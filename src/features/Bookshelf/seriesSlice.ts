@@ -1,7 +1,7 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import { api } from "../../bindings/api";
 import type { BookWithState, Series } from "../../domain/entities";
-import { createCommandThunk } from "../../types/CustomAsyncThunk";
+import { createCommandThunk } from "../../store/createCommandThunk";
 import { setSelectedCollection } from "./slice";
 
 /**
