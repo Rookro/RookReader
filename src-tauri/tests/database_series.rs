@@ -38,6 +38,23 @@ async fn create_returns_the_new_series() {
 }
 
 #[tokio::test]
+async fn create_stamps_the_creation_time_with_sub_second_precision() {
+    let pool = setup_db().await;
+    let repo = SqliteSeriesRepository::new(pool.clone());
+
+    let before = chrono::Utc::now();
+    let series = repo.create("Saga").await.unwrap();
+    let after = chrono::Utc::now();
+
+    // A whole-second timestamp would fall before `before`.
+    assert!(
+        before <= series.created_at && series.created_at <= after,
+        "{before} <= {} <= {after}",
+        series.created_at
+    );
+}
+
+#[tokio::test]
 async fn timestamps_stored_by_sqlite_are_read_as_utc() {
     let pool = setup_db().await;
     let repository = SqliteSeriesRepository::new(pool.clone());
