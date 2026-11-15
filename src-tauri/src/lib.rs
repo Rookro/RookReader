@@ -43,6 +43,7 @@ pub fn specta_builder() -> Builder<tauri::Wry> {
         .commands(collect_commands![
             commands::settings_commands::get_settings,
             commands::settings_commands::set_settings::<tauri::Wry>,
+            commands::settings_commands::is_settings_unread,
             commands::container_commands::request_preload_around,
             commands::container_commands::get_image_dimensions,
             commands::container_commands::set_display_size,

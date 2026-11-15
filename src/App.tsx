@@ -2,6 +2,7 @@ import { CssBaseline, ThemeProvider } from "@mui/material";
 import ErrorNotifier from "./components/ui/ErrorNotifier";
 import NotificationProvider from "./components/ui/Notification/NotificationContext";
 import MainView from "./features/MainView/components/MainView";
+import SettingsUnreadNotifier from "./features/Settings/components/SettingsUnreadNotifier";
 import { useAppTheme } from "./hooks/useAppTheme";
 
 export default function App() {
@@ -12,6 +13,7 @@ export default function App() {
       <CssBaseline />
       <NotificationProvider>
         <ErrorNotifier />
+        <SettingsUnreadNotifier />
         <MainView
           sx={{
             width: "100vw",

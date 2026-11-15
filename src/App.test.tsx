@@ -1,6 +1,7 @@
 import { act, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import App from "./App";
+import { api } from "./bindings/api";
 import { errorReported } from "./store/errorNotificationSlice";
 import { createBasePreloadedState, renderWithProviders } from "./test/utils";
 import { ErrorCode } from "./types/Error";
@@ -35,5 +36,13 @@ describe("App", () => {
       await screen.findByText(/Tag operation failed\. \(Error code: 90001\)/),
     ).toBeInTheDocument();
     expect(screen.getByText(/Series operation failed\. \(Error code: 90001\)/)).toBeInTheDocument();
+  });
+
+  it("tells the reader in the main window that the settings file could not be read", async () => {
+    vi.mocked(api.isSettingsUnread).mockResolvedValueOnce(true);
+
+    renderWithProviders(<App />);
+
+    expect(await screen.findByText(/The settings file could not be read/)).toBeInTheDocument();
   });
 });

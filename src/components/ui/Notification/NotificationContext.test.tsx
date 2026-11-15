@@ -1,5 +1,5 @@
 import type { AlertColor } from "@mui/material";
-import { act, fireEvent, renderHook, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, renderHook, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../../../test/utils";
@@ -42,6 +42,35 @@ const InfoThenError = () => {
       }}
     >
       both
+    </button>
+  );
+};
+
+const PersistentNotification = () => {
+  const { showNotification } = useNotification();
+  return (
+    <button type="button" onClick={() => showNotification("Stay", "warning", { persist: true })}>
+      show
+    </button>
+  );
+};
+
+// A button showing one notification, persistent if asked.
+const ShowButton = ({
+  label,
+  message,
+  severity,
+  persist = false,
+}: {
+  label: string;
+  message: string;
+  severity?: AlertColor;
+  persist?: boolean;
+}) => {
+  const { showNotification } = useNotification();
+  return (
+    <button type="button" onClick={() => showNotification(message, severity, { persist })}>
+      {label}
     </button>
   );
 };
@@ -154,6 +183,74 @@ describe("NotificationContext", () => {
 
       expect(screen.queryByText("First")).not.toBeInTheDocument();
       expect(screen.getByText("Second")).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps a persistent notification until it is closed", () => {
+    vi.useFakeTimers();
+    try {
+      renderWithProviders(
+        <NotificationProvider>
+          <PersistentNotification />
+        </NotificationProvider>,
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: "show" }));
+      // Well past the auto-hide delay, then the exit transition.
+      act(() => {
+        vi.advanceTimersByTime(60_000);
+      });
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+
+      expect(screen.getByText("Stay")).toBeInTheDocument();
+
+      fireEvent.click(screen.getByLabelText(/close/i));
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+
+      expect(screen.queryByText("Stay")).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("closes a notification on Escape", async () => {
+    renderWithProviders(
+      <NotificationProvider>
+        <TestComponent message="Escape Me" />
+      </NotificationProvider>,
+    );
+
+    await user.click(screen.getByRole("button"));
+    await user.keyboard("{Escape}");
+
+    await waitFor(() => {
+      expect(screen.queryByText("Escape Me")).not.toBeInTheDocument();
+    });
+  });
+
+  it("does not close a persistent notification on Escape", () => {
+    vi.useFakeTimers();
+    try {
+      renderWithProviders(
+        <NotificationProvider>
+          <PersistentNotification />
+        </NotificationProvider>,
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: "show" }));
+      fireEvent.keyDown(document, { key: "Escape" });
+      // Past the exit transition it would start.
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+
+      expect(screen.getByText("Stay")).toBeInTheDocument();
     } finally {
       vi.useRealTimers();
     }
@@ -405,6 +502,141 @@ describe("NotificationContext", () => {
 
       expect(screen.queryByText("Warning")).not.toBeInTheDocument();
       expect(screen.getByText("Error")).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("shows a persistent notification and an ordinary one at the same time", async () => {
+    renderWithProviders(
+      <NotificationProvider>
+        <ShowButton label="ordinary" message="Hello" />
+        <ShowButton label="persistent" message="Stay" severity="warning" persist />
+      </NotificationProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "ordinary" }));
+    await user.click(screen.getByRole("button", { name: "persistent" }));
+
+    expect(screen.getByText("Hello")).toBeInTheDocument();
+    expect(screen.getByText("Stay")).toBeInTheDocument();
+  });
+
+  it("shows an error requested while a persistent warning is on screen at once", async () => {
+    renderWithProviders(
+      <NotificationProvider>
+        <ShowButton label="persistent" message="Stay" severity="warning" persist />
+        <ShowButton label="error" message="Error" severity="error" />
+      </NotificationProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "persistent" }));
+    await user.click(screen.getByRole("button", { name: "error" }));
+
+    expect(screen.getByText("Error")).toBeInTheDocument();
+    expect(screen.getByText("Stay")).toBeInTheDocument();
+  });
+
+  it("shows a persistent notification at the top center and an ordinary one at the bottom", async () => {
+    renderWithProviders(
+      <NotificationProvider>
+        <ShowButton label="ordinary" message="Hello" />
+        <ShowButton label="persistent" message="Stay" severity="warning" persist />
+      </NotificationProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "ordinary" }));
+    await user.click(screen.getByRole("button", { name: "persistent" }));
+
+    expect(screen.getByText("Stay").closest(".MuiSnackbar-root")).toHaveClass(
+      "MuiSnackbar-anchorOriginTopCenter",
+    );
+    expect(screen.getByText("Hello").closest(".MuiSnackbar-root")).toHaveClass(
+      "MuiSnackbar-anchorOriginBottomCenter",
+    );
+  });
+
+  it("closes the ordinary notification on Escape but not the persistent one", () => {
+    vi.useFakeTimers();
+    try {
+      renderWithProviders(
+        <NotificationProvider>
+          <ShowButton label="ordinary" message="Hello" />
+          <ShowButton label="persistent" message="Stay" severity="warning" persist />
+        </NotificationProvider>,
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: "persistent" }));
+      fireEvent.click(screen.getByRole("button", { name: "ordinary" }));
+      fireEvent.keyDown(document, { key: "Escape" });
+      // Past the exit transition, well short of the auto-hide delay.
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+
+      expect(screen.queryByText("Hello")).not.toBeInTheDocument();
+      expect(screen.getByText("Stay")).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("shows the next persistent notification after the one on screen is closed", async () => {
+    renderWithProviders(
+      <NotificationProvider>
+        <ShowButton label="first" message="First" severity="warning" persist />
+        <ShowButton label="second" message="Second" severity="warning" persist />
+      </NotificationProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "first" }));
+    await user.click(screen.getByRole("button", { name: "second" }));
+    // A repeat of the one on screen and of the one waiting.
+    await user.click(screen.getByRole("button", { name: "first" }));
+    await user.click(screen.getByRole("button", { name: "second" }));
+    expect(screen.getByText("First")).toBeInTheDocument();
+    expect(screen.queryByText("Second")).not.toBeInTheDocument();
+
+    await user.click(screen.getByLabelText(/close/i));
+
+    expect(await screen.findByText("Second")).toBeInTheDocument();
+    expect(screen.queryByText("First")).not.toBeInTheDocument();
+
+    await user.click(screen.getByLabelText(/close/i));
+
+    await waitFor(() => {
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+  });
+
+  it("keeps persistent information notifications when an error is requested", () => {
+    vi.useFakeTimers();
+    try {
+      renderWithProviders(
+        <NotificationProvider>
+          <ShowButton label="on screen" message="On screen" persist />
+          <ShowButton label="waiting" message="Waiting" persist />
+          <ShowButton label="error" message="Error" severity="error" />
+        </NotificationProvider>,
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: "on screen" }));
+      fireEvent.click(screen.getByRole("button", { name: "waiting" }));
+      fireEvent.click(screen.getByRole("button", { name: "error" }));
+      // Past the exit transition, well short of the auto-hide delay.
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+      expect(screen.getByText("On screen")).toBeInTheDocument();
+      expect(screen.getByText("Error")).toBeInTheDocument();
+
+      const onScreen = screen.getByText("On screen").closest(".MuiAlert-root") as HTMLElement;
+      fireEvent.click(within(onScreen).getByLabelText(/close/i));
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+
+      expect(screen.getByText("Waiting")).toBeInTheDocument();
     } finally {
       vi.useRealTimers();
     }

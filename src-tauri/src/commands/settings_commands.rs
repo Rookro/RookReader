@@ -28,6 +28,23 @@ pub async fn get_settings(settings: tauri::State<'_, CurrentSettings>) -> Result
     Ok(settings.read().await.clone())
 }
 
+/// Tells whether the session runs on the fallback settings because start-up could not read
+/// the settings file.
+///
+/// # Arguments
+///
+/// * `unread` - Set while the session runs on the fallback.
+///
+/// # Returns
+///
+/// `true` from a start-up that could not read the settings file until a change has been
+/// saved over the re-read file; `false` otherwise.
+#[tauri::command]
+#[specta::specta]
+pub fn is_settings_unread(unread: tauri::State<'_, SettingsUnread>) -> bool {
+    unread.is_set()
+}
+
 /// Applies a partial settings change and returns the full merged settings.
 ///
 /// The `patch` carries only the changed leaves of a single category. The backend
@@ -333,6 +350,16 @@ mod tests {
         .unwrap();
 
         assert_eq!(state.read().await.settings.max_image_height, 1234);
+    }
+
+    #[test]
+    fn is_settings_unread_reports_the_marker() {
+        let app = tauri::test::mock_app();
+        app.manage(SettingsUnread::new(true));
+        assert!(is_settings_unread(app.state()));
+
+        app.state::<SettingsUnread>().clear();
+        assert!(!is_settings_unread(app.state()));
     }
 
     #[test]

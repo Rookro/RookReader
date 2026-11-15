@@ -23,6 +23,7 @@ vi.mock("../../bindings/api", async () => {
     getFonts: () => ["Arial", "Times New Roman"],
     isUpdaterSupported: () => true,
     claimUpdatePrompt: () => true,
+    isSettingsUnread: () => false,
   } satisfies { [K in keyof Api]?: () => Awaited<ReturnType<Api[K]>> };
   const defaults: Partial<Record<string, () => unknown>> = defaultResults;
   const api = Object.fromEntries(

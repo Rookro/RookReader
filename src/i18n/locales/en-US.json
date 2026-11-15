@@ -387,7 +387,8 @@
         "pdfium": "PDFium license",
         "dav1d": "dav1d license"
       }
-    }
+    },
+    "file-unreadable": "The settings file could not be read when RookReader started, so it started with the default settings and with reading history off. Restart RookReader to try again."
   },
   "error-message": {
     "headline": {
