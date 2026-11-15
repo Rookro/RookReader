@@ -44,6 +44,9 @@ export const andSearchGridItems = (items: GridItem[], query: string) =>
 /**
  * Comparison function for sorting an array of GridItem objects based on a specified criterion and order.
  *
+ * Items that tie on the name or creation date put a series before a book in either
+ * direction, then follow their ids in the sort direction.
+ *
  * @param a - The first GridItem for comparison.
  * @param b - The second GridItem for comparison.
  * @param sortOrder - The specified criterion for sorting.
@@ -53,12 +56,14 @@ export const sortByGridItem = (a: GridItem, b: GridItem, sortOrder: SortOrder) =
   const getComparisonValues = (item: GridItem) => {
     if (item.type === "series") {
       return {
+        kind: 0,
         name: item.data.name,
         date: item.data.createdAt,
         id: item.data.id,
       };
     }
     return {
+      kind: 1,
       name: item.data.displayName,
       // Series and standalone books interleave by creation date.
       date: item.data.createdAt,
@@ -68,16 +73,18 @@ export const sortByGridItem = (a: GridItem, b: GridItem, sortOrder: SortOrder) =
 
   const valA = getComparisonValues(a);
   const valB = getComparisonValues(b);
+  // Series first, so ids from the two tables are never compared with each other.
+  const tieBreak = (byId: number) => valA.kind - valB.kind || byId;
 
   switch (sortOrder) {
     case "name_asc":
-      return valA.name.localeCompare(valB.name);
+      return valA.name.localeCompare(valB.name) || tieBreak(valA.id - valB.id);
     case "name_desc":
-      return valB.name.localeCompare(valA.name);
+      return valB.name.localeCompare(valA.name) || tieBreak(valB.id - valA.id);
     case "date_asc":
-      return compareCreatedAt(valA.date, valB.date) || valA.id - valB.id;
+      return compareCreatedAt(valA.date, valB.date) || tieBreak(valA.id - valB.id);
     case "date_desc":
-      return compareCreatedAt(valB.date, valA.date) || valB.id - valA.id;
+      return compareCreatedAt(valB.date, valA.date) || tieBreak(valB.id - valA.id);
   }
 };
 

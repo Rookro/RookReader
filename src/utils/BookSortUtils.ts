@@ -42,9 +42,9 @@ export const compareCreatedAt = (a: string | null | undefined, b: string | null 
 export const sortBooks = (a: BookWithState, b: BookWithState, sortOrder: SortOrder) => {
   switch (sortOrder) {
     case "name_asc":
-      return a.displayName.localeCompare(b.displayName);
+      return a.displayName.localeCompare(b.displayName) || a.id - b.id;
     case "name_desc":
-      return b.displayName.localeCompare(a.displayName);
+      return b.displayName.localeCompare(a.displayName) || b.id - a.id;
     case "date_asc":
       // Sort by the real creation timestamp, falling back to id so the
       // order stays consistent with the bookshelf grid and adjacent-book navigation.

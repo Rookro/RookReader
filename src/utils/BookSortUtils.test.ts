@@ -16,6 +16,13 @@ describe("BookSortUtils", () => {
       expect(sortBooks(a, b, "name_desc")).toBeGreaterThan(0);
     });
 
+    it("should fall back to id when displayName is equal", () => {
+      const x = createMockBookWithState({ id: 1, displayName: "Same" });
+      const y = createMockBookWithState({ id: 2, displayName: "Same" });
+      expect(sortBooks(x, y, "name_asc")).toBeLessThan(0);
+      expect(sortBooks(x, y, "name_desc")).toBeGreaterThan(0);
+    });
+
     it("should sort by date_asc", () => {
       expect(sortBooks(a, b, "date_asc")).toBeLessThan(0);
     });
