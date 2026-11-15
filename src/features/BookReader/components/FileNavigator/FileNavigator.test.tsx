@@ -1,11 +1,12 @@
 import { error } from "@tauri-apps/plugin-log";
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { DirEntry } from "../../../../domain/entities";
 import { mockScrollToRow } from "../../../../test/mocks/components";
 import { createBasePreloadedState, renderWithProviders } from "../../../../test/utils";
 import * as FileNavigatorSlice from "../../fileNavigatorSlice";
+import { useDirectoryWatcher } from "../../hooks/useDirectoryWatcher";
 import { useFileSelection } from "../../hooks/useFileSelection";
 import * as ReadReducer from "../../slice";
 import FileNavigator from "./FileNavigator";
@@ -95,6 +96,30 @@ describe("FileNavigator", () => {
         path: "/book.zip",
         origin: { kind: "fileNavigator" },
       });
+    });
+  });
+
+  it("reads the watched folder again in the background when it changes", () => {
+    const preloadedState = createBasePreloadedState();
+    preloadedState.fileNavigator.history = ["/a"];
+    preloadedState.fileNavigator.historyIndex = 0;
+    preloadedState.fileNavigator.pendingPath = "/a";
+
+    renderWithProviders(<FileNavigator />, { preloadedState });
+    const [watchedPath, onChange] = vi.mocked(useDirectoryWatcher).mock.calls.at(-1) ?? [];
+    expect(watchedPath).toBe("/a");
+
+    // The watcher waits for what the callback returns.
+    let result: unknown;
+    act(() => {
+      result = onChange?.();
+    });
+
+    expect(result).toEqual({ type: "fileNavigator/loadDirectory" });
+    expect(FileNavigatorSlice.loadDirectory).toHaveBeenCalledTimes(1);
+    expect(FileNavigatorSlice.loadDirectory).toHaveBeenCalledWith({
+      dirPath: "/a",
+      background: true,
     });
   });
 

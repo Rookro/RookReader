@@ -117,7 +117,15 @@ export default function FileListViewer() {
     refreshEntries();
   }, [refreshEntries, store, history, historyIndex]);
 
-  useDirectoryWatcher(history[historyIndex], refreshEntries);
+  // What the watcher runs: the list stays on screen while the folder is read again.
+  const refreshInBackground = useCallback(() => {
+    const dirPath = history[historyIndex];
+    if (dirPath) {
+      return dispatch(loadDirectory({ dirPath, background: true }));
+    }
+  }, [history, historyIndex, dispatch]);
+
+  useDirectoryWatcher(history[historyIndex], refreshInBackground);
   useFileSelection(fileHistory, fileHistoryIndex, filteredSortedEntries, setSelectedIndex);
 
   // Scroll to make the selected item visible

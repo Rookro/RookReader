@@ -46,6 +46,18 @@ describe("useDirectoryWatcher", () => {
     return { ...hook, report: (type: unknown) => handler?.(change(type)) };
   };
 
+  /** Makes the next call of the callback run until the returned function is called. */
+  const slowCallback = () => {
+    let finish: () => void = () => {};
+    mockCallback.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    return () => finish();
+  };
+
   // Verify that watcher is not setup if directory watch is disabled
   it("should not setup watcher if directory watch is disabled", () => {
     vi.mocked(useAppSelector).mockReturnValue(false);
@@ -114,11 +126,58 @@ describe("useDirectoryWatcher", () => {
     const { report } = await watching();
 
     report({ create: { kind: "file" } });
-    vi.advanceTimersByTime(500);
+    await vi.advanceTimersByTimeAsync(500);
     report({ remove: { kind: "file" } });
-    vi.advanceTimersByTime(500);
+    await vi.advanceTimersByTimeAsync(500);
 
     expect(mockCallback).toHaveBeenCalledTimes(2);
+  });
+
+  it("should wait for a running callback before it starts the next delay", async () => {
+    const finish = slowCallback();
+    const { report } = await watching();
+
+    report({ create: { kind: "file" } });
+    await vi.advanceTimersByTimeAsync(500);
+    expect(mockCallback).toHaveBeenCalledTimes(1);
+
+    // A change while the callback is still running does not start it again.
+    report({ modify: { kind: "any" } });
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(mockCallback).toHaveBeenCalledTimes(1);
+
+    finish();
+    await vi.advanceTimersByTimeAsync(499);
+    expect(mockCallback).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(1);
+    expect(mockCallback).toHaveBeenCalledTimes(2);
+  });
+
+  it("should not call the callback again when nothing changed while it ran", async () => {
+    const finish = slowCallback();
+    const { report } = await watching();
+
+    report({ create: { kind: "file" } });
+    await vi.advanceTimersByTimeAsync(500);
+    finish();
+    await vi.advanceTimersByTimeAsync(1000);
+
+    expect(mockCallback).toHaveBeenCalledTimes(1);
+  });
+
+  it("should not call the callback again when unmounted while it ran", async () => {
+    const finish = slowCallback();
+    const { report, unmount } = await watching();
+
+    report({ create: { kind: "file" } });
+    await vi.advanceTimersByTimeAsync(500);
+    report({ modify: { kind: "any" } });
+    unmount();
+    finish();
+    await vi.advanceTimersByTimeAsync(1000);
+
+    expect(mockCallback).toHaveBeenCalledTimes(1);
   });
 
   it.each([

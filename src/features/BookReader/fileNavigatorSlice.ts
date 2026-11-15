@@ -9,18 +9,22 @@ import { convertEntriesInDir } from "../../utils/DirEntryUtils";
 import { goBackHistory, goForwardHistory, pushHistory } from "./utils/navigationHistory";
 
 /**
- * Moves the File Navigator to a directory and lists its entries.
+ * Moves the File Navigator to a directory and lists its entries, or reads the folder on
+ * screen again in the background.
  *
  * @param args - The arguments for loading the directory.
  * @param args.dirPath - The absolute path of the directory to load.
  * @param args.forceUpdate - If true, forces a fetch even if the path is already the current one.
+ * @param args.background - If true, reads the folder on screen again and keeps its list
+ * shown meanwhile, instead of the loading indicator. Nothing is dispatched when `dirPath`
+ * is not the folder on screen.
  * @returns A thunk that resolves to the directory path and its entries. When the folder is
- * already shown and `forceUpdate` is not set, nothing is dispatched.
+ * already shown and neither `forceUpdate` nor `background` is set, nothing is dispatched.
  */
 export const loadDirectory = createAppAsyncThunk(
   "fileNavigator/loadDirectory",
   async (
-    args: { dirPath: string; forceUpdate?: boolean },
+    args: { dirPath: string; forceUpdate?: boolean; background?: boolean },
     { dispatch, getState, rejectWithValue, requestId },
   ) => {
     const { dirPath } = args;
@@ -35,8 +39,10 @@ export const loadDirectory = createAppAsyncThunk(
       });
     }
 
-    dispatch(setIsDirEntriesLoading(true));
-    dispatch(directoryPathOpened(dirPath));
+    if (!args.background) {
+      dispatch(setIsDirEntriesLoading(true));
+      dispatch(directoryPathOpened(dirPath));
+    }
     try {
       const buffer = await getEntriesInDirFromBackend(dirPath);
       const entries = convertEntriesInDir(buffer);
@@ -52,13 +58,14 @@ export const loadDirectory = createAppAsyncThunk(
   },
   {
     // Already showing this folder: dispatch nothing, so no request supersedes one in flight.
-    condition: ({ dirPath, forceUpdate }, { getState }) => {
+    // A background read is the exception: its newer listing supersedes one in flight.
+    condition: ({ dirPath, forceUpdate, background }, { getState }) => {
       const { fileNavigator } = getState();
-      return (
-        Boolean(forceUpdate) ||
-        !dirPath ||
-        fileNavigator.history[fileNavigator.historyIndex] !== dirPath
-      );
+      const isShown = fileNavigator.history[fileNavigator.historyIndex] === dirPath;
+      if (background) {
+        return isShown;
+      }
+      return Boolean(forceUpdate) || !dirPath || !isShown;
     },
   },
 );

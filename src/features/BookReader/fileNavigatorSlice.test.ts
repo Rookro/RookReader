@@ -23,6 +23,7 @@ describe("FileNavigatorReducer", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(binaryApi.getEntriesInDir).mockReset();
     store = createTestStore();
   });
 
@@ -170,6 +171,84 @@ describe("FileNavigatorReducer", () => {
         expect((await first).payload).toMatchObject({ code: ErrorCode.io, superseded: true });
 
         expect(store.getState().errorNotification.pending).toEqual([]);
+      });
+    });
+
+    describe("loadDirectory in the background", () => {
+      const showing = (path: string) => {
+        const preloaded = createBasePreloadedState();
+        preloaded.fileNavigator.history = [path];
+        preloaded.fileNavigator.historyIndex = 0;
+        preloaded.fileNavigator.entries = [createMockDirEntry({ name: "old" })];
+        return createTestStore(preloaded);
+      };
+
+      it("keeps the list on screen while the folder is read again", async () => {
+        let finishListing: (buffer: ArrayBuffer) => void = () => {};
+        vi.mocked(binaryApi.getEntriesInDir).mockReturnValueOnce(
+          new Promise((resolve) => {
+            finishListing = resolve;
+          }),
+        );
+        store = showing("/a");
+
+        const refresh = store.dispatch(loadDirectory({ dirPath: "/a", background: true }));
+
+        expect(binaryApi.getEntriesInDir).toHaveBeenCalledWith("/a");
+        expect(store.getState().fileNavigator.isLoading).toBe(false);
+        expect(store.getState().fileNavigator.entries).toHaveLength(1);
+
+        finishListing(new ArrayBuffer(0));
+        await refresh;
+
+        expect(store.getState().fileNavigator.entries).toEqual([]);
+        expect(store.getState().fileNavigator.isLoading).toBe(false);
+      });
+
+      // A move into the folder is still being listed when the folder changes.
+      it("leaves the loading indicator of a listing in flight on", async () => {
+        const preloaded = createBasePreloadedState();
+        preloaded.fileNavigator.history = ["/a"];
+        preloaded.fileNavigator.historyIndex = 0;
+        preloaded.fileNavigator.isLoading = true;
+        store = createTestStore(preloaded);
+        let finishListing: (buffer: ArrayBuffer) => void = () => {};
+        vi.mocked(binaryApi.getEntriesInDir).mockReturnValueOnce(
+          new Promise((resolve) => {
+            finishListing = resolve;
+          }),
+        );
+
+        const refresh = store.dispatch(loadDirectory({ dirPath: "/a", background: true }));
+        expect(store.getState().fileNavigator.isLoading).toBe(true);
+
+        finishListing(new ArrayBuffer(0));
+        await refresh;
+        expect(store.getState().fileNavigator.isLoading).toBe(false);
+      });
+
+      it("empties the list and reports the error when the folder cannot be read", async () => {
+        vi.mocked(binaryApi.getEntriesInDir).mockRejectedValueOnce(
+          new CommandError(ErrorCode.io, "gone"),
+        );
+        store = showing("/a");
+
+        await store.dispatch(loadDirectory({ dirPath: "/a", background: true }));
+
+        expect(store.getState().fileNavigator.entries).toEqual([]);
+        expect(store.getState().fileNavigator.isLoading).toBe(false);
+        expect(store.getState().errorNotification.pending).toEqual([
+          { context: "explorer", code: ErrorCode.io },
+        ]);
+      });
+
+      it("dispatches nothing for a folder that is not on screen", async () => {
+        store = showing("/a");
+
+        await store.dispatch(loadDirectory({ dirPath: "/b", background: true }));
+
+        expect(binaryApi.getEntriesInDir).not.toHaveBeenCalled();
+        expect(store.getState().fileNavigator.history).toEqual(["/a"]);
       });
     });
 
