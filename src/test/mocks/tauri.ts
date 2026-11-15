@@ -12,7 +12,7 @@ export const mockFs = {
   mkdir: vi.fn(() => Promise.resolve()),
   exists: vi.fn(() => Promise.resolve(true)),
   remove: vi.fn(() => Promise.resolve()),
-  watch: vi.fn(() => Promise.resolve(vi.fn())),
+  watchImmediate: vi.fn(() => Promise.resolve(vi.fn())),
 };
 
 export const mockPath = {

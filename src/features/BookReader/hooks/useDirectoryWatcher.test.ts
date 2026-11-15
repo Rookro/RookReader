@@ -1,13 +1,18 @@
-import { exists, watch } from "@tauri-apps/plugin-fs";
+import { exists, watchImmediate } from "@tauri-apps/plugin-fs";
 import { error } from "@tauri-apps/plugin-log";
 import { renderHook, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAppSelector } from "../../../store/store";
 import { useDirectoryWatcher } from "./useDirectoryWatcher";
 
 vi.mock("../../../store/store", () => ({
   useAppSelector: vi.fn(),
 }));
+
+type WatchHandler = Parameters<typeof watchImmediate>[1];
+type WatchEvent = Parameters<WatchHandler>[0];
+
+const change = (type: unknown) => ({ type, paths: [], attrs: {} }) as WatchEvent;
 
 describe("useDirectoryWatcher", () => {
   const mockCallback = vi.fn();
@@ -16,12 +21,37 @@ describe("useDirectoryWatcher", () => {
     vi.clearAllMocks();
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /**
+   * Renders the hook on `/test/path` and resolves to what reports a change to it. The
+   * timers are faked from then on, so a test decides how much time passes.
+   */
+  const watching = async () => {
+    vi.mocked(useAppSelector).mockReturnValue(true);
+    let handler: WatchHandler | undefined;
+    vi.mocked(watchImmediate).mockImplementation((_path, cb) => {
+      handler = cb;
+      return Promise.resolve(vi.fn());
+    });
+
+    const hook = renderHook(({ dir }) => useDirectoryWatcher(dir, mockCallback), {
+      initialProps: { dir: "/test/path" },
+    });
+    await waitFor(() => expect(handler).toBeDefined());
+    vi.useFakeTimers();
+
+    return { ...hook, report: (type: unknown) => handler?.(change(type)) };
+  };
+
   // Verify that watcher is not setup if directory watch is disabled
   it("should not setup watcher if directory watch is disabled", () => {
     vi.mocked(useAppSelector).mockReturnValue(false);
 
     renderHook(() => useDirectoryWatcher("/test/path", mockCallback));
-    expect(watch).not.toHaveBeenCalled();
+    expect(watchImmediate).not.toHaveBeenCalled();
   });
 
   // Verify that watcher is not setup if dirPath is null
@@ -29,7 +59,7 @@ describe("useDirectoryWatcher", () => {
     vi.mocked(useAppSelector).mockReturnValue(true);
 
     renderHook(() => useDirectoryWatcher(null, mockCallback));
-    expect(watch).not.toHaveBeenCalled();
+    expect(watchImmediate).not.toHaveBeenCalled();
   });
 
   // A path inside an archive has nothing on disk to watch.
@@ -40,46 +70,105 @@ describe("useDirectoryWatcher", () => {
     renderHook(() => useDirectoryWatcher("/books/comic.zip/ch1", mockCallback));
 
     await waitFor(() => expect(exists).toHaveBeenCalledWith("/books/comic.zip/ch1"));
-    expect(watch).not.toHaveBeenCalled();
+    expect(watchImmediate).not.toHaveBeenCalled();
   });
 
-  // Verify that watcher is setup and callback is called on file creation, modification, or removal events
-  it("should setup watcher and call callback on create event", async () => {
-    vi.mocked(useAppSelector).mockReturnValue(true);
-    let eventHandler: Parameters<typeof watch>[1] | undefined;
-    vi.mocked(watch).mockImplementation((_path, handler) => {
-      eventHandler = handler;
-      return Promise.resolve(vi.fn());
-    });
+  // The debounced `watch` reads the whole folder on the main thread when it starts.
+  it("should watch the folder without the plugin's debounce", async () => {
+    await watching();
 
-    renderHook(() => useDirectoryWatcher("/test/path", mockCallback));
+    expect(watchImmediate).toHaveBeenCalledWith("/test/path", expect.any(Function));
+  });
 
-    await waitFor(() => {
-      expect(watch).toHaveBeenCalledWith("/test/path", expect.any(Function), { delayMs: 500 });
-    });
+  it.each([
+    ["create", { create: { kind: "file" } }],
+    ["modify", { modify: { kind: "any" } }],
+    ["remove", { remove: { kind: "file" } }],
+  ])("should call the callback 500 ms after a %s event", async (_name, type) => {
+    const { report } = await watching();
 
-    // Simulate events
-    eventHandler?.({ type: { create: {} } } as Parameters<Parameters<typeof watch>[1]>[0]);
+    report(type);
+    vi.advanceTimersByTime(499);
+    expect(mockCallback).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(1);
+    expect(mockCallback).toHaveBeenCalledTimes(1);
+  });
+
+  it("should call the callback once for changes that follow within 500 ms", async () => {
+    const { report } = await watching();
+
+    report({ create: { kind: "file" } });
+    vi.advanceTimersByTime(200);
+    report({ modify: { kind: "any" } });
+    report({ remove: { kind: "file" } });
+    vi.advanceTimersByTime(300);
     expect(mockCallback).toHaveBeenCalledTimes(1);
 
-    eventHandler?.({ type: { modify: {} } } as Parameters<Parameters<typeof watch>[1]>[0]);
+    // The later changes did not start a delay of their own.
+    vi.advanceTimersByTime(1000);
+    expect(mockCallback).toHaveBeenCalledTimes(1);
+  });
+
+  it("should call the callback again for a change after the delay has passed", async () => {
+    const { report } = await watching();
+
+    report({ create: { kind: "file" } });
+    vi.advanceTimersByTime(500);
+    report({ remove: { kind: "file" } });
+    vi.advanceTimersByTime(500);
+
     expect(mockCallback).toHaveBeenCalledTimes(2);
+  });
 
-    eventHandler?.({ type: { remove: {} } } as Parameters<Parameters<typeof watch>[1]>[0]);
-    expect(mockCallback).toHaveBeenCalledTimes(3);
+  it.each([
+    ["an access event", { access: { kind: "any" } }],
+    ["an event of another kind", "other"],
+    ["an event of any kind", "any"],
+  ])("should not call the callback for %s", async (_name, type) => {
+    const { report } = await watching();
 
-    // Should not trigger for other events
-    eventHandler?.({ type: { access: {} } } as Parameters<Parameters<typeof watch>[1]>[0]);
-    expect(mockCallback).toHaveBeenCalledTimes(3);
+    report(type);
+    vi.advanceTimersByTime(500);
 
-    eventHandler?.({ type: "other" } as Parameters<Parameters<typeof watch>[1]>[0]);
-    expect(mockCallback).toHaveBeenCalledTimes(3);
+    expect(mockCallback).not.toHaveBeenCalled();
+  });
+
+  it("should drop a pending call when unmounted", async () => {
+    const { report, unmount } = await watching();
+
+    report({ create: { kind: "file" } });
+    unmount();
+    vi.advanceTimersByTime(500);
+
+    expect(mockCallback).not.toHaveBeenCalled();
+  });
+
+  it("should drop a pending call when the folder changes", async () => {
+    const { report, rerender } = await watching();
+
+    report({ create: { kind: "file" } });
+    rerender({ dir: "/other/path" });
+    vi.advanceTimersByTime(500);
+
+    expect(mockCallback).not.toHaveBeenCalled();
+  });
+
+  // The watcher closes asynchronously, so it can still report after it was told to stop.
+  it("should ignore a change reported after unmount", async () => {
+    const { report, unmount } = await watching();
+
+    unmount();
+    report({ create: { kind: "file" } });
+    vi.advanceTimersByTime(500);
+
+    expect(mockCallback).not.toHaveBeenCalled();
   });
 
   // Verify that an error log is output if watcher setup fails
   it("should log error if watch fails", async () => {
     vi.mocked(useAppSelector).mockReturnValue(true);
-    vi.mocked(watch).mockRejectedValue(new Error("Watch failed"));
+    vi.mocked(watchImmediate).mockRejectedValue(new Error("Watch failed"));
 
     renderHook(() => useDirectoryWatcher("/test/path", mockCallback));
 
@@ -94,7 +183,7 @@ describe("useDirectoryWatcher", () => {
 
     let resolveWatch: (value: () => void) => void = () => {};
     const mockUnwatch = vi.fn();
-    vi.mocked(watch).mockImplementation(
+    vi.mocked(watchImmediate).mockImplementation(
       () =>
         new Promise((resolve) => {
           resolveWatch = resolve;
@@ -102,7 +191,7 @@ describe("useDirectoryWatcher", () => {
     );
 
     const { unmount } = renderHook(() => useDirectoryWatcher("/test/path", mockCallback));
-    await waitFor(() => expect(watch).toHaveBeenCalled());
+    await waitFor(() => expect(watchImmediate).toHaveBeenCalled());
 
     // Unmount before the watch promise resolves, then resolve it.
     unmount();
@@ -119,7 +208,7 @@ describe("useDirectoryWatcher", () => {
 
     const resolvers: Array<(value: () => void) => void> = [];
     const staleUnwatch = vi.fn();
-    vi.mocked(watch).mockImplementation(
+    vi.mocked(watchImmediate).mockImplementation(
       () =>
         new Promise((resolve) => {
           resolvers.push(resolve);
@@ -130,7 +219,7 @@ describe("useDirectoryWatcher", () => {
       initialProps: { dir: "/path/a" },
     });
 
-    await waitFor(() => expect(watch).toHaveBeenCalled());
+    await waitFor(() => expect(watchImmediate).toHaveBeenCalled());
 
     // Change dirPath before the first watch resolves, then resolve the stale one.
     rerender({ dir: "/path/b" });
