@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Fixed the error shown when an opened book could not be saved saying that the reading history could not be recorded, even while **Reading history** is off, and a History row's open menu acting on a different book with the same name after the list refreshed. (#400)
 * Fixed the window freezing for a moment when the File Navigator opened a folder with many files while **Watch folders and files for changes** is on. (#404)
 * Fixed the File Navigator's list being replaced by the loading indicator, and in large folders not updating until the changes stopped, while files in the folder kept changing with **Watch folders and files for changes** on. (#405)
+* Fixed the File Navigator's list scrolling back to the open book whenever files were added to or removed from the folder while **Watch folders and files for changes** is on. (#406)
 
 ## [2.7.0] - 2026-11-02
 
