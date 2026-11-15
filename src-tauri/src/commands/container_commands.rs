@@ -347,7 +347,10 @@ mod tests {
     use crate::{
         container::traits::{MockContainer, MockPageReader, PageReader},
         image::{resizer::ResizeFilter, types::Image},
-        page::{pipeline::Pipeline, service::PageService},
+        page::{
+            pipeline::Pipeline,
+            service::{close_if_stuck, PageService, StuckWatch},
+        },
     };
 
     /// A real 800x600 PNG.
@@ -396,11 +399,13 @@ mod tests {
     }
 
     /// Installs `container` as the open book under `book_id`.
+    ///
+    /// The returned watch closes the book if the test outlives the scheduler's test timeout.
     fn manage_service(
         app: &tauri::App<tauri::test::MockRuntime>,
         book_id: &str,
         container: MockContainer,
-    ) {
+    ) -> StuckWatch {
         let mut container_state = ContainerState::default();
         container_state.install(PageService::new(
             book_id.to_string(),
@@ -413,7 +418,9 @@ mod tests {
             mini_moka::sync::Cache::new(100),
             0,
         ));
+        let watch = close_if_stuck(&container_state.current_service().expect("a book is open"));
         app.manage(RwLock::new(container_state));
+        watch
     }
 
     /// A valid 1x1 PNG. Previews travel as encoded bytes and are decoded by the loader,
@@ -429,7 +436,7 @@ mod tests {
     #[tokio::test]
     async fn test_get_image_in_container() {
         let app = tauri::test::mock_app();
-        manage_service(
+        let _watch = manage_service(
             &app,
             "dummy_book_id",
             page_container(&["test1.png", "test2.png"]),
@@ -467,7 +474,7 @@ mod tests {
         // A request whose path does not match the installed loader's book_id raced a
         // book switch; it must be rejected (BookChanged), not served another book's page.
         let app = tauri::test::mock_app();
-        manage_service(&app, "current_book_id", page_container(&["test1.png"]));
+        let _watch = manage_service(&app, "current_book_id", page_container(&["test1.png"]));
 
         // Ask for a page in a *different* book than the one installed.
         let result = get_image("stale_book_id", "test1.png", app.state()).await;
@@ -482,7 +489,7 @@ mod tests {
     }
 
     /// Builds a container state around a two-page book whose pages differ in orientation.
-    fn manage_mock_state(app: &tauri::App<tauri::test::MockRuntime>, book_id: &str) {
+    fn manage_mock_state(app: &tauri::App<tauri::test::MockRuntime>, book_id: &str) -> StuckWatch {
         let mut container = MockContainer::new();
         container
             .expect_get_entries()
@@ -505,13 +512,13 @@ mod tests {
             });
             Ok(Box::new(reader) as Box<dyn PageReader>)
         });
-        manage_service(app, book_id, container);
+        manage_service(app, book_id, container)
     }
 
     #[tokio::test]
     async fn test_get_image_dimensions_returns_one_entry_per_page() {
         let app = tauri::test::mock_app();
-        manage_mock_state(&app, "dummy_book_id");
+        let _watch = manage_mock_state(&app, "dummy_book_id");
 
         let result = get_image_dimensions("dummy_book_id", app.state()).await;
 
@@ -535,7 +542,7 @@ mod tests {
         // Mirrors get_image: a request that raced a book switch must be rejected rather
         // than measured against another book's pages.
         let app = tauri::test::mock_app();
-        manage_mock_state(&app, "current_book_id");
+        let _watch = manage_mock_state(&app, "current_book_id");
 
         let result = get_image_dimensions("stale_book_id", app.state()).await;
 
@@ -583,7 +590,7 @@ mod tests {
     #[tokio::test]
     async fn the_loupe_reads_the_page_at_its_full_size() {
         let app = tauri::test::mock_app();
-        manage_service(&app, "dummy_book_id", page_container(&["test1.png"]));
+        let _watch = manage_service(&app, "dummy_book_id", page_container(&["test1.png"]));
         set_display_size(400, 300, app.state()).await.unwrap();
 
         let displayed = get_image("dummy_book_id", "test1.png", app.state())
@@ -601,7 +608,7 @@ mod tests {
     #[tokio::test]
     async fn a_stale_path_is_refused_a_full_size_page() {
         let app = tauri::test::mock_app();
-        manage_service(&app, "current_book_id", page_container(&["test1.png"]));
+        let _watch = manage_service(&app, "current_book_id", page_container(&["test1.png"]));
 
         // The loupe is held open across a book switch as readily as any other request.
         let result = get_image_full("stale_book_id", "test1.png", app.state()).await;
@@ -611,7 +618,7 @@ mod tests {
     #[tokio::test]
     async fn reporting_the_viewport_fits_the_open_book_to_it() {
         let app = tauri::test::mock_app();
-        manage_service(&app, "dummy_book_id", page_container(&["test1.png"]));
+        let _watch = manage_service(&app, "dummy_book_id", page_container(&["test1.png"]));
 
         // The mock page is 800x600, and the reader is drawing into a quarter of that.
         set_display_size(400, 300, app.state()).await.unwrap();
@@ -625,7 +632,7 @@ mod tests {
     #[tokio::test]
     async fn a_viewport_of_zero_unbounds_the_page() {
         let app = tauri::test::mock_app();
-        manage_service(&app, "dummy_book_id", page_container(&["test1.png"]));
+        let _watch = manage_service(&app, "dummy_book_id", page_container(&["test1.png"]));
         set_display_size(400, 300, app.state()).await.unwrap();
 
         // What the frontend reports before it has measured anything. The page must come
@@ -659,7 +666,7 @@ mod tests {
     #[tokio::test]
     async fn test_request_preload_around() {
         let app = tauri::test::mock_app();
-        manage_service(&app, "dummy_book_id", page_container(&["test1.png"]));
+        let _watch = manage_service(&app, "dummy_book_id", page_container(&["test1.png"]));
 
         let result = request_preload_around("dummy_book_id", 0, 5, 0, app.state()).await;
         assert!(result.is_ok());
@@ -688,7 +695,7 @@ mod tests {
                 .returning(|_| Ok(Some(DUMMY_PNG_DATA.to_vec())));
             Ok(Box::new(reader) as Box<dyn PageReader>)
         });
-        manage_service(&app, "dummy_book_id", container);
+        let _watch = manage_service(&app, "dummy_book_id", container);
 
         let result = get_image_preview("dummy_book_id", "test1.png", app.state()).await;
         assert!(result.is_ok());
@@ -717,7 +724,7 @@ mod tests {
             reader.expect_read_preview().returning(|_| Ok(None));
             Ok(Box::new(reader) as Box<dyn PageReader>)
         });
-        manage_service(&app, "dummy_book_id", container);
+        let _watch = manage_service(&app, "dummy_book_id", container);
 
         let result = get_image_preview("dummy_book_id", "test1.png", app.state()).await;
         let body = match result.unwrap().body().unwrap() {
@@ -770,7 +777,7 @@ mod tests {
         std::fs::write(&path, b"epub-bytes").unwrap();
         let path = path.to_string_lossy().to_string();
         let app = tauri::test::mock_app();
-        manage_service(&app, &path, novel_container(true));
+        let _watch = manage_service(&app, &path, novel_container(true));
 
         let response = read_novel_file(&path, app.state()).await.unwrap();
 
@@ -784,7 +791,7 @@ mod tests {
     #[tokio::test]
     async fn test_read_novel_file_refuses_a_book_that_is_not_open() {
         let app = tauri::test::mock_app();
-        manage_service(&app, "open.epub", novel_container(true));
+        let _watch = manage_service(&app, "open.epub", novel_container(true));
 
         let result = read_novel_file("other.epub", app.state()).await;
 
@@ -794,7 +801,7 @@ mod tests {
     #[tokio::test]
     async fn test_read_novel_file_refuses_a_comic() {
         let app = tauri::test::mock_app();
-        manage_service(&app, "comic.cbz", novel_container(false));
+        let _watch = manage_service(&app, "comic.cbz", novel_container(false));
 
         let result = read_novel_file("comic.cbz", app.state()).await;
 
@@ -804,7 +811,7 @@ mod tests {
     #[tokio::test]
     async fn test_read_novel_file_reports_a_deleted_file_as_not_found() {
         let app = tauri::test::mock_app();
-        manage_service(&app, "/no/such/novel.epub", novel_container(true));
+        let _watch = manage_service(&app, "/no/such/novel.epub", novel_container(true));
 
         let result = read_novel_file("/no/such/novel.epub", app.state()).await;
 

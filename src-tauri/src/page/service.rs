@@ -249,6 +249,54 @@ fn closed() -> Error {
     Error::BookClosed("The book was closed while a page was being read".to_string())
 }
 
+/// How long a test waits for the scheduler before a job counts as never run.
+#[cfg(test)]
+const TEST_REPLY_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
+
+/// Waits for a reply on a plain test thread, panicking instead of hanging when none comes.
+///
+/// The wait runs on a helper thread: a oneshot receiver has no blocking receive with a limit.
+#[cfg(test)]
+fn reply_within<T: Send + 'static>(
+    rx: oneshot::Receiver<Result<T>>,
+    limit: std::time::Duration,
+) -> Result<T> {
+    let (done_tx, done_rx) = mpsc::channel();
+    thread::spawn(move || {
+        let _ = done_tx.send(rx.blocking_recv());
+    });
+    match done_rx.recv_timeout(limit) {
+        Ok(reply) => reply.unwrap_or_else(|_| Err(closed())),
+        Err(_) => panic!("no reply within {limit:?}: the job was never run"),
+    }
+}
+
+/// Dropping it ends the watch that [`close_if_stuck`] started.
+#[cfg(test)]
+#[must_use = "dropping the watch ends it"]
+pub(crate) struct StuckWatch {
+    _finished: mpsc::Sender<()>,
+}
+
+/// Closes `service` after [`TEST_REPLY_TIMEOUT`], unless the returned watch is dropped first.
+///
+/// A wait inside the service has no limit of its own; closing the book drops the queued
+/// jobs, so a wait for a job that was never run ends in an error and the test fails
+/// instead of hanging.
+#[cfg(test)]
+pub(crate) fn close_if_stuck(service: &Arc<PageService>) -> StuckWatch {
+    let (finished, stuck) = mpsc::channel::<()>();
+    let service = service.clone();
+    thread::spawn(move || {
+        if stuck.recv_timeout(TEST_REPLY_TIMEOUT) == Err(mpsc::RecvTimeoutError::Timeout) {
+            service.close();
+        }
+    });
+    StuckWatch {
+        _finished: finished,
+    }
+}
+
 /// Owns every reader thread for one open book, plus the queue feeding them.
 ///
 /// [`PageService::close`] discards the queued jobs and closes the queue; each worker
@@ -431,7 +479,7 @@ impl PageService {
     pub fn page_blocking(&self, entry: &str, priority: Priority) -> Result<Arc<Image>> {
         match self.enqueue(entry, priority, self.shared.pipeline().fit())? {
             Fetch::Cached(image) => Ok(image),
-            Fetch::Queued { rx, .. } => rx.blocking_recv().unwrap_or_else(|_| Err(closed())),
+            Fetch::Queued { rx, .. } => reply_within(rx, TEST_REPLY_TIMEOUT),
         }
     }
 
@@ -444,7 +492,7 @@ impl PageService {
             self.shared.pipeline().full_fit(),
         )? {
             Fetch::Cached(image) => Ok(image),
-            Fetch::Queued { rx, .. } => rx.blocking_recv().unwrap_or_else(|_| Err(closed())),
+            Fetch::Queued { rx, .. } => reply_within(rx, TEST_REPLY_TIMEOUT),
         }
     }
 
@@ -452,7 +500,7 @@ impl PageService {
     #[cfg(test)]
     pub fn preview_blocking(&self, entry: &str) -> Result<Option<Arc<Image>>> {
         match self.enqueue_preview(entry)? {
-            Some(rx) => rx.blocking_recv().unwrap_or_else(|_| Err(closed())),
+            Some(rx) => reply_within(rx, TEST_REPLY_TIMEOUT),
             None => Ok(None),
         }
     }
@@ -1086,7 +1134,7 @@ mod tests {
     use std::{
         io::Cursor,
         sync::{
-            atomic::{AtomicUsize, Ordering},
+            atomic::{AtomicBool, AtomicUsize, Ordering},
             Barrier,
         },
         time::Duration,
@@ -1625,18 +1673,22 @@ mod tests {
 
         // One worker, held on its first page until the second window has been requested.
         let gate = Arc::new(Barrier::new(2));
+        let parked = Arc::new(AtomicBool::new(false));
         let mut container = MockContainer::new();
         container.expect_get_entries().return_const(names.clone());
         container.expect_max_readers().return_const(1usize);
         let reader_gate = gate.clone();
+        let reader_parked = parked.clone();
         let reader_log = log.clone();
         container.expect_open_reader().returning(move || {
             let gate = reader_gate.clone();
+            let parked = reader_parked.clone();
             let log = reader_log.clone();
             let first = Arc::new(AtomicUsize::new(0));
             let mut reader = MockPageReader::new();
             reader.expect_read_page().returning(move |entry| {
                 if first.fetch_add(1, Ordering::SeqCst) == 0 {
+                    parked.store(true, Ordering::SeqCst);
                     gate.wait();
                 }
                 log.lock().unwrap().push(entry.to_string());
@@ -1654,7 +1706,11 @@ mod tests {
         );
 
         service.request_preload_around(0, 3, 0).unwrap();
-        // The worker is now parked inside the first window's first page.
+        // Wait until the worker has taken page 0, so the new window drops only pages 1 to 3;
+        // without this it may arrive first and drop the whole first window instead.
+        eventually("the worker to park on its first page", || {
+            parked.load(Ordering::SeqCst)
+        });
         service.request_preload_around(30, 3, 0).unwrap();
         gate.wait();
 
@@ -2066,7 +2122,9 @@ mod tests {
 
         // The viewer holds its layout until this scan lands, so failing the whole scan
         // would cost the book its two-page view over one bad page.
-        let measured = service(container).dimensions().unwrap();
+        let service = Arc::new(service(container));
+        let _watch = close_if_stuck(&service);
+        let measured = service.dimensions().unwrap();
         assert_eq!(measured.len(), 4);
         assert_eq!(
             measured[2],
@@ -2091,9 +2149,9 @@ mod tests {
         let names = entries(40);
         let log = Arc::new(Mutex::new(Vec::new()));
 
-        let measured = service(recording_container(names.clone(), 1, log))
-            .dimensions()
-            .unwrap();
+        let service = Arc::new(service(recording_container(names.clone(), 1, log)));
+        let _watch = close_if_stuck(&service);
+        let measured = service.dimensions().unwrap();
         assert_eq!(measured.len(), 40);
 
         // Forty pages, one line. A record per page would cost more in log I/O than the
@@ -2108,7 +2166,8 @@ mod tests {
         let recording = crate::perf::capture::record();
         let names = entries(2);
         let log = Arc::new(Mutex::new(Vec::new()));
-        let service = service(recording_container(names.clone(), 1, log));
+        let service = Arc::new(service(recording_container(names.clone(), 1, log)));
+        let _watch = close_if_stuck(&service);
 
         // The record is written by the async read, which is what the commands use.
         service.page(&names[0], Priority::Foreground).await.unwrap();
@@ -2141,5 +2200,13 @@ mod tests {
         assert!(service
             .page_blocking("anything", Priority::Foreground)
             .is_err());
+    }
+
+    #[test]
+    #[should_panic(expected = "the job was never run")]
+    fn a_reply_that_never_comes_fails_the_test() {
+        // The sender is kept alive, so the receiver neither gets a value nor sees it closed.
+        let (_tx, rx) = oneshot::channel::<Result<()>>();
+        let _ = reply_within(rx, Duration::from_millis(50));
     }
 }
