@@ -9,13 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-
-* RookReader now tells you when it could not read the settings file at start-up and started with the default settings and with reading history off. (#398)
-
 ### Changed
 
-* The settings file is now read only when RookReader starts. Edit it while the app is closed; a change made while it is running is overwritten by the next setting you change. (#391)
+* The settings file is now read only when RookReader starts. Edit it while the app is closed; a change made while it is running is overwritten by the next setting you change. If the file cannot be read at start-up, RookReader runs on the default settings with reading history off and tells you so. (#391, #398)
 * Notifications that appear close together are now shown one after another, instead of the newest replacing the others; an error no longer waits behind messages such as "Opening next book". (#397)
 
 ### Fixed
