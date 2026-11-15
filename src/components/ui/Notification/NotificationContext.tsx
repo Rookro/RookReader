@@ -21,15 +21,14 @@ interface QueuedNotification {
   id: number;
   message: string;
   severity: AlertColor;
-  /** Closes only with its close button: not by itself, not on Escape. */
-  persist: boolean;
 }
 
 /** How a notification is shown. */
 export interface NotificationOptions {
   /**
-   * Keep the notification on screen until its close button is pressed: it does not close by
-   * itself or on Escape. Defaults to false.
+   * Show the notification at the top center, apart from the ordinary ones, until its close
+   * button is pressed: it does not close by itself, on Escape or on a click elsewhere.
+   * Defaults to false.
    */
   persist?: boolean;
 }
@@ -39,10 +38,11 @@ export interface NotificationOptions {
  */
 interface NotificationContextType {
   /**
-   * Queues a notification. Notifications are shown one at a time, in the order requested;
-   * a request that repeats a queued message and severity is dropped. An error removes the
-   * information notifications requested before it: the one on screen closes and those
-   * waiting are dropped.
+   * Queues a notification. Notifications are shown one at a time at the bottom center, in the
+   * order requested; a request that repeats a queued message and severity is dropped. An error
+   * removes the information notifications requested before it: the one on screen closes and
+   * those waiting are dropped. Persistent notifications are queued the same way but on their
+   * own, at the top center, beside the ordinary ones; an error leaves them alone.
    */
   showNotification: (message: string, severity?: AlertColor, options?: NotificationOptions) => void;
 }
@@ -71,26 +71,78 @@ interface NotificationProviderProps {
   children: ReactNode;
 }
 
+/** Props for {@link NotificationSnackbar}. */
+interface NotificationSnackbarProps {
+  notification: QueuedNotification;
+  open: boolean;
+  /** Shown at the top center until the close button is pressed, instead of at the bottom center. */
+  persist: boolean;
+  onClose: (event: SyntheticEvent | Event, reason?: SnackbarCloseReason) => void;
+  onExited: () => void;
+}
+
+/** One notification on screen. */
+function NotificationSnackbar({
+  notification,
+  open,
+  persist,
+  onClose,
+  onExited,
+}: NotificationSnackbarProps) {
+  return (
+    <Snackbar
+      open={open}
+      autoHideDuration={persist ? null : AUTO_HIDE_MS}
+      // Without onClose, the Snackbar ignores Escape and clickaway.
+      onClose={persist ? undefined : onClose}
+      slotProps={{ transition: { onExited } }}
+      anchorOrigin={{ vertical: persist ? "top" : "bottom", horizontal: "center" }}
+      sx={{ maxWidth: "50%" }}
+    >
+      <Alert
+        onClose={onClose}
+        severity={notification.severity}
+        variant="filled"
+        sx={{ width: "100%", overflowWrap: "anywhere", whiteSpace: "pre-wrap" }}
+      >
+        {notification.message}
+      </Alert>
+    </Snackbar>
+  );
+}
+
 /**
  * A provider component that wraps the application (or a part of it) to enable global notifications.
- * It renders the `Snackbar` component at the root level, one notification at a time.
+ * It renders the `Snackbar` components at the root level: one ordinary notification at a time at the
+ * bottom center and, beside it, one persistent notification at a time at the top center.
  *
  * @param props The provider props.
- * @returns The provider component with the global Snackbar.
+ * @returns The provider component with the global Snackbars.
  */
 export default function NotificationProvider({ children }: NotificationProviderProps) {
   // The first entry is on screen; the rest wait for it to leave.
   const [queue, setQueue] = useState<QueuedNotification[]>([]);
   // The notification that was told to close and is still leaving the screen.
   const [closingId, setClosingId] = useState<number | null>(null);
+  // The same for persistent notifications.
+  const [persistentQueue, setPersistentQueue] = useState<QueuedNotification[]>([]);
+  const [closingPersistentId, setClosingPersistentId] = useState<number | null>(null);
   const nextId = useRef(0);
 
   const current = queue[0];
+  const currentPersistent = persistentQueue[0];
 
   const showNotification = useCallback(
     (message: string, severity: AlertColor = "info", options?: NotificationOptions) => {
       const id = nextId.current++;
-      const persist = options?.persist ?? false;
+      if (options?.persist) {
+        setPersistentQueue((queued) =>
+          queued.some((n) => n.message === message && n.severity === severity)
+            ? queued
+            : [...queued, { id, message, severity }],
+        );
+        return;
+      }
       setQueue((queued) => {
         if (queued.some((n) => n.message === message && n.severity === severity)) {
           return queued;
@@ -98,7 +150,7 @@ export default function NotificationProvider({ children }: NotificationProviderP
         // The one on screen stays so that it can leave through its exit transition.
         const kept =
           severity === "error" ? queued.filter((n, i) => i === 0 || n.severity !== "info") : queued;
-        return [...kept, { id, message, severity, persist }];
+        return [...kept, { id, message, severity }];
       });
     },
     [],
@@ -116,10 +168,6 @@ export default function NotificationProvider({ children }: NotificationProviderP
       if (reason === "clickaway" || !current) {
         return;
       }
-      // A persistent notification closes only with its close button.
-      if (current.persist && reason === "escapeKeyDown") {
-        return;
-      }
       setClosingId(current.id);
     },
     [current],
@@ -130,28 +178,38 @@ export default function NotificationProvider({ children }: NotificationProviderP
     setQueue((queued) => queued.slice(1));
   }, []);
 
+  const handlePersistentClose = useCallback(() => {
+    if (currentPersistent) {
+      setClosingPersistentId(currentPersistent.id);
+    }
+  }, [currentPersistent]);
+
+  const handlePersistentExited = useCallback(() => {
+    setPersistentQueue((queued) => queued.slice(1));
+  }, []);
+
   return (
     <NotificationContext.Provider value={{ showNotification }}>
       {children}
       {current && (
-        <Snackbar
+        <NotificationSnackbar
           key={current.id}
+          notification={current}
           open={current.id !== closingId}
-          autoHideDuration={current.persist ? null : AUTO_HIDE_MS}
+          persist={false}
           onClose={handleClose}
-          slotProps={{ transition: { onExited: handleExited } }}
-          anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-          sx={{ maxWidth: "50%" }}
-        >
-          <Alert
-            onClose={handleClose}
-            severity={current.severity}
-            variant="filled"
-            sx={{ width: "100%", overflowWrap: "anywhere", whiteSpace: "pre-wrap" }}
-          >
-            {current.message}
-          </Alert>
-        </Snackbar>
+          onExited={handleExited}
+        />
+      )}
+      {currentPersistent && (
+        <NotificationSnackbar
+          key={currentPersistent.id}
+          notification={currentPersistent}
+          open={currentPersistent.id !== closingPersistentId}
+          persist
+          onClose={handlePersistentClose}
+          onExited={handlePersistentExited}
+        />
       )}
     </NotificationContext.Provider>
   );
