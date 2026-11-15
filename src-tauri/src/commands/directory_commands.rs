@@ -188,7 +188,6 @@ fn push_entry(buffer: &mut Vec<u8>, is_directory: bool, name: &str, last_modifie
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::DateTime;
     use std::convert::TryInto;
     use std::fs;
     use tauri::ipc::IpcResponse;
@@ -519,13 +518,18 @@ mod tests {
             .unwrap();
         let bytes = get_bytes_from_response(result);
         let entries = parse_entries(&bytes);
-        assert!(!entries.is_empty());
+        assert_eq!(entries.len(), 1);
 
-        // Check last modified timestamp.
+        let expected = fs::metadata(&file_path)
+            .unwrap()
+            .modified()
+            .unwrap()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as i64;
         for entry in entries {
-            let parsed = DateTime::from_timestamp_millis(entry.last_modified);
-            assert!(
-                parsed.is_some(),
+            assert_eq!(
+                entry.last_modified, expected,
                 "last_modified should be milliseconds since the UNIX epoch"
             );
         }
