@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 * The settings file is now read only when RookReader starts. Edit it while the app is closed; a change made while it is running is overwritten by the next setting you change. (#391)
+* Notifications that appear close together are now shown one after another, instead of the newest replacing the others; an error no longer waits behind messages such as "Opening next book". (#397)
 
 ### Fixed
 
