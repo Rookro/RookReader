@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * **Clear all history** in the History panel and in **Settings → Reader** removes every entry at once, after a confirmation. (#409)
   * This also resets the saved reading positions and the progress on bookshelf covers; books, bookmarks, collections, tags and series are kept.
+* The window title shows the name of the open book, so the taskbar and the window switcher tell which book is being read. (#410)
 
 ## [2.7.1] - 2026-11-16
 
