@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import SettingsPanel from "../SettingsPanel";
 import AutoDescendSingleFolderSetting from "./Items/AutoDescendSingleFolderSetting";
 import AutoOpenAdjacentBookSetting from "./Items/AutoOpenAdjacentBookSetting";
+import ClearHistorySetting from "./Items/ClearHistorySetting";
 import FontSettings from "./Items/FontSettings";
 import LoupeSettingsItem from "./Items/LoupeSettingsItem";
 import ReadingDirectionSetting from "./Items/ReadingDirectionSetting";
@@ -42,6 +43,8 @@ export default function ReaderSettings() {
           {t("settings.reader.headers.history")}
         </ListSubheader>
         <RecordReadingHistorySetting />
+        <Divider />
+        <ClearHistorySetting />
       </List>
     </SettingsPanel>
   );

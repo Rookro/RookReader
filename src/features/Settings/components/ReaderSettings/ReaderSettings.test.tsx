@@ -33,6 +33,12 @@ vi.mock("./Items/RecordReadingHistorySetting", () => {
   return { default: RecordReadingHistorySetting };
 });
 
+vi.mock("./Items/ClearHistorySetting", () => {
+  const ClearHistorySetting = (): JSX.Element => <div data-testid="clear-history-setting" />;
+  ClearHistorySetting.displayName = "ClearHistorySetting";
+  return { default: ClearHistorySetting };
+});
+
 // Mock SettingsPanel
 vi.mock("../SettingsPanel", () => {
   const SettingsPanel = ({
@@ -62,5 +68,6 @@ describe("ReaderSettings", () => {
     expect(screen.getByTestId("loupe-settings-item")).toBeInTheDocument();
     expect(screen.getByTestId("font-settings")).toBeInTheDocument();
     expect(screen.getByTestId("record-reading-history-setting")).toBeInTheDocument();
+    expect(screen.getByTestId("clear-history-setting")).toBeInTheDocument();
   });
 });
