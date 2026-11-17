@@ -22,7 +22,7 @@ export function useAddBooksToBookshelf() {
         return;
       }
       const action = await dispatch(addBooksToBookshelf({ collectionId, paths }));
-      // A rejection of the whole request is shown by ErrorNotifier.
+      // Narrows the action; the thunk does not reject for a single path.
       if (!addBooksToBookshelf.fulfilled.match(action)) {
         return;
       }
