@@ -5,7 +5,7 @@ import PhotoLibrary from "@mui/icons-material/PhotoLibrary";
 import { Box, CircularProgress, Stack, type SxProps, type Theme } from "@mui/material";
 import { createSelector } from "@reduxjs/toolkit";
 import { Allotment } from "allotment";
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useDragDropEvent } from "../../../hooks/useDragDropEvent";
 import { usePaneSizes } from "../../../hooks/usePaneSizes";
@@ -25,6 +25,7 @@ import FileNavigator from "./FileNavigator/FileNavigator";
 import HistoryViewer from "./HistoryViewer/HistoryViewer";
 import ImageEntriesViewer from "./ImageEntriesViewer/ImageEntriesViewer";
 import NovelReader from "./NovelReader";
+import ReaderEmptyState from "./ReaderEmptyState";
 import ReaderToolbar from "./ReaderToolbar";
 
 const selectBookReaderState = createSelector(
@@ -130,8 +131,10 @@ export default function BookReader({ sx }: BookReaderProps) {
     return tabs;
   }, [historySettings.recordReadingHistory, t]);
 
+  // Blank while the last book is looked up, so the guidance does not flash before it opens.
+  const [isRestoring, setIsRestoring] = useState(true);
   useEffect(() => {
-    dispatch(restoreLastBook());
+    dispatch(restoreLastBook()).finally(() => setIsRestoring(false));
   }, [dispatch]);
 
   const containerPath = history[historyIndex];
@@ -159,6 +162,7 @@ export default function BookReader({ sx }: BookReaderProps) {
                 <Allotment.Pane>
                   <Box
                     sx={{
+                      position: "relative",
                       width: "100%",
                       height: "100%",
                       backgroundColor: (theme) => theme.palette.background.default,
@@ -184,6 +188,7 @@ export default function BookReader({ sx }: BookReaderProps) {
                     ) : (
                       <ComicReader />
                     )}
+                    {historyIndex === -1 && !isRestoring && <ReaderEmptyState />}
                   </Box>
                 </Allotment.Pane>
               </Allotment>

@@ -3,6 +3,7 @@ import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { api } from "../../../bindings/api";
+import type { BookWithState } from "../../../domain/entities";
 import * as dragDrop from "../../../hooks/useDragDropEvent";
 import { createReaderActionSpies } from "../../../test/readerInput";
 import {
@@ -208,5 +209,52 @@ describe("BookReader", () => {
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
     expect(setItemSpy).not.toHaveBeenCalledWith("book-reader-left-pane-sizes", expect.any(String));
+  });
+
+  describe("guidance while no book is open", () => {
+    const howToOpen = "Drop a file or folder here, or choose one from the File Navigator.";
+
+    it("explains how to open a book while none is open", async () => {
+      renderWithProviders(<BookReader />, { preloadedState: createBasePreloadedState() });
+
+      expect(await screen.findByText(howToOpen)).toBeInTheDocument();
+      expect(
+        screen.getByText("Supported formats: zip / cbz, rar / cbr, pdf, epub, image folders"),
+      ).toBeInTheDocument();
+    });
+
+    it("keeps the comic reader mounted under the guidance", async () => {
+      renderWithProviders(<BookReader />, { preloadedState: createBasePreloadedState() });
+
+      await screen.findByText(howToOpen);
+      expect(screen.getByTestId("comic-reader")).toBeInTheDocument();
+    });
+
+    it("shows no guidance once a book is open", async () => {
+      const preloadedState = createBasePreloadedState();
+      preloadedState.reader.history = ["/books/a.zip"];
+      preloadedState.reader.historyIndex = 0;
+      renderWithProviders(<BookReader />, { preloadedState });
+
+      await waitFor(() => expect(api.getRecentlyReadBooks).toHaveBeenCalled());
+      await act(async () => {});
+      expect(screen.queryByText(howToOpen)).not.toBeInTheDocument();
+    });
+
+    it("waits for the last book to be restored", async () => {
+      let finishLookup: (books: BookWithState[]) => void = () => {};
+      vi.mocked(api.getRecentlyReadBooks).mockReturnValueOnce(
+        new Promise<BookWithState[]>((resolve) => {
+          finishLookup = resolve;
+        }),
+      );
+      renderWithProviders(<BookReader />, { preloadedState: createBasePreloadedState() });
+
+      await waitFor(() => expect(api.getRecentlyReadBooks).toHaveBeenCalled());
+      expect(screen.queryByText(howToOpen)).not.toBeInTheDocument();
+
+      await act(async () => finishLookup([]));
+      expect(await screen.findByText(howToOpen)).toBeInTheDocument();
+    });
   });
 });

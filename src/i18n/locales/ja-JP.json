@@ -10,6 +10,10 @@
   },
   "book-reader": {
     "move-to-bookshelf": "本棚画面に移動する",
+    "empty-state": {
+      "how-to-open": "ここにファイルかフォルダーをドロップするか、ファイルナビゲーターから選んでください。",
+      "formats": "対応形式: zip / cbz、rar / cbr、pdf、epub、画像フォルダー"
+    },
     "file-navigator": {
       "title": "ファイルナビゲーター",
       "home": "ホームフォルダー",

@@ -53,7 +53,7 @@ The reader is made up of four areas:
   - **Pages** — lists the pages of the current book by file name; click one to jump to it. For EPUB novels it lists the sections, named after the table of contents. In two-page view both pages currently on screen are highlighted.
   - **History** — recently read books (shown only when reading history is enabled). Click an entry to open it; a search box filters the list, and right-clicking an entry offers **Open** and **Remove history**. **Clear all history** in the panel's header removes every entry after a confirmation; this also resets the saved reading positions and the progress shown on bookshelf covers, while books, bookmarks, collections, tags and series are kept. The same action is in **Settings → Reader**, where it is available while reading history is off.
   - **Bookmarks** — the bookmarks saved in the current book (see *Bookmarks* below).
-- **Reading area** (center) — where pages are displayed. If a page cannot be read, the reason is shown in its place.
+- **Reading area** (center) — where pages are displayed. If a page cannot be read, the reason is shown in its place. While no book is open, it tells you how to open one and lists the supported formats.
 - **Page slider** (bottom) — drag to quickly jump to any page in the current book.
 
 The window title shows the name of the open book (for a folder inside an archive, the archive and the folder, for example `comic.zip/Vol.1`), so the taskbar and the window switcher tell you what you are reading.
