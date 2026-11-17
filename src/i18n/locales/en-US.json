@@ -309,7 +309,7 @@
       },
       "clear-history": {
         "title": "Clear all history",
-        "description": "Removes every book from the reading history and resets the saved reading positions and the progress on bookshelf covers. Works while Reading history is off too.",
+        "description": "Removes every book from the reading history and resets the saved reading positions and the progress on bookshelf covers.",
         "button": "Clear all",
         "done": "Reading history cleared."
       }
