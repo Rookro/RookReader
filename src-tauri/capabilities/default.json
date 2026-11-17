@@ -50,6 +50,7 @@
     "core:window:allow-destroy",
     "core:window:allow-set-focus",
     "core:window:allow-unminimize",
+    "core:window:allow-set-title",
     "core:app:allow-set-app-theme",
     "dialog:default",
     "process:default"

@@ -56,6 +56,8 @@ The reader is made up of four areas:
 - **Reading area** (center) — where pages are displayed. If a page cannot be read, the reason is shown in its place.
 - **Page slider** (bottom) — drag to quickly jump to any page in the current book.
 
+The window title shows the name of the open book (for a folder inside an archive, the archive and the folder, for example `comic.zip/Vol.1`), so the taskbar and the window switcher tell you what you are reading.
+
 ### Keyboard Shortcuts & Controls
 
 | Action | Mouse | Keyboard |

@@ -78,6 +78,7 @@ vi.mock("@tauri-apps/api/window", () => ({
   getCurrentWindow: vi.fn(() => ({
     onDragDropEvent: vi.fn(() => Promise.resolve(() => {})),
     onCloseRequested: vi.fn(() => Promise.resolve(() => {})),
+    setTitle: vi.fn(() => Promise.resolve()),
     label: "main",
   })),
 }));

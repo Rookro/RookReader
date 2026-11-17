@@ -10,6 +10,7 @@ import UpdaterMessageDialog from "../../Updater/components/UpdaterMessageDialog"
 import UpdaterProgressDialog from "../../Updater/components/UpdaterProgressDialog";
 import { useUpdater } from "../../Updater/hooks/useUpdater";
 import { useLibrarySync } from "../hooks/useLibrarySync";
+import { useWindowTitle } from "../hooks/useWindowTitle";
 
 /**
  * Props for the main content component
@@ -26,6 +27,7 @@ export default function MainContent({ sx }: MainContentProps) {
   useSettingsChange();
   useLibrarySync();
   useFlushReadingStateOnClose();
+  useWindowTitle();
   const activeView = useAppSelector((state) => state.view.activeView);
   const checkUpdateOnStartup = useAppSelector(
     (state) => state.settings.startup.checkUpdateOnStartup,
