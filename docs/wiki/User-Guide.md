@@ -51,7 +51,7 @@ The reader is made up of four areas:
 - **Side panels** (left): switch between them with the side tabs. Click a tab to open its panel. Clicking the **active tab** again collapses the panel, and clicking once more reopens it — useful for maximizing the reading area.
   - **File Navigator** — browse folders and archives, and open files. Its own bar has **Home folder**, **Back**, **Forward**, **Up one level** and **Refresh** buttons, a **sort order** menu (Name↑/↓, Date↑/↓), a path box for the folder being shown, and a search box that filters the list.
   - **Pages** — lists the pages of the current book by file name; click one to jump to it. For EPUB novels it lists the sections, named after the table of contents. In two-page view both pages currently on screen are highlighted.
-  - **History** — recently read books (shown only when reading history is enabled). Click an entry to open it; a search box filters the list, and right-clicking an entry offers **Open** and **Remove history**.
+  - **History** — recently read books (shown only when reading history is enabled). Click an entry to open it; a search box filters the list, and right-clicking an entry offers **Open** and **Remove history**. **Clear all history** in the panel's header removes every entry after a confirmation; this also resets the saved reading positions and the progress shown on bookshelf covers, while books, bookmarks, collections, tags and series are kept.
   - **Bookmarks** — the bookmarks saved in the current book (see *Bookmarks* below).
 - **Reading area** (center) — where pages are displayed. If a page cannot be read, the reason is shown in its place.
 - **Page slider** (bottom) — drag to quickly jump to any page in the current book.

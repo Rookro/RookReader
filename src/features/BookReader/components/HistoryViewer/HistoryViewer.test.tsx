@@ -2,6 +2,7 @@ import { error } from "@tauri-apps/plugin-log";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { api } from "../../../../bindings/api";
 import { createMockBookWithState } from "../../../../test/factories";
 import { mockScrollToRow } from "../../../../test/mocks/components";
 import { createBasePreloadedState, renderWithProviders } from "../../../../test/utils";
@@ -20,7 +21,12 @@ vi.mock("../../hooks/useHistoryIndex", () => ({
 
 // Mock SidePanelHeader
 vi.mock("../../../SidePane/components/SidePanelHeader", () => ({
-  default: ({ title }: { title: string }) => <div data-testid="side-panel-header">{title}</div>,
+  default: ({ title, actions }: { title: string; actions?: React.ReactNode }) => (
+    <div data-testid="side-panel-header">
+      {title}
+      {actions}
+    </div>
+  ),
 }));
 
 // Mock actions
@@ -179,5 +185,46 @@ describe("HistoryViewer", () => {
 
     const event = fireEvent.contextMenu(searchInput);
     expect(event).toBe(true);
+  });
+
+  describe("clearing all history", () => {
+    const withHistory = () => {
+      const preloadedState = createBasePreloadedState();
+      preloadedState.history.recentlyReadBooks = [
+        createMockBookWithState({ id: 1, filePath: "/path/1", displayName: "Book 1" }),
+      ];
+      return preloadedState;
+    };
+
+    it("is disabled while the history is empty", () => {
+      renderWithProviders(<HistoryViewer />, { preloadedState: createBasePreloadedState() });
+
+      expect(screen.getByRole("button", { name: "Clear all history" })).toBeDisabled();
+    });
+
+    it("clears every entry after the confirmation", async () => {
+      const { store } = renderWithProviders(<HistoryViewer />, { preloadedState: withHistory() });
+
+      await user.click(screen.getByRole("button", { name: "Clear all history" }));
+      expect(
+        screen.getByRole("dialog", { name: "Clear all reading history?" }),
+      ).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "Clear all" }));
+
+      await waitFor(() => expect(api.clearAllReadingHistory).toHaveBeenCalledTimes(1));
+      expect(store.getState().history.recentlyReadBooks).toEqual([]);
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    });
+
+    it("keeps the history when the confirmation is cancelled", async () => {
+      const { store } = renderWithProviders(<HistoryViewer />, { preloadedState: withHistory() });
+
+      await user.click(screen.getByRole("button", { name: "Clear all history" }));
+      await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+      expect(api.clearAllReadingHistory).not.toHaveBeenCalled();
+      expect(store.getState().history.recentlyReadBooks).toHaveLength(1);
+    });
   });
 });

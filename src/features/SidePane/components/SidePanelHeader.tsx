@@ -1,11 +1,20 @@
 import Close from "@mui/icons-material/Close";
 import { Divider, IconButton, Stack, Tooltip, Typography } from "@mui/material";
-import { useCallback } from "react";
+import { type ReactNode, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppDispatch, useAppSelector } from "../../../store/store";
 import { updateSettings } from "../../Settings/slice";
 
-export default function SidePanelHeader(props: { title: string }) {
+/** Props for {@link SidePanelHeader}. */
+export interface SidePanelHeaderProps {
+  /** The panel's title. */
+  title: string;
+  /** Buttons shown before the close button. */
+  actions?: ReactNode;
+}
+
+/** Header of a side panel: its title, its own buttons, and the close button. */
+export default function SidePanelHeader({ title, actions }: SidePanelHeaderProps) {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const tabIndex = useAppSelector((state) => state.settings.layout.sidePane.tabIndex);
@@ -33,18 +42,21 @@ export default function SidePanelHeader(props: { title: string }) {
         }}
       >
         <Typography variant="body1" noWrap>
-          {props.title}
+          {title}
         </Typography>
-        <Tooltip title={t("common.close")}>
-          <IconButton
-            size="small"
-            sx={{ padding: 0 }}
-            onClick={handleCloseClicked}
-            aria-label="close-side-panel"
-          >
-            <Close fontSize="small" />
-          </IconButton>
-        </Tooltip>
+        <Stack direction="row" sx={{ alignItems: "center", gap: 0.5 }}>
+          {actions}
+          <Tooltip title={t("common.close")}>
+            <IconButton
+              size="small"
+              sx={{ padding: 0 }}
+              onClick={handleCloseClicked}
+              aria-label="close-side-panel"
+            >
+              <Close fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Stack>
       </Stack>
       <Divider />
     </>

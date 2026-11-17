@@ -30,7 +30,13 @@
         "remove": "Remove history"
       },
       "no-history": "No history.",
-      "no-search-results": "No results for \"{{searchText}}\"."
+      "no-search-results": "No results for \"{{searchText}}\".",
+      "clear-all": "Clear all history",
+      "clear-all-dialog": {
+        "title": "Clear all reading history?",
+        "description": "Every book is removed from the history, and the saved reading positions and the progress shown on bookshelf covers are reset. Your books, bookmarks, collections, tags and series are kept. This action cannot be undone.",
+        "confirm": "Clear all"
+      }
     },
     "pages-viewer": {
       "title": "Pages",
