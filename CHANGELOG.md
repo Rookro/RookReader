@@ -30,6 +30,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * In the File Navigator, Pages and History, the highlighted entry shows the same tooltip as when you point at it.
   * On Linux, the item you move to with the arrow keys in a right-click menu, in the side pane or on the bookshelf, is now highlighted.
 * While no book is open, the reading area tells you how to open one and lists the supported formats, instead of staying blank. (#417)
+* Files and folders dropped on the bookshelf are added to the collection shown. (#418)
+  * While you drag, the window shows what the drop will do: open the book in the reader, or add it to which collection.
+  * After books are added, from the bookshelf or the **Add books** dialog, a notification tells how many were added and why any could not be.
 
 ## [2.7.1] - 2026-11-16
 
