@@ -24,7 +24,7 @@ We provide various packages on the Releases page depending on your distribution:
 
 You can open comic archives (**zip, cbz, rar, cbr**), PDF documents, EPUB files, and **directories (folders) containing image sequences** by:
 - **Single-clicking** a file or folder in the File Navigator (left pane). A folder of images opens as a book.
-- **Dragging and dropping** a file or a folder directly onto the application window. This is especially useful for quickly viewing a folder full of downloaded manga or comic images without needing to archive them first. While you drag, the window shows that the drop opens the book in the reader.
+- **Dragging and dropping** a file or a folder directly onto the application window while the reader is shown (on the bookshelf, a drop adds the book instead; see *Bookshelf Management*). This is especially useful for quickly viewing a folder full of downloaded manga or comic images without needing to archive them first. While you drag, the window shows that the drop opens the book in the reader.
 
 **Double-clicking** a folder in the File Navigator enters it instead of opening it. The same works for zip/cbz/rar/cbr archives: double-click an archive to step into it like a folder and browse the folders inside. The File Navigator's own **Back**, **Forward**, **Up one level** buttons and path box all work across the archive boundary.
 
