@@ -7,8 +7,9 @@ import { createSelector } from "@reduxjs/toolkit";
 import { Allotment } from "allotment";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useDragDropEvent } from "../../../hooks/useDragDropEvent";
+import DropOverlay from "../../../components/ui/DropOverlay";
 import { usePaneSizes } from "../../../hooks/usePaneSizes";
+import { useWindowDrop } from "../../../hooks/useWindowDrop";
 import { type RootState, useAppDispatch, useAppSelector } from "../../../store/store";
 import SidePanels from "../../SidePane/components/SidePanels";
 import SideTabs from "../../SidePane/components/SideTabs";
@@ -96,7 +97,7 @@ export default function BookReader({ sx }: BookReaderProps) {
     },
     [activeView, dispatch],
   );
-  useDragDropEvent({ onDrop: handleDropped });
+  const isDragging = useWindowDrop(handleDropped);
 
   // The labels double as the tabs' accessible names and tooltips, so they reuse the
   // same titles the panels show in their headers.
@@ -195,6 +196,10 @@ export default function BookReader({ sx }: BookReaderProps) {
             </Box>
           </Stack>
           <ControlSlider />
+          <DropOverlay
+            open={isDragging && activeView === "reader"}
+            message={t("book-reader.drop-to-open")}
+          />
         </Stack>
       </ReaderInputProvider>
     </SidePaneFocusProvider>

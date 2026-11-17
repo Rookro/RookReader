@@ -10,6 +10,7 @@
   },
   "book-reader": {
     "move-to-bookshelf": "本棚画面に移動する",
+    "drop-to-open": "ドロップしてリーダーで開く",
     "empty-state": {
       "how-to-open": "ここにファイルかフォルダーをドロップするか、ファイルナビゲーターから選んでください。",
       "formats": "対応形式: zip / cbz、rar / cbr、pdf、epub、画像フォルダー"
@@ -90,6 +91,7 @@
   },
   "bookshelf": {
     "title": "本棚",
+    "drop-to-add": "ドロップして「{{name}}」に追加",
     "delete": "削除",
     "remove-book_one": "本を削除",
     "remove-book_other": "本を削除",

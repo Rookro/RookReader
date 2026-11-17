@@ -257,4 +257,34 @@ describe("BookReader", () => {
       expect(await screen.findByText(howToOpen)).toBeInTheDocument();
     });
   });
+
+  describe("drop indicator", () => {
+    const lastHandlers = () => {
+      const last = vi.mocked(dragDrop.useDragDropEvent).mock.lastCall?.[0];
+      if (!last) {
+        throw new Error("useDragDropEvent was not called");
+      }
+      return last;
+    };
+
+    it("shows that a drop opens the book", async () => {
+      renderWithProviders(<BookReader />, { preloadedState: createBasePreloadedState() });
+
+      act(() => lastHandlers().onDrag?.());
+      expect(screen.getByText("Drop to open in the reader")).toBeInTheDocument();
+
+      act(() => lastHandlers().onLeave?.());
+      expect(screen.queryByText("Drop to open in the reader")).not.toBeInTheDocument();
+    });
+
+    it("shows nothing over the reader while the bookshelf is shown", () => {
+      const preloadedState = createBasePreloadedState();
+      preloadedState.view.activeView = "bookshelf";
+      renderWithProviders(<BookReader />, { preloadedState });
+
+      act(() => lastHandlers().onDrag?.());
+
+      expect(screen.queryByText("Drop to open in the reader")).not.toBeInTheDocument();
+    });
+  });
 });

@@ -24,6 +24,8 @@ import {
 import { debug } from "@tauri-apps/plugin-log";
 import { type ChangeEvent, useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import DropOverlay from "../../../components/ui/DropOverlay";
+import { useWindowDrop } from "../../../hooks/useWindowDrop";
 import { useAppDispatch, useAppSelector } from "../../../store/store";
 import type { SortOrder } from "../../../types/AppSettings";
 import { openSettingsWindow } from "../../../utils/WindowOpener";
@@ -98,6 +100,24 @@ export default function BookshelfToolbar() {
     },
     [addBooks],
   );
+
+  const activeView = useAppSelector((state) => state.view.activeView);
+  const collectionId = useAppSelector((state) => state.collection.selectedId);
+  const collections = useAppSelector((state) => state.collection.collections);
+  // While the Add books dialog is open, it takes the drop itself.
+  const takesDrop = activeView === "bookshelf" && !isAddBookDialogOpen;
+  const handleDropped = useCallback(
+    (paths: string[]) => {
+      if (takesDrop) {
+        void addBooks(paths);
+      }
+    },
+    [takesDrop, addBooks],
+  );
+  const isDragging = useWindowDrop(handleDropped);
+  const dropTargetName =
+    collections.find((collection) => collection.id === collectionId)?.name ??
+    t("bookshelf.collection.all-books");
 
   const handleContextMenu = useCallback((e: React.MouseEvent<HTMLElement>) => {
     e.stopPropagation();
@@ -235,6 +255,10 @@ export default function BookshelfToolbar() {
         open={isAddBookDialogOpen}
         onClose={() => setIsAddBookDialogOpen(false)}
         onAddBooks={handleAddBooks}
+      />
+      <DropOverlay
+        open={isDragging && takesDrop}
+        message={t("bookshelf.drop-to-add", { name: dropTargetName })}
       />
     </Stack>
   );

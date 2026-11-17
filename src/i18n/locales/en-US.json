@@ -10,6 +10,7 @@
   },
   "book-reader": {
     "move-to-bookshelf": "Move to Bookshelf",
+    "drop-to-open": "Drop to open in the reader",
     "empty-state": {
       "how-to-open": "Drop a file or folder here, or choose one from the File Navigator.",
       "formats": "Supported formats: zip / cbz, rar / cbr, pdf, epub, image folders"
@@ -90,6 +91,7 @@
   },
   "bookshelf": {
     "title": "Bookshelves",
+    "drop-to-add": "Drop to add to \"{{name}}\"",
     "delete": "Delete",
     "remove-book_one": "Remove book",
     "remove-book_other": "Remove books",
