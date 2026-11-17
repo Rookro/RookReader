@@ -30,7 +30,13 @@
         "remove": "履歴から削除"
       },
       "no-history": "履歴がありません。",
-      "no-search-results": "\"{{searchText}}\" に一致する履歴はありません。"
+      "no-search-results": "\"{{searchText}}\" に一致する履歴はありません。",
+      "clear-all": "履歴をすべて消去",
+      "clear-all-dialog": {
+        "title": "すべての読書履歴を消去しますか？",
+        "description": "すべての本を履歴から削除し、保存されている読書位置と本棚の表紙に表示される進捗もリセットします。本、ブックマーク、コレクション、タグ、シリーズは残ります。この操作は取り消せません。",
+        "confirm": "すべて消去"
+      }
     },
     "pages-viewer": {
       "title": "ページ",
@@ -300,6 +306,12 @@
       "history-feature": {
         "title": "読書履歴機能",
         "description": "有効にすると、開いた本と読み終えたページを記録します。"
+      },
+      "clear-history": {
+        "title": "履歴をすべて消去",
+        "description": "読書履歴からすべての本を削除し、保存されている読書位置と本棚の表紙の進捗もリセットします。",
+        "button": "すべて消去",
+        "done": "読書履歴を消去しました。"
       }
     },
     "rendering": {

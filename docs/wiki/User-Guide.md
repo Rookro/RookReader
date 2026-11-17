@@ -51,7 +51,7 @@ The reader is made up of four areas:
 - **Side panels** (left): switch between them with the side tabs. Click a tab to open its panel. Clicking the **active tab** again collapses the panel, and clicking once more reopens it — useful for maximizing the reading area.
   - **File Navigator** — browse folders and archives, and open files. Its own bar has **Home folder**, **Back**, **Forward**, **Up one level** and **Refresh** buttons, a **sort order** menu (Name↑/↓, Date↑/↓), a path box for the folder being shown, and a search box that filters the list.
   - **Pages** — lists the pages of the current book by file name; click one to jump to it. For EPUB novels it lists the sections, named after the table of contents. In two-page view both pages currently on screen are highlighted.
-  - **History** — recently read books (shown only when reading history is enabled). Click an entry to open it; a search box filters the list, and right-clicking an entry offers **Open** and **Remove history**.
+  - **History** — recently read books (shown only when reading history is enabled). Click an entry to open it; a search box filters the list, and right-clicking an entry offers **Open** and **Remove history**. **Clear all history** in the panel's header removes every entry after a confirmation; this also resets the saved reading positions and the progress shown on bookshelf covers, while books, bookmarks, collections, tags and series are kept. The same action is in **Settings → Reader**, where it is available while reading history is off.
   - **Bookmarks** — the bookmarks saved in the current book (see *Bookmarks* below).
 - **Reading area** (center) — where pages are displayed. If a page cannot be read, the reason is shown in its place.
 - **Page slider** (bottom) — drag to quickly jump to any page in the current book.
@@ -189,6 +189,7 @@ The file list's **sort order** (Name↑/↓, Date↑/↓) is chosen in the File 
 - **Loupe**: toggle key, zoom level and radius — see *Magnifier (Loupe)*.
 - **Font family** and **Font size** (under *Novel*): the font used for EPUB novels.
 - **Reading history**: record the books you read and your position in them. While it is off, the books you open are not added to the history.
+- **Clear all history**: remove every book from the reading history and reset the saved reading positions and the progress on bookshelf covers, after a confirmation.
 
 ### Rendering & Performance
 Pages may be PNG, JPEG, GIF, APNG, WebP or AVIF (still images; AVIF image sequences are not supported). They are always rendered at the size they are displayed at, which keeps screentones free of moiré. Animated pages (GIF, APNG, WebP) are the exception: they are never resized, so every frame plays. A page too large to resize in memory (such as 20000 × 20000 pixels) is also shown at its own size.

@@ -1,11 +1,22 @@
+import DeleteSweep from "@mui/icons-material/DeleteSweep";
 import Search from "@mui/icons-material/Search";
-import { Box, InputAdornment, OutlinedInput, Stack, Typography } from "@mui/material";
+import {
+  Box,
+  IconButton,
+  InputAdornment,
+  OutlinedInput,
+  Stack,
+  Tooltip,
+  Typography,
+} from "@mui/material";
 import { debug, error } from "@tauri-apps/plugin-log";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { List, type RowComponentProps, useListCallbackRef } from "react-window";
+import ConfirmDialog from "../../../../components/ui/ConfirmDialog";
 import type { BookWithState } from "../../../../domain/entities";
 import { useAppDispatch, useAppSelector } from "../../../../store/store";
+import { clearAllHistory } from "../../../History/slice";
 import SidePanelHeader from "../../../SidePane/components/SidePanelHeader";
 import { useHistoryIndex } from "../../hooks/useHistoryIndex";
 import { openBook } from "../../slice";
@@ -51,6 +62,7 @@ export default function HistoryViewer() {
   const historyIndex = useAppSelector((state) => state.reader.historyIndex);
   const recentlyReadBooks = useAppSelector((state) => state.history.recentlyReadBooks);
   const [searchText, setSearchText] = useState("");
+  const [isClearAllDialogOpen, setIsClearAllDialogOpen] = useState(false);
   const [list, setList] = useListCallbackRef(null);
   const dispatch = useAppDispatch();
 
@@ -100,6 +112,11 @@ export default function HistoryViewer() {
     e.stopPropagation();
   }, []);
 
+  const handleClearAllConfirmed = useCallback(() => {
+    setIsClearAllDialogOpen(false);
+    dispatch(clearAllHistory());
+  }, [dispatch]);
+
   const rowProps: RowProps = useMemo(
     () => ({
       entries: filteredEntries,
@@ -116,7 +133,24 @@ export default function HistoryViewer() {
         height: "100%",
       }}
     >
-      <SidePanelHeader title={t("book-reader.history-viewer.title")} />
+      <SidePanelHeader
+        title={t("book-reader.history-viewer.title")}
+        actions={
+          <Tooltip title={t("book-reader.history-viewer.clear-all")}>
+            <span>
+              <IconButton
+                size="small"
+                sx={{ padding: 0 }}
+                disabled={recentlyReadBooks.length === 0}
+                onClick={() => setIsClearAllDialogOpen(true)}
+                aria-label={t("book-reader.history-viewer.clear-all")}
+              >
+                <DeleteSweep fontSize="small" />
+              </IconButton>
+            </span>
+          </Tooltip>
+        }
+      />
       <OutlinedInput
         type="search"
         value={searchText}
@@ -156,6 +190,14 @@ export default function HistoryViewer() {
           />
         </Box>
       )}
+      <ConfirmDialog
+        open={isClearAllDialogOpen}
+        title={t("book-reader.history-viewer.clear-all-dialog.title")}
+        description={t("book-reader.history-viewer.clear-all-dialog.description")}
+        confirmLabel={t("book-reader.history-viewer.clear-all-dialog.confirm")}
+        onConfirm={handleClearAllConfirmed}
+        onCancel={() => setIsClearAllDialogOpen(false)}
+      />
     </Stack>
   );
 }

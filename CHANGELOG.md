@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+* **Clear all history** in the History panel and in **Settings → Reader** removes every entry at once, after a confirmation. (#409)
+  * This also resets the saved reading positions and the progress on bookshelf covers; books, bookmarks, collections, tags and series are kept.
+
 ## [2.7.1] - 2026-11-16
 
 ### Changed
