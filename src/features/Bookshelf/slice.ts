@@ -1,8 +1,10 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
+import { error } from "@tauri-apps/plugin-log";
 import { api } from "../../bindings/api";
 import type { BookWithState, Collection } from "../../domain/entities";
 import { readingProgressChanged } from "../../store/actions";
 import { createCommandThunk } from "../../store/createCommandThunk";
+import { CommandError, ErrorCode } from "../../types/Error";
 
 /**
  * Creates a new collection and adds it to the database.
@@ -89,26 +91,49 @@ export const setCollectionsForBooks = createCommandThunk(
   () => "Failed to set collections for books.",
 );
 
-/**
- * Adds a new book to the database and optionally to a specific collection.
- * If the book is a container (like a ZIP or EPUB), it evaluates its contents first.
- *
- * @param params - The parameters for adding a book.
- * @param params.collectionId - The ID of the collection to add the book to, or null to add it to the library only.
- * @param params.bookPath - The absolute file path to the book or directory.
- * @returns A thunk that resolves to the updated list of books for the current view.
- */
-export const addBookToBookshelf = createCommandThunk(
-  "collection/addBookToBookshelf",
-  async ({ collectionId, bookPath }: { collectionId: number | null; bookPath: string }) => {
-    const bookId = await api.registerBook(bookPath);
+/** What adding books to the bookshelf did. */
+export interface BookAdditionResult {
+  /** How many paths are on the bookshelf now, books that were already there included. */
+  added: number;
+  /** Why each of the other paths could not be added, one code per path. */
+  failures: ErrorCode[];
+}
 
-    if (collectionId !== null) {
-      await api.addBookToCollection(collectionId, bookId);
-    }
+/**
+ * Registers books and adds them to a collection, reporting how many could not be added
+ * instead of failing on the first.
+ *
+ * @param collectionId - The collection to add the books to, or null for the library only.
+ * @param paths - The files and folders to add; a folder is one book.
+ * @returns A thunk that resolves to what was added.
+ */
+export const addBooksToBookshelf = createCommandThunk(
+  "collection/addBooksToBookshelf",
+  async ({
+    collectionId,
+    paths,
+  }: {
+    collectionId: number | null;
+    paths: string[];
+  }): Promise<BookAdditionResult> => {
+    const results = await Promise.allSettled(
+      paths.map(async (path) => {
+        const bookId = await api.registerBook(path);
+        if (collectionId !== null) {
+          await api.addBookToCollection(collectionId, bookId);
+        }
+      }),
+    );
+    const failures = results.flatMap((result, i) => {
+      if (result.status === "fulfilled") {
+        return [];
+      }
+      error(`Failed to add the book(${paths[i]}) to the bookshelf: ${String(result.reason)}`);
+      return [result.reason instanceof CommandError ? result.reason.code : ErrorCode.other];
+    });
+    return { added: paths.length - failures.length, failures };
   },
-  ({ collectionId, bookPath }) =>
-    `Failed to add book(path: ${bookPath}) to collection of collectionId: ${collectionId}.`,
+  ({ collectionId }) => `Failed to add books to the collection of collectionId: ${collectionId}.`,
 );
 
 /**

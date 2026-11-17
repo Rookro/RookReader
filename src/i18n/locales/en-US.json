@@ -177,7 +177,14 @@
       "drag-drop": "Drop files here to add",
       "or": "or",
       "select-file": "Select files",
-      "selected-files": "Selected files ({{count}}):"
+      "selected-files": "Selected files ({{count}}):",
+      "result": {
+        "added_one": "Added {{count}} book.",
+        "added_other": "Added {{count}} books.",
+        "partly-added": "Added {{added}} of {{total}}. The others could not be added:",
+        "none-added_one": "The item could not be added:",
+        "none-added_other": "None of the {{count}} items could be added:"
+      }
     },
     "book-deletion": {
       "title_one": "Are you sure you want to delete this book?",

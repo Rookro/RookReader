@@ -28,8 +28,9 @@ import { useAppDispatch, useAppSelector } from "../../../store/store";
 import type { SortOrder } from "../../../types/AppSettings";
 import { openSettingsWindow } from "../../../utils/WindowOpener";
 import { updateSettings } from "../../Settings/slice";
+import { useAddBooksToBookshelf } from "../hooks/useAddBooksToBookshelf";
 import { setSelectedSeriesId } from "../seriesSlice";
-import { addBookToBookshelf, setSearchText } from "../slice";
+import { setSearchText } from "../slice";
 import { useBookshelfActions } from "./BookshelfActionsContext";
 import BookAdditionToBookshelfDialog from "./Dialog/BookAdditionToBookshelfDialog";
 
@@ -39,7 +40,6 @@ export default function BookshelfToolbar() {
   const dispatch = useAppDispatch();
   const bookshelfSettings = useAppSelector((state) => state.settings.bookshelf);
   const searchText = useAppSelector((state) => state.collection.searchText);
-  const collectionId = useAppSelector((state) => state.collection.selectedId);
   const { selectedId: selectedSeriesId, series } = useAppSelector((state) => state.series);
   const { openEditSeriesOrderDialog } = useBookshelfActions();
 
@@ -91,13 +91,12 @@ export default function BookshelfToolbar() {
     }
   }, [openEditSeriesOrderDialog, selectedSeriesId]);
 
+  const addBooks = useAddBooksToBookshelf();
   const handleAddBooks = useCallback(
     (paths: string[]) => {
-      paths.forEach((bookPath) => {
-        dispatch(addBookToBookshelf({ collectionId, bookPath }));
-      });
+      void addBooks(paths);
     },
-    [dispatch, collectionId],
+    [addBooks],
   );
 
   const handleContextMenu = useCallback((e: React.MouseEvent<HTMLElement>) => {

@@ -177,7 +177,14 @@
       "drag-drop": "ファイルをここにドラッグ＆ドロップ",
       "or": "または",
       "select-file": "ファイルを選択する",
-      "selected-files": "選択されたファイル ({{count}}):"
+      "selected-files": "選択されたファイル ({{count}}):",
+      "result": {
+        "added_one": "{{count}} 冊を追加しました。",
+        "added_other": "{{count}} 冊を追加しました。",
+        "partly-added": "{{total}} 件中 {{added}} 件を追加しました。残りは追加できませんでした:",
+        "none-added_one": "追加できませんでした:",
+        "none-added_other": "{{count}} 件を追加できませんでした:"
+      }
     },
     "book-deletion": {
       "title_one": "本当に削除しますか？",

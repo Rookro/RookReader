@@ -14,7 +14,7 @@ import seriesReducer, {
   updateSeriesOrdersThunk,
 } from "./seriesSlice";
 import collectionReducer, {
-  addBookToBookshelf,
+  addBooksToBookshelf,
   addCollection,
   collectionAdded,
   deleteBookFromCollection,
@@ -214,8 +214,8 @@ describe("CollectionReducer", () => {
         deleteBookFromCollection.pending("r", { bookId: 1, collectionId: null }),
       ],
       [
-        "addBookToBookshelf",
-        addBookToBookshelf.pending("r", { collectionId: 1, bookPath: "/b.zip" }),
+        "addBooksToBookshelf",
+        addBooksToBookshelf.pending("r", { collectionId: 1, paths: ["/b.zip"] }),
       ],
       ["removeCollection", removeCollection.pending("r", 1)],
       ["fetchCollections", fetchCollections.pending("r")],
@@ -431,58 +431,46 @@ describe("CollectionReducer", () => {
         expect(state.books).toEqual(currentBooks);
       });
 
-      // Verify that book is added to collection and status is updated
-      it("addBookToBookshelf should add a book", async () => {
-        vi.mocked(api.registerBook).mockResolvedValue(10);
+      it("addBooksToBookshelf adds every path to the collection", async () => {
+        vi.mocked(api.registerBook).mockResolvedValueOnce(10).mockResolvedValueOnce(11);
 
-        await store.dispatch(addBookToBookshelf({ collectionId: 1, bookPath: "path/to/book.zip" }));
+        const action = await store.dispatch(
+          addBooksToBookshelf({ collectionId: 1, paths: ["/a.zip", "/b"] }),
+        );
 
-        const state = store.getState().collection;
-        expect(state.status).toBe("idle");
-        expect(api.registerBook).toHaveBeenCalledWith("path/to/book.zip");
+        expect(action.payload).toEqual({ added: 2, failures: [] });
         expect(api.addBookToCollection).toHaveBeenCalledWith(1, 10);
+        expect(api.addBookToCollection).toHaveBeenCalledWith(1, 11);
         // Opening would install the book, which closes the reader threads of the book on
         // screen. Registering must never do that.
         expect(api.openBook).not.toHaveBeenCalled();
       });
 
-      // Verify that adding a book with no collection ID (null) only registers it
-      it("addBookToBookshelf with collectionId: null should register book", async () => {
+      it("addBooksToBookshelf only registers the books with no collection", async () => {
         vi.mocked(api.registerBook).mockResolvedValue(10);
 
-        await store.dispatch(addBookToBookshelf({ collectionId: null, bookPath: "path" }));
+        await store.dispatch(addBooksToBookshelf({ collectionId: null, paths: ["/a.zip"] }));
 
-        const state = store.getState().collection;
-        expect(state.status).toBe("idle");
-        expect(api.registerBook).toHaveBeenCalledWith("path");
+        expect(api.registerBook).toHaveBeenCalledWith("/a.zip");
         expect(api.addBookToCollection).not.toHaveBeenCalled();
       });
 
-      // Verify error handling when book addition fails
-      it("addBookToBookshelf should handle generic failure", async () => {
-        vi.mocked(api.registerBook).mockRejectedValue(new Error());
+      it("addBooksToBookshelf counts the paths that could not be added", async () => {
+        vi.mocked(api.registerBook)
+          .mockResolvedValueOnce(10)
+          .mockRejectedValueOnce(new CommandError(ErrorCode.emptyContainer, "empty"))
+          .mockRejectedValueOnce(new Error("boom"));
 
-        await store.dispatch(addBookToBookshelf({ collectionId: 1, bookPath: "path" }));
+        const action = await store.dispatch(
+          addBooksToBookshelf({ collectionId: null, paths: ["/a.zip", "/zips", "/c.txt"] }),
+        );
 
-        const state = store.getState().collection;
-        expect(state.status).toBe("idle");
-        expect(store.getState().errorNotification.pending).toEqual([
-          { context: "bookshelf", code: ErrorCode.other },
-        ]);
-      });
-
-      // Verify CommandError handling when book addition fails
-      it("addBookToBookshelf should handle CommandError", async () => {
-        const mockError = new CommandError(ErrorCode.io, "io fail");
-        vi.mocked(api.registerBook).mockRejectedValue(mockError);
-
-        await store.dispatch(addBookToBookshelf({ collectionId: 1, bookPath: "path" }));
-
-        const state = store.getState().collection;
-        expect(state.status).toBe("idle");
-        expect(store.getState().errorNotification.pending).toEqual([
-          { context: "bookshelf", code: ErrorCode.io },
-        ]);
+        expect(action.payload).toEqual({
+          added: 1,
+          failures: [ErrorCode.emptyContainer, ErrorCode.other],
+        });
+        // Reported together by the caller, not one error notification per path.
+        expect(store.getState().errorNotification.pending).toEqual([]);
       });
 
       // Verify state update when removing a book from the collection

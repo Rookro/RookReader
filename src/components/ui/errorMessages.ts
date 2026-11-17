@@ -73,7 +73,18 @@ export function formatErrorMessage(
   context: ErrorContext,
   code: ErrorCode,
 ): string {
-  const reasonKey = REASON_KEY_BY_CODE[code];
-  const reason = reasonKey ? t(reasonKey) : t("error-message.reason.unspecified", { code });
+  const reason = formatErrorReason(t, code);
   return [t(HEADLINE_KEY_BY_CONTEXT[context]), reason].join(language.startsWith("ja") ? "" : " ");
+}
+
+/**
+ * Gives the reason for a backend error code, without an operation's headline.
+ *
+ * @param t - The i18n translator.
+ * @param code - The backend error code.
+ * @returns The reason, or the code number when there is nothing useful to tell.
+ */
+export function formatErrorReason(t: TFunction, code: ErrorCode): string {
+  const reasonKey = REASON_KEY_BY_CODE[code];
+  return reasonKey ? t(reasonKey) : t("error-message.reason.unspecified", { code });
 }
