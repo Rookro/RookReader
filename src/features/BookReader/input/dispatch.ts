@@ -1,4 +1,10 @@
-import { findAction, REPEATABLE_ACTIONS, type ReaderAction } from "./bindings";
+import {
+  type CommonAction,
+  findAction,
+  type PageAction,
+  REPEATABLE_ACTIONS,
+  type ReaderAction,
+} from "./bindings";
 import { type Combo, comboOf, sameCombo } from "./combo";
 import { isModalOpen, isTextEntryTarget } from "./guards";
 import type { ReaderActions, ReaderInput } from "./types";
@@ -13,11 +19,23 @@ export interface DispatchContext {
   loupeToggle: Combo | null;
   /** The active reader, or null while none is registered (a book loading). */
   reader: ReaderActions | null;
+  /** The actions that do not depend on the active reader. */
+  common: Record<CommonAction, () => void>;
 }
 
 const NO_MODIFIERS = { ctrl: false, alt: false, shift: false, meta: false };
 
-const runAction = (action: ReaderAction, { direction, reader }: DispatchContext): void => {
+const isPageAction = (action: ReaderAction): action is PageAction =>
+  action === "pageLeft" ||
+  action === "pageRight" ||
+  action === "nextPage" ||
+  action === "previousPage";
+
+const runAction = (action: ReaderAction, { direction, reader, common }: DispatchContext): void => {
+  if (!isPageAction(action)) {
+    common[action]();
+    return;
+  }
   if (!reader) {
     return;
   }

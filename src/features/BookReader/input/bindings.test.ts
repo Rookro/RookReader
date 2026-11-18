@@ -30,5 +30,12 @@ describe("findAction", () => {
     expect(findAction(c("Ctrl+Shift+S"), table)).toBeNull();
   });
 
+  it("tells the built-in Shift bindings apart from their unshifted keys", () => {
+    expect(findAction(c("S"))).toBe("toggleSpread");
+    expect(findAction(c("Shift+S"))).toBe("shiftSpread");
+    expect(findAction(c("Space"))).toBe("nextPage");
+    expect(findAction(c("Shift+Space"))).toBe("previousPage");
+  });
+
   it("returns null for an unbound key", () => expect(findAction(c("Enter"))).toBeNull());
 });

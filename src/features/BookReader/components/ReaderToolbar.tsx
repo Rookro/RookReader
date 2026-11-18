@@ -10,14 +10,14 @@ import ViewColumn from "@mui/icons-material/ViewColumn";
 import { Box, IconButton, OutlinedInput, Toolbar, Tooltip } from "@mui/material";
 import { debug } from "@tauri-apps/plugin-log";
 import type React from "react";
-import { useCallback, useMemo } from "react";
+import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import ReadingDirectionIcon from "../../../components/ui/ReadingDirectionIcon";
 import { useAppDispatch, useAppSelector } from "../../../store/store";
 import { openSettingsWindow } from "../../../utils/WindowOpener";
 import { setActiveView } from "../../MainView/slice";
 import { updateSettings } from "../../Settings/slice";
-import { addBookmark, removeBookmark } from "../bookmarkSlice";
+import { useBookmarkToggle } from "../hooks/useBookmarkToggle";
 import { useReadingDirection } from "../hooks/useReadingDirection";
 import {
   goBackBookHistory,
@@ -35,39 +35,19 @@ export default function ReaderToolbar() {
   const readerSettings = useAppSelector((state) => state.settings.reader);
   const history = useAppSelector((state) => state.reader.history);
   const historyIndex = useAppSelector((state) => state.reader.historyIndex);
-  const book = useAppSelector((state) => state.reader.book);
-  const index = useAppSelector((state) => state.reader.index);
-  const cfi = useAppSelector((state) => state.reader.cfi);
   const isNovel = useAppSelector((state) => state.reader.isNovel);
-  const entries = useAppSelector((state) => state.reader.entries);
   const isSpreadShifted = useAppSelector((state) => state.reader.isSpreadShifted);
-  const bookmarks = useAppSelector((state) => state.bookmark.bookmarks);
-  const bookmarksBookId = useAppSelector((state) => state.bookmark.bookId);
-  const bookmarkStatus = useAppSelector((state) => state.bookmark.status);
+  const {
+    currentBookmark,
+    isReady: isBookmarkListReady,
+    toggle: toggleBookmark,
+  } = useBookmarkToggle();
   const dispatch = useAppDispatch();
 
   const currentPath = history[historyIndex] ?? "";
 
   // A novel reports its own direction and cannot be switched; comics follow the setting.
   const isRtl = useReadingDirection() === "rtl";
-
-  // Acting on a list that belongs to another book, or has not loaded, would remove the
-  // wrong book's bookmark or add a duplicate.
-  const isBookmarkListReady =
-    book !== null && bookmarksBookId === book.id && bookmarkStatus === "succeeded";
-
-  // A novel position is identified by its CFI, a comic position by its page index.
-  const currentBookmark = useMemo(
-    () =>
-      isBookmarkListReady
-        ? bookmarks.find((bookmark) =>
-            isNovel
-              ? cfi !== null && bookmark.cfi === cfi
-              : bookmark.cfi === null && bookmark.pageIndex === index,
-          )
-        : undefined,
-    [isBookmarkListReady, bookmarks, isNovel, cfi, index],
-  );
 
   const formAction = useCallback(
     (formData: FormData) => {
@@ -126,31 +106,6 @@ export default function ReaderToolbar() {
       dispatch(goForwardBookHistory());
     },
     [dispatch],
-  );
-
-  const handleToggleBookmarkClicked = useCallback(
-    (_e: React.MouseEvent<HTMLButtonElement>) => {
-      if (!book) {
-        return;
-      }
-      if (currentBookmark) {
-        dispatch(removeBookmark(currentBookmark.id));
-        return;
-      }
-      // Name the bookmark after the novel's section label when there is one, so the
-      // list reads as a table of contents; otherwise fall back to the page number.
-      const pageName = t("book-reader.bookmark.default-page-name", { page: index + 1 });
-      const name = isNovel ? (entries[index] ?? pageName) : pageName;
-      dispatch(
-        addBookmark({
-          bookId: book.id,
-          name,
-          pageIndex: index,
-          cfi: isNovel ? (cfi ?? null) : null,
-        }),
-      );
-    },
-    [dispatch, book, currentBookmark, isNovel, entries, index, cfi, t],
   );
 
   const handleSettingsClicked = useCallback(
@@ -214,7 +169,7 @@ export default function ReaderToolbar() {
       >
         <span>
           <IconButton
-            onClick={handleToggleBookmarkClicked}
+            onClick={toggleBookmark}
             disabled={!isBookmarkListReady}
             aria-label="toggle-bookmark"
           >

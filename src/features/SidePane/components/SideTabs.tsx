@@ -1,25 +1,14 @@
 import { Tab, Tabs, Tooltip } from "@mui/material";
 import type React from "react";
 import { useCallback, useEffect } from "react";
-import { useAppDispatch } from "../../../store/store";
-import type { AppSettings } from "../../../types/AppSettings";
-import { setSidePane, updateSettings } from "../../Settings/slice";
+import { useApplySidePane } from "../hooks/useApplySidePane";
 import type { SideTab } from "../types";
 
 /**
  * Side tabs component.
  */
 export default function SideTabs(props: { tabs: SideTab[]; index: number; isHidden: boolean }) {
-  const dispatch = useAppDispatch();
-
-  const applySidePane = useCallback(
-    (sidePane: AppSettings["layout"]["sidePane"]) => {
-      // Optimistic: the pane moves on this click, not after the IPC round-trip.
-      dispatch(setSidePane(sidePane));
-      dispatch(updateSettings({ key: "layout", value: { sidePane } }));
-    },
-    [dispatch],
-  );
+  const applySidePane = useApplySidePane();
 
   const handleTabClick = useCallback(
     (_event: React.MouseEvent, index: number) => {

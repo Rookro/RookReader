@@ -1,10 +1,13 @@
-import { act, fireEvent, render } from "@testing-library/react";
+import { act, fireEvent, render, waitFor } from "@testing-library/react";
 import { useRef } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { api } from "../../../bindings/api";
+import { createMockBookmark, createMockBookWithState } from "../../../test/factories";
 import {
   createBasePreloadedState,
   createTestStore,
   createTestWrapper,
+  mockSettingsCommands,
   type RootState,
 } from "../../../test/utils";
 import type { PageMove } from "../hooks/usePageNavigation";
@@ -183,5 +186,68 @@ describe("ReaderInputProvider", () => {
     fireEvent.keyDown(document.body, { key: "ArrowLeft" });
 
     expect(actions.nextPage).not.toHaveBeenCalled();
+  });
+});
+
+describe("ReaderInputProvider: common actions", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockSettingsCommands();
+  });
+
+  it("shows and hides the side pane with P", () => {
+    const { store } = renderReader();
+
+    fireEvent.keyDown(document.body, { key: "p" });
+    expect(store.getState().settings.layout.sidePane.isHidden).toBe(true);
+
+    fireEvent.keyDown(document.body, { key: "p" });
+    expect(store.getState().settings.layout.sidePane.isHidden).toBe(false);
+  });
+
+  it("adds a bookmark with B, then removes it with B", async () => {
+    const preloadedState = createBasePreloadedState();
+    preloadedState.reader.book = createMockBookWithState({ id: 42 });
+    preloadedState.reader.index = 3;
+    preloadedState.reader.entries = ["p1", "p2", "p3", "p4"];
+    preloadedState.bookmark = { bookId: 42, bookmarks: [], status: "succeeded" };
+    vi.mocked(api.createBookmark).mockResolvedValue(
+      createMockBookmark({ id: 1, bookId: 42, pageIndex: 3, cfi: null }),
+    );
+    const { store } = renderReader(preloadedState);
+
+    fireEvent.keyDown(document.body, { key: "b" });
+    await waitFor(() => expect(store.getState().bookmark.bookmarks).toHaveLength(1));
+    expect(api.createBookmark).toHaveBeenCalledWith(42, "Page 4", 3, null);
+
+    fireEvent.keyDown(document.body, { key: "b" });
+    await waitFor(() => expect(store.getState().bookmark.bookmarks).toHaveLength(0));
+    expect(api.deleteBookmark).toHaveBeenCalledWith(1);
+  });
+
+  it("toggles the loupe, not the side pane, when the loupe key is P", () => {
+    const preloadedState = createBasePreloadedState();
+    preloadedState.settings.reader.comic.loupe.toggleKey = "P";
+    const { actions, store } = renderReader(preloadedState);
+
+    fireEvent.keyDown(document.body, { key: "p" });
+
+    expect(actions.toggleLoupe).toHaveBeenCalledTimes(1);
+    expect(store.getState().settings.layout.sidePane.isHidden).toBe(false);
+  });
+
+  // Space on a focused toolbar button turns the page instead of pressing the button.
+  it("turns the page with Space on a focused button and claims the key", () => {
+    const { actions } = renderReader();
+    const button = document.createElement("button");
+    document.body.appendChild(button);
+    button.focus();
+    const event = new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true });
+
+    fireEvent(button, event);
+
+    expect(actions.nextPage).toHaveBeenCalledWith();
+    expect(event.defaultPrevented).toBe(true);
+    button.remove();
   });
 });

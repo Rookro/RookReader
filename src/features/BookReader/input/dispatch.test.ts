@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { PageMove } from "../hooks/usePageNavigation";
+import type { CommonAction } from "./bindings";
 import { parseCombo } from "./combo";
 import { type DispatchContext, dispatchReaderInput } from "./dispatch";
 import type { PointerPosition } from "./types";
@@ -17,11 +18,20 @@ const button = (b: number, inReadingArea = true, init: MouseEventInit = {}) =>
     inReadingArea,
   }) as const;
 
+const commonActions = (): Record<CommonAction, () => void> => ({
+  toggleSpread: vi.fn(),
+  shiftSpread: vi.fn(),
+  toggleDirection: vi.fn(),
+  toggleBookmark: vi.fn(),
+  toggleSidePane: vi.fn(),
+});
+
 const ctx: DispatchContext = {
   isReaderActive: true,
   direction: "ltr",
   loupeToggle: null,
   reader: null,
+  common: commonActions(),
 };
 
 const reader = () => ({
@@ -115,6 +125,62 @@ describe("dispatchReaderInput: page keys and clicks", () => {
     const r = reader();
     expect(dispatchReaderInput(key("ArrowLeft"), { ...ctx, reader: r })).toBe(false);
     expect(r.previousPage).not.toHaveBeenCalled();
+  });
+});
+
+describe("dispatchReaderInput: page and common keys", () => {
+  it.each([
+    { name: "Space", k: " ", init: {}, move: "nextPage" },
+    { name: "PageDown", k: "PageDown", init: {}, move: "nextPage" },
+    { name: "ArrowDown", k: "ArrowDown", init: {}, move: "nextPage" },
+    { name: "Shift+ArrowDown", k: "ArrowDown", init: { shiftKey: true }, move: "nextPage" },
+    { name: "Shift+Space", k: " ", init: { shiftKey: true }, move: "previousPage" },
+    { name: "PageUp", k: "PageUp", init: {}, move: "previousPage" },
+    { name: "ArrowUp", k: "ArrowUp", init: {}, move: "previousPage" },
+  ] as const)("$name → $move", ({ k, init, move }) => {
+    const r = reader();
+    expect(dispatchReaderInput(key(k, init), { ...ctx, reader: r })).toBe(true);
+    expect(r[move]).toHaveBeenCalledWith();
+    expect(r[move === "nextPage" ? "previousPage" : "nextPage"]).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { name: "S", k: "s", init: {}, action: "toggleSpread" },
+    { name: "Shift+S", k: "S", init: { shiftKey: true }, action: "shiftSpread" },
+    { name: "D", k: "d", init: {}, action: "toggleDirection" },
+    { name: "B", k: "b", init: {}, action: "toggleBookmark" },
+    { name: "P", k: "p", init: {}, action: "toggleSidePane" },
+  ] as const)("$name → $action", ({ k, init, action }) => {
+    const common = commonActions();
+    const input = key(k, init);
+    expect(dispatchReaderInput(input, { ...ctx, reader: reader(), common })).toBe(true);
+    expect(common[action]).toHaveBeenCalledTimes(1);
+    expect(input.event.defaultPrevented).toBe(true);
+    for (const [name, fn] of Object.entries(common)) {
+      if (name !== action) {
+        expect(fn).not.toHaveBeenCalled();
+      }
+    }
+  });
+
+  it("runs a common action while no reader is registered", () => {
+    const common = commonActions();
+    expect(dispatchReaderInput(key("p"), { ...ctx, common })).toBe(true);
+    expect(common.toggleSidePane).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not repeat a held toggle key, but still claims it", () => {
+    const common = commonActions();
+    const input = key("s", { repeat: true });
+    expect(dispatchReaderInput(input, { ...ctx, reader: reader(), common })).toBe(true);
+    expect(common.toggleSpread).not.toHaveBeenCalled();
+    expect(input.event.defaultPrevented).toBe(true);
+  });
+
+  it("repeats a held Space", () => {
+    const r = reader();
+    dispatchReaderInput(key(" ", { repeat: true }), { ...ctx, reader: r });
+    expect(r.nextPage).toHaveBeenCalledTimes(1);
   });
 });
 

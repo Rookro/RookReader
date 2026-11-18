@@ -3,8 +3,16 @@ import { type Combo, parseCombo, sameCombo } from "./combo";
 /** An action that turns pages. */
 export type PageAction = "pageLeft" | "pageRight" | "nextPage" | "previousPage";
 
+/** An action the reader view performs whichever reader is open. */
+export type CommonAction =
+  | "toggleSpread"
+  | "shiftSpread"
+  | "toggleDirection"
+  | "toggleBookmark"
+  | "toggleSidePane";
+
 /** An action the reader performs on a key or mouse button. */
-export type ReaderAction = PageAction;
+export type ReaderAction = PageAction | CommonAction;
 
 /** A key or button combo, in the loupe's notation, bound to an action. */
 export interface Binding {
@@ -16,8 +24,19 @@ export interface Binding {
 export const READER_BINDINGS: readonly Binding[] = [
   { combo: "ArrowLeft", action: "pageLeft" },
   { combo: "ArrowRight", action: "pageRight" },
+  { combo: "Space", action: "nextPage" },
+  { combo: "PageDown", action: "nextPage" },
+  { combo: "ArrowDown", action: "nextPage" },
   { combo: "MouseLeft", action: "nextPage" },
+  { combo: "Shift+Space", action: "previousPage" },
+  { combo: "PageUp", action: "previousPage" },
+  { combo: "ArrowUp", action: "previousPage" },
   { combo: "MouseRight", action: "previousPage" },
+  { combo: "S", action: "toggleSpread" },
+  { combo: "Shift+S", action: "shiftSpread" },
+  { combo: "D", action: "toggleDirection" },
+  { combo: "B", action: "toggleBookmark" },
+  { combo: "P", action: "toggleSidePane" },
 ];
 
 /** Actions that run again while their key is held down. */

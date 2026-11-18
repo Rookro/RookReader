@@ -5,6 +5,7 @@ import { useReadingDirection } from "../hooks/useReadingDirection";
 import { mouseButtonName, parseCombo } from "./combo";
 import { type DispatchContext, dispatchReaderInput } from "./dispatch";
 import type { ReaderActions, ReaderInputApi } from "./types";
+import { useCommonReaderActions } from "./useCommonReaderActions";
 
 interface Registration {
   actions: React.RefObject<ReaderActions>;
@@ -26,21 +27,28 @@ export interface ReaderInputProviderProps {
 
 /**
  * Receives the reader's keys and mouse buttons on `window` while the reader view is active,
- * and dispatches every input to the registered reader.
+ * and dispatches every input to the registered reader or the view's common actions.
  */
 export function ReaderInputProvider({ children }: ReaderInputProviderProps): React.JSX.Element {
   const activeView = useAppSelector((state) => state.view.activeView);
   const toggleKey = useAppSelector((state) => state.settings.reader.comic.loupe.toggleKey);
   const direction = useReadingDirection();
   const loupeToggle = useMemo(() => parseCombo(toggleKey), [toggleKey]);
+  const common = useCommonReaderActions();
 
   const contextRef = useRef<Omit<DispatchContext, "reader">>({
     isReaderActive: activeView === "reader",
     direction,
     loupeToggle,
+    common,
   });
   useEffect(() => {
-    contextRef.current = { isReaderActive: activeView === "reader", direction, loupeToggle };
+    contextRef.current = {
+      isReaderActive: activeView === "reader",
+      direction,
+      loupeToggle,
+      common,
+    };
   });
   const registrationRef = useRef<Registration | null>(null);
 
