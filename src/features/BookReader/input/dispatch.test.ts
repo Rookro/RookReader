@@ -24,6 +24,8 @@ const commonActions = (): Record<CommonAction, () => void> => ({
   toggleDirection: vi.fn(),
   toggleBookmark: vi.fn(),
   toggleSidePane: vi.fn(),
+  historyBack: vi.fn(),
+  historyForward: vi.fn(),
 });
 
 const ctx: DispatchContext = {
@@ -199,13 +201,51 @@ describe("dispatchReaderInput: page and common keys", () => {
     expect(r.previousPage).not.toHaveBeenCalled();
   });
 
-  it("does nothing for Home and End while no reader is registered", () => {
+  it("does nothing for Home and End while no reader is registered, but claims them", () => {
     const common = commonActions();
-    expect(() => dispatchReaderInput(key("Home"), { ...ctx, common })).not.toThrow();
-    expect(() => dispatchReaderInput(key("End"), { ...ctx, common })).not.toThrow();
+    for (const k of ["Home", "End"]) {
+      const input = key(k);
+      expect(dispatchReaderInput(input, { ...ctx, common })).toBe(true);
+      expect(input.event.defaultPrevented).toBe(true);
+    }
     for (const fn of Object.values(common)) {
       expect(fn).not.toHaveBeenCalled();
     }
+  });
+});
+
+describe("dispatchReaderInput: side buttons", () => {
+  it.each([
+    { b: 3, action: "historyBack" },
+    { b: 4, action: "historyForward" },
+  ] as const)("button $b → $action, anywhere in the reader view", ({ b, action }) => {
+    for (const inReadingArea of [true, false]) {
+      const common = commonActions();
+      const input = button(b, inReadingArea);
+      expect(dispatchReaderInput(input, { ...ctx, reader: reader(), common })).toBe(true);
+      expect(input.event.defaultPrevented).toBe(true);
+      expect(common[action]).toHaveBeenCalledTimes(1);
+    }
+  });
+
+  it("goes back in the history while no reader is registered", () => {
+    const common = commonActions();
+    expect(dispatchReaderInput(button(3), { ...ctx, common })).toBe(true);
+    expect(common.historyBack).toHaveBeenCalledTimes(1);
+  });
+
+  it("toggles only the loupe when its button is MouseBack, over the reading area", () => {
+    const r = reader();
+    const common = commonActions();
+    const loupe = { ...ctx, loupeToggle: parseCombo("MouseBack"), reader: r, common };
+
+    dispatchReaderInput(button(3, true), loupe);
+    expect(r.toggleLoupe).toHaveBeenCalledTimes(1);
+    expect(common.historyBack).not.toHaveBeenCalled();
+
+    dispatchReaderInput(button(3, false), loupe);
+    expect(r.toggleLoupe).toHaveBeenCalledTimes(1);
+    expect(common.historyBack).toHaveBeenCalledTimes(1);
   });
 });
 

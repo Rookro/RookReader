@@ -9,6 +9,7 @@ import { readNovelFile } from "../../../bindings/binaryApi";
 import { useAppTheme } from "../../../hooks/useAppTheme";
 import { useAppDispatch, useAppSelector } from "../../../store/store";
 import { CommandError, ErrorCode } from "../../../types/Error";
+import { mouseButtonName, preventSideButtonRelease } from "../input/combo";
 import { useReaderInput, useRegisterReaderActions } from "../input/ReaderInputContext";
 import { setEntries, setNovelDirection, setNovelLocation } from "../slice";
 import { blockSectionScripts } from "../utils/epubContentPolicy";
@@ -302,6 +303,13 @@ export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
         doc.addEventListener("keydown", (ev: KeyboardEvent) => {
           contextRef.current.dispatchInput({ kind: "key", event: ev });
         });
+        doc.addEventListener("mousedown", (ev: MouseEvent) => {
+          if (mouseButtonName(ev.button) !== null) {
+            contextRef.current.dispatchInput({ kind: "button", event: ev, inReadingArea: true });
+          }
+        });
+        doc.addEventListener("mouseup", preventSideButtonRelease);
+        doc.addEventListener("auxclick", preventSideButtonRelease);
       });
 
       if (isMounted) {

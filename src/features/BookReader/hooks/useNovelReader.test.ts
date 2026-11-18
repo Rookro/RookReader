@@ -559,6 +559,41 @@ describe("useNovelReader", () => {
     expect(dispatchInput).toHaveBeenCalledWith({ kind: "key", event });
   });
 
+  it("hands the book's side-button presses to the reader input, as over the reading area", async () => {
+    const viewElement = await loadView();
+    const mockDoc = document.createElement("div");
+    viewElement.dispatchEvent(new CustomEvent("load", { detail: { doc: mockDoc } }));
+
+    const event = new MouseEvent("mousedown", { button: 3, cancelable: true });
+    mockDoc.dispatchEvent(event);
+    // The left and right buttons arrive as click and contextmenu.
+    mockDoc.dispatchEvent(new MouseEvent("mousedown", { button: 0, cancelable: true }));
+
+    expect(dispatchInput).toHaveBeenCalledTimes(1);
+    expect(dispatchInput).toHaveBeenCalledWith({ kind: "button", event, inReadingArea: true });
+  });
+
+  it.each(["mouseup", "auxclick"])(
+    "prevents the book's %s of a side button, and of no other button",
+    async (type) => {
+      const viewElement = await loadView();
+      const mockDoc = document.createElement("div");
+      viewElement.dispatchEvent(new CustomEvent("load", { detail: { doc: mockDoc } }));
+
+      const back = new MouseEvent(type, { button: 3, cancelable: true });
+      const forward = new MouseEvent(type, { button: 4, cancelable: true });
+      const middle = new MouseEvent(type, { button: 1, cancelable: true });
+      for (const event of [back, forward, middle]) {
+        mockDoc.dispatchEvent(event);
+      }
+
+      expect(back.defaultPrevented).toBe(true);
+      expect(forward.defaultPrevented).toBe(true);
+      expect(middle.defaultPrevented).toBe(false);
+      expect(dispatchInput).not.toHaveBeenCalled();
+    },
+  );
+
   it("should handle navigation failures and log errors", async () => {
     const { error } = await import("@tauri-apps/plugin-log");
     const mockBook = {

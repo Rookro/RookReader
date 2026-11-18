@@ -2,7 +2,12 @@ import { useAppDispatch, useAppSelector } from "../../../store/store";
 import { updateSettings } from "../../Settings/slice";
 import { useApplySidePane } from "../../SidePane/hooks/useApplySidePane";
 import { useBookmarkToggle } from "../hooks/useBookmarkToggle";
-import { toggleReadingDirection, toggleSpreadShift } from "../slice";
+import {
+  goBackBookHistory,
+  goForwardBookHistory,
+  toggleReadingDirection,
+  toggleSpreadShift,
+} from "../slice";
 import type { CommonAction } from "./bindings";
 
 /**
@@ -39,5 +44,11 @@ export const useCommonReaderActions = (): Record<CommonAction, () => void> => {
     },
     toggleBookmark,
     toggleSidePane: () => applySidePane({ isHidden: !isHidden, tabIndex }),
+    historyBack: () => {
+      dispatch(goBackBookHistory());
+    },
+    historyForward: () => {
+      dispatch(goForwardBookHistory());
+    },
   };
 };

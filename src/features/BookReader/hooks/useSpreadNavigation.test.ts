@@ -41,6 +41,22 @@ describe("useSpreadNavigation: first and last page", () => {
     expect(dispatch).toHaveBeenCalledWith(setImageIndex(3));
   });
 
+  it("lands on the last page when it stands alone after the spreads", () => {
+    // The spreads 0-1 and 2-3, then page 4 alone.
+    const { result, dispatch } = setup({
+      pairing: {
+        starts: [0, 2, 4],
+        units: new Map([
+          [0, { isSpread: true, nextIndexIncrement: 2 }],
+          [2, { isSpread: true, nextIndexIncrement: 2 }],
+          [4, { isSpread: false, nextIndexIncrement: 1 }],
+        ]),
+      },
+    });
+    result.current.moveToLast();
+    expect(dispatch).toHaveBeenCalledWith(setImageIndex(4));
+  });
+
   it("lands on the last page in single-page view", () => {
     const { result, dispatch } = setup({ isTwoPagedView: false, pairing: null });
     result.current.moveToLast();

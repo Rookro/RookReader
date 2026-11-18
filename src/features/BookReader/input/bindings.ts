@@ -1,6 +1,6 @@
 import { type Combo, parseCombo, sameCombo } from "./combo";
 
-/** An action that turns pages. */
+/** An action that moves through pages. */
 export type PageAction =
   | "pageLeft"
   | "pageRight"
@@ -15,7 +15,9 @@ export type CommonAction =
   | "shiftSpread"
   | "toggleDirection"
   | "toggleBookmark"
-  | "toggleSidePane";
+  | "toggleSidePane"
+  | "historyBack"
+  | "historyForward";
 
 /** An action the reader performs on a key or mouse button. */
 export type ReaderAction = PageAction | CommonAction;
@@ -45,6 +47,8 @@ export const READER_BINDINGS: readonly Binding[] = [
   { combo: "D", action: "toggleDirection" },
   { combo: "B", action: "toggleBookmark" },
   { combo: "P", action: "toggleSidePane" },
+  { combo: "MouseBack", action: "historyBack" },
+  { combo: "MouseForward", action: "historyForward" },
 ];
 
 /** Actions that run again while their key is held down. */

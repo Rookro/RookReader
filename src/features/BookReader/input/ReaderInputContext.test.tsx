@@ -53,6 +53,18 @@ const withView = (activeView: "reader" | "bookshelf") => {
   return preloadedState;
 };
 
+/** A reader view with three books in its history, at `historyIndex`. */
+const withHistory = (historyIndex: number) => {
+  const preloadedState = createBasePreloadedState();
+  preloadedState.reader.history = ["/book/1", "/book/2", "/book/3"];
+  preloadedState.reader.historyIndex = historyIndex;
+  return preloadedState;
+};
+
+// fireEvent has no auxClick.
+const auxClick = (button: number) =>
+  new MouseEvent("auxclick", { button, bubbles: true, cancelable: true });
+
 describe("ReaderInputProvider", () => {
   it("delivers a key press while the reader view is active", () => {
     const { moves } = renderReader(withView("reader"));
@@ -89,13 +101,17 @@ describe("ReaderInputProvider", () => {
   });
 
   it("stops listening once the provider unmounts", () => {
-    const { unmount, moves, actions } = renderReader();
+    const { unmount, moves, actions, store } = renderReader(withHistory(1));
     unmount();
-    // Not prevented: a leftover listener would still claim the bound key.
+    // Not prevented: a leftover listener would still claim the bound key or button.
     expect(fireEvent.keyDown(document.body, { key: "ArrowLeft" })).toBe(true);
     fireEvent.mouseDown(document.body, { button: 1 });
+    expect(fireEvent.mouseDown(document.body, { button: 3 })).toBe(true);
+    expect(fireEvent.mouseUp(document.body, { button: 3 })).toBe(true);
+    expect(fireEvent(document.body, auxClick(3))).toBe(true);
     expect(moves()).toBe(0);
     expect(actions.toggleLoupe).not.toHaveBeenCalled();
+    expect(store.getState().reader.historyIndex).toBe(1);
   });
 
   it("ignores the loupe button while the bookshelf view is active", () => {
@@ -257,5 +273,107 @@ describe("ReaderInputProvider: common actions", () => {
     expect(actions.nextPage).toHaveBeenCalledWith();
     expect(event.defaultPrevented).toBe(true);
     button.remove();
+  });
+});
+
+describe("ReaderInputProvider: mouse side buttons", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it.each([
+    { button: 3, expected: 0, path: "/book/1" },
+    { button: 4, expected: 2, path: "/book/3" },
+  ])("steps through the book history with button $button", async ({ button, expected, path }) => {
+    const { store } = renderReader(withHistory(1));
+
+    expect(fireEvent.mouseDown(document.body, { button })).toBe(false);
+
+    expect(store.getState().reader.historyIndex).toBe(expected);
+    await waitFor(() => expect(api.openBook).toHaveBeenCalledWith(path));
+  });
+
+  // The webview's own navigation must not run at the end of the history either.
+  it("claims the back button at the start of the history", () => {
+    const { store } = renderReader(withHistory(0));
+
+    expect(fireEvent.mouseDown(document.body, { button: 3 })).toBe(false);
+
+    expect(store.getState().reader.historyIndex).toBe(0);
+    expect(api.openBook).not.toHaveBeenCalled();
+  });
+
+  it.each([3, 4])("prevents the release of button %i and does nothing else", (button) => {
+    const { store, moves } = renderReader(withHistory(1));
+
+    expect(fireEvent.mouseUp(document.body, { button })).toBe(false);
+    expect(fireEvent(document.body, auxClick(button))).toBe(false);
+
+    expect(store.getState().reader.historyIndex).toBe(1);
+    expect(moves()).toBe(0);
+  });
+
+  it("leaves the release of other buttons alone", () => {
+    renderReader(withHistory(1));
+
+    expect(fireEvent.mouseUp(document.body, { button: 1 })).toBe(true);
+    expect(fireEvent(document.body, auxClick(1))).toBe(true);
+  });
+
+  it("toggles only the loupe when its button is MouseBack, over the reading area", () => {
+    const preloadedState = withHistory(1);
+    preloadedState.settings.reader.comic.loupe.toggleKey = "MouseBack";
+    const { actions, store, getByTestId } = renderReader(preloadedState);
+
+    fireEvent.mouseDown(getByTestId("reading-area"), { button: 3 });
+
+    expect(actions.toggleLoupe).toHaveBeenCalledTimes(1);
+    expect(store.getState().reader.historyIndex).toBe(1);
+  });
+
+  it("goes back in the history when the loupe's MouseBack is pressed outside the reading area", () => {
+    const preloadedState = withHistory(1);
+    preloadedState.settings.reader.comic.loupe.toggleKey = "MouseBack";
+    const { actions, store } = renderReader(preloadedState);
+
+    fireEvent.mouseDown(document.body, { button: 3 });
+
+    expect(actions.toggleLoupe).not.toHaveBeenCalled();
+    expect(store.getState().reader.historyIndex).toBe(0);
+  });
+
+  it("ignores the side buttons while a dialog is open", () => {
+    const { store } = renderReader(withHistory(1));
+    const dialog = document.createElement("div");
+    dialog.setAttribute("role", "dialog");
+    document.body.appendChild(dialog);
+
+    expect(fireEvent.mouseDown(dialog, { button: 3 })).toBe(true);
+
+    expect(store.getState().reader.historyIndex).toBe(1);
+    dialog.remove();
+  });
+
+  // Only keys are typed into a field; a side button over the path input still goes back.
+  it("goes back in the history with a side button over a text field", () => {
+    const { store } = renderReader(withHistory(1));
+    const input = document.createElement("input");
+    document.body.appendChild(input);
+
+    fireEvent.mouseDown(input, { button: 3 });
+
+    expect(store.getState().reader.historyIndex).toBe(0);
+    input.remove();
+  });
+
+  it("ignores the side buttons while the bookshelf view is active", () => {
+    const preloadedState = withHistory(1);
+    preloadedState.view.activeView = "bookshelf";
+    const { store } = renderReader(preloadedState);
+
+    expect(fireEvent.mouseDown(document.body, { button: 3 })).toBe(true);
+    expect(fireEvent.mouseUp(document.body, { button: 3 })).toBe(true);
+
+    expect(store.getState().reader.historyIndex).toBe(1);
   });
 });
