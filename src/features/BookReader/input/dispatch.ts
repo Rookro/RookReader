@@ -5,7 +5,7 @@ import {
   REPEATABLE_ACTIONS,
   type ReaderAction,
 } from "./bindings";
-import { type Combo, comboOf, sameCombo } from "./combo";
+import { type Combo, comboOf, mouseButtonName, sameCombo } from "./combo";
 import { isModalOpen, isTextEntryTarget } from "./guards";
 import type { ReaderActions, ReaderInput } from "./types";
 
@@ -134,4 +134,17 @@ export const dispatchReaderInput = (input: ReaderInput, ctx: DispatchContext): b
   }
   runAction(action, ctx);
   return true;
+};
+
+/**
+ * Prevents the default of a back or forward button's `mouseup` or `auxclick`, on which the
+ * webview runs its own history navigation; the press itself is handled on `mousedown`.
+ *
+ * @param e - A `mouseup` or `auxclick` event, possibly from an iframe's realm.
+ */
+export const preventSideButtonRelease = (e: MouseEvent): void => {
+  const name = mouseButtonName(e.button);
+  if (name === "MouseBack" || name === "MouseForward") {
+    e.preventDefault();
+  }
 };

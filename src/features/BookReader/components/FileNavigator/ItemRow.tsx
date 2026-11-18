@@ -2,6 +2,7 @@ import FolderOutlined from "@mui/icons-material/FolderOutlined";
 import { ListItem, ListItemButton, ListItemText, Tooltip } from "@mui/material";
 import { type CSSProperties, memo } from "react";
 import type { DirEntry } from "../../../../domain/entities";
+import { releaseMouseFocus } from "../../utils/releaseMouseFocus";
 
 /**
  * Row component for the file navigator.
@@ -33,7 +34,10 @@ export const ItemRow = memo(function ItemRow({
       <ListItem style={style} key={index} component="div" disablePadding dense>
         <ListItemButton
           selected={selected}
-          onClick={(e) => onClick?.(e, entry, index)}
+          onClick={(e) => {
+            releaseMouseFocus(e);
+            onClick?.(e, entry, index);
+          }}
           onDoubleClick={(e) => onDoubleClick?.(e, entry)}
           key={entry.name}
           sx={{ padding: "4px 8px" }}

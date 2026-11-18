@@ -1,6 +1,7 @@
 import { Tab, Tabs, Tooltip } from "@mui/material";
 import type React from "react";
 import { useCallback, useEffect } from "react";
+import { releaseMouseFocus } from "../../BookReader/utils/releaseMouseFocus";
 import { useApplySidePane } from "../hooks/useApplySidePane";
 import type { SideTab } from "../types";
 
@@ -11,7 +12,8 @@ export default function SideTabs(props: { tabs: SideTab[]; index: number; isHidd
   const applySidePane = useApplySidePane();
 
   const handleTabClick = useCallback(
-    (_event: React.MouseEvent, index: number) => {
+    (event: React.MouseEvent, index: number) => {
+      releaseMouseFocus(event);
       if (props.index === index) {
         applySidePane({ isHidden: !props.isHidden, tabIndex: props.index });
       }

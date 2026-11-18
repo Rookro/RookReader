@@ -15,6 +15,7 @@ import { useContextMenuAnchor } from "../../../../components/ui/ContextMenu/useC
 import type { BookWithState } from "../../../../domain/entities";
 import { useAppDispatch } from "../../../../store/store";
 import { clearHistory } from "../../../History/slice";
+import { releaseMouseFocus } from "../../utils/releaseMouseFocus";
 
 /**
  * Row component for the history viewer.
@@ -88,7 +89,10 @@ export const ItemRow = memo(function ItemRow({
         <ListItem style={style} key={index} component="div" disablePadding dense>
           <ListItemButton
             selected={selected}
-            onClick={(e) => onClick?.(e, entry, index)}
+            onClick={(e) => {
+              releaseMouseFocus(e);
+              onClick?.(e, entry, index);
+            }}
             key={index}
             sx={{ padding: "4px 8px" }}
           >

@@ -2,8 +2,8 @@ import type React from "react";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef } from "react";
 import { useAppSelector } from "../../../store/store";
 import { useReadingDirection } from "../hooks/useReadingDirection";
-import { mouseButtonName, parseCombo, preventSideButtonRelease } from "./combo";
-import { type DispatchContext, dispatchReaderInput } from "./dispatch";
+import { mouseButtonName, parseCombo } from "./combo";
+import { type DispatchContext, dispatchReaderInput, preventSideButtonRelease } from "./dispatch";
 import type { ReaderActions, ReaderInputApi } from "./types";
 import { useCommonReaderActions } from "./useCommonReaderActions";
 

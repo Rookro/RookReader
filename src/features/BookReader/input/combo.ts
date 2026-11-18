@@ -66,18 +66,6 @@ export const mouseButtonName = (button: number): string | null => {
 };
 
 /**
- * Prevents the default of a back or forward button's `mouseup` or `auxclick`, on which the
- * webview runs its own history navigation; the press itself is handled on `mousedown`.
- *
- * @param e - A `mouseup` or `auxclick` event, possibly from an iframe's realm.
- */
-export const preventSideButtonRelease = (e: MouseEvent): void => {
-  if (e.button === 3 || e.button === 4) {
-    e.preventDefault();
-  }
-};
-
-/**
  * The combo of a keydown (null for a modifier-only key) or a mousedown (null for buttons 0 and 2).
  *
  * @param e - A keydown or mousedown event, possibly from an iframe's realm.

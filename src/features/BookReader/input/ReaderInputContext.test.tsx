@@ -349,6 +349,8 @@ describe("ReaderInputProvider: mouse side buttons", () => {
     document.body.appendChild(dialog);
 
     expect(fireEvent.mouseDown(dialog, { button: 3 })).toBe(true);
+    // The webview's own history navigation is still stopped.
+    expect(fireEvent.mouseUp(dialog, { button: 3, cancelable: true })).toBe(false);
 
     expect(store.getState().reader.historyIndex).toBe(1);
     dialog.remove();
