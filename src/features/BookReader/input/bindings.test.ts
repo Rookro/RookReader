@@ -1,0 +1,29 @@
+import { describe, expect, it } from "vitest";
+import { type Binding, findAction } from "./bindings";
+import { type Combo, parseCombo } from "./combo";
+
+const c = (n: string) => parseCombo(n) as Combo;
+
+describe("findAction", () => {
+  it("matches a binding exactly", () => expect(findAction(c("ArrowLeft"))).toBe("pageLeft"));
+
+  it("ignores Shift for a key without a Shift binding", () =>
+    expect(findAction(c("Shift+ArrowRight"))).toBe("pageRight"));
+
+  it("does not match with Ctrl, Alt or Meta held", () => {
+    for (const m of ["Ctrl", "Alt", "Meta"]) {
+      expect(findAction(c(`${m}+ArrowLeft`))).toBeNull();
+    }
+  });
+
+  it("keeps Shift when the key has a Shift binding", () => {
+    const table: Binding[] = [
+      { combo: "S", action: "nextPage" },
+      { combo: "Shift+S", action: "previousPage" },
+    ];
+    expect(findAction(c("Shift+S"), table)).toBe("previousPage");
+    expect(findAction(c("S"), table)).toBe("nextPage");
+  });
+
+  it("returns null for an unbound key", () => expect(findAction(c("Enter"))).toBeNull());
+});
