@@ -14,6 +14,7 @@ import ContextMenu from "../../../../components/ui/ContextMenu/ContextMenu";
 import { useContextMenuAnchor } from "../../../../components/ui/ContextMenu/useContextMenuAnchor";
 import type { BookWithState } from "../../../../domain/entities";
 import { useAppDispatch } from "../../../../store/store";
+import { preventRightClickFocus } from "../../../../utils/preventRightClickFocus";
 import { releaseMouseFocus } from "../../../../utils/releaseMouseFocus";
 import { clearHistory } from "../../../History/slice";
 
@@ -93,6 +94,7 @@ export const ItemRow = memo(function ItemRow({
               releaseMouseFocus(e);
               onClick?.(e, entry, index);
             }}
+            onMouseDown={preventRightClickFocus}
             key={index}
             sx={{ padding: "4px 8px" }}
           >

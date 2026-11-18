@@ -83,7 +83,7 @@ The keys and the mouse side buttons work in the reader view, for comics and EPUB
 - The keys do nothing while you type in a text field, such as the path box or a search box. The keys and the side buttons do nothing while a dialog or a menu (such as a bookmark's right-click menu) is open.
 - Letter keys work with Caps Lock on. Holding `Shift` changes only `Space` and `S`, so `Shift+Left Arrow` still turns the page. Apart from the loupe's **Toggle key**, keys pressed with `Ctrl`, `Alt` or `Meta` held are not shortcuts.
 - If the loupe's **Toggle key** is set to one of these keys or side buttons, it toggles the loupe instead while a comic is open (a mouse button only over the reading area). In a novel, or for a mouse button anywhere else, it keeps its shortcut.
-- After you click a row or a tab in the side panel, the keys go back to the reader: `Space` turns the page rather than pressing the row again.
+- After you click a row or a tab in the side panel, or close a row's right-click menu, the keys go back to the reader: `Space` turns the page rather than pressing the row.
 
 > [!NOTE]
 > The behavior of the `Left Arrow` and `Right Arrow` keys adapts automatically based on the reading direction (Right-to-Left vs. Left-to-Right) selected via the toggle button in the top app bar or the `D` key. For Japanese vertical reading (Right-to-Left), the Left Arrow goes to the Next Page, and the Right Arrow goes to the Previous Page.

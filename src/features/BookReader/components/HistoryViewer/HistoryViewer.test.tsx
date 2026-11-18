@@ -5,9 +5,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { api } from "../../../../bindings/api";
 import { createMockBookWithState } from "../../../../test/factories";
 import { mockScrollToRow } from "../../../../test/mocks/components";
+import { createReaderActionSpies, TestReader } from "../../../../test/readerInput";
 import { createBasePreloadedState, renderWithProviders } from "../../../../test/utils";
 import { fetchRecentlyReadBooks } from "../../../History/slice";
 import { useHistoryIndex } from "../../hooks/useHistoryIndex";
+import { ReaderInputProvider } from "../../input/ReaderInputContext";
 import * as ReadReducer from "../../slice";
 import HistoryViewer from "./HistoryViewer";
 
@@ -84,6 +86,29 @@ describe("HistoryViewer", () => {
       path: "/path/1",
       origin: { kind: "history" },
     });
+  });
+
+  it("returns Space to the reader after a row's right-click menu is closed", async () => {
+    const preloadedState = createBasePreloadedState();
+    preloadedState.history.recentlyReadBooks = [
+      createMockBookWithState({ id: 1, filePath: "/path/1", displayName: "Book 1" }),
+    ];
+    const actions = createReaderActionSpies();
+    renderWithProviders(
+      <ReaderInputProvider>
+        <TestReader actions={actions} />
+        <HistoryViewer />
+      </ReaderInputProvider>,
+      { preloadedState },
+    );
+
+    await user.pointer({ keys: "[MouseRight]", target: screen.getByText("Book 1") });
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument());
+    await user.keyboard(" ");
+
+    expect(actions.nextPage).toHaveBeenCalledTimes(1);
+    expect(ReadReducer.openBook).not.toHaveBeenCalled();
   });
 
   it("should filter results based on search input", async () => {

@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import ContextMenu from "../../../../components/ui/ContextMenu/ContextMenu";
 import { useContextMenuAnchor } from "../../../../components/ui/ContextMenu/useContextMenuAnchor";
 import type { Bookmark } from "../../../../domain/entities";
+import { preventRightClickFocus } from "../../../../utils/preventRightClickFocus";
 import { releaseMouseFocus } from "../../../../utils/releaseMouseFocus";
 
 /**
@@ -55,6 +56,7 @@ export const ItemRow = memo(function ItemRow({
             releaseMouseFocus(e);
             handleJumpClicked();
           }}
+          onMouseDown={preventRightClickFocus}
           sx={{ padding: "4px 8px" }}
         >
           <ListItemText
