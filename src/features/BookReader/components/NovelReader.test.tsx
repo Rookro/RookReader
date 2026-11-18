@@ -100,6 +100,7 @@ describe("BookReader/NovelReader", () => {
       goTo: vi.fn(() => Promise.resolve()),
       next: vi.fn(),
       prev: vi.fn(),
+      goToFraction: vi.fn(() => Promise.resolve()),
       lastLocation: { index: -1, cfi: "initial" },
       renderer: { setStyles: vi.fn() } as unknown as HTMLElement,
     };

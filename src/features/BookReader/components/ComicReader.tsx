@@ -107,19 +107,20 @@ export default function ComicReader() {
   const { isLoupeEnabled, loupePos, containerRef, handleMouseMove, toggleLoupe } = useLoupe();
   const displaySize = useDisplaySize(containerRef);
 
-  const { displayedLayout, moveForward, moveBack, isImageLoading } = useViewerController({
-    containerPath,
-    entries,
-    index,
-    isSpreadShifted,
-    settings,
-    hasPreviews,
-    displaySize,
-    dispatch,
-    book,
-    onForwardBoundary,
-    onBackwardBoundary,
-  });
+  const { displayedLayout, moveForward, moveBack, moveToFirst, moveToLast, isImageLoading } =
+    useViewerController({
+      containerPath,
+      entries,
+      index,
+      isSpreadShifted,
+      settings,
+      hasPreviews,
+      displaySize,
+      dispatch,
+      book,
+      onForwardBoundary,
+      onBackwardBoundary,
+    });
 
   const loupeSettings = readerSettings.comic.loupe;
 
@@ -147,7 +148,13 @@ export default function ComicReader() {
   }, [isImageLoading]);
 
   useRegisterReaderActions(
-    { nextPage: moveForward, previousPage: moveBack, toggleLoupe },
+    {
+      nextPage: moveForward,
+      previousPage: moveBack,
+      firstPage: moveToFirst,
+      lastPage: moveToLast,
+      toggleLoupe,
+    },
     containerRef,
   );
   const { handleClicked, handleContextMenu, handleWheeled } = usePageNavigation();

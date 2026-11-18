@@ -23,6 +23,8 @@ vi.mock("./HistoryViewer/HistoryViewer", () => ({ default: () => <div /> }));
 const comicMoves = vi.hoisted(() => ({
   nextPage: vi.fn(() => true),
   previousPage: vi.fn(() => true),
+  firstPage: vi.fn(),
+  lastPage: vi.fn(),
 }));
 // Registers with the reader input like the real one, so routing to it can be checked.
 vi.mock("./ComicReader", async () => {

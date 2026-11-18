@@ -53,7 +53,7 @@ vi.mock("../slice", () => ({
 
 interface ExtendedView extends View {
   renderer: Paginator;
-  lastLocation: { cfi: string; section: { current: number; total: number } };
+  lastLocation: { cfi: string; section: { current: number; total: number } } | null;
 }
 
 // Mock foliate-view custom element
@@ -67,10 +67,11 @@ class MockView extends HTMLElement implements Partial<ExtendedView> {
   goTo = vi.fn<(location: string | number) => Promise<void>>().mockResolvedValue(undefined);
   next = vi.fn<(distance?: number) => Promise<void>>().mockResolvedValue(undefined);
   prev = vi.fn<(distance?: number) => Promise<void>>().mockResolvedValue(undefined);
+  goToFraction = vi.fn<(frac: number) => Promise<void>>().mockResolvedValue(undefined);
   renderer = new Paginator();
   // Mirrors foliate-js: `lastLocation` carries the section index under
   // `section.current` and has no `index` of its own.
-  lastLocation = {
+  lastLocation: ExtendedView["lastLocation"] = {
     cfi: "epubcfi(/6/4[chap01]!/4/2/2[p1])",
     section: { current: 0, total: 2 },
   };
@@ -510,6 +511,41 @@ describe("useNovelReader", () => {
 
     actions.previousPage();
     expect(viewElement.prev).toHaveBeenCalledTimes(1);
+  });
+
+  /** The actions the hook registered last. */
+  const registeredActions = (): ReaderActions => {
+    const calls = vi.mocked(useRegisterReaderActions).mock.calls;
+    return calls[calls.length - 1][0];
+  };
+
+  it("jumps to the start or the end of the book", async () => {
+    const viewElement = await loadView();
+
+    registeredActions().firstPage();
+    expect(viewElement.goToFraction).toHaveBeenCalledWith(0);
+    registeredActions().lastPage();
+    expect(viewElement.goToFraction).toHaveBeenCalledWith(1);
+  });
+
+  it("does not jump before the view has a location", async () => {
+    const viewElement = await loadView();
+    viewElement.lastLocation = null;
+
+    registeredActions().firstPage();
+    registeredActions().lastPage();
+
+    expect(viewElement.goToFraction).not.toHaveBeenCalled();
+  });
+
+  it("logs a failed jump", async () => {
+    const { error } = await import("@tauri-apps/plugin-log");
+    const viewElement = await loadView();
+    viewElement.goToFraction.mockRejectedValue(new Error("boom"));
+
+    registeredActions().lastPage();
+
+    await waitFor(() => expect(error).toHaveBeenCalledWith(expect.stringContaining("boom")));
   });
 
   it("hands the book's key presses to the reader input", async () => {

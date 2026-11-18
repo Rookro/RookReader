@@ -2,7 +2,12 @@ import { useCallback } from "react";
 import type { AppDispatch } from "../../../store/store";
 import { setImageIndex } from "../slice";
 import type { UnitChain } from "../utils/ImageUtils";
-import { nextUnitStart, previousUnitStart, walkUnits } from "../utils/spreadPairing";
+import {
+  containingUnitStart,
+  nextUnitStart,
+  previousUnitStart,
+  walkUnits,
+} from "../utils/spreadPairing";
 import type { PageMove, PageMoveOptions } from "./usePageNavigation";
 
 /** What {@link useSpreadNavigation} needs to step through the open book. */
@@ -30,7 +35,7 @@ export interface SpreadNavigationOptions {
  * what the moves do.
  *
  * @param options See {@link SpreadNavigationOptions}.
- * @returns The moves forward and back.
+ * @returns The moves forward and back, and the jumps to the first and last page.
  */
 export const useSpreadNavigation = ({
   pairing,
@@ -40,7 +45,12 @@ export const useSpreadNavigation = ({
   dispatch,
   onForwardBoundary,
   onBackwardBoundary,
-}: SpreadNavigationOptions): { moveForward: PageMove; moveBack: PageMove } => {
+}: SpreadNavigationOptions): {
+  moveForward: PageMove;
+  moveBack: PageMove;
+  moveToFirst: () => void;
+  moveToLast: () => void;
+} => {
   const goTo = useCallback(
     (nextIndex: number) => {
       dispatch(setImageIndex(nextIndex));
@@ -98,5 +108,20 @@ export const useSpreadNavigation = ({
     [walk, previousIndexFrom, onBackwardBoundary],
   );
 
-  return { moveForward, moveBack };
+  const moveToFirst = useCallback(() => {
+    if (pageCount > 0) {
+      goTo(0);
+    }
+  }, [pageCount, goTo]);
+
+  // Land on the start of the last displayed unit, so a final spread shows both its pages.
+  const moveToLast = useCallback(() => {
+    if (pageCount === 0) {
+      return;
+    }
+    const last = pageCount - 1;
+    goTo(isTwoPagedView && pairing ? (containingUnitStart(pairing, last) ?? last) : last);
+  }, [pageCount, isTwoPagedView, pairing, goTo]);
+
+  return { moveForward, moveBack, moveToFirst, moveToLast };
 };

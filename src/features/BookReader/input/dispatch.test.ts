@@ -37,6 +37,8 @@ const ctx: DispatchContext = {
 const reader = () => ({
   nextPage: vi.fn<PageMove>(() => true),
   previousPage: vi.fn<PageMove>(() => true),
+  firstPage: vi.fn<() => void>(),
+  lastPage: vi.fn<() => void>(),
   toggleLoupe: vi.fn<(at?: PointerPosition) => void>(),
 });
 
@@ -182,6 +184,29 @@ describe("dispatchReaderInput: page and common keys", () => {
     dispatchReaderInput(key(" ", { repeat: true }), { ...ctx, reader: r });
     expect(r.nextPage).toHaveBeenCalledTimes(1);
   });
+
+  it.each([
+    { k: "Home", jump: "firstPage" },
+    { k: "End", jump: "lastPage" },
+  ] as const)("$k → $jump, also while held", ({ k, jump }) => {
+    const r = reader();
+    const input = key(k);
+    expect(dispatchReaderInput(input, { ...ctx, reader: r })).toBe(true);
+    expect(input.event.defaultPrevented).toBe(true);
+    dispatchReaderInput(key(k, { repeat: true }), { ...ctx, reader: r });
+    expect(r[jump]).toHaveBeenCalledTimes(2);
+    expect(r.nextPage).not.toHaveBeenCalled();
+    expect(r.previousPage).not.toHaveBeenCalled();
+  });
+
+  it("does nothing for Home and End while no reader is registered", () => {
+    const common = commonActions();
+    expect(() => dispatchReaderInput(key("Home"), { ...ctx, common })).not.toThrow();
+    expect(() => dispatchReaderInput(key("End"), { ...ctx, common })).not.toThrow();
+    for (const fn of Object.values(common)) {
+      expect(fn).not.toHaveBeenCalled();
+    }
+  });
 });
 
 describe("dispatchReaderInput: wheel", () => {
@@ -271,7 +296,7 @@ describe("dispatchReaderInput: loupe", () => {
     dispatchReaderInput(key("ArrowRight"), {
       ...ctx,
       loupeToggle: parseCombo("ArrowRight"),
-      reader: { nextPage, previousPage },
+      reader: { nextPage, previousPage, firstPage: vi.fn(), lastPage: vi.fn() },
     });
     expect(nextPage).toHaveBeenCalled();
   });

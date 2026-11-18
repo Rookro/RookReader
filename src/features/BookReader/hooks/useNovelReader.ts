@@ -99,6 +99,17 @@ export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
     return true;
   }, []);
 
+  // foliate-js's goToFraction needs an opened book and, unlike goTo, catches nothing itself.
+  const goToFraction = useCallback((fraction: number) => {
+    if (viewRef.current?.lastLocation) {
+      viewRef.current.goToFraction(fraction).catch((e) => {
+        error(`Failed to navigate to fraction(${fraction}): ${e}`);
+      });
+    }
+  }, []);
+  const onFirstPage = useCallback(() => goToFraction(0), [goToFraction]);
+  const onLastPage = useCallback(() => goToFraction(1), [goToFraction]);
+
   const applyThemeToView = useCallback(
     (view: View) => {
       const css = `
@@ -135,7 +146,15 @@ export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
     [theme, fontFamily, fontSize],
   );
 
-  useRegisterReaderActions({ nextPage: onMoveForward, previousPage: onMoveBack }, viewerRef);
+  useRegisterReaderActions(
+    {
+      nextPage: onMoveForward,
+      previousPage: onMoveBack,
+      firstPage: onFirstPage,
+      lastPage: onLastPage,
+    },
+    viewerRef,
+  );
   const { dispatchInput } = useReaderInput();
   const { handleClicked, handleContextMenu, handleWheeled } = usePageNavigation();
 

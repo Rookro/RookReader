@@ -24,6 +24,8 @@ function Reader({ actions }: { actions: ReaderActions }) {
 const makeActions = () => ({
   nextPage: vi.fn<PageMove>(() => true),
   previousPage: vi.fn<PageMove>(() => true),
+  firstPage: vi.fn<() => void>(),
+  lastPage: vi.fn<() => void>(),
   toggleLoupe: vi.fn<(at?: PointerPosition) => void>(),
 });
 
@@ -168,7 +170,12 @@ describe("ReaderInputProvider", () => {
   });
 
   it("stops delivering to a reader once it unmounts", () => {
-    const actions = { nextPage: vi.fn<PageMove>(() => true), previousPage: vi.fn<PageMove>() };
+    const actions = {
+      nextPage: vi.fn<PageMove>(() => true),
+      previousPage: vi.fn<PageMove>(),
+      firstPage: vi.fn<() => void>(),
+      lastPage: vi.fn<() => void>(),
+    };
     const Wrapper = createTestWrapper({ preloadedState: createBasePreloadedState() });
     const { rerender } = render(
       <Wrapper>
@@ -246,6 +253,7 @@ describe("ReaderInputProvider: common actions", () => {
 
     fireEvent(button, event);
 
+    expect(actions.nextPage).toHaveBeenCalledTimes(1);
     expect(actions.nextPage).toHaveBeenCalledWith();
     expect(event.defaultPrevented).toBe(true);
     button.remove();

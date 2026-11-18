@@ -19,7 +19,10 @@ describe("usePageNavigation", () => {
     return renderHook(
       () => {
         const area = useRef<HTMLElement>(null);
-        useRegisterReaderActions({ nextPage: forward, previousPage: onMoveBack }, area);
+        useRegisterReaderActions(
+          { nextPage: forward, previousPage: onMoveBack, firstPage: vi.fn(), lastPage: vi.fn() },
+          area,
+        );
         return usePageNavigation();
       },
       { wrapper },

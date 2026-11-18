@@ -23,6 +23,10 @@ export interface ViewerController {
   moveForward: PageMove;
   /** Moves back by displayed units; returns false when it stopped short. */
   moveBack: PageMove;
+  /** Jumps to the first page, never to the previous book. */
+  moveToFirst: () => void;
+  /** Jumps to the start of the last displayed unit, never to the next book. */
+  moveToLast: () => void;
 }
 
 /** What {@link useViewerController} needs to drive the viewer. */
@@ -123,7 +127,7 @@ export const useViewerController = ({
     dispatch(setSpreadDisplayed(isSpreadDisplayed));
   }, [isSpreadDisplayed, dispatch]);
 
-  const { moveForward, moveBack } = useSpreadNavigation({
+  const { moveForward, moveBack, moveToFirst, moveToLast } = useSpreadNavigation({
     pairing,
     pageCount: entries.length,
     index,
@@ -138,5 +142,7 @@ export const useViewerController = ({
     isImageLoading,
     moveForward,
     moveBack,
+    moveToFirst,
+    moveToLast,
   };
 };

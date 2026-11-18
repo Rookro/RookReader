@@ -25,11 +25,17 @@ export interface DispatchContext {
 
 const NO_MODIFIERS = { ctrl: false, alt: false, shift: false, meta: false };
 
-const isPageAction = (action: ReaderAction): action is PageAction =>
-  action === "pageLeft" ||
-  action === "pageRight" ||
-  action === "nextPage" ||
-  action === "previousPage";
+// A Record, so a new page action that is missing here fails to compile.
+const PAGE_ACTIONS: Record<PageAction, true> = {
+  pageLeft: true,
+  pageRight: true,
+  nextPage: true,
+  previousPage: true,
+  firstPage: true,
+  lastPage: true,
+};
+
+const isPageAction = (action: ReaderAction): action is PageAction => action in PAGE_ACTIONS;
 
 const runAction = (action: ReaderAction, { direction, reader, common }: DispatchContext): void => {
   if (!isPageAction(action)) {
@@ -37,6 +43,10 @@ const runAction = (action: ReaderAction, { direction, reader, common }: Dispatch
     return;
   }
   if (!reader) {
+    return;
+  }
+  if (action === "firstPage" || action === "lastPage") {
+    reader[action]();
     return;
   }
   // In right-to-left books the left side comes next.

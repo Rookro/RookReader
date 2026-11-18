@@ -1,7 +1,13 @@
 import { type Combo, parseCombo, sameCombo } from "./combo";
 
 /** An action that turns pages. */
-export type PageAction = "pageLeft" | "pageRight" | "nextPage" | "previousPage";
+export type PageAction =
+  | "pageLeft"
+  | "pageRight"
+  | "nextPage"
+  | "previousPage"
+  | "firstPage"
+  | "lastPage";
 
 /** An action the reader view performs whichever reader is open. */
 export type CommonAction =
@@ -32,6 +38,8 @@ export const READER_BINDINGS: readonly Binding[] = [
   { combo: "PageUp", action: "previousPage" },
   { combo: "ArrowUp", action: "previousPage" },
   { combo: "MouseRight", action: "previousPage" },
+  { combo: "Home", action: "firstPage" },
+  { combo: "End", action: "lastPage" },
   { combo: "S", action: "toggleSpread" },
   { combo: "Shift+S", action: "shiftSpread" },
   { combo: "D", action: "toggleDirection" },
@@ -45,6 +53,8 @@ export const REPEATABLE_ACTIONS: ReadonlySet<ReaderAction> = new Set<ReaderActio
   "pageRight",
   "nextPage",
   "previousPage",
+  "firstPage",
+  "lastPage",
 ]);
 
 interface ParsedBinding {

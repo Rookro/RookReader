@@ -62,6 +62,8 @@ describe("ComicReader", () => {
       displayedLayout: null,
       moveForward: vi.fn(),
       moveBack: vi.fn(),
+      moveToFirst: vi.fn(),
+      moveToLast: vi.fn(),
       isImageLoading: false,
     });
   });
@@ -77,6 +79,20 @@ describe("ComicReader", () => {
       // Right to left by default, so the left arrow moves forward.
       const { moveForward } = vi.mocked(viewerController.useViewerController).mock.results[0].value;
       expect(moveForward).toHaveBeenCalledTimes(1);
+    });
+
+    it("jumps to the first page with Home and to the last with End", () => {
+      const preloadedState = createBasePreloadedState();
+      preloadedState.view.activeView = "reader";
+      renderWithProviders(<ProvidedComicReader />, { preloadedState });
+
+      fireEvent.keyDown(document.body, { key: "Home" });
+      fireEvent.keyDown(document.body, { key: "End" });
+
+      const { moveToFirst, moveToLast } = vi.mocked(viewerController.useViewerController).mock
+        .results[0].value;
+      expect(moveToFirst).toHaveBeenCalledTimes(1);
+      expect(moveToLast).toHaveBeenCalledTimes(1);
     });
 
     it("ignores a key press while the bookshelf view is active", () => {
@@ -167,6 +183,8 @@ describe("ComicReader", () => {
         },
         moveForward: vi.fn(),
         moveBack: vi.fn(),
+        moveToFirst: vi.fn(),
+        moveToLast: vi.fn(),
         isImageLoading: false,
       });
 
@@ -226,6 +244,8 @@ describe("ComicReader", () => {
       },
       moveForward: vi.fn(),
       moveBack: vi.fn(),
+      moveToFirst: vi.fn(),
+      moveToLast: vi.fn(),
       isImageLoading: false,
     });
 
@@ -249,6 +269,8 @@ describe("ComicReader", () => {
       },
       moveForward: vi.fn(),
       moveBack: vi.fn(),
+      moveToFirst: vi.fn(),
+      moveToLast: vi.fn(),
       isImageLoading: false,
     });
 
@@ -275,6 +297,8 @@ describe("ComicReader", () => {
       },
       moveForward: vi.fn(),
       moveBack: vi.fn(),
+      moveToFirst: vi.fn(),
+      moveToLast: vi.fn(),
       isImageLoading: false,
     });
 
@@ -306,6 +330,8 @@ describe("ComicReader", () => {
       },
       moveForward: vi.fn(),
       moveBack: vi.fn(),
+      moveToFirst: vi.fn(),
+      moveToLast: vi.fn(),
       isImageLoading: false,
     });
 
@@ -329,6 +355,8 @@ describe("ComicReader", () => {
       },
       moveForward: vi.fn(),
       moveBack: vi.fn(),
+      moveToFirst: vi.fn(),
+      moveToLast: vi.fn(),
       isImageLoading: false,
     });
 
@@ -347,6 +375,8 @@ describe("ComicReader", () => {
       displayedLayout: { isSpread: false, firstError: ErrorCode.image, nextIndexIncrement: 1 },
       moveForward: vi.fn(),
       moveBack: vi.fn(),
+      moveToFirst: vi.fn(),
+      moveToLast: vi.fn(),
       isImageLoading: false,
     });
 
@@ -373,6 +403,8 @@ describe("ComicReader", () => {
       },
       moveForward: vi.fn(),
       moveBack: vi.fn(),
+      moveToFirst: vi.fn(),
+      moveToLast: vi.fn(),
       isImageLoading: false,
     });
 
@@ -398,6 +430,8 @@ describe("ComicReader", () => {
       },
       moveForward: vi.fn(),
       moveBack: vi.fn(),
+      moveToFirst: vi.fn(),
+      moveToLast: vi.fn(),
       isImageLoading: false,
     });
 
@@ -423,6 +457,8 @@ describe("ComicReader", () => {
       displayedLayout: { isSpread: false, firstError: ErrorCode.image, nextIndexIncrement: 1 },
       moveForward: vi.fn(),
       moveBack: vi.fn(),
+      moveToFirst: vi.fn(),
+      moveToLast: vi.fn(),
       isImageLoading: false,
     });
 

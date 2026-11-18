@@ -124,7 +124,7 @@ export const useReaderInput = (): ReaderInputApi => useReaderInputContext();
  * Registers the active reader on mount and unregisters it on unmount. The latest actions are
  * kept in a ref, so a page turn does not re-register.
  *
- * @param actions - What the reader does for page moves and the loupe.
+ * @param actions - What the reader does for page moves, jumps to either end, and the loupe.
  * @param area - The reading area; a mouse button toggles the loupe only over it.
  * @throws Error outside {@link ReaderInputProvider}.
  */

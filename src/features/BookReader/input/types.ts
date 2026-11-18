@@ -10,6 +10,10 @@ export interface PointerPosition {
 export interface ReaderActions {
   nextPage: PageMove;
   previousPage: PageMove;
+  /** Jumps to the start of the book, never to the previous book. */
+  firstPage: () => void;
+  /** Jumps to the end of the book, never to the next book. */
+  lastPage: () => void;
   /** Only the comic reader has a loupe; `at` is set when a mouse button toggled it. */
   toggleLoupe?: (at?: PointerPosition) => void;
 }
