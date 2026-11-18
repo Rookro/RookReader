@@ -25,5 +25,10 @@ describe("findAction", () => {
     expect(findAction(c("S"), table)).toBe("nextPage");
   });
 
+  it("does not fall back to the unshifted binding with Ctrl held", () => {
+    const table: Binding[] = [{ combo: "Ctrl+S", action: "nextPage" }];
+    expect(findAction(c("Ctrl+Shift+S"), table)).toBeNull();
+  });
+
   it("returns null for an unbound key", () => expect(findAction(c("Enter"))).toBeNull());
 });

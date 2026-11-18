@@ -26,7 +26,7 @@ export interface SpreadNavigationOptions {
 /**
  * Decides which page a step forward or back lands on, by displayed units.
  *
- * {@link usePageNavigation} maps keys, the wheel and clicks to these moves; this hook is
+ * The reader input dispatcher maps keys, the wheel and clicks to these moves; this hook is
  * what the moves do.
  *
  * @param options See {@link SpreadNavigationOptions}.

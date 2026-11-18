@@ -20,7 +20,22 @@ vi.mock("./ReaderToolbar", () => ({ default: () => <div data-testid="reader-tool
 vi.mock("./FileNavigator/FileNavigator", () => ({ default: () => <div /> }));
 vi.mock("./ImageEntriesViewer/ImageEntriesViewer", () => ({ default: () => <div /> }));
 vi.mock("./HistoryViewer/HistoryViewer", () => ({ default: () => <div /> }));
-vi.mock("./ComicReader", () => ({ default: () => <div data-testid="comic-reader" /> }));
+const comicMoves = vi.hoisted(() => ({
+  nextPage: vi.fn(() => true),
+  previousPage: vi.fn(() => true),
+}));
+// Registers with the reader input like the real one, so routing to it can be checked.
+vi.mock("./ComicReader", async () => {
+  const { useRef } = await import("react");
+  const { useRegisterReaderActions } = await import("../input/ReaderInputContext");
+  return {
+    default: () => {
+      const area = useRef<HTMLDivElement>(null);
+      useRegisterReaderActions(comicMoves, area);
+      return <div ref={area} data-testid="comic-reader" />;
+    },
+  };
+});
 vi.mock("./NovelReader", () => ({ default: () => <div data-testid="novel-reader" /> }));
 
 vi.mock("../../../hooks/useDragDropEvent", () => ({
@@ -70,6 +85,16 @@ describe("BookReader", () => {
     fireEvent.wheel(screen.getByRole("progressbar"), { deltaY: 100 });
 
     expect(hold).toHaveBeenCalledTimes(1);
+  });
+
+  it("routes a key press to the open reader", async () => {
+    renderWithProviders(<BookReader />, { preloadedState: createBasePreloadedState() });
+    await screen.findByTestId("comic-reader");
+
+    fireEvent.keyDown(document.body, { key: "ArrowLeft" });
+
+    // Right to left by default, so the left arrow moves forward.
+    expect(comicMoves.nextPage).toHaveBeenCalledTimes(1);
   });
 
   it("dispatches restoreLastBook on mount", async () => {

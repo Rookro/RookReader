@@ -8,9 +8,9 @@ import { useDisplaySize } from "../hooks/useDisplaySize";
 import { useFullSizePages } from "../hooks/useFullSizePages";
 import { useLoupe } from "../hooks/useLoupe";
 import { usePageNavigation } from "../hooks/usePageNavigation";
-import { useReaderKeydown } from "../hooks/useReaderKeydown";
 import { useReadingDirection } from "../hooks/useReadingDirection";
 import { useViewerController } from "../hooks/useViewerController";
+import { useRegisterReaderActions } from "../input/ReaderInputContext";
 import type { ViewerSettings } from "../utils/ImageUtils";
 import AdjacentBookConfirmDialog from "./AdjacentBookConfirmDialog";
 import Loupe from "./Loupe";
@@ -104,9 +104,7 @@ export default function ComicReader() {
   const { onForwardBoundary, onBackwardBoundary, pending, confirmPending, cancelPending } =
     useAdjacentBookNavigation();
 
-  const { isLoupeEnabled, loupePos, containerRef, handleMouseMove, handleMouseDown } = useLoupe(
-    readerSettings.comic.loupe.toggleKey,
-  );
+  const { isLoupeEnabled, loupePos, containerRef, handleMouseMove, toggleLoupe } = useLoupe();
   const displaySize = useDisplaySize(containerRef);
 
   const { displayedLayout, moveForward, moveBack, isImageLoading } = useViewerController({
@@ -148,13 +146,11 @@ export default function ComicReader() {
     };
   }, [isImageLoading]);
 
-  const { handleClicked, handleContextMenu, handleWheeled, handleKeydown } = usePageNavigation(
-    moveForward,
-    moveBack,
-    settings.direction,
+  useRegisterReaderActions(
+    { nextPage: moveForward, previousPage: moveBack, toggleLoupe },
+    containerRef,
   );
-
-  useReaderKeydown(handleKeydown);
+  const { handleClicked, handleContextMenu, handleWheeled } = usePageNavigation();
 
   const spinnerOverlay = showSpinner ? (
     <Box
@@ -267,7 +263,6 @@ export default function ComicReader() {
         tabIndex={0}
         {...navigationHandlers}
         onMouseMove={handleMouseMove}
-        onMouseDown={handleMouseDown}
         ref={containerRef}
         data-testid="comic-reader-area"
         sx={{

@@ -7,15 +7,20 @@ import { readNovelFile } from "../../../bindings/binaryApi";
 import { useAppTheme } from "../../../hooks/useAppTheme";
 import { type RootState, useAppDispatch, useAppSelector } from "../../../store/store";
 import { CommandError, ErrorCode } from "../../../types/Error";
+import { useRegisterReaderActions } from "../input/ReaderInputContext";
+import type { ReaderActions } from "../input/types";
 import { setEntries, setNovelDirection, setNovelLocation } from "../slice";
 import { blockSectionScripts } from "../utils/epubContentPolicy";
 import { useNovelReader } from "./useNovelReader";
-import { useReaderKeydown } from "./useReaderKeydown";
 
 // Mocks
 vi.mock("../../../store/store");
-// The gate needs the real store; here the key press is handed straight to the handler.
-vi.mock("./useReaderKeydown");
+// The dispatcher is tested on its own; here only what the hook hands it is.
+const dispatchInput = vi.hoisted(() => vi.fn());
+vi.mock("../input/ReaderInputContext", () => ({
+  useReaderInput: () => ({ dispatchInput }),
+  useRegisterReaderActions: vi.fn(),
+}));
 vi.mock("../../../hooks/useAppTheme");
 vi.mock("@tauri-apps/plugin-log");
 vi.mock("foliate-js/view.js", () => ({
@@ -242,7 +247,7 @@ describe("useNovelReader", () => {
 
     // Simulate click on the document
     mockDoc.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    expect(viewElement.next).toHaveBeenCalled();
+    expect(dispatchInput).toHaveBeenCalledWith({ kind: "click", button: "left" });
   });
 
   it("should navigate to previous page on context menu", async () => {
@@ -268,8 +273,8 @@ describe("useNovelReader", () => {
     const loadEvent = new CustomEvent("load", { detail: { doc: mockDoc } });
     viewElement.dispatchEvent(loadEvent);
 
-    mockDoc.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
-    expect(viewElement.prev).toHaveBeenCalled();
+    mockDoc.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true }));
+    expect(dispatchInput).toHaveBeenCalledWith({ kind: "click", button: "right" });
   });
 
   it("should dispatch setNovelLocation on relocate event with different detail formats", async () => {
@@ -482,60 +487,40 @@ describe("useNovelReader", () => {
     });
   });
 
-  it.each([
-    ["rtl", "ArrowLeft", "ArrowRight"],
-    ["ltr", "ArrowRight", "ArrowLeft"],
-  ])(
-    "should turn pages by the detected %s direction, ignoring the comic setting",
-    async (direction, forwardKey, backKey) => {
-      vi.mocked(useAppSelector).mockImplementation(<T>(selector: (state: RootState) => T): T => {
-        const state = {
-          ...defaultState,
-          reader: { index: 0, cfi: null, isNovel: true, novelDirection: direction },
-          settings: {
-            ...defaultState.settings,
-            reader: {
-              ...defaultState.settings.reader,
-              // The opposite comic setting must not reach the novel.
-              comic: { readingDirection: direction === "rtl" ? "ltr" : "rtl" },
-            },
-          },
-        };
-        return selector(state as RootState);
-      });
+  /** Loads a book and returns its rendered view element. */
+  const loadView = async () => {
+    vi.mocked(makeBook).mockResolvedValue({ sections: [], toc: [], destroy: vi.fn() } as Book);
+    const { result } = setupHook();
+    await waitFor(() => {
+      expect(result.current.viewerRef.current?.querySelector("foliate-view")).not.toBeNull();
+    });
+    return result.current.viewerRef.current?.querySelector("foliate-view") as MockView;
+  };
 
-      const mockBook = { sections: [], toc: [], destroy: vi.fn() } as Book;
-      vi.mocked(makeBook).mockResolvedValue(mockBook);
+  // Which side is next is the dispatcher's; the reader only turns its view.
+  it("registers moves that turn the view's pages", async () => {
+    const viewElement = await loadView();
 
-      const { result } = setupHook();
+    const calls = vi.mocked(useRegisterReaderActions).mock.calls;
+    const actions = calls[calls.length - 1][0] as ReaderActions;
 
-      await waitFor(() => {
-        const viewElement = result.current.viewerRef.current?.querySelector(
-          "foliate-view",
-        ) as MockView;
-        expect(viewElement).not.toBeNull();
-      });
+    actions.nextPage();
+    expect(viewElement.next).toHaveBeenCalledTimes(1);
+    expect(viewElement.prev).not.toHaveBeenCalled();
 
-      const viewElement = result.current.viewerRef.current?.querySelector(
-        "foliate-view",
-      ) as MockView;
+    actions.previousPage();
+    expect(viewElement.prev).toHaveBeenCalledTimes(1);
+  });
 
-      const calls = vi.mocked(useReaderKeydown).mock.calls;
-      const pressKey = (key: string) =>
-        calls[calls.length - 1][0](new KeyboardEvent("keydown", { key }));
+  it("hands the book's key presses to the reader input", async () => {
+    const viewElement = await loadView();
+    const mockDoc = document.createElement("div");
+    viewElement.dispatchEvent(new CustomEvent("load", { detail: { doc: mockDoc } }));
 
-      pressKey(forwardKey);
-      expect(viewElement.next).toHaveBeenCalledTimes(1);
-      expect(viewElement.prev).not.toHaveBeenCalled();
+    const event = new KeyboardEvent("keydown", { key: "ArrowRight", cancelable: true });
+    mockDoc.dispatchEvent(event);
 
-      pressKey(backKey);
-      expect(viewElement.prev).toHaveBeenCalledTimes(1);
-    },
-  );
-
-  it("listens for keys through the reader gate", () => {
-    setupHook();
-    expect(vi.mocked(useReaderKeydown)).toHaveBeenCalledWith(expect.any(Function));
+    expect(dispatchInput).toHaveBeenCalledWith({ kind: "key", event });
   });
 
   it("should handle navigation failures and log errors", async () => {

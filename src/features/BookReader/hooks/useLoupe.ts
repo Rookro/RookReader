@@ -1,13 +1,29 @@
 import { useCallback, useRef, useState } from "react";
-import { useReaderKeydown } from "./useReaderKeydown";
+import type { PointerPosition } from "../input/types";
 
-export function useLoupe(toggleKey?: string) {
+/**
+ * The comic reader's loupe: whether it is on and where it is.
+ *
+ * @returns The loupe's state, the container it is positioned in, and its handlers.
+ */
+export function useLoupe() {
   const [isLoupeEnabled, setIsLoupeEnabled] = useState(false);
   const [loupePos, setLoupePos] = useState({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const toggleLoupe = useCallback(() => {
-    setIsLoupeEnabled((prev) => !prev);
+  // A loupe switched on by a mouse button appears under the cursor before the mouse moves.
+  const toggleLoupe = useCallback((at?: PointerPosition) => {
+    setIsLoupeEnabled((prev) => {
+      const nextState = !prev;
+      if (nextState && at && containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        setLoupePos({
+          x: at.clientX - rect.left,
+          y: at.clientY - rect.top,
+        });
+      }
+      return nextState;
+    });
   }, []);
 
   const handleMouseMove = useCallback(
@@ -22,89 +38,11 @@ export function useLoupe(toggleKey?: string) {
     [isLoupeEnabled],
   );
 
-  const handleMouseDown = useCallback(
-    (e: React.MouseEvent) => {
-      if (!toggleKey) {
-        return;
-      }
-
-      const parts = toggleKey.split("+");
-      const keyComboLast = parts[parts.length - 1];
-
-      let buttonName = "";
-      if (e.button === 1) {
-        buttonName = "MouseMiddle";
-      } else if (e.button === 3) {
-        buttonName = "MouseBack";
-      } else if (e.button === 4) {
-        buttonName = "MouseForward";
-      }
-
-      if (!buttonName) {
-        return;
-      }
-
-      const needsCtrl = parts.includes("Ctrl");
-      const needsAlt = parts.includes("Alt");
-      const needsShift = parts.includes("Shift");
-      const needsMeta = parts.includes("Meta");
-
-      if (
-        buttonName === keyComboLast &&
-        e.ctrlKey === needsCtrl &&
-        e.altKey === needsAlt &&
-        e.shiftKey === needsShift &&
-        e.metaKey === needsMeta
-      ) {
-        e.preventDefault(); // Prevent default browser action
-        setIsLoupeEnabled((prev) => {
-          const nextState = !prev;
-          if (nextState && containerRef.current) {
-            const rect = containerRef.current.getBoundingClientRect();
-            setLoupePos({
-              x: e.clientX - rect.left,
-              y: e.clientY - rect.top,
-            });
-          }
-          return nextState;
-        });
-      }
-    },
-    [toggleKey],
-  );
-
-  const handleKeyDown = useCallback(
-    (e: KeyboardEvent) => {
-      if (!toggleKey) {
-        return;
-      }
-      const parts = toggleKey.split("+");
-      const keyComboLast = parts[parts.length - 1];
-      const keyComboKey = keyComboLast === "Space" ? " " : keyComboLast.toLowerCase();
-      const needsCtrl = parts.includes("Ctrl");
-      const needsAlt = parts.includes("Alt");
-      const needsShift = parts.includes("Shift");
-      const needsMeta = parts.includes("Meta");
-      if (
-        e.key.toLowerCase() === keyComboKey &&
-        e.ctrlKey === needsCtrl &&
-        e.altKey === needsAlt &&
-        e.shiftKey === needsShift &&
-        e.metaKey === needsMeta
-      ) {
-        setIsLoupeEnabled((prev) => !prev);
-      }
-    },
-    [toggleKey],
-  );
-  useReaderKeydown(handleKeyDown);
-
   return {
     isLoupeEnabled,
     loupePos,
     containerRef,
     handleMouseMove,
-    handleMouseDown,
     toggleLoupe,
   };
 }
