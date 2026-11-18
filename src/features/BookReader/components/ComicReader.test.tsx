@@ -346,7 +346,7 @@ describe("ComicReader", () => {
     expect(handleClicked).toHaveBeenCalled();
   });
 
-  it("should have loupe event handlers and container ref", () => {
+  it("makes the reader area the loupe's container and feeds it the pointer moves", () => {
     vi.mocked(viewerController.useViewerController).mockReturnValue({
       displayedLayout: {
         isSpread: false,
@@ -363,10 +363,11 @@ describe("ComicReader", () => {
     renderWithProviders(<ProvidedComicReader />);
 
     const readerArea = screen.getByTestId("comic-reader-area");
-    expect(readerArea).toBeInTheDocument();
+    fireEvent.mouseMove(readerArea, { clientX: 5, clientY: 6 });
 
-    // Check if event handlers are present
-    expect(readerArea).toHaveProperty("onmousemove");
+    const { containerRef, handleMouseMove } = vi.mocked(loupe.useLoupe).mock.results[0].value;
+    expect(containerRef.current).toBe(readerArea);
+    expect(handleMouseMove).toHaveBeenCalledTimes(1);
   });
 
   // Verify the reason stands in the failed page's own place, not over the whole reader

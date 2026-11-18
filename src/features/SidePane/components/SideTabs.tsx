@@ -1,7 +1,7 @@
 import { Tab, Tabs, Tooltip } from "@mui/material";
 import type React from "react";
 import { useCallback, useEffect } from "react";
-import { releaseMouseFocus } from "../../BookReader/utils/releaseMouseFocus";
+import { releaseMouseFocus } from "../../../utils/releaseMouseFocus";
 import { useApplySidePane } from "../hooks/useApplySidePane";
 import type { SideTab } from "../types";
 

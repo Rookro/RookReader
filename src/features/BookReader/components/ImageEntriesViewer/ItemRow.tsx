@@ -1,7 +1,7 @@
 import Image from "@mui/icons-material/Image";
 import { ListItem, ListItemButton, ListItemText, Tooltip } from "@mui/material";
 import { type CSSProperties, memo } from "react";
-import { releaseMouseFocus } from "../../utils/releaseMouseFocus";
+import { releaseMouseFocus } from "../../../../utils/releaseMouseFocus";
 
 /**
  * Row component for an image entry.

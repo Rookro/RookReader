@@ -3,6 +3,7 @@ import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { api } from "../../../bindings/api";
 import * as dragDrop from "../../../hooks/useDragDropEvent";
+import { createReaderActionSpies } from "../../../test/readerInput";
 import { createBasePreloadedState, renderWithProviders } from "../../../test/utils";
 import * as readRed from "../slice";
 import { wheelGesture } from "../utils/wheelGesture";
@@ -20,23 +21,11 @@ vi.mock("./ReaderToolbar", () => ({ default: () => <div data-testid="reader-tool
 vi.mock("./FileNavigator/FileNavigator", () => ({ default: () => <div /> }));
 vi.mock("./ImageEntriesViewer/ImageEntriesViewer", () => ({ default: () => <div /> }));
 vi.mock("./HistoryViewer/HistoryViewer", () => ({ default: () => <div /> }));
-const comicMoves = vi.hoisted(() => ({
-  nextPage: vi.fn(() => true),
-  previousPage: vi.fn(() => true),
-  firstPage: vi.fn(),
-  lastPage: vi.fn(),
-}));
+const comicMoves = createReaderActionSpies();
 // Registers with the reader input like the real one, so routing to it can be checked.
 vi.mock("./ComicReader", async () => {
-  const { useRef } = await import("react");
-  const { useRegisterReaderActions } = await import("../input/ReaderInputContext");
-  return {
-    default: () => {
-      const area = useRef<HTMLDivElement>(null);
-      useRegisterReaderActions(comicMoves, area);
-      return <div ref={area} data-testid="comic-reader" />;
-    },
-  };
+  const { TestReader } = await import("../../../test/readerInput");
+  return { default: () => <TestReader actions={comicMoves} testId="comic-reader" /> };
 });
 vi.mock("./NovelReader", () => ({ default: () => <div data-testid="novel-reader" /> }));
 

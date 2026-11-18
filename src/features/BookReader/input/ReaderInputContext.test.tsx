@@ -1,8 +1,8 @@
 import { act, fireEvent, render, waitFor } from "@testing-library/react";
-import { useRef } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { api } from "../../../bindings/api";
 import { createMockBookmark, createMockBookWithState } from "../../../test/factories";
+import { createReaderActionSpies, TestReader } from "../../../test/readerInput";
 import {
   createBasePreloadedState,
   createTestStore,
@@ -10,22 +10,12 @@ import {
   mockSettingsCommands,
   type RootState,
 } from "../../../test/utils";
-import type { PageMove } from "../hooks/usePageNavigation";
 import { setNovelDirection } from "../slice";
-import { ReaderInputProvider, useRegisterReaderActions } from "./ReaderInputContext";
+import { ReaderInputProvider } from "./ReaderInputContext";
 import type { PointerPosition, ReaderActions } from "./types";
 
-function Reader({ actions }: { actions: ReaderActions }) {
-  const area = useRef<HTMLDivElement>(null);
-  useRegisterReaderActions(actions, area);
-  return <div ref={area} data-testid="reading-area" />;
-}
-
 const makeActions = () => ({
-  nextPage: vi.fn<PageMove>(() => true),
-  previousPage: vi.fn<PageMove>(() => true),
-  firstPage: vi.fn<() => void>(),
-  lastPage: vi.fn<() => void>(),
+  ...createReaderActionSpies(),
   toggleLoupe: vi.fn<(at?: PointerPosition) => void>(),
 });
 
@@ -36,7 +26,7 @@ const renderReader = (preloadedState: RootState = createBasePreloadedState()) =>
   const ui = (readerActions: ReaderActions) => (
     <Wrapper>
       <ReaderInputProvider>
-        <Reader actions={readerActions} />
+        <TestReader actions={readerActions} testId="reading-area" />
       </ReaderInputProvider>
     </Wrapper>
   );
@@ -186,17 +176,12 @@ describe("ReaderInputProvider", () => {
   });
 
   it("stops delivering to a reader once it unmounts", () => {
-    const actions = {
-      nextPage: vi.fn<PageMove>(() => true),
-      previousPage: vi.fn<PageMove>(),
-      firstPage: vi.fn<() => void>(),
-      lastPage: vi.fn<() => void>(),
-    };
+    const actions = createReaderActionSpies();
     const Wrapper = createTestWrapper({ preloadedState: createBasePreloadedState() });
     const { rerender } = render(
       <Wrapper>
         <ReaderInputProvider>
-          <Reader actions={actions} />
+          <TestReader actions={actions} />
         </ReaderInputProvider>
       </Wrapper>,
     );

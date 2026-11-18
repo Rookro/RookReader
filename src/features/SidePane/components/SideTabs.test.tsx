@@ -1,22 +1,11 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { useRef } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { mockTauri } from "../../../test/mocks/tauri";
+import { createReaderActionSpies, TestReader } from "../../../test/readerInput";
 import { mockSettingsCommands, renderWithProviders } from "../../../test/utils";
-import type { PageMove } from "../../BookReader/hooks/usePageNavigation";
-import {
-  ReaderInputProvider,
-  useRegisterReaderActions,
-} from "../../BookReader/input/ReaderInputContext";
-import type { ReaderActions } from "../../BookReader/input/types";
+import { ReaderInputProvider } from "../../BookReader/input/ReaderInputContext";
 import SideTabs from "./SideTabs";
-
-function Reader({ actions }: { actions: ReaderActions }) {
-  const area = useRef<HTMLDivElement>(null);
-  useRegisterReaderActions(actions, area);
-  return <div ref={area} />;
-}
 
 describe("SideTabs", () => {
   const user = userEvent.setup();
@@ -60,15 +49,10 @@ describe("SideTabs", () => {
   });
 
   it("returns the arrow keys to the reader after a tab is clicked", async () => {
-    const actions = {
-      nextPage: vi.fn<PageMove>(() => true),
-      previousPage: vi.fn<PageMove>(() => true),
-      firstPage: vi.fn<() => void>(),
-      lastPage: vi.fn<() => void>(),
-    };
+    const actions = createReaderActionSpies();
     renderWithProviders(
       <ReaderInputProvider>
-        <Reader actions={actions} />
+        <TestReader actions={actions} />
         <SideTabs tabs={mockTabs} index={0} isHidden={false} />
       </ReaderInputProvider>,
     );

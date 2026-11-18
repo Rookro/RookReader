@@ -14,8 +14,8 @@ import ContextMenu from "../../../../components/ui/ContextMenu/ContextMenu";
 import { useContextMenuAnchor } from "../../../../components/ui/ContextMenu/useContextMenuAnchor";
 import type { BookWithState } from "../../../../domain/entities";
 import { useAppDispatch } from "../../../../store/store";
+import { releaseMouseFocus } from "../../../../utils/releaseMouseFocus";
 import { clearHistory } from "../../../History/slice";
-import { releaseMouseFocus } from "../../utils/releaseMouseFocus";
 
 /**
  * Row component for the history viewer.

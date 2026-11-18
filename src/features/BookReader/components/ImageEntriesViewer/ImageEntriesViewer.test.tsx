@@ -1,13 +1,11 @@
 import { error } from "@tauri-apps/plugin-log";
 import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { useRef } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { mockScrollToRow } from "../../../../test/mocks/components";
+import { createReaderActionSpies, TestReader } from "../../../../test/readerInput";
 import { createBasePreloadedState, renderWithProviders } from "../../../../test/utils";
-import type { PageMove } from "../../hooks/usePageNavigation";
-import { ReaderInputProvider, useRegisterReaderActions } from "../../input/ReaderInputContext";
-import type { ReaderActions } from "../../input/types";
+import { ReaderInputProvider } from "../../input/ReaderInputContext";
 import * as ReadReducer from "../../slice";
 import ImageEntriesViewer from "./ImageEntriesViewer";
 
@@ -24,12 +22,6 @@ vi.mock("../../slice", async () => {
     setImageIndex: vi.fn((payload: number) => ({ type: "reader/setImageIndex", payload })),
   };
 });
-
-function Reader({ actions }: { actions: ReaderActions }) {
-  const area = useRef<HTMLDivElement>(null);
-  useRegisterReaderActions(actions, area);
-  return <div ref={area} />;
-}
 
 describe("ImageEntriesViewer", () => {
   const user = userEvent.setup();
@@ -114,15 +106,10 @@ describe("ImageEntriesViewer", () => {
   it("returns Space to the reader after a row is clicked", async () => {
     const preloadedState = createBasePreloadedState();
     preloadedState.reader.entries = ["p1.jpg", "p2.jpg", "p3.jpg"];
-    const actions = {
-      nextPage: vi.fn<PageMove>(() => true),
-      previousPage: vi.fn<PageMove>(() => true),
-      firstPage: vi.fn<() => void>(),
-      lastPage: vi.fn<() => void>(),
-    };
+    const actions = createReaderActionSpies();
     const { store } = renderWithProviders(
       <ReaderInputProvider>
-        <Reader actions={actions} />
+        <TestReader actions={actions} />
         <ImageEntriesViewer />
       </ReaderInputProvider>,
       { preloadedState },

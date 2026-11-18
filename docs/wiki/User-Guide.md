@@ -86,7 +86,7 @@ The keys and the mouse side buttons work in the reader view, for comics and EPUB
 - After you click a row or a tab in the side panel, the keys go back to the reader: `Space` turns the page rather than pressing the row again.
 
 > [!NOTE]
-> The behavior of the `Left Arrow` and `Right Arrow` keys adapts automatically based on the reading direction (Right-to-Left vs. Left-to-Right) selected via the toggle button in the top app bar. For Japanese vertical reading (Right-to-Left), the Left Arrow goes to the Next Page, and the Right Arrow goes to the Previous Page.
+> The behavior of the `Left Arrow` and `Right Arrow` keys adapts automatically based on the reading direction (Right-to-Left vs. Left-to-Right) selected via the toggle button in the top app bar or the `D` key. For Japanese vertical reading (Right-to-Left), the Left Arrow goes to the Next Page, and the Right Arrow goes to the Previous Page.
 
 ## Page Display
 

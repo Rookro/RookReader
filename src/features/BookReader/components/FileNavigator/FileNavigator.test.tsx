@@ -1,17 +1,16 @@
 import { error } from "@tauri-apps/plugin-log";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DirEntry } from "../../../../domain/entities";
 import { mockScrollToRow } from "../../../../test/mocks/components";
+import { createReaderActionSpies, TestReader } from "../../../../test/readerInput";
 import { createBasePreloadedState, renderWithProviders } from "../../../../test/utils";
 import * as FileNavigatorSlice from "../../fileNavigatorSlice";
 import { useDirectoryWatcher } from "../../hooks/useDirectoryWatcher";
 import { useFileSelection } from "../../hooks/useFileSelection";
-import type { PageMove } from "../../hooks/usePageNavigation";
-import { ReaderInputProvider, useRegisterReaderActions } from "../../input/ReaderInputContext";
-import type { ReaderActions } from "../../input/types";
+import { ReaderInputProvider } from "../../input/ReaderInputContext";
 import * as ReadReducer from "../../slice";
 import FileNavigator from "./FileNavigator";
 
@@ -49,12 +48,6 @@ vi.mock("../../fileNavigatorSlice", async () => {
     setSearchText: vi.fn((payload: string) => ({ type: "fileNavigator/setSearchText", payload })),
   };
 });
-
-function Reader({ actions }: { actions: ReaderActions }) {
-  const area = useRef<HTMLDivElement>(null);
-  useRegisterReaderActions(actions, area);
-  return <div ref={area} />;
-}
 
 describe("FileNavigator", () => {
   const user = userEvent.setup();
@@ -113,15 +106,10 @@ describe("FileNavigator", () => {
     const entries: DirEntry[] = [{ name: "book.zip", isDirectory: false, lastModified: 0 }];
     const preloadedState = createBasePreloadedState();
     preloadedState.fileNavigator.entries = entries;
-    const actions = {
-      nextPage: vi.fn<PageMove>(() => true),
-      previousPage: vi.fn<PageMove>(() => true),
-      firstPage: vi.fn<() => void>(),
-      lastPage: vi.fn<() => void>(),
-    };
+    const actions = createReaderActionSpies();
     renderWithProviders(
       <ReaderInputProvider>
-        <Reader actions={actions} />
+        <TestReader actions={actions} />
         <FileNavigator />
       </ReaderInputProvider>,
       { preloadedState },

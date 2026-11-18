@@ -2,7 +2,7 @@ import FolderOutlined from "@mui/icons-material/FolderOutlined";
 import { ListItem, ListItemButton, ListItemText, Tooltip } from "@mui/material";
 import { type CSSProperties, memo } from "react";
 import type { DirEntry } from "../../../../domain/entities";
-import { releaseMouseFocus } from "../../utils/releaseMouseFocus";
+import { releaseMouseFocus } from "../../../../utils/releaseMouseFocus";
 
 /**
  * Row component for the file navigator.

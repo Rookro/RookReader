@@ -1,5 +1,13 @@
 import type React from "react";
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+} from "react";
 import { useAppSelector } from "../../../store/store";
 import { useReadingDirection } from "../hooks/useReadingDirection";
 import { mouseButtonName, parseCombo } from "./combo";
@@ -42,7 +50,8 @@ export function ReaderInputProvider({ children }: ReaderInputProviderProps): Rea
     loupeToggle,
     common,
   });
-  useEffect(() => {
+  // A layout effect, so an input between a commit and the passive effects sees the new values.
+  useLayoutEffect(() => {
     contextRef.current = {
       isReaderActive: activeView === "reader",
       direction,
@@ -138,7 +147,7 @@ export const useRegisterReaderActions = (
 ): void => {
   const { register } = useReaderInputContext();
   const actionsRef = useRef(actions);
-  useEffect(() => {
+  useLayoutEffect(() => {
     actionsRef.current = actions;
   });
   useEffect(() => register({ actions: actionsRef, area }), [register, area]);
