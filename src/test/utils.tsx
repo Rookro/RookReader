@@ -8,6 +8,7 @@ import { I18nextProvider, initReactI18next } from "react-i18next";
 import { Provider } from "react-redux";
 import NotificationProvider from "../components/ui/Notification/NotificationContext";
 import { defaultSettings } from "../features/Settings/settingsStore";
+import { SidePaneFocusProvider } from "../features/SidePane/SidePaneFocusContext";
 import translationEnUs from "../i18n/locales/en-US.json";
 import translationJaJp from "../i18n/locales/ja-JP.json";
 import { rootReducer } from "../store/rootReducer";
@@ -152,7 +153,9 @@ export function createTestWrapper({
       <Provider store={store}>
         <ThemeProvider theme={theme}>
           <I18nextProvider i18n={testI18n}>
-            <NotificationProvider>{children}</NotificationProvider>
+            <NotificationProvider>
+              <SidePaneFocusProvider tabCount={4}>{children}</SidePaneFocusProvider>
+            </NotificationProvider>
           </I18nextProvider>
         </ThemeProvider>
       </Provider>
