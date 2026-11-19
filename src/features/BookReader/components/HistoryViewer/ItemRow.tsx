@@ -24,6 +24,8 @@ import { clearHistory } from "../../../History/slice";
  * @param entry - The history entry to display.
  * @param index - The index of the entry in the list.
  * @param selected - Whether the entry is selected.
+ * @param id - Optional id, which the listbox's `aria-activedescendant` points at.
+ * @param keyboardActive - Whether the row is drawn as the keyboard's active row.
  * @param onClick - Optional callback for when the entry is clicked.
  * @param style - Optional CSS style for the row.
  */
@@ -31,12 +33,16 @@ export const ItemRow = memo(function ItemRow({
   entry,
   index,
   selected,
+  id,
+  keyboardActive,
   onClick,
   style,
 }: {
   entry: BookWithState;
   index: number;
   selected: boolean;
+  id?: string;
+  keyboardActive?: boolean;
   onClick?: (e: React.MouseEvent<HTMLElement>, entry: BookWithState, index: number) => void;
   style?: CSSProperties;
 }) {
@@ -87,8 +93,13 @@ export const ItemRow = memo(function ItemRow({
         followCursor
         placement="right-start"
       >
-        <ListItem style={style} key={index} component="div" disablePadding dense>
+        <ListItem style={style} key={index} component="div" role="none" disablePadding dense>
           <ListItemButton
+            id={id}
+            role="option"
+            aria-selected={selected}
+            tabIndex={-1}
+            className={keyboardActive ? "Mui-focusVisible" : undefined}
             selected={selected}
             onClick={(e) => {
               releaseMouseFocus(e);
