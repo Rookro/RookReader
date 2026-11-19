@@ -29,11 +29,18 @@ import {
   loadDirectory,
   setSearchText,
 } from "../../fileNavigatorSlice";
+import { isComposing } from "../../input/guards";
+
+/** Props for {@link NavBar}. */
+export interface NavBarProps {
+  /** The search field's input, which the panel focuses while a search hides every entry. */
+  searchInputRef?: React.Ref<HTMLInputElement>;
+}
 
 /**
  * Navigation bar component for File navigator component.
  */
-export default function NavBar() {
+export default function NavBar({ searchInputRef }: NavBarProps) {
   const { t } = useTranslation();
   const history = useAppSelector((state) => state.fileNavigator.history);
   const historyIndex = useAppSelector((state) => state.fileNavigator.historyIndex);
@@ -78,6 +85,21 @@ export default function NavBar() {
     e.currentTarget.form?.requestSubmit();
   }, []);
 
+  // With no edit to revert, Esc is left to the side pane's keys, which return to the reader.
+  const handlePathKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      if (
+        e.key === "Escape" &&
+        e.currentTarget.value !== currentPath &&
+        !isComposing(e.nativeEvent)
+      ) {
+        e.preventDefault();
+        e.currentTarget.value = currentPath;
+      }
+    },
+    [currentPath],
+  );
+
   const handleHomeClicked = useCallback(
     (_e: React.MouseEvent<HTMLButtonElement>) => {
       setDirParh();
@@ -109,6 +131,17 @@ export default function NavBar() {
       dispatch(setSearchText(e.target.value));
     },
     [dispatch],
+  );
+
+  // With nothing to clear, Esc is left to the side pane's keys, which return to the reader.
+  const handleSearchKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLElement>) => {
+      if (e.key === "Escape" && searchText !== "" && !isComposing(e.nativeEvent)) {
+        e.preventDefault();
+        dispatch(setSearchText(""));
+      }
+    },
+    [dispatch, searchText],
   );
 
   const handleBackClicked = useCallback(
@@ -150,6 +183,7 @@ export default function NavBar() {
           name="path"
           defaultValue={currentPath}
           onContextMenu={handleContextMenu}
+          onKeyDown={handlePathKeyDown}
           onBlur={handleBlur}
           size="small"
           fullWidth
@@ -228,8 +262,10 @@ export default function NavBar() {
       </Box>
       <OutlinedInput
         type="search"
+        inputRef={searchInputRef}
         value={searchText}
         onChange={handleSearchTextChanged}
+        onKeyDown={handleSearchKeyDown}
         onContextMenu={handleContextMenu}
         size="small"
         fullWidth

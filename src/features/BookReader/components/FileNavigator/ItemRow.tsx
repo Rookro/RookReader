@@ -2,6 +2,7 @@ import FolderOutlined from "@mui/icons-material/FolderOutlined";
 import { ListItem, ListItemButton, ListItemText, Tooltip } from "@mui/material";
 import { type CSSProperties, memo } from "react";
 import type { DirEntry } from "../../../../domain/entities";
+import { preventRightClickFocus } from "../../../../utils/preventRightClickFocus";
 import { releaseMouseFocus } from "../../../../utils/releaseMouseFocus";
 
 /**
@@ -10,6 +11,8 @@ import { releaseMouseFocus } from "../../../../utils/releaseMouseFocus";
  * @param entry - The directory entry to display.
  * @param index - The index of the entry in the list.
  * @param selected - Whether the entry is selected.
+ * @param id - Optional id, which the listbox's `aria-activedescendant` points at.
+ * @param keyboardActive - Whether the row is drawn as the keyboard's active row.
  * @param onClick - Optional callback for when the entry is clicked.
  * @param onDoubleClick - Optional callback for when the entry is double-clicked.
  * @param style - Optional CSS style for the row.
@@ -18,6 +21,8 @@ export const ItemRow = memo(function ItemRow({
   entry,
   index,
   selected,
+  id,
+  keyboardActive,
   onClick,
   onDoubleClick,
   style,
@@ -25,20 +30,28 @@ export const ItemRow = memo(function ItemRow({
   entry: DirEntry;
   index: number;
   selected: boolean;
+  id?: string;
+  keyboardActive?: boolean;
   onClick?: (e: React.MouseEvent<HTMLDivElement>, entry: DirEntry, index: number) => void;
   onDoubleClick?: (e: React.MouseEvent<HTMLDivElement>, entry: DirEntry) => void;
   style?: CSSProperties;
 }) {
   return (
     <Tooltip title={entry.name} followCursor placement="right-start">
-      <ListItem style={style} key={index} component="div" disablePadding dense>
+      <ListItem style={style} key={index} component="div" role="none" disablePadding dense>
         <ListItemButton
+          id={id}
+          role="option"
+          aria-selected={selected}
+          tabIndex={-1}
+          className={keyboardActive ? "Mui-focusVisible" : undefined}
           selected={selected}
           onClick={(e) => {
             releaseMouseFocus(e);
             onClick?.(e, entry, index);
           }}
           onDoubleClick={(e) => onDoubleClick?.(e, entry)}
+          onMouseDown={preventRightClickFocus}
           key={entry.name}
           sx={{ padding: "4px 8px" }}
         >

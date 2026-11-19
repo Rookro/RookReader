@@ -25,9 +25,13 @@ vi.mock("../../../SidePane/components/SidePanelHeader", () => ({
   default: ({ title }: { title: string }) => <div data-testid="side-panel-header">{title}</div>,
 }));
 
-// Mock NavBar
+// Mock NavBar, keeping the search field the panel focuses
 vi.mock("./NavBar", () => {
-  const NavBar = () => <div data-testid="nav-bar" />;
+  const NavBar = ({ searchInputRef }: { searchInputRef?: React.Ref<HTMLInputElement> }) => (
+    <div data-testid="nav-bar">
+      <input type="search" ref={searchInputRef} />
+    </div>
+  );
   NavBar.displayName = "NavBar";
   return { default: NavBar };
 });
@@ -91,7 +95,7 @@ describe("FileNavigator", () => {
 
     renderWithProviders(<FileNavigator />, { preloadedState });
 
-    const rowButton = await screen.findByRole("button", { name: /book.zip/i });
+    const rowButton = await screen.findByRole("option", { name: /book.zip/i });
     await user.click(rowButton);
 
     await waitFor(() => {
@@ -115,7 +119,7 @@ describe("FileNavigator", () => {
       { preloadedState },
     );
 
-    await user.click(await screen.findByRole("button", { name: /book.zip/i }));
+    await user.click(await screen.findByRole("option", { name: /book.zip/i }));
     await waitFor(() => expect(ReadReducer.openBook).toHaveBeenCalled());
     await user.keyboard("{ArrowRight}");
     await user.keyboard(" ");
@@ -183,7 +187,7 @@ describe("FileNavigator", () => {
 
     renderWithProviders(<FileNavigator />, { preloadedState });
 
-    const rowButton = await screen.findByRole("button", { name: /folder/i });
+    const rowButton = await screen.findByRole("option", { name: /folder/i });
     await user.dblClick(rowButton);
 
     await waitFor(() => {
@@ -200,7 +204,7 @@ describe("FileNavigator", () => {
 
     renderWithProviders(<FileNavigator />, { preloadedState });
 
-    const rowButton = await screen.findByRole("button", { name: /book.zip/i });
+    const rowButton = await screen.findByRole("option", { name: /book.zip/i });
     await user.dblClick(rowButton);
 
     await waitFor(() => {
@@ -221,8 +225,8 @@ describe("FileNavigator", () => {
 
     renderWithProviders(<FileNavigator />, { preloadedState });
 
-    const rowA = await screen.findByRole("button", { name: /folderA/i });
-    const rowB = await screen.findByRole("button", { name: /folderB/i });
+    const rowA = await screen.findByRole("option", { name: /folderA/i });
+    const rowB = await screen.findByRole("option", { name: /folderB/i });
 
     // Two synchronous clicks land well within the 200ms double-click interval.
     fireEvent.click(rowA);
@@ -248,7 +252,7 @@ describe("FileNavigator", () => {
 
     renderWithProviders(<FileNavigator />, { preloadedState });
 
-    const rowButton = await screen.findByRole("button", { name: /book.pdf/i });
+    const rowButton = await screen.findByRole("option", { name: /book.pdf/i });
     await user.dblClick(rowButton);
 
     await waitFor(() => {
@@ -355,8 +359,8 @@ describe("FileNavigator", () => {
 
       expect(mockScrollToRow).not.toHaveBeenCalled();
       // The selection follows the open book to its new row.
-      expect(screen.getByRole("button", { name: "book.zip" })).toHaveClass("Mui-selected");
-      expect(screen.getByRole("button", { name: "a.zip" })).not.toHaveClass("Mui-selected");
+      expect(screen.getByRole("option", { name: "book.zip" })).toHaveClass("Mui-selected");
+      expect(screen.getByRole("option", { name: "a.zip" })).not.toHaveClass("Mui-selected");
     });
 
     it("scrolls to the open book again when the search changes", async () => {
@@ -408,6 +412,303 @@ describe("FileNavigator", () => {
       await settle();
 
       expect(mockScrollToRow).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("keyboard", () => {
+    const file = (name: string): DirEntry => ({ name, isDirectory: false, lastModified: 0 });
+    const folder = (name: string): DirEntry => ({ name, isDirectory: true, lastModified: 0 });
+
+    /** Lists `path`, as if its listing had just been read (so mounting does not read it again). */
+    const inFolder = (path: string, entries: DirEntry[]) => {
+      const preloadedState = createBasePreloadedState();
+      preloadedState.fileNavigator.history = [path];
+      preloadedState.fileNavigator.historyIndex = 0;
+      preloadedState.fileNavigator.pendingPath = path;
+      preloadedState.fileNavigator.entries = entries;
+      return preloadedState;
+    };
+
+    /** Renders the panel inside the side pane, next to a reader that records its page turns. */
+    const renderInPane = (preloadedState: ReturnType<typeof createBasePreloadedState>) => {
+      const actions = createReaderActionSpies();
+      const view = renderWithProviders(
+        <ReaderInputProvider>
+          <TestReader actions={actions} testId="reader" />
+          <div data-side-pane="">
+            <FileNavigator />
+          </div>
+        </ReaderInputProvider>,
+        { preloadedState },
+      );
+      return { ...view, actions };
+    };
+
+    type Store = ReturnType<typeof renderInPane>["store"];
+
+    /** The listing arriving; `requestId` matches the store's. */
+    const finishLoad = (store: Store, path: string, entries: DirEntry[]) => {
+      act(() => {
+        store.dispatch({
+          type: "fileNavigator/loadDirectory/fulfilled",
+          payload: { path, entries },
+          meta: { requestId: null, arg: { dirPath: path } },
+        });
+      });
+    };
+
+    const listbox = () => screen.getByRole("listbox", { name: "File Navigator" });
+    const activeOption = () => {
+      const id = listbox().getAttribute("aria-activedescendant");
+      return id === null ? null : document.getElementById(id);
+    };
+
+    beforeEach(() => {
+      // What the thunk does at once: the folder becomes the current one and loads.
+      vi.mocked(FileNavigatorSlice.loadDirectory).mockImplementation(
+        ({ dirPath }) =>
+          ((dispatch: Store["dispatch"]) => {
+            dispatch(FileNavigatorSlice.setIsDirEntriesLoading(true));
+            dispatch(FileNavigatorSlice.directoryPathOpened(dirPath));
+          }) as unknown as ReturnType<typeof FileNavigatorSlice.loadDirectory>,
+      );
+    });
+
+    afterEach(() => {
+      vi.mocked(FileNavigatorSlice.loadDirectory).mockReset();
+      vi.mocked(useFileSelection).mockReset();
+    });
+
+    it("opens the active file with Enter at once and returns the keys to the reader", async () => {
+      const { actions } = renderInPane(inFolder("/dir", [file("a.zip"), file("b.zip")]));
+
+      await user.keyboard("{F6}{ArrowDown}");
+      expect(activeOption()).toBe(screen.getByRole("option", { name: "b.zip" }));
+      await user.keyboard("{Enter}");
+
+      // Well within the 200 ms the single-click timer waits.
+      expect(ReadReducer.openBook).toHaveBeenCalledWith({
+        path: "/dir/b.zip",
+        origin: { kind: "fileNavigator" },
+      });
+      expect(listbox()).not.toHaveFocus();
+      await user.keyboard("{ArrowDown}");
+      expect(actions.nextPage).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not count two quick Enters as a double-click", async () => {
+      renderInPane(inFolder("/dir", [folder("sub")]));
+
+      await user.keyboard("{F6}{Enter}{F6}{Enter}");
+      // Past the 200 ms single-click delay.
+      await act(() => new Promise((resolve) => setTimeout(resolve, 250)));
+
+      expect(ReadReducer.openBook).toHaveBeenCalledTimes(2);
+      expect(ReadReducer.openBook).toHaveBeenCalledWith({
+        path: "/dir/sub",
+        origin: { kind: "fileNavigator" },
+      });
+      expect(FileNavigatorSlice.loadDirectory).not.toHaveBeenCalledWith(
+        expect.objectContaining({ dirPath: "/dir/sub" }),
+      );
+    });
+
+    it("enters a folder with Right and lands on its first row", async () => {
+      const { store, actions } = renderInPane(
+        inFolder("/dir", [file("a.zip"), file("b.zip"), folder("sub")]),
+      );
+
+      await user.keyboard("{F6}{End}{ArrowRight}");
+      expect(FileNavigatorSlice.setSearchText).toHaveBeenCalledWith("");
+      expect(FileNavigatorSlice.loadDirectory).toHaveBeenCalledWith({ dirPath: "/dir/sub" });
+      finishLoad(store, "/dir/sub", [file("x.zip"), file("y.zip")]);
+
+      expect(listbox()).toHaveFocus();
+      expect(activeOption()).toBe(screen.getByRole("option", { name: "x.zip" }));
+      await user.keyboard("{ArrowDown}");
+      expect(activeOption()).toBe(screen.getByRole("option", { name: "y.zip" }));
+      expect(actions.nextPage).not.toHaveBeenCalled();
+    });
+
+    it("does nothing with Right on a file", async () => {
+      renderInPane(inFolder("/dir", [file("a.pdf")]));
+
+      await user.keyboard("{F6}{ArrowRight}");
+
+      expect(FileNavigatorSlice.loadDirectory).not.toHaveBeenCalled();
+      expect(listbox()).toHaveFocus();
+    });
+
+    it("goes to the parent with Left and lands on the folder just left", async () => {
+      const { store } = renderInPane(inFolder("/dir/sub", [file("x.zip")]));
+
+      await user.keyboard("{F6}{ArrowLeft}");
+      expect(FileNavigatorSlice.loadDirectory).toHaveBeenCalledWith({ dirPath: "/dir" });
+      finishLoad(store, "/dir", [file("a.zip"), file("b.zip"), folder("sub"), file("z.zip")]);
+
+      expect(listbox()).toHaveFocus();
+      expect(activeOption()).toBe(screen.getByRole("option", { name: "sub" }));
+    });
+
+    it("does nothing with Left at the root and keeps the search", async () => {
+      const preloadedState = inFolder("/", [file("x.zip"), file("y.zip")]);
+      preloadedState.fileNavigator.searchText = "x";
+      const { store } = renderInPane(preloadedState);
+
+      await user.keyboard("{F6}{ArrowLeft}");
+
+      expect(FileNavigatorSlice.loadDirectory).not.toHaveBeenCalled();
+      expect(store.getState().fileNavigator.searchText).toBe("x");
+      expect(listbox()).toHaveFocus();
+    });
+
+    it("does nothing with Left when the parent cannot be resolved", async () => {
+      const { dirname } = await import("@tauri-apps/api/path");
+      vi.mocked(dirname).mockRejectedValueOnce(new Error("No parent"));
+      renderInPane(inFolder("C:\\", [file("x.zip")]));
+
+      await user.keyboard("{F6}{ArrowLeft}");
+
+      expect(FileNavigatorSlice.loadDirectory).not.toHaveBeenCalled();
+      expect(listbox()).toHaveFocus();
+    });
+
+    it("leaves an empty folder with Left", async () => {
+      const { store, actions } = renderInPane(inFolder("/dir", [folder("empty")]));
+
+      await user.keyboard("{F6}{ArrowRight}");
+      finishLoad(store, "/dir/empty", []);
+
+      const panel = document.activeElement;
+      expect(panel).toHaveAttribute("tabindex", "-1");
+      expect(panel).toContainElement(screen.getByText("No supported files."));
+      await user.keyboard("{ArrowLeft}");
+      expect(FileNavigatorSlice.loadDirectory).toHaveBeenCalledWith({ dirPath: "/dir" });
+      expect(actions.previousPage).not.toHaveBeenCalled();
+      expect(actions.nextPage).not.toHaveBeenCalled();
+      finishLoad(store, "/dir", [folder("empty")]);
+
+      expect(listbox()).toHaveFocus();
+      expect(activeOption()).toBe(screen.getByRole("option", { name: "empty" }));
+    });
+
+    it("lands on a row, not the search field, after a reload", async () => {
+      const preloadedState = inFolder("/dir", []);
+      preloadedState.fileNavigator.isLoading = true;
+      preloadedState.fileNavigator.searchText = "b";
+      const { store } = renderInPane(preloadedState);
+
+      await user.keyboard("{F6}");
+      expect(screen.getByRole("searchbox")).not.toHaveFocus();
+      finishLoad(store, "/dir", [file("a.zip"), file("b.zip")]);
+
+      expect(listbox()).toHaveFocus();
+      expect(activeOption()).toBe(screen.getByRole("option", { name: "b.zip" }));
+    });
+
+    it("lands on a row after Ctrl+Tab into the panel reads the folder again", async () => {
+      // Without `pendingPath`, mounting reads the folder again, as every switch to the panel does.
+      const preloadedState = inFolder("/dir", [file("a.zip"), file("b.zip")]);
+      preloadedState.fileNavigator.pendingPath = null;
+      const actions = createReaderActionSpies();
+      const ui = (showPanel: boolean) => (
+        <ReaderInputProvider>
+          <TestReader actions={actions} />
+          <div data-side-pane="">{showPanel && <FileNavigator />}</div>
+        </ReaderInputProvider>
+      );
+      // As with Ctrl+Tab, the request waits for the panel to mount.
+      const { store, rerender } = renderWithProviders(ui(false), { preloadedState });
+      await user.keyboard("{F6}");
+      rerender(ui(true));
+      expect(FileNavigatorSlice.loadDirectory).toHaveBeenCalledWith({
+        dirPath: "/dir",
+        forceUpdate: true,
+      });
+      finishLoad(store, "/dir", [file("a.zip"), file("b.zip")]);
+
+      expect(listbox()).toHaveFocus();
+      expect(activeOption()).toBe(screen.getByRole("option", { name: "a.zip" }));
+    });
+
+    it("lands in the search field when the search hides every entry", async () => {
+      const preloadedState = inFolder("/dir", [file("a.zip")]);
+      preloadedState.fileNavigator.searchText = "zzz";
+      renderInPane(preloadedState);
+
+      await user.keyboard("{F6}");
+
+      expect(screen.getByRole("searchbox")).toHaveFocus();
+    });
+
+    it("lands on the open book once its name resolves", async () => {
+      let select: (name: string | null) => void = () => {};
+      vi.mocked(useFileSelection).mockImplementation((_fileHistory, _fileHistoryIndex, set) => {
+        select = set;
+      });
+      renderInPane(inFolder("/dir", [file("a.zip"), file("b.zip")]));
+
+      await user.keyboard("{F6}");
+      expect(activeOption()).toBe(screen.getByRole("option", { name: "a.zip" }));
+      act(() => select("b.zip"));
+
+      expect(activeOption()).toBe(screen.getByRole("option", { name: "b.zip" }));
+    });
+
+    it("does not scroll away from the folder just left", async () => {
+      vi.mocked(useFileSelection).mockImplementation((_fileHistory, _fileHistoryIndex, select) => {
+        useEffect(() => select("book.zip"), [select]);
+      });
+      const { store } = renderInPane(inFolder("/dir/sub", [file("x.zip")]));
+
+      await user.keyboard("{F6}{ArrowLeft}");
+      finishLoad(store, "/dir", [file("a.zip"), file("book.zip"), folder("sub")]);
+      // Past the open book's 20 ms scroll.
+      await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
+
+      expect(activeOption()).toBe(screen.getByRole("option", { name: "sub" }));
+      expect(mockScrollToRow).toHaveBeenLastCalledWith({
+        align: "smart",
+        behavior: "instant",
+        index: 2,
+      });
+    });
+
+    it("makes a clicked entry the active row", async () => {
+      renderInPane(inFolder("/dir", [file("a.zip"), file("b.zip")]));
+
+      await user.click(screen.getByRole("option", { name: "b.zip" }));
+
+      expect(activeOption()).toBe(screen.getByRole("option", { name: "b.zip" }));
+    });
+
+    it("keeps focus in the search field when it is clicked while the list has focus", async () => {
+      renderInPane(inFolder("/dir", [file("a.zip")]));
+
+      await user.keyboard("{F6}");
+      await user.click(screen.getByRole("searchbox"));
+
+      expect(screen.getByRole("searchbox")).toHaveFocus();
+    });
+
+    it("keeps the page turning after a click on the 'no files' message", async () => {
+      const { actions } = renderInPane(inFolder("/dir", []));
+
+      await user.click(screen.getByText("No supported files."));
+      await user.keyboard("{ArrowDown}");
+
+      expect(actions.nextPage).toHaveBeenCalledTimes(1);
+    });
+
+    it("logs a failed keyboard scroll", async () => {
+      renderInPane(inFolder("/dir", [file("a.zip")]));
+      mockScrollToRow.mockImplementationOnce(() => {
+        throw new Error("Scroll failed");
+      });
+
+      await user.keyboard("{F6}");
+
+      expect(error).toHaveBeenCalledWith(expect.stringContaining("Failed to scroll to row 0"));
     });
   });
 });
