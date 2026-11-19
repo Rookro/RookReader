@@ -1,4 +1,4 @@
-import { createEvent, fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, createEvent, fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { api } from "../../../../bindings/api";
@@ -10,6 +10,7 @@ import {
   mockSettingsCommands,
   renderWithProviders,
 } from "../../../../test/utils";
+import { removeBookmark } from "../../bookmarkSlice";
 import { ReaderInputProvider } from "../../input/ReaderInputContext";
 import BookmarkViewer from "./BookmarkViewer";
 
@@ -137,7 +138,7 @@ describe("BookmarkViewer", () => {
   it("does not focus a bookmark row on a right-button mousedown", async () => {
     givenBookmarks([createMockBookmark({ id: 1, name: "The duel" })]);
     renderWithProviders(<BookmarkViewer />, { preloadedState: stateWithOpenBook() });
-    const row = await screen.findByRole("button", { name: /The duel/ });
+    const row = await screen.findByRole("option", { name: /The duel/ });
 
     const right = createEvent.mouseDown(row, { button: 2, cancelable: true });
     fireEvent(row, right);
@@ -146,6 +147,131 @@ describe("BookmarkViewer", () => {
 
     expect(right.defaultPrevented).toBe(true);
     expect(left.defaultPrevented).toBe(false);
+  });
+
+  describe("keyboard", () => {
+    const threeBookmarks = () => [
+      createMockBookmark({ id: 1, name: "Opening", pageIndex: 0 }),
+      createMockBookmark({ id: 2, name: "The duel", pageIndex: 11 }),
+      createMockBookmark({ id: 3, name: "Ending", pageIndex: 20 }),
+    ];
+
+    beforeEach(() => {
+      // jsdom has no scrollIntoView.
+      Element.prototype.scrollIntoView = vi.fn();
+    });
+
+    /** Renders the panel inside the side pane, next to a reader that records its page turns. */
+    const renderInPane = () => {
+      const actions = createReaderActionSpies();
+      const view = renderWithProviders(
+        <ReaderInputProvider>
+          <TestReader actions={actions} />
+          <div data-side-pane="">
+            <BookmarkViewer />
+          </div>
+        </ReaderInputProvider>,
+        { preloadedState: stateWithOpenBook() },
+      );
+      return { ...view, actions };
+    };
+
+    const activeOption = () => {
+      const id = screen
+        .getByRole("listbox", { name: "Bookmarks" })
+        .getAttribute("aria-activedescendant");
+      return id === null ? null : document.getElementById(id);
+    };
+
+    it("lands on the first bookmark and jumps with Enter", async () => {
+      givenBookmarks(threeBookmarks());
+      const { store } = renderInPane();
+
+      await user.keyboard("{F6}");
+      expect(screen.getByRole("listbox")).toHaveFocus();
+      expect(activeOption()).toBe(screen.getByRole("option", { name: /Opening/ }));
+
+      await user.keyboard("{ArrowDown}{Enter}");
+      expect(store.getState().reader.index).toBe(11);
+      expect(screen.getByRole("listbox")).not.toHaveFocus();
+    });
+
+    it("moves by a page of rows with PageDown", async () => {
+      givenBookmarks([
+        ...threeBookmarks(),
+        createMockBookmark({ id: 4, name: "Epilogue", pageIndex: 30 }),
+      ]);
+      renderInPane();
+      const listbox = screen.getByRole("listbox");
+      const rowHeight = 48;
+      Object.defineProperty(screen.getByRole("option", { name: /Opening/ }), "offsetHeight", {
+        value: rowHeight,
+      });
+      Object.defineProperty(listbox.parentElement, "clientHeight", { value: 2 * rowHeight });
+
+      await user.keyboard("{F6}{PageDown}");
+
+      expect(activeOption()).toBe(screen.getByRole("option", { name: /Ending/ }));
+    });
+
+    it("makes a clicked bookmark the active row", async () => {
+      givenBookmarks(threeBookmarks());
+      renderInPane();
+
+      await user.click(screen.getByRole("option", { name: /The duel/ }));
+
+      expect(activeOption()).toBe(screen.getByRole("option", { name: /The duel/ }));
+    });
+
+    it("keeps the page turning after a click on the panel's title", async () => {
+      givenBookmarks(threeBookmarks());
+      const { actions } = renderInPane();
+
+      await user.click(screen.getByText("Bookmarks"));
+      await user.keyboard("{ArrowDown}");
+
+      expect(actions.nextPage).toHaveBeenCalledTimes(1);
+    });
+
+    it("keeps the page turning after a click on the 'no bookmarks' message", async () => {
+      const { actions } = renderInPane();
+
+      await user.click(screen.getByText("No bookmarks."));
+      await user.keyboard("{ArrowDown}");
+
+      expect(actions.nextPage).toHaveBeenCalledTimes(1);
+    });
+
+    it("keeps the page turning after a click below the last bookmark", async () => {
+      givenBookmarks(threeBookmarks());
+      const { actions } = renderInPane();
+
+      // The scroll box around the list fills the panel below the rows.
+      const scrollBox = screen.getByRole("listbox").parentElement;
+      if (!scrollBox) throw new Error("no scroll box");
+      await user.click(scrollBox);
+      await user.keyboard("{ArrowDown}");
+
+      expect(actions.nextPage).toHaveBeenCalledTimes(1);
+    });
+
+    it("focuses the panel when the last bookmark is removed while the list has focus", async () => {
+      givenBookmarks(threeBookmarks());
+      const { store, actions } = renderInPane();
+
+      await user.keyboard("{F6}");
+      act(() => {
+        for (const id of [1, 2, 3]) {
+          store.dispatch(removeBookmark.fulfilled(id, "request", id));
+        }
+      });
+
+      const panel = document.activeElement;
+      expect(panel).toHaveAttribute("tabindex", "-1");
+      expect(panel).toContainElement(screen.getByText("No bookmarks."));
+      await user.keyboard("{ArrowDown}");
+      expect(actions.nextPage).not.toHaveBeenCalled();
+    });
   });
 
   it("should rename a bookmark from the context menu", async () => {

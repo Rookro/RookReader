@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { usePointerFocusRelease } from "./usePointerFocusRelease";
 
 /** The `KeyboardEvent.key` values the list may handle; the dispatcher's recovery uses the same set. */
 export const LIST_NAVIGATION_KEYS: ReadonlySet<string> = new Set([
@@ -113,8 +114,7 @@ export function useListKeyboardNavigation<K extends string | number>(
   const [hasFocus, setHasFocus] = useState(false);
   const [renderedRows, setRenderedRows] = useState<RowRange | null>(null);
   const followCurrentRef = useRef(false);
-  const pointerRef = useRef(false);
-  const stopReleaseRef = useRef<(() => void) | null>(null);
+  const { onPointerDown, onFocus: releasePointerFocus, forgetPress } = usePointerFocusRelease();
   // Kept apart from `hasFocus` because an unmounted list fires no blur.
   const focusedRef = useRef(false);
   const optionsRef = useRef(options);
@@ -177,13 +177,13 @@ export function useListKeyboardNavigation<K extends string | number>(
       const index = requested === -1 ? 0 : requested;
 
       followCurrentRef.current = request === "current";
-      pointerRef.current = false;
+      forgetPress();
       setActive({ key: rowKeys[index], index });
       document.getElementById(listId)?.focus({ preventScroll: true });
       scrollToIndex(index);
       return true;
     },
-    [rowKeys, currentIndex, activeIndex, listId, scrollToIndex],
+    [rowKeys, currentIndex, activeIndex, listId, scrollToIndex, forgetPress],
   );
 
   const onKeyDown = useCallback(
@@ -235,49 +235,20 @@ export function useListKeyboardNavigation<K extends string | number>(
     [rowKeys, active, activeIndex, pageSize, onOpen, onEnterRow, onLeave, scrollToIndex],
   );
 
-  const onFocus = useCallback((e: React.FocusEvent<HTMLElement>) => {
-    const byPointer = pointerRef.current;
-    pointerRef.current = false;
-    if (e.target !== e.currentTarget) return;
-    if (byPointer) {
-      e.currentTarget.blur();
-      return;
-    }
-    focusedRef.current = true;
-    setHasFocus(true);
-  }, []);
+  const onFocus = useCallback(
+    (e: React.FocusEvent<HTMLElement>) => {
+      if (releasePointerFocus(e) || e.target !== e.currentTarget) return;
+      focusedRef.current = true;
+      setHasFocus(true);
+    },
+    [releasePointerFocus],
+  );
 
   const onBlur = useCallback((e: React.FocusEvent<HTMLElement>) => {
     if (e.target !== e.currentTarget) return;
     focusedRef.current = false;
     setHasFocus(false);
   }, []);
-
-  const onPointerDown = useCallback((e: React.PointerEvent<HTMLElement>) => {
-    const list = e.currentTarget;
-    if (!list.contains(document.activeElement)) {
-      pointerRef.current = true;
-      return;
-    }
-    // No focus event follows a press inside the focused list; release on pointerup so that a
-    // scrollbar drag is not cut short.
-    pointerRef.current = false;
-    stopReleaseRef.current?.();
-    const stop = () => {
-      window.removeEventListener("pointerup", release);
-      window.removeEventListener("pointercancel", stop);
-      stopReleaseRef.current = null;
-    };
-    const release = () => {
-      stop();
-      const focused = document.activeElement;
-      if (focused instanceof HTMLElement && list.contains(focused)) focused.blur();
-    };
-    window.addEventListener("pointerup", release);
-    window.addEventListener("pointercancel", stop);
-    stopReleaseRef.current = stop;
-  }, []);
-  useEffect(() => () => stopReleaseRef.current?.(), []);
 
   const onRowsRendered = useCallback((_visibleRows: RowRange, allRows: RowRange) => {
     setRenderedRows((prev) =>

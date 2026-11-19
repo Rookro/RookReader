@@ -431,6 +431,17 @@ describe("useListKeyboardNavigation", () => {
     expect(document.activeElement).toBe(ul);
   });
 
+  it("keeps a later keyboard focus after a press that focused nothing", () => {
+    const { ul } = setup();
+
+    // A right-click on a row whose mousedown is prevented.
+    fireEvent.pointerDown(screen.getByText("b"));
+    fireEvent.pointerUp(window);
+    act(() => ul.focus());
+
+    expect(document.activeElement).toBe(ul);
+  });
+
   it("releases a focused row on pointerup and keeps the next keyboard focus", () => {
     const { ul, nav } = setup();
     const row = screen.getByText("b");

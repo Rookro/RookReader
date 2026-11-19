@@ -11,17 +11,23 @@ import { releaseMouseFocus } from "../../../../utils/releaseMouseFocus";
  * Row component for the bookmark viewer.
  *
  * @param bookmark - The bookmark to display.
+ * @param id - Optional id, which the listbox's `aria-activedescendant` points at.
+ * @param keyboardActive - Whether the row is drawn as the keyboard's active row.
  * @param onJump - Callback invoked to navigate to the bookmark.
  * @param onRename - Callback invoked to start renaming the bookmark.
  * @param onRemove - Callback invoked to delete the bookmark.
  */
 export const ItemRow = memo(function ItemRow({
   bookmark,
+  id,
+  keyboardActive,
   onJump,
   onRename,
   onRemove,
 }: {
   bookmark: Bookmark;
+  id?: string;
+  keyboardActive?: boolean;
   onJump: (bookmark: Bookmark) => void;
   onRename: (bookmark: Bookmark) => void;
   onRemove: (bookmark: Bookmark) => void;
@@ -50,8 +56,13 @@ export const ItemRow = memo(function ItemRow({
 
   return (
     <Box component="div" onContextMenu={handleContextMenu}>
-      <ListItem component="div" disablePadding dense>
+      <ListItem component="div" role="none" disablePadding dense>
         <ListItemButton
+          id={id}
+          role="option"
+          aria-selected={false}
+          tabIndex={-1}
+          className={keyboardActive ? "Mui-focusVisible" : undefined}
           onClick={(e) => {
             releaseMouseFocus(e);
             handleJumpClicked();
