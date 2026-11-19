@@ -9,12 +9,13 @@ import { readNovelFile } from "../../../bindings/binaryApi";
 import { useAppTheme } from "../../../hooks/useAppTheme";
 import { useAppDispatch, useAppSelector } from "../../../store/store";
 import { CommandError, ErrorCode } from "../../../types/Error";
+import { mouseButtonName } from "../input/combo";
+import { preventSideButtonRelease } from "../input/dispatch";
+import { useReaderInput, useRegisterReaderActions } from "../input/ReaderInputContext";
 import { setEntries, setNovelDirection, setNovelLocation } from "../slice";
 import { blockSectionScripts } from "../utils/epubContentPolicy";
 import { holdWheelGesture } from "../utils/wheelGesture";
 import { usePageNavigation } from "./usePageNavigation";
-import { useReaderKeydown } from "./useReaderKeydown";
-import { useReadingDirection } from "./useReadingDirection";
 
 /**
  * Builds a mapping of section indices to their corresponding Table of Contents (TOC) labels.
@@ -85,8 +86,6 @@ export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
   const index = useAppSelector((state) => state.reader.index);
   const cfi = useAppSelector((state) => state.reader.cfi);
   const isNovel = useAppSelector((state) => state.reader.isNovel);
-  // A novel pages in the direction its own writing mode dictates, not the comic setting.
-  const readingDirection = useReadingDirection();
   const fontFamily = useAppSelector((state) => state.settings.reader.novel.fontFamily);
   const fontSize = useAppSelector((state) => state.settings.reader.novel.fontSize);
   const dispatch = useAppDispatch();
@@ -101,6 +100,17 @@ export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
     viewRef.current?.prev();
     return true;
   }, []);
+
+  // foliate-js's goToFraction needs an opened book and, unlike goTo, catches nothing itself.
+  const goToFraction = useCallback((fraction: number) => {
+    if (viewRef.current?.lastLocation) {
+      viewRef.current.goToFraction(fraction).catch((e) => {
+        error(`Failed to navigate to fraction(${fraction}): ${e}`);
+      });
+    }
+  }, []);
+  const onFirstPage = useCallback(() => goToFraction(0), [goToFraction]);
+  const onLastPage = useCallback(() => goToFraction(1), [goToFraction]);
 
   const applyThemeToView = useCallback(
     (view: View) => {
@@ -138,11 +148,17 @@ export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
     [theme, fontFamily, fontSize],
   );
 
-  const { handleClicked, handleContextMenu, handleWheeled, handleKeydown } = usePageNavigation(
-    onMoveForward,
-    onMoveBack,
-    readingDirection,
+  useRegisterReaderActions(
+    {
+      nextPage: onMoveForward,
+      previousPage: onMoveBack,
+      firstPage: onFirstPage,
+      lastPage: onLastPage,
+    },
+    viewerRef,
   );
+  const { dispatchInput } = useReaderInput();
+  const { handleClicked, handleContextMenu, handleWheeled } = usePageNavigation();
 
   // Use a ref to hold the latest callbacks and context to avoid re-triggering loadBook
   const contextRef = useRef({
@@ -153,7 +169,7 @@ export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
     handleClicked,
     handleContextMenu,
     handleWheeled,
-    handleKeydown,
+    dispatchInput,
   });
 
   // Always keep the ref updated with the latest context values
@@ -166,7 +182,7 @@ export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
       handleClicked,
       handleContextMenu,
       handleWheeled,
-      handleKeydown,
+      dispatchInput,
     };
   });
 
@@ -286,8 +302,15 @@ export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
           contextRef.current.handleWheeled(ev);
         });
         doc.addEventListener("keydown", (ev: KeyboardEvent) => {
-          contextRef.current.handleKeydown(ev);
+          contextRef.current.dispatchInput({ kind: "key", event: ev });
         });
+        doc.addEventListener("mousedown", (ev: MouseEvent) => {
+          if (mouseButtonName(ev.button) !== null) {
+            contextRef.current.dispatchInput({ kind: "button", event: ev, inReadingArea: true });
+          }
+        });
+        doc.addEventListener("mouseup", preventSideButtonRelease);
+        doc.addEventListener("auxclick", preventSideButtonRelease);
       });
 
       if (isMounted) {
@@ -346,8 +369,6 @@ export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
       });
     }
   }, [cfi, index]);
-
-  useReaderKeydown(handleKeydown);
 
   // Until a section is shown no iframe takes the wheel, so the viewer continues the gesture;
   // afterwards wheel events here come from the margins around the iframe and do nothing.

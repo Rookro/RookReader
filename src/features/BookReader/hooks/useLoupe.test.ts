@@ -1,6 +1,5 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createBasePreloadedState, createTestWrapper } from "../../../test/utils";
 import { useLoupe } from "./useLoupe";
 
 describe("useLoupe", () => {
@@ -13,14 +12,14 @@ describe("useLoupe", () => {
   });
 
   it("should initialize with default state", () => {
-    const { result } = renderHook(() => useLoupe("l"), { wrapper: createTestWrapper() });
+    const { result } = renderHook(() => useLoupe());
     expect(result.current.isLoupeEnabled).toBe(false);
     expect(result.current.loupePos).toEqual({ x: 0, y: 0 });
     expect(result.current.containerRef.current).toBe(null);
   });
 
   it("should toggle loupe state manually", () => {
-    const { result } = renderHook(() => useLoupe("l"), { wrapper: createTestWrapper() });
+    const { result } = renderHook(() => useLoupe());
     expect(result.current.isLoupeEnabled).toBe(false);
 
     act(() => {
@@ -32,109 +31,10 @@ describe("useLoupe", () => {
       result.current.toggleLoupe();
     });
     expect(result.current.isLoupeEnabled).toBe(false);
-  });
-
-  it("should toggle loupe on valid keyboard shortcut", () => {
-    const { result } = renderHook(() => useLoupe("l"), { wrapper: createTestWrapper() });
-    expect(result.current.isLoupeEnabled).toBe(false);
-
-    act(() => {
-      const event = new KeyboardEvent("keydown", {
-        key: "l",
-        ctrlKey: false,
-        altKey: false,
-        shiftKey: false,
-        metaKey: false,
-      });
-      window.dispatchEvent(event);
-    });
-    expect(result.current.isLoupeEnabled).toBe(true);
-  });
-
-  it("should handle complex keyboard shortcut", () => {
-    const { result } = renderHook(() => useLoupe("Ctrl+Shift+L"), { wrapper: createTestWrapper() });
-
-    act(() => {
-      const event = new KeyboardEvent("keydown", {
-        key: "l",
-        ctrlKey: true,
-        shiftKey: true,
-        altKey: false,
-        metaKey: false,
-      });
-      window.dispatchEvent(event);
-    });
-    expect(result.current.isLoupeEnabled).toBe(true);
-
-    act(() => {
-      const event = new KeyboardEvent("keydown", {
-        key: "l",
-        ctrlKey: true, // missing shiftKey, shouldn't toggle
-        shiftKey: false,
-        altKey: false,
-        metaKey: false,
-      });
-      window.dispatchEvent(event);
-    });
-    expect(result.current.isLoupeEnabled).toBe(true); // remains true
-  });
-
-  it("should handle Space key shortcut", () => {
-    const { result } = renderHook(() => useLoupe("Space"), { wrapper: createTestWrapper() });
-
-    act(() => {
-      const event = new KeyboardEvent("keydown", {
-        key: " ",
-        ctrlKey: false,
-        altKey: false,
-        shiftKey: false,
-        metaKey: false,
-      });
-      window.dispatchEvent(event);
-    });
-    expect(result.current.isLoupeEnabled).toBe(true);
-  });
-
-  it("ignores the shortcut while the bookshelf view is active", () => {
-    const preloadedState = createBasePreloadedState();
-    preloadedState.view.activeView = "bookshelf";
-    const { result } = renderHook(() => useLoupe("l"), {
-      wrapper: createTestWrapper({ preloadedState }),
-    });
-
-    act(() => {
-      window.dispatchEvent(new KeyboardEvent("keydown", { key: "l" }));
-    });
-    expect(result.current.isLoupeEnabled).toBe(false);
-  });
-
-  it("should NOT close loupe with Escape key", () => {
-    const { result } = renderHook(() => useLoupe("l"), { wrapper: createTestWrapper() });
-
-    act(() => {
-      // Open first
-      const event = new KeyboardEvent("keydown", {
-        key: "l",
-        ctrlKey: false,
-        altKey: false,
-        shiftKey: false,
-        metaKey: false,
-      });
-      window.dispatchEvent(event);
-    });
-    expect(result.current.isLoupeEnabled).toBe(true);
-
-    act(() => {
-      // Press Escape
-      const event = new KeyboardEvent("keydown", { key: "Escape" });
-      window.dispatchEvent(event);
-    });
-    // Should still be enabled
-    expect(result.current.isLoupeEnabled).toBe(true);
   });
 
   it("should update loupe position on mouse move if enabled", () => {
-    const { result } = renderHook(() => useLoupe("l"), { wrapper: createTestWrapper() });
+    const { result } = renderHook(() => useLoupe());
 
     // Create a mock ref element with getBoundingClientRect
     const mockElement = document.createElement("div");
@@ -168,7 +68,7 @@ describe("useLoupe", () => {
   });
 
   it("should not update loupe position on mouse move if disabled", () => {
-    const { result } = renderHook(() => useLoupe("l"), { wrapper: createTestWrapper() });
+    const { result } = renderHook(() => useLoupe());
 
     const mockElement = document.createElement("div");
     mockElement.getBoundingClientRect = () => ({
@@ -192,10 +92,8 @@ describe("useLoupe", () => {
     expect(result.current.loupePos).toEqual({ x: 0, y: 0 });
   });
 
-  it("should handle mouse down shortcut to toggle and call preventDefault", () => {
-    const { result } = renderHook(() => useLoupe("Ctrl+MouseMiddle"), {
-      wrapper: createTestWrapper(),
-    });
+  it("places the loupe at the pointer when a mouse button switches it on", () => {
+    const { result } = renderHook(() => useLoupe());
 
     const mockElement = document.createElement("div");
     mockElement.getBoundingClientRect = () => ({
@@ -211,39 +109,11 @@ describe("useLoupe", () => {
     });
     result.current.containerRef.current = mockElement;
 
-    const preventDefault = vi.fn();
     act(() => {
-      const mockEvent = {
-        button: 1, // MouseMiddle
-        ctrlKey: true,
-        altKey: false,
-        shiftKey: false,
-        metaKey: false,
-        clientX: 50,
-        clientY: 50,
-        preventDefault,
-      } as unknown as React.MouseEvent;
-      result.current.handleMouseDown(mockEvent);
+      result.current.toggleLoupe({ clientX: 50, clientY: 50 });
     });
 
     expect(result.current.isLoupeEnabled).toBe(true);
     expect(result.current.loupePos).toEqual({ x: 50, y: 50 });
-    expect(preventDefault).toHaveBeenCalled();
-  });
-
-  it("should do nothing on mouse down if toggleKey is missing", () => {
-    const { result } = renderHook(() => useLoupe(undefined), { wrapper: createTestWrapper() });
-
-    act(() => {
-      const mockEvent = {
-        button: 1,
-        clientX: 50,
-        clientY: 50,
-        preventDefault: vi.fn(),
-      } as unknown as React.MouseEvent;
-      result.current.handleMouseDown(mockEvent);
-    });
-
-    expect(result.current.isLoupeEnabled).toBe(false);
   });
 });

@@ -6,7 +6,8 @@ import { readNovelFile } from "../../../bindings/binaryApi";
 import { mockLog } from "../../../test/mocks/tauri";
 import { createBasePreloadedState, renderWithProviders } from "../../../test/utils";
 import { CommandError, ErrorCode } from "../../../types/Error";
-import * as pageNav from "../hooks/usePageNavigation";
+import { useRegisterReaderActions } from "../input/ReaderInputContext";
+import type { ReaderActions } from "../input/types";
 import * as ReadReducer from "../slice";
 import { wheelGesture } from "../utils/wheelGesture";
 import NovelReader from "./NovelReader";
@@ -34,11 +35,17 @@ const mockPageNavHandlers = {
   handleClicked: vi.fn(),
   handleContextMenu: vi.fn(),
   handleWheeled: vi.fn(),
-  handleKeydown: vi.fn(),
 };
 
 vi.mock("../hooks/usePageNavigation", () => ({
   usePageNavigation: vi.fn(() => mockPageNavHandlers),
+}));
+
+const mockDispatchInput = vi.fn();
+
+vi.mock("../input/ReaderInputContext", () => ({
+  useReaderInput: () => ({ dispatchInput: mockDispatchInput }),
+  useRegisterReaderActions: vi.fn(),
 }));
 
 vi.mock("../slice", async () => {
@@ -93,6 +100,7 @@ describe("BookReader/NovelReader", () => {
       goTo: vi.fn(() => Promise.resolve()),
       next: vi.fn(),
       prev: vi.fn(),
+      goToFraction: vi.fn(() => Promise.resolve()),
       lastLocation: { index: -1, cfi: "initial" },
       renderer: { setStyles: vi.fn() } as unknown as HTMLElement,
     };
@@ -320,7 +328,7 @@ describe("BookReader/NovelReader", () => {
       if (typeof keydownHandler === "function") {
         const mockEvent = { key: "ArrowRight" } as KeyboardEvent;
         keydownHandler(mockEvent);
-        expect(mockPageNavHandlers.handleKeydown).toHaveBeenCalledWith(mockEvent);
+        expect(mockDispatchInput).toHaveBeenCalledWith({ kind: "key", event: mockEvent });
       }
     }
   });
@@ -331,14 +339,12 @@ describe("BookReader/NovelReader", () => {
     });
     await waitFor(() => expect(makeBook).toHaveBeenCalled());
 
-    const pageNavCall = vi.mocked(pageNav.usePageNavigation).mock.calls[0];
-    const forward = pageNavCall[0];
-    const back = pageNavCall[1];
+    const actions = vi.mocked(useRegisterReaderActions).mock.calls[0][0] as ReaderActions;
 
-    forward();
+    actions.nextPage();
     expect(mockView.next).toHaveBeenCalled();
 
-    back();
+    actions.previousPage();
     expect(mockView.prev).toHaveBeenCalled();
   });
 });

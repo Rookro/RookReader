@@ -1,14 +1,16 @@
-import { screen, waitFor } from "@testing-library/react";
+import { createEvent, fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { api } from "../../../../bindings/api";
 import type { Bookmark } from "../../../../domain/entities";
 import { createMockBookmark, createMockBookWithState } from "../../../../test/factories";
+import { createReaderActionSpies, TestReader } from "../../../../test/readerInput";
 import {
   createBasePreloadedState,
   mockSettingsCommands,
   renderWithProviders,
 } from "../../../../test/utils";
+import { ReaderInputProvider } from "../../input/ReaderInputContext";
 import BookmarkViewer from "./BookmarkViewer";
 
 describe("BookmarkViewer", () => {
@@ -110,6 +112,40 @@ describe("BookmarkViewer", () => {
     await waitFor(() => {
       expect(api.deleteBookmark).toHaveBeenCalledWith(7);
     });
+  });
+
+  it("returns Space to the reader after a bookmark's right-click menu is closed", async () => {
+    givenBookmarks([createMockBookmark({ id: 1, name: "The duel", pageIndex: 11, cfi: null })]);
+    const actions = createReaderActionSpies();
+    const { store } = renderWithProviders(
+      <ReaderInputProvider>
+        <TestReader actions={actions} />
+        <BookmarkViewer />
+      </ReaderInputProvider>,
+      { preloadedState: stateWithOpenBook() },
+    );
+
+    await user.pointer({ keys: "[MouseRight]", target: await screen.findByText("The duel") });
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument());
+    await user.keyboard(" ");
+
+    expect(actions.nextPage).toHaveBeenCalledTimes(1);
+    expect(store.getState().reader.index).toBe(0);
+  });
+
+  it("does not focus a bookmark row on a right-button mousedown", async () => {
+    givenBookmarks([createMockBookmark({ id: 1, name: "The duel" })]);
+    renderWithProviders(<BookmarkViewer />, { preloadedState: stateWithOpenBook() });
+    const row = await screen.findByRole("button", { name: /The duel/ });
+
+    const right = createEvent.mouseDown(row, { button: 2, cancelable: true });
+    fireEvent(row, right);
+    const left = createEvent.mouseDown(row, { button: 0, cancelable: true });
+    fireEvent(row, left);
+
+    expect(right.defaultPrevented).toBe(true);
+    expect(left.defaultPrevented).toBe(false);
   });
 
   it("should rename a bookmark from the context menu", async () => {

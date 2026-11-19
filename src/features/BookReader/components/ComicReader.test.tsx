@@ -8,6 +8,7 @@ import * as fullSizePages from "../hooks/useFullSizePages";
 import * as loupe from "../hooks/useLoupe";
 import * as pageNavigation from "../hooks/usePageNavigation";
 import * as viewerController from "../hooks/useViewerController";
+import { ReaderInputProvider } from "../input/ReaderInputContext";
 import ComicReader from "./ComicReader";
 
 // Mock the hooks
@@ -16,6 +17,13 @@ vi.mock("../hooks/usePageNavigation");
 vi.mock("../hooks/useAdjacentBookNavigation");
 vi.mock("../hooks/useFullSizePages");
 vi.mock("../hooks/useLoupe");
+
+/** The reader inside the input provider that BookReader mounts around it. */
+const ProvidedComicReader = () => (
+  <ReaderInputProvider>
+    <ComicReader />
+  </ReaderInputProvider>
+);
 
 describe("ComicReader", () => {
   const user = userEvent.setup();
@@ -28,7 +36,6 @@ describe("ComicReader", () => {
       handleClicked: vi.fn(),
       handleContextMenu: vi.fn(),
       handleWheeled: vi.fn(),
-      handleKeydown: vi.fn(),
     });
 
     // Default mock implementation for useAdjacentBookNavigation
@@ -46,7 +53,6 @@ describe("ComicReader", () => {
       loupePos: { x: 0, y: 0 },
       containerRef: { current: null },
       handleMouseMove: vi.fn(),
-      handleMouseDown: vi.fn(),
       toggleLoupe: vi.fn(),
     });
     vi.mocked(fullSizePages.useFullSizePages).mockReturnValue(new Map());
@@ -56,32 +62,64 @@ describe("ComicReader", () => {
       displayedLayout: null,
       moveForward: vi.fn(),
       moveBack: vi.fn(),
+      moveToFirst: vi.fn(),
+      moveToLast: vi.fn(),
       isImageLoading: false,
     });
   });
 
   describe("keyboard", () => {
-    it("hands a key press to the page navigation while the reader view is active", () => {
+    it("turns the page through the registered reader for a key press while the reader view is active", () => {
       const preloadedState = createBasePreloadedState();
       preloadedState.view.activeView = "reader";
-      renderWithProviders(<ComicReader />, { preloadedState });
+      renderWithProviders(<ProvidedComicReader />, { preloadedState });
 
       fireEvent.keyDown(document.body, { key: "ArrowLeft" });
 
-      const { handleKeydown } = vi.mocked(pageNavigation.usePageNavigation).mock.results[0].value;
-      expect(handleKeydown).toHaveBeenCalledTimes(1);
+      // Right to left by default, so the left arrow moves forward.
+      const { moveForward } = vi.mocked(viewerController.useViewerController).mock.results[0].value;
+      expect(moveForward).toHaveBeenCalledTimes(1);
+    });
+
+    it("jumps to the first page with Home and to the last with End", () => {
+      const preloadedState = createBasePreloadedState();
+      preloadedState.view.activeView = "reader";
+      renderWithProviders(<ProvidedComicReader />, { preloadedState });
+
+      fireEvent.keyDown(document.body, { key: "Home" });
+      fireEvent.keyDown(document.body, { key: "End" });
+
+      const { moveToFirst, moveToLast } = vi.mocked(viewerController.useViewerController).mock
+        .results[0].value;
+      expect(moveToFirst).toHaveBeenCalledTimes(1);
+      expect(moveToLast).toHaveBeenCalledTimes(1);
     });
 
     it("ignores a key press while the bookshelf view is active", () => {
       const preloadedState = createBasePreloadedState();
       preloadedState.view.activeView = "bookshelf";
-      renderWithProviders(<ComicReader />, { preloadedState });
+      renderWithProviders(<ProvidedComicReader />, { preloadedState });
 
       fireEvent.keyDown(document.body, { key: "ArrowLeft" });
 
-      const { handleKeydown } = vi.mocked(pageNavigation.usePageNavigation).mock.results[0].value;
-      expect(handleKeydown).not.toHaveBeenCalled();
+      const { moveForward } = vi.mocked(viewerController.useViewerController).mock.results[0].value;
+      expect(moveForward).not.toHaveBeenCalled();
     });
+  });
+
+  it("toggles the loupe at the pointer with its mouse button over the reader area", () => {
+    const preloadedState = createBasePreloadedState();
+    preloadedState.settings.reader.comic.loupe.toggleKey = "MouseMiddle";
+    renderWithProviders(<ProvidedComicReader />, { preloadedState });
+
+    fireEvent.mouseDown(screen.getByTestId("comic-reader-area"), {
+      button: 1,
+      clientX: 30,
+      clientY: 40,
+    });
+
+    const { toggleLoupe } = vi.mocked(loupe.useLoupe).mock.results[0].value;
+    expect(toggleLoupe).toHaveBeenCalledWith({ clientX: 30, clientY: 40 });
   });
 
   it("measures the reader area before the first page arrives", () => {
@@ -99,14 +137,14 @@ describe("ComicReader", () => {
 
     // Nothing is on screen yet — which is exactly when the area has to be measured,
     // because no page is asked for until its size has been reported.
-    renderWithProviders(<ComicReader />, { preloadedState: createBasePreloadedState() });
+    renderWithProviders(<ProvidedComicReader />, { preloadedState: createBasePreloadedState() });
 
     expect(observed).toContain(screen.getByTestId("comic-reader-area"));
     vi.unstubAllGlobals();
   });
 
   it("reports the measured viewport to the controller", () => {
-    renderWithProviders(<ComicReader />, { preloadedState: createBasePreloadedState() });
+    renderWithProviders(<ProvidedComicReader />, { preloadedState: createBasePreloadedState() });
 
     // jsdom lays nothing out, so the measurement is zero — what matters is that the
     // controller is given one at all, since it is what gates every page request.
@@ -118,7 +156,7 @@ describe("ComicReader", () => {
   it("tells the controller whether the open book has previews", () => {
     const preloadedState = createBasePreloadedState();
     preloadedState.reader.hasPreviews = true;
-    renderWithProviders(<ComicReader />, { preloadedState });
+    renderWithProviders(<ProvidedComicReader />, { preloadedState });
 
     expect(vi.mocked(viewerController.useViewerController)).toHaveBeenCalledWith(
       expect.objectContaining({ hasPreviews: true }),
@@ -133,7 +171,6 @@ describe("ComicReader", () => {
         loupePos: { x: 10, y: 10 },
         containerRef: { current: null },
         handleMouseMove: vi.fn(),
-        handleMouseDown: vi.fn(),
         toggleLoupe: vi.fn(),
       });
       vi.mocked(fullSizePages.useFullSizePages).mockReturnValue(fullSize);
@@ -146,6 +183,8 @@ describe("ComicReader", () => {
         },
         moveForward: vi.fn(),
         moveBack: vi.fn(),
+        moveToFirst: vi.fn(),
+        moveToLast: vi.fn(),
         isImageLoading: false,
       });
 
@@ -154,7 +193,7 @@ describe("ComicReader", () => {
       preloadedState.reader.entries = ["p1.jpg", "p2.jpg"];
       preloadedState.reader.history = ["book.zip"];
       preloadedState.reader.historyIndex = 0;
-      renderWithProviders(<ComicReader />, { preloadedState });
+      renderWithProviders(<ProvidedComicReader />, { preloadedState });
     };
 
     it("asks for the pages on screen at full size", () => {
@@ -205,10 +244,12 @@ describe("ComicReader", () => {
       },
       moveForward: vi.fn(),
       moveBack: vi.fn(),
+      moveToFirst: vi.fn(),
+      moveToLast: vi.fn(),
       isImageLoading: false,
     });
 
-    renderWithProviders(<ComicReader />, { preloadedState });
+    renderWithProviders(<ProvidedComicReader />, { preloadedState });
 
     const img = screen.getByAltText("Single Page");
     expect(img).toHaveAttribute("src", "blob:p1");
@@ -228,10 +269,12 @@ describe("ComicReader", () => {
       },
       moveForward: vi.fn(),
       moveBack: vi.fn(),
+      moveToFirst: vi.fn(),
+      moveToLast: vi.fn(),
       isImageLoading: false,
     });
 
-    renderWithProviders(<ComicReader />, { preloadedState });
+    renderWithProviders(<ProvidedComicReader />, { preloadedState });
 
     const leftImg = screen.getByAltText("Left Page");
     const rightImg = screen.getByAltText("Right Page");
@@ -254,10 +297,12 @@ describe("ComicReader", () => {
       },
       moveForward: vi.fn(),
       moveBack: vi.fn(),
+      moveToFirst: vi.fn(),
+      moveToLast: vi.fn(),
       isImageLoading: false,
     });
 
-    renderWithProviders(<ComicReader />, { preloadedState });
+    renderWithProviders(<ProvidedComicReader />, { preloadedState });
 
     const leftImg = screen.getByAltText("Left Page");
     const rightImg = screen.getByAltText("Right Page");
@@ -275,7 +320,6 @@ describe("ComicReader", () => {
       handleClicked,
       handleContextMenu: vi.fn(),
       handleWheeled: vi.fn(),
-      handleKeydown: vi.fn(),
     });
 
     vi.mocked(viewerController.useViewerController).mockReturnValue({
@@ -286,10 +330,12 @@ describe("ComicReader", () => {
       },
       moveForward: vi.fn(),
       moveBack: vi.fn(),
+      moveToFirst: vi.fn(),
+      moveToLast: vi.fn(),
       isImageLoading: false,
     });
 
-    renderWithProviders(<ComicReader />);
+    renderWithProviders(<ProvidedComicReader />);
 
     // Click on the container Box
     const container = screen.getByAltText("Single Page").parentElement;
@@ -300,7 +346,7 @@ describe("ComicReader", () => {
     expect(handleClicked).toHaveBeenCalled();
   });
 
-  it("should have loupe event handlers and container ref", () => {
+  it("makes the reader area the loupe's container and feeds it the pointer moves", () => {
     vi.mocked(viewerController.useViewerController).mockReturnValue({
       displayedLayout: {
         isSpread: false,
@@ -309,17 +355,19 @@ describe("ComicReader", () => {
       },
       moveForward: vi.fn(),
       moveBack: vi.fn(),
+      moveToFirst: vi.fn(),
+      moveToLast: vi.fn(),
       isImageLoading: false,
     });
 
-    renderWithProviders(<ComicReader />);
+    renderWithProviders(<ProvidedComicReader />);
 
     const readerArea = screen.getByTestId("comic-reader-area");
-    expect(readerArea).toBeInTheDocument();
+    fireEvent.mouseMove(readerArea, { clientX: 5, clientY: 6 });
 
-    // Check if event handlers are present
-    expect(readerArea).toHaveProperty("onmousemove");
-    expect(readerArea).toHaveProperty("onmousedown");
+    const { containerRef, handleMouseMove } = vi.mocked(loupe.useLoupe).mock.results[0].value;
+    expect(containerRef.current).toBe(readerArea);
+    expect(handleMouseMove).toHaveBeenCalledTimes(1);
   });
 
   // Verify the reason stands in the failed page's own place, not over the whole reader
@@ -328,10 +376,12 @@ describe("ComicReader", () => {
       displayedLayout: { isSpread: false, firstError: ErrorCode.image, nextIndexIncrement: 1 },
       moveForward: vi.fn(),
       moveBack: vi.fn(),
+      moveToFirst: vi.fn(),
+      moveToLast: vi.fn(),
       isImageLoading: false,
     });
 
-    renderWithProviders(<ComicReader />, { preloadedState: createBasePreloadedState() });
+    renderWithProviders(<ProvidedComicReader />, { preloadedState: createBasePreloadedState() });
 
     expect(
       screen.getByText("Failed to load the page. The file is damaged or could not be read."),
@@ -354,10 +404,12 @@ describe("ComicReader", () => {
       },
       moveForward: vi.fn(),
       moveBack: vi.fn(),
+      moveToFirst: vi.fn(),
+      moveToLast: vi.fn(),
       isImageLoading: false,
     });
 
-    renderWithProviders(<ComicReader />, { preloadedState });
+    renderWithProviders(<ProvidedComicReader />, { preloadedState });
 
     expect(screen.getByAltText("Left Page")).toHaveAttribute("src", "blob:p1");
     expect(screen.queryByAltText("Right Page")).not.toBeInTheDocument();
@@ -379,10 +431,12 @@ describe("ComicReader", () => {
       },
       moveForward: vi.fn(),
       moveBack: vi.fn(),
+      moveToFirst: vi.fn(),
+      moveToLast: vi.fn(),
       isImageLoading: false,
     });
 
-    renderWithProviders(<ComicReader />, { preloadedState });
+    renderWithProviders(<ProvidedComicReader />, { preloadedState });
 
     expect(screen.getAllByTestId("page-error-message")).toHaveLength(2);
     expect(
@@ -399,16 +453,17 @@ describe("ComicReader", () => {
       handleClicked,
       handleContextMenu: vi.fn(),
       handleWheeled,
-      handleKeydown: vi.fn(),
     });
     vi.mocked(viewerController.useViewerController).mockReturnValue({
       displayedLayout: { isSpread: false, firstError: ErrorCode.image, nextIndexIncrement: 1 },
       moveForward: vi.fn(),
       moveBack: vi.fn(),
+      moveToFirst: vi.fn(),
+      moveToLast: vi.fn(),
       isImageLoading: false,
     });
 
-    renderWithProviders(<ComicReader />, { preloadedState: createBasePreloadedState() });
+    renderWithProviders(<ProvidedComicReader />, { preloadedState: createBasePreloadedState() });
 
     const readerArea = screen.getByTestId("comic-reader-area");
     fireEvent.wheel(readerArea, { deltaY: 100 });
@@ -426,7 +481,6 @@ describe("ComicReader", () => {
       handleClicked: vi.fn(),
       handleContextMenu,
       handleWheeled,
-      handleKeydown: vi.fn(),
     });
     vi.mocked(adjacentBookNavigation.useAdjacentBookNavigation).mockReturnValue({
       onForwardBoundary: vi.fn(),
@@ -435,7 +489,7 @@ describe("ComicReader", () => {
       confirmPending: vi.fn(),
       cancelPending: vi.fn(),
     });
-    renderWithProviders(<ComicReader />, { preloadedState: createBasePreloadedState() });
+    renderWithProviders(<ProvidedComicReader />, { preloadedState: createBasePreloadedState() });
 
     const dialog = await screen.findByRole("dialog");
     fireEvent.contextMenu(dialog);

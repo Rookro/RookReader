@@ -1,9 +1,11 @@
 import { error } from "@tauri-apps/plugin-log";
-import { screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { mockScrollToRow } from "../../../../test/mocks/components";
+import { createReaderActionSpies, TestReader } from "../../../../test/readerInput";
 import { createBasePreloadedState, renderWithProviders } from "../../../../test/utils";
+import { ReaderInputProvider } from "../../input/ReaderInputContext";
 import * as ReadReducer from "../../slice";
 import ImageEntriesViewer from "./ImageEntriesViewer";
 
@@ -99,6 +101,31 @@ describe("ImageEntriesViewer", () => {
     await user.click(rowButton);
 
     expect(ReadReducer.setImageIndex).toHaveBeenCalledWith(1);
+  });
+
+  it("returns Space to the reader after a row is clicked", async () => {
+    const preloadedState = createBasePreloadedState();
+    preloadedState.reader.entries = ["p1.jpg", "p2.jpg", "p3.jpg"];
+    const actions = createReaderActionSpies();
+    const { store } = renderWithProviders(
+      <ReaderInputProvider>
+        <TestReader actions={actions} />
+        <ImageEntriesViewer />
+      </ReaderInputProvider>,
+      { preloadedState },
+    );
+
+    await user.click(screen.getAllByRole("button")[2]);
+    expect(document.activeElement).toBe(document.body);
+    // As if the page had turned since.
+    act(() => {
+      store.dispatch(ReadReducer.setImageIndex(0));
+    });
+    await user.keyboard(" ");
+
+    expect(actions.nextPage).toHaveBeenCalledTimes(1);
+    // The row was not clicked again.
+    expect(store.getState().reader.index).toBe(0);
   });
 
   it("should scroll to row when index changes", async () => {

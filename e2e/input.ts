@@ -10,7 +10,7 @@ import { $, browser } from "@wdio/globals";
  *   - Right-click: only a `click` is synthesized for the primary button; `contextmenu` is
  *     never emitted, so `onContextMenu` handlers never fire.
  *   - Arrow keys: `keydown` is dispatched to `document.activeElement`, which after loading
- *     a book is a text input; the app ignores key events from inputs (see usePageNavigation),
+ *     a book is a text input; the app ignores key events from inputs (see input/guards.ts),
  *     so navigation keys are swallowed.
  * Left-click already works through the provider, so specs call `element.click()` directly.
  *

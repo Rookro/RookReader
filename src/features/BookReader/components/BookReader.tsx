@@ -14,6 +14,7 @@ import SidePanels from "../../SidePane/components/SidePanels";
 import SideTabs from "../../SidePane/components/SideTabs";
 import type { SideTab } from "../../SidePane/types";
 import { useBookmarkSync } from "../hooks/useBookmarkSync";
+import { ReaderInputProvider } from "../input/ReaderInputContext";
 import { openBook, restoreLastBook } from "../slice";
 import { holdWheelGesture } from "../utils/wheelGesture";
 import BookmarkViewer from "./BookmarkViewer/BookmarkViewer";
@@ -135,57 +136,59 @@ export default function BookReader({ sx }: BookReaderProps) {
   const containerPath = history[historyIndex];
 
   return (
-    <Stack
-      direction="column"
-      sx={{ width: "100%", height: "100%", ...sx }}
-      data-testid="book-reader"
-    >
-      <ReaderToolbar />
-      <Stack direction="row" sx={{ width: "100%", height: "100%" }}>
-        <SideTabs tabs={tabs} index={tabIndex} isHidden={isHidden} />
-        <Box sx={{ flex: 1 }}>
-          <Allotment
-            defaultSizes={paneSizes}
-            proportionalLayout={false}
-            onChange={handlePaneSizeChanged}
-          >
-            <Allotment.Pane preferredSize={320} minSize={210} visible={!isHidden}>
-              <SidePanels tabs={tabs} index={tabIndex} />
-            </Allotment.Pane>
-            <Allotment.Pane>
-              <Box
-                sx={{
-                  width: "100%",
-                  height: "100%",
-                  backgroundColor: (theme) => theme.palette.background.default,
-                }}
-              >
-                {isLoading ? (
-                  // Continues a wheel gesture while the book loads, so the rest of a spin
-                  // does not turn pages in the new book.
-                  <Box
-                    onWheel={holdWheelGesture}
-                    sx={{
-                      width: "100%",
-                      height: "100%",
-                      display: "flex",
-                      justifyContent: "center",
-                      alignItems: "center",
-                    }}
-                  >
-                    <CircularProgress />
-                  </Box>
-                ) : isNovel ? (
-                  <NovelReader filePath={containerPath} />
-                ) : (
-                  <ComicReader />
-                )}
-              </Box>
-            </Allotment.Pane>
-          </Allotment>
-        </Box>
+    <ReaderInputProvider>
+      <Stack
+        direction="column"
+        sx={{ width: "100%", height: "100%", ...sx }}
+        data-testid="book-reader"
+      >
+        <ReaderToolbar />
+        <Stack direction="row" sx={{ width: "100%", height: "100%" }}>
+          <SideTabs tabs={tabs} index={tabIndex} isHidden={isHidden} />
+          <Box sx={{ flex: 1 }}>
+            <Allotment
+              defaultSizes={paneSizes}
+              proportionalLayout={false}
+              onChange={handlePaneSizeChanged}
+            >
+              <Allotment.Pane preferredSize={320} minSize={210} visible={!isHidden}>
+                <SidePanels tabs={tabs} index={tabIndex} />
+              </Allotment.Pane>
+              <Allotment.Pane>
+                <Box
+                  sx={{
+                    width: "100%",
+                    height: "100%",
+                    backgroundColor: (theme) => theme.palette.background.default,
+                  }}
+                >
+                  {isLoading ? (
+                    // Continues a wheel gesture while the book loads, so the rest of a spin
+                    // does not turn pages in the new book.
+                    <Box
+                      onWheel={holdWheelGesture}
+                      sx={{
+                        width: "100%",
+                        height: "100%",
+                        display: "flex",
+                        justifyContent: "center",
+                        alignItems: "center",
+                      }}
+                    >
+                      <CircularProgress />
+                    </Box>
+                  ) : isNovel ? (
+                    <NovelReader filePath={containerPath} />
+                  ) : (
+                    <ComicReader />
+                  )}
+                </Box>
+              </Allotment.Pane>
+            </Allotment>
+          </Box>
+        </Stack>
+        <ControlSlider />
       </Stack>
-      <ControlSlider />
-    </Stack>
+    </ReaderInputProvider>
   );
 }

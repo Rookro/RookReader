@@ -62,13 +62,31 @@ The window title shows the name of the open book (for a folder inside an archive
 
 | Action | Mouse | Keyboard |
 | :--- | :--- | :--- |
-| **Next Page** | Left-click (image area) or Scroll Down | `Left Arrow` or `Right Arrow` |
-| **Previous Page** | Right-click (image area) or Scroll Up | `Right Arrow` or `Left Arrow` |
+| **Next Page** | Left-click (image area) or Scroll Down | `Left Arrow` or `Right Arrow` (see the note below), `Down Arrow`, `Space`, `Page Down` |
+| **Previous Page** | Right-click (image area) or Scroll Up | `Right Arrow` or `Left Arrow` (see the note below), `Up Arrow`, `Shift+Space`, `Page Up` |
+| **First / Last Page** of the book | — | `Home` / `End` |
+| **Toggle two-page spread** (comics) | — | `S` |
+| **Shift the spread pairing** (comics, in two-page view) | — | `Shift+S` |
+| **Direction toggle** (comics) | — | `D` |
+| **Add / Remove bookmark** | — | `B` |
+| **Show / hide the side panel** | — | `P` |
+| **Back / Forward** through the books you opened | Back / Forward side buttons | — |
+| **Toggle the loupe** (comics) | The loupe's **Toggle key** (the middle button by default) | The loupe's **Toggle key**, when it is set to a key |
 
-Each notch of the mouse wheel turns one page, even when you spin it quickly. A touchpad turns one page for each notch's worth of scrolling within one swipe (a swipe ends after a pause of about 0.1 s), so a light swipe shorter than that turns nothing, and mostly sideways movement turns nothing. In novels pages turn at most about ten times a second, so a fast spin or a flick turns fewer pages. A scroll that reaches the first or last page stops there. While a dialog is open, keys, clicks and the wheel on it do not turn the page behind it.
+Each notch of the mouse wheel turns one page, even when you spin it quickly. A touchpad turns one page for each notch's worth of scrolling within one swipe (a swipe ends after a pause of about 0.1 s), so a light swipe shorter than that turns nothing, and mostly sideways movement turns nothing. In novels pages turn at most about ten times a second, so a fast spin or a flick turns fewer pages. A scroll that reaches the first or last page stops there. While a dialog is open, clicks and the wheel on it do not turn the page behind it.
+
+The keys and the mouse side buttons work in the reader view, for comics and EPUB novels alike, except where the table says comics:
+
+- The Next / Previous Page keys keep turning while held. In a comic they turn a whole spread in two-page view, and at the first or last page they go on to the adjacent book like a click does (see *Continuous Reading*). `Home` and `End` stay within the book; in two-page view `End` shows the whole last spread. `S`, `Shift+S`, `D`, `B` and `P` act once per press.
+- Each key does what the matching button does. In an EPUB novel `S`, `Shift+S` and `D` do nothing.
+- The side buttons work anywhere in the reader view, including over the File Navigator, where they still go through the books you opened rather than the folders.
+- The keys do nothing while you type in a text field, such as the path box or a search box. The keys and the side buttons do nothing while a dialog or a menu (such as a bookmark's right-click menu) is open.
+- Letter keys work with Caps Lock on. Holding `Shift` changes only `Space` and `S`, so `Shift+Left Arrow` still turns the page. Apart from the loupe's **Toggle key**, keys pressed with `Ctrl`, `Alt` or `Meta` held are not shortcuts.
+- If the loupe's **Toggle key** is set to one of these keys or side buttons, it toggles the loupe instead while a comic is open (a mouse button only over the reading area). In a novel, or for a mouse button anywhere else, it keeps its shortcut.
+- After you click a row or a tab in the side panel, or close a row's right-click menu, the keys go back to the reader: `Space` turns the page rather than pressing the row.
 
 > [!NOTE]
-> The behavior of the `Left Arrow` and `Right Arrow` keys adapts automatically based on the reading direction (Right-to-Left vs. Left-to-Right) selected via the toggle button in the top app bar. For Japanese vertical reading (Right-to-Left), the Left Arrow goes to the Next Page, and the Right Arrow goes to the Previous Page.
+> The behavior of the `Left Arrow` and `Right Arrow` keys adapts automatically based on the reading direction (Right-to-Left vs. Left-to-Right) selected via the toggle button in the top app bar or the `D` key. For Japanese vertical reading (Right-to-Left), the Left Arrow goes to the Next Page, and the Right Arrow goes to the Previous Page.
 
 ## Page Display
 
@@ -103,7 +121,7 @@ Choose a mode under **Settings → Reader → Auto-open Adjacent Book**:
 | **Ask before opening** | Show a confirmation dialog before opening the adjacent book. *(Default)* |
 | **Auto-open** | Open the adjacent book immediately. |
 
-- Turning the page forward on the **last page** opens the next book on its **first page**; turning back on the **first page** opens the previous book on its **last page**. This works with clicks, the scroll wheel, and the arrow keys; a scroll that reaches the first or last page stops there, and scrolling again after a short pause goes on to the adjacent book. A short notification appears while the book is opening.
+- Turning the page forward on the **last page** opens the next book on its **first page**; turning back on the **first page** opens the previous book on its **last page**. This works with clicks, the scroll wheel, and the Next / Previous Page keys; a scroll that reaches the first or last page stops there, and scrolling again after a short pause goes on to the adjacent book. A short notification appears while the book is opening.
 - **Which book is opened next?** It depends on how the current book was opened:
   - **From a Bookshelf**: If the book belongs to a registered **series**, the next/previous **volume** in the series is opened. Otherwise, the next/previous book in the bookshelf's current **sort order** is used.
   - **From the File Navigator, History, drag & drop, or restored on startup**: The next/previous item in the **same folder** is opened (image folders are included), following the File Navigator's current sort order. When the current book is a folder inside an archive, the next/previous folder **inside that archive** is used.

@@ -2,7 +2,9 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { mockTauri } from "../../../test/mocks/tauri";
+import { createReaderActionSpies, TestReader } from "../../../test/readerInput";
 import { mockSettingsCommands, renderWithProviders } from "../../../test/utils";
+import { ReaderInputProvider } from "../../BookReader/input/ReaderInputContext";
 import SideTabs from "./SideTabs";
 
 describe("SideTabs", () => {
@@ -44,6 +46,22 @@ describe("SideTabs", () => {
     const { store } = renderWithProviders(<SideTabs tabs={mockTabs} index={0} isHidden={true} />);
     await user.click(screen.getByLabelText("Tab 1"));
     expect(store.getState().settings.layout.sidePane.isHidden).toBe(false);
+  });
+
+  it("returns the arrow keys to the reader after a tab is clicked", async () => {
+    const actions = createReaderActionSpies();
+    renderWithProviders(
+      <ReaderInputProvider>
+        <TestReader actions={actions} />
+        <SideTabs tabs={mockTabs} index={0} isHidden={false} />
+      </ReaderInputProvider>,
+    );
+
+    await user.click(screen.getByLabelText("Tab 2"));
+    expect(document.activeElement).toBe(document.body);
+    await user.keyboard("{ArrowDown}");
+
+    expect(actions.nextPage).toHaveBeenCalled();
   });
 
   it("should reset tabIndex if current index is out of bounds", async () => {

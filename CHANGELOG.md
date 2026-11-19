@@ -14,6 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * **Clear all history** in the History panel and in **Settings → Reader** removes every entry at once, after a confirmation. (#409)
   * This also resets the saved reading positions and the progress on bookshelf covers; books, bookmarks, collections, tags and series are kept.
 * The window title shows the name of the open book, so the taskbar and the window switcher tell which book is being read. (#410)
+* More of the reader can be used from the keyboard, and the mouse back / forward buttons go back and forward through the books you opened, like the toolbar's buttons. (#411)
+  * `Space`, `Page Down` and `Down Arrow` turn to the next page, and `Shift+Space`, `Page Up` and `Up Arrow` to the previous page. `Home` / `End` jump to the first / last page of the book.
+  * `S` toggles the two-page spread, `Shift+S` shifts the spread pairing, `D` switches the page direction (comics), `B` adds or removes a bookmark and `P` shows or hides the side pane.
+  * After clicking or right-clicking a row or a tab in the side pane, the keys go on turning pages instead of acting on that row.
+  * Keys no longer turn the page while a menu is open, or when pressed with `Ctrl`, `Alt` or `Meta`.
 
 ## [2.7.1] - 2026-11-16
 

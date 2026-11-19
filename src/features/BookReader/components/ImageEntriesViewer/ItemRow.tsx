@@ -1,6 +1,7 @@
 import Image from "@mui/icons-material/Image";
 import { ListItem, ListItemButton, ListItemText, Tooltip } from "@mui/material";
 import { type CSSProperties, memo } from "react";
+import { releaseMouseFocus } from "../../../../utils/releaseMouseFocus";
 
 /**
  * Row component for an image entry.
@@ -29,7 +30,10 @@ export const ItemRow = memo(function ItemRow({
       <ListItem style={style} key={index} component="div" disablePadding dense>
         <ListItemButton
           selected={selected}
-          onClick={(e) => onClick?.(e, index)}
+          onClick={(e) => {
+            releaseMouseFocus(e);
+            onClick?.(e, index);
+          }}
           key={entry}
           sx={{ padding: "4px 8px" }}
         >

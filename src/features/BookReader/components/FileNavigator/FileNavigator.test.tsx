@@ -5,10 +5,12 @@ import { useEffect } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DirEntry } from "../../../../domain/entities";
 import { mockScrollToRow } from "../../../../test/mocks/components";
+import { createReaderActionSpies, TestReader } from "../../../../test/readerInput";
 import { createBasePreloadedState, renderWithProviders } from "../../../../test/utils";
 import * as FileNavigatorSlice from "../../fileNavigatorSlice";
 import { useDirectoryWatcher } from "../../hooks/useDirectoryWatcher";
 import { useFileSelection } from "../../hooks/useFileSelection";
+import { ReaderInputProvider } from "../../input/ReaderInputContext";
 import * as ReadReducer from "../../slice";
 import FileNavigator from "./FileNavigator";
 
@@ -98,6 +100,30 @@ describe("FileNavigator", () => {
         origin: { kind: "fileNavigator" },
       });
     });
+  });
+
+  it("returns the keys to the reader after a file is opened by a click", async () => {
+    const entries: DirEntry[] = [{ name: "book.zip", isDirectory: false, lastModified: 0 }];
+    const preloadedState = createBasePreloadedState();
+    preloadedState.fileNavigator.entries = entries;
+    const actions = createReaderActionSpies();
+    renderWithProviders(
+      <ReaderInputProvider>
+        <TestReader actions={actions} />
+        <FileNavigator />
+      </ReaderInputProvider>,
+      { preloadedState },
+    );
+
+    await user.click(await screen.findByRole("button", { name: /book.zip/i }));
+    await waitFor(() => expect(ReadReducer.openBook).toHaveBeenCalled());
+    await user.keyboard("{ArrowRight}");
+    await user.keyboard(" ");
+    // Past the 200 ms single-click delay, so a click from Space would have opened the book again.
+    await new Promise((resolve) => setTimeout(resolve, 250));
+
+    expect(actions.nextPage.mock.calls.length + actions.previousPage.mock.calls.length).toBe(2);
+    expect(ReadReducer.openBook).toHaveBeenCalledTimes(1);
   });
 
   it("reads the watched folder again in the background when it changes", () => {

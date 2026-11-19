@@ -84,7 +84,8 @@ For users running Arch Linux or Manjaro, you can build and install the package u
 
 * **Navigate through pages:**
   * Click the image display area to turn to the next page, and right-click to turn to the previous page.
-  * You can also navigate through pages using the mouse wheel or the arrow keys.
+  * You can also navigate through pages using the mouse wheel, the arrow keys, `Space`, `Page Up` / `Page Down`, and `Home` / `End`.
+  * Keyboard shortcuts switch the two-page spread and reading direction, show or hide the side pane, and add or remove a bookmark; the mouse back / forward buttons step through the books you opened.
 
 ### Bookshelf
 

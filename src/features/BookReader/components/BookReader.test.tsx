@@ -3,6 +3,7 @@ import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { api } from "../../../bindings/api";
 import * as dragDrop from "../../../hooks/useDragDropEvent";
+import { createReaderActionSpies } from "../../../test/readerInput";
 import { createBasePreloadedState, renderWithProviders } from "../../../test/utils";
 import * as readRed from "../slice";
 import { wheelGesture } from "../utils/wheelGesture";
@@ -20,7 +21,12 @@ vi.mock("./ReaderToolbar", () => ({ default: () => <div data-testid="reader-tool
 vi.mock("./FileNavigator/FileNavigator", () => ({ default: () => <div /> }));
 vi.mock("./ImageEntriesViewer/ImageEntriesViewer", () => ({ default: () => <div /> }));
 vi.mock("./HistoryViewer/HistoryViewer", () => ({ default: () => <div /> }));
-vi.mock("./ComicReader", () => ({ default: () => <div data-testid="comic-reader" /> }));
+const comicMoves = createReaderActionSpies();
+// Registers with the reader input like the real one, so routing to it can be checked.
+vi.mock("./ComicReader", async () => {
+  const { TestReader } = await import("../../../test/readerInput");
+  return { default: () => <TestReader actions={comicMoves} testId="comic-reader" /> };
+});
 vi.mock("./NovelReader", () => ({ default: () => <div data-testid="novel-reader" /> }));
 
 vi.mock("../../../hooks/useDragDropEvent", () => ({
@@ -70,6 +76,16 @@ describe("BookReader", () => {
     fireEvent.wheel(screen.getByRole("progressbar"), { deltaY: 100 });
 
     expect(hold).toHaveBeenCalledTimes(1);
+  });
+
+  it("routes a key press to the open reader", async () => {
+    renderWithProviders(<BookReader />, { preloadedState: createBasePreloadedState() });
+    await screen.findByTestId("comic-reader");
+
+    fireEvent.keyDown(document.body, { key: "ArrowLeft" });
+
+    // Right to left by default, so the left arrow moves forward.
+    expect(comicMoves.nextPage).toHaveBeenCalledTimes(1);
   });
 
   it("dispatches restoreLastBook on mount", async () => {

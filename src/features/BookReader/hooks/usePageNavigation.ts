@@ -1,6 +1,6 @@
 import type React from "react";
 import { useCallback } from "react";
-import type { ViewerSettings } from "../utils/ImageUtils";
+import { useReaderInput } from "../input/ReaderInputContext";
 import { toWheelSample, wheelGesture } from "../utils/wheelGesture";
 
 /** How a page move may behave. */
@@ -15,74 +15,38 @@ export interface PageMoveOptions {
 export type PageMove = (options?: PageMoveOptions) => boolean;
 
 /**
- * Hooks for page navigation (forward/backward) based on user interactions.
+ * The reading area's receiver: hands its clicks, context menu and wheel to the reader input
+ * dispatcher.
  *
- * @param onMoveForward Moves forward; see {@link PageMove}.
- * @param onMoveBack Moves back; see {@link PageMove}.
- * @param direction Direction of the viewer.
- * @returns Handlers for click, context menu, wheel, and keydown events.
+ * @returns Handlers for click, context menu and wheel events.
+ * @throws Error outside `ReaderInputProvider`.
  */
-export const usePageNavigation = (
-  onMoveForward: PageMove,
-  onMoveBack: PageMove,
-  direction: ViewerSettings["direction"],
-) => {
+export const usePageNavigation = () => {
+  const { dispatchInput } = useReaderInput();
+
   const handleClicked = useCallback(
     (_e: React.MouseEvent | MouseEvent) => {
-      onMoveForward();
+      dispatchInput({ kind: "click", button: "left" });
     },
-    [onMoveForward],
+    [dispatchInput],
   );
 
   const handleContextMenu = useCallback(
     (e: React.MouseEvent | MouseEvent) => {
       e.preventDefault();
-      onMoveBack();
+      dispatchInput({ kind: "click", button: "right" });
     },
-    [onMoveBack],
+    [dispatchInput],
   );
 
   const handleWheeled = useCallback(
-    (e: React.WheelEvent<HTMLDivElement> | WheelEvent) => {
-      wheelGesture.handle(toWheelSample(e), (sign, steps, crossBook) =>
-        (sign > 0 ? onMoveForward : onMoveBack)({ steps, crossBook }),
+    (e: React.WheelEvent | WheelEvent) => {
+      wheelGesture.handle(toWheelSample(e), (direction, steps, crossBook) =>
+        dispatchInput({ kind: "wheel", direction, steps, crossBook }),
       );
     },
-    [onMoveBack, onMoveForward],
+    [dispatchInput],
   );
 
-  const handleKeydown = useCallback(
-    (e: React.KeyboardEvent | KeyboardEvent) => {
-      // Ignore the event if the user is currently interacting with an input field.
-      // This preserves default browser behaviors like moving the cursor with arrow keys.
-      const target = e.target as HTMLElement | null;
-      const isInput =
-        target?.tagName === "INPUT" || target?.tagName === "TEXTAREA" || target?.isContentEditable;
-      if (isInput) {
-        return;
-      }
-
-      switch (e.key) {
-        case "ArrowLeft":
-          if (direction === "rtl") {
-            onMoveForward();
-          } else {
-            onMoveBack();
-          }
-          break;
-        case "ArrowRight":
-          if (direction === "rtl") {
-            onMoveBack();
-          } else {
-            onMoveForward();
-          }
-          break;
-        default:
-          return;
-      }
-    },
-    [direction, onMoveForward, onMoveBack],
-  );
-
-  return { handleClicked, handleContextMenu, handleWheeled, handleKeydown };
+  return { handleClicked, handleContextMenu, handleWheeled };
 };

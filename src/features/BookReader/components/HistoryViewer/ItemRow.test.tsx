@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { createEvent, fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { api } from "../../../../bindings/api";
@@ -65,6 +65,21 @@ describe("HistoryViewer/ItemRow", () => {
     // Check if menu items are visible
     expect(screen.getByText("Open")).toBeInTheDocument();
     expect(screen.getByText("Remove history")).toBeInTheDocument();
+  });
+
+  it("does not focus the row on a right-button mousedown", () => {
+    renderWithProviders(<ItemRow entry={mockBook} index={0} selected={false} />, {
+      preloadedState,
+    });
+    const row = screen.getByRole("button");
+
+    const right = createEvent.mouseDown(row, { button: 2, cancelable: true });
+    fireEvent(row, right);
+    const left = createEvent.mouseDown(row, { button: 0, cancelable: true });
+    fireEvent(row, left);
+
+    expect(right.defaultPrevented).toBe(true);
+    expect(left.defaultPrevented).toBe(false);
   });
 
   it("should have Mui-selected class when selected is true", () => {

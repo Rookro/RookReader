@@ -4,6 +4,8 @@ import { useTranslation } from "react-i18next";
 import ContextMenu from "../../../../components/ui/ContextMenu/ContextMenu";
 import { useContextMenuAnchor } from "../../../../components/ui/ContextMenu/useContextMenuAnchor";
 import type { Bookmark } from "../../../../domain/entities";
+import { preventRightClickFocus } from "../../../../utils/preventRightClickFocus";
+import { releaseMouseFocus } from "../../../../utils/releaseMouseFocus";
 
 /**
  * Row component for the bookmark viewer.
@@ -49,7 +51,14 @@ export const ItemRow = memo(function ItemRow({
   return (
     <Box component="div" onContextMenu={handleContextMenu}>
       <ListItem component="div" disablePadding dense>
-        <ListItemButton onClick={handleJumpClicked} sx={{ padding: "4px 8px" }}>
+        <ListItemButton
+          onClick={(e) => {
+            releaseMouseFocus(e);
+            handleJumpClicked();
+          }}
+          onMouseDown={preventRightClickFocus}
+          sx={{ padding: "4px 8px" }}
+        >
           <ListItemText
             primary={bookmark.name}
             secondary={t("book-reader.bookmark-viewer.page-caption", {
