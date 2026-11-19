@@ -21,6 +21,10 @@ vi.mock("../input/ReaderInputContext", () => ({
   useReaderInput: () => ({ dispatchInput }),
   useRegisterReaderActions: vi.fn(),
 }));
+const releaseKeyboard = vi.hoisted(() => vi.fn());
+vi.mock("../../SidePane/SidePaneFocusContext", () => ({
+  useSidePaneFocus: () => ({ releaseKeyboard }),
+}));
 vi.mock("../../../hooks/useAppTheme");
 vi.mock("@tauri-apps/plugin-log");
 vi.mock("foliate-js/view.js", () => ({
@@ -571,6 +575,17 @@ describe("useNovelReader", () => {
 
     expect(dispatchInput).toHaveBeenCalledTimes(1);
     expect(dispatchInput).toHaveBeenCalledWith({ kind: "button", event, inReadingArea: true });
+  });
+
+  // The book's pointer events never reach the window, where the side pane listens for them.
+  it("returns the keys from the side pane on a pointer press in the book", async () => {
+    const viewElement = await loadView();
+    const mockDoc = document.createElement("div");
+    viewElement.dispatchEvent(new CustomEvent("load", { detail: { doc: mockDoc } }));
+
+    mockDoc.dispatchEvent(new Event("pointerdown"));
+
+    expect(releaseKeyboard).toHaveBeenCalledTimes(1);
   });
 
   it.each(["mouseup", "auxclick"])(

@@ -9,6 +9,7 @@ import { readNovelFile } from "../../../bindings/binaryApi";
 import { useAppTheme } from "../../../hooks/useAppTheme";
 import { useAppDispatch, useAppSelector } from "../../../store/store";
 import { CommandError, ErrorCode } from "../../../types/Error";
+import { useSidePaneFocus } from "../../SidePane/SidePaneFocusContext";
 import { mouseButtonName } from "../input/combo";
 import { preventSideButtonRelease } from "../input/dispatch";
 import { useReaderInput, useRegisterReaderActions } from "../input/ReaderInputContext";
@@ -159,6 +160,7 @@ export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
   );
   const { dispatchInput } = useReaderInput();
   const { handleClicked, handleContextMenu, handleWheeled } = usePageNavigation();
+  const { releaseKeyboard } = useSidePaneFocus();
 
   // Use a ref to hold the latest callbacks and context to avoid re-triggering loadBook
   const contextRef = useRef({
@@ -170,6 +172,7 @@ export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
     handleContextMenu,
     handleWheeled,
     dispatchInput,
+    releaseKeyboard,
   });
 
   // Always keep the ref updated with the latest context values
@@ -183,6 +186,7 @@ export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
       handleContextMenu,
       handleWheeled,
       dispatchInput,
+      releaseKeyboard,
     };
   });
 
@@ -309,6 +313,8 @@ export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
             contextRef.current.dispatchInput({ kind: "button", event: ev, inReadingArea: true });
           }
         });
+        // The book's pointer events do not reach the window, where the side pane listens.
+        doc.addEventListener("pointerdown", () => contextRef.current.releaseKeyboard());
         doc.addEventListener("mouseup", preventSideButtonRelease);
         doc.addEventListener("auxclick", preventSideButtonRelease);
       });
