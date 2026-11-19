@@ -64,6 +64,21 @@ describe("SideTabs", () => {
     expect(actions.nextPage).toHaveBeenCalled();
   });
 
+  it("marks the tab strip as the side pane", () => {
+    renderWithProviders(<SideTabs tabs={mockTabs} index={0} isHidden={false} />);
+    expect(screen.getByRole("tablist").closest("[data-side-pane]")).not.toBeNull();
+  });
+
+  it("hides the pane and returns focus when the active tab is re-selected with the keyboard", async () => {
+    const { store } = renderWithProviders(<SideTabs tabs={mockTabs} index={0} isHidden={false} />);
+    screen.getByLabelText("Tab 1").focus();
+
+    await user.keyboard("{Enter}");
+
+    expect(store.getState().settings.layout.sidePane.isHidden).toBe(true);
+    expect(document.activeElement).toBe(document.body);
+  });
+
   it("should reset tabIndex if current index is out of bounds", async () => {
     const { store } = renderWithProviders(<SideTabs tabs={mockTabs} index={5} isHidden={false} />);
     await waitFor(() => {

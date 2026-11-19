@@ -9,6 +9,7 @@ import {
   useRef,
 } from "react";
 import { useAppSelector } from "../../../store/store";
+import { useSidePaneFocus } from "../../SidePane/SidePaneFocusContext";
 import { useReadingDirection } from "../hooks/useReadingDirection";
 import { mouseButtonName, parseCombo } from "./combo";
 import { type DispatchContext, dispatchReaderInput, preventSideButtonRelease } from "./dispatch";
@@ -43,12 +44,15 @@ export function ReaderInputProvider({ children }: ReaderInputProviderProps): Rea
   const direction = useReadingDirection();
   const loupeToggle = useMemo(() => parseCombo(toggleKey), [toggleKey]);
   const common = useCommonReaderActions();
+  const isSidePaneHidden = useAppSelector((state) => state.settings.layout.sidePane.isHidden);
+  const { isKeyboardInPaneNow, recoverFocus } = useSidePaneFocus();
 
   const contextRef = useRef<Omit<DispatchContext, "reader">>({
     isReaderActive: activeView === "reader",
     direction,
     loupeToggle,
     common,
+    sidePane: { isHidden: isSidePaneHidden, isKeyboardInPane: isKeyboardInPaneNow, recoverFocus },
   });
   // A layout effect, so an input between a commit and the passive effects sees the new values.
   useLayoutEffect(() => {
@@ -57,6 +61,7 @@ export function ReaderInputProvider({ children }: ReaderInputProviderProps): Rea
       direction,
       loupeToggle,
       common,
+      sidePane: { isHidden: isSidePaneHidden, isKeyboardInPane: isKeyboardInPaneNow, recoverFocus },
     };
   });
   const registrationRef = useRef<Registration | null>(null);

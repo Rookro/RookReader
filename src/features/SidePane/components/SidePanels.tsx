@@ -1,13 +1,16 @@
 import { Box } from "@mui/material";
 import TabPanel from "../../../components/ui/TabPanel/TabPanel";
+import { SIDE_PANE_ATTRIBUTE } from "../sidePaneDom";
 import type { SideTab } from "../types";
 
 /**
  * Side panels component.
  */
-export default function SidePanels(props: { tabs: SideTab[]; index: number }) {
+export default function SidePanels(props: { tabs: SideTab[]; index: number; isHidden: boolean }) {
   return (
     <Box
+      {...{ [SIDE_PANE_ATTRIBUTE]: "" }}
+      inert={props.isHidden}
       sx={{
         width: "100%",
         height: "100%",
