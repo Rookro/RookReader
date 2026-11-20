@@ -265,6 +265,26 @@ describe("useListKeyboardNavigation", () => {
     expect(onOpenMenu).not.toHaveBeenCalled();
   });
 
+  it("drops a waiting menu on another key the list handles", async () => {
+    const onOpenMenu = vi.fn();
+    const { ul, nav, user } = setup({ rowKeys: tenRows, onOpenMenu });
+    act(() => nav().focusList({ rowKey: "r0" }));
+    await user.keyboard("{End}");
+    const r = { startIndex: 0, stopIndex: 3 };
+    act(() => nav().onRowsRendered(r, r));
+    const row = screen.getByText("r9");
+    const id = row.id;
+    row.removeAttribute("id");
+
+    fireEvent.keyDown(ul, { key: "ContextMenu" });
+    fireEvent.keyDown(ul, { key: "ArrowUp" });
+    row.id = id;
+    const shown = { startIndex: 6, stopIndex: 9 };
+    act(() => nav().onRowsRendered(shown, shown));
+    expect(nav().activeKey).toBe("r8");
+    expect(onOpenMenu).not.toHaveBeenCalled();
+  });
+
   it("ignores keys with Ctrl, Alt or Meta and during composition", () => {
     const { ul, nav } = setup();
     act(() => ul.focus());

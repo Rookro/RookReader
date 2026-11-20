@@ -229,6 +229,7 @@ export function useListKeyboardNavigation<K extends string | number>(
         }
         return;
       }
+      setMenuKey(null);
 
       const last = rowKeys.length - 1;
       let next: number;
