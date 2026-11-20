@@ -1,4 +1,4 @@
-import { MenuItem } from "@mui/material";
+import { createTheme, MenuItem } from "@mui/material";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
@@ -13,6 +13,21 @@ function Harness({ anchor }: { anchor: ContextMenuAnchor | null }) {
         <MenuItem>Item</MenuItem>
       </ContextMenu>
     </>
+  );
+}
+
+const focusBackground = createTheme().palette.action.focus;
+
+function backgroundOf(name: string) {
+  return getComputedStyle(screen.getByRole("menuitem", { name })).backgroundColor;
+}
+
+function TwoItems({ anchor }: { anchor: ContextMenuAnchor | null }) {
+  return (
+    <ContextMenu anchor={anchor} onClose={vi.fn()}>
+      <MenuItem>First</MenuItem>
+      <MenuItem>Second</MenuItem>
+    </ContextMenu>
   );
 }
 
@@ -120,6 +135,44 @@ describe("ContextMenu", () => {
     rerender(<Harness anchor={null} />);
     await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument());
     expect(outside).not.toHaveFocus();
+  });
+
+  // jsdom never matches :focus-visible, so MUI's Mui-focusVisible highlight is absent here, as on
+  // WebKitGTK after a mouse click.
+  it("highlights the focused item of a menu opened from the keyboard", async () => {
+    render(<TwoItems anchor={{ mouseX: 1, mouseY: 1, fromKeyboard: true }} />);
+
+    expect(screen.getByRole("menuitem", { name: "First" })).toHaveFocus();
+    expect(backgroundOf("First")).toBe(focusBackground);
+
+    await user.keyboard("{ArrowDown}");
+    expect(screen.getByRole("menuitem", { name: "Second" })).toHaveFocus();
+    expect(backgroundOf("Second")).toBe(focusBackground);
+    expect(backgroundOf("First")).not.toBe(focusBackground);
+  });
+
+  it("highlights the focused item of a mouse-opened menu only once a key is pressed", async () => {
+    render(<TwoItems anchor={{ mouseX: 1, mouseY: 1 }} />);
+
+    expect(screen.getByRole("menuitem", { name: "First" })).toHaveFocus();
+    expect(backgroundOf("First")).not.toBe(focusBackground);
+
+    await user.keyboard("{ArrowDown}");
+    expect(screen.getByRole("menuitem", { name: "Second" })).toHaveFocus();
+    expect(backgroundOf("Second")).toBe(focusBackground);
+    expect(backgroundOf("First")).not.toBe(focusBackground);
+  });
+
+  it("forgets the keyboard when the menu is opened again with the mouse", async () => {
+    const { rerender } = render(<TwoItems anchor={{ mouseX: 1, mouseY: 1 }} />);
+    await user.keyboard("{ArrowDown}");
+    expect(backgroundOf("Second")).toBe(focusBackground);
+
+    rerender(<TwoItems anchor={null} />);
+    await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument());
+    rerender(<TwoItems anchor={{ mouseX: 1, mouseY: 1 }} />);
+    expect(screen.getByRole("menuitem", { name: "First" })).toHaveFocus();
+    expect(backgroundOf("First")).not.toBe(focusBackground);
   });
 
   it("passes other Menu props through", () => {
