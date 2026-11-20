@@ -469,6 +469,33 @@ describe("dispatchReaderInput: side pane", () => {
     expect(common.previousSidePanel).toHaveBeenCalledTimes(1);
   });
 
+  it.each([
+    { name: "F6", init: {}, k: "F6" },
+    { name: "Ctrl+Tab", init: { ctrlKey: true }, k: "Tab" },
+  ])("claims a held $name in the pane without repeating it", ({ k, init }) => {
+    const common = commonActions();
+    const input = at(paneElement(), key(k, { ...init, repeat: true }));
+    expect(dispatchReaderInput(input, { ...ctx, common })).toBe(true);
+    expect(input.event.defaultPrevented).toBe(true);
+    for (const fn of Object.values(common)) {
+      expect(fn).not.toHaveBeenCalled();
+    }
+  });
+
+  it.each([
+    { name: "a menu", attribute: "role", value: "menu" },
+    { name: "a modal", attribute: "class", value: "MuiModal-root" },
+  ])("skips the pane commands while $name is open", ({ attribute, value }) => {
+    const common = commonActions();
+    const modal = document.createElement("div");
+    modal.setAttribute(attribute, value);
+    document.body.appendChild(modal);
+    const input = at(paneElement(), key("Escape"));
+    expect(dispatchReaderInput(input, { ...ctx, common })).toBe(false);
+    expect(input.event.defaultPrevented).toBe(false);
+    expect(common.focusReader).not.toHaveBeenCalled();
+  });
+
   it("runs the pane commands from a text field in the pane", () => {
     const common = commonActions();
     expect(dispatchReaderInput(at(paneElement("input"), key("F6")), { ...ctx, common })).toBe(true);
