@@ -23,6 +23,7 @@ import type { BookWithState } from "../../../../domain/entities";
 import { useListKeyboardNavigation } from "../../../../hooks/useListKeyboardNavigation";
 import { usePointerFocusRelease } from "../../../../hooks/usePointerFocusRelease";
 import { useAppDispatch, useAppSelector } from "../../../../store/store";
+import { releaseMouseFocus } from "../../../../utils/releaseMouseFocus";
 import { clearAllHistory } from "../../../History/slice";
 import SidePanelHeader from "../../../SidePane/components/SidePanelHeader";
 import {
@@ -226,7 +227,10 @@ export default function HistoryViewer() {
                 size="small"
                 sx={{ padding: 0 }}
                 disabled={recentlyReadBooks.length === 0}
-                onClick={() => setIsClearAllDialogOpen(true)}
+                onClick={(e) => {
+                  releaseMouseFocus(e);
+                  setIsClearAllDialogOpen(true);
+                }}
                 aria-label={t("book-reader.history-viewer.clear-all")}
               >
                 <DeleteSweep fontSize="small" />

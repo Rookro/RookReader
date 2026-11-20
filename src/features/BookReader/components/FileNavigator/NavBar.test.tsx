@@ -311,6 +311,108 @@ describe("FileNavigator/NavBar", () => {
     });
   });
 
+  describe("buttons in the side pane", () => {
+    const renderInPane = () => {
+      const preloadedState = structuredClone(defaultPreloadedState);
+      preloadedState.fileNavigator.history = ["/", "/home", "/home/user"];
+      preloadedState.fileNavigator.historyIndex = 1;
+      const actions = createReaderActionSpies();
+      renderWithProviders(
+        <ReaderInputProvider>
+          <TestReader actions={actions} />
+          <div data-side-pane="">
+            <NavBar />
+          </div>
+        </ReaderInputProvider>,
+        { preloadedState },
+      );
+      return actions;
+    };
+
+    it.each(["home", "back", "forward", "up", "refresh"])(
+      "leaves the keys to the reader after a mouse click on %s",
+      async (label) => {
+        const actions = renderInPane();
+
+        await user.click(screen.getByLabelText(label));
+        await user.keyboard("{ArrowDown}");
+
+        expect(actions.nextPage).toHaveBeenCalledTimes(1);
+      },
+    );
+
+    it("leaves the keys to the reader after a sort order is picked with the mouse", async () => {
+      const actions = renderInPane();
+
+      await user.click(screen.getByRole("combobox"));
+      await user.click(await screen.findByRole("option", { name: "Name↓" }));
+      await waitFor(() => expect(screen.queryByRole("listbox")).not.toBeInTheDocument());
+      await user.keyboard("{ArrowRight}");
+
+      expect(SettingsReducer.updateSettings).toHaveBeenCalledWith({
+        key: "fileNavigator",
+        value: { sortOrder: "name_desc" },
+      });
+      expect([...actions.nextPage.mock.calls, ...actions.previousPage.mock.calls]).toHaveLength(1);
+    });
+
+    it("leaves the keys to the reader after the sort menu is closed with a click outside", async () => {
+      const actions = renderInPane();
+
+      await user.click(screen.getByRole("combobox"));
+      await screen.findByRole("listbox");
+      await user.click(document.querySelector(".MuiBackdrop-root") as HTMLElement);
+      await waitFor(() => expect(screen.queryByRole("listbox")).not.toBeInTheDocument());
+      await user.keyboard("{ArrowRight}");
+
+      expect([...actions.nextPage.mock.calls, ...actions.previousPage.mock.calls]).toHaveLength(1);
+    });
+
+    it("keeps focus on the sort order picked with the keyboard", async () => {
+      renderInPane();
+      const select = screen.getByRole("combobox");
+
+      act(() => select.focus());
+      await user.keyboard("{Enter}");
+      await screen.findByRole("listbox");
+      await user.keyboard("{ArrowDown}{Enter}");
+      await waitFor(() => expect(screen.queryByRole("listbox")).not.toBeInTheDocument());
+
+      expect(SettingsReducer.updateSettings).toHaveBeenCalledWith({
+        key: "fileNavigator",
+        value: { sortOrder: "name_desc" },
+      });
+      expect(select).toHaveFocus();
+    });
+
+    it("keeps focus on the sort order after Escape closes its menu", async () => {
+      renderInPane();
+      const select = screen.getByRole("combobox");
+
+      act(() => select.focus());
+      await user.keyboard("{Enter}");
+      await screen.findByRole("listbox");
+      await user.keyboard("{Escape}");
+      await waitFor(() => expect(screen.queryByRole("listbox")).not.toBeInTheDocument());
+
+      expect(select).toHaveFocus();
+    });
+
+    it("keeps focus on a button pressed with the keyboard", async () => {
+      renderInPane();
+      const refreshButton = screen.getByLabelText("refresh");
+
+      act(() => refreshButton.focus());
+      await user.keyboard("{Enter}");
+
+      expect(FileNavigatorSlice.loadDirectory).toHaveBeenCalledWith({
+        dirPath: "/home",
+        forceUpdate: true,
+      });
+      expect(refreshButton).toHaveFocus();
+    });
+  });
+
   describe("tooltips", () => {
     it.each([
       ["home", "Home folder"],

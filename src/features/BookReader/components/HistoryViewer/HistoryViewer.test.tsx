@@ -391,6 +391,17 @@ describe("HistoryViewer", () => {
       expect(actions.nextPage).not.toHaveBeenCalled();
     });
 
+    it("leaves the keys to the reader after Clear all is cancelled with the mouse", async () => {
+      const { actions } = renderInPane();
+
+      await user.click(screen.getByRole("button", { name: "Clear all history" }));
+      await user.click(screen.getByRole("button", { name: "Cancel" }));
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+      await user.keyboard("{ArrowDown}");
+
+      expect(actions.nextPage).toHaveBeenCalledTimes(1);
+    });
+
     it("makes a clicked entry the active row", async () => {
       renderInPane();
 
