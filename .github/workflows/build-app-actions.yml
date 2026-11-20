@@ -45,15 +45,40 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf xvfb nasm
 
+      # vcpkg comes from the builtin-baseline in src-tauri/vcpkg.json, not from the runner image,
+      # so an image update cannot change the ports it builds.
+      - name: Read the vcpkg baseline
+        id: vcpkg
+        shell: bash
+        run: |
+          echo "baseline=$(jq -r '."builtin-baseline"' src-tauri/vcpkg.json)" >> "$GITHUB_OUTPUT"
+          echo "image=$ImageVersion" >> "$GITHUB_OUTPUT"
+
+      - name: Check out vcpkg at the baseline
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: microsoft/vcpkg
+          ref: ${{ steps.vcpkg.outputs.baseline }}
+          path: vcpkg
+          persist-credentials: false
+
+      - name: Bootstrap vcpkg
+        shell: bash
+        run: ./vcpkg/bootstrap-vcpkg.${{ runner.os == 'Windows' && 'bat' || 'sh' }} -disableMetrics
+
+      # The binaries also depend on the compiler, which comes with the runner image.
       - name: Cache vcpkg binaries
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.os == 'Windows' && '~\AppData\Local\vcpkg\archives' || '~/.cache/vcpkg/archives' }}
-          key: vcpkg-${{ runner.os }}-${{ hashFiles('src-tauri/vcpkg.json', 'src-tauri/triplets/**') }}
+          key: vcpkg-${{ runner.os }}-${{ steps.vcpkg.outputs.image }}-${{ hashFiles('src-tauri/vcpkg.json', 'src-tauri/triplets/**') }}
 
       - name: Build libdav1d with vcpkg
         working-directory: src-tauri
-        run: vcpkg install --triplet rookreader-static
+        shell: bash
+        env:
+          VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+        run: ../vcpkg/vcpkg install --triplet rookreader-static
 
       - name: Cache Cargo dependencies
         uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3

@@ -41,7 +41,7 @@ RookReader is built with **Tauri**, using **React**, **TypeScript**, and **Rust*
   ```powershell
   vcpkg install --triplet rookreader-static
   ```
-  This builds `dav1d` from source into the git-ignored `src-tauri/vcpkg_installed/`, which the repo's `.cargo/config.toml` points the build at; no environment variables are needed. The dav1d version is the one your vcpkg checkout carries; `git pull` it to get a newer one. On Linux, use the Dev Container below: it contains vcpkg and runs this command when the container is created, so nothing is installed on the host.
+  This builds `dav1d` from source into the git-ignored `src-tauri/vcpkg_installed/`, which the repo's `.cargo/config.toml` points the build at; no environment variables are needed. The dav1d version is pinned by the `builtin-baseline` (a vcpkg commit) in `src-tauri/vcpkg.json`; your vcpkg must be a full clone at or after that commit, so `git pull` it if `vcpkg install` cannot resolve the baseline. On Linux, use the Dev Container below: it contains vcpkg and runs this command when the container is created, so nothing is installed on the host.
 
 *Note: We also support development using **Dev Containers**. If your editor (like VS Code) supports it, you can open the project in a container for a ready-to-use environment that includes all of the above.*
 
