@@ -29,6 +29,20 @@ describe("useContextMenuAnchor", () => {
     expect(e.stopPropagation).toHaveBeenCalled();
   });
 
+  it("opens below the row's left edge from the keyboard", () => {
+    const { result } = renderHook(() => useContextMenuAnchor());
+    const row = document.createElement("div");
+    vi.spyOn(row, "getBoundingClientRect").mockReturnValue(
+      DOMRect.fromRect({ x: 12, y: 20, width: 100, height: 20 }),
+    );
+
+    act(() => {
+      result.current.openAt(row);
+    });
+
+    expect(result.current.anchor).toEqual({ mouseX: 12, mouseY: 40, fromKeyboard: true });
+  });
+
   it("moves to a new pointer position when opened again", () => {
     const { result } = renderHook(() => useContextMenuAnchor());
 
