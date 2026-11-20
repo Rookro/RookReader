@@ -16,6 +16,7 @@ import ContextMenu, {
 import { useContextMenuAnchor } from "../../../../components/ui/ContextMenu/useContextMenuAnchor";
 import type { BookWithState } from "../../../../domain/entities";
 import { useAfterCommit } from "../../../../hooks/useAfterCommit";
+import { useRowTooltip } from "../../../../hooks/useRowTooltip";
 import { useAppDispatch } from "../../../../store/store";
 import { preventRightClickFocus } from "../../../../utils/preventRightClickFocus";
 import { releaseMouseFocus } from "../../../../utils/releaseMouseFocus";
@@ -68,6 +69,7 @@ export const ItemRow = memo(function ItemRow({
   const { requestPanelFocus, returnToReader } = useSidePaneFocus();
   const afterCommit = useAfterCommit();
   const fromKeyboard = contextMenu?.fromKeyboard === true;
+  const tooltip = useRowTooltip(keyboardActive === true);
 
   useEffect(() => registerMenu?.(entry.id, openAt), [registerMenu, entry.id, openAt]);
 
@@ -114,8 +116,8 @@ export const ItemRow = memo(function ItemRow({
             </Typography>
           </>
         }
-        followCursor
         placement="right-start"
+        {...tooltip}
       >
         <ListItem style={style} key={index} component="div" role="none" disablePadding dense>
           <ListItemButton

@@ -570,6 +570,30 @@ describe("HistoryViewer", () => {
       expect(actions.nextPage).toHaveBeenCalledTimes(1);
     });
 
+    it("hides the active entry's tooltip while its menu is open", async () => {
+      renderInPane();
+
+      await user.keyboard("{F6}{ArrowDown}");
+      // Book 1's tooltip fades out first.
+      await waitFor(() => expect(screen.getByRole("tooltip")).toHaveTextContent("/path/2"));
+
+      await user.keyboard("{ContextMenu}");
+      // `hidden`, because the open menu hides the tooltip from the accessibility tree.
+      await waitFor(() =>
+        expect(screen.queryByRole("tooltip", { hidden: true })).not.toBeInTheDocument(),
+      );
+    });
+
+    it("hides the tooltip after a mouse press", async () => {
+      renderInPane();
+
+      await user.keyboard("{F6}");
+      expect(screen.getByRole("tooltip")).toBeInTheDocument();
+
+      await user.pointer({ keys: "[MouseLeft]", target: screen.getByTestId("reader") });
+      await waitFor(() => expect(screen.queryByRole("tooltip")).not.toBeInTheDocument());
+    });
+
     it("keeps the page turning after a click on the panel's title", async () => {
       const { actions } = renderInPane();
 

@@ -2,6 +2,7 @@ import FolderOutlined from "@mui/icons-material/FolderOutlined";
 import { ListItem, ListItemButton, ListItemText, Tooltip } from "@mui/material";
 import { type CSSProperties, memo } from "react";
 import type { DirEntry } from "../../../../domain/entities";
+import { useRowTooltip } from "../../../../hooks/useRowTooltip";
 import { preventRightClickFocus } from "../../../../utils/preventRightClickFocus";
 import { releaseMouseFocus } from "../../../../utils/releaseMouseFocus";
 
@@ -36,8 +37,10 @@ export const ItemRow = memo(function ItemRow({
   onDoubleClick?: (e: React.MouseEvent<HTMLDivElement>, entry: DirEntry) => void;
   style?: CSSProperties;
 }) {
+  const tooltip = useRowTooltip(keyboardActive === true);
+
   return (
-    <Tooltip title={entry.name} followCursor placement="right-start">
+    <Tooltip title={entry.name} placement="right-start" {...tooltip}>
       <ListItem style={style} key={index} component="div" role="none" disablePadding dense>
         <ListItemButton
           id={id}

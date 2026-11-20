@@ -53,6 +53,14 @@ describe("ImageEntriesViewer/ItemRow", () => {
     expect(screen.getByRole("option")).toHaveClass("Mui-focusVisible");
   });
 
+  it("shows its tooltip while keyboard-active", () => {
+    renderWithProviders(
+      <ItemRow entry={mockEntry} index={0} selected={false} keyboardActive={true} />,
+    );
+
+    expect(screen.getByRole("tooltip")).toHaveTextContent(mockEntry);
+  });
+
   it("does not focus on a right-button mousedown", () => {
     renderWithProviders(<ItemRow entry={mockEntry} index={0} selected={false} />);
     const option = screen.getByRole("option");
