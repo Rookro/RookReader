@@ -290,8 +290,11 @@ describe("BookmarkViewer", () => {
       await openRenameFromKeyboard();
       await user.clear(screen.getByLabelText("Name"));
       await user.type(screen.getByLabelText("Name"), "Duel");
-      await user.keyboard("{Tab}{Tab}{Enter}");
+      await user.keyboard("{Tab}{Tab}");
+      expect(screen.getByRole("button", { name: "OK" })).toHaveFocus();
+      await user.keyboard("{Enter}");
 
+      expect(api.renameBookmark).toHaveBeenCalledExactlyOnceWith(2, "Duel");
       await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
       expect(screen.getByRole("listbox")).toHaveFocus();
       expect(activeOption()).toHaveTextContent(/Duel|The duel/);

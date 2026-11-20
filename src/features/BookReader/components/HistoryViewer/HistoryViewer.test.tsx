@@ -489,6 +489,22 @@ describe("HistoryViewer", () => {
       expect(actions.nextPage).not.toHaveBeenCalled();
     });
 
+    it("returns to the list when the keyboard menu is closed with Tab", async () => {
+      const { actions } = renderInPane();
+
+      await user.keyboard("{F6}{ArrowDown}{ContextMenu}");
+      // The menu's focus trap holds focus only once focus has moved inside it.
+      await user.keyboard("{ArrowDown}");
+      await user.keyboard("{Tab}");
+      await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument());
+      expect(screen.getByRole("listbox")).toHaveFocus();
+      expect(activeOption()).toBe(screen.getByRole("option", { name: "Book 2" }));
+
+      await user.keyboard("{ArrowDown}");
+      expect(activeOption()).toBe(screen.getByRole("option", { name: "Book 3" }));
+      expect(actions.nextPage).not.toHaveBeenCalled();
+    });
+
     it("opens the menu with Shift+F10", async () => {
       renderInPane();
 
