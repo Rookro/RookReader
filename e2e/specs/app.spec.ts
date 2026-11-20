@@ -31,7 +31,8 @@ describe("RookReader Application E2E Tests", () => {
         return handles.length > 1;
       },
       {
-        timeout: 3000,
+        // A new window takes about 5 s to appear on the Linux CI runner.
+        timeout: 15000,
         timeoutMsg: "Failed to open a new window within the time limit.",
       },
     );
