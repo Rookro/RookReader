@@ -114,6 +114,8 @@ export function useListKeyboardNavigation<K extends string | number>(
   const [hasFocus, setHasFocus] = useState(false);
   const [renderedRows, setRenderedRows] = useState<RowRange | null>(null);
   const followCurrentRef = useRef(false);
+  // Set while focusList focuses the list, whose row it has already chosen.
+  const focusingRef = useRef(false);
   const { onPointerDown, onFocus: releasePointerFocus, forgetPress } = usePointerFocusRelease();
   // Kept apart from `hasFocus` because an unmounted list fires no blur.
   const focusedRef = useRef(false);
@@ -179,7 +181,9 @@ export function useListKeyboardNavigation<K extends string | number>(
       followCurrentRef.current = request === "current";
       forgetPress();
       setActive({ key: rowKeys[index], index });
+      focusingRef.current = true;
       document.getElementById(listId)?.focus({ preventScroll: true });
+      focusingRef.current = false;
       scrollToIndex(index);
       return true;
     },
@@ -240,8 +244,15 @@ export function useListKeyboardNavigation<K extends string | number>(
       if (releasePointerFocus(e) || e.target !== e.currentTarget) return;
       focusedRef.current = true;
       setHasFocus(true);
+      // Tab lands on the current row, as entering the pane does.
+      if (active === null && !focusingRef.current && rowKeys.length > 0) {
+        const index = currentIndex === -1 ? 0 : currentIndex;
+        followCurrentRef.current = true;
+        setActive({ key: rowKeys[index], index });
+        scrollToIndex(index);
+      }
     },
-    [releasePointerFocus],
+    [releasePointerFocus, active, rowKeys, currentIndex, scrollToIndex],
   );
 
   const onBlur = useCallback((e: React.FocusEvent<HTMLElement>) => {

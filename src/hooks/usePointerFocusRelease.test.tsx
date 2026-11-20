@@ -63,6 +63,18 @@ describe("usePointerFocusRelease", () => {
     expect(panel).not.toContainElement(document.activeElement as HTMLElement);
   });
 
+  it("releases the panel that a press focused after an earlier press got no pointerup", () => {
+    renderWithProviders(<Panel />);
+    const panel = screen.getByRole("region", { name: "Panel" });
+
+    // Chromium can leave out the pointerup after some scrollbar presses.
+    fireEvent.pointerDown(screen.getByText("Title"));
+    fireEvent.pointerDown(screen.getByText("Title"));
+    act(() => panel.focus());
+
+    expect(document.activeElement).not.toBe(panel);
+  });
+
   it("releases a row that a press inside the focused list focused", () => {
     const { panel } = setup();
     const row = screen.getByText("a");

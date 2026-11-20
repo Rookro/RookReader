@@ -94,8 +94,6 @@ describe("useListKeyboardNavigation", () => {
   it("moves down and up and stops at the ends", async () => {
     const { ul, nav, props, user } = setup();
     act(() => ul.focus());
-
-    await user.keyboard("{ArrowDown}");
     expect(nav().activeKey).toBe("a");
 
     await user.keyboard("{ArrowDown}{ArrowDown}{ArrowDown}");
@@ -137,8 +135,10 @@ describe("useListKeyboardNavigation", () => {
   });
 
   it("goes to the first row with PageDown or PageUp when no row is active", async () => {
-    const { ul, nav, rerender, user } = setup({ rowKeys: tenRows });
+    // Rows that arrive while the list has focus.
+    const { ul, nav, rerender, user } = setup({ rowKeys: [] });
     act(() => ul.focus());
+    rerender({ rowKeys: tenRows });
 
     await user.keyboard("{PageDown}");
     expect(nav().activeIndex).toBe(0);
@@ -154,10 +154,7 @@ describe("useListKeyboardNavigation", () => {
     const { ul, props, user } = setup();
     act(() => ul.focus());
 
-    await user.keyboard("{Enter}");
-    expect(props().onOpen).not.toHaveBeenCalled();
-
-    await user.keyboard("{ArrowDown}{ArrowDown}{Enter}");
+    await user.keyboard("{ArrowDown}{Enter}");
     expect(props().onOpen).toHaveBeenCalledExactlyOnceWith("b", 1);
   });
 
@@ -168,7 +165,7 @@ describe("useListKeyboardNavigation", () => {
 
     expect(fireEvent.keyDown(ul, { key: " " })).toBe(false);
     expect(props().onOpen).not.toHaveBeenCalled();
-    expect(nav().activeKey).toBe("a");
+    expect(nav().activeKey).toBe("b");
   });
 
   it("calls onEnterRow and onLeave only when given", async () => {
@@ -184,7 +181,7 @@ describe("useListKeyboardNavigation", () => {
     rerender({ onEnterRow, onLeave });
 
     expect(fireEvent.keyDown(ul, { key: "ArrowRight" })).toBe(false);
-    expect(onEnterRow).toHaveBeenCalledExactlyOnceWith("a", 0);
+    expect(onEnterRow).toHaveBeenCalledExactlyOnceWith("b", 1);
     expect(fireEvent.keyDown(ul, { key: "ArrowLeft" })).toBe(false);
     expect(onLeave).toHaveBeenCalledOnce();
   });
@@ -197,7 +194,7 @@ describe("useListKeyboardNavigation", () => {
     expect(fireEvent.keyDown(ul, { key: "ArrowDown", altKey: true })).toBe(true);
     expect(fireEvent.keyDown(ul, { key: "ArrowDown", metaKey: true })).toBe(true);
     expect(fireEvent.keyDown(ul, { key: "ArrowDown", isComposing: true })).toBe(true);
-    expect(nav().activeKey).toBeNull();
+    expect(nav().activeKey).toBe("a");
   });
 
   it("prevents only the keys it handles", () => {
@@ -215,7 +212,7 @@ describe("useListKeyboardNavigation", () => {
 
     expect(fireEvent.keyDown(screen.getByText("b"), { key: "ArrowDown" })).toBe(true);
     expect(fireEvent.keyDown(screen.getByText("b"), { key: "Enter" })).toBe(true);
-    expect(nav().activeKey).toBeNull();
+    expect(nav().activeKey).toBe("a");
     expect(props().onOpen).not.toHaveBeenCalled();
   });
 
@@ -226,7 +223,7 @@ describe("useListKeyboardNavigation", () => {
     const menu = screen.getByRole("button", { name: "menu" });
     expect(ul).not.toContainElement(menu);
     expect(fireEvent.keyDown(menu, { key: "ArrowDown" })).toBe(true);
-    expect(nav().activeKey).toBeNull();
+    expect(nav().activeKey).toBe("a");
   });
 
   it("lands on the current row and follows it until the user moves", async () => {
@@ -249,6 +246,41 @@ describe("useListKeyboardNavigation", () => {
 
     rerender({ currentKey: "a" });
     expect(nav().activeKey).toBe("b");
+  });
+
+  it("lands on the current row on Tab and keeps an existing active row", async () => {
+    const { ul, nav, props, user } = setup({ rowKeys: tenRows, currentKey: "r5" });
+
+    await user.tab();
+    expect(ul).toHaveFocus();
+    expect(nav().activeKey).toBe("r5");
+    expect(ul).toHaveAttribute("aria-activedescendant", nav().rowId(5));
+    expect(props().scrollToIndex).toHaveBeenLastCalledWith(5);
+
+    await user.keyboard("{ArrowDown}");
+    expect(nav().activeKey).toBe("r6");
+    await user.tab({ shift: true });
+    expect(ul).not.toHaveFocus();
+    await user.tab();
+    expect(ul).toHaveFocus();
+    expect(nav().activeKey).toBe("r6");
+  });
+
+  it("follows the current row after Tab lands on it", async () => {
+    const { nav, rerender, user } = setup({ rowKeys: tenRows, currentKey: "r5" });
+
+    await user.tab();
+    rerender({ currentKey: "r7" });
+
+    expect(nav().activeKey).toBe("r7");
+  });
+
+  it("lands on the requested row, not the current one, when focusList focuses it", () => {
+    const { nav } = setup({ rowKeys: tenRows, currentKey: "r5" });
+
+    act(() => nav().focusList({ rowKey: "r2" }));
+
+    expect(nav().activeKey).toBe("r2");
   });
 
   it("follows the current row once it appears in the rows", () => {
@@ -279,7 +311,7 @@ describe("useListKeyboardNavigation", () => {
   it("keeps the active row when rows shift", async () => {
     const { ul, nav, rerender, user } = setup();
     act(() => ul.focus());
-    await user.keyboard("{ArrowDown}{ArrowDown}");
+    await user.keyboard("{ArrowDown}");
 
     rerender({ rowKeys: ["x", "a", "b", "c"] });
     expect(nav().activeKey).toBe("b");

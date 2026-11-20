@@ -28,12 +28,13 @@ export function usePointerFocusRelease(): PointerFocusRelease {
   const stopRef = useRef<(() => void) | null>(null);
 
   const onPointerDown = useCallback((e: React.PointerEvent<HTMLElement>) => {
+    // Ends an earlier press that got no pointerup, before this press is recorded.
+    stopRef.current?.();
     const element = e.currentTarget;
     const focusedAtPress = document.activeElement;
     // A press inside the focused element fires no focus event on it.
     const focusInside = element.contains(focusedAtPress);
     pressedRef.current = !focusInside;
-    stopRef.current?.();
     const stop = () => {
       window.removeEventListener("pointerup", release);
       window.removeEventListener("pointercancel", stop);
