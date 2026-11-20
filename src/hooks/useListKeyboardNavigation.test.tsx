@@ -507,6 +507,22 @@ describe("useListKeyboardNavigation", () => {
     expect(nav().isKeyboardActive(1)).toBe(false);
   });
 
+  it("draws the active row as keyboard-focused only while it is visible", () => {
+    const { nav } = setup({ rowKeys: tenRows });
+    act(() => nav().focusList({ rowKey: "r5" }));
+    const all = { startIndex: 0, stopIndex: 9 };
+
+    act(() => nav().onRowsRendered({ startIndex: 3, stopIndex: 6 }, all));
+    expect(nav().isKeyboardActive(5)).toBe(true);
+
+    // Scrolled past, but still mounted as overscan.
+    act(() => nav().onRowsRendered({ startIndex: 6, stopIndex: 9 }, all));
+    expect(nav().isKeyboardActive(5)).toBe(false);
+
+    act(() => nav().onRowsRendered({ startIndex: 2, stopIndex: 5 }, all));
+    expect(nav().isKeyboardActive(5)).toBe(true);
+  });
+
   it("blurs itself when focused by a pointer", () => {
     const { ul, nav } = setup();
 

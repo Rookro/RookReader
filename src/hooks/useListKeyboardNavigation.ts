@@ -92,6 +92,16 @@ interface RowRange {
   stopIndex: number;
 }
 
+/** `prev` when `next` covers the same rows, so an unchanged report does not re-render. */
+const keepRange = (prev: RowRange | null, next: RowRange): RowRange =>
+  prev?.startIndex === next.startIndex && prev.stopIndex === next.stopIndex
+    ? prev
+    : { startIndex: next.startIndex, stopIndex: next.stopIndex };
+
+/** Whether `index` is in `range`; an unknown range (rows never reported) holds every row. */
+const isInRange = (index: number, range: RowRange | null): boolean =>
+  range === null || (index >= range.startIndex && index <= range.stopIndex);
+
 /**
  * Keyboard navigation for a list in the WAI-ARIA listbox pattern: the container keeps DOM focus
  * and points at the active row with `aria-activedescendant`, so virtualized rows can unmount.
@@ -118,6 +128,7 @@ export function useListKeyboardNavigation<K extends string | number>(
   const [active, setActive] = useState<ActiveRow<K> | null>(null);
   const [hasFocus, setHasFocus] = useState(false);
   const [renderedRows, setRenderedRows] = useState<RowRange | null>(null);
+  const [visibleRows, setVisibleRows] = useState<RowRange | null>(null);
   // A row whose menu was asked for; it opens once the row is rendered.
   const [menuKey, setMenuKey] = useState<K | null>(null);
   const followCurrentRef = useRef(false);
@@ -304,23 +315,19 @@ export function useListKeyboardNavigation<K extends string | number>(
     setMenuKey(null);
   }, []);
 
-  const onRowsRendered = useCallback((_visibleRows: RowRange, allRows: RowRange) => {
-    setRenderedRows((prev) =>
-      prev?.startIndex === allRows.startIndex && prev.stopIndex === allRows.stopIndex
-        ? prev
-        : { startIndex: allRows.startIndex, stopIndex: allRows.stopIndex },
-    );
+  const onRowsRendered = useCallback((visible: RowRange, allRows: RowRange) => {
+    setVisibleRows((prev) => keepRange(prev, visible));
+    setRenderedRows((prev) => keepRange(prev, allRows));
   }, []);
 
+  // An overscan row scrolled out of sight is not drawn as active, so its tooltip goes too.
   const isKeyboardActive = useCallback(
-    (index: number) => hasFocus && isKeyboardInUse && index === activeIndex,
-    [hasFocus, isKeyboardInUse, activeIndex],
+    (index: number) =>
+      hasFocus && isKeyboardInUse && index === activeIndex && isInRange(index, visibleRows),
+    [hasFocus, isKeyboardInUse, activeIndex, visibleRows],
   );
 
-  const isActiveRendered =
-    activeIndex !== -1 &&
-    (renderedRows === null ||
-      (activeIndex >= renderedRows.startIndex && activeIndex <= renderedRows.stopIndex));
+  const isActiveRendered = activeIndex !== -1 && isInRange(activeIndex, renderedRows);
 
   return {
     activeKey,
