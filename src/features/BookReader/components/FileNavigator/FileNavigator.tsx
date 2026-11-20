@@ -177,16 +177,17 @@ export default function FileListViewer() {
   const leaveFolder = useCallback(async () => {
     const current = history[historyIndex];
     let parent: string;
+    let left: string;
     try {
       parent = await dirname(current);
+      left = await basename(current);
     } catch {
-      // At the root.
+      // At the root, or a path that names no folder.
       return;
     }
     if (!parent || parent === current) {
       return;
     }
-    const left = await basename(current);
     dispatch(loadDirectory({ dirPath: parent }));
     requestPanelFocus({ rowKey: left });
   }, [dispatch, history, historyIndex, requestPanelFocus]);

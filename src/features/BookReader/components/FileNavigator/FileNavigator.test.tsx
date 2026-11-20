@@ -573,6 +573,18 @@ describe("FileNavigator", () => {
       expect(listbox()).toHaveFocus();
     });
 
+    it("does nothing with Left when the folder's name cannot be resolved", async () => {
+      const { basename } = await import("@tauri-apps/api/path");
+      vi.mocked(basename).mockRejectedValueOnce(new Error("No name"));
+      renderInPane(inFolder("/dir/..", [file("x.zip")]));
+
+      await user.keyboard("{F6}{ArrowLeft}");
+      await waitFor(() => expect(basename).toHaveBeenCalledWith("/dir/.."));
+
+      expect(FileNavigatorSlice.loadDirectory).not.toHaveBeenCalled();
+      expect(listbox()).toHaveFocus();
+    });
+
     it("leaves an empty folder with Left", async () => {
       const { store, actions } = renderInPane(inFolder("/dir", [folder("empty")]));
 
