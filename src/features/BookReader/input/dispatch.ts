@@ -1,12 +1,15 @@
+import { LIST_NAVIGATION_KEYS } from "../../../hooks/useListKeyboardNavigation";
+import { isInSidePane } from "../../SidePane/sidePaneDom";
 import {
   type CommonAction,
   findAction,
   type PageAction,
   REPEATABLE_ACTIONS,
   type ReaderAction,
+  SIDE_PANE_BINDINGS,
 } from "./bindings";
 import { type Combo, comboOf, mouseButtonName, sameCombo } from "./combo";
-import { isModalOpen, isTextEntryTarget } from "./guards";
+import { isComposing, isModalOpen, isTextEntryTarget, isTopDocumentRoot } from "./guards";
 import type { ReaderActions, ReaderInput } from "./types";
 
 /** What the dispatcher needs to know about the reader when an input arrives. */
@@ -21,6 +24,15 @@ export interface DispatchContext {
   reader: ReaderActions | null;
   /** The actions that do not depend on the active reader. */
   common: Record<CommonAction, () => void>;
+  /** The side pane's state. */
+  sidePane: {
+    /** Whether the panels are hidden; the tab strip stays shown. */
+    isHidden: boolean;
+    /** Whether the keyboard is working in the side pane right now. */
+    isKeyboardInPane: () => boolean;
+    /** Refocuses the active panel after its focused element was lost. */
+    recoverFocus: () => void;
+  };
 }
 
 const NO_MODIFIERS = { ctrl: false, alt: false, shift: false, meta: false };
@@ -61,12 +73,43 @@ const runAction = (action: ReaderAction, { direction, reader, common }: Dispatch
   }
 };
 
+const dispatchSidePaneKey = (event: KeyboardEvent, combo: Combo, ctx: DispatchContext): boolean => {
+  let action = findAction(combo, SIDE_PANE_BINDINGS);
+  // The tab strip stays shown while the pane is hidden, and F6 there enters the pane.
+  if (action === "focusReader" && combo.key === "F6" && ctx.sidePane.isHidden) {
+    action = "focusSidePane";
+  }
+  if (!action) {
+    // The focused element was lost: the key must not fall through to the page.
+    if (
+      isTopDocumentRoot(event.target) &&
+      LIST_NAVIGATION_KEYS.has(event.key) &&
+      !combo.ctrl &&
+      !combo.alt &&
+      !combo.meta
+    ) {
+      event.preventDefault();
+      ctx.sidePane.recoverFocus();
+      return true;
+    }
+    return false;
+  }
+  event.preventDefault();
+  if (event.repeat && !REPEATABLE_ACTIONS.has(action)) {
+    return true;
+  }
+  runAction(action, ctx);
+  return true;
+};
+
 /**
  * Runs the action bound to an input.
  *
  * Keys and mouse buttons are ignored outside the reader view, while a modal is open, when a
- * component already handled them, and (keys only) when typed into a text field. The loupe
- * toggle wins over the other bindings where the loupe can act. A handled key or button gets
+ * component already handled them, and (keys only) during IME composition. A key pressed in the
+ * side pane, or on the body while the keyboard is in the pane, runs only the side pane's
+ * bindings, also from a text field. Any other key typed into a text field is ignored. The loupe
+ * toggle wins over the reader's bindings where the loupe can act. A handled key or button gets
  * `preventDefault()`.
  *
  * @param input - The received input.
@@ -99,13 +142,25 @@ export const dispatchReaderInput = (input: ReaderInput, ctx: DispatchContext): b
     !ctx.isReaderActive ||
     event.defaultPrevented ||
     isModalOpen(document) ||
-    (input.kind === "key" && isTextEntryTarget(event.target))
+    (input.kind === "key" && isComposing(input.event))
   ) {
     return false;
   }
   const combo = comboOf(event);
   if (!combo) {
     return false;
+  }
+
+  if (input.kind === "key") {
+    const target = input.event.target;
+    const inPane =
+      isInSidePane(target) || (isTopDocumentRoot(target) && ctx.sidePane.isKeyboardInPane());
+    if (inPane) {
+      return dispatchSidePaneKey(input.event, combo, ctx);
+    }
+    if (isTextEntryTarget(target)) {
+      return false;
+    }
   }
 
   const toggleLoupe = ctx.reader?.toggleLoupe;

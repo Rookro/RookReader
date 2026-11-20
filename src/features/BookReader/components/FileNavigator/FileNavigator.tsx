@@ -1,11 +1,18 @@
 import { Box, CircularProgress, Stack, Typography } from "@mui/material";
 import { createSelector } from "@reduxjs/toolkit";
-import { join } from "@tauri-apps/api/path";
+import { basename, dirname, join } from "@tauri-apps/api/path";
 import { debug, error } from "@tauri-apps/plugin-log";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { List, type RowComponentProps, useListCallbackRef } from "react-window";
+import {
+  List,
+  type ListImperativeAPI,
+  type RowComponentProps,
+  useListCallbackRef,
+} from "react-window";
 import type { DirEntry } from "../../../../domain/entities";
+import { useListKeyboardNavigation } from "../../../../hooks/useListKeyboardNavigation";
+import { usePointerFocusRelease } from "../../../../hooks/usePointerFocusRelease";
 import {
   type RootState,
   useAppDispatch,
@@ -14,6 +21,11 @@ import {
 } from "../../../../store/store";
 import { isNavigableArchiveName } from "../../../../utils/ArchivePathUtils";
 import SidePanelHeader from "../../../SidePane/components/SidePanelHeader";
+import {
+  type PanelFocusRequest,
+  useRegisterSidePanel,
+  useSidePaneFocus,
+} from "../../../SidePane/SidePaneFocusContext";
 import { loadDirectory, setSearchText } from "../../fileNavigatorSlice";
 import { useDirectoryWatcher } from "../../hooks/useDirectoryWatcher";
 import { useFileSelection } from "../../hooks/useFileSelection";
@@ -45,6 +57,8 @@ interface RowProps {
   entries: DirEntry[];
   selectedIndex: number;
   onClick: (e: React.MouseEvent<HTMLDivElement>, entry: DirEntry, index: number) => void;
+  rowId: (index: number) => string;
+  isKeyboardActive: (index: number) => boolean;
 }
 
 /** Component to display a single row in the file navigator list. */
@@ -54,6 +68,8 @@ function Row({
   style,
   selectedIndex,
   onClick,
+  rowId,
+  isKeyboardActive,
   ...others
 }: RowComponentProps<RowProps>) {
   const entry = entries[index];
@@ -64,6 +80,8 @@ function Row({
       entry={entry}
       index={index}
       selected={selectedIndex === index}
+      id={rowId(index)}
+      keyboardActive={isKeyboardActive(index)}
       onClick={onClick}
       style={style}
     />
@@ -91,6 +109,19 @@ export default function FileListViewer() {
   // The open book's name; its row follows it when a re-read of the folder moves it.
   const [selectedName, setSelectedName] = useState<string | null>(null);
   const [list, setList] = useListCallbackRef(null);
+  // `list` is still null in the effects of the first render, where a pending focus request runs.
+  const listApiRef = useRef<ListImperativeAPI | null>(null);
+  const handleListRef = useCallback(
+    (api: ListImperativeAPI | null) => {
+      listApiRef.current = api;
+      setList(api);
+    },
+    [setList],
+  );
+  const panelRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const panelPointer = usePointerFocusRelease();
+  const { isKeyboardInPane, returnToReader, requestPanelFocus } = useSidePaneFocus();
   // What the list last scrolled for, or found the open book missing for; see the scroll effect.
   const scrolledFor = useRef<string | null>(null);
   const clickTimer = useRef<number | null>(null);
@@ -111,6 +142,85 @@ export default function FileListViewer() {
     [filteredSortedEntries, selectedName],
   );
 
+  const openEntry = useCallback(
+    async (entry: DirEntry) => {
+      const path = await join(history[historyIndex], entry.name);
+      dispatch(openBook({ path, origin: { kind: "fileNavigator" } }));
+      setSelectedName(entry.name);
+    },
+    [dispatch, history, historyIndex],
+  );
+
+  // A request that came when the folder had started loading but this panel had not re-rendered,
+  // and so still counted as ready; made again once it has, so that it waits for the listing.
+  const focusAfterLoad = useRef<PanelFocusRequest | null>(null);
+  useEffect(() => {
+    if (isLoading && focusAfterLoad.current !== null) {
+      requestPanelFocus(focusAfterLoad.current);
+      focusAfterLoad.current = null;
+    }
+  }, [isLoading, requestPanelFocus]);
+
+  const enterFolder = useCallback(
+    async (entry: DirEntry) => {
+      if (!entry.isDirectory && !isNavigableArchiveName(entry.name)) {
+        return;
+      }
+      const path = await join(history[historyIndex], entry.name);
+      dispatch(setSearchText(""));
+      dispatch(loadDirectory({ dirPath: path }));
+      requestPanelFocus("first");
+    },
+    [dispatch, history, historyIndex, requestPanelFocus],
+  );
+
+  const leaveFolder = useCallback(async () => {
+    const current = history[historyIndex];
+    let parent: string;
+    let left: string;
+    try {
+      parent = await dirname(current);
+      left = await basename(current);
+    } catch {
+      // At the root, or a path that names no folder.
+      return;
+    }
+    if (!parent || parent === current) {
+      return;
+    }
+    dispatch(loadDirectory({ dirPath: parent }));
+    requestPanelFocus({ rowKey: left });
+  }, [dispatch, history, historyIndex, requestPanelFocus]);
+
+  // The search field while a search hides every entry, so that it can be changed.
+  const focusEmptyTarget = () => {
+    (searchText !== "" ? searchInputRef.current : panelRef.current)?.focus();
+  };
+  const rowKeys = useMemo(() => filteredSortedEntries.map((e) => e.name), [filteredSortedEntries]);
+  const scrollToIndex = useCallback((index: number) => {
+    try {
+      listApiRef.current?.scrollToRow({ align: "smart", behavior: "instant", index });
+    } catch (e) {
+      error(`Failed to scroll to row ${index}: ${e}`);
+    }
+  }, []);
+  const nav = useListKeyboardNavigation({
+    rowKeys,
+    currentKey: selectedIndex === -1 ? null : selectedName,
+    label: t("book-reader.file-navigator.title"),
+    scrollToIndex,
+    pageSize: () => Math.max(1, Math.floor((listApiRef.current?.element?.clientHeight ?? 0) / 36)),
+    onOpen: (_key, index) => {
+      returnToReader();
+      openEntry(filteredSortedEntries[index]);
+    },
+    onEnterRow: (_key, index) => enterFolder(filteredSortedEntries[index]),
+    onLeave: leaveFolder,
+    onBecameEmpty: focusEmptyTarget,
+    isKeyboardInUse: isKeyboardInPane,
+  });
+  const keyboardHasList = nav.hasFocus && isKeyboardInPane;
+
   const refreshEntries = useCallback(() => {
     if (history[historyIndex]) {
       dispatch(loadDirectory({ dirPath: history[historyIndex], forceUpdate: true }));
@@ -127,6 +237,18 @@ export default function FileListViewer() {
     }
     refreshEntries();
   }, [refreshEntries, store, history, historyIndex]);
+
+  // A request made while the folder loads waits for its listing. Registered after the effect
+  // above, so that a request pending at mount sees the reload that effect starts.
+  useRegisterSidePanel((request: PanelFocusRequest) => {
+    if (store.getState().fileNavigator.isLoading) {
+      focusAfterLoad.current = request;
+      return;
+    }
+    if (!nav.focusList(request)) {
+      focusEmptyTarget();
+    }
+  }, !isLoading);
 
   // What the watcher runs: the list stays on screen while the folder is read again.
   const refreshInBackground = useCallback(() => {
@@ -160,7 +282,7 @@ export default function FileListViewer() {
       scrolledFor.current = scrollFor;
       return;
     }
-    if (scrolledFor.current === scrollFor) {
+    if (keyboardHasList || scrolledFor.current === scrollFor) {
       return;
     }
 
@@ -188,15 +310,14 @@ export default function FileListViewer() {
     selectedName,
     searchText,
     fileNavigatorSettings.sortOrder,
+    keyboardHasList,
   ]);
 
   const handleListItemClicked = useCallback(
-    async (_e: React.MouseEvent<HTMLDivElement>, entry: DirEntry, _index: number) => {
-      const path = await join(history[historyIndex], entry.name);
-      dispatch(openBook({ path, origin: { kind: "fileNavigator" } }));
-      setSelectedName(entry.name);
+    (_e: React.MouseEvent<HTMLDivElement>, entry: DirEntry, _index: number) => {
+      openEntry(entry);
     },
-    [dispatch, history, historyIndex],
+    [openEntry],
   );
 
   const handleListItemDoubleClicked = useCallback(
@@ -216,8 +337,10 @@ export default function FileListViewer() {
     [dispatch, history, historyIndex, handleListItemClicked],
   );
 
+  const { setActiveKey, rowId, isKeyboardActive } = nav;
   const handleListItemClickedWrapper = useCallback(
     (e: React.MouseEvent<HTMLDivElement>, entry: DirEntry, index: number) => {
+      setActiveKey(entry.name);
       // Only treat a second click as a double-click when it lands on the same row;
       // a click on a different row restarts the single-click timer for that row.
       if (clickTimer.current && pendingIndex.current === index) {
@@ -237,7 +360,7 @@ export default function FileListViewer() {
         }, doubleClickIntervalMs);
       }
     },
-    [handleListItemClicked, handleListItemDoubleClicked],
+    [handleListItemClicked, handleListItemDoubleClicked, setActiveKey],
   );
 
   // Cancel any pending single-click callback when the component unmounts.
@@ -254,19 +377,40 @@ export default function FileListViewer() {
       entries: filteredSortedEntries,
       selectedIndex,
       onClick: handleListItemClickedWrapper,
+      rowId,
+      isKeyboardActive,
     }),
-    [filteredSortedEntries, selectedIndex, handleListItemClickedWrapper],
+    [filteredSortedEntries, selectedIndex, handleListItemClickedWrapper, rowId, isKeyboardActive],
   );
+
+  // The panel has focus only as the target of an empty folder, which ← leaves.
+  const handlePanelKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (
+      e.key === "ArrowLeft" &&
+      e.target === e.currentTarget &&
+      !e.ctrlKey &&
+      !e.altKey &&
+      !e.metaKey
+    ) {
+      e.preventDefault();
+      leaveFolder();
+    }
+  };
 
   return (
     <Stack
+      ref={panelRef}
+      tabIndex={-1}
+      onPointerDown={panelPointer.onPointerDown}
+      onFocus={panelPointer.onFocus}
+      onKeyDown={handlePanelKeyDown}
       sx={{
         width: "100%",
         height: "100%",
       }}
     >
       <SidePanelHeader title={t("book-reader.file-navigator.title")} />
-      <NavBar />
+      <NavBar searchInputRef={searchInputRef} />
       {isLoading ? (
         <Box sx={{ flexGrow: 1, display: "flex", justifyContent: "center", alignItems: "center" }}>
           <CircularProgress />
@@ -287,7 +431,9 @@ export default function FileListViewer() {
             rowCount={filteredSortedEntries.length}
             rowHeight={36}
             overscanCount={5}
-            listRef={setList}
+            listRef={handleListRef}
+            {...nav.listProps}
+            onRowsRendered={nav.onRowsRendered}
           />
         </Box>
       )}

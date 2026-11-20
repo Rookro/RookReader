@@ -51,8 +51,29 @@ describe("HistoryViewer/ItemRow", () => {
       preloadedState,
     });
 
-    await user.click(screen.getByRole("button"));
+    await user.click(screen.getByRole("option"));
     expect(onClick).toHaveBeenCalledWith(expect.anything(), mockBook, 0);
+  });
+
+  it("is a listbox option that only the listbox focuses", () => {
+    renderWithProviders(<ItemRow entry={mockBook} index={0} selected={true} id="row-0" />, {
+      preloadedState,
+    });
+    const option = screen.getByRole("option", { name: "Test Book" });
+
+    expect(option).toHaveAttribute("id", "row-0");
+    expect(option).toHaveAttribute("aria-selected", "true");
+    expect(option).toHaveAttribute("tabindex", "-1");
+    expect(option).not.toHaveClass("Mui-focusVisible");
+  });
+
+  it("draws the keyboard's active row as focused", () => {
+    renderWithProviders(
+      <ItemRow entry={mockBook} index={0} selected={false} keyboardActive={true} />,
+      { preloadedState },
+    );
+
+    expect(screen.getByRole("option")).toHaveClass("Mui-focusVisible");
   });
 
   it("should open context menu on right click", async () => {
@@ -71,7 +92,7 @@ describe("HistoryViewer/ItemRow", () => {
     renderWithProviders(<ItemRow entry={mockBook} index={0} selected={false} />, {
       preloadedState,
     });
-    const row = screen.getByRole("button");
+    const row = screen.getByRole("option");
 
     const right = createEvent.mouseDown(row, { button: 2, cancelable: true });
     fireEvent(row, right);
@@ -86,7 +107,7 @@ describe("HistoryViewer/ItemRow", () => {
     renderWithProviders(<ItemRow entry={mockBook} index={0} selected={true} />, {
       preloadedState,
     });
-    const button = screen.getByRole("button");
+    const button = screen.getByRole("option");
     expect(button).toHaveClass("Mui-selected");
   });
 

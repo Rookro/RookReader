@@ -19,6 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * `S` toggles the two-page spread, `Shift+S` shifts the spread pairing, `D` switches the page direction (comics), `B` adds or removes a bookmark and `P` shows or hides the side pane.
   * After clicking or right-clicking a row or a tab in the side pane, the keys go on turning pages instead of acting on that row.
   * Keys no longer turn the page while a menu is open, or when pressed with `Ctrl`, `Alt` or `Meta`.
+* The side pane can be used from the keyboard. (#413)
+  * `F6` moves from the reader to the side pane, showing it if it is hidden, and `F6` or `Esc` moves back. `Ctrl+Tab` / `Ctrl+Shift+Tab` switch to the next / previous panel.
+  * In the File Navigator, Pages, Bookmarks and History lists, the arrow keys, `Home` / `End` and `Page Up` / `Page Down` move through the entries, and `Enter` opens the selected one and returns to the reader. In the File Navigator, `Right Arrow` enters a folder or an archive and `Left Arrow` goes up to the parent folder.
+  * In the search and path boxes, `Esc` first clears the text or undoes the edit, then returns to the reader.
+  * After clicking a button in the side pane, such as the File Navigator's **Up one level** or the sort order, the keys go on turning pages.
 
 ## [2.7.1] - 2026-11-16
 

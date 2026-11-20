@@ -18,10 +18,11 @@ import {
 import { dirname, homeDir } from "@tauri-apps/api/path";
 import { warn } from "@tauri-apps/plugin-log";
 import type React from "react";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppDispatch, useAppSelector } from "../../../../store/store";
 import type { SortOrder } from "../../../../types/AppSettings";
+import { releaseMouseFocus } from "../../../../utils/releaseMouseFocus";
 import { updateSettings } from "../../../Settings/slice";
 import {
   goBackNavigatorHistory,
@@ -29,11 +30,18 @@ import {
   loadDirectory,
   setSearchText,
 } from "../../fileNavigatorSlice";
+import { isComposing } from "../../input/guards";
+
+/** Props for {@link NavBar}. */
+export interface NavBarProps {
+  /** The search field's input, which the panel focuses while a search hides every entry. */
+  searchInputRef?: React.Ref<HTMLInputElement>;
+}
 
 /**
  * Navigation bar component for File navigator component.
  */
-export default function NavBar() {
+export default function NavBar({ searchInputRef }: NavBarProps) {
   const { t } = useTranslation();
   const history = useAppSelector((state) => state.fileNavigator.history);
   const historyIndex = useAppSelector((state) => state.fileNavigator.historyIndex);
@@ -78,15 +86,32 @@ export default function NavBar() {
     e.currentTarget.form?.requestSubmit();
   }, []);
 
+  // With no edit to revert, Esc is left to the side pane's keys, which return to the reader.
+  const handlePathKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      if (
+        e.key === "Escape" &&
+        e.currentTarget.value !== currentPath &&
+        !isComposing(e.nativeEvent)
+      ) {
+        e.preventDefault();
+        e.currentTarget.value = currentPath;
+      }
+    },
+    [currentPath],
+  );
+
   const handleHomeClicked = useCallback(
-    (_e: React.MouseEvent<HTMLButtonElement>) => {
+    (e: React.MouseEvent<HTMLButtonElement>) => {
+      releaseMouseFocus(e);
       setDirParh();
     },
     [setDirParh],
   );
 
   const handleParentClicked = useCallback(
-    async (_e: React.MouseEvent<HTMLButtonElement>) => {
+    async (e: React.MouseEvent<HTMLButtonElement>) => {
+      releaseMouseFocus(e);
       try {
         const parentDir = await dirname(history[historyIndex]);
         dispatch(loadDirectory({ dirPath: parentDir }));
@@ -98,7 +123,8 @@ export default function NavBar() {
   );
 
   const handleRefleshClicked = useCallback(
-    async (_e: React.MouseEvent<HTMLButtonElement>) => {
+    async (e: React.MouseEvent<HTMLButtonElement>) => {
+      releaseMouseFocus(e);
       dispatch(loadDirectory({ dirPath: history[historyIndex], forceUpdate: true }));
     },
     [dispatch, history, historyIndex],
@@ -111,15 +137,28 @@ export default function NavBar() {
     [dispatch],
   );
 
+  // With nothing to clear, Esc is left to the side pane's keys, which return to the reader.
+  const handleSearchKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLElement>) => {
+      if (e.key === "Escape" && searchText !== "" && !isComposing(e.nativeEvent)) {
+        e.preventDefault();
+        dispatch(setSearchText(""));
+      }
+    },
+    [dispatch, searchText],
+  );
+
   const handleBackClicked = useCallback(
-    (_e: React.MouseEvent<HTMLButtonElement>) => {
+    (e: React.MouseEvent<HTMLButtonElement>) => {
+      releaseMouseFocus(e);
       dispatch(goBackNavigatorHistory());
     },
     [dispatch],
   );
 
   const handleForwardClicked = useCallback(
-    (_e: React.MouseEvent<HTMLButtonElement>) => {
+    (e: React.MouseEvent<HTMLButtonElement>) => {
+      releaseMouseFocus(e);
       dispatch(goForwardNavigatorHistory());
     },
     [dispatch],
@@ -137,6 +176,25 @@ export default function NavBar() {
     [dispatch],
   );
 
+  // A mouse pick or a click outside the menu leaves focus on the select, which would keep the
+  // reader's keys in the side pane; the menu restores that focus as it closes, so it is released
+  // once the menu is gone.
+  const sortSelectRef = useRef<HTMLDivElement>(null);
+  const sortClosedByMouse = useRef(false);
+  const handleSortClosed = useCallback((e: React.SyntheticEvent) => {
+    sortClosedByMouse.current = "detail" in e && typeof e.detail === "number" && e.detail > 0;
+  }, []);
+  const handleSortMenuExited = useCallback(() => {
+    const focused = document.activeElement;
+    if (
+      sortClosedByMouse.current &&
+      focused instanceof HTMLElement &&
+      sortSelectRef.current?.contains(focused)
+    ) {
+      focused.blur();
+    }
+  }, []);
+
   const handleContextMenu = useCallback((e: React.MouseEvent<HTMLElement>) => {
     e.stopPropagation();
   }, []);
@@ -150,6 +208,7 @@ export default function NavBar() {
           name="path"
           defaultValue={currentPath}
           onContextMenu={handleContextMenu}
+          onKeyDown={handlePathKeyDown}
           onBlur={handleBlur}
           size="small"
           fullWidth
@@ -207,10 +266,13 @@ export default function NavBar() {
           </IconButton>
         </Tooltip>
         <Select
+          ref={sortSelectRef}
           size="small"
           value={fileNavigatorSettings.sortOrder}
           sx={{ minWidth: "100px" }}
           onChange={handleSortOrderChanged}
+          onClose={handleSortClosed}
+          MenuProps={{ slotProps: { transition: { onExited: handleSortMenuExited } } }}
         >
           <MenuItem value={"name_asc"}>
             {t("book-reader.file-navigator.sort-order.name-asc")}
@@ -228,8 +290,10 @@ export default function NavBar() {
       </Box>
       <OutlinedInput
         type="search"
+        inputRef={searchInputRef}
         value={searchText}
         onChange={handleSearchTextChanged}
+        onKeyDown={handleSearchKeyDown}
         onContextMenu={handleContextMenu}
         size="small"
         fullWidth

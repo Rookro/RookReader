@@ -1,5 +1,5 @@
 import { act, fireEvent, render, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { api } from "../../../bindings/api";
 import { createMockBookmark, createMockBookWithState } from "../../../test/factories";
 import { createReaderActionSpies, TestReader } from "../../../test/readerInput";
@@ -258,6 +258,42 @@ describe("ReaderInputProvider: common actions", () => {
     expect(actions.nextPage).toHaveBeenCalledWith();
     expect(event.defaultPrevented).toBe(true);
     button.remove();
+  });
+});
+
+describe("ReaderInputProvider: side pane", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockSettingsCommands();
+  });
+
+  const appendPaneButton = () => {
+    const pane = document.createElement("div");
+    pane.setAttribute("data-side-pane", "");
+    const button = document.createElement("button");
+    pane.appendChild(button);
+    document.body.appendChild(pane);
+    onTestFinished(() => pane.remove());
+    return button;
+  };
+
+  it("shows a hidden pane with F6 from its tab strip", () => {
+    const preloadedState = createBasePreloadedState();
+    preloadedState.settings.layout.sidePane.isHidden = true;
+    const { store } = renderReader(preloadedState);
+
+    fireEvent.keyDown(appendPaneButton(), { key: "F6" });
+
+    expect(store.getState().settings.layout.sidePane.isHidden).toBe(false);
+  });
+
+  it("keeps a key on the body from the reader once the keyboard is in the pane", () => {
+    const { moves } = renderReader();
+
+    fireEvent.keyDown(appendPaneButton(), { key: "ArrowDown" });
+    expect(fireEvent.keyDown(document.body, { key: "ArrowDown" })).toBe(false);
+
+    expect(moves()).toBe(0);
   });
 });
 

@@ -1,6 +1,7 @@
 import { useAppDispatch, useAppSelector } from "../../../store/store";
 import { updateSettings } from "../../Settings/slice";
 import { useApplySidePane } from "../../SidePane/hooks/useApplySidePane";
+import { useSidePaneFocus } from "../../SidePane/SidePaneFocusContext";
 import { useBookmarkToggle } from "../hooks/useBookmarkToggle";
 import {
   goBackBookHistory,
@@ -23,6 +24,7 @@ export const useCommonReaderActions = (): Record<CommonAction, () => void> => {
   const { isHidden, tabIndex } = useAppSelector((state) => state.settings.layout.sidePane);
   const { toggle: toggleBookmark } = useBookmarkToggle();
   const applySidePane = useApplySidePane();
+  const { enterPane, returnToReader, switchPanel } = useSidePaneFocus();
 
   return {
     toggleSpread: () => {
@@ -50,5 +52,9 @@ export const useCommonReaderActions = (): Record<CommonAction, () => void> => {
     historyForward: () => {
       dispatch(goForwardBookHistory());
     },
+    focusSidePane: enterPane,
+    focusReader: returnToReader,
+    nextSidePanel: () => switchPanel(1),
+    previousSidePanel: () => switchPanel(-1),
   };
 };

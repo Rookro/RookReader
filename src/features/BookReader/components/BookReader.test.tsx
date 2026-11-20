@@ -1,10 +1,15 @@
 import { error } from "@tauri-apps/plugin-log";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { api } from "../../../bindings/api";
 import * as dragDrop from "../../../hooks/useDragDropEvent";
 import { createReaderActionSpies } from "../../../test/readerInput";
-import { createBasePreloadedState, renderWithProviders } from "../../../test/utils";
+import {
+  createBasePreloadedState,
+  mockSettingsCommands,
+  renderWithProviders,
+} from "../../../test/utils";
 import * as readRed from "../slice";
 import { wheelGesture } from "../utils/wheelGesture";
 import BookReader from "./BookReader";
@@ -14,7 +19,9 @@ vi.mock("../../SidePane/components/SideTabs", () => ({
   default: () => <div data-testid="side-tabs" />,
 }));
 vi.mock("../../SidePane/components/SidePanels", () => ({
-  default: () => <div data-testid="side-panels" />,
+  default: ({ isHidden }: { isHidden: boolean }) => (
+    <div data-testid="side-panels" inert={isHidden} />
+  ),
 }));
 vi.mock("./ControlSlider", () => ({ default: () => <div data-testid="control-slider" /> }));
 vi.mock("./ReaderToolbar", () => ({ default: () => <div data-testid="reader-toolbar" /> }));
@@ -86,6 +93,20 @@ describe("BookReader", () => {
 
     // Right to left by default, so the left arrow moves forward.
     expect(comicMoves.nextPage).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows a hidden side pane with F6", async () => {
+    mockSettingsCommands();
+    const preloadedState = createBasePreloadedState();
+    preloadedState.settings.layout.sidePane.isHidden = true;
+    const { store } = renderWithProviders(<BookReader />, { preloadedState });
+    await screen.findByTestId("comic-reader");
+    expect(screen.getByTestId("side-panels")).toHaveAttribute("inert");
+
+    await userEvent.setup().keyboard("{F6}");
+
+    expect(store.getState().settings.layout.sidePane.isHidden).toBe(false);
+    expect(screen.getByTestId("side-panels")).not.toHaveAttribute("inert");
   });
 
   it("dispatches restoreLastBook on mount", async () => {

@@ -2,7 +2,7 @@ import { screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { renderWithProviders } from "../../../test/utils";
 import BookReader from "../components/BookReader";
-import { isModalOpen, isTextEntryTarget } from "./guards";
+import { isComposing, isModalOpen, isTextEntryTarget, isTopDocumentRoot } from "./guards";
 
 describe("isTextEntryTarget", () => {
   it("recognises inputs, text areas and editable elements", () => {
@@ -16,6 +16,22 @@ describe("isTextEntryTarget", () => {
   it("treats anything else as the reader's", () => {
     expect(isTextEntryTarget(document.body)).toBe(false);
     expect(isTextEntryTarget(null)).toBe(false);
+  });
+});
+
+describe("isComposing", () => {
+  it("recognises a key typed into an IME", () => {
+    expect(isComposing(new KeyboardEvent("keydown", { isComposing: true }))).toBe(true);
+    expect(isComposing(new KeyboardEvent("keydown", { keyCode: 229 }))).toBe(true);
+    expect(isComposing(new KeyboardEvent("keydown", { key: "a" }))).toBe(false);
+  });
+});
+
+describe("isTopDocumentRoot", () => {
+  it("recognises the top document's body and root element only", () => {
+    expect(isTopDocumentRoot(document.body)).toBe(true);
+    expect(isTopDocumentRoot(document.documentElement)).toBe(true);
+    expect(isTopDocumentRoot(document.implementation.createHTMLDocument("").body)).toBe(false);
   });
 });
 

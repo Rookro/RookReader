@@ -48,7 +48,7 @@ The reader is made up of four areas:
   - **Shift the spread pairing** — shift which pages share a screen by one page; click again to reset (see *Two-Page Spread* below). Disabled in single-page view.
   - **Direction toggle** — switch the current book between **Right-to-Left** (for Japanese comics) and **Left-to-Right**. The choice is remembered **for that book**. Disabled for EPUB novels, which follow their own writing direction (see *Novels (EPUB)* below).
   - **Settings** — open the settings window.
-- **Side panels** (left): switch between them with the side tabs. Click a tab to open its panel. Clicking the **active tab** again collapses the panel, and clicking once more reopens it — useful for maximizing the reading area.
+- **Side panels** (left): switch between them with the side tabs. Click a tab to open its panel. Clicking the **active tab** again collapses the panel, and clicking once more reopens it — useful for maximizing the reading area. The panels can also be used from the keyboard (see *Keyboard Shortcuts & Controls*).
   - **File Navigator** — browse folders and archives, and open files. Its own bar has **Home folder**, **Back**, **Forward**, **Up one level** and **Refresh** buttons, a **sort order** menu (Name↑/↓, Date↑/↓), a path box for the folder being shown, and a search box that filters the list.
   - **Pages** — lists the pages of the current book by file name; click one to jump to it. For EPUB novels it lists the sections, named after the table of contents. In two-page view both pages currently on screen are highlighted.
   - **History** — recently read books (shown only when reading history is enabled). Click an entry to open it; a search box filters the list, and right-clicking an entry offers **Open** and **Remove history**. **Clear all history** in the panel's header removes every entry after a confirmation; this also resets the saved reading positions and the progress shown on bookshelf covers, while books, bookmarks, collections, tags and series are kept. The same action is in **Settings → Reader**, where it is available while reading history is off.
@@ -70,6 +70,8 @@ The window title shows the name of the open book (for a folder inside an archive
 | **Direction toggle** (comics) | — | `D` |
 | **Add / Remove bookmark** | — | `B` |
 | **Show / hide the side panel** | — | `P` |
+| **Move between the reader and the side panel** | — | `F6` moves to the side panel (showing it if hidden); `F6` or `Esc` moves back |
+| **Switch side panel** (while in the side panel) | Click a tab | `Ctrl+Tab` / `Ctrl+Shift+Tab` (next / previous) |
 | **Back / Forward** through the books you opened | Back / Forward side buttons | — |
 | **Toggle the loupe** (comics) | The loupe's **Toggle key** (the middle button by default) | The loupe's **Toggle key**, when it is set to a key |
 
@@ -80,13 +82,20 @@ The keys and the mouse side buttons work in the reader view, for comics and EPUB
 - The Next / Previous Page keys keep turning while held. In a comic they turn a whole spread in two-page view, and at the first or last page they go on to the adjacent book like a click does (see *Continuous Reading*). `Home` and `End` stay within the book; in two-page view `End` shows the whole last spread. `S`, `Shift+S`, `D`, `B` and `P` act once per press.
 - Each key does what the matching button does. In an EPUB novel `S`, `Shift+S` and `D` do nothing.
 - The side buttons work anywhere in the reader view, including over the File Navigator, where they still go through the books you opened rather than the folders.
-- The keys do nothing while you type in a text field, such as the path box or a search box. The keys and the side buttons do nothing while a dialog or a menu (such as a bookmark's right-click menu) is open.
-- Letter keys work with Caps Lock on. Holding `Shift` changes only `Space` and `S`, so `Shift+Left Arrow` still turns the page. Apart from the loupe's **Toggle key**, keys pressed with `Ctrl`, `Alt` or `Meta` held are not shortcuts.
+- The keys do nothing while you type in the top app bar's path box. In the side panel's path box and search boxes, only the side panel's keys work (see *In the side panel* below). The keys and the side buttons do nothing while a dialog or a menu (such as a bookmark's right-click menu) is open.
+- Letter keys work with Caps Lock on. Holding `Shift` changes only `Space`, `S` and `Ctrl+Tab` (`Ctrl+Shift+Tab` switches the other way), so `Shift+Left Arrow` still turns the page. Apart from the loupe's **Toggle key** and `Ctrl+Tab` / `Ctrl+Shift+Tab`, keys pressed with `Ctrl`, `Alt` or `Meta` held are not shortcuts.
 - If the loupe's **Toggle key** is set to one of these keys or side buttons, it toggles the loupe instead while a comic is open (a mouse button only over the reading area). In a novel, or for a mouse button anywhere else, it keeps its shortcut.
-- After you click a row or a tab in the side panel, or close a row's right-click menu, the keys go back to the reader: `Space` turns the page rather than pressing the row.
+- The keys go back to the reader when you leave the side panel with `F6` or `Esc`, click a row, a tab or a button in it, or close a row's right-click menu: `Space` then turns the page rather than pressing the row.
 
 > [!NOTE]
 > The behavior of the `Left Arrow` and `Right Arrow` keys adapts automatically based on the reading direction (Right-to-Left vs. Left-to-Right) selected via the toggle button in the top app bar or the `D` key. For Japanese vertical reading (Right-to-Left), the Left Arrow goes to the Next Page, and the Right Arrow goes to the Previous Page.
+
+In the side panel:
+
+- `Up Arrow` / `Down Arrow`, `Home` / `End` and `Page Up` / `Page Down` move through the panel's list. `Enter` does what a click on the entry does (open the book, or go to the page or bookmark) and returns to the reader.
+- In the File Navigator, `Right Arrow` enters a folder or a zip/cbz/rar/cbr archive, like a double-click, and `Left Arrow` goes up to the parent folder.
+- In a search box, `Esc` first clears the text; in the File Navigator's path box, it first undoes your edit. The next `Esc` returns to the reader.
+- The reader's shortcuts do not work while the side panel has focus, so `Space` and the arrow keys do not turn the page.
 
 ## Page Display
 

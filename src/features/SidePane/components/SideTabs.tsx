@@ -3,6 +3,8 @@ import type React from "react";
 import { useCallback, useEffect } from "react";
 import { releaseMouseFocus } from "../../../utils/releaseMouseFocus";
 import { useApplySidePane } from "../hooks/useApplySidePane";
+import { useSidePaneFocus } from "../SidePaneFocusContext";
+import { isInSidePane, SIDE_PANE_ATTRIBUTE } from "../sidePaneDom";
 import type { SideTab } from "../types";
 
 /**
@@ -10,15 +12,19 @@ import type { SideTab } from "../types";
  */
 export default function SideTabs(props: { tabs: SideTab[]; index: number; isHidden: boolean }) {
   const applySidePane = useApplySidePane();
+  const { returnToReader } = useSidePaneFocus();
 
   const handleTabClick = useCallback(
     (event: React.MouseEvent, index: number) => {
       releaseMouseFocus(event);
       if (props.index === index) {
         applySidePane({ isHidden: !props.isHidden, tabIndex: props.index });
+        if (!props.isHidden && isInSidePane(document.activeElement)) {
+          returnToReader();
+        }
       }
     },
-    [applySidePane, props.index, props.isHidden],
+    [applySidePane, returnToReader, props.index, props.isHidden],
   );
 
   const handleChange = useCallback(
@@ -38,6 +44,7 @@ export default function SideTabs(props: { tabs: SideTab[]; index: number; isHidd
 
   return (
     <Tabs
+      {...{ [SIDE_PANE_ATTRIBUTE]: "" }}
       orientation="vertical"
       value={props.index}
       onChange={handleChange}

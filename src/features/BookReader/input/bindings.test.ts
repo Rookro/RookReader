@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { type Binding, findAction } from "./bindings";
+import { type Binding, findAction, READER_BINDINGS, SIDE_PANE_BINDINGS } from "./bindings";
 import { type Combo, parseCombo } from "./combo";
 
 const c = (n: string) => parseCombo(n) as Combo;
@@ -38,4 +38,11 @@ describe("findAction", () => {
   });
 
   it("returns null for an unbound key", () => expect(findAction(c("Enter"))).toBeNull());
+
+  it("finds the side pane's bindings and the reader's F6", () => {
+    expect(findAction(c("Ctrl+Tab"), SIDE_PANE_BINDINGS)).toBe("nextSidePanel");
+    expect(findAction(c("Ctrl+Shift+Tab"), SIDE_PANE_BINDINGS)).toBe("previousSidePanel");
+    expect(findAction(c("Escape"), SIDE_PANE_BINDINGS)).toBe("focusReader");
+    expect(findAction(c("F6"), READER_BINDINGS)).toBe("focusSidePane");
+  });
 });

@@ -1,4 +1,5 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
+import type React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { api } from "../../../bindings/api";
 import { createMockBookmark, createMockBookWithState } from "../../../test/factories";
@@ -9,6 +10,7 @@ import {
   mockSettingsCommands,
   type RootState,
 } from "../../../test/utils";
+import { SidePaneFocusProvider } from "../../SidePane/SidePaneFocusContext";
 import { useCommonReaderActions } from "./useCommonReaderActions";
 
 const renderActions = (preloadedState: RootState) => {
@@ -18,6 +20,22 @@ const renderActions = (preloadedState: RootState) => {
     wrapper: createTestWrapper({ store }),
   });
   return { store, dispatch, actions: result.current };
+};
+
+/** Renders the actions under a side pane of three panels, starting at `sidePane`. */
+const renderPaneActions = (sidePane: RootState["settings"]["layout"]["sidePane"]) => {
+  const preloadedState = createBasePreloadedState();
+  preloadedState.settings.layout.sidePane = sidePane;
+  const store = createTestStore(preloadedState);
+  const Wrapper = createTestWrapper({ store });
+  const { result } = renderHook(() => useCommonReaderActions(), {
+    wrapper: ({ children }: { children: React.ReactNode }) => (
+      <Wrapper>
+        <SidePaneFocusProvider tabCount={3}>{children}</SidePaneFocusProvider>
+      </Wrapper>
+    ),
+  });
+  return { store, actions: result.current };
 };
 
 /** A comic open at page index 3, with its (empty) bookmark list loaded. */
@@ -116,5 +134,46 @@ describe("useCommonReaderActions", () => {
     act(() => actions.toggleSidePane());
 
     expect(store.getState().settings.layout.sidePane).toEqual({ isHidden: true, tabIndex: 2 });
+  });
+});
+
+describe("useCommonReaderActions: side pane", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockSettingsCommands();
+  });
+
+  it("shows a hidden pane on its current tab with focusSidePane", () => {
+    const { store, actions } = renderPaneActions({ isHidden: true, tabIndex: 1 });
+
+    act(() => actions.focusSidePane());
+
+    expect(store.getState().settings.layout.sidePane).toEqual({ isHidden: false, tabIndex: 1 });
+  });
+
+  it("blurs the pane's focused element with focusReader", () => {
+    const { actions } = renderPaneActions({ isHidden: false, tabIndex: 0 });
+    const pane = document.createElement("div");
+    pane.setAttribute("data-side-pane", "");
+    const button = document.createElement("button");
+    pane.appendChild(button);
+    document.body.appendChild(pane);
+    button.focus();
+
+    act(() => actions.focusReader());
+
+    expect(document.activeElement).toBe(document.body);
+    pane.remove();
+  });
+
+  it.each([
+    { action: "nextSidePanel", from: 2, to: 0 },
+    { action: "previousSidePanel", from: 0, to: 2 },
+  ] as const)("$action moves from panel $from to $to", ({ action, from, to }) => {
+    const { store, actions } = renderPaneActions({ isHidden: false, tabIndex: from });
+
+    act(() => actions[action]());
+
+    expect(store.getState().settings.layout.sidePane).toEqual({ isHidden: false, tabIndex: to });
   });
 });

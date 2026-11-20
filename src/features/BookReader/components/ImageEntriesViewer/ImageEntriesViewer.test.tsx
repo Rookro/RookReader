@@ -57,7 +57,7 @@ describe("ImageEntriesViewer", () => {
 
     renderWithProviders(<ImageEntriesViewer />, { preloadedState });
 
-    const buttons = screen.getAllByRole("button");
+    const buttons = screen.getAllByRole("option");
     expect(buttons[0]).not.toHaveClass("Mui-selected");
     expect(buttons[1]).toHaveClass("Mui-selected");
     expect(buttons[2]).not.toHaveClass("Mui-selected");
@@ -71,7 +71,7 @@ describe("ImageEntriesViewer", () => {
 
     renderWithProviders(<ImageEntriesViewer />, { preloadedState });
 
-    const buttons = screen.getAllByRole("button");
+    const buttons = screen.getAllByRole("option");
     expect(buttons[0]).not.toHaveClass("Mui-selected");
     expect(buttons[1]).toHaveClass("Mui-selected");
     expect(buttons[2]).toHaveClass("Mui-selected");
@@ -85,7 +85,7 @@ describe("ImageEntriesViewer", () => {
 
     renderWithProviders(<ImageEntriesViewer />, { preloadedState });
 
-    const buttons = screen.getAllByRole("button");
+    const buttons = screen.getAllByRole("option");
     expect(buttons).toHaveLength(2);
     expect(buttons[1]).toHaveClass("Mui-selected");
   });
@@ -97,7 +97,7 @@ describe("ImageEntriesViewer", () => {
     renderWithProviders(<ImageEntriesViewer />, { preloadedState });
 
     // The mock renders all items
-    const rowButton = screen.getAllByRole("button")[1]; // Click second item
+    const rowButton = screen.getAllByRole("option")[1]; // Click second item
     await user.click(rowButton);
 
     expect(ReadReducer.setImageIndex).toHaveBeenCalledWith(1);
@@ -115,7 +115,7 @@ describe("ImageEntriesViewer", () => {
       { preloadedState },
     );
 
-    await user.click(screen.getAllByRole("button")[2]);
+    await user.click(screen.getAllByRole("option")[2]);
     expect(document.activeElement).toBe(document.body);
     // As if the page had turned since.
     act(() => {
@@ -141,6 +141,187 @@ describe("ImageEntriesViewer", () => {
         behavior: "instant",
         index: 2,
       });
+    });
+  });
+
+  describe("keyboard", () => {
+    const threePages = () => {
+      const preloadedState = createBasePreloadedState();
+      preloadedState.reader.entries = ["p1.jpg", "p2.jpg", "p3.jpg"];
+      preloadedState.reader.index = 1;
+      return preloadedState;
+    };
+
+    /** Renders the panel inside the side pane, next to a reader that records its page turns. */
+    const renderInPane = (preloadedState = threePages()) => {
+      const actions = createReaderActionSpies();
+      const view = renderWithProviders(
+        <ReaderInputProvider>
+          <TestReader actions={actions} />
+          <div data-side-pane="">
+            <ImageEntriesViewer />
+          </div>
+        </ReaderInputProvider>,
+        { preloadedState },
+      );
+      return { ...view, actions };
+    };
+
+    it("lands on the current page when the pane is entered", async () => {
+      renderInPane();
+
+      await user.keyboard("{F6}");
+
+      const listbox = screen.getByRole("listbox", { name: "Pages" });
+      expect(listbox).toHaveFocus();
+      expect(listbox).toHaveAttribute(
+        "aria-activedescendant",
+        screen.getByRole("option", { name: "p2.jpg" }).id,
+      );
+    });
+
+    it("moves with the arrow keys without turning the page", async () => {
+      const { actions } = renderInPane();
+
+      await user.keyboard("{F6}{ArrowDown}");
+
+      expect(screen.getByRole("listbox")).toHaveAttribute(
+        "aria-activedescendant",
+        screen.getByRole("option", { name: "p3.jpg" }).id,
+      );
+      expect(actions.nextPage).not.toHaveBeenCalled();
+    });
+
+    it("scrolls to the current page when the pane is entered before the panel mounts", async () => {
+      const preloadedState = createBasePreloadedState();
+      preloadedState.reader.entries = Array.from({ length: 50 }, (_, i) => `p${i + 1}.jpg`);
+      preloadedState.reader.index = 40;
+      const actions = createReaderActionSpies();
+      const ui = (showPanel: boolean) => (
+        <ReaderInputProvider>
+          <TestReader actions={actions} />
+          <div data-side-pane="">{showPanel && <ImageEntriesViewer />}</div>
+        </ReaderInputProvider>
+      );
+      // As with Ctrl+Tab, the request waits for the panel to mount.
+      const { rerender } = renderWithProviders(ui(false), { preloadedState });
+      await user.keyboard("{F6}");
+      rerender(ui(true));
+      // Past the current page's 20 ms scroll, which the focused list skips.
+      await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
+
+      expect(screen.getByRole("listbox")).toHaveFocus();
+      expect(mockScrollToRow).toHaveBeenCalledWith({
+        align: "smart",
+        behavior: "instant",
+        index: 40,
+      });
+    });
+
+    it("keeps the active page, not the current one, in view while the list has focus", async () => {
+      renderInPane();
+
+      await user.keyboard("{F6}{ArrowDown}");
+      // Past the current page's 20 ms scroll.
+      await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
+
+      expect(mockScrollToRow).toHaveBeenLastCalledWith({
+        align: "smart",
+        behavior: "instant",
+        index: 2,
+      });
+    });
+
+    it("jumps to the active page with Enter and returns the keys to the reader", async () => {
+      const { store, actions } = renderInPane();
+
+      await user.keyboard("{F6}{ArrowDown}{Enter}");
+      expect(store.getState().reader.index).toBe(2);
+
+      await user.keyboard("{ArrowDown}");
+      expect(actions.nextPage).toHaveBeenCalledTimes(1);
+    });
+
+    it("makes a clicked page the active row", async () => {
+      renderInPane();
+
+      await user.click(screen.getByRole("option", { name: "p3.jpg" }));
+
+      expect(screen.getByRole("listbox")).toHaveAttribute(
+        "aria-activedescendant",
+        screen.getByRole("option", { name: "p3.jpg" }).id,
+      );
+    });
+
+    it("keeps the page turning after a right-click on a row", async () => {
+      const { actions } = renderInPane();
+
+      await user.pointer({
+        keys: "[MouseRight]",
+        target: screen.getByRole("option", { name: "p2.jpg" }),
+      });
+      await user.keyboard("{ArrowDown}");
+
+      expect(actions.nextPage).toHaveBeenCalledTimes(1);
+    });
+
+    it("keeps the page turning after a click on the list's empty area", async () => {
+      const { actions } = renderInPane();
+
+      await user.click(screen.getByRole("listbox"));
+      await user.keyboard("{ArrowDown}");
+
+      expect(actions.nextPage).toHaveBeenCalledTimes(1);
+    });
+
+    it("keeps the page turning after a click on the panel's title", async () => {
+      const { actions } = renderInPane();
+
+      await user.click(screen.getByTestId("side-panel-header"));
+      await user.keyboard("{ArrowDown}");
+
+      expect(actions.nextPage).toHaveBeenCalledTimes(1);
+    });
+
+    it("keeps the page turning after a click on the 'no pages' message", async () => {
+      const { actions } = renderInPane(createBasePreloadedState());
+
+      await user.click(screen.getByText("No pages."));
+      await user.keyboard("{ArrowDown}");
+
+      expect(actions.nextPage).toHaveBeenCalledTimes(1);
+    });
+
+    it("keeps the page turning after a click on the panel's title while the list has focus", async () => {
+      const { actions } = renderInPane();
+
+      await user.keyboard("{F6}");
+      await user.click(screen.getByTestId("side-panel-header"));
+      await user.keyboard("{ArrowDown}");
+
+      expect(actions.nextPage).toHaveBeenCalledTimes(1);
+    });
+
+    it("logs a failed keyboard scroll", async () => {
+      renderInPane();
+      await waitFor(() => expect(mockScrollToRow).toHaveBeenCalled());
+      mockScrollToRow.mockImplementationOnce(() => {
+        throw new Error("Scroll failed");
+      });
+
+      await user.keyboard("{F6}");
+
+      expect(error).toHaveBeenCalledWith(expect.stringContaining("Failed to scroll to row 1"));
+    });
+
+    it("focuses the panel when there are no pages", async () => {
+      const { actions } = renderInPane(createBasePreloadedState());
+
+      await user.keyboard("{F6}");
+      expect(document.activeElement).toBe(screen.getByTestId("side-panel-header").parentElement);
+
+      await user.keyboard("{ArrowDown}");
+      expect(actions.nextPage).not.toHaveBeenCalled();
     });
   });
 

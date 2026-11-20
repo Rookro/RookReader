@@ -11,12 +11,24 @@ describe("SidePanels", () => {
 
   it("should render active panel correctly", () => {
     // Show first panel
-    renderWithProviders(<SidePanels tabs={mockTabs} index={0} />);
+    renderWithProviders(<SidePanels tabs={mockTabs} index={0} isHidden={false} />);
     expect(screen.getByTestId("panel-1")).toBeInTheDocument();
     expect(screen.queryByTestId("panel-2")).not.toBeInTheDocument();
 
     // Show second panel
-    renderWithProviders(<SidePanels tabs={mockTabs} index={1} />);
+    renderWithProviders(<SidePanels tabs={mockTabs} index={1} isHidden={false} />);
     expect(screen.getByTestId("panel-2")).toBeInTheDocument();
+  });
+
+  it("marks its container as the side pane, inert while the pane is hidden", () => {
+    const { container, rerender } = renderWithProviders(
+      <SidePanels tabs={mockTabs} index={0} isHidden={true} />,
+    );
+    const panels = container.firstElementChild;
+    expect(panels).toHaveAttribute("data-side-pane");
+    expect(panels).toHaveAttribute("inert");
+
+    rerender(<SidePanels tabs={mockTabs} index={0} isHidden={false} />);
+    expect(panels).not.toHaveAttribute("inert");
   });
 });

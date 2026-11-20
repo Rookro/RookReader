@@ -10,11 +10,21 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Bookmark } from "../../../../domain/entities";
+import {
+  type ListKeyboardNavigation,
+  useListKeyboardNavigation,
+} from "../../../../hooks/useListKeyboardNavigation";
+import { usePointerFocusRelease } from "../../../../hooks/usePointerFocusRelease";
 import { useAppDispatch, useAppSelector } from "../../../../store/store";
 import SidePanelHeader from "../../../SidePane/components/SidePanelHeader";
+import {
+  type PanelFocusRequest,
+  useRegisterSidePanel,
+  useSidePaneFocus,
+} from "../../../SidePane/SidePaneFocusContext";
 import { removeBookmark, updateBookmarkName } from "../../bookmarkSlice";
 import { setImageIndex, setNovelLocation } from "../../slice";
 import { ItemRow } from "./ItemRow";
@@ -29,6 +39,10 @@ export default function BookmarkViewer() {
   const bookmarks = useAppSelector((state) => state.bookmark.bookmarks);
   const [renameTarget, setRenameTarget] = useState<Bookmark | null>(null);
   const [renameText, setRenameText] = useState("");
+  const panelRef = useRef<HTMLDivElement>(null);
+  const panelPointer = usePointerFocusRelease();
+  const scrollBoxRef = useRef<HTMLDivElement>(null);
+  const { isKeyboardInPane, returnToReader } = useSidePaneFocus();
 
   const handleJump = useCallback(
     (bookmark: Bookmark) => {
@@ -41,6 +55,41 @@ export default function BookmarkViewer() {
       }
     },
     [dispatch, isNovel],
+  );
+
+  const rowKeys = useMemo(() => bookmarks.map((b) => b.id), [bookmarks]);
+  const nav: ListKeyboardNavigation<number> = useListKeyboardNavigation({
+    rowKeys,
+    currentKey: bookmarks[0]?.id ?? null,
+    label: t("book-reader.bookmark-viewer.title"),
+    scrollToIndex: (index) => {
+      document.getElementById(nav.rowId(index))?.scrollIntoView({ block: "nearest" });
+    },
+    pageSize: () => {
+      const rowHeight = document.getElementById(nav.rowId(0))?.offsetHeight || 1;
+      return Math.max(1, Math.floor((scrollBoxRef.current?.clientHeight ?? 0) / rowHeight));
+    },
+    onOpen: (_key, index) => {
+      returnToReader();
+      handleJump(bookmarks[index]);
+    },
+    onBecameEmpty: () => panelRef.current?.focus(),
+    isKeyboardInUse: isKeyboardInPane,
+  });
+
+  useRegisterSidePanel((request: PanelFocusRequest) => {
+    if (!nav.focusList(request)) {
+      panelRef.current?.focus();
+    }
+  }, true);
+
+  const { setActiveKey } = nav;
+  const handleRowJump = useCallback(
+    (bookmark: Bookmark) => {
+      setActiveKey(bookmark.id);
+      handleJump(bookmark);
+    },
+    [handleJump, setActiveKey],
   );
 
   const handleRename = useCallback((bookmark: Bookmark) => {
@@ -71,7 +120,13 @@ export default function BookmarkViewer() {
   }, [dispatch, renameTarget, renameText]);
 
   return (
-    <Stack sx={{ width: "100%", height: "100%" }}>
+    <Stack
+      ref={panelRef}
+      tabIndex={-1}
+      onPointerDown={panelPointer.onPointerDown}
+      onFocus={panelPointer.onFocus}
+      sx={{ width: "100%", height: "100%" }}
+    >
       <SidePanelHeader title={t("book-reader.bookmark-viewer.title")} />
       {bookmarks.length === 0 ? (
         <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
@@ -80,13 +135,15 @@ export default function BookmarkViewer() {
           </Typography>
         </Box>
       ) : (
-        <Box sx={{ flexGrow: 1, overflow: "auto" }}>
-          <List dense disablePadding>
-            {bookmarks.map((bookmark) => (
+        <Box ref={scrollBoxRef} sx={{ flexGrow: 1, overflow: "auto" }}>
+          <List dense disablePadding {...nav.listProps}>
+            {bookmarks.map((bookmark, index) => (
               <ItemRow
                 key={bookmark.id}
                 bookmark={bookmark}
-                onJump={handleJump}
+                id={nav.rowId(index)}
+                keyboardActive={nav.isKeyboardActive(index)}
+                onJump={handleRowJump}
                 onRename={handleRename}
                 onRemove={handleRemove}
               />

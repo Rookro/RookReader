@@ -26,6 +26,19 @@ const commonActions = (): Record<CommonAction, () => void> => ({
   toggleSidePane: vi.fn(),
   historyBack: vi.fn(),
   historyForward: vi.fn(),
+  focusSidePane: vi.fn(),
+  focusReader: vi.fn(),
+  nextSidePanel: vi.fn(),
+  previousSidePanel: vi.fn(),
+});
+
+const sidePane = (
+  overrides: Partial<DispatchContext["sidePane"]> = {},
+): DispatchContext["sidePane"] => ({
+  isHidden: false,
+  isKeyboardInPane: () => false,
+  recoverFocus: vi.fn(),
+  ...overrides,
 });
 
 const ctx: DispatchContext = {
@@ -34,6 +47,7 @@ const ctx: DispatchContext = {
   loupeToggle: null,
   reader: null,
   common: commonActions(),
+  sidePane: sidePane(),
 };
 
 const reader = () => ({
@@ -47,6 +61,22 @@ const reader = () => ({
 afterEach(() => {
   document.body.innerHTML = "";
 });
+
+/** Appends an element inside a side-pane container in the body. */
+const paneElement = (tagName = "button") => {
+  const pane = document.createElement("div");
+  pane.setAttribute("data-side-pane", "");
+  const element = document.createElement(tagName);
+  pane.appendChild(element);
+  document.body.appendChild(pane);
+  return element;
+};
+
+/** Sets an input event's target, as if it had been dispatched there. */
+const at = <T extends { event: Event }>(target: EventTarget, input: T): T => {
+  Object.defineProperty(input.event, "target", { value: target });
+  return input;
+};
 
 describe("dispatchReaderInput: page keys and clicks", () => {
   it("turns pages left/right by direction", () => {
@@ -362,5 +392,168 @@ describe("dispatchReaderInput: loupe", () => {
       new MouseEvent("mousedown", { button: 1, bubbles: true, cancelable: true }),
     );
     expect(r.toggleLoupe).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("dispatchReaderInput: side pane", () => {
+  it("runs no reader shortcut for a key from the side pane", () => {
+    const r = reader();
+    const common = commonActions();
+    const row = paneElement();
+    for (const k of ["ArrowDown", " ", "s", "b", "p"]) {
+      const input = at(row, key(k));
+      expect(dispatchReaderInput(input, { ...ctx, reader: r, common })).toBe(false);
+      expect(input.event.defaultPrevented).toBe(false);
+    }
+    expect(r.nextPage).not.toHaveBeenCalled();
+    for (const fn of Object.values(common)) {
+      expect(fn).not.toHaveBeenCalled();
+    }
+  });
+
+  it("does not toggle the loupe from the side pane", () => {
+    const r = reader();
+    const input = at(paneElement(), key("l"));
+    expect(dispatchReaderInput(input, { ...ctx, loupeToggle: parseCombo("L"), reader: r })).toBe(
+      false,
+    );
+    expect(r.toggleLoupe).not.toHaveBeenCalled();
+  });
+
+  it("enters the pane with F6 from the reader", () => {
+    const common = commonActions();
+    const input = key("F6");
+    expect(dispatchReaderInput(input, { ...ctx, common })).toBe(true);
+    expect(common.focusSidePane).toHaveBeenCalledTimes(1);
+    expect(input.event.defaultPrevented).toBe(true);
+  });
+
+  it.each([
+    { name: "F6", k: "F6", init: {} },
+    { name: "Shift+F6", k: "F6", init: { shiftKey: true } },
+    { name: "Escape", k: "Escape", init: {} },
+  ])("returns to the reader with $name from the pane", ({ k, init }) => {
+    const common = commonActions();
+    const input = at(paneElement(), key(k, init));
+    expect(dispatchReaderInput(input, { ...ctx, common })).toBe(true);
+    expect(common.focusReader).toHaveBeenCalledTimes(1);
+    expect(common.focusSidePane).not.toHaveBeenCalled();
+    expect(input.event.defaultPrevented).toBe(true);
+  });
+
+  it("enters instead with F6 from the tab strip of a hidden pane", () => {
+    const common = commonActions();
+    const input = at(paneElement(), key("F6"));
+    expect(
+      dispatchReaderInput(input, { ...ctx, common, sidePane: sidePane({ isHidden: true }) }),
+    ).toBe(true);
+    expect(common.focusSidePane).toHaveBeenCalledTimes(1);
+    expect(common.focusReader).not.toHaveBeenCalled();
+  });
+
+  it("switches panels with Ctrl+Tab and Ctrl+Shift+Tab only in the pane", () => {
+    const common = commonActions();
+    const next = { ctrlKey: true };
+    const previous = { ctrlKey: true, shiftKey: true };
+
+    expect(dispatchReaderInput(at(paneElement(), key("Tab", next)), { ...ctx, common })).toBe(true);
+    expect(dispatchReaderInput(at(paneElement(), key("Tab", previous)), { ...ctx, common })).toBe(
+      true,
+    );
+    expect(common.nextSidePanel).toHaveBeenCalledTimes(1);
+    expect(common.previousSidePanel).toHaveBeenCalledTimes(1);
+
+    expect(dispatchReaderInput(key("Tab", next), { ...ctx, common })).toBe(false);
+    expect(dispatchReaderInput(key("Tab", previous), { ...ctx, common })).toBe(false);
+    expect(common.nextSidePanel).toHaveBeenCalledTimes(1);
+    expect(common.previousSidePanel).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    { name: "F6", init: {}, k: "F6" },
+    { name: "Ctrl+Tab", init: { ctrlKey: true }, k: "Tab" },
+  ])("claims a held $name in the pane without repeating it", ({ k, init }) => {
+    const common = commonActions();
+    const input = at(paneElement(), key(k, { ...init, repeat: true }));
+    expect(dispatchReaderInput(input, { ...ctx, common })).toBe(true);
+    expect(input.event.defaultPrevented).toBe(true);
+    for (const fn of Object.values(common)) {
+      expect(fn).not.toHaveBeenCalled();
+    }
+  });
+
+  it.each([
+    { name: "a menu", attribute: "role", value: "menu" },
+    { name: "a modal", attribute: "class", value: "MuiModal-root" },
+  ])("skips the pane commands while $name is open", ({ attribute, value }) => {
+    const common = commonActions();
+    const modal = document.createElement("div");
+    modal.setAttribute(attribute, value);
+    document.body.appendChild(modal);
+    const input = at(paneElement(), key("Escape"));
+    expect(dispatchReaderInput(input, { ...ctx, common })).toBe(false);
+    expect(input.event.defaultPrevented).toBe(false);
+    expect(common.focusReader).not.toHaveBeenCalled();
+  });
+
+  it("runs the pane commands from a text field in the pane", () => {
+    const common = commonActions();
+    expect(dispatchReaderInput(at(paneElement("input"), key("F6")), { ...ctx, common })).toBe(true);
+    expect(common.focusReader).toHaveBeenCalledTimes(1);
+  });
+
+  it("skips an Escape a pane field already handled", () => {
+    const common = commonActions();
+    const input = at(paneElement("input"), key("Escape"));
+    input.event.preventDefault();
+    expect(dispatchReaderInput(input, { ...ctx, common })).toBe(false);
+    expect(common.focusReader).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { name: "isComposing", init: { isComposing: true } },
+    { name: "keyCode 229", init: { keyCode: 229 } },
+  ])("ignores keys during IME composition ($name)", ({ init }) => {
+    const r = reader();
+    const common = commonActions();
+    expect(dispatchReaderInput(key("ArrowDown", init), { ...ctx, reader: r, common })).toBe(false);
+    expect(dispatchReaderInput(at(paneElement(), key("F6", init)), { ...ctx, common })).toBe(false);
+    expect(r.nextPage).not.toHaveBeenCalled();
+    expect(common.focusReader).not.toHaveBeenCalled();
+  });
+
+  it("treats a key on the body as the pane's while the keyboard is in the pane", () => {
+    const r = reader();
+    const recoverFocus = vi.fn();
+    const input = at(document.body, key("ArrowDown"));
+    expect(
+      dispatchReaderInput(input, {
+        ...ctx,
+        reader: r,
+        sidePane: sidePane({ isKeyboardInPane: () => true, recoverFocus }),
+      }),
+    ).toBe(true);
+    expect(recoverFocus).toHaveBeenCalledTimes(1);
+    expect(input.event.defaultPrevented).toBe(true);
+    expect(r.nextPage).not.toHaveBeenCalled();
+  });
+
+  it("keeps a key on the EPUB iframe's body in the reader", () => {
+    const r = reader();
+    const iframeBody = document.implementation.createHTMLDocument("").body;
+    expect(
+      dispatchReaderInput(at(iframeBody, key("ArrowDown")), {
+        ...ctx,
+        reader: r,
+        sidePane: sidePane({ isKeyboardInPane: () => true }),
+      }),
+    ).toBe(true);
+    expect(r.nextPage).toHaveBeenCalledTimes(1);
+  });
+
+  it("still lets the side buttons go back over the pane", () => {
+    const common = commonActions();
+    expect(dispatchReaderInput(at(paneElement(), button(3, false)), { ...ctx, common })).toBe(true);
+    expect(common.historyBack).toHaveBeenCalledTimes(1);
   });
 });

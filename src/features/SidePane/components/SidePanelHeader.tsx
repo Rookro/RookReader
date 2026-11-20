@@ -2,8 +2,10 @@ import Close from "@mui/icons-material/Close";
 import { Divider, IconButton, Stack, Tooltip, Typography } from "@mui/material";
 import { type ReactNode, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { useAppDispatch, useAppSelector } from "../../../store/store";
-import { updateSettings } from "../../Settings/slice";
+import { useAppSelector } from "../../../store/store";
+import { useApplySidePane } from "../hooks/useApplySidePane";
+import { useSidePaneFocus } from "../SidePaneFocusContext";
+import { isInSidePane } from "../sidePaneDom";
 
 /** Props for {@link SidePanelHeader}. */
 export interface SidePanelHeaderProps {
@@ -16,19 +18,18 @@ export interface SidePanelHeaderProps {
 /** Header of a side panel: its title, its own buttons, and the close button. */
 export default function SidePanelHeader({ title, actions }: SidePanelHeaderProps) {
   const { t } = useTranslation();
-  const dispatch = useAppDispatch();
+  const applySidePane = useApplySidePane();
+  const { returnToReader } = useSidePaneFocus();
   const tabIndex = useAppSelector((state) => state.settings.layout.sidePane.tabIndex);
 
   const handleCloseClicked = useCallback(
     (_e: React.MouseEvent<HTMLButtonElement>) => {
-      dispatch(
-        updateSettings({
-          key: "layout",
-          value: { sidePane: { isHidden: true, tabIndex } },
-        }),
-      );
+      applySidePane({ isHidden: true, tabIndex });
+      if (isInSidePane(document.activeElement)) {
+        returnToReader();
+      }
     },
-    [dispatch, tabIndex],
+    [applySidePane, returnToReader, tabIndex],
   );
 
   return (

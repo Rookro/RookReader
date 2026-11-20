@@ -7,23 +7,47 @@ export const mockScrollToRow = vi.fn();
 
 // Mock react-window
 vi.mock("react-window", () => ({
-  List: ({
+  // Like the real List, it hands `listRef` its API once mounted and spreads the props that are
+  // not its own onto its element. It never calls `onRowsRendered`, so every row counts as rendered.
+  List: function MockList({
     rowComponent: Row,
     rowProps,
     rowCount,
+    rowHeight: _rowHeight,
+    overscanCount: _overscanCount,
+    listRef,
+    onRowsRendered: _onRowsRendered,
+    ...rest
   }: {
     rowComponent: ComponentType<Record<string, unknown>>;
     rowProps: Record<string, unknown>;
     rowCount: number;
-  }) => (
-    <div data-testid="virtualized-list">
-      {Array.from({ length: rowCount }, (_, index) => index).map((value, index) => (
-        <div key={value} data-testid={`row-wrapper-${index}`}>
-          <Row index={index} style={{}} {...rowProps} isScrolling={false} />
-        </div>
-      ))}
-    </div>
-  ),
+    rowHeight?: unknown;
+    overscanCount?: unknown;
+    listRef?: React.Ref<{ scrollToRow: typeof mockScrollToRow; element: HTMLDivElement | null }>;
+    onRowsRendered?: unknown;
+  } & React.HTMLAttributes<HTMLDivElement>) {
+    const element = React.useRef<HTMLDivElement>(null);
+    React.useImperativeHandle(
+      listRef,
+      () => ({
+        scrollToRow: mockScrollToRow,
+        get element() {
+          return element.current;
+        },
+      }),
+      [],
+    );
+    return (
+      <div ref={element} data-testid="virtualized-list" {...rest}>
+        {Array.from({ length: rowCount }, (_, index) => index).map((value, index) => (
+          <div key={value} data-testid={`row-wrapper-${index}`}>
+            <Row index={index} style={{}} {...rowProps} isScrolling={false} />
+          </div>
+        ))}
+      </div>
+    );
+  },
   Grid: ({
     cellComponent: Cell,
     cellProps,
@@ -53,7 +77,8 @@ vi.mock("react-window", () => ({
       </div>
     );
   },
-  useListCallbackRef: vi.fn(() => [{ scrollToRow: mockScrollToRow }, vi.fn()]),
+  // As in react-window, the list is null until the List has mounted.
+  useListCallbackRef: (initial: unknown) => React.useState(initial),
   useGridCallbackRef: vi.fn(() => [{ scrollToCell: vi.fn() }, vi.fn()]),
 }));
 

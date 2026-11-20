@@ -17,7 +17,11 @@ export type CommonAction =
   | "toggleBookmark"
   | "toggleSidePane"
   | "historyBack"
-  | "historyForward";
+  | "historyForward"
+  | "focusSidePane"
+  | "focusReader"
+  | "nextSidePanel"
+  | "previousSidePanel";
 
 /** An action the reader performs on a key or mouse button. */
 export type ReaderAction = PageAction | CommonAction;
@@ -49,6 +53,15 @@ export const READER_BINDINGS: readonly Binding[] = [
   { combo: "P", action: "toggleSidePane" },
   { combo: "MouseBack", action: "historyBack" },
   { combo: "MouseForward", action: "historyForward" },
+  { combo: "F6", action: "focusSidePane" },
+];
+
+/** The bindings of keys pressed in the side pane, where no reader binding applies. */
+export const SIDE_PANE_BINDINGS: readonly Binding[] = [
+  { combo: "F6", action: "focusReader" },
+  { combo: "Escape", action: "focusReader" },
+  { combo: "Ctrl+Tab", action: "nextSidePanel" },
+  { combo: "Ctrl+Shift+Tab", action: "previousSidePanel" },
 ];
 
 /** Actions that run again while their key is held down. */
@@ -72,7 +85,16 @@ const parseBindings = (bindings: readonly Binding[]): ParsedBinding[] =>
     return parsed ? [{ combo: parsed, action }] : [];
   });
 
-const PARSED_READER_BINDINGS = parseBindings(READER_BINDINGS);
+const parsedTables = new Map<readonly Binding[], ParsedBinding[]>();
+
+const parsedTable = (bindings: readonly Binding[]): ParsedBinding[] => {
+  let table = parsedTables.get(bindings);
+  if (!table) {
+    table = parseBindings(bindings);
+    parsedTables.set(bindings, table);
+  }
+  return table;
+};
 
 /**
  * Finds the action bound to an input: an exact match first (so a Shift binding wins), then, for an
@@ -86,7 +108,7 @@ export const findAction = (
   input: Combo,
   bindings: readonly Binding[] = READER_BINDINGS,
 ): ReaderAction | null => {
-  const table = bindings === READER_BINDINGS ? PARSED_READER_BINDINGS : parseBindings(bindings);
+  const table = parsedTable(bindings);
   const exact = table.find((b) => sameCombo(b.combo, input));
   if (exact) {
     return exact.action;

@@ -26,6 +26,21 @@ describe("SidePanelHeader", () => {
     expect(store.getState().settings.layout.sidePane.isHidden).toBe(true);
   });
 
+  it("hides the pane and returns focus when the close button is pressed with Enter", async () => {
+    const { store } = renderWithProviders(
+      <div data-side-pane="">
+        <SidePanelHeader title="Test Title" />
+      </div>,
+    );
+    const closeButton = screen.getByRole("button");
+    closeButton.focus();
+
+    await user.keyboard("{Enter}");
+
+    expect(store.getState().settings.layout.sidePane.isHidden).toBe(true);
+    expect(closeButton).not.toHaveFocus();
+  });
+
   it("renders the panel's actions before the close button", () => {
     renderWithProviders(
       <SidePanelHeader title="History" actions={<button type="button">Act</button>} />,
