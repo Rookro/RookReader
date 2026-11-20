@@ -95,8 +95,8 @@ In the side panel:
 - `Up Arrow` / `Down Arrow`, `Home` / `End` and `Page Up` / `Page Down` move through the panel's list. `Enter` does what a click on the entry does (open the book, or go to the page or bookmark) and returns to the reader.
 - In the File Navigator, `Right Arrow` enters a folder or a zip/cbz/rar/cbr archive, like a double-click, and `Left Arrow` goes up to the parent folder.
 - In a search box, `Esc` first clears the text; in the File Navigator's path box, it first undoes your edit. The next `Esc` returns to the reader.
-- In History and Bookmarks, the `Menu` key or `Shift+F10` opens the entry's right-click menu next to it. After you choose an item or close the menu with `Esc`, you are back in the list, except after **Open** or **Jump**, which return to the reader. The **Rename** dialog, used from the keyboard, also brings you back to the bookmark.
-- The highlighted entry shows the same tooltip as when you point at it.
+- In History and Bookmarks, the `Menu` key or `Shift+F10` opens the entry's right-click menu next to it. After you choose an item with the keyboard or close the menu with `Esc` or `Tab`, you are back in the list, except after **Open** or **Jump**, which return to the reader; a click on the menu or outside it also returns to the reader. The **Rename** dialog, used from the keyboard, also brings you back to the bookmark.
+- In the File Navigator, Pages and History, the highlighted entry shows the same tooltip as when you point at it.
 - The reader's shortcuts do not work while the side panel has focus, so `Space` and the arrow keys do not turn the page.
 
 ## Page Display
