@@ -300,6 +300,43 @@ describe("BookmarkViewer", () => {
       expect(activeOption()).toHaveTextContent(/Duel|The duel/);
     });
 
+    it("confirms a rename with Enter in the name field", async () => {
+      givenBookmarks(threeBookmarks());
+      renderInPane();
+
+      await openRenameFromKeyboard();
+      await user.clear(screen.getByLabelText("Name"));
+      await user.type(screen.getByLabelText("Name"), "Duel{Enter}");
+
+      expect(api.renameBookmark).toHaveBeenCalledExactlyOnceWith(2, "Duel");
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+      expect(screen.getByRole("listbox")).toHaveFocus();
+    });
+
+    it("ignores Enter in the name field while it is blank", async () => {
+      givenBookmarks(threeBookmarks());
+      renderInPane();
+
+      await openRenameFromKeyboard();
+      await user.clear(screen.getByLabelText("Name"));
+      await user.type(screen.getByLabelText("Name"), "  {Enter}");
+
+      expect(api.renameBookmark).not.toHaveBeenCalled();
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+    });
+
+    it("ignores Enter in the name field while an IME is composing", async () => {
+      givenBookmarks(threeBookmarks());
+      renderInPane();
+
+      await openRenameFromKeyboard();
+      const input = screen.getByLabelText("Name");
+      fireEvent.keyDown(input, { key: "Enter", isComposing: true });
+
+      expect(api.renameBookmark).not.toHaveBeenCalled();
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+    });
+
     it("returns to the list after the rename dialog is cancelled with Escape", async () => {
       givenBookmarks(threeBookmarks());
       renderInPane();

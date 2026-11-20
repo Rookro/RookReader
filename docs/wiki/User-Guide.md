@@ -145,7 +145,7 @@ Choose a mode under **Settings → Reader → Auto-open Adjacent Book**:
 Save any number of positions in a book and jump back to them later.
 
 - **Add a bookmark**: press the **bookmark button** in the top app bar. The bookmark is named after the page number (for novels, after the section title when the book provides one). Press the button again on a bookmarked position to remove it.
-- **Use bookmarks**: open the **Bookmarks** tab in the side pane. Click a bookmark to go to it; right-click one for **Jump**, **Rename** and **Remove bookmark**.
+- **Use bookmarks**: open the **Bookmarks** tab in the side pane. Click a bookmark to go to it; right-click one for **Jump**, **Rename** and **Remove bookmark**. In the **Rename** dialog, `Enter` confirms the new name.
 - Bookmarks work for both comics and EPUB novels. In a novel a bookmark returns you to the exact position in the text.
 
 > [!NOTE]

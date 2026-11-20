@@ -28,6 +28,7 @@ import {
   useSidePaneFocus,
 } from "../../../SidePane/SidePaneFocusContext";
 import { removeBookmark, updateBookmarkName } from "../../bookmarkSlice";
+import { isComposing } from "../../input/guards";
 import { setImageIndex, setNovelLocation } from "../../slice";
 import { ItemRow } from "./ItemRow";
 
@@ -142,14 +143,33 @@ export default function BookmarkViewer() {
     setRenameText(e.target.value);
   }, []);
 
-  const handleRenameConfirmed = useCallback(
-    (e: React.MouseEvent<HTMLElement>) => {
+  const confirmRename = useCallback(
+    (byKeyboard: boolean) => {
       if (renameTarget) {
         dispatch(updateBookmarkName({ id: renameTarget.bookmark.id, name: renameText }));
       }
-      closeRenameDialog(e.detail === 0);
+      closeRenameDialog(byKeyboard);
     },
     [dispatch, renameTarget, renameText, closeRenameDialog],
+  );
+
+  const handleRenameConfirmed = useCallback(
+    (e: React.MouseEvent<HTMLElement>) => {
+      confirmRename(e.detail === 0);
+    },
+    [confirmRename],
+  );
+
+  // Enter confirms as OK does, and only when OK is enabled.
+  const handleRenameKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      if (e.key !== "Enter" || isComposing(e.nativeEvent) || renameText.trim().length === 0) {
+        return;
+      }
+      e.preventDefault();
+      confirmRename(true);
+    },
+    [confirmRename, renameText],
   );
 
   return (
@@ -201,6 +221,7 @@ export default function BookmarkViewer() {
             label={t("book-reader.bookmark-viewer.rename-dialog.name-label")}
             value={renameText}
             onChange={handleRenameTextChanged}
+            onKeyDown={handleRenameKeyDown}
           />
         </DialogContent>
         <DialogActions>
