@@ -1,6 +1,7 @@
 import AccessTime from "@mui/icons-material/AccessTime";
 import Add from "@mui/icons-material/Add";
 import Home from "@mui/icons-material/Home";
+import LibraryAddOutlined from "@mui/icons-material/LibraryAddOutlined";
 import Search from "@mui/icons-material/Search";
 import Settings from "@mui/icons-material/Settings";
 import Sort from "@mui/icons-material/Sort";
@@ -22,14 +23,17 @@ import {
   Typography,
 } from "@mui/material";
 import { debug } from "@tauri-apps/plugin-log";
-import { type ChangeEvent, useCallback, useMemo, useState } from "react";
+import { type ChangeEvent, useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import DropOverlay from "../../../components/ui/DropOverlay";
+import { useWindowDrop } from "../../../hooks/useWindowDrop";
 import { useAppDispatch, useAppSelector } from "../../../store/store";
 import type { SortOrder } from "../../../types/AppSettings";
 import { openSettingsWindow } from "../../../utils/WindowOpener";
 import { updateSettings } from "../../Settings/slice";
+import { useAddBooksToBookshelf } from "../hooks/useAddBooksToBookshelf";
 import { setSelectedSeriesId } from "../seriesSlice";
-import { addBookToBookshelf, setSearchText } from "../slice";
+import { setSearchText } from "../slice";
 import { useBookshelfActions } from "./BookshelfActionsContext";
 import BookAdditionToBookshelfDialog from "./Dialog/BookAdditionToBookshelfDialog";
 
@@ -39,7 +43,6 @@ export default function BookshelfToolbar() {
   const dispatch = useAppDispatch();
   const bookshelfSettings = useAppSelector((state) => state.settings.bookshelf);
   const searchText = useAppSelector((state) => state.collection.searchText);
-  const collectionId = useAppSelector((state) => state.collection.selectedId);
   const { selectedId: selectedSeriesId, series } = useAppSelector((state) => state.series);
   const { openEditSeriesOrderDialog } = useBookshelfActions();
 
@@ -91,21 +94,40 @@ export default function BookshelfToolbar() {
     }
   }, [openEditSeriesOrderDialog, selectedSeriesId]);
 
+  const addBooks = useAddBooksToBookshelf();
   const handleAddBooks = useCallback(
     (paths: string[]) => {
-      paths.forEach((bookPath) => {
-        dispatch(addBookToBookshelf({ collectionId, bookPath }));
-      });
+      void addBooks(paths);
     },
-    [dispatch, collectionId],
+    [addBooks],
   );
+
+  const activeView = useAppSelector((state) => state.view.activeView);
+  const collectionId = useAppSelector((state) => state.collection.selectedId);
+  const collections = useAppSelector((state) => state.collection.collections);
+  // While the Add books dialog is open, it takes the drop itself.
+  const takesDrop = activeView === "bookshelf" && !isAddBookDialogOpen;
+  const handleDropped = useCallback(
+    (paths: string[]) => {
+      if (takesDrop) {
+        void addBooks(paths);
+      }
+    },
+    [takesDrop, addBooks],
+  );
+  const isDragging = useWindowDrop(handleDropped);
+  const dropTargetName =
+    collections.find((collection) => collection.id === collectionId)?.name ??
+    t("bookshelf.collection.all-books");
 
   const handleContextMenu = useCallback((e: React.MouseEvent<HTMLElement>) => {
     e.stopPropagation();
   }, []);
 
+  const toolbarRef = useRef<HTMLDivElement>(null);
+
   return (
-    <Stack>
+    <Stack ref={toolbarRef}>
       <Toolbar variant="dense" disableGutters sx={{ minHeight: "40px" }}>
         <OutlinedInput
           type="search"
@@ -236,6 +258,17 @@ export default function BookshelfToolbar() {
         open={isAddBookDialogOpen}
         onClose={() => setIsAddBookDialogOpen(false)}
         onAddBooks={handleAddBooks}
+      />
+      <DropOverlay
+        open={isDragging && takesDrop}
+        message={
+          selectedSeriesId !== null
+            ? t("bookshelf.drop-to-add-to-series", { name: selectedSeries?.name ?? "" })
+            : t("bookshelf.drop-to-add", { name: dropTargetName })
+        }
+        icon={LibraryAddOutlined}
+        // Sits below the toolbar rows, over the book grid only.
+        sx={{ top: toolbarRef.current?.offsetHeight ?? 0 }}
       />
     </Stack>
   );

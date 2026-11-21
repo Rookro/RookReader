@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import i18n from "../../i18n/config";
 import { ErrorCode } from "../../types/Error";
 import type { ErrorContext } from "../../types/ErrorContext";
-import { formatErrorMessage } from "./errorMessages";
+import { formatErrorMessage, formatErrorReason } from "./errorMessages";
 
 /** Formats in `language` regardless of the language the app is currently set to. */
 const format = (language: string, context: ErrorContext, code: ErrorCode) =>
@@ -46,6 +46,20 @@ describe("formatErrorMessage", () => {
   it("falls back to the code number for an internal failure", () => {
     expect(format("ja-JP", "bookshelf", ErrorCode.other)).toBe(
       "本棚の操作でエラーが発生しました。(エラーコード: 90001)",
+    );
+  });
+});
+
+describe("formatErrorReason", () => {
+  it("gives only the reason, without a headline", () => {
+    expect(formatErrorReason(i18n.getFixedT("en-US"), ErrorCode.emptyContainer)).toBe(
+      "The book contains no readable pages.",
+    );
+  });
+
+  it("names the code when there is no reason to give", () => {
+    expect(formatErrorReason(i18n.getFixedT("en-US"), ErrorCode.other)).toBe(
+      `(Error code: ${ErrorCode.other})`,
     );
   });
 });

@@ -1,7 +1,9 @@
 import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { api } from "../../../bindings/api";
 import i18n from "../../../i18n/config";
+import { createMockCollection } from "../../../test/factories";
 import {
   createBasePreloadedState,
   mockSettingsCommands,
@@ -16,6 +18,36 @@ import BookshelfToolbar from "./BookshelfToolbar";
 vi.mock("../../../utils/WindowOpener", () => ({
   openSettingsWindow: vi.fn(),
 }));
+
+type DragDropHandlers = Parameters<
+  typeof import("../../../hooks/useDragDropEvent").useDragDropEvent
+>[0];
+
+const { listeners } = vi.hoisted(() => ({ listeners: new Set<DragDropHandlers>() }));
+
+vi.mock("../../../hooks/useDragDropEvent", async () => {
+  const { useEffect } = await import("react");
+  return {
+    useDragDropEvent: (handlers: DragDropHandlers) => {
+      useEffect(() => {
+        listeners.add(handlers);
+        return () => {
+          listeners.delete(handlers);
+        };
+      }, [handlers]);
+    },
+  };
+});
+
+/** Sends a drag-drop event to every listener, like the window does. */
+const windowEvent = (type: "over" | "drop" | "leave", paths: string[] = []) =>
+  act(() => {
+    for (const handlers of listeners) {
+      if (type === "over") handlers.onDrag?.();
+      if (type === "drop") handlers.onDrop?.(paths);
+      if (type === "leave") handlers.onLeave?.();
+    }
+  });
 
 describe("BookshelfToolbar", () => {
   const user = userEvent.setup();
@@ -230,5 +262,80 @@ describe("BookshelfToolbar", () => {
     await waitFor(() =>
       expect(screen.getByRole("combobox")).toHaveTextContent(i18n.t("bookshelf.sort.date-asc")),
     );
+  });
+
+  describe("dropping books", () => {
+    const onBookshelf = (collectionId: number | null = 3) => {
+      const preloadedState = createBasePreloadedState();
+      preloadedState.view.activeView = "bookshelf";
+      preloadedState.collection.collections = [createMockCollection({ id: 3, name: "Manga" })];
+      preloadedState.collection.selectedId = collectionId;
+      return preloadedState;
+    };
+
+    it("adds books dropped on the bookshelf to the collection shown", async () => {
+      vi.mocked(api.registerBook).mockResolvedValue(7);
+      renderWithProviders(navigationBar, { preloadedState: onBookshelf() });
+
+      await windowEvent("drop", ["/a.zip"]);
+
+      await waitFor(() => expect(api.addBookToCollection).toHaveBeenCalledWith(3, 7));
+      expect(await screen.findByText("Added 1 book.")).toBeInTheDocument();
+    });
+
+    it("leaves a drop to the Add books dialog while it is open", async () => {
+      renderWithProviders(navigationBar, { preloadedState: onBookshelf() });
+      await user.click(screen.getByText(i18n.t("bookshelf.add-books")));
+
+      await windowEvent("drop", ["/a.zip"]);
+
+      expect(await screen.findByText("/a.zip")).toBeInTheDocument();
+      expect(api.registerBook).not.toHaveBeenCalled();
+    });
+
+    it("ignores drops while the reader is shown", async () => {
+      renderWithProviders(navigationBar, { preloadedState: createBasePreloadedState() });
+
+      await windowEvent("drop", ["/a.zip"]);
+
+      expect(api.registerBook).not.toHaveBeenCalled();
+    });
+
+    it("shows where a drop goes while something is dragged over the bookshelf", async () => {
+      renderWithProviders(navigationBar, { preloadedState: onBookshelf() });
+
+      await windowEvent("over");
+      expect(screen.getByText('Drop to add to "Manga"')).toBeInTheDocument();
+
+      await windowEvent("leave");
+      expect(screen.queryByText('Drop to add to "Manga"')).not.toBeInTheDocument();
+    });
+
+    it("names All Books as the target when no collection is chosen", async () => {
+      renderWithProviders(navigationBar, { preloadedState: onBookshelf(null) });
+
+      await windowEvent("over");
+
+      expect(screen.getByText('Drop to add to "All Books"')).toBeInTheDocument();
+    });
+
+    it("adds books dropped while a series is open to that series", async () => {
+      vi.mocked(api.registerBook).mockResolvedValue(7);
+      const preloadedState = onBookshelf();
+      preloadedState.series = {
+        series: [{ id: 5, name: "Saga", createdAt: "2026-03-01T15:30:00Z" }],
+        selectedId: 5,
+        books: [],
+        status: "idle",
+      };
+      renderWithProviders(navigationBar, { preloadedState });
+
+      await windowEvent("over");
+      expect(screen.getByText('Drop to add to the series "Saga"')).toBeInTheDocument();
+
+      await windowEvent("drop", ["/a.zip"]);
+
+      await waitFor(() => expect(api.setSeriesForBook).toHaveBeenCalledWith(7, 5));
+    });
   });
 });

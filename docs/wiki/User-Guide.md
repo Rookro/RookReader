@@ -24,7 +24,7 @@ We provide various packages on the Releases page depending on your distribution:
 
 You can open comic archives (**zip, cbz, rar, cbr**), PDF documents, EPUB files, and **directories (folders) containing image sequences** by:
 - **Single-clicking** a file or folder in the File Navigator (left pane). A folder of images opens as a book.
-- **Dragging and dropping** a file or a folder directly onto the application window. This is especially useful for quickly viewing a folder full of downloaded manga or comic images without needing to archive them first.
+- **Dragging and dropping** a file or a folder directly onto the application window while the reader is shown (on the bookshelf, a drop adds the book instead; see *Bookshelf Management*). This is especially useful for quickly viewing a folder full of downloaded manga or comic images without needing to archive them first. While you drag, the window shows that the drop opens the book in the reader.
 
 **Double-clicking** a folder in the File Navigator enters it instead of opening it. The same works for zip/cbz/rar/cbr archives: double-click an archive to step into it like a folder and browse the folders inside. The File Navigator's own **Back**, **Forward**, **Up one level** buttons and path box all work across the archive boundary.
 
@@ -157,7 +157,7 @@ Press **Move to Bookshelf** in the reader's top app bar to open the **Bookshelve
 
 - **Create a collection**: press **New collection** next to the *Collections* heading and give it a name and a custom icon.
 - **Choose a book's collections** with **Set collections** (right-click a book, or select several books first). The collections the book is already in are checked; uncheck one to take the book out of it. With several books selected, a collection that only some of them are in is shown as partly checked; leave it that way to keep it as it is on each book. Press **New collection** below the list to create a collection without leaving the dialog; it is checked, so **OK** adds the books to it.
-- **Add books**: press **Add books** in the top bar, then **drag and drop** files and folders from your computer onto the dialog or press **Select files**. Added books appear in the current collection (or in *All Books*).
+- **Add books**: drop files and folders from your computer onto the bookshelf, or press **Add books** in the top bar and drop them onto the dialog or press **Select files**. While you drag, the window shows which collection the books go to. While a series is open, dropped books are also put in that series, at its end in the order dropped; a book from another series moves to this one. Added books appear in the current collection (or in *All Books*); a folder is added as one book of images. A notification tells how many were added, and why any could not be.
 - **Sort and search**: type in the search box to filter by title (right-click the box for cut/copy/paste), and choose **Sort by** Name (A→Z / Z→A) or Date (Oldest / Newest first). **Change grid size** switches between small, medium and large covers.
 - **Select several books**: **Ctrl/Cmd+click** toggles a book, **Shift+click** selects a range. The action bar that appears lets you **Set collections**, **Set series**, **Set tags** or **Remove books** for the whole selection at once. Switching collection, tag, series or search clears the selection.
 - **Right-click a book** for the same actions on a single book.
