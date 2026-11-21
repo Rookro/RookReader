@@ -92,6 +92,7 @@
   "bookshelf": {
     "title": "本棚",
     "drop-to-add": "ドロップして「{{name}}」に追加",
+    "drop-to-add-to-series": "ドロップしてシリーズ「{{name}}」に追加",
     "delete": "削除",
     "remove-book_one": "本を削除",
     "remove-book_other": "本を削除",

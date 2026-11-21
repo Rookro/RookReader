@@ -258,7 +258,11 @@ export default function BookshelfToolbar() {
       />
       <DropOverlay
         open={isDragging && takesDrop}
-        message={t("bookshelf.drop-to-add", { name: dropTargetName })}
+        message={
+          selectedSeriesId !== null
+            ? t("bookshelf.drop-to-add-to-series", { name: selectedSeries?.name ?? "" })
+            : t("bookshelf.drop-to-add", { name: dropTargetName })
+        }
       />
     </Stack>
   );

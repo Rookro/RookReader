@@ -215,7 +215,7 @@ describe("CollectionReducer", () => {
       ],
       [
         "addBooksToBookshelf",
-        addBooksToBookshelf.pending("r", { collectionId: 1, paths: ["/b.zip"] }),
+        addBooksToBookshelf.pending("r", { collectionId: 1, seriesId: null, paths: ["/b.zip"] }),
       ],
       ["removeCollection", removeCollection.pending("r", 1)],
       ["fetchCollections", fetchCollections.pending("r")],
@@ -435,7 +435,7 @@ describe("CollectionReducer", () => {
         vi.mocked(api.registerBook).mockResolvedValueOnce(10).mockResolvedValueOnce(11);
 
         const action = await store.dispatch(
-          addBooksToBookshelf({ collectionId: 1, paths: ["/a.zip", "/b"] }),
+          addBooksToBookshelf({ collectionId: 1, seriesId: null, paths: ["/a.zip", "/b"] }),
         );
 
         expect(action.payload).toEqual({ added: 2, failures: [] });
@@ -449,7 +449,9 @@ describe("CollectionReducer", () => {
       it("addBooksToBookshelf only registers the books with no collection", async () => {
         vi.mocked(api.registerBook).mockResolvedValue(10);
 
-        await store.dispatch(addBooksToBookshelf({ collectionId: null, paths: ["/a.zip"] }));
+        await store.dispatch(
+          addBooksToBookshelf({ collectionId: null, seriesId: null, paths: ["/a.zip"] }),
+        );
 
         expect(api.registerBook).toHaveBeenCalledWith("/a.zip");
         expect(api.addBookToCollection).not.toHaveBeenCalled();
@@ -462,7 +464,11 @@ describe("CollectionReducer", () => {
           .mockRejectedValueOnce(new Error("boom"));
 
         const action = await store.dispatch(
-          addBooksToBookshelf({ collectionId: null, paths: ["/a.zip", "/zips", "/c.txt"] }),
+          addBooksToBookshelf({
+            collectionId: null,
+            seriesId: null,
+            paths: ["/a.zip", "/zips", "/c.txt"],
+          }),
         );
 
         expect(action.payload).toEqual({
@@ -471,6 +477,75 @@ describe("CollectionReducer", () => {
         });
         // Reported together by the caller, not one error notification per path.
         expect(store.getState().errorNotification.pending).toEqual([]);
+      });
+
+      it("addBooksToBookshelf puts the added books in the series in the order dropped", async () => {
+        const ids: Record<string, number> = { "/a.zip": 10, "/b.zip": 11, "/c.zip": 12 };
+        // "/a.zip" is registered last.
+        vi.mocked(api.registerBook).mockImplementation(
+          (path) =>
+            new Promise((resolve) =>
+              setTimeout(() => resolve(ids[path]), path === "/a.zip" ? 20 : 0),
+            ),
+        );
+
+        await store.dispatch(
+          addBooksToBookshelf({
+            collectionId: 1,
+            seriesId: 7,
+            paths: ["/a.zip", "/b.zip", "/c.zip"],
+          }),
+        );
+
+        expect(vi.mocked(api.setSeriesForBook).mock.calls).toEqual([
+          [10, 7],
+          [11, 7],
+          [12, 7],
+        ]);
+      });
+
+      it("addBooksToBookshelf does not put a book that could not be registered in the series", async () => {
+        vi.mocked(api.registerBook)
+          .mockResolvedValueOnce(10)
+          .mockRejectedValueOnce(new CommandError(ErrorCode.emptyContainer, "empty"))
+          .mockResolvedValueOnce(12);
+
+        const action = await store.dispatch(
+          addBooksToBookshelf({
+            collectionId: null,
+            seriesId: 7,
+            paths: ["/a.zip", "/zips", "/c.zip"],
+          }),
+        );
+
+        expect(action.payload).toEqual({ added: 2, failures: [ErrorCode.emptyContainer] });
+        expect(vi.mocked(api.setSeriesForBook).mock.calls).toEqual([
+          [10, 7],
+          [12, 7],
+        ]);
+      });
+
+      it("addBooksToBookshelf counts a book that could not be put in the series as not added", async () => {
+        vi.mocked(api.registerBook).mockResolvedValueOnce(10).mockResolvedValueOnce(11);
+        vi.mocked(api.setSeriesForBook).mockRejectedValueOnce(
+          new CommandError(ErrorCode.database, "db"),
+        );
+
+        const action = await store.dispatch(
+          addBooksToBookshelf({ collectionId: null, seriesId: 7, paths: ["/a.zip", "/b.zip"] }),
+        );
+
+        expect(action.payload).toEqual({ added: 1, failures: [ErrorCode.database] });
+      });
+
+      it("addBooksToBookshelf makes no series call without a series", async () => {
+        vi.mocked(api.registerBook).mockResolvedValueOnce(10);
+
+        await store.dispatch(
+          addBooksToBookshelf({ collectionId: 1, seriesId: null, paths: ["/a.zip"] }),
+        );
+
+        expect(api.setSeriesForBook).not.toHaveBeenCalled();
       });
 
       // Verify state update when removing a book from the collection

@@ -318,5 +318,24 @@ describe("BookshelfToolbar", () => {
 
       expect(screen.getByText('Drop to add to "All Books"')).toBeInTheDocument();
     });
+
+    it("adds books dropped while a series is open to that series", async () => {
+      vi.mocked(api.registerBook).mockResolvedValue(7);
+      const preloadedState = onBookshelf();
+      preloadedState.series = {
+        series: [{ id: 5, name: "Saga", createdAt: "2026-03-01T15:30:00Z" }],
+        selectedId: 5,
+        books: [],
+        status: "idle",
+      };
+      renderWithProviders(navigationBar, { preloadedState });
+
+      await windowEvent("over");
+      expect(screen.getByText('Drop to add to the series "Saga"')).toBeInTheDocument();
+
+      await windowEvent("drop", ["/a.zip"]);
+
+      await waitFor(() => expect(api.setSeriesForBook).toHaveBeenCalledWith(7, 5));
+    });
   });
 });

@@ -92,6 +92,7 @@
   "bookshelf": {
     "title": "Bookshelves",
     "drop-to-add": "Drop to add to \"{{name}}\"",
+    "drop-to-add-to-series": "Drop to add to the series \"{{name}}\"",
     "delete": "Delete",
     "remove-book_one": "Remove book",
     "remove-book_other": "Remove books",

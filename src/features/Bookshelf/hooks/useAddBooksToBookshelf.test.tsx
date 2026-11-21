@@ -36,6 +36,19 @@ describe("useAddBooksToBookshelf", () => {
     expect(api.addBookToCollection).toHaveBeenCalledWith(5, 7);
   });
 
+  it("puts the books in the series shown", async () => {
+    vi.mocked(api.registerBook).mockResolvedValue(3);
+    const preloadedState = createBasePreloadedState();
+    preloadedState.series.selectedId = 7;
+    const addBooks = renderHook(() => useAddBooksToBookshelf(), {
+      wrapper: createTestWrapper({ preloadedState }),
+    }).result;
+
+    await act(() => addBooks.current(["/a.zip"]));
+
+    expect(api.setSeriesForBook).toHaveBeenCalledWith(3, 7);
+  });
+
   it("lists why the others could not be added", async () => {
     vi.mocked(api.registerBook)
       .mockResolvedValueOnce(1)

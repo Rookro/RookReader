@@ -6,7 +6,8 @@ import { useAppDispatch, useAppSelector } from "../../../store/store";
 import { addBooksToBookshelf } from "../slice";
 
 /**
- * Adds books to the collection shown and tells the user how it went.
+ * Adds books to the collection shown — and to the series shown, if one is open — and tells
+ * the user how it went.
  *
  * @returns A function taking the paths to add; it resolves once the result is shown.
  */
@@ -14,6 +15,7 @@ export function useAddBooksToBookshelf() {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const collectionId = useAppSelector((state) => state.collection.selectedId);
+  const seriesId = useAppSelector((state) => state.series.selectedId);
   const { showNotification } = useNotification();
 
   return useCallback(
@@ -21,7 +23,7 @@ export function useAddBooksToBookshelf() {
       if (paths.length === 0) {
         return;
       }
-      const action = await dispatch(addBooksToBookshelf({ collectionId, paths }));
+      const action = await dispatch(addBooksToBookshelf({ collectionId, seriesId, paths }));
       // Narrows the action; the thunk does not reject for a single path.
       if (!addBooksToBookshelf.fulfilled.match(action)) {
         return;
@@ -41,6 +43,6 @@ export function useAddBooksToBookshelf() {
       const reasons = new Set(failures.map((code) => formatErrorReason(t, code)));
       showNotification([headline, ...reasons].join("\n"), "error");
     },
-    [collectionId, dispatch, showNotification, t],
+    [collectionId, seriesId, dispatch, showNotification, t],
   );
 }

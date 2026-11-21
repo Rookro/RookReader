@@ -104,6 +104,7 @@ export interface BookAdditionResult {
  * instead of failing on the first.
  *
  * @param collectionId - The collection to add the books to, or null for the library only.
+ * @param seriesId - The series to put the added books in, at its end in the order of paths, or null.
  * @param paths - The files and folders to add; a folder is one book.
  * @returns A thunk that resolves to what was added.
  */
@@ -111,9 +112,11 @@ export const addBooksToBookshelf = createCommandThunk(
   "collection/addBooksToBookshelf",
   async ({
     collectionId,
+    seriesId,
     paths,
   }: {
     collectionId: number | null;
+    seriesId: number | null;
     paths: string[];
   }): Promise<BookAdditionResult> => {
     const results = await Promise.allSettled(
@@ -122,15 +125,29 @@ export const addBooksToBookshelf = createCommandThunk(
         if (collectionId !== null) {
           await api.addBookToCollection(collectionId, bookId);
         }
+        return bookId;
       }),
     );
-    const failures = results.flatMap((result, i) => {
-      if (result.status === "fulfilled") {
-        return [];
+    const toCode = (reason: unknown) =>
+      reason instanceof CommandError ? reason.code : ErrorCode.other;
+    const failures: ErrorCode[] = [];
+    for (const [i, result] of results.entries()) {
+      if (result.status === "rejected") {
+        error(`Failed to add the book(${paths[i]}) to the bookshelf: ${String(result.reason)}`);
+        failures.push(toCode(result.reason));
+        continue;
       }
-      error(`Failed to add the book(${paths[i]}) to the bookshelf: ${String(result.reason)}`);
-      return [result.reason instanceof CommandError ? result.reason.code : ErrorCode.other];
-    });
+      if (seriesId === null) {
+        continue;
+      }
+      // One at a time: each call appends at the series' end.
+      try {
+        await api.setSeriesForBook(result.value, seriesId);
+      } catch (reason) {
+        error(`Failed to put the book(${paths[i]}) in the series(${seriesId}): ${String(reason)}`);
+        failures.push(toCode(reason));
+      }
+    }
     return { added: paths.length - failures.length, failures };
   },
   ({ collectionId }) => `Failed to add books to the collection of collectionId: ${collectionId}.`,
