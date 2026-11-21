@@ -3,6 +3,9 @@ name: Build application
 on:
   workflow_dispatch:
   pull_request:
+  # Runs on develop save the Rust cache that pull requests restore.
+  push:
+    branches: [develop]
 
 jobs:
   build-application:
@@ -85,6 +88,7 @@ jobs:
         with:
           workspaces: "src-tauri -> target"
           shared-key: "cache-for-build-app-actions"
+          save-if: ${{ github.ref == 'refs/heads/develop' }}
 
       - name: Install frontend dependencies
         run: npm ci
@@ -127,7 +131,7 @@ jobs:
       - name: Build and upload artifacts.
         uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # action-v1.0.0
         with:
-          uploadWorkflowArtifacts: true
+          uploadWorkflowArtifacts: ${{ github.event_name != 'push' }}
           # tauri.conf.json enables updater artifacts, which cannot be built
           # without the signing key. PR builds must not have that key.
           args: '--config {"bundle":{"createUpdaterArtifacts":false}}'
