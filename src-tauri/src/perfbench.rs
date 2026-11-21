@@ -31,7 +31,7 @@ use crate::{
     },
     page::{
         cache::Cache,
-        pipeline::Pipeline,
+        pipeline::{Fit, Pipeline},
         service::{PageService, Priority},
     },
 };
@@ -234,10 +234,10 @@ fn build_pdf(dir: &Path, pages: &[Vec<u8>]) -> PathBuf {
     };
 
     let path = dir.join("bench.pdf");
-    let lib = pdfium_lib_path();
-    let bindings = Pdfium::bind_to_library(Pdfium::pdfium_platform_library_name_at_path(&lib))
-        .expect("bind pdfium");
-    let pdfium = Pdfium::new(bindings);
+    // pdfium-render binds the library once per process, and a bind after that fails, so
+    // the worker binds first (a request returns only once it has) and this reuses it.
+    let _ = crate::container::pdf_worker::worker(&Some(pdfium_lib_path())).page_count("");
+    let pdfium = Pdfium::default();
     let mut doc = pdfium.create_new_pdf().expect("create pdf");
     let size = PdfPagePaperSize::a4();
     let (w, h) = (size.width(), size.height());
@@ -268,14 +268,35 @@ const PIPELINE: Pipeline = Pipeline {
     resize_method: ResizeFilter::Bilinear,
 };
 
+/// A viewer's pipeline: pages fitted to a `VIEWPORT_W`x`VIEWPORT_H` box with the shipped
+/// default filter.
+const FITTED: Pipeline = Pipeline {
+    display: Some(Fit {
+        width: VIEWPORT_W,
+        height: VIEWPORT_H,
+    }),
+    max_image_height: 0,
+    resize_method: ResizeFilter::Lanczos3,
+};
+
 /// One page, read and prepared exactly as a `PageService` worker prepares it.
 fn page(container: &Arc<dyn Container>, entry: &str) -> Arc<Image> {
+    page_with(&PIPELINE, PIPELINE.fit(), container, entry)
+}
+
+/// [`page`] through `pipeline`, fitted into `fit`.
+fn page_with(
+    pipeline: &Pipeline,
+    fit: Fit,
+    container: &Arc<dyn Container>,
+    entry: &str,
+) -> Arc<Image> {
     let bytes = container
         .open_reader()
         .expect("open reader")
         .read_page(entry)
         .expect("read page");
-    PIPELINE.page(bytes, PIPELINE.fit()).expect("decode page")
+    pipeline.page(bytes, fit).expect("decode page")
 }
 
 /// Every page's dimensions through one reader — the shape `PageService::dimensions` uses.
@@ -776,6 +797,18 @@ fn perfbench_report() {
     let p_img = bench("read_page (1 page: render + encode)", 10, || {
         page(&p, &p_entries[7])
     });
+    let mut p_reader = p.open_reader().expect("open reader");
+    bench("read_page alone (1 page)", 10, || {
+        p_reader.read_page(&p_entries[7]).expect("read page")
+    });
+    bench("read_page + pipeline, fitted 1000x1440 Lanczos3", 10, || {
+        page_with(&FITTED, FITTED.fit(), &p, &p_entries[7])
+    });
+    println!(
+        "  => encoded {} KiB unbounded, {} KiB fitted",
+        page(&p, &p_entries[7]).data.len() / 1024,
+        page_with(&FITTED, FITTED.fit(), &p, &p_entries[7]).data.len() / 1024
+    );
     let p_dim = bench("scan (page sizes only)", 5, || scan(&p, &p_entries));
     let p_thumb = bench("thumbnail (1 page)", 10, || thumbnail(&p, &p_entries[7]));
     println!(
