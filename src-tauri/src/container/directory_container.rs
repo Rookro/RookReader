@@ -7,7 +7,7 @@ use std::{
 };
 
 use crate::{
-    container::traits::{Container, PageReader},
+    container::traits::{Container, PageData, PageReader},
     error::{Error, Result},
     image::types::{read_dimensions, Image, ImageDimensions, HEADER_PROBE_BYTES},
 };
@@ -66,11 +66,11 @@ impl DirectoryReader {
 }
 
 impl PageReader for DirectoryReader {
-    fn read_page(&mut self, entry: &str) -> Result<Vec<u8>> {
+    fn read_page(&mut self, entry: &str) -> Result<PageData> {
         // `read` sizes the buffer from the file's metadata, which — unlike an archive's
         // declared size — is what the filesystem itself reports, so one allocation
         // covers the whole page.
-        Ok(std::fs::read(self.resolve(entry)?)?)
+        Ok(PageData::Encoded(std::fs::read(self.resolve(entry)?)?))
     }
 
     fn page_dimensions(&mut self, entry: &str) -> Result<ImageDimensions> {
@@ -178,7 +178,10 @@ mod tests {
             .expect("failed to create DirectoryContainer");
 
         let mut reader = container.open_reader().expect("failed to open a reader");
-        let bytes = reader.read_page("image1.png").expect("read_page failed");
+        let PageData::Encoded(bytes) = reader.read_page("image1.png").expect("read_page failed")
+        else {
+            panic!("a directory page should come back encoded");
+        };
 
         assert_eq!(
             reader.page_dimensions("image1.png").unwrap(),

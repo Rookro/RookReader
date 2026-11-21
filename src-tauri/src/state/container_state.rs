@@ -458,7 +458,7 @@ mod tests {
     #[test]
     fn install_applies_the_current_rendering_settings() {
         use crate::{
-            container::traits::{MockContainer, MockPageReader, PageReader},
+            container::traits::{MockContainer, MockPageReader, PageData, PageReader},
             page::service::Priority,
         };
 
@@ -479,7 +479,7 @@ mod tests {
             let mut reader = MockPageReader::new();
             reader
                 .expect_read_page()
-                .returning(move |_| Ok(page.clone()));
+                .returning(move |_| Ok(PageData::Encoded(page.clone())));
             Ok(Box::new(reader) as Box<dyn PageReader>)
         });
         let mut state = ContainerState::default();

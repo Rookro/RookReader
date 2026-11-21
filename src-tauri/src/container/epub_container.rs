@@ -9,7 +9,7 @@ use rbook::Epub;
 use scraper::{Html, Selector};
 
 use crate::{
-    container::traits::{Container, PageReader, MAX_PAGE_BYTES},
+    container::traits::{Container, PageData, PageReader, MAX_PAGE_BYTES},
     error::{Error, Result},
 };
 
@@ -69,8 +69,8 @@ struct EpubReader {
 }
 
 impl PageReader for EpubReader {
-    fn read_page(&mut self, entry: &str) -> Result<Vec<u8>> {
-        read_resource_bytes(&self.epub, entry)
+    fn read_page(&mut self, entry: &str) -> Result<PageData> {
+        Ok(PageData::Encoded(read_resource_bytes(&self.epub, entry)?))
     }
 }
 
@@ -623,7 +623,10 @@ mod tests {
 
         let mut reader = container.open_reader().expect("failed to open a reader");
 
-        assert_eq!(reader.read_page("image1").unwrap(), DUMMY_PNG_DATA);
+        assert_eq!(
+            reader.read_page("image1").unwrap(),
+            PageData::Encoded(DUMMY_PNG_DATA.to_vec())
+        );
         assert_eq!(
             reader.page_dimensions("cover").unwrap(),
             read_dimensions(DUMMY_PNG_DATA).unwrap()

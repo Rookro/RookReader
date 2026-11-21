@@ -1,3 +1,5 @@
+use image::DynamicImage;
+
 use crate::{
     error::{Error, Result},
     image::types::{read_dimensions, ImageDimensions},
@@ -96,18 +98,29 @@ pub trait Container: Send + Sync + 'static {
     fn open_reader(&self) -> Result<Box<dyn PageReader>>;
 }
 
+/// A page as a reader hands it over.
+#[derive(Debug, PartialEq)]
+pub enum PageData {
+    /// The page's bytes, exactly as the format stores them.
+    Encoded(Vec<u8>),
+    /// Pixels a format rendered itself (PDF), so they need no decode.
+    Decoded(DynamicImage),
+}
+
 /// Reads the pages of one container. Owned by exactly one thread for its whole life.
 ///
 /// A reader may hold non-`Send` state and may keep a cursor between calls, because
 /// nothing else can reach it. Requests within one priority class arrive in ascending
 /// entry order, so a sequential format only ever has to move its cursor forward.
 ///
-/// Every method yields *encoded* bytes, exactly as the format stores or renders them.
+/// Every method yields *encoded* bytes, exactly as the format stores or renders them,
+/// except that a format which renders its pages (PDF) may hand a page back as the
+/// rendered pixels, [`PageData::Decoded`].
 /// Decoding and resizing belong to the caller, so a reader never has to know what the
 /// image will be used for.
 #[cfg_attr(test, automock)]
 pub trait PageReader {
-    /// Reads one page's encoded bytes.
+    /// Reads one page.
     ///
     /// # Arguments
     ///
@@ -115,12 +128,12 @@ pub trait PageReader {
     ///
     /// # Returns
     ///
-    /// The page's bytes, undecoded and unresized.
+    /// The page, unresized: its stored bytes, or the pixels a rendering format produced.
     ///
     /// # Errors
     ///
     /// Returns an `Err` if the entry is not part of this container or cannot be read.
-    fn read_page(&mut self, entry: &str) -> Result<Vec<u8>>;
+    fn read_page(&mut self, entry: &str) -> Result<PageData>;
 
     /// Reads one page's pixel dimensions.
     ///
@@ -139,7 +152,13 @@ pub trait PageReader {
     ///
     /// Returns an `Err` if the entry cannot be read or is not a supported image.
     fn page_dimensions(&mut self, entry: &str) -> Result<ImageDimensions> {
-        Ok(read_dimensions(&self.read_page(entry)?)?)
+        match self.read_page(entry)? {
+            PageData::Encoded(bytes) => Ok(read_dimensions(&bytes)?),
+            PageData::Decoded(image) => Ok(ImageDimensions {
+                width: image.width(),
+                height: image.height(),
+            }),
+        }
     }
 
     /// Reads the encoded bytes of a small stand-in for the page, if the format can produce
@@ -294,5 +313,25 @@ mod tests {
         filled.expect_is_novel().return_const(false);
         let filled: &dyn Container = &filled;
         assert!(!filled.is_empty_book());
+    }
+
+    /// A reader that renders its pages, so `page_dimensions` falls back to the default.
+    struct DecodedReader;
+
+    impl PageReader for DecodedReader {
+        fn read_page(&mut self, _entry: &str) -> Result<PageData> {
+            Ok(PageData::Decoded(DynamicImage::new_rgb8(4, 2)))
+        }
+    }
+
+    #[test]
+    fn the_default_page_dimensions_measure_a_decoded_page() {
+        assert_eq!(
+            DecodedReader.page_dimensions("p").unwrap(),
+            ImageDimensions {
+                width: 4,
+                height: 2
+            }
+        );
     }
 }

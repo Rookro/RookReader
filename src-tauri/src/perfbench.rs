@@ -291,12 +291,12 @@ fn page_with(
     container: &Arc<dyn Container>,
     entry: &str,
 ) -> Arc<Image> {
-    let bytes = container
+    let page = container
         .open_reader()
         .expect("open reader")
         .read_page(entry)
         .expect("read page");
-    pipeline.page(bytes, fit).expect("decode page")
+    pipeline.page(page, fit).expect("decode page")
 }
 
 /// Every page's dimensions through one reader — the shape `PageService::dimensions` uses.
@@ -801,13 +801,18 @@ fn perfbench_report() {
     bench("read_page alone (1 page)", 10, || {
         p_reader.read_page(&p_entries[7]).expect("read page")
     });
-    bench("read_page + pipeline, fitted 1000x1440 Lanczos3", 10, || {
-        page_with(&FITTED, FITTED.fit(), &p, &p_entries[7])
-    });
+    bench(
+        "read_page + pipeline, fitted 1000x1440 Lanczos3",
+        10,
+        || page_with(&FITTED, FITTED.fit(), &p, &p_entries[7]),
+    );
     println!(
         "  => encoded {} KiB unbounded, {} KiB fitted",
         page(&p, &p_entries[7]).data.len() / 1024,
-        page_with(&FITTED, FITTED.fit(), &p, &p_entries[7]).data.len() / 1024
+        page_with(&FITTED, FITTED.fit(), &p, &p_entries[7])
+            .data
+            .len()
+            / 1024
     );
     let p_dim = bench("scan (page sizes only)", 5, || scan(&p, &p_entries));
     let p_thumb = bench("thumbnail (1 page)", 10, || thumbnail(&p, &p_entries[7]));

@@ -4,7 +4,7 @@ use std::sync::Arc;
 use crate::{
     container::{
         pdf_worker::{self, Worker},
-        traits::{Container, PageReader},
+        traits::{Container, PageData, PageReader},
     },
     error::Result,
     image::{
@@ -79,11 +79,12 @@ struct PdfReader {
 }
 
 impl PageReader for PdfReader {
-    fn read_page(&mut self, entry: &str) -> Result<Vec<u8>> {
-        Ok(self
-            .worker
-            .render_page(&self.path, parse_index(entry)?, self.render_config.clone())?
-            .data)
+    fn read_page(&mut self, entry: &str) -> Result<PageData> {
+        Ok(PageData::Encoded(
+            self.worker
+                .render_page(&self.path, parse_index(entry)?, self.render_config.clone())?
+                .data,
+        ))
     }
 
     fn page_dimensions(&mut self, entry: &str) -> Result<ImageDimensions> {
@@ -378,7 +379,9 @@ trailer << /Size 5 /Root 1 0 R >>
         let mut reader = container.open_reader().expect("failed to open a reader");
 
         // The page comes back as encoded bytes, like every other format's.
-        let page = reader.read_page("0000").expect("read_page failed");
+        let PageData::Encoded(page) = reader.read_page("0000").expect("read_page failed") else {
+            panic!("a PDF page should come back encoded");
+        };
         assert!(crate::image::types::read_dimensions(&page).is_ok());
 
         // Measured from the MediaBox, so it costs no render at all.
@@ -432,7 +435,10 @@ trailer << /Size 5 /Root 1 0 R >>
             Some(get_pdfium_lib_path()),
         )
         .unwrap();
-        let page = container.open_reader().unwrap().read_page("0000").unwrap();
+        let PageData::Encoded(page) = container.open_reader().unwrap().read_page("0000").unwrap()
+        else {
+            panic!("a PDF page should come back encoded");
+        };
 
         let measured = crate::image::types::read_dimensions(&page).unwrap();
         assert!(
@@ -576,7 +582,9 @@ trailer << /Size 5 /Root 1 0 R >>
         });
 
         // The original reader is still usable: the library was never unloaded.
-        assert!(!reader.read_page("0000").unwrap().is_empty());
+        assert!(
+            matches!(reader.read_page("0000").unwrap(), PageData::Encoded(bytes) if !bytes.is_empty())
+        );
     }
 
     #[test]
@@ -609,7 +617,9 @@ trailer << /Size 5 /Root 1 0 R >>
         );
 
         for entry in ["0000", "0001"] {
-            assert!(!reader.read_page(entry).unwrap().is_empty());
+            assert!(
+                matches!(reader.read_page(entry).unwrap(), PageData::Encoded(bytes) if !bytes.is_empty())
+            );
             assert!(!reader.read_preview(entry).unwrap().unwrap().is_empty());
         }
     }
