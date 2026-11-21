@@ -1178,6 +1178,7 @@ fn report_transport_formats(name: &str, sources: &[image::DynamicImage], encoded
         .map(|s| {
             crate::image::resizer::shrink_to_fit(s, VIEWPORT_W, VIEWPORT_H, ResizeFilter::Lanczos3)
                 .expect("resize")
+                .into_owned()
         })
         .collect();
     let shrunk = fitted

@@ -119,12 +119,13 @@ impl Pipeline {
     pub fn page(&self, page: PageData, fit: Fit) -> Result<Arc<Image>> {
         let bytes = match page {
             PageData::Encoded(bytes) => bytes,
-            // Checked first: `shrink_to_fit` copies a page that already fits.
+            // Checked first: `into_owned` below would copy a page that already fits.
             PageData::Decoded(image) if fit.holds(image.width(), image.height()) => {
                 return encode_png(&image, None);
             }
             PageData::Decoded(image) => {
-                let scaled = shrink_to_fit(&image, fit.width, fit.height, self.resize_method)?;
+                let scaled =
+                    shrink_to_fit(&image, fit.width, fit.height, self.resize_method)?.into_owned();
                 drop(image);
                 return encode_png(&scaled, None);
             }
@@ -458,7 +459,9 @@ mod tests {
 
         // The bytes the viewer receives must decode back to the resize's own output,
         // pixel for pixel. This is the assertion the old JPEG encoder fails.
-        let expected = shrink_to_fit(&decode(&bytes), 2, 100, ResizeFilter::Bilinear).unwrap();
+        let expected = shrink_to_fit(&decode(&bytes), 2, 100, ResizeFilter::Bilinear)
+            .unwrap()
+            .into_owned();
         assert_eq!(decode(&image.data).to_rgb8(), expected.to_rgb8());
     }
 

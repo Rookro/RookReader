@@ -2,6 +2,7 @@ use crate::error::{Error, Result};
 use fast_image_resize::{ResizeAlg, ResizeOptions, Resizer};
 use image::DynamicImage;
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 use std::cell::RefCell;
 use std::num::NonZeroU32;
 
@@ -206,7 +207,7 @@ pub fn resize_exact(
 ///
 /// # Returns
 ///
-/// Returns a `Result` containing the resized `DynamicImage` on success.
+/// `img` itself, borrowed, when it already fits; otherwise the resized copy.
 ///
 /// # Errors
 ///
@@ -217,7 +218,7 @@ pub fn shrink_to_fit(
     max_width: u32,
     max_height: u32,
     filter: ResizeFilter,
-) -> Result<DynamicImage> {
+) -> Result<Cow<'_, DynamicImage>> {
     let src_width = img.width();
     let src_height = img.height();
 
@@ -233,13 +234,13 @@ pub fn shrink_to_fit(
 
     if ratio >= 1.0 {
         // Image is already smaller than or equal to max dimensions
-        return Ok(img.clone());
+        return Ok(Cow::Borrowed(img));
     }
 
     let target_width = ((src_width as f64 * ratio).round() as u32).max(1);
     let target_height = ((src_height as f64 * ratio).round() as u32).max(1);
 
-    resize_exact(img, target_width, target_height, filter)
+    resize_exact(img, target_width, target_height, filter).map(Cow::Owned)
 }
 
 #[cfg(test)]
@@ -300,5 +301,14 @@ mod tests {
         let thumb2 = shrink_to_fit(&img, 100, u32::MAX, ResizeFilter::Lanczos3).unwrap();
         assert_eq!(thumb2.width(), 100);
         assert_eq!(thumb2.height(), 50);
+    }
+
+    #[test]
+    fn an_image_inside_the_box_is_borrowed_not_copied() {
+        let img = DynamicImage::new_rgb8(40, 20);
+        assert!(matches!(
+            shrink_to_fit(&img, 40, 40, ResizeFilter::Lanczos3).unwrap(),
+            Cow::Borrowed(_)
+        ));
     }
 }
