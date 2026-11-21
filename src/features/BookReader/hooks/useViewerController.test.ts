@@ -1441,6 +1441,13 @@ describe("useViewerController", () => {
       enablePreview: false,
       preloadPageCount: 10,
     };
+    const singlePaged: ImageUtils.ViewerSettings = { ...twoPaged, isTwoPagedView: false };
+
+    /** Pairs like the real chain builder: spreads only in spread view. */
+    const pairBySetting = () =>
+      mockedBuildUnitChain.mockImplementation((landscape, settings) =>
+        settings.isTwoPagedView ? spreadPairs(landscape) : singlePages(landscape),
+      );
 
     beforeEach(() => {
       mockedFetchImageBlob.mockResolvedValue({} as Image);
@@ -1658,6 +1665,184 @@ describe("useViewerController", () => {
           twoPaged,
           twoPaged.isFirstPageSingleView,
         );
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    // Verify a single-page view has nothing to wait for, so it shows the page at once
+    it("shows an unmeasured book's page at once in single-page view", async () => {
+      vi.useFakeTimers();
+      try {
+        vi.mocked(api.getImageDimensions).mockReturnValue(new Promise(() => {}));
+        const { result } = renderHook(() =>
+          useViewerController({
+            containerPath: "path",
+            displaySize: VIEWPORT,
+            entries: mockEntries,
+            index: 0,
+            isSpreadShifted: false,
+            settings: singlePaged,
+            dispatch: mockDispatch,
+            hasPreviews: true,
+          }),
+        );
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(0);
+        });
+        expect(result.current.displayedLayout).not.toBeNull();
+        expect(result.current.isImageLoading).toBe(false);
+
+        // The cap passing later neither re-publishes nor reloads the page.
+        const before = result.current.displayedLayout;
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(1000);
+        });
+        expect(result.current.displayedLayout).toBe(before);
+        expect(mockedFetchImageBlob).toHaveBeenCalledTimes(1);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    // Verify a single-page view still measures the book for later and leaves the page alone
+    it("still stores the measurement in single-page view", async () => {
+      vi.useFakeTimers();
+      try {
+        pairBySetting();
+        const book = createMockBookWithState({ landscapeBits: null });
+        let land: ((dims: { width: number; height: number }[]) => void) | undefined;
+        vi.mocked(api.getImageDimensions).mockReturnValue(
+          new Promise((resolve) => {
+            land = resolve;
+          }),
+        );
+        // Index 1 starts no unit of a spread chain, so pairing as spreads would move it.
+        const { result } = renderHook(() =>
+          useViewerController({
+            containerPath: "path",
+            displaySize: VIEWPORT,
+            entries: mockEntries,
+            index: 1,
+            isSpreadShifted: false,
+            settings: singlePaged,
+            dispatch: mockDispatch,
+            hasPreviews: true,
+            book,
+          }),
+        );
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(0);
+        });
+        expect(result.current.displayedLayout).not.toBeNull();
+
+        await act(async () => {
+          land?.([
+            { width: 100, height: 200 },
+            { width: 200, height: 100 },
+            { width: 100, height: 200 },
+          ]);
+          await vi.advanceTimersByTimeAsync(0);
+        });
+        expect(api.updatePageLayout).toHaveBeenCalledWith(book.id, "010");
+        expect(result.current.displayedLayout).not.toBeNull();
+        expectNoPageMove();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    // Verify turning spreads on inside the cap keeps the page up and waits, counted from the open
+    it("keeps the page on screen when spreads are turned on inside the cap", async () => {
+      vi.useFakeTimers();
+      try {
+        pairBySetting();
+        vi.mocked(api.getImageDimensions).mockReturnValue(new Promise(() => {}));
+        const { result, rerender } = renderHook(
+          ({ settings, index }) =>
+            useViewerController({
+              containerPath: "path",
+              displaySize: VIEWPORT,
+              entries: mockEntries,
+              index,
+              isSpreadShifted: false,
+              settings,
+              dispatch: mockDispatch,
+              hasPreviews: true,
+            }),
+          { initialProps: { settings: singlePaged, index: 0 } },
+        );
+        // Visit p2 and come back, so both pages of the spread are cached and the toggle
+        // takes the all-cached path.
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(0);
+        });
+        rerender({ settings: singlePaged, index: 1 });
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(0);
+        });
+        rerender({ settings: singlePaged, index: 0 });
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(500);
+        });
+        expect(result.current.displayedLayout?.isSpread).toBe(false);
+
+        rerender({ settings: twoPaged, index: 0 });
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(0);
+        });
+        expect(result.current.displayedLayout?.isSpread).toBe(false);
+        expect(result.current.isImageLoading).toBe(true);
+
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(500);
+        });
+        expect(result.current.displayedLayout?.isSpread).toBe(true);
+        expect(result.current.isImageLoading).toBe(false);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    // Verify the next unmeasured book waits its own cap, even if the last one's scan never landed
+    it("holds the next unmeasured book after the last one's wait cap has passed", async () => {
+      vi.useFakeTimers();
+      try {
+        mockedBuildUnitChain.mockImplementation(spreadPairs);
+        vi.mocked(api.getImageDimensions).mockReturnValue(new Promise(() => {}));
+        const { result, rerender } = renderHook(
+          ({ containerPath, index }) =>
+            useViewerController({
+              containerPath,
+              displaySize: VIEWPORT,
+              entries: mockEntries,
+              index,
+              isSpreadShifted: false,
+              settings: twoPaged,
+              dispatch: mockDispatch,
+              hasPreviews: true,
+            }),
+          { initialProps: { containerPath: "a", index: 0 } },
+        );
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(1000);
+        });
+        expect(result.current.displayedLayout).not.toBeNull();
+
+        // Index 1 starts no unit of the assumed pairing, so pairing early would move it.
+        mockDispatch.mockClear();
+        rerender({ containerPath: "b", index: 1 });
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(0);
+        });
+        expect(result.current.displayedLayout).toBeNull();
+        expect(result.current.isImageLoading).toBe(true);
+        expectNoPageMove();
+
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(1000);
+        });
+        expect(result.current.displayedLayout).not.toBeNull();
       } finally {
         vi.useRealTimers();
       }

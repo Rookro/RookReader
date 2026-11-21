@@ -37,6 +37,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * A left-click can turn pages towards the side of the page you click. Choose **Click to turn pages → By side of the page** in **Settings → Reader**; the default is unchanged. (#419)
   * In EPUB books, clicks on the margins around the text turn pages too.
 
+### Changed
+
+* A book opened for the first time with the two-page spread off shows its page right away, instead of after a wait of up to a second. (#423)
+  * Switching to another new book no longer skips its wait when the last one's measurement had not finished.
+
 ## [2.7.1] - 2026-11-16
 
 ### Changed

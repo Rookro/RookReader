@@ -189,10 +189,11 @@ export const usePageLoader = ({
       if (missingFullPaths.length === 0) {
         setIsImageLoading(pairing === null);
         const layout = layoutForCurrentIndex();
+        // No pairing yet: keep what is on screen while the loading state shows the wait.
         if (layout) {
           reportDisplayed();
+          setLayoutState({ layout, path: containerPath });
         }
-        setLayoutState(layout ? { layout, path: containerPath } : null);
         return;
       }
 
