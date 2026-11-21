@@ -44,6 +44,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Opening a file from the File Navigator and the font lists in Settings respond faster. (#424)
   * A PDF or EPUB opens on the first click, without a short wait.
   * The font lists appear at once after the first time, and listing the fonts no longer holds up the rest of the app.
+* PDF pages appear sooner, and turning a page no longer waits for another page to finish. Pages are sharper, without JPEG artifacts. (#425)
 
 ## [2.7.1] - 2026-11-16
 
