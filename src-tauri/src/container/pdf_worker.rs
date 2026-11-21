@@ -20,10 +20,7 @@ use pdfium_render::prelude::{PdfDocument, PdfPageIndex, PdfRenderConfig, Pdfium}
 
 use crate::{
     error::{Error, Result},
-    image::{
-        thumbnail::{encode_thumbnail, ThumbnailSpec},
-        types::{Image, ImageDimensions},
-    },
+    image::types::ImageDimensions,
     perf,
     perf::Span,
 };
@@ -72,8 +69,8 @@ enum Request {
         path: String,
         index: PdfPageIndex,
         config: Arc<PdfRenderConfig>,
-        spec: ThumbnailSpec,
-        reply: mpsc::Sender<Result<Image>>,
+        min_embedded_size: u32,
+        reply: mpsc::Sender<Result<DynamicImage>>,
     },
     /// Counts one more container over the document, so a `Release` from another
     /// container of the same path — a page count of the book being read — does not
@@ -143,20 +140,20 @@ impl Worker {
         })
     }
 
-    /// Renders one page at `spec`'s size, or returns the thumbnail the document carries,
-    /// shrunk and encoded to `spec`.
+    /// Renders one page with `config`, or returns the thumbnail the document carries when
+    /// its long edge is at least `min_embedded_size`.
     pub(crate) fn render_thumbnail(
         &self,
         path: &str,
         index: PdfPageIndex,
         config: Arc<PdfRenderConfig>,
-        spec: ThumbnailSpec,
-    ) -> Result<Image> {
+        min_embedded_size: u32,
+    ) -> Result<DynamicImage> {
         self.ask(|reply| Request::Preview {
             path: path.to_string(),
             index,
             config,
-            spec,
+            min_embedded_size,
             reply,
         })
     }
@@ -293,11 +290,11 @@ fn run(rx: mpsc::Receiver<Request>, library_path: Option<String>) {
                 path,
                 index,
                 config,
-                spec,
+                min_embedded_size,
                 reply,
             } => {
                 let result = document(&pdfium, &mut docs, &path)
-                    .and_then(|doc| render_thumbnail(doc, &config, index, &spec));
+                    .and_then(|doc| render_thumbnail(doc, &config, index, min_embedded_size));
                 let _ = reply.send(result);
             }
         }
@@ -359,7 +356,8 @@ fn page_size(pdf: &PdfDocument, index: PdfPageIndex) -> Result<ImageDimensions> 
     })
 }
 
-/// Renders a PDF page to a JPEG thumbnail shaped by `spec`.
+/// Returns the thumbnail the document carries for a page when its long edge is at least
+/// `min_embedded_size`, and otherwise renders the page with `render_config`.
 ///
 /// PDF is the one format where this is *cheaper* than reading the page: pdfium renders
 /// straight to the smaller size, or hands back a thumbnail the document already carries,
@@ -368,24 +366,20 @@ fn render_thumbnail(
     pdf: &PdfDocument,
     render_config: &PdfRenderConfig,
     index: PdfPageIndex,
-    spec: &ThumbnailSpec,
-) -> Result<Image> {
+    min_embedded_size: u32,
+) -> Result<DynamicImage> {
     let page = pdf.pages().get(index).map_err(Error::from)?;
-    // An embedded thumbnail smaller than the spec asks for would be upscaled on screen,
+    // An embedded thumbnail smaller than `min_embedded_size` would be upscaled on screen,
     // so the page is rendered instead.
     let embedded = page
         .embedded_thumbnail()
         .and_then(|thumbnail| thumbnail.as_image())
         .ok()
-        .filter(|img| img.width().max(img.height()) >= spec.min_embedded_size);
-    let img = match embedded {
-        Some(img) => img,
-        None => page.render_with_config(render_config)?.as_image()?,
-    };
-    // Cap both dimensions to the spec: embedded thumbnails have no
-    // spec-mandated size, and the render config constrains height only (a landscape
-    // page still exceeds the width cap). Other containers already uphold this.
-    encode_thumbnail(&img, spec)
+        .filter(|img| img.width().max(img.height()) >= min_embedded_size);
+    match embedded {
+        Some(img) => Ok(img),
+        None => Ok(page.render_with_config(render_config)?.as_image()?),
+    }
 }
 
 /// Binds the `pdfium` library. The only call site is [`run`], on the worker thread.

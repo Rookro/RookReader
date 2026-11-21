@@ -45,6 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * A PDF or EPUB opens on the first click, without a short wait.
   * The font lists appear at once after the first time, and listing the fonts no longer holds up the rest of the app.
 * PDF pages appear sooner, and turning a page no longer waits for another page to finish. Pages are sharper, without JPEG artifacts. (#425)
+* While covers of PDF books are made for the bookshelf, the PDF being read waits for less time. Very wide PDF pages get their previews and covers sooner. (#426)
 
 ## [2.7.1] - 2026-11-16
 

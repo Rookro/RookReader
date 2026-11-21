@@ -98,15 +98,13 @@ pub fn save_cover(
     // Ask the reader for a cover first. For PDF that renders a cover-sized page through
     // the one worker that owns the library, instead of binding a second `Pdfium` beside
     // the one an open book is already using. Every other format has no cheaper path, so
-    // its page is read in full and shrunk here.
+    // its page is read in full. Either way the pipeline fits it.
     let mut reader = container.open_reader()?;
-    match reader.read_cover(entry)? {
-        Some(bytes) => write_atomically(&thumbnail_path, &bytes)?,
-        None => {
-            let page = reader.read_page(entry)?;
-            write_atomically(&thumbnail_path, &Pipeline::thumbnail(&page)?.data)?;
-        }
-    }
+    let page = match reader.read_cover(entry)? {
+        Some(cover) => cover,
+        None => reader.read_page(entry)?,
+    };
+    write_atomically(&thumbnail_path, &Pipeline::thumbnail(&page)?.data)?;
 
     // Best effort: a leftover only costs disk space, and the new cover is saved.
     let legacy_path = dir.join(legacy_file_name(file_path));
@@ -183,8 +181,9 @@ mod tests {
 
     use super::*;
     use crate::container::factory::{create_container, ContainerConfig};
-    use crate::container::traits::MockContainer;
+    use crate::container::traits::{MockContainer, MockPageReader, PageData, PageReader};
     use crate::error::Error;
+    use crate::image::thumbnail::COVER;
 
     #[test]
     fn file_name_is_fnv1a_of_the_path() {
@@ -265,6 +264,40 @@ mod tests {
         let cover = save_cover(dir.path(), file_path, &container).unwrap();
 
         assert_eq!(cover, Some(existing));
+    }
+
+    #[test]
+    fn save_cover_fits_a_reader_cover_without_reading_the_page() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut container = MockContainer::new();
+        container
+            .expect_get_entries()
+            .return_const(vec!["p1".to_string()]);
+        container.expect_open_reader().returning(|| {
+            let mut reader = MockPageReader::new();
+            reader.expect_read_cover().returning(|_| {
+                Ok(Some(PageData::Decoded(image::DynamicImage::new_rgb8(
+                    1200, 1800,
+                ))))
+            });
+            reader.expect_read_page().times(0);
+            Ok(Box::new(reader) as Box<dyn PageReader>)
+        });
+
+        let path = save_cover(dir.path(), "book.pdf", &container)
+            .unwrap()
+            .expect("a cover");
+
+        let data = std::fs::read(&path).unwrap();
+        assert_eq!(
+            image::guess_format(&data).unwrap(),
+            image::ImageFormat::Jpeg
+        );
+        let size = crate::image::types::read_dimensions(&data).unwrap();
+        assert_eq!(
+            (size.width, size.height),
+            (COVER.max_size * 2 / 3, COVER.max_size)
+        );
     }
 
     #[tokio::test]

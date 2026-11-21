@@ -425,8 +425,8 @@ mod tests {
         watch
     }
 
-    /// A valid 1x1 PNG. Previews travel as encoded bytes and are decoded by the loader,
-    /// so a preview fixture has to be a real image where `create_dummy_image` need not be.
+    /// A valid 1x1 PNG. A preview is decoded by `Pipeline::preview`, so a preview
+    /// fixture has to be a real image.
     const DUMMY_PNG_DATA: &[u8] = &[
         0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44,
         0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x06, 0x00, 0x00, 0x00, 0x1F,
@@ -694,7 +694,7 @@ mod tests {
             reader
                 .expect_read_preview()
                 .with(eq("test1.png".to_string()))
-                .returning(|_| Ok(Some(DUMMY_PNG_DATA.to_vec())));
+                .returning(|_| Ok(Some(PageData::Encoded(DUMMY_PNG_DATA.to_vec()))));
             Ok(Box::new(reader) as Box<dyn PageReader>)
         });
         let _watch = manage_service(&app, "dummy_book_id", container);
@@ -706,9 +706,13 @@ mod tests {
             Raw(bytes) => bytes,
             _ => panic!("Unexpected response body type"),
         };
-        // `image_response` frames the bytes behind a width/height header, so the reader's
-        // own bytes are what follows it.
-        assert!(body.ends_with(DUMMY_PNG_DATA));
+        assert!(
+            body.ends_with(&[0xFF, 0xD9]),
+            "a JPEG made from the reader's preview"
+        );
+        assert!(!body.ends_with(DUMMY_PNG_DATA));
+        // The width and height header: a preview smaller than PREVIEW is not upscaled.
+        assert_eq!(&body[..8], &[0, 0, 0, 1, 0, 0, 0, 1]);
     }
 
     #[tokio::test]

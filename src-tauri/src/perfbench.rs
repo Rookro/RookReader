@@ -316,16 +316,27 @@ fn scan(
 }
 
 /// A page's thumbnail, the way a bookshelf entry gets one: the format's own cover when
-/// it has a cheaper path to one, and a full read shrunk here when it does not.
+/// it has a cheaper path to one, and a full read when it does not, fitted either way.
 fn thumbnail(container: &Arc<dyn Container>, entry: &str) -> Vec<u8> {
     let mut reader = container.open_reader().expect("open reader");
-    match reader.read_cover(entry).expect("cover") {
-        Some(bytes) => bytes,
-        None => Pipeline::thumbnail(&reader.read_page(entry).expect("read page"))
-            .expect("shrink page")
-            .data
-            .clone(),
-    }
+    let page = match reader.read_cover(entry).expect("cover") {
+        Some(cover) => cover,
+        None => reader.read_page(entry).expect("read page"),
+    };
+    Pipeline::thumbnail(&page)
+        .expect("shrink page")
+        .data
+        .clone()
+}
+
+/// A page's preview, the way the reader gets one while the page itself renders.
+fn preview(container: &Arc<dyn Container>, entry: &str) -> Arc<Image> {
+    let mut reader = container.open_reader().expect("open reader");
+    let page = reader
+        .read_preview(entry)
+        .expect("preview")
+        .expect("a format with previews");
+    Pipeline::preview(&page).expect("fit preview")
 }
 
 // ------------------------------------------------------------- zip A/B helpers
@@ -820,6 +831,13 @@ fn perfbench_report() {
     );
     let p_dim = bench("scan (page sizes only)", 5, || scan(&p, &p_entries));
     let p_thumb = bench("thumbnail (1 page)", 10, || thumbnail(&p, &p_entries[7]));
+    bench("preview (1 page)", 10, || preview(&p, &p_entries[7]));
+    bench("read_preview alone (1 page)", 10, || {
+        p_reader.read_preview(&p_entries[7]).expect("preview")
+    });
+    bench("read_cover alone (1 page)", 10, || {
+        p_reader.read_cover(&p_entries[7]).expect("cover")
+    });
     println!(
         "  => dim scan {:.1} ms, preview/full {:.2}x
 ",
@@ -1161,6 +1179,7 @@ fn report_transport_formats(name: &str, sources: &[image::DynamicImage], encoded
         .map(|s| {
             crate::image::resizer::shrink_to_fit(s, VIEWPORT_W, VIEWPORT_H, ResizeFilter::Lanczos3)
                 .expect("resize")
+                .into_owned()
         })
         .collect();
     let shrunk = fitted

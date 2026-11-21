@@ -82,7 +82,8 @@ pub fn encode_thumbnail(image: &DynamicImage, spec: &ThumbnailSpec) -> Result<Im
     let thumbnail = shrink_to_fit(image, spec.max_size, spec.max_size, spec.filter)?;
 
     let mut buffer = Vec::new();
-    JpegEncoder::new_with_quality(&mut buffer, spec.quality).encode_image(&thumbnail)?;
+    // Hands the encoder the raw buffer, and keeps a grayscale source single-channel.
+    thumbnail.write_with_encoder(JpegEncoder::new_with_quality(&mut buffer, spec.quality))?;
 
     Ok(Image {
         data: buffer,
@@ -132,5 +133,44 @@ mod tests {
     fn test_generate_thumbnail_empty_data() {
         let result = generate_thumbnail(&[], &PREVIEW);
         assert!(result.is_err());
+    }
+
+    fn decoded_color(image: &Image) -> image::ColorType {
+        image::load_from_memory(&image.data).unwrap().color()
+    }
+
+    #[test]
+    fn a_grayscale_thumbnail_stays_single_channel() {
+        let gray = DynamicImage::new_luma8(40, 20);
+        assert_eq!(
+            decoded_color(&encode_thumbnail(&gray, &COVER).unwrap()),
+            image::ColorType::L8
+        );
+    }
+
+    #[test]
+    fn a_shrunk_grayscale_thumbnail_stays_single_channel() {
+        let gray = DynamicImage::new_luma8(1200, 600);
+        let thumbnail = encode_thumbnail(&gray, &COVER).unwrap();
+        assert_eq!(thumbnail.width, COVER.max_size);
+        assert_eq!(decoded_color(&thumbnail), image::ColorType::L8);
+    }
+
+    #[test]
+    fn a_grayscale_thumbnail_with_alpha_drops_only_the_alpha() {
+        let gray = DynamicImage::new_luma_a8(40, 20);
+        assert_eq!(
+            decoded_color(&encode_thumbnail(&gray, &COVER).unwrap()),
+            image::ColorType::L8
+        );
+    }
+
+    #[test]
+    fn a_thumbnail_with_alpha_is_encoded_as_rgb() {
+        let rgba = DynamicImage::new_rgba8(40, 20);
+        assert_eq!(
+            decoded_color(&encode_thumbnail(&rgba, &COVER).unwrap()),
+            image::ColorType::Rgb8
+        );
     }
 }
