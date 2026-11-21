@@ -95,29 +95,23 @@ impl PageReader for PdfReader {
     }
 
     fn read_preview(&mut self, entry: &str) -> Result<Option<PageData>> {
-        Ok(Some(PageData::Encoded(
-            self.worker
-                .render_thumbnail(
-                    &self.path,
-                    parse_index(entry)?,
-                    self.thumbnail_render_config.clone(),
-                    PREVIEW,
-                )?
-                .data,
-        )))
+        let image = self.worker.render_thumbnail(
+            &self.path,
+            parse_index(entry)?,
+            self.thumbnail_render_config.clone(),
+            PREVIEW.min_embedded_size,
+        )?;
+        Ok(Some(thumbnail_pixels(image)))
     }
 
     fn read_cover(&mut self, entry: &str) -> Result<Option<PageData>> {
-        Ok(Some(PageData::Encoded(
-            self.worker
-                .render_thumbnail(
-                    &self.path,
-                    parse_index(entry)?,
-                    self.cover_render_config.clone(),
-                    COVER,
-                )?
-                .data,
-        )))
+        let image = self.worker.render_thumbnail(
+            &self.path,
+            parse_index(entry)?,
+            self.cover_render_config.clone(),
+            COVER.min_embedded_size,
+        )?;
+        Ok(Some(thumbnail_pixels(image)))
     }
 }
 
@@ -182,6 +176,7 @@ impl PdfContainer {
             thumbnail_render_config: Arc::new(
                 PdfRenderConfig::default()
                     .set_target_height(PREVIEW.max_size as i32)
+                    .set_maximum_width(PREVIEW.max_size as i32)
                     .rotate(PdfPageRenderRotation::None, false)
                     .use_print_quality(false)
                     .set_image_smoothing(false)
@@ -190,10 +185,23 @@ impl PdfContainer {
             ),
             // A page's own config, only smaller: a cover should look like the page.
             cover_render_config: Arc::new(
-                PdfRenderConfig::default().set_target_height(COVER.max_size as i32),
+                PdfRenderConfig::default()
+                    .set_target_height(COVER.max_size as i32)
+                    .set_maximum_width(COVER.max_size as i32),
             ),
             worker,
         })
+    }
+}
+
+/// Hands a preview or cover over for the pipeline to fit.
+///
+/// pdfium clears a render to opaque white, so alpha carries nothing. A grayscale embedded
+/// thumbnail stays single-channel.
+fn thumbnail_pixels(image: DynamicImage) -> PageData {
+    match image {
+        DynamicImage::ImageLuma8(_) => PageData::Decoded(image),
+        _ => PageData::Decoded(DynamicImage::ImageRgb8(image.into_rgb8())),
     }
 }
 
@@ -229,7 +237,7 @@ mod tests {
 
     // A minimal 1-page landscape PDF (MediaBox wider than tall). A height-capped
     // thumbnail render of this page exceeds the width cap, so it only stays within
-    // PREVIEW.max_size if create_thumbnail shrinks both dimensions.
+    // PREVIEW.max_size if the render config caps the width too.
     const LANDSCAPE_PAGE_PDF_DATA: &[u8] = b"%PDF-1.4\n1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n2 0 obj << /Type /Pages /Count 1 /Kids [ 3 0 R ] >> endobj\n3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 792 612] >> endobj\nxref\n0 4\n0000000000 65535 f\n0000000009 00000 n\n0000000057 00000 n\n0000000107 00000 n\ntrailer << /Size 4 /Root 1 0 R >> startxref\n157\n%%EOF\n";
 
     // One 612x792 page with its left half filled red and its right half left white.
@@ -433,6 +441,8 @@ trailer << /Size 5 /Root 1 0 R >>
         assert!(measured.height < page.height());
 
         assert!(reader.read_page("9999").is_err());
+        assert!(reader.read_preview("9999").is_err());
+        assert!(reader.read_cover("9999").is_err());
         // Only one `Pdfium` may be alive in the process at a time.
         assert_eq!(container.max_readers(), 1);
     }
@@ -494,7 +504,7 @@ trailer << /Size 5 /Root 1 0 R >>
         assert_eq!(measured.height, COVER.max_size);
         assert!(measured.width < COVER.max_size);
 
-        // The render config caps the height only; the width is capped when encoding.
+        // The render config caps the width too.
         let cover = landscape
             .open_reader()
             .unwrap()
@@ -634,6 +644,70 @@ trailer << /Size 5 /Root 1 0 R >>
             image.get_pixel(width * 3 / 4, height / 2).0,
             [255, 255, 255]
         );
+    }
+
+    #[test]
+    fn a_wide_page_previews_and_covers_within_both_dimensions() {
+        let _guard = pdf_test_guard();
+        let dir = tempdir().unwrap();
+        // 100:1; a height-only cap would render the preview 30000 px wide.
+        let pdf = String::from_utf8_lossy(SINGLE_PAGE_PDF_DATA)
+            .replace("/MediaBox [0 0 612 792]", "/MediaBox [0 0 10000 100]");
+        let (_, container) = container_for(dir.path(), "wide.pdf", pdf.as_bytes());
+        let mut reader = container.open_reader().unwrap();
+
+        let Some(PageData::Decoded(preview)) = reader.read_preview("0000").unwrap() else {
+            panic!("a PDF preview should come back as pixels");
+        };
+        assert!(
+            preview.width() <= PREVIEW.max_size && preview.height() <= PREVIEW.max_size,
+            "{}x{}",
+            preview.width(),
+            preview.height()
+        );
+        let Some(PageData::Decoded(cover)) = reader.read_cover("0000").unwrap() else {
+            panic!("a PDF cover should come back as pixels");
+        };
+        assert!(
+            cover.width() <= COVER.max_size && cover.height() <= COVER.max_size,
+            "{}x{}",
+            cover.width(),
+            cover.height()
+        );
+    }
+
+    #[test]
+    fn a_pdf_preview_and_cover_keep_the_page_colours() {
+        let _guard = pdf_test_guard();
+        let dir = tempdir().unwrap();
+        let (_, container) = container_for(dir.path(), "red.pdf", HALF_RED_PDF_DATA);
+        let mut reader = container.open_reader().unwrap();
+
+        for stand_in in [
+            reader.read_preview("0000").unwrap(),
+            reader.read_cover("0000").unwrap(),
+        ] {
+            let Some(PageData::Decoded(image)) = stand_in else {
+                panic!("a PDF stand-in should come back as pixels");
+            };
+            let image = image.as_rgb8().expect("an opaque RGB8 stand-in");
+            let (width, height) = image.dimensions();
+            assert_eq!(image.get_pixel(width / 4, height / 2).0, [255, 0, 0]);
+            assert_eq!(
+                image.get_pixel(width * 3 / 4, height / 2).0,
+                [255, 255, 255]
+            );
+        }
+    }
+
+    #[test]
+    fn a_gray_thumbnail_stays_gray_and_alpha_is_dropped() {
+        let gray = DynamicImage::new_luma8(4, 2);
+        assert_eq!(thumbnail_pixels(gray.clone()), PageData::Decoded(gray));
+        assert!(matches!(
+            thumbnail_pixels(DynamicImage::new_rgba8(4, 2)),
+            PageData::Decoded(DynamicImage::ImageRgb8(_))
+        ));
     }
 
     #[test]
