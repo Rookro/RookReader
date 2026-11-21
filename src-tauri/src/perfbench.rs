@@ -328,6 +328,16 @@ fn thumbnail(container: &Arc<dyn Container>, entry: &str) -> Vec<u8> {
     }
 }
 
+/// A page's preview, the way the reader gets one while the page itself renders.
+fn preview(container: &Arc<dyn Container>, entry: &str) -> Arc<Image> {
+    let mut reader = container.open_reader().expect("open reader");
+    let bytes = reader
+        .read_preview(entry)
+        .expect("preview")
+        .expect("a format with previews");
+    PIPELINE.preview(bytes).expect("wrap preview")
+}
+
 // ------------------------------------------------------------- zip A/B helpers
 
 /// A whole-book scan by full decompression of every entry, through one shared archive
@@ -820,6 +830,13 @@ fn perfbench_report() {
     );
     let p_dim = bench("scan (page sizes only)", 5, || scan(&p, &p_entries));
     let p_thumb = bench("thumbnail (1 page)", 10, || thumbnail(&p, &p_entries[7]));
+    bench("preview (1 page)", 10, || preview(&p, &p_entries[7]));
+    bench("read_preview alone (1 page)", 10, || {
+        p_reader.read_preview(&p_entries[7]).expect("preview")
+    });
+    bench("read_cover alone (1 page)", 10, || {
+        p_reader.read_cover(&p_entries[7]).expect("cover")
+    });
     println!(
         "  => dim scan {:.1} ms, preview/full {:.2}x
 ",
