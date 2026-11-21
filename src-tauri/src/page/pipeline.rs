@@ -1,8 +1,8 @@
-//! Turning a page's stored bytes into the image the viewer receives, at the size it is
-//! displayed at.
+//! Turning a page's stored bytes or rendered pixels into the image the viewer receives,
+//! at the size it is displayed at.
 //!
 //! This is the only place that decodes, and the only place that resamples. A
-//! [`PageReader`](crate::container::traits::PageReader) yields bytes and
+//! [`PageReader`](crate::container::traits::PageReader) yields bytes or pixels and
 //! [`PageService`](super::service::PageService) decides *when* they are read; what the
 //! pixels end up being is decided here, and nowhere else.
 //!
@@ -19,11 +19,12 @@ use image::{
 };
 
 use crate::{
+    container::traits::PageData,
     error::Result,
     image::{
         avif,
         resizer::{shrink_to_fit, ResizeFilter},
-        thumbnail::{generate_thumbnail, COVER},
+        thumbnail::{encode_thumbnail, generate_thumbnail, COVER},
         types::{is_animated, Image},
     },
 };
@@ -50,7 +51,7 @@ impl Fit {
     }
 }
 
-/// How a page's encoded bytes become the image the viewer receives.
+/// How a page's bytes or pixels become the image the viewer receives.
 ///
 /// A value rather than a pair of arguments threaded through the scheduler: the scheduler
 /// has no opinion about pixels, and rendering at the display size belongs here rather
@@ -103,17 +104,31 @@ impl Pipeline {
     /// A page already inside the box is passed through untouched — no decode, no encode —
     /// so the bytes reach the viewer exactly as the archive stored them. So is an animated
     /// page whatever its size: a resample keeps one frame, and the browser scaling an
-    /// animation is the lesser loss.
+    /// animation is the lesser loss. A decoded page has no stored bytes to pass on, so it
+    /// is always written as PNG, fitted first when it is outside the box.
     ///
     /// # Arguments
     ///
-    /// * `bytes` - The page's encoded bytes, as the reader delivered them.
+    /// * `page` - The page, as the reader delivered it.
     /// * `fit` - The box to render into, from [`Pipeline::fit`] or [`Pipeline::full_fit`].
     ///
     /// # Errors
     ///
-    /// Returns an `Err` if the bytes are not a supported image, or the resize fails.
-    pub fn page(&self, bytes: Vec<u8>, fit: Fit) -> Result<Arc<Image>> {
+    /// Returns an `Err` if the bytes are not a supported image, or the resize or the
+    /// encode fails.
+    pub fn page(&self, page: PageData, fit: Fit) -> Result<Arc<Image>> {
+        let bytes = match page {
+            PageData::Encoded(bytes) => bytes,
+            // Checked first: `shrink_to_fit` copies a page that already fits.
+            PageData::Decoded(image) if fit.holds(image.width(), image.height()) => {
+                return encode_png(&image, None);
+            }
+            PageData::Decoded(image) => {
+                let scaled = shrink_to_fit(&image, fit.width, fit.height, self.resize_method)?;
+                drop(image);
+                return encode_png(&scaled, None);
+            }
+        };
         let image = Image::new(bytes)?;
         if fit.holds(image.width, image.height) || is_animated(&image.data)? {
             return Ok(Arc::new(image));
@@ -142,8 +157,11 @@ impl Pipeline {
     /// # Errors
     ///
     /// Returns an `Err` if the bytes are not a supported image, or the resize fails.
-    pub fn thumbnail(bytes: &[u8]) -> Result<Arc<Image>> {
-        generate_thumbnail(bytes, &COVER)
+    pub fn thumbnail(page: &PageData) -> Result<Arc<Image>> {
+        match page {
+            PageData::Encoded(bytes) => generate_thumbnail(bytes, &COVER),
+            PageData::Decoded(image) => Ok(Arc::new(encode_thumbnail(image, &COVER)?)),
+        }
     }
 
     /// Resizes into `fit` and writes the result as PNG.
@@ -181,22 +199,26 @@ impl Pipeline {
 
         // Use SIMD accelerated resizing.
         let scaled_image = shrink_to_fit(&dyn_image, fit.width, fit.height, self.resize_method)?;
-
-        let mut buffer = Vec::new();
-        let mut encoder = PngEncoder::new(&mut buffer);
-        if let Some(profile) = icc_profile {
-            encoder
-                .set_icc_profile(profile)
-                .map_err(ImageError::Unsupported)?;
-        }
-        scaled_image.write_with_encoder(encoder)?;
-
-        Ok(Arc::new(Image {
-            data: buffer,
-            width: scaled_image.width(),
-            height: scaled_image.height(),
-        }))
+        encode_png(&scaled_image, icc_profile)
     }
+}
+
+/// Writes `image` as PNG, carrying `icc_profile` across when there is one.
+fn encode_png(image: &DynamicImage, icc_profile: Option<Vec<u8>>) -> Result<Arc<Image>> {
+    let mut buffer = Vec::new();
+    let mut encoder = PngEncoder::new(&mut buffer);
+    if let Some(profile) = icc_profile {
+        encoder
+            .set_icc_profile(profile)
+            .map_err(ImageError::Unsupported)?;
+    }
+    image.write_with_encoder(encoder)?;
+
+    Ok(Arc::new(Image {
+        data: buffer,
+        width: image.width(),
+        height: image.height(),
+    }))
 }
 
 #[cfg(test)]
@@ -282,7 +304,7 @@ mod tests {
 
         let page = displaying(800, 600)
             .page(
-                bytes.clone(),
+                PageData::Encoded(bytes.clone()),
                 Fit {
                     width: 800,
                     height: 600,
@@ -303,7 +325,9 @@ mod tests {
         // The shipped default before this change, and still the path a page takes before
         // the viewer has reported a viewport: the bytes reach it as the archive stored
         // them.
-        let image = pipeline.page(bytes.clone(), pipeline.fit()).unwrap();
+        let image = pipeline
+            .page(PageData::Encoded(bytes.clone()), pipeline.fit())
+            .unwrap();
         assert_eq!(image.data, bytes);
         assert_eq!((image.width, image.height), (4, 2));
     }
@@ -312,7 +336,9 @@ mod tests {
     fn page_passes_bytes_through_when_already_inside_the_box() {
         let bytes = opaque_png();
         let pipeline = displaying(100, 100);
-        let image = pipeline.page(bytes.clone(), pipeline.fit()).unwrap();
+        let image = pipeline
+            .page(PageData::Encoded(bytes.clone()), pipeline.fit())
+            .unwrap();
         assert_eq!(image.data, bytes);
     }
 
@@ -324,7 +350,9 @@ mod tests {
         // The still fixture of the same size is shrunk by this box (see
         // `page_shrinks_to_the_display_box`); the animation is not, or it would lose
         // every frame but the first.
-        let image = pipeline.page(bytes.clone(), pipeline.fit()).unwrap();
+        let image = pipeline
+            .page(PageData::Encoded(bytes.clone()), pipeline.fit())
+            .unwrap();
         assert_eq!(image.data, bytes);
         assert_eq!((image.width, image.height), (4, 2));
     }
@@ -333,7 +361,10 @@ mod tests {
     fn an_avif_page_shrinks_like_any_other() {
         let pipeline = displaying(2, 100);
         let image = pipeline
-            .page(crate::image::avif::tests::avif(), pipeline.fit())
+            .page(
+                PageData::Encoded(crate::image::avif::tests::avif()),
+                pipeline.fit(),
+            )
             .unwrap();
         assert_eq!((image.width, image.height), (2, 1));
         assert_eq!(image::guess_format(&image.data).unwrap(), ImageFormat::Png);
@@ -342,7 +373,9 @@ mod tests {
     #[test]
     fn page_shrinks_to_the_display_box() {
         let pipeline = displaying(2, 100);
-        let image = pipeline.page(opaque_png(), pipeline.fit()).unwrap();
+        let image = pipeline
+            .page(PageData::Encoded(opaque_png()), pipeline.fit())
+            .unwrap();
 
         // Width-bound: the box is narrower than the page but taller, and the aspect
         // ratio is kept. Only a `Fit` that carries both axes can express this.
@@ -352,7 +385,9 @@ mod tests {
     #[test]
     fn page_shrinks_to_the_height_cap() {
         let pipeline = pipeline(1);
-        let image = pipeline.page(opaque_png(), pipeline.fit()).unwrap();
+        let image = pipeline
+            .page(PageData::Encoded(opaque_png()), pipeline.fit())
+            .unwrap();
         assert_eq!((image.width, image.height), (2, 1));
     }
 
@@ -375,7 +410,9 @@ mod tests {
                 height: 1
             }
         );
-        let image = pipeline.page(opaque_png(), pipeline.fit()).unwrap();
+        let image = pipeline
+            .page(PageData::Encoded(opaque_png()), pipeline.fit())
+            .unwrap();
         assert_eq!(image.height, 1);
     }
 
@@ -383,7 +420,9 @@ mod tests {
     fn full_fit_ignores_the_box_but_honours_the_height_cap() {
         let uncapped = displaying(2, 2);
         assert_eq!(uncapped.full_fit(), Fit::UNBOUNDED);
-        let image = uncapped.page(opaque_png(), uncapped.full_fit()).unwrap();
+        let image = uncapped
+            .page(PageData::Encoded(opaque_png()), uncapped.full_fit())
+            .unwrap();
         assert_eq!((image.width, image.height), (4, 2));
 
         let capped = Pipeline {
@@ -407,7 +446,9 @@ mod tests {
     fn a_shrunk_page_is_a_lossless_png() {
         let bytes = opaque_png();
         let pipeline = displaying(2, 100);
-        let image = pipeline.page(bytes.clone(), pipeline.fit()).unwrap();
+        let image = pipeline
+            .page(PageData::Encoded(bytes.clone()), pipeline.fit())
+            .unwrap();
 
         assert_eq!(
             image::guess_format(&image.data).unwrap(),
@@ -446,7 +487,9 @@ mod tests {
         // The header says 4x2, so a 1-wide box shrinks it. Upright the page is 2x4, and
         // 2x4 into 1x100 is 1x2; unrotated it would have come out 1x1.
         let pipeline = displaying(1, 100);
-        let image = pipeline.page(rotated_png(), pipeline.fit()).unwrap();
+        let image = pipeline
+            .page(PageData::Encoded(rotated_png()), pipeline.fit())
+            .unwrap();
         assert_eq!((image.width, image.height), (1, 2));
 
         // Nothing is left for the browser to rotate again.
@@ -464,7 +507,9 @@ mod tests {
         // and 4x8 into 1x100 is 1x2; unrotated it would have come out 1x1.
         let bytes = crate::image::avif::tests::transformed_avif(&[(b"irot", &[1u8][..])]);
         let pipeline = displaying(1, 100);
-        let image = pipeline.page(bytes, pipeline.fit()).unwrap();
+        let image = pipeline
+            .page(PageData::Encoded(bytes), pipeline.fit())
+            .unwrap();
         assert_eq!((image.width, image.height), (1, 2));
     }
 
@@ -482,7 +527,9 @@ mod tests {
     #[test]
     fn shrinking_keeps_the_icc_profile() {
         let pipeline = displaying(2, 100);
-        let image = pipeline.page(profiled_png(), pipeline.fit()).unwrap();
+        let image = pipeline
+            .page(PageData::Encoded(profiled_png()), pipeline.fit())
+            .unwrap();
         assert_eq!((image.width, image.height), (2, 1));
 
         let mut decoder =
@@ -496,7 +543,9 @@ mod tests {
     #[test]
     fn shrinking_keeps_alpha() {
         let pipeline = pipeline(1);
-        let image = pipeline.page(alpha_png(), pipeline.fit()).unwrap();
+        let image = pipeline
+            .page(PageData::Encoded(alpha_png()), pipeline.fit())
+            .unwrap();
 
         // Transparency survived the format change that made every page PNG; before it,
         // this was the one page that escaped being re-encoded as JPEG.
@@ -521,8 +570,64 @@ mod tests {
             .write_to(&mut Cursor::new(&mut buffer), ImageFormat::Png)
             .unwrap();
 
-        let thumbnail = Pipeline::thumbnail(&buffer).unwrap();
+        let thumbnail = Pipeline::thumbnail(&PageData::Encoded(buffer)).unwrap();
         assert_eq!(thumbnail.width, COVER.max_size);
         assert!(thumbnail.height <= COVER.max_size);
+    }
+
+    fn decoded_page() -> PageData {
+        PageData::Decoded(decode(&opaque_png()))
+    }
+
+    #[test]
+    fn a_decoded_page_inside_the_box_is_encoded_as_png_at_its_size() {
+        let image = pipeline(0).page(decoded_page(), Fit::UNBOUNDED).unwrap();
+        assert_eq!(image::guess_format(&image.data).unwrap(), ImageFormat::Png);
+        assert_eq!((image.width, image.height), (4, 2));
+        // `as_rgb8` is `None` for RGBA, so this also pins that no alpha channel was added.
+        assert_eq!(
+            decode(&image.data).as_rgb8(),
+            decode(&opaque_png()).as_rgb8()
+        );
+    }
+
+    #[test]
+    fn a_decoded_page_outside_the_box_is_shrunk_and_encoded_as_png() {
+        let image = pipeline(0)
+            .page(
+                decoded_page(),
+                Fit {
+                    width: 2,
+                    height: 2,
+                },
+            )
+            .unwrap();
+        assert_eq!(image::guess_format(&image.data).unwrap(), ImageFormat::Png);
+        assert_eq!((image.width, image.height), (2, 1));
+        let decoded = decode(&image.data);
+        assert_eq!((decoded.width(), decoded.height()), (2, 1));
+        assert!(decoded.as_rgb8().is_some());
+    }
+
+    #[test]
+    fn a_decoded_page_shrinks_to_the_height_cap() {
+        let pipeline = pipeline(1);
+        let image = pipeline.page(decoded_page(), pipeline.fit()).unwrap();
+        assert_eq!((image.width, image.height), (2, 1));
+    }
+
+    #[test]
+    fn a_decoded_page_thumbnail_meets_the_cover_contract() {
+        // Larger than COVER, so the spec it shrinks to is pinned.
+        let page = PageData::Decoded(image::DynamicImage::new_rgb8(2000, 1000));
+        let thumbnail = Pipeline::thumbnail(&page).unwrap();
+        assert_eq!(
+            image::guess_format(&thumbnail.data).unwrap(),
+            ImageFormat::Jpeg
+        );
+        assert_eq!(
+            (thumbnail.width, thumbnail.height),
+            (COVER.max_size, COVER.max_size / 2)
+        );
     }
 }

@@ -1087,7 +1087,7 @@ fn run(shared: &Shared, reader: &mut dyn PageReader, job: &mut Job) {
             let pipeline = shared.pipeline();
             let page = reader
                 .read_page(&job.entry)
-                .and_then(|bytes| pipeline.page(bytes, job.fit));
+                .and_then(|page| pipeline.page(page, job.fit));
             if let Ok(image) = &page {
                 shared.store(&job.entry, job.fit, image.clone());
             }
@@ -1141,7 +1141,7 @@ mod tests {
     };
 
     use crate::{
-        container::traits::{MockContainer, MockPageReader},
+        container::traits::{MockContainer, MockPageReader, PageData},
         image::resizer::ResizeFilter,
     };
 
@@ -1196,7 +1196,7 @@ mod tests {
             let mut reader = MockPageReader::new();
             reader.expect_read_page().returning(move |entry| {
                 read_log.lock().unwrap().push(entry.to_string());
-                Ok(page_bytes())
+                Ok(PageData::Encoded(page_bytes()))
             });
             reader.expect_page_dimensions().returning(move |entry| {
                 measure_log.lock().unwrap().push(entry.to_string());
@@ -1275,7 +1275,7 @@ mod tests {
             });
             reader.expect_read_page().returning(move |entry| {
                 read_log.lock().unwrap().push(entry.to_string());
-                Ok(page_bytes())
+                Ok(PageData::Encoded(page_bytes()))
             });
             Ok(Box::new(reader) as Box<dyn PageReader>)
         });
@@ -1422,7 +1422,7 @@ mod tests {
                 if entry != free {
                     latch.wait();
                 }
-                Ok(page_bytes())
+                Ok(PageData::Encoded(page_bytes()))
             });
             reader.expect_page_dimensions().returning(|_| {
                 Ok(ImageDimensions {
@@ -1615,7 +1615,7 @@ mod tests {
                 if entry == target && count.fetch_add(1, Ordering::SeqCst) == 0 {
                     panic!("the reader died mid-page");
                 }
-                Ok(page_bytes())
+                Ok(PageData::Encoded(page_bytes()))
             });
             Ok(Box::new(reader) as Box<dyn PageReader>)
         });
@@ -1692,7 +1692,7 @@ mod tests {
                     gate.wait();
                 }
                 log.lock().unwrap().push(entry.to_string());
-                Ok(page_bytes())
+                Ok(PageData::Encoded(page_bytes()))
             });
             Ok(Box::new(reader) as Box<dyn PageReader>)
         });
@@ -1747,7 +1747,7 @@ mod tests {
                 reads.fetch_add(1, Ordering::SeqCst);
                 // Long enough that the second caller certainly arrives mid-read.
                 thread::sleep(Duration::from_millis(80));
-                Ok(page_bytes())
+                Ok(PageData::Encoded(page_bytes()))
             });
             Ok(Box::new(reader) as Box<dyn PageReader>)
         });
@@ -1863,7 +1863,7 @@ mod tests {
                     parked.fetch_add(1, Ordering::SeqCst);
                     gate.wait();
                 }
-                Ok(page_bytes())
+                Ok(PageData::Encoded(page_bytes()))
             });
             Ok(Box::new(reader) as Box<dyn PageReader>)
         });
@@ -1974,7 +1974,7 @@ mod tests {
             let mut reader = MockPageReader::new();
             reader.expect_read_page().returning(move |_| {
                 reads.fetch_add(1, Ordering::SeqCst);
-                Ok(page_bytes())
+                Ok(PageData::Encoded(page_bytes()))
             });
             Ok(Box::new(reader) as Box<dyn PageReader>)
         });
@@ -2002,7 +2002,7 @@ mod tests {
             let mut reader = MockPageReader::new();
             reader.expect_read_page().returning(move |_| {
                 reads.fetch_add(1, Ordering::SeqCst);
-                Ok(page_bytes())
+                Ok(PageData::Encoded(page_bytes()))
             });
             Ok(Box::new(reader) as Box<dyn PageReader>)
         });
@@ -2083,6 +2083,42 @@ mod tests {
         assert_eq!((displayed.width, displayed.height), (2, 1));
         assert_eq!((magnified.width, magnified.height), (4, 2));
         assert_eq!(reads.load(Ordering::SeqCst), 2, "two different reads");
+    }
+
+    #[test]
+    fn a_decoded_page_is_fitted_for_the_viewer_and_whole_for_the_loupe() {
+        let names = entries(1);
+        let mut container = MockContainer::new();
+        container.expect_get_entries().return_const(names.clone());
+        container.expect_max_readers().return_const(1usize);
+        container.expect_open_reader().returning(|| {
+            let mut reader = MockPageReader::new();
+            reader.expect_read_page().returning(|_| {
+                Ok(PageData::Decoded(image::DynamicImage::ImageRgb8(
+                    image::RgbImage::new(4, 2),
+                )))
+            });
+            Ok(Box::new(reader) as Box<dyn PageReader>)
+        });
+        let service = service(container);
+        service.set_display_size(Some(Fit {
+            width: 2,
+            height: 2,
+        }));
+
+        let displayed = service
+            .page_blocking(&names[0], Priority::Foreground)
+            .unwrap();
+        let magnified = service.page_full_blocking(&names[0]).unwrap();
+
+        assert_eq!((displayed.width, displayed.height), (2, 1));
+        assert_eq!((magnified.width, magnified.height), (4, 2));
+        for image in [&displayed, &magnified] {
+            assert_eq!(
+                image::guess_format(&image.data).unwrap(),
+                image::ImageFormat::Png
+            );
+        }
     }
 
     #[test]

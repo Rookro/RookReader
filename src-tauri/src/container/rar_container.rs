@@ -16,7 +16,7 @@ use std::{collections::HashMap, sync::Arc};
 use crate::{
     container::{
         archive_path,
-        traits::{check_page_size, Container, PageReader},
+        traits::{check_page_size, Container, PageData, PageReader},
     },
     error::{Error, Result},
     image::types::Image,
@@ -128,7 +128,7 @@ impl RarReader {
 }
 
 impl PageReader for RarReader {
-    fn read_page(&mut self, entry: &str) -> Result<Vec<u8>> {
+    fn read_page(&mut self, entry: &str) -> Result<PageData> {
         let wanted = self
             .entry_to_path
             .get(entry)
@@ -146,7 +146,7 @@ impl PageReader for RarReader {
             self.reopen()?;
         }
         if let Some(data) = self.walk_to(&wanted)? {
-            return Ok(data);
+            return Ok(PageData::Encoded(data));
         }
 
         // The cursor ran out before reaching it. Bookkeeping can only ever be wrong in
@@ -154,6 +154,7 @@ impl PageReader for RarReader {
         // absent rather than merely behind us.
         self.reopen()?;
         self.walk_to(&wanted)?
+            .map(PageData::Encoded)
             .ok_or_else(|| Error::EntryNotFound(format!("Entry not found: {wanted}")))
     }
 }
@@ -394,7 +395,10 @@ mod tests {
 
         let mut reader = container.open_reader().expect("failed to open a reader");
 
-        assert_eq!(reader.read_page("image1.png").unwrap(), DUMMY_PNG_DATA);
+        assert_eq!(
+            reader.read_page("image1.png").unwrap(),
+            PageData::Encoded(DUMMY_PNG_DATA.to_vec())
+        );
         assert_eq!(
             reader.page_dimensions("image2.png").unwrap(),
             read_dimensions(DUMMY_PNG_DATA).unwrap()
@@ -425,7 +429,10 @@ mod tests {
 
         let mut reader = container.reader();
         for (index, entry) in entries.iter().enumerate() {
-            assert_eq!(reader.read_page(entry).unwrap(), DUMMY_PNG_DATA);
+            assert_eq!(
+                reader.read_page(entry).unwrap(),
+                PageData::Encoded(DUMMY_PNG_DATA.to_vec())
+            );
             // Each page costs exactly the headers between it and the previous one, so
             // reading the book in order walks the archive once. Reopening per page would
             // make this 1, 3, 6, ... — the quadratic cost that on a solid archive means
@@ -448,17 +455,26 @@ mod tests {
         let entries = container.get_entries().clone();
 
         let mut reader = container.reader();
-        assert_eq!(reader.read_page(&entries[2]).unwrap(), DUMMY_PNG_DATA);
+        assert_eq!(
+            reader.read_page(&entries[2]).unwrap(),
+            PageData::Encoded(DUMMY_PNG_DATA.to_vec())
+        );
         assert_eq!(reader.walked, 3);
 
         // The cursor cannot go back, so this restarts the walk — the trade the reader
         // makes so a page turn never waits for a scan to finish.
-        assert_eq!(reader.read_page(&entries[0]).unwrap(), DUMMY_PNG_DATA);
+        assert_eq!(
+            reader.read_page(&entries[0]).unwrap(),
+            PageData::Encoded(DUMMY_PNG_DATA.to_vec())
+        );
         assert_eq!(reader.position, 1, "a backward read restarts the walk");
         assert_eq!(reader.walked, 4);
 
         // And the cursor keeps working forward afterwards, from where it now stands.
-        assert_eq!(reader.read_page(&entries[1]).unwrap(), DUMMY_PNG_DATA);
+        assert_eq!(
+            reader.read_page(&entries[1]).unwrap(),
+            PageData::Encoded(DUMMY_PNG_DATA.to_vec())
+        );
         assert_eq!(reader.position, 2);
         assert_eq!(reader.walked, 5);
     }

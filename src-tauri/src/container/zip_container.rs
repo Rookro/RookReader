@@ -10,7 +10,7 @@ use zip::{read::ZipArchiveMetadata, ZipArchive};
 use crate::{
     container::{
         archive_path,
-        traits::{check_page_size, Container, PageReader, MAX_PAGE_BYTES},
+        traits::{check_page_size, Container, PageData, PageReader, MAX_PAGE_BYTES},
     },
     error::{Error, Result},
     image::types::{read_dimensions, Image, ImageDimensions, HEADER_PROBE_BYTES},
@@ -279,9 +279,13 @@ impl ZipReader {
 }
 
 impl PageReader for ZipReader {
-    fn read_page(&mut self, entry: &str) -> Result<Vec<u8>> {
+    fn read_page(&mut self, entry: &str) -> Result<PageData> {
         let index = self.index_of(entry)?;
-        read_entry_checked(&mut self.archive, index, entry)
+        Ok(PageData::Encoded(read_entry_checked(
+            &mut self.archive,
+            index,
+            entry,
+        )?))
     }
 
     fn page_dimensions(&mut self, entry: &str) -> Result<ImageDimensions> {
@@ -289,8 +293,8 @@ impl PageReader for ZipReader {
         let file = self.archive.by_index(index)?;
         // A hard ceiling bounds this read the way `prealloc_capacity` and
         // `read_within_declared` bound a full one, so a lying central directory cannot
-        // drive it any further than 64 KiB. The fallback below goes through `read_page`,
-        // which still applies both.
+        // drive it any further than 64 KiB. The fallback below goes through
+        // `read_entry_checked`, which still applies both.
         let want = file.size().min(HEADER_PROBE_BYTES);
         let mut head = Vec::with_capacity(want as usize);
         file.take(want).read_to_end(&mut head)?;
@@ -298,7 +302,11 @@ impl PageReader for ZipReader {
         match read_dimensions(&head) {
             Ok(dimensions) => Ok(dimensions),
             // A header longer than the probe is rare but legal; pay for the full read.
-            Err(_) => Ok(read_dimensions(&self.read_page(entry)?)?),
+            Err(_) => Ok(read_dimensions(&read_entry_checked(
+                &mut self.archive,
+                index,
+                entry,
+            )?)?),
         }
     }
 }
@@ -473,7 +481,10 @@ mod tests {
         let mut reader = container.open_reader().expect("failed to open a reader");
 
         // The bytes come back exactly as stored: a reader decodes nothing.
-        assert_eq!(reader.read_page("image1.png").unwrap(), DUMMY_PNG_DATA);
+        assert_eq!(
+            reader.read_page("image1.png").unwrap(),
+            PageData::Encoded(DUMMY_PNG_DATA.to_vec())
+        );
         assert_eq!(
             reader.page_dimensions("image2.png").unwrap(),
             read_dimensions(DUMMY_PNG_DATA).unwrap()
@@ -532,9 +543,18 @@ mod tests {
             .open_reader()
             .expect("failed to open the second reader");
 
-        assert_eq!(first.read_page("image2.png").unwrap(), DUMMY_PNG_DATA);
-        assert_eq!(second.read_page("image1.png").unwrap(), DUMMY_PNG_DATA);
-        assert_eq!(first.read_page("image1.png").unwrap(), DUMMY_PNG_DATA);
+        assert_eq!(
+            first.read_page("image2.png").unwrap(),
+            PageData::Encoded(DUMMY_PNG_DATA.to_vec())
+        );
+        assert_eq!(
+            second.read_page("image1.png").unwrap(),
+            PageData::Encoded(DUMMY_PNG_DATA.to_vec())
+        );
+        assert_eq!(
+            first.read_page("image1.png").unwrap(),
+            PageData::Encoded(DUMMY_PNG_DATA.to_vec())
+        );
     }
 
     #[test]
@@ -623,7 +643,7 @@ mod tests {
             .unwrap()
             .read_page("image1.png")
             .expect("reading an existing entry should succeed");
-        assert_eq!(page, DUMMY_PNG_DATA);
+        assert_eq!(page, PageData::Encoded(DUMMY_PNG_DATA.to_vec()));
     }
 
     #[test]

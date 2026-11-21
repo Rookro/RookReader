@@ -345,7 +345,7 @@ mod tests {
     use tokio::sync::RwLock;
 
     use crate::{
-        container::traits::{MockContainer, MockPageReader, PageReader},
+        container::traits::{MockContainer, MockPageReader, PageData, PageReader},
         image::{resizer::ResizeFilter, types::Image},
         page::{
             pipeline::Pipeline,
@@ -392,7 +392,9 @@ mod tests {
         container.expect_max_readers().return_const(usize::MAX);
         container.expect_open_reader().returning(|| {
             let mut reader = MockPageReader::new();
-            reader.expect_read_page().returning(|_| Ok(dummy_page()));
+            reader
+                .expect_read_page()
+                .returning(|_| Ok(PageData::Encoded(dummy_page())));
             Ok(Box::new(reader) as Box<dyn PageReader>)
         });
         container
