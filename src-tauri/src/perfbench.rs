@@ -236,7 +236,11 @@ fn build_pdf(dir: &Path, pages: &[Vec<u8>]) -> PathBuf {
     let path = dir.join("bench.pdf");
     // pdfium-render binds the library once per process, and a bind after that fails, so
     // the worker binds first (a request returns only once it has) and this reuses it.
-    let _ = crate::container::pdf_worker::worker(&Some(pdfium_lib_path())).page_count("");
+    let bound = crate::container::pdf_worker::worker(&Some(pdfium_lib_path())).page_count("");
+    assert!(
+        !matches!(bound, Err(crate::error::Error::PdfUnavailable(_))),
+        "pdfium did not bind: {bound:?}"
+    );
     let pdfium = Pdfium::default();
     let mut doc = pdfium.create_new_pdf().expect("create pdf");
     let size = PdfPagePaperSize::a4();
