@@ -1,10 +1,14 @@
-﻿import type { Theme } from "@mui/material";
-import { renderHook, waitFor } from "@testing-library/react";
+﻿import { createTheme, ThemeProvider } from "@mui/material";
+import {
+  renderHook as baseRenderHook,
+  type RenderHookOptions,
+  waitFor,
+} from "@testing-library/react";
 import { Paginator } from "foliate-js/paginator.js";
 import { type Book, makeBook, type View } from "foliate-js/view.js";
+import { createElement, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { readNovelFile } from "../../../bindings/binaryApi";
-import { useAppTheme } from "../../../hooks/useAppTheme";
 import { type RootState, useAppDispatch, useAppSelector } from "../../../store/store";
 import { CommandError, ErrorCode } from "../../../types/Error";
 import { useRegisterReaderActions } from "../input/ReaderInputContext";
@@ -25,7 +29,6 @@ const releaseKeyboard = vi.hoisted(() => vi.fn());
 vi.mock("../../SidePane/SidePaneFocusContext", () => ({
   useSidePaneFocus: () => ({ releaseKeyboard }),
 }));
-vi.mock("../../../hooks/useAppTheme");
 vi.mock("@tauri-apps/plugin-log");
 vi.mock("foliate-js/view.js", () => ({
   makeBook: vi.fn(),
@@ -85,15 +88,27 @@ if (!customElements.get("foliate-view")) {
   customElements.define("foliate-view", MockView);
 }
 
+const mockTheme = createTheme({
+  palette: {
+    mode: "light",
+    text: { primary: "#000", secondary: "#555" },
+    primary: { main: "#1976d2" },
+  },
+});
+
+/** Renders the hook under `mockTheme`, the theme it styles the book with. */
+const renderHook = <Result, Props>(
+  render: (props: Props) => Result,
+  options?: RenderHookOptions<Props>,
+) =>
+  baseRenderHook(render, {
+    wrapper: ({ children }: { children: ReactNode }) =>
+      createElement(ThemeProvider, { theme: mockTheme }, children),
+    ...options,
+  });
+
 describe("useNovelReader", () => {
   const mockDispatch = vi.fn();
-  const mockTheme = {
-    palette: {
-      mode: "light",
-      text: { primary: "#000", secondary: "#555" },
-      primary: { main: "#1976d2" },
-    },
-  } as Theme;
 
   const defaultState = {
     reader: {
@@ -118,7 +133,6 @@ describe("useNovelReader", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(useAppDispatch).mockReturnValue(mockDispatch);
-    vi.mocked(useAppTheme).mockReturnValue(mockTheme);
     vi.mocked(useAppSelector).mockImplementation(<T>(selector: (state: RootState) => T): T => {
       return selector(defaultState as RootState);
     });

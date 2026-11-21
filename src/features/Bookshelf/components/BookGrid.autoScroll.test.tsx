@@ -1,9 +1,11 @@
-import { render, waitFor } from "@testing-library/react";
+import { ThemeProvider } from "@mui/material";
+import { render as baseRender, type RenderOptions, waitFor } from "@testing-library/react";
 import { useEffect } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useResizeObserver } from "../../../hooks/useResizeObserver";
 import { type RootState, useAppDispatch, useAppSelector } from "../../../store/store";
 import { createMockBookWithState } from "../../../test/factories";
+import { testTheme } from "../../../test/theme";
 import { useBookSelection } from "../hooks/useBookSelection";
 import { useBookshelfDialogs } from "../hooks/useBookshelfDialogs";
 import BookGrid from "./BookGrid";
@@ -65,6 +67,13 @@ vi.mock("./Dialog/SetBookTagsDialog", () => ({ default: () => null }));
 vi.mock("./Dialog/SetSeriesDialog", () => ({ default: () => null }));
 vi.mock("./Dialog/BookDeleteDialog", () => ({ default: () => null }));
 vi.mock("./Dialog/EditSeriesOrderDialog", () => ({ default: () => null }));
+
+/** Renders under the app theme, which `BookGrid` reads its scrollbar size from. */
+const render = (ui: React.ReactElement, options?: RenderOptions) =>
+  baseRender(ui, {
+    wrapper: ({ children }) => <ThemeProvider theme={testTheme}>{children}</ThemeProvider>,
+    ...options,
+  });
 
 describe("BookGrid auto-scroll latch", () => {
   const mockDispatch = vi.fn();

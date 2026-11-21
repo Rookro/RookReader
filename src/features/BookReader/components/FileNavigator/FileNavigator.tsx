@@ -320,34 +320,38 @@ export default function FileListViewer() {
     [openEntry],
   );
 
+  // Only folders and browsable archives wait for a double-click; it enters them like a
+  // folder, and a single click still opens them as a book.
   const handleListItemDoubleClicked = useCallback(
-    async (e: React.MouseEvent<HTMLDivElement>, entry: DirEntry, index: number) => {
-      // A browsable archive is entered like a folder; a single click still opens it
-      // as a book, so nothing is lost by not opening it here.
-      if (entry.isDirectory || isNavigableArchiveName(entry.name)) {
-        const path = await join(history[historyIndex], entry.name);
-        dispatch(setSearchText(""));
-        dispatch(loadDirectory({ dirPath: path }));
-      } else {
-        // Double-clicking a file opens it: the single-click timer was cancelled by
-        // the wrapper, so without this the file would never open.
-        handleListItemClicked(e, entry, index);
-      }
+    async (entry: DirEntry) => {
+      const path = await join(history[historyIndex], entry.name);
+      dispatch(setSearchText(""));
+      dispatch(loadDirectory({ dirPath: path }));
     },
-    [dispatch, history, historyIndex, handleListItemClicked],
+    [dispatch, history, historyIndex],
   );
 
   const { setActiveKey, rowId, isKeyboardActive } = nav;
   const handleListItemClickedWrapper = useCallback(
     (e: React.MouseEvent<HTMLDivElement>, entry: DirEntry, index: number) => {
       setActiveKey(entry.name);
+      // A file with no double-click action opens at once.
+      if (!entry.isDirectory && !isNavigableArchiveName(entry.name)) {
+        if (clickTimer.current) {
+          clearTimeout(clickTimer.current);
+          clickTimer.current = null;
+          pendingIndex.current = null;
+        }
+        handleListItemClicked(e, entry, index);
+        return;
+      }
       // Only treat a second click as a double-click when it lands on the same row;
       // a click on a different row restarts the single-click timer for that row.
       if (clickTimer.current && pendingIndex.current === index) {
         clearTimeout(clickTimer.current);
         clickTimer.current = null;
         pendingIndex.current = null;
-        handleListItemDoubleClicked(e, entry, index);
+        handleListItemDoubleClicked(entry);
       } else {
         if (clickTimer.current) {
           clearTimeout(clickTimer.current);

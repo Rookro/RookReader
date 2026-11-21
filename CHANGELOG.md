@@ -41,6 +41,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * A book opened for the first time with the two-page spread off shows its page right away, instead of after a wait of up to a second. (#423)
   * Switching to another new book no longer skips its wait when the last one's measurement had not finished.
+* Opening a file from the File Navigator and the font lists in Settings respond faster. (#424)
+  * A PDF or EPUB opens on the first click, without a short wait.
+  * The font lists appear at once after the first time, and listing the fonts no longer holds up the rest of the app.
 
 ## [2.7.1] - 2026-11-16
 

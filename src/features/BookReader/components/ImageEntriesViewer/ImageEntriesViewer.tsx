@@ -1,5 +1,5 @@
 import { Box, Stack, Typography } from "@mui/material";
-import { debug, error } from "@tauri-apps/plugin-log";
+import { error } from "@tauri-apps/plugin-log";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -129,7 +129,6 @@ export default function ImageEntriesViewer() {
     // rendering and measuring item positions before attempting to scroll.
     const timerId = setTimeout(() => {
       try {
-        debug(`Scrolling to row ${selectedIndex}.`);
         list.scrollToRow({ align: "smart", behavior: "instant", index: selectedIndex });
       } catch (e) {
         error(`Failed to scroll to row ${selectedIndex} (List length: ${entries.length}): ${e}`);

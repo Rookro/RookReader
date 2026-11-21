@@ -151,14 +151,13 @@ export const commands = {
 	/**
 	 *  Retrieves a list of all font families installed on the system.
 	 * 
-	 *  This function queries the system's font source to get a list of all available
-	 *  font family names, which are then sorted alphabetically.
+	 *  The system is scanned on a blocking thread the first time, and the list is reused for
+	 *  the rest of the app run; fonts installed meanwhile appear after a restart.
 	 * 
 	 *  # Returns
 	 * 
-	 *  A `Vec<String>` containing the sorted names of all installed font families.
-	 *  If the system's font source cannot be accessed or no families are found,
-	 *  it returns an empty vector.
+	 *  A `Vec<String>` containing the sorted names of all installed font families. If the
+	 *  system's font source cannot be read, an empty vector; the next call scans again.
 	 */
 	getFonts: () => __TAURI_INVOKE<string[]>("get_fonts"),
 	/**

@@ -723,4 +723,52 @@ describe("FileNavigator", () => {
       expect(error).toHaveBeenCalledWith(expect.stringContaining("Failed to scroll to row 0"));
     });
   });
+  describe("a click on a file with no double-click action", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    const renderFiles = async (names: string[]) => {
+      const preloadedState = createBasePreloadedState();
+      preloadedState.fileNavigator.entries = names.map((name) => ({
+        name,
+        isDirectory: false,
+        lastModified: 0,
+      }));
+      renderWithProviders(<FileNavigator />, { preloadedState });
+      const rows = await Promise.all(names.map((name) => screen.findByRole("option", { name })));
+      vi.useFakeTimers();
+      return rows;
+    };
+
+    it("opens a PDF without waiting for a double-click", async () => {
+      const [pdf] = await renderFiles(["book.pdf"]);
+      fireEvent.click(pdf);
+      await act(() => vi.advanceTimersByTimeAsync(0));
+      expect(ReadReducer.openBook).toHaveBeenCalledWith({
+        path: "/book.pdf",
+        origin: { kind: "fileNavigator" },
+      });
+    });
+
+    it("still waits on a zip, which a double-click enters", async () => {
+      const [zip] = await renderFiles(["book.zip"]);
+      fireEvent.click(zip);
+      await act(() => vi.advanceTimersByTimeAsync(0));
+      expect(ReadReducer.openBook).not.toHaveBeenCalled();
+      await act(() => vi.advanceTimersByTimeAsync(200));
+      expect(ReadReducer.openBook).toHaveBeenCalledTimes(1);
+    });
+
+    it("cancels a zip's pending click", async () => {
+      const [zip, pdf] = await renderFiles(["book.zip", "book.pdf"]);
+      fireEvent.click(zip);
+      fireEvent.click(pdf);
+      await act(() => vi.advanceTimersByTimeAsync(250));
+      expect(ReadReducer.openBook).toHaveBeenCalledTimes(1);
+      expect(ReadReducer.openBook).toHaveBeenCalledWith(
+        expect.objectContaining({ path: "/book.pdf" }),
+      );
+    });
+  });
 });
