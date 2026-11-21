@@ -319,23 +319,24 @@ fn scan(
 /// it has a cheaper path to one, and a full read shrunk here when it does not.
 fn thumbnail(container: &Arc<dyn Container>, entry: &str) -> Vec<u8> {
     let mut reader = container.open_reader().expect("open reader");
-    match reader.read_cover(entry).expect("cover") {
-        Some(bytes) => bytes,
-        None => Pipeline::thumbnail(&reader.read_page(entry).expect("read page"))
-            .expect("shrink page")
-            .data
-            .clone(),
-    }
+    let page = match reader.read_cover(entry).expect("cover") {
+        Some(cover) => cover,
+        None => reader.read_page(entry).expect("read page"),
+    };
+    Pipeline::thumbnail(&page)
+        .expect("shrink page")
+        .data
+        .clone()
 }
 
 /// A page's preview, the way the reader gets one while the page itself renders.
 fn preview(container: &Arc<dyn Container>, entry: &str) -> Arc<Image> {
     let mut reader = container.open_reader().expect("open reader");
-    let bytes = reader
+    let page = reader
         .read_preview(entry)
         .expect("preview")
         .expect("a format with previews");
-    PIPELINE.preview(bytes).expect("wrap preview")
+    Pipeline::preview(&page).expect("fit preview")
 }
 
 // ------------------------------------------------------------- zip A/B helpers

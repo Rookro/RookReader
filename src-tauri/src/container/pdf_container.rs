@@ -94,8 +94,8 @@ impl PageReader for PdfReader {
         self.worker.page_dimensions(&self.path, parse_index(entry)?)
     }
 
-    fn read_preview(&mut self, entry: &str) -> Result<Option<Vec<u8>>> {
-        Ok(Some(
+    fn read_preview(&mut self, entry: &str) -> Result<Option<PageData>> {
+        Ok(Some(PageData::Encoded(
             self.worker
                 .render_thumbnail(
                     &self.path,
@@ -104,11 +104,11 @@ impl PageReader for PdfReader {
                     PREVIEW,
                 )?
                 .data,
-        ))
+        )))
     }
 
-    fn read_cover(&mut self, entry: &str) -> Result<Option<Vec<u8>>> {
-        Ok(Some(
+    fn read_cover(&mut self, entry: &str) -> Result<Option<PageData>> {
+        Ok(Some(PageData::Encoded(
             self.worker
                 .render_thumbnail(
                     &self.path,
@@ -117,7 +117,7 @@ impl PageReader for PdfReader {
                     COVER,
                 )?
                 .data,
-        ))
+        )))
     }
 }
 
@@ -256,6 +256,17 @@ trailer << /Size 5 /Root 1 0 R >>
 trailer << /Size 5 /Root 1 0 R >>
 %%EOF
 ";
+
+    /// The size of a page or stand-in, however the reader handed it over.
+    fn dimensions(page: PageData) -> ImageDimensions {
+        match page {
+            PageData::Encoded(bytes) => crate::image::types::read_dimensions(&bytes).unwrap(),
+            PageData::Decoded(image) => ImageDimensions {
+                width: image.width(),
+                height: image.height(),
+            },
+        }
+    }
 
     /// Writes `data` into `dir` and opens it as a container.
     fn container_for(
@@ -416,7 +427,7 @@ trailer << /Size 5 /Root 1 0 R >>
             .read_preview("0000")
             .expect("read_preview failed")
             .expect("PDF must offer a preview");
-        let measured = crate::image::types::read_dimensions(&preview).unwrap();
+        let measured = dimensions(preview);
         assert!(measured.width <= PREVIEW.max_size);
         assert!(measured.height <= PREVIEW.max_size);
         assert!(measured.height < page.height());
@@ -479,7 +490,7 @@ trailer << /Size 5 /Root 1 0 R >>
             .read_cover("0000")
             .unwrap()
             .expect("PDF must offer a cover");
-        let measured = crate::image::types::read_dimensions(&cover).unwrap();
+        let measured = dimensions(cover);
         assert_eq!(measured.height, COVER.max_size);
         assert!(measured.width < COVER.max_size);
 
@@ -490,7 +501,7 @@ trailer << /Size 5 /Root 1 0 R >>
             .read_cover("0000")
             .unwrap()
             .expect("PDF must offer a cover");
-        let measured = crate::image::types::read_dimensions(&cover).unwrap();
+        let measured = dimensions(cover);
         assert_eq!(measured.width, COVER.max_size);
         assert!(measured.height < COVER.max_size);
     }
@@ -547,7 +558,7 @@ trailer << /Size 5 /Root 1 0 R >>
             .read_preview("0000")
             .unwrap()
             .expect("PDF offers a preview");
-        let measured = crate::image::types::read_dimensions(&preview).unwrap();
+        let measured = dimensions(preview);
         assert!(measured.width <= PREVIEW.max_size);
         assert!(measured.height <= PREVIEW.max_size);
     }
@@ -658,7 +669,7 @@ trailer << /Size 5 /Root 1 0 R >>
             assert!(
                 matches!(reader.read_page(entry).unwrap(), PageData::Decoded(image) if image.width() > 0)
             );
-            assert!(!reader.read_preview(entry).unwrap().unwrap().is_empty());
+            assert!(reader.read_preview(entry).unwrap().is_some());
         }
     }
 

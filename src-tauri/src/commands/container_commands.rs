@@ -694,7 +694,7 @@ mod tests {
             reader
                 .expect_read_preview()
                 .with(eq("test1.png".to_string()))
-                .returning(|_| Ok(Some(DUMMY_PNG_DATA.to_vec())));
+                .returning(|_| Ok(Some(PageData::Encoded(DUMMY_PNG_DATA.to_vec()))));
             Ok(Box::new(reader) as Box<dyn PageReader>)
         });
         let _watch = manage_service(&app, "dummy_book_id", container);
@@ -706,9 +706,11 @@ mod tests {
             Raw(bytes) => bytes,
             _ => panic!("Unexpected response body type"),
         };
-        // `image_response` frames the bytes behind a width/height header, so the reader's
-        // own bytes are what follows it.
-        assert!(body.ends_with(DUMMY_PNG_DATA));
+        assert!(
+            body.ends_with(&[0xFF, 0xD9]),
+            "a JPEG made from the reader's preview"
+        );
+        assert!(!body.ends_with(DUMMY_PNG_DATA));
     }
 
     #[tokio::test]

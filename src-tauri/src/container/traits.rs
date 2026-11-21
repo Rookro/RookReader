@@ -98,7 +98,7 @@ pub trait Container: Send + Sync + 'static {
     fn open_reader(&self) -> Result<Box<dyn PageReader>>;
 }
 
-/// A page as a reader hands it over.
+/// A page, or a stand-in for one, as a reader hands it over.
 #[derive(Debug, PartialEq)]
 pub enum PageData {
     /// The page's bytes, exactly as the format stores them.
@@ -161,13 +161,16 @@ pub trait PageReader {
         }
     }
 
-    /// Reads the encoded bytes of a small stand-in for the page, if the format can produce
-    /// one *more cheaply* than [`PageReader::read_page`].
+    /// Reads a small stand-in for the page, if the format can produce one *more cheaply*
+    /// than [`PageReader::read_page`].
     ///
     /// `None` — the default — means no such shortcut exists, which is the honest answer
     /// for every image container: their pages are already stored encoded, so a preview
     /// costs a full read plus a decode, a resize and a re-encode. Only a format that
     /// renders its pages (PDF) can render a smaller one instead.
+    ///
+    /// The answer means what it means from `read_page`, and
+    /// [`Pipeline`](crate::page::pipeline::Pipeline) fits it to `PREVIEW`.
     ///
     /// # Arguments
     ///
@@ -175,20 +178,20 @@ pub trait PageReader {
     ///
     /// # Returns
     ///
-    /// `Ok(Some(bytes))` when the format has a cheaper path, `Ok(None)` when it does not.
+    /// `Ok(Some(page))` when the format has a cheaper path, `Ok(None)` when it does not.
     ///
     /// # Errors
     ///
     /// Returns an `Err` if the entry exists but its preview cannot be produced.
-    fn read_preview(&mut self, _entry: &str) -> Result<Option<Vec<u8>>> {
+    fn read_preview(&mut self, _entry: &str) -> Result<Option<PageData>> {
         Ok(None)
     }
 
-    /// Reads the encoded bytes of a bookshelf cover for the page, if the format can
-    /// produce one *more cheaply* than [`PageReader::read_page`].
+    /// Reads a bookshelf cover for the page, if the format can produce one *more cheaply*
+    /// than [`PageReader::read_page`].
     ///
-    /// The counterpart of [`PageReader::read_preview`] at the size the bookshelf shows:
-    /// `None` — the default — sends the caller to a full read that it shrinks itself.
+    /// The counterpart of [`PageReader::read_preview`] at the size the bookshelf shows,
+    /// fitted to `COVER`: `None` — the default — sends the caller to a full read.
     ///
     /// # Arguments
     ///
@@ -196,12 +199,12 @@ pub trait PageReader {
     ///
     /// # Returns
     ///
-    /// `Ok(Some(bytes))` when the format has a cheaper path, `Ok(None)` when it does not.
+    /// `Ok(Some(page))` when the format has a cheaper path, `Ok(None)` when it does not.
     ///
     /// # Errors
     ///
     /// Returns an `Err` if the entry exists but its cover cannot be produced.
-    fn read_cover(&mut self, _entry: &str) -> Result<Option<Vec<u8>>> {
+    fn read_cover(&mut self, _entry: &str) -> Result<Option<PageData>> {
         Ok(None)
     }
 }

@@ -24,7 +24,7 @@ use crate::{
     image::{
         avif,
         resizer::{shrink_to_fit, ResizeFilter},
-        thumbnail::{encode_thumbnail, generate_thumbnail, COVER},
+        thumbnail::{encode_thumbnail, generate_thumbnail, ThumbnailSpec, COVER, PREVIEW},
         types::{is_animated, Image},
     },
 };
@@ -137,19 +137,21 @@ impl Pipeline {
         self.shrink(&image.data, fit)
     }
 
-    /// Wraps a preview the format produced at a size of its own choosing.
+    /// Fits a reader's preview to `PREVIEW` and encodes it as JPEG.
     ///
-    /// Nothing is resized here: a format only answers `read_preview` when it can render
-    /// small directly, so shrinking its answer again would undo the point of asking.
+    /// Associated rather than a method, like [`Pipeline::thumbnail`]: a preview's size
+    /// owes nothing to the book's display settings.
     ///
     /// # Errors
     ///
-    /// Returns an `Err` if the bytes are not a supported image.
-    pub fn preview(&self, bytes: Vec<u8>) -> Result<Arc<Image>> {
-        Ok(Arc::new(Image::new(bytes)?))
+    /// Returns an `Err` if the bytes are not a supported image, or the resize or the
+    /// encode fails.
+    pub fn preview(page: &PageData) -> Result<Arc<Image>> {
+        fit_to_spec(page, &PREVIEW)
     }
 
-    /// Shrinks a full page to a bookshelf cover, for a format with no cover of its own.
+    /// Shrinks a reader's cover, or a full page when the format has no cover of its own,
+    /// to a bookshelf cover.
     ///
     /// Associated rather than a method: a thumbnail's size is fixed by what displays it,
     /// so unlike [`Pipeline::page`] it owes nothing to the book's display settings. It
@@ -157,12 +159,10 @@ impl Pipeline {
     ///
     /// # Errors
     ///
-    /// Returns an `Err` if the bytes are not a supported image, or the resize fails.
+    /// Returns an `Err` if the bytes are not a supported image, or the resize or the
+    /// encode fails.
     pub fn thumbnail(page: &PageData) -> Result<Arc<Image>> {
-        match page {
-            PageData::Encoded(bytes) => generate_thumbnail(bytes, &COVER),
-            PageData::Decoded(image) => Ok(Arc::new(encode_thumbnail(image, &COVER)?)),
-        }
+        fit_to_spec(page, &COVER)
     }
 
     /// Resizes into `fit` and writes the result as PNG.
@@ -201,6 +201,14 @@ impl Pipeline {
         // Use SIMD accelerated resizing.
         let scaled_image = shrink_to_fit(&dyn_image, fit.width, fit.height, self.resize_method)?;
         encode_png(&scaled_image, icc_profile)
+    }
+}
+
+/// Fits `page` to `spec` and encodes it as JPEG.
+fn fit_to_spec(page: &PageData, spec: &ThumbnailSpec) -> Result<Arc<Image>> {
+    match page {
+        PageData::Encoded(bytes) => generate_thumbnail(bytes, spec),
+        PageData::Decoded(image) => Ok(Arc::new(encode_thumbnail(image, spec)?)),
     }
 }
 
@@ -556,14 +564,39 @@ mod tests {
         assert!(decode(&image.data).color().has_alpha());
     }
 
+    fn large_png() -> Vec<u8> {
+        let mut buffer = Vec::new();
+        image::DynamicImage::new_rgb8(1200, 600)
+            .write_to(&mut Cursor::new(&mut buffer), ImageFormat::Png)
+            .unwrap();
+        buffer
+    }
+
     #[test]
-    fn preview_is_left_at_the_size_its_format_chose() {
-        let bytes = opaque_png();
-        // Even with a height cap below the preview's own height, nothing is resized: a
-        // format only offers a preview when it can render small directly.
-        let preview = pipeline(1).preview(bytes.clone()).unwrap();
-        assert_eq!(preview.data, bytes);
-        assert_eq!(preview.height, 2);
+    fn an_encoded_preview_is_fitted_to_the_preview_contract() {
+        let preview = Pipeline::preview(&PageData::Encoded(large_png())).unwrap();
+        assert_eq!(
+            image::guess_format(&preview.data).unwrap(),
+            ImageFormat::Jpeg
+        );
+        assert_eq!(
+            (preview.width, preview.height),
+            (PREVIEW.max_size, PREVIEW.max_size / 2)
+        );
+    }
+
+    #[test]
+    fn a_decoded_preview_is_fitted_to_the_preview_contract() {
+        let page = PageData::Decoded(image::DynamicImage::new_rgb8(1200, 600));
+        let preview = Pipeline::preview(&page).unwrap();
+        assert_eq!(
+            image::guess_format(&preview.data).unwrap(),
+            ImageFormat::Jpeg
+        );
+        assert_eq!(
+            (preview.width, preview.height),
+            (PREVIEW.max_size, PREVIEW.max_size / 2)
+        );
     }
 
     #[test]

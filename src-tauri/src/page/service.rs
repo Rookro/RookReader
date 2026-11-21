@@ -650,8 +650,7 @@ impl PageService {
                 priority: Priority::Foreground,
                 order: (index, 0),
                 entry: entry.to_string(),
-                // A preview is passed through at whatever size its format rendered it,
-                // so no box bounds it.
+                // The pipeline fits a preview to PREVIEW, so no box bounds it here.
                 fit: Fit::UNBOUNDED,
                 reply: Reply::Preview(tx),
             });
@@ -1073,10 +1072,9 @@ fn run(shared: &Shared, reader: &mut dyn PageReader, job: &mut Job) {
             let _ = tx.send((*index, reader.page_dimensions(&job.entry)));
         }
         Reply::Preview(_) => {
-            let pipeline = shared.pipeline();
             let preview = reader
                 .read_preview(&job.entry)
-                .and_then(|bytes| bytes.map(|bytes| pipeline.preview(bytes)).transpose());
+                .and_then(|page| page.map(|page| Pipeline::preview(&page)).transpose());
             if let Reply::Preview(tx) = job.take_reply() {
                 let _ = tx.send(preview);
             }
@@ -1142,7 +1140,7 @@ mod tests {
 
     use crate::{
         container::traits::{MockContainer, MockPageReader, PageData},
-        image::resizer::ResizeFilter,
+        image::{resizer::ResizeFilter, thumbnail::PREVIEW},
     };
 
     use super::*;
@@ -2119,6 +2117,38 @@ mod tests {
                 image::ImageFormat::Png
             );
         }
+    }
+
+    #[test]
+    fn a_decoded_preview_is_fitted_to_the_preview_contract() {
+        let names = entries(1);
+        let mut container = MockContainer::new();
+        container.expect_get_entries().return_const(names.clone());
+        container.expect_max_readers().return_const(1usize);
+        container.expect_open_reader().returning(|| {
+            let mut reader = MockPageReader::new();
+            reader.expect_read_preview().returning(|_| {
+                Ok(Some(PageData::Decoded(image::DynamicImage::ImageRgb8(
+                    image::RgbImage::new(1200, 600),
+                ))))
+            });
+            Ok(Box::new(reader) as Box<dyn PageReader>)
+        });
+        let service = service(container);
+
+        let preview = service
+            .preview_blocking(&names[0])
+            .unwrap()
+            .expect("a preview");
+
+        assert_eq!(
+            image::guess_format(&preview.data).unwrap(),
+            image::ImageFormat::Jpeg
+        );
+        assert_eq!(
+            (preview.width, preview.height),
+            (PREVIEW.max_size, PREVIEW.max_size / 2)
+        );
     }
 
     #[test]
