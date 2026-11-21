@@ -369,7 +369,7 @@ fn render_thumbnail(
     min_embedded_size: u32,
 ) -> Result<DynamicImage> {
     let page = pdf.pages().get(index).map_err(Error::from)?;
-    // An embedded thumbnail smaller than the spec asks for would be upscaled on screen,
+    // An embedded thumbnail smaller than `min_embedded_size` would be upscaled on screen,
     // so the page is rendered instead.
     let embedded = page
         .embedded_thumbnail()

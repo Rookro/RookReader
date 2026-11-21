@@ -114,8 +114,8 @@ pub enum PageData {
 /// entry order, so a sequential format only ever has to move its cursor forward.
 ///
 /// Every method yields *encoded* bytes, exactly as the format stores or renders them,
-/// except that a format which renders its pages (PDF) may hand a page back as the
-/// rendered pixels, [`PageData::Decoded`].
+/// except that a format which renders its pages (PDF) may hand a page or a stand-in for
+/// one back as the rendered pixels, [`PageData::Decoded`].
 /// Decoding and resizing belong to the caller, so a reader never has to know what the
 /// image will be used for.
 #[cfg_attr(test, automock)]

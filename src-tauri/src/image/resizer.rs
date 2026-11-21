@@ -194,7 +194,7 @@ pub fn resize_exact(
 /// while preserving the original aspect ratio.
 ///
 /// If the original image is already smaller than or equal to the maximum dimensions,
-/// it is returned unmodified (cloned). The function scales down the image using
+/// it is returned unmodified (borrowed). The function scales down the image using
 /// the provided filter but will never scale it up. You can pass `u32::MAX` for
 /// either `max_width` or `max_height` to constrain the scaling by only one dimension.
 ///

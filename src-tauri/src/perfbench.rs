@@ -316,7 +316,7 @@ fn scan(
 }
 
 /// A page's thumbnail, the way a bookshelf entry gets one: the format's own cover when
-/// it has a cheaper path to one, and a full read shrunk here when it does not.
+/// it has a cheaper path to one, and a full read when it does not, fitted either way.
 fn thumbnail(container: &Arc<dyn Container>, entry: &str) -> Vec<u8> {
     let mut reader = container.open_reader().expect("open reader");
     let page = match reader.read_cover(entry).expect("cover") {
