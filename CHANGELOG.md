@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * In the bookmark **Rename** dialog, `Enter` confirms the name. Used from the keyboard, the dialog brings you back to the bookmark.
   * In the File Navigator, Pages and History, the highlighted entry shows the same tooltip as when you point at it.
   * On Linux, the item you move to with the arrow keys in a right-click menu, in the side pane or on the bookshelf, is now highlighted.
+* While no book is open, the reading area tells you how to open one and lists the supported formats, instead of staying blank. (#417)
 
 ## [2.7.1] - 2026-11-16
 

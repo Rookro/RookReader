@@ -10,6 +10,10 @@
   },
   "book-reader": {
     "move-to-bookshelf": "Move to Bookshelf",
+    "empty-state": {
+      "how-to-open": "Drop a file or folder here, or choose one from the File Navigator.",
+      "formats": "Supported formats: zip / cbz, rar / cbr, pdf, epub, image folders"
+    },
     "file-navigator": {
       "title": "File Navigator",
       "home": "Home folder",
