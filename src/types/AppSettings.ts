@@ -48,6 +48,7 @@ export type LogSettings = LogSettingsGen;
 export type {
   AppTheme,
   AutoOpenAdjacentBookMode,
+  ClickToTurnPagesMode,
   Direction,
   ImageResamplingMethod_Serialize as ImageResamplingMethod,
   InitialView,
@@ -57,6 +58,7 @@ export type {
 
 import type {
   AutoOpenAdjacentBookMode,
+  ClickToTurnPagesMode,
   Direction,
   ImageResamplingMethod_Serialize,
 } from "../bindings/bindings";
@@ -81,3 +83,9 @@ export const autoOpenAdjacentBookModes = [
   "ask",
   "auto",
 ] as const satisfies readonly AutoOpenAdjacentBookMode[];
+
+/** The available modes for turning pages with a left-click (UI dropdown order). */
+export const clickToTurnPagesModes = [
+  "anywhere",
+  "bySide",
+] as const satisfies readonly ClickToTurnPagesMode[];

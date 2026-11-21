@@ -459,6 +459,10 @@ mod tests {
             settings.reader.auto_open_adjacent_book,
             AutoOpenAdjacentBookMode::Ask
         ));
+        assert!(matches!(
+            settings.reader.click_to_turn_pages,
+            ClickToTurnPagesMode::Anywhere
+        ));
     }
 
     #[test]
@@ -467,7 +471,7 @@ mod tests {
             mock_json: json!({
                 "general": { "theme": "dark" },
                 "startup": { "checkUpdateOnStartup": false },
-                "reader": { "comic": { "enableSpread": false, "loupe": { "zoom": 3.0, "toggleKey": "Alt+l" } }, "autoOpenAdjacentBook": "ask" },
+                "reader": { "comic": { "enableSpread": false, "loupe": { "zoom": 3.0, "toggleKey": "Alt+l" } }, "autoOpenAdjacentBook": "ask", "clickToTurnPages": "bySide" },
                 "layout": { "sidePane": { "isHidden": true, "tabIndex": 2 } }
             }),
         };
@@ -482,6 +486,10 @@ mod tests {
         assert!(matches!(
             settings.reader.auto_open_adjacent_book,
             AutoOpenAdjacentBookMode::Ask
+        ));
+        assert!(matches!(
+            settings.reader.click_to_turn_pages,
+            ClickToTurnPagesMode::BySide
         ));
         assert!(settings.layout.side_pane.is_hidden);
         assert_eq!(settings.layout.side_pane.tab_index, 2);
@@ -539,6 +547,22 @@ mod tests {
         let cfg = AppSettings::normalize(doc, "/mock/home".into());
         assert_eq!(cfg.reader.novel.font_size, 16.0); // default restored
         assert!(!cfg.reader.comic.enable_spread); // preserved
+    }
+
+    #[test]
+    fn normalize_heals_unknown_click_mode() {
+        let mut doc = default_doc_with_home();
+        doc["reader"]["clickToTurnPages"] = json!("threeZones");
+        doc["reader"]["autoOpenAdjacentBook"] = json!("auto");
+        let cfg = AppSettings::normalize(doc, "/mock/home".into());
+        assert!(matches!(
+            cfg.reader.click_to_turn_pages,
+            ClickToTurnPagesMode::Anywhere
+        ));
+        assert!(matches!(
+            cfg.reader.auto_open_adjacent_book,
+            AutoOpenAdjacentBookMode::Auto
+        ));
     }
 
     // ---- repair_invalid_fields ----

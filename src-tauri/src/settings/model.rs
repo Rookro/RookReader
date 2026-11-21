@@ -139,6 +139,9 @@ pub struct ReaderSettings {
     /// Behavior when paging past the last/first page of a book (auto-open adjacent book).
     #[garde(skip)]
     pub auto_open_adjacent_book: AutoOpenAdjacentBookMode,
+    /// How a left-click in the reading area turns pages, for comics and novels alike.
+    #[garde(skip)]
+    pub click_to_turn_pages: ClickToTurnPagesMode,
     /// Whether opening an archive descends through a chain of single sub-folders to the
     /// first level that actually holds pages.
     ///
@@ -157,6 +160,7 @@ impl Default for ReaderSettings {
             novel: NovelSettings::default(),
             rendering: RenderingSettings::default(),
             auto_open_adjacent_book: AutoOpenAdjacentBookMode::default(),
+            click_to_turn_pages: ClickToTurnPagesMode::default(),
             auto_descend_single_folder: default_true(),
         }
     }
@@ -449,6 +453,17 @@ pub enum AutoOpenAdjacentBookMode {
     Ask,
     /// Open the adjacent book automatically.
     Auto,
+}
+
+/// How a left-click in the reading area turns pages.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default, PartialEq, Eq, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub enum ClickToTurnPagesMode {
+    /// A left-click anywhere goes to the next page.
+    #[default]
+    Anywhere,
+    /// A left-click goes towards the half of the reading area it lands in.
+    BySide,
 }
 
 /// Represents the algorithm used for resampling images.

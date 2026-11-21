@@ -273,9 +273,16 @@
       "tab-name": "Reader",
       "title": "Reader Settings",
       "headers": {
+        "page-turning": "Page turning",
         "comic": "Comic",
         "novel": "Novel",
         "history": "History"
+      },
+      "click-to-turn-pages": {
+        "title": "Click to turn pages",
+        "description": "Left-click anywhere for the next page, or on the side of the page to turn towards. Right-click goes to the previous page.",
+        "anywhere": "Anywhere",
+        "bySide": "By side of the page"
       },
       "reading-direction": {
         "title": "Default page direction",

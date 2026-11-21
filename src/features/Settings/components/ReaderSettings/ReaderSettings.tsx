@@ -4,6 +4,7 @@ import SettingsPanel from "../SettingsPanel";
 import AutoDescendSingleFolderSetting from "./Items/AutoDescendSingleFolderSetting";
 import AutoOpenAdjacentBookSetting from "./Items/AutoOpenAdjacentBookSetting";
 import ClearHistorySetting from "./Items/ClearHistorySetting";
+import ClickToTurnPagesSetting from "./Items/ClickToTurnPagesSetting";
 import FontSettings from "./Items/FontSettings";
 import LoupeSettingsItem from "./Items/LoupeSettingsItem";
 import ReadingDirectionSetting from "./Items/ReadingDirectionSetting";
@@ -18,6 +19,12 @@ export default function ReaderSettings() {
 
   return (
     <SettingsPanel title={t("settings.reader.title")}>
+      <List>
+        <ListSubheader disableSticky color="primary">
+          {t("settings.reader.headers.page-turning")}
+        </ListSubheader>
+        <ClickToTurnPagesSetting />
+      </List>
       <List>
         <ListSubheader disableSticky color="primary">
           {t("settings.reader.headers.comic")}
