@@ -23,7 +23,7 @@ const CHAIN_WAIT_CAP_MS = 1000;
 export interface SpreadPairing {
   /** The book's own chain; null until it has been measured. */
   chain: UnitChain | null;
-  /** What display, navigation and the snap use; null only inside the wait cap. */
+  /** What display, navigation and the snap use; null only while a spread view waits. */
   pairing: UnitChain | null;
   /** Records a loaded page's shape while the book is unmeasured. Stable across renders. */
   recordLoadedPage: (entry: string, isLandscape: boolean) => void;
@@ -49,8 +49,8 @@ export interface SpreadPairingOptions {
 
 /**
  * Decides how the open book pairs its pages: from its measurement once it has one, and
- * from the settings and the pages already loaded once the wait cap has passed. Keeps the
- * current index on a unit start.
+ * from the settings and the pages already loaded once the wait cap has passed, or at once
+ * in single-page view. Keeps the current index on a unit start.
  *
  * @param options See {@link SpreadPairingOptions}.
  * @returns See {@link SpreadPairing}.
@@ -90,7 +90,8 @@ export const useSpreadPairing = ({
   }, [landscape, isSpreadShifted, settings]);
 
   /**
-   * The pairing to show when the measurement has not arrived and the wait cap has passed.
+   * The pairing to show when the measurement has not arrived and either the wait cap has
+   * passed or the view is single-page.
    *
    * The book has offered no evidence *yet*, which is the case the settings tier of the
    * evidence order already covers: assume no page is landscape and let
@@ -110,10 +111,13 @@ export const useSpreadPairing = ({
 
   /**
    * The pairing everything downstream uses: the book's own once it is known, and the one
-   * the settings imply once the viewer has waited long enough for it.
+   * the settings imply once the viewer has waited long enough for it, or at once in
+   * single-page view.
    *
-   * Null only while the book is still being measured inside the wait cap, which is when
-   * the viewer shows nothing rather than a pairing it would have to correct.
+   * Null only while a spread view is still measuring the book inside the wait cap, which
+   * is when the viewer holds rather than show a pairing it would have to correct. A
+   * single-page view has nothing to correct: every unit is one page whatever the
+   * measurement says.
    *
    * Display, navigation and the boundary snap all read *this*, never `chain` directly.
    * They have to agree: a viewer that displays the spread {0,1} but steps forward by one
@@ -121,8 +125,8 @@ export const useSpreadPairing = ({
    * they just read.
    */
   const pairing = useMemo(
-    () => chain ?? (chainWaitElapsed ? assumedChain : null),
-    [chain, chainWaitElapsed, assumedChain],
+    () => chain ?? (chainWaitElapsed || !settings.isTwoPagedView ? assumedChain : null),
+    [chain, chainWaitElapsed, settings.isTwoPagedView, assumedChain],
   );
 
   // Hold the loading state until the book's pairing is known, then give up. Only a book
