@@ -295,7 +295,7 @@ describe("BookReader/NovelReader", () => {
       if (typeof clickHandler === "function") {
         const mockEvent = { target: document.createElement("div") } as unknown as MouseEvent;
         clickHandler(mockEvent);
-        expect(mockPageNavHandlers.handleClicked).toHaveBeenCalledWith(mockEvent);
+        expect(mockPageNavHandlers.handleClicked).toHaveBeenCalledWith(mockEvent, undefined);
       }
 
       // Test contextmenu
@@ -306,7 +306,7 @@ describe("BookReader/NovelReader", () => {
       if (typeof contextHandler === "function") {
         const mockEvent = { preventDefault: vi.fn() } as unknown as MouseEvent;
         contextHandler(mockEvent);
-        expect(mockPageNavHandlers.handleContextMenu).toHaveBeenCalledWith(mockEvent);
+        expect(mockPageNavHandlers.handleContextMenu).toHaveBeenCalledWith(mockEvent, undefined);
       }
 
       // Test wheel

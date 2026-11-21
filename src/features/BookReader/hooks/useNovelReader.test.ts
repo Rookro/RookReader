@@ -226,64 +226,56 @@ describe("useNovelReader", () => {
     });
   });
 
-  it("should navigate to next page", async () => {
-    const mockBook = {
-      sections: [],
-      toc: [],
-      destroy: vi.fn(),
-    } as Book;
-    vi.mocked(makeBook).mockResolvedValue(mockBook);
-
-    const { result } = setupHook();
-
-    await waitFor(() => {
-      const viewElement = result.current.viewerRef.current?.querySelector(
-        "foliate-view",
-      ) as MockView;
-      expect(viewElement).not.toBeNull();
+  /** A section document (the event target) shown in an iframe at `frameRect`. */
+  const sectionDoc = (frameRect: Pick<DOMRect, "left" | "top">) => {
+    const doc = document.createElement("div");
+    Object.defineProperty(doc, "defaultView", {
+      value: {
+        frameElement: { getBoundingClientRect: () => frameRect },
+        getComputedStyle: () => ({ writingMode: "horizontal-tb" }),
+      },
     });
+    return doc;
+  };
 
+  it("converts a click in the text to the reader's coordinates", async () => {
+    vi.mocked(makeBook).mockResolvedValue({ sections: [], toc: [], destroy: vi.fn() } as Book);
+    const { result } = setupHook();
+    await waitFor(() => {
+      expect(result.current.viewerRef.current?.querySelector("foliate-view")).not.toBeNull();
+    });
     const viewElement = result.current.viewerRef.current?.querySelector("foliate-view") as MockView;
+    const doc = sectionDoc({ left: -500, top: 40 });
+    viewElement.dispatchEvent(new CustomEvent("load", { detail: { doc } }));
 
-    // Simulate "load" event to attach document event listeners
-    const mockDoc = document.createElement("div");
-    const loadEvent = new CustomEvent("load", { detail: { doc: mockDoc } });
-    viewElement.dispatchEvent(loadEvent);
+    doc.dispatchEvent(new MouseEvent("click", { bubbles: true, clientX: 700, clientY: 10 }));
 
-    // Simulate click on the document
-    mockDoc.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    expect(dispatchInput).toHaveBeenCalledWith(
-      expect.objectContaining({ kind: "click", button: "left" }),
-    );
+    expect(dispatchInput).toHaveBeenCalledWith({
+      kind: "click",
+      button: "left",
+      at: { clientX: 200, clientY: 50 },
+    });
   });
 
-  it("should navigate to previous page on context menu", async () => {
-    const mockBook = {
-      sections: [],
-      toc: [],
-      destroy: vi.fn(),
-    } as Book;
-    vi.mocked(makeBook).mockResolvedValue(mockBook);
-
+  it("converts a right-click in the text to the reader's coordinates", async () => {
+    vi.mocked(makeBook).mockResolvedValue({ sections: [], toc: [], destroy: vi.fn() } as Book);
     const { result } = setupHook();
-
     await waitFor(() => {
-      const viewElement = result.current.viewerRef.current?.querySelector(
-        "foliate-view",
-      ) as MockView;
-      expect(viewElement).not.toBeNull();
+      expect(result.current.viewerRef.current?.querySelector("foliate-view")).not.toBeNull();
     });
-
     const viewElement = result.current.viewerRef.current?.querySelector("foliate-view") as MockView;
+    const doc = sectionDoc({ left: -500, top: 40 });
+    viewElement.dispatchEvent(new CustomEvent("load", { detail: { doc } }));
 
-    const mockDoc = document.createElement("div");
-    const loadEvent = new CustomEvent("load", { detail: { doc: mockDoc } });
-    viewElement.dispatchEvent(loadEvent);
-
-    mockDoc.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true }));
-    expect(dispatchInput).toHaveBeenCalledWith(
-      expect.objectContaining({ kind: "click", button: "right" }),
+    doc.dispatchEvent(
+      new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 700, clientY: 10 }),
     );
+
+    expect(dispatchInput).toHaveBeenCalledWith({
+      kind: "click",
+      button: "right",
+      at: { clientX: 200, clientY: 50 },
+    });
   });
 
   it("should dispatch setNovelLocation on relocate event with different detail formats", async () => {
@@ -526,6 +518,17 @@ describe("useNovelReader", () => {
     const calls = vi.mocked(useRegisterReaderActions).mock.calls;
     return calls[calls.length - 1][0];
   };
+
+  it("does not move before a section is shown", async () => {
+    const viewElement = await loadView();
+    viewElement.lastLocation = null;
+
+    expect(registeredActions().nextPage()).toBe(false);
+    expect(registeredActions().previousPage()).toBe(false);
+
+    expect(viewElement.next).not.toHaveBeenCalled();
+    expect(viewElement.prev).not.toHaveBeenCalled();
+  });
 
   it("jumps to the start or the end of the book", async () => {
     const viewElement = await loadView();

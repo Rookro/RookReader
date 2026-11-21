@@ -68,7 +68,8 @@ export interface UseNovelReaderOptions {
  * Handles loading EPUB files, setting up the view, applying themes, and handling navigation.
  *
  * @param options - Configuration options including the file path.
- * @returns The viewer reference, the viewer's wheel handler, and the load error.
+ * @returns The viewer reference, the viewer's click, context menu and wheel handlers, and the
+ *   load error.
  */
 export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
   const theme = useAppTheme();
@@ -91,14 +92,17 @@ export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
   const fontSize = useAppSelector((state) => state.settings.reader.novel.fontSize);
   const dispatch = useAppDispatch();
 
-  // The novel reader has no adjacent-book hand-off, so its moves always count as moved.
+  // The novel reader has no adjacent-book hand-off, so once a section is shown its moves count
+  // as moved. Before that foliate-js has no renderer, and its next() and prev() reject.
   const onMoveForward = useCallback((): boolean => {
-    viewRef.current?.next();
+    if (!viewRef.current?.lastLocation) return false;
+    viewRef.current.next();
     return true;
   }, []);
 
   const onMoveBack = useCallback((): boolean => {
-    viewRef.current?.prev();
+    if (!viewRef.current?.lastLocation) return false;
+    viewRef.current.prev();
     return true;
   }, []);
 
@@ -290,17 +294,25 @@ export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
           }
         }
 
+        // The section's iframe has no border, padding or transform, so its rect moves the
+        // click into the top document's coordinates.
+        const toReader = (ev: MouseEvent) => {
+          const rect = doc.defaultView?.frameElement?.getBoundingClientRect();
+          return rect
+            ? { clientX: rect.left + ev.clientX, clientY: rect.top + ev.clientY }
+            : undefined;
+        };
         doc.addEventListener("click", (ev: MouseEvent) => {
           // Ignore click events on links.
           const target = ev.target as HTMLElement;
           if (target.closest("a")) {
             return;
           }
-          contextRef.current.handleClicked(ev);
+          contextRef.current.handleClicked(ev, toReader(ev));
         });
         doc.addEventListener("contextmenu", (ev: MouseEvent) => {
           ev.preventDefault();
-          contextRef.current.handleContextMenu(ev);
+          contextRef.current.handleContextMenu(ev, toReader(ev));
         });
         doc.addEventListener("wheel", (ev: WheelEvent) => {
           contextRef.current.handleWheeled(ev);
@@ -384,5 +396,12 @@ export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
     }
   }, []);
 
-  return { viewerRef, handleViewerWheel, loadError };
+  // Clicks on the margins around the section's iframe bubble to the viewer.
+  return {
+    viewerRef,
+    handleViewerClick: handleClicked,
+    handleViewerContextMenu: handleContextMenu,
+    handleViewerWheel,
+    loadError,
+  };
 };
