@@ -268,7 +268,7 @@ export default function BookshelfToolbar() {
         }
         icon={LibraryAddOutlined}
         // Sits below the toolbar rows, over the book grid only.
-        sx={{ top: (toolbarRef.current?.offsetHeight ?? 0) + 8 }}
+        sx={{ top: toolbarRef.current?.offsetHeight ?? 0 }}
       />
     </Stack>
   );

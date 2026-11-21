@@ -21,9 +21,8 @@ export interface DropOverlayProps {
 }
 
 /**
- * Covers its parent while files are dragged over the window, saying what a drop will do.
- *
- * The parent must be positioned, since the overlay is placed absolutely against it.
+ * Covers its nearest positioned ancestor while files are dragged over the window, saying
+ * what a drop will do.
  */
 export default function DropOverlay({ open, message, icon: Icon, sx }: DropOverlayProps) {
   if (!open) {
@@ -34,7 +33,7 @@ export default function DropOverlay({ open, message, icon: Icon, sx }: DropOverl
       sx={[
         (theme) => ({
           position: "absolute",
-          inset: 8,
+          inset: 0,
           // Above the loupe (1000) and the floating controls.
           zIndex: theme.zIndex.appBar,
           pointerEvents: "none",
@@ -44,9 +43,20 @@ export default function DropOverlay({ open, message, icon: Icon, sx }: DropOverl
           padding: 2,
           textAlign: "center",
         }),
-        dropTargetActiveSx,
-        // A veil so the content underneath recedes.
-        (theme) => ({ backgroundColor: alpha(theme.palette.background.default, 0.72) }),
+        (theme) => ({
+          // A veil so the content underneath recedes; it fills the area edge to edge.
+          backgroundColor: alpha(theme.palette.background.default, 0.72),
+          // The frame sits a little inside the veil, so its rounded corners show no content.
+          // It is drawn under the icon and the message, above the veil.
+          "&::before": {
+            content: '""',
+            position: "absolute",
+            inset: 4,
+            zIndex: -1,
+            pointerEvents: "none",
+            ...dropTargetActiveSx(theme),
+          },
+        }),
         ...(Array.isArray(sx) ? sx : [sx]),
       ]}
     >
