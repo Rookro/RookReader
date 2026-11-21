@@ -176,9 +176,10 @@ describe("BookmarkViewer", () => {
       return { ...view, actions };
     };
 
+    // `hidden`, because an open menu or dialog hides the rest of the page from the accessibility tree.
     const activeOption = () => {
       const id = screen
-        .getByRole("listbox", { name: "Bookmarks" })
+        .getByRole("listbox", { name: "Bookmarks", hidden: true })
         .getAttribute("aria-activedescendant");
       return id === null ? null : document.getElementById(id);
     };
@@ -271,6 +272,153 @@ describe("BookmarkViewer", () => {
       expect(panel).toContainElement(screen.getByText("No bookmarks."));
       await user.keyboard("{ArrowDown}");
       expect(actions.nextPage).not.toHaveBeenCalled();
+    });
+
+    /** Opens the second bookmark's rename dialog from the keyboard menu. */
+    const openRenameFromKeyboard = async () => {
+      await user.keyboard("{F6}{ArrowDown}{ContextMenu}");
+      await user.keyboard("{ArrowDown}");
+      expect(screen.getByRole("menuitem", { name: "Rename" })).toHaveFocus();
+      await user.keyboard("{Enter}");
+      await waitFor(() => expect(screen.getByLabelText("Name")).toHaveFocus());
+    };
+
+    it("returns to the list on the same bookmark after a rename confirmed with the keyboard", async () => {
+      givenBookmarks(threeBookmarks());
+      renderInPane();
+
+      await openRenameFromKeyboard();
+      await user.clear(screen.getByLabelText("Name"));
+      await user.type(screen.getByLabelText("Name"), "Duel");
+      await user.keyboard("{Tab}{Tab}");
+      expect(screen.getByRole("button", { name: "OK" })).toHaveFocus();
+      await user.keyboard("{Enter}");
+
+      expect(api.renameBookmark).toHaveBeenCalledExactlyOnceWith(2, "Duel");
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+      expect(screen.getByRole("listbox")).toHaveFocus();
+      expect(activeOption()).toHaveTextContent(/Duel|The duel/);
+    });
+
+    it("confirms a rename with Enter in the name field", async () => {
+      givenBookmarks(threeBookmarks());
+      renderInPane();
+
+      await openRenameFromKeyboard();
+      await user.clear(screen.getByLabelText("Name"));
+      await user.type(screen.getByLabelText("Name"), "Duel{Enter}");
+
+      expect(api.renameBookmark).toHaveBeenCalledExactlyOnceWith(2, "Duel");
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+      expect(screen.getByRole("listbox")).toHaveFocus();
+    });
+
+    it("ignores Enter in the name field while it is blank", async () => {
+      givenBookmarks(threeBookmarks());
+      renderInPane();
+
+      await openRenameFromKeyboard();
+      await user.clear(screen.getByLabelText("Name"));
+      await user.type(screen.getByLabelText("Name"), "  {Enter}");
+
+      expect(api.renameBookmark).not.toHaveBeenCalled();
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+    });
+
+    it("ignores Enter in the name field while an IME is composing", async () => {
+      givenBookmarks(threeBookmarks());
+      renderInPane();
+
+      await openRenameFromKeyboard();
+      const input = screen.getByLabelText("Name");
+      fireEvent.keyDown(input, { key: "Enter", isComposing: true });
+
+      expect(api.renameBookmark).not.toHaveBeenCalled();
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+    });
+
+    it("returns to the list after the rename dialog is cancelled with Escape", async () => {
+      givenBookmarks(threeBookmarks());
+      renderInPane();
+
+      await openRenameFromKeyboard();
+      await user.keyboard("{Escape}");
+
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+      expect(screen.getByRole("listbox")).toHaveFocus();
+      expect(activeOption()).toBe(screen.getByRole("option", { name: /The duel/ }));
+    });
+
+    it("leaves focus out of the pane when the rename dialog is cancelled with the mouse", async () => {
+      givenBookmarks(threeBookmarks());
+      const { actions } = renderInPane();
+
+      await openRenameFromKeyboard();
+      await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+      expect(screen.getByRole("listbox")).not.toHaveFocus();
+      await user.keyboard("{ArrowDown}");
+      expect(actions.nextPage).toHaveBeenCalledTimes(1);
+    });
+
+    it("returns to the list after Remove chosen with the keyboard", async () => {
+      givenBookmarks(threeBookmarks());
+      const { store } = renderInPane();
+
+      await user.keyboard("{F6}{ArrowDown}{ContextMenu}");
+      await user.keyboard("{ArrowDown}{ArrowDown}");
+      expect(screen.getByRole("menuitem", { name: "Remove bookmark" })).toHaveFocus();
+      await user.keyboard("{Enter}");
+      await waitFor(() => expect(screen.getByRole("listbox")).toHaveFocus());
+
+      act(() => {
+        store.dispatch(removeBookmark.fulfilled(2, "request", 2));
+      });
+      expect(activeOption()).toBe(screen.getByRole("option", { name: /Ending/ }));
+    });
+
+    it("jumps and returns to the reader after Jump chosen with the keyboard", async () => {
+      givenBookmarks(threeBookmarks());
+      const { store } = renderInPane();
+
+      await user.keyboard("{F6}{ArrowDown}{ContextMenu}");
+      expect(screen.getByRole("menuitem", { name: "Jump" })).toHaveFocus();
+      await user.keyboard("{Enter}");
+
+      expect(store.getState().reader.index).toBe(11);
+      await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument());
+      expect(screen.getByRole("listbox")).not.toHaveFocus();
+    });
+
+    it("focuses the panel after the last bookmark is removed from the keyboard menu", async () => {
+      givenBookmarks(threeBookmarks().slice(0, 1));
+      const { store, actions } = renderInPane();
+
+      await user.keyboard("{F6}{ContextMenu}");
+      await user.keyboard("{ArrowDown}{ArrowDown}{Enter}");
+      await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument());
+      act(() => {
+        store.dispatch(removeBookmark.fulfilled(1, "request", 1));
+      });
+
+      await waitFor(() => expect(document.activeElement).toHaveAttribute("tabindex", "-1"));
+      expect(document.activeElement).toContainElement(screen.getByText("No bookmarks."));
+      await user.keyboard("{ArrowDown}");
+      expect(actions.nextPage).not.toHaveBeenCalled();
+    });
+
+    it("leaves focus out of the pane after Remove clicked in a keyboard-opened menu", async () => {
+      givenBookmarks(threeBookmarks());
+      const { actions } = renderInPane();
+
+      await user.keyboard("{F6}{ArrowDown}{ContextMenu}");
+      await user.click(screen.getByRole("menuitem", { name: "Remove bookmark" }));
+      await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument());
+      expect(screen.getByRole("listbox")).not.toHaveFocus();
+
+      await user.keyboard("{ArrowDown}");
+      expect(actions.nextPage).toHaveBeenCalledTimes(1);
     });
   });
 

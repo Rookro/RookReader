@@ -12,7 +12,9 @@ import {
 } from "@mui/material";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useContextMenuRegistry } from "../../../../components/ui/ContextMenu/useContextMenuRegistry";
 import type { Bookmark } from "../../../../domain/entities";
+import { useAfterCommit } from "../../../../hooks/useAfterCommit";
 import {
   type ListKeyboardNavigation,
   useListKeyboardNavigation,
@@ -26,6 +28,7 @@ import {
   useSidePaneFocus,
 } from "../../../SidePane/SidePaneFocusContext";
 import { removeBookmark, updateBookmarkName } from "../../bookmarkSlice";
+import { isComposing } from "../../input/guards";
 import { setImageIndex, setNovelLocation } from "../../slice";
 import { ItemRow } from "./ItemRow";
 
@@ -37,12 +40,17 @@ export default function BookmarkViewer() {
   const dispatch = useAppDispatch();
   const isNovel = useAppSelector((state) => state.reader.isNovel);
   const bookmarks = useAppSelector((state) => state.bookmark.bookmarks);
-  const [renameTarget, setRenameTarget] = useState<Bookmark | null>(null);
+  const [renameTarget, setRenameTarget] = useState<{
+    bookmark: Bookmark;
+    byKeyboard: boolean;
+  } | null>(null);
   const [renameText, setRenameText] = useState("");
   const panelRef = useRef<HTMLDivElement>(null);
   const panelPointer = usePointerFocusRelease();
   const scrollBoxRef = useRef<HTMLDivElement>(null);
-  const { isKeyboardInPane, returnToReader } = useSidePaneFocus();
+  const { isKeyboardInPane, returnToReader, requestPanelFocus } = useSidePaneFocus();
+  const { register: registerMenu, open: openMenu } = useContextMenuRegistry<number>();
+  const afterCommit = useAfterCommit();
 
   const handleJump = useCallback(
     (bookmark: Bookmark) => {
@@ -73,6 +81,7 @@ export default function BookmarkViewer() {
       returnToReader();
       handleJump(bookmarks[index]);
     },
+    onOpenMenu: openMenu,
     onBecameEmpty: () => panelRef.current?.focus(),
     isKeyboardInUse: isKeyboardInPane,
   });
@@ -92,8 +101,8 @@ export default function BookmarkViewer() {
     [handleJump, setActiveKey],
   );
 
-  const handleRename = useCallback((bookmark: Bookmark) => {
-    setRenameTarget(bookmark);
+  const handleRename = useCallback((bookmark: Bookmark, byKeyboard: boolean) => {
+    setRenameTarget({ bookmark, byKeyboard });
     setRenameText(bookmark.name);
   }, []);
 
@@ -104,20 +113,64 @@ export default function BookmarkViewer() {
     [dispatch],
   );
 
-  const handleRenameDialogClosed = useCallback(() => {
-    setRenameTarget(null);
-  }, []);
+  // Back on the renamed row when the dialog was opened and closed from the keyboard.
+  const closeRenameDialog = useCallback(
+    (byKeyboard: boolean) => {
+      if (renameTarget?.byKeyboard && byKeyboard) {
+        const rowKey = renameTarget.bookmark.id;
+        afterCommit(() => requestPanelFocus({ rowKey }));
+      }
+      setRenameTarget(null);
+    },
+    [renameTarget, afterCommit, requestPanelFocus],
+  );
+
+  const handleRenameDialogClosed = useCallback(
+    (_e: unknown, reason: "backdropClick" | "escapeKeyDown") => {
+      closeRenameDialog(reason === "escapeKeyDown");
+    },
+    [closeRenameDialog],
+  );
+
+  const handleRenameCancelled = useCallback(
+    (e: React.MouseEvent<HTMLElement>) => {
+      closeRenameDialog(e.detail === 0);
+    },
+    [closeRenameDialog],
+  );
 
   const handleRenameTextChanged = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setRenameText(e.target.value);
   }, []);
 
-  const handleRenameConfirmed = useCallback(() => {
-    if (renameTarget) {
-      dispatch(updateBookmarkName({ id: renameTarget.id, name: renameText }));
-    }
-    setRenameTarget(null);
-  }, [dispatch, renameTarget, renameText]);
+  const confirmRename = useCallback(
+    (byKeyboard: boolean) => {
+      if (renameTarget) {
+        dispatch(updateBookmarkName({ id: renameTarget.bookmark.id, name: renameText }));
+      }
+      closeRenameDialog(byKeyboard);
+    },
+    [dispatch, renameTarget, renameText, closeRenameDialog],
+  );
+
+  const handleRenameConfirmed = useCallback(
+    (e: React.MouseEvent<HTMLElement>) => {
+      confirmRename(e.detail === 0);
+    },
+    [confirmRename],
+  );
+
+  // Enter confirms as OK does, and only when OK is enabled.
+  const handleRenameKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      if (e.key !== "Enter" || isComposing(e.nativeEvent) || renameText.trim().length === 0) {
+        return;
+      }
+      e.preventDefault();
+      confirmRename(true);
+    },
+    [confirmRename, renameText],
+  );
 
   return (
     <Stack
@@ -146,12 +199,18 @@ export default function BookmarkViewer() {
                 onJump={handleRowJump}
                 onRename={handleRename}
                 onRemove={handleRemove}
+                registerMenu={registerMenu}
               />
             ))}
           </List>
         </Box>
       )}
-      <Dialog open={renameTarget !== null} onClose={handleRenameDialogClosed} fullWidth>
+      <Dialog
+        open={renameTarget !== null}
+        onClose={handleRenameDialogClosed}
+        disableRestoreFocus={renameTarget?.byKeyboard === true}
+        fullWidth
+      >
         <DialogTitle>{t("book-reader.bookmark-viewer.rename-dialog.title")}</DialogTitle>
         <DialogContent>
           <TextField
@@ -162,10 +221,11 @@ export default function BookmarkViewer() {
             label={t("book-reader.bookmark-viewer.rename-dialog.name-label")}
             value={renameText}
             onChange={handleRenameTextChanged}
+            onKeyDown={handleRenameKeyDown}
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleRenameDialogClosed}>
+          <Button onClick={handleRenameCancelled}>
             {t("book-reader.bookmark-viewer.rename-dialog.cancel")}
           </Button>
           <Button onClick={handleRenameConfirmed} disabled={renameText.trim().length === 0}>

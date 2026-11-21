@@ -76,6 +76,15 @@ describe("HistoryViewer/ItemRow", () => {
     expect(screen.getByRole("option")).toHaveClass("Mui-focusVisible");
   });
 
+  it("shows its tooltip while keyboard-active", () => {
+    renderWithProviders(
+      <ItemRow entry={mockBook} index={0} selected={false} keyboardActive={true} />,
+      { preloadedState },
+    );
+
+    expect(screen.getByRole("tooltip")).toHaveTextContent("/path/to/book.zip");
+  });
+
   it("should open context menu on right click", async () => {
     renderWithProviders(<ItemRow entry={mockBook} index={0} selected={false} />, {
       preloadedState,

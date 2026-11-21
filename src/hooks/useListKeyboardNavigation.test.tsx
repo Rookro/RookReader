@@ -75,8 +75,10 @@ describe("useListKeyboardNavigation", () => {
       "ArrowLeft",
       "ArrowRight",
       "ArrowUp",
+      "ContextMenu",
       "End",
       "Enter",
+      "F10",
       "Home",
       "PageDown",
       "PageUp",
@@ -184,6 +186,103 @@ describe("useListKeyboardNavigation", () => {
     expect(onEnterRow).toHaveBeenCalledExactlyOnceWith("b", 1);
     expect(fireEvent.keyDown(ul, { key: "ArrowLeft" })).toBe(false);
     expect(onLeave).toHaveBeenCalledOnce();
+  });
+
+  it("opens the active row's menu with the context-menu key, at the row", async () => {
+    const onOpenMenu = vi.fn();
+    const { ul, nav, user } = setup({ onOpenMenu });
+    act(() => nav().focusList("first"));
+    await user.keyboard("{ArrowDown}");
+
+    const notPrevented = fireEvent.keyDown(ul, { key: "ContextMenu" });
+
+    expect(onOpenMenu).toHaveBeenCalledExactlyOnceWith(
+      "b",
+      document.getElementById(nav().rowId(1)),
+    );
+    expect(notPrevented).toBe(false);
+  });
+
+  it("opens it with Shift+F10 but not with F10 alone", () => {
+    const onOpenMenu = vi.fn();
+    const { ul, nav } = setup({ onOpenMenu });
+    act(() => nav().focusList("first"));
+
+    expect(fireEvent.keyDown(ul, { key: "F10" })).toBe(true);
+    expect(onOpenMenu).not.toHaveBeenCalled();
+
+    expect(fireEvent.keyDown(ul, { key: "F10", shiftKey: true })).toBe(false);
+    expect(onOpenMenu).toHaveBeenCalledExactlyOnceWith(
+      "a",
+      document.getElementById(nav().rowId(0)),
+    );
+  });
+
+  it("leaves the context-menu keys alone without onOpenMenu", () => {
+    const { ul, nav } = setup();
+    act(() => nav().focusList("first"));
+
+    expect(fireEvent.keyDown(ul, { key: "ContextMenu" })).toBe(true);
+  });
+
+  it("waits until a scrolled-out row is rendered before opening its menu", async () => {
+    const onOpenMenu = vi.fn();
+    const { ul, nav, props, user } = setup({ rowKeys: tenRows, onOpenMenu });
+    act(() => nav().focusList({ rowKey: "r0" }));
+    await user.keyboard("{End}");
+    const r = { startIndex: 0, stopIndex: 3 };
+    act(() => nav().onRowsRendered(r, r));
+    const row = screen.getByText("r9");
+    const id = row.id;
+    row.removeAttribute("id");
+
+    fireEvent.keyDown(ul, { key: "ContextMenu" });
+    expect(props().scrollToIndex).toHaveBeenLastCalledWith(9);
+    expect(onOpenMenu).not.toHaveBeenCalled();
+
+    row.id = id;
+    const shown = { startIndex: 6, stopIndex: 9 };
+    act(() => nav().onRowsRendered(shown, shown));
+    expect(onOpenMenu).toHaveBeenCalledExactlyOnceWith("r9", row);
+  });
+
+  it("drops a waiting menu when the list loses focus", async () => {
+    const onOpenMenu = vi.fn();
+    const { ul, nav, user } = setup({ rowKeys: tenRows, onOpenMenu });
+    act(() => nav().focusList({ rowKey: "r0" }));
+    await user.keyboard("{End}");
+    const r = { startIndex: 0, stopIndex: 3 };
+    act(() => nav().onRowsRendered(r, r));
+    const row = screen.getByText("r9");
+    const id = row.id;
+    row.removeAttribute("id");
+
+    fireEvent.keyDown(ul, { key: "ContextMenu" });
+    act(() => ul.blur());
+    row.id = id;
+    const shown = { startIndex: 6, stopIndex: 9 };
+    act(() => nav().onRowsRendered(shown, shown));
+    expect(onOpenMenu).not.toHaveBeenCalled();
+  });
+
+  it("drops a waiting menu on another key the list handles", async () => {
+    const onOpenMenu = vi.fn();
+    const { ul, nav, user } = setup({ rowKeys: tenRows, onOpenMenu });
+    act(() => nav().focusList({ rowKey: "r0" }));
+    await user.keyboard("{End}");
+    const r = { startIndex: 0, stopIndex: 3 };
+    act(() => nav().onRowsRendered(r, r));
+    const row = screen.getByText("r9");
+    const id = row.id;
+    row.removeAttribute("id");
+
+    fireEvent.keyDown(ul, { key: "ContextMenu" });
+    fireEvent.keyDown(ul, { key: "ArrowUp" });
+    row.id = id;
+    const shown = { startIndex: 6, stopIndex: 9 };
+    act(() => nav().onRowsRendered(shown, shown));
+    expect(nav().activeKey).toBe("r8");
+    expect(onOpenMenu).not.toHaveBeenCalled();
   });
 
   it("ignores keys with Ctrl, Alt or Meta and during composition", () => {
@@ -406,6 +505,22 @@ describe("useListKeyboardNavigation", () => {
     act(() => screen.getByText("a").focus());
     expect(nav().hasFocus).toBe(false);
     expect(nav().isKeyboardActive(1)).toBe(false);
+  });
+
+  it("draws the active row as keyboard-focused only while it is visible", () => {
+    const { nav } = setup({ rowKeys: tenRows });
+    act(() => nav().focusList({ rowKey: "r5" }));
+    const all = { startIndex: 0, stopIndex: 9 };
+
+    act(() => nav().onRowsRendered({ startIndex: 3, stopIndex: 6 }, all));
+    expect(nav().isKeyboardActive(5)).toBe(true);
+
+    // Scrolled past, but still mounted as overscan.
+    act(() => nav().onRowsRendered({ startIndex: 6, stopIndex: 9 }, all));
+    expect(nav().isKeyboardActive(5)).toBe(false);
+
+    act(() => nav().onRowsRendered({ startIndex: 2, stopIndex: 5 }, all));
+    expect(nav().isKeyboardActive(5)).toBe(true);
   });
 
   it("blurs itself when focused by a pointer", () => {

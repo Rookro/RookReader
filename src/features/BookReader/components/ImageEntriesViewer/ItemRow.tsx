@@ -1,6 +1,7 @@
 import Image from "@mui/icons-material/Image";
 import { ListItem, ListItemButton, ListItemText, Tooltip } from "@mui/material";
 import { type CSSProperties, memo } from "react";
+import { useRowTooltip } from "../../../../hooks/useRowTooltip";
 import { preventRightClickFocus } from "../../../../utils/preventRightClickFocus";
 import { releaseMouseFocus } from "../../../../utils/releaseMouseFocus";
 
@@ -32,8 +33,10 @@ export const ItemRow = memo(function ItemRow({
   onClick?: (e: React.MouseEvent<HTMLDivElement>, index: number) => void;
   style?: CSSProperties;
 }) {
+  const tooltip = useRowTooltip(keyboardActive === true);
+
   return (
-    <Tooltip title={entry} followCursor placement="right-start">
+    <Tooltip title={entry} placement="right-start" {...tooltip}>
       <ListItem style={style} key={index} component="div" role="none" disablePadding dense>
         <ListItemButton
           id={id}

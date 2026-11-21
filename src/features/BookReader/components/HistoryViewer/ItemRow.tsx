@@ -8,15 +8,20 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import { type CSSProperties, memo, useCallback, useMemo } from "react";
+import { type CSSProperties, memo, useCallback, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import ContextMenu from "../../../../components/ui/ContextMenu/ContextMenu";
+import ContextMenu, {
+  type ContextMenuCloseReason,
+} from "../../../../components/ui/ContextMenu/ContextMenu";
 import { useContextMenuAnchor } from "../../../../components/ui/ContextMenu/useContextMenuAnchor";
 import type { BookWithState } from "../../../../domain/entities";
+import { useAfterCommit } from "../../../../hooks/useAfterCommit";
+import { useRowTooltip } from "../../../../hooks/useRowTooltip";
 import { useAppDispatch } from "../../../../store/store";
 import { preventRightClickFocus } from "../../../../utils/preventRightClickFocus";
 import { releaseMouseFocus } from "../../../../utils/releaseMouseFocus";
 import { clearHistory } from "../../../History/slice";
+import { useSidePaneFocus } from "../../../SidePane/SidePaneFocusContext";
 
 /**
  * Row component for the history viewer.
@@ -27,6 +32,7 @@ import { clearHistory } from "../../../History/slice";
  * @param id - Optional id, which the listbox's `aria-activedescendant` points at.
  * @param keyboardActive - Whether the row is drawn as the keyboard's active row.
  * @param onClick - Optional callback for when the entry is clicked.
+ * @param registerMenu - Optional registration of the row's menu opener, for the context-menu key.
  * @param style - Optional CSS style for the row.
  */
 export const ItemRow = memo(function ItemRow({
@@ -36,6 +42,7 @@ export const ItemRow = memo(function ItemRow({
   id,
   keyboardActive,
   onClick,
+  registerMenu,
   style,
 }: {
   entry: BookWithState;
@@ -44,6 +51,7 @@ export const ItemRow = memo(function ItemRow({
   id?: string;
   keyboardActive?: boolean;
   onClick?: (e: React.MouseEvent<HTMLElement>, entry: BookWithState, index: number) => void;
+  registerMenu?: (key: number, openAt: (row: HTMLElement) => void) => () => void;
   style?: CSSProperties;
 }) {
   const { t, i18n } = useTranslation();
@@ -57,26 +65,44 @@ export const ItemRow = memo(function ItemRow({
     return Number.isNaN(parsed.getTime()) ? stored : parsed.toLocaleString(i18n.language);
   }, [entry.lastOpenedAt, i18n.language]);
   const dispatch = useAppDispatch();
-  const {
-    anchor: contextMenu,
-    open: handleContextMenu,
-    close: handleMenuClosed,
-  } = useContextMenuAnchor();
+  const { anchor: contextMenu, open: handleContextMenu, openAt, close } = useContextMenuAnchor();
+  const { requestPanelFocus, returnToReader } = useSidePaneFocus();
+  const afterCommit = useAfterCommit();
+  const fromKeyboard = contextMenu?.fromKeyboard === true;
+  const tooltip = useRowTooltip(keyboardActive === true);
+
+  useEffect(() => registerMenu?.(entry.id, openAt), [registerMenu, entry.id, openAt]);
+
+  const handleMenuClosed = useCallback(
+    (reason: ContextMenuCloseReason) => {
+      close();
+      if (fromKeyboard && (reason === "escapeKeyDown" || reason === "tabKeyDown")) {
+        afterCommit(() => requestPanelFocus("active"));
+      }
+    },
+    [close, fromKeyboard, afterCommit, requestPanelFocus],
+  );
 
   const handleOpenClicked = useCallback(
     (e: React.MouseEvent<HTMLElement>, entry: BookWithState, index: number) => {
-      handleMenuClosed();
+      close();
+      if (fromKeyboard && e.detail === 0) {
+        returnToReader();
+      }
       onClick?.(e, entry, index);
     },
-    [onClick, handleMenuClosed],
+    [onClick, close, fromKeyboard, returnToReader],
   );
 
   const handleRemoveClicked = useCallback(
-    async (_e: React.MouseEvent<HTMLElement>, entry: BookWithState, _index: number) => {
-      handleMenuClosed();
+    async (e: React.MouseEvent<HTMLElement>, entry: BookWithState, _index: number) => {
+      close();
       dispatch(clearHistory(entry.id));
+      if (fromKeyboard && e.detail === 0) {
+        afterCommit(() => requestPanelFocus("active"));
+      }
     },
-    [dispatch, handleMenuClosed],
+    [dispatch, close, fromKeyboard, afterCommit, requestPanelFocus],
   );
 
   return (
@@ -90,8 +116,8 @@ export const ItemRow = memo(function ItemRow({
             </Typography>
           </>
         }
-        followCursor
         placement="right-start"
+        {...tooltip}
       >
         <ListItem style={style} key={index} component="div" role="none" disablePadding dense>
           <ListItemButton

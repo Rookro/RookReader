@@ -240,9 +240,10 @@ describe("HistoryViewer", () => {
       return { ...view, actions };
     };
 
+    // `hidden`, because an open menu hides the rest of the page from the accessibility tree.
     const activeOption = () => {
       const id = screen
-        .getByRole("listbox", { name: "History" })
+        .getByRole("listbox", { name: "History", hidden: true })
         .getAttribute("aria-activedescendant");
       return id === null ? null : document.getElementById(id);
     };
@@ -463,6 +464,150 @@ describe("HistoryViewer", () => {
       await user.keyboard("{F6}");
 
       expect(error).toHaveBeenCalledWith(expect.stringContaining("Failed to scroll to row 0"));
+    });
+
+    it("opens the active entry's menu with the context-menu key and returns to the list on Escape", async () => {
+      const { actions } = renderInPane();
+
+      await user.keyboard("{F6}{ArrowDown}{ContextMenu}");
+      expect(screen.getByRole("menu")).toBeInTheDocument();
+      expect(activeOption()).toBe(screen.getByRole("option", { name: "Book 2", hidden: true }));
+
+      // WebView2 sends the menu key's contextmenu on key-up, to the newly focused menu.
+      fireEvent.contextMenu(screen.getByRole("menu"), { button: 0 });
+      expect(screen.getByRole("menu")).toBeInTheDocument();
+
+      // The menu's focus trap holds focus only once focus has moved inside it.
+      await user.keyboard("{ArrowDown}");
+      await user.keyboard("{Escape}");
+      await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument());
+      expect(screen.getByRole("listbox")).toHaveFocus();
+      expect(activeOption()).toBe(screen.getByRole("option", { name: "Book 2" }));
+
+      await user.keyboard("{ArrowDown}");
+      expect(activeOption()).toBe(screen.getByRole("option", { name: "Book 3" }));
+      expect(actions.nextPage).not.toHaveBeenCalled();
+    });
+
+    it("returns to the list when the keyboard menu is closed with Tab", async () => {
+      const { actions } = renderInPane();
+
+      await user.keyboard("{F6}{ArrowDown}{ContextMenu}");
+      // The menu's focus trap holds focus only once focus has moved inside it.
+      await user.keyboard("{ArrowDown}");
+      await user.keyboard("{Tab}");
+      await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument());
+      expect(screen.getByRole("listbox")).toHaveFocus();
+      expect(activeOption()).toBe(screen.getByRole("option", { name: "Book 2" }));
+
+      await user.keyboard("{ArrowDown}");
+      expect(activeOption()).toBe(screen.getByRole("option", { name: "Book 3" }));
+      expect(actions.nextPage).not.toHaveBeenCalled();
+    });
+
+    it("opens the menu with Shift+F10", async () => {
+      renderInPane();
+
+      await user.keyboard("{F6}{Shift>}{F10}{/Shift}");
+
+      expect(screen.getByRole("menu")).toBeInTheDocument();
+    });
+
+    it("returns to the list after Remove chosen with the keyboard, then follows the removal", async () => {
+      const [first, , third] = threeBooks();
+      const { store, actions } = renderInPane();
+
+      await user.keyboard("{F6}{ArrowDown}{ContextMenu}");
+      await user.keyboard("{ArrowDown}");
+      expect(screen.getByRole("menuitem", { name: "Remove history" })).toHaveFocus();
+      await user.keyboard("{Enter}");
+      await waitFor(() => expect(screen.getByRole("listbox")).toHaveFocus());
+
+      refetch(store, [first, third]);
+      expect(activeOption()).toBe(screen.getByRole("option", { name: "Book 3" }));
+
+      await user.keyboard("{ArrowDown}");
+      expect(actions.nextPage).not.toHaveBeenCalled();
+    });
+
+    it("focuses the panel after the last entry is removed from the keyboard menu", async () => {
+      const { store, actions } = renderInPane(withBooks(threeBooks().slice(0, 1)));
+
+      await user.keyboard("{F6}{ContextMenu}");
+      await user.keyboard("{ArrowDown}{Enter}");
+      await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument());
+      refetch(store, []);
+
+      await waitFor(() => expect(document.activeElement).toHaveAttribute("tabindex", "-1"));
+      expect(document.activeElement).toContainElement(screen.getByTestId("side-panel-header"));
+      await user.keyboard("{ArrowDown}");
+      expect(actions.nextPage).not.toHaveBeenCalled();
+    });
+
+    it("opens the book and returns to the reader after Open chosen with the keyboard", async () => {
+      const { actions } = renderInPane();
+
+      await user.keyboard("{F6}{ArrowDown}{ContextMenu}");
+      expect(screen.getByRole("menuitem", { name: "Open" })).toHaveFocus();
+      await user.keyboard("{Enter}");
+
+      expect(ReadReducer.openBook).toHaveBeenCalledWith({
+        path: "/path/2",
+        origin: { kind: "history" },
+      });
+      await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument());
+      expect(screen.getByRole("listbox")).not.toHaveFocus();
+
+      await user.keyboard("{ArrowDown}");
+      expect(actions.nextPage).toHaveBeenCalledTimes(1);
+    });
+
+    it("leaves focus out of the pane after Remove clicked in a keyboard-opened menu", async () => {
+      const { actions } = renderInPane();
+
+      await user.keyboard("{F6}{ArrowDown}{ContextMenu}");
+      await user.click(screen.getByRole("menuitem", { name: "Remove history" }));
+      await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument());
+      expect(screen.getByRole("listbox")).not.toHaveFocus();
+
+      await user.keyboard("{ArrowDown}");
+      expect(actions.nextPage).toHaveBeenCalledTimes(1);
+    });
+
+    it("leaves focus out of the pane when a keyboard-opened menu is closed with a click outside", async () => {
+      const { actions } = renderInPane();
+
+      await user.keyboard("{F6}{ContextMenu}");
+      await user.click(document.querySelector(".MuiBackdrop-root") as HTMLElement);
+      await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument());
+      expect(screen.getByRole("listbox")).not.toHaveFocus();
+
+      await user.keyboard("{ArrowDown}");
+      expect(actions.nextPage).toHaveBeenCalledTimes(1);
+    });
+
+    it("hides the active entry's tooltip while its menu is open", async () => {
+      renderInPane();
+
+      await user.keyboard("{F6}{ArrowDown}");
+      // Book 1's tooltip fades out first.
+      await waitFor(() => expect(screen.getByRole("tooltip")).toHaveTextContent("/path/2"));
+
+      await user.keyboard("{ContextMenu}");
+      // `hidden`, because the open menu hides the tooltip from the accessibility tree.
+      await waitFor(() =>
+        expect(screen.queryByRole("tooltip", { hidden: true })).not.toBeInTheDocument(),
+      );
+    });
+
+    it("hides the tooltip after a mouse press", async () => {
+      renderInPane();
+
+      await user.keyboard("{F6}");
+      expect(screen.getByRole("tooltip")).toBeInTheDocument();
+
+      await user.pointer({ keys: "[MouseLeft]", target: screen.getByTestId("reader") });
+      await waitFor(() => expect(screen.queryByRole("tooltip")).not.toBeInTheDocument());
     });
 
     it("keeps the page turning after a click on the panel's title", async () => {

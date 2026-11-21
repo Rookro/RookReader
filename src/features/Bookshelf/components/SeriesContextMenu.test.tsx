@@ -107,6 +107,7 @@ describe("SeriesContextMenu", () => {
     const event = new MouseEvent("contextmenu", {
       bubbles: true,
       cancelable: true,
+      button: 2,
     });
     vi.spyOn(event, "preventDefault");
     vi.spyOn(event, "stopPropagation");

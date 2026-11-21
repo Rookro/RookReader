@@ -13,6 +13,8 @@ export const LIST_NAVIGATION_KEYS: ReadonlySet<string> = new Set([
   " ",
   "ArrowLeft",
   "ArrowRight",
+  "ContextMenu",
+  "F10",
 ]);
 
 /** Same shape as the side pane's `PanelFocusRequest`, so a panel passes its request straight through. */
@@ -36,6 +38,8 @@ export interface ListKeyboardNavigationOptions<K extends string | number> {
   onEnterRow?: (key: K, index: number) => void;
   /** ←; given only for lists that have a parent. */
   onLeave?: () => void;
+  /** The context-menu key or Shift+F10 on a row, once it is rendered; given only for rows with a menu. */
+  onOpenMenu?: (key: K, row: HTMLElement) => void;
   /** The last row disappeared while the list had focus. */
   onBecameEmpty?: () => void;
   /** Whether the keyboard, not the mouse, is in use (draws the active row as focused). */
@@ -88,6 +92,16 @@ interface RowRange {
   stopIndex: number;
 }
 
+/** `prev` when `next` covers the same rows, so an unchanged report does not re-render. */
+const keepRange = (prev: RowRange | null, next: RowRange): RowRange =>
+  prev?.startIndex === next.startIndex && prev.stopIndex === next.stopIndex
+    ? prev
+    : { startIndex: next.startIndex, stopIndex: next.stopIndex };
+
+/** Whether `index` is in `range`; an unknown range (rows never reported) holds every row. */
+const isInRange = (index: number, range: RowRange | null): boolean =>
+  range === null || (index >= range.startIndex && index <= range.stopIndex);
+
 /**
  * Keyboard navigation for a list in the WAI-ARIA listbox pattern: the container keeps DOM focus
  * and points at the active row with `aria-activedescendant`, so virtualized rows can unmount.
@@ -107,12 +121,16 @@ export function useListKeyboardNavigation<K extends string | number>(
     onOpen,
     onEnterRow,
     onLeave,
+    onOpenMenu,
     isKeyboardInUse,
   } = options;
   const listId = useId();
   const [active, setActive] = useState<ActiveRow<K> | null>(null);
   const [hasFocus, setHasFocus] = useState(false);
   const [renderedRows, setRenderedRows] = useState<RowRange | null>(null);
+  const [visibleRows, setVisibleRows] = useState<RowRange | null>(null);
+  // A row whose menu was asked for; it opens once the row is rendered.
+  const [menuKey, setMenuKey] = useState<K | null>(null);
   const followCurrentRef = useRef(false);
   // Set while focusList focuses the list, whose row it has already chosen.
   const focusingRef = useRef(false);
@@ -157,6 +175,20 @@ export function useListKeyboardNavigation<K extends string | number>(
 
   const rowId = useCallback((index: number) => `${listId}-row-${index}`, [listId]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: retry whenever the rendered rows change.
+  useEffect(() => {
+    if (menuKey === null) return;
+    const index = rowKeys.indexOf(menuKey);
+    if (index === -1) {
+      setMenuKey(null);
+      return;
+    }
+    const row = document.getElementById(rowId(index));
+    if (!row) return;
+    setMenuKey(null);
+    optionsRef.current.onOpenMenu?.(menuKey, row);
+  }, [menuKey, rowKeys, renderedRows, rowId]);
+
   const setActiveKey = useCallback(
     (key: K) => {
       const index = rowKeys.indexOf(key);
@@ -197,7 +229,18 @@ export function useListKeyboardNavigation<K extends string | number>(
       if (e.ctrlKey || e.altKey || e.metaKey || e.nativeEvent.isComposing) return;
       if (!LIST_NAVIGATION_KEYS.has(e.key) || rowKeys.length === 0) return;
       if ((e.key === "ArrowRight" && !onEnterRow) || (e.key === "ArrowLeft" && !onLeave)) return;
+      const isMenuKey = e.key === "ContextMenu" || (e.key === "F10" && e.shiftKey);
+      if ((e.key === "F10" && !e.shiftKey) || (isMenuKey && !onOpenMenu)) return;
       e.preventDefault();
+
+      if (isMenuKey) {
+        if (active) {
+          setMenuKey(active.key);
+          scrollToIndex(active.index);
+        }
+        return;
+      }
+      setMenuKey(null);
 
       const last = rowKeys.length - 1;
       let next: number;
@@ -236,7 +279,17 @@ export function useListKeyboardNavigation<K extends string | number>(
       setActive({ key: rowKeys[next], index: next });
       scrollToIndex(next);
     },
-    [rowKeys, active, activeIndex, pageSize, onOpen, onEnterRow, onLeave, scrollToIndex],
+    [
+      rowKeys,
+      active,
+      activeIndex,
+      pageSize,
+      onOpen,
+      onEnterRow,
+      onLeave,
+      onOpenMenu,
+      scrollToIndex,
+    ],
   );
 
   const onFocus = useCallback(
@@ -259,25 +312,22 @@ export function useListKeyboardNavigation<K extends string | number>(
     if (e.target !== e.currentTarget) return;
     focusedRef.current = false;
     setHasFocus(false);
+    setMenuKey(null);
   }, []);
 
-  const onRowsRendered = useCallback((_visibleRows: RowRange, allRows: RowRange) => {
-    setRenderedRows((prev) =>
-      prev?.startIndex === allRows.startIndex && prev.stopIndex === allRows.stopIndex
-        ? prev
-        : { startIndex: allRows.startIndex, stopIndex: allRows.stopIndex },
-    );
+  const onRowsRendered = useCallback((visible: RowRange, allRows: RowRange) => {
+    setVisibleRows((prev) => keepRange(prev, visible));
+    setRenderedRows((prev) => keepRange(prev, allRows));
   }, []);
 
+  // An overscan row scrolled out of sight is not drawn as active, so its tooltip goes too.
   const isKeyboardActive = useCallback(
-    (index: number) => hasFocus && isKeyboardInUse && index === activeIndex,
-    [hasFocus, isKeyboardInUse, activeIndex],
+    (index: number) =>
+      hasFocus && isKeyboardInUse && index === activeIndex && isInRange(index, visibleRows),
+    [hasFocus, isKeyboardInUse, activeIndex, visibleRows],
   );
 
-  const isActiveRendered =
-    activeIndex !== -1 &&
-    (renderedRows === null ||
-      (activeIndex >= renderedRows.startIndex && activeIndex <= renderedRows.stopIndex));
+  const isActiveRendered = activeIndex !== -1 && isInRange(activeIndex, renderedRows);
 
   return {
     activeKey,

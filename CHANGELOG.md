@@ -24,6 +24,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * In the File Navigator, Pages, Bookmarks and History lists, the arrow keys, `Home` / `End` and `Page Up` / `Page Down` move through the entries, and `Enter` opens the selected one and returns to the reader. In the File Navigator, `Right Arrow` enters a folder or an archive and `Left Arrow` goes up to the parent folder.
   * In the search and path boxes, `Esc` first clears the text or undoes the edit, then returns to the reader.
   * After clicking a button in the side pane, such as the File Navigator's **Up one level** or the sort order, the keys go on turning pages.
+* The side pane's menus and tooltips can be used from the keyboard. (#415)
+  * In History and Bookmarks, the `Menu` key or `Shift+F10` opens the entry's right-click menu next to it. After you choose an item with the keyboard or close the menu with `Esc` or `Tab`, you are back in the list; **Open** and **Jump** return to the reader.
+  * In the bookmark **Rename** dialog, `Enter` confirms the name. Used from the keyboard, the dialog brings you back to the bookmark.
+  * In the File Navigator, Pages and History, the highlighted entry shows the same tooltip as when you point at it.
+  * On Linux, the item you move to with the arrow keys in a right-click menu, in the side pane or on the bookshelf, is now highlighted.
 
 ## [2.7.1] - 2026-11-16
 

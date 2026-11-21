@@ -19,6 +19,7 @@ import {
   useListCallbackRef,
 } from "react-window";
 import ConfirmDialog from "../../../../components/ui/ConfirmDialog";
+import { useContextMenuRegistry } from "../../../../components/ui/ContextMenu/useContextMenuRegistry";
 import type { BookWithState } from "../../../../domain/entities";
 import { useListKeyboardNavigation } from "../../../../hooks/useListKeyboardNavigation";
 import { usePointerFocusRelease } from "../../../../hooks/usePointerFocusRelease";
@@ -44,6 +45,7 @@ interface RowProps {
   onClick: (e: React.MouseEvent<HTMLElement>, entry: BookWithState, index: number) => void;
   rowId: (index: number) => string;
   isKeyboardActive: (index: number) => boolean;
+  registerMenu: (key: number, openAt: (row: HTMLElement) => void) => () => void;
 }
 
 /** Row component for the history viewer. */
@@ -55,6 +57,7 @@ function Row({
   onClick,
   rowId,
   isKeyboardActive,
+  registerMenu,
   ...others
 }: RowComponentProps<RowProps>) {
   const entry = entries[index];
@@ -68,6 +71,7 @@ function Row({
       id={rowId(index)}
       keyboardActive={isKeyboardActive(index)}
       onClick={onClick}
+      registerMenu={registerMenu}
       style={style}
     />
   );
@@ -97,6 +101,7 @@ export default function HistoryViewer() {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const panelPointer = usePointerFocusRelease();
   const { isKeyboardInPane, returnToReader } = useSidePaneFocus();
+  const { register: registerMenu, open: openMenu } = useContextMenuRegistry<number>();
   const dispatch = useAppDispatch();
 
   const filteredEntries = useMemo(() => {
@@ -127,6 +132,7 @@ export default function HistoryViewer() {
       returnToReader();
       dispatch(openBook({ path: filteredEntries[index].filePath, origin: { kind: "history" } }));
     },
+    onOpenMenu: openMenu,
     onBecameEmpty: focusEmptyTarget,
     isKeyboardInUse: isKeyboardInPane,
   });
@@ -203,8 +209,9 @@ export default function HistoryViewer() {
       onClick: handleListItemClicked,
       rowId,
       isKeyboardActive,
+      registerMenu,
     }),
-    [filteredEntries, selectedIndex, handleListItemClicked, rowId, isKeyboardActive],
+    [filteredEntries, selectedIndex, handleListItemClicked, rowId, isKeyboardActive, registerMenu],
   );
 
   return (

@@ -69,6 +69,14 @@ describe("FileNavigator/ItemRow", () => {
     expect(screen.getByRole("option")).toHaveClass("Mui-focusVisible");
   });
 
+  it("shows its tooltip while keyboard-active", () => {
+    renderWithProviders(
+      <ItemRow entry={mockFile} index={0} selected={false} keyboardActive={true} />,
+    );
+
+    expect(screen.getByRole("tooltip")).toHaveTextContent("test-file.zip");
+  });
+
   it("does not take focus on a right-click", () => {
     renderWithProviders(<ItemRow entry={mockFile} index={0} selected={false} />);
     const row = screen.getByRole("option");
