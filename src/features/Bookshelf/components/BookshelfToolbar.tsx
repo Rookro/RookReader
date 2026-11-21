@@ -1,6 +1,7 @@
 import AccessTime from "@mui/icons-material/AccessTime";
 import Add from "@mui/icons-material/Add";
 import Home from "@mui/icons-material/Home";
+import LibraryAddOutlined from "@mui/icons-material/LibraryAddOutlined";
 import Search from "@mui/icons-material/Search";
 import Settings from "@mui/icons-material/Settings";
 import Sort from "@mui/icons-material/Sort";
@@ -22,7 +23,7 @@ import {
   Typography,
 } from "@mui/material";
 import { debug } from "@tauri-apps/plugin-log";
-import { type ChangeEvent, useCallback, useMemo, useState } from "react";
+import { type ChangeEvent, useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import DropOverlay from "../../../components/ui/DropOverlay";
 import { useWindowDrop } from "../../../hooks/useWindowDrop";
@@ -123,8 +124,10 @@ export default function BookshelfToolbar() {
     e.stopPropagation();
   }, []);
 
+  const toolbarRef = useRef<HTMLDivElement>(null);
+
   return (
-    <Stack>
+    <Stack ref={toolbarRef}>
       <Toolbar variant="dense" disableGutters sx={{ minHeight: "40px" }}>
         <OutlinedInput
           type="search"
@@ -263,6 +266,9 @@ export default function BookshelfToolbar() {
             ? t("bookshelf.drop-to-add-to-series", { name: selectedSeries?.name ?? "" })
             : t("bookshelf.drop-to-add", { name: dropTargetName })
         }
+        icon={LibraryAddOutlined}
+        // Sits below the toolbar rows, over the book grid only.
+        sx={{ top: (toolbarRef.current?.offsetHeight ?? 0) + 8 }}
       />
     </Stack>
   );

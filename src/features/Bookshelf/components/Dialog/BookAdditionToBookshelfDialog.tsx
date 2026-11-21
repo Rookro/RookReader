@@ -1,5 +1,6 @@
 import DeleteOutlined from "@mui/icons-material/DeleteOutlined";
 import InsertDriveFileOutlined from "@mui/icons-material/InsertDriveFileOutlined";
+import LibraryAddOutlined from "@mui/icons-material/LibraryAddOutlined";
 import {
   Box,
   Button,
@@ -19,6 +20,7 @@ import { open as openFilePicker } from "@tauri-apps/plugin-dialog";
 import { error } from "@tauri-apps/plugin-log";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { dropTargetActiveSx } from "../../../../components/ui/DropOverlay";
 import { useDragDropEvent } from "../../../../hooks/useDragDropEvent";
 
 /** Props for the BookAdditionToBookshelfDialog component */
@@ -104,29 +106,39 @@ export default function BookAdditionToBookshelfDialog({
       <DialogTitle>{t("bookshelf.book-addition.title")}</DialogTitle>
 
       <DialogContent>
-        <Paper
-          variant="outlined"
-          sx={{
-            padding: 5,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            borderStyle: "dashed",
-            borderWidth: 2,
-            borderColor: isDragActive ? "primary.main" : "grey.400",
-            backgroundColor: isDragActive ? "action.hover" : "background.paper",
-          }}
+        <Box
+          sx={[
+            (theme) => ({
+              padding: 4,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 1,
+              textAlign: "center",
+              // The outlined input's border colour.
+              border: `2px dashed ${theme.palette.mode === "light" ? "rgba(0, 0, 0, 0.23)" : "rgba(255, 255, 255, 0.23)"}`,
+              borderRadius: 2,
+              backgroundColor: "transparent",
+            }),
+            isDragActive && dropTargetActiveSx,
+          ]}
         >
-          <Typography variant="h6" color="textSecondary" gutterBottom>
-            {t("bookshelf.book-addition.drag-drop")}
-          </Typography>
-          <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+          <LibraryAddOutlined
+            sx={{ fontSize: 40, color: isDragActive ? "primary.main" : "text.secondary" }}
+          />
+          <Typography variant="body1">{t("bookshelf.book-addition.drag-drop")}</Typography>
+          <Typography variant="body2" color="textSecondary">
             {t("bookshelf.book-addition.or")}
           </Typography>
-          <Button variant="contained" onClick={handleOpenDialog} disableElevation>
+          <Button
+            variant="contained"
+            onClick={handleOpenDialog}
+            disableElevation
+            sx={{ marginTop: 1 }}
+          >
             {t("bookshelf.book-addition.select-file")}
           </Button>
-        </Paper>
+        </Box>
 
         {filePaths.length > 0 && (
           <Box sx={{ marginTop: 2 }}>

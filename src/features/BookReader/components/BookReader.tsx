@@ -1,6 +1,7 @@
 import Bookmarks from "@mui/icons-material/Bookmarks";
 import Folder from "@mui/icons-material/Folder";
 import History from "@mui/icons-material/History";
+import MenuBookOutlined from "@mui/icons-material/MenuBookOutlined";
 import PhotoLibrary from "@mui/icons-material/PhotoLibrary";
 import { Box, CircularProgress, Stack, type SxProps, type Theme } from "@mui/material";
 import { createSelector } from "@reduxjs/toolkit";
@@ -190,16 +191,17 @@ export default function BookReader({ sx }: BookReaderProps) {
                       <ComicReader />
                     )}
                     {historyIndex === -1 && !isRestoring && <ReaderEmptyState />}
+                    <DropOverlay
+                      open={isDragging && activeView === "reader"}
+                      message={t("book-reader.drop-to-open")}
+                      icon={MenuBookOutlined}
+                    />
                   </Box>
                 </Allotment.Pane>
               </Allotment>
             </Box>
           </Stack>
           <ControlSlider />
-          <DropOverlay
-            open={isDragging && activeView === "reader"}
-            message={t("book-reader.drop-to-open")}
-          />
         </Stack>
       </ReaderInputProvider>
     </SidePaneFocusProvider>
