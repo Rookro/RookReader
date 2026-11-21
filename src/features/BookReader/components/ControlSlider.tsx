@@ -1,15 +1,18 @@
 import createCache from "@emotion/cache";
 import { CacheProvider } from "@emotion/react";
 import { Box, Slider, Stack, Typography } from "@mui/material";
-import { createTheme, type Theme, ThemeProvider } from "@mui/material/styles";
+import { createTheme, type Theme, ThemeProvider, useTheme } from "@mui/material/styles";
 import rtlPlugin from "@mui/stylis-plugin-rtl";
 import { type SyntheticEvent, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { prefixer } from "stylis";
-import { useAppTheme } from "../../../hooks/useAppTheme";
 import { useAppDispatch, useAppSelector } from "../../../store/store";
 import { useReadingDirection } from "../hooks/useReadingDirection";
 import { setImageIndex } from "../slice";
+
+// One cache per direction for the app's lifetime: a new cache would insert its styles again.
+const rtlCache = createCache({ key: "muirtl", stylisPlugins: [prefixer, rtlPlugin] });
+const ltrCache = createCache({ key: "muiltr", stylisPlugins: [prefixer] });
 
 /**
  * Control Slider Component
@@ -19,16 +22,9 @@ export default function ControlSlider() {
   const entries = useAppSelector((state) => state.reader.entries);
   const index = useAppSelector((state) => state.reader.index);
   const dispatch = useAppDispatch();
-  const appTheme = useAppTheme();
+  const appTheme = useTheme();
   // Follows the novel's detected writing mode, or the comic setting.
   const isRtl = useReadingDirection() === "rtl";
-
-  const cache = useMemo(() => {
-    return createCache({
-      key: isRtl ? "muirtl" : "muiltr",
-      stylisPlugins: isRtl ? [prefixer, rtlPlugin] : [prefixer],
-    });
-  }, [isRtl]);
 
   const theme = useMemo(() => {
     return createTheme(appTheme, {
@@ -67,7 +63,7 @@ export default function ControlSlider() {
         margin: "2px 2px 2px 20px",
       }}
     >
-      <CacheProvider value={cache}>
+      <CacheProvider value={isRtl ? rtlCache : ltrCache}>
         <ThemeProvider theme={theme}>
           <Slider
             aria-label={t("book-reader.page-slider")}

@@ -1,3 +1,4 @@
+import { useTheme } from "@mui/material";
 import { error } from "@tauri-apps/plugin-log";
 import type { TOCItem } from "foliate-js/epub.js";
 import { Paginator } from "foliate-js/paginator.js";
@@ -6,7 +7,6 @@ import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import BundledNotoSerifJP from "../../../assets/fonts/NotoSerifJP-VariableFont_wght.woff2";
 import { readNovelFile } from "../../../bindings/binaryApi";
-import { useAppTheme } from "../../../hooks/useAppTheme";
 import { useAppDispatch, useAppSelector } from "../../../store/store";
 import { CommandError, ErrorCode } from "../../../types/Error";
 import { useSidePaneFocus } from "../../SidePane/SidePaneFocusContext";
@@ -72,7 +72,7 @@ export interface UseNovelReaderOptions {
  *   load error.
  */
 export const useNovelReader = ({ filePath }: UseNovelReaderOptions) => {
-  const theme = useAppTheme();
+  const theme = useTheme();
   const viewerRef = useRef<HTMLDivElement>(null);
   /** Why the book's text could not be loaded, if it could not. */
   const [loadError, setLoadError] = useState<{ code: ErrorCode } | null>(null);

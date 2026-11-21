@@ -1,4 +1,4 @@
-import { createTheme, ThemeProvider } from "@mui/material";
+import { ThemeProvider } from "@mui/material";
 import { configureStore } from "@reduxjs/toolkit";
 import { type RenderOptions, render } from "@testing-library/react";
 import i18n from "i18next";
@@ -14,6 +14,7 @@ import translationJaJp from "../i18n/locales/ja-JP.json";
 import { rootReducer } from "../store/rootReducer";
 import type { AppSettings } from "../types/AppSettings";
 import { mockTauri } from "./mocks/tauri";
+import { testTheme } from "./theme";
 
 // Create a lightweight i18n instance for testing with actual resources
 export const testI18n = i18n.createInstance();
@@ -140,8 +141,6 @@ export function mockSettingsCommands(base: AppSettings = defaultSettings) {
   });
 }
 
-const theme = createTheme();
-
 /** The providers every component test renders under, for `render` and `renderHook` alike. */
 export function createTestWrapper({
   preloadedState = {},
@@ -151,7 +150,7 @@ export function createTestWrapper({
   return function Wrapper({ children }: { children: React.ReactNode }): ReactElement {
     return (
       <Provider store={store}>
-        <ThemeProvider theme={theme}>
+        <ThemeProvider theme={testTheme}>
           <I18nextProvider i18n={testI18n}>
             <NotificationProvider>
               <SidePaneFocusProvider tabCount={4}>{children}</SidePaneFocusProvider>

@@ -1,6 +1,7 @@
-import { fireEvent, screen } from "@testing-library/react";
+import { act, fireEvent, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { createBasePreloadedState, renderWithProviders } from "../../../test/utils";
+import { setReadingDirection } from "../slice";
 import ControlSlider from "./ControlSlider";
 
 describe("ControlSlider", () => {
@@ -65,4 +66,25 @@ describe("ControlSlider", () => {
       expect(screen.getByTestId("control-slider").className).toMatch(expected);
     },
   );
+  it("reuses its style cache when the reading direction switches back", () => {
+    const preloadedState = createBasePreloadedState();
+    preloadedState.reader.entries = ["1.jpg", "2.jpg"];
+    preloadedState.reader.readingDirection = "rtl";
+    const { store } = renderWithProviders(<ControlSlider />, { preloadedState });
+    const slider = () => screen.getByTestId("control-slider");
+    const rtlStyles = () => document.head.querySelectorAll('style[data-emotion^="muirtl"]').length;
+    const before = rtlStyles();
+    expect(before).toBeGreaterThan(0);
+
+    act(() => {
+      store.dispatch(setReadingDirection("ltr"));
+    });
+    expect(slider().className).toMatch(/muiltr-/);
+    act(() => {
+      store.dispatch(setReadingDirection("rtl"));
+    });
+    expect(slider().className).toMatch(/muirtl-/);
+
+    expect(rtlStyles()).toBe(before);
+  });
 });

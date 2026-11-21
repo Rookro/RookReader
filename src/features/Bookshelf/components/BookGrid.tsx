@@ -1,10 +1,9 @@
-import { Box, CircularProgress, Stack, Typography } from "@mui/material";
+import { Box, CircularProgress, Stack, Typography, useTheme } from "@mui/material";
 import { createSelector } from "@reduxjs/toolkit";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Grid, useGridCallbackRef } from "react-window";
 import type { BookWithState } from "../../../domain/entities";
-import { useAppTheme } from "../../../hooks/useAppTheme";
 import { useResizeObserver } from "../../../hooks/useResizeObserver";
 import { type RootState, useAppDispatch, useAppSelector } from "../../../store/store";
 import { updateSettings } from "../../Settings/slice";
@@ -149,7 +148,7 @@ export default function BookGrid({ onBookSelect }: BookGridProps) {
   const columnWidth = currentGridSize.width;
   const rowHeight = currentGridSize.height;
 
-  const theme = useAppTheme();
+  const theme = useTheme();
 
   const gridWidth = Math.max(containerWidth - theme.customScrollbar.width, 0);
 
