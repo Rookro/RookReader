@@ -62,8 +62,8 @@ The window title shows the name of the open book (for a folder inside an archive
 
 | Action | Mouse | Keyboard |
 | :--- | :--- | :--- |
-| **Next Page** | Left-click (image area) or Scroll Down | `Left Arrow` or `Right Arrow` (see the note below), `Down Arrow`, `Space`, `Page Down` |
-| **Previous Page** | Right-click (image area) or Scroll Up | `Right Arrow` or `Left Arrow` (see the note below), `Up Arrow`, `Shift+Space`, `Page Up` |
+| **Next Page** | Left-click in the reading area (anywhere, or on the side of the page; see *Click to turn pages*) or Scroll Down | `Left Arrow` or `Right Arrow` (see the note below), `Down Arrow`, `Space`, `Page Down` |
+| **Previous Page** | Right-click in the reading area, a left-click on the other side with *By side of the page*, or Scroll Up | `Right Arrow` or `Left Arrow` (see the note below), `Up Arrow`, `Shift+Space`, `Page Up` |
 | **First / Last Page** of the book | — | `Home` / `End` |
 | **Toggle two-page spread** (comics) | — | `S` |
 | **Shift the spread pairing** (comics, in two-page view) | — | `Shift+S` |
@@ -89,6 +89,8 @@ The keys and the mouse side buttons work in the reader view, for comics and EPUB
 
 > [!NOTE]
 > The behavior of the `Left Arrow` and `Right Arrow` keys adapts automatically based on the reading direction (Right-to-Left vs. Left-to-Right) selected via the toggle button in the top app bar or the `D` key. For Japanese vertical reading (Right-to-Left), the Left Arrow goes to the Next Page, and the Right Arrow goes to the Previous Page.
+
+With **Settings → Reader → Click to turn pages** set to **Anywhere** (the default), a left-click anywhere in the reading area turns to the next page. With **By side of the page**, a left-click on the half of the reading area you read towards turns forward, and on the other half back (Right-to-Left: left half forward; Left-to-Right: right half forward); the middle of a two-page spread is the dividing line. In EPUB novels, clicks on the margins around the text count too.
 
 In the side panel:
 
@@ -213,6 +215,7 @@ Open the settings window with the **Settings** button in the reader's top app ba
 The file list's **sort order** (Name↑/↓, Date↑/↓) is chosen in the File Navigator panel itself and is remembered; *Auto-open Adjacent Book* follows it too.
 
 ### Reader
+- **Click to turn pages**: Anywhere / By side of the page — which side of the reading area a left-click turns towards (see *Keyboard Shortcuts & Controls*).
 - **Default page direction**: Right to left / Left to right — the direction a book turns pages the first time you open it. Changing the direction while reading is remembered for that book only (see *Reading Direction*).
 - **Show the initial page in single-page view**: show the cover on its own in two-page view.
 - **Auto-open adjacent book**: Off / Ask before opening / Auto-open — see *Continuous Reading*.
