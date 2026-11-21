@@ -34,6 +34,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * While you drag, the window shows what a drop will do: open the book in the reader, or add the books to the collection it names.
   * While a series is open, dropped books are also added to that series.
   * After books are added, from the bookshelf or the **Add books** dialog, a notification tells how many were added and why any could not be.
+* A left-click can turn pages towards the side of the page you click. Choose **Click to turn pages → By side of the page** in **Settings → Reader**; the default is unchanged. (#419)
+  * In EPUB books, clicks on the margins around the text turn pages too.
 
 ## [2.7.1] - 2026-11-16
 
