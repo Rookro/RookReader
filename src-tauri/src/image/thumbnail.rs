@@ -149,6 +149,14 @@ mod tests {
     }
 
     #[test]
+    fn a_shrunk_grayscale_thumbnail_stays_single_channel() {
+        let gray = DynamicImage::new_luma8(1200, 600);
+        let thumbnail = encode_thumbnail(&gray, &COVER).unwrap();
+        assert_eq!(thumbnail.width, COVER.max_size);
+        assert_eq!(decoded_color(&thumbnail), image::ColorType::L8);
+    }
+
+    #[test]
     fn a_grayscale_thumbnail_with_alpha_drops_only_the_alpha() {
         let gray = DynamicImage::new_luma_a8(40, 20);
         assert_eq!(

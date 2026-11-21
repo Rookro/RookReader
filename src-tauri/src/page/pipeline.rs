@@ -142,6 +142,14 @@ impl Pipeline {
     /// Associated rather than a method, like [`Pipeline::thumbnail`]: a preview's size
     /// owes nothing to the book's display settings.
     ///
+    /// # Arguments
+    ///
+    /// * `page` - The preview, as the reader's `read_preview` delivered it.
+    ///
+    /// # Returns
+    ///
+    /// A JPEG within `PREVIEW.max_size` on both sides.
+    ///
     /// # Errors
     ///
     /// Returns an `Err` if the bytes are not a supported image, or the resize or the
@@ -156,6 +164,15 @@ impl Pipeline {
     /// Associated rather than a method: a thumbnail's size is fixed by what displays it,
     /// so unlike [`Pipeline::page`] it owes nothing to the book's display settings. It
     /// lives here because this is the only module that decodes.
+    ///
+    /// # Arguments
+    ///
+    /// * `page` - The reader's `read_cover` answer, or its `read_page` answer when there
+    ///   is none.
+    ///
+    /// # Returns
+    ///
+    /// A JPEG within `COVER.max_size` on both sides.
     ///
     /// # Errors
     ///
