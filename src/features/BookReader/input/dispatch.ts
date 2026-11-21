@@ -1,8 +1,10 @@
 import { LIST_NAVIGATION_KEYS } from "../../../hooks/useListKeyboardNavigation";
+import type { ClickToTurnPagesMode } from "../../../types/AppSettings";
 import { isInSidePane } from "../../SidePane/sidePaneDom";
 import {
   type CommonAction,
   findAction,
+  findClickAction,
   type PageAction,
   REPEATABLE_ACTIONS,
   type ReaderAction,
@@ -10,7 +12,7 @@ import {
 } from "./bindings";
 import { type Combo, comboOf, mouseButtonName, sameCombo } from "./combo";
 import { isComposing, isModalOpen, isTextEntryTarget, isTopDocumentRoot } from "./guards";
-import type { ReaderActions, ReaderInput } from "./types";
+import type { PointerPosition, ReaderActions, ReaderInput } from "./types";
 
 /** What the dispatcher needs to know about the reader when an input arrives. */
 export interface DispatchContext {
@@ -18,6 +20,10 @@ export interface DispatchContext {
   isReaderActive: boolean;
   /** The open book's reading direction, which decides what the left and right keys do. */
   direction: "ltr" | "rtl";
+  /** The "Click to turn pages" mode. */
+  clickMode: ClickToTurnPagesMode;
+  /** The reading area's horizontal extent, or null when none is registered; read only for clicks. */
+  readingArea: () => { left: number; width: number } | null;
   /** The comic loupe's toggle, or null when none is set. */
   loupeToggle: Combo | null;
   /** The active reader, or null while none is registered (a book loading). */
@@ -34,8 +40,6 @@ export interface DispatchContext {
     recoverFocus: () => void;
   };
 }
-
-const NO_MODIFIERS = { ctrl: false, alt: false, shift: false, meta: false };
 
 // A Record, so a new page action that is missing here fails to compile.
 const PAGE_ACTIONS: Record<PageAction, true> = {
@@ -126,10 +130,11 @@ export const dispatchReaderInput = (input: ReaderInput, ctx: DispatchContext): b
   }
 
   if (input.kind === "click") {
-    const action = findAction({
-      key: input.button === "left" ? "MouseLeft" : "MouseRight",
-      ...NO_MODIFIERS,
-    });
+    const action = findClickAction(
+      ctx.clickMode,
+      input.button,
+      clickPosition(input.at, ctx.readingArea()),
+    );
     if (!action) {
       return false;
     }
@@ -189,6 +194,24 @@ export const dispatchReaderInput = (input: ReaderInput, ctx: DispatchContext): b
   }
   runAction(action, ctx);
   return true;
+};
+
+/**
+ * Where a click landed across the reading area.
+ *
+ * @param at - The click's position in the top document's client coordinates.
+ * @param area - The reading area's horizontal extent, or null when none is registered.
+ * @returns The position as a fraction of the area's width, clamped to [0, 1], or null when the area
+ *   is missing or has no width, or the position is not finite.
+ */
+export const clickPosition = (
+  at: PointerPosition,
+  area: { left: number; width: number } | null,
+): number | null => {
+  if (!area || area.width <= 0 || !Number.isFinite(at.clientX)) {
+    return null;
+  }
+  return Math.min(1, Math.max(0, (at.clientX - area.left) / area.width));
 };
 
 /**

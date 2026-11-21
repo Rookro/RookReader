@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { PageMove } from "../hooks/usePageNavigation";
 import type { CommonAction } from "./bindings";
 import { parseCombo } from "./combo";
-import { type DispatchContext, dispatchReaderInput } from "./dispatch";
+import { clickPosition, type DispatchContext, dispatchReaderInput } from "./dispatch";
 import type { PointerPosition } from "./types";
 
 const key = (k: string, init: KeyboardEventInit = {}) =>
@@ -17,6 +17,9 @@ const button = (b: number, inReadingArea = true, init: MouseEventInit = {}) =>
     event: new MouseEvent("mousedown", { button: b, cancelable: true, ...init }),
     inReadingArea,
   }) as const;
+
+const click = (b: "left" | "right", clientX: number) =>
+  ({ kind: "click", button: b, at: { clientX, clientY: 0 } }) as const;
 
 const commonActions = (): Record<CommonAction, () => void> => ({
   toggleSpread: vi.fn(),
@@ -44,6 +47,8 @@ const sidePane = (
 const ctx: DispatchContext = {
   isReaderActive: true,
   direction: "ltr",
+  clickMode: "anywhere",
+  readingArea: () => ({ left: 0, width: 100 }),
   loupeToggle: null,
   reader: null,
   common: commonActions(),
@@ -126,14 +131,59 @@ describe("dispatchReaderInput: page keys and clicks", () => {
     expect(r.previousPage).not.toHaveBeenCalled();
   });
 
-  it("turns forward on a left click and back on a right click, with no argument", () => {
+  it.each([20, 80])(
+    "turns forward on a left click at %i anywhere and back on a right click, with no argument",
+    (clientX) => {
+      const r = reader();
+      expect(dispatchReaderInput(click("left", clientX), { ...ctx, reader: r })).toBe(true);
+      expect(r.nextPage).toHaveBeenCalledWith();
+      dispatchReaderInput(click("right", clientX), { ...ctx, reader: r });
+      expect(r.previousPage).toHaveBeenCalledWith();
+    },
+  );
+
+  it.each([
+    { direction: "rtl", clientX: 20, move: "nextPage" },
+    { direction: "rtl", clientX: 80, move: "previousPage" },
+    { direction: "ltr", clientX: 20, move: "previousPage" },
+    { direction: "ltr", clientX: 80, move: "nextPage" },
+  ] as const)(
+    "turns by side: a left click at $clientX in $direction calls $move with no argument",
+    ({ direction, clientX, move }) => {
+      const r = reader();
+      expect(
+        dispatchReaderInput(click("left", clientX), {
+          ...ctx,
+          clickMode: "bySide",
+          direction,
+          reader: r,
+        }),
+      ).toBe(true);
+      expect(r[move]).toHaveBeenCalledTimes(1);
+      expect(r[move]).toHaveBeenCalledWith();
+      expect(r[move === "nextPage" ? "previousPage" : "nextPage"]).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([20, 80])("goes back on a right click at %i by side", (clientX) => {
     const r = reader();
-    expect(dispatchReaderInput({ kind: "click", button: "left" }, { ...ctx, reader: r })).toBe(
-      true,
-    );
-    expect(r.nextPage).toHaveBeenCalledWith();
-    dispatchReaderInput({ kind: "click", button: "right" }, { ...ctx, reader: r });
+    dispatchReaderInput(click("right", clientX), { ...ctx, clickMode: "bySide", reader: r });
     expect(r.previousPage).toHaveBeenCalledWith();
+    expect(r.nextPage).not.toHaveBeenCalled();
+  });
+
+  it("ignores a left click by side when no reading area is registered", () => {
+    const r = reader();
+    expect(
+      dispatchReaderInput(click("left", 20), {
+        ...ctx,
+        clickMode: "bySide",
+        readingArea: () => null,
+        reader: r,
+      }),
+    ).toBe(false);
+    expect(r.nextPage).not.toHaveBeenCalled();
+    expect(r.previousPage).not.toHaveBeenCalled();
   });
 
   it("ignores input while the reader view is not active", () => {
@@ -555,5 +605,27 @@ describe("dispatchReaderInput: side pane", () => {
     const common = commonActions();
     expect(dispatchReaderInput(at(paneElement(), button(3, false)), { ...ctx, common })).toBe(true);
     expect(common.historyBack).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("clickPosition", () => {
+  const area = { left: 100, width: 200 };
+  const pos = (clientX: number) => ({ clientX, clientY: 0 });
+
+  it("maps clientX to a fraction of the area's width", () => {
+    expect(clickPosition(pos(100), area)).toBe(0);
+    expect(clickPosition(pos(200), area)).toBe(0.5);
+    expect(clickPosition(pos(300), area)).toBe(1);
+  });
+
+  it("clamps a position outside the area", () => {
+    expect(clickPosition(pos(50), area)).toBe(0);
+    expect(clickPosition(pos(350), area)).toBe(1);
+  });
+
+  it("returns null without a usable position or area", () => {
+    expect(clickPosition(pos(Number.NaN), area)).toBeNull();
+    expect(clickPosition(pos(200), null)).toBeNull();
+    expect(clickPosition(pos(200), { left: 100, width: 0 })).toBeNull();
   });
 });

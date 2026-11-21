@@ -273,9 +273,16 @@
       "tab-name": "リーダー設定",
       "title": "リーダー設定",
       "headers": {
+        "page-turning": "ページめくり",
         "comic": "コミック",
         "novel": "小説",
         "history": "履歴"
+      },
+      "click-to-turn-pages": {
+        "title": "クリックでのページめくり",
+        "description": "どこを左クリックしても次のページへ進むか、クリックした側へめくるかを選びます。右クリックは前のページに戻ります。",
+        "anywhere": "どこでも",
+        "bySide": "ページの左右"
       },
       "reading-direction": {
         "title": "既定のページ送り方向",

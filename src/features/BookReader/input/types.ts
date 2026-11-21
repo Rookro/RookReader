@@ -22,7 +22,7 @@ export interface ReaderActions {
 export type ReaderInput =
   | { kind: "key"; event: KeyboardEvent }
   | { kind: "button"; event: MouseEvent; inReadingArea: boolean }
-  | { kind: "click"; button: "left" | "right" }
+  | { kind: "click"; button: "left" | "right"; at: PointerPosition }
   | { kind: "wheel"; direction: 1 | -1; steps: number; crossBook: boolean };
 
 /** What receivers use to hand an input to the dispatcher. */

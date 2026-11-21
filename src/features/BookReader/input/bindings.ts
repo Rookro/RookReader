@@ -1,3 +1,4 @@
+import type { ClickToTurnPagesMode } from "../../../types/AppSettings";
 import { type Combo, parseCombo, sameCombo } from "./combo";
 
 /** An action that moves through pages. */
@@ -39,11 +40,9 @@ export const READER_BINDINGS: readonly Binding[] = [
   { combo: "Space", action: "nextPage" },
   { combo: "PageDown", action: "nextPage" },
   { combo: "ArrowDown", action: "nextPage" },
-  { combo: "MouseLeft", action: "nextPage" },
   { combo: "Shift+Space", action: "previousPage" },
   { combo: "PageUp", action: "previousPage" },
   { combo: "ArrowUp", action: "previousPage" },
-  { combo: "MouseRight", action: "previousPage" },
   { combo: "Home", action: "firstPage" },
   { combo: "End", action: "lastPage" },
   { combo: "S", action: "toggleSpread" },
@@ -63,6 +62,49 @@ export const SIDE_PANE_BINDINGS: readonly Binding[] = [
   { combo: "Ctrl+Tab", action: "nextSidePanel" },
   { combo: "Ctrl+Shift+Tab", action: "previousSidePanel" },
 ];
+
+/** A click binding: a button, optionally limited to a horizontal range of the reading area. */
+export interface ClickBinding {
+  button: "left" | "right";
+  /** `[from, to)` as fractions of the reading area's width (a zone ending at 1 also contains 1); the whole area when absent. */
+  zone?: readonly [number, number];
+  action: ReaderAction;
+}
+
+/** The click bindings of each "Click to turn pages" mode. */
+export const CLICK_BINDINGS: Record<ClickToTurnPagesMode, readonly ClickBinding[]> = {
+  anywhere: [
+    { button: "left", action: "nextPage" },
+    { button: "right", action: "previousPage" },
+  ],
+  bySide: [
+    { button: "left", zone: [0, 0.5], action: "pageLeft" },
+    { button: "left", zone: [0.5, 1], action: "pageRight" },
+    { button: "right", action: "previousPage" },
+  ],
+};
+
+// Half-open, except that 1 belongs to a zone ending at 1.
+const inZone = (x: number, [from, to]: readonly [number, number]): boolean =>
+  x >= from && (x < to || (x === 1 && to === 1));
+
+/**
+ * Finds the action bound to a click: the first row of the mode's table for the button whose zone,
+ * if any, contains the position. A zoned row never matches without a position.
+ *
+ * @param mode - The "Click to turn pages" mode.
+ * @param button - The clicked button.
+ * @param x - Where the click landed, as a fraction of the reading area's width, or null when unknown.
+ * @returns The bound action, or null when nothing matches.
+ */
+export const findClickAction = (
+  mode: ClickToTurnPagesMode,
+  button: "left" | "right",
+  x: number | null,
+): ReaderAction | null =>
+  CLICK_BINDINGS[mode].find(
+    (b) => b.button === button && (!b.zone || (x !== null && inZone(x, b.zone))),
+  )?.action ?? null;
 
 /** Actions that run again while their key is held down. */
 export const REPEATABLE_ACTIONS: ReadonlySet<ReaderAction> = new Set<ReaderAction>([

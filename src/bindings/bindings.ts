@@ -768,7 +768,7 @@ export const events = {
 };
 
 /* Constants */
-export const DEFAULT_SETTINGS = {"bookshelf":{"enableAutoScroll":true,"gridSize":1,"sortOrder":"name_asc"},"fileNavigator":{"homeDirectory":"","sortOrder":"name_asc","watchDirectoryChanges":false},"general":{"appFontFamily":"Inter, Avenir, Helvetica, Arial, sans-serif","experimentalFeatures":{},"log":{"level":"info"},"theme":"system"},"history":{"recordReadingHistory":true},"layout":{"sidePane":{"isHidden":false,"tabIndex":0}},"reader":{"autoDescendSingleFolder":true,"autoOpenAdjacentBook":"ask","comic":{"cache":{"imageCacheSizeMib":1024,"pageReaderCount":0,"preloadPageCount":10},"enableSpread":true,"loupe":{"radius":200.0,"toggleKey":"MouseMiddle","zoom":2.0},"readingDirection":"rtl","showCoverAsSinglePage":true},"novel":{"fontFamily":"default-font","fontSize":16.0},"rendering":{"enableThumbnailPreview":true,"imageResamplingMethod":"lanczos3","maxImageHeight":0,"pdfRenderResolutionHeight":2000}},"startup":{"checkUpdateOnStartup":true,"initialView":"reader","restoreLastBook":true}} as const;
+export const DEFAULT_SETTINGS = {"bookshelf":{"enableAutoScroll":true,"gridSize":1,"sortOrder":"name_asc"},"fileNavigator":{"homeDirectory":"","sortOrder":"name_asc","watchDirectoryChanges":false},"general":{"appFontFamily":"Inter, Avenir, Helvetica, Arial, sans-serif","experimentalFeatures":{},"log":{"level":"info"},"theme":"system"},"history":{"recordReadingHistory":true},"layout":{"sidePane":{"isHidden":false,"tabIndex":0}},"reader":{"autoDescendSingleFolder":true,"autoOpenAdjacentBook":"ask","clickToTurnPages":"anywhere","comic":{"cache":{"imageCacheSizeMib":1024,"pageReaderCount":0,"preloadPageCount":10},"enableSpread":true,"loupe":{"radius":200.0,"toggleKey":"MouseMiddle","zoom":2.0},"readingDirection":"rtl","showCoverAsSinglePage":true},"novel":{"fontFamily":"default-font","fontSize":16.0},"rendering":{"enableThumbnailPreview":true,"imageResamplingMethod":"lanczos3","maxImageHeight":0,"pdfRenderResolutionHeight":2000}},"startup":{"checkUpdateOnStartup":true,"initialView":"reader","restoreLastBook":true}} as const;
 
 export const SETTINGS_BOUNDS = {"bookshelf.gridSize":{"integer":true,"max":2.0,"min":0.0},"layout.sidePane.tabIndex":{"integer":true,"max":100.0,"min":0.0},"reader.comic.cache.imageCacheSizeMib":{"integer":true,"max":65536.0,"min":1.0},"reader.comic.cache.pageReaderCount":{"integer":true,"max":64.0,"min":0.0},"reader.comic.cache.preloadPageCount":{"integer":true,"max":10000.0,"min":0.0},"reader.comic.loupe.radius":{"integer":false,"max":5000.0,"min":50.0},"reader.comic.loupe.zoom":{"integer":false,"max":100.0,"min":1.0},"reader.novel.fontSize":{"integer":false,"max":200.0,"min":1.0},"reader.rendering.maxImageHeight":{"integer":true,"max":65535.0,"min":0.0},"reader.rendering.pdfRenderResolutionHeight":{"integer":true,"max":20000.0,"min":1.0}} as const;
 
@@ -1017,6 +1017,13 @@ export type BookshelfSettings_Serialize = {
 	/**  Whether to enable automatic horizontal scrolling for overflowing text. */
 	enableAutoScroll: boolean,
 };
+
+/**  How a left-click in the reading area turns pages. */
+export type ClickToTurnPagesMode = 
+/**  A left-click anywhere goes to the next page. */
+"anywhere" | 
+/**  A left-click goes towards the half of the reading area it lands in. */
+"bySide";
 
 /**  Represents a collection entity used to organize books. */
 export type Collection = Collection_Serialize | Collection_Deserialize;
@@ -1447,6 +1454,8 @@ export type ReaderSettings_Deserialize = {
 	rendering?: RenderingSettings_Deserialize,
 	/**  Behavior when paging past the last/first page of a book (auto-open adjacent book). */
 	autoOpenAdjacentBook?: AutoOpenAdjacentBookMode,
+	/**  How a left-click in the reading area turns pages, for comics and novels alike. */
+	clickToTurnPages?: ClickToTurnPagesMode,
 	/**
 	 *  Whether opening an archive descends through a chain of single sub-folders to the
 	 *  first level that actually holds pages.
@@ -1468,6 +1477,8 @@ export type ReaderSettings_Serialize = {
 	rendering: RenderingSettings_Serialize,
 	/**  Behavior when paging past the last/first page of a book (auto-open adjacent book). */
 	autoOpenAdjacentBook: AutoOpenAdjacentBookMode,
+	/**  How a left-click in the reading area turns pages, for comics and novels alike. */
+	clickToTurnPages: ClickToTurnPagesMode,
 	/**
 	 *  Whether opening an archive descends through a chain of single sub-folders to the
 	 *  first level that actually holds pages.

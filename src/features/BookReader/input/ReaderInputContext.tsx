@@ -42,14 +42,16 @@ export function ReaderInputProvider({ children }: ReaderInputProviderProps): Rea
   const activeView = useAppSelector((state) => state.view.activeView);
   const toggleKey = useAppSelector((state) => state.settings.reader.comic.loupe.toggleKey);
   const direction = useReadingDirection();
+  const clickMode = useAppSelector((state) => state.settings.reader.clickToTurnPages);
   const loupeToggle = useMemo(() => parseCombo(toggleKey), [toggleKey]);
   const common = useCommonReaderActions();
   const isSidePaneHidden = useAppSelector((state) => state.settings.layout.sidePane.isHidden);
   const { isKeyboardInPaneNow, recoverFocus } = useSidePaneFocus();
 
-  const contextRef = useRef<Omit<DispatchContext, "reader">>({
+  const contextRef = useRef<Omit<DispatchContext, "reader" | "readingArea">>({
     isReaderActive: activeView === "reader",
     direction,
+    clickMode,
     loupeToggle,
     common,
     sidePane: { isHidden: isSidePaneHidden, isKeyboardInPane: isKeyboardInPaneNow, recoverFocus },
@@ -59,6 +61,7 @@ export function ReaderInputProvider({ children }: ReaderInputProviderProps): Rea
     contextRef.current = {
       isReaderActive: activeView === "reader",
       direction,
+      clickMode,
       loupeToggle,
       common,
       sidePane: { isHidden: isSidePaneHidden, isKeyboardInPane: isKeyboardInPaneNow, recoverFocus },
@@ -71,6 +74,7 @@ export function ReaderInputProvider({ children }: ReaderInputProviderProps): Rea
       dispatchReaderInput(input, {
         ...contextRef.current,
         reader: registrationRef.current?.actions.current ?? null,
+        readingArea: () => registrationRef.current?.area.current?.getBoundingClientRect() ?? null,
       }),
     [],
   );
