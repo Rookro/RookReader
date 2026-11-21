@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { type Binding, findAction, READER_BINDINGS, SIDE_PANE_BINDINGS } from "./bindings";
+import {
+  type Binding,
+  findAction,
+  findClickAction,
+  READER_BINDINGS,
+  SIDE_PANE_BINDINGS,
+} from "./bindings";
 import { type Combo, parseCombo } from "./combo";
 
 const c = (n: string) => parseCombo(n) as Combo;
@@ -44,5 +50,36 @@ describe("findAction", () => {
     expect(findAction(c("Ctrl+Shift+Tab"), SIDE_PANE_BINDINGS)).toBe("previousSidePanel");
     expect(findAction(c("Escape"), SIDE_PANE_BINDINGS)).toBe("focusReader");
     expect(findAction(c("F6"), READER_BINDINGS)).toBe("focusSidePane");
+  });
+});
+
+describe("findClickAction", () => {
+  it("turns to the next page on a left-click anywhere in anywhere mode", () => {
+    expect(findClickAction("anywhere", "left", 0.2)).toBe("nextPage");
+    expect(findClickAction("anywhere", "left", 0.9)).toBe("nextPage");
+    expect(findClickAction("anywhere", "left", null)).toBe("nextPage");
+  });
+
+  it("goes to the previous page on a right-click in anywhere mode", () =>
+    expect(findClickAction("anywhere", "right", 0.2)).toBe("previousPage"));
+
+  it("turns towards the clicked side in bySide mode, the middle line counting as the right", () => {
+    expect(findClickAction("bySide", "left", 0)).toBe("pageLeft");
+    expect(findClickAction("bySide", "left", 0.49)).toBe("pageLeft");
+    expect(findClickAction("bySide", "left", 0.5)).toBe("pageRight");
+    expect(findClickAction("bySide", "left", 1)).toBe("pageRight");
+  });
+
+  it("does not match a left-click without a position in bySide mode", () =>
+    expect(findClickAction("bySide", "left", null)).toBeNull());
+
+  it("goes to the previous page on a right-click in bySide mode", () => {
+    expect(findClickAction("bySide", "right", 0.1)).toBe("previousPage");
+    expect(findClickAction("bySide", "right", null)).toBe("previousPage");
+  });
+
+  it("leaves the left and right buttons out of the reader's combo bindings", () => {
+    expect(findAction(c("MouseLeft"))).toBeNull();
+    expect(findAction(c("MouseRight"))).toBeNull();
   });
 });

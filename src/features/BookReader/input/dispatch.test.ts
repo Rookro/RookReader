@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { PageMove } from "../hooks/usePageNavigation";
 import type { CommonAction } from "./bindings";
 import { parseCombo } from "./combo";
-import { type DispatchContext, dispatchReaderInput } from "./dispatch";
+import { clickPosition, type DispatchContext, dispatchReaderInput } from "./dispatch";
 import type { PointerPosition } from "./types";
 
 const key = (k: string, init: KeyboardEventInit = {}) =>
@@ -555,5 +555,27 @@ describe("dispatchReaderInput: side pane", () => {
     const common = commonActions();
     expect(dispatchReaderInput(at(paneElement(), button(3, false)), { ...ctx, common })).toBe(true);
     expect(common.historyBack).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("clickPosition", () => {
+  const area = { left: 100, width: 200 };
+  const pos = (clientX: number) => ({ clientX, clientY: 0 });
+
+  it("maps clientX to a fraction of the area's width", () => {
+    expect(clickPosition(pos(100), area)).toBe(0);
+    expect(clickPosition(pos(200), area)).toBe(0.5);
+    expect(clickPosition(pos(300), area)).toBe(1);
+  });
+
+  it("clamps a position outside the area", () => {
+    expect(clickPosition(pos(50), area)).toBe(0);
+    expect(clickPosition(pos(350), area)).toBe(1);
+  });
+
+  it("returns null without a usable position or area", () => {
+    expect(clickPosition(pos(Number.NaN), area)).toBeNull();
+    expect(clickPosition(pos(200), null)).toBeNull();
+    expect(clickPosition(pos(200), { left: 100, width: 0 })).toBeNull();
   });
 });
