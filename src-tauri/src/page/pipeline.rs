@@ -1,5 +1,5 @@
-//! Turning a page's stored bytes into the image the viewer receives, at the size it is
-//! displayed at.
+//! Turning a page's stored bytes or rendered pixels into the image the viewer receives,
+//! at the size it is displayed at.
 //!
 //! This is the only place that decodes, and the only place that resamples. A
 //! [`PageReader`](crate::container::traits::PageReader) yields bytes or pixels and
@@ -51,7 +51,7 @@ impl Fit {
     }
 }
 
-/// How a page's encoded bytes become the image the viewer receives.
+/// How a page's bytes or pixels become the image the viewer receives.
 ///
 /// A value rather than a pair of arguments threaded through the scheduler: the scheduler
 /// has no opinion about pixels, and rendering at the display size belongs here rather
@@ -114,7 +114,8 @@ impl Pipeline {
     ///
     /// # Errors
     ///
-    /// Returns an `Err` if the bytes are not a supported image, or the resize fails.
+    /// Returns an `Err` if the bytes are not a supported image, or the resize or the
+    /// encode fails.
     pub fn page(&self, page: PageData, fit: Fit) -> Result<Arc<Image>> {
         let bytes = match page {
             PageData::Encoded(bytes) => bytes,
@@ -124,6 +125,7 @@ impl Pipeline {
             }
             PageData::Decoded(image) => {
                 let scaled = shrink_to_fit(&image, fit.width, fit.height, self.resize_method)?;
+                drop(image);
                 return encode_png(&scaled, None);
             }
         };
@@ -605,6 +607,13 @@ mod tests {
         let decoded = decode(&image.data);
         assert_eq!((decoded.width(), decoded.height()), (2, 1));
         assert!(decoded.as_rgb8().is_some());
+    }
+
+    #[test]
+    fn a_decoded_page_shrinks_to_the_height_cap() {
+        let pipeline = pipeline(1);
+        let image = pipeline.page(decoded_page(), pipeline.fit()).unwrap();
+        assert_eq!((image.width, image.height), (2, 1));
     }
 
     #[test]
