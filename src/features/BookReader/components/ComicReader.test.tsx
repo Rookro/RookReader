@@ -346,6 +346,32 @@ describe("ComicReader", () => {
     expect(handleClicked).toHaveBeenCalled();
   });
 
+  it("turns by the side of the page in a right-to-left comic", async () => {
+    const actual = await vi.importActual<typeof pageNavigation>("../hooks/usePageNavigation");
+    vi.mocked(pageNavigation.usePageNavigation).mockImplementation(actual.usePageNavigation);
+    const preloadedState = createBasePreloadedState();
+    preloadedState.settings.reader.comic.readingDirection = "rtl";
+    preloadedState.settings.reader.clickToTurnPages = "bySide";
+    preloadedState.reader.entries = ["p1.jpg", "p2.jpg", "p3.jpg"];
+    preloadedState.reader.index = 1;
+    renderWithProviders(<ProvidedComicReader />, { preloadedState });
+    const readerArea = screen.getByTestId("comic-reader-area");
+    vi.spyOn(readerArea, "getBoundingClientRect").mockReturnValue({
+      left: 0,
+      width: 100,
+    } as DOMRect);
+    const { moveForward, moveBack } = vi.mocked(viewerController.useViewerController).mock
+      .results[0].value;
+
+    fireEvent.click(readerArea, { clientX: 20 });
+    expect(moveForward).toHaveBeenCalledTimes(1);
+    expect(moveBack).not.toHaveBeenCalled();
+
+    fireEvent.click(readerArea, { clientX: 80 });
+    expect(moveBack).toHaveBeenCalledTimes(1);
+    expect(moveForward).toHaveBeenCalledTimes(1);
+  });
+
   it("makes the reader area the loupe's container and feeds it the pointer moves", () => {
     vi.mocked(viewerController.useViewerController).mockReturnValue({
       displayedLayout: {

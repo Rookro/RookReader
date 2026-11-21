@@ -10,9 +10,10 @@ import {
   mockSettingsCommands,
   type RootState,
 } from "../../../test/utils";
+import { updateSettings } from "../../Settings/slice";
 import { setNovelDirection } from "../slice";
-import { ReaderInputProvider } from "./ReaderInputContext";
-import type { PointerPosition, ReaderActions } from "./types";
+import { ReaderInputProvider, useReaderInput } from "./ReaderInputContext";
+import type { PointerPosition, ReaderActions, ReaderInputApi } from "./types";
 
 const makeActions = () => ({
   ...createReaderActionSpies(),
@@ -398,5 +399,87 @@ describe("ReaderInputProvider: mouse side buttons", () => {
     expect(fireEvent.mouseUp(document.body, { button: 3 })).toBe(true);
 
     expect(store.getState().reader.historyIndex).toBe(1);
+  });
+});
+
+let dispatchInput: ReaderInputApi["dispatchInput"];
+
+/** Hands the provider's dispatcher to the test, as the reading area's receivers get it. */
+const ClickProbe = () => {
+  dispatchInput = useReaderInput().dispatchInput;
+  return null;
+};
+
+describe("ReaderInputProvider: clicks", () => {
+  /** A novel read in `direction` with the given click mode, in a 100px-wide reading area. */
+  const renderClicks = (clickToTurnPages: "anywhere" | "bySide", direction: "ltr" | "rtl") => {
+    const preloadedState = createBasePreloadedState();
+    preloadedState.reader.isNovel = true;
+    preloadedState.reader.novelDirection = direction;
+    preloadedState.settings.reader.clickToTurnPages = clickToTurnPages;
+    const actions = makeActions();
+    const store = createTestStore(preloadedState);
+    const Wrapper = createTestWrapper({ store });
+    const view = render(
+      <Wrapper>
+        <ReaderInputProvider>
+          <TestReader actions={actions} testId="reading-area" />
+          <ClickProbe />
+        </ReaderInputProvider>
+      </Wrapper>,
+    );
+    vi.spyOn(view.getByTestId("reading-area"), "getBoundingClientRect").mockReturnValue({
+      left: 0,
+      width: 100,
+    } as DOMRect);
+    return { store, actions };
+  };
+
+  const clickAt = (clientX: number, button: "left" | "right" = "left") => {
+    act(() => {
+      dispatchInput({ kind: "click", button, at: { clientX, clientY: 0 } });
+    });
+  };
+
+  it("turns a left click by the half of the reading area it lands in", () => {
+    const { actions } = renderClicks("bySide", "rtl");
+
+    clickAt(20);
+    expect(actions.nextPage).toHaveBeenCalledTimes(1);
+    expect(actions.previousPage).not.toHaveBeenCalled();
+
+    clickAt(80);
+    expect(actions.previousPage).toHaveBeenCalledTimes(1);
+    expect(actions.nextPage).toHaveBeenCalledTimes(1);
+  });
+
+  it("flips the halves when the direction changes while reading", () => {
+    const { actions, store } = renderClicks("bySide", "rtl");
+
+    act(() => {
+      store.dispatch(setNovelDirection("ltr"));
+    });
+    clickAt(20);
+
+    expect(actions.previousPage).toHaveBeenCalledTimes(1);
+    expect(actions.nextPage).not.toHaveBeenCalled();
+  });
+
+  it("applies a mode changed while reading", async () => {
+    mockSettingsCommands();
+    const { actions, store } = renderClicks("anywhere", "rtl");
+
+    clickAt(80);
+    expect(actions.nextPage).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await store.dispatch(
+        updateSettings({ key: "reader", value: { clickToTurnPages: "bySide" } }),
+      );
+    });
+    clickAt(80);
+
+    expect(actions.previousPage).toHaveBeenCalledTimes(1);
+    expect(actions.nextPage).toHaveBeenCalledTimes(1);
   });
 });

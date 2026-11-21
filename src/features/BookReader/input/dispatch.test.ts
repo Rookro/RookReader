@@ -18,6 +18,9 @@ const button = (b: number, inReadingArea = true, init: MouseEventInit = {}) =>
     inReadingArea,
   }) as const;
 
+const click = (b: "left" | "right", clientX: number) =>
+  ({ kind: "click", button: b, at: { clientX, clientY: 0 } }) as const;
+
 const commonActions = (): Record<CommonAction, () => void> => ({
   toggleSpread: vi.fn(),
   shiftSpread: vi.fn(),
@@ -44,6 +47,8 @@ const sidePane = (
 const ctx: DispatchContext = {
   isReaderActive: true,
   direction: "ltr",
+  clickMode: "anywhere",
+  readingArea: () => ({ left: 0, width: 100 }),
   loupeToggle: null,
   reader: null,
   common: commonActions(),
@@ -126,14 +131,59 @@ describe("dispatchReaderInput: page keys and clicks", () => {
     expect(r.previousPage).not.toHaveBeenCalled();
   });
 
-  it("turns forward on a left click and back on a right click, with no argument", () => {
+  it.each([20, 80])(
+    "turns forward on a left click at %i anywhere and back on a right click, with no argument",
+    (clientX) => {
+      const r = reader();
+      expect(dispatchReaderInput(click("left", clientX), { ...ctx, reader: r })).toBe(true);
+      expect(r.nextPage).toHaveBeenCalledWith();
+      dispatchReaderInput(click("right", clientX), { ...ctx, reader: r });
+      expect(r.previousPage).toHaveBeenCalledWith();
+    },
+  );
+
+  it.each([
+    { direction: "rtl", clientX: 20, move: "nextPage" },
+    { direction: "rtl", clientX: 80, move: "previousPage" },
+    { direction: "ltr", clientX: 20, move: "previousPage" },
+    { direction: "ltr", clientX: 80, move: "nextPage" },
+  ] as const)(
+    "turns by side: a left click at $clientX in $direction calls $move with no argument",
+    ({ direction, clientX, move }) => {
+      const r = reader();
+      expect(
+        dispatchReaderInput(click("left", clientX), {
+          ...ctx,
+          clickMode: "bySide",
+          direction,
+          reader: r,
+        }),
+      ).toBe(true);
+      expect(r[move]).toHaveBeenCalledTimes(1);
+      expect(r[move]).toHaveBeenCalledWith();
+      expect(r[move === "nextPage" ? "previousPage" : "nextPage"]).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([20, 80])("goes back on a right click at %i by side", (clientX) => {
     const r = reader();
-    expect(dispatchReaderInput({ kind: "click", button: "left" }, { ...ctx, reader: r })).toBe(
-      true,
-    );
-    expect(r.nextPage).toHaveBeenCalledWith();
-    dispatchReaderInput({ kind: "click", button: "right" }, { ...ctx, reader: r });
+    dispatchReaderInput(click("right", clientX), { ...ctx, clickMode: "bySide", reader: r });
     expect(r.previousPage).toHaveBeenCalledWith();
+    expect(r.nextPage).not.toHaveBeenCalled();
+  });
+
+  it("ignores a left click by side when no reading area is registered", () => {
+    const r = reader();
+    expect(
+      dispatchReaderInput(click("left", 20), {
+        ...ctx,
+        clickMode: "bySide",
+        readingArea: () => null,
+        reader: r,
+      }),
+    ).toBe(false);
+    expect(r.nextPage).not.toHaveBeenCalled();
+    expect(r.previousPage).not.toHaveBeenCalled();
   });
 
   it("ignores input while the reader view is not active", () => {

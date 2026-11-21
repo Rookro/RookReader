@@ -1,6 +1,7 @@
 import type React from "react";
 import { useCallback } from "react";
 import { useReaderInput } from "../input/ReaderInputContext";
+import type { PointerPosition } from "../input/types";
 import { toWheelSample, wheelGesture } from "../utils/wheelGesture";
 
 /** How a page move may behave. */
@@ -18,23 +19,33 @@ export type PageMove = (options?: PageMoveOptions) => boolean;
  * The reading area's receiver: hands its clicks, context menu and wheel to the reader input
  * dispatcher.
  *
- * @returns Handlers for click, context menu and wheel events.
+ * @returns Handlers for click, context menu and wheel events. The click and context menu handlers
+ *   take the click's position in the top document's client coordinates as `at`, which defaults to
+ *   the event's own.
  * @throws Error outside `ReaderInputProvider`.
  */
 export const usePageNavigation = () => {
   const { dispatchInput } = useReaderInput();
 
   const handleClicked = useCallback(
-    (_e: React.MouseEvent | MouseEvent) => {
-      dispatchInput({ kind: "click", button: "left" });
+    (e: React.MouseEvent | MouseEvent, at?: PointerPosition) => {
+      dispatchInput({
+        kind: "click",
+        button: "left",
+        at: at ?? { clientX: e.clientX, clientY: e.clientY },
+      });
     },
     [dispatchInput],
   );
 
   const handleContextMenu = useCallback(
-    (e: React.MouseEvent | MouseEvent) => {
+    (e: React.MouseEvent | MouseEvent, at?: PointerPosition) => {
       e.preventDefault();
-      dispatchInput({ kind: "click", button: "right" });
+      dispatchInput({
+        kind: "click",
+        button: "right",
+        at: at ?? { clientX: e.clientX, clientY: e.clientY },
+      });
     },
     [dispatchInput],
   );

@@ -1,4 +1,5 @@
 import { LIST_NAVIGATION_KEYS } from "../../../hooks/useListKeyboardNavigation";
+import type { ClickToTurnPagesMode } from "../../../types/AppSettings";
 import { isInSidePane } from "../../SidePane/sidePaneDom";
 import {
   type CommonAction,
@@ -19,6 +20,10 @@ export interface DispatchContext {
   isReaderActive: boolean;
   /** The open book's reading direction, which decides what the left and right keys do. */
   direction: "ltr" | "rtl";
+  /** The "Click to turn pages" mode. */
+  clickMode: ClickToTurnPagesMode;
+  /** The reading area's horizontal extent, or null when none is registered; read only for clicks. */
+  readingArea: () => { left: number; width: number } | null;
   /** The comic loupe's toggle, or null when none is set. */
   loupeToggle: Combo | null;
   /** The active reader, or null while none is registered (a book loading). */
@@ -125,7 +130,11 @@ export const dispatchReaderInput = (input: ReaderInput, ctx: DispatchContext): b
   }
 
   if (input.kind === "click") {
-    const action = findClickAction("anywhere", input.button, null);
+    const action = findClickAction(
+      ctx.clickMode,
+      input.button,
+      clickPosition(input.at, ctx.readingArea()),
+    );
     if (!action) {
       return false;
     }

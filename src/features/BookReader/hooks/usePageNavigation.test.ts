@@ -3,9 +3,15 @@ import type React from "react";
 import { createElement, useRef } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { createTestWrapper } from "../../../test/utils";
+import { dispatchReaderInput } from "../input/dispatch";
 import { ReaderInputProvider, useRegisterReaderActions } from "../input/ReaderInputContext";
 import { wheelGesture } from "../utils/wheelGesture";
 import { type PageMove, usePageNavigation } from "./usePageNavigation";
+
+vi.mock("../input/dispatch", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../input/dispatch")>();
+  return { ...actual, dispatchReaderInput: vi.fn(actual.dispatchReaderInput) };
+});
 
 describe("usePageNavigation", () => {
   const onMoveForward = vi.fn<PageMove>(() => true);
@@ -39,6 +45,27 @@ describe("usePageNavigation", () => {
     const { result } = renderNavigation();
     result.current.handleClicked({} as MouseEvent);
     expect(onMoveForward).toHaveBeenCalledWith();
+  });
+
+  it("hands a click to the dispatcher at the event's position", () => {
+    const { result } = renderNavigation();
+    result.current.handleClicked({ clientX: 5, clientY: 6 } as MouseEvent);
+    expect(dispatchReaderInput).toHaveBeenCalledWith(
+      { kind: "click", button: "left", at: { clientX: 5, clientY: 6 } },
+      expect.anything(),
+    );
+  });
+
+  it("hands a click to the dispatcher at the given position", () => {
+    const { result } = renderNavigation();
+    result.current.handleClicked({ clientX: 5, clientY: 6 } as MouseEvent, {
+      clientX: 70,
+      clientY: 1,
+    });
+    expect(dispatchReaderInput).toHaveBeenCalledWith(
+      { kind: "click", button: "left", at: { clientX: 70, clientY: 1 } },
+      expect.anything(),
+    );
   });
 
   // Verify that onMoveBack is called and default behavior is prevented when context menu is triggered

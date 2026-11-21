@@ -252,7 +252,9 @@ describe("useNovelReader", () => {
 
     // Simulate click on the document
     mockDoc.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    expect(dispatchInput).toHaveBeenCalledWith({ kind: "click", button: "left" });
+    expect(dispatchInput).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: "click", button: "left" }),
+    );
   });
 
   it("should navigate to previous page on context menu", async () => {
@@ -279,7 +281,9 @@ describe("useNovelReader", () => {
     viewElement.dispatchEvent(loadEvent);
 
     mockDoc.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true }));
-    expect(dispatchInput).toHaveBeenCalledWith({ kind: "click", button: "right" });
+    expect(dispatchInput).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: "click", button: "right" }),
+    );
   });
 
   it("should dispatch setNovelLocation on relocate event with different detail formats", async () => {
