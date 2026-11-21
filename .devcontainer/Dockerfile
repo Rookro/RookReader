@@ -42,7 +42,8 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
 USER vscode
 
 # vcpkg builds the static libdav1d the `image` crate links for AVIF pages (see CONTRIBUTING.md).
-RUN git clone --depth 1 https://github.com/microsoft/vcpkg "$HOME/vcpkg" && \
+# A full clone: vcpkg resolves the builtin-baseline in src-tauri/vcpkg.json from its history.
+RUN git clone https://github.com/microsoft/vcpkg "$HOME/vcpkg" && \
     "$HOME/vcpkg/bootstrap-vcpkg.sh" -disableMetrics
 ENV PATH="/home/vscode/vcpkg:${PATH}"
 

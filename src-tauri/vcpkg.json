@@ -1,6 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
   "dependencies": ["dav1d"],
+  "builtin-baseline": "74f5ea45ca78988784b810ad9bbb148ea7ff76d8",
   "vcpkg-configuration": {
     "overlay-triplets": ["./triplets"]
   }
