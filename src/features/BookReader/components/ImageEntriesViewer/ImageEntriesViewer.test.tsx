@@ -1,4 +1,4 @@
-import { error } from "@tauri-apps/plugin-log";
+import { debug, error } from "@tauri-apps/plugin-log";
 import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -128,7 +128,7 @@ describe("ImageEntriesViewer", () => {
     expect(store.getState().reader.index).toBe(0);
   });
 
-  it("should scroll to row when index changes", async () => {
+  it("scrolls to the current row without logging", async () => {
     const preloadedState = createBasePreloadedState();
     preloadedState.reader.entries = ["p1.jpg", "p2.jpg", "p3.jpg"];
     preloadedState.reader.index = 2;
@@ -142,6 +142,7 @@ describe("ImageEntriesViewer", () => {
         index: 2,
       });
     });
+    expect(debug).not.toHaveBeenCalled();
   });
 
   describe("keyboard", () => {

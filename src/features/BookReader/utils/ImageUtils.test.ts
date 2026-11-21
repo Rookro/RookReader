@@ -1,3 +1,4 @@
+import { debug } from "@tauri-apps/plugin-log";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as binaryApi from "../../../bindings/binaryApi";
 import { CommandError, ErrorCode } from "../../../types/Error";
@@ -381,6 +382,7 @@ describe("ImageUtils", () => {
       vi.mocked(binaryApi.getImagePreview).mockResolvedValue(buffer);
       const result = await fetchImagePreviewBlob("path", "file");
       expect(result).toBeNull();
+      expect(debug).not.toHaveBeenCalled();
     });
 
     // Verify that a failed request is distinguishable from the backend declining a preview

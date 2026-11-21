@@ -1,4 +1,3 @@
-import { debug } from "@tauri-apps/plugin-log";
 import { getImage, getImageFull, getImagePreview } from "../../../bindings/binaryApi";
 import type { ErrorCode } from "../../../types/Error";
 import { Image } from "../../../types/Image";
@@ -150,7 +149,6 @@ export const fetchImagePreviewBlob = async (
   }
   const response = await getImagePreview(containerPath, entryName);
   if (response.byteLength === 0) {
-    debug(`Skip preview image for ${entryName}`);
     return null;
   }
   return new Image(response);
