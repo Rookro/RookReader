@@ -66,7 +66,7 @@ export const SIDE_PANE_BINDINGS: readonly Binding[] = [
 /** A click binding: a button, optionally limited to a horizontal range of the reading area. */
 export interface ClickBinding {
   button: "left" | "right";
-  /** `[from, to)` as fractions of the reading area's width; the whole area when absent. */
+  /** `[from, to)` as fractions of the reading area's width (a zone ending at 1 also contains 1); the whole area when absent. */
   zone?: readonly [number, number];
   action: ReaderAction;
 }

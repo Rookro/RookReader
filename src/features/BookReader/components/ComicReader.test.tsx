@@ -352,8 +352,6 @@ describe("ComicReader", () => {
     const preloadedState = createBasePreloadedState();
     preloadedState.settings.reader.comic.readingDirection = "rtl";
     preloadedState.settings.reader.clickToTurnPages = "bySide";
-    preloadedState.reader.entries = ["p1.jpg", "p2.jpg", "p3.jpg"];
-    preloadedState.reader.index = 1;
     renderWithProviders(<ProvidedComicReader />, { preloadedState });
     const readerArea = screen.getByTestId("comic-reader-area");
     vi.spyOn(readerArea, "getBoundingClientRect").mockReturnValue({

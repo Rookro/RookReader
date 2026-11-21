@@ -25,6 +25,13 @@ const renderReader = () => {
   );
 };
 
+/** The foliate-view element inside the viewer box, where margin clicks start. */
+const foliateView = (): Element => {
+  const view = screen.getByTestId("novel-viewer").querySelector("foliate-view");
+  expect(view).not.toBeNull();
+  return view as Element;
+};
+
 // Clicks on foliate-js's margins bubble out of its shadow roots to the viewer box.
 describe("BookReader/NovelReader margins", () => {
   let mockView: Partial<View> & { [key: string]: unknown };
@@ -67,7 +74,7 @@ describe("BookReader/NovelReader margins", () => {
     renderReader();
     await waitFor(() => expect(mockView.init).toHaveBeenCalled());
 
-    fireEvent.click(screen.getByTestId("novel-viewer"), { clientX: 10 });
+    fireEvent.click(foliateView(), { clientX: 10 });
 
     expect(mockView.next).toHaveBeenCalledTimes(1);
   });
@@ -76,7 +83,7 @@ describe("BookReader/NovelReader margins", () => {
     renderReader();
     await waitFor(() => expect(mockView.init).toHaveBeenCalled());
 
-    const notPrevented = fireEvent.contextMenu(screen.getByTestId("novel-viewer"));
+    const notPrevented = fireEvent.contextMenu(foliateView());
 
     expect(mockView.prev).toHaveBeenCalledTimes(1);
     expect(notPrevented).toBe(false);
@@ -88,7 +95,7 @@ describe("BookReader/NovelReader margins", () => {
     renderReader();
     await waitFor(() => expect(mockView.init).toHaveBeenCalled());
 
-    fireEvent.click(screen.getByTestId("novel-viewer"), { clientX: 10 });
+    fireEvent.click(foliateView(), { clientX: 10 });
 
     expect(mockView.next).not.toHaveBeenCalled();
   });

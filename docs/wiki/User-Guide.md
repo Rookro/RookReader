@@ -62,7 +62,7 @@ The window title shows the name of the open book (for a folder inside an archive
 
 | Action | Mouse | Keyboard |
 | :--- | :--- | :--- |
-| **Next Page** | Left-click in the reading area (anywhere, or on the side of the page; see *Click to turn pages*) or Scroll Down | `Left Arrow` or `Right Arrow` (see the note below), `Down Arrow`, `Space`, `Page Down` |
+| **Next Page** | Left-click in the reading area (anywhere, or on the side of the page; see the note below the table) or Scroll Down | `Left Arrow` or `Right Arrow` (see the note below), `Down Arrow`, `Space`, `Page Down` |
 | **Previous Page** | Right-click in the reading area, a left-click on the other side with *By side of the page*, or Scroll Up | `Right Arrow` or `Left Arrow` (see the note below), `Up Arrow`, `Shift+Space`, `Page Up` |
 | **First / Last Page** of the book | — | `Home` / `End` |
 | **Toggle two-page spread** (comics) | — | `S` |
@@ -215,7 +215,7 @@ Open the settings window with the **Settings** button in the reader's top app ba
 The file list's **sort order** (Name↑/↓, Date↑/↓) is chosen in the File Navigator panel itself and is remembered; *Auto-open Adjacent Book* follows it too.
 
 ### Reader
-- **Click to turn pages**: Anywhere / By side of the page — which side of the reading area a left-click turns towards (see *Keyboard Shortcuts & Controls*).
+- **Click to turn pages**: Anywhere / By side of the page — whether a left-click anywhere turns to the next page, or turns towards the side of the page clicked (see *Keyboard Shortcuts & Controls*).
 - **Default page direction**: Right to left / Left to right — the direction a book turns pages the first time you open it. Changing the direction while reading is remembered for that book only (see *Reading Direction*).
 - **Show the initial page in single-page view**: show the cover on its own in two-page view.
 - **Auto-open adjacent book**: Off / Ask before opening / Auto-open — see *Continuous Reading*.
