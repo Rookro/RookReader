@@ -1804,6 +1804,50 @@ describe("useViewerController", () => {
       }
     });
 
+    // Verify the next unmeasured book waits its own cap, even if the last one's scan never landed
+    it("holds the next unmeasured book after the last one's wait cap has passed", async () => {
+      vi.useFakeTimers();
+      try {
+        mockedBuildUnitChain.mockImplementation(spreadPairs);
+        vi.mocked(api.getImageDimensions).mockReturnValue(new Promise(() => {}));
+        const { result, rerender } = renderHook(
+          ({ containerPath, index }) =>
+            useViewerController({
+              containerPath,
+              displaySize: VIEWPORT,
+              entries: mockEntries,
+              index,
+              isSpreadShifted: false,
+              settings: twoPaged,
+              dispatch: mockDispatch,
+              hasPreviews: true,
+            }),
+          { initialProps: { containerPath: "a", index: 0 } },
+        );
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(1000);
+        });
+        expect(result.current.displayedLayout).not.toBeNull();
+
+        // Index 1 starts no unit of the assumed pairing, so pairing early would move it.
+        mockDispatch.mockClear();
+        rerender({ containerPath: "b", index: 1 });
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(0);
+        });
+        expect(result.current.displayedLayout).toBeNull();
+        expect(result.current.isImageLoading).toBe(true);
+        expectNoPageMove();
+
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(1000);
+        });
+        expect(result.current.displayedLayout).not.toBeNull();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     // Verify the cover setting is what decides the assumed pairing
     it("follows the cover setting while the book is unmeasured", async () => {
       vi.useFakeTimers();

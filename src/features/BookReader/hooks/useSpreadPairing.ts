@@ -64,8 +64,10 @@ export const useSpreadPairing = ({
   index,
   dispatch,
 }: SpreadPairingOptions): SpreadPairing => {
-  // Set once the viewer has waited CHAIN_WAIT_CAP_MS for a chain that has not arrived.
-  const [chainWaitElapsed, setChainWaitElapsed] = useState(false);
+  // The book the viewer has waited CHAIN_WAIT_CAP_MS for without a chain. Keyed by path,
+  // so the next book starts its own wait from its first render.
+  const [waitElapsedFor, setWaitElapsedFor] = useState<string | null>(null);
+  const chainWaitElapsed = waitElapsedFor === containerPath;
   // The shape of the pages the viewer has loaded, which is all it knows about a book the
   // measurement has not described yet. Recorded only while that is the case, so a
   // measured book — every book after its first open — never pays for it.
@@ -132,15 +134,15 @@ export const useSpreadPairing = ({
   // Hold the loading state until the book's pairing is known, then give up. Only a book
   // being measured for the first time can reach the cap.
   useEffect(() => {
-    setChainWaitElapsed(false);
+    setWaitElapsedFor(null);
     if (chain) {
       return;
     }
-    const timer = setTimeout(() => setChainWaitElapsed(true), CHAIN_WAIT_CAP_MS);
+    const timer = setTimeout(() => setWaitElapsedFor(containerPath), CHAIN_WAIT_CAP_MS);
     return () => {
       clearTimeout(timer);
     };
-  }, [chain]);
+  }, [chain, containerPath]);
 
   // The chain is the book's own pairing, so a page reached by a restore or a jump
   // (slider, bookmark, page list) may sit inside a unit rather than start one. Snap to
