@@ -1,3 +1,4 @@
+use image::DynamicImage;
 use pdfium_render::prelude::{PdfPageIndex, PdfPageRenderRotation, PdfRenderConfig};
 use std::sync::Arc;
 
@@ -80,11 +81,13 @@ struct PdfReader {
 
 impl PageReader for PdfReader {
     fn read_page(&mut self, entry: &str) -> Result<PageData> {
-        Ok(PageData::Encoded(
+        let image =
             self.worker
-                .render_page(&self.path, parse_index(entry)?, self.render_config.clone())?
-                .data,
-        ))
+                .render_page(&self.path, parse_index(entry)?, self.render_config.clone())?;
+        // pdfium clears the bitmap to opaque white before rendering, so alpha carries nothing.
+        Ok(PageData::Decoded(DynamicImage::ImageRgb8(
+            image.into_rgb8(),
+        )))
     }
 
     fn page_dimensions(&mut self, entry: &str) -> Result<ImageDimensions> {
@@ -228,6 +231,20 @@ mod tests {
     // thumbnail render of this page exceeds the width cap, so it only stays within
     // PREVIEW.max_size if create_thumbnail shrinks both dimensions.
     const LANDSCAPE_PAGE_PDF_DATA: &[u8] = b"%PDF-1.4\n1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n2 0 obj << /Type /Pages /Count 1 /Kids [ 3 0 R ] >> endobj\n3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 792 612] >> endobj\nxref\n0 4\n0000000000 65535 f\n0000000009 00000 n\n0000000057 00000 n\n0000000107 00000 n\ntrailer << /Size 4 /Root 1 0 R >> startxref\n157\n%%EOF\n";
+
+    // One 612x792 page with its left half filled red and its right half left white.
+    const HALF_RED_PDF_DATA: &[u8] = b"%PDF-1.4
+1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj
+2 0 obj << /Type /Pages /Count 1 /Kids [ 3 0 R ] >> endobj
+3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << >> >> endobj
+4 0 obj << /Length 25 >>
+stream
+1 0 0 rg 0 0 306 792 re f
+endstream
+endobj
+trailer << /Size 5 /Root 1 0 R >>
+%%EOF
+";
 
     // Create a dummy PDF file for testing.
     // A 2-page PDF whose pages differ in size, so an index mix-up is visible.
@@ -378,11 +395,11 @@ trailer << /Size 5 /Root 1 0 R >>
 
         let mut reader = container.open_reader().expect("failed to open a reader");
 
-        // The page comes back as encoded bytes, like every other format's.
-        let PageData::Encoded(page) = reader.read_page("0000").expect("read_page failed") else {
-            panic!("a PDF page should come back encoded");
+        // The page comes back as the rendered pixels; the pipeline encodes it.
+        let PageData::Decoded(page) = reader.read_page("0000").expect("read_page failed") else {
+            panic!("a PDF page should come back as pixels");
         };
-        assert!(crate::image::types::read_dimensions(&page).is_ok());
+        assert!(page.width() > 0);
 
         // Measured from the MediaBox, so it costs no render at all.
         assert_eq!(
@@ -402,7 +419,7 @@ trailer << /Size 5 /Root 1 0 R >>
         let measured = crate::image::types::read_dimensions(&preview).unwrap();
         assert!(measured.width <= PREVIEW.max_size);
         assert!(measured.height <= PREVIEW.max_size);
-        assert!(preview.len() < page.len());
+        assert!(measured.height < page.height());
 
         assert!(reader.read_page("9999").is_err());
         // Only one `Pdfium` may be alive in the process at a time.
@@ -435,15 +452,16 @@ trailer << /Size 5 /Root 1 0 R >>
             Some(get_pdfium_lib_path()),
         )
         .unwrap();
-        let PageData::Encoded(page) = container.open_reader().unwrap().read_page("0000").unwrap()
+        let PageData::Decoded(page) = container.open_reader().unwrap().read_page("0000").unwrap()
         else {
-            panic!("a PDF page should come back encoded");
+            panic!("a PDF page should come back as pixels");
         };
 
-        let measured = crate::image::types::read_dimensions(&page).unwrap();
         assert!(
-            measured.width <= PDF_MAX_RENDER_WIDTH as u32,
-            "{measured:?}"
+            page.width() <= PDF_MAX_RENDER_WIDTH as u32,
+            "{}x{}",
+            page.width(),
+            page.height()
         );
     }
 
@@ -583,7 +601,27 @@ trailer << /Size 5 /Root 1 0 R >>
 
         // The original reader is still usable: the library was never unloaded.
         assert!(
-            matches!(reader.read_page("0000").unwrap(), PageData::Encoded(bytes) if !bytes.is_empty())
+            matches!(reader.read_page("0000").unwrap(), PageData::Decoded(image) if image.width() > 0)
+        );
+    }
+
+    #[test]
+    fn a_pdf_page_is_rendered_to_rgb_pixels_with_its_colours() {
+        let _guard = pdf_test_guard();
+        let dir = tempdir().unwrap();
+        let (_, container) = container_for(dir.path(), "red.pdf", HALF_RED_PDF_DATA);
+
+        let page = container.open_reader().unwrap().read_page("0000").unwrap();
+
+        let PageData::Decoded(image) = page else {
+            panic!("a PDF page should come back as pixels");
+        };
+        let image = image.as_rgb8().expect("an opaque RGB8 page");
+        let (width, height) = image.dimensions();
+        assert_eq!(image.get_pixel(width / 4, height / 2).0, [255, 0, 0]);
+        assert_eq!(
+            image.get_pixel(width * 3 / 4, height / 2).0,
+            [255, 255, 255]
         );
     }
 
@@ -618,7 +656,7 @@ trailer << /Size 5 /Root 1 0 R >>
 
         for entry in ["0000", "0001"] {
             assert!(
-                matches!(reader.read_page(entry).unwrap(), PageData::Encoded(bytes) if !bytes.is_empty())
+                matches!(reader.read_page(entry).unwrap(), PageData::Decoded(image) if image.width() > 0)
             );
             assert!(!reader.read_preview(entry).unwrap().unwrap().is_empty());
         }

@@ -15,7 +15,7 @@ use std::{
     thread,
 };
 
-use image::codecs::jpeg::JpegEncoder;
+use image::DynamicImage;
 use pdfium_render::prelude::{PdfDocument, PdfPageIndex, PdfRenderConfig, Pdfium};
 
 use crate::{
@@ -61,7 +61,7 @@ enum Request {
         path: String,
         index: PdfPageIndex,
         config: Arc<PdfRenderConfig>,
-        reply: mpsc::Sender<Result<Image>>,
+        reply: mpsc::Sender<Result<DynamicImage>>,
     },
     Dimensions {
         path: String,
@@ -115,13 +115,13 @@ impl Worker {
         })
     }
 
-    /// Renders one page at `config`'s resolution, as a JPEG.
+    /// Renders one page at `config`'s resolution, as unencoded pixels.
     pub(crate) fn render_page(
         &self,
         path: &str,
         index: PdfPageIndex,
         config: Arc<PdfRenderConfig>,
-    ) -> Result<Image> {
+    ) -> Result<DynamicImage> {
         self.ask(|reply| Request::Page {
             path: path.to_string(),
             index,
@@ -333,23 +333,16 @@ fn document<'p, 'd>(
     Ok(&docs[docs.len() - 1].1)
 }
 
-/// Renders a PDF page to a JPEG using a specific config.
+/// Renders a PDF page using a specific config. Encoding is left to the caller, off this
+/// thread.
 fn render_page(
     pdf: &PdfDocument,
     render_config: &PdfRenderConfig,
     index: PdfPageIndex,
-) -> Result<Image> {
+) -> Result<DynamicImage> {
     let page = pdf.pages().get(index).map_err(Error::from)?;
-    let img = page.render_with_config(render_config)?.as_image()?;
-
-    let mut buffer = Vec::new();
-    JpegEncoder::new_with_quality(&mut buffer, 80).encode_image(&img)?;
-
-    Ok(Image {
-        data: buffer,
-        width: img.width(),
-        height: img.height(),
-    })
+    let image = page.render_with_config(render_config)?.as_image()?;
+    Ok(image)
 }
 
 /// Reads a PDF page's size, in points rounded to whole pixels.
