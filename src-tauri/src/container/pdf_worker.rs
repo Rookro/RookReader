@@ -41,6 +41,22 @@ pub(crate) fn worker(library_path: &Option<String>) -> &'static Worker {
     WORKER.get_or_init(|| Worker::start(library_path.clone()))
 }
 
+#[cfg(test)]
+static PDF_TESTS: Mutex<()> = Mutex::new(());
+
+/// Serialises the tests that use the shared worker.
+///
+/// Its document cache holds two entries, so tests running side by side evict each
+/// other's documents — which is invisible to most of them and fatal to the ones that
+/// observe that cache.
+#[cfg(test)]
+pub(crate) fn pdf_test_guard() -> std::sync::MutexGuard<'static, ()> {
+    // A panicking test must not take the other tests down with it.
+    PDF_TESTS
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+}
+
 /// A handle on the worker thread. There is exactly one, reached through `&'static`.
 pub(crate) struct Worker {
     /// Guarded because `mpsc::Sender` is not `Sync`, and this handle is shared by every

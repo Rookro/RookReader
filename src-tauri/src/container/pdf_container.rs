@@ -216,6 +216,7 @@ mod tests {
     use tempfile::tempdir;
 
     use super::*;
+    use crate::container::pdf_worker::pdf_test_guard;
 
     pub fn get_pdfium_lib_path() -> String {
         let pdfium_path = path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -306,20 +307,6 @@ trailer << /Size 5 /Root 1 0 R >>
         done_rx
             .recv_timeout(std::time::Duration::from_secs(secs))
             .expect("timed out: a second live Pdfium would hang here");
-    }
-
-    /// Serialises the tests in this module.
-    ///
-    /// They share one process-global worker whose document cache holds two entries, so
-    /// tests running side by side evict each other's documents — which is invisible to
-    /// most of them and fatal to the one that observes that cache.
-    static PDF_TESTS: std::sync::Mutex<()> = std::sync::Mutex::new(());
-
-    fn pdf_test_guard() -> std::sync::MutexGuard<'static, ()> {
-        // A panicking test must not take the rest of the module down with it.
-        PDF_TESTS
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
     }
 
     fn create_dummy_pdf(dir: &path::Path, filename: &str) -> path::PathBuf {
