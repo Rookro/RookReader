@@ -18,6 +18,9 @@ import { useViewerController, type ViewerControllerOptions } from "./useViewerCo
  */
 const VIEWPORT: DisplaySize = { width: 1024, height: 1536 };
 
+/** A viewport the reader has been resized to. */
+const WIDER: DisplaySize = { width: 2048, height: 1536 };
+
 vi.mock("../utils/ImageUtils", () => ({
   SINGLE_UNIT: { isSpread: false, nextIndexIncrement: 1 },
   // Default to a chain of single pages. Display is gated on the chain now, so a test that
@@ -111,6 +114,24 @@ describe("useViewerController", () => {
   const mockedCreateImageCacheItem = vi.mocked(ImageUtils.createImageCacheItem);
   const mockedBuildUnitChain = vi.mocked(ImageUtils.buildUnitChain);
   const mockedDetectCoverPresence = vi.mocked(ImageUtils.detectCoverPresence);
+
+  /** Gives each load its own cache item and URL, `blob:0`, `blob:1`, … in load order. */
+  const urlPerLoad = () => {
+    let next = 0;
+    mockedCreateImageCacheItem.mockImplementation(() => {
+      const url = `blob:${next++}`;
+      return { fullUrl: url, url, width: 100, height: 200 } as ImageUtils.ImageCacheItem;
+    });
+  };
+
+  /** A fetch that resolves when the test says so. */
+  const heldFetch = () => {
+    let deliver: () => void = () => {};
+    const promise = new Promise<Image>((resolve) => {
+      deliver = () => resolve({} as Image);
+    });
+    return { promise, deliver };
+  };
 
   /** Makes the dimension scan report `count` portrait pages. */
   const mockScan = (count: number) => {
@@ -388,9 +409,51 @@ describe("useViewerController", () => {
     rerender({ index: 5 });
     expect(global.URL.revokeObjectURL).not.toHaveBeenCalledWith("blob:0");
 
-    // Navigate far past the window: entries[0] is now evicted and its URL revoked.
+    // Once page 50 has replaced it on screen, entries[0] is revoked.
     rerender({ index: 50 });
+    await waitFor(() => expect(global.URL.revokeObjectURL).toHaveBeenCalledWith("blob:0"));
+  });
+
+  it("keeps the page on screen through a far jump until the page jumped to is shown", async () => {
+    const longEntries = Array.from({ length: 100 }, (_, i) => `p${i}.jpg`);
+    mockScan(longEntries.length);
+    const replacement = heldFetch();
+    mockedFetchImageBlob
+      .mockResolvedValue({} as Image)
+      .mockResolvedValueOnce({} as Image)
+      .mockResolvedValueOnce({} as Image)
+      .mockReturnValueOnce(replacement.promise);
+    urlPerLoad();
+
+    const { result, rerender } = renderHook(
+      ({ index }: { index: number }) =>
+        useViewerController({
+          containerPath: "path",
+          displaySize: VIEWPORT,
+          entries: longEntries,
+          index,
+          isSpreadShifted: false,
+          settings: mockSettings,
+          dispatch: mockDispatch,
+          hasPreviews: true,
+        }),
+      { initialProps: { index: 0 } },
+    );
+
+    await waitFor(() => expect(result.current.displayedLayout?.firstImage?.fullUrl).toBe("blob:0"));
+    rerender({ index: 1 });
+    await waitFor(() => expect(result.current.displayedLayout?.firstImage?.fullUrl).toBe("blob:1"));
+
+    rerender({ index: 50 });
+    await waitFor(() => expect(ImageUtils.fetchImageBlob).toHaveBeenCalledTimes(3));
     expect(global.URL.revokeObjectURL).toHaveBeenCalledWith("blob:0");
+    expect(global.URL.revokeObjectURL).not.toHaveBeenCalledWith("blob:1");
+
+    act(() => {
+      replacement.deliver();
+    });
+    await waitFor(() => expect(result.current.displayedLayout?.firstImage?.fullUrl).toBe("blob:2"));
+    expect(global.URL.revokeObjectURL).toHaveBeenCalledWith("blob:1");
   });
 
   // Verify that displayedLayout is set on successful image loading
@@ -1097,6 +1160,65 @@ describe("useViewerController", () => {
       });
       expect(result.current.displayedLayout?.secondError).toBe(ErrorCode.entryNotFound);
       expect(result.current.displayedLayout?.isSpread).toBe(true);
+    });
+
+    it("keeps both pages of a spread on screen through a viewport change", async () => {
+      const replacement1 = heldFetch();
+      const replacement2 = heldFetch();
+      mockedFetchImageBlob
+        .mockResolvedValue({} as Image)
+        .mockResolvedValueOnce({} as Image)
+        .mockResolvedValueOnce({} as Image)
+        .mockReturnValueOnce(replacement1.promise)
+        .mockReturnValueOnce(replacement2.promise);
+      mockedBuildUnitChain.mockImplementation(spreadPairs);
+      urlPerLoad();
+
+      const { result, rerender } = renderHook(
+        ({ size }: { size: DisplaySize }) =>
+          useViewerController({
+            containerPath: "path",
+            displaySize: size,
+            entries: mockEntries,
+            index: 0,
+            isSpreadShifted: false,
+            settings: twoPagedSettings,
+            dispatch: mockDispatch,
+            hasPreviews: true,
+          }),
+        { initialProps: { size: VIEWPORT } },
+      );
+
+      await waitFor(() => {
+        expect(result.current.displayedLayout?.isSpread).toBe(true);
+        expect(
+          [
+            result.current.displayedLayout?.firstImage?.fullUrl,
+            result.current.displayedLayout?.secondImage?.fullUrl,
+          ].sort(),
+        ).toEqual(["blob:0", "blob:1"]);
+      });
+
+      rerender({ size: WIDER });
+      await waitFor(() => expect(ImageUtils.fetchImageBlob).toHaveBeenCalledTimes(4));
+      expect(global.URL.revokeObjectURL).not.toHaveBeenCalledWith("blob:0");
+      expect(global.URL.revokeObjectURL).not.toHaveBeenCalledWith("blob:1");
+
+      act(() => {
+        replacement1.deliver();
+        replacement2.deliver();
+      });
+      await waitFor(() => {
+        expect(result.current.displayedLayout?.isSpread).toBe(true);
+        expect(
+          [
+            result.current.displayedLayout?.firstImage?.fullUrl,
+            result.current.displayedLayout?.secondImage?.fullUrl,
+          ].sort(),
+        ).toEqual(["blob:2", "blob:3"]);
+      });
+      expect(global.URL.revokeObjectURL).toHaveBeenCalledWith("blob:0");
+      expect(global.URL.revokeObjectURL).toHaveBeenCalledWith("blob:1");
     });
   });
 
@@ -2617,12 +2739,7 @@ describe("useViewerController", () => {
   describe("the reader's viewport", () => {
     beforeEach(() => {
       mockedFetchImageBlob.mockResolvedValue({} as Image);
-      mockedCreateImageCacheItem.mockReturnValue({
-        fullUrl: "blob:full",
-        url: "blob:full",
-        width: 100,
-        height: 200,
-      } as ImageUtils.ImageCacheItem);
+      urlPerLoad();
     });
 
     const renderAtSize = (displaySize: DisplaySize) =>
@@ -2719,7 +2836,7 @@ describe("useViewerController", () => {
       await waitFor(() => expect(api.setDisplaySize).toHaveBeenCalledWith(2048, 1536));
       // The cached blob URL is a page rendered for the old viewport: nothing would
       // reload it, because the backend keys a page by the box it was fitted into.
-      await waitFor(() => expect(global.URL.revokeObjectURL).toHaveBeenCalledWith("blob:full"));
+      await waitFor(() => expect(global.URL.revokeObjectURL).toHaveBeenCalledWith("blob:0"));
       await waitFor(() => expect(ImageUtils.fetchImageBlob).toHaveBeenCalledTimes(2));
     });
 
@@ -2753,7 +2870,88 @@ describe("useViewerController", () => {
       await waitFor(() => expect(warn).toHaveBeenCalled());
       await waitFor(() => expect(ImageUtils.fetchImageBlob).toHaveBeenCalled());
       // And the cache is kept, because it matches what the backend would serve.
-      expect(global.URL.revokeObjectURL).not.toHaveBeenCalledWith("blob:full");
+      expect(global.URL.revokeObjectURL).not.toHaveBeenCalled();
+    });
+
+    const renderAt = (props: { size: DisplaySize; index: number; path?: string }) =>
+      renderHook(
+        ({ size, index, path }: { size: DisplaySize; index: number; path?: string }) =>
+          useViewerController({
+            containerPath: path ?? "path",
+            displaySize: size,
+            entries: mockEntries,
+            index,
+            isSpreadShifted: false,
+            settings: mockSettings,
+            dispatch: mockDispatch,
+            hasPreviews: true,
+          }),
+        { initialProps: props },
+      );
+
+    it("keeps the page on screen through a viewport change until its replacement is shown", async () => {
+      const replacement = heldFetch();
+      mockedFetchImageBlob
+        .mockResolvedValueOnce({} as Image)
+        .mockResolvedValueOnce({} as Image)
+        .mockReturnValueOnce(replacement.promise);
+      const { result, rerender } = renderAt({ size: VIEWPORT, index: 0 });
+      await waitFor(() =>
+        expect(result.current.displayedLayout?.firstImage?.fullUrl).toBe("blob:0"),
+      );
+      rerender({ size: VIEWPORT, index: 1 });
+      await waitFor(() =>
+        expect(result.current.displayedLayout?.firstImage?.fullUrl).toBe("blob:1"),
+      );
+
+      rerender({ size: WIDER, index: 1 });
+      await waitFor(() => expect(ImageUtils.fetchImageBlob).toHaveBeenCalledTimes(3));
+      // Off screen, nothing shows it again.
+      expect(global.URL.revokeObjectURL).toHaveBeenCalledWith("blob:0");
+      // On screen until the page rendered for the new size replaces it.
+      expect(global.URL.revokeObjectURL).not.toHaveBeenCalledWith("blob:1");
+
+      act(() => {
+        replacement.deliver();
+      });
+      await waitFor(() =>
+        expect(result.current.displayedLayout?.firstImage?.fullUrl).toBe("blob:2"),
+      );
+      expect(global.URL.revokeObjectURL).toHaveBeenCalledWith("blob:1");
+    });
+
+    it("revokes a page held on screen when the book changes", async () => {
+      mockedFetchImageBlob
+        .mockResolvedValueOnce({} as Image)
+        .mockReturnValueOnce(heldFetch().promise);
+      const { result, rerender } = renderAt({ size: VIEWPORT, index: 0 });
+      await waitFor(() =>
+        expect(result.current.displayedLayout?.firstImage?.fullUrl).toBe("blob:0"),
+      );
+      rerender({ size: WIDER, index: 0 });
+      await waitFor(() => expect(ImageUtils.fetchImageBlob).toHaveBeenCalledTimes(2));
+      expect(global.URL.revokeObjectURL).not.toHaveBeenCalledWith("blob:0");
+
+      rerender({ size: WIDER, index: 0, path: "other" });
+
+      expect(global.URL.revokeObjectURL).toHaveBeenCalledWith("blob:0");
+    });
+
+    it("revokes a page held on screen when the reader unmounts", async () => {
+      mockedFetchImageBlob
+        .mockResolvedValueOnce({} as Image)
+        .mockReturnValueOnce(heldFetch().promise);
+      const { result, rerender, unmount } = renderAt({ size: VIEWPORT, index: 0 });
+      await waitFor(() =>
+        expect(result.current.displayedLayout?.firstImage?.fullUrl).toBe("blob:0"),
+      );
+      rerender({ size: WIDER, index: 0 });
+      await waitFor(() => expect(ImageUtils.fetchImageBlob).toHaveBeenCalledTimes(2));
+      expect(global.URL.revokeObjectURL).not.toHaveBeenCalledWith("blob:0");
+
+      unmount();
+
+      expect(global.URL.revokeObjectURL).toHaveBeenCalledWith("blob:0");
     });
   });
 });
