@@ -30,6 +30,7 @@ export const ErrorCode = {
   settingsValidation: 50002,
   bookChanged: 60001,
   bookClosed: 60002,
+  requestCancelled: 60003,
   database: 70001,
   migration: 70101,
   other: 90001,

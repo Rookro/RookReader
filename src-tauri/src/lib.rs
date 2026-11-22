@@ -311,6 +311,7 @@ mod error_codes_export {
             "pdfUnavailable: 10102",
             "bookChanged: 60001",
             "bookClosed: 60002",
+            "requestCancelled: 60003",
             "zipBomb: 10402",
             "pageTooLarge: 10004",
             "epubArchive: 10502",

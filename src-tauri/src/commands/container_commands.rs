@@ -173,6 +173,8 @@ pub async fn get_image_dimensions(
 ///
 /// * `path` - The path of the container the caller believes is open.
 /// * `entry_name` - The name of the image entry to retrieve (e.g., "image1.png").
+/// * `generation` - The reader's display generation; a newer one cancels this request if
+///   it is still queued.
 /// * `state` - The managed container state.
 ///
 /// # Returns
@@ -184,11 +186,13 @@ pub async fn get_image_dimensions(
 ///
 /// This function will return an `Err` if:
 /// * The book it names is not the book that is open.
+/// * A newer display generation superseded the request (`RequestCancelled`).
 /// * The requested image entry cannot be found or decoded.
 #[tauri::command]
 pub async fn get_image(
     path: &str,
     entry_name: &str,
+    generation: u64,
     state: tauri::State<'_, RwLock<ContainerState>>,
 ) -> Result<Response> {
     log::debug!("Get the binary of {} in {}", entry_name, path);
@@ -203,7 +207,9 @@ pub async fn get_image(
 
     // Foreground: this page is what the reader is waiting to see, so it outranks every
     // queued preload and scan job and waits only on the page each worker is already on.
-    let image = service.page(entry_name, Priority::Foreground).await?;
+    let image = service
+        .page(entry_name, Priority::Foreground, Some(generation))
+        .await?;
 
     Ok(image_response(&image))
 }
@@ -259,6 +265,8 @@ pub async fn get_image_full(
 ///
 /// * `path` - The path of the container the caller believes is open.
 /// * `entry_name` - The name of the image entry for which to generate a preview.
+/// * `generation` - The reader's display generation; a newer one cancels this request if
+///   it is still queued.
 /// * `state` - The managed container state.
 ///
 /// # Returns
@@ -270,11 +278,13 @@ pub async fn get_image_full(
 ///
 /// This function will return an `Err` if:
 /// * The book it names is not the book that is open.
+/// * A newer display generation superseded the request (`RequestCancelled`).
 /// * The preview image cannot be retrieved or generated.
 #[tauri::command]
 pub async fn get_image_preview(
     path: &str,
     entry_name: &str,
+    generation: u64,
     state: tauri::State<'_, RwLock<ContainerState>>,
 ) -> Result<Response> {
     log::debug!("Get the preview binary of {} in {}", entry_name, path);
@@ -285,7 +295,7 @@ pub async fn get_image_preview(
     }
     .ok_or_else(|| stale(path, entry_name))?;
 
-    let preview = service.preview(entry_name).await?;
+    let preview = service.preview(entry_name, Some(generation)).await?;
 
     let Some(image) = preview else {
         // Nothing to send now (the page is cached, or the book has no previews).
@@ -446,7 +456,7 @@ mod tests {
 
         // The path must match the service's book_id ("dummy_book_id"): `service_for`
         // rejects a request whose path disagrees with the open book.
-        let result = get_image("dummy_book_id", "test1.png", app.state()).await;
+        let result = get_image("dummy_book_id", "test1.png", 1, app.state()).await;
 
         assert!(result.is_ok());
 
@@ -479,7 +489,7 @@ mod tests {
         let _watch = manage_service(&app, "current_book_id", page_container(&["test1.png"]));
 
         // Ask for a page in a *different* book than the one installed.
-        let result = get_image("stale_book_id", "test1.png", app.state()).await;
+        let result = get_image("stale_book_id", "test1.png", 1, app.state()).await;
 
         let Err(err) = result else {
             panic!("a stale-path get_image should be rejected");
@@ -572,7 +582,7 @@ mod tests {
         let app = tauri::test::mock_app();
         app.manage(RwLock::new(ContainerState::default()));
 
-        let result = get_image("non_existent_path", "image.png", app.state()).await;
+        let result = get_image("non_existent_path", "image.png", 1, app.state()).await;
 
         assert!(result.is_err());
     }
@@ -595,7 +605,7 @@ mod tests {
         let _watch = manage_service(&app, "dummy_book_id", page_container(&["test1.png"]));
         set_display_size(400, 300, app.state()).await.unwrap();
 
-        let displayed = get_image("dummy_book_id", "test1.png", app.state())
+        let displayed = get_image("dummy_book_id", "test1.png", 1, app.state())
             .await
             .expect("read the displayed page");
         let magnified = get_image_full("dummy_book_id", "test1.png", app.state())
@@ -625,7 +635,7 @@ mod tests {
         // The mock page is 800x600, and the reader is drawing into a quarter of that.
         set_display_size(400, 300, app.state()).await.unwrap();
 
-        let response = get_image("dummy_book_id", "test1.png", app.state())
+        let response = get_image("dummy_book_id", "test1.png", 1, app.state())
             .await
             .expect("read the page");
         assert_eq!(page_size(response), (400, 300));
@@ -640,7 +650,7 @@ mod tests {
         // What the frontend reports before it has measured anything. The page must come
         // back whole rather than fitted into a zero-sized box.
         set_display_size(0, 0, app.state()).await.unwrap();
-        let response = get_image("dummy_book_id", "test1.png", app.state())
+        let response = get_image("dummy_book_id", "test1.png", 1, app.state())
             .await
             .expect("read the page");
         assert_eq!(page_size(response), (800, 600));
@@ -699,7 +709,7 @@ mod tests {
         });
         let _watch = manage_service(&app, "dummy_book_id", container);
 
-        let result = get_image_preview("dummy_book_id", "test1.png", app.state()).await;
+        let result = get_image_preview("dummy_book_id", "test1.png", 1, app.state()).await;
         assert!(result.is_ok());
         let response = result.unwrap();
         let body = match response.body().unwrap() {
@@ -732,13 +742,31 @@ mod tests {
         });
         let _watch = manage_service(&app, "dummy_book_id", container);
 
-        let result = get_image_preview("dummy_book_id", "test1.png", app.state()).await;
+        let result = get_image_preview("dummy_book_id", "test1.png", 1, app.state()).await;
         let body = match result.unwrap().body().unwrap() {
             Raw(bytes) => bytes,
             _ => panic!("Unexpected response body type"),
         };
         // An empty response is the wire form of "no preview"; the frontend stops asking.
         assert!(body.is_empty());
+    }
+
+    #[tokio::test]
+    async fn a_stale_generation_is_refused_by_both_page_commands() {
+        let app = tauri::test::mock_app();
+        let _watch = manage_service(&app, "dummy_book_id", page_container(&["test1.png"]));
+
+        assert!(get_image("dummy_book_id", "test1.png", 5, app.state())
+            .await
+            .is_ok());
+        assert!(matches!(
+            get_image("dummy_book_id", "test1.png", 4, app.state()).await,
+            Err(Error::RequestCancelled(_))
+        ));
+        assert!(matches!(
+            get_image_preview("dummy_book_id", "test1.png", 4, app.state()).await,
+            Err(Error::RequestCancelled(_))
+        ));
     }
 
     #[test]

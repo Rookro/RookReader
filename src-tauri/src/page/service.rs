@@ -101,6 +101,10 @@ struct Job {
     /// mid-read cannot store the old pixels under the new key. Unused by the jobs that
     /// do not read a page.
     fit: Fit,
+    /// The reader's display generation, if this job belongs to one. A newer generation
+    /// cancels queued jobs with a smaller number; `None` jobs (loupe, preload, scan) are
+    /// never cancelled by a generation advance.
+    generation: Option<u64>,
     reply: Reply,
 }
 
@@ -175,7 +179,42 @@ struct Queue {
     /// Once this reaches zero the queue has no consumer, so the jobs it holds would be
     /// waited on forever rather than fail. [`worker_left`] is where that is noticed.
     live: usize,
+    /// The newest display generation admitted so far; `0` before any numbered request.
+    latest_generation: u64,
     closed: bool,
+}
+
+impl Queue {
+    /// Checks a request's display generation against the newest seen, cancelling queued
+    /// jobs from older generations when this request advances it.
+    fn admit(&mut self, generation: Option<u64>) -> Result<()> {
+        let Some(g) = generation else {
+            return Ok(());
+        };
+        if g < self.latest_generation {
+            return Err(cancelled());
+        }
+        if g > self.latest_generation {
+            self.latest_generation = g;
+            let (superseded, kept): (Vec<_>, Vec<_>) = std::mem::take(&mut self.jobs)
+                .into_vec()
+                .into_iter()
+                .partition(|job| job.generation.is_some_and(|old| old < g));
+            self.jobs = BinaryHeap::from(kept);
+            for mut job in superseded {
+                match job.take_reply() {
+                    Reply::Page(tx) => {
+                        let _ = tx.send(Err(cancelled()));
+                    }
+                    Reply::Preview(tx) => {
+                        let _ = tx.send(Err(cancelled()));
+                    }
+                    Reply::Dimensions(_, _) | Reply::None => {}
+                }
+            }
+        }
+        Ok(())
+    }
 }
 
 /// Everything a worker touches, reached through one `Arc`: the queue, the book id its
@@ -247,6 +286,11 @@ impl Shared {
 /// The error every blocked caller gets once its book is closed.
 fn closed() -> Error {
     Error::BookClosed("The book was closed while a page was being read".to_string())
+}
+
+/// The error a caller gets when a newer display generation supersedes its request.
+fn cancelled() -> Error {
+    Error::RequestCancelled("A newer page request superseded this one".to_string())
 }
 
 /// How long a test waits for the scheduler before a job counts as never run.
@@ -372,6 +416,7 @@ impl PageService {
                 in_flight: HashMap::new(),
                 preloading: 0,
                 live: workers,
+                latest_generation: 0,
                 closed: false,
             }),
             wake: Condvar::new(),
@@ -443,6 +488,8 @@ impl PageService {
     ///
     /// * `entry` - The entry name, as listed by the container.
     /// * `priority` - The job class the read is queued in.
+    /// * `generation` - Optional display generation; a newer one cancels queued requests
+    ///   from older generations, and an older one is refused immediately.
     ///
     /// # Returns
     ///
@@ -451,9 +498,15 @@ impl PageService {
     /// # Errors
     ///
     /// Returns an `Err` if the entry is not part of this book, the book is closed while
-    /// the page is being read, or the page cannot be read or decoded.
-    pub async fn page(&self, entry: &str, priority: Priority) -> Result<Arc<Image>> {
-        self.fetch(entry, priority, self.shared.pipeline().fit())
+    /// the page is being read, a newer display generation supersedes the request
+    /// ([`Error::RequestCancelled`]), or the page cannot be read or decoded.
+    pub async fn page(
+        &self,
+        entry: &str,
+        priority: Priority,
+        generation: Option<u64>,
+    ) -> Result<Arc<Image>> {
+        self.fetch(entry, priority, self.shared.pipeline().fit(), generation)
             .await
     }
 
@@ -470,6 +523,7 @@ impl PageService {
             entry,
             Priority::Foreground,
             self.shared.pipeline().full_fit(),
+            None,
         )
         .await
     }
@@ -477,7 +531,21 @@ impl PageService {
     /// [`PageService::page`] for a test running on a plain thread.
     #[cfg(test)]
     pub fn page_blocking(&self, entry: &str, priority: Priority) -> Result<Arc<Image>> {
-        match self.enqueue(entry, priority, self.shared.pipeline().fit())? {
+        match self.enqueue(entry, priority, self.shared.pipeline().fit(), None)? {
+            Fetch::Cached(image) => Ok(image),
+            Fetch::Queued { rx, .. } => reply_within(rx, TEST_REPLY_TIMEOUT),
+        }
+    }
+
+    /// [`PageService::page`] with a display generation, for a test running on a plain thread.
+    #[cfg(test)]
+    pub fn page_blocking_in(&self, entry: &str, generation: u64) -> Result<Arc<Image>> {
+        match self.enqueue(
+            entry,
+            Priority::Foreground,
+            self.shared.pipeline().fit(),
+            Some(generation),
+        )? {
             Fetch::Cached(image) => Ok(image),
             Fetch::Queued { rx, .. } => reply_within(rx, TEST_REPLY_TIMEOUT),
         }
@@ -490,6 +558,7 @@ impl PageService {
             entry,
             Priority::Foreground,
             self.shared.pipeline().full_fit(),
+            None,
         )? {
             Fetch::Cached(image) => Ok(image),
             Fetch::Queued { rx, .. } => reply_within(rx, TEST_REPLY_TIMEOUT),
@@ -499,7 +568,16 @@ impl PageService {
     /// [`PageService::preview`] for a test running on a plain thread.
     #[cfg(test)]
     pub fn preview_blocking(&self, entry: &str) -> Result<Option<Arc<Image>>> {
-        match self.enqueue_preview(entry)? {
+        match self.enqueue_preview(entry, None)? {
+            Some(rx) => reply_within(rx, TEST_REPLY_TIMEOUT),
+            None => Ok(None),
+        }
+    }
+
+    /// [`PageService::preview`] with a display generation, for a test running on a plain thread.
+    #[cfg(test)]
+    pub fn preview_blocking_in(&self, entry: &str, generation: u64) -> Result<Option<Arc<Image>>> {
+        match self.enqueue_preview(entry, Some(generation))? {
             Some(rx) => reply_within(rx, TEST_REPLY_TIMEOUT),
             None => Ok(None),
         }
@@ -537,13 +615,27 @@ impl PageService {
     }
 
     /// Reads one page into `fit`, waiting for it, and records the wait.
-    async fn fetch(&self, entry: &str, priority: Priority, fit: Fit) -> Result<Arc<Image>> {
+    async fn fetch(
+        &self,
+        entry: &str,
+        priority: Priority,
+        fit: Fit,
+        generation: Option<u64>,
+    ) -> Result<Arc<Image>> {
         let span = Span::start();
-        let (page, source, queued) = match self.enqueue(entry, priority, fit)? {
-            Fetch::Cached(image) => (Ok(image), "cache", 0),
-            Fetch::Queued { rx, source, queued } => {
-                (rx.await.unwrap_or_else(|_| Err(closed())), source, queued)
+        let (page, source, queued) = match self.enqueue(entry, priority, fit, generation) {
+            Ok(Fetch::Cached(image)) => (Ok(image), "cache", 0),
+            Ok(Fetch::Queued { rx, source, queued }) => {
+                let result = rx.await.unwrap_or_else(|_| Err(closed()));
+                let source = if matches!(result, Err(Error::RequestCancelled(_))) {
+                    "cancelled"
+                } else {
+                    source
+                };
+                (result, source, queued)
             }
+            Err(e @ Error::RequestCancelled(_)) => (Err(e), "cancelled", 0),
+            Err(e) => return Err(e),
         };
         // What the wait was spent on, which is what makes the duration readable: a page
         // already being read is joined rather than read again.
@@ -558,8 +650,17 @@ impl PageService {
     /// Queues one page read into `fit`, or answers it from the cache.
     ///
     /// Cache first; only a miss reaches the queue.
-    fn enqueue(&self, entry: &str, priority: Priority, fit: Fit) -> Result<Fetch> {
+    fn enqueue(
+        &self,
+        entry: &str,
+        priority: Priority,
+        fit: Fit,
+        generation: Option<u64>,
+    ) -> Result<Fetch> {
         if let Some(image) = self.shared.cached(entry, fit) {
+            if generation.is_some() {
+                self.shared.lock().admit(generation)?;
+            }
             return Ok(Fetch::Cached(image));
         }
 
@@ -570,6 +671,7 @@ impl PageService {
             if queue.closed {
                 return Err(closed());
             }
+            queue.admit(generation)?;
             let queued = queue.jobs.len() + queue.preload.len();
             match queue.in_flight.entry((entry.to_string(), fit)) {
                 // A worker already has this page open; wait on its result rather than
@@ -584,6 +686,7 @@ impl PageService {
                         order: (index, 1),
                         entry: entry.to_string(),
                         fit,
+                        generation,
                         reply: Reply::Page(tx),
                     });
                     ("read", queued)
@@ -599,27 +702,43 @@ impl PageService {
     /// Ordered before the same entry's page, because the frontend only asks for previews
     /// of the pages it is displaying right now.
     ///
+    /// # Arguments
+    ///
+    /// * `entry` - The entry name, as listed by the container.
+    /// * `generation` - Optional display generation; a newer one cancels queued requests
+    ///   from older generations, and an older one is refused immediately.
+    ///
     /// # Returns
     ///
     /// `Ok(None)` when the full page is already cached, or the format has no preview.
     ///
     /// # Errors
     ///
-    /// Returns an `Err` if the entry is not part of this book, the book is closed, or the
-    /// preview cannot be produced.
-    pub async fn preview(&self, entry: &str) -> Result<Option<Arc<Image>>> {
+    /// Returns an `Err` if the entry is not part of this book, the book is closed, a
+    /// newer display generation supersedes the request ([`Error::RequestCancelled`]), or
+    /// the preview cannot be produced.
+    pub async fn preview(
+        &self,
+        entry: &str,
+        generation: Option<u64>,
+    ) -> Result<Option<Arc<Image>>> {
         let span = Span::start();
-        let Some(rx) = self.enqueue_preview(entry)? else {
-            perf!(span, "preview", "entry={entry} source=cached-page");
-            return Ok(None);
-        };
-        let preview = rx.await.unwrap_or_else(|_| Err(closed()));
-        let source = match &preview {
-            Ok(Some(_)) => "render",
-            // Every format but PDF: a preview costs the page's own read and decode, so
-            // there is nothing cheaper to make.
-            Ok(None) => "unsupported",
-            Err(_) => "failed",
+        let (preview, source) = match self.enqueue_preview(entry, generation) {
+            Ok(None) => (Ok(None), "cached-page"),
+            Ok(Some(rx)) => {
+                let preview = rx.await.unwrap_or_else(|_| Err(closed()));
+                let source = match &preview {
+                    Ok(Some(_)) => "render",
+                    // Every format but PDF: a preview costs the page's own read and decode, so
+                    // there is nothing cheaper to make.
+                    Ok(None) => "unsupported",
+                    Err(Error::RequestCancelled(_)) => "cancelled",
+                    Err(_) => "failed",
+                };
+                (preview, source)
+            }
+            Err(e @ Error::RequestCancelled(_)) => (Err(e), "cancelled"),
+            Err(e) => return Err(e),
         };
         perf!(span, "preview", "entry={entry} source={source}");
         preview
@@ -630,12 +749,15 @@ impl PageService {
     /// # Returns
     ///
     /// `None` when the full page is already cached and no preview is needed.
-    fn enqueue_preview(&self, entry: &str) -> Result<Option<PreviewRx>> {
+    fn enqueue_preview(&self, entry: &str, generation: Option<u64>) -> Result<Option<PreviewRx>> {
         if self
             .shared
             .cached(entry, self.shared.pipeline().fit())
             .is_some()
         {
+            if generation.is_some() {
+                self.shared.lock().admit(generation)?;
+            }
             return Ok(None);
         }
 
@@ -646,12 +768,14 @@ impl PageService {
             if queue.closed {
                 return Err(closed());
             }
+            queue.admit(generation)?;
             queue.jobs.push(Job {
                 priority: Priority::Foreground,
                 order: (index, 0),
                 entry: entry.to_string(),
                 // The pipeline fits a preview to PREVIEW, so no box bounds it here.
                 fit: Fit::UNBOUNDED,
+                generation,
                 reply: Reply::Preview(tx),
             });
         }
@@ -674,9 +798,9 @@ impl PageService {
     ///
     /// Un-started preload jobs from the previous window are dropped first: the frontend
     /// calls this on every page turn, and a window the reader has left must not outrank
-    /// the one they are in. A job a worker has already picked up still finishes. This
-    /// replaces the old generation counter; book switches are cancelled by
-    /// [`PageService::close`].
+    /// the one they are in. A job a worker has already picked up still finishes. Foreground
+    /// requests are superseded by display generations, preload by this call, and book
+    /// switches by [`PageService::close`].
     pub fn request_preload_around(
         &self,
         center: usize,
@@ -727,6 +851,7 @@ impl PageService {
                     order: (index, 1),
                     entry: entry.clone(),
                     fit,
+                    generation: None,
                     reply: Reply::None,
                 });
             }
@@ -772,6 +897,7 @@ impl PageService {
                     entry: entry.clone(),
                     // A scan measures the stored page's header and never renders it.
                     fit: Fit::UNBOUNDED,
+                    generation: None,
                     reply: Reply::Dimensions(index, tx.clone()),
                 });
             }
@@ -2236,8 +2362,14 @@ mod tests {
         let _watch = close_if_stuck(&service);
 
         // The record is written by the async read, which is what the commands use.
-        service.page(&names[0], Priority::Foreground).await.unwrap();
-        service.page(&names[0], Priority::Foreground).await.unwrap();
+        service
+            .page(&names[0], Priority::Foreground, None)
+            .await
+            .unwrap();
+        service
+            .page(&names[0], Priority::Foreground, None)
+            .await
+            .unwrap();
 
         // A duration is unreadable without this: the second call is fast because it never
         // left the cache, not because the archive got quicker.
@@ -2274,5 +2406,465 @@ mod tests {
         // The sender is kept alive, so the receiver neither gets a value nor sees it closed.
         let (_tx, rx) = oneshot::channel::<Result<()>>();
         let _ = reply_within(rx, Duration::from_millis(50));
+    }
+
+    fn gated_container(
+        names: Vec<String>,
+        gated: &str,
+        gate: Arc<Barrier>,
+        log: Arc<Mutex<Vec<String>>>,
+    ) -> MockContainer {
+        let mut container = MockContainer::new();
+        container.expect_get_entries().return_const(names);
+        container.expect_max_readers().return_const(1usize);
+        let gated = gated.to_string();
+        container.expect_open_reader().returning(move || {
+            let gate = gate.clone();
+            let gated = gated.clone();
+            let read_log = log.clone();
+            let preview_log = log.clone();
+            let first = Arc::new(AtomicBool::new(true));
+            let mut reader = MockPageReader::new();
+            reader.expect_read_page().returning(move |entry| {
+                read_log.lock().unwrap().push(entry.to_string());
+                if entry == gated && first.swap(false, Ordering::SeqCst) {
+                    gate.wait();
+                }
+                Ok(PageData::Encoded(page_bytes()))
+            });
+            reader.expect_read_preview().returning(move |entry| {
+                preview_log.lock().unwrap().push(format!("preview:{entry}"));
+                Ok(None)
+            });
+            Ok(Box::new(reader) as Box<dyn PageReader>)
+        });
+        container
+    }
+
+    fn latest(service: &PageService) -> u64 {
+        service.shared.lock().latest_generation
+    }
+
+    fn joined(service: &PageService, entry: &str) -> usize {
+        let fit = service.shared.pipeline().fit();
+        service
+            .shared
+            .lock()
+            .in_flight
+            .get(&(entry.to_string(), fit))
+            .map_or(0, Vec::len)
+    }
+
+    #[test]
+    fn a_newer_generation_cancels_the_pages_it_supersedes() {
+        let names = entries(51);
+        let gate = Arc::new(Barrier::new(2));
+        let log = Arc::new(Mutex::new(Vec::new()));
+        let service = Arc::new(service(gated_container(
+            names.clone(),
+            &names[0],
+            gate.clone(),
+            log.clone(),
+        )));
+
+        let parked = {
+            let service = service.clone();
+            let first = names[0].clone();
+            thread::spawn(move || service.page_blocking(&first, Priority::Foreground))
+        };
+        eventually("worker to park on p000", || reading(&service, &names[0]));
+
+        let mut callers = Vec::new();
+        for (i, name) in names.iter().enumerate().take(51).skip(10) {
+            let service_for_thread = service.clone();
+            let entry = name.clone();
+            callers.push(thread::spawn(move || {
+                service_for_thread.page_blocking_in(&entry, i as u64)
+            }));
+            eventually("generation to advance with one queued job", || {
+                latest(&service) == i as u64 && queued(&service) == 1
+            });
+        }
+
+        gate.wait();
+        assert!(parked.join().unwrap().is_ok());
+
+        let last = callers.pop().unwrap();
+        for caller in callers {
+            assert!(matches!(
+                caller.join().unwrap(),
+                Err(Error::RequestCancelled(_))
+            ));
+        }
+        assert!(last.join().unwrap().is_ok());
+        assert_eq!(*log.lock().unwrap(), vec!["p000.png", "p050.png"]);
+    }
+
+    #[test]
+    fn a_queued_preview_is_cancelled_and_a_stale_one_refused() {
+        let names = entries(51);
+        let gate = Arc::new(Barrier::new(2));
+        let log = Arc::new(Mutex::new(Vec::new()));
+        let service = Arc::new(service(gated_container(
+            names.clone(),
+            &names[0],
+            gate.clone(),
+            log.clone(),
+        )));
+
+        let parked = {
+            let service = service.clone();
+            let first = names[0].clone();
+            thread::spawn(move || service.page_blocking(&first, Priority::Foreground))
+        };
+        eventually("worker to park on p000", || reading(&service, &names[0]));
+
+        let preview = {
+            let service = service.clone();
+            let entry = names[1].clone();
+            thread::spawn(move || service.preview_blocking_in(&entry, 2))
+        };
+        eventually("preview to queue", || queued(&service) == 1);
+
+        let page = {
+            let service = service.clone();
+            let entry = names[2].clone();
+            thread::spawn(move || service.page_blocking_in(&entry, 3))
+        };
+        eventually("newer page to queue", || {
+            latest(&service) == 3 && queued(&service) == 1
+        });
+
+        assert!(matches!(
+            preview.join().unwrap(),
+            Err(Error::RequestCancelled(_))
+        ));
+        assert!(matches!(
+            service.preview_blocking_in(&names[3], 2),
+            Err(Error::RequestCancelled(_))
+        ));
+        assert_eq!(queued(&service), 1);
+
+        gate.wait();
+        assert!(parked.join().unwrap().is_ok());
+        assert!(page.join().unwrap().is_ok());
+        assert_eq!(*log.lock().unwrap(), vec!["p000.png", "p002.png"]);
+    }
+
+    #[test]
+    fn an_older_generation_is_refused_at_once() {
+        let names = entries(51);
+        let gate = Arc::new(Barrier::new(2));
+        let log = Arc::new(Mutex::new(Vec::new()));
+        let service = Arc::new(service(gated_container(
+            names.clone(),
+            &names[0],
+            gate.clone(),
+            log,
+        )));
+
+        let parked = {
+            let service = service.clone();
+            let first = names[0].clone();
+            thread::spawn(move || service.page_blocking(&first, Priority::Foreground))
+        };
+        eventually("worker to park on p000", || reading(&service, &names[0]));
+
+        let newer = {
+            let service = service.clone();
+            let entry = names[5].clone();
+            thread::spawn(move || service.page_blocking_in(&entry, 5))
+        };
+        eventually("p005 to queue", || queued(&service) == 1);
+
+        assert!(matches!(
+            service.page_blocking_in(&names[4], 4),
+            Err(Error::RequestCancelled(_))
+        ));
+        assert_eq!(queued(&service), 1);
+
+        gate.wait();
+        assert!(parked.join().unwrap().is_ok());
+        assert!(newer.join().unwrap().is_ok());
+    }
+
+    #[test]
+    fn a_cached_page_still_advances_the_generation() {
+        let names = entries(51);
+        let gate = Arc::new(Barrier::new(2));
+        let log = Arc::new(Mutex::new(Vec::new()));
+        let service = Arc::new(service(gated_container(
+            names.clone(),
+            &names[0],
+            gate.clone(),
+            log,
+        )));
+
+        assert!(service.page_blocking_in(&names[1], 1).is_ok());
+
+        let parked = {
+            let service = service.clone();
+            let first = names[0].clone();
+            thread::spawn(move || service.page_blocking(&first, Priority::Foreground))
+        };
+        eventually("worker to park on p000", || reading(&service, &names[0]));
+
+        let queued_page = {
+            let service = service.clone();
+            let entry = names[2].clone();
+            thread::spawn(move || service.page_blocking_in(&entry, 2))
+        };
+        eventually("p002 to queue", || queued(&service) == 1);
+
+        assert!(service.page_blocking_in(&names[1], 3).is_ok());
+        assert!(matches!(
+            queued_page.join().unwrap(),
+            Err(Error::RequestCancelled(_))
+        ));
+        assert!(matches!(
+            service.page_blocking_in(&names[1], 2),
+            Err(Error::RequestCancelled(_))
+        ));
+        assert!(matches!(
+            service.preview_blocking_in(&names[1], 2),
+            Err(Error::RequestCancelled(_))
+        ));
+
+        gate.wait();
+        assert!(parked.join().unwrap().is_ok());
+    }
+
+    #[test]
+    fn joining_a_running_read_still_cancels_older_pages_and_keeps_its_waiters() {
+        let names = entries(51);
+        let gate = Arc::new(Barrier::new(2));
+        let log = Arc::new(Mutex::new(Vec::new()));
+        let service = Arc::new(service(gated_container(
+            names.clone(),
+            &names[0],
+            gate.clone(),
+            log.clone(),
+        )));
+
+        let parked = {
+            let service = service.clone();
+            let first = names[0].clone();
+            thread::spawn(move || service.page_blocking_in(&first, 1))
+        };
+        eventually("worker to park on p000", || reading(&service, &names[0]));
+
+        let stale = {
+            let service = service.clone();
+            let entry = names[1].clone();
+            thread::spawn(move || service.page_blocking_in(&entry, 1))
+        };
+        eventually("p001 to queue", || queued(&service) == 1);
+
+        let joiner = {
+            let service = service.clone();
+            let first = names[0].clone();
+            thread::spawn(move || service.page_blocking_in(&first, 2))
+        };
+        eventually("joiner to attach to p000", || {
+            joined(&service, &names[0]) == 1
+        });
+        // Joining at generation 2 itself cancels p001 before generation 3 arrives.
+        assert!(matches!(
+            stale.join().unwrap(),
+            Err(Error::RequestCancelled(_))
+        ));
+        assert_eq!(queued(&service), 0);
+
+        let newest = {
+            let service = service.clone();
+            let entry = names[2].clone();
+            thread::spawn(move || service.page_blocking_in(&entry, 3))
+        };
+        eventually("p002 to queue", || queued(&service) == 1);
+
+        gate.wait();
+        assert!(parked.join().unwrap().is_ok());
+        assert!(joiner.join().unwrap().is_ok());
+        assert!(newest.join().unwrap().is_ok());
+        assert_eq!(*log.lock().unwrap(), vec!["p000.png", "p002.png"]);
+    }
+
+    #[test]
+    fn one_generation_keeps_its_pages_and_reads_each_preview_first() {
+        let names = entries(51);
+        let gate = Arc::new(Barrier::new(2));
+        let log = Arc::new(Mutex::new(Vec::new()));
+        let service = Arc::new(service(gated_container(
+            names.clone(),
+            &names[0],
+            gate.clone(),
+            log.clone(),
+        )));
+
+        let parked = {
+            let service = service.clone();
+            let first = names[0].clone();
+            thread::spawn(move || service.page_blocking(&first, Priority::Foreground))
+        };
+        eventually("worker to park on p000", || reading(&service, &names[0]));
+
+        let p1 = {
+            let service = service.clone();
+            let entry = names[1].clone();
+            thread::spawn(move || service.page_blocking_in(&entry, 7))
+        };
+        let p2 = {
+            let service = service.clone();
+            let entry = names[2].clone();
+            thread::spawn(move || service.page_blocking_in(&entry, 7))
+        };
+        eventually("both pages to queue", || queued(&service) == 2);
+
+        let prev1 = {
+            let service = service.clone();
+            let entry = names[1].clone();
+            thread::spawn(move || service.preview_blocking_in(&entry, 7))
+        };
+        let prev2 = {
+            let service = service.clone();
+            let entry = names[2].clone();
+            thread::spawn(move || service.preview_blocking_in(&entry, 7))
+        };
+        eventually("both previews to queue", || queued(&service) == 4);
+
+        gate.wait();
+        assert!(parked.join().unwrap().is_ok());
+        assert!(p1.join().unwrap().is_ok());
+        assert!(p2.join().unwrap().is_ok());
+        assert!(prev1.join().unwrap().is_ok());
+        assert!(prev2.join().unwrap().is_ok());
+        assert_eq!(
+            *log.lock().unwrap(),
+            vec![
+                "p000.png",
+                "preview:p001.png",
+                "p001.png",
+                "preview:p002.png",
+                "p002.png",
+            ]
+        );
+    }
+
+    #[test]
+    fn a_newer_generation_leaves_the_loupe_alone() {
+        let names = entries(51);
+        let gate = Arc::new(Barrier::new(2));
+        let log = Arc::new(Mutex::new(Vec::new()));
+        let service = Arc::new(service(gated_container(
+            names.clone(),
+            &names[0],
+            gate.clone(),
+            log.clone(),
+        )));
+
+        let parked = {
+            let service = service.clone();
+            let first = names[0].clone();
+            thread::spawn(move || service.page_blocking(&first, Priority::Foreground))
+        };
+        eventually("worker to park on p000", || reading(&service, &names[0]));
+
+        let loupe = {
+            let service = service.clone();
+            let entry = names[1].clone();
+            thread::spawn(move || service.page_full_blocking(&entry))
+        };
+        eventually("loupe request to queue", || queued(&service) == 1);
+
+        let newer = {
+            let service = service.clone();
+            let entry = names[2].clone();
+            thread::spawn(move || service.page_blocking_in(&entry, 9))
+        };
+        eventually("both requests to stay queued", || queued(&service) == 2);
+
+        gate.wait();
+        assert!(parked.join().unwrap().is_ok());
+        assert!(loupe.join().unwrap().is_ok());
+        assert!(newer.join().unwrap().is_ok());
+        assert!(log.lock().unwrap().contains(&names[1]));
+    }
+
+    #[tokio::test]
+    async fn a_cancelled_request_is_recorded_as_cancelled() {
+        let recording = crate::perf::capture::record();
+        let names = entries(51);
+        let gate = Arc::new(Barrier::new(2));
+        let log = Arc::new(Mutex::new(Vec::new()));
+        let service = Arc::new(service(gated_container(
+            names.clone(),
+            &names[0],
+            gate.clone(),
+            log,
+        )));
+        let _watch = close_if_stuck(&service);
+
+        // Prime p001 into the cache so later generations can cancel via cache hit.
+        service
+            .page(&names[1], Priority::Foreground, Some(1))
+            .await
+            .unwrap();
+
+        let parked = {
+            let service = service.clone();
+            let first = names[0].clone();
+            thread::spawn(move || service.page_blocking(&first, Priority::Foreground))
+        };
+        eventually("worker to park on p000", || reading(&service, &names[0]));
+
+        // Page cancelled while queued.
+        let (queued_page, cache_hit) = tokio::join!(
+            service.page(&names[2], Priority::Foreground, Some(2)),
+            async {
+                while queued(&service) == 0 && !service.shared.lock().closed {
+                    tokio::task::yield_now().await;
+                }
+                service.page(&names[1], Priority::Foreground, Some(3)).await
+            }
+        );
+        assert!(matches!(queued_page, Err(Error::RequestCancelled(_))));
+        assert!(cache_hit.is_ok());
+
+        // Preview cancelled while queued.
+        let (queued_preview, cache_hit) =
+            tokio::join!(service.preview(&names[3], Some(4)), async {
+                while queued(&service) == 0 && !service.shared.lock().closed {
+                    tokio::task::yield_now().await;
+                }
+                service.page(&names[1], Priority::Foreground, Some(5)).await
+            });
+        assert!(matches!(queued_preview, Err(Error::RequestCancelled(_))));
+        assert!(cache_hit.is_ok());
+
+        // Refused at once.
+        assert!(matches!(
+            service.page(&names[4], Priority::Foreground, Some(1)).await,
+            Err(Error::RequestCancelled(_))
+        ));
+        assert!(matches!(
+            service.preview(&names[4], Some(1)).await,
+            Err(Error::RequestCancelled(_))
+        ));
+
+        gate.wait();
+        assert!(parked.join().unwrap().is_ok());
+
+        let cancelled_pages = recording
+            .lines("page")
+            .into_iter()
+            .filter(|line| line.contains(" source=cancelled"))
+            .count();
+        let cancelled_previews = recording
+            .lines("preview")
+            .into_iter()
+            .filter(|line| line.contains(" source=cancelled"))
+            .count();
+        assert_eq!(cancelled_pages, 2);
+        assert_eq!(cancelled_previews, 2);
     }
 }

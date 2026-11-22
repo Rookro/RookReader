@@ -48,6 +48,7 @@ export type PageLoadResult =
  * @param containerPath The path of the container file.
  * @param entry The entry name of the page.
  * @param isPreview Whether to load the page's preview instead of the page.
+ * @param generation The reader's display generation; a newer one cancels older queued requests.
  * @param signal Aborts the load; a load aborted at any point stores nothing.
  * @returns What the load came to; see {@link PageLoadResult}.
  */
@@ -56,19 +57,27 @@ export const loadPageIntoCache = async (
   containerPath: string,
   entry: string,
   isPreview: boolean,
+  generation: number,
   signal: AbortSignal,
 ): Promise<PageLoadResult> => {
   if (signal.aborted) return { status: "skipped" };
   let img: Image | null | undefined;
   try {
-    img = await (isPreview ? fetchImagePreviewBlob : fetchImageBlob)(containerPath, entry);
+    img = await (isPreview ? fetchImagePreviewBlob : fetchImageBlob)(
+      containerPath,
+      entry,
+      generation,
+    );
   } catch (e) {
+    if (signal.aborted) {
+      return { status: "skipped" };
+    }
     const commandError = createCommandError(e);
     error(
       `Failed to load ${isPreview ? "a preview" : "an image"} of ${entry}: ` +
         `${commandError.message} (code ${commandError.code})`,
     );
-    return signal.aborted ? { status: "skipped" } : { status: "failed", code: commandError.code };
+    return { status: "failed", code: commandError.code };
   }
   if (!img || signal.aborted) {
     return { status: "skipped" };

@@ -123,6 +123,10 @@ pub enum Error {
     /// running. Expected on every book switch, so distinct from a page that cannot be read.
     #[error("Book Closed Error: {0}")]
     BookClosed(String),
+    /// A page request superseded by a newer display generation before a worker picked it up.
+    /// Expected on every fast page turn, so distinct from a page that cannot be read.
+    #[error("Request Cancelled Error: {0}")]
+    RequestCancelled(String),
 
     // 7xxxx: Database
     /// An error related to database operations.
@@ -219,6 +223,7 @@ impl ErrorCode {
             // 6xxxx: Application Logic & State
             ErrorCode::BookChanged => 60001,
             ErrorCode::BookClosed => 60002,
+            ErrorCode::RequestCancelled => 60003,
 
             // 7xxxx: Database
             ErrorCode::Database => 70001,
@@ -334,6 +339,13 @@ mod tests {
         let value = serde_json::to_value(Error::BookClosed("closed".to_string())).unwrap();
         assert_eq!(value["code"], 60002);
         assert_eq!(value["message"], "Book Closed Error: closed");
+    }
+
+    #[test]
+    fn serializes_request_cancelled_with_its_own_code() {
+        let value = serde_json::to_value(Error::RequestCancelled("newer".to_string())).unwrap();
+        assert_eq!(value["code"], 60003);
+        assert_eq!(value["message"], "Request Cancelled Error: newer");
     }
 
     #[test]

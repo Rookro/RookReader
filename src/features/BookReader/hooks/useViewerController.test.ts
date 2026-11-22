@@ -262,7 +262,7 @@ describe("useViewerController", () => {
       await new Promise(process.nextTick);
     });
 
-    expect(mockedFetchImageBlob).toHaveBeenCalledWith("path2", "p1.jpg");
+    expect(mockedFetchImageBlob).toHaveBeenCalledWith("path2", "p1.jpg", expect.any(Number));
     expect(result.current.displayedLayout).toBeNull();
   });
 
@@ -2393,7 +2393,11 @@ describe("useViewerController", () => {
 
       rerender({ index: 2 });
       await waitFor(() =>
-        expect(ImageUtils.fetchImagePreviewBlob).toHaveBeenCalledWith("path", "p3.jpg"),
+        expect(ImageUtils.fetchImagePreviewBlob).toHaveBeenCalledWith(
+          "path",
+          "p3.jpg",
+          expect.any(Number),
+        ),
       );
       expect(vi.mocked(ImageUtils.fetchImagePreviewBlob).mock.calls.length).toBeGreaterThan(
         afterFirstPage,
@@ -2436,6 +2440,48 @@ describe("useViewerController", () => {
           afterFirstPage,
         ),
       );
+    });
+
+    it("gives a run's previews and pages one generation, and a later run a greater one", async () => {
+      const spreadWithPreview: ImageUtils.ViewerSettings = {
+        ...mockSettings,
+        isTwoPagedView: true,
+        enablePreview: true,
+      };
+      mockedFetchImageBlob.mockReturnValue(new Promise(() => {}));
+      vi.mocked(ImageUtils.fetchImagePreviewBlob).mockReturnValue(new Promise(() => {}));
+
+      const { rerender } = renderHook(
+        ({ index }: { index: number }) =>
+          useViewerController({
+            containerPath: "path",
+            displaySize: VIEWPORT,
+            entries: mockEntries,
+            index,
+            isSpreadShifted: false,
+            settings: spreadWithPreview,
+            dispatch: mockDispatch,
+            hasPreviews: true,
+          }),
+        { initialProps: { index: 0 } },
+      );
+
+      await waitFor(() => {
+        expect(mockedFetchImageBlob).toHaveBeenCalledTimes(2);
+        expect(ImageUtils.fetchImagePreviewBlob).toHaveBeenCalledTimes(2);
+      });
+
+      const firstRunGenerations = [
+        ...mockedFetchImageBlob.mock.calls.map((call) => call[2]),
+        ...vi.mocked(ImageUtils.fetchImagePreviewBlob).mock.calls.map((call) => call[2]),
+      ];
+      expect(typeof firstRunGenerations[0]).toBe("number");
+      expect(new Set(firstRunGenerations).size).toBe(1);
+
+      rerender({ index: 2 });
+      await waitFor(() => expect(mockedFetchImageBlob).toHaveBeenCalledTimes(3));
+
+      expect(mockedFetchImageBlob.mock.calls[2][2]).toBeGreaterThan(firstRunGenerations[0]);
     });
   });
 
@@ -2482,6 +2528,90 @@ describe("useViewerController", () => {
         ),
       );
     });
+
+    it("asks the backend to preload once a burst of page turns settles", async () => {
+      vi.useFakeTimers();
+      mockedFetchImageBlob.mockResolvedValue({} as Image);
+
+      try {
+        const { rerender } = renderHook(
+          ({ index }: { index: number }) =>
+            useViewerController({
+              containerPath: "path",
+              displaySize: VIEWPORT,
+              entries: mockEntries,
+              index,
+              isSpreadShifted: false,
+              settings: mockSettings,
+              dispatch: mockDispatch,
+              hasPreviews: true,
+            }),
+          { initialProps: { index: 0 } },
+        );
+
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(0);
+        });
+        expect(ImageUtils.fetchImageBlob).toHaveBeenCalled();
+
+        rerender({ index: 1 });
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(0);
+        });
+        rerender({ index: 2 });
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(0);
+        });
+
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(99);
+        });
+        expect(api.requestPreloadAround).not.toHaveBeenCalled();
+
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(1);
+        });
+        expect(api.requestPreloadAround).toHaveBeenCalledTimes(1);
+        expect(api.requestPreloadAround).toHaveBeenCalledWith("path", 2, 10, 1);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("sends no preload request when unmounted before it settles", async () => {
+      vi.useFakeTimers();
+      mockedFetchImageBlob.mockResolvedValue({} as Image);
+
+      try {
+        const { unmount } = renderHook(
+          ({ index }: { index: number }) =>
+            useViewerController({
+              containerPath: "path",
+              displaySize: VIEWPORT,
+              entries: mockEntries,
+              index,
+              isSpreadShifted: false,
+              settings: mockSettings,
+              dispatch: mockDispatch,
+              hasPreviews: true,
+            }),
+          { initialProps: { index: 0 } },
+        );
+
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(0);
+        });
+        expect(ImageUtils.fetchImageBlob).toHaveBeenCalled();
+
+        unmount();
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(200);
+        });
+        expect(api.requestPreloadAround).not.toHaveBeenCalled();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 
   describe("the reader's viewport", () => {
@@ -2517,6 +2647,9 @@ describe("useViewerController", () => {
       // A page fetched now would arrive at its stored size and be fetched again at the
       // right one, so the viewer waits instead.
       await waitFor(() => expect(api.getImageDimensions).toHaveBeenCalled());
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 150));
+      });
       expect(api.setDisplaySize).not.toHaveBeenCalled();
       expect(ImageUtils.fetchImageBlob).not.toHaveBeenCalled();
       expect(api.requestPreloadAround).not.toHaveBeenCalled();
@@ -2566,6 +2699,9 @@ describe("useViewerController", () => {
       await waitFor(() =>
         expect(api.setDisplaySize).toHaveBeenCalledWith(VIEWPORT.width, VIEWPORT.height),
       );
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 150));
+      });
       expect(api.requestPreloadAround).not.toHaveBeenCalled();
 
       act(() => {

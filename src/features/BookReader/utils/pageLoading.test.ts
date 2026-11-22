@@ -32,11 +32,19 @@ describe("loadPageIntoCache", () => {
     vi.mocked(createImageCacheItem).mockReturnValue(new ImageCacheItem(200, 100, undefined, "f"));
     const cache = new Map<string, ImageCacheItem>();
 
-    expect(await loadPageIntoCache(cache, "book", "a", false, live())).toEqual({
+    expect(await loadPageIntoCache(cache, "book", "a", false, 1, live())).toEqual({
       status: "loaded",
       isLandscape: true,
     });
     expect(cache.get("a")?.fullUrl).toBe("f");
+  });
+
+  it("passes the generation to the fetch", async () => {
+    vi.mocked(createImageCacheItem).mockReturnValue(new ImageCacheItem(200, 100, undefined, "f"));
+    const cache = new Map<string, ImageCacheItem>();
+
+    await loadPageIntoCache(cache, "book", "a", false, 7, live());
+    expect(fetchImageBlob).toHaveBeenCalledWith("book", "a", 7);
   });
 
   it("adds the full page to the entry its preview created", async () => {
@@ -44,7 +52,7 @@ describe("loadPageIntoCache", () => {
     vi.mocked(createImageCacheItem).mockReturnValue(new ImageCacheItem(100, 200, undefined, "f"));
 
     // The shape is the full page's, not the preview's the entry still carries.
-    expect(await loadPageIntoCache(cache, "book", "a", false, live())).toEqual({
+    expect(await loadPageIntoCache(cache, "book", "a", false, 1, live())).toEqual({
       status: "loaded",
       isLandscape: false,
     });
@@ -55,11 +63,24 @@ describe("loadPageIntoCache", () => {
   it("reports why a page failed", async () => {
     vi.mocked(fetchImageBlob).mockRejectedValue(new CommandError(ErrorCode.io, "x"));
 
-    expect(await loadPageIntoCache(new Map(), "book", "a", false, live())).toEqual({
+    expect(await loadPageIntoCache(new Map(), "book", "a", false, 1, live())).toEqual({
       status: "failed",
       code: ErrorCode.io,
     });
     expect(error).toHaveBeenCalledTimes(1);
+  });
+
+  it("logs nothing for a load that failed after it was aborted", async () => {
+    const controller = new AbortController();
+    vi.mocked(fetchImageBlob).mockImplementation(async () => {
+      controller.abort();
+      throw new CommandError(ErrorCode.requestCancelled, "x");
+    });
+
+    expect(await loadPageIntoCache(new Map(), "book", "a", false, 7, controller.signal)).toEqual({
+      status: "skipped",
+    });
+    expect(error).not.toHaveBeenCalled();
   });
 
   it("loads nothing once aborted", async () => {
@@ -67,7 +88,7 @@ describe("loadPageIntoCache", () => {
     controller.abort();
     const cache = new Map<string, ImageCacheItem>();
 
-    expect(await loadPageIntoCache(cache, "book", "a", false, controller.signal)).toEqual({
+    expect(await loadPageIntoCache(cache, "book", "a", false, 1, controller.signal)).toEqual({
       status: "skipped",
     });
     expect(fetchImageBlob).not.toHaveBeenCalled();

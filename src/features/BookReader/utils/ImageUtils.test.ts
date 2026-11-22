@@ -319,8 +319,8 @@ describe("ImageUtils", () => {
   describe("fetchImageBlob", () => {
     // Verify that image acquisition returns undefined if the path is empty
     it("should return undefined if path is empty", async () => {
-      expect(await fetchImageBlob("", "file")).toBeUndefined();
-      expect(await fetchImageBlob("path", "")).toBeUndefined();
+      expect(await fetchImageBlob("", "file", 1)).toBeUndefined();
+      expect(await fetchImageBlob("path", "", 1)).toBeUndefined();
     });
 
     // Verify that an Image instance is correctly created on successful image acquisition
@@ -336,7 +336,8 @@ describe("ImageUtils", () => {
       new Uint8Array(buffer).set(data, 12);
 
       vi.mocked(binaryApi.getImage).mockResolvedValue(buffer);
-      const result = await fetchImageBlob("path", "file");
+      const result = await fetchImageBlob("path", "file", 7);
+      expect(binaryApi.getImage).toHaveBeenCalledWith("path", "file", 7);
       expect(result).toBeInstanceOf(Image);
       expect(result?.width).toBe(width);
     });
@@ -346,15 +347,15 @@ describe("ImageUtils", () => {
       vi.mocked(binaryApi.getImage).mockRejectedValue(
         new CommandError(ErrorCode.image, "fetch failed"),
       );
-      await expect(fetchImageBlob("path", "file")).rejects.toBeInstanceOf(CommandError);
+      await expect(fetchImageBlob("path", "file", 1)).rejects.toBeInstanceOf(CommandError);
     });
   });
 
   describe("fetchImagePreviewBlob", () => {
     // Verify that preview image acquisition returns undefined if the path is empty
     it("should return undefined if path is empty", async () => {
-      expect(await fetchImagePreviewBlob("", "file")).toBeUndefined();
-      expect(await fetchImagePreviewBlob("path", "")).toBeUndefined();
+      expect(await fetchImagePreviewBlob("", "file", 1)).toBeUndefined();
+      expect(await fetchImagePreviewBlob("path", "", 1)).toBeUndefined();
     });
 
     // Verify that an Image instance is correctly created on successful preview image acquisition
@@ -370,7 +371,8 @@ describe("ImageUtils", () => {
       new Uint8Array(buffer).set(data, 12);
 
       vi.mocked(binaryApi.getImagePreview).mockResolvedValue(buffer);
-      const result = await fetchImagePreviewBlob("path", "file");
+      const result = await fetchImagePreviewBlob("path", "file", 7);
+      expect(binaryApi.getImagePreview).toHaveBeenCalledWith("path", "file", 7);
       expect(result).toBeInstanceOf(Image);
       expect(result?.width).toBe(50);
     });
@@ -380,7 +382,7 @@ describe("ImageUtils", () => {
     it("should return null if response is empty (skip preview)", async () => {
       const buffer = new ArrayBuffer(0);
       vi.mocked(binaryApi.getImagePreview).mockResolvedValue(buffer);
-      const result = await fetchImagePreviewBlob("path", "file");
+      const result = await fetchImagePreviewBlob("path", "file", 1);
       expect(result).toBeNull();
       expect(debug).not.toHaveBeenCalled();
     });
@@ -390,7 +392,7 @@ describe("ImageUtils", () => {
       vi.mocked(binaryApi.getImagePreview).mockRejectedValue(
         new CommandError(ErrorCode.image, "preview failed"),
       );
-      await expect(fetchImagePreviewBlob("path", "file")).rejects.toBeInstanceOf(CommandError);
+      await expect(fetchImagePreviewBlob("path", "file", 1)).rejects.toBeInstanceOf(CommandError);
     });
   });
 

@@ -12,13 +12,17 @@ describe("binaryApi", () => {
 
   it("getImage should call invoke", async () => {
     vi.mocked(invoke).mockResolvedValue(new ArrayBuffer(0));
-    await binaryApi.getImage("path", "entry");
-    expect(invoke).toHaveBeenCalledWith("get_image", { path: "path", entryName: "entry" });
+    await binaryApi.getImage("path", "entry", 7);
+    expect(invoke).toHaveBeenCalledWith("get_image", {
+      path: "path",
+      entryName: "entry",
+      generation: 7,
+    });
   });
 
   it("getImage should throw CommandError on failure", async () => {
     vi.mocked(invoke).mockRejectedValue(new Error("fail"));
-    await expect(binaryApi.getImage("path", "e")).rejects.toThrow(CommandError);
+    await expect(binaryApi.getImage("path", "e", 1)).rejects.toThrow(CommandError);
   });
 
   it("getImageFull should call invoke", async () => {
@@ -34,13 +38,17 @@ describe("binaryApi", () => {
 
   it("getImagePreview should call invoke", async () => {
     vi.mocked(invoke).mockResolvedValue(new ArrayBuffer(0));
-    await binaryApi.getImagePreview("path", "entry");
-    expect(invoke).toHaveBeenCalledWith("get_image_preview", { path: "path", entryName: "entry" });
+    await binaryApi.getImagePreview("path", "entry", 7);
+    expect(invoke).toHaveBeenCalledWith("get_image_preview", {
+      path: "path",
+      entryName: "entry",
+      generation: 7,
+    });
   });
 
   it("getImagePreview should throw CommandError on failure", async () => {
     vi.mocked(invoke).mockRejectedValue(new Error("fail"));
-    await expect(binaryApi.getImagePreview("path", "e")).rejects.toThrow(CommandError);
+    await expect(binaryApi.getImagePreview("path", "e", 1)).rejects.toThrow(CommandError);
   });
 
   it("readNovelFile should call invoke", async () => {
