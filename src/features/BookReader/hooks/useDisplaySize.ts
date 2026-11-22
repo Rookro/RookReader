@@ -73,20 +73,28 @@ export function useDisplaySize(
       return;
     }
 
-    // The first measurement decides what the first page is rendered at, and the viewer
-    // waits for it before asking for anything, so it is not debounced. Every later one
-    // is a resize and settles like one — a scale-factor change included, since the OS
-    // resizes the window with it and the two must land as one report, not two reloads.
-    if (measured.current) {
-      update(measure(element, ratio));
-    } else {
-      measured.current = true;
-      report(measure(element, ratio));
-    }
+    const record = () => {
+      const next = measure(element, ratio);
+      // A hidden element measures zero — the reader behind the bookshelf is display: none —
+      // and that is no size to render a page at.
+      if (next.width === 0 || next.height === 0) {
+        return;
+      }
+      // The first non-zero measurement decides what the first page is rendered at, and the
+      // viewer waits for it before asking for anything, so it is not debounced. Every later
+      // one is a resize and settles like one — a scale-factor change included, since the OS
+      // resizes the window with it and the two must land as one report, not two reloads.
+      if (measured.current) {
+        update(next);
+      } else {
+        measured.current = true;
+        report(next);
+      }
+    };
 
-    const observer = new ResizeObserver(() => {
-      update(measure(element, ratio));
-    });
+    record();
+
+    const observer = new ResizeObserver(record);
     observer.observe(element);
 
     // Moving the window to a display with a different scale factor changes the device
