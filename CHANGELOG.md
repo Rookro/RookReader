@@ -47,6 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * PDF pages appear sooner, and turning a page no longer waits for another page to finish. Pages are sharper, without JPEG artifacts. (#425)
 * While covers of PDF books are made for the bookshelf, the PDF being read waits for less time. Very wide PDF pages get their previews and covers sooner. (#426)
 * Dragging the page slider or holding down an arrow key shows the page you stop on without first reading every page passed on the way. (#427)
+* Turning a page in a PDF while the next pages are still being loaded in the background shows it sooner. (#428)
 
 ## [2.7.1] - 2026-11-16
 

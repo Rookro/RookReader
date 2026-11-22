@@ -47,7 +47,7 @@ impl Container for PdfContainer {
     }
 
     fn max_readers(&self) -> usize {
-        1
+        2
     }
 
     fn has_previews(&self) -> bool {
@@ -68,9 +68,9 @@ impl Container for PdfContainer {
 /// A reader over one PDF document.
 ///
 /// Like the container, it holds no pdfium state — only the address of the worker and the
-/// configs to render with. A second reader would therefore be harmless, but
-/// [`Container::max_readers`] still caps this format at one: every request funnels through
-/// the single worker thread, so extra readers would only queue behind each other.
+/// configs to render with. Every render still goes through that one worker thread.
+/// [`Container::max_readers`] allows more than one reader only so that one page's resize
+/// and encode, done on its reader's thread, overlap the next page's render.
 struct PdfReader {
     path: String,
     render_config: Arc<PdfRenderConfig>,
@@ -443,8 +443,17 @@ trailer << /Size 5 /Root 1 0 R >>
         assert!(reader.read_page("9999").is_err());
         assert!(reader.read_preview("9999").is_err());
         assert!(reader.read_cover("9999").is_err());
-        // Only one `Pdfium` may be alive in the process at a time.
-        assert_eq!(container.max_readers(), 1);
+    }
+
+    #[test]
+    fn a_pdf_is_read_by_two_readers() {
+        let _guard = pdf_test_guard();
+        let dir = tempdir().unwrap();
+        let (_, container) = container_for(dir.path(), "test.pdf", SINGLE_PAGE_PDF_DATA);
+
+        // pdfium renders on one thread; the readers overlap each page's resize and encode
+        // with the next render.
+        assert_eq!(container.max_readers(), 2);
     }
 
     #[test]
@@ -837,5 +846,48 @@ trailer << /Size 5 /Root 1 0 R >>
         drop(reader);
         drop(open);
         assert!(!worker.open_documents().unwrap().contains(&held));
+    }
+
+    /// The size of `entry` as `reader` renders it.
+    fn rendered_size(reader: &mut dyn PageReader, entry: &str) -> (u32, u32) {
+        match reader.read_page(entry).expect("read_page failed") {
+            PageData::Decoded(image) => (image.width(), image.height()),
+            PageData::Encoded(_) => panic!("a PDF page should come back as pixels"),
+        }
+    }
+
+    #[test]
+    fn readers_of_one_pdf_on_two_threads_each_get_their_own_page() {
+        let _guard = pdf_test_guard();
+        let dir = tempdir().unwrap();
+        let (_, container) = container_for(dir.path(), "two.pdf", TWO_PAGE_PDF_DATA);
+        let container = Arc::new(container);
+
+        let mut reader = container.open_reader().unwrap();
+        let expected = [
+            rendered_size(reader.as_mut(), "0000"),
+            rendered_size(reader.as_mut(), "0001"),
+        ];
+        // The two pages differ in size, so a mix-up shows.
+        assert_ne!(expected[0], expected[1]);
+
+        within_seconds(30, move || {
+            let threads: Vec<_> = ["0000", "0001"]
+                .into_iter()
+                .zip(expected)
+                .map(|(entry, size)| {
+                    let container = Arc::clone(&container);
+                    std::thread::spawn(move || {
+                        let mut reader = container.open_reader().unwrap();
+                        for _ in 0..5 {
+                            assert_eq!(rendered_size(reader.as_mut(), entry), size);
+                        }
+                    })
+                })
+                .collect();
+            for thread in threads {
+                thread.join().unwrap();
+            }
+        });
     }
 }

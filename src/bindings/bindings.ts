@@ -1066,8 +1066,8 @@ export type ComicCacheSettings_Deserialize = {
 	/**
 	 *  How many threads may read pages at once (`0` = pick one from the machine).
 	 * 
-	 *  A ceiling, not a demand: a format that admits only one reader — a solid RAR, an
-	 *  EPUB, a PDF — stays at one however high this goes. Worth lowering where the
+	 *  A ceiling, not a demand: a format that admits only one reader — a solid RAR or an
+	 *  EPUB — stays at one however high this goes. Worth lowering where the
 	 *  pages come over a network, since there the readers compete for one link rather
 	 *  than for cores, and each read gets slower as more of them run.
 	 */
@@ -1083,8 +1083,8 @@ export type ComicCacheSettings_Serialize = {
 	/**
 	 *  How many threads may read pages at once (`0` = pick one from the machine).
 	 * 
-	 *  A ceiling, not a demand: a format that admits only one reader — a solid RAR, an
-	 *  EPUB, a PDF — stays at one however high this goes. Worth lowering where the
+	 *  A ceiling, not a demand: a format that admits only one reader — a solid RAR or an
+	 *  EPUB — stays at one however high this goes. Worth lowering where the
 	 *  pages come over a network, since there the readers compete for one link rather
 	 *  than for cores, and each read gets slower as more of them run.
 	 */

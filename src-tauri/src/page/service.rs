@@ -91,8 +91,9 @@ enum Fetch {
 struct Job {
     priority: Priority,
     /// `(entry index, 0 for a preview and 1 for a page)`. The second element only matters
-    /// on an exclusive backend, where serving a page's cheap preview before its full
-    /// render is what puts something on screen early.
+    /// where renders queue behind each other, as a PDF's do on its one pdfium thread:
+    /// serving a page's cheap preview before its full render is what puts something on
+    /// screen early.
     order: (usize, u8),
     entry: String,
     /// The box this page is to be rendered into, taken when the job was made.
@@ -1647,7 +1648,7 @@ mod tests {
         let log = Arc::new(Mutex::new(Vec::new()));
         let service = service(recording_container(names, 1, log.clone()));
 
-        // A solid RAR, an EPUB, a PDF: reserving a worker here would reserve the only one.
+        // A solid RAR or an EPUB: reserving a worker here would reserve the only one.
         assert_eq!((service.shared.workers, service.shared.reserve), (1, 0));
 
         service.request_preload_around(0, 2, 0).unwrap();

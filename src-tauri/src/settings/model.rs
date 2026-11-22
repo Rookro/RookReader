@@ -215,8 +215,8 @@ pub struct ComicCacheSettings {
     pub image_cache_size_mib: u64,
     /// How many threads may read pages at once (`0` = pick one from the machine).
     ///
-    /// A ceiling, not a demand: a format that admits only one reader — a solid RAR, an
-    /// EPUB, a PDF — stays at one however high this goes. Worth lowering where the
+    /// A ceiling, not a demand: a format that admits only one reader — a solid RAR or an
+    /// EPUB — stays at one however high this goes. Worth lowering where the
     /// pages come over a network, since there the readers compete for one link rather
     /// than for cores, and each read gets slower as more of them run.
     #[garde(range(max = 64))]
