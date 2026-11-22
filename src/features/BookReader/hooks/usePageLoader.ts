@@ -15,6 +15,9 @@ import {
 import { loadPageIntoCache, pagesToLoad } from "../utils/pageLoading";
 import type { DisplaySize } from "./useDisplaySize";
 
+/** The last display generation handed out; seeded so a hot reload never goes back below one the backend has seen. */
+let lastGeneration = Date.now();
+
 /** What {@link usePageLoader} needs to load and lay out the current pages. */
 export interface PageLoaderOptions {
   /** The path of the container file. */
@@ -156,12 +159,13 @@ export const usePageLoader = ({
         }
       };
 
-      const loadAndUpdate = async (path: string, isPreview: boolean) => {
+      const loadAndUpdate = async (path: string, isPreview: boolean, generation: number) => {
         const result = await loadPageIntoCache(
           cache,
           containerPath,
           path,
           isPreview,
+          generation,
           controller.signal,
         );
         // The load settled a microtask ago, and a render in between may have moved the
@@ -197,6 +201,7 @@ export const usePageLoader = ({
         return;
       }
 
+      const generation = ++lastGeneration;
       setIsImageLoading(true);
 
       const missingPreviewPaths =
@@ -204,8 +209,10 @@ export const usePageLoader = ({
           ? pathsToLoad.filter((p) => !cache.get(p)?.previewUrl)
           : [];
 
-      const previewPromises = missingPreviewPaths.map((path) => loadAndUpdate(path, true));
-      const fullPromises = missingFullPaths.map((path) => loadAndUpdate(path, false));
+      const previewPromises = missingPreviewPaths.map((path) =>
+        loadAndUpdate(path, true, generation),
+      );
+      const fullPromises = missingFullPaths.map((path) => loadAndUpdate(path, false, generation));
 
       // Wait for previews first (if any are needed) to display something quickly
       if (previewPromises.length > 0) {

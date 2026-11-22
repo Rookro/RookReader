@@ -262,7 +262,7 @@ describe("useViewerController", () => {
       await new Promise(process.nextTick);
     });
 
-    expect(mockedFetchImageBlob).toHaveBeenCalledWith("path2", "p1.jpg");
+    expect(mockedFetchImageBlob).toHaveBeenCalledWith("path2", "p1.jpg", expect.any(Number));
     expect(result.current.displayedLayout).toBeNull();
   });
 
@@ -2393,7 +2393,11 @@ describe("useViewerController", () => {
 
       rerender({ index: 2 });
       await waitFor(() =>
-        expect(ImageUtils.fetchImagePreviewBlob).toHaveBeenCalledWith("path", "p3.jpg"),
+        expect(ImageUtils.fetchImagePreviewBlob).toHaveBeenCalledWith(
+          "path",
+          "p3.jpg",
+          expect.any(Number),
+        ),
       );
       expect(vi.mocked(ImageUtils.fetchImagePreviewBlob).mock.calls.length).toBeGreaterThan(
         afterFirstPage,
@@ -2436,6 +2440,48 @@ describe("useViewerController", () => {
           afterFirstPage,
         ),
       );
+    });
+
+    it("gives a run's previews and pages one generation, and a later run a greater one", async () => {
+      const spreadWithPreview: ImageUtils.ViewerSettings = {
+        ...mockSettings,
+        isTwoPagedView: true,
+        enablePreview: true,
+      };
+      mockedFetchImageBlob.mockReturnValue(new Promise(() => {}));
+      vi.mocked(ImageUtils.fetchImagePreviewBlob).mockReturnValue(new Promise(() => {}));
+
+      const { rerender } = renderHook(
+        ({ index }: { index: number }) =>
+          useViewerController({
+            containerPath: "path",
+            displaySize: VIEWPORT,
+            entries: mockEntries,
+            index,
+            isSpreadShifted: false,
+            settings: spreadWithPreview,
+            dispatch: mockDispatch,
+            hasPreviews: true,
+          }),
+        { initialProps: { index: 0 } },
+      );
+
+      await waitFor(() => {
+        expect(mockedFetchImageBlob).toHaveBeenCalledTimes(2);
+        expect(ImageUtils.fetchImagePreviewBlob).toHaveBeenCalledTimes(2);
+      });
+
+      const firstRunGenerations = [
+        ...mockedFetchImageBlob.mock.calls.map((call) => call[2]),
+        ...vi.mocked(ImageUtils.fetchImagePreviewBlob).mock.calls.map((call) => call[2]),
+      ];
+      expect(typeof firstRunGenerations[0]).toBe("number");
+      expect(new Set(firstRunGenerations).size).toBe(1);
+
+      rerender({ index: 2 });
+      await waitFor(() => expect(mockedFetchImageBlob).toHaveBeenCalledTimes(3));
+
+      expect(mockedFetchImageBlob.mock.calls[2][2]).toBeGreaterThan(firstRunGenerations[0]);
     });
   });
 

@@ -7,10 +7,15 @@ import { runBinaryCommand } from "./result";
  *
  * @param path The path of the container file.
  * @param entryName The name of the image entry.
+ * @param generation The reader's display generation; a newer one cancels older queued requests.
  * @returns A promise that resolves to the image data as an ArrayBuffer.
  */
-export async function getImage(path: string, entryName: string): Promise<ArrayBuffer> {
-  return runBinaryCommand("get_image", { path, entryName });
+export async function getImage(
+  path: string,
+  entryName: string,
+  generation: number,
+): Promise<ArrayBuffer> {
+  return runBinaryCommand("get_image", { path, entryName, generation });
 }
 
 /**
@@ -32,10 +37,15 @@ export async function getImageFull(path: string, entryName: string): Promise<Arr
  *
  * @param path The path of the container file.
  * @param entryName The name of the image entry.
+ * @param generation The reader's display generation; a newer one cancels older queued requests.
  * @returns A promise that resolves to the image data as an ArrayBuffer.
  */
-export async function getImagePreview(path: string, entryName: string): Promise<ArrayBuffer> {
-  return runBinaryCommand("get_image_preview", { path, entryName });
+export async function getImagePreview(
+  path: string,
+  entryName: string,
+  generation: number,
+): Promise<ArrayBuffer> {
+  return runBinaryCommand("get_image_preview", { path, entryName, generation });
 }
 
 /**

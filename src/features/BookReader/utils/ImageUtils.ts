@@ -90,6 +90,7 @@ export interface ViewerSettings {
  *
  * @param containerPath The path of the container file.
  * @param entryName The name of the entry to fetch.
+ * @param generation The reader's display generation; a newer one cancels older queued requests.
  * @returns The fetched image, or undefined when there was nothing to ask for.
  * @throws {CommandError} When the backend could not produce the image. Swallowing it here
  *   is what left the viewer on the previous page with nothing to say about this one.
@@ -97,11 +98,12 @@ export interface ViewerSettings {
 export const fetchImageBlob = async (
   containerPath: string,
   entryName: string,
+  generation: number,
 ): Promise<Image | undefined> => {
   if (!containerPath || !entryName || containerPath.length === 0 || entryName.length === 0) {
     return undefined;
   }
-  const response = await getImage(containerPath, entryName);
+  const response = await getImage(containerPath, entryName, generation);
   return new Image(response);
 };
 
@@ -136,6 +138,7 @@ export const fetchImageFullBlob = async (
  *
  * @param containerPath The path of the container file.
  * @param entryName The name of the entry to fetch.
+ * @param generation The reader's display generation; a newer one cancels older queued requests.
  * @returns The fetched image, null if the backend produced no preview, or undefined when
  *   there was nothing to ask for.
  * @throws {CommandError} When the request itself failed.
@@ -143,11 +146,12 @@ export const fetchImageFullBlob = async (
 export const fetchImagePreviewBlob = async (
   containerPath: string,
   entryName: string,
+  generation: number,
 ): Promise<Image | null | undefined> => {
   if (!containerPath || !entryName || containerPath.length === 0 || entryName.length === 0) {
     return undefined;
   }
-  const response = await getImagePreview(containerPath, entryName);
+  const response = await getImagePreview(containerPath, entryName, generation);
   if (response.byteLength === 0) {
     return null;
   }
