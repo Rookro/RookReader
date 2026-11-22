@@ -19,9 +19,9 @@ use crate::{
 /// This container treats each page of a PDF document as an entry, which can be
 /// rendered into an image.
 ///
-/// It holds no pdfium state of its own. `Drop for Pdfium` unloads the library, so exactly
-/// one instance may exist in the process; [`crate::container::pdf_worker`] owns it, and
-/// everything here is a message to that thread.
+/// It holds no pdfium state of its own: [`crate::container::pdf_worker`] owns the
+/// process's one `Pdfium` and the documents loaded from it, and everything here is a
+/// message to that thread.
 pub struct PdfContainer {
     /// The file path of the PDF container.
     path: String,
@@ -139,10 +139,8 @@ impl Drop for PdfContainer {
 impl PdfContainer {
     /// Creates a new `PdfContainer` from the PDF file at the specified path.
     ///
-    /// The page count comes from the worker rather than from a `Pdfium` built here. That
-    /// is not tidiness: a local instance would be dropped at the end of this function, and
-    /// that drop calls `FPDF_DestroyLibrary()` out from under the worker's live one —
-    /// opening a PDF would hang the process.
+    /// The page count comes from the worker, which loads the document to count its pages
+    /// and keeps it open for the reads that follow.
     ///
     /// # Arguments
     ///
@@ -306,7 +304,7 @@ trailer << /Size 5 /Root 1 0 R >>
         });
         done_rx
             .recv_timeout(std::time::Duration::from_secs(secs))
-            .expect("timed out: a second live Pdfium would hang here");
+            .expect("timed out: PDF work hung");
     }
 
     fn create_dummy_pdf(dir: &path::Path, filename: &str) -> path::PathBuf {
@@ -616,7 +614,7 @@ trailer << /Size 5 /Root 1 0 R >>
                 .expect("the new container failed");
         });
 
-        // The original reader is still usable: the library was never unloaded.
+        // The original reader is still usable.
         assert!(
             matches!(reader.read_page("0000").unwrap(), PageData::Decoded(image) if image.width() > 0)
         );

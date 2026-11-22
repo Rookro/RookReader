@@ -1,9 +1,8 @@
 //! The one place in the process that owns a `Pdfium`.
 //!
-//! `Drop for Pdfium` calls `FPDF_DestroyLibrary()`, which unloads the library out from
-//! under any other live instance — two of them hang the process. Binding the library is
-//! therefore not something a container may do for itself: every PDF operation is a
-//! message to a single thread that owns the one instance and never drops it.
+//! pdfium-render binds the library once per process — a second bind fails — so one
+//! thread binds it at start and keeps the `Pdfium` for the life of the process; every
+//! PDF operation is a message to that thread.
 //!
 //! That thread also keeps the documents it has loaded, which is what a `PdfContainer`
 //! cannot do: a `PdfDocument<'a>` borrows the `Pdfium` that produced it, so the two can
@@ -33,10 +32,9 @@ static WORKER: OnceLock<Worker> = OnceLock::new();
 
 /// Returns the process-wide PDF worker, starting it on first use.
 ///
-/// `library_path` is read only by the call that starts the worker. A `Pdfium` cannot be
-/// replaced while the process runs — replacing it means dropping the old one, which
-/// unloads the library — so a later change to the setting takes effect at the next app
-/// start rather than the next book.
+/// `library_path` is read only by the call that starts the worker. pdfium-render binds
+/// the library once per process and a second bind fails, so a `library_path` passed after
+/// that is ignored for the rest of the process.
 pub(crate) fn worker(library_path: &Option<String>) -> &'static Worker {
     WORKER.get_or_init(|| Worker::start(library_path.clone()))
 }
