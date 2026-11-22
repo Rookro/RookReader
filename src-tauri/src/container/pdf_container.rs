@@ -19,9 +19,9 @@ use crate::{
 /// This container treats each page of a PDF document as an entry, which can be
 /// rendered into an image.
 ///
-/// It holds no pdfium state of its own. `Drop for Pdfium` unloads the library, so exactly
-/// one instance may exist in the process; [`crate::container::pdf_worker`] owns it, and
-/// everything here is a message to that thread.
+/// It holds no pdfium state of its own: [`crate::container::pdf_worker`] owns the
+/// process's one `Pdfium` and the documents loaded from it, and everything here is a
+/// message to that thread.
 pub struct PdfContainer {
     /// The file path of the PDF container.
     path: String,
@@ -139,10 +139,8 @@ impl Drop for PdfContainer {
 impl PdfContainer {
     /// Creates a new `PdfContainer` from the PDF file at the specified path.
     ///
-    /// The page count comes from the worker rather than from a `Pdfium` built here. That
-    /// is not tidiness: a local instance would be dropped at the end of this function, and
-    /// that drop calls `FPDF_DestroyLibrary()` out from under the worker's live one —
-    /// opening a PDF would hang the process.
+    /// The page count comes from the worker, which loads the document to count its pages
+    /// and keeps it open for the reads that follow.
     ///
     /// # Arguments
     ///
@@ -216,6 +214,7 @@ mod tests {
     use tempfile::tempdir;
 
     use super::*;
+    use crate::container::pdf_worker::pdf_test_guard;
 
     pub fn get_pdfium_lib_path() -> String {
         let pdfium_path = path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -305,21 +304,7 @@ trailer << /Size 5 /Root 1 0 R >>
         });
         done_rx
             .recv_timeout(std::time::Duration::from_secs(secs))
-            .expect("timed out: a second live Pdfium would hang here");
-    }
-
-    /// Serialises the tests in this module.
-    ///
-    /// They share one process-global worker whose document cache holds two entries, so
-    /// tests running side by side evict each other's documents — which is invisible to
-    /// most of them and fatal to the one that observes that cache.
-    static PDF_TESTS: std::sync::Mutex<()> = std::sync::Mutex::new(());
-
-    fn pdf_test_guard() -> std::sync::MutexGuard<'static, ()> {
-        // A panicking test must not take the rest of the module down with it.
-        PDF_TESTS
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .expect("timed out: PDF work hung");
     }
 
     fn create_dummy_pdf(dir: &path::Path, filename: &str) -> path::PathBuf {
@@ -629,7 +614,7 @@ trailer << /Size 5 /Root 1 0 R >>
                 .expect("the new container failed");
         });
 
-        // The original reader is still usable: the library was never unloaded.
+        // The original reader is still usable.
         assert!(
             matches!(reader.read_page("0000").unwrap(), PageData::Decoded(image) if image.width() > 0)
         );
@@ -778,6 +763,32 @@ trailer << /Size 5 /Root 1 0 R >>
         assert!(
             worker.open_documents().unwrap().contains(&held),
             "the book being read was evicted by a thumbnail"
+        );
+    }
+
+    #[test]
+    fn a_pdf_that_fails_to_load_leaves_the_open_documents_alone() {
+        let _guard = pdf_test_guard();
+        let dir = tempdir().unwrap();
+        let (first, _first) = container_for(dir.path(), "first.pdf", SINGLE_PAGE_PDF_DATA);
+        let (second, _second) = container_for(dir.path(), "second.pdf", TWO_PAGE_PDF_DATA);
+        let broken = dir.path().join("broken.pdf");
+        std::fs::write(&broken, b"not a pdf").unwrap();
+
+        let opened = PdfContainer::new(
+            broken.to_string_lossy().as_ref(),
+            PdfRenderConfig::default(),
+            Some(get_pdfium_lib_path()),
+        );
+
+        assert!(opened.is_err());
+        let worker = crate::container::pdf_worker::worker(&None);
+        assert_eq!(
+            worker.open_documents().unwrap(),
+            vec![
+                first.to_string_lossy().to_string(),
+                second.to_string_lossy().to_string(),
+            ]
         );
     }
 

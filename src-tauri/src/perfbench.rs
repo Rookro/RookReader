@@ -814,12 +814,9 @@ fn perfbench_report() {
     println!("--- PDF ---");
     use pdfium_render::prelude::PdfRenderConfig;
     let lib = pdfium_lib_path();
-    // Nothing here may construct a `Pdfium`. One thread owns the process's only instance
-    // and never drops it; a second one built to time a bind would call
-    // FPDF_DestroyLibrary on the way out and unload the library under that thread, which
-    // hangs the process. The per-call bind and document-load costs this section used to
-    // report no longer exist to be measured: the bind happens once per process, and the
-    // open documents are kept beside the library.
+    // The per-call bind and document-load costs this section used to report no longer
+    // exist to be measured: the bind happens once per process, and the open documents are
+    // kept beside the library.
     bench("PdfContainer::new (open)", 5, || {
         PdfContainer::new(
             pdf_path.to_string_lossy().as_ref(),

@@ -641,6 +641,7 @@ mod tests {
 
     #[test]
     fn test_supported_file_extensions() {
+        let _guard = crate::container::pdf_worker::pdf_test_guard();
         let mut state = ContainerState::default();
         state.settings.pdfium_library_path = Some(get_pdfium_lib_path());
         // The fixtures must exist: a missing path is rejected as "not found" before the

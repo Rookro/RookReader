@@ -201,6 +201,7 @@ mod tests {
 
     #[test]
     fn test_factory_covers_all_supported_extensions() {
+        let _guard = crate::container::pdf_worker::pdf_test_guard();
         // The fixtures must exist: a missing path is now rejected as "not found" before
         // the extension is ever looked at, which would hide a drift here.
         let dir = tempfile::tempdir().expect("tempdir");
