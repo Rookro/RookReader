@@ -131,6 +131,61 @@ describe("useDisplaySize", () => {
     expect(result.current).toBe(first);
   });
 
+  it("keeps its size while the reader is hidden", () => {
+    vi.useFakeTimers();
+    const ref = refTo(1000, 1400);
+    const { result } = renderHook(() => useDisplaySize(ref, 150));
+    const shown = result.current;
+
+    // Behind the bookshelf the reader is `display: none` and measures zero. Every consumer
+    // reloads the book when this object changes, so going there and back must not.
+    for (const [width, height] of [
+      [0, 0],
+      [1000, 1400],
+    ]) {
+      resize(ref, width, height);
+      act(() => {
+        observerCallbacks.at(-1)?.([], {} as ResizeObserver);
+        vi.advanceTimersByTime(150);
+      });
+      expect(result.current).toBe(shown);
+    }
+  });
+
+  it("ignores a size with one side at zero", () => {
+    vi.useFakeTimers();
+    const ref = refTo(1000, 1400);
+    const { result } = renderHook(() => useDisplaySize(ref, 150));
+    const shown = result.current;
+
+    for (const [width, height] of [
+      [1000, 0],
+      [0, 1400],
+    ]) {
+      resize(ref, width, height);
+      act(() => {
+        observerCallbacks.at(-1)?.([], {} as ResizeObserver);
+        vi.advanceTimersByTime(150);
+      });
+      expect(result.current).toBe(shown);
+    }
+  });
+
+  it("reports the first size at once when the reader starts hidden", () => {
+    vi.useFakeTimers();
+    // The app can start on the bookshelf, with the reader hidden.
+    const ref = refTo(0, 0);
+    const { result } = renderHook(() => useDisplaySize(ref, 150));
+    expect(result.current).toEqual({ width: 0, height: 0 });
+
+    resize(ref, 1000, 1400);
+    act(() => {
+      observerCallbacks.at(-1)?.([], {} as ResizeObserver);
+    });
+    // The first page waits for this, so it is not debounced like a resize.
+    expect(result.current).toEqual({ width: 1000, height: 1400 });
+  });
+
   it("re-measures when the display's scale factor changes", () => {
     vi.useFakeTimers();
     const ref = refTo(1000, 1400);

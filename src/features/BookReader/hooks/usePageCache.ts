@@ -1,7 +1,7 @@
 import { warn } from "@tauri-apps/plugin-log";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../../../bindings/api";
-import { type ImageCacheItem, revokeCacheItemUrls } from "../utils/ImageUtils";
+import { type ImageCacheItem, revokeCacheItemUrls, type ViewLayout } from "../utils/ImageUtils";
 import type { DisplaySize } from "./useDisplaySize";
 
 /**
@@ -11,6 +11,22 @@ import type { DisplaySize } from "./useDisplaySize";
  */
 const revokeCacheUrls = (cache: Map<string, ImageCacheItem>) => {
   cache.forEach(revokeCacheItemUrls);
+};
+
+/**
+ * Retires a page leaving the cache: holds it if it is on screen, or revokes its object URLs
+ * at once.
+ */
+const retirePage = (
+  item: ImageCacheItem,
+  onScreen: Set<ImageCacheItem>,
+  held: Set<ImageCacheItem>,
+): void => {
+  if (onScreen.has(item)) {
+    held.add(item);
+  } else {
+    revokeCacheItemUrls(item);
+  }
 };
 
 /** What {@link usePageCache} needs to keep the cache in step with the reader. */
@@ -33,12 +49,17 @@ export interface PageCache {
   cache: Map<string, ImageCacheItem>;
   /** The viewport the backend has answered for; null until it has. */
   reportedSize: DisplaySize | null;
+  /**
+   * Tells the cache which pages are on screen; a page it has let go of is revoked once it
+   * is no longer one of them. Stable across renders.
+   */
+  showLayout: (layout: ViewLayout | null) => void;
 }
 
 /**
  * Holds the open book's loaded pages and the object URLs behind them: revoked when the
- * book changes, when the viewport changes, when a page leaves the window around the
- * current index, and on unmount.
+ * book changes and on unmount, and — once off screen — when the viewport changes or a
+ * page leaves the window around the current index.
  *
  * @param options See {@link PageCacheOptions}.
  * @returns See {@link PageCache}.
@@ -51,11 +72,32 @@ export const usePageCache = ({
   displaySize,
 }: PageCacheOptions): PageCache => {
   const cacheRef = useRef<Map<string, ImageCacheItem>>(new Map());
+  const onScreenRef = useRef<Set<ImageCacheItem>>(new Set());
+  const heldRef = useRef<Set<ImageCacheItem>>(new Set());
   // The viewport the backend has answered for, and the gate on loading anything.
   //
   // Not `displaySize` itself: the report is a round trip, and a page asked for before it
   // lands is rendered for whatever viewport the backend still had.
   const [reportedSize, setReportedSize] = useState<DisplaySize | null>(null);
+
+  const showLayout = useCallback((layout: ViewLayout | null) => {
+    const onScreen = onScreenRef.current;
+    onScreen.clear();
+    if (layout?.firstImage) {
+      onScreen.add(layout.firstImage);
+    }
+    if (layout?.secondImage) {
+      onScreen.add(layout.secondImage);
+    }
+
+    const held = heldRef.current;
+    for (const item of held) {
+      if (!onScreen.has(item)) {
+        revokeCacheItemUrls(item);
+        held.delete(item);
+      }
+    }
+  }, []);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: update the cache whenever containerPath changes.
   useEffect(() => {
@@ -66,9 +108,14 @@ export const usePageCache = ({
   // Revoke any remaining object URLs when the component unmounts.
   useEffect(() => {
     const cache = cacheRef.current;
+    const held = heldRef.current;
+    const onScreen = onScreenRef.current;
     return () => {
       revokeCacheUrls(cache);
       cache.clear();
+      held.forEach(revokeCacheItemUrls);
+      held.clear();
+      onScreen.clear();
     };
   }, []);
 
@@ -87,7 +134,9 @@ export const usePageCache = ({
         // The cached blob URLs are pages rendered for the previous viewport. Nothing
         // reloads them: the backend keys a page by the box it was fitted into, so they
         // would simply never be asked for again.
-        revokeCacheUrls(cacheRef.current);
+        for (const item of cacheRef.current.values()) {
+          retirePage(item, onScreenRef.current, heldRef.current);
+        }
         cacheRef.current.clear();
       })
       .catch((e) => {
@@ -116,11 +165,11 @@ export const usePageCache = ({
     const keep = new Set(entries.slice(Math.max(0, index - radius), index + radius + 1));
     for (const [key, item] of cacheRef.current) {
       if (!keep.has(key)) {
-        revokeCacheItemUrls(item);
+        retirePage(item, onScreenRef.current, heldRef.current);
         cacheRef.current.delete(key);
       }
     }
   }, [index, entries, preloadPageCount]);
 
-  return { cache: cacheRef.current, reportedSize };
+  return { cache: cacheRef.current, reportedSize, showLayout };
 };

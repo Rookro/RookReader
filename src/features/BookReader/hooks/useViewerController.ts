@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect } from "react";
 import type { BookWithState } from "../../../bindings/bindings";
 import type { AppDispatch } from "../../../store/store";
 import { setSpreadDisplayed } from "../slice";
@@ -89,7 +89,7 @@ export const useViewerController = ({
   onForwardBoundary,
   onBackwardBoundary,
 }: ViewerControllerOptions): ViewerController => {
-  const { cache, reportedSize } = usePageCache({
+  const { cache, reportedSize, showLayout } = usePageCache({
     containerPath,
     entries,
     index,
@@ -118,6 +118,12 @@ export const useViewerController = ({
     pairing,
     recordLoadedPage,
   });
+
+  // A layout effect, so the cache knows what this commit put on screen before its own
+  // effects let any page go.
+  useLayoutEffect(() => {
+    showLayout(displayedLayout);
+  }, [displayedLayout, showLayout]);
 
   // Publish what is actually on screen so the page list can highlight both pages of a
   // spread. Driven by the resolved layout rather than the unit decision, so a spread
