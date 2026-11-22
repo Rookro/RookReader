@@ -21,8 +21,11 @@ use zip::{write::FileOptions, ZipArchive, ZipWriter};
 
 use crate::{
     container::{
-        directory_container::DirectoryContainer, epub_container::EpubContainer,
-        pdf_container::PdfContainer, rar_container::RarContainer, traits::Container,
+        directory_container::DirectoryContainer,
+        epub_container::EpubContainer,
+        pdf_container::PdfContainer,
+        rar_container::RarContainer,
+        traits::{Container, PageReader},
         zip_container::ZipContainer,
     },
     image::{
@@ -337,6 +340,32 @@ fn preview(container: &Arc<dyn Container>, entry: &str) -> Arc<Image> {
         .expect("preview")
         .expect("a format with previews");
     Pipeline::preview(&page).expect("fit preview")
+}
+
+/// A container whose reader count the benchmark picks, so one document can be timed at
+/// each count.
+struct WithReaders(Arc<dyn Container>, usize);
+
+impl Container for WithReaders {
+    fn get_entries(&self) -> &Vec<String> {
+        self.0.get_entries()
+    }
+
+    fn is_directory(&self) -> bool {
+        self.0.is_directory()
+    }
+
+    fn has_previews(&self) -> bool {
+        self.0.has_previews()
+    }
+
+    fn max_readers(&self) -> usize {
+        self.1
+    }
+
+    fn open_reader(&self) -> crate::error::Result<Box<dyn PageReader>> {
+        self.0.open_reader()
+    }
 }
 
 // ------------------------------------------------------------- zip A/B helpers
@@ -844,6 +873,70 @@ fn perfbench_report() {
         ms(p_dim),
         ms(p_thumb) / ms(p_img)
     );
+
+    // ------------------------------------------------ PDF through PageService
+    //
+    // pdfium renders on one thread whatever the reader count. What more readers buy is
+    // one page's resize and encode, on its reader's thread, overlapping the next render.
+    println!("--- PDF via PageService ---");
+    let spread = [p_entries[100].clone(), p_entries[101].clone()];
+    for readers in 1..=3 {
+        let pdf: Arc<dyn Container> = Arc::new(WithReaders(Arc::clone(&p), readers));
+        let service_for = || {
+            Arc::new(PageService::new(
+                "bench-pdf".to_string(),
+                Arc::clone(&pdf),
+                FITTED,
+                mini_moka::sync::Cache::new(1_000),
+                readers,
+            ))
+        };
+        bench(
+            &format!("{readers} reader(s): preload burst {BURST} pages, fitted"),
+            3,
+            || {
+                let service = service_for();
+                service.request_preload_around(0, BURST - 1, 0).unwrap();
+                while p_entries[..BURST]
+                    .iter()
+                    .any(|entry| service.cached(entry).is_none())
+                {
+                    std::thread::yield_now();
+                }
+            },
+        );
+        bench(
+            &format!("{readers} reader(s): a spread while preload runs"),
+            5,
+            || {
+                let service = service_for();
+                service.request_preload_around(0, BURST - 1, 0).unwrap();
+                // As the reader asks: each page's preview and the page itself, at once.
+                let requests: Vec<_> = spread
+                    .iter()
+                    .flat_map(|entry| {
+                        let (for_preview, preview_entry) = (Arc::clone(&service), entry.clone());
+                        let (for_page, page_entry) = (Arc::clone(&service), entry.clone());
+                        [
+                            std::thread::spawn(move || {
+                                for_preview
+                                    .preview_blocking(&preview_entry)
+                                    .expect("preview");
+                            }),
+                            std::thread::spawn(move || {
+                                for_page
+                                    .page_blocking(&page_entry, Priority::Foreground)
+                                    .expect("page");
+                            }),
+                        ]
+                    })
+                    .collect();
+                for request in requests {
+                    request.join().unwrap();
+                }
+            },
+        );
+    }
 
     println!("=============================================================\n");
 }
