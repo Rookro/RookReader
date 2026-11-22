@@ -319,10 +319,11 @@ fn document<'p, 'd>(
             docs.push(hit);
         }
         None => {
+            // Loaded first: a file that fails to load must not cost an open book its document.
+            let document = pdfium.load_pdf_from_file(path, None)?;
             if docs.len() >= MAX_OPEN_DOCUMENTS {
                 docs.remove(0);
             }
-            let document = pdfium.load_pdf_from_file(path, None)?;
             docs.push((path.to_string(), document));
         }
     }

@@ -782,6 +782,32 @@ trailer << /Size 5 /Root 1 0 R >>
     }
 
     #[test]
+    fn a_pdf_that_fails_to_load_leaves_the_open_documents_alone() {
+        let _guard = pdf_test_guard();
+        let dir = tempdir().unwrap();
+        let (first, _first) = container_for(dir.path(), "first.pdf", SINGLE_PAGE_PDF_DATA);
+        let (second, _second) = container_for(dir.path(), "second.pdf", TWO_PAGE_PDF_DATA);
+        let broken = dir.path().join("broken.pdf");
+        std::fs::write(&broken, b"not a pdf").unwrap();
+
+        let opened = PdfContainer::new(
+            broken.to_string_lossy().as_ref(),
+            PdfRenderConfig::default(),
+            Some(get_pdfium_lib_path()),
+        );
+
+        assert!(opened.is_err());
+        let worker = crate::container::pdf_worker::worker(&None);
+        assert_eq!(
+            worker.open_documents().unwrap(),
+            vec![
+                first.to_string_lossy().to_string(),
+                second.to_string_lossy().to_string(),
+            ]
+        );
+    }
+
+    #[test]
     fn the_document_closes_with_the_container_not_with_a_reader() {
         let _guard = pdf_test_guard();
         let dir = tempdir().unwrap();
