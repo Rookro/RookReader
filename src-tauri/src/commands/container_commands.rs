@@ -203,7 +203,7 @@ pub async fn get_image(
 
     // Foreground: this page is what the reader is waiting to see, so it outranks every
     // queued preload and scan job and waits only on the page each worker is already on.
-    let image = service.page(entry_name, Priority::Foreground).await?;
+    let image = service.page(entry_name, Priority::Foreground, None).await?;
 
     Ok(image_response(&image))
 }
@@ -285,7 +285,7 @@ pub async fn get_image_preview(
     }
     .ok_or_else(|| stale(path, entry_name))?;
 
-    let preview = service.preview(entry_name).await?;
+    let preview = service.preview(entry_name, None).await?;
 
     let Some(image) = preview else {
         // Nothing to send now (the page is cached, or the book has no previews).
