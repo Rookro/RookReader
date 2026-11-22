@@ -18,6 +18,9 @@ import type { DisplaySize } from "./useDisplaySize";
 /** The last display generation handed out; seeded so a hot reload never goes back below one the backend has seen. */
 let lastGeneration = Date.now();
 
+/** Delay before sending a preload request so rapid page turns coalesce into one. */
+const PRELOAD_DEBOUNCE_MS = 100;
+
 /** What {@link usePageLoader} needs to load and lay out the current pages. */
 export interface PageLoaderOptions {
   /** The path of the container file. */
@@ -269,17 +272,24 @@ export const usePageLoader = ({
   // issued before the backend has the viewport fills the cache with pages rendered for
   // the previous one, and the backend drops the preload jobs still queued for a
   // viewport the reader has left only when it is asked to preload for the new one.
+  // Page turns in a burst send one request, once they settle.
   useEffect(() => {
-    if (entries.length > 0 && reportedSize) {
-      // The same pages the layout effect above loads, named so the backend leaves them
-      // to the foreground requests already on their way.
-      const callerPages = settings.isTwoPagedView && index + 1 < entries.length ? 2 : 1;
+    if (entries.length === 0 || !reportedSize) {
+      return;
+    }
+    // The same pages the layout effect above loads, named so the backend leaves them
+    // to the foreground requests already on their way.
+    const callerPages = settings.isTwoPagedView && index + 1 < entries.length ? 2 : 1;
+    const timer = setTimeout(() => {
       api
         .requestPreloadAround(containerPath, index, settings.preloadPageCount, callerPages)
         .catch((e) => {
           warn(`Failed to request preload: ${String(e)}`);
         });
-    }
+    }, PRELOAD_DEBOUNCE_MS);
+    return () => {
+      clearTimeout(timer);
+    };
   }, [
     containerPath,
     index,
