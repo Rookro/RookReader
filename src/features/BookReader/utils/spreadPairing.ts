@@ -64,6 +64,21 @@ export const assumedChainFrom = (
   return buildUnitChain(landscape, settings, isSpreadShifted ? !base : base);
 };
 
+// `starts` is ascending.
+const lastStartBelow = (starts: number[], i: number): number | null => {
+  let lo = 0;
+  let hi = starts.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >>> 1;
+    if (starts[mid] < i) {
+      lo = mid + 1;
+    } else {
+      hi = mid;
+    }
+  }
+  return lo > 0 ? starts[lo - 1] : null;
+};
+
 /**
  * Finds the start of the unit that contains `index`, when `index` sits inside a unit
  * rather than starting one.
@@ -76,7 +91,7 @@ export const containingUnitStart = (pairing: UnitChain, index: number): number |
   if (pairing.units.has(index)) {
     return null;
   }
-  return pairing.starts.filter((s) => s < index).at(-1) ?? null;
+  return lastStartBelow(pairing.starts, index);
 };
 
 /**
@@ -115,7 +130,7 @@ export const previousUnitStart = (
   if (!isTwoPagedView) {
     return i - 1;
   }
-  return pairing?.starts.filter((start) => start < i).at(-1) ?? i - 1;
+  return (pairing ? lastStartBelow(pairing.starts, i) : null) ?? i - 1;
 };
 
 /**
