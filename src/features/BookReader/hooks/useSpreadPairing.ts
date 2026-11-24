@@ -143,7 +143,9 @@ export const useSpreadPairing = ({
   const hasEntries = entries.length > 0;
   useEffect(() => {
     setWaitElapsedFor(null);
-    if (chain || !hasEntries) return;
+    if (chain || !hasEntries) {
+      return;
+    }
     const timer = setTimeout(() => setWaitElapsedFor(containerPath), CHAIN_WAIT_CAP_MS);
     return () => {
       clearTimeout(timer);
