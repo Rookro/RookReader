@@ -170,14 +170,23 @@ export default function BookReader({ sx }: BookReaderProps) {
                       backgroundColor: (theme) => theme.palette.background.default,
                     }}
                   >
-                    {isLoading ? (
+                    {/* The comic viewer stays mounted underneath, so the next book needs no
+                        new measurement. A novel is not kept: it would start reading the
+                        incoming file. */}
+                    {isNovel ? (
+                      !isLoading && <NovelReader filePath={containerPath} />
+                    ) : (
+                      <ComicReader />
+                    )}
+                    {isLoading && (
                       // Continues a wheel gesture while the book loads, so the rest of a spin
                       // does not turn pages in the new book.
                       <Box
                         onWheel={holdWheelGesture}
                         sx={{
-                          width: "100%",
-                          height: "100%",
+                          position: "absolute",
+                          inset: 0,
+                          zIndex: 2,
                           display: "flex",
                           justifyContent: "center",
                           alignItems: "center",
@@ -185,10 +194,6 @@ export default function BookReader({ sx }: BookReaderProps) {
                       >
                         <CircularProgress />
                       </Box>
-                    ) : isNovel ? (
-                      <NovelReader filePath={containerPath} />
-                    ) : (
-                      <ComicReader />
                     )}
                     {historyIndex === -1 && !isRestoring && <ReaderEmptyState />}
                     <DropOverlay
