@@ -160,26 +160,29 @@ export default function ComicReader() {
   );
   const { handleClicked, handleContextMenu, handleWheeled } = usePageNavigation();
 
-  const spinnerOverlay = showSpinner ? (
-    <Box
-      sx={(theme) => ({
-        position: "absolute",
-        top: 0,
-        left: 0,
-        width: "100%",
-        height: "100%",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 1,
-        pointerEvents: "none",
-        backgroundColor:
-          theme.palette.mode === "dark" ? "rgba(0, 0, 0, 0.5)" : "rgba(255, 255, 255, 0.5)",
-      })}
-    >
-      <CircularProgress />
-    </Box>
-  ) : null;
+  // `showSpinner` is cleared only by the effect after loading stops: still true from the
+  // last book on the render that opens the next.
+  const spinnerOverlay =
+    showSpinner && isImageLoading ? (
+      <Box
+        sx={(theme) => ({
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width: "100%",
+          height: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 1,
+          pointerEvents: "none",
+          backgroundColor:
+            theme.palette.mode === "dark" ? "rgba(0, 0, 0, 0.5)" : "rgba(255, 255, 255, 0.5)",
+        })}
+      >
+        <CircularProgress />
+      </Box>
+    ) : null;
 
   // The same navigation in both branches: with nothing on screen — a book still opening,
   // or a page that failed — turning the page is how the reader reaches one that works.

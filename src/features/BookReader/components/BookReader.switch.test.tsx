@@ -1,4 +1,5 @@
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { Profiler } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { api } from "../../../bindings/api";
 import { getImage } from "../../../bindings/binaryApi";
@@ -84,6 +85,7 @@ describe("BookReader switching books", () => {
     URL.revokeObjectURL = vi.fn();
   });
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
     wheelGesture.reset();
   });
@@ -105,6 +107,36 @@ describe("BookReader switching books", () => {
       expect(getImage).toHaveBeenCalledWith("/books/b.zip", "b1", expect.any(Number)),
     );
     expect(api.setDisplaySize).toHaveBeenCalledTimes(1);
+  });
+
+  it("never shows the page spinner beside the loading overlay", async () => {
+    vi.useFakeTimers();
+    vi.mocked(getImage).mockReturnValue(new Promise(() => {}));
+    // act() flushes every commit before the test can look, so each is checked as it lands.
+    let spinnersAtOnce = 0;
+    const probe = () => {
+      spinnersAtOnce = Math.max(
+        spinnersAtOnce,
+        document.querySelectorAll('[role="progressbar"]').length,
+      );
+    };
+    const { store } = renderWithProviders(
+      <Profiler id="reader" onRender={probe}>
+        <BookReader />
+      </Profiler>,
+      { preloadedState: comicOpen() },
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+    expect(screen.getByRole("progressbar")).toBeInTheDocument();
+    heldOpen();
+
+    await act(async () => {
+      store.dispatch(openBook({ path: "/books/b.zip", origin: null }));
+    });
+
+    expect(spinnersAtOnce).toBe(1);
   });
 
   // Guard: the overlay stands in for the reader while the book opens, and holds the wheel

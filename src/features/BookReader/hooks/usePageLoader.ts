@@ -309,5 +309,7 @@ export const usePageLoader = ({
 
   const displayedLayout = layoutState?.path === containerPath ? layoutState?.layout : null;
 
-  return { displayedLayout, isImageLoading };
+  // Derived, not left to the effect: the render that empties the entries already shows no
+  // loading state.
+  return { displayedLayout, isImageLoading: isImageLoading && entries.length > 0 };
 };
