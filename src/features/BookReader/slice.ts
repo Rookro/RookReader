@@ -10,6 +10,7 @@ import type { Direction } from "../../types/AppSettings";
 import { CommandError, createCommandError, ErrorCode } from "../../types/Error";
 import { loadDirectory } from "./fileNavigatorSlice";
 import type { OpenOrigin } from "./types/OpenOrigin";
+import { initialPageIndex } from "./utils/initialPageIndex";
 import { goBackHistory, goForwardHistory, pushHistory } from "./utils/navigationHistory";
 
 /**
@@ -65,10 +66,14 @@ export const loadBook = createAppAsyncThunk(
       // Novels are excluded: their direction is the EPUB's own and cannot be overridden.
       const readingDirection = isEpubNovel ? null : (book?.readingDirection ?? null);
 
-      if (!isEpubNovel) {
+      if (!isEpubNovel && !isSuperseded() && opened.entries.length > 0) {
         const state = getState();
         const preloadPageCount = state.settings.reader.comic.cache.preloadPageCount;
-        const startIndex = book?.lastReadPageIndex ?? 0;
+        const startIndex = initialPageIndex(
+          opened.entries.length,
+          state.reader.pendingInitialPosition,
+          book?.lastReadPageIndex,
+        );
         // The viewer mounts moments from now and asks for its own unit at foreground
         // priority; leave those pages to it rather than have this window reach them
         // first and make the reader wait on a background job.
@@ -370,19 +375,14 @@ export const readerSlice = createSlice({
         state.hasPreviews = action.payload.hasPreviews;
         state.isLoading = false;
         state.book = action.payload.book;
-        if (state.pendingInitialPosition === "last") {
-          const total = action.payload.entries?.length ?? 0;
-          state.index = Math.max(0, total - 1);
-          state.cfi = null;
-        } else if (state.pendingInitialPosition === "first") {
-          state.index = 0;
+        state.index = initialPageIndex(
+          state.entries.length,
+          state.pendingInitialPosition,
+          action.payload.book?.lastReadPageIndex,
+        );
+        if (state.pendingInitialPosition !== null) {
           state.cfi = null;
         } else {
-          // Clamp the restored index so a stale lastReadPageIndex past the
-          // current page count never strands the viewer on a blank page.
-          const total = state.entries.length;
-          const restored = action.payload.book?.lastReadPageIndex ?? 0;
-          state.index = total > 0 ? Math.min(Math.max(0, restored), total - 1) : 0;
           // Novels resume at the persisted CFI; NovelReader passes it to
           // view.init({ lastLocation }) on mount. Comics never carry a CFI.
           state.cfi = action.payload.isNovel ? (action.payload.book?.cfi ?? null) : null;
