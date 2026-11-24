@@ -12,14 +12,14 @@ describe("useLoupe", () => {
   });
 
   it("should initialize with default state", () => {
-    const { result } = renderHook(() => useLoupe());
+    const { result } = renderHook(() => useLoupe("path"));
     expect(result.current.isLoupeEnabled).toBe(false);
     expect(result.current.loupePos).toEqual({ x: 0, y: 0 });
     expect(result.current.containerRef.current).toBe(null);
   });
 
   it("should toggle loupe state manually", () => {
-    const { result } = renderHook(() => useLoupe());
+    const { result } = renderHook(() => useLoupe("path"));
     expect(result.current.isLoupeEnabled).toBe(false);
 
     act(() => {
@@ -34,7 +34,7 @@ describe("useLoupe", () => {
   });
 
   it("should update loupe position on mouse move if enabled", () => {
-    const { result } = renderHook(() => useLoupe());
+    const { result } = renderHook(() => useLoupe("path"));
 
     // Create a mock ref element with getBoundingClientRect
     const mockElement = document.createElement("div");
@@ -68,7 +68,7 @@ describe("useLoupe", () => {
   });
 
   it("should not update loupe position on mouse move if disabled", () => {
-    const { result } = renderHook(() => useLoupe());
+    const { result } = renderHook(() => useLoupe("path"));
 
     const mockElement = document.createElement("div");
     mockElement.getBoundingClientRect = () => ({
@@ -93,7 +93,7 @@ describe("useLoupe", () => {
   });
 
   it("places the loupe at the pointer when a mouse button switches it on", () => {
-    const { result } = renderHook(() => useLoupe());
+    const { result } = renderHook(() => useLoupe("path"));
 
     const mockElement = document.createElement("div");
     mockElement.getBoundingClientRect = () => ({
@@ -115,5 +115,47 @@ describe("useLoupe", () => {
 
     expect(result.current.isLoupeEnabled).toBe(true);
     expect(result.current.loupePos).toEqual({ x: 50, y: 50 });
+  });
+
+  it("turns off when another book opens", () => {
+    const { result, rerender } = renderHook(({ path }) => useLoupe(path), {
+      initialProps: { path: "a" },
+    });
+    const area = document.createElement("div");
+    area.getBoundingClientRect = () => ({
+      left: 0,
+      top: 0,
+      width: 100,
+      height: 100,
+      bottom: 100,
+      right: 100,
+      x: 0,
+      y: 0,
+      toJSON: () => {},
+    });
+    result.current.containerRef.current = area;
+    act(() => {
+      result.current.toggleLoupe({ clientX: 50, clientY: 50 });
+    });
+    expect(result.current.loupePos).toEqual({ x: 50, y: 50 });
+
+    rerender({ path: "b" });
+
+    expect(result.current.isLoupeEnabled).toBe(false);
+    expect(result.current.loupePos).toEqual({ x: 0, y: 0 });
+  });
+
+  // Guard: re-rendering the same book is not a book change
+  it("stays on while the same book is open", () => {
+    const { result, rerender } = renderHook(({ path }) => useLoupe(path), {
+      initialProps: { path: "a" },
+    });
+    act(() => {
+      result.current.toggleLoupe();
+    });
+
+    rerender({ path: "a" });
+
+    expect(result.current.isLoupeEnabled).toBe(true);
   });
 });

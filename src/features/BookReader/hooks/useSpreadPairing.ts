@@ -138,17 +138,17 @@ export const useSpreadPairing = ({
   );
 
   // Hold the loading state until the book's pairing is known, then give up. Only a book
-  // being measured for the first time can reach the cap.
+  // being measured for the first time can reach the cap. The wait starts when the book's
+  // pages are known, not while it opens.
+  const hasEntries = entries.length > 0;
   useEffect(() => {
     setWaitElapsedFor(null);
-    if (chain) {
-      return;
-    }
+    if (chain || !hasEntries) return;
     const timer = setTimeout(() => setWaitElapsedFor(containerPath), CHAIN_WAIT_CAP_MS);
     return () => {
       clearTimeout(timer);
     };
-  }, [chain, containerPath]);
+  }, [chain, containerPath, hasEntries]);
 
   // The chain is the book's own pairing, so a page reached by a restore or a jump
   // (slider, bookmark, page list) may sit inside a unit rather than start one. Snap to

@@ -104,7 +104,8 @@ export default function ComicReader() {
   const { onForwardBoundary, onBackwardBoundary, pending, confirmPending, cancelPending } =
     useAdjacentBookNavigation();
 
-  const { isLoupeEnabled, loupePos, containerRef, handleMouseMove, toggleLoupe } = useLoupe();
+  const { isLoupeEnabled, loupePos, containerRef, handleMouseMove, toggleLoupe } =
+    useLoupe(containerPath);
   const displaySize = useDisplaySize(containerRef);
 
   const { displayedLayout, moveForward, moveBack, moveToFirst, moveToLast, isImageLoading } =

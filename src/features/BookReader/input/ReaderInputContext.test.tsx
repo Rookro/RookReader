@@ -483,3 +483,31 @@ describe("ReaderInputProvider: clicks", () => {
     expect(actions.nextPage).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("ReaderInputProvider: while a book opens", () => {
+  const loading = (historyIndex = 1) => {
+    const preloadedState = withHistory(historyIndex);
+    preloadedState.reader.isLoading = true;
+    preloadedState.settings.reader.comic.loupe.toggleKey = "MouseMiddle";
+    return preloadedState;
+  };
+
+  it("turns no page", () => {
+    const { moves } = renderReader(loading());
+    fireEvent.keyDown(document.body, { key: "ArrowLeft" });
+    expect(moves()).toBe(0);
+  });
+
+  it("does not toggle the loupe", () => {
+    const { actions, getByTestId } = renderReader(loading());
+    fireEvent.mouseDown(getByTestId("reading-area"), { button: 1 });
+    expect(actions.toggleLoupe).not.toHaveBeenCalled();
+  });
+
+  // Guard: the view's own actions do not depend on the reader
+  it("still steps through the book history", () => {
+    const { store } = renderReader(loading());
+    fireEvent.mouseDown(document.body, { button: 3 });
+    expect(store.getState().reader.historyIndex).toBe(0);
+  });
+});

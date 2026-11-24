@@ -1,5 +1,5 @@
 import { error } from "@tauri-apps/plugin-log";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNotification } from "../../../components/ui/Notification/NotificationContext";
 import { type RootState, useAppDispatch, useAppSelector } from "../../../store/store";
@@ -41,8 +41,20 @@ export const useAdjacentBookNavigation = () => {
   const book = useAppSelector((s: RootState) => s.reader.book);
   const origin = useAppSelector((s: RootState) => s.reader.origin);
 
-  const isResolving = useRef(false);
+  // The resolution in flight, if any, and the id handed to the last one started.
+  const activeRequestRef = useRef<number | null>(null);
+  const lastRequestRef = useRef(0);
   const [pending, setPending] = useState<PendingAdjacentBook | null>(null);
+
+  // A neighbour found for the book the reader has left is not this book's neighbour. The
+  // cleanup also runs on unmount, so a resolution still in flight then is dropped too.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: forget the pending neighbour whenever currentPath changes.
+  useEffect(() => {
+    setPending(null);
+    return () => {
+      activeRequestRef.current = null;
+    };
+  }, [currentPath]);
 
   const openAdjacentBook = useCallback(
     (book: AdjacentBook, direction: Direction) => {
@@ -71,10 +83,11 @@ export const useAdjacentBookNavigation = () => {
 
   const trigger = useCallback(
     async (direction: Direction) => {
-      if (mode === "off" || isResolving.current || pending) {
+      if (mode === "off" || activeRequestRef.current !== null || pending) {
         return;
       }
-      isResolving.current = true;
+      const id = ++lastRequestRef.current;
+      activeRequestRef.current = id;
       try {
         const adjacent = await resolveAdjacentBook(
           book,
@@ -83,6 +96,9 @@ export const useAdjacentBookNavigation = () => {
           direction,
           fileNavigatorSortOrder,
         );
+        if (activeRequestRef.current !== id) {
+          return;
+        }
         if (!adjacent) {
           showNotification(
             t(
@@ -100,10 +116,15 @@ export const useAdjacentBookNavigation = () => {
           openAdjacentBook(adjacent, direction);
         }
       } catch (e) {
+        if (activeRequestRef.current !== id) {
+          return;
+        }
         error(`Failed to open the adjacent book: ${String(e)}`);
         showNotification(t("book-reader.adjacent-book.error"), "error");
       } finally {
-        isResolving.current = false;
+        if (activeRequestRef.current === id) {
+          activeRequestRef.current = null;
+        }
       }
     },
     [
