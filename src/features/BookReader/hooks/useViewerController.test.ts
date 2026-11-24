@@ -1347,7 +1347,7 @@ describe("useViewerController", () => {
       await waitFor(() =>
         expect(mockedBuildUnitChain).toHaveBeenCalledWith(
           MEASURED,
-          twoPagedSettings,
+          { isTwoPagedView: true },
           !twoPagedSettings.isFirstPageSingleView,
         ),
       );
@@ -1372,7 +1372,11 @@ describe("useViewerController", () => {
       );
 
       await waitFor(() =>
-        expect(mockedBuildUnitChain).toHaveBeenCalledWith(MEASURED, twoPagedSettings, false),
+        expect(mockedBuildUnitChain).toHaveBeenCalledWith(
+          MEASURED,
+          { isTwoPagedView: true },
+          false,
+        ),
       );
     });
 
@@ -1396,7 +1400,7 @@ describe("useViewerController", () => {
       await waitFor(() =>
         expect(mockedBuildUnitChain).toHaveBeenCalledWith(
           MEASURED,
-          twoPagedSettings,
+          { isTwoPagedView: true },
           twoPagedSettings.isFirstPageSingleView,
         ),
       );
@@ -1422,7 +1426,7 @@ describe("useViewerController", () => {
       await waitFor(() =>
         expect(mockedBuildUnitChain).toHaveBeenCalledWith(
           MEASURED,
-          twoPagedSettings,
+          { isTwoPagedView: true },
           !twoPagedSettings.isFirstPageSingleView,
         ),
       );
@@ -1542,7 +1546,7 @@ describe("useViewerController", () => {
         // A failed scan is a book that offered no evidence, so the setting decides.
         expect(mockedBuildUnitChain).toHaveBeenCalledWith(
           [false, false, false],
-          twoPagedSettings,
+          { isTwoPagedView: true },
           twoPagedSettings.isFirstPageSingleView,
         );
         // Navigation still steps one page at a time: only the book's own chain may say
@@ -1624,7 +1628,11 @@ describe("useViewerController", () => {
 
       await waitFor(() => expect(result.current.isImageLoading).toBe(false));
       expect(api.getImageDimensions).not.toHaveBeenCalled();
-      expect(mockedBuildUnitChain).toHaveBeenCalledWith([false, true, false], twoPaged, false);
+      expect(mockedBuildUnitChain).toHaveBeenCalledWith(
+        [false, true, false],
+        { isTwoPagedView: true },
+        false,
+      );
     });
 
     // Verify bits that cannot describe this book are re-measured rather than trusted
@@ -1784,7 +1792,7 @@ describe("useViewerController", () => {
         // would be, which for most books is already the final answer.
         expect(mockedBuildUnitChain).toHaveBeenCalledWith(
           [false, false, false],
-          twoPaged,
+          { isTwoPagedView: true },
           twoPaged.isFirstPageSingleView,
         );
       } finally {
@@ -1977,7 +1985,7 @@ describe("useViewerController", () => {
         await afterTheWaitCap({ ...twoPaged, isFirstPageSingleView: true });
         expect(mockedBuildUnitChain).toHaveBeenCalledWith(
           [false, false, false],
-          expect.objectContaining({ isFirstPageSingleView: true }),
+          { isTwoPagedView: true },
           true,
         );
 
@@ -1985,7 +1993,7 @@ describe("useViewerController", () => {
         await afterTheWaitCap({ ...twoPaged, isFirstPageSingleView: false });
         expect(mockedBuildUnitChain).toHaveBeenCalledWith(
           [false, false, false],
-          expect.objectContaining({ isFirstPageSingleView: false }),
+          { isTwoPagedView: true },
           false,
         );
       } finally {
@@ -2001,7 +2009,7 @@ describe("useViewerController", () => {
         await afterTheWaitCap({ ...twoPaged, isFirstPageSingleView: true }, true);
         expect(mockedBuildUnitChain).toHaveBeenCalledWith(
           [false, false, false],
-          expect.objectContaining({ isFirstPageSingleView: true }),
+          { isTwoPagedView: true },
           false,
         );
       } finally {
@@ -2118,7 +2126,7 @@ describe("useViewerController", () => {
         // Pages 0 and 1 are the ones on screen, so they are the ones the viewer knows.
         expect(mockedBuildUnitChain).toHaveBeenCalledWith(
           [true, true, false],
-          twoPaged,
+          { isTwoPagedView: true },
           twoPaged.isFirstPageSingleView,
         );
       } finally {
@@ -2184,7 +2192,7 @@ describe("useViewerController", () => {
 
         expect(mockedBuildUnitChain).toHaveBeenCalledWith(
           [false, false, false],
-          twoPaged,
+          { isTwoPagedView: true },
           twoPaged.isFirstPageSingleView,
         );
       } finally {
@@ -2327,6 +2335,108 @@ describe("useViewerController", () => {
       // than concluding the reader must have shifted the book.
       await waitFor(() => expect(mockDispatch).toHaveBeenCalledWith(setImageIndex(1)));
       expect(mockedBuildUnitChain.mock.calls.map((call) => call[2])).not.toContain(true);
+    });
+
+    // Verify the reading direction and the preload count leave the pairing and the page
+    // being loaded alone
+    it.each([
+      { change: "direction", settings: { ...twoPaged, direction: "rtl" as const } },
+      { change: "preload count", settings: { ...twoPaged, preloadPageCount: 3 } },
+    ])(
+      "keeps the pairing and the load in flight when the $change changes",
+      async ({ settings }) => {
+        mockedBuildUnitChain.mockImplementation(spreadPairs);
+        const page = heldFetch();
+        mockedFetchImageBlob.mockReturnValue(page.promise);
+        // Measured, so the chain exists from the first render and both pages are fetched
+        // once the viewport is reported.
+        const book = createMockBookWithState({ landscapeBits: "000" });
+        const { result, rerender } = renderHook(
+          ({ settings }) =>
+            useViewerController({
+              containerPath: "path",
+              book,
+              displaySize: VIEWPORT,
+              entries: mockEntries,
+              index: 0,
+              isSpreadShifted: false,
+              settings,
+              dispatch: mockDispatch,
+              hasPreviews: true,
+            }),
+          { initialProps: { settings: twoPaged } },
+        );
+        await waitFor(() => expect(mockedFetchImageBlob).toHaveBeenCalledTimes(2));
+        const builds = mockedBuildUnitChain.mock.calls.length;
+
+        rerender({ settings });
+        await act(async () => {
+          await new Promise(process.nextTick);
+        });
+
+        expect(mockedBuildUnitChain.mock.calls.length).toBe(builds);
+        expect(mockedFetchImageBlob).toHaveBeenCalledTimes(2);
+        page.deliver();
+        await waitFor(() => expect(result.current.displayedLayout?.isSpread).toBe(true));
+      },
+    );
+
+    // Verify the preview setting decides what is loaded, not how the book pairs
+    it("keeps the pairing when previews are turned on", async () => {
+      const { result, rerender } = renderHook(
+        ({ settings }) =>
+          useViewerController({
+            containerPath: "path",
+            displaySize: VIEWPORT,
+            entries: mockEntries,
+            index: 0,
+            isSpreadShifted: false,
+            settings,
+            dispatch: mockDispatch,
+            hasPreviews: true,
+          }),
+        { initialProps: { settings: twoPaged } },
+      );
+      // Settled: the viewport reported, the book measured and its page shown.
+      await waitFor(() => expect(result.current.isImageLoading).toBe(false));
+      const builds = mockedBuildUnitChain.mock.calls.length;
+
+      rerender({ settings: { ...twoPaged, enablePreview: true } });
+      await act(async () => {
+        await new Promise(process.nextTick);
+      });
+
+      expect(mockedBuildUnitChain.mock.calls.length).toBe(builds);
+    });
+
+    // Verify a setting that does decide the pairing still rebuilds it (guard)
+    it("re-pairs when the cover setting changes", async () => {
+      const { result, rerender } = renderHook(
+        ({ settings }) =>
+          useViewerController({
+            containerPath: "path",
+            displaySize: VIEWPORT,
+            entries: mockEntries,
+            index: 0,
+            isSpreadShifted: false,
+            settings,
+            dispatch: mockDispatch,
+            hasPreviews: true,
+          }),
+        { initialProps: { settings: twoPaged } },
+      );
+      await waitFor(() => expect(result.current.isImageLoading).toBe(false));
+      mockedBuildUnitChain.mockClear();
+
+      rerender({ settings: { ...twoPaged, isFirstPageSingleView: true } });
+
+      await waitFor(() =>
+        expect(mockedBuildUnitChain).toHaveBeenCalledWith(
+          [false, false, false],
+          expect.objectContaining({ isTwoPagedView: true }),
+          true,
+        ),
+      );
     });
   });
 

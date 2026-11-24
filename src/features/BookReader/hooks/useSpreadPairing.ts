@@ -84,12 +84,18 @@ export const useSpreadPairing = ({
     );
   }, []);
 
+  const { isTwoPagedView, isFirstPageSingleView } = settings;
+  const pairingSettings = useMemo(
+    () => ({ isTwoPagedView, isFirstPageSingleView }),
+    [isTwoPagedView, isFirstPageSingleView],
+  );
+
   const chain = useMemo(() => {
     if (!landscape) {
       return null;
     }
-    return chainFrom(landscape, settings, isSpreadShifted);
-  }, [landscape, isSpreadShifted, settings]);
+    return chainFrom(landscape, pairingSettings, isSpreadShifted);
+  }, [landscape, isSpreadShifted, pairingSettings]);
 
   /**
    * The pairing to show when the measurement has not arrived and either the wait cap has
@@ -107,8 +113,8 @@ export const useSpreadPairing = ({
    * way, because the chain effect snaps to the unit containing it rather than past it.
    */
   const assumedChain = useMemo(
-    () => assumedChainFrom(entries, loadedLandscape, settings, isSpreadShifted),
-    [entries, loadedLandscape, isSpreadShifted, settings],
+    () => assumedChainFrom(entries, loadedLandscape, pairingSettings, isSpreadShifted),
+    [entries, loadedLandscape, isSpreadShifted, pairingSettings],
   );
 
   /**
@@ -127,8 +133,8 @@ export const useSpreadPairing = ({
    * they just read.
    */
   const pairing = useMemo(
-    () => chain ?? (chainWaitElapsed || !settings.isTwoPagedView ? assumedChain : null),
-    [chain, chainWaitElapsed, settings.isTwoPagedView, assumedChain],
+    () => chain ?? (chainWaitElapsed || !isTwoPagedView ? assumedChain : null),
+    [chain, chainWaitElapsed, isTwoPagedView, assumedChain],
   );
 
   // Hold the loading state until the book's pairing is known, then give up. Only a book

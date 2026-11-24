@@ -318,7 +318,7 @@ export const detectCoverPresence = (landscape: boolean[]): boolean | null => {
  */
 export const buildUnitChain = (
   landscape: boolean[],
-  settings: ViewerSettings,
+  settings: Pick<ViewerSettings, "isTwoPagedView">,
   hasCover: boolean,
 ): UnitChain => {
   const units = new Map<number, UnitDecision>();
