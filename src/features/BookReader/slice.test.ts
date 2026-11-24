@@ -414,6 +414,7 @@ describe("ReaderReducer", () => {
           opened({ entries: ["p1", "p2", "p3", "p4", "p5", "p6"], book: mockBook }),
         );
 
+        store.dispatch(bookPathOpened({ path: "path/to/book.zip", origin: null }));
         await store.dispatch(loadBook("path/to/book.zip"));
 
         // The test store's default reader shows spreads, so the viewer will ask for two.
@@ -423,6 +424,62 @@ describe("ReaderReducer", () => {
           store.getState().settings.reader.comic.cache.preloadPageCount,
           2,
         );
+      });
+
+      it.each([
+        { position: "last" as const, lastRead: 1, centre: 5 },
+        { position: "first" as const, lastRead: 4, centre: 0 },
+        { position: undefined, lastRead: 10, centre: 5 },
+        { position: undefined, lastRead: -1, centre: 0 },
+      ])(
+        "centres the first preload where the book opens ($position, last read $lastRead)",
+        async ({ position, lastRead, centre }) => {
+          vi.mocked(api.openBook).mockResolvedValue(
+            opened({
+              entries: ["p1", "p2", "p3", "p4", "p5", "p6"],
+              book: createMockBookWithState({ id: 1, lastReadPageIndex: lastRead }),
+            }),
+          );
+
+          store.dispatch(
+            bookPathOpened({ path: "path/to/book.zip", origin: null, initialPosition: position }),
+          );
+          await store.dispatch(loadBook("path/to/book.zip"));
+
+          expect(store.getState().reader.index).toBe(centre);
+          expect(api.requestPreloadAround).toHaveBeenCalledWith(
+            "path/to/book.zip",
+            centre,
+            expect.any(Number),
+            expect.any(Number),
+          );
+        },
+      );
+
+      it("sends no preload for a book another open has replaced", async () => {
+        let resolve: (value: Opened) => void = () => {};
+        vi.mocked(api.openBook).mockReturnValueOnce(
+          new Promise((r) => {
+            resolve = r;
+          }),
+        );
+
+        store.dispatch(bookPathOpened({ path: "path/to/old.zip", origin: null }));
+        const load = store.dispatch(loadBook("path/to/old.zip"));
+        store.dispatch(bookPathOpened({ path: "path/to/new.zip", origin: null }));
+        resolve(opened({ entries: ["p1", "p2"] }));
+        await load;
+
+        expect(api.requestPreloadAround).not.toHaveBeenCalled();
+      });
+
+      it("sends no preload for a book with no pages", async () => {
+        vi.mocked(api.openBook).mockResolvedValue(opened({ entries: [] }));
+
+        store.dispatch(bookPathOpened({ path: "path/to/book.zip", origin: null }));
+        await store.dispatch(loadBook("path/to/book.zip"));
+
+        expect(api.requestPreloadAround).not.toHaveBeenCalled();
       });
 
       // Verify the reader's own correction comes back with the book

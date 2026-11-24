@@ -84,12 +84,18 @@ export const useSpreadPairing = ({
     );
   }, []);
 
+  const { isTwoPagedView, isFirstPageSingleView } = settings;
+  const pairingSettings = useMemo(
+    () => ({ isTwoPagedView, isFirstPageSingleView }),
+    [isTwoPagedView, isFirstPageSingleView],
+  );
+
   const chain = useMemo(() => {
     if (!landscape) {
       return null;
     }
-    return chainFrom(landscape, settings, isSpreadShifted);
-  }, [landscape, isSpreadShifted, settings]);
+    return chainFrom(landscape, pairingSettings, isSpreadShifted);
+  }, [landscape, isSpreadShifted, pairingSettings]);
 
   /**
    * The pairing to show when the measurement has not arrived and either the wait cap has
@@ -107,8 +113,8 @@ export const useSpreadPairing = ({
    * way, because the chain effect snaps to the unit containing it rather than past it.
    */
   const assumedChain = useMemo(
-    () => assumedChainFrom(entries, loadedLandscape, settings, isSpreadShifted),
-    [entries, loadedLandscape, isSpreadShifted, settings],
+    () => assumedChainFrom(entries, loadedLandscape, pairingSettings, isSpreadShifted),
+    [entries, loadedLandscape, isSpreadShifted, pairingSettings],
   );
 
   /**
@@ -127,22 +133,24 @@ export const useSpreadPairing = ({
    * they just read.
    */
   const pairing = useMemo(
-    () => chain ?? (chainWaitElapsed || !settings.isTwoPagedView ? assumedChain : null),
-    [chain, chainWaitElapsed, settings.isTwoPagedView, assumedChain],
+    () => chain ?? (chainWaitElapsed || !isTwoPagedView ? assumedChain : null),
+    [chain, chainWaitElapsed, isTwoPagedView, assumedChain],
   );
 
   // Hold the loading state until the book's pairing is known, then give up. Only a book
-  // being measured for the first time can reach the cap.
+  // being measured for the first time can reach the cap. The wait starts when the book's
+  // pages are known, not while it opens.
+  const hasEntries = entries.length > 0;
   useEffect(() => {
     setWaitElapsedFor(null);
-    if (chain) {
+    if (chain || !hasEntries) {
       return;
     }
     const timer = setTimeout(() => setWaitElapsedFor(containerPath), CHAIN_WAIT_CAP_MS);
     return () => {
       clearTimeout(timer);
     };
-  }, [chain, containerPath]);
+  }, [chain, containerPath, hasEntries]);
 
   // The chain is the book's own pairing, so a page reached by a restore or a jump
   // (slider, bookmark, page list) may sit inside a unit rather than start one. Snap to

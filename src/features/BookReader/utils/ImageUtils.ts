@@ -312,13 +312,13 @@ export const detectCoverPresence = (landscape: boolean[]): boolean | null => {
  * and at every even page, which is what makes two facing pages share a screen.
  *
  * @param landscape Whether each page is wider than it is tall, in entry order.
- * @param settings The viewer settings.
+ * @param settings The settings that decide the pairing.
  * @param hasCover Whether the archive's first image is the book's front cover.
  * @returns The chain covering every index from 0 to the last page.
  */
 export const buildUnitChain = (
   landscape: boolean[],
-  settings: ViewerSettings,
+  settings: Pick<ViewerSettings, "isTwoPagedView">,
   hasCover: boolean,
 ): UnitChain => {
   const units = new Map<number, UnitDecision>();

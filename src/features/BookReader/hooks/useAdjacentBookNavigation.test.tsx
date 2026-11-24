@@ -10,7 +10,7 @@ import {
   type RootState,
   testI18n,
 } from "../../../test/utils";
-import { openBook } from "../slice";
+import { bookPathOpened, openBook } from "../slice";
 import { resolveAdjacentBook } from "../utils/AdjacentBookResolver";
 import { useAdjacentBookNavigation } from "./useAdjacentBookNavigation";
 
@@ -52,7 +52,7 @@ const renderTrigger = (state: RootState) => {
     </Provider>
   );
   const { result } = renderHook(() => useAdjacentBookNavigation(), { wrapper });
-  return { result, dispatchSpy };
+  return { result, dispatchSpy, store };
 };
 
 describe("useAdjacentBookNavigation", () => {
@@ -190,5 +190,101 @@ describe("useAdjacentBookNavigation", () => {
     });
 
     expect(mockedResolve).toHaveBeenCalledTimes(1);
+  });
+
+  /** A resolution the test settles itself. */
+  const heldResolve = () => {
+    let settle: (book: { filePath: string; displayName: string } | null) => void = () => {};
+    mockedResolve.mockReturnValueOnce(
+      new Promise((resolve) => {
+        settle = resolve;
+      }),
+    );
+    return (book: { filePath: string; displayName: string } | null) => settle(book);
+  };
+
+  it("forgets the confirm dialog when another book opens", async () => {
+    mockedResolve.mockResolvedValue({ filePath: "/dir/book2.zip", displayName: "Book 2" });
+    const { result, store } = renderTrigger(buildState("ask"));
+    await act(async () => {
+      result.current.onForwardBoundary();
+    });
+    expect(result.current.pending).not.toBeNull();
+
+    act(() => {
+      store.dispatch(bookPathOpened({ path: "/dir/other.zip", origin: null }));
+    });
+
+    expect(result.current.pending).toBeNull();
+  });
+
+  it.each([{ found: { filePath: "/dir/book2.zip", displayName: "Book 2" } }, { found: null }])(
+    "ignores a neighbour found for the book it has left ($found)",
+    async ({ found }) => {
+      const settle = heldResolve();
+      const { result, store } = renderTrigger(buildState("auto"));
+      act(() => {
+        result.current.onForwardBoundary();
+      });
+
+      act(() => {
+        store.dispatch(bookPathOpened({ path: "/dir/other.zip", origin: null }));
+      });
+      await act(async () => {
+        settle(found);
+      });
+
+      expect(openBook).not.toHaveBeenCalled();
+      expect(showNotification).not.toHaveBeenCalled();
+    },
+  );
+
+  it("reports no failure for the book it has left", async () => {
+    let fail: (reason: Error) => void = () => {};
+    mockedResolve.mockReturnValueOnce(
+      new Promise((_, reject) => {
+        fail = reject;
+      }),
+    );
+    const { result, store } = renderTrigger(buildState("auto"));
+    act(() => {
+      result.current.onForwardBoundary();
+    });
+
+    act(() => {
+      store.dispatch(bookPathOpened({ path: "/dir/other.zip", origin: null }));
+    });
+    await act(async () => {
+      fail(new Error("listing failed"));
+    });
+
+    expect(showNotification).not.toHaveBeenCalled();
+  });
+
+  // On the old code this fails at the first `toHaveBeenCalledTimes(2)` (got 1): nothing
+  // resets `isResolving`, so the new book's first trigger is dropped.
+  it("does not let the left book's request unlock the new book's", async () => {
+    const settleOld = heldResolve();
+    heldResolve();
+    const { result, store } = renderTrigger(buildState("auto"));
+    act(() => {
+      result.current.onForwardBoundary();
+    });
+    act(() => {
+      store.dispatch(bookPathOpened({ path: "/dir/other.zip", origin: null }));
+    });
+    act(() => {
+      result.current.onForwardBoundary();
+    });
+    expect(mockedResolve).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      settleOld(null);
+    });
+    act(() => {
+      result.current.onForwardBoundary();
+    });
+
+    expect(mockedResolve).toHaveBeenCalledTimes(2);
   });
 });

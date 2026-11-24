@@ -1,15 +1,22 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { PointerPosition } from "../input/types";
 
 /**
  * The comic reader's loupe: whether it is on and where it is.
  *
+ * @param containerPath - The open book; the loupe closes when it changes.
  * @returns The loupe's state, the container it is positioned in, and its handlers.
  */
-export function useLoupe() {
+export function useLoupe(containerPath: string | undefined) {
   const [isLoupeEnabled, setIsLoupeEnabled] = useState(false);
   const [loupePos, setLoupePos] = useState({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: turn the loupe off whenever containerPath changes.
+  useEffect(() => {
+    setIsLoupeEnabled(false);
+    setLoupePos({ x: 0, y: 0 });
+  }, [containerPath]);
 
   // A loupe switched on by a mouse button appears under the cursor before the mouse moves.
   const toggleLoupe = useCallback((at?: PointerPosition) => {

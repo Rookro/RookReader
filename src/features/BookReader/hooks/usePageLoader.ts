@@ -87,14 +87,21 @@ export const usePageLoader = ({
   const askedRef = useRef<number | null>(null);
   const shownRef = useRef(false);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: restart the wait whenever the reader asks for a different page.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: restart the wait whenever the reader asks for a different page or the book's pages arrive.
   useEffect(() => {
     askedRef.current = perfStart();
     shownRef.current = false;
-  }, [containerPath, index]);
+  }, [containerPath, index, entries]);
 
   // Loads the missing images and updates the layout.
   useEffect(() => {
+    // The next book is still opening: nothing to load, and nothing of the last one to show.
+    if (entries.length === 0) {
+      setIsImageLoading(false);
+      setLayoutState(null);
+      return;
+    }
+
     // Nothing is asked for until the backend has answered for the viewport: a page
     // fetched before that is rendered for the previous one and fetched again. The
     // reader is waiting on that round trip as much as on the page itself.
@@ -257,7 +264,8 @@ export const usePageLoader = ({
     containerPath,
     index,
     entries,
-    settings,
+    settings.isTwoPagedView,
+    settings.enablePreview,
     hasPreviews,
     pairing,
     chain,
@@ -301,5 +309,7 @@ export const usePageLoader = ({
 
   const displayedLayout = layoutState?.path === containerPath ? layoutState?.layout : null;
 
-  return { displayedLayout, isImageLoading };
+  // Derived, not left to the effect: the render that empties the entries already shows no
+  // loading state.
+  return { displayedLayout, isImageLoading: isImageLoading && entries.length > 0 };
 };

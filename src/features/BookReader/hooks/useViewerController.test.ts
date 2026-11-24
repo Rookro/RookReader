@@ -1347,7 +1347,7 @@ describe("useViewerController", () => {
       await waitFor(() =>
         expect(mockedBuildUnitChain).toHaveBeenCalledWith(
           MEASURED,
-          twoPagedSettings,
+          { isTwoPagedView: true },
           !twoPagedSettings.isFirstPageSingleView,
         ),
       );
@@ -1372,7 +1372,11 @@ describe("useViewerController", () => {
       );
 
       await waitFor(() =>
-        expect(mockedBuildUnitChain).toHaveBeenCalledWith(MEASURED, twoPagedSettings, false),
+        expect(mockedBuildUnitChain).toHaveBeenCalledWith(
+          MEASURED,
+          { isTwoPagedView: true },
+          false,
+        ),
       );
     });
 
@@ -1396,7 +1400,7 @@ describe("useViewerController", () => {
       await waitFor(() =>
         expect(mockedBuildUnitChain).toHaveBeenCalledWith(
           MEASURED,
-          twoPagedSettings,
+          { isTwoPagedView: true },
           twoPagedSettings.isFirstPageSingleView,
         ),
       );
@@ -1422,7 +1426,7 @@ describe("useViewerController", () => {
       await waitFor(() =>
         expect(mockedBuildUnitChain).toHaveBeenCalledWith(
           MEASURED,
-          twoPagedSettings,
+          { isTwoPagedView: true },
           !twoPagedSettings.isFirstPageSingleView,
         ),
       );
@@ -1542,7 +1546,7 @@ describe("useViewerController", () => {
         // A failed scan is a book that offered no evidence, so the setting decides.
         expect(mockedBuildUnitChain).toHaveBeenCalledWith(
           [false, false, false],
-          twoPagedSettings,
+          { isTwoPagedView: true },
           twoPagedSettings.isFirstPageSingleView,
         );
         // Navigation still steps one page at a time: only the book's own chain may say
@@ -1624,7 +1628,11 @@ describe("useViewerController", () => {
 
       await waitFor(() => expect(result.current.isImageLoading).toBe(false));
       expect(api.getImageDimensions).not.toHaveBeenCalled();
-      expect(mockedBuildUnitChain).toHaveBeenCalledWith([false, true, false], twoPaged, false);
+      expect(mockedBuildUnitChain).toHaveBeenCalledWith(
+        [false, true, false],
+        { isTwoPagedView: true },
+        false,
+      );
     });
 
     // Verify bits that cannot describe this book are re-measured rather than trusted
@@ -1784,7 +1792,7 @@ describe("useViewerController", () => {
         // would be, which for most books is already the final answer.
         expect(mockedBuildUnitChain).toHaveBeenCalledWith(
           [false, false, false],
-          twoPaged,
+          { isTwoPagedView: true },
           twoPaged.isFirstPageSingleView,
         );
       } finally {
@@ -1977,7 +1985,7 @@ describe("useViewerController", () => {
         await afterTheWaitCap({ ...twoPaged, isFirstPageSingleView: true });
         expect(mockedBuildUnitChain).toHaveBeenCalledWith(
           [false, false, false],
-          expect.objectContaining({ isFirstPageSingleView: true }),
+          { isTwoPagedView: true },
           true,
         );
 
@@ -1985,7 +1993,7 @@ describe("useViewerController", () => {
         await afterTheWaitCap({ ...twoPaged, isFirstPageSingleView: false });
         expect(mockedBuildUnitChain).toHaveBeenCalledWith(
           [false, false, false],
-          expect.objectContaining({ isFirstPageSingleView: false }),
+          { isTwoPagedView: true },
           false,
         );
       } finally {
@@ -2001,7 +2009,7 @@ describe("useViewerController", () => {
         await afterTheWaitCap({ ...twoPaged, isFirstPageSingleView: true }, true);
         expect(mockedBuildUnitChain).toHaveBeenCalledWith(
           [false, false, false],
-          expect.objectContaining({ isFirstPageSingleView: true }),
+          { isTwoPagedView: true },
           false,
         );
       } finally {
@@ -2118,7 +2126,7 @@ describe("useViewerController", () => {
         // Pages 0 and 1 are the ones on screen, so they are the ones the viewer knows.
         expect(mockedBuildUnitChain).toHaveBeenCalledWith(
           [true, true, false],
-          twoPaged,
+          { isTwoPagedView: true },
           twoPaged.isFirstPageSingleView,
         );
       } finally {
@@ -2184,7 +2192,7 @@ describe("useViewerController", () => {
 
         expect(mockedBuildUnitChain).toHaveBeenCalledWith(
           [false, false, false],
-          twoPaged,
+          { isTwoPagedView: true },
           twoPaged.isFirstPageSingleView,
         );
       } finally {
@@ -2327,6 +2335,137 @@ describe("useViewerController", () => {
       // than concluding the reader must have shifted the book.
       await waitFor(() => expect(mockDispatch).toHaveBeenCalledWith(setImageIndex(1)));
       expect(mockedBuildUnitChain.mock.calls.map((call) => call[2])).not.toContain(true);
+    });
+
+    // Verify the reading direction and the preload count leave the pairing and the page
+    // being loaded alone
+    it.each([
+      { change: "direction", settings: { ...twoPaged, direction: "rtl" as const } },
+      { change: "preload count", settings: { ...twoPaged, preloadPageCount: 3 } },
+    ])(
+      "keeps the pairing and the load in flight when the $change changes",
+      async ({ settings }) => {
+        mockedBuildUnitChain.mockImplementation(spreadPairs);
+        const page = heldFetch();
+        mockedFetchImageBlob.mockReturnValue(page.promise);
+        // Measured, so the chain exists from the first render and both pages are fetched
+        // once the viewport is reported.
+        const book = createMockBookWithState({ landscapeBits: "000" });
+        const { result, rerender } = renderHook(
+          ({ settings }) =>
+            useViewerController({
+              containerPath: "path",
+              book,
+              displaySize: VIEWPORT,
+              entries: mockEntries,
+              index: 0,
+              isSpreadShifted: false,
+              settings,
+              dispatch: mockDispatch,
+              hasPreviews: true,
+            }),
+          { initialProps: { settings: twoPaged } },
+        );
+        await waitFor(() => expect(mockedFetchImageBlob).toHaveBeenCalledTimes(2));
+        const builds = mockedBuildUnitChain.mock.calls.length;
+
+        rerender({ settings });
+        await act(async () => {
+          await new Promise(process.nextTick);
+        });
+
+        expect(mockedBuildUnitChain.mock.calls.length).toBe(builds);
+        expect(mockedFetchImageBlob).toHaveBeenCalledTimes(2);
+        page.deliver();
+        await waitFor(() => expect(result.current.displayedLayout?.isSpread).toBe(true));
+      },
+    );
+
+    // Verify the preview setting decides what is loaded, not how the book pairs
+    it("keeps the pairing when previews are turned on", async () => {
+      const { result, rerender } = renderHook(
+        ({ settings }) =>
+          useViewerController({
+            containerPath: "path",
+            displaySize: VIEWPORT,
+            entries: mockEntries,
+            index: 0,
+            isSpreadShifted: false,
+            settings,
+            dispatch: mockDispatch,
+            hasPreviews: true,
+          }),
+        { initialProps: { settings: twoPaged } },
+      );
+      // Settled: the viewport reported, the book measured and its page shown.
+      await waitFor(() => expect(result.current.isImageLoading).toBe(false));
+      const builds = mockedBuildUnitChain.mock.calls.length;
+
+      rerender({ settings: { ...twoPaged, enablePreview: true } });
+      await act(async () => {
+        await new Promise(process.nextTick);
+      });
+
+      expect(mockedBuildUnitChain.mock.calls.length).toBe(builds);
+    });
+
+    // Verify a setting that does decide the pairing still rebuilds it (guard)
+    it("re-pairs when the cover setting changes", async () => {
+      const { result, rerender } = renderHook(
+        ({ settings }) =>
+          useViewerController({
+            containerPath: "path",
+            displaySize: VIEWPORT,
+            entries: mockEntries,
+            index: 0,
+            isSpreadShifted: false,
+            settings,
+            dispatch: mockDispatch,
+            hasPreviews: true,
+          }),
+        { initialProps: { settings: twoPaged } },
+      );
+      await waitFor(() => expect(result.current.isImageLoading).toBe(false));
+      mockedBuildUnitChain.mockClear();
+
+      rerender({ settings: { ...twoPaged, isFirstPageSingleView: true } });
+
+      await waitFor(() =>
+        expect(mockedBuildUnitChain).toHaveBeenCalledWith(
+          [false, false, false],
+          expect.objectContaining({ isTwoPagedView: true }),
+          true,
+        ),
+      );
+    });
+
+    // Verify a book is written back again when it is reopened still unmeasured
+    it("stores a reopened book's measurement after visiting an already-measured book", async () => {
+      const bookA = createMockBookWithState({ id: 1, landscapeBits: null });
+      const bookB = createMockBookWithState({ id: 2, landscapeBits: "000" });
+      vi.mocked(api.updatePageLayout).mockRejectedValueOnce(new Error("database is locked"));
+      const { rerender } = renderHook(
+        ({ containerPath, book }) =>
+          useViewerController({
+            containerPath,
+            displaySize: VIEWPORT,
+            entries: mockEntries,
+            index: 0,
+            isSpreadShifted: false,
+            settings: twoPaged,
+            dispatch: mockDispatch,
+            hasPreviews: true,
+            book,
+          }),
+        { initialProps: { containerPath: "a", book: bookA } },
+      );
+      await waitFor(() => expect(api.updatePageLayout).toHaveBeenCalledTimes(1));
+
+      rerender({ containerPath: "b", book: bookB });
+      rerender({ containerPath: "a", book: bookA });
+
+      await waitFor(() => expect(api.updatePageLayout).toHaveBeenCalledTimes(2));
+      expect(api.updatePageLayout).toHaveBeenLastCalledWith(1, "000");
     });
   });
 
@@ -2952,6 +3091,120 @@ describe("useViewerController", () => {
       unmount();
 
       expect(global.URL.revokeObjectURL).toHaveBeenCalledWith("blob:0");
+    });
+  });
+
+  describe("switching books", () => {
+    const twoPaged: ImageUtils.ViewerSettings = { ...mockSettings, isTwoPagedView: true };
+
+    const renderBook = (settings = mockSettings) =>
+      renderHook(
+        ({ containerPath, entries }) =>
+          useViewerController({
+            containerPath,
+            displaySize: VIEWPORT,
+            entries,
+            index: 0,
+            isSpreadShifted: false,
+            settings,
+            dispatch: mockDispatch,
+            hasPreviews: true,
+          }),
+        { initialProps: { containerPath: "a", entries: mockEntries } },
+      );
+
+    // Verify a book reopened before the next one loaded does not show its old, revoked page
+    it("shows nothing of a book reopened before the next one loads", async () => {
+      urlPerLoad();
+      mockedFetchImageBlob.mockResolvedValue({} as Image);
+      const { result, rerender } = renderBook();
+      await waitFor(() => expect(result.current.displayedLayout).not.toBeNull());
+
+      mockedFetchImageBlob.mockReturnValue(new Promise(() => {}));
+      rerender({ containerPath: "b", entries: [] });
+      rerender({ containerPath: "a", entries: [] });
+
+      expect(result.current.displayedLayout).toBeNull();
+    });
+
+    // Verify the next book's open is not shown as a page still loading
+    it("clears the loading state while the next book opens", async () => {
+      mockedFetchImageBlob.mockReturnValue(new Promise(() => {}));
+      const { result, rerender } = renderBook();
+      // A's page is in flight: the viewport has been reported and the fetch made.
+      await waitFor(() => expect(mockedFetchImageBlob).toHaveBeenCalledTimes(1));
+      expect(result.current.isImageLoading).toBe(true);
+      const fetches = mockedFetchImageBlob.mock.calls.length;
+
+      rerender({ containerPath: "b", entries: [] });
+
+      await waitFor(() => expect(result.current.isImageLoading).toBe(false));
+      expect(mockedFetchImageBlob.mock.calls.length).toBe(fetches);
+    });
+
+    // Verify the display is timed from when the book's pages are known
+    it("times the next book's display from when its pages arrive", async () => {
+      let clock = 0;
+      vi.mocked(perfLog.perfStart).mockImplementation(() => ++clock);
+      vi.mocked(perfLog.perfSince).mockImplementation((started) => started);
+      try {
+        urlPerLoad();
+        mockedFetchImageBlob.mockResolvedValue({} as Image);
+        const { rerender } = renderBook();
+        rerender({ containerPath: "b", entries: [] });
+        await act(async () => {
+          await new Promise(process.nextTick);
+        });
+        const beforePages = clock;
+        vi.mocked(perfLog.perf).mockClear();
+
+        rerender({ containerPath: "b", entries: ["b1", "b2", "b3"] });
+
+        await waitFor(() =>
+          expect(vi.mocked(perfLog.perf)).toHaveBeenCalledWith(
+            "display",
+            expect.anything(),
+            expect.anything(),
+          ),
+        );
+        const display = vi.mocked(perfLog.perf).mock.calls.find(([op]) => op === "display");
+        expect(display?.[2]).toBeGreaterThan(beforePages);
+      } finally {
+        vi.mocked(perfLog.perfStart).mockImplementation(() => 0);
+        vi.mocked(perfLog.perfSince).mockImplementation((started) =>
+          started === null ? null : 1234,
+        );
+      }
+    });
+
+    // Verify the wait for the measurement starts when the book's pages are known, not while
+    // the book is still opening
+    it("starts the measurement wait once the next book's pages arrive", async () => {
+      vi.useFakeTimers();
+      try {
+        urlPerLoad();
+        mockedFetchImageBlob.mockResolvedValue({} as Image);
+        mockedBuildUnitChain.mockImplementation(spreadPairs);
+        vi.mocked(api.getImageDimensions).mockReturnValue(new Promise(() => {}));
+        const { result, rerender } = renderBook(twoPaged);
+        rerender({ containerPath: "b", entries: [] });
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(1000);
+        });
+
+        rerender({ containerPath: "b", entries: mockEntries });
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(0);
+        });
+        expect(result.current.displayedLayout).toBeNull();
+
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(1000);
+        });
+        expect(result.current.displayedLayout).not.toBeNull();
+      } finally {
+        vi.useRealTimers();
+      }
     });
   });
 });

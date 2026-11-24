@@ -47,6 +47,7 @@ export function ReaderInputProvider({ children }: ReaderInputProviderProps): Rea
   const common = useCommonReaderActions();
   const isSidePaneHidden = useAppSelector((state) => state.settings.layout.sidePane.isHidden);
   const { isKeyboardInPaneNow, recoverFocus } = useSidePaneFocus();
+  const isLoading = useAppSelector((state) => state.reader.isLoading);
 
   const contextRef = useRef<Omit<DispatchContext, "reader" | "readingArea">>({
     isReaderActive: activeView === "reader",
@@ -56,8 +57,10 @@ export function ReaderInputProvider({ children }: ReaderInputProviderProps): Rea
     common,
     sidePane: { isHidden: isSidePaneHidden, isKeyboardInPane: isKeyboardInPaneNow, recoverFocus },
   });
+  const isLoadingRef = useRef(isLoading);
   // A layout effect, so an input between a commit and the passive effects sees the new values.
   useLayoutEffect(() => {
+    isLoadingRef.current = isLoading;
     contextRef.current = {
       isReaderActive: activeView === "reader",
       direction,
@@ -73,7 +76,8 @@ export function ReaderInputProvider({ children }: ReaderInputProviderProps): Rea
     (input) =>
       dispatchReaderInput(input, {
         ...contextRef.current,
-        reader: registrationRef.current?.actions.current ?? null,
+        // While a book opens the reader has nothing to act on, as when no reader is mounted.
+        reader: isLoadingRef.current ? null : (registrationRef.current?.actions.current ?? null),
         readingArea: () => registrationRef.current?.area.current?.getBoundingClientRect() ?? null,
       }),
     [],

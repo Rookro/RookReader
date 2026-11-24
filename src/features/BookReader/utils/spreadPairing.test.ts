@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { ViewerSettings } from "./ImageUtils";
+import type { UnitChain, ViewerSettings } from "./ImageUtils";
 import {
   assumedChainFrom,
   chainFrom,
@@ -70,5 +70,38 @@ describe("unit stepping", () => {
   it("walks as many steps as it can", () => {
     expect(walkUnits(0, 3, (i) => (i < 2 ? i + 1 : null))).toEqual({ at: 2, moved: 2 });
     expect(walkUnits(0, 1, () => null)).toEqual({ at: 0, moved: 0 });
+  });
+});
+
+describe("finding a unit start", () => {
+  /** A chain with the given starts; the decisions do not matter to the search. */
+  const withStarts = (starts: number[]): UnitChain => ({
+    starts,
+    units: new Map(starts.map((s) => [s, { isSpread: false, nextIndexIncrement: 1 }] as const)),
+  });
+
+  it("steps back to the first start", () => {
+    expect(previousUnitStart(withStarts([0, 2]), 2, true)).toBe(0);
+    expect(previousUnitStart(withStarts([0]), 1, true)).toBe(0);
+  });
+
+  it("steps back to the start just below an index between starts", () => {
+    expect(previousUnitStart(withStarts([0, 1, 3, 5, 7]), 4, true)).toBe(3);
+    expect(containingUnitStart(withStarts([0, 1, 3, 5, 7]), 4)).toBe(3);
+  });
+
+  it("steps back to the last start from past it", () => {
+    expect(previousUnitStart(withStarts([0, 1, 3]), 9, true)).toBe(3);
+    expect(containingUnitStart(withStarts([0, 1, 3]), 4)).toBe(3);
+  });
+
+  it("finds no start below the first one", () => {
+    expect(containingUnitStart(withStarts([2, 4]), 1)).toBeNull();
+    expect(previousUnitStart(withStarts([2, 4]), 1, true)).toBe(0);
+  });
+
+  it("falls back when the chain has no starts", () => {
+    expect(containingUnitStart(withStarts([]), 3)).toBeNull();
+    expect(previousUnitStart(withStarts([]), 3, true)).toBe(2);
   });
 });

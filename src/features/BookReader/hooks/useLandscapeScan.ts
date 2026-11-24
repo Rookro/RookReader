@@ -45,6 +45,7 @@ export const useLandscapeScan = ({
   // Measure the book, unless it already carries its measurement. Skipping the scan for a
   // known book is what takes a full re-measure off every reopen.
   useEffect(() => {
+    savedLayoutRef.current = null;
     setScannedLandscape(null);
     if (!containerPath || pageCount === 0 || cachedLandscape) {
       if (cachedLandscape) {

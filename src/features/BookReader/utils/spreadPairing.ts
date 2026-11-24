@@ -6,6 +6,9 @@ import {
   type ViewerSettings,
 } from "./ImageUtils";
 
+/** The settings that decide how a book pairs its pages. */
+export type PairingSettings = Pick<ViewerSettings, "isTwoPagedView" | "isFirstPageSingleView">;
+
 /**
  * Builds a book's unit chain from its measured pages and the reader's correction.
  *
@@ -15,17 +18,18 @@ import {
  * a landscape page would otherwise decide it.
  *
  * @param landscape Whether each page is wider than it is tall, in entry order.
- * @param settings The viewer settings.
+ * @param settings The settings that decide the pairing.
  * @param isSpreadShifted The reader's persisted correction for this book.
  * @returns The chain covering every page.
  */
 export const chainFrom = (
   landscape: boolean[],
-  settings: ViewerSettings,
+  settings: PairingSettings,
   isSpreadShifted: boolean,
 ): UnitChain => {
   const base = detectCoverPresence(landscape) ?? settings.isFirstPageSingleView;
-  return buildUnitChain(landscape, settings, isSpreadShifted ? !base : base);
+  const hasCover = isSpreadShifted ? !base : base;
+  return buildUnitChain(landscape, { isTwoPagedView: settings.isTwoPagedView }, hasCover);
 };
 
 /**
@@ -49,19 +53,35 @@ export const chainFrom = (
  *
  * @param entries The list of entry names.
  * @param landscapeByEntry What the viewer has measured so far, by entry name.
- * @param settings The viewer settings.
+ * @param settings The settings that decide the pairing.
  * @param isSpreadShifted The reader's persisted correction for this book.
  * @returns The chain covering every page.
  */
 export const assumedChainFrom = (
   entries: string[],
   landscapeByEntry: ReadonlyMap<string, boolean>,
-  settings: ViewerSettings,
+  settings: PairingSettings,
   isSpreadShifted: boolean,
 ): UnitChain => {
   const landscape = entries.map((entry) => landscapeByEntry.get(entry) ?? false);
   const base = settings.isFirstPageSingleView;
-  return buildUnitChain(landscape, settings, isSpreadShifted ? !base : base);
+  const hasCover = isSpreadShifted ? !base : base;
+  return buildUnitChain(landscape, { isTwoPagedView: settings.isTwoPagedView }, hasCover);
+};
+
+// `starts` is ascending.
+const lastStartBelow = (starts: number[], i: number): number | null => {
+  let lo = 0;
+  let hi = starts.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >>> 1;
+    if (starts[mid] < i) {
+      lo = mid + 1;
+    } else {
+      hi = mid;
+    }
+  }
+  return lo > 0 ? starts[lo - 1] : null;
 };
 
 /**
@@ -76,7 +96,7 @@ export const containingUnitStart = (pairing: UnitChain, index: number): number |
   if (pairing.units.has(index)) {
     return null;
   }
-  return pairing.starts.filter((s) => s < index).at(-1) ?? null;
+  return lastStartBelow(pairing.starts, index);
 };
 
 /**
@@ -115,7 +135,7 @@ export const previousUnitStart = (
   if (!isTwoPagedView) {
     return i - 1;
   }
-  return pairing?.starts.filter((start) => start < i).at(-1) ?? i - 1;
+  return (pairing ? lastStartBelow(pairing.starts, i) : null) ?? i - 1;
 };
 
 /**
