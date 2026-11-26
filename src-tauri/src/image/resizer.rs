@@ -219,34 +219,70 @@ pub fn shrink_to_fit(
     max_height: u32,
     filter: ResizeFilter,
 ) -> Result<Cow<'_, DynamicImage>> {
-    let src_width = img.width();
-    let src_height = img.height();
-
-    if src_width == 0 || src_height == 0 || max_width == 0 || max_height == 0 {
-        return Err(Error::Other("Invalid image or max dimensions".into()));
-    }
-
-    // Calculate aspect ratio preserving dimensions
-    let width_ratio = max_width as f64 / src_width as f64;
-    let height_ratio = max_height as f64 / src_height as f64;
-
-    let ratio = f64::min(width_ratio, height_ratio);
-
-    if ratio >= 1.0 {
-        // Image is already smaller than or equal to max dimensions
+    let source = (img.width(), img.height());
+    let (width, height) = fitted_size(source.0, source.1, max_width, max_height)
+        .ok_or_else(|| Error::Other("Invalid image or max dimensions".into()))?;
+    if (width, height) == source {
         return Ok(Cow::Borrowed(img));
     }
+    resize_exact(img, width, height, filter).map(Cow::Owned)
+}
 
-    let target_width = ((src_width as f64 * ratio).round() as u32).max(1);
-    let target_height = ((src_height as f64 * ratio).round() as u32).max(1);
-
-    resize_exact(img, target_width, target_height, filter).map(Cow::Owned)
+/// The size a `width` x `height` image comes out at when shrunk into `max_width` x
+/// `max_height`, keeping its aspect ratio: its own size when it fits, and never a side
+/// below one pixel.
+///
+/// The one place this arithmetic lives, so a page's size can be predicted without
+/// resizing it and the prediction cannot drift from the resize.
+///
+/// # Arguments
+///
+/// * `width`, `height` - The image's size.
+/// * `max_width`, `max_height` - The box; `u32::MAX` leaves an axis unbounded.
+///
+/// # Returns
+///
+/// The size, or `None` when any of the four is zero.
+pub fn fitted_size(width: u32, height: u32, max_width: u32, max_height: u32) -> Option<(u32, u32)> {
+    if width == 0 || height == 0 || max_width == 0 || max_height == 0 {
+        return None;
+    }
+    let ratio = f64::min(
+        max_width as f64 / width as f64,
+        max_height as f64 / height as f64,
+    );
+    if ratio >= 1.0 {
+        return Some((width, height));
+    }
+    Some((
+        ((width as f64 * ratio).round() as u32).max(1),
+        ((height as f64 * ratio).round() as u32).max(1),
+    ))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use image::{ImageBuffer, Rgba};
+
+    #[test]
+    fn fitted_size_keeps_a_page_that_fits_and_rounds_one_that_does_not() {
+        assert_eq!(fitted_size(4, 2, 4, 2), Some((4, 2)));
+        assert_eq!(fitted_size(4, 2, u32::MAX, u32::MAX), Some((4, 2)));
+        assert_eq!(fitted_size(4, 2, 100, 1), Some((2, 1)));
+        assert_eq!(fitted_size(3, 2, 2, 100), Some((2, 1)));
+        // 40x1 into 4x4 is 4x0.1: a side never rounds to nothing.
+        assert_eq!(fitted_size(40, 1, 4, 4), Some((4, 1)));
+    }
+
+    #[test]
+    fn fitted_size_has_no_answer_for_an_empty_side() {
+        for (width, height, max_width, max_height) in
+            [(0, 2, 4, 4), (4, 0, 4, 4), (4, 2, 0, 4), (4, 2, 4, 0)]
+        {
+            assert_eq!(fitted_size(width, height, max_width, max_height), None);
+        }
+    }
 
     #[test]
     fn test_image_resampling_method_into_resize_filter() {

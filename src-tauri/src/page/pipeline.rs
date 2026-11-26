@@ -20,10 +20,10 @@ use image::{
 
 use crate::{
     container::traits::PageData,
-    error::Result,
+    error::{Error, Result},
     image::{
         avif,
-        resizer::{shrink_to_fit, ResizeFilter},
+        resizer::{fitted_size, resize_exact, shrink_to_fit, ResizeFilter},
         thumbnail::{encode_thumbnail, generate_thumbnail, ThumbnailSpec, COVER, PREVIEW},
         types::{is_animated, Image},
     },
@@ -49,6 +49,50 @@ impl Fit {
     fn holds(self, width: u32, height: u32) -> bool {
         width <= self.width && height <= self.height
     }
+}
+
+/// What decides the size a page comes out at, in any box.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Shape {
+    /// Shrunk into any box it does not fit. The size is the one the inside-the-box test
+    /// and the shrink both see: oriented for stored bytes, as rendered for pixels.
+    Scalable {
+        /// The page's width before any shrink.
+        width: u32,
+        /// The page's height before any shrink.
+        height: u32,
+    },
+    /// Comes out at this size in every box: animated, or too large to decode.
+    Fixed {
+        /// The page's width.
+        width: u32,
+        /// The page's height.
+        height: u32,
+    },
+}
+
+impl Shape {
+    /// The size [`Pipeline::page`] produces for a page of this shape in `fit`.
+    ///
+    /// # Returns
+    ///
+    /// `None` when `fit` has a zero side and the page would have to be shrunk into it,
+    /// which `page` refuses.
+    pub fn output_size(self, fit: Fit) -> Option<(u32, u32)> {
+        match self {
+            Shape::Fixed { width, height } => Some((width, height)),
+            Shape::Scalable { width, height } => fitted_size(width, height, fit.width, fit.height),
+        }
+    }
+}
+
+/// A page ready for the viewer, and the shape that predicts its size in any other box.
+#[derive(Debug, Clone)]
+pub struct Rendered {
+    /// The image the viewer receives.
+    pub image: Arc<Image>,
+    /// What the pipeline saw of the source.
+    pub shape: Shape,
 }
 
 /// How a page's bytes or pixels become the image the viewer receives.
@@ -112,29 +156,52 @@ impl Pipeline {
     /// * `page` - The page, as the reader delivered it.
     /// * `fit` - The box to render into, from [`Pipeline::fit`] or [`Pipeline::full_fit`].
     ///
+    /// # Returns
+    ///
+    /// The image, and the shape that predicts its size in any box. A page passed
+    /// through because it fits is reported scalable without looking for frames, so the
+    /// pass-through stays free; in a box it does not fit, that predicts a shrunk size an
+    /// animation never comes out at, so the worst a wrong guess costs is a read.
+    ///
     /// # Errors
     ///
     /// Returns an `Err` if the bytes are not a supported image, or the resize or the
     /// encode fails.
-    pub fn page(&self, page: PageData, fit: Fit) -> Result<Arc<Image>> {
+    pub fn page(&self, page: PageData, fit: Fit) -> Result<Rendered> {
         let bytes = match page {
             PageData::Encoded(bytes) => bytes,
-            // Checked first: `into_owned` below would copy a page that already fits.
-            PageData::Decoded(image) if fit.holds(image.width(), image.height()) => {
-                return encode_png(&image, None);
-            }
             PageData::Decoded(image) => {
-                let scaled =
-                    shrink_to_fit(&image, fit.width, fit.height, self.resize_method)?.into_owned();
-                drop(image);
-                return encode_png(&scaled, None);
+                let shape = Shape::Scalable {
+                    width: image.width(),
+                    height: image.height(),
+                };
+                // Checked first: `into_owned` below would copy a page that already fits.
+                let image = if fit.holds(image.width(), image.height()) {
+                    encode_png(&image, None)?
+                } else {
+                    let scaled = shrink_to_fit(&image, fit.width, fit.height, self.resize_method)?
+                        .into_owned();
+                    drop(image);
+                    encode_png(&scaled, None)?
+                };
+                return Ok(Rendered { image, shape });
             }
         };
         let image = Image::new(bytes)?;
-        if fit.holds(image.width, image.height) || is_animated(&image.data)? {
-            return Ok(Arc::new(image));
+        let (width, height) = (image.width, image.height);
+        if fit.holds(width, height) {
+            return Ok(Rendered {
+                image: Arc::new(image),
+                shape: Shape::Scalable { width, height },
+            });
         }
-        self.shrink(&image.data, fit)
+        if is_animated(&image.data)? {
+            return Ok(Rendered {
+                image: Arc::new(image),
+                shape: Shape::Fixed { width, height },
+            });
+        }
+        self.shrink(image, fit)
     }
 
     /// Fits a reader's preview to `PREVIEW` and encodes it as JPEG.
@@ -194,7 +261,13 @@ impl Pipeline {
     /// also the cheapest of the candidates a browser reads: `image`'s JPEG encoder is
     /// scalar pure Rust and takes 27-42 ms a page against PNG's 4-10 ms, and on line art
     /// it comes out larger as well.
-    fn shrink(&self, data: &[u8], fit: Fit) -> Result<Arc<Image>> {
+    ///
+    /// The target is fitted from the size `image` reports, the one the inside-the-box
+    /// test used, so the shape predicts it exactly even where a header disagrees with
+    /// the pixels it describes.
+    fn shrink(&self, image: Image, fit: Fit) -> Result<Rendered> {
+        let (width, height) = (image.width, image.height);
+        let data = &image.data[..];
         let reader = ImageReader::new(Cursor::new(data)).with_guessed_format()?;
         let format = reader.format();
         let mut decoder = reader.into_decoder()?;
@@ -203,8 +276,14 @@ impl Pipeline {
         let decoded_bytes = decoder.total_bytes();
         if Limits::default().reserve(decoded_bytes).is_err() {
             log::warn!("A page of {decoded_bytes} decoded bytes is over the decode limit; showing it unresized");
-            return Ok(Arc::new(Image::new(data.to_vec())?));
+            drop(decoder);
+            return Ok(Rendered {
+                image: Arc::new(image),
+                shape: Shape::Fixed { width, height },
+            });
         }
+        let (target_width, target_height) = fitted_size(width, height, fit.width, fit.height)
+            .ok_or_else(|| Error::Other("Invalid image or max dimensions".into()))?;
         // `image`'s AVIF decoder reports no orientation; the container's own boxes do.
         let orientation = if format == Some(ImageFormat::Avif) {
             avif::orientation(data)?
@@ -216,8 +295,12 @@ impl Pipeline {
         dyn_image.apply_orientation(orientation);
 
         // Use SIMD accelerated resizing.
-        let scaled_image = shrink_to_fit(&dyn_image, fit.width, fit.height, self.resize_method)?;
-        encode_png(&scaled_image, icc_profile)
+        let scaled_image =
+            resize_exact(&dyn_image, target_width, target_height, self.resize_method)?;
+        Ok(Rendered {
+            image: encode_png(&scaled_image, icc_profile)?,
+            shape: Shape::Scalable { width, height },
+        })
     }
 }
 
@@ -336,7 +419,8 @@ mod tests {
                     height: 600,
                 },
             )
-            .unwrap();
+            .unwrap()
+            .image;
 
         assert_eq!(page.width, 20000);
         assert_eq!(page.data, bytes);
@@ -353,7 +437,8 @@ mod tests {
         // them.
         let image = pipeline
             .page(PageData::Encoded(bytes.clone()), pipeline.fit())
-            .unwrap();
+            .unwrap()
+            .image;
         assert_eq!(image.data, bytes);
         assert_eq!((image.width, image.height), (4, 2));
     }
@@ -364,7 +449,8 @@ mod tests {
         let pipeline = displaying(100, 100);
         let image = pipeline
             .page(PageData::Encoded(bytes.clone()), pipeline.fit())
-            .unwrap();
+            .unwrap()
+            .image;
         assert_eq!(image.data, bytes);
     }
 
@@ -378,7 +464,8 @@ mod tests {
         // every frame but the first.
         let image = pipeline
             .page(PageData::Encoded(bytes.clone()), pipeline.fit())
-            .unwrap();
+            .unwrap()
+            .image;
         assert_eq!(image.data, bytes);
         assert_eq!((image.width, image.height), (4, 2));
     }
@@ -391,7 +478,8 @@ mod tests {
                 PageData::Encoded(crate::image::avif::tests::avif()),
                 pipeline.fit(),
             )
-            .unwrap();
+            .unwrap()
+            .image;
         assert_eq!((image.width, image.height), (2, 1));
         assert_eq!(image::guess_format(&image.data).unwrap(), ImageFormat::Png);
     }
@@ -401,7 +489,8 @@ mod tests {
         let pipeline = displaying(2, 100);
         let image = pipeline
             .page(PageData::Encoded(opaque_png()), pipeline.fit())
-            .unwrap();
+            .unwrap()
+            .image;
 
         // Width-bound: the box is narrower than the page but taller, and the aspect
         // ratio is kept. Only a `Fit` that carries both axes can express this.
@@ -413,7 +502,8 @@ mod tests {
         let pipeline = pipeline(1);
         let image = pipeline
             .page(PageData::Encoded(opaque_png()), pipeline.fit())
-            .unwrap();
+            .unwrap()
+            .image;
         assert_eq!((image.width, image.height), (2, 1));
     }
 
@@ -438,7 +528,8 @@ mod tests {
         );
         let image = pipeline
             .page(PageData::Encoded(opaque_png()), pipeline.fit())
-            .unwrap();
+            .unwrap()
+            .image;
         assert_eq!(image.height, 1);
     }
 
@@ -448,7 +539,8 @@ mod tests {
         assert_eq!(uncapped.full_fit(), Fit::UNBOUNDED);
         let image = uncapped
             .page(PageData::Encoded(opaque_png()), uncapped.full_fit())
-            .unwrap();
+            .unwrap()
+            .image;
         assert_eq!((image.width, image.height), (4, 2));
 
         let capped = Pipeline {
@@ -474,7 +566,8 @@ mod tests {
         let pipeline = displaying(2, 100);
         let image = pipeline
             .page(PageData::Encoded(bytes.clone()), pipeline.fit())
-            .unwrap();
+            .unwrap()
+            .image;
 
         assert_eq!(
             image::guess_format(&image.data).unwrap(),
@@ -517,7 +610,8 @@ mod tests {
         let pipeline = displaying(1, 100);
         let image = pipeline
             .page(PageData::Encoded(rotated_png()), pipeline.fit())
-            .unwrap();
+            .unwrap()
+            .image;
         assert_eq!((image.width, image.height), (1, 2));
 
         // Nothing is left for the browser to rotate again.
@@ -537,7 +631,8 @@ mod tests {
         let pipeline = displaying(1, 100);
         let image = pipeline
             .page(PageData::Encoded(bytes), pipeline.fit())
-            .unwrap();
+            .unwrap()
+            .image;
         assert_eq!((image.width, image.height), (1, 2));
     }
 
@@ -557,7 +652,8 @@ mod tests {
         let pipeline = displaying(2, 100);
         let image = pipeline
             .page(PageData::Encoded(profiled_png()), pipeline.fit())
-            .unwrap();
+            .unwrap()
+            .image;
         assert_eq!((image.width, image.height), (2, 1));
 
         let mut decoder =
@@ -573,7 +669,8 @@ mod tests {
         let pipeline = pipeline(1);
         let image = pipeline
             .page(PageData::Encoded(alpha_png()), pipeline.fit())
-            .unwrap();
+            .unwrap()
+            .image;
 
         // Transparency survived the format change that made every page PNG; before it,
         // this was the one page that escaped being re-encoded as JPEG.
@@ -634,7 +731,10 @@ mod tests {
 
     #[test]
     fn a_decoded_page_inside_the_box_is_encoded_as_png_at_its_size() {
-        let image = pipeline(0).page(decoded_page(), Fit::UNBOUNDED).unwrap();
+        let image = pipeline(0)
+            .page(decoded_page(), Fit::UNBOUNDED)
+            .unwrap()
+            .image;
         assert_eq!(image::guess_format(&image.data).unwrap(), ImageFormat::Png);
         assert_eq!((image.width, image.height), (4, 2));
         // `as_rgb8` is `None` for RGBA, so this also pins that no alpha channel was added.
@@ -654,7 +754,8 @@ mod tests {
                     height: 2,
                 },
             )
-            .unwrap();
+            .unwrap()
+            .image;
         assert_eq!(image::guess_format(&image.data).unwrap(), ImageFormat::Png);
         assert_eq!((image.width, image.height), (2, 1));
         let decoded = decode(&image.data);
@@ -665,7 +766,7 @@ mod tests {
     #[test]
     fn a_decoded_page_shrinks_to_the_height_cap() {
         let pipeline = pipeline(1);
-        let image = pipeline.page(decoded_page(), pipeline.fit()).unwrap();
+        let image = pipeline.page(decoded_page(), pipeline.fit()).unwrap().image;
         assert_eq!((image.width, image.height), (2, 1));
     }
 
@@ -682,5 +783,186 @@ mod tests {
             (thumbnail.width, thumbnail.height),
             (COVER.max_size, COVER.max_size / 2)
         );
+    }
+
+    /// Boxes around the small fixtures: unbounded, exact and transposed for each rotated
+    /// fixture, bound by width, by height, by both, and tiny.
+    const BOXES: [Fit; 9] = [
+        Fit::UNBOUNDED,
+        Fit {
+            width: 4,
+            height: 2,
+        },
+        Fit {
+            width: 2,
+            height: 4,
+        },
+        // The rotated AVIF: stored 8x4, upright 4x8.
+        Fit {
+            width: 8,
+            height: 4,
+        },
+        Fit {
+            width: 4,
+            height: 8,
+        },
+        Fit {
+            width: 2,
+            height: 100,
+        },
+        Fit {
+            width: 100,
+            height: 1,
+        },
+        Fit {
+            width: 3,
+            height: 3,
+        },
+        Fit {
+            width: 1,
+            height: 1,
+        },
+    ];
+
+    /// Renders `page` into every box, and checks that the shape seen in each predicts the
+    /// size produced in every other.
+    fn assert_shape_predicts_every_box(page: impl Fn() -> PageData) {
+        let pipeline = pipeline(0);
+        let rendered: Vec<Rendered> = BOXES
+            .iter()
+            .map(|&fit| pipeline.page(page(), fit).unwrap())
+            .collect();
+        for (seen_in, from) in BOXES.iter().zip(&rendered) {
+            for (fit, actual) in BOXES.iter().zip(&rendered) {
+                assert_eq!(
+                    from.shape.output_size(*fit),
+                    Some((actual.image.width, actual.image.height)),
+                    "shape seen in {seen_in:?}, predicted for {fit:?}"
+                );
+            }
+        }
+    }
+
+    /// A 40x1 PNG, so a shrink rounds its height below one pixel.
+    fn wide_png() -> Vec<u8> {
+        let mut buffer = Vec::new();
+        image::DynamicImage::ImageRgb8(image::RgbImage::new(40, 1))
+            .write_to(&mut Cursor::new(&mut buffer), ImageFormat::Png)
+            .expect("failed to encode the fixture");
+        buffer
+    }
+
+    #[test]
+    fn the_shape_of_a_still_page_predicts_its_size_in_every_box() {
+        assert_shape_predicts_every_box(|| PageData::Encoded(opaque_png()));
+        assert_shape_predicts_every_box(decoded_page);
+        assert_shape_predicts_every_box(|| PageData::Encoded(wide_png()));
+    }
+
+    #[test]
+    fn the_shape_of_a_rotated_page_predicts_its_size_in_every_box() {
+        // Each box pair holds the page only upright or only as stored: `Fit { 2, 4 }` and
+        // `Fit { 4, 2 }` for the PNG (4x2 stored), `Fit { 4, 8 }` and `Fit { 8, 4 }` for
+        // the AVIF (8x4 stored).
+        assert_shape_predicts_every_box(|| PageData::Encoded(rotated_png()));
+        assert_shape_predicts_every_box(|| {
+            PageData::Encoded(crate::image::avif::tests::transformed_avif(&[(
+                b"irot",
+                &[1u8][..],
+            )]))
+        });
+    }
+
+    #[test]
+    fn an_animated_page_is_fixed_once_seen_outside_the_box() {
+        let bytes = crate::image::types::tests::animated_gif();
+        let pipeline = pipeline(0);
+        let narrow = Fit {
+            width: 2,
+            height: 100,
+        };
+
+        // Passed through without looking for frames: the cheap path stays cheap.
+        let inside = pipeline
+            .page(PageData::Encoded(bytes.clone()), Fit::UNBOUNDED)
+            .unwrap();
+        assert_eq!(
+            inside.shape,
+            Shape::Scalable {
+                width: 4,
+                height: 2
+            }
+        );
+        // ...so it predicts a shrunk size this page never comes out at: a miss.
+        assert_eq!(inside.shape.output_size(narrow), Some((2, 1)));
+
+        let outside = pipeline.page(PageData::Encoded(bytes), narrow).unwrap();
+        assert_eq!(
+            outside.shape,
+            Shape::Fixed {
+                width: 4,
+                height: 2
+            }
+        );
+        assert_eq!(outside.shape.output_size(narrow), Some((4, 2)));
+    }
+
+    #[test]
+    fn a_page_over_the_decode_limit_is_fixed() {
+        let rendered = displaying(800, 600)
+            .page(
+                PageData::Encoded(oversized_png()),
+                Fit {
+                    width: 800,
+                    height: 600,
+                },
+            )
+            .unwrap();
+        assert_eq!(
+            rendered.shape,
+            Shape::Fixed {
+                width: 20000,
+                height: 20000
+            }
+        );
+        assert_eq!(
+            rendered.shape.output_size(Fit {
+                width: 1,
+                height: 1
+            }),
+            Some((20000, 20000))
+        );
+    }
+
+    #[test]
+    fn a_zero_sized_box_has_no_predicted_size() {
+        let empty = Fit {
+            width: 0,
+            height: 4,
+        };
+        assert_eq!(
+            Shape::Scalable {
+                width: 4,
+                height: 2
+            }
+            .output_size(empty),
+            None
+        );
+        assert!(pipeline(0)
+            .page(PageData::Encoded(opaque_png()), empty)
+            .is_err());
+
+        // A fixed page needs no box: it comes out at its own size, as predicted.
+        let oversized = pipeline(0)
+            .page(PageData::Encoded(oversized_png()), empty)
+            .unwrap();
+        assert_eq!(
+            oversized.shape,
+            Shape::Fixed {
+                width: 20000,
+                height: 20000
+            }
+        );
+        assert_eq!(oversized.shape.output_size(empty), Some((20000, 20000)));
     }
 }

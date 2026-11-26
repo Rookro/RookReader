@@ -1212,7 +1212,8 @@ fn run(shared: &Shared, reader: &mut dyn PageReader, job: &mut Job) {
             let pipeline = shared.pipeline();
             let page = reader
                 .read_page(&job.entry)
-                .and_then(|page| pipeline.page(page, job.fit));
+                .and_then(|page| pipeline.page(page, job.fit))
+                .map(|rendered| rendered.image);
             if let Ok(image) = &page {
                 shared.store(&job.entry, job.fit, image.clone());
             }

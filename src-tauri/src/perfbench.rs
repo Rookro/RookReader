@@ -303,7 +303,7 @@ fn page_with(
         .expect("open reader")
         .read_page(entry)
         .expect("read page");
-    pipeline.page(page, fit).expect("decode page")
+    pipeline.page(page, fit).expect("decode page").image
 }
 
 /// Every page's dimensions through one reader — the shape `PageService::dimensions` uses.
