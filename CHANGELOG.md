@@ -52,6 +52,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Opening another book, or reading on into the next one, shows its first page sooner. Changing the reading direction no longer interrupts the pages being loaded. (#431)
 * Turning to the next page of a comic shows it sooner: the next pages are loaded ahead while you read. (#432)
 * A ZIP comic with many pages opens sooner, especially from a network drive. (#433)
+* Opening or closing the side pane shows the pages at once instead of loading them again, and pages appear sooner after resizing the window. (#434)
 
 ## [2.7.1] - 2026-11-16
 
