@@ -12,6 +12,7 @@ import {
   fetchImageBlob,
   fetchImagePreviewBlob,
   ImageCacheItem,
+  revokeCacheItemUrls,
   type ViewerSettings,
 } from "./ImageUtils";
 
@@ -41,6 +42,13 @@ describe("ImageUtils", () => {
       const item = new ImageCacheItem(100, 100, "preview", undefined);
       expect(item.url).toBe("preview");
     });
+  });
+
+  it("revokeCacheItemUrls drops the decoded image", () => {
+    const item = new ImageCacheItem(1, 1, "p", "f");
+    item.decoded = document.createElement("img");
+    revokeCacheItemUrls(item);
+    expect(item.decoded).toBeUndefined();
   });
 
   describe("createBlobUrl", () => {

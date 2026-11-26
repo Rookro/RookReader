@@ -6,6 +6,7 @@ import {
   fetchImageBlob,
   fetchImagePreviewBlob,
   type ImageCacheItem,
+  revokeCacheItemUrls,
 } from "./ImageUtils";
 
 /**
@@ -30,6 +31,25 @@ export const pagesToLoad = (
     pages.push(entries[index + 1]);
   }
   return pages;
+};
+
+/**
+ * Decodes an image URL into an element that holds the decoded bitmap.
+ *
+ * @param url The URL of the image.
+ * @returns The decoded element, or undefined if the image could not be decoded.
+ */
+const decodeImage = async (url: string): Promise<HTMLImageElement | undefined> => {
+  const element = document.createElement("img");
+  element.src = url;
+  try {
+    await element.decode();
+    return element;
+  } catch {
+    // A broken page still reaches the reader as a broken image, and decode() also
+    // rejects for reasons that are not errors.
+    return undefined;
+  }
 };
 
 /** What loading one page into the cache came to. */
@@ -83,14 +103,28 @@ export const loadPageIntoCache = async (
     return { status: "skipped" };
   }
   const newItem = createImageCacheItem(img, isPreview);
+  const url = isPreview ? newItem.previewUrl : newItem.fullUrl;
+  // A preview behind its full page is never displayed, so it is not worth decoding.
+  const image =
+    url && !(isPreview && cache.get(entry)?.fullUrl) ? await decodeImage(url) : undefined;
+  if (signal.aborted) {
+    revokeCacheItemUrls(newItem);
+    return { status: "skipped" };
+  }
+  // Read again: the entry may have changed during the decode.
   const existingItem = cache.get(entry);
   if (existingItem) {
     if (isPreview) {
       existingItem.previewUrl = newItem.previewUrl;
+      if (!existingItem.fullUrl) {
+        existingItem.decoded = image;
+      }
     } else {
       existingItem.fullUrl = newItem.fullUrl;
+      existingItem.decoded = image;
     }
   } else {
+    newItem.decoded = image;
     cache.set(entry, newItem);
   }
   // The new item's own dimensions: an entry its preview created keeps the preview's.

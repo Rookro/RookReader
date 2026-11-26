@@ -83,11 +83,14 @@ export const usePageCache = ({
   const showLayout = useCallback((layout: ViewLayout | null) => {
     const onScreen = onScreenRef.current;
     onScreen.clear();
+    // The `<img>` on screen holds the image now.
     if (layout?.firstImage) {
       onScreen.add(layout.firstImage);
+      layout.firstImage.decoded = undefined;
     }
     if (layout?.secondImage) {
       onScreen.add(layout.secondImage);
+      layout.secondImage.decoded = undefined;
     }
 
     const held = heldRef.current;

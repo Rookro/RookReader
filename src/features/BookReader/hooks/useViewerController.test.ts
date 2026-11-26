@@ -1,6 +1,6 @@
 import { warn } from "@tauri-apps/plugin-log";
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { api } from "../../../bindings/api";
 import { createMockBookWithState } from "../../../test/factories";
 import { CommandError, ErrorCode } from "../../../types/Error";
@@ -3205,6 +3205,94 @@ describe("useViewerController", () => {
       } finally {
         vi.useRealTimers();
       }
+    });
+  });
+
+  describe("decoding before display", () => {
+    const entries = ["p0.jpg", "p1.jpg", "p2.jpg", "p3.jpg", "p4.jpg", "p5.jpg"];
+    const twoPaged: ImageUtils.ViewerSettings = { ...mockSettings, isTwoPagedView: true };
+
+    /** A decode that resolves when the test says so. */
+    const heldDecode = () => {
+      let release: () => void = () => {};
+      const promise = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      return { promise, release };
+    };
+
+    beforeEach(() => {
+      mockedFetchImageBlob.mockResolvedValue({} as Image);
+      urlPerLoad();
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    // Verify a spread waits for both its pages to be decoded, so they appear together
+    it("does not show a spread until both its pages are decoded", async () => {
+      mockScan(6);
+      mockedBuildUnitChain.mockImplementation(spreadPairs);
+      const held = heldDecode();
+      const decode = vi.spyOn(HTMLImageElement.prototype, "decode").mockImplementation(function (
+        this: HTMLImageElement,
+      ) {
+        return this.getAttribute("src") === "blob:0" ? held.promise : Promise.resolve();
+      });
+      const { result } = renderMoves(0, { entries, settings: twoPaged });
+
+      await waitFor(() => expect(decode).toHaveBeenCalledTimes(2));
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 0));
+      });
+      expect(result.current.displayedLayout).toBeNull();
+
+      held.release();
+      await waitFor(() => expect(result.current.displayedLayout?.isSpread).toBe(true));
+    });
+
+    // Verify the decoded images are let go once their pages are on screen
+    it("releases the decoded images of the pages it shows", async () => {
+      mockScan(6);
+      mockedBuildUnitChain.mockImplementation(spreadPairs);
+      const { result } = renderMoves(0, { entries, settings: twoPaged });
+
+      await waitFor(() => expect(result.current.displayedLayout?.isSpread).toBe(true));
+      expect(result.current.displayedLayout?.firstImage?.decoded).toBeUndefined();
+      expect(result.current.displayedLayout?.secondImage?.decoded).toBeUndefined();
+      expect(mockedCreateImageCacheItem).toHaveBeenCalledTimes(2);
+    });
+
+    // Verify a page decoded after its book was left is neither shown nor kept
+    it("shows nothing of a book left during a decode", async () => {
+      const held = heldDecode();
+      vi.spyOn(HTMLImageElement.prototype, "decode").mockReturnValue(held.promise);
+      const { result, rerender } = renderHook(
+        ({ containerPath }) =>
+          useViewerController({
+            containerPath,
+            displaySize: VIEWPORT,
+            entries: mockEntries,
+            index: 0,
+            isSpreadShifted: false,
+            settings: mockSettings,
+            dispatch: mockDispatch,
+            hasPreviews: true,
+          }),
+        { initialProps: { containerPath: "a" } },
+      );
+      await waitFor(() => expect(mockedCreateImageCacheItem).toHaveBeenCalled());
+
+      mockedFetchImageBlob.mockReturnValue(new Promise(() => {}));
+      rerender({ containerPath: "b" });
+      held.release();
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 0));
+      });
+
+      expect(result.current.displayedLayout).toBeNull();
+      expect(global.URL.revokeObjectURL).toHaveBeenCalledWith("blob:0");
     });
   });
 });

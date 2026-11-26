@@ -30,6 +30,12 @@ global.matchMedia = (query: string) =>
     dispatchEvent: vi.fn(),
   }) as unknown as MediaQueryList;
 
+// jsdom does not decode images. Resolved at once, so a load goes on as soon as its fetch
+// lands; a test that holds or rejects a decode spies on this and restores it.
+if (typeof HTMLImageElement.prototype.decode !== "function") {
+  HTMLImageElement.prototype.decode = () => Promise.resolve();
+}
+
 afterEach(() => {
   localStorage.clear();
   vi.clearAllMocks();

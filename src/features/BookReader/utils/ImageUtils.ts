@@ -18,6 +18,12 @@ export class ImageCacheItem {
   ) {}
 
   /**
+   * The decoded element for the URL the item displays now; it keeps the decoded bitmap
+   * alive until the page is shown.
+   */
+  decoded?: HTMLImageElement;
+
+  /**
    * Returns the full URL if available, otherwise the preview URL.
    */
   get url(): string | undefined {
@@ -37,6 +43,7 @@ export const revokeCacheItemUrls = (item: ImageCacheItem) => {
   if (item.fullUrl) {
     URL.revokeObjectURL(item.fullUrl);
   }
+  item.decoded = undefined;
 };
 
 /**
