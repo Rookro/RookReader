@@ -136,12 +136,10 @@ fn read_entry_checked<R: Read + Seek>(
 /// # Returns
 ///
 /// The `(index, raw name)` pairs of the readable entries, in archive order.
-pub(crate) fn readable_raw_names<R: Read + Seek>(
-    archive: &mut ZipArchive<R>,
-) -> Vec<(usize, Vec<u8>)> {
+pub(crate) fn readable_raw_names<R: Read + Seek>(archive: &ZipArchive<R>) -> Vec<(usize, Vec<u8>)> {
     let mut names = Vec::with_capacity(archive.len());
     for index in 0..archive.len() {
-        match archive.by_index_raw(index) {
+        match archive.by_index_data(index) {
             Ok(file) if file.encrypted() => {
                 log::warn!(
                     "Skipping encrypted ZIP entry {}",
@@ -332,9 +330,9 @@ impl ZipContainer {
     /// Returns an `Err` if the ZIP file cannot be opened or read.
     pub fn new(path: &str, inner_dir: &str) -> Result<Self> {
         let file = File::open(path)?;
-        let mut archive = ZipArchive::new(file)?;
+        let archive = ZipArchive::new(file)?;
 
-        let raw_names = readable_raw_names(&mut archive);
+        let raw_names = readable_raw_names(&archive);
         let (entries, name_to_index) = collect_entries(raw_names.into_iter(), inner_dir);
         // The archive opened for listing is dropped with this function: its central
         // directory is all that is kept, and every reader opens its own handle over it.
@@ -351,11 +349,72 @@ impl ZipContainer {
 
 #[cfg(test)]
 mod tests {
-    use std::{fs::File, io::Write, path};
+    use std::{
+        fs::File,
+        io::{Cursor, Read, Seek, SeekFrom, Write},
+        path,
+        sync::{
+            atomic::{AtomicUsize, Ordering},
+            Arc,
+        },
+    };
     use tempfile::tempdir;
     use zip::write::{FileOptions, ZipWriter};
 
     use super::*;
+
+    /// Counts every read and seek made through it.
+    struct Counting<R> {
+        inner: R,
+        calls: Arc<AtomicUsize>,
+    }
+
+    impl<R: Read> Read for Counting<R> {
+        fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+            self.calls.fetch_add(1, Ordering::SeqCst);
+            self.inner.read(buf)
+        }
+    }
+
+    impl<R: Seek> Seek for Counting<R> {
+        fn seek(&mut self, pos: SeekFrom) -> std::io::Result<u64> {
+            self.calls.fetch_add(1, Ordering::SeqCst);
+            self.inner.seek(pos)
+        }
+    }
+
+    // Each local-header read is a round trip on a network share, so listing a large
+    // archive that way took seconds.
+    #[test]
+    fn readable_raw_names_reads_nothing_past_the_central_directory() {
+        let mut bytes = Cursor::new(Vec::new());
+        let mut zip = ZipWriter::new(&mut bytes);
+        for name in ["a.png", "b.png", "c.png"] {
+            zip.start_file(name, FileOptions::<()>::default()).unwrap();
+            zip.write_all(DUMMY_PNG_DATA).unwrap();
+        }
+        zip.finish().unwrap();
+
+        let calls = Arc::new(AtomicUsize::new(0));
+        let archive = ZipArchive::new(Counting {
+            inner: Cursor::new(bytes.into_inner()),
+            calls: calls.clone(),
+        })
+        .unwrap();
+        calls.store(0, Ordering::SeqCst);
+
+        let names = readable_raw_names(&archive);
+
+        assert_eq!(
+            names,
+            vec![
+                (0, b"a.png".to_vec()),
+                (1, b"b.png".to_vec()),
+                (2, b"c.png".to_vec()),
+            ]
+        );
+        assert_eq!(calls.load(Ordering::SeqCst), 0);
+    }
 
     // Helper function to create a dummy ZIP file with specified image entries.
     fn create_dummy_zip(
