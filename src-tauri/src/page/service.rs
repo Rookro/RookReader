@@ -581,6 +581,9 @@ impl PageService {
     /// Pages already read stay in the cache under the size they came out at, so a window
     /// that goes back to a size it has been, or changes in a way that leaves a page's size
     /// alone, is served from it.
+    ///
+    /// A change drops the preload not yet started, which was queued for the old size; a
+    /// job a worker already took finishes.
     pub fn set_display_size(&self, size: Option<Fit>) -> bool {
         let mut pipeline = self
             .shared
@@ -591,6 +594,9 @@ impl PageService {
             return false;
         }
         pipeline.display = size;
+        // Under the pipeline lock, so a preload request that already read the new box
+        // keeps its jobs. Nothing takes the pipeline lock while holding the queue.
+        self.shared.lock().preload.clear();
         true
     }
 
@@ -2595,6 +2601,63 @@ mod tests {
             Ok(Box::new(reader) as Box<dyn PageReader>)
         });
         container
+    }
+
+    /// A one-worker book parked on its first page, with the rest of it queued as preload.
+    fn parked_with_preload(
+        gate: Arc<Barrier>,
+    ) -> (Arc<PageService>, thread::JoinHandle<Result<Arc<Image>>>) {
+        let names = entries(4);
+        let log = Arc::new(Mutex::new(Vec::new()));
+        let service = Arc::new(service(gated_container(
+            names.clone(),
+            &names[0],
+            gate,
+            log,
+        )));
+        service.set_display_size(Some(Fit {
+            width: 8,
+            height: 8,
+        }));
+        let parked = {
+            let service = service.clone();
+            let first = names[0].clone();
+            thread::spawn(move || service.page_blocking(&first, Priority::Foreground))
+        };
+        eventually("worker to park on p000", || reading(&service, &names[0]));
+        service.request_preload_around(0, 3, 1).unwrap();
+        assert_eq!(service.shared.lock().preload.len(), 3);
+        (service, parked)
+    }
+
+    #[test]
+    fn a_viewport_change_drops_the_queued_preload() {
+        let gate = Arc::new(Barrier::new(2));
+        let (service, parked) = parked_with_preload(gate.clone());
+
+        assert!(service.set_display_size(Some(Fit {
+            width: 6,
+            height: 8
+        })));
+        assert_eq!(service.shared.lock().preload.len(), 0);
+
+        gate.wait();
+        assert!(parked.join().unwrap().is_ok());
+    }
+
+    #[test]
+    fn reporting_the_same_viewport_keeps_the_queued_preload() {
+        let gate = Arc::new(Barrier::new(2));
+        let (service, parked) = parked_with_preload(gate.clone());
+
+        assert!(!service.set_display_size(Some(Fit {
+            width: 8,
+            height: 8
+        })));
+        assert_eq!(service.shared.lock().preload.len(), 3);
+
+        gate.wait();
+        assert!(parked.join().unwrap().is_ok());
     }
 
     fn latest(service: &PageService) -> u64 {
