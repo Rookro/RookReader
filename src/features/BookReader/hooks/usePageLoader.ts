@@ -340,8 +340,8 @@ export const usePageLoader = ({
   //
   // Gated on the viewport like the load effect, and re-run when it changes: a preload
   // issued before the backend has the viewport fills the cache with pages rendered for
-  // the previous one, and the backend drops the preload jobs still queued for a
-  // viewport the reader has left only when it is asked to preload for the new one.
+  // the previous one. The backend drops the preload still queued for the old viewport
+  // when it is told the new one, and this re-run queues the window afresh.
   // Page turns in a burst send one request, once they settle.
   useEffect(() => {
     if (entries.length === 0 || !reportedSize) {
