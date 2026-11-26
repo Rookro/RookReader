@@ -1,6 +1,6 @@
 import { warn } from "@tauri-apps/plugin-log";
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { api } from "../../../bindings/api";
 import { createMockBookWithState } from "../../../test/factories";
 import { CommandError, ErrorCode } from "../../../types/Error";
@@ -8,6 +8,7 @@ import type { Image } from "../../../types/Image";
 import * as perfLog from "../../../utils/perf";
 import { setImageIndex, setSpreadDisplayed } from "../slice";
 import * as ImageUtils from "../utils/ImageUtils";
+import { pagesAhead } from "../utils/pageLoading";
 import type { DisplaySize } from "./useDisplaySize";
 import { useViewerController, type ViewerControllerOptions } from "./useViewerController";
 
@@ -98,6 +99,14 @@ vi.mock("../../../utils/perf", () => ({
 vi.mock("../reducers/ReadReducer", () => ({
   setImageIndex: vi.fn((idx: number) => ({ type: "read/setImageIndex", payload: idx })),
 }));
+
+// Nothing is loaded ahead unless a test asks for it, so the other tests' fetch counts hold.
+vi.mock("../utils/pageLoading", async (importActual) => ({
+  ...(await importActual<typeof import("../utils/pageLoading")>()),
+  pagesAhead: vi.fn(() => []),
+}));
+const { pagesAhead: realPagesAhead } =
+  await vi.importActual<typeof import("../utils/pageLoading")>("../utils/pageLoading");
 
 describe("useViewerController", () => {
   const mockEntries = ["p1.jpg", "p2.jpg", "p3.jpg"];
@@ -191,6 +200,7 @@ describe("useViewerController", () => {
     mockScan(mockEntries.length);
     mockedBuildUnitChain.mockImplementation(singlePages);
     mockedDetectCoverPresence.mockReturnValue(null);
+    vi.mocked(pagesAhead).mockReturnValue([]);
   });
 
   // Verify that loading flag is true and displayedLayout is null on initialization
@@ -3205,6 +3215,358 @@ describe("useViewerController", () => {
       } finally {
         vi.useRealTimers();
       }
+    });
+  });
+
+  describe("decoding before display", () => {
+    const entries = ["p0.jpg", "p1.jpg", "p2.jpg", "p3.jpg", "p4.jpg", "p5.jpg"];
+    const twoPaged: ImageUtils.ViewerSettings = { ...mockSettings, isTwoPagedView: true };
+
+    /** A decode that resolves when the test says so. */
+    const heldDecode = () => {
+      let release: () => void = () => {};
+      const promise = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      return { promise, release };
+    };
+
+    beforeEach(() => {
+      mockedFetchImageBlob.mockResolvedValue({} as Image);
+      urlPerLoad();
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    // Verify a spread waits for both its pages to be decoded, so they appear together
+    it("does not show a spread until both its pages are decoded", async () => {
+      mockScan(6);
+      mockedBuildUnitChain.mockImplementation(spreadPairs);
+      const held = heldDecode();
+      const decode = vi.spyOn(HTMLImageElement.prototype, "decode").mockImplementation(function (
+        this: HTMLImageElement,
+      ) {
+        return this.getAttribute("src") === "blob:0" ? held.promise : Promise.resolve();
+      });
+      const { result } = renderMoves(0, { entries, settings: twoPaged });
+
+      await waitFor(() => expect(decode).toHaveBeenCalledTimes(2));
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 0));
+      });
+      expect(result.current.displayedLayout).toBeNull();
+
+      held.release();
+      await waitFor(() => expect(result.current.displayedLayout?.isSpread).toBe(true));
+    });
+
+    // Verify the decoded images are let go once their pages are on screen
+    it("releases the decoded images of the pages it shows", async () => {
+      mockScan(6);
+      mockedBuildUnitChain.mockImplementation(spreadPairs);
+      const { result } = renderMoves(0, { entries, settings: twoPaged });
+
+      await waitFor(() => expect(result.current.displayedLayout?.isSpread).toBe(true));
+      expect(result.current.displayedLayout?.firstImage?.decoded).toBeUndefined();
+      expect(result.current.displayedLayout?.secondImage?.decoded).toBeUndefined();
+      expect(mockedCreateImageCacheItem).toHaveBeenCalledTimes(2);
+    });
+
+    // Verify a page decoded after its book was left is neither shown nor kept
+    it("shows nothing of a book left during a decode", async () => {
+      const held = heldDecode();
+      vi.spyOn(HTMLImageElement.prototype, "decode").mockReturnValue(held.promise);
+      const { result, rerender } = renderHook(
+        ({ containerPath }) =>
+          useViewerController({
+            containerPath,
+            displaySize: VIEWPORT,
+            entries: mockEntries,
+            index: 0,
+            isSpreadShifted: false,
+            settings: mockSettings,
+            dispatch: mockDispatch,
+            hasPreviews: true,
+          }),
+        { initialProps: { containerPath: "a" } },
+      );
+      await waitFor(() => expect(mockedCreateImageCacheItem).toHaveBeenCalled());
+
+      mockedFetchImageBlob.mockReturnValue(new Promise(() => {}));
+      rerender({ containerPath: "b" });
+      held.release();
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 0));
+      });
+
+      expect(result.current.displayedLayout).toBeNull();
+      expect(global.URL.revokeObjectURL).toHaveBeenCalledWith("blob:0");
+    });
+  });
+
+  describe("loading ahead", () => {
+    /** Renders a book of `count` pages, measured as portrait unless `measured` is false. */
+    const renderAhead = (
+      count: number,
+      props: Partial<ViewerControllerOptions> = {},
+      measured = true,
+    ) => {
+      const entries = Array.from({ length: count }, (_, i) => `p${i}.jpg`);
+      if (measured) {
+        mockScan(count);
+      }
+      return renderHook(
+        (p: Partial<ViewerControllerOptions>) =>
+          useViewerController({
+            containerPath: "path",
+            displaySize: VIEWPORT,
+            entries,
+            index: 0,
+            isSpreadShifted: false,
+            settings: mockSettings,
+            dispatch: mockDispatch,
+            hasPreviews: true,
+            ...p,
+          }),
+        { initialProps: props },
+      );
+    };
+    /** The fetches of `entry`'s full page for `path`; a call's generation is `[2]`. */
+    const fetched = (entry: string, path = "path") =>
+      mockedFetchImageBlob.mock.calls.filter(([p, e]) => p === path && e === entry);
+    /** Waits past the preload delay. */
+    const pastDelay = () =>
+      act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 150));
+      });
+
+    beforeEach(() => {
+      vi.mocked(pagesAhead).mockImplementation(realPagesAhead);
+      mockedFetchImageBlob.mockResolvedValue({} as Image);
+      urlPerLoad();
+    });
+
+    afterEach(() => {
+      mockedFetchImageBlob.mockReset();
+    });
+
+    // Verify the pages ahead are fetched one by one in the run's generation, after the
+    // current page, so the backend never cancels the current page for them
+    it("loads the next two pages with the current page's generation, one at a time", async () => {
+      const held = heldFetch();
+      mockedFetchImageBlob.mockImplementation((_, entry) =>
+        entry === "p1.jpg" ? held.promise : Promise.resolve({} as Image),
+      );
+      renderAhead(6);
+
+      await waitFor(() => expect(fetched("p1.jpg")).toHaveLength(1));
+      const generation = fetched("p0.jpg")[0][2];
+      expect(fetched("p1.jpg")[0][2]).toBe(generation);
+      expect(fetched("p2.jpg")).toHaveLength(0);
+
+      act(() => held.deliver());
+      await waitFor(() => expect(fetched("p2.jpg")).toHaveLength(1));
+      expect(fetched("p2.jpg")[0][2]).toBe(generation);
+      await pastDelay();
+      expect(fetched("p3.jpg")).toHaveLength(0);
+    });
+
+    // Verify a spread's preload covers both pages of each of the next two spreads
+    it("loads both pages of the next two spreads", async () => {
+      mockedBuildUnitChain.mockImplementation(spreadPairs);
+      renderAhead(8, { settings: { ...mockSettings, isTwoPagedView: true } });
+
+      await waitFor(() => expect(fetched("p5.jpg")).toHaveLength(1));
+      expect(mockedFetchImageBlob.mock.calls.slice(2).map(([, entry]) => entry)).toEqual([
+        "p2.jpg",
+        "p3.jpg",
+        "p4.jpg",
+        "p5.jpg",
+      ]);
+      await pastDelay();
+      expect(fetched("p6.jpg")).toHaveLength(0);
+    });
+
+    // Verify the preload never competes with the page the reader is waiting for
+    it("loads nothing ahead before the current page is shown", async () => {
+      const held = heldFetch();
+      mockedFetchImageBlob.mockImplementation((_, entry) =>
+        entry === "p0.jpg" ? held.promise : Promise.resolve({} as Image),
+      );
+      renderAhead(6);
+
+      await pastDelay();
+      expect(mockedFetchImageBlob).toHaveBeenCalledTimes(1);
+
+      act(() => held.deliver());
+      await waitFor(() => expect(fetched("p1.jpg")).toHaveLength(1));
+    });
+
+    // Verify a turn shows the loaded-ahead page from the cache and loads on past it
+    it("turns to a loaded-ahead page without fetching it, and loads on from there", async () => {
+      const { result, rerender } = renderAhead(6);
+
+      await waitFor(() =>
+        expect(mockedCreateImageCacheItem.mock.results[2]?.value.decoded).toBeDefined(),
+      );
+      const p1Item = mockedCreateImageCacheItem.mock.results[1]?.value;
+      expect(p1Item.decoded).toBeDefined();
+
+      rerender({ index: 1 });
+      expect(result.current.displayedLayout?.firstImage).toBe(p1Item);
+      expect(result.current.displayedLayout?.firstImage?.decoded).toBeUndefined();
+      await waitFor(() => expect(fetched("p3.jpg")).toHaveLength(1));
+      expect(fetched("p3.jpg")[0][2]).toBeGreaterThan(fetched("p1.jpg")[0][2]);
+      expect(fetched("p1.jpg")).toHaveLength(1);
+      expect(fetched("p2.jpg")).toHaveLength(1);
+    });
+
+    // Verify a jump before the delay ends sends nothing ahead of the page left
+    it("stops the preload when the reader jumps during the delay", async () => {
+      const { result, rerender } = renderAhead(10);
+
+      await waitFor(() => expect(result.current.displayedLayout).not.toBeNull());
+      rerender({ index: 5 });
+      await waitFor(() => expect(fetched("p6.jpg")).toHaveLength(1));
+      expect(fetched("p1.jpg")).toHaveLength(0);
+      expect(fetched("p2.jpg")).toHaveLength(0);
+    });
+
+    // Verify a jump while a page ahead is in flight stops the rest of that preload
+    it("stops the preload when the reader jumps during a fetch ahead", async () => {
+      const held = heldFetch();
+      mockedFetchImageBlob.mockImplementation((_, entry) =>
+        entry === "p1.jpg" ? held.promise : Promise.resolve({} as Image),
+      );
+      const { rerender } = renderAhead(10);
+
+      await waitFor(() => expect(fetched("p1.jpg")).toHaveLength(1));
+      rerender({ index: 5 });
+      act(() => held.deliver());
+      await waitFor(() => expect(fetched("p7.jpg")).toHaveLength(1));
+      expect(fetched("p2.jpg")).toHaveLength(0);
+    });
+
+    // Verify the pages loaded ahead and then jumped past do not keep their decoded images
+    it("releases the decoded images of pages it jumped past", async () => {
+      const { rerender } = renderAhead(10);
+
+      await waitFor(() =>
+        expect(mockedCreateImageCacheItem.mock.results[2]?.value.decoded).toBeDefined(),
+      );
+      const p1Item = mockedCreateImageCacheItem.mock.results[1]?.value;
+      const p2Item = mockedCreateImageCacheItem.mock.results[2]?.value;
+      expect(p1Item.decoded).toBeDefined();
+
+      rerender({ index: 4 });
+      await waitFor(() => expect(fetched("p5.jpg")).toHaveLength(1));
+      expect(p1Item.decoded).toBeUndefined();
+      expect(p2Item.decoded).toBeUndefined();
+    });
+
+    // Verify a resize drops the preload for the old viewport and preloads for the new one
+    it("stops the preload when the viewport changes", async () => {
+      const held = heldFetch();
+      let p1Fetches = 0;
+      mockedFetchImageBlob.mockImplementation((_, entry) =>
+        entry === "p1.jpg" && p1Fetches++ === 0 ? held.promise : Promise.resolve({} as Image),
+      );
+      const { rerender } = renderAhead(6);
+
+      await waitFor(() => expect(fetched("p1.jpg")).toHaveLength(1));
+      const first = fetched("p1.jpg")[0][2];
+      rerender({ displaySize: WIDER });
+      await waitFor(() => expect(fetched("p0.jpg")).toHaveLength(2));
+      act(() => held.deliver());
+      await waitFor(() => expect(fetched("p2.jpg")).toHaveLength(1));
+      expect(fetched("p2.jpg")[0][2]).toBeGreaterThan(first);
+    });
+
+    // Verify an unmeasured book's assumed pairing is never preloaded
+    it("loads nothing ahead of an unmeasured book until it is measured", async () => {
+      let resolveScan: (pages: { width: number; height: number }[]) => void = () => {};
+      const scan = new Promise<{ width: number; height: number }[]>((resolve) => {
+        resolveScan = resolve;
+      });
+      vi.mocked(api.getImageDimensions).mockReturnValue(scan);
+      const { result } = renderAhead(6, {}, false);
+
+      await waitFor(() => expect(result.current.displayedLayout).not.toBeNull());
+      await pastDelay();
+      expect(mockedFetchImageBlob).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        resolveScan(Array.from({ length: 6 }, () => ({ width: 100, height: 200 })));
+      });
+      await waitFor(() => expect(fetched("p1.jpg")).toHaveLength(1));
+    });
+
+    // Verify a preload count of zero turns the viewer's own loading ahead off too
+    it("loads nothing ahead when preloading is off", async () => {
+      const { result } = renderAhead(6, { settings: { ...mockSettings, preloadPageCount: 0 } });
+
+      await waitFor(() => expect(result.current.displayedLayout).not.toBeNull());
+      await pastDelay();
+      expect(mockedFetchImageBlob).toHaveBeenCalledTimes(1);
+    });
+
+    // Verify the preload stops at the end of the book
+    it("loads only the last page ahead one page before the end", async () => {
+      renderAhead(3, { index: 1 });
+
+      await waitFor(() => expect(fetched("p2.jpg")).toHaveLength(1));
+      await pastDelay();
+      expect(mockedFetchImageBlob).toHaveBeenCalledTimes(2);
+    });
+
+    // Verify a page that failed ahead is not shown as an error and is asked for again
+    it("shows no error for a failed preload and fetches the page again when reached", async () => {
+      let p1Fetches = 0;
+      mockedFetchImageBlob.mockImplementation((_, entry) =>
+        entry === "p1.jpg" && p1Fetches++ === 0
+          ? Promise.reject(new CommandError(ErrorCode.io, "x"))
+          : Promise.resolve({} as Image),
+      );
+      const { result, rerender } = renderAhead(6);
+
+      await waitFor(() => expect(fetched("p2.jpg")).toHaveLength(1));
+      expect(result.current.displayedLayout?.firstError).toBeUndefined();
+      rerender({ index: 1 });
+      await waitFor(() => expect(fetched("p1.jpg")).toHaveLength(2));
+    });
+
+    // Verify the preload asks for full pages only
+    it("loads no preview ahead", async () => {
+      vi.mocked(ImageUtils.fetchImagePreviewBlob).mockResolvedValue({} as Image);
+      mockedCreateImageCacheItem.mockImplementation(
+        (_, isPreview) =>
+          (isPreview
+            ? { previewUrl: "blob:p", url: "blob:p" }
+            : { fullUrl: "blob:f", url: "blob:f" }) as ImageUtils.ImageCacheItem,
+      );
+      renderAhead(6, { settings: { ...mockSettings, enablePreview: true } });
+
+      await waitFor(() => expect(fetched("p2.jpg")).toHaveLength(1));
+      for (const [, entry] of vi.mocked(ImageUtils.fetchImagePreviewBlob).mock.calls) {
+        expect(entry).toBe("p0.jpg");
+      }
+    });
+
+    // Verify opening another book stops the preload of the book left
+    it("stops the preload when another book opens", async () => {
+      const held = heldFetch();
+      mockedFetchImageBlob.mockImplementation((_, entry) =>
+        entry === "p1.jpg" ? held.promise : Promise.resolve({} as Image),
+      );
+      const { rerender } = renderAhead(6);
+
+      await waitFor(() => expect(fetched("p1.jpg")).toHaveLength(1));
+      rerender({ containerPath: "other" });
+      act(() => held.deliver());
+      await waitFor(() => expect(fetched("p1.jpg", "other")).toHaveLength(1));
+      expect(fetched("p2.jpg")).toHaveLength(0);
     });
   });
 });

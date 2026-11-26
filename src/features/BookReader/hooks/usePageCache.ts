@@ -51,7 +51,8 @@ export interface PageCache {
   reportedSize: DisplaySize | null;
   /**
    * Tells the cache which pages are on screen; a page it has let go of is revoked once it
-   * is no longer one of them. Stable across renders.
+   * is no longer one of them. The pages it puts on screen drop their decoded images.
+   * Stable across renders.
    */
   showLayout: (layout: ViewLayout | null) => void;
 }
@@ -83,11 +84,14 @@ export const usePageCache = ({
   const showLayout = useCallback((layout: ViewLayout | null) => {
     const onScreen = onScreenRef.current;
     onScreen.clear();
+    // The `<img>` on screen holds the image now.
     if (layout?.firstImage) {
       onScreen.add(layout.firstImage);
+      layout.firstImage.decoded = undefined;
     }
     if (layout?.secondImage) {
       onScreen.add(layout.secondImage);
+      layout.secondImage.decoded = undefined;
     }
 
     const held = heldRef.current;
@@ -159,7 +163,9 @@ export const usePageCache = ({
   // Evict cached pages outside a window around the current index so long sessions
   // don't retain every visited page's blob URLs (unbounded renderer memory). The
   // window always contains the current spread (index, index + 1) and the backend
-  // preload range, so backtrack re-fetches hit the backend LRU cache.
+  // preload range, so backtrack re-fetches hit the backend LRU cache. It must also reach
+  // the farthest page loaded ahead, index + 5 (a spread and two spreads ahead), which the
+  // floor of 5 does exactly.
   useEffect(() => {
     const radius = Math.max(preloadPageCount, 5);
     const keep = new Set(entries.slice(Math.max(0, index - radius), index + radius + 1));

@@ -6,7 +6,11 @@ import {
   fetchImageBlob,
   fetchImagePreviewBlob,
   type ImageCacheItem,
+  revokeCacheItemUrls,
+  SINGLE_UNIT,
+  type UnitChain,
 } from "./ImageUtils";
+import { nextUnitStart } from "./spreadPairing";
 
 /**
  * The pages the viewer loads for an index: the page itself and, in spread view, the one
@@ -32,6 +36,52 @@ export const pagesToLoad = (
   return pages;
 };
 
+/**
+ * The pages of the display units after the one at an index, in reading order.
+ *
+ * @param pairing The pairing being displayed.
+ * @param index The start of the current unit.
+ * @param entries The list of entry names.
+ * @param units How many units after the current one to list.
+ * @returns The entry names of those units' pages, ending at the end of the book.
+ */
+export const pagesAhead = (
+  pairing: UnitChain,
+  index: number,
+  entries: string[],
+  units: number,
+): string[] => {
+  const pages: string[] = [];
+  let start = nextUnitStart(pairing, index, entries.length);
+  for (let i = 0; i < units && start !== null; i++) {
+    pages.push(entries[start]);
+    if ((pairing.units.get(start) ?? SINGLE_UNIT).isSpread && start + 1 < entries.length) {
+      pages.push(entries[start + 1]);
+    }
+    start = nextUnitStart(pairing, start, entries.length);
+  }
+  return pages;
+};
+
+/**
+ * Decodes an image URL into an element that holds the decoded bitmap.
+ *
+ * @param url The URL of the image.
+ * @returns The decoded element, or undefined if the image could not be decoded.
+ */
+const decodeImage = async (url: string): Promise<HTMLImageElement | undefined> => {
+  const element = document.createElement("img");
+  element.src = url;
+  try {
+    await element.decode();
+    return element;
+  } catch {
+    // A broken page still reaches the reader as a broken image, and decode() also
+    // rejects for reasons that are not errors.
+    return undefined;
+  }
+};
+
 /** What loading one page into the cache came to. */
 export type PageLoadResult =
   /** The page is in the cache; `isLandscape` is the loaded image's own shape. */
@@ -42,7 +92,9 @@ export type PageLoadResult =
   | { status: "skipped" };
 
 /**
- * Loads a page, or its preview, and adds it to the cache entry for that page.
+ * Loads a page, or its preview, and adds it to the cache entry for that page. The image is
+ * decoded before it is stored, and the entry keeps the decoded element in `decoded`; a
+ * preview arriving behind its full page is stored undecoded.
  *
  * @param cache The page cache, edited in place.
  * @param containerPath The path of the container file.
@@ -83,14 +135,28 @@ export const loadPageIntoCache = async (
     return { status: "skipped" };
   }
   const newItem = createImageCacheItem(img, isPreview);
+  const url = isPreview ? newItem.previewUrl : newItem.fullUrl;
+  // A preview behind its full page is never displayed, so it is not worth decoding.
+  const image =
+    url && !(isPreview && cache.get(entry)?.fullUrl) ? await decodeImage(url) : undefined;
+  if (signal.aborted) {
+    revokeCacheItemUrls(newItem);
+    return { status: "skipped" };
+  }
+  // Read again: the entry may have changed during the decode.
   const existingItem = cache.get(entry);
   if (existingItem) {
     if (isPreview) {
       existingItem.previewUrl = newItem.previewUrl;
+      if (!existingItem.fullUrl) {
+        existingItem.decoded = image;
+      }
     } else {
       existingItem.fullUrl = newItem.fullUrl;
+      existingItem.decoded = image;
     }
   } else {
+    newItem.decoded = image;
     cache.set(entry, newItem);
   }
   // The new item's own dimensions: an entry its preview created keeps the preview's.
