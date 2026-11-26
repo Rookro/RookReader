@@ -12,14 +12,20 @@ import {
   type ViewerSettings,
   type ViewLayout,
 } from "../utils/ImageUtils";
-import { loadPageIntoCache, pagesToLoad } from "../utils/pageLoading";
+import { loadPageIntoCache, pagesAhead, pagesToLoad } from "../utils/pageLoading";
 import type { DisplaySize } from "./useDisplaySize";
 
 /** The last display generation handed out; seeded so a hot reload never goes back below one the backend has seen. */
 let lastGeneration = Date.now();
 
-/** Delay before sending a preload request so rapid page turns coalesce into one. */
+/**
+ * Delay before sending a preload request so rapid page turns coalesce into one; it also
+ * delays the viewer's own loading ahead.
+ */
 const PRELOAD_DEBOUNCE_MS = 100;
+
+/** How many display units after the current one the viewer loads ahead. */
+const PRELOAD_UNITS = 2;
 
 /** What {@link usePageLoader} needs to load and lay out the current pages. */
 export interface PageLoaderOptions {
@@ -55,7 +61,8 @@ export interface PageLoader {
 
 /**
  * Loads the current page (and, in spread view, the next) into the cache, publishes the
- * layout once the pairing allows it, and asks the backend to preload around it.
+ * layout once the pairing allows it, loads the next units ahead once a measured book's
+ * current unit is shown, and asks the backend to preload around it.
  *
  * @param options See {@link PageLoaderOptions}.
  * @returns See {@link PageLoader}.
@@ -199,6 +206,48 @@ export const usePageLoader = ({
         }
       };
 
+      /**
+       * Loads the next units' pages into the cache one at a time, neither publishing nor
+       * recording them. Only for a measured book: recording an unmeasured one's pages
+       * would re-run this effect.
+       *
+       * @param generation The run's generation, or null when the run took none.
+       */
+      const loadAhead = async (generation: number | null): Promise<void> => {
+        if (!chain || controller.signal.aborted) {
+          return;
+        }
+        // Page turns in a burst load nothing ahead of the pages passed through.
+        await new Promise<void>((resolve) => {
+          const onAbort = () => {
+            clearTimeout(timer);
+            resolve();
+          };
+          const timer = setTimeout(() => {
+            controller.signal.removeEventListener("abort", onAbort);
+            resolve();
+          }, PRELOAD_DEBOUNCE_MS);
+          controller.signal.addEventListener("abort", onAbort, { once: true });
+        });
+        if (controller.signal.aborted) {
+          return;
+        }
+        const ahead = pagesAhead(chain, index, entries, PRELOAD_UNITS).filter(
+          (entry) => !cache.get(entry)?.fullUrl,
+        );
+        if (ahead.length === 0) {
+          return;
+        }
+        // A new generation supersedes only the queued requests of runs already aborted.
+        const g = generation ?? ++lastGeneration;
+        for (const entry of ahead) {
+          if (controller.signal.aborted) {
+            break;
+          }
+          await loadPageIntoCache(cache, containerPath, entry, false, g, controller.signal);
+        }
+      };
+
       const missingFullPaths = pathsToLoad.filter((p) => !cache.get(p)?.fullUrl);
       if (missingFullPaths.length === 0) {
         setIsImageLoading(pairing === null);
@@ -208,6 +257,7 @@ export const usePageLoader = ({
           reportDisplayed();
           setLayoutState({ layout, path: containerPath });
         }
+        void loadAhead(null);
         return;
       }
 
@@ -251,6 +301,7 @@ export const usePageLoader = ({
         if (previewPromises.length === 0) {
           setIsImageLoading(pairing === null);
         }
+        await loadAhead(generation);
       }
     };
 

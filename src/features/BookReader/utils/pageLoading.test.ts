@@ -7,8 +7,9 @@ import {
   fetchImageBlob,
   fetchImagePreviewBlob,
   ImageCacheItem,
+  type UnitChain,
 } from "./ImageUtils";
-import { loadPageIntoCache, pagesToLoad } from "./pageLoading";
+import { loadPageIntoCache, pagesAhead, pagesToLoad } from "./pageLoading";
 
 vi.mock("./ImageUtils", async (importActual) => ({
   ...(await importActual<typeof import("./ImageUtils")>()),
@@ -190,5 +191,62 @@ describe("loadPageIntoCache", () => {
     expect(decode).not.toHaveBeenCalled();
     expect(cache.get("a")?.previewUrl).toBe("p");
     expect(cache.get("a")?.decoded).toBe(decodedFull);
+  });
+});
+
+describe("pagesAhead", () => {
+  const entries = ["a", "b", "c", "d", "e", "f", "g"];
+  const chainOf = (units: [number, boolean, number][]): UnitChain => ({
+    starts: units.map(([start]) => start),
+    units: new Map(
+      units.map(([start, isSpread, nextIndexIncrement]) => [
+        start,
+        { isSpread, nextIndexIncrement },
+      ]),
+    ),
+  });
+
+  it("lists the next two single pages", () => {
+    const singles = chainOf(entries.map((_, i) => [i, false, 1]));
+    expect(pagesAhead(singles, 0, entries, 2)).toEqual(["b", "c"]);
+  });
+
+  it("lists both pages of the next two spreads", () => {
+    const spreads = chainOf([
+      [0, true, 2],
+      [2, true, 2],
+      [4, true, 2],
+      [6, false, 1],
+    ]);
+    expect(pagesAhead(spreads, 0, entries, 2)).toEqual(["c", "d", "e", "f"]);
+  });
+
+  it("counts a landscape page between spreads as one unit", () => {
+    const mixed = chainOf([
+      [0, true, 2],
+      [2, false, 1],
+      [3, true, 2],
+      [5, true, 2],
+    ]);
+    expect(pagesAhead(mixed, 0, entries, 2)).toEqual(["c", "d", "e"]);
+  });
+
+  it("stops at the end of the book", () => {
+    const singles = chainOf(entries.map((_, i) => [i, false, 1]));
+    expect(pagesAhead(singles, 5, entries, 2)).toEqual(["g"]);
+    expect(pagesAhead(singles, 6, entries, 2)).toEqual([]);
+  });
+
+  it("counts a start missing from the units as a single page", () => {
+    expect(pagesAhead(chainOf([]), 0, entries, 2)).toEqual(["b", "c"]);
+  });
+
+  it("never lists a page past the last one", () => {
+    const tail = chainOf([
+      [0, false, 1],
+      [5, false, 1],
+      [6, true, 2],
+    ]);
+    expect(pagesAhead(tail, 5, entries, 2)).toEqual(["g"]);
   });
 });

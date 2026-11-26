@@ -162,7 +162,9 @@ export const usePageCache = ({
   // Evict cached pages outside a window around the current index so long sessions
   // don't retain every visited page's blob URLs (unbounded renderer memory). The
   // window always contains the current spread (index, index + 1) and the backend
-  // preload range, so backtrack re-fetches hit the backend LRU cache.
+  // preload range, so backtrack re-fetches hit the backend LRU cache. It must also reach
+  // the farthest page loaded ahead, index + 5 (a spread and two spreads ahead), which the
+  // floor of 5 does exactly.
   useEffect(() => {
     const radius = Math.max(preloadPageCount, 5);
     const keep = new Set(entries.slice(Math.max(0, index - radius), index + radius + 1));

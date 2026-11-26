@@ -7,7 +7,10 @@ import {
   fetchImagePreviewBlob,
   type ImageCacheItem,
   revokeCacheItemUrls,
+  SINGLE_UNIT,
+  type UnitChain,
 } from "./ImageUtils";
+import { nextUnitStart } from "./spreadPairing";
 
 /**
  * The pages the viewer loads for an index: the page itself and, in spread view, the one
@@ -29,6 +32,33 @@ export const pagesToLoad = (
   const pages = [entries[index]];
   if (isTwoPagedView && index + 1 < entries.length) {
     pages.push(entries[index + 1]);
+  }
+  return pages;
+};
+
+/**
+ * The pages of the display units after the one at an index, in reading order.
+ *
+ * @param pairing The pairing being displayed.
+ * @param index The start of the current unit.
+ * @param entries The list of entry names.
+ * @param units How many units after the current one to list.
+ * @returns The entry names of those units' pages, ending at the end of the book.
+ */
+export const pagesAhead = (
+  pairing: UnitChain,
+  index: number,
+  entries: string[],
+  units: number,
+): string[] => {
+  const pages: string[] = [];
+  let start = nextUnitStart(pairing, index, entries.length);
+  for (let i = 0; i < units && start !== null; i++) {
+    pages.push(entries[start]);
+    if ((pairing.units.get(start) ?? SINGLE_UNIT).isSpread && start + 1 < entries.length) {
+      pages.push(entries[start + 1]);
+    }
+    start = nextUnitStart(pairing, start, entries.length);
   }
   return pages;
 };
