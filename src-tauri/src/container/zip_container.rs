@@ -125,9 +125,9 @@ fn read_entry_checked<R: Read + Seek>(
 
 /// Lists the index and raw name of every entry that can be read without a password.
 ///
-/// Reads only the central directory. An encrypted entry, or one whose header cannot be
-/// read, is left out with a warning, so one such file does not keep the rest of the
-/// archive from opening.
+/// Reads only the central directory, so an entry whose local header is damaged is listed
+/// and fails when its page is read. An encrypted entry is left out with a warning, so one
+/// such file does not keep the rest of the archive from opening.
 ///
 /// # Arguments
 ///
@@ -381,6 +381,37 @@ mod tests {
             self.calls.fetch_add(1, Ordering::SeqCst);
             self.inner.seek(pos)
         }
+    }
+
+    // Checking the local header takes a read per entry, the cost the listing no longer pays,
+    // so a damaged one shows as a failed page instead of a missing one.
+    #[test]
+    fn test_new_lists_an_entry_whose_local_header_is_damaged() {
+        let dir = tempdir().unwrap();
+        let path = create_dummy_zip(
+            dir.path(),
+            "damaged.zip",
+            &[("p1.png", DUMMY_PNG_DATA), ("p2.png", DUMMY_PNG_DATA)],
+        );
+        let header = ZipArchive::new(File::open(&path).unwrap())
+            .unwrap()
+            .by_index_data(1)
+            .unwrap()
+            .header_start();
+        let mut bytes = std::fs::read(&path).unwrap();
+        // Breaks the local header's signature.
+        bytes[header as usize] ^= 0xFF;
+        std::fs::write(&path, &bytes).unwrap();
+
+        let container = ZipContainer::new(path.to_str().unwrap(), "").unwrap();
+
+        assert_eq!(
+            container.get_entries(),
+            &vec!["p1.png".to_string(), "p2.png".to_string()]
+        );
+        let mut reader = container.open_reader().unwrap();
+        assert!(reader.read_page("p1.png").is_ok());
+        assert!(reader.read_page("p2.png").is_err());
     }
 
     // Each local-header read is a round trip on a network share, so listing a large
