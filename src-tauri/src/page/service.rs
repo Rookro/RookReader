@@ -99,8 +99,8 @@ struct Job {
     /// The box this page is to be rendered into, taken when the job was made.
     ///
     /// Carried rather than read from the pipeline at run time so a viewport change
-    /// mid-read cannot store the old pixels under the new key. Unused by the jobs that
-    /// do not read a page.
+    /// mid-read cannot hand the callers waiting on this box a page fitted to another.
+    /// Unused by the jobs that do not read a page.
     fit: Fit,
     /// The reader's display generation, if this job belongs to one. A newer generation
     /// cancels queued jobs with a smaller number; `None` jobs (loupe, preload, scan) are
@@ -2210,6 +2210,54 @@ mod tests {
         let lines = recording.lines("preload");
         assert_eq!(lines.len(), 1, "{lines:?}");
         assert!(lines[0].contains(" cached=3 "), "{}", lines[0]);
+    }
+
+    #[test]
+    fn an_animated_page_read_inside_the_box_is_not_served_shrunk_in_a_smaller_one() {
+        let names = entries(1);
+        let reads = Arc::new(AtomicUsize::new(0));
+        let mut container = MockContainer::new();
+        container.expect_get_entries().return_const(names.clone());
+        container.expect_max_readers().return_const(usize::MAX);
+        let reader_reads = reads.clone();
+        container.expect_open_reader().returning(move || {
+            let reads = reader_reads.clone();
+            let mut reader = MockPageReader::new();
+            reader.expect_read_page().returning(move |_| {
+                reads.fetch_add(1, Ordering::SeqCst);
+                Ok(PageData::Encoded(crate::image::types::tests::animated_gif()))
+            });
+            Ok(Box::new(reader) as Box<dyn PageReader>)
+        });
+        let service = service(container);
+
+        // Passed through whole, without looking for frames.
+        service.set_display_size(Some(Fit {
+            width: 8,
+            height: 8,
+        }));
+        service
+            .page_blocking(&names[0], Priority::Foreground)
+            .unwrap();
+
+        // The shape seen there predicts a shrunk copy, which an animation never has: a
+        // miss, and a read that finds the frames.
+        service.set_display_size(Some(Fit {
+            width: 2,
+            height: 100,
+        }));
+        let narrow = service
+            .page_blocking(&names[0], Priority::Foreground)
+            .unwrap();
+        assert_eq!((narrow.width, narrow.height), (4, 2));
+        assert_eq!(reads.load(Ordering::SeqCst), 2);
+
+        // Known to be fixed now, so the whole page is served from the cache.
+        let again = service
+            .page_blocking(&names[0], Priority::Foreground)
+            .unwrap();
+        assert_eq!((again.width, again.height), (4, 2));
+        assert_eq!(reads.load(Ordering::SeqCst), 2);
     }
 
     #[test]

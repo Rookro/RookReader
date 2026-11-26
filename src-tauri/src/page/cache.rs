@@ -7,8 +7,9 @@ use crate::{
     page::pipeline::{Fit, Rendered, Shape},
 };
 
-/// How many pages' shapes are remembered: one per page of a 64 GiB image cache at
-/// 1 MiB a page, about 17 MB at most.
+/// How many pages' shapes are remembered, about 17 MB at most: far more pages than the
+/// default 1 GiB image cache holds, though a very large cache of small pages can hold
+/// more. A page whose shape was evicted is a miss, never a wrong page.
 const SHAPE_CAPACITY: u64 = 65_536;
 
 /// One page of one book.
