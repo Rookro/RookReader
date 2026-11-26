@@ -51,7 +51,8 @@ export interface PageCache {
   reportedSize: DisplaySize | null;
   /**
    * Tells the cache which pages are on screen; a page it has let go of is revoked once it
-   * is no longer one of them. Stable across renders.
+   * is no longer one of them. The pages it puts on screen drop their decoded images.
+   * Stable across renders.
    */
   showLayout: (layout: ViewLayout | null) => void;
 }

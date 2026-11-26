@@ -92,7 +92,9 @@ export type PageLoadResult =
   | { status: "skipped" };
 
 /**
- * Loads a page, or its preview, and adds it to the cache entry for that page.
+ * Loads a page, or its preview, and adds it to the cache entry for that page. The image is
+ * decoded before it is stored, and the entry keeps the decoded element in `decoded`; a
+ * preview arriving behind its full page is stored undecoded.
  *
  * @param cache The page cache, edited in place.
  * @param containerPath The path of the container file.

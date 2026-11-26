@@ -3348,6 +3348,10 @@ describe("useViewerController", () => {
       urlPerLoad();
     });
 
+    afterEach(() => {
+      mockedFetchImageBlob.mockReset();
+    });
+
     // Verify the pages ahead are fetched one by one in the run's generation, after the
     // current page, so the backend never cancels the current page for them
     it("loads the next two pages with the current page's generation, one at a time", async () => {
@@ -3445,6 +3449,23 @@ describe("useViewerController", () => {
       expect(fetched("p2.jpg")).toHaveLength(0);
     });
 
+    // Verify the pages loaded ahead and then jumped past do not keep their decoded images
+    it("releases the decoded images of pages it jumped past", async () => {
+      const { rerender } = renderAhead(10);
+
+      await waitFor(() =>
+        expect(mockedCreateImageCacheItem.mock.results[2]?.value.decoded).toBeDefined(),
+      );
+      const p1Item = mockedCreateImageCacheItem.mock.results[1]?.value;
+      const p2Item = mockedCreateImageCacheItem.mock.results[2]?.value;
+      expect(p1Item.decoded).toBeDefined();
+
+      rerender({ index: 4 });
+      await waitFor(() => expect(fetched("p5.jpg")).toHaveLength(1));
+      expect(p1Item.decoded).toBeUndefined();
+      expect(p2Item.decoded).toBeUndefined();
+    });
+
     // Verify a resize drops the preload for the old viewport and preloads for the new one
     it("stops the preload when the viewport changes", async () => {
       const held = heldFetch();
@@ -3480,6 +3501,15 @@ describe("useViewerController", () => {
         resolveScan(Array.from({ length: 6 }, () => ({ width: 100, height: 200 })));
       });
       await waitFor(() => expect(fetched("p1.jpg")).toHaveLength(1));
+    });
+
+    // Verify a preload count of zero turns the viewer's own loading ahead off too
+    it("loads nothing ahead when preloading is off", async () => {
+      const { result } = renderAhead(6, { settings: { ...mockSettings, preloadPageCount: 0 } });
+
+      await waitFor(() => expect(result.current.displayedLayout).not.toBeNull());
+      await pastDelay();
+      expect(mockedFetchImageBlob).toHaveBeenCalledTimes(1);
     });
 
     // Verify the preload stops at the end of the book
