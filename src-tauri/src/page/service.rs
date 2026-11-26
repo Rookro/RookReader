@@ -22,8 +22,8 @@ use crate::{
         types::{Image, ImageDimensions},
     },
     page::{
-        cache::{Cache, CacheKey},
-        pipeline::{Fit, Pipeline},
+        cache::Cache,
+        pipeline::{Fit, Pipeline, Rendered},
     },
     perf,
     perf::Span,
@@ -261,26 +261,18 @@ impl Shared {
         *self.pipeline.read().unwrap_or_else(|e| e.into_inner())
     }
 
-    fn key(&self, entry: &str, fit: Fit) -> CacheKey {
-        CacheKey {
-            book_id: self.book_id.clone(),
-            entry: entry.to_string(),
-            fit,
-        }
-    }
-
     fn cached(&self, entry: &str, fit: Fit) -> Option<Arc<Image>> {
         self.cache
             .read()
             .unwrap_or_else(|e| e.into_inner())
-            .get(&self.key(entry, fit))
+            .get(&self.book_id, entry, fit)
     }
 
-    fn store(&self, entry: &str, fit: Fit, image: Arc<Image>) {
+    fn store(&self, entry: &str, rendered: &Rendered) {
         self.cache
             .read()
             .unwrap_or_else(|e| e.into_inner())
-            .insert(self.key(entry, fit), image);
+            .put(&self.book_id, entry, rendered);
     }
 }
 
@@ -586,8 +578,9 @@ impl PageService {
 
     /// Reports the reader's viewport in device pixels, and says whether it changed.
     ///
-    /// Pages already read stay in the cache under their own fit; nothing is invalidated,
-    /// because a window that goes back to a size it has been is served from it.
+    /// Pages already read stay in the cache under the size they came out at, so a window
+    /// that goes back to a size it has been, or changes in a way that leaves a page's size
+    /// alone, is served from it.
     pub fn set_display_size(&self, size: Option<Fit>) -> bool {
         let mut pipeline = self
             .shared
@@ -603,8 +596,7 @@ impl PageService {
 
     /// Applies the reader's height cap and resize filter to every page read from now on.
     ///
-    /// The cache is keyed by the box a page was fitted into and not by these, so the
-    /// caller empties it.
+    /// The cache knows nothing of these, so the caller empties it.
     pub fn set_rendering(&self, max_image_height: u32, resize_method: ResizeFilter) {
         let mut pipeline = self
             .shared
@@ -1208,15 +1200,16 @@ fn run(shared: &Shared, reader: &mut dyn PageReader, job: &mut Job) {
         }
         Reply::Page(_) | Reply::None => {
             // The fit comes from the job, not from the pipeline as it stands now: a
-            // viewport change mid-read must not store the old pixels under the new key.
+            // viewport change mid-read must not hand the callers waiting on this box a page
+            // fitted to another.
             let pipeline = shared.pipeline();
             let page = reader
                 .read_page(&job.entry)
                 .and_then(|page| pipeline.page(page, job.fit))
-                .map(|rendered| rendered.image);
-            if let Ok(image) = &page {
-                shared.store(&job.entry, job.fit, image.clone());
-            }
+                .map(|rendered| {
+                    shared.store(&job.entry, &rendered);
+                    rendered.image
+                });
             deliver_page(shared, job, page);
         }
     }
@@ -1299,7 +1292,7 @@ mod tests {
             "book".to_string(),
             Arc::new(container),
             pipeline(),
-            mini_moka::sync::Cache::new(1000),
+            Cache::new(mini_moka::sync::Cache::new(1000)),
             0,
         )
     }
@@ -1576,7 +1569,7 @@ mod tests {
                 latch,
             )),
             pipeline(),
-            mini_moka::sync::Cache::new(1000),
+            Cache::new(mini_moka::sync::Cache::new(1000)),
             4,
         ));
         assert_eq!((service.shared.workers, service.shared.reserve), (4, 2));
@@ -1665,7 +1658,7 @@ mod tests {
                 "book".to_string(),
                 Arc::new(recording_container(names.clone(), readers, log.clone())),
                 pipeline(),
-                mini_moka::sync::Cache::new(1000),
+                Cache::new(mini_moka::sync::Cache::new(1000)),
                 max_workers,
             )
         };
@@ -1750,7 +1743,7 @@ mod tests {
             "book".to_string(),
             Arc::new(container),
             pipeline(),
-            mini_moka::sync::Cache::new(1000),
+            Cache::new(mini_moka::sync::Cache::new(1000)),
             2,
         ));
 
@@ -1827,7 +1820,7 @@ mod tests {
             "book".to_string(),
             Arc::new(container),
             pipeline(),
-            mini_moka::sync::Cache::new(1000),
+            Cache::new(mini_moka::sync::Cache::new(1000)),
             0,
         );
 
@@ -1882,7 +1875,7 @@ mod tests {
             "book".to_string(),
             Arc::new(container),
             pipeline(),
-            mini_moka::sync::Cache::new(1000),
+            Cache::new(mini_moka::sync::Cache::new(1000)),
             0,
         ));
 
@@ -1931,7 +1924,7 @@ mod tests {
             "book".to_string(),
             Arc::new(container),
             pipeline(),
-            mini_moka::sync::Cache::new(1000),
+            Cache::new(mini_moka::sync::Cache::new(1000)),
             0,
         ));
 
@@ -2055,7 +2048,7 @@ mod tests {
             "book".to_string(),
             Arc::new(container),
             pipeline(),
-            mini_moka::sync::Cache::new(1000),
+            Cache::new(mini_moka::sync::Cache::new(1000)),
             0,
         ));
 
@@ -2118,8 +2111,8 @@ mod tests {
         assert!(service.cached(&names[0]).is_some());
     }
 
-    /// One book, one entry, and a reader that counts how often the bytes are read.
-    fn counting_service(names: &[String], reads: Arc<AtomicUsize>) -> PageService {
+    /// A book whose reader counts how often the bytes are read.
+    fn counting_container(names: &[String], reads: Arc<AtomicUsize>) -> MockContainer {
         let mut container = MockContainer::new();
         container.expect_get_entries().return_const(names.to_vec());
         container.expect_max_readers().return_const(usize::MAX);
@@ -2132,7 +2125,168 @@ mod tests {
             });
             Ok(Box::new(reader) as Box<dyn PageReader>)
         });
-        service(container)
+        container
+    }
+
+    /// One book, and a reader that counts how often the bytes are read.
+    fn counting_service(names: &[String], reads: Arc<AtomicUsize>) -> PageService {
+        service(counting_container(names, reads))
+    }
+
+    #[test]
+    fn a_width_only_resize_serves_the_page_from_the_cache() {
+        let names = entries(1);
+        let reads = Arc::new(AtomicUsize::new(0));
+        let service = counting_service(&names, reads.clone());
+
+        // The 4x2 page is bound by the height in both boxes: 2x1 in each.
+        service.set_display_size(Some(Fit {
+            width: 100,
+            height: 1,
+        }));
+        let before = service
+            .page_blocking(&names[0], Priority::Foreground)
+            .unwrap();
+        service.set_display_size(Some(Fit {
+            width: 50,
+            height: 1,
+        }));
+        let after = service
+            .page_blocking(&names[0], Priority::Foreground)
+            .unwrap();
+
+        assert_eq!((after.width, after.height), (2, 1));
+        assert_eq!(after.data, before.data);
+        assert_eq!(reads.load(Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn the_loupe_is_served_a_viewer_copy_that_came_out_unresized() {
+        let names = entries(1);
+        let reads = Arc::new(AtomicUsize::new(0));
+        let service = counting_service(&names, reads.clone());
+        service.set_display_size(Some(Fit {
+            width: 8,
+            height: 8,
+        }));
+
+        let displayed = service
+            .page_blocking(&names[0], Priority::Foreground)
+            .unwrap();
+        let magnified = service.page_full_blocking(&names[0]).unwrap();
+
+        assert_eq!((displayed.width, displayed.height), (4, 2));
+        assert_eq!((magnified.width, magnified.height), (4, 2));
+        assert_eq!(reads.load(Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn a_preload_window_skips_pages_already_read_at_the_same_size() {
+        let recording = crate::perf::capture::record();
+        let names = entries(3);
+        let service = counting_service(&names, Arc::new(AtomicUsize::new(0)));
+        service.set_display_size(Some(Fit {
+            width: 100,
+            height: 1,
+        }));
+        for name in &names {
+            service.page_blocking(name, Priority::Foreground).unwrap();
+        }
+
+        service.set_display_size(Some(Fit {
+            width: 50,
+            height: 1,
+        }));
+        service.request_preload_around(0, 2, 0).unwrap();
+
+        // Counted at the skip, not by reads: a queued job would also be answered from the
+        // cache by the worker's re-check.
+        let lines = recording.lines("preload");
+        assert_eq!(lines.len(), 1, "{lines:?}");
+        assert!(lines[0].contains(" cached=3 "), "{}", lines[0]);
+    }
+
+    #[test]
+    fn the_preview_finds_the_full_page_cached_after_a_width_only_resize() {
+        let names = entries(1);
+        let log = Arc::new(Mutex::new(Vec::new()));
+        // Nothing is gated: no entry is called "none".
+        let service = service(gated_container(
+            names.clone(),
+            "none",
+            Arc::new(Barrier::new(1)),
+            log.clone(),
+        ));
+        service.set_display_size(Some(Fit {
+            width: 100,
+            height: 1,
+        }));
+        service
+            .page_blocking(&names[0], Priority::Foreground)
+            .unwrap();
+
+        service.set_display_size(Some(Fit {
+            width: 50,
+            height: 1,
+        }));
+        assert!(service.preview_blocking(&names[0]).unwrap().is_none());
+        assert_eq!(*log.lock().unwrap(), vec!["p000.png"]);
+    }
+
+    #[test]
+    fn a_reopened_book_is_served_from_the_cache_its_last_opening_filled() {
+        let names = entries(1);
+        let reads = Arc::new(AtomicUsize::new(0));
+        let cache = Cache::new(mini_moka::sync::Cache::new(1000));
+        let open = || {
+            PageService::new(
+                "book".to_string(),
+                Arc::new(counting_container(&names, reads.clone())),
+                pipeline(),
+                cache.clone(),
+                0,
+            )
+        };
+
+        let first = open();
+        first
+            .page_blocking(&names[0], Priority::Foreground)
+            .unwrap();
+        first.close();
+        let second = open();
+        second
+            .page_blocking(&names[0], Priority::Foreground)
+            .unwrap();
+
+        assert_eq!(reads.load(Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn a_page_that_fails_to_decode_is_read_again() {
+        let names = entries(1);
+        let reads = Arc::new(AtomicUsize::new(0));
+        let mut container = MockContainer::new();
+        container.expect_get_entries().return_const(names.clone());
+        container.expect_max_readers().return_const(usize::MAX);
+        let reader_reads = reads.clone();
+        container.expect_open_reader().returning(move || {
+            let reads = reader_reads.clone();
+            let mut reader = MockPageReader::new();
+            reader.expect_read_page().returning(move |_| {
+                reads.fetch_add(1, Ordering::SeqCst);
+                Ok(PageData::Encoded(b"not an image".to_vec()))
+            });
+            Ok(Box::new(reader) as Box<dyn PageReader>)
+        });
+        let service = service(container);
+
+        assert!(service
+            .page_blocking(&names[0], Priority::Foreground)
+            .is_err());
+        assert!(service
+            .page_blocking(&names[0], Priority::Foreground)
+            .is_err());
+        assert_eq!(reads.load(Ordering::SeqCst), 2);
     }
 
     #[test]
@@ -2391,7 +2545,7 @@ mod tests {
             "novel".to_string(),
             Arc::new(container),
             pipeline(),
-            mini_moka::sync::Cache::new(100),
+            Cache::new(mini_moka::sync::Cache::new(100)),
             0,
         );
 

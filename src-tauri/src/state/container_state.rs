@@ -38,12 +38,14 @@ pub const PDF_MAX_RENDER_WIDTH: i32 = 16384;
 ///
 /// A new, empty `Cache` with the configured capacity and weigher.
 fn build_image_cache(size_mib: u64) -> Cache {
-    mini_moka::sync::Cache::builder()
-        .max_capacity(size_mib * 1024 * 1024)
-        .weigher(|_key, value: &Arc<crate::image::types::Image>| -> u32 {
-            value.data.len().try_into().unwrap_or(u32::MAX)
-        })
-        .build()
+    Cache::new(
+        mini_moka::sync::Cache::builder()
+            .max_capacity(size_mib * 1024 * 1024)
+            .weigher(|_key, value: &Arc<crate::image::types::Image>| -> u32 {
+                value.data.len().try_into().unwrap_or(u32::MAX)
+            })
+            .build(),
+    )
 }
 
 /// The height pdfium is asked to render a PDF page at.
@@ -494,7 +496,7 @@ mod tests {
                 max_image_height: 2000,
                 resize_method: state.settings.image_resampling_method,
             },
-            mini_moka::sync::Cache::new(100),
+            Cache::new(mini_moka::sync::Cache::new(100)),
             1,
         ));
         let service = state.service_for("book").unwrap();
@@ -722,24 +724,27 @@ mod tests {
 
     #[test]
     fn test_build_image_cache_stores_and_reads_back() {
-        use crate::image::types::Image;
-        use crate::page::cache::CacheKey;
+        use crate::{
+            image::types::Image,
+            page::pipeline::{Fit, Rendered, Shape},
+        };
 
         let cache = build_image_cache(64);
-        let key = CacheKey {
-            book_id: "book".to_string(),
-            entry: "p1.png".to_string(),
-            fit: crate::page::pipeline::Fit::UNBOUNDED,
+        let rendered = Rendered {
+            image: Arc::new(Image {
+                data: vec![1, 2, 3],
+                width: 1,
+                height: 1,
+            }),
+            shape: Shape::Scalable {
+                width: 1,
+                height: 1,
+            },
         };
-        let image = Arc::new(Image {
-            data: vec![1, 2, 3],
-            width: 1,
-            height: 1,
-        });
 
-        cache.insert(key.clone(), image.clone());
+        cache.put("book", "p1.png", &rendered);
 
-        assert!(cache.get(&key).is_some());
+        assert!(cache.get("book", "p1.png", Fit::UNBOUNDED).is_some());
     }
 
     #[test]
@@ -853,8 +858,6 @@ mod tests {
 
     #[test]
     fn installing_hands_the_book_the_cache_the_state_holds_now() {
-        use crate::page::cache::CacheKey;
-
         let (_dir, path) = one_page_book();
         let mut state = ContainerState::default();
         // Built against the cache the state held at the time...
@@ -869,13 +872,11 @@ mod tests {
             .expect("the book is open")
             .page_blocking("p001.png", crate::page::service::Priority::Foreground)
             .expect("read the page");
-        let key = CacheKey {
-            book_id: path.clone(),
-            entry: "p001.png".to_string(),
-            fit: Fit::UNBOUNDED,
-        };
         assert!(
-            state.image_cache.get(&key).is_some(),
+            state
+                .image_cache
+                .get(&path, "p001.png", Fit::UNBOUNDED)
+                .is_some(),
             "the page must land in the cache the state reads, not the one it discarded"
         );
     }
@@ -1042,23 +1043,31 @@ mod tests {
         assert_eq!((page.width, page.height), (2, 1));
     }
 
+    /// A 1x1 page, as a worker would hand it to the cache.
+    fn one_pixel_page() -> crate::page::pipeline::Rendered {
+        crate::page::pipeline::Rendered {
+            image: Arc::new(crate::image::types::Image {
+                data: vec![1, 2, 3],
+                width: 1,
+                height: 1,
+            }),
+            shape: crate::page::pipeline::Shape::Scalable {
+                width: 1,
+                height: 1,
+            },
+        }
+    }
+
     #[test]
     fn changing_a_rendering_setting_empties_the_image_cache() {
-        use crate::{page::cache::CacheKey, settings::ImageResamplingMethod};
+        use crate::settings::ImageResamplingMethod;
 
         let mut state = ContainerState::default();
-        let key = CacheKey {
-            book_id: "book".to_string(),
-            entry: "p001.png".to_string(),
-            fit: Fit::UNBOUNDED,
-        };
-        let cached = Arc::new(crate::image::types::Image {
-            data: vec![1, 2, 3],
-            width: 1,
-            height: 1,
-        });
-        state.image_cache.insert(key.clone(), cached);
-        assert!(state.image_cache.get(&key).is_some());
+        state.image_cache.put("book", "p001.png", &one_pixel_page());
+        assert!(state
+            .image_cache
+            .get("book", "p001.png", Fit::UNBOUNDED)
+            .is_some());
 
         let mut settings = AppSettings::default();
         settings.reader.rendering.image_resampling_method = ImageResamplingMethod::Nearest;
@@ -1067,34 +1076,89 @@ mod tests {
 
         // The cache outlives a book. Without this, reopening the same book would serve
         // pages rendered with the filter the user just changed away from.
-        assert!(state.image_cache.get(&key).is_none());
+        assert!(state
+            .image_cache
+            .get("book", "p001.png", Fit::UNBOUNDED)
+            .is_none());
     }
 
     #[test]
     fn re_applying_the_same_settings_keeps_the_image_cache() {
-        use crate::page::cache::CacheKey;
-
         let mut state = ContainerState::default();
         let settings = AppSettings::default();
         state.apply_settings(&settings);
 
-        let key = CacheKey {
-            book_id: "book".to_string(),
-            entry: "p001.png".to_string(),
-            fit: Fit::UNBOUNDED,
-        };
-        state.image_cache.insert(
-            key.clone(),
-            Arc::new(crate::image::types::Image {
-                data: vec![1, 2, 3],
-                width: 1,
-                height: 1,
-            }),
-        );
+        state.image_cache.put("book", "p001.png", &one_pixel_page());
 
         // Settings are re-applied on every save, most of which change nothing about how
         // a page is rendered.
         state.apply_settings(&settings);
-        assert!(state.image_cache.get(&key).is_some());
+        assert!(state
+            .image_cache
+            .get("book", "p001.png", Fit::UNBOUNDED)
+            .is_some());
+    }
+
+    #[test]
+    fn a_rendering_change_reads_an_open_books_page_again() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        use crate::{
+            container::traits::{MockContainer, MockPageReader, PageData, PageReader},
+            page::service::Priority,
+            settings::ImageResamplingMethod,
+        };
+
+        let mut page = Vec::new();
+        image::DynamicImage::ImageRgb8(image::RgbImage::new(4, 2))
+            .write_to(
+                &mut std::io::Cursor::new(&mut page),
+                image::ImageFormat::Png,
+            )
+            .unwrap();
+        let reads = Arc::new(AtomicUsize::new(0));
+        let mut container = MockContainer::new();
+        container
+            .expect_get_entries()
+            .return_const(vec!["p1.png".to_string()]);
+        container.expect_max_readers().return_const(usize::MAX);
+        let reader_reads = reads.clone();
+        container.expect_open_reader().returning(move || {
+            let page = page.clone();
+            let reads = reader_reads.clone();
+            let mut reader = MockPageReader::new();
+            reader.expect_read_page().returning(move |_| {
+                reads.fetch_add(1, Ordering::SeqCst);
+                Ok(PageData::Encoded(page.clone()))
+            });
+            Ok(Box::new(reader) as Box<dyn PageReader>)
+        });
+        let mut state = ContainerState::default();
+        state.install(PageService::new(
+            "book".to_string(),
+            Arc::new(container),
+            Pipeline {
+                display: None,
+                max_image_height: state.settings.max_image_height,
+                resize_method: state.settings.image_resampling_method,
+            },
+            state.image_cache.clone(),
+            1,
+        ));
+        let service = state.service_for("book").unwrap();
+        service
+            .page_blocking("p1.png", Priority::Foreground)
+            .unwrap();
+
+        let mut settings = AppSettings::default();
+        settings.reader.rendering.image_resampling_method = ImageResamplingMethod::Nearest;
+        state.apply_settings(&settings);
+        service
+            .page_blocking("p1.png", Priority::Foreground)
+            .unwrap();
+        service.close();
+
+        // Same viewport, same output size: only the emptied cache makes it read again.
+        assert_eq!(reads.load(Ordering::SeqCst), 2);
     }
 }

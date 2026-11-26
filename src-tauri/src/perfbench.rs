@@ -638,7 +638,7 @@ fn perfbench_report() {
         ))
     };
     // A fresh cache per sample, or the second one measures a hash lookup.
-    let fresh = || mini_moka::sync::Cache::new(1_000);
+    let fresh = || Cache::new(mini_moka::sync::Cache::new(1_000));
 
     let svc_dim = bench("PageService::dimensions (200 pages)", 3, || {
         service_for(fresh()).dimensions().unwrap()
@@ -884,7 +884,7 @@ fn perfbench_report() {
                 "bench-pdf".to_string(),
                 Arc::clone(&pdf),
                 FITTED,
-                mini_moka::sync::Cache::new(1_000),
+                Cache::new(mini_moka::sync::Cache::new(1_000)),
                 readers,
             ))
         };

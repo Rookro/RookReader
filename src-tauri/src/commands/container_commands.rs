@@ -358,6 +358,7 @@ mod tests {
         container::traits::{MockContainer, MockPageReader, PageData, PageReader},
         image::{resizer::ResizeFilter, types::Image},
         page::{
+            cache::Cache,
             pipeline::Pipeline,
             service::{close_if_stuck, PageService, StuckWatch},
         },
@@ -427,7 +428,7 @@ mod tests {
                 max_image_height: 2000,
                 resize_method: ResizeFilter::Bilinear,
             },
-            mini_moka::sync::Cache::new(100),
+            Cache::new(mini_moka::sync::Cache::new(100)),
             0,
         ));
         let watch = close_if_stuck(&container_state.current_service().expect("a book is open"));
