@@ -130,8 +130,8 @@ fn read_image_entry_names(archive: &Path) -> Result<Vec<String>> {
 
 /// Reads the ZIP central directory, decoding names the same way `ZipContainer` does.
 fn read_zip_entry_names(archive: &Path) -> Result<Vec<String>> {
-    let mut zip = zip::ZipArchive::new(File::open(archive)?)?;
-    Ok(readable_raw_names(&mut zip)
+    let zip = zip::ZipArchive::new(File::open(archive)?)?;
+    Ok(readable_raw_names(&zip)
         .into_iter()
         .map(|(_, raw)| archive_path::normalize_entry(&decode_entry_name(&raw)))
         .collect())
