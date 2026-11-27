@@ -67,6 +67,7 @@ const Harness = ({
           key={slot.role}
           alt={`page-${slot.role}`}
           src={slot.url}
+          onLoad={lens.drawNow}
           ref={(el) => {
             if (el) imageRefs.current.set(slot.role, el);
             else imageRefs.current.delete(slot.role);
@@ -400,5 +401,22 @@ describe("Loupe", () => {
     const { lens } = getCanvasAndLens(view.container);
     expect(lens.style.transform).toBe("translate3d(500px, 350px, 0px)");
     expect(stubs.ctx.drawImage).toHaveBeenCalledTimes(1);
+  });
+
+  it("draws the displayed page when the image finishes loading after the layout commit", () => {
+    const { toggleLoupe } = mountHarness();
+    const img = screen.getByAltText("page-single") as HTMLImageElement;
+    Object.defineProperty(img, "complete", { configurable: true, value: false });
+    Object.defineProperty(img, "naturalWidth", { configurable: true, value: 0 });
+
+    toggleLoupe({ clientX: 600, clientY: 450 });
+    expect(stubs.ctx.drawImage).not.toHaveBeenCalled();
+
+    Object.defineProperty(img, "complete", { configurable: true, value: true });
+    Object.defineProperty(img, "naturalWidth", { configurable: true, value: 400 });
+    fireEvent.load(img);
+
+    expect(stubs.ctx.drawImage).toHaveBeenCalledTimes(1);
+    expect(stubs.ctx.drawImage.mock.calls[0][0]).toBe(img);
   });
 });

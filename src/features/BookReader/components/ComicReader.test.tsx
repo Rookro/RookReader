@@ -259,6 +259,15 @@ describe("ComicReader", () => {
       expect(props.pages[1].displayed()).toBe(screen.getByAltText("Right Page"));
     });
 
+    it("redraws the lens when a displayed page image finishes loading", () => {
+      openOverASpread(new Map());
+      const { lens } = vi.mocked(loupe.useLoupe).mock.results[0].value;
+
+      fireEvent.load(screen.getByAltText("Left Page"));
+
+      expect(lens.drawNow).toHaveBeenCalledTimes(1);
+    });
+
     it("magnifies the pages on screen, not the ones the index has moved to", () => {
       mockOpenLoupe();
       vi.mocked(magnifiedPages.useMagnifiedPages).mockReturnValue(new Map());

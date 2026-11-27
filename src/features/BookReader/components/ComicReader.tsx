@@ -27,9 +27,14 @@ import PageErrorMessage from "./PageErrorMessage";
  *
  * @param slot The slot describing the page's place and alignment.
  * @param imageRefs Map populated with each slot's mounted `<img>` element for the loupe.
+ * @param onImageLoad Called when the displayed `<img>` finishes loading, so the loupe can redraw.
  * @returns The page element, or null while it is still loading.
  */
-const renderPage = (slot: PageSlot, imageRefs: Map<SlotRole, HTMLImageElement>) => {
+const renderPage = (
+  slot: PageSlot,
+  imageRefs: Map<SlotRole, HTMLImageElement>,
+  onImageLoad: () => void,
+) => {
   const width = `${slot.width * 100}%`;
   if (slot.url) {
     return (
@@ -42,6 +47,7 @@ const renderPage = (slot: PageSlot, imageRefs: Map<SlotRole, HTMLImageElement>) 
         }}
         src={slot.url}
         alt={SLOT_ALT[slot.role]}
+        onLoad={onImageLoad}
         sx={{
           width,
           height: "100%",
@@ -251,7 +257,7 @@ export default function ComicReader() {
       >
         <Box sx={{ display: "flex", width: "100%", height: "100%" }}>
           {spinnerOverlay}
-          {slots.map((slot) => renderPage(slot, imageRefs.current))}
+          {slots.map((slot) => renderPage(slot, imageRefs.current, lens.drawNow))}
         </Box>
       </Loupe>
     );
