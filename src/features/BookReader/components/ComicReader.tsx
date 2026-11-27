@@ -4,8 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { type RootState, useAppDispatch, useAppSelector } from "../../../store/store";
 import { useAdjacentBookNavigation } from "../hooks/useAdjacentBookNavigation";
 import { useDisplaySize } from "../hooks/useDisplaySize";
-import { useFullSizePages } from "../hooks/useFullSizePages";
 import { useLoupe } from "../hooks/useLoupe";
+import { useMagnifiedPages } from "../hooks/useMagnifiedPages";
 import { usePageNavigation } from "../hooks/usePageNavigation";
 import { useReadingDirection } from "../hooks/useReadingDirection";
 import { useViewerController } from "../hooks/useViewerController";
@@ -105,20 +105,27 @@ export default function ComicReader() {
     useLoupe(containerPath);
   const displaySize = useDisplaySize(containerRef);
 
-  const { displayedLayout, moveForward, moveBack, moveToFirst, moveToLast, isImageLoading } =
-    useViewerController({
-      containerPath,
-      entries,
-      index,
-      isSpreadShifted,
-      settings,
-      hasPreviews,
-      displaySize,
-      dispatch,
-      book,
-      onForwardBoundary,
-      onBackwardBoundary,
-    });
+  const {
+    displayedLayout,
+    reportedSize,
+    moveForward,
+    moveBack,
+    moveToFirst,
+    moveToLast,
+    isImageLoading,
+  } = useViewerController({
+    containerPath,
+    entries,
+    index,
+    isSpreadShifted,
+    settings,
+    hasPreviews,
+    displaySize,
+    dispatch,
+    book,
+    onForwardBoundary,
+    onBackwardBoundary,
+  });
 
   const loupeSettings = readerSettings.comic.loupe;
 
@@ -126,17 +133,12 @@ export default function ComicReader() {
   const secondDisplayedEntry = displayedLayout?.secondImage
     ? displayedLayout.secondEntry
     : undefined;
-  const shownEntries = useMemo(
-    () =>
-      [firstDisplayedEntry, secondDisplayedEntry].filter(
-        (entry): entry is string => entry !== undefined,
-      ),
-    [firstDisplayedEntry, secondDisplayedEntry],
-  );
-  const fullSizeUrls = useFullSizePages(
+  const magnified = useMagnifiedPages(
     containerPath,
-    shownEntries,
+    firstDisplayedEntry,
+    secondDisplayedEntry,
     loupeSettings.zoom,
+    reportedSize,
     isLoupeEnabled,
   );
 
@@ -238,8 +240,8 @@ export default function ComicReader() {
         magnified={
           // A page whose magnified copy has not arrived falls back to the displayed one:
           // softer under the lens, never blank.
-          fullSizeUrls.size > 0
-            ? pane((slot) => (slot.entry && fullSizeUrls.get(slot.entry)) ?? slot.url)
+          magnified.size > 0
+            ? pane((slot) => (slot.entry && magnified.get(slot.entry)?.src) ?? slot.url)
             : undefined
         }
       >

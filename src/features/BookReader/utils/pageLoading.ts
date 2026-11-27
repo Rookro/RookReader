@@ -69,7 +69,7 @@ export const pagesAhead = (
  * @param url The URL of the image.
  * @returns The decoded element, or undefined if the image could not be decoded.
  */
-const decodeImage = async (url: string): Promise<HTMLImageElement | undefined> => {
+export const decodeImage = async (url: string): Promise<HTMLImageElement | undefined> => {
   const element = document.createElement("img");
   element.src = url;
   try {

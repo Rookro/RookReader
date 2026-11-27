@@ -17,6 +17,8 @@ import { useSpreadPairing } from "./useSpreadPairing";
 export interface ViewerController {
   /** Layout to display. */
   displayedLayout: ViewLayout | null;
+  /** The viewport size the backend has been told to render pages for, or null before the first report. */
+  reportedSize: DisplaySize | null;
   /** Is loading a image. */
   isImageLoading: boolean;
   /** Moves forward by displayed units; returns false when it stopped short. */
@@ -145,6 +147,7 @@ export const useViewerController = ({
 
   return {
     displayedLayout,
+    reportedSize,
     isImageLoading,
     moveForward,
     moveBack,

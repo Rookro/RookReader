@@ -514,6 +514,7 @@ describe("useViewerController", () => {
     });
 
     expect(result.current.displayedLayout).toEqual(mockLayout);
+    expect(result.current.reportedSize).toEqual(VIEWPORT);
   });
 
   // Verify that a spread on screen is published to the store for the page list
